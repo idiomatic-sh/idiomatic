@@ -1,17 +1,13 @@
 //! The `reaching` service of the model: free functions named by verb that say which definitions of a name can reach a point of
 //! the schedule, with no IO and no ports. Every definition that can reach is stated; none is preferred.
 
-use super::types::{
-    Binds, FlowCandidate, FlowReadState, FlowSource, MutationList, ReachModel, RegionRepeat,
-};
-use crate::domain::model::declarations::service::{binding_scope, redirected};
+use super::types::{Binds, FlowCandidate, FlowReadState, FlowSource, MutationList, ReachModel, RegionRepeat};
 use crate::domain::model::definitions::service::definition_of;
 use crate::domain::model::frames::service::{lookup, wildcard_frame};
 use crate::domain::model::frames::types::{Doubt, FrameCode, FrameModel, NameAbsence};
 use crate::domain::model::lexical::constants::MODULE;
-use crate::domain::model::lexical::service::{
-    entry, id_of, name_of, node_at, scope_at, scope_form,
-};
+use crate::domain::model::declarations::service::{binding_scope, redirected};
+use crate::domain::model::lexical::service::{entry, id_of, name_of, node_at, scope_at, scope_form};
 use crate::domain::model::lexical::types::{NamespaceKey, NodeClass, ScopeForm};
 use crate::domain::model::names::constants::NO_NAME;
 use crate::domain::model::names::service::builtin_of;
@@ -30,8 +26,7 @@ pub(crate) fn clear(model: &mut ReachModel) {
 
 /// Whether the binding step at `at` gives its name a value: the target of an annotation without a value does not.
 fn binds(source: FlowSource<'_, '_, '_>, at: Position) -> Binds {
-    if let Some(AnyNodeRef::StmtAnnAssign(statement)) =
-        node_at(source.tree, parent_of(source.tree.table, at))
+    if let Some(AnyNodeRef::StmtAnnAssign(statement)) = node_at(source.tree, parent_of(source.tree.table, at))
         && statement.value.is_none()
     {
         Binds::Nothing
@@ -88,12 +83,7 @@ pub(crate) fn reach(
             }
             if matches!(
                 form,
-                Some(
-                    ScopeForm::Function
-                        | ScopeForm::Lambda
-                        | ScopeForm::Generator
-                        | ScopeForm::Comprehension
-                )
+                Some(ScopeForm::Function | ScopeForm::Lambda | ScopeForm::Generator | ScopeForm::Comprehension)
             ) {
                 return classified(model.candidates.len(), true, uncertain);
             }
@@ -147,11 +137,7 @@ fn repeats(source: FlowSource<'_, '_, '_>, reference: Position, region: Position
         }
         _ => false,
     };
-    if repeated {
-        RegionRepeat::Repeats
-    } else {
-        RegionRepeat::Once
-    }
+    if repeated { RegionRepeat::Repeats } else { RegionRepeat::Once }
 }
 
 /// Widens what reaches the read `reference` by what a loop or a handler around it leaves open: a binding later in a loop's body
@@ -165,49 +151,29 @@ pub(crate) fn refine(
     state: FlowReadState,
 ) -> FlowReadState {
     let table = source.tree.table;
-    let key = NamespaceKey {
-        scope: binding_scope(source.lexical, table, reference, name),
-        name,
-    };
+    let key = NamespaceKey { scope: binding_scope(source.lexical, table, reference, name), name };
     let Some(list) = model.mutations.get(&key).copied() else {
         return state;
     };
-    let Some(relevant) = model
-        .mutation_lists
-        .get_mut(usize::from(list))
-        .map(std::mem::take)
-    else {
+    let Some(relevant) = model.mutation_lists.get_mut(usize::from(list)).map(std::mem::take) else {
         return state;
     };
-    let within = |inner: Position, region: Position| {
-        region <= inner && inner < subtree_end_of(table, region)
-    };
+    let within = |inner: Position, region: Position| region <= inner && inner < subtree_end_of(table, region);
     let mut at = reference;
     let mut uncertain = false;
     loop {
         let handler = entry(&source.lexical.class, at) == NodeClass::ExceptHandler;
         let widens = (handler || repeats(source, reference, at) == RegionRepeat::Repeats)
-            && !(state == FlowReadState::Unique
-                && model
-                    .candidates
-                    .iter()
-                    .all(|candidate| within(candidate.binding, at)));
+            && !(state == FlowReadState::Unique && model.candidates.iter().all(|candidate| within(candidate.binding, at)));
         if widens {
-            let protected = if handler {
-                node_at(source.tree, parent_of(table, at))
-            } else {
-                None
-            };
+            let protected = if handler { node_at(source.tree, parent_of(table, at)) } else { None };
             for mutation in &relevant {
                 if mutation.phase != phase {
                     continue;
                 }
                 let inside = if handler {
                     if let Some(AnyNodeRef::StmtTry(statement)) = protected {
-                        statement
-                            .body
-                            .iter()
-                            .any(|each| within(mutation.occurrence, id_of(each)))
+                        statement.body.iter().any(|each| within(mutation.occurrence, id_of(each)))
                     } else {
                         false
                     }
@@ -219,15 +185,9 @@ pub(crate) fn refine(
                 }
                 uncertain = true;
                 if mutation.action == BindingAction::Bind
-                    && !model
-                        .candidates
-                        .iter()
-                        .any(|candidate| candidate.binding == mutation.occurrence)
+                    && !model.candidates.iter().any(|candidate| candidate.binding == mutation.occurrence)
                 {
-                    model.candidates.push(FlowCandidate {
-                        binding: mutation.occurrence,
-                        scope: key.scope,
-                    });
+                    model.candidates.push(FlowCandidate { binding: mutation.occurrence, scope: key.scope });
                 }
             }
         }
@@ -239,35 +199,22 @@ pub(crate) fn refine(
     if let Some(slot) = model.mutation_lists.get_mut(usize::from(list)) {
         *slot = relevant;
     }
-    if uncertain {
-        FlowReadState::Uncertain
-    } else {
-        state
-    }
+    if uncertain { FlowReadState::Uncertain } else { state }
 }
 
 /// The name and the namespace the binding step at `at` changes.
 fn mutated(source: FlowSource<'_, '_, '_>, at: Position) -> Option<NamespaceKey> {
     if let Some(definition) = definition_of(source.definitions, at) {
-        return Some(NamespaceKey {
-            scope: definition.owner,
-            name: definition.name,
-        });
+        return Some(NamespaceKey { scope: definition.owner, name: definition.name });
     }
     let name = name_of(source.lexical, at);
-    (name != NO_NAME).then(|| NamespaceKey {
-        scope: binding_scope(source.lexical, source.tree.table, at, name),
-        name,
-    })
+    (name != NO_NAME).then(|| NamespaceKey { scope: binding_scope(source.lexical, source.tree.table, at, name), name })
 }
 
 /// Lists, per name of each namespace, the steps that bind or unbind it.
 pub(crate) fn list_mutations(model: &mut ReachModel, source: FlowSource<'_, '_, '_>) {
     for step in &source.schedule.steps {
-        if !matches!(
-            step.action,
-            BindingAction::Bind | BindingAction::Delete | BindingAction::Cleanup
-        ) {
+        if !matches!(step.action, BindingAction::Bind | BindingAction::Delete | BindingAction::Cleanup) {
             continue;
         }
         let Some(key) = mutated(source, step.occurrence) else {

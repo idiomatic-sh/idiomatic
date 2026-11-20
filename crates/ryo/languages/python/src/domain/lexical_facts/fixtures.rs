@@ -2,19 +2,19 @@
 //! over the language's own parse, each row shown the same way (a node as `kind@start:end`, a word as its text, a span as
 //! `start:end`), so the two are compared as texts whatever each numbers its nodes and words with.
 
-use crate::fixtures::model_rows::{Gathered, kind_shown, shown_row};
 use crate::fixtures::reading::SHOWN;
 use crate::inbound::contracts::parse::contract::ParseContract;
 use crate::outbound::notes::factory::postcard;
 use crate::outbound::syntax::factory::ruff_python_parser;
 use crate::outbound::syntax::fixtures::model_view::{FixtureView, ModelFixture, viewed};
 use crate::settings::PythonParserSettings;
+use crate::fixtures::model_rows::{Gathered, shown_row, kind_shown};
 use ryo::languages::contract::{Collect, read};
 use std::sync::Arc;
 
 use ryo::languages::{
-    self, AbsenceCause, Bits, ByteSlice, CatalogRelation, Elements, FieldRequest, FileId,
-    FileWords, Fill, NoteRequest, ParseRequest, Position, Rows, SourcePath, Symbol, Symbols, facts,
+    self, AbsenceCause, Bits, ByteSlice, CatalogRelation, Elements, FieldRequest, FileId, FileWords, Fill, NoteRequest,
+    ParseRequest, Position, Rows, SourcePath, Symbol, Symbols, facts,
 };
 
 /// What one side wrote for a source: its rows as texts, sorted, and the causes it gave for a relation read only in part.
@@ -49,21 +49,12 @@ pub(crate) fn filled<R: CatalogRelation>(
     viewed(&mut fixture, source, FileId(0), &mut |view| {
         let base = facts::base_words(&[]);
         let mut words = facts::file_words(&base);
-        let mut gathered = Gathered::<R> {
-            rows: Vec::new(),
-            causes: Vec::new(),
-        };
+        let mut gathered = Gathered::<R> { rows: Vec::new(), causes: Vec::new() };
         told.absent = match fill(view, &mut words, &mut gathered) {
             Fill::Written => None,
             Fill::Absent(cause) => Some(cause),
         };
-        told.rows = gathered
-            .rows
-            .iter()
-            .map(|cells| {
-                crate::fixtures::model_rows::shown_filled::<R>(cells.as_ref(), view.table, &words)
-            })
-            .collect();
+        told.rows = gathered.rows.iter().map(|cells| crate::fixtures::model_rows::shown_filled::<R>(cells.as_ref(), view.table, &words)).collect();
         told.rows.sort();
         told.causes = gathered.causes;
     });
@@ -72,8 +63,7 @@ pub(crate) fn filled<R: CatalogRelation>(
 
 /// What today's reader of the relation writes for `source`, read with the language's own parse.
 pub(crate) fn read_today<R: CatalogRelation>(source: &'static str) -> Told {
-    let (mut elements, mut symbols, mut out) =
-        (Elements::default(), Symbols::default(), Collect::default());
+    let (mut elements, mut symbols, mut out) = (Elements::default(), Symbols::default(), Collect::default());
     let parse = ParseContract::new(
         PythonParserSettings::default(),
         Arc::new(ruff_python_parser(PythonParserSettings::default())),
@@ -103,8 +93,7 @@ pub(crate) fn read_today<R: CatalogRelation>(source: &'static str) -> Told {
         )
     };
     let word = |symbol: Symbol| {
-        languages::text_of(&symbols, ByteSlice(source.as_bytes()), symbol)
-            .map_or_else(String::new, |text| text.0.to_owned())
+        languages::text_of(&symbols, ByteSlice(source.as_bytes()), symbol).map_or_else(String::new, |text| text.0.to_owned())
     };
     let mut rows: Vec<String> = out
         .rows()
@@ -115,15 +104,7 @@ pub(crate) fn read_today<R: CatalogRelation>(source: &'static str) -> Told {
         })
         .collect();
     rows.sort();
-    Told {
-        rows,
-        causes: out
-            .partials
-            .iter()
-            .map(|(_, cause, _)| cause.clone())
-            .collect(),
-        absent: None,
-    }
+    Told { rows, causes: out.partials.iter().map(|(_, cause, _)| cause.clone()).collect(), absent: None }
 }
 
 /// The fillers' rows of `source` against today's readers' rows of it.
@@ -145,17 +126,9 @@ pub(crate) fn compared<R: CatalogRelation>(
         }
     }
     if differing.is_empty() && ours.rows.len() != theirs.rows.len() {
-        differing.push(format!(
-            "{} rows against {}",
-            ours.rows.len(),
-            theirs.rows.len()
-        ));
+        differing.push(format!("{} rows against {}", ours.rows.len(), theirs.rows.len()));
     }
-    Compared {
-        rows: theirs.rows.len(),
-        differing,
-        causes: ours.causes,
-    }
+    Compared { rows: theirs.rows.len(), differing, causes: ours.causes }
 }
 
 /// Every construct that binds, reads, deletes or scopes a name, once.

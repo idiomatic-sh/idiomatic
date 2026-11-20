@@ -18,69 +18,36 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("asking_for_nothing_builds_nothing"),
         word: Word::Succeeds,
         input: || &[ModelPart::Nothing],
-        expect: Expect::Value((
-            Built {
-                lexical: PartState::Pending,
-                resolution: PartState::Pending,
-                flow: PartState::Pending,
-            },
-            0,
-        )),
+        expect: Expect::Value((Built { lexical: PartState::Pending, resolution: PartState::Pending, flow: PartState::Pending }, 0)),
     },
     Case {
         name: CaseName("the_lexical_part_is_built_without_the_flow"),
         word: Word::Succeeds,
         input: || &[ModelPart::Lexical],
-        expect: Expect::Value((
-            Built {
-                lexical: PartState::Ready,
-                resolution: PartState::Pending,
-                flow: PartState::Pending,
-            },
-            0,
-        )),
+        expect: Expect::Value((Built { lexical: PartState::Ready, resolution: PartState::Pending, flow: PartState::Pending }, 0)),
     },
     Case {
         name: CaseName("the_resolution_is_built_only_when_asked_for"),
         word: Word::Succeeds,
         input: || &[ModelPart::Resolution],
-        expect: Expect::Value((
-            Built {
-                lexical: PartState::Ready,
-                resolution: PartState::Ready,
-                flow: PartState::Pending,
-            },
-            0,
-        )),
+        expect: Expect::Value((Built { lexical: PartState::Ready, resolution: PartState::Ready, flow: PartState::Pending }, 0)),
     },
     Case {
         name: CaseName("the_flow_part_builds_the_lexical_part_first"),
         word: Word::Succeeds,
         input: || &[ModelPart::Flow, ModelPart::Lexical],
-        expect: Expect::Value((
-            Built {
-                lexical: PartState::Ready,
-                resolution: PartState::Pending,
-                flow: PartState::Ready,
-            },
-            4,
-        )),
+        expect: Expect::Value((Built { lexical: PartState::Ready, resolution: PartState::Pending, flow: PartState::Ready }, 4)),
     },
 ];
 
 fn subject(parts: Input) -> Value {
     let mut model = SemanticModel::default();
     let mut state = Built::default();
-    viewed(
-        &mut ModelFixture::default(),
-        "x = y\n",
-        FileId(0),
-        &mut |view| {
-            for part in parts {
-                built(&mut model, &mut state, *part, view.table, view.nodes);
-            }
-        },
-    );
+    viewed(&mut ModelFixture::default(), "x = y\n", FileId(0), &mut |view| {
+        for part in parts {
+            built(&mut model, &mut state, *part, view.table, view.nodes);
+        }
+    });
     (state, model.schedule.steps.len())
 }
 

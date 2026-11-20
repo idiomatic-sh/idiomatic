@@ -8,15 +8,14 @@
 use super::types::{NameProvenance, ProvenanceWords, QualifiedPath};
 use crate::domain::definitions::constants as refinements;
 use crate::domain::model::definitions::types::{DefinitionWord, NameDefinition};
-use crate::domain::model::lexical::constants::MODULE;
-use crate::domain::model::lexical::service::{entry, name_of, scope_at, scope_form};
-use crate::domain::model::lexical::types::{
-    ImportOrigin, ImportRename, NameUse, NodeClass, ScopeForm,
-};
-use crate::domain::model::names::service::{builtin_of, held_word, name_word, text_of, word};
-use crate::domain::model::names::types::{FactWords, HeldWords, NameTable};
 use crate::domain::model::resolution::service::{proof_of, resolved_at};
 use crate::domain::model::resolution::types::OriginProof;
+use crate::domain::model::lexical::constants::MODULE;
+use crate::domain::syntax::constants::DOT;
+use crate::domain::model::lexical::service::{entry, name_of, scope_at, scope_form};
+use crate::domain::model::lexical::types::{ImportOrigin, ImportRename, NameUse, NodeClass, ScopeForm};
+use crate::domain::model::names::service::{builtin_of, held_word, name_word, text_of, word};
+use crate::domain::model::names::types::{FactWords, HeldWords, NameTable};
 use crate::domain::model::view::types::{ModelPart, ModelRead, ModelView};
 use crate::domain::names::service::unknown;
 use crate::domain::names::types::Unresolved;
@@ -25,23 +24,17 @@ use crate::domain::qualification::constants::{
 };
 use crate::domain::qualification::service::builtin_named;
 use crate::domain::relations::collections::relations::implicit_symbol::constants as implicit;
-use crate::domain::relations::collections::relations::implicit_symbol::item::{
-    BUILTIN_ATTRIBUTES, MODULE_GLOBALS,
-};
-use crate::domain::syntax::constants::DOT;
+use crate::domain::relations::collections::relations::implicit_symbol::item::{BUILTIN_ATTRIBUTES, MODULE_GLOBALS};
 use ryo::languages::node_table::{parent_of, span_of};
 use ryo::languages::{
-    DefinesRow, FileWords, Fill, ImplicitSymbolRow, Integer, NameText, NodeId, NodeTable, Position,
-    QualifiedNameRow, ReferenceRow, ResolvesRow, Rows, ScopeRow, Span, node_id,
+    DefinesRow, FileWords, Fill, ImplicitSymbolRow, Integer, NameText, NodeId, NodeTable, Position, QualifiedNameRow,
+    ReferenceRow, ResolvesRow, Rows, ScopeRow, Span, node_id,
 };
 
 /// The bytes of the node `at`.
 pub(crate) fn span_at(table: &NodeTable, at: Position) -> Span {
     let span = span_of(table, at);
-    Span {
-        start: span.start,
-        end: span.end,
-    }
+    Span { start: span.start, end: span.end }
 }
 
 /// The node cell of the node `at` of the file being read.
@@ -59,25 +52,12 @@ fn positions(read: ModelRead<'_>) -> impl Iterator<Item = Position> + use<> {
 fn scope_row(read: ModelRead<'_>, at: Position) -> Option<ScopeRow> {
     let lexical = &read.model.lexical;
     let _: ScopeForm = scope_form(entry(&lexical.class, at))?;
-    let parent = if at == MODULE {
-        MODULE
-    } else {
-        scope_at(lexical, at)
-    };
-    Some(ScopeRow {
-        parent: node(read, parent),
-        child: node(read, at),
-        file: read.file,
-        span: span_at(read.table, at),
-    })
+    let parent = if at == MODULE { MODULE } else { scope_at(lexical, at) };
+    Some(ScopeRow { parent: node(read, parent), child: node(read, at), file: read.file, span: span_at(read.table, at) })
 }
 
 /// Writes one row per scope.
-pub(crate) fn scope_rows<V: ModelView>(
-    file: &mut V,
-    _words: &mut FileWords,
-    rows: &mut dyn Rows<ScopeRow>,
-) -> Fill {
+pub(crate) fn scope_rows<V: ModelView>(file: &mut V, _words: &mut FileWords, rows: &mut dyn Rows<ScopeRow>) -> Fill {
     let read = file.semantics(ModelPart::Lexical);
     for at in positions(read) {
         if let Some(row) = scope_row(read, at) {
@@ -113,12 +93,7 @@ const fn refinement(word: DefinitionWord) -> NameText<'static> {
 }
 
 /// The row of one definition.
-fn defines_row(
-    read: ModelRead<'_>,
-    words: &mut FileWords,
-    known: &mut FactWords,
-    definition: &NameDefinition,
-) -> DefinesRow {
+fn defines_row(read: ModelRead<'_>, words: &mut FileWords, known: &mut FactWords, definition: &NameDefinition) -> DefinesRow {
     DefinesRow {
         id: node(read, definition.at),
         kind: definition.kind,
@@ -131,11 +106,7 @@ fn defines_row(
 }
 
 /// Writes one row per definition, in source order.
-pub(crate) fn defines_rows<V: ModelView>(
-    file: &mut V,
-    words: &mut FileWords,
-    rows: &mut dyn Rows<DefinesRow>,
-) -> Fill {
+pub(crate) fn defines_rows<V: ModelView>(file: &mut V, words: &mut FileWords, rows: &mut dyn Rows<DefinesRow>) -> Fill {
     let read = file.semantics(ModelPart::Lexical);
     let mut known = read.model.words.borrow_mut();
     for definition in &read.model.definitions.all {
@@ -174,12 +145,7 @@ fn append_attributes(read: ModelRead<'_>, at: Position, path: &mut QualifiedPath
 
 /// The row of the name or attribute expression `at`, when it is read or deleted and is not the object of an attribute that is
 /// read: the dotted name it writes, left in `path`.
-fn reference_row(
-    read: ModelRead<'_>,
-    words: &mut FileWords,
-    path: &mut QualifiedPath,
-    at: Position,
-) -> Option<ReferenceRow> {
+fn reference_row(read: ModelRead<'_>, words: &mut FileWords, path: &mut QualifiedPath, at: Position) -> Option<ReferenceRow> {
     let lexical = &read.model.lexical;
     let class = entry(&lexical.class, at);
     let usage = entry(&lexical.usage, at);
@@ -211,11 +177,7 @@ fn reference_row(
 }
 
 /// Writes one row per name or attribute expression that is read or deleted and is not the object of an attribute that is read.
-pub(crate) fn reference_rows<V: ModelView>(
-    file: &mut V,
-    words: &mut FileWords,
-    rows: &mut dyn Rows<ReferenceRow>,
-) -> Fill {
+pub(crate) fn reference_rows<V: ModelView>(file: &mut V, words: &mut FileWords, rows: &mut dyn Rows<ReferenceRow>) -> Fill {
     let read = file.semantics(ModelPart::Lexical);
     let mut path = QualifiedPath::default();
     for at in positions(read) {
@@ -227,12 +189,7 @@ pub(crate) fn reference_rows<V: ModelView>(
 }
 
 /// The row of the name expression `at`, when it is read and resolves to a definition of the file.
-fn resolves_row(
-    read: ModelRead<'_>,
-    words: &mut FileWords,
-    known: &mut FactWords,
-    at: Position,
-) -> Option<ResolvesRow> {
+fn resolves_row(read: ModelRead<'_>, words: &mut FileWords, known: &mut FactWords, at: Position) -> Option<ResolvesRow> {
     let lexical = &read.model.lexical;
     if entry(&lexical.class, at) != NodeClass::Name || entry(&lexical.usage, at) != NameUse::Load {
         return None;
@@ -241,12 +198,7 @@ fn resolves_row(
     Some(ResolvesRow {
         occurrence: node(read, at),
         owner: node(read, scope_at(lexical, at)),
-        name: name_word(
-            &read.model.names,
-            words,
-            &mut known.names,
-            name_of(lexical, at),
-        ),
+        name: name_word(&read.model.names, words, &mut known.names, name_of(lexical, at)),
         definition: node(read, definition),
         file: read.file,
         span: span_at(read.table, at),
@@ -254,11 +206,7 @@ fn resolves_row(
 }
 
 /// Writes one row per name expression that is read and resolves to a definition of the file.
-pub(crate) fn resolves_rows<V: ModelView>(
-    file: &mut V,
-    words: &mut FileWords,
-    rows: &mut dyn Rows<ResolvesRow>,
-) -> Fill {
+pub(crate) fn resolves_rows<V: ModelView>(file: &mut V, words: &mut FileWords, rows: &mut dyn Rows<ResolvesRow>) -> Fill {
     let read = file.semantics(ModelPart::Resolution);
     let mut known = read.model.words.borrow_mut();
     for at in positions(read) {
@@ -280,11 +228,7 @@ fn import_path(names: &NameTable, origin: &ImportOrigin, path: &mut QualifiedPat
             path.0.push_str(DOT);
         }
     }
-    let written = if origin.level.is_some() || origin.rename == ImportRename::Renamed {
-        origin.name
-    } else {
-        origin.head
-    };
+    let written = if origin.level.is_some() || origin.rename == ImportRename::Renamed { origin.name } else { origin.head };
     if let Some(text) = text_of(names, written) {
         path.0.push_str(text.0);
     }
@@ -298,24 +242,12 @@ fn qualify(read: ModelRead<'_>, at: Position, path: &mut QualifiedPath) -> NameP
     };
     let name = name_of(&model.lexical, base);
     let binding = resolved_at(&model.resolution, base);
-    if proof_of(
-        &model.definitions,
-        &model.lexical,
-        &model.names,
-        base,
-        name,
-        binding,
-    ) == OriginProof::Unproven
-    {
+    if proof_of(&model.definitions, &model.lexical, &model.names, base, name, binding) == OriginProof::Unproven {
         return NameProvenance::Ambiguous;
     }
     path.0.clear();
     let provenance = if let Some(found) = binding {
-        let Ok(place) = model
-            .lexical
-            .imports
-            .binary_search_by_key(&found, |origin| origin.at)
-        else {
+        let Ok(place) = model.lexical.imports.binary_search_by_key(&found, |origin| origin.at) else {
             return NameProvenance::Local;
         };
         let Some(origin) = model.lexical.imports.get(place) else {
@@ -347,10 +279,8 @@ fn qualified_name_row(
     at: Position,
 ) -> Option<QualifiedNameRow> {
     let lexical = &read.model.lexical;
-    if !matches!(
-        entry(&lexical.class, at),
-        NodeClass::Name | NodeClass::Attribute
-    ) || entry(&lexical.usage, at) != NameUse::Load
+    if !matches!(entry(&lexical.class, at), NodeClass::Name | NodeClass::Attribute)
+        || entry(&lexical.usage, at) != NameUse::Load
     {
         return None;
     }
@@ -362,17 +292,10 @@ fn qualified_name_row(
         NameProvenance::Unresolved => (labels.unresolved, NOT_APPLICABLE),
         NameProvenance::Ambiguous => (labels.ambiguous, NOT_APPLICABLE),
     };
-    let has_path = matches!(
-        provenance,
-        NameProvenance::Import | NameProvenance::Builtin(_)
-    );
+    let has_path = matches!(provenance, NameProvenance::Import | NameProvenance::Builtin(_));
     Some(QualifiedNameRow {
         id: node(read, at),
-        path: if has_path {
-            word(words, NameText(&path.0))
-        } else {
-            unknown(Unresolved::QualifiedOrigin)
-        },
+        path: if has_path { word(words, NameText(&path.0)) } else { unknown(Unresolved::QualifiedOrigin) },
         provenance: label,
         since_major: since.major,
         since_minor: since.minor,
@@ -430,10 +353,7 @@ pub(crate) fn implicit_symbol_rows<V: ModelView>(
         }
     }
     let module_global = held_word(words, &mut held, NameText(implicit::MODULE_GLOBAL));
-    for (catalog, kind) in [
-        (BUILTIN_ATTRIBUTES, builtin),
-        (MODULE_GLOBALS, module_global),
-    ] {
+    for (catalog, kind) in [(BUILTIN_ATTRIBUTES, builtin), (MODULE_GLOBALS, module_global)] {
         for entry in catalog {
             rows.write(ImplicitSymbolRow {
                 name: word(words, entry.name),

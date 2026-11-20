@@ -3,8 +3,7 @@
 
 use super::fixtures::{CONSTRUCTS, Compared, compared};
 use super::service::{
-    defines_rows, implicit_symbol_rows, qualified_name_rows, reference_rows, resolves_rows,
-    scope_rows,
+    defines_rows, implicit_symbol_rows, qualified_name_rows, reference_rows, resolves_rows, scope_rows,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo::languages;
@@ -34,11 +33,7 @@ enum Filler {
 
 /// The fillers' rows equal today's readers' rows: `rows` of them, none differing, no cause.
 const fn equal(rows: usize) -> Expect<Value, Failure> {
-    Expect::Value(Compared {
-        rows,
-        differing: Vec::new(),
-        causes: Vec::new(),
-    })
+    Expect::Value(Compared { rows, differing: Vec::new(), causes: Vec::new() })
 }
 
 /// The rows of this part's cases.
@@ -83,27 +78,17 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 fn subject((filler, source): Input) -> Value {
     match filler {
-        Filler::Scope => {
-            compared::<languages::Scope>(source, |view, words, rows| scope_rows(view, words, rows))
+        Filler::Scope => compared::<languages::Scope>(source, |view, words, rows| scope_rows(view, words, rows)),
+        Filler::Defines => compared::<languages::Defines>(source, |view, words, rows| defines_rows(view, words, rows)),
+        Filler::Reference => {
+            compared::<languages::Reference>(source, |view, words, rows| reference_rows(view, words, rows))
         }
-        Filler::Defines => compared::<languages::Defines>(source, |view, words, rows| {
-            defines_rows(view, words, rows)
-        }),
-        Filler::Reference => compared::<languages::Reference>(source, |view, words, rows| {
-            reference_rows(view, words, rows)
-        }),
-        Filler::Resolves => compared::<languages::Resolves>(source, |view, words, rows| {
-            resolves_rows(view, words, rows)
-        }),
+        Filler::Resolves => compared::<languages::Resolves>(source, |view, words, rows| resolves_rows(view, words, rows)),
         Filler::QualifiedName => {
-            compared::<languages::QualifiedName>(source, |view, words, rows| {
-                qualified_name_rows(view, words, rows)
-            })
+            compared::<languages::QualifiedName>(source, |view, words, rows| qualified_name_rows(view, words, rows))
         }
         Filler::ImplicitSymbol => {
-            compared::<languages::ImplicitSymbol>(source, |view, words, rows| {
-                implicit_symbol_rows(view, words, rows)
-            })
+            compared::<languages::ImplicitSymbol>(source, |view, words, rows| implicit_symbol_rows(view, words, rows))
         }
     }
 }

@@ -4,26 +4,21 @@
 
 use crate::domain::standard_library::types::TargetVersion;
 use crate::domain::syntax::constants::{
-    MODULE_FUTURE_ANNOTATIONS, MODULE_FUTURE_ANNOTATIONS_DISABLED,
-    MODULE_FUTURE_ANNOTATIONS_ENABLED,
+    MODULE_FUTURE_ANNOTATIONS, MODULE_FUTURE_ANNOTATIONS_DISABLED, MODULE_FUTURE_ANNOTATIONS_ENABLED,
 };
 use crate::domain::syntax::service::{kind_bits, kinds};
 use crate::outbound::syntax::adapters::ruff_python_parser::future::module_future_annotations;
 use crate::outbound::syntax::adapters::ruff_python_parser::options::options;
-use crate::outbound::syntax::adapters::ruff_python_parser::schemas::concrete_node_kind;
-use crate::outbound::syntax::adapters::ruff_python_parser::types::Strings;
 use crate::outbound::syntax::types::PythonSourceKind;
 use crate::settings::PythonParserSettings;
+use crate::outbound::syntax::adapters::ruff_python_parser::schemas::concrete_node_kind;
+use crate::outbound::syntax::adapters::ruff_python_parser::types::Strings;
 use ruff_python_ast::visitor::source_order::{SourceOrderVisitor, TraversalSignal};
 use ruff_python_ast::{AnyNodeRef, HasNodeIndex as _, Mod, NodeIndex};
 use ruff_python_parser::parse_unchecked;
 use ruff_text_size::Ranged as _;
-use ryo::languages::node_table::{
-    builder, enter_node, finished, leave_node, node_property, set_syntax_acceptance,
-};
-use ryo::languages::{
-    Count, FieldCode, NameText, NodeTable, NodeTableBuilder, Offset, SyntaxAcceptance,
-};
+use ryo::languages::node_table::{builder, enter_node, finished, leave_node, node_property, set_syntax_acceptance};
+use ryo::languages::{Count, FieldCode, NameText, NodeTable, NodeTableBuilder, Offset, SyntaxAcceptance};
 
 /// The walk: every node the library's source-order visit enters, numbered as it opens.
 struct Walker<'b, 't, 'a> {
@@ -71,25 +66,13 @@ pub(crate) fn walked(
         Mod::Module(body) => module_future_annotations(body, &mut Vec::new()).0,
         Mod::Expression(_) => false,
     };
-    let future = NameText(if enabled {
-        MODULE_FUTURE_ANNOTATIONS_ENABLED
-    } else {
-        MODULE_FUTURE_ANNOTATIONS_DISABLED
-    });
+    let future = NameText(if enabled { MODULE_FUTURE_ANNOTATIONS_ENABLED } else { MODULE_FUTURE_ANNOTATIONS_DISABLED });
     let mut table_builder = builder(table, Count(kinds().count()));
     set_syntax_acceptance(
         &mut table_builder,
-        if parsed.errors().is_empty() {
-            SyntaxAcceptance::Accepted
-        } else {
-            SyntaxAcceptance::Rejected
-        },
+        if parsed.errors().is_empty() { SyntaxAcceptance::Accepted } else { SyntaxAcceptance::Rejected },
     );
-    let mut walker = Walker {
-        builder: &mut table_builder,
-        nodes: Vec::new(),
-        future,
-    };
+    let mut walker = Walker { builder: &mut table_builder, nodes: Vec::new(), future };
     let root = AnyNodeRef::from(module);
     if walker.enter_node(root).is_traverse() {
         match module {
@@ -99,9 +82,5 @@ pub(crate) fn walked(
     }
     walker.leave_node(root);
     let nodes = walker.nodes;
-    visit(
-        finished(&mut table_builder),
-        &nodes,
-        settings.target_version().components(),
-    );
+    visit(finished(&mut table_builder), &nodes, settings.target_version().components());
 }

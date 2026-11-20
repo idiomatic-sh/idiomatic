@@ -31,12 +31,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_function_body_runs_in_a_later_phase_after_its_default"),
         word: Word::Succeeds,
-        input: || {
-            (
-                "def f(a=d):\n    return a\n",
-                BindingAnnotationTiming::Immediate,
-            )
-        },
+        input: || ("def f(a=d):\n    return a\n", BindingAnnotationTiming::Immediate),
         expect: Expect::Value(&[
             BindingAction::BeginPhase,
             BindingAction::Read,
@@ -51,12 +46,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("the_arms_of_a_condition_are_alternatives"),
         word: Word::Succeeds,
-        input: || {
-            (
-                "if c:\n    x = 1\nelse:\n    x = 2\n",
-                BindingAnnotationTiming::Immediate,
-            )
-        },
+        input: || ("if c:\n    x = 1\nelse:\n    x = 2\n", BindingAnnotationTiming::Immediate),
         expect: Expect::Value(&[
             BindingAction::BeginPhase,
             BindingAction::Read,
@@ -98,27 +88,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 fn subject((source, timing): Input) -> Value {
     let mut schedule = BindingSchedule::default();
-    viewed(
-        &mut ModelFixture::default(),
-        source,
-        FileId(0),
-        &mut |view| {
-            let tree = TypedTree {
-                table: view.table,
-                nodes: view.nodes,
-            };
-            let model = view.semantics(ModelPart::Lexical).model;
-            build(
-                &mut schedule,
-                ScheduleSource {
-                    lexical: &model.lexical,
-                    definitions: &model.definitions,
-                    tree,
-                    timing,
-                },
-            );
-        },
-    );
+    viewed(&mut ModelFixture::default(), source, FileId(0), &mut |view| {
+        let tree = TypedTree { table: view.table, nodes: view.nodes };
+        let model = view.semantics(ModelPart::Lexical).model;
+        build(
+            &mut schedule,
+            ScheduleSource { lexical: &model.lexical, definitions: &model.definitions, tree, timing },
+        );
+    });
     Box::leak(schedule.steps.iter().map(|step| step.action).collect())
 }
 

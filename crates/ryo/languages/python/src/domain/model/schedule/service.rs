@@ -2,25 +2,20 @@
 //! the language's evaluation order writes the steps.
 
 use super::types::ScheduleSource;
+use crate::domain::model::types::{
+    BindingAction, BindingAnnotationTiming, BindingPhase, BindingPhaseKind, BindingSchedule, BindingStep,
+};
 use crate::domain::model::definitions::service::definition_of;
 use crate::domain::model::lexical::constants::MODULE;
 use crate::domain::model::lexical::service::{entry, id_of, node_at, syntax_form};
 use crate::domain::model::lexical::types::{AnnotationMark, NameUse, NodeClass, SyntaxForm};
-use crate::domain::model::types::{
-    BindingAction, BindingAnnotationTiming, BindingPhase, BindingPhaseKind, BindingSchedule,
-    BindingStep,
-};
 use ruff_python_ast::{AnyNodeRef, Comprehension, Expr, Stmt};
 use ryo::languages::Position;
 use ryo::languages::node_table::subtree_end_of;
 
 /// Writes one step.
 fn push(model: &mut BindingSchedule, at: Position, phase: Position, action: BindingAction) {
-    model.steps.push(BindingStep {
-        occurrence: at,
-        phase,
-        action,
-    });
+    model.steps.push(BindingStep { occurrence: at, phase, action });
 }
 
 /// The first child of the node `at`; the node's subtree end when it has none.
@@ -29,34 +24,19 @@ const fn first_child(at: Position) -> Position {
 }
 
 /// Walks one expression.
-fn walk_expression(
-    model: &mut BindingSchedule,
-    source: ScheduleSource<'_, '_, '_>,
-    expression: &Expr,
-    phase: Position,
-) {
+fn walk_expression(model: &mut BindingSchedule, source: ScheduleSource<'_, '_, '_>, expression: &Expr, phase: Position) {
     walk(model, source, id_of(expression), phase);
 }
 
 /// Walks the statements of a body, in order.
-fn walk_body(
-    model: &mut BindingSchedule,
-    source: ScheduleSource<'_, '_, '_>,
-    body: &[Stmt],
-    phase: Position,
-) {
+fn walk_body(model: &mut BindingSchedule, source: ScheduleSource<'_, '_, '_>, body: &[Stmt], phase: Position) {
     for statement in body {
         walk(model, source, id_of(statement), phase);
     }
 }
 
 /// Walks every child of the node `at`, in source order.
-fn walk_children(
-    model: &mut BindingSchedule,
-    source: ScheduleSource<'_, '_, '_>,
-    at: Position,
-    phase: Position,
-) {
+fn walk_children(model: &mut BindingSchedule, source: ScheduleSource<'_, '_, '_>, at: Position, phase: Position) {
     let end = subtree_end_of(source.tree.table, at);
     let mut child = first_child(at);
     while child < end {
@@ -66,12 +46,7 @@ fn walk_children(
 }
 
 /// Walks the expressions under `at` that run before a callable is entered: its defaults and annotations.
-fn parameter_values(
-    model: &mut BindingSchedule,
-    source: ScheduleSource<'_, '_, '_>,
-    at: Position,
-    phase: Position,
-) {
+fn parameter_values(model: &mut BindingSchedule, source: ScheduleSource<'_, '_, '_>, at: Position, phase: Position) {
     if syntax_form(entry(&source.lexical.class, at)) == SyntaxForm::Expression {
         walk(model, source, at, phase);
         return;
@@ -85,12 +60,7 @@ fn parameter_values(
 }
 
 /// Binds the parameters under `at`: they are bound when the body is entered.
-fn parameters(
-    model: &mut BindingSchedule,
-    source: ScheduleSource<'_, '_, '_>,
-    at: Position,
-    phase: Position,
-) {
+fn parameters(model: &mut BindingSchedule, source: ScheduleSource<'_, '_, '_>, at: Position, phase: Position) {
     let class = entry(&source.lexical.class, at);
     if class == NodeClass::Parameter {
         push(model, at, phase, BindingAction::Bind);
@@ -120,11 +90,7 @@ fn comprehension(
         walk_expression(model, source, &first.iter, phase);
     }
     if let Some(kind) = kind {
-        model.phases.push(BindingPhase {
-            root: at,
-            parent: phase,
-            kind,
-        });
+        model.phases.push(BindingPhase { root: at, parent: phase, kind });
         return;
     }
     comprehension_body(model, source, at, phase);
@@ -135,12 +101,7 @@ fn comprehension(
     clippy::wildcard_enum_match_arm,
     reason = "four of the parser's node kinds are comprehensions; no other node reaches this function"
 )]
-fn comprehension_body(
-    model: &mut BindingSchedule,
-    source: ScheduleSource<'_, '_, '_>,
-    at: Position,
-    phase: Position,
-) {
+fn comprehension_body(model: &mut BindingSchedule, source: ScheduleSource<'_, '_, '_>, at: Position, phase: Position) {
     let Some(node) = node_at(source.tree, at) else {
         return;
     };
@@ -149,10 +110,7 @@ fn comprehension_body(
         AnyNodeRef::ExprListComp(typed) => (&typed.generators, [Some(&*typed.elt), None]),
         AnyNodeRef::ExprSetComp(typed) => (&typed.generators, [Some(&*typed.elt), None]),
         AnyNodeRef::ExprGenerator(typed) => (&typed.generators, [Some(&*typed.elt), None]),
-        AnyNodeRef::ExprDictComp(typed) => (
-            &typed.generators,
-            [typed.key.as_deref(), Some(&*typed.value)],
-        ),
+        AnyNodeRef::ExprDictComp(typed) => (&typed.generators, [typed.key.as_deref(), Some(&*typed.value)]),
         _ => (&[], [None, None]),
     };
     for (number, clause) in generators.iter().enumerate() {
@@ -177,12 +135,7 @@ fn comprehension_body(
     clippy::wildcard_enum_match_arm,
     reason = "two of the parser's node kinds are callables; no other node reaches this function"
 )]
-fn callable(
-    model: &mut BindingSchedule,
-    source: ScheduleSource<'_, '_, '_>,
-    at: Position,
-    phase: Position,
-) {
+fn callable(model: &mut BindingSchedule, source: ScheduleSource<'_, '_, '_>, at: Position, phase: Position) {
     let Some(node) = node_at(source.tree, at) else {
         return;
     };
@@ -200,11 +153,7 @@ fn callable(
     if entry(&source.lexical.class, at) == NodeClass::FunctionDef {
         push(model, at, phase, BindingAction::Bind);
     }
-    model.phases.push(BindingPhase {
-        root: at,
-        parent: phase,
-        kind: BindingPhaseKind::Callable,
-    });
+    model.phases.push(BindingPhase { root: at, parent: phase, kind: BindingPhaseKind::Callable });
 }
 
 /// Walks the node `at` in the language's evaluation order.
@@ -212,16 +161,8 @@ fn callable(
     clippy::wildcard_enum_match_arm,
     reason = "twenty-two of the parser's node kinds are evaluated in an order of their own; every other in source order"
 )]
-#[expect(
-    clippy::too_many_lines,
-    reason = "one arm per construct with an evaluation order of its own"
-)]
-fn walk(
-    model: &mut BindingSchedule,
-    source: ScheduleSource<'_, '_, '_>,
-    at: Position,
-    phase: Position,
-) {
+#[expect(clippy::too_many_lines, reason = "one arm per construct with an evaluation order of its own")]
+fn walk(model: &mut BindingSchedule, source: ScheduleSource<'_, '_, '_>, at: Position, phase: Position) {
     let Some(node) = node_at(source.tree, at) else {
         return;
     };
@@ -229,17 +170,11 @@ fn walk(
         && at != phase
         && entry(&source.lexical.annotation, at) == AnnotationMark::Annotation
     {
-        model.phases.push(BindingPhase {
-            root: at,
-            parent: phase,
-            kind: BindingPhaseKind::Type,
-        });
+        model.phases.push(BindingPhase { root: at, parent: phase, kind: BindingPhaseKind::Type });
         return;
     }
     match node {
-        AnyNodeRef::StmtFunctionDef(_) | AnyNodeRef::ExprLambda(_) => {
-            callable(model, source, at, phase)
-        }
+        AnyNodeRef::StmtFunctionDef(_) | AnyNodeRef::ExprLambda(_) => callable(model, source, at, phase),
         AnyNodeRef::StmtClassDef(_) => {
             walk_children(model, source, at, phase);
             push(model, at, phase, BindingAction::Bind);
@@ -260,12 +195,7 @@ fn walk(
             }
             walk_expression(model, source, &statement.annotation, phase);
             if statement.value.is_none() && statement.target.is_name_expr() {
-                push(
-                    model,
-                    id_of(&*statement.target),
-                    phase,
-                    BindingAction::Annotation,
-                );
+                push(model, id_of(&*statement.target), phase, BindingAction::Annotation);
             } else {
                 walk_expression(model, source, &statement.target, phase);
             }
@@ -287,11 +217,7 @@ fn walk(
                 push(model, at, phase, BindingAction::NextAlternative);
                 walk(model, source, id_of(clause), phase);
             }
-            if statement
-                .elif_else_clauses
-                .last()
-                .is_none_or(|clause| clause.test.is_some())
-            {
+            if statement.elif_else_clauses.last().is_none_or(|clause| clause.test.is_some()) {
                 push(model, at, phase, BindingAction::NextAlternative);
             }
             push(model, at, phase, BindingAction::EndAlternatives);
@@ -367,24 +293,11 @@ fn walk(
             }
         }
         AnyNodeRef::ExprGenerator(typed) => {
-            comprehension(
-                model,
-                source,
-                at,
-                &typed.generators,
-                phase,
-                Some(BindingPhaseKind::Generator),
-            );
+            comprehension(model, source, at, &typed.generators, phase, Some(BindingPhaseKind::Generator));
         }
-        AnyNodeRef::ExprListComp(typed) => {
-            comprehension(model, source, at, &typed.generators, phase, None)
-        }
-        AnyNodeRef::ExprSetComp(typed) => {
-            comprehension(model, source, at, &typed.generators, phase, None)
-        }
-        AnyNodeRef::ExprDictComp(typed) => {
-            comprehension(model, source, at, &typed.generators, phase, None)
-        }
+        AnyNodeRef::ExprListComp(typed) => comprehension(model, source, at, &typed.generators, phase, None),
+        AnyNodeRef::ExprSetComp(typed) => comprehension(model, source, at, &typed.generators, phase, None),
+        AnyNodeRef::ExprDictComp(typed) => comprehension(model, source, at, &typed.generators, phase, None),
         AnyNodeRef::ExprName(_) => {
             let action = match entry(&source.lexical.usage, at) {
                 NameUse::Load => BindingAction::Read,
@@ -412,9 +325,7 @@ fn walk(
 )]
 fn later(model: &mut BindingSchedule, source: ScheduleSource<'_, '_, '_>, task: BindingPhase) {
     match task.kind {
-        BindingPhaseKind::Generator => {
-            return comprehension_body(model, source, task.root, task.root);
-        }
+        BindingPhaseKind::Generator => return comprehension_body(model, source, task.root, task.root),
         BindingPhaseKind::Type => return walk(model, source, task.root, task.root),
         BindingPhaseKind::Callable => {}
     }

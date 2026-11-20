@@ -5,9 +5,8 @@ use crate::domain::syntax::service::{kind_bits, kind_name, kinds};
 use crate::outbound::syntax::fixtures::model_view::{FixtureView, ModelFixture, viewed};
 use ryo::languages::node_table::{kind_of, span_of};
 use ryo::languages::{
-    self, Bits, CatalogRelation, CellKind, CellWord, DeclarationKind, FileId, FileWords, Fill,
-    KindBits, Missing, NodeTable, Position, ReportText, Rows, Symbol, Term as _, facts,
-    node_position, term_symbol,
+    self, Bits, CatalogRelation, CellKind, CellWord, DeclarationKind, FileId, FileWords, Fill, KindBits, Missing,
+    NodeTable, Position, ReportText, Rows, Symbol, Term as _, facts, node_position, term_symbol,
 };
 use strum::IntoEnumIterator as _;
 
@@ -87,18 +86,13 @@ pub(crate) fn counted<Row>(
     fill: impl Fn(&mut FixtureView<'_>, &mut FileWords, &mut dyn Rows<Row>) -> Fill,
 ) -> Counted {
     let mut counted = Counted::default();
-    viewed(
-        &mut ModelFixture::default(),
-        source,
-        FileId(0),
-        &mut |view| {
-            let base = facts::base_words(&[]);
-            let mut words = facts::file_words(&base);
-            if let Fill::Absent(cause) = fill(view, &mut words, &mut counted) {
-                counted.causes.push(format!("absent: {cause:?}"));
-            }
-        },
-    );
+    viewed(&mut ModelFixture::default(), source, FileId(0), &mut |view| {
+        let base = facts::base_words(&[]);
+        let mut words = facts::file_words(&base);
+        if let Fill::Absent(cause) = fill(view, &mut words, &mut counted) {
+            counted.causes.push(format!("absent: {cause:?}"));
+        }
+    });
     counted
 }
 
@@ -122,11 +116,7 @@ pub(crate) fn shown_row<R: CatalogRelation>(
             CellKind::Node => node(node_position(languages::NodeId(bits.0))),
             CellKind::Symbol => {
                 let symbol = Symbol(u32::try_from(bits.0).unwrap_or(u32::MAX));
-                if symbol.0 >= FIXED_WORDS {
-                    fixed_word(symbol)
-                } else {
-                    escaped(&word(symbol))
-                }
+                if symbol.0 >= FIXED_WORDS { fixed_word(symbol) } else { escaped(&word(symbol)) }
             }
             CellKind::File => bits.0.to_string(),
             CellKind::Span => format!("{}:{}", bits.0 >> 32, bits.0 & 0xffff_ffff),
@@ -138,24 +128,11 @@ pub(crate) fn shown_row<R: CatalogRelation>(
 }
 
 /// One row a filler wrote, shown with the nodes of `table` and the words of `words`.
-pub(crate) fn shown_filled<R: CatalogRelation>(
-    cells: &[Bits],
-    table: &NodeTable,
-    words: &FileWords,
-) -> String {
+pub(crate) fn shown_filled<R: CatalogRelation>(cells: &[Bits], table: &NodeTable, words: &FileWords) -> String {
     let node = |at: Position| {
         let span = span_of(table, at);
-        format!(
-            "{}@{}:{}",
-            kind_shown(kind_of(table, at)),
-            span.start.0,
-            span.end.0
-        )
+        format!("{}@{}:{}", kind_shown(kind_of(table, at)), span.start.0, span.end.0)
     };
-    let word = |symbol: Symbol| {
-        facts::text(words, CellWord(u64::from(symbol.0)))
-            .0
-            .to_owned()
-    };
+    let word = |symbol: Symbol| facts::text(words, CellWord(u64::from(symbol.0))).0.to_owned();
     shown_row::<R>(cells, &node, &word)
 }

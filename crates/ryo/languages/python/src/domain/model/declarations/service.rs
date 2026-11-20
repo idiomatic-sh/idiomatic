@@ -3,9 +3,7 @@
 
 use crate::domain::model::lexical::constants::MODULE;
 use crate::domain::model::lexical::service::{entry, name_of, scope_at, scope_form};
-use crate::domain::model::lexical::types::{
-    LexicalModel, NameHazard, NamespaceKey, NodeClass, ScopeForm, ScopeRedirect,
-};
+use crate::domain::model::lexical::types::{LexicalModel, NameHazard, NamespaceKey, NodeClass, ScopeForm, ScopeRedirect};
 use crate::domain::model::names::types::NameCode;
 use ryo::languages::node_table::{parent_of, subtree_end_of};
 use ryo::languages::{NodeTable, Position};
@@ -38,11 +36,7 @@ fn function_around(model: &LexicalModel, scope: Position) -> Position {
 
 /// Where the scope `scope` says the name `name` is bound instead of in itself, when a `global` or `nonlocal` of it says so.
 #[must_use]
-pub(crate) fn redirect_of(
-    model: &LexicalModel,
-    scope: Position,
-    name: NameCode,
-) -> Option<ScopeRedirect> {
+pub(crate) fn redirect_of(model: &LexicalModel, scope: Position, name: NameCode) -> Option<ScopeRedirect> {
     if model.declared.is_empty() {
         return None;
     }
@@ -61,12 +55,7 @@ pub(crate) fn redirected(model: &LexicalModel, scope: Position, name: NameCode) 
 
 /// The scope whose namespace the node `at` binds the name `name` in.
 #[must_use]
-pub(crate) fn binding_scope(
-    model: &LexicalModel,
-    table: &NodeTable,
-    at: Position,
-    name: NameCode,
-) -> Position {
+pub(crate) fn binding_scope(model: &LexicalModel, table: &NodeTable, at: Position, name: NameCode) -> Position {
     redirected(model, lexical_scope(model, table, at), name)
 }
 
@@ -87,10 +76,7 @@ fn declare(model: &mut LexicalModel, table: &NodeTable) {
         let mut child = Position(number.saturating_add(1));
         while child < end {
             if entry(&model.class, child) == NodeClass::Identifier {
-                let key = NamespaceKey {
-                    scope,
-                    name: name_of(model, child),
-                };
+                let key = NamespaceKey { scope, name: name_of(model, child) };
                 let _: &mut ScopeRedirect = model.declared.entry(key).or_insert(redirect);
             }
             child = subtree_end_of(table, child);

@@ -38,19 +38,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_function_is_a_statement_that_opens_a_function_scope"),
         word: Word::Succeeds,
         input: || Question::Class(NodeClass::FunctionDef),
-        expect: Expect::Value(Answer::Class(
-            Some(ScopeForm::Function),
-            SyntaxForm::Statement,
-        )),
+        expect: Expect::Value(Answer::Class(Some(ScopeForm::Function), SyntaxForm::Statement)),
     },
     Case {
         name: CaseName("a_set_comprehension_is_an_expression_that_opens_a_comprehension_scope"),
         word: Word::Succeeds,
         input: || Question::Class(NodeClass::SetComp),
-        expect: Expect::Value(Answer::Class(
-            Some(ScopeForm::Comprehension),
-            SyntaxForm::Expression,
-        )),
+        expect: Expect::Value(Answer::Class(Some(ScopeForm::Comprehension), SyntaxForm::Expression)),
     },
     Case {
         name: CaseName("a_parameter_opens_nothing_and_is_neither"),
@@ -59,15 +53,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Answer::Class(None, SyntaxForm::Neither)),
     },
     Case {
-        name: CaseName(
-            "a_default_a_decorator_and_a_first_iterable_are_evaluated_around_their_scope",
-        ),
+        name: CaseName("a_default_a_decorator_and_a_first_iterable_are_evaluated_around_their_scope"),
         word: Word::Succeeds,
-        input: || {
-            Question::Scopes(
-                "@deco\ndef f(a=default):\n    return [inner for inner in outer if inner]\n",
-            )
-        },
+        input: || Question::Scopes("@deco\ndef f(a=default):\n    return [inner for inner in outer if inner]\n"),
         expect: Expect::Value(Answer::Scopes(&[
             NodeClass::Module,
             NodeClass::Module,
@@ -84,29 +72,15 @@ fn subject(input: Input) -> Value {
         Question::Class(class) => Answer::Class(scope_form(class), syntax_form(class)),
         Question::Scopes(source) => {
             let mut scopes = Vec::new();
-            viewed(
-                &mut ModelFixture::default(),
-                source,
-                FileId(0),
-                &mut |view| {
-                    let lexical = &view.semantics(ModelPart::Lexical).model.lexical;
-                    for (number, class) in lexical.class.iter().enumerate() {
-                        if *class == NodeClass::Name {
-                            let scope = scope_at(
-                                lexical,
-                                Position(u32::try_from(number).unwrap_or(u32::MAX)),
-                            );
-                            scopes.push(
-                                lexical
-                                    .class
-                                    .get(usize::from(scope))
-                                    .copied()
-                                    .unwrap_or_default(),
-                            );
-                        }
+            viewed(&mut ModelFixture::default(), source, FileId(0), &mut |view| {
+                let lexical = &view.semantics(ModelPart::Lexical).model.lexical;
+                for (number, class) in lexical.class.iter().enumerate() {
+                    if *class == NodeClass::Name {
+                        let scope = scope_at(lexical, Position(u32::try_from(number).unwrap_or(u32::MAX)));
+                        scopes.push(lexical.class.get(usize::from(scope)).copied().unwrap_or_default());
                     }
-                },
-            );
+                }
+            });
             Answer::Scopes(Box::leak(scopes.into_boxed_slice()))
         }
     }

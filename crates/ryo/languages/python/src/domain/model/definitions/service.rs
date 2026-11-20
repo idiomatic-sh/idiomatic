@@ -1,20 +1,15 @@
 //! The `definitions` service of the model: free functions named by verb, with no IO and no ports.
 
 use super::constants::NO_DEFINITION;
-use super::types::{
-    DefinitionCode, DefinitionModel, DefinitionRange, DefinitionWord, NameDefinition,
-    PlacedParameter,
-};
-use crate::domain::model::declarations::service::binding_scope;
+use super::types::{DefinitionCode, DefinitionModel, DefinitionRange, DefinitionWord, NameDefinition, PlacedParameter};
 use crate::domain::model::lexical::constants::{NO_NODE, WILDCARD};
+use crate::domain::syntax::constants::DOT;
+use crate::domain::model::declarations::service::binding_scope;
 use crate::domain::model::lexical::service::{entry, id_of, name_of, node_at, scope_at};
-use crate::domain::model::lexical::types::{
-    LexicalModel, NameUse, NamespaceKey, NodeClass, TypedTree,
-};
+use crate::domain::model::lexical::types::{LexicalModel, NameUse, NamespaceKey, NodeClass, TypedTree};
 use crate::domain::model::names::constants::UNKNOWN_NAME;
 use crate::domain::model::names::service::find;
 use crate::domain::model::names::types::{NameCode, NameTable};
-use crate::domain::syntax::constants::DOT;
 use ruff_python_ast::{AnyNodeRef, Identifier, ParameterWithDefault};
 use ryo::languages::node_table::{parent_of, span_of};
 use ryo::languages::{Count, DeclarationKind, NameText, NodeTable, Offset, Position, Span};
@@ -29,10 +24,7 @@ pub(crate) fn definition_of(model: &DefinitionModel, at: Position) -> Option<&Na
 /// The bytes of the node `at`.
 fn span_at(table: &NodeTable, at: Position) -> Span {
     let span = span_of(table, at);
-    Span {
-        start: span.start,
-        end: span.end,
-    }
+    Span { start: span.start, end: span.end }
 }
 
 /// A definition named by the identifier `identifier`, owned by the namespace the node `at` binds in.
@@ -46,28 +38,13 @@ fn named(
 ) -> NameDefinition {
     let place = id_of(identifier);
     let name = name_of(lexical, place);
-    NameDefinition {
-        at,
-        name,
-        owner: binding_scope(lexical, table, at, name),
-        kind,
-        word,
-        named: span_at(table, place),
-    }
+    NameDefinition { at, name, owner: binding_scope(lexical, table, at, name), kind, word, named: span_at(table, place) }
 }
 
 /// How the parameter `at` takes its argument, and the callable it belongs to.
-fn placed(
-    lexical: &LexicalModel,
-    tree: TypedTree<'_, '_>,
-    at: Position,
-) -> Option<PlacedParameter> {
+fn placed(lexical: &LexicalModel, tree: TypedTree<'_, '_>, at: Position) -> Option<PlacedParameter> {
     let holder = parent_of(tree.table, at);
-    let element = if entry(&lexical.class, holder) == NodeClass::ParameterWithDefault {
-        holder
-    } else {
-        at
-    };
+    let element = if entry(&lexical.class, holder) == NodeClass::ParameterWithDefault { holder } else { at };
     let parameters = parent_of(tree.table, element);
     let Some(AnyNodeRef::Parameters(typed)) = node_at(tree, parameters) else {
         return None;
@@ -79,25 +56,14 @@ fn placed(
         DefinitionWord::PositionalOrKeyword
     } else if typed.kwonlyargs.iter().any(is) {
         DefinitionWord::KeywordOnly
-    } else if typed
-        .vararg
-        .as_deref()
-        .is_some_and(|parameter| id_of(parameter) == element)
-    {
+    } else if typed.vararg.as_deref().is_some_and(|parameter| id_of(parameter) == element) {
         DefinitionWord::VarPositional
-    } else if typed
-        .kwarg
-        .as_deref()
-        .is_some_and(|parameter| id_of(parameter) == element)
-    {
+    } else if typed.kwarg.as_deref().is_some_and(|parameter| id_of(parameter) == element) {
         DefinitionWord::VarKeyword
     } else {
         return None;
     };
-    Some(PlacedParameter {
-        word,
-        callable: parent_of(tree.table, parameters),
-    })
+    Some(PlacedParameter { word, callable: parent_of(tree.table, parameters) })
 }
 
 /// The definition a type parameter makes: its owner is the definition the parameters belong to.
@@ -128,34 +94,18 @@ fn imported(
     alias: &ruff_python_ast::Alias,
 ) -> Option<NameDefinition> {
     let from = entry(&lexical.class, parent_of(tree.table, at)) == NodeClass::ImportFrom;
-    let word = if from {
-        DefinitionWord::FromImport
-    } else {
-        DefinitionWord::Import
-    };
+    let word = if from { DefinitionWord::FromImport } else { DefinitionWord::Import };
     let written = alias.name.as_str();
     let start = Offset(alias.name.range.start().to_u32());
     let (name, span) = if written == WILDCARD.0 {
-        (
-            UNKNOWN_NAME,
-            Span {
-                start,
-                end: Offset(alias.name.range.end().to_u32()),
-            },
-        )
+        (UNKNOWN_NAME, Span { start, end: Offset(alias.name.range.end().to_u32()) })
     } else if let Some(renamed) = &alias.asname {
         let place = id_of(renamed);
         (name_of(lexical, place), span_at(tree.table, place))
     } else {
         let head = written.split(DOT).next().unwrap_or_default();
         let length = u32::try_from(head.len()).unwrap_or(u32::MAX);
-        (
-            find(names, NameText(head))?,
-            Span {
-                start,
-                end: Offset(start.0.saturating_add(length)),
-            },
-        )
+        (find(names, NameText(head))?, Span { start, end: Offset(start.0.saturating_add(length)) })
     };
     Some(NameDefinition {
         at,
@@ -172,12 +122,7 @@ fn imported(
     clippy::wildcard_enum_match_arm,
     reason = "eleven of the parser's node kinds define a name; every other defines none"
 )]
-fn definition(
-    lexical: &LexicalModel,
-    names: &NameTable,
-    tree: TypedTree<'_, '_>,
-    at: Position,
-) -> Option<NameDefinition> {
+fn definition(lexical: &LexicalModel, names: &NameTable, tree: TypedTree<'_, '_>, at: Position) -> Option<NameDefinition> {
     let table = tree.table;
     match node_at(tree, at)? {
         AnyNodeRef::StmtFunctionDef(function) => {
@@ -190,14 +135,9 @@ fn definition(
             };
             Some(named(lexical, table, at, &function.name, kind, word))
         }
-        AnyNodeRef::StmtClassDef(class) => Some(named(
-            lexical,
-            table,
-            at,
-            &class.name,
-            DeclarationKind::Class,
-            DefinitionWord::Class,
-        )),
+        AnyNodeRef::StmtClassDef(class) => {
+            Some(named(lexical, table, at, &class.name, DeclarationKind::Class, DefinitionWord::Class))
+        }
         AnyNodeRef::ExceptHandlerExceptHandler(handler) => Some(named(
             lexical,
             table,
@@ -237,8 +177,7 @@ fn definition(
             }
             let name = name_of(lexical, at);
             let parent = parent_of(table, at);
-            let alias = entry(&lexical.class, parent) == NodeClass::TypeAlias
-                && parent.0.saturating_add(1) == at.0;
+            let alias = entry(&lexical.class, parent) == NodeClass::TypeAlias && parent.0.saturating_add(1) == at.0;
             let (kind, word) = if alias {
                 (DeclarationKind::TypeAlias, DefinitionWord::TypeAlias)
             } else {
@@ -265,38 +204,22 @@ fn definition(
                 named: span_at(table, place),
             })
         }
-        AnyNodeRef::TypeParamTypeVar(typed) => Some(type_parameter(
-            lexical,
-            table,
-            at,
-            &typed.name,
-            DefinitionWord::TypeVar,
-        )),
-        AnyNodeRef::TypeParamTypeVarTuple(typed) => Some(type_parameter(
-            lexical,
-            table,
-            at,
-            &typed.name,
-            DefinitionWord::TypeVarTuple,
-        )),
-        AnyNodeRef::TypeParamParamSpec(typed) => Some(type_parameter(
-            lexical,
-            table,
-            at,
-            &typed.name,
-            DefinitionWord::ParamSpec,
-        )),
+        AnyNodeRef::TypeParamTypeVar(typed) => {
+            Some(type_parameter(lexical, table, at, &typed.name, DefinitionWord::TypeVar))
+        }
+        AnyNodeRef::TypeParamTypeVarTuple(typed) => {
+            Some(type_parameter(lexical, table, at, &typed.name, DefinitionWord::TypeVarTuple))
+        }
+        AnyNodeRef::TypeParamParamSpec(typed) => {
+            Some(type_parameter(lexical, table, at, &typed.name, DefinitionWord::ParamSpec))
+        }
         _ => None,
     }
 }
 
 /// The definitions of the name `name` in the namespace of `owner`, in source order.
 #[must_use]
-pub(crate) fn definitions_of(
-    model: &DefinitionModel,
-    owner: Position,
-    name: NameCode,
-) -> &[DefinitionCode] {
+pub(crate) fn definitions_of(model: &DefinitionModel, owner: Position, name: NameCode) -> &[DefinitionCode] {
     model
         .index
         .get(&NamespaceKey { scope: owner, name })
@@ -306,19 +229,11 @@ pub(crate) fn definitions_of(
 
 /// Where the definition `code` is.
 pub(crate) fn place_of(model: &DefinitionModel, code: DefinitionCode) -> Position {
-    model
-        .all
-        .get(usize::from(code))
-        .map_or(NO_NODE, |definition| definition.at)
+    model.all.get(usize::from(code)).map_or(NO_NODE, |definition| definition.at)
 }
 
 /// Builds the definitions part of the model for one file, from its lexical part.
-pub(crate) fn build(
-    model: &mut DefinitionModel,
-    lexical: &LexicalModel,
-    names: &NameTable,
-    tree: TypedTree<'_, '_>,
-) {
+pub(crate) fn build(model: &mut DefinitionModel, lexical: &LexicalModel, names: &NameTable, tree: TypedTree<'_, '_>) {
     model.all.clear();
     model.of_node.clear();
     model.sorted.clear();
@@ -343,15 +258,8 @@ pub(crate) fn build(
             .map(|definition| (definition.owner, definition.name, definition.at))
     });
     let mut start = 0;
-    while let Some(first) = model
-        .sorted
-        .get(start)
-        .and_then(|code| model.all.get(usize::from(*code)))
-    {
-        let key = NamespaceKey {
-            scope: first.owner,
-            name: first.name,
-        };
+    while let Some(first) = model.sorted.get(start).and_then(|code| model.all.get(usize::from(*code))) {
+        let key = NamespaceKey { scope: first.owner, name: first.name };
         let mut end = start.saturating_add(1);
         while model
             .sorted
@@ -361,13 +269,9 @@ pub(crate) fn build(
         {
             end = end.saturating_add(1);
         }
-        let _: Option<DefinitionRange> = model.index.insert(
-            key,
-            DefinitionRange {
-                start: Count(start),
-                end: Count(end),
-            },
-        );
+        let _: Option<DefinitionRange> = model
+            .index
+            .insert(key, DefinitionRange { start: Count(start), end: Count(end) });
         start = end;
     }
 }

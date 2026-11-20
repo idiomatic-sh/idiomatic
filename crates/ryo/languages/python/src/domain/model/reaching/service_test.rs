@@ -23,9 +23,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Count(1)),
     },
     Case {
-        name: CaseName(
-            "a_name_of_the_module_the_same_name_in_a_function_and_the_function_itself_are_three",
-        ),
+        name: CaseName("a_name_of_the_module_the_same_name_in_a_function_and_the_function_itself_are_three"),
         word: Word::Succeeds,
         input: || "x = 1\ndef f():\n    x = 2\n",
         expect: Expect::Value(Count(3)),
@@ -40,28 +38,20 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 fn subject(source: Input) -> Value {
     let mut reach = ReachModel::default();
-    viewed(
-        &mut ModelFixture::default(),
-        source,
-        FileId(0),
-        &mut |view| {
-            let tree = TypedTree {
-                table: view.table,
-                nodes: view.nodes,
-            };
-            let model = view.semantics(ModelPart::Flow).model;
-            list_mutations(
-                &mut reach,
-                FlowSource {
-                    names: &model.names,
-                    lexical: &model.lexical,
-                    definitions: &model.definitions,
-                    schedule: &model.schedule,
-                    tree,
-                },
-            );
-        },
-    );
+    viewed(&mut ModelFixture::default(), source, FileId(0), &mut |view| {
+        let tree = TypedTree { table: view.table, nodes: view.nodes };
+        let model = view.semantics(ModelPart::Flow).model;
+        list_mutations(
+            &mut reach,
+            FlowSource {
+                names: &model.names,
+                lexical: &model.lexical,
+                definitions: &model.definitions,
+                schedule: &model.schedule,
+                tree,
+            },
+        );
+    });
     reach.mutation_count
 }
 

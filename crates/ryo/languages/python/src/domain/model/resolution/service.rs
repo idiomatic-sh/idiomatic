@@ -8,10 +8,10 @@
 //! meaning; whether they become the reaching set, with the selection in the rule pack, is the product owner's open decision.
 
 use super::types::{Bound, OriginProof, ResolutionModel};
-use crate::domain::model::declarations::service::redirected;
 use crate::domain::model::definitions::service::{definition_of, definitions_of, place_of};
 use crate::domain::model::definitions::types::DefinitionModel;
 use crate::domain::model::lexical::constants::{MODULE, NO_NODE};
+use crate::domain::model::declarations::service::redirected;
 use crate::domain::model::lexical::service::{entry, name_of, scope_at, scope_form};
 use crate::domain::model::lexical::types::{LexicalModel, NameUse, NodeClass, ScopeForm};
 use crate::domain::model::names::constants::NO_NAME;
@@ -22,31 +22,17 @@ use ryo::languages::{NodeTable, Position};
 
 /// Whether the definition `binding` is in effect at `occurrence`: an assignment's value is evaluated before its targets are
 /// bound, and a definition's own decorators, defaults and bases before its name.
-fn bound(
-    lexical: &LexicalModel,
-    table: &NodeTable,
-    binding: Position,
-    occurrence: Position,
-) -> Bound {
+fn bound(lexical: &LexicalModel, table: &NodeTable, binding: Position, occurrence: Position) -> Bound {
     let mut above = binding;
     loop {
         let class = entry(&lexical.class, above);
-        let evaluating = matches!(
-            class,
-            NodeClass::Assign | NodeClass::AnnAssign | NodeClass::NamedExpr
-        ) || (above == binding
-            && matches!(class, NodeClass::FunctionDef | NodeClass::ClassDef));
+        let evaluating = matches!(class, NodeClass::Assign | NodeClass::AnnAssign | NodeClass::NamedExpr)
+            || (above == binding && matches!(class, NodeClass::FunctionDef | NodeClass::ClassDef));
         if evaluating {
-            return if occurrence >= subtree_end_of(table, above) || occurrence < above {
-                Bound::Yes
-            } else {
-                Bound::NotYet
-            };
+            return if occurrence >= subtree_end_of(table, above) || occurrence < above { Bound::Yes } else { Bound::NotYet };
         }
-        if matches!(
-            class,
-            NodeClass::Module | NodeClass::FunctionDef | NodeClass::ClassDef | NodeClass::Lambda
-        ) || above == MODULE
+        if matches!(class, NodeClass::Module | NodeClass::FunctionDef | NodeClass::ClassDef | NodeClass::Lambda)
+            || above == MODULE
         {
             return Bound::Yes;
         }
@@ -78,28 +64,16 @@ pub(crate) fn resolve(
             let range = definitions_of(model, lookup, name);
             let local = matches!(
                 form,
-                Some(
-                    ScopeForm::Function
-                        | ScopeForm::Lambda
-                        | ScopeForm::Comprehension
-                        | ScopeForm::Generator
-                )
+                Some(ScopeForm::Function | ScopeForm::Lambda | ScopeForm::Comprehension | ScopeForm::Generator)
             );
             let before = if delayed {
                 range.len()
             } else {
                 range.partition_point(|code| place_of(model, *code) < at)
             };
-            let found = range
-                .get(..before)
-                .unwrap_or_default()
-                .iter()
-                .rev()
-                .find(|code| {
-                    delayed
-                        || local
-                        || bound(lexical, table, place_of(model, **code), at) == Bound::Yes
-                });
+            let found = range.get(..before).unwrap_or_default().iter().rev().find(|code| {
+                delayed || local || bound(lexical, table, place_of(model, **code), at) == Bound::Yes
+            });
             if let Some(code) = found {
                 return Some(place_of(model, *code));
             }
@@ -139,8 +113,7 @@ pub(crate) fn proof_of(
     if lexical.hazards.is_empty() {
         return OriginProof::Proven;
     }
-    let owner =
-        binding.and_then(|found| definition_of(model, found).map(|definition| definition.owner));
+    let owner = binding.and_then(|found| definition_of(model, found).map(|definition| definition.owner));
     let builtin = builtin_of(names, name).is_some();
     let initial = scope_at(lexical, at);
     let mut scope = initial;
@@ -165,10 +138,7 @@ pub(crate) fn proof_of(
         if owner == Some(scope) || scope == MODULE {
             return OriginProof::Proven;
         }
-        if matches!(
-            form,
-            Some(ScopeForm::Function | ScopeForm::Lambda | ScopeForm::Generator)
-        ) {
+        if matches!(form, Some(ScopeForm::Function | ScopeForm::Lambda | ScopeForm::Generator)) {
             deferred = true;
         }
         scope = scope_at(lexical, scope);
@@ -176,20 +146,13 @@ pub(crate) fn proof_of(
 }
 
 /// Resolves every name expression of the file that is read.
-pub(crate) fn build(
-    model: &mut ResolutionModel,
-    definitions: &DefinitionModel,
-    lexical: &LexicalModel,
-    table: &NodeTable,
-) {
+pub(crate) fn build(model: &mut ResolutionModel, definitions: &DefinitionModel, lexical: &LexicalModel, table: &NodeTable) {
     model.resolved.clear();
     let count = lexical.class.len();
     model.resolved.resize(count, NO_NODE);
     for number in 0..u32::try_from(count).unwrap_or(u32::MAX) {
         let at = Position(number);
-        if entry(&lexical.class, at) == NodeClass::Name
-            && entry(&lexical.usage, at) == NameUse::Load
-        {
+        if entry(&lexical.class, at) == NodeClass::Name && entry(&lexical.usage, at) == NameUse::Load {
             let found = resolve(definitions, lexical, table, at, name_of(lexical, at));
             if let Some(slot) = model.resolved.get_mut(usize::from(at)) {
                 *slot = found.unwrap_or(NO_NODE);

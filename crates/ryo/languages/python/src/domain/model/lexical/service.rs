@@ -4,8 +4,8 @@
 
 use super::constants::{MODULE, WILDCARD};
 use super::types::{
-    AnnotationMark, ImportLevel, ImportOrigin, ImportRename, LexicalModel, NameHazard, NameUse,
-    NodeClass, ScopeForm, SyntaxForm, TypedTree,
+    AnnotationMark, ImportLevel, ImportOrigin, ImportRename, LexicalModel, NameHazard, NameUse, NodeClass, ScopeForm,
+    SyntaxForm, TypedTree,
 };
 use crate::domain::model::names::constants::NO_NAME;
 use crate::domain::model::names::service::intern;
@@ -43,11 +43,7 @@ pub(crate) fn put<T>(column: &mut [T], at: Position, value: T) {
 /// The scope the node `at` is evaluated in.
 #[must_use]
 pub(crate) fn scope_at(model: &LexicalModel, at: Position) -> Position {
-    model
-        .scope_of
-        .get(usize::from(at))
-        .copied()
-        .unwrap_or(MODULE)
+    model.scope_of.get(usize::from(at)).copied().unwrap_or(MODULE)
 }
 
 /// The name the node `at` carries; the code of no name when it carries none.
@@ -104,10 +100,7 @@ fn class_of(node: AnyNodeRef<'_>) -> NodeClass {
 /// How a node of the class `class` opens a namespace, when it opens one.
 #[must_use]
 pub(crate) const fn scope_form(class: NodeClass) -> Option<ScopeForm> {
-    if matches!(
-        class,
-        NodeClass::ListComp | NodeClass::SetComp | NodeClass::DictComp
-    ) {
+    if matches!(class, NodeClass::ListComp | NodeClass::SetComp | NodeClass::DictComp) {
         return Some(ScopeForm::Comprehension);
     }
     if matches!(class, NodeClass::Module) {
@@ -162,12 +155,7 @@ pub(crate) const fn syntax_form(class: NodeClass) -> SyntaxForm {
 
 /// The scope a child of the scope node `parent` is evaluated in: the scope itself for what runs inside it (a definition's body
 /// and type parameters, a lambda's expressions), the scope around it for the rest.
-fn evaluated(
-    model: &LexicalModel,
-    parent: Position,
-    parent_class: NodeClass,
-    child_class: NodeClass,
-) -> Position {
+fn evaluated(model: &LexicalModel, parent: Position, parent_class: NodeClass, child_class: NodeClass) -> Position {
     let inside = if matches!(parent_class, NodeClass::FunctionDef | NodeClass::ClassDef) {
         syntax_form(child_class) == SyntaxForm::Statement || child_class == NodeClass::TypeParams
     } else if parent_class == NodeClass::Lambda {
@@ -175,21 +163,12 @@ fn evaluated(
     } else {
         true
     };
-    if inside {
-        parent
-    } else {
-        scope_at(model, parent)
-    }
+    if inside { parent } else { scope_at(model, parent) }
 }
 
 /// The comprehension whose first clause is `clause`, when `child` is that clause's iterable: it is evaluated around the
 /// comprehension.
-fn first_iterable(
-    model: &LexicalModel,
-    tree: TypedTree<'_, '_>,
-    clause: Position,
-    child: Position,
-) -> Option<Position> {
+fn first_iterable(model: &LexicalModel, tree: TypedTree<'_, '_>, clause: Position, child: Position) -> Option<Position> {
     let Some(AnyNodeRef::Comprehension(typed)) = node_at(tree, clause) else {
         return None;
     };
@@ -232,28 +211,23 @@ fn import_origin(
 ) {
     let written = alias.name.as_str();
     let head = written.split(DOT).next().unwrap_or_default();
-    let (level, module) =
-        if let Some(AnyNodeRef::StmtImportFrom(from)) = node_at(tree, parent_of(tree.table, at)) {
-            (
-                Some(ImportLevel(from.level)),
-                from.module
-                    .as_ref()
-                    .map_or(NO_NAME, |module| intern(names, NameText(module.as_str()))),
-            )
-        } else {
-            (None, NO_NAME)
-        };
+    let (level, module) = if let Some(AnyNodeRef::StmtImportFrom(from)) = node_at(tree, parent_of(tree.table, at)) {
+        (
+            Some(ImportLevel(from.level)),
+            from.module
+                .as_ref()
+                .map_or(NO_NAME, |module| intern(names, NameText(module.as_str()))),
+        )
+    } else {
+        (None, NO_NAME)
+    };
     model.imports.push(ImportOrigin {
         at,
         level,
         module,
         name: intern(names, NameText(written)),
         head: intern(names, NameText(head)),
-        rename: if alias.asname.is_some() {
-            ImportRename::Renamed
-        } else {
-            ImportRename::Kept
-        },
+        rename: if alias.asname.is_some() { ImportRename::Renamed } else { ImportRename::Kept },
     });
 }
 
@@ -262,23 +236,13 @@ fn import_origin(
     clippy::wildcard_enum_match_arm,
     reason = "seventeen of the parser's node kinds carry a name, an annotation or a definition; every other carries none"
 )]
-fn read(
-    model: &mut LexicalModel,
-    names: &mut NameTable,
-    tree: TypedTree<'_, '_>,
-    at: Position,
-    scope: Position,
-) {
+fn read(model: &mut LexicalModel, names: &mut NameTable, tree: TypedTree<'_, '_>, at: Position, scope: Position) {
     let Some(node) = node_at(tree, at) else {
         return;
     };
     match node {
         AnyNodeRef::ExprName(name) => {
-            put(
-                &mut model.name,
-                at,
-                intern(names, NameText(name.id.as_str())),
-            );
+            put(&mut model.name, at, intern(names, NameText(name.id.as_str())));
             match name.ctx {
                 ExprContext::Load | ExprContext::Invalid => {}
                 ExprContext::Store => {
@@ -292,11 +256,7 @@ fn read(
             }
         }
         AnyNodeRef::ExprAttribute(attribute) => {
-            put(
-                &mut model.name,
-                at,
-                intern(names, NameText(attribute.attr.as_str())),
-            );
+            put(&mut model.name, at, intern(names, NameText(attribute.attr.as_str())));
             match attribute.ctx {
                 ExprContext::Load | ExprContext::Invalid => {}
                 ExprContext::Store => put(&mut model.usage, at, NameUse::Store),
@@ -304,58 +264,34 @@ fn read(
             }
         }
         AnyNodeRef::Identifier(identifier) => {
-            put(
-                &mut model.name,
-                at,
-                intern(names, NameText(identifier.id.as_str())),
-            );
+            put(&mut model.name, at, intern(names, NameText(identifier.id.as_str())));
         }
         AnyNodeRef::StmtFunctionDef(function) => {
             if let Some(returns) = &function.returns {
-                put(
-                    &mut model.annotation,
-                    id_of(&**returns),
-                    AnnotationMark::Annotation,
-                );
+                put(&mut model.annotation, id_of(&**returns), AnnotationMark::Annotation);
             }
             model.binders.push(at);
         }
         AnyNodeRef::Parameter(parameter) => {
             if let Some(annotation) = &parameter.annotation {
-                put(
-                    &mut model.annotation,
-                    id_of(&**annotation),
-                    AnnotationMark::Annotation,
-                );
+                put(&mut model.annotation, id_of(&**annotation), AnnotationMark::Annotation);
             }
             model.binders.push(at);
         }
         AnyNodeRef::StmtAnnAssign(assignment) => {
-            put(
-                &mut model.annotation,
-                id_of(&*assignment.annotation),
-                AnnotationMark::Annotation,
-            );
+            put(&mut model.annotation, id_of(&*assignment.annotation), AnnotationMark::Annotation);
         }
         AnyNodeRef::StmtClassDef(_)
         | AnyNodeRef::TypeParamTypeVar(_)
         | AnyNodeRef::TypeParamTypeVarTuple(_)
         | AnyNodeRef::TypeParamParamSpec(_) => model.binders.push(at),
-        AnyNodeRef::ExceptHandlerExceptHandler(handler) if handler.name.is_some() => {
-            model.binders.push(at)
-        }
+        AnyNodeRef::ExceptHandlerExceptHandler(handler) if handler.name.is_some() => model.binders.push(at),
         AnyNodeRef::PatternMatchAs(pattern) if pattern.name.is_some() => model.binders.push(at),
         AnyNodeRef::PatternMatchStar(pattern) if pattern.name.is_some() => model.binders.push(at),
-        AnyNodeRef::PatternMatchMapping(pattern) if pattern.rest.is_some() => {
-            model.binders.push(at)
-        }
+        AnyNodeRef::PatternMatchMapping(pattern) if pattern.rest.is_some() => model.binders.push(at),
         AnyNodeRef::Alias(alias) => {
             if alias.name.as_str() == WILDCARD.0 {
-                model.hazards.push(NameHazard {
-                    scope,
-                    at,
-                    name: NO_NAME,
-                });
+                model.hazards.push(NameHazard { scope, at, name: NO_NAME });
             }
             import_origin(model, names, tree, at, alias);
             model.binders.push(at);
@@ -369,9 +305,7 @@ pub(crate) fn build(model: &mut LexicalModel, names: &mut NameTable, tree: Typed
     clear(model);
     model.nodes = node_count(tree.table);
     let count = model.nodes.0.min(tree.nodes.len());
-    model
-        .class
-        .extend(tree.nodes.iter().take(count).map(|node| class_of(*node)));
+    model.class.extend(tree.nodes.iter().take(count).map(|node| class_of(*node)));
     model.scope_of.resize(count, MODULE);
     model.name.resize(count, NO_NAME);
     model.usage.resize(count, NameUse::Load);

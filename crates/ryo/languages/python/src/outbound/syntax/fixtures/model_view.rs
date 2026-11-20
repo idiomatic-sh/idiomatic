@@ -39,11 +39,7 @@ impl ModelView for FixtureView<'_> {
     fn semantics(&mut self, part: ModelPart) -> ModelRead<'_> {
         self.asked = Count(self.asked.0.saturating_add(1));
         built(self.model, &mut self.built, part, self.table, self.nodes);
-        ModelRead {
-            model: self.model,
-            table: self.table,
-            file: self.file,
-        }
+        ModelRead { model: self.model, table: self.table, file: self.file }
     }
 }
 
@@ -61,14 +57,7 @@ pub(crate) fn viewed(
         fixture.settings,
         &mut |table, nodes, target| {
             model.target = target;
-            visit(&mut FixtureView {
-                table,
-                nodes,
-                file,
-                model,
-                built: Built::default(),
-                asked: Count(0),
-            });
+            visit(&mut FixtureView { table, nodes, file, model, built: Built::default(), asked: Count(0) });
         },
     );
 }

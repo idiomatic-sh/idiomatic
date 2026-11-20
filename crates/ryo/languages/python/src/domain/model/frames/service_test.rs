@@ -33,9 +33,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Some((2, NameAbsence::Present))),
     },
     Case {
-        name: CaseName(
-            "an_arm_that_does_nothing_leaves_the_outer_definition_beside_the_other_arms",
-        ),
+        name: CaseName("an_arm_that_does_nothing_leaves_the_outer_definition_beside_the_other_arms"),
         word: Word::Succeeds,
         input: || (Arm::Nothing, Arm::Binds),
         expect: Expect::Value(Some((2, NameAbsence::Present))),
@@ -55,10 +53,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 
 fn subject((first, second): Input) -> Value {
-    let key = NamespaceKey {
-        scope: Position(0),
-        name: NameCode(0),
-    };
+    let key = NamespaceKey { scope: Position(0), name: NameCode(0) };
     let mut model = FrameModel::default();
     let root = open(&mut model, None);
     assign(&mut model, root, key, Position(1), NameAbsence::Present);
@@ -73,12 +68,7 @@ fn subject((first, second): Input) -> Value {
         arms.push(frame);
     }
     join(&mut model, root, &arms);
-    lookup(&model, root, key).map(|found| {
-        (
-            usize::from(found.end).saturating_sub(usize::from(found.start)),
-            found.absence,
-        )
-    })
+    lookup(&model, root, key).map(|found| (usize::from(found.end).saturating_sub(usize::from(found.start)), found.absence))
 }
 
 #[test]

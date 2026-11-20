@@ -3,16 +3,13 @@
 //! shadows. It states what the language does; it selects nothing.
 
 use super::types::{
-    FlowContext, FlowEvent, FlowEventKind, FlowModel, FlowRead, FlowShadow, FlowState, FlowUse,
-    OpenBranch, ShadowForm, UseForm,
+    FlowContext, FlowEvent, FlowEventKind, FlowModel, FlowRead, FlowShadow, FlowState, FlowUse, OpenBranch, ShadowForm, UseForm,
 };
-use crate::domain::model::declarations::service::{binding_scope, lexical_scope};
 use crate::domain::model::definitions::service::definition_of;
-use crate::domain::model::frames::service::{
-    self as frames, assign, delete, join, lookup, open, wildcard,
-};
+use crate::domain::model::frames::service::{self as frames, assign, delete, join, lookup, open, wildcard};
 use crate::domain::model::frames::types::{FrameCode, NameAbsence};
 use crate::domain::model::lexical::constants::MODULE;
+use crate::domain::model::declarations::service::{binding_scope, lexical_scope};
 use crate::domain::model::lexical::service::{entry, name_of, scope_at};
 use crate::domain::model::lexical::types::{AnnotationMark, NamespaceKey, NodeClass};
 use crate::domain::model::names::constants::{NO_NAME, UNKNOWN_NAME};
@@ -23,12 +20,7 @@ use ryo::languages::node_table::{parent_of, subtree_end_of};
 use ryo::languages::{Count, Integer, Position};
 
 /// What the read at `at` is for: a type when it is inside an annotation of its phase.
-fn read_context(
-    source: FlowSource<'_, '_, '_>,
-    at: Position,
-    phase: Position,
-    fallback: FlowContext,
-) -> FlowContext {
+fn read_context(source: FlowSource<'_, '_, '_>, at: Position, phase: Position, fallback: FlowContext) -> FlowContext {
     if fallback != FlowContext::Value {
         return fallback;
     }
@@ -45,39 +37,15 @@ fn read_context(
 }
 
 /// Records the read of the step: its state, and every definition that can reach it.
-fn read(
-    model: &mut FlowModel,
-    source: FlowSource<'_, '_, '_>,
-    frame: FrameCode,
-    step: BindingStep,
-    fallback: FlowContext,
-) {
+fn read(model: &mut FlowModel, source: FlowSource<'_, '_, '_>, frame: FrameCode, step: BindingStep, fallback: FlowContext) {
     let name = name_of(source.lexical, step.occurrence);
     if name == NO_NAME {
         return;
     }
     let context = read_context(source, step.occurrence, step.phase, fallback);
-    let reached = reach(
-        &mut model.reach,
-        &model.frames,
-        source,
-        frame,
-        step.occurrence,
-        name,
-    );
-    let state = refine(
-        &mut model.reach,
-        source,
-        step.occurrence,
-        step.phase,
-        name,
-        reached,
-    );
-    let form = if state == FlowReadState::Unique {
-        UseForm::Unique
-    } else {
-        UseForm::Alternative
-    };
+    let reached = reach(&mut model.reach, &model.frames, source, frame, step.occurrence, name);
+    let state = refine(&mut model.reach, source, step.occurrence, step.phase, name, reached);
+    let form = if state == FlowReadState::Unique { UseForm::Unique } else { UseForm::Alternative };
     model.reads.push(FlowRead {
         at: step.occurrence,
         name,
@@ -99,19 +67,11 @@ fn read(
 }
 
 /// Records the binding of the step: what it shadows, then the name's new state in its namespace.
-fn bind(
-    model: &mut FlowModel,
-    source: FlowSource<'_, '_, '_>,
-    frame: FrameCode,
-    step: BindingStep,
-) {
+fn bind(model: &mut FlowModel, source: FlowSource<'_, '_, '_>, frame: FrameCode, step: BindingStep) {
     let Some(definition) = definition_of(source.definitions, step.occurrence).copied() else {
         return;
     };
-    let key = NamespaceKey {
-        scope: definition.owner,
-        name: definition.name,
-    };
+    let key = NamespaceKey { scope: definition.owner, name: definition.name };
     let prior = lookup(&model.frames, frame, key);
     if let Some(found) = prior {
         for place in usize::from(found.start)..usize::from(found.end) {
@@ -129,14 +89,7 @@ fn bind(
             }
         }
     }
-    let _: FlowReadState = reach(
-        &mut model.reach,
-        &model.frames,
-        source,
-        frame,
-        step.occurrence,
-        definition.name,
-    );
+    let _: FlowReadState = reach(&mut model.reach, &model.frames, source, frame, step.occurrence, definition.name);
     for candidate in &model.reach.candidates {
         if candidate.scope != definition.owner {
             model.shadows.push(FlowShadow {
@@ -150,34 +103,16 @@ fn bind(
         }
     }
     if step.action == BindingAction::Bind {
-        assign(
-            &mut model.frames,
-            frame,
-            key,
-            step.occurrence,
-            NameAbsence::Present,
-        );
+        assign(&mut model.frames, frame, key, step.occurrence, NameAbsence::Present);
     } else if step.action == BindingAction::Annotation && prior.is_none() {
-        assign(
-            &mut model.frames,
-            frame,
-            key,
-            step.occurrence,
-            NameAbsence::Absent,
-        );
+        assign(&mut model.frames, frame, key, step.occurrence, NameAbsence::Absent);
     } else {
         // An annotation of a name the namespace already holds changes nothing.
     }
 }
 
 /// Records the events of a `global` or `nonlocal` statement: one per name it declares.
-fn declare(
-    model: &mut FlowModel,
-    source: FlowSource<'_, '_, '_>,
-    step: BindingStep,
-    ordinal: Integer,
-    kind: FlowEventKind,
-) {
+fn declare(model: &mut FlowModel, source: FlowSource<'_, '_, '_>, step: BindingStep, ordinal: Integer, kind: FlowEventKind) {
     let table = source.tree.table;
     let end = subtree_end_of(table, step.occurrence);
     let mut child = Position(step.occurrence.0.saturating_add(1));
@@ -199,73 +134,40 @@ fn declare(
 }
 
 /// Interprets one step that is about a name: records its event, then what it reads or changes.
-fn observe(
-    model: &mut FlowModel,
-    source: FlowSource<'_, '_, '_>,
-    frame: FrameCode,
-    step: BindingStep,
-    ordinal: Integer,
-) {
+fn observe(model: &mut FlowModel, source: FlowSource<'_, '_, '_>, frame: FrameCode, step: BindingStep, ordinal: Integer) {
     let table = source.tree.table;
     let definition = definition_of(source.definitions, step.occurrence).copied();
     let kind = match step.action {
         BindingAction::Read => FlowEventKind::Read,
-        BindingAction::Bind if definition.is_some_and(|found| found.name == UNKNOWN_NAME) => {
-            FlowEventKind::Wildcard
-        }
+        BindingAction::Bind if definition.is_some_and(|found| found.name == UNKNOWN_NAME) => FlowEventKind::Wildcard,
         BindingAction::Bind => FlowEventKind::Bind,
         BindingAction::Annotation => FlowEventKind::Annotation,
         BindingAction::Delete => FlowEventKind::Delete,
         BindingAction::Cleanup => FlowEventKind::Cleanup,
-        BindingAction::Global => {
-            return declare(model, source, step, ordinal, FlowEventKind::Global);
-        }
-        BindingAction::Nonlocal => {
-            return declare(model, source, step, ordinal, FlowEventKind::Nonlocal);
-        }
+        BindingAction::Global => return declare(model, source, step, ordinal, FlowEventKind::Global),
+        BindingAction::Nonlocal => return declare(model, source, step, ordinal, FlowEventKind::Nonlocal),
         BindingAction::BeginPhase
         | BindingAction::EndPhase
         | BindingAction::BeginAlternatives
         | BindingAction::NextAlternative
         | BindingAction::EndAlternatives => return,
     };
-    let name = definition.map_or_else(
-        || name_of(source.lexical, step.occurrence),
-        |found| found.name,
-    );
+    let name = definition.map_or_else(|| name_of(source.lexical, step.occurrence), |found| found.name);
     if name == NO_NAME {
         return;
     }
     let scope = if kind == FlowEventKind::Read {
         scope_at(source.lexical, step.occurrence)
     } else {
-        definition.map_or_else(
-            || binding_scope(source.lexical, table, step.occurrence, name),
-            |found| found.owner,
-        )
+        definition.map_or_else(|| binding_scope(source.lexical, table, step.occurrence, name), |found| found.owner)
     };
     let written_in_scope = kind == FlowEventKind::Read
         || matches!(
             entry(&source.lexical.class, step.occurrence),
-            NodeClass::Parameter
-                | NodeClass::TypeVar
-                | NodeClass::TypeVarTuple
-                | NodeClass::ParamSpec
+            NodeClass::Parameter | NodeClass::TypeVar | NodeClass::TypeVarTuple | NodeClass::ParamSpec
         );
-    let lexical = if written_in_scope {
-        scope
-    } else {
-        lexical_scope(source.lexical, table, step.occurrence)
-    };
-    model.events.push(FlowEvent {
-        at: step.occurrence,
-        name,
-        scope,
-        phase: step.phase,
-        ordinal,
-        kind,
-        lexical,
-    });
+    let lexical = if written_in_scope { scope } else { lexical_scope(source.lexical, table, step.occurrence) };
+    model.events.push(FlowEvent { at: step.occurrence, name, scope, phase: step.phase, ordinal, kind, lexical });
     let key = NamespaceKey { scope, name };
     match kind {
         FlowEventKind::Wildcard => wildcard(&mut model.frames, frame, scope),
@@ -309,9 +211,7 @@ pub(crate) fn build(model: &mut FlowModel, source: FlowSource<'_, '_, '_>) {
                 } else {
                     let task = source.schedule.phases.get(later);
                     later = later.saturating_add(1);
-                    let Some(found) =
-                        task.and_then(|phase| model.phase_frames.get(&phase.parent).copied())
-                    else {
+                    let Some(found) = task.and_then(|phase| model.phase_frames.get(&phase.parent).copied()) else {
                         return;
                     };
                     Some(found)
@@ -330,10 +230,7 @@ pub(crate) fn build(model: &mut FlowModel, source: FlowSource<'_, '_, '_>) {
                 let Some(current) = frame else {
                     return;
                 };
-                model.branches.push(OpenBranch {
-                    target: current,
-                    arms: Count(model.arms.len()),
-                });
+                model.branches.push(OpenBranch { target: current, arms: Count(model.arms.len()) });
                 frame = Some(open(&mut model.frames, Some(current)));
             }
             BindingAction::NextAlternative => {
@@ -348,11 +245,7 @@ pub(crate) fn build(model: &mut FlowModel, source: FlowSource<'_, '_, '_>) {
                     return;
                 };
                 model.arms.push(arm);
-                join(
-                    &mut model.frames,
-                    branch.target,
-                    model.arms.get(branch.arms.0..).unwrap_or_default(),
-                );
+                join(&mut model.frames, branch.target, model.arms.get(branch.arms.0..).unwrap_or_default());
                 model.arms.truncate(branch.arms.0);
                 frame = Some(branch.target);
             }

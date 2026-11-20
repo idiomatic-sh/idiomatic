@@ -3,16 +3,14 @@
 //! with a syntax error, a name with more events than today's chain limit), which the fillers answer in full.
 
 use super::service::{
-    binding_event_rows, binding_read_rows, binding_resolution_rows, binding_shadow_rows,
-    binding_use_rows,
+    binding_event_rows, binding_read_rows, binding_resolution_rows, binding_shadow_rows, binding_use_rows,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::lexical_facts::fixtures::{CONSTRUCTS, Compared, compared, filled};
-use crate::domain::lexical_facts::service::{
-    defines_rows, implicit_symbol_rows, qualified_name_rows, reference_rows, resolves_rows,
-    scope_rows,
-};
 use crate::fixtures::model_rows::{Counted, counted};
+use crate::domain::lexical_facts::service::{
+    defines_rows, implicit_symbol_rows, qualified_name_rows, reference_rows, resolves_rows, scope_rows,
+};
 use ryo::languages::{self, AbsenceCause};
 
 /// The relation and the source.
@@ -39,11 +37,7 @@ enum Filler {
 
 /// The fillers' rows equal today's readers' rows: `rows` of them, none differing, no cause.
 const fn equal(rows: usize) -> Expect<Value, Failure> {
-    Expect::Value(Compared {
-        rows,
-        differing: Vec::new(),
-        causes: Vec::new(),
-    })
+    Expect::Value(Compared { rows, differing: Vec::new(), causes: Vec::new() })
 }
 
 /// The rows of this part's cases.
@@ -86,28 +80,16 @@ fn subject((filler, source): Input) -> Result<Value, Failure> {
             let told = filled::<languages::BindingResolution>(source, |view, words, rows| {
                 binding_resolution_rows(view, words, rows)
             });
-            return told.absent.map_or_else(
-                || {
-                    Ok(Compared {
-                        rows: told.rows.len(),
-                        ..Compared::default()
-                    })
-                },
-                Err,
-            );
+            return told.absent.map_or_else(|| Ok(Compared { rows: told.rows.len(), ..Compared::default() }), Err);
         }
-        Filler::Event => compared::<languages::BindingEvent>(source, |view, words, rows| {
-            binding_event_rows(view, words, rows)
-        }),
-        Filler::Read => compared::<languages::BindingRead>(source, |view, words, rows| {
-            binding_read_rows(view, words, rows)
-        }),
-        Filler::Use => compared::<languages::BindingUse>(source, |view, words, rows| {
-            binding_use_rows(view, words, rows)
-        }),
-        Filler::Shadow => compared::<languages::BindingShadow>(source, |view, words, rows| {
-            binding_shadow_rows(view, words, rows)
-        }),
+        Filler::Event => {
+            compared::<languages::BindingEvent>(source, |view, words, rows| binding_event_rows(view, words, rows))
+        }
+        Filler::Read => compared::<languages::BindingRead>(source, |view, words, rows| binding_read_rows(view, words, rows)),
+        Filler::Use => compared::<languages::BindingUse>(source, |view, words, rows| binding_use_rows(view, words, rows)),
+        Filler::Shadow => {
+            compared::<languages::BindingShadow>(source, |view, words, rows| binding_shadow_rows(view, words, rows))
+        }
     })
 }
 
@@ -115,67 +97,28 @@ fn subject((filler, source): Input) -> Result<Value, Failure> {
 /// after its relation's name.
 fn every(source: &'static str) -> Compared {
     let parts = [
-        (
-            "scope",
-            compared::<languages::Scope>(source, |view, words, rows| scope_rows(view, words, rows)),
-        ),
-        (
-            "defines",
-            compared::<languages::Defines>(source, |view, words, rows| {
-                defines_rows(view, words, rows)
-            }),
-        ),
-        (
-            "reference",
-            compared::<languages::Reference>(source, |view, words, rows| {
-                reference_rows(view, words, rows)
-            }),
-        ),
-        (
-            "resolves",
-            compared::<languages::Resolves>(source, |view, words, rows| {
-                resolves_rows(view, words, rows)
-            }),
-        ),
+        ("scope", compared::<languages::Scope>(source, |view, words, rows| scope_rows(view, words, rows))),
+        ("defines", compared::<languages::Defines>(source, |view, words, rows| defines_rows(view, words, rows))),
+        ("reference", compared::<languages::Reference>(source, |view, words, rows| reference_rows(view, words, rows))),
+        ("resolves", compared::<languages::Resolves>(source, |view, words, rows| resolves_rows(view, words, rows))),
         (
             "qualified-name",
-            compared::<languages::QualifiedName>(source, |view, words, rows| {
-                qualified_name_rows(view, words, rows)
-            }),
+            compared::<languages::QualifiedName>(source, |view, words, rows| qualified_name_rows(view, words, rows)),
         ),
         (
             "implicit-symbol",
-            compared::<languages::ImplicitSymbol>(source, |view, words, rows| {
-                implicit_symbol_rows(view, words, rows)
-            }),
+            compared::<languages::ImplicitSymbol>(source, |view, words, rows| implicit_symbol_rows(view, words, rows)),
         ),
-        (
-            "binding-event",
-            subject((Filler::Event, source)).unwrap_or_default(),
-        ),
-        (
-            "binding-read",
-            subject((Filler::Read, source)).unwrap_or_default(),
-        ),
-        (
-            "binding-use",
-            subject((Filler::Use, source)).unwrap_or_default(),
-        ),
-        (
-            "binding-shadow",
-            subject((Filler::Shadow, source)).unwrap_or_default(),
-        ),
+        ("binding-event", subject((Filler::Event, source)).unwrap_or_default()),
+        ("binding-read", subject((Filler::Read, source)).unwrap_or_default()),
+        ("binding-use", subject((Filler::Use, source)).unwrap_or_default()),
+        ("binding-shadow", subject((Filler::Shadow, source)).unwrap_or_default()),
     ];
     let mut all = Compared::default();
     for (relation, part) in parts {
         all.rows += part.rows;
-        all.differing
-            .extend(part.differing.iter().map(|row| format!("{relation} {row}")));
-        all.causes.extend(
-            part.causes
-                .iter()
-                .map(|cause| format!("{relation} {cause}")),
-        );
+        all.differing.extend(part.differing.iter().map(|row| format!("{relation} {row}")));
+        all.causes.extend(part.causes.iter().map(|cause| format!("{relation} {cause}")));
     }
     all
 }
@@ -279,19 +222,13 @@ const UNANSWERED: &[Case<Unanswered, Counted, Failure>] = &[
         name: CaseName("a_file_with_a_syntax_error_has_its_events"),
         word: Word::Succeeds,
         input: || Unanswered::SyntaxError("if:\n    pass\nx = 1\nprint(x\ny = x +\n"),
-        expect: Expect::Value(Counted {
-            rows: 6,
-            causes: Vec::new(),
-        }),
+        expect: Expect::Value(Counted { rows: 6, causes: Vec::new() }),
     },
     Case {
         name: CaseName("a_name_with_more_than_two_to_the_twenty_events_is_answered"),
         word: Word::Succeeds,
         input: || Unanswered::OneNameBound((1 << 20) + 1),
-        expect: Expect::Value(Counted {
-            rows: (1 << 20) + 1,
-            causes: Vec::new(),
-        }),
+        expect: Expect::Value(Counted { rows: (1 << 20) + 1, causes: Vec::new() }),
     },
 ];
 
@@ -300,9 +237,7 @@ fn unanswered(input: Unanswered) -> Counted {
         Unanswered::SyntaxError(source) => source.to_owned(),
         Unanswered::OneNameBound(times) => "x = 0\n".repeat(times),
     };
-    counted::<languages::BindingEventRow>(&source, |view, words, rows| {
-        binding_event_rows(view, words, rows)
-    })
+    counted::<languages::BindingEventRow>(&source, |view, words, rows| binding_event_rows(view, words, rows))
 }
 
 #[test]

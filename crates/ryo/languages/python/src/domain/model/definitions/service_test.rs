@@ -18,16 +18,10 @@ type Failure = ();
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName(
-            "an_import_of_a_dotted_name_a_function_and_an_assignment_define_the_same_name",
-        ),
+        name: CaseName("an_import_of_a_dotted_name_a_function_and_an_assignment_define_the_same_name"),
         word: Word::Succeeds,
         input: || ("import a.b\nasync def a(): pass\na = 1\n", "a"),
-        expect: Expect::Value(&[
-            DefinitionWord::Import,
-            DefinitionWord::AsyncFunction,
-            DefinitionWord::Variable,
-        ]),
+        expect: Expect::Value(&[DefinitionWord::Import, DefinitionWord::AsyncFunction, DefinitionWord::Variable]),
     },
     Case {
         name: CaseName("a_global_assignment_in_a_function_defines_the_modules_name"),
@@ -45,26 +39,15 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 fn subject((source, name): Input) -> Value {
     let mut words = Vec::new();
-    viewed(
-        &mut ModelFixture::default(),
-        source,
-        FileId(0),
-        &mut |view| {
-            let model = view.semantics(ModelPart::Lexical).model;
-            let Some(code) = find(&model.names, NameText(name)) else {
-                return;
-            };
-            for definition in definitions_of(&model.definitions, MODULE, code) {
-                words.extend(
-                    model
-                        .definitions
-                        .all
-                        .get(usize::from(*definition))
-                        .map(|found| found.word),
-                );
-            }
-        },
-    );
+    viewed(&mut ModelFixture::default(), source, FileId(0), &mut |view| {
+        let model = view.semantics(ModelPart::Lexical).model;
+        let Some(code) = find(&model.names, NameText(name)) else {
+            return;
+        };
+        for definition in definitions_of(&model.definitions, MODULE, code) {
+            words.extend(model.definitions.all.get(usize::from(*definition)).map(|found| found.word));
+        }
+    });
     Box::leak(words.into_boxed_slice())
 }
 

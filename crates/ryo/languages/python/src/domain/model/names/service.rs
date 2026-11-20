@@ -1,9 +1,7 @@
 //! The `names` service of the model: free functions named by verb over the names of one file, with no IO and no ports.
 
 use super::constants::{HASH_START, HASH_STEP, UNKNOWN_NAME};
-use super::types::{
-    FactWords, HeldWord, HeldWords, NameCode, NameEntry, NameHash, NameSlot, NameTable, NameWords,
-};
+use super::types::{FactWords, HeldWord, HeldWords, NameCode, NameEntry, NameHash, NameSlot, NameTable, NameWords};
 use crate::domain::names::service::unknown;
 use crate::domain::names::types::Unresolved;
 use crate::domain::qualification::service::builtin_named;
@@ -133,12 +131,7 @@ pub(crate) fn word(words: &mut FileWords, text: NameText<'_>) -> Symbol {
 /// The word of the name `code`, interned the first time a filler writes it for the file and written from `known` after that; the
 /// unknown word of a wildcard import for the names one binds. The words of a file hold for all its fills: the engine forgets
 /// them only after the file.
-pub(crate) fn name_word(
-    names: &NameTable,
-    words: &mut FileWords,
-    known: &mut NameWords,
-    code: NameCode,
-) -> Symbol {
+pub(crate) fn name_word(names: &NameTable, words: &mut FileWords, known: &mut NameWords, code: NameCode) -> Symbol {
     if let Some(Some(found)) = known.0.get(usize::from(code)) {
         return *found;
     }
@@ -157,11 +150,7 @@ pub(crate) fn name_word(
 
 /// The word of a fixed text of the vocabulary, interned the first time it is written for the file and written from `held` after
 /// that: a row costs a look among a handful of held words, never a hash of the text.
-pub(crate) fn held_word(
-    words: &mut FileWords,
-    held: &mut HeldWords,
-    text: NameText<'static>,
-) -> Symbol {
+pub(crate) fn held_word(words: &mut FileWords, held: &mut HeldWords, text: NameText<'static>) -> Symbol {
     if let Some(found) = held.0.iter().find(|each| std::ptr::eq(each.text.0, text.0)) {
         return found.word;
     }

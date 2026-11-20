@@ -23,9 +23,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Some(Offset(46))),
     },
     Case {
-        name: CaseName(
-            "a_function_body_reads_the_last_module_definition_whatever_comes_after_the_function",
-        ),
+        name: CaseName("a_function_body_reads_the_last_module_definition_whatever_comes_after_the_function"),
         word: Word::Succeeds,
         input: || "x = 1\ndef f():\n    return x\nx = 2\nf\ndef g():\n    return x\n",
         expect: Expect::Value(Some(Offset(28))),
@@ -46,27 +44,17 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 fn subject(source: Input) -> Value {
     let mut answer = None;
-    viewed(
-        &mut ModelFixture::default(),
-        source,
-        FileId(0),
-        &mut |view| {
-            let model = view.semantics(ModelPart::Resolution).model;
-            let last = (0..model.lexical.class.len()).rev().find(|number| {
-                model.lexical.class.get(*number) == Some(&NodeClass::Name)
-                    && model.lexical.usage.get(*number) == Some(&NameUse::Load)
-            });
-            answer = last
-                .and_then(|number| {
-                    resolved_at(
-                        &model.resolution,
-                        Position(u32::try_from(number).unwrap_or(u32::MAX)),
-                    )
-                })
-                .and_then(|found| definition_of(&model.definitions, found))
-                .map(|definition| definition.named.start);
-        },
-    );
+    viewed(&mut ModelFixture::default(), source, FileId(0), &mut |view| {
+        let model = view.semantics(ModelPart::Resolution).model;
+        let last = (0..model.lexical.class.len()).rev().find(|number| {
+            model.lexical.class.get(*number) == Some(&NodeClass::Name)
+                && model.lexical.usage.get(*number) == Some(&NameUse::Load)
+        });
+        answer = last
+            .and_then(|number| resolved_at(&model.resolution, Position(u32::try_from(number).unwrap_or(u32::MAX))))
+            .and_then(|found| definition_of(&model.definitions, found))
+            .map(|definition| definition.named.start);
+    });
     answer
 }
 

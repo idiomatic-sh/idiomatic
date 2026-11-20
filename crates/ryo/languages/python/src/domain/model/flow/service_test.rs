@@ -45,28 +45,20 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 fn subject(source: Input) -> Value {
     let mut flow = FlowModel::default();
-    viewed(
-        &mut ModelFixture::default(),
-        source,
-        FileId(0),
-        &mut |view| {
-            let tree = TypedTree {
-                table: view.table,
-                nodes: view.nodes,
-            };
-            let model = view.semantics(ModelPart::Flow).model;
-            build(
-                &mut flow,
-                FlowSource {
-                    names: &model.names,
-                    lexical: &model.lexical,
-                    definitions: &model.definitions,
-                    schedule: &model.schedule,
-                    tree,
-                },
-            );
-        },
-    );
+    viewed(&mut ModelFixture::default(), source, FileId(0), &mut |view| {
+        let tree = TypedTree { table: view.table, nodes: view.nodes };
+        let model = view.semantics(ModelPart::Flow).model;
+        build(
+            &mut flow,
+            FlowSource {
+                names: &model.names,
+                lexical: &model.lexical,
+                definitions: &model.definitions,
+                schedule: &model.schedule,
+                tree,
+            },
+        );
+    });
     Box::leak(flow.reads.iter().map(|read| read.state).collect())
 }
 

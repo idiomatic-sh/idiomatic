@@ -8,8 +8,7 @@
 use crate::domain::binding_results::constants as vocabulary;
 use crate::domain::lexical_facts::service::{node, span_at};
 use crate::domain::model::flow::types::{
-    FlowContext, FlowEvent, FlowEventKind, FlowRead, FlowShadow, FlowState, FlowUse, ShadowForm,
-    UseForm,
+    FlowContext, FlowEvent, FlowEventKind, FlowRead, FlowShadow, FlowState, FlowUse, ShadowForm, UseForm,
 };
 use crate::domain::model::names::service::{held_word, name_word};
 use crate::domain::model::names::types::FactWords;
@@ -17,8 +16,8 @@ use crate::domain::model::reaching::types::FlowReadState;
 use crate::domain::model::view::types::{ModelPart, ModelRead, ModelView};
 use crate::domain::qualification::constants::NOT_APPLICABLE;
 use ryo::languages::{
-    AbsenceCause, BindingEventRow, BindingReadRow, BindingResolutionRow, BindingShadowRow,
-    BindingUseRow, FileWords, Fill, Missing, NameText, ReportText, Rows,
+    AbsenceCause, BindingEventRow, BindingReadRow, BindingResolutionRow, BindingShadowRow, BindingUseRow, FileWords, Fill,
+    Missing, NameText, ReportText, Rows,
 };
 
 /// The word of an event's kind.
@@ -58,10 +57,7 @@ const fn state_word(state: FlowReadState) -> NameText<'static> {
 }
 
 /// The flow part of the file's model; none, with the relation said partly read, when the flow could not be interpreted.
-fn flow_read<'v, V: ModelView, Row>(
-    file: &'v mut V,
-    rows: &mut dyn Rows<Row>,
-) -> Option<ModelRead<'v>> {
+fn flow_read<'v, V: ModelView, Row>(file: &'v mut V, rows: &mut dyn Rows<Row>) -> Option<ModelRead<'v>> {
     let read = file.semantics(ModelPart::Flow);
     if read.model.flow.state == FlowState::Incomplete {
         rows.partial(ReportText(vocabulary::INCOMPLETE), Missing::Any);
@@ -71,12 +67,7 @@ fn flow_read<'v, V: ModelView, Row>(
 }
 
 /// The row of one event.
-fn event_row(
-    read: ModelRead<'_>,
-    words: &mut FileWords,
-    known: &mut FactWords,
-    event: &FlowEvent,
-) -> BindingEventRow {
+fn event_row(read: ModelRead<'_>, words: &mut FileWords, known: &mut FactWords, event: &FlowEvent) -> BindingEventRow {
     BindingEventRow {
         occurrence: node(read, event.at),
         name: name_word(&read.model.names, words, &mut known.names, event.name),
@@ -107,12 +98,7 @@ pub(crate) fn binding_event_rows<V: ModelView>(
 }
 
 /// The row of one read: what the read is for and what can reach it.
-fn read_row(
-    read: ModelRead<'_>,
-    words: &mut FileWords,
-    known: &mut FactWords,
-    each: &FlowRead,
-) -> BindingReadRow {
+fn read_row(read: ModelRead<'_>, words: &mut FileWords, known: &mut FactWords, each: &FlowRead) -> BindingReadRow {
     let since = match each.state {
         FlowReadState::Builtin(since) | FlowReadState::DeclarationOrBuiltin(since) => since,
         FlowReadState::Unique
@@ -152,12 +138,7 @@ pub(crate) fn binding_read_rows<V: ModelView>(
 }
 
 /// The row of one definition that can reach a read.
-fn use_row(
-    read: ModelRead<'_>,
-    words: &mut FileWords,
-    known: &mut FactWords,
-    each: &FlowUse,
-) -> BindingUseRow {
+fn use_row(read: ModelRead<'_>, words: &mut FileWords, known: &mut FactWords, each: &FlowUse) -> BindingUseRow {
     let certainty = match each.form {
         UseForm::Unique => vocabulary::UNIQUE,
         UseForm::Alternative => vocabulary::ALTERNATIVE,
@@ -191,12 +172,7 @@ pub(crate) fn binding_use_rows<V: ModelView>(
 }
 
 /// The row of one binding that shadows an earlier definition of its name.
-fn shadow_row(
-    read: ModelRead<'_>,
-    words: &mut FileWords,
-    known: &mut FactWords,
-    each: &FlowShadow,
-) -> BindingShadowRow {
+fn shadow_row(read: ModelRead<'_>, words: &mut FileWords, known: &mut FactWords, each: &FlowShadow) -> BindingShadowRow {
     let relationship = match each.form {
         ShadowForm::Lexical => vocabulary::LEXICAL,
         ShadowForm::Replacement => vocabulary::REPLACEMENT,

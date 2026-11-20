@@ -2,9 +2,7 @@
 //! with no IO and no ports. A frame holds only the names it wrote over the frame it was opened from; the arms of alternatives
 //! are joined as sets.
 
-use super::types::{
-    Doubt, FlowFrame, FrameCode, FrameModel, NameAbsence, ReachPlace, Reaching, SlotKey,
-};
+use super::types::{Doubt, FlowFrame, FrameCode, FrameModel, NameAbsence, ReachPlace, Reaching, SlotKey};
 use crate::domain::model::lexical::types::NamespaceKey;
 use ryo::languages::{Count, Position};
 
@@ -24,11 +22,7 @@ pub(crate) fn open(model: &mut FrameModel, parent: Option<FrameCode>) -> FrameCo
         frame.touched.clear();
         frame.hazards.clear();
     } else {
-        model.frames.push(FlowFrame {
-            parent,
-            touched: Vec::new(),
-            hazards: Vec::new(),
-        });
+        model.frames.push(FlowFrame { parent, touched: Vec::new(), hazards: Vec::new() });
     }
     code
 }
@@ -37,10 +31,7 @@ pub(crate) fn open(model: &mut FrameModel, parent: Option<FrameCode>) -> FrameCo
 pub(crate) fn lookup(model: &FrameModel, frame: FrameCode, key: NamespaceKey) -> Option<Reaching> {
     let mut current = frame;
     loop {
-        if let Some(found) = model.slots.get(&SlotKey {
-            frame: current,
-            key,
-        }) {
+        if let Some(found) = model.slots.get(&SlotKey { frame: current, key }) {
             return Some(*found);
         }
         current = model.frames.get(usize::from(current))?.parent?;
@@ -62,27 +53,11 @@ fn arena_end(model: &FrameModel) -> ReachPlace {
 }
 
 /// Binds `key` to `definition` alone.
-pub(crate) fn assign(
-    model: &mut FrameModel,
-    frame: FrameCode,
-    key: NamespaceKey,
-    definition: Position,
-    absence: NameAbsence,
-) {
+pub(crate) fn assign(model: &mut FrameModel, frame: FrameCode, key: NamespaceKey, definition: Position, absence: NameAbsence) {
     let start = arena_end(model);
     model.arena.push(definition);
     let end = arena_end(model);
-    store(
-        model,
-        frame,
-        key,
-        Reaching {
-            start,
-            end,
-            absence,
-            doubt: Doubt::Certain,
-        },
-    );
+    store(model, frame, key, Reaching { start, end, absence, doubt: Doubt::Certain });
 }
 
 /// Unbinds `key`.
@@ -92,12 +67,7 @@ pub(crate) fn delete(model: &mut FrameModel, frame: FrameCode, key: NamespaceKey
         model,
         frame,
         key,
-        Reaching {
-            start: end,
-            end,
-            absence: NameAbsence::Absent,
-            doubt: Doubt::Certain,
-        },
+        Reaching { start: end, end, absence: NameAbsence::Absent, doubt: Doubt::Certain },
     );
 }
 
@@ -111,11 +81,7 @@ pub(crate) fn wildcard(model: &mut FrameModel, frame: FrameCode, scope: Position
 }
 
 /// The frame, `frame` or one it was opened from, in which a wildcard import wrote the namespace of `scope`.
-pub(crate) fn wildcard_frame(
-    model: &FrameModel,
-    frame: FrameCode,
-    scope: Position,
-) -> Option<FrameCode> {
+pub(crate) fn wildcard_frame(model: &FrameModel, frame: FrameCode, scope: Position) -> Option<FrameCode> {
     let mut current = frame;
     loop {
         let found = model.frames.get(usize::from(current))?;
@@ -132,11 +98,7 @@ pub(crate) fn join(model: &mut FrameModel, target: FrameCode, arms: &[FrameCode]
     let mut keys = std::mem::take(&mut model.keys);
     keys.clear();
     for arm in arms.iter().copied() {
-        let Some(hazards) = model
-            .frames
-            .get_mut(usize::from(arm))
-            .map(|frame| std::mem::take(&mut frame.hazards))
-        else {
+        let Some(hazards) = model.frames.get_mut(usize::from(arm)).map(|frame| std::mem::take(&mut frame.hazards)) else {
             continue;
         };
         for scope in &hazards {
@@ -182,16 +144,8 @@ pub(crate) fn join(model: &mut FrameModel, target: FrameCode, arms: &[FrameCode]
             Reaching {
                 start,
                 end,
-                absence: if absent {
-                    NameAbsence::Absent
-                } else {
-                    NameAbsence::Present
-                },
-                doubt: if uncertain {
-                    Doubt::Uncertain
-                } else {
-                    Doubt::Certain
-                },
+                absence: if absent { NameAbsence::Absent } else { NameAbsence::Present },
+                doubt: if uncertain { Doubt::Uncertain } else { Doubt::Certain },
             },
         );
     }

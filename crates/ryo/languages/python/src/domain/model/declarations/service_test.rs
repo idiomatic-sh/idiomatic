@@ -25,23 +25,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_nonlocal_name_is_bound_in_the_enclosing_function"),
         word: Word::Succeeds,
-        input: || {
-            (
-                "def f():\n    x = 0\n    def g():\n        nonlocal x\n        x = 1\n",
-                "x",
-            )
-        },
+        input: || ("def f():\n    x = 0\n    def g():\n        nonlocal x\n        x = 1\n", "x"),
         expect: Expect::Value(Some(ScopeRedirect::Nonlocal)),
     },
     Case {
         name: CaseName("the_first_declaration_of_a_name_holds"),
         word: Word::Succeeds,
-        input: || {
-            (
-                "def f():\n    def g():\n        nonlocal x\n        global x\n",
-                "x",
-            )
-        },
+        input: || ("def f():\n    def g():\n        nonlocal x\n        global x\n", "x"),
         expect: Expect::Value(Some(ScopeRedirect::Nonlocal)),
     },
     Case {
@@ -54,27 +44,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 fn subject((source, name): Input) -> Value {
     let mut answer = None;
-    viewed(
-        &mut ModelFixture::default(),
-        source,
-        FileId(0),
-        &mut |view| {
-            let model = view.semantics(ModelPart::Lexical).model;
-            let function = model
-                .lexical
-                .class
-                .iter()
-                .rposition(|class| *class == NodeClass::FunctionDef);
-            let code = find(&model.names, NameText(name));
-            if let (Some(function), Some(code)) = (function, code) {
-                answer = redirect_of(
-                    &model.lexical,
-                    Position(u32::try_from(function).unwrap_or(u32::MAX)),
-                    code,
-                );
-            }
-        },
-    );
+    viewed(&mut ModelFixture::default(), source, FileId(0), &mut |view| {
+        let model = view.semantics(ModelPart::Lexical).model;
+        let function = model.lexical.class.iter().rposition(|class| *class == NodeClass::FunctionDef);
+        let code = find(&model.names, NameText(name));
+        if let (Some(function), Some(code)) = (function, code) {
+            answer = redirect_of(&model.lexical, Position(u32::try_from(function).unwrap_or(u32::MAX)), code);
+        }
+    });
     answer
 }
 
