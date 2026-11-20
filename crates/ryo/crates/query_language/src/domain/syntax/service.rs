@@ -15,7 +15,7 @@ use ryo_values::domain::query_syntax::types::{
 use ryo_values::domain::query_tokens::types::{ArgumentName, OperationName};
 
 /// The operations a query can call, besides `select`.
-const SHAPES: [OperationShape; 25] = [
+const SHAPES: [OperationShape; 30] = [
     OperationShape {
         operator: QueryOperator::RenderSyntax,
         inputs: &[ArgumentSlot::From],
@@ -113,6 +113,18 @@ const SHAPES: [OperationShape; 25] = [
         ],
     },
     OperationShape {
+        operator: QueryOperator::AsOf,
+        inputs: &[ArgumentSlot::Left, ArgumentSlot::Right],
+        required: &[
+            ArgumentSlot::LeftOn,
+            ArgumentSlot::RightOn,
+            ArgumentSlot::LeftOrder,
+            ArgumentSlot::RightOrder,
+            ArgumentSlot::Bound,
+            ArgumentSlot::Output,
+        ],
+    },
+    OperationShape {
         operator: QueryOperator::Project,
         inputs: &[ArgumentSlot::From],
         required: &[ArgumentSlot::Columns],
@@ -167,6 +179,25 @@ const SHAPES: [OperationShape; 25] = [
         ],
     },
     OperationShape {
+        operator: QueryOperator::GroupMin,
+        inputs: &[ArgumentSlot::From],
+        required: &[ArgumentSlot::Keys, ArgumentSlot::Order],
+    },
+    OperationShape {
+        operator: QueryOperator::GroupMax,
+        inputs: &[ArgumentSlot::From],
+        required: &[ArgumentSlot::Keys, ArgumentSlot::Order],
+    },
+    OperationShape {
+        operator: QueryOperator::GroupOrdinal,
+        inputs: &[ArgumentSlot::From],
+        required: &[
+            ArgumentSlot::Keys,
+            ArgumentSlot::Order,
+            ArgumentSlot::Output,
+        ],
+    },
+    OperationShape {
         operator: QueryOperator::Capture,
         inputs: &[ArgumentSlot::From],
         required: &[
@@ -205,6 +236,11 @@ const SHAPES: [OperationShape; 25] = [
     },
     OperationShape {
         operator: QueryOperator::Closure,
+        inputs: &[ArgumentSlot::Edges],
+        required: &[ArgumentSlot::Source, ArgumentSlot::Destination],
+    },
+    OperationShape {
+        operator: QueryOperator::Follow,
         inputs: &[ArgumentSlot::Edges],
         required: &[ArgumentSlot::Source, ArgumentSlot::Destination],
     },

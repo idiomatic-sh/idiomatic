@@ -1,0 +1,5 @@
+let placed = span-bounds(from="function", span="span", start-output="begin", end-output="finish");
+let runs = select * from placed where name = "run";
+let probes = join(left=placed, right=runs, left-on=[file], right-on=[file], output={name: [left, name], file: [left, file], begin: [left, begin]});
+let latest = as-of(left=probes, right=placed, left-on=[file], right-on=[file], left-order="begin", right-order="begin", bound=before, output={name: [left, name], file: [left, file], earlier: [right, name]});
+let a = group-count(from=latest, keys=[name, earlier, file], count="pairs"); emit a subject file key(name, earlier, pairs);

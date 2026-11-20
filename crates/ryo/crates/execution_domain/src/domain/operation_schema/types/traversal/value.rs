@@ -38,7 +38,9 @@ impl<'a> TraversalShape<'a> {
     ) -> Result<Vec<CellKind>, OperatingError> {
         match kind_of(operation) {
             OperationKind::Axis => axis_schema(operation, self.inputs, bindings),
-            OperationKind::OrderedMatch => ordered_schema(operation, self.inputs),
+            OperationKind::OrderedMatch | OperationKind::AsOf => {
+                ordered_schema(operation, self.inputs)
+            }
             OperationKind::OrderedDfs => dfs_schema(operation, self.inputs),
             OperationKind::Worklist => worklist_schema(operation, self.inputs),
             OperationKind::Select
@@ -50,6 +52,8 @@ impl<'a> TraversalShape<'a> {
             | OperationKind::Difference
             | OperationKind::Antijoin
             | OperationKind::GroupCount
+            | OperationKind::GroupBound
+            | OperationKind::GroupOrdinal
             | OperationKind::GroupDigest
             | OperationKind::Capture
             | OperationKind::Rank
@@ -61,6 +65,7 @@ impl<'a> TraversalShape<'a> {
             | OperationKind::FitsRendered
             | OperationKind::SpanBetween
             | OperationKind::Closure
+            | OperationKind::Follow
             | OperationKind::Cycles
             | OperationKind::Rows
             | OperationKind::Hosted => Err(OperatingError::WrongOperation),
@@ -68,19 +73,27 @@ impl<'a> TraversalShape<'a> {
     }
 }
 
-/// Numeric order and equal key kinds of an ordered match, without indexing rows.
+/// Numeric order and equal key kinds of an ordered match or an as-of, without indexing rows.
 fn ordered_schema(
     operation: &Operation,
     inputs: &[InputShape<'_>],
 ) -> Result<Vec<CellKind>, OperatingError> {
-    let Operation::OrderedMatch {
+    let (Operation::OrderedMatch {
         left_on,
         right_on,
         left_order,
         right_order,
         output,
         ..
-    } = operation
+    }
+    | Operation::AsOf {
+        left_on,
+        right_on,
+        left_order,
+        right_order,
+        output,
+        ..
+    }) = operation
     else {
         return Err(OperatingError::WrongOperation);
     };

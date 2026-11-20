@@ -26,6 +26,30 @@ fn runs(world: &mut Behavior) {
         "unknown_relation" => {
             "let functions = select * from \"nothing\"; emit functions subject file key(file);"
         }
+        "as_of" => {
+            r#"let events = select scope, name, file, ordinal from "binding-event"; let latest = as-of(left=events, right=events, left-on=[name, file], right-on=[name, file], left-order="ordinal", right-order="ordinal", bound=before, output={name: [left, name], file: [left, file], point: [left, ordinal], earlier: [right, ordinal]}); emit latest subject file key(name, point, earlier);"#
+        }
+        "group_max" => {
+            r#"let events = select scope, name, file, ordinal from "binding-event"; let last = group-max(from=events, keys=[name, file], order="ordinal"); emit last subject file key(name, ordinal);"#
+        }
+        "group_ordinal" => {
+            r#"let events = select scope, name, file, ordinal from "binding-event"; let placed = group-ordinal(from=events, keys=[name, file], order="ordinal", output="place"); emit placed subject file key(name, place);"#
+        }
+        "follow" => {
+            r#"let pointers = select scope, name, file, ordinal as node, ordinal as target from "binding-event"; let ends = follow(edges=pointers, source="node", destination="target", keys=[scope, name, file]); emit ends subject file key(scope, name, node, target);"#
+        }
+        "written_rows" => {
+            r#"let codes = rows(from=[["TRIO110", "ASYNC110"], ["TRIO115", "ASYNC115"]], columns=["code", "canonical"]); emit codes subject code key(canonical);"#
+        }
+        "written_list" => {
+            r#"let found = select name, file from "function" where name in ["main", "run"]; emit found subject file key(name);"#
+        }
+        "order_not_a_number" => {
+            r#"let events = select scope, name, file, ordinal from "binding-event"; let last = group-max(from=events, keys=[file], order="name"); emit last subject file key(name);"#
+        }
+        "short_written_row" => {
+            r#"let codes = rows(from=[["TRIO110", "ASYNC110"], ["TRIO115"]], columns=["code", "canonical"]); emit codes subject code key(canonical);"#
+        }
         _ => "let functions = selekt * from \"function\"; emit functions subject file key(file);",
     };
     let syntax = Arc::new(ryo_query_language::outbound::syntax::factory::winnow());

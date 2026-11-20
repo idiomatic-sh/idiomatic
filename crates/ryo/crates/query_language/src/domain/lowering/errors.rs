@@ -53,8 +53,8 @@ pub(crate) enum LoweringError {
         /// The statement whose step compares on spans alone.
         span: QuerySpan,
     },
-    /// A closure or cycles step walks from a source to a destination of another kind.
-    #[error("a closure or cycles step needs a source and a destination of one kind")]
+    /// A closure, follow or cycles step walks from a source to a destination of another kind.
+    #[error("a closure, follow or cycles step needs a source and a destination of one kind")]
     MixedVertices {
         /// The statement whose step walks between two kinds.
         span: QuerySpan,
@@ -155,6 +155,28 @@ pub(crate) enum LoweringError {
         /// Where the comparison is.
         span: QuerySpan,
     },
+    /// An `as-of`, `group-min`, `group-max` or `group-ordinal` orders rows by a column that does not hold numbers.
+    #[error("`{operator}` orders by a number, and its order column `{column}` is not one")]
+    OrderNotNumber {
+        /// The operator as written.
+        operator: String,
+        /// The order column as written.
+        column: String,
+        /// Where the call is.
+        span: QuerySpan,
+    },
+    /// A row written in a `rows` call does not have one cell for each column.
+    #[error("row {row} of `rows` has {found} cells, and `columns` names {expected}")]
+    WrittenRowWidth {
+        /// The row, counted from 1.
+        row: usize,
+        /// How many columns the call names.
+        expected: usize,
+        /// How many cells the row has.
+        found: usize,
+        /// Where the call is.
+        span: QuerySpan,
+    },
     /// A function, `starts_with` or `ends_with` is given an argument that is not text.
     #[error("`{function}` takes text, and its argument {argument} is not text")]
     NotText {
@@ -226,6 +248,8 @@ impl std::fmt::Display for ArgumentFault {
             ArgumentFault::SameColumns => "expected the same columns as the left input",
             ArgumentFault::MatchingKeys => "expected as many left keys as right keys, and at least one",
             ArgumentFault::ExpectedDirection => "expected parent, child, ancestor, descendant, nearest-ancestor, previous-sibling or next-sibling",
+            ArgumentFault::ExpectedBound => "expected before, at-or-before, after or at-or-after",
+            ArgumentFault::ExpectedRows => "expected a parameter that holds a list of tables, or a list of rows, each a list of text",
             ArgumentFault::SiblingOverTree => "a sibling direction walks the relation \"syntax-child\", the edges that keep the children's order",
             ArgumentFault::Undeclared => "an undeclared parameter",
             ArgumentFault::NumbersAndFlagsOnly => "only numbers and flags extend a table",

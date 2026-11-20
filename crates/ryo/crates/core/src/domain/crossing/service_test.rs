@@ -5,7 +5,7 @@ use super::types::Placeability;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, StepId};
-use ryo_values::domain::plans::types::Emit;
+use ryo_values::domain::query_plans::types::Emit;
 use ryo_values::domain::rows::types::Table;
 use std::convert::Infallible;
 

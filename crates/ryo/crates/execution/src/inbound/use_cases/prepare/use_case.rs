@@ -21,7 +21,7 @@ impl PrepareUseCaseImpl {
 
 impl PrepareUseCase for PrepareUseCaseImpl {
     fn prepare(&self, request: PrepareRequest) -> Result<PreparedExecutionProgram, OperatingError> {
-        let compiled = match request.plans {
+        let mut compiled = match request.plans {
             PlanSource::Authored { plans, bindings } => {
                 ryo_execution_domain::domain::prepared_request::service::assemble(
                     plans,
@@ -31,6 +31,12 @@ impl PrepareUseCase for PrepareUseCaseImpl {
             }
             PlanSource::Compiled(queries) => queries.inner,
         };
+        // This engine never runs the kinds its `EXPANDED` lists: it is prepared from each plan with those written as the
+        // operations it does run. Every caller of this engine passes here; the plans as compiled are what every other
+        // reader of a plan keeps, the new engine among them.
+        for plan in &mut compiled.plans {
+            *plan = Arc::new(ryo_execution_domain::domain::plan_expansion::service::expanded(plan));
+        }
         ryo_execution_runtime::application::file_dag::service::prepare(
             compiled,
             &request.rules,

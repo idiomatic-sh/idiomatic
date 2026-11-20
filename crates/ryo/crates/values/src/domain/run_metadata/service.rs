@@ -10,8 +10,9 @@ use crate::domain::{
     plan_parts::types::Input,
     plans::{
         service::{inputs_of, named},
-        types::{Operation, Plan},
+        types::Operation,
     },
+    query_plans::types::Plan,
 };
 use ryo_relations::domain::catalog::service::scope_of;
 use ryo_relations::domain::catalog::types::RowScope;

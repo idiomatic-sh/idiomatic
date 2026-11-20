@@ -26,7 +26,7 @@ use {crate::domain::finish::types::LineStarts, ryo_values::domain::runs::types::
 use crate::domain::value_cells::types::Scene;
 use ryo_language::domain::files::types::FilePath;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Heading, StepId};
-use ryo_values::domain::plans::types::{Emit, Plan};
+use ryo_values::domain::query_plans::types::{Emit, Plan};
 use ryo_values::domain::row_texts::types::RowTotal;
 
 /// What a row of the cases does.

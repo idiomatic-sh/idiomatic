@@ -16,7 +16,7 @@ use ryo_language::domain::facts::types::FileFacts;
 use ryo_language::domain::node_table::types::NodeTable;
 use ryo_language::inbound::use_cases::walk::errors::WalkError;
 use ryo_language::inbound::use_cases::walk::types::{FileVisit, WalkEngine, WalkRequest};
-use ryo_values::domain::plans::types::Emit;
+use ryo_values::domain::query_plans::types::Emit;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 use ryo_values::domain::scan_rows::types::{FaultOf, FaultSentence, ScanFault, ScanRow};
 use std::sync::Arc;
@@ -140,11 +140,10 @@ impl FileVisit for Visiting<'_> {
             report: &mut *self.report,
             misfit: &mut self.misfit,
         };
-        self.answer =
-            Some(
-                self.engine
-                    .scan(self.run.programs, file, self.state, &mut keeping),
-            );
+        self.answer = Some(
+            self.engine
+                .scan(self.run.programs, file, self.state, &mut keeping),
+        );
     }
 }
 

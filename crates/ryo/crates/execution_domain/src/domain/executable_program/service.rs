@@ -21,7 +21,8 @@ use ryo_operators::domain::physical_plan::types::{
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::types::{Input, LiteralText};
 use ryo_values::domain::plans::service::{inputs_of, named};
-use ryo_values::domain::plans::types::{Operation, Plan};
+use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::query_plans::types::Plan;
 use std::borrow::Cow;
 use std::hash::{Hash, Hasher};
 

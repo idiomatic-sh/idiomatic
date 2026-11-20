@@ -32,7 +32,7 @@ use ryo_relations::domain::terms::types::{NameText, UnknownName};
 use ryo_values::domain::descriptions::types::ValidateReport;
 use ryo_values::domain::hosted::types::HostedRelation;
 use ryo_values::domain::observations::types::BoundObservationInput;
-use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::query_plans::types::Plan;
 use ryo_values::domain::program::types::ParsedModules;
 use ryo_values::domain::query_tokens::types::QueryBundle;
 use std::collections::BTreeMap;

@@ -1,6 +1,6 @@
 //! The types of the `lowering` concept: the rules it lowers and the plan shapes a refusal names.
 
-use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::query_plans::types::Plan;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 
 /// One selected rule and the plan its query compiled to.

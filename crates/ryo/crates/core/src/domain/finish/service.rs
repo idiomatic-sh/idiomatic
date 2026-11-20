@@ -29,7 +29,7 @@ use {
 };
 
 use crate::domain::value_cells::service::unknown_cell;
-use ryo_values::domain::plans::types::Emit;
+use ryo_values::domain::query_plans::types::Emit;
 use ryo_values::domain::records::service::keep;
 use ryo_values::domain::row_texts::types::RenderedText;
 use ryo_values::domain::row_texts::types::{Cell, CellText, TextRange};

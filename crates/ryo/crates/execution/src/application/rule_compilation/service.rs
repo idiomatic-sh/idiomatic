@@ -7,13 +7,13 @@ use super::types::PreparedRuleIdentities;
 use super::types::{CachedPlan, PlanCache};
 use crate::outbound::query_language::errors::QueryLanguageError;
 use crate::outbound::query_language::interface::QueryLanguagePort;
+use rayon::prelude::*;
 use ryo_execution_domain::domain::prepared_request::types::Compiled;
 use ryo_execution_runtime::outbound::digest::interface::DigestPort;
 use ryo_values::domain::hosted::service::declarations;
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::rule_requests::service::{bind, check_ids};
 use ryo_values::domain::rule_requests::types::RuleSpec;
-use rayon::prelude::*;
 use std::sync::{Arc, Mutex, PoisonError};
 
 /// The plan compiled so far for each rule id, shared by every use case built over them: a program that lints many projects with the
@@ -32,7 +32,9 @@ pub struct CompiledRules {
 
 impl CompiledRules {
     /// The plans, in the order of the rules. They are shared with the compilation's cache, never copied out of it.
-    pub fn plans(&self) -> impl ExactSizeIterator<Item = &ryo_values::domain::plans::types::Plan> {
+    pub fn plans(
+        &self,
+    ) -> impl ExactSizeIterator<Item = &ryo_values::domain::query_plans::types::Plan> {
         self.inner.plans.iter().map(AsRef::as_ref)
     }
     /// What each rule binds its parameters to, in the order of the plan's parameters.
@@ -110,7 +112,7 @@ impl RuleCompilation {
             ..
         } = &schedule
         {
-            let mut plans: Vec<Option<Arc<ryo_values::domain::plans::types::Plan>>> =
+            let mut plans: Vec<Option<Arc<ryo_values::domain::query_plans::types::Plan>>> =
                 vec![None; rules.len()];
             let mut bindings = vec![None; rules.len()];
             let mut observations = vec![Vec::new(); rules.len()];
@@ -219,7 +221,11 @@ impl RuleCompilation {
         // Spike (ryo-8y7q): the run holds its own linked plans; the session's unpruned plans and parsed modules are not read
         // again by this run, so a one-shot run lets them go before its files (`RYO_KEEP_PLANS` keeps them for the next run).
         if !ryo_operators::spike::keep_plans() {
-            let mut kept = self.compiled.0.lock().unwrap_or_else(PoisonError::into_inner);
+            let mut kept = self
+                .compiled
+                .0
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner);
             kept.plans = std::collections::HashMap::new();
             kept.order = std::collections::VecDeque::new();
             kept.parsed = ryo_values::domain::program::types::ParsedModules::default();
@@ -239,7 +245,7 @@ impl RuleCompilation {
         rule: &RuleSpec,
         declared: &[ryo_values::domain::hosted::types::HostedRelation],
         observations: &[ryo_values::domain::observations::types::BoundObservationInput],
-    ) -> Result<Arc<ryo_values::domain::plans::types::Plan>, RuleCompilationError> {
+    ) -> Result<Arc<ryo_values::domain::query_plans::types::Plan>, RuleCompilationError> {
         if let Some(plan) = self
             .compiled
             .0
@@ -308,7 +314,7 @@ impl RuleCompilation {
         rule: &RuleSpec,
         declared: &[ryo_values::domain::hosted::types::HostedRelation],
         observations: &[ryo_values::domain::observations::types::BoundObservationInput],
-        plan: &Arc<ryo_values::domain::plans::types::Plan>,
+        plan: &Arc<ryo_values::domain::query_plans::types::Plan>,
     ) {
         let cached = CachedPlan {
             query: rule.query.clone(),
@@ -337,7 +343,7 @@ impl RuleCompilation {
 /// Observe completed compilation at its existing caller-controlled phase boundary.
 pub(crate) fn observed(
     rules: &[RuleSpec],
-    plans: &[Arc<ryo_values::domain::plans::types::Plan>],
+    plans: &[Arc<ryo_values::domain::query_plans::types::Plan>],
     bindings: &[Vec<ryo_values::domain::query_bindings::types::ParameterBinding>],
     hosted: &[HostRelation],
     digest: &dyn DigestPort,

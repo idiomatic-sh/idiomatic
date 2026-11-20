@@ -26,6 +26,8 @@ pub enum QueryOperator {
     Replace,
     /// Ordered consumption of right rows.
     OrderedMatch,
+    /// `as-of(left, right, left-on, right-on, left-order, right-order, bound, output)`.
+    AsOf,
     /// `select ... from ... where ...`.
     Select,
     /// `project(from, columns)`.
@@ -46,6 +48,12 @@ pub enum QueryOperator {
     GroupCount,
     /// `group-digest(from, keys, distinct, digest, count)`.
     GroupDigest,
+    /// `group-min(from, keys, order)`.
+    GroupMin,
+    /// `group-max(from, keys, order)`.
+    GroupMax,
+    /// `group-ordinal(from, keys, order, output)`.
+    GroupOrdinal,
     /// `capture(from, path, pattern, captures)`.
     Capture,
     /// `words(from, text, word)`.
@@ -58,6 +66,8 @@ pub enum QueryOperator {
     Rows,
     /// `closure(edges, source, destination)`.
     Closure,
+    /// `follow(edges, source, destination, keys)`.
+    Follow,
     /// `cycles(edges, source, destination)`.
     Cycles,
     /// `span-between(from, start, end, output)`.
@@ -106,6 +116,8 @@ operation_kinds! {
     Replace,
     /// Ordered consumption of right rows.
     OrderedMatch,
+    /// `as-of`: the nearest right rows of a key group by a number order.
+    AsOf,
     /// `select`.
     Select,
     /// `project`.
@@ -124,6 +136,10 @@ operation_kinds! {
     Antijoin,
     /// `group-count`.
     GroupCount,
+    /// `group-min` and `group-max`: the rows at one end of a key group's order.
+    GroupBound,
+    /// `group-ordinal`: each distinct row's place in its key group's order.
+    GroupOrdinal,
     /// `group-digest`.
     GroupDigest,
     /// `capture`.
@@ -136,6 +152,8 @@ operation_kinds! {
     Axis,
     /// `closure`.
     Closure,
+    /// `follow`: the fixed points each source reaches.
+    Follow,
     /// `cycles`.
     Cycles,
     /// The rows a `list<table>` parameter holds.

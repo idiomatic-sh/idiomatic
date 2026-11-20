@@ -17,12 +17,12 @@ use ryo_values::domain::plan_parts::types::QueryLiteral;
 use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::Test;
-use ryo_values::domain::plans::types::Emit;
 use ryo_values::domain::plans::types::Operation;
-use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::plans::types::PlanStep;
 #[cfg(test)]
 use ryo_values::domain::query_operators::types::QueryOperator;
+use ryo_values::domain::query_plans::types::Emit;
+use ryo_values::domain::query_plans::types::Plan;
 #[cfg(test)]
 use std::borrow::Cow;
 

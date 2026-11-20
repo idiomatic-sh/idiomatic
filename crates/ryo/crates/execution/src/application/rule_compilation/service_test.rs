@@ -10,7 +10,7 @@ use fixtures::{
     Compiled, bounded, changed_ids, module_catalog_identity, oversized_requests, population,
     refused_program, rule, separate_request_eviction, unlocked_port,
 };
-use ryo_execution_domain::domain::operator::constants::{OPERATORS, describe};
+use ryo_execution_domain::domain::operator::constants::describe;
 use ryo_query_language::inbound::use_cases::compile::use_case::CompileUseCaseImpl;
 use ryo_query_language::inbound::use_cases::typecheck::use_case::TypecheckUseCaseImpl;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
@@ -21,6 +21,7 @@ use ryo_values::domain::plan_parts::types::{ParameterName, QueryText, WholeNumbe
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::query_bindings::types::ParameterType;
 use ryo_values::domain::query_bindings::types::PlanParameter;
+use ryo_values::domain::query_operators::constants::OPERATORS;
 use ryo_values::domain::query_tokens::types::QueryBundle;
 use ryo_values::domain::rule_requests::errors::RuleRequestsError;
 use ryo_values::domain::runs::types::RuleId;

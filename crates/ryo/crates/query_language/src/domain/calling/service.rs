@@ -14,8 +14,10 @@ use crate::domain::lowering::types::Uniqueness;
 use crate::domain::lowering::types::Widened;
 use crate::domain::planning::service::push;
 use crate::domain::reshaping::service::call_capture;
+use crate::domain::reshaping::service::call_group_bound;
 use crate::domain::reshaping::service::call_group_count;
 use crate::domain::reshaping::service::call_group_digest;
+use crate::domain::reshaping::service::call_group_ordinal;
 use crate::domain::reshaping::service::call_rank;
 use crate::domain::reshaping::service::call_rows;
 use crate::domain::reshaping::service::call_words;
@@ -24,12 +26,15 @@ use crate::domain::resolving::service::bad_argument;
 use crate::domain::resolving::service::column_of;
 use crate::domain::resolving::service::find_parameter;
 use crate::domain::resolving::service::input_argument;
+use crate::domain::resolving::service::number_order;
+use crate::domain::resolving::service::order_column;
 use crate::domain::resolving::service::parameter_of;
-use crate::domain::resolving::service::position;
 use crate::domain::resolving::service::positions_of;
 use crate::domain::resolving::service::repeated_rows;
+use crate::domain::resolving::service::word_of;
 use crate::domain::resolving::service::words_of;
 use crate::domain::rewriting::service::same_sets;
+use crate::domain::syntax::constants::bound_named;
 use crate::domain::syntax::constants::operator_named;
 use crate::domain::syntax::types::ArgumentSlot;
 use crate::domain::traversing::service::call_axis;
@@ -37,12 +42,12 @@ use crate::domain::traversing::service::call_closure;
 use crate::domain::traversing::service::call_ordered_dfs;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::terms::types::Vocabulary;
+use ryo_values::domain::plan_orders::types::GroupEnd;
 use ryo_values::domain::plan_parts::types as parts;
 use ryo_values::domain::plans::types as plans;
 use ryo_values::domain::query_operators::types::QueryOperator;
 use ryo_values::domain::query_syntax::types as ast;
 use ryo_values::domain::query_tokens::types as tokens;
-use ryo_values::domain::query_tokens::types::QuerySpelling;
 
 /// `name(argument=value, ...)`: one step of the operation the call names.
 pub(crate) fn lower_call(
@@ -72,7 +77,9 @@ pub(crate) fn lower_call(
         QueryOperator::SpanBounds => {
             crate::domain::spanning::service::call_span_bounds(builder, name, call)?;
         }
-        QueryOperator::Join | QueryOperator::OrderedMatch => call_join(builder, name, call)?,
+        QueryOperator::Join | QueryOperator::OrderedMatch | QueryOperator::AsOf => {
+            call_join(builder, name, call, operator)?;
+        }
         QueryOperator::Replace => {
             crate::domain::substituting::service::call_replace(builder, name, call)?;
         }
@@ -81,6 +88,9 @@ pub(crate) fn lower_call(
         }
         QueryOperator::Antijoin => call_antijoin(builder, name, call)?,
         QueryOperator::GroupCount => call_group_count(builder, name, call)?,
+        QueryOperator::GroupMin => call_group_bound(builder, name, call, GroupEnd::Least)?,
+        QueryOperator::GroupMax => call_group_bound(builder, name, call, GroupEnd::Greatest)?,
+        QueryOperator::GroupOrdinal => call_group_ordinal(builder, name, call)?,
         QueryOperator::GroupDigest => call_group_digest(builder, name, call)?,
         QueryOperator::Capture => call_capture(builder, name, call)?,
         QueryOperator::Words => call_words(builder, name, call)?,
@@ -89,7 +99,7 @@ pub(crate) fn lower_call(
         QueryOperator::Worklist => call_worklist(builder, name, call)?,
         QueryOperator::Axis => call_axis(builder, name, call)?,
         QueryOperator::Rows => call_rows(builder, name, call)?,
-        QueryOperator::Closure | QueryOperator::Cycles => {
+        QueryOperator::Closure | QueryOperator::Cycles | QueryOperator::Follow => {
             call_closure(builder, name, call, operator)?;
         }
     }
@@ -223,11 +233,14 @@ pub(crate) fn call_extend(
     Ok(())
 }
 
-/// Lowers a `join` call: the rows of its left input matched to those of its right on the named columns, as the step `name`.
+/// Lowers a `join`, an `ordered-match` or an `as-of` call: the rows of its left input matched to those of its right on the named
+/// columns, as the step `name`. The two ordered calls order each side by a column of numbers, refused at any other kind, and
+/// name each output column once.
 pub(crate) fn call_join(
     builder: &mut Builder<'_>,
     name: &tokens::StepName,
     call: &ast::Call,
+    operator: QueryOperator,
 ) -> Result<(), LoweringError> {
     let Sourced {
         input: left,
@@ -251,40 +264,60 @@ pub(crate) fn call_join(
         output,
         fields: kept,
     } = join_output(call, &left_fields, &right_fields)?;
-    let operation = if operator_named(&call.name.0) == Some(QueryOperator::OrderedMatch) {
-        for (index, field) in kept.iter().enumerate() {
-            if kept
-                .iter()
-                .take(index)
-                .any(|before| before.name == field.name)
-            {
-                return Err(LoweringError::DuplicateOutput {
-                    name: field.name.0.to_string(),
-                    span: call.span,
-                });
-            }
-        }
-        if left_on.len() != right_on.len()
-            || left_on.iter().zip(&right_on).any(|(left_key, right_key)| {
-                column_of(&left_fields, *left_key).kind != column_of(&right_fields, *right_key).kind
-            })
+    if operator == QueryOperator::Join {
+        let operation = plans::Operation::Join {
+            left,
+            right,
+            left_on,
+            right_on,
+            output,
+            filter: Vec::new(),
+            view: Vec::new(),
+
+            reach: None,
+        };
+        push(builder, Some(name), operation, kept);
+        return Ok(());
+    }
+    for (index, field) in kept.iter().enumerate() {
+        if kept
+            .iter()
+            .take(index)
+            .any(|before| before.name == field.name)
         {
-            return Err(LoweringError::KindMismatch { span: call.span });
+            return Err(LoweringError::DuplicateOutput {
+                name: field.name.0.to_string(),
+                span: call.span,
+            });
         }
-        let left_order = position(
-            &left_fields,
-            QuerySpelling(
-                &crate::domain::resolving::service::word_of(call, ArgumentSlot::LeftOrder)?.0,
-            ),
-            call.span,
-        )?;
-        let right_order = position(
-            &right_fields,
-            QuerySpelling(
-                &crate::domain::resolving::service::word_of(call, ArgumentSlot::RightOrder)?.0,
-            ),
-            call.span,
-        )?;
+    }
+    if left_on.len() != right_on.len()
+        || left_on.iter().zip(&right_on).any(|(left_key, right_key)| {
+            column_of(&left_fields, *left_key).kind != column_of(&right_fields, *right_key).kind
+        })
+    {
+        return Err(LoweringError::KindMismatch { span: call.span });
+    }
+    let operation = if operator == QueryOperator::AsOf {
+        plans::Operation::AsOf {
+            left,
+            right,
+            left_on,
+            right_on,
+            left_order: number_order(call, &left_fields, ArgumentSlot::LeftOrder)?,
+            right_order: number_order(call, &right_fields, ArgumentSlot::RightOrder)?,
+            bound: bound_named(&word_of(call, ArgumentSlot::Bound)?.0).ok_or_else(|| {
+                bad_argument(
+                    call,
+                    Some(ArgumentSlot::Bound),
+                    ArgumentFault::ExpectedBound,
+                )
+            })?,
+            output,
+        }
+    } else {
+        let left_order = order_column(call, &left_fields, ArgumentSlot::LeftOrder)?;
+        let right_order = order_column(call, &right_fields, ArgumentSlot::RightOrder)?;
         if column_of(&left_fields, left_order).kind != CellKind::Number
             || column_of(&right_fields, right_order).kind != CellKind::Number
         {
@@ -298,18 +331,6 @@ pub(crate) fn call_join(
             left_order,
             right_order,
             output,
-        }
-    } else {
-        plans::Operation::Join {
-            left,
-            right,
-            left_on,
-            right_on,
-            output,
-            filter: Vec::new(),
-            view: Vec::new(),
-
-            reach: None,
         }
     };
     push(builder, Some(name), operation, kept);

@@ -27,4 +27,4 @@ A wildcard import answers nothing. Alternatives are not merged: one event answer
 
 ## Cost
 
-One `closure` over the scopes of a file gives the paths. The latest event is found by `latest-before`: events and probes of one (namespace, name) are paired in order and `resolve-pointers` follows each probe back to an event in 20 doubling rounds, so a (namespace, name) with N events and probes costs O(N).
+One `closure` over the scopes of a file gives the paths. The latest event is found by `latest-before`: one `as-of` pairs each probe of a (namespace, name) with the latest event before it.

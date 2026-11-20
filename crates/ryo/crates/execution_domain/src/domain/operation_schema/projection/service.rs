@@ -183,6 +183,10 @@ pub(crate) fn output_origins<T: Copy>(
         | Operation::GroupCount { .. }
         | Operation::Replace { .. }
         | Operation::OrderedMatch { .. }
+        | Operation::AsOf { .. }
+        | Operation::GroupBound { .. }
+        | Operation::GroupOrdinal { .. }
+        | Operation::Follow { .. }
         | Operation::OrderedDfs { .. }
         | Operation::Worklist { .. }
         | Operation::GroupDigest { .. }

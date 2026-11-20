@@ -2,8 +2,8 @@
 
 use super::errors::RuleRequestsError;
 use super::types::RuleSpec;
-use crate::domain::plans::types::Plan;
 use crate::domain::query_bindings::types::ParameterBinding;
+use crate::domain::query_plans::types::Plan;
 use crate::domain::runs::types::RuleId;
 
 /// Refuses a rule with no id, or with the id of an earlier one.

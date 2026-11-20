@@ -8,7 +8,8 @@ use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as StepInput, StepId, StepScope};
-use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
+use ryo_values::domain::plans::types::{Operation, PlanStep};
+use ryo_values::domain::query_plans::types::{Emit, Plan};
 use std::borrow::Cow;
 use std::sync::Arc;
 

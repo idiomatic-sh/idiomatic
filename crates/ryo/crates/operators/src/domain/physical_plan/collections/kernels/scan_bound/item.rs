@@ -18,6 +18,7 @@ use ryo_relations::domain::relations::types::{CellKind, Value};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::rows::service::push_row;
 use ryo_values::domain::rows::types::Table;
+use ryo_values::domain::written_rows::types::RowsSource;
 
 /// `scan_bound`, one item of the `kernels` collection.
 #[cfg(test)]
@@ -44,7 +45,8 @@ pub(crate) fn held(rows: HeldRows<'_>) -> Result<&Table, PortableOperatorFault> 
 }
 
 /// The rows of a bound scan: the host's rows of a relation as the engine holds them, or one row for each table of a
-/// `list<table>` parameter, the text under each key in key order, each made a name in the run's symbols.
+/// `list<table>` parameter, the text under each key in key order, or one row for each row the query wrote; each text made a
+/// name in the run's symbols.
 ///
 /// # Errors
 ///
@@ -57,27 +59,10 @@ pub(crate) fn scanned(
     match scan {
         BoundScan::Hosted(relation) => held(run.inputs.hosted(*relation)).cloned(),
         BoundScan::Rows {
-            parameter,
+            source,
             keys,
             bindings,
         } => {
-            let tables =
-                match ryo_values::domain::plan_parts::service::parameter_in(bindings, *parameter)
-                    .ok_or(PortableOperatorFault::Unbound)?
-                {
-                    ParameterBinding::Tables(tables) => tables.as_slice(),
-                    ParameterBinding::Texts(items) if items.is_empty() => &[],
-                    ParameterBinding::Numbers(items) if items.is_empty() => &[],
-                    ParameterBinding::TextSets(items) if items.is_empty() => &[],
-                    ParameterBinding::Number(_)
-                    | ParameterBinding::Flag(_)
-                    | ParameterBinding::Text(_)
-                    | ParameterBinding::Numbers(_)
-                    | ParameterBinding::Texts(_)
-                    | ParameterBinding::TextSets(_) => {
-                        return Err(PortableOperatorFault::WrongBinding);
-                    }
-                };
             let mut output = Table {
                 kinds: vec![CellKind::Symbol; keys.len()],
                 ..Table::default()
@@ -87,9 +72,38 @@ pub(crate) fn scanned(
                 output: &mut output,
                 row: Vec::with_capacity(keys.len()),
             };
-            crate::domain::table_rows::service::rows(tables, keys, &mut into)?;
+            match source {
+                RowsSource::Parameter(parameter) => {
+                    let tables = bound_tables(bindings, *parameter)?;
+                    crate::domain::table_rows::service::rows(tables, keys, &mut into)?;
+                }
+                RowsSource::Written(rows) => {
+                    crate::domain::table_rows::service::written(rows, &mut into)?;
+                }
+            }
             Ok(output)
         }
+    }
+}
+
+/// The tables a `list<table>` parameter is bound to; an empty list of another shape is no table.
+fn bound_tables(
+    bindings: &[ParameterBinding],
+    parameter: ryo_values::domain::plan_parts::types::ParameterId,
+) -> Result<&[ryo_values::domain::query_bindings::types::BindingTable], PortableOperatorFault> {
+    match ryo_values::domain::plan_parts::service::parameter_in(bindings, parameter)
+        .ok_or(PortableOperatorFault::Unbound)?
+    {
+        ParameterBinding::Tables(tables) => Ok(tables.as_slice()),
+        ParameterBinding::Texts(items) if items.is_empty() => Ok(&[]),
+        ParameterBinding::Numbers(items) if items.is_empty() => Ok(&[]),
+        ParameterBinding::TextSets(items) if items.is_empty() => Ok(&[]),
+        ParameterBinding::Number(_)
+        | ParameterBinding::Flag(_)
+        | ParameterBinding::Text(_)
+        | ParameterBinding::Numbers(_)
+        | ParameterBinding::Texts(_)
+        | ParameterBinding::TextSets(_) => Err(PortableOperatorFault::WrongBinding),
     }
 }
 

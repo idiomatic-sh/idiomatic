@@ -16,7 +16,7 @@ use ryo_execution_domain::domain::trust::types::relation_read::value::RelationRe
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::InputNumber;
-use ryo_values::domain::plans::types::Emit;
+use ryo_values::domain::query_plans::types::Emit;
 use ryo_values::domain::records::types::ObservationIndex;
 use ryo_values::domain::rule_requests::types::RuleSpec;
 use std::sync::Arc;
@@ -70,7 +70,7 @@ impl PreparedProgram {
     pub(crate) fn reads(
         &self,
         rule: RuleIndex,
-    ) -> Result<&ryo_values::domain::plans::types::RuleReads, OperatingError> {
+    ) -> Result<&ryo_values::domain::query_plans::types::RuleReads, OperatingError> {
         self.reads.get(rule.0).ok_or(OperatingError::NotRun)
     }
     pub(crate) fn hosted(&self) -> &[HostRelation] {
@@ -185,7 +185,7 @@ pub(crate) fn prepare(
     } = compiled;
     // The request's declarations, one per rule: a request whose plans, bindings or observations do not match its rules is
     // refused first, whatever the interpreter's compile does.
-    let source_plans: Vec<Result<&ryo_values::domain::plans::types::Plan, OperatingError>> =
+    let source_plans: Vec<Result<&ryo_values::domain::query_plans::types::Plan, OperatingError>> =
         plans.iter().map(|plan| Ok(plan.as_ref())).collect();
     let partitions = SourcePartitions::new(rules, &source_plans, &bindings, hosted, &observations)?;
     let request = match identity {
@@ -202,9 +202,9 @@ pub(crate) fn prepare(
         }
     };
     // What the plans and the observation request state, read once for the file pass and the request's port.
-    let shared: Vec<&ryo_values::domain::plans::types::Plan> =
+    let shared: Vec<&ryo_values::domain::query_plans::types::Plan> =
         plans.iter().map(AsRef::as_ref).collect();
-    let owned: Vec<ryo_values::domain::plans::types::Plan> =
+    let owned: Vec<ryo_values::domain::query_plans::types::Plan> =
         shared.iter().map(|plan| (*plan).clone()).collect();
     let observed = match request {
         ObservationRequest::Bound { layout, .. } => Some(ObservationMetadata {
@@ -265,7 +265,7 @@ pub(crate) fn prepare(
         hosted: hosted.to_vec().into_boxed_slice(),
         reads: owned
             .iter()
-            .map(ryo_values::domain::plans::service::reads_of)
+            .map(ryo_values::domain::query_plans::service::reads_of)
             .collect(),
     }))
 }
@@ -277,7 +277,7 @@ pub(crate) fn prepare(
 ///
 /// `NotRun` for a rule the executable program does not hold.
 fn outputs(
-    plans: &[ryo_values::domain::plans::types::Plan],
+    plans: &[ryo_values::domain::query_plans::types::Plan],
     consumers: &[Vec<Vec<RuleIndex>>],
     executable: &ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram,
 ) -> Result<Vec<Vec<OutputMetadata>>, OperatingError> {

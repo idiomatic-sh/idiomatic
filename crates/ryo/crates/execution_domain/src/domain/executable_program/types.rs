@@ -12,8 +12,9 @@ use ryo_operators::domain::physical_plan::types::{PlanInput, PlanNodeId};
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 use ryo_values::domain::observations::types::BoundObservationInput;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, LiteralText, QueryLiteral, StepScope};
-use ryo_values::domain::plans::types::{Operation, Plan};
+use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
+use ryo_values::domain::query_plans::types::Plan;
 use std::sync::Arc;
 
 /// What a rule's parameters are bound to, by parameter id.
@@ -44,7 +45,7 @@ pub struct RuleObservations<'a>(pub &'a [BoundObservationInput]);
 ///
 /// ```
 /// use ryo_execution_domain::domain::executable_program::types::{RuleBindings, RuleInput, RuleObservations};
-/// use ryo_values::domain::plans::types::Plan;
+/// use ryo_values::domain::query_plans::types::Plan;
 /// fn rule(plan: &std::sync::Arc<Plan>) -> RuleInput<'_> {
 ///     RuleInput { plan, bindings: RuleBindings(&[]), observations: RuleObservations(&[]) }
 /// }

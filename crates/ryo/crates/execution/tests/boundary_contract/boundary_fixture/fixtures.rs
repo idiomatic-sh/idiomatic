@@ -27,7 +27,8 @@ use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::{
     files::types::{CorpusEntry, CorpusInput, ExecutablePermission, FileSize, Nanoseconds},
     plan_parts::types::{ColumnIndex, Input, StepId, StepScope},
-    plans::types::{Emit, Operation, Plan, PlanStep},
+    plans::types::{Operation, PlanStep},
+    query_plans::types::{Emit, Plan},
     query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
     rows::types::{RowCount, Table},
     rule_requests::types::{RuleParameters, RuleSpec},

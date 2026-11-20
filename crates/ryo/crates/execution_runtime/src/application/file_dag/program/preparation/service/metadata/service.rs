@@ -10,7 +10,8 @@ use ryo_execution_domain::domain::trust::types::read_set::value::ReadSet;
 use ryo_execution_domain::domain::trust::types::read_sets::value::ReadSets;
 use ryo_execution_domain::domain::trust::types::relation_read::value::RelationRead;
 use ryo_values::domain::plan_parts::types::Input;
-use ryo_values::domain::plans::types::{Operation, Plan};
+use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::query_plans::types::Plan;
 
 /// What each plan states, in rule order: its emit, frontiers, named outputs with what each reads on the way (the file pass's
 /// step reads, the one computation of them), its frontiers' purposes and whether it renders.

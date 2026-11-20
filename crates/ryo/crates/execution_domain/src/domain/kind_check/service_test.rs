@@ -14,8 +14,9 @@ use ryo_values::domain::plan_parts::types::{
     Applied, ColumnIndex, Function, LiteralText, Operand, ParameterId, PlanComparison,
     QueryLiteral, StepId, Test,
 };
-use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
+use ryo_values::domain::plans::types::{Operation, PlanStep};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
+use ryo_values::domain::query_plans::types::{Emit, Plan};
 
 /// What a row gives the check: how the kind is compared, with what, and the texts bound to the parameters.
 type Given = (Test, Operand, Vec<ParameterBinding>);

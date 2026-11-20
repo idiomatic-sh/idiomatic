@@ -10,7 +10,7 @@ use ryo_execution_domain::domain::trust::types::read_set::value::ReadSet;
 use ryo_values::domain::hosted::types::HostRelation;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::StepScope;
-use ryo_values::domain::plans::types::Emit;
+use ryo_values::domain::query_plans::types::Emit;
 use ryo_values::domain::records::types::ObservationIndex;
 use ryo_values::domain::records::types::ObservationReadinessLayout;
 
@@ -80,5 +80,5 @@ pub(crate) struct PreparedProgram {
     pub(super) hosted: Box<[HostRelation]>,
     /// The relations each rule's steps read, each once, in the order first read, by rule: a file's sources are asked for those of
     /// the rules that run on it.
-    pub(super) reads: Box<[ryo_values::domain::plans::types::RuleReads]>,
+    pub(super) reads: Box<[ryo_values::domain::query_plans::types::RuleReads]>,
 }

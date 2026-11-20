@@ -12,7 +12,8 @@ use ryo_values::domain::{
     plan_parts::types::{
         ColumnIndex, HostedNumber, Input, ObservationBindingId, StepId, StepScope,
     },
-    plans::types::{Emit, Operation, Plan, PlanStep},
+    plans::types::{Operation, PlanStep},
+    query_plans::types::{Emit, Plan},
     query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
     records::types::ObservationReadinessLayout,
     row_texts::types::{Cell, PlacedRule},

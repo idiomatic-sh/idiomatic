@@ -10,7 +10,7 @@ use ryo_matching::inbound::use_cases::matching::types::{
 use ryo_values::domain::plan_parts::types::{Operand, QueryLiteral, Test};
 use ryo_values::domain::plans::types::Operation;
 #[cfg(any(test, feature = "fixtures"))]
-use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::query_plans::types::Plan;
 use std::sync::OnceLock;
 
 /// Request-owned metadata only; runtime patterns cannot add keys or replace compiled slots.

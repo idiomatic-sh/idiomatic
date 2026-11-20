@@ -11,7 +11,7 @@ use ryo_language::inbound::use_cases::walk::types::WalkEngine;
 use ryo_operators::spike::EngineMode;
 use ryo_relations::domain::relations::types::FileId;
 use ryo_values::domain::descriptions::types::{KindVocabularies, LanguageName};
-use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::query_plans::types::Plan;
 use ryo_values::domain::scan_rows::types::ScanFault;
 use ryo_values::domain::stored_facts::types::Digest;
 use ryo_values::domain::stores::types::StoredPack;

@@ -71,7 +71,7 @@ impl Rendering {
         &self,
         crossing: &ProjectCrossing<'_>,
         todo: &Todo,
-        emit: &ryo_values::domain::plans::types::Emit,
+        emit: &ryo_values::domain::query_plans::types::Emit,
         table: Option<ryo_values::domain::rows::types::Table>,
         cross: &mut Symbols,
     ) -> Result<Option<Rendered>, RuleRequestsError> {

@@ -8,8 +8,9 @@ use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::service::column_place;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, Operand};
 use ryo_values::domain::plans::service::{comparisons_of, inputs_of, kind_of, named};
-use ryo_values::domain::plans::types::{Operation, Plan};
+use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_operators::types::OperationKind;
+use ryo_values::domain::query_plans::types::Plan;
 
 /// Adds the reads in `more` to `uses`, each once: a read the steps before already made is the same read, and the reads of a plan whose
 /// steps meet again would otherwise double at every meeting.
@@ -109,8 +110,11 @@ pub(super) fn step_reads(
         | OperationKind::Union
         | OperationKind::Intersection
         | OperationKind::GroupCount
+        | OperationKind::GroupBound
+        | OperationKind::GroupOrdinal
         | OperationKind::Replace
         | OperationKind::OrderedMatch
+        | OperationKind::AsOf
         | OperationKind::OrderedDfs
         | OperationKind::Worklist
         | OperationKind::GroupDigest
@@ -119,6 +123,7 @@ pub(super) fn step_reads(
         | OperationKind::Words
         | OperationKind::Axis
         | OperationKind::Closure
+        | OperationKind::Follow
         | OperationKind::Cycles
         | OperationKind::Rows
         | OperationKind::Hosted => {

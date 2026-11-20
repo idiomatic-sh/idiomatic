@@ -12,7 +12,7 @@ use crate::domain::coverage::types::RuleIndex;
 use crate::domain::rule_intent::errors::RuleIntentError;
 use ryo_values::domain::observations::types::{BoundObservationInput, ObservationProducer};
 use ryo_values::domain::plan_parts::types::StepScope;
-use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::query_plans::types::Plan;
 use ryo_values::domain::rule_requests::types::RuleSpec;
 use ryo_values::domain::runs::types::RuleId;
 use std::collections::{BTreeMap, BTreeSet};
@@ -105,7 +105,7 @@ pub fn schedule(rules: &[RuleSpec]) -> Result<RuleSchedule, RuleIntentError> {
 /// ```
 /// use ryo_execution_domain::domain::observation_schedule::service::schemas;
 /// use ryo_values::domain::plan_parts::types::QueryText;
-/// use ryo_values::domain::plans::types::Plan;
+/// use ryo_values::domain::query_plans::types::Plan;
 /// use ryo_values::domain::query_tokens::types::QueryBundle;
 /// use ryo_values::domain::rule_requests::types::{RuleParameters, RuleSpec};
 /// use ryo_values::domain::runs::types::{RuleApplicability, RuleId};

@@ -17,7 +17,7 @@ use ryo_relations::domain::relations::types::Bytes;
 use ryo_values::domain::descriptions::types::{
     KindVocabularies, KindVocabulary, KindWord, LanguageName,
 };
-use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::query_plans::types::Plan;
 use ryo_values::domain::stored_facts::types::Digest;
 use ryo_values::domain::stores::types::StoredPack;
 use std::borrow::Cow;

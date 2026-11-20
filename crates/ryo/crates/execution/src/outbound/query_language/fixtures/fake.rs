@@ -11,10 +11,11 @@ use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Input, LiteralText, Operand, PlanComparison, QueryLiteral, StepId, Test,
 };
-use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
+use ryo_values::domain::plans::types::{Operation, PlanStep};
 use ryo_values::domain::program::types::RefusalMessage;
 use ryo_values::domain::program::types::RefusedKind;
 use ryo_values::domain::program::types::RefusedQuery;
+use ryo_values::domain::query_plans::types::{Emit, Plan};
 
 /// What the core's tests stand in for `query_language` with: it compiles any text to the plan it
 /// was given, validates any text as reading the relations the host declared, refuses text that contains `refuse`, and counts how many

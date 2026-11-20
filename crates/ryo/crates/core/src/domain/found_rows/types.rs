@@ -4,7 +4,7 @@
 use crate::domain::render::types::{RowLayout, RowLimit, Shown};
 use crate::domain::value_cells::types::Scene;
 use ryo_relations::domain::relations::types::CellKind;
-use ryo_values::domain::plans::types::Emit;
+use ryo_values::domain::query_plans::types::Emit;
 use ryo_values::domain::runs::types::RuleNumber;
 
 /// What one call renders of the rows the new engine's scan kept: the rule that found them, what a row of it emits, what each of

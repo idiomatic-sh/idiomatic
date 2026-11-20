@@ -26,3 +26,16 @@ pub(crate) fn rows(
     }
     Ok(())
 }
+
+/// Delivers each row a query wrote, its texts in column order.
+pub(crate) fn written(
+    rows: &ryo_values::domain::written_rows::types::WrittenRows,
+    each: &mut dyn TableRowOutput,
+) -> Result<(), PortableOperatorFault> {
+    for row in &rows.0 {
+        let texts: Vec<CellText<'_>> = row.0.iter().map(|cell| CellText(&cell.0)).collect();
+        each.row(RowTexts(&texts))
+            .map_err(|_| PortableOperatorFault::Interrupted)?;
+    }
+    Ok(())
+}

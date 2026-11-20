@@ -80,6 +80,10 @@ pub(crate) fn graph_source(
             | Operation::Rank { .. }
             | Operation::Replace { .. }
             | Operation::OrderedMatch { .. }
+            | Operation::AsOf { .. }
+            | Operation::GroupBound { .. }
+            | Operation::GroupOrdinal { .. }
+            | Operation::Follow { .. }
             | Operation::Words { .. }
             | Operation::Axis { .. }
             | Operation::Closure { .. }
@@ -170,6 +174,10 @@ fn graph_input(mut input: Input, steps: &[PlanStep]) -> GraphInputKind {
                     | Operation::Rank { .. }
                     | Operation::Replace { .. }
                     | Operation::OrderedMatch { .. }
+                    | Operation::AsOf { .. }
+                    | Operation::GroupBound { .. }
+                    | Operation::GroupOrdinal { .. }
+                    | Operation::Follow { .. }
                     | Operation::Words { .. }
                     | Operation::Axis { .. }
                     | Operation::Closure { .. }

@@ -4,7 +4,8 @@ use crate::domain::observation_schedule::service::link::service::link;
 use crate::domain::observation_schedule::service::{schedule, schemas};
 use crate::domain::rule_intent::errors::RuleIntentError;
 use ryo_values::domain::{
-    plans::types::Plan, query_bindings::types::ParameterBinding, rule_requests::types::RuleSpec,
+    query_bindings::types::ParameterBinding, query_plans::types::Plan,
+    rule_requests::types::RuleSpec,
 };
 /// Assembles the compiled request from its plans, parameter bindings and rules, scheduling their observations.
 ///

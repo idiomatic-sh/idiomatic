@@ -270,8 +270,13 @@ pub(crate) const GRAMMAR: &[GrammarLine] = &[
     },
     GrammarLine {
         name: "factor",
-        form: "\"(\" condition \")\" | filter",
+        form: "\"(\" condition \")\" | written_membership | filter",
         example: "(kind = \"a\" or kind = \"b\")",
+    },
+    GrammarLine {
+        name: "written_membership",
+        form: "operand [ not ] in \"[\" ( string | number ) { \",\" ( string | number ) } \"]\"",
+        example: "kind in [\"for\", \"async-for\"]",
     },
     GrammarLine {
         name: "filter",

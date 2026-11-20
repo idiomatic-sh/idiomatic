@@ -54,11 +54,24 @@ pub(crate) fn prepare(operation: &ryo_values::domain::plans::types::Operation) -
             keys: keys.clone(),
             distinct: *distinct,
         },
+        // The kinds this engine never runs (`EXPANDED`) register what their nearest kind needs: a group by its keys.
+        Operation::GroupBound { keys, .. } | Operation::GroupOrdinal { keys, .. } => {
+            ResourceProgram::Count {
+                keys: keys.clone(),
+                distinct: None,
+            }
+        }
         Operation::GroupDigest { keys, over, .. } => ResourceProgram::Digest {
             keys: keys.clone(),
             over: *over,
         },
         Operation::Closure {
+            keys,
+            source,
+            destination,
+            ..
+        }
+        | Operation::Follow {
             keys,
             source,
             destination,
@@ -77,6 +90,13 @@ pub(crate) fn prepare(operation: &ryo_values::domain::plans::types::Operation) -
             destination: *destination,
         },
         Operation::OrderedMatch {
+            left_on,
+            right_on,
+            left_order,
+            right_order,
+            ..
+        }
+        | Operation::AsOf {
             left_on,
             right_on,
             left_order,
@@ -177,6 +197,10 @@ pub(crate) fn binding_dependent(
         | ryo_values::domain::plans::types::Operation::Capture { .. }
         | ryo_values::domain::plans::types::Operation::Replace { .. }
         | ryo_values::domain::plans::types::Operation::OrderedMatch { .. }
+        | ryo_values::domain::plans::types::Operation::AsOf { .. }
+        | ryo_values::domain::plans::types::Operation::GroupBound { .. }
+        | ryo_values::domain::plans::types::Operation::GroupOrdinal { .. }
+        | ryo_values::domain::plans::types::Operation::Follow { .. }
         | ryo_values::domain::plans::types::Operation::Words { .. }
         | ryo_values::domain::plans::types::Operation::Closure { .. }
         | ryo_values::domain::plans::types::Operation::OrderedDfs { .. }

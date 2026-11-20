@@ -8,7 +8,7 @@ use super::types::{
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_operators::spike::EngineMode;
 use ryo_relations::domain::relations::types::CellKind;
-use ryo_values::domain::plans::types::Emit;
+use ryo_values::domain::query_plans::types::Emit;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 use ryo_values::domain::scan_rows::types::ScanRow;
 use ryo_values::domain::stores::types::StoredPack;

@@ -199,7 +199,7 @@ impl LintUseCase for LintUseCaseImpl {
             hosted: &request.hosted,
             vocabularies: &self.language.kind_vocabularies(),
         })?;
-        let plans: Vec<&ryo_values::domain::plans::types::Plan> = compiled.plans().collect();
+        let plans: Vec<&ryo_values::domain::query_plans::types::Plan> = compiled.plans().collect();
         let placed = placement(self.matching.as_ref(), &rules, &ids)?;
         let wants = crate::domain::visit::service::wants(&plans, &self.language.relations()?.0)?;
         drop(compiling);

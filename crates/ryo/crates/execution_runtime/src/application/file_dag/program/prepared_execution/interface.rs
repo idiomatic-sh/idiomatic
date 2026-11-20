@@ -36,7 +36,7 @@ pub trait ProgramPreparedExecutionPort {
     fn emit(
         &self,
         rule: RuleIndex,
-    ) -> Result<&ryo_values::domain::plans::types::Emit, OperatingError>;
+    ) -> Result<&ryo_values::domain::query_plans::types::Emit, OperatingError>;
     /// The rule's digest.
     ///
     /// # Errors

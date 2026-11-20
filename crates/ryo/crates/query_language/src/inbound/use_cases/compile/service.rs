@@ -61,6 +61,7 @@ pub(super) fn unresolved(error: LoweringError) -> CompileError {
             CompileError::UnknownRelation { name, span }
         }
         LoweringError::KindMismatch { span }
+        | LoweringError::OrderNotNumber { span, .. }
         | LoweringError::UnknownWord { span, .. }
         | LoweringError::NotText { span, .. } => CompileError::Type {
             span,
@@ -81,6 +82,7 @@ pub(super) fn unresolved(error: LoweringError) -> CompileError {
         | LoweringError::SpanArgument { span, .. }
         | LoweringError::UnknownStep { span, .. }
         | LoweringError::DuplicateOutput { span, .. }
+        | LoweringError::WrittenRowWidth { span, .. }
         | LoweringError::InvalidRegex { span, .. }
         | LoweringError::UnknownColumn { span, .. }
         | LoweringError::UnknownSide { span, .. }

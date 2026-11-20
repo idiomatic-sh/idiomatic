@@ -15,8 +15,9 @@ use ryo_values::domain::{
         PlanObservation,
     },
     plan_parts::types::{ColumnIndex, ParameterName, StepId, WholeNumber},
-    plans::types::{Emit, Operation, PlanStep},
+    plans::types::{Operation, PlanStep},
     query_bindings::types::{ParameterType, PlanParameter},
+    query_plans::types::Emit,
     query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId},
     records::types::ObservationIndex,
     runs::types::{RuleApplicability, RuleId},
@@ -26,8 +27,8 @@ use ryo_values::domain::{
     plan_parts::types::{
         HostedNumber, Input as PlanInput, ObservationBindingId, ParameterId, StepScope,
     },
-    plans::types::Plan,
     query_bindings::types::ParameterBinding,
+    query_plans::types::Plan,
     rule_requests::types::RuleSpec,
 };
 

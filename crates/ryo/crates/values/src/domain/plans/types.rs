@@ -1,9 +1,9 @@
-//! The types of the `plans` concept: a compiled query: its parameters, its steps and what it emits. Plain data, public fields and derives, with no constructor and no inherent impl.
+//! The types of the `plans` concept: the steps of a compiled query and the operations they are. Plain data, public fields and derives, with no constructor and no inherent impl.
 
+use crate::domain::plan_orders::types::{GroupEnd, OrderBound};
 use crate::domain::plan_parts::types::CapturePattern;
 use crate::domain::plan_parts::types::ColumnIndex;
 use crate::domain::plan_parts::types::Direction;
-use crate::domain::plan_parts::types::Heading;
 use crate::domain::plan_parts::types::HostedNumber;
 use crate::domain::plan_parts::types::Input;
 use crate::domain::plan_parts::types::JoinColumn;
@@ -11,45 +11,10 @@ use crate::domain::plan_parts::types::Operand;
 use crate::domain::plan_parts::types::ParameterId;
 use crate::domain::plan_parts::types::PlanComparison;
 use crate::domain::plan_parts::types::RepeatedRows;
-use crate::domain::plan_parts::types::StepId;
 use crate::domain::plan_parts::types::StepScope;
 use crate::domain::plan_parts::types::TableKey;
-use crate::domain::query_bindings::types::PlanParameter;
 use crate::domain::query_operators::types::{LineOutput, MaxLine, TabWidth, TextOutput};
-use crate::domain::query_tokens::types::QueryOrigin;
-
-/// A compiled query: its parameters, its steps in the order to run them, and what it emits.
-#[derive(Clone, Debug, PartialEq, Hash)]
-pub struct Plan {
-    /// Ordered schemas of explicit bound inputs; source IDs remain stable through request pruning.
-    pub observation_inputs: Vec<crate::domain::observations::types::BoundObservationInput>,
-    /// The `param` lines.
-    pub parameters: Vec<PlanParameter>,
-    /// The steps, each reading only the relations and the steps before it.
-    pub steps: Vec<PlanStep>,
-    /// Source origins indexed by diagnostic-only comparison IDs.
-    pub comparison_origins: Vec<QueryOrigin>,
-    /// Explicit named roots; request linking removes undemanded observation-only work.
-    pub observations: Vec<crate::domain::observations::types::PlanObservation>,
-    /// The `emit` line.
-    pub emit: Emit,
-    /// What the per-file steps hand to the cross-file steps: the relations and the per-file steps
-    /// that a cross-file step reads. Empty when every step is per-file.
-    pub frontier: Vec<Input>,
-}
-
-/// The relations a rule's steps read, each once, in the order they are first read.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_relations::domain::relations::types::Relation;
-/// use ryo_values::domain::plans::types::RuleReads;
-/// let reads = RuleReads(Box::new([Relation::Function]));
-/// assert!(reads.0.contains(&Relation::Function));
-/// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct RuleReads(pub Box<[ryo_relations::domain::relations::types::Relation]>);
+use crate::domain::written_rows::types::RowsSource;
 
 /// One operation of the plan.
 #[derive(Clone, Debug, PartialEq, Hash)]
@@ -204,6 +169,45 @@ pub enum Operation {
         /// Explicit output projection.
         output: Vec<JoinColumn>,
     },
+    /// Pair each left row with the right rows of its key group nearest to it by a number order; rows tied for nearest all pair.
+    AsOf {
+        /// Left rows.
+        left: Input,
+        /// Right rows.
+        right: Input,
+        /// Left equality keys; none means one group.
+        left_on: Vec<ColumnIndex>,
+        /// Right equality keys.
+        right_on: Vec<ColumnIndex>,
+        /// The left number order column.
+        left_order: ColumnIndex,
+        /// The right number order column.
+        right_order: ColumnIndex,
+        /// Which right rows are nearest: below or above the left order, strictly or not.
+        bound: OrderBound,
+        /// Explicit output projection.
+        output: Vec<JoinColumn>,
+    },
+    /// Keep each key group's rows at one end of a number order; rows tied there are all kept.
+    GroupBound {
+        /// What it groups.
+        from: Input,
+        /// The columns that make a group; none means one group.
+        keys: Vec<ColumnIndex>,
+        /// The number order column.
+        order: ColumnIndex,
+        /// Which end is kept: the least or the greatest.
+        end: GroupEnd,
+    },
+    /// Append to each distinct row how many distinct rows of its key group have a strictly smaller number order.
+    GroupOrdinal {
+        /// What it groups.
+        from: Input,
+        /// The columns that make a group; none means one group.
+        keys: Vec<ColumnIndex>,
+        /// The number order column.
+        order: ColumnIndex,
+    },
     /// Split a text column into words, one row for each.
     Words {
         /// What it splits.
@@ -239,6 +243,17 @@ pub enum Operation {
     },
     /// Every pair joined by a chain of edges.
     Closure {
+        /// The edges.
+        edges: Input,
+        /// Independent graph partitions, in output order; empty means one graph.
+        keys: Vec<ColumnIndex>,
+        /// The source column.
+        source: ColumnIndex,
+        /// The destination column.
+        destination: ColumnIndex,
+    },
+    /// Each source with every entity it reaches over edges that has an edge to itself.
+    Follow {
         /// The edges.
         edges: Input,
         /// Independent graph partitions, in output order; empty means one graph.
@@ -311,10 +326,10 @@ pub enum Operation {
         /// The destination column.
         destination: ColumnIndex,
     },
-    /// The rows a `list<table>` parameter holds, one for each table, a column for each key: the same for every file.
+    /// The rows a `list<table>` parameter holds, one for each table, or the rows the query wrote: a column for each key, the same for every file.
     Rows {
-        /// The parameter holding the tables.
-        parameter: ParameterId,
+        /// Where the rows come from: the parameter holding the tables, or the rows written.
+        source: RowsSource,
         /// The keys whose values fill the columns, in order.
         keys: Vec<TableKey>,
     },
@@ -380,17 +395,4 @@ pub enum Operation {
         /// Span whose endpoints are projected.
         span: ColumnIndex,
     },
-}
-
-/// What the query emits.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Emit {
-    /// The step whose rows answer the query.
-    pub step: StepId,
-    /// The column holding the file a row is about.
-    pub subject: ColumnIndex,
-    /// The columns that identify a row.
-    pub key: Vec<ColumnIndex>,
-    /// The headings of the answer's columns: text that leaves the engine.
-    pub headings: Vec<Heading>,
 }

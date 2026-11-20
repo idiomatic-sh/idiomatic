@@ -96,7 +96,8 @@ pub(crate) fn call_axis(
     Ok(())
 }
 
-/// Lowers a `closure` or `cycles` call over the source and target columns of its edges, as the step `name`.
+/// Lowers a `closure`, `follow` or `cycles` call over the source and target columns of its edges, as the step `name`. A `follow`
+/// takes what a `closure` takes and answers the same columns: its keys, its source and the fixed point reached.
 pub(crate) fn call_closure(
     builder: &mut Builder<'_>,
     name: &ryo_values::domain::query_tokens::types::StepName,
@@ -117,7 +118,7 @@ pub(crate) fn call_closure(
         QuerySpelling(&word_of(call, ArgumentSlot::Destination)?.0),
         call.span,
     )?;
-    if operator == QueryOperator::Closure {
+    if operator != QueryOperator::Cycles {
         let keys = if call
             .arguments
             .iter()
@@ -147,17 +148,22 @@ pub(crate) fn call_closure(
                 field
             })
             .collect();
-        push(
-            builder,
-            Some(name),
+        let operation = if operator == QueryOperator::Follow {
+            plans::Operation::Follow {
+                edges,
+                keys,
+                source,
+                destination,
+            }
+        } else {
             plans::Operation::Closure {
                 edges,
                 keys,
                 source,
                 destination,
-            },
-            kept,
-        );
+            }
+        };
+        push(builder, Some(name), operation, kept);
     } else {
         // The entities that can reach themselves, each as a row with the entity in both columns.
         let kept = vec![

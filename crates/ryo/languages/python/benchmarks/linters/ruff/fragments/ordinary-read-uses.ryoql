@@ -1,7 +1,6 @@
 import conditional_deletions from "python/ruff/conditional-deletions";
 import annotation_context from "python/ruff/annotation-evaluation-context";
 import latest_before from "python/ruff/latest-before";
-import resolve_pointers from "python/ruff/resolve-pointers";
 input reads: relation<reference: node, file: file>;
 output relation<reference: node, binding: node, kind: symbol, file: file>;
 let nodes = select id, kind, file, span from "semantic-syntax";
@@ -100,7 +99,7 @@ let home_intervals = select l.scope as scope, l.name as name, l.file as file, l.
 let home_restores = select l.scope as scope, l.scope as phase, l.name as name, l.file as file, l.finish as node, r.before as target from home_intervals as l join home_pairs as r on l.scope = r.scope and l.name = r.name and l.file = r.file and l.begin = r.at;
 let home_pointers0 = union(left=home_skips, right=home_selves);
 let home_pointers = union(left=home_pointers0, right=home_restores);
-let home_resolved = resolve_pointers(pointers=home_pointers);
+let home_resolved = follow(edges=home_pointers, source="node", destination="target", keys=[scope,phase,name,file]);
 let home_finals = select l.reference as reference, l.depth as depth, l.scope as scope, l.name as name, r.target as final, l.file as file from home_names as l join home_resolved as r on l.scope = r.scope and l.name = r.name and l.file = r.file and l.ordinal = r.node;
 let home_answers = select l.reference as reference, r.id as event, r.kind as kind, l.depth as depth, l.file as file from home_finals as l join home_events as r on l.scope = r.scope and l.name = r.name and l.file = r.file and l.final = r.ordinal;
 let declaration_references = select l.reference as reference, l.depth as depth, l.scope as scope, l.name as name, r.ordinal as point, l.file as file from declaration_rows as l join "binding-event" as r on l.reference = r.occurrence and l.file = r.file where r.kind = "read" or r.kind = "delete";
@@ -138,7 +137,7 @@ let declaring_intervals = select l.scope as scope, l.name as name, l.file as fil
 let declaring_restores = select l.scope as scope, l.scope as phase, l.name as name, l.file as file, l.finish as node, r.before as target from declaring_intervals as l join declaring_pairs as r on l.scope = r.scope and l.name = r.name and l.file = r.file and l.begin = r.at;
 let declaring_pointers0 = union(left=declaring_skips, right=declaring_selves);
 let declaring_pointers = union(left=declaring_pointers0, right=declaring_restores);
-let declaring_resolved = resolve_pointers(pointers=declaring_pointers);
+let declaring_resolved = follow(edges=declaring_pointers, source="node", destination="target", keys=[scope,phase,name,file]);
 let declaring_finals = select l.reference as reference, l.depth as depth, l.scope as scope, l.name as name, r.target as final, l.file as file from declaring_cleanups as l join declaring_resolved as r on l.scope = r.scope and l.name = r.name and l.file = r.file and l.ordinal = r.node;
 let declaring_restored = select l.reference as reference, r.id as event, r.kind as kind, l.depth as depth, l.file as file from declaring_finals as l join declaring_events as r on l.scope = r.scope and l.name = r.name and l.file = r.file and l.final = r.ordinal;
 let stepped_answers0 = union(left=home_answers, right=declaring_plain);

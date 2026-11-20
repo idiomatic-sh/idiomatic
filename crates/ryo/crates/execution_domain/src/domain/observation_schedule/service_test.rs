@@ -15,7 +15,8 @@ use ryo_values::domain::observations::types::{
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Input as PlanInput, ObservationBindingId, RepeatedRows, StepId, StepScope,
 };
-use ryo_values::domain::plans::types::{Operation, Plan, PlanStep};
+use ryo_values::domain::plans::types::{Operation, PlanStep};
+use ryo_values::domain::query_plans::types::Plan;
 use ryo_values::domain::records::types::ObservationIndex;
 use ryo_values::domain::rule_requests::types::RuleSpec;
 use ryo_values::domain::runs::types::RuleId;

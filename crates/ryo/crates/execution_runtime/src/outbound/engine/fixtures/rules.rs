@@ -11,7 +11,8 @@ use ryo_relations::domain::relations::service::columns;
 use ryo_relations::domain::relations::types::{Column, FactForm, KindBits, NodeColumn};
 use ryo_values::domain::descriptions::types::KindVocabulary;
 use ryo_values::domain::plan_parts::types::{Input, Operand, PlanComparison, QueryLiteral, Test};
-use ryo_values::domain::plans::types::{Operation, Plan};
+use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::query_plans::types::Plan;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 
 /// What one column of a rule's found row holds.

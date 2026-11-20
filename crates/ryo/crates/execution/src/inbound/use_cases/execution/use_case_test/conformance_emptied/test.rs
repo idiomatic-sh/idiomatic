@@ -109,7 +109,11 @@ fn every_required_input_empty_answers_no_rows() -> Result<Value, Failure> {
         };
     let mut probes = vec![];
     let mut lacking = vec![];
-    for kind in OperationKind::ALL {
+    // The kinds this engine never runs reach it expanded into the others: none is executed here.
+    let run = |kind: &&OperationKind| {
+        !ryo_operators::domain::physical_plan::constants::EXPANDED.contains(kind)
+    };
+    for kind in OperationKind::ALL.iter().filter(run) {
         let presence =
             ryo_execution_domain::domain::operator::contract::service::semantics(*kind).presence;
         let width = fixture(*kind).inputs.len();

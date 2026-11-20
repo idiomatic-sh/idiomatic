@@ -26,7 +26,7 @@ use ryo_values::domain::files::service::input_path;
 use ryo_values::domain::files::types::CorpusInput;
 use ryo_values::domain::hosted::service::identity as hosted_identity;
 use ryo_values::domain::hosted::types::HostRelation;
-use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::query_plans::types::Plan;
 use ryo_values::domain::records::types::Freshness;
 use ryo_values::domain::rule_requests::types::RuleSpec;
 use ryo_values::domain::runs::types::RuleId;
@@ -178,43 +178,43 @@ impl Storing {
         let digest: &dyn DigestPort = &*self.digest;
         // Spike (ryo-fmx3, host3): each rule's identity is its own: the rules are digested on every worker at once.
         let one = |(rule, plan): (&RuleSpec, &&Plan)| {
-                let own = digest.combine(&[
+            let own = digest.combine(&[
+                digest.digest(DigestBytes(
+                    &configuration(std::slice::from_ref(rule), &[]).0,
+                )),
+                hosted,
+                schema,
+                source_selection,
+                digest.digest(DigestBytes(&plan_identity(plan).0)),
+            ]);
+            let own = if plan.observations.is_empty() {
+                own
+            } else {
+                digest.combine(&[
+                    own,
                     digest.digest(DigestBytes(
-                        &configuration(std::slice::from_ref(rule), &[]).0,
+                        &ryo_values::domain::observations::service::output_identity(
+                            &plan.observations,
+                        )
+                        .0,
                     )),
-                    hosted,
-                    schema,
-                    source_selection,
-                    digest.digest(DigestBytes(&plan_identity(plan).0)),
-                ]);
-                let own = if plan.observations.is_empty() {
-                    own
-                } else {
-                    digest.combine(&[
-                        own,
-                        digest.digest(DigestBytes(
-                            &ryo_values::domain::observations::service::output_identity(
-                                &plan.observations,
-                            )
-                            .0,
-                        )),
-                    ])
-                };
-                let reads = reads_project(plan) == PlanReads::Reads;
-                StoredRule {
-                    rule: RuleId(rule.id.0.clone()),
-                    digest: if reads {
-                        digest.combine(&[own, resolved])
-                    } else {
-                        own
-                    },
-                    crossing: if reads || cross_steps(plan) == CrossSteps::Has {
-                        Crossing::Across
-                    } else {
-                        Crossing::Within
-                    },
-                }
+                ])
             };
+            let reads = reads_project(plan) == PlanReads::Reads;
+            StoredRule {
+                rule: RuleId(rule.id.0.clone()),
+                digest: if reads {
+                    digest.combine(&[own, resolved])
+                } else {
+                    own
+                },
+                crossing: if reads || cross_steps(plan) == CrossSteps::Has {
+                    Crossing::Across
+                } else {
+                    Crossing::Within
+                },
+            }
+        };
         if ryo_operators::spike::host_lever(ryo_operators::spike::HostLever::Startup) {
             use rayon::prelude::*;
             rules.par_iter().zip(plans.par_iter()).map(one).collect()

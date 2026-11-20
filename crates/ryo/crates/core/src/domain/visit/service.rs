@@ -13,8 +13,10 @@ use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::PlanComparison;
 use ryo_values::domain::plan_parts::types::Side;
-use ryo_values::domain::plans::service::{inputs_of, named, reads_of};
-use ryo_values::domain::plans::types::{Operation, Plan};
+use ryo_values::domain::plans::service::{inputs_of, named};
+use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::query_plans::service::reads_of;
+use ryo_values::domain::query_plans::types::Plan;
 
 /// The relations the plans read, each once, in the order they are first read.
 ///
@@ -178,6 +180,9 @@ fn reads_role(operation: &Operation) -> RoleRead {
         | Operation::Rank { .. }
         | Operation::Words { .. }
         | Operation::OrderedMatch { .. }
+        | Operation::AsOf { .. }
+        | Operation::GroupBound { .. }
+        | Operation::GroupOrdinal { .. }
         | Operation::Union { .. }
         | Operation::Intersection { .. }
         | Operation::Difference { .. }
@@ -186,6 +191,7 @@ fn reads_role(operation: &Operation) -> RoleRead {
             .iter()
             .any(|input| edges(*input) == EdgeInput::Edges),
         Operation::Closure { .. }
+        | Operation::Follow { .. }
         | Operation::Cycles { .. }
         | Operation::Rows { .. }
         | Operation::Hosted { .. } => false,

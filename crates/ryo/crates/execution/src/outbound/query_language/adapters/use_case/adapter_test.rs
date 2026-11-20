@@ -69,7 +69,9 @@ fn subject(text: &Input) -> Result<Value, Failure> {
 }
 
 /// Uses the real parser and lowering pipeline, including raw string-literal handling.
-fn compile_query(bundle: &QueryBundle) -> Result<ryo_values::domain::plans::types::Plan, Failure> {
+fn compile_query(
+    bundle: &QueryBundle,
+) -> Result<ryo_values::domain::query_plans::types::Plan, Failure> {
     let compile = Arc::new(CompileUseCaseImpl::new(
         Arc::new(ryo_query_language::outbound::syntax::factory::winnow()),
         Arc::new(ryo_query_language::outbound::catalog::factory::language()),

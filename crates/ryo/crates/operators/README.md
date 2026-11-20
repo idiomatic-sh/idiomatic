@@ -48,6 +48,10 @@ Combines admitted matching rows while preserving bag order, projections, and def
 
 Measures the physical line width of a source prefix and an already rendered candidate, with tab stops and Unicode width.
 
+### follow
+
+Answers each source of a key group with the fixed points it reaches over the group's edges: the one meaning of `follow`.
+
 ### functions
 
 Computes comparison function text from typed operand values.
@@ -67,6 +71,10 @@ Reads typed comparison operands from rows, parameters and literals.
 ### ordered_dfs
 
 Emits each edge an ordered depth-first visit reaches from every distinct root, with the root's keys and the visit's ordinal.
+
+### ordered_groups
+
+Answers, over one key group's ascending orders, the nearest rows of `as-of`, the ends of `group-min` and `group-max`, and the places of `group-ordinal`: the one meaning of each.
 
 ### ordered_match
 

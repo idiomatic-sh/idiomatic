@@ -11,10 +11,8 @@ use crate::domain::rule_intent::errors::RuleIntentError;
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::{
     plan_parts::types::{Input, ObservationBindingId, StepId},
-    plans::{
-        service::{each_input, inputs_of, named},
-        types::Plan,
-    },
+    plans::service::{each_input, inputs_of, named},
+    query_plans::types::Plan,
     records::types::ObservationIndex,
 };
 use std::collections::BTreeSet;
@@ -382,7 +380,7 @@ pub(super) fn frontier(plan: &Plan) -> Result<Vec<Input>, RuleIntentError> {
 /// ```
 /// use ryo_execution_domain::domain::observation_schedule::service::link::service::frontier_dependencies;
 /// use ryo_values::domain::plan_parts::types::{ColumnIndex, StepId};
-/// use ryo_values::domain::plans::types::{Emit, Plan};
+/// use ryo_values::domain::query_plans::types::{Emit, Plan};
 /// let plan = Plan {
 ///     observation_inputs: Vec::new(),
 ///     parameters: Vec::new(),

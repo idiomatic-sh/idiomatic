@@ -13,7 +13,7 @@ use ryo_values::domain::{
     hosted::types::HostRelation,
     observations::types::ObservationProducer,
     plan_parts::types::{HostedNumber, Input, ObservationBindingId, ParameterId, StepScope},
-    plans::types::Plan,
+    query_plans::types::Plan,
 };
 
 type Declaration = Result<PartitionRequirement, OperatingError>;

@@ -321,7 +321,9 @@ pub fn output_coverage(
             Operation::OrderedDfs { .. }
             | Operation::Worklist { .. }
             | Operation::Axis { .. }
+            | Operation::AsOf { .. }
             | Operation::Closure { .. }
+            | Operation::Follow { .. }
             | Operation::Cycles { .. } => !output_kinds.iter().copied().any(file_kind),
             Operation::Select { .. }
             | Operation::Project { .. }
@@ -331,6 +333,8 @@ pub fn output_coverage(
             | Operation::Difference { .. }
             | Operation::Antijoin { .. }
             | Operation::GroupCount { .. }
+            | Operation::GroupBound { .. }
+            | Operation::GroupOrdinal { .. }
             | Operation::GroupDigest { .. }
             | Operation::Capture { .. }
             | Operation::Rank { .. }

@@ -11,12 +11,12 @@ use ryo_language::domain::facts::types::{
     FactAnswer, FactSource, FileFacts, FileWords, FilledColumns,
 };
 use ryo_language::domain::files::types::SourcePath;
+use ryo_language::domain::fillers::fixtures::Walking;
 use ryo_language::domain::node_table::service::builder;
 use ryo_language::domain::node_table::types::NodeTable;
 use ryo_language::domain::semantics::types::{RenderOutcome, RenderRequest};
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::inbound::use_cases::walk::errors::WalkError;
-use ryo_language::domain::fillers::fixtures::Walking;
 use ryo_language::inbound::use_cases::walk::interface::WalkUseCase as _;
 use ryo_language::inbound::use_cases::walk::types::{FileVisit, RelationNeeds, WalkRequest};
 use ryo_relations::domain::relations::types::{Count, FileId, Relation};
@@ -28,6 +28,8 @@ pub struct Scanned {
     pub answer: Result<ScanCounters, ScanError>,
     /// The fills it asked.
     pub fills: Count,
+    /// The rows it handed over, to a rule or to a frontier.
+    pub found: Count,
 }
 
 /// The language's facts, counting the relations the engine asks it to fill.
@@ -84,15 +86,17 @@ impl FileVisit for Scanning<'_> {
             file: file.file,
             facts: &mut counting,
         };
+        let mut found = Found::default();
         let answer = ScanUseCaseImpl.scan(
             self.programs,
             lent,
             &mut scratch_for(self.programs),
-            &mut Found::default(),
+            &mut found,
         );
         self.seen = Some(Scanned {
             answer,
             fills: counting.fills,
+            found: found.0,
         });
     }
 }

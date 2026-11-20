@@ -9,7 +9,7 @@ use crate::outbound::query_language::interface::QueryLanguagePort;
 use ryo_values::domain::descriptions::types::ValidateReport;
 use ryo_values::domain::hosted::types::HostedRelation;
 use ryo_values::domain::plan_parts::types::QueryText;
-use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::query_plans::types::Plan;
 use ryo_values::domain::query_tokens::types::QueryBundle;
 use ryo_values::domain::rule_requests::types::{RuleParameters, RuleSpec};
 use ryo_values::domain::runs::types::{RuleApplicability, RuleId};

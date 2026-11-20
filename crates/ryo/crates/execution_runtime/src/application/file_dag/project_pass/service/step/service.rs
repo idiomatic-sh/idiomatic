@@ -35,7 +35,7 @@ use ryo_operators::domain::physical_plan::types::{PlanInput, PlanInputs, PlanNod
 use ryo_relations::domain::relations::service::kinds as relation_kinds;
 use ryo_values::domain::lineage::service::one_file;
 use ryo_values::domain::plan_parts::types::{Input, InputNumber, StepId, StepScope};
-use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::query_plans::types::Plan;
 use ryo_values::domain::rows::service::reset;
 use ryo_values::domain::rows::types::Table;
 

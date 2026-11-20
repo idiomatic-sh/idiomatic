@@ -35,27 +35,42 @@ fn name() -> tokens::StepName {
 }
 
 fn all_set_operations_keep_both_typed_inputs() {
+    use ryo_values::domain::query_operators::types::QueryOperator;
+    let functions = parts::Input::Relation(Relation::Function);
+    let step = |id| parts::Input::Step(parts::StepId(id));
+    let every: Vec<parts::ColumnIndex> = (0..4).map(parts::ColumnIndex).collect();
+    // The distinct left rows, and the rows of one input that another lacks on every column.
+    let distinct = plans::Operation::Project {
+        from: functions,
+        columns: every.clone(),
+        distinct: parts::RepeatedRows::Dropped,
+    };
+    let lacking = |left, right| plans::Operation::Antijoin {
+        left,
+        right,
+        left_on: every.clone(),
+        right_on: every.clone(),
+    };
     for (operator, expected) in [
         (
-            ryo_values::domain::query_operators::types::QueryOperator::Union,
-            plans::Operation::Union {
-                left: parts::Input::Relation(Relation::Function),
-                right: parts::Input::Relation(Relation::Function),
-            },
+            QueryOperator::Union,
+            vec![plans::Operation::Union {
+                left: functions,
+                right: functions,
+            }],
+        ),
+        // An intersection is the distinct left rows less the ones the right input lacks; a difference is those it lacks.
+        (
+            QueryOperator::Intersection,
+            vec![
+                distinct.clone(),
+                lacking(step(0), functions),
+                lacking(step(0), step(1)),
+            ],
         ),
         (
-            ryo_values::domain::query_operators::types::QueryOperator::Intersection,
-            plans::Operation::Intersection {
-                left: parts::Input::Relation(Relation::Function),
-                right: parts::Input::Relation(Relation::Function),
-            },
-        ),
-        (
-            ryo_values::domain::query_operators::types::QueryOperator::Difference,
-            plans::Operation::Difference {
-                left: parts::Input::Relation(Relation::Function),
-                right: parts::Input::Relation(Relation::Function),
-            },
+            QueryOperator::Difference,
+            vec![distinct.clone(), lacking(step(0), functions)],
         ),
     ] {
         let mut builder = lowering_builder();
@@ -64,7 +79,12 @@ fn all_set_operations_keep_both_typed_inputs() {
             vec![("left", text("function")), ("right", text("function"))],
         );
         super::service::call_set(&mut builder, &name(), &call, operator).unwrap();
-        assert_eq!(builder.steps[0].operation, expected);
+        let written: Vec<_> = builder
+            .steps
+            .iter()
+            .map(|step| step.operation.clone())
+            .collect();
+        assert_eq!(written, expected);
     }
 }
 fn incompatible_inputs_keep_typed_refusal() {

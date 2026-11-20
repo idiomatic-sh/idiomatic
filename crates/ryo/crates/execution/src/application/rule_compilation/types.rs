@@ -1,6 +1,6 @@
 //! Bounded session plans and one invocation's compiled/bound answer.
 use ryo_execution_domain::domain::prepared_request::types::ObservationIdentity;
-use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::query_plans::types::Plan;
 use ryo_values::domain::query_tokens::types::QueryBundle;
 use ryo_values::domain::runs::types::RuleId;
 

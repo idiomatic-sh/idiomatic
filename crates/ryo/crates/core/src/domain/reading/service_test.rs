@@ -16,7 +16,8 @@ use ryo_execution::inbound::use_cases::metadata::interface::Recovery;
 use ryo_relations::domain::relations::types::{Relation, WorkerNumber};
 use ryo_values::domain::{
     plan_parts::types::{ColumnIndex, Input as PlanInput, InputNumber, StepId, StepScope},
-    plans::types::{Emit, Operation, Plan, PlanStep},
+    plans::types::{Operation, PlanStep},
+    query_plans::types::{Emit, Plan},
     records::{
         service::keep,
         types::{FrontierCoverage, FrontierProof, Kept},

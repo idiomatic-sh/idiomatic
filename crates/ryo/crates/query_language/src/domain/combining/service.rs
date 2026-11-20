@@ -1,4 +1,5 @@
-//! The `combining` service: the set calls (`union`, `intersection` and `difference`) lowered to steps.
+//! The `combining` service: the set calls (`union`, `intersection` and `difference`) lowered to steps. `intersection` and
+//! `difference` are written as the projection and the antijoins that say them: the plan holds no step of their own for them.
 
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::{ArgumentFault, Builder, PlannedColumn, SearchMatch, Sourced};
@@ -78,8 +79,32 @@ pub(crate) fn call_set(
     };
     let operation = match operator {
         QueryOperator::Union => plans::Operation::Union { left, right },
-        QueryOperator::Intersection => plans::Operation::Intersection { left, right },
-        QueryOperator::Difference => plans::Operation::Difference { left, right },
+        // `intersection` and `difference` compare whole rows and answer each row once: the distinct left rows, less the ones
+        // the right input holds on every column (a difference); and those rows less that difference again (an intersection).
+        QueryOperator::Intersection | QueryOperator::Difference => {
+            let every: Vec<parts::ColumnIndex> = (0..fields.len())
+                .map(|place| parts::ColumnIndex(u32::try_from(place).unwrap_or(u32::MAX)))
+                .collect();
+            let whole_rows = |left, right| plans::Operation::Antijoin {
+                left,
+                right,
+                left_on: every.clone(),
+                right_on: every.clone(),
+            };
+            let distinct = plans::Operation::Project {
+                from: left,
+                columns: every.clone(),
+                distinct: parts::RepeatedRows::Dropped,
+            };
+            let distinct = parts::Input::Step(pushed(builder, None, distinct, fields.clone()));
+            let lacking = whole_rows(distinct, right);
+            if operator == QueryOperator::Difference {
+                lacking
+            } else {
+                let lacking = parts::Input::Step(pushed(builder, None, lacking, fields.clone()));
+                whole_rows(distinct, lacking)
+            }
+        }
         QueryOperator::Select
         | QueryOperator::Project
         | QueryOperator::Extend
@@ -93,6 +118,11 @@ pub(crate) fn call_set(
         | QueryOperator::RenderSyntax
         | QueryOperator::FitsRendered
         | QueryOperator::OrderedMatch
+        | QueryOperator::AsOf
+        | QueryOperator::GroupMin
+        | QueryOperator::GroupMax
+        | QueryOperator::GroupOrdinal
+        | QueryOperator::Follow
         | QueryOperator::OrderedDfs
         | QueryOperator::Worklist
         | QueryOperator::GroupDigest

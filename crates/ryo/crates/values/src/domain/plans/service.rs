@@ -1,6 +1,6 @@
 //! The `plans` service: free functions named by verb over a compiled plan, with no IO and no ports.
 
-use super::types::{Operation, Plan, RuleReads};
+use super::types::Operation;
 use crate::domain::plan_parts::types::Input;
 use crate::domain::plan_parts::types::PlanComparison;
 use crate::domain::plan_parts::types::StepId;
@@ -21,11 +21,14 @@ pub fn inputs_of(operation: &Operation) -> Inputs {
         | Operation::Project { from, .. }
         | Operation::Extend { from, .. }
         | Operation::GroupCount { from, .. }
+        | Operation::GroupBound { from, .. }
+        | Operation::GroupOrdinal { from, .. }
         | Operation::GroupDigest { from, .. }
         | Operation::Capture { from, .. }
         | Operation::Rank { from, .. }
         | Operation::Words { from, .. } => (*from, *from, *from, 1),
         Operation::OrderedMatch { left, right, .. }
+        | Operation::AsOf { left, right, .. }
         | Operation::Join { left, right, .. }
         | Operation::Union { left, right }
         | Operation::Intersection { left, right }
@@ -44,9 +47,9 @@ pub fn inputs_of(operation: &Operation) -> Inputs {
             lattice,
             ..
         } => (*from, *edges, *lattice, 3),
-        Operation::Closure { edges, .. } | Operation::Cycles { edges, .. } => {
-            (*edges, *edges, *edges, 1)
-        }
+        Operation::Closure { edges, .. }
+        | Operation::Follow { edges, .. }
+        | Operation::Cycles { edges, .. } => (*edges, *edges, *edges, 1),
         // The host's rows read nothing: the place filled in is never asked for.
         Operation::Rows { .. } | Operation::Hosted { .. } => {
             let nothing = Input::Step(StepId(0));
@@ -65,32 +68,6 @@ pub fn named(inputs: &Inputs) -> &[Input] {
     inputs.list.get(..inputs.used.0).unwrap_or(&inputs.list)
 }
 
-/// The relations `plan`'s steps read, each once, in the order a step first reads it: the one walk of a rule's read set.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_values::domain::plans::service::reads_of;
-/// use ryo_values::domain::plans::types::Plan;
-/// fn reads(plan: &Plan) -> usize {
-///     reads_of(plan).0.len()
-/// }
-/// ```
-#[must_use]
-pub fn reads_of(plan: &Plan) -> RuleReads {
-    let mut reads = Vec::new();
-    for step in &plan.steps {
-        for input in named(&inputs_of(&step.operation)) {
-            if let Input::Relation(relation) = *input
-                && !reads.contains(&relation)
-            {
-                reads.push(relation);
-            }
-        }
-    }
-    RuleReads(reads.into_boxed_slice())
-}
-
 /// Gives `visit` each input the operation reads.
 pub fn each_input(operation: &mut Operation, visit: &mut dyn FnMut(&mut Input)) {
     match operation {
@@ -104,11 +81,14 @@ pub fn each_input(operation: &mut Operation, visit: &mut dyn FnMut(&mut Input)) 
         | Operation::Project { from, .. }
         | Operation::Extend { from, .. }
         | Operation::GroupCount { from, .. }
+        | Operation::GroupBound { from, .. }
+        | Operation::GroupOrdinal { from, .. }
         | Operation::GroupDigest { from, .. }
         | Operation::Capture { from, .. }
         | Operation::Rank { from, .. }
         | Operation::Words { from, .. } => visit(from),
         Operation::OrderedMatch { left, right, .. }
+        | Operation::AsOf { left, right, .. }
         | Operation::Join { left, right, .. }
         | Operation::Union { left, right }
         | Operation::Intersection { left, right }
@@ -141,7 +121,9 @@ pub fn each_input(operation: &mut Operation, visit: &mut dyn FnMut(&mut Input)) 
             visit(edges);
             visit(lattice);
         }
-        Operation::Closure { edges, .. } | Operation::Cycles { edges, .. } => visit(edges),
+        Operation::Closure { edges, .. }
+        | Operation::Follow { edges, .. }
+        | Operation::Cycles { edges, .. } => visit(edges),
         Operation::Rows { .. } | Operation::Hosted { .. } => {}
     }
 }
@@ -165,15 +147,19 @@ pub fn kind_of(operation: &Operation) -> OperationKind {
         Operation::Antijoin { .. } => OperationKind::Antijoin,
         Operation::Replace { .. } => OperationKind::Replace,
         Operation::OrderedMatch { .. } => OperationKind::OrderedMatch,
+        Operation::AsOf { .. } => OperationKind::AsOf,
         Operation::OrderedDfs { .. } => OperationKind::OrderedDfs,
         Operation::Worklist { .. } => OperationKind::Worklist,
         Operation::GroupCount { .. } => OperationKind::GroupCount,
+        Operation::GroupBound { .. } => OperationKind::GroupBound,
+        Operation::GroupOrdinal { .. } => OperationKind::GroupOrdinal,
         Operation::GroupDigest { .. } => OperationKind::GroupDigest,
         Operation::Capture { .. } => OperationKind::Capture,
         Operation::Words { .. } => OperationKind::Words,
         Operation::Rank { .. } => OperationKind::Rank,
         Operation::Axis { .. } => OperationKind::Axis,
         Operation::Closure { .. } => OperationKind::Closure,
+        Operation::Follow { .. } => OperationKind::Follow,
         Operation::Cycles { .. } => OperationKind::Cycles,
         Operation::Rows { .. } => OperationKind::Rows,
         Operation::Hosted { .. } => OperationKind::Hosted,
@@ -200,6 +186,10 @@ pub fn comparisons_of(operation: &Operation) -> &[PlanComparison] {
         | Operation::FitsRendered { .. }
         | Operation::SpanBounds { .. }
         | Operation::OrderedMatch { .. }
+        | Operation::AsOf { .. }
+        | Operation::GroupBound { .. }
+        | Operation::GroupOrdinal { .. }
+        | Operation::Follow { .. }
         | Operation::OrderedDfs { .. }
         | Operation::Worklist { .. }
         | Operation::GroupDigest { .. }

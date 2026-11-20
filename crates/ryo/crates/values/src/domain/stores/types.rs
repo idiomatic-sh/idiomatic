@@ -81,7 +81,7 @@ pub struct StoredPack {
     /// The pack's bytes, the engine's own.
     pub bytes: ryo_relations::domain::relations::types::Bytes,
     /// What a row of each rule the rule set runs emits (its subject, its key, its headings), in the order of those rules.
-    pub emits: Vec<crate::domain::plans::types::Emit>,
+    pub emits: Vec<crate::domain::query_plans::types::Emit>,
 }
 
 /// What a file hands one rule that reads across files, as a digest.

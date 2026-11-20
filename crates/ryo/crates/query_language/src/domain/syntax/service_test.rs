@@ -92,6 +92,20 @@ fn unknown_shape_found(_program: &WrittenProgram) -> usize {
     usize::from(shape_named(&OperationName("sort".into())).is_some())
 }
 
+/// How many operators the language lists, besides `select`, a query cannot call because no shape says what they take.
+fn operators_without_a_shape(_program: &WrittenProgram) -> usize {
+    ryo_values::domain::query_operators::constants::OPERATORS
+        .into_iter()
+        .filter(|operator| {
+            *operator != ryo_values::domain::query_operators::types::QueryOperator::Select
+        })
+        .filter(|operator| {
+            let name = super::constants::operator_name(*operator);
+            shape_named(&OperationName(name.into())).is_none()
+        })
+        .count()
+}
+
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
@@ -111,6 +125,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || project_shape_found,
         expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("every_operator_but_select_has_a_shape"),
+        word: Word::Succeeds,
+        input: || operators_without_a_shape,
+        expect: Expect::Value(0),
     },
     Case {
         name: CaseName("sort_is_not_an_operation"),

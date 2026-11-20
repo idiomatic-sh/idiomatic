@@ -39,8 +39,8 @@ pub(crate) fn build(
     build_within(tree, model, symbols, index, NAME_CHAIN_LIMIT);
 }
 
-/// The most events of one name (its reads included) a file may hold. The ruff bench's `resolve-pointers` fragment follows a pointer
-/// chain of one name through 20 doubling rounds, so a longer chain would resolve to nothing; a file over this limit is
+/// The most events of one name (its reads included) a file may hold. Today's engine follows a pointer chain of one name
+/// (a query's `follow`) through 20 doubling rounds, so a longer chain would resolve to nothing; a file over this limit is
 /// incomplete, and every rule that reads its binding facts answers Unknown for it, never "no finding".
 pub(crate) const NAME_CHAIN_LIMIT: NameChainLimit = NameChainLimit(1 << 20);
 

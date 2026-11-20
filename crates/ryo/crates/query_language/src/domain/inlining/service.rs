@@ -175,6 +175,9 @@ fn reading_columns(operation: &Operation, read: Input) -> Option<Vec<ColumnIndex
             | Operation::FitsRendered { .. }
         | Operation::SpanBetween { .. }
         | Operation::OrderedMatch { .. }
+        | Operation::AsOf { .. }
+        | Operation::GroupBound { .. }
+        | Operation::GroupOrdinal { .. }
         | Operation::OrderedDfs { .. }
         | Operation::Worklist { .. }
         | Operation::GroupDigest { .. }
@@ -183,6 +186,7 @@ fn reading_columns(operation: &Operation, read: Input) -> Option<Vec<ColumnIndex
         | Operation::Rank { .. }
         | Operation::Axis { .. }
         | Operation::Closure { .. }
+        | Operation::Follow { .. }
         | Operation::Cycles { .. }
         | Operation::Rows { .. }
         | Operation::Hosted { .. } => return None,
@@ -304,6 +308,9 @@ pub(crate) fn reading_through(
         | Operation::FitsRendered { .. }
         | Operation::SpanBetween { .. }
         | Operation::OrderedMatch { .. }
+        | Operation::AsOf { .. }
+        | Operation::GroupBound { .. }
+        | Operation::GroupOrdinal { .. }
         | Operation::OrderedDfs { .. }
         | Operation::Worklist { .. }
         | Operation::GroupDigest { .. }
@@ -311,6 +318,7 @@ pub(crate) fn reading_through(
         | Operation::Words { .. }
         | Operation::Rank { .. }
         | Operation::Closure { .. }
+        | Operation::Follow { .. }
         | Operation::Cycles { .. }
         | Operation::Rows { .. }
         | Operation::Hosted { .. } => {}

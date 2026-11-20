@@ -11,6 +11,7 @@ pub mod operating;
 pub mod operation_schema;
 pub mod operator;
 pub mod placement;
+pub mod plan_expansion;
 pub mod prepared_request;
 pub mod table_model;
 

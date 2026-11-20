@@ -1,4 +1,4 @@
-//! The `values` domain's `plans` concept: a compiled query, its steps and what each reads.
+//! The `values` domain's `plans` concept: the steps of a compiled query, the operations they are and what each reads.
 
 pub mod service;
 pub mod types;

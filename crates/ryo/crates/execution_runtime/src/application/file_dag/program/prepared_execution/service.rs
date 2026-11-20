@@ -38,7 +38,7 @@ impl ProgramPreparedExecutionPort for PreparedExecutionProgram {
     fn emit(
         &self,
         rule: RuleIndex,
-    ) -> Result<&ryo_values::domain::plans::types::Emit, OperatingError> {
+    ) -> Result<&ryo_values::domain::query_plans::types::Emit, OperatingError> {
         self.parts.inner.emit(rule)
     }
     fn rule_digest(&self, rule: RuleIndex) -> Result<Digest, OperatingError> {

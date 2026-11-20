@@ -6,7 +6,7 @@ use super::{packs_bytes, packs_of};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use ryo_relations::domain::relations::types::Bytes;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Heading, StepId};
-use ryo_values::domain::plans::types::Emit;
+use ryo_values::domain::query_plans::types::Emit;
 use ryo_values::domain::stores::types::{PackKey, StoredPack};
 
 /// What a row of the cases reads back.

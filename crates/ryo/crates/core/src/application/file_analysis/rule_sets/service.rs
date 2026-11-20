@@ -24,7 +24,7 @@ use ryo_execution_runtime::outbound::digest::types::DigestBytes;
 use ryo_operators::spike::EngineMode;
 use ryo_relations::domain::relations::types::Count;
 use ryo_values::domain::hosted::service::identity as hosted_identity;
-use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::query_plans::types::Plan;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 use ryo_values::domain::runs::types::UnknownCause;
 use ryo_values::domain::stored_facts::types::Digest;

@@ -153,7 +153,7 @@ fn answer(
                 StoredPack {
                     key: PackKey([4; 32]),
                     bytes: ryo_relations::domain::relations::types::Bytes(vec![1, 2, 3]),
-                    emits: vec![ryo_values::domain::plans::types::Emit {
+                    emits: vec![ryo_values::domain::query_plans::types::Emit {
                         step: ryo_values::domain::plan_parts::types::StepId(1),
                         subject: ryo_values::domain::plan_parts::types::ColumnIndex(1),
                         key: vec![ryo_values::domain::plan_parts::types::ColumnIndex(0)],

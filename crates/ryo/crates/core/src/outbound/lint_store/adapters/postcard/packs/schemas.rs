@@ -5,7 +5,7 @@
 use crate::outbound::lint_store::adapters::postcard::strings::schemas::as_bytes;
 use ryo_relations::domain::relations::types::Bytes;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Heading, StepId};
-use ryo_values::domain::plans::types::Emit;
+use ryo_values::domain::query_plans::types::Emit;
 use ryo_values::domain::stores::types::{PackKey, StoredPack};
 use std::borrow::Cow;
 

@@ -26,7 +26,8 @@ use ryo_values::domain::plan_parts::types::{
 };
 use ryo_values::domain::plan_parts::types::{RowWidth, StepId};
 use ryo_values::domain::plans::service::{each_input, inputs_of, kind_of, named};
-use ryo_values::domain::plans::types::{Operation, Plan};
+use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::query_plans::types::Plan;
 use std::borrow::Cow;
 
 /// A step's operation as two rules' steps are told apart: each step it reads blanked, since a step number counts its own rule's

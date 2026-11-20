@@ -4,7 +4,8 @@ use ryo_values::domain::plan_parts::types::{
     ColumnIndex, ComparisonOrigin, Input as StepInput, LiteralText, Operand, PlanComparison,
     QueryLiteral, StepId, StepScope, Test,
 };
-use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
+use ryo_values::domain::plans::types::{Operation, PlanStep};
+use ryo_values::domain::query_plans::types::{Emit, Plan};
 use std::sync::Arc;
 
 /// A comparison of a column with an operand.

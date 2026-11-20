@@ -18,7 +18,7 @@ use ryo_language::inbound::use_cases::walk::errors::WalkError;
 use ryo_language::inbound::use_cases::walk::types::WalkRequest;
 use ryo_operators::spike::{EngineMode, engine_unwalked};
 use ryo_relations::domain::relations::types::CellKind;
-use ryo_values::domain::plans::types::Emit;
+use ryo_values::domain::query_plans::types::Emit;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 use ryo_values::domain::scan_rows::types::ScanRow;
 use ryo_values::domain::stores::types::StoredPack;

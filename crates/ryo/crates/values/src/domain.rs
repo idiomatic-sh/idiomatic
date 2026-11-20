@@ -6,6 +6,7 @@ pub mod files;
 pub mod hosted;
 pub mod lineage;
 pub mod observations;
+pub mod plan_orders;
 pub mod plan_parts;
 pub mod plans;
 pub mod program;
@@ -21,6 +22,7 @@ pub mod rows;
 
 pub mod query_bindings;
 pub mod query_operators;
+pub mod query_plans;
 pub mod query_requests;
 pub mod query_syntax;
 pub mod query_tokens;
@@ -29,3 +31,4 @@ pub mod rule_requests;
 pub mod run_metadata;
 
 pub mod table_words;
+pub mod written_rows;

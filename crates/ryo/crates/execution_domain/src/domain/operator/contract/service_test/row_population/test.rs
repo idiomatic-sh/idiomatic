@@ -176,6 +176,30 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || OperationKind::SpanBounds,
         expect: Expect::Value(1),
     },
+    Case {
+        name: CaseName("asof_declares_its_driving_populations"),
+        word: Word::Succeeds,
+        input: || OperationKind::AsOf,
+        expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName("groupbound_declares_its_driving_populations"),
+        word: Word::Succeeds,
+        input: || OperationKind::GroupBound,
+        expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName("groupordinal_declares_its_driving_populations"),
+        word: Word::Succeeds,
+        input: || OperationKind::GroupOrdinal,
+        expect: Expect::Value(0),
+    },
+    Case {
+        name: CaseName("follow_declares_its_driving_populations"),
+        word: Word::Succeeds,
+        input: || OperationKind::Follow,
+        expect: Expect::Value(0),
+    },
 ];
 
 /// Reads the kind's declared driving populations.

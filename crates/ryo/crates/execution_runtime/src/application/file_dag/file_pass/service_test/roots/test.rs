@@ -25,7 +25,8 @@ use ryo_values::domain::plan_parts::types::{
     ColumnIndex, ComparisonOrigin, Input as StepInput, LiteralText, Operand, PlanComparison,
     QueryLiteral, RepeatedRows, StepId, StepScope, Test,
 };
-use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
+use ryo_values::domain::plans::types::{Operation, PlanStep};
+use ryo_values::domain::query_plans::types::{Emit, Plan};
 use std::borrow::Cow;
 use std::sync::Arc;
 

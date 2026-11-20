@@ -5,7 +5,7 @@ use crate::outbound::engine::interface::EnginePort;
 use ryo_engine::domain::programs::types::Programs;
 use ryo_relations::domain::relations::types::Count;
 use ryo_values::domain::descriptions::types::{KindVocabularies, KindVocabulary, LanguageName};
-use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::query_plans::types::Plan;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 use ryo_values::domain::stored_facts::types::Digest;
 use ryo_values::domain::stores::types::StoredPack;

@@ -9,7 +9,7 @@ pub enum PlanSource {
     /// Plans and their bindings as the caller authored them.
     Authored {
         /// The plans, one for each rule.
-        plans: Vec<ryo_values::domain::plans::types::Plan>,
+        plans: Vec<ryo_values::domain::query_plans::types::Plan>,
         /// The parameter bindings of each plan.
         bindings: Vec<Vec<ryo_values::domain::query_bindings::types::ParameterBinding>>,
     },

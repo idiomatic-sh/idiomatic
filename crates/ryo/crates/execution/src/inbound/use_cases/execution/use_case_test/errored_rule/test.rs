@@ -111,7 +111,7 @@ impl QueryLanguagePort for Provider {
         bundle: &QueryBundle,
         hosted: &[ryo_values::domain::hosted::types::HostedRelation],
         observations: &[ryo_values::domain::observations::types::BoundObservationInput],
-    ) -> Result<ryo_values::domain::plans::types::Plan, QueryLanguageError> {
+    ) -> Result<ryo_values::domain::query_plans::types::Plan, QueryLanguageError> {
         written(self, bundle).compile(bundle, hosted, observations)
     }
 }

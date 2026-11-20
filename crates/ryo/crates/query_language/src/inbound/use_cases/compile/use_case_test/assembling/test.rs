@@ -155,6 +155,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 /// What an operation is, for the answer.
 fn operation_name(operation: &Operation) -> &'static str {
     match operation {
+        Operation::AsOf { .. } => "as-of",
+        Operation::GroupBound { .. } => "group-bound",
+        Operation::GroupOrdinal { .. } => "group-ordinal",
+        Operation::Follow { .. } => "follow",
         Operation::Select { .. } => "select",
         Operation::Project {
             distinct: RepeatedRows::Kept,

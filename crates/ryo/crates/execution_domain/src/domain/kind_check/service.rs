@@ -19,8 +19,9 @@ use ryo_values::domain::plan_parts::service::column_place;
 use ryo_values::domain::plan_parts::types::{
     Input, Operand, ParameterId, PlanComparison, QueryLiteral, Test,
 };
-use ryo_values::domain::plans::types::{Operation, Plan};
+use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
+use ryo_values::domain::query_plans::types::Plan;
 
 /// The words `plan` compares the kind of a node or a token with, once the parameters are bound: a literal, or the texts a parameter is
 /// bound to.

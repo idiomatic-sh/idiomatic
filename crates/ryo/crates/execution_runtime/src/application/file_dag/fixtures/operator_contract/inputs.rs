@@ -5,8 +5,8 @@ use ryo_relations::domain::relations::types::FileId;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::hosted::types::HostRelation;
-use ryo_values::domain::plans::types::Plan;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
+use ryo_values::domain::query_plans::types::Plan;
 use ryo_values::domain::rows::types::Table;
 
 /// Assemble explicit step data; the production compiler owns dependencies and schemas.
@@ -21,7 +21,8 @@ use ryo_values::domain::rows::types::Table;
 pub fn plan(operations: Vec<ryo_values::domain::plans::types::Operation>) -> Plan {
     use ryo_values::domain::{
         plan_parts::types::{ColumnIndex, StepId, StepScope},
-        plans::types::{Emit, PlanStep},
+        plans::types::PlanStep,
+        query_plans::types::Emit,
     };
     let emit = Emit {
         step: StepId(u32::try_from(operations.len() - 1).expect("a step number fits in u32")),

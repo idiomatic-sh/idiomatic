@@ -14,7 +14,8 @@ use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Input as PlanInput, StepId};
-use ryo_values::domain::plans::types::{Emit, Operation, Plan, PlanStep};
+use ryo_values::domain::plans::types::{Operation, PlanStep};
+use ryo_values::domain::query_plans::types::{Emit, Plan};
 use ryo_values::domain::runs::types::{AnswerShape, RuleId};
 use ryo_values::domain::{
     descriptions::types::ValidateReport,

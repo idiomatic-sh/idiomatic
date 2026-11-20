@@ -14,7 +14,7 @@ use crate::outbound::engine::fixtures::fake::EngineFake;
 use ryo_operators::spike::EngineMode;
 use ryo_relations::domain::relations::types::Count;
 use ryo_values::domain::descriptions::types::KindVocabularies;
-use ryo_values::domain::plans::types::Plan;
+use ryo_values::domain::query_plans::types::Plan;
 use ryo_values::domain::stores::types::StoredPack;
 use std::borrow::Cow;
 use std::sync::atomic::Ordering;

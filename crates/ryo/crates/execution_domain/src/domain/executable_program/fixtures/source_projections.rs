@@ -4,8 +4,9 @@ use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, Input as StepInput, LiteralText, StepId, Test,
 };
-use ryo_values::domain::plans::types::{Operation, Plan};
+use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
+use ryo_values::domain::query_plans::types::Plan;
 use std::sync::Arc;
 
 /// Distinct projections over the same equality scans, with an optional source-column map.
