@@ -1351,15 +1351,30 @@ fn rows_expression_type(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, types:
 // ------------------------------------------------------------------------------------------------ syntax-child
 /// `syntax_child`: the lossless tree's edges (parent, child, ordinal among nodes and tokens, field), from walk's view of the
 /// parser's nodes and tokens (`view.rs`), one whitespace leaf per gap; identical rows to `semantic-child` on Python.
-fn rows_syntax_child(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, st: &mut State) {
-    if st.view_file != Some(c.source.as_ptr() as usize ^ c.source.len()) {
+/// Builds walk's view of this file once (per file, on first demand) and the kind-name table its cells read.
+fn ensure_view(c: &Ctx<'_, '_>, st: &mut State) {
+    if st.view_file.is_none() {
         st.sym.reset_file();
         st.view.build(c.table, c.parsed, c.source, &mut st.sym);
-        st.view_file = Some(c.source.as_ptr() as usize ^ c.source.len());
+        st.view_file = Some(0);
+        for &k in &st.view.kind {
+            let k = k as usize;
+            if k >= st.kind_names.len() {
+                st.kind_names.resize(k + 1, "");
+            }
+            if st.kind_names[k].is_empty() {
+                st.kind_names[k] = kind_static(st.sym.str(k as u32).unwrap_or("?"));
+            }
+        }
     }
+}
+
+fn rows_syntax_child(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, st: &mut State) {
+    ensure_view(c, st);
     let v = &st.view;
     let sym = &st.sym;
-    let key = |id: usize| Cell::Key(kind_static(sym.str(v.kind[id]).unwrap_or("?")), v.start[id], v.stop[id]);
+    let names = &st.kind_names;
+    let key = |id: usize| Cell::Key(names[v.kind[id] as usize], v.start[id], v.stop[id]);
     for id in 0..v.len() {
         let p = v.parent[id];
         if p == u32::MAX {
@@ -1388,19 +1403,16 @@ fn kind_static(name: &str) -> &'static str {
 /// token of the lossless tree with its kind and text (tokens and whitespace only), its lines and columns, the comments, and the
 /// indentation regions (the module is region 0).
 fn rows_view(c: &Ctx<'_, '_>, sink: &mut dyn Sink, which: &str, rel: usize, st: &mut State) {
-    if st.view_file != Some(c.source.as_ptr() as usize ^ c.source.len()) {
-        st.sym.reset_file();
-        st.view.build(c.table, c.parsed, c.source, &mut st.sym);
-        st.view_file = Some(c.source.as_ptr() as usize ^ c.source.len());
-    }
+    ensure_view(c, st);
     let v = &st.view;
     let sym = &st.sym;
-    let key = |id: usize| Cell::Key(kind_static(sym.str(v.kind[id]).unwrap_or("?")), v.start[id], v.stop[id]);
+    let names = &st.kind_names;
+    let key = |id: usize| Cell::Key(names[v.kind[id] as usize], v.start[id], v.stop[id]);
     match which {
         "syntax-tree" => {
             for id in 0..v.len() {
                 let text = if id < v.n_nodes { Cell::Null } else { sym.str(v.text[id]).map_or(Cell::Null, Cell::Text) };
-                sink.row(rel, &[key(id), Cell::Text(sym.str(v.kind[id]).unwrap_or("?")), text, Cell::File, Cell::Span(v.start[id], v.stop[id])]);
+                sink.row(rel, &[key(id), Cell::Text(names[v.kind[id] as usize]), text, Cell::File, Cell::Span(v.start[id], v.stop[id])]);
             }
         }
         "source-location" => {
@@ -1930,6 +1942,7 @@ pub(crate) struct State {
     pub view: crate::view::View,
     pub sym: crate::symbols::Symbols,
     pub view_file: Option<usize>,
+    pub kind_names: Vec<&'static str>,
     pub terminals: Terminals,
     pub constant_keys: ConstantKeys,
 }

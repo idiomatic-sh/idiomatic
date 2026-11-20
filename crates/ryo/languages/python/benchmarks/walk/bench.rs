@@ -271,6 +271,15 @@ impl<'p> Worker<'p> {
             let t = Clock::now();
             self.model.build_lexical(&table, incomplete);
             totals.ns[2].fetch_add(t.elapsed().as_nanos() as u64, Ordering::Relaxed);
+            if std::env::var_os("DERIVED_FLOW").is_some() {
+                // floor + the whole semantic model (lexical, every load resolved, flow), as sema's `model` mode
+                let t = Clock::now();
+                self.model.resolve_loads(&table);
+                totals.ns[16].fetch_add(t.elapsed().as_nanos() as u64, Ordering::Relaxed);
+                let t = Clock::now();
+                self.model.build_flow(&table);
+                totals.ns[3].fetch_add(t.elapsed().as_nanos() as u64, Ordering::Relaxed);
+            }
             let full = self.root.join(path);
             let ctx = derived::Ctx { parsed: &parsed, path: &full, table: &table, source, model: &self.model, incomplete };
             let wanted: u64 = std::env::var("DERIVED_WANT").ok().map_or(u64::MAX, |w| {
