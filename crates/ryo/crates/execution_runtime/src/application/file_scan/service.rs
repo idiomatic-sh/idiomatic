@@ -300,6 +300,8 @@ pub fn ran(
                     steps: sum(total.steps, counted.steps),
                     candidates: sum(total.candidates, counted.candidates),
                     made_rows: sum(total.made_rows, counted.made_rows),
+                    fill_rows: sum(total.fill_rows, counted.fill_rows),
+                    visited: sum(total.visited, counted.visited),
                 };
             }
             Err(fault) => worker.report.faults.push(FaultedFile {

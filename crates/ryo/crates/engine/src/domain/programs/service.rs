@@ -34,7 +34,7 @@ pub fn needs(programs: &Programs) -> RelationNeeds<'_> {
 /// ```
 #[must_use]
 pub fn accepted(programs: &Programs) -> Vec<SelectedRuleOrdinal> {
-    programs.0.rules.iter().map(|rule| rule.rule).collect()
+    programs.0.code.rules.iter().map(|rule| rule.rule).collect()
 }
 
 /// What each column of each accepted rule's rows holds, in the order of [`accepted`]: what the host reads a found row by.
@@ -51,6 +51,7 @@ pub fn accepted(programs: &Programs) -> Vec<SelectedRuleOrdinal> {
 pub fn columns(programs: &Programs) -> Vec<RuleColumns> {
     programs
         .0
+        .code
         .rules
         .iter()
         .map(|rule| rule.columns.clone())
@@ -73,4 +74,21 @@ pub fn scratch_for(programs: &Programs) -> ScanScratch {
         words: file_words(&programs.0.words),
         ..ScratchEngine::default()
     })
+}
+
+/// A worker's per-file state for `programs` that also counts: the runs of each plan point, what each unit was asked and gave,
+/// its time, and the sizes of every relation read, which it fills whole in every file. What it counted is read by
+/// `counting::service::counted`. The counting is the executor's track's: until it counts, this is the plain state.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_engine::domain::programs::service::scratch_measuring;
+/// use ryo_engine::domain::programs::types::Programs;
+///
+/// let _scratch = scratch_measuring(&Programs::default());
+/// ```
+#[must_use]
+pub fn scratch_measuring(programs: &Programs) -> ScanScratch {
+    scratch_for(programs)
 }

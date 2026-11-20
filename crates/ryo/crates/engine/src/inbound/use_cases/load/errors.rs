@@ -1,9 +1,7 @@
 //! Why `load` refuses.
 
-use crate::domain::lowering::types::PlanShape;
-use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
-
-/// Why a rule set could not be loaded.
+/// Why a rule set could not be loaded: only a pack that is not this rule set's. A rule that cannot be loaded is not an error:
+/// `load` answers it among the refused.
 ///
 /// # Examples
 ///
@@ -14,20 +12,6 @@ use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 pub enum LoadError {
-    /// A rule's plan has a shape the lowering cannot express.
-    #[error("rule {rule:?} not loaded: {shape:?}")]
-    Unlowerable {
-        /// The rule.
-        rule: SelectedRuleOrdinal,
-        /// What of its plan the lowering cannot express.
-        shape: PlanShape,
-    },
-    /// A rule's program exceeds the lowering's budget: 4,096 instructions or 50 ms of lowering.
-    #[error("rule {rule:?} not loaded: program over budget")]
-    Budget {
-        /// The rule.
-        rule: SelectedRuleOrdinal,
-    },
     /// The pack was written by another engine version.
     #[error("pack written by another engine version")]
     PackVersion,

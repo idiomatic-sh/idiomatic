@@ -24,6 +24,7 @@ use ryo_execution_runtime::outbound::digest::types::DigestBytes;
 use ryo_operators::spike::EngineMode;
 use ryo_relations::domain::relations::types::Count;
 use ryo_values::domain::hosted::service::identity as hosted_identity;
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::query_plans::types::Plan;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 use ryo_values::domain::runs::types::UnknownCause;
@@ -118,17 +119,20 @@ impl FileVisits {
 
     /// The new engine's part of a run, its rule sets loaded from the compiled rules: under the old engine alone nothing is
     /// loaded and the store's packs are not read; otherwise the packs the store kept are read, and each rule set is read back
-    /// from its pack of what the run was given or lowered from `plans`, the plan of each selected rule in rule order.
+    /// from its pack of what the run was given or lowered from `plans`, the plan of each selected rule in rule order, each with
+    /// what the rule binds its parameters to (`bindings`, in the same order).
     pub(crate) fn scanning<'a>(
         &self,
         request: ScanRequest<'a, '_>,
         plans: &[&Plan],
+        bindings: &[Vec<ParameterBinding>],
     ) -> Result<Scanning<'a>, FileAnalysisError> {
         let scan = Box::new(self.analysis.scanner(request.named));
         let session = match scan.mode() {
             EngineMode::Old => ScanSession::default(),
             EngineMode::New | EngineMode::Both => scan.load(ScanLoadRequest {
                 plans,
+                bindings,
                 given: self.analysis.given(&request),
                 stored: &Self::packs(&request)?,
             })?,

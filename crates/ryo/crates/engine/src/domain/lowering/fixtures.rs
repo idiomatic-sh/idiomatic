@@ -1,125 +1,22 @@
 //! The test support of the `lowering` concept: the plans the engine's seam scenarios name, built by hand (the engine reads no query
-//! text). Each is the smallest plan of its shape; the lowering's track makes each faithful to the shape it names.
+//! text). Each is the smallest plan of its shape; the lowering's track makes each faithful to the shape it names. The plan of
+//! each operation's growth case is in `growth`.
 
-use ryo_relations::domain::relations::types::Relation;
+pub mod growth;
+mod parts;
+pub mod pending;
+mod scenes;
+
+use parts::{as_of, at, joined, kept, of, plan, step, words, words_written};
+use ryo_relations::domain::relations::types::{Integer, Relation};
 use ryo_values::domain::plan_orders::types::{GroupEnd, OrderBound};
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, ComparisonOrigin, Heading, Input, JoinColumn, LiteralText, Operand,
-    PlanComparison, QueryLiteral, RepeatedRows, Side, StepId, StepScope, TableKey, Test,
+    ColumnIndex, ComparisonOrigin, Input, LiteralText, Operand, PlanComparison, QueryLiteral,
+    RepeatedRows, Side, StepId, StepScope, TableKey, Test,
 };
 use ryo_values::domain::plans::types::{Operation, PlanStep};
-use ryo_values::domain::query_plans::types::{Emit, Plan};
+use ryo_values::domain::query_plans::types::Plan;
 use ryo_values::domain::written_rows::types::{RowsSource, WrittenRow, WrittenRows};
-
-/// A step that keeps every row of `from`.
-fn kept(from: Input) -> PlanStep {
-    PlanStep {
-        operation: Operation::Select {
-            from,
-            comparisons: Vec::new(),
-            kept: Vec::new(),
-        },
-        scope: StepScope::PerFile,
-    }
-}
-
-/// A plan of `steps` emitting the last one's rows.
-fn plan(steps: Vec<PlanStep>) -> Plan {
-    let last = u32::try_from(steps.len().saturating_sub(1)).unwrap_or(u32::MAX);
-    Plan {
-        observation_inputs: Vec::new(),
-        parameters: Vec::new(),
-        steps,
-        comparison_origins: Vec::new(),
-        observations: Vec::new(),
-        emit: Emit {
-            step: StepId(last),
-            subject: ColumnIndex(0),
-            key: vec![ColumnIndex(0)],
-            headings: vec![Heading("node".into())],
-        },
-        frontier: Vec::new(),
-    }
-}
-
-/// A per-file step of `operation`.
-fn step(operation: Operation) -> PlanStep {
-    PlanStep {
-        operation,
-        scope: StepScope::PerFile,
-    }
-}
-
-/// The column at `place`.
-const fn at(place: u32) -> ColumnIndex {
-    ColumnIndex(place)
-}
-
-/// A column of one side of a join.
-const fn of(side: Side, place: u32) -> JoinColumn {
-    JoinColumn {
-        side,
-        column: ColumnIndex(place),
-    }
-}
-
-/// A plain join of two inputs on equal keys.
-fn joined(left: Input, right: Input, on: (&[u32], &[u32]), output: Vec<JoinColumn>) -> PlanStep {
-    step(Operation::Join {
-        left,
-        right,
-        left_on: on.0.iter().copied().map(ColumnIndex).collect(),
-        right_on: on.1.iter().copied().map(ColumnIndex).collect(),
-        output,
-        filter: Vec::new(),
-        view: Vec::new(),
-        reach: None,
-    })
-}
-
-/// The words of a file, one row for each child of its sentence: parent, child, ordinal, text, file. Step 0 of the scenes below.
-fn words() -> PlanStep {
-    joined(
-        Input::Relation(Relation::SyntaxChild),
-        Input::Relation(Relation::SyntaxTree),
-        (&[1], &[0]),
-        vec![
-            of(Side::Left, 0),
-            of(Side::Left, 1),
-            of(Side::Left, 2),
-            of(Side::Right, 2),
-            of(Side::Left, 4),
-        ],
-    )
-}
-
-/// The words (step 0) whose text is `text`, keeping `kept` of their columns; none named keeps every column.
-fn words_written(text: &str, kept: &[u32]) -> PlanStep {
-    step(Operation::Select {
-        from: Input::Step(StepId(0)),
-        comparisons: vec![PlanComparison {
-            test: Test::Equal,
-            left: Operand::Column(at(3)),
-            right: Operand::Literal(QueryLiteral::Text(LiteralText(text.into()))),
-            origin: ComparisonOrigin::Unrecorded,
-        }],
-        kept: kept.iter().copied().map(ColumnIndex).collect(),
-    })
-}
-
-/// An as-of of two steps of words by ordinal, answering the left word, the right word and the file.
-fn as_of(left: (u32, &[u32]), right: (u32, &[u32], u32), bound: OrderBound) -> PlanStep {
-    step(Operation::AsOf {
-        left: Input::Step(StepId(left.0)),
-        right: Input::Step(StepId(right.0)),
-        left_on: left.1.iter().copied().map(ColumnIndex).collect(),
-        right_on: right.1.iter().copied().map(ColumnIndex).collect(),
-        left_order: at(2),
-        right_order: at(right.2),
-        bound,
-        output: vec![of(Side::Left, 1), of(Side::Right, 1), of(Side::Left, 4)],
-    })
-}
 
 /// The plans of the operations' scan scenarios, each over the words of the scanned file (step 0); none for another name.
 fn operation_scene(scene: &str) -> Option<Plan> {
@@ -184,9 +81,7 @@ fn operation_scene(scene: &str) -> Option<Plan> {
                 comparisons: vec![PlanComparison {
                     test: Test::Equal,
                     left: Operand::Column(at(5)),
-                    right: Operand::Literal(QueryLiteral::Number(
-                        ryo_relations::domain::relations::types::Integer(0),
-                    )),
+                    right: Operand::Literal(QueryLiteral::Number(Integer(0))),
                     origin: ComparisonOrigin::Unrecorded,
                 }],
                 kept: Vec::new(),
@@ -232,6 +127,9 @@ fn operation_scene(scene: &str) -> Option<Plan> {
 #[must_use]
 pub fn named(scene: &str) -> Plan {
     if let Some(plan) = operation_scene(scene) {
+        return plan;
+    }
+    if let Some(plan) = scenes::load_scene(scene).or_else(|| scenes::scan_scene(scene)) {
         return plan;
     }
     match scene {

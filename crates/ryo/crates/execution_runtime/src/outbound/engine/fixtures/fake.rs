@@ -1,6 +1,7 @@
 //! Controlled stand-in for the engine port. It accepts the lowering fixture's one tree rule, and a compiled rule of the same shape
 //! (one step that keeps columns of a relation read in place from the node table: the element, its file, its span, a token's
-//! text; of every element, or of the elements whose kind is a word of the language's), and refuses every other plan; it writes
+//! text; of every element, or of the elements whose kind is a word of the language's), and answers every other plan among the
+//! refused while it loads the rest; it writes
 //! the rules it accepted, with the columns of their rows, after the engine's own pack header. For each rule it runs it finds a
 //! row for each element the rule names of a scanned file: the fixture rule's, per word, is (start, end, word) with a frontier
 //! row (word); a compiled rule's is the columns it keeps. Before it finds a row it reads `syntax-error`, and
@@ -11,8 +12,9 @@ use super::rules::{Anchor, FixtureRule, Held, lowered, named_rules, written};
 use crate::outbound::engine::interface::EnginePort;
 use ryo_engine::domain::findings::types::{
     ColumnKinds, FoundCells, FoundRows, FoundTarget, FrontierSource, InstructionCount, RuleColumns,
-    ScanCounters,
+    ScanCounters, WorkNotice,
 };
+use ryo_engine::domain::lowering::types::RefusedRule;
 use ryo_engine::domain::packs::service::encoded;
 use ryo_engine::domain::packs::types::{EncodedPack, PackBytes, PackDigest};
 use ryo_engine::domain::programs::service::scratch_for;
@@ -20,7 +22,7 @@ use ryo_engine::domain::programs::types::Programs;
 use ryo_engine::domain::scratch::types::ScanScratch;
 use ryo_engine::inbound::use_cases::load::errors::LoadError;
 use ryo_engine::inbound::use_cases::load::interface::LoadUseCase as _;
-use ryo_engine::inbound::use_cases::load::types::LoadSource;
+use ryo_engine::inbound::use_cases::load::types::{LoadSource, LoadedRules};
 use ryo_engine::inbound::use_cases::load::use_case::LoadUseCaseImpl;
 use ryo_engine::inbound::use_cases::project::errors::ProjectPassError;
 use ryo_engine::inbound::use_cases::scan::errors::ScanError;
@@ -86,6 +88,8 @@ impl FoundRows for Counted {
     fn found(&mut self, _target: FoundTarget, _row: FoundCells<'_>, _words: &FileWords) {
         self.0 = Count(self.0.0.saturating_add(1));
     }
+
+    fn noticed(&mut self, _notice: WorkNotice) {}
 }
 
 /// A visit that hands the lent file to a closure.
@@ -109,13 +113,28 @@ fn counted(calls: &AtomicUsize) {
 }
 
 impl EnginePort for EngineFake {
-    fn load(&self, source: LoadSource<'_>, kinds: &KindVocabulary) -> Result<Programs, LoadError> {
+    fn load(
+        &self,
+        source: LoadSource<'_>,
+        kinds: &KindVocabulary,
+    ) -> Result<LoadedRules, LoadError> {
         match source {
-            LoadSource::Plans(rules) => {
+            LoadSource::Plans(rules, _statistics) => {
                 counted(&self.lowered);
-                let rules: Result<Vec<FixtureRule>, LoadError> =
-                    rules.0.iter().map(|rule| lowered(rule, kinds)).collect();
-                Ok(self.loaded(rules?))
+                let (mut accepted, mut refused) = (Vec::new(), Vec::new());
+                for rule in rules.0 {
+                    match lowered(rule, kinds) {
+                        Ok(lowered) => accepted.push(lowered),
+                        Err(refusal) => refused.push(RefusedRule {
+                            rule: rule.rule,
+                            refusal,
+                        }),
+                    }
+                }
+                Ok(LoadedRules {
+                    programs: self.loaded(accepted),
+                    refused,
+                })
             }
             LoadSource::Pack(bytes, digest) => {
                 counted(&self.unpacked);
@@ -124,7 +143,10 @@ impl EnginePort for EngineFake {
                 let (head, tail) = bytes.0.split_at_checked(header).unwrap_or((bytes.0, &[]));
                 let _header =
                     LoadUseCaseImpl.load(LoadSource::Pack(PackBytes(head), digest), kinds)?;
-                Ok(self.loaded(named_rules(tail)?))
+                Ok(LoadedRules {
+                    programs: self.loaded(named_rules(tail)?),
+                    refused: Vec::new(),
+                })
             }
         }
     }
@@ -230,7 +252,9 @@ impl EnginePort for EngineFake {
                         Held::Start => CellWord(u64::from(span.start.0)),
                         Held::End => CellWord(u64::from(span.end.0)),
                         Held::Word => word,
-                        Held::Node => CellWord(to_bits(Value::Node(node_id(file.file, position))).0),
+                        Held::Node => {
+                            CellWord(to_bits(Value::Node(node_id(file.file, position))).0)
+                        }
                         Held::File => CellWord(to_bits(Value::File(file.file)).0),
                         Held::Span => CellWord(to_bits(Value::Span(whole)).0),
                     })
@@ -250,6 +274,8 @@ impl EnginePort for EngineFake {
             steps: candidates,
             candidates,
             made_rows: InstructionCount(0),
+            fill_rows: InstructionCount(0),
+            visited: candidates,
         })
     }
 

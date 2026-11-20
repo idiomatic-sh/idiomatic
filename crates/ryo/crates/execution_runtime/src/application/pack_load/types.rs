@@ -5,13 +5,14 @@ use crate::outbound::engine::interface::EnginePort;
 use ryo_engine::domain::programs::types::Programs;
 use ryo_relations::domain::relations::types::Count;
 use ryo_values::domain::descriptions::types::{KindVocabularies, KindVocabulary, LanguageName};
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::query_plans::types::Plan;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 use ryo_values::domain::stored_facts::types::Digest;
 use ryo_values::domain::stores::types::StoredPack;
 
-/// What a load is asked: the selected rules' plans, what the run was given as one digest, the kinds of the language whose files
-/// are scanned, and the packs the store kept.
+/// What a load is asked: the selected rules' plans and what each binds its parameters to, what the run was given as one digest,
+/// the kinds of the language whose files are scanned, and the packs the store kept.
 ///
 /// # Examples
 ///
@@ -21,13 +22,16 @@ use ryo_values::domain::stores::types::StoredPack;
 /// use ryo_values::domain::stored_facts::types::Digest;
 ///
 /// let kinds = KindVocabulary { language: LanguageName::default(), kinds: Vec::new() };
-/// let request = LoadRequest { plans: &[], given: Digest([0; 16]), kinds: &kinds, stored: &[] };
+/// let request = LoadRequest { plans: &[], bindings: &[], given: Digest([0; 16]), kinds: &kinds, stored: &[] };
 /// assert!(request.stored.is_empty());
 /// ```
 #[derive(Clone, Copy, Debug)]
 pub struct LoadRequest<'a> {
     /// The plan of each selected rule, in rule order.
     pub plans: &'a [&'a Plan],
+    /// What each selected rule binds its plan's parameters to, in rule order: the host's bound values, which the engine lowers
+    /// as constants. A rule past the end binds nothing.
+    pub bindings: &'a [Vec<ParameterBinding>],
     /// What the run was given, as one digest: its rules as they were written, their fragments, what the host declared and which
     /// were selected. Made before any compile.
     pub given: Digest,
@@ -116,13 +120,15 @@ impl std::fmt::Debug for Harness<'_> {
 /// use ryo_execution_runtime::application::pack_load::types::HarnessRequest;
 /// use ryo_values::domain::stored_facts::types::Digest;
 ///
-/// let request = HarnessRequest { plans: &[], given: Digest([0; 16]), stored: &[] };
+/// let request = HarnessRequest { plans: &[], bindings: &[], given: Digest([0; 16]), stored: &[] };
 /// assert!(request.stored.is_empty());
 /// ```
 #[derive(Clone, Copy, Debug)]
 pub struct HarnessRequest<'a> {
     /// The plan of each selected rule, in rule order.
     pub plans: &'a [&'a Plan],
+    /// What each selected rule binds its plan's parameters to, in rule order.
+    pub bindings: &'a [Vec<ParameterBinding>],
     /// What the run was given, as one digest.
     pub given: Digest,
     /// The packs the store kept.
@@ -210,8 +216,8 @@ impl Default for LoadedFrom {
 /// ```
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Refusals {
-    /// The rules whose plan the lowering cannot express.
+    /// The rules with a step the engine cannot evaluate.
     pub unlowerable: Count,
-    /// The rules whose programs are over the lowering's budget.
+    /// The rules with a count past the width the engine's code gives it.
     pub over_budget: Count,
 }

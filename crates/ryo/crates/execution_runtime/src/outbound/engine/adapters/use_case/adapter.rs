@@ -9,7 +9,7 @@ use ryo_engine::domain::programs::types::Programs;
 use ryo_engine::domain::scratch::types::ScanScratch;
 use ryo_engine::inbound::use_cases::load::errors::LoadError;
 use ryo_engine::inbound::use_cases::load::interface::LoadUseCase;
-use ryo_engine::inbound::use_cases::load::types::LoadSource;
+use ryo_engine::inbound::use_cases::load::types::{LoadSource, LoadedRules};
 use ryo_engine::inbound::use_cases::project::errors::ProjectPassError;
 use ryo_engine::inbound::use_cases::project::interface::ProjectUseCase;
 use ryo_engine::inbound::use_cases::scan::errors::ScanError;
@@ -46,7 +46,11 @@ where
     S: ScanUseCase + std::fmt::Debug,
     P: ProjectUseCase + std::fmt::Debug,
 {
-    fn load(&self, source: LoadSource<'_>, kinds: &KindVocabulary) -> Result<Programs, LoadError> {
+    fn load(
+        &self,
+        source: LoadSource<'_>,
+        kinds: &KindVocabulary,
+    ) -> Result<LoadedRules, LoadError> {
         self.loader.load(source, kinds)
     }
 

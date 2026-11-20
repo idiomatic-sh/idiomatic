@@ -11,6 +11,7 @@ use ryo_language::inbound::use_cases::walk::types::WalkEngine;
 use ryo_operators::spike::EngineMode;
 use ryo_relations::domain::relations::types::FileId;
 use ryo_values::domain::descriptions::types::{KindVocabularies, LanguageName};
+use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::query_plans::types::Plan;
 use ryo_values::domain::scan_rows::types::ScanFault;
 use ryo_values::domain::stored_facts::types::Digest;
@@ -106,8 +107,8 @@ pub enum ScanLanguage {
     Named(LanguageName),
 }
 
-/// What a load is asked before the files of one request: the selected rules, compiled, what the run was given as one digest, and
-/// the packs the store kept.
+/// What a load is asked before the files of one request: the selected rules, compiled, with what each binds its parameters to,
+/// what the run was given as one digest, and the packs the store kept.
 ///
 /// # Examples
 ///
@@ -115,13 +116,15 @@ pub enum ScanLanguage {
 /// use ryo_execution::inbound::use_cases::file_scan::types::ScanLoadRequest;
 /// use ryo_values::domain::stored_facts::types::Digest;
 ///
-/// let request = ScanLoadRequest { plans: &[], given: Digest([0; 16]), stored: &[] };
+/// let request = ScanLoadRequest { plans: &[], bindings: &[], given: Digest([0; 16]), stored: &[] };
 /// assert!(request.stored.is_empty());
 /// ```
 #[derive(Clone, Copy, Debug)]
 pub struct ScanLoadRequest<'a> {
     /// The plan of each selected rule, in rule order.
     pub plans: &'a [&'a Plan],
+    /// What each selected rule binds its plan's parameters to, in rule order: what the compilation bound.
+    pub bindings: &'a [Vec<ParameterBinding>],
     /// What the run was given, as one digest: its rules as they were written, their fragments, what the host declared and which
     /// were selected. Made before any compile; a rule set's pack is kept under it.
     pub given: Digest,

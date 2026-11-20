@@ -2,7 +2,9 @@
 //! finding is placed while the file's table is. A found row is looked up by its rule ordinal, and nothing else is done per rule.
 
 use super::super::types::{EmitColumns, PlaceColumns, ScanReport};
-use ryo_engine::domain::findings::types::{ColumnKinds, FoundCells, FoundRows, FoundTarget};
+use ryo_engine::domain::findings::types::{
+    ColumnKinds, FoundCells, FoundRows, FoundTarget, WorkNotice,
+};
 use ryo_language::domain::facts::service::text;
 use ryo_language::domain::facts::types::{CellWord, FileWords};
 use ryo_language::domain::node_table::service::{element_count, implied_of, span_of};
@@ -116,4 +118,8 @@ impl FoundRows for RowKeeper<'_> {
             }),
         }
     }
+
+    /// A rule's work notice in the file. The scan's overrun policy and the report's notices are the host track's: until it
+    /// keeps them, the engine gives none (its executor is not built) and none is kept.
+    fn noticed(&mut self, _notice: WorkNotice) {}
 }

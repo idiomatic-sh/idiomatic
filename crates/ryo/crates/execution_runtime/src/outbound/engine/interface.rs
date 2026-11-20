@@ -6,7 +6,7 @@ use ryo_engine::domain::packs::types::{EncodedPack, PackDigest};
 use ryo_engine::domain::programs::types::Programs;
 use ryo_engine::domain::scratch::types::ScanScratch;
 use ryo_engine::inbound::use_cases::load::errors::LoadError;
-use ryo_engine::inbound::use_cases::load::types::LoadSource;
+use ryo_engine::inbound::use_cases::load::types::{LoadSource, LoadedRules};
 use ryo_engine::inbound::use_cases::project::errors::ProjectPassError;
 use ryo_engine::inbound::use_cases::scan::errors::ScanError;
 use ryo_language::domain::facts::types::{FileFacts, ProjectFacts};
@@ -19,22 +19,28 @@ use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 ///
 /// ```
 /// use ryo_engine::domain::lowering::types::SelectedRules;
+/// use ryo_engine::domain::statistics::types::StatisticsBytes;
 /// use ryo_engine::inbound::use_cases::load::types::LoadSource;
 /// use ryo_execution_runtime::outbound::engine::interface::EnginePort;
 /// use ryo_values::domain::descriptions::types::KindVocabulary;
 ///
 /// fn accepts_nothing(port: &dyn EnginePort, kinds: &KindVocabulary) -> bool {
-///     port.load(LoadSource::Plans(SelectedRules(&[])), kinds)
-///         .is_ok_and(|programs| port.accepted(&programs).is_empty())
+///     port.load(LoadSource::Plans(SelectedRules(&[]), StatisticsBytes(&[])), kinds)
+///         .is_ok_and(|loaded| port.accepted(&loaded.programs).is_empty())
 /// }
 /// ```
 pub trait EnginePort: Send + Sync + std::fmt::Debug {
-    /// The rule set of `source`: the selected rules lowered against `kinds`, or a pack read back.
+    /// The rule set of `source`: the selected rules lowered against `kinds` as one pack, with each rule the engine refused and
+    /// why, or a pack read back.
     ///
     /// # Errors
     ///
-    /// The first rule the engine cannot lower or that is over its budget; for a pack, why its bytes are not this rule set's.
-    fn load(&self, source: LoadSource<'_>, kinds: &KindVocabulary) -> Result<Programs, LoadError>;
+    /// For a pack, why its bytes are not this rule set's. A rule the engine cannot load is no error: it is among the refused.
+    fn load(
+        &self,
+        source: LoadSource<'_>,
+        kinds: &KindVocabulary,
+    ) -> Result<LoadedRules, LoadError>;
 
     /// The rules a rule set runs, in rule order: the ones `load` accepted.
     fn accepted(&self, programs: &Programs) -> Vec<SelectedRuleOrdinal>;

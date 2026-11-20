@@ -1,24 +1,19 @@
 //! The steps of the `load` feature: each a cucumber expression over the world, one to six lines, asserting the part's own results.
 
 use cucumber::{given, then, when};
-use ryo_engine::domain::lowering::fixtures::named;
-use ryo_engine::domain::lowering::types::{SelectedRule, SelectedRules};
 use ryo_engine::domain::packs::constants::VERSION_WIDTH;
 use ryo_engine::domain::packs::service::encoded;
 use ryo_engine::domain::packs::types::{PackBytes, PackDigest};
 use ryo_engine::domain::programs::service::accepted;
 use ryo_engine::domain::programs::types::Programs;
-use ryo_engine::inbound::use_cases::load::errors::LoadError;
+use ryo_engine::domain::statistics::types::StatisticsBytes;
+use ryo_engine::inbound::use_cases::load::fixtures::{kinds, loaded, loaded_with, said, sampled};
 use ryo_engine::inbound::use_cases::load::interface::LoadUseCase as _;
 use ryo_engine::inbound::use_cases::load::types::LoadSource;
 use ryo_engine::inbound::use_cases::load::use_case::LoadUseCaseImpl;
-use ryo_values::domain::descriptions::types::{KindVocabulary, LanguageName};
-use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
+use ryo_engine::inbound::use_cases::scan::fixtures::scanned;
 
 use crate::Behavior;
-
-/// The scene that names a rule set of no rule.
-const NO_RULES: &str = "no rules";
 
 /// The scene whose pack another engine version wrote.
 const OTHER_VERSION: &str = "other version";
@@ -26,27 +21,15 @@ const OTHER_VERSION: &str = "other version";
 /// The digest the scenarios' packs are written for.
 const DIGEST: PackDigest = PackDigest([5; 32]);
 
-/// The kinds of the fixture language.
-fn kinds() -> KindVocabulary {
-    KindVocabulary {
-        language: LanguageName("walking".into()),
-        kinds: Vec::new(),
+/// The programs of the rule set a scene names, loaded whole: what the scan and the project scenarios run. A scene one of
+/// whose rules the load refused has no programs to run: its answer is the load's, so a scenario of a rule that is not loaded
+/// never passes on what an empty rule set counts.
+pub(crate) fn lowered(scene: &str) -> Result<Programs, String> {
+    match loaded(scene) {
+        Ok(loaded) if loaded.refused.is_empty() => Ok(loaded.programs),
+        Ok(loaded) => Err(said(scene, &loaded)),
+        Err(error) => Err(error.to_string()),
     }
-}
-
-/// The rule set a scene names, lowered: no rule, or rule 0 with the scene's plan.
-pub(crate) fn lowered(scene: &str) -> Result<Programs, LoadError> {
-    let plan = named(scene);
-    let rules = [SelectedRule {
-        rule: SelectedRuleOrdinal(0),
-        plan: &plan,
-    }];
-    let selected = if scene == NO_RULES {
-        &rules[..0]
-    } else {
-        &rules[..]
-    };
-    LoadUseCaseImpl.load(LoadSource::Plans(SelectedRules(selected)), &kinds())
 }
 
 /// Names the scene the next `load` step runs.
@@ -55,11 +38,11 @@ fn given_input(world: &mut Behavior, value: String) {
     world.input = value;
 }
 
-/// Lowers the scene's rule set, answering how many rules it runs or why it refused.
+/// Loads the scene's rule set, answering how many rules it runs, what the scene asks of it, and each rule it refused.
 #[when(expr = "load runs")]
 fn runs(world: &mut Behavior) {
-    world.answer = match lowered(&world.input) {
-        Ok(programs) => format!("loaded {} rules", accepted(&programs).len()),
+    world.answer = match loaded(&world.input) {
+        Ok(loaded) => said(&world.input, &loaded),
         Err(error) => error.to_string(),
     };
 }
@@ -81,18 +64,21 @@ fn runs_through_a_pack(world: &mut Behavior) {
                 *format = format.wrapping_add(1);
             }
             match LoadUseCaseImpl.load(LoadSource::Pack(PackBytes(&bytes), DIGEST), &kinds()) {
-                Ok(read) if accepted(&read) == accepted(&programs) => {
-                    format!("pack and lowering run {} rules", accepted(&read).len())
+                Ok(read) if accepted(&read.programs) == accepted(&programs) => {
+                    format!(
+                        "pack and lowering run {} rules",
+                        accepted(&read.programs).len()
+                    )
                 }
                 Ok(read) => format!(
                     "pack runs {:?}, lowering {:?}",
-                    accepted(&read),
+                    accepted(&read.programs),
                     accepted(&programs)
                 ),
                 Err(error) => error.to_string(),
             }
         }
-        Err(error) => error.to_string(),
+        Err(refused) => refused,
     };
 }
 
@@ -100,4 +86,31 @@ fn runs_through_a_pack(world: &mut Behavior) {
 #[then(expr = "load answers {string}")]
 fn answers(world: &mut Behavior, expected: String) {
     assert_eq!(world.answer, expected);
+}
+
+/// What a load of the scene's rule set with `statistics` finds in a file of `text`: each row as text, sorted.
+fn found(scene: &str, statistics: &[u8], text: &str) -> Vec<String> {
+    let programs = loaded_with(scene, StatisticsBytes(statistics)).map(|loaded| loaded.programs);
+    let mut rows = match programs.map(|programs| scanned(&programs, text)) {
+        Ok(Ok(Some(scan))) => scan.rows,
+        Ok(Ok(None) | Err(_)) | Err(_) => Vec::new(),
+    };
+    rows.sort();
+    rows
+}
+
+/// Loads the scene's rule set with no statistics and with the statistics of a sample of it, scans the scenario's file with
+/// each, and asserts that the two found the same rows and that there were rows to find.
+#[then(expr = "both programs found the same rows")]
+fn found_the_same(world: &mut Behavior) {
+    let Ok(statistics) = sampled(&world.input) else {
+        panic!("the sample's rule set was not loaded");
+    };
+    let without = found(&world.input, &[], &world.text);
+    let with = found(&world.input, &statistics.0, &world.text);
+    assert!(
+        !without.is_empty(),
+        "the rule set found no row: nothing is compared"
+    );
+    assert_eq!(without, with);
 }

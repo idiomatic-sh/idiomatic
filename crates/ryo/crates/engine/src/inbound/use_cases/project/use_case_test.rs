@@ -26,6 +26,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
             steps: InstructionCount(0),
             candidates: InstructionCount(0),
             made_rows: InstructionCount(0),
+            fill_rows: InstructionCount(0),
+            visited: InstructionCount(0),
         },
         Count(0),
     )),

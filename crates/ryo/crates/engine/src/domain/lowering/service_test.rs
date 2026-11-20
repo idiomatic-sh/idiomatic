@@ -1,35 +1,39 @@
-//! The `lowering` service's cases: no rule lowers to an empty rule set; until the lowering expresses a step, the first rule is
-//! refused at its first step.
+//! The `lowering` service's cases: no rule lowers to an empty pack; until the lowering evaluates a step, each rule is refused at
+//! its first step, named.
 
 use super::errors::LoweringError;
 use super::service::lowered;
-use super::types::{PlanNode, PlanShape, SelectedRule, SelectedRules};
+use super::types::{LoadRefusal, PlanNode, SelectedRule, SelectedRules};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::lowering::fixtures::named;
-use crate::domain::programs::service::accepted;
+use crate::domain::statistics::types::Statistics;
 use ryo_values::domain::descriptions::types::{KindVocabulary, LanguageName};
+use ryo_values::domain::query_bindings::types::RuleBindings;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 
-type Input = usize;
-/// How many rules the lowered set runs.
+/// How many copies of the tree rule a row lowers.
+type Input = u32;
+/// How many rules the lowered pack runs.
 type Value = usize;
 type Failure = LoweringError;
 
-/// The rows of this part's cases: how many copies of the tree rule are lowered.
+/// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("no_rule_lowers_to_an_empty_rule_set"),
+        name: CaseName("no_rule_lowers_to_an_empty_pack"),
         word: Word::Succeeds,
         input: || 0,
         expect: Expect::Value(0),
     },
     Case {
-        name: CaseName("the_first_rule_is_refused_at_its_first_step"),
+        name: CaseName(
+            "a_rule_is_refused_at_its_first_step_and_the_last_of_them_is_named_as_each_is",
+        ),
         word: Word::Refuses,
         input: || 2,
-        expect: Expect::Error(LoweringError::Unlowerable {
-            rule: SelectedRuleOrdinal(0),
-            shape: PlanShape::Step(PlanNode(0)),
+        expect: Expect::Error(LoweringError::Refused {
+            rule: SelectedRuleOrdinal(1),
+            refusal: LoadRefusal::Unlowerable(PlanNode(0)),
         }),
     },
 ];
@@ -38,15 +42,24 @@ fn subject(count: Input) -> Result<Value, Failure> {
     let plan = named("one tree rule");
     let rules: Vec<SelectedRule<'_>> = (0..count)
         .map(|rule| SelectedRule {
-            rule: SelectedRuleOrdinal(u32::try_from(rule).unwrap_or(u32::MAX)),
+            rule: SelectedRuleOrdinal(rule),
             plan: &plan,
+            bindings: RuleBindings(&[]),
         })
         .collect();
     let kinds = KindVocabulary {
         language: LanguageName("walking".into()),
         kinds: Vec::new(),
     };
-    lowered(SelectedRules(&rules), &kinds).map(|programs| accepted(&programs).len())
+    let lowered = lowered(SelectedRules(&rules), &Statistics::default(), &kinds);
+    // Every rule the lowering refuses is answered: the row names the last, which is there only when each before it is.
+    match lowered.refused.last() {
+        Some(refused) if lowered.refused.len() == rules.len() => Err(LoweringError::Refused {
+            rule: refused.rule,
+            refusal: refused.refusal,
+        }),
+        Some(_) | None => Ok(lowered.pack.rules.len()),
+    }
 }
 
 #[test]

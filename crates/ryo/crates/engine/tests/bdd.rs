@@ -19,6 +19,12 @@ struct Behavior {
     filled: String,
     /// How many rows the last scan handed over; empty when it did not run or faulted.
     found: String,
+    /// The text of the file the last scan ran over.
+    text: String,
+    /// How many words the file of the last scan over a generated group held.
+    words: usize,
+    /// The last scan, when it ran: what the steps that read its notices, its tables and its fills by key read.
+    scanned: Option<ryo_engine::inbound::use_cases::scan::fixtures::Scanned>,
 }
 
 /// The colocated acceptance features of this crate, sorted.
