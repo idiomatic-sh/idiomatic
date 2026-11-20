@@ -3,7 +3,7 @@ import call_syntax from "python/ruff/calls";
 import line_located from "python/ruff/candidate-locations";
 let assignments = select id, file, span, kind from "semantic-syntax" where kind = "assign" or kind = "ann-assign" or kind = "aug-assign";
 let modules = select id, file from "semantic-syntax" where kind = "module";
-let scopes = select id, file from "semantic-syntax" where kind = "module" or kind = "class-def" or kind = "function-def" or kind = "async-function-def" or kind = "lambda" or kind = "list-comp" or kind = "set-comp" or kind = "dict-comp" or kind = "generator-exp";
+let scopes = select id, file from "semantic-syntax" where kind in ["module", "class-def", "function-def", "async-function-def", "lambda", "list-comp", "set-comp", "dict-comp", "generator-exp"];
 let scope_ancestry = axis(from=assignments, relation="semantic-child", direction=nearest-ancestor, domain=scopes);
 let assignment_scopes = select l.id as statement, l.file as file, r.related as scope from assignments as l join scope_ancestry as r on l.id = r.id and l.file = r.file;
 let module_assignments = select l.statement as statement, l.file as file from assignment_scopes as l join modules as r on l.scope = r.id and l.file = r.file;

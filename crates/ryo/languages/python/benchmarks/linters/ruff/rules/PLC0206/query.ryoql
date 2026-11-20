@@ -36,12 +36,13 @@ let builtin_replacements = select l.binding as binding, l.file as file from modu
 let single_binding_iterations = antijoin(left=unreplaced_iterations, right=builtin_replacements, left-on=["binding", "file"], right-on=["binding", "file"]);
 let read_events = select occurrence as reference, phase, ordinal, file from "binding-event" where kind = "read";
 let iteration_phases = select l.loop as loop, r.phase as phase, l.file as file from inferred_iterations as l join read_events as r on l.dict_name = r.reference and l.file = r.file;
-let scope_nodes = select id, file from nodes where kind = "module" or kind = "class-def" or kind = "function-def" or kind = "async-function-def" or kind = "lambda";
+let scope_nodes = select id, file from nodes where kind in ["module", "class-def", "function-def", "async-function-def", "lambda"];
 let loop_scope_axes = axis(from=loops, relation="semantic-child", direction=nearest-ancestor, domain=scope_nodes);
 let loop_scopes = select id as loop, related as initial_scope, file from loop_scope_axes;
 let all_edges = select parent, child, file from "semantic-child";
-let all_paths = closure(edges=all_edges, source="parent", destination="child", keys=["file"]);
-let loop_event_nodes = select l.id as loop, r.child as event, l.file as file from loops as l join all_paths as r on l.id = r.parent and l.file = r.file;
+let tree_children = select child as id from "semantic-child";
+let loop_walk = axis(from=loops, relation="semantic-child", direction=descendant, domain=tree_children);
+let loop_event_nodes = select id as loop, related as event, file from loop_walk;
 let loop_events0 = select l.loop as loop, r.ordinal as point, r.phase as phase, l.file as file from loop_event_nodes as l join "binding-event" as r on l.event = r.occurrence and l.file = r.file;
 let loop_events = select l.loop as loop, l.point as point, l.file as file from loop_events0 as l join iteration_phases as r on l.loop = r.loop and l.phase = r.phase and l.file = r.file;
 let final_loop_points = group-max(from=loop_events, keys=["loop", "file"], order="point");

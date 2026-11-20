@@ -3,7 +3,7 @@ let chains = select id, file, span from "semantic-syntax" where kind = "chain-ex
 let optional = select l.parent as id from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where r.kind = "punctuator" and r.text = "?.";
 let operators = select l.parent as id, r.text as operator from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where l.field = "operator";
 let edges_all = select l.parent as outer, l.child as inner, l.field as field, l.ordinal as ordinal, r.kind as kind from "semantic-child" as l join "semantic-syntax" as r on l.parent = r.id;
-let wrapper_edges = select inner, outer from edges_all where field = "expression" and (kind = "ts-as-expression" or kind = "ts-satisfies-expression" or kind = "ts-type-assertion" or kind = "ts-non-null-expression" or kind = "ts-instantiation-expression");
+let wrapper_edges = select inner, outer from edges_all where field = "expression" and (kind in ["ts-as-expression", "ts-satisfies-expression", "ts-type-assertion", "ts-non-null-expression", "ts-instantiation-expression"]);
 let await_edges = select inner, outer from edges_all where field = "argument" and kind = "await-expression";
 let logical_edges = select l.inner as inner, l.outer as outer from edges_all as l join operators as r on l.outer = r.id where l.kind = "logical-expression" and ((r.operator = "&&" and (l.field = "left" or l.field = "right")) or ((r.operator = "||" or r.operator = "??") and l.field = "right"));
 let branch_edges = select inner, outer from edges_all where kind = "conditional-expression" and (field = "consequent" or field = "alternate");

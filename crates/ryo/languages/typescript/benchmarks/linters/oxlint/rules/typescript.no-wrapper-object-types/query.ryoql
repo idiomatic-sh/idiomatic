@@ -1,7 +1,7 @@
 import directives from "typescript/oxlint/eslint-directives";
 let tokens = select file, span, text from "semantic-syntax" where kind = "identifier-token";
 let identifiers = select id, file, span from "semantic-syntax" where kind = "identifier";
-let wrapper_names = select l.id as id, l.file as file, l.span as span, r.text as name from identifiers as l join tokens as r on l.file = r.file and l.span = r.span where r.text = "BigInt" or r.text = "Boolean" or r.text = "Number" or r.text = "Object" or r.text = "String" or r.text = "Symbol";
+let wrapper_names = select l.id as id, l.file as file, l.span as span, r.text as name from identifiers as l join tokens as r on l.file = r.file and l.span = r.span where r.text in ["BigInt", "Boolean", "Number", "Object", "String", "Symbol"];
 let references = select id from "semantic-syntax" where kind = "ts-type-reference";
 let reference_names_all = select l.parent as reference, r.id as id, r.file as file, r.span as span, r.name as name from "semantic-child" as l join wrapper_names as r on l.child = r.id where l.field = "type-name";
 let wrapper_rows = select l.reference as reference, l.id as id, l.file as file, l.span as span, l.name as name from reference_names_all as l join references as r on l.reference = r.id;
@@ -34,7 +34,7 @@ let type_hits = select id, file, span from free_types;
 let heritages = select id from "semantic-syntax" where kind = "ts-class-implements" or kind = "ts-interface-heritage";
 let heritage_names = select l.parent as heritage, r.id as id, r.file as file, r.span as span, r.name as name from "semantic-child" as l join wrapper_names as r on l.child = r.id where l.field = "expression";
 let inherited = select l.heritage as heritage, l.id as id, l.file as file, l.span as span, l.name as name from heritage_names as l join heritages as r on l.heritage = r.id;
-let type_bindings = select owner, name from "defines" where kind = "class" or kind = "interface" or kind = "type" or kind = "type-alias" or kind = "type-parameter" or kind = "enum" or kind = "import";
+let type_bindings = select owner, name from "defines" where kind in ["class", "interface", "type", "type-alias", "type-parameter", "enum", "import"];
 let binding_owners = select owner as id from type_bindings;
 let inherited_rows = select id, file, span from inherited;
 let enclosing = axis(from=inherited_rows, relation="semantic-child", direction=ancestor, domain=binding_owners);

@@ -11,7 +11,7 @@ let return_roots = select r.child as id, l.file as file from functions as l join
 let signature_roots = union(left=parameter_roots, right=return_roots);
 let assignments = select id, file from nodes where kind = "ann-assign";
 let variable_roots = select l.id as assignment, r.child as id, l.file as file from assignments as l join "semantic-child" as r on l.id = r.parent and l.file = r.file where r.field = "annotation";
-let scopes = select id, kind, file from nodes where kind = "module" or kind = "class-def" or kind = "function-def" or kind = "async-function-def" or kind = "lambda";
+let scopes = select id, kind, file from nodes where kind in ["module", "class-def", "function-def", "async-function-def", "lambda"];
 let variable_scopes0 = axis(from=assignments, relation="semantic-child", direction=nearest-ancestor, domain=scopes);
 let variable_scopes = select l.id as assignment, r.kind as kind, l.file as file from variable_scopes0 as l join scopes as r on l.related = r.id and l.file = r.file;
 let local_variables = select l.id as id, l.file as file from variable_roots as l join variable_scopes as r on l.assignment = r.assignment and l.file = r.file where r.kind = "function-def" or r.kind = "async-function-def" or r.kind = "lambda";

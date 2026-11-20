@@ -17,7 +17,7 @@ let call_syntax_rows = call_syntax();
 let calls = select id, file from call_syntax_rows;
 let called_contexts = select l.owner as owner, l.expression as expression, l.file as file from contexts as l join calls as r on l.expression = r.id and l.file = r.file;
 let functions = select l.owner as owner, r.child as function, l.file as file from called_contexts as l join "semantic-child" as r on l.expression = r.parent and l.file = r.file where r.field = "func";
-let explicit_functions = select id, file from "qualified-name" where path = "asyncio.timeout" or path = "asyncio.timeout_at" or path = "anyio.CancelScope" or path = "anyio.fail_after" or path = "anyio.move_on_after" or path = "trio.fail_after" or path = "trio.fail_at" or path = "trio.move_on_after" or path = "trio.move_on_at";
+let explicit_functions = select id, file from "qualified-name" where path in ["asyncio.timeout", "asyncio.timeout_at", "anyio.CancelScope", "anyio.fail_after", "anyio.move_on_after", "trio.fail_after", "trio.fail_at", "trio.move_on_after", "trio.move_on_at"];
 let explicit_owners = select l.owner as owner, l.file as file from functions as l join explicit_functions as r on l.function = r.id and l.file = r.file;
 let explicit_outers = select l.outer as outer, l.file as file from top_nested as l join explicit_owners as r on l.outer = r.owner and l.file = r.file;
 let explicit_inners = select l.outer as outer, l.file as file from top_nested as l join explicit_owners as r on l.inner = r.owner and l.file = r.file;

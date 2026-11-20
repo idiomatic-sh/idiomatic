@@ -16,7 +16,7 @@ let add_operators = select l.parent as id, l.file as file from "semantic-child" 
 let augments = select id, file from assignments where kind = "aug-assign";
 let non_add_augments = antijoin(left=augments, right=add_operators, left-on=["id","file"], right-on=["id","file"]);
 let eligible_targets = antijoin(left=dunder_targets, right=non_add_augments, left-on=["id","file"], right-on=["id","file"]);
-let scope_nodes = select id, kind, file from nodes where kind = "module" or kind = "function-def" or kind = "async-function-def" or kind = "class-def" or kind = "lambda" or kind = "list-comp" or kind = "set-comp" or kind = "dict-comp" or kind = "generator-exp";
+let scope_nodes = select id, kind, file from nodes where kind in ["module", "function-def", "async-function-def", "class-def", "lambda", "list-comp", "set-comp", "dict-comp", "generator-exp"];
 let assignment_scopes = axis(from=eligible_targets, relation="semantic-child", direction=nearest-ancestor, domain=scope_nodes);
 let module_assignments = select l.id as id, l.file as file from assignment_scopes as l join scope_nodes as r on l.related = r.id and l.file = r.file where r.kind = "class-def";
 let assignment_values = select l.id as owner, r.child as value, l.file as file from module_assignments as l join "semantic-child" as r on l.id = r.parent and l.file = r.file where r.field = "value";

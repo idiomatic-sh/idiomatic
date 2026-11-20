@@ -38,7 +38,7 @@ let positional_arguments = select l.call as call, r.child as id, l.file as file 
 let keyword_arguments = select l.call as call, r.child as keyword, l.file as file from call_wrappers as l join edges as r on l.wrapper = r.parent and l.file = r.file where r.field = "keywords";
 let keyword_values = select l.call as call, r.child as id, l.file as file from keyword_arguments as l join edges as r on l.keyword = r.parent and l.file = r.file where r.field = "value";
 let call_arguments = union(left=positional_arguments, right=keyword_values);
-let harmless_functions = select id, file from "qualified-name" where provenance = "builtin" and (path = "builtins.print" or path = "builtins.repr" or path = "builtins.id" or path = "builtins.type" or path = "builtins.bool" or path = "builtins.isinstance" or path = "builtins.iter" or path = "builtins.next");
+let harmless_functions = select id, file from "qualified-name" where provenance = "builtin" and (path in ["builtins.print", "builtins.repr", "builtins.id", "builtins.type", "builtins.bool", "builtins.isinstance", "builtins.iter", "builtins.next"]);
 let harmless_calls = select l.call as call, l.file as file from call_functions as l join harmless_functions as r on l.function = r.id and l.file = r.file;
 let consuming_arguments = antijoin(left=call_arguments, right=harmless_calls, left-on=["call","file"], right-on=["call","file"]);
 let forwarding_uses = select l.loop as loop, l.binding as binding, l.name as name, l.scope as scope, l.phase as phase, l.id as id, l.file as file from body_uses as l join consuming_arguments as r on l.id = r.id and l.file = r.file;
@@ -88,7 +88,7 @@ let contingent_exits = select loop, previous, current, exit, file from contingen
 let certain_exits = antijoin(left=possible_exits, right=contingent_exits, left-on=["loop","previous","current","exit","file"], right-on=["loop","previous","current","exit","file"]);
 let surviving_pairs = antijoin(left=repeated_pairs, right=certain_exits, left-on=["loop","previous","current","file"], right-on=["loop","previous","current","file"]);
 let repeated = select current as id, file from surviving_pairs;
-let repeated_regions0 = select id, file from nodes where kind = "for" or kind = "while" or kind = "list-comp" or kind = "set-comp" or kind = "dict-comp" or kind = "generator-exp";
+let repeated_regions0 = select id, file from nodes where kind in ["for", "while", "list-comp", "set-comp", "dict-comp", "generator-exp"];
 let literal_sequences = select id, file from nodes where kind = "list" or kind = "tuple" or kind = "set";
 let literal_members = select l.id as sequence, r.child as member, l.file as file from literal_sequences as l join edges as r on l.id = r.parent and l.file = r.file where r.field = "elts";
 let literal_sizes = group-count(from=literal_members, keys=["sequence","file"], count="count", distinct="member");

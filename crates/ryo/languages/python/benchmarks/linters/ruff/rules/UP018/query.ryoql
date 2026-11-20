@@ -50,7 +50,7 @@ let qualified_call_specs = select call, reference, name, file, expected_kind, ke
 let direct_mode = extend(from=direct_call_specs, values={mode: "direct"});
 let qualified_mode = extend(from=qualified_call_specs, values={mode: "qualified"});
 let call_specs = union(left=direct_mode,right=qualified_mode);
-let primitive_literals = select id, file, kind as value_kind from "literal-properties" where kind = "boolean" or kind = "bytes" or kind = "complex" or kind = "float" or kind = "integer" or kind = "string";
+let primitive_literals = select id, file, kind as value_kind from "literal-properties" where kind in ["boolean", "bytes", "complex", "float", "integer", "string"];
 let unary_nodes = select id, file from "semantic-syntax" where kind = "unary-op";
 let operand_fields = select parent, child from "semantic-child" where field = "operand";
 let unary_operands = select l.id as unary, l.file as file, r.child as operand from unary_nodes as l join operand_fields as r on l.id = r.parent;

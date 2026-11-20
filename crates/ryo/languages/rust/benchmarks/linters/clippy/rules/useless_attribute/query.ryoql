@@ -1,7 +1,7 @@
 import lint_attributes from "rust/clippy/lint-attributes";
 import attribute_items from "rust/clippy/attribute-items";
 let imports = select id, kind, file from "syntax-tree" where kind = "use" or kind = "extern-crate";
-let levels = select occurrence, declaration, file, span from "decorates" where target = "allow" or target = "warn" or target = "deny" or target = "forbid" or target = "expect";
+let levels = select occurrence, declaration, file, span from "decorates" where target in ["allow", "warn", "deny", "forbid", "expect"];
 let attributes = select r.occurrence as occurrence, r.declaration as declaration, l.kind as item, r.file as file, r.span as span from imports as l join levels as r on l.id = r.declaration;
 let outer = source-matches(from=attributes, span="span", pattern="\A#\s*\[", output="opening");
 let outer_metas = select l.occurrence as occurrence, l.declaration as declaration, l.item as item, r.child as meta, l.file as file from outer as l join "syntax-child" as r on l.occurrence = r.parent;

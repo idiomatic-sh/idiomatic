@@ -37,7 +37,7 @@ let referencing = select l.reference as reference, l.file as file, l.span as spa
 let all_ref = antijoin(left=referencing, right=rejected, left-on=["reference"], right-on=["reference"]);
 let aggregate_hits = select reference as id, file, span from all_ref;
 let hits = union(left=direct, right=aggregate_hits);
-let hosts = select id from "syntax-tree" where kind = "or-pat" or kind = "let-stmt" or kind = "let-expr" or kind = "match-arm" or kind = "for-expr" or kind = "param";
+let hosts = select id from "syntax-tree" where kind in ["or-pat", "let-stmt", "let-expr", "match-arm", "for-expr", "param"];
 let hosted = axis(from=hits, relation="syntax-child", direction=nearest-ancestor, domain=hosts);
 let alternatives = select id from "syntax-tree" where kind = "or-pat";
 let in_alternatives = select l.id as id from hosted as l join alternatives as r on l.related = r.id;

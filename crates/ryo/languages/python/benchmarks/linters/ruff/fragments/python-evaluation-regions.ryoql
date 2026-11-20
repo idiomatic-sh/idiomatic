@@ -1,6 +1,6 @@
 output relation<id: node, kind: symbol, file: file>;
 let nodes = select id, kind, file from "semantic-syntax";
-let lexical_scopes = select id, kind, file from nodes where kind = "module" or kind = "function-def" or kind = "async-function-def" or kind = "class-def" or kind = "lambda";
+let lexical_scopes = select id, kind, file from nodes where kind in ["module", "function-def", "async-function-def", "class-def", "lambda"];
 let lexical_regions = select r.child as id, l.kind as kind, l.file as file from lexical_scopes as l join "semantic-child" as r on l.id = r.parent and l.file = r.file where r.field = "body";
 let comprehensions = select id, kind, file from nodes where kind = "list-comp" or kind = "set-comp" or kind = "dict-comp" or kind = "generator-exp";
 let results = select r.child as id, l.kind as kind, l.file as file from comprehensions as l join "semantic-child" as r on l.id = r.parent and l.file = r.file where r.field = "elt" or r.field = "key" or r.field = "value";

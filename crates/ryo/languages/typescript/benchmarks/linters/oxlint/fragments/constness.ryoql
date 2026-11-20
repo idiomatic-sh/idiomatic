@@ -66,7 +66,7 @@ let boolean_set_nodes = select l.root as root, l.inner as node from nearest as l
 let unset = antijoin(left=members, right=nearest, left-on=["root", "node"], right-on=["root", "inner"]);
 let boolean_nodes = union(left=boolean_set_nodes, right=unset);
 let literal_nodes = select id, file, span from "semantic-syntax" where kind = "literal";
-let literal_tokens = select l.id as id, r.kind as kind, r.text as text from literal_nodes as l join "semantic-syntax" as r on l.file = r.file and l.span = r.span where r.kind = "boolean" or r.kind = "null" or r.kind = "numeric" or r.kind = "string" or r.kind = "regular-expression";
+let literal_tokens = select l.id as id, r.kind as kind, r.text as text from literal_nodes as l join "semantic-syntax" as r on l.file = r.file and l.span = r.span where r.kind in ["boolean", "null", "numeric", "string", "regular-expression"];
 let falsy_literals = select id from literal_tokens where (kind = "boolean" and text = "false") or kind = "null" or (kind = "string" and (text = "\x22\x22" or text = "''")) or (kind = "numeric" and matches(text, "^(?:0[xXbBoO][0_]+|0[0_]*(?:\.[0_]*)?(?:[eE][+-]?[0-9_]+)?|\.[0_]+(?:[eE][+-]?[0-9_]+)?)n?$"));
 let all_literals = select id from literal_tokens;
 let truthy_literals = antijoin(left=all_literals, right=falsy_literals, left-on=["id"], right-on=["id"]);
@@ -88,7 +88,7 @@ let and_identity_ops = extend(from=and_identities, values={op: 1});
 let or_identity_ops = extend(from=or_identities, values={op: 2});
 let identities = union(left=and_identity_ops, right=or_identity_ops);
 let kinds = select l.root as root, l.node as node, r.kind as kind from members as l join nodes as r on l.node = r.id;
-let handled = select root, node from kinds where kind = "object-expression" or kind = "function-expression" or kind = "arrow-function-expression" or kind = "class-expression" or kind = "literal" or kind = "array-expression" or kind = "template-literal" or kind = "unary-expression" or kind = "binary-expression" or kind = "logical-expression" or kind = "sequence-expression" or kind = "assignment-expression" or kind = "call-expression" or kind = "new-expression" or kind = "identifier" or kind = "spread-element";
+let handled = select root, node from kinds where kind in ["object-expression", "function-expression", "arrow-function-expression", "class-expression", "literal", "array-expression", "template-literal", "unary-expression", "binary-expression", "logical-expression", "sequence-expression", "assignment-expression", "call-expression", "new-expression", "identifier", "spread-element"];
 let unhandled = antijoin(left=members, right=handled, left-on=["root", "node"], right-on=["root", "node"]);
 let in_binaries = select l.root as root, l.node as node from kinds as l join operators as r on l.node = r.id where l.kind = "binary-expression" and r.operator = "in";
 let other_calls_all = select root, node from kinds where kind = "call-expression";

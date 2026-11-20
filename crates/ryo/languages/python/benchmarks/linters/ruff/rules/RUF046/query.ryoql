@@ -20,7 +20,7 @@ let positional_calls = antijoin(left=one_argument_calls, right=keyword_calls, le
 let outer_values = select l.id as call, r.expression as expression, l.file as file from positional_calls as l join arguments as r on l.id = r.call and l.file = r.file where r.position = 0;
 let integer_atoms = select id, file from "expression-type" where resolution = "atom" and type = "integer";
 let direct_integers = select l.call as id, l.file as file from outer_values as l join integer_atoms as r on l.expression = r.id and l.file = r.file;
-let integer_functions = select id, file from call_origins where path = "builtins.len" or path = "builtins.id" or path = "builtins.hash" or path = "builtins.ord" or path = "builtins.int" or path = "math.comb" or path = "math.factorial" or path = "math.gcd" or path = "math.lcm" or path = "math.isqrt" or path = "math.perm" or path = "math.ceil" or path = "math.floor" or path = "math.trunc";
+let integer_functions = select id, file from call_origins where path in ["builtins.len", "builtins.id", "builtins.hash", "builtins.ord", "builtins.int", "math.comb", "math.factorial", "math.gcd", "math.lcm", "math.isqrt", "math.perm", "math.ceil", "math.floor", "math.trunc"];
 let round_results = select call as id, file from rounded where ndigits = "none" or integer = "true";
 let integer_call_values = union(left=integer_functions, right=round_results);
 let called_integers = select l.call as id, l.file as file from outer_values as l join integer_call_values as r on l.expression = r.id and l.file = r.file;

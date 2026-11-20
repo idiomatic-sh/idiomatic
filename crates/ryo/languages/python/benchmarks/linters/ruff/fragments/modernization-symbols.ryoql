@@ -11,7 +11,7 @@ let roots = union(left=bare, right=simple_attributes);
 let unique_reads = select reference, file from "binding-read" where state = "unique-declaration";
 let unique_uses_raw = select reference, binding, scope, file from "binding-use" where certainty = "unique";
 let lexical_declarations = select l.occurrence as reference, r.owner as scope, l.file as file from "resolves" as l join "defines" as r on l.definition = r.id and l.file = r.file;
-let callable_scopes = select id, file from nodes where kind = "function-def" or kind = "async-function-def" or kind = "lambda" or kind = "list-comp" or kind = "set-comp" or kind = "dict-comp" or kind = "generator-exp";
+let callable_scopes = select id, file from nodes where kind in ["function-def", "async-function-def", "lambda", "list-comp", "set-comp", "dict-comp", "generator-exp"];
 let lexical_locals = select l.reference as reference, l.scope as scope, l.file as file from lexical_declarations as l join callable_scopes as r on l.scope = r.id and l.file = r.file;
 let conflicting_associations = select l.reference as reference, l.binding as binding, l.file as file from unique_uses_raw as l join lexical_locals as r on l.reference = r.reference and l.file = r.file where l.scope != r.scope;
 let unique_uses0 = antijoin(left=unique_uses_raw, right=conflicting_associations, left-on=["reference","binding","file"], right-on=["reference","binding","file"]);
