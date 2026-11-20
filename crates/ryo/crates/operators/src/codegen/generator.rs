@@ -818,6 +818,7 @@ impl Gen<'_, '_> {
         at: usize,
         keys: &[(usize, usize)],
         hit: &dyn Fn(&dyn Fn(usize) -> String) -> String,
+        eager: bool,
     ) -> Res<(String, String)> {
         let rk = self.input_kinds(at, 1)?;
         if let Some(v) = self.input_view(at, 1) {
@@ -875,7 +876,13 @@ impl Gen<'_, '_> {
                 .replace("idx.get", &format!("cx.kidx({ks}, m, {kr}, &[{}], {node}).get", rs.join(", ")))
             }
         };
-        Ok((format!("{mat} if m.is_empty() {{ EMPTY }}"), code))
+        // The made side is made on the first driving row that asks for it (a shared, once-per-file cell): a file whose driving
+        // side is empty never makes it, as the engine's demand never runs a probe's other side for an empty driver.
+        if eager {
+            // A join whose driver is not read in place makes its other side first: an empty other side skips the driver.
+            return Ok((format!("{mat} if m.is_empty() {{ EMPTY }}"), code));
+        }
+        Ok((String::new(), format!("{mat} {code}")))
     }
 
     fn key_pairs(&self, at: usize, left_on: &[ryo_values::domain::plan_parts::types::ColumnIndex], right_on: &[ryo_values::domain::plan_parts::types::ColumnIndex]) -> Res<Vec<(usize, usize)>> {
@@ -948,7 +955,8 @@ impl Gen<'_, '_> {
                         .collect();
                     format!("f(&[{}]);", cs.join(", "))
                 };
-                let (empty, code) = self.right_side(at, &keys, &hit)?;
+                let eager = self.input_view(at, 0).is_none();
+                let (empty, code) = self.right_side(at, &keys, &hit, eager)?;
                 let drive = self.drive(at, 0, "l", &code)?;
                 let plain = format!("{} {drive}", empty.replace("EMPTY", "return;"));
                 match self.swapped(at, &keys, output)? {
@@ -1095,7 +1103,7 @@ impl Gen<'_, '_> {
         if let Some(rv) = self.input_view(at, 1) {
             let rsz = self.view_size(&rv);
             let drive = self.drive(at, 1, "r", &probe)?;
-            return Ok(Some((format!("let lsz = {lsz}; let rsz = {rsz};"), drive)));
+            return Ok(Some((format!("let lsz = {lsz}; if lsz == 0 {{ return; }} let rsz = {rsz};"), drive)));
         }
         let right = self.input_node(at, 1)?;
         self.push_fn(right)?;
@@ -1103,7 +1111,7 @@ impl Gen<'_, '_> {
         let next = self.mats.len();
         let ms = *self.mats.entry(right).or_insert(next);
         let sizes = format!(
-            "let lsz = {lsz}; let mr = cx.mat({ms}, |v| p{right}(cx, &mut |r: &[u64; {kr}]| v.extend_from_slice(r))); let rsz = mr.len() / {kr};"
+            "let lsz = {lsz}; if lsz == 0 {{ return; }} let mr = cx.mat({ms}, |v| p{right}(cx, &mut |r: &[u64; {kr}]| v.extend_from_slice(r))); let rsz = mr.len() / {kr};"
         );
         let drive = format!("for j in (0..mr.len()).step_by({kr}) {{ let r = &mr[j..j + {kr}]; {probe} }}");
         Ok(Some((sizes, drive)))
@@ -1112,7 +1120,7 @@ impl Gen<'_, '_> {
     /// A left row kept when the right side holds a match on every key (`present`) or none.
     fn absence(&mut self, at: usize, keys: &[(usize, usize)], present: bool) -> Res<String> {
         let hit = |_: &dyn Fn(usize) -> String| "found = true; break;".to_string();
-        let (empty, code) = self.right_side(at, keys, &hit)?;
+        let (empty, code) = self.right_side(at, keys, &hit, false)?;
         let keep = if present { "found" } else { "!found" };
         let drive = self.drive(at, 0, "l", &format!("let mut found = false; {code} if {keep} {{ f(l); }}"))?;
         let on_empty = if present {
