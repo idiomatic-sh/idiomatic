@@ -1,5 +1,5 @@
 import deferred_context from "python/ruff/deferred-type-reads";
-import decisions_of from "python/ruff/namespace-decisions";
+import decisions_of from "python/ruff/lookup-read-events";
 input missing: relation<id: node, name: symbol, scope: node, phase: node, file: file>;
 output relation<reference: node, occurrence: node, kind: symbol, point: number, file: file>;
 let expressions = select id, file from missing;
