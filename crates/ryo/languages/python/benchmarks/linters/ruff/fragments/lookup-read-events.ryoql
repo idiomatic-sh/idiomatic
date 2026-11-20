@@ -59,8 +59,9 @@ let older_found = select l.reference as reference, l.depth as depth, l.ordinal a
 let outer_deletion_found = select l.reference as reference, l.depth as depth, l.ordinal as ordinal, l.file as file from found as l join outer_deletion_steps as r on l.reference = r.reference and l.depth = r.depth and l.file = r.file;
 let undecisive = union(left=older_found, right=outer_deletion_found);
 let decisive = antijoin(left=found, right=undecisive, left-on=["reference", "depth", "ordinal", "file"], right-on=["reference", "depth", "ordinal", "file"]);
-let plain_decisions = select reference, event, kind, scope, depth, file from decisive where glob_any(kind, "{bind,delete,annotation}");
-let declaration_decisions = select reference, event, kind, scope, name, depth, ordinal, point, file from decisive where glob_any(kind, "{global,nonlocal}");
+let declaration_decisions = select reference, event, kind, scope, name, depth, ordinal, point, file from decisive where kind = "global" or kind = "nonlocal";
+let plain_decisions0 = antijoin(left=decisive, right=declaration_decisions, left-on=["reference", "depth", "file"], right-on=["reference", "depth", "file"]);
+let plain_decisions = select reference, event, kind, scope, depth, file from plain_decisions0;
 let restored_declarations = select l.reference as reference, l.event as event, l.kind as kind, l.scope as scope, l.depth as depth, l.file as file from declaration_decisions as l join cleanups as r on l.scope = r.scope and l.name = r.name and l.file = r.file where l.ordinal < r.ordinal and r.ordinal < l.point;
 let decisions = union(left=plain_decisions, right=restored_declarations);
 return decisions;

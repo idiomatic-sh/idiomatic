@@ -16,5 +16,5 @@ let decisions = decisions_of(reads=points);
 let answers = select reference, event, kind, depth, file from decisions;
 let farther_answers = select l.reference as reference, l.depth as depth, l.file as file from answers as l join answers as r on l.reference = r.reference and l.file = r.file where r.depth < l.depth;
 let nearest_answers = antijoin(left=answers, right=farther_answers, left-on=["reference", "depth", "file"], right-on=["reference", "depth", "file"]);
-let resolved_lookups = select reference, event as binding, kind, file from nearest_answers where glob_any(kind, "{bind,global,nonlocal}");
+let resolved_lookups = select reference, event as binding, kind, file from nearest_answers where kind != "delete" and kind != "annotation";
 return resolved_lookups;
