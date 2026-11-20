@@ -1745,8 +1745,9 @@ fn negate(v: RealKey) -> Option<RealKey> {
 pub(crate) struct ConstantKeys {
     pub key: Vec<u32>,
     num: Vec<Option<Numeric>>,
-    map: crate::sema::FxMap<Box<[u64]>, u32>,
+    map: crate::sema::FxMap<(u64, u64), u32>,
     words: Vec<u64>,
+    text: String,
 }
 
 impl ConstantKeys {
@@ -1789,11 +1790,17 @@ impl ConstantKeys {
                 Some(Some(Numeric::Number(k)))
             }
             N::ExprStringLiteral(s) => {
-                let mut v = String::new();
-                for p in s.value.iter() {
-                    v.push_str(&p.value);
+                if s.value.is_implicit_concatenated() {
+                    let mut v = std::mem::take(&mut self.text);
+                    v.clear();
+                    for p in s.value.iter() {
+                        v.push_str(&p.value);
+                    }
+                    self.push_literal(2, Some(&v));
+                    self.text = v;
+                } else {
+                    self.push_literal(2, Some(s.value.to_str()));
                 }
-                self.push_literal(2, Some(&v));
                 Some(None)
             }
             N::ExprBytesLiteral(b) => {
@@ -1884,13 +1891,7 @@ impl ConstantKeys {
             }
             self.words.clear();
             if let Some(numeric) = self.build_key(node) {
-                let rep = match self.map.get(self.words.as_slice()) {
-                    Some(&r) => r,
-                    None => {
-                        self.map.insert(self.words.clone().into_boxed_slice(), id as u32);
-                        id as u32
-                    }
-                };
+                let rep = *self.map.entry(fingerprint(&self.words)).or_insert(id as u32);
                 self.key[id] = rep;
                 self.num[id] = numeric;
             }
@@ -2121,8 +2122,12 @@ pub(crate) mod cformat {
         Ok(Field { ordinal, key, conversion, width, precision, flags })
     }
     pub fn parse(input: &str, fields: &mut Vec<Field>) -> Result<Summary, Error> {
-        let mut c = Cursor { chars: input.chars().enumerate(), peeked: None };
         fields.clear();
+        if !input.as_bytes().contains(&b'%') {
+            // no conversion specification can start: the parse reads every character and finds none
+            return Ok(Summary::default());
+        }
+        let mut c = Cursor { chars: input.chars().enumerate(), peeked: None };
         let mut summary = Summary::default();
         while let Some((i, ch)) = c.advance() {
             if ch != '%' {
@@ -2397,6 +2402,10 @@ pub(crate) mod braceformat {
         Ok(ordinal)
     }
     pub fn parse(input: &str) -> Result<Parsed, Error> {
+        if !input.as_bytes().iter().any(|b| matches!(b, b'{' | b'}')) {
+            // no brace: no field, no escape and no error can occur
+            return Ok(Parsed::default());
+        }
         let ps = parts(input)?;
         let mut p = Parsed::default();
         for part in ps {
