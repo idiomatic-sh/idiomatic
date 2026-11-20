@@ -1027,23 +1027,41 @@ impl<'a, 'p> Exec<'a, 'p> {
             let rows = std::mem::replace(&mut self.outs[slot], saved.1);
             self.cur_rule = saved.0;
             let tg = Instant::now();
+            // cut: one scratch key per row, an owned copy only for a new group or a new distinct value (it was four
+            // allocations per row)
             let mut seen: std::collections::HashSet<Vec<u64>, std::hash::BuildHasherDefault<crate::sema::Fx>> = Default::default();
+            let mut seen_rows: std::collections::HashSet<&[u64], std::hash::BuildHasherDefault<crate::sema::Fx>> = Default::default();
             let mut groups: FxMap<Vec<u64>, u64> = FxMap::default();
             let mut order: Vec<Vec<u64>> = Vec::new();
+            let mut key: Vec<u64> = Vec::with_capacity(keys.len() + 1);
             for row in rows.chunks((*width).max(1)) {
-                let key: Vec<u64> = keys.iter().map(|&k| row[k]).collect();
-                let identity: Vec<u64> = match distinct {
-                    Some(d) => key.iter().copied().chain(std::iter::once(row[*d])).collect(),
-                    None => row.to_vec(),
-                };
-                if !seen.insert(identity) {
-                    continue;
+                key.clear();
+                key.extend(keys.iter().map(|&k| row[k]));
+                match distinct {
+                    Some(d) => {
+                        key.push(row[*d]);
+                        let fresh = !seen.contains(&key[..]);
+                        if fresh {
+                            seen.insert(key.clone());
+                        }
+                        key.pop();
+                        if !fresh {
+                            continue;
+                        }
+                    }
+                    None => {
+                        if !seen_rows.insert(row) {
+                            continue;
+                        }
+                    }
                 }
-                let e = groups.entry(key.clone()).or_insert_with(|| {
-                    order.push(key);
-                    0
-                });
-                *e += 1;
+                match groups.get_mut(&key[..]) {
+                    Some(e) => *e += 1,
+                    None => {
+                        groups.insert(key.clone(), 1);
+                        order.push(key.clone());
+                    }
+                }
             }
             let facts = self.cache.facts.as_mut().unwrap();
             let cols = &mut facts.cols[rel as usize];
@@ -2073,11 +2091,16 @@ impl<'a, 'p> Exec<'a, 'p> {
                     self.run_inner(q, 0);
                 }
                 let rows = std::mem::replace(&mut self.collect, saved);
-                let mut seen: std::collections::HashSet<&[u64], std::hash::BuildHasherDefault<crate::sema::Fx>> = Default::default();
                 let mut distinct: Vec<u64> = keys.iter().map(|k| self.regs[*k as usize]).collect();
-                for row in rows.chunks(w) {
-                    if seen.insert(row) {
-                        distinct.extend_from_slice(row);
+                if rows.len() <= w {
+                    // cut: none or one row is distinct as it stands (no set)
+                    distinct.extend_from_slice(&rows);
+                } else {
+                    let mut seen: std::collections::HashSet<&[u64], std::hash::BuildHasherDefault<crate::sema::Fx>> = Default::default();
+                    for row in rows.chunks(w) {
+                        if seen.insert(row) {
+                            distinct.extend_from_slice(row);
+                        }
                     }
                 }
                 let r = Rc::new(distinct);

@@ -84,6 +84,10 @@ BRANCH_CUT = os.environ.get("NAV_BRANCH_CUT", "1") == "1"
 # that may drop the candidate first; a cheaper test runs as soon as its args are bound (as before)
 TEST_WAIT_STEPS = float(os.environ.get("NAV_TEST_WAIT_STEPS", "10"))
 TEST_WAIT_RANK = float(os.environ.get("NAV_TEST_WAIT_RANK", "1.35"))
+# a test of TEST_WAIT_STEPS2 steps or more also waits for an item ranked up to TEST_WAIT_RANK2 (a regex over the source, a
+# children iteration with a field literal): 0 = off
+TEST_WAIT_STEPS2 = float(os.environ.get("NAV_TEST_WAIT_STEPS2", "20"))
+TEST_WAIT_RANK2 = float(os.environ.get("NAV_TEST_WAIT_RANK2", "2.05"))
 # a closure walked along tree child edges is a descendant walk (30, as the axis); walked the other way an ancestor walk (8);
 # last round every closure cost 8, so a test that walks all descendants looked cheaper than it runs
 CLOS_COST = os.environ.get("NAV_CLOS_COST", "1") == "1"
@@ -96,6 +100,7 @@ NEARC_INV = os.environ.get("NAV_NEARC_INV", "1") == "1"
 EAGER_EQ = os.environ.get("NAV_EAGER_EQ", "1") == "1"
 # a closure whose two ends are both bound walks from the cheaper end (up the tree rather than over all descendants)
 CLOS_BOTH = os.environ.get("NAV_CLOS_BOTH", "1") == "1"
+CLOS_LIT = os.environ.get("NAV_CLOS_LIT", "1") == "1"
 # a fact relation (a made table included) reached with two or more of its columns bound is looked up through a composite
 # index over all of them (executor: IterFactMulti), not through one column's index with the others tested per row
 MULTI_KEY = os.environ.get("NAV_MULTI_KEY", "1") == "1"
@@ -112,6 +117,7 @@ MADE_FIRST_RANK = float(os.environ.get("NAV_MADE_FIRST_RANK", "0"))  # tried at 
 # the branches of one definition (and the programs of one made table) that start with the same instructions run that
 # prefix once and fork after it (factor_prefix): a union of variants of one shape no longer walks its anchor once per variant
 PREFIX = os.environ.get("NAV_PREFIX", "1") == "1"
+TOP_PREFIX = os.environ.get("NAV_TOP_PREFIX", "1") == "1"   # the same for the core's own branches (merge_top)
 KEYED_STEPS = float(os.environ.get("NAV_KEYED_STEPS", "20"))   # steps of a well-keyed call: a call ranks as its rows, or its steps over this
 
 
@@ -1681,6 +1687,8 @@ class Lowerer:
                 per0, k0 = min(tc)
                 ready_negs = [k0]
                 wait = TEST_WAIT_RANK if per0 >= TEST_WAIT_STEPS else 1.0
+                if TEST_WAIT_STEPS2 and per0 >= TEST_WAIT_STEPS2:
+                    wait = TEST_WAIT_RANK2
             else:
                 wait = 1.0
             if ready_negs and (best is None or best[0] > wait):
@@ -2147,7 +2155,14 @@ class Lowerer:
                         down = True
                     if ts[PARENT_COL[rel]] == y and ts[TREE[rel]] == x:
                         up = True
-        return 30.0 if (down if from_source else up) else 8.0
+        if not (down if from_source else up):
+            return 8.0
+        if not CLOS_LIT:
+            return 30.0
+        # cut: a walk down the tree only over edges with literal tests (a field, a kind) reaches few nodes: 0.3 per test of
+        # the least tested edge, never under 2 (the nested elements of a target, not every descendant)
+        k = min(sum(1 for f in z.filt if f[0] in ("=", "in") and (not is_var(f[1]) or not is_var(f[2]))) for z in D)
+        return max(2.0, 30.0 * 0.3 ** k)
 
     def test_cost(self, key, args, tbound, eff):
         """steps per candidate of a use of a definition as a test here (the cheaper of its keyed sub-program and a probe
@@ -2530,6 +2545,8 @@ def lower_core(rid, steps, X, schema, freq):
             low.require_alts(b, progs[-1])
     if not progs:
         raise Blocked("no-branch")
+    if PREFIX and TOP_PREFIX:
+        progs = merge_top(progs)
     LAST_STATS.update(defs=len(low.defs), bodies=low.n_bodies, shared=len(low.shared), vars=low.nvar,
                       template_steps=len(low.memo))
     return progs, low.made, dict(low.kind), low.shared
@@ -3025,7 +3042,7 @@ def all_defs(ins, acc):
 
 def match_ins(a, b, rest_regs):
     """the renaming of the registers b writes (its own and those inside its sub-programs) that makes it the instruction
-    a, or None; {} when they are equal. Only registers b itself writes are renamed (every earlier one already has a's
+    a, or None; {} when they are equal. `rest_regs` is b's remaining program. Only registers b itself writes are renamed (every earlier one already has a's
     name, the prefix being shared), and a register of a that b's remaining program names refuses the match."""
     if a == b:
         return {}
@@ -3039,48 +3056,90 @@ def match_ins(a, b, rest_regs):
         return None
     own = all_defs(b, set())
     m = {}
+    rest = None
     for x, y in zip(sa, sb):
         if x != y:
             if y in m:
                 if m[y] != x:
                     return None
-            elif y not in own or x in rest_regs:
-                return None
             else:
+                if rest is None:
+                    rest = prog_regs(rest_regs)  # the registers b's remaining program names (asked for once, when needed)
+                if y not in own or x in rest:
+                    return None
                 m[y] = x
     if not m or len(set(m.values())) != len(m):
         return None
     return m if rn_ins(b, m) == a else None
 
 
-def factor_prefix(progs, test):
+def factor_prefix(progs, test, top=False):
     """programs of one union (every one runs: each collects or emits its rows, or the first that holds yields) as ONE
     program: those that start with the same instruction (up to the names of the registers it writes) share it and fork
-    after, recursively. Returns the program, and how many instructions were shared."""
+    after, recursively. Returns the program, and how many instructions were shared.
+    top: the programs grouped by their first instruction only, as [(program, [indexes of the programs it holds])] (the
+    core's branches: each group stays a top program with its anchor first)."""
     saved = [0]
 
-    def fork(ps):
-        ps = [p for p in ps if p]
+    def group(ps):
         groups = []
-        for p in ps:
+        for k, p in enumerate(ps):
             for g in groups:
-                m = match_ins(g[0], p[0], prog_regs(p[1:]) if p[0] != g[0] else ())
+                m = match_ins(g[0], p[0], p[1:])
                 if m is not None:
                     g[1].append(rn_prog(p[1:], m) if m else p[1:])
+                    g[2].append(k)
                     saved[0] += 1
                     break
             else:
-                groups.append((p[0], [p[1:]]))
+                groups.append((p[0], [p[1:]], [k]))
         subs = []
-        for head, rests in groups:
+        for head, rests, ks in groups:
             if len(rests) == 1 or not all(rests):
-                subs.append([head] + rests[0])
+                subs.append(([head] + rests[0], ks))
             else:
-                subs.append([head] + fork(rests))
+                subs.append(([head] + fork(rests), ks))
+        return subs
+
+    def fork(ps):
+        subs = [q for q, _ in group([p for p in ps if p])]
         if len(subs) == 1:
             return subs[0]
         return [["exists", subs]] + ([["yield"]] if test else [])
+    if top:
+        return group([list(p) for p in progs]), saved[0]
     return fork([list(p) for p in progs]), saved[0]
+
+
+def merge_top(progs):
+    """cut: the core's branches whose chosen programs start with the same instruction become one top program (the shared
+    start once, the rests forked). A merged branch keeps only the kind alternatives every one of its branches had (an
+    empty bucket must prove all of them empty)."""
+    if len(progs) < 2:
+        return progs
+    groups, n_shared = factor_prefix([alts[0]["prog"] for alts in progs], False, top=True)
+    if not n_shared:
+        return progs
+    out = []
+    for prog, ks in groups:
+        if len(ks) == 1:
+            out.append(progs[ks[0]])
+            continue
+        first = progs[ks[0]]
+        alts = [dict(prog=prog, est=first[0]["est"], per=sum(progs[k][0]["per"] for k in ks))]
+        kinds = lambda a: json.dumps(a["prog"][0][3]) if a["prog"] and a["prog"][0][0] == "iter" and a["prog"][0][2] == "kind" else None
+        common = None
+        for k in ks:
+            have = {kinds(a) for a in progs[k][1:]} - {None}
+            common = have if common is None else common & have
+        seen = set()
+        for a in first[1:]:
+            kk = kinds(a)
+            if kk in common and kk not in seen:
+                seen.add(kk)
+                alts.append(dict(prog=[a["prog"][0], ["emit", []]], est=1.0, per=1.0))
+        out.append(alts)
+    return out
 
 
 def prune_shared(nav):
