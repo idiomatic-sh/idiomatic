@@ -2,7 +2,20 @@
 use super::super::interface::RelationsItem;
 use crate::domain::relations::types::{FileId, Integer, NodeId, Span};
 use crate::domain::terms::types::Symbol;
-/// For each read or deletion of a name, the namespaces in which the name is looked up, nearest first.
+/// For each read or deletion of a name, the namespaces in which the name is looked up, nearest first: an optional relation,
+/// which a language promises or says it does not read.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_relations::domain::catalog::types::OptionalCapability;
+/// use ryo_relations::domain::relations::collections::relations::lookup_scope::item::LookupScope;
+/// use ryo_relations::domain::relations::service::optional_capability;
+/// use ryo_relations::domain::relations::types::Relation;
+///
+/// let _item = LookupScope;
+/// assert_eq!(optional_capability(Relation::LookupScope), Some(OptionalCapability::LookupScope));
+/// ```
 #[derive(Clone, Copy, Debug)]
 pub struct LookupScope;
 impl super::super::interface::sealed::Sealed for LookupScope {}
