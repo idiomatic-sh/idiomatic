@@ -195,15 +195,10 @@ fn target(tree: &Tree<'_>, at: Position) -> Targeting {
     }
 }
 
-/// Where the name `name` the element at `at` binds is bound: its scope, out of any comprehension for an assignment expression, then
-/// where `global` or `nonlocal` sends it.
+/// The namespace whose code binds what the element at `at` binds, before `global` or `nonlocal` routing: its scope, out of any
+/// comprehension for an assignment expression.
 #[must_use]
-pub(crate) fn binding_scope(
-    tree: &Tree<'_>,
-    model: &Declarations,
-    at: Position,
-    name: Symbol,
-) -> Position {
+pub(crate) fn lexical_scope(tree: &Tree<'_>, at: Position) -> Position {
     let mut scope = enclosing(tree, at);
     if target(tree, at) == Targeting::AssignmentExpression {
         while matches!(
@@ -213,7 +208,27 @@ pub(crate) fn binding_scope(
             scope = enclosing(tree, scope);
         }
     }
-    redirected(tree, model, scope, name)
+    scope
+}
+
+/// Where the name `name` the element at `at` binds is bound: its lexical scope, then where `global` or `nonlocal` sends it.
+#[must_use]
+pub(crate) fn binding_scope(
+    tree: &Tree<'_>,
+    model: &Declarations,
+    at: Position,
+    name: Symbol,
+) -> Position {
+    redirected(tree, model, lexical_scope(tree, at), name)
+}
+
+/// Whether the scope `scope` declares `name` `global`: lookups from it continue at the module.
+#[must_use]
+pub(crate) fn declares_global(tree: &Tree<'_>, model: &Declarations, scope: Position, name: Symbol) -> bool {
+    if model.declared_state.get() == QualificationState::Fresh {
+        declare(tree, model);
+    }
+    redirect_of(model, scope, name) == Some(BindingRedirect::Global)
 }
 
 /// What the expression at `at` does with what it names: in a target of an assignment, a loop, a `with`, a comprehension or an

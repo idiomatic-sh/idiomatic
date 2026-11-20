@@ -57,6 +57,9 @@ pub(crate) mod binding_observations;
 /// Lazy execution of static binding phases and alternatives.
 pub(crate) mod binding_analysis;
 
+/// Spike (ryo-fmx3): schedule-order name resolution over the binding analysis.
+pub(crate) mod binding_resolution;
+
 /// Explicit uncertainty for repeated and exceptional namespace effects.
 pub(crate) mod binding_uncertainty;
 /// Lazy brace-format parsing, separate from percent-format parsing.

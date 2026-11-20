@@ -117,6 +117,21 @@ pub fn killers_off() -> bool {
     *OFF.get_or_init(|| std::env::var_os("RYO_NO_KILLERS").is_some())
 }
 
+/// Spike (ryo-fmx3): whether sibling constant filters read one partition of their source (`RYO_NO_FANOUT` switches it off),
+/// set once.
+pub fn fanout() -> bool {
+    static ON: OnceLock<bool> = OnceLock::new();
+    *ON.get_or_init(|| std::env::var_os("RYO_NO_FANOUT").is_none())
+}
+
+/// Spike (ryo-fmx3): whether the filters `keyed_select` would make lookups of one shared index (each build answering every
+/// lookup of it) are left filters that read one partition instead, made once and read only by the siblings asked for
+/// (`RYO_NO_FANOUT_LOOKUPS` keeps the lookups), set once. Only demand-driven runs make partitions, so only they drop the lookups.
+pub fn fanout_lookups() -> bool {
+    static ON: OnceLock<bool> = OnceLock::new();
+    *ON.get_or_init(|| fanout() && lazy() && std::env::var_os("RYO_NO_FANOUT_LOOKUPS").is_none())
+}
+
 /// Whether the recorder is on.
 pub fn on() -> bool {
     static ON: OnceLock<bool> = OnceLock::new();
@@ -422,4 +437,90 @@ pub fn dump() {
         ));
     }
     drop(std::fs::write(path, text));
+}
+
+/// Spike (ryo-8y7q): whether the memory counters are on, set once from `RYO_MEMSTATS`.
+pub fn memstats() -> bool {
+    static ON: OnceLock<bool> = OnceLock::new();
+    *ON.get_or_init(|| std::env::var_os("RYO_MEMSTATS").is_some())
+}
+
+/// Spike (ryo-8y7q): over the run, the files ended, the table bytes still held at their ends (sum and largest), and of
+/// those the bytes of tables no reader and no engine use was still waiting for.
+static END_HELD: Mutex<(u64, u64, u64, u64)> = Mutex::new((0, 0, 0, 0));
+
+/// Spike (ryo-8y7q): one file ended holding `held` table bytes, `idle` of them in tables no consumer still waited for.
+pub fn end_held(held: u64, idle: u64) {
+    let mut totals = END_HELD.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    totals.0 += 1;
+    totals.1 += held;
+    totals.2 = totals.2.max(held);
+    totals.3 += idle;
+}
+
+/// Spike (ryo-8y7q): writes the memory counters to the file `RYO_MEMSTATS` names.
+pub fn memstats_dump() {
+    if !memstats() {
+        return;
+    }
+    let totals = *END_HELD.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let Some(path) = std::env::var_os("RYO_MEMSTATS") else {
+        return;
+    };
+    let line = format!(
+        "MEMSTATS files={} end_held_sum_mib={:.1} end_held_max_mib={:.1} end_idle_sum_mib={:.1} tables_peak_mib={:.1}\n",
+        totals.0,
+        totals.1 as f64 / 1048576.0,
+        totals.2 as f64 / 1048576.0,
+        totals.3 as f64 / 1048576.0,
+        tables_peak_mib()
+    );
+    let remade = REMADE.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let line = format!("{line}REMADE {} {:?}\n", remade.0, remade.1);
+    drop(std::fs::write(path, line));
+}
+
+/// Spike (ryo-8y7q): the bytes of source the files read at once may hold, from `RYO_ADMISSION` when set, read once.
+pub fn admission_bytes() -> Option<u64> {
+    static BYTES: OnceLock<Option<u64>> = OnceLock::new();
+    *BYTES.get_or_init(|| std::env::var("RYO_ADMISSION").ok().and_then(|value| value.parse().ok()))
+}
+
+/// Spike (ryo-8y7q): the node table bytes all workers hold now, and the most they held at once.
+static TABLES_NOW: std::sync::atomic::AtomicI64 = std::sync::atomic::AtomicI64::new(0);
+static TABLES_PEAK: std::sync::atomic::AtomicI64 = std::sync::atomic::AtomicI64::new(0);
+
+/// Spike (ryo-8y7q): a node table of `bytes` was held (positive) or let go (negative).
+pub fn tables_held(bytes: i64) {
+    use std::sync::atomic::Ordering::Relaxed;
+    let now = TABLES_NOW.fetch_add(bytes, Relaxed) + bytes;
+    TABLES_PEAK.fetch_max(now, Relaxed);
+}
+
+fn tables_peak_mib() -> f64 {
+    TABLES_PEAK.load(std::sync::atomic::Ordering::Relaxed) as f64 / 1048576.0
+}
+
+/// Spike (ryo-8y7q): whether the session keeps its compiled plans past a run's preparation, set once from `RYO_KEEP_PLANS`.
+pub fn keep_plans() -> bool {
+    static KEEP: OnceLock<bool> = OnceLock::new();
+    *KEEP.get_or_init(|| std::env::var_os("RYO_KEEP_PLANS").is_some())
+}
+
+/// Spike (ryo-8y7q): whether the release of nodes at their last rule turn is off, set once from `RYO_NO_TURNS`.
+pub fn turns_off() -> bool {
+    static OFF: OnceLock<bool> = OnceLock::new();
+    *OFF.get_or_init(|| std::env::var_os("RYO_NO_TURNS").is_some())
+}
+
+/// Spike (ryo-8y7q): nodes made again in a file after a release: how many, and the first few (node, turn, last turn).
+static REMADE: Mutex<(u64, Vec<(u32, u32, u32)>)> = Mutex::new((0, Vec::new()));
+
+/// Spike (ryo-8y7q): `node` was made again in the open file, in rule turn `turn`; its last turn is `last`.
+pub fn remade(node: u32, turn: u32, last: u32) {
+    let mut remade = REMADE.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    remade.0 += 1;
+    if remade.1.len() < 40 {
+        remade.1.push((node, turn, last));
+    }
 }

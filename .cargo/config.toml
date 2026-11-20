@@ -40,3 +40,9 @@ coverage = ["llvm-cov", "--all-targets"]
 coverage-all = ["coverage", "--workspace", "--all-features"]
 performance = ["bench", "--benches", "--all-features"]
 performance-all = ["performance", "--workspace"]
+
+# Spike (ryo-8y7q): jemalloc's options built in, for every binary (`_RJEM_MALLOC_CONF` still overrides each): four arenas,
+# one per worker, and freed pages handed back after 300 ms, not 10 s, so the pages a finished file freed leave the peak.
+# Django: see /workspaces/ryo-poc-evidence/next/mem3/result.json.
+[env]
+JEMALLOC_SYS_WITH_MALLOC_CONF = "narenas:4,dirty_decay_ms:300,muzzy_decay_ms:0"

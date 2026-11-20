@@ -118,6 +118,22 @@ fn head_loop(
     stages: &mut [StageScratch],
 ) -> Result<(), PortableOperatorFault> {
     let (head_kinds, head_rows) = (rows_kinds(push.head), rows_count(push.head));
+    // Spike (ryo-fmx3): a partitioned sibling at the head reads only its bucket and the shared rest of its source's rows.
+    if crate::spike::fanout()
+        && let Some(first) = nodes.first()
+        && crate::domain::physical_plan::collections::kernels::partition::item::head_rows(
+            push.plan,
+            push.run,
+            *first,
+            push.head,
+            push.buffers,
+        )
+    {
+        let listed = std::mem::take(&mut push.buffers.partitions.rows);
+        let answered = listed_loop(push, nodes, row, head, stages, &listed);
+        push.buffers.partitions.rows = listed;
+        return answered;
+    }
     // A relation's columns and a held table are read in place, each row as the stage reads it (a relation's row decoded on
     // its own, never read past its own cells); the tree's rows are decoded a chunk at a time.
     let in_place = match push.head {
@@ -155,6 +171,60 @@ fn head_loop(
             }
         }
         ChainRows::Head | ChainRows::Right(_) | ChainRows::Untaken(_) => {}
+    }
+    Ok(())
+}
+
+/// Spike (ryo-fmx3): hands the head's rows at `listed` (in row order) to the head stage, decoded a chunk at a time into
+/// `head`, until the head stage reads no more.
+///
+/// # Errors
+///
+/// A stage the plan does not hold.
+fn listed_loop(
+    push: &mut Push<'_, '_, '_>,
+    nodes: &[PlanNodeId],
+    row: &mut Vec<Value>,
+    head: &mut Table,
+    stages: &mut [StageScratch],
+    listed: &[u32],
+) -> Result<(), PortableOperatorFault> {
+    use crate::domain::physical_plan::collections::kernels::scan_facts::item::{decode, table_row};
+    let head_kinds = rows_kinds(push.head);
+    head.kinds.clear();
+    head.kinds.extend_from_slice(head_kinds);
+    let per_chunk = (STREAM_CHUNK_CELLS / head_kinds.len().max(1)).max(1);
+    let mut at = 0;
+    while at < listed.len() && head_reads(push, stages) == HeadReads::On {
+        let end = listed.len().min(at.saturating_add(per_chunk));
+        head.cells.clear();
+        let rows = listed.get(at..end).unwrap_or_default();
+        match push.head {
+            ChainRows::Facts(view) => {
+                for each in rows {
+                    decode(view, RowIndex(*each as usize), row);
+                    head.cells.extend_from_slice(row);
+                }
+            }
+            ChainRows::Tree(roots) => {
+                let tree = tree_read(*roots, push.run.resources.tree());
+                for each in rows {
+                    tree_row(&tree, RowIndex(*each as usize), row);
+                    head.cells.extend_from_slice(row);
+                }
+            }
+            ChainRows::Node(_, TakenRows { rows: table, .. }) => {
+                for each in rows {
+                    head.cells.extend_from_slice(table_row(table, RowIndex(*each as usize)));
+                }
+            }
+            ChainRows::Held(_) | ChainRows::Head | ChainRows::Right(_) | ChainRows::Untaken(_) => {
+                return Ok(());
+            }
+        }
+        head.count = RowCount(end - at);
+        at = end;
+        pushed_chunk(push, nodes, stages, InputRows::Table(head))?;
     }
     Ok(())
 }

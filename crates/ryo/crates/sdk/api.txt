@@ -19,6 +19,9 @@ pub use ryo::languages::BindingEventRow
 pub use ryo::languages::BindingRead
 pub use ryo::languages::BindingReadColumn
 pub use ryo::languages::BindingReadRow
+pub use ryo::languages::BindingResolution
+pub use ryo::languages::BindingResolutionColumn
+pub use ryo::languages::BindingResolutionRow
 pub use ryo::languages::BindingShadow
 pub use ryo::languages::BindingShadowColumn
 pub use ryo::languages::BindingShadowRow
@@ -503,6 +506,7 @@ pub use ryo::languages::contract::AssignsExpectedRow
 pub use ryo::languages::contract::AttributePathExpectedRow
 pub use ryo::languages::contract::BindingEventExpectedRow
 pub use ryo::languages::contract::BindingReadExpectedRow
+pub use ryo::languages::contract::BindingResolutionExpectedRow
 pub use ryo::languages::contract::BindingShadowExpectedRow
 pub use ryo::languages::contract::BindingUseExpectedRow
 pub use ryo::languages::contract::BraceFormatFieldExpectedRow

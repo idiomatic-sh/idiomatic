@@ -109,6 +109,8 @@ pub struct FileBuffers {
     pub(crate) known_full: Vec<u32>,
     /// Spike (ryo-fmx3): the open file's number in this worker, from one.
     pub(crate) generation: u32,
+    /// Spike (ryo-fmx3): the partitions of sibling constant filters the open file made.
+    pub(crate) partitions: crate::domain::physical_plan::collections::kernels::partition::item::FilePartitions,
     /// Spike (ryo-fmx3): by node known empty in the open file, the node whose own run held no row and so emptied it.
     pub(crate) origin: Vec<u32>,
     /// Spike (ryo-fmx3): by node, across this worker's files, the necessary node that most often emptied it and how sure
@@ -117,6 +119,12 @@ pub struct FileBuffers {
     /// Spike (ryo-fmx3): the plan these buffers were last grown for (its address, node count and index count), so `sized` costs
     /// one comparison once the buffers fit.
     pub(crate) sized_for: (usize, usize, usize),
+    /// Spike (ryo-8y7q): by node, the last rule turn that can ask for it in a file (`last_turns`); none outside a file pass.
+    pub(crate) turns: Option<std::sync::Arc<[u32]>>,
+    /// Spike (ryo-8y7q): the rule turn the open file is in, from one; zero before the first.
+    pub(crate) turn: u32,
+    /// Spike (ryo-8y7q): by turn, the nodes held in the open file whose last turn that is: released when it ends.
+    pub(crate) turn_holds: Vec<Vec<u32>>,
 }
 
 /// What a filter decided before, for one node: the verdicts by text, kept for the run, and each name's decision, for the file.
@@ -339,6 +347,9 @@ impl FileBuffers {
             && let Some(held) = self.nodes.get_mut(at)
         {
             if let Some(table) = held.take() {
+                if crate::spike::memstats() {
+                    crate::spike::tables_held(-((table.cells.capacity() * size_of::<Value>()) as i64));
+                }
                 #[cfg(test)]
                 self.meter.dropped(table.count);
                 self.pool.pooled(table, PoolSize(POOL_TABLES));
@@ -355,6 +366,60 @@ impl FileBuffers {
         }
         // Made or not, the node keeps nothing it was done with into the next file.
         self.done.forgotten(node);
+    }
+
+    /// Spike (ryo-8y7q): each node's last rule turn in a file, for the file pass that runs its rules in turns.
+    pub fn set_turns(&mut self, turns: &std::sync::Arc<[u32]>) {
+        if crate::spike::turns_off() || !crate::spike::lazy() {
+            return;
+        }
+        if self.turns.as_ref().is_none_or(|held| !std::sync::Arc::ptr_eq(held, turns)) {
+            self.turns = Some(std::sync::Arc::clone(turns));
+        }
+        self.turn = 0;
+    }
+
+    /// Spike (ryo-8y7q): the open file starts rule turn `turn` (from one).
+    pub fn turn_begins(&mut self, turn: u32) {
+        self.turn = turn;
+    }
+
+    /// Spike (ryo-8y7q): rule turn `turn` ended: no later turn asks for a node whose last turn it is, so each such node held
+    /// goes now, unless the engine still keeps it.
+    pub fn turn_ended(&mut self, turn: u32) {
+        let Some(list) = self.turn_holds.get_mut(turn as usize) else {
+            return;
+        };
+        let mut list = std::mem::take(list);
+        for node in list.drain(..) {
+            let at = node as usize;
+            if self.nodes.get(at).is_some_and(Option::is_some)
+                && self.engine_left.get(at).is_none_or(|uses| uses.0 == 0)
+            {
+                self.release(PlanNodeId(node));
+            }
+        }
+        if let Some(slot) = self.turn_holds.get_mut(turn as usize) {
+            *slot = list;
+        }
+    }
+
+    /// Spike (ryo-8y7q): `node` is held now: it goes when its last turn ends (or this one, when that is past).
+    pub(crate) fn held_until_turn(&mut self, node: u32) {
+        let Some(turns) = &self.turns else {
+            return;
+        };
+        let last = turns.get(node as usize).copied().unwrap_or(0);
+        if last == 0 || self.turn == 0 {
+            return;
+        }
+        let at = last.max(self.turn) as usize;
+        if self.turn_holds.len() <= at {
+            self.turn_holds.resize_with(turns.iter().copied().max().unwrap_or(0) as usize + 1, Vec::new);
+        }
+        if let Some(list) = self.turn_holds.get_mut(at) {
+            list.push(node);
+        }
     }
 }
 
@@ -379,6 +444,23 @@ impl FileBuffers {
         self.generation = self.generation.wrapping_add(1);
         self.entity_queries = Default::default();
         let touched = self.touched.taken();
+        // Spike (ryo-8y7q): the table bytes the file still holds at its end, and those no consumer waits for.
+        if crate::spike::memstats() {
+            let (mut held, mut idle) = (0u64, 0u64);
+            for node in &touched {
+                let at = usize::try_from(node.0).unwrap_or(usize::MAX);
+                if let Some(Some(table)) = self.nodes.get(at) {
+                    let bytes = (table.cells.capacity() * size_of::<Value>()) as u64;
+                    held += bytes;
+                    if self.remaining.get(at).is_none_or(|left| left.0 == 0)
+                        && self.engine_left.get(at).is_none_or(|left| left.0 == 0)
+                    {
+                        idle += bytes;
+                    }
+                }
+            }
+            crate::spike::end_held(held, idle);
+        }
         for node in &touched {
             self.release(*node);
             if let Some(decisions) = self
@@ -389,6 +471,11 @@ impl FileBuffers {
             }
         }
         self.touched.given_back(touched);
+        // Spike (ryo-8y7q): the turns of the next file start empty.
+        for list in &mut self.turn_holds {
+            list.clear();
+        }
+        self.turn = 0;
         self.done.file_ended();
         #[cfg(test)]
         {

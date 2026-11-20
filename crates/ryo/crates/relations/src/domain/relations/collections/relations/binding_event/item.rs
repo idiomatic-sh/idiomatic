@@ -39,6 +39,8 @@ macro_rules! binding_event {
         file File: FileId => File;
         /// Original occurrence extent, independent of evaluation order.
         span Span: Span => Span;
+        /// Namespace whose code holds the event before global/nonlocal routing.
+        lexical Lexical: NodeId => Node;
         }
         }
     };

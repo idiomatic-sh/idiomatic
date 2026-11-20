@@ -70,6 +70,8 @@ pub(crate) struct BindingResultEvent {
     pub ordinal: Integer,
     /// Event category, shared with the schedule's executable actions.
     pub kind: EventKind,
+    /// Namespace whose code holds the event before `global`/`nonlocal` routing; `scope` unless routed.
+    pub lexical: Position,
 }
 /// Semantic events, excluding the scheduler's branch/phase control markers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

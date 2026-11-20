@@ -90,6 +90,9 @@ pub mod binding_read;
 /// Optional static binding analysis.
 pub mod binding_use;
 
+/// Optional schedule-order name resolution.
+pub mod binding_resolution;
+
 /// Optional static binding analysis.
 pub mod binding_shadow;
 
