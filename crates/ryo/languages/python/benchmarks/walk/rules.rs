@@ -161,6 +161,11 @@ thread_local! {
 }
 
 /// One compiled regex per pattern for the whole load (a rule pack repeats the suppression fragment's patterns in every rule).
+thread_local! {
+    /// set while compiling a pack: the stored programs stay unspecialised
+    static PACKING: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
 fn rx(pattern: &str) -> Result<Regex, regex_automata::meta::BuildError> {
     if let Some(r) = RX.with(|m| m.borrow().get(pattern).cloned()) {
         return Ok(r);
@@ -439,6 +444,7 @@ impl Program {
     /// Compiles the program JSON into the binary pack; returns its size in bytes.
     pub(crate) fn write_pack(path: &str, out: &str) -> usize {
         let v: Value = serde_json::from_str(&std::fs::read_to_string(path).expect("program")).expect("json");
+        PACKING.with(|p| p.set(true));
         let p = Self::build(&v, Symbols::default(), None);
         crate::pack::write(&v, &p.symbols, p.nav.as_ref().expect("nav program"), out)
     }
@@ -517,7 +523,11 @@ impl Program {
             None
         } else {
             assert_eq!(nav_rules.len(), rules.len(), "every nav rule's tail loads");
-            Some(crate::nav::NavProgram::load(&nav_rules, &mut symbols))
+            let mut n = crate::nav::NavProgram::load(&nav_rules, &mut symbols);
+            if !PACKING.with(|p| p.get()) {
+                n.specialize_all();
+            }
+            Some(n)
         };
         Self { rules, symbols, census, nav }
     }
@@ -696,6 +706,7 @@ impl<'p> State<'p> {
             if ex.c.prof.is_none() && std::env::var("NAV_PROFILE").is_ok() {
                 ex.c.prof = Some(FxMap::default());
             }
+            ex.c.diag = ex.c.prof.is_some() || std::env::var_os("NAV_DIAG").is_some();
             ex.build_kinds();
             if ex.c.rule_steps.len() != nrules + 1 {
                 ex.c.rule_steps = vec![0; nrules + 1];

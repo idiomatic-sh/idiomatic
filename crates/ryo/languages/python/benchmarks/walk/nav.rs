@@ -91,6 +91,16 @@ pub(crate) enum Ins {
     Emit { cols: Box<[Opd]>, rule: u32 },
     /// shared-prefix fan-out: each child runs when one of its (rule, branch) slots is enabled in this file
     Fork { subs: Box<[(Box<[u32]>, Prog)]> },
+    // ---- load-time specialisations (never stored in the pack): direct column reads and constant tests
+    /// node column read (kind 0, text 1, start 2, stop 3 of the view; any id in range)
+    ReadCol { which: u8, row: R, out: R },
+    /// semantic-child read of a node with a parent: parent 0, ordinal 1, field 2
+    ReadChild { which: u8, row: R, out: R },
+    TestEqC { reg: R, c: u64 },
+    TestNeC { reg: R, c: u64 },
+    TestEqR { a: R, b: R },
+    TestNeR { a: R, b: R },
+    TestInC { reg: R, set: Box<[u32]>, negate: bool },
     Yield,
     SpanBetween { a: Opd, b: Opd, out: R },
     SpanBounds { s: Opd, start: R, end: R },
@@ -99,9 +109,10 @@ pub(crate) enum Ins {
 
 pub(crate) type Prog = Box<[Ins]>;
 
-pub(crate) const INS_NAMES: [&str; 22] = [
+pub(crate) const INS_NAMES: [&str; 29] = [
     "iter_kind", "iter_value", "iter_children", "iter_scan", "iter_fact", "iter_fact_scan", "row", "read", "read_fact", "test", "axis",
-    "near", "sub", "emit", "yield", "span_between", "span_bounds", "source_matches", "within", "iter_range", "iter_field", "fork",
+    "near", "sub", "emit", "yield", "span_between", "span_bounds", "source_matches", "within", "iter_range", "iter_field", "fork", "read_col", "read_child",
+    "test_eq_c", "test_ne_c", "test_eq_r", "test_ne_r", "test_in_c",
 ];
 
 impl Ins {
@@ -130,6 +141,13 @@ impl Ins {
             Ins::IterRange { .. } => 19,
             Ins::IterField { .. } => 20,
             Ins::Fork { .. } => 21,
+            Ins::ReadCol { .. } => 22,
+            Ins::ReadChild { .. } => 23,
+            Ins::TestEqC { .. } => 24,
+            Ins::TestNeC { .. } => 25,
+            Ins::TestEqR { .. } => 26,
+            Ins::TestNeR { .. } => 27,
+            Ins::TestInC { .. } => 28,
         }
     }
 }
@@ -475,6 +493,57 @@ impl Loader<'_> {
                 }
             }
             o => panic!("ins {o}"),
+        }
+    }
+}
+
+/// Load-time specialisation (NAV_SPEC=0 turns it off; applied after the pack is read, never stored): reads of the view's
+/// own columns and constant/equality tests become direct instructions.
+pub(crate) fn specialize(p: Prog) -> Prog {
+    if std::env::var("NAV_SPEC").is_ok_and(|v| v == "0") {
+        return p;
+    }
+    p.into_vec()
+        .into_iter()
+        .map(|i| match i {
+            Ins::Read { rel: TRel::Ss, col: 1, row, out } => Ins::ReadCol { which: 0, row, out },
+            Ins::Read { rel: TRel::Ss, col: 2, row, out } => Ins::ReadCol { which: 1, row, out },
+            Ins::Read { rel: TRel::Sl, col: 5, row, out } => Ins::ReadCol { which: 2, row, out },
+            Ins::Read { rel: TRel::Sl, col: 6, row, out } => Ins::ReadCol { which: 3, row, out },
+            Ins::Read { rel: TRel::Sc, col: 0, row, out } => Ins::ReadChild { which: 0, row, out },
+            Ins::Read { rel: TRel::Sc, col: 2, row, out } => Ins::ReadChild { which: 1, row, out },
+            Ins::Read { rel: TRel::Sc, col: 3, row, out } => Ins::ReadChild { which: 2, row, out },
+            Ins::Test { test: T::Eq, l: Opd::Reg(a), r: Opd::Reg(b), .. } => Ins::TestEqR { a, b },
+            Ins::Test { test: T::Ne, l: Opd::Reg(a), r: Opd::Reg(b), .. } => Ins::TestNeR { a, b },
+            Ins::Test { test: T::Eq, l: Opd::Reg(reg), r: Opd::Sym(c), .. } => Ins::TestEqC { reg, c: u64::from(c) },
+            Ins::Test { test: T::Ne, l: Opd::Reg(reg), r: Opd::Sym(c), .. } => Ins::TestNeC { reg, c: u64::from(c) },
+            Ins::Test { test: T::Eq, l: Opd::Reg(reg), r: Opd::Num(c), .. } => Ins::TestEqC { reg, c: c as u64 },
+            Ins::Test { test: T::Ne, l: Opd::Reg(reg), r: Opd::Num(c), .. } => Ins::TestNeC { reg, c: c as u64 },
+            Ins::Test { test: T::In, l: Opd::Reg(reg), r: Opd::Syms(set), .. } => Ins::TestInC { reg, set, negate: false },
+            Ins::Test { test: T::NotIn, l: Opd::Reg(reg), r: Opd::Syms(set), .. } => Ins::TestInC { reg, set, negate: true },
+            Ins::Sub { negate, subs } => Ins::Sub { negate, subs: subs.into_vec().into_iter().map(specialize).collect::<Vec<_>>().into() },
+            Ins::Near { start, out, subs } => {
+                Ins::Near { start, out, subs: subs.into_vec().into_iter().map(specialize).collect::<Vec<_>>().into() }
+            }
+            Ins::Fork { subs } => Ins::Fork { subs: subs.into_vec().into_iter().map(|(sl, q)| (sl, specialize(q))).collect::<Vec<_>>().into() },
+            other => other,
+        })
+        .collect::<Vec<_>>()
+        .into()
+}
+
+impl NavProgram {
+    /// the final load step: specialise every program the executor runs
+    pub(crate) fn specialize_all(&mut self) {
+        for g in &mut self.groups {
+            g.prog = specialize(std::mem::take(&mut g.prog));
+        }
+        for f in &mut self.facts {
+            if let Some((progs, ..)) = &mut f.made {
+                for q in progs.iter_mut() {
+                    *q = specialize(std::mem::take(q));
+                }
+            }
         }
     }
 }
@@ -844,6 +913,13 @@ fn map_regs_ref(i: &Ins, f: &mut dyn FnMut(R) -> R) -> Ins {
         Ins::Emit { cols, rule } => Ins::Emit { cols: cols.iter().map(|c| o(c, f)).collect::<Vec<_>>().into(), rule: *rule },
         Ins::Fork { subs } => Ins::Fork { subs: subs.iter().map(|(s, q)| (s.clone(), p(q, f))).collect::<Vec<_>>().into() },
         Ins::Yield => Ins::Yield,
+        Ins::ReadCol { .. }
+        | Ins::ReadChild { .. }
+        | Ins::TestEqC { .. }
+        | Ins::TestNeC { .. }
+        | Ins::TestEqR { .. }
+        | Ins::TestNeR { .. }
+        | Ins::TestInC { .. } => unreachable!("specialisation runs after the tries are built"),
         Ins::SpanBetween { a, b, out } => {
             let a = o(a, f);
             let b = o(b, f);
@@ -907,11 +983,13 @@ pub(crate) struct Counters {
     pub rule_made_rows: Vec<u64>,
     pub rule_made_steps: Vec<u64>,
     /// steps per instruction kind (index: Ins::code)
-    pub op_steps: [u64; 24],
+    pub op_steps: [u64; 32],
     /// (rule, branch) -> (runs, steps)
     pub branch_steps: FxMap<(u32, u32), (u64, u64)>,
     /// NAV_PROFILE: steps per instruction site (its address)
     pub prof: Option<FxMap<usize, u64>>,
+    /// NAV_DIAG / NAV_PROFILE: per-instruction-kind and per-site counters in the hot loop
+    pub diag: bool,
 }
 
 /// What a file's facts from the provider are, decoded into the view's ids and the run's text codes.
@@ -1756,11 +1834,65 @@ impl<'a, 'p> Exec<'a, 'p> {
         let mut pc = pc;
         loop {
             self.c.steps += 1;
-            self.c.op_steps[p[pc].code()] += 1;
-            if let Some(prof) = self.c.prof.as_mut() {
-                *prof.entry(&p[pc] as *const Ins as usize).or_default() += 1;
+            if self.c.diag {
+                self.c.op_steps[p[pc].code()] += 1;
+                if let Some(prof) = self.c.prof.as_mut() {
+                    *prof.entry(&p[pc] as *const Ins as usize).or_default() += 1;
+                }
             }
             match &p[pc] {
+                Ins::ReadCol { which, row, out } => {
+                    let i = self.regs[*row as usize] as usize;
+                    let v = self.f.view;
+                    if i >= v.kind.len() {
+                        return false;
+                    }
+                    self.regs[*out as usize] = u64::from(match which {
+                        0 => v.kind[i],
+                        1 => v.text[i],
+                        2 => v.start[i],
+                        _ => v.stop[i],
+                    });
+                }
+                Ins::ReadChild { which, row, out } => {
+                    let i = self.regs[*row as usize] as usize;
+                    let v = self.f.view;
+                    if i >= v.parent.len() || v.parent[i] == u32::MAX {
+                        return false;
+                    }
+                    self.regs[*out as usize] = u64::from(match which {
+                        0 => v.parent[i],
+                        1 => v.ordinal[i],
+                        _ => v.field[i],
+                    });
+                }
+                Ins::TestEqC { reg, c } => {
+                    if self.regs[*reg as usize] != *c {
+                        return false;
+                    }
+                }
+                Ins::TestNeC { reg, c } => {
+                    if self.regs[*reg as usize] == *c {
+                        return false;
+                    }
+                }
+                Ins::TestEqR { a, b } => {
+                    if self.regs[*a as usize] != self.regs[*b as usize] {
+                        return false;
+                    }
+                }
+                Ins::TestNeR { a, b } => {
+                    if self.regs[*a as usize] == self.regs[*b as usize] {
+                        return false;
+                    }
+                }
+                Ins::TestInC { reg, set, negate } => {
+                    let x = self.regs[*reg as usize];
+                    let inside = x <= u64::from(u32::MAX) && set.binary_search(&(x as u32)).is_ok();
+                    if inside == *negate {
+                        return false;
+                    }
+                }
                 Ins::Read { rel, col, row, out } => {
                     let id = self.regs[*row as usize] as u32;
                     match self.tread(*rel, *col, id) {

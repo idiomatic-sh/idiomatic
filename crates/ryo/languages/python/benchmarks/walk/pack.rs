@@ -211,6 +211,13 @@ impl Enc {
                 self.u(u32::from(*out));
                 self.u(u32::from(*field_out));
             }
+            Ins::ReadCol { .. }
+            | Ins::ReadChild { .. }
+            | Ins::TestEqC { .. }
+            | Ins::TestNeC { .. }
+            | Ins::TestEqR { .. }
+            | Ins::TestNeR { .. }
+            | Ins::TestInC { .. } => panic!("specialised instructions are not stored in the pack"),
             Ins::Fork { subs } => {
                 self.u(subs.len() as u32);
                 for (slots, q) in subs.iter() {
@@ -712,5 +719,7 @@ pub(crate) fn read(path: &str) -> (Symbols, Value, NavProgram) {
             regexes.len()
         );
     }
-    (symbols, tails, NavProgram { groups, slot_of, slot_rule, nslots, rules, facts, regexes, regex_patterns: Vec::new(), max_regs })
+    let mut nav = NavProgram { groups, slot_of, slot_rule, nslots, rules, facts, regexes, regex_patterns: Vec::new(), max_regs };
+    nav.specialize_all();
+    (symbols, tails, nav)
 }
