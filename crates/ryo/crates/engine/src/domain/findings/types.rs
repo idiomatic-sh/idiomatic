@@ -2,6 +2,7 @@
 //! counted.
 
 use ryo_language::domain::facts::types::{CellWord, FileWords};
+use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::plan_parts::types::InputNumber;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
@@ -61,6 +62,38 @@ pub enum FoundTarget {
 /// ```
 #[derive(Clone, Copy, Debug)]
 pub struct FoundCells<'a>(pub &'a [CellWord]);
+
+/// What each column of a found row holds, in column order: a `Symbol` column holds a word of the file, which the host copies to
+/// owned text; every other kind is a number.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_engine::domain::findings::types::ColumnKinds;
+/// use ryo_relations::domain::relations::types::CellKind;
+///
+/// assert_eq!(ColumnKinds(vec![CellKind::Number, CellKind::Symbol]).0.len(), 2);
+/// ```
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ColumnKinds(pub Vec<CellKind>);
+
+/// The columns of one accepted rule's rows, as its lowering emits them: of its findings, and of each entry of its plan's
+/// frontier, by the entry's place.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_engine::domain::findings::types::RuleColumns;
+///
+/// assert!(RuleColumns::default().frontier.is_empty());
+/// ```
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct RuleColumns {
+    /// The columns of the rule's findings.
+    pub emit: ColumnKinds,
+    /// The columns of each frontier entry.
+    pub frontier: Vec<ColumnKinds>,
+}
 
 /// The frontier rows every file handed over, lent back by the host in file order.
 ///

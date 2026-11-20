@@ -157,7 +157,16 @@ fn answer(adapter: &dyn EnginePort, question: Question) -> Result<Value, Failure
             .map_err(ContractFault::Load)
     };
     match question {
-        Question::NoRuleSelected => Ok(Count(adapter.accepted(&nothing()?).len())),
+        Question::NoRuleSelected => {
+            let rules = nothing()?;
+            let (accepted, columns) = (adapter.accepted(&rules), adapter.columns(&rules));
+            assert_eq!(
+                accepted.len(),
+                columns.len(),
+                "columns for each accepted rule"
+            );
+            Ok(Count(accepted.len()))
+        }
         Question::PackReadBack => read_back(&adapter.encoded(&nothing()?, digest).0, digest),
         Question::PackOfOtherRules => {
             read_back(&adapter.encoded(&nothing()?, digest).0, PackDigest([8; 32]))

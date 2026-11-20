@@ -27,6 +27,39 @@ use ryo_relations::domain::relations::types::{CellKind, Count, FileId};
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 use std::sync::Arc;
 
+/// What every file of a run is scanned with: the rule set, and the columns of each accepted rule's rows, asked of the engine
+/// once and laid out by rule ordinal.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_engine::domain::programs::types::Programs;
+/// use ryo_execution_runtime::application::file_scan::service::run;
+///
+/// let engine = ryo_execution_runtime::outbound::engine::factory::use_case();
+/// assert!(run(&engine, &Programs::default()).columns.0.is_empty());
+/// ```
+#[must_use]
+pub fn run<'a>(engine: &dyn EnginePort, programs: &'a Programs) -> ScanRun<'a> {
+    let mut columns = EmitColumns::default();
+    for (rule, held) in engine
+        .accepted(programs)
+        .into_iter()
+        .zip(engine.columns(programs))
+    {
+        let place = usize::try_from(rule.0).unwrap_or(usize::MAX);
+        if columns.0.len() <= place {
+            columns
+                .0
+                .resize_with(place.saturating_add(1), Default::default);
+        }
+        if let Some(slot) = columns.0.get_mut(place) {
+            *slot = held;
+        }
+    }
+    ScanRun { programs, columns }
+}
+
 /// A worker's state for a rule set, before its first file.
 ///
 /// # Examples
@@ -137,41 +170,11 @@ impl FileVisit for Visiting<'_> {
     }
 }
 
-/// One file, in the worker that took it: walked by the worker's language into its table, lent to the engine's scan, its found rows kept
-/// in the worker's report. Rows found before a fault stay kept: the fault says whose rows of the file are not complete.
-///
-/// # Errors
-///
-/// `Walk` when the language does not read the file or its parser fails, `NotLent` when it lends no file, `Rule` when a rule's
-/// program read a relation refused or filled in part, `Columns` when a found row does not fit the columns the run holds.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_engine::domain::programs::types::Programs;
-/// use ryo_execution_runtime::application::file_scan::errors::FileScanError;
-/// use ryo_execution_runtime::application::file_scan::service::{scanned, worker};
-/// use ryo_execution_runtime::application::file_scan::types::{EmitColumns, ScanRun};
-/// use ryo_language::domain::files::types::SourcePath;
-/// use ryo_language::domain::symbols::types::ByteSlice;
-/// use ryo_language::inbound::use_cases::walk::errors::WalkError;
-/// use ryo_language::inbound::use_cases::walk::types::{WalkEngine, WalkRequest};
-/// use ryo_language::inbound::use_cases::walk::use_case::WalkUseCaseImpl;
-/// use ryo_relations::domain::relations::types::FileId;
-/// use std::sync::Arc;
-///
-/// let engine = ryo_execution_runtime::outbound::engine::factory::use_case();
-/// let (programs, columns) = (Programs::default(), EmitColumns::default());
-/// let language: Arc<dyn WalkEngine> = Arc::new(WalkUseCaseImpl::new());
-/// let mut worker = worker(&language, &engine, &programs);
-/// let file = WalkRequest { path: SourcePath("a.txt"), file: FileId(0), source: ByteSlice(b"") };
-/// let run = ScanRun { programs: &programs, columns: &columns };
-/// let answer = scanned(&engine, run, &mut worker, file);
-/// assert_eq!(answer, Err(FileScanError::Walk { cause: WalkError::Unsupported }));
-/// ```
-pub fn scanned(
+/// One file, in the worker that took it: walked by the worker's language into its table, lent to the engine's scan, its found
+/// rows kept in the worker's report. Rows found before a fault stay kept: the fault says whose rows of the file are not complete.
+fn scanned(
     engine: &dyn EnginePort,
-    run: ScanRun<'_>,
+    run: &ScanRun<'_>,
     worker: &mut ScanWorker,
     file: WalkRequest<'_>,
 ) -> Result<ScanCounters, FileScanError> {
@@ -180,7 +183,7 @@ pub fn scanned(
         programs: run.programs,
         state: &mut worker.scan,
         keeping: Keeping {
-            columns: run.columns,
+            columns: &run.columns,
             file: file.file,
             report: &mut worker.report,
             misfit: None,
@@ -201,15 +204,16 @@ pub fn scanned(
     }
 }
 
-/// The files one worker took, each scanned in order: a faulted file is listed in the worker's report and the run goes on.
+/// The files one worker took, each scanned in order: a faulted file is listed in the worker's report with its fault (`Walk` when
+/// the language does not read it or its parser fails, `NotLent`, `Rule` when a rule's program read a relation refused or filled
+/// in part, `Columns` when a found row does not fit the columns the run holds) and the run goes on.
 /// Answers what the scans counted together.
 ///
 /// # Examples
 ///
 /// ```
 /// use ryo_engine::domain::programs::types::Programs;
-/// use ryo_execution_runtime::application::file_scan::service::{ran, worker};
-/// use ryo_execution_runtime::application::file_scan::types::{EmitColumns, ScanRun};
+/// use ryo_execution_runtime::application::file_scan::service::{ran, run, worker};
 /// use ryo_language::domain::files::types::SourcePath;
 /// use ryo_language::domain::symbols::types::ByteSlice;
 /// use ryo_language::inbound::use_cases::walk::types::{WalkEngine, WalkRequest};
@@ -218,17 +222,17 @@ pub fn scanned(
 /// use std::sync::Arc;
 ///
 /// let engine = ryo_execution_runtime::outbound::engine::factory::use_case();
-/// let (programs, columns) = (Programs::default(), EmitColumns::default());
+/// let programs = Programs::default();
 /// let language: Arc<dyn WalkEngine> = Arc::new(WalkUseCaseImpl::new());
 /// let mut worker = worker(&language, &engine, &programs);
 /// let file = WalkRequest { path: SourcePath("a.txt"), file: FileId(0), source: ByteSlice(b"") };
-/// let run = ScanRun { programs: &programs, columns: &columns };
-/// let _counted = ran(&engine, run, &mut worker, &[file]);
+/// let run = run(&engine, &programs);
+/// let _counted = ran(&engine, &run, &mut worker, &[file]);
 /// assert_eq!(worker.report.faults.len(), 1);
 /// ```
 pub fn ran(
     engine: &dyn EnginePort,
-    run: ScanRun<'_>,
+    run: &ScanRun<'_>,
     worker: &mut ScanWorker,
     files: &[WalkRequest<'_>],
 ) -> ScanCounters {

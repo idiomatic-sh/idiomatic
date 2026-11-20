@@ -4,10 +4,10 @@
 //! differ, a rule the new engine refused is not compared.
 
 use super::errors::FileScanError;
-use super::service::{both, compared, harness_rows, ran, reported, scanned, worker};
+use super::service::{both, compared, harness_rows, ran, reported, run as run_of, worker};
 use super::types::{
-    ColumnKinds, EmitColumns, HarnessDifference, HarnessRows, KeptCell, RowText, RuleColumns,
-    RuleFile, ScanReport, ScanRun, ScanWorker,
+    EmitColumns, HarnessDifference, HarnessRows, KeptCell, RowText, RuleFile, ScanReport, ScanRun,
+    ScanWorker,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::engine::fixtures::fake::{EngineFake, no_kinds};
@@ -23,7 +23,7 @@ use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::inbound::use_cases::walk::errors::WalkError;
 use ryo_language::inbound::use_cases::walk::fixtures::FAILING;
 use ryo_language::inbound::use_cases::walk::types::{WalkEngine, WalkRequest};
-use ryo_relations::domain::relations::types::{CellKind, Count, FileId};
+use ryo_relations::domain::relations::types::{Count, FileId};
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 use std::borrow::Cow;
 use std::sync::Arc;
@@ -196,14 +196,6 @@ fn rows(text: &str, other: &str) -> HarnessRows {
     )
 }
 
-/// The columns of the fake's rule: a finding is a start, an end and a word; its one frontier entry is a word.
-fn columns() -> EmitColumns {
-    EmitColumns(vec![RuleColumns {
-        emit: ColumnKinds(vec![CellKind::Number, CellKind::Number, CellKind::Symbol]),
-        frontier: vec![ColumnKinds(vec![CellKind::Symbol])],
-    }])
-}
-
 /// The rule set of the fake's one accepted rule, the lowering fixture's one tree rule.
 fn accepted(engine: &EngineFake) -> Programs {
     let plan = named("one tree rule");
@@ -231,15 +223,11 @@ fn file<'a>(path: &'a str, number: u32, bytes: &'a [u8]) -> WalkRequest<'a> {
 }
 
 /// What one worker found in `files`, scanned in order by the fake over the fixture language.
-fn worked(files: &[WalkRequest<'_>], columns: &EmitColumns) -> ScanReport {
+fn worked(files: &[WalkRequest<'_>]) -> ScanReport {
     let engine = EngineFake::default();
     let programs = accepted(&engine);
     let mut worker = worker(&words(), &engine, &programs);
-    let run = ScanRun {
-        programs: &programs,
-        columns,
-    };
-    let counted = ran(&engine, run, &mut worker, files);
+    let counted = ran(&engine, &run_of(&engine, &programs), &mut worker, files);
     assert_eq!(
         counted.steps, counted.candidates,
         "the fake steps once per candidate"
@@ -250,7 +238,7 @@ fn worked(files: &[WalkRequest<'_>], columns: &EmitColumns) -> ScanReport {
 
 /// The fixture file: one file of two words.
 fn fixture_file() -> ScanReport {
-    reported([worked(&[file("a.walk", 1, b"one two")], &columns())])
+    reported([worked(&[file("a.walk", 1, b"one two")])])
 }
 
 /// A report as lines: its findings, its frontier rows, its faulted files.
@@ -307,8 +295,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::FixtureFile => Ok(lines(&fixture_file())),
         Scenario::TwoFiles => {
             let (first, second) = (
-                worked(&[file("b.walk", 2, b"gamma delta")], &columns()),
-                worked(&[file("a.walk", 1, b"alpha beta")], &columns()),
+                worked(&[file("b.walk", 2, b"gamma delta")]),
+                worked(&[file("a.walk", 1, b"alpha beta")]),
             );
             Ok(lines(&reported([first, second])))
         }
@@ -320,7 +308,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 file("d.walk", 4, b"why?"),
                 file("e.walk", 5, b"end"),
             ];
-            Ok(lines(&reported([worked(&files, &columns())])))
+            Ok(lines(&reported([worked(&files)])))
         }
         Scenario::BothEqual | Scenario::BothPlanted => {
             let report = fixture_file();
@@ -336,19 +324,25 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         }
         Scenario::NoColumns | Scenario::Unread => {
             let engine = EngineFake::default();
-            let (programs, held) = (accepted(&engine), EmitColumns::default());
+            let programs = accepted(&engine);
             let mut worker = worker(&words(), &engine, &programs);
-            let run = ScanRun {
-                programs: &programs,
-                columns: &held,
+            // The run of a host that holds no columns for the rule.
+            let run = match scenario {
+                Scenario::Unread => run_of(&engine, &programs),
+                _ => ScanRun {
+                    programs: &programs,
+                    columns: EmitColumns::default(),
+                },
             };
             let path = match scenario {
                 Scenario::Unread => "a.txt",
                 _ => "a.walk",
             };
-            scanned(&engine, run, &mut worker, file(path, 1, b"one two"))
-                .map(|_| lines(&worker.report))
-                .map_err(Refusal::Fault)
+            let _counted = ran(&engine, &run, &mut worker, &[file(path, 1, b"one two")]);
+            match worker.report.faults.pop() {
+                Some(faulted) => Err(Refusal::Fault(faulted.fault)),
+                None => Ok(lines(&worker.report)),
+            }
         }
     }
 }

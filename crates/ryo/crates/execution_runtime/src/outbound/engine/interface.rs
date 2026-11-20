@@ -1,7 +1,7 @@
 //! What the file scan asks of the engine: a rule set loaded from plans or from a pack, its pack's bytes, one file scanned, and the
 //! cross-file pass. The host reads nothing else of a rule set, and no rule, language or linter is named here.
 
-use ryo_engine::domain::findings::types::{FoundRows, FrontierSource, ScanCounters};
+use ryo_engine::domain::findings::types::{FoundRows, FrontierSource, RuleColumns, ScanCounters};
 use ryo_engine::domain::packs::types::{EncodedPack, PackDigest};
 use ryo_engine::domain::programs::types::Programs;
 use ryo_engine::domain::scratch::types::ScanScratch;
@@ -38,6 +38,9 @@ pub trait EnginePort: Send + Sync + std::fmt::Debug {
 
     /// The rules a rule set runs, in rule order: the ones `load` accepted.
     fn accepted(&self, programs: &Programs) -> Vec<SelectedRuleOrdinal>;
+
+    /// What each column of each accepted rule's rows holds, in the order of `accepted`: what a found row is read by.
+    fn columns(&self, programs: &Programs) -> Vec<RuleColumns>;
 
     /// The bytes of a rule set, written for `digest`: what the host's store keeps and `load` reads back.
     fn encoded(&self, programs: &Programs, digest: PackDigest) -> EncodedPack;

@@ -1,6 +1,6 @@
 //! The `programs` service's cases: a rule set with no accepted rule reads no relation and runs no rule.
 
-use super::service::{accepted, needs};
+use super::service::{accepted, columns, needs};
 use super::types::Programs;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 
@@ -11,6 +11,8 @@ enum Scenario {
     Needs,
     /// The rules it runs.
     Accepted,
+    /// The columns of the rules it runs.
+    Columns,
 }
 
 type Input = Scenario;
@@ -31,6 +33,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::Accepted,
         expect: Expect::Value(0),
     },
+    Case {
+        name: CaseName("an_empty_rule_set_emits_no_column"),
+        word: Word::Succeeds,
+        input: || Scenario::Columns,
+        expect: Expect::Value(0),
+    },
 ];
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
@@ -38,6 +46,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     Ok(match scenario {
         Scenario::Needs => needs(&programs).0.len(),
         Scenario::Accepted => accepted(&programs).len(),
+        Scenario::Columns => columns(&programs).len(),
     })
 }
 

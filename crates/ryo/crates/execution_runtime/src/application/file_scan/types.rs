@@ -2,47 +2,18 @@
 //! numbers, the run's report, and the harness's comparison of two engines' rows.
 
 use super::errors::FileScanError;
+use ryo_engine::domain::findings::types::RuleColumns;
 use ryo_engine::domain::programs::types::Programs;
 use ryo_engine::domain::scratch::types::ScanScratch;
 use ryo_language::domain::facts::types::CellWord;
 use ryo_language::domain::node_table::types::NodeTable;
 use ryo_language::inbound::use_cases::walk::types::WalkEngine;
-use ryo_relations::domain::relations::types::{CellKind, FileId};
+use ryo_relations::domain::relations::types::FileId;
 use ryo_values::domain::plan_parts::types::InputNumber;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 use std::sync::Arc;
 
-/// What each column of a found row holds, in column order: a `Symbol` column holds a word of the file, copied to owned text.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_execution_runtime::application::file_scan::types::ColumnKinds;
-/// use ryo_relations::domain::relations::types::CellKind;
-///
-/// assert_eq!(ColumnKinds(vec![CellKind::Number, CellKind::Symbol]).0.len(), 2);
-/// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct ColumnKinds(pub Vec<CellKind>);
-
-/// The columns of one selected rule's rows: of its emit, and of each entry of its plan's frontier, by the entry's place.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_execution_runtime::application::file_scan::types::RuleColumns;
-///
-/// assert!(RuleColumns::default().frontier.is_empty());
-/// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct RuleColumns {
-    /// The columns of the rule's findings.
-    pub emit: ColumnKinds,
-    /// The columns of each frontier entry.
-    pub frontier: Vec<ColumnKinds>,
-}
-
-/// The columns of every selected rule, by rule ordinal: read from the plans the host holds, once for the run.
+/// The columns of every selected rule, by rule ordinal: read from the engine's rule set, once for the run.
 ///
 /// # Examples
 ///
@@ -206,24 +177,25 @@ impl std::fmt::Debug for ScanWorker {
     }
 }
 
-/// What every file of a run is scanned with: the rule set and the columns of its rules' rows.
+/// What every file of a run is scanned with: the rule set, and the columns of its rules' rows as the engine says them. Made by
+/// `service::run`.
 ///
 /// # Examples
 ///
 /// ```
 /// use ryo_engine::domain::programs::types::Programs;
-/// use ryo_execution_runtime::application::file_scan::types::{EmitColumns, ScanRun};
+/// use ryo_execution_runtime::application::file_scan::service::run;
 ///
-/// let (programs, columns) = (Programs::default(), EmitColumns::default());
-/// let run = ScanRun { programs: &programs, columns: &columns };
-/// assert!(run.columns.0.is_empty());
+/// let engine = ryo_execution_runtime::outbound::engine::factory::use_case();
+/// let programs = Programs::default();
+/// assert!(run(&engine, &programs).columns.0.is_empty());
 /// ```
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct ScanRun<'a> {
     /// The rule set.
     pub programs: &'a Programs,
-    /// The columns of each selected rule's rows.
-    pub columns: &'a EmitColumns,
+    /// The columns of each selected rule's rows, by rule ordinal.
+    pub columns: EmitColumns,
 }
 
 /// One engine's rows of the compared rules: per rule and file, each row as its owned text, sorted.

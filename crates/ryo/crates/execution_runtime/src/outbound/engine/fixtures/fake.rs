@@ -6,7 +6,8 @@
 
 use crate::outbound::engine::interface::EnginePort;
 use ryo_engine::domain::findings::types::{
-    FoundCells, FoundRows, FoundTarget, FrontierSource, InstructionCount, ScanCounters,
+    ColumnKinds, FoundCells, FoundRows, FoundTarget, FrontierSource, InstructionCount, RuleColumns,
+    ScanCounters,
 };
 use ryo_engine::domain::lowering::fixtures::named;
 use ryo_engine::domain::lowering::types::{PlanNode, PlanShape};
@@ -27,7 +28,7 @@ use ryo_language::domain::facts::types::{
 };
 use ryo_language::domain::node_table::service::{element_count, node_count, span_of};
 use ryo_language::inbound::use_cases::walk::types::FileVisit;
-use ryo_relations::domain::relations::types::{Count, Position, Relation};
+use ryo_relations::domain::relations::types::{CellKind, Count, Position, Relation};
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::descriptions::types::{KindVocabulary, LanguageName};
 use ryo_values::domain::plan_parts::types::InputNumber;
@@ -143,6 +144,15 @@ impl EnginePort for EngineFake {
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .clone()
+    }
+
+    fn columns(&self, programs: &Programs) -> Vec<RuleColumns> {
+        let word = || ColumnKinds(vec![CellKind::Symbol]);
+        let found = RuleColumns {
+            emit: ColumnKinds(vec![CellKind::Number, CellKind::Number, CellKind::Symbol]),
+            frontier: vec![word()],
+        };
+        vec![found; self.accepted(programs).len()]
     }
 
     fn encoded(&self, programs: &Programs, digest: PackDigest) -> EncodedPack {

@@ -1,10 +1,10 @@
 //! The `engine` port, implemented by the `engine` crate's use cases and the readers of its programs: every call passes through.
 
 use crate::outbound::engine::interface::EnginePort;
-use ryo_engine::domain::findings::types::{FoundRows, FrontierSource, ScanCounters};
+use ryo_engine::domain::findings::types::{FoundRows, FrontierSource, RuleColumns, ScanCounters};
 use ryo_engine::domain::packs::service::encoded;
 use ryo_engine::domain::packs::types::{EncodedPack, PackDigest};
-use ryo_engine::domain::programs::service::{accepted, scratch_for};
+use ryo_engine::domain::programs::service::{accepted, columns, scratch_for};
 use ryo_engine::domain::programs::types::Programs;
 use ryo_engine::domain::scratch::types::ScanScratch;
 use ryo_engine::inbound::use_cases::load::errors::LoadError;
@@ -52,6 +52,10 @@ where
 
     fn accepted(&self, programs: &Programs) -> Vec<SelectedRuleOrdinal> {
         accepted(programs)
+    }
+
+    fn columns(&self, programs: &Programs) -> Vec<RuleColumns> {
+        columns(programs)
     }
 
     fn encoded(&self, programs: &Programs, digest: PackDigest) -> EncodedPack {

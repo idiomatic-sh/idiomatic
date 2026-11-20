@@ -1,6 +1,7 @@
 //! The `programs` service: what the host reads of a rule set's programs.
 
 use super::types::Programs;
+use crate::domain::findings::types::RuleColumns;
 use crate::domain::scratch::types::{ScanScratch, ScratchEngine};
 use ryo_language::domain::facts::service::file_words;
 use ryo_language::inbound::use_cases::walk::types::RelationNeeds;
@@ -34,6 +35,26 @@ pub fn needs(programs: &Programs) -> RelationNeeds<'_> {
 #[must_use]
 pub fn accepted(programs: &Programs) -> Vec<SelectedRuleOrdinal> {
     programs.0.rules.iter().map(|rule| rule.rule).collect()
+}
+
+/// What each column of each accepted rule's rows holds, in the order of [`accepted`]: what the host reads a found row by.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_engine::domain::programs::service::columns;
+/// use ryo_engine::domain::programs::types::Programs;
+///
+/// assert!(columns(&Programs::default()).is_empty());
+/// ```
+#[must_use]
+pub fn columns(programs: &Programs) -> Vec<RuleColumns> {
+    programs
+        .0
+        .rules
+        .iter()
+        .map(|rule| rule.columns.clone())
+        .collect()
 }
 
 /// A worker's per-file state for `programs`: its words over the programs' constants.
