@@ -5,8 +5,9 @@
 //! no row. The pass may answer "maybe" where the node is empty, never "empty" where it holds a row.
 use crate::domain::contract::types::PredicateOutcome;
 use crate::domain::equality_join::types::{ProbeKey, ProbeMode};
-use crate::domain::physical_plan::collections::kernels::filter::item::{filter, holds, readied};
-use crate::domain::physical_plan::collections::kernels::scan_facts::item::{decode, facts, rows_of};
+use crate::domain::comparing::service::fast_holds;
+use crate::domain::physical_plan::collections::kernels::filter::item::{FAST, filter, holds, readied};
+use crate::domain::physical_plan::collections::kernels::scan_facts::item::{decode, facts, facts_cell_at, rows_of};
 use crate::domain::physical_plan::collections::kernels::scan_roots::item::{roots, tree_count, tree_row};
 use crate::domain::physical_plan::types::file_buffers::value::FileBuffers;
 use crate::domain::physical_plan::types::lowering::value::Lowering;
@@ -89,8 +90,6 @@ pub(crate) struct BitmapScratch {
     tries: Vec<(u16, u16)>,
     /// By node, the file in which it is on the evaluation stack, so a cycle answers "maybe".
     busy: Vec<u32>,
-    /// What the pass cost and proved, for the recorder: evaluations, nodes proved empty.
-    pub(crate) evaluated: u64,
 }
 
 impl BitmapScratch {
@@ -469,7 +468,7 @@ fn node_val(plan: &PhysicalPlan, run: &KernelRun<'_>, node: u32, buffers: &mut F
     buffers.bitmap.busy[place] = stamp;
     let val = evaluated(plan, run, node, buffers);
     buffers.bitmap.busy[place] = 0;
-    buffers.bitmap.evaluated += 1;
+    crate::spike::bitmap_work(1, 0);
     buffers.bitmap.stamp[place] = stamp;
     buffers.bitmap.val[place] = val;
     val
@@ -557,6 +556,7 @@ fn leaf(
             }
             let mut exact: Vec<bool> = out.iter().map(|column| matches!(view.kinds[*column], CellKind::Node | CellKind::Symbol)).collect();
             let rows = if listed { list.len() } else { count };
+            crate::spike::bitmap_work(0, rows as u64);
             match select {
                 None => {
                     for (slot, column) in out.iter().enumerate() {
@@ -579,15 +579,41 @@ fn leaf(
                     let kernel = filter(select, view.kinds, run.resources.texts());
                     readied(decisions);
                     let mut row = std::mem::take(&mut bitmap.row);
+                    let count = select.comparisons.len();
                     for read in 0..rows {
                         let at = if listed { list[read] as usize } else { read };
-                        decode(&view, RowIndex(at), &mut row);
-                        match holds(kernel, run.matcher, &row, decisions) {
-                            Ok(PredicateOutcome::Fails) => continue,
-                            Ok(_) => {}
-                            Err(_) => {
-                                bitmap.row = row;
-                                return bitmap.maybe();
+                        // The specialised comparisons read the columns in place; only a row they cannot decide is decoded.
+                        let mut decided = Some(true);
+                        if count <= FAST {
+                            for fast in kernel.fast.iter().take(count) {
+                                match fast_holds(fast, |column| facts_cell_at(&view, RowIndex(at), column), &kernel.texts) {
+                                    Some(PredicateOutcome::Holds) => {}
+                                    Some(PredicateOutcome::Fails) => {
+                                        decided = Some(false);
+                                        break;
+                                    }
+                                    None => {
+                                        decided = None;
+                                        break;
+                                    }
+                                }
+                            }
+                        } else {
+                            decided = None;
+                        }
+                        match decided {
+                            Some(false) => continue,
+                            Some(true) => {}
+                            None => {
+                                decode(&view, RowIndex(at), &mut row);
+                                match holds(kernel, run.matcher, &row, decisions) {
+                                    Ok(PredicateOutcome::Fails) => continue,
+                                    Ok(_) => {}
+                                    Err(_) => {
+                                        bitmap.row = row;
+                                        return bitmap.maybe();
+                                    }
+                                }
                             }
                         }
                         for (slot, column) in out.iter().enumerate() {

@@ -443,6 +443,18 @@ pub fn proved(node: u32, rows: usize, whole: u64) {
     });
 }
 
+/// Spike (ryo-bshs): how many node answers the pre-pass evaluated, and leaf rows it read, over the run (recorder only).
+static BITMAP_EVALS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+static BITMAP_ROWS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// Spike (ryo-bshs): counts `evals` answers and `rows` leaf rows the pre-pass read.
+pub fn bitmap_work(evals: u64, rows: u64) {
+    if on() {
+        BITMAP_EVALS.fetch_add(evals, std::sync::atomic::Ordering::Relaxed);
+        BITMAP_ROWS.fetch_add(rows, std::sync::atomic::Ordering::Relaxed);
+    }
+}
+
 static CENSUS: Mutex<String> = Mutex::new(String::new());
 
 /// Spike (ryo-bshs): whether the recorder also writes every file's runs (node, own nanos, rows) to `<RYO_STATS>.census`,
@@ -479,7 +491,11 @@ pub fn dump() {
         let mut census_path = path.clone();
         census_path.push(".census");
         let emits = EMITS.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-        let mut text = format!("emits {emits:?}\n");
+        let mut text = format!(
+            "bitmap {} {}\nemits {emits:?}\n",
+            BITMAP_EVALS.load(std::sync::atomic::Ordering::Relaxed),
+            BITMAP_ROWS.load(std::sync::atomic::Ordering::Relaxed)
+        );
         text.push_str(CENSUS.lock().unwrap_or_else(std::sync::PoisonError::into_inner).as_str());
         drop(std::fs::write(census_path, text));
     }
