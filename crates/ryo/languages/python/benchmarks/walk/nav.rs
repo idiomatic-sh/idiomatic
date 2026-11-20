@@ -101,6 +101,11 @@ pub(crate) enum Ins {
     TestEqR { a: R, b: R },
     TestNeR { a: R, b: R },
     TestInC { reg: R, set: Box<[u32]>, negate: bool },
+    /// a loop-invariant inner enumeration: `seg` (ending in Capture) runs once per file per value of `key` and its captured
+    /// tuples are replayed (registers `caps` restored) into the rest of the program
+    Hoist { id: u32, key: Box<[R]>, seg: Prog, caps: Box<[R]> },
+    /// pushes the registers' values onto the running hoist's capture buffer
+    Capture { regs: Box<[R]> },
     Yield,
     SpanBetween { a: Opd, b: Opd, out: R },
     SpanBounds { s: Opd, start: R, end: R },
@@ -109,10 +114,10 @@ pub(crate) enum Ins {
 
 pub(crate) type Prog = Box<[Ins]>;
 
-pub(crate) const INS_NAMES: [&str; 29] = [
+pub(crate) const INS_NAMES: [&str; 31] = [
     "iter_kind", "iter_value", "iter_children", "iter_scan", "iter_fact", "iter_fact_scan", "row", "read", "read_fact", "test", "axis",
     "near", "sub", "emit", "yield", "span_between", "span_bounds", "source_matches", "within", "iter_range", "iter_field", "fork", "read_col", "read_child",
-    "test_eq_c", "test_ne_c", "test_eq_r", "test_ne_r", "test_in_c",
+    "test_eq_c", "test_ne_c", "test_eq_r", "test_ne_r", "test_in_c", "hoist", "capture",
 ];
 
 impl Ins {
@@ -148,6 +153,8 @@ impl Ins {
             Ins::TestEqR { .. } => 26,
             Ins::TestNeR { .. } => 27,
             Ins::TestInC { .. } => 28,
+            Ins::Hoist { .. } => 29,
+            Ins::Capture { .. } => 30,
         }
     }
 }
@@ -532,16 +539,225 @@ pub(crate) fn specialize(p: Prog) -> Prog {
         .into()
 }
 
+/// Registers an instruction reads (sub-programs: every register they read, an over-approximation) and defines (top level).
+fn reads_defs(i: &Ins, reads: &mut Vec<R>, defs: &mut Vec<R>) {
+    let o = |x: &Opd, r: &mut Vec<R>| {
+        if let Opd::Reg(x) = x {
+            r.push(*x);
+        }
+    };
+    let v = |x: &Val, r: &mut Vec<R>| {
+        if let Val::Reg(x) = x {
+            r.push(*x);
+        }
+    };
+    let sub = |ps: &[Prog], r: &mut Vec<R>| {
+        for q in ps {
+            for j in q.iter() {
+                let mut d = Vec::new();
+                reads_defs(j, r, &mut d);
+            }
+        }
+    };
+    match i {
+        Ins::IterKind { out, .. } | Ins::IterScan { out, .. } | Ins::IterFactScan { out, .. } => defs.push(*out),
+        Ins::IterValue { val, out, .. } | Ins::IterFact { val, out, .. } => {
+            v(val, reads);
+            defs.push(*out);
+        }
+        Ins::IterChildren { parent, out } => {
+            reads.push(*parent);
+            defs.push(*out);
+        }
+        Ins::Row { key, .. } => reads.push(*key),
+        Ins::Read { row, out, .. } | Ins::ReadFact { row, out, .. } | Ins::ReadCol { row, out, .. } | Ins::ReadChild { row, out, .. } => {
+            reads.push(*row);
+            defs.push(*out);
+        }
+        Ins::Test { l, r, .. } => {
+            o(l, reads);
+            o(r, reads);
+        }
+        Ins::TestEqC { reg, .. } | Ins::TestNeC { reg, .. } | Ins::TestInC { reg, .. } => reads.push(*reg),
+        Ins::TestEqR { a, b } | Ins::TestNeR { a, b } => {
+            reads.push(*a);
+            reads.push(*b);
+        }
+        Ins::Axis { start, out, .. } => {
+            reads.push(*start);
+            defs.push(*out);
+        }
+        Ins::Within { anc, desc } => {
+            reads.push(*anc);
+            reads.push(*desc);
+        }
+        Ins::IterRange { val, out, start, lo, hi, .. } => {
+            v(val, reads);
+            if let Some((r, _)) = lo {
+                reads.push(*r);
+            }
+            if let Some((r, _)) = hi {
+                reads.push(*r);
+            }
+            defs.push(*out);
+            defs.push(*start);
+        }
+        Ins::IterField { parent, out, field_out, .. } => {
+            reads.push(*parent);
+            defs.push(*out);
+            defs.push(*field_out);
+        }
+        Ins::Near { start, out, subs } => {
+            reads.push(*start);
+            sub(subs, reads);
+            defs.push(*out);
+        }
+        Ins::Sub { subs, .. } => sub(subs, reads),
+        Ins::Fork { subs } => {
+            for (_, q) in subs.iter() {
+                sub(std::slice::from_ref(q), reads);
+            }
+        }
+        Ins::Emit { cols, .. } => cols.iter().for_each(|c| o(c, reads)),
+        Ins::Yield => {}
+        Ins::SpanBetween { a, b, out } => {
+            o(a, reads);
+            o(b, reads);
+            defs.push(*out);
+        }
+        Ins::SpanBounds { s, start, end } => {
+            o(s, reads);
+            defs.push(*start);
+            defs.push(*end);
+        }
+        Ins::SourceMatches { span, base, outs, .. } => {
+            o(span, reads);
+            if let Some(b) = base {
+                o(b, reads);
+            }
+            defs.extend(outs.iter().copied());
+        }
+        Ins::Hoist { key, seg, caps, .. } => {
+            reads.extend(key.iter().copied());
+            sub(std::slice::from_ref(seg), reads);
+            defs.extend(caps.iter().copied());
+        }
+        Ins::Capture { regs } => reads.extend(regs.iter().copied()),
+    }
+}
+
+fn is_iter(i: &Ins) -> bool {
+    matches!(
+        i,
+        Ins::IterKind { .. }
+            | Ins::IterValue { .. }
+            | Ins::IterChildren { .. }
+            | Ins::IterScan { .. }
+            | Ins::IterFact { .. }
+            | Ins::IterFactScan { .. }
+            | Ins::IterRange { .. }
+            | Ins::IterField { .. }
+            | Ins::Axis { dir: Dir::Ancestor | Dir::Descendant | Dir::Child, .. }
+            | Ins::SourceMatches { .. }
+    )
+}
+
+static HOIST_ID: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+/// Loop-invariant inner enumerations (NAV_HOIST=0 turns it off): an iteration whose inputs were all bound before an
+/// enclosing iteration of the same program, together with the steps after it that read nothing else bound outside it, runs
+/// once per file per value of those inputs; its result tuples are replayed into the rest.
+pub(crate) fn hoist(p: Prog) -> Prog {
+    if std::env::var("NAV_HOIST").is_ok_and(|v| v == "0") {
+        return p;
+    }
+    let mut v: Vec<Ins> = p.into_vec();
+    // recurse first
+    for i in v.iter_mut() {
+        match i {
+            Ins::Sub { subs, .. } | Ins::Near { subs, .. } => {
+                let taken = std::mem::take(subs);
+                *subs = taken.into_vec().into_iter().map(hoist).collect::<Vec<_>>().into();
+            }
+            Ins::Fork { subs } => {
+                let taken = std::mem::take(subs);
+                *subs = taken.into_vec().into_iter().map(|(sl, q)| (sl, hoist(q))).collect::<Vec<_>>().into();
+            }
+            _ => {}
+        }
+    }
+    let mut def_at: FxMap<R, usize> = FxMap::default();
+    let mut s = 0;
+    while s < v.len() {
+        let mut reads = Vec::new();
+        let mut defs = Vec::new();
+        reads_defs(&v[s], &mut reads, &mut defs);
+        let candidate = is_iter(&v[s]) && !reads.is_empty() && reads.iter().all(|r| def_at.contains_key(r));
+        if candidate {
+            let d = reads.iter().map(|r| def_at[r]).max().unwrap();
+            let enclosing = (d + 1..s).any(|j| is_iter(&v[j]));
+            if enclosing {
+                // grow the segment while each step reads only the key or what the segment defined
+                let key: Vec<R> = {
+                    let mut k = reads.clone();
+                    k.sort_unstable();
+                    k.dedup();
+                    k
+                };
+                let mut local: Vec<R> = defs.clone();
+                let mut t = s + 1;
+                while t < v.len() {
+                    if matches!(v[t], Ins::Emit { .. } | Ins::Yield | Ins::Fork { .. } | Ins::Hoist { .. }) {
+                        break;
+                    }
+                    let (mut r2, mut d2) = (Vec::new(), Vec::new());
+                    reads_defs(&v[t], &mut r2, &mut d2);
+                    if !r2.iter().all(|r| key.contains(r) || local.contains(r)) {
+                        break;
+                    }
+                    local.extend(d2);
+                    t += 1;
+                }
+                if t - s >= 3 && t < v.len() {
+                    // captured: segment definitions read later
+                    let mut later = Vec::new();
+                    for j in &v[t..] {
+                        let mut d3 = Vec::new();
+                        reads_defs(j, &mut later, &mut d3);
+                    }
+                    let mut caps: Vec<R> = local.iter().copied().filter(|r| later.contains(r)).collect();
+                    caps.sort_unstable();
+                    caps.dedup();
+                    let mut seg: Vec<Ins> = v.drain(s..t).collect();
+                    seg.push(Ins::Capture { regs: caps.clone().into() });
+                    let id = HOIST_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    for r in &caps {
+                        def_at.insert(*r, s);
+                    }
+                    v.insert(s, Ins::Hoist { id, key: key.into(), seg: seg.into(), caps: caps.into() });
+                    s += 1;
+                    continue;
+                }
+            }
+        }
+        for r in defs {
+            def_at.entry(r).or_insert(s);
+        }
+        s += 1;
+    }
+    v.into()
+}
+
 impl NavProgram {
     /// the final load step: specialise every program the executor runs
     pub(crate) fn specialize_all(&mut self) {
         for g in &mut self.groups {
-            g.prog = specialize(std::mem::take(&mut g.prog));
+            g.prog = hoist(specialize(std::mem::take(&mut g.prog)));
         }
         for f in &mut self.facts {
             if let Some((progs, ..)) = &mut f.made {
                 for q in progs.iter_mut() {
-                    *q = specialize(std::mem::take(q));
+                    *q = hoist(specialize(std::mem::take(q)));
                 }
             }
         }
@@ -930,7 +1146,9 @@ fn map_regs_ref(i: &Ins, f: &mut dyn FnMut(R) -> R) -> Ins {
         | Ins::TestNeC { .. }
         | Ins::TestEqR { .. }
         | Ins::TestNeR { .. }
-        | Ins::TestInC { .. } => unreachable!("specialisation runs after the tries are built"),
+        | Ins::TestInC { .. }
+        | Ins::Hoist { .. }
+        | Ins::Capture { .. } => unreachable!("specialisation runs after the tries are built"),
         Ins::SpanBetween { a, b, out } => {
             let a = o(a, f);
             let b = o(b, f);
@@ -1003,6 +1221,8 @@ pub(crate) struct Counters {
     pub batched_steps: u64,
     /// steps spent building made tables (outermost builds), excluded from per-program accounting
     pub made_steps_total: u64,
+    pub hoist_runs: u64,
+    pub hoist_misses: u64,
     pub made_depth: u32,
     /// NAV_DIAG / NAV_PROFILE: per-instruction-kind and per-site counters in the hot loop
     pub diag: bool,
@@ -1081,6 +1301,8 @@ pub(crate) struct FileCache {
     pub csr_count: Vec<u32>,
     /// keyed twin rows per (fact, key value): the row range in the twin's columns
     pub keyed_memo: FxMap<(u16, u64), (u32, u32)>,
+    /// hoisted inner enumerations per (site, key values): captured tuples, flattened
+    pub hoisted: FxMap<(u32, Vec<u64>), Rc<Vec<u64>>>,
     pub facts: Option<Facts>,
     pub sub_memo: FxMap<usize, bool>,
     pub model_lex: bool,
@@ -1114,6 +1336,8 @@ pub(crate) struct Exec<'a, 'p> {
     pub regs: Vec<u64>,
     pub outs: Vec<Vec<u64>>,
     pub cur_rule: usize,
+    /// the running hoist's capture buffer
+    pub cap_buf: Vec<u64>,
 }
 
 fn span(s: u32, e: u32) -> u64 {
@@ -2311,6 +2535,45 @@ impl<'a, 'p> Exec<'a, 'p> {
                         if self.run_inner(p, pc + 1) {
                             return true;
                         }
+                    }
+                    return false;
+                }
+                Ins::Hoist { id, key, seg, caps } => {
+                    let kv: Vec<u64> = key.iter().map(|&r| self.regs[r as usize]).collect();
+                    let hk = (*id, kv);
+                    let tuples = match self.cache.hoisted.get(&hk) {
+                        Some(t) => t.clone(),
+                        None => {
+                            let saved = std::mem::take(&mut self.cap_buf);
+                            self.run_inner(seg, 0);
+                            let t = Rc::new(std::mem::replace(&mut self.cap_buf, saved));
+                            self.c.hoist_misses += 1;
+                            self.cache.hoisted.insert(hk, t.clone());
+                            t
+                        }
+                    };
+                    self.c.hoist_runs += 1;
+                    let w = caps.len().max(1);
+                    for tup in tuples.chunks(w) {
+                        for (k, &r) in caps.iter().enumerate() {
+                            self.regs[r as usize] = tup[k];
+                        }
+                        if caps.is_empty() && tup.is_empty() {
+                            continue;
+                        }
+                        if self.run_inner(p, pc + 1) {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+                Ins::Capture { regs } => {
+                    if regs.is_empty() {
+                        self.cap_buf.push(0);
+                    }
+                    for &r in regs.iter() {
+                        let x = self.regs[r as usize];
+                        self.cap_buf.push(x);
                     }
                     return false;
                 }
