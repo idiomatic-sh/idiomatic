@@ -261,6 +261,45 @@ impl Enc {
                 self.u(u32::from(*key));
                 self.progs(subs);
             }
+            // the lowering line's instructions (pack version 5)
+            Ins::IterFactMulti { rel, cols, vals, out } => {
+                self.u(u32::from(*rel));
+                self.us(&cols.iter().map(|&c| u32::from(c)).collect::<Vec<_>>());
+                self.u(vals.len() as u32);
+                vals.iter().for_each(|v| self.opd(v));
+                self.u(u32::from(*out));
+            }
+            Ins::UnionKeyed { outs, subs, keys, args } => {
+                self.regs(outs);
+                self.regs(keys);
+                self.u(args.len() as u32);
+                args.iter().for_each(|v| self.opd(v));
+                self.progs(subs);
+            }
+            Ins::SubKeyed { negate, subs, keys, args } => {
+                self.u(u32::from(*negate));
+                self.regs(keys);
+                self.u(args.len() as u32);
+                args.iter().for_each(|v| self.opd(v));
+                self.progs(subs);
+            }
+            Ins::Probe { outs, subs, kcols, keys, ocols, width } => {
+                self.regs(outs);
+                self.us(&kcols.iter().map(|&c| u32::from(c)).collect::<Vec<_>>());
+                self.u(keys.len() as u32);
+                keys.iter().for_each(|v| self.opd(v));
+                self.us(&ocols.iter().map(|&c| u32::from(c)).collect::<Vec<_>>());
+                self.u(u32::from(*width));
+                self.progs(subs);
+            }
+            Ins::ProbeTest { negate, subs, kcols, keys, width } => {
+                self.u(u32::from(*negate));
+                self.us(&kcols.iter().map(|&c| u32::from(c)).collect::<Vec<_>>());
+                self.u(keys.len() as u32);
+                keys.iter().for_each(|v| self.opd(v));
+                self.u(u32::from(*width));
+                self.progs(subs);
+            }
             Ins::IterFact2 { rel, c1, v1, c2, v2, out } => {
                 self.u(u32::from(*rel));
                 self.u(u32::from(*c1));
@@ -666,6 +705,44 @@ impl Dec<'_> {
                 let key = self.r();
                 Ins::UnionKey { outs, subs: self.progs(), key }
             }
+            50 => {
+                let rel = self.u() as u16;
+                let cols: Box<[u8]> = self.us().iter().map(|&c| c as u8).collect();
+                let n = self.u() as usize;
+                let vals: Box<[Opd]> = (0..n).map(|_| self.opd()).collect();
+                Ins::IterFactMulti { rel, cols, vals, out: self.r() }
+            }
+            51 => {
+                let outs = self.regs();
+                let keys = self.regs();
+                let n = self.u() as usize;
+                let args: Box<[Opd]> = (0..n).map(|_| self.opd()).collect();
+                Ins::UnionKeyed { outs, subs: self.progs(), keys, args }
+            }
+            52 => {
+                let negate = self.u() != 0;
+                let keys = self.regs();
+                let n = self.u() as usize;
+                let args: Box<[Opd]> = (0..n).map(|_| self.opd()).collect();
+                Ins::SubKeyed { negate, subs: self.progs(), keys, args }
+            }
+            53 => {
+                let outs = self.regs();
+                let kcols: Box<[u8]> = self.us().iter().map(|&c| c as u8).collect();
+                let n = self.u() as usize;
+                let keys: Box<[Opd]> = (0..n).map(|_| self.opd()).collect();
+                let ocols: Box<[u8]> = self.us().iter().map(|&c| c as u8).collect();
+                let width = self.u() as u8;
+                Ins::Probe { outs, subs: self.progs(), kcols, keys, ocols, width }
+            }
+            54 => {
+                let negate = self.u() != 0;
+                let kcols: Box<[u8]> = self.us().iter().map(|&c| c as u8).collect();
+                let n = self.u() as usize;
+                let keys: Box<[Opd]> = (0..n).map(|_| self.opd()).collect();
+                let width = self.u() as u8;
+                Ins::ProbeTest { negate, subs: self.progs(), kcols, keys, width }
+            }
             49 => {
                 let rel = self.u() as u16;
                 let c1 = self.u() as u8;
@@ -886,6 +963,7 @@ pub(crate) fn write(v: &Value, symbols: &Symbols, nav: &NavProgram, out: &str) -
             e.us(&kinds.iter().map(|&k| u32::from(k)).collect::<Vec<_>>());
         }
     }
+    e.u(nav.ndefs as u32);
     e.progs(&nav.shared);
     e.u(u32::from(nav.needs_provider));
     e.us(&nav.slot_rule);
@@ -902,7 +980,7 @@ pub(crate) fn write(v: &Value, symbols: &Symbols, nav: &NavProgram, out: &str) -
         e.prog(&g.prog);
     }
     let mut bytes: Vec<u8> = Vec::new();
-    for x in [MAGIC, 4, tails.len() as u32, e.w.len() as u32] {
+    for x in [MAGIC, 5, tails.len() as u32, e.w.len() as u32] {
         bytes.extend_from_slice(&x.to_le_bytes());
     }
     bytes.extend_from_slice(tails.as_bytes());
@@ -921,7 +999,7 @@ pub(crate) fn read(path: &str) -> (Symbols, Value, NavProgram) {
     let bytes = std::fs::read(path).expect("pack");
     let word = |i: usize| u32::from_le_bytes(bytes[i * 4..i * 4 + 4].try_into().unwrap());
     assert_eq!(word(0), MAGIC, "pack magic");
-    assert_eq!(word(1), 4, "pack version");
+    assert_eq!(word(1), 5, "pack version");
     let tails_len = word(2) as usize;
     let nwords = word(3) as usize;
     let t0 = std::time::Instant::now();
@@ -1030,6 +1108,7 @@ pub(crate) fn read(path: &str) -> (Symbols, Value, NavProgram) {
             .collect();
         rules.push(NavRule { id, programs, xmerged, kinds, nregs: 0, aux });
     }
+    let ndefs = d.u() as usize;
     let shared = d.progs().into_vec();
     let needs_provider = d.u() != 0;
     let slot_rule = d.us().into_vec();
@@ -1057,7 +1136,7 @@ pub(crate) fn read(path: &str) -> (Symbols, Value, NavProgram) {
             regexes.len()
         );
     }
-    let mut nav = NavProgram { groups, slot_of, slot_rule, nslots, rules, shared, facts, regexes, regex_patterns: Vec::new(), max_regs, needs_provider };
+    let mut nav = NavProgram { groups, slot_of, slot_rule, nslots, rules, ndefs, shared, facts, regexes, regex_patterns: Vec::new(), max_regs, needs_provider };
     // the pack stores the specialised programs (written after specialize_all)
     (symbols, tails, nav)
 }

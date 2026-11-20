@@ -285,7 +285,7 @@ fn plan_prog(p: &mut Prog, ids: &FxMap<usize, u32>, st: &Stats, min_gain: f64, d
         if let Ins::Fork { subs } = i {
             // a trie branch run only by rules whose learned order was dropped keeps the unlearned order
             for (slots, q) in subs.iter_mut() {
-                if !slots.iter().all(|&s| denied[s as usize]) {
+                if slots.is_empty() || !slots.iter().all(|&s| denied[s as usize]) {
                     plan_prog(q, ids, st, min_gain, denied, rep);
                 }
             }
@@ -417,7 +417,7 @@ pub(crate) fn sink_denied(p: &mut Prog, denied: &[bool]) {
     for i in p.iter_mut() {
         if let Ins::Fork { subs } = i {
             for (slots, q) in subs.iter_mut() {
-                if slots.iter().all(|&s| denied[s as usize]) {
+                if !slots.is_empty() && slots.iter().all(|&s| denied[s as usize]) {
                     *q = crate::nav::sink(std::mem::take(q));
                 } else {
                     sink_denied(q, denied);
