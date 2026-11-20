@@ -15,7 +15,7 @@ use crate::domain::lowering::flattening::types::{
     AtomRows, FlatAtom, FlatBranch, FlatTerm, RowsPerFile,
 };
 use crate::domain::lowering::nodes::service::{digest_of, input_shape, readers};
-use crate::domain::lowering::nodes::types::{NodeHome, RuleNodes, StepShape};
+use crate::domain::lowering::nodes::types::{NodeHome, AdmittedRule, StepShape};
 use crate::domain::lowering::tables::fills::service::{MadeOf, made, scanned};
 use crate::domain::lowering::tables::service::{test_of, tree_relation, walk_of};
 use crate::domain::lowering::tables::types::{InputWant, RuleFlattening, TreeAxis};
@@ -32,7 +32,7 @@ use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 
 /// The rule being flattened.
-fn rule<'a>(state: &RuleFlattening<'a>) -> Option<&'a RuleNodes<'a>> {
+fn rule<'a>(state: &RuleFlattening<'a>) -> Option<&'a AdmittedRule<'a>> {
     state.rules.get(state.place)
 }
 

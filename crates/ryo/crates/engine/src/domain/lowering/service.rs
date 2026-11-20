@@ -12,7 +12,7 @@ use super::definitions::types::{
 use super::emptiness::service::copied;
 use super::flattening::types::{FlatAtom, FlatBranch, FlatTerm, FlatVariable};
 use super::nodes::service::{digest_of, stored};
-use super::nodes::types::{NodeHome, NodeStore, RuleNodes};
+use super::nodes::types::{NodeHome, NodeStore, AdmittedRule};
 use super::placement::service::{measured, placed, sampled};
 use super::placement::types::{CallForm, FormChoice, PatternFacts, SampleStage, TableForm};
 use super::planning::emitting::service::indexed;
@@ -213,7 +213,7 @@ fn pattern_placed(
 fn rule_lowered(
     drafts: &mut Drafts,
     sample: Sample<'_>,
-    rule: &RuleNodes<'_>,
+    rule: &AdmittedRule<'_>,
     place: usize,
     mut flattened: Flattened,
 ) -> Result<LoweredRule, Refused> {
@@ -384,7 +384,7 @@ fn needs_added(pack: &mut LoweredPack, rows: &[RowEstimate]) {
 }
 
 /// The rule a fault of the proof belongs to, with its refusal: the rule itself, or the rule its unit was lowered from.
-fn fault_refused(drafts_homes: &(Vec<NodeHome>, Vec<NodeHome>), rules: &[RuleNodes<'_>], unproved: Unproved) -> Refused {
+fn fault_refused(drafts_homes: &(Vec<NodeHome>, Vec<NodeHome>), rules: &[AdmittedRule<'_>], unproved: Unproved) -> Refused {
     let at = |homes: &[NodeHome], number: u32| {
         homes
             .get(usize::try_from(number).unwrap_or(usize::MAX))
@@ -410,7 +410,7 @@ fn fault_refused(drafts_homes: &(Vec<NodeHome>, Vec<NodeHome>), rules: &[RuleNod
 
 /// The pack of the accepted rules, or the first rule the build refuses.
 fn built(
-    rules: &[RuleNodes<'_>],
+    rules: &[AdmittedRule<'_>],
     store: &NodeStore,
     sample: Sample<'_>,
 ) -> Result<LoweredPack, Refused> {

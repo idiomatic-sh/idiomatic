@@ -11,7 +11,7 @@ use crate::domain::lowering::flattening::types::{
     AtomRows, FlatAtom, FlatBranch, FlatTerm, FlatVariable, RowsPerFile,
 };
 use crate::domain::lowering::planning::types::{
-    Emitted, Emitter, Enumerated, Environment, FileCell, UnitRole,
+    WrittenAccess, Emitter, Enumerated, Environment, FileCell, UnitRole,
 };
 use crate::domain::steps::stages::types::UseMode;
 use crate::domain::steps::types::{
@@ -111,7 +111,7 @@ fn key_value(emitter: &mut Emitter<'_>, term: FlatTerm) -> Option<StepOperand> {
     let written = match (emitter.role, place) {
         (UnitRole::Branch | UnitRole::Pattern, _) => {
             let out = fresh_register(emitter.drafts);
-            emitter.written.push(Emitted::Let {
+            emitter.written.push(WrittenAccess::Let {
                 from: StepOperand::Word(word),
                 out,
             });
@@ -119,7 +119,7 @@ fn key_value(emitter: &mut Emitter<'_>, term: FlatTerm) -> Option<StepOperand> {
         }
         (UnitRole::Pipeline, Some(cell)) => {
             let out = fresh_register(emitter.drafts);
-            emitter.written.push(Emitted::Read {
+            emitter.written.push(WrittenAccess::Read {
                 source: cell.source,
                 column: cell.column,
                 row: cell.row,
@@ -194,7 +194,7 @@ fn cell_register(
         return row;
     }
     let out = fresh_register(emitter.drafts);
-    emitter.written.push(Emitted::Read {
+    emitter.written.push(WrittenAccess::Read {
         source: rows,
         column,
         row,
@@ -229,7 +229,7 @@ fn cells_read(
             (given, CellState::Register | CellState::Constant | CellState::Open) => {
                 if let Some(right) = operand(&emitter.environment, given) {
                     let out = cell_register(emitter, rows, column, row);
-                    emitter.written.push(Emitted::Test {
+                    emitter.written.push(WrittenAccess::Test {
                         test: TestOperation::Equal,
                         left: StepOperand::Register(out),
                         right,
@@ -263,7 +263,7 @@ fn file_register(emitter: &mut Emitter<'_>) -> Option<Register> {
     match (emitter.role, emitter.environment.file) {
         (UnitRole::Branch | UnitRole::Pattern, _) => {
             let out = fresh_register(emitter.drafts);
-            emitter.written.push(Emitted::Let {
+            emitter.written.push(WrittenAccess::Let {
                 from: StepOperand::File,
                 out,
             });
@@ -271,7 +271,7 @@ fn file_register(emitter: &mut Emitter<'_>) -> Option<Register> {
         }
         (UnitRole::Pipeline, Some(cell)) => {
             let out = fresh_register(emitter.drafts);
-            emitter.written.push(Emitted::Read {
+            emitter.written.push(WrittenAccess::Read {
                 source: cell.source,
                 column: cell.column,
                 row: cell.row,
@@ -318,7 +318,7 @@ fn used(emitter: &mut Emitter<'_>, definition: DefinitionId, cells: &[FlatTerm],
                     let out = fresh_register(emitter.drafts);
                     collected.push(column);
                     outputs.push(out);
-                    tests.push(Emitted::Test {
+                    tests.push(WrittenAccess::Test {
                         test: TestOperation::Equal,
                         left: StepOperand::Register(out),
                         right: value,
@@ -334,7 +334,7 @@ fn used(emitter: &mut Emitter<'_>, definition: DefinitionId, cells: &[FlatTerm],
     } else {
         UseMode::Rows
     };
-    emitter.written.push(Emitted::Use {
+    emitter.written.push(WrittenAccess::Use {
         definition,
         bound,
         collected,
@@ -430,7 +430,7 @@ fn rows_read(
         indexed(emitter.drafts, table, &listed);
     }
     let out = fresh_register(emitter.drafts);
-    emitter.written.push(Emitted::Rows {
+    emitter.written.push(WrittenAccess::Rows {
         source: source_of(source),
         columns: MatchColumns(listed.into()),
         values: StepOperands(values.into()),
@@ -472,7 +472,7 @@ fn decided(
     }
     let bound = ColumnMask(bound.into());
     asked(emitter.drafts, definition, &bound, &ColumnMask::default());
-    emitter.written.push(Emitted::Use {
+    emitter.written.push(WrittenAccess::Use {
         definition,
         bound,
         collected: ColumnMask::default(),
@@ -499,7 +499,7 @@ fn given_or_tested(emitter: &mut Emitter<'_>, term: FlatTerm, out: Register) {
         (FlatTerm::Variable(variable), None) => {
             let _new = emitter.environment.registers.insert(variable, out);
         }
-        (_, Some(right)) => emitter.written.push(Emitted::Test {
+        (_, Some(right)) => emitter.written.push(WrittenAccess::Test {
             test: TestOperation::Equal,
             left: StepOperand::Register(out),
             right,
@@ -541,7 +541,7 @@ fn walked(
     {
         let registers = (register_of(emitter, ancestor), register_of(emitter, descendant));
         match registers {
-            (Some(ancestor), Some(descendant)) => emitter.written.push(Emitted::Within {
+            (Some(ancestor), Some(descendant)) => emitter.written.push(WrittenAccess::Within {
                 relation,
                 ancestor,
                 descendant,
@@ -562,13 +562,13 @@ fn walked(
     };
     let out = fresh_register(emitter.drafts);
     emitter.written.push(match walk {
-        Some(direction) => Emitted::Axis {
+        Some(direction) => WrittenAccess::Axis {
             relation,
             direction,
             start,
             out,
         },
-        None => Emitted::Children {
+        None => WrittenAccess::Children {
             relation,
             parent: start,
             out,
@@ -606,7 +606,7 @@ fn nearest(
             };
             let (bound, collected) = (ColumnMask([bound].into()), ColumnMask([collected].into()));
             asked(emitter.drafts, unit, &bound, &collected);
-            emitter.written.push(Emitted::Use {
+            emitter.written.push(WrittenAccess::Use {
                 definition: unit,
                 bound,
                 collected,
@@ -619,7 +619,7 @@ fn nearest(
             let bound = ColumnMask([walk.2].into());
             asked(emitter.drafts, walk.1, &bound, &ColumnMask::default());
             let element = fresh_register(emitter.drafts);
-            emitter.written.push(Emitted::Nearest {
+            emitter.written.push(WrittenAccess::Nearest {
                 relation: walk.0,
                 domain: walk.1,
                 column: walk.2,
@@ -630,6 +630,16 @@ fn nearest(
         }
     }
     given_or_tested(emitter, reached, out);
+}
+
+/// The operand of a test's term. The file is no operand of a test: it is put in a register first.
+fn test_operand(emitter: &mut Emitter<'_>, term: FlatTerm) -> Option<StepOperand> {
+    match term {
+        FlatTerm::File => file_register(emitter).map(StepOperand::Register),
+        FlatTerm::Variable(_) | FlatTerm::Text(_) | FlatTerm::Number(_) => {
+            operand(&emitter.environment, term)
+        }
+    }
 }
 
 /// Writes one atom of a branch.
@@ -658,7 +668,7 @@ pub(crate) fn atom_written(emitter: &mut Emitter<'_>, atom: &FlatAtom) {
             };
             let out = fresh_register(emitter.drafts);
             emitter.environment.enumerated = Enumerated::Already;
-            emitter.written.push(Emitted::Latest {
+            emitter.written.push(WrittenAccess::Latest {
                 table: *table,
                 key: StepOperands(key.into()),
                 bound,
@@ -693,14 +703,13 @@ pub(crate) fn atom_written(emitter: &mut Emitter<'_>, atom: &FlatAtom) {
             {
                 return;
             }
-            let (Some(left), Some(right)) = (
-                operand(&emitter.environment, *left),
-                operand(&emitter.environment, *right),
-            ) else {
+            let (Some(left), Some(right)) =
+                (test_operand(emitter, *left), test_operand(emitter, *right))
+            else {
                 emitter.missed = emitter.missed.saturating_add(1);
                 return;
             };
-            emitter.written.push(Emitted::Test {
+            emitter.written.push(WrittenAccess::Test {
                 test: *test,
                 left,
                 right,

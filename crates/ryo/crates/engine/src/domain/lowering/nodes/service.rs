@@ -1,7 +1,7 @@
 //! The services of the `nodes` part: the steps a rule's emit reaches, each visited once; the shape of an input; and the pack's
 //! store of merged plan nodes with every node's readers. A node is named by its digest alone (`digests::service::node_digests`).
 
-use super::types::{NodeHome, NodeReader, NodeStore, RuleNodes, StepShape, StoredNode};
+use super::types::{NodeHome, NodeReader, NodeStore, AdmittedRule, StepShape, StoredNode};
 use ryo_relations::domain::relations::service::kinds;
 use ryo_values::domain::plan_parts::types::{Input, InputNumber, StepId};
 use ryo_values::domain::plans::service::{inputs_of, named};
@@ -47,7 +47,7 @@ pub(crate) fn input_shape(shapes: &[Option<StepShape>], input: Input) -> Option<
 
 /// The digest of a step of a rule.
 #[must_use]
-pub(crate) fn digest_of(rule: &RuleNodes<'_>, step: StepId) -> NodeDigest {
+pub(crate) fn digest_of(rule: &AdmittedRule<'_>, step: StepId) -> NodeDigest {
     rule.digests
         .0
         .get(usize::from(step))
@@ -59,7 +59,7 @@ pub(crate) fn digest_of(rule: &RuleNodes<'_>, step: StepId) -> NodeDigest {
 /// with its distinct readers across the pack. Two rules that hold one sub-plan give its top step two readers; the steps
 /// below it have the one reader they have in either rule.
 #[must_use]
-pub(crate) fn stored(rules: &[RuleNodes<'_>]) -> NodeStore {
+pub(crate) fn stored(rules: &[AdmittedRule<'_>]) -> NodeStore {
     let mut store = NodeStore::default();
     for (place, rule) in rules.iter().enumerate() {
         let mut read = |digest: NodeDigest, step: StepId, reader: NodeReader| {

@@ -26,14 +26,14 @@ pub(crate) enum UnitRole {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct PlannedBranch {
     /// The atoms, by place in the branch, in the order they run.
-    pub(crate) order: Vec<usize>,
+    pub(crate) order: Vec<AtomPlace>,
     /// The rows the order visits, by the fixed priors.
     pub(crate) cost: RowEstimate,
 }
 
 /// One access as written, its registers decided: what the step emitter and the stage emitter each write in their own form.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) enum Emitted {
+pub(crate) enum WrittenAccess {
     /// Each row of a source whose columns hold the values; no column: every row. `out` is the row's handle.
     Rows {
         /// The source.
@@ -204,7 +204,72 @@ pub(crate) struct Emitter<'a> {
     /// The registers given so far.
     pub(crate) environment: Environment,
     /// The accesses written so far.
-    pub(crate) written: Vec<Emitted>,
+    pub(crate) written: Vec<WrittenAccess>,
     /// How many atoms could not be written: a term that should have been given was not. A branch with one has no form.
     pub(crate) missed: usize,
+}
+
+/// An atom of a branch, by its place among the branch's atoms.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) struct AtomPlace(pub(crate) usize);
+
+/// An access that can be placed next: the atom, and the rows it is taken to give each time it runs.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct NextAccess {
+    /// The atom.
+    pub(crate) atom: AtomPlace,
+    /// The rows it gives.
+    pub(crate) rows: RowEstimate,
+}
+
+/// Whether an atom has its place in the order yet.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Placing {
+    /// Not yet.
+    Waiting,
+    /// It has.
+    Placed,
+}
+
+/// Whether a term is given at a point of a branch's order: a constant, the file, or a variable some access gave.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum TermGiven {
+    /// It is.
+    Given,
+    /// A variable nothing gave yet.
+    Open,
+}
+
+/// The variables given at a point of a branch's order, with the branch's pins.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct GivenTerms<'a> {
+    /// The variables some access gave.
+    pub(crate) variables: &'a std::collections::HashSet<FlatVariable>,
+    /// The constant each pinned variable is held to.
+    pub(crate) pins: &'a HashMap<FlatVariable, crate::domain::lowering::flattening::types::FlatTerm>,
+}
+
+/// The state of one completion of a branch's order.
+#[derive(Debug)]
+pub(crate) struct Completion<'a> {
+    /// The drafts the estimates read.
+    pub(crate) drafts: &'a crate::domain::lowering::definitions::types::Drafts,
+    /// The branch.
+    pub(crate) branch: &'a crate::domain::lowering::flattening::types::FlatBranch,
+    /// What the branch is planned for.
+    pub(crate) role: UnitRole,
+    /// The variables given so far.
+    pub(crate) given: std::collections::HashSet<FlatVariable>,
+    /// The constant each pinned variable of the branch is held to.
+    pub(crate) pins: HashMap<FlatVariable, crate::domain::lowering::flattening::types::FlatTerm>,
+    /// Which atoms are placed.
+    pub(crate) placed: Vec<Placing>,
+    /// The order so far.
+    pub(crate) order: Vec<AtomPlace>,
+    /// The rows the unit holds at this point.
+    pub(crate) rows: RowEstimate,
+    /// The rows visited so far.
+    pub(crate) cost: RowEstimate,
+    /// Whether rows were enumerated yet.
+    pub(crate) enumerated: Enumerated,
 }
