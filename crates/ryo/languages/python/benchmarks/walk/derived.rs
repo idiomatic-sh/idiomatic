@@ -120,6 +120,7 @@ pub(crate) const RELATIONS: &[&str] = &[
     "bytes-literal",
     "interpolated-string-literal",
     "filesystem.executable",
+    "expression-shape",
 ];
 
 pub(crate) fn index_of(name: &str) -> Option<usize> {
@@ -736,8 +737,397 @@ fn rows_interpolated_string_literal(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: u
     }
 }
 
+// ------------------------------------------------------------------------------------------------ expression-shape
+/// `expression_shapes::prepare` (`languages::prepare_shapes`): bottom-up hash-consing of every expression by its structure: kind,
+/// the parser's scalar payload, a name's spelling, a string's decoded value (an f-string's adjacent literal pieces merged), operator
+/// and keyword tokens, and its children's classes by field; parentheses, delimiters and trivia are not structure. Built over the
+/// table in descending pre-order; a class is named by its highest-positioned member. Nothing in a file with a syntax error.
+#[derive(Default)]
+pub(crate) struct Shapes {
+    /// class (representative id) of each node; u32::MAX when it has none
+    pub class: Vec<u32>,
+    map: crate::sema::FxMap<Box<[u64]>, u32>,
+    words: Vec<u64>,
+}
+
+fn h(text: &str) -> u64 {
+    crate::sema::hash_text(text)
+}
+
+const W_KIND: u64 = 1 << 56;
+const W_LIT: u64 = 2 << 56;
+const W_PROP: u64 = 3 << 56;
+const W_TOK: u64 = 4 << 56;
+const W_IDENT: u64 = 5 << 56;
+
+pub(crate) fn is_expression(node: AnyNodeRef<'_>) -> bool {
+    node.as_expr_ref().is_some()
+        || matches!(
+            node,
+            AnyNodeRef::InterpolatedElement(_) | AnyNodeRef::InterpolatedStringLiteralElement(_) | AnyNodeRef::InterpolatedStringFormatSpec(_)
+        )
+}
+
+impl Shapes {
+    fn word(&mut self, tag: u64, v: u64) {
+        self.words.push(tag ^ (v & ((1 << 56) - 1)));
+        self.words.push(v);
+    }
+    fn child(&mut self, field: &str, node: AnyNodeRef<'_>) {
+        let i = id_of(node);
+        if i == u32::MAX {
+            panic!("child not in table: {:?}", node.kind());
+        }
+        let c = self.class[i as usize];
+        self.words.push(h(field).rotate_left(7) ^ 0x6368_696c_64);
+        self.words.push(u64::from(c));
+    }
+    fn tok(&mut self, t: &str) {
+        self.word(W_TOK, h(t));
+    }
+    fn lit(&mut self, v: &str) {
+        self.word(W_LIT, h(v));
+    }
+    fn prop(&mut self, name: &str, v: &str) {
+        self.word(W_PROP, h(name) ^ h(v).rotate_left(29));
+    }
+    fn ident(&mut self, field: &str, i: &ast::Identifier) {
+        self.words.push(h(field).rotate_left(7) ^ 0x6964);
+        self.word(W_IDENT, h(i.id.as_str()));
+    }
+
+    /// The literal pieces and interpolations of an f-string, t-string or format spec, adjacent literal pieces merged.
+    fn segments<'n>(&mut self, elements: &'n ast::InterpolatedStringElements, pending: &mut Option<String>) {
+        for e in elements.iter() {
+            match e {
+                ast::InterpolatedStringElement::Literal(l) => pending.get_or_insert_with(String::new).push_str(&l.value),
+                ast::InterpolatedStringElement::Interpolation(i) => {
+                    if let Some(t) = pending.take() {
+                        self.lit(&t);
+                    }
+                    self.child("values", AnyNodeRef::from(i));
+                }
+            }
+        }
+    }
+
+    fn key(&mut self, node: AnyNodeRef<'_>) {
+        use AnyNodeRef as N;
+        self.words.clear();
+        self.word(W_KIND, h(node_kind_name(node)));
+        match node {
+            N::ExprName(n) => self.word(W_IDENT, h(n.id.as_str())),
+            N::ExprStringLiteral(s) => {
+                let mut v = String::new();
+                for p in s.value.iter() {
+                    v.push_str(&p.value);
+                }
+                self.lit(&v);
+            }
+            N::InterpolatedStringLiteralElement(l) => self.lit(&l.value),
+            N::ExprBytesLiteral(b) => {
+                use std::fmt::Write as _;
+                let mut v = String::new();
+                for byte in b.value.bytes() {
+                    let _ = write!(v, "{byte:02x}");
+                }
+                self.prop("kind", "bytes");
+                self.prop("value", &v);
+            }
+            N::ExprNumberLiteral(n) => match &n.value {
+                ast::Number::Int(i) => {
+                    self.prop("kind", "integer");
+                    self.prop("value", &i.to_string());
+                }
+                ast::Number::Float(f) => {
+                    self.prop("kind", "float");
+                    self.prop("value", &f.to_bits().to_string());
+                }
+                ast::Number::Complex { real, imag } => {
+                    self.prop("kind", "complex");
+                    self.prop("value", &real.to_bits().to_string());
+                    self.prop("imaginary", &imag.to_bits().to_string());
+                }
+            },
+            N::ExprBooleanLiteral(b) => {
+                self.prop("kind", "boolean");
+                self.prop("value", if b.value { "true" } else { "false" });
+            }
+            N::ExprNoneLiteral(_) => self.prop("kind", "none"),
+            N::ExprEllipsisLiteral(_) => self.prop("kind", "ellipsis"),
+            N::ExprFString(f) => {
+                let mut pending = None;
+                for part in f.value.iter() {
+                    match part {
+                        ast::FStringPartRef::Literal(l) => pending.get_or_insert_with(String::new).push_str(&l.value),
+                        ast::FStringPartRef::FString(fs) => self.segments(&fs.elements, &mut pending),
+                    }
+                }
+                if let Some(t) = pending.take() {
+                    self.lit(&t);
+                }
+            }
+            N::ExprTString(t) => {
+                let mut pending = None;
+                for ts in t.value.iter() {
+                    self.segments(&ts.elements, &mut pending);
+                }
+                if let Some(t) = pending.take() {
+                    self.lit(&t);
+                }
+            }
+            N::InterpolatedStringFormatSpec(spec) => {
+                let mut pending = None;
+                self.segments(&spec.elements, &mut pending);
+                if let Some(t) = pending.take() {
+                    self.lit(&t);
+                }
+            }
+            N::InterpolatedElement(i) => {
+                if let Some(d) = &i.debug_text {
+                    self.prop("debug", &d.as_str().replace("\r\n", "\n").replace('\r', "\n"));
+                }
+                if let Some(c) = i.conversion.to_char() {
+                    self.prop("conversion", &c.to_string());
+                }
+                self.child("value", (&*i.expression).into());
+                if let Some(spec) = &i.format_spec {
+                    self.child("format-spec", (&**spec).into());
+                }
+            }
+            N::ExprAttribute(a) => {
+                self.child("value", (&*a.value).into());
+                self.ident("attr", &a.attr);
+            }
+            N::ExprCall(c) => {
+                self.child("func", (&*c.func).into());
+                self.child("arguments", (&c.arguments).into());
+            }
+            N::Arguments(a) => {
+                for x in a.args.iter() {
+                    self.child("args", x.into());
+                }
+                for k in a.keywords.iter() {
+                    self.child("keywords", k.into());
+                }
+            }
+            N::Keyword(k) => {
+                match &k.arg {
+                    Some(a) => self.ident("arg", a),
+                    None => self.tok("**"),
+                }
+                self.child("value", (&k.value).into());
+            }
+            N::ExprBoolOp(b) => {
+                let op = if matches!(b.op, ast::BoolOp::And) { "and" } else { "or" };
+                for (i, v) in b.values.iter().enumerate() {
+                    if i > 0 {
+                        self.tok(op);
+                    }
+                    self.child("values", v.into());
+                }
+            }
+            N::ExprBinOp(b) => {
+                self.child("left", (&*b.left).into());
+                self.tok(b.op.as_str());
+                self.child("right", (&*b.right).into());
+            }
+            N::ExprUnaryOp(u) => {
+                self.tok(u.op.as_str());
+                self.child("operand", (&*u.operand).into());
+            }
+            N::ExprCompare(c) => {
+                for (i, o) in c.operands.iter().enumerate() {
+                    if i > 0 {
+                        self.tok(c.ops[i - 1].as_str());
+                    }
+                    self.child(if i == 0 { "left" } else { "comparators" }, o.into());
+                }
+            }
+            N::ExprDict(d) => {
+                for item in d.iter() {
+                    match &item.key {
+                        Some(k) => self.child("keys", k.into()),
+                        None => self.tok("**"),
+                    }
+                    self.child("values", (&item.value).into());
+                }
+            }
+            N::ExprSet(x) => x.elts.iter().for_each(|e| self.child("elts", e.into())),
+            N::ExprList(x) => x.elts.iter().for_each(|e| self.child("elts", e.into())),
+            N::ExprTuple(x) => x.elts.iter().for_each(|e| self.child("elts", e.into())),
+            N::ExprStarred(x) => {
+                self.tok("*");
+                self.child("value", (&*x.value).into());
+            }
+            N::ExprSubscript(x) => {
+                self.child("value", (&*x.value).into());
+                self.child("slice", (&*x.slice).into());
+            }
+            N::ExprSlice(x) => {
+                for (f, e) in [("lower", &x.lower), ("upper", &x.upper), ("step", &x.step)] {
+                    if let Some(e) = e {
+                        self.child(f, (&**e).into());
+                    }
+                }
+            }
+            N::ExprIf(x) => {
+                self.child("body", (&*x.body).into());
+                self.tok("if");
+                self.child("test", (&*x.test).into());
+                self.tok("else");
+                self.child("orelse", (&*x.orelse).into());
+            }
+            N::ExprNamed(x) => {
+                self.child("target", (&*x.target).into());
+                self.child("value", (&*x.value).into());
+            }
+            N::ExprAwait(x) => {
+                self.tok("await");
+                self.child("value", (&*x.value).into());
+            }
+            N::ExprYield(x) => {
+                self.tok("yield");
+                if let Some(v) = &x.value {
+                    self.child("value", (&**v).into());
+                }
+            }
+            N::ExprYieldFrom(x) => {
+                self.tok("yield");
+                self.tok("from");
+                self.child("value", (&*x.value).into());
+            }
+            N::ExprLambda(x) => {
+                self.tok("lambda");
+                if let Some(p) = &x.parameters {
+                    self.child("args", (&**p).into());
+                }
+                self.child("body", (&*x.body).into());
+            }
+            N::Parameters(p) => {
+                for x in &p.posonlyargs {
+                    self.child("posonlyargs", x.into());
+                }
+                if !p.posonlyargs.is_empty() {
+                    self.tok("/");
+                }
+                for x in &p.args {
+                    self.child("args", x.into());
+                }
+                if let Some(v) = &p.vararg {
+                    self.child("vararg", (&**v).into());
+                } else if !p.kwonlyargs.is_empty() {
+                    self.tok("*");
+                }
+                for x in &p.kwonlyargs {
+                    self.child("kwonlyargs", x.into());
+                }
+                if let Some(v) = &p.kwarg {
+                    self.child("kwarg", (&**v).into());
+                }
+            }
+            N::ParameterWithDefault(p) => {
+                self.child("parameter", (&p.parameter).into());
+                if let Some(d) = &p.default {
+                    self.child("default", (&**d).into());
+                }
+            }
+            N::Parameter(p) => {
+                self.ident("arg", &p.name);
+                if let Some(a) = &p.annotation {
+                    self.child("annotation", (&**a).into());
+                }
+            }
+            N::ExprListComp(x) => {
+                self.child("elt", (&*x.elt).into());
+                x.generators.iter().for_each(|g| self.child("generators", g.into()));
+            }
+            N::ExprSetComp(x) => {
+                self.child("elt", (&*x.elt).into());
+                x.generators.iter().for_each(|g| self.child("generators", g.into()));
+            }
+            N::ExprGenerator(x) => {
+                self.child("elt", (&*x.elt).into());
+                x.generators.iter().for_each(|g| self.child("generators", g.into()));
+            }
+            N::ExprDictComp(x) => {
+                match &x.key {
+                    Some(k) => self.child("key", (&**k).into()),
+                    None => self.tok("**"),
+                }
+                self.child("value", (&*x.value).into());
+                x.generators.iter().for_each(|g| self.child("generators", g.into()));
+            }
+            N::Comprehension(g) => {
+                if g.is_async {
+                    self.tok("async");
+                }
+                self.child("target", (&g.target).into());
+                self.child("iter", (&g.iter).into());
+                for i in &g.ifs {
+                    self.tok("if");
+                    self.child("ifs", i.into());
+                }
+            }
+            _ => {
+                self.words.push(0x756e_6275_696c_74);
+            }
+        }
+    }
+
+    pub(crate) fn build(&mut self, c: &Ctx<'_, '_>) -> bool {
+        let n = c.table.len();
+        self.class.clear();
+        self.class.resize(n, u32::MAX);
+        self.map.clear();
+        if c.incomplete {
+            return false;
+        }
+        for id in (0..n).rev() {
+            let node = c.table.node[id];
+            let wanted = is_expression(node)
+                || matches!(
+                    node,
+                    AnyNodeRef::Arguments(_) | AnyNodeRef::Keyword(_) | AnyNodeRef::Comprehension(_) | AnyNodeRef::Parameters(_)
+                        | AnyNodeRef::ParameterWithDefault(_) | AnyNodeRef::Parameter(_)
+                );
+            if !wanted {
+                continue;
+            }
+            self.key(node);
+            let class = match self.map.get(self.words.as_slice()) {
+                Some(&c) => c,
+                None => {
+                    self.map.insert(self.words.clone().into_boxed_slice(), id as u32);
+                    id as u32
+                }
+            };
+            self.class[id] = class;
+        }
+        true
+    }
+}
+
+fn rows_expression_shape(c: &Ctx<'_, '_>, sink: &mut dyn Sink, rel: usize, shapes: &mut Shapes) {
+    if !shapes.build(c) {
+        return;
+    }
+    for id in 0..c.table.len() as u32 {
+        if is_expression(c.table.node[id as usize]) {
+            let class = shapes.class[id as usize];
+            sink.row(rel, &[Cell::Node(id), Cell::Node(class), Cell::File, c.span(id)]);
+        }
+    }
+}
+
 // ------------------------------------------------------------------------------------------------ driver
-pub(crate) fn produce(c: &Ctx<'_, '_>, wanted: u64, sink: &mut dyn Sink, buf: &mut String) {
+/// Reusable per-worker state of the derived analyses.
+#[derive(Default)]
+pub(crate) struct State {
+    pub shapes: Shapes,
+}
+
+pub(crate) fn produce(c: &Ctx<'_, '_>, wanted: u64, sink: &mut dyn Sink, buf: &mut String, st: &mut State) {
     let want = |name: &str| index_of(name).filter(|i| wanted & (1 << i) != 0);
     if let Some(r) = want("identifier") {
         rows_identifier(c, sink, r);
@@ -788,6 +1178,9 @@ pub(crate) fn produce(c: &Ctx<'_, '_>, wanted: u64, sink: &mut dyn Sink, buf: &m
     }
     if let Some(r) = want("interpolated-string-literal") {
         rows_interpolated_string_literal(c, sink, r);
+    }
+    if let Some(r) = want("expression-shape") {
+        rows_expression_shape(c, sink, r, &mut st.shapes);
     }
     if let Some(r) = want("filesystem.executable") {
         // the executable bit of the file as the run reads it (host)

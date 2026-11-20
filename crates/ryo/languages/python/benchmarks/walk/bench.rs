@@ -178,6 +178,7 @@ struct Worker<'p> {
     rules: Option<rules::State<'p>>,
     provider: Option<ProviderState>,
     root: std::path::PathBuf,
+    dstate: derived::State,
 }
 
 struct ProviderState {
@@ -217,6 +218,7 @@ impl<'p> Worker<'p> {
             rules: program.map(rules::State::new),
             provider,
             root: std::path::PathBuf::new(),
+            dstate: derived::State::default(),
         }
     }
 
@@ -280,7 +282,7 @@ impl<'p> Worker<'p> {
                 for i in 0..n {
                     if wanted & (1 << i) != 0 {
                         let t = Clock::now();
-                        derived::produce(&ctx, 1 << i, &mut sink, &mut self.scratch);
+                        derived::produce(&ctx, 1 << i, &mut sink, &mut self.scratch, &mut self.dstate);
                         totals.dns[i].fetch_add(t.elapsed().as_nanos() as u64, Ordering::Relaxed);
                     }
                 }
@@ -290,7 +292,7 @@ impl<'p> Worker<'p> {
                 totals.touch.fetch_add(sink.touch, Ordering::Relaxed);
             } else {
                 let mut sink = derived::Dump { table: &table, file: index, lines: vec![Vec::new(); n], counts: vec![0; n] };
-                derived::produce(&ctx, wanted, &mut sink, &mut self.scratch);
+                derived::produce(&ctx, wanted, &mut sink, &mut self.scratch, &mut self.dstate);
                 for (i, c) in sink.counts.iter().enumerate() {
                     totals.drows[i].fetch_add(*c, Ordering::Relaxed);
                 }
