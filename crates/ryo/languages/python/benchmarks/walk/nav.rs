@@ -83,9 +83,37 @@ pub(crate) enum Ins {
     ReadFact { rel: u16, col: u8, row: R, out: R },
     Test { test: T, l: Opd, r: Opd, text: bool, num: bool, regex: Box<[usize]> },
     Axis { dir: Dir, start: R, out: R },
+    /// `anc` is a proper ancestor of `desc` (both bound): one walk up the parent chain
+    Within { anc: R, desc: R },
+    /// a value bucket of a tree relation walked in start order between bounds (load-time fusion of IterValue, the read of the
+    /// row's start and the range tests on it): binary search to the lower bound, stop at the upper
+    IterRange { rel: TRel, col: u8, val: Val, out: R, start: R, lo: Option<(R, bool)>, hi: Option<(R, bool)> },
+    /// the children of `parent` under one field (load-time fusion of IterChildren, the field read and its equality test)
+    IterField { parent: R, field: u32, out: R, field_out: R },
     Near { start: R, out: R, subs: Box<[Prog]> },
     Sub { negate: bool, subs: Box<[Prog]> },
-    Emit { cols: Box<[Opd]> },
+    /// the core row of rule `rule` (u32::MAX: the running made table's slot)
+    Emit { cols: Box<[Opd]>, rule: u32 },
+    /// shared-prefix fan-out: each child runs when one of its (rule, branch) slots is enabled in this file
+    Fork { subs: Box<[(Box<[u32]>, Prog)]> },
+    // ---- load-time specialisations (never stored in the pack): direct column reads and constant tests
+    /// node column read (kind 0, text 1, start 2, stop 3 of the view; any id in range)
+    ReadCol { which: u8, row: R, out: R },
+    /// semantic-child read of a node with a parent: parent 0, ordinal 1, field 2
+    ReadChild { which: u8, row: R, out: R },
+    TestEqC { reg: R, c: u64 },
+    TestNeC { reg: R, c: u64 },
+    TestEqR { a: R, b: R },
+    TestNeR { a: R, b: R },
+    TestInC { reg: R, set: Box<[u32]>, negate: bool },
+    /// a loop-invariant inner enumeration: `seg` (ending in Capture) runs once per file per value of `key` and its captured
+    /// tuples are replayed (registers `caps` restored) into the rest of the program
+    Hoist { id: u32, key: Box<[R]>, seg: Prog, caps: Box<[R]> },
+    /// pushes the registers' values onto the running hoist's capture buffer
+    Capture { regs: Box<[R]> },
+    /// a negated check whose failure holds for every later element of the range walk that encloses it (monotone in the walk's
+    /// start: its only use of the walk is an upper bound on a walk of the same bucket): failing ends that walk
+    SubFirst { subs: Box<[Prog]> },
     Yield,
     SpanBetween { a: Opd, b: Opd, out: R },
     SpanBounds { s: Opd, start: R, end: R },
@@ -105,7 +133,7 @@ pub(crate) enum Ins {
     /// `concat` / `lower` of texts into a minted text
     TextFn { lower: bool, args: Box<[Opd]>, out: R },
     /// RyoQL `capture`: every split of the text by the slot pattern, the slots' texts into `outs`
-    Capture { text: Opd, pattern: Box<str>, outs: Box<[R]> },
+    CaptureText { text: Opd, pattern: Box<str>, outs: Box<[R]> },
     /// RyoQL `replace`: the text with every regex match replaced by the literal
     Replace { text: Opd, regex: usize, replacement: Box<str>, out: R },
     /// nearest ancestor over derived edges: breadth-first up the edge sub-programs (each collects the reached node with
@@ -146,6 +174,108 @@ pub(crate) struct OrderedDfs {
 
 pub(crate) type Prog = Box<[Ins]>;
 
+pub(crate) const NINS: usize = 43;
+pub(crate) const INS_NAMES: [&str; NINS] = [
+    "iter_kind", "iter_value", "iter_children", "iter_scan", "iter_fact", "iter_fact_scan", "row", "read", "read_fact", "test", "axis",
+    "near", "sub", "emit", "yield", "span_between", "span_bounds", "source_matches", "within", "iter_range", "iter_field", "fork", "read_col", "read_child",
+    "test_eq_c", "test_ne_c", "test_eq_r", "test_ne_r", "test_in_c", "hoist", "capture", "sub_first",
+    "collect", "closure", "union", "let", "shared", "text_fn", "capture_text", "replace", "near_derived", "sibling", "sub_memo",
+];
+
+impl Ins {
+    #[inline]
+    pub(crate) fn code(&self) -> usize {
+        match self {
+            Ins::IterKind { .. } => 0,
+            Ins::IterValue { .. } => 1,
+            Ins::IterChildren { .. } => 2,
+            Ins::IterScan { .. } => 3,
+            Ins::IterFact { .. } => 4,
+            Ins::IterFactScan { .. } => 5,
+            Ins::Row { .. } => 6,
+            Ins::Read { .. } => 7,
+            Ins::ReadFact { .. } => 8,
+            Ins::Test { .. } => 9,
+            Ins::Axis { .. } => 10,
+            Ins::Near { .. } => 11,
+            Ins::Sub { .. } => 12,
+            Ins::Emit { .. } => 13,
+            Ins::Yield => 14,
+            Ins::SpanBetween { .. } => 15,
+            Ins::SpanBounds { .. } => 16,
+            Ins::SourceMatches { .. } => 17,
+            Ins::Within { .. } => 18,
+            Ins::IterRange { .. } => 19,
+            Ins::IterField { .. } => 20,
+            Ins::Fork { .. } => 21,
+            Ins::ReadCol { .. } => 22,
+            Ins::ReadChild { .. } => 23,
+            Ins::TestEqC { .. } => 24,
+            Ins::TestNeC { .. } => 25,
+            Ins::TestEqR { .. } => 26,
+            Ins::TestNeR { .. } => 27,
+            Ins::TestInC { .. } => 28,
+            Ins::Hoist { .. } => 29,
+            Ins::Capture { .. } => 30,
+            Ins::SubFirst { .. } => 31,
+            Ins::Collect { .. } => 32,
+            Ins::Closure { .. } => 33,
+            Ins::Union { .. } => 34,
+            Ins::Let { .. } => 35,
+            Ins::Shared { .. } => 36,
+            Ins::TextFn { .. } => 37,
+            Ins::CaptureText { .. } => 38,
+            Ins::Replace { .. } => 39,
+            Ins::NearDerived { .. } => 40,
+            Ins::Sibling { .. } => 41,
+            Ins::SubMemo { .. } => 42,
+        }
+    }
+}
+
+/// Every sub-program of an instruction (Fork children and a hoisted segment included), mutably.
+pub(crate) fn subs_mut(i: &mut Ins, f: &mut dyn FnMut(&mut Prog)) {
+    match i {
+        Ins::Near { subs, .. }
+        | Ins::Sub { subs, .. }
+        | Ins::SubFirst { subs }
+        | Ins::Closure { subs, .. }
+        | Ins::Union { subs, .. }
+        | Ins::SubMemo { subs, .. } => subs.iter_mut().for_each(f),
+        Ins::NearDerived { edges, domain, .. } => {
+            edges.iter_mut().for_each(&mut *f);
+            domain.iter_mut().for_each(f);
+        }
+        Ins::Fork { subs } => subs.iter_mut().for_each(|(_, q)| f(q)),
+        Ins::Hoist { seg, .. } => f(seg),
+        _ => {}
+    }
+}
+
+/// Every sub-program of an instruction, read-only.
+pub(crate) fn subs_ref<'x>(i: &'x Ins, f: &mut dyn FnMut(&'x [Ins])) {
+    match i {
+        Ins::Near { subs, .. }
+        | Ins::Sub { subs, .. }
+        | Ins::SubFirst { subs }
+        | Ins::Closure { subs, .. }
+        | Ins::Union { subs, .. }
+        | Ins::SubMemo { subs, .. } => subs.iter().for_each(|q| f(q)),
+        Ins::NearDerived { edges, domain, .. } => {
+            edges.iter().for_each(|q| f(q));
+            domain.iter().for_each(|q| f(q));
+        }
+        Ins::Fork { subs } => subs.iter().for_each(|(_, q)| f(q)),
+        Ins::Hoist { seg, .. } => f(seg),
+        _ => {}
+    }
+}
+
+thread_local! {
+    /// registers each entry of the shared sub-program table reads (for reads_defs on Ins::Shared; set by specialize_all)
+    static SHARED_READS: std::cell::RefCell<Vec<Vec<R>>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
 pub(crate) struct Alt {
     pub prog: Prog,
     /// the anchor's kinds when the program starts with a kind bucket
@@ -175,14 +305,34 @@ pub(crate) struct FactRel {
     pub made: Option<(Vec<Prog>, Vec<usize>, Option<usize>, usize)>,
     /// navwide: a made table answered by an ordered match
     pub made_om: Option<OrderedMatch>,
+    /// a keyed twin: its programs enumerate the input rows whose output key column `.0` equals register `.1` (set before
+    /// the run); rows are filled per key on first demand
+    pub keyed: Option<(u8, R)>,
+    /// registers its programs use (0..nregs): saved and restored around a build inside a running program
+    pub nregs: usize,
+}
+
+/// Programs merged on their shared prefixes (the alpha network): one per anchor kind set (or one for every program without a kind
+/// anchor), covering the (rule, branch) slots listed.
+pub(crate) struct Group {
+    pub kinds: Option<Box<[u32]>>,
+    pub slots: Box<[u32]>,
+    pub prog: Prog,
 }
 
 pub(crate) struct NavProgram {
+    pub groups: Vec<Group>,
+    /// (rule, branch) -> slot
+    pub slot_of: Vec<Vec<u32>>,
+    pub slot_rule: Vec<u32>,
+    pub nslots: usize,
     pub rules: Vec<NavRule>,
     /// shared sub-programs of every rule (navwide)
     pub shared: Vec<Prog>,
     pub facts: Vec<FactRel>,
     pub regexes: Vec<Regex>,
+    /// each regex's pattern (the compiled pack stores these)
+    pub regex_patterns: Vec<String>,
     pub max_regs: usize,
     /// navwide: whether any relation of the program is served only by the old provider's readers
     pub needs_provider: bool,
@@ -215,9 +365,15 @@ struct Loader<'a> {
     kinds: &'a serde_json::Map<String, Value>,
     facts: &'a mut Vec<FactRel>,
     regexes: &'a mut Vec<Regex>,
-    regex_of: FxMap<(String, bool), usize>,
-    /// the rule's first entry in the shared sub-program table (navwide)
-    shared_base: usize,
+    patterns: &'a mut Vec<String>,
+    regex_of: &'a mut FxMap<(String, bool), usize>,
+    /// a made table's name -> the fact index of the identical made table already loaded (shared across rules)
+    alias: &'a mut FxMap<String, u16>,
+    /// the rule whose programs are loading (u32::MAX while its made tables load)
+    rule: u32,
+    /// navwide's shared sub-program table of the rule loading (inlined at load: register maps differ per context; the
+    /// identical sub-programs are shared again after register canonicalisation, `reshare`)
+    shared_json: &'a [Value],
 }
 
 pub(crate) fn glob_to_regex(glob: &str) -> String {
@@ -299,6 +455,9 @@ impl Loader<'_> {
     }
 
     fn fact(&mut self, name: &str) -> u16 {
+        if let Some(&i) = self.alias.get(name) {
+            return i;
+        }
         if let Some(i) = self.facts.iter().position(|f| f.name == name) {
             return i as u16;
         }
@@ -309,7 +468,7 @@ impl Loader<'_> {
         }
         let relation = relation_named(NameRef(name)).unwrap_or_else(|| panic!("relation {name}"));
         let model = if std::env::var("NAV_PROVIDER_ONLY").is_ok() { None } else { crate::semrows::RELATIONS.iter().position(|r| *r == name) };
-        self.facts.push(FactRel { model, name: name.to_owned(), relation: Some(relation), kinds: kinds(relation).to_vec(), made: None, made_om: None });
+        self.facts.push(FactRel { model, name: name.to_owned(), relation: Some(relation), kinds: kinds(relation).to_vec(), made: None, made_om: None, keyed: None, nregs: 0 });
         (self.facts.len() - 1) as u16
     }
 
@@ -319,12 +478,18 @@ impl Loader<'_> {
         }
         let pattern = if glob { glob_to_regex(text) } else { text.to_owned() };
         self.regexes.push(Regex::new(&pattern).unwrap_or_else(|e| panic!("regex {pattern}: {e}")));
+        self.patterns.push(pattern.clone());
         self.regex_of.insert((text.to_owned(), glob), self.regexes.len() - 1);
         self.regexes.len() - 1
     }
 
     fn prog(&mut self, p: &Value) -> Prog {
-        p.as_array().unwrap().iter().map(|i| self.ins(i)).collect::<Vec<_>>().into()
+        let a = p.as_array().unwrap();
+        if a.len() == 1 && a[0][0] == "shared" {
+            let sj = self.shared_json;
+            return self.prog(&sj[a[0][1].as_u64().unwrap() as usize]);
+        }
+        fuse(p.as_array().unwrap().iter().map(|i| self.ins(i)).collect::<Vec<_>>()).into()
     }
 
     fn ins(&mut self, i: &Value) -> Ins {
@@ -431,6 +596,7 @@ impl Loader<'_> {
                 };
                 Ins::Axis { dir, start: self.reg(&a[2]), out: self.reg(&a[3]) }
             }
+            "within" => Ins::Within { anc: self.reg(&a[1]), desc: self.reg(&a[2]) },
             "near" => {
                 let start = self.reg(&a[1]);
                 let out = self.reg(&a[2]);
@@ -442,7 +608,7 @@ impl Loader<'_> {
                 let subs = a[1].as_array().unwrap().iter().map(|p| self.prog(p)).collect::<Vec<_>>().into();
                 Ins::Sub { negate, subs }
             }
-            "emit" => Ins::Emit { cols: a[1].as_array().unwrap().iter().map(|c| self.opd(c)).collect::<Vec<_>>().into() },
+            "emit" => Ins::Emit { cols: a[1].as_array().unwrap().iter().map(|c| self.opd(c)).collect::<Vec<_>>().into(), rule: self.rule },
             "yield" => Ins::Yield,
             "fn" => {
                 let args: Vec<Opd> = a[2].as_array().unwrap().iter().map(|x| self.opd(x)).collect();
@@ -467,7 +633,7 @@ impl Loader<'_> {
                         }
                     }
                     "text" => Ins::TextFn { lower: a[4]["function"] == "lower", args: args.into(), out: outs[0] },
-                    "capture" => Ins::Capture { text: args[0].clone(), pattern: a[4]["pattern"].as_str().unwrap().into(), outs: outs.into() },
+                    "capture" => Ins::CaptureText { text: args[0].clone(), pattern: a[4]["pattern"].as_str().unwrap().into(), outs: outs.into() },
                     "replace" => Ins::Replace {
                         text: args[0].clone(),
                         regex: self.regex(a[4]["pattern"].as_str().unwrap(), false),
@@ -478,7 +644,7 @@ impl Loader<'_> {
                 }
             }
             "clos" => self.closure_ins(a),
-            "shared" => Ins::Shared { idx: (self.shared_base + a[1].as_u64().unwrap() as usize) as u32 },
+            "shared" => panic!("a shared sub-program reference is a whole sub-program"),
             "nearc" => Ins::NearDerived {
                 start: self.reg(&a[1]),
                 out: self.reg(&a[2]),
@@ -515,13 +681,726 @@ impl Loader<'_> {
     }
 }
 
+/// Load-time specialisation (NAV_SPEC=0 turns it off; applied after the pack is read, never stored): reads of the view's
+/// own columns and constant/equality tests become direct instructions.
+pub(crate) fn specialize(p: Prog) -> Prog {
+    if std::env::var("NAV_SPEC").is_ok_and(|v| v == "0") {
+        return p;
+    }
+    p.into_vec()
+        .into_iter()
+        .map(|i| match i {
+            Ins::Read { rel: TRel::Ss, col: 1, row, out } => Ins::ReadCol { which: 0, row, out },
+            Ins::Read { rel: TRel::Ss, col: 2, row, out } => Ins::ReadCol { which: 1, row, out },
+            Ins::Read { rel: TRel::Sl, col: 5, row, out } => Ins::ReadCol { which: 2, row, out },
+            Ins::Read { rel: TRel::Sl, col: 6, row, out } => Ins::ReadCol { which: 3, row, out },
+            Ins::Read { rel: TRel::Sc, col: 0, row, out } => Ins::ReadChild { which: 0, row, out },
+            Ins::Read { rel: TRel::Sc, col: 2, row, out } => Ins::ReadChild { which: 1, row, out },
+            Ins::Read { rel: TRel::Sc, col: 3, row, out } => Ins::ReadChild { which: 2, row, out },
+            Ins::Test { test: T::Eq, l: Opd::Reg(a), r: Opd::Reg(b), .. } => Ins::TestEqR { a, b },
+            Ins::Test { test: T::Ne, l: Opd::Reg(a), r: Opd::Reg(b), .. } => Ins::TestNeR { a, b },
+            Ins::Test { test: T::Eq, l: Opd::Reg(reg), r: Opd::Sym(c), .. } => Ins::TestEqC { reg, c: u64::from(c) },
+            Ins::Test { test: T::Ne, l: Opd::Reg(reg), r: Opd::Sym(c), .. } => Ins::TestNeC { reg, c: u64::from(c) },
+            Ins::Test { test: T::Eq, l: Opd::Reg(reg), r: Opd::Num(c), .. } => Ins::TestEqC { reg, c: c as u64 },
+            Ins::Test { test: T::Ne, l: Opd::Reg(reg), r: Opd::Num(c), .. } => Ins::TestNeC { reg, c: c as u64 },
+            Ins::Test { test: T::In, l: Opd::Reg(reg), r: Opd::Syms(set), .. } => Ins::TestInC { reg, set, negate: false },
+            Ins::Test { test: T::NotIn, l: Opd::Reg(reg), r: Opd::Syms(set), .. } => Ins::TestInC { reg, set, negate: true },
+            mut other => {
+                subs_mut(&mut other, &mut |q| *q = specialize(std::mem::take(q)));
+                other
+            }
+        })
+        .collect::<Vec<_>>()
+        .into()
+}
+
+/// Registers an instruction reads (sub-programs: every register they read, an over-approximation) and defines (top level).
+fn reads_defs(i: &Ins, reads: &mut Vec<R>, defs: &mut Vec<R>) {
+    let o = |x: &Opd, r: &mut Vec<R>| {
+        if let Opd::Reg(x) = x {
+            r.push(*x);
+        }
+    };
+    let v = |x: &Val, r: &mut Vec<R>| {
+        if let Val::Reg(x) = x {
+            r.push(*x);
+        }
+    };
+    let sub = |ps: &[Prog], r: &mut Vec<R>| {
+        for q in ps {
+            for j in q.iter() {
+                let mut d = Vec::new();
+                reads_defs(j, r, &mut d);
+            }
+        }
+    };
+    match i {
+        Ins::IterKind { out, .. } | Ins::IterScan { out, .. } | Ins::IterFactScan { out, .. } => defs.push(*out),
+        Ins::IterValue { val, out, .. } | Ins::IterFact { val, out, .. } => {
+            v(val, reads);
+            defs.push(*out);
+        }
+        Ins::IterChildren { parent, out } => {
+            reads.push(*parent);
+            defs.push(*out);
+        }
+        Ins::Row { key, .. } => reads.push(*key),
+        Ins::Read { row, out, .. } | Ins::ReadFact { row, out, .. } | Ins::ReadCol { row, out, .. } | Ins::ReadChild { row, out, .. } => {
+            reads.push(*row);
+            defs.push(*out);
+        }
+        Ins::Test { l, r, .. } => {
+            o(l, reads);
+            o(r, reads);
+        }
+        Ins::TestEqC { reg, .. } | Ins::TestNeC { reg, .. } | Ins::TestInC { reg, .. } => reads.push(*reg),
+        Ins::TestEqR { a, b } | Ins::TestNeR { a, b } => {
+            reads.push(*a);
+            reads.push(*b);
+        }
+        Ins::Axis { start, out, .. } => {
+            reads.push(*start);
+            defs.push(*out);
+        }
+        Ins::Within { anc, desc } => {
+            reads.push(*anc);
+            reads.push(*desc);
+        }
+        Ins::IterRange { val, out, start, lo, hi, .. } => {
+            v(val, reads);
+            if let Some((r, _)) = lo {
+                reads.push(*r);
+            }
+            if let Some((r, _)) = hi {
+                reads.push(*r);
+            }
+            defs.push(*out);
+            defs.push(*start);
+        }
+        Ins::IterField { parent, out, field_out, .. } => {
+            reads.push(*parent);
+            defs.push(*out);
+            defs.push(*field_out);
+        }
+        Ins::Near { start, out, subs } => {
+            reads.push(*start);
+            sub(subs, reads);
+            defs.push(*out);
+        }
+        Ins::Sub { subs, .. } => sub(subs, reads),
+        Ins::Fork { subs } => {
+            for (_, q) in subs.iter() {
+                sub(std::slice::from_ref(q), reads);
+            }
+        }
+        Ins::Emit { cols, .. } => cols.iter().for_each(|c| o(c, reads)),
+        Ins::Yield => {}
+        Ins::SpanBetween { a, b, out } => {
+            o(a, reads);
+            o(b, reads);
+            defs.push(*out);
+        }
+        Ins::SpanBounds { s, start, end } => {
+            o(s, reads);
+            defs.push(*start);
+            defs.push(*end);
+        }
+        Ins::SourceMatches { span, base, outs, .. } => {
+            o(span, reads);
+            if let Some(b) = base {
+                o(b, reads);
+            }
+            defs.extend(outs.iter().copied());
+        }
+        Ins::Hoist { key, seg, caps, .. } => {
+            reads.extend(key.iter().copied());
+            sub(std::slice::from_ref(seg), reads);
+            defs.extend(caps.iter().copied());
+        }
+        Ins::Capture { regs } => reads.extend(regs.iter().copied()),
+        Ins::SubFirst { subs } => sub(subs, reads),
+        Ins::Collect { regs } => reads.extend(regs.iter().copied()),
+        Ins::Closure { src, out, xin, kout, subs, .. } => {
+            reads.push(*src);
+            sub(subs, reads);
+            reads.retain(|r| r != xin);
+            defs.push(*out);
+            defs.extend(kout.iter().copied());
+        }
+        Ins::Union { outs, subs, .. } => {
+            sub(subs, reads);
+            defs.extend(outs.iter().copied());
+        }
+        Ins::Let { from, out } => {
+            o(from, reads);
+            defs.push(*out);
+        }
+        Ins::Shared { idx } => SHARED_READS.with(|t| {
+            let t = t.borrow();
+            assert!((*idx as usize) < t.len(), "shared reads not computed");
+            reads.extend(t[*idx as usize].iter().copied());
+        }),
+        Ins::TextFn { args, out, .. } => {
+            args.iter().for_each(|a| o(a, reads));
+            defs.push(*out);
+        }
+        Ins::CaptureText { text, outs, .. } => {
+            o(text, reads);
+            defs.extend(outs.iter().copied());
+        }
+        Ins::Replace { text, out, .. } => {
+            o(text, reads);
+            defs.push(*out);
+        }
+        Ins::NearDerived { start, out, xin, edges, domain } => {
+            reads.push(*start);
+            sub(edges, reads);
+            sub(domain, reads);
+            reads.retain(|r| r != xin && r != out);
+            defs.push(*out);
+            defs.push(*xin);
+        }
+        Ins::Sibling { start, out, .. } => {
+            reads.push(*start);
+            defs.push(*out);
+        }
+        Ins::SubMemo { subs, .. } => sub(subs, reads),
+    }
+}
+
+/// Constant folding from bucket walks (NAV_FOLD=0 turns it off): a row reached through a single-value bucket of a tree column
+/// has that value, so a read of that column is known and an equality or membership test on it always holds (dropped).
+pub(crate) fn fold(p: Prog, known: &FxMap<R, u64>) -> Prog {
+    if std::env::var("NAV_FOLD").is_ok_and(|v| v == "0") {
+        return p;
+    }
+    let mut known = known.clone();
+    // row register -> (view column: 0 kind 1 text, value)
+    let mut bucket: FxMap<R, (u8, u64)> = FxMap::default();
+    let one = |val: &Val| match val {
+        Val::Syms(s) if s.len() == 1 => Some(u64::from(s[0])),
+        _ => None,
+    };
+    let mut out: Vec<Ins> = Vec::new();
+    for i in p.into_vec() {
+        match &i {
+            Ins::IterValue { rel: TRel::Ss, col, val, out: o } | Ins::IterRange { rel: TRel::Ss, col, val, out: o, .. } if *col == 1 || *col == 2 => {
+                if let Some(c) = one(val) {
+                    bucket.insert(*o, (*col - 1, c));
+                }
+            }
+            Ins::IterKind { kinds, out: o } if kinds.len() == 1 => {
+                bucket.insert(*o, (0, u64::from(kinds[0])));
+            }
+            Ins::IterField { field, field_out, .. } => {
+                known.insert(*field_out, u64::from(*field));
+            }
+            Ins::ReadCol { which, row, out: x } if *which <= 1 => {
+                if let Some(&(c, v)) = bucket.get(row) {
+                    if c == *which {
+                        known.insert(*x, v);
+                    }
+                }
+            }
+            Ins::TestEqC { reg, c } if known.get(reg) == Some(c) => continue,
+            Ins::TestInC { reg, set, negate: false } if known.get(reg).is_some_and(|&k| k <= u64::from(u32::MAX) && set.binary_search(&(k as u32)).is_ok()) => continue,
+            _ => {}
+        }
+        let mut i = i;
+        subs_mut(&mut i, &mut |q| *q = fold(std::mem::take(q), &known));
+        out.push(i);
+    }
+    out.into()
+}
+
+/// Marks first-element checks (NAV_FIRST=0 turns it off): after a range walk with no upper bound, a negated single
+/// sub-program in the same straight run whose last step before Yield walks the same bucket below the walk's start, and which
+/// reads nothing else bound by the walk or after it, becomes SubFirst.
+pub(crate) fn mark_first(p: Prog) -> Prog {
+    if std::env::var("NAV_FIRST").is_ok_and(|v| v == "0") {
+        return p;
+    }
+    let mut v: Vec<Ins> = p
+        .into_vec()
+        .into_iter()
+        .map(|mut i| {
+            subs_mut(&mut i, &mut |q| *q = mark_first(std::mem::take(q)));
+            i
+        })
+        .collect();
+    for i in 0..v.len() {
+        let (oval, ost, oout) = match &v[i] {
+            Ins::IterRange { val, start, out, hi: None, .. } => (format!("{val:?}"), *start, *out),
+            _ => continue,
+        };
+        // registers bound by the walk or after it, up to the check
+        let mut bound_after: Vec<R> = vec![ost, oout];
+        let mut j = i + 1;
+        while j < v.len() {
+            if is_iter(&v[j]) || matches!(v[j], Ins::Fork { .. } | Ins::Emit { .. } | Ins::Hoist { .. } | Ins::Yield) {
+                break;
+            }
+            let ok = match &v[j] {
+                Ins::Sub { negate: true, subs } if subs.len() == 1 => {
+                    let q = &subs[0];
+                    let n = q.len();
+                    n >= 2
+                        && matches!(q[n - 1], Ins::Yield)
+                        && matches!(&q[n - 2], Ins::IterRange { val, hi: Some((h, false)), lo, .. }
+                            if format!("{val:?}") == oval && *h == ost && lo.is_none_or(|(l, _)| !bound_after.contains(&l)))
+                        && q[..n - 2].iter().all(|k| {
+                            let (mut r, mut d) = (Vec::new(), Vec::new());
+                            reads_defs(k, &mut r, &mut d);
+                            r.iter().all(|x| !bound_after.contains(x))
+                        })
+                }
+                _ => false,
+            };
+            if !ok && std::env::var_os("NAV_FIRST_DEBUG").is_some() {
+                if let Ins::Sub { negate: true, subs } = &v[j] {
+                    let q = &subs[0];
+                    let n = q.len();
+                    let bad: Vec<R> = q[..n.saturating_sub(2)]
+                        .iter()
+                        .flat_map(|k| {
+                            let (mut r, mut d) = (Vec::new(), Vec::new());
+                            reads_defs(k, &mut r, &mut d);
+                            r
+                        })
+                        .filter(|x| bound_after.contains(x))
+                        .collect();
+                    eprintln!("first? subs {} last {:?} bad {:?} bound {:?}", subs.len(), q.get(n.wrapping_sub(2)).map(|i| format!("{i:?}").chars().take(120).collect::<String>()), bad, bound_after);
+                }
+            }
+            if ok {
+                let Ins::Sub { subs, .. } = std::mem::replace(&mut v[j], Ins::Yield) else { unreachable!() };
+                v[j] = Ins::SubFirst { subs };
+                break;
+            }
+            let (mut r, mut d) = (Vec::new(), Vec::new());
+            reads_defs(&v[j], &mut r, &mut d);
+            bound_after.extend(d);
+            j += 1;
+        }
+    }
+    v.into()
+}
+
+fn is_iter(i: &Ins) -> bool {
+    matches!(
+        i,
+        Ins::IterKind { .. }
+            | Ins::IterValue { .. }
+            | Ins::IterChildren { .. }
+            | Ins::IterScan { .. }
+            | Ins::IterFact { .. }
+            | Ins::IterFactScan { .. }
+            | Ins::IterRange { .. }
+            | Ins::IterField { .. }
+            | Ins::Axis { dir: Dir::Ancestor | Dir::Descendant | Dir::Child, .. }
+            | Ins::SourceMatches { .. }
+            | Ins::Closure { .. }
+            | Ins::Union { .. }
+            | Ins::CaptureText { .. }
+    )
+}
+
+thread_local! {
+    static HOIST_ANY: bool = std::env::var("NAV_HOIST_ANY").is_ok_and(|v| v == "1");
+}
+
+static HOIST_ID: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+/// Loop-invariant inner enumerations (NAV_HOIST=0 turns it off): an iteration whose inputs were all bound before an
+/// enclosing iteration of the same program, together with the steps after it that read nothing else bound outside it, runs
+/// once per file per value of those inputs; its result tuples are replayed into the rest.
+pub(crate) fn hoist(p: Prog) -> Prog {
+    if std::env::var("NAV_HOIST").is_ok_and(|v| v == "0") {
+        return p;
+    }
+    let mut v: Vec<Ins> = p.into_vec();
+    // recurse first
+    for i in v.iter_mut() {
+        subs_mut(i, &mut |q| *q = hoist(std::mem::take(q)));
+    }
+    let mut def_at: FxMap<R, usize> = FxMap::default();
+    let mut s = 0;
+    while s < v.len() {
+        let mut reads = Vec::new();
+        let mut defs = Vec::new();
+        reads_defs(&v[s], &mut reads, &mut defs);
+        let candidate = is_iter(&v[s]) && !reads.is_empty() && reads.iter().all(|r| def_at.contains_key(r)) && {
+            let mut k = reads.clone();
+            k.sort_unstable();
+            k.dedup();
+            k.len() <= 2
+        };
+        if candidate {
+            let d = reads.iter().map(|r| def_at[r]).max().unwrap();
+            // inside a loop whose body re-derives the same key (an iteration after the key's binding), or (NAV_HOIST_ANY) any
+            // loop at all: the runtime turns a site's memo off when its keys do not repeat
+            let enclosing = (d + 1..s).any(|j| is_iter(&v[j])) || (HOIST_ANY.with(|h| *h) && (0..s).any(|j| is_iter(&v[j])));
+            if enclosing {
+                // grow the segment while each step reads only the key or what the segment defined
+                let key: Vec<R> = {
+                    let mut k = reads.clone();
+                    k.sort_unstable();
+                    k.dedup();
+                    k
+                };
+                let mut local: Vec<R> = defs.clone();
+                let mut t = s + 1;
+                while t < v.len() {
+                    if matches!(v[t], Ins::Emit { .. } | Ins::Yield | Ins::Fork { .. } | Ins::Hoist { .. } | Ins::Collect { .. } | Ins::Shared { .. }) {
+                        break;
+                    }
+                    let (mut r2, mut d2) = (Vec::new(), Vec::new());
+                    reads_defs(&v[t], &mut r2, &mut d2);
+                    if !r2.iter().all(|r| key.contains(r) || local.contains(r)) {
+                        break;
+                    }
+                    local.extend(d2);
+                    t += 1;
+                }
+                if t - s >= 3 && t < v.len() {
+                    // captured: segment definitions read later
+                    let mut later = Vec::new();
+                    for j in &v[t..] {
+                        let mut d3 = Vec::new();
+                        reads_defs(j, &mut later, &mut d3);
+                    }
+                    let mut caps: Vec<R> = local.iter().copied().filter(|r| later.contains(r)).collect();
+                    caps.sort_unstable();
+                    caps.dedup();
+                    let mut seg: Vec<Ins> = v.drain(s..t).collect();
+                    seg.push(Ins::Capture { regs: caps.clone().into() });
+                    let id = HOIST_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    for r in &caps {
+                        def_at.insert(*r, s);
+                    }
+                    v.insert(s, Ins::Hoist { id, key: key.into(), seg: seg.into(), caps: caps.into() });
+                    s += 1;
+                    continue;
+                }
+            }
+        }
+        for r in defs {
+            def_at.entry(r).or_insert(s);
+        }
+        s += 1;
+    }
+    v.into()
+}
+
+impl NavProgram {
+    /// the final load step: specialise every program the executor runs
+    pub(crate) fn specialize_all(&mut self) {
+        let none = FxMap::default();
+        // the registers each shared entry reads (entries only reference entries before them)
+        SHARED_READS.with(|t| t.borrow_mut().clear());
+        for q in &self.shared {
+            let mut reads = Vec::new();
+            for i in q.iter() {
+                let mut d = Vec::new();
+                // a shared entry is a whole sub-program: its own definitions stay inside (over-approximation as for subs)
+                reads_defs(i, &mut reads, &mut d);
+            }
+            reads.sort_unstable();
+            reads.dedup();
+            SHARED_READS.with(|t| t.borrow_mut().push(reads));
+        }
+        let pass = |q: &mut Prog| *q = mark_first(hoist(fold(specialize(std::mem::take(q)), &none)));
+        for g in &mut self.groups {
+            pass(&mut g.prog);
+        }
+        for q in &mut self.shared {
+            pass(q);
+        }
+        for f in &mut self.facts {
+            if let Some((progs, ..)) = &mut f.made {
+                progs.iter_mut().for_each(pass);
+            }
+            if let Some(om) = &mut f.made_om {
+                om.left.iter_mut().for_each(pass);
+                om.right.iter_mut().for_each(pass);
+            }
+        }
+        for r in &mut self.rules {
+            for (_, ps, _) in &mut r.aux {
+                ps.iter_mut().for_each(pass);
+            }
+        }
+    }
+
+    /// Identical sub-programs shared again (NAV_RESHARE=0 turns it off): after registers are canonical per program, every
+    /// sub-program is hash-consed (children first); one used twice or more and at least NAV_RESHARE_MIN instructions long becomes
+    /// an entry of the shared table, run in place by Ins::Shared; the others are inlined back.
+    fn reshare(&mut self) {
+        if std::env::var("NAV_RESHARE").is_ok_and(|v| v == "0") {
+            return;
+        }
+        let min: usize = std::env::var("NAV_RESHARE_MIN").ok().and_then(|v| v.parse().ok()).unwrap_or(24);
+        let mut hc = Hc::default();
+        let mut all: Vec<&mut Prog> = Vec::new();
+        for g in &mut self.groups {
+            all.push(&mut g.prog);
+        }
+        for f in &mut self.facts {
+            if let Some((progs, ..)) = &mut f.made {
+                all.extend(progs.iter_mut());
+            }
+            if let Some(om) = &mut f.made_om {
+                all.extend(om.left.iter_mut());
+                all.extend(om.right.iter_mut());
+            }
+        }
+        for r in &mut self.rules {
+            for (_, ps, _) in &mut r.aux {
+                all.extend(ps.iter_mut());
+            }
+        }
+        for q in all.iter_mut() {
+            hc.cons(q);
+        }
+        let before: usize = hc.size.iter().zip(&hc.uses).map(|(s, u)| *s * *u as usize).sum();
+        let mut fin: FxMap<u32, u32> = FxMap::default();
+        let mut table: Vec<Prog> = Vec::new();
+        for q in all.iter_mut() {
+            hc.expand(q, min, &mut fin, &mut table);
+        }
+        if std::env::var("NAV_VERBOSE").is_ok() {
+            let after: usize = table.iter().map(|q| count_ins(q)).sum::<usize>() + all.iter().map(|q| count_ins(q)).sum::<usize>();
+            eprintln!("nav reshare: {} distinct sub-programs, {} shared entries; instructions (subs counted per use) {before} -> {after}", hc.progs.len(), table.len());
+        }
+        self.shared = table;
+    }
+}
+
+/// Hash-consing of sub-programs (reshare).
+#[derive(Default)]
+struct Hc {
+    ids: FxMap<String, u32>,
+    progs: Vec<Option<Prog>>,
+    uses: Vec<u32>,
+    /// instructions with every child expanded
+    size: Vec<usize>,
+}
+
+impl Hc {
+    /// replaces every sub-program inside `p` (not Fork children: those are trie branches) by [Shared{id}] of its hash-consed entry
+    fn cons(&mut self, p: &mut Prog) {
+        for ins in p.iter_mut() {
+            if let Ins::Fork { subs } = ins {
+                for (_, q) in subs.iter_mut() {
+                    self.cons(q);
+                }
+                continue;
+            }
+            subs_mut(ins, &mut |q| {
+                self.cons(q);
+                let key = format!("{q:?}");
+                let id = match self.ids.get(&key) {
+                    Some(&id) => id,
+                    None => {
+                        let id = self.progs.len() as u32;
+                        let mut size = 0;
+                        for i in q.iter() {
+                            size += 1;
+                            subs_ref(i, &mut |c| {
+                                if let [Ins::Shared { idx }] = c {
+                                    size += self.size[*idx as usize];
+                                }
+                            });
+                        }
+                        self.ids.insert(key, id);
+                        self.progs.push(Some(std::mem::take(q)));
+                        self.uses.push(0);
+                        self.size.push(size);
+                        id
+                    }
+                };
+                self.uses[id as usize] += 1;
+                *q = vec![Ins::Shared { idx: id }].into();
+            });
+        }
+    }
+
+    /// the program with each hash-consed reference either kept as a reference into the final table or inlined back
+    fn expand(&mut self, p: &mut Prog, min: usize, fin: &mut FxMap<u32, u32>, table: &mut Vec<Prog>) {
+        for ins in p.iter_mut() {
+            if let Ins::Fork { subs } = ins {
+                for (_, q) in subs.iter_mut() {
+                    self.expand(q, min, fin, table);
+                }
+                continue;
+            }
+            subs_mut(ins, &mut |q| {
+                let [Ins::Shared { idx }] = &q[..] else { unreachable!("every sub-program is consed") };
+                let id = *idx as usize;
+                if self.uses[id] >= 2 && self.size[id] >= min {
+                    let k = match fin.get(&(id as u32)) {
+                        Some(&k) => k,
+                        None => {
+                            let mut body: Prog = self.progs[id].as_ref().unwrap().iter().map(clone_ins).collect::<Vec<_>>().into();
+                            self.expand(&mut body, min, fin, table);
+                            table.push(body);
+                            let k = (table.len() - 1) as u32;
+                            fin.insert(id as u32, k);
+                            k
+                        }
+                    };
+                    *q = vec![Ins::Shared { idx: k }].into();
+                } else {
+                    let mut body: Prog = self.progs[id].as_ref().unwrap().iter().map(clone_ins).collect::<Vec<_>>().into();
+                    self.expand(&mut body, min, fin, table);
+                    *q = body;
+                }
+            });
+        }
+    }
+}
+
+
+/// Load-time fusion (NAV_FUSE=0 turns it off): a value bucket followed by the read of the row's start and range tests on it
+/// becomes one range walk; children followed by the field read and an equality on it become a per-field walk.
+/// Tests commute (NAV_TESTS_EARLY=0 turns this off): each test of a straight program moves up to just after the step that binds
+/// its last operand (registers bound outside the program count as bound at its start).
+pub(crate) fn tests_early(p: Vec<Ins>) -> Vec<Ins> {
+    if std::env::var("NAV_TESTS_EARLY").is_ok_and(|v| v == "0") {
+        return p;
+    }
+    let n = p.len();
+    // target slot per instruction: tests go after their last operand's definition; everything else stays
+    let mut def_at: FxMap<R, usize> = FxMap::default();
+    let mut key: Vec<(usize, usize)> = Vec::with_capacity(n);
+    for (i, ins) in p.iter().enumerate() {
+        let (mut reads, mut defs) = (Vec::new(), Vec::new());
+        reads_defs(ins, &mut reads, &mut defs);
+        if matches!(ins, Ins::Test { .. }) {
+            let t = reads.iter().filter_map(|r| def_at.get(r)).map(|&d| d + 1).max().unwrap_or(0);
+            // (position, tie-break): placed right after the defining step, before the steps that followed it
+            key.push((t.min(i), 0));
+        } else {
+            key.push((i, 1));
+        }
+        for d in defs {
+            def_at.insert(d, i);
+        }
+    }
+    let mut order: Vec<usize> = (0..n).collect();
+    // a test moved to slot t sorts before the original instruction at t (tie 0 < 1); stable among equals
+    order.sort_by_key(|&i| (key[i].0, key[i].1, i));
+    let mut slots: Vec<Option<Ins>> = p.into_iter().map(Some).collect();
+    order.into_iter().map(|i| slots[i].take().unwrap()).collect()
+}
+
+pub(crate) fn fuse(p: Vec<Ins>) -> Vec<Ins> {
+    let p = tests_early(p);
+    if std::env::var("NAV_FUSE").is_ok_and(|v| v == "0") {
+        return p;
+    }
+    let mut out: Vec<Ins> = Vec::with_capacity(p.len());
+    let mut it = p.into_iter().peekable();
+    let mut rest: Vec<Ins> = Vec::new();
+    while let Some(ins) = it.next() {
+        rest.clear();
+        match ins {
+            Ins::IterValue { rel, col, val, out: o } if matches!(rel, TRel::Ss | TRel::Sl) => {
+                // the straight run that follows: reads of the row (one of them its start) and tests, in any order
+                let mut run: Vec<Ins> = Vec::new();
+                while matches!(it.peek(), Some(Ins::Read { row, .. }) if *row == o) || matches!(it.peek(), Some(Ins::Test { .. })) {
+                    run.push(it.next().unwrap());
+                }
+                let st = run.iter().find_map(|i| match i {
+                    Ins::Read { rel: TRel::Sl, col: 5, row, out } if *row == o => Some(*out),
+                    _ => None,
+                });
+                let Some(st) = st else {
+                    out.push(Ins::IterValue { rel, col, val, out: o });
+                    out.extend(run);
+                    continue;
+                };
+                let (mut lo, mut hi) = (None, None);
+                let mut rest: Vec<Ins> = Vec::new();
+                for i in run {
+                    let bound = match &i {
+                        Ins::Test { test, l: Opd::Reg(a), r: Opd::Reg(b), text: false, .. } => match (*a == st, *b == st, *test) {
+                            (true, false, T::Ge) => Some((true, (*b, true))),
+                            (true, false, T::Gt) => Some((true, (*b, false))),
+                            (true, false, T::Lt) => Some((false, (*b, false))),
+                            (true, false, T::Le) => Some((false, (*b, true))),
+                            (false, true, T::Le) => Some((true, (*a, true))),
+                            (false, true, T::Lt) => Some((true, (*a, false))),
+                            (false, true, T::Gt) => Some((false, (*a, false))),
+                            (false, true, T::Ge) => Some((false, (*a, true))),
+                            _ => None,
+                        },
+                        _ => None,
+                    };
+                    match bound {
+                        // a bound register must be bound before the walk (not a read of this row)
+                        Some((is_lo, (r, incl))) if !rest.iter().any(|x| matches!(x, Ins::Read { out, .. } if *out == r)) => {
+                            let slot = if is_lo { &mut lo } else { &mut hi };
+                            if slot.is_none() {
+                                *slot = Some((r, incl));
+                                continue;
+                            }
+                            rest.push(i);
+                        }
+                        _ => {
+                            if !matches!(&i, Ins::Read { rel: TRel::Sl, col: 5, row, .. } if *row == o) {
+                                rest.push(i);
+                            }
+                        }
+                    }
+                }
+                out.push(Ins::IterRange { rel, col, val, out: o, start: st, lo, hi });
+                out.extend(rest);
+            }
+            Ins::IterChildren { parent, out: o } => {
+                // the straight run that follows: reads of the child (one its field) and tests (one an equality on the field)
+                let mut run: Vec<Ins> = Vec::new();
+                while matches!(it.peek(), Some(Ins::Read { row, .. }) if *row == o) || matches!(it.peek(), Some(Ins::Test { .. })) {
+                    run.push(it.next().unwrap());
+                }
+                let fr = run.iter().find_map(|i| match i {
+                    Ins::Read { rel: TRel::Sc, col: 3, row, out } if *row == o => Some(*out),
+                    _ => None,
+                });
+                let ft = fr.and_then(|f| {
+                    run.iter().position(|i| matches!(i, Ins::Test { test: T::Eq, l: Opd::Reg(a), r: Opd::Sym(_), .. } if *a == f))
+                });
+                match (fr, ft) {
+                    (Some(f), Some(k)) => {
+                        let Ins::Test { r: Opd::Sym(x), .. } = run.remove(k) else { unreachable!() };
+                        run.retain(|i| !matches!(i, Ins::Read { rel: TRel::Sc, col: 3, row, .. } if *row == o));
+                        out.push(Ins::IterField { parent, field: x, out: o, field_out: f });
+                        out.extend(run);
+                    }
+                    _ => {
+                        out.push(Ins::IterChildren { parent, out: o });
+                        out.extend(run);
+                    }
+                }
+            }
+            other => out.push(other),
+        }
+    }
+    out
+}
+
 impl NavProgram {
     pub(crate) fn load(rules: &[&Value], sym: &mut Symbols) -> Self {
         let mut facts = Vec::new();
         let mut regexes = Vec::new();
-        let mut shared: Vec<Prog> = Vec::new();
         let mut out = Vec::new();
         let mut max_regs = 0;
+        let mut regex_of = FxMap::default();
+        let mut patterns: Vec<String> = Vec::new();
+        let mut alias: FxMap<String, u16> = FxMap::default();
+        // canonical form of a made table (its programs with registers numbered from 0, keys, kinds) -> its fact index
+        let mut canon: FxMap<String, u16> = FxMap::default();
+        let share = !std::env::var("NAV_SHARE_MADE").is_ok_and(|v| v == "0");
         for r in rules {
             let nav = &r["nav"];
             let kinds = nav["kinds"].as_object().unwrap();
@@ -531,12 +1410,18 @@ impl NavProgram {
                 kinds,
                 facts: &mut facts,
                 regexes: &mut regexes,
-                regex_of: FxMap::default(),
-                shared_base: shared.len(),
+                patterns: &mut patterns,
+                regex_of: &mut regex_of,
+                alias: &mut alias,
+                rule: u32::MAX,
+                shared_json: nav["shared"].as_array().map(Vec::as_slice).unwrap_or(&[]),
             };
             for m in nav["made"].as_array().map(Vec::as_slice).unwrap_or(&[]) {
                 use ryo_relations::domain::relations::types::CellKind;
+                // each made table's programs number their registers from 0 (they run at top level; ensure() saves the caller's)
+                loader.regs = FxMap::default();
                 let progs: Vec<Prog> = m["programs"].as_array().unwrap().iter().map(|p| loader.prog(p)).collect();
+                max_regs = max_regs.max(loader.regs.len());
                 let kinds = m["kinds"]
                     .as_array()
                     .unwrap()
@@ -549,7 +1434,7 @@ impl NavProgram {
                         "flag" => CellKind::Flag,
                         _ => CellKind::Number,
                     })
-                    .collect();
+                    .collect::<Vec<CellKind>>();
                 if m["op"] == "ordered_dfs" {
                     let cols = |v: &Value| v.as_array().unwrap().iter().map(|k| k.as_u64().unwrap() as usize).collect::<Vec<_>>();
                     let right: Vec<Prog> = m["right_programs"].as_array().unwrap().iter().map(|p| loader.prog(p)).collect();
@@ -575,7 +1460,8 @@ impl NavProgram {
                             edge_keys: cols(&m["edge_keys"]),
                         }),
                     };
-                    loader.facts.push(FactRel { model: None, name: m["name"].as_str().unwrap().to_owned(), relation: None, kinds, made: None, made_om: Some(om) });
+                    max_regs = max_regs.max(loader.regs.len());
+                    loader.facts.push(FactRel { model: None, name: m["name"].as_str().unwrap().to_owned(), relation: None, kinds, made: None, made_om: Some(om), keyed: None, nregs: loader.regs.len() });
                     continue;
                 }
                 if m["op"] == "ordered_match" {
@@ -594,13 +1480,25 @@ impl NavProgram {
                         output: m["output"].as_array().unwrap().iter().map(|o| (o[0].as_u64().unwrap() == 1, o[1].as_u64().unwrap() as usize)).collect(),
                         dfs: None,
                     };
-                    loader.facts.push(FactRel { model: None, name: m["name"].as_str().unwrap().to_owned(), relation: None, kinds, made: None, made_om: Some(om) });
+                    max_regs = max_regs.max(loader.regs.len());
+                    loader.facts.push(FactRel { model: None, name: m["name"].as_str().unwrap().to_owned(), relation: None, kinds, made: None, made_om: Some(om), keyed: None, nregs: loader.regs.len() });
                     continue;
+                }
+                let name = m["name"].as_str().unwrap().to_owned();
+                let keyed = m.get("param").map(|p| (m["keycol"].as_u64().unwrap() as u8, loader.reg(p)));
+                max_regs = max_regs.max(loader.regs.len());
+                let key = format!("{progs:?}|{}|{}|{}|{kinds:?}|{keyed:?}", m["keys"], m["distinct"], m["width"]);
+                if share {
+                    if let Some(&i) = canon.get(&key) {
+                        loader.alias.insert(name, i);
+                        continue;
+                    }
+                    canon.insert(key, loader.facts.len() as u16);
                 }
                 loader.facts.push(FactRel {
                     made_om: None,
                     model: None,
-                    name: m["name"].as_str().unwrap().to_owned(),
+                    name,
                     relation: None,
                     kinds,
                     made: Some((
@@ -609,12 +1507,12 @@ impl NavProgram {
                         m["distinct"].as_u64().map(|d| d as usize),
                         m["width"].as_u64().unwrap() as usize,
                     )),
+                    keyed,
+                    nregs: loader.regs.len(),
                 });
             }
-            for q in nav["shared"].as_array().map(Vec::as_slice).unwrap_or(&[]) {
-                let p = loader.prog(q);
-                shared.push(p);
-            }
+            loader.regs = FxMap::default();
+            loader.rule = out.len() as u32;
             let programs: Vec<Vec<Alt>> = nav["programs"]
                 .as_array()
                 .unwrap()
@@ -631,6 +1529,7 @@ impl NavProgram {
                         .collect()
                 })
                 .collect();
+            loader.rule = u32::MAX;
             let aux: Vec<(u32, Vec<Prog>, Vec<u8>)> = nav["aux"]
                 .as_array()
                 .map(Vec::as_slice)
@@ -657,7 +1556,285 @@ impl NavProgram {
             || facts.iter().any(|f| {
                 f.model.is_none() && f.made.is_none() && f.made_om.is_none() && crate::derived::index_of(&f.name).is_none() && !f.name.starts_with("filesystem.")
             });
-        Self { rules: out, shared, facts, regexes, max_regs, needs_provider }
+        let mut me = Self {
+            groups: Vec::new(),
+            slot_of: Vec::new(),
+            slot_rule: Vec::new(),
+            nslots: 0,
+            rules: out,
+            shared: Vec::new(),
+            facts,
+            regexes,
+            regex_patterns: patterns,
+            max_regs,
+            needs_provider,
+        };
+        me.build_groups();
+        me.reshare();
+        me
+    }
+
+    /// Canonical registers per program (numbered by first appearance), then a trie over the programs of each anchor group.
+    fn build_groups(&mut self) {
+        let merge = !std::env::var("NAV_SHARE_PREFIX").is_ok_and(|v| v == "0");
+        let mut slot = 0u32;
+        let mut by_anchor: Vec<(Option<Box<[u32]>>, Vec<(u32, Vec<Ins>)>)> = Vec::new();
+        let mut max_regs = self.max_regs;
+        for (ri, r) in self.rules.iter_mut().enumerate() {
+            let mut slots = Vec::new();
+            for alts in &mut r.programs {
+                slots.push(slot);
+                self.slot_rule.push(ri as u32);
+                let prog = std::mem::take(&mut alts[0].prog);
+                let mut m: FxMap<R, R> = FxMap::default();
+                let canon: Vec<Ins> = prog.into_vec().into_iter().map(|i| map_regs(i, &mut m)).collect();
+                max_regs = max_regs.max(m.len());
+                let key = alts[0].anchor.clone();
+                let gi = if merge { by_anchor.iter().position(|(k, _)| *k == key) } else { None };
+                match gi {
+                    Some(g) => by_anchor[g].1.push((slot, canon)),
+                    None => by_anchor.push((key, vec![(slot, canon)])),
+                }
+                slot += 1;
+            }
+            self.slot_of.push(slots);
+        }
+        self.max_regs = max_regs;
+        self.nslots = slot as usize;
+        let (mut before, mut after) = (0usize, 0usize);
+        for (kinds, progs) in by_anchor {
+            before += progs.iter().map(|(_, p)| count_ins(p)).sum::<usize>();
+            let slots: Box<[u32]> = progs.iter().map(|(s, _)| *s).collect();
+            let keyed: Vec<(u32, Vec<Ins>, Vec<String>)> = progs
+                .into_iter()
+                .map(|(s, p)| {
+                    let k = p.iter().map(|i| format!("{i:?}")).collect();
+                    (s, p, k)
+                })
+                .collect();
+            let prog = trie(keyed, 0);
+            after += count_ins(&prog);
+            self.groups.push(Group { kinds, slots, prog: prog.into() });
+        }
+        if std::env::var("NAV_VERBOSE").is_ok() {
+            eprintln!("nav groups: {} programs in {} groups; instructions {before} -> {after}", self.nslots, self.groups.len());
+        }
+    }
+}
+
+fn count_ins(p: &[Ins]) -> usize {
+    p.iter()
+        .map(|i| {
+            let mut n = 1;
+            subs_ref(i, &mut |q| n += count_ins(q));
+            n
+        })
+        .sum()
+}
+
+/// A trie over programs from `depth`: the longest common prefix once, then a Fork over the groups that differ next.
+fn trie(mut group: Vec<(u32, Vec<Ins>, Vec<String>)>, depth: usize) -> Vec<Ins> {
+    if group.len() == 1 {
+        let (_, p, _) = group.pop().unwrap();
+        return p.into_iter().skip(depth).collect();
+    }
+    let min_len = group.iter().map(|g| g.1.len()).min().unwrap();
+    let mut l = 0;
+    while depth + l < min_len && group.iter().all(|g| g.2[depth + l] == group[0].2[depth + l]) {
+        l += 1;
+    }
+    if depth + l >= min_len {
+        // one program is a prefix of (or identical to) another: keep them apart from here
+        let mut out: Vec<Ins> = Vec::new();
+        let subs: Vec<(Box<[u32]>, Prog)> = group
+            .into_iter()
+            .map(|(s, p, _)| (vec![s].into_boxed_slice(), p.into_iter().skip(depth).collect::<Vec<_>>().into_boxed_slice()))
+            .collect();
+        out.push(Ins::Fork { subs: subs.into() });
+        return out;
+    }
+    let mut out: Vec<Ins> = group[0].1[depth..depth + l].iter().map(clone_ins).collect();
+    let d = depth + l;
+    // partition by the next instruction, first-seen order
+    let mut parts: Vec<Vec<(u32, Vec<Ins>, Vec<String>)>> = Vec::new();
+    for g in group {
+        match parts.iter().position(|p| p[0].2[d] == g.2[d]) {
+            Some(i) => parts[i].push(g),
+            None => parts.push(vec![g]),
+        }
+    }
+    let subs: Vec<(Box<[u32]>, Prog)> = parts
+        .into_iter()
+        .map(|p| {
+            let slots: Box<[u32]> = p.iter().map(|g| g.0).collect();
+            (slots, trie(p, d).into_boxed_slice())
+        })
+        .collect();
+    out.push(Ins::Fork { subs: subs.into() });
+    out
+}
+
+fn clone_ins(i: &Ins) -> Ins {
+    map_regs_ref(i, &mut |r| r)
+}
+
+/// Renumbers every register of `i` (and its sub-programs) through `m`, assigning the next number on first appearance.
+fn map_regs(i: Ins, m: &mut FxMap<R, R>) -> Ins {
+    map_regs_ref(&i, &mut |r| {
+        let n = m.len() as R;
+        *m.entry(r).or_insert(n)
+    })
+}
+
+fn map_regs_ref(i: &Ins, f: &mut dyn FnMut(R) -> R) -> Ins {
+    fn o(x: &Opd, f: &mut dyn FnMut(R) -> R) -> Opd {
+        match x {
+            Opd::Reg(r) => Opd::Reg(f(*r)),
+            other => other.clone(),
+        }
+    }
+    fn v(x: &Val, f: &mut dyn FnMut(R) -> R) -> Val {
+        match x {
+            Val::Reg(r) => Val::Reg(f(*r)),
+            other => other.clone(),
+        }
+    }
+    fn p(q: &[Ins], f: &mut dyn FnMut(R) -> R) -> Prog {
+        q.iter().map(|i| map_regs_ref(i, f)).collect::<Vec<_>>().into()
+    }
+    match i {
+        Ins::IterKind { kinds, out } => Ins::IterKind { kinds: kinds.clone(), out: f(*out) },
+        Ins::IterValue { rel, col, val, out } => {
+            let val = v(val, f);
+            Ins::IterValue { rel: *rel, col: *col, val, out: f(*out) }
+        }
+        Ins::IterChildren { parent, out } => {
+            let parent = f(*parent);
+            Ins::IterChildren { parent, out: f(*out) }
+        }
+        Ins::IterScan { rel, out } => Ins::IterScan { rel: *rel, out: f(*out) },
+        Ins::IterFact { rel, col, val, out } => {
+            let val = v(val, f);
+            Ins::IterFact { rel: *rel, col: *col, val, out: f(*out) }
+        }
+        Ins::IterFactScan { rel, out } => Ins::IterFactScan { rel: *rel, out: f(*out) },
+        Ins::Row { rel, key } => Ins::Row { rel: *rel, key: f(*key) },
+        Ins::Read { rel, col, row, out } => {
+            let row = f(*row);
+            Ins::Read { rel: *rel, col: *col, row, out: f(*out) }
+        }
+        Ins::ReadFact { rel, col, row, out } => {
+            let row = f(*row);
+            Ins::ReadFact { rel: *rel, col: *col, row, out: f(*out) }
+        }
+        Ins::Test { test, l, r, text, num, regex } => {
+            let l = o(l, f);
+            let r = o(r, f);
+            Ins::Test { test: *test, l, r, text: *text, num: *num, regex: regex.clone() }
+        }
+        Ins::Axis { dir, start, out } => {
+            let start = f(*start);
+            Ins::Axis { dir: *dir, start, out: f(*out) }
+        }
+        Ins::Within { anc, desc } => {
+            let anc = f(*anc);
+            Ins::Within { anc, desc: f(*desc) }
+        }
+        Ins::IterRange { rel, col, val, out, start, lo, hi } => {
+            let val = v(val, f);
+            let lo = lo.map(|(r, b)| (f(r), b));
+            let hi = hi.map(|(r, b)| (f(r), b));
+            let out = f(*out);
+            Ins::IterRange { rel: *rel, col: *col, val, out, start: f(*start), lo, hi }
+        }
+        Ins::IterField { parent, field, out, field_out } => {
+            let parent = f(*parent);
+            let out = f(*out);
+            Ins::IterField { parent, field: *field, out, field_out: f(*field_out) }
+        }
+        Ins::Near { start, out, subs } => {
+            let start = f(*start);
+            let out = f(*out);
+            Ins::Near { start, out, subs: subs.iter().map(|q| p(q, f)).collect::<Vec<_>>().into() }
+        }
+        Ins::Sub { negate, subs } => Ins::Sub { negate: *negate, subs: subs.iter().map(|q| p(q, f)).collect::<Vec<_>>().into() },
+        Ins::Emit { cols, rule } => Ins::Emit { cols: cols.iter().map(|c| o(c, f)).collect::<Vec<_>>().into(), rule: *rule },
+        Ins::Fork { subs } => Ins::Fork { subs: subs.iter().map(|(s, q)| (s.clone(), p(q, f))).collect::<Vec<_>>().into() },
+        Ins::Yield => Ins::Yield,
+        Ins::ReadCol { .. }
+        | Ins::ReadChild { .. }
+        | Ins::TestEqC { .. }
+        | Ins::TestNeC { .. }
+        | Ins::TestEqR { .. }
+        | Ins::TestNeR { .. }
+        | Ins::TestInC { .. }
+        | Ins::Hoist { .. }
+        | Ins::Capture { .. }
+        | Ins::SubFirst { .. } => unreachable!("specialisation runs after the tries are built"),
+        Ins::SpanBetween { a, b, out } => {
+            let a = o(a, f);
+            let b = o(b, f);
+            Ins::SpanBetween { a, b, out: f(*out) }
+        }
+        Ins::SpanBounds { s, start, end } => {
+            let s = o(s, f);
+            let start = f(*start);
+            Ins::SpanBounds { s, start, end: f(*end) }
+        }
+        Ins::SourceMatches { span, base, regex, group, outs, capture_text, capture_line } => {
+            let span = o(span, f);
+            let base = base.as_ref().map(|b| o(b, f));
+            Ins::SourceMatches {
+                span,
+                base,
+                regex: *regex,
+                group: *group,
+                outs: outs.iter().map(|&r| f(r)).collect::<Vec<_>>().into(),
+                capture_text: *capture_text,
+                capture_line: *capture_line,
+            }
+        }
+        Ins::Collect { regs } => Ins::Collect { regs: regs.iter().map(|&r| f(r)).collect::<Vec<_>>().into() },
+        Ins::Closure { src, out, xin, kout, nkeys, subs } => {
+            let src = f(*src);
+            let out = f(*out);
+            let xin = f(*xin);
+            let kout = kout.iter().map(|&r| f(r)).collect::<Vec<_>>().into();
+            Ins::Closure { src, out, xin, kout, nkeys: *nkeys, subs: subs.iter().map(|q| p(q, f)).collect::<Vec<_>>().into() }
+        }
+        Ins::Union { outs, subs, memo } => {
+            let outs = outs.iter().map(|&r| f(r)).collect::<Vec<_>>().into();
+            Ins::Union { outs, subs: subs.iter().map(|q| p(q, f)).collect::<Vec<_>>().into(), memo: *memo }
+        }
+        Ins::Let { from, out } => {
+            let from = o(from, f);
+            Ins::Let { from, out: f(*out) }
+        }
+        Ins::Shared { idx } => Ins::Shared { idx: *idx },
+        Ins::TextFn { lower, args, out } => {
+            let args = args.iter().map(|a| o(a, f)).collect::<Vec<_>>().into();
+            Ins::TextFn { lower: *lower, args, out: f(*out) }
+        }
+        Ins::CaptureText { text, pattern, outs } => {
+            let text = o(text, f);
+            Ins::CaptureText { text, pattern: pattern.clone(), outs: outs.iter().map(|&r| f(r)).collect::<Vec<_>>().into() }
+        }
+        Ins::Replace { text, regex, replacement, out } => {
+            let text = o(text, f);
+            Ins::Replace { text, regex: *regex, replacement: replacement.clone(), out: f(*out) }
+        }
+        Ins::NearDerived { start, out, xin, edges, domain } => {
+            let start = f(*start);
+            let out = f(*out);
+            let xin = f(*xin);
+            let edges = edges.iter().map(|q| p(q, f)).collect::<Vec<_>>().into();
+            Ins::NearDerived { start, out, xin, edges, domain: domain.iter().map(|q| p(q, f)).collect::<Vec<_>>().into() }
+        }
+        Ins::Sibling { next, start, out } => {
+            let start = f(*start);
+            Ins::Sibling { next: *next, start, out: f(*out) }
+        }
+        Ins::SubMemo { negate, subs } => Ins::SubMemo { negate: *negate, subs: subs.iter().map(|q| p(q, f)).collect::<Vec<_>>().into() },
     }
 }
 
@@ -676,6 +1853,17 @@ pub(crate) struct Counters {
     pub fact_rows: u64,
     pub fact_ns: u64,
     pub provider_build_ns: u64,
+    /// time in made-table builds (their programs' steps included, nested builds counted once) and in value-index builds
+    pub made_ns: u64,
+    pub index_ns: u64,
+    /// index_ns split: [tree value index, constant scans, fact column index]
+    pub index_split: [u64; 3],
+    /// constant-list misses, bucket (CSR) builds and their time
+    pub const_misses: u64,
+    pub csr_builds: u64,
+    pub csr_ns: u64,
+    /// per made table (fact index): (builds, exclusive ns, input rows, steps)
+    pub made_by: FxMap<u16, (u64, u64, u64, u64)>,
     pub kind_index_ns: u64,
     pub model_lex_ns: u64,
     pub model_flow_ns: u64,
@@ -690,6 +1878,26 @@ pub(crate) struct Counters {
     pub rule_steps: Vec<u64>,
     pub rule_visits: Vec<u64>,
     pub rule_starts: Vec<u64>,
+    /// made-table rows and the steps spent building made tables, per rule that demanded them
+    pub rule_made_rows: Vec<u64>,
+    pub rule_made_steps: Vec<u64>,
+    /// steps per instruction kind (index: Ins::code)
+    pub op_steps: Vec<u64>,
+    /// (rule, branch) -> (runs, steps)
+    pub branch_steps: FxMap<(u32, u32), (u64, u64)>,
+    /// NAV_PROFILE: steps per instruction site (its address)
+    pub prof: Option<FxMap<usize, u64>>,
+    /// steps executed inside batched loops
+    pub batched_steps: u64,
+    /// steps spent building made tables (outermost builds), excluded from per-program accounting
+    pub made_steps_total: u64,
+    pub hoist_runs: u64,
+    pub hoist_misses: u64,
+    /// per hoist site over the run: (lookups, misses)
+    pub hoist_sites: FxMap<u32, (u64, u64)>,
+    pub made_depth: u32,
+    /// NAV_DIAG / NAV_PROFILE: per-instruction-kind and per-site counters in the hot loop
+    pub diag: bool,
 }
 
 /// What a file's facts from the provider are, decoded into the view's ids and the run's text codes.
@@ -699,6 +1907,26 @@ pub(crate) struct Facts {
     pub loaded: Vec<bool>,
     pub provider_done: bool,
     pub idx: FxMap<(u16, u8), Rc<FIdx>>,
+}
+
+/// A tree column bucketed by base-symbol value: value -> range of `ids` (start order).
+pub(crate) struct Csr {
+    at: FxMap<u32, (u32, u32)>,
+    ids: Vec<u32>,
+}
+
+/// A tree relation column's value index: ids sorted by (value, start, id).
+pub(crate) struct TIdx {
+    vals: Vec<u32>,
+    ids: Vec<u32>,
+}
+
+impl TIdx {
+    fn get(&self, v: u32) -> &[u32] {
+        let a = self.vals.partition_point(|&x| x < v);
+        let b = a + self.vals[a..].partition_point(|&x| x == v);
+        &self.ids[a..b]
+    }
 }
 
 /// A fact column's index: by view id (dense head/next chains) for node columns, hashed otherwise.
@@ -735,7 +1963,18 @@ pub(crate) struct FileCache {
     pub kind_ids: Vec<u32>,
     /// identifier text code per AST node id (NULL when the node is neither an identifier nor a name)
     pub ident: Option<Vec<u32>>,
-    pub tree_idx: FxMap<(u8, u8), Rc<FxMap<u32, Vec<u32>>>>,
+    pub tree_idx: FxMap<(u8, u8), Rc<TIdx>>,
+    /// a constant value set's ids (by the instruction's value address), in start order: one linear scan per file
+    pub const_idx: FxMap<usize, Rc<Vec<u32>>>,
+    /// the same lists by content (relation, column, values), shared by every instruction naming that set
+    pub const_by: FxMap<(u8, u8, Vec<u64>), Rc<Vec<u32>>>,
+    /// per tree column: ids bucketed by base-symbol value (counting sort, each bucket in start order)
+    pub csr: FxMap<(u8, u8), Rc<Csr>>,
+    pub csr_count: Vec<u32>,
+    /// keyed twin rows per (fact, key value): the row range in the twin's columns
+    pub keyed_memo: FxMap<(u16, u64), (u32, u32)>,
+    /// hoisted inner enumerations per (site, key values): captured tuples, flattened
+    pub hoisted: FxMap<(u32, u64, u64), Rc<Vec<u64>>>,
     pub facts: Option<Facts>,
     pub sub_memo: FxMap<usize, bool>,
     /// navwide: reusable state of the derived relations (derived.rs)
@@ -746,6 +1985,8 @@ pub(crate) struct FileCache {
     pub dispatch: Vec<Vec<(u32, u32, u32)>>,
     pub dispatch_used: Vec<u32>,
     pub other: Vec<(u32, u32, u32)>,
+    /// per file: (rule, branch) slot -> may find rows (no kind-anchored alternative has an empty bucket)
+    pub enabled: Vec<bool>,
 }
 
 pub(crate) struct File<'a> {
@@ -778,6 +2019,10 @@ pub(crate) struct Exec<'a, 'p> {
     pub union_memo: FxMap<usize, Rc<Vec<u64>>>,
     /// per-file answers of absence/existence tests that read no candidate register (navwide)
     pub sub_memo: FxMap<usize, bool>,
+    /// the running hoist's capture buffer
+    pub cap_buf: Vec<u64>,
+    /// set by a failing SubFirst: the enclosing range walk stops
+    pub first_fail: bool,
 }
 
 fn span(s: u32, e: u32) -> u64 {
@@ -900,21 +2145,254 @@ impl<'a, 'p> Exec<'a, 'p> {
         }
     }
 
-    fn tree_index(&mut self, rel: TRel, col: u8) -> Rc<FxMap<u32, Vec<u32>>> {
+    /// Group count of a made table's input rows: (key values..., count) rows, flattened (keys then count).
+    fn group_rows(rows: &[u64], keys: &[usize], distinct: Option<usize>, width: usize) -> Vec<u64> {
+        let w = width.max(1);
+        let rest: Vec<usize> = match distinct {
+            Some(d) => vec![d],
+            None => (0..width).filter(|c| !keys.contains(c)).collect(),
+        };
+        assert!(keys.len() + rest.len() <= 8, "made identity wider than 8");
+        let mut ids: Vec<[u64; 8]> = rows
+            .chunks(w)
+            .map(|row| {
+                let mut x = [0u64; 8];
+                for (i, &k) in keys.iter().chain(rest.iter()).enumerate() {
+                    x[i] = row[k];
+                }
+                x
+            })
+            .collect();
+        ids.sort_unstable();
+        ids.dedup();
+        let nk = keys.len();
+        let mut out = Vec::new();
+        let mut i = 0;
+        while i < ids.len() {
+            let mut j = i + 1;
+            while j < ids.len() && ids[j][..nk] == ids[i][..nk] {
+                j += 1;
+            }
+            out.extend_from_slice(&ids[i][..nk]);
+            out.push((j - i) as u64);
+            i = j;
+        }
+        out
+    }
+
+    /// A keyed twin's rows for one key value: run its programs with the key register set, group, append; memoised per file.
+    fn keyed_rows(&mut self, rel: u16, value: u64) -> (u32, u32) {
+        if let Some(&r) = self.cache.keyed_memo.get(&(rel, value)) {
+            return r;
+        }
+        let prog = self.prog;
+        let f = &prog.facts[rel as usize];
+        let (progs, keys, distinct, width) = f.made.as_ref().unwrap();
+        let (_, param) = f.keyed.unwrap();
+        let t0 = Instant::now();
+        let made_before = self.c.made_ns;
+        let fact_before = self.c.fact_ns;
+        let steps0 = self.c.steps;
+        self.c.made_depth += 1;
+        self.ensure_facts();
+        let slot = self.outs.len() - 1;
+        let saved = (self.cur_rule, std::mem::take(&mut self.outs[slot]));
+        let nr = f.nregs;
+        let saved_regs: Vec<u64> = self.regs[..nr].to_vec();
+        self.cur_rule = slot;
+        self.regs[param as usize] = value;
+        for q in progs {
+            self.run_inner(q, 0);
+        }
+        self.regs[..nr].copy_from_slice(&saved_regs);
+        let rows = std::mem::replace(&mut self.outs[slot], saved.1);
+        self.cur_rule = saved.0;
+        let grouped = Self::group_rows(&rows, keys, *distinct, *width);
+        let nk = keys.len();
+        let facts = self.cache.facts.as_mut().unwrap();
+        let cols = &mut facts.cols[rel as usize];
+        let start = cols[nk].len() as u32;
+        for g in grouped.chunks(nk + 1) {
+            for (c, v) in g.iter().enumerate() {
+                cols[c].push(*v);
+            }
+        }
+        let end = cols[nk].len() as u32;
+        self.c.made_tables += 1;
+        self.c.made_rows += u64::from(end - start) + (rows.len() / width.max(&1)) as u64;
+        let excl = t0.elapsed().as_nanos() as u64 - (self.c.fact_ns - fact_before) - (self.c.made_ns - made_before);
+        self.c.made_ns = made_before + t0.elapsed().as_nanos() as u64 - (self.c.fact_ns - fact_before);
+        let e = self.c.made_by.entry(rel).or_default();
+        e.0 += 1;
+        e.1 += excl;
+        e.2 += (rows.len() / width.max(&1)) as u64;
+        e.3 += self.c.steps - steps0;
+        self.c.made_depth -= 1;
+        if self.c.made_depth == 0 {
+            self.c.made_steps_total += self.c.steps - steps0;
+        }
+        self.cache.keyed_memo.insert((rel, value), (start, end));
+        (start, end)
+    }
+
+    fn ensure_facts(&mut self) {
+        let prog = self.prog;
+        self.cache.facts.get_or_insert_with(|| Facts {
+            cols: prog.facts.iter().map(|f| vec![Vec::new(); f.kinds.len()]).collect(),
+            loaded: vec![false; prog.facts.len()],
+            provider_done: false,
+            idx: FxMap::default(),
+        });
+    }
+
+    /// the ids whose tree column holds one of a constant set of values, in start order (one scan, memoised per file)
+    fn const_list(&mut self, rel: TRel, col: u8, val: &Val, sorted: bool) -> Rc<Vec<u32>> {
+        let key = (val as *const Val as usize) * 2 + usize::from(sorted);
+        if let Some(l) = self.cache.const_idx.get(&key) {
+            return l.clone();
+        }
+        let t0 = Instant::now();
+        self.c.const_misses += 1;
+        let n = if rel == TRel::Id { self.f.view.n_nodes } else { self.f.view.len() };
+        let wanted: Vec<u64> = match val {
+            Val::Syms(s) => s.iter().map(|&x| u64::from(x)).collect(),
+            Val::Nums(v) => v.iter().map(|&x| u64::from(x as u32)).collect(),
+            Val::Reg(_) => unreachable!(),
+        };
+        let mut ckey = (rel as u8, col, wanted.clone());
+        ckey.2.push(u64::from(sorted));
+        if let Some(l) = self.cache.const_by.get(&ckey) {
+            let l = l.clone();
+            self.cache.const_idx.insert(key, l.clone());
+            return l;
+        }
+        let v = self.f.view;
+        if rel == TRel::Id && col == 1 && self.cache.ident.is_none() {
+            // identifier text against a few constants: compare the parser's own strings, no interning of the file's names
+            let texts: Vec<&str> = wanted.iter().filter_map(|&w| self.sym.str(w as u32)).collect();
+            let mut out: Vec<u32> = Vec::new();
+            for (i, node) in self.f.table.node.iter().enumerate() {
+                let t = match node {
+                    ruff_python_ast::AnyNodeRef::Identifier(x) => x.as_str(),
+                    ruff_python_ast::AnyNodeRef::ExprName(x) => x.id.as_str(),
+                    _ => continue,
+                };
+                if texts.contains(&t) {
+                    out.push(i as u32);
+                }
+            }
+            out.sort_by_key(|&id| (v.start[id as usize], id));
+            self.c.made_tables += 1;
+            self.c.index_ns += t0.elapsed().as_nanos() as u64;
+            self.c.index_split[1] += t0.elapsed().as_nanos() as u64;
+            let l = Rc::new(out);
+            self.cache.const_idx.insert(key, l.clone());
+            self.cache.const_by.insert(ckey, l.clone());
+            return l;
+        }
+        let csr = self.col_csr(rel, col);
+        let mut out: Vec<u32> = Vec::new();
+        for &w in &wanted {
+            if let Some(&(a, b)) = csr.at.get(&(w as u32)) {
+                out.extend_from_slice(&csr.ids[a as usize..b as usize]);
+            }
+        }
+        let _ = n;
+        if sorted {
+            out.sort_by_key(|&id| (v.start[id as usize], id));
+        }
+        self.c.made_tables += 1;
+        self.c.made_rows += out.len() as u64;
+        self.c.index_ns += t0.elapsed().as_nanos() as u64;
+        self.c.index_split[1] += t0.elapsed().as_nanos() as u64;
+        let l = Rc::new(out);
+        self.cache.const_idx.insert(key, l.clone());
+        self.cache.const_by.insert(ckey, l.clone());
+        l
+    }
+
+    /// a tree column's ids bucketed by value for base-symbol values (the pack's literals are base symbols): one counting sort
+    /// whose cost is the file's size (a reusable count array; only the values present are touched)
+    fn col_csr(&mut self, rel: TRel, col: u8) -> Rc<Csr> {
+        if let Some(c) = self.cache.csr.get(&(rel as u8, col)) {
+            return c.clone();
+        }
+        let t_csr = Instant::now();
+        self.c.csr_builds += 1;
+        let nb = self.sym.base_count();
+        let n = if rel == TRel::Id { self.f.view.n_nodes } else { self.f.view.len() };
+        let v = self.f.view;
+        let mut vals: Vec<u32> = Vec::with_capacity(n);
+        match (rel, col) {
+            (TRel::Sc, 3) => vals.extend((0..n).map(|i| if v.parent[i] == u32::MAX { u32::MAX } else { v.field[i] })),
+            (TRel::Ss, 2) => vals.extend_from_slice(&v.text[..n]),
+            _ => {
+                for id in 0..n as u32 {
+                    vals.push(self.tread(rel, col, id).map_or(u32::MAX, |x| x as u32));
+                }
+            }
+        }
+        let count = &mut self.cache.csr_count;
+        if count.len() < nb {
+            count.resize(nb, 0);
+        }
+        let mut touched: Vec<u32> = Vec::new();
+        for &x in &vals {
+            if (x as usize) < nb {
+                if count[x as usize] == 0 {
+                    touched.push(x);
+                }
+                count[x as usize] += 1;
+            }
+        }
+        let mut at: FxMap<u32, (u32, u32)> = FxMap::default();
+        let mut pos = 0u32;
+        let mut starts: Vec<u32> = Vec::with_capacity(touched.len());
+        for &t in &touched {
+            let c = count[t as usize];
+            starts.push(pos);
+            count[t as usize] = pos;
+            pos += c;
+        }
+        let mut ids = vec![0u32; pos as usize];
+        for (id, &x) in vals.iter().enumerate() {
+            if (x as usize) < nb {
+                ids[count[x as usize] as usize] = id as u32;
+                count[x as usize] += 1;
+            }
+        }
+        for (k, &t) in touched.iter().enumerate() {
+            at.insert(t, (starts[k], count[t as usize]));
+            count[t as usize] = 0;
+        }
+        // buckets stay in id order; a range walk sorts its own (small) list by start
+        self.c.csr_ns += t_csr.elapsed().as_nanos() as u64;
+        let c = Rc::new(Csr { at, ids });
+        self.cache.csr.insert((rel as u8, col), c.clone());
+        c
+    }
+
+    /// a tree relation's value index: (value, start, id) sorted once per file; a value's ids are a slice in start order
+    fn tree_index(&mut self, rel: TRel, col: u8) -> Rc<TIdx> {
         let key = (rel as u8, col);
         if let Some(i) = self.cache.tree_idx.get(&key) {
             return i.clone();
         }
-        let mut m: FxMap<u32, Vec<u32>> = FxMap::default();
+        let t0 = Instant::now();
         let n = if rel == TRel::Id { self.f.view.n_nodes } else { self.f.view.len() };
+        let mut pairs: Vec<(u64, u32)> = Vec::with_capacity(n);
         for id in 0..n as u32 {
             if let Some(v) = self.tread(rel, col, id) {
-                m.entry(v as u32).or_default().push(id);
+                pairs.push(((u64::from(v as u32) << 32) | u64::from(self.f.view.start[id as usize]), id));
             }
         }
+        pairs.sort_unstable();
+        let idx = TIdx { vals: pairs.iter().map(|p| (p.0 >> 32) as u32).collect(), ids: pairs.iter().map(|p| p.1).collect() };
         self.c.made_tables += 1;
         self.c.made_rows += n as u64;
-        let m = Rc::new(m);
+        self.c.index_ns += t0.elapsed().as_nanos() as u64;
+        self.c.index_split[0] += t0.elapsed().as_nanos() as u64;
+        let m = Rc::new(idx);
         self.cache.tree_idx.insert(key, m.clone());
         m
     }
@@ -939,44 +2417,79 @@ impl<'a, 'p> Exec<'a, 'p> {
         }
         if let Some((progs, keys, distinct, width)) = &prog.facts[rel as usize].made {
             let nkeys = &keys.len();
+            let made_t0 = Instant::now();
+            self.c.made_depth += 1;
+            let made_before = self.c.made_ns;
+            let fact_before = self.c.fact_ns;
+            let steps0 = self.c.steps;
+            let owner = self.cur_rule;
             let slot = self.outs.len() - 1;
             let saved = (self.cur_rule, std::mem::take(&mut self.outs[slot]));
+            let nr = prog.facts[rel as usize].nregs;
+            let saved_regs: Vec<u64> = self.regs[..nr].to_vec();
             self.cur_rule = slot;
             for q in progs {
                 self.run_inner(q, 0);
             }
+            self.regs[..nr].copy_from_slice(&saved_regs);
             let rows = std::mem::replace(&mut self.outs[slot], saved.1);
+            let rows_len = rows.len();
             self.cur_rule = saved.0;
-            let mut seen: std::collections::HashSet<Vec<u64>, std::hash::BuildHasherDefault<crate::sema::Fx>> = Default::default();
-            let mut groups: FxMap<Vec<u64>, u64> = FxMap::default();
-            let mut order: Vec<Vec<u64>> = Vec::new();
-            for row in rows.chunks((*width).max(1)) {
-                let key: Vec<u64> = keys.iter().map(|&k| row[k]).collect();
-                let identity: Vec<u64> = match distinct {
-                    Some(d) => key.iter().copied().chain(std::iter::once(row[*d])).collect(),
-                    None => row.to_vec(),
-                };
-                if !seen.insert(identity) {
-                    continue;
-                }
-                let e = groups.entry(key.clone()).or_insert_with(|| {
-                    order.push(key);
-                    0
-                });
-                *e += 1;
-            }
+            // group count by sorting fixed-width identities (keys first, then the distinct column or the rest of the row):
+            // equal identities collapse, runs of equal keys are the groups
+            let w = (*width).max(1);
+            let rest: Vec<usize> = match distinct {
+                Some(d) => vec![*d],
+                None => (0..*width).filter(|c| !keys.contains(c)).collect(),
+            };
+            let t = keys.len() + rest.len();
+            assert!(t <= 8, "made identity wider than 8");
+            let mut ids: Vec<[u64; 8]> = rows
+                .chunks(w)
+                .map(|row| {
+                    let mut x = [0u64; 8];
+                    for (i, &k) in keys.iter().chain(rest.iter()).enumerate() {
+                        x[i] = row[k];
+                    }
+                    x
+                })
+                .collect();
+            ids.sort_unstable();
+            ids.dedup();
             let facts = self.cache.facts.as_mut().unwrap();
             let cols = &mut facts.cols[rel as usize];
-            for key in order {
-                let n = groups[&key];
-                for (c, v) in key.iter().enumerate() {
-                    cols[c].push(*v);
+            let nk = keys.len();
+            let mut i = 0;
+            while i < ids.len() {
+                let mut j = i + 1;
+                while j < ids.len() && ids[j][..nk] == ids[i][..nk] {
+                    j += 1;
                 }
-                cols[*nkeys].push(n);
+                for c in 0..nk {
+                    cols[c].push(ids[i][c]);
+                }
+                cols[*nkeys].push((j - i) as u64);
+                i = j;
             }
+            let _ = t;
             self.c.made_tables += 1;
             self.c.made_rows += cols[*nkeys].len() as u64;
             facts.loaded[rel as usize] = true;
+            let excl = made_t0.elapsed().as_nanos() as u64 - (self.c.fact_ns - fact_before) - (self.c.made_ns - made_before);
+            self.c.made_ns = made_before + made_t0.elapsed().as_nanos() as u64 - (self.c.fact_ns - fact_before);
+            let e = self.c.made_by.entry(rel).or_default();
+            e.0 += 1;
+            e.1 += excl;
+            e.2 += (rows_len / width.max(&1)) as u64;
+            e.3 += self.c.steps - steps0;
+            self.c.made_depth -= 1;
+            if self.c.made_depth == 0 {
+                self.c.made_steps_total += self.c.steps - steps0;
+            }
+            if owner < self.c.rule_made_rows.len() {
+                self.c.rule_made_rows[owner] += cols[*nkeys].len() as u64 + (rows_len / width.max(&1)) as u64;
+                self.c.rule_made_steps[owner] += self.c.steps - steps0;
+            }
             return;
         }
         match prog.facts[rel as usize].model {
@@ -1141,6 +2654,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         if let Some(i) = facts.idx.get(&(rel, col)) {
             return i.clone();
         }
+        let t0 = Instant::now();
         let c = &facts.cols[rel as usize][col as usize];
         let idx = if dense {
             let mut head = vec![u32::MAX; n_view + 1];
@@ -1160,6 +2674,8 @@ impl<'a, 'p> Exec<'a, 'p> {
         };
         self.c.made_tables += 1;
         self.c.made_rows += c.len() as u64;
+        self.c.index_ns += t0.elapsed().as_nanos() as u64;
+        self.c.index_split[2] += t0.elapsed().as_nanos() as u64;
         let m = Rc::new(idx);
         facts.idx.insert((rel, col), m.clone());
         m
@@ -1286,11 +2802,206 @@ impl<'a, 'p> Exec<'a, 'p> {
         flow
     }
 
+    /// Batched anchor loop (NAV_BATCH=0 turns it off): `p` runs over every candidate of a bucket at once; its straight-line
+    /// reads and tests are loops over a selection vector, a Fork hands the survivors to each enabled child, and the first
+    /// instruction that is neither runs per survivor with the batch's registers restored.
+    pub(crate) fn run_batched(&mut self, p: &'p [Ins], anchor: R, ids: &[u32]) {
+        let mut cols: Vec<(R, Vec<u64>)> = vec![(anchor, ids.iter().map(|&x| u64::from(x)).collect())];
+        let sel: Vec<u32> = (0..ids.len() as u32).collect();
+        self.batch(p, 0, &mut cols, sel);
+    }
+
+    fn batch(&mut self, p: &'p [Ins], pc0: usize, cols: &mut Vec<(R, Vec<u64>)>, mut sel: Vec<u32>) {
+        let base = cols.len();
+        let col = |cols: &[(R, Vec<u64>)], r: R| cols.iter().rposition(|c| c.0 == r);
+        let mut pc = pc0;
+        let v = self.f.view;
+        loop {
+            if sel.is_empty() {
+                break;
+            }
+            match &p[pc] {
+                Ins::ReadCol { which, row, out } if col(cols, *row).is_some() => {
+                    let ci = col(cols, *row).unwrap();
+                    self.c.steps += sel.len() as u64;
+                    self.c.batched_steps += sel.len() as u64;
+                    let src = &cols[ci].1;
+                    let mut o = vec![0u64; src.len()];
+                    let a: &[u32] = match which {
+                        0 => &v.kind,
+                        1 => &v.text,
+                        2 => &v.start,
+                        _ => &v.stop,
+                    };
+                    sel.retain(|&k| {
+                        let i = src[k as usize] as usize;
+                        if i < a.len() {
+                            o[k as usize] = u64::from(a[i]);
+                            true
+                        } else {
+                            false
+                        }
+                    });
+                    cols.push((*out, o));
+                }
+                Ins::ReadChild { which, row, out } if col(cols, *row).is_some() => {
+                    let ci = col(cols, *row).unwrap();
+                    self.c.steps += sel.len() as u64;
+                    self.c.batched_steps += sel.len() as u64;
+                    let src = &cols[ci].1;
+                    let mut o = vec![0u64; src.len()];
+                    let a: &[u32] = match which {
+                        0 => &v.parent,
+                        1 => &v.ordinal,
+                        _ => &v.field,
+                    };
+                    sel.retain(|&k| {
+                        let i = src[k as usize] as usize;
+                        if i < v.parent.len() && v.parent[i] != u32::MAX {
+                            o[k as usize] = u64::from(a[i]);
+                            true
+                        } else {
+                            false
+                        }
+                    });
+                    cols.push((*out, o));
+                }
+                Ins::Row { rel, key } if col(cols, *key).is_some() && *rel != TRel::Id => {
+                    let ci = col(cols, *key).unwrap();
+                    self.c.steps += sel.len() as u64;
+                    self.c.batched_steps += sel.len() as u64;
+                    let src = &cols[ci].1;
+                    let rel = *rel;
+                    sel.retain(|&k| {
+                        let i = src[k as usize] as usize;
+                        i < v.parent.len() && (rel != TRel::Sc || v.parent[i] != u32::MAX)
+                    });
+                }
+                Ins::TestEqC { reg, c } if col(cols, *reg).is_some() => {
+                    let src = &cols[col(cols, *reg).unwrap()].1;
+                    self.c.steps += sel.len() as u64;
+                    self.c.batched_steps += sel.len() as u64;
+                    sel.retain(|&k| src[k as usize] == *c);
+                }
+                Ins::TestNeC { reg, c } if col(cols, *reg).is_some() => {
+                    let src = &cols[col(cols, *reg).unwrap()].1;
+                    self.c.steps += sel.len() as u64;
+                    self.c.batched_steps += sel.len() as u64;
+                    sel.retain(|&k| src[k as usize] != *c);
+                }
+                Ins::TestInC { reg, set, negate } if col(cols, *reg).is_some() => {
+                    let src = &cols[col(cols, *reg).unwrap()].1;
+                    self.c.steps += sel.len() as u64;
+                    self.c.batched_steps += sel.len() as u64;
+                    sel.retain(|&k| {
+                        let x = src[k as usize];
+                        (x <= u64::from(u32::MAX) && set.binary_search(&(x as u32)).is_ok()) != *negate
+                    });
+                }
+                Ins::TestEqR { a, b } if col(cols, *a).is_some() && col(cols, *b).is_some() => {
+                    let (x, y) = (&cols[col(cols, *a).unwrap()].1, &cols[col(cols, *b).unwrap()].1);
+                    self.c.steps += sel.len() as u64;
+                    self.c.batched_steps += sel.len() as u64;
+                    sel.retain(|&k| x[k as usize] == y[k as usize]);
+                }
+                Ins::TestNeR { a, b } if col(cols, *a).is_some() && col(cols, *b).is_some() => {
+                    let (x, y) = (&cols[col(cols, *a).unwrap()].1, &cols[col(cols, *b).unwrap()].1);
+                    self.c.steps += sel.len() as u64;
+                    self.c.batched_steps += sel.len() as u64;
+                    sel.retain(|&k| x[k as usize] != y[k as usize]);
+                }
+                Ins::Fork { subs } => {
+                    self.c.steps += sel.len() as u64;
+                    self.c.batched_steps += sel.len() as u64;
+                    for (slots, q) in subs.iter() {
+                        if !slots.iter().any(|&s| self.cache.enabled[s as usize]) {
+                            continue;
+                        }
+                        self.batch(q, 0, cols, sel.clone());
+                    }
+                    break;
+                }
+                _ => {
+                    for &k in &sel {
+                        for (r, vals) in cols.iter() {
+                            self.regs[*r as usize] = vals[k as usize];
+                        }
+                        self.run_inner(p, pc);
+                    }
+                    break;
+                }
+            }
+            pc += 1;
+        }
+        cols.truncate(base);
+    }
+
     fn run_inner(&mut self, p: &'p [Ins], pc: usize) -> bool {
         let mut pc = pc;
         loop {
             self.c.steps += 1;
+            if self.c.diag {
+                if self.c.op_steps.len() < NINS {
+                    self.c.op_steps.resize(NINS, 0);
+                }
+                self.c.op_steps[p[pc].code()] += 1;
+                if let Some(prof) = self.c.prof.as_mut() {
+                    *prof.entry(&p[pc] as *const Ins as usize).or_default() += 1;
+                }
+            }
             match &p[pc] {
+                Ins::ReadCol { which, row, out } => {
+                    let i = self.regs[*row as usize] as usize;
+                    let v = self.f.view;
+                    if i >= v.kind.len() {
+                        return false;
+                    }
+                    self.regs[*out as usize] = u64::from(match which {
+                        0 => v.kind[i],
+                        1 => v.text[i],
+                        2 => v.start[i],
+                        _ => v.stop[i],
+                    });
+                }
+                Ins::ReadChild { which, row, out } => {
+                    let i = self.regs[*row as usize] as usize;
+                    let v = self.f.view;
+                    if i >= v.parent.len() || v.parent[i] == u32::MAX {
+                        return false;
+                    }
+                    self.regs[*out as usize] = u64::from(match which {
+                        0 => v.parent[i],
+                        1 => v.ordinal[i],
+                        _ => v.field[i],
+                    });
+                }
+                Ins::TestEqC { reg, c } => {
+                    if self.regs[*reg as usize] != *c {
+                        return false;
+                    }
+                }
+                Ins::TestNeC { reg, c } => {
+                    if self.regs[*reg as usize] == *c {
+                        return false;
+                    }
+                }
+                Ins::TestEqR { a, b } => {
+                    if self.regs[*a as usize] != self.regs[*b as usize] {
+                        return false;
+                    }
+                }
+                Ins::TestNeR { a, b } => {
+                    if self.regs[*a as usize] == self.regs[*b as usize] {
+                        return false;
+                    }
+                }
+                Ins::TestInC { reg, set, negate } => {
+                    let x = self.regs[*reg as usize];
+                    let inside = x <= u64::from(u32::MAX) && set.binary_search(&(x as u32)).is_ok();
+                    if inside == *negate {
+                        return false;
+                    }
+                }
                 Ins::Read { rel, col, row, out } => {
                     let id = self.regs[*row as usize] as u32;
                     match self.tread(*rel, *col, id) {
@@ -1349,6 +3060,17 @@ impl<'a, 'p> Exec<'a, 'p> {
                     }
                     return false;
                 }
+                Ins::IterValue { rel, col, val, out } if !matches!(val, Val::Reg(_)) => {
+                    let list = self.const_list(*rel, *col, val, false);
+                    for &id in list.iter() {
+                        self.regs[*out as usize] = id as u64;
+                        self.c.visits += 1;
+                        if self.run_inner(p, pc + 1) {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
                 Ins::IterValue { rel, col, val, out } => {
                     let idx = self.tree_index(*rel, *col);
                     let keys: Vec<u32> = match val {
@@ -1357,13 +3079,11 @@ impl<'a, 'p> Exec<'a, 'p> {
                         Val::Nums(n) => n.iter().map(|&x| x as u32).collect(),
                     };
                     for k in keys {
-                        if let Some(list) = idx.get(&k) {
-                            for &id in list {
-                                self.regs[*out as usize] = id as u64;
-                                self.c.visits += 1;
-                                if self.run_inner(p, pc + 1) {
-                                    return true;
-                                }
+                        for &id in idx.get(k) {
+                            self.regs[*out as usize] = id as u64;
+                            self.c.visits += 1;
+                            if self.run_inner(p, pc + 1) {
+                                return true;
                             }
                         }
                     }
@@ -1377,6 +3097,17 @@ impl<'a, 'p> Exec<'a, 'p> {
                         }
                         self.regs[*out as usize] = id as u64;
                                 self.c.visits += 1;
+                        if self.run_inner(p, pc + 1) {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+                Ins::IterFact { rel, col, val: Val::Reg(r), out } if self.prog.facts[*rel as usize].keyed.is_some_and(|k| k.0 == *col) => {
+                    let (a, b) = self.keyed_rows(*rel, self.regs[*r as usize]);
+                    for row in a..b {
+                        self.regs[*out as usize] = u64::from(row);
+                        self.c.visits += 1;
                         if self.run_inner(p, pc + 1) {
                             return true;
                         }
@@ -1471,6 +3202,131 @@ impl<'a, 'p> Exec<'a, 'p> {
                         }
                     }
                 }
+                Ins::IterRange { rel, col, val, out, start, lo, hi } => {
+                    let v = self.f.view;
+                    let lo = lo.map(|(r, incl)| (self.regs[r as usize] as i64, incl));
+                    let hi = hi.map(|(r, incl)| (self.regs[r as usize] as i64, incl));
+                    let (tidx, clist) = match val {
+                        Val::Reg(_) => (Some(self.tree_index(*rel, *col)), None),
+                        _ => (None, Some(self.const_list(*rel, *col, val, true))),
+                    };
+                    let keys: Vec<u32> = match val {
+                        Val::Reg(r) => vec![self.regs[*r as usize] as u32],
+                        _ => vec![0],
+                    };
+                    for k in keys {
+                        let list: &[u32] = match (&tidx, &clist) {
+                            (Some(t), _) => t.get(k),
+                            (_, Some(c)) => c,
+                            _ => &[],
+                        };
+                        let first = match lo {
+                            Some((x, true)) => list.partition_point(|&id| (v.start[id as usize] as i64) < x),
+                            Some((x, false)) => list.partition_point(|&id| (v.start[id as usize] as i64) <= x),
+                            None => 0,
+                        };
+                        for &id in &list[first..] {
+                            let st = v.start[id as usize] as i64;
+                            match hi {
+                                Some((x, true)) if st > x => break,
+                                Some((x, false)) if st >= x => break,
+                                _ => {}
+                            }
+                            self.regs[*out as usize] = id as u64;
+                            self.regs[*start as usize] = st as u64;
+                            self.c.visits += 1;
+                            if self.run_inner(p, pc + 1) {
+                                return true;
+                            }
+                            if self.first_fail {
+                                self.first_fail = false;
+                                break;
+                            }
+                        }
+                    }
+                    return false;
+                }
+                Ins::IterField { parent, field, out, field_out } => {
+                    let par = self.regs[*parent as usize] as u32;
+                    let v = self.f.view;
+                    if par as usize >= v.len() {
+                        return false;
+                    }
+                    let (s, e) = (v.child_off[par as usize] as usize, v.child_off[par as usize + 1] as usize);
+                    for k in s..e {
+                        let ch = v.children[k];
+                        if v.field[ch as usize] != *field {
+                            continue;
+                        }
+                        self.regs[*out as usize] = ch as u64;
+                        self.regs[*field_out as usize] = *field as u64;
+                        self.c.visits += 1;
+                        if self.run_inner(p, pc + 1) {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+                Ins::Hoist { id, key, seg, caps } => {
+                    let hk = (*id, self.regs[key[0] as usize], key.get(1).map_or(0, |&r| self.regs[r as usize]));
+                    // per site over the run: (lookups, misses); a site whose keys do not repeat stops memoising
+                    let site = self.c.hoist_sites.entry(*id).or_default();
+                    site.0 += 1;
+                    let off = site.0 >= 256 && site.1 * 10 >= site.0 * 9;
+                    let cached = if off { None } else { self.cache.hoisted.get(&hk).cloned() };
+                    let tuples = match cached {
+                        Some(t) => t,
+                        None => {
+                            let saved = std::mem::take(&mut self.cap_buf);
+                            self.run_inner(seg, 0);
+                            let t = Rc::new(std::mem::replace(&mut self.cap_buf, saved));
+                            self.c.hoist_misses += 1;
+                            self.c.hoist_sites.get_mut(id).unwrap().1 += 1;
+                            if !off {
+                                self.cache.hoisted.insert(hk, t.clone());
+                            }
+                            t
+                        }
+                    };
+                    self.c.hoist_runs += 1;
+                    let w = caps.len().max(1);
+                    for tup in tuples.chunks(w) {
+                        for (k, &r) in caps.iter().enumerate() {
+                            self.regs[r as usize] = tup[k];
+                        }
+                        if caps.is_empty() && tup.is_empty() {
+                            continue;
+                        }
+                        if self.run_inner(p, pc + 1) {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+                Ins::Capture { regs } => {
+                    if regs.is_empty() {
+                        self.cap_buf.push(0);
+                    }
+                    for &r in regs.iter() {
+                        let x = self.regs[r as usize];
+                        self.cap_buf.push(x);
+                    }
+                    return false;
+                }
+                Ins::Within { anc, desc } => {
+                    let (a, d) = (self.regs[*anc as usize] as u32, self.regs[*desc as usize] as u32);
+                    let v = self.f.view;
+                    if d as usize >= v.len() || a as usize >= v.len() {
+                        return false;
+                    }
+                    let mut x = v.parent[d as usize];
+                    while x != u32::MAX && x != a {
+                        x = v.parent[x as usize];
+                    }
+                    if x != a {
+                        return false;
+                    }
+                }
                 Ins::Near { start, out, subs } => {
                     let s = self.regs[*start as usize] as u32;
                     let v = self.f.view;
@@ -1505,10 +3361,18 @@ impl<'a, 'p> Exec<'a, 'p> {
                         return false;
                     }
                 }
-                Ins::Emit { cols } => {
+                Ins::SubFirst { subs } => {
+                    self.c.subs += 1;
+                    if self.run_inner(&subs[0], 0) {
+                        self.first_fail = true;
+                        return false;
+                    }
+                }
+                Ins::Emit { cols, rule } => {
+                    let slot = if *rule == u32::MAX { self.cur_rule } else { *rule as usize };
                     for c in cols.iter() {
                         let v = self.opd(c);
-                        self.outs[self.cur_rule].push(v);
+                        self.outs[slot].push(v);
                     }
                     self.c.emitted += 1;
                     return false;
@@ -1570,7 +3434,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                     }
                     self.regs[*out as usize] = self.sym.minted(t) as u64;
                 }
-                Ins::Capture { text, pattern, outs } => return self.capture(p, pc, text, pattern, outs),
+                Ins::CaptureText { text, pattern, outs } => return self.capture(p, pc, text, pattern, outs),
                 Ins::NearDerived { start, out, xin, edges, domain } => {
                     match self.near_derived(*start, *out, *xin, edges, domain) {
                         Some(n) => self.regs[*out as usize] = n,
@@ -1596,8 +3460,21 @@ impl<'a, 'p> Exec<'a, 'p> {
                     self.regs[*out as usize] = r as u64;
                 }
                 Ins::Shared { idx } => {
+                    // an indirection, not a step of the plan
+                    self.c.steps -= 1;
                     let q: &'p [Ins] = &self.prog.shared[*idx as usize];
                     return self.run_inner(q, 0);
+                }
+                Ins::Fork { subs } => {
+                    for (slots, q) in subs.iter() {
+                        if !slots.iter().any(|&s| self.cache.enabled[s as usize]) {
+                            continue;
+                        }
+                        if self.run_inner(q, 0) {
+                            return true;
+                        }
+                    }
+                    return false;
                 }
                 Ins::SpanBetween { a, b, out } => {
                     let (x, y) = (self.opd(a), self.opd(b));
@@ -1954,6 +3831,8 @@ impl<'a, 'p> Exec<'a, 'p> {
     /// unconsumed right row with a strictly greater order
     fn ordered_match(&mut self, rel: u16, om: &'p OrderedMatch) {
         let slot = self.outs.len() - 1;
+        let nr = self.prog.facts[rel as usize].nregs.min(self.regs.len());
+        let saved_regs: Vec<u64> = self.regs[..nr].to_vec();
         let run = |ex: &mut Self, progs: &'p [Prog]| -> Vec<u64> {
             let saved = (ex.cur_rule, std::mem::take(&mut ex.outs[slot]));
             ex.cur_rule = slot;
@@ -1966,6 +3845,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         };
         let lrows = run(self, &om.left);
         let rrows = run(self, &om.right);
+        self.regs[..nr].copy_from_slice(&saved_regs);
         let distinct = |rows: &[u64], w: usize| -> Vec<Vec<u64>> {
             let mut seen: std::collections::HashSet<&[u64], std::hash::BuildHasherDefault<crate::sema::Fx>> = Default::default();
             rows.chunks(w.max(1)).filter(|r| seen.insert(r)).map(<[u64]>::to_vec).collect()
@@ -2246,4 +4126,66 @@ impl crate::derived::Sink for DSink<'_> {
             self.out[slot][c].push(v);
         }
     }
+}
+
+/// NAV_PROFILE report: the hottest instruction sites, each with its rule, branch, path and instruction.
+pub(crate) fn profile_report(prog: &NavProgram, prof: &FxMap<usize, u64>) -> String {
+    let mut sites: FxMap<usize, String> = FxMap::default();
+    let owner_of = |slots: &[u32]| -> String {
+        let mut ids: Vec<&str> = slots.iter().map(|&s| prog.rules[prog.slot_rule[s as usize] as usize].id.as_str()).collect();
+        ids.dedup();
+        if ids.len() > 3 { format!("{}+{}more", ids[0], ids.len() - 1) } else { ids.join("+") }
+    };
+    fn walk(p: &[Ins], path: String, owner: &str, sites: &mut FxMap<usize, String>, owner_of: &dyn Fn(&[u32]) -> String) {
+        for (pc, ins) in p.iter().enumerate() {
+            let here = format!("{path}.{pc}");
+            let text = format!("{ins:?}");
+            let text: String = text.chars().take(160).collect();
+            sites.insert(ins as *const Ins as usize, format!("{owner} {here} {text}"));
+            match ins {
+                Ins::Fork { subs } => {
+                    for (k, (slots, q)) in subs.iter().enumerate() {
+                        let o = owner_of(slots);
+                        walk(q, format!("{here}/{k}"), &o, sites, owner_of);
+                    }
+                }
+                _ => {
+                    let mut k = 0;
+                    subs_ref(ins, &mut |q| {
+                        walk(q, format!("{here}/{k}"), owner, sites, owner_of);
+                        k += 1;
+                    });
+                }
+            }
+        }
+    }
+    for (g, grp) in prog.groups.iter().enumerate() {
+        let o = owner_of(&grp.slots);
+        walk(&grp.prog, format!("g{g}"), &o, &mut sites, &owner_of);
+    }
+    for f in &prog.facts {
+        if let Some((progs, ..)) = &f.made {
+            for (k, q) in progs.iter().enumerate() {
+                walk(q, format!("p{k}"), &f.name, &mut sites, &owner_of);
+            }
+        }
+        if let Some(om) = &f.made_om {
+            for (k, q) in om.left.iter().chain(om.right.iter()).enumerate() {
+                walk(q, format!("o{k}"), &f.name, &mut sites, &owner_of);
+            }
+        }
+    }
+    for (k, q) in prog.shared.iter().enumerate() {
+        walk(q, format!("s{k}"), "shared", &mut sites, &owner_of);
+    }
+    for r in &prog.rules {
+        for (k, (_, ps, _)) in r.aux.iter().enumerate() {
+            for q in ps {
+                walk(q, format!("a{k}"), &r.id, &mut sites, &owner_of);
+            }
+        }
+    }
+    let mut v: Vec<(usize, u64)> = prof.iter().map(|(&k, &n)| (k, n)).collect();
+    v.sort_by(|a, b| b.1.cmp(&a.1));
+    v.iter().take(1_000_000).map(|(k, n)| format!("{n:>12} {}", sites.get(k).map_or("?", String::as_str))).collect::<Vec<_>>().join("\n")
 }

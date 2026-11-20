@@ -108,7 +108,8 @@ enum Dir {
 
 struct Rule {
     id: String,
-    steps: Vec<Op>,
+    /// shared by Rc across rules for the merged nodes the compiled pack places at the same positions in every rule
+    steps: Vec<std::sync::Arc<Op>>,
     /// per step: kind literal anchors when it is a semantic-syntax select on kind
     anchors: Vec<Option<Vec<u32>>>,
     /// the merged program's node id of each step: equal ids are one evaluation per file, across rules
@@ -161,6 +162,11 @@ thread_local! {
 }
 
 /// One compiled regex per pattern for the whole load (a rule pack repeats the suppression fragment's patterns in every rule).
+thread_local! {
+    /// set while compiling a pack: the stored programs stay unspecialised
+    static PACKING: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
 fn rx(pattern: &str) -> Result<Regex, regex_automata::meta::BuildError> {
     if let Some(r) = RX.with(|m| m.borrow().get(pattern).cloned()) {
         return Ok(r);
@@ -201,10 +207,15 @@ fn regex_syntax_escape(c: char) -> String {
 struct Loader<'a> {
     sym: &'a mut Symbols,
     pos: FxMap<u64, usize>,
+    /// compiled pack: inputs named by merged node id -> position in the rule
+    mpos: FxMap<u64, usize>,
 }
 
 impl Loader<'_> {
     fn input(&self, v: &Value) -> Result<Input, String> {
+        if let Some(m) = v.get("m") {
+            return self.mpos.get(&m.as_u64().unwrap()).map(|&p| Input::Step(p)).ok_or("unknown merged node".into());
+        }
         if let Some(s) = v.get("step") {
             return self.pos.get(&s.as_u64().unwrap()).map(|&p| Input::Step(p)).ok_or("unknown step".into());
         }
@@ -423,22 +434,85 @@ impl Loader<'_> {
 
 impl Program {
     pub(crate) fn load(path: &str) -> Self {
+        if path.ends_with(".pack") {
+            let (symbols, tails, nav) = crate::pack::read(path);
+            return Self::build(&tails, symbols, Some(nav));
+        }
         let v: Value = serde_json::from_str(&std::fs::read_to_string(path).expect("program")).expect("json");
-        let mut symbols = Symbols::default();
+        Self::build(&v, Symbols::default(), None)
+    }
+
+    /// Compiles the program JSON into the binary pack; returns its size in bytes.
+    pub(crate) fn write_pack(path: &str, out: &str) -> usize {
+        let v: Value = serde_json::from_str(&std::fs::read_to_string(path).expect("program")).expect("json");
+        PACKING.with(|p| p.set(true));
+        let p = Self::build(&v, Symbols::default(), None);
+        crate::pack::write(&v, &p.symbols, p.nav.as_ref().expect("nav program"), out)
+    }
+
+    fn build(v: &Value, mut symbols: Symbols, prebuilt: Option<crate::nav::NavProgram>) -> Self {
         let mut rules = Vec::new();
         let mut nav_rules: Vec<&Value> = Vec::new();
-        for r in v["rules"].as_array().unwrap() {
-            let mut loader = Loader { sym: &mut symbols, pos: FxMap::default() };
-            let steps_v = r["steps"].as_array().unwrap();
-            for (i, s) in steps_v.iter().enumerate() {
-                loader.pos.insert(s["step"].as_u64().unwrap(), i);
+        // compiled pack: merged nodes used by two or more rules sit at the same positions in every rule, built once, shared
+        let mut shared: Vec<u64> = Vec::new();
+        if v.get("nodes").is_some() && !std::env::var("NAV_SHARE_TAILS").is_ok_and(|x| x == "0") {
+            let mut uses: FxMap<u64, u32> = FxMap::default();
+            for r in v["rules"].as_array().unwrap() {
+                let mut ids: Vec<u64> = r["ids"].as_array().unwrap().iter().map(|x| x.as_u64().unwrap()).collect();
+                ids.sort_unstable();
+                ids.dedup();
+                for m in ids {
+                    *uses.entry(m).or_default() += 1;
+                }
             }
+            shared = uses.into_iter().filter(|&(_, n)| n >= 2).map(|(m, _)| m).collect();
+            shared.sort_unstable();
+        }
+        let shared_set: std::collections::HashSet<u64> = shared.iter().copied().collect();
+        let mut shared_ops: FxMap<u64, (std::sync::Arc<Op>, Option<Vec<u32>>)> = FxMap::default();
+        for r in v["rules"].as_array().unwrap() {
+            let mut loader = Loader { sym: &mut symbols, pos: FxMap::default(), mpos: FxMap::default() };
+            let mut root_m = None;
+            // the compiled pack names each merged node once ("nodes") and lists each rule's merged ids in step order
+            let (steps_v, merged): (Vec<&Value>, Vec<u64>) = if let Some(nodes) = v.get("nodes") {
+                let ids0: Vec<u64> = r["ids"].as_array().unwrap().iter().map(|x| x.as_u64().unwrap()).collect();
+                root_m = Some(ids0[r["root"].as_u64().unwrap() as usize]);
+                let mut ids: Vec<u64> = shared.clone();
+                let mut seen: std::collections::HashSet<u64> = std::collections::HashSet::new();
+                for &m in &ids0 {
+                    if !shared_set.contains(&m) && seen.insert(m) {
+                        ids.push(m);
+                    }
+                }
+                for (i, &m) in ids.iter().enumerate() {
+                    loader.mpos.insert(m, i);
+                }
+                (ids.iter().map(|m| &nodes[m.to_string().as_str()]).collect(), ids)
+            } else {
+                let sv = r["steps"].as_array().unwrap();
+                for (i, s) in sv.iter().enumerate() {
+                    loader.pos.insert(s["step"].as_u64().unwrap(), i);
+                }
+                (sv.iter().collect(), sv.iter().map(|s| s["merged"].as_u64().unwrap()).collect())
+            };
             let mut steps = Vec::new();
             let mut anchors = Vec::new();
             let mut failed = None;
-            for s in steps_v {
+            for (k, s) in steps_v.iter().enumerate() {
+                let m = merged[k];
+                if shared_set.contains(&m) {
+                    if let Some((op, a)) = shared_ops.get(&m) {
+                        steps.push(op.clone());
+                        anchors.push(a.clone());
+                        continue;
+                    }
+                }
                 match loader.step(s) {
                     Ok((op, a)) => {
+                        let op = std::sync::Arc::new(op);
+                        if shared_set.contains(&m) {
+                            shared_ops.insert(m, (op.clone(), a.clone()));
+                        }
                         steps.push(op);
                         anchors.push(a);
                     }
@@ -453,8 +527,11 @@ impl Program {
                 eprintln!("skip {id}: {e}");
                 continue;
             }
-            let root = loader.pos[&r["root"].as_u64().unwrap()];
-            let nodes = steps_v.iter().map(|s| s["merged"].as_u64().unwrap() as u32).collect();
+            let root = match root_m {
+                Some(m) => loader.mpos[&m],
+                None => loader.pos[&r["root"].as_u64().unwrap()],
+            };
+            let nodes = merged.iter().map(|&m| m as u32).collect();
             rules.push(Rule { id, steps, anchors, nodes, root, emit_key: Loader::cols(&r["emit_key"]) });
             if r.get("nav").is_some() {
                 nav_rules.push(r);
@@ -481,11 +558,18 @@ impl Program {
             }
         }
         // node kind names are base symbols before any literal (the view interns them as base symbols per file otherwise)
-        let nav = if nav_rules.is_empty() {
+        let nav = if let Some(n) = prebuilt {
+            assert_eq!(n.rules.len(), rules.len(), "every nav rule's tail loads");
+            Some(n)
+        } else if nav_rules.is_empty() {
             None
         } else {
             assert_eq!(nav_rules.len(), rules.len(), "every nav rule's tail loads");
-            Some(crate::nav::NavProgram::load(&nav_rules, &mut symbols))
+            let mut n = crate::nav::NavProgram::load(&nav_rules, &mut symbols);
+            if !PACKING.with(|p| p.get()) {
+                n.specialize_all();
+            }
+            Some(n)
         };
         Self { rules, symbols, census, nav }
     }
@@ -632,6 +716,11 @@ impl<'p> State<'p> {
         self.cache.model_flow = false;
         self.cache.ident = None;
         self.cache.tree_idx.clear();
+        self.cache.const_idx.clear();
+        self.cache.const_by.clear();
+        self.cache.csr.clear();
+        self.cache.keyed_memo.clear();
+        self.cache.hoisted.clear();
         self.cache.sub_memo.clear();
         let nrules = nav.rules.len();
         let mut outs = std::mem::take(&mut self.outs);
@@ -660,14 +749,23 @@ impl<'p> State<'p> {
                 collect: Vec::new(),
                 union_memo: FxMap::default(),
                 sub_memo: FxMap::default(),
+                cap_buf: Vec::new(),
+                first_fail: false,
             };
+            if ex.c.prof.is_none() && std::env::var("NAV_PROFILE").is_ok() {
+                ex.c.prof = Some(FxMap::default());
+            }
+            ex.c.diag = ex.c.prof.is_some() || std::env::var_os("NAV_DIAG").is_some();
             ex.build_kinds();
             if ex.c.rule_steps.len() != nrules + 1 {
                 ex.c.rule_steps = vec![0; nrules + 1];
                 ex.c.rule_visits = vec![0; nrules + 1];
                 ex.c.rule_starts = vec![0; nrules + 1];
+                ex.c.rule_made_rows = vec![0; nrules + 1];
+                ex.c.rule_made_steps = vec![0; nrules + 1];
             }
-            // per-file anchor choice: for each branch, the alternative with the least expected work given the real bucket sizes
+            // per file: a branch with a kind-anchored alternative over an empty bucket finds nothing (every atom must hold); the
+            // others are enabled, and the merged programs (shared prefixes across branches and rules) run their enabled children
             let mut dispatch = std::mem::take(&mut ex.cache.dispatch);
             let mut used = std::mem::take(&mut ex.cache.dispatch_used);
             let mut other = std::mem::take(&mut ex.cache.other);
@@ -676,68 +774,109 @@ impl<'p> State<'p> {
             }
             used.clear();
             other.clear();
+            let mut enabled = std::mem::take(&mut ex.cache.enabled);
+            enabled.clear();
+            enabled.resize(nav.nslots, false);
             for (ri, rule) in nav.rules.iter().enumerate() {
                 for (bi, alts) in rule.programs.iter().enumerate() {
-                    // every atom of a branch must hold, so one alternative anchored on an empty bucket proves the branch empty in this
-                    // file; otherwise the planner's cheapest alternative runs (its static cost model ranks plans better than bucket
-                    // sizes alone, measured: per-file choice by size times static work cost 2x the steps)
                     if alts.iter().any(|a| a.anchor.as_ref().is_some_and(|k| k.iter().all(|&k| ex.bucket(k).is_empty()))) {
                         continue;
                     }
-                    let ai = 0usize;
-                    let size = alts[0].anchor.as_ref().map_or(1, |k| k.iter().map(|&k| ex.bucket(k).len()).sum::<usize>());
-                    let a = &alts[ai];
-                    match &a.anchor {
-                        Some(kinds) => {
-                            if size == 0 {
-                                continue;
-                            }
-                            for &k in kinds.iter() {
-                                let n = ex.bucket(k).len();
-                                if n == 0 {
-                                    continue;
-                                }
-                                if dispatch.len() <= k as usize {
-                                    dispatch.resize_with(k as usize + 1, Vec::new);
-                                }
-                                if dispatch[k as usize].is_empty() {
-                                    used.push(k);
-                                }
-                                dispatch[k as usize].push((ri as u32, bi as u32, ai as u32));
-                                ex.c.candidates += n as u64;
-                            }
-                            ex.c.starts += 1;
-                            ex.c.rule_starts[ri] += 1;
-                        }
-                        None => {
-                            other.push((ri as u32, bi as u32, ai as u32));
-                            ex.c.starts += 1;
-                            ex.c.rule_starts[ri] += 1;
-                        }
+                    enabled[nav.slot_of[ri][bi] as usize] = true;
+                    ex.c.starts += 1;
+                    ex.c.rule_starts[ri] += 1;
+                    if let Some(kinds) = &alts[0].anchor {
+                        ex.c.candidates += kinds.iter().map(|&k| ex.bucket(k).len() as u64).sum::<u64>();
                     }
                 }
             }
-            // nodes outer, rules inner
+            ex.cache.enabled = enabled;
+            for (gi, g) in nav.groups.iter().enumerate() {
+                if !g.slots.iter().any(|&s| ex.cache.enabled[s as usize]) {
+                    continue;
+                }
+                match &g.kinds {
+                    Some(kinds) => {
+                        for &k in kinds.iter() {
+                            if ex.bucket(k).is_empty() {
+                                continue;
+                            }
+                            if dispatch.len() <= k as usize {
+                                dispatch.resize_with(k as usize + 1, Vec::new);
+                            }
+                            if dispatch[k as usize].is_empty() {
+                                used.push(k);
+                            }
+                            dispatch[k as usize].push((gi as u32, 0, 0));
+                        }
+                    }
+                    None => other.push((gi as u32, 0, 0)),
+                }
+            }
+            let group_rule = |gi: u32| -> usize {
+                let g = &nav.groups[gi as usize];
+                let r0 = nav.slot_rule[g.slots[0] as usize];
+                if g.slots.iter().all(|&s| nav.slot_rule[s as usize] == r0) { r0 as usize } else { nrules }
+            };
+            // batched: each kind-anchored merged program over its whole candidate list (straight-line steps as loops)
+            let batched = std::env::var("NAV_BATCH").is_ok_and(|v| v == "1");
+            if batched {
+                let mut ids: Vec<u32> = Vec::new();
+                for (gi, g) in nav.groups.iter().enumerate() {
+                    let Some(kinds) = &g.kinds else { continue };
+                    if !g.slots.iter().any(|&s| ex.cache.enabled[s as usize]) {
+                        continue;
+                    }
+                    ids.clear();
+                    for &k in kinds.iter() {
+                        ids.extend_from_slice(ex.bucket(k));
+                    }
+                    if ids.is_empty() {
+                        continue;
+                    }
+                    let p: &[crate::nav::Ins] = &nav.groups[gi].prog;
+                    let crate::nav::Ins::IterKind { out, .. } = &p[0] else { unreachable!() };
+                    ex.c.visits += ids.len() as u64;
+                    ex.cur_rule = group_rule(gi as u32);
+                    let s0 = ex.c.steps;
+                    ex.run_batched(&p[1..], *out, &ids);
+                    let e = ex.c.branch_steps.entry((gi as u32, 0)).or_default();
+                    e.0 += ids.len() as u64;
+                    e.1 += ex.c.steps - s0;
+                }
+                used.clear();
+            }
+            // nodes outer, merged programs inner
             for &k in &used {
                 let list = &dispatch[k as usize];
                 let n = ex.bucket(k).len();
                 for i in 0..n {
                     let id = ex.bucket(k)[i];
-                    for &(ri, bi, ai) in list {
-                        let p: &[crate::nav::Ins] = &nav.rules[ri as usize].programs[bi as usize][ai as usize].prog;
+                    for &(gi, _, _) in list {
+                        let p: &[crate::nav::Ins] = &nav.groups[gi as usize].prog;
                         if let crate::nav::Ins::IterKind { out, .. } = &p[0] {
                             ex.regs[*out as usize] = u64::from(id);
                         }
                         ex.c.visits += 1;
-                        ex.cur_rule = ri as usize;
+                        ex.cur_rule = group_rule(gi);
+                        let s0 = ex.c.steps;
+                        let m0 = ex.c.made_steps_total;
                         ex.run(p, 1);
+                        let e = ex.c.branch_steps.entry((gi, 0)).or_default();
+                        e.0 += 1;
+                        e.1 += (ex.c.steps - s0) - (ex.c.made_steps_total - m0);
                     }
                 }
             }
-            for &(ri, bi, ai) in &other {
-                let p: &[crate::nav::Ins] = &nav.rules[ri as usize].programs[bi as usize][ai as usize].prog;
-                ex.cur_rule = ri as usize;
+            for &(gi, _, _) in &other {
+                let p: &[crate::nav::Ins] = &nav.groups[gi as usize].prog;
+                ex.cur_rule = group_rule(gi);
+                let s0 = ex.c.steps;
+                let m0 = ex.c.made_steps_total;
                 ex.run(p, 0);
+                let e = ex.c.branch_steps.entry((gi, 0)).or_default();
+                e.0 += 1;
+                e.1 += (ex.c.steps - s0) - (ex.c.made_steps_total - m0);
             }
             // navwide: auxiliary relations of the rules whose core has rows
             for (ri, rule) in nav.rules.iter().enumerate() {
@@ -854,6 +993,7 @@ impl<'p> State<'p> {
     fn rule_may_run(&mut self, rule: &Rule) -> bool {
         self.may.clear();
         for (i, op) in rule.steps.iter().enumerate() {
+            let op: &Op = op;
             let get = |x: &Input, may: &Vec<bool>| match x {
                 Input::Step(p) => may[*p],
                 Input::Rel(RelId::Ee) => false,
@@ -984,13 +1124,35 @@ impl<'p> State<'p> {
         if self.program.nav.is_some() {
             let c = &self.nc;
             eprintln!(
-                "{{\"nav\":{{\"files\":{},\"view_ns\":{},\"kind_index_ns\":{},\"nav_ns\":{},\"fact_ns\":{},\"provider_build_ns\":{},\"tail_ns\":{},\"tail_files\":{},\"steps\":{},\"candidates\":{},\"starts\":{},\"emitted\":{},\"subs\":{},\"made_tables\":{},\"made_rows\":{},\"fact_files\":{},\"fact_rows\":{},\"model_lex_ns\":{},\"model_flow_ns\":{},\"model_rows_ns\":{},\"model_files\":{},\"flow_files\":{},\"provider_files\":{},\"derived_ns\":{},\"derived_files\":{},\"visits\":{},\"per_rule\":{{{}}}}}}}",
-                self.files, self.view_ns, c.kind_index_ns, self.nav_ns, c.fact_ns, c.provider_build_ns, self.tail_ns, self.tail_files, c.steps,
+                "{{\"nav\":{{\"files\":{},\"view_ns\":{},\"kind_index_ns\":{},\"nav_ns\":{},\"fact_ns\":{},\"provider_build_ns\":{},\"batched_steps\":{},\"const_misses\":{},\"csr_builds\":{},\"csr_ns\":{},\"hoist_runs\":{},\"hoist_misses\":{},\"made_ns\":{},\"index_ns\":{},\"index_tree_ns\":{},\"index_const_ns\":{},\"index_fact_ns\":{},\"tail_ns\":{},\"tail_files\":{},\"steps\":{},\"candidates\":{},\"starts\":{},\"emitted\":{},\"subs\":{},\"made_tables\":{},\"made_rows\":{},\"fact_files\":{},\"fact_rows\":{},\"model_lex_ns\":{},\"model_flow_ns\":{},\"model_rows_ns\":{},\"model_files\":{},\"flow_files\":{},\"provider_files\":{},\"derived_ns\":{},\"derived_files\":{},\"visits\":{},\"op_steps\":{{{}}},\"per_rule\":{{{}}}}}}}",
+                self.files, self.view_ns, c.kind_index_ns, self.nav_ns, c.fact_ns, c.provider_build_ns, c.batched_steps, c.const_misses, c.csr_builds, c.csr_ns, c.hoist_runs, c.hoist_misses, c.made_ns, c.index_ns, c.index_split[0], c.index_split[1], c.index_split[2], self.tail_ns, self.tail_files, c.steps,
                 c.candidates, c.starts, c.emitted, c.subs, c.made_tables, c.made_rows, c.fact_files, c.fact_rows, c.model_lex_ns, c.model_flow_ns, c.model_rows_ns, c.model_files, c.flow_files, c.provider_files, c.derived_ns, c.derived_files, c.visits,
+                crate::nav::INS_NAMES.iter().enumerate().map(|(i, n)| format!("\"{n}\":{}", c.op_steps.get(i).copied().unwrap_or(0))).collect::<Vec<_>>().join(","),
                 self.program.nav.as_ref().unwrap().rules.iter().enumerate().filter(|(i, _)| *i < c.rule_steps.len())
-                    .map(|(i, r)| format!("\"{}\":[{},{},{}]", r.id, c.rule_starts[i], c.rule_visits[i], c.rule_steps[i]))
+                    .map(|(i, r)| format!("\"{}\":[{},{},{},{},{}]", r.id, c.rule_starts[i], c.rule_visits[i], c.rule_steps[i], c.rule_made_rows[i], c.rule_made_steps[i]))
                     .collect::<Vec<_>>().join(",")
             );
+        }
+        if self.program.nav.is_some() {
+            let mut b: Vec<_> = self.nc.branch_steps.iter().map(|(&k, &v)| (k, v)).collect();
+            b.sort_by(|a, b| b.1.1.cmp(&a.1.1));
+            let nav = self.program.nav.as_ref().unwrap();
+            let top: Vec<String> = b
+                .iter()
+                .take(if std::env::var_os("NAV_ALLBRANCHES").is_some() { usize::MAX } else { 60 })
+                .map(|((g, br), (n, st))| {
+                    let r = nav.slot_rule[nav.groups[*g as usize].slots[0] as usize] as usize;
+                    format!("[\"{}/g{g}x{}\",{br},{n},{st}]", nav.rules[r].id, nav.groups[*g as usize].slots.len())
+                })
+                .collect();
+            eprintln!("{{\"branches\":[{}]}}", top.join(","));
+            let mut mb: Vec<_> = self.nc.made_by.iter().map(|(&k, &v)| (k, v)).collect();
+            mb.sort_by(|a, b| b.1.1.cmp(&a.1.1));
+            let mb: Vec<String> = mb.iter().take(40).map(|(k, v)| format!("[\"{}\",{},{},{},{}]", nav.facts[*k as usize].name, v.0, v.1, v.2, v.3)).collect();
+            eprintln!("{{\"made_by\":[{}]}}", mb.join(","));
+            if let Some(prof) = &self.nc.prof {
+                eprintln!("PROFILE\n{}", crate::nav::profile_report(nav, prof));
+            }
         }
         let ops: Vec<String> = OP_NAMES
             .iter()
@@ -1843,7 +2005,7 @@ impl<'p> State<'p> {
                 }
             }
         };
-        match &rule.steps[p] {
+        match &*rule.steps[p] {
             Op::Select { from, comps, kept } => {
                 let (r, mut all, map) = base(from)?;
                 // comparisons of this select are on its input's columns: only a direct read of the relation keeps them raw
