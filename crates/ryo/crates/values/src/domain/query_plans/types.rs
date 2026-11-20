@@ -9,6 +9,28 @@ use crate::domain::query_bindings::types::PlanParameter;
 use crate::domain::query_tokens::types::QueryOrigin;
 
 /// A compiled query: its parameters, its steps in the order to run them, and what it emits.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_values::domain::plan_parts::types::{ColumnIndex, StepId};
+/// use ryo_values::domain::query_plans::types::{Emit, Plan};
+/// let plan = Plan {
+///     observation_inputs: Vec::new(),
+///     parameters: Vec::new(),
+///     steps: Vec::new(),
+///     comparison_origins: Vec::new(),
+///     observations: Vec::new(),
+///     emit: Emit {
+///         step: StepId(0),
+///         subject: ColumnIndex(0),
+///         key: Vec::new(),
+///         headings: Vec::new(),
+///     },
+///     frontier: Vec::new(),
+/// };
+/// assert!(plan.steps.is_empty());
+/// ```
 #[derive(Clone, Debug, PartialEq, Hash)]
 pub struct Plan {
     /// Ordered schemas of explicit bound inputs; source IDs remain stable through request pruning.
@@ -42,6 +64,20 @@ pub struct Plan {
 pub struct RuleReads(pub Box<[ryo_relations::domain::relations::types::Relation]>);
 
 /// What the query emits.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_values::domain::plan_parts::types::{ColumnIndex, Heading, StepId};
+/// use ryo_values::domain::query_plans::types::Emit;
+/// let emit = Emit {
+///     step: StepId(2),
+///     subject: ColumnIndex(0),
+///     key: vec![ColumnIndex(1)],
+///     headings: vec![Heading("file".into()), Heading("name".into())],
+/// };
+/// assert_eq!(emit.key, [ColumnIndex(1)]);
+/// ```
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Emit {
     /// The step whose rows answer the query.
