@@ -110,8 +110,10 @@ pub(crate) struct FactRel {
     /// the model relation that serves it (index into semrows::RELATIONS); None: the provider's reader
     pub model: Option<usize>,
     pub name: String,
-    pub relation: ryo_relations::domain::relations::types::Relation,
+    pub relation: Option<ryo_relations::domain::relations::types::Relation>,
     pub kinds: Vec<ryo_relations::domain::relations::types::CellKind>,
+    /// a made table (group count): its input's programs, the number of key columns, and whether it counts distinct values
+    pub made: Option<(Vec<Prog>, Vec<usize>, Option<usize>, usize)>,
 }
 
 pub(crate) struct NavProgram {
@@ -235,9 +237,12 @@ impl Loader<'_> {
         }
         use ryo_relations::domain::labels::types::NameRef;
         use ryo_relations::domain::relations::service::{kinds, relation_named};
+        if name.starts_with("made:") {
+            panic!("made table {name} used before its definition");
+        }
         let relation = relation_named(NameRef(name)).unwrap_or_else(|| panic!("relation {name}"));
         let model = if std::env::var("NAV_PROVIDER_ONLY").is_ok() { None } else { crate::semrows::RELATIONS.iter().position(|r| *r == name) };
-        self.facts.push(FactRel { model, name: name.to_owned(), relation, kinds: kinds(relation).to_vec() });
+        self.facts.push(FactRel { model, name: name.to_owned(), relation: Some(relation), kinds: kinds(relation).to_vec(), made: None });
         (self.facts.len() - 1) as u16
     }
 
@@ -409,6 +414,35 @@ impl NavProgram {
             let nav = &r["nav"];
             let kinds = nav["kinds"].as_object().unwrap();
             let mut loader = Loader { sym, regs: FxMap::default(), kinds, facts: &mut facts, regexes: &mut regexes, regex_of: FxMap::default() };
+            for m in nav["made"].as_array().map(Vec::as_slice).unwrap_or(&[]) {
+                use ryo_relations::domain::relations::types::CellKind;
+                let progs: Vec<Prog> = m["programs"].as_array().unwrap().iter().map(|p| loader.prog(p)).collect();
+                let kinds = m["kinds"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|k| match k.as_str().unwrap() {
+                        "node" => CellKind::Node,
+                        "symbol" => CellKind::Symbol,
+                        "file" => CellKind::File,
+                        "span" => CellKind::Span,
+                        "flag" => CellKind::Flag,
+                        _ => CellKind::Number,
+                    })
+                    .collect();
+                loader.facts.push(FactRel {
+                    model: None,
+                    name: m["name"].as_str().unwrap().to_owned(),
+                    relation: None,
+                    kinds,
+                    made: Some((
+                        progs,
+                        m["keys"].as_array().unwrap().iter().map(|k| k.as_u64().unwrap() as usize).collect(),
+                        m["distinct"].as_u64().map(|d| d as usize),
+                        m["width"].as_u64().unwrap() as usize,
+                    )),
+                });
+            }
             let programs: Vec<Vec<Alt>> = nav["programs"]
                 .as_array()
                 .unwrap()
@@ -696,6 +730,48 @@ impl<'a, 'p> Exec<'a, 'p> {
             return;
         }
         let t = Instant::now();
+        if let Some((progs, keys, distinct, width)) = &prog.facts[rel as usize].made {
+            let nkeys = &keys.len();
+            let slot = self.outs.len() - 1;
+            let saved = (self.cur_rule, std::mem::take(&mut self.outs[slot]));
+            self.cur_rule = slot;
+            for q in progs {
+                self.run_inner(q, 0);
+            }
+            let rows = std::mem::replace(&mut self.outs[slot], saved.1);
+            self.cur_rule = saved.0;
+            let mut seen: std::collections::HashSet<Vec<u64>, std::hash::BuildHasherDefault<crate::sema::Fx>> = Default::default();
+            let mut groups: FxMap<Vec<u64>, u64> = FxMap::default();
+            let mut order: Vec<Vec<u64>> = Vec::new();
+            for row in rows.chunks((*width).max(1)) {
+                let key: Vec<u64> = keys.iter().map(|&k| row[k]).collect();
+                let identity: Vec<u64> = match distinct {
+                    Some(d) => key.iter().copied().chain(std::iter::once(row[*d])).collect(),
+                    None => row.to_vec(),
+                };
+                if !seen.insert(identity) {
+                    continue;
+                }
+                let e = groups.entry(key.clone()).or_insert_with(|| {
+                    order.push(key);
+                    0
+                });
+                *e += 1;
+            }
+            let facts = self.cache.facts.as_mut().unwrap();
+            let cols = &mut facts.cols[rel as usize];
+            for key in order {
+                let n = groups[&key];
+                for (c, v) in key.iter().enumerate() {
+                    cols[c].push(*v);
+                }
+                cols[*nkeys].push(n);
+            }
+            self.c.made_tables += 1;
+            self.c.made_rows += cols[*nkeys].len() as u64;
+            facts.loaded[rel as usize] = true;
+            return;
+        }
         match prog.facts[rel as usize].model {
             Some(mi) => {
                 if !self.cache.model_lex {
@@ -728,7 +804,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                 let loaded = self.load_facts();
                 let facts = self.cache.facts.as_mut().unwrap();
                 for (i, cols) in loaded.into_iter().enumerate() {
-                    if prog.facts[i].model.is_none() {
+                    if prog.facts[i].model.is_none() && prog.facts[i].made.is_none() {
                         facts.cols[i] = cols;
                         facts.loaded[i] = true;
                     }
@@ -748,7 +824,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         use ryo_relations::domain::relations::types::{CellKind, FactColumn, FileId, Position};
         use ryo_relations::domain::terms::types::Symbol;
         let prog = self.prog;
-        let wanted: Vec<_> = prog.facts.iter().filter(|f| f.model.is_none()).map(|f| f.relation).collect();
+        let wanted: Vec<_> = prog.facts.iter().filter(|f| f.model.is_none()).filter_map(|f| f.relation).collect();
         self.c.provider_files += 1;
         let p = &mut *self.provider;
         if p.columns.len() != prog.facts.len() {
@@ -779,8 +855,8 @@ impl<'a, 'p> Exec<'a, 'p> {
                 .facts
                 .iter()
                 .zip(p.columns.iter_mut())
-                .filter(|(f, _)| f.model.is_none())
-                .map(|(f, c)| (f.relation, c.as_mut_slice()))
+                .filter(|(f, _)| f.model.is_none() && f.relation.is_some())
+                .map(|(f, c)| (f.relation.unwrap(), c.as_mut_slice()))
                 .collect();
             p.engine.walk_file(&mut p.elements, &mut p.symbols, ByteSlice(bytes), FileId(self.f.file as u32), &wanted, &mut cols);
         }

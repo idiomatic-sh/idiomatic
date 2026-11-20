@@ -635,7 +635,7 @@ impl<'p> State<'p> {
         self.cache.sub_memo.clear();
         let nrules = nav.rules.len();
         let mut outs = std::mem::take(&mut self.outs);
-        outs.resize_with(nrules, Vec::new);
+        outs.resize_with(nrules + 1, Vec::new);
         for o in &mut outs {
             o.clear();
         }
@@ -658,10 +658,10 @@ impl<'p> State<'p> {
                 cur_rule: 0,
             };
             ex.build_kinds();
-            if ex.c.rule_steps.len() != nrules {
-                ex.c.rule_steps = vec![0; nrules];
-                ex.c.rule_visits = vec![0; nrules];
-                ex.c.rule_starts = vec![0; nrules];
+            if ex.c.rule_steps.len() != nrules + 1 {
+                ex.c.rule_steps = vec![0; nrules + 1];
+                ex.c.rule_visits = vec![0; nrules + 1];
+                ex.c.rule_starts = vec![0; nrules + 1];
             }
             // per-file anchor choice: for each branch, the alternative with the least expected work given the real bucket sizes
             let mut dispatch = std::mem::take(&mut ex.cache.dispatch);
@@ -747,7 +747,7 @@ impl<'p> State<'p> {
         self.memo.clear();
         self.scans.clear();
         let mut any = false;
-        for (r, rows) in outs.iter().enumerate() {
+        for (r, rows) in outs.iter().enumerate().take(nrules) {
             if rows.is_empty() {
                 continue;
             }
