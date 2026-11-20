@@ -31,7 +31,8 @@ pub(crate) fn node_at<'f>(file: &SyntaxFile<'f>, id: Position) -> Option<AnyNode
     file.nodes.get(usize::from(id)).copied()
 }
 
-/// The syntax nodes of the file, in id order.
+/// The syntax nodes of the file, in id order. Read by the walk's cases alone until a filler reads every node of a file.
+#[cfg(test)]
 pub(crate) fn typed_nodes<'f>(
     file: &SyntaxFile<'f>,
 ) -> impl Iterator<Item = Numbered<'f>> + use<'f> {
