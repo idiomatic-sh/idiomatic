@@ -184,6 +184,8 @@ pub(crate) struct NavProgram {
     pub facts: Vec<FactRel>,
     pub regexes: Vec<Regex>,
     pub max_regs: usize,
+    /// navwide: whether any relation of the program is served only by the old provider's readers
+    pub needs_provider: bool,
 }
 
 fn trel(name: &str) -> Option<TRel> {
@@ -651,7 +653,11 @@ impl NavProgram {
                 aux,
             });
         }
-        Self { rules: out, shared, facts, regexes, max_regs }
+        let needs_provider = std::env::var_os("NAV_PROVIDER").is_some()
+            || facts.iter().any(|f| {
+                f.model.is_none() && f.made.is_none() && f.made_om.is_none() && crate::derived::index_of(&f.name).is_none() && !f.name.starts_with("filesystem.")
+            });
+        Self { rules: out, shared, facts, regexes, max_regs, needs_provider }
     }
 }
 
@@ -758,7 +764,8 @@ pub(crate) struct Exec<'a, 'p> {
     pub f: &'a File<'a>,
     pub sym: &'a mut Symbols,
     pub cache: &'a mut FileCache,
-    pub provider: &'a mut Provider,
+    /// the old provider, only when a relation of the program has no other source (navwide: None otherwise)
+    pub provider: Option<&'a mut Provider>,
     pub model: &'a mut crate::model::Model,
     pub scratch: String,
     pub c: &'a mut Counters,
@@ -1031,7 +1038,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         let prog = self.prog;
         let wanted: Vec<_> = prog.facts.iter().filter(|f| f.model.is_none()).filter_map(|f| f.relation).collect();
         self.c.provider_files += 1;
-        let p = &mut *self.provider;
+        let p = self.provider.as_deref_mut().expect("a relation only the provider serves");
         if p.columns.len() != prog.facts.len() {
             p.columns = prog.facts.iter().map(|f| (0..f.kinds.len()).map(|_| FactColumn(Vec::new())).collect()).collect();
         }

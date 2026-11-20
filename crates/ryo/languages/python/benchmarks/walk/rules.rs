@@ -624,7 +624,7 @@ impl<'p> State<'p> {
         self.views += 1;
         let t1 = Instant::now();
         self.view_ns += (t1 - t0).as_nanos() as u64;
-        if self.provider.is_none() {
+        if self.provider.is_none() && nav.needs_provider {
             self.provider = Some(crate::nav::Provider::new());
         }
         self.cache.facts = None;
@@ -650,7 +650,7 @@ impl<'p> State<'p> {
                 f: &f,
                 sym: &mut self.sym,
                 cache: &mut self.cache,
-                provider: self.provider.as_mut().unwrap(),
+                provider: self.provider.as_mut(),
                 model: &mut self.model,
                 scratch: String::new(),
                 c: &mut self.nc,
