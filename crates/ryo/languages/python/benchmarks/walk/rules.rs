@@ -507,6 +507,8 @@ pub(crate) struct State<'p> {
     cur: usize,
     pub evaluated: u64,
     census_on: bool,
+    pub probed: u64,
+    node_ns: FxMap<u32, (u64, u64)>,
     inner_ns: u64,
     pub op_ns: [u64; 32],
     pub op_rows: [u64; 32],
@@ -533,6 +535,8 @@ impl<'p> State<'p> {
             cur: 0,
             evaluated: 0,
             census_on: std::env::var("WALK_CENSUS").is_ok(),
+            probed: 0,
+            node_ns: FxMap::default(),
             inner_ns: 0,
             op_ns: [0; 32],
             op_rows: [0; 32],
@@ -726,7 +730,16 @@ impl<'p> State<'p> {
             .enumerate()
             .map(|(i, n)| format!("\"{n}\":[{},{}]", self.op_ns[i], self.op_rows[i]))
             .collect();
-        eprintln!("{{\"worker_ops\":{{{}}},\"evaluated\":{}}}", ops.join(","), self.evaluated);
+        let mut top: Vec<(u32, (u64, u64))> = self.node_ns.iter().map(|(&k, &v)| (k, v)).collect();
+        top.sort_by(|a, b| b.1.0.cmp(&a.1.0));
+        let top: Vec<String> = top.iter().take(40).map(|(k, (ns, rows))| format!("[{k},{ns},{rows}]")).collect();
+        eprintln!(
+            "{{\"worker_ops\":{{{}}},\"evaluated\":{},\"probed\":{},\"top_nodes\":[{}]}}",
+            ops.join(","),
+            self.evaluated,
+            self.probed,
+            top.join(",")
+        );
     }
 
     fn input(&mut self, x: &Input, ctx: &Ctx<'_>, comps: &[Comparison]) -> std::rc::Rc<Rel> {
@@ -761,7 +774,11 @@ impl<'p> State<'p> {
         let op = op_index(&rule.steps[pos]);
         // exclusive time: the steps demanded inside this one are charged to themselves
         let spent = t.elapsed().as_nanos() as u64;
-        self.op_ns[op] += spent.saturating_sub(self.inner_ns);
+        let own = spent.saturating_sub(self.inner_ns);
+        self.op_ns[op] += own;
+        let e = self.node_ns.entry(node).or_insert((0, 0));
+        e.0 += own;
+        e.1 += rel.len() as u64;
         self.inner_ns = outer + spent;
         self.op_rows[op] += rel.len() as u64;
         let rel = std::rc::Rc::new(rel);
@@ -833,7 +850,7 @@ impl<'p> State<'p> {
         true
     }
 
-    fn scan(&mut self, rel: RelId, ctx: &Ctx<'_>, comps: &[Comparison]) -> Rel {
+    fn scan<C: std::borrow::Borrow<Comparison>>(&mut self, rel: RelId, ctx: &Ctx<'_>, comps: &[C]) -> Rel {
         let mut out = Rel::new(rel_kinds(rel));
         let v = ctx.view;
         let mut buf = Vec::new();
@@ -847,7 +864,7 @@ impl<'p> State<'p> {
             ids = Some((0..v.len() as u32).filter(|&i| v.kind[i as usize] == comment).collect());
         }
         if rel == RelId::Ss || rel == RelId::St {
-            for c in comps {
+            for c in comps.iter().map(std::borrow::Borrow::borrow) {
                 if c.test == Test::Eq {
                     if let (Operand::Column(1), Operand::Text(t)) = (&c.left, &c.right) {
                         ids = Some((0..v.len() as u32).filter(|&i| v.kind[i as usize] == *t).collect());
@@ -856,7 +873,7 @@ impl<'p> State<'p> {
             }
         }
         if rel == RelId::Sc {
-            for c in comps {
+            for c in comps.iter().map(std::borrow::Borrow::borrow) {
                 if c.test == Test::Eq {
                     if let (Operand::Column(3), Operand::Text(t)) = (&c.left, &c.right) {
                         ids = Some((0..v.len() as u32).filter(|&i| v.field[i as usize] == *t).collect());
@@ -885,8 +902,8 @@ impl<'p> State<'p> {
         }
     }
 
-    fn holds(&self, comps: &[Comparison], row: &[u64], kinds: &[u8], ctx: &Ctx<'_>) -> bool {
-        for c in comps {
+    fn holds<C: std::borrow::Borrow<Comparison>>(&self, comps: &[C], row: &[u64], kinds: &[u8], ctx: &Ctx<'_>) -> bool {
+        for c in comps.iter().map(std::borrow::Borrow::borrow) {
             let (lv, lk) = match &c.left {
                 Operand::Column(i) => (row[*i], kinds[*i]),
                 Operand::Number(n) => (*n as u64, K_NUM),
@@ -1026,6 +1043,28 @@ impl<'p> State<'p> {
                 if l.len() == 0 {
                     return Rel::new(l.kinds.clone());
                 }
+                if !left_on.is_empty() {
+                    if let Some((rel, comps, map)) = self.probe_through(right, right_on) {
+                        // keep the left rows the probe finds nothing for
+                        let ron: Vec<usize> = right_on.iter().map(|&c| map[c]).collect();
+                        let marks: Vec<(bool, usize)> = (0..l.arity()).map(|c| (false, c)).collect();
+                        let lmark = std::rc::Rc::new(self.mark_rows(&l));
+                        let mut on = left_on.clone();
+                        on.push(l.arity());
+                        let _ = on;
+                        let hit = self.join_rel(&lmark, rel, left_on, &ron, &[(false, l.arity())], &comps, ctx);
+                        let found: FxMap<u64, ()> = hit.data.iter().map(|&i| (i, ())).collect();
+                        let mut out = Rel::new(l.kinds.clone());
+                        for (i, row) in l.rows().enumerate() {
+                            if !found.contains_key(&(i as u64)) {
+                                out.data.extend_from_slice(row);
+                            }
+                        }
+                        let _ = marks;
+                        self.probed += 1;
+                        return out;
+                    }
+                }
                 let r = self.input(right, ctx, &[]);
                 let mut out = Rel::new(l.kinds.clone());
                 if left_on.is_empty() {
@@ -1048,12 +1087,36 @@ impl<'p> State<'p> {
                 out
             }
             Op::Join { left, right, left_on, right_on, output, filter } => {
+                // the left side is a relation (or a select/project chain over one) keyed on its id and the right side is a
+                // step: evaluate the step, drive the loop from its rows and probe the relation (never materialise it)
+                if filter.is_empty() && matches!(right, Input::Step(_)) && !left_on.is_empty() {
+                    if let Some((rel, comps, map)) = self.probe_through(left, left_on) {
+                        let r = self.input(right, ctx, &[]);
+                        if r.len() == 0 {
+                            return Rel::new(vec![K_NODE; output.len()]);
+                        }
+                        let lon: Vec<usize> = left_on.iter().map(|&c| map[c]).collect();
+                        let swapped: Vec<(bool, usize)> =
+                            output.iter().map(|&(side, c)| if side { (false, c) } else { (true, map[c]) }).collect();
+                        self.probed += 1;
+                        return self.join_rel(&r, rel, right_on, &lon, &swapped, &comps, ctx);
+                    }
+                }
                 let l = self.input(left, ctx, &[]);
                 if l.len() == 0 {
                     return Rel::new(vec![K_NODE; output.len()]);
                 }
                 if let Input::Rel(rel) = right {
                     return self.join_rel(&l, *rel, left_on, right_on, output, filter, ctx);
+                }
+                // a not-yet-evaluated select over a relation, joined on that relation's id: probe it, never materialise it
+                if filter.is_empty() {
+                    if let Some((rel, comps, map)) = self.probe_through(right, right_on) {
+                        let ron: Vec<usize> = right_on.iter().map(|&c| map[c]).collect();
+                        let out_m: Vec<(bool, usize)> = output.iter().map(|&(side, c)| (side, if side { map[c] } else { c })).collect();
+                        self.probed += 1;
+                        return self.join_rel(&l, rel, left_on, &ron, &out_m, &comps, ctx);
+                    }
                 }
                 let r = self.input(right, ctx, &[]);
                 let mut kinds = Vec::new();
@@ -1461,8 +1524,101 @@ impl<'p> State<'p> {
         }
     }
 
+    /// When `x` is a select over a node relation that has not been evaluated in this file, and `right_on` (through the select's
+    /// kept columns) lands on that relation's id (or semantic-child's parent or child): the relation, the select's comparisons and
+    /// the kept-column map, so the caller probes instead of materialising the select.
+    fn probe_through(&self, x: &Input, right_on: &[usize]) -> Option<(RelId, Vec<&'p Comparison>, Vec<usize>)> {
+        if let Input::Rel(rel) = x {
+            if matches!(rel, RelId::Ir | RelId::Cm | RelId::Ee) {
+                return None;
+            }
+            let lands = right_on.iter().any(|&c| match rel {
+                RelId::Sc => c == 0 || c == 1,
+                _ => c == 0,
+            });
+            return lands.then(|| (*rel, Vec::new(), (0..rel_kinds(*rel).len()).collect()));
+        }
+        let Input::Step(p) = x else { return None };
+        let program: &'p Program = self.program;
+        let rule = &program.rules[self.cur];
+        if self.memo.contains_key(&rule.nodes[*p]) {
+            return None;
+        }
+        let (rel, comps, map) = self.chain(*p, 0)?;
+        if matches!(rel, RelId::Ir | RelId::Cm | RelId::Ee) {
+            return None;
+        }
+        let lands = right_on.iter().any(|&c| match rel {
+            RelId::Sc => map.get(c).is_some_and(|&m| m == 0 || m == 1),
+            _ => map.get(c) == Some(&0),
+        });
+        lands.then_some((rel, comps, map))
+    }
+
+    /// A chain of `select` / `project` steps over one relation, seen as (relation, every comparison on its raw columns,
+    /// output column -> raw column). A distinct project is kept only when it keeps the id (rows stay unique per id).
+    fn chain(&self, p: usize, depth: usize) -> Option<(RelId, Vec<&'p Comparison>, Vec<usize>)> {
+        if depth > 8 {
+            return None;
+        }
+        let program: &'p Program = self.program;
+        let rule = &program.rules[self.cur];
+        let base = |x: &Input| -> Option<(RelId, Vec<&'p Comparison>, Vec<usize>)> {
+            match x {
+                Input::Rel(r) => Some((*r, Vec::new(), (0..rel_kinds(*r).len()).collect())),
+                Input::Step(q) => {
+                    if self.memo.contains_key(&rule.nodes[*q]) {
+                        None
+                    } else {
+                        self.chain(*q, depth + 1)
+                    }
+                }
+            }
+        };
+        match &rule.steps[p] {
+            Op::Select { from, comps, kept } => {
+                let (r, mut all, map) = base(from)?;
+                // comparisons of this select are on its input's columns: only a direct read of the relation keeps them raw
+                if !matches!(from, Input::Rel(_)) && !comps.is_empty() {
+                    let identity = map.iter().enumerate().all(|(i, &m)| i == m);
+                    if !identity {
+                        return None;
+                    }
+                }
+                all.extend(comps.iter());
+                let map = if kept.is_empty() { map } else { kept.iter().map(|&k| map[k]).collect() };
+                Some((r, all, map))
+            }
+            Op::Project { from, columns, distinct } => {
+                let (r, all, map) = base(from)?;
+                let map: Vec<usize> = columns.iter().map(|&c| map[c]).collect();
+                let keeps_id = match r {
+                    RelId::Sc => map.contains(&0) && map.contains(&1),
+                    _ => map.contains(&0),
+                };
+                if *distinct && !keeps_id {
+                    return None;
+                }
+                Some((r, all, map))
+            }
+            _ => None,
+        }
+    }
+
+    /// The left rows with their row number appended (to find which rows a probe matched).
+    fn mark_rows(&self, l: &Rel) -> Rel {
+        let mut kinds = l.kinds.clone();
+        kinds.push(K_NUM);
+        let mut out = Rel::new(kinds);
+        for (i, row) in l.rows().enumerate() {
+            out.data.extend_from_slice(row);
+            out.data.push(i as u64);
+        }
+        out
+    }
+
     #[allow(clippy::too_many_arguments)]
-    fn join_rel(&mut self, l: &Rel, rel: RelId, left_on: &[usize], right_on: &[usize], output: &[(bool, usize)], filter: &[Comparison], ctx: &Ctx<'_>) -> Rel {
+    fn join_rel<C: std::borrow::Borrow<Comparison>>(&mut self, l: &Rel, rel: RelId, left_on: &[usize], right_on: &[usize], output: &[(bool, usize)], filter: &[C], ctx: &Ctx<'_>) -> Rel {
         let rk = rel_kinds(rel);
         let mut kinds = Vec::new();
         for &(side, c) in output {
