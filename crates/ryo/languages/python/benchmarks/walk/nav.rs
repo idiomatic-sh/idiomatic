@@ -514,6 +514,9 @@ struct Loader<'a> {
     /// definitions kept as entries of the shared table (the default): a reference loads as `Ins::Shared` of `shared_base` plus
     /// its index in the rule's table
     defs: bool,
+    /// NAV_DEFS is on for the load (whether or not this rule has definitions): registers from FRAME_BASE up are interface
+    /// registers, so no program numbers its own that high
+    frames_on: bool,
     shared_base: usize,
     /// the rule's interface registers: variables some definition reads without binding them (its formals, and registers of
     /// its caller it reads directly). They keep one fixed register, FRAME_BASE up, in every program of the rule; every other
@@ -527,6 +530,11 @@ struct Loader<'a> {
 /// Registers below FRAME_BASE are a program's own (canonical per program, saved around a made table's build); from FRAME_BASE
 /// up they are a rule's interface registers and then the private registers of its definitions (`NavProgram::load`).
 pub(crate) const FRAME_BASE: R = 4096;
+
+thread_local! {
+    /// whether the program loading keeps definitions (NAV_DEFS, on unless 0): only then is FRAME_BASE a boundary
+    static FRAMES_ON: std::cell::Cell<bool> = const { std::cell::Cell::new(true) };
+}
 
 pub(crate) fn glob_to_regex(glob: &str) -> String {
     let mut out = String::from("^");
@@ -564,7 +572,7 @@ impl Loader<'_> {
             return r;
         }
         let n = self.regs.len();
-        assert!(n < FRAME_BASE as usize || self.prescan || !self.defs, "a program with {n} registers of its own (FRAME_BASE)");
+        assert!(n < FRAME_BASE as usize || self.prescan || !self.frames_on, "a program with {n} registers of its own (FRAME_BASE)");
         *self.regs.entry(k).or_insert(n as R)
     }
 
@@ -1313,6 +1321,33 @@ pub(crate) fn fuse_within(p: Prog) -> Prog {
             _ => out.push(i),
         }
     }
+    // containment (NAV_WITHIN_LOAD=0 turns it off): an ancestor or descendant walk whose reached node is at once tested equal
+    // to a register bound before, and read by nothing else, is one walk up the parent chain between the two (Within). The
+    // executor line's lowering wrote this itself; here it holds for any lowering.
+    if !std::env::var("NAV_WITHIN_LOAD").is_ok_and(|v| v == "0") {
+        let mut k = 0;
+        while k + 1 < out.len() {
+            let pair = match (&out[k], &out[k + 1]) {
+                (Ins::Axis { dir: dir @ (Dir::Ancestor | Dir::Descendant), start, out: t }, Ins::TestEqR { a, b }) if (a == t) != (b == t) && start != t => {
+                    let x = if a == t { *b } else { *a };
+                    Some((*dir, *start, *t, x))
+                }
+                _ => None,
+            };
+            if let Some((dir, start, t, x)) = pair {
+                let mut later = Vec::new();
+                for j in &out[k + 2..] {
+                    reads_defs(j, &mut later, &mut Vec::new());
+                }
+                if !later.contains(&t) {
+                    let (anc, desc) = if dir == Dir::Ancestor { (x, start) } else { (start, x) };
+                    out[k] = Ins::Within { anc, desc };
+                    out.remove(k + 1);
+                }
+            }
+            k += 1;
+        }
+    }
     out.into()
 }
 
@@ -1757,7 +1792,7 @@ thread_local! {
     static SINK_ALL: bool = std::env::var("NAV_SINK_ALL").is_ok_and(|v| v == "1");
     static HOIST_OUTER: bool = !std::env::var("NAV_HOIST_OUTER").is_ok_and(|v| v == "0");
     static HOIST_IDS: std::cell::RefCell<FxMap<String, u32>> = std::cell::RefCell::new(FxMap::default());
-    static HOIST_CALLS: bool = std::env::var("NAV_HOIST_CALLS").is_ok_and(|v| v == "1");
+    static HOIST_CALLS: u8 = std::env::var("NAV_HOIST_CALLS").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
     static HOIST_ENTRY: bool = std::env::var("NAV_HOIST_ENTRY").is_ok_and(|v| v == "1");
     /// set before a pass runs over a definition whose every use is memoised by its args; the pass's first level takes it
     static MEMO_ENTRY: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
@@ -1848,11 +1883,17 @@ fn hoist_rec(p: Prog, nested: bool) -> Prog {
                         break;
                     }
                     // a test deferred past the segment no longer guards what follows it: the segment goes on over reads and
-                    // tests only, not over an iteration, a check or a call the test stood before (NAV_HOIST_CALLS=1: it does)
-                    if !deferred.is_empty() && !HOIST_CALLS.with(|h| *h) && {
+                    // tests only, not over an iteration, a check or a call the test stood before (NAV_HOIST_CALLS=1: it goes
+                    // on over anything, the joined engine's rule; 2: it stops only at calls and probes of definitions)
+                    if !deferred.is_empty() && {
+                        let call = matches!(v[t], Ins::UnionKeyed { .. } | Ins::SubKeyed { .. } | Ins::Probe { .. } | Ins::ProbeTest { .. });
                         let mut has_subs = false;
                         subs_ref(&v[t], &mut |_| has_subs = true);
-                        has_subs || is_iter(&v[t])
+                        match HOIST_CALLS.with(|h| *h) {
+                            1 => false,
+                            2 => call,
+                            _ => has_subs || is_iter(&v[t]),
+                        }
                     } {
                         break;
                     }
@@ -2589,6 +2630,7 @@ impl NavProgram {
         let mut canon: FxMap<String, u16> = FxMap::default();
         let share = !std::env::var("NAV_SHARE_MADE").is_ok_and(|v| v == "0");
         let defs_on = !std::env::var("NAV_DEFS").is_ok_and(|v| v == "0");
+        FRAMES_ON.with(|f| f.set(defs_on));
         // the definitions of every rule (the shared table's first entries; `reshare` appends the hash-consed sub-programs)
         let mut shared: Vec<Prog> = Vec::new();
         let mut frames = Frames::default();
@@ -2608,6 +2650,7 @@ impl NavProgram {
                 rule: u32::MAX,
                 shared_json,
                 defs: defs_on && !shared_json.is_empty(),
+                frames_on: defs_on,
                 shared_base: shared.len(),
                 frame: FxMap::default(),
                 prescan: false,
@@ -2741,7 +2784,7 @@ impl NavProgram {
                         .unwrap()
                         .iter()
                         .map(|a| {
-                            if loader.defs {
+                            if loader.frames_on {
                                 // each program numbers its own registers (the trie renumbers them again); interface registers fixed
                                 top_regs = top_regs.max(loader.regs.len());
                                 loader.regs = FxMap::default();
@@ -2825,7 +2868,7 @@ impl NavProgram {
                 let prog = std::mem::take(&mut alts[0].prog);
                 let mut m: FxMap<R, R> = FxMap::default();
                 let canon: Vec<Ins> = prog.into_vec().into_iter().map(|i| map_regs(i, &mut m)).collect();
-                assert!(m.len() < FRAME_BASE as usize, "a program with {} registers of its own (FRAME_BASE)", m.len());
+                assert!(m.len() < FRAME_BASE as usize || !FRAMES_ON.with(|f| f.get()), "a program with {} registers of its own (FRAME_BASE)", m.len());
                 max_regs = max_regs.max(m.len());
                 let key = alts[0].anchor.clone();
                 let gi = if merge { by_anchor.iter().position(|(k, _)| *k == key) } else { None };
@@ -2853,7 +2896,7 @@ impl NavProgram {
                         .map(|i| {
                             let (mut r, mut d) = (Vec::new(), Vec::new());
                             reads_defs_top(i, &mut r, &mut d);
-                            if d.iter().any(|x| *x >= FRAME_BASE) { format!("{i:?}#{s}") } else { format!("{i:?}") }
+                            if FRAMES_ON.with(|f| f.get()) && d.iter().any(|x| *x >= FRAME_BASE) { format!("{i:?}#{s}") } else { format!("{i:?}") }
                         })
                         .collect();
                     (s, p, k)
@@ -2928,8 +2971,9 @@ fn clone_ins(i: &Ins) -> Ins {
 /// Renumbers every register of `i` (and its sub-programs) through `m`, assigning the next number on first appearance.
 /// Interface registers (FRAME_BASE up) keep their number: the rule's definitions read them there.
 fn map_regs(i: Ins, m: &mut FxMap<R, R>) -> Ins {
+    let frames = FRAMES_ON.with(|f| f.get());
     map_regs_ref(&i, &mut |r| {
-        if r >= FRAME_BASE {
+        if frames && r >= FRAME_BASE {
             return r;
         }
         let n = m.len() as R;

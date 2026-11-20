@@ -368,13 +368,14 @@ pub(crate) fn plan(prog: &mut NavProgram) -> Option<(Vec<bool>, Vec<bool>, bool,
     assert_eq!(st.points, ids.len(), "the statistics were taken on another program (plan points differ)");
     let deny = load_deny();
     let min_gain: f64 = std::env::var("NAV_PLAN_GAIN").ok().and_then(|v| v.parse().ok()).unwrap_or(0.02);
-    SHARED_DEFS.with(|t| t.borrow_mut().clear());
-    for q in &prog.shared {
+    // each entry after the entries it names (a definition may name a later one)
+    SHARED_DEFS.with(|t| *t.borrow_mut() = vec![Vec::new(); prog.shared.len()]);
+    for k in crate::nav::shared_order(&prog.shared, 0) {
         let mut d = Vec::new();
-        all_defs(q, &mut d);
+        all_defs(&prog.shared[k], &mut d);
         d.sort_unstable();
         d.dedup();
-        SHARED_DEFS.with(|t| t.borrow_mut().push(d));
+        SHARED_DEFS.with(|t| t.borrow_mut()[k] = d);
     }
     let mut rep = Report::default();
     // per (rule, branch) slot: its rule's learned order was dropped
