@@ -46,6 +46,9 @@ pub struct Stored {
     /// What each file handed the steps that read across files and the project: read only by a run that makes those steps again or
     /// keeps a store of its own.
     pub handed: StoredHanded,
+    /// The compiled pack of each rule set the new engine ran, each under its key: a table of its own, read only by a run of
+    /// the new engine, and left out of the tables every run reads.
+    pub packs: Vec<StoredPack>,
 }
 
 /// What a rule set's compiled pack is kept under: thirty-two bytes that are the same for the same rules, kind vocabulary and

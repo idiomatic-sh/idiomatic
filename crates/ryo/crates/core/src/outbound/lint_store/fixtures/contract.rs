@@ -13,7 +13,8 @@ use ryo_values::domain::stored_facts::types::Bucket;
 use ryo_values::domain::stored_facts::types::PackedWords;
 use ryo_values::domain::stored_findings::types::StoredFileNumber;
 use ryo_values::domain::stores::types::{
-    BucketsWanted, FileAgain, KeptRows, ReadWordPayload, Stored, StoredHanded, StoredWords,
+    BucketsWanted, FileAgain, KeptRows, PackKey, ReadWordPayload, Stored, StoredHanded, StoredPack,
+    StoredWords,
 };
 
 /// What a row of the contract asks of a store.
@@ -41,6 +42,8 @@ pub enum Question {
     StagedWordsReadBack,
     /// Whether an old row read in a batch is the row read alone.
     OldRowsReadInABatchAreTheRowsReadAlone,
+    /// Whether the packs a run keeps read back under their keys, apart from the tables, which hold none of them.
+    PacksAreKeptApart,
 }
 
 /// What a row of the contract asks.
@@ -114,6 +117,12 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Question::OldRowsReadInABatchAreTheRowsReadAlone,
         expect: Expect::Value(true),
     },
+    Case {
+        name: CaseName("the_packs_a_run_keeps_read_back_apart_from_the_tables"),
+        word: Word::Succeeds,
+        input: || Question::PacksAreKeptApart,
+        expect: Expect::Value(true),
+    },
 ];
 
 /// Puts `question` to a store `fresh` makes.
@@ -139,6 +148,29 @@ fn answer(
         Ok(tables)
     };
     Ok(match question {
+        Question::PacksAreKeptApart => {
+            let packs = vec![
+                StoredPack {
+                    key: PackKey([4; 32]),
+                    bytes: ryo_relations::domain::relations::types::Bytes(vec![1, 2, 3]),
+                },
+                StoredPack {
+                    key: PackKey([5; 32]),
+                    bytes: ryo_relations::domain::relations::types::Bytes(Vec::new()),
+                },
+            ];
+            let with = Stored {
+                packs: packs.clone(),
+                ..stored(1)
+            };
+            kept(with, &KeptRows::default())?;
+            let read = store.stored()?;
+            let apart = read.packs()? == packs && read.tables().packs.is_empty();
+            // The tables read back as they were kept, and a keep that names no pack keeps none.
+            let whole_as_kept = whole(&*store)? == stored(1);
+            kept(stored(2), &KeptRows::default())?;
+            apart && whole_as_kept && store.stored()?.packs()?.is_empty()
+        }
         Question::NothingKept => whole(&*store)? == Stored::default(),
         Question::KeptIsRead => {
             kept(stored(1), &KeptRows::default())?;

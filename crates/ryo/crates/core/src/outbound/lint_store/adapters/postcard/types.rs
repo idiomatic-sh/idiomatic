@@ -43,6 +43,8 @@ pub(super) struct TableOfContents {
     pub tables: SectionSpan,
     /// What the files handed but their words.
     pub rest: SectionSpan,
+    /// The compiled packs of the rule sets.
+    pub packs: SectionSpan,
     /// The words of each bucket, in the order of the buckets.
     pub buckets: Vec<BucketSpan>,
 }

@@ -54,6 +54,8 @@ pub(crate) struct ToKeep<'a> {
     /// Project-entry observations used by the demanded namespace fact.
     pub project_observations:
         &'a [ryo_language::domain::project_context::types::EntryObservation],
+    /// The compiled packs of the rule sets the new engine ran, when it ran beside the old one.
+    pub packs: Vec<ryo_values::domain::stores::types::StoredPack>,
 }
 
 /// What a run uses again of what the last kept.

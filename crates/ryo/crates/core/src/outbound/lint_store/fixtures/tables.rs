@@ -131,6 +131,7 @@ pub fn over_a_b_d_and_e() -> (Stored, KeptRows) {
 pub fn stored(tag: u8) -> Stored {
     let path = |name: &str| FilePath(format!("src/{tag}/{name}").into());
     Stored {
+        packs: Vec::new(),
         rules: vec![
             StoredRule {
                 rule: RuleId(format!("rule-{tag}").into()),

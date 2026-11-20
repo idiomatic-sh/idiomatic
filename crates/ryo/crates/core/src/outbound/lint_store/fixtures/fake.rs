@@ -89,8 +89,13 @@ impl ReadStore for FakeRead {
     fn tables(&self) -> Stored {
         Stored {
             handed: StoredHanded::default(),
+            packs: Vec::new(),
             ..self.was.clone()
         }
+    }
+
+    fn packs(&self) -> Result<Vec<ryo_values::domain::stores::types::StoredPack>, LintStoreError> {
+        Ok(self.was.packs.clone())
     }
 
     fn handed(

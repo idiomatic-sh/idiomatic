@@ -27,8 +27,7 @@ use crate::domain::listing::service::every_file;
 use crate::domain::project::service::{project_rules, reads_any};
 use crate::domain::project::types::{PlanReads, Projected};
 use crate::domain::render::types::Rendered;
-use crate::domain::reporting::service::unknowns_from;
-use crate::domain::reporting::service::{read_outcomes, sort_unique};
+use crate::domain::reporting::service::{read_outcomes, sort_unique, unknowns_from};
 use crate::domain::reporting::types::RowCounts;
 use crate::domain::run_rules::service::{owner_of, scopes_of};
 use crate::domain::storing::types::{Decision, ReadAlone, Reused, ToKeep};
@@ -294,6 +293,7 @@ pub(super) fn answer(
         consulted: &now.consulted,
         consulted_absent: &now.consulted_absent,
         project_observations: &now.observed_entries,
+        packs: run.scanning.packs(),
     };
     let fed = observed
         .map(ObserverPort::totals)

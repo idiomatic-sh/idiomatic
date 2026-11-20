@@ -256,6 +256,7 @@ impl LintUseCase for LintUseCaseImpl {
             placed: &placed,
             answering: &answering,
             files: &listing.files,
+            read: listing.read.as_ref(),
         })?;
         if scanning.mode() == ryo_operators::spike::EngineMode::New {
             let scanned = self.visits.scanned(&scanning, &request.files)??;

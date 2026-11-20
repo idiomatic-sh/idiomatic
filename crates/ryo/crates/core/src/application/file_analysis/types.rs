@@ -224,12 +224,15 @@ pub(crate) struct Scanning<'a> {
     pub answering: &'a crate::domain::render::types::Answering,
     /// The files the run lists, in the order of their paths.
     pub files: &'a [ryo_values::domain::files::types::CorpusInput],
+    /// The store the run read beside its files, when it read one: where the packs of its rule sets are kept.
+    pub read: Option<&'a Arc<dyn crate::outbound::lint_store::interface::ReadStore>>,
     /// What the reasons of the languages linked are called.
     pub unknown: Vec<ryo_relations::domain::terms::types::UnknownName>,
 }
 
 /// What one worker owns while the new engine scans the files it takes: the use case's state for the worker, the file's bytes,
 /// the rows the scan handed, their rendering, which rules govern the file, and what the worker could not read or decide.
+#[derive(Default)]
 pub(crate) struct ScanState {
     /// The use case's state for the worker.
     pub worker: ryo_execution::inbound::use_cases::file_scan::types::FileScanWorker,
@@ -286,6 +289,8 @@ pub(crate) struct ScanRequest<'a, 'l> {
     pub answering: &'a crate::domain::render::types::Answering,
     /// The files the run lists, in the order of their paths.
     pub files: &'a [ryo_values::domain::files::types::CorpusInput],
+    /// The store the run read beside its files, when it read one.
+    pub read: Option<&'a Arc<dyn crate::outbound::lint_store::interface::ReadStore>>,
 }
 
 /// Where the two engines' rows differ, as the harness says it: the rule, the file, and the first row each engine has that the

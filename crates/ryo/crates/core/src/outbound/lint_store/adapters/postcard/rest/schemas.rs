@@ -285,7 +285,11 @@ pub(in crate::outbound::lint_store::adapters::postcard) fn handed_of(
     let mut clean = Vec::with_capacity(rest.clean.len());
     for each in &rest.clean {
         let row = proof_row(&each.proof, &rest.digests)?;
-        let mut files: Vec<StoredFileNumber> = each.files.iter().map(|file| StoredFileNumber(*file)).collect();
+        let mut files: Vec<StoredFileNumber> = each
+            .files
+            .iter()
+            .map(|file| StoredFileNumber(*file))
+            .collect();
         files.sort_unstable();
         files.dedup();
         clean.push(ryo_values::domain::stores::types::StoredClean {

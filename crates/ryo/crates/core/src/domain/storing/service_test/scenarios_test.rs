@@ -131,6 +131,7 @@ fn stored_round_trip() -> Value {
             consulted: &kept.consulted,
             consulted_absent: &kept.consulted_absent,
             project_observations: &kept.project_observations,
+            packs: Vec::new(),
         },
         &kept,
         &StoredHanded::default(),

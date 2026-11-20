@@ -41,10 +41,16 @@ use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 use ryo_values::domain::runs::types::{RuleNumber, UnknownCause};
 use ryo_values::domain::scan_rows::types::FaultOf;
 use ryo_values::domain::stored_facts::types::ReadFailure;
+use ryo_values::domain::stores::types::{KeptRows, Stored, StoredPack};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Condvar, Mutex, PoisonError};
 
 impl Scanning<'_> {
+    /// The packs of the request's rule sets: what the store keeps for the next run. None under the old engine alone.
+    pub(crate) fn packs(&self) -> Vec<StoredPack> {
+        self.scan.packs(&self.session)
+    }
+
     /// Which engines run the files: under the new engine alone, the old engine prepares and runs nothing.
     pub(crate) fn mode(&self) -> EngineMode {
         self.scan.mode()
@@ -70,34 +76,28 @@ impl Scanning<'_> {
     fn state(&self) -> ScanState {
         ScanState {
             worker: self.scan.worker(&self.session),
-            bytes: ryo_values::domain::files::types::FileBytes::default(),
-            rows: Vec::new(),
-            by: None,
-            starts: crate::domain::finish::types::LineStarts::default(),
-            rendered: Rendered::default(),
-            mask: ryo_execution::inbound::use_cases::metadata::interface::Mask::default(),
-            hits: ryo_values::domain::files::types::Hits::default(),
-            symbols: ryo_language::domain::symbols::types::Symbols::default(),
-            elements: ryo_language::domain::elements::types::Elements::default(),
-            unread: Vec::new(),
-            unknowns: Vec::new(),
-            failure: None,
+            ..ScanState::default()
         }
     }
 }
 
 impl FileVisits {
-    /// The new engine's part of a run, its rule sets loaded: under the old engine alone nothing is loaded; otherwise each rule
-    /// set is lowered.
+    /// The new engine's part of a run, its rule sets loaded: under the old engine alone nothing is loaded and the store's packs
+    /// are not read; otherwise the packs the store kept are read, and each rule set is read back from its pack or lowered.
     pub(crate) fn scanning<'a>(
         &self,
         request: ScanRequest<'a, '_>,
     ) -> Result<Scanning<'a>, FileAnalysisError> {
         let scan = Box::new(self.analysis.scanner(request.named));
+        // The packs are asked of the store only by a run of the new engine.
+        let stored = match (request.read, scan.mode()) {
+            (_, EngineMode::Old) | (None, _) => Vec::new(),
+            (Some(read), EngineMode::New | EngineMode::Both) => read.packs()?,
+        };
         let session = scan.load(ScanLoadRequest {
             plans: request.plans,
             digests: request.digests,
-            stored: &[],
+            stored: &stored,
         })?;
         // The path of each file is read only when the new engine scans one.
         let paths = match scan.mode() {
@@ -113,6 +113,7 @@ impl FileVisits {
             paths,
             answering: request.answering,
             files: request.files,
+            read: request.read,
             unknown: self.analysis.language.unknown_reasons().0,
         })
     }
@@ -170,7 +171,8 @@ impl FileVisits {
     }
 
     /// The run of the new engine alone: each file is scanned once on the scheduler's workers, and its rows are written to the
-    /// rows port in the order of the files. The outer refusal is the scheduler's, the inner one the scan's.
+    /// rows port in the order of the files; then the packs of its rule sets are kept in the store it read, when it read one.
+    /// The outer refusal is the scheduler's, the inner one the scan's.
     pub(crate) fn scanned(
         &self,
         scanning: &Scanning<'_>,
@@ -228,6 +230,16 @@ impl FileVisits {
                     .total
             }
         };
+        // The rule sets' packs are kept in the store the run read, in place of what it held: the old engine kept nothing now.
+        if let (Some(read), Answering::Findings) = (scanning.read, run.answering) {
+            let kept = Stored {
+                packs: scanning.packs(),
+                ..Stored::default()
+            };
+            if let Err(error) = read.keep(kept, &KeptRows::default()) {
+                return Ok(Err(error.into()));
+            }
+        }
         Ok(Ok(ScannedRun {
             unread,
             unknowns,
