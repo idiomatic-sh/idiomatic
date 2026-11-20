@@ -556,6 +556,7 @@ pub(crate) struct State<'p> {
     provider: Option<crate::nav::Provider>,
     cache: crate::nav::FileCache,
     pub nc: crate::nav::Counters,
+    table_k: u64,
     pub nav_ns: u64,
     pub tail_ns: u64,
     pub tail_files: u64,
@@ -597,6 +598,7 @@ impl<'p> State<'p> {
                 file_log: std::env::var("NAV_FILE_LOG").ok().and_then(|v| v.parse().ok()).unwrap_or(0),
                 ..Default::default()
             },
+            table_k: std::env::var("NAV_TABLE_K").ok().and_then(|v| v.parse().ok()).unwrap_or(64),
             nav_ns: 0,
             tail_ns: 0,
             tail_files: 0,
@@ -672,10 +674,12 @@ impl<'p> State<'p> {
                 check_done: Default::default(),
                 check_depth: 0,
                 no_budget: std::env::var_os("NAV_TABLE_NO_BUDGET").is_some(),
+                table_k: self.table_k,
                 trace: std::env::var_os("NAV_TRACE_KEYED").is_some(),
                 def_rows: FxMap::default(),
                 probe_idx: FxMap::default(),
                 kbuf: Vec::new(),
+                need_state: vec![0; nav.need_slots],
             };
             ex.build_kinds();
             let steps_file = ex.c.steps;
@@ -1015,9 +1019,9 @@ impl<'p> State<'p> {
         if self.program.nav.is_some() {
             let c = &self.nc;
             eprintln!(
-                "{{\"nav\":{{\"files\":{},\"view_ns\":{},\"kind_index_ns\":{},\"nav_ns\":{},\"fact_ns\":{},\"provider_build_ns\":{},\"tail_ns\":{},\"tail_files\":{},\"steps\":{},\"candidates\":{},\"starts\":{},\"emitted\":{},\"subs\":{},\"made_tables\":{},\"made_rows\":{},\"fact_files\":{},\"fact_rows\":{},\"model_lex_ns\":{},\"model_flow_ns\":{},\"model_rows_ns\":{},\"model_files\":{},\"flow_files\":{},\"provider_files\":{},\"derived_ns\":{},\"derived_files\":{},\"visits\":{},\"made_group_ns\":{},\"index_ns\":{},\"index_builds\":{},\"keyed_calls\":{},\"keyed_misses\":{},\"keyed_hits\":{},\"table_builds\":{},\"table_fails\":{},\"per_rule\":{{{}}}}}}}",
+                "{{\"nav\":{{\"files\":{},\"view_ns\":{},\"kind_index_ns\":{},\"nav_ns\":{},\"fact_ns\":{},\"provider_build_ns\":{},\"tail_ns\":{},\"tail_files\":{},\"steps\":{},\"candidates\":{},\"starts\":{},\"emitted\":{},\"subs\":{},\"made_tables\":{},\"made_rows\":{},\"fact_files\":{},\"fact_rows\":{},\"model_lex_ns\":{},\"model_flow_ns\":{},\"model_rows_ns\":{},\"model_files\":{},\"flow_files\":{},\"provider_files\":{},\"derived_ns\":{},\"derived_files\":{},\"visits\":{},\"made_group_ns\":{},\"index_ns\":{},\"index_builds\":{},\"keyed_calls\":{},\"keyed_misses\":{},\"keyed_hits\":{},\"table_builds\":{},\"table_fails\":{},\"need_asked\":{},\"need_failed\":{},\"per_rule\":{{{}}}}}}}",
                 self.files, self.view_ns, c.kind_index_ns, self.nav_ns, c.fact_ns, c.provider_build_ns, self.tail_ns, self.tail_files, c.steps,
-                c.candidates, c.starts, c.emitted, c.subs, c.made_tables, c.made_rows, c.fact_files, c.fact_rows, c.model_lex_ns, c.model_flow_ns, c.model_rows_ns, c.model_files, c.flow_files, c.provider_files, c.derived_ns, c.derived_files, c.visits, c.made_group_ns, c.index_ns, c.index_builds, c.keyed_calls, c.keyed_misses, c.keyed_hits, c.table_builds, c.table_fails,
+                c.candidates, c.starts, c.emitted, c.subs, c.made_tables, c.made_rows, c.fact_files, c.fact_rows, c.model_lex_ns, c.model_flow_ns, c.model_rows_ns, c.model_files, c.flow_files, c.provider_files, c.derived_ns, c.derived_files, c.visits, c.made_group_ns, c.index_ns, c.index_builds, c.keyed_calls, c.keyed_misses, c.keyed_hits, c.table_builds, c.table_fails, c.need_asked, c.need_failed,
                 self.program.nav.as_ref().unwrap().rules.iter().enumerate().filter(|(i, _)| *i < c.rule_steps.len())
                     .map(|(i, r)| format!("\"{}\":[{},{},{}]", r.id, c.rule_starts[i], c.rule_visits[i], c.rule_steps[i]))
                     .collect::<Vec<_>>().join(",")

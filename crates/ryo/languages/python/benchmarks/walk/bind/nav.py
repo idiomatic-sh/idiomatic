@@ -122,6 +122,9 @@ MADE_FIRST_RANK = float(os.environ.get("NAV_MADE_FIRST_RANK", "0"))  # tried at 
 PREFIX = os.environ.get("NAV_PREFIX", "1") == "1"
 TOP_PREFIX = os.environ.get("NAV_TOP_PREFIX", "1") == "1"   # the same for the core's own branches (merge_top)
 COST_CAP, ROWS_CAP = 1e30, 1e15   # the planner's estimates never leave the finite range
+# bind: the cell kinds of a fact relation's column a bound value may be looked up by. `span` was missing: a join on a span
+# column (a definition's name span against an identifier's) had no keyed access and was answered by enumerating the other side
+KEY_KINDS = ("node", "symbol", "number", "span") if os.environ.get("NAV_SPAN_KEY", "1") == "1" else ("node", "symbol", "number")
 KEYED_STEPS = float(os.environ.get("NAV_KEYED_STEPS", "20"))   # steps of a well-keyed call: a call ranks as its rows, or its steps over this
 
 
@@ -216,6 +219,11 @@ class Lowerer:
         self.kind = {}
         self.defs, self.formal, self.body_memo, self.masks, self.shared, self.n_bodies = {}, {}, {}, {}, [], 0
         self.heavy_memo = {}
+        self.tableable_memo = {}  # bind: definition -> whether it is held as one table per file
+        self.way_memo = {}        # bind: (definition, bound columns, collected columns) -> how the use is evaluated
+        self.flag_scan = False    # bind: the program being planned iterates a bucket, a scan or a table inside a bound context
+        self.flag_pairs = False   # bind: the program being planned walks a closure with neither end bound (all pairs)
+        self.body_scans, self.body_pairs = {}, {}
         self.table_memo = {}  # asof: definition -> the shared entry of its whole-table program (False: not plannable)
         self.fired, self.keyed = [], {}  # asof: recognitions that fired; made tables with keyed access (name -> key columns)
         self.shared_meta = []  # asof (diagnostic): per shared entry, the definition key, the bound columns, the collected columns
@@ -789,7 +797,7 @@ class Lowerer:
         """the programs of a made table's input, with their planned steps and rows per file"""
         progs, cost, rows = [], 0.0, 0.0
         for b in bs:
-            progs.append(self.plan_alts(b.copy())[0]["prog"])
+            progs.append(self.bulk_prog(b))
             cost += self.top_cost
             rows += self.top_card
         if PREFIX and len(progs) > 1:
@@ -985,6 +993,14 @@ class Lowerer:
 
     def body_planned(self, key, mask, free, k, calls):
         saved_mult, self.mult = self.mult, (max(calls * 1.0, 1e-3) if mask else 1.0)
+        saved_flags, self.flag_scan, self.flag_pairs = (self.flag_scan, self.flag_pairs), False, False
+        try:
+            return self.body_planned2(key, mask, free, k, saved_mult)
+        finally:
+            self.body_scans[k], self.body_pairs[k] = self.flag_scan, self.flag_pairs
+            self.flag_scan, self.flag_pairs = saved_flags
+
+    def body_planned2(self, key, mask, free, k, saved_mult):
         tc = tn = 0.0
         F = self.formals(key)
         idxs = []
@@ -1024,7 +1040,10 @@ class Lowerer:
                 raise
             tc += c1 + 1.0
             tn += n1
-            self.shared.append(clean_sub(prog, set(F[c] for c in mask)))
+            entry = clean_sub(prog, set(F[c] for c in mask))
+            if NEED:
+                entry = self.with_need(B, entry)  # bind
+            self.shared.append(entry)
             self.shared_meta.append([list(key), list(mask), None if free is None else list(free), "branch"])
             idxs.append(len(self.shared) - 1)
         self.mult = saved_mult
@@ -1297,8 +1316,14 @@ class Lowerer:
             key = (id(b), frozenset(v for v in b.deep() if v in bound), json.dumps(sub) if isinstance(sub, list) else sub)
             hit = self.plan_memo.get(key)
             if hit is None or hit[0] is not b:
-                hit = (b, self.plan1(b, bound, outvars, sub, None)[0] if bound else self.plan_top(b, bound, outvars, sub))
+                saved, self.flag_scan, self.flag_pairs = (self.flag_scan, self.flag_pairs), False, False
+                prog = self.plan1(b, bound, outvars, sub, None)[0] if bound else self.plan_top(b, bound, outvars, sub)
+                hit = (b, prog, self.flag_scan, self.flag_pairs)
+                self.flag_scan, self.flag_pairs = saved
                 self.plan_memo[key] = hit
+            # bind: what the sub-plan does inside a bound context counts for the program it is part of
+            self.flag_scan = self.flag_scan or (hit[2] and bool(bound))
+            self.flag_pairs = self.flag_pairs or hit[3]
             return hit[1]
         if bound:
             return self.plan1(b, bound, outvars, sub, None)[0]
@@ -1310,11 +1335,14 @@ class Lowerer:
         best = None
         for first in self.anchor_choices(b):
             try:
+                self.last_anchor = None
                 prog, cost = self.plan1(b, bound, outvars, sub, first)
             except Blocked:
                 continue
-            if best is None or cost < best[1]:
-                best = (prog, cost, self.last_card)
+            # bind: equal costs (estimates past the cap are all the cap) are decided by the smaller start
+            rank = (cost, self.last_anchor or 0.0) if SMALL_FIRST else (cost, 0.0)
+            if best is None or rank < best[3]:
+                best = (prog, cost, self.last_card, rank)
         if best is None:
             prog, cost = self.plan1(b, bound, outvars, sub, None)
             best = (prog, cost, self.last_card)
@@ -1336,7 +1364,7 @@ class Lowerer:
         if not alts:
             prog, cost = self.plan1(b, set(), b.out, False, None)
             alts = [(cost, prog, self.last_anchor, self.last_card)]
-        alts.sort(key=lambda a: a[0])
+        alts.sort(key=lambda a: (a[0], a[2] or 0.0) if SMALL_FIRST else a[0])
         best = alts[0][0]
         self.top_cost, self.top_card = alts[0][0], alts[0][3]
         out, seen = [], set()
@@ -1576,7 +1604,9 @@ class Lowerer:
                     elif lit is not None and lit[0] in ("t", "ts") and c in (TEXT_COL.get(rel), FIELD_COL.get(rel)) or \
                             (lit is not None and lit[0] in ("t", "ts") and rel == "identifier" and c == 1):
                         out.append((self.est_bucket(rel, c, lit) + 2, "value", [c, lit]))
-                    elif is_var(t) and t in bound and self.schema[rel]["columns"][c]["kind"] in ("symbol", "node"):
+                    elif is_var(t) and t in bound and self.schema[rel]["columns"][c]["kind"] in (("symbol", "node", "span") if "span" in KEY_KINDS else ("symbol", "node")):
+                        # (bind: a span too; the executor's index keeps the low half of the cell, and place_atom
+                        # compares the whole column after the read, so the bucket may hold other spans)
                         out.append((8.0, "value", [c, t]))
                     elif is_var(t) and t in bound and self.schema[rel]["columns"][c]["kind"] == "number" and \
                             os.environ.get("NAV_NUM_INDEX", "1") == "1":
@@ -1588,9 +1618,9 @@ class Lowerer:
                 for c, t in enumerate(ts):
                     if cols[c]["kind"] in ("file",):
                         continue
-                    if tbound(t) and cols[c]["kind"] in ("node", "symbol", "number"):
+                    if tbound(t) and cols[c]["kind"] in KEY_KINDS:
                         if is_var(t) or t[0] in ("t", "n"):
-                            cost = 1.0 if cols[c]["key"] else (1.3 if cols[c]["kind"] == "node" else 6.0)
+                            cost = 1.0 if cols[c]["key"] else (1.3 if cols[c]["kind"] in ("node", "span") else 6.0)
                             if MADE_PARTIAL and rel in self.made_keys and c in self.made_keys[rel] and len(self.made_keys[rel]) > 1:
                                 cost = MADE_PARTIAL
                             out.append((cost, "by", [c, t]))
@@ -1603,11 +1633,11 @@ class Lowerer:
                     # cut: every bound column (and every column fixed to one literal) as one composite key
                     mc, mv, single, nvar = [], [], [], 0
                     for c, t in enumerate(ts):
-                        if cols[c]["kind"] not in ("node", "symbol", "number"):
+                        if cols[c]["kind"] not in KEY_KINDS:
                             continue
                         if tbound(t) and (is_var(t) or t[0] in ("t", "n")):
                             mc.append(c); mv.append(t); nvar += 1 if is_var(t) else 0
-                            single.append(1.0 if cols[c]["key"] else (1.3 if cols[c]["kind"] == "node" else 6.0))
+                            single.append(1.0 if cols[c]["key"] else (1.3 if cols[c]["kind"] in ("node", "span") else 6.0))
                         elif is_var(t):
                             lit = lit_on(t)
                             if lit is not None and lit[0] in ("t", "n"):
@@ -1705,7 +1735,8 @@ class Lowerer:
                     elif s[0] == "or":
                         c = (3.0 * len(s[2])) if any(tbound(t) for t in s[1]) else (200.0 * len(s[2]) if bound else 1e6)
                         if len(s) > 3:  # asof: a factored part answers from the file's memo (a test, or rows to continue with)
-                            c = 1.5 if not s[1] else 20.0
+                            # bind: its rows are a cross product with everything placed after it, so they go last (it was 20)
+                            c = 1.5 if not s[1] else FACTOR_RANK
                     elif s[0] == "call":
                         nb = max(len(self.defs[s[1]]), 1)
                         c = (3.0 * nb) if any(t is not None and tbound(t) for t in s[2]) else (200.0 * nb if bound else 1e6)
@@ -1765,6 +1796,9 @@ class Lowerer:
                     bound.update(outs)
                     prog.extend(post)
                     cost[0] += cost[1] * 200.0
+                    self.flag_pairs = True  # bind: every pair of the walk
+                    if bound:
+                        self.flag_scan = True
                     continue
                 if os.environ.get("NAV_DEBUG"):
                     print("UNPLANNABLE bound", sorted(bound), "atoms", [b.atoms[i] for i in atoms], "specials", [x[:3] if x[0] != "call" else x for x in specials], "sub", sub, file=sys.stderr)
@@ -1797,6 +1831,10 @@ class Lowerer:
                     not (best[1] == "special" and specials[best[2]][0] == "fn"):
                 cost[1] *= max(step, 0.05)
             if best[1] == "atom":
+                kind0, arg0 = best[3]
+                if bound and (kind0 in ("kind", "scan") or (kind0 in ("value", "by") and not is_var(arg0[1])) or
+                              (kind0 == "bym" and not any(is_var(v) for v in arg0[1]))):
+                    self.flag_scan = True  # bind: a bucket or a scan per candidate: not navigation
                 place_atom(best[2], best[3])
             else:
                 s = specials.pop(best[2])
@@ -2106,6 +2144,25 @@ class Lowerer:
         cols = tuple(c for c, t in enumerate(args) if t is not None)
         mask = tuple(c for c in cols if tbound(args[c]))
         free = tuple(c for c in cols if c not in mask)
+        if ONE:
+            way = self.way(key, cols, mask, free if free else None, eff)
+            if way == "probe":
+                # the definition's table of the file: its rows (nothing bound), or the rows under the bound columns
+                c0, n0 = self.def_cost(key, (), self.all_cols(key))
+                once = c0 * min(1.0, eff)
+                if not mask:
+                    if not any_bound:
+                        return ("probe", c0, 0.0, c0, n0)
+                    # (bind) a table's rows per candidate are a cross product: the last resort, after anything a key reaches
+                    return ("probe", max(n0 * BUCKET_X + 10.0, CROSS_RANK), max(n0, 1.0), once, n0)
+                fan = n0 * 0.1 ** len(mask)
+                if not free:
+                    fan = min(fan, 1.0)
+                per = 1.0 + fan
+                return ("probe", max(fan, (once / max(eff, 1e-6) + per) / KEYED_STEPS, 1.05), per, once, fan)
+            if way in ("keyed", "budget"):
+                cm, nm = self.def_cost(key, mask, free if free else None, eff)
+                return ("keyed", max(nm, cm / KEYED_STEPS, 1.05), cm + 1.0, 0.0, nm)
         if not mask:
             c0, n0 = self.def_cost(key, (), free if free else None)
             if not any_bound:
@@ -2224,6 +2281,12 @@ class Lowerer:
             return 1.0
         cols = tuple(c for c, t in enumerate(args) if t is not None)
         mask = tuple(c for c in cols if tbound(args[c]))
+        if ONE:
+            way = self.way(key, mask, mask, None, eff)
+            if way == "probe":
+                return 1.0 + self.def_cost(key, (), self.all_cols(key))[0] * min(1.0, eff) / max(eff, 1e-6)
+            if way in ("keyed", "budget"):
+                return self.def_cost(key, mask, None, eff)[0] + 1.0
         if not mask:
             return 1.0
         cm = None
@@ -2251,6 +2314,30 @@ class Lowerer:
         cols = tuple(c for c, t in enumerate(args) if t is not None)
         mask = tuple(c for c in cols if tbound(args[c]))
         F = self.formals(key)
+        if ONE:
+            way = self.way(key, mask, mask, None, eff)
+            if way == "probe":
+                allc = self.all_cols(key)
+                idxs = self.body(key, (), allc)
+                prog.append([m + "-probe", [[["shared", i]] for i in idxs], [allc.index(c) for c in mask], [args[c] for c in mask], len(allc)])
+                return 1.0, self.body_cost[(key, (), allc)][0] * min(1.0, eff)
+            if way in ("keyed", "budget"):
+                idxs = self.body(key, mask, None, eff)
+                cm = self.body_cost[(key, mask, None)][0]
+                br = self.body_branches[(key, mask, None)]
+                if INLINE_LIGHT and self.light(br):
+                    sub = self.inline_args(prog, key, mask, args)
+                    prog.append([m, [substitute(self.shared[i], sub) for i in br]])
+                    return cm, 0.0
+                subs = [[["shared", i]] for i in idxs]
+                if KEYED_MEMO and self.heavy(idxs):
+                    tu = self.table_use(key, mask, ())
+                    prog.append([m + "-keyed", subs, [F[c] for c in mask], [args[c] for c in mask]] + ([tu] if tu else []))
+                else:
+                    for c in mask:
+                        prog.append(["let", args[c], F[c]])
+                    prog.append([m, subs])
+                return cm + 1.0, 0.0
         if not mask:
             idxs = self.body(key, (), None)
             prog.append([m + "-memo", [[["shared", i]] for i in idxs]])
@@ -2301,6 +2388,8 @@ class Lowerer:
         if how == "probe":
             allc = self.all_cols(key)
             subs = [[["shared", i]] for i in self.body(key, (), allc)]
+            if not mask and bound:
+                self.flag_scan = True  # bind: a table's rows per candidate: not navigation
             if not free:
                 prog.append(["exists-probe", subs, [allc.index(c) for c in mask], [args[c] for c in mask], len(allc)])
                 return
@@ -2989,7 +3078,7 @@ def clean_sub(p, formals):
 
 # ------------------------------------------------------------------ shared sub-programs (navwide)
 SUBS_AT = {"neg": (1,), "exists": (1,), "neg-memo": (1,), "exists-memo": (1,), "neg-keyed": (1,), "exists-keyed": (1,), "or": (2,), "or-keyed": (2,), "clos": (7,), "near": (3,), "nearc": (5, 6),
-           "or-probe": (2,), "neg-probe": (1,), "exists-probe": (1,)}
+           "or-probe": (2,), "neg-probe": (1,), "exists-probe": (1,), "need": (3,)}
 
 
 # ------------------------------------------------------------------ cut: common prefixes of a union's programs
@@ -3028,8 +3117,8 @@ def rn_ins(ins, m):
         return [op, ins[1], fl(ins[2]), fl(ins[3]), ins[4]]
     if op in ("emit", "collect"):
         return [op, fl(ins[1])]
-    if op in ("yield", "shared"):
-        return ins
+    if op in ("yield", "shared", "need"):
+        return ins  # (bind: a need names no register of the program it guards)
     if op in ("neg", "exists", "neg-memo", "exists-memo"):
         return [op, [rn_prog(q, m) for q in ins[1]]] + ins[2:]
     if op in ("neg-keyed", "exists-keyed"):
@@ -3152,21 +3241,30 @@ def factor_prefix(progs, test, top=False):
     def group(ps):
         groups = []
         for k, p in enumerate(ps):
+            # bind: a leading need is set aside (it names no register): programs that differ only in what they need still
+            # share their start; each need is put back at the head of its own rest, or before the shared start when the
+            # whole group needs the same
+            nd = None
+            if len(p) > 1 and p[0][0] == "need":
+                nd, p = p[0], p[1:]
             for g in groups:
                 m = match_ins(g[0], p[0], p[1:])
                 if m is not None:
                     g[1].append(rn_prog(p[1:], m) if m else p[1:])
                     g[2].append(k)
+                    g[3].append(nd)
                     saved[0] += 1
                     break
             else:
-                groups.append((p[0], [p[1:]], [k]))
+                groups.append((p[0], [p[1:]], [k], [nd]))
         subs = []
-        for head, rests, ks in groups:
+        for head, rests, ks, nds in groups:
             if len(rests) == 1 or not all(rests):
-                subs.append(([head] + rests[0], ks))
+                subs.append((([nds[0]] if nds[0] else []) + [head] + rests[0], ks))
+            elif all(n == nds[0] for n in nds):
+                subs.append((([nds[0]] if nds[0] else []) + [head] + fork(rests), ks))
             else:
-                subs.append(([head] + fork(rests), ks))
+                subs.append(([head] + fork([([n] if n else []) + r for n, r in zip(nds, rests)]), ks))
         return subs
 
     def fork(ps):
@@ -3343,6 +3441,7 @@ def share_rule(nav, min_bytes=300):
 ASOF = os.environ.get("NAV_ASOF", "1") == "1"
 ASOF_SHAPE = os.environ.get("NAV_ASOF_SHAPE", "1") == "1"   # 0: only the general `power` table (to measure the two apart)
 FACTOR = os.environ.get("NAV_FACTOR", "1") == "1"
+FACTOR_RANK = float(os.environ.get("NAV_FACTOR_RANK", "1e5"))
 TABLE = os.environ.get("NAV_TABLE", "1") == "1"
 BODY_UNDO = os.environ.get("NAV_BODY_UNDO", "1") == "1"  # 0: the last round's behaviour
 DEGRADE_MAX = int(os.environ.get("NAV_DEGRADE_MAX", "-1"))
@@ -3591,8 +3690,8 @@ def asof_try(self, s):
             kinds[key] = ekinds[shape["ekeys"][i]]
         kinds[ncol] = kinds[tcol] = ekinds[shape["order"]]
         name = f"made:{self.rid}:{len(self.made)}"  # named after the inputs' own made tables
-        self.made.append(dict(name=name, op="asof", programs=[self.plan_alts(b.copy())[0]["prog"] for b in E],
-                              right_programs=[self.plan_alts(b.copy())[0]["prog"] for b in P], width=we, right_width=we,
+        self.made.append(dict(name=name, op="asof", programs=[self.bulk_prog(b) for b in E],
+                              right_programs=[self.bulk_prog(b) for b in P], width=we, right_width=we,
                               ekeys=list(shape["ekeys"]), order=shape["order"], order_number=ekinds[shape["order"]] == "number",
                               events_first=shape["events_first"], levels=k, jkeys=list(keys), node=ncol, target=tcol,
                               restrict=[i in restrict for i in range(4)], keys=[], distinct=None, kinds=kinds))
@@ -3603,7 +3702,7 @@ def asof_try(self, s):
             return []
         kinds = [self.tkind(t) for t in B[0].out]
         name = f"made:{self.rid}:{len(self.made)}"
-        self.made.append(dict(name=name, op="power", programs=[self.plan_alts(b.copy())[0]["prog"] for b in B], width=w,
+        self.made.append(dict(name=name, op="power", programs=[self.bulk_prog(b) for b in B], width=w,
                               levels=k, jkeys=list(keys), node=ncol, target=tcol, keys=[], distinct=None, kinds=kinds))
         self.fired.append(["power", s, k, []])
     cols = [dict(name=f"c{i}", kind=kd, key=False) for i, kd in enumerate(kinds)]
@@ -3699,43 +3798,214 @@ def factor_uncorrelated(self, b, bound, sub):
     return nb
 
 
+# ---- bind: what a branch cannot hold without (emptiness known before anything is enumerated) ------------------------------
+NEED = os.environ.get("NAV_NEED", "1") == "1"
+NEED_LATE = os.environ.get("NAV_NEED_LATE", "1") == "1"
+LIGHT_OPS = ("read", "row", "test", "let", "fn", "yield", "collect", "emit")
+
+
+def branch_needs(self, b):
+    """bind: what must exist in the file for the branch to hold a row, read off the branch itself: a kind of node for each
+    kind-literal atom, a node carrying each text or field literal, a row (or a row with the literal) of each fact relation
+    it reads. None of it depends on a binding, so the executor decides each need once per file; a need that fails ends
+    the branch before it enumerates anything. This is the old engine's propagation of empty inputs, stated per branch
+    (the tables the planned program probes for rows are added by `with_need`)."""
+    kinds, facts = [], []
+
+    def lit_of(t):
+        if not is_var(t):
+            return t
+        return next((r for x, l, r in b.filt if x in ("=", "in") and l == t and not is_var(r)), None)
+    for rel, ts in b.atoms:
+        if rel in KIND_COL:
+            lit = lit_of(ts[KIND_COL[rel]])
+            if lit is not None and lit[0] in ("t", "ts"):
+                ks = list(lit[1]) if lit[0] == "ts" else [lit[1]]
+                if ks and None not in ks and sorted(ks) not in kinds:
+                    kinds.append(sorted(ks))
+            continue
+        if rel in TREE:
+            # a text or field literal of a tree relation: some node of the file must carry it
+            for c, t in enumerate(ts):
+                lit = lit_of(t)
+                if lit is not None and lit[0] in ("t", "ts") and (c in (TEXT_COL.get(rel), FIELD_COL.get(rel)) or (rel == "identifier" and c == 1)):
+                    vals = [lit[1]] if lit[0] == "t" else list(lit[1])
+                    if None not in vals and [rel, c, list(lit)] not in facts:
+                        facts.append([rel, c, list(lit)])
+            continue
+        if rel not in self.schema or rel.startswith("made:"):
+            continue
+        cols = self.schema[rel]["columns"]
+        got = False
+        for c, t in enumerate(ts):
+            lit = lit_of(t)
+            if lit is None or cols[c]["kind"] not in ("symbol", "number"):
+                continue
+            ok = (lit[0] == "t" and cols[c]["kind"] == "symbol" and lit[1] is not None) or (lit[0] == "n" and cols[c]["kind"] == "number") or \
+                 (lit[0] == "ts" and cols[c]["kind"] == "symbol" and None not in lit[1]) or (lit[0] == "ns" and cols[c]["kind"] == "number")
+            if ok:
+                f = [rel, c, list(lit)]
+                if f not in facts:
+                    facts.append(f)
+                got = True
+        if not got and [rel, None, None] not in facts:
+            facts.append([rel, None, None])
+    return kinds, facts
+
+
+def with_need(self, b, prog):
+    """bind: the program with the branch's needs in front, when it does more than read and test"""
+    if all(ins[0] in LIGHT_OPS for ins in prog):
+        return prog
+    kinds, facts = self.branch_needs(b)
+    subs = []
+    if True:
+        # the tables the program probes for rows (not for absence): each is one program [["shared", entry]]
+        for ins in prog:
+            q = ins[2] if ins[0] == "or-probe" else ins[1] if ins[0] == "exists-probe" else None
+            if q and len(q) == 1 and q[0] not in subs:
+                subs.append(q[0])
+            # a keyed call for rows whose definition has a table under the bound (`way`: 'budget'): the same question,
+            # asked of that table when it can be built within the bound (written as the table's program and its width)
+            k = table_at(ins) if ins[0] in ("or-keyed", "exists-keyed") else None
+            if k is not None:
+                q = [ins[k][0][0][0], ["test", "=", ["n", ins[k][1]], ["n", ins[k][1]]]]
+                if q not in subs:
+                    subs.append(q)
+
+        def build_cost(q):
+            key = tuple(self.shared_meta[q[0][1]][0])
+            return self.body_cost.get((key, (), self.all_cols(key)), (COST_CAP, 0.0))[0]
+        subs.sort(key=build_cost)  # the cheapest table first: an empty one spares the others
+    if not kinds and not facts and not subs:
+        return prog
+    prog = list(prog)
+    # what costs nothing to know is asked first; a table is asked for only when the program is about to enumerate (after
+    # its leading reads and tests of what is bound: when those fail, no table is built)
+    at = next((k for k, ins in enumerate(prog) if ins[0] not in LIGHT_OPS), 0) if NEED_LATE else 0
+    if at == 0 or not subs:
+        return [["need", [["ts", ks] for ks in kinds], facts, subs]] + prog
+    head = [["need", [["ts", ks] for ks in kinds], facts, []]] if kinds or facts else []
+    return head + prog[:at] + [["need", [], [], subs]] + prog[at:]
+
+
+def bulk_prog(self, b):
+    """bind: the program of one branch of a made table's input, with its needs in front"""
+    prog = self.plan_alts(b.copy())[0]["prog"]
+    return self.with_need(b, prog) if NEED else prog
+
+
+def snapshot(self):
+    return (len(self.shared), set(self.body_memo), {k: set(v) for k, v in self.masks.items()}, self.n_bodies,
+            set(self.table_memo), set(self.heavy_memo), set(self.plan_memo), set(self.walk_memo), set(self.body_cost),
+            set(self.body_branches), set(), set(self.tableable_memo), set(self.body_scans), set(self.body_pairs), set(self.way_memo))
+
+
+def rollback(self, snap):
+    """everything a planning attempt added is taken back (it failed: not plannable without bound args)"""
+    del self.shared[snap[0]:]
+    del self.shared_meta[snap[0]:]
+    self.masks = snap[2]
+    self.n_bodies = snap[3]
+    for memo, was in ((self.body_memo, snap[1]), (self.table_memo, snap[4]), (self.heavy_memo, snap[5]), (self.plan_memo, snap[6]),
+                      (self.walk_memo, snap[7]), (self.body_cost, snap[8]), (self.body_branches, snap[9]),
+                      (self.tableable_memo, snap[11]), (self.body_scans, snap[12]), (self.body_pairs, snap[13]), (self.way_memo, snap[14])):
+        for k in [k for k in memo if k not in was]:
+            del memo[k]
+
+
+# ---- bind: ONE way to hold a file-level sub-plan ----------------------------------------------------------------------------
+# A definition (a sub-plan) is evaluated in one of two forms, chosen by what its plan IS, never by an estimate or at run time:
+#   table       its rows once per file (its program with nothing bound, emptiness of its inputs known first), indexed by
+#               the columns each use binds: every use is a probe (`or-probe`, `exists-probe`, `neg-probe`; no key = the rows);
+#   navigation  per candidate, when the program for the bound columns reaches everything through a key (no bucket, no scan,
+#               no table's rows inside the bound context): `or-keyed` / `neg-keyed` / `exists-keyed`, or inlined when it only
+#               reads and tests.
+# A definition whose rows with nothing bound are every pair of a walk (a closure entered at neither end), or that cannot be
+# planned with nothing bound, has no table and stays navigation.
+ONE = os.environ.get("NAV_ONE", "1") == "1"
+EITHER = os.environ.get("NAV_EITHER", "1") == "1"
+BUDGET = os.environ.get("NAV_BUDGET", "1") == "1"  # 0: a use neither form covers is a probe of the table
+SMALL_FIRST = os.environ.get("NAV_SMALL_FIRST", "1") == "1"   # bind: plans of equal estimated cost: the smaller start wins
+CROSS_RANK = float(os.environ.get("NAV_CROSS_RANK", "1e4"))
+
+
+def tableable(self, key):
+    hit = self.tableable_memo.get(key)
+    if hit is None:
+        self.tableable_memo[key] = False  # while it is planned (the plan is acyclic)
+        hit = False
+        allc = self.all_cols(key)
+        if self.defs[key] and allc:  # (a definition with no column but the file has no row to hold: a test, as before)
+            snap = self.snapshot()
+            try:
+                self.body(key, (), allc)
+                hit = not self.body_pairs.get((key, (), allc), False)  # (every pair of a walk is no table)
+            except Blocked:
+                self.rollback(snap)
+        self.tableable_memo[key] = hit
+    return hit
+
+
+def way(self, key, cols, mask, free, eff):
+    """how a use of a definition is evaluated, by what its plans ARE:
+    'keyed'   navigation: the program for the bound columns reaches everything through a key;
+    'probe'   the table: the program with nothing bound is keyed joins from one start, every use probes its rows;
+    'budget'  neither is true (each form holds a cross product: a bucket or a table's rows iterated inside a loop). Which
+              is cheaper depends on how many keys the file asks against the size of the product, which no plan shows: the
+              keyed call runs, and the table replaces it once the calls have cost what the table would (asof's budget);
+    None      no table can be planned and nothing is bound: the older placement."""
+    k = (key, mask, free)
+    hit = self.way_memo.get(k)
+    if hit is None:
+        hit = self.way_memo[k] = self.way1(key, cols, mask, free, eff) or "none"
+    return None if hit == "none" else hit
+
+
+def way1(self, key, cols, mask, free, eff):
+    allc = self.all_cols(key)
+    can_table = all(c in allc for c in cols) and self.tableable(key)
+    strict = can_table and not self.body_scans.get((key, (), allc), False)
+    if mask and self.mask_room(key, mask):
+        try:
+            self.body(key, mask, free, eff)
+        except Blocked:
+            if not can_table:
+                raise
+            return "probe"
+        if not self.body_scans.get((key, mask, free), False):
+            # navigation; when the table is clean too, the estimate picks between the two clean forms (cut's costing)
+            return None if strict and EITHER else "keyed"
+        if not can_table:
+            return "keyed"
+        return "probe" if strict or not BUDGET else "budget"
+    if mask:
+        return "probe" if can_table else None  # no program left for this pattern: the table, however it is built
+    return "probe" if strict else None
+
+
 def table_use(self, key, mask, free):
     """the definition's own table for a keyed call: [shared entry of its uncorrelated program collecting every column, row
     width, the key columns' places in the row, the collected columns' places] (bind: the entry is written as the one-program
     list [[["shared", entry]]], which the passes that renumber shared entries rewrite). The executor answers the call from that
     table (one hash lookup) once the per-call evaluation of the definition has cost the file more than the table would
     (it builds the table under a step budget, see nav.rs `table_spend`). None when the definition cannot be planned unbound."""
-    if not TABLE:
-        return None
+    if not TABLE or (ONE and self.way_memo.get((key, mask, free if free else None)) != "budget"):
+        return None  # (bind: only for the uses neither form covers, see `way`)
     F = self.formals(key)
     allc = tuple(c for c in range(len(F)) if self.kind.get(F[c]) != "file")
     if not allc or any(c not in allc for c in mask) or any(c not in allc for c in free):
         return None
     hit = self.table_memo.get(key)
     if hit is None:
-        snap = (len(self.shared), set(self.body_memo), {k: set(v) for k, v in self.masks.items()}, self.n_bodies,
-                set(self.table_memo), set(self.heavy_memo), set(self.plan_memo), set(self.walk_memo), set(self.body_cost), set(self.body_branches))
+        snap = self.snapshot()
         self.table_memo[key] = False  # while it is planned (the plan is acyclic; a nested use never asks for it)
         try:
             idxs = self.body(key, (), allc)
             hit = idxs[0] if len(idxs) == 1 else False
         except Blocked:
             # not plannable without bound args: everything the attempt added is taken back
-            del self.shared[snap[0]:]
-            del self.shared_meta[snap[0]:]
-            for k in [k for k in self.body_memo if k not in snap[1]]:
-                del self.body_memo[k]
-            self.masks = snap[2]
-            self.n_bodies = snap[3]
-            for k in [k for k in self.table_memo if k not in snap[4]]:
-                del self.table_memo[k]
-            for k in [k for k in self.heavy_memo if k not in snap[5]]:
-                del self.heavy_memo[k]
-            for k in [k for k in self.plan_memo if k not in snap[6]]:
-                del self.plan_memo[k]  # sub-plans cached during the attempt may name the entries taken back
-            for memo, was in ((self.walk_memo, snap[7]), (self.body_cost, snap[8]), (self.body_branches, snap[9])):
-                for k in [k for k in memo if k not in was]:
-                    del memo[k]  # bind: cut's memos by shared entry and by definition program, the same
+            self.rollback(snap)
             hit = False
         self.table_memo[key] = hit
     if hit is False:
@@ -3744,6 +4014,14 @@ def table_use(self, key, mask, free):
 
 
 Lowerer.table_use = table_use
+Lowerer.tableable = tableable
+Lowerer.way = way
+Lowerer.way1 = way1
+Lowerer.branch_needs = branch_needs
+Lowerer.with_need = with_need
+Lowerer.bulk_prog = bulk_prog
+Lowerer.snapshot = snapshot
+Lowerer.rollback = rollback
 Lowerer.asof_try = asof_try
 Lowerer.keyed_accesses = keyed_accesses
 Lowerer.factor_uncorrelated = factor_uncorrelated

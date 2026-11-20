@@ -135,9 +135,14 @@ pub(crate) enum Ins {
     /// cut: a call of a definition entered from the definition's side: its uncorrelated sub-program's rows (`width` cells
     /// each) are collected once per file and indexed by the `kcols` cells; the call looks up the values of `keys` and
     /// continues with each distinct tuple of the `ocols` cells in `outs` (a hash join whose build side is the definition)
-    Probe { outs: Box<[R]>, subs: Box<[Prog]>, kcols: Box<[u8]>, keys: Box<[Opd]>, ocols: Box<[u8]>, width: u8 },
+    Probe { outs: Box<[R]>, subs: Box<[Prog]>, kcols: Box<[u8]>, keys: Box<[Opd]>, ocols: Box<[u8]>, width: u8, slot: u32 },
     /// cut: an absence/existence test of a definition answered from the same per-file index of its uncorrelated rows
-    ProbeTest { negate: bool, subs: Box<[Prog]>, kcols: Box<[u8]>, keys: Box<[Opd]>, width: u8 },
+    ProbeTest { negate: bool, subs: Box<[Prog]>, kcols: Box<[u8]>, keys: Box<[Opd]>, width: u8, slot: u32 },
+    /// bind: what the program cannot hold a row without, none of it depending on a binding: a node of one of the kinds of
+    /// each set, a row of each fact relation (with one of the values in the column, when given), a row in each table it
+    /// probes for rows (`subs`: one program per table, the same the probes name). Decided once per file (state `slot`); a
+    /// need that fails ends the program here: the old engine's propagation of empty inputs.
+    Need { slot: u32, kinds: Box<[Box<[u32]>]>, trees: Box<[(TRel, u8, Box<[u32]>)]>, facts: Box<[(u16, Option<(u8, Box<[u64]>)>)]>, subs: Box<[Prog]> },
 }
 
 /// asof: how a keyed call reads its definition's own table of the file: the shared entry of the definition's uncorrelated
@@ -267,6 +272,8 @@ pub(crate) struct NavProgram {
     pub needs_provider: bool,
     /// asof: the (relation, columns) of every keyed access, one per-file hash index each
     pub keyed: Vec<(u16, Box<[u8]>)>,
+    /// bind: how many distinct needs the program has (one state per file each)
+    pub need_slots: usize,
 }
 
 fn trel(name: &str) -> Option<TRel> {
@@ -305,6 +312,8 @@ struct Loader<'a> {
     table_slots: &'a mut Vec<(u32, Box<[u8]>, Box<[u8]>)>,
     /// bind (diagnostic, NAV_REG16): registers numbered modulo 65,536, as before the fix
     wrap16: bool,
+    /// bind: the per-file state slot of each distinct need (by the rule's first shared entry and the instruction's text)
+    need_slots: &'a mut FxMap<(usize, String), u32>,
 }
 
 pub(crate) fn glob_to_regex(glob: &str) -> String {
@@ -409,6 +418,14 @@ impl Loader<'_> {
         self.regexes.push(Regex::new(&pattern).unwrap_or_else(|e| panic!("regex {pattern}: {e}")));
         self.regex_of.insert((text.to_owned(), glob), self.regexes.len() - 1);
         self.regexes.len() - 1
+    }
+
+    /// bind: one index per (definition table, key columns, wanted columns) of the program: every probe of the same shape
+    /// shares it (it was one per probing instruction, found by the address of its key list: two probes with no key
+    /// shared an address and read each other's index)
+    fn probe_slot(&mut self, subs: &Value, kcols: &Value, ocols: &Value) -> u32 {
+        let n = self.need_slots.len() as u32;
+        *self.need_slots.entry((self.shared_base, format!("probe {subs} {kcols} {ocols}"))).or_insert(n)
     }
 
     /// asof: `[entry, width, [key places], [collected places]]`
@@ -642,6 +659,7 @@ impl Loader<'_> {
                 keys: a[4].as_array().unwrap().iter().map(|x| self.opd(x)).collect::<Vec<_>>().into(),
                 ocols: a[5].as_array().unwrap().iter().map(|x| x.as_u64().unwrap() as u8).collect::<Vec<_>>().into(),
                 width: a[6].as_u64().unwrap() as u8,
+                slot: self.probe_slot(&a[2], &a[3], &a[5]),
             },
             // cut: ["neg-probe" | "exists-probe", subs, key columns, key values, row width]
             "neg-probe" | "exists-probe" => Ins::ProbeTest {
@@ -650,7 +668,61 @@ impl Loader<'_> {
                 kcols: a[2].as_array().unwrap().iter().map(|x| x.as_u64().unwrap() as u8).collect::<Vec<_>>().into(),
                 keys: a[3].as_array().unwrap().iter().map(|x| self.opd(x)).collect::<Vec<_>>().into(),
                 width: a[4].as_u64().unwrap() as u8,
+                slot: self.probe_slot(&a[1], &a[2], &Value::Null),
             },
+            // bind: ["need", [kind literals], [[relation, column | null, literal | null]], [test programs]]
+            "need" => {
+                let n = self.need_slots.len() as u32;
+                let slot = *self.need_slots.entry((self.shared_base, i.to_string())).or_insert(n);
+                let kinds = a[1]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|k| match self.opd(k) {
+                        Opd::Syms(s) => s,
+                        Opd::Sym(s) => vec![s].into(),
+                        _ => panic!("need kinds"),
+                    })
+                    .collect::<Vec<_>>()
+                    .into();
+                // a literal of a tree relation's text or field column: (relation, column, values)
+                let trees = a[2]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .filter(|f| trel(f[0].as_str().unwrap()).is_some())
+                    .map(|f| {
+                        let vals: Box<[u32]> = match self.val(&f[2]) {
+                            Val::Syms(s) => s,
+                            _ => panic!("need tree literal"),
+                        };
+                        (trel(f[0].as_str().unwrap()).unwrap(), f[1].as_u64().unwrap() as u8, vals)
+                    })
+                    .collect::<Vec<_>>()
+                    .into();
+                let facts = a[2]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .filter(|f| trel(f[0].as_str().unwrap()).is_none())
+                    .map(|f| {
+                        let rel = self.fact(f[0].as_str().unwrap());
+                        let lit = f[1].as_u64().map(|c| {
+                            let mut vals: Vec<u64> = match self.val(&f[2]) {
+                                Val::Syms(s) => s.iter().map(|&x| u64::from(x)).collect(),
+                                Val::Nums(n) => n.iter().map(|&x| x as u64).collect(),
+                                Val::Reg(_) => panic!("need literal"),
+                            };
+                            vals.sort_unstable();
+                            (c as u8, vals.into())
+                        });
+                        (rel, lit)
+                    })
+                    .collect::<Vec<_>>()
+                    .into();
+                let subs = a[3].as_array().unwrap().iter().map(|p| self.prog(p)).collect::<Vec<_>>().into();
+                Ins::Need { slot, kinds, trees, facts, subs }
+            }
             "collect" => Ins::Collect { regs: a[1].as_array().unwrap().iter().map(|x| self.reg(x)).collect::<Vec<_>>().into() },
             o => panic!("ins {o}"),
         }
@@ -678,6 +750,7 @@ impl NavProgram {
         let mut max_regs = 0;
         let mut keyed: Vec<(u16, Box<[u8]>)> = Vec::new();
         let mut table_slots: Vec<(u32, Box<[u8]>, Box<[u8]>)> = Vec::new();
+        let mut need_slots: FxMap<(usize, String), u32> = FxMap::default();
         for r in rules {
             let nav = &r["nav"];
             let kinds = nav["kinds"].as_object().unwrap();
@@ -692,6 +765,7 @@ impl NavProgram {
                 keyed: &mut keyed,
                 table_slots: &mut table_slots,
                 wrap16: std::env::var_os("NAV_REG16").is_some(),
+                need_slots: &mut need_slots,
             };
             for m in nav["made"].as_array().map(Vec::as_slice).unwrap_or(&[]) {
                 use ryo_relations::domain::relations::types::CellKind;
@@ -840,7 +914,7 @@ impl NavProgram {
                     && crate::derived::index_of(&f.name).is_none()
                     && !f.name.starts_with("filesystem.")
             });
-        Self { rules: out, shared, facts, regexes, max_regs, needs_provider, keyed }
+        Self { rules: out, shared, facts, regexes, max_regs, needs_provider, keyed, need_slots: need_slots.len() }
     }
 }
 
@@ -899,6 +973,9 @@ pub(crate) struct Counters {
     pub keyed_hits: u64,
     pub table_builds: u64,
     pub table_fails: u64,
+    /// bind: needs asked (once per file each), needs that failed
+    pub need_asked: u64,
+    pub need_failed: u64,
 }
 
 /// What a file's facts from the provider are, decoded into the view's ids and the run's text codes.
@@ -1003,6 +1080,8 @@ pub(crate) struct Exec<'a, 'p> {
     pub check_depth: u32,
     /// asof (diagnostic, NAV_TABLE_NO_BUDGET): table builds are never abandoned
     pub no_budget: bool,
+    /// bind: the bound of a table build, in steps per node of the file (NAV_TABLE_K, default 64)
+    pub table_k: u64,
     /// diagnostic (NAV_TRACE_KEYED)
     pub trace: bool,
     /// cut: per-file uncorrelated rows of definitions (by shared entry, or by sub-program list) and the indexes over them
@@ -1010,6 +1089,8 @@ pub(crate) struct Exec<'a, 'p> {
     pub def_rows: FxMap<usize, Rc<Vec<u64>>>,
     pub probe_idx: FxMap<usize, Rc<ProbeIndex>>,
     pub kbuf: Vec<u64>,
+    /// bind: the file's answer to each need: 0 not asked yet, 1 holds, 2 fails
+    pub need_state: Vec<u8>,
 }
 
 fn span(s: u32, e: u32) -> u64 {
@@ -1177,6 +1258,7 @@ impl<'a, 'p> Exec<'a, 'p> {
         let (steps0, outer_child) = (self.c.steps, std::mem::take(&mut self.c.prof_child));
         self.ensure_inner2(rel, t);
         let incl = self.c.steps - steps0;
+        let own = incl - self.c.prof_child;
         self.c.prof_child = outer_child + incl;
         let f = &self.prog.facts[rel as usize];
         if f.made.is_some() || f.made_om.is_some() || f.made_asof.is_some() {
@@ -1186,7 +1268,7 @@ impl<'a, 'p> Exec<'a, 'p> {
             let rows = self.cache.facts.as_ref().map_or(0, |x| x.cols[rel as usize].first().map_or(0, Vec::len)) as u64;
             let m = &mut self.c.made_prof[rel as usize];
             m[0] += 1;
-            m[1] += incl;
+            m[1] += own;
             m[2] += rows;
         }
     }
@@ -1934,9 +2016,9 @@ impl<'a, 'p> Exec<'a, 'p> {
                         return false;
                     }
                 }
-                Ins::Probe { outs, subs, kcols, keys, ocols, width } => {
+                Ins::Probe { outs, subs, kcols, keys, ocols, width, slot } => {
                     self.kp(subs, 0, 1);
-                    let idx = self.probe_index(subs, kcols, ocols, *width as usize, keys.as_ptr() as usize);
+                    let idx = self.probe_index(subs, kcols, ocols, *width as usize, *slot as usize);
                     let mut key = std::mem::take(&mut self.kbuf);
                     key.clear();
                     for k in keys.iter() {
@@ -1960,9 +2042,9 @@ impl<'a, 'p> Exec<'a, 'p> {
                     }
                     return false;
                 }
-                Ins::ProbeTest { negate, subs, kcols, keys, width } => {
+                Ins::ProbeTest { negate, subs, kcols, keys, width, slot } => {
                     self.kp(subs, 0, 1);
-                    let idx = self.probe_index(subs, kcols, &[], *width as usize, keys.as_ptr() as usize);
+                    let idx = self.probe_index(subs, kcols, &[], *width as usize, *slot as usize);
                     let mut key = std::mem::take(&mut self.kbuf);
                     key.clear();
                     for k in keys.iter() {
@@ -1974,6 +2056,51 @@ impl<'a, 'p> Exec<'a, 'p> {
                         return true;
                     }
                     if any == *negate {
+                        return false;
+                    }
+                }
+                Ins::Need { slot, kinds, trees, facts, subs } => {
+                    let sl = *slot as usize;
+                    if self.need_state[sl] == 0 {
+                        self.c.need_asked += 1;
+                        let mut ok = self.need_cheap(kinds, trees, facts);
+                        // a table already built and empty decides before any other is built
+                        if ok && subs.iter().any(|q| match &q[..] {
+                            [Ins::Shared { idx }] => self.def_rows.get(&((*idx as usize) << 1 | 1)).is_some_and(|r| r.is_empty()),
+                            _ => false,
+                        }) {
+                            ok = false;
+                        }
+                        if ok {
+                            for q in subs.iter() {
+                                if let [Ins::Shared { idx }, Ins::Test { l: Opd::Num(w), .. }] = &q[..] {
+                                    // the table of a keyed call under the bound: tried now; built and empty decides
+                                    self.table_try(*idx, *w as usize);
+                                    if self.aborted {
+                                        return true;
+                                    }
+                                    if self.tables.get(idx).and_then(|t| t.rows.as_ref()).is_some_and(|r| r.is_empty()) {
+                                        ok = false;
+                                        break;
+                                    }
+                                    continue;
+                                }
+                                // a table the program probes for rows: built now (it is the file's, every use shares it)
+                                if self.definition_rows(std::slice::from_ref(q)).is_empty() {
+                                    ok = false;
+                                    break;
+                                }
+                            }
+                        }
+                        if self.aborted {
+                            return true;
+                        }
+                        self.need_state[sl] = if ok { 1 } else { 2 };
+                        if !ok {
+                            self.c.need_failed += 1;
+                        }
+                    }
+                    if self.need_state[sl] == 2 {
                         return false;
                     }
                 }
@@ -2252,6 +2379,17 @@ impl<'a, 'p> Exec<'a, 'p> {
         false
     }
 
+    /// bind: whether the program is known to hold nothing in this file whatever is bound: it starts with a need that
+    /// failed, or it is a definition's group of programs that all do
+    fn dead(&self, p: &[Ins], depth: u8) -> bool {
+        match p.first() {
+            Some(Ins::Need { slot, .. }) => self.need_state[*slot as usize] == 2,
+            Some(Ins::Shared { idx }) if p.len() == 1 && depth < 3 => self.dead(&self.prog.shared[*idx as usize], depth + 1),
+            Some(Ins::Sub { negate: false, subs }) if depth < 3 && !subs.is_empty() => subs.iter().all(|q| self.dead(q, depth + 1)),
+            _ => false,
+        }
+    }
+
     /// bind (diagnostic): adds to slot `i` of the keyed profile of the shared entry `subs` names
     fn kp(&mut self, subs: &[Prog], i: usize, v: u64) {
         if !self.c.prof {
@@ -2271,6 +2409,50 @@ impl<'a, 'p> Exec<'a, 'p> {
             self.c.kprof.resize(n, [0; 8]);
         }
         self.c.kprof[idx as usize][i] += v;
+    }
+
+    /// bind: the needs that cost nothing to know (Ins::Need): a node of one of the kinds, a row of the relation (with one
+    /// of the values in the column)
+    fn need_cheap(&mut self, kinds: &[Box<[u32]>], trees: &[(TRel, u8, Box<[u32]>)], facts: &[(u16, Option<(u8, Box<[u64]>)>)]) -> bool {
+        for ks in kinds {
+            if ks.iter().all(|&k| self.bucket(k).is_empty()) {
+                return false;
+            }
+        }
+        for (rel, col, vals) in trees {
+            // one pass over the column (no index is built for a question asked once per file)
+            let n = if *rel == TRel::Id { self.f.view.n_nodes } else { self.f.view.len() };
+            let mut found = false;
+            for id in 0..n as u32 {
+                if let Some(v) = self.tread(*rel, *col, id) {
+                    if vals.binary_search(&(v as u32)).is_ok() {
+                        found = true;
+                        break;
+                    }
+                }
+            }
+            if !found {
+                return false;
+            }
+        }
+        for (rel, lit) in facts {
+            self.ensure(*rel);
+            let f = self.cache.facts.as_ref().unwrap();
+            if !f.loaded[*rel as usize] {
+                continue;
+            }
+            let cols = &f.cols[*rel as usize];
+            if cols.first().map_or(0, Vec::len) == 0 {
+                return false;
+            }
+            if let Some((col, vals)) = lit {
+                let found = if vals.len() == 1 { cols[*col as usize].contains(&vals[0]) } else { cols[*col as usize].iter().any(|v| vals.binary_search(v).is_ok()) };
+                if !found {
+                    return false;
+                }
+            }
+        }
+        true
     }
 
     /// cut: what names a memoised sub-program list: its shared entry when it is one (every call site of the same definition
@@ -2358,6 +2540,19 @@ impl<'a, 'p> Exec<'a, 'p> {
     fn union_keyed(&mut self, p: &'p [Ins], pc: usize, outs: &[R], subs: &'p [Prog], keys: &[R], table: Option<&'p TableUse>) -> bool {
         use std::hash::Hasher;
         self.kp(subs, 0, 1);
+        if subs.iter().all(|q| self.dead(q, 0)) {
+            return false; // bind: nothing of the definition can hold in this file: no row, no memo entry
+        }
+        if let Some(t) = table {
+            let vals: Vec<u64> = keys.iter().map(|k| self.regs[*k as usize]).collect();
+            self.table_try(t.entry, t.width);
+            if self.aborted {
+                return true;
+            }
+            for (k, v) in keys.iter().zip(&vals) {
+                self.regs[*k as usize] = *v;
+            }
+        }
         if let Some(t) = table {
             if let Some((rows, idx)) = self.def_table(t) {
                 let mut h = crate::sema::Fx::default();
@@ -2525,16 +2720,6 @@ impl<'a, 'p> Exec<'a, 'p> {
                     b.sort_unstable();
                     self.trace_keyed("miss", subs, &vals, format!("{b:?}"));
                 }
-                if let Some(t) = table {
-                    self.table_spend(t, self.c.steps - steps0);
-                    if self.aborted {
-                        return true;
-                    }
-                    // the formals as the call wrote them (a table build runs other calls of the definition's callees)
-                    for (k, v) in keys.iter().zip(&vals) {
-                        self.regs[*k as usize] = *v;
-                    }
-                }
                 r
             }
         };
@@ -2555,6 +2740,19 @@ impl<'a, 'p> Exec<'a, 'p> {
     fn sub_keyed(&mut self, subs: &'p [Prog], keys: &[R], table: Option<&'p TableUse>) -> bool {
         use std::hash::Hasher;
         self.kp(subs, 0, 1);
+        if subs.iter().all(|q| self.dead(q, 0)) {
+            return false; // bind: nothing of the definition can hold in this file
+        }
+        if let Some(t) = table {
+            let vals: Vec<u64> = keys.iter().map(|k| self.regs[*k as usize]).collect();
+            self.table_try(t.entry, t.width);
+            if self.aborted {
+                return false;
+            }
+            for (k, v) in keys.iter().zip(&vals) {
+                self.regs[*k as usize] = *v;
+            }
+        }
         if let Some(t) = table {
             if let Some((rows, idx)) = self.def_table(t) {
                 let mut h = crate::sema::Fx::default();
@@ -2670,9 +2868,6 @@ impl<'a, 'p> Exec<'a, 'p> {
         let mut entry = vals;
         entry.push(u64::from(any));
         self.union_memo.insert(key, Rc::new(entry));
-        if let Some(t) = table {
-            self.table_spend(t, self.c.steps - steps0);
-        }
         any
     }
 
@@ -2713,19 +2908,23 @@ impl<'a, 'p> Exec<'a, 'p> {
         Some((rows, m))
     }
 
-    /// asof: `steps` more were spent evaluating the definition per call in this file. Once that passes the next try point
-    /// the definition's uncorrelated program runs under a budget of the steps spent so far: finished, its distinct rows are
-    /// the table every later call reads; past the budget it is abandoned and tried again at four times the spend. So a file
-    /// pays at most a constant times the cheaper of (per-call evaluation, the table).
-    fn table_spend(&mut self, t: &'p TableUse, steps: u64) {
-        const FIRST_TRY: u64 = 2048;
+    /// bind (was asof's `table_spend`, a doubling budget on the steps spent per call): the table of a definition neither
+    /// form covers (see nav.py `way`) is tried ONCE per file, at the first keyed call, under a bound of `table_k` steps per
+    /// node of the file: a table built by indexed joins costs a small multiple of the rows it reads, a cross product does
+    /// not. Built, every later call probes it; past the bound it is dropped and the calls are evaluated per key.
+    fn table_try(&mut self, entry: u32, width: usize) {
+        struct T {
+            entry: u32,
+            width: usize,
+        }
+        let t = &T { entry, width };
+        let nodes = self.f.view.len() as u64;
         let st = self.tables.entry(t.entry).or_default();
-        st.spent += steps;
-        if st.rows.is_some() || st.spent < st.next_try.max(if self.no_budget { 0 } else { FIRST_TRY }) {
+        if st.rows.is_some() || st.next_try != 0 {
             return;
         }
-        let budget = if self.no_budget { u64::MAX / 4 } else { st.spent };
-        st.next_try = st.spent.saturating_mul(4);
+        st.next_try = 1; // tried in this file
+        let budget = if self.no_budget { u64::MAX / 4 } else { (self.table_k * nodes).max(4096) };
         let outer = self.budget_end;
         self.budget_end = outer.min(self.c.steps.saturating_add(budget));
         if self.trace {
@@ -2741,6 +2940,18 @@ impl<'a, 'p> Exec<'a, 'p> {
         self.regs = saved_regs;
         // bind (diagnostic): the build's steps are the table's, not the calling entry's own
         let incl = self.c.steps - steps0;
+        if self.c.prof {
+            let i = t.entry as usize;
+            if self.c.shared_calls.len() <= i {
+                let n = self.prog.shared.len();
+                self.c.shared_calls.resize(n, 0);
+                self.c.shared_incl.resize(n, 0);
+                self.c.shared_self.resize(n, 0);
+            }
+            self.c.shared_calls[i] += 1;
+            self.c.shared_incl[i] += incl;
+            self.c.shared_self[i] += incl - self.c.prof_child;
+        }
         self.c.prof_child = outer_child + incl;
         self.kp_entry(t.entry, 6, incl);
         let rows = std::mem::replace(&mut self.collect, saved);
@@ -2749,8 +2960,12 @@ impl<'a, 'p> Exec<'a, 'p> {
             eprintln!("T\tend\t{}\tsteps={}\taborted={}\trows={}", t.entry, self.c.steps, self.aborted, rows.len() / t.width.max(1));
         }
         if self.aborted {
-            // abandoned; an enclosing build past its own budget stays stopped
+            // past the bound: no table in this file, the calls are evaluated per key. An enclosing build past its own
+            // budget stays stopped (and this one may be tried again: nothing was decided)
             self.aborted = self.c.steps > outer;
+            if self.aborted {
+                self.tables.get_mut(&t.entry).unwrap().next_try = 0;
+            }
             self.c.table_fails += 1;
             self.kp_entry(t.entry, 4, 1);
             return;
@@ -3157,7 +3372,8 @@ impl<'a, 'p> Exec<'a, 'p> {
             rows
         };
         let lrows = run(self, &om.left);
-        let rrows = run(self, &om.right);
+        // bind: no left row, no match (and no root, no walk): the right side is not enumerated
+        let rrows = if lrows.is_empty() { Vec::new() } else { run(self, &om.right) };
         if self.aborted {
             return;
         }
