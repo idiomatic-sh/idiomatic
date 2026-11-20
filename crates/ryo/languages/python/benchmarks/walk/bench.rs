@@ -324,7 +324,12 @@ impl<'p> Worker<'p> {
             };
             if self.mode == "derived" {
                 let mut sink = derived::Count { counts: vec![0; n], touch: 0 };
-                for i in 0..n {
+                let unclocked = std::env::var_os("DERIVED_NOCLOCK").is_some();
+                if unclocked {
+                    // timed runs: every wanted relation in one call, no per-relation clock reads
+                    derived::produce(&ctx, wanted, &mut sink, &mut self.scratch, &mut self.dstate);
+                }
+                for i in (0..n).filter(|_| !unclocked) {
                     if wanted & (1 << i) != 0 {
                         // a pair read from one parse (format-parse + format-field, ...) is produced once, timed on its first
                         let partner = derived::partner(i);
