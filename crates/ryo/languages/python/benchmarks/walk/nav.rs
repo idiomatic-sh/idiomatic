@@ -771,7 +771,39 @@ impl NavProgram {
 
 /// Load-time fusion (NAV_FUSE=0 turns it off): a value bucket followed by the read of the row's start and range tests on it
 /// becomes one range walk; children followed by the field read and an equality on it become a per-field walk.
+/// Tests commute (NAV_TESTS_EARLY=0 turns this off): each test of a straight program moves up to just after the step that binds
+/// its last operand (registers bound outside the program count as bound at its start).
+pub(crate) fn tests_early(p: Vec<Ins>) -> Vec<Ins> {
+    if std::env::var("NAV_TESTS_EARLY").is_ok_and(|v| v == "0") {
+        return p;
+    }
+    let n = p.len();
+    // target slot per instruction: tests go after their last operand's definition; everything else stays
+    let mut def_at: FxMap<R, usize> = FxMap::default();
+    let mut key: Vec<(usize, usize)> = Vec::with_capacity(n);
+    for (i, ins) in p.iter().enumerate() {
+        let (mut reads, mut defs) = (Vec::new(), Vec::new());
+        reads_defs(ins, &mut reads, &mut defs);
+        if matches!(ins, Ins::Test { .. }) {
+            let t = reads.iter().filter_map(|r| def_at.get(r)).map(|&d| d + 1).max().unwrap_or(0);
+            // (position, tie-break): placed right after the defining step, before the steps that followed it
+            key.push((t.min(i), 0));
+        } else {
+            key.push((i, 1));
+        }
+        for d in defs {
+            def_at.insert(d, i);
+        }
+    }
+    let mut order: Vec<usize> = (0..n).collect();
+    // a test moved to slot t sorts before the original instruction at t (tie 0 < 1); stable among equals
+    order.sort_by_key(|&i| (key[i].0, key[i].1, i));
+    let mut slots: Vec<Option<Ins>> = p.into_iter().map(Some).collect();
+    order.into_iter().map(|i| slots[i].take().unwrap()).collect()
+}
+
 pub(crate) fn fuse(p: Vec<Ins>) -> Vec<Ins> {
+    let p = tests_early(p);
     if std::env::var("NAV_FUSE").is_ok_and(|v| v == "0") {
         return p;
     }
@@ -782,78 +814,80 @@ pub(crate) fn fuse(p: Vec<Ins>) -> Vec<Ins> {
         rest.clear();
         match ins {
             Ins::IterValue { rel, col, val, out: o } if matches!(rel, TRel::Ss | TRel::Sl) => {
-                // the reads of the row that follow (any order), one of them its start, then range tests on the start
-                let mut kept: Vec<Ins> = Vec::new();
-                let mut st: Option<R> = None;
-                while let Some(Ins::Read { row, .. }) = it.peek() {
-                    if *row != o {
-                        break;
-                    }
-                    let r = it.next().unwrap();
-                    if let Ins::Read { rel: TRel::Sl, col: 5, out, .. } = &r {
-                        st = Some(*out);
-                    }
-                    kept.push(r);
+                // the straight run that follows: reads of the row (one of them its start) and tests, in any order
+                let mut run: Vec<Ins> = Vec::new();
+                while matches!(it.peek(), Some(Ins::Read { row, .. }) if *row == o) || matches!(it.peek(), Some(Ins::Test { .. })) {
+                    run.push(it.next().unwrap());
                 }
+                let st = run.iter().find_map(|i| match i {
+                    Ins::Read { rel: TRel::Sl, col: 5, row, out } if *row == o => Some(*out),
+                    _ => None,
+                });
                 let Some(st) = st else {
                     out.push(Ins::IterValue { rel, col, val, out: o });
-                    out.extend(kept);
+                    out.extend(run);
                     continue;
                 };
                 let (mut lo, mut hi) = (None, None);
-                while let Some(Ins::Test { test, l: Opd::Reg(a), r: Opd::Reg(b), text: false, .. }) = it.peek() {
-                    let (test, a, b) = (*test, *a, *b);
-                    let bound = match (a == st, b == st, test) {
-                        (true, false, T::Ge) => (true, (b, true)),
-                        (true, false, T::Gt) => (true, (b, false)),
-                        (true, false, T::Lt) => (false, (b, false)),
-                        (true, false, T::Le) => (false, (b, true)),
-                        (false, true, T::Le) => (true, (a, true)),
-                        (false, true, T::Lt) => (true, (a, false)),
-                        (false, true, T::Gt) => (false, (a, false)),
-                        (false, true, T::Ge) => (false, (a, true)),
-                        _ => break,
+                let mut rest: Vec<Ins> = Vec::new();
+                for i in run {
+                    let bound = match &i {
+                        Ins::Test { test, l: Opd::Reg(a), r: Opd::Reg(b), text: false, .. } => match (*a == st, *b == st, *test) {
+                            (true, false, T::Ge) => Some((true, (*b, true))),
+                            (true, false, T::Gt) => Some((true, (*b, false))),
+                            (true, false, T::Lt) => Some((false, (*b, false))),
+                            (true, false, T::Le) => Some((false, (*b, true))),
+                            (false, true, T::Le) => Some((true, (*a, true))),
+                            (false, true, T::Lt) => Some((true, (*a, false))),
+                            (false, true, T::Gt) => Some((false, (*a, false))),
+                            (false, true, T::Ge) => Some((false, (*a, true))),
+                            _ => None,
+                        },
+                        _ => None,
                     };
-                    let slot = if bound.0 { &mut lo } else { &mut hi };
-                    if slot.is_some() {
-                        break;
+                    match bound {
+                        // a bound register must be bound before the walk (not a read of this row)
+                        Some((is_lo, (r, incl))) if !rest.iter().any(|x| matches!(x, Ins::Read { out, .. } if *out == r)) => {
+                            let slot = if is_lo { &mut lo } else { &mut hi };
+                            if slot.is_none() {
+                                *slot = Some((r, incl));
+                                continue;
+                            }
+                            rest.push(i);
+                        }
+                        _ => {
+                            if !matches!(&i, Ins::Read { rel: TRel::Sl, col: 5, row, .. } if *row == o) {
+                                rest.push(i);
+                            }
+                        }
                     }
-                    *slot = Some(bound.1);
-                    it.next();
                 }
-                // the start read is answered by the range walk itself
-                kept.retain(|r| !matches!(r, Ins::Read { rel: TRel::Sl, col: 5, .. }));
                 out.push(Ins::IterRange { rel, col, val, out: o, start: st, lo, hi });
-                out.extend(kept);
+                out.extend(rest);
             }
             Ins::IterChildren { parent, out: o } => {
-                // the reads of the child that follow (any order), one of them its field, then an equality on the field
-                let mut kept: Vec<Ins> = Vec::new();
-                let mut fr: Option<R> = None;
-                while let Some(Ins::Read { row, .. }) = it.peek() {
-                    if *row != o {
-                        break;
-                    }
-                    let r = it.next().unwrap();
-                    if let Ins::Read { rel: TRel::Sc, col: 3, out, .. } = &r {
-                        fr = Some(*out);
-                    }
-                    kept.push(r);
+                // the straight run that follows: reads of the child (one its field) and tests (one an equality on the field)
+                let mut run: Vec<Ins> = Vec::new();
+                while matches!(it.peek(), Some(Ins::Read { row, .. }) if *row == o) || matches!(it.peek(), Some(Ins::Test { .. })) {
+                    run.push(it.next().unwrap());
                 }
-                let field = match (fr, it.peek()) {
-                    (Some(f), Some(Ins::Test { test: T::Eq, l: Opd::Reg(a), r: Opd::Sym(x), .. })) if *a == f => Some((f, *x)),
+                let fr = run.iter().find_map(|i| match i {
+                    Ins::Read { rel: TRel::Sc, col: 3, row, out } if *row == o => Some(*out),
                     _ => None,
-                };
-                match field {
-                    Some((f, x)) => {
-                        it.next();
-                        kept.retain(|r| !matches!(r, Ins::Read { rel: TRel::Sc, col: 3, .. }));
+                });
+                let ft = fr.and_then(|f| {
+                    run.iter().position(|i| matches!(i, Ins::Test { test: T::Eq, l: Opd::Reg(a), r: Opd::Sym(_), .. } if *a == f))
+                });
+                match (fr, ft) {
+                    (Some(f), Some(k)) => {
+                        let Ins::Test { r: Opd::Sym(x), .. } = run.remove(k) else { unreachable!() };
+                        run.retain(|i| !matches!(i, Ins::Read { rel: TRel::Sc, col: 3, row, .. } if *row == o));
                         out.push(Ins::IterField { parent, field: x, out: o, field_out: f });
-                        out.extend(kept);
+                        out.extend(run);
                     }
-                    None => {
+                    _ => {
                         out.push(Ins::IterChildren { parent, out: o });
-                        out.extend(kept);
+                        out.extend(run);
                     }
                 }
             }
