@@ -1471,6 +1471,9 @@ pub(crate) fn is_iter(i: &Ins) -> bool {
 }
 
 thread_local! {
+    /// plan: the unit being hoisted has a learned order (set per unit by specialize_all); slots whose rules' order was dropped
+    static HOIST_EFF: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    static PLAN_DENIED: std::cell::RefCell<Vec<bool>> = const { std::cell::RefCell::new(Vec::new()) };
     static HOIST_ANY: bool = std::env::var("NAV_HOIST_ANY").is_ok_and(|v| v == "1");
 }
 
@@ -1530,9 +1533,27 @@ fn hoist_rec(p: Prog, nested: bool) -> Prog {
     // recurse first
     for i in v.iter_mut() {
         let sub_nested = !matches!(i, Ins::Fork { .. }) || nested;
+        if let Ins::Fork { subs } = i {
+            // a trie branch whose rules' learned order was dropped is hoisted as the unlearned program is
+            for (slots, q) in subs.iter_mut() {
+                let saved = HOIST_EFF.with(|e| e.get());
+                if PLAN_DENIED.with(|d| slots.iter().all(|&s| d.borrow().get(s as usize).copied().unwrap_or(false))) {
+                    HOIST_EFF.with(|e| e.set(false));
+                }
+                *q = hoist_rec(std::mem::take(q), sub_nested);
+                HOIST_EFF.with(|e| e.set(saved));
+            }
+            continue;
+        }
         subs_mut(i, &mut |q| *q = hoist_rec(std::mem::take(q), sub_nested));
     }
     let mut def_at: FxMap<R, usize> = FxMap::default();
+    // where a register's value was decided: a single-valued read of registers decided earlier is decided where they were
+    // (only in units with a learned order, which the sample bound guards; NAV_HOIST_EFF=0: where it is bound), so a key read late from a register bound before a loop still repeats across it
+    let mut eff_at: FxMap<R, usize> = FxMap::default();
+    // registers decided by a single-valued read of another register
+    let mut derived: FxMap<R, bool> = FxMap::default();
+    let eff_on = HOIST_EFF.with(|e| e.get()) && !std::env::var("NAV_HOIST_EFF").is_ok_and(|v| v == "0");
     let mut s = 0;
     while s < v.len() {
         let mut reads = Vec::new();
@@ -1556,12 +1577,15 @@ fn hoist_rec(p: Prog, nested: bool) -> Prog {
                 k.len() <= 2
             };
         if candidate {
-            let d = reads.iter().filter_map(|r| def_at.get(r)).copied().max().unwrap_or(0);
+            let d = reads.iter().filter_map(|r| eff_at.get(r).or_else(|| def_at.get(r))).copied().max().unwrap_or(0);
             // inside a loop whose body re-derives the same key (an iteration after the key's binding), or (NAV_HOIST_ANY) any
             // loop at all: the runtime turns a site's memo off when its keys do not repeat
             // a hoist's replay is a loop too
             let is_loop = |i: &Ins| is_iter(i) || matches!(i, Ins::Hoist { .. } | Ins::HoistProbe { .. });
-            let enclosing = konst || outer_any || (d + 1..s).any(|j| is_loop(&v[j])) || (HOIST_ANY.with(|h| *h) && (0..s).any(|j| is_loop(&v[j])));
+            // a key read (single-valued) from a loop's variable is many-to-one: it repeats across that loop's elements (planned
+            // units only; a site whose keys do not repeat stops memoising at run time)
+            let via_read = eff_on && d < s && is_loop(&v[d]) && reads.iter().any(|r| derived.get(r).copied().unwrap_or(false));
+            let enclosing = konst || outer_any || via_read || (d + 1..s).any(|j| is_loop(&v[j])) || (HOIST_ANY.with(|h| *h) && (0..s).any(|j| is_loop(&v[j])));
             if enclosing {
                 // grow the segment while each step reads only the key or what the segment defined
                 let key: Vec<R> = if konst {
@@ -1666,8 +1690,17 @@ fn hoist_rec(p: Prog, nested: bool) -> Prog {
                 }
             }
         }
+        let single = eff_on
+            && matches!(
+                v[s],
+                Ins::ReadCol { .. } | Ins::ReadChild { .. } | Ins::Read { .. } | Ins::ReadFact { .. } | Ins::Let { .. } | Ins::SpanBetween { .. } | Ins::SpanBounds { .. } | Ins::Axis { dir: Dir::Parent, .. } | Ins::Sibling { .. }
+            );
+        let decided = if single { reads.iter().map(|r| eff_at.get(r).or_else(|| def_at.get(r)).copied().unwrap_or(0)).max().unwrap_or(0) } else { s };
+        let is_derived = single && !reads.is_empty() && !std::env::var("NAV_HOIST_VIA").is_ok_and(|v| v == "0");
         for r in defs {
             def_at.entry(r).or_insert(s);
+            eff_at.entry(r).or_insert(decided);
+            derived.entry(r).or_insert(is_derived);
         }
         s += 1;
     }
@@ -1735,7 +1768,7 @@ impl NavProgram {
             v
         };
         // units with a learned order (they skip the sink)
-        let mut planned: Option<(Vec<bool>, Vec<bool>, bool)> = None;
+        let mut planned: Option<(Vec<bool>, Vec<bool>, bool, Vec<bool>)> = None;
         for (name, f) in stages {
             let t = Instant::now();
             let pass = |q: &mut Prog| *q = f(std::mem::take(q));
@@ -1749,6 +1782,7 @@ impl NavProgram {
             }
             if name == "plan" {
                 planned = crate::plan::plan(self);
+                PLAN_DENIED.with(|d| *d.borrow_mut() = planned.as_ref().map(|p| p.3.clone()).unwrap_or_default());
                 if std::env::var("NAV_VERBOSE").is_ok() {
                     eprintln!("pass {name}: {:.3} s", t.elapsed().as_secs_f64());
                 }
@@ -1757,10 +1791,13 @@ impl NavProgram {
             let skip = name == "sink";
             for (g, grp) in self.groups.iter_mut().enumerate() {
                 if skip && planned.as_ref().is_some_and(|p| p.0[g]) {
+                    crate::plan::sink_denied(&mut grp.prog, &planned.as_ref().unwrap().3);
                     continue;
                 }
+                HOIST_EFF.with(|e| e.set(planned.as_ref().is_some_and(|p| p.0[g])));
                 pass(&mut grp.prog);
             }
+            HOIST_EFF.with(|e| e.set(planned.as_ref().is_some_and(|p| p.2)));
             if !(skip && planned.as_ref().is_some_and(|p| p.2)) {
                 for q in &mut self.shared {
                     pass(q);
@@ -1770,6 +1807,7 @@ impl NavProgram {
                 if skip && planned.as_ref().is_some_and(|p| p.1[i]) {
                     continue;
                 }
+                HOIST_EFF.with(|e| e.set(planned.as_ref().is_some_and(|p| p.1[i])));
                 if let Some((progs, ..)) = &mut fr.made {
                     progs.iter_mut().for_each(pass);
                 }
@@ -1778,6 +1816,7 @@ impl NavProgram {
                     om.right.iter_mut().for_each(pass);
                 }
             }
+            HOIST_EFF.with(|e| e.set(false));
             for r in &mut self.rules {
                 for (_, ps, _) in &mut r.aux {
                     ps.iter_mut().for_each(pass);
@@ -2611,6 +2650,10 @@ pub(crate) struct Counters {
     pub prof: Option<FxMap<(usize, u32), u64>>,
     /// NAV_PROFILE: per program (the address of its first instruction) entered at its start: (runs, inclusive steps)
     pub pincl: FxMap<usize, (u64, u64)>,
+    /// NAV_PROFILE: the site running, and per site the made-table build steps its demands stand for (each table's build in a
+    /// file is charged to every site that reads it there, once: any of them would have paid it)
+    pub cur_site: usize,
+    pub site_extra: FxMap<usize, u64>,
     /// steps executed inside batched loops
     pub batched_steps: u64,
     /// steps spent building made tables (outermost builds), excluded from per-program accounting
@@ -2728,6 +2771,9 @@ pub(crate) struct FileCache {
     pub csr_count: Vec<u32>,
     /// keyed twin rows per (fact, key value): the row range in the twin's columns
     pub keyed_memo: FxMap<(u16, u64), (u32, u32)>,
+    /// statistics run: per made table its build steps in this file, and the (site, table) pairs already charged
+    pub plan_built: FxMap<u16, u64>,
+    pub plan_charged: FxMap<(usize, u16), ()>,
     /// ski rental per keyed twin in this file: steps spent in keyed builds, and the twins switched to their base
     pub twin_rent: FxMap<u16, u64>,
     pub twin_bought: std::collections::HashSet<u16, std::hash::BuildHasherDefault<crate::sema::Fx>>,
@@ -2983,7 +3029,11 @@ impl<'a, 'p> Exec<'a, 'p> {
             }
         }
         let steps_at = self.c.steps;
+        let site = self.c.cur_site;
         let r = self.keyed_build(rel, value);
+        if self.c.diag && self.c.prof.is_some() {
+            *self.c.site_extra.entry(site).or_default() += self.c.steps - steps_at;
+        }
         *self.cache.twin_rent.entry(rel).or_default() += (self.c.steps - steps_at).max(1);
         r
     }
@@ -3257,6 +3307,21 @@ impl<'a, 'p> Exec<'a, 'p> {
 
     // ---- facts: the model's relations one at a time on first demand; the provider's readers once per file for the rest
     fn ensure(&mut self, rel: u16) {
+        if !(self.c.diag && self.c.prof.is_some()) {
+            return self.ensure_inner(rel);
+        }
+        let (site, s0) = (self.c.cur_site, self.c.steps);
+        let was_loaded = self.cache.facts.as_ref().is_some_and(|f| f.loaded[rel as usize]);
+        self.ensure_inner(rel);
+        if !was_loaded {
+            self.cache.plan_built.insert(rel, self.c.steps - s0);
+        }
+        if self.cache.plan_charged.insert((site, rel), ()).is_none() {
+            *self.c.site_extra.entry(site).or_default() += self.cache.plan_built.get(&rel).copied().unwrap_or(0);
+        }
+    }
+
+    fn ensure_inner(&mut self, rel: u16) {
         let prog = self.prog;
         let facts = self.cache.facts.get_or_insert_with(|| Facts {
             cols: prog.facts.iter().map(|f| vec![Vec::new(); f.kinds.len()]).collect(),
@@ -3852,6 +3917,7 @@ impl<'a, 'p> Exec<'a, 'p> {
                 }
                 self.c.op_steps[p[pc].code()] += 1;
                 let r = if self.c.made_depth > 0 { self.c.top_rule } else { self.cur_rule } as u32;
+                self.c.cur_site = &p[pc] as *const Ins as usize;
                 if let Some(prof) = self.c.prof.as_mut() {
                     *prof.entry((&p[pc] as *const Ins as usize, r)).or_default() += 1;
                 }

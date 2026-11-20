@@ -725,6 +725,8 @@ impl<'p> State<'p> {
         self.cache.const_by.clear();
         self.cache.csr.clear();
         self.cache.keyed_memo.clear();
+        self.cache.plan_built.clear();
+        self.cache.plan_charged.clear();
         self.cache.twin_rent.clear();
         self.cache.twin_bought.clear();
         self.cache.hoisted.clear();
@@ -1170,7 +1172,7 @@ impl<'p> State<'p> {
             eprintln!("{{\"branches\":[{}]}}", top.join(","));
             let mut mb: Vec<_> = self.nc.made_by.iter().map(|(&k, &v)| (k, v)).collect();
             mb.sort_by(|a, b| b.1.1.cmp(&a.1.1));
-            let mb: Vec<String> = mb.iter().take(40).map(|(k, v)| format!("[\"{}\",{},{},{},{}]", nav.facts[*k as usize].name, v.0, v.1, v.2, v.3)).collect();
+            let mb: Vec<String> = mb.iter().take(if std::env::var_os("NAV_ALLBRANCHES").is_some() { usize::MAX } else { 40 }).map(|(k, v)| format!("[\"{}\",{},{},{},{},{k}]", nav.facts[*k as usize].name, v.0, v.1, v.2, v.3)).collect();
             eprintln!("{{\"made_by\":[{}]}}", mb.join(","));
             let mut db: Vec<_> = self.nc.derived_by.iter().map(|(&k, &v)| (k, v)).collect();
             db.sort_by(|a, b| b.1.1.cmp(&a.1.1));
@@ -1183,7 +1185,7 @@ impl<'p> State<'p> {
             eprintln!("{{\"memo\":{{\"near_allocs\":{},\"near_cells\":{},\"subkey_lookups\":{sk},\"subkey_misses\":{sm},\"hoist_lookups\":{hk},\"hoist_misses\":{hm}}}}}", c.memo_allocs, c.memo_cells);
             if let Some(prof) = &self.nc.prof {
                 if std::env::var_os("NAV_PLAN_STATS").is_some() {
-                    eprintln!("{}", crate::plan::stats_json(nav, prof, &self.nc.pincl));
+                    eprintln!("{}", crate::plan::stats_json(nav, prof, &self.nc.pincl, &self.nc.site_extra));
                     eprintln!("{}", crate::plan::units_json(nav));
                 } else {
                     eprintln!("PROFILE\n{}", crate::plan::profile_report(nav, prof));

@@ -60,7 +60,7 @@ pub(crate) fn site_ids(prog: &NavProgram) -> FxMap<usize, u32> {
 }
 
 /// One worker's statistics as a JSON line: runs per plan point, (runs, inclusive steps) per program (its first point).
-pub(crate) fn stats_json(prog: &NavProgram, prof: &FxMap<(usize, u32), u64>, pincl: &FxMap<usize, (u64, u64)>) -> String {
+pub(crate) fn stats_json(prog: &NavProgram, prof: &FxMap<(usize, u32), u64>, pincl: &FxMap<usize, (u64, u64)>, extra: &FxMap<usize, u64>) -> String {
     let ids = site_ids(prog);
     let mut ins: FxMap<u32, u64> = FxMap::default();
     for (&(addr, _), &n) in prof {
@@ -72,11 +72,14 @@ pub(crate) fn stats_json(prog: &NavProgram, prof: &FxMap<(usize, u32), u64>, pin
     a.sort_unstable();
     let mut b: Vec<(u32, u64, u64)> = pincl.iter().filter_map(|(addr, &(n, st))| ids.get(addr).map(|&id| (id, n, st))).collect();
     b.sort_unstable();
+    let mut x: Vec<(u32, u64)> = extra.iter().filter(|(_, n)| **n > 0).filter_map(|(addr, &n)| ids.get(addr).map(|&id| (id, n))).collect();
+    x.sort_unstable();
     format!(
-        "{{\"plan_stats\":{{\"points\":{},\"ins\":[{}],\"prog\":[{}]}}}}",
+        "{{\"plan_stats\":{{\"points\":{},\"ins\":[{}],\"prog\":[{}],\"extra\":[{}]}}}}",
         ids.len(),
         a.iter().map(|(i, n)| format!("[{i},{n}]")).collect::<Vec<_>>().join(","),
-        b.iter().map(|(i, n, st)| format!("[{i},{n},{st}]")).collect::<Vec<_>>().join(",")
+        b.iter().map(|(i, n, st)| format!("[{i},{n},{st}]")).collect::<Vec<_>>().join(","),
+        x.iter().map(|(i, n)| format!("[{i},{n}]")).collect::<Vec<_>>().join(",")
     )
 }
 
@@ -86,6 +89,8 @@ struct Stats {
     points: usize,
     ins: FxMap<u32, u64>,
     prog: FxMap<u32, (u64, u64)>,
+    /// made-table build steps a point's demands stand for
+    extra: FxMap<u32, u64>,
 }
 
 fn load_stats(path: &str) -> Stats {
@@ -99,6 +104,9 @@ fn load_stats(path: &str) -> Stats {
         s.points = v["points"].as_u64().unwrap() as usize;
         for e in v["ins"].as_array().unwrap() {
             *s.ins.entry(e[0].as_u64().unwrap() as u32).or_default() += e[1].as_u64().unwrap();
+        }
+        for e in v["extra"].as_array().map(Vec::as_slice).unwrap_or(&[]) {
+            *s.extra.entry(e[0].as_u64().unwrap() as u32).or_default() += e[1].as_u64().unwrap();
         }
         for e in v["prog"].as_array().unwrap() {
             let x = s.prog.entry(e[0].as_u64().unwrap() as u32).or_default();
@@ -114,6 +122,8 @@ fn load_stats(path: &str) -> Stats {
 struct Deny {
     groups: Vec<usize>,
     made: Vec<usize>,
+    /// rules (their index in the pack): the trie branches only they run keep the unlearned order
+    rules: Vec<usize>,
     shared: bool,
 }
 
@@ -121,7 +131,7 @@ fn load_deny() -> Deny {
     let Ok(path) = std::env::var("NAV_PLAN_DENY") else { return Deny::default() };
     let v: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(path).expect("plan deny")).expect("plan deny json");
     let list = |k: &str| v[k].as_array().map(|a| a.iter().map(|x| x.as_u64().unwrap() as usize).collect()).unwrap_or_default();
-    Deny { groups: list("groups"), made: list("made"), shared: v["shared"].as_bool().unwrap_or(false) }
+    Deny { groups: list("groups"), made: list("made"), rules: list("rules"), shared: v["shared"].as_bool().unwrap_or(false) }
 }
 
 thread_local! {
@@ -170,6 +180,9 @@ fn depends(a: &Item, b: &Item) -> bool {
         || overlap(&a.defs, &b.scratch)
 }
 
+/// how many steps of an unlocked chain a step's rank looks through
+const LOOKAHEAD: usize = 8;
+
 fn rank(sel: f64, cost: f64) -> f64 {
     (sel - 1.0) / cost.max(1e-9)
 }
@@ -208,7 +221,10 @@ fn order_level(items: &[Item]) -> Vec<usize> {
             let (mut c, mut s) = (items[i].cost, items[i].sel);
             in_chain.iter_mut().for_each(|x| *x = false);
             in_chain[i] = true;
-            loop {
+            // the best prefix of the chain this step unlocks: the chain grows by its lowest-ranked unlocked step (a read is
+            // followed through to the test it feeds), and the step is ranked by the lowest rank any prefix reaches
+            let mut r = rank(s, c);
+            for _ in 0..LOOKAHEAD {
                 // steps this chain unlocks: every predecessor placed or in the chain, at least one in the chain
                 let mut next: Option<(f64, usize)> = None;
                 for j in 0..n {
@@ -216,22 +232,18 @@ fn order_level(items: &[Item]) -> Vec<usize> {
                         continue;
                     }
                     if preds[j].iter().all(|&p| placed[p] || in_chain[p]) && preds[j].iter().any(|&p| in_chain[p]) {
-                        let r = rank(items[j].sel, items[j].cost);
-                        if next.is_none_or(|(br, _)| r < br) {
-                            next = Some((r, j));
+                        let rj = rank(items[j].sel, items[j].cost);
+                        if next.is_none_or(|(br, _)| rj < br) {
+                            next = Some((rj, j));
                         }
                     }
                 }
-                match next {
-                    Some((r, j)) if r < rank(s, c) => {
-                        c += s * items[j].cost;
-                        s *= items[j].sel;
-                        in_chain[j] = true;
-                    }
-                    _ => break,
-                }
+                let Some((_, j)) = next else { break };
+                c += s * items[j].cost;
+                s *= items[j].sel;
+                in_chain[j] = true;
+                r = r.min(rank(s, c));
             }
-            let r = rank(s, c);
             if best.is_none_or(|(br, _)| r < br) {
                 best = Some((r, i));
             }
@@ -253,14 +265,14 @@ struct Report {
 }
 
 /// Plans one program level and everything below it.
-fn plan_prog(p: &mut Prog, ids: &FxMap<usize, u32>, st: &Stats, min_gain: f64, rep: &mut Report) {
+fn plan_prog(p: &mut Prog, ids: &FxMap<usize, u32>, st: &Stats, min_gain: f64, denied: &[bool], rep: &mut Report) {
     let n = p.len();
     // this level's measurements, read before anything below moves
     let runs: Vec<u64> = p.iter().map(|i| ids.get(&(i as *const Ins as usize)).and_then(|id| st.ins.get(id)).copied().unwrap_or(0)).collect();
     let below: Vec<u64> = p
         .iter()
         .map(|i| {
-            let mut s = 0u64;
+            let mut s = ids.get(&(i as *const Ins as usize)).and_then(|id| st.extra.get(id)).copied().unwrap_or(0);
             subs_ref(i, &mut |q| {
                 if let Some(first) = q.first() {
                     s += ids.get(&(first as *const Ins as usize)).and_then(|id| st.prog.get(id)).map_or(0, |x| x.1);
@@ -270,7 +282,16 @@ fn plan_prog(p: &mut Prog, ids: &FxMap<usize, u32>, st: &Stats, min_gain: f64, r
         })
         .collect();
     for i in p.iter_mut() {
-        subs_mut(i, &mut |q| plan_prog(q, ids, st, min_gain, rep));
+        if let Ins::Fork { subs } = i {
+            // a trie branch run only by rules whose learned order was dropped keeps the unlearned order
+            for (slots, q) in subs.iter_mut() {
+                if !slots.iter().all(|&s| denied[s as usize]) {
+                    plan_prog(q, ids, st, min_gain, denied, rep);
+                }
+            }
+            continue;
+        }
+        subs_mut(i, &mut |q| plan_prog(q, ids, st, min_gain, denied, rep));
     }
     rep.levels += 1;
     if n < 3 || p.iter().any(|i| matches!(i, Ins::SubFirst { .. })) {
@@ -301,13 +322,22 @@ fn plan_prog(p: &mut Prog, ids: &FxMap<usize, u32>, st: &Stats, min_gain: f64, r
                 reads_defs(i, &mut reads, &mut defs);
             }
             let (r, next) = (runs[k] as f64, runs[k + 1] as f64);
-            Item { reads, defs, scratch, sel: (next + 0.5) / (r + 1.0), cost: (runs[k] + below[k]) as f64 / r }
+            // a step nothing passed on the sample is not taken as never passing: half a continuation
+            let sel = if std::env::var_os("NAV_PLAN_SMOOTH").is_some() { (next + 0.5) / (r + 1.0) } else if runs[k + 1] == 0 { 0.5 / (r + 1.0) } else { next / r };
+            Item { reads, defs, scratch, sel, cost: (runs[k] + below[k]) as f64 / r }
         })
         .collect();
     let given: Vec<usize> = (0..items.len()).collect();
     let order = order_level(&items);
     let (c0, c1) = (modelled(&given, &items), modelled(&order, &items));
     let entries = runs[start] as f64;
+    if std::env::var("NAV_PLAN_DEBUG").ok().and_then(|v| v.parse::<f64>().ok()).is_some_and(|min| c0 * entries >= min) {
+        eprintln!("LEVEL entries {entries} modelled {:.0} -> {:.0}", c0 * entries, c1 * entries);
+        for (pos, &k) in order.iter().enumerate() {
+            let text: String = format!("{:?}", p[start + k]).chars().take(110).collect();
+            eprintln!("  {pos:>3} was {k:>3} runs {:>9} sel {:>9.4} cost {:>9.2} {text}", runs[start + k], items[k].sel, items[k].cost);
+        }
+    }
     rep.before += c0 * entries;
     if order == given || c1 > c0 * (1.0 - min_gain) {
         rep.after += c0 * entries;
@@ -331,7 +361,7 @@ fn plan_prog(p: &mut Prog, ids: &FxMap<usize, u32>, st: &Stats, min_gain: f64, r
 
 /// The planning pass (`NAV_PLAN=<statistics file>`): orders every level of every unit by the sample's measurements. Returns,
 /// per group, made table and for the shared entries, whether the unit was planned (the others keep the unlearned order).
-pub(crate) fn plan(prog: &mut NavProgram) -> Option<(Vec<bool>, Vec<bool>, bool)> {
+pub(crate) fn plan(prog: &mut NavProgram) -> Option<(Vec<bool>, Vec<bool>, bool, Vec<bool>)> {
     let path = std::env::var("NAV_PLAN").ok()?;
     let st = load_stats(&path);
     let ids = site_ids(prog);
@@ -347,11 +377,14 @@ pub(crate) fn plan(prog: &mut NavProgram) -> Option<(Vec<bool>, Vec<bool>, bool)
         SHARED_DEFS.with(|t| t.borrow_mut().push(d));
     }
     let mut rep = Report::default();
-    let groups: Vec<bool> = (0..prog.groups.len()).map(|g| !deny.groups.contains(&g)).collect();
+    // per (rule, branch) slot: its rule's learned order was dropped
+    let denied: Vec<bool> = prog.slot_rule.iter().map(|&r| deny.rules.contains(&(r as usize))).collect();
+    let none: Vec<bool> = Vec::new();
+    let groups: Vec<bool> = (0..prog.groups.len()).map(|g| !deny.groups.contains(&g) && !prog.groups[g].slots.iter().all(|&s| denied[s as usize])).collect();
     let made: Vec<bool> = (0..prog.facts.len()).map(|i| !deny.made.contains(&i)).collect();
     for (g, grp) in prog.groups.iter_mut().enumerate() {
         if groups[g] {
-            plan_prog(&mut grp.prog, &ids, &st, min_gain, &mut rep);
+            plan_prog(&mut grp.prog, &ids, &st, min_gain, &denied, &mut rep);
         }
     }
     for (i, fr) in prog.facts.iter_mut().enumerate() {
@@ -359,24 +392,39 @@ pub(crate) fn plan(prog: &mut NavProgram) -> Option<(Vec<bool>, Vec<bool>, bool)
             continue;
         }
         if let Some((progs, ..)) = &mut fr.made {
-            progs.iter_mut().for_each(|q| plan_prog(q, &ids, &st, min_gain, &mut rep));
+            progs.iter_mut().for_each(|q| plan_prog(q, &ids, &st, min_gain, &none, &mut rep));
         }
         if let Some(om) = &mut fr.made_om {
-            om.left.iter_mut().chain(om.right.iter_mut()).for_each(|q| plan_prog(q, &ids, &st, min_gain, &mut rep));
+            om.left.iter_mut().chain(om.right.iter_mut()).for_each(|q| plan_prog(q, &ids, &st, min_gain, &none, &mut rep));
         }
     }
     if !deny.shared {
         for q in &mut prog.shared {
-            plan_prog(q, &ids, &st, min_gain, &mut rep);
+            plan_prog(q, &ids, &st, min_gain, &none, &mut rep);
         }
     }
     // a shared entry's free registers do not depend on its order; the tables the later passes read stay valid
     let _ = free_regs;
     eprintln!(
-        "{{\"plan\":{{\"levels\":{},\"measured\":{},\"reordered\":{},\"modelled_sample_steps_before\":{:.0},\"modelled_sample_steps_after\":{:.0},\"denied_groups\":{},\"denied_made\":{},\"denied_shared\":{}}}}}",
-        rep.levels, rep.measured, rep.reordered, rep.before, rep.after, deny.groups.len(), deny.made.len(), deny.shared
+        "{{\"plan\":{{\"levels\":{},\"measured\":{},\"reordered\":{},\"modelled_sample_steps_before\":{:.0},\"modelled_sample_steps_after\":{:.0},\"denied_groups\":{},\"denied_made\":{},\"denied_rules\":{},\"denied_shared\":{}}}}}",
+        rep.levels, rep.measured, rep.reordered, rep.before, rep.after, deny.groups.len(), deny.made.len(), deny.rules.len(), deny.shared
     );
-    Some((groups, made, !deny.shared))
+    Some((groups, made, !deny.shared, denied))
+}
+
+/// The prior (the sink) for the trie branches of a planned group whose rules' learned order was dropped.
+pub(crate) fn sink_denied(p: &mut Prog, denied: &[bool]) {
+    for i in p.iter_mut() {
+        if let Ins::Fork { subs } = i {
+            for (slots, q) in subs.iter_mut() {
+                if slots.iter().all(|&s| denied[s as usize]) {
+                    *q = crate::nav::sink(std::mem::take(q));
+                } else {
+                    sink_denied(q, denied);
+                }
+            }
+        }
+    }
 }
 
 /// The unit lists of a run (`NAV_PLAN_STATS`): each group's rules, so a sample comparison can name the units a rule runs in.
@@ -390,7 +438,8 @@ pub(crate) fn units_json(prog: &NavProgram) -> String {
             format!("[{}]", ids.iter().map(|i| format!("\"{i}\"")).collect::<Vec<_>>().join(","))
         })
         .collect();
-    format!("{{\"plan_units\":{{\"groups\":[{}]}}}}", groups.join(","))
+    let rules: Vec<String> = prog.rules.iter().map(|r| format!("\"{}\"", r.id)).collect();
+    format!("{{\"plan_units\":{{\"groups\":[{}],\"rules\":[{}]}}}}", groups.join(","), rules.join(","))
 }
 
 /// NAV_PROFILE report: per (instruction site, rule charged) its steps, with the chain of constructs that enclose the site
