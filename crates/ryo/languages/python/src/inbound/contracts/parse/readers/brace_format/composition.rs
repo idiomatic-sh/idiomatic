@@ -111,7 +111,7 @@ fn context_name(context: &BraceFieldContext) -> languages::NameText<'static> {
 }
 
 /// Returns the ordinal of the field a nested field belongs to, or none.
-fn parent_ordinal(context: &BraceFieldContext) -> languages::Integer {
+pub(crate) fn parent_ordinal(context: &BraceFieldContext) -> languages::Integer {
     match context {
         BraceFieldContext::Literal => languages::Integer(NO_PARENT),
         BraceFieldContext::FormatSpec { parent_ordinal } => {
@@ -216,7 +216,7 @@ ryo::reads! {
 
 /// Hands `each` every string occurrence of a walked file with its brace-format parse: a string, an f-string and the format spec
 /// of an interpolation are parsed as their decoded text; one that interpolates has an input no file states, and no parse.
-fn parsed_strings(
+pub(crate) fn parsed_strings(
     file: &SyntaxFile<'_>,
     joined: &mut TextBuffer,
     each: &mut dyn FnMut(languages::Position, Option<&BraceFormatResult>, DynamicInput),

@@ -20,7 +20,7 @@ fn subtype(left: BasicType, right: BasicType) -> TypeInclusion {
 }
 
 /// Combine branch results while preserving known subtype relationships.
-pub(in super::super) fn union(left: Resolution, right: Resolution) -> Resolution {
+pub(crate) fn union(left: Resolution, right: Resolution) -> Resolution {
     match (left, right) {
         (Resolution::TypeError, _) | (_, Resolution::TypeError) => Resolution::TypeError,
         (Resolution::Unknown, _) | (_, Resolution::Unknown) => Resolution::Unknown,

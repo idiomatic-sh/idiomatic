@@ -78,7 +78,7 @@ pub(in super::super) fn unary_operator(tree: &Tree<'_>, at: Position) -> Option<
 }
 
 /// Infer a result for the supported binary operations.
-pub(in super::super) fn binary(op: Node, left: &Resolution, right: &Resolution) -> Resolution {
+pub(crate) fn binary(op: Node, left: &Resolution, right: &Resolution) -> Resolution {
     if op == Node::Mod {
         match left {
             Resolution::Atom(BasicType::String) => return Resolution::Atom(BasicType::String),

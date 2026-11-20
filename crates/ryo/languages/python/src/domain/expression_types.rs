@@ -6,5 +6,5 @@ pub(crate) mod types;
 
 pub(crate) mod constants;
 
-mod inclusion;
-mod operators;
+pub(crate) mod inclusion;
+pub(crate) mod operators;

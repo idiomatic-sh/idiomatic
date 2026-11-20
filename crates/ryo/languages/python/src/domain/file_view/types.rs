@@ -1,6 +1,9 @@
 //! The types of the `file_view` concept: the Python language as the engine's walk and its fillers name it, the view of one walked
 //! file the fillers read, and the buffers a worker keeps from file to file.
 
+use crate::domain::constant_keys::types::{KeyClass, KeyWord};
+use crate::domain::expression_types::types::Resolution;
+use crate::domain::format_specification::types::OwnedField;
 use crate::domain::indentation::types::IndentationRegion;
 use crate::domain::layout_facts::types::FileLines;
 use crate::domain::literal_facts::types::TextBuffer;
@@ -9,6 +12,7 @@ use crate::domain::model::view::types::{Built, ModelPart, ModelRead, ModelView, 
 use crate::domain::node::types::{FixedWords, SyntaxFile};
 use crate::domain::standard_library::types::TargetVersion;
 use crate::domain::token_links::types::Opener;
+use ryo::languages::{Position, RetainedKeyIndex, ShapeWord};
 
 /// The Python language as the engine walks it, over the ports `P` its walk calls. Its fillers call no port, so a `fills!` item
 /// names the language with none (`PythonWalk`), and the same fillers serve the walk an edge composes over its ports.
@@ -73,4 +77,12 @@ pub(crate) struct FillBuffers {
     pub(crate) regions: Vec<IndentationRegion>,
     /// Where the lines of the file start.
     pub(crate) lines: FileLines,
+    /// The basic type of each node of the file.
+    pub(crate) types: Vec<Resolution>,
+    /// The constants of the file by their value.
+    pub(crate) keys: RetainedKeyIndex<KeyClass, KeyWord>,
+    /// The expressions of the file by their structure.
+    pub(crate) shapes: RetainedKeyIndex<Position, ShapeWord>,
+    /// The interpolations of the file with the f-string that holds each.
+    pub(crate) owned: Vec<OwnedField>,
 }

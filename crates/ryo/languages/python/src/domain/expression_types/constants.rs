@@ -3,7 +3,7 @@ use super::types::BasicType;
 /// Unary logical negation spelling.
 pub(super) const NOT: &str = "not";
 /// Decode the closed literal-provider vocabulary, retaining its unrecognized label.
-pub(super) fn literal_type(name: ryo::languages::NameText<'_>) -> BasicType {
+pub(crate) fn literal_type(name: ryo::languages::NameText<'_>) -> BasicType {
     match name.0 {
         "boolean" => BasicType::Boolean,
         "integer" => BasicType::Integer,

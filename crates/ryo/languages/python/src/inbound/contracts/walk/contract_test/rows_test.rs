@@ -184,6 +184,36 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || (Relation::LiteralExpressionParse, "literal_expression_parse"),
         expect: Expect::Value(String::new()),
     },
+    Case {
+        name: CaseName("the_filler_of_expression_shape_writes_the_rows_its_fixture_states"),
+        word: Word::Succeeds,
+        input: || (Relation::ExpressionShape, "expression_shape"),
+        expect: Expect::Value(String::new()),
+    },
+    Case {
+        name: CaseName("the_filler_of_expression_type_writes_the_rows_its_fixture_states"),
+        word: Word::Succeeds,
+        input: || (Relation::ExpressionType, "expression_type"),
+        expect: Expect::Value(String::new()),
+    },
+    Case {
+        name: CaseName("the_filler_of_constant_key_writes_the_rows_its_fixture_states"),
+        word: Word::Succeeds,
+        input: || (Relation::ConstantKey, "constant_key"),
+        expect: Expect::Value(String::new()),
+    },
+    Case {
+        name: CaseName("the_filler_of_function_terminal_writes_the_rows_its_fixture_states"),
+        word: Word::Succeeds,
+        input: || (Relation::FunctionTerminal, "function_terminal"),
+        expect: Expect::Value(String::new()),
+    },
+    Case {
+        name: CaseName("the_filler_of_format_specification_writes_the_rows_its_fixture_states"),
+        word: Word::Succeeds,
+        input: || (Relation::FormatSpecification, "format_specification"),
+        expect: Expect::Value(String::new()),
+    },
 ];
 
 /// The rows of one side the other lacks, shown.

@@ -21,11 +21,16 @@ const FILLED: &[Relation] = &[
     Relation::CallArgument,
     Relation::Comment,
     Relation::CompilerFeature,
+    Relation::ConstantKey,
     Relation::Decorates,
     Relation::Defines,
+    Relation::ExpressionShape,
+    Relation::ExpressionType,
     Relation::FormatField,
     Relation::FormatParse,
+    Relation::FormatSpecification,
     Relation::Function,
+    Relation::FunctionTerminal,
     Relation::Identifier,
     Relation::ImplicitSymbol,
     Relation::IndentRegion,
@@ -97,12 +102,17 @@ fn differences(path: &str, bytes: &[u8]) -> Result<String, WalkError> {
             let mut words = languages::facts::file_words(&languages::facts::base_words(&[]));
             let keys = walked_keys(file.table);
             for relation in FILLED {
-                let before: Vec<Vec<Seen>> =
+                let (before, left_out): (Vec<Vec<Seen>>, Vec<Vec<Seen>>) =
                     read_rows(&today, &today_rows, bytes, &today_keys, *relation)
                         .into_iter()
-                        .filter(|row| !embedded(row))
-                        .collect();
+                        .partition(|row| !embedded(row));
                 let (after, answer) = walked_rows(&mut file, &keys, *relation, &mut words);
+                // A row today's reading names by an embedded element (a class named by its last member) is left out on both
+                // sides: the walk names the same element's class by a member of the file's own tree.
+                let after: Vec<Vec<Seen>> = after
+                    .into_iter()
+                    .filter(|row| !left_out.iter().any(|out| out.first() == row.first()))
+                    .collect();
                 let partial_today = today
                     .rows
                     .partials
@@ -119,6 +129,13 @@ fn differences(path: &str, bytes: &[u8]) -> Result<String, WalkError> {
                     before.len(),
                     after.len()
                 ));
+                    for (side, have, other) in
+                        [("today", &before, &after), ("walked", &after, &before)]
+                    {
+                        for row in have.iter().filter(|row| !other.contains(row)).take(3) {
+                            found.push_str(&format!("  only {side}: {row:?}\n"));
+                        }
+                    }
                 }
             }
         },
