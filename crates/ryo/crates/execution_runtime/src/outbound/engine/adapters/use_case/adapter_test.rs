@@ -13,8 +13,10 @@ use ryo_engine::inbound::use_cases::load::types::LoadSource;
 use ryo_engine::inbound::use_cases::load::use_case::LoadUseCaseImpl;
 use ryo_engine::inbound::use_cases::project::use_case::ProjectUseCaseImpl;
 use ryo_engine::inbound::use_cases::scan::use_case::ScanUseCaseImpl;
+use ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl;
 use ryo_relations::domain::relations::types::Count;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use std::sync::Arc;
 
 /// The pack the adapter is asked to read.
 #[derive(Clone, Copy, Debug)]
@@ -50,7 +52,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn adapter() -> EngineUseCaseAdapter<LoadUseCaseImpl, ScanUseCaseImpl, ProjectUseCaseImpl> {
     EngineUseCaseAdapter::new(
         LoadUseCaseImpl::new(),
-        ScanUseCaseImpl::new(),
+        ScanUseCaseImpl::new(Arc::new(MatchingUseCaseImpl)),
         ProjectUseCaseImpl::new(),
     )
 }
