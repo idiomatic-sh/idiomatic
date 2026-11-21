@@ -7,6 +7,7 @@ pub mod entries;
 #[cfg(test)]
 pub mod fixtures;
 pub mod ordered;
+pub mod running;
 pub mod service;
 pub mod sources;
 pub mod staging;

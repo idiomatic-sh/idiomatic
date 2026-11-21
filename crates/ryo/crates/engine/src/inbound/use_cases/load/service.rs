@@ -1,16 +1,18 @@
-//! The `load` use case's own sequence over a lowering: lower, pass, encode, wrap; and what happens when the encoding refuses a
-//! rule. The lowering is a parameter so that the sequence is proved before the lowering lowers.
+//! The `load` use case's own sequence over a lowering: lower, pass, encode, wrap, ask the executor whether it runs every
+//! word and fill of each rule; and what happens when the encoding refuses a rule or the executor cannot run one whole. The lowering is a parameter so that the sequence is proved before the lowering lowers.
 
 use super::errors::LoadError;
 use super::types::{LoadPass, LoadedRules, NamedWords};
 use crate::domain::code::types::ProgramCode;
 use crate::domain::encoding::service::encoded;
+use crate::domain::executing::running::service::unit_not_run;
 use crate::domain::lowered::types::LoweredPack;
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::{
     LoadRefusal, LoweredRules, PlanNode, RefusedRule, SelectedRule, SelectedRules,
 };
 use crate::domain::passes::service::passed;
+use crate::domain::programs::service::unit_step;
 use crate::domain::programs::types::{Programs, ProgramsEngine, RuleSteps};
 use crate::domain::statistics::service::matched;
 use crate::domain::statistics::types::{MatchedStatistics, Statistics};
@@ -87,6 +89,26 @@ fn programs(
     }))
 }
 
+/// The rules of loaded programs the executor cannot run whole: each can reach a word or a fill the executor does not run
+/// yet (`executing::running::service::unit_not_run`, the executor's one answer over the code). Such a rule is refused like
+/// an operation the lowering does not take, with the step of its own plan that unit makes the rows of, so it never
+/// reaches a scan.
+fn not_run(programs: &Programs) -> Vec<RefusedRule> {
+    let code = &programs.0.code;
+    let refused = code.rules.iter().filter_map(|rule| {
+        let unit = unit_not_run(code, rule)?;
+        let key = &code
+            .units
+            .get(usize::try_from(unit.0).unwrap_or(usize::MAX))?
+            .key;
+        Some(RefusedRule {
+            rule: rule.rule,
+            refusal: LoadRefusal::Unlowerable(PlanNode(unit_step(programs, rule.rule, key).0)),
+        })
+    });
+    refused.collect()
+}
+
 /// The refusal a rule takes from an encoding's: a step the encoding names is held to the rule's own plan, whose last step is the
 /// greatest the encoding can mean (it holds no plan).
 fn held(refusal: LoadRefusal, rule: Option<&SelectedRule<'_>>) -> LoadRefusal {
@@ -146,12 +168,34 @@ pub(super) fn sequenced(
         let written: Vec<SelectedRuleOrdinal> = pack.rules.iter().map(|rule| rule.rule).collect();
         match encoded(&pack) {
             Ok(code) => {
-                named = statistics.map_or(MatchedStatistics::Absent, |measured| {
-                    MatchedStatistics::Units(matched(measured, &code.units))
-                });
                 let steps = rule_steps(&code, rules);
-                loaded = programs(pack, code, steps, names)?;
-                break;
+                let lowered = programs(pack, code, steps, names)?;
+                let unrun = not_run(&lowered);
+                if unrun.is_empty() {
+                    named = statistics.map_or(MatchedStatistics::Absent, |measured| {
+                        MatchedStatistics::Units(matched(measured, &lowered.0.code.units))
+                    });
+                    loaded = lowered;
+                    break;
+                }
+                // A rule the executor cannot run whole is taken out and the others are lowered once more; on the last
+                // lowering it takes every rule with it, each answered the first such rule's step held to its own plan.
+                let gone: Vec<RefusedRule> = match lowering {
+                    LoadPass::First => unrun,
+                    LoadPass::Last => {
+                        let first = unrun.first().map(|rule| rule.refusal);
+                        let all = written.iter().zip(first.into_iter().cycle());
+                        all.map(|(rule, refusal)| RefusedRule {
+                            rule: *rule,
+                            refusal: held(refusal, rules.0.iter().find(|each| each.rule == *rule)),
+                        })
+                        .collect()
+                    }
+                };
+                selected.retain(|rule| {
+                    written.contains(&rule.rule) && !gone.iter().any(|each| each.rule == rule.rule)
+                });
+                refused.extend(gone);
             }
             Err(LoweringError::Refused { rule, refusal }) => {
                 let gone = taken(&written, rule, refusal, lowering);

@@ -3,6 +3,7 @@
 
 pub mod axis;
 pub mod comparing;
+pub mod each_kind;
 pub mod each_match;
 pub mod each_row;
 pub mod emit;
