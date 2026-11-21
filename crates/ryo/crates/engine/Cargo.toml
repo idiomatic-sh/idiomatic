@@ -16,22 +16,32 @@ name = "ryo_engine"
 ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.2.0" }
 ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.2.0" }
 ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.2.0" }
+ryo_operators = { package = "idiomatic-sh-ryo-operators", path = "../operators", version = "0.2.0" }
+# The matcher the fill side's fixtures hand a test of a text: in a run the scan's host hands one.
+ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../matching", version = "0.2.0", optional = true }
 thiserror.workspace = true
+hashbrown.workspace = true
 
 [features]
 # Test support, not a public API: it may change without notice. Only a dev-dependency or this crate's own `fixtures` switches it on (`fixtures-feature`).
-fixtures = ["ryo_language/fixtures"]
+fixtures = ["ryo_language/fixtures", "dep:ryo_matching"]
 
 [dev-dependencies]
 # The crate itself, with its fixtures: its tests need them, and no test is run with a flag.
 idiomatic-sh-ryo-engine = { path = ".", features = ["fixtures"] }
 ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.2.0", features = ["fixtures"] }
+ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../matching", version = "0.2.0" }
 cargo_metadata.workspace = true
 cucumber.workspace = true
 tokio.workspace = true
 
 [[test]]
 name = "bdd"
+harness = false
+
+[[bench]]
+name = "performance"
+path = "benches/performance.rs"
 harness = false
 
 [lints]

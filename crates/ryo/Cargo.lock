@@ -1431,8 +1431,11 @@ version = "0.2.0"
 dependencies = [
  "cargo_metadata",
  "cucumber",
+ "hashbrown 0.17.1",
  "idiomatic-sh-ryo-engine",
  "idiomatic-sh-ryo-language",
+ "idiomatic-sh-ryo-matching",
+ "idiomatic-sh-ryo-operators",
  "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
  "thiserror 2.0.20",
