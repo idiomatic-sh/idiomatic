@@ -165,15 +165,19 @@ fn found<K: Iterator<Item = CellWord> + Clone>(index: IndexRead<'_>, key: K) -> 
                 else {
                     return RowRun::default();
                 };
-                if *run == EMPTY_RUN {
-                    return RowRun::default();
-                }
-                if held
+                // Whether the slot is empty and whether it holds the key are found with no branch on either: a key that
+                // is there and a key that is not are then one path, and only a slot that holds another key (a
+                // collision, the rare case) walks on. Which of the two it was chooses the answer, again with no
+                // branch: the run of no row for an empty slot.
+                let differing = held
                     .iter()
                     .zip(key.clone())
-                    .all(|(cell, asked)| cell.0 == asked.0)
-                {
-                    return run_from(*run);
+                    .fold(0_u64, |differing, (cell, asked)| {
+                        differing | (cell.0 ^ asked.0)
+                    });
+                let empty = *run == EMPTY_RUN;
+                if empty | (differing == 0) {
+                    return run_from(if empty { TableWord(0) } else { *run });
                 }
                 at = at.wrapping_add(1) & index.mask.0;
             }
