@@ -164,7 +164,9 @@ fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
 
+mod calls;
 mod fills;
+mod matches;
 mod pipelines;
 mod relations;
 mod sources;

@@ -4,6 +4,7 @@
     reason = "the fill side is built in its own tree (track X, the executor split in two); the loop's tree is the caller of its seam, and the integration of the two removes this"
 )]
 
+pub mod calling;
 pub mod carrying;
 pub mod constants;
 pub mod fanning;
@@ -11,6 +12,7 @@ pub mod fills;
 pub mod indexing;
 pub mod keyed;
 pub mod making;
+pub mod matching;
 pub mod operands;
 pub mod pipelines;
 pub mod reading;

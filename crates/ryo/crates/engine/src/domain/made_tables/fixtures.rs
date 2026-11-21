@@ -221,14 +221,17 @@ pub(crate) fn world_of(
             code,
             kinds: [0_u64, 11, 12, 13].map(CellWord).to_vec(),
             fields: [0_u64, 0, 0, 0, 24].map(CellWord).to_vec(),
-            regexes: vec![StepRegex("^[ac]".into())],
+            regexes: packs::REGEXES
+                .iter()
+                .map(|source| StepRegex((*source).into()))
+                .collect(),
         },
         nodes,
         words: file_words(&base_words(
             checked(&[]).map_err(|_| FilledError::Code {
                 named: crate::domain::filled::types::MissingCode::Word,
             })?,
-            &[NameText("a*"), NameText("?d"), NameText("ef")],
+            &packs::TEXTS.map(NameText),
         )),
         store,
         told: Told {
@@ -283,6 +286,46 @@ pub(crate) fn shown(store: &FillStore, table: MadeTableId) -> String {
             crate::domain::made_tables::service::row(&slot.rows, Count(row))
                 .iter()
                 .map(|cell| cell.0.to_string())
+                .collect::<Vec<_>>()
+                .join(" ")
+        })
+        .collect();
+    rows.join("; ")
+}
+
+/// How a column of a table is shown by `shown_as`.
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum Shown {
+    /// The cell's number.
+    Number,
+    /// The text of the word the cell is, in quotes.
+    Text,
+    /// A span, as `start..end`.
+    Span,
+    /// A node, as `n` and its place in the file's table.
+    Node,
+}
+
+/// A table's rows as text, each column shown as `columns` says: rows separated by `;`.
+pub(crate) fn shown_as(world: &World, table: MadeTableId, columns: &[Shown]) -> String {
+    let Some(slot) = crate::domain::made_tables::sources::service::table_of(&world.store, table)
+    else {
+        return "unmade".to_owned();
+    };
+    let rows: Vec<String> = (0..slot.rows.count.0)
+        .map(|row| {
+            crate::domain::made_tables::service::row(&slot.rows, Count(row))
+                .iter()
+                .zip(columns)
+                .map(|(cell, shown)| match shown {
+                    Shown::Number => cell.0.to_string(),
+                    Shown::Text => format!(
+                        "{:?}",
+                        ryo_language::domain::facts::service::text(&world.words, *cell).0
+                    ),
+                    Shown::Span => format!("{}..{}", cell.0 >> 32, cell.0 & 0xffff_ffff),
+                    Shown::Node => format!("n{}", cell.0 & 0xffff_ffff),
+                })
                 .collect::<Vec<_>>()
                 .join(" ")
         })

@@ -2,21 +2,25 @@
 //! rows for one, or keeps some rows, moves the columns written before it and read after it; no other column is touched.
 
 use crate::domain::code::constants::{
-    BOUND_CONSTANT, LEFT_CONSTANT, PROBE_MANY, PROBE_RANGE, RIGHT_CONSTANT, RIGHT_SET,
+    BOUND_CONSTANT, BUCKET, LEFT_CONSTANT, PROBE_MANY, PROBE_RANGE, RIGHT_CONSTANT, RIGHT_SET,
 };
 use crate::domain::code::filling::service::{
-    stage_keep_of, stage_latest_of, stage_probe_of, stage_product_of, stage_read_of, stage_scan_of,
-    stage_use_of, stage_walk_of, stage_write_of,
+    stage_call_of, stage_keep_of, stage_latest_of, stage_probe_of, stage_product_of, stage_read_of,
+    stage_scan_of, stage_use_of, stage_walk_of, stage_write_of,
 };
 use crate::domain::code::records::service::body_at;
 use crate::domain::code::records::types::{BodyRecord, PooledOperand};
-use crate::domain::code::types::{CodeWord, Op, PoolAt, ProgramCode};
+use crate::domain::code::types::{CodeWord, IndexSite, Op, PoolAt, ProgramCode};
 use crate::domain::filled::errors::FilledError;
 use crate::domain::filled::types::MissingCode;
-use crate::domain::made_tables::operands::service::{formal_value, operand, registers_at};
+use crate::domain::made_tables::operands::service::{
+    call_arguments, formal_value, operand, registers_at,
+};
 use crate::domain::made_tables::pipelines::types::{
     OperandRun, PipelineRoom, StageKind, StageRegisters,
 };
+use crate::domain::made_tables::reading::service::{latest_site, source_of};
+use crate::domain::made_tables::types::{Reached, ReadSource};
 use crate::domain::steps::types::Register;
 use ryo_relations::domain::relations::types::Count;
 
@@ -197,8 +201,13 @@ pub(crate) fn touched(
                 read,
             )?;
         }
-        // A meaning's and a rendering's registers are read when the stage is built.
-        StageKind::Call | StageKind::Render => {}
+        StageKind::Call => {
+            let stage = stage_call_of(word);
+            written.extend(registers_at(code, stage.outputs));
+            operands_read(code, call_arguments(code, stage.arguments)?, read)?;
+        }
+        // A rendering's registers are read when the stage is built.
+        StageKind::Render => {}
     }
     Ok(())
 }
@@ -253,4 +262,52 @@ pub(crate) fn live_at(room: &PipelineRoom, at: Count) -> &[Register] {
         .get(at.0.saturating_add(1))
         .map_or(start, |end| end.0);
     room.live.get(start..end).unwrap_or_default()
+}
+
+/// What a source the fill side reaches as a thing reached: a relation, a table, the node table.
+const fn reached_of(source: ReadSource) -> Reached {
+    match source {
+        ReadSource::Nodes(_) => Reached::Nodes,
+        ReadSource::Filled(number) => Reached::Relation(number),
+        ReadSource::Made(table) | ReadSource::Written(table) => Reached::Table(table),
+    }
+}
+
+/// What one stage reads directly, when it reads a source: a scan and a product their source or their bucket's index, a
+/// probe and a `Latest` their index. A `Read` reads by a handle another stage found, so its source is there.
+pub(crate) fn stage_reach(
+    code: &ProgramCode,
+    word: CodeWord,
+) -> Result<Option<Reached>, FilledError> {
+    Ok(
+        match stage_kind(word.op).ok_or(FilledError::Code {
+            named: MissingCode::Word,
+        })? {
+            StageKind::Scan => {
+                let stage = stage_scan_of(word);
+                Some(if stage.flag.0 & BUCKET.0 == 0 {
+                    reached_of(source_of(stage.flag, stage.read))
+                } else {
+                    Reached::Index(IndexSite(stage.read.0))
+                })
+            }
+            StageKind::Product => {
+                let stage = stage_product_of(word);
+                Some(reached_of(source_of(stage.flag, stage.read)))
+            }
+            StageKind::Probe => Some(Reached::Index(stage_probe_of(word).index)),
+            StageKind::Latest => {
+                let stage = stage_latest_of(word);
+                let site = latest_site(code, stage.operands)?;
+                Some(Reached::Index(site))
+            }
+            StageKind::Walk => Some(Reached::Nodes),
+            StageKind::Use
+            | StageKind::Read
+            | StageKind::Keep
+            | StageKind::Call
+            | StageKind::Render
+            | StageKind::Write => None,
+        },
+    )
 }

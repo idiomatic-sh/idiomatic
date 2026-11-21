@@ -9,10 +9,13 @@ use crate::domain::stages::types::{BatchRow, BatchValue, RowKept, TextMeans, Tex
 use crate::domain::steps::types::TestOperation;
 use ryo_language::domain::facts::service::text;
 use ryo_language::domain::facts::types::FileWords;
+use ryo_operators::domain::comparing::collections::comparisons::affix::item::AffixItem;
+use ryo_operators::domain::comparing::collections::comparisons::interface::ComparisonsItem as _;
 use ryo_operators::domain::contract::types::PredicateOutcome;
 use ryo_operators::domain::patterns::service::{glob_any_each, matches_each};
-use ryo_operators::domain::table_texts::types::TextView;
+use ryo_operators::domain::table_texts::types::{Datum, TextView};
 use ryo_relations::domain::relations::types::Count;
+use ryo_values::domain::plan_parts::types::Test;
 
 /// What an outcome of a meaning says of a row; with `wanted` the other outcome, the row is kept when the test fails.
 #[inline]
@@ -26,7 +29,8 @@ fn kept(outcome: PredicateOutcome, wanted: PredicateOutcome) -> RowKept {
 
 /// `Keep` of a test of a text: the rows of the batch it holds for, as a selection. `Matches` searches each row's text with
 /// its one expression; the glob test asks whether each row's text matches any of its globs, one constant or a set, or
-/// the row's own; its negation keeps the other rows.
+/// the row's own; its negation keeps the other rows; `StartsWith` and `EndsWith` ask the operators crate's affix
+/// comparison whether each row's text begins or ends with its other text.
 ///
 /// # Errors
 ///
@@ -101,13 +105,36 @@ pub(crate) fn keep_text(
             }
             Ok(())
         }
-        TestOperation::StartsWith
-        | TestOperation::EndsWith
-        | TestOperation::NumericAtLeast
-        | TestOperation::NaturalLess
-        | TestOperation::Successor => Err(FilledError::Unbuilt {
-            unbuilt: UnbuiltFill::Stage(Op::StageKeep),
-        }),
+        TestOperation::StartsWith | TestOperation::EndsWith => {
+            let asked = match test.test {
+                TestOperation::EndsWith => Test::EndsWith,
+                _ => Test::StartsWith,
+            };
+            let mut held = Vec::with_capacity(rows.0);
+            for (row, whole) in lefts.enumerate() {
+                let affix = match test.right {
+                    Some(value) => text(words, value_at(value, Count(row))),
+                    None => {
+                        return Err(FilledError::Code {
+                            named: MissingCode::Word,
+                        });
+                    }
+                };
+                let outcome =
+                    AffixItem.holds(asked, &Datum::Text(whole), &Datum::Text(TextView(affix.0)));
+                held.push(match outcome {
+                    Ok(PredicateOutcome::Holds) => RowKept::Yes,
+                    Ok(PredicateOutcome::Fails) | Err(_) => RowKept::No,
+                });
+            }
+            selected(rows, keep, held.into_iter());
+            Ok(())
+        }
+        TestOperation::NumericAtLeast | TestOperation::NaturalLess | TestOperation::Successor => {
+            Err(FilledError::Unbuilt {
+                unbuilt: UnbuiltFill::Stage(Op::StageKeep),
+            })
+        }
         TestOperation::Equal
         | TestOperation::NotEqual
         | TestOperation::Less

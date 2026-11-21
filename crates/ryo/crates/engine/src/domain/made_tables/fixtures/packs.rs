@@ -16,7 +16,7 @@ use crate::domain::steps::stages::types::{
 use crate::domain::steps::types::{
     ColumnList, ColumnMask, DefinitionId, EmitTarget, MadeColumn, MadeTableId, MatchColumns,
     PlacedStep, ProgramStep, ReadColumn, Register, RegisterCount, RegisterList, StepOperand,
-    StepOperands, StepProgram, StepRows, TestOperation,
+    StepOperands, StepProgram, StepRegex, StepRows, TestOperation,
 };
 use ryo_language::domain::facts::types::CellWord;
 use ryo_language::domain::node_table::service::{
@@ -49,6 +49,14 @@ pub(crate) const FILE: FileId = FileId(7);
 /// The file's bytes.
 pub(crate) const TEXT: &[u8] = b"ab cd ef";
 
+/// The regular expressions of the cases' rule set, by number: one a `Keep` matches with, one a `Replace` replaces, one a
+/// source search finds words with, and one whose named group it captures.
+pub(crate) const REGEXES: [&str; 4] = ["^[ac]", "[bd]", "[a-z]+", "(?P<first>[a-z])[a-z]"];
+
+/// The texts the cases' rule set knows as constants, in the order of their words from word 1: two globs, a token's own
+/// text, a replacement, two slot patterns and a group's name.
+pub(crate) const TEXTS: [&str; 7] = ["a*", "?d", "ef", "_", "{a}b", "{x}{y}", "first"];
+
 /// A register as an operand.
 pub(crate) const fn of(number: u32) -> StepOperand {
     StepOperand::Register(Register(number))
@@ -72,6 +80,17 @@ pub(crate) fn pipeline<const N: usize>(each: Vec<FillStage>, row: [StepOperand; 
             .map(|stage| PlacedStage { point: None, stage })
             .collect(),
         row: operands(row),
+    }
+}
+
+/// A pipeline of the stages, writing the row given as a list.
+pub(crate) fn pipeline_of(each: Vec<FillStage>, row: Vec<StepOperand>) -> Pipeline {
+    Pipeline {
+        stages: each
+            .into_iter()
+            .map(|stage| PlacedStage { point: None, stage })
+            .collect(),
+        row: StepOperands(row.into()),
     }
 }
 
@@ -128,6 +147,10 @@ pub(crate) fn coded(
         definitions,
         tables,
         rules,
+        regexes: REGEXES
+            .iter()
+            .map(|source| StepRegex((*source).into()))
+            .collect(),
         registers: RegisterCount(1000),
         ..LoweredPack::default()
     };

@@ -7,12 +7,15 @@ use super::types::{GroupRoom, TableRows};
 use crate::domain::code::types::IndexSite;
 use crate::domain::indexes::reading::service::{cell_at, folded, hashed, read, rows_of, runs};
 use crate::domain::indexes::service::{begin, clear_indexes, finish, key_column};
-use crate::domain::indexes::types::{ColumnView, FileStamp, RowHash, SourceRow};
+use crate::domain::indexes::types::{ColumnView, FileStamp, IndexArena, RowHash, SourceRow};
 use crate::domain::stages::types::BatchValue;
 use ryo_language::domain::facts::types::CellWord;
 use ryo_operators::domain::aggregate::service::group_cells;
 use ryo_operators::domain::contract::types::PortableOperatorFault;
+use ryo_operators::domain::ordered_groups::service::extreme;
+use ryo_operators::domain::ordered_groups::types::GroupOrders;
 use ryo_relations::domain::relations::types::{Count, Integer};
+use ryo_values::domain::plan_orders::types::GroupEnd;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 /// Empties a table for a file, as a table of `width` columns, keeping its room.
@@ -129,18 +132,73 @@ pub(crate) fn write_new(table: &mut TableRows, sources: &[BatchValue<'_>], rows:
 /// Builds the index of a gathered input by its key columns, sorted within a key by `order` when one is given, as the one
 /// index of the room.
 fn grouped(input: &TableRows, room: &mut GroupRoom, order: Option<Count>) {
-    clear_indexes(&mut room.index);
-    begin(&mut room.index, input.count, Count(room.keys.len()));
-    for (at, key) in room.keys.iter().enumerate() {
-        let place = Count(usize::try_from(key.0).unwrap_or(usize::MAX));
-        key_column(&mut room.index, Count(at), column(input, place));
+    let keys = room
+        .keys
+        .iter()
+        .map(|key| Count(usize::try_from(key.0).unwrap_or(usize::MAX)));
+    rows_indexed(input, keys, order, &mut room.index);
+}
+
+/// Builds, as the one index of `arena`, the index of a table's rows by the key columns given, sorted within a key by
+/// `order` when one is given: what a fill that groups its input walks.
+pub(crate) fn rows_indexed(
+    input: &TableRows,
+    keys: impl ExactSizeIterator<Item = Count>,
+    order: Option<Count>,
+    arena: &mut IndexArena,
+) {
+    clear_indexes(arena);
+    begin(arena, input.count, Count(keys.len()));
+    for (at, key) in keys.enumerate() {
+        key_column(arena, Count(at), column(input, key));
     }
     finish(
-        &mut room.index,
+        arena,
         IndexSite(0),
         FileStamp(0),
         order.map(|place| column(input, place)),
     );
+}
+
+/// The `Group(Ends)` fill: the rows of the gathered `input` that stand at one end of their key's rows by the column
+/// `order`: every row tied for the least, or for the greatest. The keys are `room.keys`. One ordered index, and for each
+/// key the operators crate's `extreme` over its orders.
+pub(crate) fn end_groups(
+    input: &TableRows,
+    order: Count,
+    end: GroupEnd,
+    room: &mut GroupRoom,
+    out: &mut TableRows,
+) {
+    grouped(input, room, Some(order));
+    let GroupRoom { index, orders, .. } = room;
+    let index = read(index, IndexSite(0));
+    let ordered = column(input, order);
+    for run in runs(index) {
+        let rows = rows_of(index, run);
+        orders.clear();
+        orders.extend(rows.iter().map(|each| {
+            Integer(
+                cell_at(
+                    ordered,
+                    Count(usize::try_from(each.0).unwrap_or(usize::MAX)),
+                )
+                .0
+                .cast_signed(),
+            )
+        }));
+        let ended: &[SourceRow] = match rows.get(extreme(GroupOrders(orders), end).0) {
+            Some(ended) => ended,
+            None => &[],
+        };
+        for each in ended {
+            out.cells.extend_from_slice(row(
+                input,
+                Count(usize::try_from(each.0).unwrap_or(usize::MAX)),
+            ));
+            out.count = Count(out.count.0.saturating_add(1));
+        }
+    }
 }
 
 /// The `Group(Count)` fill: one row out for each key of the gathered `input`, which is the key's cells and then how many
@@ -162,6 +220,7 @@ pub(crate) fn count_groups(
         keys,
         row: written,
         values,
+        ..
     } = room;
     let index = read(index, IndexSite(0));
     for run in runs(index) {

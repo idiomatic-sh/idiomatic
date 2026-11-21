@@ -93,6 +93,27 @@ pub(crate) fn formal_value(
     }
 }
 
+/// The arguments of a call: its pool record is how many, then that many operands.
+///
+/// # Errors
+///
+/// The pool does not reach the record.
+pub(crate) fn call_arguments(
+    code: &ProgramCode,
+    record: PoolAt,
+) -> Result<OperandRun, FilledError> {
+    let count = code
+        .pool
+        .get(usize::try_from(record.0).unwrap_or(usize::MAX))
+        .ok_or(FilledError::Code {
+            named: MissingCode::Pool,
+        })?;
+    Ok(OperandRun {
+        first: PoolAt(record.0.saturating_add(1)),
+        count: Count(usize::try_from(count.0).unwrap_or(usize::MAX)),
+    })
+}
+
 /// What a loop reads for an operand: a column of the batch, or one cell for every row.
 ///
 /// # Errors
