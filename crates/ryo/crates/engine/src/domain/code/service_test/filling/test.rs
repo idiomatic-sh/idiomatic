@@ -155,6 +155,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             round_trip(
                 CallWord {
+                    flag: WordFlag(0x0f),
                     meaning: Short(0x1234),
                     arguments: PoolAt(0x0001_0001),
                     outputs: PoolAt(0x0002_0002),

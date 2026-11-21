@@ -117,6 +117,17 @@ pub struct NodeDigest(pub [u8; 16]);
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct NodeDigests(pub Vec<NodeDigest>);
 
+/// Where a step stands in a walk of a plan that places each step after the steps it reads.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum StepMet {
+    /// No walk has met it.
+    Unmet,
+    /// It waits for a step it reads.
+    Waiting,
+    /// It is placed.
+    Placed,
+}
+
 /// The bytes of one step as `node_digests` writes them, lent to the caller's digest function: the step's operation and where it
 /// runs, then each input's digest, then each bound value, every number at a fixed width with its least byte first.
 ///

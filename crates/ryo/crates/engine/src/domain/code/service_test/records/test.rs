@@ -10,13 +10,14 @@ use crate::domain::code::records::types::{BoundFormal, CollectedRead, NeedRecord
 use crate::domain::code::service::{list, word};
 use crate::domain::code::small_codes::service::{
     comparison_code, comparison_of, comparison_regex, context_code, context_of, direction_code,
-    direction_of, meaning_code, meaning_of, meaning_regex, mode_code, mode_of, node_column_code,
-    node_column_of, side_code, side_of,
+    direction_of, meaning_code, meaning_flag, meaning_of, meaning_regex, mode_code, mode_of,
+    node_column_code, node_column_of, side_code, side_of,
 };
 use crate::domain::code::types::{
     CodeEntry, ConstantNumber, IndexSite, MemoSite, NeedSite, Op, PoolAt, RelationNumber, Short,
     WordFlag, WordSlot,
 };
+use crate::domain::steps::calls::fixtures::searches;
 use crate::domain::steps::stages::types::UseMode;
 use crate::domain::steps::types::{
     AxisDirection, CallMeaning, MadeColumn, MadeTableId, RegexId, Register, TestOperation,
@@ -88,7 +89,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::SmallCodes,
         expect: Expect::Value(Cow::Borrowed(
-            "10 of 10 node columns, 16 of 16 comparisons, 10 of 10 meanings, 3 of 3 contexts, 5 of 5 directions, 4 of 4 sides, 3 of 3 modes, 3 name a regular expression",
+            "10 of 10 node columns, 16 of 16 comparisons, 19 of 19 meanings, 3 of 3 contexts, 5 of 5 directions, 4 of 4 sides, 3 of 3 modes, 12 name a regular expression",
         )),
     },
     Case {
@@ -227,10 +228,9 @@ fn small_codes() -> String {
         TestOperation::NaturalLess,
         TestOperation::Successor,
     ];
-    let meanings = [
+    let mut meanings = vec![
         CallMeaning::SpanBetween,
         CallMeaning::SpanBounds,
-        CallMeaning::SourceMatches(regex),
         CallMeaning::Capture,
         CallMeaning::Replace(regex),
         CallMeaning::Words,
@@ -239,6 +239,11 @@ fn small_codes() -> String {
         CallMeaning::Lower,
         CallMeaning::FitsRendered,
     ];
+    meanings.extend(
+        searches()
+            .into_iter()
+            .map(|search| CallMeaning::SourceMatches(regex, search)),
+    );
     let contexts = [
         RenderContext::AssignmentTarget,
         RenderContext::AttributeReceiver,
@@ -287,7 +292,10 @@ fn small_codes() -> String {
         same(
             meanings
                 .iter()
-                .filter(|meaning| meaning_of(meaning_code(**meaning), regex) == Some(**meaning))
+                .filter(|meaning| {
+                    let (code, flag) = (meaning_code(**meaning), meaning_flag(**meaning));
+                    meaning_of(code, regex, flag) == Some(**meaning)
+                })
                 .count(),
             meanings.len(),
             "meanings",
@@ -348,7 +356,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             "{:?} {:?} {:?} {:?} {:?} {:?} {:?}",
             node_column_of(Short(10)),
             comparison_of(Short(16), RegexId(0)),
-            meaning_of(Short(10), RegexId(0)),
+            meaning_of(Short(10), RegexId(0), WordFlag(0)),
             context_of(Short(3)),
             direction_of(WordFlag(5)),
             side_of(WordFlag(4)),

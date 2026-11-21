@@ -172,7 +172,29 @@ pub(crate) enum GroupFill {
 pub(crate) enum OrderedFill {
     /// The right rows of an `as-of`, by (keys, order): the input's columns; read by `Latest`.
     Sorted(FillInput),
-    /// `ordered-match` of a left and a right input: the operation's output columns.
+    /// `ordered-match` of a left and a right input, in that order.
+    ///
+    /// The inputs. Each input's rows are its pipelines' rows. `keys` are the columns of such a row the two sides are
+    /// equated on, the left's and the right's lists of one length and compared place by place; `order` is the column of
+    /// its order, a number, and both inputs have one.
+    ///
+    /// The pairs, as the operators crate's meaning makes them today. Within the rows of one key, the left rows are taken
+    /// in ascending order; each takes the earliest right row of that key whose order is greater than its own and that no
+    /// left row before it took. A left row with no such right row gives nothing, and a right row is in at most one pair.
+    /// So of one key with the orders 1, 2, 3 on each side, the pairs are (1, 2) and (2, 3): the operators crate's case
+    /// `ordered_match_pairs_first_in_first_out`.
+    ///
+    /// The rows. One row for each pair: the left row's cells in their order, then the right row's cells in theirs. The
+    /// table is as wide as the two rows together, and column `c` of the right row is its column `left width + c`
+    /// (`lowered::service::match_column`). The operation's own `output` is no part of the fill: the lowering reads each
+    /// output column from this row by place. Within a key the rows stand in ascending order of the left row's order; the
+    /// order of the keys among themselves is the fill's and no reader may lean on it.
+    ///
+    /// Ties. None is ordered: two rows of one input with one key and one order are the fault `DuplicateOrder` of
+    /// today's meaning, and a left row and a right row of one order do not pair.
+    ///
+    /// The index. A reader reads the table as it reads a group table: by any of its `indexes`, each a list of this row's
+    /// columns and none of them ordered, or every row with no key. `Latest` does not read it.
     Match(FillInput, FillInput),
 }
 
