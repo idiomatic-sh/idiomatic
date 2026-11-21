@@ -6,6 +6,7 @@
 
 use crate::domain::code::constants::NO_SLOT;
 use crate::domain::code::types::{CodeEntry, WordSlot};
+use crate::domain::needs::types::NeedVerdict;
 use crate::domain::programs::frames::types::StepFrame;
 use crate::domain::scratch::types::{LoopState, Measuring, UnitInFile};
 use crate::domain::steps::types::MadeTableId;
@@ -218,4 +219,42 @@ pub(crate) fn need_fills_settled(state: &mut LoopState, candidates: Count) {
     }
     measure.need_fills.pending = pending;
     measure.need_fills.pending.clear();
+}
+
+/// SPIKE: a term of the traced decision's formula was asked and said this.
+pub(crate) fn need_leaf(state: &mut LoopState, said: impl FnOnce() -> String) {
+    if let Some(measure) = state.measure.as_deref_mut()
+        && measure.need_fills.tracing.is_some()
+        && measure.need_fills.nested.0 == 0
+    {
+        measure.need_fills.trace.push(said());
+    }
+}
+
+/// SPIKE: a decision inside the traced one starts (`Holds`) or ends (`Empty`): a table's own need.
+pub(crate) fn need_nested(state: &mut LoopState, starts: NeedVerdict) {
+    if let Some(measure) = state.measure.as_deref_mut() {
+        let nested = &mut measure.need_fills.nested;
+        *nested = match starts {
+            NeedVerdict::Holds => Count(nested.0.saturating_add(1)),
+            NeedVerdict::Empty => Count(nested.0.saturating_sub(1)),
+        };
+    }
+}
+
+/// SPIKE: the traced decision ended with `verdict`: one more file for the terms it asked.
+pub(crate) fn need_decision_ended(state: &mut LoopState, verdict: NeedVerdict) {
+    let Some(measure) = state.measure.as_deref_mut() else {
+        return;
+    };
+    let fills = &mut measure.need_fills;
+    if let Some(site) = fills.tracing.take() {
+        let key = format!(
+            "site={} verdict={verdict:?} tested=[{}]",
+            site.0,
+            fills.trace.join(" ")
+        );
+        *fills.traces.entry(key).or_insert(0) += 1;
+    }
+    fills.trace.clear();
 }
