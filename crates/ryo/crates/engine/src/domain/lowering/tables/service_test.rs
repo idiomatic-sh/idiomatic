@@ -10,7 +10,7 @@ use crate::domain::lowering::definitions::types::Drafts;
 use crate::domain::lowering::fixtures::growth::growth_plan;
 use crate::domain::lowering::fixtures::named;
 use crate::domain::lowering::nodes::service::stored;
-use crate::domain::lowering::nodes::types::AcceptedPlace;
+use crate::domain::lowering::nodes::types::{AcceptedPlace, AdmittedRule};
 use crate::domain::lowering::types::{LoadRefusal, PastWidth, PlanNode, SelectedRule};
 use ryo_values::domain::descriptions::types::{KindVocabulary, LanguageName};
 use ryo_values::domain::plan_parts::types::{Input as PlanInput, Side, StepId, StepScope};
@@ -133,8 +133,8 @@ fn subject(asked: Input) -> Result<Value, Failure> {
             let lowered = OperationKind::ALL.iter().copied();
             let kinds: Vec<OperationKind> = lowered
                 .filter_map(|kind| match admitted(rule(&growth_plan(kind))) {
-                    Ok(_) => Some(kind),
-                    Err(_) => None,
+                    Ok(AdmittedRule { .. }) => Some(kind),
+                    Err(LoadRefusal::Unlowerable(_) | LoadRefusal::Budget(_)) => None,
                 })
                 .collect();
             format!("{kinds:?}")
