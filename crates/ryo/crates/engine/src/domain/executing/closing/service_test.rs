@@ -39,10 +39,10 @@ type Failure = ();
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("a_closure_reaches_each_element_once_through_a_cycle_and_never_its_seed"),
+        name: CaseName("a_closure_reaches_each_element_once_through_a_cycle_and_its_seed_when_an_edge_gives_it"),
         word: Word::Succeeds,
         input: || &[1],
-        expect: Expect::Value(Cow::Borrowed(&[1, 2, 1, 3, 1, 4, 99, 3, 14, 0, 0, 0, 3, 3])),
+        expect: Expect::Value(Cow::Borrowed(&[1, 2, 1, 3, 1, 1, 1, 4, 99, 4, 19, 0, 0, 0, 4, 4])),
     },
     Case {
         name: CaseName("an_element_with_no_edge_reaches_nothing"),
@@ -55,7 +55,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || &[3, 2],
         expect: Expect::Value(Cow::Borrowed(&[
-            3, 1, 3, 4, 3, 2, 2, 3, 2, 1, 2, 4, 99, 6, 28, 0, 0, 0, 3, 3,
+            3, 1, 3, 4, 3, 2, 3, 3, 2, 3, 2, 1, 2, 4, 2, 2, 99, 8, 36, 0, 0, 0, 4, 4,
         ])),
     },
 ];

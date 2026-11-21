@@ -175,7 +175,7 @@ fn walked_derived(
         set(frame, from, current);
         let fresh = Count(frame.state.staged.len());
         let _rows: Count = body_staged(frame, edges.record, outputs);
-        let given = kept_new(frame.state, &mut seen, start, fresh);
+        let given = kept_new(frame.state, &mut seen, Some(start), fresh);
         tried = tried.saturating_add(u64::try_from(given.0).unwrap_or(u64::MAX));
         while let Some(met) = frame
             .state
