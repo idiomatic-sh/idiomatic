@@ -17,18 +17,11 @@ use crate::domain::steps::types::{
     ProgramStep, ReadColumn, RegexId, Register, RegisterList, StepOperand, StepProgram, StepRows,
     TestOperation,
 };
-use ryo_language::domain::node_table::service::{builder, enter_node, finished, leave_node, token};
-use ryo_language::domain::node_table::types::{FieldCode, NodeTable};
-use ryo_relations::domain::relations::types::{Count, KindBits, NodeColumn, Offset, Relation};
+use ryo_language::domain::facts::types::CellWord;
+use ryo_relations::domain::relations::types::{NodeColumn, Relation};
 use ryo_values::domain::plan_orders::types::GroupEnd;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
 use ryo_values::domain::query_plans::types::NodeDigest;
-
-/// How many rows the product's workload pairs with every row.
-pub(crate) const PRODUCT_LEFT: usize = 32;
-
-/// How many bytes a token of a workload's file covers.
-const TOKEN_BYTES: u32 = 2;
 
 /// How many rows a key holds where a workload groups.
 const GROUP_ROWS: u64 = 8;
@@ -44,6 +37,8 @@ pub(crate) fn told_rows(bench: FillBench, rows: usize) -> Vec<[u64; 2]> {
             | FillBench::RowsKeep
             | FillBench::RowsProbe
             | FillBench::RowsFile
+            | FillBench::SeamCellOf
+            | FillBench::SeamColumnHeld
             | FillBench::Product => [
                 row.wrapping_mul(7919) % all,
                 row.wrapping_mul(104_729) % all,
@@ -62,46 +57,19 @@ pub(crate) fn told_rows(bench: FillBench, rows: usize) -> Vec<[u64; 2]> {
             | FillBench::CallReplace
             | FillBench::CallCapture
             | FillBench::CallSourceMatches
+            | FillBench::KeepGlobFewWords
+            | FillBench::KeepGlobOwnWords
             | FillBench::IndexNodesKind
+            | FillBench::IndexNodesKindMixed
             | FillBench::IndexNodesParent
             | FillBench::IndexNodesId => [row, row],
         })
         .collect()
 }
 
-/// A file of about `elements` elements: a root (kind 1) whose children (kind 2) each hold seven tokens (kind 3), each
-/// token two bytes of the text.
-pub(crate) fn tree(elements: usize) -> NodeTable {
-    let mut made = NodeTable::default();
-    let mut writer = builder(&mut made, Count(4));
-    let groups = u32::try_from(elements / 8).unwrap_or(u32::MAX).max(1);
-    let wide = TOKEN_BYTES.saturating_mul(7);
-    enter_node(&mut writer, KindBits(1), FieldCode(0), Offset(0));
-    for group in 0..groups {
-        let start = group.saturating_mul(wide);
-        enter_node(&mut writer, KindBits(2), FieldCode(0), Offset(start));
-        for place in 0..7_u32 {
-            let at = start.saturating_add(place.saturating_mul(TOKEN_BYTES));
-            token(
-                &mut writer,
-                KindBits(3),
-                FieldCode(0),
-                Offset(at),
-                Offset(at.saturating_add(TOKEN_BYTES)),
-            );
-        }
-        leave_node(&mut writer, Offset(start.saturating_add(wide)));
-    }
-    leave_node(&mut writer, Offset(groups.saturating_mul(wide)));
-    let _table = finished(&mut writer);
-    made
-}
-
-/// The text of the file `tree` describes: the letters `a` to `g` over and over, so the tokens hold seven different
-/// texts of two letters and a group's fourteen bytes hold no space.
-pub(crate) fn bench_text(elements: usize) -> Vec<u8> {
-    let bytes = (elements / 8).max(1).saturating_mul(14);
-    b"abcdefg".iter().copied().cycle().take(bytes).collect()
+/// The set of the 26 literal kinds a keep's glob is against: the words 1 to 26 of the keeps' own vocabulary.
+fn literal_kinds() -> StepOperand {
+    StepOperand::Words((1..=26_u64).map(CellWord).collect())
 }
 
 /// A call stage.
@@ -165,7 +133,7 @@ pub(crate) fn bench_table(bench: FillBench) -> MadeTable {
     let tree = Relation::SemanticSyntax;
     let kept = |fill| table(1, 2, fill);
     match bench {
-        FillBench::RowsRead => rows(
+        FillBench::RowsRead | FillBench::SeamCellOf | FillBench::SeamColumnHeld => rows(
             2,
             pipeline(
                 vec![scan(0), read(FIRST, 0, 1), read(SECOND, 0, 2)],
@@ -303,7 +271,29 @@ pub(crate) fn bench_table(bench: FillBench) -> MadeTable {
                 },
             ),
         ),
-        FillBench::IndexNodesKind => probed_nodes(NodeColumn::Kind, 1),
+        FillBench::KeepGlobFewWords => {
+            let mut all = Vec::from(scan_nodes(tree));
+            all.push(FillStage::Keep {
+                test: TestOperation::Glob,
+                left: of(1),
+                right: literal_kinds(),
+            });
+            rows(2, pipeline(all, [of(0), of(1)]))
+        }
+        FillBench::KeepGlobOwnWords => {
+            let mut all = Vec::from(scan_nodes(tree));
+            all.push(keep_equal(1, 27));
+            all.push(node_read(tree, NodeColumn::Text, 0, 2));
+            all.push(FillStage::Keep {
+                test: TestOperation::NotGlob,
+                left: of(2),
+                right: literal_kinds(),
+            });
+            rows(2, pipeline(all, [of(0), of(2)]))
+        }
+        FillBench::IndexNodesKind | FillBench::IndexNodesKindMixed => {
+            probed_nodes(NodeColumn::Kind, 1)
+        }
         FillBench::IndexNodesParent => probed_nodes(NodeColumn::Parent, 0),
         FillBench::IndexNodesId => probed_nodes(NodeColumn::Id, 0),
         FillBench::Product => rows(

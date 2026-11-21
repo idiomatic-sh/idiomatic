@@ -72,6 +72,8 @@ fn text(
             matcher: frame.fill.matcher,
             regexes: frame.fill.programs.regexes,
             compiled: patterns,
+            verdicts: &mut frame.fill.store.verdicts,
+            stamp: frame.fill.store.stamp,
         },
         &*frame.fill.words,
         TextTest {
@@ -79,6 +81,7 @@ fn text(
             left: BatchValue::Constant(left),
             right: right.map(BatchValue::Constant),
             set: key.get(start..).unwrap_or_default(),
+            set_at: set,
         },
         Count(1),
         kept,

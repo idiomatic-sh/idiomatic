@@ -7,20 +7,20 @@ use crate::domain::code::types::{IndexSite, RelationNumber, Short};
 use crate::domain::filled::errors::FilledError;
 use crate::domain::filled::service::rows_held;
 use crate::domain::filled::types::UnbuiltFill;
-use crate::domain::indexes::reading::service::{cell_at, run_of, stretch_of};
+use crate::domain::indexes::reading::service::{run_of, stretch_of};
 use crate::domain::indexes::service::clear_indexes;
 use crate::domain::indexes::types::SourceRow;
 use crate::domain::made_tables::keyed::service::key_asked;
 use crate::domain::made_tables::making::service::{ensured, made_now};
 use crate::domain::made_tables::reading::service::{
-    index_at, node_names, rows_in, site_at, site_source, tag_of, view_of,
+    cell_held, column_held, index_at, node_names, rows_in, site_at, site_source, tag_of,
 };
 use crate::domain::made_tables::types::{
     FillFrame, FillStore, KeyAnswer, KeyFrom, KeyRows, MadeNow, PatternRows, Reached, ReadSource,
     TableSlot, WholeRows,
 };
 use crate::domain::stages::nodes::service::node_cell;
-use crate::domain::stages::service::{row_of, tagged};
+use crate::domain::stages::service::tagged;
 use crate::domain::steps::types::MadeTableId;
 use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::relations::types::Count;
@@ -127,7 +127,9 @@ pub(crate) fn scanned(
 }
 
 /// The cell of a row's column, by the row's handle: a made table's and a relation's as written; the node table's by the
-/// column's code, a kind, a field and a text as the file's word of it.
+/// column's code, a kind, a field and a text as the file's word of it. For one read; a reader of many rows of one
+/// column of a made table or of a relation asks `reading::service::column_held` once and reads through `cell_held`.
+#[inline]
 pub(crate) fn cell_of(
     frame: &mut FillFrame<'_>,
     source: ReadSource,
@@ -136,7 +138,7 @@ pub(crate) fn cell_of(
 ) -> CellWord {
     match source {
         ReadSource::Filled(_) | ReadSource::Made(_) => {
-            cell_at(view_of(frame.store, source, column), row_of(row))
+            cell_held(frame.store, column_held(frame.store, source, column), row)
         }
         ReadSource::Nodes(_) => match node_column_of(column) {
             Some(named) => node_cell(

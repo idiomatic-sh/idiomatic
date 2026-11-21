@@ -14,9 +14,10 @@ use crate::domain::made_tables::fixtures::packs::{
     FIRST, SECOND, coded, constants, keep_equal, node_read, of, operands, pipeline, probe, read,
     rows, scan, scan_nodes, table, walk, word,
 };
-use crate::domain::steps::stages::types::{FillStage, TreeWalk, UseMode};
+use crate::domain::steps::stages::types::{FillStage, ProbeRange, TreeWalk, UseMode};
 use crate::domain::steps::types::{
-    CallMeaning, ColumnList, MadeColumn, MadeTableId, Register, RegisterList, TestOperation,
+    BoundKind, CallMeaning, ColumnList, MadeColumn, MadeTableId, MatchColumns, RangeBound,
+    ReadColumn, Register, RegisterList, StepRows, TestOperation,
 };
 use ryo_relations::domain::relations::types::{NodeColumn, Relation};
 use ryo_values::domain::plan_orders::types::GroupEnd;
@@ -31,6 +32,9 @@ enum Asked {
     Keeps,
     /// Calls: the bounds of a span, which runs, and the lower case of a text, which does not yet.
     Calls,
+    /// A probe of the nodes by their parent held to a range of their start: an index over the nodes that sorts each
+    /// key's rows, which is not built yet.
+    OrderedNodes,
     /// Every fill the lowering writes for a table: constant rows, rows, a count, a sorted table, a group's ends, an
     /// ordered match, and a group's places, which does not run yet.
     Fills,
@@ -72,6 +76,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Asked::Fills,
         expect: Expect::Value(Cow::Borrowed(
             "StageScan runs, StageRead runs, StageWrite runs, StageScan runs, StageRead runs, StageRead runs, StageWrite runs, StageScan runs, StageRead runs, StageRead runs, StageWrite runs, StageScan runs, StageRead runs, StageRead runs, StageWrite runs, StageScan runs, StageRead runs, StageRead runs, StageWrite runs, StageScan runs, StageRead runs, StageRead runs, StageWrite runs, StageScan runs, StageRead runs, StageRead runs, StageWrite runs | fills: runs, runs, runs, runs, runs, runs, not yet | a word that is no stage: not yet",
+        )),
+    },
+    Case {
+        name: CaseName("a_probe_of_the_nodes_with_a_range_does_not_run_yet"),
+        word: Word::Succeeds,
+        input: || Asked::OrderedNodes,
+        expect: Expect::Value(Cow::Borrowed(
+            "StageScan runs, StageRead runs, StageRead runs, StageProbe not yet, StageWrite runs | fills: runs | a word that is no stage: not yet",
         )),
     },
 ];
@@ -138,6 +150,27 @@ fn tables(asked: Asked) -> Vec<MadeTable> {
             ),
             over_nodes(NodeColumn::Text, vec![call(CallMeaning::Lower, &[3])]),
         ],
+        Asked::OrderedNodes => {
+            let bound = |cell: u64, end: BoundKind| RangeBound {
+                value: word(cell),
+                end,
+            };
+            vec![over_nodes(
+                NodeColumn::Start,
+                vec![FillStage::Probe {
+                    source: StepRows::Node(tree),
+                    columns: MatchColumns(Box::new([ReadColumn::Node(NodeColumn::Parent)])),
+                    values: operands([of(0)]),
+                    range: Some(ProbeRange {
+                        column: ReadColumn::Node(NodeColumn::Start),
+                        low: bound(0, BoundKind::Strict),
+                        high: bound(6, BoundKind::Inclusive),
+                    }),
+                    mode: UseMode::Rows,
+                    out: Register(3),
+                }],
+            )]
+        }
         Asked::Fills => vec![
             constants(&[1, 2]),
             rows(1, pipeline(vec![scan(0), read(FIRST, 0, 1)], [of(1)])),

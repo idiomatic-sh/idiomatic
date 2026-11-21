@@ -8,9 +8,10 @@ use ryo_engine::domain::dispatch::fixtures::workloads::{
     LOOP_BENCHES, LoopBench, loop_name, loop_programs,
 };
 use ryo_engine::domain::findings::types::{FoundCells, FoundRows, FoundTarget, WorkNotice};
-use ryo_engine::domain::made_tables::fixtures::benches::{
-    FILL_BENCHES, FillWorkload, fill_name, fill_units, fill_workload, run_fill,
+use ryo_engine::domain::made_tables::fixtures::benches::kinds::{
+    FILL_BENCHES, fill_name, fill_units,
 };
+use ryo_engine::domain::made_tables::fixtures::benches::{FillWorkload, fill_workload, run_fill};
 use ryo_engine::domain::programs::service::scratch_for;
 use ryo_engine::domain::programs::types::Programs;
 use ryo_engine::domain::scratch::types::ScanScratch;

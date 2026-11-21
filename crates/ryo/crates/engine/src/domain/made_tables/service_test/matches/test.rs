@@ -33,6 +33,8 @@ enum Filled {
     MatchKeys,
     /// An ordered match one of whose inputs holds a key's order twice.
     MatchDuplicate,
+    /// An ordered match whose right input holds an order twice in a key no left row holds.
+    MatchDuplicateApart,
 }
 
 type Input = Filled;
@@ -80,6 +82,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_key_that_holds_an_order_twice_is_the_meanings_fault"),
         word: Word::Refuses,
         input: || Filled::MatchDuplicate,
+        expect: Expect::Refusal(|fault| {
+            if matches!(fault, FilledError::Meaning { .. }) {
+                crate::cases::Selection::Matches
+            } else {
+                crate::cases::Selection::Differs
+            }
+        }),
+    },
+    Case {
+        name: CaseName("an_order_twice_in_a_right_key_no_left_row_holds_is_the_fault_too"),
+        word: Word::Refuses,
+        input: || Filled::MatchDuplicateApart,
         expect: Expect::Refusal(|fault| {
             if matches!(fault, FilledError::Meaning { .. }) {
                 crate::cases::Selection::Matches
@@ -200,6 +214,7 @@ fn tables(filled: Filled) -> Vec<MadeTable> {
             &[&[8, 6], &[7, 1], &[8, 3], &[6, 9], &[8, 9]],
         ),
         Filled::MatchDuplicate => matched(&[&[7, 1, 10]], &[&[7, 2], &[7, 2]]),
+        Filled::MatchDuplicateApart => matched(&[&[7, 1, 10]], &[&[7, 2], &[9, 5], &[9, 5]]),
     }
 }
 

@@ -1,6 +1,7 @@
 //! The types of the `staging` part: what one stage reads besides its batch.
 
 use crate::domain::made_tables::types::{FillStore, RuleSetView};
+use crate::domain::stages::verdicts::types::TextVerdicts;
 use ryo_language::domain::facts::types::CellWord;
 use ryo_language::domain::node_table::types::NodeTable;
 use ryo_language::domain::symbols::types::ByteSlice;
@@ -33,4 +34,6 @@ pub(crate) struct KeepScratch<'r> {
     pub(crate) compiled: &'r mut Patterns,
     /// The matcher.
     pub(crate) matcher: PatternMatcher<'r>,
+    /// What each test of a text against constants holds for, by word.
+    pub(crate) verdicts: &'r mut TextVerdicts,
 }

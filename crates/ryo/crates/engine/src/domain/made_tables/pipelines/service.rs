@@ -203,7 +203,9 @@ fn staged(
                 false
             }
             StageKind::Keep => {
-                keep_stage(
+                // The verdicts are the store's, kept between files: taken while the batch's frame reads the store.
+                let mut verdicts = std::mem::take(&mut frame.store.verdicts);
+                let kept = keep_stage(
                     batch_frame(frame),
                     frame.words,
                     word,
@@ -212,8 +214,11 @@ fn staged(
                         set: &mut run.room.set,
                         compiled: &mut run.room.compiled,
                         matcher: frame.matcher,
+                        verdicts: &mut verdicts,
                     },
-                )?;
+                );
+                frame.store.verdicts = verdicts;
+                kept?;
                 true
             }
             StageKind::Product => {
