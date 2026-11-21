@@ -129,6 +129,62 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "codes: {\"EachMatchNode\": 3, \"EachRowMade\": 1, \"Emit\": 1, \"End\": 5, \"Exists\": 1, \"Let\": 1, \"Nearest\": 1, \"ReadMade\": 5, \"ReadNode\": 1, \"StageProbe\": 1, \"StageRead\": 7, \"StageScan\": 2, \"StageUse\": 1, \"StageWrite\": 2, \"Test\": 1, \"Yield\": 3}",
         ))),
     },
+    Case {
+        name: CaseName("a_test_of_the_file_waits_in_a_pipeline_for_a_row_that_holds_the_file"),
+        word: Word::Succeeds,
+        input: || {
+            (
+                &[
+                    "the words counted by text, in stub files",
+                    "the words counted by text, in stub files",
+                ],
+                SampleStage::Absent,
+            )
+        },
+        expect: Expect::Value(Cow::Borrowed(concat!(
+            "definition 0: 5 columns, emptiness All([Unknown, Unknown])\n",
+            "  pattern bound [] collected []: Table 2\n",
+            "definition 1: 4 columns, emptiness All([Definition(DefinitionId(0)), Definition(DefinitionId(0))])\n",
+            "  pattern bound [] collected []: Table 1\n",
+            "table 0: Group(Count), 2 columns, indexes [[0]]\n",
+            "  pipeline: Scan:File Read:Constant Read:Constant Read:Constant Read:Constant\n",
+            "table 1: Rows, 4 columns, indexes []\n",
+            "  pipeline: Scan:File Read:Constant Keep:Constant Read:Constant Read:Constant Probe:Fanout Read:Constant\n",
+            "table 2: Rows, 5 columns, indexes []\n",
+            "  pipeline: Scan:File Read:Constant Read:Constant Probe:Fanout Read:Constant\n",
+            "rule 0: 1 branches\n",
+            "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Emit:Constant\n",
+            "rule 1: 1 branches\n",
+            "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Emit:Constant\n",
+            "codes: {\"EachRowMade\": 2, \"Emit\": 2, \"End\": 3, \"ReadMade\": 6, \"StageKeep\": 1, \"StageProbe\": 2, \"StageRead\": 11, \"StageScan\": 3, \"StageWrite\": 3}",
+        ))),
+    },
+    Case {
+        name: CaseName(
+            "a_pipeline_takes_the_order_keyed_throughout_before_a_cheaper_one_with_a_product",
+        ),
+        word: Word::Succeeds,
+        input: || {
+            (
+                &[
+                    "the elements whose replaced text an import names",
+                    "the elements whose replaced text an import names",
+                ],
+                SampleStage::Absent,
+            )
+        },
+        expect: Expect::Value(Cow::Borrowed(concat!(
+            "definition 0: 3 columns, emptiness All([Unknown, Row(StringLiteral, None)])\n",
+            "  pattern bound [] collected []: Table 0\n",
+            "table 0: Rows, 3 columns, indexes []\n",
+            "  pipeline: Scan:File Read:Constant Call:Constant Probe:Fanout Read:Constant\n",
+            "rule 0: 1 branches\n",
+            "  branch: EachRow:File Read:Constant Read:Constant Emit:Constant\n",
+            "rule 1: 1 branches\n",
+            "  branch: EachRow:File Read:Constant Read:Constant Emit:Constant\n",
+            "codes: {\"EachRowMade\": 2, \"Emit\": 2, \"End\": 3, \"ReadMade\": 4, \"StageCall\": 1, \"StageProbe\": 1, \"StageRead\": 2, \"StageScan\": 1, \"StageWrite\": 1}",
+        ))),
+    },
 ];
 
 /// The scenes lowered and said in lines, as the cases of the service itself are.

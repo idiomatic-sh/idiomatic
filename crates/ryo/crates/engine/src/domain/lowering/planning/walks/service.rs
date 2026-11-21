@@ -1,13 +1,16 @@
 //! The services of the `walks` part: a walk along a tree axis and a nearest walk, as accesses.
 
+use crate::domain::lowering::costing::constants::{ANCESTORS, CHILDREN, DESCENDANTS};
 use crate::domain::lowering::costing::types::CellState;
 use crate::domain::lowering::definitions::service::{asked, fresh_register};
+use crate::domain::lowering::definitions::types::RowEstimate;
 use crate::domain::lowering::flattening::types::{NearestDomain, NearestOver};
 use crate::domain::lowering::planning::closures::service::{own_used, read_condition, walk_edges};
 use crate::domain::lowering::planning::closures::types::{AtomWriter, EdgeEnds};
 use crate::domain::lowering::planning::operands::service::{
     given_or_tested, register_of, state_of,
 };
+use crate::domain::lowering::planning::types::TermGiven;
 use crate::domain::lowering::planning::types::{EdgeUse, NearestWalked, WalkEdges};
 use crate::domain::lowering::planning::types::{Emitter, Enumerated, UnitRole, WrittenAccess};
 use crate::domain::lowering::planning::walks::types::{NearestClimb, WalkEnds};
@@ -24,6 +27,37 @@ pub(crate) const fn reversed(direction: AxisDirection) -> Option<AxisDirection> 
         AxisDirection::PreviousSibling => Some(AxisDirection::NextSibling),
         // A parent's children are a walk of their own (`Children`): no axis walks to them.
         AxisDirection::Parent => None,
+    }
+}
+
+/// The rows a walk gives from the one end of it that is given: what that end reaches along the axis, or against it. None
+/// when both ends are given (the walk is a test) or neither is.
+pub(crate) fn walk_rows(
+    direction: AxisDirection,
+    start: TermGiven,
+    reached: TermGiven,
+) -> Option<RowEstimate> {
+    match (start, reached, direction) {
+        (TermGiven::Given, TermGiven::Open, AxisDirection::Parent) => Some(RowEstimate(1)),
+        (TermGiven::Given, TermGiven::Open, AxisDirection::Ancestor)
+        | (TermGiven::Open, TermGiven::Given, AxisDirection::Descendant) => Some(ANCESTORS),
+        (TermGiven::Given, TermGiven::Open, AxisDirection::Descendant)
+        | (TermGiven::Open, TermGiven::Given, AxisDirection::Ancestor) => Some(DESCENDANTS),
+        (TermGiven::Open, TermGiven::Given, AxisDirection::Parent)
+        | (
+            TermGiven::Given | TermGiven::Open,
+            TermGiven::Given | TermGiven::Open,
+            AxisDirection::NextSibling | AxisDirection::PreviousSibling,
+        ) if start != reached => Some(CHILDREN),
+        (
+            TermGiven::Given | TermGiven::Open,
+            TermGiven::Given | TermGiven::Open,
+            AxisDirection::Parent
+            | AxisDirection::Ancestor
+            | AxisDirection::Descendant
+            | AxisDirection::NextSibling
+            | AxisDirection::PreviousSibling,
+        ) => None,
     }
 }
 

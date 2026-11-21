@@ -29,6 +29,8 @@ pub(crate) struct PlannedBranch {
     pub(crate) order: Vec<AtomPlace>,
     /// The rows the order visits, by the fixed priors.
     pub(crate) cost: RowEstimate,
+    /// How many accesses after the first have no key: the product stages of a pipeline.
+    pub(crate) products: Count,
 }
 
 /// One access as written, its registers decided: what the step emitter and the stage emitter each write in their own form.
@@ -293,6 +295,8 @@ pub(crate) struct OrderCompletion<'a> {
     pub(crate) cost: RowEstimate,
     /// Whether rows were enumerated yet.
     pub(crate) enumerated: Enumerated,
+    /// How many accesses after the first had no key.
+    pub(crate) products: Count,
 }
 
 /// The kinds a bucket of the node table names, with the node relation they are read through.
