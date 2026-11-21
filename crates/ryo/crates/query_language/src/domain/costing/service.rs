@@ -58,6 +58,7 @@ pub(crate) fn classified(
         .map(|(written, verdict)| CostFinding {
             site: written.site.clone(),
             home: written.home,
+            span: written.span,
             shape: verdict.shape,
             class: verdict.class,
         })
@@ -76,7 +77,8 @@ pub(crate) fn classified(
 /// gives there. For a statement of a module that is the `let` at the origin's span in the module as parsed, never the name the
 /// expanded statement carries, which for the statement a module returns is its caller's; for a statement of the query's own
 /// document, which is no module, it is the statement's own name. The origin's trace, the path of imports that reached the
-/// module, is never read. The statements of a module are in the order of their text, so the `let` is found by halving.
+/// module, is never read. The statements of a module are in the order of their text, so the `let` is found by halving. The
+/// origin holds no line: the site's place is the statement's bytes in its document, from which the document's text gives a line.
 #[must_use]
 pub(crate) fn sited(
     origin: &QueryOrigin,
@@ -103,6 +105,7 @@ pub(crate) fn sited(
             statement: name.clone(),
         },
         home,
+        span: origin.span,
     }
 }
 

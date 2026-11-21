@@ -37,13 +37,15 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_modules_statement_keeps_the_name_the_module_gives_it"),
         word: Word::Succeeds,
         input: || Ask::ReturnedUnderTheCallersName,
-        expect: Expect::Value(Cow::Borrowed("pack/module::step_1 Module")),
+        expect: Expect::Value(Cow::Borrowed("pack/module::step_1 Module at bytes 10..19")),
     },
     Case {
         name: CaseName("a_statement_of_the_query_is_sited_in_its_own_document"),
         word: Word::Succeeds,
         input: || Ask::OfTheQuery,
-        expect: Expect::Value(Cow::Borrowed("rules/A::the_callers_name Query")),
+        expect: Expect::Value(Cow::Borrowed(
+            "rules/A::the_callers_name Query at bytes 10..19",
+        )),
     },
     Case {
         name: CaseName("each_statement_of_a_module_is_sited_by_one_search"),
@@ -141,8 +143,9 @@ fn subject(ask: Input) -> Result<Value, Failure> {
             return Ok(Cow::Owned(format!("{}; {twice}", counted(count))));
         }
     };
+    let (start, end) = (site.span.start.0, site.span.end.0);
     Ok(Cow::Owned(format!(
-        "{}::{} {:?}",
+        "{}::{} {:?} at bytes {start}..{end}",
         site.site.document.0, site.site.statement, site.home
     )))
 }

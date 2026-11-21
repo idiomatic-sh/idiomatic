@@ -9,7 +9,7 @@ use super::super::types::{
     SiteHome, SiteOrigin, SiteOwner,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_values::domain::query_tokens::types::{QuerySourceId, StepSpelling};
+use ryo_values::domain::query_tokens::types::{ByteOffset, QuerySourceId, QuerySpan, StepSpelling};
 use ryo_values::domain::runs::types::RuleId;
 use std::borrow::Cow;
 
@@ -273,6 +273,10 @@ fn subject(ask: Input) -> Result<Value, Failure> {
                         statement: StepSpelling(found.1.into()),
                     },
                     home: found.2,
+                    span: QuerySpan {
+                        start: ByteOffset(0),
+                        end: ByteOffset(0),
+                    },
                     shape: CostShape::Product,
                     class: found.3,
                 })

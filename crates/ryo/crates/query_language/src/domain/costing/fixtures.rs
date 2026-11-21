@@ -13,7 +13,7 @@ use ryo_values::domain::plan_parts::types::{
     StepId, StepScope, Test,
 };
 use ryo_values::domain::plans::types::{Operation, PlanStep};
-use ryo_values::domain::query_tokens::types::{QuerySourceId, StepSpelling};
+use ryo_values::domain::query_tokens::types::{ByteOffset, QuerySourceId, QuerySpan, StepSpelling};
 
 /// The catalog's sizes, with the token links declared a row for a pair of elements: no relation is so declared today.
 pub(crate) fn sizes(relation: Relation) -> Option<RelationSize> {
@@ -67,6 +67,10 @@ pub(crate) fn push(
             statement: StepSpelling(statement.into()),
         },
         home: SiteHome::Query,
+        span: QuerySpan {
+            start: ByteOffset(0),
+            end: ByteOffset(0),
+        },
     }));
     Reads::Step(place)
 }

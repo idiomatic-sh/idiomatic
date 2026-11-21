@@ -4,7 +4,7 @@
 use ryo_values::domain::observations::types::BoundObservationInput;
 use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::plans::types::PlanStep;
-use ryo_values::domain::query_tokens::types::{QuerySourceId, StepSpelling};
+use ryo_values::domain::query_tokens::types::{QuerySourceId, QuerySpan, StepSpelling};
 use ryo_values::domain::runs::types::RuleId;
 
 use super::constants::{
@@ -120,11 +120,12 @@ pub enum SiteHome {
 ///
 /// ```
 /// use ryo_query_language::domain::costing::types::{CostFinding, CostShape, PlanCostClass, SiteHome, SiteOrigin};
-/// use ryo_values::domain::query_tokens::types::{QuerySourceId, StepSpelling};
+/// use ryo_values::domain::query_tokens::types::{ByteOffset, QuerySourceId, QuerySpan, StepSpelling};
 ///
 /// let finding = CostFinding {
 ///     site: SiteOrigin { document: QuerySourceId("<query>".into()), statement: StepSpelling("pairs".into()) },
 ///     home: SiteHome::Query,
+///     span: QuerySpan { start: ByteOffset(0), end: ByteOffset(96) },
 ///     shape: CostShape::Product,
 ///     class: PlanCostClass::QuadraticInFile,
 /// };
@@ -136,6 +137,9 @@ pub struct CostFinding {
     pub site: SiteOrigin,
     /// Which kind of document writes it.
     pub home: SiteHome,
+    /// Where it is written in its document, in bytes: the place a message shows, with the line the document's text gives it.
+    /// Not part of the site: an edit above the statement moves this and not the site.
+    pub span: QuerySpan,
     /// Its shape.
     pub shape: CostShape,
     /// The class the shape gives.
@@ -284,6 +288,8 @@ pub(crate) struct WrittenSite {
     pub site: SiteOrigin,
     /// Which kind of document.
     pub home: SiteHome,
+    /// Where the statement is written in that document, in bytes.
+    pub span: QuerySpan,
 }
 
 /// A query's steps as the compiler assembled them, before it rewrites them: each still the work of one statement.
