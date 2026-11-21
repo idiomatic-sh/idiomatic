@@ -6,9 +6,10 @@ pub(crate) mod placing;
 
 use self::factoring::service::{shared_into, shared_push};
 use self::joins::service::pushed_join;
-use self::placing::service::{filter_of, finished, insert_before, place_after};
+use self::placing::service::{filter_of, finished, insert_before, insert_ordered, place_after};
 use super::types::PushedFilter;
 use super::types::StepHash;
+use super::types::{PlanSplice, Spliced};
 use crate::domain::pruning::service::without_unused_roots;
 use crate::domain::rewriting::types::Planned;
 use crate::domain::rewriting::types::StepIndex;
@@ -46,9 +47,18 @@ pub(crate) fn push_selections_roots(
     mut steps: Vec<PlanStep>,
     roots: &mut [StepId],
 ) -> Vec<PlanStep> {
+    let mut readers = Readers::default();
     loop {
         let mut moved = false;
-        let mut readers = Readers::of(&steps);
+        // A plan whose every step reads only steps before it is renumbered from the splice on, and its readers are kept
+        // as it changes; any other plan is renumbered whole and its readers read again after each push.
+        let ordered = in_reading_order(&steps);
+        let splice: PlanSplice = if ordered {
+            insert_ordered
+        } else {
+            insert_before
+        };
+        readers.rebuild(&steps);
         for place in (0..steps.len()).rev() {
             let id = StepId(u32::try_from(place).unwrap_or(u32::MAX));
             if roots.contains(&id) {
@@ -58,8 +68,11 @@ pub(crate) fn push_selections_roots(
                 .get(place)
                 .and_then(|reading| shared_push(&steps, id, reading))
             {
-                shared_into(&mut steps, roots, push);
-                readers.rebuild(&steps);
+                let spliced = shared_into(&mut steps, roots, push, splice);
+                match spliced {
+                    Some(spliced) if ordered => readers.spliced(&steps, &spliced, place),
+                    Some(_) | None => readers.rebuild(&steps),
+                }
                 moved = true;
                 continue;
             }
@@ -77,9 +90,19 @@ pub(crate) fn push_selections_roots(
                 filter,
             } in pushed.into_iter().rev()
             {
-                insert_before(&mut steps, roots, reader, before, filter);
+                let spliced = Spliced {
+                    at: reader,
+                    count: before.len(),
+                    replaced: Vec::new(),
+                };
+                splice(&mut steps, roots, reader, before, filter);
+                if ordered {
+                    readers.spliced(&steps, &spliced, place);
+                }
             }
-            readers.rebuild(&steps);
+            if !ordered {
+                readers.rebuild(&steps);
+            }
             moved = true;
         }
         if !moved {
@@ -87,6 +110,17 @@ pub(crate) fn push_selections_roots(
         }
         steps = without_repeats(without_unused_roots(steps, roots), roots);
     }
+}
+
+/// Whether every step of a plan reads only steps that stand before it.
+fn in_reading_order(steps: &[PlanStep]) -> bool {
+    steps.iter().enumerate().all(|(place, step)| {
+        let inputs = inputs_of(&step.operation);
+        named(&inputs).iter().all(|input| match input {
+            Input::Step(id) => usize::try_from(id.0).is_ok_and(|read| read < place),
+            _ => true,
+        })
+    })
 }
 
 /// The plan with each step that repeats an earlier one (the same operation on the same inputs, made where it is) read from the
@@ -152,66 +186,105 @@ fn without_repeats(steps: Vec<PlanStep>, roots: &mut [StepId]) -> Vec<PlanStep> 
     made
 }
 
-/// Spike (ryo-fmx3): for each step, the places of the steps that read it, in one flat list with a start per step, rebuilt in
-/// place so the lists keep their room across the rewrites of a plan.
+/// Spike (ryo-fmx3): for each step, the places of the steps that read it, in step order; the lists keep their room across
+/// the rewrites of a plan. After a push the lists of the steps below the pushed step are brought up to date in place
+/// (`spliced`): they are the only ones a pass reads again, since it goes from the last step down.
 #[derive(Default)]
 struct Readers {
-    starts: Vec<usize>,
-    flat: Vec<StepIndex>,
+    lists: Vec<Vec<StepIndex>>,
 }
 
 impl Readers {
-    /// The readers of `steps`, each reader once per step it reads, in step order.
-    fn of(steps: &[PlanStep]) -> Self {
-        let mut readers = Self::default();
-        readers.rebuild(steps);
-        readers
+    /// Gives `visit` each step `step` reads, once.
+    fn each_read(step: &PlanStep, visit: &mut dyn FnMut(usize)) {
+        let inputs = inputs_of(&step.operation);
+        let named = named(&inputs);
+        for (at, input) in named.iter().enumerate() {
+            if let Input::Step(id) = *input
+                && !named.get(..at).is_some_and(|before| before.contains(input))
+            {
+                visit(usize::try_from(id.0).unwrap_or(usize::MAX));
+            }
+        }
     }
 
+    /// The readers of `steps`, each reader once per step it reads, in step order.
     fn rebuild(&mut self, steps: &[PlanStep]) {
-        let count = steps.len();
-        self.starts.clear();
-        self.starts.resize(count + 2, 0);
-        let read_from = |step: &PlanStep, visit: &mut dyn FnMut(usize)| {
-            let inputs = inputs_of(&step.operation);
-            let named = named(&inputs);
-            for (at, input) in named.iter().enumerate() {
-                if let Input::Step(id) = *input
-                    && !named.get(..at).is_some_and(|before| before.contains(input))
-                {
-                    visit(usize::try_from(id.0).unwrap_or(usize::MAX));
+        for list in &mut self.lists {
+            list.clear();
+        }
+        self.lists.resize_with(steps.len(), Vec::new);
+        for (place, step) in steps.iter().enumerate() {
+            Self::each_read(step, &mut |read| {
+                if let Some(list) = self.lists.get_mut(read) {
+                    list.push(StepIndex(place));
+                }
+            });
+        }
+    }
+
+    /// Notes the step at `place` among the readers of each step below `below` that it reads.
+    fn note(&mut self, steps: &[PlanStep], place: usize, below: usize) {
+        let Some(step) = steps.get(place) else {
+            return;
+        };
+        Self::each_read(step, &mut |read| {
+            if read < below
+                && let Some(list) = self.lists.get_mut(read)
+            {
+                let at = list.partition_point(|reader| reader.0 < place);
+                if list.get(at) != Some(&StepIndex(place)) {
+                    list.insert(at, StepIndex(place));
                 }
             }
-        };
-        for step in steps {
-            read_from(step, &mut |read| {
-                if read < count {
-                    self.starts[read + 2] += 1;
+        });
+    }
+
+    /// Brings the readers of the steps below `below` up to date after a push, for a plan in reading order: the readers from
+    /// the splice on stand `count` later; the step replaced at the splice, the steps made before it and the other steps
+    /// replaced read what they read now.
+    fn spliced(&mut self, steps: &[PlanStep], spliced: &Spliced, below: usize) {
+        let (at, count) = (spliced.at.0, spliced.count);
+        for list in self.lists.iter_mut().take(below) {
+            let from = list.partition_point(|reader| reader.0 < at);
+            if list.get(from) == Some(&StepIndex(at)) {
+                let _replaced = list.remove(from);
+            }
+            for reader in list.iter_mut().skip(from) {
+                reader.0 += count;
+            }
+        }
+        for place in at..=at.saturating_add(count) {
+            self.note(steps, place, below);
+        }
+        for other in &spliced.replaced {
+            for list in self.lists.iter_mut().take(below) {
+                if let Ok(found) = list.binary_search_by_key(&other.0, |reader| reader.0) {
+                    let _replaced = list.remove(found);
                 }
-            });
+            }
+            self.note(steps, other.0, below);
         }
-        for at in 2..self.starts.len() {
-            self.starts[at] += self.starts[at - 1];
-        }
-        self.flat.clear();
-        self.flat.resize(self.starts[count + 1], StepIndex(0));
-        // `starts[read + 1]` is where the next reader of `read` goes; after the fill it is where `read + 1`'s start is.
-        for (place, step) in steps.iter().enumerate() {
-            read_from(step, &mut |read| {
-                if read < count {
-                    let slot = self.starts[read + 1];
-                    self.flat[slot] = StepIndex(place);
-                    self.starts[read + 1] += 1;
-                }
-            });
-        }
+        debug_assert!(
+            self.agrees(steps, below),
+            "the readers kept differ from the readers read again"
+        );
+    }
+
+    /// Whether the lists of the steps below `below` are what reading `steps` again gives.
+    fn agrees(&self, steps: &[PlanStep], below: usize) -> bool {
+        let mut again = Self::default();
+        again.rebuild(steps);
+        self.lists
+            .iter()
+            .zip(&again.lists)
+            .take(below)
+            .all(|(kept, read)| kept == read)
     }
 
     /// The readers of the step at `place`.
     fn get(&self, place: usize) -> Option<&[StepIndex]> {
-        let from = *self.starts.get(place)?;
-        let to = *self.starts.get(place + 1)?;
-        self.flat.get(from..to)
+        self.lists.get(place).map(Vec::as_slice)
     }
 }
 

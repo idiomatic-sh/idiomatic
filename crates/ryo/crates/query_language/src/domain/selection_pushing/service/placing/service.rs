@@ -106,6 +106,38 @@ pub(crate) fn insert_before(
     }
 }
 
+/// `insert_before` for a plan in which every step reads only steps before it: no step up to `place` names a step from
+/// `place` on, so only the steps after it are renumbered, and the steps made are spliced in at once. The same plan as
+/// `insert_before` gives for such a plan.
+pub(crate) fn insert_ordered(
+    steps: &mut Vec<PlanStep>,
+    roots: &mut [StepId],
+    place: StepIndex,
+    before: Vec<PlanStep>,
+    filter: PlanStep,
+) {
+    let count = u32::try_from(before.len()).unwrap_or(u32::MAX);
+    let first = u32::try_from(place.0).unwrap_or(u32::MAX);
+    for step in steps.iter_mut().skip(place.0.saturating_add(1)) {
+        each_input(&mut step.operation, &mut |input| {
+            if let Input::Step(id) = input
+                && id.0 >= first
+            {
+                id.0 += count;
+            }
+        });
+    }
+    for root in roots.iter_mut() {
+        if root.0 >= first {
+            root.0 += count;
+        }
+    }
+    if let Some(step) = steps.get_mut(place.0) {
+        *step = filter;
+    }
+    let _none = steps.splice(place.0..place.0, before);
+}
+
 /// The key column of the other input that the key column `column` of one input meets, `own` and `other` being their keys in
 /// order: every row the join or the antijoin matches holds the same values in the two.
 pub(crate) fn met_key(

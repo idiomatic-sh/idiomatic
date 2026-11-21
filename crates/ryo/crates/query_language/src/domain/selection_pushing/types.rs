@@ -5,6 +5,7 @@ use ryo_values::domain::plan_parts::types::ColumnIndex;
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::JoinColumn;
 use ryo_values::domain::plan_parts::types::PlanComparison;
+use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plans::types::PlanStep;
 
@@ -106,3 +107,20 @@ pub(crate) struct CrossingKey {
 /// The hash of a step of a plan, its operation and where it runs, by which a step that repeats an earlier one is found.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct StepHash(pub u64);
+
+/// The splice a push places its steps with: the steps made just before a place, the step at the place replaced, every later
+/// step and root renumbered.
+pub(crate) type PlanSplice =
+    fn(&mut Vec<PlanStep>, &mut [StepId], StepIndex, Vec<PlanStep>, PlanStep);
+
+/// What one push changed of a plan: `count` steps made just before the step that stood at `at` (which was replaced and now
+/// stands `count` later), and the other steps replaced where they stand, by their places after the splice.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct Spliced {
+    /// Where the steps were made.
+    pub at: StepIndex,
+    /// How many were made.
+    pub count: usize,
+    /// The other steps replaced.
+    pub replaced: Vec<StepIndex>,
+}
