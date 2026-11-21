@@ -2,6 +2,7 @@
 
 use crate::domain::code::constants::NO_SLOT;
 use crate::domain::code::types::{ConstantNumber, NeedSite, RelationNumber, Short, WordSlot};
+use crate::domain::executing::presence::service::node_row;
 use crate::domain::executing::types::Asker;
 use crate::domain::made_tables::sources::service::{cell_of, made, scanned, table_of};
 use crate::domain::made_tables::types::ReadSource;
@@ -57,6 +58,9 @@ impl NeedFacts for FileNeeds<'_, '_, '_> {
         value: WordSlot,
     ) -> NeedVerdict {
         let frame = &mut *self.0;
+        if let Some(decided) = node_row(frame, relation, column, value) {
+            return decided;
+        }
         let source = ReadSource::Filled(relation);
         let asked = scanned(
             frame.fill,

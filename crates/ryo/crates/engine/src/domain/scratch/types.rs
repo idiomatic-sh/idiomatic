@@ -4,7 +4,7 @@ use crate::domain::code::types::RelationNumber;
 use crate::domain::code::types::{CodeEntry, WordSlot};
 use crate::domain::filled::errors::FilledError;
 use crate::domain::findings::types::InstructionCount;
-use crate::domain::indexes::types::RowRun;
+use crate::domain::indexes::types::{FileStamp, RowRun};
 use crate::domain::made_tables::types::FillStore;
 use crate::domain::made_tables::types::FillWork;
 use crate::domain::memos::types::{ChargedUnit, MemoId, MemoMap, RuleStamp};
@@ -12,6 +12,7 @@ use crate::domain::needs::types::NeedVerdict;
 use crate::domain::stages::types::{BatchRow, FanRows};
 use crate::domain::steps::types::MadeTableId;
 use ryo_language::domain::facts::types::{CellWord, FileWords};
+use ryo_language::domain::node_table::types::PresenceWord;
 use ryo_operators::domain::table_scratch::types::Patterns;
 use ryo_relations::domain::relations::types::Count;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
@@ -130,6 +131,11 @@ pub(crate) struct LoopState {
     pub(crate) kept: Vec<BatchRow>,
     /// The room a walk of the tree writes what it reaches in, lent to the fill side's kernel.
     pub(crate) fan: FanRows,
+    /// Which kinds and which fields occur in the file's node rows: what a need on a node relation's kind or field asks.
+    pub(crate) presence: NodePresence,
+    /// Whether each need site's formula asks the node rows for a kind or a field, by the site's number: a property of the
+    /// code, found on a site's first ask and kept for the worker's life.
+    pub(crate) node_needs: Vec<Option<NodeNeed>>,
     /// What a measuring worker counts and times; none in a worker that does not measure, whose loop reads no clock.
     pub(crate) measure: Option<Box<Measuring>>,
     /// The rule whose work is running; none before a file's first rule.
@@ -268,4 +274,38 @@ pub(crate) struct UnitInFile {
     pub(crate) nanos: Count,
     /// The rows it gave.
     pub(crate) rows: Count,
+}
+
+/// Which kinds and which fields occur in the file's node rows, each built on its first ask in the file and shared by
+/// every rule of the run.
+#[derive(Debug, Default)]
+pub(crate) struct NodePresence {
+    /// The kinds.
+    pub(crate) kinds: PresentNames,
+    /// The fields.
+    pub(crate) fields: PresentNames,
+    /// The room the pass over the field column marks codes in: the own tree's, then every row's.
+    pub(crate) marks: Vec<PresenceWord>,
+}
+
+/// The names that occur in one column of the file's node rows, as the words a read of the column gives, sorted: in the
+/// file's own tree, and in every row, the embedded segments' too. Built for the file `file` names; another file's holds
+/// nothing.
+#[derive(Debug, Default)]
+pub(crate) struct PresentNames {
+    /// The file it was built for.
+    pub(crate) file: Option<FileStamp>,
+    /// The names in the file's own tree.
+    pub(crate) own: Vec<CellWord>,
+    /// The names in every row.
+    pub(crate) every: Vec<CellWord>,
+}
+
+/// Whether a need's formula asks the node rows for a kind or a field.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum NodeNeed {
+    /// It does: a rule that consults the decision read the node table.
+    Asked,
+    /// It does not.
+    NotAsked,
 }

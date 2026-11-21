@@ -8,6 +8,7 @@ pub mod entries;
 pub mod fixtures;
 pub mod measuring;
 pub mod ordered;
+pub mod presence;
 pub mod running;
 pub mod service;
 pub mod sources;
