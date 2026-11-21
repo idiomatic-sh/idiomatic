@@ -3,21 +3,23 @@
 //! `Product`. The lowering proves a pack before it answers it; these are the cases it must never write.
 
 use super::super::fixtures::{
-    anchor, listing, mask, of, operands, pack, program, reg, regs, rule, scan, table_pack,
+    anchor, listing, mask, of, operands, pack, program, reg, regs, rule, scan, stages, table_pack,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::code::types::{Op, ShapeChoice};
 use crate::domain::encoding::constants::LAST_STEP;
 use crate::domain::encoding::service::encoded;
 use crate::domain::lowered::types::{
-    DefinitionPattern, Emptiness, LoweredPack, PackDefinition, PatternForm,
+    DefinitionPattern, Emptiness, FillInput, LoweredPack, MadeFill, OrderedFill, PackDefinition,
+    PatternForm,
 };
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::{LoadRefusal, PastWidth};
-use crate::domain::steps::stages::types::{FillStage, UseMode};
+use crate::domain::steps::stages::types::{FillStage, Pipeline, UseMode};
 use crate::domain::steps::types::{
-    DefinitionId, MadeColumn, MadeTableId, MatchColumns, Polarity, ProgramStep, ReadColumn,
-    Register, RegisterList, StepBody, StepMemo, StepOperand, StepProgram, StepRows,
+    ColumnList, DefinitionId, MadeColumn, MadeTableId, MatchColumns, Polarity, ProgramStep,
+    ReadColumn, Register, RegisterList, StepBody, StepMemo, StepOperand, StepOperands, StepProgram,
+    StepRows,
 };
 use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::relations::types::Relation;
@@ -54,6 +56,10 @@ enum Scenario {
     WideRow,
     /// A table of 65,536 columns.
     WideTable,
+    /// An ordered match whose table is as wide as its two inputs' rows together.
+    MatchRows,
+    /// An ordered match whose table is as wide as the operation's output.
+    MatchProjected,
 }
 
 type Input = Scenario;
@@ -157,7 +163,37 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             refusal: LoadRefusal::Budget(PastWidth::TableColumns),
         }),
     },
+    Case {
+        name: CaseName("an_ordered_match_as_wide_as_its_two_rows_is_written"),
+        word: Word::Succeeds,
+        input: || Scenario::MatchRows,
+        expect: Expect::Value(Cow::Borrowed("2 scans, 0 products, 2 writes")),
+    },
+    Case {
+        name: CaseName("an_ordered_match_as_wide_as_its_output_is_refused"),
+        word: Word::Refuses,
+        input: || Scenario::MatchProjected,
+        expect: Expect::Error(FAULT),
+    },
 ];
+
+/// A pack of one rule that walks table 0, an ordered match of `width` columns: its left rows are three cells wide and its
+/// right rows two, each input keyed on its first column and ordered by its second.
+fn match_pack(width: usize) -> LoweredPack {
+    let input = |cells: u32| FillInput {
+        pipelines: Box::new([Pipeline {
+            stages: stages(vec![scan(1)]),
+            row: StepOperands((0..cells).map(|_| of(1)).collect()),
+        }]),
+        keys: ColumnList(Box::new([MadeColumn(0)])),
+        order: Some(MadeColumn(1)),
+    };
+    let mut made = table_pack(vec![scan(1)], width, Vec::new());
+    if let Some(table) = made.tables.first_mut() {
+        table.fill = MadeFill::Ordered(OrderedFill::Match(input(3), input(2)));
+    }
+    made
+}
 
 /// A pattern of a definition of two columns that binds `bound` and collects the second, in `form`.
 fn pattern<const N: usize>(bound: [u16; N], form: PatternForm) -> DefinitionPattern {
@@ -290,6 +326,8 @@ fn lowered(scenario: Scenario) -> LoweredPack {
             ])
         }
         Scenario::WideTable => table_pack(vec![scan(1)], usize::from(u16::MAX) + 1, Vec::new()),
+        Scenario::MatchRows => match_pack(5),
+        Scenario::MatchProjected => match_pack(2),
     }
 }
 
@@ -307,7 +345,9 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         | Scenario::UnkeyedProbeFirst
         | Scenario::UnboundStageUse
         | Scenario::WideRow
-        | Scenario::WideTable => {
+        | Scenario::WideTable
+        | Scenario::MatchRows
+        | Scenario::MatchProjected => {
             let stage = |op: Op| code.words.iter().filter(|word| word.op == op).count();
             format!(
                 "{} scans, {} products, {} writes",
