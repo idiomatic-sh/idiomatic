@@ -204,6 +204,9 @@ pub(crate) struct Environment {
     pub(crate) pins: HashMap<FlatVariable, crate::domain::lowering::flattening::types::FlatTerm>,
     /// The pinned variables an access was keyed by: given, as their constant; with the cell of the row found, when there is one.
     pub(crate) keyed: HashMap<FlatVariable, Option<FileCell>>,
+    /// The pinned variables a use of a definition was keyed by in a pipeline: the use leaves no row to read the cell
+    /// from, so each is still its constant for the stages after it.
+    pub(crate) held: std::collections::HashSet<FlatVariable>,
     /// A file column already at hand.
     pub(crate) file: Option<FileCell>,
     /// Whether rows were enumerated yet.
@@ -298,6 +301,8 @@ pub(crate) struct OrderCompletion<'a> {
     pub(crate) order: Vec<AtomPlace>,
     /// The pinned variables an access placed so far was keyed by: the test that pins one holds already.
     pub(crate) implied: std::collections::HashSet<FlatVariable>,
+    /// The pinned variables a use of a definition was keyed by in a pipeline: the use leaves no row to read the cell from.
+    pub(crate) rowless: std::collections::HashSet<FlatVariable>,
     /// The rows the unit holds at this point.
     pub(crate) rows: PlanEstimate,
     /// The steps taken so far.
