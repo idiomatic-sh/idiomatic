@@ -308,6 +308,7 @@ pub(crate) fn framed(world: &mut World) -> (FillFrame<'_>, &mut Looped) {
             file: FILE,
             path: ryo_language::domain::files::types::SourcePath(path),
             text: ByteSlice(text),
+            source: std::str::from_utf8(text).ok(),
             facts: told,
             words,
             store,

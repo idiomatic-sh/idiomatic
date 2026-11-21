@@ -45,6 +45,7 @@ fn batch_frame<'s>(frame: &'s FillFrame<'_>) -> BatchFrame<'s> {
         file: frame.file,
         path: frame.path,
         text: frame.text,
+        source: frame.source,
     }
 }
 
@@ -201,6 +202,8 @@ fn staged(
                 return Ok(());
             }
             StageKind::Read => {
+                // The words of the elements' texts are the store's: taken while the batch's frame reads the store.
+                let mut texts = std::mem::take(&mut frame.store.node_texts);
                 let batch = BatchFrame {
                     programs: frame.programs,
                     store: frame.store,
@@ -208,8 +211,11 @@ fn staged(
                     file: frame.file,
                     path: frame.path,
                     text: frame.text,
+                    source: frame.source,
                 };
-                read_stage(batch, frame.words, word, level)?;
+                let done = read_stage(batch, frame.words, &mut texts, word, level);
+                frame.store.node_texts = texts;
+                done?;
                 file_marked(batch_frame(frame), word, &mut run.room.files);
                 false
             }
@@ -223,6 +229,7 @@ fn staged(
                     file: frame.file,
                     path: frame.path,
                     text: frame.text,
+                    source: frame.source,
                 };
                 let kept = keep_stage(
                     batch,
