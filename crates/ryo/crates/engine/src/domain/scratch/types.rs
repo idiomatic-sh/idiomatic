@@ -1,6 +1,6 @@
 //! The types of the `scratch` concept: a worker's per-file state.
 
-use super::kept::types::{AskedNeed, HeldRead, QuickBody, RegisterHolds, SiteAsks};
+use super::kept::types::{AskedNeed, HeldRead, NeedFills, QuickBody, RegisterHolds, SiteAsks};
 use crate::domain::code::records::types::{PooledOperand, ReadBody};
 use crate::domain::code::types::RelationNumber;
 use crate::domain::code::types::{CodeEntry, WordSlot};
@@ -302,6 +302,8 @@ pub(crate) struct Measuring {
     pub(crate) running: Vec<WordSlot>,
     /// The thread's time when the innermost unit last changed.
     pub(crate) since: Duration,
+    /// SPIKE: the fills that needs started, by table.
+    pub(crate) need_fills: NeedFills,
 }
 
 /// A unit's time and rows in the file being scanned.
