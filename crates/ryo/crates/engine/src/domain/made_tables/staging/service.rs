@@ -18,9 +18,9 @@ use crate::domain::filled::types::{MissingCode, UnbuiltFill};
 use crate::domain::made_tables::columns::types::HeldCells;
 use crate::domain::made_tables::columns::types::{CellsLie, RowColumn};
 use crate::domain::made_tables::operands::service::{
-    column_of, constant_at, key_of, operand, set_of, value_of,
+    column_mut, column_of, constant_at, key_of, operand, set_of, value_of,
 };
-use crate::domain::made_tables::pipelines::types::{BatchLevel, OperandRun};
+use crate::domain::made_tables::pipelines::types::{BatchLevel, LevelColumns, OperandRun};
 use crate::domain::made_tables::reading::service::{
     column_held, index_at, node_names, site_at, site_source, source_of, view_of,
 };
@@ -75,10 +75,8 @@ pub(crate) fn read_stage(
 ) -> Result<(), FilledError> {
     let stage = stage_read_of(word);
     let source = source_of(stage.flag, stage.read);
-    let place = usize::try_from(stage.out.0).unwrap_or(usize::MAX);
-    let mut out = level
-        .columns
-        .get_mut(place)
+    let written = Register(stage.out.0);
+    let mut out = column_mut(&mut level.columns, written)
         .map(std::mem::take)
         .ok_or(WRONG_WORD)?;
     let handles = column_of(&level.columns, stage.row);
@@ -110,7 +108,7 @@ pub(crate) fn read_stage(
             unbuilt: UnbuiltFill::Written,
         }),
     };
-    if let Some(column) = level.columns.get_mut(place) {
+    if let Some(column) = column_mut(&mut level.columns, written) {
         *column = out;
     }
     done
@@ -253,7 +251,7 @@ pub(crate) fn keep_stage(
 pub(crate) fn probe_key<'l>(
     frame: BatchFrame<'_>,
     stage: ProbeWord,
-    columns: &'l [Vec<CellWord>],
+    columns: &'l LevelColumns,
     cells: &mut Vec<CellWord>,
     parts: &mut Vec<KeyPart<'l>>,
 ) -> Result<(), FilledError> {
@@ -285,7 +283,7 @@ pub(crate) fn probe_key<'l>(
 pub(crate) fn probe_range<'l>(
     frame: BatchFrame<'l>,
     stage: ProbeWord,
-    columns: &'l [Vec<CellWord>],
+    columns: &'l LevelColumns,
 ) -> Result<Option<KeyRange<'l>>, FilledError> {
     if stage.flag.0 & PROBE_RANGE.0 == 0 {
         return Ok(None);
