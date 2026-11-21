@@ -1,7 +1,7 @@
 //! The services of the `flattening` part: the equalities of a branch resolved in one union-find and one rewrite, a comparison
 //! added to a branch, and the columns of a row picked. Nothing here copies a sub-plan: a branch holds uses, never bodies.
 
-use super::types::{ColumnPlace, EqualTerms, FlatAtom, FlatBranch, FlatTerm, FlatVariable};
+use super::types::{EqualTerms, FlatAtom, FlatBranch, FlatTerm, FlatVariable, RowColumn};
 use crate::domain::steps::types::TestOperation;
 use std::collections::HashMap;
 
@@ -88,8 +88,14 @@ pub(crate) fn unified(mut branch: FlatBranch, pairs: &[EqualTerms]) -> Option<Fl
             | (other @ FlatTerm::File, FlatTerm::Variable(variable)) => {
                 let _old = classes.insert(variable, other);
             }
-            (FlatTerm::Variable(variable), constant @ (FlatTerm::Text(_) | FlatTerm::Number(_)))
-            | (constant @ (FlatTerm::Text(_) | FlatTerm::Number(_)), FlatTerm::Variable(variable)) => {
+            (
+                FlatTerm::Variable(variable),
+                constant @ (FlatTerm::Text(_) | FlatTerm::Number(_)),
+            )
+            | (
+                constant @ (FlatTerm::Text(_) | FlatTerm::Number(_)),
+                FlatTerm::Variable(variable),
+            ) => {
                 pinned.push((variable, constant));
             }
             (
@@ -192,7 +198,7 @@ pub(crate) fn compared(
 #[must_use]
 pub(crate) fn picked(
     row: &[FlatTerm],
-    columns: impl IntoIterator<Item = ColumnPlace>,
+    columns: impl IntoIterator<Item = RowColumn>,
 ) -> Option<Vec<FlatTerm>> {
     let cells = columns.into_iter().map(|column| row.get(column.0).copied());
     cells.collect()

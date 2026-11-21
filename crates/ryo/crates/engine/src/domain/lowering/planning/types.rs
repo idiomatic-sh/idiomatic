@@ -224,7 +224,7 @@ pub(crate) struct NextAccess {
 
 /// Whether an atom has its place in the order yet.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Placing {
+pub(crate) enum AtomPlacing {
     /// Not yet.
     Waiting,
     /// It has.
@@ -246,12 +246,13 @@ pub(crate) struct GivenTerms<'a> {
     /// The variables some access gave.
     pub(crate) variables: &'a std::collections::HashSet<FlatVariable>,
     /// The constant each pinned variable is held to.
-    pub(crate) pins: &'a HashMap<FlatVariable, crate::domain::lowering::flattening::types::FlatTerm>,
+    pub(crate) pins:
+        &'a HashMap<FlatVariable, crate::domain::lowering::flattening::types::FlatTerm>,
 }
 
 /// The state of one completion of a branch's order.
 #[derive(Debug)]
-pub(crate) struct Completion<'a> {
+pub(crate) struct OrderCompletion<'a> {
     /// The drafts the estimates read.
     pub(crate) drafts: &'a crate::domain::lowering::definitions::types::Drafts,
     /// The branch.
@@ -263,7 +264,7 @@ pub(crate) struct Completion<'a> {
     /// The constant each pinned variable of the branch is held to.
     pub(crate) pins: HashMap<FlatVariable, crate::domain::lowering::flattening::types::FlatTerm>,
     /// Which atoms are placed.
-    pub(crate) placed: Vec<Placing>,
+    pub(crate) placed: Vec<AtomPlacing>,
     /// The order so far.
     pub(crate) order: Vec<AtomPlace>,
     /// The rows the unit holds at this point.

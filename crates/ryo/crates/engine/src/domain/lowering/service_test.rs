@@ -69,7 +69,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ))),
     },
     Case {
-        name: CaseName("a_join_on_the_file_alone_is_one_table_with_one_product_stage_and_the_rule_walks_it"),
+        name: CaseName(
+            "a_join_on_the_file_alone_is_one_table_with_one_product_stage_and_the_rule_walks_it",
+        ),
         word: Word::Succeeds,
         input: || (&["a product within a file"], SampleStage::Absent),
         expect: Expect::Value(Cow::Borrowed(concat!(
@@ -87,9 +89,16 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ))),
     },
     Case {
-        name: CaseName("the_right_side_two_rules_antijoins_share_is_one_definition_each_decides_by_its_own_key"),
+        name: CaseName(
+            "the_right_side_two_rules_antijoins_share_is_one_definition_each_decides_by_its_own_key",
+        ),
         word: Word::Succeeds,
-        input: || (&["the elements that are no word", "the edges to no word"], SampleStage::Absent),
+        input: || {
+            (
+                &["the elements that are no word", "the edges to no word"],
+                SampleStage::Absent,
+            )
+        },
         expect: Expect::Value(Cow::Borrowed(concat!(
             "definition 0: 5 columns, emptiness All([Unknown, Unknown])\n",
             "  pattern bound [1] collected []: Call: EachMatch:Fanout EachMatch:Fanout Yield:Constant\n",
@@ -101,7 +110,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ))),
     },
     Case {
-        name: CaseName("a_group_count_is_one_table_whoever_reads_it_and_a_key_pinned_to_a_constant_stays_a_key"),
+        name: CaseName(
+            "a_group_count_is_one_table_whoever_reads_it_and_a_key_pinned_to_a_constant_stays_a_key",
+        ),
         word: Word::Succeeds,
         input: || (&["one table, two readers"], SampleStage::Absent),
         expect: Expect::Value(Cow::Borrowed(concat!(
@@ -200,9 +211,16 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ))),
     },
     Case {
-        name: CaseName("a_rule_that_cannot_be_evaluated_is_refused_by_its_step_and_the_others_lower"),
+        name: CaseName(
+            "a_rule_that_cannot_be_evaluated_is_refused_by_its_step_and_the_others_lower",
+        ),
         word: Word::Succeeds,
-        input: || (&["one tree rule", "over the host's rows"], SampleStage::Absent),
+        input: || {
+            (
+                &["one tree rule", "over the host's rows"],
+                SampleStage::Absent,
+            )
+        },
         expect: Expect::Value(Cow::Borrowed(concat!(
             "rule 0: 1 branches\n",
             "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Emit:Constant\n",
@@ -213,7 +231,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_rule_set_whose_every_rule_is_refused_answers_the_last_refusal"),
         word: Word::Refuses,
-        input: || (&["over the host's rows", "follow fixed points"], SampleStage::Absent),
+        input: || {
+            (
+                &["over the host's rows", "follow fixed points"],
+                SampleStage::Absent,
+            )
+        },
         expect: Expect::Error(LoweringError::Refused {
             rule: SelectedRuleOrdinal(1),
             refusal: LoadRefusal::Unlowerable(PlanNode(4)),
@@ -253,10 +276,16 @@ fn subject((scenes, stage): Input) -> Result<Value, Failure> {
     }
     let mut lines = described(&lowered.pack);
     // The pack is written by the straight encoding, the holder of the invariant: its codes, by count.
-    lines.push(format!("codes: {:?}", code_census(&encoded(&lowered.pack)?)));
-    lines.extend(lowered.refused.iter().map(|refused| {
-        format!("refused rule {}: {}", refused.rule.0, refused.refusal)
-    }));
+    lines.push(format!(
+        "codes: {:?}",
+        code_census(&encoded(&lowered.pack)?)
+    ));
+    lines.extend(
+        lowered
+            .refused
+            .iter()
+            .map(|refused| format!("refused rule {}: {}", refused.rule.0, refused.refusal)),
+    );
     Ok(Cow::Owned(lines.join("\n")))
 }
 

@@ -6,6 +6,7 @@ use super::types::{CallForm, FormChoice, PatternFacts, PatternPlacement, SampleS
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::code::types::{MeasuredForm, ShapeChoice};
 use crate::domain::statistics::types::{LearnStage, MeasuredSizes, Statistics};
+use ryo_relations::domain::relations::types::Count;
 
 /// A pattern's facts, and the statistics the load was given.
 type Input = (PatternFacts, Option<Statistics>);
@@ -14,10 +15,10 @@ type Failure = ();
 
 /// A pattern that binds one column, has a program, and whose definition's table is keyed throughout: a flip candidate.
 const CANDIDATE: PatternFacts = PatternFacts {
-    binds: 1,
+    binds: Count(1),
     call: CallForm::Keyed,
     table: TableForm::Keyed,
-    call_patterns: 0,
+    call_patterns: Count(0),
     measured: None,
 };
 
@@ -46,7 +47,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || {
             let facts = PatternFacts {
-                binds: 0,
+                binds: Count(0),
                 ..CANDIDATE
             };
             (facts, given(SampleStage::Absent))
@@ -94,7 +95,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || {
             let facts = PatternFacts {
-                call_patterns: 4,
+                call_patterns: Count(4),
                 ..CANDIDATE
             };
             (facts, given(SampleStage::Absent))
@@ -125,7 +126,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             let facts = PatternFacts {
                 table: TableForm::Calls,
-                call_patterns: 9,
+                call_patterns: Count(9),
                 ..CANDIDATE
             };
             (facts, given(SampleStage::First))

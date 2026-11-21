@@ -2,8 +2,11 @@
 //! steps for a rule's branch or a call-form pattern, stages for a table's pipeline.
 
 pub(crate) mod emitting;
+pub(crate) mod forms;
+pub(crate) mod operands;
 pub(crate) mod service;
 pub(crate) mod types;
+pub(crate) mod walks;
 pub(crate) mod writing;
 
 #[cfg(test)]

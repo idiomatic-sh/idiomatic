@@ -10,7 +10,7 @@ use crate::domain::lowering::definitions::service::draft;
 use crate::domain::lowering::definitions::types::{Drafts, RowEstimate};
 use crate::domain::lowering::flattening::service::pins_of;
 use crate::domain::lowering::flattening::types::{
-    AtomRows, ColumnPlace, FlatAtom, FlatBranch, FlatTerm, RowsPerFile,
+    AtomRows, FlatAtom, FlatBranch, FlatTerm, RowColumn, RowsPerFile,
 };
 use crate::domain::steps::types::CostClass;
 use ryo_relations::domain::catalog::service::{fact_form, node_column};
@@ -39,11 +39,11 @@ pub(crate) fn source_rows(drafts: &Drafts, rows: AtomRows) -> RowEstimate {
 }
 
 /// The places of the cells in a state.
-fn standing(states: &[CellState], state: CellState) -> Vec<ColumnPlace> {
+fn standing(states: &[CellState], state: CellState) -> Vec<RowColumn> {
     let places = states.iter().enumerate();
     places
         .filter(|(_, each)| **each == state)
-        .map(|(place, _)| ColumnPlace(place))
+        .map(|(place, _)| RowColumn(place))
         .collect()
 }
 
@@ -52,21 +52,47 @@ fn standing(states: &[CellState], state: CellState) -> Vec<ColumnPlace> {
 fn node_access(relation: Relation, states: &[CellState]) -> KeyChoice {
     let listed = columns(relation);
     let cell = |wanted: NodeColumn, state: CellState| {
-        listed.iter().zip(states).position(|(column, each)| {
-            *each == state && node_column(*column) == Some(wanted)
-        })
+        listed
+            .iter()
+            .zip(states)
+            .position(|(column, each)| *each == state && node_column(*column) == Some(wanted))
     };
     let keys = [
-        (NodeColumn::Id, CellState::Register, CostClass::Fanout, RowEstimate(1)),
-        (NodeColumn::Parent, CellState::Register, CostClass::Fanout, CHILDREN),
-        (NodeColumn::Span, CellState::Register, CostClass::Fanout, RowEstimate(1)),
-        (NodeColumn::Kind, CellState::Constant, CostClass::File, shared(ELEMENTS, KIND_SHARE)),
-        (NodeColumn::Text, CellState::Constant, CostClass::File, shared(ELEMENTS, LITERAL_SHARE)),
+        (
+            NodeColumn::Id,
+            CellState::Register,
+            CostClass::Fanout,
+            RowEstimate(1),
+        ),
+        (
+            NodeColumn::Parent,
+            CellState::Register,
+            CostClass::Fanout,
+            CHILDREN,
+        ),
+        (
+            NodeColumn::Span,
+            CellState::Register,
+            CostClass::Fanout,
+            RowEstimate(1),
+        ),
+        (
+            NodeColumn::Kind,
+            CellState::Constant,
+            CostClass::File,
+            shared(ELEMENTS, KIND_SHARE),
+        ),
+        (
+            NodeColumn::Text,
+            CellState::Constant,
+            CostClass::File,
+            shared(ELEMENTS, LITERAL_SHARE),
+        ),
     ];
     for (column, state, class, rows) in keys {
         if let Some(place) = cell(column, state) {
             return KeyChoice {
-                cells: vec![ColumnPlace(place)],
+                cells: vec![RowColumn(place)],
                 class,
                 rows,
             };
@@ -90,7 +116,7 @@ fn composite_access(states: &[CellState], whole: RowEstimate, own: RowEstimate) 
         (1, 0) => (CostClass::Fanout, own),
         (_, _) => (CostClass::Fanout, shared(own, SECOND_KEY_SHARE)),
     };
-    let mut cells: Vec<ColumnPlace> = registers.into_iter().chain(constants).collect();
+    let mut cells: Vec<RowColumn> = registers.into_iter().chain(constants).collect();
     cells.sort_unstable();
     KeyChoice { cells, class, rows }
 }
@@ -117,9 +143,10 @@ pub(crate) fn keyed(
             FactForm::Filled(key) => {
                 let listed = columns(relation);
                 let by_own = |own| {
-                    listed.iter().zip(states).any(|(column, state)| {
-                        *column == own && *state == CellState::Register
-                    })
+                    listed
+                        .iter()
+                        .zip(states)
+                        .any(|(column, state)| *column == own && *state == CellState::Register)
                 };
                 let own = match key {
                     FilledKey::Unique(column) if by_own(column) => RowEstimate(1),
@@ -172,8 +199,8 @@ pub(crate) fn branch_rows(drafts: &Drafts, branch: &FlatBranch) -> RowEstimate {
 /// The rows of a step's branches together, held to the cap.
 #[must_use]
 pub(crate) fn branches_rows(drafts: &Drafts, branches: &[FlatBranch]) -> RowEstimate {
-    let sum = branches
-        .iter()
-        .fold(0_u64, |sum, branch| sum.saturating_add(branch_rows(drafts, branch).0));
+    let sum = branches.iter().fold(0_u64, |sum, branch| {
+        sum.saturating_add(branch_rows(drafts, branch).0)
+    });
     RowEstimate(sum).min(ESTIMATE_CAP)
 }

@@ -1,9 +1,9 @@
 //! The types of the `definitions` part: a definition before it is placed, the patterns asked of it, and the pack's drafts.
 
+use crate::domain::code::types::ShapeChoice;
 use crate::domain::lowered::types::{Emptiness, MadeTable, PatternForm};
 use crate::domain::lowering::flattening::types::{FlatBranch, FlatVariable, TextNumber};
 use crate::domain::lowering::nodes::types::{NodeHome, StepShape};
-use crate::domain::code::types::ShapeChoice;
 use crate::domain::steps::types::{
     ColumnMask, ConstantText, DefinitionId, MadeTableId, RegexId, Register, RegisterCount,
     StepRegex,

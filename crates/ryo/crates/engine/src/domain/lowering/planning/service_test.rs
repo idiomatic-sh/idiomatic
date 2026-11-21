@@ -19,7 +19,13 @@ const fn variable(number: u32) -> FlatTerm {
 
 /// A row of the syntax errors: its element is the variable `id`, its other cells variables from `id + 1` on.
 fn errors(id: u32) -> FlatAtom {
-    let cells = (0..7).map(|place| if place == 5 { FlatTerm::File } else { variable(id + place) });
+    let cells = (0..7).map(|place| {
+        if place == 5 {
+            FlatTerm::File
+        } else {
+            variable(id + place)
+        }
+    });
     FlatAtom::Rows {
         rows: AtomRows::Relation(Relation::SyntaxError),
         cells: cells.collect(),
@@ -29,7 +35,13 @@ fn errors(id: u32) -> FlatAtom {
 
 /// A row of the syntax tree whose element is the variable `id`.
 fn element(id: u32) -> FlatAtom {
-    let cells = [variable(id), variable(id + 50), variable(id + 51), FlatTerm::File, variable(id + 52)];
+    let cells = [
+        variable(id),
+        variable(id + 50),
+        variable(id + 51),
+        FlatTerm::File,
+        variable(id + 52),
+    ];
     FlatAtom::Rows {
         rows: AtomRows::Relation(Relation::SyntaxTree),
         cells: cells.into(),
@@ -54,9 +66,17 @@ type Failure = ();
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("a_branch_starts_from_its_smaller_source_and_a_test_runs_as_soon_as_its_term_is_given"),
+        name: CaseName(
+            "a_branch_starts_from_its_smaller_source_and_a_test_runs_as_soon_as_its_term_is_given",
+        ),
         word: Word::Succeeds,
-        input: || (vec![less(1, 5), element(0), errors(0)], UnitRole::Branch, &[]),
+        input: || {
+            (
+                vec![less(1, 5), element(0), errors(0)],
+                UnitRole::Branch,
+                &[],
+            )
+        },
         expect: Expect::Value(&[2, 0, 1]),
     },
     Case {

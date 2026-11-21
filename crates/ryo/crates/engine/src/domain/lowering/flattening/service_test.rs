@@ -43,7 +43,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_chain_of_equalities_is_one_class"),
         word: Word::Succeeds,
-        input: || vec![equal(variable(0), variable(1)), equal(variable(1), variable(2)), equal(variable(3), variable(0))],
+        input: || {
+            vec![
+                equal(variable(0), variable(1)),
+                equal(variable(1), variable(2)),
+                equal(variable(3), variable(0)),
+            ]
+        },
         expect: Expect::Value(([variable(2), variable(2), variable(2), variable(2)], 2, 0)),
     },
     Case {
@@ -62,18 +68,33 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_variable_equal_to_the_file_is_the_file"),
         word: Word::Succeeds,
         input: || vec![equal(variable(3), FlatTerm::File)],
-        expect: Expect::Value(([variable(0), variable(1), variable(2), FlatTerm::File], 2, 0)),
+        expect: Expect::Value((
+            [variable(0), variable(1), variable(2), FlatTerm::File],
+            2,
+            0,
+        )),
     },
     Case {
         name: CaseName("two_constants_for_one_class_hold_of_no_row"),
         word: Word::Refuses,
-        input: || vec![equal(variable(1), text(7)), equal(variable(2), text(8)), equal(variable(1), variable(2))],
+        input: || {
+            vec![
+                equal(variable(1), text(7)),
+                equal(variable(2), text(8)),
+                equal(variable(1), variable(2)),
+            ]
+        },
         expect: Expect::Error(()),
     },
     Case {
         name: CaseName("a_constant_equal_to_the_file_holds_of_no_row"),
         word: Word::Refuses,
-        input: || vec![equal(variable(1), FlatTerm::File), equal(variable(1), text(7))],
+        input: || {
+            vec![
+                equal(variable(1), FlatTerm::File),
+                equal(variable(1), text(7)),
+            ]
+        },
         expect: Expect::Error(()),
     },
 ];

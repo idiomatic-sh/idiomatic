@@ -6,7 +6,7 @@ use super::types::{Drafts, Flattened, RowEstimate};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::lowering::fixtures::described::described;
 use crate::domain::lowering::fixtures::named;
-use crate::domain::lowering::nodes::types::{NodeHome, StepShape};
+use crate::domain::lowering::nodes::types::{AcceptedPlace, NodeHome, StepShape};
 use crate::domain::lowering::service::lowered;
 use crate::domain::lowering::types::{SelectedRule, SelectedRules};
 use crate::domain::steps::types::{ColumnMask, MadeColumn};
@@ -62,25 +62,50 @@ fn lines(scenes: &[&str]) -> Vec<String> {
 fn counted() -> String {
     let mut drafts = Drafts::default();
     let home = NodeHome {
-        rule: 0,
+        rule: AcceptedPlace(0),
         step: StepId(0),
     };
     let shape = || StepShape(vec![CellKind::Node, CellKind::File]);
     let node = NodeDigest([7; 16]);
-    let first = defined(&mut drafts, node, home, shape(), Flattened::default(), RowEstimate(1));
-    let again = defined(&mut drafts, node, home, shape(), Flattened::default(), RowEstimate(1));
+    let first = defined(
+        &mut drafts,
+        node,
+        home,
+        shape(),
+        Flattened::default(),
+        RowEstimate(1),
+    );
+    let again = defined(
+        &mut drafts,
+        node,
+        home,
+        shape(),
+        Flattened::default(),
+        RowEstimate(1),
+    );
     let key = ColumnMask([MadeColumn(0)].into());
     let nothing = ColumnMask::default();
     asked(&mut drafts, first, &key, &nothing);
     asked(&mut drafts, first, &nothing, &nothing);
     asked(&mut drafts, first, &key, &nothing);
     let (a, b) = (LiteralText("a".into()), LiteralText("b".into()));
-    let numbers = [text(&mut drafts, &a), text(&mut drafts, &a), text(&mut drafts, &b)];
-    let patterns = drafts.definitions.first().map_or(0, |draft| draft.patterns.len());
+    let numbers = [
+        text(&mut drafts, &a),
+        text(&mut drafts, &a),
+        text(&mut drafts, &b),
+    ];
+    let patterns = drafts
+        .definitions
+        .first()
+        .map_or(0, |draft| draft.patterns.len());
     format!(
         "{} definitions (the second {}); {patterns} patterns, {} waiting; texts {:?}; a use of {} columns",
         drafts.definitions.len(),
-        if first == again { "is the first" } else { "is another" },
+        if first == again {
+            "is the first"
+        } else {
+            "is another"
+        },
         drafts.waiting.len(),
         numbers.map(|number| number.0),
         use_branch(&mut drafts, first).row.len(),
@@ -90,13 +115,17 @@ fn counted() -> String {
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("a_definitions_program_is_not_its_callers_two_rule_orders_give_the_same_programs"),
+        name: CaseName(
+            "a_definitions_program_is_not_its_callers_two_rule_orders_give_the_same_programs",
+        ),
         word: Word::Succeeds,
         input: || Asked::Orders(&["the elements that are no word", "the edges to no word"]),
         expect: Expect::Value(Cow::Borrowed("the same in either order: 1 lines")),
     },
     Case {
-        name: CaseName("a_node_has_one_definition_a_pattern_is_asked_once_and_a_text_has_one_number"),
+        name: CaseName(
+            "a_node_has_one_definition_a_pattern_is_asked_once_and_a_text_has_one_number",
+        ),
         word: Word::Succeeds,
         input: || Asked::Counts,
         expect: Expect::Value(Cow::Borrowed(
@@ -111,7 +140,11 @@ fn subject(asked: Input) -> Result<Value, Failure> {
             let mut reversed = scenes.to_vec();
             reversed.reverse();
             let (first, second) = (lines(scenes), lines(&reversed));
-            let same = if first == second { "the same" } else { "not the same" };
+            let same = if first == second {
+                "the same"
+            } else {
+                "not the same"
+            };
             format!("{same} in either order: {} lines", first.len())
         }
         Asked::Counts => counted(),

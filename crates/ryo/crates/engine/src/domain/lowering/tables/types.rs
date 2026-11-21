@@ -1,7 +1,7 @@
 //! The types of the `tables` part: what the flattening of one rule holds, and how a step asks for an input.
 
 use crate::domain::lowering::definitions::types::Flattened;
-use crate::domain::lowering::nodes::types::{NodeStore, AdmittedRule};
+use crate::domain::lowering::nodes::types::{AcceptedPlace, AdmittedRule, NodeStore};
 use ryo_values::domain::descriptions::types::KindVocabulary;
 
 /// The flattening of one rule: the pack's rules and store, the rule's place, and each of its steps flattened so far. A step's
@@ -15,7 +15,7 @@ pub(crate) struct RuleFlattening<'a> {
     /// The language's kinds.
     pub(crate) kinds: &'a KindVocabulary,
     /// The rule being flattened, by its place among the accepted rules.
-    pub(crate) place: usize,
+    pub(crate) place: AcceptedPlace,
     /// Each step's flattening, by step, until it is read.
     pub(crate) flat: Vec<Option<Flattened>>,
 }

@@ -10,6 +10,7 @@ use crate::domain::lowering::definitions::types::Drafts;
 use crate::domain::lowering::fixtures::growth::growth_plan;
 use crate::domain::lowering::fixtures::named;
 use crate::domain::lowering::nodes::service::stored;
+use crate::domain::lowering::nodes::types::AcceptedPlace;
 use crate::domain::lowering::types::{LoadRefusal, PastWidth, PlanNode, SelectedRule};
 use ryo_values::domain::descriptions::types::{KindVocabulary, LanguageName};
 use ryo_values::domain::plan_parts::types::{Input as PlanInput, Side, StepId, StepScope};
@@ -36,7 +37,11 @@ type Input = Asked;
 type Value = Cow<'static, str>;
 type Failure = LoadRefusal;
 
-const fn refused(name: &'static str, input: fn() -> Input, refusal: LoadRefusal) -> Case<Input, Value, Failure> {
+const fn refused(
+    name: &'static str,
+    input: fn() -> Input,
+    refusal: LoadRefusal,
+) -> Case<Input, Value, Failure> {
     Case {
         name: CaseName(name),
         word: Word::Refuses,
@@ -45,7 +50,11 @@ const fn refused(name: &'static str, input: fn() -> Input, refusal: LoadRefusal)
     }
 }
 
-const fn said(name: &'static str, input: fn() -> Input, value: &'static str) -> Case<Input, Value, Failure> {
+const fn said(
+    name: &'static str,
+    input: fn() -> Input,
+    value: &'static str,
+) -> Case<Input, Value, Failure> {
     Case {
         name: CaseName(name),
         word: Word::Succeeds,
@@ -115,7 +124,9 @@ fn subject(asked: Input) -> Result<Value, Failure> {
         Asked::Admitted(plan) => {
             let nodes = admitted(rule(&plan))?;
             let emitted = nodes.shapes.get(usize::from(plan.emit.step));
-            let columns = emitted.and_then(Option::as_ref).map_or(0, |shape| shape.0.len());
+            let columns = emitted
+                .and_then(Option::as_ref)
+                .map_or(0, |shape| shape.0.len());
             format!("{columns} columns")
         }
         Asked::Kinds => {
@@ -128,7 +139,9 @@ fn subject(asked: Input) -> Result<Value, Failure> {
         Asked::Chain(depth) => {
             let (short, long) = (work(depth), work(depth.saturating_mul(2)));
             let linear = match (short, long) {
-                (Some(short), Some(long)) if long <= short.saturating_mul(2).saturating_add(16) => "linear",
+                (Some(short), Some(long)) if long <= short.saturating_mul(2).saturating_add(16) => {
+                    "linear"
+                }
                 (Some(_) | None, Some(_) | None) => "NOT linear",
             };
             format!("{linear}: work {short:?} at depth {depth}, {long:?} at twice it")
@@ -188,11 +201,15 @@ fn work(depth: u32) -> Option<u64> {
         rules: &rules,
         store: &store,
         kinds: &kinds,
-        place: 0,
+        place: AcceptedPlace(0),
         flat: Vec::new(),
     };
     let flattened = rule_flattened(&mut state, &mut drafts).ok()?;
-    assert_eq!(flattened.branches.len(), 1, "a chain of joins of one branch is one branch");
+    assert_eq!(
+        flattened.branches.len(),
+        1,
+        "a chain of joins of one branch is one branch"
+    );
     let made = u64::try_from(drafts.definitions.len()).ok()?;
     Some(u64::from(drafts.variables.0) + made)
 }

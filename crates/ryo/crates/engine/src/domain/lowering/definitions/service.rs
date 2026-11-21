@@ -4,11 +4,11 @@
 use super::types::{
     DefinitionDraft, Drafts, Flattened, PatternDraft, PatternPlace, RowEstimate, WaitingPattern,
 };
+use crate::domain::code::types::ShapeChoice;
 use crate::domain::lowering::flattening::types::{
     AtomRows, FlatAtom, FlatBranch, FlatTerm, FlatVariable, RowsPerFile, TextNumber,
 };
 use crate::domain::lowering::nodes::types::{NodeHome, StepShape};
-use crate::domain::code::types::ShapeChoice;
 use crate::domain::steps::types::{
     ColumnMask, ConstantText, DefinitionId, RegexId, Register, RegisterCount, StepRegex,
 };

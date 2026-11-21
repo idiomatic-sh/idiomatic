@@ -3,9 +3,9 @@
 //! there, each by name, and refused as the step that cannot be evaluated. A rule is never refused for its cost or its size.
 
 use crate::domain::lowering::nodes::service::{digested, input_shape, reached};
-use crate::domain::lowering::nodes::types::{AdmittedRule, StepShape};
-use crate::domain::lowering::types::{LoadRefusal, PastWidth, PlanNode, SelectedRule};
+use crate::domain::lowering::nodes::types::{AdmittedRule, StepReach, StepShape};
 use crate::domain::lowering::tables::types::TreeAxis;
+use crate::domain::lowering::types::{LoadRefusal, PastWidth, PlanNode, SelectedRule};
 use crate::domain::steps::types::{AxisDirection, TestOperation};
 use ryo_relations::domain::catalog::service::{fact_form, node_column};
 use ryo_relations::domain::relations::service::columns;
@@ -111,12 +111,21 @@ fn keys_held(left: &StepShape, right: &StepShape, on: (&[ColumnIndex], &[ColumnI
 /// The node relation an axis walks the tree of: its edges are a relation of the node-table form whose parent and child
 /// columns are the node table's parent and element. None for edges a step derives.
 #[must_use]
-pub(crate) fn tree_relation(edges: &Input, parent: ColumnIndex, child: ColumnIndex) -> Option<Relation> {
+pub(crate) fn tree_relation(
+    edges: &Input,
+    parent: ColumnIndex,
+    child: ColumnIndex,
+) -> Option<Relation> {
     let Input::Relation(relation) = edges else {
         return None;
     };
     let listed = columns(*relation);
-    let column = |place: ColumnIndex| listed.get(usize::from(place)).copied().and_then(node_column);
+    let column = |place: ColumnIndex| {
+        listed
+            .get(usize::from(place))
+            .copied()
+            .and_then(node_column)
+    };
     let tree = fact_form(*relation) == FactForm::NodeTable
         && column(parent) == Some(NodeColumn::Parent)
         && column(child) == Some(NodeColumn::Id);
@@ -288,13 +297,12 @@ fn shaped(
 /// order), or the columns of a step when they are past the width a table's columns are counted in.
 pub(crate) fn admitted<'a>(rule: SelectedRule<'a>) -> Result<AdmittedRule<'a>, LoadRefusal> {
     let plan = rule.plan;
-    let unlowerable = |step: usize| {
-        LoadRefusal::Unlowerable(PlanNode(u32::try_from(step).unwrap_or(u32::MAX)))
-    };
+    let unlowerable =
+        |step: usize| LoadRefusal::Unlowerable(PlanNode(u32::try_from(step).unwrap_or(u32::MAX)));
     let reached = reached(plan).map_err(|step| unlowerable(usize::from(step)))?;
     let mut shapes: Vec<Option<StepShape>> = vec![None; plan.steps.len()];
     for (place, step) in plan.steps.iter().enumerate() {
-        if reached.get(place) != Some(&true) {
+        if reached.get(place) != Some(&StepReach::Reached) {
             continue;
         }
         let per_file = step.scope == StepScope::PerFile && plan.frontier.is_empty();

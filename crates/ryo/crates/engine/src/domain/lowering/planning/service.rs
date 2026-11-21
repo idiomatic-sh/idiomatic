@@ -4,8 +4,8 @@
 //! and a pattern that would need one anywhere else have no program, and the caller takes the table form.
 
 use super::types::{
-    AtomPlace, Completion, Enumerated, GivenTerms, NextAccess, Placing, PlannedBranch, TermGiven,
-    UnitRole,
+    AtomPlace, AtomPlacing, Enumerated, GivenTerms, NextAccess, OrderCompletion, PlannedBranch,
+    TermGiven, UnitRole,
 };
 use crate::domain::lowering::costing::constants::{
     ANCESTORS, ANCHORS_TRIED, CHILDREN, DESCENDANTS, ESTIMATE_CAP,
@@ -44,7 +44,10 @@ fn ready(term: FlatTerm, given: &GivenTerms<'_>) -> TermGiven {
 }
 
 /// Whether every term is given.
-fn all_ready<'t>(terms: impl IntoIterator<Item = &'t FlatTerm>, given: &GivenTerms<'_>) -> TermGiven {
+fn all_ready<'t>(
+    terms: impl IntoIterator<Item = &'t FlatTerm>,
+    given: &GivenTerms<'_>,
+) -> TermGiven {
     let mut terms = terms.into_iter();
     if terms.all(|term| ready(*term, given) == TermGiven::Given) {
         TermGiven::Given
@@ -78,7 +81,7 @@ fn access(
 }
 
 /// What is given at a completion's point.
-fn given_now<'a>(state: &'a Completion<'_>) -> GivenTerms<'a> {
+fn given_now<'a>(state: &'a OrderCompletion<'_>) -> GivenTerms<'a> {
     GivenTerms {
         variables: &state.given,
         pins: &state.pins,
@@ -86,12 +89,12 @@ fn given_now<'a>(state: &'a Completion<'_>) -> GivenTerms<'a> {
 }
 
 /// Places an atom: its variables are given from here on, and its rows are visited.
-fn place(state: &mut Completion<'_>, next: NextAccess) {
+fn place(state: &mut OrderCompletion<'_>, next: NextAccess) {
     let Some(atom) = state.branch.atoms.get(next.atom.0) else {
         return;
     };
     if let Some(placed) = state.placed.get_mut(next.atom.0) {
-        *placed = Placing::Placed;
+        *placed = AtomPlacing::Placed;
     }
     state.order.push(next.atom);
     match atom {
@@ -111,16 +114,16 @@ fn place(state: &mut Completion<'_>, next: NextAccess) {
 }
 
 /// The unplaced atoms, by place.
-fn waiting<'a>(state: &'a Completion<'_>) -> impl Iterator<Item = (AtomPlace, &'a FlatAtom)> {
+fn waiting<'a>(state: &'a OrderCompletion<'_>) -> impl Iterator<Item = (AtomPlace, &'a FlatAtom)> {
     let atoms = state.branch.atoms.iter().enumerate();
     atoms
-        .filter(|(at, _)| state.placed.get(*at) == Some(&Placing::Waiting))
+        .filter(|(at, _)| state.placed.get(*at) == Some(&AtomPlacing::Waiting))
         .map(|(at, atom)| (AtomPlace(at), atom))
 }
 
 /// Whether the unit may run a test or a decision now: a branch and a pipeline run none before their first enumeration,
 /// which is their first step or stage.
-fn settled(state: &Completion<'_>) -> TermGiven {
+fn settled(state: &OrderCompletion<'_>) -> TermGiven {
     if state.role != UnitRole::Pattern && state.enumerated == Enumerated::NotYet {
         TermGiven::Open
     } else {
@@ -129,7 +132,7 @@ fn settled(state: &Completion<'_>) -> TermGiven {
 }
 
 /// The first waiting test whose terms are given: a walk between two given elements is a test of them.
-fn test(state: &Completion<'_>) -> Option<NextAccess> {
+fn test(state: &OrderCompletion<'_>) -> Option<NextAccess> {
     let given = given_now(state);
     let found = waiting(state).find(|(_, atom)| match atom {
         FlatAtom::Test { left, right, .. }
@@ -152,7 +155,7 @@ fn test(state: &Completion<'_>) -> Option<NextAccess> {
 }
 
 /// The first waiting decision whose asked cells are given.
-fn decision(state: &Completion<'_>) -> Option<NextAccess> {
+fn decision(state: &OrderCompletion<'_>) -> Option<NextAccess> {
     let given = given_now(state);
     let found = waiting(state).find(|(_, atom)| match atom {
         FlatAtom::Decided { cells, .. } => {
@@ -174,7 +177,11 @@ fn decision(state: &Completion<'_>) -> Option<NextAccess> {
 
 /// The rows a walk gives from the one end of it that is given: what that end reaches along the axis, or against it. None
 /// when both ends are given (the walk is a test) or neither is.
-fn walk_rows(direction: AxisDirection, start: TermGiven, reached: TermGiven) -> Option<RowEstimate> {
+fn walk_rows(
+    direction: AxisDirection,
+    start: TermGiven,
+    reached: TermGiven,
+) -> Option<RowEstimate> {
     match (start, reached, direction) {
         (TermGiven::Given, TermGiven::Open, AxisDirection::Parent) => Some(RowEstimate(1)),
         (TermGiven::Given, TermGiven::Open, AxisDirection::Ancestor)
@@ -192,7 +199,7 @@ fn walk_rows(direction: AxisDirection, start: TermGiven, reached: TermGiven) -> 
 }
 
 /// The cheapest waiting access of the wanted class: keyed (a fan-out), or with no key (the file's rows).
-fn cheapest(state: &Completion<'_>, class: CostClass) -> Option<NextAccess> {
+fn cheapest(state: &OrderCompletion<'_>, class: CostClass) -> Option<NextAccess> {
     let given = given_now(state);
     let keyed = |ready: TermGiven| ready == TermGiven::Given && class == CostClass::Fanout;
     waiting(state)
@@ -229,13 +236,13 @@ fn completed(
     role: UnitRole,
     first: Option<NextAccess>,
 ) -> Option<PlannedBranch> {
-    let mut state = Completion {
+    let mut state = OrderCompletion {
         drafts,
         branch,
         role,
         given: given.clone(),
         pins: pins_of(branch),
-        placed: vec![Placing::Waiting; branch.atoms.len()],
+        placed: vec![AtomPlacing::Waiting; branch.atoms.len()],
         order: Vec::with_capacity(branch.atoms.len()),
         rows: RowEstimate(1),
         cost: RowEstimate(0),

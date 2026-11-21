@@ -34,8 +34,8 @@ pub(crate) enum NodeReader {
 /// Where a merged plan node is lowered from: the first accepted rule that holds it, and its place there.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct NodeHome {
-    /// The rule, by its place among the accepted rules.
-    pub(crate) rule: usize,
+    /// The rule.
+    pub(crate) rule: AcceptedPlace,
     /// The step, in that rule's plan.
     pub(crate) step: StepId,
 }
@@ -52,3 +52,16 @@ pub(crate) struct StoredNode {
 /// The pack's one store of merged plan nodes, by digest.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct NodeStore(pub(crate) HashMap<NodeDigest, StoredNode>);
+
+/// An accepted rule, by its place among the accepted rules.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) struct AcceptedPlace(pub(crate) usize);
+
+/// Whether a rule's emit reaches a step.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum StepReach {
+    /// It does.
+    Reached,
+    /// It does not: the step is never lowered.
+    Unreached,
+}

@@ -21,7 +21,7 @@ const fn decided(form: FormChoice) -> PatternPlacement {
 /// written for it after a second.
 #[must_use]
 pub(crate) const fn placed(facts: PatternFacts, stage: SampleStage) -> PatternPlacement {
-    if facts.binds == 0 {
+    if facts.binds.0 == 0 {
         return decided(FormChoice::Table);
     }
     match facts.call {
@@ -33,7 +33,7 @@ pub(crate) const fn placed(facts: PatternFacts, stage: SampleStage) -> PatternPl
         TableForm::Calls => return decided(FormChoice::Call),
         TableForm::Keyed | TableForm::Product => {}
     }
-    if facts.call_patterns >= CALL_PATTERNS {
+    if facts.call_patterns.0 >= CALL_PATTERNS {
         return decided(FormChoice::Table);
     }
     match facts.table {
@@ -66,6 +66,8 @@ pub(crate) const fn sampled(statistics: Option<&Statistics>) -> SampleStage {
 /// The form the statistics kept for a unit, when they name it.
 #[must_use]
 pub(crate) fn measured(statistics: Option<&Statistics>, key: &UnitKey) -> Option<MeasuredForm> {
-    let mut units = statistics.into_iter().flat_map(|statistics| &statistics.units);
+    let mut units = statistics
+        .into_iter()
+        .flat_map(|statistics| &statistics.units);
     units.find(|unit| unit.key == *key).map(|unit| unit.form)
 }

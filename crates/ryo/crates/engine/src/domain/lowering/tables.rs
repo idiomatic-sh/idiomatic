@@ -3,6 +3,8 @@
 
 pub(crate) mod arms;
 pub(crate) mod fills;
+pub(crate) mod inputs;
+pub(crate) mod joins;
 pub(crate) mod service;
 pub(crate) mod types;
 
