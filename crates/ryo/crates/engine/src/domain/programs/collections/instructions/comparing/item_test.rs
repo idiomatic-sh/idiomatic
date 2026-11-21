@@ -164,7 +164,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "a_test_of_a_text_the_kernel_does_not_run_is_counted_and_ends_the_candidate",
         ),
         word: Word::Succeeds,
-        input: || (Asked::Registers(TestOperation::StartsWith), 5, 5),
+        input: || (Asked::Registers(TestOperation::NumericAtLeast), 5, 5),
         expect: Expect::Value((0, 1, 0)),
     },
     Case {

@@ -1,21 +1,36 @@
 //! The services of the `indexes` concept: an index built once per file over a source's rows, every bound column as one
-//! key. One scheme for every source and every width of key: an open table of the distinct keys, each with the stretch of
-//! rows that hold it. An index is named by its site and by what it holds, never by where its key list lies in memory.
+//! key. An index has one form for its readers, each key's rows side by side in the arena; how a key finds its stretch,
+//! and so how the index is built, follows the shape of the key: an open table of the distinct keys for any cells of any
+//! width; a table of places addressed by the cell itself, filled by counting, for one column of cells that lie close
+//! together; and nothing at all for the rows of a source by their own id. An index is named by its site and by what it
+//! holds, never by where its key list lies in memory.
 
-use super::constants::{EMPTY_RUN, LEAST_ENTRIES, PLACED_SPAN, RUN_START_SHIFT};
-use super::reading::service::{cell_at, start_of};
+use super::constants::{EMPTY_RUN, LEAST_ENTRIES};
+use super::counting::service::{cells_lie, counted, counted_slot};
+use super::hashing::service::grouped;
+use super::reading::service::{cell_at, runs};
+use super::slots::service::{kept, table_of};
 use super::types::{
-    Addressing, ColumnView, FileStamp, HashShift, IndexArena, IndexBuilt, IndexSlot, KeyBounds,
-    KeyNumber, SourceRow, StretchPlace, TableWord,
+    Addressing, ColumnView, FileStamp, HashShift, IndexArena, IndexBuilt, IndexRead, IndexSlot,
+    KeyBounds, KeyCells, SourceRow, TableWord,
 };
 use crate::domain::code::types::IndexSite;
 use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::relations::types::Count;
 
-/// Forgets every index of the last file, keeping the room.
+/// Forgets every index of the last file, keeping the room, and the rows at the front that hold their own number: those
+/// are grown here, between files, to what the largest index of rows by their own id asked for.
 pub(crate) fn clear_indexes(arena: &mut IndexArena) {
     arena.entries.clear();
-    arena.rows.clear();
+    arena.rows.truncate(arena.own.0);
+    if arena.wanted.0 > arena.own.0 {
+        let (from, to) = (
+            u32::try_from(arena.own.0).unwrap_or(u32::MAX),
+            u32::try_from(arena.wanted.0).unwrap_or(u32::MAX),
+        );
+        arena.rows.extend((from..to).map(SourceRow));
+        arena.own = Count(arena.rows.len());
+    }
 }
 
 /// Whether the index of `site` was built for the file `stamp` names.
@@ -96,148 +111,35 @@ pub(crate) fn key_column(arena: &mut IndexArena, at: Count, view: ColumnView<'_>
     }
 }
 
-/// The number of a row's key among the keys in the order first seen: its entry is found, or an empty one taken and the key
-/// numbered, and the key counts the row. A key is compared and written cell by cell, in line: a key is a cell or two, and a
-/// call would cost more than the cells.
-#[inline]
-fn entered(
-    table: &mut [TableWord],
-    groups: &mut Vec<StretchPlace>,
-    slot: IndexSlot,
-    row: &[TableWord],
-) -> KeyNumber {
-    let stride = slot.width.0.saturating_add(1);
-    let Some(start) = start_of(
-        slot.addressing,
-        slot.shift,
-        slot.mask,
-        row.iter().map(|cell| CellWord(cell.0)),
-    ) else {
-        return KeyNumber(0);
-    };
-    let mut at = start.0;
-    loop {
-        let from = at.wrapping_mul(stride);
-        let Some((run, key)) = table
-            .get_mut(from..from.wrapping_add(stride))
-            .and_then(<[TableWord]>::split_last_mut)
-        else {
-            return KeyNumber(0);
-        };
-        if *run == EMPTY_RUN {
-            for (cell, own) in key.iter_mut().zip(row) {
-                *cell = *own;
-            }
-            let number = u32::try_from(groups.len()).unwrap_or(u32::MAX);
-            *run = TableWord(u64::from(number));
-            groups.push(StretchPlace(1));
-            return KeyNumber(number);
-        }
-        if key.iter().zip(row).all(|(cell, own)| cell == own) {
-            let number = u32::try_from(run.0).unwrap_or(u32::MAX);
-            if let Some(count) = groups.get_mut(usize::try_from(number).unwrap_or(usize::MAX)) {
-                count.0 = count.0.wrapping_add(1);
-            }
-            return KeyNumber(number);
-        }
-        at = at.wrapping_add(1) & slot.mask.0;
-    }
-}
-
-/// The table of an index among the entries.
-#[inline]
-fn table_of(entries: &mut [TableWord], slot: IndexSlot) -> &mut [TableWord] {
-    let length = slot
-        .mask
-        .0
-        .saturating_add(1)
-        .saturating_mul(slot.width.0.saturating_add(1));
-    entries
-        .get_mut(slot.table.0..slot.table.0.saturating_add(length))
-        .unwrap_or_default()
-}
-
-/// The three passes of a build. Each row finds its key and the key counts it; each key's count becomes where its stretch
-/// starts, and its entry is given the stretch; each row is written at its key's next place. Keys are numbered as first
-/// seen, so the counts and the places of a source whose every row has its own key are read and written in order, and only
-/// the table is reached out of order. Rows are visited in order, so a stretch holds its rows ascending.
-fn grouped(arena: &mut IndexArena, slot: IndexSlot) {
-    let IndexArena {
-        entries,
-        rows,
-        places,
-        groups,
-        keys,
-        base,
-        ..
-    } = arena;
-    let stride = slot.width.0.saturating_add(1);
-    let table = table_of(entries, slot);
-    places.clear();
-    groups.clear();
-    if slot.width.0 == 0 {
-        places.extend((0..slot.count.0).map(|_| entered(table, groups, slot, &[])));
-    } else {
-        places.extend(
-            keys.chunks_exact(slot.width.0)
-                .map(|row| entered(table, groups, slot, row)),
-        );
-    }
-    let mut next = 0_u32;
-    for count in groups.iter_mut() {
-        let start = next;
-        next = next.wrapping_add(count.0);
-        count.0 = start;
-    }
-    for entry in table.chunks_exact_mut(stride) {
-        if let Some(run) = entry.last_mut()
-            && *run != EMPTY_RUN
-        {
-            let number = usize::try_from(run.0).unwrap_or(usize::MAX);
-            let start = groups.get(number).map_or(0, |place| place.0);
-            let end = groups
-                .get(number.saturating_add(1))
-                .map_or(next, |place| place.0);
-            *run = TableWord((u64::from(start) << RUN_START_SHIFT.0) | u64::from(end));
-        }
-    }
-    let stretches = rows.get_mut(slot.first.0..).unwrap_or_default();
-    for (row, key) in places.iter().enumerate() {
-        if let Some(cursor) = groups.get_mut(usize::try_from(key.0).unwrap_or(usize::MAX)) {
-            if let Some(cell) = stretches.get_mut(usize::try_from(cursor.0).unwrap_or(usize::MAX)) {
-                *cell = SourceRow(base.0.wrapping_add(u32::try_from(row).unwrap_or(u32::MAX)));
-            }
-            cursor.0 = cursor.0.wrapping_add(1);
-        }
-    }
-}
-
 /// The last pass, of an ordered index alone: each key's rows sorted by the order column, then by row.
 fn sorted(arena: &mut IndexArena, slot: IndexSlot, order: ColumnView<'_>) {
     let IndexArena { entries, rows, .. } = arena;
-    let stride = slot.width.0.saturating_add(1);
     let stretches = rows.get_mut(slot.first.0..).unwrap_or_default();
-    for entry in table_of(entries, slot).chunks_exact(stride) {
-        if let Some(run) = entry.last()
-            && *run != EMPTY_RUN
+    let table = IndexRead {
+        entries: table_of(entries, slot),
+        rows: &[],
+        mask: slot.mask,
+        shift: slot.shift,
+        addressing: slot.addressing,
+        width: slot.width,
+    };
+    for found in runs(table) {
+        if let Some(stretch) = stretches.get_mut(found.start.0..found.end.0)
+            && stretch.len() > 1
         {
-            let found = super::reading::service::run_from(*run);
-            if let Some(stretch) = stretches.get_mut(found.start.0..found.end.0)
-                && stretch.len() > 1
-            {
-                stretch.sort_unstable_by_key(|row| {
-                    (
-                        cell_at(order, Count(usize::try_from(row.0).unwrap_or(usize::MAX))),
-                        *row,
-                    )
-                });
-            }
+            stretch.sort_unstable_by_key(|row| {
+                (
+                    cell_at(order, Count(usize::try_from(row.0).unwrap_or(usize::MAX))),
+                    *row,
+                )
+            });
         }
     }
 }
 
 /// Ends the index `begin` started, as the index of `site` for the file `stamp` names; with `order`, each key's rows are
-/// sorted by that column. A key of one cell whose cells lie close together is placed by the cell itself.
+/// sorted by that column. An index over no row takes no room. A key of one cell whose cells lie close together is placed
+/// by counting; any other is entered in the open table.
 pub(crate) fn finish(
     arena: &mut IndexArena,
     site: IndexSite,
@@ -245,54 +147,76 @@ pub(crate) fn finish(
     order: Option<ColumnView<'_>>,
 ) {
     let rows = arena.pending.0;
-    let span = usize::try_from(arena.bounds.greatest.0.saturating_sub(arena.bounds.least.0))
-        .unwrap_or(usize::MAX);
-    let placed = arena.width.0 == 1
-        && rows > 0
-        && span
-            < rows
-                .saturating_mul(PLACED_SPAN.0)
-                .saturating_add(LEAST_ENTRIES.0);
-    let entries = if placed {
-        span.saturating_add(1)
-    } else {
-        rows.saturating_add(rows / 2)
+    if rows == 0 {
+        let slot = IndexSlot {
+            stamp,
+            table: Count(arena.entries.len()),
+            words: Count(0),
+            mask: Count(0),
+            shift: HashShift(0),
+            addressing: Addressing::Hashed,
+            width: arena.width,
+            first: Count(arena.rows.len()),
+            count: Count(0),
+        };
+        kept(arena, site, slot);
+        return;
     }
-    .max(LEAST_ENTRIES.0)
-    .next_power_of_two();
-    let slot = IndexSlot {
-        stamp,
-        table: Count(arena.entries.len()),
-        mask: Count(entries.saturating_sub(1)),
-        shift: HashShift(u64::BITS.saturating_sub(entries.trailing_zeros())),
-        addressing: if placed {
-            Addressing::Placed(arena.bounds.least)
-        } else {
-            Addressing::Hashed
-        },
-        width: arena.width,
-        first: Count(arena.rows.len()),
-        count: Count(rows),
-    };
-    let stride = slot.width.0.saturating_add(1);
-    arena.entries.resize(
-        slot.table.0.saturating_add(entries.saturating_mul(stride)),
-        EMPTY_RUN,
+    let span = Count(
+        usize::try_from(arena.bounds.greatest.0.saturating_sub(arena.bounds.least.0))
+            .unwrap_or(usize::MAX),
     );
-    arena
-        .rows
-        .resize(slot.first.0.saturating_add(rows), SourceRow(0));
-    grouped(arena, slot);
+    let slot = if arena.width.0 == 1 && cells_lie(Count(rows), span) == KeyCells::Close {
+        let least = arena.bounds.least;
+        let slot = counted_slot(arena, stamp, least, span, Count(rows));
+        let IndexArena {
+            entries,
+            rows: stretches,
+            keys,
+            base,
+            ..
+        } = arena;
+        let offsets = || {
+            keys.iter().map(|key| {
+                Count(usize::try_from(key.0.wrapping_sub(least.0)).unwrap_or(usize::MAX))
+            })
+        };
+        counted(
+            table_of(entries, slot),
+            stretches.get_mut(slot.first.0..).unwrap_or_default(),
+            *base,
+            offsets(),
+            offsets(),
+        );
+        slot
+    } else {
+        let entries = rows
+            .saturating_add(rows / 2)
+            .max(LEAST_ENTRIES.0)
+            .next_power_of_two();
+        let stride = arena.width.0.saturating_add(1);
+        let slot = IndexSlot {
+            stamp,
+            table: Count(arena.entries.len()),
+            words: Count(entries.saturating_mul(stride)),
+            mask: Count(entries.saturating_sub(1)),
+            shift: HashShift(u64::BITS.saturating_sub(entries.trailing_zeros())),
+            addressing: Addressing::Hashed,
+            width: arena.width,
+            first: Count(arena.rows.len()),
+            count: Count(rows),
+        };
+        arena
+            .entries
+            .resize(slot.table.0.saturating_add(slot.words.0), EMPTY_RUN);
+        arena
+            .rows
+            .resize(slot.first.0.saturating_add(rows), SourceRow(0));
+        grouped(arena, slot);
+        slot
+    };
     if let Some(column) = order {
         sorted(arena, slot, column);
     }
-    let place = usize::try_from(site.0).unwrap_or(usize::MAX);
-    if arena.slots.len() <= place {
-        arena
-            .slots
-            .resize(place.saturating_add(1), IndexSlot::default());
-    }
-    if let Some(kept) = arena.slots.get_mut(place) {
-        *kept = slot;
-    }
+    kept(arena, site, slot);
 }

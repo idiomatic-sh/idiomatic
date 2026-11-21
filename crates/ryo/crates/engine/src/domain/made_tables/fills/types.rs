@@ -12,6 +12,10 @@ pub(crate) enum FillKind {
     Count,
     /// The gathered input's rows, each key's together and ascending by the order column.
     Sorted,
+    /// The rows of the gathered input at one end of their key's rows by the order column.
+    Ends,
+    /// Two gathered inputs paired within each key, first in, first out: the left row, then the right row.
+    Match,
     /// Rows written in the code.
     Constant,
 }
@@ -40,4 +44,6 @@ pub(crate) struct FillInputs<'c> {
     pub(crate) keys: &'c [WordSlot],
     /// Its order column.
     pub(crate) order: Option<Count>,
+    /// Where the record goes on after it: the next input, of a fill of two.
+    pub(crate) after: PoolAt,
 }

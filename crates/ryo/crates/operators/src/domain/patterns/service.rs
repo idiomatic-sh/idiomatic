@@ -208,7 +208,21 @@ fn compile(
 /// # Errors
 ///
 /// [`PatternsError::InvalidRegex`] with the matcher's reason when the pattern does not compile.
-pub(crate) fn compiled<'a>(
+///
+/// # Examples
+///
+/// ```
+/// use ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl;
+/// use ryo_operators::domain::patterns::service::compiled;
+/// use ryo_operators::domain::patterns::types::PatternMatcher;
+/// use ryo_operators::domain::table_scratch::types::Patterns;
+/// use ryo_operators::domain::table_texts::types::TextView;
+///
+/// let mut kept = Patterns::default();
+/// assert!(compiled(TextView("^a"), &mut kept, PatternMatcher(&MatchingUseCaseImpl)).is_ok());
+/// assert_eq!(kept.0.len(), 1);
+/// ```
+pub fn compiled<'a>(
     pattern: TextView<'_>,
     compiled: &'a mut Patterns,
     matcher: PatternMatcher<'_>,

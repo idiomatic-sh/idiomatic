@@ -5,6 +5,7 @@ use crate::domain::code::types::{IndexSite, MemoSite, PoolAt, ProgramCode, Relat
 use crate::domain::filled::errors::FilledError;
 use crate::domain::filled::types::FilledRelations;
 use crate::domain::indexes::types::{FileStamp, IndexArena, RowRun, SourceRow};
+use crate::domain::made_tables::matching::types::MatchRoom;
 use crate::domain::made_tables::pipelines::types::PipelineRoom;
 use crate::domain::steps::types::{MadeTableId, StepRegex};
 use ryo_language::domain::facts::types::{CellWord, FactSource, FileWords};
@@ -41,6 +42,10 @@ pub(crate) struct GroupRoom {
     pub(crate) row: Vec<CellWord>,
     /// The values of the counted column in one group, to count the distinct ones.
     pub(crate) values: Vec<CellWord>,
+    /// The orders of one group's rows, ascending: what the meaning of a group's end reads.
+    pub(crate) orders: Vec<Integer>,
+    /// The room of an ordered match.
+    pub(crate) matching: MatchRoom,
 }
 
 /// Everything of the fill side a worker keeps for a file: the filled relations, the indexes of every source, and the made
@@ -132,9 +137,9 @@ pub(crate) struct FillWork {
     pub(crate) given: Count,
     /// The rows the table holds.
     pub(crate) made: Count,
-    /// Of its product stage, when it has one: the rows that entered it.
+    /// Of its product stage, when it has one: the rows that entered it. Of an ordered match: its left input's rows.
     pub(crate) left: Count,
-    /// Of its product stage: the rows of the source it paired them with.
+    /// Of its product stage: the rows of the source it paired them with. Of an ordered match: its right input's rows.
     pub(crate) right: Count,
 }
 

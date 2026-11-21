@@ -49,6 +49,12 @@ pub enum ReferenceKernel {
     IndexTwo,
     /// An index built by one column, each key's rows sorted by another.
     IndexOrdered,
+    /// An index built by one column of 43 different codes, many rows a code.
+    IndexCodes,
+    /// An index built by one column whose cells lie far apart: every row its own key, a million apart.
+    IndexFar,
+    /// An index over no row, built and then asked once for every row of the workload.
+    ProbeEmpty,
     /// The table's write, three columns, every row kept.
     Write,
     /// The table's write with repeats dropped, three columns, half the rows repeated.
@@ -77,6 +83,9 @@ pub const KERNELS: &[ReferenceKernel] = &[
     ReferenceKernel::IndexIds,
     ReferenceKernel::IndexTwo,
     ReferenceKernel::IndexOrdered,
+    ReferenceKernel::IndexCodes,
+    ReferenceKernel::IndexFar,
+    ReferenceKernel::ProbeEmpty,
     ReferenceKernel::Write,
     ReferenceKernel::WriteNew,
     ReferenceKernel::FillRows,
@@ -110,6 +119,9 @@ pub const fn kernel_name(kernel: ReferenceKernel) -> &'static str {
         ReferenceKernel::IndexIds => "index_ids_in_order",
         ReferenceKernel::IndexTwo => "index_two_columns",
         ReferenceKernel::IndexOrdered => "index_ordered",
+        ReferenceKernel::IndexCodes => "index_codes",
+        ReferenceKernel::IndexFar => "index_cells_far_apart",
+        ReferenceKernel::ProbeEmpty => "probe_index_of_no_row",
         ReferenceKernel::Write => "write",
         ReferenceKernel::WriteNew => "write_repeats_dropped",
         ReferenceKernel::FillRows => "fill_rows",
@@ -131,6 +143,8 @@ pub struct KernelWorkload {
     pub(crate) grouped: Vec<CellWord>,
     /// The source: a column of small numbers, 43 different.
     pub(crate) small: Vec<CellWord>,
+    /// The source: a key column in which every row has its own key, the keys a million apart.
+    pub(crate) far: Vec<CellWord>,
     /// The probes: a column whose every cell is a key of `unique`, and one of which half are.
     pub(crate) probes: [Vec<CellWord>; 2],
     /// The index the probes read.
@@ -172,6 +186,9 @@ pub fn workload(kernel: ReferenceKernel, rows: usize) -> KernelWorkload {
             .collect(),
         grouped: (0..rows).map(|row| cell(row / GROUP_ROWS)).collect(),
         small: (0..rows).map(|row| cell(scattered(row, 31, 43))).collect(),
+        far: (0..rows)
+            .map(|row| cell(scattered(row, 7919, rows).wrapping_mul(1_000_003)))
+            .collect(),
         probes: [
             (0..rows)
                 .map(|row| cell(scattered(row, 104_729, rows)))

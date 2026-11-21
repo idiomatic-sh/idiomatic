@@ -2,12 +2,21 @@
 //! its pipeline holds; a loop reads slices and writes vectors, and runs no step program. Crate-private.
 
 use crate::domain::indexes::types::ColumnView;
+use crate::domain::indexes::types::RowRun;
 use crate::domain::steps::types::{BoundKind, StepRegex, TestOperation};
+use ryo_language::domain::facts::service::intern;
 use ryo_language::domain::facts::types::CellWord;
+use ryo_language::domain::facts::types::FileWords;
 use ryo_language::domain::symbols::types::ByteSlice;
+use ryo_operators::domain::capture::types::{CaptureOutput, CaptureSpans};
+use ryo_operators::domain::contract::errors::ContractError;
 use ryo_operators::domain::patterns::types::PatternMatcher;
+use ryo_operators::domain::source_matches::types::TextRowDriver;
 use ryo_operators::domain::table_scratch::types::Patterns;
-use ryo_relations::domain::relations::types::{Count, FileId};
+use ryo_relations::domain::relations::service::to_bits;
+use ryo_relations::domain::relations::types::{Count, FileId, Value};
+use ryo_relations::domain::terms::types::{NameText, Symbol};
+use ryo_values::domain::row_texts::types::CellText;
 
 /// A row of a batch, by its number.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -174,4 +183,99 @@ pub(crate) struct TextTest<'a> {
     pub(crate) right: Option<BatchValue<'a>>,
     /// The cells of the right set, when it is one.
     pub(crate) set: &'a [CellWord],
+}
+
+/// What a call of a per-row meaning is made with besides the file's words: the operators crate's matcher, the sources of
+/// the rule set's regular expressions, the expressions compiled so far, and the file's bytes.
+#[derive(Debug)]
+pub(crate) struct CallMeans<'a> {
+    /// The matcher.
+    pub(crate) matcher: PatternMatcher<'a>,
+    /// The sources of the regular expressions, by number.
+    pub(crate) regexes: &'a [StepRegex],
+    /// The expressions compiled so far, by source.
+    pub(crate) compiled: &'a mut Patterns,
+    /// The file's bytes.
+    pub(crate) source: ByteSlice<'a>,
+}
+
+/// Where a call's rows go: the cells of every row it gave, row by row; for each row of the batch the stretch of those
+/// rows it gave; and the scratch the meanings work in.
+#[derive(Debug)]
+pub(crate) struct CallOut<'r> {
+    /// The cells of the rows given, row by row, as many a row as the call has outputs.
+    pub(crate) answers: &'r mut Vec<CellWord>,
+    /// For each row of the batch, the rows it gave.
+    pub(crate) spans: &'r mut Vec<RowRun>,
+    /// The scratch.
+    pub(crate) scratch: &'r mut CallScratch,
+}
+
+/// The scratch the per-row meanings work in: kept between batches, never freed.
+#[derive(Debug, Default)]
+pub(crate) struct CallScratch {
+    /// A row's text, owned while words are interned from it.
+    pub(crate) text: ScratchText,
+    /// A constant text of the call: a replacement, a slot pattern, a group's name.
+    pub(crate) constant: ScratchText,
+    /// A text a meaning writes.
+    pub(crate) written: ScratchText,
+    /// The slots a capture has matched so far.
+    pub(crate) slots: TextRanges,
+    /// The values a meaning reads of a row.
+    pub(crate) values: Vec<Value>,
+    /// The row a source search hands on.
+    pub(crate) joined: Vec<Value>,
+    /// The ways a capture matched: every way's slots, one way after the other.
+    pub(crate) ways: CaptureWays,
+}
+
+/// A text a meaning reads or writes, owned by the scratch.
+#[derive(Debug, Default)]
+pub(crate) struct ScratchText(pub(crate) String);
+
+/// Stretches of a text, each from a byte to before another.
+#[derive(Debug, Default)]
+pub(crate) struct TextRanges(pub(crate) Vec<std::ops::Range<usize>>);
+
+/// Every way a capture matched a path: the ranges of each way's slots, one way after the other, and how many ways.
+#[derive(Debug, Default)]
+pub(crate) struct CaptureWays {
+    /// The ranges, way by way.
+    pub(crate) ranges: TextRanges,
+    /// How many ways.
+    pub(crate) ways: Count,
+}
+
+impl CaptureOutput for CaptureWays {
+    fn captures(&mut self, ranges: CaptureSpans<'_>) {
+        self.ranges.0.extend_from_slice(ranges.0);
+        self.ways = Count(self.ways.0.saturating_add(1));
+    }
+}
+
+/// The rows a source search gives, taken as cells: each row's values appended to the answers, a captured text interned
+/// in the file's words.
+#[derive(Debug)]
+pub(crate) struct SearchedRows<'r> {
+    /// The file's words.
+    pub(crate) words: &'r mut FileWords,
+    /// The cells of the rows given.
+    pub(crate) answers: &'r mut Vec<CellWord>,
+    /// How many rows were given.
+    pub(crate) rows: Count,
+}
+
+impl TextRowDriver for SearchedRows<'_> {
+    fn intern(&mut self, text: CellText<'_>) -> Value {
+        let word = intern(self.words, NameText(text.0));
+        Value::Symbol(Symbol(u32::try_from(word.0).unwrap_or(u32::MAX)))
+    }
+
+    fn emit(&mut self, row: &[Value]) -> Result<(), ContractError> {
+        self.answers
+            .extend(row.iter().map(|value| CellWord(to_bits(*value).0)));
+        self.rows = Count(self.rows.0.saturating_add(1));
+        Ok(())
+    }
 }

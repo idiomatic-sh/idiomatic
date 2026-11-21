@@ -223,16 +223,27 @@ pub(crate) fn begin_rule(state: &mut LoopState) {
 fn fill_work(programs: &Programs, fill: FillTally) -> HeaviestWork {
     let counted = |rows: Count| InstructionCount(u64::try_from(rows.0).unwrap_or(u64::MAX));
     let (read, made) = (counted(fill.work.read), counted(fill.work.made));
+    let kind = fill_at(&programs.0.code, fill.table).map(|held| held.kind);
+    // An ordered match's two counts are its two inputs' rows; any other fill's are its product stage's sides.
+    if matches!(kind, Ok(FillKind::Match)) {
+        return HeaviestWork::OrderedPairs {
+            left: counted(fill.work.left),
+            right: counted(fill.work.right),
+            made,
+        };
+    }
     if fill.work.left.0 != 0 {
         return HeaviestWork::Product {
             left: counted(fill.work.left),
             right: counted(fill.work.right),
         };
     }
-    match fill_at(&programs.0.code, fill.table).map(|held| held.kind) {
-        Ok(FillKind::Count) => HeaviestWork::Group { read, made },
+    match kind {
+        Ok(FillKind::Count | FillKind::Ends) => HeaviestWork::Group { read, made },
         Ok(FillKind::Sorted) => HeaviestWork::Sorted { rows: made },
-        Ok(FillKind::Rows | FillKind::Constant) | Err(_) => HeaviestWork::Rows { read, made },
+        Ok(FillKind::Rows | FillKind::Constant | FillKind::Match) | Err(_) => {
+            HeaviestWork::Rows { read, made }
+        }
     }
 }
 

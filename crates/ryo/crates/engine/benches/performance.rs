@@ -5,7 +5,7 @@
 //! and checks that it gave rows.
 
 use ryo_engine::domain::made_tables::fixtures::benches::{
-    FILL_BENCHES, FillWorkload, fill_name, fill_workload, run_fill,
+    FILL_BENCHES, FillWorkload, fill_name, fill_units, fill_workload, run_fill,
 };
 use ryo_engine::domain::stages::fixtures::run_kernel;
 use ryo_engine::domain::stages::fixtures::workloads::{
@@ -92,6 +92,9 @@ fn divisor(kernel: ReferenceKernel, rows: usize) -> f64 {
         | ReferenceKernel::IndexIds
         | ReferenceKernel::IndexTwo
         | ReferenceKernel::IndexOrdered
+        | ReferenceKernel::IndexCodes
+        | ReferenceKernel::IndexFar
+        | ReferenceKernel::ProbeEmpty
         | ReferenceKernel::Write
         | ReferenceKernel::WriteNew
         | ReferenceKernel::FillRows
@@ -143,7 +146,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut work =
                 fill_workload(*bench, rows).ok_or("the encoding refused a fill's pack")?;
             let times = timed_fill(&mut work);
-            let per = f64::from(u32::try_from(rows.max(1)).unwrap_or(u32::MAX));
+            let per = f64::from(u32::try_from(fill_units(*bench, rows)).unwrap_or(u32::MAX));
             measures.push(format!(
                 "\"engine_fill_ns_per_row/{}/{rows}\":{{\"ns_per_row\":{{\"value\":{:.3},\"lower_value\":{:.3},\"upper_value\":{:.3}}}}}",
                 fill_name(*bench),

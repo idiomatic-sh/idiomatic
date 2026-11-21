@@ -2,24 +2,23 @@
 //! filled or indexed first, in the order its stages read it; then its pipelines run. A pipeline whose scan has no row
 //! runs nothing and has nothing made for it.
 
-use crate::domain::code::constants::BUCKET;
-use crate::domain::code::filling::service::{
-    stage_latest_of, stage_probe_of, stage_product_of, stage_scan_of, stage_write_of,
-};
-use crate::domain::code::types::{CodeEntry, CodeWord, IndexSite, RelationNumber};
+use crate::domain::code::filling::service::{stage_scan_of, stage_write_of};
+use crate::domain::code::types::{CodeEntry, RelationNumber};
 use crate::domain::filled::errors::FilledError;
 use crate::domain::filled::service::whole;
 use crate::domain::filled::types::{MissingCode, RelationAsk, UnbuiltFill};
 use crate::domain::indexes::service::state_of;
 use crate::domain::indexes::types::IndexBuilt;
-use crate::domain::made_tables::carrying::service::stage_kind;
+use crate::domain::made_tables::carrying::service::stage_reach;
+use crate::domain::made_tables::fanning::service::scan_read;
 use crate::domain::made_tables::fills::service::{constant_rows, fill_at, grouped_rows, input_at};
 use crate::domain::made_tables::fills::types::{FillInputs, FillKind, TableFill};
 use crate::domain::made_tables::indexing::service::index_built;
-use crate::domain::made_tables::pipelines::service::{piped, scan_run};
-use crate::domain::made_tables::pipelines::types::StageKind;
+use crate::domain::made_tables::matching::service::match_rows;
+use crate::domain::made_tables::matching::types::MatchSide;
+use crate::domain::made_tables::pipelines::service::piped;
 use crate::domain::made_tables::reading::service::{
-    latest_site, pipeline_words, relation_at, site_at, site_source, source_of,
+    pipeline_words, relation_at, site_at, site_source,
 };
 use crate::domain::made_tables::service::clear_rows;
 use crate::domain::made_tables::staging::service::WRONG_WORD;
@@ -45,48 +44,6 @@ fn slot_mut<'s>(frame: &'s mut FillFrame<'_>, table: MadeTableId) -> Option<&'s 
             .resize_with(place.saturating_add(1), TableSlot::default);
     }
     frame.store.tables.get_mut(place)
-}
-
-/// What a source the fill side reaches as a thing reached: a relation, a table, the node table.
-const fn reached_of(source: ReadSource) -> Reached {
-    match source {
-        ReadSource::Nodes(_) => Reached::Nodes,
-        ReadSource::Filled(number) => Reached::Relation(number),
-        ReadSource::Made(table) | ReadSource::Written(table) => Reached::Table(table),
-    }
-}
-
-/// What one stage reads directly, when it reads a source: a scan and a product their source or their bucket's index, a
-/// probe and a `Latest` their index. A `Read` reads by a handle another stage found, so its source is there.
-fn stage_reach(frame: &FillFrame<'_>, word: CodeWord) -> Result<Option<Reached>, FilledError> {
-    let code = frame.programs.code;
-    Ok(match stage_kind(word.op).ok_or(WRONG_WORD)? {
-        StageKind::Scan => {
-            let stage = stage_scan_of(word);
-            Some(if stage.flag.0 & BUCKET.0 == 0 {
-                reached_of(source_of(stage.flag, stage.read))
-            } else {
-                Reached::Index(IndexSite(stage.read.0))
-            })
-        }
-        StageKind::Product => {
-            let stage = stage_product_of(word);
-            Some(reached_of(source_of(stage.flag, stage.read)))
-        }
-        StageKind::Probe => Some(Reached::Index(stage_probe_of(word).index)),
-        StageKind::Latest => {
-            let stage = stage_latest_of(word);
-            let site = latest_site(code, stage.operands)?;
-            Some(Reached::Index(site))
-        }
-        StageKind::Walk => Some(Reached::Nodes),
-        StageKind::Use
-        | StageKind::Read
-        | StageKind::Keep
-        | StageKind::Call
-        | StageKind::Render
-        | StageKind::Write => None,
-    })
 }
 
 /// Fills a relation whole for the file if it is not whole. Answers the rows the language wrote for it now.
@@ -191,7 +148,7 @@ fn input_piped(
         let words = pipeline_words(programs.code, entry)?;
         let mut scanned = Count(0);
         for (at, word) in words.iter().enumerate() {
-            if let Some(read) = stage_reach(frame, *word)? {
+            if let Some(read) = stage_reach(programs.code, *word)? {
                 let _work = ensured(frame, uses, read)?;
                 reached.push(read);
             }
@@ -203,7 +160,7 @@ fn input_piped(
                     file: frame.file,
                     text: frame.text,
                 };
-                scanned = scan_run(batch, stage_scan_of(*word))?.count;
+                scanned = scan_read(batch, stage_scan_of(*word))?.count;
                 if scanned.0 == 0 {
                     break;
                 }
@@ -256,7 +213,71 @@ fn filled_now(
             let input = input_at(programs.code, fill.inputs)?;
             input_piped(frame, uses, table, input, rows, kept)
         }
-        FillKind::Count | FillKind::Sorted => {
+        FillKind::Match => {
+            let FillKept { work, reached } = kept;
+            let wrong = FilledError::Code {
+                named: MissingCode::Column,
+            };
+            let left = input_at(programs.code, fill.inputs)?;
+            let right = input_at(programs.code, left.after)?;
+            let left_side = MatchSide {
+                keys: left.keys,
+                order: left.order.ok_or(wrong.clone())?,
+            };
+            let right_side = MatchSide {
+                keys: right.keys,
+                order: right.order.ok_or(wrong)?,
+            };
+            let mut gathered = [
+                frame.store.inputs.pop().unwrap_or_default(),
+                frame.store.inputs.pop().unwrap_or_default(),
+            ];
+            let mut piped = Ok(());
+            for (input, into) in [left, right].into_iter().zip(gathered.iter_mut()) {
+                if piped.is_ok() {
+                    piped = input_width(frame, input).and_then(|width| {
+                        clear_rows(into, width);
+                        input_piped(
+                            frame,
+                            uses,
+                            table,
+                            input,
+                            into,
+                            FillKept {
+                                work: &mut *work,
+                                reached: &mut *reached,
+                            },
+                        )
+                    });
+                }
+            }
+            let mut room = std::mem::take(&mut frame.store.room);
+            let [gathered_left, gathered_right] = gathered;
+            let done = piped.and_then(|()| {
+                match_rows(
+                    &gathered_left,
+                    &gathered_right,
+                    left_side,
+                    right_side,
+                    &mut room.matching,
+                    rows,
+                )
+            });
+            work.read = Count(
+                work.read
+                    .0
+                    .saturating_add(gathered_left.count.0)
+                    .saturating_add(gathered_right.count.0),
+            );
+            work.given = Count(work.given.0.saturating_add(rows.count.0));
+            work.left = gathered_left.count;
+            work.right = gathered_right.count;
+            frame.store.room = room;
+            frame.store.inputs.push(gathered_left);
+            frame.store.inputs.push(gathered_right);
+            done
+        }
+        FillKind::Count | FillKind::Sorted | FillKind::Ends => {
             let FillKept { work, reached } = kept;
             let input = input_at(programs.code, fill.inputs)?;
             let mut gathered = frame.store.inputs.pop().unwrap_or_default();

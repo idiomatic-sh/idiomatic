@@ -4,11 +4,12 @@
 use super::errors::ScanError;
 use super::interface::ScanUseCase;
 use crate::domain::dispatch::service::dispatch;
-use crate::domain::executing::entries::types::TheLoop;
+use crate::domain::executing::entries::types::{TheLoop, TheMeasuringLoop};
+use crate::domain::executing::measuring::service::file_ended;
 use crate::domain::filled::errors::FilledError;
 use crate::domain::findings::types::{FoundRows, ScanCounters};
 use crate::domain::made_tables::types::FillFrame;
-use crate::domain::programs::frames::types::StepFrame;
+use crate::domain::programs::frames::types::{LoopEntry, StepFrame};
 use crate::domain::programs::service::rule_set;
 use crate::domain::programs::types::Programs;
 use crate::domain::scratch::service::next_file;
@@ -86,14 +87,25 @@ impl ScanUseCase for ScanUseCaseImpl {
             store,
             matcher: PatternMatcher(&*self.matcher),
         };
-        let counters = dispatch(
-            &mut StepFrame {
-                fill: &mut fill,
-                state: &mut *state,
-                found,
-                ports: &TheLoop,
-            },
-            programs,
+        // One loop, two instances: a measuring worker's counts each word at its plan point, and its scan ends by folding
+        // the file's counts.
+        let ports: &dyn LoopEntry = if state.measure.is_some() {
+            &TheMeasuringLoop
+        } else {
+            &TheLoop
+        };
+        let mut frame = StepFrame {
+            fill: &mut fill,
+            state: &mut *state,
+            found,
+            ports,
+        };
+        let counters = dispatch(&mut frame, programs);
+        file_ended(&mut frame);
+        // The load refuses a rule that can reach a word or a fill the executor does not run: none reaches a scan.
+        debug_assert_eq!(
+            state.work.unbuilt.0, 0,
+            "a word or a fill the executor does not run reached the scan"
         );
         match state.fault.take() {
             None => Ok(counters),
@@ -112,6 +124,9 @@ impl ScanUseCase for ScanUseCaseImpl {
                 // A fill the engine does not run and a number the code does not hold are not faults of a file: the loop
                 // counts the first and keeps neither as the file's fault.
                 FilledError::Unbuilt { .. } | FilledError::Code { .. } => return Ok(counters),
+                // A per-row meaning's fault on a row is the rule's fault in the file, and `ScanError` has no variant to
+                // say it yet (the fill side's QUESTIONS.md Q4): until it has, the scan answers its counters.
+                FilledError::Meaning { .. } => return Ok(counters),
             }),
         }
     }
