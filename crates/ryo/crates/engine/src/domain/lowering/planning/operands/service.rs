@@ -68,7 +68,9 @@ pub(crate) fn operand(environment: &Environment, term: FlatTerm) -> Option<StepO
     match term {
         FlatTerm::Variable(variable) => match environment.registers.get(&variable) {
             Some(register) => Some(StepOperand::Register(*register)),
-            None if environment.keyed.contains_key(&variable) => {
+            None if environment.keyed.contains_key(&variable)
+                || environment.held.contains(&variable) =>
+            {
                 let pin = *environment.pins.get(&variable)?;
                 constant_word(pin).map(StepOperand::Word)
             }

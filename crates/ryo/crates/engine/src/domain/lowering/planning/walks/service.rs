@@ -1,9 +1,8 @@
 //! The services of the `walks` part: a walk along a tree axis and a nearest walk, as accesses.
 
-use crate::domain::lowering::costing::constants::{ANCESTORS, CHILDREN, DESCENDANTS};
-use crate::domain::lowering::costing::types::CellState;
+use crate::domain::lowering::costing::constants::{ANCESTORS, CHILDREN, DESCENDANTS, ONE};
+use crate::domain::lowering::costing::types::{CellState, PlanEstimate};
 use crate::domain::lowering::definitions::service::{asked, fresh_register};
-use crate::domain::lowering::definitions::types::RowEstimate;
 use crate::domain::lowering::flattening::types::{NearestDomain, NearestOver};
 use crate::domain::lowering::planning::closures::service::{own_used, read_condition, walk_edges};
 use crate::domain::lowering::planning::closures::types::{AtomWriter, EdgeEnds};
@@ -36,19 +35,20 @@ pub(crate) fn walk_rows(
     direction: AxisDirection,
     start: TermGiven,
     reached: TermGiven,
-) -> Option<RowEstimate> {
+) -> Option<PlanEstimate> {
     match (start, reached, direction) {
-        (TermGiven::Given, TermGiven::Open, AxisDirection::Parent) => Some(RowEstimate(1)),
+        (TermGiven::Given, TermGiven::Open, AxisDirection::Parent) => Some(ONE),
         (TermGiven::Given, TermGiven::Open, AxisDirection::Ancestor)
         | (TermGiven::Open, TermGiven::Given, AxisDirection::Descendant) => Some(ANCESTORS),
         (TermGiven::Given, TermGiven::Open, AxisDirection::Descendant)
         | (TermGiven::Open, TermGiven::Given, AxisDirection::Ancestor) => Some(DESCENDANTS),
-        (TermGiven::Open, TermGiven::Given, AxisDirection::Parent)
-        | (
+        (TermGiven::Open, TermGiven::Given, AxisDirection::Parent) => Some(CHILDREN),
+        // An element has one sibling next to it on either side.
+        (
             TermGiven::Given | TermGiven::Open,
             TermGiven::Given | TermGiven::Open,
             AxisDirection::NextSibling | AxisDirection::PreviousSibling,
-        ) if start != reached => Some(CHILDREN),
+        ) if start != reached => Some(ONE),
         (
             TermGiven::Given | TermGiven::Open,
             TermGiven::Given | TermGiven::Open,

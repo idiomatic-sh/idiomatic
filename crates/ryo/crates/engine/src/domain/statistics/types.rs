@@ -2,7 +2,7 @@
 
 use crate::domain::code::types::{MeasuredForm, ShapeChoice, UnitKey};
 use crate::domain::programs::types::Programs;
-use ryo_language::domain::facts::types::CellWord;
+use ryo_language::domain::node_table::types::FieldCode;
 use ryo_relations::domain::relations::types::{Column, Count, KindBits, Relation};
 
 /// The statistics of a rule set as bytes: what a pack's rules ship beside them. No bytes: no statistics.
@@ -59,6 +59,10 @@ pub(crate) struct PointCountsEngine {
     pub(crate) units: Vec<UnitCounts>,
     /// The ids of each kind, by kind code, summed over the files.
     pub(crate) kinds: Vec<Count>,
+    /// The elements that fill each field of their parent, by field code, summed over the files.
+    pub(crate) fields: Vec<Count>,
+    /// The elements of the files, summed.
+    pub(crate) elements: Count,
     /// The rows of each size site, by its place in `ProgramCode.sizes`, summed over the files.
     pub(crate) literals: Vec<Count>,
 }
@@ -155,34 +159,98 @@ pub(crate) enum LearnStage {
     Second,
 }
 
-/// The mean sizes of a file of the sample.
+/// What a sample sized: the files it scanned, their elements, and of those the elements of each kind and of each field,
+/// and the rows of each constant bucket its plans test. Each is a sum over the sample's files; the mean of a file is the
+/// sum over `files`. Read with a vocabulary, a kind and a field are that vocabulary's codes: a name it does not hold is
+/// not read, so the sizes of another language match nothing.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct MeasuredSizes {
-    /// Ids per kind.
+    /// The files the sample scanned; nought: the sample sized nothing.
+    pub(crate) files: Count,
+    /// The elements of those files.
+    pub(crate) elements: Count,
+    /// The elements of each kind, sorted by kind.
     pub(crate) kinds: Vec<KindSize>,
-    /// Rows per value of a column.
+    /// The elements that fill each field of their parent, sorted by field.
+    pub(crate) fields: Vec<FieldSize>,
+    /// The rows of each constant bucket of a filled relation.
     pub(crate) literals: Vec<LiteralSize>,
 }
 
-/// The mean ids of a kind in a file.
+/// The ids of a kind in the sample.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct KindSize {
     /// The kind.
     pub(crate) kind: KindBits,
-    /// Its ids in the sample, and the sample's files.
+    /// Its ids in the sample.
     pub(crate) ids: Count,
 }
 
-/// The mean rows of a relation holding a value in a column.
+/// The elements of the sample that fill a field of their parent.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct FieldSize {
+    /// The field.
+    pub(crate) field: FieldCode,
+    /// Its elements in the sample.
+    pub(crate) rows: Count,
+}
+
+/// The rows of a filled relation that hold a value in a column, in the sample.
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct LiteralSize {
     /// The relation.
     pub(crate) relation: Relation,
     /// The column.
     pub(crate) column: Column,
-    /// The value, as a base word.
-    pub(crate) value: CellWord,
+    /// The value, as its text: a text as written, a number in decimal.
+    pub(crate) value: Box<str>,
     /// Its rows in the sample.
+    pub(crate) rows: Count,
+}
+
+/// A size as a sample measured it: a sum over the sample's files, and how many files that was. The mean of a file is
+/// `rows` over `files`; `files` is never nought.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct SizedRows {
+    /// The rows, summed over the sample's files.
+    pub(crate) rows: Count,
+    /// The files of the sample.
+    pub(crate) files: Count,
+}
+
+/// What a sample sized, as it is written: every name as text, so the bytes mean the same to every load.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct NamedSizes {
+    /// The files the sample scanned.
+    pub(crate) files: Count,
+    /// The elements of those files.
+    pub(crate) elements: Count,
+    /// The elements of each kind, by the kind's name.
+    pub(crate) kinds: Vec<NamedSize>,
+    /// The elements of each field, by the field's name.
+    pub(crate) fields: Vec<NamedSize>,
+    /// The rows of each constant bucket: the relation's name, the column's name, the value's text, each ended by a line
+    /// end and joined in `name`.
+    pub(crate) literals: Vec<NamedSize>,
+}
+
+/// Statistics as their bytes hold them: every size under its name.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct ReadStatistics {
+    /// Which sample run wrote them.
+    pub(crate) stage: LearnStage,
+    /// The units, sorted by key.
+    pub(crate) units: Vec<MeasuredUnit>,
+    /// What the sample sized.
+    pub(crate) sizes: NamedSizes,
+}
+
+/// A size under a name.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct NamedSize {
+    /// The name.
+    pub(crate) name: Box<str>,
+    /// The rows.
     pub(crate) rows: Count,
 }
 
