@@ -37,6 +37,8 @@ macro_rules! lookup_scope {
         scope File,
         notes Unneeded,
         form Filled(Many(Reference)),
+        size PerElement,
+        keys [Reference],
         columns {
         /// Read or deletion occurrence (a binding-event of kind read or delete).
         reference Reference: NodeId => Node;

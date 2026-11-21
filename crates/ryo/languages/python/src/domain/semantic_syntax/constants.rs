@@ -171,3 +171,5 @@ pub(super) const WEAKREF_WEAK_KEY_DICTIONARY: &str = "weakref.WeakKeyDictionary"
 pub(super) const WEAKREF_WEAK_VALUE_DICTIONARY: &str = "weakref.WeakValueDictionary";
 /// Resolved Python constructor vocabulary: `weakref.WeakSet`.
 pub(super) const WEAKREF_WEAK_SET: &str = "weakref.WeakSet";
+/// The words of an embedded expression's row, the same in every file: fixed names of the run.
+pub(crate) const FIXED_NAMES: &[&str] = &[DEFERRED_CONTEXT, EXACT_MAPPING, HOST_MAPPING];

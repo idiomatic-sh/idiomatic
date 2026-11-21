@@ -29,3 +29,6 @@ pub(crate) const SPEC: &str = "__spec__";
 pub(crate) const WARNINGREGISTRY: &str = "__warningregistry__";
 /// The text `__annotate__`.
 pub(crate) const ANNOTATE: &str = "__annotate__";
+/// The kinds of an implicit name and the one name of a platform, as a filler writes them: the same in every file, so fixed names
+/// of the run. The names of the catalogs are fixed names too, read from the catalogs.
+pub(crate) const FIXED_NAMES: &[&str] = &[BUILTIN, MODULE_GLOBAL, WINDOWSERROR, PLATFORM_BUILTIN];

@@ -18,7 +18,8 @@ use crate::domain::format_syntax::types::DynamicInput;
 use crate::domain::format_syntax::types::FormatInput;
 use crate::domain::literal_facts::service::{format_spec_value, string_value};
 use crate::domain::literal_facts::types::{StringValue, TextBuffer};
-use crate::domain::node::service::{fixed, node_cell, nodes_of_kind, span_at, word};
+use crate::domain::model::names::service::fixed_word;
+use crate::domain::node::service::{node_cell, nodes_of_kind, span_at, word};
 use crate::domain::node::types::{Numbered, SyntaxFile};
 use crate::domain::{
     model::types::Declarations, nodes::types::Node, semantic_syntax::types::Visibility,
@@ -244,7 +245,7 @@ ryo::fills! {
     BraceFormatParseItem => languages::BraceFormatParse, walk(PythonWalk) |file, words, rows| {
         /// One row of the relation.
         type Row = <languages::BraceFormatParse as languages::CatalogRelation>::Row;
-        let memo = &mut file.buffers.fixed;
+        let memo = &mut file.model.words.get_mut().fixed;
         let syntax = file.syntax;
         let mut whole = languages::SyntaxCompleteness::Complete;
         parsed_strings(&syntax, &mut file.buffers.text, &mut |id, parsed, unknown| {
@@ -255,9 +256,9 @@ ryo::fills! {
             let found = counts(parsed);
             rows.write(Row {
                 id: node_cell(&syntax, id),
-                representation: fixed(words, memo, languages::NameText(DECODED_STRING)),
-                outcome: fixed(words, memo, labels.outcome),
-                error_category: fixed(words, memo, labels.error),
+                representation: fixed_word(words, memo, languages::NameText(DECODED_STRING)),
+                outcome: fixed_word(words, memo, labels.outcome),
+                error_category: fixed_word(words, memo, labels.error),
                 automatic_count: found.automatic,
                 indexed_count: found.indexed,
                 keyword_count: found.keyword,
@@ -277,7 +278,7 @@ ryo::fills! {
     BraceFormatFieldItem => languages::BraceFormatField, walk(PythonWalk) |file, words, rows| {
         /// One row of the relation.
         type Row = <languages::BraceFormatField as languages::CatalogRelation>::Row;
-        let memo = &mut file.buffers.fixed;
+        let memo = &mut file.model.words.get_mut().fixed;
         let syntax = file.syntax;
         let mut whole = languages::SyntaxCompleteness::Complete;
         parsed_strings(&syntax, &mut file.buffers.text, &mut |id, parsed, _unknown| {
@@ -291,9 +292,9 @@ ryo::fills! {
                 rows.write(Row {
                     id: node_cell(&syntax, id),
                     ordinal: languages::Integer(i64::try_from(field.ordinal.0).unwrap_or(i64::MAX)),
-                    context: fixed(words, memo, context_name(&field.context)),
+                    context: fixed_word(words, memo, context_name(&field.context)),
                     parent_ordinal: parent_ordinal(&field.context),
-                    selector_kind: fixed(words, memo, selector_kind(&field.selector)),
+                    selector_kind: fixed_word(words, memo, selector_kind(&field.selector)),
                     selector_index: selector_index(&field.selector),
                     index_overflow: selector_overflow(&field.selector),
                     selector_name: word(words, selector_name(&field.selector)),
