@@ -56,6 +56,17 @@ fn given_now<'a>(state: &'a OrderCompletion<'_>) -> GivenTerms<'a> {
     }
 }
 
+/// How a cell stands for a rows atom now. A pinned variable a use of a definition was keyed by, in a pipeline, is still
+/// its constant: the use left no row to read the cell from, so no stage after it can take the cell in a register.
+fn cell_state(state: &OrderCompletion<'_>, cell: FlatTerm) -> CellState {
+    match cell {
+        FlatTerm::Variable(variable) if state.rowless.contains(&variable) => CellState::Constant,
+        FlatTerm::Variable(_) | FlatTerm::Text(_) | FlatTerm::Number(_) | FlatTerm::File => {
+            state_of(cell, &given_now(state))
+        }
+    }
+}
+
 /// What the completion is planned with.
 const fn with<'a>(state: &OrderCompletion<'a>) -> PlanningWith<'a> {
     PlanningWith {
@@ -86,8 +97,7 @@ fn access(state: &OrderCompletion<'_>, atom: &FlatAtom) -> Option<(CostClass, Ac
     else {
         return None;
     };
-    let given = given_now(state);
-    let states: Vec<CellState> = cells.iter().map(|cell| state_of(*cell, &given)).collect();
+    let states: Vec<CellState> = cells.iter().map(|cell| cell_state(state, *cell)).collect();
     let mut choice = keyed(state.drafts, *rows, *per_file, &states);
     if *per_file == RowsPerFile::One && state.enumerated == Enumerated::NotYet {
         choice.class = CostClass::File;
@@ -181,8 +191,7 @@ fn keyed_pins(state: &OrderCompletion<'_>, atom: &FlatAtom) -> (Vec<FlatVariable
     else {
         return (Vec::new(), false);
     };
-    let given = given_now(state);
-    let states: Vec<CellState> = cells.iter().map(|cell| state_of(*cell, &given)).collect();
+    let states: Vec<CellState> = cells.iter().map(|cell| cell_state(state, *cell)).collect();
     let choice = keyed(state.drafts, *rows, *per_file, &states);
     // After the first enumeration an access with no register is every row of its source: no pin keys it.
     if choice.class == CostClass::File && state.enumerated == Enumerated::Already {
@@ -221,12 +230,10 @@ fn place(state: &mut OrderCompletion<'_>, next: NextAccess) {
         | FlatAtom::Walk { .. }
         | FlatAtom::Nearest { .. }
         | FlatAtom::Closure { .. } => {
-            let given = variables(atom);
-            state.given.extend(
-                given
-                    .into_iter()
-                    .filter(|variable| !(rowless && pins.contains(variable))),
-            );
+            state.given.extend(variables(atom));
+            if rowless {
+                state.rowless.extend(pins.iter().copied());
+            }
             state.implied.extend(pins);
             state.enumerated = Enumerated::Already;
             state.cost = plus(state.cost, taken);
@@ -475,6 +482,7 @@ fn begun<'a>(
         placed: vec![AtomPlacing::Waiting; branch.atoms.len()],
         order: Vec::with_capacity(branch.atoms.len()),
         implied: HashSet::new(),
+        rowless: HashSet::new(),
         rows: start.rows,
         cost: PlanEstimate(0),
         enumerated: Enumerated::NotYet,
