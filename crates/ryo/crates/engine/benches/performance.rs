@@ -4,14 +4,32 @@
 //! Format document, a measure `ns_per_row` for each loop and size; run as a test it runs each loop once on a small input
 //! and checks that it gave rows.
 
+use ryo_engine::domain::dispatch::fixtures::workloads::{
+    LOOP_BENCHES, LoopBench, loop_name, loop_programs,
+};
+use ryo_engine::domain::findings::types::{FoundCells, FoundRows, FoundTarget, WorkNotice};
 use ryo_engine::domain::made_tables::fixtures::benches::kinds::{
     FILL_BENCHES, fill_name, fill_units,
 };
 use ryo_engine::domain::made_tables::fixtures::benches::{FillWorkload, fill_workload, run_fill};
+use ryo_engine::domain::programs::service::scratch_for;
+use ryo_engine::domain::programs::types::Programs;
+use ryo_engine::domain::scratch::types::ScanScratch;
 use ryo_engine::domain::stages::fixtures::run_kernel;
 use ryo_engine::domain::stages::fixtures::workloads::{
     KERNELS, KernelWorkload, ReferenceKernel, kernel_name, workload,
 };
+use ryo_engine::inbound::use_cases::scan::interface::ScanUseCase as _;
+use ryo_engine::inbound::use_cases::scan::use_case::ScanUseCaseImpl;
+use ryo_language::domain::facts::types::{
+    FactAnswer, FactSource, FileFacts, FileWords, FilledColumns, Wanted,
+};
+use ryo_language::domain::node_table::types::NodeTable;
+use ryo_language::domain::semantics::types::{RenderOutcome, RenderRequest};
+use ryo_language::domain::symbols::types::ByteSlice;
+use ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl;
+use ryo_relations::domain::answers::types::AbsenceCause;
+use ryo_relations::domain::relations::types::{FileId, Relation};
 use std::io::Write as _;
 use std::time::{Duration, Instant};
 
@@ -20,6 +38,9 @@ const SIZES: [usize; 3] = [10_000, 100_000, 1_000_000];
 
 /// The sizes a whole fill is timed at: 100 rows too, where what a fill costs before its first row shows.
 const FILL_SIZES: [usize; 4] = [100, 10_000, 100_000, 1_000_000];
+
+/// The sizes the loop's workloads are timed at.
+const LOOP_SIZES: [usize; 2] = [10_000, 100_000];
 
 /// The size each loop is run at once, as a test.
 const SMOKE_ROWS: usize = 10_000;
@@ -77,6 +98,92 @@ fn timed_fill(work: &mut FillWorkload) -> RunTimes {
     }
 }
 
+/// A language that fills nothing: the loop's workloads read made tables alone.
+struct NoFacts;
+
+impl FactSource for NoFacts {
+    fn fill(
+        &mut self,
+        _: Relation,
+        _: Wanted,
+        _: &mut FileWords,
+        _: &mut FilledColumns,
+    ) -> FactAnswer {
+        FactAnswer::Refused(AbsenceCause::NoSuchConstruct)
+    }
+
+    fn render(&mut self, _: RenderRequest) -> RenderOutcome {
+        RenderOutcome::NotApplicable
+    }
+}
+
+/// Counts the rows found and the notices given.
+#[derive(Default)]
+struct Counted {
+    /// The rows found.
+    rows: usize,
+    /// The notices given.
+    notices: usize,
+}
+
+impl FoundRows for Counted {
+    fn found(&mut self, _: FoundTarget, _: FoundCells<'_>, _: &FileWords) {
+        self.rows += 1;
+    }
+
+    fn noticed(&mut self, _: WorkNotice) {
+        self.notices += 1;
+    }
+}
+
+/// One scan of an empty file with a workload's rule set; answers the steps the scan counted and the rows found.
+fn scan_once(
+    scan: &ScanUseCaseImpl,
+    programs: &Programs,
+    scratch: &mut ScanScratch,
+    nodes: &NodeTable,
+) -> (u64, usize) {
+    let (mut facts, mut found) = (NoFacts, Counted::default());
+    let file = FileFacts {
+        table: nodes,
+        source: ByteSlice(b""),
+        file: FileId(0),
+        facts: &mut facts,
+    };
+    let steps = scan
+        .scan(programs, file, scratch, &mut found)
+        .map_or(0, |counted| counted.steps.0);
+    (steps, found.rows)
+}
+
+/// The times of the scans of one workload, and the steps one scan counts: at least `LEAST_RUNS` scans and `TIMED` of
+/// them, after one that is not timed.
+fn timed_loop(bench: LoopBench, rows: usize) -> Option<(RunTimes, u64)> {
+    let programs = loop_programs(bench, rows)?;
+    let scan = ScanUseCaseImpl::new(std::sync::Arc::new(MatchingUseCaseImpl));
+    let (mut scratch, nodes) = (scratch_for(&programs), NodeTable::default());
+    let (steps, _found) = std::hint::black_box(scan_once(&scan, &programs, &mut scratch, &nodes));
+    let mut times: Vec<f64> = Vec::new();
+    let started = Instant::now();
+    while times.len() < LEAST_RUNS || started.elapsed() < TIMED {
+        let run = Instant::now();
+        let _counted = std::hint::black_box(scan_once(
+            &scan,
+            std::hint::black_box(&programs),
+            &mut scratch,
+            &nodes,
+        ));
+        times.push(run.elapsed().as_secs_f64() * 1e9);
+    }
+    times.sort_by(f64::total_cmp);
+    let run = RunTimes {
+        lowest: times.first().copied().unwrap_or(0.0),
+        median: times.get(times.len() / 2).copied().unwrap_or(0.0),
+        highest: times.last().copied().unwrap_or(0.0),
+    };
+    Some((run, steps))
+}
+
 fn divisor(kernel: ReferenceKernel, rows: usize) -> f64 {
     let counted = match kernel {
         ReferenceKernel::Product => rows.isqrt().saturating_mul(rows.isqrt()),
@@ -125,10 +232,56 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 fill_name(*bench)
             );
         }
+        for bench in LOOP_BENCHES {
+            let programs =
+                loop_programs(*bench, SMOKE_ROWS).ok_or("the encoding refused a loop's pack")?;
+            let scan = ScanUseCaseImpl::new(std::sync::Arc::new(MatchingUseCaseImpl));
+            let (steps, _found) = scan_once(
+                &scan,
+                &programs,
+                &mut scratch_for(&programs),
+                &NodeTable::default(),
+            );
+            assert!(
+                steps > 0,
+                "{} ran no step over {SMOKE_ROWS} rows",
+                loop_name(*bench)
+            );
+        }
         return Ok(());
     }
     let mut measures: Vec<String> = Vec::new();
-    for kernel in KERNELS {
+    // The loop: what a scan of a workload's rule set costs for a row of its table, and the steps it counts for a row.
+    // `--only=<name>` times one workload alone, for a profile of it.
+    let only =
+        std::env::args().find_map(|argument| argument.strip_prefix("--only=").map(str::to_owned));
+    let timed_benches = LOOP_BENCHES.iter().filter(|bench| {
+        only.as_deref()
+            .is_none_or(|name| name == loop_name(**bench))
+    });
+    for bench in timed_benches {
+        for rows in LOOP_SIZES {
+            let (times, steps) =
+                timed_loop(*bench, rows).ok_or("the encoding refused a loop's pack")?;
+            let per = f64::from(u32::try_from(rows).unwrap_or(u32::MAX));
+            measures.push(format!(
+                "\"engine_loop_ns_per_row/{}/{rows}\":{{\"ns_per_row\":{{\"value\":{:.3},\"lower_value\":{:.3},\"upper_value\":{:.3}}},\"steps_per_row\":{{\"value\":{:.3}}}}}",
+                loop_name(*bench),
+                times.median / per,
+                times.lowest / per,
+                times.highest / per,
+                f64::from(u32::try_from(steps).unwrap_or(u32::MAX)) / per,
+            ));
+        }
+    }
+    // `--loop-only` times the loop's workloads alone: the stage loops and the fills are then none.
+    let loop_only = std::env::args().any(|argument| argument == "--loop-only");
+    let (kernels, fills) = if loop_only {
+        (&[][..], &[][..])
+    } else {
+        (KERNELS, FILL_BENCHES)
+    };
+    for kernel in kernels {
         for rows in SIZES {
             let mut work = workload(*kernel, rows);
             let times = timed(*kernel, &mut work);
@@ -142,7 +295,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             ));
         }
     }
-    for bench in FILL_BENCHES {
+    for bench in fills {
         for rows in FILL_SIZES {
             let mut work =
                 fill_workload(*bench, rows).ok_or("the encoding refused a fill's pack")?;

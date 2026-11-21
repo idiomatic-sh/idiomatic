@@ -32,6 +32,9 @@ pub(crate) enum Scene {
     /// For each row, the second cells of the rows of table 1 whose first cell is the row's second cell: a pattern in table
     /// form, collected.
     OrTable,
+    /// For each row, both cells of the rows of table 1 whose first cell is the row's second cell: a pattern in table form
+    /// with two columns collected, each emitted.
+    OrTableBoth,
     /// The rows whose second cell is a first cell of table 1: a pattern in table form, asked for a row.
     ExistsTable,
     /// The pattern in call form asked for the key 10 twice, by key, as a `Use` stage asks it back.
@@ -169,6 +172,20 @@ fn tail(scene: Scene) -> Vec<ProgramStep> {
             },
             emit(4),
         ],
+        Scene::OrTableBoth => vec![
+            ProgramStep::Or {
+                bodies: Box::new([StepBody::Definition {
+                    definition: DefinitionId(1),
+                    bound: ColumnMask(Box::new([MadeColumn(0)])),
+                    collected: ColumnMask(Box::new([MadeColumn(0), MadeColumn(1)])),
+                    values: StepOperands(Box::new([reg(1)])),
+                }]),
+                outputs: RegisterList(Box::new([Register(4), Register(3)])),
+                memo: StepMemo::None,
+            },
+            emit(4),
+            emit(3),
+        ],
         Scene::ExistsTable => vec![
             ProgramStep::Exists {
                 polarity: Polarity::Present,
@@ -236,7 +253,7 @@ pub(crate) fn pack(scene: Scene) -> LoweredPack {
         node: NodeDigest([5; 16]),
         formals: RegisterList(Box::new([Register(7), Register(8)])),
         emptiness: Emptiness::Unknown,
-        patterns: vec![in_table(&[1]), in_table(&[])],
+        patterns: vec![in_table(&[1]), in_table(&[]), in_table(&[0, 1])],
     };
     LoweredPack {
         definitions: vec![

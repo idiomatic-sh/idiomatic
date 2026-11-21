@@ -54,15 +54,6 @@ pub struct LoadedRules {
     pub matched: MatchedStatistics,
 }
 
-/// Which lowering of a load a pack is of: a load lowers its rules once, and once more without the rules an encoding refused.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum LoadPass {
-    /// The first: a rule the encoding refuses is taken out and the others are lowered once more.
-    First,
-    /// The last: there is no other, so a rule the encoding refuses takes every rule of the pack with it.
-    Last,
-}
-
 /// The words of a vocabulary's names among the run's base words: of each kind by its code, and of each field by its code.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct NamedWords {

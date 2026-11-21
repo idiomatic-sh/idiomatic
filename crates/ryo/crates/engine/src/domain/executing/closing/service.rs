@@ -4,11 +4,10 @@
 //! memo, a pattern in table form through the seam, as an `Or`'s bodies are. Each element is asked for its edges once, so
 //! a cycle ends; each edge given is a row visited.
 
-use crate::domain::code::records::service::body_at;
 use crate::domain::code::records::types::BodyRecord;
-use crate::domain::code::types::{CodeWord, WordSlot};
+use crate::domain::code::types::{CodeEntry, CodeWord, WordSlot};
 use crate::domain::code::walking::service::closure_of;
-use crate::domain::executing::bodies::service::slot;
+use crate::domain::executing::bodies::service::{body_of, slot};
 use crate::domain::executing::staging::service::body_staged;
 use crate::domain::findings::types::InstructionCount;
 use crate::domain::programs::frames::types::StepFrame;
@@ -47,7 +46,7 @@ fn kept_new(
 
 /// Stages what a `Closure` word reaches from its seed, in the order the elements are first met, and leaves where they
 /// are in the state for the word's item. A word whose record the pool does not hold reaches nothing.
-pub(crate) fn closure(frame: &mut StepFrame<'_, '_>, word: CodeWord) {
+pub(crate) fn closure(frame: &mut StepFrame<'_, '_>, word: CodeWord, at: CodeEntry) {
     let asking = closure_of(word);
     let code = frame.fill.programs.code;
     let first = frame.state.staged.len();
@@ -55,7 +54,7 @@ pub(crate) fn closure(frame: &mut StepFrame<'_, '_>, word: CodeWord) {
         first: Count(first),
         rows: Count(0),
     };
-    let Some(edges) = body_at(&code.pool, asking.operands) else {
+    let Some(edges) = body_of(frame, at) else {
         return;
     };
     let from = Register(slot(frame, edges.after, WordSlot(0)).0);

@@ -4,12 +4,13 @@ use crate::domain::code::constants::NO_SLOT;
 use crate::domain::code::types::{ConstantNumber, NeedSite, RelationNumber, Short, WordSlot};
 use crate::domain::executing::presence::service::node_row;
 use crate::domain::executing::types::Asker;
-use crate::domain::made_tables::sources::service::{cell_of, made, scanned, table_of};
+use crate::domain::indexes::reading::service::cell_at;
+use crate::domain::made_tables::reading::service::view_of;
+use crate::domain::made_tables::sources::service::{made, scanned, table_of};
 use crate::domain::made_tables::types::ReadSource;
 use crate::domain::needs::types::{NeedFacts, NeedVerdict};
 use crate::domain::programs::frames::types::StepFrame;
 use crate::domain::programs::operands::service::constant;
-use crate::domain::stages::service::handle;
 use crate::domain::steps::types::MadeTableId;
 use ryo_language::domain::node_table::service::kinds_present;
 use ryo_relations::domain::relations::types::{Count, KindBits};
@@ -81,7 +82,9 @@ impl NeedFacts for FileNeeds<'_, '_, '_> {
         } else {
             let wanted = constant(frame, ConstantNumber(value.0));
             let place = Short(u16::try_from(column.0).unwrap_or(u16::MAX));
-            rows.any(|row| cell_of(frame.fill, source, place, handle(Count(row))) == wanted)
+            // The column is asked once for the need, and its cells are read where they lie.
+            let held = view_of(frame.fill.store, source, place);
+            rows.any(|row| cell_at(held, Count(row)) == wanted)
         };
         if holds {
             NeedVerdict::Holds

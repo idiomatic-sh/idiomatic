@@ -12,6 +12,7 @@ use crate::domain::programs::frames::types::StepFrame;
 pub(crate) struct Exists;
 
 impl InstructionsItem for Exists {
+    #[inline]
     fn run(frame: &mut StepFrame<'_, '_>, word: CodeWord, _at: CodeEntry) -> Flow {
         let has = frame.state.answer.rows.0 > 0;
         let wanted = exists_of(word).flag.0 & ABSENT.0 == 0;

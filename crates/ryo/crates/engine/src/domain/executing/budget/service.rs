@@ -15,7 +15,7 @@ use crate::domain::made_tables::fills::types::FillKind;
 use crate::domain::made_tables::sources::service::{relation_rows, table_of};
 use crate::domain::made_tables::types::{FillStore, Reached};
 use crate::domain::memos::service::{charge_mut, reached_at, set_charge};
-use crate::domain::memos::types::{ChargedUnit, EntryCharge, MemoId, RuleStamp};
+use crate::domain::memos::types::{ChargedUnit, EntryCharge, MemoId, MemoMap, RuleStamp};
 use crate::domain::programs::frames::types::StepFrame;
 use crate::domain::programs::service::unit_step;
 use crate::domain::programs::types::Programs;
@@ -177,10 +177,13 @@ fn charge(frame: &mut StepFrame<'_, '_>, unit: ChargedUnit) {
     }
 }
 
-/// Whether the running rule was charged a unit of the fill side before: one compare, with no list walked.
-fn charged_before(budget: &RuleBudget, unit: ChargedUnit) -> Option<RuleStamp> {
+/// Whether the running rule was charged a unit before: one compare, with no list walked.
+fn charged_before(budget: &RuleBudget, memos: &MemoMap, unit: ChargedUnit) -> Option<RuleStamp> {
     let stamp = match unit {
-        ChargedUnit::Answer(_) => None,
+        ChargedUnit::Answer(answer) => memos
+            .charges
+            .get(usize::try_from(answer.0).unwrap_or(usize::MAX))
+            .map(|entry| entry.charged),
         ChargedUnit::Fill(Reached::Table(table)) => budget
             .tables
             .get(usize::try_from(table.0).unwrap_or(usize::MAX))
@@ -202,9 +205,9 @@ fn charged_before(budget: &RuleBudget, unit: ChargedUnit) -> Option<RuleStamp> {
 /// so a unit the rule was charged before costs one compare, and a unit reached again and again by the same program is
 /// on the pattern's list once for each run of reaches, not once for each.
 pub(crate) fn reach(frame: &mut StepFrame<'_, '_>, unit: ChargedUnit) {
-    let budget = &mut frame.state.budget;
+    let LoopState { budget, memos, .. } = &mut *frame.state;
     if budget.depth.0 == 0 {
-        if charged_before(budget, unit).is_none() {
+        if charged_before(budget, memos, unit).is_none() {
             charge(frame, unit);
         }
     } else if budget.reaching.last() != Some(&unit) {

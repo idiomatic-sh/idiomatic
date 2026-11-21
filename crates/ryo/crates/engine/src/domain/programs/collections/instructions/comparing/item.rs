@@ -169,6 +169,7 @@ fn general(frame: &mut StepFrame<'_, '_>, word: CodeWord) -> Verdict {
 }
 
 impl InstructionsItem for Test {
+    #[inline(always)]
     fn run(frame: &mut StepFrame<'_, '_>, word: CodeWord, _at: CodeEntry) -> Flow {
         let verdict = match word.op {
             Op::TestEqualConstant => {

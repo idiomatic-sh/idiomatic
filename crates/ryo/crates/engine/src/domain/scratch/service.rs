@@ -13,6 +13,7 @@ pub(crate) fn next_file(scratch: &mut ScanScratch) {
     clear_words(&mut engine.words);
     let state = &mut engine.state;
     clear_memos(&mut state.memos);
+    state.site_answers.clear();
     state.frames.clear();
     state.yielded.clear();
     state.staged.clear();

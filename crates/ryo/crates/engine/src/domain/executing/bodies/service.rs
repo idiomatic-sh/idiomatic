@@ -7,9 +7,9 @@ use super::types::{CallUse, PushedKey};
 use crate::domain::code::constants::STORAGE;
 use crate::domain::code::controlling::service::exists_of;
 use crate::domain::code::records::service::{body_at, operand_at};
-use crate::domain::code::records::types::BodyRecord;
 use crate::domain::code::records::types::PooledOperand;
-use crate::domain::code::types::{CodeWord, IndexSite, PoolAt, WordSlot};
+use crate::domain::code::records::types::{BodyRecord, ReadBody};
+use crate::domain::code::types::{CodeEntry, CodeWord, IndexSite, Op, PoolAt, WordSlot};
 use crate::domain::executing::budget::service::{begin_unit, end_unit, reach};
 use crate::domain::executing::measuring::service::{entered, evaluated, left, used};
 use crate::domain::executing::sources::service::keyed;
@@ -53,17 +53,17 @@ fn pattern_keyed(frame: &mut StepFrame<'_, '_>, body: CallUse, start: Count) -> 
         reach(frame, ChargedUnit::Answer(answer));
         return answer;
     }
-    for number in 0..body.bound.0 {
-        let formal = slot(frame, body.formals, WordSlot(number.wrapping_mul(3)));
-        let value = match frame.state.key.get(
-            start
-                .0
-                .saturating_add(usize::try_from(number).unwrap_or(usize::MAX)),
-        ) {
+    let first = parts_start(frame.state, body);
+    for number in 0..usize::try_from(body.bound.0).unwrap_or(usize::MAX) {
+        let part = first.and_then(|at| frame.state.decoded.parts.get(at.0.saturating_add(number)));
+        let Some(formal) = part.map(|held| held.formal) else {
+            continue;
+        };
+        let value = match frame.state.key.get(start.0.saturating_add(number)) {
             Some(held) => *held,
             None => CellWord(0),
         };
-        set(frame, Register(formal.0), value);
+        set(frame, formal, value);
     }
     let base = frame.state.yielded.len();
     let caller = begin_unit(frame.state);
@@ -95,18 +95,52 @@ fn pattern_keyed(frame: &mut StepFrame<'_, '_>, body: CallUse, start: Count) -> 
 /// The answer of a pattern in call form for the caller's values, which are the operands paired with its formals.
 pub(crate) fn pattern(frame: &mut StepFrame<'_, '_>, body: CallUse) -> MemoId {
     let start = frame.state.key.len();
-    for number in 0..body.bound.0 {
-        let at = PoolAt(
-            body.formals
-                .0
-                .wrapping_add(number.wrapping_mul(3))
-                .wrapping_add(1),
-        );
-        let value = operand_at(&frame.fill.programs.code.pool, at)
-            .map_or(CellWord(0), |held| operand(frame, held));
+    let first = parts_start(frame.state, body);
+    let mut from = KeyFrom::Constants;
+    for number in 0..usize::try_from(body.bound.0).unwrap_or(usize::MAX) {
+        let part = first.and_then(|at| {
+            frame
+                .state
+                .decoded
+                .parts
+                .get(at.0.saturating_add(number))
+                .copied()
+        });
+        from = part.map_or(from, |held| held.from);
+        let value = match part.and_then(|held| held.value) {
+            Some(held) => operand(frame, held),
+            None => CellWord(0),
+        };
         frame.state.key.push(value);
     }
-    pattern_keyed(frame, body, Count(start))
+    // A key of constants alone names one answer a file: it is the site's, found again with no hash.
+    let site = usize::try_from(body.site.0).unwrap_or(usize::MAX);
+    if from == KeyFrom::Constants
+        && let Some(answer) = frame.state.site_answers.get(site).copied().flatten()
+    {
+        frame.state.key.truncate(start);
+        used(frame.state, body.unit);
+        reach(frame, ChargedUnit::Answer(answer));
+        return answer;
+    }
+    let answer = pattern_keyed(frame, body, Count(start));
+    if from == KeyFrom::Constants {
+        let answers = &mut frame.state.site_answers;
+        if answers.len() <= site {
+            answers.resize(site.saturating_add(1), None);
+        }
+        if let Some(slot) = answers.get_mut(site) {
+            *slot = Some(answer);
+        }
+    }
+    answer
+}
+
+/// Where the parts of a call-form body's ask start in the decoded code; none for a body it does not hold.
+fn parts_start(state: &LoopState, body: CallUse) -> Option<Count> {
+    let place = usize::try_from(body.formals.0).unwrap_or(usize::MAX);
+    let held = state.decoded.parts_at.get(place)?;
+    held.0.checked_sub(1).map(Count)
 }
 
 /// The answer of a pattern in call form for a key the fill side hands over: what a `Use` stage asks back, once per distinct
@@ -185,15 +219,42 @@ pub(crate) fn table_rows(
     found
 }
 
-/// How many rows a body has, as far as an `Exists` or a walk's condition asks: none or some.
-pub(crate) fn has_row(frame: &mut StepFrame<'_, '_>, at: PoolAt) -> Count {
-    let Some(body) = body_at(&frame.fill.programs.code.pool, at) else {
+/// The body record of the word at a place of the code, as the worker's state holds it: read from the pool when the
+/// state was made, not at the step.
+#[inline]
+pub(crate) fn body_of(frame: &StepFrame<'_, '_>, at: CodeEntry) -> Option<ReadBody> {
+    frame
+        .state
+        .decoded
+        .bodies
+        .get(usize::try_from(at.0).unwrap_or(usize::MAX))
+        .copied()
+        .flatten()
+}
+
+/// How many rows a body has, as far as an `Exists` or a walk's condition asks: none or some; none of a word that
+/// holds no body.
+pub(crate) fn has_row(frame: &mut StepFrame<'_, '_>, body: Option<ReadBody>) -> Count {
+    let Some(body) = body else {
         return Count(0);
     };
     match body.record {
-        BodyRecord::Inline { entry } => Count(
-            usize::try_from(frame.ports.run(frame, entry, RunMode::Exists).0).unwrap_or(usize::MAX),
-        ),
+        BodyRecord::Inline { entry } => {
+            // A body that is one `Yield` has a row whatever the candidate: no run is entered for it.
+            let first = frame
+                .fill
+                .programs
+                .code
+                .words
+                .get(usize::try_from(entry.0).unwrap_or(usize::MAX));
+            if first.is_some_and(|word| word.op == Op::Yield) {
+                return Count(1);
+            }
+            Count(
+                usize::try_from(frame.ports.run(frame, entry, RunMode::Exists).0)
+                    .unwrap_or(usize::MAX),
+            )
+        }
         BodyRecord::Call {
             entry,
             memo,
@@ -239,10 +300,11 @@ pub(crate) fn kept_key(frame: &mut StepFrame<'_, '_>, registers: PoolAt, count: 
 
 /// Asks the body of an `Exists` word whether it has a row, once per key when the word keeps its answer, and leaves the
 /// answer in the state for the word's item.
-pub(crate) fn exists(frame: &mut StepFrame<'_, '_>, word: CodeWord) {
+pub(crate) fn exists(frame: &mut StepFrame<'_, '_>, word: CodeWord, at: CodeEntry) {
     let asking = exists_of(word);
+    let body = body_of(frame, at);
     if asking.flag.0 & STORAGE.0 == 0 {
-        let found = has_row(frame, asking.body);
+        let found = has_row(frame, body);
         frame.state.answer = BodyAnswer {
             first: Count(0),
             rows: found,
@@ -258,7 +320,7 @@ pub(crate) fn exists(frame: &mut StepFrame<'_, '_>, word: CodeWord) {
     let found = match kept {
         Some(answer) => row_count(&frame.state.memos, answer),
         None => {
-            let found = has_row(frame, asking.body);
+            let found = has_row(frame, body);
             let LoopState { memos, key, .. } = &mut *frame.state;
             let _kept: MemoId = keep(
                 memos,

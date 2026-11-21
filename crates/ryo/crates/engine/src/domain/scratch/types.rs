@@ -1,16 +1,18 @@
 //! The types of the `scratch` concept: a worker's per-file state.
 
+use crate::domain::code::records::types::{PooledOperand, ReadBody};
 use crate::domain::code::types::RelationNumber;
 use crate::domain::code::types::{CodeEntry, WordSlot};
 use crate::domain::filled::errors::FilledError;
 use crate::domain::findings::types::InstructionCount;
 use crate::domain::indexes::types::{FileStamp, RowRun};
-use crate::domain::made_tables::types::FillStore;
+use crate::domain::made_tables::columns::types::HeldColumn;
 use crate::domain::made_tables::types::FillWork;
-use crate::domain::memos::types::{ChargedUnit, MemoId, MemoMap, RuleStamp};
+use crate::domain::made_tables::types::{FillStore, KeyFrom};
+use crate::domain::memos::types::{CellSpan, ChargedUnit, MemoId, MemoMap, RuleStamp};
 use crate::domain::needs::types::NeedVerdict;
 use crate::domain::stages::types::{BatchRow, BatchValue, CallScratch, FanRows};
-use crate::domain::steps::types::MadeTableId;
+use crate::domain::steps::types::{MadeTableId, Register};
 use ryo_language::domain::facts::types::{CellWord, FileWords};
 use ryo_language::domain::node_table::types::PresenceWord;
 use ryo_operators::domain::table_scratch::types::Patterns;
@@ -131,6 +133,18 @@ pub(crate) struct LoopState {
     pub(crate) kept: Vec<BatchRow>,
     /// The room a walk of the tree writes what it reaches in, lent to the fill side's kernel.
     pub(crate) fan: FanRows,
+    /// The rule that last read each index site, by the site's number: a site the running rule read before in this file
+    /// needs neither its table's need nor its charge asked again.
+    pub(crate) site_reads: Vec<RuleStamp>,
+    /// Where the column of each `Read` of a made table or of a filled relation lies, by the word's slot
+    /// (`DecodedCode.lists`): asked of the fill side at the word's first read in a file, and good for that file.
+    pub(crate) held_reads: Vec<HeldRead>,
+    /// What the loop reads of the code at a step in place of the pool: read from the pool once, when the worker's
+    /// state is made for a rule set, and kept for the worker's life.
+    pub(crate) decoded: DecodedCode,
+    /// The answer of each call-form pattern asked with a key of constants alone, by its memo site: such a pattern has one
+    /// answer a file, found again with no hash. Emptied for each file.
+    pub(crate) site_answers: Vec<Option<MemoId>>,
     /// What a call of a per-row meaning works in and answers, lent to the fill side's kernel for a batch of one row.
     pub(crate) calls: CallRoom,
     /// The elements a closure has met: the room of the closure being walked, lent to it and given back.
@@ -328,4 +342,44 @@ pub(crate) struct CallRoom {
     pub(crate) spans: Vec<RowRun>,
     /// The meanings' scratch.
     pub(crate) scratch: CallScratch,
+}
+
+/// What the loop reads of the code at a step in place of the pool. About 32 bytes a word of the code for `bodies`, 16 a
+/// word for `lists`, 8 a slot of the pool for `parts_at`, and the three stretches' own cells, per worker.
+#[derive(Debug, Default)]
+pub(crate) struct DecodedCode {
+    /// The body record of each word over one body (`Exists`, `Nearest`, `Closure`), by the word's place.
+    pub(crate) bodies: Vec<Option<ReadBody>>,
+    /// By the word's place: an `Or`'s stretch of `or_bodies`, a `Call`'s stretch of `operands`, the one slot of
+    /// `LoopState.held_reads` of a `Read` of a made table or of a filled relation.
+    pub(crate) lists: Vec<CellSpan>,
+    /// The body records of every `Or`, each word's one after the other.
+    pub(crate) or_bodies: Vec<ReadBody>,
+    /// The argument operands of every `Call` word, each word's one after the other.
+    pub(crate) operands: Vec<Option<PooledOperand>>,
+    /// The parts of every call-form body's ask, each body's one after the other.
+    pub(crate) parts: Vec<AskPart>,
+    /// By the pool place of a call-form body's formals: where its parts start in `parts`, and one; nought for none.
+    pub(crate) parts_at: Vec<Count>,
+}
+
+/// A column a `Read` word reads, as the fill side holds it for one file.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct HeldRead {
+    /// The file it was asked in; none before the word's first read.
+    pub(crate) file: Option<FileStamp>,
+    /// Where the column lies.
+    pub(crate) column: HeldColumn,
+}
+
+/// One bound column of a call-form body's ask: the formal register the pattern reads it from, the operand the asker
+/// gives, and whether the whole ask's key is of constants alone (said on each part of the ask).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct AskPart {
+    /// The formal register.
+    pub(crate) formal: Register,
+    /// The operand; none when the pool does not hold it.
+    pub(crate) value: Option<PooledOperand>,
+    /// Whether the ask's key changes with the row.
+    pub(crate) from: KeyFrom,
 }
