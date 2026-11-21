@@ -7,7 +7,7 @@ use ryo_engine::domain::findings::types::{
 };
 use ryo_language::domain::facts::service::text;
 use ryo_language::domain::facts::types::{CellWord, FileWords};
-use ryo_language::domain::node_table::service::{element_count, implied_of, span_of};
+use ryo_language::domain::node_table::service::{element_count, implied_of, own_end, span_of};
 use ryo_language::domain::node_table::types::{Implied, NodeTable};
 use ryo_relations::domain::relations::service::{from_bits, location, node_file, node_position};
 use ryo_relations::domain::relations::types::{Bits, CellKind, FileId, Locatedness, Span, Value};
@@ -46,7 +46,11 @@ impl RowKeeper<'_> {
                         let position = node_position(node);
                         let within = usize::from(position) < element_count(self.table).0;
                         let written = implied_of(self.table, position) == Implied::No;
-                        (node_file(node) == self.file && within && written).then(|| {
+                        // SPIKE (ryo-fmx3.1, K): an element of an embedded segment (the expression of a string read as a
+                        // type) places nothing, as in today's engine's rows: the oracle's row of such a finding has no
+                        // line and no column.
+                        let own = position < own_end(self.table);
+                        (node_file(node) == self.file && within && written && own).then(|| {
                             let span = span_of(self.table, position);
                             Span {
                                 start: span.start,

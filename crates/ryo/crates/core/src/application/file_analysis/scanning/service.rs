@@ -9,7 +9,7 @@ use super::super::service::FileAnalysis;
 use super::super::streaming::service::FileVisits;
 use super::super::types::{RowsDiffer, ScanState, ScannedRun, Scanning, StreamRun, Streaming};
 use crate::domain::found_rows::service::{first_difference, render_found};
-use crate::domain::found_rows::types::{Compared, FoundInput};
+use crate::domain::found_rows::types::{Compared, ComparedRow, FoundInput};
 use crate::domain::ordering::types::Ordered;
 use crate::domain::render::service::{rendered_limit, shown_by};
 use crate::domain::render::types::{Answering, FindingRule, Rendered};
@@ -27,9 +27,7 @@ use ryo_execution::inbound::use_cases::metadata::interface::{
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use ryo_language::domain::files::types::{FilePath, SourcePath};
 use ryo_language::domain::symbols::types::ByteSlice;
-use ryo_operators::spike::{
-    EngineMode, engine_after_the_files, engine_compared, engine_difference,
-};
+use ryo_operators::spike::{EngineMode, engine_compared, engine_difference};
 use ryo_relations::domain::relations::types::FileId;
 use ryo_values::domain::files::types::{CorpusInput, SourceView};
 use ryo_values::domain::records::types::{Unread, Unreadable};
@@ -57,11 +55,6 @@ impl Scanning<'_> {
     fn compared(&self, by: RuleSetNumber, rule: RuleNumber) -> Option<Compared<'_>> {
         let ordinal = SelectedRuleOrdinal(rule.0);
         let at = usize::try_from(rule.0).unwrap_or(usize::MAX);
-        // Spike (ryo-fmx3.1): a rule today's engine emits after the files has no rows of a file as they leave: its findings
-        // are compared as a whole, outside the run.
-        if self.late.get(at) == Some(&true) {
-            return None;
-        }
         // The rule set's pack says what a row of a rule it runs emits: none for a rule it does not run.
         let (emit, id) = (
             self.scan.emit(&self.session, by, ordinal)?,
@@ -105,7 +98,19 @@ impl FileVisits {
         let Some(by) = state.by else {
             return;
         };
-        let differing = first_difference(old, &state.rendered, &|rule| scanning.compared(by, rule));
+        let later = |rule: RuleNumber| scanning.later.binary_search(&rule).is_ok();
+        let differing = first_difference(old, &state.rendered, &|rule| {
+            (!later(rule)).then(|| scanning.compared(by, rule)).flatten()
+        });
+        if !scanning.later.is_empty() {
+            let rows = crate::domain::found_rows::service::compared_rows(&state.rendered, &|rule| {
+                later(rule).then(|| scanning.compared(by, rule)).flatten()
+            });
+            for (rule, mut each) in rows {
+                state.later.rows.entry(rule).or_default().append(&mut each);
+            }
+            state.later.by.get_or_insert(by);
+        }
         if let (Some(difference), None) = (differing, &state.failure) {
             let at = usize::try_from(difference.rule.0).unwrap_or(usize::MAX);
             let place = usize::try_from(job.0).unwrap_or(usize::MAX);
@@ -123,25 +128,70 @@ impl FileVisits {
         }
     }
 
+    /// SPIKE (ryo-fmx3.1): beside the old engine, the new engine's rows of the rules today's engine runs after the files,
+    /// gathered in `new`, against `old`, today's rows that left after the files: the first difference fails the run.
+    pub(crate) fn compare_later(
+        scanning: &Scanning<'_>,
+        new: &crate::domain::found_rows::types::LaterRows,
+        old: &Rendered,
+    ) -> Result<(), FileAnalysisError> {
+        let Some(by) = new.by.or_else(|| (!scanning.session.rule_sets.is_empty()).then_some(RuleSetNumber(0))) else {
+            return Ok(());
+        };
+        if scanning.mode() != EngineMode::Both || scanning.later.is_empty() {
+            return Ok(());
+        }
+        let later = |rule: RuleNumber| scanning.later.binary_search(&rule).is_ok();
+        let before = crate::domain::found_rows::service::compared_rows(old, &|rule| {
+            later(rule).then(|| scanning.compared(by, rule)).flatten()
+        });
+        // A finding's last two cells are its line and column, which today's engine leaves empty in the rows it makes after
+        // the files (the report holds the span they are made from, which is compared): they are not compared here.
+        let placed = |rows: Option<&Vec<ComparedRow>>| {
+            let mut rows: Vec<ComparedRow> = rows
+                .into_iter()
+                .flatten()
+                .map(|row| match scanning.answering {
+                    Answering::Findings => ComparedRow(
+                        row.0.rsplitn(3, '\t').last().unwrap_or_default().into(),
+                    ),
+                    Answering::Rows(_) => row.clone(),
+                })
+                .collect();
+            rows.sort_unstable();
+            rows
+        };
+        let rules: std::collections::BTreeSet<RuleNumber> =
+            before.keys().chain(new.rows.keys()).copied().collect();
+        for rule in rules {
+            let (old, new) = (placed(before.get(&rule)), placed(new.rows.get(&rule)));
+            let Some(at) = (0..old.len().max(new.len())).find(|at| old.get(*at) != new.get(*at)) else {
+                continue;
+            };
+            let place = usize::try_from(rule.0).unwrap_or(usize::MAX);
+            let said = RowsDiffer {
+                rule: scanning.ids.get(place),
+                file: None,
+                old: old.get(at).cloned(),
+                new: new.get(at).cloned(),
+            };
+            return Err(FileAnalysisError::Execution(OperatingError::EngineHarness {
+                reason: engine_difference(&said),
+            }));
+        }
+        Ok(())
+    }
+
     /// Says the two engines' rows were compared and equal, when the run compared them: how many rules the new engine ran.
     pub(in crate::application::file_analysis) fn compared(scanning: &Scanning<'_>) {
         if scanning.mode() == EngineMode::Both {
-            let late = |rule: &SelectedRuleOrdinal| {
-                let at = usize::try_from(rule.0).unwrap_or(usize::MAX);
-                scanning.late.get(at) == Some(&true)
-            };
-            let (mut rules, mut after) = (0, 0);
-            for at in 0..scanning.session.rule_sets.len() {
-                for rule in scanning.scan.accepted(&scanning.session, RuleSetNumber(at)) {
-                    if late(rule) {
-                        after += 1;
-                    } else {
-                        rules += 1;
-                    }
-                }
-            }
+            let rules: usize = (0..scanning.session.rule_sets.len())
+                .map(|at| {
+                    let accepted = scanning.scan.accepted(&scanning.session, RuleSetNumber(at));
+                    accepted.len()
+                })
+                .sum();
             engine_compared(rules);
-            engine_after_the_files(after);
         }
     }
 
@@ -307,6 +357,7 @@ impl FileAnalysis {
                 file: number,
                 source: ByteSlice(&state.bytes.0),
                 executable: entry.executable,
+                hosted: Some(&scanning.hosted),
             },
             &mut state.rows,
             &mut state.noticed,

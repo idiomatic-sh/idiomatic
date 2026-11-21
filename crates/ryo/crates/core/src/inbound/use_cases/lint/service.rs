@@ -161,6 +161,7 @@ pub(super) fn answer(
         mut met,
         counted,
         total,
+        later: later_new,
     } = visits.visited(&stream, visit, run.scanning)??;
     let fresh = order(&mut met);
     let WorkersMet {
@@ -248,6 +249,8 @@ pub(super) fn answer(
         unknowns: mut observation_unknowns,
         mut later,
     } = answered;
+    // SPIKE (ryo-fmx3.1): beside the old engine, the rows today's engine made after the files against the new engine's.
+    FileVisits::compare_later(run.scanning, &later_new, &later)?;
     // The files whose bytes could not be read, before the refused manifests join them: the next run reads them again.
     let failed = read_outcomes(&mut unread, unrecorded, &now.refused);
     unknowns.append(&mut observation_unknowns);

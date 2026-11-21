@@ -227,9 +227,9 @@ pub(crate) fn compared(
         | TestOperation::NotGlob
         | TestOperation::StartsWith
         | TestOperation::EndsWith
-        | TestOperation::NumericAtLeast
+        | TestOperation::NumericAtLeast(_)
         | TestOperation::NaturalLess
-        | TestOperation::Successor => {
+        | TestOperation::Successor(_) => {
             branch.atoms.push(FlatAtom::Test { test, left, right });
             Some(branch)
         }

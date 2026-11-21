@@ -96,5 +96,9 @@ pub(crate) fn closure(frame: &mut StepFrame<'_, '_>, word: CodeWord, at: CodeEnt
     } = &mut *frame.state;
     work.visited = InstructionCount(work.visited.0.saturating_add(given));
     budget.visited = InstructionCount(budget.visited.0.saturating_add(given));
-    answer.rows = Count(staged.len().saturating_sub(first));
+    // The whole answer is written again: a word the edges' body ran (a `Nearest`, an `Or`) left its own in the state.
+    *answer = BodyAnswer {
+        first: Count(first),
+        rows: Count(staged.len().saturating_sub(first)),
+    };
 }

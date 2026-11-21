@@ -16,7 +16,8 @@ use crate::domain::lowering::definitions::service::draft;
 use crate::domain::lowering::definitions::types::{Drafts, RowEstimate};
 use crate::domain::lowering::flattening::service::made_column;
 use crate::domain::lowering::flattening::types::{
-    EdgeColumns, EdgeRows, FlatBranch, FlatTerm, FlatVariable, RowColumn,
+    AtomRows, EdgeColumns, EdgeRows, FlatAtom, FlatBranch, FlatTerm, FlatVariable, NearestOver,
+    RowColumn,
 };
 use crate::domain::lowering::placement::patterns::service::given;
 use crate::domain::lowering::planning::completing::service::completed;
@@ -218,6 +219,52 @@ pub(crate) fn closure(
         steps: times(reach, plus(step.steps, ONE)),
         once: step.once,
     }
+}
+
+/// How deep a view of a view is looked through for a walk.
+const VIEWS_LOOKED_THROUGH: usize = 4;
+
+/// Whether a definition's rows are a walk's own: a branch of it holds a closure or a climb over derived edges, or is a
+/// view of such a definition (the one source of its rows is a use of it). Read whole, such a definition is every pair
+/// its walk reaches in the file, which no estimate of the plan sees (`swarm/cut`: "a probe is preferred only when the
+/// definition's sub-program walks no closure and no nearest-over-edges"). A definition that only asks such a walk by a
+/// key, among other sources of rows, is not one: its rows are bounded by those sources.
+pub(crate) fn walks_edges(drafts: &Drafts, definition: DefinitionId, depth: usize) -> bool {
+    let Some(draft) = draft(drafts, definition) else {
+        return false;
+    };
+    draft.branches.iter().any(|branch| {
+        let walks = branch.atoms.iter().any(|atom| {
+            matches!(
+                atom,
+                FlatAtom::Closure { .. }
+                    | FlatAtom::Nearest {
+                        over: NearestOver::Derived(_),
+                        ..
+                    }
+            )
+        });
+        let mut sources = branch.atoms.iter().filter_map(|atom| match atom {
+            FlatAtom::Rows { rows, .. } => Some(*rows),
+            FlatAtom::Latest { .. }
+            | FlatAtom::Decided { .. }
+            | FlatAtom::Walk { .. }
+            | FlatAtom::Nearest { .. }
+            | FlatAtom::Closure { .. }
+            | FlatAtom::Called { .. }
+            | FlatAtom::Test { .. } => None,
+        });
+        let view = match (sources.next(), sources.next()) {
+            (Some(AtomRows::Definition(used)), None) => {
+                depth < VIEWS_LOOKED_THROUGH && walks_edges(drafts, used, depth + 1)
+            }
+            (
+                Some(AtomRows::Definition(_) | AtomRows::Made(_) | AtomRows::Relation(_)) | None,
+                _,
+            ) => false,
+        };
+        walks || view
+    })
 }
 
 /// Runs `planning` with the uses costed so far for the pack of `drafts`: what it costs is kept for the pack's next branch.

@@ -237,3 +237,123 @@ impl FileVisits {
         projected.ok_or(SchedulerError::NoWorkers)
     }
 }
+
+impl FileAnalysis {
+    /// SPIKE (ryo-fmx3.1): the project's rows of the `wanted` relations of project scope, for the new engine's scans: made as
+    /// today's run makes them (`project_now`'s reading, into a writer that keeps them), after a pass of today's reader over
+    /// each file for its notes when a wanted relation is made from them. Nothing is made when no wanted relation is the
+    /// project's. The notes pass reads every file once more: its cost is noted, not optimised.
+    pub(crate) fn hosted_project(
+        &self,
+        files: &[CorpusInput],
+        session: &ryo_values::domain::runs::types::Session,
+        manifests: &[ryo_language::inbound::use_cases::project::types::ManifestFile],
+        wanted: &[ryo_relations::domain::relations::types::Relation],
+        source_language: Option<&ryo_values::domain::descriptions::types::LanguageName>,
+    ) -> Result<
+        ryo_execution_runtime::application::file_scan::hosted::types::HostedRows,
+        FileAnalysisError,
+    > {
+        use ryo_execution_runtime::application::file_scan::hosted::service::kept;
+        use ryo_execution_runtime::application::file_scan::hosted::types::{HostedRows, HostedWriter};
+        use ryo_relations::domain::catalog::service::{needs_notes, scope_of};
+        use ryo_relations::domain::catalog::types::{RelationNotes, RowScope};
+        let held: Vec<_> = wanted
+            .iter()
+            .copied()
+            .filter(|relation| scope_of(*relation) == RowScope::Project)
+            .collect();
+        if held.is_empty() {
+            return Ok(HostedRows::default());
+        }
+        let noted = held
+            .iter()
+            .any(|relation| needs_notes(*relation) == RelationNotes::Needed);
+        let notes = ProjectNotes(if noted {
+            self.notes_of(files, source_language)?
+        } else {
+            vec![None; files.len()]
+        });
+        let input = ProjectToRead {
+            root: &session.root,
+            repository: session.repository,
+            search_scope: &session.search_scope,
+            given_inventory: &session.given_inventory,
+            observed_entries: &Default::default(),
+            manifests,
+            files,
+            notes: &notes,
+            wanted,
+        };
+        let mut candidates = self.language.project_entries(&input).0;
+        candidates.sort_unstable();
+        candidates.dedup();
+        let observed_entries = ryo_language::domain::project_context::service::observed(
+            candidates
+                .iter()
+                .map(|path| self.corpus.observe_entry(path))
+                .collect(),
+        );
+        let input = ProjectToRead {
+            observed_entries: &observed_entries,
+            ..input
+        };
+        let (mut symbols, mut writer) = (Symbols::default(), HostedWriter::default());
+        let _answer = self.language.project(&input, &mut symbols, &mut writer)?;
+        Ok(kept(writer, &symbols, held))
+    }
+
+    /// SPIKE (ryo-fmx3.1): what today's reader writes of each file for the project, in the order of the files: none for a
+    /// file that is not read.
+    fn notes_of(
+        &self,
+        files: &[CorpusInput],
+        source_language: Option<&ryo_values::domain::descriptions::types::LanguageName>,
+    ) -> Result<Vec<Option<ryo_values::domain::stored_facts::types::FileNotes>>, FileAnalysisError> {
+        use crate::outbound::language::types::{
+            FileReading, FileToRead, NoteWriting, RoleWriting, SourceSelection,
+        };
+        use ryo_language::domain::elements::service::take_notes;
+        use ryo_values::domain::stored_facts::types::{FileNotes, NoteBytes};
+        let (mut bytes, mut table) = (
+            FileBytes::default(),
+            ryo_language::domain::elements::types::Elements::default(),
+        );
+        let mut notes = Vec::with_capacity(files.len());
+        for (at, input) in files.iter().enumerate() {
+            let CorpusInput::Available(entry) = input else {
+                notes.push(None);
+                continue;
+            };
+            bytes.0.clear();
+            if self.corpus.read(entry, &mut bytes).is_err() {
+                notes.push(None);
+                continue;
+            }
+            let mut symbols = Symbols::default();
+            let read = FileToRead {
+                source_language: source_language
+                    .map_or(SourceSelection::Recognized, SourceSelection::Named),
+                path: &entry.path,
+                file: ryo_relations::domain::relations::types::FileId(
+                    u32::try_from(at).unwrap_or(u32::MAX),
+                ),
+                bytes: &bytes,
+                wanted: &[],
+                notes: NoteWriting::Wanted,
+                roles: RoleWriting::Unwanted,
+            };
+            let FileReading::Read(language) = self.language.parse(read, &mut table, &mut symbols)
+            else {
+                notes.push(None);
+                continue;
+            };
+            let written = take_notes(&mut table).0;
+            notes.push((!written.is_empty()).then(|| FileNotes {
+                language,
+                notes: NoteBytes(written),
+            }));
+        }
+        Ok(notes)
+    }
+}

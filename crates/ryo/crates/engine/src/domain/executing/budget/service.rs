@@ -364,7 +364,7 @@ fn fill_work(programs: &Programs, fill: FillTally) -> HeaviestWork {
             HeaviestWork::Group { read, made }
         }
         Ok(FillKind::Sorted) => HeaviestWork::Sorted { rows: made },
-        Ok(FillKind::Follow) => HeaviestWork::Graph { read, made },
+        Ok(FillKind::Follow | FillKind::Visits) => HeaviestWork::Graph { read, made },
         Ok(FillKind::Rows | FillKind::Constant | FillKind::Match) | Err(_) => {
             HeaviestWork::Rows { read, made }
         }

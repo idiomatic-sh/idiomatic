@@ -158,7 +158,7 @@ pub(crate) fn fill(
             Err(_) => Some(unit),
         },
         // An ordered match has two inputs, one after the other in its record.
-        Ok((FillKind::Match, inputs)) => {
+        Ok((FillKind::Match | FillKind::Visits, inputs)) => {
             let both = input_at(code, inputs)
                 .and_then(|left| input_at(code, left.after).map(|right| [left, right]));
             match both {

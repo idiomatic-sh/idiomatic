@@ -2,9 +2,9 @@
 
 use crate::domain::lowered::types::FillInput;
 use crate::domain::lowering::definitions::types::Flattened;
-use crate::domain::lowering::flattening::types::{FlatTerm, RowColumn};
+use crate::domain::lowering::flattening::types::{FlatTerm, RowColumn, RowMeaning};
 use crate::domain::lowering::nodes::types::{AcceptedPlace, AdmittedRule, NodeStore};
-use crate::domain::steps::types::{CallMeaning, DefinitionId};
+use crate::domain::steps::types::DefinitionId;
 use ryo_relations::domain::relations::types::Count;
 use ryo_values::domain::descriptions::types::KindVocabulary;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -87,7 +87,7 @@ pub(crate) struct TableOf {
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct OperationCall<'a> {
     /// The meaning.
-    pub(crate) meaning: CallMeaning,
+    pub(crate) meaning: RowMeaning,
     /// The columns read, in the order the operation's fields are declared.
     pub(crate) reads: &'a [ColumnIndex],
     /// The constants read after them.

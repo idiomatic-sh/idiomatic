@@ -179,4 +179,5 @@ mod sizes;
 mod sources;
 mod verdict_bounds;
 mod verdicts;
+mod visits;
 mod walks;

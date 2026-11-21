@@ -61,3 +61,13 @@ pub(crate) struct RowDifference {
     /// The new engine's row.
     pub new: Option<ComparedRow>,
 }
+
+/// SPIKE (ryo-fmx3.1): the new engine's rows of the rules whose rows today's engine makes after the files, as the text they
+/// are compared by, by rule, gathered over the files a run compared; and the rule set whose language walked them.
+#[derive(Debug, Default)]
+pub(crate) struct LaterRows {
+    /// The rows, by rule.
+    pub rows: std::collections::BTreeMap<RuleNumber, Vec<ComparedRow>>,
+    /// The rule set that ran them, when one did.
+    pub by: Option<ryo_execution::inbound::use_cases::file_scan::types::RuleSetNumber>,
+}

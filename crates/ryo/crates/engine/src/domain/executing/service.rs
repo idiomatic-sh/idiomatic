@@ -38,6 +38,7 @@ use crate::domain::programs::collections::instructions::nearest::item::Nearest;
 use crate::domain::programs::collections::instructions::or::item::Or;
 use crate::domain::programs::collections::instructions::reached::item::Closure;
 use crate::domain::programs::collections::instructions::read::item::Read;
+use crate::domain::programs::collections::instructions::render::item::Render;
 use crate::domain::programs::collections::instructions::within::item::Within;
 use crate::domain::programs::collections::instructions::yield_row::item::YieldRow;
 use crate::domain::programs::frames::types::{RunMode, StepFrame};
@@ -108,6 +109,7 @@ fn step<C: WordCounter>(
         | Op::TestNotEqualRegister
         | Op::TestInConstants => Test::run(frame, word, at),
         Op::Let => LetValue::run(frame, word, at),
+        Op::Render => Render::run(frame, word, at),
         Op::Emit => Emit::run(frame, word, at),
         Op::Exists => {
             // A body asked where the word stands is run by this loop itself: no answer kept, no call through the ports.
@@ -175,7 +177,6 @@ fn step<C: WordCounter>(
         Op::EachRange
         | Op::Children
         | Op::ChildrenOfField
-        | Op::Render
         | Op::StageScan
         | Op::StageProbe
         | Op::StageLatest

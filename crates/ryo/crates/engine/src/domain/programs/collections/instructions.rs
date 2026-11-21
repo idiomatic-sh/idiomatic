@@ -17,5 +17,6 @@ pub mod nearest;
 pub mod or;
 pub mod reached;
 pub mod read;
+pub mod render;
 pub mod within;
 pub mod yield_row;

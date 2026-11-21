@@ -3,7 +3,8 @@
 //! runs nothing and has nothing made for it.
 
 use crate::domain::code::filling::service::stage_scan_of;
-use crate::domain::code::types::{CodeEntry, IndexSite, RelationNumber};
+use crate::domain::code::records::service::visit_columns_at;
+use crate::domain::code::types::{CodeEntry, IndexSite, PoolAt, RelationNumber};
 use crate::domain::filled::errors::FilledError;
 use crate::domain::filled::service::whole;
 use crate::domain::filled::types::{FillRuns, MissingCode, RelationAsk, UnbuiltFill};
@@ -32,6 +33,7 @@ use crate::domain::made_tables::types::{
     FillFrame, FillKept, FillWork, MadeNow, MadeState, PatternRows, Reached, ReadSource,
     SourceWork, TableNeed, TableRows, TableSlot,
 };
+use crate::domain::made_tables::visiting::service::{VisitTold, visit_groups};
 use crate::domain::made_tables::writing::service::{fill_begun, fill_ended};
 use crate::domain::steps::types::MadeTableId;
 use ryo_relations::domain::relations::types::Count;
@@ -282,6 +284,52 @@ fn filled_now(
             let input = input_at(programs.code, fill.inputs)?;
             laid(frame, input, rows)?;
             input_piped(frame, uses, table, input, rows, kept)
+        }
+        FillKind::Visits => {
+            let FillKept { work, reached } = kept;
+            let wrong = FilledError::Code {
+                named: MissingCode::Column,
+            };
+            // The record's parameter is the place of the told columns; its inputs are the roots, then the edges.
+            let columns = visit_columns_at(&programs.code.pool, PoolAt(fill.parameter.0))
+                .ok_or(wrong.clone())?;
+            let roots = input_at(programs.code, fill.inputs)?;
+            let edges = input_at(programs.code, roots.after)?;
+            let told = VisitTold {
+                columns,
+                root_keys: roots.keys,
+                edge_keys: edges.keys,
+                order: edges.order.ok_or(wrong)?,
+            };
+            let mut gathered = [
+                frame.store.inputs.pop().unwrap_or_default(),
+                frame.store.inputs.pop().unwrap_or_default(),
+            ];
+            let mut piped = Ok(());
+            for (input, into) in [roots, edges].into_iter().zip(gathered.iter_mut()) {
+                if piped.is_ok() {
+                    let kept = FillKept {
+                        work: &mut *work,
+                        reached: &mut *reached,
+                    };
+                    piped = gathered_in(frame, uses, table, input, into, kept);
+                }
+            }
+            let [gathered_roots, gathered_edges] = gathered;
+            let done = piped.and_then(|()| {
+                visit_groups(&gathered_roots, &gathered_edges, told, rows)
+                    .map_err(|fault| FilledError::Meaning { fault })
+            });
+            work.read = Count(
+                work.read
+                    .0
+                    .saturating_add(gathered_roots.count.0)
+                    .saturating_add(gathered_edges.count.0),
+            );
+            work.given = Count(work.given.0.saturating_add(rows.count.0));
+            frame.store.inputs.push(gathered_roots);
+            frame.store.inputs.push(gathered_edges);
+            done
         }
         FillKind::Match => {
             let FillKept { work, reached } = kept;

@@ -21,7 +21,7 @@ fn number_of<'a>(datum: &Datum<'a>) -> Option<Numeric<'a>> {
 }
 
 /// Exact integer/binary64 ordering.
-pub(crate) struct NumericItem;
+pub struct NumericItem;
 
 impl ComparisonsItem for NumericItem {
     fn holds(

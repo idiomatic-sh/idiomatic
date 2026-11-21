@@ -233,9 +233,11 @@ pub(crate) struct Scanning<'a> {
     /// plan's last, and an appended step is its join's. No step for a rule whose plan has no such join, and none for a
     /// run read back from the store, which compiles no plan: a noticed step is then the step it says.
     pub compiled: Vec<Vec<ryo_values::domain::plan_parts::types::StepId>>,
-    /// For each selected rule, by rule number: whether today's engine emits its rows after the files. Its rows are no file's
-    /// rows as they leave, so `both` does not compare them file by file. Empty for a run that compiles no plan.
-    pub late: Vec<bool>,
+    /// SPIKE (ryo-fmx3.1): the project's rows the host hands each file's scan; none until the run makes them.
+    pub hosted: Arc<ryo_execution_runtime::application::file_scan::hosted::types::HostedRows>,
+    /// SPIKE (ryo-fmx3.1): the rules, sorted, whose plans have a step today's engine runs after the files: beside the old
+    /// engine their rows are compared once the old engine's leave, not file by file.
+    pub later: Vec<ryo_values::domain::runs::types::RuleNumber>,
 }
 
 /// A warning of a run, as its report lists it: the rule, the file, and the warning as it was printed when it was noticed.
@@ -304,6 +306,8 @@ pub(crate) struct ScanState {
     pub notices: Vec<Notice>,
     /// The failure that stopped the worker, when one did.
     pub failure: Option<FileAnalysisError>,
+    /// SPIKE (ryo-fmx3.1): beside the old engine, the new engine's rows of the rules today's engine runs after the files.
+    pub later: crate::domain::found_rows::types::LaterRows,
 }
 
 /// What a run the new engine scanned alone answers once its rows are written: the files no language walked, what the rules could

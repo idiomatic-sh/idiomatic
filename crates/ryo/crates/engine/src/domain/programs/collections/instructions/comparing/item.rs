@@ -162,9 +162,9 @@ fn general(frame: &mut StepFrame<'_, '_>, word: CodeWord) -> Verdict {
             | TestOperation::Matches(_)
             | TestOperation::StartsWith
             | TestOperation::EndsWith
-            | TestOperation::NumericAtLeast
+            | TestOperation::NumericAtLeast(_)
             | TestOperation::NaturalLess
-            | TestOperation::Successor => Verdict::Unbuilt,
+            | TestOperation::Successor(_) => Verdict::Unbuilt,
         };
     }
     let right = if read.flag.0 & RIGHT_CONSTANT.0 == 0 {
@@ -188,9 +188,9 @@ fn general(frame: &mut StepFrame<'_, '_>, word: CodeWord) -> Verdict {
             | TestOperation::NotGlob
             | TestOperation::StartsWith
             | TestOperation::EndsWith
-            | TestOperation::NumericAtLeast
+            | TestOperation::NumericAtLeast(_)
             | TestOperation::NaturalLess
-            | TestOperation::Successor,
+            | TestOperation::Successor(_),
         ) => text(frame, operation, text_left, Some(right), None),
     }
 }

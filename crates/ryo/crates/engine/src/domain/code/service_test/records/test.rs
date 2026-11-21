@@ -224,9 +224,9 @@ fn small_codes() -> String {
         TestOperation::NotGlob,
         TestOperation::StartsWith,
         TestOperation::EndsWith,
-        TestOperation::NumericAtLeast,
+        TestOperation::NumericAtLeast(crate::domain::steps::types::TEXTS),
         TestOperation::NaturalLess,
-        TestOperation::Successor,
+        TestOperation::Successor(crate::domain::steps::types::TEXTS),
     ];
     let mut meanings = vec![
         CallMeaning::SpanBetween,

@@ -634,7 +634,7 @@ const SCANNED: &[Case<Vec<Plan>, Value, Failure>] = &[
     scanned_said(
         "the_files_words_joined_with_a_few_written_rows_find_each_word_a_row_names",
         || vec![words_written_among(3)],
-        "refused [], rows Some(2)\nrule 0: 4 branches\n  branch: EachMatch:File EachMatch:Fanout Emit:Constant\n  branch: EachMatch:File EachMatch:Fanout Emit:Constant\n  branch: EachMatch:File EachMatch:Fanout Emit:Constant\n  branch: EachMatch:File EachMatch:Fanout Emit:Constant",
+        "refused [], rows Some(2)\nrule 0: 4 branches\n  branch: EachMatch:File Exists:Constant Emit:Constant\n  branch: EachMatch:File Exists:Constant Emit:Constant\n  branch: EachMatch:File Exists:Constant Emit:Constant\n  branch: EachMatch:File Exists:Constant Emit:Constant",
     ),
     scanned_said(
         "the_files_words_joined_with_many_written_rows_find_each_word_a_row_names",

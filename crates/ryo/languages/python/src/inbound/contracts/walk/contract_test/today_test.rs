@@ -82,7 +82,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
 const NOT_EMBEDDED: &[Relation] = &[
     Relation::ConstantKey,
     Relation::ExpressionShape,
-    Relation::ExpressionType,
     Relation::LiteralProperties,
     Relation::SourceLocation,
 ];

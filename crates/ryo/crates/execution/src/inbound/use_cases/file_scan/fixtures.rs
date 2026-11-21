@@ -189,5 +189,6 @@ pub fn file<'a>(number: u32, path: &'a str, source: &'a [u8]) -> FileToScan<'a> 
         file: FileId(number),
         source: ByteSlice(source),
         executable: Default::default(),
+        hosted: None,
     }
 }

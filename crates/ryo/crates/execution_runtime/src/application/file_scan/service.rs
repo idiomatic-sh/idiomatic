@@ -28,6 +28,8 @@ use ryo_relations::domain::relations::collections::relations::filesystem_file::i
 use ryo_relations::domain::relations::collections::relations::interface::RelationsItem;
 use ryo_relations::domain::relations::types::{FileId, Flag, Missing, Relation};
 use ryo_values::domain::files::types::ExecutablePermission;
+use super::hosted::service::{HostedFacts, NoLanguage, holds_file};
+use super::hosted::types::HostedRows;
 use ryo_language::domain::node_table::types::NodeTable;
 use ryo_language::inbound::use_cases::walk::errors::WalkError;
 use ryo_language::inbound::use_cases::walk::types::{FileVisit, WalkEngine, WalkRequest};
@@ -133,6 +135,7 @@ pub fn worker(
         },
         report: ScanReport::default(),
         executable: ExecutablePermission::Unknown,
+        hosted: Arc::default(),
     }
 }
 
@@ -166,6 +169,8 @@ struct Visiting<'a> {
     answer: Option<Result<ScanCounters, ScanError>>,
     /// Whether the host saw the file as one that may be executed.
     executable: ExecutablePermission,
+    /// The project's rows the host holds.
+    hosted: &'a HostedRows,
 }
 
 /// SPIKE (ryo-fmx3.1, E): the host's rows of a file around the language's: the relations of the file as the host holds it
@@ -249,12 +254,17 @@ impl FileVisit for Visiting<'_> {
             file: file.file,
             executable: self.executable,
         };
+        let mut hosted = HostedFacts {
+            language: &mut host,
+            rows: self.hosted,
+            file: file.file,
+        };
         let file = FileFacts {
             table: file.table,
             source: file.source,
             file: file.file,
             path: file.path,
-            facts: &mut host,
+            facts: &mut hosted,
         };
         let mut keeping = RowKeeper {
             columns: self.run.columns,
@@ -305,12 +315,26 @@ fn scanned(
         misfit: None,
         answer: None,
         executable: worker.executable,
+        hosted: &worker.hosted,
     };
     let (table, buffers) = (&mut worker.table, &mut *worker.buffers);
     let needs = needs(run.programs);
-    let walked = worker
+    let mut walked = worker
         .language
         .walk_file(file, needs, table, buffers, &mut visiting);
+    // SPIKE (ryo-fmx3.1): a file no language walks that the host holds rows about (a manifest) is scanned with no node
+    // table: its rows are the host's alone.
+    if walked == Err(WalkError::Unsupported) && holds_file(visiting.hosted, file.file) {
+        let empty = NodeTable::default();
+        visiting.visit(FileFacts {
+            table: &empty,
+            source: file.source,
+            file: file.file,
+            path: file.path,
+            facts: &mut NoLanguage,
+        });
+        walked = Ok(());
+    }
     let answered = match (walked, visiting.answer, visiting.misfit) {
         (Err(cause), _, _) => Err(FileScanError::Walk { cause }),
         (Ok(()), None, _) => Err(FileScanError::NotLent),

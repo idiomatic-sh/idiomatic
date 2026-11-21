@@ -222,9 +222,9 @@ pub(crate) fn keep_stage(
             | TestOperation::NotGlob
             | TestOperation::StartsWith
             | TestOperation::EndsWith
-            | TestOperation::NumericAtLeast
+            | TestOperation::NumericAtLeast(_)
             | TestOperation::NaturalLess
-            | TestOperation::Successor,
+            | TestOperation::Successor(_),
             right,
         ) => keep_text(
             TextMeans {

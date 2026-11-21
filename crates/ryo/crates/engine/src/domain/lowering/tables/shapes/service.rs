@@ -6,7 +6,7 @@ use crate::domain::lowering::nodes::types::StepShape;
 use crate::domain::lowering::tables::sets::service::literals;
 use crate::domain::lowering::types::SelectedRule;
 use crate::domain::steps::calls::types::{SearchGroup, SearchLines, SourceSearch};
-use crate::domain::steps::types::TestOperation;
+use crate::domain::steps::types::{TEXTS, TestOperation};
 use ryo_relations::domain::relations::types::{CellKind, Count};
 use ryo_values::domain::plan_parts::types::CapturePattern;
 use ryo_values::domain::plan_parts::types::{
@@ -34,8 +34,8 @@ pub(crate) const fn test_of(test: Test) -> Option<TestOperation> {
         Test::StartsWith => TestOperation::StartsWith,
         Test::EndsWith => TestOperation::EndsWith,
         Test::Matches => TestOperation::Matches(crate::domain::steps::types::RegexId(0)),
-        Test::NumericGreaterThanOrEqual => TestOperation::NumericAtLeast,
-        Test::IntegerSuccessor => TestOperation::Successor,
+        Test::NumericGreaterThanOrEqual => TestOperation::NumericAtLeast(TEXTS),
+        Test::IntegerSuccessor => TestOperation::Successor(TEXTS),
         Test::NaturalLessThan => TestOperation::NaturalLess,
         Test::FloatTextGreaterThanOrEqual => return None,
     })

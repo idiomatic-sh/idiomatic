@@ -192,7 +192,7 @@ fn class_of(code: &ProgramCode, key: &UnitKey, unit: WordSlot) -> WorkClass {
         (UnitKey::Table(..), Some(Ok(fill))) => match fill.kind {
             FillKind::Rows | FillKind::Constant => WorkClass::RowsFill,
             FillKind::Count | FillKind::Ends | FillKind::Places => WorkClass::GroupFill,
-            FillKind::Follow => WorkClass::GraphFill,
+            FillKind::Follow | FillKind::Visits => WorkClass::GraphFill,
             FillKind::Sorted | FillKind::Match => WorkClass::OrderedFill,
         },
         (UnitKey::Table(..), Some(Err(_)) | None) => WorkClass::RowsFill,

@@ -2,7 +2,7 @@
 
 use crate::domain::lowering::observing::service::input_kinds;
 use crate::domain::lowered::types::Emptiness;
-use crate::domain::lowering::definitions::service::fresh_variable;
+use crate::domain::lowering::definitions::service::{defined, fresh_variable};
 use crate::domain::lowering::definitions::types::{Drafts, Flattened};
 use crate::domain::lowering::emptiness::service::derived;
 use crate::domain::lowering::flattening::constants::{BRANCH_ATOMS, PRODUCT_BRANCHES};
@@ -13,11 +13,14 @@ use crate::domain::lowering::flattening::types::{
     AtomRows, EqualTerms, FlatAtom, FlatBranch, FlatTerm, RowColumn,
 };
 use crate::domain::lowering::flattening::types::{NearestDomain, NearestOver};
+use crate::domain::lowering::nodes::service::digest_of;
+use crate::domain::lowering::nodes::types::{NodeHome, StepShape};
 use crate::domain::lowering::tables::closures::service::edge_rows;
-use crate::domain::lowering::tables::inputs::service::{input, rule, sized};
+use crate::domain::lowering::tables::inputs::service::{input, rule, sized, use_of};
 use crate::domain::lowering::tables::selections::service::{all_selected, asked_of, selection};
 use crate::domain::lowering::tables::service::{tree_relation, walk_of};
 use crate::domain::lowering::tables::sets::types::SetTests;
+use crate::domain::lowering::tables::shapes::service::viewed;
 use crate::domain::lowering::tables::types::InputSize;
 use crate::domain::lowering::tables::types::JoinWants;
 use crate::domain::lowering::tables::types::KeyPair;
@@ -118,6 +121,40 @@ pub(crate) fn key_pairs<'k>(
     })
 }
 
+/// What names the definition of a keyless join's right side as the join reads it (its filter and its view applied): the
+/// join's own plan node with these bytes folded in. The side is no plan step of its own, and is the same rows wherever the
+/// join's node is.
+const SIDE_OF_JOIN: [u8; 16] = *b"keyless-join-rhs";
+
+/// The right side of a keyless join as one use of a definition of its own. A side that is one read of one source already
+/// (a relation, a table of one row a file, a definition) stays that read.
+fn side_defined(
+    state: &RuleFlattening<'_>,
+    drafts: &mut Drafts,
+    step: StepId,
+    side: Flattened,
+    shape: StepShape,
+) -> Option<Flattened> {
+    let one_read = matches!(
+        side.branches.as_slice(),
+        [branch] if matches!(branch.atoms.as_slice(), [FlatAtom::Rows { .. }])
+    );
+    if one_read {
+        return Some(side);
+    }
+    let mut node = digest_of(rule(state)?, step);
+    for (byte, tag) in node.0.iter_mut().zip(SIDE_OF_JOIN) {
+        *byte ^= tag;
+    }
+    let width = Count(shape.0.len());
+    let home = NodeHome {
+        rule: state.place,
+        step,
+    };
+    let definition = defined(drafts, node, home, shape, side);
+    Some(use_of(drafts, definition, width))
+}
+
 /// The branches of a join.
 pub(crate) fn join_arm(
     state: &mut RuleFlattening<'_>,
@@ -148,6 +185,14 @@ pub(crate) fn join_arm(
     if called {
         wants.right = InputWant::Defined;
     }
+    // A join whose every key is the file's own column states no key within the file: its rows are a product. Each side
+    // of it is then one use of a definition, so that the product is of the sides' own rows (a side's filter is in its
+    // table: a bucket where the filter names one), never of a relation a side reads.
+    let keyless = key_pairs(left_on, right_on)
+        .all(|key| left_shape.0.get(key.left.0) == Some(&CellKind::File));
+    if keyless {
+        wants.left = InputWant::Defined;
+    }
     let lefts = input(state, drafts, *left, wants.left)?;
     let mut rights = input(state, drafts, *right, wants.right)?;
     let asked = asked_of(state, *right, filter, SetTests::Buckets)?;
@@ -158,6 +203,10 @@ pub(crate) fn join_arm(
             let seen = view.iter().map(|column| RowColumn(usize::from(*column)));
             branch.row = picked(&branch.row, seen)?;
         }
+    }
+    if keyless {
+        let seen = viewed(&input_kinds(&held.rule, &held.shapes, *right)?, view)?;
+        rights = side_defined(state, drafts, step, rights, seen)?;
     }
     let mut branches = Vec::with_capacity(lefts.branches.len() * rights.branches.len());
     for left_branch in &lefts.branches {
@@ -183,9 +232,6 @@ pub(crate) fn join_arm(
             }
         }
     }
-    // A join whose every key is the file's own column states no key within the file: its rows are a product.
-    let keyless = key_pairs(left_on, right_on)
-        .all(|key| left_shape.0.get(key.left.0) == Some(&CellKind::File));
     let mut stated = lefts.keyless;
     stated.extend(rights.keyless);
     if keyless {

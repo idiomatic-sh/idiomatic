@@ -25,7 +25,7 @@ use ryo_execution_runtime::outbound::digest::types::DigestBytes;
 use ryo_operators::spike::{EngineMode, engine_statistics};
 use ryo_relations::domain::relations::types::Count;
 use ryo_values::domain::hosted::service::identity as hosted_identity;
-use ryo_values::domain::plan_parts::types::{StepId, StepScope};
+use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 use ryo_values::domain::query_plans::service::{compiled_step, reach_unfolded};
 use ryo_values::domain::query_plans::types::Plan;
@@ -84,7 +84,6 @@ impl FileVisits {
         session: ScanSession,
         request: ScanRequest<'a, '_>,
         compiled: Vec<Vec<StepId>>,
-        late: Vec<bool>,
     ) -> Scanning<'a> {
         // The path of each file is read only when the new engine scans one.
         let paths = match scan.mode() {
@@ -110,7 +109,8 @@ impl FileVisits {
             unknown: self.analysis.language.unknown_reasons().0,
             queries,
             compiled,
-            late,
+            hosted: std::sync::Arc::default(),
+            later: Vec::new(),
         }
     }
 
@@ -130,7 +130,7 @@ impl FileVisits {
                 stored: &Self::packs(&request)?,
             })?,
         };
-        Ok(session.map(|session| self.over(scan, session, request, Vec::new(), Vec::new())))
+        Ok(session.map(|session| self.over(scan, session, request, Vec::new())))
     }
 
     /// The new engine's part of a run, its rule sets loaded from the compiled rules: under the old engine alone nothing is
@@ -163,15 +163,7 @@ impl FileVisits {
             EngineMode::Old => Vec::new(),
             EngineMode::New | EngineMode::Both => plans.iter().map(|plan| compiled_steps(plan)).collect(),
         };
-        // Today's engine emits a rule's rows after the files when its emitted step runs after them.
-        let late = plans
-            .iter()
-            .map(|plan| {
-                let emitted = plan.steps.get(usize::from(plan.emit.step));
-                emitted.is_some_and(|step| step.scope == StepScope::CrossFile)
-            })
-            .collect();
-        Ok(self.over(scan, session, request, compiled, late))
+        Ok(self.over(scan, session, request, compiled))
     }
 }
 

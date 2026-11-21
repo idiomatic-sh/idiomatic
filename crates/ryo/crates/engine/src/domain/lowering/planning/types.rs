@@ -7,6 +7,7 @@ use crate::domain::steps::types::{
     AnchorKinds, AxisDirection, CallMeaning, ColumnMask, DefinitionId, MadeTableId, MatchColumns,
     ReadColumn, Register, RegisterList, StepOperand, StepOperands, StepRows, TestOperation,
 };
+use ryo_language::domain::semantics::types::RenderContext;
 use ryo_relations::domain::relations::types::{Count, Relation};
 use ryo_values::domain::plan_orders::types::OrderBound;
 use std::collections::HashMap;
@@ -163,6 +164,15 @@ pub(crate) enum WrittenAccess {
         /// Where what it gives goes.
         outputs: RegisterList,
     },
+    /// The language's source form of the node in a register, in a syntax role: no row when it has none.
+    Render {
+        /// The node.
+        node: Register,
+        /// The role.
+        context: RenderContext,
+        /// Where the text goes.
+        out: Register,
+    },
     /// A register takes a value: a program's only.
     Let {
         /// The value.
@@ -299,6 +309,8 @@ pub(crate) struct OrderCompletion<'a> {
     pub(crate) placed: Vec<AtomPlacing>,
     /// The order so far.
     pub(crate) order: Vec<AtomPlace>,
+    /// How many times the branch names each variable: one that only one atom names is read by nothing else.
+    pub(crate) uses: HashMap<FlatVariable, Count>,
     /// The pinned variables an access placed so far was keyed by: the test that pins one holds already.
     pub(crate) implied: std::collections::HashSet<FlatVariable>,
     /// The pinned variables a use of a definition was keyed by in a pipeline: the use leaves no row to read the cell from.

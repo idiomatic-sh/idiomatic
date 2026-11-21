@@ -49,10 +49,10 @@ pub fn emits(emits: Vec<u32>) {
     }
 }
 
-/// Whether evaluation is demand-driven, set once from `RYO_LAZY`.
+/// Whether evaluation is demand-driven, set once from `RYO_LAZY`: the default; `RYO_LAZY=0` keeps the eager path.
 pub fn lazy() -> bool {
     static LAZY: OnceLock<bool> = OnceLock::new();
-    *LAZY.get_or_init(|| std::env::var_os("RYO_LAZY").is_some_and(|value| value != "0"))
+    *LAZY.get_or_init(|| std::env::var_os("RYO_LAZY").is_none_or(|value| value != "0"))
 }
 
 /// Whether the entity-query answers are switched off, set once from `RYO_NO_ENTITY`.
@@ -881,18 +881,6 @@ pub fn engine_unpacked(mode: EngineMode, accepted: usize, selected: usize) {
 /// ```
 pub fn engine_compared(rules: usize) {
     eprintln!("ryo engine both: compared {rules} rules, 0 differences");
-}
-
-/// Spike (ryo-fmx3.1): writes to stderr how many accepted rules `both` did not compare file by file, as today's engine emits
-/// their rows after the files: their findings are compared as a whole, outside the run.
-///
-/// # Examples
-///
-/// ```
-/// ryo_operators::spike::engine_after_the_files(0);
-/// ```
-pub fn engine_after_the_files(rules: usize) {
-    eprintln!("ryo engine both: {rules} accepted rules emit after the files in today's engine: not compared file by file");
 }
 
 /// Spike (ryo-fmx3.1): why the harness stops a run whose files a language linked without its walk would have to be scanned of.

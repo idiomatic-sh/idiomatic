@@ -1,19 +1,43 @@
 //! The services of the `masks` part: the terms and the clauses of a rule set's needs, found from the code, each site at
 //! its first decision; and what a record of the needs may cost, found once.
 
-use super::types::{MaskExact, NeedMasks, NeedTerm, RecordCost, SiteMasks, Stretch, TermNumber};
+use super::types::{
+    MaskExact, NeedMasks, NeedTerm, RecordCost, SiteMasks, SiteStretches, Stretch, TermNumber,
+};
 use crate::domain::code::records::service::need_at;
 use crate::domain::code::records::types::NeedRecord;
 use crate::domain::code::types::{NeedSite, ProgramCode, RelationNumber, WordSlot};
+use crate::domain::steps::types::MadeTableId;
 use ryo_relations::domain::catalog::service::node_extent;
 use ryo_relations::domain::relations::types::Count;
 
-/// The most clauses kept of one site, and the most an `Any` of several-clause parts is multiplied out to: a clause
-/// left out makes the site's clauses a part of its formula, never a wrong answer.
-const MOST_CLAUSES: Count = Count(32);
+/// The most clauses kept of one site or of one alternative, the most groups of one site and alternatives of one
+/// group, and the most an `Any` of several-clause parts is multiplied out to (past it the `Any` is kept as a group):
+/// what is left out past a bound makes the site's masks a part of its formula, never a wrong answer.
+const MOST: (Count, Count, Count, Count) = (Count(64), Count(16), Count(64), Count(8));
 
 /// A clause while the masks are found: its terms, ascending.
 type Clause = Vec<TermNumber>;
+
+/// What is found of a record or of a site: its clauses, its groups (each its alternatives, each its clauses), its
+/// tables, and whether they are all it says.
+#[derive(Clone, Debug)]
+struct Found {
+    clauses: Vec<Clause>,
+    groups: Vec<Vec<Vec<Clause>>>,
+    tables: Vec<MadeTableId>,
+    exact: MaskExact,
+}
+
+/// What always holds, or of which nothing is kept.
+const fn nothing(exact: MaskExact) -> Found {
+    Found {
+        clauses: Vec::new(),
+        groups: Vec::new(),
+        tables: Vec::new(),
+        exact,
+    }
+}
 
 /// The slot `ahead` slots after a place among the needs.
 fn slot(code: &ProgramCode, at: WordSlot, ahead: WordSlot) -> Option<WordSlot> {
@@ -76,23 +100,22 @@ const fn both(one: MaskExact, other: MaskExact) -> MaskExact {
     }
 }
 
-/// The clauses the record at a place cannot hold without, and whether they are all it says.
-fn record_clauses(
-    code: &ProgramCode,
-    at: WordSlot,
-    masks: &mut NeedMasks,
-) -> (Vec<Clause>, MaskExact) {
+/// What the record at a place cannot hold without, and whether that is all it says.
+fn record_found(code: &ProgramCode, at: WordSlot, masks: &mut NeedMasks) -> Found {
     // A record that cannot be read holds, by the walk.
     let Some(record) = need_at(&code.needs, at) else {
-        return (Vec::new(), MaskExact::Whole);
+        return nothing(MaskExact::Whole);
     };
     match record {
-        NeedRecord::Unknown => (Vec::new(), MaskExact::Whole),
-        NeedRecord::Table(_) => (Vec::new(), MaskExact::Part),
-        NeedRecord::Kinds(list) => (
-            vec![vec![numbered(code, masks, NeedTerm::Kinds(list), at)]],
-            MaskExact::Whole,
-        ),
+        NeedRecord::Unknown => nothing(MaskExact::Whole),
+        NeedRecord::Table(table) => Found {
+            tables: vec![table],
+            ..nothing(MaskExact::Whole)
+        },
+        NeedRecord::Kinds(list) => Found {
+            clauses: vec![vec![numbered(code, masks, NeedTerm::Kinds(list), at)]],
+            ..nothing(MaskExact::Whole)
+        },
         NeedRecord::Row {
             relation,
             column,
@@ -103,101 +126,147 @@ fn record_clauses(
                 column,
                 constant,
             };
-            (
-                vec![vec![numbered(code, masks, term, at)]],
-                MaskExact::Whole,
-            )
+            Found {
+                clauses: vec![vec![numbered(code, masks, term, at)]],
+                ..nothing(MaskExact::Whole)
+            }
         }
-        NeedRecord::Site(site) => site_clauses(code, site, masks),
+        NeedRecord::Site(site) => site_found(code, site, masks),
         NeedRecord::All {
             parts: count,
             offsets,
         } => {
-            let (mut all, mut exact): (Vec<Clause>, MaskExact) = (Vec::new(), MaskExact::Whole);
+            let mut all = nothing(MaskExact::Whole);
             for number in 0..count.0 {
                 // A part whose place cannot be read is passed over by the walk.
                 let Some(place) = slot(code, offsets, WordSlot(number)) else {
                     continue;
                 };
-                let (clauses, part) = record_clauses(code, place, masks);
-                exact = both(exact, part);
-                for clause in clauses {
-                    if all.contains(&clause) {
+                let part = record_found(code, place, masks);
+                all.exact = both(all.exact, part.exact);
+                for clause in part.clauses {
+                    if all.clauses.contains(&clause) {
                         continue;
                     }
-                    if all.len() < MOST_CLAUSES.0 {
-                        all.push(clause);
+                    if all.clauses.len() < MOST.0.0 {
+                        all.clauses.push(clause);
                     } else {
-                        exact = MaskExact::Part;
+                        all.exact = MaskExact::Part;
+                    }
+                }
+                for group in part.groups {
+                    if all.groups.contains(&group) {
+                        continue;
+                    }
+                    if all.groups.len() < MOST.1.0 {
+                        all.groups.push(group);
+                    } else {
+                        all.exact = MaskExact::Part;
+                    }
+                }
+                for table in part.tables {
+                    if !all.tables.contains(&table) {
+                        all.tables.push(table);
                     }
                 }
             }
-            (all, exact)
+            all
         }
         NeedRecord::Any {
             parts: count,
             offsets,
         } => {
-            let mut each: Vec<(Vec<Clause>, MaskExact)> = Vec::new();
+            let mut each: Vec<Found> = Vec::new();
             for number in 0..count.0 {
                 // A part whose place cannot be read holds, by the walk: so does the whole.
                 let Some(place) = slot(code, offsets, WordSlot(number)) else {
-                    return (Vec::new(), MaskExact::Whole);
+                    return nothing(MaskExact::Whole);
                 };
-                each.push(record_clauses(code, place, masks));
+                each.push(record_found(code, place, masks));
             }
             // No part at all never holds: one clause of no term.
             if each.is_empty() {
-                return (vec![Clause::new()], MaskExact::Whole);
+                return Found {
+                    clauses: vec![Clause::new()],
+                    ..nothing(MaskExact::Whole)
+                };
             }
-            // A part that always holds makes the whole always hold; one of which nothing is known here makes the
-            // whole unknown here.
+            // A part that asks a table is not kept as an alternative: its table is asked only when no other part
+            // holds, which the walk knows. What is kept of it is then a part of what it says.
+            let mut exact = MaskExact::Whole;
+            for part in &mut each {
+                if !part.tables.is_empty() {
+                    part.tables.clear();
+                    part.exact = MaskExact::Part;
+                }
+                exact = both(exact, part.exact);
+            }
+            // A part that always holds makes the whole always hold; a part nothing is kept of makes the whole unknown
+            // here.
+            let empty = |part: &Found| part.clauses.is_empty() && part.groups.is_empty();
             if each
                 .iter()
-                .any(|(clauses, exact)| clauses.is_empty() && *exact == MaskExact::Whole)
+                .any(|part| empty(part) && part.exact == MaskExact::Whole)
             {
-                return (Vec::new(), MaskExact::Whole);
+                return nothing(MaskExact::Whole);
             }
-            if each.iter().any(|(clauses, _)| clauses.is_empty()) {
-                return (Vec::new(), MaskExact::Part);
+            if each.iter().any(empty) {
+                return nothing(MaskExact::Part);
             }
-            let exact = each
-                .iter()
-                .fold(MaskExact::Whole, |exact, (_, part)| both(exact, *part));
-            let product = each.iter().fold(1_usize, |product, (part, _)| {
-                product.saturating_mul(part.len())
+            let plain = each.iter().all(|part| part.groups.is_empty());
+            let product = each.iter().fold(1_usize, |product, part| {
+                product.saturating_mul(part.clauses.len().max(1))
             });
-            if product > MOST_CLAUSES.0 {
-                // Some part holds, so some part's first clause does: one clause of them all.
-                let first = each.iter().filter_map(|(part, _)| part.first());
-                let one = first.fold(Clause::new(), |all, clause| joined(&all, clause));
-                return (vec![one], MaskExact::Part);
-            }
-            // Every way to take one clause of each part: some part holds, so in each way some clause taken does; and
-            // when in every way some clause holds, some part has all its clauses hold.
-            let mut ways: Vec<Clause> = vec![Clause::new()];
-            for (part, _) in &each {
-                let mut next = Vec::with_capacity(ways.len().saturating_mul(part.len()));
-                for way in &ways {
-                    for clause in part {
-                        next.push(joined(way, clause));
+            if plain && product <= MOST.3.0 {
+                // Every way to take one clause of each part: some part holds, so in each way some clause taken
+                // does; and when in every way some clause holds, some part has all its clauses hold.
+                let mut ways: Vec<Clause> = vec![Clause::new()];
+                for part in &each {
+                    let mut next =
+                        Vec::with_capacity(ways.len().saturating_mul(part.clauses.len()));
+                    for way in &ways {
+                        for clause in &part.clauses {
+                            next.push(joined(way, clause));
+                        }
                     }
+                    ways = next;
                 }
-                ways = next;
+                ways.sort_unstable();
+                ways.dedup();
+                return Found {
+                    clauses: ways,
+                    ..nothing(exact)
+                };
             }
-            ways.sort_unstable();
-            ways.dedup();
-            (ways, exact)
+            // Kept as it is: one group, an alternative a part. A part that is itself one group and no more gives
+            // its alternatives; any other part's own groups are left out of its alternative.
+            let mut alternatives: Vec<Vec<Clause>> = Vec::new();
+            for part in each {
+                if part.clauses.is_empty() && part.groups.len() == 1 {
+                    alternatives.extend(part.groups.into_iter().flatten());
+                    continue;
+                }
+                if !part.groups.is_empty() || part.clauses.len() > MOST.0.0 {
+                    exact = MaskExact::Part;
+                }
+                let kept = part.clauses.into_iter().take(MOST.0.0);
+                alternatives.push(kept.collect());
+            }
+            alternatives.sort_unstable();
+            alternatives.dedup();
+            if alternatives.len() > MOST.2.0 {
+                return nothing(MaskExact::Part);
+            }
+            Found {
+                groups: vec![alternatives],
+                ..nothing(exact)
+            }
         }
     }
 }
 
-/// A site's clauses as the masks hold them, when it was found.
-fn held(masks: &NeedMasks, site: NeedSite) -> Option<(Vec<Clause>, MaskExact)> {
-    let place = usize::try_from(site.0).unwrap_or(usize::MAX);
-    let Some(SiteMasks::Found(stretch, exact)) = masks.sites.get(place).copied() else {
-        return None;
-    };
+/// The clauses at a stretch of the masks' clauses, each as its terms.
+fn clauses_at(masks: &NeedMasks, stretch: Stretch) -> Vec<Clause> {
     let clauses = masks
         .clauses
         .get(stretch.start.0..stretch.start.0.saturating_add(stretch.count.0))
@@ -209,75 +278,132 @@ fn held(masks: &NeedMasks, site: NeedSite) -> Option<(Vec<Clause>, MaskExact)> {
             .unwrap_or_default()
             .to_vec()
     });
-    Some((each.collect(), exact))
+    each.collect()
 }
 
-/// The clauses a site's formula cannot hold without, found once a site and kept: the clauses of terms that cost
-/// nothing first, the shorter first, and in a clause those terms first. A site met while it is being found (a formula
-/// that names itself) says nothing of itself.
-fn site_clauses(
-    code: &ProgramCode,
-    site: NeedSite,
-    masks: &mut NeedMasks,
-) -> (Vec<Clause>, MaskExact) {
-    if let Some(found) = held(masks, site) {
-        return found;
-    }
-    if !masks.open.insert(site.0) {
-        return (Vec::new(), MaskExact::Part);
-    }
-    let (mut clauses, exact) = match slot(code, WordSlot(site.0), WordSlot(0)) {
-        Some(formula) => record_clauses(code, formula, masks),
-        None => (Vec::new(), MaskExact::Whole),
+/// What the masks hold of a site, when it was found.
+fn held(masks: &NeedMasks, site: NeedSite) -> Option<Found> {
+    let place = usize::try_from(site.0).unwrap_or(usize::MAX);
+    let Some(SiteMasks::Found(at, exact)) = masks.sites.get(place).copied() else {
+        return None;
     };
-    let _was = masks.open.remove(&site.0);
+    let within =
+        |stretch: Stretch| stretch.start.0..stretch.start.0.saturating_add(stretch.count.0);
+    let groups = masks.groups.get(within(at.groups)).unwrap_or_default();
+    let each = groups.iter().map(|group| {
+        let alternatives = masks.alternatives.get(within(*group)).unwrap_or_default();
+        alternatives
+            .iter()
+            .map(|alternative| clauses_at(masks, *alternative))
+            .collect::<Vec<_>>()
+    });
+    Some(Found {
+        clauses: clauses_at(masks, at.clauses),
+        groups: each.collect(),
+        tables: masks
+            .tables
+            .get(within(at.tables))
+            .unwrap_or_default()
+            .to_vec(),
+        exact,
+    })
+}
+
+/// Appends clauses to the masks, the clauses of terms that cost nothing first, the shorter first, and in a clause
+/// those terms first; answers their stretch.
+fn clauses_kept(masks: &mut NeedMasks, clauses: &mut [Clause]) -> Stretch {
     let cost = |term: &TermNumber| {
         let place = usize::try_from(term.0).unwrap_or(usize::MAX);
         masks.term_costs.get(place).copied().unwrap_or_default()
     };
-    for clause in &mut clauses {
+    for clause in clauses.iter_mut() {
         clause.sort_by_key(|term| (cost(term), *term));
     }
     clauses.sort_by_key(|clause| (clause.iter().map(cost).max(), clause.len()));
     let start = Count(masks.clauses.len());
-    for clause in &clauses {
+    for clause in clauses.iter() {
         masks.clauses.push(Stretch {
             start: Count(masks.clause_terms.len()),
             count: Count(clause.len()),
         });
         masks.clause_terms.extend_from_slice(clause);
     }
+    Stretch {
+        start,
+        count: Count(clauses.len()),
+    }
+}
+
+/// What a site's formula cannot hold without, found once a site and kept. A site met while it is being found (a
+/// formula that names itself) says nothing of itself.
+fn site_found(code: &ProgramCode, site: NeedSite, masks: &mut NeedMasks) -> Found {
+    if let Some(found) = held(masks, site) {
+        return found;
+    }
+    if !masks.open.insert(site.0) {
+        return nothing(MaskExact::Part);
+    }
+    let mut found = match slot(code, WordSlot(site.0), WordSlot(0)) {
+        Some(formula) => record_found(code, formula, masks),
+        None => nothing(MaskExact::Whole),
+    };
+    let _was = masks.open.remove(&site.0);
+    let clauses = clauses_kept(masks, &mut found.clauses);
+    let mut groups = Vec::with_capacity(found.groups.len());
+    for group in &mut found.groups {
+        let mut alternatives = Vec::with_capacity(group.len());
+        for alternative in group.iter_mut() {
+            alternatives.push(clauses_kept(masks, alternative));
+        }
+        let start = Count(masks.alternatives.len());
+        masks.alternatives.extend_from_slice(&alternatives);
+        groups.push(Stretch {
+            start,
+            count: Count(alternatives.len()),
+        });
+    }
+    let group_start = Count(masks.groups.len());
+    masks.groups.extend_from_slice(&groups);
+    let table_start = Count(masks.tables.len());
+    masks.tables.extend_from_slice(&found.tables);
+    let at = SiteStretches {
+        clauses,
+        groups: Stretch {
+            start: group_start,
+            count: Count(groups.len()),
+        },
+        tables: Stretch {
+            start: table_start,
+            count: Count(found.tables.len()),
+        },
+    };
     let place = usize::try_from(site.0).unwrap_or(usize::MAX);
     if masks.sites.len() <= place {
         masks
             .sites
             .resize(place.saturating_add(1), SiteMasks::Unfound);
     }
-    let stretch = Stretch {
-        start,
-        count: Count(clauses.len()),
-    };
-    if let Some(held) = masks.sites.get_mut(place) {
-        *held = SiteMasks::Found(stretch, exact);
+    if let Some(kept) = masks.sites.get_mut(place) {
+        *kept = SiteMasks::Found(at, found.exact);
     }
-    (clauses, exact)
+    found
 }
 
-/// A site's clauses, a stretch of the masks' clauses, and whether they are all of its formula: found now when this
-/// is the site's first decision.
+/// Where a site's clauses, groups and tables lie in the masks, and whether they are all of its formula: found now
+/// when this is the site's first decision.
 pub(crate) fn site_masks(
     code: &ProgramCode,
     site: NeedSite,
     masks: &mut NeedMasks,
-) -> (Stretch, MaskExact) {
+) -> (SiteStretches, MaskExact) {
     let place = usize::try_from(site.0).unwrap_or(usize::MAX);
-    if let Some(SiteMasks::Found(stretch, exact)) = masks.sites.get(place).copied() {
-        return (stretch, exact);
+    if let Some(SiteMasks::Found(at, exact)) = masks.sites.get(place).copied() {
+        return (at, exact);
     }
-    let _found = site_clauses(code, site, masks);
+    let _found = site_found(code, site, masks);
     match masks.sites.get(place).copied() {
-        Some(SiteMasks::Found(stretch, exact)) => (stretch, exact),
-        Some(SiteMasks::Unfound) | None => (Stretch::default(), MaskExact::Part),
+        Some(SiteMasks::Found(at, exact)) => (at, exact),
+        Some(SiteMasks::Unfound) | None => (SiteStretches::default(), MaskExact::Part),
     }
 }
 
