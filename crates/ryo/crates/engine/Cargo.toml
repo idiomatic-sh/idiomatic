@@ -30,7 +30,6 @@ fixtures = ["ryo_language/fixtures", "dep:ryo_matching"]
 # The crate itself, with its fixtures: its tests need them, and no test is run with a flag.
 idiomatic-sh-ryo-engine = { path = ".", features = ["fixtures"] }
 ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.2.0", features = ["fixtures"] }
-ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../matching", version = "0.2.0" }
 cargo_metadata.workspace = true
 cucumber.workspace = true
 tokio.workspace = true
