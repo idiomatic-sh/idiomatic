@@ -73,12 +73,12 @@ pub(crate) enum FlatAtom {
         /// The cells of the row found, in the table's column order.
         cells: Vec<FlatTerm>,
     },
-    /// A definition must have, or must not have, a row holding the given cells.
+    /// A source must have, or must not have, a row holding the given cells: a definition, or a relation's own rows.
     Decided {
         /// Which.
         polarity: Polarity,
-        /// The definition.
-        definition: DefinitionId,
+        /// The source.
+        rows: AtomRows,
         /// The cell asked of each column; none: any.
         cells: Vec<Option<FlatTerm>>,
     },
@@ -97,10 +97,8 @@ pub(crate) enum FlatAtom {
     Nearest {
         /// What is walked toward the root.
         over: NearestOver,
-        /// The definition of the domain.
-        domain: DefinitionId,
-        /// The domain's column that holds the element.
-        column: MadeColumn,
+        /// What holds the elements a walk may stop at.
+        domain: NearestDomain,
         /// The element walked from.
         start: FlatTerm,
         /// The ancestor reached.
@@ -195,6 +193,26 @@ pub(crate) enum EdgeRows {
         cells: Vec<FlatTerm>,
         /// Whether the source holds one row a file.
         per_file: RowsPerFile,
+    },
+}
+
+/// The domain of a nearest walk: what holds the elements a walk may stop at.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum NearestDomain {
+    /// A definition holds the element in a column.
+    Held {
+        /// The definition.
+        definition: DefinitionId,
+        /// Its column that holds the element.
+        column: MadeColumn,
+    },
+    /// A relation's own rows, read in place by the element with the tests of the domain's filter: atoms over cells
+    /// nothing else names, `entity` the cell that holds the element.
+    Read {
+        /// The read of one row, then the filter's tests.
+        atoms: Vec<FlatAtom>,
+        /// The cell of the element.
+        entity: FlatTerm,
     },
 }
 

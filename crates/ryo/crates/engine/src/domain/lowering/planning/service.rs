@@ -7,17 +7,17 @@ use super::types::{
     AtomPlace, AtomPlacing, Enumerated, GivenTerms, NextAccess, OrderCompletion, PlannedBranch,
     TermGiven, UnitRole, WaitingAtom,
 };
-use crate::domain::lowering::costing::constants::{
-    ANCESTORS, ANCHORS_TRIED, CHILDREN, DESCENDANTS, ESTIMATE_CAP,
-};
+use crate::domain::lowering::costing::constants::{ANCHORS_TRIED, DESCENDANTS, ESTIMATE_CAP};
 use crate::domain::lowering::costing::service::keyed;
 use crate::domain::lowering::costing::types::{CellState, KeyChoice};
 use crate::domain::lowering::definitions::types::{Drafts, RowEstimate};
 use crate::domain::lowering::flattening::service::{pins_of, variables};
 use crate::domain::lowering::flattening::types::{
-    FlatAtom, FlatBranch, FlatTerm, FlatVariable, RowsPerFile,
+    AtomRows, FlatAtom, FlatBranch, FlatTerm, FlatVariable, RowsPerFile,
 };
-use crate::domain::steps::types::{AxisDirection, CostClass};
+use crate::domain::lowering::planning::walks::service::walk_rows;
+use crate::domain::steps::types::CostClass;
+use ryo_relations::domain::relations::types::Count;
 use std::collections::HashSet;
 
 /// How a term stands for the variables given so far.
@@ -137,6 +137,40 @@ fn settled(state: &OrderCompletion<'_>) -> TermGiven {
     }
 }
 
+/// Whether a test of these terms can be written now. A program holds the file; a pipeline reads the file's cell from a
+/// row at hand that holds it: a relation's row, or the definition's row its scan starts from (a keyed use gives no row).
+fn file_held(state: &OrderCompletion<'_>, terms: [&FlatTerm; 2]) -> TermGiven {
+    let asked = terms.iter().any(|term| **term == FlatTerm::File);
+    let scanned = state.order.first().copied();
+    let mut atoms = state.branch.atoms.iter().enumerate().zip(&state.placed);
+    let held = atoms.any(|((place, atom), placing)| match (placing, atom) {
+        (AtomPlacing::Placed, FlatAtom::Rows { rows, cells, .. }) => {
+            cells.contains(&FlatTerm::File)
+                && match rows {
+                    AtomRows::Relation(_) => true,
+                    AtomRows::Definition(_) => scanned == Some(AtomPlace(place)),
+                    AtomRows::Made(_) => false,
+                }
+        }
+        (AtomPlacing::Waiting, FlatAtom::Rows { .. })
+        | (
+            AtomPlacing::Placed | AtomPlacing::Waiting,
+            FlatAtom::Latest { .. }
+            | FlatAtom::Decided { .. }
+            | FlatAtom::Walk { .. }
+            | FlatAtom::Nearest { .. }
+            | FlatAtom::Closure { .. }
+            | FlatAtom::Called { .. }
+            | FlatAtom::Test { .. },
+        ) => false,
+    });
+    if asked && state.role == UnitRole::Pipeline && !held {
+        TermGiven::Open
+    } else {
+        TermGiven::Given
+    }
+}
+
 /// The first waiting test whose terms are given: a walk between two given elements is a test of them.
 fn test(state: &OrderCompletion<'_>) -> Option<NextAccess> {
     let given = given_now(state);
@@ -146,7 +180,10 @@ fn test(state: &OrderCompletion<'_>) -> Option<NextAccess> {
             start: left,
             reached: right,
             ..
-        } => all_ready([left, right], &given) == settled(state),
+        } => {
+            all_ready([left, right], &given) == settled(state)
+                && file_held(state, [left, right]) == TermGiven::Given
+        }
         // A per-row meaning runs as soon as what it reads is given.
         FlatAtom::Called { arguments, .. } => all_ready(arguments, &given) == settled(state),
         FlatAtom::Rows { .. }
@@ -184,37 +221,6 @@ fn decision(state: &OrderCompletion<'_>) -> Option<NextAccess> {
             atom: waiting.place,
             rows: RowEstimate(1),
         })
-}
-
-/// The rows a walk gives from the one end of it that is given: what that end reaches along the axis, or against it. None
-/// when both ends are given (the walk is a test) or neither is.
-fn walk_rows(
-    direction: AxisDirection,
-    start: TermGiven,
-    reached: TermGiven,
-) -> Option<RowEstimate> {
-    match (start, reached, direction) {
-        (TermGiven::Given, TermGiven::Open, AxisDirection::Parent) => Some(RowEstimate(1)),
-        (TermGiven::Given, TermGiven::Open, AxisDirection::Ancestor)
-        | (TermGiven::Open, TermGiven::Given, AxisDirection::Descendant) => Some(ANCESTORS),
-        (TermGiven::Given, TermGiven::Open, AxisDirection::Descendant)
-        | (TermGiven::Open, TermGiven::Given, AxisDirection::Ancestor) => Some(DESCENDANTS),
-        (TermGiven::Open, TermGiven::Given, AxisDirection::Parent)
-        | (
-            TermGiven::Given | TermGiven::Open,
-            TermGiven::Given | TermGiven::Open,
-            AxisDirection::NextSibling | AxisDirection::PreviousSibling,
-        ) if start != reached => Some(CHILDREN),
-        (
-            TermGiven::Given | TermGiven::Open,
-            TermGiven::Given | TermGiven::Open,
-            AxisDirection::Parent
-            | AxisDirection::Ancestor
-            | AxisDirection::Descendant
-            | AxisDirection::NextSibling
-            | AxisDirection::PreviousSibling,
-        ) => None,
-    }
 }
 
 /// The cheapest waiting access of the wanted class: keyed (a fan-out), or with no key (the file's rows).
@@ -278,6 +284,7 @@ fn completed(
         rows: RowEstimate(1),
         cost: RowEstimate(0),
         enumerated: Enumerated::NotYet,
+        products: Count(0),
     };
     if let Some(first) = first {
         place(&mut state, first);
@@ -299,20 +306,26 @@ fn completed(
         // No access is keyed: the unit's first enumeration, or a product stage of a pipeline; else there is no program.
         let next = cheapest(&state, CostClass::File)?;
         match (role, state.enumerated) {
-            (UnitRole::Branch | UnitRole::Pipeline, Enumerated::NotYet)
-            | (UnitRole::Pipeline, Enumerated::Already) => place(&mut state, next),
+            (UnitRole::Branch | UnitRole::Pipeline, Enumerated::NotYet) => place(&mut state, next),
+            (UnitRole::Pipeline, Enumerated::Already) => {
+                state.products = Count(state.products.0.saturating_add(1));
+                place(&mut state, next);
+            }
             (UnitRole::Pattern, _) | (UnitRole::Branch, Enumerated::Already) => return None,
         }
     }
     Some(PlannedBranch {
         order: state.order,
         cost: state.cost,
+        products: state.products,
     })
 }
 
 /// The order of a branch's atoms for a role, with `given` variables bound at its start. A branch and a pipeline try their
-/// cheapest anchors and keep the cheapest completion; a pattern starts from its given cells. None: the role has no program
-/// for the branch, because some access of it has no key.
+/// cheapest anchors and keep the cheapest completion; a pattern starts from its given cells. A completion with fewer
+/// product stages goes before a cheaper one with more, and when each from the cheapest anchors holds one the other
+/// anchors are tried too: a pipeline takes a product stage only when no order is keyed throughout. None: the role has
+/// no program for the branch, because some access of it has no key.
 #[must_use]
 pub(crate) fn planned(
     drafts: &Drafts,
@@ -343,9 +356,18 @@ pub(crate) fn planned(
     if anchors.is_empty() {
         return completed(drafts, branch, given, role, None);
     }
-    anchors
-        .into_iter()
-        .take(ANCHORS_TRIED)
-        .filter_map(|anchor| completed(drafts, branch, given, role, Some(anchor)))
-        .min_by_key(|plan| plan.cost)
+    let best = |anchors: &[NextAccess]| {
+        let plans = anchors
+            .iter()
+            .filter_map(|anchor| completed(drafts, branch, given, role, Some(*anchor)));
+        plans.min_by_key(|plan| (plan.products.0, plan.cost))
+    };
+    let (first, rest) = anchors.split_at(anchors.len().min(ANCHORS_TRIED));
+    match best(first) {
+        Some(plan) if plan.products.0 > 0 => {
+            let others = [Some(plan), best(rest)].into_iter().flatten();
+            others.min_by_key(|plan| (plan.products.0, plan.cost))
+        }
+        keyed => keyed,
+    }
 }

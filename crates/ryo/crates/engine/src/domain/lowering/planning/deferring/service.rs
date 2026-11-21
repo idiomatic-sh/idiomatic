@@ -36,11 +36,17 @@ fn read_by(access: &WrittenAccess) -> Vec<Register> {
             descendant,
             ..
         } => vec![*ancestor, *descendant],
-        WrittenAccess::Nearest { edges, start, .. } => {
+        WrittenAccess::Nearest {
+            edges,
+            condition,
+            start,
+            ..
+        } => {
             let mut read = vec![*start];
             if let NearestWalked::Derived { edges, .. } = edges {
                 read.extend(edges_read(edges));
             }
+            read.extend(edges_read(condition));
             read
         }
         WrittenAccess::Closure { edges, seed, .. } => {
@@ -71,7 +77,7 @@ fn rows_given(access: &WrittenAccess) -> AccessRows {
         | WrittenAccess::Latest { .. }
         | WrittenAccess::Nearest { .. }
         | WrittenAccess::Let { .. } => AccessRows::AtMostOne,
-        WrittenAccess::Use { mode, .. } => match mode {
+        WrittenAccess::Use { mode, .. } | WrittenAccess::Rows { mode, .. } => match mode {
             UseMode::Present | UseMode::Absent => AccessRows::AtMostOne,
             UseMode::Rows => AccessRows::Several,
         },
@@ -79,8 +85,7 @@ fn rows_given(access: &WrittenAccess) -> AccessRows {
             CallRows::One | CallRows::AtMostOne => AccessRows::AtMostOne,
             CallRows::Several => AccessRows::Several,
         },
-        WrittenAccess::Rows { .. }
-        | WrittenAccess::Axis { .. }
+        WrittenAccess::Axis { .. }
         | WrittenAccess::Children { .. }
         | WrittenAccess::Closure { .. } => AccessRows::Several,
     }
