@@ -1,6 +1,6 @@
 //! The values `load` takes.
 
-use crate::domain::lowering::types::{RefusedRule, SelectedRules};
+use crate::domain::lowering::types::{LoadGiven, RefusedRule, SelectedRules};
 use crate::domain::packs::types::{PackBytes, PackDigest};
 use crate::domain::programs::types::Programs;
 use crate::domain::statistics::types::{MatchedStatistics, StatisticsBytes};
@@ -11,20 +11,20 @@ use ryo_language::domain::facts::types::CellWord;
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::lowering::types::SelectedRules;
+/// use ryo_engine::domain::lowering::types::{LoadGiven, SelectedRules};
 /// use ryo_engine::domain::statistics::types::StatisticsBytes;
 /// use ryo_engine::domain::packs::types::{PackBytes, PackDigest};
 /// use ryo_engine::inbound::use_cases::load::types::LoadSource;
 ///
 /// let source = LoadSource::Pack(PackBytes(b""), PackDigest([0; 32]));
 /// assert!(matches!(source, LoadSource::Pack(..)));
-/// assert!(matches!(LoadSource::Plans(SelectedRules(&[]), StatisticsBytes(&[])), LoadSource::Plans(..)));
+/// assert!(matches!(LoadSource::Plans(SelectedRules(&[]), StatisticsBytes(&[]), LoadGiven::default()), LoadSource::Plans(..)));
 /// ```
 #[derive(Clone, Copy, Debug)]
 pub enum LoadSource<'a> {
     /// The selected rules, each with its compiled plan and what its parameters are bound to, in rule order; and the statistics
-    /// of a sample of the same rules, or no bytes.
-    Plans(SelectedRules<'a>, StatisticsBytes<'a>),
+    /// of a sample of the same rules, or no bytes; and what the host declares beside the plans.
+    Plans(SelectedRules<'a>, StatisticsBytes<'a>, LoadGiven<'a>),
     /// A compiled pack and the digest it must have been written for.
     Pack(PackBytes<'a>, PackDigest),
 }

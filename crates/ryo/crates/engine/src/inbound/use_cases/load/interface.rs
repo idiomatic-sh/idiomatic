@@ -10,7 +10,7 @@ use ryo_values::domain::descriptions::types::KindVocabulary;
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::lowering::types::SelectedRules;
+/// use ryo_engine::domain::lowering::types::{LoadGiven, SelectedRules};
 /// use ryo_engine::inbound::use_cases::load::interface::LoadUseCase;
 /// use ryo_engine::domain::statistics::types::StatisticsBytes;
 /// use ryo_engine::inbound::use_cases::load::types::LoadSource;
@@ -18,7 +18,7 @@ use ryo_values::domain::descriptions::types::KindVocabulary;
 /// use ryo_values::domain::descriptions::types::{KindVocabulary, LanguageName};
 ///
 /// let kinds = KindVocabulary { language: LanguageName::default(), kinds: Vec::new(), fields: Vec::new(), fixed: Vec::new() };
-/// assert!(LoadUseCaseImpl::new().load(LoadSource::Plans(SelectedRules(&[]), StatisticsBytes(&[])), &kinds).is_ok());
+/// assert!(LoadUseCaseImpl::new().load(LoadSource::Plans(SelectedRules(&[]), StatisticsBytes(&[]), LoadGiven::default()), &kinds).is_ok());
 /// ```
 pub trait LoadUseCase: Send + Sync {
     /// Lowers `Plans` as one pack, answering the programs of the rules it accepted and each rule it refused with the reason, or

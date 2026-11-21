@@ -2,20 +2,24 @@
 //! look like. The `match` over `Operation` names every operation: the ones the lowering does not evaluate yet are listed
 //! there, each by name, and refused as the step that cannot be evaluated. A rule is never refused for its cost or its size.
 
-use crate::domain::lowering::nodes::service::{digested, input_shape, reached};
+use crate::domain::lowering::nodes::service::{digested, reached};
+use crate::domain::lowering::observing::service::{
+    hosted_shape, input_kinds, local_of, rows_shape,
+};
+use crate::domain::lowering::observing::types::Local;
 use crate::domain::lowering::nodes::types::{AdmittedRule, StepReach, StepShape};
 use crate::domain::lowering::tables::shapes::service::{
     capture_slots, comparable, joined, keyed, operand_kind, picked, search_kinds, source_search,
     viewed,
 };
 use crate::domain::lowering::tables::types::TreeAxis;
-use crate::domain::lowering::types::{LoadRefusal, PastWidth, PlanNode, SelectedRule};
+use crate::domain::lowering::types::{LoadGiven, LoadRefusal, PastWidth, PlanNode, SelectedRule};
 use crate::domain::steps::types::AxisDirection;
 use ryo_relations::domain::catalog::service::{fact_form, node_column};
 use ryo_relations::domain::relations::service::columns;
 use ryo_relations::domain::relations::types::{CellKind, FactForm, NodeColumn, Relation};
 use ryo_values::domain::plan_parts::service::view_source;
-use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction, Input, StepScope};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction, Input};
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_plans::service::read_order;
 
@@ -61,11 +65,15 @@ pub(crate) const fn walk_of(direction: Direction) -> Option<TreeAxis> {
 /// is named: the ones in the second half are what is left to lower.
 fn shaped(
     rule: &SelectedRule<'_>,
+    given: LoadGiven<'_>,
     shapes: &[Option<StepShape>],
     operation: &Operation,
 ) -> Option<StepShape> {
-    let of = |input: &Input| input_shape(shapes, *input);
+    let of = |input: &Input| input_kinds(rule, shapes, *input);
     match operation {
+        // The host's rows and the rows a query wrote: constant tables (`observing`).
+        Operation::Hosted { relation } => hosted_shape(given, *relation),
+        Operation::Rows { .. } => rows_shape(operation),
         Operation::Select {
             from,
             comparisons,
@@ -299,46 +307,82 @@ fn shaped(
         | Operation::OrderedDfs { .. }
         | Operation::Worklist { .. }
         | Operation::Cycles { .. }
-        | Operation::Rows { .. }
-        | Operation::Hosted { .. }
         | Operation::RenderSyntax { .. }
         | Operation::FitsRendered { .. } => None,
     }
 }
 
-/// A rule as the lowering reads it: every step its emit reaches has a shape. Refused, naming the first step its emit
-/// reaches, in the order the steps are read, that cannot be evaluated (an operation not lowered, a step that runs after
-/// the files, a step out of order), or the columns of a step when they are past the width a table's columns are counted
-/// in. A plan may hand rows over to another rule's steps after the files (its `frontier`: an output another rule
-/// observes): the steps only that output reaches are no step of the rule's own rows, are given no shape and are never
-/// lowered, and the rule is judged by the steps its own emit reaches alone.
+/// A rule as the lowering reads it: every step its emit reaches has a shape, and holds the rows of the file being scanned or
+/// the same rows for every file (`observing::service::local_of`). Refused, naming the first step its emit reaches, in the
+/// order the steps are read, that cannot be evaluated (an operation not lowered, a step that holds rows of several files at
+/// once, a step out of order), or the columns of a step when they are past the width a table's columns are counted in; and
+/// refused at its emit when the emitted rows are the same for every file. A plan may hand rows over to another rule's steps
+/// (its `frontier`, an output another rule observes): the steps only that output reaches are shaped when a rule that binds
+/// the output is accepted (`observing::service::resolved`), and the rule is judged by the steps its own emit reaches alone.
+#[cfg(test)]
 pub(crate) fn admitted<'a>(rule: SelectedRule<'a>) -> Result<AdmittedRule<'a>, LoadRefusal> {
+    admitted_in(rule, LoadGiven::default())
+}
+
+/// `admitted`, with what the host declares beside the plans.
+pub(crate) fn admitted_in<'a>(
+    rule: SelectedRule<'a>,
+    given: LoadGiven<'a>,
+) -> Result<AdmittedRule<'a>, LoadRefusal> {
     let plan = rule.plan;
-    let unlowerable =
-        |step| LoadRefusal::Unlowerable(PlanNode(u32::try_from(step).unwrap_or(u32::MAX)));
     let reached = reached(plan).map_err(|step| unlowerable(usize::from(step)))?;
-    let mut shapes: Vec<Option<StepShape>> = vec![None; plan.steps.len()];
+    let mut admitted = AdmittedRule {
+        digests: digested(&rule),
+        rule,
+        shapes: vec![None; plan.steps.len()],
+        given,
+        locals: vec![None; plan.steps.len()],
+        observed: Vec::new(),
+        bound: Vec::new(),
+    };
+    shape_reached(&mut admitted, &reached)?;
+    let emitted = usize::from(plan.emit.step);
+    if admitted.locals.get(emitted) != Some(&Some(Local::File)) {
+        return Err(unlowerable(emitted));
+    }
+    Ok(admitted)
+}
+
+/// The refusal of a step, by its place.
+fn unlowerable(step: usize) -> LoadRefusal {
+    LoadRefusal::Unlowerable(PlanNode(u32::try_from(step).unwrap_or(u32::MAX)))
+}
+
+/// Shapes every step `reached` names that has no shape yet, each after the steps it reads (`read_order`), with whose rows
+/// it holds. Refused as `admitted` refuses.
+pub(crate) fn shape_reached(
+    rule: &mut AdmittedRule<'_>,
+    reached: &[StepReach],
+) -> Result<(), LoadRefusal> {
+    let plan = rule.rule.plan;
     // Every step after the steps it reads: a step that reads one with no shape yet is one that cannot be evaluated.
     for place in read_order(plan).into_iter().map(usize::from) {
         let Some(step) = plan.steps.get(place) else {
             continue;
         };
-        if reached.get(place) != Some(&StepReach::Reached) {
+        if reached.get(place) != Some(&StepReach::Reached)
+            || rule.shapes.get(place).is_some_and(Option::is_some)
+        {
             continue;
         }
-        let shape = shaped(&rule, &shapes, &step.operation)
-            .filter(|_| step.scope == StepScope::PerFile)
+        let shape = shaped(&rule.rule, rule.given, &rule.shapes, &step.operation)
+            .ok_or_else(|| unlowerable(place))?;
+        let local = local_of(&rule.rule, rule.given, &rule.shapes, &rule.locals, step, &shape)
             .ok_or_else(|| unlowerable(place))?;
         if shape.0.len() > usize::from(u16::MAX) {
             return Err(LoadRefusal::Budget(PastWidth::TableColumns));
         }
-        if let Some(slot) = shapes.get_mut(place) {
+        if let Some(slot) = rule.shapes.get_mut(place) {
             *slot = Some(shape);
         }
+        if let Some(slot) = rule.locals.get_mut(place) {
+            *slot = Some(local);
+        }
     }
-    Ok(AdmittedRule {
-        digests: digested(&rule),
-        rule,
-        shapes,
-    })
+    Ok(())
 }

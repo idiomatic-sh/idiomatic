@@ -8,7 +8,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::lowering::fixtures::digests_of;
 use crate::domain::lowering::fixtures::growth::growth_plan;
 use crate::domain::lowering::fixtures::pending::{GROWTH_PENDING, growth_bindings};
-use crate::domain::lowering::types::{SelectedRule, SelectedRules};
+use crate::domain::lowering::types::{LoadGiven, SelectedRule, SelectedRules};
 use crate::domain::statistics::types::StatisticsBytes;
 use crate::inbound::use_cases::load::fixtures::kinds;
 use crate::inbound::use_cases::load::interface::LoadUseCase as _;
@@ -60,7 +60,7 @@ fn counted(kind: OperationKind, words: usize) -> Result<Counted, String> {
     };
     let loaded = LoadUseCaseImpl
         .load(
-            LoadSource::Plans(SelectedRules(&[rule]), StatisticsBytes(&[])),
+            LoadSource::Plans(SelectedRules(&[rule]), StatisticsBytes(&[]), LoadGiven::default()),
             &kinds(),
         )
         .map_err(|error| error.to_string())?;

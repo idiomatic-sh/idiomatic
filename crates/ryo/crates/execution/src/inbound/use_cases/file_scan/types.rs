@@ -164,7 +164,7 @@ pub enum ScanLanguage {
 /// use ryo_language::domain::symbols::types::ByteSlice;
 /// use ryo_values::domain::stored_facts::types::Digest;
 ///
-/// let request = ScanLoadRequest { plans: &[], bindings: &[], statistics: ByteSlice(&[]), given: Digest([0; 16]), stored: &[] };
+/// let request = ScanLoadRequest { plans: &[], bindings: &[], statistics: ByteSlice(&[]), given: Digest([0; 16]), stored: &[], declared: Default::default() };
 /// assert!(request.stored.is_empty());
 /// ```
 #[derive(Clone, Copy, Debug)]
@@ -180,6 +180,8 @@ pub struct ScanLoadRequest<'a> {
     pub given: Digest,
     /// The packs the store kept.
     pub stored: &'a [StoredPack],
+    /// What the host declares beside the plans: the rules as the run was given them and the relations it declares.
+    pub declared: ryo_execution_runtime::application::pack_load::types::Declared<'a>,
 }
 
 /// What the store is asked before anything is compiled: what the run was given as one digest, how many rules it selects, and

@@ -10,7 +10,7 @@ use crate::outbound::engine::factory::use_case;
 use crate::outbound::engine::fixtures::fake::{EngineFake, no_kinds};
 use crate::outbound::engine::interface::EnginePort as _;
 use ryo_engine::domain::lowering::fixtures::{digests_of, named};
-use ryo_engine::domain::lowering::types::{SelectedRule, SelectedRules};
+use ryo_engine::domain::lowering::types::{LoadGiven, SelectedRule, SelectedRules};
 use ryo_engine::domain::programs::types::Programs;
 use ryo_engine::domain::statistics::types::StatisticsBytes;
 use ryo_engine::inbound::use_cases::load::types::LoadSource;
@@ -90,7 +90,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         bindings: RuleBindings(&[]),
         digests: &digests,
     };
-    let source = LoadSource::Plans(SelectedRules(&[rule]), StatisticsBytes(&[]));
+    let source = LoadSource::Plans(SelectedRules(&[rule]), StatisticsBytes(&[]), LoadGiven::default());
     let programs = engine
         .load(source, &no_kinds())
         .map(|loaded| loaded.programs)

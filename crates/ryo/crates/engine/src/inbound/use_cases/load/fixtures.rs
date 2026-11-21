@@ -11,7 +11,7 @@ use crate::domain::lowered::service::fill_code;
 use crate::domain::lowered::types::MadeFill;
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::fixtures::{digests_of, named};
-use crate::domain::lowering::types::{SelectedRule, SelectedRules};
+use crate::domain::lowering::types::{LoadGiven, SelectedRule, SelectedRules};
 use crate::domain::programs::service::accepted;
 use crate::domain::programs::types::Programs;
 use crate::domain::statistics::service::learned;
@@ -142,7 +142,7 @@ pub fn loaded_with(scene: &str, statistics: StatisticsBytes<'_>) -> Result<Loade
         })
         .collect();
     LoadUseCaseImpl.load(
-        LoadSource::Plans(SelectedRules(&selected), statistics),
+        LoadSource::Plans(SelectedRules(&selected), statistics, LoadGiven::default()),
         &vocabulary(scene),
     )
 }

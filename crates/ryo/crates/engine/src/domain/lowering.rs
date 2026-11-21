@@ -7,6 +7,7 @@ pub(crate) mod emptiness;
 pub mod errors;
 pub(crate) mod flattening;
 pub(crate) mod nodes;
+pub(crate) mod observing;
 pub(crate) mod placement;
 pub(crate) mod planning;
 pub(crate) mod proving;

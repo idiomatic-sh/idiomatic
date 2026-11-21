@@ -6,7 +6,11 @@ use super::super::types::{LoadRequest, Refusals};
 use crate::outbound::digest::interface::DigestPort;
 use crate::outbound::digest::types::DigestBytes;
 use crate::outbound::engine::interface::EnginePort;
-use ryo_engine::domain::lowering::types::{LoadRefusal, SelectedRule, SelectedRules};
+use ryo_engine::domain::lowering::types::{
+    BoundProducer, LoadGiven, LoadRefusal, ObservedBinding, SelectedRule, SelectedRules,
+};
+use ryo_values::domain::observations::types::ObservationProducer;
+use ryo_values::domain::plan_parts::types::{Input, ObservationBindingId};
 use ryo_engine::domain::programs::types::Programs;
 use ryo_engine::domain::statistics::types::{MatchedStatistics, StatisticsBytes};
 use ryo_engine::inbound::use_cases::load::errors::LoadError;
@@ -28,6 +32,63 @@ pub(in crate::application::pack_load) fn step_digests(
     node_digests(plan, bindings, &|bytes| {
         NodeDigest(digest.digest(DigestBytes(bytes.0)).0)
     })
+}
+
+/// The producers of each observation a selected rule's plan binds: the rules the binding names that the run selected, each
+/// with the step of its plan the output it names is; and the digest the observation's definition is named by, made of the
+/// binding's name and its producers' steps' digests. A producer the run did not select, or whose plan does not hand the
+/// output over, hands over no rows.
+fn observed(
+    digest: &dyn DigestPort,
+    request: &LoadRequest<'_>,
+    rules: &[(&Plan, RuleBindings<'_>)],
+    digests: &[NodeDigests],
+) -> Vec<ObservedBinding> {
+    let specs = request.declared.rules;
+    let mut observed = Vec::new();
+    for (consumer, ((plan, _), spec)) in rules.iter().zip(specs).enumerate() {
+        for (place, input) in plan.observation_inputs.iter().enumerate() {
+            let Some(binding) = spec.observations.iter().find(|each| each.name == input.name) else {
+                continue;
+            };
+            let mut named: Vec<u8> = input.name.0.as_bytes().to_vec();
+            let mut producers = Vec::new();
+            for producer in &binding.producers {
+                let ObservationProducer::Output { rule, output } = producer else {
+                    continue;
+                };
+                let Some(at) = specs.iter().position(|each| each.id == *rule) else {
+                    continue;
+                };
+                let source = rules.get(at).and_then(|(plan, _)| {
+                    let observation = plan.observations.iter().find(|each| each.name == *output)?;
+                    match observation.source {
+                        Input::Step(step) => Some(step),
+                        Input::Relation(_) | Input::BoundObservation(_) => None,
+                    }
+                });
+                let Some(step) = source else {
+                    continue;
+                };
+                let step_digest = digests
+                    .get(at)
+                    .and_then(|each| each.0.get(usize::from(step)).copied())
+                    .unwrap_or_default();
+                named.extend_from_slice(&step_digest.0);
+                producers.push(BoundProducer {
+                    rule: SelectedRuleOrdinal(u32::try_from(at).unwrap_or(u32::MAX)),
+                    step,
+                });
+            }
+            observed.push(ObservedBinding {
+                consumer: SelectedRuleOrdinal(u32::try_from(consumer).unwrap_or(u32::MAX)),
+                binding: ObservationBindingId(u32::try_from(place).unwrap_or(u32::MAX)),
+                node: NodeDigest(digest.digest(DigestBytes(&named)).0),
+                producers,
+            });
+        }
+    }
+    observed
 }
 
 /// What one load made of a request's rules.
@@ -78,7 +139,12 @@ pub(in crate::application::pack_load) fn lowered(
         })
         .collect();
     let statistics = StatisticsBytes(request.statistics.0);
-    let source = LoadSource::Plans(SelectedRules(&selected), statistics);
+    let observed = observed(digest, request, &rules, &digests);
+    let given = LoadGiven {
+        hosted: request.declared.hosted,
+        observed: &observed,
+    };
+    let source = LoadSource::Plans(SelectedRules(&selected), statistics, given);
     match engine.load(source, request.kinds) {
         Ok(loaded) => {
             let mut refusals = Refusals::default();

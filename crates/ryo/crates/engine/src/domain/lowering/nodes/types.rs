@@ -20,6 +20,14 @@ pub(crate) struct AdmittedRule<'a> {
     pub(crate) digests: NodeDigests,
     /// The shape of each step the emit reaches, by step; none for a step it does not reach.
     pub(crate) shapes: Vec<Option<StepShape>>,
+    /// What the host declares beside the plans: the rows of a `Hosted` step and the producers of a bound observation.
+    pub(crate) given: crate::domain::lowering::types::LoadGiven<'a>,
+    /// Whose rows each shaped step holds: the file's, or the same rows for every file.
+    pub(crate) locals: Vec<Option<crate::domain::lowering::observing::types::Local>>,
+    /// The steps of this rule a bound observation of another rule reads: each is one definition of the pack.
+    pub(crate) observed: Vec<StepId>,
+    /// The bound observations this rule reads, each with the producers the load accepted.
+    pub(crate) bound: Vec<crate::domain::lowering::observing::types::ResolvedBinding>,
 }
 
 /// Who reads a merged plan node: a step of some rule by one of its inputs, or a rule's emit.

@@ -14,6 +14,7 @@ use crate::domain::lowering::flattening::types::{
 };
 use crate::domain::lowering::nodes::service::{digest_of, input_shape, kept_columns, readers};
 use crate::domain::lowering::nodes::types::{AdmittedRule, NodeHome};
+use crate::domain::lowering::observing::service::bound_input;
 use crate::domain::lowering::tables::service::tree_relation;
 use crate::domain::lowering::tables::shapes::service::picked as kinds_picked;
 use crate::domain::lowering::tables::types::InputSize;
@@ -213,7 +214,7 @@ pub(crate) fn input(
                 state.flat.get_mut(usize::from(step))?.take()
             }
         }
-        Input::BoundObservation(_) => None,
+        Input::BoundObservation(binding) => bound_input(state, drafts, binding),
     }
 }
 

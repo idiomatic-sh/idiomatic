@@ -210,6 +210,7 @@ fn load(seed: u8, kind: &str, stored: &[StoredPack]) -> (HarnessLoad, EngineFake
         given: given(seed),
         kinds: &kinds,
         stored,
+        declared: Default::default(),
     };
     (loaded(&fake, &blake3(), request), fake)
 }
@@ -229,6 +230,7 @@ fn harness(
         statistics: ByteSlice(&[]),
         given: given(1),
         stored: &[],
+        declared: Default::default(),
     };
     let harness = engine.map(|engine| Harness {
         engine,
@@ -283,6 +285,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 given: given(0),
                 kinds: &kinds,
                 stored,
+                declared: Default::default(),
             };
             let cold = loaded(&engine, &digest, asked(&[])).pack;
             let stored = [cold.clone()];
@@ -305,6 +308,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 statistics: ByteSlice(&[]),
                 given: given(1),
                 stored: std::slice::from_ref(&pack),
+                declared: Default::default(),
             };
             let load = harnessed(EngineMode::Old, None, request)
                 .map_err(|error| Cow::Owned(error.to_string()))?;
@@ -332,6 +336,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 given: given(1),
                 kinds: &lowered,
                 stored: &[],
+                declared: Default::default(),
             };
             let expected = loaded(&EngineFake::default(), &blake3(), request).pack;
             Ok(languages_kept(&load, &expected))

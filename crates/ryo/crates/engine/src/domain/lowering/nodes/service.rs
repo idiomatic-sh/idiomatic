@@ -19,8 +19,13 @@ use std::collections::{BTreeSet, HashSet};
 /// read a step after it (the closure a reach join is unfolded into is appended after the plan's last step): the order the
 /// steps are evaluated in is the values crate's `read_order`, not their ids. The step named is one that is not in the plan.
 pub(crate) fn reached(plan: &Plan) -> Result<Vec<StepReach>, StepId> {
+    reached_from(plan, &[plan.emit.step])
+}
+
+/// The steps of `plan` that `roots` reach, by step, as `reached` has the emit's.
+pub(crate) fn reached_from(plan: &Plan, roots: &[StepId]) -> Result<Vec<StepReach>, StepId> {
     let mut reached = vec![StepReach::Unreached; plan.steps.len()];
-    let mut waiting = vec![plan.emit.step];
+    let mut waiting = roots.to_vec();
     while let Some(step) = waiting.pop() {
         let place = usize::from(step);
         match reached.get_mut(place) {
@@ -150,6 +155,26 @@ pub(crate) fn stored(rules: &[AdmittedRule<'_>]) -> NodeStore {
                     read(digest_of(rule, *step), *step, by, read_by(&each.operation));
                 }
             }
+        }
+    }
+    // A producer's observed step is read by each rule that binds it: homed in the producer, it has that reader beside its
+    // own, so a step the producer's own rows also read is one definition.
+    for rule in rules {
+        for producer in rule.bound.iter().flat_map(|bound| &bound.producers) {
+            let held = rules.iter().position(|each| each.rule.rule == producer.rule);
+            let Some((place, held)) = held.and_then(|place| Some((place, rules.get(place)?))) else {
+                continue;
+            };
+            let node = store.0.entry(digest_of(held, producer.step)).or_insert_with(|| StoredNode {
+                home: NodeHome {
+                    rule: AcceptedPlace(place),
+                    step: producer.step,
+                },
+                readers: HashSet::new(),
+                read: ReadColumns::Kept(BTreeSet::new()),
+            });
+            let _new = node.readers.insert(NodeReader::Emit(rule.rule.rule));
+            node.read = ReadColumns::Whole;
         }
     }
     store

@@ -179,6 +179,7 @@ impl FileScanUseCase for FileScanUseCaseImpl {
                 statistics: request.statistics,
                 given: request.given,
                 stored: request.stored,
+                declared: request.declared,
             },
         )?;
         self.session(loads)

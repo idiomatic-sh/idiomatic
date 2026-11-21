@@ -14,7 +14,7 @@ use super::fixtures::described::{code_census, described};
 use super::fixtures::{bound, digests_of, named};
 use super::placement::types::SampleStage;
 use super::service::{lowered, lowered_at};
-use super::types::{LoadRefusal, PlanNode, SelectedRule, SelectedRules};
+use super::types::{LoadGiven, LoadRefusal, PlanNode, SelectedRule, SelectedRules};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::encoding::service::encoded;
 use crate::domain::lowered::types::LoweredPack;
@@ -333,9 +333,9 @@ fn subject_with(
         fixed: Vec::new(),
     };
     let lowered = match stage {
-        SampleStage::Absent => lowered(SelectedRules(&rules), None, &kinds),
+        SampleStage::Absent => lowered(SelectedRules(&rules), LoadGiven::default(), None, &kinds),
         SampleStage::First | SampleStage::Second => {
-            lowered_at(SelectedRules(&rules), stage, None, &kinds)
+            lowered_at(SelectedRules(&rules), LoadGiven::default(), stage, None, &kinds)
         }
     };
     // Every rule refused: the row names the last refusal, which is there only when each before it is.

@@ -27,9 +27,11 @@ use super::proving::service::proved;
 use super::proving::types::{ProductStated, ProofFault, ProvedUnit, UnitHomes, Unproved};
 use super::sharing::service::prefixes_shared;
 use super::tables::arms::service::rule_flattened;
-use super::tables::service::admitted;
+use super::observing::service::{reads_observations, resolved};
+use super::tables::inputs::service::step_defined;
+use super::tables::service::admitted_in;
 use super::tables::types::RuleFlattening;
-use super::types::{LoadRefusal, LoweredRules, RefusedRule, SelectedRules};
+use super::types::{LoadGiven, LoadRefusal, LoweredRules, RefusedRule, SelectedRules};
 use crate::domain::findings::types::{ColumnKinds, RuleColumns};
 use crate::domain::lowered::types::{
     Branch, DefinitionPattern, Emptiness, LoweredPack, LoweredRule, PackDefinition, PatternForm,
@@ -221,8 +223,12 @@ fn built(
         }),
         ..Drafts::default()
     };
-    let mut flattened = Vec::with_capacity(rules.len());
-    for place in (0..rules.len()).map(AcceptedPlace) {
+    // A rule that reads a bound observation is flattened after the others: its producers' observed steps are definitions
+    // by then. Each producer's observed steps are defined as it is flattened.
+    let mut order: Vec<usize> = (0..rules.len()).collect();
+    order.sort_by_key(|place| rules.get(*place).is_some_and(reads_observations));
+    let mut flattened: Vec<Option<Flattened>> = (0..rules.len()).map(|_| None).collect();
+    for place in order.into_iter().map(AcceptedPlace) {
         let mut state = RuleFlattening {
             rules,
             store,
@@ -230,12 +236,19 @@ fn built(
             place,
             flat: Vec::new(),
         };
-        let rows = rule_flattened(&mut state, &mut drafts);
-        flattened.push(rows.map_err(|step| RefusedPlace {
+        let refused = |step| RefusedPlace {
             rule: place,
             refusal: unlowerable(step),
-        })?);
+        };
+        let rows = rule_flattened(&mut state, &mut drafts).map_err(refused)?;
+        for root in rules.get(place.0).map_or(&[][..], |rule| &rule.observed) {
+            let _defined = step_defined(&mut state, &mut drafts, *root).ok_or(refused(*root))?;
+        }
+        if let Some(slot) = flattened.get_mut(place.0) {
+            *slot = Some(rows);
+        }
     }
+    let flattened: Vec<Flattened> = flattened.into_iter().map(Option::unwrap_or_default).collect();
     // Every rule's branches are planned on the pool: a plan reads the drafts as the flattening left them. The programs
     // are then written a rule at a time, in rule order.
     let planned: Vec<Vec<Option<PlannedBranch>>> = {
@@ -303,15 +316,17 @@ fn built(
 /// candidate then takes its call form; given those of a first sample, each takes its table form.
 pub(crate) fn lowered(
     rules: SelectedRules<'_>,
+    given: LoadGiven<'_>,
     statistics: Option<&Statistics>,
     kinds: &KindVocabulary,
 ) -> LoweredRules {
-    lowered_at(rules, sampled(statistics), statistics, kinds)
+    lowered_at(rules, given, sampled(statistics), statistics, kinds)
 }
 
 /// The lowering at a stated sample stage: `lowered` reads the stage off the statistics.
-pub(crate) fn lowered_at(
-    rules: SelectedRules<'_>,
+pub(crate) fn lowered_at<'a>(
+    rules: SelectedRules<'a>,
+    given: LoadGiven<'a>,
     stage: SampleStage,
     statistics: Option<&Statistics>,
     kinds: &KindVocabulary,
@@ -324,7 +339,7 @@ pub(crate) fn lowered_at(
     let mut refused = Vec::new();
     let mut accepted = Vec::with_capacity(rules.0.len());
     for rule in rules.0 {
-        match admitted(*rule) {
+        match admitted_in(*rule, given) {
             Ok(nodes) => accepted.push(nodes),
             Err(refusal) => refused.push(RefusedRule {
                 rule: rule.rule,
@@ -332,6 +347,8 @@ pub(crate) fn lowered_at(
             }),
         }
     }
+    // Each bound observation's producers among the accepted rules, their observed steps shaped.
+    resolved(&mut accepted);
     // A rule the build refuses is taken out and the others are lowered again: a definition is never left half made.
     let pack = loop {
         let store = stored(&accepted);

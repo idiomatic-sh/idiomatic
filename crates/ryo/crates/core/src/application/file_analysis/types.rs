@@ -233,6 +233,9 @@ pub(crate) struct Scanning<'a> {
     /// plan's last, and an appended step is its join's. No step for a rule whose plan has no such join, and none for a
     /// run read back from the store, which compiles no plan: a noticed step is then the step it says.
     pub compiled: Vec<Vec<ryo_values::domain::plan_parts::types::StepId>>,
+    /// For each selected rule, by rule number: whether today's engine emits its rows after the files. Its rows are no file's
+    /// rows as they leave, so `both` does not compare them file by file. Empty for a run that compiles no plan.
+    pub late: Vec<bool>,
 }
 
 /// A warning of a run, as its report lists it: the rule, the file, and the warning as it was printed when it was noticed.

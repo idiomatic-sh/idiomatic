@@ -8,7 +8,7 @@ use crate::domain::lowering::fixtures::described::described;
 use crate::domain::lowering::fixtures::{digests_of, named};
 use crate::domain::lowering::nodes::types::{AcceptedPlace, NodeHome, StepShape};
 use crate::domain::lowering::service::lowered;
-use crate::domain::lowering::types::{SelectedRule, SelectedRules};
+use crate::domain::lowering::types::{LoadGiven, SelectedRule, SelectedRules};
 use crate::domain::steps::types::{ColumnMask, MadeColumn};
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::descriptions::types::{FixedName, KindVocabulary, LanguageName};
@@ -59,7 +59,7 @@ fn lines(scenes: &[&str]) -> Vec<String> {
         fields: Vec::new(),
         fixed: Vec::new(),
     };
-    let lowered = lowered(SelectedRules(&rules), None, &kinds);
+    let lowered = lowered(SelectedRules(&rules), LoadGiven::default(), None, &kinds);
     let mut lines: Vec<String> = described(&lowered.pack)
         .into_iter()
         .filter(|line| line.starts_with("  pattern") || line.starts_with("  pipeline"))

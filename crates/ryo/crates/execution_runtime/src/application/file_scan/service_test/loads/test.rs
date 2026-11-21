@@ -83,6 +83,7 @@ fn subject((languages, statistics): Input) -> Result<Value, Failure> {
         statistics: ByteSlice(statistics.as_bytes()),
         given: Digest([1; 16]),
         stored: &[],
+        declared: Default::default(),
     };
     let loads = harnessed(EngineMode::New, Some(harness), request)
         .map_err(|error| Cow::Owned(error.to_string()))?;

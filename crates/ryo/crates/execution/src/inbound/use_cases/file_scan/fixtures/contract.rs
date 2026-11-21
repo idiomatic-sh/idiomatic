@@ -51,6 +51,7 @@ fn answer(scan: &dyn FileScanUseCase, question: Question) -> Result<Value, Failu
         statistics: ryo_language::domain::symbols::types::ByteSlice(&[]),
         given: ryo_values::domain::stored_facts::types::Digest([0; 16]),
         stored: &[],
+        declared: Default::default(),
     })?;
     let sets = 0..session.rule_sets.len();
     Ok(match question {

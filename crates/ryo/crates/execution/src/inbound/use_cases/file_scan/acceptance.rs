@@ -41,6 +41,7 @@ fn answered(input: &str, paths: &[&str]) -> String {
         statistics: ByteSlice(&[]),
         given: Digest([1; 16]),
         stored: &[],
+        declared: Default::default(),
     });
     let Ok(session) = loaded else {
         return "refused".to_owned();

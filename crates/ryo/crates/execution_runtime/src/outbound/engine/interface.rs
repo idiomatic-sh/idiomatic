@@ -19,14 +19,14 @@ use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::lowering::types::SelectedRules;
+/// use ryo_engine::domain::lowering::types::{LoadGiven, SelectedRules};
 /// use ryo_engine::domain::statistics::types::StatisticsBytes;
 /// use ryo_engine::inbound::use_cases::load::types::LoadSource;
 /// use ryo_execution_runtime::outbound::engine::interface::EnginePort;
 /// use ryo_values::domain::descriptions::types::KindVocabulary;
 ///
 /// fn accepts_nothing(port: &dyn EnginePort, kinds: &KindVocabulary) -> bool {
-///     port.load(LoadSource::Plans(SelectedRules(&[]), StatisticsBytes(&[])), kinds)
+///     port.load(LoadSource::Plans(SelectedRules(&[]), StatisticsBytes(&[]), LoadGiven::default()), kinds)
 ///         .is_ok_and(|loaded| port.accepted(&loaded.programs).is_empty())
 /// }
 /// ```

@@ -51,6 +51,78 @@ pub struct SelectedRule<'a> {
 #[derive(Clone, Copy, Debug)]
 pub struct SelectedRules<'a>(pub &'a [SelectedRule<'a>]);
 
+/// What the host declares for a run beside the plans: the rows of each relation it declares (a plan's `Hosted` step reads
+/// the one at its place) and the producers of each bound observation a plan reads. The engine lowers both as rows of the
+/// file it scans: a declared relation's rows are a constant table (a row naming a file is a row of that file alone), and a
+/// bound observation is a definition whose branches are its producers' observed steps.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_engine::domain::lowering::types::LoadGiven;
+///
+/// let given = LoadGiven::default();
+/// assert!(given.hosted.is_empty() && given.observed.is_empty());
+/// ```
+#[derive(Clone, Copy, Debug, Default)]
+pub struct LoadGiven<'a> {
+    /// The relations the host declares, with their rows, in the order a plan's `HostedNumber` counts them.
+    pub hosted: &'a [ryo_values::domain::hosted::types::HostRelation],
+    /// The producers of each bound observation of a selected rule.
+    pub observed: &'a [ObservedBinding],
+}
+
+/// One bound observation of a selected rule: the rule, the binding its plan reads, the digest the host names the
+/// observation's definition by (the engine hashes nothing), and the producers whose observed steps are its rows.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_engine::domain::lowering::types::{BoundProducer, ObservedBinding};
+/// use ryo_values::domain::plan_parts::types::{ObservationBindingId, StepId};
+/// use ryo_values::domain::query_plans::types::NodeDigest;
+/// use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
+///
+/// let bound = ObservedBinding {
+///     consumer: SelectedRuleOrdinal(1),
+///     binding: ObservationBindingId(0),
+///     node: NodeDigest([7; 16]),
+///     producers: vec![BoundProducer { rule: SelectedRuleOrdinal(0), step: StepId(3) }],
+/// };
+/// assert_eq!(bound.producers.len(), 1);
+/// ```
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ObservedBinding {
+    /// The rule whose plan reads the observation.
+    pub consumer: SelectedRuleOrdinal,
+    /// The binding, by its place among the plan's bound inputs.
+    pub binding: ryo_values::domain::plan_parts::types::ObservationBindingId,
+    /// The digest of the observation's definition.
+    pub node: ryo_values::domain::query_plans::types::NodeDigest,
+    /// The producers, in the order the host lists them.
+    pub producers: Vec<BoundProducer>,
+}
+
+/// A producer of a bound observation: a selected rule and the step of its plan whose rows it hands over.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_engine::domain::lowering::types::BoundProducer;
+/// use ryo_values::domain::plan_parts::types::StepId;
+/// use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
+///
+/// let producer = BoundProducer { rule: SelectedRuleOrdinal(0), step: StepId(3) };
+/// assert_eq!(producer.step, StepId(3));
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct BoundProducer {
+    /// The producing rule.
+    pub rule: SelectedRuleOrdinal,
+    /// The observed step of its plan.
+    pub step: ryo_values::domain::plan_parts::types::StepId,
+}
+
 /// A step of a rule's plan, by its place in the plan's steps.
 ///
 /// # Examples

@@ -27,7 +27,9 @@ use ryo_execution::inbound::use_cases::metadata::interface::{
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use ryo_language::domain::files::types::{FilePath, SourcePath};
 use ryo_language::domain::symbols::types::ByteSlice;
-use ryo_operators::spike::{EngineMode, engine_compared, engine_difference};
+use ryo_operators::spike::{
+    EngineMode, engine_after_the_files, engine_compared, engine_difference,
+};
 use ryo_relations::domain::relations::types::FileId;
 use ryo_values::domain::files::types::{CorpusInput, SourceView};
 use ryo_values::domain::records::types::{Unread, Unreadable};
@@ -55,6 +57,11 @@ impl Scanning<'_> {
     fn compared(&self, by: RuleSetNumber, rule: RuleNumber) -> Option<Compared<'_>> {
         let ordinal = SelectedRuleOrdinal(rule.0);
         let at = usize::try_from(rule.0).unwrap_or(usize::MAX);
+        // Spike (ryo-fmx3.1): a rule today's engine emits after the files has no rows of a file as they leave: its findings
+        // are compared as a whole, outside the run.
+        if self.late.get(at) == Some(&true) {
+            return None;
+        }
         // The rule set's pack says what a row of a rule it runs emits: none for a rule it does not run.
         let (emit, id) = (
             self.scan.emit(&self.session, by, ordinal)?,
@@ -119,13 +126,22 @@ impl FileVisits {
     /// Says the two engines' rows were compared and equal, when the run compared them: how many rules the new engine ran.
     pub(in crate::application::file_analysis) fn compared(scanning: &Scanning<'_>) {
         if scanning.mode() == EngineMode::Both {
-            let rules: usize = (0..scanning.session.rule_sets.len())
-                .map(|at| {
-                    let accepted = scanning.scan.accepted(&scanning.session, RuleSetNumber(at));
-                    accepted.len()
-                })
-                .sum();
+            let late = |rule: &SelectedRuleOrdinal| {
+                let at = usize::try_from(rule.0).unwrap_or(usize::MAX);
+                scanning.late.get(at) == Some(&true)
+            };
+            let (mut rules, mut after) = (0, 0);
+            for at in 0..scanning.session.rule_sets.len() {
+                for rule in scanning.scan.accepted(&scanning.session, RuleSetNumber(at)) {
+                    if late(rule) {
+                        after += 1;
+                    } else {
+                        rules += 1;
+                    }
+                }
+            }
             engine_compared(rules);
+            engine_after_the_files(after);
         }
     }
 

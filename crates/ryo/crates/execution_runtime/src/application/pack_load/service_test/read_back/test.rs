@@ -229,6 +229,7 @@ fn asked_of_the_store(mode: EngineMode, holding: &[&str]) -> Result<Value, Failu
                 given: given(1),
                 kinds: each,
                 stored: &[],
+                declared: Default::default(),
             };
             loaded(&EngineFake::default(), &blake3(), request).pack
         })

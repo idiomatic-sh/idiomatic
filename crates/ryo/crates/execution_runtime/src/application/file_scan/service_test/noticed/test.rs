@@ -11,7 +11,7 @@ use ryo_engine::domain::findings::types::{
     HeaviestWork, InstructionCount, WorkNotice, WorkVerdict,
 };
 use ryo_engine::domain::lowering::fixtures::{digests_of, named};
-use ryo_engine::domain::lowering::types::{SelectedRule, SelectedRules};
+use ryo_engine::domain::lowering::types::{LoadGiven, SelectedRule, SelectedRules};
 use ryo_engine::domain::statistics::types::StatisticsBytes;
 use ryo_engine::inbound::use_cases::load::types::LoadSource;
 use ryo_language::domain::files::types::SourcePath;
@@ -102,7 +102,7 @@ fn worked(files: &[(u32, &[u8])], noticed: &[u32]) -> ScanReport {
             bindings: RuleBindings(&[]),
             digests: &digests,
         };
-        let source = LoadSource::Plans(SelectedRules(&[rule]), StatisticsBytes(&[]));
+        let source = LoadSource::Plans(SelectedRules(&[rule]), StatisticsBytes(&[]), LoadGiven::default());
         let programs = engine
             .load(source, &no_kinds())
             .map(|loaded| loaded.programs)

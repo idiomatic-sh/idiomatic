@@ -45,12 +45,12 @@ impl LoadUseCase for LoadUseCaseImpl {
         kinds: &KindVocabulary,
     ) -> Result<LoadedRules, LoadError> {
         match source {
-            LoadSource::Plans(rules, statistics) => {
+            LoadSource::Plans(rules, statistics, given) => {
                 // Statistics that do not read are no statistics, and none stay none: the lowering is told so, never given
                 // the statistics of a sample that measured nothing.
                 let statistics = decoded(statistics, kinds);
                 sequenced(rules, statistics.as_ref(), kinds, &|selected| {
-                    lowered(selected, statistics.as_ref(), kinds)
+                    lowered(selected, given, statistics.as_ref(), kinds)
                 })
             }
             LoadSource::Pack(bytes, digest) => unpacked(bytes, digest)

@@ -160,7 +160,7 @@ impl EnginePort for EngineFake {
         kinds: &KindVocabulary,
     ) -> Result<LoadedRules, LoadError> {
         match source {
-            LoadSource::Plans(rules, statistics) => {
+            LoadSource::Plans(rules, statistics, _given) => {
                 counted(&self.lowered);
                 *self
                     .statistics

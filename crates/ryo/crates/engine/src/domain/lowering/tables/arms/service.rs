@@ -8,6 +8,7 @@ use crate::domain::lowering::flattening::service::picked;
 use crate::domain::lowering::flattening::types::RowColumn;
 use crate::domain::lowering::nodes::service::digest_of;
 use crate::domain::lowering::nodes::types::StepReach;
+use crate::domain::lowering::observing::service::constant_arm;
 use crate::domain::lowering::tables::calls::service::call_arm;
 use crate::domain::lowering::tables::closures::service::closure_arm;
 use crate::domain::lowering::tables::fills::service::{as_of_arm, group_count_arm, group_rows_arm};
@@ -92,6 +93,7 @@ fn arm(
         | Operation::SpanBetween { .. }
         | Operation::SourceMatches { .. }
         | Operation::Capture { .. } => call_arm(state, drafts, operation),
+        Operation::Rows { .. } | Operation::Hosted { .. } => constant_arm(state, drafts, operation),
         // What is left to lower, each by name: `tables::service::shaped` refuses a rule that holds one.
         Operation::Intersection { .. }
         | Operation::Difference { .. }
@@ -101,20 +103,20 @@ fn arm(
         | Operation::OrderedDfs { .. }
         | Operation::Worklist { .. }
         | Operation::Cycles { .. }
-        | Operation::Rows { .. }
-        | Operation::Hosted { .. }
         | Operation::RenderSyntax { .. }
         | Operation::FitsRendered { .. } => None,
     }
 }
 
-/// The steps of the rule that are flattened: those its emit reaches without passing a step that already has a definition.
+/// The steps of the rule that are flattened: those its emit and its observed steps reach without passing a step that already
+/// has a definition.
 /// Each is visited once.
 fn wanted(state: &RuleFlattening<'_>, drafts: &Drafts) -> Option<Vec<StepReach>> {
     let rule = rule(state)?;
     let plan = rule.rule.plan;
     let mut wanted = vec![StepReach::Unreached; plan.steps.len()];
     let mut waiting = vec![plan.emit.step];
+    waiting.extend(rule.observed.iter().copied());
     while let Some(step) = waiting.pop() {
         let place = usize::from(step);
         if wanted.get(place) != Some(&StepReach::Unreached)

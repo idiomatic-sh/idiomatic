@@ -13,6 +13,26 @@ use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 use ryo_values::domain::stored_facts::types::Digest;
 use ryo_values::domain::stores::types::StoredPack;
 
+/// What the host declares for a run beside the plans: the selected rules as the run was given them, in rule order (each
+/// names the producers of the observations it binds), and the relations the host declares, with their rows. The load hands
+/// both to the engine, which reads them as rows of the file it scans.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_runtime::application::pack_load::types::Declared;
+///
+/// let declared = Declared::default();
+/// assert!(declared.rules.is_empty() && declared.hosted.is_empty());
+/// ```
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Declared<'a> {
+    /// The selected rules, in rule order.
+    pub rules: &'a [ryo_values::domain::rule_requests::types::RuleSpec],
+    /// The relations the host declares.
+    pub hosted: &'a [ryo_values::domain::hosted::types::HostRelation],
+}
+
 /// What a load is asked: the selected rules' plans and what each binds its parameters to, the statistics the rules are
 /// lowered with, what the run was given as one digest, the kinds of the language whose files are scanned, and the packs the
 /// store kept.
@@ -20,13 +40,13 @@ use ryo_values::domain::stores::types::StoredPack;
 /// # Examples
 ///
 /// ```
-/// use ryo_execution_runtime::application::pack_load::types::LoadRequest;
+/// use ryo_execution_runtime::application::pack_load::types::{Declared, LoadRequest};
 /// use ryo_language::domain::symbols::types::ByteSlice;
 /// use ryo_values::domain::descriptions::types::{KindVocabulary, LanguageName};
 /// use ryo_values::domain::stored_facts::types::Digest;
 ///
 /// let kinds = KindVocabulary { language: LanguageName::default(), kinds: Vec::new(), fields: Vec::new(), fixed: Vec::new() };
-/// let request = LoadRequest { plans: &[], bindings: &[], statistics: ByteSlice(&[]), given: Digest([0; 16]), kinds: &kinds, stored: &[] };
+/// let request = LoadRequest { plans: &[], bindings: &[], statistics: ByteSlice(&[]), given: Digest([0; 16]), kinds: &kinds, stored: &[], declared: Declared::default() };
 /// assert!(request.stored.is_empty());
 /// ```
 #[derive(Clone, Copy, Debug)]
@@ -46,6 +66,8 @@ pub struct LoadRequest<'a> {
     pub kinds: &'a KindVocabulary,
     /// The packs the store kept.
     pub stored: &'a [StoredPack],
+    /// What the host declares beside the plans.
+    pub declared: Declared<'a>,
 }
 
 /// What reading a rule set back from the store is asked: what the run was given as one digest, the kinds of the language whose
@@ -124,11 +146,11 @@ impl std::fmt::Debug for Harness<'_> {
 /// # Examples
 ///
 /// ```
-/// use ryo_execution_runtime::application::pack_load::types::HarnessRequest;
+/// use ryo_execution_runtime::application::pack_load::types::{Declared, HarnessRequest};
 /// use ryo_language::domain::symbols::types::ByteSlice;
 /// use ryo_values::domain::stored_facts::types::Digest;
 ///
-/// let request = HarnessRequest { plans: &[], bindings: &[], statistics: ByteSlice(&[]), given: Digest([0; 16]), stored: &[] };
+/// let request = HarnessRequest { plans: &[], bindings: &[], statistics: ByteSlice(&[]), given: Digest([0; 16]), stored: &[], declared: Declared::default() };
 /// assert!(request.stored.is_empty());
 /// ```
 #[derive(Clone, Copy, Debug)]
@@ -143,6 +165,8 @@ pub struct HarnessRequest<'a> {
     pub given: Digest,
     /// The packs the store kept.
     pub stored: &'a [StoredPack],
+    /// What the host declares beside the plans.
+    pub declared: Declared<'a>,
 }
 
 /// What the harness is asked of the store before anything is compiled: what the run was given as one digest, how many rules it

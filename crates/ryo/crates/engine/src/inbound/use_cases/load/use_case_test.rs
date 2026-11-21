@@ -14,7 +14,7 @@ use crate::domain::code::types::{MeasuredForm, ShapeChoice, UnitKey};
 use crate::domain::findings::types::RuleColumns;
 use crate::domain::lowered::types::{Branch, Emptiness, LoweredPack, LoweredRule};
 use crate::domain::lowering::fixtures::{digests_of, named};
-use crate::domain::lowering::types::{LoweredRules, SelectedRule, SelectedRules};
+use crate::domain::lowering::types::{LoadGiven, LoweredRules, SelectedRule, SelectedRules};
 use crate::domain::packs::constants::VERSION_WIDTH;
 use crate::domain::packs::service::encoded;
 use crate::domain::packs::types::{PackBytes, PackDigest};
@@ -371,7 +371,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             return sequenced(SelectedRules(&[]), None, &twice, &lower)
                 .map(|loaded| Cow::Owned(said(&loaded)));
         }
-        Scenario::NoRules => LoadSource::Plans(SelectedRules(&[]), StatisticsBytes(&[])),
+        Scenario::NoRules => LoadSource::Plans(SelectedRules(&[]), StatisticsBytes(&[]), LoadGiven::default()),
         Scenario::Pack => LoadSource::Pack(PackBytes(&pack.0), PackDigest([1; 32])),
         Scenario::OtherPack => LoadSource::Pack(PackBytes(&pack.0), PackDigest([2; 32])),
         Scenario::OtherVersion => LoadSource::Pack(PackBytes(&other), PackDigest([1; 32])),

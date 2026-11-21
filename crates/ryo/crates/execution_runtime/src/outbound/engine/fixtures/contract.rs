@@ -4,7 +4,7 @@
 
 use crate::outbound::engine::fixtures::fake::{Counted, no_kinds, visiting};
 use crate::outbound::engine::interface::EnginePort;
-use ryo_engine::domain::lowering::types::{RefusedRule, SelectedRules};
+use ryo_engine::domain::lowering::types::{LoadGiven, RefusedRule, SelectedRules};
 use ryo_engine::domain::packs::types::{PackBytes, PackDigest};
 use ryo_engine::domain::programs::types::Programs;
 use ryo_engine::domain::statistics::types::StatisticsBytes;
@@ -160,7 +160,7 @@ fn answer(adapter: &dyn EnginePort, question: Question) -> Result<Value, Failure
     let nothing = || {
         adapter
             .load(
-                LoadSource::Plans(SelectedRules(&[]), StatisticsBytes(&[])),
+                LoadSource::Plans(SelectedRules(&[]), StatisticsBytes(&[]), LoadGiven::default()),
                 &kinds,
             )
             .map(|loaded| loaded.programs)

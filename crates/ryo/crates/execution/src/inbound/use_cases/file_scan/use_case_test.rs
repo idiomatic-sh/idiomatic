@@ -184,6 +184,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             statistics: ByteSlice(&[]),
             given: Digest([1; 16]),
             stored,
+            declared: Default::default(),
         })
         .map_err(|error| Cow::Owned(error.to_string()))
     };

@@ -138,7 +138,7 @@ pub fn kept(
 ///
 /// ```
 /// use ryo_execution_runtime::application::pack_load::service::loaded;
-/// use ryo_execution_runtime::application::pack_load::types::{LoadRequest, LoadedFrom};
+/// use ryo_execution_runtime::application::pack_load::types::{Declared, LoadRequest, LoadedFrom};
 /// use ryo_language::domain::symbols::types::ByteSlice;
 /// use ryo_values::domain::descriptions::types::{KindVocabulary, LanguageName};
 /// use ryo_values::domain::stored_facts::types::Digest;
@@ -147,9 +147,9 @@ pub fn kept(
 /// let digest = ryo_execution_runtime::outbound::digest::factory::blake3();
 /// let kinds = KindVocabulary { language: LanguageName::default(), kinds: Vec::new(), fields: Vec::new(), fixed: Vec::new() };
 /// let given = Digest([0; 16]);
-/// let cold = loaded(&engine, &digest, LoadRequest { plans: &[], bindings: &[], statistics: ByteSlice(&[]), given, kinds: &kinds, stored: &[] });
+/// let cold = loaded(&engine, &digest, LoadRequest { plans: &[], bindings: &[], statistics: ByteSlice(&[]), given, kinds: &kinds, stored: &[], declared: Declared::default() });
 /// let stored = [cold.pack];
-/// let warm = loaded(&engine, &digest, LoadRequest { plans: &[], bindings: &[], statistics: ByteSlice(&[]), given, kinds: &kinds, stored: &stored });
+/// let warm = loaded(&engine, &digest, LoadRequest { plans: &[], bindings: &[], statistics: ByteSlice(&[]), given, kinds: &kinds, stored: &stored, declared: Declared::default() });
 /// assert_eq!(warm.from, LoadedFrom::Pack);
 /// ```
 #[must_use]
@@ -309,12 +309,12 @@ pub fn read_back(
 ///
 /// ```
 /// use ryo_execution_runtime::application::pack_load::service::harnessed;
-/// use ryo_execution_runtime::application::pack_load::types::HarnessRequest;
+/// use ryo_execution_runtime::application::pack_load::types::{Declared, HarnessRequest};
 /// use ryo_language::domain::symbols::types::ByteSlice;
 /// use ryo_operators::spike::EngineMode;
 /// use ryo_values::domain::stored_facts::types::Digest;
 ///
-/// let request = HarnessRequest { plans: &[], bindings: &[], statistics: ByteSlice(&[]), given: Digest([0; 16]), stored: &[] };
+/// let request = HarnessRequest { plans: &[], bindings: &[], statistics: ByteSlice(&[]), given: Digest([0; 16]), stored: &[], declared: Declared::default() };
 /// assert!(harnessed(EngineMode::Old, None, request).is_ok_and(|loads| loads.is_empty()));
 /// ```
 pub fn harnessed(
@@ -338,6 +338,7 @@ pub fn harnessed(
                 given: request.given,
                 kinds,
                 stored: request.stored,
+                declared: request.declared,
             },
         );
         said(mode, &load, Count(request.plans.len()));
