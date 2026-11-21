@@ -15,7 +15,9 @@ use crate::domain::lowering::tables::fills::service::{
     as_of_arm, group_bound_arm, group_count_arm,
 };
 use crate::domain::lowering::tables::inputs::service::{all_selected, input, rule, term};
-use crate::domain::lowering::tables::joins::service::{antijoin_arm, axis_arm, join_arm};
+use crate::domain::lowering::tables::joins::service::{
+    antijoin_arm, axis_arm, closure_arm, join_arm,
+};
 use crate::domain::lowering::tables::service::test_of;
 use crate::domain::lowering::tables::types::{InputWant, RuleFlattening};
 use crate::domain::steps::types::ConstantText;
@@ -116,6 +118,7 @@ fn arm(
         Operation::GroupBound { .. } => group_bound_arm(state, drafts, step, operation),
         Operation::AsOf { .. } => as_of_arm(state, drafts, step, operation),
         Operation::Axis { .. } => axis_arm(state, drafts, operation),
+        Operation::Closure { .. } => closure_arm(state, drafts, operation),
         // What is left to lower, each by name: `tables::service::shaped` refuses a rule that holds one.
         Operation::Intersection { .. }
         | Operation::Difference { .. }
@@ -126,7 +129,6 @@ fn arm(
         | Operation::Replace { .. }
         | Operation::Words { .. }
         | Operation::OrderedMatch { .. }
-        | Operation::Closure { .. }
         | Operation::Follow { .. }
         | Operation::OrderedDfs { .. }
         | Operation::Worklist { .. }

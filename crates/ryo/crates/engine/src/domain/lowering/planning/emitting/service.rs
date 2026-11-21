@@ -10,6 +10,7 @@ use crate::domain::lowering::flattening::service::made_column;
 use crate::domain::lowering::flattening::types::{
     AtomRows, FlatAtom, FlatTerm, RowColumn, RowsPerFile,
 };
+use crate::domain::lowering::planning::closures::service::closed;
 use crate::domain::lowering::planning::operands::service::{
     anchor_kinds, cell_register, file_noted, file_register, key_value, operand, read_column,
     source_of, state_of, test_operand,
@@ -338,6 +339,18 @@ pub(crate) fn atom_written(emitter: &mut Emitter<'_>, atom: &FlatAtom) {
                 column: *column,
             };
             nearest(emitter, walk, *start, *reached);
+        }
+        FlatAtom::Closure {
+            edges,
+            keys,
+            source,
+            reached,
+        } => {
+            let ends = WalkEnds {
+                start: *source,
+                reached: *reached,
+            };
+            closed(emitter, edges, keys, ends);
         }
         FlatAtom::Test { test, left, right } => {
             // A pin an access was keyed by holds already.

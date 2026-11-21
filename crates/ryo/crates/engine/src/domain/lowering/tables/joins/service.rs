@@ -7,6 +7,7 @@ use crate::domain::lowering::emptiness::service::derived;
 use crate::domain::lowering::flattening::constants::{BRANCH_ATOMS, PRODUCT_BRANCHES};
 use crate::domain::lowering::flattening::service::made_column;
 use crate::domain::lowering::flattening::service::{picked, unified};
+use crate::domain::lowering::flattening::types::EdgeColumns;
 use crate::domain::lowering::flattening::types::{EqualTerms, FlatAtom, FlatTerm, RowColumn};
 use crate::domain::lowering::nodes::service::input_shape;
 use crate::domain::lowering::tables::inputs::service::{all_selected, input, rule, sized};
@@ -269,4 +270,60 @@ pub(crate) fn axis_arm(
             })
         }
     }
+}
+
+/// The branch of a closure: each row of the edges gives a source and its keys, and one walk reaches from that source
+/// over one or more edges of the same keys. The edges are a definition; the walk asks it by a source, or by a destination
+/// when it is entered from what is reached.
+pub(crate) fn closure_arm(
+    state: &mut RuleFlattening<'_>,
+    drafts: &mut Drafts,
+    operation: &Operation,
+) -> Option<Flattened> {
+    let Operation::Closure {
+        edges,
+        keys,
+        source,
+        destination,
+    } = operation
+    else {
+        return None;
+    };
+    let shape = input_shape(&rule(state)?.shapes, *edges)?;
+    let mut read = input(state, drafts, *edges, InputWant::Defined)?;
+    let Emptiness::Definition(definition) = read.emptiness else {
+        return None;
+    };
+    let column = |place: &ColumnIndex| RowColumn(usize::from(*place));
+    // The file's own column is no key within the file: the walk stays in the other keys.
+    let within = keys
+        .iter()
+        .filter(|key| shape.0.get(usize::from(**key)) != Some(&CellKind::File));
+    let walked = EdgeColumns {
+        definition,
+        keys: within
+            .clone()
+            .filter_map(|key| made_column(column(key)))
+            .collect(),
+        source: made_column(column(source))?,
+        destination: made_column(column(destination))?,
+    };
+    for branch in &mut read.branches {
+        let reached = FlatTerm::Variable(fresh_variable(drafts));
+        let from = *branch.row.get(usize::from(*source))?;
+        let stays = picked(&branch.row, within.clone().map(column))?;
+        let mut row = picked(&branch.row, keys.iter().map(column))?;
+        row.extend([from, reached]);
+        branch.atoms.push(FlatAtom::Closure {
+            edges: walked.clone(),
+            keys: stays,
+            source: from,
+            reached,
+        });
+        branch.row = row;
+    }
+    Some(Flattened {
+        emptiness: derived(operation, vec![Emptiness::Definition(definition)]),
+        ..read
+    })
 }

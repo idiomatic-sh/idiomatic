@@ -138,6 +138,22 @@ pub(crate) fn step_of(access: WrittenAccess) -> ProgramStep {
             out,
             memo: StepMemo::None,
         },
+        WrittenAccess::Closure {
+            edges,
+            from,
+            seed,
+            out,
+        } => ProgramStep::Closure {
+            edges: StepBody::Definition {
+                definition: edges.definition,
+                bound: edges.bound,
+                collected: edges.collected,
+                values: edges.values,
+            },
+            from,
+            seed,
+            out,
+        },
         WrittenAccess::Let { from, out } => ProgramStep::Let { from, out },
     }
 }
@@ -236,9 +252,10 @@ pub(crate) fn stage_of(access: WrittenAccess, first: Enumerated) -> Option<FillS
             start: parent,
             out,
         },
-        // A pipeline holds no test of containment, no walk with a condition and no `Let`.
+        // A pipeline holds no test of containment, no walk with a condition, no closure and no `Let`.
         WrittenAccess::Within { .. }
         | WrittenAccess::Nearest { .. }
+        | WrittenAccess::Closure { .. }
         | WrittenAccess::Let { .. } => return None,
     })
 }

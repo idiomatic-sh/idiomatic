@@ -125,7 +125,7 @@ pub(crate) fn pattern_placed(
     let walks = branches.iter().flat_map(|branch| &branch.atoms);
     let table = if walks
         .clone()
-        .any(|atom| matches!(atom, FlatAtom::Nearest { .. }))
+        .any(|atom| matches!(atom, FlatAtom::Nearest { .. } | FlatAtom::Closure { .. }))
     {
         TableForm::Calls
     } else if draft.keyless.is_empty() {

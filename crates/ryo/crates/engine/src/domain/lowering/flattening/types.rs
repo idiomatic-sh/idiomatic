@@ -106,6 +106,17 @@ pub(crate) enum FlatAtom {
         /// The ancestor reached.
         reached: FlatTerm,
     },
+    /// One element reached from another over one or more edges of a definition: the `closure` operation.
+    Closure {
+        /// The edges.
+        edges: EdgeColumns,
+        /// The cells of the edges' key columns, in the keys' order: the graph the walk stays in.
+        keys: Vec<FlatTerm>,
+        /// The element walked from.
+        source: FlatTerm,
+        /// The element reached.
+        reached: FlatTerm,
+    },
     /// A test of two terms.
     Test {
         /// The comparison.
@@ -137,4 +148,17 @@ pub(crate) struct EqualTerms {
     pub(crate) left: FlatTerm,
     /// The other.
     pub(crate) right: FlatTerm,
+}
+
+/// The edges a closure walks: a definition, and which of its columns hold an edge's keys, its source and its destination.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct EdgeColumns {
+    /// The definition of the edges.
+    pub(crate) definition: DefinitionId,
+    /// The key columns, the file's left out: an edge is walked within one value of them.
+    pub(crate) keys: Vec<MadeColumn>,
+    /// The source column.
+    pub(crate) source: MadeColumn,
+    /// The destination column.
+    pub(crate) destination: MadeColumn,
 }

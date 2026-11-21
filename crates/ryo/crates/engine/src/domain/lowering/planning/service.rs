@@ -101,7 +101,8 @@ fn place(state: &mut OrderCompletion<'_>, next: NextAccess) {
         FlatAtom::Rows { .. }
         | FlatAtom::Latest { .. }
         | FlatAtom::Walk { .. }
-        | FlatAtom::Nearest { .. } => {
+        | FlatAtom::Nearest { .. }
+        | FlatAtom::Closure { .. } => {
             state.given.extend(variables(atom));
             state.enumerated = Enumerated::Already;
             state.rows = RowEstimate(state.rows.0.saturating_mul(next.rows.0)).min(ESTIMATE_CAP);
@@ -147,6 +148,7 @@ fn test(state: &OrderCompletion<'_>) -> Option<NextAccess> {
         FlatAtom::Rows { .. }
         | FlatAtom::Latest { .. }
         | FlatAtom::Nearest { .. }
+        | FlatAtom::Closure { .. }
         | FlatAtom::Decided { .. } => false,
     });
     found
@@ -168,6 +170,7 @@ fn decision(state: &OrderCompletion<'_>) -> Option<NextAccess> {
         | FlatAtom::Latest { .. }
         | FlatAtom::Walk { .. }
         | FlatAtom::Nearest { .. }
+        | FlatAtom::Closure { .. }
         | FlatAtom::Test { .. } => false,
     });
     found
@@ -232,6 +235,17 @@ fn cheapest(state: &OrderCompletion<'_>, class: CostClass) -> Option<NextAccess>
                     .filter(|_| class == CostClass::Fanout),
                 FlatAtom::Nearest { start, .. } => {
                     keyed(ready(*start, &given)).then_some(RowEstimate(1))
+                }
+                // A closure walks from its source, or back from what is reached, within keys that are given.
+                FlatAtom::Closure {
+                    keys,
+                    source,
+                    reached,
+                    ..
+                } => {
+                    let entered = ready(*source, &given) == TermGiven::Given
+                        || ready(*reached, &given) == TermGiven::Given;
+                    (entered && keyed(all_ready(keys, &given))).then_some(DESCENDANTS)
                 }
                 FlatAtom::Decided { .. } | FlatAtom::Test { .. } => None,
             };

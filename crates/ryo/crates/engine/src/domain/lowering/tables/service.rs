@@ -288,6 +288,21 @@ fn shaped(
                 shape
             })
         }
+        Operation::Closure {
+            edges,
+            keys,
+            source,
+            destination,
+        } => {
+            // A closure over a relation's own rows (edges that are no step) is not lowered yet: its edges are a definition.
+            let read = match edges {
+                Input::Step(_) => of(edges)?,
+                Input::Relation(_) | Input::BoundObservation(_) => return None,
+            };
+            let mut shape = picked(&read, keys)?;
+            shape.0.extend(picked(&read, &[*source, *destination])?.0);
+            Some(shape)
+        }
         // What is left to lower, each by name: no arm stands for the rest.
         Operation::Intersection { .. }
         | Operation::Difference { .. }
@@ -298,7 +313,6 @@ fn shaped(
         | Operation::Replace { .. }
         | Operation::Words { .. }
         | Operation::OrderedMatch { .. }
-        | Operation::Closure { .. }
         | Operation::Follow { .. }
         | Operation::OrderedDfs { .. }
         | Operation::Worklist { .. }
