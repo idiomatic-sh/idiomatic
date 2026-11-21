@@ -118,10 +118,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         || Asked::Admitted(named("a rule that emits after the files")),
         LoadRefusal::Unlowerable(PlanNode(1)),
     ),
-    refused(
-        "a_step_that_runs_after_the_files_is_refused",
+    // A step after the files over a relation whose rows name their file is a step of the file: each scan is handed that
+    // file's rows. The refusal of a step after the files is the late-emit rule's above, not keyed by the file.
+    said(
+        "a_step_that_runs_after_the_files_over_a_relation_naming_the_file_is_a_step_of_the_file",
         || Asked::Admitted(after_the_files()),
-        LoadRefusal::Unlowerable(PlanNode(0)),
+        "5 columns",
     ),
 ];
 
