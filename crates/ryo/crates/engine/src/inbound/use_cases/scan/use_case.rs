@@ -82,6 +82,7 @@ impl ScanUseCase for ScanUseCaseImpl {
             file: file.file,
             path: file.path,
             text: file.source,
+            source: std::str::from_utf8(file.source.0).ok(),
             facts: file.facts,
             words,
             store,
