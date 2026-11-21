@@ -120,6 +120,18 @@ fn step<C: WordCounter>(
                         rows: Count(usize::try_from(found.0).unwrap_or(usize::MAX)),
                     };
                 }
+                // A pattern's program has a row for each `Yield`, not for reaching its end: run to collect, its rows
+                // counted and dropped. (Run as an inline body is, a program that is its end alone "had a row": ERA001,
+                // SIM300 and S307 lost their rows so, 2db778cd7 to f5dbaf9b9.)
+                QuickAsk::Collect(entry) => {
+                    let base = frame.state.yielded.len();
+                    let found = run_counted::<C>(frame, entry, RunMode::Collect);
+                    frame.state.yielded.truncate(base);
+                    frame.state.answer = BodyAnswer {
+                        first: Count(0),
+                        rows: Count(usize::try_from(found.0).unwrap_or(usize::MAX)),
+                    };
+                }
                 QuickAsk::Kept => exists(frame, word, at),
             }
             Exists::run(frame, word, at)
