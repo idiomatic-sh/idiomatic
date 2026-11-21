@@ -48,12 +48,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
     Case {
         name: CaseName(
-            "a_rule_the_executor_cannot_run_found_on_the_last_lowering_takes_every_rule",
+            "a_rule_the_executor_cannot_run_beside_one_the_encoding_refuses_takes_no_other_rule",
         ),
         word: Word::Succeeds,
         input: || [Written::Faulty, Written::Whole, Written::Unrun],
         expect: Expect::Value(Cow::Borrowed(
-            "runs []; refused [0: step PlanNode(0) cannot be evaluated; 1: step PlanNode(0) cannot be evaluated; 2: step PlanNode(0) cannot be evaluated]; lowered 2 times",
+            "runs [1]; refused [0: step PlanNode(0) cannot be evaluated; 2: step PlanNode(0) cannot be evaluated]; lowered 3 times",
         )),
     },
     Case {
