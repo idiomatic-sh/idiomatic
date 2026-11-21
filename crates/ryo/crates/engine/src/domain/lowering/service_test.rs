@@ -274,6 +274,26 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ))),
     },
     Case {
+        name: CaseName("a_replace_is_one_call_after_the_cells_it_reads_are_given"),
+        word: Word::Succeeds,
+        input: || (&["the words' texts replaced"], SampleStage::Absent),
+        expect: Expect::Value(Cow::Borrowed(concat!(
+            "rule 0: 1 branches\n",
+            "  branch: EachRow:File Read:Constant Read:Constant EachMatch:Fanout Read:Constant Call:Constant Emit:Constant\n",
+            "codes: {\"Call\": 1, \"EachMatchNode\": 1, \"EachRowNode\": 1, \"Emit\": 1, \"End\": 2, \"ReadNode\": 3}",
+        ))),
+    },
+    Case {
+        name: CaseName("span_bounds_is_one_call_that_gives_two_cells"),
+        word: Word::Succeeds,
+        input: || (&["the elements' span bounds"], SampleStage::Absent),
+        expect: Expect::Value(Cow::Borrowed(concat!(
+            "rule 0: 1 branches\n",
+            "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Call:Constant Emit:Constant\n",
+            "codes: {\"Call\": 1, \"EachRowNode\": 1, \"Emit\": 1, \"End\": 2, \"ReadNode\": 3}",
+        ))),
+    },
+    Case {
         name: CaseName("a_rule_set_whose_every_rule_is_refused_answers_the_last_refusal"),
         word: Word::Refuses,
         input: || {

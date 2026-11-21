@@ -4,8 +4,9 @@ use crate::domain::lowering::definitions::types::RowEstimate;
 use crate::domain::lowering::flattening::types::FlatVariable;
 use crate::domain::steps::stages::types::UseMode;
 use crate::domain::steps::types::{
-    AnchorKinds, AxisDirection, ColumnMask, DefinitionId, MadeColumn, MadeTableId, MatchColumns,
-    ReadColumn, Register, RegisterList, StepOperand, StepOperands, StepRows, TestOperation,
+    AnchorKinds, AxisDirection, CallMeaning, ColumnMask, DefinitionId, MadeColumn, MadeTableId,
+    MatchColumns, ReadColumn, Register, RegisterList, StepOperand, StepOperands, StepRows,
+    TestOperation,
 };
 use ryo_relations::domain::relations::types::{Count, Relation};
 use ryo_values::domain::plan_orders::types::OrderBound;
@@ -149,6 +150,15 @@ pub(crate) enum WrittenAccess {
         seed: Register,
         /// The element reached.
         out: Register,
+    },
+    /// A per-row meaning of the operators crate.
+    Call {
+        /// The meaning.
+        meaning: CallMeaning,
+        /// What it reads.
+        arguments: StepOperands,
+        /// Where what it gives goes.
+        outputs: RegisterList,
     },
     /// A register takes a value: a program's only.
     Let {

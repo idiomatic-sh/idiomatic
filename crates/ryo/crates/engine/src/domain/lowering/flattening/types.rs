@@ -2,7 +2,7 @@
 //! the unit the planning orders and the two emitters write: steps for a program, stages for a table's pipeline.
 
 use crate::domain::steps::types::{
-    AxisDirection, DefinitionId, MadeColumn, MadeTableId, Polarity, TestOperation,
+    AxisDirection, CallMeaning, DefinitionId, MadeColumn, MadeTableId, Polarity, TestOperation,
 };
 use ryo_relations::domain::relations::types::{Integer, Relation};
 use ryo_values::domain::plan_orders::types::OrderBound;
@@ -116,6 +116,15 @@ pub(crate) enum FlatAtom {
         source: FlatTerm,
         /// The element reached.
         reached: FlatTerm,
+    },
+    /// A per-row meaning of the operators crate: it reads its arguments and gives its outputs, or gives no row.
+    Called {
+        /// The meaning.
+        meaning: CallMeaning,
+        /// What it reads.
+        arguments: Vec<FlatTerm>,
+        /// What it gives.
+        outputs: Vec<FlatTerm>,
     },
     /// A test of two terms.
     Test {

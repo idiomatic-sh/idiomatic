@@ -154,6 +154,15 @@ pub(crate) fn step_of(access: WrittenAccess) -> ProgramStep {
             seed,
             out,
         },
+        WrittenAccess::Call {
+            meaning,
+            arguments,
+            outputs,
+        } => ProgramStep::Call {
+            meaning,
+            arguments,
+            outputs,
+        },
         WrittenAccess::Let { from, out } => ProgramStep::Let { from, out },
     }
 }
@@ -251,6 +260,15 @@ pub(crate) fn stage_of(access: WrittenAccess, first: Enumerated) -> Option<FillS
             walk: TreeWalk::Children(None),
             start: parent,
             out,
+        },
+        WrittenAccess::Call {
+            meaning,
+            arguments,
+            outputs,
+        } => FillStage::Call {
+            meaning,
+            arguments,
+            outputs,
         },
         // A pipeline holds no test of containment, no walk with a condition, no closure and no `Let`.
         WrittenAccess::Within { .. }

@@ -10,6 +10,9 @@ use crate::domain::lowering::planning::types::KindAnchor;
 use crate::domain::lowering::planning::types::{
     Emitter, Environment, FileCell, UnitRole, WrittenAccess,
 };
+use crate::domain::steps::types::CallMeaning;
+use crate::domain::steps::types::RegisterList;
+use crate::domain::steps::types::StepOperands;
 use crate::domain::steps::types::{
     AnchorKinds, ColumnMask, ReadColumn, Register, StepOperand, StepRows, TestOperation,
 };
@@ -281,5 +284,35 @@ pub(crate) fn test_operand(emitter: &mut Emitter<'_>, term: FlatTerm) -> Option<
         FlatTerm::Variable(_) | FlatTerm::Text(_) | FlatTerm::Number(_) => {
             operand(&emitter.environment, term)
         }
+    }
+}
+
+/// A per-row meaning as an access: it reads the operands of its arguments, and each cell it gives goes to a variable
+/// nothing gave yet, or is tested against one that was given.
+pub(crate) fn called(
+    emitter: &mut Emitter<'_>,
+    meaning: CallMeaning,
+    arguments: &[FlatTerm],
+    outputs: &[FlatTerm],
+) {
+    let read: Option<Vec<StepOperand>> = arguments
+        .iter()
+        .map(|term| operand(&emitter.environment, *term))
+        .collect();
+    let Some(read) = read else {
+        emitter.missed = Count(emitter.missed.0.saturating_add(1));
+        return;
+    };
+    let gives: Vec<Register> = outputs
+        .iter()
+        .map(|_| fresh_register(emitter.drafts))
+        .collect();
+    emitter.written.push(WrittenAccess::Call {
+        meaning,
+        arguments: StepOperands(read.into()),
+        outputs: RegisterList(gives.clone().into()),
+    });
+    for (term, out) in outputs.iter().zip(gives) {
+        given_or_tested(emitter, *term, out);
     }
 }

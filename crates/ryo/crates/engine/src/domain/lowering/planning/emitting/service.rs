@@ -11,6 +11,7 @@ use crate::domain::lowering::flattening::types::{
     AtomRows, FlatAtom, FlatTerm, RowColumn, RowsPerFile,
 };
 use crate::domain::lowering::planning::closures::service::closed;
+use crate::domain::lowering::planning::operands::service::called;
 use crate::domain::lowering::planning::operands::service::{
     anchor_kinds, cell_register, file_noted, file_register, key_value, operand, read_column,
     source_of, state_of, test_operand,
@@ -352,6 +353,11 @@ pub(crate) fn atom_written(emitter: &mut Emitter<'_>, atom: &FlatAtom) {
             };
             closed(emitter, edges, keys, ends);
         }
+        FlatAtom::Called {
+            meaning,
+            arguments,
+            outputs,
+        } => called(emitter, *meaning, arguments, outputs),
         FlatAtom::Test { test, left, right } => {
             // A pin an access was keyed by holds already.
             if let (TestOperation::Equal, FlatTerm::Variable(variable)) = (test, left)
