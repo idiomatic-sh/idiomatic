@@ -1,6 +1,6 @@
 //! The types of the `lowered` concept: what the lowering writes and the load-time passes rewrite: the pack's definitions and made tables once each, then each rule's own program. Crate-private; dropped once encoded.
 
-use crate::domain::code::records::types::EdgeColumns;
+use crate::domain::code::records::types::{EdgeColumns, VisitColumns, WorklistColumns};
 use crate::domain::code::types::ShapeChoice;
 use crate::domain::findings::types::RuleColumns;
 use crate::domain::steps::stages::types::{Pipeline, PlacedStage};
@@ -234,12 +234,88 @@ pub(crate) enum GraphFill {
     /// which are the plan's own rows; the walks' visits are counted as `read`, so a key whose walks pass the rule's
     /// allowance is a notice that names this table.
     FixedPoints(EdgeColumns),
-    /// `ordered-dfs`.
-    OrderedDfs,
-    /// `worklist`.
-    Worklist,
-    /// `cycles`.
-    Cycles,
+    /// `ordered-dfs`: from each root, an ordered depth-first visit of the edges, a row for each edge reached.
+    ///
+    /// The inputs. Two: the roots, then the edges. Of a root row the columns held here name the root, and its `keys`
+    /// are the columns that part the roots and the edges into graphs that never meet; its `order` is none. Of an edge
+    /// row they name the source and the destination, cells of the root's kind, and the edge's identity, any cell, which
+    /// is carried and never compared; its `keys` are the columns matched to the roots' keys place by place, one list
+    /// as long as the other; its `order` is the column a source's edges are visited by, a number.
+    ///
+    /// The row. The root's keys' cells in the order of the roots' `keys`, the root, then the edge's source, destination
+    /// and identity, then the ordinal of the visit among its root's, a number from 0: `Key(0)..`, `Root`, `Source`,
+    /// `Destination`, `Edge`, `Ordinal`, five columns more than the keys. This is the order of the operation's answer.
+    ///
+    /// The rows, as the operators crate's kernel makes them today (`kernels/ordered_walk/item.rs::visited`). One walk
+    /// for each distinct keys and root: a root row repeated is walked once. A walk expands its root. To expand an
+    /// entity is to take the edges that leave it in the root's keys, in ascending order; each gives a row, and its
+    /// destination, when the walk has not met it, is expanded at once, before the source's next edge. An entity is
+    /// expanded once in a walk, so an edge is in at most one row of a root; an edge to an entity the walk has met gives
+    /// its row and is not followed. A root no edge leaves gives no row. So of the edges (source, destination, order)
+    /// (1, 3, 2), (1, 2, 1), (2, 3, 0), (3, 1, 0), each named by its order, the rows of root 1 are `[1, 1, 2, 1, 0]`,
+    /// `[1, 2, 3, 0, 1]`, `[1, 3, 1, 0, 2]`, `[1, 1, 3, 2, 3]`: the operators crate's case
+    /// `an_ordered_walk_follows_the_order_column`.
+    ///
+    /// Ties. None is ordered: two edges of one keys and source with one order are the fault `DuplicateOrder` of
+    /// today's kernel, and an order that is no number is its fault `ShapeMismatch`.
+    ///
+    /// The cost. Class `File`: the edges sorted once, and each root's walk over the edges its keys hold. A walk visits
+    /// only what it writes, so the work is the rows read and the rows made, at most the roots times the edges of
+    /// their keys, which are the plan's own rows.
+    OrderedDfs(VisitColumns),
+    /// `worklist`: from each root, a first-in-first-out fixpoint over a lattice of states, a row for each edge followed.
+    ///
+    /// The inputs. Three: the roots, the edges, the lattice. Of a root row the columns held here name the root and the
+    /// state it starts in; its `keys` part the roots and the edges into graphs that never meet; its `order` is none.
+    /// Of an edge row they name the source and the destination, cells of the root's kind, and the state its source
+    /// must hold for it to be followed (`before`) and the state it joins into its destination (`after`); its `keys`
+    /// are matched to the roots' place by place; its `order` is the column a source's edges are followed by, a number.
+    /// Of a lattice row they name a lower state and an upper state above it, cells of the root state's kind; its
+    /// `keys` are none, one lattice for the table, and its `order` is none.
+    ///
+    /// The row. The root's keys' cells in the order of the roots' `keys`, the root, then the followed edge's source,
+    /// destination and order, then the state its source held when it was followed and the state its destination holds
+    /// after the join: `Key(0)..`, `Root`, `Source`, `Destination`, `Order`, `Before`, `Reached`, six columns more than
+    /// the keys. This is the order of the operation's answer.
+    ///
+    /// The rows, as the operators crate makes them today (`worklist::service::tabled`,
+    /// `kernels/queued_walk/item.rs::worklisted`). The lattice's states are the cells of its rows, ordered by the rows
+    /// and what follows from them; it must have one least state and one least upper bound of every two. One run for
+    /// each distinct keys and root, which starts in the join of the least state and every state its root rows give
+    /// it; every other entity starts in the least state. The queue starts as the root. An entity leaving the queue
+    /// follows, in ascending order, the edges that leave it in the root's keys and whose `before` is the state it
+    /// holds then. An edge followed joins its `after` into its destination's state, and a destination whose state
+    /// that changes joins the queue again. Each edge followed gives a row, unless an equal row was written. So of
+    /// the lattice (0, 1), the root 1 in state 0 and the edges (source, destination, order, before, after)
+    /// (1, 2, 0, 0, 1), (2, 2, 0, 1, 0), the rows are `[1, 1, 2, 0, 0, 1]`, `[1, 2, 2, 0, 1, 1]`: the fixture
+    /// `operator_contract::worklist::fixture`, which the execution crate's case `conformance_boundary` holds today's
+    /// engine to.
+    ///
+    /// Ties and faults of today's kernel. Two edges of one keys, source and `before` with one order are
+    /// `DuplicateOrder`; the same order under two `before` states is not. An order that is no number is
+    /// `ShapeMismatch`. Lattice rows that close a ring, have no one least state or leave two states with no one least
+    /// upper bound, and a root or edge state the lattice's rows do not hold, are `NotALattice`, raised before any run.
+    ///
+    /// The cost. Class `File`: the edges sorted once, and each root's run over the edges its keys hold. An entity
+    /// joins the queue again only when its state rises, so a run follows an edge at most as many times as the lattice
+    /// is high; an edge followed again that writes no new row is counted as `read`.
+    Worklist(WorklistColumns),
+    /// `cycles`: each entity that reaches itself.
+    ///
+    /// The input. One, the edges: the columns held here are the source and the destination of its rows, cells of one
+    /// kind. Its `keys` are none, one graph for the table, and its `order` is none.
+    ///
+    /// The row. Two columns, `Source` then `Destination`, and both hold the entity: the order of the operation's
+    /// answer.
+    ///
+    /// The rows, as the operators crate's kernel makes them today (`kernels/components/item.rs::cyclic`). One row for
+    /// each entity that is on a ring of edges or has an edge to itself, each once; an entity that only leads to a ring
+    /// or is only led to from one has none. So of the edges (1, 2), (2, 1), (3, 3), (4, 5), (5, 6), (9, 7), (7, 8),
+    /// (8, 9), (9, 10) the rows are `[1, 1]`, `[2, 2]`, `[3, 3]`, `[7, 7]`, `[8, 8]`, `[9, 9]`: the operators crate's
+    /// case `cycles_are_marked_by_tarjan`.
+    ///
+    /// The cost. Class `File`: one pass over the table's edges, each visited once.
+    Cycles(EdgeColumns),
 }
 
 /// The pipelines whose rows are a fill's input, with the key and order columns of those rows.

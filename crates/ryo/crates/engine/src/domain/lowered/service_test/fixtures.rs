@@ -1,7 +1,9 @@
 //! What the cases of the pack's walks share: a pack that holds a definition, a rule and a table of every fill, and a pack
 //! whose one rule holds every step that runs bodies. Every step and stage writes registers of its own, so the registers
-//! written, in the order met, say what a walk met and when.
+//! written, in the order met, say what a walk met and when. And what the cases of the graph tables share: the columns
+//! each small input's fill is told, and an input of rows of a width.
 
+use crate::domain::code::records::types::{EdgeColumns, VisitColumns, WorklistColumns};
 use crate::domain::code::types::ShapeChoice;
 use crate::domain::findings::types::RuleColumns;
 use crate::domain::lowered::types::{
@@ -10,8 +12,8 @@ use crate::domain::lowered::types::{
 };
 use crate::domain::steps::stages::types::{FillStage, Pipeline, PlacedStage};
 use crate::domain::steps::types::{
-    ColumnList, ColumnMask, DefinitionId, MadeTableId, NearestEdges, PlacedStep, Polarity,
-    ProgramStep, Register, RegisterList, StepBody, StepMemo, StepOperand, StepOperands,
+    ColumnList, ColumnMask, DefinitionId, MadeColumn, MadeTableId, NearestEdges, PlacedStep,
+    Polarity, ProgramStep, Register, RegisterList, StepBody, StepMemo, StepOperand, StepOperands,
     StepProgram, StepRows,
 };
 use ryo_values::domain::plan_parts::types::RepeatedRows;
@@ -119,7 +121,10 @@ pub(super) fn whole() -> LoweredPack {
             table(MadeFill::Ordered(OrderedFill::Sorted(input(14)))),
             table(MadeFill::Ordered(OrderedFill::Match(input(15), input(16)))),
             table(MadeFill::Graph(
-                GraphFill::Cycles,
+                GraphFill::Cycles(EdgeColumns {
+                    source: MadeColumn(0),
+                    destination: MadeColumn(0),
+                }),
                 Box::new([input(17), input(18)]),
             )),
             table(MadeFill::Constant(ConstantRows::default())),
@@ -198,5 +203,60 @@ pub(super) fn nested() -> LoweredPack {
     LoweredPack {
         rules: vec![rule],
         ..LoweredPack::default()
+    }
+}
+
+/// The edge columns of the small `follow`: an edge row is its key, its source, its destination.
+pub(super) const EDGES: EdgeColumns = EdgeColumns {
+    source: MadeColumn(1),
+    destination: MadeColumn(2),
+};
+
+/// The columns of the small ordered walk: a root row is its key and its root; an edge row is its key, its source, its
+/// destination, its order and its identity.
+pub(super) const VISITS: VisitColumns = VisitColumns {
+    root: MadeColumn(1),
+    source: MadeColumn(1),
+    destination: MadeColumn(2),
+    edge: MadeColumn(4),
+};
+
+/// The columns of the small worklist: a root row is its key, its root and its state; an edge row is its key, its source,
+/// its destination, its order and its two states; a lattice row is its two states.
+pub(super) const STATES: WorklistColumns = WorklistColumns {
+    root: MadeColumn(1),
+    state: MadeColumn(2),
+    source: MadeColumn(1),
+    destination: MadeColumn(2),
+    before: MadeColumn(4),
+    after: MadeColumn(5),
+    lower: MadeColumn(0),
+    upper: MadeColumn(1),
+};
+
+/// The edge columns of the small `cycles`: an edge row is its source and its destination.
+pub(super) const RING: EdgeColumns = EdgeColumns {
+    source: MadeColumn(0),
+    destination: MadeColumn(1),
+};
+
+/// A pipeline of no stage whose rows are `width` wide.
+pub(super) fn graph_pipeline(width: u32) -> Pipeline {
+    Pipeline {
+        stages: Box::new([]),
+        row: StepOperands(
+            (0..width)
+                .map(|at| StepOperand::Register(Register(at)))
+                .collect(),
+        ),
+    }
+}
+
+/// An input of one pipeline whose rows are `width` wide, keyed on `keys`, ordered by `order`.
+pub(super) fn graph_input(width: u32, keys: &[u16], order: Option<u16>) -> FillInput {
+    FillInput {
+        pipelines: Box::new([graph_pipeline(width)]),
+        keys: ColumnList(keys.iter().copied().map(MadeColumn).collect()),
+        order: order.map(MadeColumn),
     }
 }

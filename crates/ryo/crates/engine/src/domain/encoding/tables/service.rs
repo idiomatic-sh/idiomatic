@@ -2,7 +2,9 @@
 //! reached written after the rule, in the order reached, so a count past its width is the refusal of the rule that reached it.
 
 use crate::domain::code::constants::NO_SLOT;
-use crate::domain::code::records::service::{next_place, push_edge_columns};
+use crate::domain::code::records::service::{
+    next_place, push_edge_columns, push_visit_columns, push_worklist_columns,
+};
 use crate::domain::code::types::{MeasuredForm, ShapeChoice, UnitKey};
 use crate::domain::code::types::{Short, TableCode, WordSlot};
 use crate::domain::encoding::needs::service::{definition_need, need_site};
@@ -111,10 +113,15 @@ fn parameter(encoding: &mut Encoding<'_>, fill: &MadeFill) -> Result<WordSlot, L
             OrderedFill::Sorted(_) | OrderedFill::Match(..) => WordSlot(0),
         },
         MadeFill::Graph(graph, _) => match graph {
-            GraphFill::FixedPoints(columns) => {
+            GraphFill::FixedPoints(columns) | GraphFill::Cycles(columns) => {
                 WordSlot(push_edge_columns(&mut encoding.code.pool, *columns).0)
             }
-            GraphFill::OrderedDfs | GraphFill::Worklist | GraphFill::Cycles => WordSlot(0),
+            GraphFill::OrderedDfs(columns) => {
+                WordSlot(push_visit_columns(&mut encoding.code.pool, *columns).0)
+            }
+            GraphFill::Worklist(columns) => {
+                WordSlot(push_worklist_columns(&mut encoding.code.pool, *columns).0)
+            }
         },
         MadeFill::Constant(rows) => slot_of(encoding, Count(rows.0.len()), PastWidth::Sites)?,
     })

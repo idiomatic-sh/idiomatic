@@ -3,6 +3,7 @@
 
 use super::types::{
     BodyRecord, BoundFormal, CollectedRead, EdgeColumns, NeedRecord, PooledOperand, ReadBody,
+    VisitColumns, WorklistColumns,
 };
 use crate::domain::code::constants::NO_SLOT;
 use crate::domain::code::types::{
@@ -262,5 +263,61 @@ pub(crate) fn edge_columns_at(pool: &[WordSlot], at: PoolAt) -> Option<EdgeColum
     Some(EdgeColumns {
         source: column_at(pool, at, WordSlot(0))?,
         destination: column_at(pool, at, WordSlot(1))?,
+    })
+}
+
+/// Writes the record of the columns of an `ordered-dfs` fill: `root, source, destination, edge`. The place it answers is
+/// the one parameter of the table's fill record.
+pub(crate) fn push_visit_columns(pool: &mut Vec<WordSlot>, columns: VisitColumns) -> PoolAt {
+    let at = next_place(pool);
+    pool.extend_from_slice(&[
+        column_slot(columns.root),
+        column_slot(columns.source),
+        column_slot(columns.destination),
+        column_slot(columns.edge),
+    ]);
+    at
+}
+
+/// The columns of an `ordered-dfs` fill, at the place its table's one parameter names.
+#[must_use]
+pub(crate) fn visit_columns_at(pool: &[WordSlot], at: PoolAt) -> Option<VisitColumns> {
+    Some(VisitColumns {
+        root: column_at(pool, at, WordSlot(0))?,
+        source: column_at(pool, at, WordSlot(1))?,
+        destination: column_at(pool, at, WordSlot(2))?,
+        edge: column_at(pool, at, WordSlot(3))?,
+    })
+}
+
+/// Writes the record of the columns of a `worklist` fill: `root, state, source, destination, before, after, lower,
+/// upper`. The place it answers is the one parameter of the table's fill record.
+pub(crate) fn push_worklist_columns(pool: &mut Vec<WordSlot>, columns: WorklistColumns) -> PoolAt {
+    let at = next_place(pool);
+    pool.extend_from_slice(&[
+        column_slot(columns.root),
+        column_slot(columns.state),
+        column_slot(columns.source),
+        column_slot(columns.destination),
+        column_slot(columns.before),
+        column_slot(columns.after),
+        column_slot(columns.lower),
+        column_slot(columns.upper),
+    ]);
+    at
+}
+
+/// The columns of a `worklist` fill, at the place its table's one parameter names.
+#[must_use]
+pub(crate) fn worklist_columns_at(pool: &[WordSlot], at: PoolAt) -> Option<WorklistColumns> {
+    Some(WorklistColumns {
+        root: column_at(pool, at, WordSlot(0))?,
+        state: column_at(pool, at, WordSlot(1))?,
+        source: column_at(pool, at, WordSlot(2))?,
+        destination: column_at(pool, at, WordSlot(3))?,
+        before: column_at(pool, at, WordSlot(4))?,
+        after: column_at(pool, at, WordSlot(5))?,
+        lower: column_at(pool, at, WordSlot(6))?,
+        upper: column_at(pool, at, WordSlot(7))?,
     })
 }

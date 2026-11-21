@@ -20,8 +20,8 @@ use ryo_values::domain::table_words::types::ColumnCount;
 /// What bounds a fill's work each time its table is made: a definition's rows are the file's; a group, an order (a sorted
 /// table, and an ordered match, whose two inputs are each sorted once and paired in one pass) and the fixed points are one
 /// group's rows, sorted once (the fixed points then walk back from each fixed point of the group, never past it: the
-/// reason in rows is on `GraphFill::FixedPoints`); the other graphs walk the file's edges; written rows are made once for
-/// the run.
+/// reason in rows is on `GraphFill::FixedPoints`); the other graphs walk the file's edges, each for the reason in rows its
+/// variant of `GraphFill` gives; written rows are made once for the run.
 #[must_use]
 pub(crate) const fn fill_class(fill: &MadeFill) -> CostClass {
     match fill {
@@ -37,7 +37,9 @@ pub(crate) const fn fill_class(fill: &MadeFill) -> CostClass {
         },
         MadeFill::Graph(graph, _) => match graph {
             GraphFill::FixedPoints(_) => CostClass::Group,
-            GraphFill::OrderedDfs | GraphFill::Worklist | GraphFill::Cycles => CostClass::File,
+            GraphFill::OrderedDfs(_) | GraphFill::Worklist(_) | GraphFill::Cycles(_) => {
+                CostClass::File
+            }
         },
         MadeFill::Constant(_) => CostClass::Constant,
     }
@@ -60,9 +62,9 @@ pub(crate) const fn fill_code(fill: &MadeFill) -> FillCode {
         },
         MadeFill::Graph(graph, _) => match graph {
             GraphFill::FixedPoints(_) => 7,
-            GraphFill::OrderedDfs => 8,
-            GraphFill::Worklist => 9,
-            GraphFill::Cycles => 10,
+            GraphFill::OrderedDfs(_) => 8,
+            GraphFill::Worklist(_) => 9,
+            GraphFill::Cycles(_) => 10,
         },
         MadeFill::Constant(_) => 11,
     })

@@ -1,7 +1,7 @@
 //! The cost class and the code of each fill, one row for each.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::code::records::types::EdgeColumns;
+use crate::domain::code::records::types::{EdgeColumns, VisitColumns, WorklistColumns};
 use crate::domain::code::types::FillCode;
 use crate::domain::lowered::service::{fill_class, fill_code};
 use crate::domain::lowered::types::{
@@ -176,6 +176,11 @@ fn input() -> FillInput {
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
     let graph = |fill| MadeFill::Graph(fill, Box::new([input()]));
+    let column = MadeColumn(0);
+    let edges = EdgeColumns {
+        source: column,
+        destination: MadeColumn(1),
+    };
     let fill = match scenario {
         Scenario::Rows => MadeFill::Rows(Box::new([]), RepeatedRows::Dropped),
         Scenario::Count => MadeFill::Group(GroupFill::Count { distinct: None }, input()),
@@ -189,13 +194,24 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::Places => MadeFill::Group(GroupFill::Places, input()),
         Scenario::Sorted => MadeFill::Ordered(OrderedFill::Sorted(input())),
         Scenario::Match => MadeFill::Ordered(OrderedFill::Match(input(), input())),
-        Scenario::FixedPoints => graph(GraphFill::FixedPoints(EdgeColumns {
-            source: MadeColumn(0),
-            destination: MadeColumn(1),
+        Scenario::FixedPoints => graph(GraphFill::FixedPoints(edges)),
+        Scenario::OrderedDfs => graph(GraphFill::OrderedDfs(VisitColumns {
+            root: column,
+            source: column,
+            destination: column,
+            edge: column,
         })),
-        Scenario::OrderedDfs => graph(GraphFill::OrderedDfs),
-        Scenario::Worklist => graph(GraphFill::Worklist),
-        Scenario::Cycles => graph(GraphFill::Cycles),
+        Scenario::Worklist => graph(GraphFill::Worklist(WorklistColumns {
+            root: column,
+            state: column,
+            source: column,
+            destination: column,
+            before: column,
+            after: column,
+            lower: column,
+            upper: column,
+        })),
+        Scenario::Cycles => graph(GraphFill::Cycles(edges)),
         Scenario::Constant => MadeFill::Constant(ConstantRows::default()),
     };
     Ok(Classed {
