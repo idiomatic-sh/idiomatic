@@ -36,7 +36,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Asked::Keys(Relation::BindingRead),
         expect: Expect::Value(
-            "592 files, 20878 rows whole, 4229 keys of BindingRead(Name) wrote 20878: no difference",
+            "592 files, 20900 rows whole, 4236 keys of BindingRead(Name) wrote 20900: no difference",
         ),
     },
     Case {
@@ -92,7 +92,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Asked::Keys(Relation::LookupScope),
         expect: Expect::Value(
-            "592 files, 39800 rows whole, 20834 keys of LookupScope(Reference) wrote 39800: no difference",
+            "592 files, 39826 rows whole, 20856 keys of LookupScope(Reference) wrote 39826: no difference",
         ),
     },
     Case {

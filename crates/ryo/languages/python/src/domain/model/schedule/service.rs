@@ -7,7 +7,7 @@ use crate::domain::model::types::{
 };
 use crate::domain::model::definitions::service::definition_of;
 use crate::domain::model::lexical::constants::MODULE;
-use crate::domain::model::lexical::service::{entry, id_of, node_at, subtree_end_of, syntax_form};
+use crate::domain::model::lexical::service::{entry, id_of, node_at, scope_at, subtree_end_of, syntax_form};
 use crate::domain::model::lexical::types::{AnnotationMark, NameUse, NodeClass, SyntaxForm};
 use ruff_python_ast::{AnyNodeRef, Comprehension, Expr, Stmt};
 use ryo::languages::Position;
@@ -355,10 +355,50 @@ pub(crate) fn build(model: &mut BindingSchedule, source: ScheduleSource<'_, '_, 
     walk(model, source, MODULE, MODULE);
     push(model, MODULE, MODULE, BindingAction::EndPhase);
     let mut next = 0;
-    while let Some(task) = model.phases.get(next).copied() {
-        next = usize::saturating_add(next, 1);
+    drain(model, source, &mut next);
+    // The expression of a string the language reads as a type runs after the file's own schedule, a phase of its own that
+    // inherits the finished phase around its string; the segments stand parent first.
+    for segment in source.tree.segments {
+        model.phases.push(BindingPhase {
+            root: segment.first,
+            parent: enclosing_phase(source, segment.host),
+            kind: BindingPhaseKind::Type,
+        });
+        drain(model, source, &mut next);
+    }
+}
+
+/// Writes every later phase not yet written, in the order they were defined: a phase may define more.
+fn drain(model: &mut BindingSchedule, source: ScheduleSource<'_, '_, '_>, next: &mut usize) {
+    while let Some(task) = model.phases.get(*next).copied() {
+        *next = usize::saturating_add(*next, 1);
         push(model, task.root, task.root, BindingAction::BeginPhase);
         later(model, source, task);
         push(model, task.root, task.root, BindingAction::EndPhase);
+    }
+}
+
+/// The finished phase the expression of the string at `host` inherits: the embedded segment that holds the string, or the
+/// nearest scope around it that is a phase (the module, a callable, a generator).
+fn enclosing_phase(source: ScheduleSource<'_, '_, '_>, host: Position) -> Position {
+    let held = source
+        .tree
+        .segments
+        .iter()
+        .find(|segment| segment.first <= host && host < subtree_end_of(source.tree, segment.first));
+    if let Some(segment) = held {
+        return segment.first;
+    }
+    let mut scope = scope_at(source.lexical, host);
+    loop {
+        if scope == MODULE
+            || matches!(
+                entry(&source.lexical.class, scope),
+                NodeClass::FunctionDef | NodeClass::Lambda | NodeClass::Generator
+            )
+        {
+            return scope;
+        }
+        scope = scope_at(source.lexical, scope);
     }
 }
