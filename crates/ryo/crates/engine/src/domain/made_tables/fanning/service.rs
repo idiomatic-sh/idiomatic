@@ -16,6 +16,7 @@ use crate::domain::filled::types::MissingCode;
 use crate::domain::indexes::reading::service::run_of;
 use crate::domain::indexes::types::RowRun;
 use crate::domain::made_tables::constants::BATCH_ROWS;
+use crate::domain::made_tables::fanning::types::ScanRead;
 use crate::domain::made_tables::operands::service::{column_of, constant_at, key_of};
 use crate::domain::made_tables::pipelines::types::{BatchLevel, FanKind, OperandRun};
 use crate::domain::made_tables::reading::service::{
@@ -23,7 +24,6 @@ use crate::domain::made_tables::reading::service::{
 };
 use crate::domain::made_tables::staging::service::{WRONG_WORD, probe_key, probe_range};
 use crate::domain::made_tables::staging::types::BatchFrame;
-use crate::domain::made_tables::types::ScanRead;
 use crate::domain::stages::nodes::service::node_tag;
 use crate::domain::stages::ranging::service::probe_between;
 use crate::domain::stages::service::{latest, probe, product};

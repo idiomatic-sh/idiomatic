@@ -9,9 +9,9 @@ use crate::domain::code::types::{
 use crate::domain::filled::errors::FilledError;
 use crate::domain::filled::service::whole_rows;
 use crate::domain::filled::types::MissingCode;
-use crate::domain::indexes::reading::service::{cell_at, read};
+use crate::domain::indexes::reading::service::read;
 use crate::domain::indexes::types::{ColumnView, FixedKeys, IndexRead, RowRun, SourceRow};
-use crate::domain::made_tables::columns::types::{HeldCells, HeldColumn, RowColumn};
+use crate::domain::made_tables::columns::types::{CellsLie, HeldCells, HeldColumn, RowColumn};
 use crate::domain::made_tables::service::{file_of, key_mask, place_of};
 use crate::domain::made_tables::types::{FillStore, MadeState, ReadSource, RuleSetView, TableSlot};
 use crate::domain::stages::nodes::service::node_tag;
@@ -155,6 +155,7 @@ pub(crate) fn column_held(store: &FillStore, source: ReadSource, at: Short) -> H
         cells: HeldCells::Nothing,
         first: Count(0),
         stride: Count(1),
+        end: Count(0),
     };
     match source {
         ReadSource::Filled(number) => {
@@ -169,22 +170,39 @@ pub(crate) fn column_held(store: &FillStore, source: ReadSource, at: Short) -> H
                     cells: HeldCells::Relation(number, at),
                     first: Count(0),
                     stride: Count(1),
+                    end: Count(usize::MAX),
                 }
             } else {
                 nothing
             }
         }
         ReadSource::Made(table) => match made_slot(store, table) {
-            Some(slot) => match place_of(&slot.rows, Count(usize::from(at.0))) {
-                RowColumn::Kept(first) => HeldColumn {
+            Some(slot) => match (
+                place_of(&slot.rows, Count(usize::from(at.0))),
+                slot.rows.lies,
+            ) {
+                // A made table's cells are a stretch of the arena: the column is read there, with no slot looked up.
+                (RowColumn::Kept(first), CellsLie::Arena(start)) => HeldColumn {
+                    cells: HeldCells::Arena,
+                    first: Count(start.0.saturating_add(first.0)),
+                    stride: slot.rows.width,
+                    end: Count(
+                        start
+                            .0
+                            .saturating_add(slot.rows.count.0.saturating_mul(slot.rows.width.0)),
+                    ),
+                },
+                (RowColumn::Kept(first), CellsLie::Own) => HeldColumn {
                     cells: HeldCells::Table(table),
                     first,
                     stride: slot.rows.width,
+                    end: Count(usize::MAX),
                 },
-                RowColumn::File => HeldColumn {
+                (RowColumn::File, CellsLie::Arena(_) | CellsLie::Own) => HeldColumn {
                     cells: HeldCells::TableFile(table),
                     first: Count(0),
                     stride: Count(0),
+                    end: Count(1),
                 },
             },
             None => nothing,
@@ -195,9 +213,10 @@ pub(crate) fn column_held(store: &FillStore, source: ReadSource, at: Short) -> H
 
 /// The cells a held column lies in, as they are now: read where they are, with no test of the file, which
 /// `column_held` made when the column was asked.
-#[inline]
+#[inline(always)]
 pub(crate) fn cells_held(store: &FillStore, held: HeldCells) -> &[CellWord] {
     match held {
+        HeldCells::Arena => &store.table_cells,
         HeldCells::Table(table) => match store
             .tables
             .get(usize::try_from(table.0).unwrap_or(usize::MAX))
@@ -225,25 +244,33 @@ pub(crate) fn cells_held(store: &FillStore, held: HeldCells) -> &[CellWord] {
     }
 }
 
-/// The cell of a row in a held column, by the row's handle; the zero cell past the column's end.
+/// The cell of a row in a held column, by the row's handle; the zero cell past the column's end. One test of the
+/// place against the end of the source's own cells: what does not change from row to row (the cells, their end) is
+/// found once by a reader that reads many rows.
 #[inline]
 pub(crate) fn cell_held(store: &FillStore, column: HeldColumn, row: CellWord) -> CellWord {
-    cell_at(
-        ColumnView {
-            cells: cells_held(store, column.cells),
-            first: column.first,
-            stride: column.stride,
-        },
-        row_of(row),
-    )
+    let cells = cells_held(store, column.cells);
+    let own = cells
+        .get(..column.end.0.min(cells.len()))
+        .unwrap_or_default();
+    let at = column
+        .first
+        .0
+        .wrapping_add(row_of(row).0.wrapping_mul(column.stride.0));
+    match own.get(at) {
+        Some(cell) => *cell,
+        None => CellWord(0),
+    }
 }
 
 /// A column of a relation or of a made table as a loop reads it by a row's handle; no cell for the node table, whose
 /// columns are read by `stages::nodes`, and none for a source that is not there. The held column's cells, lent.
 pub(crate) fn view_of(store: &FillStore, source: ReadSource, at: Short) -> ColumnView<'_> {
     let held = column_held(store, source, at);
+    let cells = cells_held(store, held.cells);
     ColumnView {
-        cells: cells_held(store, held.cells),
+        // No cell past the source's own: a made table's stretch of the arena ends where the next table's starts.
+        cells: cells.get(..held.end.0.min(cells.len())).unwrap_or_default(),
         first: held.first,
         stride: held.stride,
     }

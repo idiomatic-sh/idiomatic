@@ -7,16 +7,18 @@ use self::kinds::FillBench;
 use self::tables::{bench_table, called, told_rows};
 use crate::domain::code::types::{RelationNumber, Short};
 use crate::domain::filled::errors::FilledError;
+use crate::domain::indexes::reading::service::cell_at;
 use crate::domain::made_tables::fixtures::packs::FILE;
 use crate::domain::made_tables::fixtures::sites::{node_site, site_of};
 use crate::domain::made_tables::fixtures::{Telling, World, framed, world_of};
-use crate::domain::made_tables::reading::service::{cell_held, column_held};
+use crate::domain::made_tables::reading::service::{cell_held, column_held, view_of};
 use crate::domain::made_tables::sources::service::{
     cell_of, made, matched, next_file, scanned, table_of,
 };
 use crate::domain::made_tables::types::{
     FillFrame, KeyFrom, MadeState, PatternAsk, PatternFound, PatternRows, ReadSource, TableNeed,
 };
+use crate::domain::stages::service::row_of;
 use crate::domain::steps::types::MadeTableId;
 use ryo_language::domain::facts::service::{base_words, clear_words, file_words};
 use ryo_language::domain::facts::types::CellWord;
@@ -110,10 +112,12 @@ pub fn fill_workload(bench: FillBench, rows: usize) -> Option<FillWorkload> {
         | FillBench::UseRows
         | FillBench::OrderedMatch
         | FillBench::GroupEnds
+        | FillBench::GroupPlaces
         | FillBench::RowsFile
         | FillBench::RowsFileDropped
         | FillBench::SeamCellOf
         | FillBench::SeamColumnHeld
+        | FillBench::SeamViewOf
         | FillBench::Product => true,
         FillBench::WalkChildren
         | FillBench::WalkAncestors
@@ -201,8 +205,12 @@ pub fn fill_workload(bench: FillBench, rows: usize) -> Option<FillWorkload> {
 /// // the root, whose own texts match none.
 /// let kept = [FillBench::KeepGlobFewWords, FillBench::KeepGlobOwnWords];
 /// assert_eq!(kept.map(made), [700, 101]);
-/// // Every row of a made table's column read through the seam, one call a read or through the held column.
-/// assert_eq!([FillBench::SeamCellOf, FillBench::SeamColumnHeld].map(made), [800, 800]);
+/// // Every row of a made table's column read through the seam: one call a read, through the held column, or from
+/// // the column's cells lent once.
+/// let seam = [FillBench::SeamCellOf, FillBench::SeamColumnHeld, FillBench::SeamViewOf];
+/// assert_eq!(seam.map(made), [800, 800, 800]);
+/// // Each of 800 rows with its place among its key's eight.
+/// assert_eq!(made(FillBench::GroupPlaces), 800);
 /// let nodes = [FillBench::IndexNodesKind, FillBench::IndexNodesParent, FillBench::IndexNodesId];
 /// assert_eq!(nodes.map(made), [700, 101, 1]);
 /// // Of 800 elements of sixteen kinds in no order, those of the first kind: about one in sixteen.
@@ -230,12 +238,14 @@ pub fn run_fill(work: &mut FillWorkload) -> usize {
         | FillBench::CallSourceMatches
         | FillBench::OrderedMatch
         | FillBench::GroupEnds
+        | FillBench::GroupPlaces
         | FillBench::RowsFile
         | FillBench::RowsFileDropped
         | FillBench::KeepGlobFewWords
         | FillBench::KeepGlobOwnWords
         | FillBench::SeamCellOf
         | FillBench::SeamColumnHeld
+        | FillBench::SeamViewOf
         | FillBench::Product => None,
     };
     if let Some(key) = asked {
@@ -248,7 +258,10 @@ pub fn run_fill(work: &mut FillWorkload) -> usize {
                 found.rows.end.0.saturating_sub(found.rows.start.0)
             });
     }
-    if matches!(work.1, FillBench::SeamCellOf | FillBench::SeamColumnHeld) {
+    if matches!(
+        work.1,
+        FillBench::SeamCellOf | FillBench::SeamColumnHeld | FillBench::SeamViewOf
+    ) {
         // The table is made once, by the first run; a run reads its second column for every row, and answers how
         // many rows held a cell there that is a row's number, which is every row.
         let (mut frame, _) = framed(&mut work.0);
@@ -260,6 +273,11 @@ pub fn run_fill(work: &mut FillWorkload) -> usize {
         return if work.1 == FillBench::SeamCellOf {
             handles
                 .filter(|row| cell_of(&mut frame, table, Short(1), *row).0 < all)
+                .count()
+        } else if work.1 == FillBench::SeamViewOf {
+            let view = view_of(frame.store, table, Short(1));
+            handles
+                .filter(|row| cell_at(view, row_of(*row)).0 < all)
                 .count()
         } else {
             let held = column_held(frame.store, table, Short(1));
@@ -276,6 +294,8 @@ pub fn run_fill(work: &mut FillWorkload) -> usize {
     if let Some(slot) = work.0.store.tables.first_mut() {
         slot.state = MadeState::Unmade;
     }
+    // The table's cells of the run before are let go, as a file's start does: the arena is emptied, its room kept.
+    work.0.store.table_cells.clear();
     let (mut frame, _) = framed(&mut work.0);
     let _now = made(&mut frame, &mut OneRow, MadeTableId(0));
     table_of(frame.store, MadeTableId(0)).map_or(0, |slot| slot.rows.count.0)

@@ -210,6 +210,8 @@ pub(crate) struct World {
     pub(crate) nodes: NodeTable,
     /// The file's text.
     pub(crate) text: Vec<u8>,
+    /// The file's path.
+    pub(crate) path: &'static str,
     /// The file's words.
     pub(crate) words: FileWords,
     /// The fill side's state.
@@ -262,6 +264,7 @@ pub(crate) fn world_of(
         },
         nodes,
         text: TEXT.to_vec(),
+        path: "ab/cd.walk",
         words: file_words(&base_words(
             checked(&[]).map_err(|_| FilledError::Code {
                 named: crate::domain::filled::types::MissingCode::Word,
@@ -287,6 +290,7 @@ pub(crate) fn framed(world: &mut World) -> (FillFrame<'_>, &mut Looped) {
         programs,
         nodes: file,
         text,
+        path,
         words,
         store,
         told,
@@ -302,6 +306,7 @@ pub(crate) fn framed(world: &mut World) -> (FillFrame<'_>, &mut Looped) {
             },
             nodes: file,
             file: FILE,
+            path: ryo_language::domain::files::types::SourcePath(path),
             text: ByteSlice(text),
             facts: told,
             words,
@@ -313,13 +318,17 @@ pub(crate) fn framed(world: &mut World) -> (FillFrame<'_>, &mut Looped) {
 }
 
 #[cfg(test)]
-/// The cells of a table's row as a reader of each of its columns is handed them: the file's own column too, of which
-/// the table keeps no cell.
-fn row_cells(table: &crate::domain::made_tables::types::TableRows, row: Count) -> Vec<CellWord> {
-    (0..table.places.len())
+/// The cells of a made table's row as a reader of each of its columns is handed them through the store: the file's own
+/// column too, of which the table keeps no cell.
+fn row_cells(store: &FillStore, table: MadeTableId, columns: Count, row: Count) -> Vec<CellWord> {
+    (0..columns.0)
         .map(|column| {
             crate::domain::indexes::reading::service::cell_at(
-                crate::domain::made_tables::service::column(table, Count(column)),
+                crate::domain::made_tables::reading::service::view_of(
+                    store,
+                    crate::domain::made_tables::types::ReadSource::Made(table),
+                    crate::domain::code::types::Short(u16::try_from(column).unwrap_or(u16::MAX)),
+                ),
                 row,
             )
         })
@@ -334,7 +343,7 @@ pub(crate) fn shown(store: &FillStore, table: MadeTableId) -> String {
     };
     let rows: Vec<String> = (0..slot.rows.count.0)
         .map(|row| {
-            row_cells(&slot.rows, Count(row))
+            row_cells(store, table, Count(slot.rows.places.len()), Count(row))
                 .iter()
                 .map(|cell| cell.0.to_string())
                 .collect::<Vec<_>>()
@@ -367,20 +376,25 @@ pub(crate) fn shown_as(world: &World, table: MadeTableId, columns: &[Shown]) -> 
     };
     let rows: Vec<String> = (0..slot.rows.count.0)
         .map(|row| {
-            row_cells(&slot.rows, Count(row))
-                .iter()
-                .zip(columns)
-                .map(|(cell, shown)| match shown {
-                    Shown::Number => cell.0.to_string(),
-                    Shown::Text => format!(
-                        "{:?}",
-                        ryo_language::domain::facts::service::text(&world.words, *cell).0
-                    ),
-                    Shown::Span => format!("{}..{}", cell.0 >> 32, cell.0 & 0xffff_ffff),
-                    Shown::Node => format!("n{}", cell.0 & 0xffff_ffff),
-                })
-                .collect::<Vec<_>>()
-                .join(" ")
+            row_cells(
+                &world.store,
+                table,
+                Count(slot.rows.places.len()),
+                Count(row),
+            )
+            .iter()
+            .zip(columns)
+            .map(|(cell, shown)| match shown {
+                Shown::Number => cell.0.to_string(),
+                Shown::Text => format!(
+                    "{:?}",
+                    ryo_language::domain::facts::service::text(&world.words, *cell).0
+                ),
+                Shown::Span => format!("{}..{}", cell.0 >> 32, cell.0 & 0xffff_ffff),
+                Shown::Node => format!("n{}", cell.0 & 0xffff_ffff),
+            })
+            .collect::<Vec<_>>()
+            .join(" ")
         })
         .collect();
     rows.join("; ")

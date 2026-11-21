@@ -15,16 +15,18 @@ use crate::domain::code::small_codes::service::{comparison_of, mode_of, node_col
 use crate::domain::code::types::{CodeWord, PoolAt, Short, WordFlag};
 use crate::domain::filled::errors::FilledError;
 use crate::domain::filled::types::{MissingCode, UnbuiltFill};
-use crate::domain::made_tables::columns::types::RowColumn;
+use crate::domain::made_tables::columns::types::HeldCells;
+use crate::domain::made_tables::columns::types::{CellsLie, RowColumn};
 use crate::domain::made_tables::operands::service::{
     column_of, constant_at, key_of, operand, set_of, value_of,
 };
 use crate::domain::made_tables::pipelines::types::{BatchLevel, OperandRun};
 use crate::domain::made_tables::reading::service::{
-    index_at, node_names, site_at, site_source, source_of, view_of,
+    column_held, index_at, node_names, site_at, site_source, source_of, view_of,
 };
 use crate::domain::made_tables::service::{place_of, write, write_new};
-use crate::domain::made_tables::types::{ReadSource, TableRows};
+use crate::domain::made_tables::types::{ReadSource, RuleSetView, TableRows};
+use crate::domain::made_tables::writing::service::{settled, written, written_new};
 use crate::domain::stages::nodes::service::node_column;
 use crate::domain::stages::ranging::service::probe_keep_between;
 use crate::domain::stages::service::{cell_test, keep, keep_in, probe_keep, read};
@@ -34,8 +36,11 @@ use crate::domain::stages::types::{
 };
 use crate::domain::steps::stages::types::UseMode;
 use crate::domain::steps::types::{BoundKind, Register, TestOperation};
+use ryo_language::domain::facts::service::intern;
 use ryo_language::domain::facts::types::{CellWord, FileWords};
-use ryo_relations::domain::relations::types::Count;
+use ryo_relations::domain::relations::types::NodeColumn;
+use ryo_relations::domain::relations::types::{Count, FileId};
+use ryo_relations::domain::terms::types::NameText;
 
 /// The code names a word that is not what its place needs.
 pub(crate) const WRONG_WORD: FilledError = FilledError::Code {
@@ -109,6 +114,27 @@ pub(crate) fn read_stage(
     done
 }
 
+/// Says whether the register a `Read` filled holds the file: it does when the column read is a made table's own file
+/// column (the column no cell is kept for) or the node table's. A text test of such a register reads the file's path,
+/// not the text of the word numbered like the file.
+pub(crate) fn file_marked(frame: BatchFrame<'_>, word: CodeWord, files: &mut Vec<Count>) {
+    let stage = stage_read_of(word);
+    let source = source_of(stage.flag, stage.read);
+    let out = Count(usize::try_from(stage.out.0).unwrap_or(usize::MAX));
+    files.retain(|held| *held != out);
+    let the_file = match source {
+        ReadSource::Made(_) => matches!(
+            column_held(frame.store, source, stage.column).cells,
+            HeldCells::TableFile(_)
+        ),
+        ReadSource::Nodes(_) => node_column_of(stage.column) == Some(NodeColumn::File),
+        ReadSource::Filled(_) | ReadSource::Written(_) => false,
+    };
+    if the_file {
+        files.push(out);
+    }
+}
+
 /// `Keep`: the rows of the batch the word's test holds for, as the batch's selection. A comparison of two cells and a
 /// membership are decided on the cells; a test of a text reads the file's words.
 ///
@@ -117,7 +143,7 @@ pub(crate) fn read_stage(
 /// The word names an operand the code does not hold, or a test the fill side does not run yet.
 pub(crate) fn keep_stage(
     frame: BatchFrame<'_>,
-    words: &FileWords,
+    words: &mut FileWords,
     word: CodeWord,
     level: &mut BatchLevel,
     scratch: KeepScratch<'_>,
@@ -127,6 +153,7 @@ pub(crate) fn keep_stage(
         compiled,
         matcher,
         verdicts,
+        files,
     } = scratch;
     let stage = stage_keep_of(word);
     let code = frame.programs.code;
@@ -137,6 +164,8 @@ pub(crate) fn keep_stage(
         rows,
         ..
     } = level;
+    let left_is_file = stage.flag.0 & LEFT_CONSTANT.0 == 0
+        && files.contains(&Count(usize::try_from(stage.left.0).unwrap_or(usize::MAX)));
     let left = if stage.flag.0 & LEFT_CONSTANT.0 == 0 {
         BatchValue::Column(column_of(columns, Register(stage.left.0)))
     } else {
@@ -152,6 +181,12 @@ pub(crate) fn keep_stage(
         )))
     } else {
         Some(BatchValue::Constant(constant_at(code, stage.right)?))
+    };
+    // The file's text is its path: a test of a text whose left is the file reads the word the path is.
+    let text_left = if left_is_file {
+        BatchValue::Constant(intern(words, NameText(frame.path.0)))
+    } else {
+        left
     };
     match (cell_test(test), test, right) {
         (Some(cells), _, Some(right)) => {
@@ -191,7 +226,7 @@ pub(crate) fn keep_stage(
             words,
             TextTest {
                 test,
-                left,
+                left: text_left,
                 right,
                 set,
                 set_at: (stage.flag.0 & RIGHT_SET.0 != 0).then_some(PoolAt(stage.right.0)),
@@ -316,19 +351,22 @@ pub(crate) fn probe_keep_stage(
 }
 
 /// The write of a pipeline's row for every row of the batch: the word's operands, one for each column, appended to the
-/// table; with repeats dropped, only the rows the table does not hold.
+/// table; with repeats dropped, only the rows the table does not hold. A made table's rows go to the end of `arena`,
+/// the store's one list of the file's tables; a fill's gathered input keeps its own list.
 ///
 /// # Errors
 ///
 /// The word names an operand the code does not hold.
 pub(crate) fn write_stage(
-    frame: BatchFrame<'_>,
+    programs: RuleSetView<'_>,
+    file: FileId,
     word: CodeWord,
     level: &BatchLevel,
     into: &mut TableRows,
+    arena: &mut Vec<CellWord>,
 ) -> Result<(), FilledError> {
     let stage = stage_write_of(word);
-    let code = frame.programs.code;
+    let code = programs.code;
     let width = usize::from(stage.columns.0);
     let mut sources = Vec::with_capacity(width);
     for place in 0..width {
@@ -339,14 +377,22 @@ pub(crate) fn write_stage(
         sources.push(value_of(
             &level.columns,
             code,
-            frame.file,
+            file,
             operand(code, stage.operands, Count(place))?,
         )?);
     }
-    if stage.flag.0 & REPEATS_DROPPED.0 == 0 {
-        write(into, &sources, level.rows);
-    } else {
-        write_new(into, &sources, level.rows);
+    let kept = stage.flag.0 & REPEATS_DROPPED.0 == 0;
+    match (into.lies, kept) {
+        (CellsLie::Own, true) => write(into, &sources, level.rows),
+        (CellsLie::Own, false) => write_new(into, &sources, level.rows),
+        (CellsLie::Arena(_), true) => {
+            let _start = settled(arena, into);
+            written(arena, into, &sources, level.rows);
+        }
+        (CellsLie::Arena(_), false) => {
+            let start = settled(arena, into);
+            written_new(arena, start, into, &sources, level.rows);
+        }
     }
     Ok(())
 }

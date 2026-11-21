@@ -139,18 +139,24 @@ pub(crate) fn fill(
     out.extend(asked.into_iter().map(WalkPlace::Table));
     match fill_at(code, table).map(|held| (held.kind, held.inputs)) {
         Ok((FillKind::Constant, _)) => None,
-        Ok((FillKind::Rows | FillKind::Count | FillKind::Sorted | FillKind::Ends, inputs)) => {
-            match input_at(code, inputs) {
-                Ok(input) => {
-                    out.extend(input.entries.iter().map(|entry| WalkPlace::Pipeline {
-                        entry: CodeEntry(entry.0),
-                        unit,
-                    }));
-                    None
-                }
-                Err(_) => Some(unit),
+        Ok((
+            FillKind::Rows
+            | FillKind::Count
+            | FillKind::Sorted
+            | FillKind::Ends
+            | FillKind::Places
+            | FillKind::Follow,
+            inputs,
+        )) => match input_at(code, inputs) {
+            Ok(input) => {
+                out.extend(input.entries.iter().map(|entry| WalkPlace::Pipeline {
+                    entry: CodeEntry(entry.0),
+                    unit,
+                }));
+                None
             }
-        }
+            Err(_) => Some(unit),
+        },
         // An ordered match has two inputs, one after the other in its record.
         Ok((FillKind::Match, inputs)) => {
             let both = input_at(code, inputs)

@@ -2,6 +2,7 @@
 //! the rows of one key, when an enabled program first reads them; a fill appends; the words those rows hold are the run's base
 //! words (the language's fixed names among them) or this file's.
 
+use crate::domain::files::types::SourcePath;
 use crate::domain::node_table::types::NodeTable;
 use crate::domain::semantics::types::{RenderOutcome, RenderRequest};
 use crate::domain::symbols::types::ByteSlice;
@@ -33,6 +34,8 @@ pub struct FileFacts<'f> {
     pub source: ByteSlice<'f>,
     /// The number the run gave the file: the `File` cell of its rows and the file half of its nodes' ids.
     pub file: FileId,
+    /// The file's path from the root of the run: the text a test of the file reads.
+    pub path: SourcePath<'f>,
     /// The language's per-file view, filled lazily.
     pub facts: &'f mut dyn FactSource,
 }

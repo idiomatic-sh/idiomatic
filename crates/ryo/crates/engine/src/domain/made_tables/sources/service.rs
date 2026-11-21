@@ -32,6 +32,8 @@ const NO_CELL: CellWord = CellWord(u64::MAX);
 pub(crate) fn next_file(store: &mut FillStore) {
     store.stamp.0 = store.stamp.0.wrapping_add(1).max(1);
     clear_indexes(&mut store.indexes);
+    // The tables' cells of the file before: one list, emptied and kept. No table is visited.
+    store.table_cells.clear();
     store.asked.clear();
     store.asked_cells.clear();
 }

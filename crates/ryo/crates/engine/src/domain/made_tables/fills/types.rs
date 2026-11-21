@@ -14,6 +14,10 @@ pub(crate) enum FillKind {
     Sorted,
     /// The rows of the gathered input at one end of their key's rows by the order column.
     Ends,
+    /// Each distinct row of the gathered input, then its place among its key's rows by the order column.
+    Places,
+    /// `follow`: for each key of the gathered edges, each pair of a source and a fixed point it reaches.
+    Follow,
     /// Two gathered inputs paired within each key, first in, first out: the left row, then the right row.
     Match,
     /// Rows written in the code.
