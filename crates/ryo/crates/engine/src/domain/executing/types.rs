@@ -1,6 +1,6 @@
 //! The types of the `executing` concept: the loop as what answers the fill side.
 
-use crate::domain::executing::budget::service::fill_asked;
+use crate::domain::executing::budget::service::{fill_asked, fill_passed};
 use crate::domain::executing::constants::NO_ANSWER;
 use crate::domain::executing::measuring::service::{left, table_entered};
 use crate::domain::filled::errors::FilledError;
@@ -59,7 +59,9 @@ impl PatternRows for Asker<'_> {
         };
         let answer = self.ports.pattern(&mut step, asked);
         // An ask that was not made kept no answer: there is nothing for the table's list.
-        if answer != NO_ANSWER {
+        if let Some(work) = self.state.passed.take() {
+            fill_passed(self.state, asked.asker, work);
+        } else if answer != NO_ANSWER {
             fill_asked(self.state, asked.asker, answer);
         }
         out.extend_from_slice(rows(&self.state.memos, answer));
