@@ -48,7 +48,7 @@ fn standing(states: &[CellState], state: CellState) -> Vec<RowColumn> {
 }
 
 /// The access of the node table through a relation: it is keyed by one column. A register in the element's own column, its
-/// parent's or its span's is a key; with none, a constant kind or text names a bucket of the file.
+/// parent's or its span's is a key; with none, a constant kind, field or text names a bucket of the file.
 fn node_access(relation: Relation, states: &[CellState]) -> KeyChoice {
     let listed = columns(relation);
     let cell = |wanted: NodeColumn, state: CellState| {
@@ -78,6 +78,12 @@ fn node_access(relation: Relation, states: &[CellState]) -> KeyChoice {
         ),
         (
             NodeColumn::Kind,
+            CellState::Constant,
+            CostClass::File,
+            shared(ELEMENTS, KIND_SHARE),
+        ),
+        (
+            NodeColumn::Field,
             CellState::Constant,
             CostClass::File,
             shared(ELEMENTS, KIND_SHARE),
