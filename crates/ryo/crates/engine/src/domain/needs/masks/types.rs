@@ -48,6 +48,20 @@ pub(crate) enum RecordCost {
     Dear,
 }
 
+/// Whether a site's formula asks a relation of the node-table form for a row.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum NodeAsk {
+    /// Not found yet.
+    #[default]
+    Unknown,
+    /// Being found: a formula that names itself adds nothing to itself.
+    Finding,
+    /// It asks one.
+    Asked,
+    /// It asks none.
+    NotAsked,
+}
+
 /// Whether a site's clauses are all its formula says.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) enum MaskExact {
@@ -113,6 +127,9 @@ pub(crate) struct NeedMasks {
     pub(crate) costs: Vec<RecordCost>,
     /// For each place among the needs whose record is a term, the term's number and one more; nought: none.
     pub(crate) leaves: Vec<u32>,
+    /// For each site, whether its formula asks a relation of the node-table form for a row, whatever the file: found
+    /// once a site.
+    pub(crate) node_asks: Vec<NodeAsk>,
 }
 
 /// A file's answers to the terms, each asked at most once a file: a bit for "asked" and a bit for "holds".
