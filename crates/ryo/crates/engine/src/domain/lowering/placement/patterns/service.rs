@@ -1,7 +1,9 @@
 //! The services of the `patterns` part: one pattern asked of a definition placed and written in its form: its program, or its definition's table.
 
 use crate::domain::code::types::UnitKey;
-use crate::domain::lowered::types::{Emptiness, MadeFill, MadeTable, PatternForm};
+use crate::domain::lowered::types::{ConstantRows, Emptiness, MadeFill, MadeTable, PatternForm};
+use crate::domain::lowering::definitions::service::text_word;
+use ryo_language::domain::facts::types::CellWord;
 use crate::domain::lowering::definitions::types::{DefinitionDraft, Drafts, WaitingPattern};
 use crate::domain::lowering::flattening::service::own_walks;
 use crate::domain::lowering::flattening::types::{FlatBranch, FlatTerm, FlatVariable, OwnWalks};
@@ -65,16 +67,23 @@ pub(crate) fn definition_table(
     }
     let (home, node, width) = (draft.home, draft.node, draft.shape.0.len());
     let branches: Vec<FlatBranch> = draft.branches.clone();
-    let mut pipelines = Vec::with_capacity(branches.len());
-    for branch in &branches {
-        let written = planned(drafts, branch, &HashSet::new(), UnitRole::Pipeline)
-            .and_then(|plan| pipeline(drafts, sample.kinds, branch, &plan, Some(definition)));
-        pipelines.push(written.ok_or_else(|| home_refused(home))?);
-    }
+    // A definition of constant rows (each branch reads nothing and its row is constants) is a table of those rows, known
+    // at load: no pipeline would read a source to write them.
+    let fill = if let Some(rows) = constant_rows(&branches) {
+        MadeFill::Constant(rows)
+    } else {
+        let mut pipelines = Vec::with_capacity(branches.len());
+        for branch in &branches {
+            let written = planned(drafts, branch, &HashSet::new(), UnitRole::Pipeline)
+                .and_then(|plan| pipeline(drafts, sample.kinds, branch, &plan, Some(definition)));
+            pipelines.push(written.ok_or_else(|| home_refused(home))?);
+        }
+        MadeFill::Rows(pipelines.into(), RepeatedRows::Dropped)
+    };
     let table = MadeTableId(u32::try_from(drafts.tables.len()).unwrap_or(u32::MAX));
     drafts.tables.push(MadeTable {
         node,
-        fill: MadeFill::Rows(pipelines.into(), RepeatedRows::Dropped),
+        fill,
         width: ColumnCount(width),
         indexes: Vec::new(),
         emptiness: Emptiness::Definition(definition),
@@ -84,6 +93,31 @@ pub(crate) fn definition_table(
         draft.table = Some(table);
     }
     Ok(table)
+}
+
+/// The rows of a definition whose every branch reads nothing and holds constants alone, each once, as the cells a table
+/// holds: a text's word, a number's bits. None for any other definition.
+fn constant_rows(branches: &[FlatBranch]) -> Option<ConstantRows> {
+    let mut rows: Vec<Box<[CellWord]>> = Vec::with_capacity(branches.len());
+    for branch in branches {
+        if !branch.atoms.is_empty() {
+            return None;
+        }
+        let row: Option<Box<[CellWord]>> = branch
+            .row
+            .iter()
+            .map(|cell| match cell {
+                FlatTerm::Text(number) => Some(text_word(*number)),
+                FlatTerm::Number(number) => Some(CellWord(number.0.cast_unsigned())),
+                FlatTerm::Variable(_) | FlatTerm::File => None,
+            })
+            .collect();
+        let row = row?;
+        if !rows.contains(&row) {
+            rows.push(row);
+        }
+    }
+    (!branches.is_empty()).then_some(ConstantRows(rows))
 }
 
 /// The variables a pattern's bound columns give a branch.

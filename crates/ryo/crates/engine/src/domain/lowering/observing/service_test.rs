@@ -527,3 +527,99 @@ fn lowered_subject(asked: Lowered) -> Result<Value, Failure> {
 fn lowered_succeeds() {
     run(LOWERED, Word::Succeeds, lowered_subject);
 }
+
+/// The words joined after the files with written rows of `codes` texts, `a` among them, on their text: each word `a`.
+fn words_written_among(codes: usize) -> Plan {
+    use ryo_values::domain::plan_parts::types::{LiteralText, TableKey};
+    use ryo_values::domain::written_rows::types::{RowsSource, WrittenRow, WrittenRows};
+    let mut written: Vec<WrittenRow> = (0..codes)
+        .map(|code| WrittenRow(vec![LiteralText(format!("c{code}").into())]))
+        .collect();
+    written.push(WrittenRow(vec![LiteralText("a".into())]));
+    plan(vec![
+        words(),
+        at(
+            Operation::Rows {
+                source: RowsSource::Written(WrittenRows(written)),
+                keys: vec![TableKey("code".into())],
+            },
+            StepScope::CrossFile,
+        ),
+        joined(
+            Input::Step(StepId(0)),
+            Input::Step(StepId(1)),
+            (&[3], &[0]),
+            &[(Side::Left, 1), (Side::Left, 4)],
+            StepScope::CrossFile,
+        ),
+    ])
+}
+
+/// The plan loaded and its file `a b a` scanned: the rows the rule finds, and the pack's lines.
+fn scanned_subject(plans: Vec<Plan>) -> Result<Value, Failure> {
+    use crate::domain::lowering::fixtures::described::described;
+    use crate::domain::lowering::types::SelectedRules;
+    use crate::domain::statistics::types::StatisticsBytes;
+    use crate::inbound::use_cases::load::fixtures::kinds as load_kinds;
+    use crate::inbound::use_cases::load::interface::LoadUseCase as _;
+    use crate::inbound::use_cases::load::types::LoadSource;
+    use crate::inbound::use_cases::load::use_case::LoadUseCaseImpl;
+    use crate::inbound::use_cases::scan::fixtures::{rule_rows, scanned};
+    let digests: Vec<_> = plans.iter().map(|plan| digests_of(plan, RuleBindings(&[]))).collect();
+    let rules: Vec<SelectedRule<'_>> = plans
+        .iter()
+        .zip(&digests)
+        .zip(0..)
+        .map(|((plan, digests), rule)| SelectedRule {
+            rule: SelectedRuleOrdinal(rule),
+            plan,
+            bindings: RuleBindings(&[]),
+            digests,
+        })
+        .collect();
+    let last = u32::try_from(plans.len().saturating_sub(1)).unwrap_or(u32::MAX);
+    let kinds = load_kinds();
+    let pack = crate::domain::lowering::service::lowered(SelectedRules(&rules), LoadGiven::default(), None, &kinds);
+    let source = LoadSource::Plans(SelectedRules(&rules), StatisticsBytes(&[]), LoadGiven::default());
+    let loaded = LoadUseCaseImpl
+        .load(source, &kinds)
+        .map_err(|_| LoadRefusal::Unlowerable(PlanNode(u32::MAX)))?;
+    let scan = scanned(&loaded.programs, "a b a").ok().flatten();
+    let rows = scan.as_ref().map(|scan| rule_rows(scan, last));
+    let mut lines = vec![format!("refused {:?}, rows {rows:?}", loaded.refused)];
+    lines.extend(described(&pack.pack));
+    Ok(Cow::Owned(lines.join("\n")))
+}
+
+const fn scanned_said(name: &'static str, input: fn() -> Vec<Plan>, value: &'static str) -> Case<Vec<Plan>, Value, Failure> {
+    Case {
+        name: CaseName(name),
+        word: Word::Succeeds,
+        input,
+        expect: Expect::Value(Cow::Borrowed(value)),
+    }
+}
+
+/// The rows of the scanned cases.
+const SCANNED: &[Case<Vec<Plan>, Value, Failure>] = &[
+    scanned_said(
+        "the_files_words_joined_with_a_few_written_rows_find_each_word_a_row_names",
+        || vec![words_written_among(3)],
+        "refused [], rows Some(2)\nrule 0: 4 branches\n  branch: EachMatch:File EachMatch:Fanout Emit:Constant\n  branch: EachMatch:File EachMatch:Fanout Emit:Constant\n  branch: EachMatch:File EachMatch:Fanout Emit:Constant\n  branch: EachMatch:File EachMatch:Fanout Emit:Constant",
+    ),
+    scanned_said(
+        "the_files_words_joined_with_many_written_rows_find_each_word_a_row_names",
+        || vec![words_written_among(40)],
+        "refused [], rows Some(2)\ndefinition 0: 1 columns, emptiness All([])\n  pattern bound [0] collected []: Call: Fork:Constant{Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant}\nrule 0: 1 branches\n  branch: EachRow:File EachMatch:Fanout Read:Constant Exists:Fanout Emit:Constant",
+    ),
+    scanned_said(
+        "beside_another_rule_the_files_words_joined_with_many_written_rows_find_each_word_a_row_names",
+        || vec![plan(vec![words()]), words_written_among(40)],
+        "refused [], rows Some(2)\ndefinition 0: 5 columns, emptiness All([Unknown, Unknown])\n  pattern bound [] collected []: Table 0\n  pattern bound [3] collected [1]: Table 0\ndefinition 1: 1 columns, emptiness All([])\n  pattern bound [] collected []: Table 1\ntable 0: Rows, 5 columns, indexes [[3]]\n  pipeline: Scan:File Read:Constant Read:Constant Probe:Fanout Read:Constant\ntable 1: Constant, 1 columns, indexes []\nrule 0: 1 branches\n  branch: EachRow:File Read:Constant Read:Constant Read:Constant Read:Constant Emit:Constant\nrule 1: 1 branches\n  branch: EachRow:File Read:Constant Or:Fanout Emit:Constant",
+    ),
+];
+
+#[test]
+fn scanned_succeeds() {
+    run(SCANNED, Word::Succeeds, scanned_subject);
+}
