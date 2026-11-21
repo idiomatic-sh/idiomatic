@@ -1,7 +1,7 @@
 //! The services of the `verdicts` part: a test's verdicts found by its key, a word's verdict read and kept.
 
 use super::types::{
-    Against, TextTestKey, TextVerdicts, VerdictBits, WordKnown, WordPlace, WordVerdicts,
+    Against, TextTestKey, TextVerdicts, VerdictBits, WordBounds, WordKnown, WordPlace, WordVerdicts,
 };
 use crate::domain::indexes::reading::service::{folded, hashed};
 use crate::domain::indexes::types::{FileStamp, RowHash};
@@ -67,6 +67,7 @@ pub(crate) fn opened(verdicts: &mut TextVerdicts, key: TextTestKey, stamp: FileS
                 base: Vec::new(),
                 own: Vec::new(),
                 stamp,
+                outside: WordKnown::NotYet,
                 globs: None,
             });
             drop(places.insert_unique(hash.0, at, |other| {
@@ -84,52 +85,88 @@ pub(crate) fn opened(verdicts: &mut TextVerdicts, key: TextTestKey, stamp: FileS
     at
 }
 
-/// Where a word's two bits lie; `base` is the file's first own word.
+/// Where a cell's verdict lies: a cell that is no word of the run nor of the file has no place of its own.
 #[inline]
-fn place_of(word: CellWord, base: CellWord) -> WordPlace {
-    if word < base {
+fn place_of(word: CellWord, bounds: WordBounds) -> WordPlace {
+    if word < bounds.base {
         WordPlace::Run(Count(usize::try_from(word.0).unwrap_or(usize::MAX)))
-    } else {
+    } else if word < bounds.end {
         WordPlace::Own(Count(
-            usize::try_from(word.0.wrapping_sub(base.0)).unwrap_or(usize::MAX),
+            usize::try_from(word.0.wrapping_sub(bounds.base.0)).unwrap_or(usize::MAX),
         ))
+    } else {
+        WordPlace::Outside
     }
 }
 
-/// What a test is known to say of a word; `base` is the file's first own word.
+/// What two bits say.
 #[inline]
-pub(crate) fn known(test: &WordVerdicts, word: CellWord, base: CellWord) -> WordKnown {
-    let (bits, at) = match place_of(word, base) {
-        WordPlace::Run(at) => (&test.base, at),
-        WordPlace::Own(at) => (&test.own, at),
-    };
-    let held = match bits.get(at.0 / WORDS.0) {
-        Some(held) => (held.0 >> ((at.0 % WORDS.0) * 2)) & 3,
-        None => 0,
-    };
-    match held {
+const fn said(held: VerdictBits) -> WordKnown {
+    match held.0 {
         1 => WordKnown::Fails,
         2 => WordKnown::Holds,
         0 | 3..=u64::MAX => WordKnown::NotYet,
     }
 }
 
-/// Keeps what a test said of a word.
+/// The two bits of a place among bits; nought past their end.
 #[inline]
-pub(crate) fn remembered(test: &mut WordVerdicts, word: CellWord, base: CellWord, kept: RowKept) {
-    let (bits, at) = match place_of(word, base) {
+fn bits_at(bits: &[VerdictBits], at: Count) -> VerdictBits {
+    match bits.get(at.0 / WORDS.0) {
+        Some(held) => VerdictBits((held.0 >> ((at.0 % WORDS.0) * 2)) & 3),
+        None => VerdictBits(0),
+    }
+}
+
+/// What a test is known to say of a cell.
+#[inline]
+pub(crate) fn known(test: &WordVerdicts, word: CellWord, bounds: WordBounds) -> WordKnown {
+    match place_of(word, bounds) {
+        WordPlace::Run(at) => said(bits_at(&test.base, at)),
+        WordPlace::Own(at) => said(bits_at(&test.own, at)),
+        WordPlace::Outside => test.outside,
+    }
+}
+
+/// Keeps what a test said of a cell. **The memory bound**: a test's `base` never holds more than two bits for each
+/// word of the run (`bounds.base` words), its `own` never more than two bits for each own word the file has interned
+/// (`bounds.end - bounds.base` words), and a cell that is neither is kept as the one verdict `outside`. No length here
+/// is computed from a cell that was not first found below `bounds.end`.
+#[inline]
+pub(crate) fn remembered(
+    test: &mut WordVerdicts,
+    word: CellWord,
+    bounds: WordBounds,
+    kept: RowKept,
+) {
+    let known = match kept {
+        RowKept::No => WordKnown::Fails,
+        RowKept::Yes => WordKnown::Holds,
+    };
+    let (bits, at) = match place_of(word, bounds) {
         WordPlace::Run(at) => (&mut test.base, at),
         WordPlace::Own(at) => (&mut test.own, at),
+        WordPlace::Outside => {
+            test.outside = known;
+            return;
+        }
     };
     let place = at.0 / WORDS.0;
     if bits.len() <= place {
         bits.resize(place.saturating_add(1), VerdictBits(0));
     }
-    let said: u64 = match kept {
-        RowKept::No => 1,
-        RowKept::Yes => 2,
+    let two: u64 = match known {
+        WordKnown::Fails => 1,
+        WordKnown::Holds => 2,
+        WordKnown::NotYet => 0,
     };
     if let Some(held) = bits.get_mut(place) {
-        held.0 |= said << ((at.0 % WORDS.0) * 2);
+        held.0 |= two << ((at.0 % WORDS.0) * 2);
     }
+}
+
+/// How many words of bits a test keeps, of the run's words and of the file's own: what a case holds to the bound.
+#[cfg(test)]
+pub(crate) fn kept_bits(test: &WordVerdicts) -> [Count; 2] {
+    [Count(test.base.len()), Count(test.own.len())]
 }

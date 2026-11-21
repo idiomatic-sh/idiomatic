@@ -4,13 +4,16 @@
 
 use self::files::{bench_text, mixed_tree, tree};
 use self::kinds::FillBench;
-use self::tables::{PRODUCT_LEFT, bench_table, called, told_rows};
-use crate::domain::code::types::RelationNumber;
+use self::tables::{bench_table, called, told_rows};
+use crate::domain::code::types::{RelationNumber, Short};
 use crate::domain::filled::errors::FilledError;
 use crate::domain::made_tables::fixtures::packs::FILE;
 use crate::domain::made_tables::fixtures::sites::{node_site, site_of};
 use crate::domain::made_tables::fixtures::{Telling, World, framed, world_of};
-use crate::domain::made_tables::sources::service::{made, matched, next_file, scanned, table_of};
+use crate::domain::made_tables::reading::service::{cell_held, column_held};
+use crate::domain::made_tables::sources::service::{
+    cell_of, made, matched, next_file, scanned, table_of,
+};
 use crate::domain::made_tables::types::{
     FillFrame, KeyFrom, MadeState, PatternAsk, PatternFound, PatternRows, ReadSource, TableNeed,
 };
@@ -25,135 +28,6 @@ use ryo_relations::domain::terms::types::NameText;
 pub(crate) mod files;
 pub mod kinds;
 pub(crate) mod tables;
-
-/// Every fill the bench times.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_engine::domain::made_tables::fixtures::benches::FILL_BENCHES;
-///
-/// assert_eq!(FILL_BENCHES.len(), 25);
-/// ```
-pub const FILL_BENCHES: &[FillBench] = &[
-    FillBench::RowsRead,
-    FillBench::RowsKeep,
-    FillBench::RowsProbe,
-    FillBench::RowsDropped,
-    FillBench::GroupCount,
-    FillBench::Sorted,
-    FillBench::UseRows,
-    FillBench::WalkChildren,
-    FillBench::WalkAncestors,
-    FillBench::NodeKeep,
-    FillBench::CallSpanBounds,
-    FillBench::CallReplace,
-    FillBench::CallCapture,
-    FillBench::CallSourceMatches,
-    FillBench::OrderedMatch,
-    FillBench::GroupEnds,
-    FillBench::Product,
-    FillBench::RowsFile,
-    FillBench::RowsFileDropped,
-    FillBench::KeepGlobFewWords,
-    FillBench::KeepGlobOwnWords,
-    FillBench::IndexNodesKind,
-    FillBench::IndexNodesKindMixed,
-    FillBench::IndexNodesParent,
-    FillBench::IndexNodesId,
-];
-
-/// The name a fill's measure carries.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_engine::domain::made_tables::fixtures::benches::fill_name;
-/// use ryo_engine::domain::made_tables::fixtures::benches::kinds::FillBench;
-///
-/// assert_eq!(fill_name(FillBench::RowsProbe), "rows_probe");
-/// ```
-#[must_use]
-pub const fn fill_name(bench: FillBench) -> &'static str {
-    match bench {
-        FillBench::RowsRead => "rows_read",
-        FillBench::RowsKeep => "rows_keep",
-        FillBench::RowsProbe => "rows_probe",
-        FillBench::RowsDropped => "rows_repeats_dropped",
-        FillBench::GroupCount => "group_count",
-        FillBench::Sorted => "sorted",
-        FillBench::UseRows => "use_rows",
-        FillBench::WalkChildren => "walk_children",
-        FillBench::WalkAncestors => "walk_ancestors",
-        FillBench::NodeKeep => "node_read_keep",
-        FillBench::CallSpanBounds => "call_span_bounds",
-        FillBench::CallReplace => "call_replace",
-        FillBench::CallCapture => "call_capture",
-        FillBench::CallSourceMatches => "call_source_matches",
-        FillBench::OrderedMatch => "ordered_match",
-        FillBench::GroupEnds => "group_ends",
-        FillBench::Product => "product_pairs",
-        FillBench::RowsFile => "rows_with_the_file",
-        FillBench::RowsFileDropped => "rows_with_the_file_repeats_dropped",
-        FillBench::KeepGlobFewWords => "keep_glob_few_words",
-        FillBench::KeepGlobOwnWords => "keep_glob_own_words",
-        FillBench::IndexNodesKind => "index_nodes_by_kind",
-        FillBench::IndexNodesKindMixed => "index_nodes_by_kind_mixed",
-        FillBench::IndexNodesParent => "index_nodes_by_parent",
-        FillBench::IndexNodesId => "index_nodes_by_id",
-    }
-}
-
-/// What a fill's time over `rows` rows is divided by: the rows of its source, or for the product the pairs it makes
-/// (thirty-two rows, or every row of fewer, each with every row).
-///
-/// # Examples
-///
-/// ```
-/// use ryo_engine::domain::made_tables::fixtures::benches::fill_units;
-/// use ryo_engine::domain::made_tables::fixtures::benches::kinds::FillBench;
-///
-/// assert_eq!(fill_units(FillBench::RowsRead, 100), 100);
-/// assert_eq!(fill_units(FillBench::Product, 100), 3_200);
-/// ```
-#[must_use]
-pub const fn fill_units(bench: FillBench, rows: usize) -> usize {
-    let rows = if rows == 0 { 1 } else { rows };
-    match bench {
-        FillBench::Product => {
-            let left = if rows < PRODUCT_LEFT {
-                rows
-            } else {
-                PRODUCT_LEFT
-            };
-            left.saturating_mul(rows)
-        }
-        FillBench::RowsRead
-        | FillBench::RowsKeep
-        | FillBench::RowsProbe
-        | FillBench::RowsDropped
-        | FillBench::GroupCount
-        | FillBench::Sorted
-        | FillBench::UseRows
-        | FillBench::WalkChildren
-        | FillBench::WalkAncestors
-        | FillBench::NodeKeep
-        | FillBench::CallSpanBounds
-        | FillBench::CallReplace
-        | FillBench::CallCapture
-        | FillBench::CallSourceMatches
-        | FillBench::OrderedMatch
-        | FillBench::GroupEnds
-        | FillBench::RowsFile
-        | FillBench::RowsFileDropped
-        | FillBench::KeepGlobFewWords
-        | FillBench::KeepGlobOwnWords
-        | FillBench::IndexNodesKind
-        | FillBench::IndexNodesKindMixed
-        | FillBench::IndexNodesParent
-        | FillBench::IndexNodesId => rows,
-    }
-}
 
 /// A fill's world, made once and filled many times: the pack, the relation's rows and the file's nodes.
 ///
@@ -238,6 +112,8 @@ pub fn fill_workload(bench: FillBench, rows: usize) -> Option<FillWorkload> {
         | FillBench::GroupEnds
         | FillBench::RowsFile
         | FillBench::RowsFileDropped
+        | FillBench::SeamCellOf
+        | FillBench::SeamColumnHeld
         | FillBench::Product => true,
         FillBench::WalkChildren
         | FillBench::WalkAncestors
@@ -325,6 +201,8 @@ pub fn fill_workload(bench: FillBench, rows: usize) -> Option<FillWorkload> {
 /// // the root, whose own texts match none.
 /// let kept = [FillBench::KeepGlobFewWords, FillBench::KeepGlobOwnWords];
 /// assert_eq!(kept.map(made), [700, 101]);
+/// // Every row of a made table's column read through the seam, one call a read or through the held column.
+/// assert_eq!([FillBench::SeamCellOf, FillBench::SeamColumnHeld].map(made), [800, 800]);
 /// let nodes = [FillBench::IndexNodesKind, FillBench::IndexNodesParent, FillBench::IndexNodesId];
 /// assert_eq!(nodes.map(made), [700, 101, 1]);
 /// // Of 800 elements of sixteen kinds in no order, those of the first kind: about one in sixteen.
@@ -356,6 +234,8 @@ pub fn run_fill(work: &mut FillWorkload) -> usize {
         | FillBench::RowsFileDropped
         | FillBench::KeepGlobFewWords
         | FillBench::KeepGlobOwnWords
+        | FillBench::SeamCellOf
+        | FillBench::SeamColumnHeld
         | FillBench::Product => None,
     };
     if let Some(key) = asked {
@@ -367,6 +247,26 @@ pub fn run_fill(work: &mut FillWorkload) -> usize {
             .map_or(0, |found| {
                 found.rows.end.0.saturating_sub(found.rows.start.0)
             });
+    }
+    if matches!(work.1, FillBench::SeamCellOf | FillBench::SeamColumnHeld) {
+        // The table is made once, by the first run; a run reads its second column for every row, and answers how
+        // many rows held a cell there that is a row's number, which is every row.
+        let (mut frame, _) = framed(&mut work.0);
+        let _now = made(&mut frame, &mut OneRow, MadeTableId(0));
+        let table = ReadSource::Made(MadeTableId(0));
+        let rows = table_of(frame.store, MadeTableId(0)).map_or(0, |slot| slot.rows.count.0);
+        let all = u64::try_from(rows).unwrap_or(u64::MAX);
+        let handles = (0..all).map(CellWord);
+        return if work.1 == FillBench::SeamCellOf {
+            handles
+                .filter(|row| cell_of(&mut frame, table, Short(1), *row).0 < all)
+                .count()
+        } else {
+            let held = column_held(frame.store, table, Short(1));
+            handles
+                .filter(|row| cell_held(frame.store, held, *row).0 < all)
+                .count()
+        };
     }
     if work.1 == FillBench::KeepGlobOwnWords {
         // A new file: its words are interned again, and nothing decided of the last file's words is held.

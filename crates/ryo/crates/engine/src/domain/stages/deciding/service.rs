@@ -6,9 +6,9 @@ use crate::domain::filled::types::MissingCode;
 use crate::domain::stages::service::{selected, value_at};
 use crate::domain::stages::types::{BatchRow, BatchValue, Deciding, RowKept, TextMeans, TextTest};
 use crate::domain::stages::verdicts::service::{known, opened, remembered};
-use crate::domain::stages::verdicts::types::{Against, TextTestKey, WordKnown};
+use crate::domain::stages::verdicts::types::{Against, TextTestKey, WordBounds, WordKnown};
 use crate::domain::steps::types::TestOperation;
-use ryo_language::domain::facts::service::{base_count, text};
+use ryo_language::domain::facts::service::{base_count, text, words_end};
 use ryo_language::domain::facts::types::FileWords;
 use ryo_operators::domain::comparing::collections::comparisons::affix::item::AffixItem;
 use ryo_operators::domain::comparing::collections::comparisons::interface::ComparisonsItem as _;
@@ -181,7 +181,10 @@ pub(crate) fn by_word(
             named: MissingCode::Word,
         });
     };
-    let base = base_count(words);
+    let bounds = WordBounds {
+        base: base_count(words),
+        end: words_end(words),
+    };
     let mut globs = held.globs.take();
     let mut fault = None;
     {
@@ -196,13 +199,13 @@ pub(crate) fn by_word(
             keep,
             (0..rows.0).map(|row| {
                 let word = value_at(test.left, Count(row));
-                match known(held, word, base) {
+                match known(held, word, bounds) {
                     WordKnown::Holds => RowKept::Yes,
                     WordKnown::Fails => RowKept::No,
                     WordKnown::NotYet => {
                         match decided(&mut deciding, words, test, TextView(text(words, word).0)) {
                             Ok(said) => {
-                                remembered(held, word, base, said);
+                                remembered(held, word, bounds, said);
                                 said
                             }
                             Err(found) => {

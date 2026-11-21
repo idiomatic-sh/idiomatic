@@ -4,9 +4,10 @@
 //! Format document, a measure `ns_per_row` for each loop and size; run as a test it runs each loop once on a small input
 //! and checks that it gave rows.
 
-use ryo_engine::domain::made_tables::fixtures::benches::{
-    FILL_BENCHES, FillWorkload, fill_name, fill_units, fill_workload, run_fill,
+use ryo_engine::domain::made_tables::fixtures::benches::kinds::{
+    FILL_BENCHES, fill_name, fill_units,
 };
+use ryo_engine::domain::made_tables::fixtures::benches::{FillWorkload, fill_workload, run_fill};
 use ryo_engine::domain::stages::fixtures::run_kernel;
 use ryo_engine::domain::stages::fixtures::workloads::{
     KERNELS, KernelWorkload, ReferenceKernel, kernel_name, workload,

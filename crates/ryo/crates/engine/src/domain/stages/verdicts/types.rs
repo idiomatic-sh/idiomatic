@@ -2,6 +2,10 @@
 //! and a text cell is a word: so the test is decided once for each word and kept, two bits a word. A word of the run
 //! (a kind's name, a field's, a fixed name, a text of the pack) is the same text in every file, so its verdict is kept
 //! for the worker's life; a file's own word is another text in the next file, so its verdict is kept for the file.
+//!
+//! The size is bounded by construction and never by a cell's value: a test keeps two bits for each word of the run
+//! and two bits for each own word the file has interned, and ONE verdict for every cell that is no word. A cell is
+//! placed only after it is found to be a word (`WordBounds`).
 
 use crate::domain::code::types::PoolAt;
 use crate::domain::indexes::types::FileStamp;
@@ -46,13 +50,25 @@ pub(crate) enum WordKnown {
     Holds,
 }
 
-/// Where a word's verdict is kept.
+/// Where a cell's verdict is kept.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum WordPlace {
     /// Among the run's words, at the word.
     Run(Count),
     /// Among the file's own words, at the word less the run's words.
     Own(Count),
+    /// With the one verdict of every cell that is no word: such a cell's text is the empty text.
+    Outside,
+}
+
+/// The words a file's cells can be: below `base` a word of the run, from `base` to before `end` a word the file
+/// interned so far, from `end` on no word at all (a number, a span, an id with its file in the high half).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct WordBounds {
+    /// The file's first own word.
+    pub(crate) base: CellWord,
+    /// The code after the file's last word.
+    pub(crate) end: CellWord,
 }
 
 /// The verdicts of one test, by word.
@@ -66,6 +82,8 @@ pub(crate) struct WordVerdicts {
     pub(crate) own: Vec<VerdictBits>,
     /// The file the own words' verdicts are of.
     pub(crate) stamp: FileStamp,
+    /// Of every cell that is no word: what the test says of the empty text, which is such a cell's text.
+    pub(crate) outside: WordKnown,
     /// Of a glob test: its globs, compiled when the test was first asked.
     pub(crate) globs: Option<TextGlobSet>,
 }

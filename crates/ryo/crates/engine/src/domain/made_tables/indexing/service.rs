@@ -11,7 +11,7 @@ use crate::domain::indexes::counting::service::{own_rows, place};
 use crate::domain::indexes::hashing::service::coded;
 use crate::domain::indexes::reading::service::key_cell;
 use crate::domain::indexes::service::{based, begin, finish, fixed_keys, key_column};
-use crate::domain::indexes::types::{CellOfKey, ColumnView, CountedKey, SourceRow};
+use crate::domain::indexes::types::{CellOfKey, ColumnView, CountedKey, KeyCells, SourceRow};
 use crate::domain::made_tables::reading::service::{
     fixed_of, node_names, rows_in, site_at, site_source, view_of,
 };
@@ -94,7 +94,7 @@ pub(crate) fn index_built(
                     true
                 }
                 Some(NodeColumn::Kind) => {
-                    coded(
+                    let built = coded(
                         &mut frame.store.indexes,
                         site,
                         stamp,
@@ -102,10 +102,10 @@ pub(crate) fn index_built(
                         |code| kind_word(names, code),
                         || elements().map(|at| Count(usize::from(kind_of(nodes, at).0))),
                     );
-                    true
+                    built == KeyCells::Close
                 }
                 Some(NodeColumn::Field) => {
-                    coded(
+                    let built = coded(
                         &mut frame.store.indexes,
                         site,
                         stamp,
@@ -113,7 +113,7 @@ pub(crate) fn index_built(
                         |code| field_word(names, code),
                         || elements().map(|at| Count(usize::from(field_of(nodes, at).0))),
                     );
-                    true
+                    built == KeyCells::Close
                 }
                 Some(
                     NodeColumn::Ordinal

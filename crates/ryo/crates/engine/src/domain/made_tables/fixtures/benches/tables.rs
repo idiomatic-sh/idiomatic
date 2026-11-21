@@ -23,9 +23,6 @@ use ryo_values::domain::plan_orders::types::GroupEnd;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
 use ryo_values::domain::query_plans::types::NodeDigest;
 
-/// How many rows the product's workload pairs with every row.
-pub(crate) const PRODUCT_LEFT: usize = 32;
-
 /// How many rows a key holds where a workload groups.
 const GROUP_ROWS: u64 = 8;
 
@@ -40,6 +37,8 @@ pub(crate) fn told_rows(bench: FillBench, rows: usize) -> Vec<[u64; 2]> {
             | FillBench::RowsKeep
             | FillBench::RowsProbe
             | FillBench::RowsFile
+            | FillBench::SeamCellOf
+            | FillBench::SeamColumnHeld
             | FillBench::Product => [
                 row.wrapping_mul(7919) % all,
                 row.wrapping_mul(104_729) % all,
@@ -134,7 +133,7 @@ pub(crate) fn bench_table(bench: FillBench) -> MadeTable {
     let tree = Relation::SemanticSyntax;
     let kept = |fill| table(1, 2, fill);
     match bench {
-        FillBench::RowsRead => rows(
+        FillBench::RowsRead | FillBench::SeamCellOf | FillBench::SeamColumnHeld => rows(
             2,
             pipeline(
                 vec![scan(0), read(FIRST, 0, 1), read(SECOND, 0, 2)],
