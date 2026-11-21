@@ -1,13 +1,16 @@
 //! The types of the `scratch` concept: a worker's per-file state.
 
 use crate::domain::code::types::CodeEntry;
+use crate::domain::code::types::RelationNumber;
 use crate::domain::filled::errors::FilledError;
 use crate::domain::findings::types::InstructionCount;
 use crate::domain::indexes::types::RowRun;
 use crate::domain::made_tables::types::FillStore;
-use crate::domain::memos::types::{MemoId, MemoMap, RuleStamp};
+use crate::domain::made_tables::types::FillWork;
+use crate::domain::memos::types::{ChargedUnit, MemoId, MemoMap, RuleStamp};
 use crate::domain::needs::types::NeedVerdict;
 use crate::domain::stages::types::{BatchRow, FanRows};
+use crate::domain::steps::types::MadeTableId;
 use ryo_language::domain::facts::types::{CellWord, FileWords};
 use ryo_operators::domain::table_scratch::types::Patterns;
 use ryo_relations::domain::relations::types::Count;
@@ -168,7 +171,7 @@ pub(crate) struct RuleBudget {
     /// How many patterns are being evaluated, one inside the other.
     pub(crate) depth: Count,
     /// The answers the patterns being evaluated asked directly, each pattern's above its caller's.
-    pub(crate) reaching: Vec<MemoId>,
+    pub(crate) reaching: Vec<ChargedUnit>,
     /// The work of the units charged to the rule.
     pub(crate) charged: InstructionCount,
     /// The keys of the call patterns charged to the rule.
@@ -176,5 +179,45 @@ pub(crate) struct RuleBudget {
     /// What each unit was charged to the rule, by the unit's number.
     pub(crate) tallies: Vec<UnitTally>,
     /// The answers still to charge, while a list is followed.
-    pub(crate) pending: Vec<MemoId>,
+    pub(crate) pending: Vec<ChargedUnit>,
+    /// The rows the stages of the fills charged to the rule read and gave.
+    pub(crate) fills: InstructionCount,
+    /// The terms of the allowance known when a unit is charged: the rows into and out of each table, and the node
+    /// table's elements.
+    pub(crate) terms: InstructionCount,
+    /// The rule last charged each made table, by the table's number.
+    pub(crate) tables: Vec<RuleStamp>,
+    /// The rule last charged each relation, by the relation's number.
+    pub(crate) relations: Vec<RuleStamp>,
+    /// The rule last charged the node table.
+    pub(crate) nodes: RuleStamp,
+    /// The relations the rule read: their rows are a term of its allowance, read when its work ends.
+    pub(crate) read: Vec<RelationNumber>,
+    /// The fill charged to the rule that read and gave the most rows; the first charged on a tie.
+    pub(crate) heaviest: Option<FillTally>,
+    /// The answers the fills of the file asked, each beside the ask before it of the same table.
+    pub(crate) asks: Vec<TableAsk>,
+    /// The last ask of each table's fill in the file, by the table's number, as its place in `asks` and one.
+    pub(crate) asked: Vec<Count>,
+}
+
+/// One fill charged to a rule: its table, the rows its stages read and gave, and its work.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct FillTally {
+    /// The table.
+    pub(crate) table: MadeTableId,
+    /// The rows its stages read and gave.
+    pub(crate) rows: InstructionCount,
+    /// Its work, as its slot holds it.
+    pub(crate) work: FillWork,
+}
+
+/// One answer a table's fill asked of a pattern, and the ask before it of the same table: its place in the budget's
+/// `asks` and one, nought for none.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct TableAsk {
+    /// The answer.
+    pub(crate) answer: MemoId,
+    /// The ask before it.
+    pub(crate) before: Count,
 }

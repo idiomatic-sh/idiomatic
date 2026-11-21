@@ -24,7 +24,7 @@ pub(crate) fn dispatch(frame: &mut StepFrame<'_, '_>, rules: &Programs) -> ScanC
                 let _rows: InstructionCount = run(frame, branch.entry, RunMode::Rows);
             }
         }
-        if let Some(notice) = end_rule(frame.state, rules, rule) {
+        if let Some(notice) = end_rule(frame.state, frame.fill.store, rules, rule) {
             frame.found.noticed(notice);
         }
     }

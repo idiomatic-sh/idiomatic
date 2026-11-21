@@ -24,4 +24,6 @@ pub(crate) fn next_file(scratch: &mut ScanScratch) {
     state.work = LoopWork::default();
     state.budget.reaching.clear();
     state.budget.pending.clear();
+    state.budget.asks.clear();
+    state.budget.asked.clear();
 }
