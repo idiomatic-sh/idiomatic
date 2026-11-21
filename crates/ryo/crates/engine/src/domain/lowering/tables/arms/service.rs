@@ -14,7 +14,7 @@ use crate::domain::lowering::tables::fills::service::{as_of_arm, group_count_arm
 use crate::domain::lowering::tables::inputs::service::{input, rule, term};
 use crate::domain::lowering::tables::joins::service::{antijoin_arm, axis_arm, join_arm};
 use crate::domain::lowering::tables::matches::service::match_arm;
-use crate::domain::lowering::tables::selections::service::selection;
+use crate::domain::lowering::tables::selections::service::{asked_of, selection};
 use crate::domain::lowering::tables::sets::types::SetTests;
 use crate::domain::lowering::tables::types::{InputWant, RuleFlattening};
 use ryo_values::domain::plan_parts::types::{Input, StepId};
@@ -34,8 +34,9 @@ fn arm(
             comparisons,
             kept,
         } => {
+            let asked = asked_of(state, *from, comparisons, SetTests::Buckets)?;
             let read = input(state, drafts, *from, InputWant::Inline)?;
-            let mut read = selection(state, drafts, read, comparisons, SetTests::Buckets)?;
+            let mut read = selection(state, drafts, read, &asked)?;
             if !kept.is_empty() {
                 for branch in &mut read.branches {
                     branch.row = picked(
