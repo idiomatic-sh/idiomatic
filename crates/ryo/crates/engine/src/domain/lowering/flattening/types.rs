@@ -95,8 +95,8 @@ pub(crate) enum FlatAtom {
     },
     /// The nearest ancestor of an element that a definition holds in a column: the domain of a nearest axis.
     Nearest {
-        /// The node relation whose tree is walked.
-        relation: Relation,
+        /// What is walked toward the root.
+        over: NearestOver,
         /// The definition of the domain.
         domain: DefinitionId,
         /// The domain's column that holds the element.
@@ -186,4 +186,13 @@ pub(crate) enum EdgeRows {
         /// Whether the source holds one row a file.
         per_file: RowsPerFile,
     },
+}
+
+/// What a nearest walk climbs.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum NearestOver {
+    /// The tree of a node relation.
+    Tree(Relation),
+    /// Edges that are a step's rows or a relation's own: asked by the child (the source), a row gives the parent.
+    Derived(EdgeColumns),
 }

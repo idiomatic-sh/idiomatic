@@ -3,15 +3,15 @@
 use crate::domain::lowered::types::Emptiness;
 use crate::domain::lowering::definitions::service::fresh_variable;
 use crate::domain::lowering::definitions::types::{Drafts, Flattened};
-use crate::domain::lowering::emptiness::service::copied;
 use crate::domain::lowering::emptiness::service::derived;
 use crate::domain::lowering::flattening::constants::{BRANCH_ATOMS, PRODUCT_BRANCHES};
 use crate::domain::lowering::flattening::service::made_column;
 use crate::domain::lowering::flattening::service::{picked, unified};
 use crate::domain::lowering::flattening::types::EdgeColumns;
-use crate::domain::lowering::flattening::types::EdgeRows;
+use crate::domain::lowering::flattening::types::NearestOver;
 use crate::domain::lowering::flattening::types::{EqualTerms, FlatAtom, FlatTerm, RowColumn};
 use crate::domain::lowering::nodes::service::input_shape;
+use crate::domain::lowering::tables::closures::service::edge_rows;
 use crate::domain::lowering::tables::inputs::service::{all_selected, input, rule, sized};
 use crate::domain::lowering::tables::service::{tree_relation, walk_of};
 use crate::domain::lowering::tables::types::InputSize;
@@ -21,7 +21,6 @@ use crate::domain::lowering::tables::types::{InputWant, RuleFlattening, TreeAxis
 use crate::domain::steps::types::Polarity;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::relations::types::Count;
-use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side, StepId};
 use ryo_values::domain::plans::types::Operation;
 
@@ -215,7 +214,7 @@ pub(crate) fn axis_arm(
     else {
         return None;
     };
-    let relation = tree_relation(edges, *parent, *child)?;
+    let tree = tree_relation(edges, *parent, *child);
     let (start, entity) = (usize::from(*id), usize::from(*domain_id));
     match walk_of(*direction)? {
         TreeAxis::Nearest => {
@@ -225,10 +224,20 @@ pub(crate) fn axis_arm(
             let Emptiness::Definition(definition) = held.emptiness else {
                 return None;
             };
+            // Edges that are no tree of a node relation are asked by the child for the parent.
+            let over = match tree {
+                Some(relation) => NearestOver::Tree(relation),
+                None => NearestOver::Derived(EdgeColumns {
+                    rows: edge_rows(state, drafts, *edges)?,
+                    keys: Vec::new(),
+                    source: made_column(RowColumn(usize::from(*child)))?,
+                    destination: made_column(RowColumn(usize::from(*parent)))?,
+                }),
+            };
             for branch in &mut starts.branches {
                 let reached = FlatTerm::Variable(fresh_variable(drafts));
                 branch.atoms.push(FlatAtom::Nearest {
-                    relation,
+                    over: over.clone(),
                     domain: definition,
                     column: made_column(RowColumn(entity))?,
                     start: *branch.row.get(start)?,
@@ -243,6 +252,7 @@ pub(crate) fn axis_arm(
             })
         }
         TreeAxis::Along(walk) => {
+            let relation = tree?;
             let wants = join_wants(sized(state, drafts, *from), sized(state, drafts, *domain));
             let starts = input(state, drafts, *from, wants.left)?;
             let mut held = input(state, drafts, *domain, wants.right)?;
@@ -273,85 +283,4 @@ pub(crate) fn axis_arm(
             })
         }
     }
-}
-
-/// The branch of a closure: each row of the edges gives a source and its keys, and one walk reaches from that source
-/// over one or more edges of the same keys. The edges are a definition; the walk asks it by a source, or by a destination
-/// when it is entered from what is reached.
-pub(crate) fn closure_arm(
-    state: &mut RuleFlattening<'_>,
-    drafts: &mut Drafts,
-    operation: &Operation,
-) -> Option<Flattened> {
-    let Operation::Closure {
-        edges,
-        keys,
-        source,
-        destination,
-    } = operation
-    else {
-        return None;
-    };
-    let shape = input_shape(&rule(state)?.shapes, *edges)?;
-    let mut read = input(state, drafts, *edges, InputWant::Defined)?;
-    let rows = match (&read.emptiness, edges) {
-        (Emptiness::Definition(definition), _) => EdgeRows::Definition(*definition),
-        // A relation's own rows: the walk reads one row of it in place, in cells of its own.
-        (_, Input::Relation(_)) => {
-            let again = input(state, drafts, *edges, InputWant::Defined)?;
-            let FlatAtom::Rows {
-                rows,
-                cells,
-                per_file,
-            } = again
-                .branches
-                .into_iter()
-                .next()?
-                .atoms
-                .into_iter()
-                .next()?
-            else {
-                return None;
-            };
-            EdgeRows::Read {
-                rows,
-                cells,
-                per_file,
-            }
-        }
-        (_, Input::Step(_) | Input::BoundObservation(_)) => return None,
-    };
-    let edges_empty = copied(&read.emptiness);
-    let column = |place: &ColumnIndex| RowColumn(usize::from(*place));
-    // The file's own column is no key within the file: the walk stays in the other keys.
-    let within = keys
-        .iter()
-        .filter(|key| shape.0.get(usize::from(**key)) != Some(&CellKind::File));
-    let walked = EdgeColumns {
-        rows,
-        keys: within
-            .clone()
-            .filter_map(|key| made_column(column(key)))
-            .collect(),
-        source: made_column(column(source))?,
-        destination: made_column(column(destination))?,
-    };
-    for branch in &mut read.branches {
-        let reached = FlatTerm::Variable(fresh_variable(drafts));
-        let from = *branch.row.get(usize::from(*source))?;
-        let stays = picked(&branch.row, within.clone().map(column))?;
-        let mut row = picked(&branch.row, keys.iter().map(column))?;
-        row.extend([from, reached]);
-        branch.atoms.push(FlatAtom::Closure {
-            edges: walked.clone(),
-            keys: stays,
-            source: from,
-            reached,
-        });
-        branch.row = row;
-    }
-    Some(Flattened {
-        emptiness: derived(operation, vec![edges_empty]),
-        ..read
-    })
 }

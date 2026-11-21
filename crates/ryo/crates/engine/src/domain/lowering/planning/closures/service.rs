@@ -161,6 +161,24 @@ fn read_edges(
     Some(WalkEdges::Inline { steps, gives })
 }
 
+/// What a walk's step asks for the next element of the one in `from`: a use of the edges' definition, or the read of a
+/// source's own rows written in place. The closure and the nearest walk over derived edges both ask it here.
+pub(crate) fn walk_edges(
+    emitter: &mut Emitter<'_>,
+    edges: &EdgeColumns,
+    keys: &[FlatTerm],
+    asks: EdgeEnds,
+    from: Register,
+    write: AtomWriter,
+) -> Option<WalkEdges> {
+    match &edges.rows {
+        EdgeRows::Definition(definition) => {
+            defined_edges(emitter, *definition, edges, keys, asks, from)
+        }
+        EdgeRows::Read { .. } => read_edges(emitter, edges, keys, asks, from, write),
+    }
+}
+
 /// Writes a closure's walk. Entered from its source it gives what is reached; entered from what is reached it gives the
 /// sources, over the edges read from their destination. An end that was given already is tested against the walk's.
 pub(crate) fn closed(
@@ -201,12 +219,7 @@ pub(crate) fn closed(
     } else {
         // The element whose edges are asked is written into `from` before the edges run.
         let from: Register = fresh_register(emitter.drafts);
-        let walked = match &edges.rows {
-            EdgeRows::Definition(definition) => {
-                defined_edges(emitter, *definition, edges, keys, asks, from)
-            }
-            EdgeRows::Read { .. } => read_edges(emitter, edges, keys, asks, from, write),
-        };
+        let walked = walk_edges(emitter, edges, keys, asks, from, write);
         let Some(walked) = walked else {
             emitter.missed = Count(emitter.missed.0.saturating_add(1));
             return;

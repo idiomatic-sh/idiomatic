@@ -288,9 +288,11 @@ fn shaped(
             output,
         } => {
             let (mut shape, domain) = (of(from)?, of(domain)?);
-            // A walk over edges a step derives, and an axis with a view of its domain or its own answer columns, are not
-            // lowered yet; nor are the axes `walk_of` names none for.
-            let tree = tree_relation(edges, *parent, *child).is_some();
+            // An axis with a view of its domain or its own answer columns is not lowered yet, nor are the axes `walk_of`
+            // names none for. Edges that are no tree of a node relation are walked by a nearest axis alone.
+            let tree = tree_relation(edges, *parent, *child).is_some()
+                || (walk_of(*direction) == Some(TreeAxis::Nearest)
+                    && picked(&of(edges)?, &[*parent, *child]).is_some());
             let plain = domain_view.is_empty()
                 && output.is_empty()
                 && comparable(rule, &domain, domain_filter).is_some()

@@ -13,8 +13,8 @@ use parts::{as_of, at, joined, kept, of, plan, step, words, words_written};
 use ryo_relations::domain::relations::types::{Integer, Relation};
 use ryo_values::domain::plan_orders::types::{GroupEnd, OrderBound};
 use ryo_values::domain::plan_parts::types::{
-    Applied, ColumnIndex, ComparisonOrigin, Function, Input, LiteralText, Operand, PlanComparison,
-    QueryLiteral, RepeatedRows, Side, StepId, StepScope, TableKey, Test,
+    Applied, ColumnIndex, ComparisonOrigin, Direction, Function, Input, LiteralText, Operand,
+    PlanComparison, QueryLiteral, RepeatedRows, Side, StepId, StepScope, TableKey, Test,
 };
 use ryo_values::domain::plans::types::{Operation, PlanStep};
 use ryo_values::domain::query_bindings::types::RuleBindings;
@@ -150,6 +150,16 @@ fn operation_scene(scene: &str) -> Option<Plan> {
             source: at(1),
             destination: at(0),
         })]),
+        // Each element beside the nearest element above it, climbed over the file's own tree.
+        "the nearest element above, over the tree" => {
+            nearest(Input::Relation(Relation::SyntaxChild))
+        }
+        // The same, climbed over edges a step derives: the child edges, kept as they are.
+        "the nearest element above, over a step's edges" => plan(vec![
+            kept(Input::Relation(Relation::SyntaxTree)),
+            kept(Input::Relation(Relation::SyntaxChild)),
+            nearest_step(Input::Step(StepId(1))),
+        ]),
         // Each element with the span from its own start to its own end.
         "the elements' spans between" => plan(vec![
             kept(Input::Relation(Relation::SyntaxTree)),
@@ -251,4 +261,29 @@ pub fn named(scene: &str) -> Plan {
         "partial relation" => plan(vec![kept(Input::Relation(Relation::SyntaxError))]),
         _ => plan(vec![kept(Input::Relation(Relation::SyntaxTree))]),
     }
+}
+
+/// A nearest-ancestor axis from the rows of step 0 over the given edges, its domain step 0 too.
+fn nearest_step(edges: Input) -> PlanStep {
+    step(Operation::Axis {
+        from: Input::Step(StepId(0)),
+        edges,
+        domain: Input::Step(StepId(0)),
+        direction: Direction::NearestAncestor,
+        id: at(0),
+        parent: at(0),
+        child: at(1),
+        domain_id: at(0),
+        domain_filter: Vec::new(),
+        domain_view: Vec::new(),
+        output: Vec::new(),
+    })
+}
+
+/// The elements of the syntax tree, each beside its nearest ancestor among them, climbed over the given edges.
+fn nearest(edges: Input) -> Plan {
+    plan(vec![
+        kept(Input::Relation(Relation::SyntaxTree)),
+        nearest_step(edges),
+    ])
 }

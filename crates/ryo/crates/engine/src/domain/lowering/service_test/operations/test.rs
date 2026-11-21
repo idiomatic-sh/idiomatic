@@ -114,6 +114,60 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "codes: {\"Call\": 1, \"EachMatchNode\": 1, \"EachRowNode\": 1, \"Emit\": 1, \"End\": 2, \"ReadNode\": 3, \"Test\": 1}",
         ))),
     },
+    Case {
+        name: CaseName(
+            "a_nearest_walk_over_the_tree_is_a_definition_whose_table_uses_its_own_walk",
+        ),
+        word: Word::Succeeds,
+        input: || {
+            (
+                &["the nearest element above, over the tree"],
+                SampleStage::Absent,
+            )
+        },
+        expect: Expect::Value(Cow::Borrowed(concat!(
+            "definition 0: 5 columns, emptiness Unknown\n",
+            "  pattern bound [] collected []: Table 1\n",
+            "  pattern bound [0] collected []: Call: EachMatch:Fanout Yield:Constant\n",
+            "definition 1: 6 columns, emptiness All([Definition(DefinitionId(0)), Unknown, Definition(DefinitionId(0))])\n",
+            "  pattern bound [] collected []: Table 0\n",
+            "  pattern bound [0] collected [5]: Call: Nearest:Fanout Exists:Fanout Let:Constant Yield:Constant\n",
+            "table 0: Rows, 6 columns, indexes []\n",
+            "  pipeline: Scan:File Read:Constant Read:Constant Read:Constant Read:Constant Use:Fanout\n",
+            "table 1: Rows, 5 columns, indexes []\n",
+            "  pipeline: Scan:File Read:Constant Read:Constant Read:Constant\n",
+            "rule 0: 1 branches\n",
+            "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Read:Constant Read:Constant Emit:Constant\n",
+            "codes: {\"EachMatchNode\": 1, \"EachRowMade\": 1, \"Emit\": 1, \"End\": 4, \"Exists\": 1, \"Let\": 1, \"Nearest\": 1, \"ReadMade\": 5, \"StageRead\": 7, \"StageScan\": 2, \"StageUse\": 1, \"StageWrite\": 2, \"Yield\": 2}",
+        ))),
+    },
+    Case {
+        name: CaseName("a_nearest_walk_over_a_steps_edges_asks_their_definition_for_the_parent"),
+        word: Word::Succeeds,
+        input: || {
+            (
+                &["the nearest element above, over a step's edges"],
+                SampleStage::Absent,
+            )
+        },
+        expect: Expect::Value(Cow::Borrowed(concat!(
+            "definition 0: 5 columns, emptiness Unknown\n",
+            "  pattern bound [] collected []: Table 1\n",
+            "  pattern bound [0] collected []: Call: EachMatch:Fanout Yield:Constant\n",
+            "definition 1: 5 columns, emptiness Unknown\n",
+            "  pattern bound [1] collected [0]: Call: EachMatch:Fanout Read:Constant Let:Constant Yield:Constant\n",
+            "definition 2: 6 columns, emptiness All([Definition(DefinitionId(0)), Unknown, Definition(DefinitionId(0))])\n",
+            "  pattern bound [] collected []: Table 0\n",
+            "  pattern bound [0] collected [5]: Call: Nearest:Fanout Exists:Fanout Let:Constant Yield:Constant\n",
+            "table 0: Rows, 6 columns, indexes []\n",
+            "  pipeline: Scan:File Read:Constant Read:Constant Read:Constant Read:Constant Use:Fanout\n",
+            "table 1: Rows, 5 columns, indexes []\n",
+            "  pipeline: Scan:File Read:Constant Read:Constant Read:Constant\n",
+            "rule 0: 1 branches\n",
+            "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Read:Constant Read:Constant Emit:Constant\n",
+            "codes: {\"EachMatchNode\": 2, \"EachRowMade\": 1, \"Emit\": 1, \"End\": 5, \"Exists\": 1, \"Let\": 2, \"NearestDerived\": 1, \"ReadMade\": 5, \"ReadNode\": 1, \"StageRead\": 7, \"StageScan\": 2, \"StageUse\": 1, \"StageWrite\": 2, \"Yield\": 3}",
+        ))),
+    },
 ];
 
 /// The scenes lowered and said in lines, as the cases of the service itself are.

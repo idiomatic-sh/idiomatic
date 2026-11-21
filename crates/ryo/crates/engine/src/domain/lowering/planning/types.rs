@@ -127,8 +127,8 @@ pub(crate) enum WrittenAccess {
     },
     /// The nearest ancestor of an element that a definition holds in a column: a program's only.
     Nearest {
-        /// The node relation whose tree is walked.
-        relation: Relation,
+        /// What is walked toward the root.
+        edges: NearestWalked,
         /// The definition of the domain.
         domain: DefinitionId,
         /// The domain's column.
@@ -372,5 +372,19 @@ pub(crate) enum WalkEdges {
         steps: Vec<WrittenAccess>,
         /// The register a row gives.
         gives: Register,
+    },
+}
+
+/// What a nearest walk's step climbs.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum NearestWalked {
+    /// The tree of a node relation.
+    Tree(Relation),
+    /// Edges asked for the parent of the element in `from`.
+    Derived {
+        /// What gives the parent.
+        edges: WalkEdges,
+        /// Where the element whose parent is asked is written.
+        from: Register,
     },
 }

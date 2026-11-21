@@ -2,13 +2,15 @@
 
 use crate::domain::lowering::costing::types::CellState;
 use crate::domain::lowering::definitions::service::{asked, fresh_register};
-use crate::domain::lowering::flattening::types::FlatTerm;
-use crate::domain::lowering::planning::closures::service::own_used;
+use crate::domain::lowering::flattening::types::NearestOver;
+use crate::domain::lowering::planning::closures::service::{own_used, walk_edges};
+use crate::domain::lowering::planning::closures::types::{AtomWriter, EdgeEnds};
 use crate::domain::lowering::planning::operands::service::{
     given_or_tested, register_of, state_of,
 };
+use crate::domain::lowering::planning::types::NearestWalked;
 use crate::domain::lowering::planning::types::{Emitter, Enumerated, UnitRole, WrittenAccess};
-use crate::domain::lowering::planning::walks::types::{NearestTreeWalk, WalkEnds};
+use crate::domain::lowering::planning::walks::types::{NearestClimb, WalkEnds};
 use crate::domain::steps::types::{AxisDirection, ColumnMask};
 use ryo_relations::domain::relations::types::Count;
 use ryo_relations::domain::relations::types::Relation;
@@ -91,10 +93,11 @@ pub(crate) fn walked(
 /// what is reached, whose program is this walk, run once per distinct start.
 pub(crate) fn nearest(
     emitter: &mut Emitter<'_>,
-    walk: NearestTreeWalk,
-    start: FlatTerm,
-    reached: FlatTerm,
+    walk: &NearestClimb,
+    ends: WalkEnds,
+    write: AtomWriter,
 ) {
+    let (start, reached) = (ends.start, ends.reached);
     let Some(from) = register_of(emitter, start) else {
         emitter.missed = Count(emitter.missed.0.saturating_add(1));
         return;
@@ -108,11 +111,28 @@ pub(crate) fn nearest(
             }
         }
         (UnitRole::Branch | UnitRole::Pattern | UnitRole::Pipeline, _) => {
+            let edges = match &walk.over {
+                NearestOver::Tree(relation) => Some(NearestWalked::Tree(*relation)),
+                // The element whose parent is asked is written into its own register before the edges run.
+                NearestOver::Derived(edges) => {
+                    let hand = fresh_register(emitter.drafts);
+                    let asks = EdgeEnds {
+                        asked: edges.source,
+                        gives: edges.destination,
+                    };
+                    walk_edges(emitter, edges, &[], asks, hand, write)
+                        .map(|edges| NearestWalked::Derived { edges, from: hand })
+                }
+            };
+            let Some(edges) = edges else {
+                emitter.missed = Count(emitter.missed.0.saturating_add(1));
+                return;
+            };
             let bound = ColumnMask([walk.column].into());
             asked(emitter.drafts, walk.domain, &bound, &ColumnMask::default());
             let element = fresh_register(emitter.drafts);
             emitter.written.push(WrittenAccess::Nearest {
-                relation: walk.relation,
+                edges,
                 domain: walk.domain,
                 column: walk.column,
                 element,

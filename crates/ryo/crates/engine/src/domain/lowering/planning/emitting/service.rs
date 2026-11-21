@@ -20,7 +20,7 @@ use crate::domain::lowering::planning::types::{
     Emitter, Enumerated, FileCell, UnitRole, WrittenAccess,
 };
 use crate::domain::lowering::planning::walks::service::{nearest, walked};
-use crate::domain::lowering::planning::walks::types::{NearestTreeWalk, WalkEnds};
+use crate::domain::lowering::planning::walks::types::{NearestClimb, WalkEnds};
 use crate::domain::steps::stages::types::UseMode;
 use crate::domain::steps::types::{
     ColumnList, ColumnMask, CostClass, DefinitionId, MadeColumn, MadeTableId, MatchColumns,
@@ -327,18 +327,22 @@ pub(crate) fn atom_written(emitter: &mut Emitter<'_>, atom: &FlatAtom) {
             walked(emitter, *relation, *direction, ends);
         }
         FlatAtom::Nearest {
-            relation,
+            over,
             domain,
             column,
             start,
             reached,
         } => {
-            let walk = NearestTreeWalk {
-                relation: *relation,
+            let walk = NearestClimb {
+                over: over.clone(),
                 domain: *domain,
                 column: *column,
             };
-            nearest(emitter, walk, *start, *reached);
+            let ends = WalkEnds {
+                start: *start,
+                reached: *reached,
+            };
+            nearest(emitter, &walk, ends, atom_written);
         }
         FlatAtom::Closure {
             edges,

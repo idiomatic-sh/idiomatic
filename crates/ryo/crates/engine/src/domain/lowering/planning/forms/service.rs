@@ -2,8 +2,8 @@
 
 use crate::domain::lowering::planning::types::Enumerated;
 use crate::domain::lowering::planning::types::KindAnchor;
-use crate::domain::lowering::planning::types::WalkEdges;
 use crate::domain::lowering::planning::types::WrittenAccess;
+use crate::domain::lowering::planning::types::{NearestWalked, WalkEdges};
 use crate::domain::steps::stages::types::{FillStage, TreeWalk, UseMode};
 use crate::domain::steps::types::{
     ColumnMask, NearestEdges, Polarity, ProgramStep, StepBody, StepMemo, StepOperand, StepOperands,
@@ -121,14 +121,20 @@ pub(crate) fn step_of(access: WrittenAccess) -> ProgramStep {
             descendant,
         },
         WrittenAccess::Nearest {
-            relation,
+            edges,
             domain,
             column,
             element,
             start,
             out,
         } => ProgramStep::Nearest {
-            edges: NearestEdges::Tree(relation),
+            edges: match edges {
+                NearestWalked::Tree(relation) => NearestEdges::Tree(relation),
+                NearestWalked::Derived { edges, from } => NearestEdges::Derived {
+                    edges: walk_body(edges),
+                    from,
+                },
+            },
             condition: StepBody::Definition {
                 definition: domain,
                 bound: ColumnMask([column].into()),
