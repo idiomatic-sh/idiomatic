@@ -118,6 +118,21 @@ fn general(frame: &mut StepFrame<'_, '_>, word: CodeWord) -> Verdict {
     let Some(operation) = comparison_of(read.comparison, read.regex) else {
         return Verdict::Unbuilt;
     };
+    // SPIKE (ryo-fmx3.1, fault L): the file's cell is its number in the run, which is no word of its text. A test of a
+    // text whose left is a register a `Let` put the file in reads the word the file's path is, as a `Keep` stage does.
+    let left = if read.flag.0 & LEFT_CONSTANT.0 == 0
+        && !frame.state.file_registers.is_empty()
+        && frame.state.file_registers.contains(&read.left.0)
+        && cell_test(operation).is_none()
+        && !matches!(operation, TestOperation::In | TestOperation::NotIn)
+    {
+        ryo_language::domain::facts::service::intern(
+            frame.fill.words,
+            ryo_relations::domain::terms::types::NameText(frame.fill.path.0),
+        )
+    } else {
+        left
+    };
     if read.flag.0 & RIGHT_SET.0 != 0 {
         let set = PoolAt(read.right.0);
         return match operation {

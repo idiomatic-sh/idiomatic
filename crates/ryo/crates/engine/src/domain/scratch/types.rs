@@ -160,6 +160,9 @@ pub(crate) struct LoopState {
     pub(crate) calls: CallRoom,
     /// The elements a closure has met: the room of the closure being walked, lent to it and given back.
     pub(crate) seen: hashbrown::HashSet<CellWord>,
+    /// SPIKE (ryo-fmx3.1, fault L): the registers a `Let` put the file in. A register has one writer in a rule set, so the
+    /// set is of the rule set: it is never cleared. A test of a text whose left is such a register reads the file's path.
+    pub(crate) file_registers: hashbrown::HashSet<u32>,
     /// Which kinds and which fields occur in the file's node rows: what a need on a node relation's kind or field asks.
     pub(crate) presence: NodePresence,
     /// Whether each need site's formula asks the node rows for a kind or a field, by the site's number: a property of the
