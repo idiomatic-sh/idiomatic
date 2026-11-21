@@ -12,7 +12,7 @@ use crate::domain::lowering::costing::service::{keyed, planned_rows, plus, sourc
 use crate::domain::lowering::costing::types::{AccessCost, CellState, PlanEstimate};
 use crate::domain::lowering::flattening::service::{made_column, pins_of, variables};
 use crate::domain::lowering::flattening::types::{
-    AtomRows, FlatAtom, FlatBranch, FlatTerm, RowColumn, RowsPerFile,
+    AtomRows, FlatAtom, FlatBranch, FlatTerm, FlatVariable, RowColumn, RowsPerFile,
 };
 use crate::domain::lowering::planning::service::state_of;
 use crate::domain::lowering::planning::types::{
@@ -169,27 +169,37 @@ fn kept(state: &OrderCompletion<'_>, test: TestOperation, terms: [&FlatTerm; 2])
     }
 }
 
-/// The pinned variables among the cells a rows atom is keyed by now: the test that pins each holds once the atom is placed.
-fn keyed_pins(state: &OrderCompletion<'_>, atom: &FlatAtom) -> Vec<FlatTerm> {
+/// The pinned variables among the cells a rows atom is keyed by now: the test that pins each holds once the atom is
+/// placed. With them, whether the access leaves no row a pipeline could read such a cell from: a use of a definition by a
+/// register gives none, so a pin it is keyed by stays a constant for the stages after it.
+fn keyed_pins(state: &OrderCompletion<'_>, atom: &FlatAtom) -> (Vec<FlatVariable>, bool) {
     let FlatAtom::Rows {
         rows,
         cells,
         per_file,
     } = atom
     else {
-        return Vec::new();
+        return (Vec::new(), false);
     };
     let given = given_now(state);
     let states: Vec<CellState> = cells.iter().map(|cell| state_of(*cell, &given)).collect();
     let choice = keyed(state.drafts, *rows, *per_file, &states);
     // After the first enumeration an access with no register is every row of its source: no pin keys it.
     if choice.class == CostClass::File && state.enumerated == Enumerated::Already {
-        return Vec::new();
+        return (Vec::new(), false);
     }
     let keys = choice.cells.iter();
-    keys.filter(|cell| states.get(cell.0) == Some(&CellState::Constant))
-        .filter_map(|cell| cells.get(cell.0).copied())
-        .collect()
+    let pins = keys
+        .filter(|cell| states.get(cell.0) == Some(&CellState::Constant))
+        .filter_map(|cell| match cells.get(cell.0) {
+            Some(FlatTerm::Variable(variable)) => Some(*variable),
+            Some(FlatTerm::Text(_) | FlatTerm::Number(_) | FlatTerm::File) | None => None,
+        })
+        .collect();
+    let rowless = matches!(rows, AtomRows::Definition(_))
+        && choice.class == CostClass::Fanout
+        && state.role == UnitRole::Pipeline;
+    (pins, rowless)
 }
 
 /// Places an atom: its variables are given from here on, its steps are taken for each row the unit holds, and the unit
@@ -198,7 +208,7 @@ fn place(state: &mut OrderCompletion<'_>, next: NextAccess) {
     let Some(atom) = state.branch.atoms.get(next.atom.0) else {
         return;
     };
-    let pins = keyed_pins(state, atom);
+    let (pins, rowless) = keyed_pins(state, atom);
     if let Some(placed) = state.placed.get_mut(next.atom.0) {
         *placed = AtomPlacing::Placed;
     }
@@ -211,13 +221,13 @@ fn place(state: &mut OrderCompletion<'_>, next: NextAccess) {
         | FlatAtom::Walk { .. }
         | FlatAtom::Nearest { .. }
         | FlatAtom::Closure { .. } => {
-            state.given.extend(variables(atom));
-            state
-                .implied
-                .extend(pins.iter().filter_map(|pin| match pin {
-                    FlatTerm::Variable(variable) => Some(*variable),
-                    FlatTerm::Text(_) | FlatTerm::Number(_) | FlatTerm::File => None,
-                }));
+            let given = variables(atom);
+            state.given.extend(
+                given
+                    .into_iter()
+                    .filter(|variable| !(rowless && pins.contains(variable))),
+            );
+            state.implied.extend(pins);
             state.enumerated = Enumerated::Already;
             state.cost = plus(state.cost, taken);
             state.rows = times(state.rows, next.cost.rows.max(LEAST_ROWS));
