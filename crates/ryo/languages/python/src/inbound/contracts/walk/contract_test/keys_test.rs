@@ -68,7 +68,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Asked::Keys(Relation::ExpressionType),
         expect: Expect::Value(
-            "592 files, 50834 rows whole, 50832 keys of ExpressionType(Id) wrote 50834: no difference",
+            "592 files, 50875 rows whole, 50873 keys of ExpressionType(Id) wrote 50875: no difference",
         ),
     },
     Case {
