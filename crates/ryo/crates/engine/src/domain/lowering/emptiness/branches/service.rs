@@ -17,8 +17,10 @@ use ryo_relations::domain::relations::service::{columns, kind};
 use ryo_relations::domain::relations::types::{CellKind, FactForm, NodeColumn, Relation};
 use std::collections::HashMap;
 
-/// How deep a constant is carried through definitions, and how many branches a definition it is carried through may
-/// have: past either, the use needs the definition's own formula.
+/// How deep a constant is carried through definitions, and how many branches of a definition may be left that can give
+/// a row with it: past either, the use needs the definition's own formula. The branches LEFT are counted, not the
+/// definition's: a definition of many branches that each hold the column to its own constant (a union of a relation's
+/// kinds) is where a reader's constant decides most, leaving the one branch that holds it.
 const CARRIED: (usize, usize) = (4, 8);
 
 /// The constant a cell is held to: its own, or the one an equality pins its variable to.
@@ -97,9 +99,7 @@ fn definition_need(
         })
         .collect();
     let branches = draft(drafts, definition).map(|draft| &draft.branches);
-    let Some(branches) = branches.filter(|branches| {
-        !constants.is_empty() && depth < CARRIED.0 && branches.len() <= CARRIED.1
-    }) else {
+    let Some(branches) = branches.filter(|_| !constants.is_empty() && depth < CARRIED.0) else {
         return Emptiness::Definition(definition);
     };
     let mut some = Vec::new();
@@ -118,7 +118,14 @@ fn definition_need(
             }
         }
         if possible {
-            some.push(needed(drafts, branch, &carried, depth.saturating_add(1)));
+            let need = needed(drafts, branch, &carried, depth.saturating_add(1));
+            // A branch that holds the column to another constant gives no row: it is not a way to have one.
+            if !never(&need) {
+                some.push(need);
+            }
+        }
+        if some.len() > CARRIED.1 {
+            return Emptiness::Definition(definition);
         }
     }
     Emptiness::Any(some.into())
@@ -188,6 +195,19 @@ pub(crate) fn branch_need(drafts: &Drafts, branch: &FlatBranch) -> Emptiness {
 pub(crate) fn branches_need(drafts: &Drafts, branches: &[FlatBranch]) -> Emptiness {
     let each = branches.iter().map(|branch| branch_need(drafts, branch));
     Emptiness::Any(each.collect())
+}
+
+/// Whether a formula holds in no file: some part of an `All` never does, or no part of an `Any` can.
+fn never(formula: &Emptiness) -> bool {
+    match formula {
+        Emptiness::All(parts) => parts.iter().any(never),
+        Emptiness::Any(parts) => parts.iter().all(never),
+        Emptiness::Unknown
+        | Emptiness::Kind(_)
+        | Emptiness::Row(..)
+        | Emptiness::Definition(_)
+        | Emptiness::Table(_) => false,
+    }
 }
 
 /// Whether a formula holds in every file: it says nothing.
