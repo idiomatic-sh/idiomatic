@@ -1,7 +1,7 @@
 //! The types of the `kept` part: what a need answered a rule, where a read column lies for a file, and how an `Exists`
 //! word asks its body.
 
-use crate::domain::code::types::CodeEntry;
+use crate::domain::code::types::{CodeEntry, NeedSite};
 use crate::domain::indexes::types::FileStamp;
 use crate::domain::made_tables::columns::types::HeldColumn;
 use crate::domain::memos::types::RuleStamp;
@@ -85,4 +85,14 @@ pub(crate) struct NeedFills {
     pub(crate) by_table: Vec<NeedFill>,
     /// The tables a need made with a row since the running rule began.
     pub(crate) pending: Vec<MadeTableId>,
+    /// The site whose decision is being traced: a rule's branch's, asked by the dispatch.
+    pub(crate) tracing: Option<NeedSite>,
+    /// The decisions under way inside the traced one (a table's own need): their terms are not the traced formula's.
+    pub(crate) nested: Count,
+    /// The terms the traced decision asked, in the order asked, each with what it said.
+    pub(crate) trace: Vec<String>,
+    /// How many files each site's decision asked exactly these terms with these answers.
+    pub(crate) traces: std::collections::BTreeMap<String, usize>,
+    /// Each traced site's rule, branch and formula, said once.
+    pub(crate) formulas: std::collections::BTreeMap<u32, String>,
 }
