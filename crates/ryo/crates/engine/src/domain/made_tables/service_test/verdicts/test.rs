@@ -8,7 +8,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::filled::errors::FilledError;
 use crate::domain::lowered::types::MadeTable;
 use crate::domain::made_tables::fixtures::packs::{
-    keep_equal, node_read, of, pipeline, rows, scan_nodes, word,
+    FIRST, SECOND, keep_equal, node_read, of, pipeline, read, rows, scan, scan_nodes, word,
 };
 use crate::domain::made_tables::fixtures::{Shown, Telling, framed, shown_as, world_with};
 use crate::domain::made_tables::sources::service::{made, next_file};
@@ -33,6 +33,11 @@ enum Asked {
     SetOfGlobs,
     /// A keep of a prefix (`a`) over the two files.
     Prefix,
+    /// A keep of the relation's rows whose first column, a text, matches the glob the row's second column is: nothing
+    /// of it is the same from row to row.
+    OwnGlob,
+    /// The rows the same glob keeps out.
+    OwnGlobNegated,
 }
 
 type Input = Asked;
@@ -75,6 +80,22 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Asked::Prefix,
         expect: Expect::Value(Cow::Borrowed("xb cd ef:  | ab zd ef: \"ab\"")),
     },
+    Case {
+        name: CaseName("a_rows_own_glob_is_read_for_its_row"),
+        word: Word::Succeeds,
+        input: || Asked::OwnGlob,
+        expect: Expect::Value(Cow::Borrowed(
+            "xb cd ef: \"ef\"; \"a\" | ab zd ef: \"ef\"; \"a\"",
+        )),
+    },
+    Case {
+        name: CaseName("a_rows_own_glob_negated_keeps_the_other_rows"),
+        word: Word::Succeeds,
+        input: || Asked::OwnGlobNegated,
+        expect: Expect::Value(Cow::Borrowed(
+            "xb cd ef: \"f\"; \"ef\" | ab zd ef: \"f\"; \"ef\"",
+        )),
+    },
 ];
 
 /// A table of the tokens whose text the keep holds for.
@@ -91,6 +112,30 @@ fn kept(test: TestOperation, right: StepOperand) -> MadeTable {
     rows(1, pipeline(all, [of(2)]))
 }
 
+/// The relation's rows: a text's word, and a glob's word. `ef` against `ef`, `a` against `a*`, `f` against `?d`, `ef`
+/// against `a*`.
+const ROWS: [[u64; 2]; 4] = [[3, 3], [8, 1], [9, 2], [3, 1]];
+
+/// A table of the relation's first column where the test holds between it and the row's second column.
+fn own_glob(test: TestOperation) -> MadeTable {
+    rows(
+        1,
+        pipeline(
+            vec![
+                scan(0),
+                read(FIRST, 0, 1),
+                read(SECOND, 0, 2),
+                FillStage::Keep {
+                    test,
+                    left: of(1),
+                    right: of(2),
+                },
+            ],
+            [of(1)],
+        ),
+    )
+}
+
 /// The tables of a case.
 fn tables(asked: Asked) -> Vec<MadeTable> {
     match asked {
@@ -105,13 +150,15 @@ fn tables(asked: Asked) -> Vec<MadeTable> {
             StepOperand::Words(Box::new([CellWord(1), CellWord(2)])),
         )],
         Asked::Prefix => vec![kept(TestOperation::StartsWith, word(8))],
+        Asked::OwnGlob => vec![own_glob(TestOperation::Glob)],
+        Asked::OwnGlobNegated => vec![own_glob(TestOperation::NotGlob)],
     }
 }
 
 fn subject(asked: Input) -> Result<Value, Failure> {
     let made_tables = tables(asked);
     let count = u32::try_from(made_tables.len()).unwrap_or(0);
-    let mut world = world_with(made_tables, Vec::new(), &[], Telling::Keyed)?;
+    let mut world = world_with(made_tables, Vec::new(), &ROWS, Telling::Keyed)?;
     let mut said = Vec::new();
     // The second file's tokens are other texts of the same lengths: its own words take the first file's numbers.
     for text in ["xb cd ef", "ab zd ef"] {
