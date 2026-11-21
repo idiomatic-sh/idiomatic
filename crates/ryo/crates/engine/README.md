@@ -20,6 +20,10 @@ A lowered pack written as code, every site and index numbered, with no count cut
 
 The one loop over a program's words: a word is dispatched to its item, and each binding that ends asks the innermost running iteration for its next row.
 
+### filled
+
+The relations a language filled for a file, each unfilled, filled for some keys or whole: a key is asked once, and a whole fill's rows start after the rows keys appended.
+
 ### findings
 
 The rows a scan hands over, the work notices beside them, the frontier rows the project pass reads back, and what a scan counted.

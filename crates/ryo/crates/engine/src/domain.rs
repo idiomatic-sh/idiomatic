@@ -5,13 +5,13 @@ pub mod counting;
 pub mod encoding;
 #[cfg(test)]
 mod executing;
+pub mod filled;
 pub mod findings;
 pub mod indexes;
 pub mod lowered;
 pub mod lowering;
 #[cfg(test)]
 pub mod memos;
-#[cfg(any(test, feature = "fixtures"))]
 pub mod made_tables;
 #[cfg(test)]
 mod needs;
