@@ -26,7 +26,11 @@ fn advance_column(
 }
 
 /// Whether every line of `text`, which follows `prefix` on its first line, stays within `maximum` columns.
-pub(crate) fn fits(
+///
+/// # Errors
+///
+/// `WrongOperation` for a zero tab stop; `InvalidSpan` for a column past `usize`.
+pub fn fits(
     text: CandidateText<'_>,
     prefix: LinePrefix<'_>,
     maximum: LineWidth,
@@ -90,7 +94,7 @@ pub(crate) fn lower(
 ///
 /// `ShapeMismatch` for a cell that is no span; `InvalidSpan` for an absent span, one out of order or off the source, or a
 /// source that is not text.
-pub(crate) fn line_prefix<'a>(
+pub fn line_prefix<'a>(
     source: ryo_values::domain::files::types::SourceView<'a>,
     span: ryo_relations::domain::relations::types::Value,
 ) -> Result<LinePrefix<'a>, PortableOperatorFault> {

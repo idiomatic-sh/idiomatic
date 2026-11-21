@@ -4,21 +4,21 @@ use crate::domain::lowering::costing::types::CellState;
 use crate::domain::lowering::definitions::service::{draft, fresh_register, kind_bits, text_word};
 use crate::domain::lowering::flattening::service::made_column;
 use crate::domain::lowering::flattening::service::variables;
-use crate::domain::lowering::flattening::types::RowColumn;
 use crate::domain::lowering::flattening::types::{AtomRows, FlatBranch, FlatTerm, FlatVariable};
+use crate::domain::lowering::flattening::types::{RowColumn, RowMeaning};
 use crate::domain::lowering::planning::types::KindAnchor;
 use crate::domain::lowering::planning::types::{
     Emitter, Enumerated, Environment, FileCell, UnitRole, WrittenAccess,
 };
 use crate::domain::steps::calls::service::call_shape;
 use crate::domain::steps::calls::types::CallRows;
-use crate::domain::steps::types::CallMeaning;
 use crate::domain::steps::types::RegisterList;
 use crate::domain::steps::types::StepOperands;
 use crate::domain::steps::types::{
     AnchorKinds, ColumnMask, ReadColumn, Register, StepOperand, StepRows, TestOperation,
 };
 use ryo_language::domain::facts::types::CellWord;
+use ryo_language::domain::semantics::types::RenderContext;
 use ryo_relations::domain::catalog::service::{fact_form, node_column};
 use ryo_relations::domain::relations::service::{columns, kind};
 use ryo_relations::domain::relations::types::Count;
@@ -295,10 +295,14 @@ pub(crate) fn test_operand(emitter: &mut Emitter<'_>, term: FlatTerm) -> Option<
 /// nothing gave yet, or is tested against one that was given.
 pub(crate) fn called(
     emitter: &mut Emitter<'_>,
-    meaning: CallMeaning,
+    meaning: RowMeaning,
     arguments: &[FlatTerm],
     outputs: &[FlatTerm],
 ) {
+    let meaning = match meaning {
+        RowMeaning::Call(meaning) => meaning,
+        RowMeaning::Render(context) => return rendered(emitter, context, arguments, outputs),
+    };
     let read: Option<Vec<StepOperand>> = arguments
         .iter()
         .map(|term| operand(&emitter.environment, *term))
@@ -323,4 +327,27 @@ pub(crate) fn called(
     for (term, out) in outputs.iter().zip(gives) {
         given_or_tested(emitter, *term, out);
     }
+}
+
+/// A rendering as an access: the node it reads is a register, and the text it gives goes to a variable nothing gave yet,
+/// or is tested against one that was given.
+fn rendered(
+    emitter: &mut Emitter<'_>,
+    context: RenderContext,
+    arguments: &[FlatTerm],
+    outputs: &[FlatTerm],
+) {
+    let ([node], [given]) = (arguments, outputs) else {
+        emitter.missed = Count(emitter.missed.0.saturating_add(1));
+        return;
+    };
+    let Some(StepOperand::Register(node)) = operand(&emitter.environment, *node) else {
+        emitter.missed = Count(emitter.missed.0.saturating_add(1));
+        return;
+    };
+    let out = fresh_register(emitter.drafts);
+    emitter
+        .written
+        .push(WrittenAccess::Render { node, context, out });
+    given_or_tested(emitter, *given, out);
 }

@@ -110,11 +110,10 @@ fn step_word(
             }
             FillRuns::Runs
         }
+        // A rendering asks the language: the word runs.
+        Op::Render => FillRuns::Runs,
         // The loop does not run these yet.
-        Op::EachRange
-        | Op::Children
-        | Op::ChildrenOfField
-        | Op::Render => FillRuns::NotYet,
+        Op::EachRange | Op::Children | Op::ChildrenOfField => FillRuns::NotYet,
         // A stage is no word of a step program.
         Op::StageScan
         | Op::StageProbe

@@ -320,6 +320,31 @@ fn shaped(
             shape.0.push(CellKind::Number);
             Some(shape)
         }
+        // A rendering appends the node's text in the role: the node column is a node's.
+        Operation::RenderSyntax { from, node, .. } => {
+            let mut shape = of(from)?;
+            if picked(&shape, &[*node])?.0 != [CellKind::Node] {
+                return None;
+            }
+            shape.0.push(CellKind::Symbol);
+            Some(shape)
+        }
+        // A fit check keeps the rows whose candidate fits: the input's shape, its texts symbols and its span a span.
+        Operation::FitsRendered {
+            from,
+            texts,
+            literals,
+            span,
+            ..
+        } => {
+            let shape = of(from)?;
+            let held = picked(&shape, texts)?
+                .0
+                .iter()
+                .all(|kind| *kind == CellKind::Symbol);
+            let spanned = picked(&shape, &[*span])?.0 == [CellKind::Span];
+            (held && spanned && literals.len() == texts.len().saturating_add(1)).then_some(shape)
+        }
         // What is left to lower, each by name: no arm stands for the rest.
         Operation::Intersection { .. }
         | Operation::Difference { .. }
@@ -329,9 +354,7 @@ fn shaped(
         | Operation::Worklist { .. }
         | Operation::Cycles { .. }
         | Operation::Rows { .. }
-        | Operation::Hosted { .. }
-        | Operation::RenderSyntax { .. }
-        | Operation::FitsRendered { .. } => None,
+        | Operation::Hosted { .. } => None,
     }
 }
 

@@ -1,23 +1,22 @@
 //! Lazy, file-scoped Python syntax rendering for demanded AST nodes.
 
-use super::constants::LIST_SEPARATOR;
 use std::collections::HashMap;
 use std::sync::Arc;
 
 use ruff_python_ast::visitor::{Visitor, walk_expr};
-use ruff_python_ast::{AnyNodeRef, Expr, ExprContext};
+use ruff_python_ast::{AnyNodeRef, Expr, ExprRef};
 use ruff_text_size::Ranged as _;
 use ryo::languages::{
     self, Flag, RenderContext, RenderOutcome, RenderRequest, SemanticSession, SemanticsError,
 };
 
 use super::schemas::concrete_node_kind;
-use super::types::{RenderedSyntax, Strings};
+use super::types::Strings;
+use crate::domain::rendering::constants::UNRENDERED;
+use crate::domain::rendering::service::{render, target};
 use crate::domain::syntax::service::kind_bits;
 use crate::outbound::syntax::types::PythonSourceKind;
 use crate::settings::PythonParserSettings;
-
-const UNSUPPORTED: languages::UnknownReason = languages::UnknownReason(24);
 
 /// Native element identity retained only for a file's demanded semantic session.
 pub(super) struct PythonSemanticSession {
@@ -57,105 +56,6 @@ impl PythonSemanticSession {
             #[cfg(test)]
             file_parses,
         }
-    }
-}
-
-fn source_slice<'a>(
-    expr: &Expr,
-    source: languages::NameText<'a>,
-) -> Option<languages::NameText<'a>> {
-    let range = expr.range();
-    let (Ok(start), Ok(end)) = (
-        usize::try_from(range.start().to_u32()),
-        usize::try_from(range.end().to_u32()),
-    ) else {
-        return None;
-    };
-    source.0.get(start..end).map(languages::NameText)
-}
-
-#[expect(
-    clippy::wildcard_enum_match_arm,
-    reason = "only the six expression kinds with a load or store context can be assigned to; every other expression is not a target"
-)]
-fn target(expr: &Expr) -> Flag {
-    let stored = match expr {
-        Expr::Name(name) => name.ctx == ExprContext::Store,
-        Expr::Attribute(attribute) => attribute.ctx == ExprContext::Store,
-        Expr::Subscript(subscript) => subscript.ctx == ExprContext::Store,
-        Expr::Tuple(tuple) => tuple.ctx == ExprContext::Store,
-        Expr::List(list) => list.ctx == ExprContext::Store,
-        Expr::Starred(starred) => starred.ctx == ExprContext::Store,
-        _ => false,
-    };
-    if stored { Flag::Raised } else { Flag::Lowered }
-}
-
-/// Render only the syntax forms whose embedding can be proven from the AST.
-/// Other valid forms remain explicit Unknown instead of silently losing a row.
-#[expect(
-    clippy::wildcard_enum_match_arm,
-    reason = "only the forms whose embedding the AST proves are rendered; every other expression renders as nothing"
-)]
-fn render(
-    expr: &Expr,
-    context: RenderContext,
-    source: languages::NameText<'_>,
-) -> Option<RenderedSyntax> {
-    match expr {
-        Expr::Name(name) => Some(RenderedSyntax(name.id.to_string())),
-        Expr::Attribute(attribute) => Some(RenderedSyntax(format!(
-            "{}.{}",
-            render(&attribute.value, RenderContext::AttributeReceiver, source)?.0,
-            attribute.attr
-        ))),
-        Expr::Subscript(subscript) => Some(RenderedSyntax(format!(
-            "{}[{}]",
-            render(&subscript.value, RenderContext::AttributeReceiver, source)?.0,
-            render(&subscript.slice, RenderContext::PositionalArgument, source)?.0
-        ))),
-        Expr::Tuple(tuple) => {
-            let mut items = Vec::with_capacity(tuple.elts.len());
-            for item in &tuple.elts {
-                items.push(render(item, RenderContext::PositionalArgument, source)?.0);
-            }
-            let mut text = items.join(LIST_SEPARATOR);
-            if items.len() == 1 {
-                text.push(',');
-            }
-            if context == RenderContext::AttributeReceiver
-                || context == RenderContext::PositionalArgument
-            {
-                Some(RenderedSyntax(format!("({text})")))
-            } else {
-                Some(RenderedSyntax(text))
-            }
-        }
-        Expr::List(list) => {
-            let mut items = Vec::with_capacity(list.elts.len());
-            for item in &list.elts {
-                items.push(render(item, RenderContext::PositionalArgument, source)?.0);
-            }
-            Some(RenderedSyntax(format!("[{}]", items.join(LIST_SEPARATOR))))
-        }
-        Expr::Starred(starred) if context == RenderContext::AssignmentTarget => Some(
-            RenderedSyntax(format!("*{}", render(&starred.value, context, source)?.0)),
-        ),
-        Expr::StringLiteral(_)
-        | Expr::BytesLiteral(_)
-        | Expr::NumberLiteral(_)
-        | Expr::BooleanLiteral(_)
-        | Expr::NoneLiteral(_)
-        | Expr::EllipsisLiteral(_)
-        | Expr::Lambda(_)
-        | Expr::Dict(_)
-        | Expr::Set(_) => {
-            if context == RenderContext::AttributeReceiver {
-                return None;
-            }
-            source_slice(expr, source).map(|slice| RenderedSyntax(slice.0.to_owned()))
-        }
-        _ => None,
     }
 }
 
@@ -202,18 +102,16 @@ impl<'a> Visitor<'a> for Requested<'_> {
             } in indices
             {
                 let answer = if context == RenderContext::AssignmentTarget
-                    && target(expr) == Flag::Lowered
+                    && target(ExprRef::from(expr)) == Flag::Lowered
                 {
                     RenderOutcome::NotApplicable
                 } else {
-                    render(expr, context, self.source)
-                        .map(|text| {
-                            RenderOutcome::Known(languages::RenderedNode(Arc::from(text.0)))
-                        })
-                        .unwrap_or(RenderOutcome::Unsupported(UNSUPPORTED))
+                    render(ExprRef::from(expr), context, self.source)
+                        .map(|text| RenderOutcome::Known(languages::RenderedNode(Arc::from(text))))
+                        .unwrap_or(RenderOutcome::Unsupported(UNRENDERED))
                 };
                 self.answers[index] = Some(match self.answers[index].take() {
-                    Some(_) => RenderOutcome::Unsupported(UNSUPPORTED),
+                    Some(_) => RenderOutcome::Unsupported(UNRENDERED),
                     None => answer,
                 });
             }
@@ -229,10 +127,7 @@ impl SemanticSession for PythonSemanticSession {
         requests: &[RenderRequest],
     ) -> Result<Vec<RenderOutcome>, SemanticsError> {
         let Ok(source) = std::str::from_utf8(source.0) else {
-            return Ok(vec![
-                RenderOutcome::Unsupported(UNSUPPORTED);
-                requests.len()
-            ]);
+            return Ok(vec![RenderOutcome::Unsupported(UNRENDERED); requests.len()]);
         };
         #[cfg(test)]
         if self.parsed.is_none() {
@@ -255,7 +150,7 @@ impl SemanticSession for PythonSemanticSession {
             let Some(&key) = self.elements.get(
                 usize::try_from(languages::node_position(request.node).0).unwrap_or(usize::MAX),
             ) else {
-                asked.answers[index] = Some(RenderOutcome::Unsupported(UNSUPPORTED));
+                asked.answers[index] = Some(RenderOutcome::Unsupported(UNRENDERED));
                 continue;
             };
             asked.wanted.entry(key).or_default().push(Wanted {
@@ -269,7 +164,7 @@ impl SemanticSession for PythonSemanticSession {
         Ok(asked
             .answers
             .into_iter()
-            .map(|answer| answer.unwrap_or(RenderOutcome::Unsupported(UNSUPPORTED)))
+            .map(|answer| answer.unwrap_or(RenderOutcome::Unsupported(UNRENDERED)))
             .collect())
     }
 }

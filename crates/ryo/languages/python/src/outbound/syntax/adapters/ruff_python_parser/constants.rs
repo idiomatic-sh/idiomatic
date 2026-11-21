@@ -133,6 +133,3 @@ pub(super) const BARE_STARRED_TARGET_MESSAGE: &str =
 
 /// The text `duplicate type parameter`.
 pub(super) const DUPLICATE_TYPE_PARAMETER_MESSAGE: &str = "duplicate type parameter";
-
-/// The text `, `.
-pub(super) const LIST_SEPARATOR: &str = ", ";
