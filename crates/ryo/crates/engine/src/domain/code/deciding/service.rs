@@ -213,6 +213,7 @@ pub(crate) const fn test_in_constants_of(word: CodeWord) -> SetTestWord {
 pub(crate) fn call(operands: CallWord) -> CodeWord {
     CodeWord {
         op: Op::Call,
+        flag: operands.flag,
         short: operands.meaning,
         a: WordSlot(operands.arguments.0),
         b: WordSlot(operands.outputs.0),
@@ -225,6 +226,7 @@ pub(crate) fn call(operands: CallWord) -> CodeWord {
 #[must_use]
 pub(crate) const fn call_of(word: CodeWord) -> CallWord {
     CallWord {
+        flag: word.flag,
         meaning: word.short,
         arguments: PoolAt(word.a.0),
         outputs: PoolAt(word.b.0),

@@ -37,6 +37,14 @@ pub(crate) const RIGHT_CONSTANT: WordFlag = WordFlag(0x02);
 pub(crate) const RIGHT_SET: WordFlag = WordFlag(0x04);
 /// `TestInConstants`: the set must not hold the value.
 pub(crate) const NEGATED: WordFlag = WordFlag(0x01);
+/// `Call`, `StageCall` of a source search: lines are numbered: a base line is read and each occurrence's line is given.
+pub(crate) const SEARCH_NUMBERED: WordFlag = WordFlag(0x01);
+/// `Call`, `StageCall` of a source search: a named group is asked: its name is read and its span is given.
+pub(crate) const SEARCH_GROUP: WordFlag = WordFlag(0x02);
+/// `Call`, `StageCall` of a source search, under `SEARCH_GROUP`: the group's text is given.
+pub(crate) const SEARCH_GROUP_TEXT: WordFlag = WordFlag(0x04);
+/// `Call`, `StageCall` of a source search, under `SEARCH_GROUP`: the group's line is given.
+pub(crate) const SEARCH_GROUP_LINE: WordFlag = WordFlag(0x08);
 /// `Let`: the value is the scanned file.
 pub(crate) const THE_FILE: WordFlag = WordFlag(0x02);
 /// `Exists`: the body must have no row.

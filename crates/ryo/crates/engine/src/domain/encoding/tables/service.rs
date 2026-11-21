@@ -12,7 +12,7 @@ use crate::domain::encoding::sites::service::{constant, fault, index, past, slot
 use crate::domain::encoding::types::{Encoding, ReachedUnit};
 use crate::domain::encoding::types::{PatternKey, ProgramRole};
 use crate::domain::encoding::units::service::{begin_unit, end_unit};
-use crate::domain::lowered::service::fill_code;
+use crate::domain::lowered::service::{fill_code, match_left_width};
 use crate::domain::lowered::types::PatternForm;
 use crate::domain::lowered::types::{
     FillInput, GraphFill, GroupFill, MadeFill, MadeTable, OrderedFill,
@@ -157,6 +157,12 @@ fn table_written(encoding: &mut Encoding<'_>, id: MadeTableId) -> Result<(), Low
     let place = usize::try_from(id.0).map_err(|_| fault(encoding))?;
     let table: &MadeTable = pack.tables.get(place).ok_or_else(|| fault(encoding))?;
     let code = fill_code(&table.fill);
+    // An ordered match's row is its two inputs' rows, one after the other: a table of any other width is not one.
+    if let MadeFill::Ordered(OrderedFill::Match(left, right)) = &table.fill
+        && match_left_width(left, right, table.width).is_none()
+    {
+        return Err(fault(encoding));
+    }
     begin_unit(
         encoding,
         UnitKey::Table(table.node, code),

@@ -6,7 +6,8 @@ use crate::domain::code::constants::{BOUND_CONSTANT, LEFT_CONSTANT, RIGHT_CONSTA
 use crate::domain::code::deciding::types::{CallWord, RenderWord, TestWord};
 use crate::domain::code::records::service::next_place;
 use crate::domain::code::small_codes::service::{
-    comparison_code, comparison_regex, context_code, meaning_code, meaning_regex, side_code,
+    comparison_code, comparison_regex, context_code, meaning_code, meaning_flag, meaning_regex,
+    side_code,
 };
 use crate::domain::code::types::{WordFlag, WordSlot};
 use crate::domain::encoding::programs::types::NearestRows;
@@ -17,6 +18,8 @@ use crate::domain::encoding::types::{Encoding, SlotValue};
 use crate::domain::lowered::types::{MadeFill, OrderedFill};
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::PastWidth;
+use crate::domain::steps::calls::service::call_held;
+use crate::domain::steps::calls::types::CallForm;
 use crate::domain::steps::types::{
     CallMeaning, ReadColumn, RegexId, Register, RegisterList, StepOperand, StepOperands, StepRows,
     TestOperation,
@@ -64,13 +67,18 @@ pub(crate) fn test_operands(
     })
 }
 
-/// The operands of a call of a per-row meaning: the list of its arguments, the list of its outputs.
+/// The operands of a call of a per-row meaning: the list of its arguments, the list of its outputs. A call whose arguments
+/// and outputs are not its meaning's shape (`calls::service::call_held`) is the encoding's fault of the rule being written.
 pub(crate) fn call_operands(
     encoding: &mut Encoding<'_>,
     meaning: CallMeaning,
     arguments: &StepOperands,
     outputs: &RegisterList,
 ) -> Result<CallWord, LoweringError> {
+    match call_held(meaning, Count(arguments.0.len()), Count(outputs.0.len())) {
+        CallForm::Stated => {}
+        CallForm::Unstated => return Err(fault(encoding)),
+    }
     let ready = pooled_each(encoding, &arguments.0)?;
     let count = WordSlot(u32::from(
         short_of(encoding, Count(ready.len()), PastWidth::WordOperands)?.0,
@@ -79,6 +87,7 @@ pub(crate) fn call_operands(
     encoding.code.pool.push(count);
     let _operands = push_operands(encoding, &ready);
     Ok(CallWord {
+        flag: meaning_flag(meaning),
         meaning: meaning_code(meaning),
         arguments: at,
         outputs: registers_list(encoding, outputs),
