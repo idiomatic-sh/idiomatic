@@ -77,7 +77,8 @@ pub(crate) fn relation_read(relation: Relation) -> Emptiness {
 }
 
 /// The formula of a relation read with a literal in a column: a node of the kind when the column is the node table's kind
-/// and the vocabulary names it, a row holding the value when the relation is filled; else that of the relation read whole.
+/// and the vocabulary names it; a row holding the value when the relation is filled, or when the column is the node
+/// table's field (a file that holds no child in that field has no such row); else that of the relation read whole.
 #[must_use]
 pub(crate) fn literal_read(
     relation: Relation,
@@ -87,8 +88,10 @@ pub(crate) fn literal_read(
 ) -> Emptiness {
     match (fact_form(relation), node_column(column), kinds) {
         (FactForm::NodeTable, Some(NodeColumn::Kind), Some(kinds)) => Emptiness::Kind(kinds),
+        (FactForm::NodeTable, Some(NodeColumn::Field), _) | (FactForm::Filled(_), _, _) => {
+            Emptiness::Row(relation, Some(RowValue { column, value }))
+        }
         (FactForm::NodeTable, _, _) => Emptiness::Unknown,
-        (FactForm::Filled(_), _, _) => Emptiness::Row(relation, Some(RowValue { column, value })),
     }
 }
 
