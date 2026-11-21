@@ -1003,3 +1003,30 @@ manifest_lints = [
 off_by_default_configuration = [
   "excessive_nesting",
 ]
+
+[cost]
+# What the pack's queries cost, as the query language reads them (`ryo query validate` prints a query's). The pack's cost check
+# (cost_test.rs) fails on a statement above `ceiling`, on a statement above linear with sorts that is not listed, and on a listed
+# statement that rose or that no rule reaches above linear with sorts any more. The list is the work order of the pack's
+# rewrite: it only shrinks, and when it is empty the ceiling is "linear with sorts". An entry names a module's statement by
+# `document`, or a rule's own by `rule`.
+ceiling = "quadratic in the file"
+listed = [
+  { document = "rust/clippy/attribute-items", statement = "farther", class = "quadratic in a group" },
+  { document = "rust/clippy/attribute-items", statement = "later_tails", class = "quadratic in a group" },
+  { document = "rust/clippy/attribute-items", statement = "member_after", class = "quadratic in a group" },
+  { document = "rust/clippy/attribute-items", statement = "member_earlier", class = "quadratic in a group" },
+  { document = "rust/clippy/attribute-items", statement = "member_later", class = "quadratic in a group" },
+  { document = "rust/clippy/attribute-items", statement = "path_later", class = "quadratic in a group" },
+  { document = "rust/clippy/empty-line-after", statement = "item_runs", class = "quadratic in the file" },
+  { document = "rust/clippy/empty-line-after", statement = "nearer", class = "quadratic in a group" },
+  { document = "rust/clippy/hulls", statement = "earlier", class = "quadratic in a group" },
+  { document = "rust/clippy/hulls", statement = "later", class = "quadratic in a group" },
+  { document = "rust/clippy/next-token", statement = "farther", class = "quadratic in a group" },
+  { rule = "crate_in_macro_def", statement = "later_ones", class = "quadratic in a group" },
+  { rule = "duplicated_attributes", statement = "plain_pairs", class = "quadratic in a group" },
+  { rule = "duplicated_attributes", statement = "string_pairs", class = "quadratic in a group" },
+  { rule = "duplicated_attributes", statement = "top_plain_later", class = "quadratic in a group" },
+  { rule = "duplicated_attributes", statement = "top_string_later", class = "quadratic in a group" },
+  { rule = "too_many_arguments", statement = "earlier_ends", class = "quadratic in a group" },
+]

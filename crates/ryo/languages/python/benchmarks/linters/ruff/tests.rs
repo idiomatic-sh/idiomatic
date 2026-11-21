@@ -3,6 +3,8 @@ mod adapter;
 #[path = "adapter_test.rs"]
 mod adapter_test;
 mod constants;
+#[path = "cost_test.rs"]
+mod cost_test;
 #[cfg(test)]
 mod engine_test;
 mod schemas;
