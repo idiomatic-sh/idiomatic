@@ -9,9 +9,11 @@ use crate::domain::code::filling::service::{
 };
 use crate::domain::code::types::{CodeEntry, CodeWord};
 use crate::domain::filled::errors::FilledError;
-use crate::domain::filled::types::UnbuiltFill;
+use crate::domain::filled::types::{FillRuns, UnbuiltFill};
 use crate::domain::indexes::reading::service::rows_of;
 use crate::domain::indexes::types::ColumnView;
+use crate::domain::made_tables::built::service::runs;
+use crate::domain::made_tables::built::types::FillPart;
 use crate::domain::made_tables::calling::service::call_asked;
 use crate::domain::made_tables::carrying::service::{carried, stage_kind};
 use crate::domain::made_tables::constants::BATCH_ROWS;
@@ -103,6 +105,15 @@ pub(crate) fn piped(
     let code = programs.code;
     let words = pipeline_words(code, entry)?;
     carried(code, words, run.room)?;
+    // A pipeline that holds a stage the fill side does not run is refused before its first batch.
+    if let Some(unrun) = words
+        .iter()
+        .find(|word| runs(code, FillPart::Stage(**word)) == FillRuns::NotYet)
+    {
+        return Err(FilledError::Unbuilt {
+            unbuilt: UnbuiltFill::Stage(unrun.op),
+        });
+    }
     let registers = Count(usize::try_from(code.counts.registers.0).unwrap_or(usize::MAX));
     let first = *words.first().ok_or(WRONG_WORD)?;
     if stage_kind(first.op) != Some(StageKind::Scan) {

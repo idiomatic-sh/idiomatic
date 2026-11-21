@@ -10,7 +10,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::dispatch::service::dispatch;
 use crate::domain::encoding::service::encoded;
 use crate::domain::executing::entries::types::TheMeasuringLoop;
-use crate::domain::executing::measuring::service::file_ended;
+use crate::domain::executing::measuring::sites::service::file_measured;
 use crate::domain::findings::types::RuleColumns;
 use crate::domain::lowered::types::{Branch, Emptiness, LoweredPack, LoweredRule};
 use crate::domain::made_tables::fixtures::packs::{
@@ -27,6 +27,7 @@ use crate::domain::steps::types::{
     Register, RegisterCount, StepProgram, StepRows,
 };
 use ryo_language::domain::node_table::types::NodeTable;
+use ryo_relations::domain::relations::types::Count;
 use ryo_values::domain::query_plans::types::NodeDigest;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 use std::borrow::Cow;
@@ -49,7 +50,8 @@ type Input = (Measured, usize, usize);
 /// its place for a table), its class (0 navigation, 1 a fill of rows, 2 a group, 3 an ordered table, 4 a graph), its
 /// owners as a sum of two to the rule's ordinal, its rows, its steps, and whether it has no idle time (1: every unit of
 /// these cases gives a row in every file). Then whether rule 0's own program was timed at all (1), or 8 with no rule 0;
-/// and the rows counted at the code's size sites, summed.
+/// the rows counted at the code's size sites, summed; and whether the piped table's fill was timed (1: the fill side says
+/// when a table's fill starts and ends), or 8 with no such table.
 type Value = Cow<'static, [usize]>;
 type Failure = ();
 
@@ -59,13 +61,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_rule_set_with_no_unit_has_no_ledger_row"),
         word: Word::Succeeds,
         input: || (Measured::Nothing, 0, 1),
-        expect: Expect::Value(Cow::Borrowed(&[0, 8, 0])),
+        expect: Expect::Value(Cow::Borrowed(&[0, 8, 0, 8])),
     },
     Case {
         name: CaseName("the_counts_of_three_workers_add_up_to_no_row_more"),
         word: Word::Succeeds,
         input: || (Measured::Nothing, 0, 3),
-        expect: Expect::Value(Cow::Borrowed(&[0, 8, 0])),
+        expect: Expect::Value(Cow::Borrowed(&[0, 8, 0, 8])),
     },
     Case {
         name: CaseName("a_measured_scan_is_counted_per_unit_with_its_class_and_owners"),
@@ -73,7 +75,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || (Measured::Tables, 1, 1),
         expect: Expect::Value(Cow::Borrowed(&[
             1, 0, 0, 1, 3, 4, 1, 201, 1, 1, 3, 21, 1, 202, 1, 3, 3, 0, 1, 103, 0, 1, 3, 0, 1, 1, 0,
-            2, 3, 0, 1, 1, 0,
+            2, 3, 0, 1, 1, 0, 1,
         ])),
     },
     Case {
@@ -82,7 +84,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || (Measured::Tables, 2, 1),
         expect: Expect::Value(Cow::Borrowed(&[
             2, 0, 0, 1, 6, 8, 1, 201, 1, 1, 6, 42, 1, 202, 1, 3, 6, 0, 1, 103, 0, 1, 6, 0, 1, 1, 0,
-            2, 6, 0, 1, 1, 0,
+            2, 6, 0, 1, 1, 0, 1,
         ])),
     },
     Case {
@@ -91,14 +93,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || (Measured::Tables, 1, 2),
         expect: Expect::Value(Cow::Borrowed(&[
             2, 0, 0, 1, 6, 8, 1, 201, 1, 1, 6, 42, 1, 202, 1, 3, 6, 0, 1, 103, 0, 1, 6, 0, 1, 1, 0,
-            2, 6, 0, 1, 1, 0,
+            2, 6, 0, 1, 1, 0, 1,
         ])),
     },
     Case {
         name: CaseName("the_rows_of_a_size_site_are_counted_in_every_file"),
         word: Word::Succeeds,
         input: || (Measured::ASizeSite, 2, 1),
-        expect: Expect::Value(Cow::Borrowed(&[2, 0, 0, 1, 2, 0, 1, 1, 2])),
+        expect: Expect::Value(Cow::Borrowed(&[2, 0, 0, 1, 2, 0, 1, 1, 2, 8])),
     },
 ];
 
@@ -219,7 +221,7 @@ fn subject((measured, files, workers): Input) -> Result<Value, Failure> {
                 &TheMeasuringLoop,
                 |frame| {
                     let counters = dispatch(frame, &programs);
-                    file_ended(frame);
+                    file_measured(frame);
                     counters
                 },
             );
@@ -228,7 +230,7 @@ fn subject((measured, files, workers): Input) -> Result<Value, Failure> {
         }
         merged(&mut all, &counted(&worker));
     }
-    let (mut said, mut timed) = (vec![all.0.files.0], 8);
+    let (mut said, mut timed, mut filled) = (vec![all.0.files.0], 8, 8);
     for row in ledger(&programs, &all).0 {
         said.extend([
             match row.unit {
@@ -254,9 +256,13 @@ fn subject((measured, files, workers): Input) -> Result<Value, Failure> {
         if row.unit == LedgerUnit::Rule(SelectedRuleOrdinal(0)) {
             timed = usize::from(row.nanos.0 > 0);
         }
+        if row.unit == LedgerUnit::Table(Count(1)) {
+            filled = usize::from(row.nanos.0 > 0);
+        }
     }
     said.push(timed);
     said.push(all.0.literals.iter().map(|rows| rows.0).sum());
+    said.push(filled);
     Ok(Cow::Owned(said))
 }
 

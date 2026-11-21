@@ -47,6 +47,10 @@ pub enum FillBench {
     /// A rows fill with a `Product`: thirty-two rows each paired with every row of the relation, a read and a keep for
     /// each pair, one pair in each row's kept.
     Product,
+    /// A rows fill whose row holds the file beside two columns read: a scan, two reads, the write of three columns.
+    RowsFile,
+    /// The same with repeats dropped (8 rows a key, 43 cells).
+    RowsFileDropped,
     /// The index of the file's nodes by kind, built for a new file and asked for the tokens.
     IndexNodesKind,
     /// The index of the file's nodes by parent, built for a new file and asked for the root's children.

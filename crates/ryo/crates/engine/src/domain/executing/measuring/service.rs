@@ -5,21 +5,17 @@
 //! The clock is the thread's own, read when the unit running changes: on entering and on leaving a unit.
 
 use crate::domain::code::constants::NO_SLOT;
-use crate::domain::code::types::{CodeEntry, ConstantNumber, RelationNumber, WordSlot};
-use crate::domain::executing::types::Asker;
-use crate::domain::made_tables::sources::service::{cell_of, scanned};
-use crate::domain::made_tables::types::ReadSource;
+use crate::domain::code::types::{CodeEntry, WordSlot};
 use crate::domain::programs::frames::types::StepFrame;
-use crate::domain::programs::operands::service::constant;
 use crate::domain::scratch::types::{LoopState, Measuring, UnitInFile};
-use crate::domain::stages::service::handle;
+use crate::domain::steps::types::MadeTableId;
 use cpu_time::ThreadTime;
 use ryo_language::domain::node_table::service::ids_of_kind;
 use ryo_relations::domain::relations::types::{Count, KindBits};
 use std::time::Duration;
 
 /// The slot of a list grown to hold place `at`.
-fn slot_mut<T: Clone + Default>(all: &mut Vec<T>, at: Count) -> Option<&mut T> {
+pub(crate) fn slot_mut<T: Clone + Default>(all: &mut Vec<T>, at: Count) -> Option<&mut T> {
     if all.len() <= at.0 {
         all.resize(at.0.saturating_add(1), T::default());
     }
@@ -69,6 +65,23 @@ pub(crate) fn entered(state: &mut LoopState, unit: WordSlot) {
     }
 }
 
+/// The fill of a table starts: its unit runs until the fill ends, and what the fill side does in between is its time,
+/// but for a table made inside it. A plain worker holds no unit of a table and does nothing.
+pub(crate) fn table_entered(state: &mut LoopState, table: MadeTableId) {
+    if let Some(measure) = state.measure.as_deref_mut() {
+        // A table the scratch holds no unit of is booked to no unit: its time is nobody's.
+        let unit = match measure
+            .table_units
+            .get(usize::try_from(table.0).unwrap_or(usize::MAX))
+        {
+            Some(unit) => *unit,
+            None => NO_SLOT,
+        };
+        switched(measure);
+        measure.running.push(unit);
+    }
+}
+
 /// The innermost unit running ends: the time since it last ran is its own, and its caller runs again.
 pub(crate) fn left(state: &mut LoopState) {
     if let Some(measure) = state.measure.as_deref_mut() {
@@ -112,43 +125,10 @@ pub(crate) fn word_run(frame: &mut StepFrame<'_, '_>, at: CodeEntry) {
     }
 }
 
-/// Counts the rows of each size site of the code in the file: the rows of a filled relation that hold one constant in
-/// one column. The relation is filled whole for it, so every site is counted in every file a measuring worker scans.
-fn literals_counted(frame: &mut StepFrame<'_, '_>) {
-    let code = frame.fill.programs.code;
-    for (place, site) in code.sizes.iter().enumerate() {
-        let source = ReadSource::Filled(RelationNumber(site.relation.0));
-        let wanted = constant(frame, ConstantNumber(site.value.0));
-        let asked = scanned(
-            frame.fill,
-            &mut Asker {
-                state: &mut *frame.state,
-                found: &mut *frame.found,
-                ports: frame.ports,
-            },
-            source,
-        );
-        let Ok(whole) = asked else {
-            continue;
-        };
-        let rows = (whole.rows.start.0..whole.rows.end.0)
-            .filter(|row| cell_of(frame.fill, source, site.column, handle(Count(*row))) == wanted)
-            .count();
-        if let Some(measure) = frame.state.measure.as_deref_mut()
-            && let Some(held) = slot_mut(&mut measure.literals, Count(place))
-        {
-            *held = Count(held.0.saturating_add(rows));
-        }
-    }
-}
-
-/// The file's scan ends in a measuring worker. The rows of each size site are counted. Every table made in the file is counted once, with its rows and its
+/// The file's scan ends in a measuring worker. Every table made in the file is counted once, with its rows and its
 /// fill's rows, whoever made it (a fill makes the tables it reads itself); the file's elements are counted by kind; and
 /// each unit's time in the file is added to its time, and to its idle time when it gave no row in the file.
 pub(crate) fn file_ended(frame: &mut StepFrame<'_, '_>) {
-    if frame.state.measure.is_some() {
-        literals_counted(frame);
-    }
     let (store, code, nodes) = (
         &*frame.fill.store,
         frame.fill.programs.code,

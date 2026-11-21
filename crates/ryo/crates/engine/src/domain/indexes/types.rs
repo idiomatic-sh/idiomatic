@@ -77,6 +77,11 @@ pub(crate) struct IndexArena {
     pub(crate) width: Count,
     /// While an index is built: the bounds of its key's first column.
     pub(crate) bounds: KeyBounds,
+    /// While an index is built: which cells of a key as it is asked the index keeps none of, each being `fixed` in
+    /// every row.
+    pub(crate) skipped: KeyMask,
+    /// While an index is built: the cell every row holds at the skipped places.
+    pub(crate) fixed: CellWord,
     /// While an index is built: the number of its source's first row. A relation filled whole after keys were asked
     /// starts past their rows.
     pub(crate) base: SourceRow,
@@ -124,8 +129,12 @@ pub(crate) struct IndexSlot {
     pub(crate) shift: HashShift,
     /// How a key finds its entry.
     pub(crate) addressing: Addressing,
-    /// How many cells a key has.
+    /// How many cells a key has, of those the index keeps.
     pub(crate) width: Count,
+    /// Which cells of a key as it is asked the index keeps none of.
+    pub(crate) skipped: KeyMask,
+    /// The cell every row holds at the skipped places: a key that asks another there has no row.
+    pub(crate) fixed: CellWord,
     /// Where its rows start among the rows.
     pub(crate) first: Count,
     /// How many rows it holds.
@@ -145,9 +154,36 @@ pub(crate) struct IndexRead<'a> {
     pub(crate) shift: HashShift,
     /// How a key finds its entry.
     pub(crate) addressing: Addressing,
-    /// How many cells a key has.
+    /// How many cells a key has, of those the index keeps.
     pub(crate) width: Count,
+    /// Which cells of a key as it is asked the index keeps none of.
+    pub(crate) skipped: KeyMask,
+    /// The cell every row holds at the skipped places.
+    pub(crate) fixed: CellWord,
 }
+
+/// The cells of a key that an index keeps none of: which, and the one cell every row holds there.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct FixedKeys {
+    /// Which cells of a key as it is asked.
+    pub(crate) skipped: KeyMask,
+    /// The cell every row of the source holds there.
+    pub(crate) cell: CellWord,
+}
+
+/// What an index does with one cell of a key as it is asked.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum CellOfKey {
+    /// It keeps it: the key is found by it.
+    Kept,
+    /// It keeps none: every row holds the fixed cell there.
+    Fixed,
+}
+
+/// Cells of a key by their place in it, a bit for each: the places an index keeps no cell of, since every row of its
+/// source holds the same cell there (the file's own column of a made table).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct KeyMask(pub(crate) u32);
 
 /// The rows of one key: a stretch of an index's rows.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

@@ -5,56 +5,29 @@ use crate::domain::code::constants::NO_SLOT;
 use crate::domain::code::records::service::body_at;
 use crate::domain::code::records::types::BodyRecord;
 use crate::domain::code::types::{IndexSite, PoolAt, ProgramCode, WordSlot};
-use crate::domain::executing::running::types::{WalkPlace, WordBuilt};
+use crate::domain::executing::running::types::WalkPlace;
+use crate::domain::filled::types::FillRuns;
 use crate::domain::made_tables::reading::service::{site_at, site_source};
 use crate::domain::made_tables::types::ReadSource;
+use crate::domain::stages::calling::service::call_runs;
+use crate::domain::stages::testing::service::test_runs;
 use crate::domain::steps::types::{CallMeaning, TestOperation};
 
-/// Whether the executor runs a test: every comparison of two cells, a set either way, a regular expression, a glob, a
-/// prefix and a suffix.
-pub(crate) const fn tested(test: Option<TestOperation>) -> WordBuilt {
+/// Whether the executor runs a test: the fill side's answer (`stages::testing::service::test_runs`), which a `Test` word
+/// of the loop shares, since its comparisons of cells and its tests of texts are the fill side's kernels.
+pub(crate) const fn tested(test: Option<TestOperation>) -> FillRuns {
     match test {
-        Some(
-            TestOperation::Equal
-            | TestOperation::NotEqual
-            | TestOperation::Less
-            | TestOperation::LessOrEqual
-            | TestOperation::Greater
-            | TestOperation::GreaterOrEqual
-            | TestOperation::In
-            | TestOperation::NotIn
-            | TestOperation::Matches(_)
-            | TestOperation::Glob
-            | TestOperation::NotGlob
-            | TestOperation::StartsWith
-            | TestOperation::EndsWith,
-        ) => WordBuilt::Runs,
-        Some(
-            TestOperation::NumericAtLeast | TestOperation::NaturalLess | TestOperation::Successor,
-        )
-        | None => WordBuilt::NotYet,
+        Some(test) => test_runs(test),
+        None => FillRuns::NotYet,
     }
 }
 
-/// Whether the executor runs a call of a per-row meaning: a call word of the loop and a call stage of a pipeline are
-/// one kernel (`stages::calling::service::call_batch`), which runs these four.
-pub(crate) const fn called(meaning: Option<CallMeaning>) -> WordBuilt {
+/// Whether the executor runs a call of a per-row meaning: the fill side's answer
+/// (`stages::calling::service::call_runs`), which a `Call` word of the loop shares, since it is the same kernel.
+pub(crate) const fn called(meaning: Option<CallMeaning>) -> FillRuns {
     match meaning {
-        Some(
-            CallMeaning::SpanBounds
-            | CallMeaning::Replace(_)
-            | CallMeaning::Capture
-            | CallMeaning::SourceMatches(..),
-        ) => WordBuilt::Runs,
-        Some(
-            CallMeaning::SpanBetween
-            | CallMeaning::Words
-            | CallMeaning::Rank
-            | CallMeaning::Concat
-            | CallMeaning::Lower
-            | CallMeaning::FitsRendered,
-        )
-        | None => WordBuilt::NotYet,
+        Some(meaning) => call_runs(meaning),
+        None => FillRuns::NotYet,
     }
 }
 
@@ -64,18 +37,18 @@ pub(crate) fn site_table(
     code: &ProgramCode,
     site: IndexSite,
     out: &mut Vec<WalkPlace>,
-) -> WordBuilt {
+) -> FillRuns {
     let Ok(index) = site_at(code, site) else {
-        return WordBuilt::NotYet;
+        return FillRuns::NotYet;
     };
     match site_source(code, index) {
         Ok(ReadSource::Made(table)) => {
             out.push(WalkPlace::Table(table));
-            WordBuilt::Runs
+            FillRuns::Runs
         }
-        Ok(ReadSource::Nodes(_)) if index.ordered != NO_SLOT => WordBuilt::NotYet,
-        Ok(ReadSource::Nodes(_) | ReadSource::Filled(_)) => WordBuilt::Runs,
-        Ok(ReadSource::Written(_)) | Err(_) => WordBuilt::NotYet,
+        Ok(ReadSource::Nodes(_)) if index.ordered != NO_SLOT => FillRuns::NotYet,
+        Ok(ReadSource::Nodes(_) | ReadSource::Filled(_)) => FillRuns::Runs,
+        Ok(ReadSource::Written(_)) | Err(_) => FillRuns::NotYet,
     }
 }
 
@@ -95,7 +68,7 @@ pub(crate) fn body(
             entry, unit: own, ..
         } => out.push(WalkPlace::Program { entry, unit: own }),
         BodyRecord::Table { index, .. } => {
-            if site_table(code, index, out) == WordBuilt::NotYet {
+            if site_table(code, index, out) == FillRuns::NotYet {
                 return None;
             }
         }

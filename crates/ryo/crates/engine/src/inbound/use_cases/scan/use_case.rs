@@ -5,7 +5,7 @@ use super::errors::ScanError;
 use super::interface::ScanUseCase;
 use crate::domain::dispatch::service::dispatch;
 use crate::domain::executing::entries::types::{TheLoop, TheMeasuringLoop};
-use crate::domain::executing::measuring::service::file_ended;
+use crate::domain::executing::measuring::sites::service::file_measured;
 use crate::domain::filled::errors::FilledError;
 use crate::domain::findings::types::{FoundRows, ScanCounters};
 use crate::domain::made_tables::types::FillFrame;
@@ -101,7 +101,7 @@ impl ScanUseCase for ScanUseCaseImpl {
             ports,
         };
         let counters = dispatch(&mut frame, programs);
-        file_ended(&mut frame);
+        file_measured(&mut frame);
         // The load refuses a rule that can reach a word or a fill the executor does not run: none reaches a scan.
         debug_assert_eq!(
             state.work.unbuilt.0, 0,

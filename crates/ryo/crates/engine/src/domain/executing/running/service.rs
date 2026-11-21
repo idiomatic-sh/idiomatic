@@ -6,7 +6,7 @@
 
 use super::filling::service::{fill, stage_word};
 use super::places::service::{body, called, site_table, tested};
-use super::types::{WalkPlace, WordBuilt};
+use super::types::WalkPlace;
 use crate::domain::code::anchoring::service::{
     each_match_filled_many_of, each_match_filled_of, each_match_made_of, each_match_node_of,
     each_row_made_of, latest_of,
@@ -16,6 +16,7 @@ use crate::domain::code::deciding::service::{call_of, test_of};
 use crate::domain::code::small_codes::service::{comparison_of, meaning_of};
 use crate::domain::code::types::{CodeEntry, CodeWord, Op, ProgramCode, RuleCode, WordSlot};
 use crate::domain::code::walking::service::{closure_of, nearest_of};
+use crate::domain::filled::types::FillRuns;
 use crate::domain::made_tables::reading::service::latest_site;
 use crate::domain::needs::service::tables_asked;
 use crate::domain::programs::operands::service::listed;
@@ -26,7 +27,7 @@ fn step_word(
     word: CodeWord,
     unit: WordSlot,
     out: &mut Vec<WalkPlace>,
-) -> WordBuilt {
+) -> FillRuns {
     match word.op {
         Op::EachMatchNode => site_table(code, each_match_node_of(word).index, out),
         Op::EachMatchFilled => site_table(code, each_match_filled_of(word).index, out),
@@ -49,14 +50,14 @@ fn step_word(
         | Op::Yield
         | Op::Emit
         | Op::Axis
-        | Op::Within => WordBuilt::Runs,
+        | Op::Within => FillRuns::Runs,
         Op::EachRowMade => {
             out.push(WalkPlace::Table(each_row_made_of(word).table));
-            WordBuilt::Runs
+            FillRuns::Runs
         }
         Op::Latest => match latest_site(code, latest_of(word).operands) {
             Ok(site) => site_table(code, site, out),
-            Err(_) => WordBuilt::NotYet,
+            Err(_) => FillRuns::NotYet,
         },
         Op::Call => {
             let read = call_of(word);
@@ -67,16 +68,16 @@ fn step_word(
             tested(comparison_of(read.comparison, read.regex))
         }
         Op::Exists => match body(code, exists_of(word).body, unit, out) {
-            Some(_) => WordBuilt::Runs,
-            None => WordBuilt::NotYet,
+            Some(_) => FillRuns::Runs,
+            None => FillRuns::NotYet,
         },
         Op::Closure => match body(code, closure_of(word).operands, unit, out) {
-            Some(_) => WordBuilt::Runs,
-            None => WordBuilt::NotYet,
+            Some(_) => FillRuns::Runs,
+            None => FillRuns::NotYet,
         },
         Op::Nearest => match body(code, nearest_of(word).operands, unit, out) {
-            Some(_) => WordBuilt::Runs,
-            None => WordBuilt::NotYet,
+            Some(_) => FillRuns::Runs,
+            None => FillRuns::NotYet,
         },
         Op::Or => {
             let asking = or_of(word);
@@ -85,8 +86,8 @@ fn step_word(
                 at = at.and_then(|place| body(code, place, unit, out));
             }
             match at {
-                Some(_) => WordBuilt::Runs,
-                None => WordBuilt::NotYet,
+                Some(_) => FillRuns::Runs,
+                None => FillRuns::NotYet,
             }
         }
         Op::Fork => {
@@ -96,14 +97,14 @@ fn step_word(
                     unit,
                 });
             }
-            WordBuilt::Runs
+            FillRuns::Runs
         }
         // The loop does not run these yet.
         Op::EachRange
         | Op::Children
         | Op::ChildrenOfField
         | Op::NearestDerived
-        | Op::Render => WordBuilt::NotYet,
+        | Op::Render => FillRuns::NotYet,
         // A stage is no word of a step program.
         Op::StageScan
         | Op::StageProbe
@@ -115,7 +116,7 @@ fn step_word(
         | Op::StageUse
         | Op::StageRender
         | Op::StageWalk
-        | Op::StageWrite => WordBuilt::NotYet,
+        | Op::StageWrite => FillRuns::NotYet,
     }
 }
 
@@ -190,7 +191,7 @@ fn walked(code: &ProgramCode, rule: &RuleCode, units: &mut Vec<WordSlot>) -> Opt
             } else {
                 step_word(code, word, unit, &mut pending)
             };
-            if built == WordBuilt::NotYet {
+            if built == FillRuns::NotYet {
                 return Some(unit);
             }
             // A step program ends at its `End`, a pipeline at its `StageWrite`.

@@ -5,6 +5,7 @@ use crate::domain::code::types::{IndexSite, MemoSite, PoolAt, ProgramCode, Relat
 use crate::domain::filled::errors::FilledError;
 use crate::domain::filled::types::FilledRelations;
 use crate::domain::indexes::types::{FileStamp, IndexArena, RowRun, SourceRow};
+use crate::domain::made_tables::columns::types::{FileColumn, RowColumn};
 use crate::domain::made_tables::matching::types::MatchRoom;
 use crate::domain::made_tables::pipelines::types::PipelineRoom;
 use crate::domain::steps::types::{MadeTableId, StepRegex};
@@ -18,10 +19,16 @@ use ryo_values::domain::plan_parts::types::ColumnIndex;
 /// The rows of one table for a file: its cells row by row, kept between files and emptied, never freed.
 #[derive(Debug, Default)]
 pub(crate) struct TableRows {
-    /// The cells, row by row.
+    /// The cells, row by row: of every column but the file's.
     pub(crate) cells: Vec<CellWord>,
-    /// How many cells a row has.
+    /// How many cells a row has: its columns less the file's.
     pub(crate) width: Count,
+    /// Where each column lies in a row's cells, or that it is the file's: within one file every row would hold the
+    /// same cell there, so none is kept and a reader is handed the file's cell. A column past these lies at its own
+    /// number.
+    pub(crate) places: Vec<RowColumn>,
+    /// The file's cell, as a column of one cell that every row reads.
+    pub(crate) file: FileColumn,
     /// How many rows it holds: a table of no column has rows too.
     pub(crate) count: Count,
     /// The rows it holds, by what they hold: what a write that drops repeats asks.
@@ -44,6 +51,8 @@ pub(crate) struct GroupRoom {
     pub(crate) values: Vec<CellWord>,
     /// The orders of one group's rows, ascending: what the meaning of a group's end reads.
     pub(crate) orders: Vec<Integer>,
+    /// The key columns the input keeps cells for, by where each lies in a row's cells.
+    pub(crate) held: Vec<ColumnIndex>,
     /// The room of an ordered match.
     pub(crate) matching: MatchRoom,
 }
@@ -70,6 +79,8 @@ pub(crate) struct FillStore {
     pub(crate) inputs: Vec<TableRows>,
     /// A node column as cells, while an index over the node table is built.
     pub(crate) cells: Vec<CellWord>,
+    /// Where each pipeline of an input writes its row from, while a table's columns are laid.
+    pub(crate) writes: Vec<PoolAt>,
     /// The keys asked of the language through a site while its relation was not whole, by site and cells: each with the
     /// stretch of the store's rows that holds its rows.
     pub(crate) asked: hashbrown::HashTable<AskedStretch>,
@@ -302,6 +313,15 @@ pub(crate) trait PatternRows {
         asked: PatternAsk<'_>,
         rows: &mut Vec<CellWord>,
     ) -> Result<PatternFound, FilledError>;
+
+    /// Says that the fill of `table` starts: everything the fill side does from here to `table_ended` of the same table
+    /// is that table's making, but for what lies between the two calls of a table made inside it (a source its fill
+    /// reaches). Said for every table whose fill runs, twice a table and never for a row; a table kept as made with no
+    /// row on the loop's `Empty` runs no fill and is not said.
+    fn table_started(&mut self, table: MadeTableId);
+
+    /// Says that the fill of `table` ended, with its rows or with a fault.
+    fn table_ended(&mut self, table: MadeTableId);
 }
 
 /// Whether a table may have a row in a file, as the loop decides its need.
