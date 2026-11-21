@@ -10,8 +10,7 @@ let argument_nodes = select id, file from "semantic-syntax" where kind = "call-a
 let argument_wrappers = select l.parent as call, l.file as file, r.id as wrapper from "semantic-child" as l join argument_nodes as r on l.child = r.id and l.file = r.file;
 let positional_fields = select parent, child, ordinal from "semantic-child" where field = "args";
 let positional = select l.call as call, l.file as file, r.child as argument, r.ordinal as ordinal from argument_wrappers as l join positional_fields as r on l.wrapper = r.parent;
-let earlier_args = select l.call as call, l.file as file, l.argument as argument from positional as l join positional as r on l.call = r.call and l.file = r.file where r.ordinal < l.ordinal;
-let first_args = antijoin(left=positional, right=earlier_args, left-on=["call", "argument", "file"], right-on=["call", "argument", "file"]);
+let first_args = group-min(from=positional, keys=["call", "file"], order="ordinal");
 let map_first_args = select l.call as call, l.file as file, l.span as span, r.argument as lambda, r.ordinal as ordinal from map_call_functions as l join first_args as r on l.call = r.call and l.file = r.file;
 let lambdas = select id, file, span from "semantic-syntax" where kind = "lambda";
 let map_lambdas = select l.call as map_call, l.file as file, l.span as span, l.ordinal as ordinal, r.id as lambda from map_first_args as l join lambdas as r on l.lambda = r.id and l.file = r.file;

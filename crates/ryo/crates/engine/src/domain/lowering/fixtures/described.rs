@@ -4,8 +4,9 @@
 
 use crate::domain::code::types::ProgramCode;
 use crate::domain::lowered::types::{
-    FillInput, GraphFill, GroupFill, LoweredPack, MadeFill, OrderedFill, PatternForm,
+    GraphFill, GroupFill, LoweredPack, MadeFill, OrderedFill, PatternForm,
 };
+use crate::domain::lowering::proving::service::fill_pipelines;
 use crate::domain::steps::service::{stage_class, step_class};
 use crate::domain::steps::stages::types::{FillStage, Pipeline};
 use crate::domain::steps::types::{ProgramStep, StepProgram};
@@ -78,30 +79,15 @@ pub(crate) const fn fill_name(fill: &MadeFill) -> &'static str {
     }
 }
 
-/// The pipelines of a fill, in its inputs' order.
-#[must_use]
-pub(crate) fn pipelines_of(fill: &MadeFill) -> Vec<&Pipeline> {
-    let inputs: Vec<&FillInput> = match fill {
-        MadeFill::Rows(pipelines, _) => return pipelines.iter().collect(),
-        MadeFill::Group(_, input) | MadeFill::Ordered(OrderedFill::Sorted(input)) => vec![input],
-        MadeFill::Ordered(OrderedFill::Match(left, right)) => vec![left, right],
-        MadeFill::Graph(_, inputs) => inputs.iter().collect(),
-        MadeFill::Constant(_) => Vec::new(),
-    };
-    let pipelines = inputs.into_iter().flat_map(|input| &input.pipelines);
-    pipelines.collect()
-}
-
 /// The steps of a program by name, each with its class: `EachRow:File Read:Constant ..`. A `Fork`'s slots follow in braces.
 #[must_use]
 pub(crate) fn steps_said(program: &StepProgram) -> String {
     let each = program.0.iter().map(|placed| {
-        let slots = match &placed.step {
-            ProgramStep::Fork { slots } => {
-                let said: Vec<String> = slots.iter().map(steps_said).collect();
-                format!("{{{}}}", said.join(" | "))
-            }
-            _ => String::new(),
+        let slots = if let ProgramStep::Fork { slots } = &placed.step {
+            let said: Vec<String> = slots.iter().map(steps_said).collect();
+            format!("{{{}}}", said.join(" | "))
+        } else {
+            String::new()
         };
         format!(
             "{}:{:?}{slots}",
@@ -161,7 +147,7 @@ pub(crate) fn described(pack: &LoweredPack) -> Vec<String> {
             fill_name(&table.fill),
             table.width.0
         ));
-        for pipeline in pipelines_of(&table.fill) {
+        for pipeline in fill_pipelines(&table.fill) {
             lines.push(format!("  pipeline: {}", stages_said(pipeline)));
         }
     }

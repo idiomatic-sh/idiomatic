@@ -4,10 +4,12 @@
 use super::types::{
     AcceptedPlace, AdmittedRule, NodeHome, NodeReader, NodeStore, StepReach, StepShape, StoredNode,
 };
+use crate::domain::lowering::types::SelectedRule;
 use ryo_relations::domain::relations::service::kinds;
 use ryo_relations::domain::relations::types::Count;
 use ryo_values::domain::plan_parts::types::{Input, InputNumber, StepId};
 use ryo_values::domain::plans::service::{inputs_of, named};
+use ryo_values::domain::query_plans::types::NodeDigests;
 use ryo_values::domain::query_plans::types::{NodeDigest, Plan};
 use std::collections::HashSet;
 
@@ -103,10 +105,9 @@ pub(crate) fn readers(store: &NodeStore, digest: NodeDigest) -> Count {
     Count(store.0.get(&digest).map_or(0, |node| node.readers.len()))
 }
 
-/// The digest of every step of a rule, in step order: the one place the lowering takes digests from.
+/// The digest of every step of a rule, in step order: the one place the lowering takes digests from. They are data the
+/// host hands to the load with each rule; the engine hashes nothing.
 #[must_use]
-pub(crate) fn digested(
-    rule: &crate::domain::lowering::types::SelectedRule<'_>,
-) -> ryo_values::domain::query_plans::types::NodeDigests {
-    crate::domain::digests::service::node_digests(rule.plan, rule.bindings)
+pub(crate) fn digested(rule: &SelectedRule<'_>) -> NodeDigests {
+    rule.digests.clone()
 }

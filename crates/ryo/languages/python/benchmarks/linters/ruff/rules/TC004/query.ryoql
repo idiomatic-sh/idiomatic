@@ -57,8 +57,8 @@ let terminal_binds = select id, file, event, ordinal from terminal_options where
 let guarded_import_points = select l.id as id, l.file as file, r.ordinal as import_point from associated_reads as l join value_events as r on l.binding = r.id and l.file = r.file;
 let later_fallbacks = select l.id as id, l.file as file from terminal_binds as l join guarded_import_points as r on l.id = r.id and l.file = r.file where r.import_point < l.ordinal;
 let earlier_fallbacks = select l.id as id, l.event as event, l.file as file from terminal_binds as l join guarded_import_points as r on l.id = r.id and l.file = r.file where l.ordinal < r.import_point;
-let conditional_nodes = select id, file from nodes where kind = "if" or kind = "try" or kind = "try-star" or kind = "for" or kind = "async-for" or kind = "while" or kind = "match" or kind = "with" or kind = "async-with";
-let binding_scopes = select id, file from nodes where kind = "module" or kind = "class-def" or kind = "function-def" or kind = "async-function-def" or kind = "lambda";
+let conditional_nodes = select id, file from nodes where kind in ["if", "try", "try-star", "for", "async-for", "while", "match", "with", "async-with"];
+let binding_scopes = select id, file from nodes where kind in ["module", "class-def", "function-def", "async-function-def", "lambda"];
 let fallback_boundaries = union(left=conditional_nodes, right=binding_scopes);
 let fallback_events = select event as id, file from earlier_fallbacks;
 let fallback_enclosures = axis(from=fallback_events, relation="semantic-child", direction=nearest-ancestor, domain=fallback_boundaries);
@@ -83,7 +83,7 @@ let export_targets = select id, file from "semantic-syntax" where kind = "name-t
 let export_statement_nodes = select id, file from nodes where kind = "assign" or kind = "ann-assign" or kind = "aug-assign";
 let export_assignment_axes = axis(from=export_targets, relation="semantic-child", direction=nearest-ancestor, domain=export_statement_nodes);
 let export_assignment_nodes = select related as id, file from export_assignment_axes;
-let export_scopes = select id, kind, file from nodes where kind = "module" or kind = "class-def" or kind = "function-def" or kind = "async-function-def" or kind = "lambda";
+let export_scopes = select id, kind, file from nodes where kind in ["module", "class-def", "function-def", "async-function-def", "lambda"];
 let export_scope_axes = axis(from=export_assignment_nodes, relation="semantic-child", direction=nearest-ancestor, domain=export_scopes);
 let export_module_ids = select id, file from export_scopes where kind = "module";
 let export_assignments = select l.id as id, l.file as file from export_scope_axes as l join export_module_ids as r on l.related = r.id and l.file = r.file;

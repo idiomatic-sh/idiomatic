@@ -28,7 +28,7 @@ use crate::domain::relations::collections::relations::implicit_symbol::constants
 use crate::domain::relations::collections::relations::implicit_symbol::item::{BUILTIN_ATTRIBUTES, MODULE_GLOBALS};
 use ryo::languages::node_table::span_of;
 use ryo::languages::{
-    DefinesRow, FileWords, Fill, ImplicitSymbolRow, Integer, NameText, NodeId, Position, QualifiedNameRow,
+    DefinesRow, FileWords, Fill, FillExtent, ImplicitSymbolRow, Integer, NameText, NodeId, Position, QualifiedNameRow,
     ReferenceRow, ResolvesRow, Rows, ScopeRow, Span, node_id,
 };
 
@@ -73,7 +73,7 @@ pub(crate) fn scope_rows<V: ModelView>(file: &mut V, _words: &mut FileWords, row
             rows.write(row);
         }
     }
-    Fill::Written
+    Fill::Written(FillExtent::Asked)
 }
 
 /// The word that says what a definition is, more finely than its kind.
@@ -121,7 +121,7 @@ pub(crate) fn defines_rows<V: ModelView>(file: &mut V, words: &mut FileWords, ro
     for definition in &read.model.definitions.all {
         rows.write(defines_row(read, words, &mut known, definition));
     }
-    Fill::Written
+    Fill::Written(FillExtent::Asked)
 }
 
 /// The name expression the name or attribute expression `at` starts from: itself, or the innermost object of a chain of
@@ -194,7 +194,7 @@ pub(crate) fn reference_rows<V: ModelView>(file: &mut V, words: &mut FileWords, 
             rows.write(row);
         }
     }
-    Fill::Written
+    Fill::Written(FillExtent::Asked)
 }
 
 /// The row of the name expression `at`, when it is read and resolves to a definition of the file.
@@ -223,7 +223,7 @@ pub(crate) fn resolves_rows<V: ModelView>(file: &mut V, words: &mut FileWords, r
             rows.write(row);
         }
     }
-    Fill::Written
+    Fill::Written(FillExtent::Asked)
 }
 
 /// Writes into `path` the name an import brings, as its statement writes it.
@@ -336,7 +336,7 @@ pub(crate) fn qualified_name_rows<V: ModelView>(
             rows.write(row);
         }
     }
-    Fill::Written
+    Fill::Written(FillExtent::Asked)
 }
 
 /// Writes the catalog of names the language supplies to every module: the same rows for every file, owned by its module.
@@ -382,5 +382,5 @@ pub(crate) fn implicit_symbol_rows<V: ModelView>(
         since_minor: Integer(0),
         file: read.file,
     });
-    Fill::Written
+    Fill::Written(FillExtent::Asked)
 }

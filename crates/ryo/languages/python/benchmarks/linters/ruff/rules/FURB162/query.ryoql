@@ -44,7 +44,7 @@ let replace_first_args = select call, earlier as argument, file from replace_pai
 let replace_second_args = select call, later as argument, file from replace_pairs;
 let strings = select occurrence as id, file, value from "string-literal";
 let z_arguments = select l.call as call, l.file as file from replace_first_args as l join strings as r on l.argument = r.id and l.file = r.file where r.value = "Z";
-let zero_offsets = select id, file from strings where value = "+00:00" or value = "+0000" or value = "+00" or value = "-00:00" or value = "-0000" or value = "-00";
+let zero_offsets = select id, file from strings where value in ["+00:00", "+0000", "+00", "-00:00", "-0000", "-00"];
 let offset_arguments = select l.call as call, l.file as file from replace_second_args as l join zero_offsets as r on l.argument = r.id and l.file = r.file;
 let valid_replace_calls = select l.call as call, l.file as file, l.span as span from keyword_free_replace_calls as l join z_arguments as r on l.call = r.call and l.file = r.file;
 let valid_replace_with_offset = select l.call as call, l.file as file, l.span as span from valid_replace_calls as l join offset_arguments as r on l.call = r.call and l.file = r.file;

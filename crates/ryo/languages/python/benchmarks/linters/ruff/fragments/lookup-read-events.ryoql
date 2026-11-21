@@ -76,7 +76,7 @@ let lexical_body_events = select l.id as id, l.name as name, l.scope as scope, l
 let named_expressions = select id, file from nodes where kind = "named-expr";
 let walrus_targets = select r.child as id, l.file as file from named_expressions as l join "semantic-child" as r on l.id = r.parent and l.file = r.file where r.field = "target";
 let walrus_events = select l.id as id, l.name as name, l.scope as scope, l.ordinal as ordinal, l.kind as kind, l.file as file from raw_namespace_events as l join walrus_targets as r on l.id = r.id and l.file = r.file;
-let non_comprehension_scopes = select id, file from nodes where kind = "module" or kind = "function-def" or kind = "async-function-def" or kind = "class-def" or kind = "lambda";
+let non_comprehension_scopes = select id, file from nodes where kind in ["module", "function-def", "async-function-def", "class-def", "lambda"];
 let walrus_lexical_owners = axis(from=walrus_events,relation="semantic-child",direction=nearest-ancestor,domain=non_comprehension_scopes);
 let walrus_body_events = select l.id as id, l.name as name, l.scope as scope, l.ordinal as ordinal, l.kind as kind, l.file as file, l.related as related from walrus_lexical_owners as l join event_body_owners as r on l.id = r.id and l.related = r.scope and l.file = r.file;
 let owned_namespace_events = union(left=lexical_body_events,right=walrus_body_events);

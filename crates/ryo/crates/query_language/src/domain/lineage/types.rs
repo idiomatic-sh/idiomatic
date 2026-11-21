@@ -28,7 +28,18 @@ pub(crate) struct LineageMemo {
     pub origins: BTreeMap<StepColumn, Option<Vec<ValueOrigin>>>,
     /// The lineage of each step found so far.
     pub lineages: BTreeMap<StepId, Lineage>,
+    /// How many columns of steps a kind was followed for: each once, answered from `kinds` after.
+    pub kinds_followed: Followed,
+    /// How many columns of steps their per-file origins were followed for: each once, answered from `origins` after.
+    pub origins_followed: Followed,
+    /// How many steps a lineage was found for: each once, answered from `lineages` after.
+    pub lineages_followed: Followed,
 }
+
+/// How many entries of a memo were found by following the plan, not answered from the memo: the lineage cases hold it to one an
+/// entry, so a plan whose steps meet again is followed in steps, not in paths.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct Followed(pub usize);
 
 /// A column of a step of the plan.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]

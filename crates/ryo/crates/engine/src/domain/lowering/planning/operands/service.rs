@@ -1,7 +1,7 @@
 //! The services of the `operands` part: what a term is as an operand, how a cell stands, and the registers a branch's accesses read from.
 
 use crate::domain::lowering::costing::types::CellState;
-use crate::domain::lowering::definitions::service::{draft, fresh_register, text_word};
+use crate::domain::lowering::definitions::service::{draft, fresh_register, kind_bits, text_word};
 use crate::domain::lowering::flattening::service::made_column;
 use crate::domain::lowering::flattening::service::variables;
 use crate::domain::lowering::flattening::types::RowColumn;
@@ -17,7 +17,7 @@ use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::catalog::service::{fact_form, node_column};
 use ryo_relations::domain::relations::service::{columns, kind};
 use ryo_relations::domain::relations::types::Count;
-use ryo_relations::domain::relations::types::{CellKind, FactForm, KindBits, NodeColumn, Relation};
+use ryo_relations::domain::relations::types::{CellKind, FactForm, NodeColumn, Relation};
 use std::collections::HashMap;
 
 /// How often each variable is written in a branch: in its atoms, and in the columns of its row its unit gives (every
@@ -172,13 +172,8 @@ pub(crate) fn anchor_kinds(
     let FlatTerm::Text(number) = term else {
         return None;
     };
-    let written = emitter
-        .drafts
-        .texts
-        .get(usize::try_from(number.0).unwrap_or(usize::MAX))?;
-    let named = emitter.kinds.kinds.iter();
-    let place = named.clone().position(|kind| kind.0 == written.0)?;
-    let bits = KindBits(made_column(RowColumn(place))?.0);
+    let written = emitter.drafts.written.get(&number)?;
+    let bits = kind_bits(emitter.kinds, written)?;
     Some(KindAnchor {
         relation,
         kinds: AnchorKinds([bits].into()),

@@ -3,22 +3,24 @@
 //! a bound are each one definition, and their reader holds one use. The `match` over `Operation` names every operation.
 
 use crate::domain::lowered::types::Emptiness;
+use crate::domain::lowering::definitions::service::kind_bits;
 use crate::domain::lowering::definitions::service::text_word;
 use crate::domain::lowering::definitions::types::{Drafts, Flattened};
 use crate::domain::lowering::emptiness::service::{derived, literal_read};
-use crate::domain::lowering::flattening::service::made_column;
 use crate::domain::lowering::flattening::service::picked;
 use crate::domain::lowering::flattening::types::RowColumn;
 use crate::domain::lowering::nodes::service::digest_of;
 use crate::domain::lowering::nodes::types::StepReach;
-use crate::domain::lowering::tables::fills::service::{as_of_arm, group_count_arm};
+use crate::domain::lowering::tables::fills::service::{
+    as_of_arm, group_bound_arm, group_count_arm,
+};
 use crate::domain::lowering::tables::inputs::service::{all_selected, input, rule, term};
 use crate::domain::lowering::tables::joins::service::{antijoin_arm, axis_arm, join_arm};
 use crate::domain::lowering::tables::service::test_of;
 use crate::domain::lowering::tables::types::{InputWant, RuleFlattening};
+use crate::domain::steps::types::ConstantText;
 use crate::domain::steps::types::{AnchorKinds, TestOperation};
 use ryo_relations::domain::relations::service::columns;
-use ryo_relations::domain::relations::types::KindBits;
 use ryo_values::domain::plan_parts::types::{Input, Operand, PlanComparison, QueryLiteral, StepId};
 use ryo_values::domain::plans::types::Operation;
 
@@ -47,14 +49,8 @@ fn selection_emptiness(
         ) else {
             continue;
         };
-        let place = state
-            .kinds
-            .kinds
-            .iter()
-            .position(|kind| kind.0 == written.0);
-        let kinds = place
-            .and_then(|place| made_column(RowColumn(place)).map(|column| column.0))
-            .map(|bits| AnchorKinds([KindBits(bits)].into()));
+        let kinds = kind_bits(state.kinds, &ConstantText(written.0.clone()))
+            .map(|bits| AnchorKinds([bits].into()));
         return literal_read(relation, *column, text_word(*number), kinds);
     }
     read
@@ -117,13 +113,13 @@ fn arm(
         }
         Operation::Antijoin { .. } => antijoin_arm(state, drafts, operation),
         Operation::GroupCount { .. } => group_count_arm(state, drafts, step, operation),
+        Operation::GroupBound { .. } => group_bound_arm(state, drafts, step, operation),
         Operation::AsOf { .. } => as_of_arm(state, drafts, step, operation),
         Operation::Axis { .. } => axis_arm(state, drafts, operation),
         // What is left to lower, each by name: `tables::service::shaped` refuses a rule that holds one.
         Operation::Intersection { .. }
         | Operation::Difference { .. }
         | Operation::GroupDigest { .. }
-        | Operation::GroupBound { .. }
         | Operation::GroupOrdinal { .. }
         | Operation::Capture { .. }
         | Operation::Rank { .. }

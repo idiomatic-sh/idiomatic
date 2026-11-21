@@ -1,7 +1,8 @@
-//! The `catalog` service: the list of every relation of the catalog and the macro that declares one relation from its columns.
-//! Both are macros every crate that handles each relation calls, so a relation added to the list is answered everywhere or does not compile.
+//! The `catalog` service: the list of every relation of the catalog, a macro every crate that handles each relation calls, so a
+//! relation added to the list is answered everywhere or does not compile; and the lookups of what each relation's item declares.
 //! The list is the one declaration of the catalog: its relations, their modules and whether a language promises each one as an optional
 //! capability (`optional`) or always answers it (`baseline`). The capability enum, its map and the module list are generated from it.
+//! The macro that declares one relation from its columns (`relation_row`) is beside the catalog's types.
 
 /// Hands the catalog to `$callback`, which is a macro that takes the three groups, each relation as its variant, module, row and column.
 /// `@declared` hands the same list with each relation's capability word after its column, to `$callback`, followed by `$forward` and a
@@ -165,90 +166,6 @@ macro_rules! kept_relations {
     };
 }
 
-/// Declares one relation of the catalog from its columns, which its module names once, in the macro it calls (the fixtures' typed rows
-/// are made from the same columns): its row, its columns and the numbers a row is stored as, with its class, its scope (`File` or
-/// `Project`), whether it needs the languages' notes (`Needed` or `Unneeded`) and how the engine reaches its rows (`form`: `NodeTable`
-/// with the node-table column of each of its columns, or `Filled` with the key the engine indexes filled rows by). A column is its name, the name of its
-/// variant, the type a row holds, what the store holds for it (a `CellKind` and the `Value` of the same name) and, when the type is
-/// not that already, the function that turns it into that.
-#[macro_export]
-#[doc(hidden)]
-macro_rules! relation_row {
-    (
-        item $item:ident, row { $( #[$row_doc:meta] )* $row:ident }, column { $( #[$column_doc:meta] )* $column:ident },
-        expected { $( #[$expected_doc:meta] )* $expected:ident }, class $class:ident, scope $scope:ident, notes $notes:ident,
-        form $form:ident $( ( $( $key:tt )* ) )? $( { $( $node_column:ident => $node_source:ident ),* $(,)? } )?,
-        columns { $( $( #[$doc:meta] )* $field:ident $variant:ident : $ty:ty => $kind:ident $( ( $convert:path ) )? ; )* }
-    ) => {
-        $( #[$row_doc] )*
-        #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-        pub struct $row {
-            $( $( #[$doc] )* pub $field: $ty, )*
-        }
-
-        $( #[$column_doc] )*
-        #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-        pub enum $column {
-            $(
-                $( #[$doc] )*
-                $variant,
-            )*
-        }
-
-        impl RelationsItem for $item {
-            type Row = $row;
-            type Column = $column;
-            type Words = [$crate::domain::relations::types::Bits; [$( $crate::domain::relations::types::CellKind::$kind ),*].len()];
-            const CLASS: $crate::domain::relations::types::Class = $crate::domain::relations::types::Class::$class;
-            const SCOPE: $crate::domain::catalog::types::RowScope = $crate::domain::catalog::types::RowScope::$scope;
-            const NOTES: $crate::domain::catalog::types::RelationNotes = $crate::domain::catalog::types::RelationNotes::$notes;
-            const FORM: $crate::domain::relations::types::FactForm =
-                $crate::relation_row!(@form $item $column $form $( ( $( $key )* ) )?);
-            const NODE_COLUMNS: &'static [($column, $crate::domain::relations::types::NodeColumn)] =
-                &[ $( $( ($column::$node_column, $crate::domain::relations::types::NodeColumn::$node_source) ),* )? ];
-
-            fn relation() -> $crate::domain::relations::types::Relation {
-                $crate::domain::relations::types::Relation::$item
-            }
-
-            fn kinds() -> &'static [$crate::domain::relations::types::CellKind] {
-                &[ $( $crate::domain::relations::types::CellKind::$kind ),* ]
-            }
-
-            fn columns() -> Vec<$column> {
-                vec![ $( $column::$variant ),* ]
-            }
-
-            fn kind(column: $column) -> $crate::domain::relations::types::CellKind {
-                match column {
-                    $( $column::$variant => $crate::domain::relations::types::CellKind::$kind, )*
-                }
-            }
-
-            fn words(row: $row) -> [$crate::domain::relations::types::Bits; [$( $crate::domain::relations::types::CellKind::$kind ),*].len()] {
-                [ $( $crate::relation_row!(@word (row.$field) $kind $( $convert )?) ),* ]
-            }
-        }
-    };
-    (@form $item:ident $column:ident NodeTable) => {
-        $crate::domain::relations::types::FactForm::NodeTable
-    };
-    (@form $item:ident $column:ident Filled (Whole)) => {
-        $crate::domain::relations::types::FactForm::Filled($crate::domain::relations::types::FilledKey::Whole)
-    };
-    (@form $item:ident $column:ident Filled ($shape:ident ($key:ident))) => {
-        $crate::domain::relations::types::FactForm::Filled($crate::domain::relations::types::FilledKey::$shape(
-            $crate::domain::relations::types::Column::$item($column::$key),
-        ))
-    };
-    (@word ($value:expr) $kind:ident) => {
-        $crate::domain::relations::service::to_bits($crate::domain::relations::types::Value::$kind($value))
-    };
-    (@word ($value:expr) $kind:ident $convert:path) => {
-        $crate::domain::relations::service::to_bits($crate::domain::relations::types::Value::$kind($convert($value)))
-    };
-}
-
 /// The lookups of what each relation's item declares beyond its columns, generated from the catalog's list.
 macro_rules! declared_lookups {
     ( $( $group:ident { $( $variant:ident $module:ident $row:ident $column:ident ; )* } )* ) => {
@@ -319,6 +236,75 @@ macro_rules! declared_lookups {
                     .iter()
                     .find(|(declared, _)| *declared == own)
                     .map(|(_, source)| *source), )* )*
+            }
+        }
+
+        /// Which ids of the node table a `NodeTable` relation has rows for, as its item declares it (`extent`): the file's own
+        /// tree, or the embedded segments too. Nothing for a filled relation.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        /// use ryo_relations::domain::catalog::service::node_extent;
+        /// use ryo_relations::domain::relations::types::{NodeExtent, Relation};
+        ///
+        /// assert_eq!(node_extent(Relation::SyntaxChild), Some(NodeExtent::Own));
+        /// assert_eq!(node_extent(Relation::SemanticChild), Some(NodeExtent::Embedded));
+        /// assert_eq!(node_extent(Relation::Function), None);
+        /// ```
+        #[must_use]
+        pub fn node_extent(
+            relation: crate::domain::relations::types::Relation,
+        ) -> Option<crate::domain::relations::types::NodeExtent> {
+            match relation {
+                $( $( crate::domain::relations::types::Relation::$variant => <crate::domain::relations::collections::relations::$module::item::$variant as crate::domain::relations::collections::relations::interface::RelationsItem>::EXTENT, )* )*
+            }
+        }
+
+        /// How a filled relation's rows grow with the file, as its item declares it (`size`). Nothing for a `NodeTable` relation,
+        /// whose rows are the table's elements.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        /// use ryo_relations::domain::catalog::service::relation_size;
+        /// use ryo_relations::domain::relations::types::{Relation, RelationSize};
+        ///
+        /// assert_eq!(relation_size(Relation::FilesystemFile), Some(RelationSize::PerFile));
+        /// assert_eq!(relation_size(Relation::Function), Some(RelationSize::PerElement));
+        /// assert_eq!(relation_size(Relation::SyntaxTree), None);
+        /// ```
+        #[must_use]
+        pub fn relation_size(
+            relation: crate::domain::relations::types::Relation,
+        ) -> Option<crate::domain::relations::types::RelationSize> {
+            match relation {
+                $( $( crate::domain::relations::types::Relation::$variant => <crate::domain::relations::collections::relations::$module::item::$variant as crate::domain::relations::collections::relations::interface::RelationsItem>::SIZE, )* )*
+            }
+        }
+
+        /// The columns of a relation that every language that fills it promises a fill by key for, as its item declares them
+        /// (`keys`): a fill asked by one of them never writes the relation whole. None for a relation that declares none, and
+        /// for a `NodeTable` relation. It is not the key the engine indexes a whole fill by (`fact_form`): each says what the
+        /// other does not.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        /// use ryo_relations::domain::catalog::service::key_columns;
+        /// use ryo_relations::domain::relations::collections::relations::token_link::item::TokenLinkColumn;
+        /// use ryo_relations::domain::relations::types::{Column, Relation};
+        ///
+        /// let keys = key_columns(Relation::TokenLink);
+        /// assert_eq!(keys, [Column::TokenLink(TokenLinkColumn::Source), Column::TokenLink(TokenLinkColumn::Target)]);
+        /// assert!(key_columns(Relation::Comment).is_empty());
+        /// ```
+        #[must_use]
+        pub fn key_columns(
+            relation: crate::domain::relations::types::Relation,
+        ) -> &'static [crate::domain::relations::types::Column] {
+            match relation {
+                $( $( crate::domain::relations::types::Relation::$variant => <crate::domain::relations::collections::relations::$module::item::$variant as crate::domain::relations::collections::relations::interface::RelationsItem>::KEYS, )* )*
             }
         }
 

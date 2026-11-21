@@ -34,6 +34,8 @@ macro_rules! function {
             scope File,
             notes Unneeded,
             form Filled(Unique(Id)),
+            size PerElement,
+            keys [Id],
             columns {
                 /// The function: its file and where it starts.
                 id Id: NodeId => Node;

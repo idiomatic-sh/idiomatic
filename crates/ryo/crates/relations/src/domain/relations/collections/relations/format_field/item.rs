@@ -26,6 +26,8 @@ macro_rules! format_field {
             scope File,
             notes Unneeded,
             form Filled(Many(Id)),
+            size PerElement,
+            keys [],
             columns {
                 /// The original format-string occurrence, joining this row to `format-parse`.
                 id Id: NodeId => Node;

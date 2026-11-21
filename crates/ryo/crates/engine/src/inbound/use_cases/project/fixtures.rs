@@ -10,7 +10,7 @@ use crate::domain::findings::types::{
 use crate::domain::programs::service::scratch_for;
 use crate::domain::programs::types::Programs;
 use ryo_language::domain::facts::types::{
-    FactAnswer, FactSource, FileWords, FilledColumns, ProjectFacts,
+    FactAnswer, FactSource, FileWords, FilledColumns, ProjectFacts, Wanted,
 };
 use ryo_language::domain::semantics::types::{RenderOutcome, RenderRequest};
 use ryo_relations::domain::answers::types::AbsenceCause;
@@ -26,6 +26,7 @@ impl FactSource for NoProject {
     fn fill(
         &mut self,
         _relation: Relation,
+        _wanted: Wanted,
         _words: &mut FileWords,
         _out: &mut FilledColumns,
     ) -> FactAnswer {

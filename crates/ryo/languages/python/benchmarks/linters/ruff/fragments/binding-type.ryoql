@@ -7,7 +7,7 @@ param atom: string;
 output relation<reference: node, file: file>;
 let nodes = select id, kind, file from "semantic-syntax";
 let events = select occurrence as binding, name, scope, ordinal, kind, file from "binding-event" where kind = "bind" or kind = "annotation";
-let namespace_history = select occurrence as binding, name, scope, ordinal, kind, file from "binding-event" where kind = "bind" or kind = "annotation" or kind = "delete" or kind = "cleanup" or kind = "global" or kind = "nonlocal";
+let namespace_history = select occurrence as binding, name, scope, ordinal, kind, file from "binding-event" where kind in ["bind", "annotation", "delete", "cleanup", "global", "nonlocal"];
 let prior_bindings = select l.binding as binding, l.file as file from events as l join namespace_history as r on l.name = r.name and l.scope = r.scope and l.file = r.file where r.ordinal < l.ordinal;
 let unique_bindings0 = antijoin(left=events, right=prior_bindings, left-on=["binding","file"], right-on=["binding","file"]);
 let unique_bindings = select * from unique_bindings0;

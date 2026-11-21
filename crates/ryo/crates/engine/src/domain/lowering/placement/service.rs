@@ -40,11 +40,10 @@ pub(crate) const fn placed(facts: PatternFacts, stage: SampleStage) -> PatternPl
         TableForm::Product | TableForm::Calls => decided(FormChoice::Call),
         TableForm::Keyed => PatternPlacement {
             form: match (stage, facts.measured) {
-                (SampleStage::Absent, _)
+                (SampleStage::Absent, None | Some(MeasuredForm::Call | MeasuredForm::Table))
                 | (SampleStage::Second, None | Some(MeasuredForm::Call)) => FormChoice::Call,
-                (SampleStage::First, _) | (SampleStage::Second, Some(MeasuredForm::Table)) => {
-                    FormChoice::Table
-                }
+                (SampleStage::First, None | Some(MeasuredForm::Call | MeasuredForm::Table))
+                | (SampleStage::Second, Some(MeasuredForm::Table)) => FormChoice::Table,
             },
             shape: ShapeChoice::Open,
         },

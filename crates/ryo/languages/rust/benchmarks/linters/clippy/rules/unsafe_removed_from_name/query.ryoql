@@ -16,8 +16,7 @@ let removed = select l.tree as id from unsafe_names as l join safe_trees as r on
 let uses = select id, file, span from "syntax-tree" where kind = "use";
 let owners = axis(from=removed, relation="syntax-child", direction=nearest-ancestor, domain=uses);
 let heads = select l.parent as id, l.ordinal as ordinal, r.span as head from "syntax-child" as l join "syntax-tree" as r on l.child = r.id where r.kind = "visibility" or r.kind = "use-kw";
-let later_heads = select l.id as id, l.ordinal as ordinal from heads as l join heads as r on l.id = r.id where r.ordinal < l.ordinal;
-let first_heads = antijoin(left=heads, right=later_heads, left-on=["id", "ordinal"], right-on=["id", "ordinal"]);
+let first_heads = group-min(from=heads, keys=["id"], order="ordinal");
 let owned = select l.id as id, r.file as file, r.span as span, r.id as item from owners as l join uses as r on l.related = r.id;
 let headed = select l.id as id, l.file as file, l.span as span, r.head as head from owned as l join first_heads as r on l.item = r.id;
 let spanned = span-between(from=headed, start="head", end="span", output="written");

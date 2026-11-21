@@ -43,7 +43,7 @@ let embedded_names_nested = select id, file from embedded_name_axes;
 let embedded_names_self = select l.id as id, l.file as file from all_names as l join embedded_roots as r on l.id = r.id and l.file = r.file;
 let embedded_names = union(left=embedded_names_nested, right=embedded_names_self);
 let physical_names = antijoin(left=all_names, right=embedded_names, left-on=["id","file"], right-on=["id","file"]);
-let unsupported_expressions = select id, file from nodes where kind = "call" or kind = "lambda" or kind = "named-expr" or kind = "unary-op" or kind = "bool-op" or kind = "compare" or kind = "if-exp" or kind = "dict" or kind = "set" or kind = "list-comp" or kind = "set-comp" or kind = "dict-comp" or kind = "generator-exp" or kind = "await" or kind = "yield" or kind = "yield-from" or kind = "joined-str" or kind = "template-str";
+let unsupported_expressions = select id, file from nodes where kind in ["call", "lambda", "named-expr", "unary-op", "bool-op", "compare", "if-exp", "dict", "set", "list-comp", "set-comp", "dict-comp", "generator-exp", "await", "yield", "yield-from", "joined-str", "template-str"];
 let unsupported_axes = axis(from=physical_names, relation="semantic-child", direction=ancestor, domain=unsupported_expressions);
 let unsupported_names = select id, file from unsupported_axes;
 let expression_names = antijoin(left=physical_names, right=unsupported_names, left-on=["id","file"], right-on=["id","file"]);

@@ -43,7 +43,7 @@ let assigned_list_cast_arguments = select l.loop as loop, l.file as file, l.call
 let nodes = select id, kind, file from "semantic-syntax";
 let loop_body_edges = select parent, child, file from "semantic-child" where field = "body";
 let body_roots = select r.child as id, l.id as loop, l.file as file from loops as l join loop_body_edges as r on l.id = r.parent and l.file = r.file;
-let mutation_statements = select id, kind, file from nodes where kind = "expr" or kind = "assign" or kind = "ann-assign" or kind = "aug-assign" or kind = "delete";
+let mutation_statements = select id, kind, file from nodes where kind in ["expr", "assign", "ann-assign", "aug-assign", "delete"];
 let nested_statements = axis(from=body_roots, relation="semantic-child", direction=descendant, domain=mutation_statements);
 let nested_rows = select l.loop as loop, l.file as file, r.related as statement from body_roots as l join nested_statements as r on l.id = r.id and l.file = r.file;
 let direct_rows = select l.loop as loop, l.file as file, r.id as statement from body_roots as l join mutation_statements as r on l.id = r.id and l.file = r.file;
@@ -54,7 +54,7 @@ let expression_calls = select l.loop as loop, l.file as file, r.child as call fr
 let expression_functions = select l.loop as loop, l.file as file, r.child as function from expression_calls as l join function_fields as r on l.call = r.parent and l.file = r.file;
 let attr_edges = select parent, child, file from "semantic-child" where field = "attr";
 let function_attrs = select l.loop as loop, l.file as file, l.function as function, r.child as identifier from expression_functions as l join attr_edges as r on l.function = r.parent and l.file = r.file;
-let methods = select l.loop as loop, l.file as file, l.function as function from function_attrs as l join "identifier" as r on l.identifier = r.id and l.file = r.file where r.name = "append" or r.name = "insert" or r.name = "extend" or r.name = "remove" or r.name = "pop" or r.name = "clear" or r.name = "reverse" or r.name = "sort";
+let methods = select l.loop as loop, l.file as file, l.function as function from function_attrs as l join "identifier" as r on l.identifier = r.id and l.file = r.file where r.name in ["append", "insert", "extend", "remove", "pop", "clear", "reverse", "sort"];
 let receivers = select l.loop as loop, l.file as file, r.child as receiver from methods as l join assignment_values as r on l.function = r.parent and l.file = r.file;
 let name_nodes = select id, file from nodes where kind = "name";
 let names = select l.id as id, l.file as file, r.name as name from name_nodes as l join "identifier" as r on l.id = r.id and l.file = r.file;

@@ -197,7 +197,15 @@ fn walk_rows(
             TermGiven::Given | TermGiven::Open,
             AxisDirection::NextSibling | AxisDirection::PreviousSibling,
         ) if start != reached => Some(CHILDREN),
-        (TermGiven::Given | TermGiven::Open, TermGiven::Given | TermGiven::Open, _) => None,
+        (
+            TermGiven::Given | TermGiven::Open,
+            TermGiven::Given | TermGiven::Open,
+            AxisDirection::Parent
+            | AxisDirection::Ancestor
+            | AxisDirection::Descendant
+            | AxisDirection::NextSibling
+            | AxisDirection::PreviousSibling,
+        ) => None,
     }
 }
 

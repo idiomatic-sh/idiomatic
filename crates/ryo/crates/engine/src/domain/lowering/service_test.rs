@@ -5,7 +5,7 @@
 
 use super::errors::LoweringError;
 use super::fixtures::described::{code_census, described};
-use super::fixtures::named;
+use super::fixtures::{digests_of, named};
 use super::placement::types::SampleStage;
 use super::service::{lowered, lowered_at};
 use super::types::{LoadRefusal, PlanNode, SelectedRule, SelectedRules};
@@ -13,6 +13,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::encoding::service::encoded;
 use ryo_values::domain::descriptions::types::{KindVocabulary, LanguageName};
 use ryo_values::domain::query_bindings::types::RuleBindings;
+use ryo_values::domain::query_plans::types::NodeDigests;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 use std::borrow::Cow;
 
@@ -229,6 +230,27 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ))),
     },
     Case {
+        name: CaseName("a_group_bound_is_a_group_table_of_its_inputs_rows_and_the_rule_walks_it"),
+        word: Word::Succeeds,
+        input: || (&["group-max ties"], SampleStage::Absent),
+        expect: Expect::Value(Cow::Borrowed(concat!(
+            "definition 0: 5 columns, emptiness All([Unknown, Unknown])\n",
+            "  pattern bound [] collected []: Table 2\n",
+            "  pattern bound [3] collected [2]: Table 2\n",
+            "definition 1: 4 columns, emptiness All([Definition(DefinitionId(0)), Definition(DefinitionId(0))])\n",
+            "  pattern bound [] collected []: Table 1\n",
+            "table 0: Group(Ends), 4 columns, indexes []\n",
+            "  pipeline: Scan:File Read:Constant Read:Constant Read:Constant\n",
+            "table 1: Rows, 4 columns, indexes []\n",
+            "  pipeline: Scan:File Read:Constant Read:Constant Use:Fanout\n",
+            "table 2: Rows, 5 columns, indexes [[3]]\n",
+            "  pipeline: Scan:File Read:Constant Read:Constant Probe:Fanout Read:Constant\n",
+            "rule 0: 1 branches\n",
+            "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Emit:Constant\n",
+            "codes: {\"EachRowMade\": 1, \"Emit\": 1, \"End\": 2, \"ReadMade\": 3, \"StageProbe\": 2, \"StageRead\": 9, \"StageScan\": 3, \"StageWrite\": 3}",
+        ))),
+    },
+    Case {
         name: CaseName("a_rule_set_whose_every_rule_is_refused_answers_the_last_refusal"),
         word: Word::Refuses,
         input: || {
@@ -246,18 +268,26 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 fn subject((scenes, stage): Input) -> Result<Value, Failure> {
     let plans: Vec<_> = scenes.iter().map(|scene| named(scene)).collect();
+    let digests: Vec<NodeDigests> = plans
+        .iter()
+        .map(|plan| digests_of(plan, RuleBindings(&[])))
+        .collect();
     let rules: Vec<SelectedRule<'_>> = plans
         .iter()
+        .zip(&digests)
         .zip(0..)
-        .map(|(plan, rule)| SelectedRule {
+        .map(|((plan, digests), rule)| SelectedRule {
             rule: SelectedRuleOrdinal(rule),
             plan,
             bindings: RuleBindings(&[]),
+            digests,
         })
         .collect();
     let kinds = KindVocabulary {
         language: LanguageName("walking".into()),
         kinds: Vec::new(),
+        fields: Vec::new(),
+        fixed: Vec::new(),
     };
     let lowered = match stage {
         SampleStage::Absent => lowered(SelectedRules(&rules), None, &kinds),

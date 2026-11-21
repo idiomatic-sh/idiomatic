@@ -1,9 +1,10 @@
 //! The `walk` contract's cases: over every Python source of the language's fixtures (514 files, the parser's suite among them), the walk writes the tree today's reading writes
 //! (every element, under the same parent, at the same place; in the same field wherever the parser accepts the file) and its table keeps the laws of the engine's node
-//! table; the lent file says the number the run gave it; the linked language carries this walk for the engine; a file that is not
-//! Python is not walked.
+//! table; the lent file says the number the run gave it; the linked language carries this walk for the engine, with the names the
+//! walk states for the run (each kind and each field at the code the table holds for it); a file that is not Python is not walked.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::labels::service::{field_bits, field_name, fields};
 use crate::domain::labels::types::Field;
 use crate::domain::syntax::service::{kind_name, kind_of, kinds};
 use crate::fixtures::table_laws::broken_laws;
@@ -11,8 +12,8 @@ use crate::fixtures::today::{Read, read, read_keys, read_placements};
 use crate::fixtures::walking::{Placement, walked, walked_own_keys, walked_placements};
 use crate::outbound::syntax::fixtures::library::fixture_sources;
 use ryo::languages::{
-    self, ByteSlice, FileFacts, FileId, FileVisit, NodeTable, Offset, RelationNeeds, Walk,
-    WalkError, WalkRequest, node_table,
+    self, ByteSlice, FileFacts, FileId, FileVisit, KindBits, NodeTable, Offset, RelationNeeds,
+    Walk, WalkError, WalkRequest, node_table,
 };
 
 /// What a case asks of the walk.
@@ -24,6 +25,9 @@ enum Asked {
     Laws,
     /// Whether the walk's kind count is the count of the language's kinds.
     Kinds,
+    /// What differs between the names the walk states for the run and the names of the codes it writes, and between them and
+    /// the names the linked language's walk states.
+    Names,
     /// What the walk answers for a file at this path.
     Path(&'static str),
     /// What differs between the number the run gave a file and the number the lent file says.
@@ -55,6 +59,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("the_kind_count_is_the_count_of_the_language_s_kinds"),
         word: Word::Succeeds,
         input: || Asked::Kinds,
+        expect: Expect::Value(String::new()),
+    },
+    Case {
+        name: CaseName("the_walk_names_each_kind_and_each_field_at_its_code"),
+        word: Word::Succeeds,
+        input: || Asked::Names,
         expect: Expect::Value(String::new()),
     },
     Case {
@@ -191,6 +201,50 @@ fn kind_difference<W: Walk>(_walk: &W) -> String {
     }
 }
 
+/// What differs between the names the walk states for the run and the names of the codes it writes into the node table: a kind
+/// is named at its code, a field at its code, and the linked language's walk states the same names. A walk that names no kind
+/// or no field is a difference too.
+fn name_differences<W: Walk>(_walk: &W) -> String {
+    let names = W::vocabulary();
+    let mut found = String::new();
+    if names.kinds.0.len() != W::KIND_COUNT.0 || names.kinds.0.is_empty() {
+        found.push_str(&format!(
+            "{} kinds named, {} counted\n",
+            names.kinds.0.len(),
+            W::KIND_COUNT.0
+        ));
+    }
+    for (code, stated) in names.kinds.0.iter().enumerate() {
+        let written = kind_name(kind_of(KindBits(u16::try_from(code).unwrap_or(u16::MAX))));
+        if *stated != written {
+            found.push_str(&format!(
+                "kind {code} is named {}, the table's is {}\n",
+                stated.0, written.0
+            ));
+        }
+    }
+    if names.fields.0.len() != fields().count() || names.fields.0.is_empty() {
+        found.push_str(&format!(
+            "{} fields named, {} in the language\n",
+            names.fields.0.len(),
+            fields().count()
+        ));
+    }
+    for field in fields() {
+        let code = usize::from(field_bits(field).0);
+        if names.fields.0.get(code) != Some(&field_name(field)) {
+            found.push_str(&format!(
+                "field {code} is not named {}\n",
+                field_name(field).0
+            ));
+        }
+    }
+    if crate::linked().walk_engine().vocabulary() != names {
+        found.push_str("the linked walk states other names\n");
+    }
+    found
+}
+
 /// The visit that keeps which file of the run the lent file says it is.
 struct Numbering(Option<FileId>);
 
@@ -286,6 +340,7 @@ fn subject(asked: Input) -> Result<Value, Failure> {
             .map(|(path, bytes)| law_differences(&crate::walk(), path, bytes))
             .collect(),
         Asked::Kinds => Ok(kind_difference(&crate::walk())),
+        Asked::Names => Ok(name_differences(&crate::walk())),
         Asked::Path(path) => {
             let (mut table, mut scratch) = (NodeTable::default(), Default::default());
             let mut visits = 0_u32;

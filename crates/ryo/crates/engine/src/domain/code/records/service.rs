@@ -2,6 +2,7 @@
 //! none for a place the slots do not reach and for a tag no record has.
 
 use super::types::{BodyRecord, BoundFormal, CollectedRead, NeedRecord, PooledOperand, ReadBody};
+use crate::domain::code::constants::NO_SLOT;
 use crate::domain::code::types::{
     CodeEntry, ConstantNumber, IndexSite, MemoSite, NeedSite, PoolAt, RelationNumber, WordSlot,
 };
@@ -69,7 +70,8 @@ pub(crate) fn push_inline_body(pool: &mut Vec<WordSlot>, entry: CodeEntry) -> Po
     at
 }
 
-/// Writes the record of a use of a pattern in call form.
+/// Writes the record of a use of a pattern in call form. Its entry and its unit are written again once the pattern's program
+/// has its place and its unit (`call_entry_place`, `call_unit_place`): until then the unit is `NO_SLOT`.
 pub(crate) fn push_call_body(
     pool: &mut Vec<WordSlot>,
     entry: CodeEntry,
@@ -78,7 +80,13 @@ pub(crate) fn push_call_body(
 ) -> PoolAt {
     let at = next_place(pool);
     let count = count_of(bound);
-    pool.extend_from_slice(&[WordSlot(1), WordSlot(entry.0), WordSlot(memo.0), count]);
+    pool.extend_from_slice(&[
+        WordSlot(1),
+        WordSlot(entry.0),
+        WordSlot(memo.0),
+        NO_SLOT,
+        count,
+    ]);
     for each in bound {
         pool.push(WordSlot(each.formal.0));
         push_operand(pool, each.value);
@@ -91,6 +99,12 @@ pub(crate) fn push_call_body(
 #[must_use]
 pub(crate) const fn call_entry_place(record: PoolAt) -> PoolAt {
     PoolAt(record.0.saturating_add(1))
+}
+
+/// The place of the unit in the record of a use of a pattern in call form that starts at `record`.
+#[must_use]
+pub(crate) const fn call_unit_place(record: PoolAt) -> PoolAt {
+    PoolAt(record.0.saturating_add(3))
 }
 
 /// Writes the record of a use of a pattern in table form.
@@ -124,19 +138,20 @@ pub(crate) fn body_at(pool: &[WordSlot], at: PoolAt) -> Option<ReadBody> {
             2,
         ),
         1 => {
-            let bound = slot(3)?;
+            let bound = slot(4)?;
             let record = BodyRecord::Call {
                 entry: CodeEntry(slot(1)?.0),
                 memo: MemoSite(slot(2)?.0),
+                unit: slot(3)?,
                 bound,
-                formals: PoolAt(at.0.checked_add(4)?),
+                formals: PoolAt(at.0.checked_add(5)?),
             };
             (
                 record,
                 bound
                     .0
                     .checked_mul(OPERAND_SLOTS.0.checked_add(1)?)?
-                    .checked_add(4)?,
+                    .checked_add(5)?,
             )
         }
         2 => {

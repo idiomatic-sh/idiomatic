@@ -40,7 +40,7 @@ let nested_with_body = select l.inner_with as inner_with, r.child as statement f
 let nested_with_counts = group-count(from=nested_with_body, keys=["inner_with"], count="count", distinct="statement");
 let nested_with_many = select inner_with as id from nested_with_counts where count > 1;
 let nested_with_one = select l.inner_with as inner_with, l.statement as statement from nested_with_body as l join nested_with_counts as r on l.inner_with = r.inner_with where r.count = 1;
-let nested_compounds = select id from statement_kinds where kind = "if" or kind = "while" or kind = "match" or kind = "try" or kind = "with" or kind = "for" or kind = "class-def" or kind = "function-def" or kind = "async-function-def";
+let nested_compounds = select id from statement_kinds where kind in ["if", "while", "match", "try", "with", "for", "class-def", "function-def", "async-function-def"];
 let nested_with_compound = select l.inner_with as id from nested_with_one as l join nested_compounds as r on l.statement = r.id;
 let nested_with_bad = union(left=nested_with_many, right=nested_with_compound);
 let nested_bad_outer = select l.id as id from nested_with as l join nested_with_bad as r on l.inner_with = r.id;

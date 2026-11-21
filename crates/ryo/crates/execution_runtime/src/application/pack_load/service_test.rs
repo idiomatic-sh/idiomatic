@@ -23,6 +23,7 @@ use ryo_values::domain::stores::types::StoredPack;
 use std::borrow::Cow;
 use std::sync::atomic::Ordering;
 
+mod digests;
 mod read_back;
 
 /// What a row does.
@@ -171,6 +172,8 @@ fn kinds(language: &str, kind: &str) -> KindVocabulary {
     KindVocabulary {
         language: LanguageName(language.into()),
         kinds: vec![KindWord(kind.into())],
+        fields: Vec::new(),
+        fixed: Vec::new(),
     }
 }
 

@@ -29,6 +29,7 @@ fn started(pack: &LoweredPack) -> Encoding<'_> {
         fill: Short(0),
         operands: NO_SLOT,
         need: NeedSite(NO_SLOT.0),
+        unit: NO_SLOT,
     };
     Encoding {
         pack,
@@ -67,6 +68,7 @@ fn rule_written(encoding: &mut Encoding<'_>, rule: &LoweredRule) -> Result<(), L
         MeasuredForm::Call,
         ShapeChoice::Decided,
     )?;
+    let unit = encoding.unit.unit;
     let mut branches = Vec::with_capacity(rule.branches.len());
     for branch in &rule.branches {
         let need = need_site(encoding, &branch.emptiness)?;
@@ -76,6 +78,7 @@ fn rule_written(encoding: &mut Encoding<'_>, rule: &LoweredRule) -> Result<(), L
     end_unit(encoding)?;
     encoding.code.rules.push(RuleCode {
         rule: rule.rule,
+        unit,
         branches: branches.into(),
         columns: rule.columns.clone(),
     });

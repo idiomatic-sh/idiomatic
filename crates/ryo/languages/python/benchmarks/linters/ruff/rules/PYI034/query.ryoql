@@ -21,7 +21,7 @@ let method_names = select l.function as function, l.class as class, n.name as me
 let class_method_names = select l.function as function, l.class as class, l.method as method, l.name_id as name_id, r.name as class_name, l.file as file from method_names as l join class_names as r on l.class = r.class and l.file = r.file;
 let sync_class_methods = select l.function as function, l.class as class, l.method as method, l.name_id as name_id, l.class_name as class_name, l.file as file from class_method_names as l join sync_functions as r on l.function = r.id and l.file = r.file;
 let async_class_methods = select l.function as function, l.class as class, l.method as method, l.name_id as name_id, l.class_name as class_name, l.file as file from class_method_names as l join async_functions as r on l.function = r.id and l.file = r.file;
-let sync_fixed_methods = select * from sync_class_methods where method = "__enter__" or method = "__new__" or method = "__iadd__" or method = "__isub__" or method = "__imul__" or method = "__imatmul__" or method = "__itruediv__" or method = "__ifloordiv__" or method = "__imod__" or method = "__ipow__" or method = "__ilshift__" or method = "__irshift__" or method = "__iand__" or method = "__ixor__" or method = "__ior__";
+let sync_fixed_methods = select * from sync_class_methods where method in ["__enter__", "__new__", "__iadd__", "__isub__", "__imul__", "__imatmul__", "__itruediv__", "__ifloordiv__", "__imod__", "__ipow__", "__ilshift__", "__irshift__", "__iand__", "__ixor__", "__ior__"];
 let async_fixed_methods = select * from async_class_methods where method = "__aenter__";
 let all_fixed_methods = union(left=sync_fixed_methods, right=async_fixed_methods);
 let iterator_base_names = select id, file from "qualified-name" where path = "typing.Iterator" or path = "collections.abc.Iterator";
@@ -64,12 +64,12 @@ let class_decorator_items = select l.class as class, r.child as decorator, l.fil
 let final_decorator_names = select id, file from "qualified-name" where path = "typing.final" or path = "typing_extensions.final";
 let final_classes = select l.class as class, l.file as file from class_decorator_items as l join final_decorator_names as r on l.decorator = r.id and l.file = r.file;
 let final_sensitive_methods = select * from matching_returns where method = "__enter__" or method = "__new__" or method = "__aenter__";
-let final_safe_methods = select * from matching_returns where method = "__iadd__" or method = "__isub__" or method = "__imul__" or method = "__imatmul__" or method = "__itruediv__" or method = "__ifloordiv__" or method = "__imod__" or method = "__ipow__" or method = "__ilshift__" or method = "__irshift__" or method = "__iand__" or method = "__ixor__" or method = "__ior__";
+let final_safe_methods = select * from matching_returns where method in ["__iadd__", "__isub__", "__imul__", "__imatmul__", "__itruediv__", "__ifloordiv__", "__imod__", "__ipow__", "__ilshift__", "__irshift__", "__iand__", "__ixor__", "__ior__"];
 let nonfinal_sensitive_methods = antijoin(left=final_sensitive_methods, right=final_classes, left-on=["class", "file"], right-on=["class", "file"]);
 let final_checked_methods = union(left=nonfinal_sensitive_methods, right=final_safe_methods);
 let decorators = select parent as function, child as list, file from "semantic-child" where field = "decorator-list";
 let decorator_items = select l.function as function, r.child as decorator, l.file as file from decorators as l join "semantic-child" as r on l.list = r.parent and l.file = r.file;
-let abstract_overload_names = select id, file from "qualified-name" where path = "abc.abstractmethod" or path = "typing.abstractmethod" or path = "typing_extensions.abstractmethod" or path = "typing.overload" or path = "typing_extensions.overload";
+let abstract_overload_names = select id, file from "qualified-name" where path in ["abc.abstractmethod", "typing.abstractmethod", "typing_extensions.abstractmethod", "typing.overload", "typing_extensions.overload"];
 let abstract_or_overload_methods = select l.function as function, l.file as file from decorator_items as l join abstract_overload_names as r on l.decorator = r.id and l.file = r.file;
 let concrete_methods = antijoin(left=final_checked_methods, right=abstract_or_overload_methods, left-on=["function", "file"], right-on=["function", "file"]);
 let metaclass_root_classes = select function as context, class, file from class_method_names;

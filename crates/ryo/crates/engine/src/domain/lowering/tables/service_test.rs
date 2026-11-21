@@ -8,16 +8,16 @@ use super::types::RuleFlattening;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::lowering::definitions::types::Drafts;
 use crate::domain::lowering::fixtures::growth::growth_plan;
-use crate::domain::lowering::fixtures::named;
+use crate::domain::lowering::fixtures::{digests_of, named};
 use crate::domain::lowering::nodes::service::stored;
-use crate::domain::lowering::nodes::types::{AcceptedPlace, AdmittedRule};
+use crate::domain::lowering::nodes::types::AcceptedPlace;
 use crate::domain::lowering::types::{LoadRefusal, PastWidth, PlanNode, SelectedRule};
 use ryo_values::domain::descriptions::types::{KindVocabulary, LanguageName};
 use ryo_values::domain::plan_parts::types::{Input as PlanInput, Side, StepId, StepScope};
 use ryo_values::domain::plans::types::{Operation, PlanStep};
 use ryo_values::domain::query_bindings::types::RuleBindings;
 use ryo_values::domain::query_operators::types::OperationKind;
-use ryo_values::domain::query_plans::types::Plan;
+use ryo_values::domain::query_plans::types::{NodeDigests, Plan};
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 use std::borrow::Cow;
 
@@ -82,7 +82,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     said(
         "the_kinds_of_operation_the_lowering_evaluates_are_these",
         || Asked::Kinds,
-        "[AsOf, Select, Project, Extend, Join, Union, Antijoin, GroupCount, Axis]",
+        "[AsOf, Select, Project, Extend, Join, Union, Antijoin, GroupCount, GroupBound, Axis]",
     ),
     said(
         "a_plan_walk_visits_each_step_once_a_chain_of_self_joins_twice_as_deep_is_twice_the_work",
@@ -111,29 +111,33 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     ),
 ];
 
-fn rule(plan: &Plan) -> SelectedRule<'_> {
+fn rule<'a>(plan: &'a Plan, digests: &'a NodeDigests) -> SelectedRule<'a> {
     SelectedRule {
         rule: SelectedRuleOrdinal(0),
         plan,
         bindings: RuleBindings(&[]),
+        digests,
     }
+}
+
+/// A plan admitted, with its bindings none and its digests the fixture's.
+fn admitted_plan(plan: &Plan) -> Result<usize, LoadRefusal> {
+    let digests = digests_of(plan, RuleBindings(&[]));
+    let nodes = admitted(rule(plan, &digests))?;
+    let emitted = nodes.shapes.get(usize::from(plan.emit.step));
+    Ok(emitted
+        .and_then(Option::as_ref)
+        .map_or(0, |shape| shape.0.len()))
 }
 
 fn subject(asked: Input) -> Result<Value, Failure> {
     Ok(Cow::Owned(match asked {
-        Asked::Admitted(plan) => {
-            let nodes = admitted(rule(&plan))?;
-            let emitted = nodes.shapes.get(usize::from(plan.emit.step));
-            let columns = emitted
-                .and_then(Option::as_ref)
-                .map_or(0, |shape| shape.0.len());
-            format!("{columns} columns")
-        }
+        Asked::Admitted(plan) => format!("{} columns", admitted_plan(&plan)?),
         Asked::Kinds => {
             let lowered = OperationKind::ALL.iter().copied();
             let kinds: Vec<OperationKind> = lowered
-                .filter_map(|kind| match admitted(rule(&growth_plan(kind))) {
-                    Ok(AdmittedRule { .. }) => Some(kind),
+                .filter_map(|kind| match admitted_plan(&growth_plan(kind)) {
+                    Ok(columns) => (columns > 0).then_some(kind),
                     Err(LoadRefusal::Unlowerable(_) | LoadRefusal::Budget(_)) => None,
                 })
                 .collect();
@@ -193,11 +197,14 @@ fn chain(depth: u32) -> Plan {
 /// The work of flattening a chain: the variables and the definitions it makes.
 fn work(depth: u32) -> Option<u64> {
     let plan = chain(depth);
-    let rules = [admitted(rule(&plan)).ok()?];
+    let digests = digests_of(&plan, RuleBindings(&[]));
+    let rules = [admitted(rule(&plan, &digests)).ok()?];
     let store = stored(&rules);
     let kinds = KindVocabulary {
         language: LanguageName("walking".into()),
         kinds: Vec::new(),
+        fields: Vec::new(),
+        fixed: Vec::new(),
     };
     let mut drafts = Drafts::default();
     let mut state = RuleFlattening {

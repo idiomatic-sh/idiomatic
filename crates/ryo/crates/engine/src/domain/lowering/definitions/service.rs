@@ -14,7 +14,8 @@ use crate::domain::steps::types::{
     ColumnMask, ConstantText, DefinitionId, RegexId, Register, RegisterCount, StepRegex,
 };
 use ryo_language::domain::facts::types::CellWord;
-use ryo_relations::domain::relations::types::CellKind;
+use ryo_relations::domain::relations::types::{CellKind, KindBits};
+use ryo_values::domain::descriptions::types::KindVocabulary;
 use ryo_values::domain::plan_parts::types::LiteralText;
 use ryo_values::domain::query_plans::types::NodeDigest;
 
@@ -32,18 +33,36 @@ pub(crate) fn fresh_register(drafts: &mut Drafts) -> Register {
     register
 }
 
-/// The number of a constant text: each text once, numbered from zero in the order first written.
-pub(crate) fn text(drafts: &mut Drafts, written: &LiteralText) -> TextNumber {
+/// The number of a constant text: its base word. The run's base words are the empty text (word 0), the language's fixed
+/// names at their places, then the pack's constant texts in their order: so the empty text and a fixed name are their own
+/// words and never enter the pack's texts, and every other text enters them once. The pack's texts are thereby distinct,
+/// non-empty and no fixed name, which is what the numbering needs.
+pub(crate) fn text(
+    drafts: &mut Drafts,
+    kinds: &KindVocabulary,
+    written: &LiteralText,
+) -> TextNumber {
     if let Some(number) = drafts.text_numbers.get(written) {
         return *number;
     }
-    let number = TextNumber(u32::try_from(drafts.texts.len()).unwrap_or(u32::MAX));
-    drafts.texts.push(ConstantText(written.0.clone()));
+    let fixed = kinds.fixed.iter().position(|name| name.0 == written.0);
+    let word = match (written.0.is_empty(), fixed) {
+        (true, _) => 0,
+        (false, Some(place)) => place.saturating_add(1),
+        (false, None) => {
+            drafts.texts.push(ConstantText(written.0.clone()));
+            kinds.fixed.len().saturating_add(drafts.texts.len())
+        }
+    };
+    let number = TextNumber(u32::try_from(word).unwrap_or(u32::MAX));
     let _new = drafts.text_numbers.insert(written.clone(), number);
+    let _named = drafts
+        .written
+        .insert(number, ConstantText(written.0.clone()));
     number
 }
 
-/// The base word of a constant text: the run's base words code the pack's texts from zero in the pack's order.
+/// The base word of a constant text: its number.
 #[must_use]
 pub(crate) fn text_word(number: TextNumber) -> CellWord {
     CellWord(u64::from(number.0))
@@ -161,4 +180,15 @@ pub(crate) fn asked(
         definition,
         pattern: PatternPlace(draft.patterns.len().saturating_sub(1)),
     });
+}
+
+/// The kind a written name is in a language's vocabulary: its place there. None when the vocabulary does not hold the name,
+/// and for a place past the sixteen bits a kind is counted in.
+#[must_use]
+pub(crate) fn kind_bits(kinds: &KindVocabulary, written: &ConstantText) -> Option<KindBits> {
+    let place = kinds.kinds.iter().position(|kind| kind.0 == written.0)?;
+    match u16::try_from(place) {
+        Ok(bits) => Some(KindBits(bits)),
+        Err(_) => None,
+    }
 }

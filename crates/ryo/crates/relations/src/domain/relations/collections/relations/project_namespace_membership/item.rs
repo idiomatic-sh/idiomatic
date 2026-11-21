@@ -24,6 +24,8 @@ macro_rules! project_namespace_membership {
             scope Project,
             notes Needed,
             form Filled(Whole),
+            size PerElement,
+            keys [],
             columns {
                 /// The file that imports the root.
                 file File: FileId => File;

@@ -5,7 +5,7 @@ let names = select l.id as id, l.file as file, l.span as span, r.text as name fr
 let declarations = select l.parent as declaration, r.id as id, r.file as file, r.span as span, r.name as name from "semantic-child" as l join names as r on l.child = r.id where l.field = "id";
 let classes = select l.declaration as id, l.id as ident, l.file as file, l.span as span, l.name as name from declarations as l join "semantic-syntax" as r on l.declaration = r.id where r.kind = "class-declaration" or r.kind = "class-expression";
 let interfaces = select l.declaration as id, l.id as ident, l.file as file, l.span as span, l.name as name from declarations as l join "semantic-syntax" as r on l.declaration = r.id where r.kind = "ts-interface-declaration";
-let scopes = select id from "semantic-syntax" where kind = "program" or kind = "block-statement" or kind = "static-block" or kind = "ts-module-declaration" or kind = "switch-statement" or kind = "for-statement" or kind = "for-in-statement" or kind = "for-of-statement" or kind = "catch-clause" or kind = "function-declaration" or kind = "function-expression" or kind = "arrow-function-expression" or kind = "class-declaration" or kind = "class-expression";
+let scopes = select id from "semantic-syntax" where kind in ["program", "block-statement", "static-block", "ts-module-declaration", "switch-statement", "for-statement", "for-in-statement", "for-of-statement", "catch-clause", "function-declaration", "function-expression", "arrow-function-expression", "class-declaration", "class-expression"];
 let class_rows = select id, file, span from classes;
 let interface_rows = select id, file, span from interfaces;
 let class_scopes = axis(from=class_rows, relation="semantic-child", direction=nearest-ancestor, domain=scopes);

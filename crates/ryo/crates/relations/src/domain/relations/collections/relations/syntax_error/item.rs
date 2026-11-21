@@ -34,6 +34,8 @@ macro_rules! syntax_error {
             scope File,
             notes Unneeded,
             form Filled(Many(Id)),
+            size PerElement,
+            keys [],
             columns {
                 /// The error: its file and where it is.
                 id Id: NodeId => Node;

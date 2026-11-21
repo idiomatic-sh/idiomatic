@@ -98,24 +98,10 @@ pub fn walked_keys(table: &NodeTable) -> Keys {
     }))
 }
 
-/// How many elements the file's own tree has in the walk's table: its nodes, then its tokens; the first node after them is the
-/// root of an embedded segment.
+/// How many elements the file's own tree has in the walk's table: its nodes, then its tokens; the embedded segments follow.
 #[must_use]
 pub fn walked_own_count(table: &NodeTable) -> usize {
-    use crate::domain::extras::types::Extra;
-    use crate::domain::syntax::service::kind_of;
-    use crate::domain::syntax::types::Kind;
-    let nodes = node_table::node_count(table).0;
-    let count = node_table::element_count(table).0;
-    (nodes..count)
-        .find(|id| {
-            let at = Position(u32::try_from(*id).unwrap_or(u32::MAX));
-            !matches!(
-                kind_of(node_table::kind_of(table, at)),
-                Kind::Token(_) | Kind::Extra(Extra::Whitespace)
-            )
-        })
-        .unwrap_or(count)
+    usize::from(node_table::own_end(table))
 }
 
 /// The key of each element of the file's own tree in the walk's table.
@@ -285,7 +271,9 @@ pub fn walked_rows(
     words: &mut languages::FileWords,
 ) -> (Vec<Vec<Seen>>, FactAnswer) {
     let mut columns = FilledColumns::default();
-    let answer = file.facts.fill(relation, words, &mut columns);
+    let answer = file
+        .facts
+        .fill(relation, languages::Wanted::Whole, words, &mut columns);
     let kinds = column_kinds(relation);
     let count = columns.0.first().map_or(0, |column| column.0.len());
     let mut rows: Vec<Vec<Seen>> = (0..count)

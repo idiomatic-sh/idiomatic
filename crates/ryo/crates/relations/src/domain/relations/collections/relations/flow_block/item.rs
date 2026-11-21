@@ -37,6 +37,8 @@ macro_rules! flow_block {
             scope File,
             notes Unneeded,
             form Filled(Whole),
+            size PerElement,
+            keys [],
             columns {
                 /// The block, by its number in the file.
                 block Block: Integer => Number;

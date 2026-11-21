@@ -3,11 +3,12 @@
 
 use super::service::{digest_of, readers, stored};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::lowering::fixtures::named;
+use crate::domain::lowering::fixtures::{digests_of, named};
 use crate::domain::lowering::tables::service::admitted;
 use crate::domain::lowering::types::SelectedRule;
 use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::query_bindings::types::RuleBindings;
+use ryo_values::domain::query_plans::types::NodeDigests;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 
 /// The scenes whose plans are stored together, one rule each.
@@ -44,12 +45,17 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 fn subject(scenes: Input) -> Result<Value, Failure> {
     let plans: Vec<_> = scenes.iter().map(|scene| named(scene)).collect();
+    let digests: Vec<NodeDigests> = plans
+        .iter()
+        .map(|plan| digests_of(plan, RuleBindings(&[])))
+        .collect();
     let mut rules = Vec::new();
-    for (plan, ordinal) in plans.iter().zip(0..) {
+    for ((plan, digests), ordinal) in plans.iter().zip(&digests).zip(0..) {
         let rule = SelectedRule {
             rule: SelectedRuleOrdinal(ordinal),
             plan,
             bindings: RuleBindings(&[]),
+            digests,
         };
         rules.push(admitted(rule).map_err(|_| ())?);
     }

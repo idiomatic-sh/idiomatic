@@ -35,6 +35,8 @@ macro_rules! visibility {
             scope File,
             notes Unneeded,
             form Filled(Many(Occurrence)),
+            size PerElement,
+            keys [],
             columns {
                 /// The visibility: its file and where it starts.
                 occurrence Occurrence: NodeId => Node;

@@ -2,6 +2,7 @@
 //! once, followed from a relation's key column through the steps that keep it.
 
 use super::types::DistinctMemo;
+use super::types::KeysFollowed;
 use super::types::StepKeys;
 use crate::domain::lowering::types::Uniqueness;
 use crate::domain::resolving::service::relation_fields;
@@ -47,11 +48,12 @@ pub(crate) fn distinct_on(
     columns.sort_unstable();
     columns.dedup();
     let at = StepKeys { step: id, columns };
-    if let Some(found) = memo.0.get(&at) {
+    if let Some(found) = memo.found.get(&at) {
         return *found;
     }
     let found = step_distinct(steps, memo, id, &at.columns).unwrap_or(Uniqueness::Shared);
-    let _first = memo.0.insert(at, found);
+    let _first = memo.found.insert(at, found);
+    memo.followed = KeysFollowed(memo.followed.0.saturating_add(1));
     found
 }
 

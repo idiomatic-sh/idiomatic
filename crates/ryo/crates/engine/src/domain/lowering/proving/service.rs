@@ -130,7 +130,14 @@ const fn test_proved(left: &StepOperand, right: &StepOperand) -> Result<(), Proo
             StepOperand::Register(_) | StepOperand::Word(_),
             StepOperand::Register(_) | StepOperand::Word(_) | StepOperand::Words(_),
         ) => Ok(()),
-        (StepOperand::Words(_) | StepOperand::File, _) | (_, StepOperand::File) => {
+        (
+            StepOperand::Words(_) | StepOperand::File,
+            StepOperand::Register(_)
+            | StepOperand::Word(_)
+            | StepOperand::Words(_)
+            | StepOperand::File,
+        )
+        | (StepOperand::Register(_) | StepOperand::Word(_), StepOperand::File) => {
             Err(ProofFault::Misplaced)
         }
     }
@@ -244,7 +251,7 @@ fn pipeline_proved(pipeline: &Pipeline, products: ProductStated) -> Result<(), P
 
 /// The pipelines of a fill, in its inputs' order. The contract's own list (`lowered::service::fill_pipelines`) is private to
 /// its module: this is the same list, and goes when that one is `pub(crate)`.
-fn fill_pipelines(fill: &MadeFill) -> Vec<&Pipeline> {
+pub(crate) fn fill_pipelines(fill: &MadeFill) -> Vec<&Pipeline> {
     let inputs: Vec<&FillInput> = match fill {
         MadeFill::Rows(pipelines, _) => return pipelines.iter().collect(),
         MadeFill::Group(_, input) | MadeFill::Ordered(OrderedFill::Sorted(input)) => vec![input],

@@ -25,14 +25,14 @@ let raw_module_imports = select l.context as context, l.expression as expression
 let unaliased_module_imports = antijoin(left=raw_module_imports, right=asnames, left-on=["definition", "file"], right-on=["definition", "file"]);
 let unaliased_deep_imports = select context, expression, definition, target, file from unaliased_module_imports where starts_with(target, "enum.");
 let direct_member_imports = antijoin(left=import_definitions, right=unaliased_deep_imports, left-on=["context", "expression", "definition", "file"], right-on=["context", "expression", "definition", "file"]);
-let known_member_imports = select context, expression, definition, file from direct_member_imports where target = "enum.Enum" or target = "enum.Flag" or target = "enum.IntEnum" or target = "enum.IntFlag" or target = "enum.StrEnum" or target = "enum.ReprEnum" or target = "enum.CheckEnum";
+let known_member_imports = select context, expression, definition, file from direct_member_imports where target in ["enum.Enum", "enum.Flag", "enum.IntEnum", "enum.IntFlag", "enum.StrEnum", "enum.ReprEnum", "enum.CheckEnum"];
 let direct_context_enum_classes = select r.context as context, l.class as enum_class, l.file as file from bare_names as l join known_member_imports as r on l.expression = r.expression and l.file = r.file;
 let plain_module_imports = select context, expression, definition, file from import_definitions where target = "enum";
 let deep_module_imports = select context, expression, definition, file from unaliased_deep_imports;
 let module_imports = union(left=plain_module_imports, right=deep_module_imports);
 let imported_attribute_roots = select r.context as context, l.class as class, l.expression as expression, l.file as file from simple_attribute_roots as l join module_imports as r on l.root = r.expression and l.file = r.file;
 let attribute_labels = select l.context as context, l.class as class, r.child as label, l.file as file from imported_attribute_roots as l join "semantic-child" as r on l.expression = r.parent and l.file = r.file where r.field = "attr";
-let attribute_enum_classes = select l.context as context, l.class as enum_class, l.file as file from attribute_labels as l join "identifier" as r on l.label = r.id and l.file = r.file where r.name = "Enum" or r.name = "Flag" or r.name = "IntEnum" or r.name = "IntFlag" or r.name = "StrEnum" or r.name = "ReprEnum" or r.name = "CheckEnum";
+let attribute_enum_classes = select l.context as context, l.class as enum_class, l.file as file from attribute_labels as l join "identifier" as r on l.label = r.id and l.file = r.file where r.name in ["Enum", "Flag", "IntEnum", "IntFlag", "StrEnum", "ReprEnum", "CheckEnum"];
 let direct_enum_classes = union(left=direct_context_enum_classes, right=attribute_enum_classes);
 let contextual_class_bases = class_bases(ordered_contexts=ordered_contexts);
 let contextual_class_paths = closure(edges=contextual_class_bases, source="child_class", destination="parent_class", keys=["context", "file"]);

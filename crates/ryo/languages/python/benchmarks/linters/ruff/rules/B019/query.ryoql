@@ -59,7 +59,7 @@ let lexical_body_events = select l.id as id, l.name as name, l.scope as scope, l
 let named_expressions = select id, file from nodes where kind = "named-expr";
 let walrus_targets = select r.child as id, l.file as file from named_expressions as l join "semantic-child" as r on l.id = r.parent and l.file = r.file where r.field = "target";
 let walrus_events = select l.id as id, l.name as name, l.scope as scope, l.ordinal as ordinal, l.kind as kind, l.file as file from raw_namespace_events as l join walrus_targets as r on l.id = r.id and l.file = r.file;
-let non_comprehension_scopes = select id, file from nodes where kind = "module" or kind = "function-def" or kind = "async-function-def" or kind = "class-def" or kind = "lambda";
+let non_comprehension_scopes = select id, file from nodes where kind in ["module", "function-def", "async-function-def", "class-def", "lambda"];
 let walrus_lexical_owners = axis(from=walrus_events,relation="semantic-child",direction=nearest-ancestor,domain=non_comprehension_scopes);
 let walrus_body_events = select l.id as id, l.name as name, l.scope as scope, l.ordinal as ordinal, l.kind as kind, l.file as file, l.related as related from walrus_lexical_owners as l join event_body_owners as r on l.id = r.id and l.related = r.scope and l.file = r.file;
 let owned_namespace_events = union(left=lexical_body_events,right=walrus_body_events);
@@ -141,7 +141,7 @@ let required_step_counts = group-count(from=candidate_expression_steps, keys=["c
 let matched_step_counts = group-count(from=matched_steps, keys=["context","expression","class","file"], count="count", distinct="step");
 let attribute_class_resolutions = select l.context as context, l.expression as expression, l.class as class, l.file as file from required_step_counts as l join matched_step_counts as r on l.context = r.context and l.expression = r.expression and l.class = r.class and l.file = r.file where l.count = r.count;
 let class_resolutions = union(left=name_class_resolutions, right=attribute_class_resolutions);
-let enum_names = select id, file from "qualified-name" where path = "enum.Enum" or path = "enum.Flag" or path = "enum.IntEnum" or path = "enum.IntFlag" or path = "enum.StrEnum" or path = "enum.ReprEnum" or path = "enum.CheckEnum";
+let enum_names = select id, file from "qualified-name" where path in ["enum.Enum", "enum.Flag", "enum.IntEnum", "enum.IntFlag", "enum.StrEnum", "enum.ReprEnum", "enum.CheckEnum"];
 let direct_enum_classes = select l.class as id, l.file as file from mapped_bases as l join enum_names as r on l.expression = r.id and l.file = r.file;
 let local_ancestry_edges = select r.context as context, l.class as origin, r.class as destination, l.file as file from mapped_bases as l join class_resolutions as r on l.expression = r.expression and l.file = r.file;
 let class_ancestry = closure(edges=local_ancestry_edges,source="origin",destination="destination",keys=["context","file"]);

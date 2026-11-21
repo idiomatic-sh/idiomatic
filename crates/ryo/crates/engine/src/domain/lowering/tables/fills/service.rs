@@ -146,7 +146,12 @@ pub(crate) fn group_count_arm(
     step: StepId,
     operation: &Operation,
 ) -> Option<Flattened> {
-    let Operation::GroupCount { from, keys, .. } = operation else {
+    let Operation::GroupCount {
+        from,
+        keys,
+        distinct,
+    } = operation
+    else {
         return None;
     };
     let shape = rule(state)?.shapes.get(usize::from(step))?.clone()?;
@@ -159,7 +164,12 @@ pub(crate) fn group_count_arm(
         keys: column_list(keys.iter().map(|key| RowColumn(usize::from(*key)))),
         order: None,
     };
-    let fill = MadeFill::Group(GroupFill::Count { distinct: None }, input);
+    // The column whose distinct values are counted is a column of the rows grouped.
+    let distinct = match distinct {
+        Some(column) => Some(made_column(RowColumn(usize::from(*column)))?),
+        None => None,
+    };
+    let fill = MadeFill::Group(GroupFill::Count { distinct }, input);
     let of = fill_of(state, step, definition)?;
     let table = made_once(drafts, of, fill, ColumnCount(shape.0.len()));
     let key_kinds = shape.0.iter().take(keys.len());
@@ -238,4 +248,49 @@ pub(crate) fn as_of_arm(
     }
     let emptiness = derived(operation, vec![lefts.emptiness, rights.emptiness]);
     Some(Flattened { emptiness, ..lefts })
+}
+
+/// The branch of a group bound: one row of its table, which holds the rows of each key group at one end of the order; rows
+/// tied there are all kept, so a group keyed on the file alone may hold several.
+pub(crate) fn group_bound_arm(
+    state: &mut RuleFlattening<'_>,
+    drafts: &mut Drafts,
+    step: StepId,
+    operation: &Operation,
+) -> Option<Flattened> {
+    let Operation::GroupBound {
+        from,
+        keys,
+        order,
+        end,
+    } = operation
+    else {
+        return None;
+    };
+    let shape = rule(state)?.shapes.get(usize::from(step))?.clone()?;
+    let read = input(state, drafts, *from, InputWant::Defined)?;
+    let Emptiness::Definition(definition) = read.emptiness else {
+        return None;
+    };
+    let grouped = FillInput {
+        pipelines: [scanned(drafts, definition)].into(),
+        keys: column_list(keys.iter().map(|key| RowColumn(usize::from(*key)))),
+        order: Some(made_column(RowColumn(usize::from(*order)))?),
+    };
+    let fill = MadeFill::Group(GroupFill::Ends(*end), grouped);
+    let of = fill_of(state, step, definition)?;
+    let table = made_once(drafts, of, fill, ColumnCount(shape.0.len()));
+    let cells = fresh_cells(drafts, &shape);
+    Some(Flattened {
+        branches: vec![FlatBranch {
+            atoms: vec![FlatAtom::Rows {
+                rows: AtomRows::Made(table),
+                cells: cells.clone(),
+                per_file: RowsPerFile::Many,
+            }],
+            row: cells,
+        }],
+        emptiness: derived(operation, vec![Emptiness::Definition(definition)]),
+        keyless: Vec::new(),
+    })
 }

@@ -34,6 +34,8 @@ macro_rules! annotates {
             scope File,
             notes Unneeded,
             form Filled(Many(Occurrence)),
+            size PerElement,
+            keys [],
             columns {
                 /// The annotation: its file and where it starts.
                 occurrence Occurrence: NodeId => Node;

@@ -181,6 +181,8 @@ pub(crate) struct StateCounts {
 pub(crate) struct RuleCode {
     /// The rule.
     pub(crate) rule: SelectedRuleOrdinal,
+    /// The unit of its own program, every branch: its place among the code's units.
+    pub(crate) unit: WordSlot,
     /// Its branches: the emptiness decision each waits on and where it starts.
     pub(crate) branches: Box<[BranchCode]>,
     /// What each column of the rows it emits holds.
@@ -205,6 +207,9 @@ pub(crate) struct TableCode {
     pub(crate) operands: WordSlot,
     /// The emptiness decision it waits on.
     pub(crate) need: NeedSite,
+    /// The unit of its fill: its place among the code's units; `NO_SLOT` for a table no program reaches, which is not
+    /// written. A table of written rows has a unit like any other, though no word of it is counted.
+    pub(crate) unit: WordSlot,
 }
 
 /// The executable form of a rule set.
@@ -249,7 +254,12 @@ pub(crate) struct IndexCode {
     pub(crate) ordered: WordSlot,
 }
 
-/// A unit of the statistics: a run of plan points and the form it was lowered in.
+/// A unit of the statistics: a run of plan points and the form it was lowered in. The one table every unit number indexes:
+/// a rule's own program is reached by `RuleCode.unit`, a made table's fill by `TableCode.unit`, a pattern in call form by the
+/// unit of its body record (`BodyRecord::Call.unit`); each is given by the encoding itself, whether or not a pass has
+/// numbered a plan point, so a unit with no counted word is reached like any other. A pattern in table form has a unit
+/// that no code names: its table's fill is the unit that runs. A unit knows its node (`key`) and no plan step:
+/// `programs::service::unit_step` answers the step of a rule's own plan.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct UnitCode {
     /// What the unit is named by.

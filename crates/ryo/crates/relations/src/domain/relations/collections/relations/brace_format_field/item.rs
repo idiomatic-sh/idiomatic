@@ -26,6 +26,8 @@ macro_rules! brace_format_field {
             scope File,
             notes Unneeded,
             form Filled(Many(Id)),
+            size PerElement,
+            keys [],
             columns {
                 /// Original string occurrence, joining to `brace-format-parse.id`.
                 id Id: NodeId => Node;

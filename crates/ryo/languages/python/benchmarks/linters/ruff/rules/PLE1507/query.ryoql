@@ -33,7 +33,7 @@ let value_fields = select parent, child from "semantic-child" where field = "val
 let keyword_defaults = select l.call as call, r.child as value, l.file as file from default_keyword_edges as l join value_fields as r on l.keyword = r.parent;
 let all_defaults = union(left=positional_defaults,right=keyword_defaults);
 let primitive_invalid_defaults = select l.call as call, l.value as id, l.file as file, r.span as span from all_defaults as l join "literal-properties" as r on l.value = r.id and l.file = r.file where r.kind != "string";
-let known_container_nodes = select id, file, span from "semantic-syntax" where kind = "list" or kind = "tuple" or kind = "dict" or kind = "set" or kind = "list-comp" or kind = "dict-comp" or kind = "set-comp" or kind = "generator-exp";
+let known_container_nodes = select id, file, span from "semantic-syntax" where kind in ["list", "tuple", "dict", "set", "list-comp", "dict-comp", "set-comp", "generator-exp"];
 let container_invalid_defaults = select l.call as call, l.value as id, l.file as file, r.span as span from all_defaults as l join known_container_nodes as r on l.value = r.id and l.file = r.file;
 let invalid_default_ids = union(left=primitive_invalid_defaults,right=container_invalid_defaults);
 let candidates = select l.id as id, l.file as file, l.span as span from invalid_default_ids as l join getenv_calls as r on l.call = r.call and l.file = r.file;

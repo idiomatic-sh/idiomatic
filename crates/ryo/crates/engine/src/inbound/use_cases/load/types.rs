@@ -4,6 +4,7 @@ use crate::domain::lowering::types::{RefusedRule, SelectedRules};
 use crate::domain::packs::types::{PackBytes, PackDigest};
 use crate::domain::programs::types::Programs;
 use crate::domain::statistics::types::{MatchedStatistics, StatisticsBytes};
+use ryo_language::domain::facts::types::CellWord;
 
 /// What programs are made from.
 ///
@@ -60,4 +61,13 @@ pub(crate) enum LoadPass {
     First,
     /// The last: there is no other, so a rule the encoding refuses takes every rule of the pack with it.
     Last,
+}
+
+/// The words of a vocabulary's names among the run's base words: of each kind by its code, and of each field by its code.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct NamedWords {
+    /// The word of each kind, by kind code.
+    pub(crate) kinds: Vec<CellWord>,
+    /// The word of each field, by field code; code 0, no field, is the empty text's word.
+    pub(crate) fields: Vec<CellWord>,
 }

@@ -12,6 +12,7 @@ pub mod expansions;
 pub mod facts;
 pub mod files;
 pub mod fillers;
+pub mod fixed_names;
 pub mod flow;
 pub mod flow_table;
 pub mod keys;

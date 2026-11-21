@@ -42,13 +42,15 @@ pub(crate) fn term(
         Operand::Column(column) => row.get(usize::from(*column)).copied(),
         Operand::Literal(QueryLiteral::Number(number)) => Some(FlatTerm::Number(*number)),
         Operand::Literal(QueryLiteral::Text(written)) => {
-            Some(FlatTerm::Text(text(drafts, written)))
+            Some(FlatTerm::Text(text(drafts, state.kinds, written)))
         }
         Operand::Parameter(parameter) => {
             let bindings = rule(state)?.rule.bindings.0;
             match bindings.get(usize::try_from(parameter.0).unwrap_or(usize::MAX))? {
                 ParameterBinding::Number(number) => Some(FlatTerm::Number(Integer(number.0))),
-                ParameterBinding::Text(written) => Some(FlatTerm::Text(text(drafts, written))),
+                ParameterBinding::Text(written) => {
+                    Some(FlatTerm::Text(text(drafts, state.kinds, written)))
+                }
                 ParameterBinding::Flag(_)
                 | ParameterBinding::Numbers(_)
                 | ParameterBinding::Texts(_)
