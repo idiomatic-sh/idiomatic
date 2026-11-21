@@ -35,3 +35,22 @@ pub(crate) struct BandBound {
     /// Whether equal passes.
     pub(crate) inclusive: bool,
 }
+
+/// One pair of an ordered match within a key: the place of the left row and of the right row, each among its side's rows
+/// of the key in ascending order.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_operators::domain::ordered_groups::types::Place;
+/// use ryo_operators::domain::ordered_match::types::MatchedPair;
+///
+/// assert_eq!(MatchedPair { left: Place(0), right: Place(1) }.right, Place(1));
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct MatchedPair {
+    /// The left row's place.
+    pub left: crate::domain::ordered_groups::types::Place,
+    /// The right row's place.
+    pub right: crate::domain::ordered_groups::types::Place,
+}

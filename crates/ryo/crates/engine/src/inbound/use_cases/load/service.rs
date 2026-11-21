@@ -1,16 +1,20 @@
-//! The `load` use case's own sequence over a lowering: lower, pass, encode, wrap; and what happens when the encoding refuses a
-//! rule. The lowering is a parameter so that the sequence is proved before the lowering lowers.
+//! The `load` use case's own sequence over a lowering: lower, pass, encode, wrap, ask the executor whether it runs every
+//! word and fill of each rule; and what happens when the encoding refuses a rule or the executor cannot run one whole:
+//! that rule is refused with its own cause and the others are lowered again without it, until nothing is refused. The
+//! lowering is a parameter so that the sequence is proved before the lowering lowers.
 
 use super::errors::LoadError;
-use super::types::{LoadPass, LoadedRules, NamedWords};
+use super::types::{LoadedRules, NamedWords};
 use crate::domain::code::types::ProgramCode;
 use crate::domain::encoding::service::encoded;
+use crate::domain::executing::running::service::unit_not_run;
 use crate::domain::lowered::types::LoweredPack;
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::{
     LoadRefusal, LoweredRules, PlanNode, RefusedRule, SelectedRule, SelectedRules,
 };
 use crate::domain::passes::service::passed;
+use crate::domain::programs::service::unit_step;
 use crate::domain::programs::types::{Programs, ProgramsEngine, RuleSteps};
 use crate::domain::statistics::service::matched;
 use crate::domain::statistics::types::{MatchedStatistics, Statistics};
@@ -87,6 +91,26 @@ fn programs(
     }))
 }
 
+/// The rules of loaded programs the executor cannot run whole: each can reach a word or a fill the executor does not run
+/// yet (`executing::running::service::unit_not_run`, the executor's one answer over the code). Such a rule is refused like
+/// an operation the lowering does not take, with the step of its own plan that unit makes the rows of, so it never
+/// reaches a scan.
+fn not_run(programs: &Programs) -> Vec<RefusedRule> {
+    let code = &programs.0.code;
+    let refused = code.rules.iter().filter_map(|rule| {
+        let unit = unit_not_run(code, rule)?;
+        let key = &code
+            .units
+            .get(usize::try_from(unit.0).unwrap_or(usize::MAX))?
+            .key;
+        Some(RefusedRule {
+            rule: rule.rule,
+            refusal: LoadRefusal::Unlowerable(PlanNode(unit_step(programs, rule.rule, key).0)),
+        })
+    });
+    refused.collect()
+}
+
 /// The refusal a rule takes from an encoding's: a step the encoding names is held to the rule's own plan, whose last step is the
 /// greatest the encoding can mean (it holds no plan).
 fn held(refusal: LoadRefusal, rule: Option<&SelectedRule<'_>>) -> LoadRefusal {
@@ -101,26 +125,37 @@ fn held(refusal: LoadRefusal, rule: Option<&SelectedRule<'_>>) -> LoadRefusal {
     }
 }
 
-/// The rules an encoding's refusal takes out of a pack whose rules were written in `written` order. A count of the pack past
-/// its width takes the rule that was being written and every rule after it, in one pass: lowering again without one rule at a
-/// time would lower the pack once for each. The encoding's own fault takes the one rule. On the last lowering either takes
-/// every rule, since nothing is lowered a third time.
+/// The rules an encoding's refusal takes out of a pack whose rules were written in `written` order. The encoding's own
+/// fault takes the one rule it names. A count of the pack past its width takes the rule that was being written and every
+/// rule after it, in one pass: taking one rule at a time would lower the pack once for each. None when the refusal names
+/// no rule of the pack.
 fn taken(
     written: &[SelectedRuleOrdinal],
     refused: SelectedRuleOrdinal,
     refusal: LoadRefusal,
-    lowering: LoadPass,
 ) -> Vec<SelectedRuleOrdinal> {
     let after = written.iter().copied().skip_while(|rule| *rule != refused);
-    match (lowering, refusal) {
-        (LoadPass::Last, LoadRefusal::Budget(_) | LoadRefusal::Unlowerable(_)) => written.to_vec(),
-        (LoadPass::First, LoadRefusal::Budget(_)) => after.collect(),
-        (LoadPass::First, LoadRefusal::Unlowerable(_)) => after.take(1).collect(),
+    match refusal {
+        LoadRefusal::Budget(_) => after.collect(),
+        LoadRefusal::Unlowerable(_) => after.take(1).collect(),
     }
 }
 
-/// Loads `rules` through `lower`: the lowered pack passed and encoded, each rule the lowering or the encoding refuses answered
-/// with why, in rule order. The rules are lowered twice at most.
+/// Loads `rules` through `lower`: the lowered pack passed and encoded, and every rule that lowers, encodes and runs
+/// whole loaded, whatever is refused beside it. Each refused rule is answered with its own cause, in rule order: the
+/// lowering's refusal; the encoding's, held to the rule's own plan; or the step of its plan whose unit the executor
+/// cannot run whole.
+///
+/// The rules are lowered until a lowering has nothing refused after it. Each lowering before that one is followed by at
+/// least one rule taken out (when none can be, every rule left is refused and the load ends), so a load of `n` rules
+/// lowers `n + 1` times at most. What it costs in practice: one lowering more for all the rules the executor cannot run
+/// (they are found together), one more for each rule the encoding itself refuses, and one more for a count of the pack
+/// past its width (the rule being written and every rule after it go together).
+///
+/// The rules loaded do not depend on the order they were selected in, save by a count past a width: the lowering, the
+/// encoding's own fault and the executor's walk each refuse a rule for what that rule holds, the others are lowered
+/// again without it, and the last lowering is of exactly the rules no cause was found for. A count past a width is the
+/// pack's, not a rule's: which rules fit before it runs out is their order's.
 ///
 /// # Errors
 ///
@@ -135,8 +170,8 @@ pub(super) fn sequenced(
     let mut selected: Vec<SelectedRule<'_>> = rules.0.to_vec();
     let mut refused: Vec<RefusedRule> = Vec::new();
     let (mut loaded, mut named) = (Programs::default(), MatchedStatistics::Absent);
-    // Once, and once more without the rules an encoding refused: never a third time.
-    for lowering in [LoadPass::First, LoadPass::Last] {
+    let plan_of = |rule: SelectedRuleOrdinal| rules.0.iter().find(|each| each.rule == rule);
+    loop {
         let LoweredRules {
             mut pack,
             refused: unlowered,
@@ -144,27 +179,45 @@ pub(super) fn sequenced(
         refused.extend(unlowered);
         passed(&mut pack, statistics);
         let written: Vec<SelectedRuleOrdinal> = pack.rules.iter().map(|rule| rule.rule).collect();
-        match encoded(&pack) {
+        // What this lowering's pack is refused for, and the rules that takes out.
+        let (cause, gone) = match encoded(&pack) {
             Ok(code) => {
-                named = statistics.map_or(MatchedStatistics::Absent, |measured| {
-                    MatchedStatistics::Units(matched(measured, &code.units))
-                });
                 let steps = rule_steps(&code, rules);
-                loaded = programs(pack, code, steps, names)?;
-                break;
+                let lowered = programs(pack, code, steps, names)?;
+                let unrun = not_run(&lowered);
+                let Some(first) = unrun.first() else {
+                    named = statistics.map_or(MatchedStatistics::Absent, |measured| {
+                        MatchedStatistics::Units(matched(measured, &lowered.0.code.units))
+                    });
+                    loaded = lowered;
+                    break;
+                };
+                // Every rule the executor cannot run whole is taken out at once, each with its own unit's step.
+                (first.refusal, unrun)
             }
             Err(LoweringError::Refused { rule, refusal }) => {
-                let gone = taken(&written, rule, refusal, lowering);
-                for each in &gone {
-                    let plan = rules.0.iter().find(|selected| selected.rule == *each);
-                    refused.push(RefusedRule {
-                        rule: *each,
-                        refusal: held(refusal, plan),
-                    });
-                }
-                selected.retain(|rule| written.contains(&rule.rule) && !gone.contains(&rule.rule));
+                let gone = taken(&written, rule, refusal).into_iter();
+                let gone = gone.map(|each| RefusedRule {
+                    rule: each,
+                    refusal: held(refusal, plan_of(each)),
+                });
+                (refusal, gone.collect())
             }
+        };
+        let before = selected.len();
+        selected.retain(|rule| {
+            written.contains(&rule.rule) && !gone.iter().any(|each| each.rule == rule.rule)
+        });
+        if selected.len() == before {
+            // The refusal took no rule out (it names none of the pack): it is the pack's own, and no rule is run on it.
+            // Every rule left is refused with it, held to its own plan, and nothing is lowered again.
+            refused.extend(selected.iter().map(|rule| RefusedRule {
+                rule: rule.rule,
+                refusal: held(cause, Some(rule)),
+            }));
+            break;
         }
+        refused.extend(gone);
     }
     refused.sort_by_key(|rule| rule.rule);
     Ok(LoadedRules {

@@ -40,3 +40,24 @@ pub(crate) const KEYWORD: &str = "keyword";
 pub(crate) const NO_NAME: &str = "";
 /// The parent ordinal of a field that has no parent.
 pub(crate) const NO_PARENT: i64 = -1;
+/// The texts of this concept a filler writes that are the same in every file: fixed names of the run.
+pub(crate) const FIXED_NAMES: &[&str] = &[
+    DECODED_STRING,
+    BRACE_PARSED,
+    BRACE_MALFORMED,
+    UNKNOWN_INPUT,
+    BRACE_UNAVAILABLE,
+    NO_ERROR,
+    UNMATCHED_BRACKET,
+    MISSING_START_BRACKET,
+    PLACEHOLDER_RECURSION_EXCEEDED,
+    UNKNOWN_CONVERSION,
+    EMPTY_ATTRIBUTE,
+    MISSING_RIGHT_BRACKET,
+    INVALID_CHARACTER_AFTER_RIGHT_BRACKET,
+    LITERAL,
+    FORMAT_SPEC,
+    AUTOMATIC,
+    INDEX,
+    KEYWORD,
+];

@@ -93,6 +93,9 @@ pub mod binding_use;
 /// Optional schedule-order name resolution.
 pub mod binding_resolution;
 
+/// Optional lookup path: the namespaces a name is looked up in.
+pub mod lookup_scope;
+
 /// Optional static binding analysis.
 pub mod binding_shadow;
 

@@ -12,6 +12,7 @@ use crate::outbound::engine::factory::use_case;
 use crate::outbound::engine::fixtures::fake::EngineFake;
 use crate::outbound::engine::interface::EnginePort;
 use ryo_engine::domain::lowering::fixtures::named;
+use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_operators::spike::EngineMode;
 use ryo_relations::domain::relations::types::Bytes;
 use ryo_values::domain::descriptions::types::{
@@ -65,7 +66,7 @@ type Failure = Cow<'static, str>;
 
 /// What a load that lowers the three rules says: one accepted, one the fake cannot lower, one over budget; each lowered alone,
 /// the accepted one once more; no pack read.
-const COLD: &str = "Lowering(Refusals { unlowerable: Count(1), over_budget: Count(1) }); accepted [0]; lowerings 1; packs read 0";
+const COLD: &str = "Lowering(Refusals { unlowerable: Count(1), past_width: Count(1) }); accepted [0]; lowerings 1; packs read 0";
 
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
@@ -94,7 +95,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::BrokenPack,
         expect: Expect::Value(Cow::Borrowed(
-            "Lowering(Refusals { unlowerable: Count(1), over_budget: Count(1) }); accepted [0]; lowerings 1; packs read 1",
+            "Lowering(Refusals { unlowerable: Count(1), past_width: Count(1) }); accepted [0]; lowerings 1; packs read 1",
         )),
     },
     Case {
@@ -205,6 +206,7 @@ fn load(seed: u8, kind: &str, stored: &[StoredPack]) -> (HarnessLoad, EngineFake
     let request = LoadRequest {
         plans: &rules.iter().collect::<Vec<&Plan>>(),
         bindings: &[],
+        statistics: ByteSlice(&[]),
         given: given(seed),
         kinds: &kinds,
         stored,
@@ -224,6 +226,7 @@ fn harness(
     let request = HarnessRequest {
         plans: &rules.iter().collect::<Vec<&Plan>>(),
         bindings: &[],
+        statistics: ByteSlice(&[]),
         given: given(1),
         stored: &[],
     };
@@ -273,30 +276,17 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         }
         Scenario::EmptyRuleSet => {
             let (engine, digest, kinds) = (use_case(), blake3(), kinds("words", "word"));
-            let cold = loaded(
-                &engine,
-                &digest,
-                LoadRequest {
-                    plans: &[],
-                    bindings: &[],
-                    given: given(0),
-                    kinds: &kinds,
-                    stored: &[],
-                },
-            )
-            .pack;
+            let asked = |stored| LoadRequest {
+                plans: &[],
+                bindings: &[],
+                statistics: ByteSlice(&[]),
+                given: given(0),
+                kinds: &kinds,
+                stored,
+            };
+            let cold = loaded(&engine, &digest, asked(&[])).pack;
             let stored = [cold.clone()];
-            let warm = loaded(
-                &engine,
-                &digest,
-                LoadRequest {
-                    plans: &[],
-                    bindings: &[],
-                    given: given(0),
-                    kinds: &kinds,
-                    stored: &stored,
-                },
-            );
+            let warm = loaded(&engine, &digest, asked(&stored));
             let same = if warm.pack == cold {
                 "the pack kept as it was"
             } else {
@@ -312,6 +302,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let request = HarnessRequest {
                 plans: &rules.iter().collect::<Vec<&Plan>>(),
                 bindings: &[],
+                statistics: ByteSlice(&[]),
                 given: given(1),
                 stored: std::slice::from_ref(&pack),
             };
@@ -337,6 +328,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let request = LoadRequest {
                 plans: &refused.iter().collect::<Vec<&Plan>>(),
                 bindings: &[],
+                statistics: ByteSlice(&[]),
                 given: given(1),
                 kinds: &lowered,
                 stored: &[],

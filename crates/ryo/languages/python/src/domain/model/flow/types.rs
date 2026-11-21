@@ -127,6 +127,15 @@ pub(crate) struct FlowShadow {
     pub form: ShadowForm,
 }
 
+/// One read or one shadow in a list by key: what the list is ordered by, and its place among the reads or the shadows.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct KeyPlace<K> {
+    /// What the list is ordered by: the name a read reads, the name expression of a read, or the binding of a shadow.
+    pub key: K,
+    /// The place among the reads, or among the shadows.
+    pub at: Count,
+}
+
 /// Whether the flow of a file could be interpreted to its end.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) enum FlowState {
@@ -157,6 +166,13 @@ pub(crate) struct FlowModel {
     pub uses: Vec<FlowUse>,
     /// The shadows, in evaluation order.
     pub shadows: Vec<FlowShadow>,
+    /// The reads ordered by the name each reads, then by evaluation order: made by the first fill of the reads of one name.
+    pub reads_by_name: Vec<KeyPlace<NameCode>>,
+    /// The shadows ordered by the binding of each, then by evaluation order: made by the first fill of the shadows of one
+    /// binding.
+    pub shadows_by_binding: Vec<KeyPlace<Position>>,
+    /// The reads ordered by the name expression of each: made by the first fill of the lookup path of one read.
+    pub reads_by_node: Vec<KeyPlace<Position>>,
     /// Whether the interpretation reached its end.
     pub state: FlowState,
     /// The frames of the interpretation.

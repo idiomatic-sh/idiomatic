@@ -1,8 +1,9 @@
 //! The types of the model's `names` part: plain data, public fields and derives, with no constructor and no inherent impl.
 
 use crate::domain::qualification::types::Version;
-use ryo::languages::{NameText, Offset, Symbol};
-use std::hash::Hasher;
+use ryo::languages::{FixedWord, NameText, Offset, Symbol};
+use std::collections::HashMap;
+use std::hash::{BuildHasherDefault, Hash, Hasher};
 
 /// A name of the file: equal texts have equal codes, in the order the names are first met.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -54,26 +55,50 @@ pub(crate) struct NameTable {
 #[derive(Clone, Debug, Default)]
 pub(crate) struct NameWords(pub Vec<Option<Symbol>>);
 
-/// One fixed text of the facts' vocabulary with the word it has in the file's words.
+/// A fixed text of the vocabulary by where it stands in the program: two uses of one constant are one key, and looking one up
+/// reads no text.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct HeldWord {
-    /// The text: a constant of the vocabulary.
-    pub text: NameText<'static>,
-    /// Its word.
-    pub word: Symbol,
+pub(crate) struct TextPlace(pub NameText<'static>);
+
+impl PartialEq for TextPlace {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(self.0.0, other.0.0)
+    }
 }
 
-/// The fixed texts written so far for the file in hand: a handful, each interned once and then written from here.
-#[derive(Clone, Debug, Default)]
-pub(crate) struct HeldWords(pub Vec<HeldWord>);
+impl Eq for TextPlace {}
 
-/// The words the fillers have written for the file in hand: kept from one filler to the next, forgotten with the file.
+impl Hash for TextPlace {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        state.write_usize(self.0.0.as_ptr().addr());
+        state.write_usize(self.0.0.len());
+    }
+}
+
+/// The fixed names of the run as a worker's fillers write them: each by its handle, which is the same word in every file of the
+/// run, so nothing here is forgotten with a file.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct FixedWords {
+    /// The language's fixed names, by place: what its vocabulary states for the run. A worker's walk is born with them; a view
+    /// made without them holds none, and its fillers write every text as a word of the file.
+    pub declared: Vec<NameText<'static>>,
+    /// The handle of each text a filler has written so far; none for a text that is no fixed name of the run.
+    pub held: HashMap<TextPlace, Option<FixedWord>, BuildHasherDefault<KeyHasher>>,
+}
+
+/// The text of a dotted name being written for one row.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct DottedText(pub String);
+
+/// The words the fillers have written: kept from one filler to the next.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct FactWords {
-    /// The words of the file's names.
+    /// The words of the names of the file in hand: forgotten with the file.
     pub names: NameWords,
-    /// The words of the vocabulary's fixed texts.
-    pub fixed: HeldWords,
+    /// The handles of the vocabulary's fixed texts: kept for the run.
+    pub fixed: FixedWords,
+    /// The dotted name a fill of one key writes: kept so that such a fill allocates none.
+    pub path: DottedText,
 }
 
 /// The hasher of the model's keyed tables: the keys are a few small numbers, mixed one multiply each.
@@ -93,6 +118,10 @@ impl Hasher for KeyHasher {
 
     fn write_u32(&mut self, number: u32) {
         self.write_u64(u64::from(number));
+    }
+
+    fn write_usize(&mut self, number: usize) {
+        self.write_u64(u64::try_from(number).unwrap_or(u64::MAX));
     }
 
     fn write_u64(&mut self, number: u64) {

@@ -3,7 +3,8 @@
 use super::constants::INCOMPLETE;
 use crate::domain::file_view::types::PythonWalk;
 use crate::domain::literal_facts::service::properties;
-use crate::domain::node::service::{fixed, node_cell, nodes_of_kind, span_at};
+use crate::domain::model::names::service::fixed_word;
+use crate::domain::node::service::{node_cell, nodes_of_kind, span_at};
 use crate::domain::node::types::Numbered;
 use crate::domain::nodes::types::Node as TypedNode;
 use crate::domain::{
@@ -45,12 +46,12 @@ ryo::fills! {
     LiteralPropertiesItem => languages::LiteralProperties, walk(PythonWalk) |file, words, rows| {
         /// One row of the relation.
         type Row = <languages::LiteralProperties as languages::CatalogRelation>::Row;
-        let memo = &mut file.buffers.fixed;
+        let memo = &mut file.model.words.get_mut().fixed;
         for Numbered { id, node } in nodes_of_kind(&file.syntax, Kind::Node(TypedNode::Constant)) {
             if let Some(found) = properties(node) {
                 rows.write(Row {
                     id: node_cell(&file.syntax, id),
-                    kind: fixed(words, memo, found.kind),
+                    kind: fixed_word(words, memo, found.kind),
                     zero: found.zero,
                     empty: found.empty,
                     boolean: found.boolean,

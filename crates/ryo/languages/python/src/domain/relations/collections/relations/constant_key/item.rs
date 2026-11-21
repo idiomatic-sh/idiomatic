@@ -1,11 +1,12 @@
 //! Read supported constant-expression equivalence classes.
 
 use crate::domain::constant_keys::types::{KeyClass, KeyWord};
-use crate::domain::file_view::types::PythonWalk;
+use crate::domain::file_view::types::{PythonFile, PythonWalk};
 use crate::domain::key_facts::service::keyed;
 use crate::domain::key_facts::types::KeyBuild;
-use crate::domain::node::service::{node_cell, span_at, typed_nodes};
-use crate::domain::node::types::Numbered;
+use crate::domain::model::view::types::PartState;
+use crate::domain::node::service::{keyed_node, node_cell, span_at, typed_nodes};
+use crate::domain::node::types::{Numbered, SyntaxFile};
 use crate::domain::{
     constant_keys::{
         constants::INCOMPLETE,
@@ -43,25 +44,67 @@ ryo::reads! {
     }
 }
 
-// The engine fills `constant-key` from the walked file: every row of the file, once.
+/// Says the relation is read only in part when the parser did not read the whole file: a constant may be missing.
+fn told_incomplete(
+    file: &PythonFile<'_>,
+    rows: &mut dyn languages::Rows<languages::ConstantKeyRow>,
+) {
+    if file.syntax.completeness.syntax == languages::SyntaxCompleteness::Incomplete {
+        rows.partial(languages::ReportText(INCOMPLETE), languages::Missing::Any);
+    }
+}
+
+/// The row of the constant `id`, whose value's class is `class`.
+fn key_row(
+    file: &SyntaxFile<'_>,
+    id: languages::Position,
+    class: KeyClass,
+) -> languages::ConstantKeyRow {
+    languages::ConstantKeyRow {
+        id: node_cell(file, id),
+        key: node_cell(file, class.representative),
+        file: file.file,
+        span: span_at(file, id),
+    }
+}
+
+/// Keys the constants of the file, when no fill of the file has yet: a value's class is named by a member of it, so the
+/// constants are keyed whole, once, by the first fill that asks, whole or by key.
+fn keyed_constants(file: &mut PythonFile<'_>, words: &mut languages::FileWords) {
+    if file.analysed.keys == PartState::Pending {
+        let index = &mut file.buffers.keys;
+        keyed(
+            &file.syntax,
+            &mut KeyBuild {
+                index,
+                words,
+                text: &mut file.buffers.text,
+            },
+        );
+        file.analysed.keys = PartState::Ready;
+    }
+}
+
+// The engine fills `constant-key` from the walked file: every row of the file, or the row of one constant, read from the class
+// the file's keys give it.
 ryo::fills! {
     ConstantKeyItem => languages::ConstantKey, walk(PythonWalk) |file, words, rows| {
-        /// One row of the relation.
-        type Row = <languages::ConstantKey as languages::CatalogRelation>::Row;
-        let index = &mut file.buffers.keys;
-        keyed(&file.syntax, &mut KeyBuild { index, words, text: &mut file.buffers.text });
-        for (Numbered { id, .. }, class) in typed_nodes(&file.syntax).zip(index.classes.iter()) {
+        keyed_constants(file, words);
+        let classes = file.buffers.keys.classes.iter();
+        for (Numbered { id, .. }, class) in typed_nodes(&file.syntax).zip(classes) {
             if let Some(class) = class {
-                rows.write(Row {
-                    id: node_cell(&file.syntax, id),
-                    key: node_cell(&file.syntax, class.representative),
-                    file: file.syntax.file,
-                    span: span_at(&file.syntax, id),
-                });
+                rows.write(key_row(&file.syntax, id, *class));
             }
         }
-        if file.syntax.completeness.syntax == languages::SyntaxCompleteness::Incomplete {
-            rows.partial(languages::ReportText(INCOMPLETE), languages::Missing::Any);
+        told_incomplete(file, rows);
+    }
+    key(languages::Column::ConstantKey(languages::ConstantKeyColumn::Id)) |file, words, key, rows| {
+        keyed_constants(file, words);
+        let found = keyed_node(&file.syntax, key)
+            .and_then(|id| Some((id, file.buffers.keys.classes.get(usize::from(id)).copied().flatten()?)));
+        if let Some((id, class)) = found {
+            rows.write(key_row(&file.syntax, id, class));
         }
+        told_incomplete(file, rows);
     }
 }

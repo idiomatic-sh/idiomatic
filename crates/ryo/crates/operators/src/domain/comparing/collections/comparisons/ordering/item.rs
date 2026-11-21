@@ -9,7 +9,21 @@ use crate::domain::table_texts::types::{Datum, TextView};
 use ryo_values::domain::plan_parts::types::Test;
 
 /// `ordering`, one item of the `comparisons` collection.
-pub(crate) struct OrderingItem;
+///
+/// # Examples
+///
+/// ```
+/// use ryo_operators::domain::comparing::collections::comparisons::interface::ComparisonsItem as _;
+/// use ryo_operators::domain::comparing::collections::comparisons::ordering::item::OrderingItem;
+/// use ryo_operators::domain::contract::types::PredicateOutcome;
+/// use ryo_operators::domain::table_texts::types::{Datum, TextView};
+/// use ryo_values::domain::plan_parts::types::Test;
+///
+/// let (two, ten) = (Datum::Text(TextView("a2")), Datum::Text(TextView("a10")));
+/// assert_eq!(OrderingItem.holds(Test::NaturalLessThan, &two, &ten), Ok(PredicateOutcome::Holds));
+/// ```
+#[derive(Clone, Copy, Debug)]
+pub struct OrderingItem;
 
 impl ComparisonsItem for OrderingItem {
     fn holds(

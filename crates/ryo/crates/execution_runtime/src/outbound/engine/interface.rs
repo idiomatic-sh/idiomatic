@@ -1,6 +1,7 @@
 //! What the file scan asks of the engine: a rule set loaded from plans or from a pack, its pack's bytes, one file scanned, and the
 //! cross-file pass. The host reads nothing else of a rule set, and no rule, language or linter is named here.
 
+use ryo_engine::domain::counting::types::WorkLedger;
 use ryo_engine::domain::findings::types::{FoundRows, FrontierSource, RuleColumns, ScanCounters};
 use ryo_engine::domain::packs::types::{EncodedPack, PackDigest};
 use ryo_engine::domain::programs::types::Programs;
@@ -53,6 +54,13 @@ pub trait EnginePort: Send + Sync + std::fmt::Debug {
 
     /// A worker's per-file state for a rule set.
     fn state_for(&self, programs: &Programs) -> ScanScratch;
+
+    /// A worker's per-file state for a rule set that also counts what its scans do: the state of a measuring run.
+    fn measuring_state_for(&self, programs: &Programs) -> ScanScratch;
+
+    /// The work ledger of a measuring run: what each of `workers`, the states its workers scanned with, counted, added up,
+    /// one row for each unit of the rule set. States that do not measure counted nothing.
+    fn ledger(&self, programs: &Programs, workers: &[&ScanScratch]) -> WorkLedger;
 
     /// Runs the rule set on one lent file, which says which file of the run it is, handing every found row to `found`.
     ///

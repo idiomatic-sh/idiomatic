@@ -24,7 +24,6 @@ use crate::domain::source_matches::types::{
 use crate::domain::table_texts::service::datum;
 use crate::domain::table_texts::types::{Datum, TextView};
 use crate::domain::words::types::WordPlaces;
-use ryo_matching::inbound::use_cases::matching::types::{GroupName, SearchText};
 use ryo_relations::domain::relations::types::{CellKind, Count, Value};
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -242,23 +241,16 @@ pub(crate) fn row_mapped(
             if text_into(run.resources, value, &mut run.scratch.text) == TextFound::NotText {
                 return Err(PortableOperatorFault::ShapeMismatch);
             }
-            let regex = crate::domain::patterns::service::compiled(
+            let RowScratch { text, replaced, .. } = &mut *run.scratch;
+            crate::domain::replace::service::replaced(
+                CellText(&text.0),
                 TextView(&replace.pattern.0),
+                ReplacementText(&replace.replacement.0),
                 &mut run.decisions.select.compiled_regexes,
                 run.matcher,
-            )?;
-            let RowScratch { text, replaced, .. } = &mut *run.scratch;
-            let matcher = run.matcher;
-            crate::domain::replace::service::replace_compiled(
-                &|each| {
-                    matcher
-                        .0
-                        .visit_regex_matches(regex, SearchText(&text.0), &mut |found| each(found.0))
-                },
-                CellText(&text.0),
-                ReplacementText(&replace.replacement.0),
                 ReplacedText(&mut replaced.0),
             )?;
+            let replaced = &run.scratch.replaced;
             let appended = run.resources.mint(CellText(&replaced.0));
             written(run.output, row, &[appended]);
         }
@@ -319,7 +311,6 @@ fn searched(
             run.matcher,
         )?;
         let matcher = run.matcher;
-        let text = checked.text.0;
         let capture = match &search.capture {
             SearchedGroup::Whole => CaptureRequest::Whole,
             SearchedGroup::Group(name) => CaptureRequest::Group(CellText(&name.0)),
@@ -329,7 +320,7 @@ fn searched(
             interned,
             pending,
         };
-        crate::domain::source_matches::service::occurrences(
+        crate::domain::source_matches::service::searched(
             SourceMatchesInput {
                 row,
                 source: LineBytes(source.0),
@@ -341,28 +332,9 @@ fn searched(
                 capture_text: search.capture_text,
                 capture_line: search.capture_line,
             },
+            matcher,
             &mut deferred,
             joined,
-            &|each| match &search.capture {
-                SearchedGroup::Group(name) => matcher
-                    .0
-                    .visit_regex_captures(
-                        regex,
-                        SearchText(text),
-                        GroupName(&name.0),
-                        &mut |found, group| each(found.0, Some(group.0)),
-                    )
-                    .map_err(|_| PortableOperatorFault::MissingCapture {
-                        capture: name.clone(),
-                    }),
-                SearchedGroup::Whole => {
-                    Ok(matcher
-                        .0
-                        .visit_regex_matches(regex, SearchText(text), &mut |found| {
-                            each(found.0, None)
-                        }))
-                }
-            },
         )?;
     }
     crate::domain::source_matches::service::interned_captures(

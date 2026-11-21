@@ -38,3 +38,25 @@ pub(crate) const KEYWORD_ONLY: &str = "keyword-only";
 pub(crate) const VAR_POSITIONAL: &str = "var-positional";
 /// `**kwargs`.
 pub(crate) const VAR_KEYWORD: &str = "var-keyword";
+/// Every word of this concept: a filler writes each the same in every file, so they are fixed names of the run.
+pub(crate) const FIXED_NAMES: &[&str] = &[
+    FUNCTION,
+    ASYNC_FUNCTION,
+    METHOD,
+    ASYNC_METHOD,
+    CLASS,
+    IMPORT,
+    FROM_IMPORT,
+    VARIABLE,
+    TYPE_ALIAS,
+    EXCEPTION,
+    PATTERN,
+    TYPE_VAR,
+    TYPE_VAR_TUPLE,
+    PARAM_SPEC,
+    POSITIONAL_ONLY,
+    POSITIONAL_OR_KEYWORD,
+    KEYWORD_ONLY,
+    VAR_POSITIONAL,
+    VAR_KEYWORD,
+];

@@ -8,6 +8,8 @@ use crate::outbound::engine::interface::EnginePort;
 use ryo_engine::inbound::use_cases::load::use_case::LoadUseCaseImpl;
 use ryo_engine::inbound::use_cases::project::use_case::ProjectUseCaseImpl;
 use ryo_engine::inbound::use_cases::scan::use_case::ScanUseCaseImpl;
+use ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl;
+use std::sync::Arc;
 
 /// The adapter over the engine's three use cases, which hold no port: the edge builds it once for a lint service.
 ///
@@ -20,7 +22,7 @@ use ryo_engine::inbound::use_cases::scan::use_case::ScanUseCaseImpl;
 pub fn use_case() -> impl EnginePort {
     EngineUseCaseAdapter::new(
         LoadUseCaseImpl::new(),
-        ScanUseCaseImpl::new(),
+        ScanUseCaseImpl::new(Arc::new(MatchingUseCaseImpl)),
         ProjectUseCaseImpl::new(),
     )
 }

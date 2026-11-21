@@ -7,6 +7,7 @@ pub(crate) mod evaluation;
 mod fixtures;
 pub(crate) mod gating;
 pub(crate) mod language_source;
+pub(crate) mod noticing;
 pub(crate) mod outcome;
 pub(crate) mod parsing;
 pub(crate) mod project;

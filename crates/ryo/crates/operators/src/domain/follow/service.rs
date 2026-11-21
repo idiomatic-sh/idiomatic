@@ -1,6 +1,6 @@
 //! The `follow` service: the one meaning of `follow` over one key group's edges. A pure function: no IO and no engine type.
 
-use super::types::{Arrival, Entity, GroupPointers, Pointer, SourcePlace};
+use super::types::{Arrival, EdgeVisits, Entity, GroupPointers, Pointer, SourcePlace};
 
 /// `follow`: appends to `out` each pair of a source and a fixed point it reaches over the edges of `group`, each pair once, in
 /// source order and then by fixed point. A fixed point is an entity with an edge to itself, and it answers itself. A walk that runs
@@ -20,6 +20,25 @@ use super::types::{Arrival, Entity, GroupPointers, Pointer, SourcePlace};
 /// assert_eq!(out, [edge(1, 3), edge(2, 3), edge(3, 3)]);
 /// ```
 pub fn fixed_points(group: GroupPointers<'_>, out: &mut Vec<Pointer>) {
+    let _visits = fixed_points_visited(group, out);
+}
+
+/// `follow`, as `fixed_points`, answering how many times a walk back read an edge: the work past the group's edges, which
+/// a caller that budgets a fill counts as read.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_operators::domain::follow::service::fixed_points_visited;
+/// use ryo_operators::domain::follow::types::{EdgeVisits, Entity, GroupPointers, Pointer};
+/// let edge = |source, destination| Pointer { source: Entity(source), destination: Entity(destination) };
+/// let edges = [edge(1, 2), edge(2, 3), edge(3, 3)];
+/// let mut out = Vec::new();
+/// assert_eq!(fixed_points_visited(GroupPointers(&edges), &mut out), EdgeVisits(3));
+/// assert_eq!(out.len(), 3);
+/// ```
+pub fn fixed_points_visited(group: GroupPointers<'_>, out: &mut Vec<Pointer>) -> EdgeVisits {
+    let mut visits = 0_usize;
     let answered = out.len();
     // The entities an edge leaves, in order: every fixed point, and everything that reaches one, is among them.
     let mut sources: Vec<Entity> = group.0.iter().map(|edge| edge.source).collect();
@@ -67,6 +86,7 @@ pub fn fixed_points(group: GroupPointers<'_>, out: &mut Vec<Pointer>) {
             let (_, arriving) =
                 arrivals.split_at(arrivals.partition_point(|arrival| arrival.at < node));
             for arrival in arriving.iter().take_while(|arrival| arrival.at == node) {
+                visits = visits.saturating_add(1);
                 if let Some(mark) = reached.get_mut(arrival.from.0)
                     && *mark != Some(fixed)
                 {
@@ -79,4 +99,5 @@ pub fn fixed_points(group: GroupPointers<'_>, out: &mut Vec<Pointer>) {
     if let Some(added) = out.get_mut(answered..) {
         added.sort_unstable();
     }
+    EdgeVisits(visits)
 }

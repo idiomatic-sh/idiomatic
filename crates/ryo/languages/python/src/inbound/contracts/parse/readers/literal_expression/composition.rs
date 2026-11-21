@@ -7,7 +7,8 @@ use crate::domain::literal_expression_parsing::types::{
     CarrierInput, LiteralDialect, LiteralParseOutcome,
 };
 use crate::domain::literal_facts::service::string_tokens;
-use crate::domain::node::service::{fixed, node_cell, nodes_of_kind, span_at, written};
+use crate::domain::model::names::service::fixed_word;
+use crate::domain::node::service::{node_cell, nodes_of_kind, span_at, written};
 use crate::domain::node::types::{Numbered, SyntaxFile};
 use crate::domain::raw_format::service::body;
 use crate::domain::raw_format::types::RawFormatToken;
@@ -82,7 +83,7 @@ ryo::fills! {
         /// One row of the relation.
         type Row = <languages::LiteralExpressionParse as languages::CatalogRelation>::Row;
         let syntax = file.syntax;
-        let memo = &mut file.buffers.fixed;
+        let memo = &mut file.model.words.get_mut().fixed;
         let carrier = &mut file.buffers.text;
         let mut tokens = Vec::new();
         let mut whole = if syntax.completeness.syntax == languages::SyntaxCompleteness::Incomplete {
@@ -100,8 +101,8 @@ ryo::fills! {
             }
             rows.write(Row {
                 id: node_cell(&syntax, id),
-                dialect: fixed(words, memo, languages::NameText(PYTHON_STRING_ANNOTATION)),
-                outcome: fixed(words, memo, outcome_name(outcome)),
+                dialect: fixed_word(words, memo, languages::NameText(PYTHON_STRING_ANNOTATION)),
+                outcome: fixed_word(words, memo, outcome_name(outcome)),
                 file: syntax.file,
                 span: span_at(&syntax, id),
             });

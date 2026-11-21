@@ -39,7 +39,7 @@ const WORDS: &str = "\
 3 End no operand @-\n\
 4 Yield YieldWord { cells: Short(1), row: WordSlot(13) } @0\n\
 5 End no operand @-\n\
-6 Emit EmitWord { flag: WordFlag(0), columns: Short(1), rule: SelectedRuleOrdinal(0), input: WordSlot(0), operands: PoolAt(78) } @0\n\
+6 Emit EmitWord { flag: WordFlag(0), columns: Short(1), rule: SelectedRuleOrdinal(0), input: WordSlot(0), operands: PoolAt(80) } @0\n\
 7 End no operand @-\n\
 8 EachKind EachKindWord { flag: WordFlag(129), kind: KindBits(0), out: Register(0), kinds: PoolAt(0) } @0\n\
 9 EachMatchFilled EachMatchWord { flag: WordFlag(0), out: Register(1), value: WordSlot(0), index: IndexSite(0) } @1\n\
@@ -52,52 +52,52 @@ const WORDS: &str = "\
 16 Nearest NearestWord { flag: WordFlag(129), start: Register(6), out: Register(7), operands: PoolAt(17) } @8\n\
 17 Closure ClosureWord { seed: Register(7), out: Register(8), operands: PoolAt(21) } @9\n\
 18 ReadNode ReadNodeWord { column: Short(1), row: Register(8), out: Register(9) } @10\n\
-19 Test TestWord { flag: WordFlag(4), comparison: Short(6), left: WordSlot(9), right: WordSlot(30), regex: RegexId(0) } @11\n\
-20 Call CallWord { flag: WordFlag(0), meaning: Short(4), arguments: PoolAt(33), outputs: PoolAt(38), regex: RegexId(2) } @12\n\
+19 Test TestWord { flag: WordFlag(4), comparison: Short(6), left: WordSlot(9), right: WordSlot(31), regex: RegexId(0) } @11\n\
+20 Call CallWord { flag: WordFlag(0), meaning: Short(4), arguments: PoolAt(34), outputs: PoolAt(39), regex: RegexId(2) } @12\n\
 21 Render RenderWord { context: Short(2), node: Register(8), out: Register(11) } @13\n\
 22 Let LetWord { flag: WordFlag(2), from: WordSlot(0), out: Register(12) } @14\n\
-23 Exists ExistsWord { flag: WordFlag(1), keys: Short(0), body: PoolAt(42), key: PoolAt(48), memo: MemoSite(4294967295) } @15\n\
-24 Or OrWord { flag: WordFlag(2), bodies: Short(3), records: PoolAt(48), outputs: PoolAt(66), memo: MemoSite(2) } @16\n\
-25 Latest LatestWord { flag: WordFlag(1), keys: Short(1), out: Register(15), bound: WordSlot(9), operands: PoolAt(71) } @17\n\
-26 Emit EmitWord { flag: WordFlag(1), columns: Short(2), rule: SelectedRuleOrdinal(0), input: WordSlot(1), operands: PoolAt(74) } @18\n\
-27 Fork ForkWord { slots: Short(1), entries: PoolAt(80) } @19\n\
+23 Exists ExistsWord { flag: WordFlag(1), keys: Short(0), body: PoolAt(43), key: PoolAt(49), memo: MemoSite(4294967295) } @15\n\
+24 Or OrWord { flag: WordFlag(2), bodies: Short(3), records: PoolAt(49), outputs: PoolAt(68), memo: MemoSite(2) } @16\n\
+25 Latest LatestWord { flag: WordFlag(1), keys: Short(1), out: Register(15), bound: WordSlot(9), operands: PoolAt(73) } @17\n\
+26 Emit EmitWord { flag: WordFlag(1), columns: Short(2), rule: SelectedRuleOrdinal(0), input: WordSlot(1), operands: PoolAt(76) } @18\n\
+27 Fork ForkWord { slots: Short(1), entries: PoolAt(82) } @19\n\
 28 End no operand @-\n\
 29 StageScan ScanWord { flag: WordFlag(128), out: Register(30), constants: PoolAt(0), read: WordSlot(1) } @20\n\
 30 StageProbe ProbeWord { flag: WordFlag(0), values: Short(1), out: Register(31), probed: WordSlot(30), index: IndexSite(0) } @21\n\
-31 StageProbe ProbeWord { flag: WordFlag(13), values: Short(1), out: Register(32), probed: WordSlot(82), index: IndexSite(2) } @22\n\
+31 StageProbe ProbeWord { flag: WordFlag(13), values: Short(1), out: Register(32), probed: WordSlot(84), index: IndexSite(2) } @22\n\
 32 StageProduct ProductWord { flag: WordFlag(2), out: Register(33), read: WordSlot(1) } @23\n\
-33 StageUse UseWord { flag: WordFlag(0), outputs: Short(1), body: PoolAt(88), registers: PoolAt(96), memo: MemoSite(1) } @24\n\
-34 StageProbe ProbeWord { flag: WordFlag(4), values: Short(1), out: Register(100), probed: WordSlot(98), index: IndexSite(3) } @25\n\
+33 StageUse UseWord { flag: WordFlag(0), outputs: Short(1), body: PoolAt(90), registers: PoolAt(99), memo: MemoSite(1) } @24\n\
+34 StageProbe ProbeWord { flag: WordFlag(4), values: Short(1), out: Register(100), probed: WordSlot(101), index: IndexSite(3) } @25\n\
 35 StageRead StageReadWord { flag: WordFlag(2), column: Short(1), row: Register(100), out: Register(35), read: WordSlot(1) } @-\n\
-36 StageLatest LatestWord { flag: WordFlag(6), keys: Short(1), out: Register(36), bound: WordSlot(3), operands: PoolAt(100) } @26\n\
+36 StageLatest LatestWord { flag: WordFlag(6), keys: Short(1), out: Register(36), bound: WordSlot(3), operands: PoolAt(103) } @26\n\
 37 StageRead StageReadWord { flag: WordFlag(2), column: Short(1), row: Register(36), out: Register(37), read: WordSlot(2) } @27\n\
 38 StageKeep TestWord { flag: WordFlag(0), comparison: Short(2), left: WordSlot(37), right: WordSlot(30), regex: RegexId(0) } @28\n\
-39 StageCall CallWord { flag: WordFlag(0), meaning: Short(8), arguments: PoolAt(103), outputs: PoolAt(106), regex: RegexId(0) } @29\n\
+39 StageCall CallWord { flag: WordFlag(0), meaning: Short(8), arguments: PoolAt(106), outputs: PoolAt(109), regex: RegexId(0) } @29\n\
 40 StageRender RenderWord { context: Short(0), node: Register(30), out: Register(39) } @30\n\
 41 StageWalk WalkWord { flag: WordFlag(131), field: FieldCode(0), start: Register(30), out: Register(40) } @31\n\
 42 StageWalk WalkWord { flag: WordFlag(128), field: FieldCode(6), start: Register(40), out: Register(41) } @32\n\
-43 StageWrite WriteWord { flag: WordFlag(1), columns: Short(2), table: MadeTableId(0), operands: PoolAt(108) } @-\n\
-44 StageScan ScanWord { flag: WordFlag(5), out: Register(50), constants: PoolAt(120), read: WordSlot(0) } @33\n\
-45 StageWrite WriteWord { flag: WordFlag(0), columns: Short(2), table: MadeTableId(1), operands: PoolAt(122) } @-\n\
+43 StageWrite WriteWord { flag: WordFlag(1), columns: Short(2), table: MadeTableId(0), operands: PoolAt(111) } @-\n\
+44 StageScan ScanWord { flag: WordFlag(5), out: Register(50), constants: PoolAt(123), read: WordSlot(0) } @33\n\
+45 StageWrite WriteWord { flag: WordFlag(0), columns: Short(2), table: MadeTableId(1), operands: PoolAt(125) } @-\n\
 46 Children ChildrenWord { flag: WordFlag(128), parent: Register(60), out: Register(61) } @34\n\
 47 Yield YieldWord { cells: Short(1), row: WordSlot(61) } @35\n\
 48 End no operand @-\n\
 49 StageScan ScanWord { flag: WordFlag(2), out: Register(50), constants: PoolAt(0), read: WordSlot(1) } @36\n\
-50 StageWrite WriteWord { flag: WordFlag(0), columns: Short(2), table: MadeTableId(2), operands: PoolAt(145) } @-\n\
+50 StageWrite WriteWord { flag: WordFlag(0), columns: Short(2), table: MadeTableId(2), operands: PoolAt(150) } @-\n\
 ";
 
 /// What the law's code numbers and counts.
 const TABLES: &str = "\
 counts StateCounts { registers: WordSlot(101), memos: WordSlot(3), indexes: WordSlot(7), tables: WordSlot(4), needs: WordSlot(7), relations: WordSlot(2), points: WordSlot(37), units: WordSlot(8) }\n\
 rules [[BranchCode { need: NeedSite(0), entry: CodeEntry(8) }]]\n\
-tables [TableCode { fill: Short(0), operands: WordSlot(112), need: NeedSite(1), unit: WordSlot(3) }, TableCode { fill: Short(1), operands: WordSlot(126), need: NeedSite(3), unit: WordSlot(4) }, TableCode { fill: Short(5), operands: WordSlot(149), need: NeedSite(5), unit: WordSlot(7) }, TableCode { fill: Short(11), operands: WordSlot(137), need: NeedSite(4), unit: WordSlot(5) }]\n\
-indexes [IndexCode { source: Short(1), number: WordSlot(0), columns: WordSlot(3), ordered: WordSlot(4294967295) }, IndexCode { source: Short(2), number: WordSlot(0), columns: WordSlot(5), ordered: WordSlot(4294967295) }, IndexCode { source: Short(2), number: WordSlot(1), columns: WordSlot(7), ordered: WordSlot(1) }, IndexCode { source: Short(2), number: WordSlot(1), columns: WordSlot(40), ordered: WordSlot(4294967295) }, IndexCode { source: Short(2), number: WordSlot(2), columns: WordSlot(69), ordered: WordSlot(1) }, IndexCode { source: Short(2), number: WordSlot(3), columns: WordSlot(135), ordered: WordSlot(4294967295) }, IndexCode { source: Short(2), number: WordSlot(2), columns: WordSlot(143), ordered: WordSlot(4294967295) }]\n\
+tables [TableCode { fill: Short(0), operands: WordSlot(115), need: NeedSite(2), unit: WordSlot(3) }, TableCode { fill: Short(1), operands: WordSlot(129), need: NeedSite(4), unit: WordSlot(4) }, TableCode { fill: Short(5), operands: WordSlot(154), need: NeedSite(6), unit: WordSlot(7) }, TableCode { fill: Short(11), operands: WordSlot(140), need: NeedSite(5), unit: WordSlot(5) }]\n\
+indexes [IndexCode { source: Short(1), number: WordSlot(0), columns: WordSlot(3), ordered: WordSlot(4294967295) }, IndexCode { source: Short(2), number: WordSlot(0), columns: WordSlot(5), ordered: WordSlot(4294967295) }, IndexCode { source: Short(2), number: WordSlot(1), columns: WordSlot(7), ordered: WordSlot(1) }, IndexCode { source: Short(2), number: WordSlot(1), columns: WordSlot(41), ordered: WordSlot(4294967295) }, IndexCode { source: Short(2), number: WordSlot(2), columns: WordSlot(71), ordered: WordSlot(1) }, IndexCode { source: Short(2), number: WordSlot(3), columns: WordSlot(138), ordered: WordSlot(4294967295) }, IndexCode { source: Short(2), number: WordSlot(2), columns: WordSlot(148), ordered: WordSlot(4294967295) }]\n\
 units Call Decided 0+20, Table Decided 0+0, Table Open 0+0, Call Decided 20+13, Call Decided 33+1, Call Decided 34+0, Call Open 34+2, Call Decided 36+1\n\
 sizes [SizeSite { relation: WordSlot(0), column: Short(5), value: WordSlot(3) }]\n\
 constants [9, 11, 12, 5, 40]\n\
 relations [SyntaxError, SyntaxTree]\n\
-needs [7, 14, 27, 18, 20, 22, 31, 0, 3, 2, 2, 0, 5, 3, 5, 2, 8, 10, 4, 3, 5, 0, 4, 1, 3, 6, 0, 6, 2, 24, 26, 1, 158]\n\
-pool [2, 2, 3, 1, 5, 1, 0, 1, 0, 0, 1, 0, 0, 0, 4294967295, 3, 0, 0, 1, 20, 0, 1, 46, 1, 6, 1, 60, 0, 1, 1, 2, 1, 2, 2, 0, 9, 1, 1, 1, 10, 1, 0, 2, 3, 1, 0, 1, 0, 0, 4, 1, 46, 1, 6, 1, 60, 0, 1, 2, 3, 1, 0, 1, 1, 1, 14, 1, 14, 0, 1, 0, 4, 0, 1, 0, 14, 3, 0, 0, 15, 1, 6, 1, 3, 0, 30, 0, 31, 1, 46, 1, 6, 1, 60, 0, 30, 1, 34, 0, 30, 4, 0, 30, 1, 0, 37, 1, 38, 0, 30, 0, 40, 2, 1, 1, 1, 1, 29, 0, 4294967295, 1, 3, 0, 50, 0, 50, 2, 1, 3, 1, 1, 44, 1, 0, 4294967295, 1, 0, 2, 1, 5, 1, 3, 4, 1, 0, 0, 50, 0, 50, 2, 1, 6, 0, 1, 49, 1, 0, 1, 1, 2]\n\
+needs [7, 22, 14, 29, 18, 20, 24, 0, 3, 3, 2, 0, 5, 3, 5, 2, 8, 10, 4, 3, 5, 0, 1, 146, 4, 1, 3, 1, 0, 6, 2, 26, 28]\n\
+pool [2, 2, 3, 1, 5, 1, 0, 1, 0, 0, 1, 0, 0, 0, 4294967295, 3, 0, 0, 1, 20, 0, 1, 46, 1, 6, 1, 1, 60, 0, 1, 1, 2, 1, 2, 2, 0, 9, 1, 1, 1, 10, 1, 0, 2, 3, 1, 0, 1, 0, 0, 4, 1, 46, 1, 6, 1, 1, 60, 0, 1, 2, 3, 1, 0, 1, 1, 1, 14, 1, 14, 0, 1, 0, 4, 0, 1, 0, 14, 3, 0, 0, 15, 1, 6, 1, 3, 0, 30, 0, 31, 1, 46, 1, 6, 1, 1, 60, 0, 30, 1, 34, 0, 30, 4, 0, 30, 1, 0, 37, 1, 38, 0, 30, 0, 40, 2, 1, 1, 1, 1, 29, 0, 4294967295, 1, 3, 0, 50, 0, 50, 2, 1, 3, 1, 1, 44, 1, 0, 4294967295, 1, 0, 2, 1, 5, 1, 3, 4, 1, 2, 1, 0, 0, 50, 0, 50, 2, 1, 6, 0, 1, 49, 1, 0, 1]\n\
 ";
 
 /// The rows of this part's cases.

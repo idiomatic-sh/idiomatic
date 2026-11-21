@@ -1,60 +1,19 @@
 //! Physical occurrence span, capture and line semantics over one borrowed checked interval.
 use crate::domain::contract::types::PortableOperatorFault;
+use crate::domain::patterns::types::PatternMatcher;
+use crate::domain::source_matches::lines::service::advance_line;
 use crate::domain::source_matches::types::{
     BaseLine, BaseLineColumn, CaptureRequest, CarriageReturn, CheckedSource, LineBytes, LineCursor,
     OccurrenceByte, OccurrenceSpan, SearchedGroup, SearchedSpan, SourceBase, SourceMatchesInput,
     SourceMatchesParts, TextRowDriver,
 };
+use ryo_matching::inbound::use_cases::matching::types::{GroupName, SearchText};
 use ryo_relations::domain::relations::types::{Integer, Offset, Span, Value};
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, LiteralText};
 use ryo_values::domain::query_operators::types::{LineOutput, TextOutput};
 use ryo_values::domain::row_texts::types::CellText;
 use std::ops::ControlFlow;
-fn advance_line(
-    bytes: LineBytes<'_>,
-    source: LineBytes<'_>,
-    base: SourceBase,
-    cursor: &mut LineCursor,
-    to: LineCursor,
-    line: &mut Integer,
-    pending_cr: &mut CarriageReturn,
-) -> Result<(), PortableOperatorFault> {
-    for &byte in bytes
-        .0
-        .get(cursor.0..to.0)
-        .ok_or(PortableOperatorFault::InvalidSourceMatchSpan)?
-    {
-        if *pending_cr == CarriageReturn::Pending {
-            line.0 = line
-                .0
-                .checked_add(1)
-                .ok_or(PortableOperatorFault::InvalidSourceMatchSpan)?;
-            *pending_cr = CarriageReturn::Clear;
-            if byte == b'\n' {
-                continue;
-            }
-        }
-        if byte == b'\r' {
-            *pending_cr = CarriageReturn::Pending;
-        } else if byte == b'\n' {
-            line.0 = line
-                .0
-                .checked_add(1)
-                .ok_or(PortableOperatorFault::InvalidSourceMatchSpan)?;
-        }
-    }
-    *cursor = to;
-    if *pending_cr == CarriageReturn::Pending && source.0.get(base.0 + to.0) != Some(&b'\n') {
-        line.0 = line
-            .0
-            .checked_add(1)
-            .ok_or(PortableOperatorFault::InvalidSourceMatchSpan)?;
-        *pending_cr = CarriageReturn::Clear;
-    }
-    Ok(())
-}
-
 /// The span in the physical source of an occurrence found at `occurrence` in the text searched from `base`.
 ///
 /// # Errors
@@ -85,6 +44,7 @@ pub(crate) type VisitOccurrences<'visit> =
         &mut dyn FnMut(std::ops::Range<usize>, Option<std::ops::Range<usize>>) -> ControlFlow<()>,
     ) -> Result<ControlFlow<()>, PortableOperatorFault>;
 
+/// One row for each occurrence `visit` gives in the input's checked text, handed to `driver`.
 pub(crate) fn occurrences(
     input: SourceMatchesInput<'_>,
     driver: &mut dyn TextRowDriver,
@@ -196,6 +156,88 @@ pub(crate) fn occurrences(
         return Err(error);
     }
     Ok(())
+}
+
+/// `source-matches`: one row for each occurrence of the input's compiled expression in its checked text, left to right,
+/// handed to `driver` as the input's row, then the occurrence's span, its line when lines are numbered, and for a
+/// captured group its span, its text (interned by the driver) and its line as asked. The one meaning: today's
+/// `text_map` kernel and the new engine's `Call` both call it.
+///
+/// # Errors
+///
+/// `WrongOperation` when a group's text or line is asked with no group, or a line with no base line;
+/// `InvalidSourceMatchSpan` when a span cannot be stated in the file; `Interrupted` when the driver refuses a row;
+/// `MissingCapture` when the expression names no such group.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl;
+/// use ryo_operators::domain::contract::errors::ContractError;
+/// use ryo_operators::domain::patterns::{service::compiled, types::PatternMatcher};
+/// use ryo_operators::domain::source_matches::service::{checked_source, searched};
+/// use ryo_operators::domain::source_matches::types::{
+///     BaseLineColumn, CaptureRequest, LineBytes, SearchedSpan, SourceMatchesInput, TextRowDriver,
+/// };
+/// use ryo_operators::domain::table_scratch::types::Patterns;
+/// use ryo_operators::domain::table_texts::types::TextView;
+/// use ryo_relations::domain::relations::types::{Offset, Span, Value};
+/// use ryo_values::domain::files::types::SourceView;
+/// use ryo_values::domain::plan_parts::types::ColumnIndex;
+/// use ryo_values::domain::query_operators::types::{LineOutput, TextOutput};
+/// use ryo_values::domain::row_texts::types::CellText;
+///
+/// struct Rows(Vec<Vec<Value>>);
+/// impl TextRowDriver for Rows {
+///     fn intern(&mut self, _: CellText<'_>) -> Value {
+///         Value::Number(ryo_relations::domain::relations::types::Integer(0))
+///     }
+///     fn emit(&mut self, row: &[Value]) -> Result<(), ContractError> {
+///         self.0.push(row.to_vec());
+///         Ok(())
+///     }
+/// }
+/// let row = [Value::Span(Span { start: Offset(0), end: Offset(4) })];
+/// let (unnumbered, source) = (BaseLineColumn::Unnumbered, SourceView(b"abab"));
+/// let Ok(SearchedSpan::Checked(checked)) = checked_source(&row, ColumnIndex(0), unnumbered, source) else {
+///     panic!("the span lies in the source");
+/// };
+/// let (matcher, mut kept) = (PatternMatcher(&MatchingUseCaseImpl), Patterns::default());
+/// let regex = compiled(TextView("ab"), &mut kept, matcher).expect("a valid expression");
+/// let (text, base, line) = (checked.text, checked.base, checked.line);
+/// let (capture, capture_text, capture_line) = (CaptureRequest::Whole, TextOutput::Omitted, LineOutput::Omitted);
+/// let source = LineBytes(b"abab");
+/// let input = SourceMatchesInput { row: &[], source, base, text, line, regex, capture, capture_text, capture_line };
+/// let (mut rows, mut joined) = (Rows(Vec::new()), Vec::new());
+/// searched(input, matcher, &mut rows, &mut joined).expect("the occurrences lie in the text");
+/// let span = |start, end| vec![Value::Span(Span { start: Offset(start), end: Offset(end) })];
+/// assert_eq!(rows.0, [span(0, 2), span(2, 4)]);
+/// ```
+pub fn searched(
+    input: SourceMatchesInput<'_>,
+    matcher: PatternMatcher<'_>,
+    driver: &mut dyn TextRowDriver,
+    joined: &mut Vec<Value>,
+) -> Result<(), PortableOperatorFault> {
+    let (regex, text, capture) = (input.regex, input.text.0, input.capture);
+    occurrences(input, driver, joined, &|each| match capture {
+        CaptureRequest::Group(name) => matcher
+            .0
+            .visit_regex_captures(
+                regex,
+                SearchText(text),
+                GroupName(name.0),
+                &mut |found, group| each(found.0, Some(group.0)),
+            )
+            .map_err(|_| PortableOperatorFault::MissingCapture {
+                capture: LiteralText(name.0.into()),
+            }),
+        CaptureRequest::Whole => {
+            Ok(matcher
+                .0
+                .visit_regex_matches(regex, SearchText(text), &mut |found| each(found.0, None)))
+        }
+    })
 }
 
 /// The source gate of a search: the span's text and base line, checked before any pattern is compiled; an absent span gives

@@ -33,6 +33,7 @@ macro_rules! each_relation {
                 BindingRead binding_read BindingReadRow BindingReadColumn optional;
                 BindingUse binding_use BindingUseRow BindingUseColumn optional;
                 BindingResolution binding_resolution BindingResolutionRow BindingResolutionColumn optional;
+                LookupScope lookup_scope LookupScopeRow LookupScopeColumn optional;
                 BindingShadow binding_shadow BindingShadowRow BindingShadowColumn optional;
                 ImplicitSymbol implicit_symbol ImplicitSymbolRow ImplicitSymbolColumn optional;
                 QualifiedName qualified_name QualifiedNameRow QualifiedNameColumn optional;

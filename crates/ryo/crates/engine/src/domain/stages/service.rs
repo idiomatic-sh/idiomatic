@@ -1,0 +1,389 @@
+//! The services of the `stages` concept: one compiled loop for each kind of stage, over the columns of a batch. A loop reads
+//! slices and writes vectors; none runs a step program, reads a clock or counts a row: its caller adds a batch's rows to the
+//! work once, after the loop.
+
+use super::types::{
+    BatchKey, BatchRow, BatchValue, Batches, CellTest, FanRows, HandleRun, KeptWhen, RowKept,
+};
+use crate::domain::indexes::reading::service::{cell_at, rows_of, run_of};
+use crate::domain::indexes::types::{ColumnView, IndexRead, SourceRow};
+use crate::domain::steps::types::TestOperation;
+use ryo_language::domain::facts::types::CellWord;
+use ryo_operators::domain::ordered_groups::service::nearest;
+use ryo_operators::domain::ordered_groups::types::GroupOrders;
+use ryo_relations::domain::relations::types::{Count, Integer};
+use ryo_values::domain::plan_orders::types::OrderBound;
+
+/// A row's number as the handle a batch holds of it.
+#[inline]
+pub(crate) fn handle(row: Count) -> CellWord {
+    CellWord(u64::try_from(row.0).unwrap_or(u64::MAX))
+}
+
+/// The row a handle names.
+#[inline]
+pub(crate) fn row_of(named: CellWord) -> Count {
+    Count(usize::try_from(named.0).unwrap_or(usize::MAX))
+}
+
+/// A handle with the bits its source's handles carry: the one statement of "the cell a row is bound as".
+#[inline]
+pub(crate) const fn tagged(numbered: CellWord, tag: CellWord) -> CellWord {
+    CellWord(numbered.0 | tag.0)
+}
+
+/// A row of a batch as a selection holds it.
+#[inline]
+pub(crate) fn selected_row(row: Count) -> BatchRow {
+    BatchRow(u32::try_from(row.0).unwrap_or(u32::MAX))
+}
+
+/// `Scan` over a whole source: the handles of the rows of `run`.
+pub(crate) fn scan(run: HandleRun, out: &mut Vec<CellWord>) {
+    out.clear();
+    out.extend((run.first.0..run.end.0).map(|row| tagged(handle(Count(row)), run.tag)));
+}
+
+/// `Scan` over one bucket of a source: the handles of an index's rows for one key, each with the bits `tag` holds.
+pub(crate) fn scan_bucket(rows: &[SourceRow], tag: CellWord, out: &mut Vec<CellWord>) {
+    out.clear();
+    out.extend(
+        rows.iter()
+            .map(|row| tagged(CellWord(u64::from(row.0)), tag)),
+    );
+}
+
+/// Writes the row's cells of a key into their places.
+#[inline]
+pub(crate) fn keyed(key: &mut BatchKey<'_>, row: Count) {
+    for part in key.parts {
+        if let Some(cell) = key.cells.get_mut(part.place.0)
+            && let Some(value) = part.column.get(row.0)
+        {
+            *cell = *value;
+        }
+    }
+}
+
+/// Gives the rows `found` of the row in the cursor is at, as far as the batch has room, and moves the cursor on. Answers
+/// whether the batch out is full or the row's rows did not all fit: the loop then stops.
+#[inline]
+pub(crate) fn fanned(found: impl ExactSizeIterator<Item = CellWord>, fan: &mut FanRows) -> Batches {
+    fanned_of(Count(found.len()), found, fan)
+}
+
+/// `fanned` for rows whose number is `all`: what a loop that counts its row's rows before it gives them calls.
+#[inline]
+pub(crate) fn fanned_of(
+    all: Count,
+    found: impl Iterator<Item = CellWord>,
+    fan: &mut FanRows,
+) -> Batches {
+    let left = all.0.saturating_sub(fan.cursor.within.0);
+    let given = left.min(fan.limit.0.saturating_sub(fan.out.len()));
+    let tag = fan.tag;
+    fan.out.extend(
+        found
+            .skip(fan.cursor.within.0)
+            .take(given)
+            .map(|cell| tagged(cell, tag)),
+    );
+    fan.up
+        .extend(std::iter::repeat_n(selected_row(fan.cursor.row), given));
+    if given < left {
+        fan.cursor.within = Count(fan.cursor.within.0.saturating_add(given));
+        Batches::More
+    } else {
+        fan.cursor.row = Count(fan.cursor.row.0.saturating_add(1));
+        fan.cursor.within = Count(0);
+        if fan.out.len() < fan.limit.0 {
+            Batches::Done
+        } else {
+            Batches::More
+        }
+    }
+}
+
+/// Whether a loop that stopped has read every one of `rows` rows in.
+#[inline]
+pub(crate) fn read_all(fan: &FanRows, rows: Count) -> Batches {
+    if fan.cursor.row.0 >= rows.0 {
+        Batches::Done
+    } else {
+        Batches::More
+    }
+}
+
+/// `Probe` in rows mode: for each of the batch's `rows` rows, from the cursor on, the rows of the index its key holds. Stops
+/// when the batch out is full; answers whether every row in was read.
+pub(crate) fn probe(
+    index: IndexRead<'_>,
+    mut key: BatchKey<'_>,
+    rows: Count,
+    fan: &mut FanRows,
+) -> Batches {
+    while fan.cursor.row.0 < rows.0 {
+        keyed(&mut key, fan.cursor.row);
+        let found = rows_of(index, run_of(index, key.cells));
+        if fanned(found.iter().map(|row| CellWord(u64::from(row.0))), fan) == Batches::More {
+            break;
+        }
+    }
+    read_all(fan, rows)
+}
+
+/// `Probe` in present or absent mode: the rows of the batch whose key has a row in the index, or has none, as a selection.
+pub(crate) fn probe_keep(
+    index: IndexRead<'_>,
+    mut key: BatchKey<'_>,
+    rows: Count,
+    kept: KeptWhen,
+    keep: &mut Vec<BatchRow>,
+) {
+    keep.clear();
+    keep.resize(rows.0, BatchRow(0));
+    let mut count = 0_usize;
+    for row in 0..rows.0 {
+        keyed(&mut key, Count(row));
+        let run = run_of(index, key.cells);
+        if let Some(slot) = keep.get_mut(count) {
+            *slot = selected_row(Count(row));
+        }
+        count = count.saturating_add(usize::from(
+            (run.end.0 > run.start.0) == (kept == KeptWhen::Present),
+        ));
+    }
+    keep.truncate(count);
+}
+
+/// `Product`: for each of the batch's `rows` rows, from the cursor on, every row of a source, from its row `first` to
+/// before its row `end`. Stops when the batch out is full; answers whether every row in was read.
+pub(crate) fn product(rows: Count, first: Count, end: Count, fan: &mut FanRows) -> Batches {
+    while fan.cursor.row.0 < rows.0 {
+        if fanned((first.0..end.0).map(|row| handle(Count(row))), fan) == Batches::More {
+            break;
+        }
+    }
+    read_all(fan, rows)
+}
+
+/// `Latest`: for each row of the batch, from the cursor on, the rows of its key's group nearest its bound on `side`. The
+/// index is of the sorted table by its keys, whose groups are stretches of consecutive rows; `orders` is the table's order
+/// column, row by row. The meaning is the operators crate's `nearest`.
+pub(crate) fn latest(
+    index: IndexRead<'_>,
+    orders: &[Integer],
+    mut key: BatchKey<'_>,
+    bounds: BatchValue<'_>,
+    side: OrderBound,
+    rows: Count,
+    fan: &mut FanRows,
+) -> Batches {
+    while fan.cursor.row.0 < rows.0 {
+        keyed(&mut key, fan.cursor.row);
+        let found = rows_of(index, run_of(index, key.cells));
+        let first = found
+            .first()
+            .map_or(0, |row| usize::try_from(row.0).unwrap_or(usize::MAX));
+        let group = orders
+            .get(first..first.saturating_add(found.len()))
+            .unwrap_or_default();
+        let bound = Integer(value_at(bounds, fan.cursor.row).0.cast_signed());
+        let near = nearest(GroupOrders(group), bound, side).0;
+        if fanned(near.map(|at| handle(Count(first.saturating_add(at)))), fan) == Batches::More {
+            break;
+        }
+    }
+    read_all(fan, rows)
+}
+
+/// The cell a loop reads for `row`.
+#[inline]
+pub(crate) fn value_at(value: BatchValue<'_>, row: Count) -> CellWord {
+    match value {
+        BatchValue::Column(column) => match column.get(row.0) {
+            Some(cell) => *cell,
+            None => CellWord(0),
+        },
+        BatchValue::Constant(cell) => cell,
+    }
+}
+
+/// A column of the batch out of a loop that gave several rows for one: for each row out, the cell of the row in it came
+/// from.
+pub(crate) fn gather(column: &[CellWord], up: &[BatchRow], out: &mut Vec<CellWord>) {
+    out.clear();
+    out.extend(up.iter().map(
+        |row| match column.get(usize::try_from(row.0).unwrap_or(usize::MAX)) {
+            Some(cell) => *cell,
+            None => CellWord(0),
+        },
+    ));
+}
+
+/// A column of the batch after a loop that kept some rows: the cells of the rows kept, moved to the front in place.
+pub(crate) fn compact(column: &mut Vec<CellWord>, keep: &[BatchRow]) {
+    for (to, from) in keep.iter().enumerate() {
+        let moved = match column.get(usize::try_from(from.0).unwrap_or(usize::MAX)) {
+            Some(cell) => *cell,
+            None => CellWord(0),
+        };
+        if let Some(slot) = column.get_mut(to) {
+            *slot = moved;
+        }
+    }
+    column.truncate(keep.len());
+}
+
+/// `Read`: for each handle of the batch, the cell of that row in a column of the source.
+pub(crate) fn read(view: ColumnView<'_>, handles: &[CellWord], out: &mut Vec<CellWord>) {
+    out.clear();
+    out.extend(handles.iter().map(|each| cell_at(view, row_of(*each))));
+}
+
+/// The rows for which `tests` says yes, as a selection: one store and one add per row, no branch.
+#[inline]
+pub(crate) fn selected(
+    rows: Count,
+    keep: &mut Vec<BatchRow>,
+    tests: impl Iterator<Item = RowKept>,
+) {
+    keep.clear();
+    keep.resize(rows.0, BatchRow(0));
+    let mut count = 0_usize;
+    for (row, kept) in tests.take(rows.0).enumerate() {
+        if let Some(slot) = keep.get_mut(count) {
+            *slot = selected_row(Count(row));
+        }
+        count = count.saturating_add(usize::from(kept == RowKept::Yes));
+    }
+    keep.truncate(count);
+}
+
+/// The rows for which one comparison holds between two values, each a column or one cell.
+#[inline]
+fn compared(
+    left: BatchValue<'_>,
+    right: BatchValue<'_>,
+    rows: Count,
+    keep: &mut Vec<BatchRow>,
+    test: impl Fn(CellWord, CellWord) -> RowKept + Copy,
+) {
+    match (left, right) {
+        (BatchValue::Column(lefts), BatchValue::Column(rights)) => selected(
+            rows,
+            keep,
+            lefts
+                .iter()
+                .zip(rights)
+                .map(|(one, other)| test(*one, *other)),
+        ),
+        (BatchValue::Column(lefts), BatchValue::Constant(other)) => {
+            selected(rows, keep, lefts.iter().map(|one| test(*one, other)));
+        }
+        (BatchValue::Constant(one), BatchValue::Column(rights)) => {
+            selected(rows, keep, rights.iter().map(|other| test(one, *other)));
+        }
+        (BatchValue::Constant(one), BatchValue::Constant(other)) => {
+            selected(rows, keep, std::iter::repeat_n(test(one, other), rows.0));
+        }
+    }
+}
+
+/// What a test that came out true or false says of a row.
+macro_rules! holds {
+    ($test:expr) => {
+        if $test {
+            $crate::domain::stages::types::RowKept::Yes
+        } else {
+            $crate::domain::stages::types::RowKept::No
+        }
+    };
+}
+
+/// Whether a comparison holds between two cells: the one definition of each, which the `Keep` loop runs over a batch and
+/// a program's test asks for one row. An order is of whole numbers.
+#[inline]
+pub(crate) const fn cells_hold(test: CellTest, one: CellWord, other: CellWord) -> RowKept {
+    match test {
+        CellTest::Equal => holds!(one.0 == other.0),
+        CellTest::NotEqual => holds!(one.0 != other.0),
+        CellTest::Less => holds!(one.0.cast_signed() < other.0.cast_signed()),
+        CellTest::LessOrEqual => holds!(one.0.cast_signed() <= other.0.cast_signed()),
+        CellTest::Greater => holds!(one.0.cast_signed() > other.0.cast_signed()),
+        CellTest::GreaterOrEqual => holds!(one.0.cast_signed() >= other.0.cast_signed()),
+    }
+}
+
+/// The comparison of two cells a test is; none for a membership and for a test that reads a text.
+#[must_use]
+pub(crate) const fn cell_test(test: TestOperation) -> Option<CellTest> {
+    match test {
+        TestOperation::Equal => Some(CellTest::Equal),
+        TestOperation::NotEqual => Some(CellTest::NotEqual),
+        TestOperation::Less => Some(CellTest::Less),
+        TestOperation::LessOrEqual => Some(CellTest::LessOrEqual),
+        TestOperation::Greater => Some(CellTest::Greater),
+        TestOperation::GreaterOrEqual => Some(CellTest::GreaterOrEqual),
+        TestOperation::In
+        | TestOperation::NotIn
+        | TestOperation::Matches(_)
+        | TestOperation::Glob
+        | TestOperation::NotGlob
+        | TestOperation::StartsWith
+        | TestOperation::EndsWith
+        | TestOperation::NumericAtLeast
+        | TestOperation::NaturalLess
+        | TestOperation::Successor => None,
+    }
+}
+
+/// `Keep` of a comparison of two cells: the rows of the batch it holds for, as a selection. One loop for each comparison:
+/// the comparison is `cells_hold` with its test written in.
+pub(crate) fn keep(
+    test: CellTest,
+    left: BatchValue<'_>,
+    right: BatchValue<'_>,
+    rows: Count,
+    keep: &mut Vec<BatchRow>,
+) {
+    match test {
+        CellTest::Equal => compared(left, right, rows, keep, |one, other| {
+            cells_hold(CellTest::Equal, one, other)
+        }),
+        CellTest::NotEqual => compared(left, right, rows, keep, |one, other| {
+            cells_hold(CellTest::NotEqual, one, other)
+        }),
+        CellTest::Less => compared(left, right, rows, keep, |one, other| {
+            cells_hold(CellTest::Less, one, other)
+        }),
+        CellTest::LessOrEqual => compared(left, right, rows, keep, |one, other| {
+            cells_hold(CellTest::LessOrEqual, one, other)
+        }),
+        CellTest::Greater => compared(left, right, rows, keep, |one, other| {
+            cells_hold(CellTest::Greater, one, other)
+        }),
+        CellTest::GreaterOrEqual => compared(left, right, rows, keep, |one, other| {
+            cells_hold(CellTest::GreaterOrEqual, one, other)
+        }),
+    }
+}
+
+/// `Keep` of a membership: the rows whose cell is in a sorted list of cells, or with `kept` absent the rows whose cell is
+/// not.
+pub(crate) fn keep_in(
+    column: BatchValue<'_>,
+    sorted: &[CellWord],
+    kept: KeptWhen,
+    rows: Count,
+    keep: &mut Vec<BatchRow>,
+) {
+    let test =
+        |cell: CellWord| holds!(sorted.binary_search(&cell).is_ok() == (kept == KeptWhen::Present));
+    match column {
+        BatchValue::Column(cells) => selected(rows, keep, cells.iter().map(|cell| test(*cell))),
+        BatchValue::Constant(cell) => {
+            selected(rows, keep, std::iter::repeat_n(test(cell), rows.0));
+        }
+    }
+}

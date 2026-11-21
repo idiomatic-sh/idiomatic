@@ -44,6 +44,14 @@ its lines; what its literals are and hold; the names its imports, decorators, ba
 The parser's own tree of one file read in place: the id and the typed node of each syntax node, the text and the row cells of
 an element, and the field each child fills under its parent, read from the typed parent.
 
+### `lexical_facts`, `binding_facts`, `keyed_rows`
+
+The rows of the relations the semantic model answers. `lexical_facts` and `binding_facts` write every row of a relation: the
+file's scopes, definitions, references, static resolutions, qualified names and implicit symbols; its binding events, reads,
+uses and shadows, and the lookup path of each read. `keyed_rows` writes the rows that hold one key of six of them (a scope's
+own row, the reference or the resolution at one name, the reads of one name, the shadows of one binding, the lookup path of
+one read), looked up in the model without walking the file, each built by the function that builds it for the whole relation.
+
 ### `string_annotations`
 
 Which string literals of a walked file the language reads as type expressions: in an annotation, as a type operand of a
