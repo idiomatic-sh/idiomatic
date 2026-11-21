@@ -207,39 +207,49 @@ pub(crate) fn closure(
     }
 }
 
-/// How deep a definition's own uses of definitions are looked through for a closure.
-const USES_LOOKED_THROUGH: usize = 4;
+/// How deep a view of a view is looked through for a walk.
+const VIEWS_LOOKED_THROUGH: usize = 4;
 
-/// Whether a definition's rows are bounded by nothing its plan's estimate sees: its own plan, or that of a definition it
-/// uses, walks a closure or climbs over derived edges. Read whole, such a definition is every pair its walk reaches in
-/// the file (`swarm/cut`: "a probe is preferred only when the definition's sub-program walks no closure and no
-/// nearest-over-edges").
+/// Whether a definition's rows are a walk's own: a branch of it holds a closure or a climb over derived edges, or is a
+/// view of such a definition (the one source of its rows is a use of it). Read whole, such a definition is every pair
+/// its walk reaches in the file, which no estimate of the plan sees (`swarm/cut`: "a probe is preferred only when the
+/// definition's sub-program walks no closure and no nearest-over-edges"). A definition that only asks such a walk by a
+/// key, among other sources of rows, is not one: its rows are bounded by those sources.
 pub(crate) fn walks_edges(drafts: &Drafts, definition: DefinitionId, depth: usize) -> bool {
     let Some(draft) = draft(drafts, definition) else {
         return false;
     };
-    let atoms = draft.branches.iter().flat_map(|branch| &branch.atoms);
-    atoms.into_iter().any(|atom| match atom {
-        FlatAtom::Closure { .. }
-        | FlatAtom::Nearest {
-            over: NearestOver::Derived(_),
-            ..
-        } => true,
-        FlatAtom::Rows {
-            rows: AtomRows::Definition(used),
-            ..
-        }
-        | FlatAtom::Decided {
-            rows: AtomRows::Definition(used),
-            ..
-        } => depth < USES_LOOKED_THROUGH && walks_edges(drafts, *used, depth + 1),
-        FlatAtom::Rows { .. }
-        | FlatAtom::Decided { .. }
-        | FlatAtom::Latest { .. }
-        | FlatAtom::Walk { .. }
-        | FlatAtom::Nearest { .. }
-        | FlatAtom::Called { .. }
-        | FlatAtom::Test { .. } => false,
+    draft.branches.iter().any(|branch| {
+        let walks = branch.atoms.iter().any(|atom| {
+            matches!(
+                atom,
+                FlatAtom::Closure { .. }
+                    | FlatAtom::Nearest {
+                        over: NearestOver::Derived(_),
+                        ..
+                    }
+            )
+        });
+        let mut sources = branch.atoms.iter().filter_map(|atom| match atom {
+            FlatAtom::Rows { rows, .. } => Some(*rows),
+            FlatAtom::Latest { .. }
+            | FlatAtom::Decided { .. }
+            | FlatAtom::Walk { .. }
+            | FlatAtom::Nearest { .. }
+            | FlatAtom::Closure { .. }
+            | FlatAtom::Called { .. }
+            | FlatAtom::Test { .. } => None,
+        });
+        let view = match (sources.next(), sources.next()) {
+            (Some(AtomRows::Definition(used)), None) => {
+                depth < VIEWS_LOOKED_THROUGH && walks_edges(drafts, used, depth + 1)
+            }
+            (
+                Some(AtomRows::Definition(_) | AtomRows::Made(_) | AtomRows::Relation(_)) | None,
+                _,
+            ) => false,
+        };
+        walks || view
     })
 }
 
