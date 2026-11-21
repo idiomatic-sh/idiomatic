@@ -121,7 +121,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Cow::Borrowed(concat!(
             "definition 0: 5 columns, emptiness All([Unknown, Unknown])\n",
             "  pattern bound [] collected []: Table 1\n",
-            "  pattern bound [1] collected []: Call: EachMatch:Fanout EachMatch:Fanout Yield:Constant\n",
+            "  pattern bound [1] collected []: Call: EachMatch:Fanout Exists:Constant Yield:Constant\n",
             "definition 1: 6 columns, emptiness All([All([Definition(DefinitionId(0)), Unknown, Unknown]), Any([All([Definition(DefinitionId(0))])])])\n",
             "  pattern bound [] collected []: Table 0\n",
             "  pattern bound [1] collected [5]: Call: Nearest:Fanout Exists:Fanout Let:Constant Yield:Constant\n",
@@ -131,7 +131,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "  pipeline: Scan:File Read:Constant Read:Constant Probe:Fanout Read:Constant\n",
             "rule 0: 1 branches\n",
             "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Read:Constant Read:Constant Emit:Constant\n",
-            "codes: {\"EachMatchNode\": 3, \"EachRowMade\": 1, \"Emit\": 1, \"End\": 5, \"Exists\": 1, \"Let\": 1, \"Nearest\": 1, \"ReadMade\": 5, \"ReadNode\": 1, \"StageProbe\": 1, \"StageRead\": 7, \"StageScan\": 2, \"StageUse\": 1, \"StageWrite\": 2, \"Test\": 1, \"Yield\": 3}",
+            "codes: {\"EachMatchNode\": 3, \"EachRowMade\": 1, \"Emit\": 1, \"End\": 6, \"Exists\": 2, \"Let\": 1, \"Nearest\": 1, \"ReadMade\": 5, \"ReadNode\": 1, \"StageProbe\": 1, \"StageRead\": 7, \"StageScan\": 2, \"StageUse\": 1, \"StageWrite\": 2, \"Test\": 1, \"Yield\": 4}",
         ))),
     },
     Case {
@@ -207,12 +207,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Cow::Borrowed(concat!(
             "definition 0: 5 columns, emptiness All([All([Row(Scope, None), Unknown, Row(Scope, None)]), Any([All([Row(Scope, None), Row(Scope, None)])])])\n",
             "  pattern bound [] collected []: Table 0\n",
-            "  pattern bound [1] collected [4]: Call: EachMatch:Fanout Closure:Fanout EachMatch:Fanout Let:Constant Yield:Constant\n",
+            "  pattern bound [1] collected [4]: Call: EachMatch:Fanout Closure:Fanout Exists:Constant Let:Constant Yield:Constant\n",
             "table 0: Rows, 5 columns, indexes []\n",
             "  pipeline: Scan:File Read:Constant Read:Constant Read:Constant Use:Fanout Probe:Fanout\n",
             "rule 0: 1 branches\n",
             "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Read:Constant Emit:Constant\n",
-            "codes: {\"Closure\": 1, \"EachMatchFilled\": 3, \"EachRowMade\": 1, \"Emit\": 1, \"End\": 4, \"Let\": 1, \"ReadFilled\": 1, \"ReadMade\": 4, \"StageProbe\": 1, \"StageRead\": 3, \"StageScan\": 1, \"StageUse\": 1, \"StageWrite\": 1, \"Yield\": 2}",
+            "codes: {\"Closure\": 1, \"EachMatchFilled\": 3, \"EachRowMade\": 1, \"Emit\": 1, \"End\": 5, \"Exists\": 1, \"Let\": 1, \"ReadFilled\": 1, \"ReadMade\": 4, \"StageProbe\": 1, \"StageRead\": 3, \"StageScan\": 1, \"StageUse\": 1, \"StageWrite\": 1, \"Yield\": 3}",
         ))),
     },
     Case {

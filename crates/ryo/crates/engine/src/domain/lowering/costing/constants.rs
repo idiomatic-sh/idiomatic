@@ -73,6 +73,9 @@ pub(crate) const DEAR_DECISION: (PlanEstimate, PlanEstimate) =
 /// A decision of this many steps or more also waits for an access ranked up to 2.05.
 pub(crate) const DEARER_DECISION: (PlanEstimate, PlanEstimate) =
     (PlanEstimate(20 * 1_024), PlanEstimate(2_099));
+/// A nearest walk over derived edges climbs edge by edge, each step a use of the edges and of the domain: taken as ten
+/// steps (`swarm/cut`, nav.py: `nearc` with its start bound).
+pub(crate) const DERIVED_NEAREST: PlanEstimate = PlanEstimate(10 * 1_024);
 /// A use bound on a column of a definition that has no program for it reads the definition's table: each bound column is
 /// taken to keep a tenth of the table's rows.
 pub(crate) const TABLE_KEY_KEEPS: PlanEstimate = PlanEstimate(102);

@@ -340,6 +340,19 @@ fn written_as(drafts: &Drafts, constant: FlatTerm) -> Option<String> {
     }
 }
 
+/// The elements a sample says lie under one element of a kind, at most: the file's elements over the kind's (elements of
+/// one kind that do not nest share the file between them). None when the load was given no sizes or the sample did not
+/// size the kind.
+#[must_use]
+pub(crate) fn kind_extent(drafts: &Drafts, kind: FlatTerm) -> Option<PlanEstimate> {
+    let sized = drafts.sized.as_ref()?;
+    let text = written_as(drafts, kind)?;
+    let bits = kind_bits(&sized.names, &ConstantText(text.into()))?;
+    let of_kind = mean_rows(kind_rows(&sized.statistics, bits)?);
+    let all = mean_rows(element_rows(&sized.statistics)?);
+    Some(PlanEstimate(all.0.saturating_mul(ONE.0) / of_kind.0.max(1)))
+}
+
 /// The rows a sample measured for the bucket an atom's rows are read by when no register keys them: the kind's or the
 /// field's elements for the node table (its elements, read whole), the rows holding the value for a filled relation.
 /// `held` is the constant each cell is held to. None when the load was given no sizes, when a register keys the read, or

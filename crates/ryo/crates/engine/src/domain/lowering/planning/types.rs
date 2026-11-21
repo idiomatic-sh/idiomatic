@@ -299,6 +299,8 @@ pub(crate) struct OrderCompletion<'a> {
     pub(crate) placed: Vec<AtomPlacing>,
     /// The order so far.
     pub(crate) order: Vec<AtomPlace>,
+    /// How many times the branch names each variable: one that only one atom names is read by nothing else.
+    pub(crate) uses: HashMap<FlatVariable, Count>,
     /// The pinned variables an access placed so far was keyed by: the test that pins one holds already.
     pub(crate) implied: std::collections::HashSet<FlatVariable>,
     /// The pinned variables a use of a definition was keyed by in a pipeline: the use leaves no row to read the cell from.
