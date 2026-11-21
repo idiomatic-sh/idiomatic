@@ -157,6 +157,9 @@ pub struct ScanWorker {
     pub scan: ScanScratch,
     /// What the worker found in the files it scanned.
     pub report: ScanReport,
+    /// SPIKE (ryo-fmx3.1, E): what the host knows of the file in hand that no language reads: whether it may be executed.
+    /// Set by whoever hands the worker a file, before the scan; unknown until then.
+    pub executable: ryo_values::domain::files::types::ExecutablePermission,
 }
 
 impl std::fmt::Debug for ScanWorker {

@@ -230,6 +230,7 @@ impl FileScanUseCase for FileScanUseCaseImpl {
                 file: file.file,
                 source: file.source,
             };
+            state.executable = file.executable;
             let answered = taken(engine, &run, state, request, rows);
             // What the engine noticed of a rule's work is handed over whatever the scan answered: its rows are complete.
             let kept = std::mem::take(&mut state.report.notices);
