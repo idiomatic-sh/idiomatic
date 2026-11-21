@@ -9,7 +9,7 @@ use crate::domain::lowering::costing::constants::{
     ANCESTORS, CLOSURE_STEP, CONSTANT_EQUAL_KEEPS, DESCENDANTS, MADE_ROWS, ONE, THINNED_DESCENDANTS,
 };
 use crate::domain::lowering::costing::service::{
-    keyed, made_rows, planned_rows, plus, times, whole_rows,
+    definition_rows, keyed, made_rows, planned_rows, plus, times, whole_rows,
 };
 use crate::domain::lowering::costing::types::{AccessCost, CellState, PlanEstimate, UseAsked};
 use crate::domain::lowering::definitions::service::draft;
@@ -24,6 +24,7 @@ use crate::domain::lowering::planning::service::planned_with;
 use crate::domain::lowering::planning::types::{PlanningWith, UnitRole, UnitStart};
 use crate::domain::steps::types::{ColumnMask, DefinitionId, MadeColumn, MadeTableId};
 use std::collections::HashSet;
+use std::sync::PoisonError;
 
 /// What a pattern's bound columns give a branch at its start: the variables of those columns, and the rows of one start,
 /// a bound column that is a constant of the branch keeping the share an equality with a constant does.
@@ -52,8 +53,16 @@ fn planned_use(
         node: draft.node,
         bound: bound.clone(),
     };
-    if let Some(known) = with.costs.0.borrow().get(&asked) {
-        return *known;
+    // The memo is held only for the look: the plans below ask it again.
+    let known = with
+        .costs
+        .0
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .get(&asked)
+        .copied();
+    if let Some(known) = known {
+        return known;
     }
     let mut cost = Some(AccessCost::default());
     for branch in &draft.branches {
@@ -77,7 +86,7 @@ fn planned_use(
         }
     }
     // A use by a key gives no more rows than the definition holds.
-    let held = planned_rows(draft.rows);
+    let held = planned_rows(definition_rows(with.drafts, definition));
     let cost = cost.map(|cost| AccessCost {
         rows: if bound.0.is_empty() {
             cost.rows
@@ -86,14 +95,19 @@ fn planned_use(
         },
         ..cost
     });
-    let _old = with.costs.0.borrow_mut().insert(asked, cost);
+    let _old = with
+        .costs
+        .0
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .insert(asked, cost);
     cost
 }
 
 /// What making a definition's table costs, once a file: its whole plan's steps. A definition with no whole plan is taken to
 /// cost its rows.
 fn table_made(with: PlanningWith<'_>, definition: DefinitionId) -> PlanEstimate {
-    let rows = draft(with.drafts, definition).map_or(RowEstimate(1), |draft| draft.rows);
+    let rows = definition_rows(with.drafts, definition);
     planned_use(with, definition, &ColumnMask::default())
         .map_or(planned_rows(rows), |cost| cost.steps)
 }
@@ -150,7 +164,7 @@ fn edge_rows(with: PlanningWith<'_>, edges: &EdgeColumns, from_source: bool) -> 
     bound.dedup();
     match &edges.rows {
         EdgeRows::Definition(definition) => {
-            let table = draft(with.drafts, *definition).map_or(RowEstimate(1), |draft| draft.rows);
+            let table = definition_rows(with.drafts, *definition);
             used(
                 with,
                 *definition,
