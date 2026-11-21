@@ -15,6 +15,7 @@ use crate::domain::made_tables::placing::types::PlaceRoom;
 use crate::domain::stages::verdicts::types::TextVerdicts;
 use crate::domain::steps::types::{MadeTableId, StepRegex};
 use ryo_language::domain::facts::types::{CellWord, FactSource, FileWords};
+use ryo_language::domain::files::types::SourcePath;
 use ryo_language::domain::node_table::types::NodeTable;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_operators::domain::patterns::types::PatternMatcher;
@@ -277,6 +278,8 @@ pub(crate) struct FillFrame<'a> {
     pub(crate) nodes: &'a NodeTable,
     /// The file.
     pub(crate) file: FileId,
+    /// The file's path: the text a test of the file reads.
+    pub(crate) path: SourcePath<'a>,
     /// The file's bytes.
     pub(crate) text: ByteSlice<'a>,
     /// The language.

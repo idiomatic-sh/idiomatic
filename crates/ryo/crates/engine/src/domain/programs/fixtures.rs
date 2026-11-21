@@ -151,6 +151,7 @@ pub(crate) fn framed_over<T>(
         programs: rule_set(programs),
         nodes,
         file: FILE,
+        path: ryo_language::domain::files::types::SourcePath(""),
         text: ByteSlice(b""),
         facts: &mut facts,
         words: &mut words,

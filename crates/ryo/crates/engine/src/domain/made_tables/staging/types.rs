@@ -3,10 +3,12 @@
 use crate::domain::made_tables::types::{FillStore, RuleSetView};
 use crate::domain::stages::verdicts::types::TextVerdicts;
 use ryo_language::domain::facts::types::CellWord;
+use ryo_language::domain::files::types::SourcePath;
 use ryo_language::domain::node_table::types::NodeTable;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_operators::domain::patterns::types::PatternMatcher;
 use ryo_operators::domain::table_scratch::types::Patterns;
+use ryo_relations::domain::relations::types::Count;
 use ryo_relations::domain::relations::types::FileId;
 
 /// What a stage reads besides its batch: the programs, the fill side's state for the file as it is (nothing is made or
@@ -21,6 +23,8 @@ pub(crate) struct BatchFrame<'s> {
     pub(crate) nodes: &'s NodeTable,
     /// The file.
     pub(crate) file: FileId,
+    /// The file's path.
+    pub(crate) path: SourcePath<'s>,
     /// The file's bytes.
     pub(crate) text: ByteSlice<'s>,
 }
@@ -36,4 +40,6 @@ pub(crate) struct KeepScratch<'r> {
     pub(crate) matcher: PatternMatcher<'r>,
     /// What each test of a text against constants holds for, by word.
     pub(crate) verdicts: &'r mut TextVerdicts,
+    /// The registers that hold the file, by place: a text test of one reads the file's path.
+    pub(crate) files: &'r [Count],
 }
