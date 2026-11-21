@@ -64,4 +64,8 @@ impl PatternRows for Asker<'_> {
             PatternFound::Nothing
         })
     }
+
+    fn table_started(&mut self, _: MadeTableId) {}
+
+    fn table_ended(&mut self, _: MadeTableId) {}
 }

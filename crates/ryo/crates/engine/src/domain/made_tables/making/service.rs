@@ -6,12 +6,15 @@ use crate::domain::code::filling::service::{stage_scan_of, stage_write_of};
 use crate::domain::code::types::{CodeEntry, RelationNumber};
 use crate::domain::filled::errors::FilledError;
 use crate::domain::filled::service::whole;
-use crate::domain::filled::types::{MissingCode, RelationAsk, UnbuiltFill};
+use crate::domain::filled::types::{FillRuns, MissingCode, RelationAsk, UnbuiltFill};
+use crate::domain::made_tables::built::service::runs;
 use crate::domain::indexes::service::state_of;
 use crate::domain::indexes::types::IndexBuilt;
 use crate::domain::made_tables::carrying::service::stage_reach;
 use crate::domain::made_tables::fanning::service::scan_read;
-use crate::domain::made_tables::fills::service::{constant_rows, fill_at, grouped_rows, input_at};
+use crate::domain::made_tables::fills::service::{
+    constant_rows, fill_at, fill_code_at, grouped_rows, input_at,
+};
 use crate::domain::made_tables::fills::types::{FillInputs, FillKind, TableFill};
 use crate::domain::made_tables::indexing::service::index_built;
 use crate::domain::made_tables::matching::service::match_rows;
@@ -25,8 +28,8 @@ use crate::domain::made_tables::staging::service::WRONG_WORD;
 use crate::domain::made_tables::staging::types::BatchFrame;
 use crate::domain::made_tables::types::PipeRun;
 use crate::domain::made_tables::types::{
-    FillFrame, FillKept, FillWork, MadeNow, MadeState, PatternRows, Reached, ReadSource,
-    SourceWork, TableNeed, TableRows, TableSlot,
+    FillFrame, FillKept, FillPart, FillWork, MadeNow, MadeState, PatternRows, Reached,
+    ReadSource, SourceWork, TableNeed, TableRows, TableSlot,
 };
 use crate::domain::steps::types::MadeTableId;
 use ryo_relations::domain::relations::types::Count;
@@ -316,6 +319,13 @@ pub(crate) fn made_now(
     table: MadeTableId,
 ) -> Result<MadeNow, FilledError> {
     let stamp = frame.store.stamp;
+    // A table whose fill the fill side does not run is refused before anything of it is read.
+    let written = fill_code_at(frame.programs.code, table)?;
+    if runs(frame.programs.code, FillPart::Fill(written)) == FillRuns::NotYet {
+        return Err(FilledError::Unbuilt {
+            unbuilt: UnbuiltFill::Fill(written),
+        });
+    }
     let fill = fill_at(frame.programs.code, table)?;
     let slot = slot_mut(frame, table).ok_or(FilledError::Code {
         named: MissingCode::Table,
@@ -338,6 +348,7 @@ pub(crate) fn made_now(
     clear_rows(&mut rows, fill.width);
     reached.clear();
     let mut work = FillWork::default();
+    uses.table_started(table);
     let done = filled_now(
         frame,
         uses,
@@ -349,6 +360,7 @@ pub(crate) fn made_now(
             reached: &mut reached,
         },
     );
+    uses.table_ended(table);
     work.made = rows.count;
     if let Some(slot) = slot_mut(frame, table) {
         slot.rows = rows;

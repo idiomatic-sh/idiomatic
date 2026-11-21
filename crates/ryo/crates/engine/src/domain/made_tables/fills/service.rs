@@ -28,7 +28,7 @@ const NO_RECORD: FilledError = FilledError::Code {
 };
 
 /// Which fill a code is, of the fills the fill side runs: the code is compared with the lowering's own code of each.
-fn kind_of(code: FillCode) -> Result<FillKind, FilledError> {
+pub(crate) fn kind_of(code: FillCode) -> Result<FillKind, FilledError> {
     let input = || FillInput {
         pipelines: Box::new([]),
         keys: ColumnList(Box::new([])),
@@ -73,6 +73,20 @@ fn after(at: PoolAt, ahead: Count) -> Result<PoolAt, FilledError> {
         Ok(slots) => at.0.checked_add(slots).map(PoolAt).ok_or(NO_RECORD),
         Err(_) => Err(NO_RECORD),
     }
+}
+
+/// The code of a made table's fill, as written: what `built::service::runs` is asked of a fill.
+///
+/// # Errors
+///
+/// The code holds no such table.
+pub(crate) fn fill_code_at(code: &ProgramCode, table: MadeTableId) -> Result<FillCode, FilledError> {
+    code.tables
+        .get(usize::try_from(table.0).unwrap_or(usize::MAX))
+        .map(|written| FillCode(written.fill.0))
+        .ok_or(FilledError::Code {
+            named: MissingCode::Table,
+        })
 }
 
 /// The fill of a made table, as the code holds it: which fill, the table's width, its one parameter, and where its inputs

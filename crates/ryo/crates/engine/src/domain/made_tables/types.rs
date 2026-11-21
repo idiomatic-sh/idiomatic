@@ -1,7 +1,9 @@
 //! The types of the `made_tables` concept: the rows of a table the engine makes for a file, and the room its fills work in.
 //! Crate-private.
 
-use crate::domain::code::types::{IndexSite, MemoSite, PoolAt, ProgramCode, RelationNumber};
+use crate::domain::code::types::{
+    CodeWord, FillCode, IndexSite, MemoSite, PoolAt, ProgramCode, RelationNumber,
+};
 use crate::domain::filled::errors::FilledError;
 use crate::domain::filled::types::FilledRelations;
 use crate::domain::indexes::types::{FileStamp, IndexArena, RowRun, SourceRow};
@@ -302,6 +304,24 @@ pub(crate) trait PatternRows {
         asked: PatternAsk<'_>,
         rows: &mut Vec<CellWord>,
     ) -> Result<PatternFound, FilledError>;
+
+    /// Says that the fill of `table` starts: everything the fill side does from here to `table_ended` of the same table
+    /// is that table's making, but for what lies between the two calls of a table made inside it (a source its fill
+    /// reaches). Said for every table whose fill runs, twice a table and never for a row; a table kept as made with no
+    /// row on the loop's `Empty` runs no fill and is not said.
+    fn table_started(&mut self, table: MadeTableId);
+
+    /// Says that the fill of `table` ended, with its rows or with a fault.
+    fn table_ended(&mut self, table: MadeTableId);
+}
+
+/// A part of the code the fill side is asked whether it runs.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum FillPart {
+    /// A stage of a pipeline, by its word.
+    Stage(CodeWord),
+    /// A made table's fill, by its code.
+    Fill(FillCode),
 }
 
 /// Whether a table may have a row in a file, as the loop decides its need.

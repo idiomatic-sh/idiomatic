@@ -174,6 +174,10 @@ impl PatternRows for OneRow {
         rows.extend(asked.key.first());
         Ok(PatternFound::Rows)
     }
+
+    fn table_started(&mut self, _: MadeTableId) {}
+
+    fn table_ended(&mut self, _: MadeTableId) {}
 }
 
 /// The workload of a fill over about `rows` rows: its relation filled whole and the index its probe reads built, so a

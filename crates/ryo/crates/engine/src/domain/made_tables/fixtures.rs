@@ -128,6 +128,17 @@ pub(crate) struct Looped {
     pub(crate) keys: Vec<Vec<u64>>,
     /// How many cells a pattern's row has.
     pub(crate) width: usize,
+    /// Each start and end of a table's fill it was told, in order.
+    pub(crate) fills: Vec<FillMark>,
+}
+
+/// A start or an end of a table's fill, as the stand-in was told it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum FillMark {
+    /// The fill of the table started.
+    Started(MadeTableId),
+    /// The fill of the table ended.
+    Ended(MadeTableId),
 }
 
 impl PatternRows for Looped {
@@ -165,6 +176,14 @@ impl PatternRows for Looped {
         } else {
             PatternFound::Rows
         })
+    }
+
+    fn table_started(&mut self, table: MadeTableId) {
+        self.fills.push(FillMark::Started(table));
+    }
+
+    fn table_ended(&mut self, table: MadeTableId) {
+        self.fills.push(FillMark::Ended(table));
     }
 }
 
