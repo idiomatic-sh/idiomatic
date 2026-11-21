@@ -88,30 +88,34 @@ impl NeedFacts for FileNeeds<'_, '_, '_> {
         let (held, exact) = site_masks(code, site, &mut self.0.state.need_masks);
         let within =
             |stretch: Stretch| stretch.start.0..stretch.start.0.saturating_add(stretch.count.0);
-        // Every clause needs one of its terms in the file: the first clause that has none decides.
-        if let Some(failed) = self.clause_failing(held.clauses) {
-            if self.0.state.measure.is_some() {
-                let named = self.clause_named(failed);
-                need_leaf(self.0.state, || format!("none-of({named})=Empty"));
-            }
-            return Some(NeedVerdict::Empty);
-        }
-        // Every group needs an alternative whose clauses all hold.
-        for number in within(held.groups) {
-            let group = self.0.state.need_masks.groups.get(number).copied()?;
-            let mut some = false;
-            for place in within(group) {
-                let alternative = self.0.state.need_masks.alternatives.get(place).copied()?;
-                if self.clause_failing(alternative).is_none() {
-                    some = true;
-                    break;
-                }
-            }
-            if !some {
+        // Twice: first with the terms that cost nothing alone (a clause or an alternative that would ask a filled
+        // relation is taken to hold), so that no relation is filled for a site its free terms decide; then with all.
+        for asked in [RecordCost::Free, RecordCost::Dear] {
+            // Every clause needs one of its terms in the file: the first clause that has none decides.
+            if let Some(failed) = self.clause_failing(held.clauses, asked) {
                 if self.0.state.measure.is_some() {
-                    need_leaf(self.0.state, || "no-alternative=Empty".to_owned());
+                    let named = self.clause_named(failed);
+                    need_leaf(self.0.state, || format!("none-of({named})=Empty"));
                 }
                 return Some(NeedVerdict::Empty);
+            }
+            // Every group needs an alternative whose clauses all hold.
+            for number in within(held.groups) {
+                let group = self.0.state.need_masks.groups.get(number).copied()?;
+                let mut some = false;
+                for place in within(group) {
+                    let alternative = self.0.state.need_masks.alternatives.get(place).copied()?;
+                    if self.clause_failing(alternative, asked).is_none() {
+                        some = true;
+                        break;
+                    }
+                }
+                if !some {
+                    if self.0.state.measure.is_some() {
+                        need_leaf(self.0.state, || "no-alternative=Empty".to_owned());
+                    }
+                    return Some(NeedVerdict::Empty);
+                }
             }
         }
         if exact == MaskExact::Part {
@@ -168,8 +172,10 @@ impl NeedFacts for FileNeeds<'_, '_, '_> {
 }
 
 impl FileNeeds<'_, '_, '_> {
-    /// The first clause of a stretch of the masks' clauses that has no term in the file; none when each has one.
-    fn clause_failing(&mut self, clauses: Stretch) -> Option<Stretch> {
+    /// The first clause of a stretch of the masks' clauses that has no term in the file; none when each has one. With
+    /// `asked` free, a term that costs a fill is not asked and its clause is taken to hold (a clause's free terms come
+    /// first).
+    fn clause_failing(&mut self, clauses: Stretch, asked: RecordCost) -> Option<Stretch> {
         for number in clauses.start.0..clauses.start.0.saturating_add(clauses.count.0) {
             let Some(clause) = self.0.state.need_masks.clauses.get(number).copied() else {
                 continue;
@@ -179,12 +185,33 @@ impl FileNeeds<'_, '_, '_> {
                 let Some(term) = self.0.state.need_masks.clause_terms.get(at).copied() else {
                     continue;
                 };
-                if self.term_holds(term) == NeedVerdict::Holds {
+                let costs = self
+                    .0
+                    .state
+                    .need_masks
+                    .term_costs
+                    .get(usize::try_from(term.0).unwrap_or(usize::MAX))
+                    .copied()
+                    .unwrap_or_default();
+                if (asked == RecordCost::Free && costs == RecordCost::Dear)
+                    || self.term_holds(term) == NeedVerdict::Holds
+                {
                     some = true;
                     break;
                 }
             }
             if !some {
+                // The clause that decided is asked first the next time: a site's clauses are tried in the order they
+                // last failed in, so a site that is empty in most files is decided by one clause. Only among the
+                // clauses of free terms (the pass that asks nothing else): which relation is filled never depends on
+                // the files a worker saw before.
+                if asked == RecordCost::Free && number != clauses.start.0 {
+                    self.0
+                        .state
+                        .need_masks
+                        .clauses
+                        .swap(clauses.start.0, number);
+                }
                 return Some(clause);
             }
         }
