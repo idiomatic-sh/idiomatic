@@ -87,9 +87,13 @@ pub(crate) struct SetTestWord {
     pub(crate) constants: PoolAt,
 }
 
-/// The operands of `Call` and `StageCall`.
+/// The operands of `Call` and `StageCall`. How many rows the call gives is its meaning's (`calls::service::call_shape`): the
+/// word says it by the meaning's code and holds no bit of its own for it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct CallWord {
+    /// The meaning's own bits: of a source search, `SEARCH_NUMBERED`, `SEARCH_GROUP`, `SEARCH_GROUP_TEXT` and
+    /// `SEARCH_GROUP_LINE`; of any other meaning, none.
+    pub(crate) flag: WordFlag,
     /// The meaning's code.
     pub(crate) meaning: Short,
     /// The list of the argument operands.

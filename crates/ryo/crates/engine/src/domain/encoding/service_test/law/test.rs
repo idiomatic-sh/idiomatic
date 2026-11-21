@@ -53,7 +53,7 @@ const WORDS: &str = "\
 17 Closure ClosureWord { seed: Register(7), out: Register(8), operands: PoolAt(21) } @9\n\
 18 ReadNode ReadNodeWord { column: Short(1), row: Register(8), out: Register(9) } @10\n\
 19 Test TestWord { flag: WordFlag(4), comparison: Short(6), left: WordSlot(9), right: WordSlot(30), regex: RegexId(0) } @11\n\
-20 Call CallWord { meaning: Short(4), arguments: PoolAt(33), outputs: PoolAt(38), regex: RegexId(2) } @12\n\
+20 Call CallWord { flag: WordFlag(0), meaning: Short(4), arguments: PoolAt(33), outputs: PoolAt(38), regex: RegexId(2) } @12\n\
 21 Render RenderWord { context: Short(2), node: Register(8), out: Register(11) } @13\n\
 22 Let LetWord { flag: WordFlag(2), from: WordSlot(0), out: Register(12) } @14\n\
 23 Exists ExistsWord { flag: WordFlag(1), keys: Short(0), body: PoolAt(42), key: PoolAt(48), memo: MemoSite(4294967295) } @15\n\
@@ -72,7 +72,7 @@ const WORDS: &str = "\
 36 StageLatest LatestWord { flag: WordFlag(6), keys: Short(1), out: Register(36), bound: WordSlot(3), operands: PoolAt(100) } @26\n\
 37 StageRead StageReadWord { flag: WordFlag(2), column: Short(1), row: Register(36), out: Register(37), read: WordSlot(2) } @27\n\
 38 StageKeep TestWord { flag: WordFlag(0), comparison: Short(2), left: WordSlot(37), right: WordSlot(30), regex: RegexId(0) } @28\n\
-39 StageCall CallWord { meaning: Short(8), arguments: PoolAt(103), outputs: PoolAt(106), regex: RegexId(0) } @29\n\
+39 StageCall CallWord { flag: WordFlag(0), meaning: Short(8), arguments: PoolAt(103), outputs: PoolAt(106), regex: RegexId(0) } @29\n\
 40 StageRender RenderWord { context: Short(0), node: Register(30), out: Register(39) } @30\n\
 41 StageWalk WalkWord { flag: WordFlag(131), field: FieldCode(0), start: Register(30), out: Register(40) } @31\n\
 42 StageWalk WalkWord { flag: WordFlag(128), field: FieldCode(6), start: Register(40), out: Register(41) } @32\n\

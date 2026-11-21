@@ -22,23 +22,29 @@ use crate::domain::code::walking::service::{
     within_of,
 };
 use crate::domain::findings::types::RuleColumns;
-use crate::domain::lowered::types::{Branch, Emptiness, LoweredPack, LoweredRule};
+use crate::domain::lowered::types::{
+    Branch, DefinitionPattern, Emptiness, LoweredPack, LoweredRule, MadeFill, MadeTable,
+    PackDefinition,
+};
 use crate::domain::steps::stages::types::{
     FillStage, Pipeline, PlacedStage, ProbeRange, TreeWalk, UseMode,
 };
 use crate::domain::steps::types::{
-    AxisDirection, BoundKind, CallMeaning, ColumnMask, DefinitionId, MadeColumn, MadeTableId,
-    MatchColumns, PlacedStep, PlanPoint, ProgramStep, RangeBound, ReadColumn, Register,
-    RegisterCount, RegisterList, StepOperand, StepOperands, StepProgram, StepRows, TestOperation,
+    AnchorKinds, AxisDirection, BoundKind, CallMeaning, ColumnMask, DefinitionId, MadeColumn,
+    MadeTableId, MatchColumns, PlacedStep, PlanPoint, ProgramStep, RangeBound, ReadColumn,
+    Register, RegisterCount, RegisterList, StepOperand, StepOperands, StepProgram, StepRows,
+    TestOperation,
 };
 use ryo_language::domain::facts::types::CellWord;
 use ryo_language::domain::node_table::types::FieldCode;
 use ryo_language::domain::semantics::types::RenderContext;
 use ryo_relations::domain::relations::collections::relations::syntax_error::item::SyntaxErrorColumn;
-use ryo_relations::domain::relations::types::{Column, Relation};
+use ryo_relations::domain::relations::types::{Column, KindBits, Relation};
 use ryo_values::domain::plan_orders::types::OrderBound;
+use ryo_values::domain::plan_parts::types::RepeatedRows;
 use ryo_values::domain::query_plans::types::NodeDigest;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
+use ryo_values::domain::table_words::types::ColumnCount;
 
 /// A word's operands as its own reader reads them: one arm for each code.
 fn read(word: CodeWord) -> String {
@@ -178,6 +184,59 @@ pub(super) fn pack(rules: Vec<LoweredRule>) -> LoweredPack {
         registers: RegisterCount(100),
         ..LoweredPack::default()
     }
+}
+
+/// An anchor: each id of one kind.
+pub(super) fn anchor() -> ProgramStep {
+    ProgramStep::EachKind {
+        relation: Relation::SyntaxTree,
+        kinds: AnchorKinds(Box::new([KindBits(2)])),
+        out: reg(0),
+    }
+}
+
+/// A scan of the node table into a batch column.
+pub(super) fn scan(out: u32) -> FillStage {
+    FillStage::Scan {
+        source: StepRows::Node(Relation::SyntaxTree),
+        columns: MatchColumns::default(),
+        values: operands([]),
+        out: reg(out),
+    }
+}
+
+/// A pack of one rule that walks table 0, whose fill is one pipeline of `filled` and whose rows have `width` columns; with
+/// `patterns` of a definition of two columns when a stage uses one.
+pub(super) fn table_pack(
+    filled: Vec<FillStage>,
+    width: usize,
+    patterns: Vec<DefinitionPattern>,
+) -> LoweredPack {
+    let pipeline = Pipeline {
+        stages: stages(filled),
+        row: operands([of(1)]),
+    };
+    let mut made = pack(vec![rule(
+        0,
+        vec![ProgramStep::EachRow {
+            source: StepRows::Made(MadeTableId(0)),
+            out: reg(0),
+        }],
+    )]);
+    made.tables = vec![MadeTable {
+        node: NodeDigest([9; 16]),
+        fill: MadeFill::Rows(Box::new([pipeline]), RepeatedRows::Kept),
+        width: ColumnCount(width),
+        indexes: Vec::new(),
+        emptiness: Emptiness::Unknown,
+    }];
+    made.definitions = vec![PackDefinition {
+        node: NodeDigest([8; 16]),
+        formals: regs([40, 41]),
+        emptiness: Emptiness::Unknown,
+        patterns,
+    }];
+    made
 }
 
 /// A pipeline that holds every stage, the scan first: it reads a filled relation, made tables 1 and 2 and definitions 0 and 1,

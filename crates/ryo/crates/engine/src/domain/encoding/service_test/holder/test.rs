@@ -2,27 +2,27 @@
 //! rule being written, and a file-sized word stands only first in a rule's branch, first in a pipeline as a `Scan`, or as a
 //! `Product`. The lowering proves a pack before it answers it; these are the cases it must never write.
 
-use super::super::fixtures::{listing, mask, of, operands, pack, program, reg, regs, rule, stages};
+use super::super::fixtures::{
+    anchor, listing, mask, of, operands, pack, program, reg, regs, rule, scan, table_pack,
+};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::code::types::{Op, ShapeChoice};
 use crate::domain::encoding::constants::LAST_STEP;
 use crate::domain::encoding::service::encoded;
 use crate::domain::lowered::types::{
-    DefinitionPattern, Emptiness, LoweredPack, MadeFill, MadeTable, PackDefinition, PatternForm,
+    DefinitionPattern, Emptiness, LoweredPack, PackDefinition, PatternForm,
 };
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::{LoadRefusal, PastWidth};
-use crate::domain::steps::stages::types::{FillStage, Pipeline, UseMode};
+use crate::domain::steps::stages::types::{FillStage, UseMode};
 use crate::domain::steps::types::{
-    AnchorKinds, DefinitionId, MadeColumn, MadeTableId, MatchColumns, Polarity, ProgramStep,
-    ReadColumn, Register, RegisterList, StepBody, StepMemo, StepOperand, StepProgram, StepRows,
+    DefinitionId, MadeColumn, MadeTableId, MatchColumns, Polarity, ProgramStep, ReadColumn,
+    Register, RegisterList, StepBody, StepMemo, StepOperand, StepProgram, StepRows,
 };
 use ryo_language::domain::facts::types::CellWord;
-use ryo_relations::domain::relations::types::{KindBits, Relation};
-use ryo_values::domain::plan_parts::types::RepeatedRows;
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::query_plans::types::NodeDigest;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
-use ryo_values::domain::table_words::types::ColumnCount;
 use std::borrow::Cow;
 
 /// The pack a row encodes.
@@ -158,59 +158,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         }),
     },
 ];
-
-/// An anchor: each id of one kind.
-fn anchor() -> ProgramStep {
-    ProgramStep::EachKind {
-        relation: Relation::SyntaxTree,
-        kinds: AnchorKinds(Box::new([KindBits(2)])),
-        out: reg(0),
-    }
-}
-
-/// A scan of the node table into a batch column.
-fn scan(out: u32) -> FillStage {
-    FillStage::Scan {
-        source: StepRows::Node(Relation::SyntaxTree),
-        columns: MatchColumns::default(),
-        values: operands([]),
-        out: reg(out),
-    }
-}
-
-/// A pack of one rule that walks table 0, whose fill is one pipeline of `filled` and whose rows have `width` columns; with
-/// `patterns` of a definition of two columns when a stage uses one.
-fn table_pack(
-    filled: Vec<FillStage>,
-    width: usize,
-    patterns: Vec<DefinitionPattern>,
-) -> LoweredPack {
-    let pipeline = Pipeline {
-        stages: stages(filled),
-        row: operands([of(1)]),
-    };
-    let mut made = pack(vec![rule(
-        0,
-        vec![ProgramStep::EachRow {
-            source: StepRows::Made(MadeTableId(0)),
-            out: reg(0),
-        }],
-    )]);
-    made.tables = vec![MadeTable {
-        node: NodeDigest([9; 16]),
-        fill: MadeFill::Rows(Box::new([pipeline]), RepeatedRows::Kept),
-        width: ColumnCount(width),
-        indexes: Vec::new(),
-        emptiness: Emptiness::Unknown,
-    }];
-    made.definitions = vec![PackDefinition {
-        node: NodeDigest([8; 16]),
-        formals: regs([40, 41]),
-        emptiness: Emptiness::Unknown,
-        patterns,
-    }];
-    made
-}
 
 /// A pattern of a definition of two columns that binds `bound` and collects the second, in `form`.
 fn pattern<const N: usize>(bound: [u16; N], form: PatternForm) -> DefinitionPattern {
