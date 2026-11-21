@@ -17,12 +17,13 @@ use crate::domain::steps::types::Register;
 use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::relations::types::Count;
 
-/// Keeps, of the cells staged from `fresh` on, each element not met before and not the seed, in place and in order;
-/// answers how many cells were staged there.
+/// Keeps, of the cells staged from `fresh` on, each element not met before and not the seed (when one is given: a
+/// `Closure` never reaches its seed; a nearest element over derived edges may be the start, met again through its
+/// edges), in place and in order; answers how many cells were staged there.
 pub(crate) fn kept_new(
     state: &mut LoopState,
     seen: &mut hashbrown::HashSet<CellWord>,
-    seed: CellWord,
+    seed: Option<CellWord>,
     fresh: Count,
 ) -> Count {
     let staged = &mut state.staged;
@@ -32,7 +33,7 @@ pub(crate) fn kept_new(
         let Some(element) = staged.get(place).copied() else {
             break;
         };
-        if element != seed
+        if Some(element) != seed
             && seen.insert(element)
             && let Some(slot) = staged.get_mut(kept)
         {
@@ -79,7 +80,7 @@ pub(crate) fn closure(frame: &mut StepFrame<'_, '_>, word: CodeWord, at: CodeEnt
         set(frame, from, element);
         let fresh = Count(frame.state.staged.len());
         let _rows: Count = body_staged(frame, edges.record, outputs);
-        let edges_given = kept_new(frame.state, &mut seen, seed, fresh);
+        let edges_given = kept_new(frame.state, &mut seen, Some(seed), fresh);
         given = given.saturating_add(u64::try_from(edges_given.0).unwrap_or(u64::MAX));
         let Some(next) = frame.state.staged.get(first.saturating_add(asked)).copied() else {
             break;
