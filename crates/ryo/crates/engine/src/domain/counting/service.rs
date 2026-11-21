@@ -29,6 +29,26 @@ pub fn counted(scratch: &ScanScratch) -> PointCounts {
     let Some(measure) = scratch.0.state.measure.as_deref() else {
         return PointCounts::default();
     };
+    // SPIKE (never a contract): what the fills that needs started cost, a line a table, on stderr; `build/x/scripts/
+    // need-fills.py` sums the workers' lines. The unit is the table's, as the ledger's lines name it.
+    for (table, fill) in measure.need_fills.by_table.iter().enumerate() {
+        if fill.files.0 > 0 {
+            let unit = measure
+                .table_units
+                .get(table)
+                .map_or(u32::MAX, |unit| unit.0);
+            eprintln!(
+                "ryo x: need-fill table={table} unit={unit} files={} empty={} idle={} nanos={}",
+                fill.files.0, fill.empty.0, fill.idle.0, fill.nanos.0
+            );
+        }
+    }
+    for (site, formula) in &measure.need_fills.formulas {
+        eprintln!("ryo x: need-formula site={site} {formula}");
+    }
+    for (trace, files) in &measure.need_fills.traces {
+        eprintln!("ryo x: need-trace files={files} {trace}");
+    }
     // A worker keeps a column per count, each as long as the programs have units; the statistics hold a row per unit.
     let columns = measure.calls.iter().zip(&measure.keys).zip(&measure.rows);
     let columns = columns.zip(&measure.build).zip(&measure.nanos);

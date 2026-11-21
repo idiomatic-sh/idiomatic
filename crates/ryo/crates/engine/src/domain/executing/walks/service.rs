@@ -140,9 +140,12 @@ fn condition_of(frame: &StepFrame<'_, '_>, word: CodeWord, at: CodeEntry) -> Opt
     }
 }
 
-/// SPIKE: the nearest element the condition holds of over derived edges, never the start: the elements the edges' body
-/// reaches from the start are met nearest first (each element's edges asked once, as a `Closure` asks them) and the
-/// condition is asked of each as it is met. Each edge given and each element asked is a row visited.
+/// SPIKE: the nearest element the condition holds of over derived edges: the elements the edges' body reaches from the
+/// start are met breadth first, each once, and the condition is asked of each as it is met; the first it holds of is
+/// the answer, and its edges are not asked. The start is not met before the walk, so it is the answer when an edge
+/// leads back to it (its own edge, or a cycle) and the condition holds of it: as today's kernel answers
+/// (`operators: hash_index::keyed_walk`, `directed_walk::nearest_on_chain`). Each edge given and each element asked is
+/// a row visited.
 fn walked_derived(
     frame: &mut StepFrame<'_, '_>,
     word: CodeWord,
@@ -175,7 +178,7 @@ fn walked_derived(
         set(frame, from, current);
         let fresh = Count(frame.state.staged.len());
         let _rows: Count = body_staged(frame, edges.record, outputs);
-        let given = kept_new(frame.state, &mut seen, Some(start), fresh);
+        let given = kept_new(frame.state, &mut seen, fresh);
         tried = tried.saturating_add(u64::try_from(given.0).unwrap_or(u64::MAX));
         while let Some(met) = frame
             .state

@@ -18,8 +18,13 @@ use crate::domain::made_tables::calling::service::call_asked;
 use crate::domain::made_tables::carrying::service::{carried, stage_kind};
 use crate::domain::made_tables::constants::BATCH_ROWS;
 use crate::domain::made_tables::fanning::service::{fan_stage, scan_read};
-use crate::domain::made_tables::operands::service::{column_of, registers_at};
-use crate::domain::made_tables::pipelines::types::{BatchLevel, FanKind, PipelineRoom, StageKind};
+use crate::domain::made_tables::indexing::service::index_ready;
+use crate::domain::made_tables::operands::service::{
+    column_mut, column_of, columns_unset, registers_at,
+};
+use crate::domain::made_tables::pipelines::types::{
+    BatchLevel, FanKind, PipeAt, PipeMemo, PipelineRoom, StageKind,
+};
 use crate::domain::made_tables::reading::service::{index_at, pipeline_words, rows_in, source_of};
 use crate::domain::made_tables::staging::service::{
     WRONG_WORD, file_marked, keep_stage, mode, probe_keep_stage, read_stage, write_stage,
@@ -33,7 +38,6 @@ use crate::domain::stages::types::{Batches, FanCursor, HandleRun, KeptWhen};
 use crate::domain::stages::using::service::keep_marked;
 use crate::domain::steps::stages::types::UseMode;
 use crate::domain::steps::types::Register;
-use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::relations::types::Count;
 
 /// What a stage reads of the frame while it runs: the store as it is.
@@ -49,22 +53,43 @@ fn batch_frame<'s>(frame: &'s FillFrame<'_>) -> BatchFrame<'s> {
     }
 }
 
-/// The batch at `depth`, with a column for each register of the pack.
+/// Copies into the room what was found of the pipeline at `entry` before; says whether it was.
+fn recalled(memo: &PipeMemo, entry: CodeEntry, room: &mut PipelineRoom) -> bool {
+    let Some(at) = memo.by_entry.get(&entry.0) else {
+        return false;
+    };
+    let stretch = |(from, count): (Count, Count)| from.0..from.0.saturating_add(count.0);
+    room.live.clear();
+    room.live
+        .extend_from_slice(memo.live.get(stretch(at.live)).unwrap_or_default());
+    room.starts.clear();
+    room.starts
+        .extend_from_slice(memo.starts.get(stretch(at.starts)).unwrap_or_default());
+    true
+}
+
+/// Keeps what the room holds of the pipeline at `entry`: what `carried` just found.
+fn remembered(memo: &mut PipeMemo, entry: CodeEntry, room: &PipelineRoom) {
+    let at = PipeAt {
+        live: (Count(memo.live.len()), Count(room.live.len())),
+        starts: (Count(memo.starts.len()), Count(room.starts.len())),
+    };
+    memo.live.extend_from_slice(&room.live);
+    memo.starts.extend_from_slice(&room.starts);
+    let _before = memo.by_entry.insert(entry.0, at);
+}
+
+/// The batch at `depth`, which knows how many registers the pack counts.
 fn level_at(room: &mut PipelineRoom, depth: Count, registers: Count) -> Option<&mut BatchLevel> {
     if room.levels.len() <= depth.0 {
         room.levels
             .resize_with(depth.0.saturating_add(1), BatchLevel::default);
     }
     let level = room.levels.get_mut(depth.0)?;
-    if level.columns.len() < registers.0 {
-        level.columns.resize_with(registers.0, Vec::new);
+    if level.columns.places.len() < registers.0 {
+        level.columns.places.resize(registers.0, 0);
     }
     Some(level)
-}
-
-/// The column of a register, to write.
-fn column_mut(columns: &mut [Vec<CellWord>], register: Register) -> Option<&mut Vec<CellWord>> {
-    columns.get_mut(usize::try_from(register.0).unwrap_or(usize::MAX))
 }
 
 /// After a stage that keeps some rows: the columns the stage carries on hold the rows kept, and the batch has that many.
@@ -106,16 +131,24 @@ pub(crate) fn piped(
     let programs = frame.programs;
     let code = programs.code;
     let words = pipeline_words(code, entry)?;
-    carried(code, words, run.room)?;
     run.room.files.clear();
-    // A pipeline that holds a stage the fill side does not run is refused before its first batch.
-    if let Some(unrun) = words
-        .iter()
-        .find(|word| runs(code, FillPart::Stage(**word)) == FillRuns::NotYet)
-    {
-        return Err(FilledError::Unbuilt {
-            unbuilt: UnbuiltFill::Stage(unrun.op),
-        });
+    // No register has a column until this pipeline writes it: the columns of the pipeline before are spare.
+    for level in &mut run.room.levels {
+        columns_unset(&mut level.columns);
+    }
+    // What a pipeline's stages carry on, and that the fill side runs them all, is found at its first run and kept.
+    if !recalled(&frame.store.pipes, entry, run.room) {
+        carried(code, words, run.room)?;
+        // A pipeline that holds a stage the fill side does not run is refused before its first batch.
+        if let Some(unrun) = words
+            .iter()
+            .find(|word| runs(code, FillPart::Stage(**word)) == FillRuns::NotYet)
+        {
+            return Err(FilledError::Unbuilt {
+                unbuilt: UnbuiltFill::Stage(unrun.op),
+            });
+        }
+        remembered(&mut frame.store.pipes, entry, run.room);
     }
     let registers = Count(usize::try_from(code.counts.registers.0).unwrap_or(usize::MAX));
     let first = *words.first().ok_or(WRONG_WORD)?;
@@ -178,6 +211,11 @@ fn staged(
         if rows.0 == 0 {
             return Ok(());
         }
+        // An index a stage asks is built by the first batch that reaches the stage with a row.
+        if matches!(kind, StageKind::Probe | StageKind::Latest) {
+            index_ready(frame, word)?;
+        }
+        let level = run.room.levels.get_mut(depth.0).ok_or(WRONG_WORD)?;
         let selected = match kind {
             StageKind::Scan => return Err(WRONG_WORD),
             StageKind::Render => {

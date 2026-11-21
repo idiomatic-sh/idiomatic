@@ -4,10 +4,14 @@
 
 use crate::domain::executing::budget::service::{begin_rule, end_rule};
 use crate::domain::executing::budget::types::FileSizes;
-use crate::domain::executing::measuring::service::{entered, evaluated, left, used};
+use crate::domain::executing::measuring::service::{
+    entered, evaluated, left, need_decision_ended, need_fills_settled, used,
+};
+use crate::domain::executing::measuring::sites::service::need_decision_begun;
 use crate::domain::executing::presence::service::consulted;
 use crate::domain::executing::sources::types::FileNeeds;
 use crate::domain::findings::types::{InstructionCount, ScanCounters};
+use crate::domain::needs::masks::service::costs_found;
 use crate::domain::needs::service::decided;
 use crate::domain::needs::types::NeedVerdict;
 use crate::domain::programs::frames::types::{RunMode, StepFrame};
@@ -19,6 +23,10 @@ use ryo_relations::domain::relations::types::Count;
 /// the file is noticed when its work ends, and is never stopped: its rows are all found.
 pub(crate) fn dispatch(frame: &mut StepFrame<'_, '_>, rules: &Programs) -> ScanCounters {
     let programs = frame.fill.programs;
+    // What a record of the needs may cost is the code's alone: found at the worker's first file.
+    if frame.state.need_masks.costs.len() != programs.code.needs.len() {
+        costs_found(programs.code, &mut frame.state.need_masks);
+    }
     for rule in &programs.code.rules {
         frame.state.rule = Some(rule.rule);
         begin_rule(frame.state);
@@ -26,7 +34,9 @@ pub(crate) fn dispatch(frame: &mut StepFrame<'_, '_>, rules: &Programs) -> ScanC
         entered(frame.state, rule.unit);
         let mut rows = 0_u64;
         for branch in &rule.branches {
+            need_decision_begun(frame, branch.need, rule.rule);
             let needed = decided(&mut FileNeeds(frame), programs.code, branch.need);
+            need_decision_ended(frame.state, needed);
             consulted(frame, branch.need);
             if needed == NeedVerdict::Holds {
                 let found = frame.ports.run(frame, branch.entry, RunMode::Rows);
@@ -35,6 +45,10 @@ pub(crate) fn dispatch(frame: &mut StepFrame<'_, '_>, rules: &Programs) -> ScanC
         }
         left(frame.state);
         let candidates = frame.state.budget.candidates.0;
+        need_fills_settled(
+            frame.state,
+            Count(usize::try_from(candidates).unwrap_or(usize::MAX)),
+        );
         evaluated(
             frame.state,
             rule.unit,

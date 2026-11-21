@@ -1,6 +1,6 @@
 //! The types of the `scratch` concept: a worker's per-file state.
 
-use super::kept::types::{AskedNeed, HeldRead, QuickBody, SiteAsks};
+use super::kept::types::{AskedNeed, HeldRead, NeedFills, QuickBody, RegisterHolds, SiteAsks};
 use crate::domain::code::records::types::{PooledOperand, ReadBody};
 use crate::domain::code::types::RelationNumber;
 use crate::domain::code::types::{CodeEntry, WordSlot};
@@ -10,6 +10,7 @@ use crate::domain::indexes::types::{FileStamp, RowRun};
 use crate::domain::made_tables::types::FillWork;
 use crate::domain::made_tables::types::{FillStore, KeyFrom};
 use crate::domain::memos::types::{AnswersSum, CellSpan, ChargedUnit, MemoId, MemoMap, RuleStamp};
+use crate::domain::needs::masks::types::{NeedMasks, TermAnswers};
 use crate::domain::needs::types::NeedVerdict;
 use crate::domain::stages::types::{BatchRow, BatchValue, CallScratch, FanRows};
 use crate::domain::steps::types::{MadeTableId, Register};
@@ -160,9 +161,6 @@ pub(crate) struct LoopState {
     pub(crate) calls: CallRoom,
     /// The elements a closure has met: the room of the closure being walked, lent to it and given back.
     pub(crate) seen: hashbrown::HashSet<CellWord>,
-    /// SPIKE (ryo-fmx3.1, fault L): the registers a `Let` put the file in. A register has one writer in a rule set, so the
-    /// set is of the rule set: it is never cleared. A test of a text whose left is such a register reads the file's path.
-    pub(crate) file_registers: hashbrown::HashSet<u32>,
     /// Which kinds and which fields occur in the file's node rows: what a need on a node relation's kind or field asks.
     pub(crate) presence: NodePresence,
     /// Whether each need site's formula asks the node rows for a kind or a field, by the site's number: a property of the
@@ -179,6 +177,10 @@ pub(crate) struct LoopState {
     pub(crate) answer: BodyAnswer,
     /// Each emptiness decision made in the file, by `NeedSite`.
     pub(crate) needs: Vec<Option<NeedVerdict>>,
+    /// What the rule set's needs say that costs nothing to ask: found at the worker's first decision.
+    pub(crate) need_masks: NeedMasks,
+    /// The file's answers to the free terms, each asked at most once a file.
+    pub(crate) need_terms: TermAnswers,
     /// The cells of the key or of the row being put together.
     pub(crate) key: Vec<CellWord>,
     /// What the loop counted.
@@ -309,6 +311,8 @@ pub(crate) struct Measuring {
     pub(crate) running: Vec<WordSlot>,
     /// The thread's time when the innermost unit last changed.
     pub(crate) since: Duration,
+    /// SPIKE: the fills that needs started, by table.
+    pub(crate) need_fills: NeedFills,
 }
 
 /// A unit's time and rows in the file being scanned.
@@ -387,6 +391,8 @@ pub(crate) struct DecodedCode {
     pub(crate) parts_at: Vec<Count>,
     /// How each `Exists` word that keeps no answer of its own asks its body, by the word's place.
     pub(crate) quick: Vec<QuickBody>,
+    /// The registers that hold the file, by number (`scratch::kept::service::files_marked`).
+    pub(crate) files: Vec<RegisterHolds>,
 }
 
 /// One bound column of a call-form body's ask: the formal register the pattern reads it from, the operand the asker
