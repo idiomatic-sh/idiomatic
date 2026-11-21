@@ -400,11 +400,14 @@ fn fits_rendered(
 }
 
 /// A rendering: the language's source form of the node `handle` names, in `context`, as a word of the file; none when the
-/// node has none in the role. Today's operator refuses the batch an unsupported rendering is in: here that row faults.
+/// node has none in the role, or when the language cannot prove its text there. Today's operator refuses the batch an
+/// unsupported rendering is in, but its batch is the rows that reached it: the planner may ask a rendering before the
+/// tests that drop a row (it gives at most one row), so a node today's run never renders gives no row here rather than
+/// faulting the file. The two differ only on a file today's run refuses.
 ///
 /// # Errors
 ///
-/// `UnsupportedRender` when the language cannot prove the node's text in the role.
+/// None yet: the `Result` is the meanings' shape, so a fault the language may raise has its place.
 pub(crate) fn rendered(
     facts: &mut dyn FactSource,
     words: &mut FileWords,
@@ -416,8 +419,7 @@ pub(crate) fn rendered(
         context,
     }) {
         RenderOutcome::Known(text) => Ok(Some(intern(words, NameText(&text.0)))),
-        RenderOutcome::NotApplicable => Ok(None),
-        RenderOutcome::Unsupported(_) => Err(faulted(PortableOperatorFault::UnsupportedRender)),
+        RenderOutcome::NotApplicable | RenderOutcome::Unsupported(_) => Ok(None),
     }
 }
 
