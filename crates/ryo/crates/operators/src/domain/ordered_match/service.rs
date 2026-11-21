@@ -44,11 +44,11 @@ pub fn paired(left: GroupOrders<'_>, right: GroupOrders<'_>, pairs: &mut Vec<Mat
 }
 
 /// Whether one key's orders on one side, ascending, hold no order twice: an ordered match pairs by order, and two rows
-/// of one key and one order have none.
+/// of one key and one order have none. The one check: today's `ordered_match` kernel and the new engine's fill both call it.
 ///
 /// # Errors
 ///
-/// `Derived(DuplicateOrder)` when two rows of the key hold the same order.
+/// `DuplicateOrder` when two rows of the key hold the same order.
 ///
 /// # Examples
 ///
@@ -60,9 +60,9 @@ pub fn paired(left: GroupOrders<'_>, right: GroupOrders<'_>, pairs: &mut Vec<Mat
 /// assert!(unrepeated(GroupOrders(&[Integer(1), Integer(2)])).is_ok());
 /// assert!(unrepeated(GroupOrders(&[Integer(2), Integer(2)])).is_err());
 /// ```
-pub fn unrepeated(orders: GroupOrders<'_>) -> Result<(), PortableOperatorFault> {
+pub fn unrepeated(orders: GroupOrders<'_>) -> Result<(), DerivedFault> {
     if orders.0.windows(2).any(|pair| pair.first() == pair.last()) {
-        return Err(PortableOperatorFault::Derived(DerivedFault::DuplicateOrder));
+        return Err(DerivedFault::DuplicateOrder);
     }
     Ok(())
 }

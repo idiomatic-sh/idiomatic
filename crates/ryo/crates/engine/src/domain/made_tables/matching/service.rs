@@ -10,6 +10,7 @@ use crate::domain::indexes::reading::service::{cell_at, read, rows_of, run_of, r
 use crate::domain::indexes::types::{IndexRead, SourceRow};
 use crate::domain::made_tables::service::{column, row, rows_indexed};
 use crate::domain::made_tables::types::TableRows;
+use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_operators::domain::ordered_groups::types::GroupOrders;
 use ryo_operators::domain::ordered_match::service::{paired, unrepeated};
 use ryo_relations::domain::relations::types::{Count, Integer};
@@ -39,7 +40,9 @@ fn orders_of(
         rows.iter()
             .map(|each| Integer(cell_at(ordered, place(*each)).0.cast_signed())),
     );
-    unrepeated(GroupOrders(orders)).map_err(|fault| FilledError::Meaning { fault })
+    unrepeated(GroupOrders(orders)).map_err(|fault| FilledError::Meaning {
+        fault: PortableOperatorFault::Derived(fault),
+    })
 }
 
 /// Every key of an index holds no order twice.

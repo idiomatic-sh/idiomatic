@@ -62,7 +62,7 @@ pub(crate) const REGEXES: [&str; 4] = ["^[ac]", "[bd]", "[a-z]+", "(?P<first>[a-
 
 /// The texts the cases' rule set knows as constants, in the order of their words from word 1: two globs, a token's own
 /// text, a replacement, two slot patterns and a group's name.
-pub(crate) const TEXTS: [&str; 7] = ["a*", "?d", "ef", "_", "{a}b", "{x}{y}", "first"];
+pub(crate) const TEXTS: [&str; 9] = ["a*", "?d", "ef", "_", "{a}b", "{x}{y}", "first", "a", "f"];
 
 /// A register as an operand.
 pub(crate) const fn of(number: u32) -> StepOperand {

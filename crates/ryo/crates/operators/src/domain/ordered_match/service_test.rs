@@ -52,6 +52,8 @@ fn pairs(left: &[i64], right: &[i64]) -> Vec<(u32, u32)> {
 fn pairs_first_in_first_out() -> bool {
     pairs(&[1, 2, 3], &[1, 2, 3]) == [(0, 1), (1, 2)]
         && pairs(&[1, 5], &[2, 3, 9]) == [(0, 0), (1, 2)]
+        // Two left rows before two right rows take one each: a right row is taken once.
+        && pairs(&[1, 2], &[3, 4]) == [(0, 0), (1, 1)]
 }
 
 /// A right row of the same order is not after its left row.

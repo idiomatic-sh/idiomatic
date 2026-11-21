@@ -16,7 +16,7 @@ use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, RepeatedRows};
 use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::ordered_groups::types::GroupOrders;
-use crate::domain::ordered_match::service::paired;
+use crate::domain::ordered_match::service::{paired, unrepeated};
 use crate::domain::ordered_match::types::OrderedParts;
 use crate::domain::physical_plan::types::InputRows;
 #[cfg(test)]
@@ -227,11 +227,12 @@ fn sorted<'t>(
             .then(side.orders[*one].cmp(&side.orders[*other]))
             .then(one.cmp(other))
     });
-    if ordered
-        .windows(2)
-        .any(|pair| side.keys(pair[0]) == side.keys(pair[1]) && side.orders[pair[0]] == side.orders[pair[1]])
-    {
-        return Err(DerivedFault::DuplicateOrder);
+    // Each key's orders, ascending, hold no order twice: the meaning's one check.
+    let mut held: Vec<Integer> = Vec::new();
+    for group in ordered.chunk_by(|one, other| side.keys(*one) == side.keys(*other)) {
+        held.clear();
+        held.extend(group.iter().map(|row| Integer(side.orders[*row])));
+        unrepeated(GroupOrders(&held))?;
     }
     side.rows = ordered;
     Ok(side)
