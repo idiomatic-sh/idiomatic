@@ -71,7 +71,7 @@ fn planned_use(
         cost = cost.zip(plan).map(|(cost, plan)| AccessCost {
             rows: plus(cost.rows, plan.rows),
             steps: plus(cost.steps, plus(plan.cost, ONE)),
-            once: PlanEstimate(0),
+            once: cost.once.max(plan.tables),
         });
         if cost.is_none() {
             break;
@@ -91,12 +91,12 @@ fn planned_use(
     cost
 }
 
-/// What making a definition's table costs, once a file: its whole plan's steps. A definition with no whole plan is taken to
-/// cost its rows.
+/// What making a definition's table costs, once a file: its whole plan's steps and the dearest table that plan reads. A
+/// definition with no whole plan is taken to cost its rows.
 fn table_made(with: PlanningWith<'_>, definition: DefinitionId) -> PlanEstimate {
     let rows = draft(with.drafts, definition).map_or(RowEstimate(1), |draft| draft.rows);
     planned_use(with, definition, &ColumnMask::default())
-        .map_or(planned_rows(rows), |cost| cost.steps)
+        .map_or(planned_rows(rows), |cost| plus(cost.steps, cost.once))
 }
 
 /// What a use of a definition bound on `bound` costs for each row of its unit: the program of the definition's own plan

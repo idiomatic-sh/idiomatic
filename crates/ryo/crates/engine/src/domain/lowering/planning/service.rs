@@ -6,6 +6,7 @@ use super::completing::service::{anchors, completed};
 use super::types::{GivenTerms, PlannedBranch, PlanningWith, UnitRole, UnitStart};
 use super::uses::service::with_pack;
 use crate::domain::lowering::costing::constants::{ANCHORS_TRIED, ONE};
+use crate::domain::lowering::costing::service::plus;
 use crate::domain::lowering::costing::types::CellState;
 use crate::domain::lowering::definitions::types::Drafts;
 use crate::domain::lowering::flattening::types::{FlatBranch, FlatTerm, FlatVariable};
@@ -48,13 +49,13 @@ pub(crate) fn planned_with(
         let plans = tried
             .iter()
             .filter_map(|anchor| completed(with, branch, start, role, Some(*anchor)));
-        plans.min_by_key(|plan| (plan.products.0, plan.cost))
+        plans.min_by_key(|plan| (plan.products.0, plus(plan.cost, plan.tables)))
     };
     let (first, rest) = tried.split_at(tried.len().min(ANCHORS_TRIED));
     match best(first) {
         Some(plan) if plan.products.0 > 0 => {
             let others = [Some(plan), best(rest)].into_iter().flatten();
-            others.min_by_key(|plan| (plan.products.0, plan.cost))
+            others.min_by_key(|plan| (plan.products.0, plus(plan.cost, plan.tables)))
         }
         keyed => keyed,
     }
