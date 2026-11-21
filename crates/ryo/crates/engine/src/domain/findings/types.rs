@@ -319,7 +319,8 @@ pub enum HeaviestWork {
     },
     /// A graph table: fixed points, an ordered walk, a worklist or cycles over edges.
     Graph {
-        /// The rows of its inputs.
+        /// The rows of its inputs, and every visit its kernel makes of an edge after the first: the walks back of fixed
+        /// points over sources of several targets, and a worklist's edges followed again.
         read: InstructionCount,
         /// The rows it wrote.
         made: InstructionCount,

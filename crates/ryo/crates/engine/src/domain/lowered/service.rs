@@ -19,7 +19,9 @@ use ryo_values::domain::table_words::types::ColumnCount;
 
 /// What bounds a fill's work each time its table is made: a definition's rows are the file's; a group, an order (a sorted
 /// table, and an ordered match, whose two inputs are each sorted once and paired in one pass) and the fixed points are one
-/// group's rows, sorted once; the other graphs walk the file's edges; written rows are made once for the run.
+/// group's rows, sorted once (the fixed points then walk back from each fixed point of the group, never past it: the
+/// reason in rows is on `GraphFill::FixedPoints`); the other graphs walk the file's edges, each for the reason in rows its
+/// variant of `GraphFill` gives; written rows are made once for the run.
 #[must_use]
 pub(crate) const fn fill_class(fill: &MadeFill) -> CostClass {
     match fill {
@@ -34,8 +36,10 @@ pub(crate) const fn fill_class(fill: &MadeFill) -> CostClass {
             OrderedFill::Sorted(_) | OrderedFill::Match(..) => CostClass::Group,
         },
         MadeFill::Graph(graph, _) => match graph {
-            GraphFill::FixedPoints => CostClass::Group,
-            GraphFill::OrderedDfs | GraphFill::Worklist | GraphFill::Cycles => CostClass::File,
+            GraphFill::FixedPoints(_) => CostClass::Group,
+            GraphFill::OrderedDfs(_) | GraphFill::Worklist(_) | GraphFill::Cycles(_) => {
+                CostClass::File
+            }
         },
         MadeFill::Constant(_) => CostClass::Constant,
     }
@@ -57,23 +61,32 @@ pub(crate) const fn fill_code(fill: &MadeFill) -> FillCode {
             OrderedFill::Match(..) => 6,
         },
         MadeFill::Graph(graph, _) => match graph {
-            GraphFill::FixedPoints => 7,
-            GraphFill::OrderedDfs => 8,
-            GraphFill::Worklist => 9,
-            GraphFill::Cycles => 10,
+            GraphFill::FixedPoints(_) => 7,
+            GraphFill::OrderedDfs(_) => 8,
+            GraphFill::Worklist(_) => 9,
+            GraphFill::Cycles(_) => 10,
         },
         MadeFill::Constant(_) => 11,
     })
 }
 
-/// How wide the rows of an ordered input are: the width of each of its pipelines' rows. None for an input with no pipeline,
-/// with pipelines whose rows differ in width, with no order column, or with a key or an order column past its rows.
-fn ordered_width(input: &FillInput) -> Option<ColumnCount> {
+/// How wide the rows of a fill's input are: the width of each of its pipelines' rows. None for an input with no pipeline,
+/// with pipelines whose rows differ in width, or with a key, an order or one of `told` (the further columns of the row a
+/// fill's kernel is told) past its rows.
+#[must_use]
+pub(crate) fn input_width(input: &FillInput, told: &[MadeColumn]) -> Option<ColumnCount> {
     let mut widths = input.pipelines.iter().map(|pipeline| pipeline.row.0.len());
     let width = widths.next()?;
     let within = |column: &MadeColumn| usize::from(column.0) < width;
-    let ordered = within(&input.order?) && input.keys.0.iter().all(within);
-    (ordered && widths.all(|other| other == width)).then_some(ColumnCount(width))
+    let held = told.iter().all(within)
+        && input.keys.0.iter().all(within)
+        && input.order.as_ref().is_none_or(within);
+    (held && widths.all(|other| other == width)).then_some(ColumnCount(width))
+}
+
+/// How wide the rows of an ordered input are: `input_width` of an input that has an order column, none without one.
+fn ordered_width(input: &FillInput) -> Option<ColumnCount> {
+    input.order.and(input_width(input, &[]))
 }
 
 /// The width of the left row of an ordered match whose table has `width` columns: what `match_column` places a column by.

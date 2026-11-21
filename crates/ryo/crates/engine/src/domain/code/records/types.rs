@@ -117,3 +117,50 @@ pub(crate) enum NeedRecord {
         offsets: WordSlot,
     },
 }
+
+/// The columns of an edge row a graph fill's kernel is told: where an edge leaves from and where it arrives. What a `follow`
+/// and a `cycles` fill hold, and the record the table's one parameter names: `source, destination`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct EdgeColumns {
+    /// The column of the entity an edge leaves.
+    pub(crate) source: MadeColumn,
+    /// The column of the entity it arrives at: a cell of the source's kind.
+    pub(crate) destination: MadeColumn,
+}
+
+/// The columns an `ordered-dfs` fill's kernel is told: the root of a root row, and of an edge row where the edge leaves
+/// from, where it arrives and what names it. The record the table's one parameter names: `root, source, destination, edge`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct VisitColumns {
+    /// The column of a root row that holds the entity a walk starts at.
+    pub(crate) root: MadeColumn,
+    /// The column of an edge row that holds the entity the edge leaves: a cell of the root's kind.
+    pub(crate) source: MadeColumn,
+    /// The column of an edge row that holds the entity it arrives at: a cell of the root's kind.
+    pub(crate) destination: MadeColumn,
+    /// The column of an edge row that holds the edge's identity: carried into the table's row, never compared.
+    pub(crate) edge: MadeColumn,
+}
+
+/// The columns a `worklist` fill's kernel is told: of a root row the root and the state it starts in; of an edge row its
+/// two ends and its two states; of a lattice row its two states. The record the table's one parameter names:
+/// `root, state, source, destination, before, after, lower, upper`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct WorklistColumns {
+    /// The column of a root row that holds the entity a run starts at.
+    pub(crate) root: MadeColumn,
+    /// The column of a root row that holds the state the root starts in.
+    pub(crate) state: MadeColumn,
+    /// The column of an edge row that holds the entity the edge leaves: a cell of the root's kind.
+    pub(crate) source: MadeColumn,
+    /// The column of an edge row that holds the entity it arrives at: a cell of the root's kind.
+    pub(crate) destination: MadeColumn,
+    /// The column of an edge row that holds the state its source must hold for the edge to be followed.
+    pub(crate) before: MadeColumn,
+    /// The column of an edge row that holds the state the edge joins into its destination.
+    pub(crate) after: MadeColumn,
+    /// The column of a lattice row that holds the lower of its two states.
+    pub(crate) lower: MadeColumn,
+    /// The column of a lattice row that holds the upper: a state above the lower.
+    pub(crate) upper: MadeColumn,
+}

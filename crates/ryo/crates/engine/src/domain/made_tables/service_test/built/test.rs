@@ -196,7 +196,18 @@ fn tables(asked: Asked) -> Vec<MadeTable> {
             table(
                 6,
                 2,
-                MadeFill::Graph(GraphFill::Cycles, Box::new([input()])),
+                MadeFill::Graph(
+                    GraphFill::Cycles(crate::domain::code::records::types::EdgeColumns {
+                        source: MadeColumn(0),
+                        destination: MadeColumn(1),
+                    }),
+                    // A cycles fill's edges have no key and no order: the encoding holds the table to that.
+                    Box::new([FillInput {
+                        keys: ColumnList(Box::new([])),
+                        order: None,
+                        ..input()
+                    }]),
+                ),
             ),
         ],
     }
