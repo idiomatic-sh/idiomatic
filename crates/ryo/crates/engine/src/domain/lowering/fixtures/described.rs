@@ -70,10 +70,10 @@ pub(crate) const fn fill_name(fill: &MadeFill) -> &'static str {
         MadeFill::Ordered(OrderedFill::Sorted(_)) => "Ordered(Sorted)",
         MadeFill::Ordered(OrderedFill::Match(..)) => "Ordered(Match)",
         MadeFill::Graph(graph, _) => match graph {
-            GraphFill::FixedPoints => "Graph(FixedPoints)",
-            GraphFill::OrderedDfs => "Graph(OrderedDfs)",
-            GraphFill::Worklist => "Graph(Worklist)",
-            GraphFill::Cycles => "Graph(Cycles)",
+            GraphFill::FixedPoints(_) => "Graph(FixedPoints)",
+            GraphFill::OrderedDfs(_) => "Graph(OrderedDfs)",
+            GraphFill::Worklist(_) => "Graph(Worklist)",
+            GraphFill::Cycles(_) => "Graph(Cycles)",
         },
         MadeFill::Constant(_) => "Constant",
     }

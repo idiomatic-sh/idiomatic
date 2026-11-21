@@ -5,6 +5,7 @@
 
 use super::service::passed;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::code::records::types::EdgeColumns;
 use crate::domain::code::types::ShapeChoice;
 use crate::domain::findings::types::RuleColumns;
 use crate::domain::lowered::types::{
@@ -15,7 +16,8 @@ use crate::domain::passes::{hoisting, ordering};
 use crate::domain::steps::stages::types::{FillStage, Pipeline, PlacedStage};
 use crate::domain::steps::traversal::service::each_step;
 use crate::domain::steps::types::{
-    ColumnList, ColumnMask, DefinitionId, MadeTableId, NearestEdges, PlacedStep, PlanPoint,
+    ColumnList, ColumnMask, DefinitionId, MadeColumn, MadeTableId, NearestEdges, PlacedStep,
+    PlanPoint,
     Polarity, ProgramStep, Register, RegisterList, StepBody, StepMemo, StepOperand, StepOperands,
     StepProgram, StepRows,
 };
@@ -248,7 +250,10 @@ fn units() -> LoweredPack {
                 input([18]),
             ))),
             table(MadeFill::Graph(
-                GraphFill::Cycles,
+                GraphFill::Cycles(EdgeColumns {
+                    source: MadeColumn(0),
+                    destination: MadeColumn(1),
+                }),
                 Box::new([input([19]), input([20])]),
             )),
             table(MadeFill::Constant(ConstantRows::default())),
