@@ -47,15 +47,12 @@ pub fn growth_bindings(plan: &Plan) -> Vec<ParameterBinding> {
 ///
 /// assert!(GROWTH_PENDING.iter().all(|kind| OperationKind::ALL.contains(kind)));
 /// ```
-pub const GROWTH_PENDING: [OperationKind; 22] = [
-    OperationKind::Replace,
+pub const GROWTH_PENDING: [OperationKind; 17] = [
     OperationKind::OrderedMatch,
     OperationKind::Intersection,
     OperationKind::Difference,
-    OperationKind::GroupBound,
     OperationKind::GroupOrdinal,
     OperationKind::GroupDigest,
-    OperationKind::Capture,
     OperationKind::Rank,
     OperationKind::Words,
     OperationKind::Closure,
@@ -64,10 +61,8 @@ pub const GROWTH_PENDING: [OperationKind; 22] = [
     OperationKind::Rows,
     OperationKind::Hosted,
     OperationKind::SpanBetween,
-    OperationKind::SourceMatches,
     OperationKind::RenderSyntax,
     OperationKind::FitsRendered,
-    OperationKind::SpanBounds,
     OperationKind::OrderedDfs,
     OperationKind::Worklist,
 ];
