@@ -13,6 +13,8 @@ pub mod lowering;
 pub mod memos;
 #[cfg(any(test, feature = "fixtures"))]
 pub mod made_tables;
+#[cfg(test)]
+mod needs;
 pub mod packs;
 pub mod passes;
 pub mod programs;
