@@ -11,10 +11,11 @@
 //! table's fill is a list of pipelines; nothing in the stage list says "from here, each of these". A table says it with
 //! the two stages every pipeline already has (a scan, a read).
 //!
-//! What is shared: a run of at least `LEAST_STAGES` stages, when the registers the pipelines read after it are no more
-//! than `READS_PER_STAGE` times its stages (a pipeline then reads at most that many cells a row in place of running
-//! the stages). The costing's estimates are of drafts, before the pipelines are written, and are not at hand here:
-//! this rule is of the written stages alone.
+//! What is shared: the common run cut back to its last `Keep` (after a keep its rows are fewest; a stage that gives
+//! many rows for one is left to each pipeline), when it has at least `LEAST_STAGES` stages and the registers the
+//! pipelines read after it are no more than `READS_PER_STAGE` times its stages; a run with no keep is shared whole
+//! when a scan and a read a register cost fewer stages than it has. The costing's estimates are of drafts, before the
+//! pipelines are written, and are not at hand here: this rule is of the written stages alone.
 
 use super::types::SharedPrefix;
 use crate::domain::lowered::types::{Emptiness, LoweredPack, MadeFill, MadeTable};
@@ -170,35 +171,55 @@ fn table_shared(pack: &mut LoweredPack, of: usize, made: &mut Vec<SharedPrefix>)
         let Some(leader) = members.first().copied() else {
             continue;
         };
-        let (Some(leader_said), Some(Some(leader_pipeline))) = (all.get(leader), owned.get(leader))
-        else {
+        let Some(Some(leader_pipeline)) = owned.get(leader) else {
             continue;
         };
+        // The run ends at its last `Keep`: after a keep its rows are fewest, and a stage that gives many rows for one
+        // (a product, a probe) is left to each pipeline, which keeps few of them; a run with no keep is shared whole.
+        let last_keep = leader_pipeline
+            .stages
+            .iter()
+            .take(length)
+            .rposition(|placed| matches!(placed.stage, FillStage::Keep { .. }));
+        let length = last_keep.map_or(length, |place| place.saturating_add(1));
         if length < LEAST_STAGES {
             continue;
         }
-        // The registers the run fills that the leader reads after it: in its later stages, or in its row.
-        let filled = leader_said
-            .met
-            .get(length.saturating_sub(1))
-            .cloned()
-            .unwrap_or_default();
-        let later: String = leader_pipeline
-            .stages
-            .iter()
-            .skip(length)
-            .map(|placed| format!("{:?}", placed.stage))
-            .chain([format!("{:?}", leader_pipeline.row)])
-            .collect();
-        let read_later = registers_of(&later);
-        let live: Vec<usize> = (0..filled.len())
-            .filter(|place| {
-                filled
-                    .get(*place)
-                    .is_some_and(|register| read_later.contains(register))
-            })
-            .collect();
-        if live.is_empty() || live.len() > length.saturating_mul(READS_PER_STAGE) {
+        // The registers the run fills that SOME member reads after it (in its later stages, or in its row), by the
+        // order the run meets them: a member's own stages may read one the leader's do not.
+        let mut live: Vec<usize> = Vec::new();
+        for member in members {
+            let (Some(said), Some(Some(pipeline))) = (all.get(*member), owned.get(*member)) else {
+                continue;
+            };
+            let filled = said
+                .met
+                .get(length.saturating_sub(1))
+                .cloned()
+                .unwrap_or_default();
+            let later: String = pipeline
+                .stages
+                .iter()
+                .skip(length)
+                .map(|placed| format!("{:?}", placed.stage))
+                .chain([format!("{:?}", pipeline.row)])
+                .collect();
+            let read_later = registers_of(&later);
+            for (place, register) in filled.iter().enumerate() {
+                if read_later.contains(register) && !live.contains(&place) {
+                    live.push(place);
+                }
+            }
+        }
+        live.sort_unstable();
+        // With no keep in it the run saves its stages and costs a scan and a read a register: shared when that is less.
+        let reads = live.len().saturating_add(1);
+        let worth = if last_keep.is_some() {
+            live.len() <= length.saturating_mul(READS_PER_STAGE)
+        } else {
+            reads < length
+        };
+        if live.is_empty() || !worth {
             continue;
         }
         let number = first_new.saturating_add(tables.len());
