@@ -11,7 +11,8 @@ use crate::inbound::use_cases::load::errors::LoadError;
 use crate::inbound::use_cases::load::fixtures::kinds;
 use crate::inbound::use_cases::load::service::{named_words, sequenced, worded};
 use ryo_language::domain::facts::service::{file_words, fixed, text};
-use ryo_language::domain::facts::types::{FixedNames, FixedWord};
+use ryo_language::domain::facts::types::{CellWord, FileWords};
+use ryo_language::domain::fixed_names::types::FixedWord;
 use ryo_language::domain::node_table::types::FieldCode;
 use ryo_relations::domain::relations::types::KindBits;
 use ryo_relations::domain::terms::types::NameText;
@@ -59,22 +60,20 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-/// A language of three kinds and, after no field, one field.
+/// A language of three kinds and, after no field, one field, that states no fixed name.
 fn names() -> KindVocabulary {
     KindVocabulary {
         kinds: ["blank", "sentence", "word"]
             .map(|kind| KindWord(kind.into()))
             .into(),
         fields: ["", "label"].map(|field| FieldWord(field.into())).into(),
+        fixed: Vec::new(),
         ..kinds()
     }
 }
 
 /// A cell said: its word and the text the run's words hold for it; `none` for a code the vocabulary states nothing at.
-fn said(
-    words: &ryo_language::domain::facts::types::FileWords,
-    cell: Option<ryo_language::domain::facts::types::CellWord>,
-) -> String {
+fn said(words: &FileWords, cell: Option<CellWord>) -> String {
     cell.map_or_else(
         || "none".to_owned(),
         |cell| format!("{} `{}`", cell.0, text(words, cell).0),
@@ -103,7 +102,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             each.collect::<Vec<_>>().join("; ")
         }
         Scenario::KindNamedAsFixed => {
-            let stated = FixedNames(vec![NameText("word")]);
+            let stated = [NameText("word")];
             let kinds = ["blank", "sentence", "word"].map(NameText);
             let base = worded(&stated, &kinds)?;
             let named = named_words(&base, &names());

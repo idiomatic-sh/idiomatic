@@ -19,7 +19,12 @@ use crate::domain::statistics::types::{
     EncodedStatistics, MatchedStatistics, Measured, PointCounts, StatisticsBytes,
 };
 use crate::inbound::use_cases::scan::fixtures::scanned;
-use ryo_values::domain::descriptions::types::{FixedName, KindVocabulary, LanguageName};
+use ryo_language::domain::fillers::fixtures::Walking;
+use ryo_language::domain::fillers::types::Fillers as _;
+use ryo_relations::domain::terms::types::NameText;
+use ryo_values::domain::descriptions::types::{
+    FieldWord, FixedName, KindVocabulary, KindWord, LanguageName,
+};
 use ryo_values::domain::plan_parts::types::{LiteralText, RepeatedRows};
 use ryo_values::domain::query_bindings::types::{ParameterBinding, RuleBindings};
 use ryo_values::domain::query_plans::types::{NodeDigests, Plan};
@@ -70,14 +75,18 @@ fn vocabulary(scene: &str) -> KindVocabulary {
     }
 }
 
-/// The kinds of the fixture language.
+/// The names of the fixture language, as its walk states them: its kinds, its fields and its fixed names, each by place.
 #[must_use]
 pub fn kinds() -> KindVocabulary {
+    let stated = Walking::vocabulary();
+    let named = |names: &[NameText<'static>]| -> Vec<Box<str>> {
+        names.iter().map(|name| Box::from(name.0)).collect()
+    };
     KindVocabulary {
         language: LanguageName("walking".into()),
-        kinds: Vec::new(),
-        fields: Vec::new(),
-        fixed: Vec::new(),
+        kinds: named(&stated.kinds.0).into_iter().map(KindWord).collect(),
+        fields: named(&stated.fields.0).into_iter().map(FieldWord).collect(),
+        fixed: named(&stated.fixed.0).into_iter().map(FixedName).collect(),
     }
 }
 

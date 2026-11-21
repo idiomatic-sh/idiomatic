@@ -15,7 +15,8 @@ use crate::domain::programs::types::{Programs, ProgramsEngine, RuleSteps};
 use crate::domain::statistics::service::matched;
 use crate::domain::statistics::types::{MatchedStatistics, Statistics};
 use ryo_language::domain::facts::service::{base_words, file_words, intern};
-use ryo_language::domain::facts::types::{BaseWords, FixedNames};
+use ryo_language::domain::facts::types::BaseWords;
+use ryo_language::domain::fixed_names::service::checked;
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::descriptions::types::KindVocabulary;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
@@ -33,10 +34,15 @@ fn rule_steps(code: &ProgramCode, rules: SelectedRules<'_>) -> Vec<RuleSteps> {
         .collect()
 }
 
-/// The run's base words: the language's fixed names, then the pack's constant texts. This is where a vocabulary whose fixed
-/// names cannot be words is refused, once for a load.
-pub(super) fn worded(fixed: &FixedNames, texts: &[NameText<'_>]) -> Result<BaseWords, LoadError> {
-    base_words(fixed, texts).map_err(LoadError::Vocabulary)
+/// The run's base words: the empty text, the language's fixed names by place, then `texts`. This is the one place a
+/// language's fixed names are checked, once for a load: a vocabulary that states one twice, or states the empty text, is
+/// refused here.
+pub(super) fn worded(
+    fixed: &[NameText<'_>],
+    texts: &[NameText<'_>],
+) -> Result<BaseWords, LoadError> {
+    let stated = checked(fixed).map_err(LoadError::Vocabulary)?;
+    Ok(base_words(stated, texts))
 }
 
 /// The word of each kind and of each field the vocabulary names, by code, among the run's base words: every name is a base
@@ -67,11 +73,8 @@ fn programs(
     let named = names.kinds.iter().map(|kind| &*kind.0);
     let named = named.chain(names.fields.iter().map(|field| &*field.0));
     let texts: Vec<NameText<'_>> = constant.chain(named).map(NameText).collect();
-    // JOIN(fixed names): the vocabulary's fixed names (`KindVocabulary.fixed`, owned texts) go here, first. At this head
-    // `base_words` takes them as `&FixedNames`, whose texts are static, so the two cannot meet: the run's words hold no fixed
-    // name and no vocabulary is refused. The integration's checked fixed names, built from borrowed texts, replace this line.
-    let fixed = FixedNames::default();
-    let words = worded(&fixed, &texts)?;
+    let stated: Vec<NameText<'_>> = names.fixed.iter().map(|name| NameText(&name.0)).collect();
+    let words = worded(&stated, &texts)?;
     let NamedWords { kinds, fields } = named_words(&words, names);
     Ok(Programs(ProgramsEngine {
         code,

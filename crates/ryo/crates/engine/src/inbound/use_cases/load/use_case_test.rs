@@ -5,7 +5,7 @@
 use super::errors::LoadError;
 use super::fixtures::kinds;
 use super::interface::LoadUseCase as _;
-use super::service::{sequenced, worded};
+use super::service::sequenced;
 use super::types::{LoadSource, LoadedRules};
 use super::use_case::LoadUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -27,10 +27,10 @@ use crate::domain::steps::types::{
     AnchorKinds, PlacedStep, Polarity, ProgramStep, Register, RegisterList, StepBody, StepMemo,
     StepProgram,
 };
-use ryo_language::domain::facts::errors::FixedNamesError;
-use ryo_language::domain::facts::types::{FixedNames, FixedWord};
+use ryo_language::domain::fixed_names::errors::FixedNamesError;
+use ryo_language::domain::fixed_names::types::FixedWord;
 use ryo_relations::domain::relations::types::{KindBits, Relation};
-use ryo_relations::domain::terms::types::NameText;
+use ryo_values::domain::descriptions::types::{FixedName, KindVocabulary};
 use ryo_values::domain::query_bindings::types::RuleBindings;
 use ryo_values::domain::query_plans::types::{NodeDigest, NodeDigests};
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
@@ -59,7 +59,7 @@ enum Scenario {
     /// Two rules of a plan of three steps, each given its steps' digests with its own unit's node second: where the loaded
     /// programs say each rule's unit, and a node that is no step of its plan, are in the rule's plan.
     UnitSteps,
-    /// The run's words of a language that states one fixed name at two places.
+    /// No rule, loaded for a language that states one fixed name at two places.
     FixedTwice,
     /// A pack written for another digest.
     OtherPack,
@@ -356,8 +356,17 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::MeasuredNothing => return sequence([Written::Whole; 3], Some(&naming([]))),
         Scenario::UnitSteps => return unit_steps(),
         Scenario::FixedTwice => {
-            let twice = FixedNames(vec![NameText("next"), NameText("next")]);
-            return worded(&twice, &[]).map(|_| Cow::Borrowed("worded"));
+            let stated = ["next", "next"].map(|name| FixedName(name.into()));
+            let twice = KindVocabulary {
+                fixed: stated.into(),
+                ..kinds
+            };
+            let lower = |_: SelectedRules<'_>| LoweredRules {
+                pack: LoweredPack::default(),
+                refused: Vec::new(),
+            };
+            return sequenced(SelectedRules(&[]), None, &twice, &lower)
+                .map(|loaded| Cow::Owned(said(&loaded)));
         }
         Scenario::NoRules => LoadSource::Plans(SelectedRules(&[]), StatisticsBytes(&[])),
         Scenario::Pack => LoadSource::Pack(PackBytes(&pack.0), PackDigest([1; 32])),
