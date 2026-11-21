@@ -3,9 +3,9 @@
 //! element (7) under the third child, past the file's own tree. A handle is the file (7) in its high half and the element in its low half; a
 //! case shows the low half.
 
-use super::service::{axis, nearest};
+use super::service::{axis, nearest, within};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::code::types::Op;
+use crate::domain::code::types::{CodeEntry, Op};
 use crate::domain::encoding::service::encoded;
 use crate::domain::executing::entries::types::TheLoop;
 use crate::domain::executing::service::run as run_branch;
@@ -37,6 +37,8 @@ enum Scene {
     Along(AxisDirection),
     /// Emits the start and its nearest ancestor that is not element 3; the answer kept per start or not.
     NearestNotThree(Kept),
+    /// Emits the start and an element when the element is a proper ancestor of the start.
+    Under(u64),
 }
 
 /// Whether a `Nearest` keeps its answer per start.
@@ -108,6 +110,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             6, 0, 4, 1, 3, 0, 6, 0, 99, 4, 26, 9, 0, 0, 0, 1, 1,
         ])),
     },
+    Case {
+        name: CaseName("a_node_is_within_its_parent_and_not_within_itself_or_a_sibling"),
+        word: Word::Succeeds,
+        input: || (Scene::Under(1), &[4, 1, 0, 3, 5]),
+        expect: Expect::Value(Cow::Borrowed(&[4, 1, 99, 1, 18, 10, 0, 0, 0, 1, 0])),
+    },
+    Case {
+        name: CaseName("every_node_but_the_root_is_within_the_root"),
+        word: Word::Succeeds,
+        input: || (Scene::Under(0), &[6, 0, 2]),
+        expect: Expect::Value(Cow::Borrowed(&[6, 0, 2, 0, 99, 2, 14, 6, 0, 0, 0, 1, 0])),
+    },
 ];
 
 /// The handle of an element of the fixture file.
@@ -130,7 +144,18 @@ fn pack((scene, starts): Input) -> LoweredPack {
             out: Register(1),
         },
     ];
+    if let Scene::Under(above) = scene {
+        steps.push(ProgramStep::Let {
+            from: StepOperand::Word(handle(above)),
+            out: Register(2),
+        });
+    }
     steps.push(match scene {
+        Scene::Under(_) => ProgramStep::Within {
+            relation: Relation::SyntaxTree,
+            ancestor: Register(2),
+            descendant: Register(1),
+        },
         Scene::Along(direction) => ProgramStep::Axis {
             relation: Relation::SyntaxTree,
             direction,
@@ -250,13 +275,17 @@ fn subject(input: Input) -> Result<Value, Failure> {
             .words
             .iter()
             .copied()
-            .find(|word| word.op == Op::Axis || word.op == Op::Nearest);
+            .enumerate()
+            .find(|(_, word)| matches!(word.op, Op::Axis | Op::Nearest | Op::Within));
         set(frame, Register(1), handle(first));
-        if let Some(word) = walking {
+        if let Some((place, word)) = walking {
+            let at = CodeEntry(u32::try_from(place).unwrap_or(u32::MAX));
             if word.op == Op::Axis {
                 axis(frame, word);
+            } else if word.op == Op::Nearest {
+                nearest(frame, word, at);
             } else {
-                nearest(frame, word);
+                within(frame, word);
             }
         }
         [

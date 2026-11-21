@@ -8,7 +8,8 @@ mod settings;
 
 fn main() -> std::process::ExitCode {
     let mut output = std::io::stdout().lock();
-    let mut observations = std::io::stderr().lock();
+    // Not locked for the run: the new engine's scan workers write their notices to stderr themselves (ryo-fmx3.1).
+    let mut observations = std::io::stderr();
     let outcome = composition::profile::command()
         .and_then(|command| composition::run(command, &mut output, &mut observations));
     match outcome {

@@ -5,29 +5,23 @@
 //! starts (scope-engine2 2.9, `old|new|both`): what the new engine's `load` accepted is reported by count. The use case that runs
 //! the files composes it with the file scan.
 
-use super::constants::{NO_ENGINE_COMPOSED, NO_LANGUAGE};
+use super::constants::{NO_ENGINE_COMPOSED, NO_LANGUAGE, STATISTICS_MATCHED};
+use super::selecting::service::{Lowered, lowered};
 use super::types::{
     EngineVersion, Harness, HarnessLoad, HarnessRequest, KeptRequest, LoadRequest, LoadedFrom,
-    ReadBackRequest, Refusals,
+    ReadBackRequest,
 };
 use crate::outbound::digest::interface::DigestPort;
 use crate::outbound::digest::types::DigestBytes;
 use crate::outbound::engine::interface::EnginePort;
-use ryo_engine::domain::lowering::types::{LoadRefusal, SelectedRule, SelectedRules};
 use ryo_engine::domain::packs::constants::ENGINE_VERSION;
 use ryo_engine::domain::packs::types::{PackBytes, PackDigest};
-use ryo_engine::domain::programs::types::Programs;
-use ryo_engine::domain::statistics::types::StatisticsBytes;
-use ryo_engine::inbound::use_cases::load::errors::LoadError;
+use ryo_engine::domain::statistics::types::MatchedStatistics;
 use ryo_engine::inbound::use_cases::load::types::LoadSource;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_operators::spike::{EngineMode, engine_loaded, engine_unpacked};
+use ryo_operators::spike::{EngineMode, engine_loaded, engine_said, engine_unpacked};
 use ryo_relations::domain::relations::types::{Bytes, Count};
 use ryo_values::domain::descriptions::types::{KindVocabularies, KindVocabulary, LanguageName};
-use ryo_values::domain::query_bindings::types::RuleBindings;
-use ryo_values::domain::query_plans::service::node_digests;
-use ryo_values::domain::query_plans::types::{NodeDigest, NodeDigests, Plan};
-use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 use ryo_values::domain::stored_facts::types::Digest;
 use ryo_values::domain::stores::types::{PackKey, StoredPack};
 
@@ -118,7 +112,7 @@ pub fn kept(
     let Ok(loaded) = engine.load(read, request.kinds) else {
         return None;
     };
-    let programs = loaded.programs;
+    let (programs, matched) = (loaded.programs, loaded.matched);
     let accepted = engine.accepted(&programs);
     // The host reads a rule's rows by what the pack says the rule emits: a pack that does not say it of each rule its programs
     // run is not this rule set's.
@@ -130,19 +124,8 @@ pub fn kept(
         accepted,
         programs,
         from: LoadedFrom::Pack,
+        matched,
         pack: stored.clone(),
-    })
-}
-
-/// The digest of each step of a rule's plan under what the rule binds its parameters to, by the run's one digest: the
-/// engine hashes nothing and takes these as data. The port's sixteen bytes are the node's digest.
-pub(super) fn step_digests(
-    digest: &dyn DigestPort,
-    plan: &Plan,
-    bindings: RuleBindings<'_>,
-) -> NodeDigests {
-    node_digests(plan, bindings, &|bytes| {
-        NodeDigest(digest.digest(DigestBytes(bytes.0)).0)
     })
 }
 
@@ -156,6 +139,7 @@ pub(super) fn step_digests(
 /// ```
 /// use ryo_execution_runtime::application::pack_load::service::loaded;
 /// use ryo_execution_runtime::application::pack_load::types::{LoadRequest, LoadedFrom};
+/// use ryo_language::domain::symbols::types::ByteSlice;
 /// use ryo_values::domain::descriptions::types::{KindVocabulary, LanguageName};
 /// use ryo_values::domain::stored_facts::types::Digest;
 ///
@@ -163,9 +147,9 @@ pub(super) fn step_digests(
 /// let digest = ryo_execution_runtime::outbound::digest::factory::blake3();
 /// let kinds = KindVocabulary { language: LanguageName::default(), kinds: Vec::new(), fields: Vec::new(), fixed: Vec::new() };
 /// let given = Digest([0; 16]);
-/// let cold = loaded(&engine, &digest, LoadRequest { plans: &[], bindings: &[], given, kinds: &kinds, stored: &[] });
+/// let cold = loaded(&engine, &digest, LoadRequest { plans: &[], bindings: &[], statistics: ByteSlice(&[]), given, kinds: &kinds, stored: &[] });
 /// let stored = [cold.pack];
-/// let warm = loaded(&engine, &digest, LoadRequest { plans: &[], bindings: &[], given, kinds: &kinds, stored: &stored });
+/// let warm = loaded(&engine, &digest, LoadRequest { plans: &[], bindings: &[], statistics: ByteSlice(&[]), given, kinds: &kinds, stored: &stored });
 /// assert_eq!(warm.from, LoadedFrom::Pack);
 /// ```
 #[must_use]
@@ -183,58 +167,11 @@ pub fn loaded(
         return load;
     }
     let key = pack_key(digest, request.given, request.kinds);
-    // Each rule with what it binds its parameters to (nothing past the request's bindings) and its steps' digests.
-    let unbound = std::iter::repeat(&[][..]);
-    let bound = request.bindings.iter().map(Vec::as_slice).chain(unbound);
-    let rules: Vec<(&Plan, RuleBindings<'_>)> = request
-        .plans
-        .iter()
-        .zip(bound)
-        .map(|(plan, bound)| (*plan, RuleBindings(bound)))
-        .collect();
-    let digests: Vec<NodeDigests> = rules
-        .iter()
-        .map(|(plan, bound)| step_digests(digest, plan, *bound))
-        .collect();
-    let selected: Vec<SelectedRule<'_>> = rules
-        .iter()
-        .zip(&digests)
-        .enumerate()
-        .map(|(place, ((plan, bound), digests))| SelectedRule {
-            rule: SelectedRuleOrdinal(u32::try_from(place).unwrap_or(u32::MAX)),
-            plan,
-            bindings: *bound,
-            digests,
-        })
-        .collect();
-    // One load of every selected rule: a sub-plan two rules share is lowered once, and each refused rule is answered with why.
-    let source = LoadSource::Plans(SelectedRules(&selected), StatisticsBytes(&[]));
-    let (programs, refusals) = match engine.load(source, request.kinds) {
-        Ok(loaded) => {
-            let mut refusals = Refusals::default();
-            for refused in &loaded.refused {
-                let count = match refused.refusal {
-                    LoadRefusal::Unlowerable(_) => &mut refusals.unlowerable,
-                    LoadRefusal::Budget(_) => &mut refusals.over_budget,
-                };
-                *count = Count(count.0.saturating_add(1));
-            }
-            (loaded.programs, refusals)
-        }
-        // Plans are never a pack's fault, and refused fixed names leave no words: no rule loads, each counted as not lowered.
-        Err(
-            LoadError::PackVersion
-            | LoadError::PackDigest
-            | LoadError::PackCorrupt
-            | LoadError::Vocabulary(_),
-        ) => (
-            Programs::default(),
-            Refusals {
-                unlowerable: Count(selected.len()),
-                over_budget: Count(0),
-            },
-        ),
-    };
+    let Lowered {
+        programs,
+        refusals,
+        matched,
+    } = lowered(engine, digest, &request);
     let accepted = engine.accepted(&programs);
     let pack = StoredPack {
         key,
@@ -254,6 +191,7 @@ pub fn loaded(
         accepted,
         programs,
         from: LoadedFrom::Lowering(refusals),
+        matched,
         pack,
     }
 }
@@ -296,9 +234,17 @@ fn said(mode: EngineMode, load: &HarnessLoad, selected: Count) {
             ran,
             selected.0,
             refused.unlowerable.0,
-            refused.over_budget.0,
+            refused.past_width.0,
         ),
         LoadedFrom::Pack => engine_unpacked(mode, ran, selected.0),
+    }
+    // A load that read statistics says how many of its units they name: a load that read none says nothing more.
+    match load.matched {
+        MatchedStatistics::Units(units) => {
+            let [before, after] = STATISTICS_MATCHED;
+            engine_said(mode, &[before, &units.0.to_string(), after].concat());
+        }
+        MatchedStatistics::Absent => {}
     }
 }
 
@@ -364,10 +310,11 @@ pub fn read_back(
 /// ```
 /// use ryo_execution_runtime::application::pack_load::service::harnessed;
 /// use ryo_execution_runtime::application::pack_load::types::HarnessRequest;
+/// use ryo_language::domain::symbols::types::ByteSlice;
 /// use ryo_operators::spike::EngineMode;
 /// use ryo_values::domain::stored_facts::types::Digest;
 ///
-/// let request = HarnessRequest { plans: &[], bindings: &[], given: Digest([0; 16]), stored: &[] };
+/// let request = HarnessRequest { plans: &[], bindings: &[], statistics: ByteSlice(&[]), given: Digest([0; 16]), stored: &[] };
 /// assert!(harnessed(EngineMode::Old, None, request).is_ok_and(|loads| loads.is_empty()));
 /// ```
 pub fn harnessed(
@@ -387,6 +334,7 @@ pub fn harnessed(
             LoadRequest {
                 plans: request.plans,
                 bindings: request.bindings,
+                statistics: request.statistics,
                 given: request.given,
                 kinds,
                 stored: request.stored,

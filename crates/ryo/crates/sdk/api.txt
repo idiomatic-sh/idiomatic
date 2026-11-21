@@ -214,6 +214,9 @@ pub use ryo::languages::LiteralProperties
 pub use ryo::languages::LiteralPropertiesColumn
 pub use ryo::languages::LiteralPropertiesRow
 pub use ryo::languages::Locatedness
+pub use ryo::languages::LookupScope
+pub use ryo::languages::LookupScopeColumn
+pub use ryo::languages::LookupScopeRow
 pub use ryo::languages::Lossless
 pub use ryo::languages::ManifestDiagnostic
 pub use ryo::languages::ManifestDiagnosticColumn
@@ -602,6 +605,7 @@ pub use ryo::languages::contract::Leafness
 pub use ryo::languages::contract::LibraryWalk
 pub use ryo::languages::contract::LiteralExpressionParseExpectedRow
 pub use ryo::languages::contract::LiteralPropertiesExpectedRow
+pub use ryo::languages::contract::LookupScopeExpectedRow
 pub use ryo::languages::contract::ManifestDiagnosticExpectedRow
 pub use ryo::languages::contract::ManifestExpected
 pub use ryo::languages::contract::MappingExpectedRow

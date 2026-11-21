@@ -4,6 +4,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::outbound::query_language::errors::QueryLanguageError;
 use crate::outbound::query_language::interface::QueryLanguagePort;
+use ryo_execution_runtime::application::file_scan::warning::types::WrittenStatement;
 use ryo_relations::domain::relations::types::{Integer, Offset, Relation, Span};
 use ryo_values::domain::descriptions::types::{RelationName, StepCount, ValidateReport};
 use ryo_values::domain::hosted::types::HostedRelation;
@@ -16,10 +17,12 @@ use ryo_values::domain::program::types::RefusalMessage;
 use ryo_values::domain::program::types::RefusedKind;
 use ryo_values::domain::program::types::RefusedQuery;
 use ryo_values::domain::query_plans::types::{Emit, Plan};
+use ryo_values::domain::query_tokens::types::{ByteOffset, QuerySpan, StepSpelling};
 
 /// What the core's tests stand in for `query_language` with: it compiles any text to the plan it
 /// was given, validates any text as reading the relations the host declared, refuses text that contains `refuse`, and counts how many
-/// times it was asked to compile.
+/// times it was asked to compile. Of where a step's statement is written it says the first line of the query's own document of
+/// the form `let <name> = join <left> with <right>`, for any step: none when the document has no such line.
 #[derive(Debug)]
 pub struct QueryLanguageFake {
     /// The plan every acceptable text compiles to.
@@ -188,6 +191,31 @@ impl QueryLanguagePort for QueryLanguageFake {
             return Err(refused());
         }
         Ok(self.plan.clone())
+    }
+
+    fn written(
+        &self,
+        bundle: &ryo_values::domain::query_tokens::types::QueryBundle,
+        _step: StepId,
+    ) -> Option<WrittenStatement> {
+        let text: &str = &bundle.root.text;
+        let mut start = 0_usize;
+        for line in text.split_inclusive('\n') {
+            let words: Vec<&str> = line.split_whitespace().collect();
+            if let ["let", statement, "=", "join", left, "with", right] = words.as_slice() {
+                return Some(WrittenStatement {
+                    document: bundle.root.id.clone(),
+                    statement: StepSpelling((*statement).into()),
+                    span: QuerySpan {
+                        start: ByteOffset(start),
+                        end: ByteOffset(start.saturating_add(line.trim_end().len())),
+                    },
+                    inputs: vec![StepSpelling((*left).into()), StepSpelling((*right).into())],
+                });
+            }
+            start = start.saturating_add(line.len());
+        }
+        None
     }
 }
 

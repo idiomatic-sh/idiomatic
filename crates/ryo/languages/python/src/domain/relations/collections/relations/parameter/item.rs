@@ -4,9 +4,10 @@
 use crate::domain::definitions::service::{placed, word};
 use crate::domain::extras::types::Extra;
 use crate::domain::file_view::types::PythonWalk;
+use crate::domain::model::names::service::fixed_word;
 use crate::domain::model::types::Declarations;
 use crate::domain::name_facts::service::parameter_place;
-use crate::domain::node::service::{fixed, node_cell, nodes_of_kind, span_at, word as interned};
+use crate::domain::node::service::{node_cell, nodes_of_kind, span_at, word as interned};
 use crate::domain::node::types::Numbered;
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::service::{child, kind_bits, name_of};
@@ -41,7 +42,7 @@ ryo::fills! {
     ParameterItem => languages::Parameter, walk(PythonWalk) |file, words, rows| {
         /// One row of the relation.
         type Row = <languages::Parameter as languages::CatalogRelation>::Row;
-        let memo = &mut file.buffers.fixed;
+        let memo = &mut file.model.words.get_mut().fixed;
         for Numbered { id, node } in nodes_of_kind(&file.syntax, Kind::Node(Node::Arg)) {
             let AnyNodeRef::Parameter(parameter) = node else {
                 continue;
@@ -55,7 +56,7 @@ ryo::fills! {
             rows.write(Row {
                 id: node_cell(&file.syntax, id),
                 kind: place.kind,
-                refinement: fixed(words, memo, languages::NameText(place.word.0)),
+                refinement: fixed_word(words, memo, languages::NameText(place.word.0)),
                 name: interned(words, languages::NameText(parameter.name.id.as_str())),
                 ordinal: place.ordinal,
                 owner: node_cell(&file.syntax, place.callable),

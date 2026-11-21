@@ -5,11 +5,13 @@ use crate::domain::constant_keys::types::{KeyClass, KeyWord};
 use crate::domain::expression_types::types::Resolution;
 use crate::domain::format_specification::types::OwnedField;
 use crate::domain::indentation::types::IndentationRegion;
-use crate::domain::layout_facts::types::FileLines;
+use crate::domain::layout_facts::types::{FileLines, LinkIndex};
 use crate::domain::literal_facts::types::TextBuffer;
 use crate::domain::model::view::service::built;
-use crate::domain::model::view::types::{Built, ModelPart, ModelRead, ModelView, SemanticModel};
-use crate::domain::node::types::{FixedWords, SyntaxFile};
+use crate::domain::model::view::types::{
+    Built, ModelPart, ModelRead, ModelView, PartState, SemanticModel,
+};
+use crate::domain::node::types::SyntaxFile;
 use crate::domain::standard_library::types::TargetVersion;
 use crate::domain::token_links::types::Opener;
 use ryo::languages::{Position, RetainedKeyIndex, ShapeWord};
@@ -34,6 +36,8 @@ pub(crate) struct PythonFile<'f> {
     pub(crate) model: &'f mut SemanticModel,
     /// The parts of the model this file has built.
     pub(crate) built: Built,
+    /// The analyses of the whole file this file has run for its fills by key.
+    pub(crate) analysed: Analysed,
     /// The buffers the fillers write through, lent from the worker's.
     pub(crate) buffers: &'f mut FillBuffers,
 }
@@ -51,6 +55,20 @@ impl ModelView for PythonFile<'_> {
     }
 }
 
+/// Which analyses of the whole file have been run for the file in hand: each is run once, by the first fill by key that reads
+/// it, and every later fill by key of the file reads what it left in the worker's buffers.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct Analysed {
+    /// The structure of every expression (`FillBuffers::shapes`).
+    pub(crate) shapes: PartState,
+    /// The value of every constant (`FillBuffers::keys`).
+    pub(crate) keys: PartState,
+    /// The basic type of every node (`FillBuffers::types`).
+    pub(crate) types: PartState,
+    /// What every token is linked to (`FillBuffers::links`).
+    pub(crate) links: PartState,
+}
+
 /// The buffers a worker keeps from file to file: refilled for each file, never reallocated.
 #[derive(Debug, Default)]
 pub(crate) struct PythonScratch {
@@ -65,10 +83,10 @@ pub(crate) struct PythonScratch {
 pub(crate) struct FillBuffers {
     /// A text a filler builds for one row.
     pub(crate) text: TextBuffer,
-    /// The fixed words this file has interned.
-    pub(crate) fixed: FixedWords,
     /// The open brackets of a scan of the tokens.
     pub(crate) brackets: Vec<Opener>,
+    /// What each token of the file is linked to.
+    pub(crate) links: LinkIndex,
     /// The indentation regions of the file.
     pub(crate) regions: Vec<IndentationRegion>,
     /// Where the lines of the file start.

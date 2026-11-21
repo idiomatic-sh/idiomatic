@@ -33,7 +33,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
     name: CaseName("every_operations_counted_work_grows_with_its_rows_or_the_operation_is_pending"),
     word: Word::Succeeds,
     input: || (),
-    expect: Expect::Value(Cow::Borrowed("31 kinds run, 31 pending; faults: []")),
+    expect: Expect::Value(Cow::Borrowed("31 kinds run, 17 pending; faults: []")),
 }];
 
 /// What a scan of a growth plan over a file of some words counted.

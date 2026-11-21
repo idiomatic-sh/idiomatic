@@ -3,13 +3,18 @@
 //! file (`executing::sources::types::FileNeeds`).
 
 use crate::domain::executing::budget::service::{begin_rule, end_rule};
-use crate::domain::executing::service::run;
+use crate::domain::executing::budget::types::FileSizes;
+use crate::domain::executing::measuring::service::{
+    entered, evaluated, left, need_fills_settled, used,
+};
+use crate::domain::executing::presence::service::consulted;
 use crate::domain::executing::sources::types::FileNeeds;
 use crate::domain::findings::types::{InstructionCount, ScanCounters};
 use crate::domain::needs::service::decided;
 use crate::domain::needs::types::NeedVerdict;
 use crate::domain::programs::frames::types::{RunMode, StepFrame};
 use crate::domain::programs::types::Programs;
+use ryo_relations::domain::relations::types::Count;
 
 /// Runs every rule of the rule set over the file, in rule order, each branch when its need holds, and answers what the
 /// scan counted. `rules` is the rule set the frame's programs are the body of. A rule whose work passes its allowance in
@@ -19,12 +24,34 @@ pub(crate) fn dispatch(frame: &mut StepFrame<'_, '_>, rules: &Programs) -> ScanC
     for rule in &programs.code.rules {
         frame.state.rule = Some(rule.rule);
         begin_rule(frame.state);
+        used(frame.state, rule.unit);
+        entered(frame.state, rule.unit);
+        let mut rows = 0_u64;
         for branch in &rule.branches {
-            if decided(&mut FileNeeds(frame), &programs.code, branch.need) == NeedVerdict::Holds {
-                let _rows: InstructionCount = run(frame, branch.entry, RunMode::Rows);
+            let needed = decided(&mut FileNeeds(frame), programs.code, branch.need);
+            consulted(frame, branch.need);
+            if needed == NeedVerdict::Holds {
+                let found = frame.ports.run(frame, branch.entry, RunMode::Rows);
+                rows = rows.saturating_add(found.0);
             }
         }
-        if let Some(notice) = end_rule(frame.state, frame.fill.store, rules, rule) {
+        left(frame.state);
+        let candidates = frame.state.budget.candidates.0;
+        need_fills_settled(
+            frame.state,
+            Count(usize::try_from(candidates).unwrap_or(usize::MAX)),
+        );
+        evaluated(
+            frame.state,
+            rule.unit,
+            Count(usize::try_from(candidates).unwrap_or(usize::MAX)),
+            Count(usize::try_from(rows).unwrap_or(usize::MAX)),
+        );
+        let sizes = FileSizes {
+            store: frame.fill.store,
+            nodes: frame.fill.nodes,
+        };
+        for notice in end_rule(frame.state, sizes, rules, rule) {
             frame.found.noticed(notice);
         }
     }

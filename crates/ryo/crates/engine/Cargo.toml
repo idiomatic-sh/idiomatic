@@ -20,6 +20,8 @@ ryo_operators = { package = "idiomatic-sh-ryo-operators", path = "../operators",
 # The matcher the fill side's fixtures hand a test of a text: in a run the scan's host hands one.
 ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../matching", version = "0.2.0", optional = true }
 thiserror.workspace = true
+# The thread's own clock, read by a measuring scratch alone (the work ledger's nanoseconds).
+cpu-time.workspace = true
 hashbrown.workspace = true
 
 [features]

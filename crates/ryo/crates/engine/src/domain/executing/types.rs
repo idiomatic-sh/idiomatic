@@ -1,6 +1,8 @@
 //! The types of the `executing` concept: the loop as what answers the fill side.
 
-use crate::domain::executing::budget::service::fill_asked;
+use crate::domain::executing::budget::service::{fill_asked, fill_passed};
+use crate::domain::executing::constants::NO_ANSWER;
+use crate::domain::executing::measuring::service::{left, table_entered};
 use crate::domain::filled::errors::FilledError;
 use crate::domain::findings::types::FoundRows;
 use crate::domain::made_tables::types::{
@@ -12,6 +14,7 @@ use crate::domain::programs::frames::types::{LoopEntry, StepFrame};
 use crate::domain::scratch::types::LoopState;
 use crate::domain::steps::types::MadeTableId;
 use ryo_language::domain::facts::types::CellWord;
+use ryo_relations::domain::relations::types::Count;
 
 /// The loop's half of a frame, as what the fill side asks back during one call of the seam: the rows of a pattern for a
 /// key, and whether a table it reaches may have a row. It is handed the fill side's frame back, so a pattern's program and
@@ -56,7 +59,12 @@ impl PatternRows for Asker<'_> {
             ports: self.ports,
         };
         let answer = self.ports.pattern(&mut step, asked);
-        fill_asked(self.state, asked.asker, answer);
+        // An ask that was not made kept no answer: there is nothing for the table's list.
+        if let Some(work) = self.state.passed.take() {
+            fill_passed(self.state, asked.asker, work);
+        } else if answer != NO_ANSWER {
+            fill_asked(self.state, asked.asker, answer);
+        }
         out.extend_from_slice(rows(&self.state.memos, answer));
         Ok(if row_count(&self.state.memos, answer).0 > 0 {
             PatternFound::Rows
@@ -65,7 +73,13 @@ impl PatternRows for Asker<'_> {
         })
     }
 
-    fn table_started(&mut self, _: MadeTableId) {}
+    fn table_started(&mut self, table: MadeTableId) {
+        self.state.filling = Count(self.state.filling.0.saturating_add(1));
+        table_entered(self.state, table);
+    }
 
-    fn table_ended(&mut self, _: MadeTableId) {}
+    fn table_ended(&mut self, _: MadeTableId) {
+        self.state.filling = Count(self.state.filling.0.saturating_sub(1));
+        left(self.state);
+    }
 }

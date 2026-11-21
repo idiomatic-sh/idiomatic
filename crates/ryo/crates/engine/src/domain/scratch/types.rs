@@ -1,20 +1,24 @@
 //! The types of the `scratch` concept: a worker's per-file state.
 
-use crate::domain::code::types::CodeEntry;
+use super::kept::types::{AskedNeed, HeldRead, NeedFills, QuickBody, RegisterHolds, SiteAsks};
+use crate::domain::code::records::types::{PooledOperand, ReadBody};
 use crate::domain::code::types::RelationNumber;
+use crate::domain::code::types::{CodeEntry, WordSlot};
 use crate::domain::filled::errors::FilledError;
 use crate::domain::findings::types::InstructionCount;
-use crate::domain::indexes::types::RowRun;
-use crate::domain::made_tables::types::FillStore;
+use crate::domain::indexes::types::{FileStamp, RowRun};
 use crate::domain::made_tables::types::FillWork;
-use crate::domain::memos::types::{ChargedUnit, MemoId, MemoMap, RuleStamp};
+use crate::domain::made_tables::types::{FillStore, KeyFrom};
+use crate::domain::memos::types::{AnswersSum, CellSpan, ChargedUnit, MemoId, MemoMap, RuleStamp};
 use crate::domain::needs::types::NeedVerdict;
-use crate::domain::stages::types::{BatchRow, FanRows};
-use crate::domain::steps::types::MadeTableId;
+use crate::domain::stages::types::{BatchRow, BatchValue, CallScratch, FanRows};
+use crate::domain::steps::types::{MadeTableId, Register};
 use ryo_language::domain::facts::types::{CellWord, FileWords};
+use ryo_language::domain::node_table::types::PresenceWord;
 use ryo_operators::domain::table_scratch::types::Patterns;
 use ryo_relations::domain::relations::types::Count;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
+use std::time::Duration;
 
 /// A worker's per-file state: the loop's registers, kept answers and cursors, the fill side's store of filled relations,
 /// indexes and made tables, and the file's words; reset per file, never freed. Made for a rule set by
@@ -129,6 +133,40 @@ pub(crate) struct LoopState {
     pub(crate) kept: Vec<BatchRow>,
     /// The room a walk of the tree writes what it reaches in, lent to the fill side's kernel.
     pub(crate) fan: FanRows,
+    /// The rule that last read each index site, by the site's number: a site the running rule read before in this file
+    /// needs neither its table's need nor its charge asked again.
+    pub(crate) site_reads: Vec<RuleStamp>,
+    /// What each need site answered the rule that last asked it on behalf of a pattern in call form, by the site's
+    /// number: the rule's first ask of a pattern in a file decides the definition's need (or finds it decided) and is
+    /// told the node table it read; every later ask reads this alone.
+    pub(crate) need_asks: Vec<AskedNeed>,
+    /// SPIKE: what the running rule's asks of each memo site came to in the file, by the site's number.
+    pub(crate) site_asks: Vec<SiteAsks>,
+    /// How many tables' fills are under way, one inside the other: an ask made inside a fill does not read its
+    /// definition's need (a need's decision may be what is making the table, and a table half made answers nothing).
+    pub(crate) filling: Count,
+    /// SPIKE: the work of the last ask a fill made that passed (no answer kept): taken by the fill's callback.
+    pub(crate) passed: Option<InstructionCount>,
+    /// Where the column of each `Read` of a made table or of a filled relation lies, by the word's slot
+    /// (`DecodedCode.lists`): asked of the fill side at the word's first read in a file, and good for that file.
+    pub(crate) held_reads: Vec<HeldRead>,
+    /// What the loop reads of the code at a step in place of the pool: read from the pool once, when the worker's
+    /// state is made for a rule set, and kept for the worker's life.
+    pub(crate) decoded: DecodedCode,
+    /// The answer of each call-form pattern asked with a key of constants alone, by its memo site: such a pattern has one
+    /// answer a file, found again with no hash. Emptied for each file.
+    pub(crate) site_answers: Vec<Option<MemoId>>,
+    /// What a call of a per-row meaning works in and answers, lent to the fill side's kernel for a batch of one row.
+    pub(crate) calls: CallRoom,
+    /// The elements a closure has met: the room of the closure being walked, lent to it and given back.
+    pub(crate) seen: hashbrown::HashSet<CellWord>,
+    /// Which kinds and which fields occur in the file's node rows: what a need on a node relation's kind or field asks.
+    pub(crate) presence: NodePresence,
+    /// Whether each need site's formula asks the node rows for a kind or a field, by the site's number: a property of the
+    /// code, found on a site's first ask and kept for the worker's life.
+    pub(crate) node_needs: Vec<Option<NodeNeed>>,
+    /// What a measuring worker counts and times; none in a worker that does not measure, whose loop reads no clock.
+    pub(crate) measure: Option<Box<Measuring>>,
     /// The rule whose work is running; none before a file's first rule.
     pub(crate) rule: Option<SelectedRuleOrdinal>,
     /// The first fault the fill side answered in the file, a relation refused or read in part, and the rule that was
@@ -199,6 +237,12 @@ pub(crate) struct RuleBudget {
     pub(crate) asks: Vec<TableAsk>,
     /// The last ask of each table's fill in the file, by the table's number, as its place in `asks` and one.
     pub(crate) asked: Vec<Count>,
+    /// SPIKE: what each table's asks cost together, by the table's number, summed at the first charge of the file.
+    pub(crate) sums: Vec<Option<AnswersSum>>,
+    /// SPIKE: the fill units the sums' answers reached, one sum's after the other; and the last mark given.
+    pub(crate) sum_units: Vec<ChargedUnit>,
+    /// SPIKE: the last mark given to a sum.
+    pub(crate) marks: WordSlot,
 }
 
 /// One fill charged to a rule: its table, the rows its stages read and gave, and its work.
@@ -220,4 +264,140 @@ pub(crate) struct TableAsk {
     pub(crate) answer: MemoId,
     /// The ask before it.
     pub(crate) before: Count,
+}
+
+/// What a measuring worker counts and times, since its scratch was made: the files scanned, the runs of each plan point,
+/// what each unit was asked and gave (a column per count, by the unit's place), the elements of each kind and the rows
+/// of each size site; each unit's time and rows in the file being scanned (folded into its counts when the file ends);
+/// the units running now, innermost last; and the thread's time when the innermost last changed. A unit's time is its
+/// own: what it called is left out. `counting::service::counted` hands the counts on as the statistics' (`statistics`
+/// names the programs, so a worker's state cannot name `statistics`).
+#[derive(Debug, Default)]
+pub(crate) struct Measuring {
+    /// The files scanned.
+    pub(crate) files: Count,
+    /// The runs of each plan point, by its number.
+    pub(crate) points: Vec<Count>,
+    /// The uses that reached each unit.
+    pub(crate) calls: Vec<Count>,
+    /// The keys each unit was evaluated for.
+    pub(crate) keys: Vec<Count>,
+    /// The rows each unit gave.
+    pub(crate) rows: Vec<Count>,
+    /// For each table's unit: the rows its fill's stages read and gave.
+    pub(crate) build: Vec<Count>,
+    /// The thread time spent in each unit, what it called left out.
+    pub(crate) nanos: Vec<Count>,
+    /// The part of that time spent in files where the unit gave no row.
+    pub(crate) idle_nanos: Vec<Count>,
+    /// The elements of each kind, by kind code, summed over the files.
+    pub(crate) kinds: Vec<Count>,
+    /// The elements that fill each field of their parent, by field code, summed over the files.
+    pub(crate) fields: Vec<Count>,
+    /// The elements of the files, summed.
+    pub(crate) elements: Count,
+    /// The rows of each size site, by its place, summed over the files.
+    pub(crate) literals: Vec<Count>,
+    /// Each unit's time and rows in the file being scanned, by the unit's place.
+    pub(crate) file: Vec<UnitInFile>,
+    /// The unit of each made table, by the table's number: what the fill side's "this table's fill starts" is booked to.
+    pub(crate) table_units: Vec<WordSlot>,
+    /// The units running, innermost last.
+    pub(crate) running: Vec<WordSlot>,
+    /// The thread's time when the innermost unit last changed.
+    pub(crate) since: Duration,
+    /// SPIKE: the fills that needs started, by table.
+    pub(crate) need_fills: NeedFills,
+}
+
+/// A unit's time and rows in the file being scanned.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct UnitInFile {
+    /// The thread time spent in it, what it called left out.
+    pub(crate) nanos: Count,
+    /// The rows it gave.
+    pub(crate) rows: Count,
+}
+
+/// Which kinds and which fields occur in the file's node rows, each built on its first ask in the file and shared by
+/// every rule of the run.
+#[derive(Debug, Default)]
+pub(crate) struct NodePresence {
+    /// The kinds.
+    pub(crate) kinds: PresentNames,
+    /// The fields.
+    pub(crate) fields: PresentNames,
+    /// The room the pass over the field column marks codes in: the own tree's, then every row's.
+    pub(crate) marks: Vec<PresenceWord>,
+}
+
+/// The names that occur in one column of the file's node rows, as the words a read of the column gives, sorted: in the
+/// file's own tree, and in every row, the embedded segments' too. Built for the file `file` names; another file's holds
+/// nothing.
+#[derive(Debug, Default)]
+pub(crate) struct PresentNames {
+    /// The file it was built for.
+    pub(crate) file: Option<FileStamp>,
+    /// The names in the file's own tree.
+    pub(crate) own: Vec<CellWord>,
+    /// The names in every row.
+    pub(crate) every: Vec<CellWord>,
+}
+
+/// Whether a need's formula asks the node rows for a kind or a field.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum NodeNeed {
+    /// It does: a rule that consults the decision read the node table.
+    Asked,
+    /// It does not.
+    NotAsked,
+}
+
+/// What a call of a per-row meaning works in, for a batch of one row: its arguments as one cell each, the cells of the
+/// rows it gave, the stretch of those rows the one row gave, and the meanings' scratch.
+#[derive(Debug, Default)]
+pub(crate) struct CallRoom {
+    /// The arguments, each one cell for the row.
+    pub(crate) arguments: Vec<BatchValue<'static>>,
+    /// The cells of the rows given, row by row.
+    pub(crate) answers: Vec<CellWord>,
+    /// The rows the one row gave.
+    pub(crate) spans: Vec<RowRun>,
+    /// The meanings' scratch.
+    pub(crate) scratch: CallScratch,
+}
+
+/// What the loop reads of the code at a step in place of the pool. About 32 bytes a word of the code for `bodies`, 16 a
+/// word for `lists`, 8 a slot of the pool for `parts_at`, and the three stretches' own cells, per worker.
+#[derive(Debug, Default)]
+pub(crate) struct DecodedCode {
+    /// The body record of each word over one body (`Exists`, `Nearest`, `Closure`), by the word's place.
+    pub(crate) bodies: Vec<Option<ReadBody>>,
+    /// By the word's place: an `Or`'s stretch of `or_bodies`, a `Call`'s stretch of `operands`, the one slot of
+    /// `LoopState.held_reads` of a `Read` of a made table or of a filled relation.
+    pub(crate) lists: Vec<CellSpan>,
+    /// The body records of every `Or`, each word's one after the other.
+    pub(crate) or_bodies: Vec<ReadBody>,
+    /// The argument operands of every `Call` word, each word's one after the other.
+    pub(crate) operands: Vec<Option<PooledOperand>>,
+    /// The parts of every call-form body's ask, each body's one after the other.
+    pub(crate) parts: Vec<AskPart>,
+    /// By the pool place of a call-form body's formals: where its parts start in `parts`, and one; nought for none.
+    pub(crate) parts_at: Vec<Count>,
+    /// How each `Exists` word that keeps no answer of its own asks its body, by the word's place.
+    pub(crate) quick: Vec<QuickBody>,
+    /// The registers that hold the file, by number (`scratch::kept::service::files_marked`).
+    pub(crate) files: Vec<RegisterHolds>,
+}
+
+/// One bound column of a call-form body's ask: the formal register the pattern reads it from, the operand the asker
+/// gives, and whether the whole ask's key is of constants alone (said on each part of the ask).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct AskPart {
+    /// The formal register.
+    pub(crate) formal: Register,
+    /// The operand; none when the pool does not hold it.
+    pub(crate) value: Option<PooledOperand>,
+    /// Whether the ask's key changes with the row.
+    pub(crate) from: KeyFrom,
 }

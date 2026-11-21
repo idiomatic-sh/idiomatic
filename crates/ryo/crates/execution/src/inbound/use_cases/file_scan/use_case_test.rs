@@ -1,14 +1,19 @@
 //! The file scan use case's cases, over the engine port's fake and the fixture language: the old engine alone loads nothing; the
 //! new engine's rule set scans a file in a worker and hands its rows, placed and sorted; a file no linked language reads and a
 //! rule's fault cross as sentences; the pack of a load is read back by the next run given the same, before it has a plan, and by
-//! none given something else; and a run that cannot scan is refused.
+//! none given something else; a run that cannot scan is refused; what the engine notices of a rule's work is handed over and
+//! worded, and fails the file only where the scan is set to; and a session's workers say what they counted, with a ledger
+//! when the run measures.
 use super::fixtures::{Edge, composed, contract, file, rule};
 use super::interface::FileScanUseCase as _;
 use super::types::{RuleSetNumber, ScanLoadRequest, ScanSession, ScanStoredRequest, Scanned};
 use super::use_case::FileScanUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use ryo_language::domain::files::types::SourcePath;
+use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::relations::types::Count;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
+use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::scan_rows::types::{KeptCell, RowPlace, ScanRow};
 use ryo_values::domain::stored_facts::types::Digest;
 use ryo_values::domain::stores::types::StoredPack;
@@ -32,6 +37,12 @@ enum Scenario {
     NoEngine,
     /// The new engine, with a language linked without its walk.
     NoWalk,
+    /// The new engine alone, as a user's run, the engine noticing the rule in the second file.
+    Overrun,
+    /// The same, the scan set to fail on an overrun.
+    Gate,
+    /// The new engine alone, in a run that measures.
+    Measuring,
 }
 
 type Input = Scenario;
@@ -97,6 +108,32 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "engine harness: RYO_ENGINE=new: the language `words` is linked without its walk, so the new engine scans none of its files",
         )),
     },
+    Case {
+        name: CaseName(
+            "a_users_run_hands_an_overrun_over_and_answers_the_file_as_it_would_without_it",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::Overrun,
+        expect: Expect::Value(Cow::Borrowed(
+            "New: rule sets [[SelectedRuleOrdinal(0)]]\na.walk: by Some(0); kinds Some([Node, File, Span, Symbol]); fault None\n  rule 0 at 0..3: 1 0 3 two\n  rule 0 at 4..7: 2 0 17179869191 one\nb.walk: by Some(0); kinds Some([Node, File, Span, Symbol]); fault None\n  rule 0 at 0..5: 4294967297 1 5 three\n  rule 0 at 6..10: 4294967298 1 25769803786 four\n  noticed rule 0 step 2: warning: rule `rule` is slow in `b.walk`\n  step 2 of the rule's plan joins its left input (1000 rows) with its right input (1000 rows) with no key between them\n  that is 1000000 pairs in this one file; the run continues and its findings are complete\n  to fix: join on a shared column or add a range, so each row meets only its matches\ncounted [4, 4, 0, 0, 4]; ledger []; counting states 0",
+        )),
+    },
+    Case {
+        name: CaseName("a_gates_run_answers_that_the_file_overran_with_every_row_found"),
+        word: Word::Succeeds,
+        input: || Scenario::Gate,
+        expect: Expect::Value(Cow::Borrowed(
+            "New: rule sets [[SelectedRuleOrdinal(0)]]\na.walk: by Some(0); kinds Some([Node, File, Span, Symbol]); fault None\n  rule 0 at 0..3: 1 0 3 two\n  rule 0 at 4..7: 2 0 17179869191 one\nb.walk: overran, and the run fails\nb.walk: by Some(0); kinds Some([Node, File, Span, Symbol]); fault None\n  rule 0 at 0..5: 4294967297 1 5 three\n  rule 0 at 6..10: 4294967298 1 25769803786 four\n  noticed rule 0 step 2: warning: rule `rule` is slow in `b.walk`\n  step 2 of the rule's plan joins its left input (1000 rows) with its right input (1000 rows) with no key between them\n  that is 1000000 pairs in this one file; the run continues and its findings are complete\n  to fix: join on a shared column or add a range, so each row meets only its matches",
+        )),
+    },
+    Case {
+        name: CaseName("a_measuring_runs_workers_count_and_the_session_has_its_ledger"),
+        word: Word::Succeeds,
+        input: || Scenario::Measuring,
+        expect: Expect::Value(Cow::Borrowed(
+            "New: rule sets [[SelectedRuleOrdinal(0)]]\na.walk: by Some(0); kinds Some([Node, File, Span, Symbol]); fault None\n  rule 0 at 0..3: 1 0 3 two\n  rule 0 at 4..7: 2 0 17179869191 one\nb.walk: by Some(0); kinds Some([Node, File, Span, Symbol]); fault None\n  rule 0 at 0..5: 4294967297 1 5 three\n  rule 0 at 6..10: 4294967298 1 25769803786 four\ncounted [4, 4, 0, 0, 4]; ledger [\"unit=Rule:0 class=Navigation rows=4 steps=0 nanos=0 idle_nanos=0 owners=0\"]; counting states 1",
+        )),
+    },
 ];
 
 /// A row as a line: its rule, where it is, and its cells.
@@ -131,6 +168,9 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::BothNothingAccepted => Edge::Both,
         Scenario::NoEngine => Edge::NoEngine,
         Scenario::NoWalk => Edge::NoWalk,
+        Scenario::Overrun => Edge::Overrun,
+        Scenario::Gate => Edge::Gate,
+        Scenario::Measuring => Edge::Measuring,
     });
     let plan = match scenario {
         // A column the fake does not find: the rule is refused.
@@ -141,6 +181,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         scan.load(ScanLoadRequest {
             plans: &[&plan],
             bindings: &[],
+            statistics: ByteSlice(&[]),
             given: Digest([1; 16]),
             stored,
         })
@@ -185,20 +226,36 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         return Ok(Cow::Owned(lines.join("\n")));
     }
     let mut worker = scan.worker(&session);
-    let files: [(&str, &[u8]); 3] = [
-        ("a.walk", b"two one"),
-        ("b.txt", b"two"),
-        ("c.walk", b"why?"),
-    ];
-    let mut rows = Vec::new();
+    let files: Vec<(&str, &[u8])> = match scenario {
+        Scenario::Overrun | Scenario::Gate | Scenario::Measuring => {
+            vec![("a.walk", b"two one"), ("b.walk", b"three four")]
+        }
+        _ => vec![
+            ("a.walk", b"two one"),
+            ("b.txt", b"two"),
+            ("c.walk", b"why?"),
+        ],
+    };
+    let (mut rows, mut noticed) = (Vec::new(), Vec::new());
     for (number, (path, source)) in files.into_iter().enumerate() {
         rows.clear();
+        noticed.clear();
         let number = u32::try_from(number).unwrap_or(u32::MAX);
-        let scanned = scan.scan(&session, &mut worker, file(number, path, source), &mut rows);
+        let scanned = scan.scan(
+            &session,
+            &mut worker,
+            file(number, path, source),
+            &mut rows,
+            &mut noticed,
+        );
         let (by, fault) = match scanned {
             Scanned::Whole(by) => (Some(by), None),
             Scanned::Faulted(by, fault) => (Some(by), Some(fault)),
             Scanned::NotWalked(fault) => (None, Some(fault)),
+            Scanned::Overran(by) => {
+                lines.push(format!("{path}: overran, and the run fails"));
+                (Some(by), None)
+            }
         };
         let kinds = by.map(|by| scan.kinds(&session, by, SelectedRuleOrdinal(0)));
         lines.push(format!(
@@ -207,6 +264,23 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             fault.map(|fault| (fault.of, fault.sentence.0)),
         ));
         lines.extend(rows.iter().map(line));
+        let id = RuleId("rule".into());
+        lines.extend(noticed.iter().map(|each| {
+            let warning = scan.worded(each, &id, SourcePath(path), None, None);
+            format!(
+                "  noticed rule {} step {}: {}",
+                each.rule.0, each.step.0, warning.0
+            )
+        }));
+    }
+    if let Scenario::Measuring | Scenario::Overrun = scenario {
+        let measured = scan.measured(&session, &[&worker]);
+        let ledger: Vec<&str> = measured.ledger.iter().map(|line| &*line.0).collect();
+        lines.push(format!(
+            "counted {:?}; ledger {ledger:?}; counting states {}",
+            measured.counted.map(|count| count.0),
+            fake.measuring.load(Ordering::Relaxed)
+        ));
     }
     Ok(Cow::Owned(lines.join("\n")))
 }

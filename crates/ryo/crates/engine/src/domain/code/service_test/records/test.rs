@@ -73,7 +73,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::Bodies,
         expect: Expect::Value(Cow::Borrowed(
-            "starts PoolAt(1) PoolAt(3) PoolAt(11), the call's entry at PoolAt(4), ends PoolAt(21) of 21: Inline { entry: CodeEntry(4) }; Call { entry: CodeEntry(0), memo: MemoSite(2), unit: WordSlot(4294967295), bound: WordSlot(1), formals: PoolAt(8) }; Table { index: IndexSite(5), bound: WordSlot(2), values: PoolAt(14), collected: WordSlot(1), reads: PoolAt(19) }",
+            "starts PoolAt(1) PoolAt(3) PoolAt(12), the call's entry at PoolAt(4), ends PoolAt(22) of 22: Inline { entry: CodeEntry(4) }; Call { entry: CodeEntry(0), memo: MemoSite(2), unit: WordSlot(4294967295), need: NeedSite(6), bound: WordSlot(1), formals: PoolAt(9) }; Table { index: IndexSite(5), bound: WordSlot(2), values: PoolAt(15), collected: WordSlot(1), reads: PoolAt(20) }",
         )),
     },
     Case {
@@ -137,7 +137,7 @@ fn bodies() -> String {
         formal: Register(7),
         value: PooledOperand::Register(Register(1)),
     }];
-    let second = push_call_body(&mut pool, CodeEntry(0), MemoSite(2), &bound);
+    let second = push_call_body(&mut pool, CodeEntry(0), MemoSite(2), NeedSite(6), &bound);
     let reads = [CollectedRead {
         column: MadeColumn(3),
         out: Register(8),

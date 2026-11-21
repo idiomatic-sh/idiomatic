@@ -137,7 +137,9 @@ fn runs(world: &mut Behavior) {
             Arc::clone(&analysis_memory),
         );
         LintUseCaseImpl::new(
-            if new_engine {
+            if world.input == "the_new_engine_notices_an_overrun" {
+                ryo_core::inbound::use_cases::lint::fixtures::engine::noticing_engine(analysis)
+            } else if new_engine {
                 ryo_core::inbound::use_cases::lint::fixtures::engine::new_engine(analysis)
             } else {
                 analysis
@@ -160,11 +162,20 @@ fn runs(world: &mut Behavior) {
             Arc::new(LintStoreFake::default()),
         )
     };
-    let query = if world.input == "refused_text" {
-        "refuse"
-    } else {
-        "a query"
+    // The rule's own document: the overrun's scene writes the statement its warning names on the third line of `rule.ryo`.
+    let (document, query) = match world.input.as_str() {
+        "refused_text" => ("<query>", "refuse"),
+        "the_new_engine_notices_an_overrun" => (
+            "rule.ryo",
+            "param limit: integer\nlet words = token\nlet pairs = join words with words\nemit pairs\n",
+        ),
+        _ => ("<query>", "a query"),
     };
+    let mut bundle =
+        ryo_values::domain::query_tokens::types::QueryBundle::from(QueryText(query.into()));
+    if document != "<query>" {
+        bundle.root.id = ryo_values::domain::query_tokens::types::QuerySourceId(document.into());
+    }
     let request = LintRequest {
         source_language: ryo_core::inbound::use_cases::lint::types::SourceProvider::Recognized,
         answer: ryo_values::domain::runs::types::AnswerShape::Findings,
@@ -179,20 +190,23 @@ fn runs(world: &mut Behavior) {
         rules: vec![Rule {
             observations: Vec::new(),
             id: RuleId("rule".into()),
-            query: ryo_values::domain::query_tokens::types::QueryBundle::from(QueryText(
-                query.into(),
-            )),
+            query: bundle,
             applicability: ryo_values::domain::runs::types::RuleApplicability::Always,
             parameters: Vec::new(),
             include: Vec::new(),
             exclude: Vec::new(),
         }],
     };
-    // What the run warned of, a line for each: the report holds no notice yet (the host track gives it its `notices`, kept
-    // from the engine's `WorkNotice` and worded by the kind of the unit that did the most work), so a run warns of nothing.
     world.warned = String::new();
     world.answer = match use_case.lint(request) {
         Ok(report) => {
+            // What the run warned of, as its report lists it: each warning's lines, as they were printed when it was noticed.
+            let warnings: Vec<&str> = report
+                .notices
+                .iter()
+                .map(|notice| &*notice.warning.0)
+                .collect();
+            world.warned = warnings.join("\n");
             // What the rules could not decide, each as its rule and where; nothing is said when every rule decided.
             let undecided: String = report
                 .unknowns

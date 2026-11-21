@@ -1,6 +1,7 @@
 //! What the `load` use case promises: an empty rule set loads, a pack reads back only for its own digest and engine, and a rule
 //! the encoding refuses takes only itself, or the rules written after it when a count of the pack ran out, while the others
-//! load, with the rules lowered twice at most.
+//! load: every rule that lowers, encodes and runs loads, whatever is refused beside it, in no more lowerings than rules
+//! and one.
 
 use super::errors::LoadError;
 use super::fixtures::kinds;
@@ -37,6 +38,7 @@ use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 use std::borrow::Cow;
 use std::cell::Cell;
 
+mod orders;
 mod unrun;
 mod words;
 
@@ -119,11 +121,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         )),
     },
     Case {
-        name: CaseName("a_second_fault_loads_nothing_and_nothing_is_lowered_a_third_time"),
+        name: CaseName("a_second_fault_is_its_own_refusal_too_and_the_rule_left_loads"),
         word: Word::Succeeds,
         input: || Scenario::TwoFaults,
         expect: Expect::Value(Cow::Borrowed(
-            "runs []; refused [0: step PlanNode(0) cannot be evaluated; 1: step PlanNode(0) cannot be evaluated; 2: step PlanNode(0) cannot be evaluated]; lowered 2 times",
+            "runs [0]; refused [1: step PlanNode(0) cannot be evaluated; 2: step PlanNode(0) cannot be evaluated]; lowered 3 times",
         )),
     },
     Case {

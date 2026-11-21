@@ -3,7 +3,7 @@
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::fixtures::today::{Read, as_stated, read, read_keys_all, stated_rows};
-use crate::fixtures::walking::{Seen, walked, walked_keys, walked_rows};
+use crate::fixtures::walking::{Seen, walk_words, walked, walked_keys, walked_rows};
 use crate::outbound::syntax::fixtures::library::fixture_sources;
 use ryo::languages::{self, NodeTable, Relation, WalkError};
 
@@ -220,6 +220,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || (Relation::EmbeddedExpression, "embedded_expression"),
         expect: Expect::Value(String::new()),
     },
+    Case {
+        name: CaseName("the_filler_of_lookup_scope_writes_the_rows_its_fixture_states"),
+        word: Word::Succeeds,
+        input: || (Relation::LookupScope, "lookup_scope"),
+        expect: Expect::Value(String::new()),
+    },
+    Case {
+        name: CaseName("the_filler_of_binding_resolution_writes_the_rows_its_fixture_states"),
+        word: Word::Succeeds,
+        input: || (Relation::BindingResolution, "binding_resolution"),
+        expect: Expect::Value(String::new()),
+    },
 ];
 
 /// The rows of one side the other lacks, shown.
@@ -297,10 +309,8 @@ fn row_differences(relation: Relation, folder: &str) -> Result<String, WalkError
             &mut table,
             &mut scratch,
             &mut |mut file| {
-                let mut words = languages::facts::file_words(&languages::facts::base_words(
-                    languages::CheckedNames::default(),
-                    &[],
-                ));
+                let mut words =
+                    walk_words(&crate::walk()).expect("each fixed name of the walk is stated once");
                 let keys = walked_keys(file.table);
                 let (written, answer) = walked_rows(&mut file, &keys, relation, &mut words);
                 let written: Vec<Vec<Seen>> = written.into_iter().map(as_stated).collect();

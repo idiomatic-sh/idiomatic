@@ -4,11 +4,12 @@
 use super::errors::ScanError;
 use super::interface::ScanUseCase;
 use crate::domain::dispatch::service::dispatch;
-use crate::domain::executing::entries::types::TheLoop;
+use crate::domain::executing::entries::types::{TheLoop, TheMeasuringLoop};
+use crate::domain::executing::measuring::sites::service::file_measured;
 use crate::domain::filled::errors::FilledError;
 use crate::domain::findings::types::{FoundRows, ScanCounters};
 use crate::domain::made_tables::types::FillFrame;
-use crate::domain::programs::frames::types::StepFrame;
+use crate::domain::programs::frames::types::{LoopEntry, StepFrame};
 use crate::domain::programs::service::rule_set;
 use crate::domain::programs::types::Programs;
 use crate::domain::scratch::service::next_file;
@@ -88,15 +89,21 @@ impl ScanUseCase for ScanUseCaseImpl {
             store,
             matcher: PatternMatcher(&*self.matcher),
         };
-        let counters = dispatch(
-            &mut StepFrame {
-                fill: &mut fill,
-                state: &mut *state,
-                found,
-                ports: &TheLoop,
-            },
-            programs,
-        );
+        // One loop, two instances: a measuring worker's counts each word at its plan point, and its scan ends by folding
+        // the file's counts.
+        let ports: &dyn LoopEntry = if state.measure.is_some() {
+            &TheMeasuringLoop
+        } else {
+            &TheLoop
+        };
+        let mut frame = StepFrame {
+            fill: &mut fill,
+            state: &mut *state,
+            found,
+            ports,
+        };
+        let counters = dispatch(&mut frame, programs);
+        file_measured(&mut frame);
         // The load refuses a rule that can reach a word or a fill the executor does not run: none reaches a scan.
         debug_assert_eq!(
             state.work.unbuilt.0, 0,

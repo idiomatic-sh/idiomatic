@@ -14,13 +14,17 @@ use crate::domain::code::types::{CodeEntry, CodeWord, ConstantNumber, Op, PoolAt
 use crate::domain::findings::types::InstructionCount;
 use crate::domain::programs::frames::types::StepFrame;
 use crate::domain::programs::operands::service::{cell, constant, listed};
+use crate::domain::scratch::kept::service::holds_file;
+use crate::domain::scratch::kept::types::RegisterHolds;
 use crate::domain::scratch::types::LoopState;
 use crate::domain::stages::service::{cell_test, cells_hold};
 use crate::domain::stages::testing::service::keep_text;
 use crate::domain::stages::types::{BatchValue, CellTest, RowKept, TextMeans, TextTest};
 use crate::domain::steps::types::{Register, TestOperation};
+use ryo_language::domain::facts::service::intern;
 use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::relations::types::Count;
+use ryo_relations::domain::terms::types::NameText;
 
 /// The `Test` words.
 #[derive(Clone, Copy, Debug)]
@@ -45,17 +49,36 @@ const fn compared(test: CellTest, left: CellWord, right: CellWord) -> Verdict {
     }
 }
 
+/// The left of a test of a text: its cell, and the register it was read from when it was.
+#[derive(Clone, Copy, Debug)]
+struct TextLeft {
+    /// The cell.
+    cell: CellWord,
+    /// The register; none for a constant.
+    register: Option<Register>,
+}
+
 /// What a test of a text says of one candidate: the cells are words of the file, and what the test holds for is the
 /// meaning a `Keep` stage runs over a batch, asked here for a batch of one row. The right side is one cell, or the
 /// constants of a set of the pool. A test of a text the kernel does not run is not run here either.
 fn text(
     frame: &mut StepFrame<'_, '_>,
     test: TestOperation,
-    left: CellWord,
+    left: TextLeft,
     right: Option<CellWord>,
     set: Option<PoolAt>,
 ) -> Verdict {
     let code = frame.fill.programs.code;
+    // The file's text is its path: a register that holds the file is read as the word the path is, not as the word
+    // numbered like the file (the fill side's rule for a pipeline's test, 2121c643a).
+    let left = match left.register {
+        Some(register)
+            if holds_file(&frame.state.decoded.files, register) == RegisterHolds::TheFile =>
+        {
+            intern(frame.fill.words, NameText(frame.fill.path.0))
+        }
+        Some(_) | None => left.cell,
+    };
     let start = frame.state.key.len();
     for number in set.map(|list| listed(&code.pool, list)).unwrap_or_default() {
         let held = constant(frame, ConstantNumber(number.0));
@@ -118,13 +141,17 @@ fn general(frame: &mut StepFrame<'_, '_>, word: CodeWord) -> Verdict {
     let Some(operation) = comparison_of(read.comparison, read.regex) else {
         return Verdict::Unbuilt;
     };
+    let text_left = TextLeft {
+        cell: left,
+        register: (read.flag.0 & LEFT_CONSTANT.0 == 0).then_some(Register(read.left.0)),
+    };
     if read.flag.0 & RIGHT_SET.0 != 0 {
         let set = PoolAt(read.right.0);
         return match operation {
             TestOperation::In => within(frame, left, set, Verdict::Holds),
             TestOperation::NotIn => within(frame, left, set, Verdict::Fails),
             TestOperation::Glob | TestOperation::NotGlob => {
-                text(frame, operation, left, None, Some(set))
+                text(frame, operation, text_left, None, Some(set))
             }
             TestOperation::Equal
             | TestOperation::NotEqual
@@ -164,11 +191,12 @@ fn general(frame: &mut StepFrame<'_, '_>, word: CodeWord) -> Verdict {
             | TestOperation::NumericAtLeast
             | TestOperation::NaturalLess
             | TestOperation::Successor,
-        ) => text(frame, operation, left, Some(right), None),
+        ) => text(frame, operation, text_left, Some(right), None),
     }
 }
 
 impl InstructionsItem for Test {
+    #[inline(always)]
     fn run(frame: &mut StepFrame<'_, '_>, word: CodeWord, _at: CodeEntry) -> Flow {
         let verdict = match word.op {
             Op::TestEqualConstant => {

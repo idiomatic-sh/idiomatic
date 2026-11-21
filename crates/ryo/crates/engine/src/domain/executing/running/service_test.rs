@@ -16,9 +16,10 @@ use crate::domain::steps::stages::types::FillStage;
 use crate::domain::steps::types::{
     CallMeaning, ColumnMask, DefinitionId, EmitTarget, MadeColumn, MadeTableId, PlacedStep,
     Polarity, ProgramStep, ReadColumn, Register, RegisterCount, RegisterList, StepBody, StepMemo,
-    StepOperand, StepOperands, StepProgram, StepRows, TestOperation,
+    StepOperand, StepProgram, StepRows, TestOperation,
 };
 use ryo_language::domain::facts::types::CellWord;
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::query_plans::types::NodeDigest;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 
@@ -27,14 +28,23 @@ use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 enum Scene {
     /// Nothing: a read of the row.
     AllRun,
-    /// A word the loop does not run: a call of a per-row meaning.
+    /// A word the loop does not run: the children of a node.
     CallInTheRule,
-    /// A test of a text the executor does not run.
-    PrefixTest,
-    /// An `Exists` over a pattern in call form whose program holds a call.
+    /// A test of a text the executor does not run: a version at least another.
+    NumericTest,
+    /// An `Exists` over a pattern in call form whose program holds such a word.
     CallInAPattern,
     /// A read of a second table whose fill's pipeline keeps by a test of a text the fill side does not run.
-    PrefixKeepInAFill,
+    NumericKeepInAFill,
+    /// A read of a second table whose fill's pipeline scans the constants and writes: every stage runs.
+    AFillThatRuns,
+    /// A read of the constants alone, by a branch whose need asks the second table for a row; that table's fill keeps
+    /// by a test the fill side does not run.
+    NeedOverAFillNotRun,
+    /// A call of a meaning the kernel runs: a span's bounds.
+    CallThatRuns,
+    /// A call of a meaning the kernel does not run yet: a text in lowercase.
+    CallNotRun,
 }
 
 type Input = Scene;
@@ -60,7 +70,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_test_of_a_text_the_executor_does_not_run_names_the_rules_own_unit"),
         word: Word::Succeeds,
-        input: || Scene::PrefixTest,
+        input: || Scene::NumericTest,
         expect: Expect::Value([0, 9]),
     },
     Case {
@@ -74,17 +84,42 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_stage_in_the_fill_of_a_table_the_rule_reads_names_the_tables_unit"),
         word: Word::Succeeds,
-        input: || Scene::PrefixKeepInAFill,
+        input: || Scene::NumericKeepInAFill,
+        expect: Expect::Value([2, 9]),
+    },
+    Case {
+        name: CaseName("a_table_whose_fills_stages_all_run_is_run_whole_to_its_last_stage"),
+        word: Word::Succeeds,
+        input: || Scene::AFillThatRuns,
+        expect: Expect::Value([9, 9]),
+    },
+    Case {
+        name: CaseName("a_call_of_a_meaning_the_kernel_runs_is_run"),
+        word: Word::Succeeds,
+        input: || Scene::CallThatRuns,
+        expect: Expect::Value([9, 9]),
+    },
+    Case {
+        name: CaseName("a_call_of_a_meaning_the_kernel_does_not_run_names_the_rules_own_unit"),
+        word: Word::Succeeds,
+        input: || Scene::CallNotRun,
+        expect: Expect::Value([0, 9]),
+    },
+    Case {
+        name: CaseName("a_table_a_need_alone_asks_is_walked_and_names_its_unit"),
+        word: Word::Succeeds,
+        input: || Scene::NeedOverAFillNotRun,
         expect: Expect::Value([2, 9]),
     },
 ];
 
-/// A call of a per-row meaning: a word the loop does not run.
+/// The children of a node: a word the loop does not run.
 fn call() -> ProgramStep {
-    ProgramStep::Call {
-        meaning: CallMeaning::Lower,
-        arguments: StepOperands(Box::new([])),
-        outputs: RegisterList(Box::new([])),
+    ProgramStep::Children {
+        relation: Relation::SyntaxTree,
+        parent: Register(0),
+        field: None,
+        out: Register(0),
     }
 }
 
@@ -131,18 +166,18 @@ fn rule(number: u32, table: u32, between: Vec<ProgramStep>) -> LoweredRule {
 
 /// The rule set of a scene.
 fn pack(scene: Scene) -> LoweredPack {
-    let prefix = |left: StepOperand| {
+    let numeric = |left: StepOperand| {
         (
-            TestOperation::StartsWith,
+            TestOperation::NumericAtLeast,
             left,
             StepOperand::Word(CellWord(0)),
         )
     };
     let (first, between) = match scene {
-        Scene::AllRun => (0, Vec::new()),
+        Scene::AllRun | Scene::NeedOverAFillNotRun => (0, Vec::new()),
         Scene::CallInTheRule => (0, vec![call()]),
-        Scene::PrefixTest => {
-            let (test, left, right) = prefix(of(1));
+        Scene::NumericTest => {
+            let (test, left, right) = numeric(of(1));
             (0, vec![ProgramStep::Test { test, left, right }])
         }
         Scene::CallInAPattern => (
@@ -158,11 +193,32 @@ fn pack(scene: Scene) -> LoweredPack {
                 memo: StepMemo::None,
             }],
         ),
-        Scene::PrefixKeepInAFill => (1, Vec::new()),
+        Scene::NumericKeepInAFill | Scene::AFillThatRuns => (1, Vec::new()),
+        Scene::CallThatRuns => (
+            0,
+            vec![ProgramStep::Call {
+                meaning: CallMeaning::SpanBounds,
+                arguments: operands([of(1)]),
+                outputs: RegisterList(Box::new([Register(2), Register(3)])),
+            }],
+        ),
+        Scene::CallNotRun => (
+            0,
+            vec![ProgramStep::Call {
+                meaning: CallMeaning::Lower,
+                arguments: operands([of(1)]),
+                outputs: RegisterList(Box::new([Register(2)])),
+            }],
+        ),
     };
     let mut stages = Vec::from(scan_made(0, 10, 11));
-    let (test, left, right) = prefix(of(11));
-    stages.push(FillStage::Keep { test, left, right });
+    let (test, left, right) = numeric(of(11));
+    if matches!(
+        scene,
+        Scene::NumericKeepInAFill | Scene::NeedOverAFillNotRun
+    ) {
+        stages.push(FillStage::Keep { test, left, right });
+    }
     LoweredPack {
         definitions: vec![PackDefinition {
             node: NodeDigest([80; 16]),
@@ -181,7 +237,15 @@ fn pack(scene: Scene) -> LoweredPack {
             }],
         }],
         tables: vec![constants(&[1, 2]), rows(1, pipeline(stages, [of(11)]))],
-        rules: vec![rule(0, first, between), rule(1, 0, Vec::new())],
+        rules: {
+            let mut asking = rule(0, first, between);
+            if matches!(scene, Scene::NeedOverAFillNotRun) {
+                for branch in &mut asking.branches {
+                    branch.emptiness = Emptiness::Table(MadeTableId(1));
+                }
+            }
+            vec![asking, rule(1, 0, Vec::new())]
+        },
         registers: RegisterCount(20),
         ..LoweredPack::default()
     }

@@ -1,9 +1,10 @@
 //! The types of the model's `flow` part: plain data, public fields and derives, with no constructor and no inherent impl.
 
 use crate::domain::model::frames::types::{FrameCode, FrameModel};
+use crate::domain::model::lexical::types::NamespaceKey;
 use crate::domain::model::names::types::{KeyHasher, NameCode};
 use crate::domain::model::reaching::types::{FlowReadState, ReachModel};
-use ryo::languages::{Count, Integer, Position};
+use ryo::languages::{BindingResolutionRow, Count, Integer, Position};
 use std::collections::HashMap;
 use std::hash::BuildHasherDefault;
 
@@ -127,6 +128,15 @@ pub(crate) struct FlowShadow {
     pub form: ShadowForm,
 }
 
+/// One read or one shadow in a list by key: what the list is ordered by, and its place among the reads or the shadows.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct KeyPlace<K> {
+    /// What the list is ordered by: the name a read reads, the name expression of a read, or the binding of a shadow.
+    pub key: K,
+    /// The place among the reads, or among the shadows.
+    pub at: Count,
+}
+
 /// Whether the flow of a file could be interpreted to its end.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) enum FlowState {
@@ -157,6 +167,13 @@ pub(crate) struct FlowModel {
     pub uses: Vec<FlowUse>,
     /// The shadows, in evaluation order.
     pub shadows: Vec<FlowShadow>,
+    /// The reads ordered by the name each reads, then by evaluation order: made by the first fill of the reads of one name.
+    pub reads_by_name: Vec<KeyPlace<NameCode>>,
+    /// The shadows ordered by the binding of each, then by evaluation order: made by the first fill of the shadows of one
+    /// binding.
+    pub shadows_by_binding: Vec<KeyPlace<Position>>,
+    /// The reads ordered by the name expression of each: made by the first fill of the lookup path of one read.
+    pub reads_by_node: Vec<KeyPlace<Position>>,
     /// Whether the interpretation reached its end.
     pub state: FlowState,
     /// The frames of the interpretation.
@@ -169,4 +186,17 @@ pub(crate) struct FlowModel {
     pub branches: Vec<OpenBranch>,
     /// The finished arms of the open alternatives.
     pub arms: Vec<FrameCode>,
+}
+
+/// What the events in effect in schedule order are worked out with: buffers kept from one file to the next, cleared by the
+/// fill that uses them.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct ScheduleOrder {
+    /// The latest event of each name in each namespace so far, by its place among the events.
+    pub latest: HashMap<NamespaceKey, Count, BuildHasherDefault<KeyHasher>>,
+    /// The reads that are evaluated after the whole schedule (bounds and defaults of type parameters): the place of each
+    /// among the events, and its read.
+    pub lazy: Vec<(Count, FlowRead)>,
+    /// The rows so far, each with the schedule ordinal of its read.
+    pub rows: Vec<(Integer, BindingResolutionRow)>,
 }

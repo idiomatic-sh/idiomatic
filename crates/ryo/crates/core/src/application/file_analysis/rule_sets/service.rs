@@ -10,7 +10,7 @@ use super::super::streaming::service::FileVisits;
 use super::super::types::{ScanRequest, Scanning};
 use crate::domain::keeping::types::DigestInput;
 use crate::domain::repository::service::{
-    catalog_schema, given, paths_of, source_selection_identity,
+    catalog_schema, given, paths_of, source_selection_identity, statistics_identity,
 };
 use ryo_execution::inbound::use_cases::file_scan::interface::FileScanUseCase;
 use ryo_execution::inbound::use_cases::file_scan::types::{
@@ -21,15 +21,18 @@ use ryo_execution::inbound::use_cases::metadata::interface::{
 };
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use ryo_execution_runtime::outbound::digest::types::DigestBytes;
-use ryo_operators::spike::EngineMode;
+use ryo_operators::spike::{EngineMode, engine_statistics};
 use ryo_relations::domain::relations::types::Count;
 use ryo_values::domain::hosted::service::identity as hosted_identity;
+use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
+use ryo_values::domain::query_plans::service::{compiled_step, reach_unfolded};
 use ryo_values::domain::query_plans::types::Plan;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 use ryo_values::domain::runs::types::UnknownCause;
 use ryo_values::domain::stored_facts::types::Digest;
 use ryo_values::domain::stores::types::StoredPack;
+use std::borrow::Cow;
 use std::collections::BTreeSet;
 
 impl Scanning<'_> {
@@ -79,11 +82,19 @@ impl FileVisits {
         scan: Box<dyn FileScanUseCase>,
         session: ScanSession,
         request: ScanRequest<'a, '_>,
+        compiled: Vec<Vec<StepId>>,
     ) -> Scanning<'a> {
         // The path of each file is read only when the new engine scans one.
         let paths = match scan.mode() {
             EngineMode::Old => Vec::new(),
             EngineMode::New | EngineMode::Both => paths_of(request.files),
+        };
+        let queries = match scan.mode() {
+            EngineMode::Old => Vec::new(),
+            EngineMode::New | EngineMode::Both => {
+                let rules = request.rules.iter();
+                rules.map(|rule| rule.query.clone()).collect()
+            }
         };
         Scanning {
             scan,
@@ -95,6 +106,8 @@ impl FileVisits {
             files: request.files,
             read: request.read,
             unknown: self.analysis.language.unknown_reasons().0,
+            queries,
+            compiled,
         }
     }
 
@@ -114,7 +127,7 @@ impl FileVisits {
                 stored: &Self::packs(&request)?,
             })?,
         };
-        Ok(session.map(|session| self.over(scan, session, request)))
+        Ok(session.map(|session| self.over(scan, session, request, Vec::new())))
     }
 
     /// The new engine's part of a run, its rule sets loaded from the compiled rules: under the old engine alone nothing is
@@ -133,28 +146,49 @@ impl FileVisits {
             EngineMode::New | EngineMode::Both => scan.load(ScanLoadRequest {
                 plans,
                 bindings,
+                statistics: engine_statistics(),
                 given: self.analysis.given(&request),
                 stored: &Self::packs(&request)?,
             })?,
         };
-        Ok(self.over(scan, session, request))
+        // A notice names a step of the plan the engine received: each such step's own step of the compiled plan.
+        let compiled = match scan.mode() {
+            EngineMode::Old => Vec::new(),
+            EngineMode::New | EngineMode::Both => plans.iter().map(|plan| compiled_steps(plan)).collect(),
+        };
+        Ok(self.over(scan, session, request, compiled))
+    }
+}
+
+/// The step of a compiled plan that each step of the plan the new engine receives is: none for a plan the engine receives
+/// as it was compiled.
+fn compiled_steps(plan: &Plan) -> Vec<StepId> {
+    match reach_unfolded(plan) {
+        Cow::Borrowed(_) => Vec::new(),
+        Cow::Owned(received) => (0..received.steps.len())
+            .map(|place| compiled_step(plan, StepId(u32::try_from(place).unwrap_or(u32::MAX))))
+            .collect(),
     }
 }
 
 impl FileAnalysis {
     /// What a run was given, as one digest, made before anything is compiled: its selected rules as they were written, in
     /// order, with the fragments their queries name read once (`given`); what the host declared; the catalog's relations and
-    /// columns; and the language the request names, when it names one. A rule set's pack is kept under it, with the language's
-    /// kinds and the engine's version: a changed rule or fragment, another selection or another declaration is another pack.
-    /// One pass over the bytes, and nothing per rule but its own text.
+    /// columns; the language the request names, when it names one; and the statistics the rules are lowered with, when the
+    /// run names some. A rule set's pack is kept under it, with the language's kinds and the engine's version: a changed rule
+    /// or fragment, another selection, another declaration or other statistics is another pack, and a run given the same
+    /// reads its pack back and compiles nothing. One pass over the bytes, and nothing per rule but its own text.
     fn given(&self, request: &ScanRequest<'_, '_>) -> Digest {
         let part = |bytes: DigestInput| self.digest.digest(DigestBytes(&bytes.0));
-        self.digest.combine(&[
+        let mut parts = vec![
             part(given(request.rules)),
             self.digest
                 .digest(DigestBytes(&hosted_identity(request.hosted).0)),
             part(catalog_schema()),
             part(source_selection_identity(request.named)),
-        ])
+        ];
+        // A run that names no statistics is given what it was given before statistics were: its packs keep their keys.
+        parts.extend(statistics_identity(engine_statistics()).map(part));
+        self.digest.combine(&parts)
     }
 }

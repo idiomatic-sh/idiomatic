@@ -2,8 +2,9 @@
 //! of the file. The links between the tokens (each token's next, a bracket's matching closer, the innermost open bracket around
 //! a token), the indentation regions the `INDENT` and `DEDENT` tokens open and close, and the line and column of an offset.
 
-use super::types::{LinePlace, FileLines, TokenAt};
+use super::types::{FileLines, LinePlace, LinkIndex, TokenAt};
 use crate::domain::indentation::types::IndentationRegion;
+use crate::domain::model::lexical::constants::NO_NODE;
 use crate::domain::node::service::own_end;
 use crate::domain::node::types::SyntaxFile;
 use crate::domain::syntax::service::kind_of;
@@ -107,6 +108,84 @@ pub(crate) fn token_links(
         stack.clear();
     }
     pairing
+}
+
+/// Writes into `index` what each token of the file is linked to, in one pass over its tokens: the links are the ones
+/// `token_links` hands, kept by token.
+pub(crate) fn link_index(file: &SyntaxFile<'_>, stack: &mut Vec<Opener>, index: &mut LinkIndex) {
+    let first = u32::try_from(node_table::node_count(file.table).0).unwrap_or(u32::MAX);
+    let places = usize::from(Position(own_end(file).0.saturating_sub(first)));
+    index.first = Position(first);
+    for column in [&mut index.next, &mut index.previous, &mut index.pair, &mut index.around] {
+        column.clear();
+        column.resize(places, NO_NODE);
+    }
+    let put = |column: &mut Vec<Position>, at: Position, linked: Position| {
+        if let Some(slot) = column.get_mut(usize::from(Position(at.0.saturating_sub(first)))) {
+            *slot = linked;
+        }
+    };
+    let (next, previous, pair, around) =
+        (&mut index.next, &mut index.previous, &mut index.pair, &mut index.around);
+    index.pairing = token_links(file, stack, &mut |link| match link.kind {
+        LinkKind::Next => {
+            put(next, link.source, link.target);
+            put(previous, link.target, link.source);
+        }
+        LinkKind::Matching => {
+            put(pair, link.source, link.target);
+            put(pair, link.target, link.source);
+        }
+        LinkKind::Enclosing => put(around, link.source, link.target),
+    });
+}
+
+/// What the token `id` is linked to in one column of the index; none where it has no such link, and for an id that is no token
+/// of the file's own tree.
+fn linked(index: &LinkIndex, column: &[Position], id: Position) -> Option<Position> {
+    let place = id.0.checked_sub(index.first.0)?;
+    column.get(usize::from(Position(place))).copied().filter(|found| *found != NO_NODE)
+}
+
+/// Hands `each` the links whose source is the token `id`, in the order `token_links` hands them: the bracket around it, the
+/// token after it, and its closing bracket when it opens one. Three reads of the index.
+pub(crate) fn links_from(index: &LinkIndex, id: Position, each: &mut dyn FnMut(TokenLink)) {
+    if let Some(target) = linked(index, &index.around, id) {
+        each(TokenLink { source: id, target, kind: LinkKind::Enclosing });
+    }
+    if let Some(target) = linked(index, &index.next, id) {
+        each(TokenLink { source: id, target, kind: LinkKind::Next });
+    }
+    if let Some(target) = linked(index, &index.pair, id).filter(|closer| *closer > id) {
+        each(TokenLink { source: id, target, kind: LinkKind::Matching });
+    }
+}
+
+/// Hands `each` the links whose target is the token `id`, in the order `token_links` hands them: the token before it, its
+/// opening bracket when it closes one, and, when it opens a bracket, each token it is the innermost open bracket around. It
+/// steps over the brackets nested in it, so it reads the tokens directly in it and no other.
+pub(crate) fn links_to(index: &LinkIndex, id: Position, each: &mut dyn FnMut(TokenLink)) {
+    if let Some(source) = linked(index, &index.previous, id) {
+        each(TokenLink { source, target: id, kind: LinkKind::Next });
+    }
+    if let Some(source) = linked(index, &index.pair, id).filter(|opener| *opener < id) {
+        each(TokenLink { source, target: id, kind: LinkKind::Matching });
+    }
+    let mut inside = linked(index, &index.next, id);
+    while let Some(source) = inside {
+        if linked(index, &index.around, source) != Some(id) {
+            break;
+        }
+        each(TokenLink { source, target: id, kind: LinkKind::Enclosing });
+        // A bracket nested here that closes: its closer is around this bracket too, and what it holds is not.
+        let closer = linked(index, &index.pair, source).filter(|closer| *closer > source);
+        if let Some(closer) = closer
+            && linked(index, &index.around, closer) == Some(id)
+        {
+            each(TokenLink { source: closer, target: id, kind: LinkKind::Enclosing });
+        }
+        inside = linked(index, &index.next, closer.unwrap_or(source));
+    }
 }
 
 /// The indentation regions of the file into `regions`, ordered by their ids: the module is the region of the root, and every

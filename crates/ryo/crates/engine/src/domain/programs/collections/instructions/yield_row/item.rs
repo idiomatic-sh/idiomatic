@@ -12,6 +12,7 @@ use crate::domain::steps::types::Register;
 pub(crate) struct YieldRow;
 
 impl InstructionsItem for YieldRow {
+    #[inline]
     fn run(frame: &mut StepFrame<'_, '_>, word: CodeWord, _at: CodeEntry) -> Flow {
         let read = yield_row_of(word);
         if read.cells.0 == 1 {

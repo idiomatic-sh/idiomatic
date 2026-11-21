@@ -53,6 +53,7 @@ pub use ryo_language::inbound::use_cases::parse::fixtures::expected_rows::{
     language_target::LanguageTargetExpectedRow,
     literal_expression_parse::LiteralExpressionParseExpectedRow,
     literal_properties::LiteralPropertiesExpectedRow,
+    lookup_scope::LookupScopeExpectedRow,
     manifest_diagnostic::ManifestDiagnosticExpectedRow, mapping::MappingExpectedRow,
     mention::MentionExpectedRow, module_identity::ModuleIdentityExpectedRow,
     numeric_literal::NumericLiteralExpectedRow, package_dependency::PackageDependencyExpectedRow,

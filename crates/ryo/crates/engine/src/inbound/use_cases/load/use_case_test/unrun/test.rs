@@ -8,10 +8,7 @@ use crate::domain::lowered::types::{Branch, Emptiness, LoweredPack, LoweredRule}
 use crate::domain::lowering::fixtures::{digests_of, named};
 use crate::domain::lowering::types::{LoweredRules, SelectedRule, SelectedRules};
 use crate::domain::programs::service::accepted;
-use crate::domain::steps::types::{
-    AnchorKinds, CallMeaning, PlacedStep, ProgramStep, Register, RegisterList, StepOperands,
-    StepProgram,
-};
+use crate::domain::steps::types::{AnchorKinds, PlacedStep, ProgramStep, Register, StepProgram};
 use crate::inbound::use_cases::load::fixtures::kinds;
 use crate::inbound::use_cases::load::service::sequenced;
 use ryo_relations::domain::relations::types::{KindBits, Relation};
@@ -28,7 +25,7 @@ enum Written {
     Whole,
     /// Its anchor twice: the encoding's own fault.
     Faulty,
-    /// Its anchor and a call of a per-row meaning, a word the loop does not run.
+    /// Its anchor and the children of a node, a word the loop does not run.
     Unrun,
 }
 
@@ -51,12 +48,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
     Case {
         name: CaseName(
-            "a_rule_the_executor_cannot_run_found_on_the_last_lowering_takes_every_rule",
+            "a_rule_the_executor_cannot_run_beside_one_the_encoding_refuses_takes_no_other_rule",
         ),
         word: Word::Succeeds,
         input: || [Written::Faulty, Written::Whole, Written::Unrun],
         expect: Expect::Value(Cow::Borrowed(
-            "runs []; refused [0: step PlanNode(0) cannot be evaluated; 1: step PlanNode(0) cannot be evaluated; 2: step PlanNode(0) cannot be evaluated]; lowered 2 times",
+            "runs [1]; refused [0: step PlanNode(0) cannot be evaluated; 2: step PlanNode(0) cannot be evaluated]; lowered 3 times",
         )),
     },
     Case {
@@ -79,10 +76,11 @@ fn lowered_rule(rule: SelectedRuleOrdinal, written: Written) -> LoweredRule {
     };
     let call = PlacedStep {
         point: None,
-        step: ProgramStep::Call {
-            meaning: CallMeaning::Lower,
-            arguments: StepOperands(Box::new([])),
-            outputs: RegisterList(Box::new([])),
+        step: ProgramStep::Children {
+            relation: Relation::SyntaxTree,
+            parent: Register(0),
+            field: None,
+            out: Register(0),
         },
     };
     let steps = match written {

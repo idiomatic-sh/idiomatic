@@ -5,7 +5,7 @@
 
 use super::errors::FileScanError;
 use super::service::{crossed, emit_columns, place_columns, ran, reported, taken, worker};
-use super::types::{EmitColumns, PlaceColumns, ScanReport, ScanRun, ScanWorker};
+use super::types::{EmitColumns, PlaceColumns, ScanMeasuring, ScanReport, ScanRun, ScanWorker};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::engine::fixtures::fake::{EngineFake, no_kinds};
 use crate::outbound::engine::interface::EnginePort as _;
@@ -32,6 +32,9 @@ use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 use ryo_values::domain::scan_rows::types::{KeptCell, RowPlace};
 use std::borrow::Cow;
 use std::sync::Arc;
+
+mod loads;
+mod noticed;
 
 /// What a row does.
 #[derive(Clone, Copy, Debug)]
@@ -212,7 +215,7 @@ fn file<'a>(path: &'a str, number: u32, bytes: &'a [u8]) -> WalkRequest<'a> {
 fn worked(plan: &Plan, files: &[WalkRequest<'_>]) -> ScanReport {
     let engine = EngineFake::default();
     let programs = accepted(&engine, plan);
-    let mut worker = worker(&words(), &engine, &programs);
+    let mut worker = worker(&words(), &engine, &programs, ScanMeasuring::Plain);
     let (columns, places) = (
         emit_columns(&engine, &programs),
         place_columns(&[SelectedRuleOrdinal(0)], std::slice::from_ref(&plan.emit)),
@@ -312,7 +315,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::Taken => {
             let (engine, plan) = (EngineFake::default(), keeping(3));
             let programs = accepted(&engine, &plan);
-            let mut worker = worker(&words(), &engine, &programs);
+            let mut worker = worker(&words(), &engine, &programs, ScanMeasuring::Plain);
             let (columns, places) = (
                 emit_columns(&engine, &programs),
                 place_columns(&[SelectedRuleOrdinal(0)], std::slice::from_ref(&plan.emit)),
@@ -352,7 +355,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::NoColumns | Scenario::Unread => {
             let engine = EngineFake::default();
             let programs = accepted(&engine, &tree);
-            let mut worker = worker(&words(), &engine, &programs);
+            let mut worker = worker(&words(), &engine, &programs, ScanMeasuring::Plain);
             // The run of a host that holds no columns for the rule.
             let (held, none) = (emit_columns(&engine, &programs), EmitColumns::default());
             let places = PlaceColumns::default();

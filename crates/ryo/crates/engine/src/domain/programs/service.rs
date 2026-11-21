@@ -1,15 +1,28 @@
 //! The `programs` service: what the host reads of a rule set's programs.
 
 use super::types::{Programs, ProgramsEngine};
-use crate::domain::code::types::UnitKey;
+use crate::domain::code::constants::{STORAGE, STRAIGHT_WORDS};
+use crate::domain::code::controlling::service::{exists_of, or_of};
+use crate::domain::code::deciding::service::call_of;
+use crate::domain::code::filling::service::stage_use_of;
+use crate::domain::code::records::service::{body_at, operand_at};
+use crate::domain::code::records::types::{BodyRecord, PooledOperand, ReadBody};
+use crate::domain::code::types::{CodeEntry, CodeWord, Op, PoolAt, ProgramCode, UnitKey};
+use crate::domain::code::walking::service::{closure_of, nearest_of};
 use crate::domain::findings::types::RuleColumns;
-use crate::domain::made_tables::types::{FillStore, RuleSetView};
-use crate::domain::scratch::types::{LoopState, ScanScratch, ScratchEngine};
+use crate::domain::made_tables::types::{FillStore, KeyFrom, RuleSetView};
+use crate::domain::memos::types::CellSpan;
+use crate::domain::scratch::kept::service::files_marked;
+use crate::domain::scratch::kept::types::QuickBody;
+use crate::domain::scratch::types::{
+    AskPart, DecodedCode, LoopState, Measuring, ScanScratch, ScratchEngine, UnitInFile,
+};
+use crate::domain::steps::types::Register;
 use ryo_language::domain::facts::service::file_words;
 use ryo_language::domain::facts::types::CellWord;
 use ryo_language::domain::node_table::types::FieldCode;
 use ryo_language::inbound::use_cases::walk::types::RelationNeeds;
-use ryo_relations::domain::relations::types::KindBits;
+use ryo_relations::domain::relations::types::{Count, KindBits};
 use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 
@@ -75,6 +88,217 @@ pub(crate) fn rule_set(programs: &ProgramsEngine) -> RuleSetView<'_> {
     }
 }
 
+/// How an `Exists` word asks its body: in place when it keeps no answer of its own and its body is inline, or a
+/// pattern in call form whose program is a short straight line.
+fn quick_of(code: &ProgramCode, word: CodeWord, body: Option<ReadBody>) -> QuickBody {
+    if exists_of(word).flag.0 & STORAGE.0 != 0 {
+        return QuickBody::Kept;
+    }
+    let word_at = |entry: CodeEntry, ahead: u32| {
+        let place = usize::try_from(entry.0.wrapping_add(ahead)).unwrap_or(usize::MAX);
+        code.words.get(place).map(|held| held.op)
+    };
+    match body.map(|read| read.record) {
+        Some(BodyRecord::Inline { entry }) if word_at(entry, 0) == Some(Op::Yield) => {
+            QuickBody::Row
+        }
+        Some(BodyRecord::Inline { entry }) => QuickBody::Inline(entry),
+        Some(BodyRecord::Call { entry, .. }) => {
+            // A straight line: each word gives one row at most, asks nothing and makes nothing, and the program ends
+            // within the bound.
+            let ends = (0..=STRAIGHT_WORDS.0).find(|ahead| word_at(entry, *ahead) == Some(Op::End));
+            let straight = ends.is_some_and(|end| {
+                (0..end).all(|ahead| {
+                    matches!(
+                        word_at(entry, ahead),
+                        Some(
+                            Op::Test
+                                | Op::TestEqualConstant
+                                | Op::TestNotEqualConstant
+                                | Op::TestEqualRegister
+                                | Op::TestNotEqualRegister
+                                | Op::TestInConstants
+                                | Op::Let
+                                | Op::ReadNode
+                                | Op::ReadFilled
+                                | Op::ReadMade
+                                | Op::Yield
+                        )
+                    )
+                })
+            });
+            if straight {
+                QuickBody::Straight(entry)
+            } else {
+                QuickBody::Kept
+            }
+        }
+        Some(BodyRecord::Table { .. }) | None => QuickBody::Kept,
+    }
+}
+
+/// Adds the parts of a call-form body's ask to the decoded code, once for each body record.
+fn parts_added(code: &ProgramCode, body: Option<ReadBody>, decoded: &mut DecodedCode) {
+    let Some(BodyRecord::Call { bound, formals, .. }) = body.map(|read| read.record) else {
+        return;
+    };
+    let place = usize::try_from(formals.0).unwrap_or(usize::MAX);
+    if decoded.parts_at.get(place).is_none_or(|start| start.0 != 0) {
+        return;
+    }
+    let start = decoded.parts.len();
+    let mut from = KeyFrom::Constants;
+    for number in 0..bound.0 {
+        let at = formals.0.wrapping_add(number.wrapping_mul(3));
+        let formal = code.pool.get(usize::try_from(at).unwrap_or(usize::MAX));
+        let value = operand_at(&code.pool, PoolAt(at.wrapping_add(1)));
+        if matches!(value, Some(PooledOperand::Register(_))) {
+            from = KeyFrom::Row;
+        }
+        decoded.parts.push(AskPart {
+            formal: Register(formal.map_or(0, |slot| slot.0)),
+            value,
+            from: KeyFrom::Constants,
+        });
+    }
+    for part in decoded.parts.iter_mut().skip(start) {
+        part.from = from;
+    }
+    if let Some(slot) = decoded.parts_at.get_mut(place) {
+        *slot = Count(start.saturating_add(1));
+    }
+}
+
+/// What the loop reads of the code at a step in place of the pool: the body record of each word over one body, an
+/// `Or`'s body records, a `Call` word's argument operands, and the parts of every call-form body's ask (the bodies the
+/// loop's words and the fill side's `Use` stages name).
+pub(crate) fn decoded_code(code: &ProgramCode) -> DecodedCode {
+    let mut decoded = DecodedCode {
+        bodies: Vec::with_capacity(code.words.len()),
+        lists: Vec::with_capacity(code.words.len()),
+        parts_at: vec![Count(0); code.pool.len()],
+        ..DecodedCode::default()
+    };
+    let mut reads = Count(0);
+    for word in &code.words {
+        let (mut body, mut list) = (None, CellSpan::default());
+        let mut quick = QuickBody::Kept;
+        match word.op {
+            Op::Exists => {
+                body = body_at(&code.pool, exists_of(*word).body);
+                quick = quick_of(code, *word, body);
+            }
+            // Over derived edges the record starts with the edges' body: the condition's follows it.
+            Op::Nearest | Op::NearestDerived => {
+                body = body_at(&code.pool, nearest_of(*word).operands);
+                // The condition's ask is decoded too: without its parts a condition in call form was asked with a key
+                // of noughts and never held (ISC004's next code token).
+                if word.op == Op::NearestDerived
+                    && let Some(edges) = body
+                {
+                    let condition = body_at(&code.pool, PoolAt(edges.after.0.saturating_add(1)));
+                    parts_added(code, condition, &mut decoded);
+                }
+            }
+            Op::Closure => body = body_at(&code.pool, closure_of(*word).operands),
+            Op::StageUse => parts_added(
+                code,
+                body_at(&code.pool, stage_use_of(*word).body),
+                &mut decoded,
+            ),
+            Op::Or => {
+                let asking = or_of(*word);
+                let start = decoded.or_bodies.len();
+                let mut at = Some(asking.records);
+                for _ in 0..asking.bodies.0 {
+                    let read = at.and_then(|place| body_at(&code.pool, place));
+                    at = read.map(|held| held.after);
+                    if let Some(held) = read {
+                        decoded.or_bodies.push(held);
+                        parts_added(code, Some(held), &mut decoded);
+                    }
+                }
+                list = CellSpan {
+                    start: Count(start),
+                    length: Count(decoded.or_bodies.len().saturating_sub(start)),
+                };
+            }
+            Op::Call => {
+                let asking = call_of(*word);
+                let start = decoded.operands.len();
+                let count = code
+                    .pool
+                    .get(usize::try_from(asking.arguments.0).unwrap_or(usize::MAX))
+                    .map_or(0, |held| held.0);
+                for number in 0..count {
+                    let at = asking
+                        .arguments
+                        .0
+                        .wrapping_add(1)
+                        .wrapping_add(number.wrapping_mul(2));
+                    decoded.operands.push(operand_at(&code.pool, PoolAt(at)));
+                }
+                list = CellSpan {
+                    start: Count(start),
+                    length: Count(decoded.operands.len().saturating_sub(start)),
+                };
+            }
+            Op::ReadFilled | Op::ReadMade => {
+                // The word's slot among the columns the loop holds for a file.
+                list = CellSpan {
+                    start: reads,
+                    length: Count(1),
+                };
+                reads = Count(reads.0.saturating_add(1));
+            }
+            Op::End
+            | Op::EachKind
+            | Op::EachMatchNode
+            | Op::EachMatchFilled
+            | Op::EachMatchFilledMany
+            | Op::EachMatchMade
+            | Op::EachRange
+            | Op::EachRowNode
+            | Op::EachRowFilled
+            | Op::EachRowMade
+            | Op::Children
+            | Op::ChildrenOfField
+            | Op::Axis
+            | Op::Within
+            | Op::ReadNode
+            | Op::Test
+            | Op::TestEqualConstant
+            | Op::TestNotEqualConstant
+            | Op::TestEqualRegister
+            | Op::TestNotEqualRegister
+            | Op::TestInConstants
+            | Op::Render
+            | Op::Let
+            | Op::Fork
+            | Op::Yield
+            | Op::Latest
+            | Op::Emit
+            | Op::StageScan
+            | Op::StageProbe
+            | Op::StageLatest
+            | Op::StageRead
+            | Op::StageKeep
+            | Op::StageCall
+            | Op::StageProduct
+            | Op::StageRender
+            | Op::StageWalk
+            | Op::StageWrite => {}
+        }
+        parts_added(code, body, &mut decoded);
+        decoded.bodies.push(body);
+        decoded.lists.push(list);
+        decoded.quick.push(quick);
+    }
+    let DecodedCode { parts, files, .. } = &mut decoded;
+    files_marked(code, parts, files);
+    decoded
+}
+
 /// A worker's per-file state for `programs`: its registers, one for each the programs name, its words over the programs'
 /// constants, and an empty store of fills.
 ///
@@ -92,6 +316,7 @@ pub fn scratch_for(programs: &Programs) -> ScanScratch {
     ScanScratch(ScratchEngine {
         state: LoopState {
             registers: vec![CellWord(0); registers],
+            decoded: decoded_code(&programs.0.code),
             ..LoopState::default()
         },
         store: FillStore::default(),
@@ -113,7 +338,23 @@ pub fn scratch_for(programs: &Programs) -> ScanScratch {
 /// ```
 #[must_use]
 pub fn scratch_measuring(programs: &Programs) -> ScanScratch {
-    scratch_for(programs)
+    let mut scratch = scratch_for(programs);
+    let code = &programs.0.code;
+    scratch.0.state.measure = Some(Box::new(Measuring {
+        points: vec![Count(0); usize::try_from(code.counts.points.0).unwrap_or(usize::MAX)],
+        calls: vec![Count(0); code.units.len()],
+        keys: vec![Count(0); code.units.len()],
+        rows: vec![Count(0); code.units.len()],
+        build: vec![Count(0); code.units.len()],
+        nanos: vec![Count(0); code.units.len()],
+        idle_nanos: vec![Count(0); code.units.len()],
+        file: vec![UnitInFile::default(); code.units.len()],
+        table_units: code.tables.iter().map(|table| table.unit).collect(),
+        kinds: vec![Count(0); programs.0.kinds.len()],
+        literals: vec![Count(0); code.sizes.len()],
+        ..Measuring::default()
+    }));
+    scratch
 }
 
 /// The step of `rule`'s own plan whose rows the unit named `unit` makes: what a work notice names (`WorkNotice.step`). A unit

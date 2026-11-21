@@ -1,17 +1,17 @@
 //! The `node` service: free functions over a walked file. The id of a typed node, the typed node of an id, the text and the row
 //! cells of an element, and the field a token fills under the node that holds it.
 
-use super::types::{FixedWords, Numbered, SyntaxFile};
+use super::types::{Numbered, SyntaxFile};
 use crate::domain::labels::service::field_bits;
 use crate::domain::labels::types::Field;
-use crate::domain::model::lexical::types::EmbeddedSite;
+use crate::domain::model::lexical::types::{EmbeddedSite, TypedTree};
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
 use ruff_python_ast::token::TokenKind;
 use ruff_python_ast::{AnyNodeRef, HasNodeIndex as _};
 use ryo::languages::{
-    self, FieldCode, NameText, NodeId, Offset, Position, Span, Symbol, node_table,
+    self, CellWord, FieldCode, FileId, NameText, NodeId, Offset, Position, Span, Symbol, node_table,
 };
 
 /// The field code the node table holds for a field: the number of the field in the language's vocabulary, zero for none.
@@ -42,6 +42,50 @@ pub(crate) fn table_id(segments: &[EmbeddedSite], place: Position) -> Position {
                     .saturating_add(place.0.saturating_sub(segment.first.0)),
             )
         })
+}
+
+/// The place of the node the table gave the id `id`: what `table_id` is undone by. None for a token and for an id past the
+/// nodes.
+#[must_use]
+pub(crate) fn place_of_id(tree: TypedTree<'_, '_>, id: Position) -> Option<Position> {
+    let after = tree.segments.partition_point(|segment| segment.root <= id);
+    let place = after
+        .checked_sub(1)
+        .and_then(|within| tree.segments.get(within))
+        .map_or(id, |segment| {
+            Position(
+                segment
+                    .first
+                    .0
+                    .saturating_add(id.0.saturating_sub(segment.root.0)),
+            )
+        });
+    (usize::from(place) < tree.nodes.len() && table_id(tree.segments, place) == id).then_some(place)
+}
+
+/// The id a key cell names in the file `file`: none for a cell that is no element's id of this file (the node of another
+/// file, a number, a word). The id may still be past the file's elements: no row is written for it.
+#[must_use]
+pub(crate) fn keyed_id(file: FileId, key: CellWord) -> Option<Position> {
+    let id = languages::node_position(NodeId(key.0));
+    (languages::node_id(file, id).0 == key.0).then_some(id)
+}
+
+/// The node of the file a key cell names, by its place: none for a cell that is no node of this file (another file's node, a
+/// token, an id past the nodes).
+#[must_use]
+pub(crate) fn keyed_place(
+    file: FileId,
+    tree: TypedTree<'_, '_>,
+    key: CellWord,
+) -> Option<Position> {
+    keyed_id(file, key).and_then(|id| place_of_id(tree, id))
+}
+
+/// The syntax node of the file's own tree a key cell names: none for a cell that is no node of this file's own tree.
+#[must_use]
+pub(crate) fn keyed_node(file: &SyntaxFile<'_>, key: CellWord) -> Option<Position> {
+    keyed_id(file.file, key).filter(|id| usize::from(*id) < file.nodes.len())
 }
 
 /// The id after the last element of the file's own tree: its nodes, then its tokens. The embedded segments follow.
@@ -119,27 +163,6 @@ pub(crate) fn written<'f>(file: &SyntaxFile<'f>, id: Position) -> NameText<'f> {
 /// A text as a row's text cell: a word of the file.
 pub(crate) fn word(words: &mut languages::FileWords, text: NameText<'_>) -> Symbol {
     Symbol(u32::try_from(languages::facts::intern(words, text).0).unwrap_or(u32::MAX))
-}
-
-/// A fixed word of the language as a row's text cell: interned the first time a filler of the file writes it, read from `kept`
-/// every time after. The words of a file are forgotten with the file, so `kept` is emptied when a file begins.
-pub(crate) fn fixed(
-    words: &mut languages::FileWords,
-    kept: &mut FixedWords,
-    text: NameText<'static>,
-) -> Symbol {
-    // The same constant is the same place in the program: the address is compared before the text.
-    let found = kept
-        .texts
-        .iter()
-        .position(|each| std::ptr::eq(each.0, text.0) || each.0 == text.0);
-    if let Some(word) = found.and_then(|at| kept.words.get(at)) {
-        return *word;
-    }
-    let interned = word(words, text);
-    kept.texts.push(text);
-    kept.words.push(interned);
-    interned
 }
 
 /// `field` for a token that is an operator of an expression, none for a bracket, a comma and trivia.

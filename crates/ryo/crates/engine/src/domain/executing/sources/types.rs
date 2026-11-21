@@ -2,13 +2,16 @@
 
 use crate::domain::code::constants::NO_SLOT;
 use crate::domain::code::types::{ConstantNumber, NeedSite, RelationNumber, Short, WordSlot};
+use crate::domain::executing::measuring::service::{need_fill_begun, need_fill_ended};
+use crate::domain::executing::presence::service::node_row;
 use crate::domain::executing::types::Asker;
-use crate::domain::made_tables::sources::service::{cell_of, made, scanned, table_of};
+use crate::domain::indexes::reading::service::cell_at;
+use crate::domain::made_tables::reading::service::view_of;
+use crate::domain::made_tables::sources::service::{made, scanned, table_of};
 use crate::domain::made_tables::types::ReadSource;
 use crate::domain::needs::types::{NeedFacts, NeedVerdict};
 use crate::domain::programs::frames::types::StepFrame;
 use crate::domain::programs::operands::service::constant;
-use crate::domain::stages::service::handle;
 use crate::domain::steps::types::MadeTableId;
 use ryo_language::domain::node_table::service::kinds_present;
 use ryo_relations::domain::relations::types::{Count, KindBits};
@@ -57,6 +60,9 @@ impl NeedFacts for FileNeeds<'_, '_, '_> {
         value: WordSlot,
     ) -> NeedVerdict {
         let frame = &mut *self.0;
+        if let Some(decided) = node_row(frame, relation, column, value) {
+            return decided;
+        }
         let source = ReadSource::Filled(relation);
         let asked = scanned(
             frame.fill,
@@ -77,7 +83,9 @@ impl NeedFacts for FileNeeds<'_, '_, '_> {
         } else {
             let wanted = constant(frame, ConstantNumber(value.0));
             let place = Short(u16::try_from(column.0).unwrap_or(u16::MAX));
-            rows.any(|row| cell_of(frame.fill, source, place, handle(Count(row))) == wanted)
+            // The column is asked once for the need, and its cells are read where they lie.
+            let held = view_of(frame.fill.store, source, place);
+            rows.any(|row| cell_at(held, Count(row)) == wanted)
         };
         if holds {
             NeedVerdict::Holds
@@ -92,6 +100,9 @@ impl NeedFacts for FileNeeds<'_, '_, '_> {
         if ports.table_need(frame, table) == NeedVerdict::Empty {
             return NeedVerdict::Empty;
         }
+        // SPIKE: a measuring worker books the fill this need starts (the table is not made yet for the file).
+        let begun = (frame.state.measure.is_some() && table_of(frame.fill.store, table).is_none())
+            .then(need_fill_begun);
         let made_now = made(
             frame.fill,
             &mut Asker {
@@ -102,6 +113,9 @@ impl NeedFacts for FileNeeds<'_, '_, '_> {
             table,
         );
         let rows = table_of(frame.fill.store, table).map_or(0, |slot| slot.rows.count.0);
+        if let Some(begun) = begun {
+            need_fill_ended(frame.state, table, begun, Count(rows));
+        }
         if made_now.is_ok() && rows > 0 {
             NeedVerdict::Holds
         } else {

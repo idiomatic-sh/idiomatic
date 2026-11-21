@@ -7,6 +7,7 @@ use crate::domain::code::records::service::need_at;
 use crate::domain::code::records::types::NeedRecord;
 use crate::domain::code::types::{NeedSite, PoolAt, ProgramCode, WordSlot};
 use crate::domain::steps::types::MadeTableId;
+use ryo_relations::domain::catalog::service::node_extent;
 use ryo_relations::domain::relations::types::KindBits;
 
 /// The slot `ahead` slots after a place among the needs.
@@ -29,8 +30,44 @@ fn kinds(code: &ProgramCode, list: PoolAt) -> &[WordSlot] {
         .unwrap_or_default()
 }
 
-/// Whether every part of a record holds, or with `wanted` empty whether some part holds: the parts' places follow the
-/// record's count. The walk stops at the first part that decides.
+/// Whether deciding the record at a place may cost a fill: a table it makes, a relation the language fills, another
+/// unit's decision not made yet. A kind's presence, a node relation's row and a decision kept cost nothing.
+fn costs(facts: &impl NeedFacts, code: &ProgramCode, at: WordSlot) -> NeedVerdict {
+    let costly = match need_at(&code.needs, at) {
+        Some(NeedRecord::Unknown | NeedRecord::Kinds(_)) | None => false,
+        Some(NeedRecord::Row { relation, .. }) => {
+            let read = code
+                .relations
+                .get(usize::try_from(relation.0).unwrap_or(usize::MAX));
+            read.copied().and_then(node_extent).is_none()
+        }
+        Some(NeedRecord::Site(site)) => facts.kept(site).is_none(),
+        Some(NeedRecord::Table(_)) => true,
+        Some(
+            NeedRecord::All {
+                parts: count,
+                offsets,
+            }
+            | NeedRecord::Any {
+                parts: count,
+                offsets,
+            },
+        ) => (0..count.0).any(|number| {
+            slot(code, offsets, WordSlot(number))
+                .is_some_and(|place| costs(facts, code, place) == NeedVerdict::Holds)
+        }),
+    };
+    if costly {
+        NeedVerdict::Holds
+    } else {
+        NeedVerdict::Empty
+    }
+}
+
+/// Whether every part of a record holds, or with `stops_at` holding whether some part holds: the parts' places follow
+/// the record's count. The parts that cost nothing are asked first, in the record's order, then the parts that may cost
+/// a fill; the walk stops at the first part that decides, so a part that makes a table is asked only when nothing
+/// cheaper decided.
 fn parts(
     facts: &mut impl NeedFacts,
     code: &ProgramCode,
@@ -38,11 +75,18 @@ fn parts(
     offsets: WordSlot,
     stops_at: NeedVerdict,
 ) -> NeedVerdict {
-    for number in 0..count.0 {
-        let part = slot(code, offsets, WordSlot(number))
-            .map_or(NeedVerdict::Holds, |place| formula(facts, code, place));
-        if part == stops_at {
-            return stops_at;
+    for pass in [NeedVerdict::Empty, NeedVerdict::Holds] {
+        for number in 0..count.0 {
+            let Some(place) = slot(code, offsets, WordSlot(number)) else {
+                // A part that cannot be read says nothing is known: it holds, in the pass of what costs nothing.
+                if pass == NeedVerdict::Empty && stops_at == NeedVerdict::Holds {
+                    return stops_at;
+                }
+                continue;
+            };
+            if costs(facts, code, place) == pass && formula(facts, code, place) == stops_at {
+                return stops_at;
+            }
         }
     }
     match stops_at {
@@ -89,10 +133,15 @@ fn formula(facts: &mut impl NeedFacts, code: &ProgramCode, at: WordSlot) -> Need
 }
 
 /// Adds to `out` every table the record at a place among the needs may ask for a row, whatever the file.
-fn record_tables(code: &ProgramCode, at: WordSlot, out: &mut Vec<MadeTableId>) {
+fn record_tables(
+    code: &ProgramCode,
+    at: WordSlot,
+    seen: &mut hashbrown::HashSet<NeedSite>,
+    out: &mut Vec<MadeTableId>,
+) {
     match need_at(&code.needs, at) {
         Some(NeedRecord::Table(table)) => out.push(table),
-        Some(NeedRecord::Site(site)) => tables_asked(code, site, out),
+        Some(NeedRecord::Site(site)) => tables_asked(code, site, seen, out),
         Some(
             NeedRecord::All {
                 parts: count,
@@ -105,7 +154,7 @@ fn record_tables(code: &ProgramCode, at: WordSlot, out: &mut Vec<MadeTableId>) {
         ) => {
             for number in 0..count.0 {
                 if let Some(place) = slot(code, offsets, WordSlot(number)) {
-                    record_tables(code, place, out);
+                    record_tables(code, place, seen, out);
                 }
             }
         }
@@ -113,10 +162,68 @@ fn record_tables(code: &ProgramCode, at: WordSlot, out: &mut Vec<MadeTableId>) {
     }
 }
 
-/// Adds to `out` every table the formula of `site` may ask for a row: the tables a decision can make, in any file.
-pub(crate) fn tables_asked(code: &ProgramCode, site: NeedSite, out: &mut Vec<MadeTableId>) {
-    if let Some(place) = slot(code, WordSlot(site.0), WordSlot(0)) {
-        record_tables(code, place, out);
+/// Adds to `out` every table the formula of `site` may ask for a row: the tables a decision can make, in any file. A
+/// site in `seen` is not walked again: its tables were added when it was first met, so a walk over many units, whose
+/// formulas name each other's sites again and again, reads each site's formula once.
+pub(crate) fn tables_asked(
+    code: &ProgramCode,
+    site: NeedSite,
+    seen: &mut hashbrown::HashSet<NeedSite>,
+    out: &mut Vec<MadeTableId>,
+) {
+    if seen.insert(site)
+        && let Some(place) = slot(code, WordSlot(site.0), WordSlot(0))
+    {
+        record_tables(code, place, seen, out);
+    }
+}
+
+/// Whether the record at a place among the needs asks a relation of the node-table form for a row.
+fn record_asks_nodes(code: &ProgramCode, at: WordSlot) -> NeedVerdict {
+    match need_at(&code.needs, at) {
+        Some(NeedRecord::Row { relation, .. }) => {
+            let read = code
+                .relations
+                .get(usize::try_from(relation.0).unwrap_or(usize::MAX));
+            if read.copied().and_then(node_extent).is_some() {
+                NeedVerdict::Holds
+            } else {
+                NeedVerdict::Empty
+            }
+        }
+        Some(NeedRecord::Site(site)) => asks_nodes(code, site),
+        Some(
+            NeedRecord::All {
+                parts: count,
+                offsets,
+            }
+            | NeedRecord::Any {
+                parts: count,
+                offsets,
+            },
+        ) => {
+            let asked = (0..count.0).any(|number| {
+                slot(code, offsets, WordSlot(number))
+                    .is_some_and(|place| record_asks_nodes(code, place) == NeedVerdict::Holds)
+            });
+            if asked {
+                NeedVerdict::Holds
+            } else {
+                NeedVerdict::Empty
+            }
+        }
+        Some(NeedRecord::Unknown | NeedRecord::Kinds(_) | NeedRecord::Table(_)) | None => {
+            NeedVerdict::Empty
+        }
+    }
+}
+
+/// Whether the formula of `site` asks a relation of the node-table form for a row (`Holds`), whatever the file: a rule that
+/// consults such a decision read the node table.
+pub(crate) fn asks_nodes(code: &ProgramCode, site: NeedSite) -> NeedVerdict {
+    match slot(code, WordSlot(site.0), WordSlot(0)) {
+        Some(place) => record_asks_nodes(code, place),
+        None => NeedVerdict::Empty,
     }
 }
 

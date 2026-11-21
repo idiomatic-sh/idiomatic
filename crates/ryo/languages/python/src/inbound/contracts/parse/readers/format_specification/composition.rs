@@ -8,9 +8,10 @@ use crate::domain::format_specification::types::ObservationCompleteness;
 use crate::domain::format_syntax::types::FormatCharacter;
 use crate::domain::literal_facts::service::format_spec_value;
 use crate::domain::literal_facts::types::StringValue;
+use crate::domain::model::names::service::fixed_word;
 use crate::domain::names::service::unknown;
 use crate::domain::names::types::Unresolved;
-use crate::domain::node::service::{fixed, id_of, node_at, node_cell, span_at, word};
+use crate::domain::node::service::{id_of, node_at, node_cell, span_at, word};
 use crate::domain::spec_facts::service::{owned_fields, parent_place};
 use crate::domain::standard_format_spec::service::recognize;
 use crate::domain::standard_format_spec::types::{FormatSpecText, StandardFormatTarget};
@@ -152,7 +153,7 @@ ryo::fills! {
     FormatSpecificationItem => languages::FormatSpecification, walk(PythonWalk) |file, words, rows| {
         /// One row of the relation.
         type Row = <languages::FormatSpecification as languages::CatalogRelation>::Row;
-        let memo = &mut file.buffers.fixed;
+        let memo = &mut file.model.words.get_mut().fixed;
         let syntax = file.syntax;
         let target = StandardFormatTarget::from(file.target);
         let mut whole = languages::SyntaxCompleteness::Complete;
@@ -180,9 +181,9 @@ ryo::fills! {
                     ordinal: languages::Integer(i64::try_from(field.ordinal.0).unwrap_or(i64::MAX)),
                     parent_ordinal: parent_ordinal(&field.context),
                     origin: node_cell(&syntax, id),
-                    source_kind: fixed(words, memo, languages::NameText(BRACE_STRING)),
+                    source_kind: fixed_word(words, memo, languages::NameText(BRACE_STRING)),
                     value: word(words, languages::NameText(&spec.0)),
-                    outcome: fixed(words, memo, label(outcome)),
+                    outcome: fixed_word(words, memo, label(outcome)),
                     invalid_type: invalid_type_word(words, outcome),
                     selector: word(words, languages::NameText(&field.selector_text.0)),
                     conversion: conversion_word(words, field.conversion),
@@ -222,11 +223,11 @@ ryo::fills! {
                     ordinal: languages::Integer(i64::try_from(ordinal).unwrap_or(i64::MAX)),
                     parent_ordinal: languages::Integer(parent.map_or(-1, |place| i64::try_from(place.0).unwrap_or(i64::MAX))),
                     origin: node_cell(&syntax, origin),
-                    source_kind: fixed(words, memo, languages::NameText(FSTRING)),
+                    source_kind: fixed_word(words, memo, languages::NameText(FSTRING)),
                     value,
-                    outcome: fixed(words, memo, label(outcome)),
+                    outcome: fixed_word(words, memo, label(outcome)),
                     invalid_type: invalid_type_word(words, outcome),
-                    selector: fixed(words, memo, languages::NameText(NO_TEXT)),
+                    selector: fixed_word(words, memo, languages::NameText(NO_TEXT)),
                     conversion: conversion_word(words, interpolation.conversion.to_char().map(FormatCharacter)),
                     file: syntax.file,
                     span: span_at(&syntax, origin),

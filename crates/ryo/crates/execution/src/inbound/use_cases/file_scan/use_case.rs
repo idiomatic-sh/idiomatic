@@ -1,25 +1,34 @@
 //! Thin public orchestration over the runtime's pack load and file scan.
 use super::interface::FileScanUseCase;
 use super::types::{
-    FileScanSetting, FileScanWorker, FileToScan, RuleSet, RuleSetNumber, ScanEngine, ScanLanguage,
-    ScanLoadRequest, ScanSession, ScanStoredRequest, Scanned,
+    FileScanSetting, FileScanWorker, FileToScan, Noticed, Overruns, RuleSet, RuleSetNumber,
+    ScanEngine, ScanLanguage, ScanLoadRequest, ScanMeasure, ScanMeasured, ScanSession,
+    ScanStoredRequest, Scanned,
 };
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_runtime::application::file_scan::errors::FileScanError;
+use ryo_execution_runtime::application::file_scan::measuring::service::ledger_lines;
 use ryo_execution_runtime::application::file_scan::service::{
-    crossed, emit_columns, place_columns, taken, worker,
+    counted, crossed, emit_columns, place_columns, taken, worker,
 };
-use ryo_execution_runtime::application::file_scan::types::ScanRun;
+use ryo_execution_runtime::application::file_scan::types::{ScanMeasuring, ScanRun};
+use ryo_execution_runtime::application::file_scan::warning::service::worded;
+use ryo_execution_runtime::application::file_scan::warning::types::{
+    NoticedStatement, SlowRule, WarningText, WrittenStatement,
+};
 use ryo_execution_runtime::application::pack_load::service::{harnessed, read_back};
 use ryo_execution_runtime::application::pack_load::types::{
     Harness, HarnessLoad, HarnessRequest, ReadBackRequest,
 };
+use ryo_language::domain::files::types::SourcePath;
 use ryo_language::inbound::use_cases::walk::errors::WalkError;
 use ryo_language::inbound::use_cases::walk::types::WalkRequest;
 use ryo_operators::spike::{EngineMode, engine_unwalked};
-use ryo_relations::domain::relations::types::CellKind;
+use ryo_relations::domain::relations::types::{CellKind, Count};
 use ryo_values::domain::query_plans::types::Emit;
+use ryo_values::domain::query_tokens::types::QueryBundle;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
+use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::scan_rows::types::ScanRow;
 use ryo_values::domain::stores::types::StoredPack;
 
@@ -29,7 +38,9 @@ use ryo_values::domain::stores::types::StoredPack;
 ///
 /// ```
 /// use ryo_execution::inbound::use_cases::file_scan::interface::FileScanUseCase as _;
-/// use ryo_execution::inbound::use_cases::file_scan::types::{FileScanSetting, ScanEngine, ScanLanguage};
+/// use ryo_execution::inbound::use_cases::file_scan::types::{
+///     FileScanSetting, Overruns, ScanEngine, ScanLanguage, ScanMeasure,
+/// };
 /// use ryo_execution::inbound::use_cases::file_scan::use_case::FileScanUseCaseImpl;
 /// use ryo_operators::spike::EngineMode;
 /// use ryo_values::domain::descriptions::types::KindVocabularies;
@@ -42,6 +53,8 @@ use ryo_values::domain::stores::types::StoredPack;
 ///     vocabularies: KindVocabularies(Vec::new()),
 ///     language: ScanLanguage::EveryLinked,
 ///     mode: EngineMode::Old,
+///     overruns: Overruns::Report,
+///     measure: ScanMeasure::Off,
 /// });
 /// assert_eq!(scan.mode(), EngineMode::Old);
 /// ```
@@ -163,6 +176,7 @@ impl FileScanUseCase for FileScanUseCaseImpl {
             HarnessRequest {
                 plans: request.plans,
                 bindings: request.bindings,
+                statistics: request.statistics,
                 given: request.given,
                 stored: request.stored,
             },
@@ -174,11 +188,15 @@ impl FileScanUseCase for FileScanUseCaseImpl {
         let Some(engine) = self.engine() else {
             return FileScanWorker::default();
         };
+        let measuring = match self.setting.measure {
+            ScanMeasure::Off => ScanMeasuring::Plain,
+            ScanMeasure::On => ScanMeasuring::Measuring,
+        };
         FileScanWorker {
             workers: session
                 .rule_sets
                 .iter()
-                .map(|set| worker(&set.walk, engine, &set.load.programs))
+                .map(|set| worker(&set.walk, engine, &set.load.programs, measuring))
                 .collect(),
         }
     }
@@ -189,6 +207,7 @@ impl FileScanUseCase for FileScanUseCaseImpl {
         worker: &mut FileScanWorker,
         file: FileToScan<'_>,
         rows: &mut Vec<ScanRow>,
+        noticed: &mut Vec<Noticed>,
     ) -> Scanned {
         let unread = FileScanError::Walk {
             cause: WalkError::Unsupported,
@@ -211,14 +230,72 @@ impl FileScanUseCase for FileScanUseCaseImpl {
                 file: file.file,
                 source: file.source,
             };
-            match taken(engine, &run, state, request, rows) {
+            let answered = taken(engine, &run, state, request, rows);
+            // What the engine noticed of a rule's work is handed over whatever the scan answered: its rows are complete.
+            let kept = std::mem::take(&mut state.report.notices);
+            let overran = !kept.is_empty() && self.setting.overruns == Overruns::Fail;
+            noticed.extend(kept.into_iter().map(|kept| Noticed {
+                rule: kept.notice.rule,
+                step: kept.notice.step,
+                kept,
+            }));
+            match answered {
                 // The next linked language may read the file.
                 Err(fault) if fault == unread => {}
                 Err(fault) => return Scanned::Faulted(RuleSetNumber(number), crossed(&fault)),
+                Ok(_) if overran => return Scanned::Overran(RuleSetNumber(number)),
                 Ok(_) => return Scanned::Whole(RuleSetNumber(number)),
             }
         }
         Scanned::NotWalked(crossed(&unread))
+    }
+
+    fn worded(
+        &self,
+        noticed: &Noticed,
+        rule: &RuleId,
+        file: SourcePath<'_>,
+        written: Option<&WrittenStatement>,
+        query: Option<&QueryBundle>,
+    ) -> WarningText {
+        let statement = written
+            .zip(query)
+            .map_or(NoticedStatement::PlanStep, |(written, query)| {
+                NoticedStatement::Written(written, query)
+            });
+        let slow = SlowRule {
+            rule,
+            file,
+            statement,
+        };
+        worded(&noticed.kept.notice, &slow)
+    }
+
+    fn measured(&self, session: &ScanSession, workers: &[&FileScanWorker]) -> ScanMeasured {
+        // The session's count is every worker's of every rule set, added up where a scan's counts are.
+        let all = counted(workers.iter().flat_map(|worker| &worker.workers));
+        let each = [
+            all.steps,
+            all.candidates,
+            all.made_rows,
+            all.fill_rows,
+            all.visited,
+        ];
+        let mut measured = ScanMeasured {
+            counted: each.map(|count| Count(usize::try_from(count.0).unwrap_or(usize::MAX))),
+            ledger: Vec::new(),
+        };
+        if let (ScanMeasure::On, Some(engine)) = (self.setting.measure, self.engine()) {
+            for (number, set) in session.rule_sets.iter().enumerate() {
+                let of_set: Vec<_> = workers
+                    .iter()
+                    .filter_map(|worker| worker.workers.get(number))
+                    .collect();
+                let lines = ledger_lines(engine, &set.load.programs, &of_set);
+                measured.ledger.extend(lines);
+            }
+        }
+        measured
     }
 
     fn kinds<'s>(

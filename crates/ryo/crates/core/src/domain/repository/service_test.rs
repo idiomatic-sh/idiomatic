@@ -3,13 +3,14 @@
 use super::constants::COMPILED_PLAN_LABEL;
 use super::service::{
     by_path, catalog_schema, configuration, given, paths_of, plan_identity, schema_bytes,
-    source_selection_identity,
+    source_selection_identity, statistics_identity,
 };
 use super::types::{DigestColumn, DigestRelation, IdentityHasher};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::keeping::types::DigestInput;
 use ryo_execution::outbound::query_language::fixtures::fake::QueryLanguageFake;
 use ryo_language::domain::files::types::FilePath;
+use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::labels::types::NameRef;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::files::types::{CorpusEntry, CorpusInput, FileSize, Nanoseconds};
@@ -29,6 +30,8 @@ enum Scenario {
     Configured,
     /// The identity of an explicit source selection is exact and framed.
     SourceSelection,
+    /// The statistics a run names: none add nothing to what it was given, the same add the same, others add other bytes.
+    Statistics,
     /// The names, kinds and column order of a catalog are part of its identity.
     SchemaIdentity,
     /// The current catalog differs from its older identities.
@@ -195,6 +198,15 @@ fn subject(scenario: Input) -> Value {
             assert_ne!(encode(None), encode(Some(&LanguageName("".into()))));
             [1, 1, 1]
         }
+        Scenario::Statistics => {
+            let encode = |bytes: &[u8]| statistics_identity(ByteSlice(bytes));
+            let (first, second) = (encode(b"first"), encode(b"second"));
+            [
+                i64::from(encode(b"").is_none()),
+                i64::from(first.is_some() && first == encode(b"first")),
+                i64::from(first != second),
+            ]
+        }
         Scenario::SchemaIdentity => {
             let columns = [("file", CellKind::File), ("path", CellKind::Symbol)];
             let original = [relation("module", &columns)];
@@ -324,6 +336,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("explicit_source_selection_identity_is_exact_and_framed"),
         word: Word::Succeeds,
         input: || Scenario::SourceSelection,
+        expect: Expect::Value([1, 1, 1]),
+    },
+    Case {
+        name: CaseName(
+            "the_statistics_a_run_names_are_part_of_what_it_was_given_and_none_add_nothing",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::Statistics,
         expect: Expect::Value([1, 1, 1]),
     },
     Case {

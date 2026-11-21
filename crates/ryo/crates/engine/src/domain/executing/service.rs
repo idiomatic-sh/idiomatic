@@ -3,12 +3,17 @@
 //! allocates, and the loop reads no clock: steps and the rows its iterations gave are counted in locals and added to the
 //! work once, when the program ends.
 
+use super::asks::service::quick_exists;
+use super::asks::types::QuickAsk;
 use super::bodies::service::exists;
 use super::budget::service::reach;
+use super::closing::service::closure;
+use super::meanings::service::call;
+use super::measuring::types::{Uncounted, WordCounter};
 use super::ordered::service::latest;
 use super::sources::service::{keyed, whole};
 use super::staging::service::staged;
-use super::walks::service::{axis, nearest};
+use super::walks::service::{axis, nearest, within};
 use crate::domain::code::anchoring::service::{
     each_row_filled_of, each_row_made_of, each_row_node_of,
 };
@@ -18,6 +23,7 @@ use crate::domain::findings::types::InstructionCount;
 use crate::domain::made_tables::types::{Reached, ReadSource};
 use crate::domain::memos::types::ChargedUnit;
 use crate::domain::programs::collections::instructions::axis::item::Axis;
+use crate::domain::programs::collections::instructions::call::item::Call;
 use crate::domain::programs::collections::instructions::comparing::item::Test;
 use crate::domain::programs::collections::instructions::each_kind::item::EachKind;
 use crate::domain::programs::collections::instructions::each_match::item::EachMatch;
@@ -30,12 +36,14 @@ use crate::domain::programs::collections::instructions::latest::item::Latest;
 use crate::domain::programs::collections::instructions::let_value::item::LetValue;
 use crate::domain::programs::collections::instructions::nearest::item::Nearest;
 use crate::domain::programs::collections::instructions::or::item::Or;
+use crate::domain::programs::collections::instructions::reached::item::Closure;
 use crate::domain::programs::collections::instructions::read::item::Read;
+use crate::domain::programs::collections::instructions::within::item::Within;
 use crate::domain::programs::collections::instructions::yield_row::item::YieldRow;
 use crate::domain::programs::frames::types::{RunMode, StepFrame};
 use crate::domain::programs::operands::service::after;
-use crate::domain::scratch::types::IterationCursor;
-use ryo_relations::domain::relations::types::NodeExtent;
+use crate::domain::scratch::types::{BodyAnswer, IterationCursor};
+use ryo_relations::domain::relations::types::{Count, NodeExtent};
 
 /// The word at a place; the word that ends a program past the code's end.
 #[inline]
@@ -54,8 +62,13 @@ fn word_at(frame: &StepFrame<'_, '_>, at: CodeEntry) -> CodeWord {
 
 /// Runs one word for the current candidate. A word the executor does not run yet ends the candidate and is counted, so a
 /// rule that holds one never finds a row by it.
-#[inline]
-fn step(frame: &mut StepFrame<'_, '_>, word: CodeWord, at: CodeEntry, mode: RunMode) -> Flow {
+#[inline(always)]
+fn step<C: WordCounter>(
+    frame: &mut StepFrame<'_, '_>,
+    word: CodeWord,
+    at: CodeEntry,
+    mode: RunMode,
+) -> Flow {
     match word.op {
         Op::End => Flow::Back,
         Op::EachKind => {
@@ -97,11 +110,34 @@ fn step(frame: &mut StepFrame<'_, '_>, word: CodeWord, at: CodeEntry, mode: RunM
         Op::Let => LetValue::run(frame, word, at),
         Op::Emit => Emit::run(frame, word, at),
         Op::Exists => {
-            exists(frame, word);
+            // A body asked where the word stands is run by this loop itself: no answer kept, no call through the ports.
+            match quick_exists(frame, at) {
+                QuickAsk::Answered => {}
+                QuickAsk::Run(entry) => {
+                    let found = run_counted::<C>(frame, entry, RunMode::Exists);
+                    frame.state.answer = BodyAnswer {
+                        first: Count(0),
+                        rows: Count(usize::try_from(found.0).unwrap_or(usize::MAX)),
+                    };
+                }
+                // A pattern's program has a row for each `Yield`, not for reaching its end: run to collect, its rows
+                // counted and dropped. (Run as an inline body is, a program that is its end alone "had a row": ERA001,
+                // SIM300 and S307 lost their rows so, 2db778cd7 to f5dbaf9b9.)
+                QuickAsk::Collect(entry) => {
+                    let base = frame.state.yielded.len();
+                    let found = run_counted::<C>(frame, entry, RunMode::Collect);
+                    frame.state.yielded.truncate(base);
+                    frame.state.answer = BodyAnswer {
+                        first: Count(0),
+                        rows: Count(usize::try_from(found.0).unwrap_or(usize::MAX)),
+                    };
+                }
+                QuickAsk::Kept => exists(frame, word, at),
+            }
             Exists::run(frame, word, at)
         }
         Op::Or => {
-            staged(frame, word);
+            staged(frame, word, at);
             Or::run(frame, word, at)
         }
         Op::Fork => Fork::run(frame, word, at),
@@ -109,13 +145,25 @@ fn step(frame: &mut StepFrame<'_, '_>, word: CodeWord, at: CodeEntry, mode: RunM
             axis(frame, word);
             Axis::run(frame, word, at)
         }
-        Op::Nearest => {
-            nearest(frame, word);
+        Op::Nearest | Op::NearestDerived => {
+            nearest(frame, word, at);
             Nearest::run(frame, word, at)
+        }
+        Op::Within => {
+            within(frame, word);
+            Within::run(frame, word, at)
         }
         Op::Latest => {
             latest(frame, word);
             Latest::run(frame, word, at)
+        }
+        Op::Call => {
+            call(frame, word, at);
+            Call::run(frame, word, at)
+        }
+        Op::Closure => {
+            closure(frame, word, at);
+            Closure::run(frame, word, at)
         }
         Op::Yield => {
             if mode == RunMode::Collect {
@@ -127,10 +175,6 @@ fn step(frame: &mut StepFrame<'_, '_>, word: CodeWord, at: CodeEntry, mode: RunM
         Op::EachRange
         | Op::Children
         | Op::ChildrenOfField
-        | Op::Within
-        | Op::NearestDerived
-        | Op::Closure
-        | Op::Call
         | Op::Render
         | Op::StageScan
         | Op::StageProbe
@@ -164,6 +208,8 @@ fn next(frame: &mut StepFrame<'_, '_>, cursor: &mut IterationCursor) -> Option<C
         Op::Fork => Fork::next(frame, word, cursor),
         Op::Axis => Axis::next(frame, word, cursor),
         Op::Latest => Latest::next(frame, word, cursor),
+        Op::Closure => Closure::next(frame, word, cursor),
+        Op::Call => Call::next(frame, word, cursor),
         Op::End
         | Op::EachRange
         | Op::Children
@@ -171,7 +217,6 @@ fn next(frame: &mut StepFrame<'_, '_>, cursor: &mut IterationCursor) -> Option<C
         | Op::Within
         | Op::Nearest
         | Op::NearestDerived
-        | Op::Closure
         | Op::ReadNode
         | Op::ReadFilled
         | Op::ReadMade
@@ -181,7 +226,6 @@ fn next(frame: &mut StepFrame<'_, '_>, cursor: &mut IterationCursor) -> Option<C
         | Op::TestEqualRegister
         | Op::TestNotEqualRegister
         | Op::TestInConstants
-        | Op::Call
         | Op::Render
         | Op::Let
         | Op::Exists
@@ -210,22 +254,38 @@ pub(crate) fn run(
     entry: CodeEntry,
     mode: RunMode,
 ) -> InstructionCount {
+    run_counted::<Uncounted>(frame, entry, mode)
+}
+
+/// `run`, telling `C` of each word: the one loop, of which the plain and the measuring worker each hold an instance.
+pub(crate) fn run_counted<C: WordCounter>(
+    frame: &mut StepFrame<'_, '_>,
+    entry: CodeEntry,
+    mode: RunMode,
+) -> InstructionCount {
     let (base, staged_base) = (frame.state.frames.len(), frame.state.staged.len());
     let (mut at, mut rows, mut steps, mut visited, mut candidates) =
         (entry, 0_u64, 0_u64, 0_u64, 0_u64);
+    // The words are the code's for the whole run: read once, not through the frame at each step. The counts of a run
+    // are locals that cannot wrap in a run's life (one add a step): plain adds, with no compare.
+    let words: &[CodeWord] = &frame.fill.programs.code.words;
     'program: loop {
-        let word = word_at(frame, at);
-        steps = steps.saturating_add(1);
+        let word = match words.get(usize::try_from(at.0).unwrap_or(usize::MAX)) {
+            Some(word) => *word,
+            None => CodeWord::default(),
+        };
+        C::word(frame, at);
+        steps = steps.wrapping_add(1);
         let gives = match mode {
             RunMode::Rows => word.op == Op::Emit,
             RunMode::Collect => word.op == Op::Yield,
             RunMode::Exists => word.op == Op::Yield || word.op == Op::End,
         };
-        rows = rows.saturating_add(u64::from(gives));
+        rows = rows.wrapping_add(u64::from(gives));
         if gives && mode == RunMode::Exists {
             break 'program;
         }
-        match step(frame, word, at, mode) {
+        match step::<C>(frame, word, at, mode) {
             Flow::Next => at = after(at),
             Flow::Back => loop {
                 let depth = frame.state.frames.len();
@@ -237,9 +297,9 @@ pub(crate) fn run(
                     if let Some(kept) = frame.state.frames.get_mut(depth.saturating_sub(1)) {
                         *kept = cursor;
                     }
-                    visited = visited.saturating_add(1);
+                    visited = visited.wrapping_add(1);
                     candidates =
-                        candidates.saturating_add(u64::from(depth == base.saturating_add(1)));
+                        candidates.wrapping_add(u64::from(depth == base.saturating_add(1)));
                     at = onward;
                     break;
                 }

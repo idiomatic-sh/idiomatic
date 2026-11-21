@@ -1,11 +1,14 @@
 //! python's workloads and the growth of its reading: a generated module of functions, classes and imports, every relation asked,
-//! through the linked language, at N and at 4N.
+//! through the linked language, at N and at 4N; and the walk's fillers, each for each element of a generated source, at N and at
+//! 4N (`performance/fillers`).
 
 #![expect(
     clippy::expect_used,
     reason = "a bench that cannot read its own input has nothing to measure: the panic is the failure"
 )]
 
+#[path = "performance/fillers/bench.rs"]
+mod fillers;
 #[path = "performance/manifest_reading/bench.rs"]
 mod manifest_reading;
 
@@ -24,6 +27,11 @@ const ROUNDS: usize = 5;
 const BENCH_FLAG: &str = "--bench";
 
 fn main() {
+    // The fillers' measures alone, as the document asymptote reads: nothing else is printed.
+    if std::env::args().any(|argument| argument == fillers::BMF_FLAG) {
+        fillers::measured();
+        return;
+    }
     if std::env::args().any(|argument| argument == BENCH_FLAG) {
         complexity();
     }

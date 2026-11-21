@@ -3,7 +3,7 @@
 use crate::outbound::query_language::errors::QueryLanguageError;
 use crate::outbound::query_language::interface::QueryLanguagePort;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
-use ryo_values::domain::plan_parts::types::QueryText;
+use ryo_values::domain::plan_parts::types::{QueryText, StepId};
 use ryo_values::domain::program::types::ParsedModules;
 use ryo_values::domain::query_tokens::types::QueryBundle;
 use ryo_values::selects;
@@ -70,4 +70,7 @@ pub fn check(adapter: &impl QueryLanguagePort) {
     let validated = |text| adapter.validate(&text, &[], &[]).map(|_| true);
     run(CASES, Word::Succeeds, validated);
     run(CASES, Word::Refuses, validated);
+    // The contract's query holds no join: no implementation says where a statement of one is written.
+    let query = QueryBundle::from(QueryText(A_QUERY.into()));
+    assert_eq!(adapter.written(&query, StepId(0)), None, "nothing written");
 }

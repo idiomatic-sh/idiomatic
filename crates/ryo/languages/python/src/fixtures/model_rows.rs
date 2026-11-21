@@ -5,7 +5,7 @@ use crate::domain::syntax::service::{kind_bits, kind_name, kinds};
 use crate::outbound::syntax::fixtures::model_view::{FixtureView, ModelFixture, viewed};
 use ryo::languages::node_table::{kind_of, span_of};
 use ryo::languages::{
-    self, Bits, CatalogRelation, CellKind, CellWord, DeclarationKind, FileId, FileWords, Fill, KindBits, Missing,
+    self, Bits, CatalogRelation, CellKind, CellWord, DeclarationKind, FileId, FileWords, KindBits, Missing,
     NodeTable, Position, ReportText, Rows, Symbol, Term as _, facts, node_position, term_symbol,
 };
 use strum::IntoEnumIterator as _;
@@ -83,15 +83,13 @@ impl<Row> Rows<Row> for Counted {
 /// How many rows a filler writes for `source`, read through the test view, with the causes it gives.
 pub(crate) fn counted<Row>(
     source: &str,
-    fill: impl Fn(&mut FixtureView<'_>, &mut FileWords, &mut dyn Rows<Row>) -> Fill,
+    fill: impl Fn(&mut FixtureView<'_>, &mut FileWords, &mut dyn Rows<Row>),
 ) -> Counted {
     let mut counted = Counted::default();
     viewed(&mut ModelFixture::default(), source, FileId(0), &mut |view| {
         let base = facts::base_words(languages::CheckedNames::default(), &[]);
         let mut words = facts::file_words(&base);
-        if let Fill::Absent(cause) = fill(view, &mut words, &mut counted) {
-            counted.causes.push(format!("absent: {cause:?}"));
-        }
+        fill(view, &mut words, &mut counted);
     });
     counted
 }
