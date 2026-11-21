@@ -5,7 +5,7 @@ use super::parts::{kept, plan, step};
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, ComparisonOrigin, Input, LiteralText, Operand, PlanComparison, QueryLiteral,
-    StepId, StepScope, Test,
+    RepeatedRows, StepId, StepScope, Test,
 };
 use ryo_values::domain::plans::types::{Operation, PlanStep};
 use ryo_values::domain::query_plans::types::Plan;
@@ -42,11 +42,19 @@ pub(super) fn observed_scene(scene: &str) -> Option<Plan> {
             observed.frontier = vec![Input::Step(StepId(1))];
             observed
         }
-        // The rule's own rows are read after the files: its emit reaches a step that is not per-file.
+        // The rule's own rows are read after the files: its emit reaches a step that is not per-file, and whose rows (the
+        // tree's elements alone) name no file, so they are rows of every file at once.
         "a rule that emits after the files" => {
             let mut late = plan(vec![
                 kept(Input::Relation(Relation::SyntaxTree)),
-                after_the_files(Input::Step(StepId(0))),
+                PlanStep {
+                    operation: Operation::Project {
+                        from: Input::Step(StepId(0)),
+                        columns: vec![ColumnIndex(0)],
+                        distinct: RepeatedRows::Dropped,
+                    },
+                    scope: StepScope::CrossFile,
+                },
             ]);
             late.frontier = vec![Input::Step(StepId(0))];
             late

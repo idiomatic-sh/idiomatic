@@ -188,7 +188,7 @@ const CASES: &[Case<Given, Value, Failure>] = &[
             plan: words_the_host_names(0),
             declared: true,
         },
-        "",
+        "locals [Some(File), Some(Constant), Some(File)]\nbranches [Rows Rows Test, Rows Rows Test]\ndefinitions 0",
     ),
     said(
         "a_row_of_a_declared_relation_that_names_a_file_is_a_row_of_that_file_alone",
@@ -196,7 +196,7 @@ const CASES: &[Case<Given, Value, Failure>] = &[
             plan: words_the_host_names(1),
             declared: true,
         },
-        "",
+        "locals [Some(File), Some(File), Some(File)]\nbranches [Rows Rows Test Test]\ndefinitions 0",
     ),
     refused(
         "a_relation_the_host_does_not_declare_cannot_be_evaluated",
@@ -220,7 +220,7 @@ const CASES: &[Case<Given, Value, Failure>] = &[
             plan: words_met((&[3, 4], &[3, 4])),
             declared: true,
         },
-        "",
+        "locals [Some(File), Some(File)]\nbranches [Rows Rows]\ndefinitions 1",
     ),
     refused(
         "a_rule_that_emits_a_constant_table_is_refused_at_its_emit",

@@ -82,7 +82,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     said(
         "the_kinds_of_operation_the_lowering_evaluates_are_these",
         || Asked::Kinds,
-        "[Replace, OrderedMatch, AsOf, Select, Project, Extend, Join, Union, Antijoin, GroupCount, GroupBound, GroupOrdinal, Capture, Axis, Closure, Follow, SpanBetween, SourceMatches, SpanBounds]",
+        "[Replace, OrderedMatch, AsOf, Select, Project, Extend, Join, Union, Antijoin, GroupCount, GroupBound, GroupOrdinal, Capture, Axis, Closure, Follow, Rows, SpanBetween, SourceMatches, SpanBounds]",
     ),
     said(
         "a_plan_walk_visits_each_step_once_a_chain_of_self_joins_twice_as_deep_is_twice_the_work",
@@ -114,7 +114,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         "5 columns",
     ),
     refused(
-        "a_rule_whose_emit_reaches_a_step_after_the_files_is_refused_at_that_step",
+        "a_rule_whose_emit_reaches_a_step_after_the_files_whose_rows_name_no_file_is_refused_at_that_step",
         || Asked::Admitted(named("a rule that emits after the files")),
         LoadRefusal::Unlowerable(PlanNode(1)),
     ),

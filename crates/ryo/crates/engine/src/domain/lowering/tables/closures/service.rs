@@ -1,5 +1,6 @@
 //! The services of the `closures` part: the branch of a closure, and the edges a closure or a nearest walk reads.
 
+use crate::domain::lowering::observing::service::input_kinds;
 use crate::domain::lowered::types::Emptiness;
 use crate::domain::lowering::definitions::service::fresh_variable;
 use crate::domain::lowering::definitions::types::{Drafts, Flattened};
@@ -10,7 +11,6 @@ use crate::domain::lowering::flattening::service::picked;
 use crate::domain::lowering::flattening::types::EdgeColumns;
 use crate::domain::lowering::flattening::types::EdgeRows;
 use crate::domain::lowering::flattening::types::{FlatAtom, FlatTerm, RowColumn};
-use crate::domain::lowering::nodes::service::input_shape;
 use crate::domain::lowering::tables::inputs::service::{input, rule};
 use crate::domain::lowering::tables::types::{InputWant, RuleFlattening};
 use ryo_relations::domain::relations::types::CellKind;
@@ -64,7 +64,8 @@ pub(crate) fn closure_arm(
     else {
         return None;
     };
-    let shape = input_shape(&rule(state)?.shapes, *edges)?;
+    let held = rule(state)?;
+    let shape = input_kinds(&held.rule, &held.shapes, *edges)?;
     let mut read = input(state, drafts, *edges, InputWant::Defined)?;
     let rows = edge_rows(state, drafts, *edges)?;
     let edges_empty = copied(&read.emptiness);

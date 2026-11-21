@@ -14,7 +14,7 @@ use crate::domain::lowering::flattening::types::{
 };
 use crate::domain::lowering::nodes::service::{digest_of, input_shape, kept_columns, readers};
 use crate::domain::lowering::nodes::types::{AdmittedRule, NodeHome};
-use crate::domain::lowering::observing::service::bound_input;
+use crate::domain::lowering::observing::service::{bound_input, input_kinds};
 use crate::domain::lowering::tables::service::tree_relation;
 use crate::domain::lowering::tables::shapes::service::picked as kinds_picked;
 use crate::domain::lowering::tables::types::InputSize;
@@ -207,7 +207,8 @@ pub(crate) fn input(
                 || own_want(state, step) == InputWant::Defined
                 || waiting.is_some_and(|flattened| bounded(flattened) == InputWant::Defined);
             if cut || drafts.defined.contains_key(&digest) {
-                let width = input_shape(&rule(state)?.shapes, read)?.0.len();
+                let held = rule(state)?;
+                let width = input_kinds(&held.rule, &held.shapes, read)?.0.len();
                 let definition = step_defined(state, drafts, step)?;
                 Some(use_of(drafts, definition, Count(width)))
             } else {

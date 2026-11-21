@@ -2,13 +2,13 @@
 //! row, and what a file must hold for the selection to have a row. A comparison that holds a node's kind or field to a set
 //! of literals gives one branch for each literal (`sets`); every other comparison is a pin or a test of the branch.
 
+use crate::domain::lowering::observing::service::input_kinds;
 use crate::domain::lowered::types::Emptiness;
 use crate::domain::lowering::definitions::service::{kind_bits, regex, text_word};
 use crate::domain::lowering::definitions::types::{Drafts, Flattened};
 use crate::domain::lowering::emptiness::service::literal_read;
 use crate::domain::lowering::flattening::service::compared;
 use crate::domain::lowering::flattening::types::{FlatBranch, FlatTerm};
-use crate::domain::lowering::nodes::service::input_shape;
 use crate::domain::lowering::tables::inputs::service::{rule, term};
 use crate::domain::lowering::tables::literals::service::{held_literal, term_cell};
 use crate::domain::lowering::tables::literals::types::LiteralCell;
@@ -212,7 +212,8 @@ pub(crate) fn asked_of<'a>(
     comparisons: &'a [PlanComparison],
     sets: SetTests,
 ) -> Option<SelectionAsked<'a>> {
-    let shape = input_shape(&rule(state)?.shapes, read)?;
+    let held = rule(state)?;
+    let shape = input_kinds(&held.rule, &held.shapes, read)?;
     Some(SelectionAsked {
         comparisons,
         read,

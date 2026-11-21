@@ -2,6 +2,7 @@
 //! is a pair, the left row's cells and then the right row's (the contract's `OrderedFill::Match`); the operation's answer
 //! names columns of either side, and each is read from the pair by its place (`lowered::service::match_column`).
 
+use crate::domain::lowering::observing::service::input_kinds;
 use crate::domain::lowered::service::match_column;
 use crate::domain::lowered::types::{Emptiness, FillInput, MadeFill, OrderedFill};
 use crate::domain::lowering::definitions::service::fresh_cells;
@@ -11,7 +12,6 @@ use crate::domain::lowering::flattening::service::made_column;
 use crate::domain::lowering::flattening::types::{
     AtomRows, FlatAtom, FlatBranch, RowColumn, RowsPerFile,
 };
-use crate::domain::lowering::nodes::service::input_shape;
 use crate::domain::lowering::nodes::types::StepShape;
 use crate::domain::lowering::tables::fills::service::{column_list, fill_of, made_once, scanned};
 use crate::domain::lowering::tables::inputs::service::{input, rule};
@@ -59,10 +59,10 @@ pub(crate) fn match_arm(
     else {
         return None;
     };
-    let shapes = &rule(state)?.shapes;
-    let mut pair = input_shape(shapes, *left)?;
+    let held = rule(state)?;
+    let mut pair = input_kinds(&held.rule, &held.shapes, *left)?;
     let left_width = ColumnCount(pair.0.len());
-    pair.0.extend(input_shape(shapes, *right)?.0);
+    pair.0.extend(input_kinds(&held.rule, &held.shapes, *right)?.0);
     let lefts = side(state, drafts, *left, left_on, *left_order)?;
     let rights = side(state, drafts, *right, right_on, *right_order)?;
     let parts = vec![

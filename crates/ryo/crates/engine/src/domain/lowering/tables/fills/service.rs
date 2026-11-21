@@ -1,6 +1,7 @@
 //! The services of the `fills` part: a made table added to the pack, and the pipeline that gives a fill the rows of a
 //! definition. A fill's input is stages over a batch's columns: a scan of the definition's table, then one read a column.
 
+use crate::domain::lowering::observing::service::input_kinds;
 use crate::domain::lowered::types::{
     Emptiness, FillInput, GroupFill, MadeFill, MadeTable, OrderedFill,
 };
@@ -12,7 +13,7 @@ use crate::domain::lowering::flattening::service::picked;
 use crate::domain::lowering::flattening::types::{
     AtomRows, FlatAtom, FlatBranch, RowColumn, RowsPerFile,
 };
-use crate::domain::lowering::nodes::service::{digest_of, input_shape};
+use crate::domain::lowering::nodes::service::digest_of;
 use crate::domain::lowering::nodes::types::{NodeHome, StepShape};
 use crate::domain::lowering::planning::operands::service::{read_column, source_of};
 use crate::domain::lowering::tables::inputs::service::{input, rule};
@@ -227,7 +228,8 @@ pub(crate) fn as_of_arm(
     else {
         return None;
     };
-    let right_shape: StepShape = input_shape(&rule(state)?.shapes, *right)?;
+    let held = rule(state)?;
+    let right_shape: StepShape = input_kinds(&held.rule, &held.shapes, *right)?;
     let mut lefts = input(state, drafts, *left, InputWant::Inline)?;
     let rights = input(state, drafts, *right, InputWant::Defined)?;
     let Emptiness::Definition(definition) = rights.emptiness else {

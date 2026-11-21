@@ -1,5 +1,6 @@
 //! The services of the `joins` part: the branches of a join, of an antijoin and of an axis.
 
+use crate::domain::lowering::observing::service::input_kinds;
 use crate::domain::lowered::types::Emptiness;
 use crate::domain::lowering::definitions::service::fresh_variable;
 use crate::domain::lowering::definitions::types::{Drafts, Flattened};
@@ -12,7 +13,6 @@ use crate::domain::lowering::flattening::types::{
     AtomRows, EqualTerms, FlatAtom, FlatBranch, FlatTerm, RowColumn,
 };
 use crate::domain::lowering::flattening::types::{NearestDomain, NearestOver};
-use crate::domain::lowering::nodes::service::input_shape;
 use crate::domain::lowering::tables::closures::service::edge_rows;
 use crate::domain::lowering::tables::inputs::service::{input, rule, sized};
 use crate::domain::lowering::tables::selections::service::{all_selected, asked_of, selection};
@@ -138,8 +138,8 @@ pub(crate) fn join_arm(
     else {
         return None;
     };
-    let shapes = &rule(state)?.shapes;
-    let left_shape = input_shape(shapes, *left)?;
+    let held = rule(state)?;
+    let left_shape = input_kinds(&held.rule, &held.shapes, *left)?;
     let mut wants = join_wants(sized(state, drafts, *left), sized(state, drafts, *right));
     // A join keyed on both sides by cells calls give has no order with a key: its right side is one use of its
     // definition, whose table is read by the key.
@@ -213,7 +213,8 @@ pub(crate) fn antijoin_arm(
     else {
         return None;
     };
-    let width = input_shape(&rule(state)?.shapes, *right)?.0.len();
+    let held = rule(state)?;
+    let width = input_kinds(&held.rule, &held.shapes, *right)?.0.len();
     let mut lefts = input(state, drafts, *left, InputWant::Inline)?;
     let rights = input(state, drafts, *right, InputWant::Defined)?;
     // A step's rows are its definition's; a relation's own rows are asked in place.

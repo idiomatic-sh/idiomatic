@@ -6,10 +6,10 @@
 //! literal becomes the cell, and a text no cell of the column is shown as equals nothing: never a silent miss.
 
 use super::types::{HeldLiteral, LiteralCell};
+use crate::domain::lowering::observing::service::input_kinds;
 use crate::domain::lowering::definitions::service::text;
 use crate::domain::lowering::definitions::types::Drafts;
 use crate::domain::lowering::flattening::types::FlatTerm;
-use crate::domain::lowering::nodes::service::input_shape;
 use crate::domain::lowering::nodes::types::StepShape;
 use crate::domain::lowering::tables::inputs::service::rule;
 use crate::domain::lowering::tables::shapes::service::operand_kind;
@@ -69,7 +69,8 @@ fn source_column(state: &RuleFlattening<'_>, input: Input, column: ColumnIndex) 
         Input::Step(step) => step,
         Input::BoundObservation(_) => return None,
     };
-    let width = |input: &Input| input_shape(&rule.shapes, *input).map(|shape| shape.0.len());
+    let width =
+        |input: &Input| input_kinds(&rule.rule, &rule.shapes, *input).map(|shape| shape.0.len());
     let within = |from: &Input| (usize::from(column) < width(from)?).then_some(column);
     match &rule.rule.plan.steps.get(usize::from(step))?.operation {
         Operation::Select { from, kept, .. } if kept.is_empty() => {
