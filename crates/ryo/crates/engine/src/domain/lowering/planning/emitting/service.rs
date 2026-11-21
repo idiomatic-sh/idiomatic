@@ -49,7 +49,10 @@ fn cells_read(
         match (*cell, state_of(&emitter.environment, *cell)) {
             (_, CellState::File) => {}
             // A variable nothing gave takes the row's cell, when something else reads it: a pin of it is tested after.
-            (FlatTerm::Variable(variable), CellState::Open | CellState::Constant) => {
+            // One a use was keyed by as its constant is given already: the row's cell is tested against the constant.
+            (FlatTerm::Variable(variable), CellState::Open | CellState::Constant)
+                if operand(&emitter.environment, *cell).is_none() =>
+            {
                 if emitter.uses.get(&variable).is_some_and(|uses| uses.0 >= 2) {
                     let out = cell_register(emitter, rows, column, row);
                     let _new = emitter.environment.registers.insert(variable, out);
@@ -91,7 +94,12 @@ fn used(
                     bound.push(column);
                     values.push(value);
                     if let (FlatTerm::Variable(variable), CellState::Constant) = (given, state) {
-                        let _new = emitter.environment.keyed.insert(variable, None);
+                        // A program puts the constant in a register when a later key needs it; a pipeline cannot.
+                        if emitter.role == UnitRole::Pipeline {
+                            let _new = emitter.environment.held.insert(variable);
+                        } else {
+                            let _new = emitter.environment.keyed.insert(variable, None);
+                        }
                     }
                 }
             }
@@ -330,7 +338,8 @@ pub(crate) fn atom_written(emitter: &mut Emitter<'_>, atom: &FlatAtom) {
             // A pin an access was keyed by holds already.
             if let (TestOperation::Equal, FlatTerm::Variable(variable)) = (test, left)
                 && !emitter.environment.registers.contains_key(variable)
-                && emitter.environment.keyed.contains_key(variable)
+                && (emitter.environment.keyed.contains_key(variable)
+                    || emitter.environment.held.contains(variable))
             {
                 return;
             }

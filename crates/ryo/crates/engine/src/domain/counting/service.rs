@@ -47,6 +47,8 @@ pub fn counted(scratch: &ScanScratch) -> PointCounts {
         points: measure.points.clone(),
         units: units.collect(),
         kinds: measure.kinds.clone(),
+        fields: measure.fields.clone(),
+        elements: measure.elements,
         literals: measure.literals.clone(),
     })
 }
@@ -67,6 +69,8 @@ pub fn merged(into: &mut PointCounts, from: &PointCounts) {
     all.files = Count(all.files.0.saturating_add(one.files.0));
     added(&mut all.points, &one.points);
     added(&mut all.kinds, &one.kinds);
+    added(&mut all.fields, &one.fields);
+    all.elements = Count(all.elements.0.saturating_add(one.elements.0));
     added(&mut all.literals, &one.literals);
     if all.units.len() < one.units.len() {
         all.units.resize(one.units.len(), UnitCounts::default());

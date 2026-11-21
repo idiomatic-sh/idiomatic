@@ -2,6 +2,8 @@
 //! an access with no key is a branch's or a pipeline's first enumeration, or a product of a pipeline; a pattern that would
 //! need one has no program.
 
+mod uses;
+
 use super::service::planned;
 use super::types::UnitRole;
 use crate::cases::{Case, CaseName, Expect, Word, run};

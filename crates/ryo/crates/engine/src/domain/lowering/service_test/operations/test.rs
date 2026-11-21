@@ -24,7 +24,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "  pattern bound [] collected []: Table 1\n",
             "  pattern bound [0] collected []: Call: EachMatch:Fanout EachMatch:Fanout Yield:Constant\n",
             "  pattern bound [0] collected [1]: Call: EachMatch:Fanout EachMatch:Fanout Let:Constant Yield:Constant\n",
-            "definition 1: 2 columns, emptiness Definition(DefinitionId(0))\n",
+            "definition 1: 2 columns, emptiness All([Definition(DefinitionId(0)), Any([All([Definition(DefinitionId(0))])])])\n",
             "  pattern bound [] collected []: Table 0\n",
             "  pattern bound [0] collected [1]: Call: Exists:Fanout Closure:Fanout Let:Constant Yield:Constant\n",
             "table 0: Rows, 2 columns, indexes []\n",
@@ -79,7 +79,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || (&["closure of the scopes"], SampleStage::Absent),
         expect: Expect::Value(Cow::Borrowed(concat!(
-            "definition 0: 3 columns, emptiness Row(Scope, None)\n",
+            "definition 0: 3 columns, emptiness All([Row(Scope, None), Any([All([Row(Scope, None)])])])\n",
             "  pattern bound [] collected []: Table 0\n",
             "  pattern bound [1] collected [2]: Call: EachMatch:Fanout Closure:Fanout Let:Constant Yield:Constant\n",
             "table 0: Rows, 3 columns, indexes []\n",
@@ -129,7 +129,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "definition 0: 5 columns, emptiness Unknown\n",
             "  pattern bound [] collected []: Table 1\n",
             "  pattern bound [0] collected []: Call: EachMatch:Fanout Yield:Constant\n",
-            "definition 1: 6 columns, emptiness All([Definition(DefinitionId(0)), Unknown, Definition(DefinitionId(0))])\n",
+            "definition 1: 6 columns, emptiness All([All([Definition(DefinitionId(0)), Unknown, Definition(DefinitionId(0))]), Any([All([Definition(DefinitionId(0))])])])\n",
             "  pattern bound [] collected []: Table 0\n",
             "  pattern bound [0] collected [5]: Call: Nearest:Fanout Exists:Fanout Let:Constant Yield:Constant\n",
             "table 0: Rows, 6 columns, indexes []\n",
@@ -156,7 +156,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "  pattern bound [0] collected []: Call: EachMatch:Fanout Yield:Constant\n",
             "definition 1: 5 columns, emptiness Unknown\n",
             "  pattern bound [1] collected [0]: Call: EachMatch:Fanout Read:Constant Let:Constant Yield:Constant\n",
-            "definition 2: 6 columns, emptiness All([Definition(DefinitionId(0)), Unknown, Definition(DefinitionId(0))])\n",
+            "definition 2: 6 columns, emptiness All([All([Definition(DefinitionId(0)), Unknown, Definition(DefinitionId(0))]), Any([All([Definition(DefinitionId(0))])])])\n",
             "  pattern bound [] collected []: Table 0\n",
             "  pattern bound [0] collected [5]: Call: Nearest:Fanout Exists:Fanout Let:Constant Yield:Constant\n",
             "table 0: Rows, 6 columns, indexes []\n",
@@ -198,11 +198,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
-            "definition 0: 3 columns, emptiness Row(Scope, None)\n",
+            "definition 0: 3 columns, emptiness All([Row(Scope, None), Any([All([Row(Scope, None)])])])\n",
+            "  pattern bound [] collected []: Table 0\n",
             "  pattern bound [1] collected [2]: Call: EachMatch:Fanout Closure:Fanout Let:Constant Yield:Constant\n",
+            "table 0: Rows, 3 columns, indexes []\n",
+            "  pipeline: Scan:File Read:Constant Use:Fanout\n",
             "rule 0: 1 branches\n",
-            "  branch: EachRow:File Read:Constant Or:Fanout Emit:Constant\n",
-            "codes: {\"Closure\": 1, \"EachMatchFilled\": 2, \"EachRowFilled\": 1, \"Emit\": 1, \"End\": 4, \"Let\": 1, \"Or\": 1, \"ReadFilled\": 2, \"Yield\": 2}",
+            "  branch: EachRow:File Read:Constant Read:Constant EachMatch:Fanout Emit:Constant\n",
+            "codes: {\"Closure\": 1, \"EachMatchFilled\": 3, \"EachRowMade\": 1, \"Emit\": 1, \"End\": 4, \"Let\": 1, \"ReadFilled\": 1, \"ReadMade\": 2, \"StageRead\": 1, \"StageScan\": 1, \"StageUse\": 1, \"StageWrite\": 1, \"Yield\": 2}",
         ))),
     },
     Case {
@@ -272,7 +275,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
-            "definition 0: 5 columns, emptiness Row(SyntaxChild, Some(RowValue { column: SyntaxChild(Field), value: CellWord(1) }))\n",
+            "definition 0: 5 columns, emptiness All([Row(SyntaxChild, Some(RowValue { column: SyntaxChild(Field), value: CellWord(1) })), Any([All([Row(SyntaxChild, Some(RowValue { column: SyntaxChild(Field), value: CellWord(1) }))])])])\n",
             "  pattern bound [] collected []: Table 0\n",
             "table 0: Rows, 5 columns, indexes []\n",
             "  pipeline: Scan:File Read:Constant Keep:Constant Read:Constant\n",

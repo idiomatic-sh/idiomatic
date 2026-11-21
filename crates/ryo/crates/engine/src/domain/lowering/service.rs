@@ -5,8 +5,10 @@
 
 use super::costing::constants::GROUP_ROWS;
 use super::costing::service::branches_rows;
+use super::costing::types::SampleSizes;
 use super::definitions::service::{defined, use_branch};
 use super::definitions::types::{DefinitionDraft, Drafts, Flattened};
+use super::emptiness::branches::service::{branch_need, with_need};
 use super::emptiness::needs::service::needs_added;
 use super::emptiness::service::copied;
 use super::flattening::types::FlatBranch;
@@ -76,8 +78,10 @@ fn rule_lowered(
     for branch in &flattened.branches {
         let program = planned(drafts, branch, &HashSet::new(), UnitRole::Branch)
             .and_then(|plan| branch_program(drafts, sample.kinds, branch, &plan, target));
+        // The rule's formula, and what this branch itself needs.
+        let need = branch_need(drafts, branch);
         branches.push(Branch {
-            emptiness: copied(&flattened.emptiness),
+            emptiness: with_need(copied(&flattened.emptiness), need),
             program: program.ok_or(refused)?,
         });
     }
@@ -161,7 +165,13 @@ fn built(
     store: &NodeStore,
     sample: LoadSample<'_>,
 ) -> Result<LoweredPack, RefusedPlace> {
-    let mut drafts = Drafts::default();
+    let mut drafts = Drafts {
+        sized: sample.statistics.map(|statistics| SampleSizes {
+            statistics: statistics.clone(),
+            names: sample.kinds.clone(),
+        }),
+        ..Drafts::default()
+    };
     let mut flattened = Vec::with_capacity(rules.len());
     for place in (0..rules.len()).map(AcceptedPlace) {
         let mut state = RuleFlattening {

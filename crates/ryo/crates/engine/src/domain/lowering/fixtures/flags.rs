@@ -4,7 +4,8 @@
 use super::parts::{plan, step};
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, ComparisonOrigin, Input, LiteralText, Operand, PlanComparison, QueryLiteral, Test,
+    ColumnIndex, ComparisonOrigin, Input, LiteralText, Operand, PlanComparison, QueryLiteral,
+    RepeatedRows, StepId, Test,
 };
 use ryo_values::domain::plans::types::{Operation, PlanStep};
 use ryo_values::domain::query_plans::types::Plan;
@@ -57,6 +58,31 @@ pub(super) fn flag_scene(scene: &str) -> Option<Plan> {
             held(Test::NotEqual, column(1), written("float")),
             held(Test::Equal, written("true"), column(2)),
         ])]),
+        // A closed set's column held to one of its words: `defines`' second column is the declaration's kind.
+        "the definitions of a variable" => plan(vec![step(Operation::Select {
+            from: Input::Relation(Relation::Defines),
+            comparisons: vec![held(Test::Equal, column(1), written("variable"))],
+            kept: Vec::new(),
+        })]),
+        // The same column through a projection, held unequal to a word: the plan still says which column it is.
+        "the kinds of the definitions that are no variable" => plan(vec![
+            step(Operation::Project {
+                from: Input::Relation(Relation::Defines),
+                columns: vec![ColumnIndex(0), ColumnIndex(1)],
+                distinct: RepeatedRows::Kept,
+            }),
+            step(Operation::Select {
+                from: Input::Step(StepId(0)),
+                comparisons: vec![held(Test::NotEqual, column(1), written("variable"))],
+                kept: Vec::new(),
+            }),
+        ]),
+        // A text that is no word of the closed set: no definition's kind is shown as it.
+        "the definitions of a kind no definition has" => plan(vec![step(Operation::Select {
+            from: Input::Relation(Relation::Defines),
+            comparisons: vec![held(Test::Equal, column(1), written("no-such-kind"))],
+            kept: Vec::new(),
+        })]),
         _ => return None,
     })
 }
