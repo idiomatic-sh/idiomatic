@@ -5,7 +5,7 @@
 
 use super::errors::LoadError;
 use super::types::{LoadedRules, NamedWords};
-use crate::domain::code::types::ProgramCode;
+use crate::domain::code::types::{ProgramCode, UnitKey};
 use crate::domain::encoding::service::encoded;
 use crate::domain::executing::running::service::unit_not_run;
 use crate::domain::lowered::types::LoweredPack;
@@ -95,7 +95,18 @@ fn programs(
 /// yet (`executing::running::service::unit_not_run`, the executor's one answer over the code). Such a rule is refused like
 /// an operation the lowering does not take, with the step of its own plan that unit makes the rows of, so it never
 /// reaches a scan.
+///
+/// A rule that reaches an unrun unit only of another rule's plan (a sub-plan it reads of a producer whose own unit is not
+/// run) is kept for the next round when some rule's unrun unit is its own: taking the owners out may leave it whole. When
+/// every unrun unit is another rule's, all are taken out.
 fn not_run(programs: &Programs) -> Vec<RefusedRule> {
+    let (own, foreign): (Vec<_>, Vec<_>) = unrun_units(programs).into_iter().partition(|(_, own)| *own);
+    let taken = if own.is_empty() { foreign } else { own };
+    taken.into_iter().map(|(refused, _)| refused).collect()
+}
+
+/// Each rule the executor cannot run whole, with whether the unit not run is a step of the rule's own plan.
+fn unrun_units(programs: &Programs) -> Vec<(RefusedRule, bool)> {
     let code = &programs.0.code;
     let refused = code.rules.iter().filter_map(|rule| {
         let unit = unit_not_run(code, rule)?;
@@ -107,10 +118,20 @@ fn not_run(programs: &Programs) -> Vec<RefusedRule> {
         if std::env::var_os("RYO_L2_REFUSED").is_some() {
             eprintln!("ryo l2: rule {} reaches unit {} not run: {key:?}", rule.rule.0, unit.0);
         }
-        Some(RefusedRule {
-            rule: rule.rule,
-            refusal: LoadRefusal::Unlowerable(PlanNode(unit_step(programs, rule.rule, key).0)),
-        })
+        let (UnitKey::Pattern(node, ..) | UnitKey::Rule(node) | UnitKey::Table(node, _)) = key;
+        let own = programs
+            .0
+            .steps
+            .iter()
+            .find(|steps| steps.rule == rule.rule)
+            .is_some_and(|steps| steps.nodes.0.contains(node));
+        Some((
+            RefusedRule {
+                rule: rule.rule,
+                refusal: LoadRefusal::Unlowerable(PlanNode(unit_step(programs, rule.rule, key).0)),
+            },
+            own,
+        ))
     });
     refused.collect()
 }
