@@ -5,7 +5,10 @@ use crate::domain::code::types::UnitKey;
 use crate::domain::findings::types::RuleColumns;
 use crate::domain::scratch::types::{ScanScratch, ScratchEngine};
 use ryo_language::domain::facts::service::file_words;
+use ryo_language::domain::facts::types::CellWord;
+use ryo_language::domain::node_table::types::FieldCode;
 use ryo_language::inbound::use_cases::walk::types::RelationNeeds;
+use ryo_relations::domain::relations::types::KindBits;
 use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 
@@ -111,4 +114,18 @@ pub(crate) fn unit_step(programs: &Programs, rule: SelectedRuleOrdinal, unit: &U
         // No step of the plan bears the node, or the plan has more steps than a step is numbered by.
         Some(Err(_)) | None => steps.emitted,
     }
+}
+
+/// The cell a node row's `Kind` column holds for a kind code: the word of the kind's name. None for a code the language's
+/// vocabulary states no kind at.
+#[must_use]
+pub(crate) fn kind_word(programs: &Programs, kind: KindBits) -> Option<CellWord> {
+    programs.0.kinds.get(usize::from(kind.0)).copied()
+}
+
+/// The cell a node row's `Field` column holds for a field code: the word of the field's name. Code 0, no field, is the
+/// empty text's word. None for a code the language's vocabulary states no field at.
+#[must_use]
+pub(crate) fn field_word(programs: &Programs, field: FieldCode) -> Option<CellWord> {
+    programs.0.fields.get(usize::from(field.0)).copied()
 }

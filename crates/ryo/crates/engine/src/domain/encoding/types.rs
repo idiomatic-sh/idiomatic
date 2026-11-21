@@ -92,6 +92,8 @@ pub(crate) struct PatternCode {
     pub(crate) memo: MemoSite,
     /// Where its program starts, once written.
     pub(crate) entry: Option<CodeEntry>,
+    /// Its unit, once written.
+    pub(crate) unit: Option<WordSlot>,
 }
 
 /// A unit reached from the rule being written.
@@ -108,8 +110,8 @@ pub(crate) enum ReachedUnit {
 /// A place of the pool that waits for a pattern's entry.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct EntryPlace {
-    /// The place.
-    pub(crate) place: PoolAt,
+    /// Where the record of the use starts: its entry and its unit are written there.
+    pub(crate) record: PoolAt,
     /// The pattern whose entry goes there.
     pub(crate) pattern: PatternKey,
 }

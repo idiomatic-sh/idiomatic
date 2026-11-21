@@ -49,7 +49,7 @@ impl LoadUseCase for LoadUseCaseImpl {
                 // Statistics that do not read are no statistics, and none stay none: the lowering is told so, never given
                 // the statistics of a sample that measured nothing.
                 let statistics = decoded(statistics, kinds);
-                sequenced(rules, statistics.as_ref(), &|selected| {
+                sequenced(rules, statistics.as_ref(), kinds, &|selected| {
                     lowered(selected, statistics.as_ref(), kinds)
                 })
             }

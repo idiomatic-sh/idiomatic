@@ -3,6 +3,7 @@
 //! load, with the rules lowered twice at most.
 
 use super::errors::LoadError;
+use super::fixtures::kinds;
 use super::interface::LoadUseCase as _;
 use super::service::{sequenced, worded};
 use super::types::{LoadSource, LoadedRules};
@@ -30,12 +31,13 @@ use ryo_language::domain::facts::errors::FixedNamesError;
 use ryo_language::domain::facts::types::{FixedNames, FixedWord};
 use ryo_relations::domain::relations::types::{KindBits, Relation};
 use ryo_relations::domain::terms::types::NameText;
-use ryo_values::domain::descriptions::types::{KindVocabulary, LanguageName};
 use ryo_values::domain::query_bindings::types::RuleBindings;
 use ryo_values::domain::query_plans::types::{NodeDigest, NodeDigests};
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 use std::borrow::Cow;
 use std::cell::Cell;
+
+mod words;
 
 /// What a row loads.
 #[derive(Clone, Copy, Debug)]
@@ -272,7 +274,7 @@ fn sequence(written: [Written; 3], statistics: Option<&Statistics>) -> Result<Va
             refused: Vec::new(),
         }
     };
-    let loaded = sequenced(SelectedRules(&rules), statistics, &lower)?;
+    let loaded = sequenced(SelectedRules(&rules), statistics, &kinds(), &lower)?;
     let matched = match loaded.matched {
         MatchedStatistics::Units(matched) => format!("; statistics matched {} units", matched.0),
         MatchedStatistics::Absent => String::new(),
@@ -318,7 +320,7 @@ fn unit_steps() -> Result<Value, Failure> {
         },
         refused: Vec::new(),
     };
-    let loaded = sequenced(SelectedRules(&rules), None, &lower)?;
+    let loaded = sequenced(SelectedRules(&rules), None, &kinds(), &lower)?;
     let said: Vec<String> = (0..2)
         .map(SelectedRuleOrdinal)
         .map(|rule| {
@@ -334,12 +336,7 @@ fn unit_steps() -> Result<Value, Failure> {
 }
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
-    let kinds = KindVocabulary {
-        language: LanguageName("walking".into()),
-        kinds: Vec::new(),
-        fields: Vec::new(),
-        fixed: Vec::new(),
-    };
+    let kinds = kinds();
     let pack = encoded(&Programs::default(), PackDigest([1; 32]));
     let mut other = pack.0.clone();
     if let Some(byte) = other.get_mut(VERSION_WIDTH.0) {

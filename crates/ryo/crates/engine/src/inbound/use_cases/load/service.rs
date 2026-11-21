@@ -2,7 +2,7 @@
 //! rule. The lowering is a parameter so that the sequence is proved before the lowering lowers.
 
 use super::errors::LoadError;
-use super::types::{LoadPass, LoadedRules};
+use super::types::{LoadPass, LoadedRules, NamedWords};
 use crate::domain::code::types::ProgramCode;
 use crate::domain::encoding::service::encoded;
 use crate::domain::lowered::types::LoweredPack;
@@ -14,9 +14,10 @@ use crate::domain::passes::service::passed;
 use crate::domain::programs::types::{Programs, ProgramsEngine, RuleSteps};
 use crate::domain::statistics::service::matched;
 use crate::domain::statistics::types::{MatchedStatistics, Statistics};
-use ryo_language::domain::facts::service::base_words;
+use ryo_language::domain::facts::service::{base_words, file_words, intern};
 use ryo_language::domain::facts::types::{BaseWords, FixedNames};
 use ryo_relations::domain::terms::types::NameText;
+use ryo_values::domain::descriptions::types::KindVocabulary;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 
 /// Each loaded rule's plan as a work notice needs it, in the code's rule order: the step it emits and its steps' digests.
@@ -38,21 +39,45 @@ pub(super) fn worded(fixed: &FixedNames, texts: &[NameText<'_>]) -> Result<BaseW
     base_words(fixed, texts).map_err(LoadError::Vocabulary)
 }
 
+/// The word of each kind and of each field the vocabulary names, by code, among the run's base words: every name is a base
+/// word by now, so none is new.
+pub(super) fn named_words(base: &BaseWords, names: &KindVocabulary) -> NamedWords {
+    let mut held = file_words(base);
+    let kinds = names.kinds.iter().map(|kind| &*kind.0);
+    let kinds = kinds
+        .map(|name| intern(&mut held, NameText(name)))
+        .collect();
+    let fields = names.fields.iter().map(|field| &*field.0);
+    let fields = fields
+        .map(|name| intern(&mut held, NameText(name)))
+        .collect();
+    NamedWords { kinds, fields }
+}
+
 /// The programs of an encoded pack.
 fn programs(
     pack: LoweredPack,
     code: ProgramCode,
     steps: Vec<RuleSteps>,
+    names: &KindVocabulary,
 ) -> Result<Programs, LoadError> {
-    let texts: Vec<NameText<'_>> = pack.texts.iter().map(|text| NameText(&text.0)).collect();
+    // The pack's constant texts keep their places after the fixed names, whatever the vocabulary: the names of the kinds and
+    // of the fields follow them.
+    let constant = pack.texts.iter().map(|text| &*text.0);
+    let named = names.kinds.iter().map(|kind| &*kind.0);
+    let named = named.chain(names.fields.iter().map(|field| &*field.0));
+    let texts: Vec<NameText<'_>> = constant.chain(named).map(NameText).collect();
     // JOIN(fixed names): the vocabulary's fixed names (`KindVocabulary.fixed`, owned texts) go here, first. At this head
     // `base_words` takes them as `&FixedNames`, whose texts are static, so the two cannot meet: the run's words hold no fixed
     // name and no vocabulary is refused. The integration's checked fixed names, built from borrowed texts, replace this line.
     let fixed = FixedNames::default();
     let words = worded(&fixed, &texts)?;
+    let NamedWords { kinds, fields } = named_words(&words, names);
     Ok(Programs(ProgramsEngine {
         code,
         words,
+        kinds,
+        fields,
         regexes: pack.regexes,
         reads: pack.reads,
         steps,
@@ -101,6 +126,7 @@ fn taken(
 pub(super) fn sequenced(
     rules: SelectedRules<'_>,
     statistics: Option<&Statistics>,
+    names: &KindVocabulary,
     lower: &dyn Fn(SelectedRules<'_>) -> LoweredRules,
 ) -> Result<LoadedRules, LoadError> {
     let mut selected: Vec<SelectedRule<'_>> = rules.0.to_vec();
@@ -121,7 +147,7 @@ pub(super) fn sequenced(
                     MatchedStatistics::Units(matched(measured, &code.units))
                 });
                 let steps = rule_steps(&code, rules);
-                loaded = programs(pack, code, steps)?;
+                loaded = programs(pack, code, steps, names)?;
                 break;
             }
             Err(LoweringError::Refused { rule, refusal }) => {
