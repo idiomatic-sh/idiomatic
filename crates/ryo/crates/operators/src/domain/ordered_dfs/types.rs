@@ -32,3 +32,45 @@ pub(crate) struct DfsParts {
     /// The partition key columns of an edge row.
     pub(crate) edge_keys: Vec<ColumnIndex>,
 }
+
+/// An entity of one walk's graph, as the number the caller knows it by within one partition.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_operators::domain::ordered_dfs::types::WalkEntity;
+/// assert!(WalkEntity(1) < WalkEntity(2));
+/// ```
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct WalkEntity(pub u64);
+
+/// One edge of a walk's graph: where it leaves, where it arrives, and its order among the edges of its source.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_operators::domain::ordered_dfs::types::{WalkEdge, WalkEntity};
+/// use ryo_relations::domain::relations::types::Integer;
+/// let edge = WalkEdge { source: WalkEntity(1), destination: WalkEntity(2), order: Integer(0) };
+/// assert_eq!(edge.source, WalkEntity(1));
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct WalkEdge {
+    /// Where the edge leaves.
+    pub source: WalkEntity,
+    /// Its order among its source's edges.
+    pub order: ryo_relations::domain::relations::types::Integer,
+    /// Where it arrives.
+    pub destination: WalkEntity,
+}
+
+/// The place of an edge among the edges a walk was given.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_operators::domain::ordered_dfs::types::EdgePlace;
+/// assert_eq!(EdgePlace(0), EdgePlace::default());
+/// ```
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct EdgePlace(pub usize);

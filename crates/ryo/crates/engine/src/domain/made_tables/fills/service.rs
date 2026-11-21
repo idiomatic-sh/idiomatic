@@ -11,7 +11,7 @@ use super::types::{FillInputs, FillKind, TableFill};
 use crate::domain::code::constants::NO_SLOT;
 use crate::domain::code::filling::service::stage_write_of;
 use crate::domain::code::records::service::edge_columns_at;
-use crate::domain::code::records::types::{EdgeColumns, PooledOperand};
+use crate::domain::code::records::types::{EdgeColumns, PooledOperand, VisitColumns};
 use crate::domain::code::service::list;
 use crate::domain::code::types::{CodeEntry, FillCode, PoolAt, ProgramCode, WordSlot};
 use crate::domain::filled::errors::FilledError;
@@ -42,8 +42,8 @@ const NO_RECORD: FilledError = FilledError::Code {
 
 /// The codes of the fills the fill side runs with the fill each is: asked of the lowering's own statement of the codes
 /// once a process, since a table's fill is asked for at every read of it.
-fn known_fills() -> &'static [(FillCode, FillKind); 8] {
-    static KNOWN: std::sync::OnceLock<[(FillCode, FillKind); 8]> = std::sync::OnceLock::new();
+fn known_fills() -> &'static [(FillCode, FillKind); 9] {
+    static KNOWN: std::sync::OnceLock<[(FillCode, FillKind); 9]> = std::sync::OnceLock::new();
     KNOWN.get_or_init(|| {
         let input = || FillInput {
             pipelines: Box::new([]),
@@ -84,6 +84,18 @@ fn known_fills() -> &'static [(FillCode, FillKind); 8] {
                     Box::new([]),
                 )),
                 FillKind::Follow,
+            ),
+            (
+                fill_code(&MadeFill::Graph(
+                    GraphFill::OrderedDfs(VisitColumns {
+                        root: MadeColumn(0),
+                        source: MadeColumn(0),
+                        destination: MadeColumn(0),
+                        edge: MadeColumn(0),
+                    }),
+                    Box::new([]),
+                )),
+                FillKind::Visits,
             ),
             (
                 fill_code(&MadeFill::Ordered(OrderedFill::Match(input(), input()))),
@@ -251,7 +263,9 @@ pub(crate) fn grouped_rows(
             let visits = follow_groups(gathered, columns, room, out);
             work.read = Count(work.read.0.saturating_add(visits.0));
         }
-        FillKind::Rows | FillKind::Match | FillKind::Constant => return Err(wrong),
+        FillKind::Rows | FillKind::Match | FillKind::Visits | FillKind::Constant => {
+            return Err(wrong);
+        }
     }
     work.read = Count(work.read.0.saturating_add(gathered.count.0));
     work.given = Count(work.given.0.saturating_add(out.count.0));

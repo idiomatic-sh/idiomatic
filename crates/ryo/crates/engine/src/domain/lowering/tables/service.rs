@@ -290,13 +290,42 @@ fn shaped(
             shape.0.extend([CellKind::Number, CellKind::Number]);
             Some(shape)
         }
+        // The roots' keys and the root, then the visited edge's source, destination and identity, and the ordinal of the
+        // visit: the row of the `OrderedDfs` graph table. The edges' ends are of the root's kind, their order a number,
+        // and their keys the roots', kind by kind.
+        Operation::OrderedDfs {
+            from,
+            edges,
+            root,
+            source,
+            destination,
+            order,
+            edge,
+            root_keys,
+            edge_keys,
+        } => {
+            let (roots, visited) = (of(from)?, of(edges)?);
+            let mut shape = picked(&roots, root_keys)?;
+            let entity = picked(&roots, &[*root])?;
+            let ends = picked(&visited, &[*source, *destination])?;
+            let matched = picked(&visited, edge_keys)? == shape
+                && ends.0.iter().all(|kind| Some(kind) == entity.0.first())
+                && picked(&visited, &[*order])?.0 == [CellKind::Number];
+            if !matched {
+                return None;
+            }
+            shape.0.extend(entity.0);
+            shape.0.extend(ends.0);
+            shape.0.extend(picked(&visited, &[*edge])?.0);
+            shape.0.push(CellKind::Number);
+            Some(shape)
+        }
         // What is left to lower, each by name: no arm stands for the rest.
         Operation::Intersection { .. }
         | Operation::Difference { .. }
         | Operation::GroupDigest { .. }
         | Operation::Rank { .. }
         | Operation::Words { .. }
-        | Operation::OrderedDfs { .. }
         | Operation::Worklist { .. }
         | Operation::Cycles { .. }
         | Operation::Rows { .. }
