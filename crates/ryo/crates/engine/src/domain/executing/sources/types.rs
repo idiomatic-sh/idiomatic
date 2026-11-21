@@ -2,6 +2,7 @@
 
 use crate::domain::code::constants::NO_SLOT;
 use crate::domain::code::types::{ConstantNumber, NeedSite, RelationNumber, Short, WordSlot};
+use crate::domain::executing::measuring::service::{need_fill_begun, need_fill_ended};
 use crate::domain::executing::presence::service::node_row;
 use crate::domain::executing::types::Asker;
 use crate::domain::indexes::reading::service::cell_at;
@@ -99,6 +100,9 @@ impl NeedFacts for FileNeeds<'_, '_, '_> {
         if ports.table_need(frame, table) == NeedVerdict::Empty {
             return NeedVerdict::Empty;
         }
+        // SPIKE: a measuring worker books the fill this need starts (the table is not made yet for the file).
+        let begun = (frame.state.measure.is_some() && table_of(frame.fill.store, table).is_none())
+            .then(need_fill_begun);
         let made_now = made(
             frame.fill,
             &mut Asker {
@@ -109,6 +113,9 @@ impl NeedFacts for FileNeeds<'_, '_, '_> {
             table,
         );
         let rows = table_of(frame.fill.store, table).map_or(0, |slot| slot.rows.count.0);
+        if let Some(begun) = begun {
+            need_fill_ended(frame.state, table, begun, Count(rows));
+        }
         if made_now.is_ok() && rows > 0 {
             NeedVerdict::Holds
         } else {
