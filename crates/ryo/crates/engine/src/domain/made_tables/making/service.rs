@@ -19,9 +19,10 @@ use crate::domain::made_tables::indexing::service::index_built;
 use crate::domain::made_tables::pipelines::service::{piped, scan_run};
 use crate::domain::made_tables::pipelines::types::StageKind;
 use crate::domain::made_tables::reading::service::{
-    pipeline_words, relation_at, site_at, site_source, source_of,
+    latest_site, pipeline_words, relation_at, site_at, site_source, source_of,
 };
 use crate::domain::made_tables::service::clear_rows;
+use crate::domain::made_tables::staging::service::WRONG_WORD;
 use crate::domain::made_tables::staging::types::BatchFrame;
 use crate::domain::made_tables::types::PipeRun;
 use crate::domain::made_tables::types::{
@@ -30,11 +31,6 @@ use crate::domain::made_tables::types::{
 };
 use crate::domain::steps::types::MadeTableId;
 use ryo_relations::domain::relations::types::Count;
-
-/// The code names a word that is not what its place needs.
-const WRONG_WORD: FilledError = FilledError::Code {
-    named: MissingCode::Word,
-};
 
 /// A table's slot, there for any table the code numbers.
 fn slot_mut<'s>(frame: &'s mut FillFrame<'_>, table: MadeTableId) -> Option<&'s mut TableSlot> {
@@ -63,7 +59,7 @@ const fn reached_of(source: ReadSource) -> Reached {
 /// What one stage reads directly, when it reads a source: a scan and a product their source or their bucket's index, a
 /// probe and a `Latest` their index. A `Read` reads by a handle another stage found, so its source is there.
 fn stage_reach(frame: &FillFrame<'_>, word: CodeWord) -> Result<Option<Reached>, FilledError> {
-    let code = &frame.programs.code;
+    let code = frame.programs.code;
     Ok(match stage_kind(word.op).ok_or(WRONG_WORD)? {
         StageKind::Scan => {
             let stage = stage_scan_of(word);
@@ -80,11 +76,8 @@ fn stage_reach(frame: &FillFrame<'_>, word: CodeWord) -> Result<Option<Reached>,
         StageKind::Probe => Some(Reached::Index(stage_probe_of(word).index)),
         StageKind::Latest => {
             let stage = stage_latest_of(word);
-            let site = code
-                .pool
-                .get(usize::try_from(stage.operands.0).unwrap_or(usize::MAX))
-                .ok_or(WRONG_WORD)?;
-            Some(Reached::Index(IndexSite(site.0)))
+            let site = latest_site(code, stage.operands)?;
+            Some(Reached::Index(site))
         }
         StageKind::Walk => Some(Reached::Nodes),
         StageKind::Use
@@ -98,7 +91,7 @@ fn stage_reach(frame: &FillFrame<'_>, word: CodeWord) -> Result<Option<Reached>,
 
 /// Fills a relation whole for the file if it is not whole. Answers the rows the language wrote for it now.
 fn filled_whole(frame: &mut FillFrame<'_>, number: RelationNumber) -> Result<Count, FilledError> {
-    let relation = relation_at(&frame.programs.code, number)?;
+    let relation = relation_at(frame.programs.code, number)?;
     let ask = RelationAsk {
         number,
         relation,
@@ -126,7 +119,7 @@ fn reached_table(
     match uses.table_need(frame, table)? {
         TableNeed::Rows => made_now(frame, uses, table).map(|_| ()),
         TableNeed::Empty => {
-            let width = fill_at(&frame.programs.code, table)?.width;
+            let width = fill_at(frame.programs.code, table)?.width;
             let slot = slot_mut(frame, table).ok_or(FilledError::Code {
                 named: MissingCode::Table,
             })?;
@@ -165,7 +158,7 @@ pub(crate) fn ensured(
                 return Ok(work);
             }
             let programs = frame.programs;
-            match site_source(&programs.code, site_at(&programs.code, site)?)? {
+            match site_source(programs.code, site_at(programs.code, site)?)? {
                 ReadSource::Nodes(_) => {}
                 ReadSource::Filled(number) => work.filled = filled_whole(frame, number)?,
                 ReadSource::Made(table) => reached_table(frame, uses, table)?,
@@ -195,7 +188,7 @@ fn input_piped(
     let programs = frame.programs;
     for entry in entries.entries {
         let entry = CodeEntry(entry.0);
-        let words = pipeline_words(&programs.code, entry)?;
+        let words = pipeline_words(programs.code, entry)?;
         let mut scanned = Count(0);
         for (at, word) in words.iter().enumerate() {
             if let Some(read) = stage_reach(frame, *word)? {
@@ -242,7 +235,7 @@ fn input_width(frame: &FillFrame<'_>, input: FillInputs<'_>) -> Result<Count, Fi
     let Some(entry) = input.entries.first() else {
         return Ok(Count(0));
     };
-    let words = pipeline_words(&frame.programs.code, CodeEntry(entry.0))?;
+    let words = pipeline_words(frame.programs.code, CodeEntry(entry.0))?;
     let write = words.last().ok_or(WRONG_WORD)?;
     Ok(Count(usize::from(stage_write_of(*write).columns.0)))
 }
@@ -258,14 +251,14 @@ fn filled_now(
 ) -> Result<(), FilledError> {
     let programs = frame.programs;
     match fill.kind {
-        FillKind::Constant => constant_rows(&programs.code, fill, rows),
+        FillKind::Constant => constant_rows(programs.code, fill, rows),
         FillKind::Rows => {
-            let input = input_at(&programs.code, fill.inputs)?;
+            let input = input_at(programs.code, fill.inputs)?;
             input_piped(frame, uses, table, input, rows, kept)
         }
         FillKind::Count | FillKind::Sorted => {
             let FillKept { work, reached } = kept;
-            let input = input_at(&programs.code, fill.inputs)?;
+            let input = input_at(programs.code, fill.inputs)?;
             let mut gathered = frame.store.inputs.pop().unwrap_or_default();
             clear_rows(&mut gathered, input_width(frame, input)?);
             let piped = input_piped(
@@ -302,7 +295,7 @@ pub(crate) fn made_now(
     table: MadeTableId,
 ) -> Result<MadeNow, FilledError> {
     let stamp = frame.store.stamp;
-    let fill = fill_at(&frame.programs.code, table)?;
+    let fill = fill_at(frame.programs.code, table)?;
     let slot = slot_mut(frame, table).ok_or(FilledError::Code {
         named: MissingCode::Table,
     })?;

@@ -3,18 +3,20 @@
 
 use crate::domain::code::constants::{OWN_TREE, SOURCE};
 use crate::domain::code::types::{
-    CodeEntry, CodeWord, IndexCode, IndexSite, Op, ProgramCode, RelationNumber, Short, WordFlag,
-    WordSlot,
+    CodeEntry, CodeWord, IndexCode, IndexSite, Op, PoolAt, ProgramCode, RelationNumber, Short,
+    WordFlag, WordSlot,
 };
 use crate::domain::filled::errors::FilledError;
-use crate::domain::filled::types::{FilledState, MissingCode};
+use crate::domain::filled::service::whole_rows;
+use crate::domain::filled::types::MissingCode;
 use crate::domain::indexes::reading::service::read;
 use crate::domain::indexes::types::{ColumnView, IndexRead, RowRun, SourceRow};
 use crate::domain::made_tables::service::column;
-use crate::domain::made_tables::types::{FillStore, MadeState, ReadSource, TableSlot};
-use crate::domain::programs::types::ProgramsEngine;
+use crate::domain::made_tables::types::{FillStore, MadeState, ReadSource, RuleSetView, TableSlot};
+use crate::domain::stages::nodes::service::node_tag;
 use crate::domain::stages::types::NodeNames;
 use crate::domain::steps::types::MadeTableId;
+use ryo_language::domain::facts::types::CellWord;
 use ryo_language::domain::node_table::service::{element_count, own_end};
 use ryo_language::domain::node_table::types::NodeTable;
 use ryo_language::domain::symbols::types::ByteSlice;
@@ -91,6 +93,30 @@ pub(crate) fn site_source(code: &ProgramCode, index: IndexCode) -> Result<ReadSo
     }
 }
 
+/// The bits every handle of a source's rows carries besides the row's number: the file, of the node table's; nothing of
+/// another source.
+#[must_use]
+pub(crate) fn tag_of(file: FileId, source: ReadSource) -> CellWord {
+    match source {
+        ReadSource::Nodes(_) => node_tag(file),
+        ReadSource::Filled(_) | ReadSource::Made(_) | ReadSource::Written(_) => CellWord(0),
+    }
+}
+
+/// The site a `Latest` reads: the first slot of its pool record, before the key's operands.
+///
+/// # Errors
+///
+/// The pool does not reach the record.
+pub(crate) fn latest_site(code: &ProgramCode, record: PoolAt) -> Result<IndexSite, FilledError> {
+    code.pool
+        .get(usize::try_from(record.0).unwrap_or(usize::MAX))
+        .map(|slot| IndexSite(slot.0))
+        .ok_or(FilledError::Code {
+            named: MissingCode::Pool,
+        })
+}
+
 /// A table's slot when the table is made for the file.
 pub(crate) fn made_slot(store: &FillStore, table: MadeTableId) -> Option<&TableSlot> {
     store
@@ -110,15 +136,7 @@ pub(crate) fn rows_in(store: &FillStore, nodes: &NodeTable, source: ReadSource) 
                 NodeExtent::Embedded => element_count(nodes),
             },
         },
-        ReadSource::Filled(number) => store
-            .relations
-            .0
-            .get(usize::try_from(number.0).unwrap_or(usize::MAX))
-            .filter(|slot| slot.stamp == store.stamp && slot.state == FilledState::Whole)
-            .map_or(RowRun::default(), |slot| RowRun {
-                start: slot.whole,
-                end: slot.rows,
-            }),
+        ReadSource::Filled(number) => whole_rows(&store.relations, number, store.stamp),
         ReadSource::Made(table) => RowRun {
             start: Count(0),
             end: made_slot(store, table).map_or(Count(0), |slot| slot.rows.count),
@@ -197,13 +215,13 @@ pub(crate) fn pipeline_words(
 /// What a node row's cells are read from besides the table: the words of the kinds' and the fields' names, the file's
 /// bytes and the file.
 pub(crate) fn node_names<'a>(
-    programs: &'a ProgramsEngine,
+    programs: RuleSetView<'a>,
     text: ByteSlice<'a>,
     file: FileId,
 ) -> NodeNames<'a> {
     NodeNames {
-        kinds: &programs.kinds,
-        fields: &programs.fields,
+        kinds: programs.kinds,
+        fields: programs.fields,
         text,
         file,
     }

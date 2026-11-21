@@ -1,13 +1,12 @@
 //! The types of the `made_tables` concept: the rows of a table the engine makes for a file, and the room its fills work in.
 //! Crate-private.
 
-use crate::domain::code::types::{IndexSite, MemoSite, PoolAt, RelationNumber};
+use crate::domain::code::types::{IndexSite, MemoSite, PoolAt, ProgramCode, RelationNumber};
 use crate::domain::filled::errors::FilledError;
 use crate::domain::filled::types::FilledRelations;
 use crate::domain::indexes::types::{FileStamp, IndexArena, RowRun, SourceRow};
 use crate::domain::made_tables::pipelines::types::PipelineRoom;
-use crate::domain::programs::types::ProgramsEngine;
-use crate::domain::steps::types::MadeTableId;
+use crate::domain::steps::types::{MadeTableId, StepRegex};
 use ryo_language::domain::facts::types::{CellWord, FactSource, FileWords};
 use ryo_language::domain::node_table::types::NodeTable;
 use ryo_language::domain::symbols::types::ByteSlice;
@@ -209,12 +208,27 @@ pub(crate) struct WholeRows {
     pub(crate) filled: Count,
 }
 
+/// What the fill side reads of a rule set: its code, the word of each kind's and each field's name by its code, and the
+/// sources of its regular expressions by number. The loop builds one from the programs once per scan; the fill side names
+/// no type of the programs.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct RuleSetView<'a> {
+    /// The code.
+    pub(crate) code: &'a ProgramCode,
+    /// The word of each kind's name, by the kind's code.
+    pub(crate) kinds: &'a [CellWord],
+    /// The word of each field's name, by the field's code.
+    pub(crate) fields: &'a [CellWord],
+    /// The sources of the regular expressions, by number.
+    pub(crate) regexes: &'a [StepRegex],
+}
+
 /// What every read of the fill side is made with: the programs, the file's nodes and text, the language, the file's
 /// words, and the store. The loop builds one from its scan request and its scratch; the fill side hands it back to the
 /// loop in `PatternRows::pattern_rows`.
 pub(crate) struct FillFrame<'a> {
-    /// The rule set's programs.
-    pub(crate) programs: &'a ProgramsEngine,
+    /// What the fill side reads of the rule set.
+    pub(crate) programs: RuleSetView<'a>,
     /// The file's nodes.
     pub(crate) nodes: &'a NodeTable,
     /// The file.

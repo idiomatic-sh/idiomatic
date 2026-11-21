@@ -11,12 +11,13 @@ use crate::domain::made_tables::pipelines::types::OperandRun;
 use crate::domain::stages::types::{BatchValue, KeyPart};
 use crate::domain::steps::types::Register;
 use ryo_language::domain::facts::types::CellWord;
-use ryo_relations::domain::relations::types::{Count, FileId};
+use ryo_relations::domain::relations::service::to_bits;
+use ryo_relations::domain::relations::types::{Count, FileId, Value};
 
 /// The file as the cell a row holds of it.
 #[inline]
 pub(crate) fn file_cell(file: FileId) -> CellWord {
-    CellWord(u64::from(file.0))
+    CellWord(to_bits(Value::File(file)).0)
 }
 
 /// The cell of a constant, by its number.

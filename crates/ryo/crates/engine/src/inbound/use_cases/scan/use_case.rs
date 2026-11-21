@@ -9,6 +9,7 @@ use crate::domain::filled::errors::FilledError;
 use crate::domain::findings::types::{FoundRows, ScanCounters};
 use crate::domain::made_tables::types::FillFrame;
 use crate::domain::programs::frames::types::StepFrame;
+use crate::domain::programs::service::rule_set;
 use crate::domain::programs::types::Programs;
 use crate::domain::scratch::service::next_file;
 use crate::domain::scratch::types::{FileFault, ScanScratch, ScratchEngine};
@@ -76,7 +77,7 @@ impl ScanUseCase for ScanUseCaseImpl {
             words,
         } = &mut scratch.0;
         let mut fill = FillFrame {
-            programs: &programs.0,
+            programs: rule_set(&programs.0),
             nodes: file.table,
             file: file.file,
             text: file.source,

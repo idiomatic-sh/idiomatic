@@ -9,8 +9,8 @@ use crate::domain::stages::types::{BatchRow, FanRows};
 use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::relations::types::{Count, Integer};
 
-/// How many rows a batch holds in the workloads: what a pipeline hands from stage to stage.
-pub(crate) const BATCH_ROWS: usize = 4096;
+/// How many rows a batch holds in the workloads: what a pipeline hands from stage to stage, the fill side's one size.
+pub(crate) const BATCH_ROWS: usize = crate::domain::made_tables::constants::BATCH_ROWS.0;
 
 /// The high half of a node's id in the workloads: its file.
 const FILE_HALF: u64 = 7 << 32;

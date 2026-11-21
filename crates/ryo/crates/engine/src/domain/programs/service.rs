@@ -1,9 +1,9 @@
 //! The `programs` service: what the host reads of a rule set's programs.
 
-use super::types::Programs;
+use super::types::{Programs, ProgramsEngine};
 use crate::domain::code::types::UnitKey;
 use crate::domain::findings::types::RuleColumns;
-use crate::domain::made_tables::types::FillStore;
+use crate::domain::made_tables::types::{FillStore, RuleSetView};
 use crate::domain::scratch::types::{LoopState, ScanScratch, ScratchEngine};
 use ryo_language::domain::facts::service::file_words;
 use ryo_language::domain::facts::types::CellWord;
@@ -62,6 +62,17 @@ pub fn columns(programs: &Programs) -> Vec<RuleColumns> {
         .iter()
         .map(|rule| rule.columns.clone())
         .collect()
+}
+
+/// What the fill side reads of a rule set, built once per scan: its code, the words of its kinds and fields, and its
+/// regular expressions.
+pub(crate) fn rule_set(programs: &ProgramsEngine) -> RuleSetView<'_> {
+    RuleSetView {
+        code: &programs.code,
+        kinds: &programs.kinds,
+        fields: &programs.fields,
+        regexes: &programs.regexes,
+    }
 }
 
 /// A worker's per-file state for `programs`: its registers, one for each the programs name, its words over the programs'

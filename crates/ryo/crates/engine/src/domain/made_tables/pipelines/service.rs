@@ -16,11 +16,11 @@ use crate::domain::indexes::reading::service::{rows_of, run_of};
 use crate::domain::indexes::types::ColumnView;
 use crate::domain::made_tables::carrying::service::{carried, stage_kind};
 use crate::domain::made_tables::constants::BATCH_ROWS;
-use crate::domain::made_tables::fanning::service::{fan_stage, tag_of};
+use crate::domain::made_tables::fanning::service::fan_stage;
 use crate::domain::made_tables::operands::service::{column_of, constant_at, registers_at};
 use crate::domain::made_tables::pipelines::types::{BatchLevel, FanKind, PipelineRoom, StageKind};
 use crate::domain::made_tables::reading::service::{
-    index_at, pipeline_words, rows_in, site_at, site_source, source_of,
+    index_at, pipeline_words, rows_in, site_at, site_source, source_of, tag_of,
 };
 use crate::domain::made_tables::staging::service::{
     WRONG_WORD, keep_stage, mode, probe_keep_stage, read_stage, write_stage,
@@ -95,7 +95,7 @@ fn kept(room: &mut PipelineRoom, at: Count, depth: Count) {
 ///
 /// The word names a site or a constant the code does not hold.
 pub(crate) fn scan_run(frame: BatchFrame<'_>, stage: ScanWord) -> Result<ScanRead, FilledError> {
-    let code = &frame.programs.code;
+    let code = frame.programs.code;
     if stage.flag.0 & BUCKET.0 == 0 {
         let source = source_of(stage.flag, stage.read);
         let rows = rows_in(frame.store, frame.nodes, source);
@@ -104,7 +104,7 @@ pub(crate) fn scan_run(frame: BatchFrame<'_>, stage: ScanWord) -> Result<ScanRea
             site: None,
             rows,
             count: Count(rows.end.0.saturating_sub(rows.start.0)),
-            tag: tag_of(frame, source),
+            tag: tag_of(frame.file, source),
         });
     }
     let site = IndexSite(stage.read.0);
@@ -119,7 +119,7 @@ pub(crate) fn scan_run(frame: BatchFrame<'_>, stage: ScanWord) -> Result<ScanRea
         site: Some(site),
         rows,
         count: Count(rows.end.0.saturating_sub(rows.start.0)),
-        tag: tag_of(frame, source),
+        tag: tag_of(frame.file, source),
     })
 }
 
@@ -137,7 +137,7 @@ pub(crate) fn piped(
     run: &mut PipeRun<'_>,
 ) -> Result<(), FilledError> {
     let programs = frame.programs;
-    let code = &programs.code;
+    let code = programs.code;
     let words = pipeline_words(code, entry)?;
     carried(code, words, run.room)?;
     let registers = Count(usize::try_from(code.counts.registers.0).unwrap_or(usize::MAX));
@@ -312,7 +312,7 @@ fn fanned(
     run: &mut PipeRun<'_>,
 ) -> Result<(), FilledError> {
     let programs = frame.programs;
-    let code = &programs.code;
+    let code = programs.code;
     let word = *words.get(at.0).ok_or(WRONG_WORD)?;
     let registers = Count(usize::try_from(code.counts.registers.0).unwrap_or(usize::MAX));
     let below = Count(depth.0.saturating_add(1));

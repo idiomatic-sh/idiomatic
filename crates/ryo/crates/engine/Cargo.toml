@@ -13,11 +13,12 @@ autobenches = false
 name = "ryo_engine"
 
 [dependencies]
-ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../matching", version = "0.2.0", optional = true }
 ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.2.0" }
 ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.2.0" }
 ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.2.0" }
 ryo_operators = { package = "idiomatic-sh-ryo-operators", path = "../operators", version = "0.2.0" }
+# The matcher the fill side's fixtures hand a test of a text: in a run the scan's host hands one.
+ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../matching", version = "0.2.0", optional = true }
 thiserror.workspace = true
 hashbrown.workspace = true
 
@@ -29,7 +30,6 @@ fixtures = ["ryo_language/fixtures", "dep:ryo_matching"]
 # The crate itself, with its fixtures: its tests need them, and no test is run with a flag.
 idiomatic-sh-ryo-engine = { path = ".", features = ["fixtures"] }
 ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.2.0", features = ["fixtures"] }
-# The matcher the fill side's cases hand a test of a text: the scan's host hands one in a run.
 cargo_metadata.workspace = true
 cucumber.workspace = true
 tokio.workspace = true

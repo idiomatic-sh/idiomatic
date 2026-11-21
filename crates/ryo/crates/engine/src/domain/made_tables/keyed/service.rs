@@ -5,7 +5,7 @@
 use crate::domain::code::service::list;
 use crate::domain::code::types::{IndexSite, RelationNumber};
 use crate::domain::filled::errors::FilledError;
-use crate::domain::filled::service::{asked_among, keyed};
+use crate::domain::filled::service::{asked_among, held_state, keyed};
 use crate::domain::filled::types::{FilledState, MissingCode, RelationAsk};
 use crate::domain::indexes::reading::service::{folded, mixed};
 use crate::domain::indexes::types::{RowHash, RowRun, SourceRow};
@@ -46,13 +46,7 @@ pub(crate) fn key_asked(
 ) -> Result<KeyAnswer, FilledError> {
     let programs = frame.programs;
     let stamp = frame.store.stamp;
-    let whole = frame
-        .store
-        .relations
-        .0
-        .get(usize::try_from(number.0).unwrap_or(usize::MAX))
-        .is_some_and(|slot| slot.stamp == stamp && slot.state == FilledState::Whole);
-    if whole {
+    if held_state(&frame.store.relations, number, stamp) == FilledState::Whole {
         return Ok(KeyAnswer::Whole(Count(0)));
     }
     let hash = asked_hash(site, key);
@@ -65,8 +59,8 @@ pub(crate) fn key_asked(
             ..KeyRows::default()
         }));
     }
-    let places = list(&programs.code.pool, site_at(&programs.code, site)?.columns);
-    let relation = relation_at(&programs.code, number)?;
+    let places = list(&programs.code.pool, site_at(programs.code, site)?.columns);
+    let relation = relation_at(programs.code, number)?;
     let chosen = asked_among(&mut frame.store.relations, number, relation, places).0;
     let wrong = FilledError::Code {
         named: MissingCode::Site,

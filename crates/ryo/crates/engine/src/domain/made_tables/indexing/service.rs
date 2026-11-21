@@ -38,7 +38,7 @@ pub(crate) fn index_built(
     site: IndexSite,
 ) -> Result<Count, FilledError> {
     let programs = frame.programs;
-    let code = &programs.code;
+    let code = programs.code;
     let index = site_at(code, site)?;
     let source = site_source(code, index)?;
     let columns = list(&code.pool, index.columns);

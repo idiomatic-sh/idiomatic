@@ -29,6 +29,8 @@ enum Staged {
     ScanBucket,
     /// A keep of the rows whose second cell is below 30.
     KeepLess,
+    /// A keep whose comparison holds for no row.
+    KeepNone,
     /// A keep of the rows whose first cell is in a set.
     KeepIn,
     /// A keep of the rows whose first cell is not in a set.
@@ -81,6 +83,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Staged::KeepLess,
         expect: Expect::Value(Cow::Borrowed("1 10; 2 20; 3 10 | read 23 given 18 made 3")),
+    },
+    Case {
+        name: CaseName("a_keep_that_holds_for_no_row_leaves_none"),
+        word: Word::Succeeds,
+        input: || Staged::KeepNone,
+        expect: Expect::Value(Cow::Borrowed(" | read 20 given 15 made 0")),
     },
     Case {
         name: CaseName("a_keep_of_a_set_holds_the_rows_whose_cell_is_in_it"),
@@ -196,6 +204,22 @@ fn tables(staged: Staged) -> Vec<MadeTable> {
                         test: TestOperation::Less,
                         left: of(2),
                         right: word(30),
+                    },
+                ],
+                [of(1), of(2)],
+            ),
+        )],
+        Staged::KeepNone => vec![rows(
+            2,
+            pipeline(
+                vec![
+                    scan(0),
+                    read(FIRST, 0, 1),
+                    read(SECOND, 0, 2),
+                    FillStage::Keep {
+                        test: TestOperation::Less,
+                        left: of(2),
+                        right: word(5),
                     },
                 ],
                 [of(1), of(2)],

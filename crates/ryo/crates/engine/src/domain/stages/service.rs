@@ -26,6 +26,12 @@ pub(crate) fn row_of(named: CellWord) -> Count {
     Count(usize::try_from(named.0).unwrap_or(usize::MAX))
 }
 
+/// A handle with the bits its source's handles carry: the one statement of "the cell a row is bound as".
+#[inline]
+pub(crate) const fn tagged(numbered: CellWord, tag: CellWord) -> CellWord {
+    CellWord(numbered.0 | tag.0)
+}
+
 /// A row of a batch as a selection holds it.
 #[inline]
 pub(crate) fn selected_row(row: Count) -> BatchRow {
@@ -35,13 +41,16 @@ pub(crate) fn selected_row(row: Count) -> BatchRow {
 /// `Scan` over a whole source: the handles of the rows of `run`.
 pub(crate) fn scan(run: HandleRun, out: &mut Vec<CellWord>) {
     out.clear();
-    out.extend((run.first.0..run.end.0).map(|row| CellWord(handle(Count(row)).0 | run.tag.0)));
+    out.extend((run.first.0..run.end.0).map(|row| tagged(handle(Count(row)), run.tag)));
 }
 
 /// `Scan` over one bucket of a source: the handles of an index's rows for one key, each with the bits `tag` holds.
 pub(crate) fn scan_bucket(rows: &[SourceRow], tag: CellWord, out: &mut Vec<CellWord>) {
     out.clear();
-    out.extend(rows.iter().map(|row| CellWord(u64::from(row.0) | tag.0)));
+    out.extend(
+        rows.iter()
+            .map(|row| tagged(CellWord(u64::from(row.0)), tag)),
+    );
 }
 
 /// Writes the row's cells of a key into their places.
@@ -72,12 +81,12 @@ pub(crate) fn fanned_of(
 ) -> Batches {
     let left = all.0.saturating_sub(fan.cursor.within.0);
     let given = left.min(fan.limit.0.saturating_sub(fan.out.len()));
-    let tag = fan.tag.0;
+    let tag = fan.tag;
     fan.out.extend(
         found
             .skip(fan.cursor.within.0)
             .take(given)
-            .map(|cell| CellWord(cell.0 | tag)),
+            .map(|cell| tagged(cell, tag)),
     );
     fan.up
         .extend(std::iter::repeat_n(selected_row(fan.cursor.row), given));

@@ -10,6 +10,7 @@ use crate::domain::made_tables::types::{FillFrame, FillStore, MadeState, Pattern
 use crate::domain::memos::types::MemoId;
 use crate::domain::needs::types::NeedVerdict;
 use crate::domain::programs::frames::types::{LoopEntry, RunMode, StepFrame};
+use crate::domain::programs::service::rule_set;
 use crate::domain::programs::types::ProgramsEngine;
 use crate::domain::scratch::types::LoopState;
 use crate::domain::stages::types::BatchValue;
@@ -136,7 +137,7 @@ pub(crate) fn framed<T>(
     let (nodes, mut facts, mut found) = (NodeTable::default(), NoFacts, Collected::default());
     let mut words = file_words(&programs.words);
     let mut fill = FillFrame {
-        programs,
+        programs: rule_set(programs),
         nodes: &nodes,
         file: FILE,
         text: ByteSlice(b""),
