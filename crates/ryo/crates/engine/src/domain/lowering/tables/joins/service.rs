@@ -8,21 +8,25 @@ use crate::domain::lowering::flattening::constants::{BRANCH_ATOMS, PRODUCT_BRANC
 use crate::domain::lowering::flattening::service::made_column;
 use crate::domain::lowering::flattening::service::{picked, unified};
 use crate::domain::lowering::flattening::types::EdgeColumns;
-use crate::domain::lowering::flattening::types::NearestOver;
-use crate::domain::lowering::flattening::types::{EqualTerms, FlatAtom, FlatTerm, RowColumn};
+use crate::domain::lowering::flattening::types::{
+    AtomRows, EqualTerms, FlatAtom, FlatBranch, FlatTerm, RowColumn,
+};
+use crate::domain::lowering::flattening::types::{NearestDomain, NearestOver};
 use crate::domain::lowering::nodes::service::input_shape;
 use crate::domain::lowering::tables::closures::service::edge_rows;
-use crate::domain::lowering::tables::inputs::service::{all_selected, input, rule, sized};
+use crate::domain::lowering::tables::inputs::service::{
+    all_selected, input, rule, selection_emptiness, sized,
+};
 use crate::domain::lowering::tables::service::{tree_relation, walk_of};
 use crate::domain::lowering::tables::types::InputSize;
 use crate::domain::lowering::tables::types::JoinWants;
 use crate::domain::lowering::tables::types::KeyPair;
 use crate::domain::lowering::tables::types::{InputWant, RuleFlattening, TreeAxis};
-use crate::domain::steps::types::Polarity;
+use crate::domain::steps::types::{AxisDirection, Polarity};
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::relations::types::Count;
 use ryo_values::domain::plan_parts::service::view_source;
-use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side, StepId};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, JoinColumn, Side, StepId};
 use ryo_values::domain::plans::types::Operation;
 
 /// How each side of a join is asked for: both inline while the product of their branches and the atoms of a joined branch
@@ -47,6 +51,42 @@ pub(crate) fn join_wants(left: InputSize, right: InputSize) -> JoinWants {
         (InputWant::Defined, InputWant::Defined)
     };
     JoinWants { left, right }
+}
+
+/// How a side of a join is asked for by its keys: `Defined` when the side's own flattening gives every key within the
+/// file by a call (a span's bounds, a capture), so that no source of it can be read by the key.
+fn called_keys(state: &RuleFlattening<'_>, read: Input, on: &[ColumnIndex]) -> InputWant {
+    let waiting = match read {
+        Input::Step(step) => state.flat.get(usize::from(step)).and_then(Option::as_ref),
+        Input::Relation(_) | Input::BoundObservation(_) => None,
+    };
+    let given_by_call = |branch: &FlatBranch, key: &ColumnIndex| {
+        let term = branch.row.get(usize::from(*key));
+        let mut calls = branch.atoms.iter().filter_map(|atom| match atom {
+            FlatAtom::Called { outputs, .. } => Some(outputs),
+            FlatAtom::Rows { .. }
+            | FlatAtom::Latest { .. }
+            | FlatAtom::Decided { .. }
+            | FlatAtom::Walk { .. }
+            | FlatAtom::Nearest { .. }
+            | FlatAtom::Closure { .. }
+            | FlatAtom::Test { .. } => None,
+        });
+        term.is_some_and(|term| *term == FlatTerm::File || calls.any(|given| given.contains(term)))
+    };
+    let within = |branch: &FlatBranch| {
+        let mut keys = on.iter();
+        keys.any(|key| branch.row.get(usize::from(*key)) != Some(&FlatTerm::File))
+    };
+    let called = waiting.is_some_and(|flattened| {
+        let mut branches = flattened.branches.iter();
+        branches.any(|branch| within(branch) && on.iter().all(|key| given_by_call(branch, key)))
+    });
+    if called {
+        InputWant::Defined
+    } else {
+        InputWant::Inline
+    }
 }
 
 /// The answer row of a join over the row of its left side followed by the row of its right.
@@ -100,7 +140,14 @@ pub(crate) fn join_arm(
     };
     let shapes = &rule(state)?.shapes;
     let left_shape = input_shape(shapes, *left)?;
-    let wants = join_wants(sized(state, drafts, *left), sized(state, drafts, *right));
+    let mut wants = join_wants(sized(state, drafts, *left), sized(state, drafts, *right));
+    // A join keyed on both sides by cells calls give has no order with a key: its right side is one use of its
+    // definition, whose table is read by the key.
+    let called = called_keys(state, *left, left_on) == InputWant::Defined
+        && called_keys(state, *right, right_on) == InputWant::Defined;
+    if called {
+        wants.right = InputWant::Defined;
+    }
     let lefts = input(state, drafts, *left, wants.left)?;
     let mut rights = input(state, drafts, *right, wants.right)?;
     rights.branches = all_selected(state, drafts, rights.branches, filter)?;
@@ -168,8 +215,11 @@ pub(crate) fn antijoin_arm(
     let width = input_shape(&rule(state)?.shapes, *right)?.0.len();
     let mut lefts = input(state, drafts, *left, InputWant::Inline)?;
     let rights = input(state, drafts, *right, InputWant::Defined)?;
-    let Emptiness::Definition(definition) = rights.emptiness else {
-        return None;
+    // A step's rows are its definition's; a relation's own rows are asked in place.
+    let rows = match (rights.emptiness, right) {
+        (Emptiness::Definition(definition), _) => AtomRows::Definition(definition),
+        (_, Input::Relation(relation)) => AtomRows::Relation(*relation),
+        (_, Input::Step(_) | Input::BoundObservation(_)) => return None,
     };
     for branch in &mut lefts.branches {
         let mut cells: Vec<Option<FlatTerm>> = vec![None; width];
@@ -186,9 +236,13 @@ pub(crate) fn antijoin_arm(
                 cell @ None => *cell = Some(asked).filter(|term| *term != FlatTerm::File),
             }
         }
+        // A relation asked with no cell within the file is asked whether it holds a row at all: not lowered here.
+        if matches!(rows, AtomRows::Relation(_)) && cells.iter().all(Option::is_none) {
+            return None;
+        }
         branch.atoms.push(FlatAtom::Decided {
             polarity: Polarity::Absent,
-            definition,
+            rows,
             cells,
         });
         // The absence is asked only where the two left cells are equal; where they differ no right row matches, and the
@@ -232,9 +286,29 @@ pub(crate) fn axis_arm(
         TreeAxis::Nearest => {
             // The start's rows are a definition: the pattern a pipeline uses for the walk is then keyed by the start.
             let mut starts = input(state, drafts, *from, InputWant::Defined)?;
-            let held = input(state, drafts, *domain, InputWant::Defined)?;
-            let Emptiness::Definition(definition) = held.emptiness else {
-                return None;
+            let mut held = input(state, drafts, *domain, InputWant::Defined)?;
+            // A step's rows are its definition's, asked by the element. A relation's own rows are read in place by the
+            // element, with the tests of the domain's filter.
+            let stops = match (&held.emptiness, domain) {
+                (Emptiness::Definition(definition), _) => NearestDomain::Held {
+                    definition: *definition,
+                    column: made_column(RowColumn(entity))?,
+                },
+                (_, Input::Relation(_)) => {
+                    let read = std::mem::take(&mut held.branches);
+                    let mut read = all_selected(state, drafts, read, domain_filter)?;
+                    let (Some(only), None) = (read.pop(), read.pop()) else {
+                        return None;
+                    };
+                    let emptiness = std::mem::take(&mut held.emptiness);
+                    held.emptiness =
+                        selection_emptiness(state, drafts, *domain, domain_filter, emptiness);
+                    NearestDomain::Read {
+                        entity: *only.row.get(entity)?,
+                        atoms: only.atoms,
+                    }
+                }
+                (_, Input::Step(_) | Input::BoundObservation(_)) => return None,
             };
             // Edges that are no tree of a node relation are asked by the child for the parent.
             let over = match tree {
@@ -250,8 +324,7 @@ pub(crate) fn axis_arm(
                 let reached = FlatTerm::Variable(fresh_variable(drafts));
                 branch.atoms.push(FlatAtom::Nearest {
                     over: over.clone(),
-                    domain: definition,
-                    column: made_column(RowColumn(entity))?,
+                    domain: stops.clone(),
                     start: *branch.row.get(start)?,
                     reached,
                 });
@@ -264,7 +337,24 @@ pub(crate) fn axis_arm(
             })
         }
         TreeAxis::Along(walk) => {
-            let relation = tree?;
+            // Edges that are no tree are climbed by an ancestor axis alone: one or more edges from the child to the
+            // parent, a closure from the start.
+            let climbed = match (tree, walk) {
+                (Some(_), _) => None,
+                (None, AxisDirection::Ancestor) => Some(EdgeColumns {
+                    rows: edge_rows(state, drafts, *edges)?,
+                    keys: Vec::new(),
+                    source: made_column(RowColumn(usize::from(*child)))?,
+                    destination: made_column(RowColumn(usize::from(*parent)))?,
+                }),
+                (
+                    None,
+                    AxisDirection::Parent
+                    | AxisDirection::Descendant
+                    | AxisDirection::NextSibling
+                    | AxisDirection::PreviousSibling,
+                ) => return None,
+            };
             let wants = join_wants(sized(state, drafts, *from), sized(state, drafts, *domain));
             let starts = input(state, drafts, *from, wants.left)?;
             let mut held = input(state, drafts, *domain, wants.right)?;
@@ -275,11 +365,21 @@ pub(crate) fn axis_arm(
                     let mut walked = left.clone();
                     let reached = *right.row.get(entity)?;
                     walked.atoms.extend(right.atoms.iter().cloned());
-                    walked.atoms.push(FlatAtom::Walk {
-                        relation,
-                        direction: walk,
-                        start: *left.row.get(start)?,
-                        reached,
+                    let from = *left.row.get(start)?;
+                    walked.atoms.push(match (tree, &climbed) {
+                        (Some(relation), _) => FlatAtom::Walk {
+                            relation,
+                            direction: walk,
+                            start: from,
+                            reached,
+                        },
+                        (None, Some(edges)) => FlatAtom::Closure {
+                            edges: edges.clone(),
+                            keys: Vec::new(),
+                            source: from,
+                            reached,
+                        },
+                        (None, None) => return None,
                     });
                     walked.row.push(reached);
                     branches.push(walked);

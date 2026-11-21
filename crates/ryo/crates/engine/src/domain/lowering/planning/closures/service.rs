@@ -5,13 +5,13 @@
 
 use crate::domain::lowering::costing::types::CellState;
 use crate::domain::lowering::definitions::service::{asked, fresh_register};
-use crate::domain::lowering::flattening::service::made_column;
+use crate::domain::lowering::flattening::service::{made_column, pins_of};
 use crate::domain::lowering::flattening::types::{
-    EdgeColumns, EdgeRows, FlatAtom, FlatTerm, RowColumn,
+    EdgeColumns, EdgeRows, FlatAtom, FlatBranch, FlatTerm, RowColumn,
 };
 use crate::domain::lowering::planning::closures::types::{AtomWriter, BoundCell, EdgeEnds};
 use crate::domain::lowering::planning::operands::service::{
-    given_or_tested, operand, register_of, state_of,
+    given_or_tested, operand, register_of, state_of, uses_of,
 };
 use crate::domain::lowering::planning::types::{EdgeUse, WalkEdges};
 use crate::domain::lowering::planning::types::{Emitter, Enumerated, UnitRole, WrittenAccess};
@@ -159,6 +159,36 @@ fn read_edges(
     let steps = std::mem::replace(&mut emitter.written, outer);
     let gives = *emitter.environment.registers.get(&given_cell)?;
     Some(WalkEdges::Inline { steps, gives })
+}
+
+/// The condition of a nearest walk read in place: the domain's atoms written by the emitter's own writer, the cell of the
+/// element under test in `element`. The condition's cells are its own: each is read when one of its tests reads it.
+pub(crate) fn read_condition(
+    emitter: &mut Emitter<'_>,
+    atoms: &[FlatAtom],
+    entity: FlatTerm,
+    element: Register,
+    write: AtomWriter,
+) -> Option<WalkEdges> {
+    let FlatTerm::Variable(held) = entity else {
+        return None;
+    };
+    let within = FlatBranch {
+        atoms: atoms.to_vec(),
+        row: Vec::new(),
+    };
+    emitter.uses.extend(uses_of(&within, None));
+    emitter.environment.pins.extend(pins_of(&within));
+    let _new = emitter.environment.registers.insert(held, element);
+    let outer = std::mem::take(&mut emitter.written);
+    for atom in atoms {
+        write(emitter, atom);
+    }
+    let steps = std::mem::replace(&mut emitter.written, outer);
+    Some(WalkEdges::Inline {
+        steps,
+        gives: element,
+    })
 }
 
 /// What a walk's step asks for the next element of the one in `from`: a use of the edges' definition, or the read of a
