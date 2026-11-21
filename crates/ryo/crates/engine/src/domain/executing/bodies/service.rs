@@ -10,13 +10,14 @@ use crate::domain::code::records::service::{body_at, operand_at};
 use crate::domain::code::records::types::PooledOperand;
 use crate::domain::code::records::types::{BodyRecord, ReadBody};
 use crate::domain::code::types::{CodeEntry, CodeWord, IndexSite, Op, PoolAt, WordSlot};
-use crate::domain::executing::asks::service::definition_needed;
+use crate::domain::executing::asks::service::{definition_needed, site_passes, site_passing};
+use crate::domain::executing::asks::types::SitePasses;
 use crate::domain::executing::budget::service::{begin_unit, end_unit, reach};
 use crate::domain::executing::constants::NO_ANSWER;
 use crate::domain::executing::measuring::service::{entered, evaluated, left, used};
 use crate::domain::executing::sources::service::keyed;
 use crate::domain::made_tables::types::{KeyFrom, PatternAsk};
-use crate::domain::memos::service::{asked, keep, row_count};
+use crate::domain::memos::service::{asked, keep, keep_passing, row_count};
 use crate::domain::memos::types::{ChargedUnit, MemoId};
 use crate::domain::needs::types::NeedVerdict;
 use crate::domain::programs::frames::types::{RunMode, StepFrame};
@@ -44,13 +45,33 @@ pub(crate) fn slot(frame: &StepFrame<'_, '_>, at: PoolAt, count: WordSlot) -> Wo
 /// The answer of a pattern in call form for the key the loop's key room holds from `start` on: the kept one, or the
 /// pattern's program run once for this key, its yielded rows kept. The key's cells arrive in the formals. The key is taken
 /// off the room.
-fn pattern_keyed(frame: &mut StepFrame<'_, '_>, body: CallUse, start: Count) -> MemoId {
+fn pattern_keyed(
+    frame: &mut StepFrame<'_, '_>,
+    body: CallUse,
+    start: Count,
+    may: SitePasses,
+) -> MemoId {
     used(frame.state, body.unit);
-    let kept = asked(
-        &frame.state.memos,
-        body.site,
-        frame.state.key.get(start.0..).unwrap_or_default(),
-    );
+    // SPIKE: a site whose keys do not come again for the rule in the file stops keeping its answers; only for an ask
+    // of the rule's own program, whose answer nothing lists.
+    let passes = if may == SitePasses::Passing && frame.state.budget.depth.0 == 0 {
+        site_passing(frame.state, body.site)
+    } else {
+        SitePasses::Kept
+    };
+    let kept = if passes == SitePasses::Passing {
+        None
+    } else {
+        let kept = asked(
+            &frame.state.memos,
+            body.site,
+            frame.state.key.get(start.0..).unwrap_or_default(),
+        );
+        if may == SitePasses::Passing {
+            let _later: SitePasses = site_passes(frame.state, body.site, kept);
+        }
+        kept
+    };
     if let Some(answer) = kept {
         frame.state.key.truncate(start.0);
         reach(frame, ChargedUnit::Answer(answer));
@@ -69,6 +90,25 @@ fn pattern_keyed(frame: &mut StepFrame<'_, '_>, body: CallUse, start: Count) -> 
         set(frame, formal, value);
     }
     let base = frame.state.yielded.len();
+    if passes == SitePasses::Passing {
+        // SPIKE: run as an inline body is: its steps are the rule's own, no unit is begun, nothing is charged later.
+        let count = frame.ports.run(frame, body.entry, RunMode::Collect);
+        let LoopState {
+            memos,
+            key,
+            yielded,
+            ..
+        } = &mut *frame.state;
+        let answer = keep_passing(
+            memos,
+            body.site,
+            yielded.get(base..).unwrap_or_default(),
+            Count(usize::try_from(count.0).unwrap_or(usize::MAX)),
+        );
+        yielded.truncate(base);
+        key.truncate(start.0);
+        return answer;
+    }
     let caller = begin_unit(frame.state);
     entered(frame.state, body.unit);
     let count = frame.ports.run(frame, body.entry, RunMode::Collect);
@@ -130,7 +170,7 @@ pub(crate) fn pattern(frame: &mut StepFrame<'_, '_>, body: CallUse) -> MemoId {
         reach(frame, ChargedUnit::Answer(answer));
         return answer;
     }
-    let answer = pattern_keyed(frame, body, Count(start));
+    let answer = pattern_keyed(frame, body, Count(start), SitePasses::Passing);
     if from == KeyFrom::Constants {
         let answers = &mut frame.state.site_answers;
         if answers.len() <= site {
@@ -180,6 +220,7 @@ pub(crate) fn asked_pattern(frame: &mut StepFrame<'_, '_>, asked_for: PatternAsk
                 formals,
             },
             Count(start),
+            SitePasses::Kept,
         ),
         Some(BodyRecord::Inline { .. } | BodyRecord::Table { .. }) | None => {
             // A `Use` stage's body is a pattern in call form: anything else has no row, kept so under the asked site.

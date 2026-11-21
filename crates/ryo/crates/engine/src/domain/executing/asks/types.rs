@@ -12,3 +12,12 @@ pub(crate) enum QuickAsk {
     /// The body is asked as any body is (`bodies::service::exists`).
     Kept,
 }
+
+/// SPIKE: whether a memo site's answers are kept for the running rule in the file.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum SitePasses {
+    /// Kept by key, and looked for.
+    Kept,
+    /// Not kept: each ask is evaluated, and its answer lasts until the next.
+    Passing,
+}

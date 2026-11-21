@@ -16,6 +16,7 @@ pub(crate) fn clear_memos(map: &mut MemoMap) {
     map.found.clear();
     map.charges.clear();
     map.reached.clear();
+    map.passing = None;
 }
 
 /// The cells of a span.
@@ -94,6 +95,52 @@ pub(crate) fn keep(
             entry(entries, *other).map_or(0, |kept| memo_hash(kept.site, span(cells, kept.key)).0)
         }),
     );
+    answer
+}
+
+/// SPIKE: keeps an answer in passing: no key finds it again, and it lasts until the next answer is kept in passing,
+/// which takes its place when it is still the last of the map (its cells, its charge and its list go with it). For a
+/// site whose keys do not come again: its asker reads the answer at once, and the map does not grow with the asks.
+pub(crate) fn keep_passing(
+    map: &mut MemoMap,
+    site: MemoSite,
+    rows: &[CellWord],
+    count: Count,
+) -> MemoId {
+    let last = map.entries.len().checked_sub(1);
+    if let Some(passed) = map.passing
+        && last == usize::try_from(passed.0).ok()
+        && let Some(gone) = map.entries.pop()
+    {
+        map.cells.truncate(gone.key.start.0);
+        if let Some(charge) = map.charges.get(map.entries.len()).copied()
+            && charge
+                .reached
+                .start
+                .0
+                .saturating_add(charge.reached.length.0)
+                == map.reached.len()
+        {
+            map.reached.truncate(charge.reached.start.0);
+        }
+        map.charges.truncate(map.entries.len());
+    }
+    let start = Count(map.cells.len());
+    map.cells.extend_from_slice(rows);
+    let answer = MemoId(u32::try_from(map.entries.len()).unwrap_or(u32::MAX));
+    map.entries.push(MemoEntry {
+        site,
+        key: CellSpan {
+            start,
+            length: Count(0),
+        },
+        rows: CellSpan {
+            start,
+            length: Count(rows.len()),
+        },
+        count,
+    });
+    map.passing = Some(answer);
     answer
 }
 

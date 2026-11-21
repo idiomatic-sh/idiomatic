@@ -1,6 +1,6 @@
 //! The types of the `scratch` concept: a worker's per-file state.
 
-use super::kept::types::{AskedNeed, HeldRead, QuickBody};
+use super::kept::types::{AskedNeed, HeldRead, QuickBody, SiteAsks};
 use crate::domain::code::records::types::{PooledOperand, ReadBody};
 use crate::domain::code::types::RelationNumber;
 use crate::domain::code::types::{CodeEntry, WordSlot};
@@ -140,6 +140,8 @@ pub(crate) struct LoopState {
     /// number: the rule's first ask of a pattern in a file decides the definition's need (or finds it decided) and is
     /// told the node table it read; every later ask reads this alone.
     pub(crate) need_asks: Vec<AskedNeed>,
+    /// SPIKE: what the running rule's asks of each memo site came to in the file, by the site's number.
+    pub(crate) site_asks: Vec<SiteAsks>,
     /// Where the column of each `Read` of a made table or of a filled relation lies, by the word's slot
     /// (`DecodedCode.lists`): asked of the fill side at the word's first read in a file, and good for that file.
     pub(crate) held_reads: Vec<HeldRead>,

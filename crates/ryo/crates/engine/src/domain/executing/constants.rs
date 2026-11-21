@@ -20,3 +20,10 @@ pub(crate) const ROWS_BESIDE: Count = Count(256);
 /// The answer of an ask that was not made: the pattern's definition cannot have a row in the file. It names no kept
 /// answer, so it has no row and no charge (`memos::service::{rows, row_count}` answer nothing for it).
 pub(crate) const NO_ANSWER: MemoId = MemoId(u32::MAX);
+
+/// SPIKE: the asks a rule makes of one memo site in a file before the loop looks at how many found a kept answer.
+pub(crate) const PASS_AFTER: Count = Count(256);
+
+/// SPIKE: a site passes (its answers are no longer kept for the rule in the file) when fewer than one ask in this many
+/// found a kept answer.
+pub(crate) const PASS_UNDER: Count = Count(8);
