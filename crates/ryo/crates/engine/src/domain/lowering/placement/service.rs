@@ -3,7 +3,9 @@
 //! product stage, made once.
 
 use super::constants::CALL_PATTERNS;
-use super::types::{CallForm, FormChoice, PatternFacts, PatternPlacement, SampleStage, TableForm};
+use super::types::{
+    FormChoice, PatternFacts, PatternPlacement, PatternProgram, SampleStage, TableForm,
+};
 use crate::domain::code::types::{MeasuredForm, ShapeChoice, UnitKey};
 use crate::domain::statistics::types::{LearnStage, Statistics};
 
@@ -25,8 +27,8 @@ pub(crate) const fn placed(facts: PatternFacts, stage: SampleStage) -> PatternPl
         return decided(FormChoice::Table);
     }
     match facts.call {
-        CallForm::Scans => return decided(FormChoice::Table),
-        CallForm::Keyed => {}
+        PatternProgram::Scans => return decided(FormChoice::Table),
+        PatternProgram::Keyed => {}
     }
     match facts.table {
         // The table's own pipeline runs this definition's programs: a pattern of it that has a program keeps it.

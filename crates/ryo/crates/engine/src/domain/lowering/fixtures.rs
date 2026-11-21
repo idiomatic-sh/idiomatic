@@ -14,11 +14,12 @@ use ryo_relations::domain::relations::types::{Integer, Relation};
 use ryo_values::domain::plan_orders::types::{GroupEnd, OrderBound};
 use ryo_values::domain::plan_parts::types::{
     Applied, ColumnIndex, ComparisonOrigin, Direction, Function, Input, LiteralText, Operand,
-    PlanComparison, QueryLiteral, RepeatedRows, Side, StepId, StepScope, TableKey, Test,
+    PlanComparison, QueryLiteral, ReachLookup, RepeatedRows, Side, StepId, StepScope, TableKey,
+    Test,
 };
 use ryo_values::domain::plans::types::{Operation, PlanStep};
 use ryo_values::domain::query_bindings::types::RuleBindings;
-use ryo_values::domain::query_plans::service::node_digests;
+use ryo_values::domain::query_plans::service::{node_digests, reach_unfolded};
 use ryo_values::domain::query_plans::types::{NodeBytes, NodeDigest, NodeDigests, Plan};
 use ryo_values::domain::written_rows::types::{RowsSource, WrittenRow, WrittenRows};
 
@@ -143,6 +144,29 @@ fn operation_scene(scene: &str) -> Option<Plan> {
                 destination: at(1),
             }),
         ]),
+        // Each scope beside every scope it is within, as today's compiler writes it (a join that holds a reach over the
+        // scopes) and as the engine receives it: the reach unfolded into a closure step appended after the join.
+        "the scopes above, a reach join unfolded" => {
+            let folded = plan(vec![
+                kept(Input::Relation(Relation::Scope)),
+                step(Operation::Join {
+                    left: Input::Step(StepId(0)),
+                    right: Input::Relation(Relation::Scope),
+                    left_on: vec![at(1), at(2)],
+                    right_on: vec![at(1), at(0)],
+                    output: vec![of(Side::Left, 1), of(Side::Right, 2)],
+                    filter: Vec::new(),
+                    view: Vec::new(),
+                    reach: Some(ReachLookup {
+                        source: at(1),
+                        destination: at(0),
+                        keys: vec![at(2)],
+                        columns: vec![at(0), at(1), at(2)],
+                    }),
+                }),
+            ]);
+            reach_unfolded(&folded).into_owned()
+        }
         // Every scope a scope is within: the closure of the relation's own rows, from the enclosed scope to the enclosing.
         "closure of the scopes" => plan(vec![step(Operation::Closure {
             edges: Input::Relation(Relation::Scope),

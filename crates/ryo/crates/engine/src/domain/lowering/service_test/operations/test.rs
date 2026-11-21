@@ -188,6 +188,23 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "codes: {\"Axis\": 1, \"EachMatchNode\": 1, \"EachRowNode\": 1, \"Emit\": 1, \"End\": 2, \"ReadNode\": 3}",
         ))),
     },
+    Case {
+        name: CaseName("a_reach_join_unfolded_is_a_join_that_reads_the_closure_appended_after_it"),
+        word: Word::Succeeds,
+        input: || {
+            (
+                &["the scopes above, a reach join unfolded"],
+                SampleStage::Absent,
+            )
+        },
+        expect: Expect::Value(Cow::Borrowed(concat!(
+            "definition 0: 3 columns, emptiness Row(Scope, None)\n",
+            "  pattern bound [1] collected [2]: Call: EachMatch:Fanout Closure:Fanout Let:Constant Yield:Constant\n",
+            "rule 0: 1 branches\n",
+            "  branch: EachRow:File Read:Constant Or:Fanout Emit:Constant\n",
+            "codes: {\"Closure\": 1, \"EachMatchFilled\": 2, \"EachRowFilled\": 1, \"Emit\": 1, \"End\": 4, \"Let\": 1, \"Or\": 1, \"ReadFilled\": 2, \"Yield\": 2}",
+        ))),
+    },
 ];
 
 /// The scenes lowered and said in lines, as the cases of the service itself are.

@@ -16,6 +16,7 @@ use ryo_relations::domain::relations::types::{CellKind, FactForm, NodeColumn, Re
 use ryo_values::domain::plan_parts::service::view_source;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction, Input, StepScope};
 use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::query_plans::service::read_order;
 
 /// The node relation an axis walks the tree of: its edges are a relation of the node-table form whose parent and child
 /// columns are the node table's parent and element. None for edges a step derives.
@@ -255,7 +256,11 @@ pub(crate) fn admitted<'a>(rule: SelectedRule<'a>) -> Result<AdmittedRule<'a>, L
         |step| LoadRefusal::Unlowerable(PlanNode(u32::try_from(step).unwrap_or(u32::MAX)));
     let reached = reached(plan).map_err(|step| unlowerable(usize::from(step)))?;
     let mut shapes: Vec<Option<StepShape>> = vec![None; plan.steps.len()];
-    for (place, step) in plan.steps.iter().enumerate() {
+    // Every step after the steps it reads: a step that reads one with no shape yet is one that cannot be evaluated.
+    for place in read_order(plan).into_iter().map(usize::from) {
+        let Some(step) = plan.steps.get(place) else {
+            continue;
+        };
         if reached.get(place) != Some(&StepReach::Reached) {
             continue;
         }

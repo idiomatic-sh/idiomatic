@@ -23,6 +23,7 @@ use crate::domain::steps::types::{AnchorKinds, TestOperation};
 use ryo_relations::domain::relations::service::columns;
 use ryo_values::domain::plan_parts::types::{Input, Operand, PlanComparison, QueryLiteral, StepId};
 use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::query_plans::service::read_order;
 
 /// The emptiness of a selection: of a relation read with a literal in a column when that is what it is, else its input's.
 fn selection_emptiness(
@@ -168,7 +169,7 @@ fn wanted(state: &RuleFlattening<'_>, drafts: &Drafts) -> Option<Vec<StepReach>>
     Some(wanted)
 }
 
-/// The rows a rule emits, flattened: every step once, in step order. The step named is one that could not be flattened.
+/// The rows a rule emits, flattened: every step once, each after the steps it reads (`read_order`). The step named is one that could not be flattened.
 pub(crate) fn rule_flattened(
     state: &mut RuleFlattening<'_>,
     drafts: &mut Drafts,
@@ -177,7 +178,10 @@ pub(crate) fn rule_flattened(
     let wanted = wanted(state, drafts).ok_or(emitted)?;
     let plan = rule(state).ok_or(emitted)?.rule.plan;
     state.flat = plan.steps.iter().map(|_| None).collect();
-    for (place, step) in plan.steps.iter().enumerate() {
+    for place in read_order(plan).into_iter().map(usize::from) {
+        let Some(step) = plan.steps.get(place) else {
+            continue;
+        };
         if wanted.get(place) != Some(&StepReach::Reached) {
             continue;
         }

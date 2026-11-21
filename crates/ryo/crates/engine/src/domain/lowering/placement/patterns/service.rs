@@ -7,7 +7,9 @@ use crate::domain::lowering::flattening::types::{FlatAtom, FlatBranch, FlatTerm,
 use crate::domain::lowering::nodes::types::AcceptedPlace;
 use crate::domain::lowering::nodes::types::NodeHome;
 use crate::domain::lowering::placement::service::{measured, placed};
-use crate::domain::lowering::placement::types::{CallForm, FormChoice, PatternFacts, TableForm};
+use crate::domain::lowering::placement::types::{
+    FormChoice, PatternFacts, PatternProgram, TableForm,
+};
 use crate::domain::lowering::placement::types::{LoadSample, RefusedPlace};
 use crate::domain::lowering::planning::emitting::service::indexed;
 use crate::domain::lowering::planning::service::planned;
@@ -141,8 +143,8 @@ pub(crate) fn pattern_placed(
     let facts = PatternFacts {
         binds: Count(bound.0.len()),
         call: match &plans {
-            Some(_) => CallForm::Keyed,
-            None => CallForm::Scans,
+            Some(_) => PatternProgram::Keyed,
+            None => PatternProgram::Scans,
         },
         table,
         call_patterns,
