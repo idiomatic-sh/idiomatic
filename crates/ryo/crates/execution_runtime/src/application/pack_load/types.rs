@@ -21,7 +21,7 @@ use ryo_values::domain::stores::types::StoredPack;
 /// use ryo_values::domain::descriptions::types::{KindVocabulary, LanguageName};
 /// use ryo_values::domain::stored_facts::types::Digest;
 ///
-/// let kinds = KindVocabulary { language: LanguageName::default(), kinds: Vec::new() };
+/// let kinds = KindVocabulary { language: LanguageName::default(), kinds: Vec::new(), fields: Vec::new(), fixed: Vec::new() };
 /// let request = LoadRequest { plans: &[], bindings: &[], given: Digest([0; 16]), kinds: &kinds, stored: &[] };
 /// assert!(request.stored.is_empty());
 /// ```
@@ -51,7 +51,7 @@ pub struct LoadRequest<'a> {
 /// use ryo_values::domain::descriptions::types::{KindVocabulary, LanguageName};
 /// use ryo_values::domain::stored_facts::types::Digest;
 ///
-/// let kinds = KindVocabulary { language: LanguageName::default(), kinds: Vec::new() };
+/// let kinds = KindVocabulary { language: LanguageName::default(), kinds: Vec::new(), fields: Vec::new(), fixed: Vec::new() };
 /// let request = KeptRequest { given: Digest([0; 16]), kinds: &kinds, stored: &[] };
 /// assert!(request.stored.is_empty());
 /// ```

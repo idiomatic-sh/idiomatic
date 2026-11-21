@@ -2,8 +2,9 @@
 //! a pattern in table form) and four made tables, one of whose pipelines holds every stage.
 
 use super::super::fixtures::{
-    every_stage, mask, of, operands, pack, program, reg, regs, rule, stages, word,
+    every_stage_over, mask, of, operands, pack, program, reg, regs, rule, stages, word,
 };
+use crate::domain::code::types::ShapeChoice;
 use crate::domain::lowered::types::{
     ConstantRows, DefinitionPattern, Emptiness, FillInput, GroupFill, LoweredPack, MadeFill,
     MadeTable, OrderedFill, PackDefinition, PatternForm, RowValue,
@@ -71,7 +72,7 @@ fn table_presence() -> StepBody {
 }
 
 /// The rule's branch: every step, the anchor first; no other step is file-sized.
-fn every_step() -> Vec<ProgramStep> {
+fn every_step(node: Relation) -> Vec<ProgramStep> {
     let condition = StepBody::Inline(program(vec![
         ProgramStep::Test {
             test: TestOperation::Matches(RegexId(4)),
@@ -82,7 +83,7 @@ fn every_step() -> Vec<ProgramStep> {
     ]));
     vec![
         ProgramStep::EachKind {
-            relation: Relation::SyntaxTree,
+            relation: node,
             kinds: AnchorKinds(Box::new([KindBits(2), KindBits(3)])),
             out: reg(0),
         },
@@ -116,21 +117,24 @@ fn every_step() -> Vec<ProgramStep> {
             out: reg(4),
         },
         ProgramStep::Children {
+            relation: node,
             parent: reg(0),
             field: Some(FieldCode(6)),
             out: reg(5),
         },
         ProgramStep::Axis {
+            relation: node,
             direction: AxisDirection::NextSibling,
             start: reg(5),
             out: reg(6),
         },
         ProgramStep::Within {
+            relation: node,
             ancestor: reg(0),
             descendant: reg(6),
         },
         ProgramStep::Nearest {
-            edges: NearestEdges::Tree,
+            edges: NearestEdges::Tree(node),
             condition,
             element: reg(20),
             start: reg(6),
@@ -144,7 +148,7 @@ fn every_step() -> Vec<ProgramStep> {
             out: reg(8),
         },
         ProgramStep::Read {
-            source: StepRows::Node(Relation::SyntaxTree),
+            source: StepRows::Node(node),
             column: ReadColumn::Node(NodeColumn::Kind),
             row: reg(8),
             out: reg(9),
@@ -250,16 +254,19 @@ fn definition(
                 bound: mask([0]),
                 collected: mask([1]),
                 form: keyed,
+                shape: ShapeChoice::Open,
             },
             DefinitionPattern {
                 bound: mask([]),
                 collected: mask([0, 1]),
                 form: PatternForm::Table(own),
+                shape: ShapeChoice::Decided,
             },
             DefinitionPattern {
                 bound: mask([0]),
                 collected: mask([]),
                 form: PatternForm::Table(own),
+                shape: ShapeChoice::Decided,
             },
         ],
     }
@@ -267,8 +274,14 @@ fn definition(
 
 /// The law's pack.
 pub(super) fn every_variant() -> LoweredPack {
+    every_variant_over(Relation::SyntaxTree)
+}
+
+/// The same pack with every node row read and every walk walked through `node`.
+pub(in crate::domain::encoding::service_test) fn every_variant_over(node: Relation) -> LoweredPack {
     let called = program(vec![
         ProgramStep::Children {
+            relation: node,
             parent: reg(60),
             field: None,
             out: reg(61),
@@ -287,7 +300,7 @@ pub(super) fn every_variant() -> LoweredPack {
             value: CellWord(5),
         }),
     );
-    let mut law = pack(vec![rule(0, every_step())]);
+    let mut law = pack(vec![rule(0, every_step(node))]);
     law.definitions = vec![
         definition(
             10,
@@ -310,7 +323,7 @@ pub(super) fn every_variant() -> LoweredPack {
     law.tables = vec![
         table(
             20,
-            MadeFill::Rows(Box::new([every_stage()]), RepeatedRows::Dropped),
+            MadeFill::Rows(Box::new([every_stage_over(node)]), RepeatedRows::Dropped),
             Emptiness::All(Box::new([Emptiness::Definition(DefinitionId(1)), row])),
         ),
         table(

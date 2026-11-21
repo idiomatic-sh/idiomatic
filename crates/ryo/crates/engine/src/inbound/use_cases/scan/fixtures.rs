@@ -15,7 +15,7 @@ use crate::domain::programs::service::scratch_measuring;
 use crate::domain::programs::types::Programs;
 use crate::domain::statistics::types::PointCounts;
 use ryo_language::domain::facts::types::{
-    FactAnswer, FactSource, FileFacts, FileWords, FilledColumns,
+    FactAnswer, FactSource, FileFacts, FileWords, FilledColumns, Wanted,
 };
 use ryo_language::domain::files::types::SourcePath;
 use ryo_language::domain::fillers::fixtures::Walking;
@@ -27,6 +27,7 @@ use ryo_language::inbound::use_cases::walk::errors::WalkError;
 use ryo_language::inbound::use_cases::walk::interface::WalkUseCase as _;
 use ryo_language::inbound::use_cases::walk::types::{FileVisit, RelationNeeds, WalkRequest};
 use ryo_relations::domain::relations::types::{Count, FileId, Relation};
+use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 
 /// What a scan of a file answered and handed over, what it asked of the language, and what it counted.
 #[derive(Debug)]
@@ -35,7 +36,7 @@ pub struct Scanned {
     pub answer: Result<ScanCounters, ScanError>,
     /// The fills it asked, whole or by key.
     pub fills: Count,
-    /// The fills it asked by one key. A fill says which once the fact contract's keyed fill is merged; until then none does.
+    /// The fills it asked by one key.
     pub key_fills: Count,
     /// The rows it handed over, to a rule or to a frontier.
     pub found: Count,
@@ -57,17 +58,24 @@ struct Counting<'a> {
     inner: &'a mut dyn FactSource,
     /// How many fills were asked.
     fills: Count,
+    /// How many of them asked one key's rows.
+    key_fills: Count,
 }
 
 impl FactSource for Counting<'_> {
     fn fill(
         &mut self,
         relation: Relation,
+        wanted: Wanted,
         words: &mut FileWords,
         out: &mut FilledColumns,
     ) -> FactAnswer {
         self.fills = Count(self.fills.0.saturating_add(1));
-        self.inner.fill(relation, words, out)
+        match wanted {
+            Wanted::Key(..) => self.key_fills = Count(self.key_fills.0.saturating_add(1)),
+            Wanted::Whole => {}
+        }
+        self.inner.fill(relation, wanted, words, out)
     }
 
     fn render(&mut self, request: RenderRequest) -> RenderOutcome {
@@ -119,6 +127,7 @@ impl FileVisit for Scanning<'_> {
         let mut counting = Counting {
             inner: file.facts,
             fills: Count(0),
+            key_fills: Count(0),
         };
         let lent = FileFacts {
             table: file.table,
@@ -132,7 +141,7 @@ impl FileVisit for Scanning<'_> {
         self.seen = Some(Scanned {
             answer,
             fills: counting.fills,
-            key_fills: Count(0),
+            key_fills: counting.key_fills,
             found: Count(found.rows.len()),
             rows: found.rows,
             notices: found.notices,
@@ -145,6 +154,14 @@ impl FileVisit for Scanning<'_> {
             counts,
         });
     }
+}
+
+/// How many of a scan's rows are findings of the rule of an ordinal.
+#[must_use]
+pub fn rule_rows(scan: &Scanned, rule: u32) -> usize {
+    let whose = format!("{:?} ", FoundTarget::Rule(SelectedRuleOrdinal(rule)));
+    let rows = scan.rows.iter().filter(|row| row.starts_with(&whose));
+    rows.count()
 }
 
 /// Walks a file of `text` through the fixture language and scans it with `programs`.

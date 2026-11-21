@@ -81,7 +81,7 @@ let major_scalar_lefts = select l.comparison as comparison, l.right as right, l.
 let version_scalar_lefts = select l.comparison as comparison, l.right as right, l.file as file, l.op as op from known_comparisons as l join version_forms as r on l.left = r.id and l.file = r.file where l.op = "==" or l.op = "!=";
 let scalar_lefts = union(left=major_scalar_lefts, right=version_scalar_lefts);
 let scalar_values = select l.comparison as comparison, l.file as file, l.op as op, r.value as value from scalar_lefts as l join numbers as r on l.right = r.id and l.file = r.file;
-let scalar_reports = select comparison as id, file from scalar_values where (value = "2" or value = "3") and (op = "==" or op = "!=" or op = "<" or op = "<=" or op = ">" or op = ">=");
+let scalar_reports = select comparison as id, file from scalar_values where (value = "2" or value = "3") and (op in ["==", "!=", "<", "<=", ">", ">="]);
 let numeric_comparators = select l.right as id, l.file as file, r.value as value from known_comparisons as l join numbers as r on l.right = r.id and l.file = r.file;
 let scalar_invalid = select id, file from numeric_comparators where numeric_gte(value, 256) or (numeric_gte(0, value) and value != "0");
 let reports_0 = union(left=major_invalid, right=major_older);

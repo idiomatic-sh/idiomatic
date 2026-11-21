@@ -4,8 +4,8 @@ use crate::domain::lowered::service::each_touched;
 use crate::domain::lowered::types::LoweredPack;
 use crate::domain::statistics::types::Statistics;
 
-/// Each level of a unit the statistics measured takes the measured order.
-pub(crate) fn passed(pack: &mut LoweredPack, statistics: &Statistics) {
+/// Each level of a unit the statistics measured takes the measured order; with no statistics every level keeps the lowering's.
+pub(crate) fn passed(pack: &mut LoweredPack, statistics: Option<&Statistics>) {
     let _ = statistics;
     each_touched(pack, &mut |_| {});
 }

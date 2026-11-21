@@ -15,7 +15,7 @@ use crate::domain::code::controlling::service::end;
 use crate::domain::code::types::{
     BranchCode, NeedSite, ProgramCode, RuleCode, Short, StateCounts, TableCode, WordSlot,
 };
-use crate::domain::code::types::{MeasuredForm, UnitKey};
+use crate::domain::code::types::{MeasuredForm, ShapeChoice, UnitKey};
 use crate::domain::lowered::types::{LoweredPack, LoweredRule};
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::PastWidth;
@@ -29,6 +29,7 @@ fn started(pack: &LoweredPack) -> Encoding<'_> {
         fill: Short(0),
         operands: NO_SLOT,
         need: NeedSite(NO_SLOT.0),
+        unit: NO_SLOT,
     };
     Encoding {
         pack,
@@ -61,7 +62,13 @@ fn started(pack: &LoweredPack) -> Encoding<'_> {
 /// Writes one rule: its own program as one unit (each branch's need, then its steps), then every unit it reached.
 fn rule_written(encoding: &mut Encoding<'_>, rule: &LoweredRule) -> Result<(), LoweringError> {
     encoding.rule = rule.rule;
-    begin_unit(encoding, UnitKey::Rule(rule.node), MeasuredForm::Call)?;
+    begin_unit(
+        encoding,
+        UnitKey::Rule(rule.node),
+        MeasuredForm::Call,
+        ShapeChoice::Decided,
+    )?;
+    let unit = encoding.unit.unit;
     let mut branches = Vec::with_capacity(rule.branches.len());
     for branch in &rule.branches {
         let need = need_site(encoding, &branch.emptiness)?;
@@ -71,6 +78,7 @@ fn rule_written(encoding: &mut Encoding<'_>, rule: &LoweredRule) -> Result<(), L
     end_unit(encoding)?;
     encoding.code.rules.push(RuleCode {
         rule: rule.rule,
+        unit,
         branches: branches.into(),
         columns: rule.columns.clone(),
     });

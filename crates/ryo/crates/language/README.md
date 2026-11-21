@@ -44,6 +44,10 @@ The language domain's `files` concept: the path every part of the engine names a
 
 What a language implements for the engine, one filler per filled relation, and the fact source the engine reads them through.
 
+### `fixed_names`
+
+The texts a language's fillers write by handle, their handles, and the one check that makes the place of a name its handle.
+
 ### flow
 
 The language domain's `flow` concept: the control flow graphs a language's read gives of a file's functions, by block number and element position, and the words the four flow relations say their kinds of edge and step in.

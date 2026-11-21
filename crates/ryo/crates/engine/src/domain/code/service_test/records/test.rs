@@ -72,7 +72,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::Bodies,
         expect: Expect::Value(Cow::Borrowed(
-            "starts PoolAt(1) PoolAt(3) PoolAt(10), the call's entry at PoolAt(4), ends PoolAt(20) of 20: Inline { entry: CodeEntry(4) }; Call { entry: CodeEntry(0), memo: MemoSite(2), bound: WordSlot(1), formals: PoolAt(7) }; Table { index: IndexSite(5), bound: WordSlot(2), values: PoolAt(13), collected: WordSlot(1), reads: PoolAt(18) }",
+            "starts PoolAt(1) PoolAt(3) PoolAt(11), the call's entry at PoolAt(4), ends PoolAt(21) of 21: Inline { entry: CodeEntry(4) }; Call { entry: CodeEntry(0), memo: MemoSite(2), unit: WordSlot(4294967295), bound: WordSlot(1), formals: PoolAt(8) }; Table { index: IndexSite(5), bound: WordSlot(2), values: PoolAt(14), collected: WordSlot(1), reads: PoolAt(19) }",
         )),
     },
     Case {

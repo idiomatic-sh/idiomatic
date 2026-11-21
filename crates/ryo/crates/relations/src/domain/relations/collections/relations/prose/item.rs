@@ -35,6 +35,8 @@ macro_rules! prose {
             scope File,
             notes Unneeded,
             form Filled(Unique(Id)),
+            size PerElement,
+            keys [],
             columns {
                 /// The run: its file and where it starts.
                 id Id: NodeId => Node;

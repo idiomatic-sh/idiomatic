@@ -5,7 +5,6 @@ use super::service::passed;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::findings::types::RuleColumns;
 use crate::domain::lowered::types::{Branch, Emptiness, LoweredPack, LoweredRule};
-use crate::domain::statistics::types::Statistics;
 use crate::domain::steps::types::EmitTarget;
 use crate::domain::steps::types::{PlacedStep, ProgramStep, StepOperands, StepProgram};
 use ryo_values::domain::plan_parts::types::InputNumber;
@@ -57,7 +56,7 @@ fn subject(rules: Input) -> Result<Value, Failure> {
         rules: (0..rules).map(rule).collect(),
         ..LoweredPack::default()
     };
-    passed(&mut pack, &Statistics::default());
+    passed(&mut pack, None);
     let branches = pack.rules.iter().map(|rule| rule.branches.len()).sum();
     let steps = pack
         .rules

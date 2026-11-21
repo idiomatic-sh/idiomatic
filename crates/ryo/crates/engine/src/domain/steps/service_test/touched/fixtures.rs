@@ -176,21 +176,24 @@ pub(super) fn step(step: Step) -> ProgramStep {
             out,
         },
         Step::Children => ProgramStep::Children {
+            relation: Relation::SyntaxTree,
             parent: Register(1),
             field: None,
             out,
         },
         Step::Axis => ProgramStep::Axis {
+            relation: Relation::SyntaxTree,
             direction: AxisDirection::Ancestor,
             start: Register(1),
             out,
         },
         Step::Within => ProgramStep::Within {
+            relation: Relation::SyntaxTree,
             ancestor: Register(1),
             descendant: Register(2),
         },
         Step::NearestTree => nearest(
-            NearestEdges::Tree,
+            NearestEdges::Tree(Relation::SyntaxTree),
             StepBody::Inline(inline()),
             StepMemo::Keyed(registers([20, 21])),
         ),
@@ -337,6 +340,7 @@ pub(super) fn stage(stage: Stage) -> FillStage {
             out,
         },
         Stage::Walk => FillStage::Walk {
+            relation: Relation::SyntaxTree,
             walk: TreeWalk::Axis(AxisDirection::Descendant),
             start: Register(1),
             out,

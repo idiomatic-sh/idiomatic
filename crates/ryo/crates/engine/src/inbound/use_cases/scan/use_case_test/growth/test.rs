@@ -5,6 +5,7 @@
 //! hide one, and for an unlisted kind whose case does not.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::lowering::fixtures::digests_of;
 use crate::domain::lowering::fixtures::growth::growth_plan;
 use crate::domain::lowering::fixtures::pending::{GROWTH_PENDING, growth_bindings};
 use crate::domain::lowering::types::{SelectedRule, SelectedRules};
@@ -50,10 +51,12 @@ struct Counted {
 fn counted(kind: OperationKind, words: usize) -> Result<Counted, String> {
     let plan = growth_plan(kind);
     let bindings = growth_bindings(&plan);
+    let digests = digests_of(&plan, RuleBindings(&bindings));
     let rule = SelectedRule {
         rule: SelectedRuleOrdinal(0),
         plan: &plan,
         bindings: RuleBindings(&bindings),
+        digests: &digests,
     };
     let loaded = LoadUseCaseImpl
         .load(

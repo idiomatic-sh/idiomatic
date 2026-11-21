@@ -33,6 +33,8 @@ macro_rules! constant_key {
             scope File,
             notes Unneeded,
             form Filled(Many(Id)),
+            size PerElement,
+            keys [Id],
             columns {
                 /// An original supported constant-expression occurrence.
                 id Id: NodeId => Node;

@@ -31,6 +31,8 @@ macro_rules! expression_type {
             scope File,
             notes Unneeded,
             form Filled(Many(Id)),
+            size PerElement,
+            keys [Id],
             columns {
                 /// Original expression node.
                 id Id: NodeId => Node;

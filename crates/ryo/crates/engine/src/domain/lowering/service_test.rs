@@ -5,8 +5,7 @@ use super::errors::LoweringError;
 use super::service::lowered;
 use super::types::{LoadRefusal, PlanNode, SelectedRule, SelectedRules};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::lowering::fixtures::named;
-use crate::domain::statistics::types::Statistics;
+use crate::domain::lowering::fixtures::{digests_of, named};
 use ryo_values::domain::descriptions::types::{KindVocabulary, LanguageName};
 use ryo_values::domain::query_bindings::types::RuleBindings;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
@@ -40,18 +39,22 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 fn subject(count: Input) -> Result<Value, Failure> {
     let plan = named("one tree rule");
+    let digests = digests_of(&plan, RuleBindings(&[]));
     let rules: Vec<SelectedRule<'_>> = (0..count)
         .map(|rule| SelectedRule {
             rule: SelectedRuleOrdinal(rule),
             plan: &plan,
             bindings: RuleBindings(&[]),
+            digests: &digests,
         })
         .collect();
     let kinds = KindVocabulary {
         language: LanguageName("walking".into()),
         kinds: Vec::new(),
+        fields: Vec::new(),
+        fixed: Vec::new(),
     };
-    let lowered = lowered(SelectedRules(&rules), &Statistics::default(), &kinds);
+    let lowered = lowered(SelectedRules(&rules), None, &kinds);
     // Every rule the lowering refuses is answered: the row names the last, which is there only when each before it is.
     match lowered.refused.last() {
         Some(refused) if lowered.refused.len() == rules.len() => Err(LoweringError::Refused {

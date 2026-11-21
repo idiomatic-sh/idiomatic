@@ -10,6 +10,7 @@ use crate::domain::steps::types::{
 };
 use ryo_language::domain::facts::types::CellWord;
 use ryo_language::domain::semantics::types::RenderContext;
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_orders::types::OrderBound;
 
 /// What a row classes.
@@ -309,6 +310,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             out: Register(1),
         },
         Scenario::Walk => FillStage::Walk {
+            relation: Relation::SyntaxTree,
             walk: TreeWalk::Axis(AxisDirection::Ancestor),
             start: Register(0),
             out: Register(1),

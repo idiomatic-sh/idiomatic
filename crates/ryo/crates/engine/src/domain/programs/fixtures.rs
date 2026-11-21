@@ -7,7 +7,7 @@ use crate::domain::programs::types::ProgramsEngine;
 use crate::domain::scratch::types::{LoopState, TableSlot};
 use crate::domain::stages::types::BatchValue;
 use ryo_language::domain::facts::types::{
-    CellWord, FactAnswer, FactSource, FileFacts, FileWords, FilledColumns,
+    CellWord, FactAnswer, FactSource, FileFacts, FileWords, FilledColumns, Wanted,
 };
 use ryo_language::domain::node_table::types::NodeTable;
 use ryo_language::domain::semantics::types::{RenderOutcome, RenderRequest};
@@ -25,6 +25,7 @@ impl FactSource for NoFacts {
     fn fill(
         &mut self,
         _relation: Relation,
+        _wanted: Wanted,
         _words: &mut FileWords,
         _out: &mut FilledColumns,
     ) -> FactAnswer {

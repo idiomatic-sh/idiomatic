@@ -3,6 +3,7 @@
 //! through the memo and run once per key; a `Fork`.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::code::types::ShapeChoice;
 use crate::domain::encoding::service::encoded;
 use crate::domain::executing::service::run as run_program;
 use crate::domain::executing::types::RunMode;
@@ -253,6 +254,7 @@ fn pack(scene: Scene) -> LoweredPack {
             patterns: vec![DefinitionPattern {
                 bound: ColumnMask(Box::new([MadeColumn(0)])),
                 collected: ColumnMask(Box::new([MadeColumn(1)])),
+                shape: ShapeChoice::Decided,
                 form: PatternForm::Call(program(vec![
                     above_five(5),
                     ProgramStep::Let {

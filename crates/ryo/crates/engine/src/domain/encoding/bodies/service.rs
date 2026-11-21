@@ -7,7 +7,7 @@ use crate::domain::code::constants::PROBE_MANY;
 use crate::domain::code::filling::service::{stage_probe, stage_read, stage_use};
 use crate::domain::code::filling::types::{ProbeWord, StageReadWord, UseWord};
 use crate::domain::code::records::service::{
-    call_entry_place, push_call_body, push_inline_body, push_table_body,
+    call_entry_place, call_unit_place, push_call_body, push_inline_body, push_table_body,
 };
 use crate::domain::code::records::types::{BoundFormal, CollectedRead};
 use crate::domain::code::small_codes::service::{mode_code, source_code};
@@ -89,6 +89,7 @@ pub(crate) fn ready_use(
                     let code = PatternCode {
                         memo: memo(encoding)?,
                         entry: None,
+                        unit: None,
                     };
                     let _new = encoding.patterns.insert(key, code);
                     encoding.reached.push(ReachedUnit::Pattern(key));
@@ -172,6 +173,7 @@ fn table_unit(
         PatternCode {
             memo: MemoSite(NO_SLOT.0),
             entry: None,
+            unit: None,
         },
     );
     // The unit being written goes on after this one: a table-form pattern's unit holds no plan point.
@@ -181,7 +183,7 @@ fn table_unit(
         pattern.bound.clone(),
         pattern.collected.clone(),
     );
-    begin_unit(encoding, name, MeasuredForm::Table)?;
+    begin_unit(encoding, name, MeasuredForm::Table, pattern.shape)?;
     end_unit(encoding)?;
     encoding.unit = writing;
     Ok(())
@@ -235,7 +237,7 @@ pub(crate) fn push_body(encoding: &mut Encoding<'_>, body: &ReadyBody) -> PoolAt
                 formals,
             );
             encoding.entries.push(EntryPlace {
-                place: call_entry_place(at),
+                record: at,
                 pattern: *pattern,
             });
             at
@@ -248,17 +250,26 @@ pub(crate) fn push_body(encoding: &mut Encoding<'_>, body: &ReadyBody) -> PoolAt
     }
 }
 
-/// Writes every waiting entry: each pattern reached has its program by now.
+/// Writes every waiting entry and unit: each pattern reached has its program and its unit by now.
 pub(crate) fn entries_written(encoding: &mut Encoding<'_>) -> Result<(), LoweringError> {
     for waiting in std::mem::take(&mut encoding.entries) {
-        let entry = encoding
-            .patterns
-            .get(&waiting.pattern)
-            .and_then(|code| code.entry);
-        let at = usize::try_from(waiting.place.0).unwrap_or(usize::MAX);
-        match (entry, encoding.code.pool.get_mut(at)) {
-            (Some(entry), Some(place)) => *place = WordSlot(entry.0),
-            (Some(_) | None, None) | (None, Some(_)) => return Err(fault(encoding)),
+        let written = encoding.patterns.get(&waiting.pattern);
+        let (entry, unit) = (
+            written.and_then(|code| code.entry),
+            written.and_then(|code| code.unit),
+        );
+        let place = |at: PoolAt| usize::try_from(at.0).unwrap_or(usize::MAX);
+        let (Some(entry), Some(unit)) = (entry, unit) else {
+            return Err(fault(encoding));
+        };
+        for (at, slot) in [
+            (call_entry_place(waiting.record), WordSlot(entry.0)),
+            (call_unit_place(waiting.record), unit),
+        ] {
+            match encoding.code.pool.get_mut(place(at)) {
+                Some(written) => *written = slot,
+                None => return Err(fault(encoding)),
+            }
         }
     }
     Ok(())

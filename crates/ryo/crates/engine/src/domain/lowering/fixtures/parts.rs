@@ -80,6 +80,16 @@ pub(super) fn joined(
     })
 }
 
+/// The rows of `left` that no row of step 0 matches on the columns `on` names of each: an antijoin whose right side is step 0.
+pub(super) fn without(left: Input, on: (&[u32], &[u32])) -> PlanStep {
+    step(Operation::Antijoin {
+        left,
+        right: Input::Step(StepId(0)),
+        left_on: on.0.iter().copied().map(ColumnIndex).collect(),
+        right_on: on.1.iter().copied().map(ColumnIndex).collect(),
+    })
+}
+
 /// The words of a file, one row for each child of its sentence: parent, child, ordinal, text, file. Step 0 of the scenes below.
 pub(super) fn words() -> PlanStep {
     joined(

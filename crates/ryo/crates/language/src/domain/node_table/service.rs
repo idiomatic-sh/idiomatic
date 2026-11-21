@@ -6,7 +6,7 @@
 use super::constants::PRESENCE_BITS;
 use super::types::{
     BuilderSegment, BuilderState, ByteSpan, ChildPlace, EmbeddedRoot, EmbeddedSegment,
-    EmbeddedText, FieldCode, Finish, Implied, KindsPresent, LogicalText, NodeTable,
+    EmbeddedSpan, EmbeddedText, FieldCode, Finish, Implied, KindsPresent, LogicalText, NodeTable,
     NodeTableBuilder, PendingToken, PresenceWord,
 };
 use crate::domain::diagnostics::constants::UNSPECIFIED_CODE;
@@ -1141,4 +1141,68 @@ pub fn acceptance_of(table: &NodeTable) -> SyntaxAcceptance {
 #[must_use]
 pub fn syntax_error_count(table: &NodeTable) -> Count {
     Count(table.0.diagnostics.from.len())
+}
+
+/// The id after the last element of the file's own tree, its nodes then its tokens: the embedded segments start here. What a
+/// relation of the node-table form whose catalog item declares `extent Own` is bounded by.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_language::domain::node_table::service::{builder, element_count, embed, enter_node, finished, leave_node, own_end, token};
+/// use ryo_language::domain::node_table::types::{EmbeddedText, FieldCode, NodeTable};
+/// use ryo_relations::domain::elements::types::EmbeddedMapping;
+/// use ryo_relations::domain::relations::types::{Count, KindBits, Offset, Position};
+/// use ryo_relations::domain::terms::types::NameText;
+///
+/// let mut table = NodeTable::default();
+/// let mut writer = builder(&mut table, Count(3));
+/// enter_node(&mut writer, KindBits(1), FieldCode(0), Offset(0));
+/// token(&mut writer, KindBits(2), FieldCode(0), Offset(0), Offset(3));
+/// leave_node(&mut writer, Offset(3));
+/// let text = EmbeddedText { text: NameText("x"), mapping: EmbeddedMapping::Exact(Offset(1)) };
+/// embed(&mut writer, Position(0), text);
+/// enter_node(&mut writer, KindBits(1), FieldCode(0), Offset(0));
+/// leave_node(&mut writer, Offset(1));
+/// let table = finished(&mut writer);
+/// assert_eq!(own_end(table), Position(2));
+/// assert_eq!(element_count(table), Count(3));
+/// ```
+#[must_use]
+pub fn own_end(table: &NodeTable) -> Position {
+    table
+        .0
+        .embedded
+        .first()
+        .map_or_else(|| id_after(element_count(table)), |first| first.root)
+}
+
+/// The embedded segments of a table, in id order: each with its host, its root and the id after its last element.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_language::domain::node_table::service::{builder, embed, embedded_segments, enter_node, finished, leave_node};
+/// use ryo_language::domain::node_table::types::{EmbeddedSpan, EmbeddedText, FieldCode, NodeTable};
+/// use ryo_relations::domain::elements::types::EmbeddedMapping;
+/// use ryo_relations::domain::relations::types::{Count, KindBits, Offset, Position};
+/// use ryo_relations::domain::terms::types::NameText;
+///
+/// let mut table = NodeTable::default();
+/// let mut writer = builder(&mut table, Count(2));
+/// enter_node(&mut writer, KindBits(1), FieldCode(0), Offset(0));
+/// leave_node(&mut writer, Offset(3));
+/// let text = EmbeddedText { text: NameText("x"), mapping: EmbeddedMapping::Exact(Offset(1)) };
+/// embed(&mut writer, Position(0), text);
+/// enter_node(&mut writer, KindBits(1), FieldCode(0), Offset(0));
+/// leave_node(&mut writer, Offset(1));
+/// let segments: Vec<EmbeddedSpan> = embedded_segments(finished(&mut writer)).collect();
+/// assert_eq!(segments, [EmbeddedSpan { host: Position(0), root: Position(1), end: Position(2) }]);
+/// ```
+pub fn embedded_segments(table: &NodeTable) -> impl Iterator<Item = EmbeddedSpan> + '_ {
+    table.0.embedded.iter().map(|each| EmbeddedSpan {
+        host: each.host,
+        root: each.root,
+        end: each.end,
+    })
 }

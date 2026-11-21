@@ -27,6 +27,8 @@ macro_rules! standard_library_import {
             scope File,
             notes Unneeded,
             form Filled(Many(Occurrence)),
+            size PerElement,
+            keys [],
             columns {
                 /// The imported alias in the parser's actual syntax tree.
                 occurrence Occurrence: NodeId => Node;

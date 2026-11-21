@@ -110,6 +110,7 @@ fn has_row(frame: &mut StepFrame<'_, '_>, at: PoolAt, run: Runner) -> Count {
             memo,
             bound,
             formals,
+            ..
         } => {
             let answer = pattern(frame, entry, memo, bound, formals, run);
             row_count(&frame.state.memos, answer)
@@ -191,6 +192,7 @@ fn body_staged(frame: &mut StepFrame<'_, '_>, record: BodyRecord, run: Runner) -
             memo,
             bound,
             formals,
+            ..
         } => {
             let answer = pattern(frame, entry, memo, bound, formals, run);
             let LoopState { memos, staged, .. } = &mut *frame.state;

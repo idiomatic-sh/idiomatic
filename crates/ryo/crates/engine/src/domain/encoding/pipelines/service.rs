@@ -303,7 +303,12 @@ fn stage_words(
         FillStage::Render { node, context, out } => {
             stage_render(render_operands(*node, *context, *out))
         }
-        FillStage::Walk { walk, start, out } => {
+        FillStage::Walk {
+            relation,
+            walk,
+            start,
+            out,
+        } => {
             let (flag, field) = match walk {
                 TreeWalk::Children(field) => (0, field.unwrap_or(NO_FIELD)),
                 TreeWalk::Axis(direction) => {
@@ -311,7 +316,7 @@ fn stage_words(
                 }
             };
             stage_walk(WalkWord {
-                flag: WordFlag(flag),
+                flag: WordFlag(flag | extent_flag(StepRows::Node(*relation)).0),
                 field,
                 start: *start,
                 out: *out,

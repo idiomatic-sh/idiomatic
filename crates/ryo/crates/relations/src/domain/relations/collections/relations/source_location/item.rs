@@ -27,6 +27,8 @@ macro_rules! source_location {
             scope File,
             notes Unneeded,
             form Filled(Unique(Id)),
+            size PerElement,
+            keys [],
             columns {
                 /// The node or token.
                 id Id: NodeId => Node;

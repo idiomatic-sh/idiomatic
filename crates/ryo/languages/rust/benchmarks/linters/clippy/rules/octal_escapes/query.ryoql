@@ -1,6 +1,6 @@
 import lint_attributes from "rust/clippy/lint-attributes";
 let tokens = select id, file, span, text from "syntax-tree" where kind = "string" or kind = "byte-string" or kind = "c-string";
-let hosts = select id, file from "syntax-tree" where kind = "literal" or kind = "macro-call" or kind = "macro-rules" or kind = "macro-def" or kind = "attr";
+let hosts = select id, file from "syntax-tree" where kind in ["literal", "macro-call", "macro-rules", "macro-def", "attr"];
 let hosted = axis(from=tokens, relation="syntax-child", direction=nearest-ancestor, domain=hosts);
 let readers = select id, file from "syntax-tree" where kind = "literal" or kind = "macro-call";
 let strings = select l.id as id, l.file as file, l.span as span, l.text as text from hosted as l join readers as r on l.related = r.id;
@@ -14,8 +14,7 @@ let format_children = select l.call as call, l.child as child, l.file as file fr
 let format_trees = select l.child as tree, l.file as file from format_children as l join "syntax-tree" as r on l.child = r.id where r.kind = "token-tree";
 let tree_strings = select l.parent as tree, l.child as id, l.ordinal as ordinal, l.file as file from "syntax-child" as l join cooked as r on l.child = r.id;
 let format_strings = select l.tree as tree, l.id as id, l.ordinal as ordinal, l.file as file from tree_strings as l join format_trees as r on l.tree = r.tree;
-let later_strings = select l.tree as tree, l.id as id, l.ordinal as ordinal, l.file as file from format_strings as l join format_strings as r on l.tree = r.tree where r.ordinal < l.ordinal;
-let templates = antijoin(left=format_strings, right=later_strings, left-on=["id"], right-on=["id"]);
+let templates = group-min(from=format_strings, keys=["tree"], order="ordinal");
 let read = antijoin(left=cooked, right=templates, left-on=["id"], right-on=["id"]);
 let escapes = source-matches(from=read, span="span", pattern="(?P<octal>\\0[0-7]{1,2})|\\[\s\S]", output="found", capture="octal", capture-output="escape");
 let candidates = select id, file, escape as span from escapes;

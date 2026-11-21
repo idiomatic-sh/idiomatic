@@ -77,7 +77,7 @@ pub(crate) struct StageReadWord {
 /// The operands of `StageWalk`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct WalkWord {
-    /// `WALK_AXIS` for an axis, else the children; the direction under `WALK_DIRECTION`.
+    /// `WALK_AXIS` for an axis, else the children; the direction under `WALK_DIRECTION`; `OWN_TREE`.
     pub(crate) flag: WordFlag,
     /// The field of a walk of one field's children; the code of no field otherwise.
     pub(crate) field: FieldCode,

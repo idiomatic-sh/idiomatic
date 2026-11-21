@@ -10,8 +10,8 @@ use crate::domain::code::anchoring::types::{
     EachRowFilledWord, EachRowMadeWord, EachRowNodeWord,
 };
 use crate::domain::code::constants::{
-    CONSTANT, HIGH_INCLUSIVE, HIGH_PRESENT, LOW_INCLUSIVE, LOW_PRESENT, MANY, NO_SLOT, RANGE_OUT,
-    SEVERAL, WRITTEN,
+    CONSTANT, HIGH_INCLUSIVE, HIGH_PRESENT, LOW_INCLUSIVE, LOW_PRESENT, MANY, NO_SLOT, OWN_TREE,
+    RANGE_OUT, SEVERAL, WRITTEN,
 };
 use crate::domain::code::deciding::service::{read_filled, read_made, read_node};
 use crate::domain::code::deciding::types::{ReadFilledWord, ReadMadeWord, ReadNodeWord};
@@ -30,15 +30,19 @@ use crate::domain::lowering::types::PastWidth;
 use crate::domain::steps::types::{
     AnchorKinds, BoundKind, MatchColumns, RangeBound, ReadColumn, Register, StepOperands, StepRows,
 };
-use ryo_relations::domain::relations::types::{Count, KindBits, Relation};
+use ryo_relations::domain::catalog::service::node_extent;
+use ryo_relations::domain::relations::types::{Count, KindBits, NodeExtent, Relation};
 
 /// The flag of the node rows a source covers: `OWN_TREE` when it reads the node table through a relation whose extent is the
 /// file's own tree alone, so the rows of embedded segments are left out. Every word of a node source takes it from here.
-// JOIN(own tree): the `StepRows::Node` arm asks the catalog's `node_extent(relation)` and answers `OWN_TREE` for `NodeExtent::Own`; that function is track C1's, and until it is in this tree no word carries the flag.
-pub(crate) const fn extent_flag(source: StepRows) -> WordFlag {
+pub(crate) fn extent_flag(source: StepRows) -> WordFlag {
     match source {
-        StepRows::Node(_)
-        | StepRows::Filled(_)
+        StepRows::Node(relation) => match node_extent(relation) {
+            Some(NodeExtent::Own) => OWN_TREE,
+            // A relation over the embedded segments too; a filled relation read as node rows has no extent to hold to.
+            Some(NodeExtent::Embedded) | None => WordFlag(0),
+        },
+        StepRows::Filled(_)
         | StepRows::Made(_)
         | StepRows::Written(_)
         | StepRows::Definition(_) => WordFlag(0),

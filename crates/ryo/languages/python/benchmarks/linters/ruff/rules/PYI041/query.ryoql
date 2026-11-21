@@ -24,8 +24,7 @@ let receiver_definitions = lookup_attribute(ordered_contexts=register_contexts, 
 let resolved_registers = select l.function as function, r.definition as interface, l.file as file from register_receivers as l join receiver_definitions as r on l.function = r.context and l.receiver = r.expression and l.file = r.file;
 let dispatch_implementations = select l.function as function, l.file as file from resolved_registers as l join dispatch_interfaces as r on l.interface = r.function and l.file = r.file;
 let annotation_locations = select l.function as function, l.annotation as annotation, r."start-byte" as position, l.file as file from function_annotations as l join "source-location" as r on l.annotation = r.id and l.file = r.file;
-let nonfirst_annotations = select r.function as function, r.annotation as annotation, r.file as file from annotation_locations as l join annotation_locations as r on l.function = r.function and l.file = r.file where l.position < r.position;
-let first_annotations = antijoin(left=annotation_locations, right=nonfirst_annotations, left-on=["function", "annotation", "file"], right-on=["function", "annotation", "file"]);
+let first_annotations = group-min(from=annotation_locations, keys=["function", "file"], order="position");
 let skipped_annotations = select l.annotation as annotation, l.file as file from first_annotations as l join dispatch_implementations as r on l.function = r.function and l.file = r.file;
 let checked_annotations = antijoin(left=function_annotations, right=skipped_annotations, left-on=["annotation", "file"], right-on=["annotation", "file"]);
 let annotation_members = select l.annotation as annotation, r.member as member, l.file as file from checked_annotations as l join members as r on l.annotation = r.root and l.file = r.file;

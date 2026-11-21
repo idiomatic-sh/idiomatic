@@ -54,7 +54,7 @@ let one_keyword_factories = select l.l_id as id, l.l_call as call, l.l_file as f
 let factory_aliases0 = union(left=no_keyword_factories, right=one_keyword_factories);
 let factory_aliases = select id, file from factory_aliases0;
 let all_aliases = union(left=annotated_aliases, right=factory_aliases);
-let typevar_calls = select call, file from callee_origins where path = "typing.TypeVar" or path = "typing_extensions.TypeVar" or path = "typing.TypeVarTuple" or path = "typing_extensions.TypeVarTuple" or path = "typing.ParamSpec" or path = "typing_extensions.ParamSpec";
+let typevar_calls = select call, file from callee_origins where path in ["typing.TypeVar", "typing_extensions.TypeVar", "typing.TypeVarTuple", "typing_extensions.TypeVarTuple", "typing.ParamSpec", "typing_extensions.ParamSpec"];
 let default_keyword_calls = select call, file from keyword_names where name = "default";
 let typevar_name_arguments = select l.call as call, l.file as file from positional_arguments as l join strings as r on l.expression = r.id and l.file = r.file where l.position = 0;
 let default_typevar_calls_join_1 = select l.call as l_call, l.file as l_file, r.call as r_call, r.file as r_file from typevar_calls as l join default_keyword_calls as r on l.call = r.call and l.file = r.file;

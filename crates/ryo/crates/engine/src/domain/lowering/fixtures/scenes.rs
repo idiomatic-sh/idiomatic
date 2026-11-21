@@ -1,10 +1,10 @@
 //! The plans the load and the scan scenarios of the one lowering and the one executor name, each the smallest of its shape.
 
-use super::parts::{at, joined, kept, of, plan, projected, step, words, words_written};
+use super::parts::{at, joined, kept, of, plan, projected, step, without, words, words_written};
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{
-    ComparisonOrigin, HostedNumber, Input, Operand, ParameterId, ParameterName, PlanComparison,
-    Side, StepId, Test,
+    ComparisonOrigin, Direction, HostedNumber, Input, LiteralText, Operand, ParameterId,
+    ParameterName, PlanComparison, QueryLiteral, Side, StepId, Test,
 };
 use ryo_values::domain::plans::types::{Operation, PlanStep};
 use ryo_values::domain::query_bindings::types::{ParameterType, PlanParameter};
@@ -44,24 +44,32 @@ pub(super) fn load_scene(scene: &str) -> Option<Plan> {
             let columns: Vec<u32> = (0..=u32::from(u16::MAX)).map(|column| column % 5).collect();
             plan(vec![words(), projected(0, &columns)])
         }
-        // Two rules over the words: each keeps the words of its own text, so the words are the sub-plan they share.
-        "the words a" => plan(vec![words(), words_written("a", &[])]),
-        "the words b" => plan(vec![words(), words_written("b", &[])]),
-        // The words whose text is the rule's parameter, then each kept: the sub-plan names the parameter.
-        "the words of a parameter" => {
+        // Two rules that share one sub-plan, the words, as the right side of an antijoin: the side of an antijoin that is
+        // asked "is there a row" is a definition whatever its size (it is never flattened into what reads it), so the two
+        // rules lower one definition between them. Each step is read once, and the rules differ in their own step alone.
+        "the elements that are no word" => plan(vec![
+            words(),
+            without(Input::Relation(Relation::SyntaxTree), (&[0], &[1])),
+        ]),
+        "the edges to no word" => plan(vec![
+            words(),
+            without(Input::Relation(Relation::SyntaxChild), (&[1], &[1])),
+        ]),
+        // The edges to no element whose text is the rule's parameter: the right side of the antijoin names the parameter, so
+        // two rules bound to two values lower two definitions, and no step without the parameter is one.
+        "the edges to no word of a parameter" => {
             let mut bound = plan(vec![
-                words(),
                 step(Operation::Select {
-                    from: words_of,
+                    from: Input::Relation(Relation::SyntaxTree),
                     comparisons: vec![PlanComparison {
                         test: Test::Equal,
-                        left: Operand::Column(at(3)),
+                        left: Operand::Column(at(2)),
                         right: Operand::Parameter(ParameterId(0)),
                         origin: ComparisonOrigin::Unrecorded,
                     }],
                     kept: Vec::new(),
                 }),
-                kept(Input::Step(StepId(1))),
+                without(Input::Relation(Relation::SyntaxChild), (&[1], &[0])),
             ]);
             bound.parameters = vec![PlanParameter {
                 name: ParameterName("word".into()),
@@ -97,6 +105,26 @@ pub(super) fn load_scene(scene: &str) -> Option<Plan> {
         ]),
         _ => return None,
     })
+}
+
+/// Every element of `tree` beside its parent by the edges of `edges`: a walk of the parent axis from each element.
+fn parents(tree: Relation, edges: Relation) -> Plan {
+    plan(vec![
+        kept(Input::Relation(tree)),
+        step(Operation::Axis {
+            from: Input::Step(StepId(0)),
+            edges: Input::Relation(edges),
+            domain: Input::Relation(tree),
+            direction: Direction::Parent,
+            id: at(0),
+            parent: at(0),
+            child: at(1),
+            domain_id: at(0),
+            domain_filter: Vec::new(),
+            domain_view: Vec::new(),
+            output: Vec::new(),
+        }),
+    ])
 }
 
 /// The plans of the scan scenarios of the one executor, each the smallest of its shape; none for another name.
@@ -181,6 +209,34 @@ pub(super) fn scan_scene(scene: &str) -> Option<Plan> {
                 vec![of(Side::Left, 1), of(Side::Left, 4)],
             ),
         ]),
+        // The links of the file, every one: a read of the whole relation.
+        "every link" => plan(vec![kept(Input::Relation(Relation::TokenLink))]),
+        // The words beside the links that start at them: a read of the links by one key, their source, for each word.
+        "the links of the words" => plan(vec![
+            words(),
+            joined(
+                words_of,
+                Input::Relation(Relation::TokenLink),
+                (&[1], &[0]),
+                vec![of(Side::Left, 1), of(Side::Left, 4)],
+            ),
+        ]),
+        // Each element beside its parent, walked over the file's own tree and over the tree that holds the embedded segments.
+        "the parents over the syntax tree" => parents(Relation::SyntaxTree, Relation::SyntaxChild),
+        "the parents over the semantic tree" => {
+            parents(Relation::SemanticSyntax, Relation::SemanticChild)
+        }
+        // The child edges whose field is named `label`: the field column holds a field's name, never its code.
+        "the edges of the field label" => plan(vec![step(Operation::Select {
+            from: Input::Relation(Relation::SyntaxChild),
+            comparisons: vec![PlanComparison {
+                test: Test::Equal,
+                left: Operand::Column(at(3)),
+                right: Operand::Literal(QueryLiteral::Text(LiteralText("label".into()))),
+                origin: ComparisonOrigin::Unrecorded,
+            }],
+            kept: Vec::new(),
+        })]),
         // Each word beside each word of its text that comes after it: the pairs of one group, a quarter of its square.
         "pairs within one group" => pairs(Some(step(Operation::Select {
             from: Input::Step(StepId(1)),

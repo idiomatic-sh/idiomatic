@@ -44,7 +44,7 @@ let shadowed = select l.arm as arm from named_bindings as l join declared as r o
 let bound = antijoin(left=named_bindings, right=shadowed, left-on=["arm"], right-on=["arm"]);
 let bodies = select l.match as match, l.arm as arm, l.name as name, r.child as body from bound as l join "syntax-child" as r on l.arm = r.parent where r.field = "expr";
 let blocks = select id from "syntax-tree" where kind = "block-expr";
-let modified = select l.parent as id from "syntax-child" as l join "syntax-tree" as r on l.child = r.id where r.kind = "async-kw" or r.kind = "const-kw" or r.kind = "try-kw" or r.kind = "unsafe-kw" or r.kind = "label";
+let modified = select l.parent as id from "syntax-child" as l join "syntax-tree" as r on l.child = r.id where r.kind in ["async-kw", "const-kw", "try-kw", "unsafe-kw", "label"];
 let plain_blocks = antijoin(left=blocks, right=modified, left-on=["id"], right-on=["id"]);
 let block_lists = select l.parent as block, l.child as list from "syntax-child" as l join plain_blocks as r on l.parent = r.id where l.field = "stmt-list";
 let stated = select parent as list from "syntax-child" where field = "statements";

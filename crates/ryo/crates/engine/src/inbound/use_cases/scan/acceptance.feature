@@ -55,6 +55,24 @@ Feature: scan
       When scan runs over "one two!"
       Then the language filled "1" keys and "0" relations whole
 
+    @succeeds
+    Scenario: a whole fill after keyed fills reads each row once
+      Given the scan input "a keyed read, then the whole relation"
+      When scan runs over "a b c"
+      Then rule "1" found as many rows as "every link" finds alone, and at least one
+
+    @succeeds
+    Scenario: the file's own tree leaves embedded elements out
+      Given the scan input "one walk over each tree"
+      When scan runs over "one <two> three"
+      Then rule "0" found fewer rows than rule "1", and at least one
+
+    @succeeds
+    Scenario: a field test compares the field's name
+      Given the scan input "the edges of the field label"
+      When scan runs over "one: two"
+      Then scan found "1" rows
+
   Rule: a rule's work is counted against its rows, and an overrun is said, never stopped
 
     @succeeds

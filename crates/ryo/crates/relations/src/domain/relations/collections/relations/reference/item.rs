@@ -34,6 +34,8 @@ macro_rules! reference {
             scope File,
             notes Unneeded,
             form Filled(Unique(Occurrence)),
+            size PerElement,
+            keys [Occurrence],
             columns {
                 /// The use: its file and where it starts.
                 occurrence Occurrence: NodeId => Node;

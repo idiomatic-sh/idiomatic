@@ -1,14 +1,14 @@
 import directives from "typescript/oxlint/eslint-directives";
 import parenthesized from "typescript/oxlint/parenthesized";
 let assignments = select id, file, span from "semantic-syntax" where kind = "assignment-expression";
-let tests = select l.parent as owner, l.child as id, r.kind as kind from "semantic-child" as l join "semantic-syntax" as r on l.parent = r.id where l.field = "test" and (r.kind = "if-statement" or r.kind = "while-statement" or r.kind = "do-while-statement" or r.kind = "for-statement" or r.kind = "conditional-expression");
+let tests = select l.parent as owner, l.child as id, r.kind as kind from "semantic-child" as l join "semantic-syntax" as r on l.parent = r.id where l.field = "test" and (r.kind in ["if-statement", "while-statement", "do-while-statement", "for-statement", "conditional-expression"]);
 let tested = select l.id as id, l.file as file, l.span as span, r.kind as kind from assignments as l join tests as r on l.id = r.id;
 let tested_rows = select id, file, span from tested;
 let levels = parenthesized(candidates=tested_rows);
 let wrapped = select id from levels;
 let statement_assignments = select id, file, span from tested where kind != "conditional-expression";
 let bare = antijoin(left=statement_assignments, right=wrapped, left-on=["id"], right-on=["id"]);
-let wrappers = select id from "semantic-syntax" where kind = "ts-as-expression" or kind = "ts-satisfies-expression" or kind = "ts-instantiation-expression" or kind = "ts-non-null-expression" or kind = "ts-type-assertion";
+let wrappers = select id from "semantic-syntax" where kind in ["ts-as-expression", "ts-satisfies-expression", "ts-instantiation-expression", "ts-non-null-expression", "ts-type-assertion"];
 let unwrapping = select l.parent as outer, l.child as inner from "semantic-child" as l join wrappers as r on l.parent = r.id where l.field = "expression";
 let unwrapped = closure(edges=unwrapping, source="outer", destination="inner");
 let conditional_tests = select l.id as id from tests as l join "semantic-syntax" as r on l.owner = r.id where r.kind = "conditional-expression";

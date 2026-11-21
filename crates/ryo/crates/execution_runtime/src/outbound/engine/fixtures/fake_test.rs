@@ -4,7 +4,7 @@
 use super::super::contract::{self, ContractFault, found_in};
 use super::{EngineFake, no_kinds};
 use crate::outbound::engine::interface::EnginePort as _;
-use ryo_engine::domain::lowering::fixtures::named;
+use ryo_engine::domain::lowering::fixtures::{digests_of, named};
 use ryo_engine::domain::lowering::types::{SelectedRule, SelectedRules};
 use ryo_engine::domain::packs::types::{PackBytes, PackDigest};
 use ryo_engine::domain::statistics::types::StatisticsBytes;
@@ -89,10 +89,12 @@ fn asked(scenario: Input) -> Result<Value, ContractFault> {
         Scenario::OtherPlan => "unbound correlated sub-plan",
         Scenario::OverBudget => "program over budget",
     });
+    let digests = digests_of(&plan, RuleBindings(&[]));
     let rule = SelectedRule {
         rule: SelectedRuleOrdinal(0),
         plan: &plan,
         bindings: RuleBindings(&[]),
+        digests: &digests,
     };
     let loaded = fake
         .load(

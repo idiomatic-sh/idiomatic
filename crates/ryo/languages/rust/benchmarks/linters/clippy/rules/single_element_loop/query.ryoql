@@ -32,7 +32,7 @@ let loops = union(left=direct, right=referenced);
 let body_lists = select l.id as id, l.file as file, r.child as list from bodies as l join "syntax-child" as r on l.body = r.parent where r.field = "stmt-list";
 let body_entries = select l.id as id, l.file as file from body_lists as l join "syntax-child" as r on l.list = r.parent where r.field = "statements" or r.field = "tail-expr";
 let filled = project(from=body_entries, columns=["id", "file"]);
-let jumps = select id, file from "syntax-tree" where kind = "break-expr" or kind = "continue-expr" or kind = "for-expr" or kind = "while-expr" or kind = "await-expr";
+let jumps = select id, file from "syntax-tree" where kind in ["break-expr", "continue-expr", "for-expr", "while-expr", "await-expr"];
 let loop_bodies = select body as id, file from bodies;
 let jump_bodies = axis(from=jumps, relation="syntax-child", direction=ancestor, domain=loop_bodies);
 let closures = select id, file from "syntax-tree" where kind = "closure-expr";

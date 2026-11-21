@@ -3,7 +3,7 @@ import attribute_owners from "rust/clippy/attribute-owners";
 import inner_attributes from "rust/clippy/inner-attributes";
 import doc_comments from "rust/clippy/doc-comments";
 import hulls from "rust/clippy/hulls";
-let items = select id, file from "syntax-tree" where kind = "fn" or kind = "module" or kind = "impl" or kind = "trait" or kind = "extern-block";
+let items = select id, file from "syntax-tree" where kind in ["fn", "module", "impl", "trait", "extern-block"];
 let item_parents = select l.id as id, r.parent as parent, l.file as file from items as l join "syntax-child" as r on l.id = r.child;
 let members = select l.id as id, l.file as file from item_parents as l join "syntax-tree" as r on l.parent = r.id where r.kind = "assoc-item-list" or r.kind = "extern-item-list";
 let checked = antijoin(left=items, right=members, left-on=["id"], right-on=["id"]);

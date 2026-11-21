@@ -12,6 +12,8 @@ use crate::domain::plans::types::{Operation, PlanStep};
 use ryo_relations::domain::relations::types::Relation;
 use std::borrow::Cow;
 
+mod digests;
+
 /// What a row of the cases asks of the service.
 #[derive(Clone, Copy)]
 enum Scenario {

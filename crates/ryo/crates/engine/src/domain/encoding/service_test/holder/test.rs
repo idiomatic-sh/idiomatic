@@ -4,7 +4,7 @@
 
 use super::super::fixtures::{listing, mask, of, operands, pack, program, reg, regs, rule, stages};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::code::types::Op;
+use crate::domain::code::types::{Op, ShapeChoice};
 use crate::domain::encoding::constants::LAST_STEP;
 use crate::domain::encoding::service::encoded;
 use crate::domain::lowered::types::{
@@ -82,7 +82,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::AnchorFirst,
         expect: Expect::Value(Cow::Borrowed(
-            "0 End no operand @-\n1 End no operand @-\n2 EachKind EachKindWord { flag: WordFlag(0), kind: KindBits(2), out: Register(0), kinds: PoolAt(0) } @0\n3 Exists ExistsWord { flag: WordFlag(0), keys: Short(0), body: PoolAt(0), key: PoolAt(2), memo: MemoSite(4294967295) } @1\n4 End no operand @-\n",
+            "0 End no operand @-\n1 End no operand @-\n2 EachKind EachKindWord { flag: WordFlag(128), kind: KindBits(2), out: Register(0), kinds: PoolAt(0) } @0\n3 Exists ExistsWord { flag: WordFlag(0), keys: Short(0), body: PoolAt(0), key: PoolAt(2), memo: MemoSite(4294967295) } @1\n4 End no operand @-\n",
         )),
     },
     Case {
@@ -218,6 +218,7 @@ fn pattern<const N: usize>(bound: [u16; N], form: PatternForm) -> DefinitionPatt
         bound: mask(bound),
         collected: mask([1]),
         form,
+        shape: ShapeChoice::Decided,
     }
 }
 

@@ -1,8 +1,10 @@
 //! The steps of the `scan` feature: each a cucumber expression over the world, one to six lines, asserting the part's own results.
 
 use cucumber::{given, then, when};
-use ryo_engine::domain::findings::types::WorkVerdict;
-use ryo_engine::inbound::use_cases::scan::fixtures::{Scanned, every_row, one_group, scanned};
+use ryo_engine::domain::findings::types::{HeaviestWork, WorkVerdict};
+use ryo_engine::inbound::use_cases::scan::fixtures::{
+    Scanned, every_row, one_group, rule_rows, scanned,
+};
 
 use crate::Behavior;
 
@@ -100,11 +102,33 @@ fn kept(world: &Behavior) -> &Scanned {
     scan
 }
 
-/// How many rules the scan noticed over their allowance.
+/// The rows the unit a notice names read or gave in the file, by its kind: a product's is each row of one side with each of
+/// the other.
+const fn worked(heaviest: HeaviestWork) -> u64 {
+    match heaviest {
+        HeaviestWork::Program { visited, .. } | HeaviestWork::Calls { visited, .. } => visited.0,
+        HeaviestWork::Product { left, right } => left.0.saturating_mul(right.0),
+        HeaviestWork::Rows { read, made }
+        | HeaviestWork::Group { read, made }
+        | HeaviestWork::Graph { read, made } => read.0.saturating_add(made.0),
+        HeaviestWork::Sorted { rows } => rows.0,
+        HeaviestWork::OrderedPairs { left, right, made } => {
+            left.0.saturating_add(right.0).saturating_add(made.0)
+        }
+    }
+}
+
+/// How many rules the scan noticed over their allowance. A notice that does not say what did the work fails here: the unit
+/// it names as the heaviest must have read or given a row.
 fn over(scan: &Scanned) -> usize {
-    scan.notices
+    let noticed = scan
+        .notices
         .iter()
-        .filter(|notice| notice.verdict == WorkVerdict::Over)
+        .filter(|notice| notice.verdict == WorkVerdict::Over);
+    noticed
+        .inspect(|notice| {
+            assert_ne!(worked(notice.heaviest), 0, "{notice:?} names no work");
+        })
         .count()
 }
 
@@ -187,4 +211,33 @@ fn noticed(world: &mut Behavior, rules: String) {
         "the scan answered: {}",
         world.answer
     );
+}
+
+/// The rows of one rule in the kept scan; a scenario writes the rule's ordinal.
+fn rows_of(world: &Behavior, rule: &str) -> usize {
+    rule_rows(kept(world), u32::try_from(count(rule)).unwrap_or(u32::MAX))
+}
+
+/// Asserts that a rule of the scanned rule set found the rows the scene of that rule alone finds in the same file: a relation
+/// read whole after it was read by key gives each row once.
+#[then(expr = "rule {string} found as many rows as {string} finds alone, and at least one")]
+fn found_as_alone(world: &mut Behavior, rule: String, scene: String) {
+    let together = rows_of(world, &rule);
+    let alone = crate::load::lowered(&scene).map(|programs| scanned(&programs, &world.text));
+    let Ok(Ok(Some(alone))) = alone else {
+        panic!("the scene `{scene}` did not scan alone: {alone:?}");
+    };
+    assert_ne!(together, 0, "the rule found no row");
+    assert_eq!(
+        together, alone.found.0,
+        "the rule found other rows than alone"
+    );
+}
+
+/// Asserts that one rule found rows and another found more: the first's tree leaves out elements the second's holds.
+#[then(expr = "rule {string} found fewer rows than rule {string}, and at least one")]
+fn found_fewer(world: &mut Behavior, fewer: String, more: String) {
+    let (own, every) = (rows_of(world, &fewer), rows_of(world, &more));
+    assert_ne!(own, 0, "the rule found no row");
+    assert!(own < every, "{own} rows are not fewer than {every}");
 }

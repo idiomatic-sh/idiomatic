@@ -28,6 +28,8 @@ macro_rules! interpolated_string_literal {
             scope File,
             notes Unneeded,
             form Filled(Many(Id)),
+            size PerElement,
+            keys [],
             columns {
                 /// The literal element occurrence.
                 id Id: NodeId => Node;

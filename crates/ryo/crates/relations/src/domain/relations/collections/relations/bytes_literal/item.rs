@@ -24,6 +24,8 @@ macro_rules! bytes_literal {
             scope File,
             notes Unneeded,
             form Filled(Unique(Occurrence)),
+            size PerElement,
+            keys [],
             columns {
                 /// The literal occurrence, including adjacent joined pieces.
                 occurrence Occurrence: NodeId => Node;

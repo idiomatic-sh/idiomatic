@@ -38,6 +38,8 @@ macro_rules! flow_edge {
             scope File,
             notes Unneeded,
             form Filled(Whole),
+            size PerElement,
+            keys [],
             columns {
                 /// The block the edge leaves, by its number in the file.
                 source Source: Integer => Number;
