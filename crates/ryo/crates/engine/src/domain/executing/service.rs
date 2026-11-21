@@ -5,6 +5,7 @@
 
 use super::bodies::service::exists;
 use super::budget::service::reach;
+use super::measuring::types::{Uncounted, WordCounter};
 use super::ordered::service::latest;
 use super::sources::service::{keyed, whole};
 use super::staging::service::staged;
@@ -210,11 +211,21 @@ pub(crate) fn run(
     entry: CodeEntry,
     mode: RunMode,
 ) -> InstructionCount {
+    run_counted::<Uncounted>(frame, entry, mode)
+}
+
+/// `run`, telling `C` of each word: the one loop, of which the plain and the measuring worker each hold an instance.
+pub(crate) fn run_counted<C: WordCounter>(
+    frame: &mut StepFrame<'_, '_>,
+    entry: CodeEntry,
+    mode: RunMode,
+) -> InstructionCount {
     let (base, staged_base) = (frame.state.frames.len(), frame.state.staged.len());
     let (mut at, mut rows, mut steps, mut visited, mut candidates) =
         (entry, 0_u64, 0_u64, 0_u64, 0_u64);
     'program: loop {
         let word = word_at(frame, at);
+        C::word(frame, at);
         steps = steps.saturating_add(1);
         let gives = match mode {
             RunMode::Rows => word.op == Op::Emit,

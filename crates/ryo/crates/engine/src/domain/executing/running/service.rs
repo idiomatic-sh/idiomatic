@@ -316,6 +316,19 @@ fn fill(code: &ProgramCode, table: MadeTableId, out: &mut Vec<WalkPlace>) -> Opt
 
 /// The first unit `rule` can reach that holds a word or a fill the executor does not run; none when it runs them all.
 pub(crate) fn unit_not_run(code: &ProgramCode, rule: &RuleCode) -> Option<WordSlot> {
+    walked(code, rule, &mut Vec::new())
+}
+
+/// The units `rule` can reach, its own first: what the work ledger names the rule an owner of.
+pub(crate) fn units_reached(code: &ProgramCode, rule: &RuleCode) -> Vec<WordSlot> {
+    let mut units = Vec::new();
+    let _unrun: Option<WordSlot> = walked(code, rule, &mut units);
+    units
+}
+
+/// Walks all `rule` can reach, adding each unit met to `units` once; stops at the first unit that holds a word or a fill
+/// the executor does not run, and answers it.
+fn walked(code: &ProgramCode, rule: &RuleCode, units: &mut Vec<WordSlot>) -> Option<WordSlot> {
     let mut pending: Vec<WalkPlace> = Vec::new();
     let mut asked = Vec::new();
     for branch in &rule.branches {
@@ -333,12 +346,24 @@ pub(crate) fn unit_not_run(code: &ProgramCode, rule: &RuleCode) -> Option<WordSl
     while let Some(next) = pending.pop() {
         let (entry, unit) = match next {
             WalkPlace::Program { entry, unit } | WalkPlace::Pipeline { entry, unit } => {
+                if !units.contains(&unit) {
+                    units.push(unit);
+                }
                 (entry, unit)
             }
             WalkPlace::Table(table) => {
                 let seen = tables.get_mut(usize::try_from(table.0).unwrap_or(usize::MAX));
                 if let Some(seen) = seen.filter(|seen| !**seen) {
                     *seen = true;
+                    let own = code
+                        .tables
+                        .get(usize::try_from(table.0).unwrap_or(usize::MAX));
+                    if let Some(unit) = own
+                        .map(|held| held.unit)
+                        .filter(|unit| !units.contains(unit))
+                    {
+                        units.push(unit);
+                    }
                     if let Some(unit) = fill(code, table, &mut pending) {
                         return Some(unit);
                     }
@@ -361,7 +386,8 @@ pub(crate) fn unit_not_run(code: &ProgramCode, rule: &RuleCode) -> Option<WordSl
             if built == WordBuilt::NotYet {
                 return Some(unit);
             }
-            if word.op == Op::End {
+            // A step program ends at its `End`, a pipeline at its `StageWrite`.
+            if word.op == Op::End || word.op == Op::StageWrite {
                 break;
             }
             at = at.saturating_add(1);

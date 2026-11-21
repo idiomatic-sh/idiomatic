@@ -1430,6 +1430,7 @@ name = "idiomatic-sh-ryo-engine"
 version = "0.2.0"
 dependencies = [
  "cargo_metadata",
+ "cpu-time",
  "cucumber",
  "hashbrown 0.17.1",
  "idiomatic-sh-ryo-engine",

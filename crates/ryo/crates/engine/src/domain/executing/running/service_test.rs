@@ -35,6 +35,8 @@ enum Scene {
     CallInAPattern,
     /// A read of a second table whose fill's pipeline keeps by a test of a text the fill side does not run.
     PrefixKeepInAFill,
+    /// A read of a second table whose fill's pipeline scans the constants and writes: every stage runs.
+    AFillThatRuns,
 }
 
 type Input = Scene;
@@ -76,6 +78,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scene::PrefixKeepInAFill,
         expect: Expect::Value([2, 9]),
+    },
+    Case {
+        name: CaseName("a_table_whose_fills_stages_all_run_is_run_whole_to_its_last_stage"),
+        word: Word::Succeeds,
+        input: || Scene::AFillThatRuns,
+        expect: Expect::Value([9, 9]),
     },
 ];
 
@@ -158,11 +166,13 @@ fn pack(scene: Scene) -> LoweredPack {
                 memo: StepMemo::None,
             }],
         ),
-        Scene::PrefixKeepInAFill => (1, Vec::new()),
+        Scene::PrefixKeepInAFill | Scene::AFillThatRuns => (1, Vec::new()),
     };
     let mut stages = Vec::from(scan_made(0, 10, 11));
     let (test, left, right) = prefix(of(11));
-    stages.push(FillStage::Keep { test, left, right });
+    if matches!(scene, Scene::PrefixKeepInAFill) {
+        stages.push(FillStage::Keep { test, left, right });
+    }
     LoweredPack {
         definitions: vec![PackDefinition {
             node: NodeDigest([80; 16]),
