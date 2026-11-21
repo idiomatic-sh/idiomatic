@@ -1,6 +1,7 @@
 //! The cost class and the code of each fill, one row for each.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::code::records::types::EdgeColumns;
 use crate::domain::code::types::FillCode;
 use crate::domain::lowered::service::{fill_class, fill_code};
 use crate::domain::lowered::types::{
@@ -188,7 +189,10 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::Places => MadeFill::Group(GroupFill::Places, input()),
         Scenario::Sorted => MadeFill::Ordered(OrderedFill::Sorted(input())),
         Scenario::Match => MadeFill::Ordered(OrderedFill::Match(input(), input())),
-        Scenario::FixedPoints => graph(GraphFill::FixedPoints),
+        Scenario::FixedPoints => graph(GraphFill::FixedPoints(EdgeColumns {
+            source: MadeColumn(0),
+            destination: MadeColumn(1),
+        })),
         Scenario::OrderedDfs => graph(GraphFill::OrderedDfs),
         Scenario::Worklist => graph(GraphFill::Worklist),
         Scenario::Cycles => graph(GraphFill::Cycles),

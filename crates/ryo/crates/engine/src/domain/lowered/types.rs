@@ -1,5 +1,6 @@
 //! The types of the `lowered` concept: what the lowering writes and the load-time passes rewrite: the pack's definitions and made tables once each, then each rule's own program. Crate-private; dropped once encoded.
 
+use crate::domain::code::records::types::EdgeColumns;
 use crate::domain::code::types::ShapeChoice;
 use crate::domain::findings::types::RuleColumns;
 use crate::domain::steps::stages::types::{Pipeline, PlacedStage};
@@ -198,11 +199,41 @@ pub(crate) enum OrderedFill {
     Match(FillInput, FillInput),
 }
 
-/// The graph tables: each has the operation's output columns.
+/// The graph tables. A variant holds the columns of its inputs' rows that its kernel is told and `FillInput` has no field
+/// for: the record the encoding writes and the executor reads (`code::records`). What `FillInput.keys` and `.order` are
+/// for each input is said with the variant. The columns of the table's row, in order, are
+/// `lowered::graphs::service::graph_row`; a reader finds a column's place with `graph_column`, and the encoding writes no
+/// graph table that is not the width `graph_width` answers. A reader reads a graph table as it reads a group table: by
+/// any of its `indexes`, each a list of this row's columns and none of them ordered, or every row with no key; `Latest`
+/// does not read it. The order of a graph table's rows is the fill's, and no reader may lean on it.
+///
+/// What the budget counts of a graph fill is `HeaviestWork::Graph`: `read`, the rows of its inputs and every visit its
+/// kernel makes of an edge after the first; `made`, the rows it writes. Nothing stops a graph fill.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum GraphFill {
-    /// `follow`: the keys, the source, the destination.
-    FixedPoints,
+    /// `follow`: each source with every fixed point it reaches.
+    ///
+    /// The input. One, the edges: its rows are its pipelines' rows, and the columns held here are the source and the
+    /// destination of such a row, cells of one kind. Its `keys` are the columns that part the edges into graphs that
+    /// never meet, none for one graph of the file; its `order` is none.
+    ///
+    /// The row. The keys' cells in the order of `keys`, then the source, then the fixed point: `Key(0)..`, `Source`,
+    /// `Destination`, two columns more than the keys. This is the order of the operation's own answer.
+    ///
+    /// The rows, as `ryo_operators::domain::follow::service::fixed_points` makes them of one key's edges. A fixed point
+    /// is an entity with an edge to itself, and it answers itself. One row for each pair of a source and a fixed point
+    /// its edges lead to, each pair once: a repeated edge adds nothing, and a source with several targets has a row
+    /// for every fixed point it reaches. A walk that runs out of edges gives no row, and neither does a ring of more
+    /// than one edge that reaches no fixed point. So of one key 7 with the edges (1, 2), (2, 3), (3, 3) the rows are
+    /// `[7, 1, 3]`, `[7, 2, 3]`, `[7, 3, 3]`: the operators crate's case
+    /// `each_source_answers_its_fixed_point_and_a_self_pointer_answers_itself`.
+    ///
+    /// The cost. Class `Group`: the work never crosses a key. Within one it is the key's edges, sorted once, and one
+    /// walk back from each fixed point: the edges when each source has one target, and at most the edges times the
+    /// fixed points when sources have several. The rows are then every pair of a source and a fixed point it reaches,
+    /// which are the plan's own rows; the walks' visits are counted as `read`, so a key whose walks pass the rule's
+    /// allowance is a notice that names this table.
+    FixedPoints(EdgeColumns),
     /// `ordered-dfs`.
     OrderedDfs,
     /// `worklist`.

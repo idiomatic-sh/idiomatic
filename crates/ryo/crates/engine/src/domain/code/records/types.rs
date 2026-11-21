@@ -117,3 +117,13 @@ pub(crate) enum NeedRecord {
         offsets: WordSlot,
     },
 }
+
+/// The columns of an edge row a graph fill's kernel is told: where an edge leaves from and where it arrives. What a `follow`
+/// and a `cycles` fill hold, and the record the table's one parameter names: `source, destination`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct EdgeColumns {
+    /// The column of the entity an edge leaves.
+    pub(crate) source: MadeColumn,
+    /// The column of the entity it arrives at: a cell of the source's kind.
+    pub(crate) destination: MadeColumn,
+}

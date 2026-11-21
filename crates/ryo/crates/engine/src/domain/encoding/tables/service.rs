@@ -2,7 +2,7 @@
 //! reached written after the rule, in the order reached, so a count past its width is the refusal of the rule that reached it.
 
 use crate::domain::code::constants::NO_SLOT;
-use crate::domain::code::records::service::next_place;
+use crate::domain::code::records::service::{next_place, push_edge_columns};
 use crate::domain::code::types::{MeasuredForm, ShapeChoice, UnitKey};
 use crate::domain::code::types::{Short, TableCode, WordSlot};
 use crate::domain::encoding::needs::service::{definition_need, need_site};
@@ -12,6 +12,7 @@ use crate::domain::encoding::sites::service::{constant, fault, index, past, slot
 use crate::domain::encoding::types::{Encoding, ReachedUnit};
 use crate::domain::encoding::types::{PatternKey, ProgramRole};
 use crate::domain::encoding::units::service::{begin_unit, end_unit};
+use crate::domain::lowered::graphs::service::graph_width;
 use crate::domain::lowered::service::{fill_code, match_left_width};
 use crate::domain::lowered::types::PatternForm;
 use crate::domain::lowered::types::{
@@ -87,8 +88,9 @@ fn fill_input(
 }
 
 /// The one parameter of a fill's record: the distinct column of a count (or none), the column a digest is over, the end a
-/// group keeps (0 the least, 1 the greatest), whether a definition's rows drop repeats, how many rows a constant table has.
-fn parameter(encoding: &Encoding<'_>, fill: &MadeFill) -> Result<WordSlot, LoweringError> {
+/// group keeps (0 the least, 1 the greatest), whether a definition's rows drop repeats, how many rows a constant table has,
+/// and for a graph fill the place in the pool of the record of the columns its kernel is told, written here.
+fn parameter(encoding: &mut Encoding<'_>, fill: &MadeFill) -> Result<WordSlot, LoweringError> {
     Ok(match fill {
         MadeFill::Rows(_, repeats) => match repeats {
             RepeatedRows::Dropped => WordSlot(1),
@@ -109,10 +111,10 @@ fn parameter(encoding: &Encoding<'_>, fill: &MadeFill) -> Result<WordSlot, Lower
             OrderedFill::Sorted(_) | OrderedFill::Match(..) => WordSlot(0),
         },
         MadeFill::Graph(graph, _) => match graph {
-            GraphFill::FixedPoints
-            | GraphFill::OrderedDfs
-            | GraphFill::Worklist
-            | GraphFill::Cycles => WordSlot(0),
+            GraphFill::FixedPoints(columns) => {
+                WordSlot(push_edge_columns(&mut encoding.code.pool, *columns).0)
+            }
+            GraphFill::OrderedDfs | GraphFill::Worklist | GraphFill::Cycles => WordSlot(0),
         },
         MadeFill::Constant(rows) => slot_of(encoding, Count(rows.0.len()), PastWidth::Sites)?,
     })
@@ -150,6 +152,27 @@ fn inputs_written(
     }
 }
 
+/// Holds a table to the row its fill states. An ordered match's row is its two inputs' rows, one after the other, and a
+/// graph table's row is `graph_row` of its fill: a table of any other width is not one, and every read of it by place
+/// would be of the wrong column. The other fills state no width the encoding can hold them to.
+fn row_held(encoding: &Encoding<'_>, table: &MadeTable) -> Result<(), LoweringError> {
+    let stated = match &table.fill {
+        MadeFill::Ordered(OrderedFill::Match(left, right)) => {
+            match_left_width(left, right, table.width).map(|_| table.width)
+        }
+        MadeFill::Graph(graph, inputs) => graph_width(*graph, inputs),
+        MadeFill::Rows(..)
+        | MadeFill::Group(..)
+        | MadeFill::Ordered(OrderedFill::Sorted(_))
+        | MadeFill::Constant(_) => Some(table.width),
+    };
+    if stated == Some(table.width) {
+        Ok(())
+    } else {
+        Err(fault(encoding))
+    }
+}
+
 /// Writes a reached table as its own unit: its pipelines, then its record (its width, the list of its index sites, its one
 /// parameter, then each input), and the need it waits on.
 fn table_written(encoding: &mut Encoding<'_>, id: MadeTableId) -> Result<(), LoweringError> {
@@ -157,12 +180,7 @@ fn table_written(encoding: &mut Encoding<'_>, id: MadeTableId) -> Result<(), Low
     let place = usize::try_from(id.0).map_err(|_| fault(encoding))?;
     let table: &MadeTable = pack.tables.get(place).ok_or_else(|| fault(encoding))?;
     let code = fill_code(&table.fill);
-    // An ordered match's row is its two inputs' rows, one after the other: a table of any other width is not one.
-    if let MadeFill::Ordered(OrderedFill::Match(left, right)) = &table.fill
-        && match_left_width(left, right, table.width).is_none()
-    {
-        return Err(fault(encoding));
-    }
+    row_held(encoding, table)?;
     begin_unit(
         encoding,
         UnitKey::Table(table.node, code),

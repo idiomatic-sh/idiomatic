@@ -1,12 +1,14 @@
 //! The services of the `records` part: the one place a pool record and a need record are written and read. A reader answers
 //! none for a place the slots do not reach and for a tag no record has.
 
-use super::types::{BodyRecord, BoundFormal, CollectedRead, NeedRecord, PooledOperand, ReadBody};
+use super::types::{
+    BodyRecord, BoundFormal, CollectedRead, EdgeColumns, NeedRecord, PooledOperand, ReadBody,
+};
 use crate::domain::code::constants::NO_SLOT;
 use crate::domain::code::types::{
     CodeEntry, ConstantNumber, IndexSite, MemoSite, NeedSite, PoolAt, RelationNumber, WordSlot,
 };
-use crate::domain::steps::types::{MadeTableId, Register};
+use crate::domain::steps::types::{MadeColumn, MadeTableId, Register};
 
 /// How many slots an operand takes.
 pub(crate) const OPERAND_SLOTS: WordSlot = WordSlot(2);
@@ -227,5 +229,38 @@ pub(crate) fn need_at(needs: &[WordSlot], at: WordSlot) -> Option<NeedRecord> {
             offsets: WordSlot(at.0.checked_add(2)?),
         },
         7..=u32::MAX => return None,
+    })
+}
+
+/// The column a slot of a graph fill's record names, `ahead` places after `at`; none for a number no column has.
+fn column_at(pool: &[WordSlot], at: PoolAt, ahead: WordSlot) -> Option<MadeColumn> {
+    match u16::try_from(slot_at(pool, WordSlot(at.0), ahead)?.0) {
+        Ok(column) => Some(MadeColumn(column)),
+        Err(_) => None,
+    }
+}
+
+/// The slot that names a column of a graph fill's record.
+fn column_slot(column: MadeColumn) -> WordSlot {
+    WordSlot(u32::from(column.0))
+}
+
+/// Writes the record of the edge columns of a `follow` or a `cycles` fill: `source, destination`. The place it answers is
+/// the one parameter of the table's fill record.
+pub(crate) fn push_edge_columns(pool: &mut Vec<WordSlot>, columns: EdgeColumns) -> PoolAt {
+    let at = next_place(pool);
+    pool.extend_from_slice(&[
+        column_slot(columns.source),
+        column_slot(columns.destination),
+    ]);
+    at
+}
+
+/// The edge columns of a `follow` or a `cycles` fill, at the place its table's one parameter names.
+#[must_use]
+pub(crate) fn edge_columns_at(pool: &[WordSlot], at: PoolAt) -> Option<EdgeColumns> {
+    Some(EdgeColumns {
+        source: column_at(pool, at, WordSlot(0))?,
+        destination: column_at(pool, at, WordSlot(1))?,
     })
 }
