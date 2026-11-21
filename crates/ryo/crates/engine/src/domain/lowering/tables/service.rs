@@ -3,9 +3,9 @@
 //! there, each by name, and refused as the step that cannot be evaluated. A rule is never refused for its cost or its size.
 
 use crate::domain::lowering::nodes::service::{digested, input_shape, reached};
-use crate::domain::lowering::nodes::types::{AdmittedRule, StepShape};
-use crate::domain::lowering::types::{LoadRefusal, PastWidth, PlanNode, SelectedRule};
+use crate::domain::lowering::nodes::types::{AdmittedRule, StepReach, StepShape};
 use crate::domain::lowering::tables::types::TreeAxis;
+use crate::domain::lowering::types::{LoadRefusal, PastWidth, PlanNode, SelectedRule};
 use crate::domain::steps::types::{AxisDirection, TestOperation};
 use ryo_relations::domain::catalog::service::{fact_form, node_column};
 use ryo_relations::domain::relations::service::columns;
@@ -50,7 +50,7 @@ fn operand_kind(rule: &SelectedRule<'_>, shape: &StepShape, operand: &Operand) -
         Operand::Literal(QueryLiteral::Number(_)) => Some(CellKind::Number),
         Operand::Literal(QueryLiteral::Text(_)) => Some(CellKind::Symbol),
         Operand::Parameter(parameter) => {
-            let place = usize::try_from(parameter.0).ok()?;
+            let place = usize::try_from(parameter.0).unwrap_or(usize::MAX);
             match rule.bindings.0.get(place)? {
                 ParameterBinding::Number(_) => Some(CellKind::Number),
                 ParameterBinding::Text(_) => Some(CellKind::Symbol),
@@ -65,18 +65,23 @@ fn operand_kind(rule: &SelectedRule<'_>, shape: &StepShape, operand: &Operand) -
     }
 }
 
-/// Whether every comparison can be written over a row of `shape`.
-fn comparable(rule: &SelectedRule<'_>, shape: &StepShape, comparisons: &[PlanComparison]) -> bool {
-    comparisons.iter().all(|comparison| {
-        let written = match (comparison.test, &comparison.right) {
+/// The shape, when every comparison can be written over a row of it; none when one cannot.
+fn comparable<'s>(
+    rule: &SelectedRule<'_>,
+    shape: &'s StepShape,
+    comparisons: &[PlanComparison],
+) -> Option<&'s StepShape> {
+    let mut each = comparisons.iter();
+    let written = each.all(|comparison| {
+        let test = match (comparison.test, &comparison.right) {
             (Test::Matches, Operand::Literal(QueryLiteral::Text(_))) => true,
             (Test::Matches, _) => false,
             (test, _) => test_of(test).is_some(),
         };
-        written
-            && operand_kind(rule, shape, &comparison.left).is_some()
+        test && operand_kind(rule, shape, &comparison.left).is_some()
             && operand_kind(rule, shape, &comparison.right).is_some()
-    })
+    });
+    written.then_some(shape)
 }
 
 /// The kinds of a row at the given columns; none when a column is past the row.
@@ -103,20 +108,37 @@ fn joined(left: &StepShape, right: &StepShape, output: &[JoinColumn]) -> Option<
     kinds.map(StepShape)
 }
 
-/// Whether each key column is within its side's row and the two sides have as many keys.
-fn keys_held(left: &StepShape, right: &StepShape, on: (&[ColumnIndex], &[ColumnIndex])) -> bool {
-    on.0.len() == on.1.len() && picked(left, on.0).is_some() && picked(right, on.1).is_some()
+/// The left side's shape, when each key column is within its side's row and the two sides have as many keys.
+fn keyed<'s>(
+    left: &'s StepShape,
+    right: &StepShape,
+    left_on: &[ColumnIndex],
+    right_on: &[ColumnIndex],
+) -> Option<&'s StepShape> {
+    let held = left_on.len() == right_on.len()
+        && picked(left, left_on).is_some()
+        && picked(right, right_on).is_some();
+    held.then_some(left)
 }
 
 /// The node relation an axis walks the tree of: its edges are a relation of the node-table form whose parent and child
 /// columns are the node table's parent and element. None for edges a step derives.
 #[must_use]
-pub(crate) fn tree_relation(edges: &Input, parent: ColumnIndex, child: ColumnIndex) -> Option<Relation> {
+pub(crate) fn tree_relation(
+    edges: &Input,
+    parent: ColumnIndex,
+    child: ColumnIndex,
+) -> Option<Relation> {
     let Input::Relation(relation) = edges else {
         return None;
     };
     let listed = columns(*relation);
-    let column = |place: ColumnIndex| listed.get(usize::from(place)).copied().and_then(node_column);
+    let column = |place: ColumnIndex| {
+        listed
+            .get(usize::from(place))
+            .copied()
+            .and_then(node_column)
+    };
     let tree = fact_form(*relation) == FactForm::NodeTable
         && column(parent) == Some(NodeColumn::Parent)
         && column(child) == Some(NodeColumn::Id);
@@ -154,9 +176,7 @@ fn shaped(
             kept,
         } => {
             let shape = of(from)?;
-            if !comparable(rule, &shape, comparisons) {
-                return None;
-            }
+            let _written = comparable(rule, &shape, comparisons)?;
             if kept.is_empty() {
                 Some(shape)
             } else {
@@ -184,8 +204,9 @@ fn shaped(
         } => {
             let (left, right) = (of(left)?, of(right)?);
             // A join against a closure (`reach`) and a join through a view of its right side are not lowered yet.
-            let plain = view.is_empty() && reach.is_none() && comparable(rule, &right, filter);
-            (plain && keys_held(&left, &right, (left_on, right_on)))
+            let plain =
+                view.is_empty() && reach.is_none() && comparable(rule, &right, filter).is_some();
+            (plain && keyed(&left, &right, left_on, right_on).is_some())
                 .then(|| joined(&left, &right, output))
                 .flatten()
         }
@@ -200,7 +221,7 @@ fn shaped(
             right_on,
         } => {
             let (left, right) = (of(left)?, of(right)?);
-            keys_held(&left, &right, (left_on, right_on)).then_some(left)
+            keyed(&left, &right, left_on, right_on).cloned()
         }
         Operation::GroupCount {
             from,
@@ -225,7 +246,7 @@ fn shaped(
             let (left, right) = (of(left)?, of(right)?);
             let ordered = picked(&left, &[*left_order]).is_some()
                 && picked(&right, &[*right_order]).is_some();
-            (ordered && keys_held(&left, &right, (left_on, right_on)))
+            (ordered && keyed(&left, &right, left_on, right_on).is_some())
                 .then(|| joined(&left, &right, output))
                 .flatten()
         }
@@ -248,7 +269,7 @@ fn shaped(
             let tree = tree_relation(edges, *parent, *child).is_some();
             let plain = domain_view.is_empty()
                 && output.is_empty()
-                && comparable(rule, &domain, domain_filter)
+                && comparable(rule, &domain, domain_filter).is_some()
                 && (domain_filter.is_empty() || walk_of(*direction) != Some(TreeAxis::Nearest));
             let reached = *domain.0.get(usize::from(*domain_id))?;
             let _start = shape.0.get(usize::from(*id))?;
@@ -288,13 +309,12 @@ fn shaped(
 /// order), or the columns of a step when they are past the width a table's columns are counted in.
 pub(crate) fn admitted<'a>(rule: SelectedRule<'a>) -> Result<AdmittedRule<'a>, LoadRefusal> {
     let plan = rule.plan;
-    let unlowerable = |step: usize| {
-        LoadRefusal::Unlowerable(PlanNode(u32::try_from(step).unwrap_or(u32::MAX)))
-    };
+    let unlowerable =
+        |step| LoadRefusal::Unlowerable(PlanNode(u32::try_from(step).unwrap_or(u32::MAX)));
     let reached = reached(plan).map_err(|step| unlowerable(usize::from(step)))?;
     let mut shapes: Vec<Option<StepShape>> = vec![None; plan.steps.len()];
     for (place, step) in plan.steps.iter().enumerate() {
-        if reached.get(place) != Some(&true) {
+        if reached.get(place) != Some(&StepReach::Reached) {
             continue;
         }
         let per_file = step.scope == StepScope::PerFile && plan.frontier.is_empty();

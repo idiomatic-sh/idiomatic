@@ -128,7 +128,7 @@ pub(crate) struct FlatBranch {
 
 /// A column of a row, or a cell of an atom, by place.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(crate) struct ColumnPlace(pub(crate) usize);
+pub(crate) struct RowColumn(pub(crate) usize);
 
 /// Two terms an equality holds equal.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

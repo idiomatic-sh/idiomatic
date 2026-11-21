@@ -21,19 +21,23 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("one_rule_of_two_steps_is_two_nodes_each_read_once"),
         word: Word::Succeeds,
-        input: || &["the words a"],
+        input: || &["the edges to no word"],
         expect: Expect::Value((2, 1, 1)),
     },
     Case {
-        name: CaseName("two_steps_that_differ_in_one_literal_are_two_nodes_and_the_step_both_read_is_one_with_two_readers"),
+        name: CaseName(
+            "two_steps_that_differ_in_one_literal_are_two_nodes_and_the_step_both_read_is_one_with_two_readers",
+        ),
         word: Word::Succeeds,
-        input: || &["the words a", "the words b"],
+        input: || &["the elements that are no word", "the edges to no word"],
         expect: Expect::Value((3, 2, 1)),
     },
     Case {
-        name: CaseName("one_plan_selected_twice_is_the_same_nodes_and_its_emitted_step_has_a_reader_in_each_rule"),
+        name: CaseName(
+            "one_plan_selected_twice_is_the_same_nodes_and_its_emitted_step_has_a_reader_in_each_rule",
+        ),
         word: Word::Succeeds,
-        input: || &["the words a", "the words a"],
+        input: || &["the edges to no word", "the edges to no word"],
         expect: Expect::Value((2, 1, 2)),
     },
 ];
@@ -54,8 +58,8 @@ fn subject(scenes: Input) -> Result<Value, Failure> {
     let emitted = first.rule.plan.emit.step;
     Ok((
         store.0.len(),
-        readers(&store, digest_of(first, StepId(0))),
-        readers(&store, digest_of(first, emitted)),
+        readers(&store, digest_of(first, StepId(0))).0,
+        readers(&store, digest_of(first, emitted)).0,
     ))
 }
 

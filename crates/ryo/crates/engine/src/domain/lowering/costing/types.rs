@@ -1,7 +1,7 @@
 //! The types of the `costing` part: how a cell stands when its atom is placed, and what an access of the atom then is.
 
 use crate::domain::lowering::definitions::types::RowEstimate;
-use crate::domain::lowering::flattening::types::ColumnPlace;
+use crate::domain::lowering::flattening::types::RowColumn;
 use crate::domain::steps::types::CostClass;
 
 /// How a cell of an atom stands when the atom is placed.
@@ -22,7 +22,7 @@ pub(crate) enum CellState {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct KeyChoice {
     /// The cells that key the access, by place; none: every row of the source.
-    pub(crate) cells: Vec<ColumnPlace>,
+    pub(crate) cells: Vec<RowColumn>,
     /// What bounds the access: a fan-out with a register among its key, the file's rows otherwise.
     pub(crate) class: CostClass,
     /// The rows it gives.

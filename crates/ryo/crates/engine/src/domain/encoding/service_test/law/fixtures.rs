@@ -4,6 +4,7 @@
 use super::super::fixtures::{
     every_stage, mask, of, operands, pack, program, reg, regs, rule, stages, word,
 };
+use crate::domain::code::types::ShapeChoice;
 use crate::domain::lowered::types::{
     ConstantRows, DefinitionPattern, Emptiness, FillInput, GroupFill, LoweredPack, MadeFill,
     MadeTable, OrderedFill, PackDefinition, PatternForm, RowValue,
@@ -253,16 +254,19 @@ fn definition(
                 bound: mask([0]),
                 collected: mask([1]),
                 form: keyed,
+                shape: ShapeChoice::Open,
             },
             DefinitionPattern {
                 bound: mask([]),
                 collected: mask([0, 1]),
                 form: PatternForm::Table(own),
+                shape: ShapeChoice::Decided,
             },
             DefinitionPattern {
                 bound: mask([0]),
                 collected: mask([]),
                 form: PatternForm::Table(own),
+                shape: ShapeChoice::Decided,
             },
         ],
     }

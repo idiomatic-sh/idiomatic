@@ -1,8 +1,11 @@
 //! The services of the `nodes` part: the steps a rule's emit reaches, each visited once; the shape of an input; and the pack's
 //! store of merged plan nodes with every node's readers. A node is named by its digest alone (`digests::service::node_digests`).
 
-use super::types::{NodeHome, NodeReader, NodeStore, AdmittedRule, StepShape, StoredNode};
+use super::types::{
+    AcceptedPlace, AdmittedRule, NodeHome, NodeReader, NodeStore, StepReach, StepShape, StoredNode,
+};
 use ryo_relations::domain::relations::service::kinds;
+use ryo_relations::domain::relations::types::Count;
 use ryo_values::domain::plan_parts::types::{Input, InputNumber, StepId};
 use ryo_values::domain::plans::service::{inputs_of, named};
 use ryo_values::domain::query_plans::types::{NodeDigest, Plan};
@@ -10,14 +13,14 @@ use std::collections::HashSet;
 
 /// The steps of `plan` its emit reaches, by step: each step is visited once, whatever the number of paths to it. None when a
 /// step reads a step that is not before it: such a plan cannot be evaluated, and the step is named.
-pub(crate) fn reached(plan: &Plan) -> Result<Vec<bool>, StepId> {
-    let mut reached = vec![false; plan.steps.len()];
+pub(crate) fn reached(plan: &Plan) -> Result<Vec<StepReach>, StepId> {
+    let mut reached = vec![StepReach::Unreached; plan.steps.len()];
     let mut waiting = vec![plan.emit.step];
     while let Some(step) = waiting.pop() {
         let place = usize::from(step);
         match reached.get_mut(place) {
-            Some(seen) if *seen => continue,
-            Some(seen) => *seen = true,
+            Some(StepReach::Reached) => continue,
+            Some(seen) => *seen = StepReach::Reached,
             None => return Err(step),
         }
         let Some(each) = plan.steps.get(place) else {
@@ -64,13 +67,20 @@ pub(crate) fn stored(rules: &[AdmittedRule<'_>]) -> NodeStore {
     for (place, rule) in rules.iter().enumerate() {
         let mut read = |digest: NodeDigest, step: StepId, reader: NodeReader| {
             let node = store.0.entry(digest).or_insert_with(|| StoredNode {
-                home: NodeHome { rule: place, step },
+                home: NodeHome {
+                    rule: AcceptedPlace(place),
+                    step,
+                },
                 readers: HashSet::new(),
             });
             let _new = node.readers.insert(reader);
         };
         let emitted = rule.rule.plan.emit.step;
-        read(digest_of(rule, emitted), emitted, NodeReader::Emit(rule.rule.rule));
+        read(
+            digest_of(rule, emitted),
+            emitted,
+            NodeReader::Emit(rule.rule.rule),
+        );
         for (at, each) in rule.rule.plan.steps.iter().enumerate() {
             if rule.shapes.get(at).is_none_or(Option::is_none) {
                 continue;
@@ -89,12 +99,14 @@ pub(crate) fn stored(rules: &[AdmittedRule<'_>]) -> NodeStore {
 
 /// How many distinct readers a node has across the pack; none for a node the store does not hold.
 #[must_use]
-pub(crate) fn readers(store: &NodeStore, digest: NodeDigest) -> usize {
-    store.0.get(&digest).map_or(0, |node| node.readers.len())
+pub(crate) fn readers(store: &NodeStore, digest: NodeDigest) -> Count {
+    Count(store.0.get(&digest).map_or(0, |node| node.readers.len()))
 }
 
 /// The digest of every step of a rule, in step order: the one place the lowering takes digests from.
 #[must_use]
-pub(crate) fn digested(rule: &crate::domain::lowering::types::SelectedRule<'_>) -> ryo_values::domain::query_plans::types::NodeDigests {
+pub(crate) fn digested(
+    rule: &crate::domain::lowering::types::SelectedRule<'_>,
+) -> ryo_values::domain::query_plans::types::NodeDigests {
     crate::domain::digests::service::node_digests(rule.plan, rule.bindings)
 }

@@ -5,16 +5,22 @@
 use crate::domain::lowering::definitions::types::Drafts;
 use crate::domain::lowering::flattening::service::pins_of;
 use crate::domain::lowering::flattening::types::{FlatBranch, FlatTerm};
-use crate::domain::lowering::planning::emitting::service::{atom_written, operand, uses_of};
+use crate::domain::lowering::planning::emitting::service::atom_written;
+use crate::domain::lowering::planning::forms::service::{stage_of, step_of};
+use crate::domain::lowering::planning::operands::service::{operand, uses_of};
+use crate::domain::lowering::planning::types::BranchStart;
+use crate::domain::lowering::planning::types::Enumerated;
+use crate::domain::lowering::planning::types::PatternColumns;
+use crate::domain::lowering::planning::types::WrittenUnit;
 use crate::domain::lowering::planning::types::{
-    WrittenAccess, Emitter, Environment, PlannedBranch, UnitRole,
+    Emitter, Environment, PlannedBranch, UnitRole, WrittenAccess,
 };
-use crate::domain::steps::stages::types::{FillStage, Pipeline, PlacedStage, TreeWalk, UseMode};
+use crate::domain::steps::stages::types::{Pipeline, PlacedStage};
 use crate::domain::steps::types::{
-    ColumnMask, DefinitionId, EmitTarget, NearestEdges, PlacedStep, Polarity, ProgramStep,
-    Register, RegisterList, StepBody, StepMemo, StepOperand, StepOperands, StepProgram,
-    TestOperation,
+    ColumnMask, DefinitionId, EmitTarget, PlacedStep, ProgramStep, RegisterList, StepOperand,
+    StepOperands, StepProgram, TestOperation,
 };
+use ryo_relations::domain::relations::types::Count;
 use ryo_values::domain::descriptions::types::KindVocabulary;
 
 /// The accesses of a branch in its planned order, from an environment.
@@ -23,21 +29,21 @@ fn accesses<'a>(
     kinds: &'a KindVocabulary,
     branch: &FlatBranch,
     plan: &PlannedBranch,
-    unit: (UnitRole, Option<DefinitionId>),
-    start: (Environment, Vec<WrittenAccess>, Option<&ColumnMask>),
+    unit: WrittenUnit,
+    start: BranchStart<'_>,
 ) -> Emitter<'a> {
-    let mut environment = start.0;
+    let mut environment = start.environment;
     environment.pins = pins_of(branch);
     let mut emitter = Emitter {
         drafts,
         kinds,
-        role: unit.0,
-        unit: unit.1,
+        role: unit.role,
+        unit: unit.definition,
         row: branch.row.clone(),
-        uses: uses_of(branch, start.2),
+        uses: uses_of(branch, start.gives),
         environment,
-        written: start.1,
-        missed: 0,
+        written: start.written,
+        missed: Count(0),
     };
     for at in &plan.order {
         if let Some(atom) = branch.atoms.get(at.0) {
@@ -45,140 +51,6 @@ fn accesses<'a>(
         }
     }
     emitter
-}
-
-/// One access as a step of a program.
-fn step_of(access: WrittenAccess) -> ProgramStep {
-    match access {
-        WrittenAccess::Rows {
-            source,
-            columns,
-            values,
-            kinds,
-            out,
-        } => match kinds {
-            Some((relation, kinds)) => ProgramStep::EachKind {
-                relation,
-                kinds,
-                out,
-            },
-            None if columns.0.is_empty() => ProgramStep::EachRow { source, out },
-            None => ProgramStep::EachMatch {
-                source,
-                columns,
-                values,
-                out,
-            },
-        },
-        WrittenAccess::Use {
-            definition,
-            bound,
-            collected,
-            values,
-            outputs,
-            mode,
-        } => {
-            let body = StepBody::Definition {
-                definition,
-                bound,
-                collected,
-                values,
-            };
-            match mode {
-                UseMode::Present => ProgramStep::Exists {
-                    polarity: Polarity::Present,
-                    body,
-                    memo: StepMemo::None,
-                },
-                UseMode::Absent => ProgramStep::Exists {
-                    polarity: Polarity::Absent,
-                    body,
-                    memo: StepMemo::None,
-                },
-                UseMode::Rows => ProgramStep::Or {
-                    bodies: [body].into(),
-                    outputs,
-                    memo: StepMemo::None,
-                },
-            }
-        }
-        WrittenAccess::Latest {
-            table,
-            key,
-            bound,
-            side,
-            out,
-        } => ProgramStep::Latest {
-            table,
-            key,
-            bound,
-            side,
-            out,
-        },
-        WrittenAccess::Read {
-            source,
-            column,
-            row,
-            out,
-        } => ProgramStep::Read {
-            source,
-            column,
-            row,
-            out,
-        },
-        WrittenAccess::Test { test, left, right } => ProgramStep::Test { test, left, right },
-        WrittenAccess::Axis {
-            relation,
-            direction,
-            start,
-            out,
-        } => ProgramStep::Axis {
-            relation,
-            direction,
-            start,
-            out,
-        },
-        WrittenAccess::Children {
-            relation,
-            parent,
-            out,
-        } => ProgramStep::Children {
-            relation,
-            parent,
-            field: None,
-            out,
-        },
-        WrittenAccess::Within {
-            relation,
-            ancestor,
-            descendant,
-        } => ProgramStep::Within {
-            relation,
-            ancestor,
-            descendant,
-        },
-        WrittenAccess::Nearest {
-            relation,
-            domain,
-            column,
-            element,
-            start,
-            out,
-        } => ProgramStep::Nearest {
-            edges: NearestEdges::Tree(relation),
-            condition: StepBody::Definition {
-                definition: domain,
-                bound: ColumnMask([column].into()),
-                collected: ColumnMask::default(),
-                values: StepOperands([StepOperand::Register(element)].into()),
-            },
-            element,
-            start,
-            out,
-            memo: StepMemo::None,
-        },
-        WrittenAccess::Let { from, out } => ProgramStep::Let { from, out },
-    }
 }
 
 /// A program of steps, none of them numbered yet: the numbering pass gives each its plan point.
@@ -204,9 +76,12 @@ pub(crate) fn branch_program(
     plan: &PlannedBranch,
     target: EmitTarget,
 ) -> Option<StepProgram> {
-    let start = (Environment::default(), Vec::new(), None);
-    let emitter = accesses(drafts, kinds, branch, plan, (UnitRole::Branch, None), start);
-    if emitter.missed > 0 {
+    let unit = WrittenUnit {
+        role: UnitRole::Branch,
+        definition: None,
+    };
+    let emitter = accesses(drafts, kinds, branch, plan, unit, BranchStart::default());
+    if emitter.missed.0 > 0 {
         return None;
     }
     let columns = StepOperands(row_operands(&emitter.environment, &branch.row)?.into());
@@ -216,26 +91,13 @@ pub(crate) fn branch_program(
     ))
 }
 
-/// What a call-form pattern is of: the definition's formals, and the columns it binds and collects.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct PatternColumns<'a> {
-    /// The definition.
-    pub(crate) definition: DefinitionId,
-    /// One register per column of the definition.
-    pub(crate) formals: &'a [Register],
-    /// The columns that arrive bound.
-    pub(crate) bound: &'a ColumnMask,
-    /// The columns a row gives back.
-    pub(crate) collected: &'a ColumnMask,
-}
-
 /// The environment a pattern's branch starts from: each bound column's cell is in its formal. A variable bound twice, and a
 /// constant in a bound column, are tested against the formal first.
 #[must_use]
 pub(crate) fn pattern_start(
     branch: &FlatBranch,
     pattern: PatternColumns<'_>,
-) -> (Environment, Vec<WrittenAccess>) {
+) -> BranchStart<'static> {
     let (mut environment, mut tests) = (Environment::default(), Vec::new());
     for column in &pattern.bound.0 {
         let place = usize::from(column.0);
@@ -255,7 +117,11 @@ pub(crate) fn pattern_start(
             (FlatTerm::Text(_) | FlatTerm::Number(_), None) => {}
         }
     }
-    (environment, tests)
+    BranchStart {
+        environment,
+        written: tests,
+        gives: None,
+    }
 }
 
 /// A call-form pattern's branch as a program: the bound cells arrive in their formals, and each row ends in a `Yield` of the
@@ -267,15 +133,18 @@ pub(crate) fn pattern_program(
     plan: &PlannedBranch,
     pattern: PatternColumns<'_>,
 ) -> Option<Vec<ProgramStep>> {
-    let (environment, tests) = pattern_start(branch, pattern);
+    let mut start = pattern_start(branch, pattern);
     // What a pattern gives is its collected columns: a column nothing collects is read for nothing.
     let mut read = pattern.collected.0.to_vec();
     read.extend(pattern.bound.0.iter().copied());
     let read = ColumnMask(read.into());
-    let start = (environment, tests, Some(&read));
-    let unit = (UnitRole::Pattern, Some(pattern.definition));
+    start.gives = Some(&read);
+    let unit = WrittenUnit {
+        role: UnitRole::Pattern,
+        definition: Some(pattern.definition),
+    };
     let emitter = accesses(drafts, kinds, branch, plan, unit, start);
-    if emitter.missed > 0 {
+    if emitter.missed.0 > 0 {
         return None;
     }
     let mut steps: Vec<ProgramStep> = Vec::new();
@@ -302,116 +171,13 @@ pub(crate) fn pattern_whole(mut branches: Vec<Vec<ProgramStep>>) -> StepProgram 
     match (branches.pop(), branches.is_empty()) {
         (Some(only), true) => program(only),
         (Some(last), false) => {
-            let slots: Vec<StepProgram> = branches
-                .into_iter()
-                .chain([last])
-                .map(program)
-                .collect();
+            let slots: Vec<StepProgram> = branches.into_iter().chain([last]).map(program).collect();
             program([ProgramStep::Fork {
                 slots: slots.into(),
             }])
         }
         (None, _) => program([]),
     }
-}
-
-/// One access as a stage of a pipeline: the first enumeration is the scan; a later read by a register is a probe, and one
-/// with no register is every row of its source, a product. None for a `Let`, which no pipeline holds.
-fn stage_of(access: WrittenAccess, first: bool) -> Option<FillStage> {
-    Some(match access {
-        WrittenAccess::Rows {
-            source,
-            columns,
-            values,
-            out,
-            ..
-        } => {
-            let keyed = values
-                .0
-                .iter()
-                .any(|value| matches!(value, StepOperand::Register(_)));
-            match (first, keyed) {
-                (true, _) => FillStage::Scan {
-                    source,
-                    columns,
-                    values,
-                    out,
-                },
-                (false, true) => FillStage::Probe {
-                    source,
-                    columns,
-                    values,
-                    range: None,
-                    mode: UseMode::Rows,
-                    out,
-                },
-                (false, false) => FillStage::Product { source, out },
-            }
-        }
-        WrittenAccess::Use {
-            definition,
-            bound,
-            collected,
-            values,
-            outputs,
-            mode,
-        } => FillStage::Use {
-            definition,
-            bound,
-            collected,
-            values,
-            mode,
-            outputs,
-        },
-        WrittenAccess::Latest {
-            table,
-            key,
-            bound,
-            side,
-            out,
-        } => FillStage::Latest {
-            table,
-            key,
-            bound,
-            side,
-            out,
-        },
-        WrittenAccess::Read {
-            source,
-            column,
-            row,
-            out,
-        } => FillStage::Read {
-            source,
-            column,
-            row,
-            out,
-        },
-        WrittenAccess::Test { test, left, right } => FillStage::Keep { test, left, right },
-        WrittenAccess::Axis {
-            relation,
-            direction,
-            start,
-            out,
-        } => FillStage::Walk {
-            relation,
-            walk: TreeWalk::Axis(direction),
-            start,
-            out,
-        },
-        WrittenAccess::Children {
-            relation,
-            parent,
-            out,
-        } => FillStage::Walk {
-            relation,
-            walk: TreeWalk::Children(None),
-            start: parent,
-            out,
-        },
-        // A pipeline holds no test of containment, no walk with a condition and no `Let`.
-        WrittenAccess::Within { .. } | WrittenAccess::Nearest { .. } | WrittenAccess::Let { .. } => return None,
-    })
 }
 
 /// A branch as one pipeline of a table: its accesses as stages, then the row written. None when the branch has no stage
@@ -423,18 +189,24 @@ pub(crate) fn pipeline(
     plan: &PlannedBranch,
     unit: Option<DefinitionId>,
 ) -> Option<Pipeline> {
-    let start = (Environment::default(), Vec::new(), None);
-    let emitter = accesses(drafts, kinds, branch, plan, (UnitRole::Pipeline, unit), start);
-    if emitter.missed > 0 {
+    let unit = WrittenUnit {
+        role: UnitRole::Pipeline,
+        definition: unit,
+    };
+    let emitter = accesses(drafts, kinds, branch, plan, unit, BranchStart::default());
+    if emitter.missed.0 > 0 {
         return None;
     }
     let row = StepOperands(row_operands(&emitter.environment, &branch.row)?.into());
     let mut stages = Vec::with_capacity(emitter.written.len());
-    for (place, access) in emitter.written.into_iter().enumerate() {
+    // The first access is the pipeline's scan.
+    let mut first = Enumerated::NotYet;
+    for access in emitter.written {
         stages.push(PlacedStage {
             point: None,
-            stage: stage_of(access, place == 0)?,
+            stage: stage_of(access, first)?,
         });
+        first = Enumerated::Already;
     }
     Some(Pipeline {
         stages: stages.into(),

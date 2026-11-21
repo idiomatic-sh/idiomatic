@@ -1,6 +1,6 @@
 //! The types of the `statistics` concept: what a sample run measured, the bytes that carry it and its decoded form.
 
-use crate::domain::code::types::{MeasuredForm, UnitKey};
+use crate::domain::code::types::{MeasuredForm, ShapeChoice, UnitKey};
 use crate::domain::programs::types::Programs;
 use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::relations::types::{Column, Count, KindBits, Relation};
@@ -99,6 +99,27 @@ pub struct Measured<'a> {
     pub counts: &'a PointCounts,
 }
 
+/// What a load says of the statistics it was given: that it read none, or how many units of its programs they name. Read
+/// statistics that name no unit are `Units` of nought, never `Absent`: the two loads lower differently.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_engine::domain::statistics::types::{MatchedStatistics, MatchedUnits};
+///
+/// assert_eq!(MatchedStatistics::default(), MatchedStatistics::Absent);
+/// assert_ne!(MatchedStatistics::Units(MatchedUnits(0)), MatchedStatistics::Absent);
+/// ```
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum MatchedStatistics {
+    /// The rules were loaded with no statistics: no bytes, bytes of another engine version, or bytes that do not read; and a
+    /// pack, which is loaded with none.
+    #[default]
+    Absent,
+    /// Statistics were read, and name this many units of the programs.
+    Units(MatchedUnits),
+}
+
 /// How many units of a load's programs the statistics it was loaded with name: a unit is named by its key.
 ///
 /// # Examples
@@ -111,8 +132,11 @@ pub struct Measured<'a> {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct MatchedUnits(pub usize);
 
-/// Statistics as the lowering and the passes read them.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+/// Statistics as the lowering and the passes read them. A load given none holds no `Statistics` (`decoded` answers `None`, and
+/// so the lowering and the passes are given `None`): that is not the statistics of a first sample that measured no unit, and
+/// nothing here has a default that would make the two one value. With none, every flip candidate takes its call form; with
+/// those of stage `First`, every flip candidate takes its table form, whether or not a unit names it.
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Statistics {
     /// Which sample run wrote them.
     pub(crate) stage: LearnStage,
@@ -122,11 +146,10 @@ pub(crate) struct Statistics {
     pub(crate) units: Vec<MeasuredUnit>,
 }
 
-/// Which sample run statistics are of.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+/// Which sample run statistics are of. No stage says "no statistics": a load with none has no `Statistics`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum LearnStage {
-    /// The first run: every flip candidate is lowered in its other form.
-    #[default]
+    /// The first run, loaded with no statistics: a load given these lowers every flip candidate in its table form.
     First,
     /// The second: every unit is lowered as its verdicts say.
     Second,
@@ -173,16 +196,6 @@ pub(crate) enum OrderVerdict {
     Denied,
 }
 
-/// Whether the shape of a pattern's plans decides its form.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) enum ShapeChoice {
-    /// One form is clean and the other scans, or it binds nothing, or it is no pattern.
-    #[default]
-    Decided,
-    /// It binds a column and both forms are clean, or both scan: a flip candidate.
-    Open,
-}
-
 /// One unit of the statistics.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct MeasuredUnit {
@@ -190,7 +203,7 @@ pub(crate) struct MeasuredUnit {
     pub(crate) key: UnitKey,
     /// The form its counts were taken in.
     pub(crate) form: MeasuredForm,
-    /// Whether the shape rule left its form open.
+    /// Whether the shape rule left its form open, as the unit table of the sample's programs said (`UnitCode.shape`).
     pub(crate) shape: ShapeChoice,
     /// Its order.
     pub(crate) order: OrderVerdict,

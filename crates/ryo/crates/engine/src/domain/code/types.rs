@@ -256,6 +256,9 @@ pub(crate) struct UnitCode {
     pub(crate) key: UnitKey,
     /// The form it is in.
     pub(crate) form: MeasuredForm,
+    /// Whether the shape rule left its form open: the lowering's mark on a pattern (`DefinitionPattern.shape`); `Decided` for a
+    /// rule's own program and a table's fill. Learning keeps a form for the open ones alone.
+    pub(crate) shape: ShapeChoice,
     /// Its first plan point.
     pub(crate) first: WordSlot,
     /// How many plan points it has.
@@ -296,4 +299,16 @@ pub(crate) enum MeasuredForm {
     Call,
     /// A pattern in table form.
     Table,
+}
+
+/// Whether the shape of a pattern's programs decides its form, or a sample does.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum ShapeChoice {
+    /// The placement rule gives one form: it binds nothing, or its call form holds a file-sized step, or its table holds a
+    /// product stage; or it is no pattern.
+    #[default]
+    Decided,
+    /// A flip candidate: it binds a column, its call form is admissible and its table holds no product stage. With no
+    /// statistics it takes its call form, with those of a first sample its table form, and after the second the cheaper.
+    Open,
 }

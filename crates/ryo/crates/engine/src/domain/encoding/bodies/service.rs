@@ -181,7 +181,7 @@ fn table_unit(
         pattern.bound.clone(),
         pattern.collected.clone(),
     );
-    begin_unit(encoding, name, MeasuredForm::Table)?;
+    begin_unit(encoding, name, MeasuredForm::Table, pattern.shape)?;
     end_unit(encoding)?;
     encoding.unit = writing;
     Ok(())

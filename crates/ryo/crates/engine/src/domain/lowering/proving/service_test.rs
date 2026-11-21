@@ -5,17 +5,19 @@
 use super::service::proved;
 use super::types::{ProductStated, ProofFault, ProvedUnit, Unproved};
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::code::types::ShapeChoice;
 use crate::domain::findings::types::RuleColumns;
 use crate::domain::lowered::types::{
     Branch, DefinitionPattern, Emptiness, LoweredPack, LoweredRule, MadeFill, MadeTable,
     PackDefinition, PatternForm,
 };
+use crate::domain::lowering::nodes::types::AcceptedPlace;
 use crate::domain::lowering::types::PastWidth;
 use crate::domain::steps::stages::types::{FillStage, Pipeline, PlacedStage, UseMode};
 use crate::domain::steps::types::{
     ColumnMask, DefinitionId, EmitTarget, MadeColumn, MadeTableId, MatchColumns, PlacedStep,
-    ProgramStep, ReadColumn, Register, RegisterList, StepBody, StepMemo, StepOperand,
-    StepOperands, StepProgram, StepRows,
+    ProgramStep, ReadColumn, Register, RegisterList, StepBody, StepMemo, StepOperand, StepOperands,
+    StepProgram, StepRows,
 };
 use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::relations::types::{NodeColumn, Relation};
@@ -30,7 +32,12 @@ type Value = ();
 type Failure = Unproved;
 
 fn program(steps: Vec<ProgramStep>) -> StepProgram {
-    StepProgram(steps.into_iter().map(|step| PlacedStep { point: None, step }).collect())
+    StepProgram(
+        steps
+            .into_iter()
+            .map(|step| PlacedStep { point: None, step })
+            .collect(),
+    )
 }
 
 /// Every element of the node table: file-sized.
@@ -65,7 +72,12 @@ fn used(bound: &[u16], collected: &[u16]) -> StepBody {
         definition: DefinitionId(0),
         bound: mask(bound),
         collected: mask(collected),
-        values: StepOperands(bound.iter().map(|_| StepOperand::Register(Register(0))).collect()),
+        values: StepOperands(
+            bound
+                .iter()
+                .map(|_| StepOperand::Register(Register(0)))
+                .collect(),
+        ),
     }
 }
 
@@ -97,6 +109,7 @@ fn pattern_of(steps: Vec<ProgramStep>) -> Input {
             bound: ColumnMask([MadeColumn(0)].into()),
             collected: ColumnMask::default(),
             form: PatternForm::Call(program(steps)),
+            shape: ShapeChoice::Decided,
         }],
     };
     let pack = LoweredPack {
@@ -137,7 +150,10 @@ fn product() -> FillStage {
 /// A pack of one table of a definition's rows whose one pipeline is the stages, with whether its plan states a keyless join.
 fn table_of(stages: Vec<FillStage>, row: usize, stated: ProductStated) -> Input {
     let pipeline = Pipeline {
-        stages: stages.into_iter().map(|stage| PlacedStage { point: None, stage }).collect(),
+        stages: stages
+            .into_iter()
+            .map(|stage| PlacedStage { point: None, stage })
+            .collect(),
         row: StepOperands((0..row).map(|_| StepOperand::File).collect()),
     };
     let table = MadeTable {
@@ -176,7 +192,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_file_sized_step_after_a_branchs_first_is_refused"),
         word: Word::Refuses,
         input: || rule_of(vec![anchor(), anchor(), emit()]),
-        expect: misplaced(ProvedUnit::Rule(0)),
+        expect: misplaced(ProvedUnit::Rule(AcceptedPlace(0))),
     },
     Case {
         name: CaseName("a_file_sized_step_in_a_call_form_pattern_is_refused"),
@@ -193,7 +209,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             };
             rule_of(vec![anchor(), slot, emit()])
         },
-        expect: misplaced(ProvedUnit::Rule(0)),
+        expect: misplaced(ProvedUnit::Rule(AcceptedPlace(0))),
     },
     Case {
         name: CaseName("a_use_that_collects_rows_with_nothing_bound_under_a_candidate_is_refused"),
@@ -206,7 +222,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             };
             rule_of(vec![anchor(), unkeyed, emit()])
         },
-        expect: misplaced(ProvedUnit::Rule(0)),
+        expect: misplaced(ProvedUnit::Rule(AcceptedPlace(0))),
     },
     Case {
         name: CaseName("a_definitions_rows_read_whole_after_a_branchs_first_step_are_refused"),
@@ -218,12 +234,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             };
             rule_of(vec![anchor(), whole, emit()])
         },
-        expect: misplaced(ProvedUnit::Rule(0)),
+        expect: misplaced(ProvedUnit::Rule(AcceptedPlace(0))),
     },
     Case {
         name: CaseName("a_pipeline_of_a_scan_and_a_probe_by_a_register_holds"),
         word: Word::Succeeds,
-        input: || table_of(vec![scan(), probe(StepOperand::Register(Register(0)))], 1, ProductStated::Keyed),
+        input: || {
+            table_of(
+                vec![scan(), probe(StepOperand::Register(Register(0)))],
+                1,
+                ProductStated::Keyed,
+            )
+        },
         expect: Expect::Value(()),
     },
     Case {
@@ -241,7 +263,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_probe_on_constants_alone_is_refused"),
         word: Word::Refuses,
-        input: || table_of(vec![scan(), probe(StepOperand::Word(CellWord(1)))], 1, ProductStated::Stated),
+        input: || {
+            table_of(
+                vec![scan(), probe(StepOperand::Word(CellWord(1)))],
+                1,
+                ProductStated::Stated,
+            )
+        },
         expect: misplaced(TABLE),
     },
     Case {

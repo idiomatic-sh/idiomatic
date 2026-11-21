@@ -7,7 +7,7 @@ use crate::domain::steps::types::{DefinitionId, MadeTableId};
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ProvedUnit {
     /// A rule's own program, by the rule's place among the pack's rules.
-    Rule(usize),
+    Rule(crate::domain::lowering::nodes::types::AcceptedPlace),
     /// A definition's call-form patterns.
     Definition(DefinitionId),
     /// A made table's fill.
@@ -39,5 +39,41 @@ pub(crate) enum ProductStated {
     /// It does.
     Stated,
     /// It does not: every join of it is keyed.
+    Keyed,
+}
+
+/// Where each unit of a pack was lowered from: what a fault of the proof names its rule by.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct UnitHomes {
+    /// The home of each definition, by number.
+    pub(crate) definitions: Vec<crate::domain::lowering::nodes::types::NodeHome>,
+    /// The home of each made table, by number.
+    pub(crate) tables: Vec<crate::domain::lowering::nodes::types::NodeHome>,
+}
+
+/// Where a program stands.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ProgramStanding {
+    /// A rule's branch: its first step may be file-sized, and may read a definition's rows whole.
+    Branch,
+    /// Under a candidate or a key: an inline body, a call-form pattern, a slot of a `Fork`.
+    Keyed,
+}
+
+/// What a step holds: the programs it runs in place, and the operands of its widest list.
+#[derive(Clone, Debug)]
+pub(crate) struct HeldPrograms<'a> {
+    /// The inline programs.
+    pub(crate) programs: Vec<&'a crate::domain::steps::types::StepProgram>,
+    /// The operands of the widest list.
+    pub(crate) operands: ryo_relations::domain::relations::types::Count,
+}
+
+/// Whether a step reads a definition's rows whole.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum WholeRead {
+    /// It does: only `EachRow` may, first in a rule's branch.
+    Whole,
+    /// It does not.
     Keyed,
 }

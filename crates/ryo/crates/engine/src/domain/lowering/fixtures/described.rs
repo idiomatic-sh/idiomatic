@@ -166,7 +166,11 @@ pub(crate) fn described(pack: &LoweredPack) -> Vec<String> {
         }
     }
     for rule in &pack.rules {
-        lines.push(format!("rule {}: {} branches", rule.rule.0, rule.branches.len()));
+        lines.push(format!(
+            "rule {}: {} branches",
+            rule.rule.0,
+            rule.branches.len()
+        ));
         for branch in &rule.branches {
             lines.push(format!("  branch: {}", steps_said(&branch.program)));
         }

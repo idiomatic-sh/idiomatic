@@ -1,24 +1,40 @@
-//! The cases of the `placement` part: the one rule that gives a pattern its form, case by case of scope-engine3 2.6, and what
-//! a load's statistics are read as.
+//! The cases of the `placement` part: the one rule that gives a pattern its form, case by case of scope-engine3 2.6, from
+//! the statistics a load was given: none, a first run's, a second run's.
 
 use super::service::{placed, sampled};
 use super::types::{CallForm, FormChoice, PatternFacts, PatternPlacement, SampleStage, TableForm};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::code::types::MeasuredForm;
-use crate::domain::statistics::types::{LearnStage, ShapeChoice, Statistics};
+use crate::domain::code::types::{MeasuredForm, ShapeChoice};
+use crate::domain::statistics::types::{LearnStage, MeasuredSizes, Statistics};
+use ryo_relations::domain::relations::types::Count;
 
-type Input = (PatternFacts, SampleStage);
+/// A pattern's facts, and the statistics the load was given.
+type Input = (PatternFacts, Option<Statistics>);
 type Value = PatternPlacement;
 type Failure = ();
 
 /// A pattern that binds one column, has a program, and whose definition's table is keyed throughout: a flip candidate.
 const CANDIDATE: PatternFacts = PatternFacts {
-    binds: 1,
+    binds: Count(1),
     call: CallForm::Keyed,
     table: TableForm::Keyed,
-    call_patterns: 0,
+    call_patterns: Count(0),
     measured: None,
 };
+
+/// The statistics a load of a stage is given: none; a first run's, which names no unit; a second run's.
+fn given(stage: SampleStage) -> Option<Statistics> {
+    let of = |stage| Statistics {
+        stage,
+        sizes: MeasuredSizes::default(),
+        units: Vec::new(),
+    };
+    match stage {
+        SampleStage::Absent => None,
+        SampleStage::First => Some(of(LearnStage::First)),
+        SampleStage::Second => Some(of(LearnStage::Second)),
+    }
+}
 
 const fn answer(form: FormChoice, shape: ShapeChoice) -> Expect<Value, Failure> {
     Expect::Value(PatternPlacement { form, shape })
@@ -31,10 +47,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || {
             let facts = PatternFacts {
-                binds: 0,
+                binds: Count(0),
                 ..CANDIDATE
             };
-            (facts, SampleStage::Absent)
+            (facts, given(SampleStage::Absent))
         },
         expect: answer(FormChoice::Table, ShapeChoice::Decided),
     },
@@ -46,20 +62,20 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 call: CallForm::Scans,
                 ..CANDIDATE
             };
-            (facts, SampleStage::Absent)
+            (facts, given(SampleStage::Absent))
         },
         expect: answer(FormChoice::Table, ShapeChoice::Decided),
     },
     Case {
         name: CaseName("with_no_statistics_a_keyed_pattern_takes_call_and_is_marked_a_candidate"),
         word: Word::Succeeds,
-        input: || (CANDIDATE, SampleStage::Absent),
+        input: || (CANDIDATE, given(SampleStage::Absent)),
         expect: answer(FormChoice::Call, ShapeChoice::Open),
     },
     Case {
         name: CaseName("after_a_first_run_every_candidate_takes_table"),
         word: Word::Succeeds,
-        input: || (CANDIDATE, SampleStage::First),
+        input: || (CANDIDATE, given(SampleStage::First)),
         expect: answer(FormChoice::Table, ShapeChoice::Open),
     },
     Case {
@@ -70,7 +86,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 table: TableForm::Product,
                 ..CANDIDATE
             };
-            (facts, SampleStage::First)
+            (facts, given(SampleStage::First))
         },
         expect: answer(FormChoice::Call, ShapeChoice::Decided),
     },
@@ -79,10 +95,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || {
             let facts = PatternFacts {
-                call_patterns: 4,
+                call_patterns: Count(4),
                 ..CANDIDATE
             };
-            (facts, SampleStage::Absent)
+            (facts, given(SampleStage::Absent))
         },
         expect: answer(FormChoice::Table, ShapeChoice::Decided),
     },
@@ -94,14 +110,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 measured: Some(MeasuredForm::Table),
                 ..CANDIDATE
             };
-            (facts, SampleStage::Second)
+            (facts, given(SampleStage::Second))
         },
         expect: answer(FormChoice::Table, ShapeChoice::Open),
     },
     Case {
         name: CaseName("after_a_second_run_a_candidate_the_statistics_do_not_name_takes_call"),
         word: Word::Succeeds,
-        input: || (CANDIDATE, SampleStage::Second),
+        input: || (CANDIDATE, given(SampleStage::Second)),
         expect: answer(FormChoice::Call, ShapeChoice::Open),
     },
     Case {
@@ -110,31 +126,20 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             let facts = PatternFacts {
                 table: TableForm::Calls,
-                call_patterns: 9,
+                call_patterns: Count(9),
                 ..CANDIDATE
             };
-            (facts, SampleStage::First)
+            (facts, given(SampleStage::First))
         },
         expect: answer(FormChoice::Call, ShapeChoice::Decided),
     },
 ];
 
-fn subject((facts, stage): Input) -> Result<Value, Failure> {
-    Ok(placed(facts, stage))
+fn subject((facts, statistics): Input) -> Result<Value, Failure> {
+    Ok(placed(facts, sampled(statistics.as_ref())))
 }
 
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
-}
-
-/// A load given nothing is read as given no sample; a second run's statistics as a second run's.
-#[test]
-fn statistics_are_read_as_their_stage() {
-    assert_eq!(sampled(&Statistics::default()), SampleStage::Absent);
-    let second = Statistics {
-        stage: LearnStage::Second,
-        ..Statistics::default()
-    };
-    assert_eq!(sampled(&second), SampleStage::Second);
 }

@@ -1,8 +1,11 @@
 //! The services of the `proving` part: the check of a lowered pack against the invariant of scope-engine3 2.5 part 3, by the
 //! contract's own class functions. A fault is the lowering's own: the rule it belongs to is refused, never run.
 
-use super::types::{ProductStated, ProofFault, ProvedUnit, Unproved};
+use super::types::{
+    HeldPrograms, ProductStated, ProgramStanding, ProofFault, ProvedUnit, Unproved, WholeRead,
+};
 use crate::domain::lowered::types::{FillInput, LoweredPack, MadeFill, OrderedFill, PatternForm};
+use crate::domain::lowering::nodes::types::AcceptedPlace;
 use crate::domain::lowering::types::PastWidth;
 use crate::domain::steps::service::{stage_class, step_class};
 use crate::domain::steps::stages::types::{FillStage, Pipeline};
@@ -10,19 +13,11 @@ use crate::domain::steps::types::{
     CostClass, DefinitionId, MadeTableId, NearestEdges, ProgramStep, StepBody, StepOperand,
     StepProgram, StepRows,
 };
+use ryo_relations::domain::relations::types::Count;
 
-/// Where a program stands.
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Standing {
-    /// A rule's branch: its first step may be file-sized, and may read a definition's rows whole.
-    Branch,
-    /// Under a candidate or a key: an inline body, a call-form pattern, a slot of a `Fork`.
-    Keyed,
-}
-
-/// Whether a count fits the sixteen bits a word's operands are counted in.
-fn operands_fit(count: usize) -> Result<(), ProofFault> {
-    if count > usize::from(u16::MAX) {
+/// Holds a count to the sixteen bits a word's operands are counted in.
+fn operands_fit(count: Count) -> Result<(), ProofFault> {
+    if count.0 > usize::from(u16::MAX) {
         Err(ProofFault::Past(PastWidth::WordOperands))
     } else {
         Ok(())
@@ -37,20 +32,29 @@ const fn inline(body: &StepBody) -> Option<&StepProgram> {
     }
 }
 
+/// The values a use of a definition passes; none for an inline body.
+const fn passed(body: &StepBody) -> Count {
+    match body {
+        StepBody::Inline(_) => Count(0),
+        StepBody::Definition { values, .. } => Count(values.0.len()),
+    }
+}
+
+/// What a step holds, from its inline programs and the operands of its widest list.
+const fn of(programs: Vec<&StepProgram>, operands: Count) -> HeldPrograms<'_> {
+    HeldPrograms { programs, operands }
+}
+
 /// The inline programs a step runs, and how many operands its widest list holds.
-fn held(step: &ProgramStep) -> (Vec<&StepProgram>, usize) {
-    let of = |body: &StepBody| match body {
-        StepBody::Inline(_) => 0,
-        StepBody::Definition { values, .. } => values.0.len(),
-    };
+fn held(step: &ProgramStep) -> HeldPrograms<'_> {
     match step {
-        ProgramStep::Exists { body, .. } => (inline(body).into_iter().collect(), of(body)),
+        ProgramStep::Exists { body, .. } => of(inline(body).into_iter().collect(), passed(body)),
         ProgramStep::Or {
             bodies, outputs, ..
         } => {
-            let widest = bodies.iter().map(of).max().unwrap_or(0);
+            let widest = bodies.iter().map(|body| passed(body).0).max().unwrap_or(0);
             let count = widest.max(bodies.len()).max(outputs.0.len());
-            (bodies.iter().filter_map(inline).collect(), count)
+            of(bodies.iter().filter_map(inline).collect(), Count(count))
         }
         ProgramStep::Nearest {
             edges, condition, ..
@@ -59,20 +63,23 @@ fn held(step: &ProgramStep) -> (Vec<&StepProgram>, usize) {
                 NearestEdges::Tree(_) => None,
                 NearestEdges::Derived { edges, .. } => inline(edges),
             };
-            (walked.into_iter().chain(inline(condition)).collect(), of(condition))
+            let programs = walked.into_iter().chain(inline(condition));
+            of(programs.collect(), passed(condition))
         }
-        ProgramStep::Closure { edges, .. } => (inline(edges).into_iter().collect(), of(edges)),
-        ProgramStep::Fork { slots } => (slots.iter().collect(), slots.len()),
+        ProgramStep::Closure { edges, .. } => {
+            of(inline(edges).into_iter().collect(), passed(edges))
+        }
+        ProgramStep::Fork { slots } => of(slots.iter().collect(), Count(slots.len())),
         ProgramStep::EachMatch { values, .. } | ProgramStep::EachRange { values, .. } => {
-            (Vec::new(), values.0.len())
+            of(Vec::new(), Count(values.0.len()))
         }
         ProgramStep::Call {
             arguments, outputs, ..
-        } => (Vec::new(), arguments.0.len().max(outputs.0.len())),
-        ProgramStep::Yield { row } => (Vec::new(), row.0.len()),
-        ProgramStep::Latest { key, .. } => (Vec::new(), key.0.len()),
-        ProgramStep::Emit { columns, .. } => (Vec::new(), columns.0.len()),
-        ProgramStep::EachKind { kinds, .. } => (Vec::new(), kinds.0.len()),
+        } => of(Vec::new(), Count(arguments.0.len().max(outputs.0.len()))),
+        ProgramStep::Yield { row } => of(Vec::new(), Count(row.0.len())),
+        ProgramStep::Latest { key, .. } => of(Vec::new(), Count(key.0.len())),
+        ProgramStep::Emit { columns, .. } => of(Vec::new(), Count(columns.0.len())),
+        ProgramStep::EachKind { kinds, .. } => of(Vec::new(), Count(kinds.0.len())),
         ProgramStep::EachRow { .. }
         | ProgramStep::Children { .. }
         | ProgramStep::Axis { .. }
@@ -80,16 +87,21 @@ fn held(step: &ProgramStep) -> (Vec<&StepProgram>, usize) {
         | ProgramStep::Read { .. }
         | ProgramStep::Test { .. }
         | ProgramStep::Render { .. }
-        | ProgramStep::Let { .. } => (Vec::new(), 0),
+        | ProgramStep::Let { .. } => of(Vec::new(), Count(0)),
     }
 }
 
 /// Whether a step reads a definition's rows whole: only `EachRow` may, and only first in a rule's branch.
-const fn whole_read(step: &ProgramStep) -> bool {
+const fn whole_read(step: &ProgramStep) -> WholeRead {
     match step {
         ProgramStep::EachRow { source, .. }
         | ProgramStep::EachMatch { source, .. }
-        | ProgramStep::EachRange { source, .. } => matches!(source, StepRows::Definition(_)),
+        | ProgramStep::EachRange { source, .. } => match source {
+            StepRows::Definition(_) => WholeRead::Whole,
+            StepRows::Node(_) | StepRows::Filled(_) | StepRows::Made(_) | StepRows::Written(_) => {
+                WholeRead::Keyed
+            }
+        },
         ProgramStep::EachKind { .. }
         | ProgramStep::Children { .. }
         | ProgramStep::Axis { .. }
@@ -106,69 +118,126 @@ const fn whole_read(step: &ProgramStep) -> bool {
         | ProgramStep::Fork { .. }
         | ProgramStep::Yield { .. }
         | ProgramStep::Latest { .. }
-        | ProgramStep::Emit { .. } => false,
+        | ProgramStep::Emit { .. } => WholeRead::Keyed,
     }
 }
 
-/// Whether a test's operands can be written: the left a register or a constant, the right a register, a constant or a set.
-/// The file is no operand of a test: a program puts it in a register first.
-const fn test_written(left: &StepOperand, right: &StepOperand) -> bool {
-    let left = matches!(left, StepOperand::Register(_) | StepOperand::Word(_));
-    left && !matches!(right, StepOperand::File)
+/// Holds a test's operands to what can be written: the left a register or a constant, the right a register, a constant or a
+/// set. The file is no operand of a test: a program puts it in a register first.
+const fn test_proved(left: &StepOperand, right: &StepOperand) -> Result<(), ProofFault> {
+    match (left, right) {
+        (
+            StepOperand::Register(_) | StepOperand::Word(_),
+            StepOperand::Register(_) | StepOperand::Word(_) | StepOperand::Words(_),
+        ) => Ok(()),
+        (StepOperand::Words(_) | StepOperand::File, _) | (_, StepOperand::File) => {
+            Err(ProofFault::Misplaced)
+        }
+    }
 }
 
-/// Holds a program to the invariant: a file-sized step, and a whole read of a definition's rows, stand only first in a
-/// rule's branch; every program a step runs stands under a key. Programs are walked from a list, never by recursion.
-fn program_proved(program: &StepProgram, standing: Standing) -> Result<(), ProofFault> {
+/// Holds one step to its place: a file-sized step, and a whole read of a definition's rows, stand only first in a rule's
+/// branch, and a whole read is an `EachRow`.
+fn step_proved(step: &ProgramStep, anchors: ProgramStanding) -> Result<(), ProofFault> {
+    let sized = step_class(step) == CostClass::File;
+    let whole = whole_read(step) == WholeRead::Whole;
+    let row_read = matches!(step, ProgramStep::EachRow { .. });
+    let first = anchors == ProgramStanding::Branch;
+    if (sized && !first) || (whole && !(first && row_read)) {
+        return Err(ProofFault::Misplaced);
+    }
+    match step {
+        ProgramStep::Test { left, right, .. } => test_proved(left, right),
+        ProgramStep::EachKind { .. }
+        | ProgramStep::EachMatch { .. }
+        | ProgramStep::EachRange { .. }
+        | ProgramStep::EachRow { .. }
+        | ProgramStep::Children { .. }
+        | ProgramStep::Axis { .. }
+        | ProgramStep::Within { .. }
+        | ProgramStep::Nearest { .. }
+        | ProgramStep::Closure { .. }
+        | ProgramStep::Read { .. }
+        | ProgramStep::Call { .. }
+        | ProgramStep::Render { .. }
+        | ProgramStep::Let { .. }
+        | ProgramStep::Exists { .. }
+        | ProgramStep::Or { .. }
+        | ProgramStep::Fork { .. }
+        | ProgramStep::Yield { .. }
+        | ProgramStep::Latest { .. }
+        | ProgramStep::Emit { .. } => Ok(()),
+    }
+}
+
+/// Holds a program to the invariant: every step to its place, and every program a step runs to standing under a key.
+/// Programs are walked from a list, never by recursion.
+fn program_proved(program: &StepProgram, standing: ProgramStanding) -> Result<(), ProofFault> {
     let mut waiting = vec![(program, standing)];
     while let Some((program, standing)) = waiting.pop() {
         for (place, placed) in program.0.iter().enumerate() {
-            let anchors = standing == Standing::Branch && place == 0;
-            let sized = step_class(&placed.step) == CostClass::File;
-            let whole = whole_read(&placed.step);
-            let row_read = matches!(placed.step, ProgramStep::EachRow { .. });
-            if (sized && !anchors) || (whole && !(anchors && row_read)) {
-                return Err(ProofFault::Misplaced);
-            }
-            if let ProgramStep::Test { left, right, .. } = &placed.step
-                && !test_written(left, right)
-            {
-                return Err(ProofFault::Misplaced);
-            }
-            let (programs, count) = held(&placed.step);
-            operands_fit(count)?;
-            waiting.extend(programs.into_iter().map(|program| (program, Standing::Keyed)));
+            // Only a branch's first step stands as a branch's anchor.
+            let anchors = if place == 0 {
+                standing
+            } else {
+                ProgramStanding::Keyed
+            };
+            step_proved(&placed.step, anchors)?;
+            let held = held(&placed.step);
+            operands_fit(held.operands)?;
+            let under = held.programs.into_iter();
+            waiting.extend(under.map(|program| (program, ProgramStanding::Keyed)));
         }
     }
     Ok(())
 }
 
-/// Holds a pipeline to the invariant: a file-sized stage is its scan, standing first, or a product stage, and a product
-/// stage stands only in a table whose plan states a keyless join. A scan stands nowhere but first.
-fn pipeline_proved(pipeline: &Pipeline, products: ProductStated) -> Result<(), ProofFault> {
-    operands_fit(pipeline.row.0.len())?;
-    for (place, placed) in pipeline.stages.iter().enumerate() {
-        let sized = stage_class(&placed.stage) == CostClass::File;
-        let held = match &placed.stage {
-            FillStage::Scan { values, .. } => {
-                operands_fit(values.0.len())?;
-                place == 0
-            }
-            FillStage::Product { .. } => products == ProductStated::Stated,
-            FillStage::Probe { values, .. } | FillStage::Use { values, .. } => {
-                operands_fit(values.0.len())?;
-                !sized
-            }
-            FillStage::Keep { left, right, .. } => !sized && test_written(left, right),
-            FillStage::Latest { .. }
-            | FillStage::Read { .. }
-            | FillStage::Call { .. }
-            | FillStage::Render { .. }
-            | FillStage::Walk { .. } => !sized,
-        };
-        if !held || (place == 0 && !matches!(placed.stage, FillStage::Scan { .. })) {
-            return Err(ProofFault::Misplaced);
+/// Holds one stage to its place: a file-sized stage is the pipeline's scan, standing first, or a product stage, and a
+/// product stage stands only in a table whose plan states a keyless join. A scan stands nowhere but first.
+fn stage_proved(
+    stage: &FillStage,
+    first: ProgramStanding,
+    products: ProductStated,
+) -> Result<(), ProofFault> {
+    let sized = stage_class(stage) == CostClass::File;
+    let starts = first == ProgramStanding::Branch;
+    let misplaced = match stage {
+        FillStage::Scan { values, .. } => {
+            operands_fit(Count(values.0.len()))?;
+            !starts
         }
+        FillStage::Product { .. } => starts || products != ProductStated::Stated,
+        FillStage::Probe { values, .. } | FillStage::Use { values, .. } => {
+            operands_fit(Count(values.0.len()))?;
+            starts || sized
+        }
+        FillStage::Keep { left, right, .. } => {
+            test_proved(left, right)?;
+            starts || sized
+        }
+        FillStage::Latest { .. }
+        | FillStage::Read { .. }
+        | FillStage::Call { .. }
+        | FillStage::Render { .. }
+        | FillStage::Walk { .. } => starts || sized,
+    };
+    if misplaced {
+        Err(ProofFault::Misplaced)
+    } else {
+        Ok(())
+    }
+}
+
+/// Holds a pipeline to the invariant, stage by stage: its first stage stands as its scan.
+fn pipeline_proved(pipeline: &Pipeline, products: ProductStated) -> Result<(), ProofFault> {
+    operands_fit(Count(pipeline.row.0.len()))?;
+    for (place, placed) in pipeline.stages.iter().enumerate() {
+        let first = if place == 0 {
+            ProgramStanding::Branch
+        } else {
+            ProgramStanding::Keyed
+        };
+        stage_proved(&placed.stage, first, products)?;
     }
     Ok(())
 }
@@ -183,7 +252,8 @@ fn fill_pipelines(fill: &MadeFill) -> Vec<&Pipeline> {
         MadeFill::Graph(_, inputs) => inputs.iter().collect(),
         MadeFill::Constant(_) => Vec::new(),
     };
-    inputs.into_iter().flat_map(|input| &input.pipelines).collect()
+    let pipelines = inputs.into_iter().flat_map(|input| &input.pipelines);
+    pipelines.collect()
 }
 
 /// Holds a lowered pack to the invariant, unit by unit: the first unit that does not hold it is answered. `products` says,
@@ -191,8 +261,8 @@ fn fill_pipelines(fill: &MadeFill) -> Vec<&Pipeline> {
 pub(crate) fn proved(pack: &LoweredPack, products: &[ProductStated]) -> Result<(), Unproved> {
     for (place, rule) in pack.rules.iter().enumerate() {
         for branch in &rule.branches {
-            program_proved(&branch.program, Standing::Branch).map_err(|fault| Unproved {
-                unit: ProvedUnit::Rule(place),
+            program_proved(&branch.program, ProgramStanding::Branch).map_err(|fault| Unproved {
+                unit: ProvedUnit::Rule(AcceptedPlace(place)),
                 fault,
             })?;
         }
@@ -201,10 +271,11 @@ pub(crate) fn proved(pack: &LoweredPack, products: &[ProductStated]) -> Result<(
         let unit = ProvedUnit::Definition(DefinitionId(u32::try_from(place).unwrap_or(u32::MAX)));
         for pattern in &definition.patterns {
             let held = match &pattern.form {
-                PatternForm::Call(program) => program_proved(program, Standing::Keyed),
+                PatternForm::Call(program) => program_proved(program, ProgramStanding::Keyed),
                 PatternForm::Table(_) => Ok(()),
             };
-            held.and_then(|()| operands_fit(pattern.bound.0.len().max(pattern.collected.0.len())))
+            let columns = Count(pattern.bound.0.len().max(pattern.collected.0.len()));
+            held.and_then(|()| operands_fit(columns))
                 .map_err(|fault| Unproved { unit, fault })?;
         }
     }

@@ -12,7 +12,7 @@ use crate::domain::lowering::types::{
 use crate::domain::passes::service::passed;
 use crate::domain::programs::types::{Programs, ProgramsEngine};
 use crate::domain::statistics::service::matched;
-use crate::domain::statistics::types::{MatchedUnits, Statistics};
+use crate::domain::statistics::types::{MatchedStatistics, Statistics};
 use ryo_language::domain::facts::service::base_words;
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
@@ -62,15 +62,16 @@ fn taken(
 }
 
 /// Loads `rules` through `lower`: the lowered pack passed and encoded, each rule the lowering or the encoding refuses answered
-/// with why, in rule order. The rules are lowered twice at most.
+/// with why, in rule order. The rules are lowered twice at most. With no statistics no unit is matched or unmatched: the
+/// answer's `matched` is `Absent`.
 pub(super) fn sequenced(
     rules: SelectedRules<'_>,
-    statistics: &Statistics,
+    statistics: Option<&Statistics>,
     lower: &dyn Fn(SelectedRules<'_>) -> LoweredRules,
 ) -> LoadedRules {
     let mut selected: Vec<SelectedRule<'_>> = rules.0.to_vec();
     let mut refused: Vec<RefusedRule> = Vec::new();
-    let (mut loaded, mut named) = (Programs::default(), MatchedUnits::default());
+    let (mut loaded, mut named) = (Programs::default(), MatchedStatistics::Absent);
     // Once, and once more without the rules an encoding refused: never a third time.
     for lowering in [LoadPass::First, LoadPass::Last] {
         let LoweredRules {
@@ -82,7 +83,9 @@ pub(super) fn sequenced(
         let written: Vec<SelectedRuleOrdinal> = pack.rules.iter().map(|rule| rule.rule).collect();
         match encoded(&pack) {
             Ok(code) => {
-                named = matched(statistics, &code.units);
+                named = statistics.map_or(MatchedStatistics::Absent, |measured| {
+                    MatchedStatistics::Units(matched(measured, &code.units))
+                });
                 loaded = programs(pack, code);
                 break;
             }
