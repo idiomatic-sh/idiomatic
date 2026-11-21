@@ -1,0 +1,228 @@
+//! The services of the `reading` part: what is there for the file, read and never made. A word's source, a site's source,
+//! a column of a source as a loop reads it, a built index, a pipeline's words.
+
+use crate::domain::code::constants::{OWN_TREE, SOURCE};
+use crate::domain::code::types::{
+    CodeEntry, CodeWord, IndexCode, IndexSite, Op, PoolAt, ProgramCode, RelationNumber, Short,
+    WordFlag, WordSlot,
+};
+use crate::domain::filled::errors::FilledError;
+use crate::domain::filled::service::whole_rows;
+use crate::domain::filled::types::MissingCode;
+use crate::domain::indexes::reading::service::read;
+use crate::domain::indexes::types::{ColumnView, IndexRead, RowRun, SourceRow};
+use crate::domain::made_tables::service::column;
+use crate::domain::made_tables::types::{FillStore, MadeState, ReadSource, RuleSetView, TableSlot};
+use crate::domain::stages::nodes::service::node_tag;
+use crate::domain::stages::types::NodeNames;
+use crate::domain::steps::types::MadeTableId;
+use ryo_language::domain::facts::types::CellWord;
+use ryo_language::domain::node_table::service::{element_count, own_end};
+use ryo_language::domain::node_table::types::NodeTable;
+use ryo_language::domain::symbols::types::ByteSlice;
+use ryo_relations::domain::catalog::service::node_extent;
+use ryo_relations::domain::relations::types::{Count, FileId, NodeExtent, Relation};
+
+/// The source a word names: the source its flag's bits say, the file's own tree alone under the own-tree bit, and the
+/// relation's or the table's number.
+#[must_use]
+pub(crate) const fn source_of(flag: WordFlag, read: WordSlot) -> ReadSource {
+    match flag.0 & SOURCE.0 {
+        0 => ReadSource::Nodes(if flag.0 & OWN_TREE.0 == 0 {
+            NodeExtent::Embedded
+        } else {
+            NodeExtent::Own
+        }),
+        1 => ReadSource::Filled(RelationNumber(read.0)),
+        2 => ReadSource::Made(MadeTableId(read.0)),
+        3..=u8::MAX => ReadSource::Written(MadeTableId(read.0)),
+    }
+}
+
+/// The relation the code numbers `number`.
+///
+/// # Errors
+///
+/// The code reads no relation of that number.
+pub(crate) fn relation_at(
+    code: &ProgramCode,
+    number: RelationNumber,
+) -> Result<Relation, FilledError> {
+    code.relations
+        .get(usize::try_from(number.0).unwrap_or(usize::MAX))
+        .copied()
+        .ok_or(FilledError::Code {
+            named: MissingCode::Relation,
+        })
+}
+
+/// What a site's index is over.
+///
+/// # Errors
+///
+/// The code holds no such site.
+pub(crate) fn site_at(code: &ProgramCode, site: IndexSite) -> Result<IndexCode, FilledError> {
+    code.indexes
+        .get(usize::try_from(site.0).unwrap_or(usize::MAX))
+        .copied()
+        .ok_or(FilledError::Code {
+            named: MissingCode::Site,
+        })
+}
+
+/// The source of a site's index. Over the node table, the extent is its relation's: the catalog's, which the encoding
+/// reads for a word's own-tree bit.
+///
+/// # Errors
+///
+/// The site names a source the code does not hold.
+pub(crate) fn site_source(code: &ProgramCode, index: IndexCode) -> Result<ReadSource, FilledError> {
+    match index.source {
+        Short(0) => {
+            let relation = relation_at(code, RelationNumber(index.number.0))?;
+            Ok(ReadSource::Nodes(match node_extent(relation) {
+                Some(NodeExtent::Own) => NodeExtent::Own,
+                Some(NodeExtent::Embedded) | None => NodeExtent::Embedded,
+            }))
+        }
+        Short(1) => Ok(ReadSource::Filled(RelationNumber(index.number.0))),
+        Short(2) => Ok(ReadSource::Made(MadeTableId(index.number.0))),
+        Short(3..=u16::MAX) => Err(FilledError::Code {
+            named: MissingCode::Site,
+        }),
+    }
+}
+
+/// The bits every handle of a source's rows carries besides the row's number: the file, of the node table's; nothing of
+/// another source.
+#[must_use]
+pub(crate) fn tag_of(file: FileId, source: ReadSource) -> CellWord {
+    match source {
+        ReadSource::Nodes(_) => node_tag(file),
+        ReadSource::Filled(_) | ReadSource::Made(_) | ReadSource::Written(_) => CellWord(0),
+    }
+}
+
+/// The site a `Latest` reads: the first slot of its pool record, before the key's operands.
+///
+/// # Errors
+///
+/// The pool does not reach the record.
+pub(crate) fn latest_site(code: &ProgramCode, record: PoolAt) -> Result<IndexSite, FilledError> {
+    code.pool
+        .get(usize::try_from(record.0).unwrap_or(usize::MAX))
+        .map(|slot| IndexSite(slot.0))
+        .ok_or(FilledError::Code {
+            named: MissingCode::Pool,
+        })
+}
+
+/// A table's slot when the table is made for the file.
+pub(crate) fn made_slot(store: &FillStore, table: MadeTableId) -> Option<&TableSlot> {
+    store
+        .tables
+        .get(usize::try_from(table.0).unwrap_or(usize::MAX))
+        .filter(|slot| slot.stamp == store.stamp && slot.state == MadeState::Made)
+}
+
+/// The handles of every row of a source as it is for the file: a made table's rows, a relation's whole fill (nothing
+/// before it is whole), the node table's elements of the extent.
+pub(crate) fn rows_in(store: &FillStore, nodes: &NodeTable, source: ReadSource) -> RowRun {
+    match source {
+        ReadSource::Nodes(extent) => RowRun {
+            start: Count(0),
+            end: match extent {
+                NodeExtent::Own => Count(usize::try_from(own_end(nodes).0).unwrap_or(usize::MAX)),
+                NodeExtent::Embedded => element_count(nodes),
+            },
+        },
+        ReadSource::Filled(number) => whole_rows(&store.relations, number, store.stamp),
+        ReadSource::Made(table) => RowRun {
+            start: Count(0),
+            end: made_slot(store, table).map_or(Count(0), |slot| slot.rows.count),
+        },
+        ReadSource::Written(_) => RowRun::default(),
+    }
+}
+
+/// A column of a relation or of a made table as a loop reads it by a row's handle; no cell for the node table, whose
+/// columns are read by `stages::nodes`, and none for a source that is not there.
+pub(crate) fn view_of(store: &FillStore, source: ReadSource, at: Short) -> ColumnView<'_> {
+    let place = Count(usize::from(at.0));
+    let nothing = ColumnView {
+        cells: &[],
+        first: Count(0),
+        stride: Count(1),
+    };
+    match source {
+        ReadSource::Filled(number) => store
+            .relations
+            .0
+            .get(usize::try_from(number.0).unwrap_or(usize::MAX))
+            .filter(|slot| slot.stamp == store.stamp)
+            .and_then(|slot| slot.columns.0.get(place.0))
+            .map_or(nothing, |cells| ColumnView {
+                cells: &cells.0,
+                first: Count(0),
+                stride: Count(1),
+            }),
+        ReadSource::Made(table) => {
+            made_slot(store, table).map_or(nothing, |slot| column(&slot.rows, place))
+        }
+        ReadSource::Nodes(_) | ReadSource::Written(_) => nothing,
+    }
+}
+
+/// The built index of a site, lent for reading; an index of no row for a site not built for the file.
+#[inline]
+pub(crate) fn index_at(store: &FillStore, site: IndexSite) -> IndexRead<'_> {
+    read(&store.indexes, site)
+}
+
+/// The rows of a stretch of the store's rows: each a handle of its source.
+#[inline]
+pub(crate) fn rows_at(store: &FillStore, run: RowRun) -> &[SourceRow] {
+    store
+        .indexes
+        .rows
+        .get(run.start.0..run.end.0)
+        .unwrap_or_default()
+}
+
+/// The words of the pipeline that starts at `entry`: its stages and, last, its write.
+///
+/// # Errors
+///
+/// The code holds no word there, or no write after it.
+pub(crate) fn pipeline_words(
+    code: &ProgramCode,
+    entry: CodeEntry,
+) -> Result<&[CodeWord], FilledError> {
+    let missing = FilledError::Code {
+        named: MissingCode::Word,
+    };
+    let from = code
+        .words
+        .get(usize::try_from(entry.0).unwrap_or(usize::MAX)..)
+        .ok_or(missing.clone())?;
+    let write = from
+        .iter()
+        .position(|word| word.op == Op::StageWrite)
+        .ok_or(missing.clone())?;
+    from.get(..=write).ok_or(missing)
+}
+
+/// What a node row's cells are read from besides the table: the words of the kinds' and the fields' names, the file's
+/// bytes and the file.
+pub(crate) fn node_names<'a>(
+    programs: RuleSetView<'a>,
+    text: ByteSlice<'a>,
+    file: FileId,
+) -> NodeNames<'a> {
+    NodeNames {
+        kinds: programs.kinds,
+        fields: programs.fields,
+        text,
+        file,
+    }
+}

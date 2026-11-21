@@ -48,6 +48,7 @@ fn answer(scan: &dyn FileScanUseCase, question: Question) -> Result<Value, Failu
     let session = scan.load(ScanLoadRequest {
         plans: &[],
         bindings: &[],
+        statistics: ryo_language::domain::symbols::types::ByteSlice(&[]),
         given: ryo_values::domain::stored_facts::types::Digest([0; 16]),
         stored: &[],
     })?;
@@ -58,11 +59,12 @@ fn answer(scan: &dyn FileScanUseCase, question: Question) -> Result<Value, Failu
             .sum(),
         Question::RuleSetsWithoutAPack => sets.len().abs_diff(scan.packs(&session).len()),
         Question::RowsOfAnUnreadFile => {
-            let (mut worker, mut rows) = (scan.worker(&session), Vec::new());
+            let (mut worker, mut rows, mut noticed) =
+                (scan.worker(&session), Vec::new(), Vec::new());
             let unread = file(0, "contract.not-a-language", b"anything");
-            match scan.scan(&session, &mut worker, unread, &mut rows) {
-                Scanned::NotWalked(_) => rows.len(),
-                Scanned::Whole(_) | Scanned::Faulted(..) => usize::MAX,
+            match scan.scan(&session, &mut worker, unread, &mut rows, &mut noticed) {
+                Scanned::NotWalked(_) => rows.len().saturating_add(noticed.len()),
+                Scanned::Whole(_) | Scanned::Faulted(..) | Scanned::Overran(_) => usize::MAX,
             }
         }
     })

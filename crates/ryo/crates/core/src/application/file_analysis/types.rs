@@ -226,6 +226,36 @@ pub(crate) struct Scanning<'a> {
     pub read: Option<&'a Arc<dyn crate::outbound::lint_store::interface::ReadStore>>,
     /// What the reasons of the languages linked are called.
     pub unknown: Vec<ryo_relations::domain::terms::types::UnknownName>,
+    /// The query of each selected rule as the run was given it, by rule number: where a warning finds a statement's line.
+    pub queries: Vec<ryo_values::domain::query_tokens::types::QueryBundle>,
+}
+
+/// A warning of a run, as its report lists it: the rule, the file, and the warning as it was printed when it was noticed.
+/// The rule was not stopped, and its findings of the file are complete.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_core::application::file_analysis::types::Notice;
+/// use ryo_execution::inbound::use_cases::metadata::interface::Message;
+/// use ryo_language::domain::files::types::FilePath;
+/// use ryo_values::domain::runs::types::RuleId;
+///
+/// let notice = Notice {
+///     rule: RuleId("rule".into()),
+///     path: FilePath("b.walk".into()),
+///     warning: Message("warning: rule `rule` is slow in `b.walk`".into()),
+/// };
+/// assert_eq!(&*notice.path.0, "b.walk");
+/// ```
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Notice {
+    /// The rule.
+    pub rule: ryo_values::domain::runs::types::RuleId,
+    /// The file.
+    pub path: ryo_language::domain::files::types::FilePath,
+    /// The warning, its lines.
+    pub warning: ryo_execution::inbound::use_cases::metadata::interface::Message,
 }
 
 /// What one worker owns while the new engine scans the files it takes: the use case's state for the worker, the file's bytes,
@@ -260,6 +290,10 @@ pub(crate) struct ScanState {
     pub unread: Vec<ryo_values::domain::records::types::Unread>,
     /// What the rules could not decide.
     pub unknowns: Vec<ryo_execution::inbound::use_cases::metadata::interface::Unknown>,
+    /// What the engine noticed of the rules' work in the file being scanned.
+    pub noticed: Vec<ryo_execution::inbound::use_cases::file_scan::types::Noticed>,
+    /// The warnings of the files the worker scanned, each printed when it was noticed.
+    pub notices: Vec<Notice>,
     /// The failure that stopped the worker, when one did.
     pub failure: Option<FileAnalysisError>,
 }
@@ -271,6 +305,8 @@ pub(crate) struct ScannedRun {
     pub unread: Vec<ryo_values::domain::records::types::Unread>,
     /// What the rules could not decide.
     pub unknowns: Vec<ryo_execution::inbound::use_cases::metadata::interface::Unknown>,
+    /// The warnings of the run, by file and rule: none for a run with nothing to say.
+    pub notices: Vec<Notice>,
     /// How many rows the answer has and how many were written.
     pub counts: crate::outbound::row_sink::types::AnswerCounts,
 }

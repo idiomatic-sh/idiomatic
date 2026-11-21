@@ -2,14 +2,20 @@
 //! for them, and one file scanned in the worker that took it. The state a worker holds between files is behind this trait: a
 //! caller keeps it and names none of its parts.
 use super::types::{
-    FileScanWorker, FileToScan, RuleSetNumber, ScanLoadRequest, ScanSession, ScanStoredRequest,
-    Scanned,
+    FileScanWorker, FileToScan, Noticed, RuleSetNumber, ScanLoadRequest, ScanMeasured, ScanSession,
+    ScanStoredRequest, Scanned,
 };
 use ryo_execution_domain::domain::operating::errors::OperatingError;
+use ryo_execution_runtime::application::file_scan::warning::types::{
+    WarningText, WrittenStatement,
+};
+use ryo_language::domain::files::types::SourcePath;
 use ryo_operators::spike::EngineMode;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::query_plans::types::Emit;
+use ryo_values::domain::query_tokens::types::QueryBundle;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
+use ryo_values::domain::runs::types::RuleId;
 use ryo_values::domain::scan_rows::types::ScanRow;
 use ryo_values::domain::stores::types::StoredPack;
 
@@ -55,14 +61,33 @@ pub trait FileScanUseCase: Send + Sync {
 
     /// One file, in the worker that took it: walked by the first linked language of the session that reads it, scanned by the
     /// new engine with that language's rule set, its findings moved to `rows`, after what it holds, sorted by rule, where they
-    /// start and end, and cells. Nothing is done per rule. A fault is answered, never raised: the run goes on.
+    /// start and end, and cells. Nothing is done per rule. A fault is answered, never raised: the run goes on. What the
+    /// engine noticed of a rule's work in the file is moved to `noticed`, after what it holds: the rule's rows are complete,
+    /// and the answer is `Overran` only when the scan is set to fail on it.
     fn scan(
         &self,
         session: &ScanSession,
         worker: &mut FileScanWorker,
         file: FileToScan<'_>,
         rows: &mut Vec<ScanRow>,
+        noticed: &mut Vec<Noticed>,
     ) -> Scanned;
+
+    /// What was noticed as the warning the run prints and lists, naming the rule by its id and the file by its path, and the
+    /// statement as `written` says it (where it is written; its line is counted in the documents of `query`, the rule's),
+    /// or the plan step when either is none.
+    fn worded(
+        &self,
+        noticed: &Noticed,
+        rule: &RuleId,
+        file: SourcePath<'_>,
+        written: Option<&WrittenStatement>,
+        query: Option<&QueryBundle>,
+    ) -> WarningText;
+
+    /// What the workers of a session counted over the files they scanned, together; with the session's work ledger when
+    /// the run measures.
+    fn measured(&self, session: &ScanSession, workers: &[&FileScanWorker]) -> ScanMeasured;
 
     /// What each column of a rule's rows holds in a rule set, in column order: nothing for a rule the rule set does not run.
     fn kinds<'s>(

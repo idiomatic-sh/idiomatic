@@ -1,29 +1,28 @@
-//! The `statistics` service's cases: bytes that hold no statistics are absent, never an error, whatever they are.
+//! The `statistics` service's cases: a file of a sample that measured no unit reads as statistics of its stage, which is not
+//! the same as no statistics; bytes that hold no statistics are absent, never an error, whatever they are.
 
 use super::service::decoded;
-use super::types::StatisticsBytes;
+use super::types::{LearnStage, StatisticsBytes};
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::packs::constants::ENGINE_VERSION;
 use ryo_values::domain::descriptions::types::{KindVocabulary, LanguageName};
 
-/// The bytes a row decodes.
+/// The file a row decodes, as it is written: `{version}` stands for the version of the engine under test.
 #[derive(Clone, Copy, Debug)]
-enum Scenario {
-    /// No bytes: a rule set that ships no statistics.
-    NoBytes,
-    /// Bytes that are no statistics.
-    OtherBytes,
-}
+struct Written(&'static str);
 
-/// Whether bytes held statistics.
+/// What bytes held.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Held {
-    /// They read as statistics.
-    Statistics,
+    /// Statistics of a first sample, with this many units.
+    First(usize),
+    /// Statistics of a second sample, with this many units.
+    Second(usize),
     /// They are absent.
     Absent,
 }
 
-type Input = Scenario;
+type Input = Written;
 type Value = Held;
 type Failure = ();
 
@@ -32,29 +31,68 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("no_bytes_are_no_statistics"),
         word: Word::Succeeds,
-        input: || Scenario::NoBytes,
+        input: || Written(""),
         expect: Expect::Value(Held::Absent),
     },
     Case {
         name: CaseName("bytes_that_do_not_read_are_absent_never_an_error"),
         word: Word::Succeeds,
-        input: || Scenario::OtherBytes,
+        input: || Written("not statistics"),
+        expect: Expect::Value(Held::Absent),
+    },
+    Case {
+        name: CaseName("a_first_sample_that_measured_no_unit_is_statistics_of_stage_first"),
+        word: Word::Succeeds,
+        input: || Written("ryo-statistics\n{version}\nfirst\n"),
+        expect: Expect::Value(Held::First(0)),
+    },
+    Case {
+        name: CaseName("a_second_sample_that_measured_no_unit_is_statistics_of_stage_second"),
+        word: Word::Succeeds,
+        input: || Written("ryo-statistics\n{version}\nsecond\n"),
+        expect: Expect::Value(Held::Second(0)),
+    },
+    Case {
+        name: CaseName("statistics_of_another_engine_version_are_absent"),
+        word: Word::Succeeds,
+        input: || Written("ryo-statistics\n{version}.1\nfirst\n"),
+        expect: Expect::Value(Held::Absent),
+    },
+    Case {
+        name: CaseName("a_stage_no_sample_has_is_absent"),
+        word: Word::Succeeds,
+        input: || Written("ryo-statistics\n{version}\nthird\n"),
+        expect: Expect::Value(Held::Absent),
+    },
+    Case {
+        name: CaseName("a_header_whose_last_line_is_not_ended_is_absent"),
+        word: Word::Succeeds,
+        input: || Written("ryo-statistics\n{version}\nfirst"),
+        expect: Expect::Value(Held::Absent),
+    },
+    Case {
+        name: CaseName("a_header_followed_by_bytes_nothing_reads_yet_is_absent"),
+        word: Word::Succeeds,
+        input: || Written("ryo-statistics\n{version}\nfirst\nunits"),
         expect: Expect::Value(Held::Absent),
     },
 ];
 
-fn subject(scenario: Input) -> Result<Value, Failure> {
+fn subject(written: Input) -> Result<Value, Failure> {
     let kinds = KindVocabulary {
         language: LanguageName("walking".into()),
         kinds: Vec::new(),
         fields: Vec::new(),
         fixed: Vec::new(),
     };
-    let bytes: &[u8] = match scenario {
-        Scenario::NoBytes => &[],
-        Scenario::OtherBytes => b"not statistics",
-    };
-    Ok(decoded(StatisticsBytes(bytes), &kinds).map_or(Held::Absent, |_| Held::Statistics))
+    let bytes = written.0.replace("{version}", ENGINE_VERSION);
+    let held = decoded(StatisticsBytes(bytes.as_bytes()), &kinds);
+    Ok(
+        held.map_or(Held::Absent, |statistics| match statistics.stage {
+            LearnStage::First => Held::First(statistics.units.len()),
+            LearnStage::Second => Held::Second(statistics.units.len()),
+        }),
+    )
 }
 
 #[test]

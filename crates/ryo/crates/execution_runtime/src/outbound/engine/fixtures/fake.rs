@@ -6,13 +6,16 @@
 //! row for each element the rule names of a scanned file: the fixture rule's, per word, is (start, end, word) with a frontier
 //! row (word); a compiled rule's is the columns it keeps. Before it finds a row it reads `syntax-error`, and
 //! faults when the language filled it only in part. It counts the rule sets it lowered and the packs it read back, and the rules
-//! it runs are those of the rule set it loaded last: the engine's programs are sealed, so a fake cannot put them there.
+//! it runs are those of the rule set it loaded last: the engine's programs are sealed, so a fake cannot put them there. It keeps
+//! the statistics its last lowering was given; a fake told to notice gives its notice of its first rule in the file told; and
+//! its ledger has one row for each rule it runs, the first with the rows every scan found.
 
 use super::rules::{Anchor, FixtureRule, Held, lowered, named_rules, written};
 use crate::outbound::engine::interface::EnginePort;
+use ryo_engine::domain::counting::types::{LedgerRow, LedgerUnit, WorkClass, WorkLedger};
 use ryo_engine::domain::findings::types::{
-    ColumnKinds, FoundCells, FoundRows, FoundTarget, FrontierSource, InstructionCount, RuleColumns,
-    ScanCounters, WorkNotice,
+    ColumnKinds, FoundCells, FoundRows, FoundTarget, FrontierSource, HeaviestWork,
+    InstructionCount, RuleColumns, ScanCounters, WorkNotice, WorkVerdict,
 };
 use ryo_engine::domain::lowering::types::RefusedRule;
 use ryo_engine::domain::packs::service::encoded;
@@ -35,14 +38,14 @@ use ryo_language::domain::node_table::service::{element_count, kind_of, node_cou
 use ryo_language::inbound::use_cases::walk::types::FileVisit;
 use ryo_relations::domain::relations::service::{node_id, to_bits};
 use ryo_relations::domain::relations::types::{
-    CellKind, Count, Offset, Position, Relation, Span, Value,
+    CellKind, Count, FileId, Offset, Position, Relation, Span, Value,
 };
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::descriptions::types::{KindVocabulary, LanguageName};
-use ryo_values::domain::plan_parts::types::InputNumber;
+use ryo_values::domain::plan_parts::types::{InputNumber, StepId};
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 use ryo_values::domain::stored_facts::types::PartialCause;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Mutex, PoisonError};
 
 /// The fake engine.
@@ -52,11 +55,29 @@ pub struct EngineFake {
     pub lowered: AtomicUsize,
     /// How many packs it was asked to read back.
     pub unpacked: AtomicUsize,
+    /// The statistics its last lowering was given, as bytes.
+    pub statistics: Mutex<Vec<u8>>,
+    /// How many states that measure it was asked for.
+    pub measuring: AtomicUsize,
+    /// The file it notices in, and the notice it gives there of the first rule it runs; none: it notices nothing.
+    notice: Option<(FileId, WorkNotice)>,
+    /// The rows its scans found, together.
+    found: AtomicU64,
     /// The rules of the rule set it loaded last.
     last: Mutex<Vec<FixtureRule>>,
 }
 
 impl EngineFake {
+    /// A fake that notices: in the file `file`, it gives `notice` of the first rule it runs, and finds that file's rows all
+    /// the same.
+    #[must_use]
+    pub fn noticing(file: FileId, notice: WorkNotice) -> Self {
+        Self {
+            notice: Some((file, notice)),
+            ..Self::default()
+        }
+    }
+
     /// Remembers the rules of the rule set just loaded.
     fn loaded(&self, rules: Vec<FixtureRule>) -> Programs {
         *self.last.lock().unwrap_or_else(PoisonError::into_inner) = rules;
@@ -69,6 +90,23 @@ impl EngineFake {
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .clone()
+    }
+}
+
+/// The notice of the port's fixtures: a rule whose work, a million rows, passed its allowance, most of it in a join with no
+/// key of a thousand rows with a thousand, at the third step of its plan.
+#[must_use]
+pub const fn overrun() -> WorkNotice {
+    WorkNotice {
+        rule: SelectedRuleOrdinal(0),
+        verdict: WorkVerdict::Over,
+        work: InstructionCount(1_000_000),
+        allowance: InstructionCount(128_000),
+        step: StepId(2),
+        heaviest: HeaviestWork::Product {
+            left: InstructionCount(1000),
+            right: InstructionCount(1000),
+        },
     }
 }
 
@@ -122,8 +160,12 @@ impl EnginePort for EngineFake {
         kinds: &KindVocabulary,
     ) -> Result<LoadedRules, LoadError> {
         match source {
-            LoadSource::Plans(rules, _statistics) => {
+            LoadSource::Plans(rules, statistics) => {
                 counted(&self.lowered);
+                *self
+                    .statistics
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner) = statistics.0.to_vec();
                 let (mut accepted, mut refused) = (Vec::new(), Vec::new());
                 for rule in rules.0 {
                     match lowered(rule, kinds) {
@@ -192,6 +234,26 @@ impl EnginePort for EngineFake {
 
     fn state_for(&self, programs: &Programs) -> ScanScratch {
         scratch_for(programs)
+    }
+
+    fn measuring_state_for(&self, programs: &Programs) -> ScanScratch {
+        counted(&self.measuring);
+        scratch_for(programs)
+    }
+
+    fn ledger(&self, _programs: &Programs, _workers: &[&ScanScratch]) -> WorkLedger {
+        let mut found =
+            Count(usize::try_from(self.found.load(Ordering::Relaxed)).unwrap_or(usize::MAX));
+        let row = |rule: &FixtureRule| LedgerRow {
+            unit: LedgerUnit::Rule(rule.rule),
+            class: WorkClass::Navigation,
+            owners: vec![rule.rule],
+            rows: std::mem::take(&mut found),
+            steps: Count(0),
+            nanos: Count(0),
+            idle_nanos: Count(0),
+        };
+        WorkLedger(self.rules().iter().map(row).collect())
     }
 
     fn scan(
@@ -275,6 +337,13 @@ impl EnginePort for EngineFake {
                 }
                 candidates = InstructionCount(candidates.0.saturating_add(1));
             }
+        }
+        let _before = self.found.fetch_add(candidates.0, Ordering::Relaxed);
+        if let Some((_, notice)) = self.notice.filter(|(noticed, _)| *noticed == file.file) {
+            found.noticed(WorkNotice {
+                rule: first.rule,
+                ..notice
+            });
         }
         Ok(ScanCounters {
             steps: candidates,

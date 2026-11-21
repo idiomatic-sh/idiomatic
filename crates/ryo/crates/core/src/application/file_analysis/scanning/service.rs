@@ -3,6 +3,7 @@
 //! the rows port in the order of the files; beside the old engine, they are compared with the old engine's rows of the file,
 //! and the first difference stops the run. Nothing is done per rule for a file: which rules govern a file is decided once, for
 //! a file that has rows. A rule a rule set does not run is answered as not decided, never as run.
+use super::super::constants::OVERRAN;
 use super::super::errors::FileAnalysisError;
 use super::super::service::FileAnalysis;
 use super::super::streaming::service::FileVisits;
@@ -178,7 +179,8 @@ impl FileVisits {
         let count = JobCount(u32::try_from(run.files.len()).unwrap_or(u32::MAX));
         self.scheduler.run(&mut jobs, count)?;
         drop(jobs);
-        let (mut unread, mut unknowns) = (Vec::new(), Vec::new());
+        Self::measured(scanning, &states);
+        let (mut unread, mut unknowns, mut notices) = (Vec::new(), Vec::new(), Vec::new());
         let mut walked = std::collections::BTreeSet::new();
         for state in states {
             if let Some(error) = state.failure {
@@ -186,8 +188,10 @@ impl FileVisits {
             }
             unread.extend(state.unread);
             unknowns.extend(state.unknowns);
+            notices.extend(state.notices);
             walked.extend(state.walked);
         }
+        notices.sort();
         // A rule the engine does not run was not evaluated on the files its rule set's language walked: the answer says so.
         unknowns.extend(scanning.not_run(&walked));
         unread.sort_by(|left: &Unread, right| left.path.cmp(&right.path));
@@ -216,6 +220,7 @@ impl FileVisits {
         Ok(Ok(ScannedRun {
             unread,
             unknowns,
+            notices,
             counts: AnswerCounts { total, shown },
         }))
     }
@@ -287,9 +292,16 @@ impl FileAnalysis {
                 source: ByteSlice(&state.bytes.0),
             },
             &mut state.rows,
+            &mut state.noticed,
         );
+        // A rule that passed its allowance is warned of whatever the scan answered; a run set to fail on it stops here.
+        let warned = self.warned(scanning, state, &entry.path);
+        if let Scanned::Overran(_) = scanned {
+            let reason = [OVERRAN, &*warned.0].concat();
+            return Err(OperatingError::EngineHarness { reason }.into());
+        }
         let (by, fault) = match scanned {
-            Scanned::Whole(by) => (Some(by), None),
+            Scanned::Whole(by) | Scanned::Overran(by) => (Some(by), None),
             Scanned::Faulted(by, fault) => (Some(by), Some(fault)),
             Scanned::NotWalked(fault) => (None, Some(fault)),
         };

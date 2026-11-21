@@ -10,7 +10,7 @@ use super::super::streaming::service::FileVisits;
 use super::super::types::{ScanRequest, Scanning};
 use crate::domain::keeping::types::DigestInput;
 use crate::domain::repository::service::{
-    catalog_schema, given, paths_of, source_selection_identity,
+    catalog_schema, given, paths_of, source_selection_identity, statistics_identity,
 };
 use ryo_execution::inbound::use_cases::file_scan::interface::FileScanUseCase;
 use ryo_execution::inbound::use_cases::file_scan::types::{
@@ -21,7 +21,7 @@ use ryo_execution::inbound::use_cases::metadata::interface::{
 };
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
 use ryo_execution_runtime::outbound::digest::types::DigestBytes;
-use ryo_operators::spike::EngineMode;
+use ryo_operators::spike::{EngineMode, engine_statistics};
 use ryo_relations::domain::relations::types::Count;
 use ryo_values::domain::hosted::service::identity as hosted_identity;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
@@ -85,6 +85,13 @@ impl FileVisits {
             EngineMode::Old => Vec::new(),
             EngineMode::New | EngineMode::Both => paths_of(request.files),
         };
+        let queries = match scan.mode() {
+            EngineMode::Old => Vec::new(),
+            EngineMode::New | EngineMode::Both => {
+                let rules = request.rules.iter();
+                rules.map(|rule| rule.query.clone()).collect()
+            }
+        };
         Scanning {
             scan,
             session,
@@ -95,6 +102,7 @@ impl FileVisits {
             files: request.files,
             read: request.read,
             unknown: self.analysis.language.unknown_reasons().0,
+            queries,
         }
     }
 
@@ -133,6 +141,7 @@ impl FileVisits {
             EngineMode::New | EngineMode::Both => scan.load(ScanLoadRequest {
                 plans,
                 bindings,
+                statistics: engine_statistics(),
                 given: self.analysis.given(&request),
                 stored: &Self::packs(&request)?,
             })?,
@@ -144,17 +153,21 @@ impl FileVisits {
 impl FileAnalysis {
     /// What a run was given, as one digest, made before anything is compiled: its selected rules as they were written, in
     /// order, with the fragments their queries name read once (`given`); what the host declared; the catalog's relations and
-    /// columns; and the language the request names, when it names one. A rule set's pack is kept under it, with the language's
-    /// kinds and the engine's version: a changed rule or fragment, another selection or another declaration is another pack.
-    /// One pass over the bytes, and nothing per rule but its own text.
+    /// columns; the language the request names, when it names one; and the statistics the rules are lowered with, when the
+    /// run names some. A rule set's pack is kept under it, with the language's kinds and the engine's version: a changed rule
+    /// or fragment, another selection, another declaration or other statistics is another pack, and a run given the same
+    /// reads its pack back and compiles nothing. One pass over the bytes, and nothing per rule but its own text.
     fn given(&self, request: &ScanRequest<'_, '_>) -> Digest {
         let part = |bytes: DigestInput| self.digest.digest(DigestBytes(&bytes.0));
-        self.digest.combine(&[
+        let mut parts = vec![
             part(given(request.rules)),
             self.digest
                 .digest(DigestBytes(&hosted_identity(request.hosted).0)),
             part(catalog_schema()),
             part(source_selection_identity(request.named)),
-        ])
+        ];
+        // A run that names no statistics is given what it was given before statistics were: its packs keep their keys.
+        parts.extend(statistics_identity(engine_statistics()).map(part));
+        self.digest.combine(&parts)
     }
 }

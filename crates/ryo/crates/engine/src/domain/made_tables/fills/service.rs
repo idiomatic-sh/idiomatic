@@ -1,0 +1,167 @@
+//! The services of the `fills` part: a table's fill read from the code, and the fills that are not a pipeline's write: a
+//! counted grouping and a sorted table over their gathered input, and a constant table's rows.
+//!
+//! The record is read here and nowhere else on the fill side. Its layout is the encoding's (`encoding/tables`): the width;
+//! the list of the table's index sites; one parameter; then for each input the list of its pipelines' entries, the list of
+//! its key columns and its order column or none; a constant table's rows as constants, row by row. Which fill a code is
+//! is asked of `lowered::service::fill_code`, the one statement of the codes.
+
+use super::types::{FillInputs, FillKind, TableFill};
+use crate::domain::code::constants::NO_SLOT;
+use crate::domain::code::service::list;
+use crate::domain::code::types::{FillCode, PoolAt, ProgramCode, WordSlot};
+use crate::domain::filled::errors::FilledError;
+use crate::domain::filled::types::{MissingCode, UnbuiltFill};
+use crate::domain::lowered::service::fill_code;
+use crate::domain::lowered::types::{ConstantRows, FillInput, GroupFill, MadeFill, OrderedFill};
+use crate::domain::made_tables::operands::service::constant_at;
+use crate::domain::made_tables::service::{count_groups, set_keys, sort_groups};
+use crate::domain::made_tables::types::{FillWork, GroupRoom, TableRows};
+use crate::domain::steps::types::{ColumnList, MadeTableId};
+use ryo_relations::domain::relations::types::Count;
+use ryo_values::domain::plan_parts::types::{ColumnIndex, RepeatedRows};
+
+/// The pool does not hold the record a table names.
+const NO_RECORD: FilledError = FilledError::Code {
+    named: MissingCode::Pool,
+};
+
+/// Which fill a code is, of the fills the fill side runs: the code is compared with the lowering's own code of each.
+fn kind_of(code: FillCode) -> Result<FillKind, FilledError> {
+    let input = || FillInput {
+        pipelines: Box::new([]),
+        keys: ColumnList(Box::new([])),
+        order: None,
+    };
+    let rows = MadeFill::Rows(Box::new([]), RepeatedRows::Kept);
+    let count = MadeFill::Group(GroupFill::Count { distinct: None }, input());
+    let sorted = MadeFill::Ordered(OrderedFill::Sorted(input()));
+    let constant = MadeFill::Constant(ConstantRows(Vec::new()));
+    if code == fill_code(&rows) {
+        Ok(FillKind::Rows)
+    } else if code == fill_code(&count) {
+        Ok(FillKind::Count)
+    } else if code == fill_code(&sorted) {
+        Ok(FillKind::Sorted)
+    } else if code == fill_code(&constant) {
+        Ok(FillKind::Constant)
+    } else {
+        Err(FilledError::Unbuilt {
+            unbuilt: UnbuiltFill::Fill(code),
+        })
+    }
+}
+
+/// The slot of the pool at a place.
+fn slot(code: &ProgramCode, at: PoolAt) -> Result<WordSlot, FilledError> {
+    code.pool
+        .get(usize::try_from(at.0).unwrap_or(usize::MAX))
+        .copied()
+        .ok_or(NO_RECORD)
+}
+
+/// The place `ahead` slots after a place of the pool.
+fn after(at: PoolAt, ahead: Count) -> Result<PoolAt, FilledError> {
+    match u32::try_from(ahead.0) {
+        Ok(slots) => at.0.checked_add(slots).map(PoolAt).ok_or(NO_RECORD),
+        Err(_) => Err(NO_RECORD),
+    }
+}
+
+/// The fill of a made table, as the code holds it: which fill, the table's width, its one parameter, and where its inputs
+/// or its constant rows start.
+///
+/// # Errors
+///
+/// The code holds no such table or no record for it, or the fill is one the fill side does not run yet.
+pub(crate) fn fill_at(code: &ProgramCode, table: MadeTableId) -> Result<TableFill, FilledError> {
+    let written = code
+        .tables
+        .get(usize::try_from(table.0).unwrap_or(usize::MAX))
+        .ok_or(FilledError::Code {
+            named: MissingCode::Table,
+        })?;
+    let kind = kind_of(FillCode(written.fill.0))?;
+    let at = PoolAt(written.operands.0);
+    let width = slot(code, at)?;
+    let sites = list(&code.pool, WordSlot(after(at, Count(1))?.0));
+    let parameter = after(at, Count(sites.len().saturating_add(2)))?;
+    Ok(TableFill {
+        kind,
+        width: Count(usize::try_from(width.0).unwrap_or(usize::MAX)),
+        parameter: slot(code, parameter)?,
+        inputs: after(parameter, Count(1))?,
+    })
+}
+
+/// One input of a fill, read at its place in the record.
+///
+/// # Errors
+///
+/// The pool does not hold it.
+pub(crate) fn input_at(code: &ProgramCode, at: PoolAt) -> Result<FillInputs<'_>, FilledError> {
+    let entries = list(&code.pool, WordSlot(at.0));
+    let keys_at = after(at, Count(entries.len().saturating_add(1)))?;
+    let keys = list(&code.pool, WordSlot(keys_at.0));
+    let order_at = after(keys_at, Count(keys.len().saturating_add(1)))?;
+    let order = slot(code, order_at)?;
+    Ok(FillInputs {
+        entries,
+        keys,
+        order: (order != NO_SLOT).then_some(Count(usize::try_from(order.0).unwrap_or(usize::MAX))),
+    })
+}
+
+/// The `Constant` fill: the table's rows are the record's constants, row by row.
+///
+/// # Errors
+///
+/// The record names a constant the code does not hold.
+pub(crate) fn constant_rows(
+    code: &ProgramCode,
+    fill: TableFill,
+    out: &mut TableRows,
+) -> Result<(), FilledError> {
+    let rows = usize::try_from(fill.parameter.0).unwrap_or(usize::MAX);
+    for place in 0..rows.saturating_mul(fill.width.0) {
+        out.cells.push(constant_at(
+            code,
+            slot(code, after(fill.inputs, Count(place))?)?,
+        )?);
+    }
+    out.count = Count(rows);
+    Ok(())
+}
+
+/// The fills that group their gathered input: `Group(Count)` writes one row for each key, `Ordered(Sorted)` the input's
+/// rows with each key's together and ascending by the order column. The rows read and given are added to the work.
+///
+/// # Errors
+///
+/// A key or the order names no column of the input: a fault of the code, never of a file.
+pub(crate) fn grouped_rows(
+    fill: TableFill,
+    gathered: &TableRows,
+    read: FillInputs<'_>,
+    room: &mut GroupRoom,
+    out: &mut TableRows,
+    work: &mut FillWork,
+) -> Result<(), FilledError> {
+    let wrong = FilledError::Code {
+        named: MissingCode::Column,
+    };
+    set_keys(room, read.keys.iter().map(|column| ColumnIndex(column.0)));
+    match fill.kind {
+        FillKind::Count => {
+            let distinct = (fill.parameter != NO_SLOT).then_some(Count(
+                usize::try_from(fill.parameter.0).unwrap_or(usize::MAX),
+            ));
+            count_groups(gathered, distinct, room, out).map_err(|_| wrong)?;
+        }
+        FillKind::Sorted => sort_groups(gathered, read.order.ok_or(wrong)?, room, out),
+        FillKind::Rows | FillKind::Constant => return Err(wrong),
+    }
+    work.read = Count(work.read.0.saturating_add(gathered.count.0));
+    work.given = Count(work.given.0.saturating_add(out.count.0));
+    Ok(())
+}

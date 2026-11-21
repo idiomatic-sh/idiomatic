@@ -14,9 +14,10 @@ use ryo_language::domain::facts::types::FileFacts;
 /// ```
 /// use ryo_engine::inbound::use_cases::scan::interface::ScanUseCase;
 /// use ryo_engine::inbound::use_cases::scan::use_case::ScanUseCaseImpl;
+/// use ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl;
 ///
 /// fn scanner() -> impl ScanUseCase {
-///     ScanUseCaseImpl::new()
+///     ScanUseCaseImpl::new(std::sync::Arc::new(MatchingUseCaseImpl))
 /// }
 /// let _scanner = scanner();
 /// ```
