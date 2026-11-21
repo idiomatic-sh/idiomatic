@@ -247,6 +247,42 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "codes: {\"EachRowMade\": 1, \"Emit\": 1, \"End\": 2, \"ReadMade\": 2, \"StageProbe\": 1, \"StageRead\": 11, \"StageScan\": 3, \"StageWrite\": 3}",
         ))),
     },
+    Case {
+        name: CaseName("a_selection_by_a_constant_field_reads_the_fields_bucket_of_the_node_table"),
+        word: Word::Succeeds,
+        input: || (&["the edges of the field label"], SampleStage::Absent),
+        expect: Expect::Value(Cow::Borrowed(concat!(
+            "rule 0: 1 branches\n",
+            "  branch: EachMatch:File Read:Constant Read:Constant Emit:Constant\n",
+            "codes: {\"EachMatchNode\": 1, \"Emit\": 1, \"End\": 2, \"ReadNode\": 2}",
+        ))),
+    },
+    Case {
+        name: CaseName(
+            "a_selection_by_a_constant_field_is_empty_in_a_file_with_no_child_in_that_field",
+        ),
+        word: Word::Succeeds,
+        input: || {
+            (
+                &[
+                    "the edges of the field label",
+                    "the edges of the field label",
+                ],
+                SampleStage::Absent,
+            )
+        },
+        expect: Expect::Value(Cow::Borrowed(concat!(
+            "definition 0: 5 columns, emptiness Row(SyntaxChild, Some(RowValue { column: SyntaxChild(Field), value: CellWord(1) }))\n",
+            "  pattern bound [] collected []: Table 0\n",
+            "table 0: Rows, 5 columns, indexes []\n",
+            "  pipeline: Scan:File Read:Constant Read:Constant\n",
+            "rule 0: 1 branches\n",
+            "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Read:Constant Emit:Constant\n",
+            "rule 1: 1 branches\n",
+            "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Read:Constant Emit:Constant\n",
+            "codes: {\"EachRowMade\": 2, \"Emit\": 2, \"End\": 3, \"ReadMade\": 8, \"StageRead\": 2, \"StageScan\": 1, \"StageWrite\": 1}",
+        ))),
+    },
 ];
 
 /// The scenes lowered and said in lines, as the cases of the service itself are.
