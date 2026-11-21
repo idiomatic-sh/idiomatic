@@ -12,20 +12,19 @@ use crate::domain::lowering::flattening::types::RowColumn;
 use crate::domain::lowering::nodes::service::digest_of;
 use crate::domain::lowering::nodes::types::StepReach;
 use crate::domain::lowering::tables::calls::service::call_arm;
-use crate::domain::lowering::tables::fills::service::{
-    as_of_arm, group_bound_arm, group_count_arm,
-};
+use crate::domain::lowering::tables::closures::service::closure_arm;
+use crate::domain::lowering::tables::fills::service::{as_of_arm, group_count_arm, group_rows_arm};
 use crate::domain::lowering::tables::inputs::service::{all_selected, input, rule, term};
-use crate::domain::lowering::tables::joins::service::{
-    antijoin_arm, axis_arm, closure_arm, join_arm,
-};
-use crate::domain::lowering::tables::service::test_of;
+use crate::domain::lowering::tables::joins::service::{antijoin_arm, axis_arm, join_arm};
+use crate::domain::lowering::tables::matches::service::match_arm;
+use crate::domain::lowering::tables::shapes::service::test_of;
 use crate::domain::lowering::tables::types::{InputWant, RuleFlattening};
 use crate::domain::steps::types::ConstantText;
 use crate::domain::steps::types::{AnchorKinds, TestOperation};
 use ryo_relations::domain::relations::service::columns;
 use ryo_values::domain::plan_parts::types::{Input, Operand, PlanComparison, QueryLiteral, StepId};
 use ryo_values::domain::plans::types::Operation;
+use ryo_values::domain::query_plans::service::read_order;
 
 /// The emptiness of a selection: of a relation read with a literal in a column when that is what it is, else its input's.
 fn selection_emptiness(
@@ -99,7 +98,7 @@ fn arm(
             let mut read = input(state, drafts, *from, InputWant::Inline)?;
             for branch in &mut read.branches {
                 for value in values {
-                    let added = term(state, drafts, &branch.row, value)?;
+                    let added = term(state, drafts, branch, value)?;
                     branch.row.push(added);
                 }
             }
@@ -116,30 +115,30 @@ fn arm(
         }
         Operation::Antijoin { .. } => antijoin_arm(state, drafts, operation),
         Operation::GroupCount { .. } => group_count_arm(state, drafts, step, operation),
-        Operation::GroupBound { .. } => group_bound_arm(state, drafts, step, operation),
+        Operation::GroupBound { .. } | Operation::GroupOrdinal { .. } => {
+            group_rows_arm(state, drafts, step, operation)
+        }
         Operation::AsOf { .. } => as_of_arm(state, drafts, step, operation),
         Operation::Axis { .. } => axis_arm(state, drafts, operation),
         Operation::Closure { .. } => closure_arm(state, drafts, operation),
-        Operation::Replace { .. } | Operation::SpanBounds { .. } => {
-            call_arm(state, drafts, operation)
-        }
+        Operation::OrderedMatch { .. } => match_arm(state, drafts, step, operation),
+        Operation::Replace { .. }
+        | Operation::SpanBounds { .. }
+        | Operation::SpanBetween { .. }
+        | Operation::SourceMatches { .. }
+        | Operation::Capture { .. } => call_arm(state, drafts, operation),
         // What is left to lower, each by name: `tables::service::shaped` refuses a rule that holds one.
         Operation::Intersection { .. }
         | Operation::Difference { .. }
         | Operation::GroupDigest { .. }
-        | Operation::GroupOrdinal { .. }
-        | Operation::Capture { .. }
         | Operation::Rank { .. }
         | Operation::Words { .. }
-        | Operation::OrderedMatch { .. }
         | Operation::Follow { .. }
         | Operation::OrderedDfs { .. }
         | Operation::Worklist { .. }
         | Operation::Cycles { .. }
         | Operation::Rows { .. }
         | Operation::Hosted { .. }
-        | Operation::SpanBetween { .. }
-        | Operation::SourceMatches { .. }
         | Operation::RenderSyntax { .. }
         | Operation::FitsRendered { .. } => None,
     }
@@ -171,7 +170,7 @@ fn wanted(state: &RuleFlattening<'_>, drafts: &Drafts) -> Option<Vec<StepReach>>
     Some(wanted)
 }
 
-/// The rows a rule emits, flattened: every step once, in step order. The step named is one that could not be flattened.
+/// The rows a rule emits, flattened: every step once, each after the steps it reads (`read_order`). The step named is one that could not be flattened.
 pub(crate) fn rule_flattened(
     state: &mut RuleFlattening<'_>,
     drafts: &mut Drafts,
@@ -180,7 +179,10 @@ pub(crate) fn rule_flattened(
     let wanted = wanted(state, drafts).ok_or(emitted)?;
     let plan = rule(state).ok_or(emitted)?.rule.plan;
     state.flat = plan.steps.iter().map(|_| None).collect();
-    for (place, step) in plan.steps.iter().enumerate() {
+    for place in read_order(plan).into_iter().map(usize::from) {
+        let Some(step) = plan.steps.get(place) else {
+            continue;
+        };
         if wanted.get(place) != Some(&StepReach::Reached) {
             continue;
         }

@@ -13,8 +13,9 @@ use ryo_values::domain::query_plans::types::NodeDigests;
 use ryo_values::domain::query_plans::types::{NodeDigest, Plan};
 use std::collections::HashSet;
 
-/// The steps of `plan` its emit reaches, by step: each step is visited once, whatever the number of paths to it. None when a
-/// step reads a step that is not before it: such a plan cannot be evaluated, and the step is named.
+/// The steps of `plan` its emit reaches, by step: each step is visited once, whatever the number of paths to it. A step may
+/// read a step after it (the closure a reach join is unfolded into is appended after the plan's last step): the order the
+/// steps are evaluated in is the values crate's `read_order`, not their ids. The step named is one that is not in the plan.
 pub(crate) fn reached(plan: &Plan) -> Result<Vec<StepReach>, StepId> {
     let mut reached = vec![StepReach::Unreached; plan.steps.len()];
     let mut waiting = vec![plan.emit.step];
@@ -30,8 +31,7 @@ pub(crate) fn reached(plan: &Plan) -> Result<Vec<StepReach>, StepId> {
         };
         for input in named(&inputs_of(&each.operation)) {
             match input {
-                Input::Step(read) if read.0 < step.0 => waiting.push(*read),
-                Input::Step(_) => return Err(step),
+                Input::Step(read) => waiting.push(*read),
                 Input::Relation(_) | Input::BoundObservation(_) => {}
             }
         }

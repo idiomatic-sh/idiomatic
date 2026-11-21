@@ -9,12 +9,13 @@ use crate::domain::lowering::definitions::types::{Drafts, Flattened};
 use crate::domain::lowering::emptiness::service::{copied, relation_read};
 use crate::domain::lowering::flattening::constants::{BRANCH_ATOMS, INPUT_BRANCHES};
 use crate::domain::lowering::flattening::service::compared;
+use crate::domain::lowering::flattening::service::function_call;
 use crate::domain::lowering::flattening::types::{
     AtomRows, FlatAtom, FlatBranch, FlatTerm, RowsPerFile,
 };
 use crate::domain::lowering::nodes::service::{digest_of, input_shape, readers};
 use crate::domain::lowering::nodes::types::{AdmittedRule, NodeHome};
-use crate::domain::lowering::tables::service::test_of;
+use crate::domain::lowering::tables::shapes::service::test_of;
 use crate::domain::lowering::tables::types::InputSize;
 use crate::domain::lowering::tables::types::{InputWant, RuleFlattening};
 use crate::domain::steps::types::{DefinitionId, TestOperation};
@@ -31,15 +32,16 @@ pub(crate) fn rule<'a>(state: &RuleFlattening<'a>) -> Option<&'a AdmittedRule<'a
     state.rules.get(state.place.0)
 }
 
-/// The term of an operand over a row: a column's term, a literal, the value a parameter is bound to.
+/// The term of an operand over a branch's row: a column's term, a literal, the value a parameter is bound to, or the cell a
+/// function gives, whose call joins the branch.
 pub(crate) fn term(
     state: &RuleFlattening<'_>,
     drafts: &mut Drafts,
-    row: &[FlatTerm],
+    branch: &mut FlatBranch,
     operand: &Operand,
 ) -> Option<FlatTerm> {
     match operand {
-        Operand::Column(column) => row.get(usize::from(*column)).copied(),
+        Operand::Column(column) => branch.row.get(usize::from(*column)).copied(),
         Operand::Literal(QueryLiteral::Number(number)) => Some(FlatTerm::Number(*number)),
         Operand::Literal(QueryLiteral::Text(written)) => {
             Some(FlatTerm::Text(text(drafts, state.kinds, written)))
@@ -58,7 +60,20 @@ pub(crate) fn term(
                 | ParameterBinding::Tables(_) => None,
             }
         }
-        Operand::Function(_) => None,
+        Operand::Function(applied) => {
+            let meaning = function_call(applied.function)?;
+            let mut arguments = Vec::with_capacity(applied.arguments.len());
+            for argument in &applied.arguments {
+                arguments.push(term(state, drafts, branch, argument)?);
+            }
+            let given = FlatTerm::Variable(fresh_variable(drafts));
+            branch.atoms.push(FlatAtom::Called {
+                meaning,
+                arguments,
+                outputs: vec![given],
+            });
+            Some(given)
+        }
     }
 }
 
@@ -71,8 +86,8 @@ pub(crate) fn selected(
     comparisons: &[PlanComparison],
 ) -> Option<Option<FlatBranch>> {
     for comparison in comparisons {
-        let left = term(state, drafts, &branch.row, &comparison.left)?;
-        let right = term(state, drafts, &branch.row, &comparison.right)?;
+        let left = term(state, drafts, &mut branch, &comparison.left)?;
+        let right = term(state, drafts, &mut branch, &comparison.right)?;
         let test = match (test_of(comparison.test)?, &comparison.right) {
             (TestOperation::Matches(_), Operand::Literal(QueryLiteral::Text(source))) => {
                 TestOperation::Matches(regex(drafts, source))

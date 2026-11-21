@@ -17,7 +17,7 @@ pub(crate) enum SampleStage {
 
 /// Whether a pattern has a program: one whose every access is keyed once its bound columns are given.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum CallForm {
+pub(crate) enum PatternProgram {
     /// It has: Call is admissible.
     Keyed,
     /// Some access of it has no key: a file-sized step would stand under a key.
@@ -41,7 +41,7 @@ pub(crate) struct PatternFacts {
     /// How many columns it binds.
     pub(crate) binds: Count,
     /// Whether it has a program.
-    pub(crate) call: CallForm,
+    pub(crate) call: PatternProgram,
     /// Whether its definition's table holds a product stage.
     pub(crate) table: TableForm,
     /// How many call-form patterns its definition already holds.

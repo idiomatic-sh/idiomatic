@@ -1,18 +1,14 @@
 //! The services of the `proving` part: the check of a lowered pack against the invariant of scope-engine3 2.5 part 3, by the
 //! contract's own class functions. A fault is the lowering's own: the rule it belongs to is refused, never run.
 
-use super::types::{
-    HeldPrograms, ProductStated, ProgramStanding, ProofFault, ProvedUnit, Unproved, WholeRead,
-};
-use crate::domain::lowered::types::{FillInput, LoweredPack, MadeFill, OrderedFill, PatternForm};
+use super::types::{HeldPrograms, ProductStated, ProgramStanding, ProofFault, ProvedUnit, Unproved, WholeRead};
+use crate::domain::lowered::service::fill_pipelines;
+use crate::domain::lowered::types::{LoweredPack, PatternForm};
 use crate::domain::lowering::nodes::types::AcceptedPlace;
 use crate::domain::lowering::types::PastWidth;
 use crate::domain::steps::service::{stage_class, step_class};
 use crate::domain::steps::stages::types::{FillStage, Pipeline};
-use crate::domain::steps::types::{
-    CostClass, DefinitionId, MadeTableId, NearestEdges, ProgramStep, StepBody, StepOperand,
-    StepProgram, StepRows,
-};
+use crate::domain::steps::types::{CostClass, DefinitionId, MadeTableId, NearestEdges, ProgramStep, StepBody, StepOperand, StepProgram, StepRows};
 use ryo_relations::domain::relations::types::Count;
 
 /// Holds a count to the sixteen bits a word's operands are counted in.
@@ -247,20 +243,6 @@ fn pipeline_proved(pipeline: &Pipeline, products: ProductStated) -> Result<(), P
         stage_proved(&placed.stage, first, products)?;
     }
     Ok(())
-}
-
-/// The pipelines of a fill, in its inputs' order. The contract's own list (`lowered::service::fill_pipelines`) is private to
-/// its module: this is the same list, and goes when that one is `pub(crate)`.
-pub(crate) fn fill_pipelines(fill: &MadeFill) -> Vec<&Pipeline> {
-    let inputs: Vec<&FillInput> = match fill {
-        MadeFill::Rows(pipelines, _) => return pipelines.iter().collect(),
-        MadeFill::Group(_, input) | MadeFill::Ordered(OrderedFill::Sorted(input)) => vec![input],
-        MadeFill::Ordered(OrderedFill::Match(left, right)) => vec![left, right],
-        MadeFill::Graph(_, inputs) => inputs.iter().collect(),
-        MadeFill::Constant(_) => Vec::new(),
-    };
-    let pipelines = inputs.into_iter().flat_map(|input| &input.pipelines);
-    pipelines.collect()
 }
 
 /// Holds a lowered pack to the invariant, unit by unit: the first unit that does not hold it is answered. `products` says,

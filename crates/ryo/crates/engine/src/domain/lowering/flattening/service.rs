@@ -2,7 +2,9 @@
 //! added to a branch, and the columns of a row picked. Nothing here copies a sub-plan: a branch holds uses, never bodies.
 
 use super::types::{EqualTerms, FlatAtom, FlatBranch, FlatTerm, FlatVariable, RowColumn};
+use crate::domain::steps::types::CallMeaning;
 use crate::domain::steps::types::{MadeColumn, TestOperation};
+use ryo_values::domain::plan_parts::types::Function;
 use std::collections::HashMap;
 
 /// Visits every term of an atom, in place.
@@ -230,5 +232,16 @@ pub(crate) fn made_column(place: RowColumn) -> Option<MadeColumn> {
     match u16::try_from(place.0) {
         Ok(column) => Some(MadeColumn(column)),
         Err(_) => None,
+    }
+}
+
+/// The per-row meaning of a function a comparison applies: the ones the engine's contract names. None for the case
+/// conversions, which it does not.
+#[must_use]
+pub(crate) const fn function_call(function: Function) -> Option<CallMeaning> {
+    match function {
+        Function::Concat => Some(CallMeaning::Concat),
+        Function::Lower => Some(CallMeaning::Lower),
+        Function::Pascal | Function::Camel | Function::Snake | Function::Kebab => None,
     }
 }
