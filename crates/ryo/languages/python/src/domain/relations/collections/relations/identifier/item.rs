@@ -1,7 +1,7 @@
 //! Emit parser-normalized spelling without changing lossless source tokens.
 use crate::domain::extras::types::Extra as TypedExtra;
 use crate::domain::file_view::types::PythonWalk;
-use crate::domain::node::service::{node_cell, nodes_of_kind, span_at, word};
+use crate::domain::node::service::{node_cell, nodes_of_kind, span_at, table_id, word};
 use crate::domain::node::types::Numbered;
 use crate::domain::nodes::types::Node as TypedNode;
 use crate::domain::semantic_syntax::types::Visibility;
@@ -65,6 +65,29 @@ ryo::fills! {
                     span: span_at(&file.syntax, id),
                 });
             }
+        }
+        // SPIKE (ryo-fmx3.1, D): the names of the embedded segments (the expression of a string read as a type), which the
+        // table's list by kind does not hold: each by its place after the file's own nodes.
+        let tree = file.syntax.tree;
+        let first = tree.segments.first().map_or(tree.nodes.len(), |segment| usize::from(segment.first));
+        for (place, node) in tree.nodes.iter().enumerate().skip(first) {
+            let name = if let AnyNodeRef::ExprName(name) = node {
+                name.id.as_str()
+            } else if let AnyNodeRef::Identifier(identifier) = node {
+                identifier.id.as_str()
+            } else {
+                continue;
+            };
+            if name.is_empty() || name == crate::domain::name_facts::constants::EVERYTHING {
+                continue;
+            }
+            let id = table_id(tree.segments, languages::Position(u32::try_from(place).unwrap_or(u32::MAX)));
+            rows.write(Row {
+                id: node_cell(&file.syntax, id),
+                name: word(words, languages::NameText(name)),
+                file: file.syntax.file,
+                span: span_at(&file.syntax, id),
+            });
         }
     }
 }
