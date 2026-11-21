@@ -6,11 +6,12 @@
 use crate::domain::code::types::{ConstantNumber, RelationNumber};
 use crate::domain::executing::measuring::service::{file_ended, slot_mut};
 use crate::domain::executing::types::Asker;
-use crate::domain::made_tables::sources::service::{cell_of, scanned};
+use crate::domain::indexes::reading::service::cell_at;
+use crate::domain::made_tables::reading::service::view_of;
+use crate::domain::made_tables::sources::service::scanned;
 use crate::domain::made_tables::types::ReadSource;
 use crate::domain::programs::frames::types::StepFrame;
 use crate::domain::programs::operands::service::constant;
-use crate::domain::stages::service::handle;
 use ryo_relations::domain::relations::types::Count;
 
 /// Counts the rows of each size site of the code in the file: the rows of a filled relation that hold one constant in
@@ -32,8 +33,10 @@ fn literals_counted(frame: &mut StepFrame<'_, '_>) {
         let Ok(whole) = asked else {
             continue;
         };
+        // The column is asked once for the site, and its cells are read where they lie.
+        let column = view_of(frame.fill.store, source, site.column);
         let rows = (whole.rows.start.0..whole.rows.end.0)
-            .filter(|row| cell_of(frame.fill, source, site.column, handle(Count(*row))) == wanted)
+            .filter(|row| cell_at(column, Count(*row)) == wanted)
             .count();
         if let Some(measure) = frame.state.measure.as_deref_mut()
             && let Some(held) = slot_mut(&mut measure.literals, Count(place))

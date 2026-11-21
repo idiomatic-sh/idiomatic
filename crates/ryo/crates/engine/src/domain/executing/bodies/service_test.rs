@@ -77,6 +77,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Cow::Borrowed(&[7, 9, 7, 9, 99, 15, 0, 0, 0, 0, 0])),
     },
     Case {
+        name: CaseName("a_pattern_in_table_form_gives_each_collected_column_to_its_own_output"),
+        word: Word::Succeeds,
+        input: || Scene::OrTableBoth,
+        expect: Expect::Value(Cow::Borrowed(&[
+            10, 7, 10, 9, 10, 7, 10, 9, 99, 19, 0, 0, 0, 0, 0,
+        ])),
+    },
+    Case {
         name: CaseName("a_pattern_in_table_form_asked_for_a_row_is_an_index_read"),
         word: Word::Succeeds,
         input: || Scene::ExistsTable,

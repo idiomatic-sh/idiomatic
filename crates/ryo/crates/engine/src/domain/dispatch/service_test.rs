@@ -8,6 +8,7 @@ mod keyed;
 mod ordering;
 mod oversized;
 mod presence;
+mod relations;
 
 use super::service::dispatch;
 use crate::cases::{Case, CaseName, Expect, Word, run};

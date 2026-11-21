@@ -127,6 +127,7 @@ pub(crate) fn decoded_code(code: &ProgramCode) -> DecodedCode {
         parts_at: vec![Count(0); code.pool.len()],
         ..DecodedCode::default()
     };
+    let mut reads = Count(0);
     for word in &code.words {
         let (mut body, mut list) = (None, CellSpan::default());
         match word.op {
@@ -175,6 +176,14 @@ pub(crate) fn decoded_code(code: &ProgramCode) -> DecodedCode {
                     length: Count(decoded.operands.len().saturating_sub(start)),
                 };
             }
+            Op::ReadFilled | Op::ReadMade => {
+                // The word's slot among the columns the loop holds for a file.
+                list = CellSpan {
+                    start: reads,
+                    length: Count(1),
+                };
+                reads = Count(reads.0.saturating_add(1));
+            }
             Op::End
             | Op::EachKind
             | Op::EachMatchNode
@@ -191,8 +200,6 @@ pub(crate) fn decoded_code(code: &ProgramCode) -> DecodedCode {
             | Op::Within
             | Op::NearestDerived
             | Op::ReadNode
-            | Op::ReadFilled
-            | Op::ReadMade
             | Op::Test
             | Op::TestEqualConstant
             | Op::TestNotEqualConstant

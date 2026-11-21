@@ -6,6 +6,7 @@ use crate::domain::code::types::{CodeEntry, WordSlot};
 use crate::domain::filled::errors::FilledError;
 use crate::domain::findings::types::InstructionCount;
 use crate::domain::indexes::types::{FileStamp, RowRun};
+use crate::domain::made_tables::columns::types::HeldColumn;
 use crate::domain::made_tables::types::FillWork;
 use crate::domain::made_tables::types::{FillStore, KeyFrom};
 use crate::domain::memos::types::{CellSpan, ChargedUnit, MemoId, MemoMap, RuleStamp};
@@ -135,6 +136,9 @@ pub(crate) struct LoopState {
     /// The rule that last read each index site, by the site's number: a site the running rule read before in this file
     /// needs neither its table's need nor its charge asked again.
     pub(crate) site_reads: Vec<RuleStamp>,
+    /// Where the column of each `Read` of a made table or of a filled relation lies, by the word's slot
+    /// (`DecodedCode.lists`): asked of the fill side at the word's first read in a file, and good for that file.
+    pub(crate) held_reads: Vec<HeldRead>,
     /// What the loop reads of the code at a step in place of the pool: read from the pool once, when the worker's
     /// state is made for a rule set, and kept for the worker's life.
     pub(crate) decoded: DecodedCode,
@@ -346,7 +350,8 @@ pub(crate) struct CallRoom {
 pub(crate) struct DecodedCode {
     /// The body record of each word over one body (`Exists`, `Nearest`, `Closure`), by the word's place.
     pub(crate) bodies: Vec<Option<ReadBody>>,
-    /// By the word's place: an `Or`'s stretch of `or_bodies`, a `Call`'s stretch of `operands`.
+    /// By the word's place: an `Or`'s stretch of `or_bodies`, a `Call`'s stretch of `operands`, the one slot of
+    /// `LoopState.held_reads` of a `Read` of a made table or of a filled relation.
     pub(crate) lists: Vec<CellSpan>,
     /// The body records of every `Or`, each word's one after the other.
     pub(crate) or_bodies: Vec<ReadBody>,
@@ -356,6 +361,15 @@ pub(crate) struct DecodedCode {
     pub(crate) parts: Vec<AskPart>,
     /// By the pool place of a call-form body's formals: where its parts start in `parts`, and one; nought for none.
     pub(crate) parts_at: Vec<Count>,
+}
+
+/// A column a `Read` word reads, as the fill side holds it for one file.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct HeldRead {
+    /// The file it was asked in; none before the word's first read.
+    pub(crate) file: Option<FileStamp>,
+    /// Where the column lies.
+    pub(crate) column: HeldColumn,
 }
 
 /// One bound column of a call-form body's ask: the formal register the pattern reads it from, the operand the asker

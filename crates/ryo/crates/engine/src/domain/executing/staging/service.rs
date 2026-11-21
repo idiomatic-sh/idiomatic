@@ -7,16 +7,18 @@ use crate::domain::code::records::types::BodyRecord;
 use crate::domain::code::types::{CodeEntry, CodeWord, PoolAt, Short, WordSlot};
 use crate::domain::executing::bodies::service::{kept_key, pattern, table_rows};
 use crate::domain::executing::bodies::types::CallUse;
-use crate::domain::indexes::types::RowRun;
-use crate::domain::made_tables::reading::service::rows_at;
-use crate::domain::made_tables::sources::service::{cell_of, handle_of};
+use crate::domain::indexes::reading::service::cell_at;
+use crate::domain::made_tables::reading::service::{rows_at, view_of};
+use crate::domain::made_tables::sources::service::handle_of;
 use crate::domain::made_tables::types::ReadSource;
 use crate::domain::memos::service::{asked, keep, row_count, rows};
 use crate::domain::memos::types::{CellSpan, MemoId};
 use crate::domain::programs::frames::types::{RunMode, StepFrame};
 use crate::domain::programs::operands::service::listed;
 use crate::domain::scratch::types::{BodyAnswer, LoopState};
+use crate::domain::stages::service::row_of;
 use crate::domain::steps::types::MadeTableId;
+use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::relations::types::Count;
 
 /// Stages the rows of one body, each as the cells of the asking word's output registers in order, and answers how many.
@@ -72,27 +74,34 @@ pub(crate) fn body_staged(
                 .get(usize::try_from(index.0).unwrap_or(usize::MAX))
                 .map_or(0, |code| code.number.0);
             let source = ReadSource::Made(MadeTableId(table));
-            for place in found.run.start.0..found.run.end.0 {
-                let run = RowRun {
-                    start: Count(place),
-                    end: Count(place.saturating_add(1)),
-                };
-                let Some(row) = rows_at(frame.fill.store, run).first().copied() else {
-                    continue;
-                };
-                for output in outputs {
-                    // The pair of this output among the body's reads names the column of the table's row.
-                    let column = (0..collected.0)
-                        .map(|number| {
-                            usize::try_from(reads.0.wrapping_add(number.wrapping_mul(2)))
-                                .unwrap_or(usize::MAX)
-                        })
-                        .find(|pair| programs.code.pool.get(pair.saturating_add(1)) == Some(output))
-                        .and_then(|pair| programs.code.pool.get(pair))
-                        .map_or(u16::MAX, |held| u16::try_from(held.0).unwrap_or(u16::MAX));
-                    let value =
-                        cell_of(frame.fill, source, Short(column), handle_of(row, found.tag));
-                    frame.state.staged.push(value);
+            // A row of the staged rows is the cells of the outputs in order. Each output's column is found among the
+            // body's reads and asked of the seam once, and then read for every row found.
+            let width = outputs.len();
+            let first = frame.state.staged.len();
+            let found_rows = rows_at(frame.fill.store, found.run).len();
+            frame.state.staged.resize(
+                first.saturating_add(found_rows.saturating_mul(width)),
+                CellWord(0),
+            );
+            for (number, output) in outputs.iter().enumerate() {
+                // The pair of this output among the body's reads names the column of the table's row.
+                let column = (0..collected.0)
+                    .map(|pair| {
+                        usize::try_from(reads.0.wrapping_add(pair.wrapping_mul(2)))
+                            .unwrap_or(usize::MAX)
+                    })
+                    .find(|pair| programs.code.pool.get(pair.saturating_add(1)) == Some(output))
+                    .and_then(|pair| programs.code.pool.get(pair))
+                    .map_or(u16::MAX, |held| u16::try_from(held.0).unwrap_or(u16::MAX));
+                let held = view_of(frame.fill.store, source, Short(column));
+                let handles = rows_at(frame.fill.store, found.run);
+                let cells = frame
+                    .state
+                    .staged
+                    .iter_mut()
+                    .skip(first.saturating_add(number));
+                for (row, staged) in handles.iter().zip(cells.step_by(width.max(1))) {
+                    *staged = cell_at(held, row_of(handle_of(*row, found.tag)));
                 }
             }
             Count(found.run.end.0.saturating_sub(found.run.start.0))
