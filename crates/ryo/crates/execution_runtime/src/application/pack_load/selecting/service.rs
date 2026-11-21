@@ -80,6 +80,24 @@ fn observed(
                     step,
                 });
             }
+            // Spike (ryo-fmx3.1): each binding's producers as the binding names them and as found, when asked.
+            if std::env::var_os("RYO_L2_REFUSED").is_some() {
+                let outputs = |at: usize| {
+                    rules.get(at).map(|(plan, _)| {
+                        plan.observations.iter().map(|each| each.name.0.to_string()).collect::<Vec<_>>()
+                    })
+                };
+                eprintln!(
+                    "ryo l2: rule {consumer} binding {place} {:?}: {} producers named, {} found; first producer's outputs {:?}",
+                    input.name.0,
+                    binding.producers.len(),
+                    producers.len(),
+                    binding.producers.first().and_then(|first| match first {
+                        ObservationProducer::Output { rule, .. } => specs.iter().position(|each| each.id == *rule).and_then(outputs),
+                        ObservationProducer::NoQuery { .. } => None,
+                    })
+                );
+            }
             observed.push(ObservedBinding {
                 consumer: SelectedRuleOrdinal(u32::try_from(consumer).unwrap_or(u32::MAX)),
                 binding: ObservationBindingId(u32::try_from(place).unwrap_or(u32::MAX)),
