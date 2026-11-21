@@ -28,5 +28,6 @@ pub(crate) fn next_file(scratch: &mut ScanScratch) {
     state.budget.asks.clear();
     state.budget.asked.clear();
     state.budget.sums.clear();
+    state.filling = Default::default();
     state.budget.sum_units.clear();
 }
