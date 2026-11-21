@@ -7,6 +7,7 @@
     )
 )]
 
+pub mod graphs;
 pub mod service;
 pub mod types;
 
