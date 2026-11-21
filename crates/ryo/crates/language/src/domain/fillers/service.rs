@@ -109,6 +109,88 @@ pub struct FillCounts {
     pub rows: u64,
     /// The time inside the fills, in nanoseconds (the first fill of a file that needs the language's model pays its build).
     pub nanos: u64,
+    /// The fills of a file in which nothing but a need's row term read the relation after.
+    pub unread: u64,
+    /// The rows those fills wrote.
+    pub unread_rows: u64,
+    /// The time inside those fills, in nanoseconds.
+    pub unread_nanos: u64,
+}
+
+/// SPIKE: one fill of the file a thread is scanning.
+#[derive(Clone, Copy, Debug)]
+struct FileFill {
+    /// The relation.
+    relation: Relation,
+    /// The rows it wrote.
+    rows: u64,
+    /// Its time, in nanoseconds.
+    nanos: u64,
+}
+
+thread_local! {
+    /// SPIKE: the fills of the file this thread is scanning.
+    static FILE_FILLS: std::cell::RefCell<Vec<FileFill>> = const { std::cell::RefCell::new(Vec::new()) };
+    /// SPIKE: the relations a reader that is no need's row term reached in the file this thread is scanning.
+    static FILE_READS: std::cell::RefCell<Vec<Relation>> = const { std::cell::RefCell::new(Vec::new()) };
+    /// SPIKE: whether this thread is answering a need's row term now.
+    static NEED_ASKING: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// SPIKE: this thread starts (`true`) or ends answering a need's row term: a reach of a relation meanwhile is no read.
+///
+/// # Examples
+///
+/// ```
+/// ryo_language::domain::fillers::service::fill_need_asking(false);
+/// ```
+pub fn fill_need_asking(asking: bool) {
+    NEED_ASKING.with(|held| held.set(asking));
+}
+
+/// SPIKE: a reader reached a relation in the file this thread is scanning; counted when the run counts its fills and the
+/// reader is no need's row term.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_relations::domain::relations::types::Relation;
+///
+/// ryo_language::domain::fillers::service::fill_read(Relation::Comment);
+/// ```
+pub fn fill_read(relation: Relation) {
+    if fill_begun().is_some() && !NEED_ASKING.with(std::cell::Cell::get) {
+        FILE_READS.with(|reads| {
+            let mut reads = reads.borrow_mut();
+            if !reads.contains(&relation) {
+                reads.push(relation);
+            }
+        });
+    }
+}
+
+/// SPIKE: the file this thread was scanning is done: each of its fills whose relation no reader reached is counted
+/// unread.
+///
+/// # Examples
+///
+/// ```
+/// ryo_language::domain::fillers::service::file_fills_settled();
+/// ```
+pub fn file_fills_settled() {
+    if fill_begun().is_none() {
+        return;
+    }
+    let fills = FILE_FILLS.with(|fills| std::mem::take(&mut *fills.borrow_mut()));
+    let reads = FILE_READS.with(|reads| std::mem::take(&mut *reads.borrow_mut()));
+    if let Ok(mut counts) = FILL_COUNTS.lock() {
+        for fill in fills.iter().filter(|fill| !reads.contains(&fill.relation)) {
+            let held = counts.entry(fill.relation).or_default();
+            held.unread = held.unread.saturating_add(1);
+            held.unread_rows = held.unread_rows.saturating_add(fill.rows);
+            held.unread_nanos = held.unread_nanos.saturating_add(fill.nanos);
+        }
+    }
 }
 
 /// SPIKE: every relation's counts, for the run.
@@ -143,6 +225,13 @@ pub fn fill_begun() -> Option<std::time::Instant> {
 /// ```
 pub fn fill_counted(relation: Relation, wanted: Wanted, rows: usize, begun: std::time::Instant) {
     let nanos = u64::try_from(begun.elapsed().as_nanos()).unwrap_or(u64::MAX);
+    FILE_FILLS.with(|fills| {
+        fills.borrow_mut().push(FileFill {
+            relation,
+            rows: u64::try_from(rows).unwrap_or(u64::MAX),
+            nanos,
+        });
+    });
     if let Ok(mut counts) = FILL_COUNTS.lock() {
         let held = counts.entry(relation).or_default();
         match wanted {

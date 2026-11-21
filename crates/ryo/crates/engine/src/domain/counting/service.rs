@@ -46,8 +46,14 @@ pub fn counted(scratch: &ScanScratch) -> PointCounts {
     // SPIKE: the language's fills, a line a relation, when the run counts them (`RYO_X_FILLS`).
     for (relation, fills) in ryo_language::domain::fillers::service::fill_counts_taken() {
         eprintln!(
-            "ryo x: fact-fill relation={relation:?} whole={} keyed={} rows={} nanos={}",
-            fills.whole, fills.keyed, fills.rows, fills.nanos
+            "ryo x: fact-fill relation={relation:?} whole={} keyed={} rows={} nanos={} unread={} unread_rows={} unread_nanos={}",
+            fills.whole,
+            fills.keyed,
+            fills.rows,
+            fills.nanos,
+            fills.unread,
+            fills.unread_rows,
+            fills.unread_nanos
         );
     }
     for (site, formula) in &measure.need_fills.formulas {
