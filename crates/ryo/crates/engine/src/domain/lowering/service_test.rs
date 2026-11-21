@@ -11,7 +11,6 @@ use super::service::{lowered, lowered_at};
 use super::types::{LoadRefusal, PlanNode, SelectedRule, SelectedRules};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::encoding::service::encoded;
-use crate::domain::statistics::types::Statistics;
 use ryo_values::domain::descriptions::types::{KindVocabulary, LanguageName};
 use ryo_values::domain::query_bindings::types::RuleBindings;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
@@ -88,19 +87,17 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ))),
     },
     Case {
-        name: CaseName("a_sub_plan_two_rules_read_is_one_definition_each_rule_uses_by_its_own_constant"),
+        name: CaseName("the_right_side_two_rules_antijoins_share_is_one_definition_each_decides_by_its_own_key"),
         word: Word::Succeeds,
-        input: || (&["the words a", "the words b"], SampleStage::Absent),
+        input: || (&["the elements that are no word", "the edges to no word"], SampleStage::Absent),
         expect: Expect::Value(Cow::Borrowed(concat!(
             "definition 0: 5 columns, emptiness All([Unknown, Unknown])\n",
-            "  pattern bound [3] collected [0, 1, 2]: Table 0\n",
-            "table 0: Rows, 5 columns, indexes [[3]]\n",
-            "  pipeline: Scan:File Read:Constant Read:Constant Probe:Fanout Read:Constant\n",
+            "  pattern bound [1] collected []: Call: EachMatch:Fanout EachMatch:Fanout Yield:Constant\n",
             "rule 0: 1 branches\n",
-            "  branch: Or:Fanout Emit:Constant\n",
+            "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Exists:Fanout Emit:Constant\n",
             "rule 1: 1 branches\n",
-            "  branch: Or:Fanout Emit:Constant\n",
-            "codes: {\"Emit\": 2, \"End\": 3, \"Or\": 2, \"StageProbe\": 1, \"StageRead\": 3, \"StageScan\": 1, \"StageWrite\": 1}",
+            "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Exists:Fanout Emit:Constant\n",
+            "codes: {\"EachMatchNode\": 2, \"EachRowNode\": 2, \"Emit\": 2, \"End\": 4, \"Exists\": 2, \"ReadNode\": 6, \"Yield\": 1}",
         ))),
     },
     Case {
@@ -239,11 +236,10 @@ fn subject((scenes, stage): Input) -> Result<Value, Failure> {
         language: LanguageName("walking".into()),
         kinds: Vec::new(),
     };
-    let statistics = Statistics::default();
     let lowered = match stage {
-        SampleStage::Absent => lowered(SelectedRules(&rules), &statistics, &kinds),
+        SampleStage::Absent => lowered(SelectedRules(&rules), None, &kinds),
         SampleStage::First | SampleStage::Second => {
-            lowered_at(SelectedRules(&rules), stage, &statistics, &kinds)
+            lowered_at(SelectedRules(&rules), stage, None, &kinds)
         }
     };
     // Every rule refused: the row names the last refusal, which is there only when each before it is.

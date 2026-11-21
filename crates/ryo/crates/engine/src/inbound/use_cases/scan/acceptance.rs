@@ -1,7 +1,7 @@
 //! The steps of the `scan` feature: each a cucumber expression over the world, one to six lines, asserting the part's own results.
 
 use cucumber::{given, then, when};
-use ryo_engine::domain::findings::types::WorkVerdict;
+use ryo_engine::domain::findings::types::{HeaviestWork, WorkVerdict};
 use ryo_engine::inbound::use_cases::scan::fixtures::{Scanned, every_row, one_group, scanned};
 
 use crate::Behavior;
@@ -100,11 +100,33 @@ fn kept(world: &Behavior) -> &Scanned {
     scan
 }
 
-/// How many rules the scan noticed over their allowance.
+/// The rows the unit a notice names read or gave in the file, by its kind: a product's is each row of one side with each of
+/// the other.
+const fn worked(heaviest: HeaviestWork) -> u64 {
+    match heaviest {
+        HeaviestWork::Program { visited, .. } | HeaviestWork::Calls { visited, .. } => visited.0,
+        HeaviestWork::Product { left, right } => left.0.saturating_mul(right.0),
+        HeaviestWork::Rows { read, made }
+        | HeaviestWork::Group { read, made }
+        | HeaviestWork::Graph { read, made } => read.0.saturating_add(made.0),
+        HeaviestWork::Sorted { rows } => rows.0,
+        HeaviestWork::OrderedPairs { left, right, made } => {
+            left.0.saturating_add(right.0).saturating_add(made.0)
+        }
+    }
+}
+
+/// How many rules the scan noticed over their allowance. A notice that does not say what did the work fails here: the unit
+/// it names as the heaviest must have read or given a row.
 fn over(scan: &Scanned) -> usize {
-    scan.notices
+    let noticed = scan
+        .notices
         .iter()
-        .filter(|notice| notice.verdict == WorkVerdict::Over)
+        .filter(|notice| notice.verdict == WorkVerdict::Over);
+    noticed
+        .inspect(|notice| {
+            assert_ne!(worked(notice.heaviest), 0, "{notice:?} names no work");
+        })
         .count()
 }
 

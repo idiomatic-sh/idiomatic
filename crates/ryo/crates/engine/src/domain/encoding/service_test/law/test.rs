@@ -84,7 +84,7 @@ counts StateCounts { registers: WordSlot(101), memos: WordSlot(3), indexes: Word
 rules [[BranchCode { need: NeedSite(0), entry: CodeEntry(8) }]]\n\
 tables [TableCode { fill: Short(0), operands: WordSlot(109), need: NeedSite(1) }, TableCode { fill: Short(1), operands: WordSlot(123), need: NeedSite(3) }, TableCode { fill: Short(5), operands: WordSlot(146), need: NeedSite(5) }, TableCode { fill: Short(11), operands: WordSlot(134), need: NeedSite(4) }]\n\
 indexes [IndexCode { source: Short(1), number: WordSlot(0), columns: WordSlot(3), ordered: WordSlot(4294967295) }, IndexCode { source: Short(2), number: WordSlot(0), columns: WordSlot(5), ordered: WordSlot(4294967295) }, IndexCode { source: Short(2), number: WordSlot(1), columns: WordSlot(7), ordered: WordSlot(1) }, IndexCode { source: Short(2), number: WordSlot(1), columns: WordSlot(39), ordered: WordSlot(4294967295) }, IndexCode { source: Short(2), number: WordSlot(2), columns: WordSlot(67), ordered: WordSlot(1) }, IndexCode { source: Short(2), number: WordSlot(3), columns: WordSlot(132), ordered: WordSlot(4294967295) }, IndexCode { source: Short(2), number: WordSlot(2), columns: WordSlot(140), ordered: WordSlot(4294967295) }]\n\
-units Call 0+20, Table 0+0, Table 0+0, Call 20+13, Call 33+1, Call 34+0, Call 34+2, Call 36+1\n\
+units Call Decided 0+20, Table Decided 0+0, Table Open 0+0, Call Decided 20+13, Call Decided 33+1, Call Decided 34+0, Call Open 34+2, Call Decided 36+1\n\
 sizes [SizeSite { relation: WordSlot(0), column: Short(5), value: WordSlot(3) }]\n\
 constants [9, 11, 12, 5, 40]\n\
 relations [SyntaxError, SyntaxTree]\n\
@@ -113,7 +113,12 @@ fn tables(code: &ProgramCode) -> String {
     let units: Vec<String> = code
         .units
         .iter()
-        .map(|unit| format!("{:?} {:?}+{:?}", unit.form, unit.first.0, unit.points.0))
+        .map(|unit| {
+            format!(
+                "{:?} {:?} {:?}+{:?}",
+                unit.form, unit.shape, unit.first.0, unit.points.0
+            )
+        })
         .collect();
     format!(
         "counts {:?}\nrules {:?}\ntables {:?}\nindexes {:?}\nunits {}\nsizes {:?}\nconstants {:?}\nrelations {:?}\nneeds {:?}\npool {:?}\n",

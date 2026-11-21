@@ -7,16 +7,20 @@ use super::types::{LoadSource, LoadedRules};
 use super::use_case::LoadUseCaseImpl;
 use crate::domain::code::types::Op;
 use crate::domain::code::types::UnitKey;
+use crate::domain::lowered::service::fill_code;
+use crate::domain::lowered::types::MadeFill;
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::fixtures::named;
 use crate::domain::lowering::types::{SelectedRule, SelectedRules};
 use crate::domain::programs::service::accepted;
 use crate::domain::programs::types::Programs;
 use crate::domain::statistics::service::learned;
-use crate::domain::statistics::types::{EncodedStatistics, Measured, PointCounts, StatisticsBytes};
+use crate::domain::statistics::types::{
+    EncodedStatistics, MatchedStatistics, Measured, PointCounts, StatisticsBytes,
+};
 use crate::inbound::use_cases::scan::fixtures::scanned;
 use ryo_values::domain::descriptions::types::{KindVocabulary, LanguageName};
-use ryo_values::domain::plan_parts::types::LiteralText;
+use ryo_values::domain::plan_parts::types::{LiteralText, RepeatedRows};
 use ryo_values::domain::query_bindings::types::{ParameterBinding, RuleBindings};
 use ryo_values::domain::query_plans::types::Plan;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
@@ -26,9 +30,10 @@ use std::collections::BTreeSet;
 const NO_RULES: &str = "no rules";
 /// The input of one rule the lowering lowers and one it cannot evaluate.
 const ONE_REFUSED: &str = "one tree rule and one over the host's rows";
-/// The input of two rules that share a sub-plan.
+/// The input of two rules that share a sub-plan: the right side of each one's antijoin.
 const SHARED: &str = "two rules, one sub-plan";
-/// The input of two rules whose plans differ only in what a parameter of their sub-plan is bound to.
+/// The input of two rules whose plans differ only in what a parameter of their sub-plan, the right side of their antijoin, is
+/// bound to.
 const BOUND: &str = "two rules, one sub-plan, two bound values";
 /// The input of one rule loaded with the statistics of a sample of other rules.
 const OTHER_STATISTICS: &str = "one tree rule, statistics of other rules";
@@ -62,13 +67,16 @@ fn scene_rules(scene: &str) -> Vec<SceneRule> {
         bindings: Vec::new(),
     };
     let bound = |word: &str| SceneRule {
-        plan: named("the words of a parameter"),
+        plan: named("the edges to no word of a parameter"),
         bindings: vec![ParameterBinding::Text(LiteralText(word.into()))],
     };
     match scene {
         NO_RULES => Vec::new(),
         ONE_REFUSED => vec![unbound("one tree rule"), unbound("over the host's rows")],
-        SHARED => vec![unbound("the words a"), unbound("the words b")],
+        SHARED => vec![
+            unbound("the elements that are no word"),
+            unbound("the edges to no word"),
+        ],
         BOUND => vec![bound("a"), bound("b")],
         OTHER_STATISTICS => vec![unbound("one tree rule")],
         other => vec![unbound(other)],
@@ -137,8 +145,11 @@ pub fn loaded(scene: &str) -> Result<LoadedRules, LoadError> {
     loaded_with(scene, StatisticsBytes(&statistics.0))
 }
 
-/// How many definitions the programs hold: the nodes their pattern units are named by, each once.
+/// How many definitions were lowered, by node: the nodes the programs' pattern units are named by and the nodes of the tables
+/// that are a definition's own rows (a definition read with nothing bound has that table's unit and no pattern unit), each
+/// once. A rule's own program and a table of any other fill are no definition.
 fn definitions(programs: &Programs) -> usize {
+    let own_rows = fill_code(&MadeFill::Rows(Box::new([]), RepeatedRows::Kept));
     let nodes: BTreeSet<_> = programs
         .0
         .code
@@ -146,7 +157,8 @@ fn definitions(programs: &Programs) -> usize {
         .iter()
         .filter_map(|unit| match &unit.key {
             UnitKey::Pattern(node, ..) => Some(node),
-            UnitKey::Rule(_) | UnitKey::Table(..) => None,
+            UnitKey::Table(node, fill) => (*fill == own_rows).then_some(node),
+            UnitKey::Rule(_) => None,
         })
         .collect();
     nodes.len()
@@ -181,9 +193,12 @@ pub fn said(scene: &str, loaded: &LoadedRules) -> String {
             ", {} tables with a product stage",
             product_tables(programs)
         )),
-        OTHER_STATISTICS => {
-            said.push_str(&format!("; statistics matched {} units", loaded.matched.0));
-        }
+        OTHER_STATISTICS => said.push_str(&match loaded.matched {
+            MatchedStatistics::Units(matched) => {
+                format!("; statistics matched {} units", matched.0)
+            }
+            MatchedStatistics::Absent => "; no statistics read".to_owned(),
+        }),
         _ => {}
     }
     if !loaded.refused.is_empty() {

@@ -8,7 +8,7 @@ use super::service::sequenced;
 use super::types::{LoadSource, LoadedRules};
 use super::use_case::LoadUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::code::types::{MeasuredForm, UnitKey};
+use crate::domain::code::types::{MeasuredForm, ShapeChoice, UnitKey};
 use crate::domain::findings::types::RuleColumns;
 use crate::domain::lowered::types::{Branch, Emptiness, LoweredPack, LoweredRule};
 use crate::domain::lowering::fixtures::named;
@@ -19,7 +19,8 @@ use crate::domain::packs::types::{PackBytes, PackDigest};
 use crate::domain::programs::service::accepted;
 use crate::domain::programs::types::Programs;
 use crate::domain::statistics::types::{
-    MeasuredUnit, OrderVerdict, ShapeChoice, Statistics, StatisticsBytes, UnitCounts,
+    LearnStage, MatchedStatistics, MeasuredSizes, MeasuredUnit, OrderVerdict, Statistics,
+    StatisticsBytes, UnitCounts,
 };
 use crate::domain::steps::types::{
     AnchorKinds, PlacedStep, Polarity, ProgramStep, Register, RegisterList, StepBody, StepMemo,
@@ -48,6 +49,8 @@ enum Scenario {
     TwoFaults,
     /// Three rules, loaded with statistics that name the units of the first and the third and a unit no program has.
     Measured,
+    /// Three rules, loaded with the statistics of a first sample that measured no unit: not the same as no statistics.
+    MeasuredNothing,
     /// A pack written for another digest.
     OtherPack,
     /// A pack another engine version wrote.
@@ -121,6 +124,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         )),
     },
     Case {
+        name: CaseName("statistics_that_name_no_unit_match_nought_and_are_not_no_statistics"),
+        word: Word::Succeeds,
+        input: || Scenario::MeasuredNothing,
+        expect: Expect::Value(Cow::Borrowed(
+            "runs [0, 1, 2]; refused []; statistics matched 0 units; lowered 1 times",
+        )),
+    },
+    Case {
         name: CaseName("a_pack_for_other_rules_is_refused"),
         word: Word::Refuses,
         input: || Scenario::OtherPack,
@@ -156,8 +167,9 @@ fn naming<const N: usize>(rules: [u32; N]) -> Statistics {
         counts: UnitCounts::default(),
     };
     Statistics {
+        stage: LearnStage::First,
+        sizes: MeasuredSizes::default(),
         units: rules.map(unit).into(),
-        ..Statistics::default()
     }
 }
 
@@ -206,7 +218,7 @@ fn said(loaded: &LoadedRules) -> String {
 }
 
 /// Loads three copies of the tree rule through a lowering that lowers each as `written` says of its ordinal.
-fn sequence(written: [Written; 3], statistics: &Statistics) -> Value {
+fn sequence(written: [Written; 3], statistics: Option<&Statistics>) -> Value {
     let plan = named("one tree rule");
     let rules: Vec<SelectedRule<'_>> = (0..3)
         .map(|rule| SelectedRule {
@@ -234,10 +246,9 @@ fn sequence(written: [Written; 3], statistics: &Statistics) -> Value {
         }
     };
     let loaded = sequenced(SelectedRules(&rules), statistics, &lower);
-    let matched = if statistics.units.is_empty() {
-        String::new()
-    } else {
-        format!("; statistics matched {} units", loaded.matched.0)
+    let matched = match loaded.matched {
+        MatchedStatistics::Units(matched) => format!("; statistics matched {} units", matched.0),
+        MatchedStatistics::Absent => String::new(),
     };
     Cow::Owned(format!(
         "{}{matched}; lowered {} times",
@@ -260,22 +271,23 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::OneFault => {
             return Ok(sequence(
                 [Written::Whole, Written::Faulty, Written::Whole],
-                &Statistics::default(),
+                None,
             ));
         }
         Scenario::OneCountOut => {
             return Ok(sequence(
                 [Written::Whole, Written::Wide, Written::Whole],
-                &Statistics::default(),
+                None,
             ));
         }
         Scenario::TwoFaults => {
             return Ok(sequence(
                 [Written::Whole, Written::Faulty, Written::Faulty],
-                &Statistics::default(),
+                None,
             ));
         }
-        Scenario::Measured => return Ok(sequence([Written::Whole; 3], &naming([0, 2, 9]))),
+        Scenario::Measured => return Ok(sequence([Written::Whole; 3], Some(&naming([0, 2, 9])))),
+        Scenario::MeasuredNothing => return Ok(sequence([Written::Whole; 3], Some(&naming([])))),
         Scenario::NoRules => LoadSource::Plans(SelectedRules(&[]), StatisticsBytes(&[])),
         Scenario::Pack => LoadSource::Pack(PackBytes(&pack.0), PackDigest([1; 32])),
         Scenario::OtherPack => LoadSource::Pack(PackBytes(&pack.0), PackDigest([2; 32])),

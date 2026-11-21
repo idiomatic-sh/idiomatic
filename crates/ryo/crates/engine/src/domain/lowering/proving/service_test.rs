@@ -5,6 +5,7 @@
 use super::service::proved;
 use super::types::{ProductStated, ProofFault, ProvedUnit, Unproved};
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::code::types::ShapeChoice;
 use crate::domain::findings::types::RuleColumns;
 use crate::domain::lowered::types::{
     Branch, DefinitionPattern, Emptiness, LoweredPack, LoweredRule, MadeFill, MadeTable,
@@ -97,6 +98,7 @@ fn pattern_of(steps: Vec<ProgramStep>) -> Input {
             bound: ColumnMask([MadeColumn(0)].into()),
             collected: ColumnMask::default(),
             form: PatternForm::Call(program(steps)),
+            shape: ShapeChoice::Decided,
         }],
     };
     let pack = LoweredPack {

@@ -9,7 +9,6 @@ use crate::domain::lowering::fixtures::named;
 use crate::domain::lowering::nodes::types::{NodeHome, StepShape};
 use crate::domain::lowering::service::lowered;
 use crate::domain::lowering::types::{SelectedRule, SelectedRules};
-use crate::domain::statistics::types::Statistics;
 use crate::domain::steps::types::{ColumnMask, MadeColumn};
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::descriptions::types::{KindVocabulary, LanguageName};
@@ -51,7 +50,7 @@ fn lines(scenes: &[&str]) -> Vec<String> {
         language: LanguageName("walking".into()),
         kinds: Vec::new(),
     };
-    let lowered = lowered(SelectedRules(&rules), &Statistics::default(), &kinds);
+    let lowered = lowered(SelectedRules(&rules), None, &kinds);
     let mut lines: Vec<String> = described(&lowered.pack)
         .into_iter()
         .filter(|line| line.starts_with("  pattern") || line.starts_with("  pipeline"))
@@ -93,8 +92,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_definitions_program_is_not_its_callers_two_rule_orders_give_the_same_programs"),
         word: Word::Succeeds,
-        input: || Asked::Orders(&["the words a", "pairs within one group"]),
-        expect: Expect::Value(Cow::Borrowed("the same in either order: 4 lines")),
+        input: || Asked::Orders(&["the elements that are no word", "the edges to no word"]),
+        expect: Expect::Value(Cow::Borrowed("the same in either order: 1 lines")),
     },
     Case {
         name: CaseName("a_node_has_one_definition_a_pattern_is_asked_once_and_a_text_has_one_number"),

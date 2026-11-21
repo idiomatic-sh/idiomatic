@@ -3,7 +3,7 @@
 use crate::domain::lowered::types::{Emptiness, MadeTable, PatternForm};
 use crate::domain::lowering::flattening::types::{FlatBranch, FlatVariable, TextNumber};
 use crate::domain::lowering::nodes::types::{NodeHome, StepShape};
-use crate::domain::statistics::types::ShapeChoice;
+use crate::domain::code::types::ShapeChoice;
 use crate::domain::steps::types::{
     ColumnMask, ConstantText, DefinitionId, MadeTableId, RegexId, Register, RegisterCount,
     StepRegex,

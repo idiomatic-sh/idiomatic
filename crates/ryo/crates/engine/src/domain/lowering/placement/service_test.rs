@@ -4,14 +4,11 @@
 use super::service::{placed, sampled};
 use super::types::{CallForm, FormChoice, PatternFacts, PatternPlacement, SampleStage, TableForm};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::code::types::{MeasuredForm, UnitKey};
-use crate::domain::statistics::types::{
-    LearnStage, MeasuredUnit, OrderVerdict, ShapeChoice, Statistics, UnitCounts,
-};
-use ryo_values::domain::query_plans::types::NodeDigest;
+use crate::domain::code::types::{MeasuredForm, ShapeChoice};
+use crate::domain::statistics::types::{LearnStage, MeasuredSizes, Statistics};
 
 /// A pattern's facts, and the statistics the load was given.
-type Input = (PatternFacts, Statistics);
+type Input = (PatternFacts, Option<Statistics>);
 type Value = PatternPlacement;
 type Failure = ();
 
@@ -24,27 +21,17 @@ const CANDIDATE: PatternFacts = PatternFacts {
     measured: None,
 };
 
-/// The statistics a load of a stage is given: none; a first run's, which names a unit; a second run's.
-fn given(stage: SampleStage) -> Statistics {
-    let unit = MeasuredUnit {
-        key: UnitKey::Rule(NodeDigest::default()),
-        form: MeasuredForm::Call,
-        shape: ShapeChoice::Decided,
-        order: OrderVerdict::Learned,
-        points: Vec::new(),
-        counts: UnitCounts::default(),
+/// The statistics a load of a stage is given: none; a first run's, which names no unit; a second run's.
+fn given(stage: SampleStage) -> Option<Statistics> {
+    let of = |stage| Statistics {
+        stage,
+        sizes: MeasuredSizes::default(),
+        units: Vec::new(),
     };
     match stage {
-        SampleStage::Absent => Statistics::default(),
-        SampleStage::First => Statistics {
-            stage: LearnStage::First,
-            units: vec![unit],
-            ..Statistics::default()
-        },
-        SampleStage::Second => Statistics {
-            stage: LearnStage::Second,
-            ..Statistics::default()
-        },
+        SampleStage::Absent => None,
+        SampleStage::First => Some(of(LearnStage::First)),
+        SampleStage::Second => Some(of(LearnStage::Second)),
     }
 }
 
@@ -148,7 +135,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 
 fn subject((facts, statistics): Input) -> Result<Value, Failure> {
-    Ok(placed(facts, sampled(&statistics)))
+    Ok(placed(facts, sampled(statistics.as_ref())))
 }
 
 #[test]

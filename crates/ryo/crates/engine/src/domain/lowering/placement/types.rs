@@ -1,7 +1,7 @@
 //! The types of the `placement` part: what the rule reads of a pattern, and what it answers.
 
 use crate::domain::code::types::MeasuredForm;
-use crate::domain::statistics::types::ShapeChoice;
+use crate::domain::code::types::ShapeChoice;
 
 /// What the load was given of a sample: nothing, the first run's statistics, or the second's.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

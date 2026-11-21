@@ -4,7 +4,7 @@
 
 use super::super::fixtures::{listing, mask, of, operands, pack, program, reg, regs, rule, stages};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::code::types::Op;
+use crate::domain::code::types::{Op, ShapeChoice};
 use crate::domain::encoding::constants::LAST_STEP;
 use crate::domain::encoding::service::encoded;
 use crate::domain::lowered::types::{
@@ -218,6 +218,7 @@ fn pattern<const N: usize>(bound: [u16; N], form: PatternForm) -> DefinitionPatt
         bound: mask(bound),
         collected: mask([1]),
         form,
+        shape: ShapeChoice::Decided,
     }
 }
 

@@ -51,8 +51,8 @@ type Refused = (usize, LoadRefusal);
 struct Sample<'a> {
     /// What they are of.
     stage: SampleStage,
-    /// The statistics.
-    statistics: &'a Statistics,
+    /// The statistics, when the load was given any.
+    statistics: Option<&'a Statistics>,
     /// The language's kinds.
     kinds: &'a KindVocabulary,
 }
@@ -272,6 +272,7 @@ fn assembled(drafts: Drafts, rules: Vec<LoweredRule>) -> LoweredPack {
             .patterns
             .into_iter()
             .map(|pattern| DefinitionPattern {
+                shape: pattern.shape,
                 bound: pattern.bound,
                 collected: pattern.collected,
                 form: pattern
@@ -472,10 +473,11 @@ fn built(
 }
 
 /// The pack of the rules the lowering accepts, and each rule it refuses with the step it cannot evaluate or the count it cannot
-/// write. No rule is refused for what it costs or for how large it is.
+/// write. No rule is refused for what it costs or for how large it is. `statistics` is none for a load given none: every flip
+/// candidate then takes its call form; given those of a first sample, each takes its table form.
 pub(crate) fn lowered(
     rules: SelectedRules<'_>,
-    statistics: &Statistics,
+    statistics: Option<&Statistics>,
     kinds: &KindVocabulary,
 ) -> LoweredRules {
     lowered_at(rules, sampled(statistics), statistics, kinds)
@@ -485,7 +487,7 @@ pub(crate) fn lowered(
 pub(crate) fn lowered_at(
     rules: SelectedRules<'_>,
     stage: SampleStage,
-    statistics: &Statistics,
+    statistics: Option<&Statistics>,
     kinds: &KindVocabulary,
 ) -> LoweredRules {
     let sample = Sample {
