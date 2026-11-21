@@ -2,6 +2,7 @@
 
 pub mod bodies;
 pub mod budget;
+pub mod closing;
 pub mod constants;
 pub mod entries;
 #[cfg(test)]

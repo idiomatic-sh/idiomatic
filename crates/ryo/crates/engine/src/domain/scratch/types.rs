@@ -131,6 +131,8 @@ pub(crate) struct LoopState {
     pub(crate) kept: Vec<BatchRow>,
     /// The room a walk of the tree writes what it reaches in, lent to the fill side's kernel.
     pub(crate) fan: FanRows,
+    /// The elements a closure has met: the room of the closure being walked, lent to it and given back.
+    pub(crate) seen: hashbrown::HashSet<CellWord>,
     /// Which kinds and which fields occur in the file's node rows: what a need on a node relation's kind or field asks.
     pub(crate) presence: NodePresence,
     /// Whether each need site's formula asks the node rows for a kind or a field, by the site's number: a property of the

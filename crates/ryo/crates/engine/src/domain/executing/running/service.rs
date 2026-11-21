@@ -15,7 +15,7 @@ use crate::domain::code::controlling::service::{exists_of, fork_of, or_of};
 use crate::domain::code::deciding::service::test_of;
 use crate::domain::code::small_codes::service::comparison_of;
 use crate::domain::code::types::{CodeEntry, CodeWord, Op, ProgramCode, RuleCode, WordSlot};
-use crate::domain::code::walking::service::nearest_of;
+use crate::domain::code::walking::service::{closure_of, nearest_of};
 use crate::domain::made_tables::reading::service::latest_site;
 use crate::domain::needs::service::tables_asked;
 use crate::domain::programs::operands::service::listed;
@@ -79,6 +79,10 @@ fn step_word(
             Some(_) => WordBuilt::Runs,
             None => WordBuilt::NotYet,
         },
+        Op::Closure => match body(code, closure_of(word).operands, unit, out) {
+            Some(_) => WordBuilt::Runs,
+            None => WordBuilt::NotYet,
+        },
         Op::Nearest => match body(code, nearest_of(word).operands, unit, out) {
             Some(_) => WordBuilt::Runs,
             None => WordBuilt::NotYet,
@@ -109,7 +113,6 @@ fn step_word(
         | Op::ChildrenOfField
         | Op::Within
         | Op::NearestDerived
-        | Op::Closure
         | Op::Call
         | Op::Render => WordBuilt::NotYet,
         // A stage is no word of a step program.

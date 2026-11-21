@@ -14,11 +14,12 @@ use crate::domain::made_tables::fixtures::packs::{
 };
 use crate::domain::steps::stages::types::FillStage;
 use crate::domain::steps::types::{
-    CallMeaning, ColumnMask, DefinitionId, EmitTarget, MadeColumn, MadeTableId, PlacedStep,
-    Polarity, ProgramStep, ReadColumn, Register, RegisterCount, RegisterList, StepBody, StepMemo,
-    StepOperand, StepOperands, StepProgram, StepRows, TestOperation,
+    ColumnMask, DefinitionId, EmitTarget, MadeColumn, MadeTableId, PlacedStep, Polarity,
+    ProgramStep, ReadColumn, Register, RegisterCount, RegisterList, StepBody, StepMemo,
+    StepOperand, StepProgram, StepRows, TestOperation,
 };
 use ryo_language::domain::facts::types::CellWord;
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::query_plans::types::NodeDigest;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 
@@ -27,11 +28,11 @@ use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 enum Scene {
     /// Nothing: a read of the row.
     AllRun,
-    /// A word the loop does not run: a call of a per-row meaning.
+    /// A word the loop does not run: a test that one node is an ancestor of another.
     CallInTheRule,
     /// A test of a text the executor does not run.
     PrefixTest,
-    /// An `Exists` over a pattern in call form whose program holds a call.
+    /// An `Exists` over a pattern in call form whose program holds such a word.
     CallInAPattern,
     /// A read of a second table whose fill's pipeline keeps by a test of a text the fill side does not run.
     PrefixKeepInAFill,
@@ -87,12 +88,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-/// A call of a per-row meaning: a word the loop does not run.
+/// A test that one node is an ancestor of another: a word the loop does not run.
 fn call() -> ProgramStep {
-    ProgramStep::Call {
-        meaning: CallMeaning::Lower,
-        arguments: StepOperands(Box::new([])),
-        outputs: RegisterList(Box::new([])),
+    ProgramStep::Within {
+        relation: Relation::SyntaxTree,
+        ancestor: Register(0),
+        descendant: Register(0),
     }
 }
 

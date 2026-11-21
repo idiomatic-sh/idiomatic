@@ -14,5 +14,6 @@ pub mod latest;
 pub mod let_value;
 pub mod nearest;
 pub mod or;
+pub mod reached;
 pub mod read;
 pub mod yield_row;
