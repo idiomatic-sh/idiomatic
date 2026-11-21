@@ -4,7 +4,7 @@
 
 use crate::domain::code::filling::service::stage_scan_of;
 use crate::domain::code::records::service::visit_columns_at;
-use crate::domain::code::types::{CodeEntry, IndexSite, RelationNumber};
+use crate::domain::code::types::{CodeEntry, IndexSite, PoolAt, RelationNumber};
 use crate::domain::filled::errors::FilledError;
 use crate::domain::filled::service::whole;
 use crate::domain::filled::types::{FillRuns, MissingCode, RelationAsk, UnbuiltFill};
