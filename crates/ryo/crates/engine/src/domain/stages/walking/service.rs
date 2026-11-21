@@ -8,7 +8,7 @@ use crate::domain::stages::types::{Batches, FanRows};
 use crate::domain::steps::types::AxisDirection;
 use ryo_language::domain::facts::types::CellWord;
 use ryo_language::domain::node_table::service::{
-    children_of, field_of, own_end, parent_of, subtree_end_of,
+    children_of, embedded_segments, field_of, own_end, parent_of, subtree_end_of,
 };
 use ryo_language::domain::node_table::types::{FieldCode, NodeTable};
 use ryo_relations::domain::relations::types::{Count, NodeExtent, Position};
@@ -111,7 +111,26 @@ pub(crate) fn along(
             ),
             AxisDirection::Descendant => {
                 let below = at.0.saturating_add(1)..subtree_end_of(nodes, at).0.min(end.0);
-                walked(below.map(Position), fan)
+                if extent == NodeExtent::Own || embedded_segments(nodes).next().is_none() {
+                    walked(below.map(Position), fan)
+                } else {
+                    // SPIKE (ryo-fmx3.1, fault I): an embedded segment stands after the file's own elements, outside the
+                    // ids of its host's subtree, and its root's parent is the host: the nodes of each segment hosted
+                    // under the start are descendants too, as the walk up from them reaches the start.
+                    let mut found: Vec<Position> = below.map(Position).collect();
+                    let mut held = vec![(at.0, subtree_end_of(nodes, at).0)];
+                    for segment in embedded_segments(nodes) {
+                        let hosted = held
+                            .iter()
+                            .any(|(from, to)| *from <= segment.host.0 && segment.host.0 < *to);
+                        if hosted && segment.root.0 > at.0 {
+                            let last = subtree_end_of(nodes, segment.root).0;
+                            found.extend((segment.root.0..last).map(Position));
+                            held.push((segment.root.0, last));
+                        }
+                    }
+                    walked(found.into_iter(), fan)
+                }
             }
             AxisDirection::NextSibling => {
                 walked(sibling(nodes, end, at, Count(1)).into_iter(), fan)
