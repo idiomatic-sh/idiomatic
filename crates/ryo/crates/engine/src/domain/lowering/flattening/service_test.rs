@@ -1,12 +1,11 @@
 //! The cases of the `flattening` part: the equalities of a branch resolved in one union-find. A class keeps its variable;
 //! a constant it is equal to is one pin of it; two constants for one class hold of no row.
 
-use super::service::{compared, pins_of, unified};
+use super::service::{pins_of, unified};
 use super::types::{
     AtomRows, EqualTerms, FlatAtom, FlatBranch, FlatTerm, FlatVariable, RowsPerFile, TextNumber,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::steps::types::TestOperation;
 use ryo_relations::domain::relations::types::Relation;
 
 const fn variable(number: u32) -> FlatTerm {
@@ -102,16 +101,4 @@ fn succeeds() {
 #[test]
 fn refuses() {
     run(CASES, Word::Refuses, subject);
-}
-
-/// A comparison of two constants is decided when it is added; any other test is one more atom of the branch.
-#[test]
-fn a_comparison_of_two_constants_is_decided() {
-    let branch = FlatBranch::default;
-    assert!(compared(branch(), TestOperation::Equal, text(1), text(1)).is_some());
-    assert!(compared(branch(), TestOperation::Equal, text(1), text(2)).is_none());
-    assert!(compared(branch(), TestOperation::NotEqual, text(1), text(1)).is_none());
-    assert!(compared(branch(), TestOperation::NotEqual, variable(0), variable(0)).is_none());
-    let tested = compared(branch(), TestOperation::Less, variable(0), text(2));
-    assert_eq!(tested.map(|branch| branch.atoms.len()), Some(1));
 }

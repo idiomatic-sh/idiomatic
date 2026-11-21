@@ -17,14 +17,26 @@ use ryo_values::domain::plan_parts::types::{LiteralText, StepId};
 use ryo_values::domain::query_bindings::types::RuleBindings;
 use ryo_values::domain::query_plans::types::NodeDigest;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
+use std::borrow::Cow;
 
-/// The scenes lowered together, in this order.
-type Input = &'static [&'static str];
-/// The lines of the pack's definitions and tables, sorted: the rules' own lines left out.
-type Value = Vec<String>;
+/// What a row asks of the definitions.
+#[derive(Clone, Copy, Debug)]
+enum Asked {
+    /// The scenes lowered together in this order, then in the reverse order: whether the two packs' definitions and
+    /// tables are said the same, and how many lines say them.
+    Orders(&'static [&'static str]),
+    /// One node defined twice, two patterns asked of it (one of them twice), two texts written (one of them twice): the
+    /// definitions, the patterns of the first, the patterns waiting, the texts.
+    Counts,
+}
+
+type Input = Asked;
+/// What was counted, said.
+type Value = Cow<'static, str>;
 type Failure = ();
 
-fn subject(scenes: Input) -> Result<Value, Failure> {
+/// The lines of a pack's patterns and pipelines, sorted: the rules' own lines left out.
+fn lines(scenes: &[&str]) -> Vec<String> {
     let plans: Vec<_> = scenes.iter().map(|scene| named(scene)).collect();
     let rules: Vec<SelectedRule<'_>> = plans
         .iter()
@@ -45,30 +57,10 @@ fn subject(scenes: Input) -> Result<Value, Failure> {
         .filter(|line| line.starts_with("  pattern") || line.starts_with("  pipeline"))
         .collect();
     lines.sort();
-    Ok(lines)
+    lines
 }
 
-/// A definition's programs are the definition's: two rules that read one sub-plan give it the same patterns and the same
-/// programs whichever is lowered first.
-#[test]
-fn a_definitions_program_is_not_its_callers() {
-    let first = subject(&["the words a", "pairs within one group"]);
-    let second = subject(&["pairs within one group", "the words a"]);
-    assert!(first.as_ref().is_ok_and(|lines| !lines.is_empty()), "no definition was lowered: {first:?}");
-    assert_eq!(first, second);
-}
-
-/// The rows of this part's cases: what the drafts count after a sequence of asks.
-const CASES: &[Case<(), (usize, usize, usize, usize), Failure>] = &[Case {
-    name: CaseName("a_node_has_one_definition_a_pattern_is_asked_once_and_a_text_has_one_number"),
-    word: Word::Succeeds,
-    input: || (),
-    expect: Expect::Value((1, 2, 2, 2)),
-}];
-
-/// The definitions, the patterns asked of the first, the patterns waiting, and the texts, after one node is defined twice,
-/// two patterns are asked of it (one of them twice) and two texts are written (one of them twice).
-fn counted((): ()) -> Result<(usize, usize, usize, usize), Failure> {
+fn counted() -> String {
     let mut drafts = Drafts::default();
     let home = NodeHome {
         rule: 0,
@@ -78,21 +70,56 @@ fn counted((): ()) -> Result<(usize, usize, usize, usize), Failure> {
     let node = NodeDigest([7; 16]);
     let first = defined(&mut drafts, node, home, shape(), Flattened::default(), RowEstimate(1));
     let again = defined(&mut drafts, node, home, shape(), Flattened::default(), RowEstimate(1));
-    assert_eq!(first, again);
     let key = ColumnMask([MadeColumn(0)].into());
     let nothing = ColumnMask::default();
     asked(&mut drafts, first, &key, &nothing);
     asked(&mut drafts, first, &nothing, &nothing);
     asked(&mut drafts, first, &key, &nothing);
     let (a, b) = (LiteralText("a".into()), LiteralText("b".into()));
-    assert_eq!(text(&mut drafts, &a), text(&mut drafts, &a));
-    assert_ne!(text(&mut drafts, &a), text(&mut drafts, &b));
-    assert_eq!(use_branch(&mut drafts, first).row.len(), 2);
+    let numbers = [text(&mut drafts, &a), text(&mut drafts, &a), text(&mut drafts, &b)];
     let patterns = drafts.definitions.first().map_or(0, |draft| draft.patterns.len());
-    Ok((drafts.definitions.len(), patterns, drafts.waiting.len(), drafts.texts.len()))
+    format!(
+        "{} definitions (the second {}); {patterns} patterns, {} waiting; texts {:?}; a use of {} columns",
+        drafts.definitions.len(),
+        if first == again { "is the first" } else { "is another" },
+        drafts.waiting.len(),
+        numbers.map(|number| number.0),
+        use_branch(&mut drafts, first).row.len(),
+    )
+}
+
+/// The rows of this part's cases.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("a_definitions_program_is_not_its_callers_two_rule_orders_give_the_same_programs"),
+        word: Word::Succeeds,
+        input: || Asked::Orders(&["the words a", "pairs within one group"]),
+        expect: Expect::Value(Cow::Borrowed("the same in either order: 4 lines")),
+    },
+    Case {
+        name: CaseName("a_node_has_one_definition_a_pattern_is_asked_once_and_a_text_has_one_number"),
+        word: Word::Succeeds,
+        input: || Asked::Counts,
+        expect: Expect::Value(Cow::Borrowed(
+            "1 definitions (the second is the first); 2 patterns, 2 waiting; texts [0, 0, 1]; a use of 2 columns",
+        )),
+    },
+];
+
+fn subject(asked: Input) -> Result<Value, Failure> {
+    Ok(Cow::Owned(match asked {
+        Asked::Orders(scenes) => {
+            let mut reversed = scenes.to_vec();
+            reversed.reverse();
+            let (first, second) = (lines(scenes), lines(&reversed));
+            let same = if first == second { "the same" } else { "not the same" };
+            format!("{same} in either order: {} lines", first.len())
+        }
+        Asked::Counts => counted(),
+    }))
 }
 
 #[test]
 fn succeeds() {
-    run(CASES, Word::Succeeds, counted);
+    run(CASES, Word::Succeeds, subject);
 }
