@@ -42,6 +42,7 @@ const FILLED: &[Relation] = &[
     Relation::LanguageTarget,
     Relation::LiteralExpressionParse,
     Relation::LiteralProperties,
+    Relation::LookupScope,
     Relation::NumericLiteral,
     Relation::Parameter,
     Relation::QualifiedName,

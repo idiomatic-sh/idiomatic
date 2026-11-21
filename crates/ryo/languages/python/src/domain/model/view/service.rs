@@ -31,7 +31,10 @@ pub(crate) fn built(model: &mut SemanticModel, built: &mut Built, part: ModelPar
         resolution::build(&mut model.resolution, &model.definitions, &model.lexical, tree);
         built.resolution = PartState::Ready;
     }
-    let flows = matches!(part, ModelPart::Flow | ModelPart::ReadsByName | ModelPart::ShadowsByBinding);
+    let flows = matches!(
+        part,
+        ModelPart::Flow | ModelPart::ReadsByName | ModelPart::ShadowsByBinding | ModelPart::ReadsByNode
+    );
     if flows && built.flow == PartState::Pending {
         let deferred = model.target >= LAZY_ANNOTATIONS_FROM || tree.annotations == BindingAnnotationTiming::Deferred;
         let timing = if deferred { BindingAnnotationTiming::Deferred } else { BindingAnnotationTiming::Immediate };
@@ -58,5 +61,9 @@ pub(crate) fn built(model: &mut SemanticModel, built: &mut Built, part: ModelPar
     if part == ModelPart::ShadowsByBinding && built.shadows_by_binding == PartState::Pending {
         flow::list_shadows(&mut model.flow);
         built.shadows_by_binding = PartState::Ready;
+    }
+    if part == ModelPart::ReadsByNode && built.reads_by_node == PartState::Pending {
+        flow::list_reads_by_node(&mut model.flow);
+        built.reads_by_node = PartState::Ready;
     }
 }

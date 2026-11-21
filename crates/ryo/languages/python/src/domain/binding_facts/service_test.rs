@@ -1,9 +1,12 @@
 //! The `binding_facts` service's cases: each filler's rows for a source, against the rows today's reader of the relation writes
-//! for the same source; and the files today's readers do not answer (a file with a syntax error, a name with more events than
-//! today's chain limit), which the fillers answer in full. That the selection among events is no fact of the provider is a
-//! case of the walk's contract, where the language answers the relation.
+//! for the same source (the lookup paths over one source for each clause of the path, too); and the files today's readers do
+//! not answer (a file with a syntax error, a name with more events than today's chain limit), which the fillers answer in
+//! full. That the selection among events is no fact of the provider is a case of the walk's contract, where the language
+//! answers the relation.
 
-use super::service::{binding_event_rows, binding_read_rows, binding_shadow_rows, binding_use_rows};
+use super::service::{
+    binding_event_rows, binding_read_rows, binding_shadow_rows, binding_use_rows, lookup_scope_rows,
+};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::lexical_facts::fixtures::{CONSTRUCTS, Compared, compared};
 use crate::fixtures::model_rows::{Counted, counted};
@@ -29,6 +32,8 @@ enum Filler {
     Use,
     /// `binding-shadow`.
     Shadow,
+    /// `lookup-scope`.
+    Path,
 }
 
 /// The fillers' rows equal today's readers' rows: `rows` of them, none differing, no cause.
@@ -62,6 +67,60 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || (Filler::Shadow, CONSTRUCTS),
         expect: equal(11),
     },
+    Case {
+        name: CaseName("paths_of_every_construct_equal_todays"),
+        word: Word::Succeeds,
+        input: || (Filler::Path, CONSTRUCTS),
+        expect: equal(222),
+    },
+    Case {
+        name: CaseName("paths_from_a_function_then_the_module_equal_todays"),
+        word: Word::Succeeds,
+        input: || (Filler::Path, include_str!("../../../tests/fixtures/relations/lookup_scope/input.py")),
+        expect: equal(2),
+    },
+    Case {
+        name: CaseName("paths_that_skip_a_class_block_equal_todays"),
+        word: Word::Succeeds,
+        input: || (Filler::Path, include_str!("../../../tests/fixtures/relations/lookup_scope/input.class.py")),
+        expect: equal(2),
+    },
+    Case {
+        name: CaseName("paths_of_a_comprehension_equal_todays"),
+        word: Word::Succeeds,
+        input: || (Filler::Path, include_str!("../../../tests/fixtures/relations/lookup_scope/input.comprehension.py")),
+        expect: equal(3),
+    },
+    Case {
+        name: CaseName("paths_of_a_deletion_under_global_equal_todays"),
+        word: Word::Succeeds,
+        input: || (Filler::Path, include_str!("../../../tests/fixtures/relations/lookup_scope/input.global.py")),
+        expect: equal(2),
+    },
+    Case {
+        name: CaseName("paths_cut_at_a_block_that_declares_the_name_global_equal_todays"),
+        word: Word::Succeeds,
+        input: || (Filler::Path, include_str!("../../../tests/fixtures/relations/lookup_scope/input.nested-global.py")),
+        expect: equal(3),
+    },
+    Case {
+        name: CaseName("paths_through_a_type_parameter_scope_equal_todays"),
+        word: Word::Succeeds,
+        input: || (Filler::Path, include_str!("../../../tests/fixtures/relations/lookup_scope/input.type-parameter.py")),
+        expect: equal(8),
+    },
+    Case {
+        name: CaseName("paths_through_type_parameters_of_functions_classes_and_aliases_equal_todays"),
+        word: Word::Succeeds,
+        input: || (Filler::Path, TYPE_PARAMETERS),
+        expect: equal(39),
+    },
+    Case {
+        name: CaseName("paths_of_annotations_postponed_by_the_future_import_equal_todays"),
+        word: Word::Succeeds,
+        input: || (Filler::Path, FUTURE_ANNOTATIONS),
+        expect: equal(9),
+    },
 ];
 
 fn subject((filler, source): Input) -> Result<Value, Failure> {
@@ -73,6 +132,9 @@ fn subject((filler, source): Input) -> Result<Value, Failure> {
         Filler::Use => compared::<languages::BindingUse>(source, |view, words, rows| binding_use_rows(view, words, rows)),
         Filler::Shadow => {
             compared::<languages::BindingShadow>(source, |view, words, rows| binding_shadow_rows(view, words, rows))
+        }
+        Filler::Path => {
+            compared::<languages::LookupScope>(source, |view, words, rows| lookup_scope_rows(view, words, rows))
         }
     })
 }

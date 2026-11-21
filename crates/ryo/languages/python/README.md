@@ -48,9 +48,9 @@ an element, and the field each child fills under its parent, read from the typed
 
 The rows of the relations the semantic model answers. `lexical_facts` and `binding_facts` write every row of a relation: the
 file's scopes, definitions, references, static resolutions, qualified names and implicit symbols; its binding events, reads,
-uses and shadows. `keyed_rows` writes the rows that hold one key of five of them (a scope's own row, the reference or the
-resolution at one name, the reads of one name, the shadows of one binding), looked up in the model without walking the file,
-each built by the function that builds it for the whole relation.
+uses and shadows, and the lookup path of each read. `keyed_rows` writes the rows that hold one key of six of them (a scope's
+own row, the reference or the resolution at one name, the reads of one name, the shadows of one binding, the lookup path of
+one read), looked up in the model without walking the file, each built by the function that builds it for the whole relation.
 
 ### `string_annotations`
 

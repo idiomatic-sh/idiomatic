@@ -130,7 +130,7 @@ pub(crate) struct FlowShadow {
 /// One read or one shadow in a list by key: what the list is ordered by, and its place among the reads or the shadows.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct KeyPlace<K> {
-    /// What the list is ordered by: the name a read reads, or the binding of a shadow.
+    /// What the list is ordered by: the name a read reads, the name expression of a read, or the binding of a shadow.
     pub key: K,
     /// The place among the reads, or among the shadows.
     pub at: Count,
@@ -171,6 +171,8 @@ pub(crate) struct FlowModel {
     /// The shadows ordered by the binding of each, then by evaluation order: made by the first fill of the shadows of one
     /// binding.
     pub shadows_by_binding: Vec<KeyPlace<Position>>,
+    /// The reads ordered by the name expression of each: made by the first fill of the lookup path of one read.
+    pub reads_by_node: Vec<KeyPlace<Position>>,
     /// Whether the interpretation reached its end.
     pub state: FlowState,
     /// The frames of the interpretation.

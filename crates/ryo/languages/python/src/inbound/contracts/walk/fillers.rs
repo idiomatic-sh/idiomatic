@@ -115,6 +115,7 @@ impl<P: Send + Sync + 'static> Fillers for PythonWalk<P> {
         expression_type: ExpressionType => crate::domain::relations::collections::relations::expression_type::item::ExpressionTypeItem;
         function: Function => crate::domain::relations::collections::relations::function::item::FunctionItem;
         inherits: Inherits => crate::domain::relations::collections::relations::inherits::item::InheritsItem;
+        lookup_scope: LookupScope => crate::domain::relations::collections::relations::lookup_scope::item::LookupScopeItem;
         raw_format_segment: RawFormatSegment => crate::inbound::contracts::parse::readers::raw_format::composition::RawFormatSegmentItem;
         reference: Reference => crate::domain::relations::collections::relations::reference::item::ReferenceItem;
         resolves: Resolves => crate::domain::relations::collections::relations::resolves::item::ResolvesItem;
@@ -139,7 +140,6 @@ impl<P: Send + Sync + 'static> Fillers for PythonWalk<P> {
         flow_edge: FlowEdge => NotYetRead;
         flow_member: FlowMember => NotYetRead;
         flow_step: FlowStep => NotYetRead;
-        lookup_scope: LookupScope => NotYetRead;
         manifest_diagnostic: ManifestDiagnostic => NotYetRead;
         mapping: Mapping => NotAKeyedDocument;
         mention: Mention => NoSuchConstruct;

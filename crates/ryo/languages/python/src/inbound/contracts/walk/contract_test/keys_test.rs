@@ -88,6 +88,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ),
     },
     Case {
+        name: CaseName("the_paths_of_every_read_are_the_lookup_paths_of_the_file"),
+        word: Word::Succeeds,
+        input: || Asked::Keys(Relation::LookupScope),
+        expect: Expect::Value(
+            "592 files, 39800 rows whole, 20834 keys of LookupScope(Reference) wrote 39800: no difference",
+        ),
+    },
+    Case {
         name: CaseName("the_segments_of_every_string_are_the_raw_segments_of_the_file"),
         word: Word::Succeeds,
         input: || Asked::Keys(Relation::RawFormatSegment),
@@ -132,7 +140,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Asked::Declared,
         expect: Expect::Value(
-            "[Function(Id)] [Inherits(Occurrence)] [Reference(Occurrence)] [Scope(Child)] [Resolves(Occurrence)] [BindingRead(Name)] [BindingShadow(Binding)] [ExpressionShape(Id)] [ExpressionType(Id)] [ConstantKey(Id)] [RawFormatSegment(Id)] [TokenLink(Source), TokenLink(Target)]",
+            "[Function(Id)] [Inherits(Occurrence)] [Reference(Occurrence)] [Scope(Child)] [Resolves(Occurrence)] [BindingRead(Name)] [LookupScope(Reference)] [BindingShadow(Binding)] [ExpressionShape(Id)] [ExpressionType(Id)] [ConstantKey(Id)] [RawFormatSegment(Id)] [TokenLink(Source), TokenLink(Target)]",
         ),
     },
     Case {

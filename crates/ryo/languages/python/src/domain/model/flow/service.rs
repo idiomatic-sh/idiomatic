@@ -286,6 +286,15 @@ pub(crate) fn list_shadows(model: &mut FlowModel) {
     model.shadows_by_binding.sort_unstable();
 }
 
+/// Lists the reads by the name expression of each: one sort of the reads, made once for a file.
+pub(crate) fn list_reads_by_node(model: &mut FlowModel) {
+    model.reads_by_node.clear();
+    model
+        .reads_by_node
+        .extend(model.reads.iter().enumerate().map(|(at, read)| KeyPlace { key: read.at, at: Count(at) }));
+    model.reads_by_node.sort_unstable();
+}
+
 /// The places, among the reads or the shadows, of the entries of a list by key that hold `key`, in evaluation order.
 pub(crate) fn listed<K: Copy + Ord>(list: &[KeyPlace<K>], key: K) -> impl Iterator<Item = Count> + '_ {
     let from = list.partition_point(|each| each.key < key);

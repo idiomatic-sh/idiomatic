@@ -32,6 +32,9 @@ pub(crate) enum ModelPart {
     ReadsByName,
     /// The flow part, and its shadows listed by the binding of each: what a fill of the shadows of one binding looks it up in.
     ShadowsByBinding,
+    /// The flow part, and its reads listed by the name expression of each: what a fill of the lookup path of one read looks
+    /// the read up in.
+    ReadsByNode,
 }
 
 /// What a filler reads once the model is built.
@@ -91,4 +94,6 @@ pub(crate) struct Built {
     pub reads_by_name: PartState,
     /// The shadows listed by binding.
     pub shadows_by_binding: PartState,
+    /// The reads listed by name expression.
+    pub reads_by_node: PartState,
 }

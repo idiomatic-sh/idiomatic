@@ -1,12 +1,13 @@
 //! The `binding_facts` service: free functions named by verb that write the rows of the binding relations from the model, with
 //! no IO and no ports. Each writes every row of its relation; the per-file view is whatever implements `ModelView`.
 //!
-//! The rows are facts of the language: every event, every read with every definition that can reach it. Which event a rule
-//! takes for a read (the latest one in schedule order, say) is the rule pack's selection over these rows, not a row of its own:
-//! the language answers `binding-resolution` as not read.
+//! The rows are facts of the language: every event, every read with every definition that can reach it and every namespace
+//! its name is looked up in. Which event a rule takes for a read (the latest one in schedule order, say) is the rule pack's
+//! selection over these rows, not a row of its own: the language answers `binding-resolution` as not read.
 
 use crate::domain::binding_results::constants as vocabulary;
 use crate::domain::lexical_facts::service::{node, span_at};
+use crate::domain::lookup_path::service::stepped;
 use crate::domain::model::flow::types::{
     FlowContext, FlowEvent, FlowEventKind, FlowRead, FlowShadow, FlowState, FlowUse, ShadowForm, UseForm,
 };
@@ -16,7 +17,8 @@ use crate::domain::model::reaching::types::FlowReadState;
 use crate::domain::model::view::types::{ModelPart, ModelRead, ModelView};
 use crate::domain::qualification::constants::NOT_APPLICABLE;
 use ryo::languages::{
-    BindingEventRow, BindingReadRow, BindingShadowRow, BindingUseRow, FileWords, Missing, NameText, ReportText, Rows,
+    BindingEventRow, BindingReadRow, BindingShadowRow, BindingUseRow, FileWords, LookupScopeRow, Missing, NameText,
+    ReportText, Rows,
 };
 
 /// The word of an event's kind.
@@ -211,5 +213,37 @@ pub(crate) fn binding_shadow_rows<V: ModelView>(
     let mut known = read.model.words.borrow_mut();
     for each in &read.model.flow.shadows {
         rows.write(shadow_row(read, words, &mut known, each));
+    }
+}
+
+/// Writes the rows of the lookup path of one read: one row per namespace its name is looked up in, nearest first.
+pub(crate) fn path_rows(
+    read: ModelRead<'_>,
+    words: &mut FileWords,
+    known: &mut FactWords,
+    each: &FlowRead,
+    rows: &mut dyn Rows<LookupScopeRow>,
+) {
+    let reference = node(read, each.at);
+    let name = name_word(&read.model.names, words, &mut known.names, each.name);
+    let context = fixed_word(words, &mut known.fixed, context_word(each.context));
+    let span = span_at(read, each.at);
+    stepped(read, each, &mut |scope, depth| {
+        rows.write(LookupScopeRow { reference, name, scope: node(read, scope), depth, context, file: read.file, span });
+    });
+}
+
+/// Writes one row per namespace on the lookup path of each read or deletion, in evaluation order, nearest first.
+pub(crate) fn lookup_scope_rows<V: ModelView>(
+    file: &mut V,
+    words: &mut FileWords,
+    rows: &mut dyn Rows<LookupScopeRow>,
+) {
+    let Some(read) = flow_read(file, ModelPart::Flow, rows) else {
+        return;
+    };
+    let mut known = read.model.words.borrow_mut();
+    for each in &read.model.flow.reads {
+        path_rows(read, words, &mut known, each, rows);
     }
 }

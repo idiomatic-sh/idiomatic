@@ -1,9 +1,9 @@
-//! The `keyed_rows` service: free functions named by verb that write, of five relations the semantic model answers, the rows
+//! The `keyed_rows` service: free functions named by verb that write, of six relations the semantic model answers, the rows
 //! that hold one key and no other row, with no IO and no ports. Each reads the part of the model its relation's whole filler
 //! reads, or less, and looks the key up there: none walks the file's nodes, its reads or its shadows. A row is built by the
 //! function that builds it for the whole relation, so the rows of every key together are the whole relation's rows.
 
-use crate::domain::binding_facts::service::{flow_read, read_row, shadow_row};
+use crate::domain::binding_facts::service::{flow_read, path_rows, read_row, shadow_row};
 use crate::domain::lexical_facts::service::{own_count, reference_row, resolves_row, scope_row};
 use crate::domain::lexical_facts::types::QualifiedPath;
 use crate::domain::model::flow::service::listed;
@@ -13,8 +13,8 @@ use crate::domain::model::resolution::service::resolve;
 use crate::domain::model::view::types::{ModelPart, ModelRead, ModelView};
 use crate::domain::node::service::keyed_place;
 use ryo::languages::{
-    BindingReadRow, BindingShadowRow, CellWord, FileWords, Position, ReferenceRow, ResolvesRow,
-    Rows, ScopeRow, facts,
+    BindingReadRow, BindingShadowRow, CellWord, FileWords, LookupScopeRow, Position, ReferenceRow,
+    ResolvesRow, Rows, ScopeRow, facts,
 };
 
 /// The node of the file's own tree a key cell names, by its place; none for a cell that names no node of it. The relations
@@ -127,6 +127,28 @@ pub(crate) fn binding_shadow_rows_of<V: ModelView>(
     for at in listed(&read.model.flow.shadows_by_binding, binding) {
         if let Some(each) = read.model.flow.shadows.get(at.0) {
             rows.write(shadow_row(read, words, &mut known, each));
+        }
+    }
+}
+
+/// Writes the rows of the lookup path of the read or deletion `key` names, nearest first: the read is looked up in the list
+/// of the reads by name expression, and its path walked from the scope it is evaluated in.
+pub(crate) fn lookup_scope_rows_of<V: ModelView>(
+    file: &mut V,
+    words: &mut FileWords,
+    key: CellWord,
+    rows: &mut dyn Rows<LookupScopeRow>,
+) {
+    let Some(read) = flow_read(file, ModelPart::ReadsByNode, rows) else {
+        return;
+    };
+    let Some(reference) = keyed_place(read.file, read.tree, key) else {
+        return;
+    };
+    let mut known = read.model.words.borrow_mut();
+    for at in listed(&read.model.flow.reads_by_node, reference) {
+        if let Some(each) = read.model.flow.reads.get(at.0) {
+            path_rows(read, words, &mut known, each, rows);
         }
     }
 }

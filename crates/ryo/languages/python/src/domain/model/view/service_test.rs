@@ -19,6 +19,7 @@ const PENDING: Built = Built {
     flow: PartState::Pending,
     reads_by_name: PartState::Pending,
     shadows_by_binding: PartState::Pending,
+    reads_by_node: PartState::Pending,
 };
 
 /// The rows of this part's cases.
@@ -62,6 +63,15 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || &[ModelPart::Flow, ModelPart::ShadowsByBinding],
         expect: Expect::Value((
             Built { lexical: PartState::Ready, flow: PartState::Ready, shadows_by_binding: PartState::Ready, ..PENDING },
+            4,
+        )),
+    },
+    Case {
+        name: CaseName("the_reads_are_listed_by_name_expression_only_when_the_path_of_one_read_is_asked_for"),
+        word: Word::Succeeds,
+        input: || &[ModelPart::ReadsByNode],
+        expect: Expect::Value((
+            Built { lexical: PartState::Ready, flow: PartState::Ready, reads_by_node: PartState::Ready, ..PENDING },
             4,
         )),
     },

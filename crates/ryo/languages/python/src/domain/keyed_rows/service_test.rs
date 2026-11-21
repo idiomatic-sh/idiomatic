@@ -3,11 +3,13 @@
 //! of the file is asked as a node key, and a word no name of the file has as a name key.
 
 use super::service::{
-    binding_read_rows_of, binding_shadow_rows_of, reference_rows_of, resolves_rows_of,
-    scope_rows_of,
+    binding_read_rows_of, binding_shadow_rows_of, lookup_scope_rows_of, reference_rows_of,
+    resolves_rows_of, scope_rows_of,
 };
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::binding_facts::service::{binding_read_rows, binding_shadow_rows};
+use crate::domain::binding_facts::service::{
+    binding_read_rows, binding_shadow_rows, lookup_scope_rows,
+};
 use crate::domain::lexical_facts::fixtures::CONSTRUCTS;
 use crate::domain::lexical_facts::service::{reference_rows, resolves_rows, scope_rows};
 use crate::fixtures::model_rows::Gathered;
@@ -29,6 +31,8 @@ enum Keyed {
     Read,
     /// `binding-shadow` by the later binding.
     Shadow,
+    /// `lookup-scope` by the read or deletion.
+    Path,
 }
 
 /// What the fills by key of a source wrote against its whole fill.
@@ -108,6 +112,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             whole: 11,
             keys: 11,
             empty: 448,
+            differing: Vec::new(),
+            strays: 0,
+        }),
+    },
+    Case {
+        name: CaseName("the_rows_of_every_read_are_the_lookup_paths_of_the_file"),
+        word: Word::Succeeds,
+        input: || Keyed::Path,
+        expect: Expect::Value(Held {
+            whole: 222,
+            keys: 109,
+            empty: 350,
             differing: Vec::new(),
             strays: 0,
         }),
@@ -238,6 +254,12 @@ fn subject(keyed: Input) -> Value {
             None,
             |view, words, rows| binding_shadow_rows(view, words, rows),
             |view, words, key, rows| binding_shadow_rows_of(view, words, key, rows),
+        ),
+        Keyed::Path => held::<languages::LookupScope>(
+            0,
+            None,
+            |view, words, rows| lookup_scope_rows(view, words, rows),
+            |view, words, key, rows| lookup_scope_rows_of(view, words, key, rows),
         ),
     }
 }
