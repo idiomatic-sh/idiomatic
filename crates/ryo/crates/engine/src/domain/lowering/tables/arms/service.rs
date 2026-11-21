@@ -2,10 +2,11 @@
 //! reader; a step with several readers across the pack, the right side of an absence, the rows of a fill and an input past
 //! a bound are each one definition, and their reader holds one use. The `match` over `Operation` names every operation.
 
+use crate::domain::lowering::definitions::service::text;
 use crate::domain::lowering::definitions::types::{Drafts, Flattened};
 use crate::domain::lowering::emptiness::service::derived;
 use crate::domain::lowering::flattening::service::picked;
-use crate::domain::lowering::flattening::types::RowColumn;
+use crate::domain::lowering::flattening::types::{FlatBranch, FlatTerm, RowColumn};
 use crate::domain::lowering::nodes::service::digest_of;
 use crate::domain::lowering::nodes::types::StepReach;
 use crate::domain::lowering::tables::calls::service::call_arm;
@@ -21,6 +22,7 @@ use crate::domain::lowering::tables::types::{InputWant, RuleFlattening};
 use ryo_values::domain::plan_parts::types::{Input, StepId};
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_plans::service::read_order;
+use ryo_values::domain::written_rows::types::RowsSource;
 
 /// The flattening of one step. None for an operation the lowering does not evaluate: the rule was refused before it came here.
 fn arm(
@@ -101,10 +103,30 @@ fn arm(
         | Operation::OrderedDfs { .. }
         | Operation::Worklist { .. }
         | Operation::Cycles { .. }
-        | Operation::Rows { .. }
         | Operation::Hosted { .. }
         | Operation::RenderSyntax { .. }
         | Operation::FitsRendered { .. } => None,
+        // The rows a query wrote are a branch each: no atom, and the row's texts as constants. A reader holds them as
+        // its own branches (`inputs::input`), so a join with them is a pin of each key and a constant in the answer:
+        // no table is made of them.
+        Operation::Rows { source, .. } => match source {
+            RowsSource::Written(rows) => {
+                let branches = rows.0.iter().map(|row| FlatBranch {
+                    atoms: Vec::new(),
+                    row: row
+                        .0
+                        .iter()
+                        .map(|cell| FlatTerm::Text(text(drafts, state.kinds, cell)))
+                        .collect(),
+                });
+                Some(Flattened {
+                    branches: branches.collect(),
+                    emptiness: derived(operation, Vec::new()),
+                    keyless: Vec::new(),
+                })
+            }
+            RowsSource::Parameter(_) => None,
+        },
     }
 }
 

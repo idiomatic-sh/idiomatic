@@ -16,7 +16,8 @@ use crate::domain::lowering::flattening::types::{NearestDomain, NearestOver};
 use crate::domain::lowering::nodes::service::{digest_of, input_shape};
 use crate::domain::lowering::nodes::types::{NodeHome, StepShape};
 use crate::domain::lowering::tables::closures::service::edge_rows;
-use crate::domain::lowering::tables::inputs::service::{input, rule, sized, use_of};
+use crate::domain::lowering::tables::inputs::service::{input, rule, sized, use_of, written_rows};
+use crate::domain::lowering::tables::literals::service::text_compared;
 use crate::domain::lowering::tables::selections::service::{all_selected, asked_of, selection};
 use crate::domain::lowering::tables::service::{tree_relation, walk_of};
 use crate::domain::lowering::tables::sets::types::SetTests;
@@ -139,7 +140,8 @@ fn side_defined(
         side.branches.as_slice(),
         [branch] if matches!(branch.atoms.as_slice(), [FlatAtom::Rows { .. }])
     );
-    if one_read {
+    // The rows a query wrote are no source: the product with them is the other side's rows, each with their constants.
+    if one_read || written_rows(&side) {
         return Some(side);
     }
     let mut node = digest_of(rule(state)?, step);
@@ -208,6 +210,24 @@ pub(crate) fn join_arm(
     if keyless {
         let seen = viewed(&input_shape(shapes, *right)?, view)?;
         rights = side_defined(state, drafts, step, rights, seen)?;
+    }
+    // A side that is rows a query wrote holds texts: a key it is joined by is compared as the text's own word, so the
+    // other side's key must be a column of words a file wrote. Any other such join is not lowered.
+    let (left_written, right_written) = (written_rows(&lefts), written_rows(&rights));
+    for (left_key, right_key) in left_on.iter().zip(right_on) {
+        let seen = if view.is_empty() {
+            Some(*right_key)
+        } else {
+            view.get(usize::from(*right_key)).copied()
+        };
+        let unheld = match (left_written, right_written) {
+            (false, true) => !text_compared(state, *left, *left_key),
+            (true, false) => !seen.is_some_and(|seen| text_compared(state, *right, seen)),
+            (true, true) | (false, false) => false,
+        };
+        if unheld {
+            return None;
+        }
     }
     let mut branches = Vec::with_capacity(lefts.branches.len() * rights.branches.len());
     for left_branch in &lefts.branches {

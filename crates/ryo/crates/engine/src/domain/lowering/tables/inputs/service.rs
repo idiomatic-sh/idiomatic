@@ -195,6 +195,15 @@ pub(crate) fn input(
             if let Some(alias) = waiting.and_then(|flattened| aliased(drafts, flattened)) {
                 return Some(alias);
             }
+            // The rows a query wrote are each reader's own branches, whatever it asked: they hold no atom and no
+            // variable, so a copy is the same rows and no table of them is made.
+            if let Some(rows) = waiting.filter(|flattened| written_rows(flattened)) {
+                return Some(Flattened {
+                    branches: rows.branches.clone(),
+                    emptiness: copied(&rows.emptiness),
+                    keyless: Vec::new(),
+                });
+            }
             // A step that is one read of a relation with its pins is that read for each reader that takes its
             // branches: a table of a relation's rows would be a copy. A reader that asks a definition has one.
             view_noted(drafts, digest, waiting);
@@ -217,6 +226,15 @@ pub(crate) fn input(
         }
         Input::BoundObservation(_) => None,
     }
+}
+
+/// Whether a flattening is the rows a query wrote: branches, each with no atom.
+pub(crate) fn written_rows(flattened: &Flattened) -> bool {
+    !flattened.branches.is_empty()
+        && flattened
+            .branches
+            .iter()
+            .all(|branch| branch.atoms.is_empty())
 }
 
 /// The same read with fresh variables, when a flattening is one read of a made table or of a definition, its row is

@@ -131,6 +131,15 @@ fn source_column(state: &RuleFlattening<'_>, input: Input, column: ColumnIndex) 
     }
 }
 
+/// Whether a text a written row holds is compared with a column of `input`'s rows as the text's own word: the column is
+/// one of words a file wrote. A closed set's column holds the word's symbol and a column the plan does not trace may:
+/// the text would be compared with another cell, so such a join is not lowered.
+pub(crate) fn text_compared(state: &RuleFlattening<'_>, input: Input, column: ColumnIndex) -> bool {
+    source_column(state, input, column).is_some_and(|traced| {
+        vocabulary_of(traced) == Vocabulary::Open && kind(traced) == CellKind::Symbol
+    })
+}
+
 /// What a text is as a cell of a symbol column read from `input`: of a closed set's column, the word's symbol; of a
 /// column of words a file wrote, the text's own word (none: as written); of a column the plan does not trace, either,
 /// when the text is a word of some closed set.

@@ -18,6 +18,7 @@ use ryo_values::domain::plan_parts::service::view_source;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction, Input, StepScope};
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_plans::service::read_order;
+use ryo_values::domain::written_rows::types::RowsSource;
 
 /// The node relation an axis walks the tree of: its edges are a relation of the node-table form whose parent and child
 /// columns are the node table's parent and element. None for edges a step derives.
@@ -299,10 +300,18 @@ fn shaped(
         | Operation::OrderedDfs { .. }
         | Operation::Worklist { .. }
         | Operation::Cycles { .. }
-        | Operation::Rows { .. }
         | Operation::Hosted { .. }
         | Operation::RenderSyntax { .. }
         | Operation::FitsRendered { .. } => None,
+        // The rows a query wrote: a text for each key. The rows of a parameter's tables are not lowered.
+        Operation::Rows { source, keys } => match source {
+            RowsSource::Written(rows) => rows
+                .0
+                .iter()
+                .all(|row| row.0.len() == keys.len())
+                .then(|| StepShape(vec![CellKind::Symbol; keys.len()])),
+            RowsSource::Parameter(_) => None,
+        },
     }
 }
 
