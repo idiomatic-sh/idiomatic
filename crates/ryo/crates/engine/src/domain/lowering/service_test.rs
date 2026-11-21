@@ -294,6 +294,24 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ))),
     },
     Case {
+        name: CaseName(
+            "a_group_ordinal_is_a_group_table_of_its_inputs_distinct_rows_with_their_places",
+        ),
+        word: Word::Succeeds,
+        input: || (&["group-ordinal from zero"], SampleStage::Absent),
+        expect: Expect::Value(Cow::Borrowed(concat!(
+            "definition 0: 5 columns, emptiness All([Unknown, Unknown])\n",
+            "  pattern bound [] collected []: Table 1\n",
+            "table 0: Group(Places), 6 columns, indexes [[5]]\n",
+            "  pipeline: Scan:File Read:Constant Read:Constant Read:Constant Read:Constant\n",
+            "table 1: Rows, 5 columns, indexes []\n",
+            "  pipeline: Scan:File Read:Constant Read:Constant Probe:Fanout Read:Constant\n",
+            "rule 0: 1 branches\n",
+            "  branch: EachMatch:File Read:Constant Read:Constant Read:Constant Read:Constant Emit:Constant\n",
+            "codes: {\"EachMatchMade\": 1, \"Emit\": 1, \"End\": 2, \"ReadMade\": 4, \"StageProbe\": 1, \"StageRead\": 7, \"StageScan\": 2, \"StageWrite\": 2}",
+        ))),
+    },
+    Case {
         name: CaseName("a_rule_set_whose_every_rule_is_refused_answers_the_last_refusal"),
         word: Word::Refuses,
         input: || {

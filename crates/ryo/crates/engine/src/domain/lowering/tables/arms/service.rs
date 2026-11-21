@@ -12,9 +12,7 @@ use crate::domain::lowering::flattening::types::RowColumn;
 use crate::domain::lowering::nodes::service::digest_of;
 use crate::domain::lowering::nodes::types::StepReach;
 use crate::domain::lowering::tables::calls::service::call_arm;
-use crate::domain::lowering::tables::fills::service::{
-    as_of_arm, group_bound_arm, group_count_arm,
-};
+use crate::domain::lowering::tables::fills::service::{as_of_arm, group_count_arm, group_rows_arm};
 use crate::domain::lowering::tables::inputs::service::{all_selected, input, rule, term};
 use crate::domain::lowering::tables::joins::service::{
     antijoin_arm, axis_arm, closure_arm, join_arm,
@@ -116,7 +114,9 @@ fn arm(
         }
         Operation::Antijoin { .. } => antijoin_arm(state, drafts, operation),
         Operation::GroupCount { .. } => group_count_arm(state, drafts, step, operation),
-        Operation::GroupBound { .. } => group_bound_arm(state, drafts, step, operation),
+        Operation::GroupBound { .. } | Operation::GroupOrdinal { .. } => {
+            group_rows_arm(state, drafts, step, operation)
+        }
         Operation::AsOf { .. } => as_of_arm(state, drafts, step, operation),
         Operation::Axis { .. } => axis_arm(state, drafts, operation),
         Operation::Closure { .. } => closure_arm(state, drafts, operation),
@@ -127,7 +127,6 @@ fn arm(
         Operation::Intersection { .. }
         | Operation::Difference { .. }
         | Operation::GroupDigest { .. }
-        | Operation::GroupOrdinal { .. }
         | Operation::Capture { .. }
         | Operation::Rank { .. }
         | Operation::Words { .. }

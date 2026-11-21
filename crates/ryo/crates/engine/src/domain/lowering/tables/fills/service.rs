@@ -250,22 +250,52 @@ pub(crate) fn as_of_arm(
     Some(Flattened { emptiness, ..lefts })
 }
 
-/// The branch of a group bound: one row of its table, which holds the rows of each key group at one end of the order; rows
-/// tied there are all kept, so a group keyed on the file alone may hold several.
-pub(crate) fn group_bound_arm(
+/// The branch of a group bound or a group ordinal: one row of its table. A bound's table holds the rows of each key group at
+/// one end of the order; rows tied there are all kept, so a group keyed on the file alone may hold several. An ordinal's
+/// holds each distinct row of the input with its place in its group's order.
+pub(crate) fn group_rows_arm(
     state: &mut RuleFlattening<'_>,
     drafts: &mut Drafts,
     step: StepId,
     operation: &Operation,
 ) -> Option<Flattened> {
-    let Operation::GroupBound {
-        from,
-        keys,
-        order,
-        end,
-    } = operation
-    else {
-        return None;
+    let (from, keys, order, group) = match operation {
+        Operation::GroupBound {
+            from,
+            keys,
+            order,
+            end,
+        } => (from, keys, order, GroupFill::Ends(*end)),
+        Operation::GroupOrdinal { from, keys, order } => (from, keys, order, GroupFill::Places),
+        Operation::Select { .. }
+        | Operation::Project { .. }
+        | Operation::Extend { .. }
+        | Operation::Join { .. }
+        | Operation::Union { .. }
+        | Operation::Intersection { .. }
+        | Operation::Difference { .. }
+        | Operation::Antijoin { .. }
+        | Operation::GroupCount { .. }
+        | Operation::GroupDigest { .. }
+        | Operation::Capture { .. }
+        | Operation::Rank { .. }
+        | Operation::Replace { .. }
+        | Operation::OrderedMatch { .. }
+        | Operation::AsOf { .. }
+        | Operation::Words { .. }
+        | Operation::Axis { .. }
+        | Operation::Closure { .. }
+        | Operation::Follow { .. }
+        | Operation::OrderedDfs { .. }
+        | Operation::Worklist { .. }
+        | Operation::Cycles { .. }
+        | Operation::Rows { .. }
+        | Operation::Hosted { .. }
+        | Operation::SpanBetween { .. }
+        | Operation::SourceMatches { .. }
+        | Operation::RenderSyntax { .. }
+        | Operation::FitsRendered { .. }
+        | Operation::SpanBounds { .. } => return None,
     };
     let shape = rule(state)?.shapes.get(usize::from(step))?.clone()?;
     let read = input(state, drafts, *from, InputWant::Defined)?;
@@ -277,7 +307,7 @@ pub(crate) fn group_bound_arm(
         keys: column_list(keys.iter().map(|key| RowColumn(usize::from(*key)))),
         order: Some(made_column(RowColumn(usize::from(*order)))?),
     };
-    let fill = MadeFill::Group(GroupFill::Ends(*end), grouped);
+    let fill = MadeFill::Group(group, grouped);
     let of = fill_of(state, step, definition)?;
     let table = made_once(drafts, of, fill, ColumnCount(shape.0.len()));
     let cells = fresh_cells(drafts, &shape);

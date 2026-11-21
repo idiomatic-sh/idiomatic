@@ -243,6 +243,12 @@ fn shaped(
             let _within = (picked(&read, keys)?, picked(&read, &[*order])?);
             Some(read)
         }
+        Operation::GroupOrdinal { from, keys, order } => {
+            let mut read = of(from)?;
+            let _within = (picked(&read, keys)?, picked(&read, &[*order])?);
+            read.0.push(CellKind::Number);
+            Some(read)
+        }
         Operation::AsOf {
             left,
             right,
@@ -320,7 +326,6 @@ fn shaped(
         Operation::Intersection { .. }
         | Operation::Difference { .. }
         | Operation::GroupDigest { .. }
-        | Operation::GroupOrdinal { .. }
         | Operation::Capture { .. }
         | Operation::Rank { .. }
         | Operation::Words { .. }
