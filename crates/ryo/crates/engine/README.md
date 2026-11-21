@@ -20,6 +20,10 @@ The digest that names a plan's step by everything it reads, a bound value includ
 
 A lowered pack written as code, every site and index numbered, with no count cut to fit a width and a file-sized word only where it may stand.
 
+### executing
+
+The one loop over a program's words: a word is dispatched to its item, and each binding that ends asks the innermost running iteration for its next row.
+
 ### findings
 
 The rows a scan hands over, the work notices beside them, the frontier rows the project pass reads back, and what a scan counted.

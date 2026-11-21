@@ -4,6 +4,8 @@ pub mod code;
 pub mod counting;
 pub mod digests;
 pub mod encoding;
+#[cfg(test)]
+mod executing;
 pub mod findings;
 pub mod indexes;
 pub mod lowered;
