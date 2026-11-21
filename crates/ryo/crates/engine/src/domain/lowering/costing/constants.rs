@@ -7,8 +7,8 @@ use crate::domain::lowering::definitions::types::RowEstimate;
 
 /// The elements of a file's node table.
 pub(crate) const ELEMENTS: RowEstimate = RowEstimate(2_048);
-/// The rows of a filled relation.
-pub(crate) const FILLED_ROWS: RowEstimate = RowEstimate(512);
+/// The rows a relation of pairs is taken to hold for each element of the file.
+pub(crate) const PAIRS_AN_ELEMENT: u64 = 4;
 /// The rows of a group table whose input nothing sizes.
 pub(crate) const GROUP_ROWS: RowEstimate = RowEstimate(64);
 /// A literal with no counts is sized at one row in this many of its source.
