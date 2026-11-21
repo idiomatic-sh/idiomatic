@@ -23,6 +23,7 @@ use super::planning::types::UnitRole;
 use super::planning::writing::service::branch_program;
 use super::proving::service::proved;
 use super::proving::types::{ProductStated, ProofFault, ProvedUnit, UnitHomes, Unproved};
+use super::sharing::service::prefixes_shared;
 use super::tables::arms::service::rule_flattened;
 use super::tables::service::admitted;
 use super::tables::types::RuleFlattening;
@@ -212,7 +213,7 @@ fn built(
             *slot = stated(definition);
         }
     }
-    let homes = UnitHomes {
+    let mut homes = UnitHomes {
         definitions: drafts.definitions.iter().map(|draft| draft.home).collect(),
         tables: drafts.table_homes.clone(),
     };
@@ -228,6 +229,15 @@ fn built(
     }
     let mut pack = assembled(drafts, lowered);
     needs_added(&mut pack, &table_rows);
+    // SPIKE: the run of stages several pipelines of a table begin with is run once, as a table of its own; such a table
+    // is its table's as far as a product's statement and a fault's home go.
+    for shared in prefixes_shared(&mut pack) {
+        let of = usize::try_from(shared.of.0).unwrap_or(usize::MAX);
+        products.push(products.get(of).copied().unwrap_or(ProductStated::Keyed));
+        if let Some(home) = homes.tables.get(of).copied() {
+            homes.tables.push(home);
+        }
+    }
     proved(&pack, &products).map_err(|unproved| fault_refused(&homes, rules, unproved))?;
     Ok(pack)
 }
