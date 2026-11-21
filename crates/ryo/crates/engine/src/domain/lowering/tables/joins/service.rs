@@ -15,7 +15,7 @@ use crate::domain::lowering::flattening::types::{NearestDomain, NearestOver};
 use crate::domain::lowering::nodes::service::input_shape;
 use crate::domain::lowering::tables::closures::service::edge_rows;
 use crate::domain::lowering::tables::inputs::service::{input, rule, sized};
-use crate::domain::lowering::tables::selections::service::{all_selected, selection};
+use crate::domain::lowering::tables::selections::service::{all_selected, asked_of, selection};
 use crate::domain::lowering::tables::service::{tree_relation, walk_of};
 use crate::domain::lowering::tables::sets::types::SetTests;
 use crate::domain::lowering::tables::types::InputSize;
@@ -150,7 +150,8 @@ pub(crate) fn join_arm(
     }
     let lefts = input(state, drafts, *left, wants.left)?;
     let mut rights = input(state, drafts, *right, wants.right)?;
-    rights.branches = all_selected(state, drafts, rights.branches, filter, SetTests::Buckets)?;
+    let asked = asked_of(state, *right, filter, SetTests::Buckets)?;
+    rights.branches = all_selected(state, drafts, rights.branches, &asked)?;
     // The keys and the answer name the right side's columns through its view, when it has one.
     if !view.is_empty() {
         for branch in &mut rights.branches {
@@ -296,7 +297,8 @@ pub(crate) fn axis_arm(
                 },
                 (_, Input::Relation(_)) => {
                     let read = std::mem::take(&mut held);
-                    let mut read = selection(state, drafts, read, domain_filter, SetTests::Tests)?;
+                    let asked = asked_of(state, *domain, domain_filter, SetTests::Tests)?;
+                    let mut read = selection(state, drafts, read, &asked)?;
                     let (Some(only), None) = (read.branches.pop(), read.branches.pop()) else {
                         return None;
                     };
@@ -356,8 +358,8 @@ pub(crate) fn axis_arm(
             let wants = join_wants(sized(state, drafts, *from), sized(state, drafts, *domain));
             let starts = input(state, drafts, *from, wants.left)?;
             let mut held = input(state, drafts, *domain, wants.right)?;
-            let sets = SetTests::Buckets;
-            held.branches = all_selected(state, drafts, held.branches, domain_filter, sets)?;
+            let asked = asked_of(state, *domain, domain_filter, SetTests::Buckets)?;
+            held.branches = all_selected(state, drafts, held.branches, &asked)?;
             let mut branches = Vec::with_capacity(starts.branches.len() * held.branches.len());
             for left in &starts.branches {
                 for right in &held.branches {

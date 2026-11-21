@@ -164,6 +164,33 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ))),
     },
     Case {
+        name: CaseName(
+            "a_set_in_the_filter_of_a_nearest_walks_domain_stays_a_test_of_its_one_read",
+        ),
+        word: Word::Succeeds,
+        input: || {
+            (
+                &["the nearest sentence or clause above each word"],
+                SampleStage::Absent,
+            )
+        },
+        expect: Expect::Value(Cow::Borrowed(concat!(
+            "definition 0: 5 columns, emptiness All([Unknown, Unknown])\n",
+            "  pattern bound [] collected []: Table 1\n",
+            "  pattern bound [1] collected []: Call: EachMatch:Fanout EachMatch:Fanout Yield:Constant\n",
+            "definition 1: 6 columns, emptiness All([Definition(DefinitionId(0)), Unknown, Unknown])\n",
+            "  pattern bound [] collected []: Table 0\n",
+            "  pattern bound [1] collected [5]: Call: Nearest:Fanout Exists:Fanout Let:Constant Yield:Constant\n",
+            "table 0: Rows, 6 columns, indexes []\n",
+            "  pipeline: Scan:File Read:Constant Read:Constant Read:Constant Read:Constant Use:Fanout\n",
+            "table 1: Rows, 5 columns, indexes []\n",
+            "  pipeline: Scan:File Read:Constant Read:Constant Probe:Fanout Read:Constant\n",
+            "rule 0: 1 branches\n",
+            "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Read:Constant Read:Constant Emit:Constant\n",
+            "codes: {\"EachMatchNode\": 3, \"EachRowMade\": 1, \"Emit\": 1, \"End\": 5, \"Exists\": 1, \"Let\": 1, \"Nearest\": 1, \"ReadMade\": 5, \"ReadNode\": 1, \"StageProbe\": 1, \"StageRead\": 7, \"StageScan\": 2, \"StageUse\": 1, \"StageWrite\": 2, \"Test\": 1, \"Yield\": 3}",
+        ))),
+    },
+    Case {
         name: CaseName("an_in_list_held_against_a_text_that_is_no_kind_and_no_field_is_refused"),
         word: Word::Refuses,
         input: || {

@@ -138,6 +138,69 @@ pub(super) fn view_scene(scene: &str) -> Option<Plan> {
                 right: Input::Step(StepId(2)),
             }),
         ]),
+        // The tree's edges projected to parent, child, field and file, and the ones in either of two fields: the field
+        // is the projection's third column and the relation's fourth.
+        "the edges of a projection in two fields" => plan(vec![
+            step(Operation::Project {
+                from: Input::Relation(Relation::SyntaxChild),
+                columns: vec![at(0), at(1), at(3), at(4)],
+                distinct: RepeatedRows::Dropped,
+            }),
+            where_all(
+                Input::Step(StepId(0)),
+                vec![against(Test::Equal, 2, "subject")],
+            ),
+            where_all(
+                Input::Step(StepId(0)),
+                vec![against(Test::Equal, 2, "object")],
+            ),
+            step(Operation::Union {
+                left: Input::Step(StepId(1)),
+                right: Input::Step(StepId(2)),
+            }),
+        ]),
+        // The words whose parent is the word itself (a comparison of two columns of one row of step 0, which is a
+        // definition: two steps read it), each beside its span.
+        "the words that are their own parent, beside their spans" => plan(vec![
+            super::parts::words(),
+            where_all(
+                Input::Step(StepId(0)),
+                vec![PlanComparison {
+                    test: Test::Equal,
+                    left: Operand::Column(at(0)),
+                    right: Operand::Column(at(1)),
+                    origin: ComparisonOrigin::Unrecorded,
+                }],
+            ),
+            projected(1, &[1, 3]),
+            projected(0, &[1, 4]),
+            joined(
+                Input::Step(StepId(2)),
+                Input::Step(StepId(3)),
+                (&[0], &[0]),
+                vec![of(Side::Left, 0), of(Side::Left, 1), of(Side::Right, 1)],
+            ),
+        ]),
+        // The words whose text no word that is its own parent has: the right side of the absence is a selection of
+        // step 0 that holds two of its columns equal, and step 0 is a definition (two steps read it).
+        "the words no word that is its own parent shares a text with" => plan(vec![
+            super::parts::words(),
+            where_all(
+                Input::Step(StepId(0)),
+                vec![PlanComparison {
+                    test: Test::Equal,
+                    left: Operand::Column(at(0)),
+                    right: Operand::Column(at(1)),
+                    origin: ComparisonOrigin::Unrecorded,
+                }],
+            ),
+            step(Operation::Antijoin {
+                left: Input::Step(StepId(0)),
+                right: Input::Step(StepId(1)),
+                left_on: vec![at(3)],
+                right_on: vec![at(3)],
+            }),
+        ]),
         _ => return None,
     })
 }

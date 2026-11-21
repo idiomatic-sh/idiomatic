@@ -3,6 +3,7 @@
 //! then the codes the straight encoding writes for the pack, by count: every pack here passes the encoder, the holder of
 //! the invariant. Every expected text is what a run printed, read line by line and found right.
 
+mod flags;
 mod operations;
 mod sets;
 mod shapes;
@@ -16,6 +17,7 @@ use super::service::{lowered, lowered_at};
 use super::types::{LoadRefusal, PlanNode, SelectedRule, SelectedRules};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::encoding::service::encoded;
+use crate::domain::lowered::types::LoweredPack;
 use ryo_values::domain::descriptions::types::{KindVocabulary, LanguageName};
 use ryo_values::domain::query_bindings::types::RuleBindings;
 use ryo_values::domain::query_plans::types::NodeDigests;
@@ -264,6 +266,23 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ))),
     },
     Case {
+        name: CaseName(
+            "a_rule_another_rule_observes_loads_and_its_pack_holds_no_step_of_the_observed_output",
+        ),
+        word: Word::Succeeds,
+        input: || {
+            (
+                &["a rule over the tree whose words another rule observes"],
+                SampleStage::Absent,
+            )
+        },
+        expect: Expect::Value(Cow::Borrowed(concat!(
+            "rule 0: 1 branches\n",
+            "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Emit:Constant\n",
+            "codes: {\"EachRowNode\": 1, \"Emit\": 1, \"End\": 2, \"ReadNode\": 3}",
+        ))),
+    },
+    Case {
         name: CaseName("a_rule_set_whose_every_rule_is_refused_answers_the_last_refusal"),
         word: Word::Refuses,
         input: || {
@@ -279,7 +298,15 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-fn subject((scenes, stage): Input) -> Result<Value, Failure> {
+fn subject(input: Input) -> Result<Value, Failure> {
+    subject_with(input, |_| Vec::new())
+}
+
+/// The scenes lowered and said in lines, with the lines `more` says of the pack after the pack's own.
+fn subject_with(
+    (scenes, stage): Input,
+    more: fn(&LoweredPack) -> Vec<String>,
+) -> Result<Value, Failure> {
     let plans: Vec<_> = scenes.iter().map(|scene| named(scene)).collect();
     let values: Vec<_> = scenes.iter().map(|scene| bound(scene)).collect();
     let digests: Vec<NodeDigests> = plans
@@ -321,6 +348,7 @@ fn subject((scenes, stage): Input) -> Result<Value, Failure> {
         });
     }
     let mut lines = described(&lowered.pack);
+    lines.extend(more(&lowered.pack));
     // The pack is written by the straight encoding, the holder of the invariant: its codes, by count.
     lines.push(format!(
         "codes: {:?}",

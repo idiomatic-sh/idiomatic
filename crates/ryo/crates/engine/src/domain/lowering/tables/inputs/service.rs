@@ -19,7 +19,7 @@ use crate::domain::lowering::tables::service::tree_relation;
 use crate::domain::lowering::tables::shapes::service::picked as kinds_picked;
 use crate::domain::lowering::tables::types::InputSize;
 use crate::domain::lowering::tables::types::{InputWant, RuleFlattening};
-use crate::domain::lowering::tables::views::service::{view_noted, view_read};
+use crate::domain::lowering::tables::views::service::{branch_again, view_noted, view_read};
 use crate::domain::steps::types::DefinitionId;
 use ryo_relations::domain::relations::types::Count;
 use ryo_relations::domain::relations::types::Integer;
@@ -219,41 +219,36 @@ pub(crate) fn input(
     }
 }
 
-/// The same read with fresh variables, when a flattening is one read of a made table or of a definition and its row is
-/// that read's cells: what each reader of such a step holds.
+/// The same read with fresh variables, when a flattening is one read of a made table or of a definition, its row is
+/// that read's cells, and no two cells hold one variable: what each reader of such a step holds, and a reader that asks
+/// a definition is given the source's own. A read that holds two of its columns equal (one variable in two cells) is
+/// more than its source's rows: it is no alias, and keeps its own branch or its own definition.
 pub(crate) fn aliased(drafts: &mut Drafts, flattened: &Flattened) -> Option<Flattened> {
     let [branch] = flattened.branches.as_slice() else {
         return None;
     };
     let [
         FlatAtom::Rows {
-            rows: rows @ (AtomRows::Made(_) | AtomRows::Definition(_)),
+            rows: AtomRows::Made(_) | AtomRows::Definition(_),
             cells,
-            per_file,
+            ..
         },
     ] = branch.atoms.as_slice()
     else {
         return None;
     };
-    if *cells != branch.row {
+    let mut each = cells.iter().enumerate();
+    let twice = each.any(|(place, cell)| {
+        cells
+            .iter()
+            .skip(place.saturating_add(1))
+            .any(|later| later == cell)
+    });
+    if *cells != branch.row || twice {
         return None;
     }
-    let fresh: Vec<FlatTerm> = cells
-        .iter()
-        .map(|cell| match cell {
-            FlatTerm::Variable(_) => FlatTerm::Variable(fresh_variable(drafts)),
-            FlatTerm::Text(_) | FlatTerm::Number(_) | FlatTerm::File => *cell,
-        })
-        .collect();
     Some(Flattened {
-        branches: vec![FlatBranch {
-            atoms: vec![FlatAtom::Rows {
-                rows: *rows,
-                cells: fresh.clone(),
-                per_file: *per_file,
-            }],
-            row: fresh,
-        }],
+        branches: vec![branch_again(drafts, branch)],
         emptiness: copied(&flattened.emptiness),
         keyless: Vec::new(),
     })

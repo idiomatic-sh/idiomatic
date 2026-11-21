@@ -295,9 +295,12 @@ fn shaped(
     }
 }
 
-/// A rule as the lowering reads it: every step its emit reaches has a shape. Refused, naming the first step in step order
-/// that cannot be evaluated (an operation not lowered, a step that hands rows over to the project pass, a step out of
-/// order), or the columns of a step when they are past the width a table's columns are counted in.
+/// A rule as the lowering reads it: every step its emit reaches has a shape. Refused, naming the first step its emit
+/// reaches, in the order the steps are read, that cannot be evaluated (an operation not lowered, a step that runs after
+/// the files, a step out of order), or the columns of a step when they are past the width a table's columns are counted
+/// in. A plan may hand rows over to another rule's steps after the files (its `frontier`: an output another rule
+/// observes): the steps only that output reaches are no step of the rule's own rows, are given no shape and are never
+/// lowered, and the rule is judged by the steps its own emit reaches alone.
 pub(crate) fn admitted<'a>(rule: SelectedRule<'a>) -> Result<AdmittedRule<'a>, LoadRefusal> {
     let plan = rule.plan;
     let unlowerable =
@@ -312,9 +315,8 @@ pub(crate) fn admitted<'a>(rule: SelectedRule<'a>) -> Result<AdmittedRule<'a>, L
         if reached.get(place) != Some(&StepReach::Reached) {
             continue;
         }
-        let per_file = step.scope == StepScope::PerFile && plan.frontier.is_empty();
         let shape = shaped(&rule, &shapes, &step.operation)
-            .filter(|_| per_file)
+            .filter(|_| step.scope == StepScope::PerFile)
             .ok_or_else(|| unlowerable(place))?;
         if shape.0.len() > usize::from(u16::MAX) {
             return Err(LoadRefusal::Budget(PastWidth::TableColumns));

@@ -74,6 +74,29 @@ pub(super) fn set_scene(scene: &str) -> Option<Plan> {
             Test::GlobAny,
             written("{sentence,wor*}"),
         )]),
+        // Each word beside the nearest element above it whose kind is `sentence` or `clause`: the set is in the filter
+        // of a nearest axis's domain, which the walk reads in place as one read.
+        "the nearest sentence or clause above each word" => plan(vec![
+            super::parts::words(),
+            step(Operation::Axis {
+                from: Input::Step(StepId(0)),
+                edges: Input::Relation(Relation::SyntaxChild),
+                domain: Input::Relation(tree),
+                direction: ryo_values::domain::plan_parts::types::Direction::NearestAncestor,
+                id: ColumnIndex(1),
+                parent: ColumnIndex(0),
+                child: ColumnIndex(1),
+                domain_id: ColumnIndex(0),
+                domain_filter: vec![PlanComparison {
+                    test: Test::GlobAny,
+                    left: Operand::Column(ColumnIndex(1)),
+                    right: written("{sentence,clause}"),
+                    origin: ComparisonOrigin::Unrecorded,
+                }],
+                domain_view: Vec::new(),
+                output: Vec::new(),
+            }),
+        ]),
         // The text of an element is no kind and no field: no constant names a bucket of it by a small code.
         "the elements of two texts, by a glob" => {
             plan(vec![held(tree, 2, Test::GlobAny, written("{a,b}"))])
