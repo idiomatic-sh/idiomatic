@@ -2,137 +2,32 @@
 //! makes one table from a relation or from the file's nodes that are there already, so a run times the pipeline from its
 //! scan to its write (and a grouping fill's grouping) and neither the language nor an index build.
 
+use self::files::{bench_text, mixed_tree, tree};
 use self::kinds::FillBench;
-use self::tables::{PRODUCT_LEFT, bench_table, bench_text, called, told_rows, tree};
-use crate::domain::code::types::RelationNumber;
+use self::tables::{bench_table, called, told_rows};
+use crate::domain::code::types::{RelationNumber, Short};
 use crate::domain::filled::errors::FilledError;
 use crate::domain::made_tables::fixtures::packs::FILE;
-use crate::domain::made_tables::fixtures::{Telling, World, framed, node_site, site_of, world_of};
-use crate::domain::made_tables::sources::service::{made, matched, next_file, scanned, table_of};
+use crate::domain::made_tables::fixtures::sites::{node_site, site_of};
+use crate::domain::made_tables::fixtures::{Telling, World, framed, world_of};
+use crate::domain::made_tables::reading::service::{cell_held, column_held};
+use crate::domain::made_tables::sources::service::{
+    cell_of, made, matched, next_file, scanned, table_of,
+};
 use crate::domain::made_tables::types::{
     FillFrame, KeyFrom, MadeState, PatternAsk, PatternFound, PatternRows, ReadSource, TableNeed,
 };
 use crate::domain::steps::types::MadeTableId;
+use ryo_language::domain::facts::service::{base_words, clear_words, file_words};
 use ryo_language::domain::facts::types::CellWord;
+use ryo_language::domain::fixed_names::service::checked;
 use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::Position;
+use ryo_relations::domain::terms::types::NameText;
 
+pub(crate) mod files;
 pub mod kinds;
 pub(crate) mod tables;
-
-/// Every fill the bench times.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_engine::domain::made_tables::fixtures::benches::FILL_BENCHES;
-///
-/// assert_eq!(FILL_BENCHES.len(), 20);
-/// ```
-pub const FILL_BENCHES: &[FillBench] = &[
-    FillBench::RowsRead,
-    FillBench::RowsKeep,
-    FillBench::RowsProbe,
-    FillBench::RowsDropped,
-    FillBench::GroupCount,
-    FillBench::Sorted,
-    FillBench::UseRows,
-    FillBench::WalkChildren,
-    FillBench::WalkAncestors,
-    FillBench::NodeKeep,
-    FillBench::CallSpanBounds,
-    FillBench::CallReplace,
-    FillBench::CallCapture,
-    FillBench::CallSourceMatches,
-    FillBench::OrderedMatch,
-    FillBench::GroupEnds,
-    FillBench::Product,
-    FillBench::IndexNodesKind,
-    FillBench::IndexNodesParent,
-    FillBench::IndexNodesId,
-];
-
-/// The name a fill's measure carries.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_engine::domain::made_tables::fixtures::benches::fill_name;
-/// use ryo_engine::domain::made_tables::fixtures::benches::kinds::FillBench;
-///
-/// assert_eq!(fill_name(FillBench::RowsProbe), "rows_probe");
-/// ```
-#[must_use]
-pub const fn fill_name(bench: FillBench) -> &'static str {
-    match bench {
-        FillBench::RowsRead => "rows_read",
-        FillBench::RowsKeep => "rows_keep",
-        FillBench::RowsProbe => "rows_probe",
-        FillBench::RowsDropped => "rows_repeats_dropped",
-        FillBench::GroupCount => "group_count",
-        FillBench::Sorted => "sorted",
-        FillBench::UseRows => "use_rows",
-        FillBench::WalkChildren => "walk_children",
-        FillBench::WalkAncestors => "walk_ancestors",
-        FillBench::NodeKeep => "node_read_keep",
-        FillBench::CallSpanBounds => "call_span_bounds",
-        FillBench::CallReplace => "call_replace",
-        FillBench::CallCapture => "call_capture",
-        FillBench::CallSourceMatches => "call_source_matches",
-        FillBench::OrderedMatch => "ordered_match",
-        FillBench::GroupEnds => "group_ends",
-        FillBench::Product => "product_pairs",
-        FillBench::IndexNodesKind => "index_nodes_by_kind",
-        FillBench::IndexNodesParent => "index_nodes_by_parent",
-        FillBench::IndexNodesId => "index_nodes_by_id",
-    }
-}
-
-/// What a fill's time over `rows` rows is divided by: the rows of its source, or for the product the pairs it makes
-/// (thirty-two rows, or every row of fewer, each with every row).
-///
-/// # Examples
-///
-/// ```
-/// use ryo_engine::domain::made_tables::fixtures::benches::fill_units;
-/// use ryo_engine::domain::made_tables::fixtures::benches::kinds::FillBench;
-///
-/// assert_eq!(fill_units(FillBench::RowsRead, 100), 100);
-/// assert_eq!(fill_units(FillBench::Product, 100), 3_200);
-/// ```
-#[must_use]
-pub const fn fill_units(bench: FillBench, rows: usize) -> usize {
-    let rows = if rows == 0 { 1 } else { rows };
-    match bench {
-        FillBench::Product => {
-            let left = if rows < PRODUCT_LEFT {
-                rows
-            } else {
-                PRODUCT_LEFT
-            };
-            left.saturating_mul(rows)
-        }
-        FillBench::RowsRead
-        | FillBench::RowsKeep
-        | FillBench::RowsProbe
-        | FillBench::RowsDropped
-        | FillBench::GroupCount
-        | FillBench::Sorted
-        | FillBench::UseRows
-        | FillBench::WalkChildren
-        | FillBench::WalkAncestors
-        | FillBench::NodeKeep
-        | FillBench::CallSpanBounds
-        | FillBench::CallReplace
-        | FillBench::CallCapture
-        | FillBench::CallSourceMatches
-        | FillBench::OrderedMatch
-        | FillBench::GroupEnds
-        | FillBench::IndexNodesKind
-        | FillBench::IndexNodesParent
-        | FillBench::IndexNodesId => rows,
-    }
-}
 
 /// A fill's world, made once and filled many times: the pack, the relation's rows and the file's nodes.
 ///
@@ -174,6 +69,10 @@ impl PatternRows for OneRow {
         rows.extend(asked.key.first());
         Ok(PatternFound::Rows)
     }
+
+    fn table_started(&mut self, _: MadeTableId) {}
+
+    fn table_ended(&mut self, _: MadeTableId) {}
 }
 
 /// The workload of a fill over about `rows` rows: its relation filled whole and the index its probe reads built, so a
@@ -211,6 +110,10 @@ pub fn fill_workload(bench: FillBench, rows: usize) -> Option<FillWorkload> {
         | FillBench::UseRows
         | FillBench::OrderedMatch
         | FillBench::GroupEnds
+        | FillBench::RowsFile
+        | FillBench::RowsFileDropped
+        | FillBench::SeamCellOf
+        | FillBench::SeamColumnHeld
         | FillBench::Product => true,
         FillBench::WalkChildren
         | FillBench::WalkAncestors
@@ -219,10 +122,32 @@ pub fn fill_workload(bench: FillBench, rows: usize) -> Option<FillWorkload> {
         | FillBench::CallReplace
         | FillBench::CallCapture
         | FillBench::CallSourceMatches
+        | FillBench::KeepGlobFewWords
+        | FillBench::KeepGlobOwnWords
         | FillBench::IndexNodesKind
+        | FillBench::IndexNodesKindMixed
         | FillBench::IndexNodesParent
         | FillBench::IndexNodesId => false,
     };
+    if bench == FillBench::IndexNodesKindMixed {
+        // Sixteen kinds, each its own word, and a file whose elements take them in no order.
+        world.programs.kinds = (0..=16_u64).map(CellWord).collect();
+        world.nodes = mixed_tree(rows);
+    }
+    if matches!(
+        bench,
+        FillBench::KeepGlobFewWords | FillBench::KeepGlobOwnWords
+    ) {
+        // The words of these two: 26 literal kinds (words 1 to 26) and one more (27). A token's kind is the 26th, a
+        // group's and the root's the one that is not among them.
+        let names: Vec<String> = (b'a'..=b'z')
+            .map(|letter| format!("kind_{}", char::from(letter)))
+            .chain(std::iter::once("kind_other".to_owned()))
+            .collect();
+        let texts: Vec<NameText<'_>> = names.iter().map(|name| NameText(name)).collect();
+        world.words = file_words(&base_words(checked(&[]).ok()?, &texts));
+        world.programs.kinds = [0_u64, 27, 27, 26].map(CellWord).to_vec();
+    }
     if reads_told {
         let (mut frame, _) = framed(&mut world);
         // The sources are there before the first timed run: the relation whole, the probe's index built.
@@ -272,12 +197,21 @@ pub fn fill_workload(bench: FillBench, rows: usize) -> Option<FillWorkload> {
 /// assert_eq!(fills.map(made), [700, 700, 700, 700, 700, 100, 32]);
 /// // An index of the nodes, built and asked once: the 700 tokens by kind, the root's 100 children and the root (its
 /// // own parent) by parent, one node by id.
+/// // A keep of a glob of 26 literals: the 700 tokens, whose kind's name is the last of them; and the 100 groups and
+/// // the root, whose own texts match none.
+/// let kept = [FillBench::KeepGlobFewWords, FillBench::KeepGlobOwnWords];
+/// assert_eq!(kept.map(made), [700, 101]);
+/// // Every row of a made table's column read through the seam, one call a read or through the held column.
+/// assert_eq!([FillBench::SeamCellOf, FillBench::SeamColumnHeld].map(made), [800, 800]);
 /// let nodes = [FillBench::IndexNodesKind, FillBench::IndexNodesParent, FillBench::IndexNodesId];
 /// assert_eq!(nodes.map(made), [700, 101, 1]);
+/// // Of 800 elements of sixteen kinds in no order, those of the first kind: about one in sixteen.
+/// assert_eq!(made(FillBench::IndexNodesKindMixed), 48);
 /// ```
 pub fn run_fill(work: &mut FillWorkload) -> usize {
     let asked = match work.1 {
         FillBench::IndexNodesKind => Some(TOKEN_KIND),
+        FillBench::IndexNodesKindMixed => Some(CellWord(1)),
         FillBench::IndexNodesParent => Some(CellWord(node_id(FILE, Position(0)).0)),
         FillBench::IndexNodesId => Some(CellWord(node_id(FILE, Position(1)).0)),
         FillBench::RowsRead
@@ -296,6 +230,12 @@ pub fn run_fill(work: &mut FillWorkload) -> usize {
         | FillBench::CallSourceMatches
         | FillBench::OrderedMatch
         | FillBench::GroupEnds
+        | FillBench::RowsFile
+        | FillBench::RowsFileDropped
+        | FillBench::KeepGlobFewWords
+        | FillBench::KeepGlobOwnWords
+        | FillBench::SeamCellOf
+        | FillBench::SeamColumnHeld
         | FillBench::Product => None,
     };
     if let Some(key) = asked {
@@ -307,6 +247,31 @@ pub fn run_fill(work: &mut FillWorkload) -> usize {
             .map_or(0, |found| {
                 found.rows.end.0.saturating_sub(found.rows.start.0)
             });
+    }
+    if matches!(work.1, FillBench::SeamCellOf | FillBench::SeamColumnHeld) {
+        // The table is made once, by the first run; a run reads its second column for every row, and answers how
+        // many rows held a cell there that is a row's number, which is every row.
+        let (mut frame, _) = framed(&mut work.0);
+        let _now = made(&mut frame, &mut OneRow, MadeTableId(0));
+        let table = ReadSource::Made(MadeTableId(0));
+        let rows = table_of(frame.store, MadeTableId(0)).map_or(0, |slot| slot.rows.count.0);
+        let all = u64::try_from(rows).unwrap_or(u64::MAX);
+        let handles = (0..all).map(CellWord);
+        return if work.1 == FillBench::SeamCellOf {
+            handles
+                .filter(|row| cell_of(&mut frame, table, Short(1), *row).0 < all)
+                .count()
+        } else {
+            let held = column_held(frame.store, table, Short(1));
+            handles
+                .filter(|row| cell_held(frame.store, held, *row).0 < all)
+                .count()
+        };
+    }
+    if work.1 == FillBench::KeepGlobOwnWords {
+        // A new file: its words are interned again, and nothing decided of the last file's words is held.
+        next_file(&mut work.0.store);
+        clear_words(&mut work.0.words);
     }
     if let Some(slot) = work.0.store.tables.first_mut() {
         slot.state = MadeState::Unmade;

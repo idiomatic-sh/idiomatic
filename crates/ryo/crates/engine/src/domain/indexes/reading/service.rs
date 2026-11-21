@@ -6,8 +6,8 @@ use crate::domain::indexes::constants::{
     EMPTY_RUN, HASH_FOLD, HASH_MULTIPLIER, HASH_TURN, RUN_END, RUN_START_SHIFT,
 };
 use crate::domain::indexes::types::{
-    Addressing, ColumnView, HashShift, IndexArena, IndexRead, RangeEnd, RowHash, RowRun, SourceRow,
-    TableWord,
+    Addressing, CellOfKey, ColumnView, HashShift, IndexArena, IndexRead, KeyMask, RangeEnd,
+    RowHash, RowRun, SourceRow, TableWord,
 };
 use crate::domain::steps::types::BoundKind;
 use ryo_language::domain::facts::types::CellWord;
@@ -53,8 +53,8 @@ pub(crate) fn start_of(shift: HashShift, key: impl Iterator<Item = CellWord>) ->
 /// How far a key's one cell lies past the least cell of an index addressed by the cell; past every place for a key of no
 /// cell.
 #[inline]
-fn offset_of(key: &[CellWord], least: CellWord) -> Count {
-    match key.first() {
+fn offset_of(first: Option<CellWord>, least: CellWord) -> Count {
+    match first {
         Some(cell) => Count(usize::try_from(cell.0.wrapping_sub(least.0)).unwrap_or(usize::MAX)),
         None => Count(usize::MAX),
     }
@@ -83,6 +83,8 @@ pub(crate) fn read(arena: &IndexArena, site: IndexSite) -> IndexRead<'_> {
             shift: HashShift(0),
             addressing: Addressing::Hashed,
             width: Count(0),
+            skipped: KeyMask(0),
+            fixed: CellWord(0),
         };
     };
     IndexRead {
@@ -98,6 +100,8 @@ pub(crate) fn read(arena: &IndexArena, site: IndexSite) -> IndexRead<'_> {
         shift: slot.shift,
         addressing: slot.addressing,
         width: slot.width,
+        skipped: slot.skipped,
+        fixed: slot.fixed,
     }
 }
 
@@ -107,16 +111,26 @@ fn place_of(word: TableWord) -> Count {
     Count(usize::try_from(word.0).unwrap_or(usize::MAX))
 }
 
-/// The rows of `key` in an index: the stretch of the index's rows that hold it, empty when none does. An index of no row
-/// answers after one test, whatever its key.
+/// What an index does with the `at`-th cell of a key as it is asked.
 #[inline]
-pub(crate) fn run_of(index: IndexRead<'_>, key: &[CellWord]) -> RowRun {
-    if index.rows.is_empty() {
-        return RowRun::default();
+pub(crate) fn key_cell(mask: KeyMask, at: Count) -> CellOfKey {
+    let fixed = match u32::try_from(at.0) {
+        Ok(place) => mask.0.checked_shr(place).unwrap_or(0) & 1,
+        Err(_) => 0,
+    };
+    if fixed == 0 {
+        CellOfKey::Kept
+    } else {
+        CellOfKey::Fixed
     }
+}
+
+/// The rows of a key in an index, the key being the cells the index keeps.
+#[inline]
+fn found<K: Iterator<Item = CellWord> + Clone>(index: IndexRead<'_>, key: K) -> RowRun {
     match index.addressing {
         Addressing::Rows(least) => {
-            let at = offset_of(key, least);
+            let at = offset_of(key.clone().next(), least);
             if at.0 < index.rows.len() {
                 RowRun {
                     start: at,
@@ -127,7 +141,7 @@ pub(crate) fn run_of(index: IndexRead<'_>, key: &[CellWord]) -> RowRun {
             }
         }
         Addressing::Counted(least) => {
-            let at = offset_of(key, least);
+            let at = offset_of(key.clone().next(), least);
             match (
                 index.entries.get(at.0),
                 index.entries.get(at.0.wrapping_add(1)),
@@ -141,7 +155,7 @@ pub(crate) fn run_of(index: IndexRead<'_>, key: &[CellWord]) -> RowRun {
         }
         Addressing::Hashed => {
             let stride = index.width.0.saturating_add(1);
-            let mut at = start_of(index.shift, key.iter().copied()).0;
+            let mut at = start_of(index.shift, key.clone()).0;
             loop {
                 let from = at.wrapping_mul(stride);
                 let Some((run, held)) = index
@@ -154,13 +168,42 @@ pub(crate) fn run_of(index: IndexRead<'_>, key: &[CellWord]) -> RowRun {
                 if *run == EMPTY_RUN {
                     return RowRun::default();
                 }
-                if held.iter().zip(key).all(|(cell, asked)| cell.0 == asked.0) {
+                if held
+                    .iter()
+                    .zip(key.clone())
+                    .all(|(cell, asked)| cell.0 == asked.0)
+                {
                     return run_from(*run);
                 }
                 at = at.wrapping_add(1) & index.mask.0;
             }
         }
     }
+}
+
+/// The rows of `key` in an index: the stretch of the index's rows that hold it, empty when none does. An index of no row
+/// answers after one test, whatever its key. Where the index keeps no cell of some of the key's (every row of its source
+/// holds one fixed cell there), the key has rows only if it asks that cell there, and is found by its other cells.
+#[inline]
+pub(crate) fn run_of(index: IndexRead<'_>, key: &[CellWord]) -> RowRun {
+    if index.rows.is_empty() {
+        return RowRun::default();
+    }
+    if index.skipped.0 == 0 {
+        return found(index, key.iter().copied());
+    }
+    let placed = || key.iter().copied().enumerate();
+    if placed().any(|(at, cell)| {
+        key_cell(index.skipped, Count(at)) == CellOfKey::Fixed && cell != index.fixed
+    }) {
+        return RowRun::default();
+    }
+    found(
+        index,
+        placed()
+            .filter(|(at, _)| key_cell(index.skipped, Count(*at)) == CellOfKey::Kept)
+            .map(|(_, cell)| cell),
+    )
 }
 
 /// The rows of a run, as their numbers in the source.

@@ -265,6 +265,8 @@ pub(crate) struct Measuring {
     pub(crate) literals: Vec<Count>,
     /// Each unit's time and rows in the file being scanned, by the unit's place.
     pub(crate) file: Vec<UnitInFile>,
+    /// The unit of each made table, by the table's number: what the fill side's "this table's fill starts" is booked to.
+    pub(crate) table_units: Vec<WordSlot>,
     /// The units running, innermost last.
     pub(crate) running: Vec<WordSlot>,
     /// The thread's time when the innermost unit last changed.

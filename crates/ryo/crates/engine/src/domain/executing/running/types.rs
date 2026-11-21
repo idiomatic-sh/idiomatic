@@ -3,15 +3,6 @@
 use crate::domain::code::types::{CodeEntry, WordSlot};
 use crate::domain::steps::types::MadeTableId;
 
-/// Whether the executor runs a word, a test or a fill.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum WordBuilt {
-    /// It runs.
-    Runs,
-    /// It is not built yet: a rule that can reach it is not loaded.
-    NotYet,
-}
-
 /// A place a rule can reach, where the walk of its code goes on.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum WalkPlace {

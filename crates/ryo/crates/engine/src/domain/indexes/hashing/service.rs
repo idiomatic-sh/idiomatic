@@ -2,12 +2,12 @@
 //! Any cells, any width of key.
 
 use crate::domain::code::types::IndexSite;
-use crate::domain::indexes::constants::{EMPTY_RUN, LEAST_ENTRIES, RUN_START_SHIFT};
+use crate::domain::indexes::constants::{EMPTY_RUN, LEAST_ENTRIES, PLACED_SPAN, RUN_START_SHIFT};
 use crate::domain::indexes::reading::service::start_of;
 use crate::domain::indexes::slots::service::{kept, table_of};
 use crate::domain::indexes::types::{
-    Addressing, FileStamp, HashShift, IndexArena, IndexSlot, KeyNumber, SourceRow, StretchPlace,
-    TableWord,
+    Addressing, FileStamp, HashShift, IndexArena, IndexSlot, KeyCells, KeyMask, KeyNumber,
+    SourceRow, StretchPlace, TableWord,
 };
 use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::relations::types::Count;
@@ -118,6 +118,10 @@ pub(crate) fn grouped(arena: &mut IndexArena, slot: IndexSlot) {
 /// asked, every row's code, row after row; the source's first row is numbered nought. The rows are counted by code and
 /// placed by code, two passes over the column of codes; a key is entered in the open table once for each code that
 /// occurs, not once for each row, and two codes of one word share its stretch. The rows of a stretch are ascending.
+///
+/// **The memory bound.** The counts hold a place for each code up to the greatest, and at most
+/// `rows * PLACED_SPAN + LEAST_ENTRIES` of them: when a code is past that, nothing is built and `Apart` is answered, for
+/// the caller to build the index the general way. The table holds an entry for each code that occurs.
 pub(crate) fn coded<K: Iterator<Item = Count>>(
     arena: &mut IndexArena,
     site: IndexSite,
@@ -125,7 +129,14 @@ pub(crate) fn coded<K: Iterator<Item = Count>>(
     rows: Count,
     word_of: impl Fn(Count) -> CellWord,
     codes: impl Fn() -> K,
-) {
+) -> KeyCells {
+    // The counts are a place for each code up to the greatest: a code past what the rows could number closely is not
+    // counted, and the caller builds the index the general way. So the counts never hold more places than the rows
+    // allow, whatever a code's value.
+    let limit = rows
+        .0
+        .saturating_mul(PLACED_SPAN.0)
+        .saturating_add(LEAST_ENTRIES.0);
     // Rows that follow one another with the same code are counted in hand, and written when the code changes: a
     // count read back for every row would wait on the write before it.
     arena.counts.clear();
@@ -135,6 +146,9 @@ pub(crate) fn coded<K: Iterator<Item = Count>>(
             run = run.wrapping_add(1);
         } else {
             if run != 0 {
+                if last.0 > limit {
+                    return KeyCells::Apart;
+                }
                 if arena.counts.len() <= last.0 {
                     arena
                         .counts
@@ -161,6 +175,8 @@ pub(crate) fn coded<K: Iterator<Item = Count>>(
         shift: HashShift(u64::BITS.saturating_sub(entries.trailing_zeros())),
         addressing: Addressing::Hashed,
         width: Count(1),
+        skipped: KeyMask(0),
+        fixed: CellWord(0),
         first: Count(arena.rows.len()),
         count: rows,
     };
@@ -220,4 +236,5 @@ pub(crate) fn coded<K: Iterator<Item = Count>>(
         row = row.wrapping_add(1);
     }
     kept(arena, site, slot);
+    KeyCells::Close
 }

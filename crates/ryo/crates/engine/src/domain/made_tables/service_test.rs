@@ -164,11 +164,16 @@ fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
 
+mod built;
 mod calls;
+mod file_columns;
 mod fills;
+mod held_columns;
 mod matches;
 mod node_indexes;
 mod pipelines;
 mod relations;
 mod sources;
+mod verdict_bounds;
+mod verdicts;
 mod walks;

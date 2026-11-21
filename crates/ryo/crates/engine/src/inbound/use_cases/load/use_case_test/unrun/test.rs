@@ -25,7 +25,7 @@ enum Written {
     Whole,
     /// Its anchor twice: the encoding's own fault.
     Faulty,
-    /// Its anchor and a test that one node is an ancestor of another, a word the loop does not run.
+    /// Its anchor and the children of a node, a word the loop does not run.
     Unrun,
 }
 
@@ -76,10 +76,11 @@ fn lowered_rule(rule: SelectedRuleOrdinal, written: Written) -> LoweredRule {
     };
     let call = PlacedStep {
         point: None,
-        step: ProgramStep::Within {
+        step: ProgramStep::Children {
             relation: Relation::SyntaxTree,
-            ancestor: Register(0),
-            descendant: Register(0),
+            parent: Register(0),
+            field: None,
+            out: Register(0),
         },
     };
     let steps = match written {

@@ -156,9 +156,48 @@ pub fn clear_words(words: &mut FileWords) {
     words.0.own.codes.clear();
 }
 
-/// The code of a file's first own word: after the run's base words.
-fn base_count(words: &FileWords) -> CellWord {
+/// The code of a file's first own word: after the run's base words. A word below it is the same text in every file of
+/// the run; a word from it on is this file's own, and the next file numbers its own words from here again.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_language::domain::facts::service::{base_count, base_words, file_words, intern};
+/// use ryo_language::domain::fixed_names::types::CheckedNames;
+/// use ryo_relations::domain::terms::types::NameText;
+///
+/// let mut words = file_words(&base_words(CheckedNames::default(), &[NameText("kind")]));
+/// let first = base_count(&words);
+/// assert!(intern(&mut words, NameText("kind")) < first);
+/// assert_eq!(intern(&mut words, NameText("local_name")), first);
+/// ```
+#[must_use]
+pub fn base_count(words: &FileWords) -> CellWord {
     CellWord(u64::try_from(words.0.base.0.words.texts.len()).unwrap_or(u64::MAX))
+}
+
+/// The code after the file's last word: a cell below it is a word (of the run, or one this file interned so far), and a
+/// cell from it on is no word at all, whatever else it is. It grows as the file interns texts.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_language::domain::facts::service::{base_count, base_words, file_words, intern, words_end};
+/// use ryo_language::domain::fixed_names::types::CheckedNames;
+/// use ryo_relations::domain::terms::types::NameText;
+///
+/// let mut words = file_words(&base_words(CheckedNames::default(), &[NameText("kind")]));
+/// assert_eq!(words_end(&words), base_count(&words));
+/// let own = intern(&mut words, NameText("local_name"));
+/// assert!(own < words_end(&words));
+/// ```
+#[must_use]
+pub fn words_end(words: &FileWords) -> CellWord {
+    CellWord(
+        base_count(words)
+            .0
+            .saturating_add(u64::try_from(words.0.own.texts.len()).unwrap_or(u64::MAX)),
+    )
 }
 
 /// The text a word stands for: a base word of the run or a word this file interned. A code no table holds answers the empty

@@ -1,7 +1,6 @@
 //! The lowering of an ordered match, and its pairing within one key: the meaning the `ordered_match` kernel and the new
 //! engine's `Ordered(Match)` fill both call.
 use super::types::MatchedPair;
-use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::ordered_groups::types::{GroupOrders, Place};
 use ryo_derived::domain::fault::types::DerivedFault;
 use ryo_values::domain::plan_parts::types::JoinColumn;

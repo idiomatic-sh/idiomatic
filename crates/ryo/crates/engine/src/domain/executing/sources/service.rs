@@ -5,16 +5,16 @@
 //! charging them would make a rule's charge depend on the rules before it.
 
 use super::types::FileNeeds;
-use crate::domain::code::types::{IndexSite, WordSlot};
+use crate::domain::code::types::IndexSite;
 use crate::domain::executing::budget::service::reach;
 use crate::domain::executing::constants::KEY_CELLS;
-use crate::domain::executing::measuring::service::{entered, left, used};
+use crate::domain::executing::measuring::service::used;
 use crate::domain::executing::presence::service::consulted;
 use crate::domain::executing::types::Asker;
 use crate::domain::filled::errors::FilledError;
 use crate::domain::findings::types::InstructionCount;
 use crate::domain::made_tables::reading::service::site_source;
-use crate::domain::made_tables::sources::service::{matched, scanned, table_of};
+use crate::domain::made_tables::sources::service::{matched, scanned};
 use crate::domain::made_tables::types::{KeyFrom, Reached, ReadSource};
 use crate::domain::memos::types::ChargedUnit;
 use crate::domain::needs::service::decided;
@@ -54,21 +54,19 @@ const fn unit_of(source: ReadSource) -> Option<ChargedUnit> {
     }
 }
 
-/// A read is about to reach a made table: a use of its unit, and, when the table is not made for the file yet, the time
-/// of the read is the table's. Answers whether the unit was entered, to be left after the read.
-fn table_read(frame: &mut StepFrame<'_, '_>, table: MadeTableId) -> Option<WordSlot> {
+/// A read is about to reach a made table: a use of its unit. The time of its fill is not the read's to book: the fill
+/// side says when a table's fill starts and ends.
+fn table_read(frame: &mut StepFrame<'_, '_>, table: MadeTableId) {
     let unit = frame
         .fill
         .programs
         .code
         .tables
         .get(usize::try_from(table.0).unwrap_or(usize::MAX))
-        .map(|code| code.unit)?;
-    used(frame.state, unit);
-    table_of(frame.fill.store, table).is_none().then(|| {
-        entered(frame.state, unit);
-        unit
-    })
+        .map(|code| code.unit);
+    if let Some(unit) = unit {
+        used(frame.state, unit);
+    }
 }
 
 /// Whether a made table may have a row in the file: its own need, decided once per file.
@@ -95,10 +93,12 @@ pub(crate) fn whole(frame: &mut StepFrame<'_, '_>, source: ReadSource) -> SeamRo
     {
         return SeamRows::default();
     }
-    let timed = match source {
-        ReadSource::Made(table) => table_read(frame, table),
-        ReadSource::Nodes(_) | ReadSource::Filled(_) | ReadSource::Written(_) => None,
-    };
+    // A plain worker asks nothing of the measuring hooks: not even whether the table is made.
+    if let ReadSource::Made(table) = source
+        && frame.state.measure.is_some()
+    {
+        table_read(frame, table);
+    }
     let asked = scanned(
         frame.fill,
         &mut Asker {
@@ -108,9 +108,6 @@ pub(crate) fn whole(frame: &mut StepFrame<'_, '_>, source: ReadSource) -> SeamRo
         },
         source,
     );
-    if timed.is_some() {
-        left(frame.state);
-    }
     match asked {
         Ok(rows) => {
             if let Some(unit) = unit_of(source) {
@@ -165,9 +162,9 @@ pub(crate) fn keyed(
     } else {
         short.get(..width).unwrap_or_default()
     };
-    let timed = over
-        .filter(|code| code.source.0 == 2)
-        .and_then(|code| table_read(frame, MadeTableId(code.number.0)));
+    if let Some(code) = over.filter(|code| code.source.0 == 2 && frame.state.measure.is_some()) {
+        table_read(frame, MadeTableId(code.number.0));
+    }
     let asked = matched(
         frame.fill,
         &mut Asker {
@@ -179,9 +176,6 @@ pub(crate) fn keyed(
         key,
         from,
     );
-    if timed.is_some() {
-        left(frame.state);
-    }
     match asked {
         Ok(rows) => {
             // The site's source is what the rule reached: an index holds no rows of its own.

@@ -1,18 +1,19 @@
-//! The services of the `filling` part: whether the fill side runs a stage word of a pipeline and a table's fill, and what
-//! each reaches. The stages are listed as the fill side runs them at `claude/engine-x2` bae841621 (the call stage for
-//! four meanings, the affix tests, a group's ends and the ordered match beside the first freeze's);
-//! a fill kind it does not run is its own to say (`fills::service::fill_at` refuses it). The fill side is to give one
-//! function that answers both, which replaces the list here.
+//! The services of the `filling` part: what a stage word of a pipeline and a table's fill reach, which the walk follows.
+//! Whether the fill side runs a stage or a fill is its own one answer (`made_tables::built::service::runs`), asked here:
+//! this part holds no list of what runs.
 
 use crate::domain::code::constants::BUCKET;
 use crate::domain::code::filling::service::{
-    stage_call_of, stage_keep_of, stage_latest_of, stage_probe_of, stage_product_of, stage_scan_of,
-    stage_use_of,
+    stage_latest_of, stage_probe_of, stage_product_of, stage_scan_of, stage_use_of,
 };
-use crate::domain::code::small_codes::service::{comparison_of, meaning_of};
-use crate::domain::code::types::{CodeEntry, CodeWord, IndexSite, Op, ProgramCode, WordSlot};
-use crate::domain::executing::running::places::service::{body, called, site_table, tested};
-use crate::domain::executing::running::types::{WalkPlace, WordBuilt};
+use crate::domain::code::types::{
+    CodeEntry, CodeWord, FillCode, IndexSite, NeedSite, Op, ProgramCode, WordSlot,
+};
+use crate::domain::executing::running::places::service::{body, site_table};
+use crate::domain::executing::running::types::WalkPlace;
+use crate::domain::filled::types::FillRuns;
+use crate::domain::made_tables::built::service::runs;
+use crate::domain::made_tables::built::types::FillPart;
 use crate::domain::made_tables::fills::service::{fill_at, input_at};
 use crate::domain::made_tables::fills::types::FillKind;
 use crate::domain::made_tables::reading::service::{latest_site, source_of};
@@ -22,26 +23,32 @@ use crate::domain::steps::types::MadeTableId;
 
 /// Whether the fill side reads a stage's source, and the table when the source is one. A table read while its fill
 /// writes it, it does not read yet.
-fn source_table(source: ReadSource, out: &mut Vec<WalkPlace>) -> WordBuilt {
+fn source_table(source: ReadSource, out: &mut Vec<WalkPlace>) -> FillRuns {
     match source {
         ReadSource::Made(table) => {
             out.push(WalkPlace::Table(table));
-            WordBuilt::Runs
+            FillRuns::Runs
         }
-        ReadSource::Nodes(_) | ReadSource::Filled(_) => WordBuilt::Runs,
-        ReadSource::Written(_) => WordBuilt::NotYet,
+        ReadSource::Nodes(_) | ReadSource::Filled(_) => FillRuns::Runs,
+        ReadSource::Written(_) => FillRuns::NotYet,
     }
 }
 
-/// Whether the fill side runs a stage word of a pipeline, and what the stage reaches.
+/// Whether the fill side runs a stage word of a pipeline, which is its own to say (`made_tables::built::service::runs`),
+/// and what the stage reaches, which the walk follows: the table a stage reads or probes, the pattern a `Use` asks.
 pub(crate) fn stage_word(
     code: &ProgramCode,
     word: CodeWord,
     unit: WordSlot,
     out: &mut Vec<WalkPlace>,
-) -> WordBuilt {
-    match word.op {
-        Op::End | Op::StageRead | Op::StageWalk | Op::StageWrite => WordBuilt::Runs,
+) -> FillRuns {
+    if word.op == Op::End {
+        return FillRuns::Runs;
+    }
+    if runs(code, FillPart::Stage(word)) == FillRuns::NotYet {
+        return FillRuns::NotYet;
+    }
+    let reached = match word.op {
         Op::StageScan => {
             let stage = stage_scan_of(word);
             if stage.flag.0 & BUCKET.0 == 0 {
@@ -57,24 +64,21 @@ pub(crate) fn stage_word(
         Op::StageProbe => site_table(code, stage_probe_of(word).index, out),
         Op::StageLatest => match latest_site(code, stage_latest_of(word).operands) {
             Ok(site) => site_table(code, site, out),
-            Err(_) => WordBuilt::NotYet,
+            Err(_) => FillRuns::NotYet,
         },
-        Op::StageCall => {
-            let stage = stage_call_of(word);
-            called(meaning_of(stage.meaning, stage.regex, stage.flag))
-        }
-        Op::StageKeep => {
-            let stage = stage_keep_of(word);
-            tested(comparison_of(stage.comparison, stage.regex))
-        }
         Op::StageUse => match body(code, stage_use_of(word).body, unit, out) {
-            Some(_) => WordBuilt::Runs,
-            None => WordBuilt::NotYet,
+            Some(_) => FillRuns::Runs,
+            None => FillRuns::NotYet,
         },
-        // The fill side answers this as not built.
-        Op::StageRender => WordBuilt::NotYet,
-        // A word of a step program is no stage.
-        Op::EachKind
+        Op::StageRead
+        | Op::StageKeep
+        | Op::StageCall
+        | Op::StageRender
+        | Op::StageWalk
+        | Op::StageWrite => FillRuns::Runs,
+        // A word of a step program is no stage: the fill side's answer above was `NotYet`.
+        Op::End
+        | Op::EachKind
         | Op::EachMatchNode
         | Op::EachMatchFilled
         | Op::EachMatchFilledMany
@@ -107,8 +111,9 @@ pub(crate) fn stage_word(
         | Op::Fork
         | Op::Yield
         | Op::Latest
-        | Op::Emit => WordBuilt::NotYet,
-    }
+        | Op::Emit => FillRuns::NotYet,
+    };
+    reached
 }
 
 /// The unit of a table when the fill side does not run its fill; none when it does. What the fill reaches is pushed: its
@@ -116,6 +121,7 @@ pub(crate) fn stage_word(
 pub(crate) fn fill(
     code: &ProgramCode,
     table: MadeTableId,
+    sites: &mut hashbrown::HashSet<NeedSite>,
     out: &mut Vec<WalkPlace>,
 ) -> Option<WordSlot> {
     let Some(written) = code
@@ -125,8 +131,11 @@ pub(crate) fn fill(
         return Some(WordSlot(0));
     };
     let unit = written.unit;
+    if runs(code, FillPart::Fill(FillCode(written.fill.0))) == FillRuns::NotYet {
+        return Some(unit);
+    }
     let mut asked = Vec::new();
-    tables_asked(code, written.need, &mut asked);
+    tables_asked(code, written.need, sites, &mut asked);
     out.extend(asked.into_iter().map(WalkPlace::Table));
     match fill_at(code, table).map(|held| (held.kind, held.inputs)) {
         Ok((FillKind::Constant, _)) => None,

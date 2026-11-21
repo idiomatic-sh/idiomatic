@@ -15,6 +15,7 @@ use crate::domain::code::small_codes::service::{comparison_of, mode_of, node_col
 use crate::domain::code::types::{CodeWord, PoolAt, Short, WordFlag};
 use crate::domain::filled::errors::FilledError;
 use crate::domain::filled::types::{MissingCode, UnbuiltFill};
+use crate::domain::made_tables::columns::types::RowColumn;
 use crate::domain::made_tables::operands::service::{
     column_of, constant_at, key_of, operand, set_of, value_of,
 };
@@ -22,7 +23,7 @@ use crate::domain::made_tables::pipelines::types::{BatchLevel, OperandRun};
 use crate::domain::made_tables::reading::service::{
     index_at, node_names, site_at, site_source, source_of, view_of,
 };
-use crate::domain::made_tables::service::{write, write_new};
+use crate::domain::made_tables::service::{place_of, write, write_new};
 use crate::domain::made_tables::types::{ReadSource, TableRows};
 use crate::domain::stages::nodes::service::node_column;
 use crate::domain::stages::ranging::service::probe_keep_between;
@@ -125,6 +126,7 @@ pub(crate) fn keep_stage(
         set,
         compiled,
         matcher,
+        verdicts,
     } = scratch;
     let stage = stage_keep_of(word);
     let code = frame.programs.code;
@@ -183,6 +185,8 @@ pub(crate) fn keep_stage(
                 matcher,
                 regexes: frame.programs.regexes,
                 compiled,
+                verdicts,
+                stamp: frame.store.stamp,
             },
             words,
             TextTest {
@@ -190,6 +194,7 @@ pub(crate) fn keep_stage(
                 left,
                 right,
                 set,
+                set_at: (stage.flag.0 & RIGHT_SET.0 != 0).then_some(PoolAt(stage.right.0)),
             },
             *rows,
             kept,
@@ -327,6 +332,10 @@ pub(crate) fn write_stage(
     let width = usize::from(stage.columns.0);
     let mut sources = Vec::with_capacity(width);
     for place in 0..width {
+        // The table keeps no cell of the file's own column.
+        if place_of(into, Count(place)) == RowColumn::File {
+            continue;
+        }
         sources.push(value_of(
             &level.columns,
             code,

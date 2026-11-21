@@ -3,11 +3,14 @@
 //! one index over the gathered input, every key column as one key, and one walk of its keys; the group's row is the
 //! operators crate's meaning.
 
+use super::columns::types::{ColumnIs, FileColumn, RowColumn};
 use super::types::{GroupRoom, TableRows};
 use crate::domain::code::types::IndexSite;
 use crate::domain::indexes::reading::service::{cell_at, folded, hashed, read, rows_of, runs};
-use crate::domain::indexes::service::{begin, clear_indexes, finish, key_column};
-use crate::domain::indexes::types::{ColumnView, FileStamp, IndexArena, RowHash, SourceRow};
+use crate::domain::indexes::service::{begin, clear_indexes, finish, fixed_keys, key_column};
+use crate::domain::indexes::types::{
+    ColumnView, FileStamp, FixedKeys, IndexArena, KeyMask, RowHash, SourceRow,
+};
 use crate::domain::stages::types::BatchValue;
 use ryo_language::domain::facts::types::CellWord;
 use ryo_operators::domain::aggregate::service::group_cells;
@@ -18,26 +21,75 @@ use ryo_relations::domain::relations::types::{Count, Integer};
 use ryo_values::domain::plan_orders::types::GroupEnd;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
-/// Empties a table for a file, as a table of `width` columns, keeping its room.
+/// Empties a table for a file, as a table of `width` columns each kept in its rows, keeping its room.
 pub(crate) fn clear_rows(table: &mut TableRows, width: Count) {
     table.cells.clear();
     table.seen.clear();
     table.orders.clear();
     table.count = Count(0);
     table.width = width;
+    table.places.clear();
+    table
+        .places
+        .extend((0..width.0).map(|at| RowColumn::Kept(Count(at))));
 }
 
-/// One column of a table, as a loop reads it.
+/// Says which columns of an emptied table are the file's own: no cell is kept for them, the other columns close up, and
+/// a reader of one is handed `file`. The one place that decides how a table's columns lie.
+pub(crate) fn file_columns(
+    table: &mut TableRows,
+    file: CellWord,
+    is_file: impl Fn(Count) -> ColumnIs,
+) {
+    let mut kept = 0_usize;
+    for (at, place) in table.places.iter_mut().enumerate() {
+        *place = match is_file(Count(at)) {
+            ColumnIs::TheFile => RowColumn::File,
+            ColumnIs::Written => {
+                kept = kept.saturating_add(1);
+                RowColumn::Kept(Count(kept.saturating_sub(1)))
+            }
+        };
+    }
+    table.width = Count(kept);
+    table.file = FileColumn([file]);
+}
+
+/// Lays an emptied table's columns as another's: what a fill that hands on its input's rows whole does.
+pub(crate) fn columns_as(table: &mut TableRows, other: &TableRows) {
+    table.places.clear();
+    table.places.extend_from_slice(&other.places);
+    table.width = other.width;
+    table.file = other.file;
+}
+
+/// Where a column of a table lies; at its own number when the table was not told.
 #[inline]
-pub(crate) fn column(table: &TableRows, column: Count) -> ColumnView<'_> {
-    ColumnView {
-        cells: &table.cells,
-        first: column,
-        stride: table.width,
+pub(crate) fn place_of(table: &TableRows, column: Count) -> RowColumn {
+    match table.places.get(column.0) {
+        Some(place) => *place,
+        None => RowColumn::Kept(column),
     }
 }
 
-/// The cells of one row of a table; none past its end.
+/// One column of a table, as a loop reads it: the file's own is the file's cell for every row.
+#[inline]
+pub(crate) fn column(table: &TableRows, column: Count) -> ColumnView<'_> {
+    match place_of(table, column) {
+        RowColumn::Kept(first) => ColumnView {
+            cells: &table.cells,
+            first,
+            stride: table.width,
+        },
+        RowColumn::File => ColumnView {
+            cells: &table.file.0,
+            first: Count(0),
+            stride: Count(0),
+        },
+    }
+}
+
+/// The cells a table keeps of one row; none past its end.
 #[inline]
 pub(crate) fn row(table: &TableRows, row: Count) -> &[CellWord] {
     let from = row.0.saturating_mul(table.width.0);
@@ -139,19 +191,50 @@ fn grouped(input: &TableRows, room: &mut GroupRoom, order: Option<Count>) {
     rows_indexed(input, keys, order, &mut room.index);
 }
 
+/// Which of a key's columns are the file's own in a table: the bits an index is told, so that it keeps no cell of them.
+pub(crate) fn key_mask(table: &TableRows, keys: impl Iterator<Item = Count>) -> KeyMask {
+    let mut mask = 0_u32;
+    for (at, key) in keys.enumerate() {
+        if place_of(table, key) == RowColumn::File {
+            mask |= 1_u32
+                .checked_shl(u32::try_from(at).unwrap_or(u32::MAX))
+                .unwrap_or(0);
+        }
+    }
+    KeyMask(mask)
+}
+
+/// The file's cell a table hands for its file columns.
+#[inline]
+pub(crate) fn file_of(table: &TableRows) -> CellWord {
+    let [cell] = table.file.0;
+    cell
+}
+
 /// Builds, as the one index of `arena`, the index of a table's rows by the key columns given, sorted within a key by
 /// `order` when one is given: what a fill that groups its input walks.
 pub(crate) fn rows_indexed(
     input: &TableRows,
-    keys: impl ExactSizeIterator<Item = Count>,
+    keys: impl ExactSizeIterator<Item = Count> + Clone,
     order: Option<Count>,
     arena: &mut IndexArena,
 ) {
     clear_indexes(arena);
-    begin(arena, input.count, Count(keys.len()));
-    for (at, key) in keys.enumerate() {
+    // A key column that is the file's tells no two rows apart: the key is the other columns.
+    let kept = keys
+        .clone()
+        .filter(|key| place_of(input, *key) != RowColumn::File);
+    begin(arena, input.count, Count(kept.clone().count()));
+    for (at, key) in kept.enumerate() {
         key_column(arena, Count(at), column(input, key));
     }
+    fixed_keys(
+        arena,
+        FixedKeys {
+            skipped: key_mask(input, keys),
+            cell: file_of(input),
+        },
+    );
     finish(
         arena,
         IndexSite(0),
@@ -171,6 +254,7 @@ pub(crate) fn end_groups(
     out: &mut TableRows,
 ) {
     grouped(input, room, Some(order));
+    columns_as(out, input);
     let GroupRoom { index, orders, .. } = room;
     let index = read(index, IndexSite(0));
     let ordered = column(input, order);
@@ -220,8 +304,26 @@ pub(crate) fn count_groups(
         keys,
         row: written,
         values,
+        held,
         ..
     } = room;
+    // The table's row is the keys, then the count: a key that is the file's own column is the file's in the table too,
+    // and the group's row is made of the cells the input keeps.
+    held.clear();
+    for key in keys.iter() {
+        if let RowColumn::Kept(place) =
+            place_of(input, Count(usize::try_from(key.0).unwrap_or(usize::MAX)))
+        {
+            held.push(ColumnIndex(u32::try_from(place.0).unwrap_or(u32::MAX)));
+        }
+    }
+    file_columns(out, file_of(input), |at| match keys.get(at.0) {
+        Some(key) => match place_of(input, Count(usize::try_from(key.0).unwrap_or(usize::MAX))) {
+            RowColumn::File => ColumnIs::TheFile,
+            RowColumn::Kept(_) => ColumnIs::Written,
+        },
+        None => ColumnIs::Written,
+    });
     let index = read(index, IndexSite(0));
     for run in runs(index) {
         let rows = rows_of(index, run);
@@ -246,7 +348,7 @@ pub(crate) fn count_groups(
         written.clear();
         group_cells(
             row(input, Count(usize::try_from(first.0).unwrap_or(usize::MAX))),
-            keys,
+            held,
             CellWord(u64::try_from(count).unwrap_or(u64::MAX)),
             None,
             written,
@@ -267,6 +369,7 @@ pub(crate) fn sort_groups(
     out: &mut TableRows,
 ) {
     grouped(input, room, Some(order));
+    columns_as(out, input);
     let index = read(&room.index, IndexSite(0));
     let orders = column(input, order);
     for run in runs(index) {

@@ -4,8 +4,11 @@
 use super::counting::service::{own_rows, place};
 use super::hashing::service::coded;
 use super::reading::service::{read, rows_of, run_between, run_of, runs};
-use super::service::{begin, clear_indexes, finish, key_column, state_of};
-use super::types::{ColumnView, CountedKey, FileStamp, IndexArena, IndexBuilt, RangeEnd};
+use super::service::{begin, clear_indexes, finish, fixed_keys, key_column, state_of};
+use super::types::{
+    ColumnView, CountedKey, FileStamp, FixedKeys, IndexArena, IndexBuilt, KeyCells, KeyMask,
+    RangeEnd,
+};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::code::types::IndexSite;
 use crate::domain::steps::types::BoundKind;
@@ -43,6 +46,12 @@ enum Asked {
     Coded,
     /// An ordered index of cells that lie close together: every key's rows as the fills walk them.
     Walked,
+    /// Two rows whose codes are 3 and 5,000: whether the build by code counted them, how many counts it holds, and how
+    /// many words and rows the arena took.
+    CodeFarPastTheRows,
+    /// An index told that the second cell of a key as asked is 77 in every row, and keeps the first alone: the rows
+    /// of a key that asks 77 there, of one that asks 78 there, and of a key whose first cell no row holds.
+    Fixed,
 }
 
 type Input = Asked;
@@ -147,6 +156,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Asked::Walked,
         expect: Expect::Value(Cow::Borrowed(&[0, 3, 5, 2, 99, 4, 1, 99])),
+    },
+    Case {
+        name: CaseName("a_key_cell_every_row_holds_is_not_kept_and_a_key_must_ask_it"),
+        word: Word::Succeeds,
+        input: || Asked::Fixed,
+        expect: Expect::Value(Cow::Borrowed(&[1, 4, 99, 99])),
+    },
+    Case {
+        name: CaseName("a_code_far_past_the_rows_is_not_counted_and_nothing_is_built"),
+        word: Word::Succeeds,
+        input: || Asked::CodeFarPastTheRows,
+        expect: Expect::Value(Cow::Borrowed(&[0, 4, 0, 0])),
     },
 ];
 
@@ -300,7 +321,7 @@ fn subject(asked: Input) -> Result<Value, Failure> {
         Asked::Coded => {
             let codes = [0_usize, 1, 2, 1, 0, 2, 3];
             let words = [7_u64, 9, 7, 5];
-            coded(
+            let _close = coded(
                 &mut arena,
                 IndexSite(0),
                 FileStamp(1),
@@ -324,6 +345,41 @@ fn subject(asked: Input) -> Result<Value, Failure> {
                 said.push(99);
             }
             said
+        }
+        Asked::Fixed => {
+            begin(&mut arena, Count(FIRST.len()), Count(1));
+            key_column(&mut arena, Count(0), plain(&first));
+            fixed_keys(
+                &mut arena,
+                FixedKeys {
+                    skipped: KeyMask(0b10),
+                    cell: CellWord(77),
+                },
+            );
+            finish(&mut arena, IndexSite(0), FileStamp(1), None);
+            let mut said = found(&arena, 0, &[2, 77]);
+            said.push(99);
+            said.extend(found(&arena, 0, &[2, 78]));
+            said.push(99);
+            said.extend(found(&arena, 0, &[5, 77]));
+            said
+        }
+        Asked::CodeFarPastTheRows => {
+            let codes = [3_usize, 5_000];
+            let built = coded(
+                &mut arena,
+                IndexSite(0),
+                FileStamp(1),
+                Count(codes.len()),
+                |code| CellWord(u64::try_from(code.0).unwrap_or(0)),
+                || codes.iter().map(|code| Count(*code)),
+            );
+            vec![
+                u32::from(built == KeyCells::Close),
+                u32::try_from(arena.counts.len()).unwrap_or(u32::MAX),
+                u32::try_from(arena.entries.len()).unwrap_or(u32::MAX),
+                u32::try_from(arena.rows.len()).unwrap_or(u32::MAX),
+            ]
         }
         Asked::Missing => {
             built(&mut arena, 0, &[&first, &second], None);

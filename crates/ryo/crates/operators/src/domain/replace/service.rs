@@ -4,7 +4,7 @@ use crate::domain::patterns::types::PatternMatcher;
 use crate::domain::replace::types::{ReplacedText, ReplacementText};
 use crate::domain::table_scratch::types::Patterns;
 use crate::domain::table_texts::types::TextView;
-use ryo_matching::inbound::use_cases::matching::types::SearchText;
+use ryo_matching::inbound::use_cases::matching::types::{CompiledRegex, SearchText};
 use ryo_values::domain::row_texts::types::CellText;
 use std::ops::ControlFlow;
 
@@ -84,6 +84,42 @@ pub fn replaced(
     out: ReplacedText<'_>,
 ) -> Result<(), PortableOperatorFault> {
     let regex = crate::domain::patterns::service::compiled(pattern, compiled, matcher)?;
+    replaced_by(regex, text, replacement, matcher, out)
+}
+
+/// `replace` with the pattern already compiled: for a caller that replaces in many texts, which compiles it once
+/// (`patterns::service::compiled`) and not once a text.
+///
+/// # Errors
+///
+/// `ShapeMismatch` when an occurrence does not lie in the text after the one before it.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl;
+/// use ryo_operators::domain::patterns::{service::compiled, types::PatternMatcher};
+/// use ryo_operators::domain::replace::service::replaced_by;
+/// use ryo_operators::domain::replace::types::{ReplacedText, ReplacementText};
+/// use ryo_operators::domain::table_scratch::types::Patterns;
+/// use ryo_operators::domain::table_texts::types::TextView;
+/// use ryo_values::domain::row_texts::types::CellText;
+///
+/// let (matcher, mut kept, mut out) = (PatternMatcher(&MatchingUseCaseImpl), Patterns::default(), String::new());
+/// let regex = compiled(TextView("-"), &mut kept, matcher).expect("a valid expression");
+/// for (text, wanted) in [("a-b", "a_b"), ("c", "c")] {
+///     replaced_by(regex, CellText(text), ReplacementText("_"), matcher, ReplacedText(&mut out))
+///         .expect("the occurrences lie in the text");
+///     assert_eq!(out, wanted);
+/// }
+/// ```
+pub fn replaced_by(
+    regex: &CompiledRegex,
+    text: CellText<'_>,
+    replacement: ReplacementText<'_>,
+    matcher: PatternMatcher<'_>,
+    out: ReplacedText<'_>,
+) -> Result<(), PortableOperatorFault> {
     replace_compiled(
         &|each| {
             matcher

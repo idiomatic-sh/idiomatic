@@ -124,6 +124,7 @@ pub fn scratch_measuring(programs: &Programs) -> ScanScratch {
         nanos: vec![Count(0); code.units.len()],
         idle_nanos: vec![Count(0); code.units.len()],
         file: vec![UnitInFile::default(); code.units.len()],
+        table_units: code.tables.iter().map(|table| table.unit).collect(),
         kinds: vec![Count(0); programs.0.kinds.len()],
         literals: vec![Count(0); code.sizes.len()],
         ..Measuring::default()

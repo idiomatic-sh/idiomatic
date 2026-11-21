@@ -3,6 +3,7 @@
 //! through another answer's list is charged too. The charge of fills is seen through `dispatch`, in its cases.
 
 use super::service::{begin_rule, end_rule};
+use super::types::FileSizes;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::code::types::ShapeChoice;
 use crate::domain::encoding::service::encoded;
@@ -220,7 +221,11 @@ fn subject((rules, asked, rows, keys): Input) -> Result<Value, Failure> {
             for branch in &each.branches {
                 let _rows = run_program(frame, branch.entry, RunMode::Rows);
             }
-            notices.extend(end_rule(frame.state, frame.fill.store, &programs, each));
+            let sizes = FileSizes {
+                store: frame.fill.store,
+                nodes: frame.fill.nodes,
+            };
+            notices.extend(end_rule(frame.state, sizes, &programs, each));
         }
         notices
     });

@@ -3,6 +3,7 @@
 //! file (`executing::sources::types::FileNeeds`).
 
 use crate::domain::executing::budget::service::{begin_rule, end_rule};
+use crate::domain::executing::budget::types::FileSizes;
 use crate::domain::executing::measuring::service::{entered, evaluated, left, used};
 use crate::domain::executing::presence::service::consulted;
 use crate::domain::executing::sources::types::FileNeeds;
@@ -40,7 +41,11 @@ pub(crate) fn dispatch(frame: &mut StepFrame<'_, '_>, rules: &Programs) -> ScanC
             Count(usize::try_from(candidates).unwrap_or(usize::MAX)),
             Count(usize::try_from(rows).unwrap_or(usize::MAX)),
         );
-        if let Some(notice) = end_rule(frame.state, frame.fill.store, rules, rule) {
+        let sizes = FileSizes {
+            store: frame.fill.store,
+            nodes: frame.fill.nodes,
+        };
+        for notice in end_rule(frame.state, sizes, rules, rule) {
             frame.found.noticed(notice);
         }
     }

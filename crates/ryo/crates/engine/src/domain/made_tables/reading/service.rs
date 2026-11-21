@@ -9,11 +9,13 @@ use crate::domain::code::types::{
 use crate::domain::filled::errors::FilledError;
 use crate::domain::filled::service::whole_rows;
 use crate::domain::filled::types::MissingCode;
-use crate::domain::indexes::reading::service::read;
-use crate::domain::indexes::types::{ColumnView, IndexRead, RowRun, SourceRow};
-use crate::domain::made_tables::service::column;
+use crate::domain::indexes::reading::service::{cell_at, read};
+use crate::domain::indexes::types::{ColumnView, FixedKeys, IndexRead, RowRun, SourceRow};
+use crate::domain::made_tables::columns::types::{HeldCells, HeldColumn, RowColumn};
+use crate::domain::made_tables::service::{file_of, key_mask, place_of};
 use crate::domain::made_tables::types::{FillStore, MadeState, ReadSource, RuleSetView, TableSlot};
 use crate::domain::stages::nodes::service::node_tag;
+use crate::domain::stages::service::row_of;
 use crate::domain::stages::types::NodeNames;
 use crate::domain::steps::types::MadeTableId;
 use ryo_language::domain::facts::types::CellWord;
@@ -145,31 +147,126 @@ pub(crate) fn rows_in(store: &FillStore, nodes: &NodeTable, source: ReadSource) 
     }
 }
 
-/// A column of a relation or of a made table as a loop reads it by a row's handle; no cell for the node table, whose
-/// columns are read by `stages::nodes`, and none for a source that is not there.
-pub(crate) fn view_of(store: &FillStore, source: ReadSource, at: Short) -> ColumnView<'_> {
-    let place = Count(usize::from(at.0));
-    let nothing = ColumnView {
-        cells: &[],
+/// Where a column of a made table or of a filled relation lies, for the file: asked once for a table and a column, and
+/// kept by the reader, which indexes the cells itself (`cells_held`, `cell_held`). Nothing for the node table, whose
+/// cells are made when read (`stages::nodes`), for a table not made for the file, and for a column the source has not.
+pub(crate) fn column_held(store: &FillStore, source: ReadSource, at: Short) -> HeldColumn {
+    let nothing = HeldColumn {
+        cells: HeldCells::Nothing,
         first: Count(0),
         stride: Count(1),
     };
     match source {
-        ReadSource::Filled(number) => store
+        ReadSource::Filled(number) => {
+            let filled = store
+                .relations
+                .0
+                .get(usize::try_from(number.0).unwrap_or(usize::MAX))
+                .filter(|slot| slot.stamp == store.stamp)
+                .is_some_and(|slot| slot.columns.0.len() > usize::from(at.0));
+            if filled {
+                HeldColumn {
+                    cells: HeldCells::Relation(number, at),
+                    first: Count(0),
+                    stride: Count(1),
+                }
+            } else {
+                nothing
+            }
+        }
+        ReadSource::Made(table) => match made_slot(store, table) {
+            Some(slot) => match place_of(&slot.rows, Count(usize::from(at.0))) {
+                RowColumn::Kept(first) => HeldColumn {
+                    cells: HeldCells::Table(table),
+                    first,
+                    stride: slot.rows.width,
+                },
+                RowColumn::File => HeldColumn {
+                    cells: HeldCells::TableFile(table),
+                    first: Count(0),
+                    stride: Count(0),
+                },
+            },
+            None => nothing,
+        },
+        ReadSource::Nodes(_) | ReadSource::Written(_) => nothing,
+    }
+}
+
+/// The cells a held column lies in, as they are now: read where they are, with no test of the file, which
+/// `column_held` made when the column was asked.
+#[inline]
+pub(crate) fn cells_held(store: &FillStore, held: HeldCells) -> &[CellWord] {
+    match held {
+        HeldCells::Table(table) => match store
+            .tables
+            .get(usize::try_from(table.0).unwrap_or(usize::MAX))
+        {
+            Some(slot) => &slot.rows.cells,
+            None => &[],
+        },
+        HeldCells::TableFile(table) => match store
+            .tables
+            .get(usize::try_from(table.0).unwrap_or(usize::MAX))
+        {
+            Some(slot) => &slot.rows.file.0,
+            None => &[],
+        },
+        HeldCells::Relation(number, at) => match store
             .relations
             .0
             .get(usize::try_from(number.0).unwrap_or(usize::MAX))
-            .filter(|slot| slot.stamp == store.stamp)
-            .and_then(|slot| slot.columns.0.get(place.0))
-            .map_or(nothing, |cells| ColumnView {
-                cells: &cells.0,
-                first: Count(0),
-                stride: Count(1),
-            }),
+            .and_then(|slot| slot.columns.0.get(usize::from(at.0)))
+        {
+            Some(cells) => &cells.0,
+            None => &[],
+        },
+        HeldCells::Nothing => &[],
+    }
+}
+
+/// The cell of a row in a held column, by the row's handle; the zero cell past the column's end.
+#[inline]
+pub(crate) fn cell_held(store: &FillStore, column: HeldColumn, row: CellWord) -> CellWord {
+    cell_at(
+        ColumnView {
+            cells: cells_held(store, column.cells),
+            first: column.first,
+            stride: column.stride,
+        },
+        row_of(row),
+    )
+}
+
+/// A column of a relation or of a made table as a loop reads it by a row's handle; no cell for the node table, whose
+/// columns are read by `stages::nodes`, and none for a source that is not there. The held column's cells, lent.
+pub(crate) fn view_of(store: &FillStore, source: ReadSource, at: Short) -> ColumnView<'_> {
+    let held = column_held(store, source, at);
+    ColumnView {
+        cells: cells_held(store, held.cells),
+        first: held.first,
+        stride: held.stride,
+    }
+}
+
+/// Which columns of a key over a source hold one cell in every row, and that cell: a made table's file columns, of
+/// which it keeps no cell; none of a relation.
+pub(crate) fn fixed_of(store: &FillStore, source: ReadSource, columns: &[WordSlot]) -> FixedKeys {
+    match source {
         ReadSource::Made(table) => {
-            made_slot(store, table).map_or(nothing, |slot| column(&slot.rows, place))
+            made_slot(store, table).map_or(FixedKeys::default(), |slot| FixedKeys {
+                skipped: key_mask(
+                    &slot.rows,
+                    columns
+                        .iter()
+                        .map(|column| Count(usize::try_from(column.0).unwrap_or(usize::MAX))),
+                ),
+                cell: file_of(&slot.rows),
+            })
         }
-        ReadSource::Nodes(_) | ReadSource::Written(_) => nothing,
+        ReadSource::Filled(_) | ReadSource::Nodes(_) | ReadSource::Written(_) => {
+            FixedKeys::default()
+        }
     }
 }
 

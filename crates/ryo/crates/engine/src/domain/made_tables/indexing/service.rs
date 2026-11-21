@@ -9,10 +9,11 @@ use crate::domain::filled::errors::FilledError;
 use crate::domain::filled::types::{MissingCode, UnbuiltFill};
 use crate::domain::indexes::counting::service::{own_rows, place};
 use crate::domain::indexes::hashing::service::coded;
-use crate::domain::indexes::service::{based, begin, finish, key_column};
-use crate::domain::indexes::types::{ColumnView, CountedKey, SourceRow};
+use crate::domain::indexes::reading::service::key_cell;
+use crate::domain::indexes::service::{based, begin, finish, fixed_keys, key_column};
+use crate::domain::indexes::types::{CellOfKey, ColumnView, CountedKey, KeyCells, SourceRow};
 use crate::domain::made_tables::reading::service::{
-    node_names, rows_in, site_at, site_source, view_of,
+    fixed_of, node_names, rows_in, site_at, site_source, view_of,
 };
 use crate::domain::made_tables::types::{FillFrame, ReadSource};
 use crate::domain::stages::nodes::service::{field_word, kind_word, node_cells, node_tag};
@@ -93,7 +94,7 @@ pub(crate) fn index_built(
                     true
                 }
                 Some(NodeColumn::Kind) => {
-                    coded(
+                    let built = coded(
                         &mut frame.store.indexes,
                         site,
                         stamp,
@@ -101,10 +102,10 @@ pub(crate) fn index_built(
                         |code| kind_word(names, code),
                         || elements().map(|at| Count(usize::from(kind_of(nodes, at).0))),
                     );
-                    true
+                    built == KeyCells::Close
                 }
                 Some(NodeColumn::Field) => {
-                    coded(
+                    let built = coded(
                         &mut frame.store.indexes,
                         site,
                         stamp,
@@ -112,7 +113,7 @@ pub(crate) fn index_built(
                         |code| field_word(names, code),
                         || elements().map(|at| Count(usize::from(field_of(nodes, at).0))),
                     );
-                    true
+                    built == KeyCells::Close
                 }
                 Some(
                     NodeColumn::Ordinal
@@ -158,13 +159,23 @@ pub(crate) fn index_built(
         ReadSource::Filled(_) | ReadSource::Made(_) => {
             // The arena is taken while the views read the store's columns.
             let mut arena = std::mem::take(&mut frame.store.indexes);
-            begin(&mut arena, count, Count(columns.len()));
+            // A made table keeps no cell of the file's own column: a key holds the other columns alone.
+            let fixed = fixed_of(frame.store, source, columns);
+            let held = |at: Count| key_cell(fixed.skipped, at) == CellOfKey::Kept;
+            let kept = (0..columns.len()).filter(|at| held(Count(*at))).count();
+            begin(&mut arena, count, Count(kept));
             based(
                 &mut arena,
                 SourceRow(u32::try_from(rows.start.0).unwrap_or(u32::MAX)),
             );
+            fixed_keys(&mut arena, fixed);
             let mut done = Ok(());
-            for (at, column) in columns.iter().enumerate() {
+            let listed = columns
+                .iter()
+                .enumerate()
+                .filter(|(at, _)| held(Count(*at)))
+                .map(|(_, column)| column);
+            for (at, column) in listed.enumerate() {
                 match short(*column) {
                     Ok(place) => {
                         let view = view_of(frame.store, source, place);

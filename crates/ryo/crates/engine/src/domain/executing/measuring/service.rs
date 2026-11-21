@@ -8,13 +8,14 @@ use crate::domain::code::constants::NO_SLOT;
 use crate::domain::code::types::{CodeEntry, WordSlot};
 use crate::domain::programs::frames::types::StepFrame;
 use crate::domain::scratch::types::{LoopState, Measuring, UnitInFile};
+use crate::domain::steps::types::MadeTableId;
 use cpu_time::ThreadTime;
 use ryo_language::domain::node_table::service::ids_of_kind;
 use ryo_relations::domain::relations::types::{Count, KindBits};
 use std::time::Duration;
 
 /// The slot of a list grown to hold place `at`.
-fn slot_mut<T: Clone + Default>(all: &mut Vec<T>, at: Count) -> Option<&mut T> {
+pub(crate) fn slot_mut<T: Clone + Default>(all: &mut Vec<T>, at: Count) -> Option<&mut T> {
     if all.len() <= at.0 {
         all.resize(at.0.saturating_add(1), T::default());
     }
@@ -59,6 +60,23 @@ fn switched(measure: &mut Measuring) {
 /// A unit starts to run: the time so far is its caller's.
 pub(crate) fn entered(state: &mut LoopState, unit: WordSlot) {
     if let Some(measure) = state.measure.as_deref_mut() {
+        switched(measure);
+        measure.running.push(unit);
+    }
+}
+
+/// The fill of a table starts: its unit runs until the fill ends, and what the fill side does in between is its time,
+/// but for a table made inside it. A plain worker holds no unit of a table and does nothing.
+pub(crate) fn table_entered(state: &mut LoopState, table: MadeTableId) {
+    if let Some(measure) = state.measure.as_deref_mut() {
+        // A table the scratch holds no unit of is booked to no unit: its time is nobody's.
+        let unit = match measure
+            .table_units
+            .get(usize::try_from(table.0).unwrap_or(usize::MAX))
+        {
+            Some(unit) => *unit,
+            None => NO_SLOT,
+        };
         switched(measure);
         measure.running.push(unit);
     }

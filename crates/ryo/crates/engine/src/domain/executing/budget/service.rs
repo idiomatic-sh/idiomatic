@@ -5,9 +5,10 @@
 //! as when the rule runs alone. One compare when a rule's work in a file ends; a rule over its allowance is noticed and
 //! never stopped.
 
+use super::types::FileSizes;
 use super::types::UnitCaller;
 use crate::domain::code::types::{RuleCode, WordSlot};
-use crate::domain::executing::constants::ALLOWANCE;
+use crate::domain::executing::constants::{ALLOWANCE, ROWS_BESIDE, ROWS_PER_ELEMENT};
 use crate::domain::findings::types::{HeaviestWork, InstructionCount, WorkNotice, WorkVerdict};
 use crate::domain::made_tables::fills::service::fill_at;
 use crate::domain::made_tables::fills::types::FillKind;
@@ -22,7 +23,8 @@ use crate::domain::scratch::types::{FillTally, LoopState, RuleBudget, TableAsk, 
 use crate::domain::steps::types::MadeTableId;
 use ryo_language::domain::node_table::service::element_count;
 use ryo_language::domain::node_table::types::NodeTable;
-use ryo_relations::domain::relations::types::Count;
+use ryo_relations::domain::catalog::service::relation_size;
+use ryo_relations::domain::relations::types::{Count, RelationSize};
 
 /// Starts a pattern's evaluation: its own work is counted apart from its caller's.
 pub(crate) fn begin_unit(state: &mut LoopState) -> UnitCaller {
@@ -175,14 +177,38 @@ fn charge(frame: &mut StepFrame<'_, '_>, unit: ChargedUnit) {
     }
 }
 
+/// Whether the running rule was charged a unit of the fill side before: one compare, with no list walked.
+fn charged_before(budget: &RuleBudget, unit: ChargedUnit) -> Option<RuleStamp> {
+    let stamp = match unit {
+        ChargedUnit::Answer(_) => None,
+        ChargedUnit::Fill(Reached::Table(table)) => budget
+            .tables
+            .get(usize::try_from(table.0).unwrap_or(usize::MAX))
+            .copied(),
+        ChargedUnit::Fill(Reached::Relation(relation)) => budget
+            .relations
+            .get(usize::try_from(relation.0).unwrap_or(usize::MAX))
+            .copied(),
+        ChargedUnit::Fill(Reached::Nodes) => Some(budget.nodes),
+        // An index is never charged: it is always as good as charged.
+        ChargedUnit::Fill(Reached::Index(_)) => Some(budget.stamp),
+    };
+    stamp.filter(|charged| *charged == budget.stamp)
+}
+
 /// A unit was reached: a pattern's answer asked, kept or just evaluated; a table, a relation or the node table read.
 /// Reached by the rule's own program, the rule is charged it; reached inside a pattern's evaluation, it goes on that
-/// pattern's list, and the rule is charged it when it reaches the pattern.
+/// pattern's list, and the rule is charged it when it reaches the pattern. This is called for every read of a source,
+/// so a unit the rule was charged before costs one compare, and a unit reached again and again by the same program is
+/// on the pattern's list once for each run of reaches, not once for each.
 pub(crate) fn reach(frame: &mut StepFrame<'_, '_>, unit: ChargedUnit) {
-    if frame.state.budget.depth.0 == 0 {
-        charge(frame, unit);
-    } else {
-        frame.state.budget.reaching.push(unit);
+    let budget = &mut frame.state.budget;
+    if budget.depth.0 == 0 {
+        if charged_before(budget, unit).is_none() {
+            charge(frame, unit);
+        }
+    } else if budget.reaching.last() != Some(&unit) {
+        budget.reaching.push(unit);
     }
 }
 
@@ -247,6 +273,10 @@ fn fill_work(programs: &Programs, fill: FillTally) -> HeaviestWork {
     }
 }
 
+/// A relation that wrote more rows than its declared size allows is said too (`Oversized`), with the same counts: a
+/// relation of one row a file past one row, a relation that grows with the file's elements past `ROWS_PER_ELEMENT` rows an
+/// element and `ROWS_BESIDE`. Neither verdict stops the rule.
+///
 /// Ends a rule's work in a file: the one compare. Its work is the rows its own program's iterations gave, the work of
 /// every answer charged to it, and the rows the fills charged to it read and gave. Its allowance is `ALLOWANCE` times
 /// its candidates, the keys it asked of call patterns, the rows of each source it read once (the node table's elements,
@@ -255,11 +285,12 @@ fn fill_work(programs: &Programs, fill: FillTally) -> HeaviestWork {
 /// and among patterns the first in unit order.
 pub(crate) fn end_rule(
     state: &LoopState,
-    store: &FillStore,
+    sizes: FileSizes<'_>,
     programs: &Programs,
     rule: &RuleCode,
-) -> Option<WorkNotice> {
+) -> Vec<WorkNotice> {
     let budget = &state.budget;
+    let store = sizes.store;
     let work = budget
         .visited
         .0
@@ -278,8 +309,26 @@ pub(crate) fn end_rule(
             .saturating_add(budget.terms.0)
             .saturating_add(sources),
     );
-    if work <= allowance {
-        return None;
+    let code = &programs.0.code;
+    let elements = element_count(sizes.nodes).0;
+    let oversized = budget.read.iter().filter_map(|number| {
+        let relation = code
+            .relations
+            .get(usize::try_from(number.0).unwrap_or(usize::MAX))
+            .copied()?;
+        let bound = match relation_size(relation)? {
+            RelationSize::PerFile => 1,
+            RelationSize::PerElement => elements
+                .saturating_mul(ROWS_PER_ELEMENT.0)
+                .saturating_add(ROWS_BESIDE.0),
+            RelationSize::PerPair => usize::MAX,
+        };
+        (relation_rows(store, *number).0 > bound).then_some(WorkVerdict::Oversized(relation))
+    });
+    let over = (work > allowance).then_some(WorkVerdict::Over);
+    let verdicts: Vec<WorkVerdict> = over.into_iter().chain(oversized).collect();
+    if verdicts.is_empty() {
+        return Vec::new();
     }
     let mut heaviest = (
         rule.unit,
@@ -313,18 +362,20 @@ pub(crate) fn end_rule(
     {
         heaviest = (table.unit, fill.rows, fill_work(programs, fill));
     }
-    let step = programs
-        .0
-        .code
+    let Some(step) = code
         .units
         .get(usize::try_from(heaviest.0.0).unwrap_or(usize::MAX))
-        .map(|unit| unit_step(programs, rule.rule, &unit.key))?;
-    Some(WorkNotice {
+        .map(|unit| unit_step(programs, rule.rule, &unit.key))
+    else {
+        return Vec::new();
+    };
+    let said = |verdict| WorkNotice {
         rule: rule.rule,
-        verdict: WorkVerdict::Over,
+        verdict,
         work: InstructionCount(work),
         allowance: InstructionCount(allowance),
         step,
         heaviest: heaviest.2,
-    })
+    };
+    verdicts.into_iter().map(said).collect()
 }

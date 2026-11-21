@@ -127,10 +127,11 @@ fn pack(scene: Scene) -> LoweredPack {
         return packed(steps);
     }
     if matches!(scene, Scene::WithAnUnbuiltWord) {
-        steps.push(ProgramStep::Within {
+        steps.push(ProgramStep::Children {
             relation: Relation::SyntaxTree,
-            ancestor: Register(0),
-            descendant: Register(0),
+            parent: Register(0),
+            field: None,
+            out: Register(0),
         });
     }
     let emits = if matches!(scene, Scene::TwoEmits) {
