@@ -8,7 +8,9 @@ pub mod growth;
 mod parts;
 pub mod pending;
 mod scenes;
+mod sets;
 mod shapes;
+mod views;
 
 use parts::{
     as_of, at, axis, joined, kept, nearest, nearest_step, of, plan, step, words, words_written,
@@ -311,6 +313,14 @@ fn operation_scene(scene: &str) -> Option<Plan> {
     })
 }
 
+/// What the parameters of a scene's rule are bound to: nothing, but for the scenes that name a list.
+#[cfg(test)]
+pub(crate) fn bound(
+    scene: &str,
+) -> Vec<ryo_values::domain::query_bindings::types::ParameterBinding> {
+    sets::set_bindings(scene)
+}
+
 /// The plan a seam scenario names; an unknown name is the one tree rule.
 #[must_use]
 pub fn named(scene: &str) -> Plan {
@@ -319,7 +329,9 @@ pub fn named(scene: &str) -> Plan {
     }
     let listed = scenes::load_scene(scene)
         .or_else(|| scenes::scan_scene(scene))
-        .or_else(|| shapes::shape_scene(scene));
+        .or_else(|| shapes::shape_scene(scene))
+        .or_else(|| sets::set_scene(scene))
+        .or_else(|| views::view_scene(scene));
     if let Some(plan) = listed {
         return plan;
     }

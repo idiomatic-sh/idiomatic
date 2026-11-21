@@ -3,13 +3,13 @@
 use crate::domain::lowered::types::Emptiness;
 use crate::domain::lowering::costing::service::branches_rows;
 use crate::domain::lowering::definitions::service::{
-    defined, fresh_cells, fresh_variable, kind_bits, regex, text, text_word, use_branch,
+    defined, fresh_cells, fresh_variable, text, use_branch,
 };
 use crate::domain::lowering::definitions::types::{Drafts, Flattened};
-use crate::domain::lowering::emptiness::service::{copied, literal_read, relation_read};
+use crate::domain::lowering::emptiness::service::{copied, relation_read};
 use crate::domain::lowering::flattening::constants::{BRANCH_ATOMS, INPUT_BRANCHES};
 use crate::domain::lowering::flattening::service::function_call;
-use crate::domain::lowering::flattening::service::{compared, own_walks, picked};
+use crate::domain::lowering::flattening::service::{own_walks, picked};
 use crate::domain::lowering::flattening::types::{
     AtomRows, FlatAtom, FlatBranch, FlatTerm, OwnWalks, RowColumn, RowsPerFile,
 };
@@ -17,16 +17,13 @@ use crate::domain::lowering::nodes::service::{digest_of, input_shape, kept_colum
 use crate::domain::lowering::nodes::types::{AdmittedRule, NodeHome};
 use crate::domain::lowering::tables::service::tree_relation;
 use crate::domain::lowering::tables::shapes::service::picked as kinds_picked;
-use crate::domain::lowering::tables::shapes::service::test_of;
 use crate::domain::lowering::tables::types::InputSize;
 use crate::domain::lowering::tables::types::{InputWant, RuleFlattening};
-use crate::domain::steps::types::{AnchorKinds, ConstantText, DefinitionId, TestOperation};
-use ryo_relations::domain::relations::service::columns;
+use crate::domain::lowering::tables::views::service::{view_noted, view_read};
+use crate::domain::steps::types::DefinitionId;
 use ryo_relations::domain::relations::types::Count;
 use ryo_relations::domain::relations::types::Integer;
-use ryo_values::domain::plan_parts::types::{
-    Direction, Input, Operand, PlanComparison, QueryLiteral, StepId,
-};
+use ryo_values::domain::plan_parts::types::{Direction, Input, Operand, QueryLiteral, StepId};
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
 
@@ -78,77 +75,6 @@ pub(crate) fn term(
             Some(given)
         }
     }
-}
-
-/// A branch with every comparison added, each over the branch's own row. Outer none: a comparison cannot be written; inner
-/// none: the branch holds of no row.
-pub(crate) fn selected(
-    state: &RuleFlattening<'_>,
-    drafts: &mut Drafts,
-    mut branch: FlatBranch,
-    comparisons: &[PlanComparison],
-) -> Option<Option<FlatBranch>> {
-    for comparison in comparisons {
-        let left = term(state, drafts, &mut branch, &comparison.left)?;
-        let right = term(state, drafts, &mut branch, &comparison.right)?;
-        let test = match (test_of(comparison.test)?, &comparison.right) {
-            (TestOperation::Matches(_), Operand::Literal(QueryLiteral::Text(source))) => {
-                TestOperation::Matches(regex(drafts, source))
-            }
-            (test, _) => test,
-        };
-        match compared(branch, test, left, right) {
-            Some(kept) => branch = kept,
-            None => return Some(None),
-        }
-    }
-    Some(Some(branch))
-}
-
-/// Every branch with the comparisons added; the branches that hold of no row are dropped.
-pub(crate) fn all_selected(
-    state: &RuleFlattening<'_>,
-    drafts: &mut Drafts,
-    branches: Vec<FlatBranch>,
-    comparisons: &[PlanComparison],
-) -> Option<Vec<FlatBranch>> {
-    let mut kept = Vec::with_capacity(branches.len());
-    for branch in branches {
-        kept.extend(selected(state, drafts, branch, comparisons)?);
-    }
-    Some(kept)
-}
-
-/// The emptiness of a selection: of a relation read with a literal in a column when that is what it is, else its input's.
-pub(crate) fn selection_emptiness(
-    state: &RuleFlattening<'_>,
-    drafts: &Drafts,
-    from: Input,
-    comparisons: &[PlanComparison],
-    read: Emptiness,
-) -> Emptiness {
-    let Input::Relation(relation) = from else {
-        return read;
-    };
-    let listed = columns(relation);
-    for comparison in comparisons {
-        let (Operand::Column(column), Operand::Literal(QueryLiteral::Text(written))) =
-            (&comparison.left, &comparison.right)
-        else {
-            continue;
-        };
-        let (Some(number), Some(column), Some(TestOperation::Equal)) = (
-            drafts.text_numbers.get(written),
-            listed.get(usize::from(*column)),
-            test_of(comparison.test),
-        ) else {
-            continue;
-        };
-        let kinds = kind_bits(state.kinds, &ConstantText(written.0.clone()))
-            .map(|bits| AnchorKinds([bits].into()));
-        return literal_read(relation, *column, text_word(*number), kinds);
-    }
-    read
 }
 
 /// One use of the definition of a step, made from the step's flattening the first time. Its row is the step's: where the
@@ -268,6 +194,14 @@ pub(crate) fn input(
             // of a table's rows would be a copy.
             if let Some(alias) = waiting.and_then(|flattened| aliased(drafts, flattened)) {
                 return Some(alias);
+            }
+            // A step that is one read of a relation with its pins is that read for each reader that takes its
+            // branches: a table of a relation's rows would be a copy. A reader that asks a definition has one.
+            view_noted(drafts, digest, waiting);
+            if want == InputWant::Inline
+                && let Some(read) = view_read(drafts, digest)
+            {
+                return Some(read);
             }
             let cut = want == InputWant::Defined
                 || shared

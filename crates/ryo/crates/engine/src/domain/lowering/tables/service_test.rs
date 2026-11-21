@@ -87,7 +87,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     said(
         "a_plan_walk_visits_each_step_once_a_chain_of_self_joins_twice_as_deep_is_twice_the_work",
         || Asked::Chain(40),
-        "linear: work Some(208) at depth 40, Some(408) at twice it",
+        "linear: work Some(207) at depth 40, Some(407) at twice it",
     ),
     refused(
         "a_rule_over_the_hosts_rows_is_refused_at_that_step",

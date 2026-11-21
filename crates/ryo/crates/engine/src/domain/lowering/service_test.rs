@@ -4,11 +4,13 @@
 //! the invariant. Every expected text is what a run printed, read line by line and found right.
 
 mod operations;
+mod sets;
 mod shapes;
+mod views;
 
 use super::errors::LoweringError;
 use super::fixtures::described::{code_census, described};
-use super::fixtures::{digests_of, named};
+use super::fixtures::{bound, digests_of, named};
 use super::placement::types::SampleStage;
 use super::service::{lowered, lowered_at};
 use super::types::{LoadRefusal, PlanNode, SelectedRule, SelectedRules};
@@ -47,17 +49,25 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_plan_two_rules_emit_is_one_definition_and_each_rule_walks_its_table"),
         word: Word::Succeeds,
-        input: || (&["one tree rule", "one tree rule"], SampleStage::Absent),
+        input: || {
+            (
+                &[
+                    "the elements that are no comment",
+                    "the elements that are no comment",
+                ],
+                SampleStage::Absent,
+            )
+        },
         expect: Expect::Value(Cow::Borrowed(concat!(
             "definition 0: 5 columns, emptiness Unknown\n",
             "  pattern bound [] collected []: Table 0\n",
             "table 0: Rows, 5 columns, indexes []\n",
-            "  pipeline: Scan:File Read:Constant Read:Constant Read:Constant\n",
+            "  pipeline: Scan:File Read:Constant Keep:Constant Read:Constant Read:Constant\n",
             "rule 0: 1 branches\n",
             "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Read:Constant Emit:Constant\n",
             "rule 1: 1 branches\n",
             "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Read:Constant Emit:Constant\n",
-            "codes: {\"EachRowMade\": 2, \"Emit\": 2, \"End\": 3, \"ReadMade\": 8, \"StageRead\": 3, \"StageScan\": 1, \"StageWrite\": 1}",
+            "codes: {\"EachRowMade\": 2, \"Emit\": 2, \"End\": 3, \"ReadMade\": 8, \"StageKeep\": 1, \"StageRead\": 3, \"StageScan\": 1, \"StageWrite\": 1}",
         ))),
     },
     Case {
@@ -271,18 +281,21 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 fn subject((scenes, stage): Input) -> Result<Value, Failure> {
     let plans: Vec<_> = scenes.iter().map(|scene| named(scene)).collect();
+    let values: Vec<_> = scenes.iter().map(|scene| bound(scene)).collect();
     let digests: Vec<NodeDigests> = plans
         .iter()
-        .map(|plan| digests_of(plan, RuleBindings(&[])))
+        .zip(&values)
+        .map(|(plan, values)| digests_of(plan, RuleBindings(values)))
         .collect();
     let rules: Vec<SelectedRule<'_>> = plans
         .iter()
         .zip(&digests)
+        .zip(&values)
         .zip(0..)
-        .map(|((plan, digests), rule)| SelectedRule {
+        .map(|(((plan, digests), values), rule)| SelectedRule {
             rule: SelectedRuleOrdinal(rule),
             plan,
-            bindings: RuleBindings(&[]),
+            bindings: RuleBindings(values),
             digests,
         })
         .collect();

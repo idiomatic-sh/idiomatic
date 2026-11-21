@@ -14,10 +14,10 @@ use crate::domain::lowering::flattening::types::{
 use crate::domain::lowering::flattening::types::{NearestDomain, NearestOver};
 use crate::domain::lowering::nodes::service::input_shape;
 use crate::domain::lowering::tables::closures::service::edge_rows;
-use crate::domain::lowering::tables::inputs::service::{
-    all_selected, input, rule, selection_emptiness, sized,
-};
+use crate::domain::lowering::tables::inputs::service::{input, rule, sized};
+use crate::domain::lowering::tables::selections::service::{all_selected, selection};
 use crate::domain::lowering::tables::service::{tree_relation, walk_of};
+use crate::domain::lowering::tables::sets::types::SetTests;
 use crate::domain::lowering::tables::types::InputSize;
 use crate::domain::lowering::tables::types::JoinWants;
 use crate::domain::lowering::tables::types::KeyPair;
@@ -150,7 +150,7 @@ pub(crate) fn join_arm(
     }
     let lefts = input(state, drafts, *left, wants.left)?;
     let mut rights = input(state, drafts, *right, wants.right)?;
-    rights.branches = all_selected(state, drafts, rights.branches, filter)?;
+    rights.branches = all_selected(state, drafts, rights.branches, filter, SetTests::Buckets)?;
     // The keys and the answer name the right side's columns through its view, when it has one.
     if !view.is_empty() {
         for branch in &mut rights.branches {
@@ -288,21 +288,19 @@ pub(crate) fn axis_arm(
             let mut starts = input(state, drafts, *from, InputWant::Defined)?;
             let mut held = input(state, drafts, *domain, InputWant::Defined)?;
             // A step's rows are its definition's, asked by the element. A relation's own rows are read in place by the
-            // element, with the tests of the domain's filter.
+            // element, with the tests of the domain's filter: one read, so a set of literals stays a test of it.
             let stops = match (&held.emptiness, domain) {
                 (Emptiness::Definition(definition), _) => NearestDomain::Held {
                     definition: *definition,
                     column: made_column(RowColumn(entity))?,
                 },
                 (_, Input::Relation(_)) => {
-                    let read = std::mem::take(&mut held.branches);
-                    let mut read = all_selected(state, drafts, read, domain_filter)?;
-                    let (Some(only), None) = (read.pop(), read.pop()) else {
+                    let read = std::mem::take(&mut held);
+                    let mut read = selection(state, drafts, read, domain_filter, SetTests::Tests)?;
+                    let (Some(only), None) = (read.branches.pop(), read.branches.pop()) else {
                         return None;
                     };
-                    let emptiness = std::mem::take(&mut held.emptiness);
-                    held.emptiness =
-                        selection_emptiness(state, drafts, *domain, domain_filter, emptiness);
+                    held.emptiness = read.emptiness;
                     NearestDomain::Read {
                         entity: *only.row.get(entity)?,
                         atoms: only.atoms,
@@ -358,7 +356,8 @@ pub(crate) fn axis_arm(
             let wants = join_wants(sized(state, drafts, *from), sized(state, drafts, *domain));
             let starts = input(state, drafts, *from, wants.left)?;
             let mut held = input(state, drafts, *domain, wants.right)?;
-            held.branches = all_selected(state, drafts, held.branches, domain_filter)?;
+            let sets = SetTests::Buckets;
+            held.branches = all_selected(state, drafts, held.branches, domain_filter, sets)?;
             let mut branches = Vec::with_capacity(starts.branches.len() * held.branches.len());
             for left in &starts.branches {
                 for right in &held.branches {

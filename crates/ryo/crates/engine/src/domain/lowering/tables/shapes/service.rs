@@ -3,6 +3,7 @@
 
 use crate::domain::lowering::flattening::service::function_call;
 use crate::domain::lowering::nodes::types::StepShape;
+use crate::domain::lowering::tables::sets::service::literals;
 use crate::domain::lowering::types::SelectedRule;
 use crate::domain::steps::calls::types::{SearchGroup, SearchLines, SourceSearch};
 use crate::domain::steps::types::TestOperation;
@@ -87,8 +88,14 @@ pub(crate) fn comparable<'s>(
             (Test::Matches, _) => false,
             (test, _) => test_of(test).is_some(),
         };
-        test && operand_kind(rule, shape, &comparison.left).is_some()
-            && operand_kind(rule, shape, &comparison.right).is_some()
+        // A text held to a set of literals is written as pins where it is a node's kind or field, whatever states the
+        // set: a list a parameter is bound to has no operand, and is read as its literals.
+        let listed = operand_kind(rule, shape, &comparison.left) == Some(CellKind::Symbol)
+            && literals(rule, comparison).is_some();
+        listed
+            || (test
+                && operand_kind(rule, shape, &comparison.left).is_some()
+                && operand_kind(rule, shape, &comparison.right).is_some())
     });
     written.then_some(shape)
 }

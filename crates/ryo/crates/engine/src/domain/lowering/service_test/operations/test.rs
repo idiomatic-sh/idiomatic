@@ -265,8 +265,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 &[
-                    "the edges of the field label",
-                    "the edges of the field label",
+                    "the edges of the field label, past the first",
+                    "the edges of the field label, past the first",
                 ],
                 SampleStage::Absent,
             )
@@ -275,12 +275,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "definition 0: 5 columns, emptiness Row(SyntaxChild, Some(RowValue { column: SyntaxChild(Field), value: CellWord(1) }))\n",
             "  pattern bound [] collected []: Table 0\n",
             "table 0: Rows, 5 columns, indexes []\n",
-            "  pipeline: Scan:File Read:Constant Read:Constant\n",
+            "  pipeline: Scan:File Read:Constant Keep:Constant Read:Constant\n",
             "rule 0: 1 branches\n",
             "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Read:Constant Emit:Constant\n",
             "rule 1: 1 branches\n",
             "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Read:Constant Emit:Constant\n",
-            "codes: {\"EachRowMade\": 2, \"Emit\": 2, \"End\": 3, \"ReadMade\": 8, \"StageRead\": 2, \"StageScan\": 1, \"StageWrite\": 1}",
+            "codes: {\"EachRowMade\": 2, \"Emit\": 2, \"End\": 3, \"ReadMade\": 8, \"StageKeep\": 1, \"StageRead\": 2, \"StageScan\": 1, \"StageWrite\": 1}",
         ))),
     },
 ];
