@@ -5,8 +5,9 @@
 use crate::domain::executing::budget::service::{begin_rule, end_rule};
 use crate::domain::executing::budget::types::FileSizes;
 use crate::domain::executing::measuring::service::{
-    entered, evaluated, left, need_fills_settled, used,
+    entered, evaluated, left, need_decision_ended, need_fills_settled, used,
 };
+use crate::domain::executing::measuring::sites::service::need_decision_begun;
 use crate::domain::executing::presence::service::consulted;
 use crate::domain::executing::sources::types::FileNeeds;
 use crate::domain::findings::types::{InstructionCount, ScanCounters};
@@ -28,7 +29,9 @@ pub(crate) fn dispatch(frame: &mut StepFrame<'_, '_>, rules: &Programs) -> ScanC
         entered(frame.state, rule.unit);
         let mut rows = 0_u64;
         for branch in &rule.branches {
+            need_decision_begun(frame, branch.need, rule.rule);
             let needed = decided(&mut FileNeeds(frame), programs.code, branch.need);
+            need_decision_ended(frame.state, needed);
             consulted(frame, branch.need);
             if needed == NeedVerdict::Holds {
                 let found = frame.ports.run(frame, branch.entry, RunMode::Rows);

@@ -205,7 +205,7 @@ fn pack(scene: Scene) -> LoweredPack {
         Scene::CallNotRun => (
             0,
             vec![ProgramStep::Call {
-                meaning: CallMeaning::Lower,
+                meaning: CallMeaning::Words,
                 arguments: operands([of(1)]),
                 outputs: RegisterList(Box::new([Register(2)])),
             }],

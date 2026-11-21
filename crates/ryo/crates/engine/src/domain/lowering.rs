@@ -11,6 +11,7 @@ pub(crate) mod placement;
 pub(crate) mod planning;
 pub(crate) mod proving;
 pub mod service;
+pub(crate) mod sharing;
 pub(crate) mod tables;
 pub mod types;
 

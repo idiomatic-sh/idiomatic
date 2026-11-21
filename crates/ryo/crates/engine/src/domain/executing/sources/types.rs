@@ -2,7 +2,10 @@
 
 use crate::domain::code::constants::NO_SLOT;
 use crate::domain::code::types::{ConstantNumber, NeedSite, RelationNumber, Short, WordSlot};
-use crate::domain::executing::measuring::service::{need_fill_begun, need_fill_ended};
+use crate::domain::executing::measuring::service::{
+    need_fill_begun, need_fill_ended, need_leaf, need_nested,
+};
+use crate::domain::executing::measuring::sites::service::{kind_named, row_named};
 use crate::domain::executing::presence::service::node_row;
 use crate::domain::executing::types::Asker;
 use crate::domain::indexes::reading::service::cell_at;
@@ -46,14 +49,55 @@ impl NeedFacts for FileNeeds<'_, '_, '_> {
             .0
             .get(usize::from(kind.0 / 64))
             .is_some_and(|word| (word.0 >> (kind.0 % 64)) & 1 == 1);
-        if present {
+        let verdict = if present {
             NeedVerdict::Holds
         } else {
             NeedVerdict::Empty
+        };
+        if self.0.state.measure.is_some() {
+            let named = kind_named(self.0, kind);
+            need_leaf(self.0.state, || format!("{named}={verdict:?}"));
         }
+        verdict
     }
 
     fn relation_row(
+        &mut self,
+        relation: RelationNumber,
+        column: WordSlot,
+        value: WordSlot,
+    ) -> NeedVerdict {
+        if self.0.state.measure.is_none() {
+            return self.relation_decided(relation, column, value);
+        }
+        // SPIKE: a measuring worker traces the term: whether it cost nothing (a node relation's sets) or a fill.
+        let free = node_row(self.0, relation, column, value).is_some();
+        need_nested(self.0.state, NeedVerdict::Holds);
+        let verdict = self.relation_decided(relation, column, value);
+        need_nested(self.0.state, NeedVerdict::Empty);
+        let named = row_named(self.0, relation, column, value);
+        let cost = if free { "free" } else { "fill" };
+        need_leaf(self.0.state, || format!("{cost}-{named}={verdict:?}"));
+        verdict
+    }
+
+    fn table_row(&mut self, table: MadeTableId) -> NeedVerdict {
+        if self.0.state.measure.is_none() {
+            return self.table_decided(table);
+        }
+        // SPIKE: a measuring worker traces the term; what is decided inside it (the table's own need, the needs its
+        // fill's reads ask) is not the traced formula's.
+        need_nested(self.0.state, NeedVerdict::Holds);
+        let verdict = self.table_decided(table);
+        need_nested(self.0.state, NeedVerdict::Empty);
+        need_leaf(self.0.state, || format!("table:{}={verdict:?}", table.0));
+        verdict
+    }
+}
+
+impl FileNeeds<'_, '_, '_> {
+    /// Whether the relation has a row in the file, with the constant in the column when both are given.
+    fn relation_decided(
         &mut self,
         relation: RelationNumber,
         column: WordSlot,
@@ -94,7 +138,8 @@ impl NeedFacts for FileNeeds<'_, '_, '_> {
         }
     }
 
-    fn table_row(&mut self, table: MadeTableId) -> NeedVerdict {
+    /// Whether the table has a row in the file: made when its own need holds.
+    fn table_decided(&mut self, table: MadeTableId) -> NeedVerdict {
         let frame = &mut *self.0;
         let ports = frame.ports;
         if ports.table_need(frame, table) == NeedVerdict::Empty {
