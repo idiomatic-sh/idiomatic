@@ -85,35 +85,49 @@ impl NeedFacts for FileNeeds<'_, '_, '_> {
 
     fn masked(&mut self, site: NeedSite) -> Option<NeedVerdict> {
         let code = self.0.fill.programs.code;
-        let (clauses, exact) = site_masks(code, site, &mut self.0.state.need_masks);
+        let (held, exact) = site_masks(code, site, &mut self.0.state.need_masks);
+        let within =
+            |stretch: Stretch| stretch.start.0..stretch.start.0.saturating_add(stretch.count.0);
         // Every clause needs one of its terms in the file: the first clause that has none decides.
-        for number in clauses.start.0..clauses.start.0.saturating_add(clauses.count.0) {
-            let clause = self.0.state.need_masks.clauses.get(number).copied()?;
+        if let Some(failed) = self.clause_failing(held.clauses) {
+            if self.0.state.measure.is_some() {
+                let named = self.clause_named(failed);
+                need_leaf(self.0.state, || format!("none-of({named})=Empty"));
+            }
+            return Some(NeedVerdict::Empty);
+        }
+        // Every group needs an alternative whose clauses all hold.
+        for number in within(held.groups) {
+            let group = self.0.state.need_masks.groups.get(number).copied()?;
             let mut some = false;
-            for at in clause.start.0..clause.start.0.saturating_add(clause.count.0) {
-                let term = self.0.state.need_masks.clause_terms.get(at).copied()?;
-                if self.term_holds(term) == NeedVerdict::Holds {
+            for place in within(group) {
+                let alternative = self.0.state.need_masks.alternatives.get(place).copied()?;
+                if self.clause_failing(alternative).is_none() {
                     some = true;
                     break;
                 }
             }
             if !some {
                 if self.0.state.measure.is_some() {
-                    let named = self.clause_named(clause);
-                    need_leaf(self.0.state, || format!("none-of({named})=Empty"));
+                    need_leaf(self.0.state, || "no-alternative=Empty".to_owned());
                 }
                 return Some(NeedVerdict::Empty);
             }
         }
-        match exact {
-            MaskExact::Whole => {
-                if self.0.state.measure.is_some() {
-                    need_leaf(self.0.state, || "terms=Holds".to_owned());
-                }
-                Some(NeedVerdict::Holds)
-            }
-            MaskExact::Part => None,
+        if exact == MaskExact::Part {
+            return None;
         }
+        // They are the whole formula but for its tables: each is asked, in the formula's order.
+        for number in within(held.tables) {
+            let table = self.0.state.need_masks.tables.get(number).copied()?;
+            if self.table_row(table) == NeedVerdict::Empty {
+                return Some(NeedVerdict::Empty);
+            }
+        }
+        if self.0.state.measure.is_some() {
+            need_leaf(self.0.state, || "terms=Holds".to_owned());
+        }
+        Some(NeedVerdict::Holds)
     }
 
     fn leaf(&mut self, at: WordSlot) -> Option<NeedVerdict> {
@@ -154,6 +168,29 @@ impl NeedFacts for FileNeeds<'_, '_, '_> {
 }
 
 impl FileNeeds<'_, '_, '_> {
+    /// The first clause of a stretch of the masks' clauses that has no term in the file; none when each has one.
+    fn clause_failing(&mut self, clauses: Stretch) -> Option<Stretch> {
+        for number in clauses.start.0..clauses.start.0.saturating_add(clauses.count.0) {
+            let Some(clause) = self.0.state.need_masks.clauses.get(number).copied() else {
+                continue;
+            };
+            let mut some = false;
+            for at in clause.start.0..clause.start.0.saturating_add(clause.count.0) {
+                let Some(term) = self.0.state.need_masks.clause_terms.get(at).copied() else {
+                    continue;
+                };
+                if self.term_holds(term) == NeedVerdict::Holds {
+                    some = true;
+                    break;
+                }
+            }
+            if !some {
+                return Some(clause);
+            }
+        }
+        None
+    }
+
     /// SPIKE: the terms of a clause by name, for a measuring worker's trace.
     fn clause_named(&self, clause: Stretch) -> String {
         let masks = &self.0.state.need_masks;
