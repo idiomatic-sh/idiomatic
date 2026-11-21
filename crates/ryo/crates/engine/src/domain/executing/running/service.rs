@@ -136,12 +136,14 @@ pub(crate) fn units_reached(code: &ProgramCode, rule: &RuleCode) -> Vec<WordSlot
 fn walked(code: &ProgramCode, rule: &RuleCode, units: &mut Vec<WordSlot>) -> Option<WordSlot> {
     let mut pending: Vec<WalkPlace> = Vec::new();
     let mut asked = Vec::new();
+    // The need sites met in this walk: each site's formula is read once, however many units name it.
+    let mut sites = hashbrown::HashSet::new();
     for branch in &rule.branches {
         pending.push(WalkPlace::Program {
             entry: branch.entry,
             unit: rule.unit,
         });
-        tables_asked(code, branch.need, &mut asked);
+        tables_asked(code, branch.need, &mut sites, &mut asked);
     }
     pending.extend(asked.into_iter().map(WalkPlace::Table));
     let (mut words, mut tables) = (
@@ -169,7 +171,7 @@ fn walked(code: &ProgramCode, rule: &RuleCode, units: &mut Vec<WordSlot>) -> Opt
                     {
                         units.push(unit);
                     }
-                    if let Some(unit) = fill(code, table, &mut pending) {
+                    if let Some(unit) = fill(code, table, &mut sites, &mut pending) {
                         return Some(unit);
                     }
                 }

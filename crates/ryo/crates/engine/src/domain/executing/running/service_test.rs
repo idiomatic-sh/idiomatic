@@ -38,6 +38,9 @@ enum Scene {
     NumericKeepInAFill,
     /// A read of a second table whose fill's pipeline scans the constants and writes: every stage runs.
     AFillThatRuns,
+    /// A read of the constants alone, by a branch whose need asks the second table for a row; that table's fill keeps
+    /// by a test the fill side does not run.
+    NeedOverAFillNotRun,
     /// A call of a meaning the kernel runs: a span's bounds.
     CallThatRuns,
     /// A call of a meaning the kernel does not run yet: a text in lowercase.
@@ -102,6 +105,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scene::CallNotRun,
         expect: Expect::Value([0, 9]),
     },
+    Case {
+        name: CaseName("a_table_a_need_alone_asks_is_walked_and_names_its_unit"),
+        word: Word::Succeeds,
+        input: || Scene::NeedOverAFillNotRun,
+        expect: Expect::Value([2, 9]),
+    },
 ];
 
 /// The children of a node: a word the loop does not run.
@@ -165,7 +174,7 @@ fn pack(scene: Scene) -> LoweredPack {
         )
     };
     let (first, between) = match scene {
-        Scene::AllRun => (0, Vec::new()),
+        Scene::AllRun | Scene::NeedOverAFillNotRun => (0, Vec::new()),
         Scene::CallInTheRule => (0, vec![call()]),
         Scene::NumericTest => {
             let (test, left, right) = numeric(of(1));
@@ -204,7 +213,10 @@ fn pack(scene: Scene) -> LoweredPack {
     };
     let mut stages = Vec::from(scan_made(0, 10, 11));
     let (test, left, right) = numeric(of(11));
-    if matches!(scene, Scene::NumericKeepInAFill) {
+    if matches!(
+        scene,
+        Scene::NumericKeepInAFill | Scene::NeedOverAFillNotRun
+    ) {
         stages.push(FillStage::Keep { test, left, right });
     }
     LoweredPack {
@@ -225,7 +237,15 @@ fn pack(scene: Scene) -> LoweredPack {
             }],
         }],
         tables: vec![constants(&[1, 2]), rows(1, pipeline(stages, [of(11)]))],
-        rules: vec![rule(0, first, between), rule(1, 0, Vec::new())],
+        rules: {
+            let mut asking = rule(0, first, between);
+            if matches!(scene, Scene::NeedOverAFillNotRun) {
+                for branch in &mut asking.branches {
+                    branch.emptiness = Emptiness::Table(MadeTableId(1));
+                }
+            }
+            vec![asking, rule(1, 0, Vec::new())]
+        },
         registers: RegisterCount(20),
         ..LoweredPack::default()
     }

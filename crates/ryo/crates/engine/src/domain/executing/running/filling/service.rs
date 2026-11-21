@@ -10,7 +10,9 @@ use crate::domain::code::filling::service::{
     stage_use_of,
 };
 use crate::domain::code::small_codes::service::{comparison_of, meaning_of};
-use crate::domain::code::types::{CodeEntry, CodeWord, IndexSite, Op, ProgramCode, WordSlot};
+use crate::domain::code::types::{
+    CodeEntry, CodeWord, IndexSite, NeedSite, Op, ProgramCode, WordSlot,
+};
 use crate::domain::executing::running::places::service::{body, called, site_table, tested};
 use crate::domain::executing::running::types::{WalkPlace, WordBuilt};
 use crate::domain::made_tables::fills::service::{fill_at, input_at};
@@ -116,6 +118,7 @@ pub(crate) fn stage_word(
 pub(crate) fn fill(
     code: &ProgramCode,
     table: MadeTableId,
+    sites: &mut hashbrown::HashSet<NeedSite>,
     out: &mut Vec<WalkPlace>,
 ) -> Option<WordSlot> {
     let Some(written) = code
@@ -126,7 +129,7 @@ pub(crate) fn fill(
     };
     let unit = written.unit;
     let mut asked = Vec::new();
-    tables_asked(code, written.need, &mut asked);
+    tables_asked(code, written.need, sites, &mut asked);
     out.extend(asked.into_iter().map(WalkPlace::Table));
     match fill_at(code, table).map(|held| (held.kind, held.inputs)) {
         Ok((FillKind::Constant, _)) => None,
