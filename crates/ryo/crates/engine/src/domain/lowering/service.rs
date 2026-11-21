@@ -40,6 +40,9 @@ use ryo_values::domain::descriptions::types::KindVocabulary;
 use ryo_values::domain::plan_parts::types::StepId;
 use std::collections::{HashMap, HashSet};
 
+/// The fewest patterns waiting together whose plans are made on the pool.
+const POOLED_PATTERNS: usize = 16;
+
 /// The plan of each branch of a rule's own program, nothing given. A plan reads the drafts and writes nothing.
 fn branch_plans(drafts: &Drafts, branches: &[FlatBranch]) -> Vec<Option<PlannedBranch>> {
     let plans = branches
@@ -63,10 +66,19 @@ fn patterns_placed(drafts: &mut Drafts, sample: LoadSample<'_>) -> Result<(), Re
                 .filter(|each| !plans.contains_key(each))
                 .collect();
             let shared: &Drafts = drafts;
-            let made: Vec<Option<Vec<PlannedBranch>>> = asked
-                .par_iter()
-                .map(|each| pattern_plans(shared, *each))
-                .collect();
+            // The patterns the rules' own programs ask wait together, and are planned on the pool; the few a placement
+            // then asks are planned where they are: handing two or three plans to the pool costs more than making them.
+            let made: Vec<Option<Vec<PlannedBranch>>> = if asked.len() < POOLED_PATTERNS {
+                asked
+                    .iter()
+                    .map(|each| pattern_plans(shared, *each))
+                    .collect()
+            } else {
+                asked
+                    .par_iter()
+                    .map(|each| pattern_plans(shared, *each))
+                    .collect()
+            };
             plans.extend(asked.into_iter().zip(made));
         }
         let _placing = drafts.waiting.pop();
