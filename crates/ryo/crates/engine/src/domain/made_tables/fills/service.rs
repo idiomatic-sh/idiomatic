@@ -10,14 +10,18 @@
 use super::types::{FillInputs, FillKind, TableFill};
 use crate::domain::code::constants::NO_SLOT;
 use crate::domain::code::filling::service::stage_write_of;
-use crate::domain::code::records::types::PooledOperand;
+use crate::domain::code::records::service::edge_columns_at;
+use crate::domain::code::records::types::{EdgeColumns, PooledOperand};
 use crate::domain::code::service::list;
 use crate::domain::code::types::{CodeEntry, FillCode, PoolAt, ProgramCode, WordSlot};
 use crate::domain::filled::errors::FilledError;
 use crate::domain::filled::types::{MissingCode, UnbuiltFill};
 use crate::domain::lowered::service::fill_code;
-use crate::domain::lowered::types::{ConstantRows, FillInput, GroupFill, MadeFill, OrderedFill};
+use crate::domain::lowered::types::{
+    ConstantRows, FillInput, GraphFill, GroupFill, MadeFill, OrderedFill,
+};
 use crate::domain::made_tables::columns::types::ColumnIs;
+use crate::domain::made_tables::following::service::follow_groups;
 use crate::domain::made_tables::operands::service::{constant_at, file_cell, operand};
 use crate::domain::made_tables::placing::service::place_groups;
 use crate::domain::made_tables::reading::service::pipeline_words;
@@ -25,7 +29,7 @@ use crate::domain::made_tables::service::{
     count_groups, end_groups, file_columns, set_keys, sort_groups,
 };
 use crate::domain::made_tables::types::{FillFrame, FillWork, GroupRoom, TableRows};
-use crate::domain::steps::types::{ColumnList, MadeTableId};
+use crate::domain::steps::types::{ColumnList, MadeColumn, MadeTableId};
 use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::relations::types::Count;
 use ryo_values::domain::plan_orders::types::GroupEnd;
@@ -48,6 +52,11 @@ pub(crate) fn kind_of(code: FillCode) -> Result<FillKind, FilledError> {
     let sorted = MadeFill::Ordered(OrderedFill::Sorted(input()));
     let ends = MadeFill::Group(GroupFill::Ends(GroupEnd::Least), input());
     let places = MadeFill::Group(GroupFill::Places, input());
+    let no_column = EdgeColumns {
+        source: MadeColumn(0),
+        destination: MadeColumn(0),
+    };
+    let follow = MadeFill::Graph(GraphFill::FixedPoints(no_column), Box::new([]));
     let matched = MadeFill::Ordered(OrderedFill::Match(input(), input()));
     let constant = MadeFill::Constant(ConstantRows(Vec::new()));
     if code == fill_code(&rows) {
@@ -60,6 +69,8 @@ pub(crate) fn kind_of(code: FillCode) -> Result<FillKind, FilledError> {
         Ok(FillKind::Ends)
     } else if code == fill_code(&places) {
         Ok(FillKind::Places)
+    } else if code == fill_code(&follow) {
+        Ok(FillKind::Follow)
     } else if code == fill_code(&matched) {
         Ok(FillKind::Match)
     } else if code == fill_code(&constant) {
@@ -178,6 +189,7 @@ pub(crate) fn constant_rows(
 ///
 /// A key or the order names no column of the input: a fault of the code, never of a file.
 pub(crate) fn grouped_rows(
+    code: &ProgramCode,
     fill: TableFill,
     gathered: &TableRows,
     read: FillInputs<'_>,
@@ -207,6 +219,12 @@ pub(crate) fn grouped_rows(
             end_groups(gathered, read.order.ok_or(wrong)?, end, room, out);
         }
         FillKind::Places => place_groups(gathered, read.order.ok_or(wrong)?, room, out),
+        FillKind::Follow => {
+            // The record's parameter is the place of the told columns: where an edge leaves from and arrives.
+            let columns = edge_columns_at(&code.pool, PoolAt(fill.parameter.0)).ok_or(wrong)?;
+            let visits = follow_groups(gathered, columns, room, out);
+            work.read = Count(work.read.0.saturating_add(visits.0));
+        }
         FillKind::Rows | FillKind::Match | FillKind::Constant => return Err(wrong),
     }
     work.read = Count(work.read.0.saturating_add(gathered.count.0));

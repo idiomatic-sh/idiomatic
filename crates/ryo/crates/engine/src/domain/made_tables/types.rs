@@ -8,6 +8,7 @@ use crate::domain::filled::errors::FilledError;
 use crate::domain::filled::types::FilledRelations;
 use crate::domain::indexes::types::{FileStamp, IndexArena, RowRun, SourceRow};
 use crate::domain::made_tables::columns::types::{CellsLie, FileColumn, RowColumn};
+use crate::domain::made_tables::following::types::FollowRoom;
 use crate::domain::made_tables::matching::types::MatchRoom;
 use crate::domain::made_tables::pipelines::types::PipelineRoom;
 use crate::domain::made_tables::placing::types::PlaceRoom;
@@ -63,6 +64,8 @@ pub(crate) struct GroupRoom {
     pub(crate) matching: MatchRoom,
     /// The room of a group's places.
     pub(crate) placing: PlaceRoom,
+    /// The room of a follow's fixed points.
+    pub(crate) following: FollowRoom,
 }
 
 /// Everything of the fill side a worker keeps for a file: the filled relations, the indexes of every source, and the made

@@ -7,6 +7,7 @@ pub(crate) mod columns;
 pub mod constants;
 pub mod fanning;
 pub mod fills;
+pub mod following;
 pub mod indexing;
 pub mod keyed;
 pub mod making;

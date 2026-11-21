@@ -305,7 +305,11 @@ fn filled_now(
             frame.store.inputs.push(gathered_right);
             done
         }
-        FillKind::Count | FillKind::Sorted | FillKind::Ends | FillKind::Places => {
+        FillKind::Count
+        | FillKind::Sorted
+        | FillKind::Ends
+        | FillKind::Places
+        | FillKind::Follow => {
             let FillKept { work, reached } = kept;
             let input = input_at(programs.code, fill.inputs)?;
             let mut gathered = frame.store.inputs.pop().unwrap_or_default();
@@ -315,8 +319,9 @@ fn filled_now(
             };
             let piped = gathered_in(frame, uses, table, input, &mut gathered, kept);
             let mut room = std::mem::take(&mut frame.store.room);
-            let done =
-                piped.and_then(|()| grouped_rows(fill, &gathered, input, &mut room, rows, work));
+            let done = piped.and_then(|()| {
+                grouped_rows(programs.code, fill, &gathered, input, &mut room, rows, work)
+            });
             frame.store.room = room;
             frame.store.inputs.push(gathered);
             done
