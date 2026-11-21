@@ -11,11 +11,11 @@ use crate::domain::lowering::nodes::types::StepReach;
 use crate::domain::lowering::tables::calls::service::call_arm;
 use crate::domain::lowering::tables::closures::service::closure_arm;
 use crate::domain::lowering::tables::fills::service::{as_of_arm, group_count_arm, group_rows_arm};
-use crate::domain::lowering::tables::inputs::service::{
-    all_selected, input, rule, selection_emptiness, term,
-};
+use crate::domain::lowering::tables::inputs::service::{input, rule, term};
 use crate::domain::lowering::tables::joins::service::{antijoin_arm, axis_arm, join_arm};
 use crate::domain::lowering::tables::matches::service::match_arm;
+use crate::domain::lowering::tables::selections::service::{all_selected, selection_emptiness};
+use crate::domain::lowering::tables::sets::types::SetTests;
 use crate::domain::lowering::tables::types::{InputWant, RuleFlattening};
 use ryo_values::domain::plan_parts::types::{Input, StepId};
 use ryo_values::domain::plans::types::Operation;
@@ -35,7 +35,8 @@ fn arm(
             kept,
         } => {
             let mut read = input(state, drafts, *from, InputWant::Inline)?;
-            read.branches = all_selected(state, drafts, read.branches, comparisons)?;
+            read.branches =
+                all_selected(state, drafts, read.branches, comparisons, SetTests::Buckets)?;
             if !kept.is_empty() {
                 for branch in &mut read.branches {
                     branch.row = picked(

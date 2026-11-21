@@ -8,7 +8,9 @@ pub(crate) mod fills;
 pub(crate) mod inputs;
 pub(crate) mod joins;
 pub(crate) mod matches;
+pub(crate) mod selections;
 pub(crate) mod service;
+pub(crate) mod sets;
 pub(crate) mod shapes;
 pub(crate) mod types;
 

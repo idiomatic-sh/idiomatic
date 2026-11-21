@@ -4,11 +4,12 @@
 //! the invariant. Every expected text is what a run printed, read line by line and found right.
 
 mod operations;
+mod sets;
 mod shapes;
 
 use super::errors::LoweringError;
 use super::fixtures::described::{code_census, described};
-use super::fixtures::{digests_of, named};
+use super::fixtures::{bound, digests_of, named};
 use super::placement::types::SampleStage;
 use super::service::{lowered, lowered_at};
 use super::types::{LoadRefusal, PlanNode, SelectedRule, SelectedRules};
@@ -271,18 +272,21 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 fn subject((scenes, stage): Input) -> Result<Value, Failure> {
     let plans: Vec<_> = scenes.iter().map(|scene| named(scene)).collect();
+    let values: Vec<_> = scenes.iter().map(|scene| bound(scene)).collect();
     let digests: Vec<NodeDigests> = plans
         .iter()
-        .map(|plan| digests_of(plan, RuleBindings(&[])))
+        .zip(&values)
+        .map(|(plan, values)| digests_of(plan, RuleBindings(values)))
         .collect();
     let rules: Vec<SelectedRule<'_>> = plans
         .iter()
         .zip(&digests)
+        .zip(&values)
         .zip(0..)
-        .map(|((plan, digests), rule)| SelectedRule {
+        .map(|(((plan, digests), values), rule)| SelectedRule {
             rule: SelectedRuleOrdinal(rule),
             plan,
-            bindings: RuleBindings(&[]),
+            bindings: RuleBindings(values),
             digests,
         })
         .collect();
