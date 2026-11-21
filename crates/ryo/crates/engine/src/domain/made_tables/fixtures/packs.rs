@@ -1,15 +1,18 @@
 //! The packs of the fill side's cases: the smallest parts of a lowered pack, the stages the cases compose, and the code the
 //! contract's encoding writes for a pack of tables.
 
-use crate::domain::code::types::{ProgramCode, ShapeChoice};
+use crate::domain::code::types::ProgramCode;
+#[cfg(test)]
+use crate::domain::code::types::ShapeChoice;
 use crate::domain::encoding::service::encoded;
 use crate::domain::filled::errors::FilledError;
 use crate::domain::filled::types::MissingCode;
 use crate::domain::findings::types::RuleColumns;
 use crate::domain::lowered::types::{
-    Branch, ConstantRows, DefinitionPattern, Emptiness, LoweredPack, LoweredRule, MadeFill,
-    MadeTable, PackDefinition, PatternForm,
+    Branch, Emptiness, LoweredPack, LoweredRule, MadeFill, MadeTable, PackDefinition,
 };
+#[cfg(test)]
+use crate::domain::lowered::types::{ConstantRows, DefinitionPattern, PatternForm};
 use crate::domain::steps::stages::types::{
     FillStage, Pipeline, PlacedStage, ProbeRange, TreeWalk, UseMode,
 };
@@ -19,15 +22,19 @@ use crate::domain::steps::types::{
     StepOperands, StepProgram, StepRegex, StepRows, TestOperation,
 };
 use ryo_language::domain::facts::types::CellWord;
+#[cfg(test)]
 use ryo_language::domain::node_table::service::{
     builder, embed, enter_node, finished, leave_node, token,
 };
+#[cfg(test)]
 use ryo_language::domain::node_table::types::{EmbeddedText, FieldCode, NodeTable};
+#[cfg(test)]
 use ryo_relations::domain::elements::types::EmbeddedMapping;
 use ryo_relations::domain::relations::collections::relations::token_link::item::TokenLinkColumn;
-use ryo_relations::domain::relations::types::{
-    Column, Count, FileId, KindBits, NodeColumn, Offset, Position, Relation,
-};
+use ryo_relations::domain::relations::types::{Column, FileId, NodeColumn, Relation};
+#[cfg(test)]
+use ryo_relations::domain::relations::types::{Count, KindBits, Offset, Position};
+#[cfg(test)]
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
 use ryo_values::domain::query_plans::types::NodeDigest;
@@ -83,6 +90,7 @@ pub(crate) fn pipeline<const N: usize>(each: Vec<FillStage>, row: [StepOperand; 
     }
 }
 
+#[cfg(test)]
 /// A pipeline of the stages, writing the row given as a list.
 pub(crate) fn pipeline_of(each: Vec<FillStage>, row: Vec<StepOperand>) -> Pipeline {
     Pipeline {
@@ -159,6 +167,7 @@ pub(crate) fn coded(
     })
 }
 
+#[cfg(test)]
 /// A file of nodes: a root (kind 1) spanning the text, with three children (kind 2), the second under field 4, each a
 /// node holding one token (kind 3) of two bytes.
 pub(crate) fn nodes() -> NodeTable {
@@ -209,6 +218,7 @@ pub(crate) fn read(column: Column, row: u32, out: u32) -> FillStage {
     }
 }
 
+#[cfg(test)]
 /// A scan of a made table and a read of its first column.
 pub(crate) fn scan_made(made: u32, out: u32, cell: u32) -> [FillStage; 2] {
     [
@@ -227,6 +237,7 @@ pub(crate) fn scan_made(made: u32, out: u32, cell: u32) -> [FillStage; 2] {
     ]
 }
 
+#[cfg(test)]
 /// A table of the constant cells, one a row.
 pub(crate) fn constants(cells: &[u64]) -> MadeTable {
     table(
@@ -319,6 +330,7 @@ pub(crate) fn used(value: u32, mode: UseMode, outputs: &[u32]) -> FillStage {
     }
 }
 
+#[cfg(test)]
 /// A definition of two columns with one pattern in call form for each use the cases make: bound by its first column,
 /// collecting its second or nothing.
 pub(crate) fn definition() -> PackDefinition {

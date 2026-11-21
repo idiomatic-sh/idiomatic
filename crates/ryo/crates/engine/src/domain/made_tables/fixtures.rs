@@ -13,9 +13,10 @@ use crate::domain::made_tables::types::{
 use crate::domain::steps::types::{MadeTableId, StepRegex};
 use ryo_language::domain::facts::service::{base_words, file_words};
 use ryo_language::domain::facts::types::{
-    CellWord, FactAnswer, FactSource, FileWords, FillExtent, FilledColumn, FilledColumns,
-    FillerSentence, PartialRows, Wanted,
+    CellWord, FactAnswer, FactSource, FileWords, FillExtent, FilledColumn, FilledColumns, Wanted,
 };
+#[cfg(test)]
+use ryo_language::domain::facts::types::{FillerSentence, PartialRows};
 use ryo_language::domain::fixed_names::service::checked;
 use ryo_language::domain::node_table::types::NodeTable;
 use ryo_language::domain::semantics::types::{RenderOutcome, RenderRequest};
@@ -23,7 +24,9 @@ use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl;
 use ryo_operators::domain::patterns::types::PatternMatcher;
 use ryo_relations::domain::answers::types::AbsenceCause;
-use ryo_relations::domain::relations::types::{Count, Missing, Relation};
+use ryo_relations::domain::relations::types::Relation;
+#[cfg(test)]
+use ryo_relations::domain::relations::types::{Count, Missing};
 use ryo_relations::domain::terms::types::NameText;
 
 pub mod benches;
@@ -37,10 +40,13 @@ pub(crate) enum Telling {
     /// A key's rows alone.
     Keyed,
     /// Every row, saying so.
+    #[cfg(test)]
     WholeToAKey,
     /// A refusal, to every ask.
+    #[cfg(test)]
     Refusing,
     /// Rows in part, to every ask.
+    #[cfg(test)]
     Partial,
 }
 
@@ -64,19 +70,25 @@ impl FactSource for Told {
         out: &mut FilledColumns,
     ) -> FactAnswer {
         self.asked.push(wanted);
-        if self.telling == Telling::Refusing || relation != TOLD {
+        if relation != TOLD {
             return FactAnswer::Refused(AbsenceCause::NotYetRead);
         }
-        if self.telling == Telling::Partial {
-            return FactAnswer::Partial(PartialRows {
-                cause: FillerSentence("an unread stretch".into()),
-                missing: Missing::Any,
-            });
+        #[cfg(test)]
+        match self.telling {
+            Telling::Refusing => return FactAnswer::Refused(AbsenceCause::NotYetRead),
+            Telling::Partial => {
+                return FactAnswer::Partial(PartialRows {
+                    cause: FillerSentence("an unread stretch".into()),
+                    missing: Missing::Any,
+                });
+            }
+            Telling::Keyed | Telling::WholeToAKey => {}
         }
         if out.0.len() < 5 {
             out.0.resize_with(5, FilledColumn::default);
         }
         let (wanted, extent) = match (wanted, self.telling) {
+            #[cfg(test)]
             (Wanted::Key(..), Telling::WholeToAKey) => (Wanted::Whole, FillExtent::Whole),
             (Wanted::Key(..) | Wanted::Whole, _) => (wanted, FillExtent::Asked),
         };
@@ -187,6 +199,7 @@ pub(crate) struct World {
     pub(crate) looped: Looped,
 }
 
+#[cfg(test)]
 /// The world of a pack of the tables, whose language holds `rows` and answers a key as `telling` says.
 ///
 /// # Errors
@@ -276,6 +289,7 @@ pub(crate) fn framed(world: &mut World) -> (FillFrame<'_>, &mut Looped) {
     )
 }
 
+#[cfg(test)]
 /// A table's rows as text: each row's cells, rows separated by `;`.
 pub(crate) fn shown(store: &FillStore, table: MadeTableId) -> String {
     let Some(slot) = crate::domain::made_tables::sources::service::table_of(store, table) else {
@@ -293,6 +307,7 @@ pub(crate) fn shown(store: &FillStore, table: MadeTableId) -> String {
     rows.join("; ")
 }
 
+#[cfg(test)]
 /// How a column of a table is shown by `shown_as`.
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum Shown {
@@ -306,6 +321,7 @@ pub(crate) enum Shown {
     Node,
 }
 
+#[cfg(test)]
 /// A table's rows as text, each column shown as `columns` says: rows separated by `;`.
 pub(crate) fn shown_as(world: &World, table: MadeTableId, columns: &[Shown]) -> String {
     let Some(slot) = crate::domain::made_tables::sources::service::table_of(&world.store, table)

@@ -254,16 +254,6 @@ pub(crate) fn carried(
     Ok(())
 }
 
-/// The registers the stage at `at` carries on.
-pub(crate) fn live_at(room: &PipelineRoom, at: Count) -> &[Register] {
-    let start = room.starts.get(at.0).map_or(0, |start| start.0);
-    let end = room
-        .starts
-        .get(at.0.saturating_add(1))
-        .map_or(start, |end| end.0);
-    room.live.get(start..end).unwrap_or_default()
-}
-
 /// What a source the fill side reaches as a thing reached: a relation, a table, the node table.
 const fn reached_of(source: ReadSource) -> Reached {
     match source {

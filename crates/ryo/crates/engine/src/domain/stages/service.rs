@@ -387,8 +387,3 @@ pub(crate) fn keep_in(
         }
     }
 }
-
-/// `Keep` of a test only its caller can decide (a text's): the rows for which `test` says yes, as a selection.
-pub(crate) fn keep_by(rows: Count, keep: &mut Vec<BatchRow>, test: impl FnMut(Count) -> RowKept) {
-    selected(rows, keep, (0..rows.0).map(Count).map(test));
-}
