@@ -1,16 +1,19 @@
 //! The services of the `lowered` concept: the cost class of a fill and the code it is written and counted under, each a
-//! property of the fill alone; where a column stands in an ordered match's row; and the walk of everything a pack's steps
-//! and stages touch. Every `match` here names every
+//! property of the fill alone; where a column stands in an ordered match's row; the walk of everything a pack's steps and
+//! stages touch; and the walk in the same order that lends each to write. Every `match` here names every
 //! fill: a new fill does not compile without its class, its code and its pipelines.
 
 use super::types::{
-    FillInput, GraphFill, GroupFill, LoweredPack, MadeFill, OrderedFill, PatternForm,
+    FillInput, GraphFill, GroupFill, LentPlaced, LoweredPack, MadeFill, OrderedFill, PatternForm,
+    WalkedUnit,
 };
 use crate::domain::code::types::FillCode;
+use crate::domain::steps::lending::service::each_step_mut;
 use crate::domain::steps::stages::types::Pipeline;
 use crate::domain::steps::traversal::service::{each_step, stage_touched};
 use crate::domain::steps::traversal::types::Touched;
-use crate::domain::steps::types::{CostClass, MadeColumn};
+use crate::domain::steps::types::{CostClass, DefinitionId, MadeColumn, MadeTableId};
+use ryo_relations::domain::relations::types::Count;
 use ryo_values::domain::plan_parts::types::Side;
 use ryo_values::domain::table_words::types::ColumnCount;
 
@@ -110,7 +113,7 @@ pub(crate) fn match_column(
 }
 
 /// The pipelines of a fill, in its inputs' order.
-fn fill_pipelines(fill: &MadeFill) -> Vec<&Pipeline> {
+pub(crate) fn fill_pipelines(fill: &MadeFill) -> Vec<&Pipeline> {
     let inputs: Vec<&FillInput> = match fill {
         MadeFill::Rows(pipelines, _) => return pipelines.iter().collect(),
         MadeFill::Group(_, input) | MadeFill::Ordered(OrderedFill::Sorted(input)) => vec![input],
@@ -148,4 +151,76 @@ pub(crate) fn each_touched<'a>(pack: &'a LoweredPack, visit: &mut impl FnMut(&To
             }
         }
     }
+}
+
+/// The pipelines of a fill, to write, in its inputs' order: the order of `fill_pipelines`.
+fn fill_pipelines_mut(fill: &mut MadeFill) -> Vec<&mut Pipeline> {
+    let inputs: Vec<&mut FillInput> = match fill {
+        MadeFill::Rows(pipelines, _) => return pipelines.iter_mut().collect(),
+        MadeFill::Group(_, input) | MadeFill::Ordered(OrderedFill::Sorted(input)) => vec![input],
+        MadeFill::Ordered(OrderedFill::Match(left, right)) => vec![left, right],
+        MadeFill::Graph(_, inputs) => inputs.iter_mut().collect(),
+        MadeFill::Constant(_) => Vec::new(),
+    };
+    inputs
+        .into_iter()
+        .flat_map(|input| &mut input.pipelines)
+        .collect()
+}
+
+/// Lends every step of the definitions' call forms, in the definitions' and their patterns' order.
+fn lend_patterns(pack: &mut LoweredPack, visit: &mut impl FnMut(WalkedUnit, LentPlaced<'_>)) {
+    for (number, definition) in pack.definitions.iter_mut().enumerate() {
+        for (place, pattern) in definition.patterns.iter_mut().enumerate() {
+            let unit = WalkedUnit::Pattern(
+                DefinitionId(u32::try_from(number).unwrap_or(u32::MAX)),
+                Count(place),
+            );
+            match &mut pattern.form {
+                PatternForm::Call(program) => {
+                    each_step_mut(program, &mut |placed| visit(unit, LentPlaced::Step(placed)));
+                }
+                // A pattern in table form has no step of its own: its table's fill is the unit that runs.
+                PatternForm::Table(_) => {}
+            }
+        }
+    }
+}
+
+/// Lends every step of the rules' branches, in the rules' and their branches' order.
+fn lend_rules(pack: &mut LoweredPack, visit: &mut impl FnMut(WalkedUnit, LentPlaced<'_>)) {
+    for rule in &mut pack.rules {
+        let unit = WalkedUnit::Rule(rule.rule);
+        for branch in &mut rule.branches {
+            each_step_mut(&mut branch.program, &mut |placed| {
+                visit(unit, LentPlaced::Step(placed));
+            });
+        }
+    }
+}
+
+/// Lends every stage of the pipelines of the tables' fills, in the tables' order and each fill's inputs' order.
+fn lend_tables(pack: &mut LoweredPack, visit: &mut impl FnMut(WalkedUnit, LentPlaced<'_>)) {
+    for (number, table) in pack.tables.iter_mut().enumerate() {
+        let unit = WalkedUnit::Table(MadeTableId(u32::try_from(number).unwrap_or(u32::MAX)));
+        for pipeline in fill_pipelines_mut(&mut table.fill) {
+            for placed in &mut pipeline.stages {
+                visit(unit, LentPlaced::Stage(placed));
+            }
+        }
+    }
+}
+
+/// Every step and every stage of a pack, each once, lent to write, in the one order of `each_touched`: the programs of its
+/// definitions' call forms, then of its rules' branches, each in pre-order through its inline bodies; then the stages of
+/// its tables' pipelines, in order. A definition a step or a stage names is never gone into: it is met as its own unit. The
+/// visitor is told the unit each is of: a unit's steps or stages are met one after the other, so a pass that numbers a unit
+/// starts again when the unit changes. The walk a pass that numbers, reorders or rewrites steps goes through.
+pub(crate) fn each_placed_mut(
+    pack: &mut LoweredPack,
+    visit: &mut impl FnMut(WalkedUnit, LentPlaced<'_>),
+) {
+    lend_patterns(pack, visit);
+    lend_rules(pack, visit);
+    lend_tables(pack, visit);
 }
