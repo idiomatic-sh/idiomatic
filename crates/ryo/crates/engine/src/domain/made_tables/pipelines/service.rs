@@ -18,7 +18,9 @@ use crate::domain::made_tables::calling::service::call_asked;
 use crate::domain::made_tables::carrying::service::{carried, stage_kind};
 use crate::domain::made_tables::constants::BATCH_ROWS;
 use crate::domain::made_tables::fanning::service::{fan_stage, scan_read};
-use crate::domain::made_tables::operands::service::{column_of, registers_at};
+use crate::domain::made_tables::operands::service::{
+    column_mut, column_of, columns_unset, registers_at,
+};
 use crate::domain::made_tables::pipelines::types::{
     BatchLevel, FanKind, PipeAt, PipeMemo, PipelineRoom, StageKind,
 };
@@ -77,22 +79,17 @@ fn remembered(memo: &mut PipeMemo, entry: CodeEntry, room: &PipelineRoom) {
     let _before = memo.by_entry.insert(entry.0, at);
 }
 
-/// The batch at `depth`, with a column for each register of the pack.
+/// The batch at `depth`, which knows how many registers the pack counts.
 fn level_at(room: &mut PipelineRoom, depth: Count, registers: Count) -> Option<&mut BatchLevel> {
     if room.levels.len() <= depth.0 {
         room.levels
             .resize_with(depth.0.saturating_add(1), BatchLevel::default);
     }
     let level = room.levels.get_mut(depth.0)?;
-    if level.columns.len() < registers.0 {
-        level.columns.resize_with(registers.0, Vec::new);
+    if level.columns.places.len() < registers.0 {
+        level.columns.places.resize(registers.0, 0);
     }
     Some(level)
-}
-
-/// The column of a register, to write.
-fn column_mut(columns: &mut [Vec<CellWord>], register: Register) -> Option<&mut Vec<CellWord>> {
-    columns.get_mut(usize::try_from(register.0).unwrap_or(usize::MAX))
 }
 
 /// After a stage that keeps some rows: the columns the stage carries on hold the rows kept, and the batch has that many.
@@ -135,6 +132,10 @@ pub(crate) fn piped(
     let code = programs.code;
     let words = pipeline_words(code, entry)?;
     run.room.files.clear();
+    // No register has a column until this pipeline writes it: the columns of the pipeline before are spare.
+    for level in &mut run.room.levels {
+        columns_unset(&mut level.columns);
+    }
     // What a pipeline's stages carry on, and that the fill side runs them all, is found at its first run and kept.
     if !recalled(&frame.store.pipes, entry, run.room) {
         carried(code, words, run.room)?;
