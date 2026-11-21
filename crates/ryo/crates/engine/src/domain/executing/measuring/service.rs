@@ -5,9 +5,14 @@
 //! The clock is the thread's own, read when the unit running changes: on entering and on leaving a unit.
 
 use crate::domain::code::constants::NO_SLOT;
-use crate::domain::code::types::{CodeEntry, WordSlot};
+use crate::domain::code::types::{CodeEntry, ConstantNumber, RelationNumber, WordSlot};
+use crate::domain::executing::types::Asker;
+use crate::domain::made_tables::sources::service::{cell_of, scanned};
+use crate::domain::made_tables::types::ReadSource;
 use crate::domain::programs::frames::types::StepFrame;
+use crate::domain::programs::operands::service::constant;
 use crate::domain::scratch::types::{LoopState, Measuring, UnitInFile};
+use crate::domain::stages::service::handle;
 use cpu_time::ThreadTime;
 use ryo_language::domain::node_table::service::ids_of_kind;
 use ryo_relations::domain::relations::types::{Count, KindBits};
@@ -107,10 +112,43 @@ pub(crate) fn word_run(frame: &mut StepFrame<'_, '_>, at: CodeEntry) {
     }
 }
 
-/// The file's scan ends in a measuring worker. Every table made in the file is counted once, with its rows and its
+/// Counts the rows of each size site of the code in the file: the rows of a filled relation that hold one constant in
+/// one column. The relation is filled whole for it, so every site is counted in every file a measuring worker scans.
+fn literals_counted(frame: &mut StepFrame<'_, '_>) {
+    let code = frame.fill.programs.code;
+    for (place, site) in code.sizes.iter().enumerate() {
+        let source = ReadSource::Filled(RelationNumber(site.relation.0));
+        let wanted = constant(frame, ConstantNumber(site.value.0));
+        let asked = scanned(
+            frame.fill,
+            &mut Asker {
+                state: &mut *frame.state,
+                found: &mut *frame.found,
+                ports: frame.ports,
+            },
+            source,
+        );
+        let Ok(whole) = asked else {
+            continue;
+        };
+        let rows = (whole.rows.start.0..whole.rows.end.0)
+            .filter(|row| cell_of(frame.fill, source, site.column, handle(Count(*row))) == wanted)
+            .count();
+        if let Some(measure) = frame.state.measure.as_deref_mut()
+            && let Some(held) = slot_mut(&mut measure.literals, Count(place))
+        {
+            *held = Count(held.0.saturating_add(rows));
+        }
+    }
+}
+
+/// The file's scan ends in a measuring worker. The rows of each size site are counted. Every table made in the file is counted once, with its rows and its
 /// fill's rows, whoever made it (a fill makes the tables it reads itself); the file's elements are counted by kind; and
 /// each unit's time in the file is added to its time, and to its idle time when it gave no row in the file.
 pub(crate) fn file_ended(frame: &mut StepFrame<'_, '_>) {
+    if frame.state.measure.is_some() {
+        literals_counted(frame);
+    }
     let (store, code, nodes) = (
         &*frame.fill.store,
         frame.fill.programs.code,
