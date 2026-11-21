@@ -10,7 +10,7 @@ use crate::domain::made_tables::types::{FillFrame, FillStore, MadeState, Pattern
 use crate::domain::memos::types::MemoId;
 use crate::domain::needs::types::NeedVerdict;
 use crate::domain::programs::frames::types::{LoopEntry, RunMode, StepFrame};
-use crate::domain::programs::service::rule_set;
+use crate::domain::programs::service::{decoded_code, rule_set};
 use crate::domain::programs::types::ProgramsEngine;
 use crate::domain::scratch::types::LoopState;
 use crate::domain::stages::types::BatchValue;
@@ -197,11 +197,14 @@ pub(crate) fn framed_with<T>(
     each: impl FnOnce(&mut StepFrame<'_, '_>) -> T,
 ) -> (T, Collected) {
     let mut found = Collected::default();
+    // A worker's state made for a rule set holds its words' body records: a case's state is made before its programs.
+    case.state.decoded = decoded_code(&programs.code);
     let mut words = file_words(&programs.words);
     let mut fill = FillFrame {
         programs: rule_set(programs),
         nodes,
         file: FILE,
+        path: ryo_language::domain::files::types::SourcePath(""),
         text: ByteSlice(b""),
         facts,
         words: &mut words,

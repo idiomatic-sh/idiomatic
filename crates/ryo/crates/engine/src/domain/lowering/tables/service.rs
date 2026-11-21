@@ -52,10 +52,8 @@ pub(crate) const fn walk_of(direction: Direction) -> Option<TreeAxis> {
         Direction::Descendant => Some(TreeAxis::Along(AxisDirection::Descendant)),
         Direction::NearestAncestor => Some(TreeAxis::Nearest),
         Direction::Parent => Some(TreeAxis::Along(AxisDirection::Parent)),
-        Direction::Child
-        | Direction::Deep
-        | Direction::PreviousSibling
-        | Direction::NextSibling => None,
+        Direction::NextSibling => Some(TreeAxis::Along(AxisDirection::NextSibling)),
+        Direction::Child | Direction::Deep | Direction::PreviousSibling => None,
     }
 }
 
@@ -178,15 +176,22 @@ fn shaped(
             domain_view,
             output,
         } => {
+            let domain_input = domain;
             let (mut shape, domain) = (of(from)?, of(domain)?);
             // An axis with its own answer columns is not lowered yet, nor are the axes `walk_of` names none for. The
-            // entity column is named through the domain's view; the filter reads the whole row. Edges that are no tree of a node relation are walked by a nearest axis alone.
+            // entity column is named through the domain's view; the filter reads the whole row. Edges that are no tree of a node relation are climbed by a nearest axis and by an ancestor axis alone.
+            let climbs = matches!(
+                walk_of(*direction),
+                Some(TreeAxis::Nearest | TreeAxis::Along(AxisDirection::Ancestor))
+            );
             let tree = tree_relation(edges, *parent, *child).is_some()
-                || (walk_of(*direction) == Some(TreeAxis::Nearest)
-                    && picked(&of(edges)?, &[*parent, *child]).is_some());
+                || (climbs && picked(&of(edges)?, &[*parent, *child]).is_some());
+            // A nearest axis with a filter reads its domain in place, which a relation's rows can be and a step's are not.
             let plain = output.is_empty()
                 && comparable(rule, &domain, domain_filter).is_some()
-                && (domain_filter.is_empty() || walk_of(*direction) != Some(TreeAxis::Nearest));
+                && (domain_filter.is_empty()
+                    || walk_of(*direction) != Some(TreeAxis::Nearest)
+                    || matches!(domain_input, Input::Relation(_)));
             let reached = *domain
                 .0
                 .get(usize::from(view_source(domain_view, *domain_id)?))?;
@@ -197,6 +202,18 @@ fn shaped(
             })
         }
         Operation::Closure {
+            edges,
+            keys,
+            source,
+            destination,
+        } => {
+            let read = of(edges)?;
+            let mut shape = picked(&read, keys)?;
+            shape.0.extend(picked(&read, &[*source, *destination])?.0);
+            Some(shape)
+        }
+        // The keys of the edges, then a source and a fixed point it reaches: the row of the `FixedPoints` graph table.
+        Operation::Follow {
             edges,
             keys,
             source,
@@ -279,7 +296,6 @@ fn shaped(
         | Operation::GroupDigest { .. }
         | Operation::Rank { .. }
         | Operation::Words { .. }
-        | Operation::Follow { .. }
         | Operation::OrderedDfs { .. }
         | Operation::Worklist { .. }
         | Operation::Cycles { .. }
@@ -290,9 +306,12 @@ fn shaped(
     }
 }
 
-/// A rule as the lowering reads it: every step its emit reaches has a shape. Refused, naming the first step in step order
-/// that cannot be evaluated (an operation not lowered, a step that hands rows over to the project pass, a step out of
-/// order), or the columns of a step when they are past the width a table's columns are counted in.
+/// A rule as the lowering reads it: every step its emit reaches has a shape. Refused, naming the first step its emit
+/// reaches, in the order the steps are read, that cannot be evaluated (an operation not lowered, a step that runs after
+/// the files, a step out of order), or the columns of a step when they are past the width a table's columns are counted
+/// in. A plan may hand rows over to another rule's steps after the files (its `frontier`: an output another rule
+/// observes): the steps only that output reaches are no step of the rule's own rows, are given no shape and are never
+/// lowered, and the rule is judged by the steps its own emit reaches alone.
 pub(crate) fn admitted<'a>(rule: SelectedRule<'a>) -> Result<AdmittedRule<'a>, LoadRefusal> {
     let plan = rule.plan;
     let unlowerable =
@@ -307,9 +326,8 @@ pub(crate) fn admitted<'a>(rule: SelectedRule<'a>) -> Result<AdmittedRule<'a>, L
         if reached.get(place) != Some(&StepReach::Reached) {
             continue;
         }
-        let per_file = step.scope == StepScope::PerFile && plan.frontier.is_empty();
         let shape = shaped(&rule, &shapes, &step.operation)
-            .filter(|_| per_file)
+            .filter(|_| step.scope == StepScope::PerFile)
             .ok_or_else(|| unlowerable(place))?;
         if shape.0.len() > usize::from(u16::MAX) {
             return Err(LoadRefusal::Budget(PastWidth::TableColumns));

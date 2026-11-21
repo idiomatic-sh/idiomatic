@@ -154,7 +154,8 @@ fn class_of(code: &ProgramCode, key: &UnitKey, unit: WordSlot) -> WorkClass {
     match (key, made.map(|number| fill_at(code, number))) {
         (UnitKey::Table(..), Some(Ok(fill))) => match fill.kind {
             FillKind::Rows | FillKind::Constant => WorkClass::RowsFill,
-            FillKind::Count | FillKind::Ends => WorkClass::GroupFill,
+            FillKind::Count | FillKind::Ends | FillKind::Places => WorkClass::GroupFill,
+            FillKind::Follow => WorkClass::GraphFill,
             FillKind::Sorted | FillKind::Match => WorkClass::OrderedFill,
         },
         (UnitKey::Table(..), Some(Err(_)) | None) => WorkClass::RowsFill,

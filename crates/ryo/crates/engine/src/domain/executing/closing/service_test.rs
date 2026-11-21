@@ -5,7 +5,7 @@
 
 use super::service::closure;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::code::types::Op;
+use crate::domain::code::types::{CodeEntry, Op};
 use crate::domain::encoding::service::encoded;
 use crate::domain::executing::entries::types::TheLoop;
 use crate::domain::executing::service::run as run_branch;
@@ -180,10 +180,15 @@ fn subject(seeds: Input) -> Result<Value, Failure> {
             .words
             .iter()
             .copied()
-            .find(|word| word.op == Op::Closure);
+            .enumerate()
+            .find(|(_, word)| word.op == Op::Closure);
         set(frame, Register(1), CellWord(first));
-        if let Some(word) = walking {
-            closure(frame, word);
+        if let Some((place, word)) = walking {
+            closure(
+                frame,
+                word,
+                CodeEntry(u32::try_from(place).unwrap_or(u32::MAX)),
+            );
         }
         [
             u64::try_from(frame.state.answer.rows.0).unwrap_or(u64::MAX),

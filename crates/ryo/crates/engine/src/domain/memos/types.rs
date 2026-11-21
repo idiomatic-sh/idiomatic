@@ -2,6 +2,7 @@
 
 use crate::domain::code::types::{MemoSite, WordSlot};
 use crate::domain::findings::types::InstructionCount;
+use crate::domain::indexes::types::RowHash;
 use crate::domain::made_tables::types::Reached;
 use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::relations::types::Count;
@@ -19,6 +20,8 @@ pub(crate) struct MemoMap {
     pub(crate) charges: Vec<EntryCharge>,
     /// The answers each answer asked directly while it was evaluated, one list after the other.
     pub(crate) reached: Vec<ChargedUnit>,
+    /// SPIKE: the last answer kept in passing (`keep_passing`): no key finds it, and it is dropped when the next is kept.
+    pub(crate) passing: Option<MemoId>,
 }
 
 /// A stretch of the kept cells.
@@ -41,6 +44,8 @@ pub(crate) struct MemoEntry {
     pub(crate) rows: CellSpan,
     /// How many rows were answered: an answer of rows with no cell has rows too.
     pub(crate) count: Count,
+    /// The hash it is kept by: when the table of answers grows, no key is read back from the cells.
+    pub(crate) hash: RowHash,
 }
 
 /// A kept answer, by its number among the file's.
@@ -63,6 +68,24 @@ pub(crate) struct EntryCharge {
     pub(crate) reached: CellSpan,
     /// The unit it is of, among the code's units.
     pub(crate) unit: WordSlot,
+    /// SPIKE: the sum that last counted it (`AnswersSum.mark`): an answer is counted once in a sum.
+    pub(crate) summed: WordSlot,
+}
+
+/// SPIKE: what the answers a table's fill asked cost together, each counted once, with the answers they asked in turn:
+/// what a rule that reaches the table is charged for them, in one add.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct AnswersSum {
+    /// Their work.
+    pub(crate) work: InstructionCount,
+    /// How many they are.
+    pub(crate) keys: InstructionCount,
+    /// The fill units they reached, as a stretch of the budget's list of them.
+    pub(crate) units: CellSpan,
+    /// The mark its answers carry.
+    pub(crate) mark: WordSlot,
+    /// How far along the table's asks it has counted: the place of the last ask counted, and one.
+    pub(crate) upto: Count,
 }
 
 /// A unit a rule's work reached directly: an answer of a pattern, or something the fill side holds (a made table, a

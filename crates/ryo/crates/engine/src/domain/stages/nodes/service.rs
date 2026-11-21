@@ -16,8 +16,9 @@ use ryo_relations::domain::relations::types::{
 };
 use ryo_relations::domain::terms::types::NameText;
 
-/// The cell of a kind or of a field whose code the vocabulary names nothing at: no word of any text.
-const NO_WORD: CellWord = CellWord(u64::MAX);
+/// The cell that is no word of any text: of a kind or a field whose code the vocabulary names nothing at, and what a
+/// function of texts gives of a cell that is no text.
+pub(crate) const NO_WORD: CellWord = CellWord(u64::MAX);
 
 /// The bits every handle of a node of `file` carries besides the element's place: the file, in the high half.
 #[inline]

@@ -1,12 +1,15 @@
 //! The services of the `records` part: the one place a pool record and a need record are written and read. A reader answers
 //! none for a place the slots do not reach and for a tag no record has.
 
-use super::types::{BodyRecord, BoundFormal, CollectedRead, NeedRecord, PooledOperand, ReadBody};
+use super::types::{
+    BodyRecord, BoundFormal, CollectedRead, EdgeColumns, NeedRecord, PooledOperand, ReadBody,
+    VisitColumns, WorklistColumns,
+};
 use crate::domain::code::constants::NO_SLOT;
 use crate::domain::code::types::{
     CodeEntry, ConstantNumber, IndexSite, MemoSite, NeedSite, PoolAt, RelationNumber, WordSlot,
 };
-use crate::domain::steps::types::{MadeTableId, Register};
+use crate::domain::steps::types::{MadeColumn, MadeTableId, Register};
 
 /// How many slots an operand takes.
 pub(crate) const OPERAND_SLOTS: WordSlot = WordSlot(2);
@@ -71,11 +74,14 @@ pub(crate) fn push_inline_body(pool: &mut Vec<WordSlot>, entry: CodeEntry) -> Po
 }
 
 /// Writes the record of a use of a pattern in call form. Its entry and its unit are written again once the pattern's program
-/// has its place and its unit (`call_entry_place`, `call_unit_place`): until then the unit is `NO_SLOT`.
+/// has its place and its unit (`call_entry_place`, `call_unit_place`): until then the unit is `NO_SLOT`. The need site of
+/// the pattern's definition is known when the record is written (the site is numbered before its formula is), so it has
+/// no place function.
 pub(crate) fn push_call_body(
     pool: &mut Vec<WordSlot>,
     entry: CodeEntry,
     memo: MemoSite,
+    need: NeedSite,
     bound: &[BoundFormal],
 ) -> PoolAt {
     let at = next_place(pool);
@@ -85,6 +91,7 @@ pub(crate) fn push_call_body(
         WordSlot(entry.0),
         WordSlot(memo.0),
         NO_SLOT,
+        WordSlot(need.0),
         count,
     ]);
     for each in bound {
@@ -138,20 +145,21 @@ pub(crate) fn body_at(pool: &[WordSlot], at: PoolAt) -> Option<ReadBody> {
             2,
         ),
         1 => {
-            let bound = slot(4)?;
+            let bound = slot(5)?;
             let record = BodyRecord::Call {
                 entry: CodeEntry(slot(1)?.0),
                 memo: MemoSite(slot(2)?.0),
                 unit: slot(3)?,
+                need: NeedSite(slot(4)?.0),
                 bound,
-                formals: PoolAt(at.0.checked_add(5)?),
+                formals: PoolAt(at.0.checked_add(6)?),
             };
             (
                 record,
                 bound
                     .0
                     .checked_mul(OPERAND_SLOTS.0.checked_add(1)?)?
-                    .checked_add(5)?,
+                    .checked_add(6)?,
             )
         }
         2 => {
@@ -227,5 +235,94 @@ pub(crate) fn need_at(needs: &[WordSlot], at: WordSlot) -> Option<NeedRecord> {
             offsets: WordSlot(at.0.checked_add(2)?),
         },
         7..=u32::MAX => return None,
+    })
+}
+
+/// The column a slot of a graph fill's record names, `ahead` places after `at`; none for a number no column has.
+fn column_at(pool: &[WordSlot], at: PoolAt, ahead: WordSlot) -> Option<MadeColumn> {
+    match u16::try_from(slot_at(pool, WordSlot(at.0), ahead)?.0) {
+        Ok(column) => Some(MadeColumn(column)),
+        Err(_) => None,
+    }
+}
+
+/// The slot that names a column of a graph fill's record.
+fn column_slot(column: MadeColumn) -> WordSlot {
+    WordSlot(u32::from(column.0))
+}
+
+/// Writes the record of the edge columns of a `follow` or a `cycles` fill: `source, destination`. The place it answers is
+/// the one parameter of the table's fill record.
+pub(crate) fn push_edge_columns(pool: &mut Vec<WordSlot>, columns: EdgeColumns) -> PoolAt {
+    let at = next_place(pool);
+    pool.extend_from_slice(&[
+        column_slot(columns.source),
+        column_slot(columns.destination),
+    ]);
+    at
+}
+
+/// The edge columns of a `follow` or a `cycles` fill, at the place its table's one parameter names.
+#[must_use]
+pub(crate) fn edge_columns_at(pool: &[WordSlot], at: PoolAt) -> Option<EdgeColumns> {
+    Some(EdgeColumns {
+        source: column_at(pool, at, WordSlot(0))?,
+        destination: column_at(pool, at, WordSlot(1))?,
+    })
+}
+
+/// Writes the record of the columns of an `ordered-dfs` fill: `root, source, destination, edge`. The place it answers is
+/// the one parameter of the table's fill record.
+pub(crate) fn push_visit_columns(pool: &mut Vec<WordSlot>, columns: VisitColumns) -> PoolAt {
+    let at = next_place(pool);
+    pool.extend_from_slice(&[
+        column_slot(columns.root),
+        column_slot(columns.source),
+        column_slot(columns.destination),
+        column_slot(columns.edge),
+    ]);
+    at
+}
+
+/// The columns of an `ordered-dfs` fill, at the place its table's one parameter names.
+#[must_use]
+pub(crate) fn visit_columns_at(pool: &[WordSlot], at: PoolAt) -> Option<VisitColumns> {
+    Some(VisitColumns {
+        root: column_at(pool, at, WordSlot(0))?,
+        source: column_at(pool, at, WordSlot(1))?,
+        destination: column_at(pool, at, WordSlot(2))?,
+        edge: column_at(pool, at, WordSlot(3))?,
+    })
+}
+
+/// Writes the record of the columns of a `worklist` fill: `root, state, source, destination, before, after, lower,
+/// upper`. The place it answers is the one parameter of the table's fill record.
+pub(crate) fn push_worklist_columns(pool: &mut Vec<WordSlot>, columns: WorklistColumns) -> PoolAt {
+    let at = next_place(pool);
+    pool.extend_from_slice(&[
+        column_slot(columns.root),
+        column_slot(columns.state),
+        column_slot(columns.source),
+        column_slot(columns.destination),
+        column_slot(columns.before),
+        column_slot(columns.after),
+        column_slot(columns.lower),
+        column_slot(columns.upper),
+    ]);
+    at
+}
+
+/// The columns of a `worklist` fill, at the place its table's one parameter names.
+#[must_use]
+pub(crate) fn worklist_columns_at(pool: &[WordSlot], at: PoolAt) -> Option<WorklistColumns> {
+    Some(WorklistColumns {
+        root: column_at(pool, at, WordSlot(0))?,
+        state: column_at(pool, at, WordSlot(1))?,
+        source: column_at(pool, at, WordSlot(2))?,
+        destination: column_at(pool, at, WordSlot(3))?,
+        before: column_at(pool, at, WordSlot(4))?,
+        after: column_at(pool, at, WordSlot(5))?,
+        lower: column_at(pool, at, WordSlot(6))?,
+        upper: column_at(pool, at, WordSlot(7))?,
     })
 }

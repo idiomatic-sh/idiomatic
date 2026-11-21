@@ -81,6 +81,7 @@ impl ScanUseCase for ScanUseCaseImpl {
             programs: rule_set(&programs.0),
             nodes: file.table,
             file: file.file,
+            path: file.path,
             text: file.source,
             facts: file.facts,
             words,

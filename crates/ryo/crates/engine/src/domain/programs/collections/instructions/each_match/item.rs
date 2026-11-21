@@ -187,6 +187,7 @@ impl EachMatch {
 }
 
 impl InstructionsItem for EachMatch {
+    #[inline]
     fn run(frame: &mut StepFrame<'_, '_>, _word: CodeWord, at: CodeEntry) -> Flow {
         let run = frame.state.rows.run;
         frame.state.frames.push(IterationCursor {
@@ -198,6 +199,7 @@ impl InstructionsItem for EachMatch {
         Flow::Back
     }
 
+    #[inline]
     fn next(
         frame: &mut StepFrame<'_, '_>,
         word: CodeWord,

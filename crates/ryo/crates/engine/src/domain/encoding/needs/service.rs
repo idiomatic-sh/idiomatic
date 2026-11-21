@@ -41,8 +41,9 @@ fn set(encoding: &mut Encoding<'_>, site: NeedSite, place: WordSlot) -> Result<(
     }
 }
 
-/// The need site of a definition's own formula: the same site for every formula that reads it.
-fn definition_site(
+/// The need site of a definition's own formula: the same site for every formula that reads it and for every use of
+/// one of its patterns in call form.
+pub(crate) fn definition_site(
     encoding: &mut Encoding<'_>,
     definition: DefinitionId,
 ) -> Result<NeedSite, LoweringError> {

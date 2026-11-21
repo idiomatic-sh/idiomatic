@@ -3,17 +3,21 @@
 //! then the codes the straight encoding writes for the pack, by count: every pack here passes the encoder, the holder of
 //! the invariant. Every expected text is what a run printed, read line by line and found right.
 
+mod flags;
 mod operations;
+mod sets;
 mod shapes;
+mod views;
 
 use super::errors::LoweringError;
 use super::fixtures::described::{code_census, described};
-use super::fixtures::{digests_of, named};
+use super::fixtures::{bound, digests_of, named};
 use super::placement::types::SampleStage;
 use super::service::{lowered, lowered_at};
 use super::types::{LoadRefusal, PlanNode, SelectedRule, SelectedRules};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::encoding::service::encoded;
+use crate::domain::lowered::types::LoweredPack;
 use ryo_values::domain::descriptions::types::{KindVocabulary, LanguageName};
 use ryo_values::domain::query_bindings::types::RuleBindings;
 use ryo_values::domain::query_plans::types::NodeDigests;
@@ -47,17 +51,25 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_plan_two_rules_emit_is_one_definition_and_each_rule_walks_its_table"),
         word: Word::Succeeds,
-        input: || (&["one tree rule", "one tree rule"], SampleStage::Absent),
+        input: || {
+            (
+                &[
+                    "the elements that are no comment",
+                    "the elements that are no comment",
+                ],
+                SampleStage::Absent,
+            )
+        },
         expect: Expect::Value(Cow::Borrowed(concat!(
             "definition 0: 5 columns, emptiness Unknown\n",
             "  pattern bound [] collected []: Table 0\n",
             "table 0: Rows, 5 columns, indexes []\n",
-            "  pipeline: Scan:File Read:Constant Read:Constant Read:Constant\n",
+            "  pipeline: Scan:File Read:Constant Keep:Constant Read:Constant Read:Constant\n",
             "rule 0: 1 branches\n",
             "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Read:Constant Emit:Constant\n",
             "rule 1: 1 branches\n",
             "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Read:Constant Emit:Constant\n",
-            "codes: {\"EachRowMade\": 2, \"Emit\": 2, \"End\": 3, \"ReadMade\": 8, \"StageRead\": 3, \"StageScan\": 1, \"StageWrite\": 1}",
+            "codes: {\"EachRowMade\": 2, \"Emit\": 2, \"End\": 3, \"ReadMade\": 8, \"StageKeep\": 1, \"StageRead\": 3, \"StageScan\": 1, \"StageWrite\": 1}",
         ))),
     },
     Case {
@@ -254,35 +266,63 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ))),
     },
     Case {
+        name: CaseName(
+            "a_rule_another_rule_observes_loads_and_its_pack_holds_no_step_of_the_observed_output",
+        ),
+        word: Word::Succeeds,
+        input: || {
+            (
+                &["a rule over the tree whose words another rule observes"],
+                SampleStage::Absent,
+            )
+        },
+        expect: Expect::Value(Cow::Borrowed(concat!(
+            "rule 0: 1 branches\n",
+            "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Emit:Constant\n",
+            "codes: {\"EachRowNode\": 1, \"Emit\": 1, \"End\": 2, \"ReadNode\": 3}",
+        ))),
+    },
+    Case {
         name: CaseName("a_rule_set_whose_every_rule_is_refused_answers_the_last_refusal"),
         word: Word::Refuses,
         input: || {
             (
-                &["over the host's rows", "follow fixed points"],
+                &["over the host's rows", "a rule that emits after the files"],
                 SampleStage::Absent,
             )
         },
         expect: Expect::Error(LoweringError::Refused {
             rule: SelectedRuleOrdinal(1),
-            refusal: LoadRefusal::Unlowerable(PlanNode(4)),
+            refusal: LoadRefusal::Unlowerable(PlanNode(1)),
         }),
     },
 ];
 
-fn subject((scenes, stage): Input) -> Result<Value, Failure> {
+fn subject(input: Input) -> Result<Value, Failure> {
+    subject_with(input, |_| Vec::new())
+}
+
+/// The scenes lowered and said in lines, with the lines `more` says of the pack after the pack's own.
+fn subject_with(
+    (scenes, stage): Input,
+    more: fn(&LoweredPack) -> Vec<String>,
+) -> Result<Value, Failure> {
     let plans: Vec<_> = scenes.iter().map(|scene| named(scene)).collect();
+    let values: Vec<_> = scenes.iter().map(|scene| bound(scene)).collect();
     let digests: Vec<NodeDigests> = plans
         .iter()
-        .map(|plan| digests_of(plan, RuleBindings(&[])))
+        .zip(&values)
+        .map(|(plan, values)| digests_of(plan, RuleBindings(values)))
         .collect();
     let rules: Vec<SelectedRule<'_>> = plans
         .iter()
         .zip(&digests)
+        .zip(&values)
         .zip(0..)
-        .map(|((plan, digests), rule)| SelectedRule {
+        .map(|(((plan, digests), values), rule)| SelectedRule {
             rule: SelectedRuleOrdinal(rule),
             plan,
-            bindings: RuleBindings(&[]),
+            bindings: RuleBindings(values),
             digests,
         })
         .collect();
@@ -308,6 +348,7 @@ fn subject((scenes, stage): Input) -> Result<Value, Failure> {
         });
     }
     let mut lines = described(&lowered.pack);
+    lines.extend(more(&lowered.pack));
     // The pack is written by the straight encoding, the holder of the invariant: its codes, by count.
     lines.push(format!(
         "codes: {:?}",

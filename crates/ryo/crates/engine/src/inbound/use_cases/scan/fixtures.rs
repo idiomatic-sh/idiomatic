@@ -134,6 +134,7 @@ impl FileVisit for Scanning<'_> {
             table: file.table,
             source: file.source,
             file: file.file,
+            path: file.path,
             facts: &mut counting,
         };
         let (mut found, mut scratch) = (Found::default(), scratch_measuring(self.programs));

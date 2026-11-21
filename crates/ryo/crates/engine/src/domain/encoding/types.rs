@@ -166,6 +166,8 @@ pub(crate) enum ReadyBody {
         pattern: PatternKey,
         /// What is numbered of it.
         code: PatternCode,
+        /// The need site of the pattern's definition.
+        need: NeedSite,
         /// The caller's cells for its bound columns.
         formals: Vec<BoundFormal>,
     },

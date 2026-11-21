@@ -39,6 +39,17 @@ pub struct Pointer {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct GroupPointers<'a>(pub &'a [Pointer]);
 
+/// How many times the walks back of one key group read an edge.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_operators::domain::follow::types::EdgeVisits;
+/// assert_eq!(EdgeVisits(0), EdgeVisits::default());
+/// ```
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct EdgeVisits(pub usize);
+
 /// The place of an entity among the sources of one key group, in order.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct SourcePlace(pub(crate) usize);

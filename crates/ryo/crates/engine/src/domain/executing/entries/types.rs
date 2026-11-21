@@ -1,7 +1,7 @@
 //! The types of the `entries` part: the loop's three entries behind one name.
 
 use crate::domain::code::types::CodeEntry;
-use crate::domain::executing::bodies::service::asked_pattern;
+use crate::domain::executing::kept::service::asked_pattern;
 use crate::domain::executing::measuring::types::ByPoint;
 use crate::domain::executing::service::{run, run_counted};
 use crate::domain::executing::sources::service::table_needed;

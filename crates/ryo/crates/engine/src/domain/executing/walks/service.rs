@@ -4,11 +4,10 @@
 //! sibling and of the reach of an extent.
 
 use crate::domain::code::constants::{KEPT, OWN_TREE};
-use crate::domain::code::records::service::body_at;
 use crate::domain::code::small_codes::service::direction_of;
-use crate::domain::code::types::{CodeWord, MemoSite, WordFlag, WordSlot};
+use crate::domain::code::types::{CodeEntry, CodeWord, MemoSite, WordFlag, WordSlot};
 use crate::domain::code::walking::service::{axis_of, nearest_of, within_of};
-use crate::domain::executing::bodies::service::{has_row, slot};
+use crate::domain::executing::bodies::service::{body_of, has_row, slot};
 use crate::domain::findings::types::InstructionCount;
 use crate::domain::memos::service::{asked, keep, rows};
 use crate::domain::memos::types::MemoId;
@@ -89,9 +88,14 @@ pub(crate) fn axis(frame: &mut StepFrame<'_, '_>, word: CodeWord) {
 
 /// The nearest ancestor of `start` the condition at the word's record holds of: each ancestor, nearest first, is written
 /// to the record's element register and the condition is asked of it. Each ancestor asked is a row visited.
-fn walked(frame: &mut StepFrame<'_, '_>, word: CodeWord, start: CellWord) -> Option<CellWord> {
+fn walked(
+    frame: &mut StepFrame<'_, '_>,
+    word: CodeWord,
+    at: CodeEntry,
+    start: CellWord,
+) -> Option<CellWord> {
     let asking = nearest_of(word);
-    let body = body_at(&frame.fill.programs.code.pool, asking.operands)?;
+    let body = body_of(frame, at)?;
     let element = Register(slot(frame, body.after, WordSlot(0)).0);
     let ancestors = reached(frame, extent(asking.flag), AxisDirection::Ancestor, start);
     let (mut found, mut tried) = (None, 0_u64);
@@ -106,7 +110,7 @@ fn walked(frame: &mut StepFrame<'_, '_>, word: CodeWord, start: CellWord) -> Opt
         };
         tried = tried.saturating_add(1);
         set(frame, element, ancestor);
-        if has_row(frame, asking.operands).0 > 0 {
+        if has_row(frame, Some(body)).0 > 0 {
             found = Some(ancestor);
             break;
         }
@@ -121,20 +125,19 @@ fn walked(frame: &mut StepFrame<'_, '_>, word: CodeWord, start: CellWord) -> Opt
 /// Answers a `Nearest` word over the tree: the nearest ancestor of its start its condition holds of, never the start;
 /// kept per start for the file when the word says so. The element found is staged, and where is left in the state for
 /// the word's item; nothing is staged when no ancestor holds.
-pub(crate) fn nearest(frame: &mut StepFrame<'_, '_>, word: CodeWord) {
+pub(crate) fn nearest(frame: &mut StepFrame<'_, '_>, word: CodeWord, at: CodeEntry) {
     let asking = nearest_of(word);
     let start = cell(frame, asking.start);
     let found = if asking.flag.0 & KEPT.0 == 0 {
-        walked(frame, word, start)
+        walked(frame, word, at, start)
     } else {
-        let site = body_at(&frame.fill.programs.code.pool, asking.operands)
-            .map_or(MemoSite(0), |body| {
-                MemoSite(slot(frame, body.after, WordSlot(1)).0)
-            });
+        let site = body_of(frame, at).map_or(MemoSite(0), |body| {
+            MemoSite(slot(frame, body.after, WordSlot(1)).0)
+        });
         match asked(&frame.state.memos, site, &[start]) {
             Some(answer) => rows(&frame.state.memos, answer).first().copied(),
             None => {
-                let found = walked(frame, word, start);
+                let found = walked(frame, word, at, start);
                 let (cells, count) = match &found {
                     Some(held) => (std::slice::from_ref(held), Count(1)),
                     None => (&[][..], Count(0)),

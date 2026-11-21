@@ -5,7 +5,9 @@
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::filled::errors::FilledError;
 use crate::domain::filled::types::FillRuns;
-use crate::domain::lowered::types::{FillInput, GroupFill, MadeFill, MadeTable, OrderedFill};
+use crate::domain::lowered::types::{
+    FillInput, GraphFill, GroupFill, MadeFill, MadeTable, OrderedFill,
+};
 use crate::domain::made_tables::built::service::runs;
 use crate::domain::made_tables::built::types::FillPart;
 use crate::domain::made_tables::carrying::service::stage_kind;
@@ -36,7 +38,7 @@ enum Asked {
     /// key's rows, which is not built yet.
     OrderedNodes,
     /// Every fill the lowering writes for a table: constant rows, rows, a count, a sorted table, a group's ends, an
-    /// ordered match, and a group's places, which does not run yet.
+    /// ordered match, a group's places, and a graph's cycles, which does not run yet.
     Fills,
 }
 
@@ -63,7 +65,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         )),
     },
     Case {
-        name: CaseName("a_call_of_span_bounds_runs_and_one_of_lower_does_not_yet"),
+        name: CaseName("a_call_of_span_bounds_runs_and_one_of_words_does_not"),
         word: Word::Succeeds,
         input: || Asked::Calls,
         expect: Expect::Value(Cow::Borrowed(
@@ -71,11 +73,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         )),
     },
     Case {
-        name: CaseName("every_fill_but_a_groups_places_runs"),
+        name: CaseName("every_fill_built_runs_and_the_cycles_fill_not_yet"),
         word: Word::Succeeds,
         input: || Asked::Fills,
         expect: Expect::Value(Cow::Borrowed(
-            "StageScan runs, StageRead runs, StageWrite runs, StageScan runs, StageRead runs, StageRead runs, StageWrite runs, StageScan runs, StageRead runs, StageRead runs, StageWrite runs, StageScan runs, StageRead runs, StageRead runs, StageWrite runs, StageScan runs, StageRead runs, StageRead runs, StageWrite runs, StageScan runs, StageRead runs, StageRead runs, StageWrite runs, StageScan runs, StageRead runs, StageRead runs, StageWrite runs | fills: runs, runs, runs, runs, runs, runs, not yet | a word that is no stage: not yet",
+            "StageScan runs, StageRead runs, StageWrite runs, StageScan runs, StageRead runs, StageRead runs, StageWrite runs, StageScan runs, StageRead runs, StageRead runs, StageWrite runs, StageScan runs, StageRead runs, StageRead runs, StageWrite runs, StageScan runs, StageRead runs, StageRead runs, StageWrite runs, StageScan runs, StageRead runs, StageRead runs, StageWrite runs, StageScan runs, StageRead runs, StageRead runs, StageWrite runs, StageScan runs, StageRead runs, StageRead runs, StageWrite runs | fills: runs, runs, runs, runs, runs, runs, runs, not yet | a word that is no stage: not yet",
         )),
     },
     Case {
@@ -148,7 +150,7 @@ fn tables(asked: Asked) -> Vec<MadeTable> {
                 NodeColumn::Span,
                 vec![call(CallMeaning::SpanBounds, &[3, 4])],
             ),
-            over_nodes(NodeColumn::Text, vec![call(CallMeaning::Lower, &[3])]),
+            over_nodes(NodeColumn::Text, vec![call(CallMeaning::Words, &[3])]),
         ],
         Asked::OrderedNodes => {
             let bound = |cell: u64, end: BoundKind| RangeBound {
@@ -191,6 +193,22 @@ fn tables(asked: Asked) -> Vec<MadeTable> {
                 MadeFill::Ordered(OrderedFill::Match(input(), input())),
             ),
             table(5, 3, MadeFill::Group(GroupFill::Places, input())),
+            table(
+                6,
+                2,
+                MadeFill::Graph(
+                    GraphFill::Cycles(crate::domain::code::records::types::EdgeColumns {
+                        source: MadeColumn(0),
+                        destination: MadeColumn(1),
+                    }),
+                    // A cycles fill's edges have no key and no order: the encoding holds the table to that.
+                    Box::new([FillInput {
+                        keys: ColumnList(Box::new([])),
+                        order: None,
+                        ..input()
+                    }]),
+                ),
+            ),
         ],
     }
 }

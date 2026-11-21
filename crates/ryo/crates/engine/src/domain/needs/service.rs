@@ -30,8 +30,44 @@ fn kinds(code: &ProgramCode, list: PoolAt) -> &[WordSlot] {
         .unwrap_or_default()
 }
 
-/// Whether every part of a record holds, or with `wanted` empty whether some part holds: the parts' places follow the
-/// record's count. The walk stops at the first part that decides.
+/// Whether deciding the record at a place may cost a fill: a table it makes, a relation the language fills, another
+/// unit's decision not made yet. A kind's presence, a node relation's row and a decision kept cost nothing.
+fn costs(facts: &impl NeedFacts, code: &ProgramCode, at: WordSlot) -> NeedVerdict {
+    let costly = match need_at(&code.needs, at) {
+        Some(NeedRecord::Unknown | NeedRecord::Kinds(_)) | None => false,
+        Some(NeedRecord::Row { relation, .. }) => {
+            let read = code
+                .relations
+                .get(usize::try_from(relation.0).unwrap_or(usize::MAX));
+            read.copied().and_then(node_extent).is_none()
+        }
+        Some(NeedRecord::Site(site)) => facts.kept(site).is_none(),
+        Some(NeedRecord::Table(_)) => true,
+        Some(
+            NeedRecord::All {
+                parts: count,
+                offsets,
+            }
+            | NeedRecord::Any {
+                parts: count,
+                offsets,
+            },
+        ) => (0..count.0).any(|number| {
+            slot(code, offsets, WordSlot(number))
+                .is_some_and(|place| costs(facts, code, place) == NeedVerdict::Holds)
+        }),
+    };
+    if costly {
+        NeedVerdict::Holds
+    } else {
+        NeedVerdict::Empty
+    }
+}
+
+/// Whether every part of a record holds, or with `stops_at` holding whether some part holds: the parts' places follow
+/// the record's count. The parts that cost nothing are asked first, in the record's order, then the parts that may cost
+/// a fill; the walk stops at the first part that decides, so a part that makes a table is asked only when nothing
+/// cheaper decided.
 fn parts(
     facts: &mut impl NeedFacts,
     code: &ProgramCode,
@@ -39,11 +75,18 @@ fn parts(
     offsets: WordSlot,
     stops_at: NeedVerdict,
 ) -> NeedVerdict {
-    for number in 0..count.0 {
-        let part = slot(code, offsets, WordSlot(number))
-            .map_or(NeedVerdict::Holds, |place| formula(facts, code, place));
-        if part == stops_at {
-            return stops_at;
+    for pass in [NeedVerdict::Empty, NeedVerdict::Holds] {
+        for number in 0..count.0 {
+            let Some(place) = slot(code, offsets, WordSlot(number)) else {
+                // A part that cannot be read says nothing is known: it holds, in the pass of what costs nothing.
+                if pass == NeedVerdict::Empty && stops_at == NeedVerdict::Holds {
+                    return stops_at;
+                }
+                continue;
+            };
+            if costs(facts, code, place) == pass && formula(facts, code, place) == stops_at {
+                return stops_at;
+            }
         }
     }
     match stops_at {

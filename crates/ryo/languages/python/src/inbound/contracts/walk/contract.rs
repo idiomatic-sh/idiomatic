@@ -184,6 +184,7 @@ fn lent(reading: &mut Reading<'_, '_>, builder: &mut NodeTableBuilder<'_>, tree:
         table,
         source: reading.request.source,
         file: reading.request.file,
+        path: reading.request.path,
         facts: &mut source,
     });
 }

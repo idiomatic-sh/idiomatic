@@ -2,11 +2,8 @@
 //! reader; a step with several readers across the pack, the right side of an absence, the rows of a fill and an input past
 //! a bound are each one definition, and their reader holds one use. The `match` over `Operation` names every operation.
 
-use crate::domain::lowered::types::Emptiness;
-use crate::domain::lowering::definitions::service::kind_bits;
-use crate::domain::lowering::definitions::service::text_word;
 use crate::domain::lowering::definitions::types::{Drafts, Flattened};
-use crate::domain::lowering::emptiness::service::{derived, literal_read};
+use crate::domain::lowering::emptiness::service::derived;
 use crate::domain::lowering::flattening::service::picked;
 use crate::domain::lowering::flattening::types::RowColumn;
 use crate::domain::lowering::nodes::service::digest_of;
@@ -14,49 +11,16 @@ use crate::domain::lowering::nodes::types::StepReach;
 use crate::domain::lowering::tables::calls::service::call_arm;
 use crate::domain::lowering::tables::closures::service::closure_arm;
 use crate::domain::lowering::tables::fills::service::{as_of_arm, group_count_arm, group_rows_arm};
-use crate::domain::lowering::tables::inputs::service::{all_selected, input, rule, term};
+use crate::domain::lowering::tables::graphs::service::follow_arm;
+use crate::domain::lowering::tables::inputs::service::{input, rule, term};
 use crate::domain::lowering::tables::joins::service::{antijoin_arm, axis_arm, join_arm};
 use crate::domain::lowering::tables::matches::service::match_arm;
-use crate::domain::lowering::tables::shapes::service::test_of;
+use crate::domain::lowering::tables::selections::service::{asked_of, selection};
+use crate::domain::lowering::tables::sets::types::SetTests;
 use crate::domain::lowering::tables::types::{InputWant, RuleFlattening};
-use crate::domain::steps::types::ConstantText;
-use crate::domain::steps::types::{AnchorKinds, TestOperation};
-use ryo_relations::domain::relations::service::columns;
-use ryo_values::domain::plan_parts::types::{Input, Operand, PlanComparison, QueryLiteral, StepId};
+use ryo_values::domain::plan_parts::types::{Input, StepId};
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_plans::service::read_order;
-
-/// The emptiness of a selection: of a relation read with a literal in a column when that is what it is, else its input's.
-fn selection_emptiness(
-    state: &RuleFlattening<'_>,
-    drafts: &Drafts,
-    from: Input,
-    comparisons: &[PlanComparison],
-    read: Emptiness,
-) -> Emptiness {
-    let Input::Relation(relation) = from else {
-        return read;
-    };
-    let listed = columns(relation);
-    for comparison in comparisons {
-        let (Operand::Column(column), Operand::Literal(QueryLiteral::Text(written))) =
-            (&comparison.left, &comparison.right)
-        else {
-            continue;
-        };
-        let (Some(number), Some(column), Some(TestOperation::Equal)) = (
-            drafts.text_numbers.get(written),
-            listed.get(usize::from(*column)),
-            test_of(comparison.test),
-        ) else {
-            continue;
-        };
-        let kinds = kind_bits(state.kinds, &ConstantText(written.0.clone()))
-            .map(|bits| AnchorKinds([bits].into()));
-        return literal_read(relation, *column, text_word(*number), kinds);
-    }
-    read
-}
 
 /// The flattening of one step. None for an operation the lowering does not evaluate: the rule was refused before it came here.
 fn arm(
@@ -71,8 +35,9 @@ fn arm(
             comparisons,
             kept,
         } => {
-            let mut read = input(state, drafts, *from, InputWant::Inline)?;
-            read.branches = all_selected(state, drafts, read.branches, comparisons)?;
+            let asked = asked_of(state, *from, comparisons, SetTests::Buckets)?;
+            let read = input(state, drafts, *from, InputWant::Inline)?;
+            let mut read = selection(state, drafts, read, &asked)?;
             if !kept.is_empty() {
                 for branch in &mut read.branches {
                     branch.row = picked(
@@ -81,7 +46,6 @@ fn arm(
                     )?;
                 }
             }
-            read.emptiness = selection_emptiness(state, drafts, *from, comparisons, read.emptiness);
             Some(read)
         }
         Operation::Project { from, columns, .. } => {
@@ -119,6 +83,7 @@ fn arm(
             group_rows_arm(state, drafts, step, operation)
         }
         Operation::AsOf { .. } => as_of_arm(state, drafts, step, operation),
+        Operation::Follow { .. } => follow_arm(state, drafts, step, operation),
         Operation::Axis { .. } => axis_arm(state, drafts, operation),
         Operation::Closure { .. } => closure_arm(state, drafts, operation),
         Operation::OrderedMatch { .. } => match_arm(state, drafts, step, operation),
@@ -133,7 +98,6 @@ fn arm(
         | Operation::GroupDigest { .. }
         | Operation::Rank { .. }
         | Operation::Words { .. }
-        | Operation::Follow { .. }
         | Operation::OrderedDfs { .. }
         | Operation::Worklist { .. }
         | Operation::Cycles { .. }

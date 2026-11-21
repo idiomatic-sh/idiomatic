@@ -4,9 +4,8 @@ use crate::domain::lowering::definitions::types::RowEstimate;
 use crate::domain::lowering::flattening::types::FlatVariable;
 use crate::domain::steps::stages::types::UseMode;
 use crate::domain::steps::types::{
-    AnchorKinds, AxisDirection, CallMeaning, ColumnMask, DefinitionId, MadeColumn, MadeTableId,
-    MatchColumns, ReadColumn, Register, RegisterList, StepOperand, StepOperands, StepRows,
-    TestOperation,
+    AnchorKinds, AxisDirection, CallMeaning, ColumnMask, DefinitionId, MadeTableId, MatchColumns,
+    ReadColumn, Register, RegisterList, StepOperand, StepOperands, StepRows, TestOperation,
 };
 use ryo_relations::domain::relations::types::{Count, Relation};
 use ryo_values::domain::plan_orders::types::OrderBound;
@@ -30,6 +29,8 @@ pub(crate) struct PlannedBranch {
     pub(crate) order: Vec<AtomPlace>,
     /// The rows the order visits, by the fixed priors.
     pub(crate) cost: RowEstimate,
+    /// How many accesses after the first have no key: the product stages of a pipeline.
+    pub(crate) products: Count,
 }
 
 /// One access as written, its registers decided: what the step emitter and the stage emitter each write in their own form.
@@ -45,6 +46,8 @@ pub(crate) enum WrittenAccess {
         values: StepOperands,
         /// The kinds a bucket of the node table names, when the vocabulary has them.
         kinds: Option<KindAnchor>,
+        /// Whether rows go on, or only whether a row is there: a decision of a source's own rows.
+        mode: UseMode,
         /// The row's handle.
         out: Register,
     },
@@ -129,10 +132,8 @@ pub(crate) enum WrittenAccess {
     Nearest {
         /// What is walked toward the root.
         edges: NearestWalked,
-        /// The definition of the domain.
-        domain: DefinitionId,
-        /// The domain's column.
-        column: MadeColumn,
+        /// What says the element under test is in the domain: a use of its definition, or its rows read in place.
+        condition: WalkEdges,
         /// Where the element under test is written.
         element: Register,
         /// The element walked from.
@@ -294,6 +295,8 @@ pub(crate) struct OrderCompletion<'a> {
     pub(crate) cost: RowEstimate,
     /// Whether rows were enumerated yet.
     pub(crate) enumerated: Enumerated,
+    /// How many accesses after the first had no key.
+    pub(crate) products: Count,
 }
 
 /// The kinds a bucket of the node table names, with the node relation they are read through.

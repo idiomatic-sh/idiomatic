@@ -9,7 +9,7 @@ use crate::domain::lowered::types::{
 };
 use crate::domain::steps::service::{stage_class, step_class};
 use crate::domain::steps::stages::types::{FillStage, Pipeline};
-use crate::domain::steps::types::{ProgramStep, StepProgram};
+use crate::domain::steps::types::{ProgramStep, StepOperand, StepProgram};
 use std::collections::BTreeMap;
 
 /// The name of a step.
@@ -70,10 +70,10 @@ pub(crate) const fn fill_name(fill: &MadeFill) -> &'static str {
         MadeFill::Ordered(OrderedFill::Sorted(_)) => "Ordered(Sorted)",
         MadeFill::Ordered(OrderedFill::Match(..)) => "Ordered(Match)",
         MadeFill::Graph(graph, _) => match graph {
-            GraphFill::FixedPoints => "Graph(FixedPoints)",
-            GraphFill::OrderedDfs => "Graph(OrderedDfs)",
-            GraphFill::Worklist => "Graph(Worklist)",
-            GraphFill::Cycles => "Graph(Cycles)",
+            GraphFill::FixedPoints(_) => "Graph(FixedPoints)",
+            GraphFill::OrderedDfs(_) => "Graph(OrderedDfs)",
+            GraphFill::Worklist(_) => "Graph(Worklist)",
+            GraphFill::Cycles(_) => "Graph(Cycles)",
         },
         MadeFill::Constant(_) => "Constant",
     }
@@ -159,6 +159,62 @@ pub(crate) fn described(pack: &LoweredPack) -> Vec<String> {
         ));
         for branch in &rule.branches {
             lines.push(format!("  branch: {}", steps_said(&branch.program)));
+        }
+    }
+    lines
+}
+
+/// The constants a pack's rows are read and kept by, a line each: every scan, probe and keep of a table's pipelines, and
+/// every match and test at the top of a rule's branch, that holds a constant word, with its columns and its operands as
+/// `{:?}` says them. What `described` leaves out: there a bucket's word and a test's constant have no place.
+#[must_use]
+pub(crate) fn constants_said(pack: &LoweredPack) -> Vec<String> {
+    let constant = |operand: &StepOperand| matches!(operand, StepOperand::Word(_));
+    let mut lines = Vec::new();
+    for (number, table) in pack.tables.iter().enumerate() {
+        for placed in fill_pipelines(&table.fill)
+            .into_iter()
+            .flat_map(|pipeline| &pipeline.stages)
+        {
+            if let FillStage::Scan {
+                columns, values, ..
+            }
+            | FillStage::Probe {
+                columns, values, ..
+            } = &placed.stage
+                && values.0.iter().any(constant)
+            {
+                let name = stage_name(&placed.stage);
+                lines.push(format!("table {number}: {name} {columns:?} {values:?}"));
+            }
+            if let FillStage::Keep { test, left, right } = &placed.stage
+                && (constant(left) || constant(right))
+            {
+                lines.push(format!("table {number}: Keep {test:?} {left:?} {right:?}"));
+            }
+        }
+    }
+    for rule in &pack.rules {
+        let steps = rule.branches.iter().flat_map(|branch| &branch.program.0);
+        for placed in steps {
+            if let ProgramStep::EachMatch {
+                columns, values, ..
+            } = &placed.step
+                && values.0.iter().any(constant)
+            {
+                lines.push(format!(
+                    "rule {}: EachMatch {columns:?} {values:?}",
+                    rule.rule.0
+                ));
+            }
+            if let ProgramStep::Test { test, left, right } = &placed.step
+                && (constant(left) || constant(right))
+            {
+                lines.push(format!(
+                    "rule {}: Test {test:?} {left:?} {right:?}",
+                    rule.rule.0
+                ));
+            }
         }
     }
     lines

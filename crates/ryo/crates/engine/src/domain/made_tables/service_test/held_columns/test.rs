@@ -1,7 +1,7 @@
 //! The cases of a column handed to its reader for the rest of the file (`reading::service::column_held`): a reader
 //! asks once where a column of a made table or of a relation lies, keeps the answer while the store changes, and reads
-//! the cells itself. A case says where each column lies and the cells read through it for the relation's five rows
-//! (`F` for the file's cell).
+//! the cells itself. A case says where each column lies and the cells read through it for the relation's five rows and
+//! for one row past them (`F` for the file's cell).
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::code::types::{RelationNumber, Short};
@@ -44,7 +44,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Read::AtOnce,
         expect: Expect::Value(Cow::Borrowed(
-            "Table(MadeTableId(0)) from 0 by 2: 1 2 1 3 1 | TableFile(MadeTableId(0)) from 0 by 0: F F F F F | Table(MadeTableId(0)) from 1 by 2: 10 20 30 10 10 | Relation(RelationNumber(0), Short(1)) from 0 by 1: 10 20 30 10 10 | Nothing from 0 by 1: 0 0 0 0 0 | Nothing from 0 by 1: 0 0 0 0 0",
+            "Arena from 0 by 2 to 10: 1 2 1 3 1 0 | TableFile(MadeTableId(0)) from 0 by 0 to 1: F F F F F F | Arena from 1 by 2 to 10: 10 20 30 10 10 0 | Relation(RelationNumber(0), Short(1)) from 0 by 1 to its end: 10 20 30 10 10 0 | Nothing from 0 by 1 to 0: 0 0 0 0 0 0 | Nothing from 0 by 1 to 0: 0 0 0 0 0 0",
         )),
     },
     Case {
@@ -52,7 +52,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Read::AfterAnotherTable,
         expect: Expect::Value(Cow::Borrowed(
-            "Table(MadeTableId(0)) from 0 by 2: 1 2 1 3 1 | TableFile(MadeTableId(0)) from 0 by 0: F F F F F | Table(MadeTableId(0)) from 1 by 2: 10 20 30 10 10 | Relation(RelationNumber(0), Short(1)) from 0 by 1: 10 20 30 10 10 | Nothing from 0 by 1: 0 0 0 0 0 | Nothing from 0 by 1: 0 0 0 0 0",
+            "Arena from 0 by 2 to 10: 1 2 1 3 1 0 | TableFile(MadeTableId(0)) from 0 by 0 to 1: F F F F F F | Arena from 1 by 2 to 10: 10 20 30 10 10 0 | Relation(RelationNumber(0), Short(1)) from 0 by 1 to its end: 10 20 30 10 10 0 | Nothing from 0 by 1 to 0: 0 0 0 0 0 0 | Nothing from 0 by 1 to 0: 0 0 0 0 0 0",
         )),
     },
 ];
@@ -96,7 +96,8 @@ fn subject(when: Input) -> Result<Value, Failure> {
     let said: Vec<String> = held
         .iter()
         .map(|column| {
-            let cells: Vec<String> = (0..5_u64)
+            // The five rows, and one past them: no cell of the table, whatever lies after it in the arena.
+            let cells: Vec<String> = (0..6_u64)
                 .map(|row| {
                     let cell = cell_held(frame.store, *column, CellWord(row));
                     if cell == file {
@@ -107,10 +108,15 @@ fn subject(when: Input) -> Result<Value, Failure> {
                 })
                 .collect();
             format!(
-                "{:?} from {} by {}: {}",
+                "{:?} from {} by {} to {}: {}",
                 column.cells,
                 column.first.0,
                 column.stride.0,
+                if column.end.0 == usize::MAX {
+                    "its end".to_owned()
+                } else {
+                    column.end.0.to_string()
+                },
                 cells.join(" ")
             )
         })

@@ -16,6 +16,7 @@ use ryo_values::domain::plan_parts::types::InputNumber;
 pub(crate) struct Emit;
 
 impl InstructionsItem for Emit {
+    #[inline]
     fn run(frame: &mut StepFrame<'_, '_>, word: CodeWord, _at: CodeEntry) -> Flow {
         let read = emit_of(word);
         let start = frame.state.key.len();
