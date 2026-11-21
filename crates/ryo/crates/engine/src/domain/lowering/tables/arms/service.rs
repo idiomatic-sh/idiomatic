@@ -11,6 +11,7 @@ use crate::domain::lowering::nodes::types::StepReach;
 use crate::domain::lowering::tables::calls::service::call_arm;
 use crate::domain::lowering::tables::closures::service::closure_arm;
 use crate::domain::lowering::tables::fills::service::{as_of_arm, group_count_arm, group_rows_arm};
+use crate::domain::lowering::tables::graphs::service::follow_arm;
 use crate::domain::lowering::tables::inputs::service::{input, rule, term};
 use crate::domain::lowering::tables::joins::service::{antijoin_arm, axis_arm, join_arm};
 use crate::domain::lowering::tables::matches::service::match_arm;
@@ -82,6 +83,7 @@ fn arm(
             group_rows_arm(state, drafts, step, operation)
         }
         Operation::AsOf { .. } => as_of_arm(state, drafts, step, operation),
+        Operation::Follow { .. } => follow_arm(state, drafts, step, operation),
         Operation::Axis { .. } => axis_arm(state, drafts, operation),
         Operation::Closure { .. } => closure_arm(state, drafts, operation),
         Operation::OrderedMatch { .. } => match_arm(state, drafts, step, operation),
@@ -96,7 +98,6 @@ fn arm(
         | Operation::GroupDigest { .. }
         | Operation::Rank { .. }
         | Operation::Words { .. }
-        | Operation::Follow { .. }
         | Operation::OrderedDfs { .. }
         | Operation::Worklist { .. }
         | Operation::Cycles { .. }
