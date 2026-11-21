@@ -107,7 +107,7 @@ fn step(frame: &mut StepFrame<'_, '_>, word: CodeWord, at: CodeEntry, mode: RunM
             Exists::run(frame, word, at)
         }
         Op::Or => {
-            staged(frame, word);
+            staged(frame, word, at);
             Or::run(frame, word, at)
         }
         Op::Fork => Fork::run(frame, word, at),
@@ -128,7 +128,7 @@ fn step(frame: &mut StepFrame<'_, '_>, word: CodeWord, at: CodeEntry, mode: RunM
             Latest::run(frame, word, at)
         }
         Op::Call => {
-            call(frame, word);
+            call(frame, word, at);
             Call::run(frame, word, at)
         }
         Op::Closure => {

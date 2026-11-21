@@ -3,9 +3,8 @@
 
 use crate::domain::code::constants::STORAGE;
 use crate::domain::code::controlling::service::or_of;
-use crate::domain::code::records::service::body_at;
 use crate::domain::code::records::types::BodyRecord;
-use crate::domain::code::types::{CodeWord, PoolAt, Short, WordSlot};
+use crate::domain::code::types::{CodeEntry, CodeWord, PoolAt, Short, WordSlot};
 use crate::domain::executing::bodies::service::{kept_key, pattern, table_rows};
 use crate::domain::executing::bodies::types::CallUse;
 use crate::domain::indexes::types::RowRun;
@@ -13,7 +12,7 @@ use crate::domain::made_tables::reading::service::rows_at;
 use crate::domain::made_tables::sources::service::{cell_of, handle_of};
 use crate::domain::made_tables::types::ReadSource;
 use crate::domain::memos::service::{asked, keep, row_count, rows};
-use crate::domain::memos::types::MemoId;
+use crate::domain::memos::types::{CellSpan, MemoId};
 use crate::domain::programs::frames::types::{RunMode, StepFrame};
 use crate::domain::programs::operands::service::listed;
 use crate::domain::scratch::types::{BodyAnswer, LoopState};
@@ -103,7 +102,7 @@ pub(crate) fn body_staged(
 
 /// Stages the rows of every body of an `Or` word, each as the cells of its outputs in order, once per key when the word
 /// keeps its answer, and leaves where they start and how many they are in the state for the word's item.
-pub(crate) fn staged(frame: &mut StepFrame<'_, '_>, word: CodeWord) {
+pub(crate) fn staged(frame: &mut StepFrame<'_, '_>, word: CodeWord, at: CodeEntry) {
     let asking = or_of(word);
     let first = frame.state.staged.len();
     let outputs = listed(&frame.fill.programs.code.pool, asking.outputs).len();
@@ -140,13 +139,23 @@ pub(crate) fn staged(frame: &mut StepFrame<'_, '_>, word: CodeWord) {
             row_count(memos, answer)
         }
         None => {
-            let (mut at, mut total) = (asking.records, 0_usize);
-            for _ in 0..asking.bodies.0 {
-                let Some(body) = body_at(&frame.fill.programs.code.pool, at) else {
+            // A word the decoded code holds no list for has no body.
+            let bodies = match frame
+                .state
+                .decoded
+                .lists
+                .get(usize::try_from(at.0).unwrap_or(usize::MAX))
+            {
+                Some(list) => *list,
+                None => CellSpan::default(),
+            };
+            let outputs = listed(&frame.fill.programs.code.pool, asking.outputs);
+            let mut total = 0_usize;
+            for number in 0..bodies.length.0 {
+                let place = bodies.start.0.saturating_add(number);
+                let Some(body) = frame.state.decoded.or_bodies.get(place).copied() else {
                     break;
                 };
-                at = body.after;
-                let outputs = listed(&frame.fill.programs.code.pool, asking.outputs);
                 total = total.saturating_add(body_staged(frame, body.record, outputs).0);
             }
             if keeps {
