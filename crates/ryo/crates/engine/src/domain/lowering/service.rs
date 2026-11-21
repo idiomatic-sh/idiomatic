@@ -57,15 +57,12 @@ fn branch_plans(drafts: &Drafts, branches: &[FlatBranch]) -> Vec<Option<PlannedB
 /// makes.
 fn patterns_placed(drafts: &mut Drafts, sample: LoadSample<'_>) -> Result<(), RefusedPlace> {
     let mut plans: HashMap<WaitingPattern, Option<Vec<PlannedBranch>>> = HashMap::new();
+    // How many of the patterns that wait, from the first asked, have their plans: the ones asked since stand after them.
+    let mut planned = 0;
     while let Some(waiting) = drafts.waiting.last().copied() {
-        if !plans.contains_key(&waiting) {
-            let asked: Vec<WaitingPattern> = drafts
-                .waiting
-                .iter()
-                .copied()
-                .filter(|each| !plans.contains_key(each))
-                .collect();
+        if planned < drafts.waiting.len() {
             let shared: &Drafts = drafts;
+            let asked = shared.waiting.get(planned..).unwrap_or_default();
             // The patterns the rules' own programs ask wait together, and are planned on the pool; the few a placement
             // then asks are planned where they are: handing two or three plans to the pool costs more than making them.
             let made: Vec<Option<Vec<PlannedBranch>>> = if asked.len() < POOLED_PATTERNS {
@@ -79,10 +76,15 @@ fn patterns_placed(drafts: &mut Drafts, sample: LoadSample<'_>) -> Result<(), Re
                     .map(|each| pattern_plans(shared, *each))
                     .collect()
             };
-            plans.extend(asked.into_iter().zip(made));
+            plans.extend(asked.iter().copied().zip(made));
         }
         let _placing = drafts.waiting.pop();
-        let own = plans.remove(&waiting).flatten();
+        planned = drafts.waiting.len();
+        // A pattern whose plans were handed out already (it waited twice) is planned again where it is.
+        let own = match plans.remove(&waiting) {
+            Some(own) => own,
+            None => pattern_plans(drafts, waiting),
+        };
         pattern_placed(drafts, sample, waiting, own)?;
     }
     Ok(())
