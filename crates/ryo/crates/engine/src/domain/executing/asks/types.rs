@@ -7,8 +7,12 @@ use crate::domain::code::types::CodeEntry;
 pub(crate) enum QuickAsk {
     /// The answer is in the state: nothing is run.
     Answered,
-    /// The program at the entry is to be run where the word stands, for whether it has a row.
+    /// The inline body at the entry is to be run where the word stands, for whether it has a row: it has one when it
+    /// reaches its end.
     Run(CodeEntry),
+    /// The pattern's program at the entry is to be run where the word stands: it has a row for each `Yield` it
+    /// reaches, and none for reaching its end (a program that is its end alone has none).
+    Collect(CodeEntry),
     /// The body is asked as any body is (`bodies::service::exists`).
     Kept,
 }
