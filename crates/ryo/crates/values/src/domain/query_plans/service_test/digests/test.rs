@@ -1,26 +1,25 @@
-//! The `digests` service's cases: a digest is pinned, so it is the same on every build, toolchain and machine; a bound value is
-//! in the digest; an equal sub-plan has one digest anywhere; and the walk digests each step once, counted at a depth and at
-//! twice it.
+//! The cases of `node_digests`, with a digest function of this test's own: the crate hashes nothing, so the function is the
+//! caller's, and the host that owns the hash pins a digest. A bound value is in the digest; an equal sub-plan has one digest
+//! anywhere; and the walk writes each step once, counted at a depth and at twice it.
 
-use super::service::{digested, node_digests};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use ryo_relations::domain::relations::types::Relation;
-use ryo_values::domain::plan_parts::types::{
+use crate::domain::plan_parts::types::{
     ColumnIndex, ComparisonOrigin, HostedNumber, Input as PlanInput, LiteralText, Operand,
     ParameterId, ParameterName, PlanComparison, StepId, StepScope, Test,
 };
-use ryo_values::domain::plans::types::{Operation, PlanStep};
-use ryo_values::domain::query_bindings::types::{
+use crate::domain::plans::types::{Operation, PlanStep};
+use crate::domain::query_bindings::types::{
     ParameterBinding, ParameterType, PlanParameter, RuleBindings,
 };
-use ryo_values::domain::query_plans::types::{Emit, NodeDigest, Plan};
+use crate::domain::query_plans::service::node_digests;
+use crate::domain::query_plans::types::{Emit, NodeBytes, NodeDigest, NodeDigests, Plan};
+use ryo_relations::domain::relations::types::Relation;
 use std::borrow::Cow;
+use std::cell::Cell;
 
 /// What a row digests.
 #[derive(Clone, Copy, Debug)]
 enum Scenario {
-    /// Every row of a relation, then the rows of the parameter, bound to the text `a`: the two digests, as written.
-    Pinned,
     /// The digests of one plan under two values of the parameter its second step names, and under one value twice.
     BoundValue,
     /// The digest of one sub-plan at two places of two plans.
@@ -35,14 +34,6 @@ type Failure = ();
 
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
-    Case {
-        name: CaseName("the_digests_of_a_fixed_plan_are_the_written_ones"),
-        word: Word::Succeeds,
-        input: || Scenario::Pinned,
-        expect: Expect::Value(Cow::Borrowed(
-            "04219e81c516e1d1706f3de0b165318d b246db0caf0b690a2a9fe828ae2f2af3",
-        )),
-    },
     Case {
         name: CaseName(
             "a_bound_value_is_in_the_digest_of_the_step_that_names_it_and_of_no_step_below",
@@ -142,22 +133,28 @@ fn said(left: Option<&NodeDigest>, right: Option<&NodeDigest>) -> &'static str {
     if left == right { "equal" } else { "differ" }
 }
 
-/// The digests of the fixed plan, each as its sixteen bytes in hexadecimal.
-fn pinned() -> Value {
-    let plan = digested_plan(sub_plan(Relation::Function, 0).into());
-    let bound = text("a");
-    let written: Vec<String> = node_digests(&plan, RuleBindings(&bound))
-        .0
-        .iter()
-        .map(|digest| digest.0.iter().map(|byte| format!("{byte:02x}")).collect())
-        .collect();
-    Cow::Owned(written.join(" "))
+/// One plan digested under the values `a`, `b` and `a` again: its first step names no parameter, its second names the one.
+/// A digest function of this test's own: the 128-bit FNV-1a fold of the bytes given, the same for the same bytes. It counts
+/// the steps it was asked for in `asked`.
+fn folded(asked: &Cell<usize>, bytes: NodeBytes<'_>) -> NodeDigest {
+    asked.set(asked.get().saturating_add(1));
+    let mut hash: u128 = 0x6c62_272e_07bb_0142_62b8_2175_6295_c58d;
+    for byte in bytes.0 {
+        hash = (hash ^ u128::from(*byte)).wrapping_mul(0x0100_0000_0000_0000_0000_013b);
+    }
+    NodeDigest(hash.to_le_bytes())
 }
 
-/// One plan digested under the values `a`, `b` and `a` again: its first step names no parameter, its second names the one.
+/// The digests of `plan` under `bound`, by the test's digest function, and how many steps it was asked for.
+fn digested(plan: &Plan, bound: &[ParameterBinding]) -> (NodeDigests, usize) {
+    let asked = Cell::new(0);
+    let digests = node_digests(plan, RuleBindings(bound), &|bytes| folded(&asked, bytes));
+    (digests, asked.get())
+}
+
 fn bound_value() -> Value {
     let plan = digested_plan(sub_plan(Relation::Function, 0).into());
-    let digests = |value: &str| node_digests(&plan, RuleBindings(&text(value))).0;
+    let digests = |value: &str| digested(&plan, &text(value)).0.0;
     let (first, other, again) = (digests("a"), digests("b"), digests("a"));
     Cow::Owned(format!(
         "two values: the step below {}, the step that names it {}; one value twice: {}",
@@ -178,7 +175,7 @@ fn shared_sub_plan() -> Value {
     let behind = digested_plan(behind);
     let other = digested_plan(sub_plan(Relation::ModuleIdentity, 0).into());
     let bound = text("a");
-    let digests = |plan: &Plan| node_digests(plan, RuleBindings(&bound)).0;
+    let digests = |plan: &Plan| digested(plan, &bound).0.0;
     let (alone, behind, other) = (digests(&alone), digests(&behind), digests(&other));
     Cow::Owned(format!(
         "at another place: {}; over another relation: {}",
@@ -204,13 +201,13 @@ fn ladder(links: u32) -> String {
         }));
     }
     let plan = digested_plan(steps);
-    let walked = digested(&plan, RuleBindings(&[]));
-    let mut distinct = walked.digests.0.clone();
+    let (digests, asked) = digested(&plan, &[]);
+    let mut distinct = digests.0;
     distinct.sort_unstable();
     distinct.dedup();
     format!(
         "{} of {} steps digested, {} digests",
-        walked.steps.0,
+        asked,
         plan.steps.len(),
         distinct.len()
     )
@@ -218,7 +215,6 @@ fn ladder(links: u32) -> String {
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
     Ok(match scenario {
-        Scenario::Pinned => pinned(),
         Scenario::BoundValue => bound_value(),
         Scenario::SharedSubPlan => shared_sub_plan(),
         Scenario::Ladder => Cow::Owned(format!("{}; {}", ladder(10), ladder(20))),

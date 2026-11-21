@@ -10,15 +10,28 @@ use crate::domain::lowering::types::{
     LoadRefusal, LoweredRules, PlanNode, RefusedRule, SelectedRule, SelectedRules,
 };
 use crate::domain::passes::service::passed;
-use crate::domain::programs::types::{Programs, ProgramsEngine};
+use crate::domain::programs::types::{Programs, ProgramsEngine, RuleSteps};
 use crate::domain::statistics::service::matched;
 use crate::domain::statistics::types::{MatchedStatistics, Statistics};
 use ryo_language::domain::facts::service::base_words;
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 
+/// Each loaded rule's plan as a work notice needs it, in the code's rule order: the step it emits and its steps' digests.
+fn rule_steps(code: &ProgramCode, rules: SelectedRules<'_>) -> Vec<RuleSteps> {
+    let of = |rule: SelectedRuleOrdinal| rules.0.iter().find(|selected| selected.rule == rule);
+    let loaded = code.rules.iter().filter_map(|rule| of(rule.rule));
+    loaded
+        .map(|selected| RuleSteps {
+            rule: selected.rule,
+            emitted: selected.plan.emit.step,
+            nodes: selected.digests.clone(),
+        })
+        .collect()
+}
+
 /// The programs of an encoded pack.
-fn programs(pack: LoweredPack, code: ProgramCode) -> Programs {
+fn programs(pack: LoweredPack, code: ProgramCode, steps: Vec<RuleSteps>) -> Programs {
     let texts: Vec<NameText<'_>> = pack.texts.iter().map(|text| NameText(&text.0)).collect();
     let words = base_words(&texts);
     Programs(ProgramsEngine {
@@ -26,6 +39,7 @@ fn programs(pack: LoweredPack, code: ProgramCode) -> Programs {
         words,
         regexes: pack.regexes,
         reads: pack.reads,
+        steps,
     })
 }
 
@@ -86,7 +100,8 @@ pub(super) fn sequenced(
                 named = statistics.map_or(MatchedStatistics::Absent, |measured| {
                     MatchedStatistics::Units(matched(measured, &code.units))
                 });
-                loaded = programs(pack, code);
+                let steps = rule_steps(&code, rules);
+                loaded = programs(pack, code, steps);
                 break;
             }
             Err(LoweringError::Refused { rule, refusal }) => {

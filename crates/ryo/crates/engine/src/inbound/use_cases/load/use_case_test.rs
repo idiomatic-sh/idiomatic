@@ -11,12 +11,12 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::code::types::{MeasuredForm, ShapeChoice, UnitKey};
 use crate::domain::findings::types::RuleColumns;
 use crate::domain::lowered::types::{Branch, Emptiness, LoweredPack, LoweredRule};
-use crate::domain::lowering::fixtures::named;
+use crate::domain::lowering::fixtures::{digests_of, named};
 use crate::domain::lowering::types::{LoweredRules, SelectedRule, SelectedRules};
 use crate::domain::packs::constants::VERSION_WIDTH;
 use crate::domain::packs::service::encoded;
 use crate::domain::packs::types::{PackBytes, PackDigest};
-use crate::domain::programs::service::accepted;
+use crate::domain::programs::service::{accepted, unit_step};
 use crate::domain::programs::types::Programs;
 use crate::domain::statistics::types::{
     LearnStage, MatchedStatistics, MeasuredSizes, MeasuredUnit, OrderVerdict, Statistics,
@@ -29,7 +29,7 @@ use crate::domain::steps::types::{
 use ryo_relations::domain::relations::types::{KindBits, Relation};
 use ryo_values::domain::descriptions::types::{KindVocabulary, LanguageName};
 use ryo_values::domain::query_bindings::types::RuleBindings;
-use ryo_values::domain::query_plans::types::NodeDigest;
+use ryo_values::domain::query_plans::types::{NodeDigest, NodeDigests};
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 use std::borrow::Cow;
 use std::cell::Cell;
@@ -51,6 +51,9 @@ enum Scenario {
     Measured,
     /// Three rules, loaded with the statistics of a first sample that measured no unit: not the same as no statistics.
     MeasuredNothing,
+    /// Two rules of a plan of three steps, each given its steps' digests with its own unit's node second: where the loaded
+    /// programs say each rule's unit, and a node that is no step of its plan, are in the rule's plan.
+    UnitSteps,
     /// A pack written for another digest.
     OtherPack,
     /// A pack another engine version wrote.
@@ -129,6 +132,14 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::MeasuredNothing,
         expect: Expect::Value(Cow::Borrowed(
             "runs [0, 1, 2]; refused []; statistics matched 0 units; lowered 1 times",
+        )),
+    },
+    Case {
+        name: CaseName("a_units_plan_step_is_its_nodes_place_in_the_rules_own_plan"),
+        word: Word::Succeeds,
+        input: || Scenario::UnitSteps,
+        expect: Expect::Value(Cow::Borrowed(
+            "rule 0: its unit at step 1, a node of no step at step 2; rule 1: its unit at step 1, a node of no step at step 2",
         )),
     },
     Case {
@@ -220,11 +231,13 @@ fn said(loaded: &LoadedRules) -> String {
 /// Loads three copies of the tree rule through a lowering that lowers each as `written` says of its ordinal.
 fn sequence(written: [Written; 3], statistics: Option<&Statistics>) -> Value {
     let plan = named("one tree rule");
+    let digests = digests_of(&plan, RuleBindings(&[]));
     let rules: Vec<SelectedRule<'_>> = (0..3)
         .map(|rule| SelectedRule {
             rule: SelectedRuleOrdinal(rule),
             plan: &plan,
             bindings: RuleBindings(&[]),
+            digests: &digests,
         })
         .collect();
     let lowerings = Cell::new(0_usize);
@@ -255,6 +268,55 @@ fn sequence(written: [Written; 3], statistics: Option<&Statistics>) -> Value {
         said(&loaded),
         lowerings.get()
     ))
+}
+
+/// Loads two rules of a plan of three steps, each with the digests a host would give it but its own unit's node as its second
+/// step's, and says where the programs put each rule's unit and a node of no step of its plan.
+fn unit_steps() -> Value {
+    let plan = named("two orders of one rule");
+    let digests: Vec<NodeDigests> = (0..2)
+        .map(|rule| {
+            let mut digests = digests_of(&plan, RuleBindings(&[]));
+            if let Some(second) = digests.0.get_mut(1) {
+                *second = node(SelectedRuleOrdinal(rule));
+            }
+            digests
+        })
+        .collect();
+    let rules: Vec<SelectedRule<'_>> = digests
+        .iter()
+        .zip(0..)
+        .map(|(digests, rule)| SelectedRule {
+            rule: SelectedRuleOrdinal(rule),
+            plan: &plan,
+            bindings: RuleBindings(&[]),
+            digests,
+        })
+        .collect();
+    let lower = |selected: SelectedRules<'_>| LoweredRules {
+        pack: LoweredPack {
+            rules: selected
+                .0
+                .iter()
+                .map(|rule| lowered_rule(rule.rule, Written::Whole))
+                .collect(),
+            ..LoweredPack::default()
+        },
+        refused: Vec::new(),
+    };
+    let loaded = sequenced(SelectedRules(&rules), None, &lower);
+    let said: Vec<String> = (0..2)
+        .map(SelectedRuleOrdinal)
+        .map(|rule| {
+            let own = unit_step(&loaded.programs, rule, &UnitKey::Rule(node(rule)));
+            let other = unit_step(&loaded.programs, rule, &UnitKey::Rule(NodeDigest([77; 16])));
+            format!(
+                "rule {}: its unit at step {}, a node of no step at step {}",
+                rule.0, own.0, other.0
+            )
+        })
+        .collect();
+    Cow::Owned(said.join("; "))
 }
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
@@ -288,6 +350,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         }
         Scenario::Measured => return Ok(sequence([Written::Whole; 3], Some(&naming([0, 2, 9])))),
         Scenario::MeasuredNothing => return Ok(sequence([Written::Whole; 3], Some(&naming([])))),
+        Scenario::UnitSteps => return Ok(unit_steps()),
         Scenario::NoRules => LoadSource::Plans(SelectedRules(&[]), StatisticsBytes(&[])),
         Scenario::Pack => LoadSource::Pack(PackBytes(&pack.0), PackDigest([1; 32])),
         Scenario::OtherPack => LoadSource::Pack(PackBytes(&pack.0), PackDigest([2; 32])),

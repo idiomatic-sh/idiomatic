@@ -10,7 +10,7 @@ use crate::domain::code::types::UnitKey;
 use crate::domain::lowered::service::fill_code;
 use crate::domain::lowered::types::MadeFill;
 use crate::domain::lowering::errors::LoweringError;
-use crate::domain::lowering::fixtures::named;
+use crate::domain::lowering::fixtures::{digests_of, named};
 use crate::domain::lowering::types::{SelectedRule, SelectedRules};
 use crate::domain::programs::service::accepted;
 use crate::domain::programs::types::Programs;
@@ -22,7 +22,7 @@ use crate::inbound::use_cases::scan::fixtures::scanned;
 use ryo_values::domain::descriptions::types::{KindVocabulary, LanguageName};
 use ryo_values::domain::plan_parts::types::{LiteralText, RepeatedRows};
 use ryo_values::domain::query_bindings::types::{ParameterBinding, RuleBindings};
-use ryo_values::domain::query_plans::types::Plan;
+use ryo_values::domain::query_plans::types::{NodeDigests, Plan};
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 use std::collections::BTreeSet;
 
@@ -90,13 +90,19 @@ fn scene_rules(scene: &str) -> Vec<SceneRule> {
 /// The load's refusal: never for a rule, which is answered among the refused.
 pub fn loaded_with(scene: &str, statistics: StatisticsBytes<'_>) -> Result<LoadedRules, LoadError> {
     let rules = scene_rules(scene);
+    let digests: Vec<NodeDigests> = rules
+        .iter()
+        .map(|rule| digests_of(&rule.plan, RuleBindings(&rule.bindings)))
+        .collect();
     let selected: Vec<SelectedRule<'_>> = rules
         .iter()
+        .zip(&digests)
         .zip(0..)
-        .map(|(rule, ordinal)| SelectedRule {
+        .map(|((rule, digests), ordinal)| SelectedRule {
             rule: SelectedRuleOrdinal(ordinal),
             plan: &rule.plan,
             bindings: RuleBindings(&rule.bindings),
+            digests,
         })
         .collect();
     LoadUseCaseImpl.load(

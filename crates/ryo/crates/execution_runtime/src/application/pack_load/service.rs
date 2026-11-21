@@ -25,6 +25,8 @@ use ryo_operators::spike::{EngineMode, engine_loaded, engine_unpacked};
 use ryo_relations::domain::relations::types::{Bytes, Count};
 use ryo_values::domain::descriptions::types::{KindVocabularies, KindVocabulary, LanguageName};
 use ryo_values::domain::query_bindings::types::RuleBindings;
+use ryo_values::domain::query_plans::service::node_digests;
+use ryo_values::domain::query_plans::types::{NodeDigest, NodeDigests, Plan};
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 use ryo_values::domain::stored_facts::types::Digest;
 use ryo_values::domain::stores::types::{PackKey, StoredPack};
@@ -122,8 +124,21 @@ pub fn kept(
     })
 }
 
+/// The digest of each step of a rule's plan under what the rule binds its parameters to, by the run's one digest: what names
+/// a definition, a made table and a rule's unit in the engine, which hashes nothing and takes these as data. The port's
+/// sixteen bytes are the node's digest.
+pub(super) fn step_digests(
+    digest: &dyn DigestPort,
+    plan: &Plan,
+    bindings: RuleBindings<'_>,
+) -> NodeDigests {
+    node_digests(plan, bindings, &|bytes| {
+        NodeDigest(digest.digest(DigestBytes(bytes.0)).0)
+    })
+}
+
 /// The rule set of a run: the store's pack of the same key read back, with nothing lowered (`kept`); otherwise every selected
-/// rule lowered in one load, each with what it binds its parameters to, the refused ones counted by why, and the pack of the
+/// rule lowered in one load, each with what it binds its parameters to and its steps' digests, the refused ones counted by why, and the pack of the
 /// accepted ones written for the store with what a row of each of them emits. A stored pack the engine refuses (another engine
 /// version, bytes that do not decode) is lowered again.
 ///
@@ -159,14 +174,29 @@ pub fn loaded(
         return load;
     }
     let key = pack_key(digest, request.given, request.kinds);
-    let selected: Vec<SelectedRule<'_>> = request
+    // Each rule with what it binds its parameters to (nothing, for a rule the request states no binding of) and, by the
+    // run's digest, the digest of each step of its plan under them.
+    let unbound = std::iter::repeat(&[][..]);
+    let bound = request.bindings.iter().map(Vec::as_slice).chain(unbound);
+    let rules: Vec<(&Plan, RuleBindings<'_>)> = request
         .plans
         .iter()
+        .zip(bound)
+        .map(|(plan, bound)| (*plan, RuleBindings(bound)))
+        .collect();
+    let digests: Vec<NodeDigests> = rules
+        .iter()
+        .map(|(plan, bound)| step_digests(digest, plan, *bound))
+        .collect();
+    let selected: Vec<SelectedRule<'_>> = rules
+        .iter()
+        .zip(&digests)
         .enumerate()
-        .map(|(place, plan)| SelectedRule {
+        .map(|(place, ((plan, bound), digests))| SelectedRule {
             rule: SelectedRuleOrdinal(u32::try_from(place).unwrap_or(u32::MAX)),
             plan,
-            bindings: RuleBindings(request.bindings.get(place).map_or(&[][..], Vec::as_slice)),
+            bindings: *bound,
+            digests,
         })
         .collect();
     // One load of every selected rule: a sub-plan two rules share is lowered once, and each refused rule is answered with why.

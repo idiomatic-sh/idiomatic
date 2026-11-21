@@ -10,7 +10,7 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::engine::fixtures::fake::{EngineFake, no_kinds};
 use crate::outbound::engine::interface::EnginePort as _;
 use ryo_engine::domain::findings::types::FoundTarget;
-use ryo_engine::domain::lowering::fixtures::named;
+use ryo_engine::domain::lowering::fixtures::{digests_of, named};
 use ryo_engine::domain::lowering::types::{SelectedRule, SelectedRules};
 use ryo_engine::domain::programs::types::Programs;
 use ryo_engine::domain::statistics::types::StatisticsBytes;
@@ -178,10 +178,12 @@ fn keeping(key: u32) -> Plan {
 
 /// The rule set of the fake's one accepted rule, `plan`.
 fn accepted(engine: &EngineFake, plan: &Plan) -> Programs {
+    let digests = digests_of(plan, RuleBindings(&[]));
     let rule = SelectedRule {
         rule: SelectedRuleOrdinal(0),
         plan,
         bindings: RuleBindings(&[]),
+        digests: &digests,
     };
     engine
         .load(
