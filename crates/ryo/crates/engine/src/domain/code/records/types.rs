@@ -45,12 +45,14 @@ pub(crate) enum BodyRecord {
         /// Where they start.
         entry: CodeEntry,
     },
-    /// `1, entry, memo site, n`, then n pairs of a formal register and an operand: a pattern in call form.
+    /// `1, entry, memo site, unit, n`, then n pairs of a formal register and an operand: a pattern in call form.
     Call {
         /// Where the pattern's program starts.
         entry: CodeEntry,
         /// Where its answers are kept, by the cells of its bound columns.
         memo: MemoSite,
+        /// The pattern's unit: its place among the code's units.
+        unit: WordSlot,
         /// How many columns are bound.
         bound: WordSlot,
         /// Where the pairs start.

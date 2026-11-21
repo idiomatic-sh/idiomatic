@@ -17,6 +17,7 @@ use crate::domain::fillers::fixtures::{
     PAIRS, TWICE, UNKEYED, WHOLE_BY_KEY, Walking, WalkingFile, weakness,
 };
 use crate::domain::fillers::types::Fillers as _;
+use crate::domain::fixed_names::service::checked;
 use crate::domain::node_table::service::{
     builder, diagnose, enter_node, finished, leave_node, node_count, token,
 };
@@ -315,12 +316,13 @@ fn pair(small: Option<Count>, large: Option<Count>) -> [usize; 2] {
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
     let names = Walking::vocabulary().fixed;
+    let fixed = checked(&names.0).expect("the fixture's fixed names");
     let mut seen = None;
     match scenario {
         Scenario::Fills(relation, text, asks) => lent(text, &mut |file| {
             let first = u32::try_from(node_count(file.table).0).unwrap_or(u32::MAX);
             let (mut words, mut columns) = (
-                file_words(&base_words(&names, &[]).expect("the fixture's fixed names")),
+                file_words(&base_words(fixed, &[])),
                 FilledColumns::default(),
             );
             for ask in asks {
@@ -332,7 +334,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         }),
         Scenario::Then(first, second, text) => lent(text, &mut |file| {
             let (mut words, mut columns) = (
-                file_words(&base_words(&names, &[]).expect("the fixture's fixed names")),
+                file_words(&base_words(fixed, &[])),
                 FilledColumns::default(),
             );
             let _written = file

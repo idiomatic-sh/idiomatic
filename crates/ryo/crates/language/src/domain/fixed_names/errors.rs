@@ -1,15 +1,15 @@
-//! The failures of the `facts` concept: a language's fixed names that cannot be base words of a run.
+//! The failures of the `fixed_names` concept: a language's fixed names that cannot be base words of a run.
 
 use super::types::FixedWord;
 
-/// Why a language's fixed names were refused as base words of a run: a fixed name's word is its place after the empty text, which
-/// holds only when every name is stated once and none is the empty text.
+/// Why a language's fixed names were refused: a fixed name's word is its place after the empty text, which holds only when every
+/// name is stated once and none is the empty text.
 ///
 /// # Examples
 ///
 /// ```
-/// use ryo_language::domain::facts::errors::FixedNamesError;
-/// use ryo_language::domain::facts::types::FixedWord;
+/// use ryo_language::domain::fixed_names::errors::FixedNamesError;
+/// use ryo_language::domain::fixed_names::types::FixedWord;
 ///
 /// let twice = FixedNamesError::Twice { first: FixedWord(0), again: FixedWord(2) };
 /// assert_eq!(twice.to_string(), "the fixed name at place 2 is stated before, at place 0");

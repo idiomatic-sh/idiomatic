@@ -48,6 +48,7 @@ pub use ryo::languages::CallArgumentRow
 pub use ryo::languages::CatalogRelation
 pub use ryo::languages::CellKind
 pub use ryo::languages::CellWord
+pub use ryo::languages::CheckedNames
 pub use ryo::languages::ChildOrdinal
 pub use ryo::languages::Children
 pub use ryo::languages::Column
@@ -137,6 +138,7 @@ pub use ryo::languages::FilledColumns
 pub use ryo::languages::FillerSentence
 pub use ryo::languages::Fillers
 pub use ryo::languages::FixedNames
+pub use ryo::languages::FixedNamesError
 pub use ryo::languages::FixedWord
 pub use ryo::languages::Flag
 pub use ryo::languages::Flags
@@ -461,6 +463,7 @@ pub use ryo::languages::field_name_at
 pub use ryo::languages::fill_to
 pub use ryo::languages::fillers
 pub use ryo::languages::first_token_text
+pub use ryo::languages::fixed_names
 pub use ryo::languages::flags_at
 pub use ryo::languages::flow_edge_word
 pub use ryo::languages::flow_of

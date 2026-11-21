@@ -1,6 +1,6 @@
 //! Why `load` refuses.
 
-use ryo_language::domain::facts::errors::FixedNamesError;
+use ryo_language::domain::fixed_names::errors::FixedNamesError;
 
 /// Why a rule set could not be loaded: a pack that is not this rule set's, or a language whose fixed names cannot be words of
 /// the run. A rule that cannot be loaded is not an error: `load` answers it among the refused.
@@ -17,8 +17,8 @@ use ryo_language::domain::facts::errors::FixedNamesError;
 ///
 /// ```
 /// use ryo_engine::inbound::use_cases::load::errors::LoadError;
-/// use ryo_language::domain::facts::errors::FixedNamesError;
-/// use ryo_language::domain::facts::types::FixedWord;
+/// use ryo_language::domain::fixed_names::errors::FixedNamesError;
+/// use ryo_language::domain::fixed_names::types::FixedWord;
 ///
 /// let twice = FixedNamesError::Twice { first: FixedWord(0), again: FixedWord(1) };
 /// assert_eq!(

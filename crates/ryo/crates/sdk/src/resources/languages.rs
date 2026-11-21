@@ -27,9 +27,8 @@ pub use ryo_language::inbound::use_cases::walk::types::{FileVisit, RelationNeeds
 /// Open on purpose: a language implements it, through `ryo::fills!` items, and nothing else does.
 pub use ryo_language::domain::fillers::types::Fillers;
 pub use ryo_language::domain::fillers::types::{FieldNames, Fill, FillItem, KeyedFillItem, WalkKinds, WalkVocabulary};
-pub use ryo_language::domain::facts::types::{
-    CellWord, FactAnswer, FactSource, FileFacts, FileWords, FillExtent, FilledColumn, FilledColumns, FillerSentence, FixedNames, FixedWord, PartialRows, Wanted,
-};
+pub use ryo_language::domain::facts::types::{CellWord, FactAnswer, FactSource, FileFacts, FileWords, FillExtent, FilledColumn, FilledColumns, FillerSentence, PartialRows, Wanted};
+pub use ryo_language::domain::fixed_names::{errors::FixedNamesError, types::{CheckedNames, FixedNames, FixedWord}};
 pub use ryo_language::domain::node_table::types::{
     ByteSpan, EmbeddedRoot, EmbeddedSpan, EmbeddedText, FieldCode, KindsPresent, NodeTable, NodeTableBuilder, PresenceWord,
 };
@@ -38,6 +37,8 @@ pub use ryo_relations::domain::relations::types::{NodeExtent, RelationSize};
 pub use ryo_language::domain::node_table::service as node_table;
 /// The words of a file and the `syntax-error` rows every language writes.
 pub use ryo_language::domain::facts::service as facts;
+/// The check a language's fixed names pass before they become base words of a run.
+pub use ryo_language::domain::fixed_names::service as fixed_names;
 /// The fact source a walk lends over the language's fillers, and the run of one `fills!` item.
 pub use ryo_language::domain::fillers::service as fillers;
 

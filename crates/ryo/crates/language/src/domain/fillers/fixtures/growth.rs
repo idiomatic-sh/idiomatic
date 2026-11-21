@@ -2,11 +2,13 @@
 //! the catalog declares of each relation they fill. A whole fill's rows grow with the file as the relation's `size` says, and a
 //! fill by a declared key answers `Asked`, writes that key's rows alone, and writes no more for a larger file.
 
-use crate::domain::facts::errors::FixedNamesError;
 use crate::domain::facts::service::{base_words, file_words};
 use crate::domain::facts::types::{
-    BaseWords, CellWord, FactAnswer, FileFacts, FillExtent, FilledColumns, FixedNames, Wanted,
+    BaseWords, CellWord, FactAnswer, FileFacts, FillExtent, FilledColumns, Wanted,
 };
+use crate::domain::fixed_names::errors::FixedNamesError;
+use crate::domain::fixed_names::service::checked;
+use crate::domain::fixed_names::types::FixedNames;
 use crate::domain::node_table::service::element_count;
 use ryo_relations::domain::catalog::service::{fact_form, key_columns, relation_size};
 use ryo_relations::domain::relations::service::{all, columns};
@@ -198,8 +200,8 @@ fn measured(file: &mut FileFacts<'_>, base: &BaseWords) -> Vec<Measured> {
 /// # Examples
 ///
 /// ```
-/// use ryo_language::domain::facts::errors::FixedNamesError;
-/// use ryo_language::domain::facts::types::{FixedNames, FixedWord};
+/// use ryo_language::domain::fixed_names::errors::FixedNamesError;
+/// use ryo_language::domain::fixed_names::types::{FixedNames, FixedWord};
 /// use ryo_language::domain::fillers::fixtures::growth::{GrowthFault, grown};
 /// use ryo_relations::domain::relations::types::Count;
 /// use ryo_relations::domain::terms::types::NameText;
@@ -224,8 +226,8 @@ pub fn grown(
         keys: Vec::new(),
         faults: Vec::new(),
     };
-    let base = match base_words(names, &[]) {
-        Ok(base) => base,
+    let base = match checked(&names.0) {
+        Ok(fixed) => base_words(fixed, &[]),
         Err(refused) => {
             report.faults.push(GrowthFault::FixedNames(refused));
             return report;
