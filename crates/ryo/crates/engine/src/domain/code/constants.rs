@@ -83,3 +83,8 @@ pub(crate) const WALK_AXIS: WordFlag = WordFlag(0x01);
 pub(crate) const WALK_DIRECTION: WordFlag = WordFlag(0x0e);
 /// `StageWrite`: a row the table holds is not written again.
 pub(crate) const REPEATS_DROPPED: WordFlag = WordFlag(0x01);
+
+/// The most words a pattern's program in call form may have, its `Yield` among them, for an `Exists` to run it in
+/// place and keep no answer: a straight line of tests, lets and reads. Each word costs about 2.5 ns and entering a
+/// run about 5; finding a kept answer by a key costs about 19 (build/x/kernels-loop.md).
+pub(crate) const STRAIGHT_WORDS: WordSlot = WordSlot(4);

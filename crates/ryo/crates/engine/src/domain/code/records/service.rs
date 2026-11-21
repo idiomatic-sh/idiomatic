@@ -71,11 +71,14 @@ pub(crate) fn push_inline_body(pool: &mut Vec<WordSlot>, entry: CodeEntry) -> Po
 }
 
 /// Writes the record of a use of a pattern in call form. Its entry and its unit are written again once the pattern's program
-/// has its place and its unit (`call_entry_place`, `call_unit_place`): until then the unit is `NO_SLOT`.
+/// has its place and its unit (`call_entry_place`, `call_unit_place`): until then the unit is `NO_SLOT`. The need site of
+/// the pattern's definition is known when the record is written (the site is numbered before its formula is), so it has
+/// no place function.
 pub(crate) fn push_call_body(
     pool: &mut Vec<WordSlot>,
     entry: CodeEntry,
     memo: MemoSite,
+    need: NeedSite,
     bound: &[BoundFormal],
 ) -> PoolAt {
     let at = next_place(pool);
@@ -85,6 +88,7 @@ pub(crate) fn push_call_body(
         WordSlot(entry.0),
         WordSlot(memo.0),
         NO_SLOT,
+        WordSlot(need.0),
         count,
     ]);
     for each in bound {
@@ -138,20 +142,21 @@ pub(crate) fn body_at(pool: &[WordSlot], at: PoolAt) -> Option<ReadBody> {
             2,
         ),
         1 => {
-            let bound = slot(4)?;
+            let bound = slot(5)?;
             let record = BodyRecord::Call {
                 entry: CodeEntry(slot(1)?.0),
                 memo: MemoSite(slot(2)?.0),
                 unit: slot(3)?,
+                need: NeedSite(slot(4)?.0),
                 bound,
-                formals: PoolAt(at.0.checked_add(5)?),
+                formals: PoolAt(at.0.checked_add(6)?),
             };
             (
                 record,
                 bound
                     .0
                     .checked_mul(OPERAND_SLOTS.0.checked_add(1)?)?
-                    .checked_add(5)?,
+                    .checked_add(6)?,
             )
         }
         2 => {

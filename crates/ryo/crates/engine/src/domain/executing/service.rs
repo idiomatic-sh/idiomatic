@@ -3,6 +3,8 @@
 //! allocates, and the loop reads no clock: steps and the rows its iterations gave are counted in locals and added to the
 //! work once, when the program ends.
 
+use super::asks::service::quick_exists;
+use super::asks::types::QuickAsk;
 use super::bodies::service::exists;
 use super::budget::service::reach;
 use super::closing::service::closure;
@@ -40,8 +42,8 @@ use crate::domain::programs::collections::instructions::within::item::Within;
 use crate::domain::programs::collections::instructions::yield_row::item::YieldRow;
 use crate::domain::programs::frames::types::{RunMode, StepFrame};
 use crate::domain::programs::operands::service::after;
-use crate::domain::scratch::types::IterationCursor;
-use ryo_relations::domain::relations::types::NodeExtent;
+use crate::domain::scratch::types::{BodyAnswer, IterationCursor};
+use ryo_relations::domain::relations::types::{Count, NodeExtent};
 
 /// The word at a place; the word that ends a program past the code's end.
 #[inline]
@@ -61,7 +63,12 @@ fn word_at(frame: &StepFrame<'_, '_>, at: CodeEntry) -> CodeWord {
 /// Runs one word for the current candidate. A word the executor does not run yet ends the candidate and is counted, so a
 /// rule that holds one never finds a row by it.
 #[inline(always)]
-fn step(frame: &mut StepFrame<'_, '_>, word: CodeWord, at: CodeEntry, mode: RunMode) -> Flow {
+fn step<C: WordCounter>(
+    frame: &mut StepFrame<'_, '_>,
+    word: CodeWord,
+    at: CodeEntry,
+    mode: RunMode,
+) -> Flow {
     match word.op {
         Op::End => Flow::Back,
         Op::EachKind => {
@@ -103,7 +110,18 @@ fn step(frame: &mut StepFrame<'_, '_>, word: CodeWord, at: CodeEntry, mode: RunM
         Op::Let => LetValue::run(frame, word, at),
         Op::Emit => Emit::run(frame, word, at),
         Op::Exists => {
-            exists(frame, word, at);
+            // A body asked where the word stands is run by this loop itself: no answer kept, no call through the ports.
+            match quick_exists(frame, at) {
+                QuickAsk::Answered => {}
+                QuickAsk::Run(entry) => {
+                    let found = run_counted::<C>(frame, entry, RunMode::Exists);
+                    frame.state.answer = BodyAnswer {
+                        first: Count(0),
+                        rows: Count(usize::try_from(found.0).unwrap_or(usize::MAX)),
+                    };
+                }
+                QuickAsk::Kept => exists(frame, word, at),
+            }
             Exists::run(frame, word, at)
         }
         Op::Or => {
@@ -256,7 +274,7 @@ pub(crate) fn run_counted<C: WordCounter>(
         if gives && mode == RunMode::Exists {
             break 'program;
         }
-        match step(frame, word, at, mode) {
+        match step::<C>(frame, word, at, mode) {
             Flow::Next => at = after(at),
             Flow::Back => loop {
                 let depth = frame.state.frames.len();

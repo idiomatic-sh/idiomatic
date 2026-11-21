@@ -1,16 +1,18 @@
 //! The `programs` service: what the host reads of a rule set's programs.
 
 use super::types::{Programs, ProgramsEngine};
+use crate::domain::code::constants::{STORAGE, STRAIGHT_WORDS};
 use crate::domain::code::controlling::service::{exists_of, or_of};
 use crate::domain::code::deciding::service::call_of;
 use crate::domain::code::filling::service::stage_use_of;
 use crate::domain::code::records::service::{body_at, operand_at};
 use crate::domain::code::records::types::{BodyRecord, PooledOperand, ReadBody};
-use crate::domain::code::types::{Op, PoolAt, ProgramCode, UnitKey};
+use crate::domain::code::types::{CodeEntry, CodeWord, Op, PoolAt, ProgramCode, UnitKey};
 use crate::domain::code::walking::service::{closure_of, nearest_of};
 use crate::domain::findings::types::RuleColumns;
 use crate::domain::made_tables::types::{FillStore, KeyFrom, RuleSetView};
 use crate::domain::memos::types::CellSpan;
+use crate::domain::scratch::kept::types::QuickBody;
 use crate::domain::scratch::types::{
     AskPart, DecodedCode, LoopState, Measuring, ScanScratch, ScratchEngine, UnitInFile,
 };
@@ -85,6 +87,55 @@ pub(crate) fn rule_set(programs: &ProgramsEngine) -> RuleSetView<'_> {
     }
 }
 
+/// How an `Exists` word asks its body: in place when it keeps no answer of its own and its body is inline, or a
+/// pattern in call form whose program is a short straight line.
+fn quick_of(code: &ProgramCode, word: CodeWord, body: Option<ReadBody>) -> QuickBody {
+    if exists_of(word).flag.0 & STORAGE.0 != 0 {
+        return QuickBody::Kept;
+    }
+    let word_at = |entry: CodeEntry, ahead: u32| {
+        let place = usize::try_from(entry.0.wrapping_add(ahead)).unwrap_or(usize::MAX);
+        code.words.get(place).map(|held| held.op)
+    };
+    match body.map(|read| read.record) {
+        Some(BodyRecord::Inline { entry }) if word_at(entry, 0) == Some(Op::Yield) => {
+            QuickBody::Row
+        }
+        Some(BodyRecord::Inline { entry }) => QuickBody::Inline(entry),
+        Some(BodyRecord::Call { entry, .. }) => {
+            // A straight line: each word gives one row at most, asks nothing and makes nothing, and the program ends
+            // within the bound.
+            let ends = (0..=STRAIGHT_WORDS.0).find(|ahead| word_at(entry, *ahead) == Some(Op::End));
+            let straight = ends.is_some_and(|end| {
+                (0..end).all(|ahead| {
+                    matches!(
+                        word_at(entry, ahead),
+                        Some(
+                            Op::Test
+                                | Op::TestEqualConstant
+                                | Op::TestNotEqualConstant
+                                | Op::TestEqualRegister
+                                | Op::TestNotEqualRegister
+                                | Op::TestInConstants
+                                | Op::Let
+                                | Op::ReadNode
+                                | Op::ReadFilled
+                                | Op::ReadMade
+                                | Op::Yield
+                        )
+                    )
+                })
+            });
+            if straight {
+                QuickBody::Straight(entry)
+            } else {
+                QuickBody::Kept
+            }
+        }
+        Some(BodyRecord::Table { .. }) | None => QuickBody::Kept,
+    }
+}
+
 /// Adds the parts of a call-form body's ask to the decoded code, once for each body record.
 fn parts_added(code: &ProgramCode, body: Option<ReadBody>, decoded: &mut DecodedCode) {
     let Some(BodyRecord::Call { bound, formals, .. }) = body.map(|read| read.record) else {
@@ -130,8 +181,12 @@ pub(crate) fn decoded_code(code: &ProgramCode) -> DecodedCode {
     let mut reads = Count(0);
     for word in &code.words {
         let (mut body, mut list) = (None, CellSpan::default());
+        let mut quick = QuickBody::Kept;
         match word.op {
-            Op::Exists => body = body_at(&code.pool, exists_of(*word).body),
+            Op::Exists => {
+                body = body_at(&code.pool, exists_of(*word).body);
+                quick = quick_of(code, *word, body);
+            }
             Op::Nearest => body = body_at(&code.pool, nearest_of(*word).operands),
             Op::Closure => body = body_at(&code.pool, closure_of(*word).operands),
             Op::StageUse => parts_added(
@@ -226,6 +281,7 @@ pub(crate) fn decoded_code(code: &ProgramCode) -> DecodedCode {
         parts_added(code, body, &mut decoded);
         decoded.bodies.push(body);
         decoded.lists.push(list);
+        decoded.quick.push(quick);
     }
     decoded
 }

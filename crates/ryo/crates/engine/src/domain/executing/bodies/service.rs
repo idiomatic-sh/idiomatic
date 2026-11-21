@@ -10,12 +10,15 @@ use crate::domain::code::records::service::{body_at, operand_at};
 use crate::domain::code::records::types::PooledOperand;
 use crate::domain::code::records::types::{BodyRecord, ReadBody};
 use crate::domain::code::types::{CodeEntry, CodeWord, IndexSite, Op, PoolAt, WordSlot};
+use crate::domain::executing::asks::service::definition_needed;
 use crate::domain::executing::budget::service::{begin_unit, end_unit, reach};
+use crate::domain::executing::constants::NO_ANSWER;
 use crate::domain::executing::measuring::service::{entered, evaluated, left, used};
 use crate::domain::executing::sources::service::keyed;
 use crate::domain::made_tables::types::{KeyFrom, PatternAsk};
 use crate::domain::memos::service::{asked, keep, row_count};
 use crate::domain::memos::types::{ChargedUnit, MemoId};
+use crate::domain::needs::types::NeedVerdict;
 use crate::domain::programs::frames::types::{RunMode, StepFrame};
 use crate::domain::programs::operands::service::{cell, operand, set};
 use crate::domain::scratch::types::SeamRows;
@@ -92,8 +95,12 @@ fn pattern_keyed(frame: &mut StepFrame<'_, '_>, body: CallUse, start: Count) -> 
     answer
 }
 
-/// The answer of a pattern in call form for the caller's values, which are the operands paired with its formals.
+/// The answer of a pattern in call form for the caller's values, which are the operands paired with its formals; no
+/// answer, and no ask, in a file where the pattern's definition cannot have a row.
 pub(crate) fn pattern(frame: &mut StepFrame<'_, '_>, body: CallUse) -> MemoId {
+    if definition_needed(frame, body.need) == NeedVerdict::Empty {
+        return NO_ANSWER;
+    }
     let start = frame.state.key.len();
     let first = parts_start(frame.state, body);
     let mut from = KeyFrom::Constants;
@@ -146,13 +153,20 @@ fn parts_start(state: &LoopState, body: CallUse) -> Option<Count> {
 /// The answer of a pattern in call form for a key the fill side hands over: what a `Use` stage asks back, once per distinct
 /// key of its batch. The one memo makes the pattern's program run once per distinct key of the file.
 pub(crate) fn asked_pattern(frame: &mut StepFrame<'_, '_>, asked_for: PatternAsk<'_>) -> MemoId {
+    let record = body_at(&frame.fill.programs.code.pool, asked_for.body).map(|body| body.record);
+    if let Some(BodyRecord::Call { need, .. }) = record
+        && definition_needed(frame, need) == NeedVerdict::Empty
+    {
+        return NO_ANSWER;
+    }
     let start = frame.state.key.len();
     frame.state.key.extend_from_slice(asked_for.key);
-    match body_at(&frame.fill.programs.code.pool, asked_for.body).map(|body| body.record) {
+    match record {
         Some(BodyRecord::Call {
             entry,
             memo,
             unit,
+            need,
             bound,
             formals,
         }) => pattern_keyed(
@@ -161,6 +175,7 @@ pub(crate) fn asked_pattern(frame: &mut StepFrame<'_, '_>, asked_for: PatternAsk
                 entry,
                 site: memo,
                 unit,
+                need,
                 bound,
                 formals,
             },
@@ -259,6 +274,7 @@ pub(crate) fn has_row(frame: &mut StepFrame<'_, '_>, body: Option<ReadBody>) -> 
             entry,
             memo,
             unit,
+            need,
             bound,
             formals,
         } => {
@@ -268,6 +284,7 @@ pub(crate) fn has_row(frame: &mut StepFrame<'_, '_>, body: Option<ReadBody>) -> 
                     entry,
                     site: memo,
                     unit,
+                    need,
                     bound,
                     formals,
                 },

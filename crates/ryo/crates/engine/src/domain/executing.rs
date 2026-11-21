@@ -1,5 +1,6 @@
 //! The `executing` concept: the one loop over a program's words.
 
+pub mod asks;
 pub mod bodies;
 pub mod budget;
 pub mod closing;

@@ -1,12 +1,12 @@
 //! The types of the `scratch` concept: a worker's per-file state.
 
+use super::kept::types::{AskedNeed, HeldRead, QuickBody};
 use crate::domain::code::records::types::{PooledOperand, ReadBody};
 use crate::domain::code::types::RelationNumber;
 use crate::domain::code::types::{CodeEntry, WordSlot};
 use crate::domain::filled::errors::FilledError;
 use crate::domain::findings::types::InstructionCount;
 use crate::domain::indexes::types::{FileStamp, RowRun};
-use crate::domain::made_tables::columns::types::HeldColumn;
 use crate::domain::made_tables::types::FillWork;
 use crate::domain::made_tables::types::{FillStore, KeyFrom};
 use crate::domain::memos::types::{CellSpan, ChargedUnit, MemoId, MemoMap, RuleStamp};
@@ -136,6 +136,10 @@ pub(crate) struct LoopState {
     /// The rule that last read each index site, by the site's number: a site the running rule read before in this file
     /// needs neither its table's need nor its charge asked again.
     pub(crate) site_reads: Vec<RuleStamp>,
+    /// What each need site answered the rule that last asked it on behalf of a pattern in call form, by the site's
+    /// number: the rule's first ask of a pattern in a file decides the definition's need (or finds it decided) and is
+    /// told the node table it read; every later ask reads this alone.
+    pub(crate) need_asks: Vec<AskedNeed>,
     /// Where the column of each `Read` of a made table or of a filled relation lies, by the word's slot
     /// (`DecodedCode.lists`): asked of the fill side at the word's first read in a file, and good for that file.
     pub(crate) held_reads: Vec<HeldRead>,
@@ -361,15 +365,8 @@ pub(crate) struct DecodedCode {
     pub(crate) parts: Vec<AskPart>,
     /// By the pool place of a call-form body's formals: where its parts start in `parts`, and one; nought for none.
     pub(crate) parts_at: Vec<Count>,
-}
-
-/// A column a `Read` word reads, as the fill side holds it for one file.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct HeldRead {
-    /// The file it was asked in; none before the word's first read.
-    pub(crate) file: Option<FileStamp>,
-    /// Where the column lies.
-    pub(crate) column: HeldColumn,
+    /// How each `Exists` word that keeps no answer of its own asks its body, by the word's place.
+    pub(crate) quick: Vec<QuickBody>,
 }
 
 /// One bound column of a call-form body's ask: the formal register the pattern reads it from, the operand the asker

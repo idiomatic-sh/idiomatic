@@ -13,12 +13,12 @@ use crate::domain::lowered::types::{
 use crate::domain::made_tables::fixtures::packs::{of, operands, word};
 use crate::domain::programs::types::{Programs, ProgramsEngine};
 use crate::domain::steps::types::{
-    ColumnList, ColumnMask, DefinitionId, EmitTarget, MadeColumn, MadeTableId, MatchColumns,
-    PlacedStep, Polarity, ProgramStep, ReadColumn, Register, RegisterCount, RegisterList, StepBody,
-    StepMemo, StepOperand, StepProgram, StepRows, TestOperation,
+    AnchorKinds, ColumnList, ColumnMask, DefinitionId, EmitTarget, MadeColumn, MadeTableId,
+    MatchColumns, PlacedStep, Polarity, ProgramStep, ReadColumn, Register, RegisterCount,
+    RegisterList, StepBody, StepMemo, StepOperand, StepProgram, StepRows, TestOperation,
 };
 use ryo_language::domain::facts::types::CellWord;
-use ryo_relations::domain::relations::types::CellKind;
+use ryo_relations::domain::relations::types::{CellKind, KindBits};
 use ryo_values::domain::query_plans::types::NodeDigest;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 use ryo_values::domain::table_words::types::ColumnCount;
@@ -53,6 +53,9 @@ pub enum LoopBench {
     /// Asks a pattern in call form for the row's own key, once, where the pattern's program tests its key against a cell
     /// no row holds and so gives no row: every ask evaluates the pattern, keeps its empty answer, and ends the candidate.
     CallNone,
+    /// Asks a pattern in call form for the row's own key, once, where the pattern's definition needs a node of a kind the
+    /// file does not hold: the ask is not made, and the candidate ends.
+    CallNotAsked,
     /// Asks an inline body of a test that holds and a `Yield` whether it has a row, `COPIES` times: a run entered for
     /// each ask.
     ExistsRun,
@@ -81,7 +84,7 @@ pub const COPIES: usize = 8;
 /// ```
 /// use ryo_engine::domain::dispatch::fixtures::workloads::LOOP_BENCHES;
 ///
-/// assert_eq!(LOOP_BENCHES.len(), 11);
+/// assert_eq!(LOOP_BENCHES.len(), 12);
 /// ```
 pub const LOOP_BENCHES: &[LoopBench] = &[
     LoopBench::Rows,
@@ -92,6 +95,7 @@ pub const LOOP_BENCHES: &[LoopBench] = &[
     LoopBench::CallHit,
     LoopBench::CallMiss,
     LoopBench::CallNone,
+    LoopBench::CallNotAsked,
     LoopBench::ExistsRun,
     LoopBench::Emit,
     LoopBench::Match,
@@ -117,6 +121,7 @@ pub const fn loop_name(bench: LoopBench) -> &'static str {
         LoopBench::CallHit => "call_hit",
         LoopBench::CallMiss => "call_miss",
         LoopBench::CallNone => "call_none",
+        LoopBench::CallNotAsked => "call_not_asked",
         LoopBench::ExistsRun => "exists_run",
         LoopBench::Emit => "emit",
         LoopBench::Match => "match",
@@ -208,7 +213,9 @@ pub fn loop_programs(bench: LoopBench, rows: usize) -> Option<Programs> {
         ),
         LoopBench::ExistsInline => (several(&inline), 0),
         LoopBench::CallHit => (several(&|| asked(word(7))), 0),
-        LoopBench::CallMiss | LoopBench::CallNone => (vec![asked(of(0))], 0),
+        LoopBench::CallMiss | LoopBench::CallNone | LoopBench::CallNotAsked => {
+            (vec![asked(of(0))], 0)
+        }
         LoopBench::ExistsRun => (
             several(&|| ProgramStep::Exists {
                 polarity: Polarity::Present,
@@ -277,7 +284,12 @@ pub fn loop_programs(bench: LoopBench, rows: usize) -> Option<Programs> {
         definitions: vec![PackDefinition {
             node: NodeDigest([80; 16]),
             formals: RegisterList(Box::new([Register(5)])),
-            emptiness: Emptiness::Unknown,
+            // The bench's file has no node: a definition that needs one of a kind cannot have a row in it.
+            emptiness: if bench == LoopBench::CallNotAsked {
+                Emptiness::Kind(AnchorKinds(Box::new([KindBits(2)])))
+            } else {
+                Emptiness::Unknown
+            },
             patterns: vec![pattern],
         }],
         tables: vec![constants],

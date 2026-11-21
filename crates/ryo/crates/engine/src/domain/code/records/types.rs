@@ -45,7 +45,8 @@ pub(crate) enum BodyRecord {
         /// Where they start.
         entry: CodeEntry,
     },
-    /// `1, entry, memo site, unit, n`, then n pairs of a formal register and an operand: a pattern in call form.
+    /// `1, entry, memo site, unit, need site, n`, then n pairs of a formal register and an operand: a pattern in call
+    /// form.
     Call {
         /// Where the pattern's program starts.
         entry: CodeEntry,
@@ -53,6 +54,8 @@ pub(crate) enum BodyRecord {
         memo: MemoSite,
         /// The pattern's unit: its place among the code's units.
         unit: WordSlot,
+        /// The need site of the pattern's definition: an ask in a file where it is decided empty is not made.
+        need: NeedSite,
         /// How many columns are bound.
         bound: WordSlot,
         /// Where the pairs start.

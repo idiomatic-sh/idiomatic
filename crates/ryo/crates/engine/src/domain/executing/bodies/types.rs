@@ -1,6 +1,6 @@
 //! The types of the `bodies` part.
 
-use crate::domain::code::types::{CodeEntry, MemoSite, PoolAt, WordSlot};
+use crate::domain::code::types::{CodeEntry, MemoSite, NeedSite, PoolAt, WordSlot};
 use crate::domain::made_tables::types::KeyFrom;
 use ryo_relations::domain::relations::types::Count;
 
@@ -13,6 +13,8 @@ pub(crate) struct CallUse {
     pub(crate) site: MemoSite,
     /// Its unit among the code's.
     pub(crate) unit: WordSlot,
+    /// The need site of its definition.
+    pub(crate) need: NeedSite,
     /// How many columns are bound.
     pub(crate) bound: WordSlot,
     /// Where the pairs of a formal register and the caller's operand start.
