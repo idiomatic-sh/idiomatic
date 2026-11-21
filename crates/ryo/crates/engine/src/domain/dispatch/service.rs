@@ -11,6 +11,7 @@ use crate::domain::executing::measuring::sites::service::need_decision_begun;
 use crate::domain::executing::presence::service::consulted;
 use crate::domain::executing::sources::types::FileNeeds;
 use crate::domain::findings::types::{InstructionCount, ScanCounters};
+use crate::domain::needs::masks::service::costs_found;
 use crate::domain::needs::service::decided;
 use crate::domain::needs::types::NeedVerdict;
 use crate::domain::programs::frames::types::{RunMode, StepFrame};
@@ -22,6 +23,10 @@ use ryo_relations::domain::relations::types::Count;
 /// the file is noticed when its work ends, and is never stopped: its rows are all found.
 pub(crate) fn dispatch(frame: &mut StepFrame<'_, '_>, rules: &Programs) -> ScanCounters {
     let programs = frame.fill.programs;
+    // What a record of the needs may cost is the code's alone: found at the worker's first file.
+    if frame.state.need_masks.costs.len() != programs.code.needs.len() {
+        costs_found(programs.code, &mut frame.state.need_masks);
+    }
     for rule in &programs.code.rules {
         frame.state.rule = Some(rule.rule);
         begin_rule(frame.state);
