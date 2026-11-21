@@ -130,7 +130,18 @@ pub(crate) fn file_marked(frame: BatchFrame<'_>, word: CodeWord, files: &mut Vec
             HeldCells::TableFile(_)
         ),
         ReadSource::Nodes(_) => node_column_of(stage.column) == Some(NodeColumn::File),
-        ReadSource::Filled(_) | ReadSource::Written(_) => false,
+        // SPIKE (ryo-fmx3.1, fault H): a filled relation's column of the file kind holds the file too (`filesystem.file`'s
+        // `path`): a relation of the file names no other file.
+        ReadSource::Filled(number) => frame
+            .programs
+            .code
+            .relations
+            .get(usize::try_from(number.0).unwrap_or(usize::MAX))
+            .and_then(|relation| {
+                ryo_relations::domain::relations::service::kinds(*relation).get(usize::from(stage.column.0))
+            })
+            == Some(&ryo_relations::domain::relations::types::CellKind::File),
+        ReadSource::Written(_) => false,
     };
     if the_file {
         files.push(out);
