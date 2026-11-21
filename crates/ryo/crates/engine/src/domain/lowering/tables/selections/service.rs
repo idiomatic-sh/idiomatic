@@ -4,20 +4,20 @@
 
 use crate::domain::lowered::types::Emptiness;
 use crate::domain::lowering::definitions::service::{kind_bits, regex, text_word};
-use crate::domain::lowering::definitions::types::Drafts;
+use crate::domain::lowering::definitions::types::{Drafts, Flattened};
 use crate::domain::lowering::emptiness::service::literal_read;
 use crate::domain::lowering::flattening::service::compared;
-use crate::domain::lowering::flattening::types::FlatBranch;
+use crate::domain::lowering::flattening::types::{FlatBranch, FlatTerm};
 use crate::domain::lowering::tables::inputs::service::{rule, term};
 use crate::domain::lowering::tables::sets::service::{bucket_branches, bucket_column, literals};
 use crate::domain::lowering::tables::sets::types::{RelationColumn, SetTests};
 use crate::domain::lowering::tables::shapes::service::test_of;
 use crate::domain::lowering::tables::types::RuleFlattening;
+use crate::domain::lowering::tables::views::service::relation_read;
+use crate::domain::lowering::tables::views::types::RelationView;
 use crate::domain::steps::types::{AnchorKinds, ConstantText, TestOperation};
 use ryo_relations::domain::relations::service::columns;
-use ryo_values::domain::plan_parts::types::{
-    Input, LiteralText, Operand, PlanComparison, QueryLiteral,
-};
+use ryo_values::domain::plan_parts::types::{LiteralText, Operand, PlanComparison, QueryLiteral};
 
 /// A branch with one comparison added as a pin or a test. Outer none: the comparison cannot be written; inner none: the
 /// branch holds of no row.
@@ -98,24 +98,33 @@ fn literal_formula(
     Some(literal_read(read.relation, read.column, value, kinds))
 }
 
-/// The emptiness of a selection: of a relation read with a literal in a column when that is what it is, the `Any` of each
-/// literal's when the column is a node's kind or field held to a set of literals, else its input's.
-pub(crate) fn selection_emptiness(
+/// The emptiness of a selection. Of one read of a relation (`read`: what the selection's input was before the comparisons,
+/// a relation itself or a step that is a view of one) it is that of the relation read with the first literal a comparison
+/// holds a column to: a pin's formula, or for a node's kind or field held to a set of literals the `Any` of each
+/// literal's. Else its input's: of an input that is no such read, and of a read whose formula already names a value.
+fn selection_emptiness(
     state: &RuleFlattening<'_>,
     drafts: &Drafts,
-    from: Input,
+    read: Option<&RelationView>,
     comparisons: &[PlanComparison],
-    read: Emptiness,
+    from: Emptiness,
 ) -> Emptiness {
-    let Input::Relation(relation) = from else {
-        return read;
+    let Some(read) = read.filter(|_| matches!(from, Emptiness::Unknown | Emptiness::Row(_, None)))
+    else {
+        return from;
     };
-    let listed = columns(relation);
+    let (relation, listed) = (read.relation, columns(read.relation));
     for comparison in comparisons {
         let Operand::Column(column) = &comparison.left else {
             continue;
         };
-        let Some(column) = listed.get(usize::from(*column)).copied() else {
+        // The column of the relation the selection's column is: the place of its cell in the relation's row.
+        let cell = read.row.get(usize::from(*column));
+        let place = cell.and_then(|cell| match cell {
+            FlatTerm::Variable(_) => read.cells.iter().position(|held| held == cell),
+            FlatTerm::Text(_) | FlatTerm::Number(_) | FlatTerm::File => None,
+        });
+        let Some(column) = place.and_then(|place| listed.get(place).copied()) else {
             continue;
         };
         let read = RelationColumn { relation, column };
@@ -138,5 +147,20 @@ pub(crate) fn selection_emptiness(
             return Emptiness::Any(parts.into());
         }
     }
-    read
+    from
+}
+
+/// A read with a selection's comparisons added: its branches selected, and its emptiness the selection's.
+pub(crate) fn selection(
+    state: &RuleFlattening<'_>,
+    drafts: &mut Drafts,
+    mut read: Flattened,
+    comparisons: &[PlanComparison],
+    sets: SetTests,
+) -> Option<Flattened> {
+    let before = relation_read(&read.branches);
+    read.branches = all_selected(state, drafts, read.branches, comparisons, sets)?;
+    let from = std::mem::take(&mut read.emptiness);
+    read.emptiness = selection_emptiness(state, drafts, before.as_ref(), comparisons, from);
+    Some(read)
 }

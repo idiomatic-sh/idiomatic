@@ -10,6 +10,7 @@ pub mod pending;
 mod scenes;
 mod sets;
 mod shapes;
+mod views;
 
 use parts::{
     as_of, at, axis, joined, kept, nearest, nearest_step, of, plan, step, words, words_written,
@@ -329,7 +330,8 @@ pub fn named(scene: &str) -> Plan {
     let listed = scenes::load_scene(scene)
         .or_else(|| scenes::scan_scene(scene))
         .or_else(|| shapes::shape_scene(scene))
-        .or_else(|| sets::set_scene(scene));
+        .or_else(|| sets::set_scene(scene))
+        .or_else(|| views::view_scene(scene));
     if let Some(plan) = listed {
         return plan;
     }

@@ -6,6 +6,7 @@
 mod operations;
 mod sets;
 mod shapes;
+mod views;
 
 use super::errors::LoweringError;
 use super::fixtures::described::{code_census, described};
@@ -48,17 +49,25 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_plan_two_rules_emit_is_one_definition_and_each_rule_walks_its_table"),
         word: Word::Succeeds,
-        input: || (&["one tree rule", "one tree rule"], SampleStage::Absent),
+        input: || {
+            (
+                &[
+                    "the elements that are no comment",
+                    "the elements that are no comment",
+                ],
+                SampleStage::Absent,
+            )
+        },
         expect: Expect::Value(Cow::Borrowed(concat!(
             "definition 0: 5 columns, emptiness Unknown\n",
             "  pattern bound [] collected []: Table 0\n",
             "table 0: Rows, 5 columns, indexes []\n",
-            "  pipeline: Scan:File Read:Constant Read:Constant Read:Constant\n",
+            "  pipeline: Scan:File Read:Constant Keep:Constant Read:Constant Read:Constant\n",
             "rule 0: 1 branches\n",
             "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Read:Constant Emit:Constant\n",
             "rule 1: 1 branches\n",
             "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Read:Constant Emit:Constant\n",
-            "codes: {\"EachRowMade\": 2, \"Emit\": 2, \"End\": 3, \"ReadMade\": 8, \"StageRead\": 3, \"StageScan\": 1, \"StageWrite\": 1}",
+            "codes: {\"EachRowMade\": 2, \"Emit\": 2, \"End\": 3, \"ReadMade\": 8, \"StageKeep\": 1, \"StageRead\": 3, \"StageScan\": 1, \"StageWrite\": 1}",
         ))),
     },
     Case {

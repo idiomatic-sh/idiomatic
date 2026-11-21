@@ -91,6 +91,9 @@ pub(crate) struct Drafts {
     /// The columns of its step's row a definition holds, in order, for each definition that holds fewer than the step has:
     /// one whose every reader across the pack is a projection, and no reader asks the others.
     pub(crate) held: HashMap<DefinitionId, Vec<RowColumn>>,
+    /// The read of each merged plan node that is one read of a relation with its pins: what each reader that takes the
+    /// node's branches reads in place (`tables::views`).
+    pub(crate) views: HashMap<NodeDigest, Flattened>,
     /// The patterns asked and not yet placed.
     pub(crate) waiting: Vec<WaitingPattern>,
     /// The next variable no branch names.

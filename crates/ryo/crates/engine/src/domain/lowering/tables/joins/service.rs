@@ -15,7 +15,7 @@ use crate::domain::lowering::flattening::types::{NearestDomain, NearestOver};
 use crate::domain::lowering::nodes::service::input_shape;
 use crate::domain::lowering::tables::closures::service::edge_rows;
 use crate::domain::lowering::tables::inputs::service::{input, rule, sized};
-use crate::domain::lowering::tables::selections::service::{all_selected, selection_emptiness};
+use crate::domain::lowering::tables::selections::service::{all_selected, selection};
 use crate::domain::lowering::tables::service::{tree_relation, walk_of};
 use crate::domain::lowering::tables::sets::types::SetTests;
 use crate::domain::lowering::tables::types::InputSize;
@@ -295,15 +295,12 @@ pub(crate) fn axis_arm(
                     column: made_column(RowColumn(entity))?,
                 },
                 (_, Input::Relation(_)) => {
-                    let read = std::mem::take(&mut held.branches);
-                    let mut read =
-                        all_selected(state, drafts, read, domain_filter, SetTests::Tests)?;
-                    let (Some(only), None) = (read.pop(), read.pop()) else {
+                    let read = std::mem::take(&mut held);
+                    let mut read = selection(state, drafts, read, domain_filter, SetTests::Tests)?;
+                    let (Some(only), None) = (read.branches.pop(), read.branches.pop()) else {
                         return None;
                     };
-                    let emptiness = std::mem::take(&mut held.emptiness);
-                    held.emptiness =
-                        selection_emptiness(state, drafts, *domain, domain_filter, emptiness);
+                    held.emptiness = read.emptiness;
                     NearestDomain::Read {
                         entity: *only.row.get(entity)?,
                         atoms: only.atoms,

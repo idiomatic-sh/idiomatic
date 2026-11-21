@@ -19,6 +19,7 @@ use crate::domain::lowering::tables::service::tree_relation;
 use crate::domain::lowering::tables::shapes::service::picked as kinds_picked;
 use crate::domain::lowering::tables::types::InputSize;
 use crate::domain::lowering::tables::types::{InputWant, RuleFlattening};
+use crate::domain::lowering::tables::views::service::{view_noted, view_read};
 use crate::domain::steps::types::DefinitionId;
 use ryo_relations::domain::relations::types::Count;
 use ryo_relations::domain::relations::types::Integer;
@@ -193,6 +194,14 @@ pub(crate) fn input(
             // of a table's rows would be a copy.
             if let Some(alias) = waiting.and_then(|flattened| aliased(drafts, flattened)) {
                 return Some(alias);
+            }
+            // A step that is one read of a relation with its pins is that read for each reader that takes its
+            // branches: a table of a relation's rows would be a copy. A reader that asks a definition has one.
+            view_noted(drafts, digest, waiting);
+            if want == InputWant::Inline
+                && let Some(read) = view_read(drafts, digest)
+            {
+                return Some(read);
             }
             let cut = want == InputWant::Defined
                 || shared
