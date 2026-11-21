@@ -1,5 +1,5 @@
 //! The services of the `walks` part: the elements a word reaches along a tree axis from one start, staged for the word's
-//! item, and the nearest of a start's ancestors its condition holds of. The walk itself is the fill side's kernel
+//! item, the nearest of a start's ancestors its condition holds of, and whether one node is a proper ancestor of another. The walk itself is the fill side's kernel
 //! (`stages::walking::service::along`), run for a batch of one start: the tree has one definition of a parent, of a
 //! sibling and of the reach of an extent.
 
@@ -7,7 +7,7 @@ use crate::domain::code::constants::{KEPT, OWN_TREE};
 use crate::domain::code::records::service::body_at;
 use crate::domain::code::small_codes::service::direction_of;
 use crate::domain::code::types::{CodeWord, MemoSite, WordFlag, WordSlot};
-use crate::domain::code::walking::service::{axis_of, nearest_of};
+use crate::domain::code::walking::service::{axis_of, nearest_of, within_of};
 use crate::domain::executing::bodies::service::{has_row, slot};
 use crate::domain::findings::types::InstructionCount;
 use crate::domain::memos::service::{asked, keep, rows};
@@ -148,6 +148,37 @@ pub(crate) fn nearest(frame: &mut StepFrame<'_, '_>, word: CodeWord) {
     frame.state.staged.extend(found);
     frame.state.answer = BodyAnswer {
         first: Count(first),
+        rows: Count(usize::from(found.is_some())),
+    };
+}
+
+/// Answers a `Within` word: whether its ancestor register's node is a proper ancestor of its descendant register's, in
+/// the tree the word's flag names. The descendant's ancestors are the walk kernel's (the tree's one definition of a
+/// parent and of an extent's reach), and each ancestor looked at is a row visited. Leaves one row in the state's answer
+/// when it holds and none when it does not; nothing stays staged.
+pub(crate) fn within(frame: &mut StepFrame<'_, '_>, word: CodeWord) {
+    let asking = within_of(word);
+    let (above, below) = (cell(frame, asking.ancestor), cell(frame, asking.descendant));
+    let ancestors = reached(frame, extent(asking.flag), AxisDirection::Ancestor, below);
+    let walked = frame
+        .state
+        .staged
+        .get(ancestors.first.0..)
+        .unwrap_or_default();
+    let found = walked.iter().position(|each| *each == above);
+    let looked = u64::try_from(found.map_or(walked.len(), |place| place.saturating_add(1)))
+        .unwrap_or(u64::MAX);
+    frame.state.staged.truncate(ancestors.first.0);
+    let LoopState {
+        work,
+        budget,
+        answer,
+        ..
+    } = &mut *frame.state;
+    work.visited = InstructionCount(work.visited.0.saturating_add(looked));
+    budget.visited = InstructionCount(budget.visited.0.saturating_add(looked));
+    *answer = BodyAnswer {
+        first: ancestors.first,
         rows: Count(usize::from(found.is_some())),
     };
 }

@@ -28,7 +28,7 @@ use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 enum Scene {
     /// Nothing: a read of the row.
     AllRun,
-    /// A word the loop does not run: a test that one node is an ancestor of another.
+    /// A word the loop does not run: the children of a node.
     CallInTheRule,
     /// A test of a text the executor does not run: a version at least another.
     NumericTest,
@@ -104,12 +104,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
 ];
 
-/// A test that one node is an ancestor of another: a word the loop does not run.
+/// The children of a node: a word the loop does not run.
 fn call() -> ProgramStep {
-    ProgramStep::Within {
+    ProgramStep::Children {
         relation: Relation::SyntaxTree,
-        ancestor: Register(0),
-        descendant: Register(0),
+        parent: Register(0),
+        field: None,
+        out: Register(0),
     }
 }
 

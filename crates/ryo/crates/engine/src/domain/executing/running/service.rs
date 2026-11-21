@@ -48,7 +48,8 @@ fn step_word(
         | Op::Let
         | Op::Yield
         | Op::Emit
-        | Op::Axis => WordBuilt::Runs,
+        | Op::Axis
+        | Op::Within => WordBuilt::Runs,
         Op::EachRowMade => {
             out.push(WalkPlace::Table(each_row_made_of(word).table));
             WordBuilt::Runs
@@ -101,7 +102,6 @@ fn step_word(
         Op::EachRange
         | Op::Children
         | Op::ChildrenOfField
-        | Op::Within
         | Op::NearestDerived
         | Op::Render => WordBuilt::NotYet,
         // A stage is no word of a step program.

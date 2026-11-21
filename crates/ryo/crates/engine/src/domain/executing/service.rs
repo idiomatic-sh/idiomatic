@@ -11,7 +11,7 @@ use super::measuring::types::{Uncounted, WordCounter};
 use super::ordered::service::latest;
 use super::sources::service::{keyed, whole};
 use super::staging::service::staged;
-use super::walks::service::{axis, nearest};
+use super::walks::service::{axis, nearest, within};
 use crate::domain::code::anchoring::service::{
     each_row_filled_of, each_row_made_of, each_row_node_of,
 };
@@ -36,6 +36,7 @@ use crate::domain::programs::collections::instructions::nearest::item::Nearest;
 use crate::domain::programs::collections::instructions::or::item::Or;
 use crate::domain::programs::collections::instructions::reached::item::Closure;
 use crate::domain::programs::collections::instructions::read::item::Read;
+use crate::domain::programs::collections::instructions::within::item::Within;
 use crate::domain::programs::collections::instructions::yield_row::item::YieldRow;
 use crate::domain::programs::frames::types::{RunMode, StepFrame};
 use crate::domain::programs::operands::service::after;
@@ -118,6 +119,10 @@ fn step(frame: &mut StepFrame<'_, '_>, word: CodeWord, at: CodeEntry, mode: RunM
             nearest(frame, word);
             Nearest::run(frame, word, at)
         }
+        Op::Within => {
+            within(frame, word);
+            Within::run(frame, word, at)
+        }
         Op::Latest => {
             latest(frame, word);
             Latest::run(frame, word, at)
@@ -140,7 +145,6 @@ fn step(frame: &mut StepFrame<'_, '_>, word: CodeWord, at: CodeEntry, mode: RunM
         Op::EachRange
         | Op::Children
         | Op::ChildrenOfField
-        | Op::Within
         | Op::NearestDerived
         | Op::Render
         | Op::StageScan
