@@ -20,7 +20,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "two_rules_that_emit_a_relations_rows_each_read_the_relation_and_no_table_is_made",
         ),
         word: Word::Succeeds,
-        input: || (&["one tree rule", "one tree rule"], SampleStage::Absent),
+        input: || (&["one tree rule", "one tree rule"], SampleStage::Second),
         expect: Expect::Value(Cow::Borrowed(concat!(
             "rule 0: 1 branches\n",
             "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Emit:Constant\n",
@@ -40,7 +40,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                     "the edges of the field label",
                     "the edges of the field label",
                 ],
-                SampleStage::Absent,
+                SampleStage::Second,
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
@@ -118,7 +118,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                     "the elements of two kinds, by a union",
                     "the elements of two kinds, by a union",
                 ],
-                SampleStage::Absent,
+                SampleStage::Second,
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
@@ -190,7 +190,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                     "the edges of a projection in two fields",
                     "the edges of a projection in two fields",
                 ],
-                SampleStage::Absent,
+                SampleStage::Second,
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(

@@ -59,7 +59,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 &["the nearest elements above, projected"],
-                SampleStage::Absent,
+                SampleStage::Second,
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
@@ -81,7 +81,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("an_antijoin_against_a_relation_is_an_exists_over_its_rows_read_in_place"),
         word: Word::Succeeds,
-        input: || (&["the words no link starts at"], SampleStage::Absent),
+        input: || (&["the words no link starts at"], SampleStage::Second),
         expect: Expect::Value(Cow::Borrowed(concat!(
             "rule 0: 1 branches\n",
             "  branch: EachRow:File Read:Constant Read:Constant EachMatch:Fanout Exists:Constant Read:Constant Emit:Constant\n",
@@ -94,7 +94,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 &["the words no link starts at", "the words no link starts at"],
-                SampleStage::Absent,
+                SampleStage::Second,
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
@@ -115,7 +115,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 &["the nearest sentence above each word"],
-                SampleStage::Absent,
+                SampleStage::Second,
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
@@ -143,7 +143,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                     "the words counted by text, in stub files",
                     "the words counted by text, in stub files",
                 ],
-                SampleStage::Absent,
+                SampleStage::Second,
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
@@ -175,7 +175,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                     "the elements whose replaced text an import names",
                     "the elements whose replaced text an import names",
                 ],
-                SampleStage::Absent,
+                SampleStage::Second,
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
@@ -193,7 +193,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_next_sibling_axis_is_a_walk_to_the_sibling_after"),
         word: Word::Succeeds,
-        input: || (&["the word after each word"], SampleStage::Absent),
+        input: || (&["the word after each word"], SampleStage::Second),
         expect: Expect::Value(Cow::Borrowed(concat!(
             "rule 0: 1 branches\n",
             "  branch: EachRow:File Read:Constant Axis:Fanout EachMatch:Fanout Read:Constant Read:Constant EachMatch:Fanout Read:Constant Emit:Constant\n",
@@ -203,7 +203,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("an_ancestor_axis_over_edges_that_are_no_tree_is_a_closure_from_the_start"),
         word: Word::Succeeds,
-        input: || (&["the scopes above each scope"], SampleStage::Absent),
+        input: || (&["the scopes above each scope"], SampleStage::Second),
         expect: Expect::Value(Cow::Borrowed(concat!(
             "definition 0: 5 columns, emptiness All([All([Row(Scope, None), Unknown, Row(Scope, None)]), Any([All([Row(Scope, None), Row(Scope, None)])])])\n",
             "  pattern bound [] collected []: Table 0\n",
@@ -218,7 +218,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_group_count_over_a_relation_scans_the_relations_own_rows"),
         word: Word::Succeeds,
-        input: || (&["the links counted by kind"], SampleStage::Absent),
+        input: || (&["the links counted by kind"], SampleStage::Second),
         expect: Expect::Value(Cow::Borrowed(concat!(
             "table 0: Group(Count), 3 columns, indexes []\n",
             "  pipeline: Scan:File Read:Constant Read:Constant Read:Constant Read:Constant\n",
@@ -235,7 +235,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 &["the elements that start where a bracket ends"],
-                SampleStage::Absent,
+                SampleStage::Second,
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(

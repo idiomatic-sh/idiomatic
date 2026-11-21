@@ -454,7 +454,7 @@ const LOWERED: &[Case<Lowered, Value, Failure>] = &[
             fed: None,
             codes: 500,
         },
-        "definition 0: 1 columns, emptiness All([])\ndefinition 1: 2 columns, emptiness All([All([All([Unknown, Unknown]), Definition(DefinitionId(0))]), Any([All([Definition(DefinitionId(0))])])])\ntable 0: Group(Count), 3 columns, indexes []\ntable 1: Rows, 2 columns, indexes []\nrule 0: 1 branches\nencoded\nload: 1 accepted, refused []",
+        "definition 0: 1 columns, emptiness All([])\ndefinition 1: 2 columns, emptiness All([All([All([Unknown, Unknown]), Definition(DefinitionId(0))]), Any([All([Definition(DefinitionId(0))])])])\ntable 0: Group(Count), 3 columns, indexes []\ntable 1: Rows, 2 columns, indexes []\ntable 2: Constant, 1 columns, indexes [[0]]\nrule 0: 1 branches\nencoded\nload: 1 accepted, refused []",
     ),
     lowered_said(
         "a_bound_observation_is_one_definition_of_its_producers_observed_steps",
@@ -463,7 +463,7 @@ const LOWERED: &[Case<Lowered, Value, Failure>] = &[
             fed: Some(1),
             codes: 2,
         },
-        "definition 0: 5 columns, emptiness All([Unknown, Unknown])\ndefinition 1: 3 columns, emptiness All([Definition(DefinitionId(0)), Any([All([Definition(DefinitionId(0))])])])\ndefinition 2: 3 columns, emptiness All([Any([Definition(DefinitionId(1))]), Any([All([Definition(DefinitionId(1))])])])\ntable 0: Rows, 5 columns, indexes [[3]]\nrule 0: 1 branches\nrule 1: 3 branches\nencoded\nload: 2 accepted, refused []",
+        "definition 0: 5 columns, emptiness All([Unknown, Unknown])\ndefinition 1: 3 columns, emptiness All([Definition(DefinitionId(0)), Any([All([Definition(DefinitionId(0))])])])\ndefinition 2: 3 columns, emptiness All([Any([Definition(DefinitionId(1))]), Any([All([Definition(DefinitionId(1))])])])\ntable 0: Rows, 3 columns, indexes [[2]]\ntable 1: Rows, 3 columns, indexes []\ntable 2: Rows, 5 columns, indexes []\nrule 0: 1 branches\nrule 1: 3 branches\nencoded\nload: 2 accepted, refused []",
     ),
 ];
 
@@ -639,7 +639,7 @@ const SCANNED: &[Case<Vec<Plan>, Value, Failure>] = &[
     scanned_said(
         "the_files_words_joined_with_many_written_rows_find_each_word_a_row_names",
         || vec![words_written_among(40)],
-        "refused [], rows Some(2)\ndefinition 0: 1 columns, emptiness All([])\n  pattern bound [0] collected []: Call: Fork:Constant{Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant | Test:Constant Yield:Constant}\nrule 0: 1 branches\n  branch: EachRow:File EachMatch:Fanout Read:Constant Exists:Fanout Emit:Constant",
+        "refused [], rows Some(2)\ndefinition 0: 1 columns, emptiness All([])\n  pattern bound [0] collected []: Table 0\ntable 0: Constant, 1 columns, indexes [[0]]\nrule 0: 1 branches\n  branch: EachRow:File EachMatch:Fanout Read:Constant Exists:Fanout Emit:Constant",
     ),
     scanned_said(
         "beside_another_rule_the_files_words_joined_with_many_written_rows_find_each_word_a_row_names",

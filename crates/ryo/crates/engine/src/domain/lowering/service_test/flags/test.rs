@@ -25,7 +25,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                     "the integer literals that are zero",
                     "the integer literals that are zero",
                 ],
-                SampleStage::Absent,
+                SampleStage::Second,
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
@@ -51,7 +51,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                     "the literals that are not empty",
                     "the literals that are not empty",
                 ],
-                SampleStage::Absent,
+                SampleStage::Second,
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
@@ -74,7 +74,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 &["the literals that are not a boolean"],
-                SampleStage::Absent,
+                SampleStage::Second,
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
@@ -91,7 +91,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 &["the literals that are zero, the word first"],
-                SampleStage::Absent,
+                SampleStage::Second,
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
@@ -105,7 +105,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_closed_sets_column_held_to_one_of_its_words_is_held_to_the_words_symbol"),
         word: Word::Succeeds,
-        input: || (&["the definitions of a variable"], SampleStage::Absent),
+        input: || (&["the definitions of a variable"], SampleStage::Second),
         expect: Expect::Value(Cow::Borrowed(concat!(
             "rule 0: 1 branches\n",
             "  branch: EachMatch:File Read:Constant Read:Constant Read:Constant Read:Constant Read:Constant Emit:Constant\n",
@@ -121,7 +121,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 &["the kinds of the definitions that are no variable"],
-                SampleStage::Absent,
+                SampleStage::Second,
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
@@ -137,7 +137,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 &["the definitions of a kind no definition has"],
-                SampleStage::Absent,
+                SampleStage::Second,
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
