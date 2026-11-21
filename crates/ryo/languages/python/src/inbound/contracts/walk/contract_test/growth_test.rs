@@ -37,7 +37,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Asked::Shape(GrownShape::Statements),
         expect: Expect::Value(
-            "1921 and 8001 elements: 43 relations and 14 keys held, unproven [SyntaxError], faults []",
+            "1921 and 8001 elements: 44 relations and 14 keys held, unproven [SyntaxError], faults []",
         ),
     },
     Case {
@@ -45,7 +45,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Asked::Shape(GrownShape::Scopes),
         expect: Expect::Value(
-            "2003 and 8163 elements: 25 relations and 11 keys held, unproven [Comment, Decorates, Inherits, BindingShadow, InterpolatedStringLiteral, FormatParse, FormatField, BraceFormatParse, BraceFormatField, RawFormatSegment, RawFormatField, LiteralExpressionParse, StaticImport, StandardLibraryImport, StringLiteral, BytesLiteral, FormatSpecification, SyntaxError, EmbeddedExpression], faults []",
+            "2003 and 8163 elements: 26 relations and 11 keys held, unproven [Comment, Decorates, Inherits, BindingShadow, InterpolatedStringLiteral, FormatParse, FormatField, BraceFormatParse, BraceFormatField, RawFormatSegment, RawFormatField, LiteralExpressionParse, StaticImport, StandardLibraryImport, StringLiteral, BytesLiteral, FormatSpecification, SyntaxError, EmbeddedExpression], faults []",
         ),
     },
     Case {
@@ -53,7 +53,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Asked::Shape(GrownShape::Expression),
         expect: Expect::Value(
-            "2052 and 8172 elements: 25 relations and 10 keys held, unproven [Function, Comment, Decorates, Inherits, Parameter, Resolves, BindingUse, BindingShadow, FunctionTerminal, InterpolatedStringLiteral, FormatField, BraceFormatField, RawFormatField, StaticImport, StandardLibraryImport, BytesLiteral, FormatSpecification, SyntaxError, EmbeddedExpression], faults []",
+            "2052 and 8172 elements: 25 relations and 10 keys held, unproven [Function, Comment, Decorates, Inherits, Parameter, Resolves, BindingUse, BindingResolution, BindingShadow, FunctionTerminal, InterpolatedStringLiteral, FormatField, BraceFormatField, RawFormatField, StaticImport, StandardLibraryImport, BytesLiteral, FormatSpecification, SyntaxError, EmbeddedExpression], faults []",
         ),
     },
     Case {
@@ -61,7 +61,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Asked::Shape(GrownShape::Names),
         expect: Expect::Value(
-            "2047 and 8189 elements: 25 relations and 12 keys held, unproven [Comment, Decorates, Inherits, Parameter, InterpolatedStringLiteral, FormatParse, FormatField, BraceFormatParse, BraceFormatField, RawFormatSegment, RawFormatField, LiteralExpressionParse, StaticImport, StandardLibraryImport, StringLiteral, BytesLiteral, FormatSpecification, SyntaxError, EmbeddedExpression], faults []",
+            "2047 and 8189 elements: 26 relations and 12 keys held, unproven [Comment, Decorates, Inherits, Parameter, InterpolatedStringLiteral, FormatParse, FormatField, BraceFormatParse, BraceFormatField, RawFormatSegment, RawFormatField, LiteralExpressionParse, StaticImport, StandardLibraryImport, StringLiteral, BytesLiteral, FormatSpecification, SyntaxError, EmbeddedExpression], faults []",
         ),
     },
     Case {
@@ -69,7 +69,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Asked::Shape(GrownShape::Errors),
         expect: Expect::Value(
-            "2042 and 8191 elements: 14 relations and 6 keys held, unproven [Function, Comment, Decorates, Inherits, Parameter, CallArgument, Resolves, BindingUse, BindingShadow, Identifier, ExpressionShape, LiteralProperties, FunctionTerminal, ExpressionType, InterpolatedStringLiteral, ConstantKey, FormatParse, FormatField, BraceFormatParse, BraceFormatField, RawFormatSegment, RawFormatField, LiteralExpressionParse, StaticImport, StandardLibraryImport, StringLiteral, BytesLiteral, FormatSpecification, EmbeddedExpression, NumericLiteral], faults []",
+            "2042 and 8191 elements: 14 relations and 6 keys held, unproven [Function, Comment, Decorates, Inherits, Parameter, CallArgument, Resolves, BindingUse, BindingResolution, BindingShadow, Identifier, ExpressionShape, LiteralProperties, FunctionTerminal, ExpressionType, InterpolatedStringLiteral, ConstantKey, FormatParse, FormatField, BraceFormatParse, BraceFormatField, RawFormatSegment, RawFormatField, LiteralExpressionParse, StaticImport, StandardLibraryImport, StringLiteral, BytesLiteral, FormatSpecification, EmbeddedExpression, NumericLiteral], faults []",
         ),
     },
     Case {
@@ -77,7 +77,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Asked::Unproven,
         expect: Expect::Value(
-            "44 relations answered, never proven []; 14 declared keys, never asked with a row []",
+            "45 relations answered, never proven []; 14 declared keys, never asked with a row []",
         ),
     },
     Case {
