@@ -148,6 +148,23 @@ pub(crate) fn rows_of<'a>(index: IndexRead<'a>, run: RowRun) -> &'a [SourceRow] 
     index.rows.get(run.start.0..run.end.0).unwrap_or_default()
 }
 
+/// A key's run of a site's index as a stretch of the arena's rows: the run moved by where the index's rows start. A
+/// stretch stays good while the file lasts, whatever is built after it.
+#[must_use]
+pub(crate) fn stretch_of(arena: &IndexArena, site: IndexSite, run: RowRun) -> RowRun {
+    let first = match arena
+        .slots
+        .get(usize::try_from(site.0).unwrap_or(usize::MAX))
+    {
+        Some(slot) => slot.first.0,
+        None => 0,
+    };
+    RowRun {
+        start: Count(first.saturating_add(run.start.0)),
+        end: Count(first.saturating_add(run.end.0)),
+    }
+}
+
 /// Every key of an index with its run, in the table's order: what a fill that groups its input walks.
 pub(crate) fn runs(index: IndexRead<'_>) -> impl Iterator<Item = RowRun> + '_ {
     index

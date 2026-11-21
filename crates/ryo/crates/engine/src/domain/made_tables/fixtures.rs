@@ -27,7 +27,9 @@ use ryo_relations::domain::answers::types::AbsenceCause;
 use ryo_relations::domain::relations::types::{Count, Missing, Relation};
 use ryo_relations::domain::terms::types::NameText;
 
+pub mod benches;
 pub mod packs;
+#[cfg(test)]
 pub mod reads;
 
 /// How the world's language answers a key.
@@ -183,6 +185,21 @@ pub(crate) fn world_with(
     rows: &[[u64; 2]],
     telling: Telling,
 ) -> Result<World, FilledError> {
+    world_of(tables, definitions, rows.to_vec(), packs::nodes(), telling)
+}
+
+/// The world of a pack of the tables over a file of the nodes given, whose language holds `rows`.
+///
+/// # Errors
+///
+/// The encoding refuses the pack.
+pub(crate) fn world_of(
+    tables: Vec<MadeTable>,
+    definitions: Vec<PackDefinition>,
+    rows: Vec<[u64; 2]>,
+    nodes: NodeTable,
+    telling: Telling,
+) -> Result<World, FilledError> {
     let code = packs::coded(tables, definitions)?;
     let mut store = FillStore::default();
     crate::domain::made_tables::sources::service::next_file(&mut store);
@@ -194,7 +211,7 @@ pub(crate) fn world_with(
             regexes: vec![StepRegex("^[ac]".into())],
             ..ProgramsEngine::default()
         },
-        nodes: packs::nodes(),
+        nodes,
         words: file_words(&base_words(
             checked(&[]).map_err(|_| FilledError::Code {
                 named: crate::domain::filled::types::MissingCode::Word,
@@ -203,7 +220,7 @@ pub(crate) fn world_with(
         )),
         store,
         told: Told {
-            rows: rows.to_vec(),
+            rows,
             telling,
             asked: Vec::new(),
         },

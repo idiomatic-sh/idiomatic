@@ -19,9 +19,10 @@ use crate::domain::made_tables::indexing::service::index_built;
 use crate::domain::made_tables::pipelines::service::{piped, scan_run};
 use crate::domain::made_tables::pipelines::types::StageKind;
 use crate::domain::made_tables::reading::service::{
-    pipeline_words, relation_at, site_at, site_source, source_of,
+    latest_site, pipeline_words, relation_at, site_at, site_source, source_of,
 };
 use crate::domain::made_tables::service::clear_rows;
+use crate::domain::made_tables::staging::service::WRONG_WORD;
 use crate::domain::made_tables::staging::types::BatchFrame;
 use crate::domain::made_tables::types::PipeRun;
 use crate::domain::made_tables::types::{
@@ -30,11 +31,6 @@ use crate::domain::made_tables::types::{
 };
 use crate::domain::steps::types::MadeTableId;
 use ryo_relations::domain::relations::types::Count;
-
-/// The code names a word that is not what its place needs.
-const WRONG_WORD: FilledError = FilledError::Code {
-    named: MissingCode::Word,
-};
 
 /// A table's slot, there for any table the code numbers.
 fn slot_mut<'s>(frame: &'s mut FillFrame<'_>, table: MadeTableId) -> Option<&'s mut TableSlot> {
@@ -80,11 +76,8 @@ fn stage_reach(frame: &FillFrame<'_>, word: CodeWord) -> Result<Option<Reached>,
         StageKind::Probe => Some(Reached::Index(stage_probe_of(word).index)),
         StageKind::Latest => {
             let stage = stage_latest_of(word);
-            let site = code
-                .pool
-                .get(usize::try_from(stage.operands.0).unwrap_or(usize::MAX))
-                .ok_or(WRONG_WORD)?;
-            Some(Reached::Index(IndexSite(site.0)))
+            let site = latest_site(code, stage.operands)?;
+            Some(Reached::Index(site))
         }
         StageKind::Walk => Some(Reached::Nodes),
         StageKind::Use

@@ -1,9 +1,9 @@
 //! The `indexes` concept: a worker's per-file indexes, every bound column of a source as one key.
 #![cfg_attr(
     not(test),
-    expect(
+    allow(
         dead_code,
-        reason = "the loops are built and timed before the executor that runs them (track X, the reference bench first); the executor's commit calls the last of them and removes this"
+        reason = "the fill side's one caller is the loop's tree, so the library alone reaches nothing here, while the bench's fixtures reach all of it: an expectation would be unfulfilled in one build or the other; the integration of the two trees removes this"
     )
 )]
 

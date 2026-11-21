@@ -20,7 +20,7 @@ pub mod staging;
 pub mod types;
 pub mod using;
 
-#[cfg(test)]
+#[cfg(any(test, feature = "fixtures"))]
 pub mod fixtures;
 
 #[cfg(test)]

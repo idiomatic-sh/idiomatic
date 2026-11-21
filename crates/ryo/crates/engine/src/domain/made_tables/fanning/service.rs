@@ -6,7 +6,7 @@ use crate::domain::code::filling::service::{
     stage_latest_of, stage_probe_of, stage_product_of, stage_walk_of,
 };
 use crate::domain::code::small_codes::service::{direction_of, side_of};
-use crate::domain::code::types::{CodeWord, IndexSite, PoolAt, WordFlag};
+use crate::domain::code::types::{CodeWord, PoolAt, WordFlag};
 use crate::domain::filled::errors::FilledError;
 use crate::domain::filled::types::MissingCode;
 use crate::domain::indexes::types::RowRun;
@@ -14,11 +14,10 @@ use crate::domain::made_tables::constants::BATCH_ROWS;
 use crate::domain::made_tables::operands::service::{column_of, constant_at, key_of};
 use crate::domain::made_tables::pipelines::types::{BatchLevel, FanKind, OperandRun};
 use crate::domain::made_tables::reading::service::{
-    index_at, made_slot, rows_in, site_at, site_source, source_of,
+    index_at, latest_site, made_slot, rows_in, site_at, site_source, source_of, tag_of,
 };
 use crate::domain::made_tables::staging::service::{WRONG_WORD, probe_key, probe_range};
 use crate::domain::made_tables::staging::types::BatchFrame;
-use crate::domain::made_tables::types::ReadSource;
 use crate::domain::stages::nodes::service::node_tag;
 use crate::domain::stages::ranging::service::probe_between;
 use crate::domain::stages::service::{latest, probe, product};
@@ -28,14 +27,6 @@ use crate::domain::stages::walking::service::{along, children};
 use crate::domain::steps::types::{MadeTableId, Register};
 use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::relations::types::{Count, NodeExtent};
-
-/// The bits a source's handles carry besides the row's number: the file, of the node table's.
-pub(crate) fn tag_of(frame: BatchFrame<'_>, source: ReadSource) -> CellWord {
-    match source {
-        ReadSource::Nodes(_) => node_tag(frame.file),
-        ReadSource::Filled(_) | ReadSource::Made(_) | ReadSource::Written(_) => CellWord(0),
-    }
-}
 
 /// A stage that gives several rows for one, over one batch from the batch's cursor on: the rows it gave are the batch's
 /// `fan`. Answers whether every row in was read.
@@ -63,7 +54,7 @@ pub(crate) fn fan_stage(
     match kind {
         FanKind::Probe => {
             let stage = stage_probe_of(word);
-            fan.tag = tag_of(frame, site_source(code, site_at(code, stage.index)?)?);
+            fan.tag = tag_of(frame.file, site_source(code, site_at(code, stage.index)?)?);
             probe_key(frame, stage, columns, key, &mut parts)?;
             let asked = BatchKey {
                 cells: key,
@@ -79,16 +70,12 @@ pub(crate) fn fan_stage(
             let stage = stage_product_of(word);
             let source = source_of(stage.flag, stage.read);
             let run = rows_in(frame.store, frame.nodes, source);
-            fan.tag = tag_of(frame, source);
+            fan.tag = tag_of(frame.file, source);
             Ok(product(*rows, run.start, run.end, fan))
         }
         FanKind::Latest => {
             let stage = stage_latest_of(word);
-            let site = code
-                .pool
-                .get(usize::try_from(stage.operands.0).unwrap_or(usize::MAX))
-                .map(|slot| IndexSite(slot.0))
-                .ok_or(WRONG_WORD)?;
+            let site = latest_site(code, stage.operands)?;
             let table = MadeTableId(site_at(code, site)?.number.0);
             let sorted = made_slot(frame.store, table).ok_or(FilledError::Code {
                 named: MissingCode::Table,

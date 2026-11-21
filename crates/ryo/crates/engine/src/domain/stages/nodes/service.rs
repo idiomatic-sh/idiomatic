@@ -2,6 +2,7 @@
 //! names it: the file in the high half, the element's place in the file's table in the low. A cell of a column is read from
 //! the table by the place; a kind and a field are the word of their name, a text the word of the bytes the element spans.
 
+use crate::domain::stages::service::tagged;
 use crate::domain::stages::types::NodeNames;
 use ryo_language::domain::facts::service::intern;
 use ryo_language::domain::facts::types::{CellWord, FileWords};
@@ -9,9 +10,9 @@ use ryo_language::domain::node_table::service::{
     field_of, kind_of, ordinal_of, parent_of, span_of,
 };
 use ryo_language::domain::node_table::types::NodeTable;
-use ryo_relations::domain::relations::service::{node_id, node_position};
+use ryo_relations::domain::relations::service::{node_id, node_position, to_bits};
 use ryo_relations::domain::relations::types::{
-    Count, FileId, NodeColumn, NodeId, Offset, Position,
+    Count, FileId, NodeColumn, NodeId, Offset, Position, Span, Value,
 };
 use ryo_relations::domain::terms::types::NameText;
 
@@ -65,9 +66,15 @@ pub(crate) fn node_cell(
         NodeColumn::End => numbered(span_of(nodes, at).end),
         NodeColumn::Span => {
             let span = span_of(nodes, at);
-            CellWord((u64::from(span.start.0) << 32) | u64::from(span.end.0))
+            CellWord(
+                to_bits(Value::Span(Span {
+                    start: span.start,
+                    end: span.end,
+                }))
+                .0,
+            )
         }
-        NodeColumn::File => CellWord(u64::from(names.file.0)),
+        NodeColumn::File => CellWord(to_bits(Value::File(names.file)).0),
         NodeColumn::Text => {
             let span = span_of(nodes, at);
             let (start, end) = (
@@ -142,9 +149,15 @@ pub(crate) fn node_cells(
     end: Position,
     out: &mut Vec<CellWord>,
 ) {
-    let tag = node_tag(names.file).0;
+    let tag = node_tag(names.file);
     out.clear();
-    out.extend(
-        (0..end.0).map(|at| node_cell(nodes, names, words, column, CellWord(tag | u64::from(at)))),
-    );
+    out.extend((0..end.0).map(|at| {
+        node_cell(
+            nodes,
+            names,
+            words,
+            column,
+            tagged(CellWord(u64::from(at)), tag),
+        )
+    }));
 }

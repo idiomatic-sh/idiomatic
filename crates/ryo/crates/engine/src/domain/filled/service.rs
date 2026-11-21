@@ -93,6 +93,40 @@ pub(crate) fn asked_among(
     )
 }
 
+/// The rows of the relation's whole fill for the file `stamp` names, from where it starts: no rows while the relation is
+/// not whole. The one read of "is this relation whole for the file".
+pub(crate) fn whole_rows(
+    relations: &FilledRelations,
+    number: RelationNumber,
+    stamp: FileStamp,
+) -> RowRun {
+    match relations
+        .0
+        .get(usize::try_from(number.0).unwrap_or(usize::MAX))
+    {
+        Some(slot) if slot.stamp == stamp && slot.state == FilledState::Whole => RowRun {
+            start: slot.whole,
+            end: slot.rows,
+        },
+        Some(_) | None => RowRun::default(),
+    }
+}
+
+/// Whether the relation is whole for the file `stamp` names.
+pub(crate) fn held_state(
+    relations: &FilledRelations,
+    number: RelationNumber,
+    stamp: FileStamp,
+) -> FilledState {
+    match relations
+        .0
+        .get(usize::try_from(number.0).unwrap_or(usize::MAX))
+    {
+        Some(slot) if slot.stamp == stamp => slot.state,
+        Some(_) | None => FilledState::Unfilled,
+    }
+}
+
 /// How many rows the relation holds for the file `stamp` names: the rows every ask so far appended.
 pub(crate) fn rows_held(
     relations: &FilledRelations,

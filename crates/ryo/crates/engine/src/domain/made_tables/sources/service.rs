@@ -7,20 +7,20 @@ use crate::domain::code::types::{IndexSite, RelationNumber, Short};
 use crate::domain::filled::errors::FilledError;
 use crate::domain::filled::service::rows_held;
 use crate::domain::filled::types::UnbuiltFill;
-use crate::domain::indexes::reading::service::{cell_at, run_of};
+use crate::domain::indexes::reading::service::{cell_at, run_of, stretch_of};
 use crate::domain::indexes::service::clear_indexes;
-use crate::domain::indexes::types::{RowRun, SourceRow};
+use crate::domain::indexes::types::SourceRow;
 use crate::domain::made_tables::keyed::service::key_asked;
 use crate::domain::made_tables::making::service::{ensured, made_now};
 use crate::domain::made_tables::reading::service::{
-    index_at, node_names, rows_in, site_at, site_source, view_of,
+    index_at, node_names, rows_in, site_at, site_source, tag_of, view_of,
 };
 use crate::domain::made_tables::types::{
     FillFrame, FillStore, KeyAnswer, KeyFrom, KeyRows, MadeNow, PatternRows, Reached, ReadSource,
     TableSlot, WholeRows,
 };
-use crate::domain::stages::nodes::service::{node_cell, node_tag};
-use crate::domain::stages::service::row_of;
+use crate::domain::stages::nodes::service::node_cell;
+use crate::domain::stages::service::{row_of, tagged};
 use crate::domain::steps::types::MadeTableId;
 use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::relations::types::Count;
@@ -34,14 +34,6 @@ pub(crate) fn next_file(store: &mut FillStore) {
     clear_indexes(&mut store.indexes);
     store.asked.clear();
     store.asked_cells.clear();
-}
-
-/// The bits every handle of a source's rows carries besides the row's number.
-fn tag_of(frame: &FillFrame<'_>, source: ReadSource) -> CellWord {
-    match source {
-        ReadSource::Nodes(_) => node_tag(frame.file),
-        ReadSource::Filled(_) | ReadSource::Made(_) | ReadSource::Written(_) => CellWord(0),
-    }
 }
 
 /// Makes `table` for the file if no read of the file made it: runs its fill once, its pipelines over batches, asking
@@ -109,18 +101,9 @@ pub(crate) fn matched(
     }
     let work = ensured(frame, uses, Reached::Index(site))?;
     let run = run_of(index_at(frame.store, site), key);
-    let first = frame
-        .store
-        .indexes
-        .slots
-        .get(usize::try_from(site.0).unwrap_or(usize::MAX))
-        .map_or(0, |slot| slot.first.0);
     Ok(KeyRows {
-        rows: RowRun {
-            start: Count(first.saturating_add(run.start.0)),
-            end: Count(first.saturating_add(run.end.0)),
-        },
-        tag: tag_of(frame, source),
+        rows: stretch_of(&frame.store.indexes, site, run),
+        tag: tag_of(frame.file, source),
         filled: Count(filled.0.saturating_add(work.filled.0)),
         indexed: work.indexed,
     })
@@ -148,7 +131,7 @@ pub(crate) fn scanned(
     };
     Ok(WholeRows {
         rows: rows_in(frame.store, frame.nodes, source),
-        tag: tag_of(frame, source),
+        tag: tag_of(frame.file, source),
         filled: work.filled,
     })
 }
@@ -182,5 +165,5 @@ pub(crate) fn cell_of(
 /// The handle of a row of a stretch: what a program binds for it.
 #[inline]
 pub(crate) fn handle_of(row: SourceRow, tag: CellWord) -> CellWord {
-    CellWord(u64::from(row.0) | tag.0)
+    tagged(CellWord(u64::from(row.0)), tag)
 }

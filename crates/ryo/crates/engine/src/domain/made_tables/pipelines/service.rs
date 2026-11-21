@@ -16,11 +16,11 @@ use crate::domain::indexes::reading::service::{rows_of, run_of};
 use crate::domain::indexes::types::ColumnView;
 use crate::domain::made_tables::carrying::service::{carried, stage_kind};
 use crate::domain::made_tables::constants::BATCH_ROWS;
-use crate::domain::made_tables::fanning::service::{fan_stage, tag_of};
+use crate::domain::made_tables::fanning::service::fan_stage;
 use crate::domain::made_tables::operands::service::{column_of, constant_at, registers_at};
 use crate::domain::made_tables::pipelines::types::{BatchLevel, FanKind, PipelineRoom, StageKind};
 use crate::domain::made_tables::reading::service::{
-    index_at, pipeline_words, rows_in, site_at, site_source, source_of,
+    index_at, pipeline_words, rows_in, site_at, site_source, source_of, tag_of,
 };
 use crate::domain::made_tables::staging::service::{
     WRONG_WORD, keep_stage, mode, probe_keep_stage, read_stage, write_stage,
@@ -104,7 +104,7 @@ pub(crate) fn scan_run(frame: BatchFrame<'_>, stage: ScanWord) -> Result<ScanRea
             site: None,
             rows,
             count: Count(rows.end.0.saturating_sub(rows.start.0)),
-            tag: tag_of(frame, source),
+            tag: tag_of(frame.file, source),
         });
     }
     let site = IndexSite(stage.read.0);
@@ -119,7 +119,7 @@ pub(crate) fn scan_run(frame: BatchFrame<'_>, stage: ScanWord) -> Result<ScanRea
         site: Some(site),
         rows,
         count: Count(rows.end.0.saturating_sub(rows.start.0)),
-        tag: tag_of(frame, source),
+        tag: tag_of(frame.file, source),
     })
 }
 
