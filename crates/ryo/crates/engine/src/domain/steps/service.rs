@@ -1,10 +1,13 @@
 //! The services of the `steps` concept: the cost class of a step, a stage and a per-row meaning, each a property of the item
-//! alone. Every `match` here names every variant: a new step, stage or meaning does not compile without its class.
+//! alone. Every `match` here names every variant: a new step or stage does not compile without its class, and a new meaning
+//! does not compile without its shape, which its class is read from.
 
 use super::types::{
     AxisDirection, CallMeaning, CostClass, NearestEdges, ProgramStep, RangeBound, StepBody,
     StepOperand, StepOperands, StepRows,
 };
+use crate::domain::steps::calls::service::call_shape;
+use crate::domain::steps::calls::types::CallRows;
 use crate::domain::steps::stages::types::{FillStage, ProbeRange, UseMode};
 
 /// The class of a read by values: a register among them is a key, and what it reaches is its fan-out; values that are all
@@ -205,19 +208,13 @@ const fn unkeyed_class(mode: UseMode) -> CostClass {
     }
 }
 
-/// What bounds a per-row meaning's work for one row: constant in rows; a regular expression is linear in the text it reads.
+/// What bounds a per-row meaning's work for one row, read from the row count of its shape (`calls::service::call_shape`,
+/// which names every meaning): a meaning that gives at most one row does a fixed amount of work, a regular expression being
+/// linear in the text it reads; one that gives several rows is bounded by the rows it gives, as a walk is by what it reaches.
 #[must_use]
 pub(crate) const fn call_class(meaning: CallMeaning) -> CostClass {
-    match meaning {
-        CallMeaning::SpanBetween
-        | CallMeaning::SpanBounds
-        | CallMeaning::SourceMatches(_)
-        | CallMeaning::Capture
-        | CallMeaning::Replace(_)
-        | CallMeaning::Words
-        | CallMeaning::Rank
-        | CallMeaning::Concat
-        | CallMeaning::Lower
-        | CallMeaning::FitsRendered => CostClass::Constant,
+    match call_shape(meaning).rows {
+        CallRows::One | CallRows::AtMostOne => CostClass::Constant,
+        CallRows::Several => CostClass::Fanout,
     }
 }
