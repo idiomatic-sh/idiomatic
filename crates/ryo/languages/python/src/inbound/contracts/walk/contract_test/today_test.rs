@@ -74,9 +74,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
     expect: Expect::Value(String::new()),
 }];
 
-/// The relations whose rows on the nodes of embedded expressions the walk writes: for the others today's rows on those nodes
-/// are left out and the walk's are held to the file's own tree.
-const EMBEDDED: &[Relation] = &[Relation::EmbeddedExpression, Relation::QualifiedName];
+/// The relations whose rows on the nodes of embedded expressions the walk does not write as today's reading does: today's
+/// rows on those nodes are left out for them and the walk's are held to the file's own tree. Every other relation is compared
+/// on embedded nodes too. `source-location` is here because today's table embeds every string it may read as a type
+/// expression and the walk the ones the language reads as one; the two expression relations are not written on embedded
+/// nodes yet, nor are `constant-key` and `literal-properties` (SPIKE ryo-fmx3.1, D: the walk's open rows on embedded nodes).
+const NOT_EMBEDDED: &[Relation] = &[
+    Relation::ConstantKey,
+    Relation::ExpressionShape,
+    Relation::ExpressionType,
+    Relation::LiteralProperties,
+    Relation::SourceLocation,
+];
 
 /// Whether a row names an element today's table holds outside the file's own tree: an embedded expression's.
 fn embedded(row: &[Seen], outside: &[ElementKey]) -> bool {
@@ -120,7 +129,7 @@ fn differences(path: &str, bytes: &[u8]) -> Result<String, WalkError> {
                 let (before, left_out): (Vec<Vec<Seen>>, Vec<Vec<Seen>>) =
                     read_rows(&today, &today_rows, bytes, &today_keys, *relation)
                         .into_iter()
-                        .partition(|row| EMBEDDED.contains(relation) || !embedded(row, &outside));
+                        .partition(|row| !NOT_EMBEDDED.contains(relation) || !embedded(row, &outside));
                 let (after, answer) = walked_rows(&mut file, &keys, *relation, &mut words);
                 // A row today's reading names by an embedded element (a class named by its last member) is left out on both
                 // sides: the walk names the same element's class by a member of the file's own tree.

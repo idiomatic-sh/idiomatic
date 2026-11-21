@@ -18,6 +18,7 @@ use crate::domain::made_tables::calling::service::call_asked;
 use crate::domain::made_tables::carrying::service::{carried, stage_kind};
 use crate::domain::made_tables::constants::BATCH_ROWS;
 use crate::domain::made_tables::fanning::service::{fan_stage, scan_read};
+use crate::domain::made_tables::indexing::service::index_ready;
 use crate::domain::made_tables::operands::service::{
     column_mut, column_of, columns_unset, registers_at,
 };
@@ -37,7 +38,6 @@ use crate::domain::stages::types::{Batches, FanCursor, HandleRun, KeptWhen};
 use crate::domain::stages::using::service::keep_marked;
 use crate::domain::steps::stages::types::UseMode;
 use crate::domain::steps::types::Register;
-use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::relations::types::Count;
 
 /// What a stage reads of the frame while it runs: the store as it is.
@@ -211,6 +211,11 @@ fn staged(
         if rows.0 == 0 {
             return Ok(());
         }
+        // An index a stage asks is built by the first batch that reaches the stage with a row.
+        if matches!(kind, StageKind::Probe | StageKind::Latest) {
+            index_ready(frame, word)?;
+        }
+        let level = run.room.levels.get_mut(depth.0).ok_or(WRONG_WORD)?;
         let selected = match kind {
             StageKind::Scan => return Err(WRONG_WORD),
             StageKind::Render => {

@@ -288,7 +288,7 @@ pub struct FileScanWorker {
 /// use ryo_language::domain::symbols::types::ByteSlice;
 /// use ryo_relations::domain::relations::types::{Count, FileId};
 ///
-/// let file = FileToScan { path: SourcePath("a.txt"), file: FileId(0), source: ByteSlice(b"") };
+/// let file = FileToScan { path: SourcePath("a.txt"), file: FileId(0), source: ByteSlice(b""), executable: Default::default() };
 /// assert_eq!(file.file, FileId(0));
 /// ```
 #[derive(Clone, Copy, Debug)]
@@ -299,6 +299,8 @@ pub struct FileToScan<'a> {
     pub file: FileId,
     /// The file's bytes.
     pub source: ByteSlice<'a>,
+    /// SPIKE (ryo-fmx3.1, E): whether the host saw the file as one that may be executed.
+    pub executable: ryo_values::domain::files::types::ExecutablePermission,
 }
 
 /// What the scan of one file answered. The rows it found are in the buffer the worker was handed, whatever it answered.

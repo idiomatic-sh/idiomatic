@@ -4,18 +4,21 @@
 use crate::domain::code::constants::NO_SLOT;
 use crate::domain::code::service::list;
 use crate::domain::code::small_codes::service::node_column_of;
-use crate::domain::code::types::{IndexSite, Short, WordSlot};
+use crate::domain::code::types::{CodeWord, IndexSite, Short, WordSlot};
 use crate::domain::filled::errors::FilledError;
 use crate::domain::filled::types::{MissingCode, UnbuiltFill};
 use crate::domain::indexes::counting::service::{own_rows, place};
 use crate::domain::indexes::hashing::service::coded;
 use crate::domain::indexes::reading::service::key_cell;
-use crate::domain::indexes::service::{based, begin, finish, fixed_keys, key_column};
-use crate::domain::indexes::types::{CellOfKey, ColumnView, CountedKey, KeyCells, SourceRow};
+use crate::domain::indexes::service::{based, begin, finish, fixed_keys, key_column, state_of};
+use crate::domain::indexes::types::{
+    CellOfKey, ColumnView, CountedKey, IndexBuilt, KeyCells, SourceRow,
+};
+use crate::domain::made_tables::carrying::service::stage_reach;
 use crate::domain::made_tables::reading::service::{
     fixed_of, node_names, rows_in, site_at, site_source, view_of,
 };
-use crate::domain::made_tables::types::{FillFrame, ReadSource};
+use crate::domain::made_tables::types::{FillFrame, Reached, ReadSource};
 use crate::domain::stages::nodes::service::{field_word, kind_word, node_cells, node_tag};
 use ryo_language::domain::node_table::service::{field_of, kind_of, parent_of};
 use ryo_relations::domain::relations::types::{Count, NodeColumn, Position};
@@ -27,6 +30,21 @@ fn short(code: WordSlot) -> Result<Short, FilledError> {
         .map_err(|_| FilledError::Code {
             named: MissingCode::Column,
         })
+}
+
+/// Builds the index a stage asks, when the stage asks one and it is not built for the file: called for the first batch
+/// that reaches the stage with a row, its source being there already (`making::service::sources_there`).
+///
+/// # Errors
+///
+/// As `index_built`.
+pub(crate) fn index_ready(frame: &mut FillFrame<'_>, word: CodeWord) -> Result<(), FilledError> {
+    if let Some(Reached::Index(site)) = stage_reach(frame.programs.code, word)?
+        && state_of(&frame.store.indexes, site, frame.store.stamp) != IndexBuilt::Built
+    {
+        let _rows = index_built(frame, site)?;
+    }
+    Ok(())
 }
 
 /// Builds the index of `site` for the file: the rows of its source by its columns, sorted within a key by its order column
