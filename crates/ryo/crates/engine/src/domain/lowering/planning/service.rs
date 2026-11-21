@@ -8,7 +8,11 @@ use super::uses::service::with_pack;
 use crate::domain::lowering::costing::constants::{ANCHORS_TRIED, ONE};
 use crate::domain::lowering::costing::types::CellState;
 use crate::domain::lowering::definitions::types::Drafts;
-use crate::domain::lowering::flattening::types::{FlatBranch, FlatTerm, FlatVariable};
+use crate::domain::lowering::flattening::types::{
+    FlatAtom, FlatBranch, FlatTerm, FlatVariable, RowMeaning,
+};
+use crate::domain::steps::calls::service::call_shape;
+use crate::domain::steps::calls::types::CallRows;
 use std::collections::HashSet;
 
 /// How a term stands for the variables given so far.
@@ -24,6 +28,30 @@ pub(crate) fn state_of(term: FlatTerm, given: &GivenTerms<'_>) -> CellState {
     }
 }
 
+/// Whether a cell given at a pattern's start is one a meaning that gives several rows for one gives (a source search's
+/// occurrence, a capture's slot): that meaning cannot be asked for it, so each ask would run the meaning whole and test
+/// what it gave against the cell. Such a pattern has no keyed program: its rows are a table, made once a file.
+fn fanned_given(branch: &FlatBranch, given: &HashSet<FlatVariable>) -> bool {
+    branch.atoms.iter().any(|atom| match atom {
+        FlatAtom::Called {
+            meaning: RowMeaning::Call(meaning),
+            outputs,
+            ..
+        } => call_shape(*meaning).rows == CallRows::Several
+            && outputs.iter().any(
+                |output| matches!(output, FlatTerm::Variable(variable) if given.contains(variable)),
+            ),
+        FlatAtom::Called { .. }
+        | FlatAtom::Rows { .. }
+        | FlatAtom::Latest { .. }
+        | FlatAtom::Decided { .. }
+        | FlatAtom::Walk { .. }
+        | FlatAtom::Nearest { .. }
+        | FlatAtom::Closure { .. }
+        | FlatAtom::Test { .. } => false,
+    })
+}
+
 /// The order of a branch's atoms for a role, from a start, with the uses costed so far. A branch and a pipeline try
 /// their cheapest anchors and keep the cheapest completion; a pattern starts from its given cells. A completion with
 /// fewer product stages goes before a cheaper one with more, and when each from the cheapest anchors holds one the other
@@ -37,6 +65,9 @@ pub(crate) fn planned_with(
     role: UnitRole,
 ) -> Option<PlannedBranch> {
     if role == UnitRole::Pattern {
+        if fanned_given(branch, start.given) {
+            return None;
+        }
         return completed(with, branch, start, role, None);
     }
     let mut tried = anchors(with, branch, start, role);

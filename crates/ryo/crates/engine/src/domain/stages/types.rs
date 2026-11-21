@@ -11,9 +11,9 @@ use ryo_language::domain::facts::service::intern;
 use ryo_language::domain::facts::types::CellWord;
 use ryo_language::domain::facts::types::FileWords;
 use ryo_language::domain::symbols::types::ByteSlice;
-use ryo_operators::domain::functions::types::MadeText;
 use ryo_operators::domain::capture::types::{CaptureOutput, CaptureSpans};
 use ryo_operators::domain::contract::errors::ContractError;
+use ryo_operators::domain::functions::types::MadeText;
 use ryo_operators::domain::patterns::types::{PatternMatcher, TextGlobSet};
 use ryo_operators::domain::source_matches::types::TextRowDriver;
 use ryo_operators::domain::table_scratch::types::Patterns;
@@ -224,6 +224,8 @@ pub(crate) struct CallMeans<'a> {
     pub(crate) compiled: &'a mut Patterns,
     /// The file's bytes.
     pub(crate) source: ByteSlice<'a>,
+    /// The file's bytes as text, when they are: checked once a file, by who builds the fill's frame.
+    pub(crate) text: Option<&'a str>,
 }
 
 /// Where a call's rows go: the cells of every row it gave, row by row; for each row of the batch the stretch of those

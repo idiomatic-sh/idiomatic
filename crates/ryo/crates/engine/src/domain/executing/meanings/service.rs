@@ -78,6 +78,7 @@ pub(crate) fn call(frame: &mut StepFrame<'_, '_>, word: CodeWord, at: CodeEntry)
             regexes: frame.fill.programs.regexes,
             compiled: patterns,
             source: frame.fill.text,
+            text: frame.fill.source,
         },
         &mut *frame.fill.words,
         meaning,
