@@ -2,6 +2,7 @@
 //! cannot hold without.
 
 use crate::domain::code::types::{PoolAt, RelationNumber, WordSlot};
+use crate::domain::steps::types::MadeTableId;
 use ryo_relations::domain::relations::types::Count;
 
 /// A term of a need that is a fact of the file alone: a node of one of a list's kinds, or a row of a relation (with a
@@ -50,12 +51,25 @@ pub(crate) enum RecordCost {
 /// Whether a site's clauses are all its formula says.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) enum MaskExact {
-    /// They are what it needs and no more is known of it here: a table's row, or clauses left out past a bound. When
-    /// they all hold the formula is walked.
+    /// They are what it needs and more is asked that is not kept here: a table under an `Any`, or what was left out
+    /// past a bound. When they all hold the formula is walked.
     #[default]
     Part,
-    /// They are the formula: when they all hold, it holds.
+    /// They are the formula: when they all hold and every table of the site has a row, it holds.
     Whole,
+}
+
+/// Where what the masks hold of one site lies: its clauses (every one must have a term in the file), its groups (in
+/// every one some alternative must have all its clauses hold: an `Any` of parts kept as it is, never multiplied out),
+/// and the tables its formula cannot hold without a row of, in the formula's order.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct SiteStretches {
+    /// Its clauses: a stretch of the masks' clauses.
+    pub(crate) clauses: Stretch,
+    /// Its groups: a stretch of the masks' groups.
+    pub(crate) groups: Stretch,
+    /// Its tables: a stretch of the masks' tables.
+    pub(crate) tables: Stretch,
 }
 
 /// What the masks hold of one site.
@@ -64,8 +78,8 @@ pub(crate) enum SiteMasks {
     /// Not found yet: found at the site's first decision.
     #[default]
     Unfound,
-    /// Its clauses, a stretch of the masks' clauses, and whether they are all of its formula.
-    Found(Stretch, MaskExact),
+    /// Its clauses, groups and tables, and whether they are all of its formula.
+    Found(SiteStretches, MaskExact),
 }
 
 /// What a rule set's needs say of a file in its terms, found once for a worker (the code does not change). Every
@@ -87,6 +101,12 @@ pub(crate) struct NeedMasks {
     pub(crate) clauses: Vec<Stretch>,
     /// The terms of every clause, one clause after the other.
     pub(crate) clause_terms: Vec<TermNumber>,
+    /// Each alternative's clauses: a stretch of `clauses`.
+    pub(crate) alternatives: Vec<Stretch>,
+    /// Each group's alternatives: a stretch of `alternatives`.
+    pub(crate) groups: Vec<Stretch>,
+    /// The tables of every site, one site after the other.
+    pub(crate) tables: Vec<MadeTableId>,
     /// The sites being found: a formula that names itself says nothing of itself.
     pub(crate) open: hashbrown::HashSet<u32>,
     /// For each place among the needs, whether the record there may cost a fill; empty until the first file.
