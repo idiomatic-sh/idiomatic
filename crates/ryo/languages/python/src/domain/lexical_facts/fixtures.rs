@@ -47,7 +47,7 @@ pub(crate) fn filled<R: CatalogRelation>(
     let mut fixture = ModelFixture::default();
     let mut told = Told::default();
     viewed(&mut fixture, source, FileId(0), &mut |view| {
-        let base = facts::base_words(&languages::FixedNames::default(), &[]).expect("no fixed name to refuse");
+        let base = facts::base_words(languages::CheckedNames::default(), &[]);
         let mut words = facts::file_words(&base);
         let mut gathered = Gathered::<R> { rows: Vec::new(), causes: Vec::new() };
         told.absent = match fill(view, &mut words, &mut gathered) {

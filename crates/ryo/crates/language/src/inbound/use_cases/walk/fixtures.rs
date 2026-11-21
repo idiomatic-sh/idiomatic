@@ -8,7 +8,6 @@
 use super::errors::WalkError;
 use super::interface::WalkUseCase;
 use super::types::{FileVisit, RelationNeeds, WalkRequest};
-use crate::domain::facts::errors::FixedNamesError;
 use crate::domain::facts::service::{base_words, file_words, fixed, text};
 use crate::domain::facts::types::{
     CellWord, FactAnswer, FileFacts, FileWords, FillExtent, FilledColumns, Wanted,
@@ -17,6 +16,8 @@ use crate::domain::fillers::fixtures::growth::GrowthReport;
 use crate::domain::fillers::fixtures::{NEXT_TOKEN, Walking, WalkingFile, weakness};
 use crate::domain::fillers::service::file_source;
 use crate::domain::fillers::types::Fillers as _;
+use crate::domain::fixed_names::errors::FixedNamesError;
+use crate::domain::fixed_names::service::checked;
 use crate::domain::node_table::service::{
     diagnose, embed, enter_implied_node, enter_node, finished, leave_node, token,
 };
@@ -160,9 +161,10 @@ impl WalkUseCase for Walking {
 ///
 /// # Errors
 ///
-/// When the fixture language's fixed names are refused as base words: one is stated twice or is the empty text.
+/// When the fixture language's fixed names are refused: one is stated twice or is the empty text.
 pub fn fixture_words() -> Result<FileWords, FixedNamesError> {
-    Ok(file_words(&base_words(&Walking::vocabulary().fixed, &[])?))
+    let names = Walking::vocabulary().fixed;
+    Ok(file_words(&base_words(checked(&names.0)?, &[])))
 }
 
 /// What a fill answered, in words, with the rows the columns hold.

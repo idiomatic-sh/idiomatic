@@ -297,10 +297,10 @@ fn row_differences(relation: Relation, folder: &str) -> Result<String, WalkError
             &mut table,
             &mut scratch,
             &mut |mut file| {
-                let mut words = languages::facts::file_words(
-                    &languages::facts::base_words(&languages::FixedNames::default(), &[])
-                        .expect("no fixed name to refuse"),
-                );
+                let mut words = languages::facts::file_words(&languages::facts::base_words(
+                    languages::CheckedNames::default(),
+                    &[],
+                ));
                 let keys = walked_keys(file.table);
                 let (written, answer) = walked_rows(&mut file, &keys, relation, &mut words);
                 let written: Vec<Vec<Seen>> = written.into_iter().map(as_stated).collect();

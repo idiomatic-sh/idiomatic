@@ -26,8 +26,9 @@ use ryo_engine::inbound::use_cases::project::errors::ProjectPassError;
 use ryo_engine::inbound::use_cases::scan::errors::ScanError;
 use ryo_language::domain::facts::service::{base_words, clear_words, file_words, intern};
 use ryo_language::domain::facts::types::{
-    CellWord, FactAnswer, FileFacts, FileWords, FilledColumns, FixedNames, ProjectFacts, Wanted,
+    CellWord, FactAnswer, FileFacts, FileWords, FilledColumns, ProjectFacts, Wanted,
 };
+use ryo_language::domain::fixed_names::types::CheckedNames;
 use ryo_language::domain::node_table::service::{element_count, kind_of, node_count, span_of};
 use ryo_language::inbound::use_cases::walk::types::FileVisit;
 use ryo_relations::domain::relations::service::{node_id, to_bits};
@@ -181,11 +182,7 @@ impl EnginePort for EngineFake {
         let Some(first) = rules.first() else {
             return Ok(ScanCounters::default());
         };
-        // The fake states no fixed name, so no name is refused; were one, the file is scanned as holding nothing.
-        let Ok(base) = base_words(&FixedNames::default(), &[]) else {
-            return Ok(ScanCounters::default());
-        };
-        let mut words = file_words(&base);
+        let mut words = file_words(&base_words(CheckedNames::default(), &[]));
         let read = Relation::SyntaxError;
         if let FactAnswer::Partial(partial) = file.facts.fill(
             read,

@@ -10,7 +10,8 @@
 pub mod growth;
 
 use crate::domain::facts::service::{fixed, syntax_error_rows};
-use crate::domain::facts::types::{CellWord, FileWords, FixedNames, FixedWord, Wanted};
+use crate::domain::facts::types::{CellWord, FileWords, Wanted};
+use crate::domain::fixed_names::types::{FixedNames, FixedWord};
 use crate::domain::fillers::service::{filled, filled_keyed};
 use crate::domain::fillers::types::{
     FieldNames, Fill, FillItem, Fillers, KeyedFillItem, WalkKinds, WalkVocabulary,

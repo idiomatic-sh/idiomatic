@@ -3,8 +3,8 @@
 //! no body for, it writes every row, and says so of the key.
 
 use ryo::languages::{
-    self, CellWord, Column, Count, FieldCode, FileId, Fill, FillExtent, FixedNames, KeyedFillItem,
-    KindBits, Missing, NodeTable, Offset, Position, ReportText, Rows, Span, Symbol,
+    self, CellWord, CheckedNames, Column, Count, FieldCode, FileId, Fill, FillExtent,
+    KeyedFillItem, KindBits, Missing, NodeTable, Offset, Position, ReportText, Rows, Span, Symbol,
     TokenLinkColumn, TokenLinkRow, Wanted, facts, fillers, node_table,
 };
 use ryo_language::domain::fillers::fixtures::{Walking, WalkingFile, Weakness};
@@ -85,8 +85,7 @@ fn main() {
         fills: Count(0),
         weakness: Weakness::Sound,
     };
-    let base = facts::base_words(&FixedNames::default(), &[]).expect("no fixed name to refuse");
-    let mut words = facts::file_words(&base);
+    let mut words = facts::file_words(&facts::base_words(CheckedNames::default(), &[]));
     let key = |column, id| {
         Wanted::Key(
             Column::TokenLink(column),
