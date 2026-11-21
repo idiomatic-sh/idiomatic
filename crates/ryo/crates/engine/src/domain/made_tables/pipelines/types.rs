@@ -13,8 +13,8 @@ use ryo_relations::domain::relations::types::Count;
 /// gives several rows for one wrote for the next depth.
 #[derive(Debug, Default)]
 pub(crate) struct BatchLevel {
-    /// The columns, by register.
-    pub(crate) columns: Vec<Vec<CellWord>>,
+    /// The columns of the registers the running pipeline wrote at this depth.
+    pub(crate) columns: LevelColumns,
     /// How many rows the batch holds.
     pub(crate) rows: Count,
     /// What a stage that gives several rows for one wrote.
@@ -27,6 +27,22 @@ pub(crate) struct BatchLevel {
     pub(crate) spans: Vec<RowRun>,
     /// For each row of the batch a `Use` stage reads, whether its key's pattern has a row.
     pub(crate) found: Vec<RowKept>,
+}
+
+/// The columns of one batch: a column for each register the RUNNING pipeline wrote at this depth, and no more. A pack
+/// has a register for every value of every pipeline (the whole Python pack: over a hundred thousand), and a pipeline
+/// writes a handful: kept by register, a worker held a list for each register of the pack at every depth of every
+/// room, each at the size of the largest batch that register ever held (half of the run's memory). Kept by the place
+/// a register was first written at in the run, the lists are as many as the widest pipeline has registers, and are
+/// used again by the next pipeline.
+#[derive(Debug, Default)]
+pub(crate) struct LevelColumns {
+    /// For each register of the pack, the place of its column in `held` and one more; nought: no column in this run.
+    pub(crate) places: Vec<u32>,
+    /// The columns, in the order their registers were first written in the run; those past `used` are spare.
+    pub(crate) held: Vec<Vec<CellWord>>,
+    /// The registers that have a column in this run: what a new run unsets.
+    pub(crate) written: Vec<Register>,
 }
 
 /// The room one pipeline runs in: its batches by depth, which registers each stage must carry on, and the scratch of a
@@ -54,6 +70,29 @@ pub(crate) struct PipelineRoom {
     /// The registers of the running pipeline that hold the file, by place: those a `Read` filled from a made table's
     /// own file column or from the node table's.
     pub(crate) files: Vec<Count>,
+}
+
+/// What was found of each pipeline the first time it ran, kept for the worker's life (a store serves one rule set, whose
+/// code does not change): the registers each of its stages carries on, and that every stage of it is one the fill side
+/// runs. A pipeline runs once a file for each table it fills, most of them over a handful of rows: found again for
+/// every run, the pass over its stages cost more than its rows.
+#[derive(Debug, Default)]
+pub(crate) struct PipeMemo {
+    /// Where each pipeline's registers lie in `live` and its starts in `starts`, by the pipeline's entry.
+    pub(crate) by_entry: hashbrown::HashMap<u32, PipeAt>,
+    /// The registers carried on, one pipeline after the other.
+    pub(crate) live: Vec<Register>,
+    /// Where each stage's registers start among its pipeline's, one pipeline after the other.
+    pub(crate) starts: Vec<Count>,
+}
+
+/// One pipeline's stretches of a `PipeMemo`.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct PipeAt {
+    /// Its registers: from this place of `live`, this many.
+    pub(crate) live: (Count, Count),
+    /// Its starts: from this place of `starts`, this many.
+    pub(crate) starts: (Count, Count),
 }
 
 /// The registers one stage reads and the registers it writes.

@@ -1,10 +1,13 @@
 //! The `repository` service: free functions named by verb over the files of a run, with no IO and no ports.
 
-use super::constants::{COMPILED_PLAN_LABEL, RELATION_SCHEMA_LABEL, SOURCE_SELECTION_LABEL};
+use super::constants::{
+    COMPILED_PLAN_LABEL, RELATION_SCHEMA_LABEL, SOURCE_SELECTION_LABEL, STATISTICS_LABEL,
+};
 use super::types::{DigestColumn, DigestRelation, IdentityHasher, SchemaCount};
 use crate::domain::keeping::service::{configuration_bytes, rule_head, rule_modules, rule_tail};
 use crate::domain::keeping::types::{Configuration, DigestInput, DigestPart, HostedText};
 use ryo_language::domain::files::types::FilePath;
+use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::files::service::input_path;
 use ryo_values::domain::files::types::CorpusInput;
@@ -147,4 +150,16 @@ pub(crate) fn plan_identity(plan: &Plan) -> DigestInput {
     let mut hasher = IdentityHasher(DigestInput(COMPILED_PLAN_LABEL.as_bytes().to_vec()));
     plan.hash(&mut hasher);
     hasher.0
+}
+
+/// What the statistics a run's rules are lowered with add to what the run was given: their bytes, under the name of what
+/// they are, so that no rule text or declaration is the same bytes. None for a run that names no statistics: it is given
+/// what a run was given before statistics were.
+pub(crate) fn statistics_identity(statistics: ByteSlice<'_>) -> Option<DigestInput> {
+    if statistics.0.is_empty() {
+        return None;
+    }
+    let mut bytes = STATISTICS_LABEL.as_bytes().to_vec();
+    bytes.extend_from_slice(statistics.0);
+    Some(DigestInput(bytes))
 }

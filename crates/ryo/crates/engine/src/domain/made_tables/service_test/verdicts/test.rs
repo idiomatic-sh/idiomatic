@@ -42,6 +42,8 @@ enum Asked {
     OwnGlob,
     /// The rows the same glob keeps out.
     OwnGlobNegated,
+    /// The relation's rows whose first text is before its second in the natural order of texts.
+    NaturalOrder,
     /// A glob (`a*`) of THE FILE, read from a made table's own file column, over two files of one worker whose paths
     /// are `ab/cd.walk` and `zz/cd.walk`: the tokens' texts are kept in the file whose path matches.
     FilePath,
@@ -104,6 +106,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Cow::Borrowed(
             "xb cd ef: \"f\"; \"ef\" | ab zd ef: \"f\"; \"ef\"",
         )),
+    },
+    Case {
+        name: CaseName("a_natural_order_keeps_the_rows_whose_first_text_is_before_the_second"),
+        word: Word::Succeeds,
+        input: || Asked::NaturalOrder,
+        expect: Expect::Value(Cow::Borrowed("xb cd ef: \"a\" | ab zd ef: \"a\"")),
     },
     Case {
         name: CaseName("a_text_test_of_the_file_reads_each_files_own_path"),
@@ -221,6 +229,7 @@ fn tables(asked: Asked) -> Vec<MadeTable> {
         Asked::Prefix => vec![kept(TestOperation::StartsWith, word(8))],
         Asked::OwnGlob => vec![own_glob(TestOperation::Glob)],
         Asked::OwnGlobNegated => vec![own_glob(TestOperation::NotGlob)],
+        Asked::NaturalOrder => vec![own_glob(TestOperation::NaturalLess)],
         Asked::FilePath => vec![texts_with_the_file(), of_the_file(Some(MadeTableId(0)))],
         Asked::NodeFilePath => vec![of_the_file(None)],
     }

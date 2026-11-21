@@ -17,7 +17,7 @@ pub(crate) fn literal_type(name: ryo::languages::NameText<'_>) -> BasicType {
     }
 }
 /// Name emitted by the expression-type relation; strings do not flow through inference.
-pub(crate) fn name(kind: BasicType) -> ryo::languages::NameText<'static> {
+pub(crate) const fn name(kind: BasicType) -> ryo::languages::NameText<'static> {
     ryo::languages::NameText(match kind {
         BasicType::Boolean => "boolean",
         BasicType::Integer => "integer",
@@ -35,3 +35,20 @@ pub(crate) fn name(kind: BasicType) -> ryo::languages::NameText<'static> {
         BasicType::Unrecognized => "unknown",
     })
 }
+/// The name of every basic type, as a filler writes it: the same in every file, so fixed names of the run.
+pub(crate) const FIXED_NAMES: &[&str] = &[
+    name(BasicType::Boolean).0,
+    name(BasicType::Integer).0,
+    name(BasicType::Float).0,
+    name(BasicType::Complex).0,
+    name(BasicType::String).0,
+    name(BasicType::Bytes).0,
+    name(BasicType::List).0,
+    name(BasicType::Tuple).0,
+    name(BasicType::Set).0,
+    name(BasicType::Dict).0,
+    name(BasicType::Generator).0,
+    name(BasicType::Null).0,
+    name(BasicType::Ellipsis).0,
+    name(BasicType::Unrecognized).0,
+];

@@ -1,4 +1,4 @@
-//! The cases of a pipeline's `Call` stage, each run through `made` on a pack the contract's encoding wrote: one case for
+//! The cases of a pipeline's `Call` stage, each run through `made` on a pack the contract's encoding wrote: the cases of
 //! each meaning the fill side runs, over the file's nodes (a root spanning `ab cd ef` and three tokens). A case says its
 //! table's rows, each column as what it is, and the fill's work.
 
@@ -20,7 +20,7 @@ use crate::domain::steps::types::{
 use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_relations::domain::relations::constants::NO_SPAN;
 use ryo_relations::domain::relations::service::to_bits;
-use ryo_relations::domain::relations::types::{NodeColumn, Relation};
+use ryo_relations::domain::relations::types::{NodeColumn, Offset, Relation, Span, Value};
 use ryo_values::domain::query_operators::types::{LineOutput, TextOutput};
 use std::borrow::Cow;
 
@@ -41,16 +41,28 @@ enum Called {
     SourceMatchesGroup,
     /// The bounds of the absent span.
     AbsentSpan,
-    /// A meaning the fill side does not run yet.
+    /// The span from each token's start to the last token's end.
+    SpanBetween,
+    /// The same with the absent span as the second.
+    SpanBetweenAbsent,
+    /// The same with the first token's span as the second: the second token starts after it ends.
+    SpanBetweenApart,
+    /// Each token's text, a constant and the token's text again, one after the other.
+    Concat,
+    /// The cell that is no word, and a constant.
+    ConcatNoText,
+    /// Each token's text in lowercase, over a file whose tokens hold capitals.
     Lower,
+    /// A meaning the fill side does not run: no rule is lowered to it.
+    Words,
 }
 
 type Input = Called;
-type Value = Cow<'static, str>;
+type Answer = Cow<'static, str>;
 type Failure = FilledError;
 
 /// The rows of this part's cases.
-const CASES: &[Case<Input, Value, Failure>] = &[
+const CASES: &[Case<Input, Answer, Failure>] = &[
     Case {
         name: CaseName("a_call_of_span_bounds_gives_each_spans_two_ends"),
         word: Word::Succeeds,
@@ -106,14 +118,74 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         }),
     },
     Case {
+        name: CaseName(
+            "a_call_of_span_between_gives_the_span_from_the_firsts_start_to_the_seconds_end",
+        ),
+        word: Word::Succeeds,
+        input: || Called::SpanBetween,
+        expect: Expect::Value(Cow::Borrowed(
+            "n4 0..8; n5 3..8; n6 6..8 | read 33 given 25 made 3",
+        )),
+    },
+    Case {
+        name: CaseName("a_span_between_of_an_absent_span_is_the_absent_span"),
+        word: Word::Succeeds,
+        input: || Called::SpanBetweenAbsent,
+        expect: Expect::Value(Cow::Borrowed(
+            "n4 4294967295..0; n5 4294967295..0; n6 4294967295..0 | read 33 given 25 made 3",
+        )),
+    },
+    Case {
+        name: CaseName(
+            "a_span_between_whose_first_starts_after_the_second_ends_is_the_meanings_fault",
+        ),
+        word: Word::Refuses,
+        input: || Called::SpanBetweenApart,
+        expect: Expect::Error(FilledError::Meaning {
+            fault: PortableOperatorFault::InvalidSpan,
+        }),
+    },
+    Case {
+        name: CaseName("a_call_of_concat_gives_the_texts_one_after_the_other"),
+        word: Word::Succeeds,
+        input: || Called::Concat,
+        expect: Expect::Value(Cow::Borrowed(
+            "\"ab\" \"ab_ab\"; \"cd\" \"cd_cd\"; \"ef\" \"ef_ef\" | read 33 given 25 made 3",
+        )),
+    },
+    Case {
+        name: CaseName("a_concat_of_a_cell_that_is_no_text_gives_the_cell_that_is_no_word"),
+        word: Word::Succeeds,
+        input: || Called::ConcatNoText,
+        expect: Expect::Value(Cow::Borrowed(
+            "n4 18446744073709551615; n5 18446744073709551615; n6 18446744073709551615 | read 33 given 25 made 3",
+        )),
+    },
+    Case {
+        name: CaseName("a_call_of_lower_gives_the_text_in_lowercase"),
+        word: Word::Succeeds,
+        input: || Called::Lower,
+        expect: Expect::Value(Cow::Borrowed(
+            "\"Ab\" \"ab\"; \"cD\" \"cd\"; \"EF\" \"ef\" | read 33 given 25 made 3",
+        )),
+    },
+    Case {
         name: CaseName("a_meaning_the_fill_side_does_not_run_yet_is_said_so"),
         word: Word::Refuses,
-        input: || Called::Lower,
+        input: || Called::Words,
         expect: Expect::Error(FilledError::Unbuilt {
             unbuilt: UnbuiltFill::Stage(Op::StageCall),
         }),
     },
 ];
+
+/// A span of the file.
+const fn span(start: u32, end: u32) -> Span {
+    Span {
+        start: Offset(start),
+        end: Offset(end),
+    }
+}
 
 /// A call stage.
 fn call<const N: usize>(
@@ -220,16 +292,57 @@ fn table_of_case(called: Called) -> (MadeTable, Vec<Shown>) {
             NodeColumn::Span,
             call(
                 CallMeaning::SpanBounds,
-                [word(
-                    to_bits(ryo_relations::domain::relations::types::Value::Span(
-                        NO_SPAN,
-                    ))
-                    .0,
-                )],
+                [word(to_bits(Value::Span(NO_SPAN)).0)],
                 &[3, 4],
             ),
             vec![of(0), of(3), of(4)],
             vec![Shown::Node, Shown::Number, Shown::Number],
+        ),
+        Called::SpanBetween | Called::SpanBetweenAbsent | Called::SpanBetweenApart => over(
+            13,
+            NodeColumn::Span,
+            call(
+                CallMeaning::SpanBetween,
+                [
+                    of(2),
+                    word(
+                        to_bits(Value::Span(match called {
+                            Called::SpanBetweenAbsent => NO_SPAN,
+                            Called::SpanBetweenApart => span(0, 2),
+                            Called::SpanBounds
+                            | Called::Replace
+                            | Called::Capture
+                            | Called::CaptureTwo
+                            | Called::SourceMatches
+                            | Called::SourceMatchesGroup
+                            | Called::AbsentSpan
+                            | Called::SpanBetween
+                            | Called::Concat
+                            | Called::ConcatNoText
+                            | Called::Lower
+                            | Called::Words => span(6, 8),
+                        }))
+                        .0,
+                    ),
+                ],
+                &[3],
+            ),
+            vec![of(0), of(3)],
+            vec![Shown::Node, Shown::Span],
+        ),
+        Called::Concat => over(
+            13,
+            NodeColumn::Text,
+            call(CallMeaning::Concat, [of(2), word(4), of(2)], &[3]),
+            vec![of(2), of(3)],
+            vec![Shown::Text, Shown::Text],
+        ),
+        Called::ConcatNoText => over(
+            13,
+            NodeColumn::Span,
+            call(CallMeaning::Concat, [word(u64::MAX), word(4)], &[3]),
+            vec![of(0), of(3)],
+            vec![Shown::Node, Shown::Number],
         ),
         Called::Lower => over(
             13,
@@ -238,12 +351,23 @@ fn table_of_case(called: Called) -> (MadeTable, Vec<Shown>) {
             vec![of(2), of(3)],
             vec![Shown::Text, Shown::Text],
         ),
+        Called::Words => over(
+            13,
+            NodeColumn::Text,
+            call(CallMeaning::Words, [of(2)], &[3]),
+            vec![of(2), of(3)],
+            vec![Shown::Text, Shown::Text],
+        ),
     }
 }
 
-fn subject(called: Input) -> Result<Value, Failure> {
+fn subject(called: Input) -> Result<Answer, Failure> {
     let (table, shown) = table_of_case(called);
     let mut world = world_with(vec![table], Vec::new(), &[], Telling::Keyed)?;
+    if matches!(called, Called::Lower) {
+        // The same file with capitals in its tokens.
+        world.text = b"Ab cD EF".to_vec();
+    }
     {
         let (mut frame, looped) = framed(&mut world);
         let _now = made(&mut frame, looped, MadeTableId(0))?;

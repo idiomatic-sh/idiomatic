@@ -37,3 +37,23 @@ pub(crate) const FIXED_QUANTITY: &str = "fixed";
 pub(crate) const STAR_QUANTITY: &str = "star";
 /// The mode of a precision written as a bare dot.
 pub(crate) const DOT_QUANTITY: &str = "dot";
+/// The texts of this concept a filler writes that are the same in every file: fixed names of the run.
+pub(crate) const FIXED_NAMES: &[&str] = &[
+    PERCENT_STRING,
+    DECODED_PERCENT_STRING,
+    PERCENT_PARSED,
+    PERCENT_MALFORMED,
+    PERCENT_UNKNOWN_INPUT,
+    PERCENT_UNAVAILABLE,
+    NO_ERROR_CATEGORY,
+    UNMATCHED_KEY_PARENTHESES,
+    INCOMPLETE_FORMAT,
+    UNSUPPORTED_FORMAT_CHARACTER,
+    WIDTH_OR_PRECISION_TOO_LARGE,
+    POSITIONAL,
+    MAPPING,
+    NO_QUANTITY,
+    FIXED_QUANTITY,
+    STAR_QUANTITY,
+    DOT_QUANTITY,
+];

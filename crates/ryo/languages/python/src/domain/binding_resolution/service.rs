@@ -1,10 +1,10 @@
 //! Schedule-order resolution (Spike ryo-fmx3): run the file's schedule in order, keep the latest event of each (namespace, name),
 //! and at each read or deletion walk Python's lookup path (Language Reference §4.2.2, §7.12, §7.13; PEP 695), one row per namespace
 //! that holds an event of the name. Alternatives are linearised in schedule order; no linter policy is applied here.
-use super::types::{BindingResolutionScratch, Depth, Resolution, TypeParameter};
+use super::types::{BindingResolutionScratch, Depth, Resolution};
 use crate::domain::{
     binding_analysis::service::indexed,
-    binding_results::types::{EventKind, ReadContext},
+    binding_results::types::{EventKind, ReadContext, TypeParameter},
     definitions::service::definition,
     fields::service::field_of,
     labels::types::Field,
@@ -118,7 +118,7 @@ fn resolve(
 }
 
 /// The value, type or deletion context the binding analysis recorded for the reference.
-fn context_of(
+pub(crate) fn context_of(
     index: &BindingAnalysisIndex,
     cursor: &mut usize,
     reference: Position,
@@ -138,7 +138,7 @@ fn context_of(
 }
 
 /// The key of a name in a namespace.
-const fn key(scope: Position, name: Symbol) -> BindingKey {
+pub(crate) const fn key(scope: Position, name: Symbol) -> BindingKey {
     BindingKey { scope, name }
 }
 
@@ -162,7 +162,7 @@ fn parameters(tree: &Tree<'_>, model: &Declarations, out: &mut BindingResolution
 }
 
 /// Whether the read at `at` is in a type parameter's bound or default: evaluated lazily, after the whole schedule (PEP 695).
-fn lazy(tree: &Tree<'_>, mut at: Position) -> bool {
+pub(crate) fn lazy(tree: &Tree<'_>, mut at: Position) -> bool {
     loop {
         if is_root(tree, at) == Rootness::Root {
             return false;
@@ -189,7 +189,7 @@ fn within(tree: &Tree<'_>, mut inner: Position, outer: Position) -> bool {
 
 /// Whether the reference at `at` is in the header of the owner `owner` (its bases, annotations, return, type parameters or alias
 /// value) where the owner's type parameters are visible: not in its body, and not under its decorators or its defaults (§8.7, §8.8).
-fn in_header(tree: &Tree<'_>, at: Position, owner: Position, start: Position) -> bool {
+pub(crate) fn in_header(tree: &Tree<'_>, at: Position, owner: Position, start: Position) -> bool {
     if within(tree, start, owner) {
         return false;
     }
@@ -336,7 +336,7 @@ impl Walk<'_, '_> {
 }
 
 /// The module of the file.
-fn root_of(tree: &Tree<'_>, mut at: Position) -> Position {
+pub(crate) fn root_of(tree: &Tree<'_>, mut at: Position) -> Position {
     while is_root(tree, at) == Rootness::Inner {
         at = parent(tree, at);
     }

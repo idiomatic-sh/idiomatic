@@ -93,6 +93,8 @@ pub(crate) struct Declarations {
     pub binding_analysis: RefCell<BindingAnalysisIndex>,
     /// Spike (ryo-fmx3): schedule-order name resolution over the binding analysis, made on the first read of its relation.
     pub binding_resolution: RefCell<crate::domain::binding_resolution::types::BindingResolutionScratch>,
+    /// The lookup path of each read or deletion, made on the first read of its relation.
+    pub lookup_scope: RefCell<crate::domain::binding_results::types::LookupScopeScratch>,
     /// What the readers work in file after file; emptied at each use, its capacity kept between files.
     pub scratch: RefCell<ReadScratch>,
 }

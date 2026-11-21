@@ -9,6 +9,7 @@ pub(crate) mod fact_notes;
 pub(crate) mod fields;
 pub(crate) mod file_view;
 pub(crate) mod imports;
+pub(crate) mod keyed_rows;
 pub(crate) mod labels;
 pub(crate) mod language;
 pub(crate) mod layout_facts;
@@ -66,6 +67,9 @@ pub(crate) mod binding_analysis;
 
 /// Spike (ryo-fmx3): schedule-order name resolution over the binding analysis.
 pub(crate) mod binding_resolution;
+
+/// The lookup path of each read or deletion: the namespaces its name is looked up in.
+pub(crate) mod lookup_path;
 
 /// Explicit uncertainty for repeated and exceptional namespace effects.
 pub(crate) mod binding_uncertainty;

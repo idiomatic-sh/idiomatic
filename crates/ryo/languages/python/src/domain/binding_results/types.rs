@@ -159,3 +159,50 @@ pub(crate) struct Availability {
     /// The minor version.
     pub minor: Integer,
 }
+
+/// A type parameter of a function, class or type alias: an annotation scope between its owner and the owner's namespace.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct TypeParameter {
+    /// The function, class or type alias that declares it.
+    pub owner: Position,
+    /// Its defines id, which is also its namespace.
+    pub id: Position,
+    /// Its name.
+    pub name: Symbol,
+}
+
+/// One namespace on the lookup path of one read or deletion.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct PathStep {
+    /// The read or deletion occurrence.
+    pub reference: Position,
+    /// The name read or deleted.
+    pub name: Symbol,
+    /// The namespace; a type parameter's defines id for its scope.
+    pub scope: Position,
+    /// The namespace's place on the path: 0 for the first.
+    pub depth: Integer,
+    /// The reference's value, type or deletion context.
+    pub context: ReadContext,
+}
+
+/// Whether the lookup paths held belong to the current file.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum PathsMade {
+    /// No reader has asked for this file's lookup paths.
+    #[default]
+    NotYet,
+    /// The rows are this file's.
+    Made,
+}
+
+/// The lookup paths of the current file, made on the first read of their relation; the buffer is kept between files.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct LookupScopeScratch {
+    /// Rows by the reference's place in the schedule, then depth.
+    pub rows: Vec<PathStep>,
+    /// Whether the rows are the current file's.
+    pub made: PathsMade,
+    /// The file's type parameters, read while the rows are made.
+    pub parameters: Vec<TypeParameter>,
+}

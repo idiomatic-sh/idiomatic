@@ -2,7 +2,7 @@
 //! of the rows kept as owned text and numbers.
 
 use super::errors::FileScanError;
-use ryo_engine::domain::findings::types::RuleColumns;
+use ryo_engine::domain::findings::types::{RuleColumns, ScanCounters, WorkNotice};
 use ryo_engine::domain::programs::types::Programs;
 use ryo_engine::domain::scratch::types::ScanScratch;
 use ryo_language::domain::node_table::types::NodeTable;
@@ -56,7 +56,38 @@ pub struct FaultedFile {
     pub fault: FileScanError,
 }
 
-/// What a worker, or the run, found: the findings, the frontier rows in the order the files handed them, and the faulted files.
+/// What the engine said of a rule's work in a scanned file: the file, and the engine's notice. The rule's rows of the file
+/// are complete all the same.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_engine::domain::findings::types::{HeaviestWork, InstructionCount, WorkNotice, WorkVerdict};
+/// use ryo_execution_runtime::application::file_scan::types::FileNotice;
+/// use ryo_relations::domain::relations::types::FileId;
+/// use ryo_values::domain::plan_parts::types::StepId;
+/// use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
+///
+/// let notice = WorkNotice {
+///     rule: SelectedRuleOrdinal(0),
+///     verdict: WorkVerdict::Over,
+///     work: InstructionCount(9),
+///     allowance: InstructionCount(1),
+///     step: StepId(0),
+///     heaviest: HeaviestWork::Sorted { rows: InstructionCount(9) },
+/// };
+/// assert_eq!(FileNotice { file: FileId(2), notice }.file, FileId(2));
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct FileNotice {
+    /// The file.
+    pub file: FileId,
+    /// What the engine said of a rule's work in it.
+    pub notice: WorkNotice,
+}
+
+/// What a worker, or the run, found: the findings, the frontier rows in the order the files handed them, the faulted files,
+/// what the engine noticed of the rules' work, and what the scans counted together.
 ///
 /// # Examples
 ///
@@ -64,6 +95,7 @@ pub struct FaultedFile {
 /// use ryo_execution_runtime::application::file_scan::types::ScanReport;
 ///
 /// assert!(ScanReport::default().found.is_empty());
+/// assert!(ScanReport::default().notices.is_empty());
 /// ```
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct ScanReport {
@@ -73,6 +105,28 @@ pub struct ScanReport {
     pub frontier: Vec<FrontierRow>,
     /// The files whose scan faulted.
     pub faults: Vec<FaultedFile>,
+    /// What the engine noticed of a rule's work in a file, in the order it said it.
+    pub notices: Vec<FileNotice>,
+    /// What the scans that answered counted, together.
+    pub counted: ScanCounters,
+}
+
+/// Whether a worker's state counts what its scans do: a measuring run's does, for the work ledger; every other run's is the
+/// plain state, which counts nothing beyond the scan's own counters.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_runtime::application::file_scan::types::ScanMeasuring;
+///
+/// assert_ne!(ScanMeasuring::Plain, ScanMeasuring::Measuring);
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ScanMeasuring {
+    /// The plain state.
+    Plain,
+    /// The state that counts.
+    Measuring,
 }
 
 /// One worker's state: the language, the node table, the language's own buffers and the engine's per-file state, each
@@ -83,13 +137,14 @@ pub struct ScanReport {
 /// ```
 /// use ryo_engine::domain::programs::types::Programs;
 /// use ryo_execution_runtime::application::file_scan::service::worker;
+/// use ryo_execution_runtime::application::file_scan::types::ScanMeasuring;
 /// use ryo_language::inbound::use_cases::walk::types::WalkEngine;
 /// use ryo_language::inbound::use_cases::walk::use_case::WalkUseCaseImpl;
 /// use std::sync::Arc;
 ///
 /// let engine = ryo_execution_runtime::outbound::engine::factory::use_case();
 /// let language: Arc<dyn WalkEngine> = Arc::new(WalkUseCaseImpl::new());
-/// assert!(worker(&language, &engine, &Programs::default()).report.found.is_empty());
+/// assert!(worker(&language, &engine, &Programs::default(), ScanMeasuring::Plain).report.found.is_empty());
 /// ```
 pub struct ScanWorker {
     /// The language whose files the worker scans.
@@ -133,3 +188,16 @@ pub struct ScanRun<'a> {
     /// The columns that place each selected rule's rows, by rule ordinal.
     pub places: &'a PlaceColumns,
 }
+
+/// One line of a measuring run's work ledger, as the harness prints it: a unit, its work class, its counts and the rules
+/// that reach it.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_runtime::application::file_scan::types::LedgerLine;
+///
+/// assert!(LedgerLine("unit=Rule:0 class=Navigation rows=2 steps=8 nanos=0 idle_nanos=0 owners=0".into()).0.starts_with("unit="));
+/// ```
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LedgerLine(pub Box<str>);

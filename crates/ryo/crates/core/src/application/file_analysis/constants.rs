@@ -41,3 +41,23 @@ pub(super) const NOT_RUN_BY: &str = "the new engine's rule set of the language `
 
 /// What it says after that language.
 pub(super) const NOT_RUN_FOR: &str = "` does not run the rule: its load refused it, so the rule looked at none of that language's files";
+
+/// Begins why a run set to fail on a rule that passes its work allowance stopped: the warning follows.
+pub(crate) const OVERRAN: &str =
+    "a rule passed its work allowance in a file, and this run is set to fail on that:\n";
+
+/// What separates the warnings of one file where they are said together.
+pub(crate) const WARNINGS_BETWEEN: &str = "\n";
+
+/// The names a measuring run says its five counts under, each as it is written before its count: the steps, the candidates,
+/// the rows of the tables made, the rows the fills read and gave, and the rows the programs' iterations gave.
+pub(crate) const COUNTERS: [&str; 5] = [
+    "counters steps=",
+    " candidates=",
+    " made_rows=",
+    " fill_rows=",
+    " visited=",
+];
+
+/// Begins a line of a measuring run's work ledger.
+pub(crate) const LEDGER: &str = "ledger ";

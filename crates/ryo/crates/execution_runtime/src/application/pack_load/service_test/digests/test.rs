@@ -3,7 +3,7 @@
 //! that derived byte stream, or a change of the hash, into a red test instead of statistics and packs that silently match
 //! nothing.
 
-use crate::application::pack_load::service::step_digests;
+use crate::application::pack_load::selecting::service::step_digests;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::digest::factory::blake3;
 use ryo_relations::domain::relations::types::Relation;

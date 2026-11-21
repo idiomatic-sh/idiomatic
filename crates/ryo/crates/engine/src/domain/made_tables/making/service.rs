@@ -3,7 +3,7 @@
 //! runs nothing and has nothing made for it.
 
 use crate::domain::code::filling::service::stage_scan_of;
-use crate::domain::code::types::{CodeEntry, RelationNumber};
+use crate::domain::code::types::{CodeEntry, IndexSite, RelationNumber};
 use crate::domain::filled::errors::FilledError;
 use crate::domain::filled::service::whole;
 use crate::domain::filled::types::{FillRuns, MissingCode, RelationAsk, UnbuiltFill};
@@ -119,21 +119,29 @@ pub(crate) fn ensured(
             if state_of(&frame.store.indexes, site, frame.store.stamp) == IndexBuilt::Built {
                 return Ok(work);
             }
-            let programs = frame.programs;
-            match site_source(programs.code, site_at(programs.code, site)?)? {
-                ReadSource::Nodes(_) => {}
-                ReadSource::Filled(number) => work.filled = filled_whole(frame, number)?,
-                ReadSource::Made(table) => reached_table(frame, uses, table)?,
-                ReadSource::Written(_) => {
-                    return Err(FilledError::Unbuilt {
-                        unbuilt: UnbuiltFill::Written,
-                    });
-                }
-            }
+            work.filled = indexed_source(frame, uses, site)?;
             work.indexed = index_built(frame, site)?;
         }
     }
     Ok(work)
+}
+
+/// Has the source of an index there for the file, the index itself not built: the table it is over made, the relation
+/// whole. Answers how many rows of a relation that filled now.
+fn indexed_source(
+    frame: &mut FillFrame<'_>,
+    uses: &mut dyn PatternRows,
+    site: IndexSite,
+) -> Result<Count, FilledError> {
+    let programs = frame.programs;
+    match site_source(programs.code, site_at(programs.code, site)?)? {
+        ReadSource::Nodes(_) => Ok(Count(0)),
+        ReadSource::Filled(number) => filled_whole(frame, number),
+        ReadSource::Made(table) => reached_table(frame, uses, table).map(|()| Count(0)),
+        ReadSource::Written(_) => Err(FilledError::Unbuilt {
+            unbuilt: UnbuiltFill::Written,
+        }),
+    }
 }
 
 /// Runs the pipelines of one input into `into`. First each pipeline's sources are there (`sources_there`), then the
@@ -198,7 +206,17 @@ fn sources_there(
     let mut scanned = Count(0);
     for (at, word) in words.iter().enumerate() {
         if let Some(read) = stage_reach(programs.code, *word)? {
-            let _work = ensured(frame, uses, read)?;
+            match read {
+                // The index a stage after the scan asks is built by the first batch that reaches the stage with a
+                // row (`indexing::service::index_ready`): many never do. Its source is there now, so that no table
+                // is made while this fill writes.
+                Reached::Index(site) if at != 0 => {
+                    let _filled = indexed_source(frame, uses, site)?;
+                }
+                Reached::Index(_) | Reached::Nodes | Reached::Relation(_) | Reached::Table(_) => {
+                    let _work = ensured(frame, uses, read)?;
+                }
+            }
             reached.push(read);
         }
         if at == 0 {
@@ -209,6 +227,7 @@ fn sources_there(
                 file: frame.file,
                 path: frame.path,
                 text: frame.text,
+                source: frame.source,
             };
             scanned = scan_read(batch, stage_scan_of(*word))?.count;
             if scanned.0 == 0 {

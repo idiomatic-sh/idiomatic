@@ -10,7 +10,7 @@ use crate::domain::indexes::types::{FileStamp, IndexArena, RowRun, SourceRow};
 use crate::domain::made_tables::columns::types::{CellsLie, FileColumn, RowColumn};
 use crate::domain::made_tables::following::types::FollowRoom;
 use crate::domain::made_tables::matching::types::MatchRoom;
-use crate::domain::made_tables::pipelines::types::PipelineRoom;
+use crate::domain::made_tables::pipelines::types::{PipeMemo, PipelineRoom};
 use crate::domain::made_tables::placing::types::PlaceRoom;
 use crate::domain::stages::verdicts::types::TextVerdicts;
 use crate::domain::steps::types::{MadeTableId, StepRegex};
@@ -97,6 +97,10 @@ pub(crate) struct FillStore {
     /// file starts, so a worker holds the most one file's tables needed and not, table by table, the most each ever
     /// needed. A made table is a stretch of it (`TableRows.lies`).
     pub(crate) table_cells: Vec<CellWord>,
+    /// The word of each element's text, by the element's place, for the file: found at the text's first read.
+    pub(crate) node_texts: Vec<CellWord>,
+    /// What was found of each pipeline at its first run: kept for the worker's life.
+    pub(crate) pipes: PipeMemo,
     /// Lists for a table's own cells while a fill that does not write rows straight into the arena runs (a grouping
     /// fill, constant rows): taken when the fill starts, given back emptied when its cells are in the arena. As many
     /// as fills run inside one another.
@@ -282,6 +286,8 @@ pub(crate) struct FillFrame<'a> {
     pub(crate) path: SourcePath<'a>,
     /// The file's bytes.
     pub(crate) text: ByteSlice<'a>,
+    /// The file's bytes as text, when they are valid UTF-8: checked once, by who builds the frame.
+    pub(crate) source: Option<&'a str>,
     /// The language.
     pub(crate) facts: &'a mut dyn FactSource,
     /// The file's words.

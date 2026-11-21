@@ -7,15 +7,18 @@ use crate::domain::code::types::Op;
 use crate::domain::filled::errors::FilledError;
 use crate::domain::filled::types::{FillRuns, MissingCode, UnbuiltFill};
 use crate::domain::indexes::types::RowRun;
+use crate::domain::stages::nodes::service::NO_WORD;
 use crate::domain::stages::service::value_at;
-use crate::domain::stages::types::{BatchValue, CallMeans, CallOut, SearchedRows};
+use crate::domain::stages::types::{BatchValue, CallMeans, CallOut, FunctionTexts, SearchedRows};
 use crate::domain::steps::calls::types::{SearchGroup, SearchLines, SourceSearch};
 use crate::domain::steps::types::{CallMeaning, RegexId, StepRegex};
-use ryo_language::domain::facts::service::{intern, text};
+use ryo_language::domain::facts::service::{intern, text, words_end};
 use ryo_language::domain::facts::types::{CellWord, FileWords};
 use ryo_operators::domain::capture::service::matches;
 use ryo_operators::domain::capture::types::{CaptureSlots, SlotPattern, SlotSubject};
-use ryo_operators::domain::contract::types::PortableOperatorFault;
+use ryo_operators::domain::contract::types::{PortableOperatorFault, SourceByteLength};
+use ryo_operators::domain::functions::service::apply;
+use ryo_operators::domain::functions::types::MadeText;
 use ryo_operators::domain::patterns::service::compiled;
 use ryo_operators::domain::replace::service::replaced_by;
 use ryo_operators::domain::replace::types::{ReplacedText, ReplacementText};
@@ -23,13 +26,14 @@ use ryo_operators::domain::source_matches::service::{checked_source, searched};
 use ryo_operators::domain::source_matches::types::{
     BaseLineColumn, CaptureRequest, LineBytes, SearchedSpan, SourceMatchesInput,
 };
+use ryo_operators::domain::span_between::service::between;
 use ryo_operators::domain::span_bounds::service::bounds;
 use ryo_operators::domain::table_texts::types::TextView;
 use ryo_relations::domain::relations::service::{from_bits, to_bits};
 use ryo_relations::domain::relations::types::{Bits, CellKind, Count};
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::files::types::SourceView;
-use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Function};
 use ryo_values::domain::query_operators::types::{LineOutput, TextOutput};
 use ryo_values::domain::row_texts::types::CellText;
 
@@ -88,6 +92,69 @@ fn span_bounds(
         spanned(out.spans, &mut made, Count(1));
     }
     Ok(())
+}
+
+/// `SpanBetween`: for each row the span from its first span's start to its second's end, the absent span when either
+/// is absent. One row for one.
+fn span_between(
+    means: &CallMeans<'_>,
+    arguments: &[BatchValue<'_>],
+    rows: Count,
+    out: CallOut<'_>,
+) -> Result<(), FilledError> {
+    let length = SourceByteLength(means.source.0.len());
+    let mut made = Count(0);
+    for row in 0..rows.0 {
+        let span = |at: usize| {
+            from_bits(
+                CellKind::Span,
+                Bits(argument(arguments, Count(at), Count(row)).0),
+            )
+        };
+        let ends = [span(0), span(1)];
+        let joined = between(&ends, first_column(), ColumnIndex(1), length).map_err(faulted)?;
+        out.answers.push(CellWord(to_bits(joined).0));
+        spanned(out.spans, &mut made, Count(1));
+    }
+    Ok(())
+}
+
+/// `Concat` and `Lower`: for each row the text the function makes of its arguments' texts, as a word of the file. An
+/// argument that is no text (a cell that is no word of the file) makes the answer the cell that is no word, which no
+/// text equals. One row for one.
+fn made_texts(
+    function: Function,
+    words: &mut FileWords,
+    arguments: &[BatchValue<'_>],
+    rows: Count,
+    out: CallOut<'_>,
+) {
+    let FunctionTexts {
+        arguments: texts,
+        made: written,
+    } = &mut out.scratch.texts;
+    texts.resize_with(arguments.len(), MadeText::default);
+    let mut made = Count(0);
+    for row in 0..rows.0 {
+        let end = words_end(words);
+        let mut strangers = Count(0);
+        for (at, held) in texts.iter_mut().enumerate() {
+            let cell = argument(arguments, Count(at), Count(row));
+            held.0.clear();
+            if cell < end {
+                held.0.push_str(text(words, cell).0);
+            } else {
+                strangers = Count(strangers.0.saturating_add(1));
+            }
+        }
+        out.answers.push(if strangers.0 == 0 {
+            apply(function, texts, written);
+            intern(words, NameText(&written.0))
+        } else {
+            NO_WORD
+        });
+        spanned(out.spans, &mut made, Count(1));
+    }
 }
 
 /// `Replace`: for each row its text with every occurrence of the expression replaced, as a word of the file. One row for
@@ -251,21 +318,20 @@ fn source_matches(
     Ok(())
 }
 
-/// Whether a `Call` runs a meaning: the four F401's lowering writes. `call_batch` asks it before it runs one, so a
-/// meaning said to run here and not built there fails its first case.
+/// Whether a `Call` runs a meaning: every meaning a rule of the packs is lowered to but `FitsRendered`; `Words` and
+/// `Rank` are written by no rule. `call_batch` asks it before it runs one, so a meaning said to run here and not built
+/// there fails its first case.
 #[must_use]
 pub(crate) const fn call_runs(meaning: CallMeaning) -> FillRuns {
     match meaning {
-        CallMeaning::SpanBounds
+        CallMeaning::SpanBetween
+        | CallMeaning::SpanBounds
         | CallMeaning::Replace(_)
         | CallMeaning::Capture
-        | CallMeaning::SourceMatches(..) => FillRuns::Runs,
-        CallMeaning::SpanBetween
-        | CallMeaning::Words
-        | CallMeaning::Rank
+        | CallMeaning::SourceMatches(..)
         | CallMeaning::Concat
-        | CallMeaning::Lower
-        | CallMeaning::FitsRendered => FillRuns::NotYet,
+        | CallMeaning::Lower => FillRuns::Runs,
+        CallMeaning::Words | CallMeaning::Rank | CallMeaning::FitsRendered => FillRuns::NotYet,
     }
 }
 
@@ -292,19 +358,25 @@ pub(crate) fn call_batch(
         });
     }
     match meaning {
+        CallMeaning::SpanBetween => span_between(&means, arguments, rows, out),
         CallMeaning::SpanBounds => span_bounds(arguments, rows, out),
+        CallMeaning::Concat => {
+            made_texts(Function::Concat, words, arguments, rows, out);
+            Ok(())
+        }
+        CallMeaning::Lower => {
+            made_texts(Function::Lower, words, arguments, rows, out);
+            Ok(())
+        }
         CallMeaning::Replace(regex) => replace(means, words, regex, arguments, rows, out),
         CallMeaning::Capture => capture(words, arguments, rows, out),
         CallMeaning::SourceMatches(regex, search) => {
             source_matches(means, words, regex, search, arguments, rows, out)
         }
-        CallMeaning::SpanBetween
-        | CallMeaning::Words
-        | CallMeaning::Rank
-        | CallMeaning::Concat
-        | CallMeaning::Lower
-        | CallMeaning::FitsRendered => Err(FilledError::Unbuilt {
-            unbuilt: UnbuiltFill::Stage(Op::StageCall),
-        }),
+        CallMeaning::Words | CallMeaning::Rank | CallMeaning::FitsRendered => {
+            Err(FilledError::Unbuilt {
+                unbuilt: UnbuiltFill::Stage(Op::StageCall),
+            })
+        }
     }
 }

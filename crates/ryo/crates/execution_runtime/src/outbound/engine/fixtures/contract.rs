@@ -1,5 +1,6 @@
 //! What every `engine` adapter must pass: the empty rule set loads and runs no rule, its pack reads back for the digest it was
-//! written for and for no other, and a rule set with no rule finds no row, in a file or across files.
+//! written for and for no other, a rule set with no rule finds no row, in a file or across files, and its work ledger, read
+//! off a state that counts, has no row.
 
 use crate::outbound::engine::fixtures::fake::{Counted, no_kinds, visiting};
 use crate::outbound::engine::interface::EnginePort;
@@ -42,6 +43,8 @@ pub enum Question {
     NothingFoundInAFile,
     /// A rule set with no rule finds no row across files.
     NothingFoundAcrossFiles,
+    /// A rule set with no rule, scanned with a state that counts, has no row in its work ledger.
+    NothingMeasured,
     /// A pack is asked for under another digest than the one it was written for.
     PackOfOtherRules,
     /// Bytes that are no pack are asked for.
@@ -89,6 +92,12 @@ pub const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_rule_set_with_no_rule_finds_no_row_across_files"),
         word: Word::Succeeds,
         input: || Question::NothingFoundAcrossFiles,
+        expect: Expect::Value(Count(0)),
+    },
+    Case {
+        name: CaseName("a_rule_set_with_no_rule_has_no_row_in_its_work_ledger"),
+        word: Word::Succeeds,
+        input: || Question::NothingMeasured,
         expect: Expect::Value(Count(0)),
     },
     Case {
@@ -180,6 +189,11 @@ fn answer(adapter: &dyn EnginePort, question: Question) -> Result<Value, Failure
         }
         Question::NoPack => read_back(b"no", digest),
         Question::NothingFoundInAFile => found_in(adapter, &nothing()?, "one two"),
+        Question::NothingMeasured => {
+            let rules = nothing()?;
+            let state = adapter.measuring_state_for(&rules);
+            Ok(Count(adapter.ledger(&rules, &[&state]).0.len()))
+        }
         Question::NothingFoundAcrossFiles => {
             let (rules, mut found) = (nothing()?, Counted(Count(0)));
             let scratch = &mut adapter.state_for(&rules);

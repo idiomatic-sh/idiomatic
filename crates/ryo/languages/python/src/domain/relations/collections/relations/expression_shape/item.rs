@@ -1,7 +1,8 @@
 //! Read lazily interned structural classes; never emit unknown classes that could compare equal.
-use crate::domain::file_view::types::PythonWalk;
-use crate::domain::node::service::{node_cell, span_at, typed_nodes};
-use crate::domain::node::types::Numbered;
+use crate::domain::file_view::types::{PythonFile, PythonWalk};
+use crate::domain::model::view::types::PartState;
+use crate::domain::node::service::{keyed_node, node_cell, span_at, typed_nodes};
+use crate::domain::node::types::{Numbered, SyntaxFile};
 use crate::domain::shape_facts::service::shapes;
 use crate::domain::shape_facts::types::ShapeBuild;
 use crate::domain::syntax::service::{category_of, kind_of};
@@ -33,29 +34,78 @@ ryo::reads! {
  }
 }
 
-// The engine fills `expression-shape` from the walked file: every row of the file, once.
+/// Whether the parser read the whole file, so that its shapes can be told; when it did not, the relation is said read only in
+/// part.
+fn told_whole(
+    file: &PythonFile<'_>,
+    rows: &mut dyn languages::Rows<languages::ExpressionShapeRow>,
+) -> languages::SyntaxCompleteness {
+    let whole = file.syntax.completeness.syntax;
+    if whole == languages::SyntaxCompleteness::Incomplete {
+        rows.partial(languages::ReportText(INCOMPLETE), languages::Missing::Any);
+    }
+    whole
+}
+
+/// Finds the shapes of the file's nodes, when no fill of the file has yet: a shape's class is named by a member of it, so the
+/// shapes are found whole, once, by the first fill that asks, whole or by key.
+fn shaped(file: &mut PythonFile<'_>, words: &mut languages::FileWords) {
+    if file.analysed.shapes == PartState::Pending {
+        let index = &mut file.buffers.shapes;
+        shapes(
+            &file.syntax,
+            &mut ShapeBuild {
+                index,
+                words,
+                text: &mut file.buffers.text,
+            },
+        );
+        file.analysed.shapes = PartState::Ready;
+    }
+}
+
+/// The row of the expression `id`, whose shape's class is named by `class`; none for a node that is no expression.
+fn shape_row(
+    file: &SyntaxFile<'_>,
+    id: languages::Position,
+    class: languages::Position,
+) -> Option<languages::ExpressionShapeRow> {
+    let expression =
+        category_of(kind_of(node_table::kind_of(file.table, id))) == Category::Expression;
+    expression.then(|| languages::ExpressionShapeRow {
+        id: node_cell(file, id),
+        shape: node_cell(file, class),
+        file: file.file,
+        span: span_at(file, id),
+    })
+}
+
+// The engine fills `expression-shape` from the walked file: every row of the file, or the row of one expression, read from the
+// class the file's shapes give it.
 ryo::fills! {
     ExpressionShapeItem => languages::ExpressionShape, walk(PythonWalk) |file, words, rows| {
-        /// One row of the relation.
-        type Row = <languages::ExpressionShape as languages::CatalogRelation>::Row;
-        if file.syntax.completeness.syntax == languages::SyntaxCompleteness::Incomplete {
-            rows.partial(languages::ReportText(INCOMPLETE), languages::Missing::Any);
+        if told_whole(file, rows) == languages::SyntaxCompleteness::Incomplete {
             return;
         }
-        let index = &mut file.buffers.shapes;
-        shapes(&file.syntax, &mut ShapeBuild { index, words, text: &mut file.buffers.text });
-        for (Numbered { id, .. }, class) in typed_nodes(&file.syntax).zip(index.classes.iter()) {
-            if category_of(kind_of(node_table::kind_of(file.syntax.table, id))) != Category::Expression {
-                continue;
+        shaped(file, words);
+        let classes = file.buffers.shapes.classes.iter();
+        for (Numbered { id, .. }, class) in typed_nodes(&file.syntax).zip(classes) {
+            if let Some(row) = class.and_then(|class| shape_row(&file.syntax, id, class)) {
+                rows.write(row);
             }
-            if let Some(class) = class {
-                rows.write(Row {
-                    id: node_cell(&file.syntax, id),
-                    shape: node_cell(&file.syntax, *class),
-                    file: file.syntax.file,
-                    span: span_at(&file.syntax, id),
-                });
-            }
+        }
+    }
+    key(languages::Column::ExpressionShape(languages::ExpressionShapeColumn::Id)) |file, words, key, rows| {
+        if told_whole(file, rows) == languages::SyntaxCompleteness::Incomplete {
+            return;
+        }
+        shaped(file, words);
+        let found = keyed_node(&file.syntax, key).and_then(|id| {
+            let class = file.buffers.shapes.classes.get(usize::from(id)).copied().flatten()?;
+            shape_row(&file.syntax, id, class)
+        });
+        if let Some(row) = found {
+            rows.write(row);
         }
     }
 }

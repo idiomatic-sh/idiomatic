@@ -1,5 +1,5 @@
 //! Values of schedule-order name resolution: plain data, public fields, no constructor.
-use crate::domain::binding_results::types::{EventKind, ReadContext};
+use crate::domain::binding_results::types::{EventKind, ReadContext, TypeParameter};
 use crate::domain::model::types::{BindingAnalysisState, BindingKey};
 use ryo::languages::{Integer, Position, Symbol};
 use std::collections::HashMap;
@@ -27,17 +27,6 @@ pub(crate) struct Resolution {
     pub ordinal: Integer,
     /// The reference's value, type or deletion context.
     pub context: ReadContext,
-}
-
-/// A type parameter of a function, class or type alias: an annotation scope between its owner and the owner's namespace.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct TypeParameter {
-    /// The function, class or type alias that declares it.
-    pub owner: Position,
-    /// Its defines id, which is also its namespace.
-    pub id: Position,
-    /// Its name.
-    pub name: Symbol,
 }
 
 /// Capacity-retaining resolution of the current file, made on the first read of the relation.

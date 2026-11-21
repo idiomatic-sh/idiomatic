@@ -11,8 +11,8 @@ use crate::domain::programs::frames::types::StepFrame;
 use crate::domain::scratch::types::{LoopState, Measuring, UnitInFile};
 use crate::domain::steps::types::MadeTableId;
 use cpu_time::ThreadTime;
-use ryo_language::domain::node_table::service::ids_of_kind;
-use ryo_relations::domain::relations::types::{Count, KindBits};
+use ryo_language::domain::node_table::service::{element_count, field_of, ids_of_kind};
+use ryo_relations::domain::relations::types::{Count, KindBits, Position};
 use std::time::Duration;
 
 /// The slot of a list grown to hold place `at`.
@@ -154,6 +154,15 @@ pub(crate) fn file_ended(frame: &mut StepFrame<'_, '_>) {
         let ids = ids_of_kind(nodes, KindBits(u16::try_from(kind).unwrap_or(u16::MAX))).len();
         if let Some(held) = slot_mut(&mut measure.kinds, Count(kind)) {
             *held = Count(held.0.saturating_add(ids));
+        }
+    }
+    // The file's elements, and how many fill each field of their parent: what a plan's bucket of a field holds.
+    let elements = element_count(nodes).0;
+    measure.elements = Count(measure.elements.0.saturating_add(elements));
+    for element in 0..elements {
+        let field = field_of(nodes, Position(u32::try_from(element).unwrap_or(u32::MAX)));
+        if let Some(held) = slot_mut(&mut measure.fields, Count(usize::from(field.0))) {
+            *held = Count(held.0.saturating_add(1));
         }
     }
     let Measuring {

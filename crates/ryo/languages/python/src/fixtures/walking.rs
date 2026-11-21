@@ -4,8 +4,8 @@
 //! by what it is and where it is: its kind, its span, and its place among the elements that share both.
 
 use ryo::languages::{
-    self, ByteSlice, CatalogRelation, CellKind, CellWord, FactAnswer, FileFacts, FileId, FileVisit,
-    FilledColumns, KindBits, NodeTable, Offset, Position, Relation, RelationNeeds, Walk,
+    self, ByteSlice, CatalogRelation, CellKind, CellWord, Column, FactAnswer, FileFacts, FileId,
+    FileVisit, FilledColumns, KindBits, NodeTable, Offset, Position, Relation, RelationNeeds, Walk,
     WalkRequest, facts, node_table,
 };
 use std::collections::HashMap;
@@ -187,6 +187,7 @@ pub fn column_kinds(relation: Relation) -> &'static [CellKind] {
         LanguageTarget,
         LiteralExpressionParse,
         LiteralProperties,
+        LookupScope,
         NumericLiteral,
         Parameter,
         QualifiedName,
@@ -201,6 +202,49 @@ pub fn column_kinds(relation: Relation) -> &'static [CellKind] {
         StaticImport,
         StringLiteral,
         SyntaxError,
+        TokenLink,
+    )
+}
+
+/// The key columns the catalog declares of a relation, in its order: each with its place in a row and what it holds. Empty for
+/// a relation with no declared key.
+#[expect(
+    clippy::wildcard_enum_match_arm,
+    reason = "only the relations the catalog declares a key of have one; any other relation has none to ask"
+)]
+#[must_use]
+pub fn declared_keys(relation: Relation) -> Vec<(Column, usize, CellKind)> {
+    /// The declared keys of each relation named, each found among the relation's own columns.
+    macro_rules! keys {
+        ($( $variant:ident ),* $(,)?) => {
+            match relation {
+                $( Relation::$variant => <languages::$variant as CatalogRelation>::KEYS
+                    .iter()
+                    .filter_map(|key| {
+                        let place = <languages::$variant as CatalogRelation>::columns()
+                            .iter()
+                            .position(|column| Column::$variant(*column) == *key)?;
+                        let kind = <languages::$variant as CatalogRelation>::kinds().get(place)?;
+                        Some((*key, place, *kind))
+                    })
+                    .collect(), )*
+                _ => Vec::new(),
+            }
+        };
+    }
+    keys!(
+        BindingRead,
+        BindingShadow,
+        ConstantKey,
+        ExpressionShape,
+        ExpressionType,
+        Function,
+        Inherits,
+        LookupScope,
+        RawFormatSegment,
+        Reference,
+        Resolves,
+        Scope,
         TokenLink,
     )
 }
@@ -298,6 +342,21 @@ pub fn walked_rows(
         .collect();
     rows.sort_unstable();
     (rows, answer)
+}
+
+/// A worker's words for the files `walk` lends: over the run's base words, which hold the fixed names the walk's language
+/// states and no constant of a program. The fillers of a lent file write their fixed names by handle, so they are filled into
+/// these words and no others.
+///
+/// # Errors
+///
+/// When the language's fixed names are refused: one is stated twice or is the empty text.
+pub fn walk_words<W: Walk>(_walk: &W) -> Result<languages::FileWords, languages::FixedNamesError> {
+    let names = W::vocabulary().fixed;
+    Ok(facts::file_words(&facts::base_words(
+        languages::fixed_names::checked(&names.0)?,
+        &[],
+    )))
 }
 
 /// A visit of a lent file by a function.

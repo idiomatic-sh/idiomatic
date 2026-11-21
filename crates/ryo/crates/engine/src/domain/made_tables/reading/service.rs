@@ -341,12 +341,14 @@ pub(crate) fn pipeline_words(
 pub(crate) fn node_names<'a>(
     programs: RuleSetView<'a>,
     text: ByteSlice<'a>,
+    source: Option<&'a str>,
     file: FileId,
 ) -> NodeNames<'a> {
     NodeNames {
         kinds: programs.kinds,
         fields: programs.fields,
         text,
+        source,
         file,
     }
 }

@@ -1,5 +1,5 @@
 //! The `lexical_facts` service: free functions named by verb that write the rows of six relations from the model, with no IO and
-//! no ports. Each has the parameters of its relation's filler; the per-file view is whatever implements `ModelView`.
+//! no ports. Each writes every row of its relation; the per-file view is whatever implements `ModelView`.
 //!
 //! `resolves` and `qualified-name` keep their present meaning: one static answer per name that is read (the last definition
 //! before it in source order, else the first in a function-like scope; `definitions::service` states the rule). Whether they
@@ -14,8 +14,8 @@ use crate::domain::model::lexical::constants::MODULE;
 use crate::domain::syntax::constants::DOT;
 use crate::domain::model::lexical::service::{entry, name_of, parent_of, scope_at, scope_form};
 use crate::domain::model::lexical::types::{ImportOrigin, ImportRename, NameUse, NodeClass, ScopeForm};
-use crate::domain::model::names::service::{builtin_of, held_word, name_word, text_of, word};
-use crate::domain::model::names::types::{FactWords, HeldWords, NameTable};
+use crate::domain::model::names::service::{builtin_of, fixed_word, name_word, text_of, word};
+use crate::domain::model::names::types::{FactWords, NameCode, NameTable};
 use crate::domain::model::view::types::{ModelPart, ModelRead, ModelView, SemanticModel};
 use crate::domain::node::service::table_id;
 use crate::domain::names::service::unknown;
@@ -28,8 +28,8 @@ use crate::domain::relations::collections::relations::implicit_symbol::constants
 use crate::domain::relations::collections::relations::implicit_symbol::item::{BUILTIN_ATTRIBUTES, MODULE_GLOBALS};
 use ryo::languages::node_table::span_of;
 use ryo::languages::{
-    DefinesRow, FileWords, Fill, FillExtent, ImplicitSymbolRow, Integer, NameText, NodeId, Position, QualifiedNameRow,
-    ReferenceRow, ResolvesRow, Rows, ScopeRow, Span, node_id,
+    DefinesRow, FileWords, ImplicitSymbolRow, Integer, NameText, NodeId, Position, QualifiedNameRow, ReferenceRow, ResolvesRow,
+    Rows, ScopeRow, Span, node_id,
 };
 
 /// The bytes of the node `at`.
@@ -43,12 +43,16 @@ pub(crate) fn node(read: ModelRead<'_>, at: Position) -> NodeId {
     node_id(read.file, table_id(read.tree.segments, at))
 }
 
-/// The places of the nodes of the file's own tree, in id order: the relations that state the file's own names leave the nodes of
-/// embedded expressions out.
-fn own_positions(read: ModelRead<'_>) -> impl Iterator<Item = Position> + use<> {
+/// How many nodes the file's own tree has: the relations that state the file's own names leave the nodes of embedded
+/// expressions out, which follow them.
+pub(crate) fn own_count(read: ModelRead<'_>) -> Position {
     let all = u32::try_from(read.model.lexical.class.len()).unwrap_or(u32::MAX);
-    let own = read.tree.segments.first().map_or(all, |segment| segment.first.0.min(all));
-    (0..own).map(Position)
+    Position(read.tree.segments.first().map_or(all, |segment| segment.first.0.min(all)))
+}
+
+/// The places of the nodes of the file's own tree, in id order.
+fn own_positions(read: ModelRead<'_>) -> impl Iterator<Item = Position> + use<> {
+    (0..own_count(read).0).map(Position)
 }
 
 /// The positions of the file's nodes, in id order.
@@ -58,7 +62,7 @@ fn positions(read: ModelRead<'_>) -> impl Iterator<Item = Position> + use<> {
 
 /// The row of the scope `at`: the scope and the scope it is evaluated in (the module is in itself); none when `at` opens no
 /// namespace.
-fn scope_row(read: ModelRead<'_>, at: Position) -> Option<ScopeRow> {
+pub(crate) fn scope_row(read: ModelRead<'_>, at: Position) -> Option<ScopeRow> {
     let lexical = &read.model.lexical;
     let _: ScopeForm = scope_form(entry(&lexical.class, at))?;
     let parent = if at == MODULE { MODULE } else { scope_at(lexical, at) };
@@ -66,14 +70,13 @@ fn scope_row(read: ModelRead<'_>, at: Position) -> Option<ScopeRow> {
 }
 
 /// Writes one row per scope.
-pub(crate) fn scope_rows<V: ModelView>(file: &mut V, _words: &mut FileWords, rows: &mut dyn Rows<ScopeRow>) -> Fill {
+pub(crate) fn scope_rows<V: ModelView>(file: &mut V, _words: &mut FileWords, rows: &mut dyn Rows<ScopeRow>) {
     let read = file.semantics(ModelPart::Lexical);
     for at in own_positions(read) {
         if let Some(row) = scope_row(read, at) {
             rows.write(row);
         }
     }
-    Fill::Written(FillExtent::Asked)
 }
 
 /// The word that says what a definition is, more finely than its kind.
@@ -106,7 +109,7 @@ fn defines_row(read: ModelRead<'_>, words: &mut FileWords, known: &mut FactWords
     DefinesRow {
         id: node(read, definition.at),
         kind: definition.kind,
-        refinement: held_word(words, &mut known.fixed, refinement(definition.word)),
+        refinement: fixed_word(words, &mut known.fixed, refinement(definition.word)),
         name: name_word(&read.model.names, words, &mut known.names, definition.name),
         owner: node(read, definition.owner),
         file: read.file,
@@ -115,13 +118,12 @@ fn defines_row(read: ModelRead<'_>, words: &mut FileWords, known: &mut FactWords
 }
 
 /// Writes one row per definition, in source order.
-pub(crate) fn defines_rows<V: ModelView>(file: &mut V, words: &mut FileWords, rows: &mut dyn Rows<DefinesRow>) -> Fill {
+pub(crate) fn defines_rows<V: ModelView>(file: &mut V, words: &mut FileWords, rows: &mut dyn Rows<DefinesRow>) {
     let read = file.semantics(ModelPart::Lexical);
     let mut known = read.model.words.borrow_mut();
     for definition in &read.model.definitions.all {
         rows.write(defines_row(read, words, &mut known, definition));
     }
-    Fill::Written(FillExtent::Asked)
 }
 
 /// The name expression the name or attribute expression `at` starts from: itself, or the innermost object of a chain of
@@ -154,7 +156,12 @@ fn append_attributes(model: &SemanticModel, at: Position, path: &mut QualifiedPa
 
 /// The row of the name or attribute expression `at`, when it is read or deleted and is not the object of an attribute that is
 /// read: the dotted name it writes, left in `path`.
-fn reference_row(read: ModelRead<'_>, words: &mut FileWords, path: &mut QualifiedPath, at: Position) -> Option<ReferenceRow> {
+pub(crate) fn reference_row(
+    read: ModelRead<'_>,
+    words: &mut FileWords,
+    path: &mut QualifiedPath,
+    at: Position,
+) -> Option<ReferenceRow> {
     let lexical = &read.model.lexical;
     let class = entry(&lexical.class, at);
     let usage = entry(&lexical.usage, at);
@@ -186,7 +193,7 @@ fn reference_row(read: ModelRead<'_>, words: &mut FileWords, path: &mut Qualifie
 }
 
 /// Writes one row per name or attribute expression that is read or deleted and is not the object of an attribute that is read.
-pub(crate) fn reference_rows<V: ModelView>(file: &mut V, words: &mut FileWords, rows: &mut dyn Rows<ReferenceRow>) -> Fill {
+pub(crate) fn reference_rows<V: ModelView>(file: &mut V, words: &mut FileWords, rows: &mut dyn Rows<ReferenceRow>) {
     let read = file.semantics(ModelPart::Lexical);
     let mut path = QualifiedPath::default();
     for at in own_positions(read) {
@@ -194,16 +201,22 @@ pub(crate) fn reference_rows<V: ModelView>(file: &mut V, words: &mut FileWords, 
             rows.write(row);
         }
     }
-    Fill::Written(FillExtent::Asked)
 }
 
-/// The row of the name expression `at`, when it is read and resolves to a definition of the file.
-fn resolves_row(read: ModelRead<'_>, words: &mut FileWords, known: &mut FactWords, at: Position) -> Option<ResolvesRow> {
+/// The row of the name expression `at`, when it is read and `resolved` gives its name a definition of the file: the model's
+/// resolution part for every name, or the static rule asked of this name alone.
+pub(crate) fn resolves_row(
+    read: ModelRead<'_>,
+    words: &mut FileWords,
+    known: &mut FactWords,
+    at: Position,
+    resolved: impl FnOnce(NameCode) -> Option<Position>,
+) -> Option<ResolvesRow> {
     let lexical = &read.model.lexical;
     if entry(&lexical.class, at) != NodeClass::Name || entry(&lexical.usage, at) != NameUse::Load {
         return None;
     }
-    let definition = resolved_at(&read.model.resolution, at)?;
+    let definition = resolved(name_of(lexical, at))?;
     Some(ResolvesRow {
         occurrence: node(read, at),
         owner: node(read, scope_at(lexical, at)),
@@ -215,15 +228,15 @@ fn resolves_row(read: ModelRead<'_>, words: &mut FileWords, known: &mut FactWord
 }
 
 /// Writes one row per name expression that is read and resolves to a definition of the file.
-pub(crate) fn resolves_rows<V: ModelView>(file: &mut V, words: &mut FileWords, rows: &mut dyn Rows<ResolvesRow>) -> Fill {
+pub(crate) fn resolves_rows<V: ModelView>(file: &mut V, words: &mut FileWords, rows: &mut dyn Rows<ResolvesRow>) {
     let read = file.semantics(ModelPart::Resolution);
     let mut known = read.model.words.borrow_mut();
     for at in own_positions(read) {
-        if let Some(row) = resolves_row(read, words, &mut known, at) {
+        let resolved = |_name| resolved_at(&read.model.resolution, at);
+        if let Some(row) = resolves_row(read, words, &mut known, at, resolved) {
             rows.write(row);
         }
     }
-    Fill::Written(FillExtent::Asked)
 }
 
 /// Writes into `path` the name an import brings, as its statement writes it.
@@ -318,17 +331,17 @@ pub(crate) fn qualified_name_rows<V: ModelView>(
     file: &mut V,
     words: &mut FileWords,
     rows: &mut dyn Rows<QualifiedNameRow>,
-) -> Fill {
+) {
     let read = file.semantics(ModelPart::Resolution);
     let mut path = QualifiedPath::default();
     let labels = {
         let held = &mut read.model.words.borrow_mut().fixed;
         ProvenanceWords {
-            import: held_word(words, held, NameText(refinements::IMPORT)),
-            builtin: held_word(words, held, NameText(BUILTIN)),
-            local: held_word(words, held, NameText(LOCAL)),
-            unresolved: held_word(words, held, NameText(UNRESOLVED)),
-            ambiguous: held_word(words, held, NameText(AMBIGUOUS)),
+            import: fixed_word(words, held, NameText(refinements::IMPORT)),
+            builtin: fixed_word(words, held, NameText(BUILTIN)),
+            local: fixed_word(words, held, NameText(LOCAL)),
+            unresolved: fixed_word(words, held, NameText(UNRESOLVED)),
+            ambiguous: fixed_word(words, held, NameText(AMBIGUOUS)),
         }
     };
     for at in positions(read) {
@@ -336,7 +349,6 @@ pub(crate) fn qualified_name_rows<V: ModelView>(
             rows.write(row);
         }
     }
-    Fill::Written(FillExtent::Asked)
 }
 
 /// Writes the catalog of names the language supplies to every module: the same rows for every file, owned by its module.
@@ -344,15 +356,15 @@ pub(crate) fn implicit_symbol_rows<V: ModelView>(
     file: &mut V,
     words: &mut FileWords,
     rows: &mut dyn Rows<ImplicitSymbolRow>,
-) -> Fill {
+) {
     let read = file.semantics(ModelPart::Nothing);
     let scope = node(read, MODULE);
-    let mut held = HeldWords::default();
-    let builtin = held_word(words, &mut held, NameText(implicit::BUILTIN));
+    let held = &mut read.model.words.borrow_mut().fixed;
+    let builtin = fixed_word(words, held, NameText(implicit::BUILTIN));
     for name in BUILTIN_NAMES {
         if let Some(since) = builtin_named(*name) {
             rows.write(ImplicitSymbolRow {
-                name: word(words, *name),
+                name: fixed_word(words, held, *name),
                 kind: builtin,
                 scope,
                 since_major: since.major,
@@ -361,11 +373,11 @@ pub(crate) fn implicit_symbol_rows<V: ModelView>(
             });
         }
     }
-    let module_global = held_word(words, &mut held, NameText(implicit::MODULE_GLOBAL));
+    let module_global = fixed_word(words, held, NameText(implicit::MODULE_GLOBAL));
     for (catalog, kind) in [(BUILTIN_ATTRIBUTES, builtin), (MODULE_GLOBALS, module_global)] {
         for entry in catalog {
             rows.write(ImplicitSymbolRow {
-                name: word(words, entry.name),
+                name: fixed_word(words, held, entry.name),
                 kind,
                 scope,
                 since_major: entry.major,
@@ -375,12 +387,11 @@ pub(crate) fn implicit_symbol_rows<V: ModelView>(
         }
     }
     rows.write(ImplicitSymbolRow {
-        name: word(words, NameText(implicit::WINDOWSERROR)),
-        kind: word(words, NameText(implicit::PLATFORM_BUILTIN)),
+        name: fixed_word(words, held, NameText(implicit::WINDOWSERROR)),
+        kind: fixed_word(words, held, NameText(implicit::PLATFORM_BUILTIN)),
         scope,
         since_major: Integer(3),
         since_minor: Integer(0),
         file: read.file,
     });
-    Fill::Written(FillExtent::Asked)
 }

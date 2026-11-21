@@ -1,12 +1,15 @@
 //! The `engine` port, implemented by the `engine` crate's use cases and the readers of its programs: every call passes through.
 
 use crate::outbound::engine::interface::EnginePort;
+use ryo_engine::domain::counting::service::{counted, ledger, merged};
+use ryo_engine::domain::counting::types::WorkLedger;
 use ryo_engine::domain::findings::types::{FoundRows, FrontierSource, RuleColumns, ScanCounters};
 use ryo_engine::domain::packs::service::encoded;
 use ryo_engine::domain::packs::types::{EncodedPack, PackDigest};
-use ryo_engine::domain::programs::service::{accepted, columns, scratch_for};
+use ryo_engine::domain::programs::service::{accepted, columns, scratch_for, scratch_measuring};
 use ryo_engine::domain::programs::types::Programs;
 use ryo_engine::domain::scratch::types::ScanScratch;
+use ryo_engine::domain::statistics::types::PointCounts;
 use ryo_engine::inbound::use_cases::load::errors::LoadError;
 use ryo_engine::inbound::use_cases::load::interface::LoadUseCase;
 use ryo_engine::inbound::use_cases::load::types::{LoadSource, LoadedRules};
@@ -68,6 +71,18 @@ where
 
     fn state_for(&self, programs: &Programs) -> ScanScratch {
         scratch_for(programs)
+    }
+
+    fn measuring_state_for(&self, programs: &Programs) -> ScanScratch {
+        scratch_measuring(programs)
+    }
+
+    fn ledger(&self, programs: &Programs, workers: &[&ScanScratch]) -> WorkLedger {
+        let mut all = PointCounts::default();
+        for worker in workers {
+            merged(&mut all, &counted(worker));
+        }
+        ledger(programs, &all)
     }
 
     fn scan(

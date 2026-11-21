@@ -3,7 +3,7 @@
 //! fillers while the parse lives.
 
 use crate::domain::extras::types::Extra;
-use crate::domain::file_view::types::{PythonFile, PythonScratch, PythonWalk};
+use crate::domain::file_view::types::{Analysed, PythonFile, PythonScratch, PythonWalk};
 use crate::domain::language::service::reads;
 use crate::domain::lexical_facts::types::QualifiedPath;
 use crate::domain::model::lexical::types::TypedTree;
@@ -15,6 +15,7 @@ use crate::domain::string_annotations::service::{form_imports, type_strings};
 use crate::domain::string_annotations::types::{FormImports, FormSource};
 use crate::domain::tokens::types::Token;
 use crate::inbound::contracts::parse::service::source_kind;
+use crate::inbound::contracts::walk::fillers::fixed_names;
 use crate::outbound::syntax::interface::SyntaxPort;
 use crate::outbound::syntax::types::{ReportedSyntax, SourceText};
 use crate::settings::PythonParserSettings;
@@ -34,7 +35,7 @@ pub(crate) struct WalkPorts {
 }
 
 /// The buffers a worker's walk keeps from file to file: the file view's, and what it decides the type expressions through.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub(crate) struct PythonWalkScratch {
     /// The model's and the fillers' buffers.
     pub(crate) file: PythonScratch,
@@ -42,6 +43,20 @@ pub(crate) struct PythonWalkScratch {
     pub(crate) forms: FormImports,
     /// The qualified name in hand while the walk asks what a name is.
     pub(crate) path: QualifiedPath,
+}
+
+impl Default for PythonWalkScratch {
+    /// A worker's buffers, born with the fixed names the language states for the run: its fillers write each by its handle,
+    /// the same word in every file, so no word is forgotten when a file begins.
+    fn default() -> Self {
+        let mut file = PythonScratch::default();
+        file.model.words.get_mut().fixed.declared = fixed_names().0;
+        Self {
+            file,
+            forms: FormImports::default(),
+            path: QualifiedPath::default(),
+        }
+    }
 }
 
 impl Walk for PythonWalk<WalkPorts> {
@@ -67,9 +82,6 @@ impl Walk for PythonWalk<WalkPorts> {
         };
         let target = self.ports.settings.target_version().components();
         scratch.file.model.target = target;
-        // The words of the last file are forgotten: so are the fixed words it interned.
-        scratch.file.buffers.fixed.texts.clear();
-        scratch.file.buffers.fixed.words.clear();
         let mut reading = Reading {
             request,
             target,
@@ -164,6 +176,7 @@ fn lent(reading: &mut Reading<'_, '_>, builder: &mut NodeTableBuilder<'_>, tree:
         target: reading.target,
         model: &mut reading.scratch.file.model,
         built: reading.built,
+        analysed: Analysed::default(),
         buffers: &mut reading.scratch.file.buffers,
     };
     let mut source = fillers::file_source::<PythonWalk<WalkPorts>>(&mut file);

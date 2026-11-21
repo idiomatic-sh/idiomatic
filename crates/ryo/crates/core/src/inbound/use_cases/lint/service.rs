@@ -305,6 +305,8 @@ pub(super) fn answer(
         handovers: handovers.map_or_else(Vec::new, |told| {
             crate::domain::reporting::service::widest_each(&told.0, run.paths, run.ids)
         }),
+        // Beside the old engine the new one's warnings are printed when they are noticed; the report is the old engine's.
+        notices: Vec::new(),
     })
 }
 

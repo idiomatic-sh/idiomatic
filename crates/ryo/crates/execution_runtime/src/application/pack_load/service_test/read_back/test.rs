@@ -11,6 +11,7 @@ use crate::application::pack_load::types::{
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::outbound::digest::factory::blake3;
 use crate::outbound::engine::fixtures::fake::EngineFake;
+use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_operators::spike::EngineMode;
 use ryo_relations::domain::relations::types::Count;
 use ryo_values::domain::descriptions::types::{
@@ -224,6 +225,7 @@ fn asked_of_the_store(mode: EngineMode, holding: &[&str]) -> Result<Value, Failu
             let request = LoadRequest {
                 plans: &rules.iter().collect::<Vec<&Plan>>(),
                 bindings: &[],
+                statistics: ByteSlice(&[]),
                 given: given(1),
                 kinds: each,
                 stored: &[],

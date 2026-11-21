@@ -3,7 +3,7 @@
 use ryo_relations::domain::relations::types::{Integer, Relation};
 use ryo_values::domain::plan_orders::types::OrderBound;
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, ComparisonOrigin, Heading, Input, JoinColumn, LiteralText, Operand,
+    ColumnIndex, ComparisonOrigin, Direction, Heading, Input, JoinColumn, LiteralText, Operand,
     PlanComparison, QueryLiteral, RepeatedRows, Side, StepId, StepScope, Test,
 };
 use ryo_values::domain::plans::types::{Operation, PlanStep};
@@ -160,4 +160,44 @@ pub(super) fn projected(from: u32, columns: &[u32]) -> PlanStep {
         columns: columns.iter().copied().map(ColumnIndex).collect(),
         distinct: RepeatedRows::Kept,
     })
+}
+
+/// A nearest-ancestor axis from the rows of step 0 over the given edges, its domain step 0 too.
+pub(super) fn nearest_step(edges: Input) -> PlanStep {
+    axis(
+        edges,
+        Direction::NearestAncestor,
+        Input::Step(StepId(0)),
+        Vec::new(),
+    )
+}
+
+/// An axis from the rows of step 0 over the given edges, its domain read through the given view.
+pub(super) fn axis(
+    edges: Input,
+    direction: Direction,
+    domain: Input,
+    domain_view: Vec<ColumnIndex>,
+) -> PlanStep {
+    step(Operation::Axis {
+        from: Input::Step(StepId(0)),
+        edges,
+        domain,
+        direction,
+        id: at(0),
+        parent: at(0),
+        child: at(1),
+        domain_id: at(0),
+        domain_filter: Vec::new(),
+        domain_view,
+        output: Vec::new(),
+    })
+}
+
+/// The elements of the syntax tree, each beside its nearest ancestor among them, climbed over the given edges.
+pub(super) fn nearest(edges: Input) -> Plan {
+    plan(vec![
+        kept(Input::Relation(Relation::SyntaxTree)),
+        nearest_step(edges),
+    ])
 }
