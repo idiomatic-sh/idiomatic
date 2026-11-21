@@ -86,7 +86,6 @@ pub(crate) fn runs(code: &ProgramCode, part: FillPart) -> FillRuns {
                 None => FillRuns::NotYet,
             }
         }
-        StageKind::Use | StageKind::Walk | StageKind::Write => FillRuns::Runs,
-        StageKind::Render => FillRuns::NotYet,
+        StageKind::Use | StageKind::Walk | StageKind::Write | StageKind::Render => FillRuns::Runs,
     }
 }

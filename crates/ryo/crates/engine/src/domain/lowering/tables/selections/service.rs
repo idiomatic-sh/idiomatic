@@ -15,11 +15,11 @@ use crate::domain::lowering::tables::literals::types::LiteralCell;
 use crate::domain::lowering::tables::selections::types::SelectionAsked;
 use crate::domain::lowering::tables::sets::service::{bucket_branches, bucket_column, literals};
 use crate::domain::lowering::tables::sets::types::{RelationColumn, SetTests};
-use crate::domain::lowering::tables::shapes::service::test_of;
+use crate::domain::lowering::tables::shapes::service::{operand_kind, test_of};
 use crate::domain::lowering::tables::types::RuleFlattening;
 use crate::domain::lowering::tables::views::service::relation_read;
 use crate::domain::lowering::tables::views::types::RelationView;
-use crate::domain::steps::types::{AnchorKinds, ConstantText, TestOperation};
+use crate::domain::steps::types::{AnchorKinds, ConstantText, SideKind, TestOperation, TestSides};
 use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::relations::constants::{LOWERED, RAISED};
 use ryo_relations::domain::relations::service::{columns, kind, vocabulary_of};
@@ -28,6 +28,24 @@ use ryo_relations::domain::terms::types::Vocabulary;
 use ryo_values::domain::plan_parts::types::{
     Input, LiteralText, Operand, PlanComparison, QueryLiteral, Side, Test,
 };
+
+/// What each side of a numeric comparison holds: a whole number, or a text the test reads as the number it writes. None
+/// for an operand the lowering writes no operand for.
+fn sides(
+    state: &RuleFlattening<'_>,
+    asked: &SelectionAsked<'_>,
+    comparison: &PlanComparison,
+) -> Option<TestSides> {
+    let selected = &rule(state)?.rule;
+    let side = |operand: &Operand| match operand_kind(selected, &asked.shape, operand)? {
+        CellKind::Number => Some(SideKind::Number),
+        CellKind::Symbol | CellKind::Node | CellKind::File | CellKind::Span | CellKind::Flag => Some(SideKind::Text),
+    };
+    Some(TestSides {
+        left: side(&comparison.left)?,
+        right: side(&comparison.right)?,
+    })
+}
 
 /// A branch with one comparison added as a pin or a test: the branches it then is. None: the comparison cannot be
 /// written; no branch: it holds of no row. A text a column is held to is that column's cell (`literals`): a flag's own
@@ -43,6 +61,10 @@ fn tested(
         (TestOperation::Matches(_), Operand::Literal(QueryLiteral::Text(source))) => {
             TestOperation::Matches(regex(drafts, source))
         }
+        // A numeric test reads each side as a number or as a text: the kinds are written here, where the operands are
+        // still columns and literals (SPIKE ryo-fmx3.1, Q8).
+        (TestOperation::NumericAtLeast(_), _) => TestOperation::NumericAtLeast(sides(state, asked, comparison)?),
+        (TestOperation::Successor(_), _) => TestOperation::Successor(sides(state, asked, comparison)?),
         (test, _) => test,
     };
     let Some(held) = held_literal(state, drafts, asked.read, &asked.shape, comparison) else {

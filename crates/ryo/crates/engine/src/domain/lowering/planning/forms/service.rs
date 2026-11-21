@@ -194,6 +194,7 @@ pub(crate) fn step_of(access: WrittenAccess) -> ProgramStep {
             arguments,
             outputs,
         },
+        WrittenAccess::Render { node, context, out } => ProgramStep::Render { node, context, out },
         WrittenAccess::Let { from, out } => ProgramStep::Let { from, out },
     }
 }
@@ -305,6 +306,7 @@ pub(crate) fn stage_of(access: WrittenAccess, first: Enumerated) -> Option<FillS
             arguments,
             outputs,
         },
+        WrittenAccess::Render { node, context, out } => FillStage::Render { node, context, out },
         // A pipeline holds no test of containment, no walk with a condition, no closure and no `Let`.
         WrittenAccess::Within { .. }
         | WrittenAccess::Nearest { .. }

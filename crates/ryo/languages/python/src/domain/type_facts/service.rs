@@ -99,12 +99,15 @@ pub(crate) fn resolution(node: AnyNodeRef<'_>, known: &[Resolution]) -> Resoluti
     }
 }
 
-/// Writes the basic type of every syntax node of `file` into `types`, by id: one pass from the last node to the first, so an
+/// Writes the basic type of every syntax node of `file` into `types`, by place: one pass from the last node to the first, so an
 /// operand's type is known before the operation's is asked.
 pub(crate) fn resolutions(file: &SyntaxFile<'_>, types: &mut Vec<Resolution>) {
+    // By place: the file's own nodes, whose place is their id, then the nodes of each embedded segment (the expression of a
+    // string read as a type), as today's reading types them.
+    let nodes = file.tree.nodes;
     types.clear();
-    types.resize(file.nodes.len(), Resolution::Unknown);
-    for (id, node) in file.nodes.iter().enumerate().rev() {
+    types.resize(nodes.len(), Resolution::Unknown);
+    for (id, node) in nodes.iter().enumerate().rev() {
         let found = resolution(*node, types);
         if let Some(slot) = types.get_mut(id) {
             *slot = found;

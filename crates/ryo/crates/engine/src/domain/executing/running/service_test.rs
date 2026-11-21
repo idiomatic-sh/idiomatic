@@ -68,10 +68,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value([0, 9]),
     },
     Case {
-        name: CaseName("a_test_of_a_text_the_executor_does_not_run_names_the_rules_own_unit"),
+        name: CaseName("a_numeric_test_runs_and_names_no_unit"),
         word: Word::Succeeds,
         input: || Scene::NumericTest,
-        expect: Expect::Value([0, 9]),
+        expect: Expect::Value([9, 9]),
     },
     Case {
         name: CaseName(
@@ -82,10 +82,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value([1, 9]),
     },
     Case {
-        name: CaseName("a_stage_in_the_fill_of_a_table_the_rule_reads_names_the_tables_unit"),
+        name: CaseName("a_numeric_keep_in_the_fill_of_a_table_the_rule_reads_runs_and_names_no_unit"),
         word: Word::Succeeds,
         input: || Scene::NumericKeepInAFill,
-        expect: Expect::Value([2, 9]),
+        expect: Expect::Value([9, 9]),
     },
     Case {
         name: CaseName("a_table_whose_fills_stages_all_run_is_run_whole_to_its_last_stage"),
@@ -106,10 +106,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value([0, 9]),
     },
     Case {
-        name: CaseName("a_table_a_need_alone_asks_is_walked_and_names_its_unit"),
+        name: CaseName("a_table_a_need_alone_asks_is_walked_and_its_numeric_keep_runs"),
         word: Word::Succeeds,
         input: || Scene::NeedOverAFillNotRun,
-        expect: Expect::Value([2, 9]),
+        expect: Expect::Value([9, 9]),
     },
 ];
 
@@ -168,7 +168,7 @@ fn rule(number: u32, table: u32, between: Vec<ProgramStep>) -> LoweredRule {
 fn pack(scene: Scene) -> LoweredPack {
     let numeric = |left: StepOperand| {
         (
-            TestOperation::NumericAtLeast,
+            TestOperation::NumericAtLeast(crate::domain::steps::types::TEXTS),
             left,
             StepOperand::Word(CellWord(0)),
         )

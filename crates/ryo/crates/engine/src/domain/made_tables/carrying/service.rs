@@ -6,7 +6,7 @@ use crate::domain::code::constants::{
 };
 use crate::domain::code::filling::service::{
     stage_call_of, stage_keep_of, stage_latest_of, stage_probe_of, stage_product_of, stage_read_of,
-    stage_scan_of, stage_use_of, stage_walk_of, stage_write_of,
+    stage_render_of, stage_scan_of, stage_use_of, stage_walk_of, stage_write_of,
 };
 use crate::domain::code::records::service::body_at;
 use crate::domain::code::records::types::{BodyRecord, PooledOperand};
@@ -206,8 +206,11 @@ pub(crate) fn touched(
             written.extend(registers_at(code, stage.outputs));
             operands_read(code, call_arguments(code, stage.arguments)?, read)?;
         }
-        // A rendering's registers are read when the stage is built.
-        StageKind::Render => {}
+        StageKind::Render => {
+            let stage = stage_render_of(word);
+            read.push(stage.node);
+            written.push(stage.out);
+        }
     }
     Ok(())
 }

@@ -7,7 +7,9 @@ use crate::domain::code::constants::{
 use crate::domain::code::types::{Short, WordFlag};
 use crate::domain::steps::calls::types::{SearchGroup, SearchLines, SourceSearch};
 use crate::domain::steps::stages::types::UseMode;
-use crate::domain::steps::types::{AxisDirection, CallMeaning, RegexId, StepRows, TestOperation};
+use crate::domain::steps::types::{
+    AxisDirection, CallMeaning, RegexId, SideKind, StepRows, TestOperation, TestSides,
+};
 use ryo_language::domain::semantics::types::RenderContext;
 use ryo_relations::domain::relations::types::NodeColumn;
 use ryo_values::domain::plan_orders::types::OrderBound;
@@ -48,6 +50,33 @@ pub(crate) const fn node_column_of(code: Short) -> Option<NodeColumn> {
     })
 }
 
+/// The bits of a comparison's code that name the comparison; the two above them say, for a numeric test, that a side is
+/// a whole number and no text (SPIKE ryo-fmx3.1).
+const COMPARISON: u16 = 0x00ff;
+/// The left side of a numeric test is a whole number.
+const LEFT_NUMBER: u16 = 0x0100;
+/// The right side of a numeric test is a whole number.
+const RIGHT_NUMBER: u16 = 0x0200;
+
+/// The bits that say what the sides of a numeric test hold.
+const fn sides_bits(sides: TestSides) -> u16 {
+    (match sides.left {
+        SideKind::Number => LEFT_NUMBER,
+        SideKind::Text => 0,
+    }) | (match sides.right {
+        SideKind::Number => RIGHT_NUMBER,
+        SideKind::Text => 0,
+    })
+}
+
+/// What the sides of a numeric test hold, from its code.
+const fn sides_of(code: u16) -> TestSides {
+    TestSides {
+        left: if code & LEFT_NUMBER == 0 { SideKind::Text } else { SideKind::Number },
+        right: if code & RIGHT_NUMBER == 0 { SideKind::Text } else { SideKind::Number },
+    }
+}
+
 /// The code of a comparison; the regular expression of a `Matches` is the word's own operand.
 #[must_use]
 pub(crate) const fn comparison_code(test: TestOperation) -> Short {
@@ -65,16 +94,16 @@ pub(crate) const fn comparison_code(test: TestOperation) -> Short {
         TestOperation::NotGlob => 10,
         TestOperation::StartsWith => 11,
         TestOperation::EndsWith => 12,
-        TestOperation::NumericAtLeast => 13,
+        TestOperation::NumericAtLeast(sides) => 13 | sides_bits(sides),
         TestOperation::NaturalLess => 14,
-        TestOperation::Successor => 15,
+        TestOperation::Successor(sides) => 15 | sides_bits(sides),
     })
 }
 
 /// The comparison of a code, with the word's regular expression.
 #[must_use]
 pub(crate) const fn comparison_of(code: Short, regex: RegexId) -> Option<TestOperation> {
-    Some(match code.0 {
+    Some(match code.0 & COMPARISON {
         0 => TestOperation::Equal,
         1 => TestOperation::NotEqual,
         2 => TestOperation::Less,
@@ -88,9 +117,9 @@ pub(crate) const fn comparison_of(code: Short, regex: RegexId) -> Option<TestOpe
         10 => TestOperation::NotGlob,
         11 => TestOperation::StartsWith,
         12 => TestOperation::EndsWith,
-        13 => TestOperation::NumericAtLeast,
+        13 => TestOperation::NumericAtLeast(sides_of(code.0)),
         14 => TestOperation::NaturalLess,
-        15 => TestOperation::Successor,
+        15 => TestOperation::Successor(sides_of(code.0)),
         16..=u16::MAX => return None,
     })
 }
@@ -112,9 +141,9 @@ pub(crate) const fn comparison_regex(test: TestOperation) -> Option<RegexId> {
         | TestOperation::NotGlob
         | TestOperation::StartsWith
         | TestOperation::EndsWith
-        | TestOperation::NumericAtLeast
+        | TestOperation::NumericAtLeast(_)
         | TestOperation::NaturalLess
-        | TestOperation::Successor => None,
+        | TestOperation::Successor(_) => None,
     }
 }
 

@@ -11,7 +11,7 @@ use crate::domain::lowering::flattening::types::{
     AtomRows, FlatAtom, FlatTerm, RowColumn, RowsPerFile,
 };
 use crate::domain::lowering::planning::closures::service::closed;
-use crate::domain::lowering::planning::deciding::service::decided;
+use crate::domain::lowering::planning::deciding::service::{decided, keys_in_place};
 use crate::domain::lowering::planning::operands::service::called;
 use crate::domain::lowering::planning::operands::service::{
     anchor_kinds, cell_register, file_noted, file_register, key_value, operand, read_column,
@@ -229,6 +229,43 @@ fn rows_read(
         indexed(emitter.drafts, table, &listed);
     }
     let out = fresh_register(emitter.drafts);
+    // Read by a key in place, with no cell left that anything else reads or tests, the access only asks whether a row is
+    // there: the rows it finds are one row of the unit, not one each.
+    let unread = cells.iter().enumerate().all(|(place, cell)| {
+        let place = RowColumn(place);
+        let keyed = choice.cells.contains(&place) || read_column(source, place).is_none();
+        keyed
+            || match (*cell, states.get(place.0)) {
+                (_, Some(CellState::File)) => true,
+                (FlatTerm::Variable(variable), Some(CellState::Open)) => {
+                    emitter.uses.get(&variable).is_none_or(|uses| uses.0 < 2)
+                }
+                (
+                    FlatTerm::Variable(_)
+                    | FlatTerm::Text(_)
+                    | FlatTerm::Number(_)
+                    | FlatTerm::File,
+                    Some(CellState::Register | CellState::Constant | CellState::Open) | None,
+                ) => false,
+            }
+    });
+    let asked_present = !first
+        && unread
+        && pinned.is_empty()
+        && emitter.environment.file.is_some()
+        && !matches!(source, AtomRows::Definition(_))
+        && keys_in_place(&listed).is_some();
+    if asked_present {
+        emitter.written.push(WrittenAccess::Rows {
+            source: source_of(source),
+            columns: MatchColumns(listed.into()),
+            values: StepOperands(values.into()),
+            kinds: None,
+            mode: UseMode::Present,
+            out,
+        });
+        return;
+    }
     emitter.written.push(WrittenAccess::Rows {
         source: source_of(source),
         columns: MatchColumns(listed.into()),

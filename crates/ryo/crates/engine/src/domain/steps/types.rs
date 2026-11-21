@@ -328,13 +328,38 @@ pub(crate) enum TestOperation {
     StartsWith,
     /// Ends with.
     EndsWith,
-    /// Numbers and canonical numeric text, at least.
-    NumericAtLeast,
+    /// Numbers and canonical numeric text, at least: what each side holds is the test's own, written by the lowering.
+    NumericAtLeast(TestSides),
     /// Natural text order.
     NaturalLess,
-    /// The right is the left plus one.
-    Successor,
+    /// The right is the left plus one: what each side holds is the test's own, written by the lowering.
+    Successor(TestSides),
 }
+
+/// What a side of a numeric test holds. A cell does not say: the number 1 and the word numbered 1 are one cell.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum SideKind {
+    /// The word of a text, which the test reads as the number the text writes.
+    #[default]
+    Text,
+    /// A whole number's bits.
+    Number,
+}
+
+/// What the two sides of a numeric test hold: SPIKE (ryo-fmx3.1), the fill builder's Q8. Carried by the two tests that read it.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct TestSides {
+    /// The left side.
+    pub(crate) left: SideKind,
+    /// The right side.
+    pub(crate) right: SideKind,
+}
+
+/// Both sides texts: what a numeric test is written with before the lowering states its sides.
+pub(crate) const TEXTS: TestSides = TestSides {
+    left: SideKind::Text,
+    right: SideKind::Text,
+};
 
 /// The tree axes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

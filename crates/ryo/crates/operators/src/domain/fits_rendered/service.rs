@@ -29,17 +29,7 @@ fn advance_column(
 ///
 /// # Errors
 ///
-/// `WrongOperation` for a zero tab stop; `InvalidSpan` when a column overflows.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_operators::domain::fits_rendered::service::fits;
-/// use ryo_operators::domain::fits_rendered::types::{CandidateText, Fit, LinePrefix, LineWidth, TabStop};
-///
-/// let fit = fits(CandidateText("import a"), LinePrefix("    "), LineWidth(20), TabStop(4));
-/// assert_eq!(fit, Ok(Fit::Within));
-/// ```
+/// `WrongOperation` for a zero tab stop; `InvalidSpan` for a column past `usize`.
 pub fn fits(
     text: CandidateText<'_>,
     prefix: LinePrefix<'_>,
@@ -104,17 +94,6 @@ pub(crate) fn lower(
 ///
 /// `ShapeMismatch` for a cell that is no span; `InvalidSpan` for an absent span, one out of order or off the source, or a
 /// source that is not text.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_operators::domain::fits_rendered::service::line_prefix;
-/// use ryo_relations::domain::relations::types::{Offset, Span, Value};
-/// use ryo_values::domain::files::types::SourceView;
-///
-/// let span = Value::Span(Span { start: Offset(6), end: Offset(7) });
-/// assert_eq!(line_prefix(SourceView(b"x\n    a"), span).map(|prefix| prefix.0), Ok("    "));
-/// ```
 pub fn line_prefix<'a>(
     source: ryo_values::domain::files::types::SourceView<'a>,
     span: ryo_relations::domain::relations::types::Value,

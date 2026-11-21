@@ -153,10 +153,6 @@ impl From<String> for DiagnosticMessage {
 #[derive(Debug, Default)]
 pub(super) struct ScalarBuffer(pub String);
 
-/// The rendered spelling of one syntax form.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(super) struct RenderedSyntax(pub String);
-
 /// One parser-library syntax diagnostic, before byte-range normalization.
 pub(super) struct SemanticSyntaxDiagnostic {
     /// The diagnostic text emitted by the parser.

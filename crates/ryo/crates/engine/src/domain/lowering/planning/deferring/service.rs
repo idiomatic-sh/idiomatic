@@ -55,6 +55,7 @@ fn read_by(access: &WrittenAccess) -> Vec<Register> {
             read
         }
         WrittenAccess::Call { arguments, .. } => registers(arguments.0.iter()),
+        WrittenAccess::Render { node, .. } => vec![*node],
         WrittenAccess::Let { from, .. } => registers([from]),
     }
 }
@@ -76,6 +77,7 @@ fn rows_given(access: &WrittenAccess) -> AccessRows {
         | WrittenAccess::Within { .. }
         | WrittenAccess::Latest { .. }
         | WrittenAccess::Nearest { .. }
+        | WrittenAccess::Render { .. }
         | WrittenAccess::Let { .. } => AccessRows::AtMostOne,
         WrittenAccess::Use { mode, .. } | WrittenAccess::Rows { mode, .. } => match mode {
             UseMode::Present | UseMode::Absent => AccessRows::AtMostOne,
@@ -120,6 +122,7 @@ pub(crate) fn deferred(written: Vec<WrittenAccess>) -> Vec<WrittenAccess> {
                 | WrittenAccess::Nearest { .. }
                 | WrittenAccess::Closure { .. }
                 | WrittenAccess::Call { .. }
+                | WrittenAccess::Render { .. }
                 | WrittenAccess::Let { .. } => true,
             });
         waiting = kept;

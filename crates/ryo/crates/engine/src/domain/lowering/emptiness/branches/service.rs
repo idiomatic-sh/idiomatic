@@ -18,10 +18,20 @@ use ryo_relations::domain::relations::types::{CellKind, FactForm, NodeColumn, Re
 use std::collections::HashMap;
 
 /// How deep a constant is carried through definitions, and how many branches of a definition may be left that can give
-/// a row with it: past either, the use needs the definition's own formula. The branches LEFT are counted, not the
+/// a row with it: past either, the use needs the definition's own formula. Ten deep: a fragment's output is a chain
+/// of definitions (a selection over a union over a view over the relation), and the relation whose column the
+/// constant names lies at its end; at four the constant of `kind = "global"` over the binding events never reached
+/// the `binding-event` read (PLW0602: the read is six definitions down). The branches LEFT are counted, not the
 /// definition's: a definition of many branches that each hold the column to its own constant (a union of a relation's
 /// kinds) is where a reader's constant decides most, leaving the one branch that holds it.
-const CARRIED: (usize, usize) = (4, 8);
+const CARRIED: (usize, usize) = (10, 8);
+
+/// SPIKE: whether the branches a need is read off are printed (`RYO_X_NEED_BRANCHES`, read once): what a branch holds
+/// when its need is read, to see why a literal of the query is not in it.
+fn traced() -> bool {
+    static TRACED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *TRACED.get_or_init(|| std::env::var_os("RYO_X_NEED_BRANCHES").is_some())
+}
 
 /// The constant a cell is held to: its own, or the one an equality pins its variable to.
 fn held(pins: &HashMap<FlatVariable, FlatTerm>, cell: FlatTerm) -> Option<FlatTerm> {
@@ -99,6 +109,13 @@ fn definition_need(
         })
         .collect();
     let branches = draft(drafts, definition).map(|draft| &draft.branches);
+    if traced() {
+        eprintln!(
+            "ryo x: need-use definition={} depth={depth} constants={constants:?} cells={cells:?} branches={}",
+            definition.0,
+            branches.map_or(0, Vec::len)
+        );
+    }
     let Some(branches) = branches.filter(|_| !constants.is_empty() && depth < CARRIED.0) else {
         return Emptiness::Definition(definition);
     };
@@ -187,6 +204,12 @@ fn needed(
 /// What a file must hold for a branch to give a row, read off the branch.
 #[must_use]
 pub(crate) fn branch_need(drafts: &Drafts, branch: &FlatBranch) -> Emptiness {
+    if traced() {
+        eprintln!(
+            "ryo x: need-branch row={:?} atoms={:?}",
+            branch.row, branch.atoms
+        );
+    }
     needed(drafts, branch, &HashMap::new(), 0)
 }
 

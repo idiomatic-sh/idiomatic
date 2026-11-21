@@ -11,7 +11,7 @@ use crate::domain::lowering::nodes::types::StepReach;
 use crate::domain::lowering::tables::calls::service::call_arm;
 use crate::domain::lowering::tables::closures::service::closure_arm;
 use crate::domain::lowering::tables::fills::service::{as_of_arm, group_count_arm, group_rows_arm};
-use crate::domain::lowering::tables::graphs::service::follow_arm;
+use crate::domain::lowering::tables::graphs::service::{follow_arm, visits_arm};
 use crate::domain::lowering::tables::inputs::service::{input, rule, term};
 use crate::domain::lowering::tables::joins::service::{antijoin_arm, axis_arm, join_arm};
 use crate::domain::lowering::tables::matches::service::match_arm;
@@ -84,6 +84,7 @@ fn arm(
         }
         Operation::AsOf { .. } => as_of_arm(state, drafts, step, operation),
         Operation::Follow { .. } => follow_arm(state, drafts, step, operation),
+        Operation::OrderedDfs { .. } => visits_arm(state, drafts, step, operation),
         Operation::Axis { .. } => axis_arm(state, drafts, operation),
         Operation::Closure { .. } => closure_arm(state, drafts, operation),
         Operation::OrderedMatch { .. } => match_arm(state, drafts, step, operation),
@@ -92,6 +93,7 @@ fn arm(
         | Operation::SpanBetween { .. }
         | Operation::SourceMatches { .. }
         | Operation::Capture { .. }
+        | Operation::RenderSyntax { .. }
         | Operation::FitsRendered { .. } => call_arm(state, drafts, operation),
         // What is left to lower, each by name: `tables::service::shaped` refuses a rule that holds one.
         Operation::Intersection { .. }
@@ -99,12 +101,10 @@ fn arm(
         | Operation::GroupDigest { .. }
         | Operation::Rank { .. }
         | Operation::Words { .. }
-        | Operation::OrderedDfs { .. }
         | Operation::Worklist { .. }
         | Operation::Cycles { .. }
         | Operation::Rows { .. }
-        | Operation::Hosted { .. }
-        | Operation::RenderSyntax { .. } => None,
+        | Operation::Hosted { .. } => None,
     }
 }
 

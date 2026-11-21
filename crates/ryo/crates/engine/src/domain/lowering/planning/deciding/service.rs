@@ -33,7 +33,7 @@ fn asked_cells(emitter: &Emitter<'_>, cells: &[Option<FlatTerm>]) -> Vec<AskedCe
 
 /// Whether a key of these columns reads a source in place: any columns of a filled relation or a made table are one key;
 /// the node table is read by one of its element, its parent or its span.
-fn keys_in_place(listed: &[ReadColumn]) -> Option<()> {
+pub(crate) fn keys_in_place(listed: &[ReadColumn]) -> Option<()> {
     let node = listed
         .iter()
         .any(|column| matches!(column, ReadColumn::Node(_)));

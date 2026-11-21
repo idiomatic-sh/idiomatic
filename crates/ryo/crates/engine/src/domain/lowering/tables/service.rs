@@ -290,7 +290,46 @@ fn shaped(
             shape.0.extend([CellKind::Number, CellKind::Number]);
             Some(shape)
         }
-        // A fit check keeps its row as it is: texts read, the span a span.
+        // The roots' keys and the root, then the visited edge's source, destination and identity, and the ordinal of the
+        // visit: the row of the `OrderedDfs` graph table. The edges' ends are of the root's kind, their order a number,
+        // and their keys the roots', kind by kind.
+        Operation::OrderedDfs {
+            from,
+            edges,
+            root,
+            source,
+            destination,
+            order,
+            edge,
+            root_keys,
+            edge_keys,
+        } => {
+            let (roots, visited) = (of(from)?, of(edges)?);
+            let mut shape = picked(&roots, root_keys)?;
+            let entity = picked(&roots, &[*root])?;
+            let ends = picked(&visited, &[*source, *destination])?;
+            let matched = picked(&visited, edge_keys)? == shape
+                && ends.0.iter().all(|kind| Some(kind) == entity.0.first())
+                && picked(&visited, &[*order])?.0 == [CellKind::Number];
+            if !matched {
+                return None;
+            }
+            shape.0.extend(entity.0);
+            shape.0.extend(ends.0);
+            shape.0.extend(picked(&visited, &[*edge])?.0);
+            shape.0.push(CellKind::Number);
+            Some(shape)
+        }
+        // A rendering appends the node's text in the role: the node column is a node's.
+        Operation::RenderSyntax { from, node, .. } => {
+            let mut shape = of(from)?;
+            if picked(&shape, &[*node])?.0 != [CellKind::Node] {
+                return None;
+            }
+            shape.0.push(CellKind::Symbol);
+            Some(shape)
+        }
+        // A fit check keeps the rows whose candidate fits: the input's shape, its texts symbols and its span a span.
         Operation::FitsRendered {
             from,
             texts,
@@ -299,11 +338,12 @@ fn shaped(
             ..
         } => {
             let shape = of(from)?;
-            let read = picked(&shape, texts)?;
-            (literals.len() == texts.len().saturating_add(1)
-                && read.0.iter().all(|kind| *kind == CellKind::Symbol)
-                && picked(&shape, &[*span])?.0 == [CellKind::Span])
-                .then_some(shape)
+            let held = picked(&shape, texts)?
+                .0
+                .iter()
+                .all(|kind| *kind == CellKind::Symbol);
+            let spanned = picked(&shape, &[*span])?.0 == [CellKind::Span];
+            (held && spanned && literals.len() == texts.len().saturating_add(1)).then_some(shape)
         }
         // What is left to lower, each by name: no arm stands for the rest.
         Operation::Intersection { .. }
@@ -311,12 +351,10 @@ fn shaped(
         | Operation::GroupDigest { .. }
         | Operation::Rank { .. }
         | Operation::Words { .. }
-        | Operation::OrderedDfs { .. }
         | Operation::Worklist { .. }
         | Operation::Cycles { .. }
         | Operation::Rows { .. }
-        | Operation::Hosted { .. }
-        | Operation::RenderSyntax { .. } => None,
+        | Operation::Hosted { .. } => None,
     }
 }
 
@@ -340,7 +378,7 @@ pub(crate) fn admitted<'a>(rule: SelectedRule<'a>) -> Result<AdmittedRule<'a>, L
         if reached.get(place) != Some(&StepReach::Reached) {
             continue;
         }
-        // SPIKE (ryo-fmx3.1, a stand-in for claude/engine-l2's file-local proof): a step today's engine runs after the
+        // SPIKE (ryo-fmx3.1), a STAND-IN for claude/engine-l2's file-local proof: a step today's engine runs after the
         // files is taken when its rows keep a file column, each file's scan answering it over that file's rows alone.
         let shape = shaped(&rule, &shapes, &step.operation)
             .filter(|shape| step.scope == StepScope::PerFile || shape.0.contains(&CellKind::File))

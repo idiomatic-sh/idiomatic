@@ -18,6 +18,8 @@ pub(crate) enum FillKind {
     Places,
     /// `follow`: for each key of the gathered edges, each pair of a source and a fixed point it reaches.
     Follow,
+    /// `ordered-dfs`: two gathered inputs, the roots and the edges: each edge visited from each distinct root.
+    Visits,
     /// Two gathered inputs paired within each key, first in, first out: the left row, then the right row.
     Match,
     /// Rows written in the code.

@@ -332,9 +332,9 @@ pub(crate) const fn cell_test(test: TestOperation) -> Option<CellTest> {
         | TestOperation::NotGlob
         | TestOperation::StartsWith
         | TestOperation::EndsWith
-        | TestOperation::NumericAtLeast
+        | TestOperation::NumericAtLeast(_)
         | TestOperation::NaturalLess
-        | TestOperation::Successor => None,
+        | TestOperation::Successor(_) => None,
     }
 }
 

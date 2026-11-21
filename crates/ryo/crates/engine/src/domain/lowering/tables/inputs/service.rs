@@ -10,7 +10,7 @@ use crate::domain::lowering::flattening::constants::{BRANCH_ATOMS, INPUT_BRANCHE
 use crate::domain::lowering::flattening::service::function_call;
 use crate::domain::lowering::flattening::service::{own_walks, picked};
 use crate::domain::lowering::flattening::types::{
-    AtomRows, FlatAtom, FlatBranch, FlatTerm, OwnWalks, RowColumn, RowsPerFile,
+    AtomRows, FlatAtom, FlatBranch, FlatTerm, OwnWalks, RowColumn, RowMeaning, RowsPerFile,
 };
 use crate::domain::lowering::nodes::service::{digest_of, input_shape, kept_columns, readers};
 use crate::domain::lowering::nodes::types::{AdmittedRule, NodeHome};
@@ -67,7 +67,7 @@ pub(crate) fn term(
             }
             let given = FlatTerm::Variable(fresh_variable(drafts));
             branch.atoms.push(FlatAtom::Called {
-                meaning,
+                meaning: RowMeaning::Call(meaning),
                 arguments,
                 outputs: vec![given],
             });

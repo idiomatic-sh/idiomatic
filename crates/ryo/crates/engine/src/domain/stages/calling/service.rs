@@ -13,12 +13,15 @@ use crate::domain::stages::types::{BatchValue, CallMeans, CallOut, FunctionTexts
 use crate::domain::steps::calls::types::{SearchGroup, SearchLines, SourceSearch};
 use crate::domain::steps::types::{CallMeaning, RegexId, StepRegex};
 use ryo_language::domain::facts::service::{intern, text, words_end};
-use ryo_language::domain::facts::types::{CellWord, FileWords};
+use ryo_language::domain::facts::types::{CellWord, FactSource, FileWords};
+use ryo_language::domain::semantics::types::{RenderContext, RenderOutcome, RenderRequest};
 use ryo_operators::domain::capture::service::matches;
 use ryo_operators::domain::capture::types::{CaptureSlots, SlotPattern, SlotSubject};
 use ryo_operators::domain::contract::types::{PortableOperatorFault, SourceByteLength};
 use ryo_operators::domain::fits_rendered::service::{fits, line_prefix};
-use ryo_operators::domain::fits_rendered::types::{CandidateText, Fit, LineWidth, TabStop};
+use ryo_operators::domain::fits_rendered::types::{
+    CandidateText, Fit, LinePrefix, LineWidth, TabStop,
+};
 use ryo_operators::domain::functions::service::apply;
 use ryo_operators::domain::functions::types::MadeText;
 use ryo_operators::domain::patterns::service::compiled;
@@ -32,7 +35,7 @@ use ryo_operators::domain::span_between::service::between;
 use ryo_operators::domain::span_bounds::service::bounds;
 use ryo_operators::domain::table_texts::types::TextView;
 use ryo_relations::domain::relations::service::{from_bits, to_bits};
-use ryo_relations::domain::relations::types::{Bits, CellKind, Count};
+use ryo_relations::domain::relations::types::{Bits, CellKind, Count, Integer, NodeId, Value};
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Function};
@@ -157,60 +160,6 @@ fn made_texts(
         });
         spanned(out.spans, &mut made, Count(1));
     }
-}
-
-/// `FitsRendered`: for each row, whether its candidate (the literals interleaved with its texts) fits the line its span
-/// starts on, after the source before the span on that line, within the widest line at the tab stop: one row when it
-/// fits, none when it does not. The arguments are the n texts, the span, the n + 1 literals, the widest line and the tab
-/// stop.
-fn fits_rendered(
-    means: &CallMeans<'_>,
-    words: &FileWords,
-    arguments: &[BatchValue<'_>],
-    rows: Count,
-    out: CallOut<'_>,
-) -> Result<(), FilledError> {
-    let texts = arguments.len().saturating_sub(4) / 2;
-    let number = |at: usize, row: usize| match from_bits(
-        CellKind::Number,
-        Bits(argument(arguments, Count(at), Count(row)).0),
-    ) {
-        ryo_relations::domain::relations::types::Value::Number(number) => number.0,
-        _ => 0,
-    };
-    let candidate = &mut out.scratch.written.0;
-    let mut made = Count(0);
-    for row in 0..rows.0 {
-        let span = from_bits(
-            CellKind::Span,
-            Bits(argument(arguments, Count(texts), Count(row)).0),
-        );
-        let prefix = line_prefix(SourceView(means.source.0), span).map_err(faulted)?;
-        candidate.clear();
-        for at in 0..texts {
-            let literal = argument(arguments, Count(texts + 1 + at), Count(row));
-            candidate.push_str(text(words, literal).0);
-            candidate.push_str(text(words, argument(arguments, Count(at), Count(row))).0);
-        }
-        let last = argument(arguments, Count(2 * texts + 1), Count(row));
-        candidate.push_str(text(words, last).0);
-        let (maximum, tab) = (number(2 * texts + 2, row), number(2 * texts + 3, row));
-        let (Ok(maximum), Ok(tab)) = (usize::try_from(maximum), usize::try_from(tab)) else {
-            return Err(faulted(PortableOperatorFault::WrongBinding));
-        };
-        if tab == 0 {
-            return Err(faulted(PortableOperatorFault::WrongBinding));
-        }
-        let fit = fits(
-            CandidateText(candidate),
-            prefix,
-            LineWidth(maximum),
-            TabStop(tab),
-        )
-        .map_err(faulted)?;
-        spanned(out.spans, &mut made, Count(usize::from(fit == Fit::Within)));
-    }
-    Ok(())
 }
 
 /// `Replace`: for each row its text with every occurrence of the expression replaced, as a word of the file. One row for
@@ -374,6 +323,106 @@ fn source_matches(
     Ok(())
 }
 
+/// `FitsRendered`: for each row its candidate, the n + 1 literals interleaved with its n texts, after the source line's
+/// text before its span; the row goes on when every line of it stays within the widest line, and gives no cell. A text
+/// cell that is no word of the file faults, as today's operator does on a cell that is no text.
+fn fits_rendered(
+    means: &CallMeans<'_>,
+    words: &FileWords,
+    arguments: &[BatchValue<'_>],
+    rows: Count,
+    out: CallOut<'_>,
+) -> Result<(), FilledError> {
+    // 2n + 4 arguments: the n texts, the span, the n + 1 literals, the widest line, the tab stop.
+    let texts = arguments.len().saturating_sub(4) / 2;
+    let span_at = Count(texts);
+    let number = |at: usize, row: usize| match from_bits(
+        CellKind::Number,
+        Bits(argument(arguments, Count(at), Count(row)).0),
+    ) {
+        Value::Number(Integer(number)) => Ok(number),
+        _ => Err(faulted(PortableOperatorFault::WrongBinding)),
+    };
+    let scratch = out.scratch;
+    let mut made = Count(0);
+    for row in 0..rows.0 {
+        let end = words_end(words);
+        let span = from_bits(
+            CellKind::Span,
+            Bits(argument(arguments, span_at, Count(row)).0),
+        );
+        let LinePrefix(before) = line_prefix(SourceView(means.source.0), span).map_err(faulted)?;
+        scratch.text.0.clear();
+        scratch.text.0.push_str(before);
+        scratch.written.0.clear();
+        for at in 0..texts {
+            let literal = argument(
+                arguments,
+                Count(texts.saturating_add(1).saturating_add(at)),
+                Count(row),
+            );
+            scratch.written.0.push_str(text(words, literal).0);
+            let cell = argument(arguments, Count(at), Count(row));
+            if cell >= end {
+                return Err(faulted(PortableOperatorFault::ShapeMismatch));
+            }
+            scratch.written.0.push_str(text(words, cell).0);
+        }
+        let last = argument(
+            arguments,
+            Count(texts.saturating_mul(2).saturating_add(1)),
+            Count(row),
+        );
+        scratch.written.0.push_str(text(words, last).0);
+        let widest = number(texts.saturating_mul(2).saturating_add(2), row)?;
+        let tab = number(texts.saturating_mul(2).saturating_add(3), row)?;
+        let maximum =
+            usize::try_from(widest).map_err(|_| faulted(PortableOperatorFault::WrongBinding))?;
+        let stop =
+            usize::try_from(tab).map_err(|_| faulted(PortableOperatorFault::WrongBinding))?;
+        if stop == 0 {
+            return Err(faulted(PortableOperatorFault::WrongBinding));
+        }
+        let fit = fits(
+            CandidateText(&scratch.written.0),
+            LinePrefix(&scratch.text.0),
+            LineWidth(maximum),
+            TabStop(stop),
+        )
+        .map_err(faulted)?;
+        let given = match fit {
+            Fit::Within => Count(1),
+            Fit::Over => Count(0),
+        };
+        spanned(out.spans, &mut made, given);
+    }
+    Ok(())
+}
+
+/// A rendering: the language's source form of the node `handle` names, in `context`, as a word of the file; none when the
+/// node has none in the role, or when the language cannot prove its text there. Today's operator refuses the batch an
+/// unsupported rendering is in, but its batch is the rows that reached it: the planner may ask a rendering before the
+/// tests that drop a row (it gives at most one row), so a node today's run never renders gives no row here rather than
+/// faulting the file. The two differ only on a file today's run refuses.
+///
+/// # Errors
+///
+/// None yet: the `Result` is the meanings' shape, so a fault the language may raise has its place.
+pub(crate) fn rendered(
+    facts: &mut dyn FactSource,
+    words: &mut FileWords,
+    handle: CellWord,
+    context: RenderContext,
+) -> Result<Option<CellWord>, FilledError> {
+    match facts.render(RenderRequest {
+        node: NodeId(handle.0),
+        context,
+    }) {
+        RenderOutcome::Known(text) => Ok(Some(intern(words, NameText(&text.0)))),
+        RenderOutcome::NotApplicable | RenderOutcome::Unsupported(_) => Ok(None),
+    }
+}
+
 /// Whether a `Call` runs a meaning: every meaning a rule of the packs is lowered to; `Words` and
 /// `Rank` are written by no rule. `call_batch` asks it before it runs one, so a meaning said to run here and not built
 /// there fails its first case.
@@ -431,10 +480,8 @@ pub(crate) fn call_batch(
             source_matches(means, words, regex, search, arguments, rows, out)
         }
         CallMeaning::FitsRendered => fits_rendered(&means, words, arguments, rows, out),
-        CallMeaning::Words | CallMeaning::Rank => {
-            Err(FilledError::Unbuilt {
-                unbuilt: UnbuiltFill::Stage(Op::StageCall),
-            })
-        }
+        CallMeaning::Words | CallMeaning::Rank => Err(FilledError::Unbuilt {
+            unbuilt: UnbuiltFill::Stage(Op::StageCall),
+        }),
     }
 }

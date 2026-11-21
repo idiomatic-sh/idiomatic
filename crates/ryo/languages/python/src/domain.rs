@@ -25,6 +25,7 @@ pub(crate) mod nodes;
 pub(crate) mod packages;
 pub(crate) mod patterns;
 pub(crate) mod relations;
+pub(crate) mod rendering;
 pub(crate) mod scopes;
 pub(crate) mod siblings;
 pub(crate) mod syntax;

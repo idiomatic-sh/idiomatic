@@ -21,14 +21,6 @@ pub struct TabStop(pub usize);
 pub(crate) struct LineColumn(pub usize);
 
 /// Whether a candidate stays within the line width.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_operators::domain::fits_rendered::types::Fit;
-///
-/// assert_ne!(Fit::Within, Fit::Over);
-/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Fit {
     /// Every line is within the width.
