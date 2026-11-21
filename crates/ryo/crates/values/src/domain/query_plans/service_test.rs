@@ -13,6 +13,7 @@ use ryo_relations::domain::relations::types::Relation;
 use std::borrow::Cow;
 
 mod digests;
+mod unfolding;
 
 /// What a row of the cases asks of the service.
 #[derive(Clone, Copy)]
