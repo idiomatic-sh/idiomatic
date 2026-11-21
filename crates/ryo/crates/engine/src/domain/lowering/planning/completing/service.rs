@@ -303,9 +303,8 @@ fn place(state: &mut OrderCompletion<'_>, next: NextAccess) {
         *placed = AtomPlacing::Placed;
     }
     state.order.push(next.atom);
-    // A table is made once a file, in the share of files a row gets here: the dearest one the order reads is kept.
-    state.tables = state.tables.max(times(next.cost.once, state.rows.min(ONE)));
-    let taken = times(state.rows, next.cost.steps);
+    let once = times(next.cost.once, state.rows.min(ONE));
+    let taken = plus(once, times(state.rows, next.cost.steps));
     match atom {
         FlatAtom::Rows { .. }
         | FlatAtom::Latest { .. }
@@ -666,7 +665,6 @@ fn begun<'a>(
         uses: uses_of(branch, None),
         implied: HashSet::new(),
         rowless: HashSet::new(),
-        tables: PlanEstimate(0),
         rows: start.rows,
         cost: PlanEstimate(0),
         enumerated: Enumerated::NotYet,
@@ -715,7 +713,6 @@ pub(crate) fn completed(
     Some(PlannedBranch {
         order: state.order,
         cost: state.cost,
-        tables: state.tables,
         rows: state.rows,
         products: state.products,
     })

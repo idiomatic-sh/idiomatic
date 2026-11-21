@@ -27,11 +27,8 @@ pub(crate) enum UnitRole {
 pub(crate) struct PlannedBranch {
     /// The atoms, by place in the branch, in the order they run.
     pub(crate) order: Vec<AtomPlace>,
-    /// The steps the order takes for one start of the unit, by the fixed priors: what it takes once a file is `tables`.
+    /// The steps the order takes for one start of the unit, what it takes once a file among them, by the fixed priors.
     pub(crate) cost: PlanEstimate,
-    /// What the dearest table the order reads takes to make, once a file. A table is made once however many read it, so
-    /// the tables an order needs are not summed reader by reader: the dearest stands for them.
-    pub(crate) tables: PlanEstimate,
     /// The rows the order gives for one start of the unit.
     pub(crate) rows: PlanEstimate,
     /// How many accesses after the first have no key: the product stages of a pipeline.
@@ -312,8 +309,6 @@ pub(crate) struct OrderCompletion<'a> {
     pub(crate) rows: PlanEstimate,
     /// The steps taken so far.
     pub(crate) cost: PlanEstimate,
-    /// What the dearest table read so far takes to make, once a file.
-    pub(crate) tables: PlanEstimate,
     /// Whether rows were enumerated yet.
     pub(crate) enumerated: Enumerated,
     /// How many accesses after the first had no key.
