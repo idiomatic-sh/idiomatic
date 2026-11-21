@@ -4,6 +4,7 @@
 use crate::domain::code::types::Op;
 use crate::domain::filled::errors::FilledError;
 use crate::domain::filled::types::{FillRuns, MissingCode, UnbuiltFill};
+use crate::domain::stages::deciding::service::{by_word, kept, verdict_key};
 use crate::domain::stages::service::{selected, value_at};
 use crate::domain::stages::types::{BatchRow, BatchValue, RowKept, TextMeans, TextTest};
 use crate::domain::steps::types::TestOperation;
@@ -16,16 +17,6 @@ use ryo_operators::domain::patterns::service::{glob_any_each, matches_each};
 use ryo_operators::domain::table_texts::types::{Datum, TextView};
 use ryo_relations::domain::relations::types::Count;
 use ryo_values::domain::plan_parts::types::Test;
-
-/// What an outcome of a meaning says of a row; with `wanted` the other outcome, the row is kept when the test fails.
-#[inline]
-fn kept(outcome: PredicateOutcome, wanted: PredicateOutcome) -> RowKept {
-    if outcome == wanted {
-        RowKept::Yes
-    } else {
-        RowKept::No
-    }
-}
 
 /// Whether a `Keep` runs a test: every test of two cells and of a set, the regular expression, the globs and the affixes;
 /// not yet the numeric and natural orders of texts and the successor. `keep_text` asks it before it runs a test of a
@@ -151,6 +142,10 @@ pub(crate) fn keep_text(
         return Err(FilledError::Unbuilt {
             unbuilt: UnbuiltFill::Stage(Op::StageKeep),
         });
+    }
+    // A test against constants is decided once for each word, and read for each row.
+    if let Some(key) = verdict_key(test) {
+        return by_word(means, words, test, key, rows, keep);
     }
     let wrong = FilledError::Code {
         named: MissingCode::Regex,

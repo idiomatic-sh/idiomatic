@@ -1,8 +1,8 @@
 //! Regular-expression matching with bounded, reusable compilation storage, and the glob test: each for one row and for a
 //! column of texts.
 
-use super::types::PatternMatcher;
 use super::types::prepared::value::{PreparedMatchers, compile_regex};
+use super::types::{PatternMatcher, TextGlobSet};
 use crate::domain::contract::types::PredicateOutcome;
 use crate::domain::patterns::errors::PatternsError;
 use crate::domain::table_scratch::types::Patterns;
@@ -170,6 +170,58 @@ pub fn glob_any_each<'a>(
     matcher: PatternMatcher<'a>,
 ) -> impl Iterator<Item = PredicateOutcome> + 'a {
     texts.map(move |text| any_glob(text, globs.iter().map(|glob| GlobPattern(glob.0)), matcher))
+}
+
+/// A set of globs compiled once, for a test that asks many texts whether any of the same globs matches: what
+/// `glob_any` answers for each text, with the globs read once and not once a text.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl;
+/// use ryo_operators::domain::contract::types::PredicateOutcome;
+/// use ryo_operators::domain::patterns::service::{glob_compiled, globs_compiled};
+/// use ryo_operators::domain::patterns::types::PatternMatcher;
+/// use ryo_operators::domain::table_texts::types::TextView;
+///
+/// let matcher = PatternMatcher(&MatchingUseCaseImpl);
+/// let globs = globs_compiled(&[TextView("a*"), TextView("?d")], matcher);
+/// assert_eq!(glob_compiled(TextView("cd"), &globs, matcher), PredicateOutcome::Holds);
+/// assert_eq!(glob_compiled(TextView("ef"), &globs, matcher), PredicateOutcome::Fails);
+/// ```
+#[must_use]
+pub fn globs_compiled(globs: &[TextView<'_>], matcher: PatternMatcher<'_>) -> TextGlobSet {
+    let patterns: Vec<GlobPattern<'_>> = globs.iter().map(|glob| GlobPattern(glob.0)).collect();
+    TextGlobSet(matcher.0.compile_text_globs(&patterns))
+}
+
+/// Whether a text matches any glob of a compiled set: `glob_any` for one text, against globs `globs_compiled` read.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl;
+/// use ryo_operators::domain::contract::types::PredicateOutcome;
+/// use ryo_operators::domain::patterns::service::{glob_compiled, globs_compiled};
+/// use ryo_operators::domain::patterns::types::PatternMatcher;
+/// use ryo_operators::domain::table_texts::types::TextView;
+///
+/// let matcher = PatternMatcher(&MatchingUseCaseImpl);
+/// let globs = globs_compiled(&[TextView("kind_?")], matcher);
+/// assert_eq!(glob_compiled(TextView("kind_a"), &globs, matcher), PredicateOutcome::Holds);
+/// ```
+#[must_use]
+#[inline]
+pub fn glob_compiled(
+    text: TextView<'_>,
+    globs: &TextGlobSet,
+    matcher: PatternMatcher<'_>,
+) -> PredicateOutcome {
+    if matcher.0.matches_text_globs(&globs.0, SearchText(text.0)) == MatchOutcome::Matches {
+        PredicateOutcome::Holds
+    } else {
+        PredicateOutcome::Fails
+    }
 }
 
 /// Borrow a prepared literal matcher, or keep dynamic/undeclared patterns in their invocation cache.

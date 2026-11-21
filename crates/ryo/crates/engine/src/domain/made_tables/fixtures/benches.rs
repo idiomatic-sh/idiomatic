@@ -14,9 +14,12 @@ use crate::domain::made_tables::types::{
     FillFrame, KeyFrom, MadeState, PatternAsk, PatternFound, PatternRows, ReadSource, TableNeed,
 };
 use crate::domain::steps::types::MadeTableId;
+use ryo_language::domain::facts::service::{base_words, clear_words, file_words};
 use ryo_language::domain::facts::types::CellWord;
+use ryo_language::domain::fixed_names::service::checked;
 use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::Position;
+use ryo_relations::domain::terms::types::NameText;
 
 pub mod kinds;
 pub(crate) mod tables;
@@ -28,7 +31,7 @@ pub(crate) mod tables;
 /// ```
 /// use ryo_engine::domain::made_tables::fixtures::benches::FILL_BENCHES;
 ///
-/// assert_eq!(FILL_BENCHES.len(), 22);
+/// assert_eq!(FILL_BENCHES.len(), 24);
 /// ```
 pub const FILL_BENCHES: &[FillBench] = &[
     FillBench::RowsRead,
@@ -50,6 +53,8 @@ pub const FILL_BENCHES: &[FillBench] = &[
     FillBench::Product,
     FillBench::RowsFile,
     FillBench::RowsFileDropped,
+    FillBench::KeepGlobFewWords,
+    FillBench::KeepGlobOwnWords,
     FillBench::IndexNodesKind,
     FillBench::IndexNodesParent,
     FillBench::IndexNodesId,
@@ -87,6 +92,8 @@ pub const fn fill_name(bench: FillBench) -> &'static str {
         FillBench::Product => "product_pairs",
         FillBench::RowsFile => "rows_with_the_file",
         FillBench::RowsFileDropped => "rows_with_the_file_repeats_dropped",
+        FillBench::KeepGlobFewWords => "keep_glob_few_words",
+        FillBench::KeepGlobOwnWords => "keep_glob_own_words",
         FillBench::IndexNodesKind => "index_nodes_by_kind",
         FillBench::IndexNodesParent => "index_nodes_by_parent",
         FillBench::IndexNodesId => "index_nodes_by_id",
@@ -135,6 +142,8 @@ pub const fn fill_units(bench: FillBench, rows: usize) -> usize {
         | FillBench::GroupEnds
         | FillBench::RowsFile
         | FillBench::RowsFileDropped
+        | FillBench::KeepGlobFewWords
+        | FillBench::KeepGlobOwnWords
         | FillBench::IndexNodesKind
         | FillBench::IndexNodesParent
         | FillBench::IndexNodesId => rows,
@@ -232,10 +241,26 @@ pub fn fill_workload(bench: FillBench, rows: usize) -> Option<FillWorkload> {
         | FillBench::CallReplace
         | FillBench::CallCapture
         | FillBench::CallSourceMatches
+        | FillBench::KeepGlobFewWords
+        | FillBench::KeepGlobOwnWords
         | FillBench::IndexNodesKind
         | FillBench::IndexNodesParent
         | FillBench::IndexNodesId => false,
     };
+    if matches!(
+        bench,
+        FillBench::KeepGlobFewWords | FillBench::KeepGlobOwnWords
+    ) {
+        // The words of these two: 26 literal kinds (words 1 to 26) and one more (27). A token's kind is the 26th, a
+        // group's and the root's the one that is not among them.
+        let names: Vec<String> = (b'a'..=b'z')
+            .map(|letter| format!("kind_{}", char::from(letter)))
+            .chain(std::iter::once("kind_other".to_owned()))
+            .collect();
+        let texts: Vec<NameText<'_>> = names.iter().map(|name| NameText(name)).collect();
+        world.words = file_words(&base_words(checked(&[]).ok()?, &texts));
+        world.programs.kinds = [0_u64, 27, 27, 26].map(CellWord).to_vec();
+    }
     if reads_told {
         let (mut frame, _) = framed(&mut world);
         // The sources are there before the first timed run: the relation whole, the probe's index built.
@@ -285,6 +310,10 @@ pub fn fill_workload(bench: FillBench, rows: usize) -> Option<FillWorkload> {
 /// assert_eq!(fills.map(made), [700, 700, 700, 700, 700, 100, 32]);
 /// // An index of the nodes, built and asked once: the 700 tokens by kind, the root's 100 children and the root (its
 /// // own parent) by parent, one node by id.
+/// // A keep of a glob of 26 literals: the 700 tokens, whose kind's name is the last of them; and the 100 groups and
+/// // the root, whose own texts match none.
+/// let kept = [FillBench::KeepGlobFewWords, FillBench::KeepGlobOwnWords];
+/// assert_eq!(kept.map(made), [700, 101]);
 /// let nodes = [FillBench::IndexNodesKind, FillBench::IndexNodesParent, FillBench::IndexNodesId];
 /// assert_eq!(nodes.map(made), [700, 101, 1]);
 /// ```
@@ -311,6 +340,8 @@ pub fn run_fill(work: &mut FillWorkload) -> usize {
         | FillBench::GroupEnds
         | FillBench::RowsFile
         | FillBench::RowsFileDropped
+        | FillBench::KeepGlobFewWords
+        | FillBench::KeepGlobOwnWords
         | FillBench::Product => None,
     };
     if let Some(key) = asked {
@@ -322,6 +353,11 @@ pub fn run_fill(work: &mut FillWorkload) -> usize {
             .map_or(0, |found| {
                 found.rows.end.0.saturating_sub(found.rows.start.0)
             });
+    }
+    if work.1 == FillBench::KeepGlobOwnWords {
+        // A new file: its words are interned again, and nothing decided of the last file's words is held.
+        next_file(&mut work.0.store);
+        clear_words(&mut work.0.words);
     }
     if let Some(slot) = work.0.store.tables.first_mut() {
         slot.state = MadeState::Unmade;

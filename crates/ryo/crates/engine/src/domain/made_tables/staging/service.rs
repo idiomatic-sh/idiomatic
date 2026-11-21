@@ -126,6 +126,7 @@ pub(crate) fn keep_stage(
         set,
         compiled,
         matcher,
+        verdicts,
     } = scratch;
     let stage = stage_keep_of(word);
     let code = frame.programs.code;
@@ -184,6 +185,8 @@ pub(crate) fn keep_stage(
                 matcher,
                 regexes: frame.programs.regexes,
                 compiled,
+                verdicts,
+                stamp: frame.store.stamp,
             },
             words,
             TextTest {
@@ -191,6 +194,7 @@ pub(crate) fn keep_stage(
                 left,
                 right,
                 set,
+                set_at: (stage.flag.0 & RIGHT_SET.0 != 0).then_some(PoolAt(stage.right.0)),
             },
             *rows,
             kept,

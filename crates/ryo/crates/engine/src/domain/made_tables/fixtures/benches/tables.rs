@@ -17,6 +17,7 @@ use crate::domain::steps::types::{
     ProgramStep, ReadColumn, RegexId, Register, RegisterList, StepOperand, StepProgram, StepRows,
     TestOperation,
 };
+use ryo_language::domain::facts::types::CellWord;
 use ryo_language::domain::node_table::service::{builder, enter_node, finished, leave_node, token};
 use ryo_language::domain::node_table::types::{FieldCode, NodeTable};
 use ryo_relations::domain::relations::types::{Count, KindBits, NodeColumn, Offset, Relation};
@@ -62,6 +63,8 @@ pub(crate) fn told_rows(bench: FillBench, rows: usize) -> Vec<[u64; 2]> {
             | FillBench::CallReplace
             | FillBench::CallCapture
             | FillBench::CallSourceMatches
+            | FillBench::KeepGlobFewWords
+            | FillBench::KeepGlobOwnWords
             | FillBench::IndexNodesKind
             | FillBench::IndexNodesParent
             | FillBench::IndexNodesId => [row, row],
@@ -97,11 +100,24 @@ pub(crate) fn tree(elements: usize) -> NodeTable {
     made
 }
 
-/// The text of the file `tree` describes: the letters `a` to `g` over and over, so the tokens hold seven different
-/// texts of two letters and a group's fourteen bytes hold no space.
+/// The text of the file `tree` describes: for each group fourteen small letters that spell the group's number, so
+/// every group's text is its own, a token is two letters, and no group holds a space.
 pub(crate) fn bench_text(elements: usize) -> Vec<u8> {
-    let bytes = (elements / 8).max(1).saturating_mul(14);
-    b"abcdefg".iter().copied().cycle().take(bytes).collect()
+    let groups = (elements / 8).max(1);
+    let mut text = Vec::with_capacity(groups.saturating_mul(14));
+    for group in 0..groups {
+        let mut rest = group;
+        for _ in 0..14 {
+            text.push(b'a'.saturating_add(u8::try_from(rest % 26).unwrap_or(0)));
+            rest /= 26;
+        }
+    }
+    text
+}
+
+/// The set of the 26 literal kinds a keep's glob is against: the words 1 to 26 of the keeps' own vocabulary.
+fn literal_kinds() -> StepOperand {
+    StepOperand::Words((1..=26_u64).map(CellWord).collect())
 }
 
 /// A call stage.
@@ -303,6 +319,26 @@ pub(crate) fn bench_table(bench: FillBench) -> MadeTable {
                 },
             ),
         ),
+        FillBench::KeepGlobFewWords => {
+            let mut all = Vec::from(scan_nodes(tree));
+            all.push(FillStage::Keep {
+                test: TestOperation::Glob,
+                left: of(1),
+                right: literal_kinds(),
+            });
+            rows(2, pipeline(all, [of(0), of(1)]))
+        }
+        FillBench::KeepGlobOwnWords => {
+            let mut all = Vec::from(scan_nodes(tree));
+            all.push(keep_equal(1, 27));
+            all.push(node_read(tree, NodeColumn::Text, 0, 2));
+            all.push(FillStage::Keep {
+                test: TestOperation::NotGlob,
+                left: of(2),
+                right: literal_kinds(),
+            });
+            rows(2, pipeline(all, [of(0), of(2)]))
+        }
         FillBench::IndexNodesKind => probed_nodes(NodeColumn::Kind, 1),
         FillBench::IndexNodesParent => probed_nodes(NodeColumn::Parent, 0),
         FillBench::IndexNodesId => probed_nodes(NodeColumn::Id, 0),
