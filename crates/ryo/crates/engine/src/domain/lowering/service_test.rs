@@ -287,13 +287,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Refuses,
         input: || {
             (
-                &["over the host's rows", "follow fixed points"],
+                &["over the host's rows", "a rule that emits after the files"],
                 SampleStage::Absent,
             )
         },
         expect: Expect::Error(LoweringError::Refused {
             rule: SelectedRuleOrdinal(1),
-            refusal: LoadRefusal::Unlowerable(PlanNode(4)),
+            refusal: LoadRefusal::Unlowerable(PlanNode(1)),
         }),
     },
 ];

@@ -5,6 +5,7 @@ pub(crate) mod arms;
 pub(crate) mod calls;
 pub(crate) mod closures;
 pub(crate) mod fills;
+pub(crate) mod graphs;
 pub(crate) mod inputs;
 pub(crate) mod joins;
 pub(crate) mod matches;

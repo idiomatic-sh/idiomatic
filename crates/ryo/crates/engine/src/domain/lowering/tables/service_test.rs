@@ -82,7 +82,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     said(
         "the_kinds_of_operation_the_lowering_evaluates_are_these",
         || Asked::Kinds,
-        "[Replace, OrderedMatch, AsOf, Select, Project, Extend, Join, Union, Antijoin, GroupCount, GroupBound, GroupOrdinal, Capture, Axis, Closure, SpanBetween, SourceMatches, SpanBounds]",
+        "[Replace, OrderedMatch, AsOf, Select, Project, Extend, Join, Union, Antijoin, GroupCount, GroupBound, GroupOrdinal, Capture, Axis, Closure, Follow, SpanBetween, SourceMatches, SpanBounds]",
     ),
     said(
         "a_plan_walk_visits_each_step_once_a_chain_of_self_joins_twice_as_deep_is_twice_the_work",
@@ -101,8 +101,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     ),
     refused(
         "an_operation_not_lowered_yet_is_refused_at_its_step",
-        || Asked::Admitted(named("follow fixed points")),
-        LoadRefusal::Unlowerable(PlanNode(4)),
+        || Asked::Admitted(growth_plan(OperationKind::Cycles)),
+        LoadRefusal::Unlowerable(PlanNode(2)),
     ),
     said(
         "a_rule_whose_emit_reaches_per_file_steps_alone_is_admitted_though_its_plan_hands_rows_over",

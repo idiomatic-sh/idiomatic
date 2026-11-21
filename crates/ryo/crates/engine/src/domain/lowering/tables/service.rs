@@ -212,6 +212,18 @@ fn shaped(
             shape.0.extend(picked(&read, &[*source, *destination])?.0);
             Some(shape)
         }
+        // The keys of the edges, then a source and a fixed point it reaches: the row of the `FixedPoints` graph table.
+        Operation::Follow {
+            edges,
+            keys,
+            source,
+            destination,
+        } => {
+            let read = of(edges)?;
+            let mut shape = picked(&read, keys)?;
+            shape.0.extend(picked(&read, &[*source, *destination])?.0);
+            Some(shape)
+        }
         // The per-row meanings lowered: each appends what the meaning gives to the rows it reads.
         Operation::Replace { from, text, .. } => {
             let mut shape = of(from)?;
@@ -284,7 +296,6 @@ fn shaped(
         | Operation::GroupDigest { .. }
         | Operation::Rank { .. }
         | Operation::Words { .. }
-        | Operation::Follow { .. }
         | Operation::OrderedDfs { .. }
         | Operation::Worklist { .. }
         | Operation::Cycles { .. }
