@@ -14,6 +14,7 @@ use crate::domain::programs::frames::types::{LoopEntry, StepFrame};
 use crate::domain::scratch::types::LoopState;
 use crate::domain::steps::types::MadeTableId;
 use ryo_language::domain::facts::types::CellWord;
+use ryo_relations::domain::relations::types::Count;
 
 /// The loop's half of a frame, as what the fill side asks back during one call of the seam: the rows of a pattern for a
 /// key, and whether a table it reaches may have a row. It is handed the fill side's frame back, so a pattern's program and
@@ -73,10 +74,12 @@ impl PatternRows for Asker<'_> {
     }
 
     fn table_started(&mut self, table: MadeTableId) {
+        self.state.filling = Count(self.state.filling.0.saturating_add(1));
         table_entered(self.state, table);
     }
 
     fn table_ended(&mut self, _: MadeTableId) {
+        self.state.filling = Count(self.state.filling.0.saturating_sub(1));
         left(self.state);
     }
 }

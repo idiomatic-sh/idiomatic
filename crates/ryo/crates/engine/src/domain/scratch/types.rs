@@ -142,6 +142,9 @@ pub(crate) struct LoopState {
     pub(crate) need_asks: Vec<AskedNeed>,
     /// SPIKE: what the running rule's asks of each memo site came to in the file, by the site's number.
     pub(crate) site_asks: Vec<SiteAsks>,
+    /// How many tables' fills are under way, one inside the other: an ask made inside a fill does not read its
+    /// definition's need (a need's decision may be what is making the table, and a table half made answers nothing).
+    pub(crate) filling: Count,
     /// SPIKE: the work of the last ask a fill made that passed (no answer kept): taken by the fill's callback.
     pub(crate) passed: Option<InstructionCount>,
     /// Where the column of each `Read` of a made table or of a filled relation lies, by the word's slot

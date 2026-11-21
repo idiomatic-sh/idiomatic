@@ -7,7 +7,7 @@ use crate::domain::stages::types::NodeNames;
 use ryo_language::domain::facts::service::intern;
 use ryo_language::domain::facts::types::{CellWord, FileWords};
 use ryo_language::domain::node_table::service::{
-    field_of, kind_of, ordinal_of, parent_of, span_of,
+    field_of, kind_of, node_count, ordinal_of, parent_of, span_of,
 };
 use ryo_language::domain::node_table::types::NodeTable;
 use ryo_relations::domain::relations::service::{node_id, node_position, to_bits};
@@ -53,6 +53,7 @@ pub(crate) fn node_cell(
     nodes: &NodeTable,
     names: NodeNames<'_>,
     words: &mut FileWords,
+    texts: &mut Vec<CellWord>,
     column: NodeColumn,
     handle: CellWord,
 ) -> CellWord {
@@ -77,13 +78,35 @@ pub(crate) fn node_cell(
         }
         NodeColumn::File => CellWord(to_bits(Value::File(names.file)).0),
         NodeColumn::Text => {
+            // The word of an element's text is found once a file: `texts` holds it by the element's place (the
+            // cell that is no word until then), as many cells as the file has elements.
+            let place = usize::try_from(at.0).unwrap_or(usize::MAX);
+            if texts.len() <= place {
+                let count = usize::try_from(node_count(nodes).0).unwrap_or(usize::MAX);
+                texts.resize(count.max(place.saturating_add(1)), NO_WORD);
+            }
+            if let Some(held) = texts.get(place)
+                && *held != NO_WORD
+            {
+                return *held;
+            }
             let span = span_of(nodes, at);
             let (start, end) = (
                 usize::try_from(span.start.0).unwrap_or(usize::MAX),
                 usize::try_from(span.end.0).unwrap_or(usize::MAX),
             );
-            let bytes = names.text.0.get(start..end).unwrap_or_default();
-            intern(words, NameText(&String::from_utf8_lossy(bytes)))
+            // A span of a file that is valid UTF-8 is a slice of it when it starts and ends between characters.
+            let word = match names.source.and_then(|source| source.get(start..end)) {
+                Some(text) => intern(words, NameText(text)),
+                None => {
+                    let bytes = names.text.0.get(start..end).unwrap_or_default();
+                    intern(words, NameText(&String::from_utf8_lossy(bytes)))
+                }
+            };
+            if let Some(held) = texts.get_mut(place) {
+                *held = word;
+            }
+            word
         }
     }
 }
@@ -93,6 +116,7 @@ pub(crate) fn node_column(
     nodes: &NodeTable,
     names: NodeNames<'_>,
     words: &mut FileWords,
+    texts: &mut Vec<CellWord>,
     column: NodeColumn,
     handles: &[CellWord],
     out: &mut Vec<CellWord>,
@@ -134,7 +158,7 @@ pub(crate) fn node_column(
         ),
         NodeColumn::Span | NodeColumn::File | NodeColumn::Text => {
             for each in handles {
-                out.push(node_cell(nodes, names, words, column, *each));
+                out.push(node_cell(nodes, names, words, texts, column, *each));
             }
         }
     }
@@ -158,6 +182,7 @@ pub(crate) fn node_cells(
     nodes: &NodeTable,
     names: NodeNames<'_>,
     words: &mut FileWords,
+    texts: &mut Vec<CellWord>,
     column: NodeColumn,
     end: Position,
     out: &mut Vec<CellWord>,
@@ -169,6 +194,7 @@ pub(crate) fn node_cells(
             nodes,
             names,
             words,
+            texts,
             column,
             tagged(CellWord(u64::from(at)), tag),
         )

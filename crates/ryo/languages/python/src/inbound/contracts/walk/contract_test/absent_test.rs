@@ -1,5 +1,4 @@
-//! The `walk` contract's case of the relation that is no fact of the provider: which event answers a read is the rule pack's
-//! selection over the events, the reads and the scopes, so the language answers `binding-resolution` as not read.
+//! The `walk` contract's case of a relation the walk does not read: the language answers it as not read, with the cause.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::fixtures::walking::{walk_words, walked};
@@ -7,9 +6,9 @@ use ryo::languages::{AbsenceCause, FactAnswer, FilledColumns, NodeTable, Relatio
 
 /// The rows of the case of the relation the language does not fill.
 const CASES: &[Case<Relation, Option<FactAnswer>, AbsenceCause>] = &[Case {
-    name: CaseName("the_selection_among_events_is_not_a_fact_of_the_provider"),
+    name: CaseName("a_relation_the_walk_does_not_read_is_answered_as_not_read"),
     word: Word::Refuses,
-    input: || Relation::BindingResolution,
+    input: || Relation::FilesystemFile,
     expect: Expect::Error(AbsenceCause::NotYetRead),
 }];
 

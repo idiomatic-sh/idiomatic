@@ -58,7 +58,7 @@ pub(crate) fn mode(flag: WordFlag) -> Result<UseMode, FilledError> {
 
 /// What a node row's cells are read from besides the table.
 pub(crate) fn names_of(frame: BatchFrame<'_>) -> NodeNames<'_> {
-    node_names(frame.programs, frame.text, frame.file)
+    node_names(frame.programs, frame.text, frame.source, frame.file)
 }
 
 /// `Read`: the cell of each row's column, by the handle the batch holds, into the word's out column.
@@ -69,6 +69,7 @@ pub(crate) fn names_of(frame: BatchFrame<'_>) -> NodeNames<'_> {
 pub(crate) fn read_stage(
     frame: BatchFrame<'_>,
     words: &mut FileWords,
+    texts: &mut Vec<CellWord>,
     word: CodeWord,
     level: &mut BatchLevel,
 ) -> Result<(), FilledError> {
@@ -96,6 +97,7 @@ pub(crate) fn read_stage(
                     frame.nodes,
                     names_of(frame),
                     words,
+                    texts,
                     column,
                     handles,
                     &mut out,

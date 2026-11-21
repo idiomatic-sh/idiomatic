@@ -187,7 +187,10 @@ pub(crate) fn decoded_code(code: &ProgramCode) -> DecodedCode {
                 body = body_at(&code.pool, exists_of(*word).body);
                 quick = quick_of(code, *word, body);
             }
-            Op::Nearest => body = body_at(&code.pool, nearest_of(*word).operands),
+            // Over derived edges the record starts with the edges' body: the condition's follows it.
+            Op::Nearest | Op::NearestDerived => {
+                body = body_at(&code.pool, nearest_of(*word).operands);
+            }
             Op::Closure => body = body_at(&code.pool, closure_of(*word).operands),
             Op::StageUse => parts_added(
                 code,
@@ -253,7 +256,6 @@ pub(crate) fn decoded_code(code: &ProgramCode) -> DecodedCode {
             | Op::ChildrenOfField
             | Op::Axis
             | Op::Within
-            | Op::NearestDerived
             | Op::ReadNode
             | Op::Test
             | Op::TestEqualConstant

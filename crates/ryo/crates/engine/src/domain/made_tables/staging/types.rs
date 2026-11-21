@@ -27,6 +27,8 @@ pub(crate) struct BatchFrame<'s> {
     pub(crate) path: SourcePath<'s>,
     /// The file's bytes.
     pub(crate) text: ByteSlice<'s>,
+    /// The file's bytes as text, when they are valid UTF-8.
+    pub(crate) source: Option<&'s str>,
 }
 
 /// What a `Keep` works in besides its batch: the cells of a set, the expressions compiled so far, and the matcher.

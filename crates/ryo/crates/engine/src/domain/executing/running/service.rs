@@ -14,7 +14,9 @@ use crate::domain::code::anchoring::service::{
 use crate::domain::code::controlling::service::{exists_of, fork_of, or_of};
 use crate::domain::code::deciding::service::{call_of, test_of};
 use crate::domain::code::small_codes::service::{comparison_of, meaning_of};
-use crate::domain::code::types::{CodeEntry, CodeWord, Op, ProgramCode, RuleCode, WordSlot};
+use crate::domain::code::types::{
+    CodeEntry, CodeWord, Op, PoolAt, ProgramCode, RuleCode, WordSlot,
+};
 use crate::domain::code::walking::service::{closure_of, nearest_of};
 use crate::domain::filled::types::FillRuns;
 use crate::domain::made_tables::reading::service::latest_site;
@@ -79,6 +81,15 @@ fn step_word(
             Some(_) => FillRuns::Runs,
             None => FillRuns::NotYet,
         },
+        // Over derived edges: the edges' body, the register their element is asked in, then the condition's body.
+        Op::NearestDerived => {
+            let condition = body(code, nearest_of(word).operands, unit, out)
+                .map(|after| PoolAt(after.0.saturating_add(1)));
+            match condition.and_then(|at| body(code, at, unit, out)) {
+                Some(_) => FillRuns::Runs,
+                None => FillRuns::NotYet,
+            }
+        }
         Op::Or => {
             let asking = or_of(word);
             let mut at = Some(asking.records);
@@ -103,7 +114,6 @@ fn step_word(
         Op::EachRange
         | Op::Children
         | Op::ChildrenOfField
-        | Op::NearestDerived
         | Op::Render => FillRuns::NotYet,
         // A stage is no word of a step program.
         Op::StageScan
