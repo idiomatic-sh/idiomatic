@@ -1,16 +1,46 @@
-//! The services of the `statistics` concept.
+//! The services of the `statistics` concept. Statistics are bytes: a header of three lines (the word that says they are
+//! statistics, the version of the engine that wrote them, the stage of the sample that wrote them), then what the sample
+//! measured. A file of a first sample that measured no unit is its header alone.
 
-use super::types::{EncodedStatistics, MatchedUnits, Measured, Statistics, StatisticsBytes};
+use super::constants::{FIRST, HEADING, LINE_END, SECOND};
+use super::types::{
+    EncodedStatistics, LearnStage, MatchedUnits, Measured, MeasuredSizes, Statistics,
+    StatisticsBytes,
+};
 use crate::domain::code::types::{UnitCode, UnitKey};
+use crate::domain::packs::constants::ENGINE_VERSION;
 use ryo_values::domain::descriptions::types::KindVocabulary;
 use std::collections::BTreeSet;
 
+/// The header of statistics of `stage` written by this engine: its three lines, each ended.
+fn header(stage: LearnStage) -> EncodedStatistics {
+    let stage = match stage {
+        LearnStage::First => FIRST,
+        LearnStage::Second => SECOND,
+    };
+    let mut bytes = Vec::new();
+    for line in [HEADING.0, ENGINE_VERSION.as_bytes(), stage.0] {
+        bytes.extend_from_slice(line);
+        bytes.extend_from_slice(LINE_END.0);
+    }
+    EncodedStatistics(bytes)
+}
+
 /// The statistics the bytes hold, or none when they are of another engine version or do not read: absent, never an error.
+/// What is read today is the header: statistics that measured no unit, of either stage. Bytes after the header are the
+/// units and the sizes of a sample, which nothing writes yet and nothing reads: they do not read, and are absent.
 #[must_use]
 pub(crate) fn decoded(bytes: StatisticsBytes<'_>, names: &KindVocabulary) -> Option<Statistics> {
-    // The bytes are the passes' track's: until it reads them every load runs with none.
-    let _ = (bytes, names);
-    None
+    // The kinds a sample sized are named by the vocabulary's words: a header sizes none.
+    let _ = names;
+    let stage = [LearnStage::First, LearnStage::Second]
+        .into_iter()
+        .find(|stage| header(*stage).0 == bytes.0)?;
+    Some(Statistics {
+        stage,
+        sizes: MeasuredSizes::default(),
+        units: Vec::new(),
+    })
 }
 
 /// The statistics of a sample run: its sizes, and each unit's counts in the form it was run in. With the second run of the same

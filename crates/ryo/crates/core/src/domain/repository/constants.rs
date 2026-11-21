@@ -8,3 +8,6 @@ pub(crate) const SOURCE_SELECTION_LABEL: &str = "ryo-source-selection-primary-ro
 
 /// Begins the bytes that say which compiled plan a rule executes, after every rewrite that shapes what its frontier slots hold.
 pub(crate) const COMPILED_PLAN_LABEL: &str = "ryo-compiled-plan";
+
+/// Begins the bytes that say which statistics a run's rules are lowered with.
+pub(crate) const STATISTICS_LABEL: &str = "ryo-statistics-given";

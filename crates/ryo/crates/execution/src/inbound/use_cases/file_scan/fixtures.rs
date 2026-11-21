@@ -1,8 +1,8 @@
 //! The test support of the `file_scan` use case: its contract, a rule as a compile leaves it, and the use case composed over the
 //! engine port's fake and the fixture language that walks files of words.
-use super::types::{FileScanSetting, FileToScan, ScanEngine, ScanLanguage};
+use super::types::{FileScanSetting, FileToScan, Overruns, ScanEngine, ScanLanguage, ScanMeasure};
 use super::use_case::FileScanUseCaseImpl;
-use ryo_execution_runtime::outbound::engine::fixtures::fake::EngineFake;
+use ryo_execution_runtime::outbound::engine::fixtures::fake::{EngineFake, overrun};
 use ryo_language::domain::files::types::SourcePath;
 use ryo_language::domain::fillers::fixtures::Walking;
 use ryo_language::domain::symbols::types::ByteSlice;
@@ -83,24 +83,45 @@ pub enum Edge {
     NoEngine,
     /// The new engine alone, with the fake composed and the fixture language linked without its walk.
     NoWalk,
+    /// The new engine alone, as a user's run: the fake notices that its rule passes its allowance in the file numbered 1.
+    Overrun,
+    /// The same, as one of our own gates: the scan is set to fail on an overrun.
+    Gate,
+    /// The new engine alone, in a run that measures.
+    Measuring,
 }
 
 /// The use case as a fixture edge composes it, the fixture language linked as `words`, with the fake it composed.
 #[must_use]
 pub fn composed(edge: Edge) -> (FileScanUseCaseImpl, Arc<EngineFake>) {
-    let fake = Arc::new(EngineFake::default());
+    let fake = Arc::new(match edge {
+        Edge::Overrun | Edge::Gate => EngineFake::noticing(FileId(1), overrun()),
+        Edge::Old | Edge::New | Edge::Both | Edge::NoEngine | Edge::NoWalk | Edge::Measuring => {
+            EngineFake::default()
+        }
+    });
     // The names of the fixture language, as its walk states them.
     let names = WalkEngine::vocabulary(&Walking);
     let words: Arc<dyn WalkEngine> = match edge {
         Edge::NoWalk => Arc::new(WalkUseCaseImpl::new()),
-        Edge::Old | Edge::New | Edge::Both | Edge::NoEngine => Arc::new(Walking),
+        Edge::Old
+        | Edge::New
+        | Edge::Both
+        | Edge::NoEngine
+        | Edge::Overrun
+        | Edge::Gate
+        | Edge::Measuring => Arc::new(Walking),
     };
     let scan = FileScanUseCaseImpl::new(FileScanSetting {
         engine: match edge {
             Edge::NoEngine => ScanEngine::NotComposed,
-            Edge::Old | Edge::New | Edge::Both | Edge::NoWalk => {
-                ScanEngine::Composed(Arc::<EngineFake>::clone(&fake))
-            }
+            Edge::Old
+            | Edge::New
+            | Edge::Both
+            | Edge::NoWalk
+            | Edge::Overrun
+            | Edge::Gate
+            | Edge::Measuring => ScanEngine::Composed(Arc::<EngineFake>::clone(&fake)),
         },
         digest: Arc::new(ryo_execution_runtime::outbound::digest::factory::blake3()),
         walks: vec![words],
@@ -129,7 +150,32 @@ pub fn composed(edge: Edge) -> (FileScanUseCaseImpl, Arc<EngineFake>) {
         mode: match edge {
             Edge::Old => EngineMode::Old,
             Edge::Both => EngineMode::Both,
-            Edge::New | Edge::NoEngine | Edge::NoWalk => EngineMode::New,
+            Edge::New
+            | Edge::NoEngine
+            | Edge::NoWalk
+            | Edge::Overrun
+            | Edge::Gate
+            | Edge::Measuring => EngineMode::New,
+        },
+        overruns: match edge {
+            Edge::Gate => Overruns::Fail,
+            Edge::Old
+            | Edge::New
+            | Edge::Both
+            | Edge::NoEngine
+            | Edge::NoWalk
+            | Edge::Overrun
+            | Edge::Measuring => Overruns::Report,
+        },
+        measure: match edge {
+            Edge::Measuring => ScanMeasure::On,
+            Edge::Old
+            | Edge::New
+            | Edge::Both
+            | Edge::NoEngine
+            | Edge::NoWalk
+            | Edge::Overrun
+            | Edge::Gate => ScanMeasure::Off,
         },
     });
     (scan, fake)

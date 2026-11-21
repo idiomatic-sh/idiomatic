@@ -735,12 +735,124 @@ fn engine_name(mode: EngineMode) -> &'static str {
 ///
 /// engine_loaded(EngineMode::Both, 0, 3, 3, 0);
 /// ```
-pub fn engine_loaded(mode: EngineMode, accepted: usize, selected: usize, unlowerable: usize, over_budget: usize) {
+pub fn engine_loaded(mode: EngineMode, accepted: usize, selected: usize, unlowerable: usize, past_width: usize) {
     let refused = selected.saturating_sub(accepted);
     eprintln!(
-        "ryo engine {}: load accepted {accepted} of {selected} rules; refused {refused} ({unlowerable} unlowerable, {over_budget} over budget)",
+        "ryo engine {}: load accepted {accepted} of {selected} rules; refused {refused} ({unlowerable} unlowerable, {past_width} past a width)",
         engine_name(mode)
     );
+}
+
+/// Writes one line of the harness to stderr, under the mode's name: what the new engine's load matched of its statistics,
+/// and what a measuring run counted and its work ledger, each worded by who says it.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_operators::spike::{EngineMode, engine_said};
+///
+/// engine_said(EngineMode::New, &"statistics matched 0 units");
+/// ```
+pub fn engine_said(mode: EngineMode, line: &dyn std::fmt::Display) {
+    eprintln!("ryo engine {}: {line}", engine_name(mode));
+}
+
+/// The statistics a harness run loads its rules with: the bytes of the file `RYO_ENGINE_STATISTICS` names, read once; none
+/// when it is unset. A file that cannot be read is said on stderr and is no statistics.
+///
+/// # Examples
+///
+/// ```
+/// let _bytes = ryo_operators::spike::engine_statistics();
+/// ```
+pub fn engine_statistics() -> ryo_language::domain::symbols::types::ByteSlice<'static> {
+    static BYTES: OnceLock<Vec<u8>> = OnceLock::new();
+    ryo_language::domain::symbols::types::ByteSlice(BYTES.get_or_init(|| {
+        let Some(path) = std::env::var_os("RYO_ENGINE_STATISTICS") else {
+            return Vec::new();
+        };
+        std::fs::read(&path).unwrap_or_else(|error| {
+            eprintln!("ryo engine: statistics file {} not read: {error}", path.to_string_lossy());
+            Vec::new()
+        })
+    }))
+}
+
+/// Whether a harness run measures, from `RYO_ENGINE_MEASURE`, read once: set to anything but nothing or `0`, the new
+/// engine's workers count what their scans do, and after the files the run says its counters and its work ledger on stderr.
+///
+/// # Examples
+///
+/// ```
+/// let _measure = ryo_operators::spike::engine_measure();
+/// ```
+pub fn engine_measure() -> EngineMeasure {
+    static MEASURE: OnceLock<EngineMeasure> = OnceLock::new();
+    *MEASURE.get_or_init(|| match std::env::var_os("RYO_ENGINE_MEASURE") {
+        Some(value) if !value.is_empty() && value != "0" => EngineMeasure::On,
+        Some(_) | None => EngineMeasure::Off,
+    })
+}
+
+/// Whether a harness run measures.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_operators::spike::EngineMeasure;
+///
+/// assert_ne!(EngineMeasure::Off, EngineMeasure::On);
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum EngineMeasure {
+    /// The run does not measure.
+    Off,
+    /// The run measures.
+    On,
+}
+
+/// What a harness run does when a rule passes its work allowance in a file, from `RYO_ENGINE_OVERRUNS`, read once: `fail`
+/// fails the run, as our own gates do; unset, or any other value, the run warns and goes on, as a user's does.
+///
+/// # Examples
+///
+/// ```
+/// let _overruns = ryo_operators::spike::engine_overruns();
+/// ```
+pub fn engine_overruns() -> EngineOverruns {
+    static OVERRUNS: OnceLock<EngineOverruns> = OnceLock::new();
+    *OVERRUNS.get_or_init(|| match std::env::var("RYO_ENGINE_OVERRUNS").as_deref() {
+        Ok("fail") => EngineOverruns::Fail,
+        _ => EngineOverruns::Warn,
+    })
+}
+
+/// What a harness run does when a rule passes its work allowance in a file.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_operators::spike::EngineOverruns;
+///
+/// assert_ne!(EngineOverruns::Warn, EngineOverruns::Fail);
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum EngineOverruns {
+    /// The run warns and goes on: its findings are complete.
+    Warn,
+    /// The run fails, naming the rule and the file.
+    Fail,
+}
+
+/// Writes a warning to stderr, as the run words it, when it is noticed.
+///
+/// # Examples
+///
+/// ```
+/// ryo_operators::spike::engine_warned(&"warning: rule `rule` is slow in `a.walk`");
+/// ```
+pub fn engine_warned(warning: &dyn std::fmt::Display) {
+    eprintln!("{warning}");
 }
 
 /// Spike (ryo-fmx3.1): writes to stderr what the store's pack of the selected rules reads back: nothing was lowered.

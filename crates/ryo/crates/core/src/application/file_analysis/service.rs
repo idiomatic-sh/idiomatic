@@ -28,17 +28,20 @@ use crate::outbound::memory::interface::MemoryPort;
 use crate::outbound::scheduler::types::JobNumber;
 use ryo_execution::inbound::use_cases::file_scan::interface::FileScanUseCase;
 use ryo_execution::inbound::use_cases::file_scan::types::{
-    FileScanSetting, ScanEngine, ScanLanguage,
+    FileScanSetting, Overruns, ScanEngine, ScanLanguage, ScanMeasure,
 };
 use ryo_execution::inbound::use_cases::file_scan::use_case::FileScanUseCaseImpl;
 use ryo_execution::inbound::use_cases::metadata::interface::Governing;
 use ryo_execution::inbound::use_cases::metadata::use_case::MetadataUseCaseImpl;
+use ryo_execution::outbound::query_language::interface::QueryLanguagePort;
 use ryo_execution_runtime::outbound::digest::interface::DigestPort;
 use ryo_execution_runtime::outbound::digest::types::DigestBytes;
 use ryo_execution_runtime::outbound::engine::interface::EnginePort;
 use ryo_execution_runtime::outbound::facts::interface::FactsWorker;
 use ryo_language::domain::elements::service::syntax_acceptance;
-use ryo_operators::spike::{EngineMode, engine_mode};
+use ryo_operators::spike::{
+    EngineMeasure, EngineMode, EngineOverruns, engine_measure, engine_mode, engine_overruns,
+};
 use ryo_relations::domain::relations::types::FileId;
 use ryo_values::domain::files::service::input_path;
 use ryo_values::domain::files::types::CorpusInput;
@@ -63,6 +66,9 @@ pub struct FileAnalysis {
     engine: Option<Arc<dyn EnginePort>>,
     /// Which engines run the files, when the edge says so; otherwise the ones `RYO_ENGINE` selects.
     mode: Option<EngineMode>,
+    /// Who says where a statement of a rule is written, for a warning that names it: the query language, when the use
+    /// case over this analysis gave it.
+    pub(in crate::application::file_analysis) statements: Option<Arc<dyn QueryLanguagePort>>,
 }
 
 impl std::fmt::Debug for FileAnalysis {
@@ -122,7 +128,28 @@ impl FileAnalysis {
             memory,
             engine: None,
             mode: None,
+            statements: None,
         }
+    }
+
+    /// The same, with the query language that says where a rule's statement is written: a warning of a rule that passes
+    /// its work allowance then names the statement, and not the step of its plan.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ryo_core::application::file_analysis::service::FileAnalysis;
+    /// use ryo_execution::outbound::query_language::interface::QueryLanguagePort;
+    /// use std::sync::Arc;
+    ///
+    /// fn naming_statements(analysis: FileAnalysis, queries: Arc<dyn QueryLanguagePort>) -> FileAnalysis {
+    ///     analysis.naming(queries)
+    /// }
+    /// ```
+    #[must_use]
+    pub fn naming(mut self, statements: Arc<dyn QueryLanguagePort>) -> Self {
+        self.statements = Some(statements);
+        self
     }
 
     /// The same, with the new engine the build branch's `RYO_ENGINE` harness loads the selected rules into.
@@ -184,6 +211,15 @@ impl FileAnalysis {
                 .cloned()
                 .map_or(ScanLanguage::EveryLinked, ScanLanguage::Named),
             mode: self.engines(),
+            // A user's run warns of an overrun and goes on; a harness run that says so fails on it, as our gates do.
+            overruns: match engine_overruns() {
+                EngineOverruns::Warn => Overruns::Report,
+                EngineOverruns::Fail => Overruns::Fail,
+            },
+            measure: match engine_measure() {
+                EngineMeasure::Off => ScanMeasure::Off,
+                EngineMeasure::On => ScanMeasure::On,
+            },
         })
     }
 

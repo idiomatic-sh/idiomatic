@@ -126,7 +126,7 @@ impl LintUseCaseImpl {
         store: Arc<dyn LintStorePort>,
     ) -> Self {
         let visits = FileVisits::new(
-            file_analysis,
+            file_analysis.naming(Arc::clone(&query_language)),
             Arc::clone(&facts),
             Arc::clone(&scheduler),
             workers,

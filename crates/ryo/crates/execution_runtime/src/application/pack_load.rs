@@ -4,6 +4,7 @@
 //! accepts, by count.
 
 pub mod constants;
+pub(crate) mod selecting;
 pub mod service;
 pub mod types;
 
