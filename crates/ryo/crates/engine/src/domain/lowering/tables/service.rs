@@ -290,6 +290,21 @@ fn shaped(
             shape.0.extend([CellKind::Number, CellKind::Number]);
             Some(shape)
         }
+        // A fit check keeps its row as it is: texts read, the span a span.
+        Operation::FitsRendered {
+            from,
+            texts,
+            literals,
+            span,
+            ..
+        } => {
+            let shape = of(from)?;
+            let read = picked(&shape, texts)?;
+            (literals.len() == texts.len().saturating_add(1)
+                && read.0.iter().all(|kind| *kind == CellKind::Symbol)
+                && picked(&shape, &[*span])?.0 == [CellKind::Span])
+                .then_some(shape)
+        }
         // What is left to lower, each by name: no arm stands for the rest.
         Operation::Intersection { .. }
         | Operation::Difference { .. }
@@ -301,8 +316,7 @@ fn shaped(
         | Operation::Cycles { .. }
         | Operation::Rows { .. }
         | Operation::Hosted { .. }
-        | Operation::RenderSyntax { .. }
-        | Operation::FitsRendered { .. } => None,
+        | Operation::RenderSyntax { .. } => None,
     }
 }
 
@@ -326,8 +340,10 @@ pub(crate) fn admitted<'a>(rule: SelectedRule<'a>) -> Result<AdmittedRule<'a>, L
         if reached.get(place) != Some(&StepReach::Reached) {
             continue;
         }
+        // SPIKE (ryo-fmx3.1, a stand-in for claude/engine-l2's file-local proof): a step today's engine runs after the
+        // files is taken when its rows keep a file column, each file's scan answering it over that file's rows alone.
         let shape = shaped(&rule, &shapes, &step.operation)
-            .filter(|_| step.scope == StepScope::PerFile)
+            .filter(|shape| step.scope == StepScope::PerFile || shape.0.contains(&CellKind::File))
             .ok_or_else(|| unlowerable(place))?;
         if shape.0.len() > usize::from(u16::MAX) {
             return Err(LoadRefusal::Budget(PastWidth::TableColumns));

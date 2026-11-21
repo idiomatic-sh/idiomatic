@@ -288,7 +288,7 @@ pub struct FileScanWorker {
 /// use ryo_language::domain::symbols::types::ByteSlice;
 /// use ryo_relations::domain::relations::types::{Count, FileId};
 ///
-/// let file = FileToScan { path: SourcePath("a.txt"), file: FileId(0), source: ByteSlice(b""), executable: Default::default() };
+/// let file = FileToScan { path: SourcePath("a.txt"), file: FileId(0), source: ByteSlice(b""), executable: Default::default(), hosted: None };
 /// assert_eq!(file.file, FileId(0));
 /// ```
 #[derive(Clone, Copy, Debug)]
@@ -301,6 +301,8 @@ pub struct FileToScan<'a> {
     pub source: ByteSlice<'a>,
     /// SPIKE (ryo-fmx3.1, E): whether the host saw the file as one that may be executed.
     pub executable: ryo_values::domain::files::types::ExecutablePermission,
+    /// SPIKE (ryo-fmx3.1): the project's rows the host holds, the same for every file of the run; none when it holds none.
+    pub hosted: Option<&'a std::sync::Arc<ryo_execution_runtime::application::file_scan::hosted::types::HostedRows>>,
 }
 
 /// What the scan of one file answered. The rows it found are in the buffer the worker was handed, whatever it answered.

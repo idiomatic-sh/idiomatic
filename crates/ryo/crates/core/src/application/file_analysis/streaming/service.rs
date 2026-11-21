@@ -133,8 +133,15 @@ impl FileVisits {
             workers.push(state.facts);
             absorb(&mut met, state.tables);
         }
-        if let Some(error) = scans.into_iter().flatten().find_map(|scan| scan.failure) {
-            return Ok(Err(error));
+        let mut later = crate::domain::found_rows::types::LaterRows::default();
+        for scan in scans.into_iter().flatten() {
+            if let Some(error) = scan.failure {
+                return Ok(Err(error));
+            }
+            for (rule, mut rows) in scan.later.rows {
+                later.rows.entry(rule).or_default().append(&mut rows);
+            }
+            later.by = later.by.or(scan.later.by);
         }
         Self::compared(scanning);
         let counted = RowTotal(counted.load(Ordering::Relaxed));
@@ -153,6 +160,7 @@ impl FileVisits {
             met,
             counted,
             total,
+            later,
         }))
     }
 

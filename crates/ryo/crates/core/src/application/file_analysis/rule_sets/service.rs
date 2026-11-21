@@ -108,6 +108,8 @@ impl FileVisits {
             unknown: self.analysis.language.unknown_reasons().0,
             queries,
             compiled,
+            hosted: std::sync::Arc::default(),
+            later: Vec::new(),
         }
     }
 

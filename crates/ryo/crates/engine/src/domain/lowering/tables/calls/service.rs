@@ -12,7 +12,7 @@ use crate::domain::lowering::tables::shapes::service::{
 };
 use crate::domain::lowering::tables::types::{InputWant, OperationCall, RuleFlattening};
 use crate::domain::steps::types::CallMeaning;
-use ryo_relations::domain::relations::types::Count;
+use ryo_relations::domain::relations::types::{Count, Integer};
 use ryo_values::domain::plan_parts::types::Input;
 use ryo_values::domain::plan_parts::types::LiteralText;
 use ryo_values::domain::plans::types::Operation;
@@ -124,6 +124,31 @@ pub(crate) fn call_arm(
             };
             called(state, drafts, *from, call)
         }
+        Operation::FitsRendered {
+            from,
+            texts,
+            literals,
+            span,
+            max_line,
+            tab_width,
+        } => {
+            // The text columns, then the span; then the literals, the widest line and the tab stop as constants.
+            let mut reads = texts.clone();
+            reads.push(*span);
+            let mut constants: Vec<FlatTerm> = literals
+                .iter()
+                .map(|literal| FlatTerm::Text(text(drafts, state.kinds, literal)))
+                .collect();
+            constants.push(FlatTerm::Number(Integer(max_line.0)));
+            constants.push(FlatTerm::Number(Integer(i64::from(tab_width.0))));
+            let call = OperationCall {
+                meaning: CallMeaning::FitsRendered,
+                reads: &reads,
+                constants: &constants,
+                gives: Count(0),
+            };
+            called(state, drafts, *from, call)
+        }
         Operation::Select { .. }
         | Operation::Project { .. }
         | Operation::Extend { .. }
@@ -148,7 +173,6 @@ pub(crate) fn call_arm(
         | Operation::Cycles { .. }
         | Operation::Rows { .. }
         | Operation::Hosted { .. }
-        | Operation::RenderSyntax { .. }
-        | Operation::FitsRendered { .. } => None,
+        | Operation::RenderSyntax { .. } => None,
     }
 }

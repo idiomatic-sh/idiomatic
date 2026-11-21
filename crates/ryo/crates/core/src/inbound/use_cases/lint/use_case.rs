@@ -224,7 +224,28 @@ impl LintUseCase for LintUseCaseImpl {
         // The new engine alone answers from here: what follows (each plan's needs, what the manifests resolve to, each
         // rule's digest and identity) is today's engine's and its store's, and a run that never reads it does not make it.
         let scan = asked(&request, &rules, &ids, &placed, &answering, &listing);
-        let scanning = self.visits.scanning(scan, &plans, compiled.bindings())?;
+        let mut scanning = self.visits.scanning(scan, &plans, compiled.bindings())?;
+        // SPIKE (ryo-fmx3.1): the project's rows the new engine's scans read, made before the files are scanned.
+        if scanning.mode() != EngineMode::Old {
+            // Beside the old engine, the rows of a rule with a step today's engine runs after the files leave after them.
+            scanning.later = plans
+                .iter()
+                .enumerate()
+                .filter(|(_, plan)| {
+                    plan.steps.iter().any(|step| {
+                        step.scope != ryo_values::domain::plan_parts::types::StepScope::PerFile
+                    })
+                })
+                .map(|(at, _)| ryo_values::domain::runs::types::RuleNumber(u32::try_from(at).unwrap_or(u32::MAX)))
+                .collect();
+            scanning.hosted = Arc::new(analysis.hosted_project(
+                &listing.files,
+                &request.session,
+                &manifests,
+                &wants.wanted,
+                named_provider(&request.source_language),
+            )?);
+        }
         if scanning.mode() == EngineMode::New {
             return Ok(self.visits.answered(&scanning, &request.files)?.into());
         }

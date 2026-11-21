@@ -17,6 +17,8 @@ use ryo_language::domain::facts::types::{CellWord, FileWords};
 use ryo_operators::domain::capture::service::matches;
 use ryo_operators::domain::capture::types::{CaptureSlots, SlotPattern, SlotSubject};
 use ryo_operators::domain::contract::types::{PortableOperatorFault, SourceByteLength};
+use ryo_operators::domain::fits_rendered::service::{fits, line_prefix};
+use ryo_operators::domain::fits_rendered::types::{CandidateText, Fit, LineWidth, TabStop};
 use ryo_operators::domain::functions::service::apply;
 use ryo_operators::domain::functions::types::MadeText;
 use ryo_operators::domain::patterns::service::compiled;
@@ -155,6 +157,60 @@ fn made_texts(
         });
         spanned(out.spans, &mut made, Count(1));
     }
+}
+
+/// `FitsRendered`: for each row, whether its candidate (the literals interleaved with its texts) fits the line its span
+/// starts on, after the source before the span on that line, within the widest line at the tab stop: one row when it
+/// fits, none when it does not. The arguments are the n texts, the span, the n + 1 literals, the widest line and the tab
+/// stop.
+fn fits_rendered(
+    means: &CallMeans<'_>,
+    words: &FileWords,
+    arguments: &[BatchValue<'_>],
+    rows: Count,
+    out: CallOut<'_>,
+) -> Result<(), FilledError> {
+    let texts = arguments.len().saturating_sub(4) / 2;
+    let number = |at: usize, row: usize| match from_bits(
+        CellKind::Number,
+        Bits(argument(arguments, Count(at), Count(row)).0),
+    ) {
+        ryo_relations::domain::relations::types::Value::Number(number) => number.0,
+        _ => 0,
+    };
+    let candidate = &mut out.scratch.written.0;
+    let mut made = Count(0);
+    for row in 0..rows.0 {
+        let span = from_bits(
+            CellKind::Span,
+            Bits(argument(arguments, Count(texts), Count(row)).0),
+        );
+        let prefix = line_prefix(SourceView(means.source.0), span).map_err(faulted)?;
+        candidate.clear();
+        for at in 0..texts {
+            let literal = argument(arguments, Count(texts + 1 + at), Count(row));
+            candidate.push_str(text(words, literal).0);
+            candidate.push_str(text(words, argument(arguments, Count(at), Count(row))).0);
+        }
+        let last = argument(arguments, Count(2 * texts + 1), Count(row));
+        candidate.push_str(text(words, last).0);
+        let (maximum, tab) = (number(2 * texts + 2, row), number(2 * texts + 3, row));
+        let (Ok(maximum), Ok(tab)) = (usize::try_from(maximum), usize::try_from(tab)) else {
+            return Err(faulted(PortableOperatorFault::WrongBinding));
+        };
+        if tab == 0 {
+            return Err(faulted(PortableOperatorFault::WrongBinding));
+        }
+        let fit = fits(
+            CandidateText(candidate),
+            prefix,
+            LineWidth(maximum),
+            TabStop(tab),
+        )
+        .map_err(faulted)?;
+        spanned(out.spans, &mut made, Count(usize::from(fit == Fit::Within)));
+    }
+    Ok(())
 }
 
 /// `Replace`: for each row its text with every occurrence of the expression replaced, as a word of the file. One row for
@@ -318,7 +374,7 @@ fn source_matches(
     Ok(())
 }
 
-/// Whether a `Call` runs a meaning: every meaning a rule of the packs is lowered to but `FitsRendered`; `Words` and
+/// Whether a `Call` runs a meaning: every meaning a rule of the packs is lowered to; `Words` and
 /// `Rank` are written by no rule. `call_batch` asks it before it runs one, so a meaning said to run here and not built
 /// there fails its first case.
 #[must_use]
@@ -330,8 +386,9 @@ pub(crate) const fn call_runs(meaning: CallMeaning) -> FillRuns {
         | CallMeaning::Capture
         | CallMeaning::SourceMatches(..)
         | CallMeaning::Concat
-        | CallMeaning::Lower => FillRuns::Runs,
-        CallMeaning::Words | CallMeaning::Rank | CallMeaning::FitsRendered => FillRuns::NotYet,
+        | CallMeaning::Lower
+        | CallMeaning::FitsRendered => FillRuns::Runs,
+        CallMeaning::Words | CallMeaning::Rank => FillRuns::NotYet,
     }
 }
 
@@ -373,7 +430,8 @@ pub(crate) fn call_batch(
         CallMeaning::SourceMatches(regex, search) => {
             source_matches(means, words, regex, search, arguments, rows, out)
         }
-        CallMeaning::Words | CallMeaning::Rank | CallMeaning::FitsRendered => {
+        CallMeaning::FitsRendered => fits_rendered(&means, words, arguments, rows, out),
+        CallMeaning::Words | CallMeaning::Rank => {
             Err(FilledError::Unbuilt {
                 unbuilt: UnbuiltFill::Stage(Op::StageCall),
             })

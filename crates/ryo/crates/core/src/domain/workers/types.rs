@@ -287,6 +287,8 @@ pub(crate) struct Visited<W> {
     pub counted: RowTotal,
     /// How many rows the files had, of which `counted` were streamed: more when the answer has a limit.
     pub total: RowTotal,
+    /// SPIKE (ryo-fmx3.1): beside the old engine, the new engine's rows of the rules today's engine runs after the files.
+    pub later: crate::domain::found_rows::types::LaterRows,
 }
 
 /// What the project wrote, in the run's own handle: its names and its rows.

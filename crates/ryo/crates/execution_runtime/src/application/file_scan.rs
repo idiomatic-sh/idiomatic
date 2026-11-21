@@ -2,6 +2,7 @@
 //! found rows kept as owned text and numbers, each with where in the file it is, for the store and the report.
 
 pub mod errors;
+pub mod hosted;
 pub(crate) mod keeping;
 pub mod measuring;
 pub mod service;

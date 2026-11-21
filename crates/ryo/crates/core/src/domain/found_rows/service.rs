@@ -158,7 +158,7 @@ fn compared_row(
 }
 
 /// The rows of the compared rules in one rendering of a file, rule by rule, each as the text it is compared by, sorted.
-fn compared_rows<'a>(
+pub(crate) fn compared_rows<'a>(
     rendered: &Rendered,
     compared: &dyn Fn(RuleNumber) -> Option<Compared<'a>>,
 ) -> BTreeMap<RuleNumber, Vec<ComparedRow>> {

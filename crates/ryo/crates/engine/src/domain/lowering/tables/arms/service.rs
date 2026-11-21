@@ -91,7 +91,8 @@ fn arm(
         | Operation::SpanBounds { .. }
         | Operation::SpanBetween { .. }
         | Operation::SourceMatches { .. }
-        | Operation::Capture { .. } => call_arm(state, drafts, operation),
+        | Operation::Capture { .. }
+        | Operation::FitsRendered { .. } => call_arm(state, drafts, operation),
         // What is left to lower, each by name: `tables::service::shaped` refuses a rule that holds one.
         Operation::Intersection { .. }
         | Operation::Difference { .. }
@@ -103,8 +104,7 @@ fn arm(
         | Operation::Cycles { .. }
         | Operation::Rows { .. }
         | Operation::Hosted { .. }
-        | Operation::RenderSyntax { .. }
-        | Operation::FitsRendered { .. } => None,
+        | Operation::RenderSyntax { .. } => None,
     }
 }
 

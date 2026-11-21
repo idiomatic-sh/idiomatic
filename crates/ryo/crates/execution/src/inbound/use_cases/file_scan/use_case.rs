@@ -231,6 +231,11 @@ impl FileScanUseCase for FileScanUseCaseImpl {
                 source: file.source,
             };
             state.executable = file.executable;
+            if let Some(hosted) = file.hosted
+                && !std::sync::Arc::ptr_eq(hosted, &state.hosted)
+            {
+                state.hosted = std::sync::Arc::clone(hosted);
+            }
             let answered = taken(engine, &run, state, request, rows);
             // What the engine noticed of a rule's work is handed over whatever the scan answered: its rows are complete.
             let kept = std::mem::take(&mut state.report.notices);
