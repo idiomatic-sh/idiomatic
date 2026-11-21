@@ -153,7 +153,31 @@ pub(crate) fn rule_flattened(
             continue;
         }
         let id = StepId(u32::try_from(place).unwrap_or(u32::MAX));
-        let flattened = arm(state, drafts, id, &step.operation).ok_or(id)?;
+        let Some(flattened) = arm(state, drafts, id, &step.operation) else {
+            // Spike (ryo-fmx3.1): the step not flattened and its inputs' state, when asked.
+            if std::env::var_os("RYO_L2_REFUSED").is_some() {
+                let inputs = ryo_values::domain::plans::service::inputs_of(&step.operation);
+                let said: Vec<String> = ryo_values::domain::plans::service::named(&inputs)
+                    .iter()
+                    .map(|input| match input {
+                        Input::Step(read) => format!(
+                            "step {} flat {:?} defined {}",
+                            read.0,
+                            state.flat.get(usize::from(*read)).map(|each| each.as_ref().map(|f| f.branches.len())),
+                            rule(state).is_some_and(|held| drafts.defined.contains_key(&digest_of(held, *read)))
+                        ),
+                        other => format!("{other:?}"),
+                    })
+                    .collect();
+                eprintln!(
+                    "ryo l2: rule {:?} step {} not flattened: {:?}; inputs {said:?}",
+                    rule(state).map(|held| held.rule.rule.0),
+                    id.0,
+                    ryo_values::domain::plans::service::kind_of(&step.operation)
+                );
+            }
+            return Err(id);
+        };
         *state.flat.get_mut(place).ok_or(id)? = Some(flattened);
     }
     input(state, drafts, Input::Step(emitted), InputWant::Inline).ok_or(emitted)
