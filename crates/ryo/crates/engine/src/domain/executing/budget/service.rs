@@ -299,6 +299,31 @@ pub(crate) fn fill_asked(state: &mut LoopState, table: MadeTableId, answer: Memo
     }
 }
 
+/// SPIKE: a table's fill asked a pattern whose answer was not kept: its work and its key go to the table's sum.
+pub(crate) fn fill_passed(state: &mut LoopState, table: MadeTableId, work: InstructionCount) {
+    let budget = &mut state.budget;
+    let number = usize::try_from(table.0).unwrap_or(usize::MAX);
+    if budget.sums.len() <= number && number < usize::MAX {
+        budget.sums.resize(number.saturating_add(1), None);
+    }
+    let Some(slot) = budget.sums.get_mut(number) else {
+        return;
+    };
+    let mut sum = match *slot {
+        Some(sum) => sum,
+        None => {
+            budget.marks = WordSlot(budget.marks.0.wrapping_add(1));
+            AnswersSum {
+                mark: budget.marks,
+                ..AnswersSum::default()
+            }
+        }
+    };
+    sum.work = InstructionCount(sum.work.0.saturating_add(work.0));
+    sum.keys = InstructionCount(sum.keys.0.saturating_add(1));
+    *slot = Some(sum);
+}
+
 /// Starts a rule's work in a file: nothing is charged to it yet.
 pub(crate) fn begin_rule(state: &mut LoopState) {
     let budget = &mut state.budget;
