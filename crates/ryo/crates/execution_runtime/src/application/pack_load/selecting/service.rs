@@ -147,6 +147,12 @@ pub(in crate::application::pack_load) fn lowered(
     let source = LoadSource::Plans(SelectedRules(&selected), statistics, given);
     match engine.load(source, request.kinds) {
         Ok(loaded) => {
+            // Spike (ryo-fmx3.1): each refused rule with why, when the run asks for them.
+            if std::env::var_os("RYO_L2_REFUSED").is_some() {
+                for refused in &loaded.refused {
+                    eprintln!("ryo l2: refused rule {}: {}", refused.rule.0, refused.refusal);
+                }
+            }
             let mut refusals = Refusals::default();
             for refused in &loaded.refused {
                 let count = match refused.refusal {
