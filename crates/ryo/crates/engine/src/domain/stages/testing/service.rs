@@ -7,17 +7,18 @@ use crate::domain::filled::types::{FillRuns, MissingCode, UnbuiltFill};
 use crate::domain::stages::deciding::service::{by_word, kept, verdict_key};
 use crate::domain::stages::service::{selected, value_at};
 use crate::domain::stages::types::{BatchRow, BatchValue, RowKept, TextMeans, TextTest};
-use crate::domain::steps::types::TestOperation;
+use crate::domain::steps::types::{SideKind, TestOperation, TestSides};
 use ryo_language::domain::facts::service::text;
 use ryo_language::domain::facts::types::{CellWord, FileWords};
 use ryo_operators::domain::comparing::collections::comparisons::affix::item::AffixItem;
 use ryo_operators::domain::comparing::collections::comparisons::interface::ComparisonsItem as _;
+use ryo_operators::domain::comparing::collections::comparisons::numeric::item::NumericItem;
 use ryo_operators::domain::comparing::collections::comparisons::ordering::item::OrderingItem;
 use ryo_operators::domain::contract::types::PredicateOutcome;
 use ryo_operators::domain::patterns::service::glob_any_each;
 use ryo_operators::domain::table_texts::types::{Datum, TextView};
 use ryo_relations::domain::relations::types::Count;
-use ryo_values::domain::plan_parts::types::Test;
+use ryo_values::domain::plan_parts::types::{Test, WholeNumber};
 
 /// Whether a `Keep` runs a test: every test of two cells and of a set, the regular expression, the globs and the affixes;
 /// not yet the numeric and natural orders of texts and the successor. `keep_text` asks it before it runs a test of a
@@ -38,9 +39,10 @@ pub(crate) const fn test_runs(test: TestOperation) -> FillRuns {
         | TestOperation::NotGlob
         | TestOperation::StartsWith
         | TestOperation::EndsWith
-        | TestOperation::NaturalLess => FillRuns::Runs,
-        // Each side of these two is a number or a text, and the word does not say which (QUESTIONS.md Q8).
-        TestOperation::NumericAtLeast | TestOperation::Successor => FillRuns::NotYet,
+        | TestOperation::NaturalLess
+        // Each side of these two is a number or a text, and the test says which (QUESTIONS.md Q8).
+        | TestOperation::NumericAtLeast(_)
+        | TestOperation::Successor(_) => FillRuns::Runs,
     }
 }
 
@@ -137,6 +139,44 @@ fn natural(
     Ok(())
 }
 
+/// `NumericAtLeast` and `Successor` of each row's two sides: the operators crate's numeric comparison. A side the test says
+/// is a number is the whole number its cell's bits are; a side it says is a text is read as the number the text writes.
+///
+/// # Errors
+///
+/// The test names no other side.
+fn numeric(
+    words: &FileWords,
+    test: TextTest<'_>,
+    meaning: Test,
+    sides: TestSides,
+    rows: Count,
+    keep: &mut Vec<BatchRow>,
+) -> Result<(), FilledError> {
+    let Some(right) = test.right else {
+        return Err(FilledError::Code {
+            named: MissingCode::Word,
+        });
+    };
+    let datum = |kind: SideKind, cell: CellWord| match kind {
+        SideKind::Number => Datum::Number(WholeNumber(cell.0.cast_signed())),
+        SideKind::Text => Datum::Text(TextView(text(words, cell).0)),
+    };
+    selected(
+        rows,
+        keep,
+        (0..rows.0).map(|row| {
+            let one = datum(sides.left, value_at(test.left, Count(row)));
+            let other = datum(sides.right, value_at(right, Count(row)));
+            match NumericItem.holds(meaning, &one, &other) {
+                Ok(PredicateOutcome::Holds) => RowKept::Yes,
+                Ok(PredicateOutcome::Fails) | Err(_) => RowKept::No,
+            }
+        }),
+    );
+    Ok(())
+}
+
 /// `Keep` of a test of a text: the rows of the batch it holds for, as a selection. `Matches` searches each row's text with
 /// its one expression; the glob test asks whether each row's text matches any of its globs, one constant or a set, or
 /// the row's own; its negation keeps the other rows; `StartsWith` and `EndsWith` ask the operators crate's affix
@@ -157,6 +197,17 @@ pub(crate) fn keep_text(
         return Err(FilledError::Unbuilt {
             unbuilt: UnbuiltFill::Stage(Op::StageKeep),
         });
+    }
+    // A numeric test reads each side by what the test says it holds; no verdict is kept by word, since a side may be a
+    // number's bits.
+    match test.test {
+        TestOperation::NumericAtLeast(sides) => {
+            return numeric(words, test, Test::NumericGreaterThanOrEqual, sides, rows, keep);
+        }
+        TestOperation::Successor(sides) => {
+            return numeric(words, test, Test::IntegerSuccessor, sides, rows, keep);
+        }
+        _ => {}
     }
     // A test against constants is decided once for each word, and read for each row.
     if let Some(key) = verdict_key(test) {
@@ -183,8 +234,9 @@ pub(crate) fn keep_text(
         TestOperation::StartsWith => affixed(words, test, Test::StartsWith, rows, keep),
         TestOperation::EndsWith => affixed(words, test, Test::EndsWith, rows, keep),
         TestOperation::NaturalLess => natural(words, test, rows, keep),
-        TestOperation::NumericAtLeast | TestOperation::Successor => Err(FilledError::Unbuilt {
-            unbuilt: UnbuiltFill::Stage(Op::StageKeep),
+        // Decided above.
+        TestOperation::NumericAtLeast(_) | TestOperation::Successor(_) => Err(FilledError::Code {
+            named: MissingCode::Word,
         }),
         // A regular expression is always against a constant: it is decided by the word, above.
         TestOperation::Matches(_)

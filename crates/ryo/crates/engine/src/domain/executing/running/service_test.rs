@@ -168,7 +168,7 @@ fn rule(number: u32, table: u32, between: Vec<ProgramStep>) -> LoweredRule {
 fn pack(scene: Scene) -> LoweredPack {
     let numeric = |left: StepOperand| {
         (
-            TestOperation::NumericAtLeast,
+            TestOperation::NumericAtLeast(crate::domain::steps::types::TEXTS),
             left,
             StepOperand::Word(CellWord(0)),
         )

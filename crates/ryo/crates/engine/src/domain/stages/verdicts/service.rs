@@ -29,9 +29,9 @@ fn key_hash(key: TextTestKey) -> RowHash {
         | TestOperation::GreaterOrEqual
         | TestOperation::In
         | TestOperation::NotIn
-        | TestOperation::NumericAtLeast
+        | TestOperation::NumericAtLeast(_)
         | TestOperation::NaturalLess
-        | TestOperation::Successor => [0, 0],
+        | TestOperation::Successor(_) => [0, 0],
     };
     let against = match key.against {
         Against::Nothing => [0, 0],

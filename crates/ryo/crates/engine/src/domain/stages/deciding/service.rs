@@ -60,9 +60,9 @@ pub(crate) fn verdict_key(test: TextTest<'_>) -> Option<TextTestKey> {
             | TestOperation::GreaterOrEqual
             | TestOperation::In
             | TestOperation::NotIn
-            | TestOperation::NumericAtLeast
+            | TestOperation::NumericAtLeast(_)
             | TestOperation::NaturalLess
-            | TestOperation::Successor,
+            | TestOperation::Successor(_),
             _,
             _,
         ) => return None,
@@ -146,9 +146,9 @@ fn decided(
         | TestOperation::GreaterOrEqual
         | TestOperation::In
         | TestOperation::NotIn
-        | TestOperation::NumericAtLeast
+        | TestOperation::NumericAtLeast(_)
         | TestOperation::NaturalLess
-        | TestOperation::Successor => Err(FilledError::Code {
+        | TestOperation::Successor(_) => Err(FilledError::Code {
             named: MissingCode::Word,
         }),
     }

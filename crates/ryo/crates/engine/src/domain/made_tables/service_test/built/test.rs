@@ -143,7 +143,7 @@ fn tables(asked: Asked) -> Vec<MadeTable> {
         ],
         Asked::Keeps => vec![
             over_nodes(NodeColumn::Text, vec![keep(TestOperation::StartsWith)]),
-            over_nodes(NodeColumn::Text, vec![keep(TestOperation::NumericAtLeast)]),
+            over_nodes(NodeColumn::Text, vec![keep(TestOperation::NumericAtLeast(crate::domain::steps::types::TEXTS))]),
         ],
         Asked::Calls => vec![
             over_nodes(
