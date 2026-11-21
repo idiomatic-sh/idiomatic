@@ -97,10 +97,8 @@ pub(crate) enum FlatAtom {
     Nearest {
         /// What is walked toward the root.
         over: NearestOver,
-        /// The definition of the domain.
-        domain: DefinitionId,
-        /// The domain's column that holds the element.
-        column: MadeColumn,
+        /// What holds the elements a walk may stop at.
+        domain: NearestDomain,
         /// The element walked from.
         start: FlatTerm,
         /// The ancestor reached.
@@ -195,6 +193,26 @@ pub(crate) enum EdgeRows {
         cells: Vec<FlatTerm>,
         /// Whether the source holds one row a file.
         per_file: RowsPerFile,
+    },
+}
+
+/// The domain of a nearest walk: what holds the elements a walk may stop at.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum NearestDomain {
+    /// A definition holds the element in a column.
+    Held {
+        /// The definition.
+        definition: DefinitionId,
+        /// Its column that holds the element.
+        column: MadeColumn,
+    },
+    /// A relation's own rows, read in place by the element with the tests of the domain's filter: atoms over cells
+    /// nothing else names, `entity` the cell that holds the element.
+    Read {
+        /// The read of one row, then the filter's tests.
+        atoms: Vec<FlatAtom>,
+        /// The cell of the element.
+        entity: FlatTerm,
     },
 }
 

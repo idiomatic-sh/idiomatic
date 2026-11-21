@@ -8,13 +8,15 @@ use crate::domain::lowering::flattening::constants::{BRANCH_ATOMS, PRODUCT_BRANC
 use crate::domain::lowering::flattening::service::made_column;
 use crate::domain::lowering::flattening::service::{picked, unified};
 use crate::domain::lowering::flattening::types::EdgeColumns;
-use crate::domain::lowering::flattening::types::NearestOver;
 use crate::domain::lowering::flattening::types::{
     AtomRows, EqualTerms, FlatAtom, FlatTerm, RowColumn,
 };
+use crate::domain::lowering::flattening::types::{NearestDomain, NearestOver};
 use crate::domain::lowering::nodes::service::input_shape;
 use crate::domain::lowering::tables::closures::service::edge_rows;
-use crate::domain::lowering::tables::inputs::service::{all_selected, input, rule, sized};
+use crate::domain::lowering::tables::inputs::service::{
+    all_selected, input, rule, selection_emptiness, sized,
+};
 use crate::domain::lowering::tables::service::{tree_relation, walk_of};
 use crate::domain::lowering::tables::types::InputSize;
 use crate::domain::lowering::tables::types::JoinWants;
@@ -241,9 +243,29 @@ pub(crate) fn axis_arm(
         TreeAxis::Nearest => {
             // The start's rows are a definition: the pattern a pipeline uses for the walk is then keyed by the start.
             let mut starts = input(state, drafts, *from, InputWant::Defined)?;
-            let held = input(state, drafts, *domain, InputWant::Defined)?;
-            let Emptiness::Definition(definition) = held.emptiness else {
-                return None;
+            let mut held = input(state, drafts, *domain, InputWant::Defined)?;
+            // A step's rows are its definition's, asked by the element. A relation's own rows are read in place by the
+            // element, with the tests of the domain's filter.
+            let stops = match (&held.emptiness, domain) {
+                (Emptiness::Definition(definition), _) => NearestDomain::Held {
+                    definition: *definition,
+                    column: made_column(RowColumn(entity))?,
+                },
+                (_, Input::Relation(_)) => {
+                    let read = std::mem::take(&mut held.branches);
+                    let mut read = all_selected(state, drafts, read, domain_filter)?;
+                    let (Some(only), None) = (read.pop(), read.pop()) else {
+                        return None;
+                    };
+                    let emptiness = std::mem::take(&mut held.emptiness);
+                    held.emptiness =
+                        selection_emptiness(state, drafts, *domain, domain_filter, emptiness);
+                    NearestDomain::Read {
+                        entity: *only.row.get(entity)?,
+                        atoms: only.atoms,
+                    }
+                }
+                (_, Input::Step(_) | Input::BoundObservation(_)) => return None,
             };
             // Edges that are no tree of a node relation are asked by the child for the parent.
             let over = match tree {
@@ -259,8 +281,7 @@ pub(crate) fn axis_arm(
                 let reached = FlatTerm::Variable(fresh_variable(drafts));
                 branch.atoms.push(FlatAtom::Nearest {
                     over: over.clone(),
-                    domain: definition,
-                    column: made_column(RowColumn(entity))?,
+                    domain: stops.clone(),
                     start: *branch.row.get(start)?,
                     reached,
                 });

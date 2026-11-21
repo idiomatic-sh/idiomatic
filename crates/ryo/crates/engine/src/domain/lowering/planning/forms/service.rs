@@ -6,7 +6,7 @@ use crate::domain::lowering::planning::types::WrittenAccess;
 use crate::domain::lowering::planning::types::{NearestWalked, WalkEdges};
 use crate::domain::steps::stages::types::{FillStage, TreeWalk, UseMode};
 use crate::domain::steps::types::{
-    ColumnMask, NearestEdges, Polarity, ProgramStep, StepBody, StepMemo, StepOperand, StepOperands,
+    NearestEdges, Polarity, ProgramStep, StepBody, StepMemo, StepOperand,
 };
 use crate::domain::steps::types::{PlacedStep, RegisterList, StepProgram};
 
@@ -149,8 +149,7 @@ pub(crate) fn step_of(access: WrittenAccess) -> ProgramStep {
         },
         WrittenAccess::Nearest {
             edges,
-            domain,
-            column,
+            condition,
             element,
             start,
             out,
@@ -162,11 +161,13 @@ pub(crate) fn step_of(access: WrittenAccess) -> ProgramStep {
                     from,
                 },
             },
-            condition: StepBody::Definition {
-                definition: domain,
-                bound: ColumnMask([column].into()),
-                collected: ColumnMask::default(),
-                values: StepOperands([StepOperand::Register(element)].into()),
+            // The condition asks whether a row is there: read in place, each row is a `Yield` of nothing.
+            condition: match condition {
+                WalkEdges::Use(_) => walk_body(condition),
+                WalkEdges::Inline { steps, .. } => inline_body(
+                    steps.into_iter().map(step_of).collect(),
+                    RegisterList::default(),
+                ),
             },
             element,
             start,

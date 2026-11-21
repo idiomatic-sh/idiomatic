@@ -3,10 +3,10 @@
 use crate::domain::lowered::types::Emptiness;
 use crate::domain::lowering::costing::service::branches_rows;
 use crate::domain::lowering::definitions::service::{
-    defined, fresh_cells, fresh_variable, regex, text, use_branch,
+    defined, fresh_cells, fresh_variable, kind_bits, regex, text, text_word, use_branch,
 };
 use crate::domain::lowering::definitions::types::{Drafts, Flattened};
-use crate::domain::lowering::emptiness::service::{copied, relation_read};
+use crate::domain::lowering::emptiness::service::{copied, literal_read, relation_read};
 use crate::domain::lowering::flattening::constants::{BRANCH_ATOMS, INPUT_BRANCHES};
 use crate::domain::lowering::flattening::service::function_call;
 use crate::domain::lowering::flattening::service::{compared, own_walks, picked};
@@ -19,7 +19,8 @@ use crate::domain::lowering::tables::shapes::service::picked as kinds_picked;
 use crate::domain::lowering::tables::shapes::service::test_of;
 use crate::domain::lowering::tables::types::InputSize;
 use crate::domain::lowering::tables::types::{InputWant, RuleFlattening};
-use crate::domain::steps::types::{DefinitionId, TestOperation};
+use crate::domain::steps::types::{AnchorKinds, ConstantText, DefinitionId, TestOperation};
+use ryo_relations::domain::relations::service::columns;
 use ryo_relations::domain::relations::types::Count;
 use ryo_relations::domain::relations::types::Integer;
 use ryo_values::domain::plan_parts::types::{
@@ -115,6 +116,38 @@ pub(crate) fn all_selected(
         kept.extend(selected(state, drafts, branch, comparisons)?);
     }
     Some(kept)
+}
+
+/// The emptiness of a selection: of a relation read with a literal in a column when that is what it is, else its input's.
+pub(crate) fn selection_emptiness(
+    state: &RuleFlattening<'_>,
+    drafts: &Drafts,
+    from: Input,
+    comparisons: &[PlanComparison],
+    read: Emptiness,
+) -> Emptiness {
+    let Input::Relation(relation) = from else {
+        return read;
+    };
+    let listed = columns(relation);
+    for comparison in comparisons {
+        let (Operand::Column(column), Operand::Literal(QueryLiteral::Text(written))) =
+            (&comparison.left, &comparison.right)
+        else {
+            continue;
+        };
+        let (Some(number), Some(column), Some(TestOperation::Equal)) = (
+            drafts.text_numbers.get(written),
+            listed.get(usize::from(*column)),
+            test_of(comparison.test),
+        ) else {
+            continue;
+        };
+        let kinds = kind_bits(state.kinds, &ConstantText(written.0.clone()))
+            .map(|bits| AnchorKinds([bits].into()));
+        return literal_read(relation, *column, text_word(*number), kinds);
+    }
+    read
 }
 
 /// One use of the definition of a step, made from the step's flattening the first time. Its row is the step's: where the

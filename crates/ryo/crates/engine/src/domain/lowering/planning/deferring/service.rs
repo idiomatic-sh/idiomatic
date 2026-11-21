@@ -36,11 +36,17 @@ fn read_by(access: &WrittenAccess) -> Vec<Register> {
             descendant,
             ..
         } => vec![*ancestor, *descendant],
-        WrittenAccess::Nearest { edges, start, .. } => {
+        WrittenAccess::Nearest {
+            edges,
+            condition,
+            start,
+            ..
+        } => {
             let mut read = vec![*start];
             if let NearestWalked::Derived { edges, .. } = edges {
                 read.extend(edges_read(edges));
             }
+            read.extend(edges_read(condition));
             read
         }
         WrittenAccess::Closure { edges, seed, .. } => {

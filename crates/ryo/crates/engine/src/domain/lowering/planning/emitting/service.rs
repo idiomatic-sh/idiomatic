@@ -296,14 +296,12 @@ pub(crate) fn atom_written(emitter: &mut Emitter<'_>, atom: &FlatAtom) {
         FlatAtom::Nearest {
             over,
             domain,
-            column,
             start,
             reached,
         } => {
             let walk = NearestClimb {
                 over: over.clone(),
-                domain: *domain,
-                column: *column,
+                domain: domain.clone(),
             };
             let ends = WalkEnds {
                 start: *start,

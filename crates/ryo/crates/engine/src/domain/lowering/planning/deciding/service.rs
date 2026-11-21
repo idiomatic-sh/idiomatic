@@ -10,7 +10,7 @@ use crate::domain::lowering::planning::operands::service::{operand, read_column,
 use crate::domain::lowering::planning::types::{Emitter, WrittenAccess};
 use crate::domain::steps::stages::types::UseMode;
 use crate::domain::steps::types::{
-    ColumnMask, MatchColumns, Polarity, ReadColumn, RegisterList, StepOperand, StepOperands,
+    ColumnMask, MatchColumns, Polarity, ReadColumn, RegisterList, StepOperands,
 };
 use ryo_relations::domain::relations::types::{Count, NodeColumn};
 

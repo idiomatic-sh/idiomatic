@@ -1,9 +1,12 @@
 //! The plans of the shapes the lowering's fifth step names, each the smallest of its shape: a step only projections read, and
 //! the operations whose side is a relation where the scenes before them gave a step.
 
-use super::parts::{joined, kept, nearest_step, of, plan, projected, step, words};
+use super::parts::{at, joined, kept, nearest_step, of, plan, projected, step, words};
 use ryo_relations::domain::relations::types::Relation;
-use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, Side, StepId};
+use ryo_values::domain::plan_parts::types::{
+    ColumnIndex, ComparisonOrigin, Direction, Input, LiteralText, Operand, PlanComparison,
+    QueryLiteral, Side, StepId, Test,
+};
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_plans::types::Plan;
 
@@ -51,6 +54,29 @@ pub(super) fn shape_scene(scene: &str) -> Option<Plan> {
                 right: Input::Relation(Relation::TokenLink),
                 left_on: vec![ColumnIndex(1)],
                 right_on: vec![ColumnIndex(0)],
+            }),
+        ]),
+        // Each word beside the nearest element above it whose kind is `sentence`: a nearest axis whose domain is a
+        // relation's own rows with a filter.
+        "the nearest sentence above each word" => plan(vec![
+            words(),
+            step(Operation::Axis {
+                from: Input::Step(StepId(0)),
+                edges: Input::Relation(Relation::SyntaxChild),
+                domain: Input::Relation(Relation::SyntaxTree),
+                direction: Direction::NearestAncestor,
+                id: at(1),
+                parent: at(0),
+                child: at(1),
+                domain_id: at(0),
+                domain_filter: vec![PlanComparison {
+                    test: Test::Equal,
+                    left: Operand::Column(at(1)),
+                    right: Operand::Literal(QueryLiteral::Text(LiteralText("sentence".into()))),
+                    origin: ComparisonOrigin::Unrecorded,
+                }],
+                domain_view: Vec::new(),
+                output: Vec::new(),
             }),
         ]),
         _ => return None,

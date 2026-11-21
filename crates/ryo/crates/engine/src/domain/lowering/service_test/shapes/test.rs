@@ -104,6 +104,31 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "codes: {\"EachRowMade\": 2, \"Emit\": 2, \"End\": 3, \"ReadMade\": 8, \"StageProbe\": 2, \"StageRead\": 3, \"StageScan\": 1, \"StageWrite\": 1}",
         ))),
     },
+    Case {
+        name: CaseName("a_nearest_walk_whose_domain_is_a_relation_with_a_filter_reads_it_in_place"),
+        word: Word::Succeeds,
+        input: || {
+            (
+                &["the nearest sentence above each word"],
+                SampleStage::Absent,
+            )
+        },
+        expect: Expect::Value(Cow::Borrowed(concat!(
+            "definition 0: 5 columns, emptiness All([Unknown, Unknown])\n",
+            "  pattern bound [] collected []: Table 1\n",
+            "  pattern bound [1] collected []: Call: EachMatch:Fanout EachMatch:Fanout Yield:Constant\n",
+            "definition 1: 6 columns, emptiness All([Definition(DefinitionId(0)), Unknown, Unknown])\n",
+            "  pattern bound [] collected []: Table 0\n",
+            "  pattern bound [1] collected [5]: Call: Nearest:Fanout Exists:Fanout Let:Constant Yield:Constant\n",
+            "table 0: Rows, 6 columns, indexes []\n",
+            "  pipeline: Scan:File Read:Constant Read:Constant Read:Constant Read:Constant Use:Fanout\n",
+            "table 1: Rows, 5 columns, indexes []\n",
+            "  pipeline: Scan:File Read:Constant Read:Constant Probe:Fanout Read:Constant\n",
+            "rule 0: 1 branches\n",
+            "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Read:Constant Read:Constant Emit:Constant\n",
+            "codes: {\"EachMatchNode\": 3, \"EachRowMade\": 1, \"Emit\": 1, \"End\": 5, \"Exists\": 1, \"Let\": 1, \"Nearest\": 1, \"ReadMade\": 5, \"ReadNode\": 1, \"StageProbe\": 1, \"StageRead\": 7, \"StageScan\": 2, \"StageUse\": 1, \"StageWrite\": 2, \"Test\": 1, \"Yield\": 3}",
+        ))),
+    },
 ];
 
 /// The scenes lowered and said in lines, as the cases of the service itself are.

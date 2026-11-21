@@ -2,16 +2,16 @@
 
 use crate::domain::lowering::costing::types::CellState;
 use crate::domain::lowering::definitions::service::{asked, fresh_register};
-use crate::domain::lowering::flattening::types::NearestOver;
-use crate::domain::lowering::planning::closures::service::{own_used, walk_edges};
+use crate::domain::lowering::flattening::types::{NearestDomain, NearestOver};
+use crate::domain::lowering::planning::closures::service::{own_used, read_condition, walk_edges};
 use crate::domain::lowering::planning::closures::types::{AtomWriter, EdgeEnds};
 use crate::domain::lowering::planning::operands::service::{
     given_or_tested, register_of, state_of,
 };
-use crate::domain::lowering::planning::types::NearestWalked;
+use crate::domain::lowering::planning::types::{EdgeUse, NearestWalked, WalkEdges};
 use crate::domain::lowering::planning::types::{Emitter, Enumerated, UnitRole, WrittenAccess};
 use crate::domain::lowering::planning::walks::types::{NearestClimb, WalkEnds};
-use crate::domain::steps::types::{AxisDirection, ColumnMask};
+use crate::domain::steps::types::{AxisDirection, ColumnMask, StepOperand, StepOperands};
 use ryo_relations::domain::relations::types::Count;
 use ryo_relations::domain::relations::types::Relation;
 
@@ -128,13 +128,29 @@ pub(crate) fn nearest(
                 emitter.missed = Count(emitter.missed.0.saturating_add(1));
                 return;
             };
-            let bound = ColumnMask([walk.column].into());
-            asked(emitter.drafts, walk.domain, &bound, &ColumnMask::default());
             let element = fresh_register(emitter.drafts);
+            let condition = match &walk.domain {
+                NearestDomain::Held { definition, column } => {
+                    let bound = ColumnMask([*column].into());
+                    asked(emitter.drafts, *definition, &bound, &ColumnMask::default());
+                    Some(WalkEdges::Use(EdgeUse {
+                        definition: *definition,
+                        bound,
+                        collected: ColumnMask::default(),
+                        values: StepOperands([StepOperand::Register(element)].into()),
+                    }))
+                }
+                NearestDomain::Read { atoms, entity } => {
+                    read_condition(emitter, atoms, *entity, element, write)
+                }
+            };
+            let Some(condition) = condition else {
+                emitter.missed = Count(emitter.missed.0.saturating_add(1));
+                return;
+            };
             emitter.written.push(WrittenAccess::Nearest {
                 edges,
-                domain: walk.domain,
-                column: walk.column,
+                condition,
                 element,
                 start: from,
                 out,

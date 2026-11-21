@@ -4,9 +4,8 @@ use crate::domain::lowering::definitions::types::RowEstimate;
 use crate::domain::lowering::flattening::types::FlatVariable;
 use crate::domain::steps::stages::types::UseMode;
 use crate::domain::steps::types::{
-    AnchorKinds, AxisDirection, CallMeaning, ColumnMask, DefinitionId, MadeColumn, MadeTableId,
-    MatchColumns, ReadColumn, Register, RegisterList, StepOperand, StepOperands, StepRows,
-    TestOperation,
+    AnchorKinds, AxisDirection, CallMeaning, ColumnMask, DefinitionId, MadeTableId, MatchColumns,
+    ReadColumn, Register, RegisterList, StepOperand, StepOperands, StepRows, TestOperation,
 };
 use ryo_relations::domain::relations::types::{Count, Relation};
 use ryo_values::domain::plan_orders::types::OrderBound;
@@ -131,10 +130,8 @@ pub(crate) enum WrittenAccess {
     Nearest {
         /// What is walked toward the root.
         edges: NearestWalked,
-        /// The definition of the domain.
-        domain: DefinitionId,
-        /// The domain's column.
-        column: MadeColumn,
+        /// What says the element under test is in the domain: a use of its definition, or its rows read in place.
+        condition: WalkEdges,
         /// Where the element under test is written.
         element: Register,
         /// The element walked from.
