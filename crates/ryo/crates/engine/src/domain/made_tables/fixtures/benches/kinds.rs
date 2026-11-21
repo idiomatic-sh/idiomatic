@@ -51,8 +51,16 @@ pub enum FillBench {
     RowsFile,
     /// The same with repeats dropped (8 rows a key, 43 cells).
     RowsFileDropped,
+    /// A rows fill that keeps the nodes whose kind's name matches any of 26 literal globs: a column of three different
+    /// words, each a word of the run.
+    KeepGlobFewWords,
+    /// A rows fill, for a new file each run, that keeps the groups whose text matches none of 26 literal globs: a column
+    /// in which every row holds its own word of the file.
+    KeepGlobOwnWords,
     /// The index of the file's nodes by kind, built for a new file and asked for the tokens.
     IndexNodesKind,
+    /// The same over a file whose elements change kind from one to the next, sixteen kinds in no order.
+    IndexNodesKindMixed,
     /// The index of the file's nodes by parent, built for a new file and asked for the root's children.
     IndexNodesParent,
     /// The index of the file's nodes by id, built for a new file and asked for one node.

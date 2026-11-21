@@ -84,3 +84,20 @@ impl std::fmt::Debug for PatternMatcher<'_> {
             .finish_non_exhaustive()
     }
 }
+
+/// A set of text globs compiled once, for a test that asks many texts whether any of them matches
+/// (`patterns::service::globs_compiled`, `glob_compiled`).
+///
+/// # Examples
+///
+/// ```
+/// use ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl;
+/// use ryo_operators::domain::patterns::service::globs_compiled;
+/// use ryo_operators::domain::patterns::types::{PatternMatcher, TextGlobSet};
+/// use ryo_operators::domain::table_texts::types::TextView;
+///
+/// let globs: TextGlobSet = globs_compiled(&[TextView("a*")], PatternMatcher(&MatchingUseCaseImpl));
+/// assert!(format!("{globs:?}").starts_with("TextGlobSet"));
+/// ```
+#[derive(Debug)]
+pub struct TextGlobSet(pub CompiledTextGlobs);

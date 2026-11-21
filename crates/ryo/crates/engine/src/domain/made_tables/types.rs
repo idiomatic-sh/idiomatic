@@ -8,6 +8,7 @@ use crate::domain::indexes::types::{FileStamp, IndexArena, RowRun, SourceRow};
 use crate::domain::made_tables::columns::types::{FileColumn, RowColumn};
 use crate::domain::made_tables::matching::types::MatchRoom;
 use crate::domain::made_tables::pipelines::types::PipelineRoom;
+use crate::domain::stages::verdicts::types::TextVerdicts;
 use crate::domain::steps::types::{MadeTableId, StepRegex};
 use ryo_language::domain::facts::types::{CellWord, FactSource, FileWords};
 use ryo_language::domain::node_table::types::NodeTable;
@@ -81,6 +82,9 @@ pub(crate) struct FillStore {
     pub(crate) cells: Vec<CellWord>,
     /// Where each pipeline of an input writes its row from, while a table's columns are laid.
     pub(crate) writes: Vec<PoolAt>,
+    /// What each test of a text against constants holds for, by word: of the run's words for the worker's life, of a
+    /// file's own words for the file. The fill's `Keep` and the loop's `Test` share them.
+    pub(crate) verdicts: TextVerdicts,
     /// The keys asked of the language through a site while its relation was not whole, by site and cells: each with the
     /// stretch of the store's rows that holds its rows.
     pub(crate) asked: hashbrown::HashTable<AskedStretch>,

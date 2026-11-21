@@ -17,7 +17,7 @@ use ryo_operators::domain::capture::service::matches;
 use ryo_operators::domain::capture::types::{CaptureSlots, SlotPattern, SlotSubject};
 use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_operators::domain::patterns::service::compiled;
-use ryo_operators::domain::replace::service::replaced;
+use ryo_operators::domain::replace::service::replaced_by;
 use ryo_operators::domain::replace::types::{ReplacedText, ReplacementText};
 use ryo_operators::domain::source_matches::service::{checked_source, searched};
 use ryo_operators::domain::source_matches::types::{
@@ -101,20 +101,17 @@ fn replace(
     out: CallOut<'_>,
 ) -> Result<(), FilledError> {
     let pattern = regex_at(means.regexes, regex)?;
+    let expression = compiled(TextView(&pattern.0), means.compiled, means.matcher)
+        .map_err(|invalid| faulted(invalid.into()))?;
     let scratch = out.scratch;
     let mut made = Count(0);
     for row in 0..rows.0 {
-        scratch.constant.0.clear();
-        scratch
-            .constant
-            .0
-            .push_str(text(words, argument(arguments, Count(1), Count(row))).0);
         let subject = text(words, argument(arguments, Count(0), Count(row)));
-        replaced(
+        let replacement = text(words, argument(arguments, Count(1), Count(row)));
+        replaced_by(
+            expression,
             CellText(subject.0),
-            TextView(&pattern.0),
-            ReplacementText(&scratch.constant.0),
-            means.compiled,
+            ReplacementText(replacement.0),
             means.matcher,
             ReplacedText(&mut scratch.written.0),
         )
@@ -137,11 +134,6 @@ fn capture(
     let scratch = out.scratch;
     let mut made = Count(0);
     for row in 0..rows.0 {
-        scratch.constant.0.clear();
-        scratch
-            .constant
-            .0
-            .push_str(text(words, argument(arguments, Count(1), Count(row))).0);
         scratch.text.0.clear();
         scratch
             .text
@@ -151,7 +143,7 @@ fn capture(
         scratch.ways.ranges.0.clear();
         scratch.ways.ways = Count(0);
         matches(
-            SlotPattern(&scratch.constant.0),
+            SlotPattern(text(words, argument(arguments, Count(1), Count(row))).0),
             SlotSubject(&scratch.text.0),
             SlotSubject(&scratch.text.0),
             CaptureSlots(&mut scratch.slots.0),

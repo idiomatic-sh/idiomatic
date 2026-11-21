@@ -1,8 +1,11 @@
 //! The types of the `stages` concept: what a stage's loop reads and writes. A batch is columns of cells, one per register
 //! its pipeline holds; a loop reads slices and writes vectors, and runs no step program. Crate-private.
 
+use crate::domain::code::types::PoolAt;
 use crate::domain::indexes::types::ColumnView;
+use crate::domain::indexes::types::FileStamp;
 use crate::domain::indexes::types::RowRun;
+use crate::domain::stages::verdicts::types::TextVerdicts;
 use crate::domain::steps::types::{BoundKind, StepRegex, TestOperation};
 use ryo_language::domain::facts::service::intern;
 use ryo_language::domain::facts::types::CellWord;
@@ -10,7 +13,7 @@ use ryo_language::domain::facts::types::FileWords;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_operators::domain::capture::types::{CaptureOutput, CaptureSpans};
 use ryo_operators::domain::contract::errors::ContractError;
-use ryo_operators::domain::patterns::types::PatternMatcher;
+use ryo_operators::domain::patterns::types::{PatternMatcher, TextGlobSet};
 use ryo_operators::domain::source_matches::types::TextRowDriver;
 use ryo_operators::domain::table_scratch::types::Patterns;
 use ryo_relations::domain::relations::service::to_bits;
@@ -170,6 +173,24 @@ pub(crate) struct TextMeans<'a> {
     pub(crate) regexes: &'a [StepRegex],
     /// The expressions compiled so far, by source.
     pub(crate) compiled: &'a mut Patterns,
+    /// What each test of a text against constants holds for, by word, as far as it was asked.
+    pub(crate) verdicts: &'a mut TextVerdicts,
+    /// The file: a file's own words are other texts in the next.
+    pub(crate) stamp: FileStamp,
+}
+
+/// What one text is decided with, when a test's verdict for its word is not known yet: the matcher, the expressions,
+/// and the test's globs, compiled the first time.
+#[derive(Debug)]
+pub(crate) struct Deciding<'a, 'g> {
+    /// The matcher.
+    pub(crate) matcher: PatternMatcher<'a>,
+    /// The sources of the regular expressions, by number.
+    pub(crate) regexes: &'a [StepRegex],
+    /// The expressions compiled so far, by source.
+    pub(crate) compiled: &'a mut Patterns,
+    /// The test's globs, once compiled.
+    pub(crate) globs: &'g mut Option<TextGlobSet>,
 }
 
 /// A test of a text over a batch: the test, its left value, and its right: a value, or the cells of a set.
@@ -183,6 +204,8 @@ pub(crate) struct TextTest<'a> {
     pub(crate) right: Option<BatchValue<'a>>,
     /// The cells of the right set, when it is one.
     pub(crate) set: &'a [CellWord],
+    /// Where the right set lies in the pool, when it is one: what names it.
+    pub(crate) set_at: Option<PoolAt>,
 }
 
 /// What a call of a per-row meaning is made with besides the file's words: the operators crate's matcher, the sources of
