@@ -16,12 +16,11 @@ use crate::domain::lowering::planning::operands::service::{
     anchor_kinds, cell_register, file_noted, file_register, key_value, operand, read_column,
     source_of, state_of, test_operand,
 };
-use crate::domain::lowering::planning::types::NearestTreeWalk;
-use crate::domain::lowering::planning::types::WalkEnds;
 use crate::domain::lowering::planning::types::{
     Emitter, Enumerated, FileCell, UnitRole, WrittenAccess,
 };
 use crate::domain::lowering::planning::walks::service::{nearest, walked};
+use crate::domain::lowering::planning::walks::types::{NearestTreeWalk, WalkEnds};
 use crate::domain::steps::stages::types::UseMode;
 use crate::domain::steps::types::{
     ColumnList, ColumnMask, CostClass, DefinitionId, MadeColumn, MadeTableId, MatchColumns,
@@ -351,7 +350,7 @@ pub(crate) fn atom_written(emitter: &mut Emitter<'_>, atom: &FlatAtom) {
                 start: *source,
                 reached: *reached,
             };
-            closed(emitter, edges, keys, ends);
+            closed(emitter, edges, keys, ends, atom_written);
         }
         FlatAtom::Called {
             meaning,

@@ -162,12 +162,28 @@ pub(crate) struct EqualTerms {
 /// The edges a closure walks: a definition, and which of its columns hold an edge's keys, its source and its destination.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct EdgeColumns {
-    /// The definition of the edges.
-    pub(crate) definition: DefinitionId,
+    /// Where the edges are read.
+    pub(crate) rows: EdgeRows,
     /// The key columns, the file's left out: an edge is walked within one value of them.
     pub(crate) keys: Vec<MadeColumn>,
     /// The source column.
     pub(crate) source: MadeColumn,
     /// The destination column.
     pub(crate) destination: MadeColumn,
+}
+
+/// Where a closure reads its edges.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum EdgeRows {
+    /// A definition's rows: the edges are a step.
+    Definition(DefinitionId),
+    /// A source's own rows, read in place by the walk: one row of the source, in cells nothing else names.
+    Read {
+        /// The source.
+        rows: AtomRows,
+        /// The row's cells, in the source's column order.
+        cells: Vec<FlatTerm>,
+        /// Whether the source holds one row a file.
+        per_file: RowsPerFile,
+    },
 }

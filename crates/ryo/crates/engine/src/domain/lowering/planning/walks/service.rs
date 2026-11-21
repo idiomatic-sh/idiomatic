@@ -7,9 +7,8 @@ use crate::domain::lowering::planning::closures::service::own_used;
 use crate::domain::lowering::planning::operands::service::{
     given_or_tested, register_of, state_of,
 };
-use crate::domain::lowering::planning::types::NearestTreeWalk;
-use crate::domain::lowering::planning::types::WalkEnds;
 use crate::domain::lowering::planning::types::{Emitter, Enumerated, UnitRole, WrittenAccess};
+use crate::domain::lowering::planning::walks::types::{NearestTreeWalk, WalkEnds};
 use crate::domain::steps::types::{AxisDirection, ColumnMask};
 use ryo_relations::domain::relations::types::Count;
 use ryo_relations::domain::relations::types::Relation;
@@ -104,7 +103,7 @@ pub(crate) fn nearest(
     let out = fresh_register(emitter.drafts);
     match (emitter.role, emitter.unit) {
         (UnitRole::Pipeline, Some(unit)) => {
-            if !own_used(emitter, unit, &[start], reached, out) {
+            if own_used(emitter, unit, &[start], reached, out).is_none() {
                 return;
             }
         }

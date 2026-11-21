@@ -300,11 +300,7 @@ fn shaped(
             source,
             destination,
         } => {
-            // A closure over a relation's own rows (edges that are no step) is not lowered yet: its edges are a definition.
-            let read = match edges {
-                Input::Step(_) => of(edges)?,
-                Input::Relation(_) | Input::BoundObservation(_) => return None,
-            };
+            let read = of(edges)?;
             let mut shape = picked(&read, keys)?;
             shape.0.extend(picked(&read, &[*source, *destination])?.0);
             Some(shape)

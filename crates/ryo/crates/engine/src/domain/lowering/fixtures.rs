@@ -143,6 +143,13 @@ fn operation_scene(scene: &str) -> Option<Plan> {
                 destination: at(1),
             }),
         ]),
+        // Every scope a scope is within: the closure of the relation's own rows, from the enclosed scope to the enclosing.
+        "closure of the scopes" => plan(vec![step(Operation::Closure {
+            edges: Input::Relation(Relation::Scope),
+            keys: vec![at(2)],
+            source: at(1),
+            destination: at(0),
+        })]),
         // Each word with its text, every `a` of it replaced by `b`.
         "the words' texts replaced" => plan(vec![
             words(),
