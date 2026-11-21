@@ -6,7 +6,7 @@ use crate::domain::lowered::types::{
 };
 use crate::domain::lowering::definitions::service::{asked, draft, fresh_cells, fresh_register};
 use crate::domain::lowering::definitions::types::{Drafts, Flattened};
-use crate::domain::lowering::emptiness::service::derived;
+use crate::domain::lowering::emptiness::service::{copied, derived};
 use crate::domain::lowering::flattening::service::made_column;
 use crate::domain::lowering::flattening::service::picked;
 use crate::domain::lowering::flattening::types::{
@@ -14,6 +14,7 @@ use crate::domain::lowering::flattening::types::{
 };
 use crate::domain::lowering::nodes::service::{digest_of, input_shape};
 use crate::domain::lowering::nodes::types::{NodeHome, StepShape};
+use crate::domain::lowering::planning::operands::service::{read_column, source_of};
 use crate::domain::lowering::tables::inputs::service::{input, rule};
 use crate::domain::lowering::tables::joins::service::{join_row, key_pairs};
 use crate::domain::lowering::tables::types::KeyPair;
@@ -21,12 +22,11 @@ use crate::domain::lowering::tables::types::TableOf;
 use crate::domain::lowering::tables::types::{InputWant, RuleFlattening};
 use crate::domain::steps::stages::types::{FillStage, Pipeline, PlacedStage};
 use crate::domain::steps::types::{
-    ColumnList, ColumnMask, DefinitionId, MadeColumn, MadeTableId, MatchColumns, ReadColumn,
-    StepOperand, StepOperands, StepRows,
+    ColumnList, ColumnMask, MadeTableId, MatchColumns, ReadColumn, StepOperand, StepOperands,
 };
-use ryo_relations::domain::relations::types::CellKind;
-use ryo_relations::domain::relations::types::Count;
-use ryo_values::domain::plan_parts::types::StepId;
+use ryo_relations::domain::relations::service::kinds as kinds_of;
+use ryo_relations::domain::relations::types::{CellKind, Count, NodeColumn};
+use ryo_values::domain::plan_parts::types::{Input, StepId};
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::table_words::types::ColumnCount;
 
@@ -49,14 +49,20 @@ pub(crate) fn made(
     table
 }
 
-/// The pipeline that gives a fill every row of a definition: a scan of the definition's table, a read of each column that is
-/// not the file's, and the definition's row. Reading the table asks the definition's pattern that binds nothing.
-pub(crate) fn scanned(drafts: &mut Drafts, definition: DefinitionId) -> Pipeline {
-    let nothing = ColumnMask::default();
-    asked(drafts, definition, &nothing, &nothing);
-    let kinds: Vec<CellKind> =
-        draft(drafts, definition).map_or_else(Vec::new, |draft| draft.shape.0.clone());
-    let source = StepRows::Definition(definition);
+/// The pipeline that gives a fill every row of a source: a scan of a definition's table or of a relation, a read of each
+/// column that is not the file's, and the source's row. Reading a definition's table asks its pattern that binds
+/// nothing; the node table's element is the row's own handle.
+pub(crate) fn scanned(drafts: &mut Drafts, rows: AtomRows) -> Pipeline {
+    let kinds: Vec<CellKind> = match rows {
+        AtomRows::Definition(definition) => {
+            let nothing = ColumnMask::default();
+            asked(drafts, definition, &nothing, &nothing);
+            draft(drafts, definition).map_or_else(Vec::new, |draft| draft.shape.0.clone())
+        }
+        AtomRows::Relation(relation) => kinds_of(relation).to_vec(),
+        AtomRows::Made(_) => Vec::new(),
+    };
+    let source = source_of(rows);
     let handle = fresh_register(drafts);
     let mut stages = vec![FillStage::Scan {
         source,
@@ -66,23 +72,28 @@ pub(crate) fn scanned(drafts: &mut Drafts, definition: DefinitionId) -> Pipeline
     }];
     let mut row = Vec::with_capacity(kinds.len());
     for (place, kind) in kinds.iter().enumerate() {
-        match (kind, u16::try_from(place)) {
-            (CellKind::File, _) | (_, Err(_)) => row.push(StepOperand::File),
+        match (kind, read_column(rows, RowColumn(place))) {
+            (CellKind::File, _) | (_, None) => row.push(StepOperand::File),
             (
                 CellKind::Node
                 | CellKind::Symbol
                 | CellKind::Span
                 | CellKind::Number
                 | CellKind::Flag,
-                Ok(column),
+                Some(column),
             ) => {
-                let out = fresh_register(drafts);
-                stages.push(FillStage::Read {
-                    source,
-                    column: ReadColumn::Made(MadeColumn(column)),
-                    row: handle,
-                    out,
-                });
+                let out = if column == ReadColumn::Node(NodeColumn::Id) {
+                    handle
+                } else {
+                    let out = fresh_register(drafts);
+                    stages.push(FillStage::Read {
+                        source,
+                        column,
+                        row: handle,
+                        out,
+                    });
+                    out
+                };
                 row.push(StepOperand::Register(out));
             }
         }
@@ -100,7 +111,7 @@ pub(crate) fn scanned(drafts: &mut Drafts, definition: DefinitionId) -> Pipeline
 pub(crate) fn fill_of(
     state: &RuleFlattening<'_>,
     step: StepId,
-    from: DefinitionId,
+    from: Emptiness,
 ) -> Option<TableOf> {
     let node = digest_of(rule(state)?, step);
     let home = state.store.0.get(&node).map_or(
@@ -113,7 +124,7 @@ pub(crate) fn fill_of(
     Some(TableOf {
         node,
         home,
-        emptiness: Emptiness::Definition(from),
+        emptiness: from,
     })
 }
 
@@ -156,11 +167,14 @@ pub(crate) fn group_count_arm(
     };
     let shape = rule(state)?.shapes.get(usize::from(step))?.clone()?;
     let read = input(state, drafts, *from, InputWant::Defined)?;
-    let Emptiness::Definition(definition) = read.emptiness else {
-        return None;
+    // A step's rows are its definition's table; a relation's own rows are scanned as they stand.
+    let rows = match (&read.emptiness, from) {
+        (Emptiness::Definition(definition), _) => AtomRows::Definition(*definition),
+        (_, Input::Relation(relation)) => AtomRows::Relation(*relation),
+        (_, Input::Step(_) | Input::BoundObservation(_)) => return None,
     };
     let input = FillInput {
-        pipelines: [scanned(drafts, definition)].into(),
+        pipelines: [scanned(drafts, rows)].into(),
         keys: column_list(keys.iter().map(|key| RowColumn(usize::from(*key)))),
         order: None,
     };
@@ -170,7 +184,7 @@ pub(crate) fn group_count_arm(
         None => None,
     };
     let fill = MadeFill::Group(GroupFill::Count { distinct }, input);
-    let of = fill_of(state, step, definition)?;
+    let of = fill_of(state, step, copied(&read.emptiness))?;
     let table = made_once(drafts, of, fill, ColumnCount(shape.0.len()));
     let key_kinds = shape.0.iter().take(keys.len());
     let per_file = if !keys.is_empty() && key_kinds.clone().all(|kind| *kind == CellKind::File) {
@@ -188,7 +202,7 @@ pub(crate) fn group_count_arm(
             }],
             row: cells,
         }],
-        emptiness: derived(operation, vec![Emptiness::Definition(definition)]),
+        emptiness: derived(operation, vec![read.emptiness]),
         keyless: Vec::new(),
     })
 }
@@ -224,12 +238,12 @@ pub(crate) fn as_of_arm(
         .filter(|key| right_shape.0.get(key.right.0) != Some(&CellKind::File))
         .collect();
     let sorted = FillInput {
-        pipelines: [scanned(drafts, definition)].into(),
+        pipelines: [scanned(drafts, AtomRows::Definition(definition))].into(),
         keys: column_list(keys.iter().map(|key| key.right)),
         order: made_column(RowColumn(usize::from(*right_order))),
     };
     let fill = MadeFill::Ordered(OrderedFill::Sorted(sorted));
-    let of = fill_of(state, step, definition)?;
+    let of = fill_of(state, step, Emptiness::Definition(definition))?;
     let table = made_once(drafts, of, fill, ColumnCount(right_shape.0.len()));
     for branch in &mut lefts.branches {
         let key = picked(&branch.row, keys.iter().map(|key| key.left))?;
@@ -303,12 +317,12 @@ pub(crate) fn group_rows_arm(
         return None;
     };
     let grouped = FillInput {
-        pipelines: [scanned(drafts, definition)].into(),
+        pipelines: [scanned(drafts, AtomRows::Definition(definition))].into(),
         keys: column_list(keys.iter().map(|key| RowColumn(usize::from(*key)))),
         order: Some(made_column(RowColumn(usize::from(*order)))?),
     };
     let fill = MadeFill::Group(group, grouped);
-    let of = fill_of(state, step, definition)?;
+    let of = fill_of(state, step, Emptiness::Definition(definition))?;
     let table = made_once(drafts, of, fill, ColumnCount(shape.0.len()));
     let cells = fresh_cells(drafts, &shape);
     Some(Flattened {

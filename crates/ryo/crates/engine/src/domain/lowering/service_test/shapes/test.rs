@@ -185,6 +185,48 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "codes: {\"EachRowMade\": 2, \"Emit\": 2, \"End\": 3, \"ReadMade\": 4, \"StageCall\": 1, \"StageProbe\": 1, \"StageRead\": 2, \"StageScan\": 1, \"StageWrite\": 1}",
         ))),
     },
+    Case {
+        name: CaseName("a_next_sibling_axis_is_a_walk_to_the_sibling_after"),
+        word: Word::Succeeds,
+        input: || (&["the word after each word"], SampleStage::Absent),
+        expect: Expect::Value(Cow::Borrowed(concat!(
+            "rule 0: 1 branches\n",
+            "  branch: EachRow:File Read:Constant Axis:Fanout EachMatch:Fanout Read:Constant Read:Constant EachMatch:Fanout Read:Constant Emit:Constant\n",
+            "codes: {\"Axis\": 1, \"EachMatchNode\": 2, \"EachRowNode\": 1, \"Emit\": 1, \"End\": 2, \"ReadNode\": 4}",
+        ))),
+    },
+    Case {
+        name: CaseName("an_ancestor_axis_over_edges_that_are_no_tree_is_a_closure_from_the_start"),
+        word: Word::Succeeds,
+        input: || (&["the scopes above each scope"], SampleStage::Absent),
+        expect: Expect::Value(Cow::Borrowed(concat!(
+            "definition 0: 4 columns, emptiness Row(Scope, None)\n",
+            "  pattern bound [] collected []: Table 1\n",
+            "  pattern bound [1] collected []: Call: EachMatch:Fanout Yield:Constant\n",
+            "definition 1: 5 columns, emptiness All([Definition(DefinitionId(0)), Unknown, Definition(DefinitionId(0))])\n",
+            "  pattern bound [] collected []: Table 0\n",
+            "  pattern bound [1] collected [4]: Call: Exists:Fanout Closure:Fanout Exists:Fanout Let:Constant Yield:Constant\n",
+            "table 0: Rows, 5 columns, indexes []\n",
+            "  pipeline: Scan:File Read:Constant Read:Constant Read:Constant Use:Fanout Use:Fanout\n",
+            "table 1: Rows, 4 columns, indexes []\n",
+            "  pipeline: Scan:File Read:Constant Read:Constant Read:Constant\n",
+            "rule 0: 1 branches\n",
+            "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Read:Constant Emit:Constant\n",
+            "codes: {\"Closure\": 1, \"EachMatchFilled\": 2, \"EachRowMade\": 1, \"Emit\": 1, \"End\": 5, \"Exists\": 2, \"Let\": 1, \"ReadFilled\": 1, \"ReadMade\": 4, \"StageRead\": 6, \"StageScan\": 2, \"StageUse\": 2, \"StageWrite\": 2, \"Yield\": 3}",
+        ))),
+    },
+    Case {
+        name: CaseName("a_group_count_over_a_relation_scans_the_relations_own_rows"),
+        word: Word::Succeeds,
+        input: || (&["the links counted by kind"], SampleStage::Absent),
+        expect: Expect::Value(Cow::Borrowed(concat!(
+            "table 0: Group(Count), 3 columns, indexes []\n",
+            "  pipeline: Scan:File Read:Constant Read:Constant Read:Constant Read:Constant\n",
+            "rule 0: 1 branches\n",
+            "  branch: EachRow:File Read:Constant Read:Constant Emit:Constant\n",
+            "codes: {\"EachRowMade\": 1, \"Emit\": 1, \"End\": 2, \"ReadMade\": 2, \"StageRead\": 4, \"StageScan\": 1, \"StageWrite\": 1}",
+        ))),
+    },
 ];
 
 /// The scenes lowered and said in lines, as the cases of the service itself are.

@@ -22,7 +22,7 @@ use crate::domain::lowering::tables::types::InputSize;
 use crate::domain::lowering::tables::types::JoinWants;
 use crate::domain::lowering::tables::types::KeyPair;
 use crate::domain::lowering::tables::types::{InputWant, RuleFlattening, TreeAxis};
-use crate::domain::steps::types::Polarity;
+use crate::domain::steps::types::{AxisDirection, Polarity};
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::relations::types::Count;
 use ryo_values::domain::plan_parts::service::view_source;
@@ -294,7 +294,24 @@ pub(crate) fn axis_arm(
             })
         }
         TreeAxis::Along(walk) => {
-            let relation = tree?;
+            // Edges that are no tree are climbed by an ancestor axis alone: one or more edges from the child to the
+            // parent, a closure from the start.
+            let climbed = match (tree, walk) {
+                (Some(_), _) => None,
+                (None, AxisDirection::Ancestor) => Some(EdgeColumns {
+                    rows: edge_rows(state, drafts, *edges)?,
+                    keys: Vec::new(),
+                    source: made_column(RowColumn(usize::from(*child)))?,
+                    destination: made_column(RowColumn(usize::from(*parent)))?,
+                }),
+                (
+                    None,
+                    AxisDirection::Parent
+                    | AxisDirection::Descendant
+                    | AxisDirection::NextSibling
+                    | AxisDirection::PreviousSibling,
+                ) => return None,
+            };
             let wants = join_wants(sized(state, drafts, *from), sized(state, drafts, *domain));
             let starts = input(state, drafts, *from, wants.left)?;
             let mut held = input(state, drafts, *domain, wants.right)?;
@@ -305,11 +322,21 @@ pub(crate) fn axis_arm(
                     let mut walked = left.clone();
                     let reached = *right.row.get(entity)?;
                     walked.atoms.extend(right.atoms.iter().cloned());
-                    walked.atoms.push(FlatAtom::Walk {
-                        relation,
-                        direction: walk,
-                        start: *left.row.get(start)?,
-                        reached,
+                    let from = *left.row.get(start)?;
+                    walked.atoms.push(match (tree, &climbed) {
+                        (Some(relation), _) => FlatAtom::Walk {
+                            relation,
+                            direction: walk,
+                            start: from,
+                            reached,
+                        },
+                        (None, Some(edges)) => FlatAtom::Closure {
+                            edges: edges.clone(),
+                            keys: Vec::new(),
+                            source: from,
+                            reached,
+                        },
+                        (None, None) => return None,
                     });
                     walked.row.push(reached);
                     branches.push(walked);

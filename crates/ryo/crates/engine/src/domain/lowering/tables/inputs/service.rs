@@ -15,6 +15,7 @@ use crate::domain::lowering::flattening::types::{
 };
 use crate::domain::lowering::nodes::service::{digest_of, input_shape, kept_columns, readers};
 use crate::domain::lowering::nodes::types::{AdmittedRule, NodeHome};
+use crate::domain::lowering::tables::service::tree_relation;
 use crate::domain::lowering::tables::shapes::service::picked as kinds_picked;
 use crate::domain::lowering::tables::shapes::service::test_of;
 use crate::domain::lowering::tables::types::InputSize;
@@ -367,6 +368,14 @@ pub(crate) fn own_want(state: &RuleFlattening<'_>, step: StepId) -> InputWant {
             }
             | Operation::Closure { .. },
         ) => InputWant::Defined,
+        // An ancestor axis over edges that are no tree is a closure from its start.
+        Some(Operation::Axis {
+            direction: Direction::Ancestor,
+            edges,
+            parent,
+            child,
+            ..
+        }) if tree_relation(edges, *parent, *child).is_none() => InputWant::Defined,
         Some(_) | None => InputWant::Inline,
     }
 }

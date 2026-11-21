@@ -138,6 +138,48 @@ pub(super) fn shape_scene(scene: &str) -> Option<Plan> {
                 vec![of(Side::Left, 0), of(Side::Right, 0), of(Side::Left, 3)],
             ),
         ]),
+        // Each word beside the element just after it under its sentence.
+        "the word after each word" => plan(vec![
+            words(),
+            axis_of(
+                Direction::NextSibling,
+                Relation::SyntaxChild,
+                Input::Relation(Relation::SyntaxTree),
+            ),
+        ]),
+        // Each scope edge beside every scope above its child, among the children of the edges: an ancestor axis over
+        // edges that are no tree of a node relation.
+        "the scopes above each scope" => plan(vec![
+            kept(Input::Relation(Relation::Scope)),
+            axis_of(Direction::Ancestor, Relation::Scope, Input::Step(StepId(0))),
+        ]),
+        // The links of each kind in a file, counted by their distinct sources: a group count over a relation's own rows.
+        "the links counted by kind" => plan(vec![step(Operation::GroupCount {
+            from: Input::Relation(Relation::TokenLink),
+            keys: vec![at(2), at(3)],
+            distinct: Some(at(0)),
+        })]),
         _ => return None,
+    })
+}
+
+/// An axis from the second column of step 0 over `edges` (parent, then child), its domain's entity the second column too.
+fn axis_of(
+    direction: Direction,
+    edges: Relation,
+    domain: Input,
+) -> ryo_values::domain::plans::types::PlanStep {
+    step(Operation::Axis {
+        from: Input::Step(StepId(0)),
+        edges: Input::Relation(edges),
+        domain,
+        direction,
+        id: at(1),
+        parent: at(0),
+        child: at(1),
+        domain_id: at(1),
+        domain_filter: Vec::new(),
+        domain_view: Vec::new(),
+        output: Vec::new(),
     })
 }

@@ -52,10 +52,8 @@ pub(crate) const fn walk_of(direction: Direction) -> Option<TreeAxis> {
         Direction::Descendant => Some(TreeAxis::Along(AxisDirection::Descendant)),
         Direction::NearestAncestor => Some(TreeAxis::Nearest),
         Direction::Parent => Some(TreeAxis::Along(AxisDirection::Parent)),
-        Direction::Child
-        | Direction::Deep
-        | Direction::PreviousSibling
-        | Direction::NextSibling => None,
+        Direction::NextSibling => Some(TreeAxis::Along(AxisDirection::NextSibling)),
+        Direction::Child | Direction::Deep | Direction::PreviousSibling => None,
     }
 }
 
@@ -181,10 +179,13 @@ fn shaped(
             let domain_input = domain;
             let (mut shape, domain) = (of(from)?, of(domain)?);
             // An axis with its own answer columns is not lowered yet, nor are the axes `walk_of` names none for. The
-            // entity column is named through the domain's view; the filter reads the whole row. Edges that are no tree of a node relation are walked by a nearest axis alone.
+            // entity column is named through the domain's view; the filter reads the whole row. Edges that are no tree of a node relation are climbed by a nearest axis and by an ancestor axis alone.
+            let climbs = matches!(
+                walk_of(*direction),
+                Some(TreeAxis::Nearest | TreeAxis::Along(AxisDirection::Ancestor))
+            );
             let tree = tree_relation(edges, *parent, *child).is_some()
-                || (walk_of(*direction) == Some(TreeAxis::Nearest)
-                    && picked(&of(edges)?, &[*parent, *child]).is_some());
+                || (climbs && picked(&of(edges)?, &[*parent, *child]).is_some());
             // A nearest axis with a filter reads its domain in place, which a relation's rows can be and a step's are not.
             let plain = output.is_empty()
                 && comparable(rule, &domain, domain_filter).is_some()

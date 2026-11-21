@@ -33,7 +33,7 @@ fn side(
         return None;
     };
     let rows = FillInput {
-        pipelines: [scanned(drafts, definition)].into(),
+        pipelines: [scanned(drafts, AtomRows::Definition(definition))].into(),
         keys: column_list(keys.iter().map(|key| RowColumn(usize::from(*key)))),
         order: Some(made_column(RowColumn(usize::from(order)))?),
     };
@@ -69,7 +69,7 @@ pub(crate) fn match_arm(
         Emptiness::Definition(lefts.definition),
         Emptiness::Definition(rights.definition),
     ];
-    let of = fill_of(state, step, lefts.definition)?;
+    let of = fill_of(state, step, Emptiness::Definition(lefts.definition))?;
     let fill = MadeFill::Ordered(OrderedFill::Match(lefts.rows, rights.rows));
     let table = made_once(drafts, of, fill, ColumnCount(pair.0.len()));
     let cells = fresh_cells(drafts, &StepShape(pair.0));
