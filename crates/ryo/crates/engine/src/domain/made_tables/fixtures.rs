@@ -189,6 +189,8 @@ pub(crate) struct World {
     pub(crate) programs: RuleSet,
     /// The file's nodes.
     pub(crate) nodes: NodeTable,
+    /// The file's text.
+    pub(crate) text: Vec<u8>,
     /// The file's words.
     pub(crate) words: FileWords,
     /// The fill side's state.
@@ -240,6 +242,7 @@ pub(crate) fn world_of(
                 .collect(),
         },
         nodes,
+        text: TEXT.to_vec(),
         words: file_words(&base_words(
             checked(&[]).map_err(|_| FilledError::Code {
                 named: crate::domain::filled::types::MissingCode::Word,
@@ -264,6 +267,7 @@ pub(crate) fn framed(world: &mut World) -> (FillFrame<'_>, &mut Looped) {
     let World {
         programs,
         nodes: file,
+        text,
         words,
         store,
         told,
@@ -279,7 +283,7 @@ pub(crate) fn framed(world: &mut World) -> (FillFrame<'_>, &mut Looped) {
             },
             nodes: file,
             file: FILE,
-            text: ByteSlice(TEXT),
+            text: ByteSlice(text),
             facts: told,
             words,
             store,

@@ -2,33 +2,18 @@
 //! makes one table from a relation or from the file's nodes that are there already, so a run times the pipeline from its
 //! scan to its write (and a grouping fill's grouping) and neither the language nor an index build.
 
+use self::tables::{PRODUCT_LEFT, bench_table, bench_text, called, told_rows, tree};
 use crate::domain::code::types::RelationNumber;
-use crate::domain::code::types::ShapeChoice;
 use crate::domain::filled::errors::FilledError;
-use crate::domain::lowered::types::{
-    DefinitionPattern, Emptiness, FillInput, GroupFill, MadeFill, MadeTable, OrderedFill,
-    PackDefinition, PatternForm,
-};
-use crate::domain::made_tables::fixtures::packs::{
-    FIRST, SECOND, keep_equal, node_read, of, pipeline, probe, read, rows, scan, scan_nodes, table,
-    used, walk,
-};
 use crate::domain::made_tables::fixtures::{Telling, World, framed, site_of, world_of};
 use crate::domain::made_tables::sources::service::{made, matched, scanned, table_of};
 use crate::domain::made_tables::types::{
     FillFrame, KeyFrom, MadeState, PatternAsk, PatternFound, PatternRows, ReadSource, TableNeed,
 };
-use crate::domain::steps::stages::types::{FillStage, TreeWalk, UseMode};
-use crate::domain::steps::types::{
-    AxisDirection, ColumnList, ColumnMask, MadeColumn, MadeTableId, PlacedStep, ProgramStep,
-    Register, RegisterList, StepProgram, TestOperation,
-};
+use crate::domain::steps::types::MadeTableId;
 use ryo_language::domain::facts::types::CellWord;
-use ryo_language::domain::node_table::service::{builder, enter_node, finished, leave_node, token};
-use ryo_language::domain::node_table::types::{FieldCode, NodeTable};
-use ryo_relations::domain::relations::types::{Count, KindBits, NodeColumn, Offset, Relation};
-use ryo_values::domain::plan_parts::types::RepeatedRows;
-use ryo_values::domain::query_plans::types::NodeDigest;
+
+pub(crate) mod tables;
 
 /// The fills the bench times, each one table made through the seam.
 ///
@@ -61,6 +46,21 @@ pub enum FillBench {
     WalkAncestors,
     /// A rows fill that reads a node row's kind and keeps one kind.
     NodeKeep,
+    /// A rows fill with a `Call` of `SpanBounds` for every token: one row for one, two numbers.
+    CallSpanBounds,
+    /// A rows fill with a `Call` of `Replace` for every token's text: one row for one, a word of the file.
+    CallReplace,
+    /// A rows fill with a `Call` of `Capture` for every token's text: one way a text, two slots.
+    CallCapture,
+    /// A rows fill with a `Call` of `SourceMatches` for every group of seven tokens: seven occurrences a group.
+    CallSourceMatches,
+    /// An ordered match of the relation with itself, eight rows a key on each side.
+    OrderedMatch,
+    /// The rows at the greatest end of each key's rows, eight rows a key.
+    GroupEnds,
+    /// A rows fill with a `Product`: thirty-two rows each paired with every row of the relation, a read and a keep for
+    /// each pair, one pair in each row's kept.
+    Product,
 }
 
 /// Every fill the bench times.
@@ -70,7 +70,7 @@ pub enum FillBench {
 /// ```
 /// use ryo_engine::domain::made_tables::fixtures::benches::FILL_BENCHES;
 ///
-/// assert_eq!(FILL_BENCHES.len(), 10);
+/// assert_eq!(FILL_BENCHES.len(), 17);
 /// ```
 pub const FILL_BENCHES: &[FillBench] = &[
     FillBench::RowsRead,
@@ -83,6 +83,13 @@ pub const FILL_BENCHES: &[FillBench] = &[
     FillBench::WalkChildren,
     FillBench::WalkAncestors,
     FillBench::NodeKeep,
+    FillBench::CallSpanBounds,
+    FillBench::CallReplace,
+    FillBench::CallCapture,
+    FillBench::CallSourceMatches,
+    FillBench::OrderedMatch,
+    FillBench::GroupEnds,
+    FillBench::Product,
 ];
 
 /// The name a fill's measure carries.
@@ -107,6 +114,55 @@ pub const fn fill_name(bench: FillBench) -> &'static str {
         FillBench::WalkChildren => "walk_children",
         FillBench::WalkAncestors => "walk_ancestors",
         FillBench::NodeKeep => "node_read_keep",
+        FillBench::CallSpanBounds => "call_span_bounds",
+        FillBench::CallReplace => "call_replace",
+        FillBench::CallCapture => "call_capture",
+        FillBench::CallSourceMatches => "call_source_matches",
+        FillBench::OrderedMatch => "ordered_match",
+        FillBench::GroupEnds => "group_ends",
+        FillBench::Product => "product_pairs",
+    }
+}
+
+/// What a fill's time over `rows` rows is divided by: the rows of its source, or for the product the pairs it makes
+/// (thirty-two rows, or every row of fewer, each with every row).
+///
+/// # Examples
+///
+/// ```
+/// use ryo_engine::domain::made_tables::fixtures::benches::{FillBench, fill_units};
+///
+/// assert_eq!(fill_units(FillBench::RowsRead, 100), 100);
+/// assert_eq!(fill_units(FillBench::Product, 100), 3_200);
+/// ```
+#[must_use]
+pub const fn fill_units(bench: FillBench, rows: usize) -> usize {
+    let rows = if rows == 0 { 1 } else { rows };
+    match bench {
+        FillBench::Product => {
+            let left = if rows < PRODUCT_LEFT {
+                rows
+            } else {
+                PRODUCT_LEFT
+            };
+            left.saturating_mul(rows)
+        }
+        FillBench::RowsRead
+        | FillBench::RowsKeep
+        | FillBench::RowsProbe
+        | FillBench::RowsDropped
+        | FillBench::GroupCount
+        | FillBench::Sorted
+        | FillBench::UseRows
+        | FillBench::WalkChildren
+        | FillBench::WalkAncestors
+        | FillBench::NodeKeep
+        | FillBench::CallSpanBounds
+        | FillBench::CallReplace
+        | FillBench::CallCapture
+        | FillBench::CallSourceMatches
+        | FillBench::OrderedMatch
+        | FillBench::GroupEnds => rows,
     }
 }
 
@@ -148,172 +204,6 @@ impl PatternRows for OneRow {
     }
 }
 
-/// How many rows a key holds where a workload groups.
-const GROUP_ROWS: u64 = 8;
-
-/// The relation of a workload of `rows` rows: the first cell a key in a scattered order, the second what the fill reads
-/// beside it.
-fn told_rows(bench: FillBench, rows: usize) -> Vec<[u64; 2]> {
-    let all = u64::try_from(rows).unwrap_or(u64::MAX).max(1);
-    (0..all)
-        .map(|row| match bench {
-            // Every row its own key; the second cell is another row's key, so a probe finds one row.
-            FillBench::RowsRead | FillBench::RowsKeep | FillBench::RowsProbe => [
-                row.wrapping_mul(7919) % all,
-                row.wrapping_mul(104_729) % all,
-            ],
-            FillBench::RowsDropped
-            | FillBench::GroupCount
-            | FillBench::Sorted
-            | FillBench::UseRows => [row / GROUP_ROWS, row.wrapping_mul(31) % 43],
-            FillBench::WalkChildren | FillBench::WalkAncestors | FillBench::NodeKeep => [row, row],
-        })
-        .collect()
-}
-
-/// A file of about `elements` elements: a root (kind 1) whose children (kind 2) each hold seven tokens (kind 3).
-fn tree(elements: usize) -> NodeTable {
-    let mut made = NodeTable::default();
-    let mut writer = builder(&mut made, Count(4));
-    let groups = u32::try_from(elements / 8).unwrap_or(u32::MAX).max(1);
-    enter_node(&mut writer, KindBits(1), FieldCode(0), Offset(0));
-    for group in 0..groups {
-        let start = group.saturating_mul(7);
-        enter_node(&mut writer, KindBits(2), FieldCode(0), Offset(start));
-        for place in 0..7 {
-            let at = start.saturating_add(place);
-            token(
-                &mut writer,
-                KindBits(3),
-                FieldCode(0),
-                Offset(at),
-                Offset(at.saturating_add(1)),
-            );
-        }
-        leave_node(&mut writer, Offset(start.saturating_add(7)));
-    }
-    leave_node(&mut writer, Offset(groups.saturating_mul(7)));
-    let _table = finished(&mut writer);
-    made
-}
-
-/// The input of a grouping fill: the relation's two columns, keyed by the first.
-fn grouped(order: Option<MadeColumn>) -> FillInput {
-    FillInput {
-        pipelines: Box::new([pipeline(
-            vec![scan(0), read(FIRST, 0, 1), read(SECOND, 0, 2)],
-            [of(1), of(2)],
-        )]),
-        keys: ColumnList(Box::new([MadeColumn(0)])),
-        order,
-    }
-}
-
-/// The table a workload makes.
-fn bench_table(bench: FillBench) -> MadeTable {
-    let tree = Relation::SemanticSyntax;
-    let kept = |fill| table(1, 2, fill);
-    match bench {
-        FillBench::RowsRead => rows(
-            2,
-            pipeline(
-                vec![scan(0), read(FIRST, 0, 1), read(SECOND, 0, 2)],
-                [of(1), of(2)],
-            ),
-        ),
-        FillBench::RowsKeep => rows(
-            2,
-            pipeline(
-                vec![
-                    scan(0),
-                    read(FIRST, 0, 1),
-                    read(SECOND, 0, 2),
-                    FillStage::Keep {
-                        test: TestOperation::Less,
-                        left: of(1),
-                        right: of(2),
-                    },
-                ],
-                [of(1), of(2)],
-            ),
-        ),
-        FillBench::RowsProbe => rows(
-            2,
-            pipeline(
-                vec![
-                    scan(0),
-                    read(SECOND, 0, 2),
-                    probe(2, None, UseMode::Rows, 3),
-                    read(SECOND, 3, 4),
-                ],
-                [of(2), of(4)],
-            ),
-        ),
-        FillBench::RowsDropped => table(
-            1,
-            2,
-            MadeFill::Rows(
-                Box::new([pipeline(
-                    vec![scan(0), read(FIRST, 0, 1), read(SECOND, 0, 2)],
-                    [of(1), of(2)],
-                )]),
-                RepeatedRows::Dropped,
-            ),
-        ),
-        FillBench::GroupCount => kept(MadeFill::Group(
-            GroupFill::Count { distinct: None },
-            grouped(None),
-        )),
-        FillBench::Sorted => kept(MadeFill::Ordered(OrderedFill::Sorted(grouped(Some(
-            MadeColumn(1),
-        ))))),
-        FillBench::UseRows => rows(
-            2,
-            pipeline(
-                vec![scan(0), read(FIRST, 0, 1), used(1, UseMode::Rows, &[5])],
-                [of(1), of(5)],
-            ),
-        ),
-        FillBench::WalkChildren => {
-            let mut all = Vec::from(scan_nodes(tree));
-            all.push(walk(tree, TreeWalk::Children(None), 0, 2));
-            rows(2, pipeline(all, [of(0), of(2)]))
-        }
-        FillBench::WalkAncestors => {
-            let mut all = Vec::from(scan_nodes(tree));
-            all.push(keep_equal(1, 13));
-            all.push(walk(tree, TreeWalk::Axis(AxisDirection::Ancestor), 0, 2));
-            rows(2, pipeline(all, [of(0), of(2)]))
-        }
-        FillBench::NodeKeep => {
-            let mut all = Vec::from(scan_nodes(tree));
-            all.push(keep_equal(1, 13));
-            all.push(node_read(tree, NodeColumn::Start, 0, 2));
-            rows(2, pipeline(all, [of(0), of(2)]))
-        }
-    }
-}
-
-/// A definition of two columns with one pattern in call form, bound by its first column and collecting its second.
-fn called() -> PackDefinition {
-    PackDefinition {
-        node: NodeDigest([80; 16]),
-        formals: RegisterList(Box::new([Register(800), Register(801)])),
-        emptiness: Emptiness::Unknown,
-        patterns: vec![DefinitionPattern {
-            bound: ColumnMask(Box::new([MadeColumn(0)])),
-            collected: ColumnMask(Box::new([MadeColumn(1)])),
-            form: PatternForm::Call(StepProgram(Box::new([PlacedStep {
-                point: None,
-                step: ProgramStep::Yield {
-                    row: RegisterList(Box::new([Register(801)])),
-                },
-            }]))),
-            shape: ShapeChoice::Decided,
-        }],
-    }
-}
-
 /// The workload of a fill over about `rows` rows: its relation filled whole and the index its probe reads built, so a
 /// run times the fill alone. None when the encoding refuses the workload's pack.
 ///
@@ -337,6 +227,7 @@ pub fn fill_workload(bench: FillBench, rows: usize) -> Option<FillWorkload> {
     let Ok(mut world) = world else {
         return None;
     };
+    world.text = bench_text(rows);
     let reads_told = match bench {
         FillBench::RowsRead
         | FillBench::RowsKeep
@@ -344,8 +235,17 @@ pub fn fill_workload(bench: FillBench, rows: usize) -> Option<FillWorkload> {
         | FillBench::RowsDropped
         | FillBench::GroupCount
         | FillBench::Sorted
-        | FillBench::UseRows => true,
-        FillBench::WalkChildren | FillBench::WalkAncestors | FillBench::NodeKeep => false,
+        | FillBench::UseRows
+        | FillBench::OrderedMatch
+        | FillBench::GroupEnds
+        | FillBench::Product => true,
+        FillBench::WalkChildren
+        | FillBench::WalkAncestors
+        | FillBench::NodeKeep
+        | FillBench::CallSpanBounds
+        | FillBench::CallReplace
+        | FillBench::CallCapture
+        | FillBench::CallSourceMatches => false,
     };
     if reads_told {
         let (mut frame, _) = framed(&mut world);
@@ -379,6 +279,20 @@ pub fn fill_workload(bench: FillBench, rows: usize) -> Option<FillWorkload> {
 ///
 /// let mut work = fill_workload(FillBench::GroupCount, 80).expect("the pack encodes");
 /// assert_eq!(run_fill(&mut work), 10);
+/// // Over 800 elements (100 groups of seven tokens) or 800 rows (100 keys of eight rows): a row for each token from
+/// // the three calls of one row for one, seven occurrences a group, seven pairs a key (the last left row has no later
+/// // right row), one greatest row a key, and of 32 times 800 pairs the 32 a row makes with itself.
+/// let made = |bench| run_fill(&mut fill_workload(bench, 800).expect("the pack encodes"));
+/// let fills = [
+///     FillBench::CallSpanBounds,
+///     FillBench::CallReplace,
+///     FillBench::CallCapture,
+///     FillBench::CallSourceMatches,
+///     FillBench::OrderedMatch,
+///     FillBench::GroupEnds,
+///     FillBench::Product,
+/// ];
+/// assert_eq!(fills.map(made), [700, 700, 700, 700, 700, 100, 32]);
 /// ```
 pub fn run_fill(work: &mut FillWorkload) -> usize {
     if let Some(slot) = work.0.store.tables.first_mut() {

@@ -49,7 +49,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Filled::EndsGreatest,
         expect: Expect::Value(Cow::Borrowed(
-            "1 30; 2 20; 3 10 | orders [] | read 25 given 18 made 3 | reached [Relation(RelationNumber(0))] | the language was asked 1 times",
+            "1 30; 2 20; 3 10 | orders [] | read 25 given 18 made 3 sides 0 0 | reached [Relation(RelationNumber(0))] | the language was asked 1 times",
         )),
     },
     Case {
@@ -57,7 +57,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Filled::EndsLeast,
         expect: Expect::Value(Cow::Borrowed(
-            "1 10; 1 10; 2 20; 3 10 | orders [] | read 25 given 19 made 4 | reached [Relation(RelationNumber(0))] | the language was asked 1 times",
+            "1 10; 1 10; 2 20; 3 10 | orders [] | read 25 given 19 made 4 sides 0 0 | reached [Relation(RelationNumber(0))] | the language was asked 1 times",
         )),
     },
     Case {
@@ -65,7 +65,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Filled::MatchOneKey,
         expect: Expect::Value(Cow::Borrowed(
-            "7 1 10 7 2; 7 2 20 7 3 | orders [] | read 33 given 23 made 2 | reached [Table(MadeTableId(0)), Table(MadeTableId(1))] | the language was asked 0 times",
+            "7 1 10 7 2; 7 2 20 7 3 | orders [] | read 33 given 23 made 2 sides 3 3 | reached [Table(MadeTableId(0)), Table(MadeTableId(1))] | the language was asked 0 times",
         )),
     },
     Case {
@@ -73,7 +73,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Filled::MatchKeys,
         expect: Expect::Value(Cow::Borrowed(
-            "8 2 20 8 3; 8 5 50 8 6 | orders [] | read 49 given 33 made 2 | reached [Table(MadeTableId(0)), Table(MadeTableId(1))] | the language was asked 0 times",
+            "8 2 20 8 3; 8 5 50 8 6 | orders [] | read 49 given 33 made 2 sides 4 5 | reached [Table(MadeTableId(0)), Table(MadeTableId(1))] | the language was asked 0 times",
         )),
     },
     Case {
@@ -218,10 +218,12 @@ fn subject(filled: Input) -> Result<Value, Failure> {
     let reached = slot.map(|slot| slot.reached.clone()).unwrap_or_default();
     drop(frame);
     Ok(Cow::Owned(format!(
-        "{said} | orders {orders:?} | read {} given {} made {} | reached {reached:?} | the language was asked {} times",
+        "{said} | orders {orders:?} | read {} given {} made {} sides {} {} | reached {reached:?} | the language was asked {} times",
         work.read.0,
         work.given.0,
         work.made.0,
+        work.left.0,
+        work.right.0,
         world.told.asked.len()
     )))
 }

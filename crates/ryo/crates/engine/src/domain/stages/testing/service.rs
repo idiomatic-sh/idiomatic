@@ -27,6 +27,85 @@ fn kept(outcome: PredicateOutcome, wanted: PredicateOutcome) -> RowKept {
     }
 }
 
+/// A glob test of each row's text: against the row's own glob, one glob, or any of a set. `wanted` is the outcome kept.
+fn globbed(
+    means: TextMeans<'_>,
+    words: &FileWords,
+    test: TextTest<'_>,
+    wanted: PredicateOutcome,
+    rows: Count,
+    keep: &mut Vec<BatchRow>,
+) {
+    let lefts = (0..rows.0).map(|row| TextView(text(words, value_at(test.left, Count(row))).0));
+    match test.right {
+        Some(BatchValue::Column(globs)) => {
+            // Each row tests its text against its own glob.
+            let mut held = Vec::with_capacity(rows.0);
+            for (left, glob) in lefts.zip(globs) {
+                let one = [TextView(text(words, *glob).0)];
+                held.extend(
+                    glob_any_each(std::iter::once(left), &one, means.matcher)
+                        .map(|outcome| kept(outcome, wanted)),
+                );
+            }
+            selected(rows, keep, held.into_iter());
+        }
+        Some(BatchValue::Constant(glob)) => {
+            let one = [TextView(text(words, glob).0)];
+            selected(
+                rows,
+                keep,
+                glob_any_each(lefts, &one, means.matcher).map(|outcome| kept(outcome, wanted)),
+            );
+        }
+        None => {
+            let several: Vec<TextView<'_>> = test
+                .set
+                .iter()
+                .map(|glob| TextView(text(words, *glob).0))
+                .collect();
+            selected(
+                rows,
+                keep,
+                glob_any_each(lefts, &several, means.matcher).map(|outcome| kept(outcome, wanted)),
+            );
+        }
+    }
+}
+
+/// An affix test of each row's text: the operators crate's comparison, with the row's own affix or one for every row.
+///
+/// # Errors
+///
+/// The test names no affix.
+fn affixed(
+    words: &FileWords,
+    test: TextTest<'_>,
+    asked: Test,
+    rows: Count,
+    keep: &mut Vec<BatchRow>,
+) -> Result<(), FilledError> {
+    let lefts = (0..rows.0).map(|row| TextView(text(words, value_at(test.left, Count(row))).0));
+    let mut held = Vec::with_capacity(rows.0);
+    for (row, whole) in lefts.enumerate() {
+        let affix = match test.right {
+            Some(value) => text(words, value_at(value, Count(row))),
+            None => {
+                return Err(FilledError::Code {
+                    named: MissingCode::Word,
+                });
+            }
+        };
+        let outcome = AffixItem.holds(asked, &Datum::Text(whole), &Datum::Text(TextView(affix.0)));
+        held.push(match outcome {
+            Ok(PredicateOutcome::Holds) => RowKept::Yes,
+            Ok(PredicateOutcome::Fails) | Err(_) => RowKept::No,
+        });
+    }
+    selected(rows, keep, held.into_iter());
+    Ok(())
+}
+
 /// `Keep` of a test of a text: the rows of the batch it holds for, as a selection. `Matches` searches each row's text with
 /// its one expression; the glob test asks whether each row's text matches any of its globs, one constant or a set, or
 /// the row's own; its negation keeps the other rows; `StartsWith` and `EndsWith` ask the operators crate's affix
@@ -62,74 +141,16 @@ pub(crate) fn keep_text(
             );
             Ok(())
         }
-        TestOperation::Glob | TestOperation::NotGlob => {
-            let wanted = match test.test {
-                TestOperation::NotGlob => PredicateOutcome::Fails,
-                _ => PredicateOutcome::Holds,
-            };
-            match test.right {
-                Some(BatchValue::Column(globs)) => {
-                    // Each row tests its text against its own glob.
-                    let mut held = Vec::with_capacity(rows.0);
-                    for (left, glob) in lefts.zip(globs) {
-                        let one = [TextView(text(words, *glob).0)];
-                        held.extend(
-                            glob_any_each(std::iter::once(left), &one, means.matcher)
-                                .map(|outcome| kept(outcome, wanted)),
-                        );
-                    }
-                    selected(rows, keep, held.into_iter());
-                }
-                Some(BatchValue::Constant(glob)) => {
-                    let one = [TextView(text(words, glob).0)];
-                    selected(
-                        rows,
-                        keep,
-                        glob_any_each(lefts, &one, means.matcher)
-                            .map(|outcome| kept(outcome, wanted)),
-                    );
-                }
-                None => {
-                    let several: Vec<TextView<'_>> = test
-                        .set
-                        .iter()
-                        .map(|glob| TextView(text(words, *glob).0))
-                        .collect();
-                    selected(
-                        rows,
-                        keep,
-                        glob_any_each(lefts, &several, means.matcher)
-                            .map(|outcome| kept(outcome, wanted)),
-                    );
-                }
-            }
+        TestOperation::Glob => {
+            globbed(means, words, test, PredicateOutcome::Holds, rows, keep);
             Ok(())
         }
-        TestOperation::StartsWith | TestOperation::EndsWith => {
-            let asked = match test.test {
-                TestOperation::EndsWith => Test::EndsWith,
-                _ => Test::StartsWith,
-            };
-            let mut held = Vec::with_capacity(rows.0);
-            for (row, whole) in lefts.enumerate() {
-                let affix = match test.right {
-                    Some(value) => text(words, value_at(value, Count(row))),
-                    None => {
-                        return Err(FilledError::Code {
-                            named: MissingCode::Word,
-                        });
-                    }
-                };
-                let outcome =
-                    AffixItem.holds(asked, &Datum::Text(whole), &Datum::Text(TextView(affix.0)));
-                held.push(match outcome {
-                    Ok(PredicateOutcome::Holds) => RowKept::Yes,
-                    Ok(PredicateOutcome::Fails) | Err(_) => RowKept::No,
-                });
-            }
-            selected(rows, keep, held.into_iter());
+        TestOperation::NotGlob => {
+            globbed(means, words, test, PredicateOutcome::Fails, rows, keep);
             Ok(())
         }
+        TestOperation::StartsWith => affixed(words, test, Test::StartsWith, rows, keep),
+        TestOperation::EndsWith => affixed(words, test, Test::EndsWith, rows, keep),
         TestOperation::NumericAtLeast | TestOperation::NaturalLess | TestOperation::Successor => {
             Err(FilledError::Unbuilt {
                 unbuilt: UnbuiltFill::Stage(Op::StageKeep),
