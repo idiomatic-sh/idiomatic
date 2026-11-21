@@ -202,6 +202,16 @@ pub(crate) fn input(
             {
                 return Some(read);
             }
+            // A step that holds no row (an empty constant table) is no branch for any reader, and no definition.
+            if !drafts.defined.contains_key(&digest)
+                && waiting.is_some_and(|flattened| flattened.branches.is_empty())
+            {
+                return Some(Flattened {
+                    branches: Vec::new(),
+                    emptiness: Emptiness::Any(Box::default()),
+                    keyless: Vec::new(),
+                });
+            }
             let cut = want == InputWant::Defined
                 || shared
                 || own_want(state, step) == InputWant::Defined

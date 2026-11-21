@@ -217,6 +217,10 @@ pub(crate) fn antijoin_arm(
     let width = input_kinds(&held.rule, &held.shapes, *right)?.0.len();
     let mut lefts = input(state, drafts, *left, InputWant::Inline)?;
     let rights = input(state, drafts, *right, InputWant::Defined)?;
+    // A right side that holds no row takes nothing away.
+    if rights.branches.is_empty() {
+        return Some(lefts);
+    }
     // A step's rows are its definition's; a relation's own rows are asked in place.
     let rows = match (rights.emptiness, right) {
         (Emptiness::Definition(definition), _) => AtomRows::Definition(definition),
