@@ -2,7 +2,7 @@
 
 use super::errors::LoadError;
 use super::interface::LoadUseCase;
-use super::service::sequenced;
+use super::service::{sequenced, worded_pack};
 use super::types::{LoadSource, LoadedRules};
 use crate::domain::lowering::service::lowered;
 use crate::domain::packs::errors::PacksError;
@@ -53,16 +53,17 @@ impl LoadUseCase for LoadUseCaseImpl {
                     lowered(selected, given, statistics.as_ref(), kinds)
                 })
             }
-            LoadSource::Pack(bytes, digest) => unpacked(bytes, digest)
-                .map(|programs| LoadedRules {
-                    programs,
-                    ..LoadedRules::default()
-                })
-                .map_err(|error| match error {
+            LoadSource::Pack(bytes, digest) => {
+                let programs = unpacked(bytes, digest).map_err(|error| match error {
                     PacksError::Version => LoadError::PackVersion,
                     PacksError::Digest => LoadError::PackDigest,
                     PacksError::Corrupt => LoadError::PackCorrupt,
-                }),
+                })?;
+                Ok(LoadedRules {
+                    programs: worded_pack(programs, kinds)?,
+                    ..LoadedRules::default()
+                })
+            }
         }
     }
 }

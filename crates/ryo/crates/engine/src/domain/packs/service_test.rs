@@ -94,3 +94,42 @@ fn succeeds() {
 fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
+
+/// Every rule set the load scenarios make, written and read back: the code read is the code written, the words made again
+/// from the vocabulary are the load's, and the read pack writes the same bytes. A scenario the load refuses is skipped.
+#[test]
+fn a_loaded_rule_set_reads_back_whole() {
+    use crate::inbound::use_cases::load::fixtures::{kinds, loaded_with};
+    use crate::inbound::use_cases::load::interface::LoadUseCase as _;
+    use crate::inbound::use_cases::load::types::LoadSource;
+    use crate::inbound::use_cases::load::use_case::LoadUseCaseImpl;
+    use crate::domain::statistics::types::StatisticsBytes;
+    let scenes = [
+        "one tree rule and one over the host's rows",
+        "two rules, one sub-plan",
+        "two rules, one sub-plan, two bound values",
+        "a product within a file",
+        "a keyed read, then the whole relation",
+        "one walk over each tree",
+    ];
+    // The vocabulary the scenarios load against: the fixture language's, stating no fixed name.
+    let vocabulary = ryo_values::domain::descriptions::types::KindVocabulary { fixed: Vec::new(), ..kinds() };
+    let mut read_back = 0;
+    for scene in scenes {
+        let Ok(loaded) = loaded_with(scene, StatisticsBytes(&[])) else {
+            continue;
+        };
+        let digest = PackDigest([7; 32]);
+        let written = encoded(&loaded.programs, digest);
+        let again = LoadUseCaseImpl
+            .load(LoadSource::Pack(PackBytes(&written.0), digest), &vocabulary)
+            .unwrap_or_else(|error| panic!("{scene}: the pack does not read back: {error:?}"));
+        assert_eq!(again.programs.0.code, loaded.programs.0.code, "{scene}: the code read back");
+        assert_eq!(again.programs.0.kinds, loaded.programs.0.kinds, "{scene}: the kinds' words");
+        assert_eq!(again.programs.0.fields, loaded.programs.0.fields, "{scene}: the fields' words");
+        assert_eq!(again.programs.0.node_needs, loaded.programs.0.node_needs, "{scene}: the need sites");
+        assert_eq!(encoded(&again.programs, digest), written, "{scene}: the bytes written again");
+        read_back += 1;
+    }
+    assert!(read_back >= 4, "too few scenarios loaded: {read_back}");
+}

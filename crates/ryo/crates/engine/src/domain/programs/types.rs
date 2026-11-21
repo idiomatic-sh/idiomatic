@@ -1,7 +1,8 @@
 //! The types of the `programs` concept: a rule set's programs and the instruction set they are written in. Everything but
 //! `Programs` itself is the crate's own: the lowering writes it, the packs encode it, the executor runs it.
 use crate::domain::code::types::ProgramCode;
-use crate::domain::steps::types::StepRegex;
+use crate::domain::scratch::types::NodeNeed;
+use crate::domain::steps::types::{ConstantText, StepRegex};
 use ryo_language::domain::facts::types::{BaseWords, CellWord};
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::StepId;
@@ -52,6 +53,12 @@ pub(crate) struct ProgramsEngine {
     /// For each rule of the code, in the code's rule order: the digests of its own plan's steps, by which a unit's plan step is
     /// found for that rule (`service::unit_step`). A unit is named by a merged node, which is no step of any one plan.
     pub(crate) steps: Vec<RuleSteps>,
+    /// The pack's constant texts, in their order: the words after the fixed names. Kept so a pack can be written.
+    pub(crate) texts: Vec<ConstantText>,
+    /// For each need site of the code's rules' branches and tables, by site, whether its formula asks the node rows (none
+    /// for any other place): a function of the code, found once at load (or read from the pack) and handed to every
+    /// worker's state, which finds any other site at its first ask.
+    pub(crate) node_needs: Vec<Option<NodeNeed>>,
 }
 
 /// One rule's plan as a work notice needs it: where each node is in the plan.

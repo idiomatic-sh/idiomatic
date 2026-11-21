@@ -1,10 +1,13 @@
 //! The `packs` service: a rule set's programs as bytes and back. A pack is the engine version, the digest it was written for, then
 //! the programs (the rule count, then each rule's programs, the shared sub-programs, the made tables,
-//! the constant pool and the regular expressions: track L2 writes the sections after the count).
+//! the constant pool and the regular expressions: the sections of `writing`). A pack read back holds no words: the load,
+//! which has the vocabulary, makes them.
 
 use super::constants::{COUNT_WIDTH, ENGINE_VERSION, VERSION_WIDTH};
 use super::errors::PacksError;
+use super::reading::service::read;
 use super::types::{EncodedPack, PackBytes, PackDigest};
+use super::writing::service::written;
 use crate::domain::programs::types::{Programs, ProgramsEngine};
 use ryo_relations::domain::relations::types::Count;
 
@@ -37,6 +40,10 @@ pub fn encoded(programs: &Programs, digest: PackDigest) -> EncodedPack {
             .unwrap_or(u32::MAX)
             .to_le_bytes(),
     );
+    // A rule set of no rule is its header alone.
+    if !programs.0.code.rules.is_empty() {
+        written(&mut bytes, &programs.0);
+    }
     EncodedPack(bytes)
 }
 
@@ -81,9 +88,18 @@ pub fn decoded(bytes: PackBytes<'_>, digest: PackDigest) -> Result<Programs, Pac
         return Err(PacksError::Digest);
     }
     let count = take(bytes, &mut at, COUNT_WIDTH)?.0;
-    // The rule sections follow the count (track L2); until they are written, a pack holds no rule and nothing after its count.
-    if count != 0_u32.to_le_bytes() || at.0 != bytes.0.len() {
+    let rest = bytes.0.get(at.0..).unwrap_or_default();
+    // A rule set of no rule is its header alone; any other is its sections, read whole.
+    if count == 0_u32.to_le_bytes() {
+        return if rest.is_empty() {
+            Ok(Programs(ProgramsEngine::default()))
+        } else {
+            Err(PacksError::Corrupt)
+        };
+    }
+    let programs = read(rest).ok_or(PacksError::Corrupt)?;
+    if u32::try_from(programs.code.rules.len()).unwrap_or(u32::MAX).to_le_bytes() != *count {
         return Err(PacksError::Corrupt);
     }
-    Ok(Programs(ProgramsEngine::default()))
+    Ok(Programs(programs))
 }

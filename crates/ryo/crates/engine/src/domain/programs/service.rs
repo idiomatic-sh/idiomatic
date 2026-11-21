@@ -317,6 +317,8 @@ pub fn scratch_for(programs: &Programs) -> ScanScratch {
         state: LoopState {
             registers: vec![CellWord(0); registers],
             decoded: decoded_code(&programs.0.code),
+            // Whether each need site asks the node rows, found once at load.
+            node_needs: programs.0.node_needs.clone(),
             ..LoopState::default()
         },
         store: FillStore::default(),

@@ -163,10 +163,25 @@ pub fn loaded(
         kinds: request.kinds,
         stored: request.stored,
     };
+    let key = pack_key(digest, request.given, request.kinds);
     if let Some(load) = kept(engine, digest, stored) {
+        // Spike (ryo-fmx3.1): a hit checked against a fresh load of the same rules, when asked: the code a hit runs is
+        // the code a miss writes, byte for byte.
+        if std::env::var_os("RYO_L2_PACK_CHECK").is_some() {
+            let fresh = lowered(engine, digest, &request).programs;
+            let again = engine.encoded(&fresh, PackDigest(key.0)).0;
+            let read = engine.encoded(&load.programs, PackDigest(key.0)).0;
+            eprintln!(
+                "ryo l2: pack check: stored {} bytes, fresh {} bytes, hit re-encoded {} bytes; fresh equal {}, hit equal {}",
+                load.pack.bytes.0.len(),
+                again.len(),
+                read.len(),
+                again == load.pack.bytes.0,
+                read == load.pack.bytes.0
+            );
+        }
         return load;
     }
-    let key = pack_key(digest, request.given, request.kinds);
     let Lowered {
         programs,
         refusals,

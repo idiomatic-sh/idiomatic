@@ -5,7 +5,10 @@
 
 use super::errors::LoadError;
 use super::types::{LoadedRules, NamedWords};
-use crate::domain::code::types::{ProgramCode, UnitKey};
+use crate::domain::code::types::{NeedSite, ProgramCode, UnitKey};
+use crate::domain::needs::service::asks_nodes;
+use crate::domain::needs::types::NeedVerdict;
+use crate::domain::scratch::types::NodeNeed;
 use crate::domain::encoding::service::encoded;
 use crate::domain::executing::running::service::unit_not_run;
 use crate::domain::lowered::types::LoweredPack;
@@ -80,6 +83,7 @@ fn programs(
     let stated: Vec<NameText<'_>> = names.fixed.iter().map(|name| NameText(&name.0)).collect();
     let words = worded(&stated, &texts)?;
     let NamedWords { kinds, fields } = named_words(&words, names);
+    let node_needs = node_needs(&code);
     Ok(Programs(ProgramsEngine {
         code,
         words,
@@ -88,7 +92,47 @@ fn programs(
         regexes: pack.regexes,
         reads: pack.reads,
         steps,
+        texts: pack.texts,
+        node_needs,
     }))
+}
+
+/// Whether the formula of each need site of the rules' branches and the tables asks the node rows: a function of the code
+/// alone, found once at load (or read from a pack) and handed to every worker, which would otherwise find it again at the
+/// first ask of each site.
+pub(crate) fn node_needs(code: &ProgramCode) -> Vec<Option<NodeNeed>> {
+    let branches = code.rules.iter().flat_map(|rule| rule.branches.iter().map(|branch| branch.need));
+    let sites: Vec<NeedSite> = branches.chain(code.tables.iter().map(|table| table.need)).collect();
+    let last = sites.iter().map(|site| site.0).max().map_or(0, |last| last.saturating_add(1));
+    let mut needs = vec![None; usize::try_from(last).unwrap_or(0)];
+    for site in sites {
+        let Some(slot) = needs.get_mut(usize::try_from(site.0).unwrap_or(usize::MAX)) else {
+            continue;
+        };
+        if slot.is_none() {
+            *slot = Some(match asks_nodes(code, site) {
+                NeedVerdict::Holds => NodeNeed::Asked,
+                NeedVerdict::Empty => NodeNeed::NotAsked,
+            });
+        }
+    }
+    needs
+}
+
+/// A pack read back, made runnable against `names`: its words, and the word of each kind and field, made as a load makes them
+/// (the fixed names, then the pack's texts, then the kinds' and fields' names).
+pub(super) fn worded_pack(mut programs: Programs, names: &KindVocabulary) -> Result<Programs, LoadError> {
+    let constant = programs.0.texts.iter().map(|text| &*text.0);
+    let named = names.kinds.iter().map(|kind| &*kind.0);
+    let named = named.chain(names.fields.iter().map(|field| &*field.0));
+    let texts: Vec<NameText<'_>> = constant.chain(named).map(NameText).collect();
+    let stated: Vec<NameText<'_>> = names.fixed.iter().map(|name| NameText(&name.0)).collect();
+    let words = worded(&stated, &texts)?;
+    let NamedWords { kinds, fields } = named_words(&words, names);
+    programs.0.words = words;
+    programs.0.kinds = kinds;
+    programs.0.fields = fields;
+    Ok(programs)
 }
 
 /// The rules of loaded programs the executor cannot run whole: each can reach a word or a fill the executor does not run

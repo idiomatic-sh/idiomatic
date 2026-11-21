@@ -184,12 +184,27 @@ impl LintUseCase for LintUseCaseImpl {
         // packs of compiles nothing. A run the store has no answer for goes on as before, and keeps its packs for the next.
         let (ids, mut listed) = (ids_of(&rules), None);
         if analysis.engines() == EngineMode::New && request.answer == AnswerShape::Findings {
+            // Spike (ryo-fmx3.1): the items before a hit's first file, timed once, when asked.
+            let clock = std::time::Instant::now();
             let placed = placement(self.matching.as_ref(), &rules, &ids)?;
+            let placing = clock.elapsed();
             let findings = Answering::Findings;
             let listing = self.storing.listing(&findings).map_err(from_storing)?;
+            let listed_at = clock.elapsed();
             let scan = asked(&request, &rules, &ids, &placed, &findings, &listing);
             if let Some(stored) = self.visits.stored(scan)? {
-                return Ok(self.visits.answered(&stored, &request.files)?.into());
+                let found = clock.elapsed();
+                let answer = self.visits.answered(&stored, &request.files)?;
+                if std::env::var_os("RYO_L2_START").is_some() {
+                    eprintln!(
+                        "ryo l2: start: rules placed {} us; listing {} us; store asked {} us; files scanned and written {} us",
+                        placing.as_micros(),
+                        listed_at.saturating_sub(placing).as_micros(),
+                        found.saturating_sub(listed_at).as_micros(),
+                        clock.elapsed().saturating_sub(found).as_micros()
+                    );
+                }
+                return Ok(answer.into());
             }
             listed = Some(listing);
         }

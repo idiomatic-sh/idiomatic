@@ -124,11 +124,32 @@ impl FileVisits {
         let scan = Box::new(self.analysis.scanner(request.named));
         let session = match scan.mode() {
             EngineMode::Old => Some(ScanSession::default()),
-            EngineMode::New | EngineMode::Both => scan.stored(ScanStoredRequest {
-                given: self.analysis.given(&request),
-                selected: Count(request.rules.len()),
-                stored: &Self::packs(&request)?,
-            })?,
+            EngineMode::New | EngineMode::Both => {
+                // Spike (ryo-fmx3.1): each item of a store's read, timed once, when asked.
+                let timed = std::env::var_os("RYO_L2_START").is_some();
+                let clock = std::time::Instant::now();
+                let given = self.analysis.given(&request);
+                let digested = clock.elapsed();
+                let packs = Self::packs(&request)?;
+                let read = clock.elapsed();
+                let session = scan.stored(ScanStoredRequest {
+                    given,
+                    selected: Count(request.rules.len()),
+                    stored: &packs,
+                })?;
+                if timed {
+                    let bytes: usize = packs.iter().map(|pack| pack.bytes.0.len()).sum();
+                    eprintln!(
+                        "ryo l2: start: key digested {} us; store read {} us ({} packs, {bytes} bytes); packs decoded {} us; {}",
+                        digested.as_micros(),
+                        read.saturating_sub(digested).as_micros(),
+                        packs.len(),
+                        clock.elapsed().saturating_sub(read).as_micros(),
+                        if session.is_some() { "pack known" } else { "store empty" }
+                    );
+                }
+                session
+            }
         };
         Ok(session.map(|session| self.over(scan, session, request, Vec::new())))
     }
