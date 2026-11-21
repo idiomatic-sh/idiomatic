@@ -6,6 +6,7 @@
 pub(crate) mod described;
 mod flags;
 pub mod growth;
+mod observed;
 mod parts;
 pub mod pending;
 mod scenes;
@@ -333,7 +334,8 @@ pub fn named(scene: &str) -> Plan {
         .or_else(|| shapes::shape_scene(scene))
         .or_else(|| sets::set_scene(scene))
         .or_else(|| views::view_scene(scene))
-        .or_else(|| flags::flag_scene(scene));
+        .or_else(|| flags::flag_scene(scene))
+        .or_else(|| observed::observed_scene(scene));
     if let Some(plan) = listed {
         return plan;
     }

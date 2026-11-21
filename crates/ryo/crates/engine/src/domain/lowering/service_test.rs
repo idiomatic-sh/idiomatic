@@ -266,6 +266,23 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ))),
     },
     Case {
+        name: CaseName(
+            "a_rule_another_rule_observes_loads_and_its_pack_holds_no_step_of_the_observed_output",
+        ),
+        word: Word::Succeeds,
+        input: || {
+            (
+                &["a rule over the tree whose words another rule observes"],
+                SampleStage::Absent,
+            )
+        },
+        expect: Expect::Value(Cow::Borrowed(concat!(
+            "rule 0: 1 branches\n",
+            "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Emit:Constant\n",
+            "codes: {\"EachRowNode\": 1, \"Emit\": 1, \"End\": 2, \"ReadNode\": 3}",
+        ))),
+    },
+    Case {
         name: CaseName("a_rule_set_whose_every_rule_is_refused_answers_the_last_refusal"),
         word: Word::Refuses,
         input: || {

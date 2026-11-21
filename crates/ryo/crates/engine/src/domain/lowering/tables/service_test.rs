@@ -104,6 +104,20 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         || Asked::Admitted(named("follow fixed points")),
         LoadRefusal::Unlowerable(PlanNode(4)),
     ),
+    said(
+        "a_rule_whose_emit_reaches_per_file_steps_alone_is_admitted_though_its_plan_hands_rows_over",
+        || {
+            Asked::Admitted(named(
+                "a rule over the tree whose words another rule observes",
+            ))
+        },
+        "5 columns",
+    ),
+    refused(
+        "a_rule_whose_emit_reaches_a_step_after_the_files_is_refused_at_that_step",
+        || Asked::Admitted(named("a rule that emits after the files")),
+        LoadRefusal::Unlowerable(PlanNode(1)),
+    ),
     refused(
         "a_step_that_runs_after_the_files_is_refused",
         || Asked::Admitted(after_the_files()),
