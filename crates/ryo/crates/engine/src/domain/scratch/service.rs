@@ -5,6 +5,7 @@ use super::types::{BodyAnswer, LoopWork, ScanScratch, SeamRows};
 use crate::domain::made_tables::sources::service::next_file as next_store;
 use crate::domain::memos::service::clear_memos;
 use ryo_language::domain::facts::service::clear_words;
+use ryo_relations::domain::relations::types::Count;
 
 /// Starts a file: nothing the last file left is read again.
 pub(crate) fn next_file(scratch: &mut ScanScratch) {
@@ -20,6 +21,8 @@ pub(crate) fn next_file(scratch: &mut ScanScratch) {
     state.key.clear();
     state.needs.clear();
     state.need_terms.asked.fill(0);
+    state.need_terms.free.fill(0);
+    state.need_terms.free_known = Count(0);
     state.rows = SeamRows::default();
     state.answer = BodyAnswer::default();
     state.fault = None;
