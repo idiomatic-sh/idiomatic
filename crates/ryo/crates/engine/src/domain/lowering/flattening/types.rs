@@ -73,12 +73,12 @@ pub(crate) enum FlatAtom {
         /// The cells of the row found, in the table's column order.
         cells: Vec<FlatTerm>,
     },
-    /// A definition must have, or must not have, a row holding the given cells.
+    /// A source must have, or must not have, a row holding the given cells: a definition, or a relation's own rows.
     Decided {
         /// Which.
         polarity: Polarity,
-        /// The definition.
-        definition: DefinitionId,
+        /// The source.
+        rows: AtomRows,
         /// The cell asked of each column; none: any.
         cells: Vec<Option<FlatTerm>>,
     },

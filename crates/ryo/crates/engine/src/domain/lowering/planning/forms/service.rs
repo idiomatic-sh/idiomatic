@@ -10,6 +10,25 @@ use crate::domain::steps::types::{
 };
 use crate::domain::steps::types::{PlacedStep, RegisterList, StepProgram};
 
+/// Steps written in place as a body: each row of them ends in a `Yield` of `row`.
+fn inline_body(steps: Vec<ProgramStep>, row: RegisterList) -> StepBody {
+    let written = steps.into_iter().chain([ProgramStep::Yield { row }]);
+    StepBody::Inline(StepProgram(
+        written
+            .map(|step| PlacedStep { point: None, step })
+            .collect(),
+    ))
+}
+
+/// A source asked whether it holds a row: the read is the body of an `Exists`, each row of it a `Yield` of nothing.
+fn asked(polarity: Polarity, read: ProgramStep) -> ProgramStep {
+    ProgramStep::Exists {
+        polarity,
+        body: inline_body(vec![read], RegisterList::default()),
+        memo: StepMemo::None,
+    }
+}
+
 /// One access as a step of a program.
 pub(crate) fn step_of(access: WrittenAccess) -> ProgramStep {
     match access {
@@ -18,21 +37,29 @@ pub(crate) fn step_of(access: WrittenAccess) -> ProgramStep {
             columns,
             values,
             kinds,
+            mode,
             out,
-        } => match kinds {
-            Some(KindAnchor { relation, kinds }) => ProgramStep::EachKind {
-                relation,
-                kinds,
-                out,
-            },
-            None if columns.0.is_empty() => ProgramStep::EachRow { source, out },
-            None => ProgramStep::EachMatch {
-                source,
-                columns,
-                values,
-                out,
-            },
-        },
+        } => {
+            let read = match kinds {
+                Some(KindAnchor { relation, kinds }) => ProgramStep::EachKind {
+                    relation,
+                    kinds,
+                    out,
+                },
+                None if columns.0.is_empty() => ProgramStep::EachRow { source, out },
+                None => ProgramStep::EachMatch {
+                    source,
+                    columns,
+                    values,
+                    out,
+                },
+            };
+            match mode {
+                UseMode::Rows => read,
+                UseMode::Present => asked(Polarity::Present, read),
+                UseMode::Absent => asked(Polarity::Absent, read),
+            }
+        }
         WrittenAccess::Use {
             definition,
             bound,
@@ -178,6 +205,7 @@ pub(crate) fn stage_of(access: WrittenAccess, first: Enumerated) -> Option<FillS
             source,
             columns,
             values,
+            mode,
             out,
             ..
         } => {
@@ -185,7 +213,10 @@ pub(crate) fn stage_of(access: WrittenAccess, first: Enumerated) -> Option<FillS
                 .0
                 .iter()
                 .any(|value| matches!(value, StepOperand::Register(_)));
-            match (first, keyed) {
+            // A source asked whether it holds a row is a probe in that mode, whatever its values; it is no scan.
+            let decides = mode != UseMode::Rows;
+            match (first, keyed || decides) {
+                (Enumerated::NotYet, _) if decides => return None,
                 (Enumerated::NotYet, _) => FillStage::Scan {
                     source,
                     columns,
@@ -197,7 +228,7 @@ pub(crate) fn stage_of(access: WrittenAccess, first: Enumerated) -> Option<FillS
                     columns,
                     values,
                     range: None,
-                    mode: UseMode::Rows,
+                    mode,
                     out,
                 },
                 (Enumerated::Already, false) => FillStage::Product { source, out },
@@ -291,16 +322,9 @@ fn walk_body(edges: WalkEdges) -> StepBody {
             collected: used.collected,
             values: used.values,
         },
-        WalkEdges::Inline { steps, gives } => {
-            let row = ProgramStep::Yield {
-                row: RegisterList([gives].into()),
-            };
-            let written = steps.into_iter().map(step_of).chain([row]);
-            StepBody::Inline(StepProgram(
-                written
-                    .map(|step| PlacedStep { point: None, step })
-                    .collect(),
-            ))
-        }
+        WalkEdges::Inline { steps, gives } => inline_body(
+            steps.into_iter().map(step_of).collect(),
+            RegisterList([gives].into()),
+        ),
     }
 }

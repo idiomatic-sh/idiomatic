@@ -1,9 +1,10 @@
 //! The plans of the shapes the lowering's fifth step names, each the smallest of its shape: a step only projections read, and
 //! the operations whose side is a relation where the scenes before them gave a step.
 
-use super::parts::{joined, kept, nearest_step, of, plan, projected};
+use super::parts::{joined, kept, nearest_step, of, plan, projected, step, words};
 use ryo_relations::domain::relations::types::Relation;
-use ryo_values::domain::plan_parts::types::{Input, Side, StepId};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, Side, StepId};
+use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_plans::types::Plan;
 
 /// The plans of the fifth step's shapes; none for another name.
@@ -41,6 +42,16 @@ pub(super) fn shape_scene(scene: &str) -> Option<Plan> {
             kept(Input::Relation(Relation::SyntaxTree)),
             nearest_step(Input::Relation(Relation::SyntaxChild)),
             projected(1, &[5]),
+        ]),
+        // The words no link starts at: an antijoin whose right side is a relation's own rows, asked by the word.
+        "the words no link starts at" => plan(vec![
+            words(),
+            step(Operation::Antijoin {
+                left: Input::Step(StepId(0)),
+                right: Input::Relation(Relation::TokenLink),
+                left_on: vec![ColumnIndex(1)],
+                right_on: vec![ColumnIndex(0)],
+            }),
         ]),
         _ => return None,
     })

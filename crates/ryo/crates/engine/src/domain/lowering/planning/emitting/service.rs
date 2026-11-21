@@ -11,6 +11,7 @@ use crate::domain::lowering::flattening::types::{
     AtomRows, FlatAtom, FlatTerm, RowColumn, RowsPerFile,
 };
 use crate::domain::lowering::planning::closures::service::closed;
+use crate::domain::lowering::planning::deciding::service::decided;
 use crate::domain::lowering::planning::operands::service::called;
 use crate::domain::lowering::planning::operands::service::{
     anchor_kinds, cell_register, file_noted, file_register, key_value, operand, read_column,
@@ -24,7 +25,7 @@ use crate::domain::lowering::planning::walks::types::{NearestClimb, WalkEnds};
 use crate::domain::steps::stages::types::UseMode;
 use crate::domain::steps::types::{
     ColumnList, ColumnMask, CostClass, DefinitionId, MadeColumn, MadeTableId, MatchColumns,
-    Polarity, ReadColumn, Register, RegisterList, StepOperand, StepOperands, TestOperation,
+    ReadColumn, Register, RegisterList, StepOperand, StepOperands, TestOperation,
 };
 use ryo_relations::domain::relations::types::Count;
 use ryo_relations::domain::relations::types::NodeColumn;
@@ -225,6 +226,7 @@ fn rows_read(
         columns: MatchColumns(listed.into()),
         values: StepOperands(values.into()),
         kinds,
+        mode: UseMode::Rows,
         out,
     });
     // A pinned variable the access was keyed by is given from here on: as its constant, and by the row's own cell.
@@ -238,41 +240,6 @@ fn rows_read(
     }
     file_noted(emitter, source, out);
     cells_read(emitter, source, cells, &choice.cells, out);
-}
-
-/// A decision of a definition: the cells asked are its bound columns, and it collects nothing.
-fn decided(
-    emitter: &mut Emitter<'_>,
-    polarity: Polarity,
-    definition: DefinitionId,
-    cells: &[Option<FlatTerm>],
-) {
-    let (mut bound, mut values) = (Vec::new(), Vec::new());
-    for (place, cell) in cells.iter().enumerate() {
-        let value = cell.and_then(|cell| match cell {
-            FlatTerm::File => None,
-            FlatTerm::Variable(_) | FlatTerm::Text(_) | FlatTerm::Number(_) => {
-                operand(&emitter.environment, cell)
-            }
-        });
-        if let (Some(value), Some(column)) = (value, made_column(RowColumn(place))) {
-            bound.push(column);
-            values.push(value);
-        }
-    }
-    let bound = ColumnMask(bound.into());
-    asked(emitter.drafts, definition, &bound, &ColumnMask::default());
-    emitter.written.push(WrittenAccess::Use {
-        definition,
-        bound,
-        collected: ColumnMask::default(),
-        values: StepOperands(values.into()),
-        outputs: RegisterList::default(),
-        mode: match polarity {
-            Polarity::Present => UseMode::Present,
-            Polarity::Absent => UseMode::Absent,
-        },
-    });
 }
 
 /// Writes one atom of a branch.
@@ -311,9 +278,9 @@ pub(crate) fn atom_written(emitter: &mut Emitter<'_>, atom: &FlatAtom) {
         }
         FlatAtom::Decided {
             polarity,
-            definition,
+            rows,
             cells,
-        } => decided(emitter, *polarity, *definition, cells),
+        } => decided(emitter, *polarity, *rows, cells),
         FlatAtom::Walk {
             relation,
             direction,

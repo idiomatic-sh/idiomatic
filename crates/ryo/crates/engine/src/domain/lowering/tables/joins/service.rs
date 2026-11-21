@@ -9,7 +9,9 @@ use crate::domain::lowering::flattening::service::made_column;
 use crate::domain::lowering::flattening::service::{picked, unified};
 use crate::domain::lowering::flattening::types::EdgeColumns;
 use crate::domain::lowering::flattening::types::NearestOver;
-use crate::domain::lowering::flattening::types::{EqualTerms, FlatAtom, FlatTerm, RowColumn};
+use crate::domain::lowering::flattening::types::{
+    AtomRows, EqualTerms, FlatAtom, FlatTerm, RowColumn,
+};
 use crate::domain::lowering::nodes::service::input_shape;
 use crate::domain::lowering::tables::closures::service::edge_rows;
 use crate::domain::lowering::tables::inputs::service::{all_selected, input, rule, sized};
@@ -22,7 +24,7 @@ use crate::domain::steps::types::Polarity;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::relations::types::Count;
 use ryo_values::domain::plan_parts::service::view_source;
-use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side, StepId};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, JoinColumn, Side, StepId};
 use ryo_values::domain::plans::types::Operation;
 
 /// How each side of a join is asked for: both inline while the product of their branches and the atoms of a joined branch
@@ -168,8 +170,11 @@ pub(crate) fn antijoin_arm(
     let width = input_shape(&rule(state)?.shapes, *right)?.0.len();
     let mut lefts = input(state, drafts, *left, InputWant::Inline)?;
     let rights = input(state, drafts, *right, InputWant::Defined)?;
-    let Emptiness::Definition(definition) = rights.emptiness else {
-        return None;
+    // A step's rows are its definition's; a relation's own rows are asked in place.
+    let rows = match (rights.emptiness, right) {
+        (Emptiness::Definition(definition), _) => AtomRows::Definition(definition),
+        (_, Input::Relation(relation)) => AtomRows::Relation(*relation),
+        (_, Input::Step(_) | Input::BoundObservation(_)) => return None,
     };
     for branch in &mut lefts.branches {
         let mut cells: Vec<Option<FlatTerm>> = vec![None; width];
@@ -186,9 +191,13 @@ pub(crate) fn antijoin_arm(
                 cell @ None => *cell = Some(asked).filter(|term| *term != FlatTerm::File),
             }
         }
+        // A relation asked with no cell within the file is asked whether it holds a row at all: not lowered here.
+        if matches!(rows, AtomRows::Relation(_)) && cells.iter().all(Option::is_none) {
+            return None;
+        }
         branch.atoms.push(FlatAtom::Decided {
             polarity: Polarity::Absent,
-            definition,
+            rows,
             cells,
         });
         // The absence is asked only where the two left cells are equal; where they differ no right row matches, and the

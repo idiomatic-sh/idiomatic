@@ -73,6 +73,37 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "codes: {\"EachMatchNode\": 1, \"EachRowMade\": 1, \"Emit\": 1, \"End\": 4, \"Exists\": 1, \"Let\": 1, \"Nearest\": 1, \"ReadMade\": 1, \"StageRead\": 7, \"StageScan\": 2, \"StageUse\": 1, \"StageWrite\": 2, \"Yield\": 2}",
         ))),
     },
+    Case {
+        name: CaseName("an_antijoin_against_a_relation_is_an_exists_over_its_rows_read_in_place"),
+        word: Word::Succeeds,
+        input: || (&["the words no link starts at"], SampleStage::Absent),
+        expect: Expect::Value(Cow::Borrowed(concat!(
+            "rule 0: 1 branches\n",
+            "  branch: EachRow:File Read:Constant Read:Constant EachMatch:Fanout Exists:Constant Read:Constant Emit:Constant\n",
+            "codes: {\"EachMatchFilled\": 1, \"EachMatchNode\": 1, \"EachRowNode\": 1, \"Emit\": 1, \"End\": 3, \"Exists\": 1, \"ReadNode\": 3, \"Yield\": 1}",
+        ))),
+    },
+    Case {
+        name: CaseName("an_antijoin_against_a_relation_is_in_a_pipeline_a_probe_asked_absent"),
+        word: Word::Succeeds,
+        input: || {
+            (
+                &["the words no link starts at", "the words no link starts at"],
+                SampleStage::Absent,
+            )
+        },
+        expect: Expect::Value(Cow::Borrowed(concat!(
+            "definition 0: 5 columns, emptiness All([Unknown, Unknown])\n",
+            "  pattern bound [] collected []: Table 0\n",
+            "table 0: Rows, 5 columns, indexes []\n",
+            "  pipeline: Scan:File Read:Constant Read:Constant Probe:Fanout Probe:Fanout Read:Constant\n",
+            "rule 0: 1 branches\n",
+            "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Read:Constant Emit:Constant\n",
+            "rule 1: 1 branches\n",
+            "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Read:Constant Emit:Constant\n",
+            "codes: {\"EachRowMade\": 2, \"Emit\": 2, \"End\": 3, \"ReadMade\": 8, \"StageProbe\": 2, \"StageRead\": 3, \"StageScan\": 1, \"StageWrite\": 1}",
+        ))),
+    },
 ];
 
 /// The scenes lowered and said in lines, as the cases of the service itself are.

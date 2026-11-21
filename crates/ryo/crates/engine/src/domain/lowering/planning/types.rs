@@ -45,6 +45,8 @@ pub(crate) enum WrittenAccess {
         values: StepOperands,
         /// The kinds a bucket of the node table names, when the vocabulary has them.
         kinds: Option<KindAnchor>,
+        /// Whether rows go on, or only whether a row is there: a decision of a source's own rows.
+        mode: UseMode,
         /// The row's handle.
         out: Register,
     },
