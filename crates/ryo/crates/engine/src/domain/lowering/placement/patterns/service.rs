@@ -14,8 +14,8 @@ use crate::domain::lowering::placement::types::{
 use crate::domain::lowering::placement::types::{LoadSample, RefusedPlace};
 use crate::domain::lowering::planning::emitting::service::indexed;
 use crate::domain::lowering::planning::service::planned;
-use crate::domain::lowering::planning::types::PatternColumns;
 use crate::domain::lowering::planning::types::UnitRole;
+use crate::domain::lowering::planning::types::{PatternColumns, PlannedBranch};
 use crate::domain::lowering::planning::writing::service::{
     pattern_program, pattern_whole, pipeline,
 };
@@ -100,11 +100,30 @@ pub(crate) fn given(branch: &FlatBranch, bound: &ColumnMask) -> HashSet<FlatVari
         .collect()
 }
 
-/// Places one pattern asked of a definition and writes it in its form: its program, or its definition's table.
+/// The plan of each branch of a pattern's definition with the pattern's bound columns given: a pattern has a program when
+/// every branch has one, every access keyed. None when a branch has none, or the pattern is not one of the drafts'. It
+/// reads the drafts and writes nothing: the plans of patterns that wait may be made in any order, or at once.
+#[must_use]
+pub(crate) fn pattern_plans(
+    drafts: &Drafts,
+    waiting: WaitingPattern,
+) -> Option<Vec<PlannedBranch>> {
+    let draft = draft_at(drafts, waiting.definition)?;
+    let bound = &draft.patterns.get(waiting.pattern.0)?.asked.bound;
+    let plans = draft
+        .branches
+        .iter()
+        .map(|branch| planned(drafts, branch, &given(branch, bound), UnitRole::Pattern));
+    plans.collect()
+}
+
+/// Places one pattern asked of a definition and writes it in its form: its program, or its definition's table. `plans` are
+/// the pattern's own (`pattern_plans`).
 pub(crate) fn pattern_placed(
     drafts: &mut Drafts,
     sample: LoadSample<'_>,
     waiting: WaitingPattern,
+    plans: Option<Vec<PlannedBranch>>,
 ) -> Result<(), RefusedPlace> {
     let missing = RefusedPlace {
         rule: AcceptedPlace(0),
@@ -130,11 +149,6 @@ pub(crate) fn pattern_placed(
         (OwnWalks::Stageable, true) => TableForm::Keyed,
         (OwnWalks::Stageable, false) => TableForm::Product,
     };
-    // A pattern has a program when every branch has one with the bound columns given: every access keyed.
-    let plans: Option<Vec<_>> = branches
-        .iter()
-        .map(|branch| planned(drafts, branch, &given(branch, &bound), UnitRole::Pattern))
-        .collect();
     let facts = PatternFacts {
         binds: Count(bound.0.len()),
         call: match &plans {

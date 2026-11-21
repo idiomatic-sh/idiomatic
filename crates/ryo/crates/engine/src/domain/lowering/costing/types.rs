@@ -6,8 +6,8 @@ use crate::domain::statistics::types::Statistics;
 use crate::domain::steps::types::{ColumnMask, CostClass, DefinitionId};
 use ryo_values::domain::descriptions::types::KindVocabulary;
 use ryo_values::domain::query_plans::types::NodeDigest;
-use std::cell::RefCell;
 use std::collections::HashMap;
+use std::sync::Mutex;
 
 /// An estimate of the planner, in 1,024ths: rows in a file or for a candidate, or steps. A fraction says an access leaves
 /// less than a row of a candidate. It orders accesses and is never a bound.
@@ -64,7 +64,7 @@ pub(crate) struct UseAsked {
 /// What each use asked so far costs, from the definition's own plan for the columns bound: a use is costed once however
 /// many accesses ask it. None: the definition has no program for the columns, and the use reads its table.
 #[derive(Debug, Default)]
-pub(crate) struct UseCosts(pub(crate) RefCell<HashMap<UseAsked, Option<AccessCost>>>);
+pub(crate) struct UseCosts(pub(crate) Mutex<HashMap<UseAsked, Option<AccessCost>>>);
 
 /// What a sample measured the buckets of a file at, with the language's names the sizes are read by: the costing sizes a
 /// kind's, a field's or a literal's bucket by it where the sample sized one, and by the fixed prior where it did not.

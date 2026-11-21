@@ -4,9 +4,10 @@
 use super::super::super::types::Below;
 use super::super::super::types::Residual;
 use super::super::super::types::SharedPush;
-use super::super::placing::service::{filter_of, insert_before, met_key, place_after};
+use super::super::placing::service::{filter_of, met_key, place_after};
 use crate::domain::fusing::service::fuse;
 use crate::domain::rewriting::types::StepIndex;
+use crate::domain::selection_pushing::types::{PlanSplice, Spliced};
 use crate::domain::widths::service::width_of;
 use ryo_values::domain::plan_parts::service::column_in;
 use ryo_values::domain::plan_parts::service::fixed_prefix;
@@ -113,7 +114,12 @@ fn without(comparisons: &[PlanComparison], moved: &[PlanComparison]) -> Vec<Plan
 
 /// The plan with `push` made: the step made again below the filters, and what is made before it, just before the first filter,
 /// which then reads it, and each other filter reading it too, every later step and root renumbered.
-pub(crate) fn shared_into(steps: &mut Vec<PlanStep>, roots: &mut [StepId], push: SharedPush) {
+pub(crate) fn shared_into(
+    steps: &mut Vec<PlanStep>,
+    roots: &mut [StepId],
+    push: SharedPush,
+    splice: PlanSplice,
+) -> Option<Spliced> {
     let SharedPush {
         below: Below {
             mut before,
@@ -122,9 +128,7 @@ pub(crate) fn shared_into(steps: &mut Vec<PlanStep>, roots: &mut [StepId], push:
         },
         residuals,
     } = push;
-    let Some((head, others)) = residuals.split_first() else {
-        return;
-    };
+    let (head, others) = residuals.split_first()?;
     let first = StepId(u32::try_from(head.reader.0).unwrap_or(u32::MAX));
     let at = place_after(first, &before);
     let residual = |residual: &Residual| PlanStep {
@@ -146,12 +150,19 @@ pub(crate) fn shared_into(steps: &mut Vec<PlanStep>, roots: &mut [StepId], push:
         residual(head)
     };
     let count = before.len();
-    insert_before(steps, roots, head.reader, before, filter);
+    splice(steps, roots, head.reader, before, filter);
+    let mut replaced = Vec::with_capacity(others.len());
     for other in others {
         if let Some(step) = steps.get_mut(other.reader.0 + count) {
             *step = residual(other);
+            replaced.push(StepIndex(other.reader.0 + count));
         }
     }
+    Some(Spliced {
+        at: head.reader,
+        count,
+        replaced,
+    })
 }
 
 /// The antijoin `id` over its inputs filtered by `comparisons`, of its left's columns: an antijoin keeps left rows as they are,

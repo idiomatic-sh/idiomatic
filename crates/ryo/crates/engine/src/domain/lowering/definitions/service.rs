@@ -2,8 +2,7 @@
 //! of one, and a pattern asked of one. A definition is lowered once, whoever reads it; nothing below a use is ever copied.
 
 use super::types::{
-    AskedColumns, DefinitionDraft, Drafts, Flattened, PatternDraft, PatternPlace, RowEstimate,
-    WaitingPattern,
+    AskedColumns, DefinitionDraft, Drafts, Flattened, PatternDraft, PatternPlace, WaitingPattern,
 };
 use crate::domain::code::types::ShapeChoice;
 use crate::domain::lowering::emptiness::branches::service::{branches_need, with_need};
@@ -19,6 +18,7 @@ use ryo_relations::domain::relations::types::{CellKind, KindBits};
 use ryo_values::domain::descriptions::types::KindVocabulary;
 use ryo_values::domain::plan_parts::types::LiteralText;
 use ryo_values::domain::query_plans::types::NodeDigest;
+use std::sync::OnceLock;
 
 /// A variable no branch names yet.
 pub(crate) fn fresh_variable(drafts: &mut Drafts) -> FlatVariable {
@@ -87,7 +87,6 @@ pub(crate) fn defined(
     home: NodeHome,
     shape: StepShape,
     flattened: Flattened,
-    rows: RowEstimate,
 ) -> DefinitionId {
     if let Some(definition) = drafts.defined.get(&node) {
         return *definition;
@@ -105,7 +104,7 @@ pub(crate) fn defined(
         emptiness: with_need(flattened.emptiness, need),
         keyless: flattened.keyless,
         formals,
-        rows,
+        rows: OnceLock::new(),
         patterns: Vec::new(),
         table: None,
     });

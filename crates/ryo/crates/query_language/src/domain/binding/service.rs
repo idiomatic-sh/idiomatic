@@ -6,13 +6,13 @@ use crate::domain::linking::service::located;
 use crate::domain::syntax::constants::BOOLEAN_WORDS;
 use crate::domain::syntax::constants::fragment_scalar_kind_named;
 use ryo_values::domain::program::types::FragmentProgram;
-use ryo_values::domain::program::types::LetStep;
 use ryo_values::domain::query_bindings::types::ParameterType;
 use ryo_values::domain::query_syntax::types::Argument;
 use ryo_values::domain::query_syntax::types::ArgumentValue;
 use ryo_values::domain::query_syntax::types::Call;
 use ryo_values::domain::query_tokens::types::QuerySourceId;
 use ryo_values::domain::query_tokens::types::QueryTraceSite;
+use ryo_values::domain::query_tokens::types::StepName;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
@@ -25,7 +25,7 @@ pub(crate) fn bind_arguments(
     source: &QuerySourceId,
     fragment: &FragmentProgram,
     call: &Call,
-    preceding: &[LetStep],
+    preceding: &[StepName],
     inherited_inputs: &Bindings,
     inherited_parameters: &Bindings,
     root_parameters: &[ryo_values::domain::program::types::ParameterDeclaration],
@@ -126,18 +126,15 @@ pub(crate) fn bind_arguments(
 pub(crate) fn bind_relation_argument(
     value: &ArgumentValue,
     inherited: &Bindings,
-    preceding: &[LetStep],
+    preceding: &[StepName],
 ) -> ArgumentValue {
     match value {
         ArgumentValue::Word(word) => inherited.0.get(&*word.0).cloned().unwrap_or_else(|| {
             preceding
                 .iter()
                 .rev()
-                .find(|step| *step.name.0 == *word.0)
-                .map_or_else(
-                    || value.clone(),
-                    |step| ArgumentValue::Step(step.name.clone()),
-                )
+                .find(|name| *name.0 == *word.0)
+                .map_or_else(|| value.clone(), |name| ArgumentValue::Step(name.clone()))
         }),
         ArgumentValue::Text(_)
         | ArgumentValue::Number(_)

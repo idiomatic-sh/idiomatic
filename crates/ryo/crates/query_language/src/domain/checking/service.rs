@@ -1,6 +1,6 @@
 //! The `checking` service: free functions named by verb over the checks of a module before its calls are expanded.
 
-use super::types::{ImportAlias, ImportIndex};
+use super::types::{FragmentChecks, ImportAlias, ImportIndex};
 use crate::domain::linking::errors::LinkingError;
 use crate::domain::linking::service::located;
 use crate::domain::linking::service::source_id;
@@ -156,49 +156,101 @@ pub(crate) fn validate_import_targets(
     Ok(())
 }
 
-/// Rejects cyclic imports before expansion begins.
-pub(crate) fn reject_cycles(
-    root: &QuerySourceId,
+/// Walks the imports from `source`, refusing an import that reaches a module the walk is in.
+fn visit(
+    source: &QuerySourceId,
     imports: &BTreeMap<QuerySourceId, ImportIndex>,
-    fragments: &BTreeMap<QuerySourceId, FragmentProgram>,
+    colors: &mut BTreeSet<QuerySourceId>,
+    path: &mut Vec<QueryTraceSite>,
 ) -> Result<(), LinkingError> {
-    fn visit(
-        source: &QuerySourceId,
-        imports: &BTreeMap<QuerySourceId, ImportIndex>,
-        colors: &mut BTreeSet<QuerySourceId>,
-        path: &mut Vec<QueryTraceSite>,
-    ) -> Result<(), LinkingError> {
-        let _new_color = colors.insert(source.clone());
-        for import in imports
-            .get(source)
-            .into_iter()
-            .flat_map(|index| index.0.values())
-        {
-            let target = source_id(source, import)?;
-            let edge = trace_site(source, &target, import.span);
-            if colors.contains(&target) {
-                let mut trace = path.clone();
-                trace.push(edge);
-                return Err(located(
-                    source,
-                    import.span,
-                    &trace,
-                    format!("query module import cycle reaches `{}`", target.0),
-                ));
-            }
-            path.push(edge);
-            visit(&target, imports, colors, path)?;
-            let _edge = path.pop();
+    let _new_color = colors.insert(source.clone());
+    for import in imports
+        .get(source)
+        .into_iter()
+        .flat_map(|index| index.0.values())
+    {
+        let target = source_id(source, import)?;
+        let edge = trace_site(source, &target, import.span);
+        if colors.contains(&target) {
+            let mut trace = path.clone();
+            trace.push(edge);
+            return Err(located(
+                source,
+                import.span,
+                &trace,
+                format!("query module import cycle reaches `{}`", target.0),
+            ));
         }
-        let _removed_color = colors.remove(source);
-        Ok(())
+        path.push(edge);
+        visit(&target, imports, colors, path)?;
+        let _edge = path.pop();
     }
+    let _removed_color = colors.remove(source);
+    Ok(())
+}
 
-    let mut colors = BTreeSet::new();
+/// Rejects an import cycle a root reaches, before expansion begins: the walk from the root, over its own imports and then
+/// the fragments'.
+pub(crate) fn reject_root_cycles(
+    root: &QuerySourceId,
+    own: &ImportIndex,
+    fragments: &BTreeMap<QuerySourceId, ImportIndex>,
+) -> Result<(), LinkingError> {
+    let mut colors = BTreeSet::from([root.clone()]);
     let mut path = Vec::new();
-    visit(root, imports, &mut colors, &mut path)?;
-    for source in fragments.keys() {
-        visit(source, imports, &mut colors, &mut path)?;
+    for import in own.0.values() {
+        let target = source_id(root, import)?;
+        let edge = trace_site(root, &target, import.span);
+        if colors.contains(&target) {
+            return Err(located(
+                root,
+                import.span,
+                &[edge],
+                format!("query module import cycle reaches `{}`", target.0),
+            ));
+        }
+        path.push(edge);
+        visit(&target, fragments, &mut colors, &mut path)?;
+        let _edge = path.pop();
     }
     Ok(())
+}
+
+/// The checks of a catalog's fragments, in the order a link makes them: each fragment's step names, signature and
+/// aliases, stopping at the first refused; then each fragment's import targets against the bundle's modules; then the
+/// import cycles among the fragments.
+pub(crate) fn fragments_checked(
+    bundle: &QueryBundle,
+    fragments: &BTreeMap<QuerySourceId, FragmentProgram>,
+) -> FragmentChecks {
+    let mut checks = FragmentChecks::default();
+    for (id, fragment) in fragments {
+        let indexed = validate_step_names(id, &fragment.steps)
+            .and_then(|()| validate_fragment_signature(id, fragment))
+            .and_then(|()| imports_for(id, &fragment.imports));
+        match indexed {
+            Ok(indexed) => {
+                let _first = checks.imports.insert(id.clone(), indexed);
+            }
+            Err(refused) => {
+                checks.refused = Some(refused);
+                return checks;
+            }
+        }
+    }
+    for (id, aliases) in &checks.imports {
+        let one = BTreeMap::from([(id.clone(), aliases.clone())]);
+        if let Err(refused) = validate_import_targets(bundle, &one) {
+            checks.target = Some((id.clone(), refused));
+            break;
+        }
+    }
+    let (mut colors, mut path) = (BTreeSet::new(), Vec::new());
+    for source in fragments.keys() {
+        if let Err(cycle) = visit(source, &checks.imports, &mut colors, &mut path) {
+            checks.cycle = Some(cycle);
+            break;
+        }
+    }
+    checks
 }

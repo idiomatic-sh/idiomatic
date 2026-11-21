@@ -23,6 +23,8 @@ thiserror.workspace = true
 # The thread's own clock, read by a measuring scratch alone (the work ledger's nanoseconds).
 cpu-time.workspace = true
 hashbrown.workspace = true
+# The run's worker pool: the load plans independent branches on it before the first file is scanned.
+rayon.workspace = true
 
 [features]
 # Test support, not a public API: it may change without notice. Only a dev-dependency or this crate's own `fixtures` switches it on (`fixtures-feature`).

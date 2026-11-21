@@ -4,22 +4,24 @@
 //! written once; and the pack is proved before it is answered. No rule is refused for what it costs or for how large it is.
 
 use super::costing::constants::GROUP_ROWS;
-use super::costing::service::branches_rows;
+use super::costing::service::definition_rows;
 use super::costing::types::SampleSizes;
 use super::definitions::service::{defined, use_branch};
-use super::definitions::types::{DefinitionDraft, Drafts, Flattened};
+use super::definitions::types::{DefinitionDraft, Drafts, Flattened, WaitingPattern};
 use super::emptiness::branches::service::{branch_need, with_need};
 use super::emptiness::needs::service::needs_added;
 use super::emptiness::service::copied;
 use super::flattening::types::FlatBranch;
 use super::nodes::service::{digest_of, stored};
 use super::nodes::types::{AcceptedPlace, AdmittedRule, NodeHome, NodeStore};
-use super::placement::patterns::service::{home_refused, pattern_placed, unlowerable};
+use super::placement::patterns::service::{
+    home_refused, pattern_placed, pattern_plans, unlowerable,
+};
 use super::placement::service::sampled;
 use super::placement::types::SampleStage;
 use super::placement::types::{LoadSample, RefusedPlace};
 use super::planning::service::planned;
-use super::planning::types::UnitRole;
+use super::planning::types::{PlannedBranch, UnitRole};
 use super::planning::writing::service::branch_program;
 use super::proving::service::proved;
 use super::proving::types::{ProductStated, ProofFault, ProvedUnit, UnitHomes, Unproved};
@@ -33,10 +35,61 @@ use crate::domain::lowered::types::{
     Branch, DefinitionPattern, Emptiness, LoweredPack, LoweredRule, PackDefinition, PatternForm,
 };
 use crate::domain::statistics::types::Statistics;
-use crate::domain::steps::types::{EmitTarget, RegisterList, StepProgram};
+use crate::domain::steps::types::{DefinitionId, EmitTarget, RegisterList, StepProgram};
+use rayon::iter::{IntoParallelRefIterator as _, ParallelIterator as _};
 use ryo_values::domain::descriptions::types::KindVocabulary;
 use ryo_values::domain::plan_parts::types::StepId;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
+
+/// The fewest patterns waiting together whose plans are made on the pool.
+const POOLED_PATTERNS: usize = 16;
+
+/// The plan of each branch of a rule's own program, nothing given. A plan reads the drafts and writes nothing.
+fn branch_plans(drafts: &Drafts, branches: &[FlatBranch]) -> Vec<Option<PlannedBranch>> {
+    let plans = branches
+        .iter()
+        .map(|branch| planned(drafts, branch, &HashSet::new(), UnitRole::Branch));
+    plans.collect()
+}
+
+/// Places every pattern that waits, in the order the drafts hand them (the last asked first; placing one may ask more).
+/// A pattern's plans read the drafts and nothing a placement writes, so the plans of every pattern that waits are made
+/// together on the pool, and each is placed with its own when its turn comes: the pack is the one a pattern at a time
+/// makes.
+fn patterns_placed(drafts: &mut Drafts, sample: LoadSample<'_>) -> Result<(), RefusedPlace> {
+    let mut plans: HashMap<WaitingPattern, Option<Vec<PlannedBranch>>> = HashMap::new();
+    // How many of the patterns that wait, from the first asked, have their plans: the ones asked since stand after them.
+    let mut planned = 0;
+    while let Some(waiting) = drafts.waiting.last().copied() {
+        if planned < drafts.waiting.len() {
+            let shared: &Drafts = drafts;
+            let asked = shared.waiting.get(planned..).unwrap_or_default();
+            // The patterns the rules' own programs ask wait together, and are planned on the pool; the few a placement
+            // then asks are planned where they are: handing two or three plans to the pool costs more than making them.
+            let made: Vec<Option<Vec<PlannedBranch>>> = if asked.len() < POOLED_PATTERNS {
+                asked
+                    .iter()
+                    .map(|each| pattern_plans(shared, *each))
+                    .collect()
+            } else {
+                asked
+                    .par_iter()
+                    .map(|each| pattern_plans(shared, *each))
+                    .collect()
+            };
+            plans.extend(asked.iter().copied().zip(made));
+        }
+        let _placing = drafts.waiting.pop();
+        planned = drafts.waiting.len();
+        // A pattern whose plans were handed out already (it waited twice) is planned again where it is.
+        let own = match plans.remove(&waiting) {
+            Some(own) => own,
+            None => pattern_plans(drafts, waiting),
+        };
+        pattern_placed(drafts, sample, waiting, own)?;
+    }
+    Ok(())
+}
 
 /// One rule's own program: a branch of its emitted rows each. When a branch has no program (an access of it has no key
 /// after its anchor), the emitted step is a definition and the rule walks its table.
@@ -46,6 +99,7 @@ fn rule_lowered(
     rule: &AdmittedRule<'_>,
     place: AcceptedPlace,
     mut flattened: Flattened,
+    mut plans: Vec<Option<PlannedBranch>>,
 ) -> Result<LoweredRule, RefusedPlace> {
     let emitted = rule.rule.plan.emit.step;
     let refused = RefusedPlace {
@@ -55,30 +109,24 @@ fn rule_lowered(
     let node = digest_of(rule, emitted);
     let shape = rule.shapes.get(usize::from(emitted)).cloned().flatten();
     let shape = shape.ok_or(refused)?;
-    let unplanned = |drafts: &Drafts, branches: &[FlatBranch]| {
-        let mut plans = branches
-            .iter()
-            .map(|branch| planned(drafts, branch, &HashSet::new(), UnitRole::Branch));
-        plans.any(|plan| plan.is_none())
-    };
-    if unplanned(drafts, &flattened.branches) {
+    if plans.iter().any(Option::is_none) {
         let home = NodeHome {
             rule: place,
             step: emitted,
         };
-        let rows = branches_rows(drafts, &flattened.branches);
-        let definition = defined(drafts, node, home, shape.clone(), flattened, rows);
+        let definition = defined(drafts, node, home, shape.clone(), flattened);
         flattened = Flattened {
             branches: vec![use_branch(drafts, definition)],
             emptiness: Emptiness::Definition(definition),
             keyless: Vec::new(),
         };
+        plans = branch_plans(drafts, &flattened.branches);
     }
     let target = EmitTarget::Rule(rule.rule.rule);
     let mut branches = Vec::with_capacity(flattened.branches.len());
-    for branch in &flattened.branches {
-        let program = planned(drafts, branch, &HashSet::new(), UnitRole::Branch)
-            .and_then(|plan| branch_program(drafts, sample.kinds, branch, &plan, target));
+    for (branch, plan) in flattened.branches.iter().zip(plans) {
+        let program =
+            plan.and_then(|plan| branch_program(drafts, sample.kinds, branch, &plan, target));
         // The rule's formula, and what this branch itself needs.
         let need = branch_need(drafts, branch);
         branches.push(Branch {
@@ -188,15 +236,22 @@ fn built(
             refusal: unlowerable(step),
         })?);
     }
+    // Every rule's branches are planned on the pool: a plan reads the drafts as the flattening left them. The programs
+    // are then written a rule at a time, in rule order.
+    let planned: Vec<Vec<Option<PlannedBranch>>> = {
+        let shared: &Drafts = &drafts;
+        flattened
+            .par_iter()
+            .map(|rows: &Flattened| branch_plans(shared, &rows.branches))
+            .collect()
+    };
     let mut lowered = Vec::with_capacity(rules.len());
-    for (place, (rule, rows)) in rules.iter().zip(flattened).enumerate() {
+    for (place, ((rule, rows), plans)) in rules.iter().zip(flattened).zip(planned).enumerate() {
         let place = AcceptedPlace(place);
-        lowered.push(rule_lowered(&mut drafts, sample, rule, place, rows)?);
+        lowered.push(rule_lowered(&mut drafts, sample, rule, place, rows, plans)?);
     }
     // Each pattern asked is placed once; placing one may ask patterns of the definitions it reads.
-    while let Some(waiting) = drafts.waiting.pop() {
-        pattern_placed(&mut drafts, sample, waiting)?;
-    }
+    patterns_placed(&mut drafts, sample)?;
     let stated = |definition: &DefinitionDraft| {
         if definition.keyless.is_empty() {
             ProductStated::Keyed
@@ -219,12 +274,13 @@ fn built(
     };
     // What each table is taken to hold: a definition's own estimate for the table of its rows, a group's for any other.
     let mut table_rows = vec![GROUP_ROWS; drafts.tables.len()];
-    for definition in &drafts.definitions {
+    for (number, definition) in drafts.definitions.iter().enumerate() {
         let slot = definition
             .table
             .and_then(|table| table_rows.get_mut(usize::try_from(table.0).unwrap_or(usize::MAX)));
         if let Some(slot) = slot {
-            *slot = definition.rows;
+            let definition = DefinitionId(u32::try_from(number).unwrap_or(u32::MAX));
+            *slot = definition_rows(&drafts, definition);
         }
     }
     let mut pack = assembled(drafts, lowered);

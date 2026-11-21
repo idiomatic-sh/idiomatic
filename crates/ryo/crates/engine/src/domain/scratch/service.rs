@@ -8,6 +8,8 @@ use ryo_language::domain::facts::service::clear_words;
 
 /// Starts a file: nothing the last file left is read again.
 pub(crate) fn next_file(scratch: &mut ScanScratch) {
+    // SPIKE: a run that counts the language's fills settles the last file's (which were read after).
+    ryo_language::domain::fillers::service::file_fills_settled();
     let engine = &mut scratch.0;
     next_store(&mut engine.store);
     clear_words(&mut engine.words);

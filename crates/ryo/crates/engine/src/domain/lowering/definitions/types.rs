@@ -13,6 +13,7 @@ use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{LiteralText, StepId};
 use ryo_values::domain::query_plans::types::NodeDigest;
 use std::collections::{BTreeSet, HashMap};
+use std::sync::OnceLock;
 
 /// How many rows a source is taken to hold in a file, by the fixed priors: an estimate that orders accesses, never a bound.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
@@ -55,8 +56,9 @@ pub(crate) struct DefinitionDraft {
     pub(crate) keyless: Vec<StepId>,
     /// One register per column.
     pub(crate) formals: Vec<Register>,
-    /// Its rows in a file, by the fixed priors.
-    pub(crate) rows: RowEstimate,
+    /// Its rows in a file, by the fixed priors: costed from its branches on the first ask (`costing::service::definition_rows`)
+    /// and kept, so flattening a rule costs nothing and the costing runs wherever a plan first asks.
+    pub(crate) rows: OnceLock<RowEstimate>,
     /// The patterns asked of it, in the order they were first asked.
     pub(crate) patterns: Vec<PatternDraft>,
     /// Its table, once some pattern is in table form.
@@ -64,11 +66,11 @@ pub(crate) struct DefinitionDraft {
 }
 
 /// A pattern of a definition, by its place among the definition's patterns.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct PatternPlace(pub(crate) usize);
 
 /// A pattern that waits to be placed.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct WaitingPattern {
     /// The definition.
     pub(crate) definition: DefinitionId,

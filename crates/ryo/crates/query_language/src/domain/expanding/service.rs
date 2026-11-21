@@ -3,11 +3,12 @@
 use crate::domain::binding::service::bind_arguments;
 use crate::domain::binding::types::Bindings;
 use crate::domain::binding::types::BoundArguments;
+use crate::domain::checking::service::fragments_checked;
 use crate::domain::checking::service::imports_for;
-use crate::domain::checking::service::reject_cycles;
-use crate::domain::checking::service::validate_fragment_signature;
+use crate::domain::checking::service::reject_root_cycles;
 use crate::domain::checking::service::validate_import_targets;
 use crate::domain::checking::service::validate_step_names;
+use crate::domain::checking::types::FragmentChecks;
 use crate::domain::checking::types::ImportIndex;
 use crate::domain::linking::errors::LinkingError;
 use crate::domain::linking::service::located;
@@ -48,32 +49,45 @@ pub(crate) fn link(
 /// Bind declared external input names before expanding calls; no local definition is synthesized.
 pub(crate) fn link_with_observations(
     bundle: &QueryBundle,
+    root: WrittenProgram,
+    fragments: &BTreeMap<QuerySourceId, FragmentProgram>,
+    observations: &[ryo_values::domain::observations::types::BoundObservationInput],
+) -> Result<WrittenProgram, LinkingError> {
+    let checks = fragments_checked(bundle, fragments);
+    link_checked(bundle, root, fragments, observations, &checks)
+}
+
+/// The link of a root over fragments whose checks were made already (`checking::service::fragments_checked`): what
+/// `link_with_observations` answers, the fragments' checks read and not made again. The refusals keep their order: the
+/// root's step names and aliases, a fragment's, an import whose module the bundle lacks (the root's or a fragment's,
+/// whichever source stands first), a cycle the root reaches, a cycle among the fragments.
+pub(crate) fn link_checked(
+    bundle: &QueryBundle,
     mut root: WrittenProgram,
     fragments: &BTreeMap<QuerySourceId, FragmentProgram>,
     observations: &[ryo_values::domain::observations::types::BoundObservationInput],
+    checks: &FragmentChecks,
 ) -> Result<WrittenProgram, LinkingError> {
     let root_id = bundle.root.id.clone();
     assign_root_identities(&mut root);
     validate_step_names(&root_id, &root.steps)?;
-    let mut imports = BTreeMap::new();
-    let previous_root_imports =
-        imports.insert(root_id.clone(), imports_for(&root_id, &root.imports)?);
-    debug_assert!(
-        previous_root_imports.is_none(),
-        "a root source ID is inserted exactly once"
-    );
-    for (id, fragment) in fragments {
-        validate_step_names(id, &fragment.steps)?;
-        validate_fragment_signature(id, fragment)?;
-        let previous_fragment_imports =
-            imports.insert(id.clone(), imports_for(id, &fragment.imports)?);
-        debug_assert!(
-            previous_fragment_imports.is_none(),
-            "each fragment source ID is inserted exactly once"
-        );
+    let root_imports = imports_for(&root_id, &root.imports)?;
+    if let Some(refused) = &checks.refused {
+        return Err(refused.clone());
     }
-    validate_import_targets(bundle, &imports)?;
-    reject_cycles(&root_id, &imports, fragments)?;
+    let own = BTreeMap::from([(root_id.clone(), root_imports.clone())]);
+    let own_target = validate_import_targets(bundle, &own);
+    match (&checks.target, own_target) {
+        (Some((source, refused)), Err(_)) if *source < root_id => return Err(refused.clone()),
+        (_, Err(own)) => return Err(own),
+        (Some((_, refused)), Ok(())) => return Err(refused.clone()),
+        (None, Ok(())) => {}
+    }
+    reject_root_cycles(&root_id, &root_imports, &checks.imports)?;
+    if let Some(cycle) = &checks.cycle {
+        return Err(cycle.clone());
+    }
+    let imports = &checks.imports;
 
     let mut next = StepIdentity(
         root.steps
@@ -89,7 +103,6 @@ pub(crate) fn link_with_observations(
     let mut linked = Vec::new();
     let mut root_visible = Vec::new();
     let mut contracts = Vec::new();
-    let root_imports = imports.get(&root_id).cloned().unwrap_or_default();
     bind_declared_sources(&mut root, observations, &root_imports, fragments, &root_id)?;
     for original in root.steps.clone() {
         if let Expression::Call(call) = &original.expression
@@ -103,7 +116,7 @@ pub(crate) fn link_with_observations(
             ]);
             let expanded = expand(
                 fragments,
-                &imports,
+                imports,
                 &target,
                 call,
                 &original.name,
@@ -133,7 +146,7 @@ pub(crate) fn link_with_observations(
             }
             linked.push(remapped_step);
         }
-        root_visible.push(original);
+        root_visible.push(original.name);
     }
     root.linked = ryo_values::domain::query_tokens::types::Linking::Linked;
     root.steps = linked;
@@ -157,7 +170,7 @@ pub(crate) fn expand(
     source: &QuerySourceId,
     call: &Call,
     result_name: &StepName,
-    preceding: &[LetStep],
+    preceding: &[StepName],
     inherited_inputs: &Bindings,
     inherited_parameters: &Bindings,
     root_parameters: &[ryo_values::domain::program::types::ParameterDeclaration],
@@ -251,6 +264,9 @@ pub(crate) fn expand(
         if let Some(identity) = ryo_values::domain::program::service::identity_of(step.name.1) {
             let _previous_step_origin = step_origins.insert(identity, step_origin);
         }
+        let seen = ryo_values::domain::program::service::identified(
+            ryo_values::domain::program::service::identity_of(step.name.1),
+        );
         if let Expression::Call(inner) = &step.expression
             && let Some(import) = imports
                 .get(source)
@@ -283,13 +299,10 @@ pub(crate) fn expand(
                 contracts,
             )?);
         } else {
-            expanded.push(step.clone());
+            expanded.push(step);
         }
-        let mut visible_step = original.clone();
-        visible_step.name.1 = ryo_values::domain::program::service::identified(
-            ryo_values::domain::program::service::identity_of(step.name.1),
-        );
-        visible.push(visible_step);
+        // A later step of the fragment sees this one by its written name and its identity in this expansion.
+        visible.push(StepName(original.name.0.clone(), seen));
     }
     let first = expanded
         .first()
