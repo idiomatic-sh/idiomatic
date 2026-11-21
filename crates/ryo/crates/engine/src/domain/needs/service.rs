@@ -33,6 +33,19 @@ fn kinds(code: &ProgramCode, list: PoolAt) -> &[WordSlot] {
 /// Whether deciding the record at a place may cost a fill: a table it makes, a relation the language fills, another
 /// unit's decision not made yet. A kind's presence, a node relation's row and a decision kept cost nothing.
 fn costs(facts: &impl NeedFacts, code: &ProgramCode, at: WordSlot) -> NeedVerdict {
+    // What a record may cost is the code's alone, but for another unit's decision, which costs nothing once it is
+    // kept: the engine that keeps the answer for each place saves the walk of the record's parts at every ask.
+    match facts.record_cost(at) {
+        // A record that costs nothing in any file is not read at all.
+        Some(NeedVerdict::Empty) => return NeedVerdict::Empty,
+        Some(NeedVerdict::Holds) => {
+            return match need_at(&code.needs, at) {
+                Some(NeedRecord::Site(site)) if facts.kept(site).is_some() => NeedVerdict::Empty,
+                Some(_) | None => NeedVerdict::Holds,
+            };
+        }
+        None => {}
+    }
     let costly = match need_at(&code.needs, at) {
         Some(NeedRecord::Unknown | NeedRecord::Kinds(_)) | None => false,
         Some(NeedRecord::Row { relation, .. }) => {
@@ -235,6 +248,12 @@ pub(crate) fn decided(
 ) -> NeedVerdict {
     if let Some(kept) = facts.kept(site) {
         return kept;
+    }
+    // What costs nothing to ask is asked first, of the engine that keeps it: a site its free terms leave no way to
+    // hold is decided with no walk of its formula.
+    if facts.free_terms(site) == NeedVerdict::Empty {
+        facts.keep(site, NeedVerdict::Empty);
+        return NeedVerdict::Empty;
     }
     let verdict = match slot(code, WordSlot(site.0), WordSlot(0)) {
         Some(place) => formula(facts, code, place),

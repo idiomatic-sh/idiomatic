@@ -10,6 +10,7 @@ use crate::domain::indexes::types::{FileStamp, RowRun};
 use crate::domain::made_tables::types::FillWork;
 use crate::domain::made_tables::types::{FillStore, KeyFrom};
 use crate::domain::memos::types::{AnswersSum, CellSpan, ChargedUnit, MemoId, MemoMap, RuleStamp};
+use crate::domain::needs::masks::types::{NeedMasks, TermAnswers};
 use crate::domain::needs::types::NeedVerdict;
 use crate::domain::stages::types::{BatchRow, BatchValue, CallScratch, FanRows};
 use crate::domain::steps::types::{MadeTableId, Register};
@@ -176,6 +177,10 @@ pub(crate) struct LoopState {
     pub(crate) answer: BodyAnswer,
     /// Each emptiness decision made in the file, by `NeedSite`.
     pub(crate) needs: Vec<Option<NeedVerdict>>,
+    /// What the rule set's needs say that costs nothing to ask: found at the worker's first decision.
+    pub(crate) need_masks: NeedMasks,
+    /// The file's answers to the free terms, each asked at most once a file.
+    pub(crate) need_terms: TermAnswers,
     /// The cells of the key or of the row being put together.
     pub(crate) key: Vec<CellWord>,
     /// What the loop counted.

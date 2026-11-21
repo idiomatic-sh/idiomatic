@@ -12,6 +12,8 @@ use crate::domain::indexes::reading::service::cell_at;
 use crate::domain::made_tables::reading::service::view_of;
 use crate::domain::made_tables::sources::service::{made, scanned, table_of};
 use crate::domain::made_tables::types::ReadSource;
+use crate::domain::needs::masks::service::{clauses_back, clauses_taken};
+use crate::domain::needs::masks::types::{FreeTerm, RecordCost, TermNumber};
 use crate::domain::needs::types::{NeedFacts, NeedVerdict};
 use crate::domain::programs::frames::types::StepFrame;
 use crate::domain::programs::operands::service::constant;
@@ -81,6 +83,40 @@ impl NeedFacts for FileNeeds<'_, '_, '_> {
         verdict
     }
 
+    fn free_terms(&mut self, site: NeedSite) -> NeedVerdict {
+        let code = self.0.fill.programs.code;
+        let clauses = clauses_taken(code, site, &mut self.0.state.need_masks);
+        // Every clause needs one of its terms in the file: the first clause that has none decides.
+        let mut verdict = NeedVerdict::Holds;
+        for clause in &clauses {
+            let mut some = false;
+            for term in clause {
+                if self.term_holds(*term) == NeedVerdict::Holds {
+                    some = true;
+                    break;
+                }
+            }
+            if !some {
+                verdict = NeedVerdict::Empty;
+                break;
+            }
+        }
+        clauses_back(site, clauses, &mut self.0.state.need_masks);
+        if verdict == NeedVerdict::Empty && self.0.state.measure.is_some() {
+            need_leaf(self.0.state, || "free-terms=Empty".to_owned());
+        }
+        verdict
+    }
+
+    fn record_cost(&self, at: WordSlot) -> Option<NeedVerdict> {
+        let costs = &self.0.state.need_masks.costs;
+        match costs.get(usize::try_from(at.0).unwrap_or(usize::MAX)) {
+            Some(RecordCost::Free) => Some(NeedVerdict::Empty),
+            Some(RecordCost::Dear) => Some(NeedVerdict::Holds),
+            Some(RecordCost::Unknown) | None => None,
+        }
+    }
+
     fn table_row(&mut self, table: MadeTableId) -> NeedVerdict {
         if self.0.state.measure.is_none() {
             return self.table_decided(table);
@@ -96,6 +132,80 @@ impl NeedFacts for FileNeeds<'_, '_, '_> {
 }
 
 impl FileNeeds<'_, '_, '_> {
+    /// Whether a free term of the rule set's needs holds in the file: asked of the node table's sets the first time
+    /// in a file, read after.
+    fn term_holds(&mut self, term: TermNumber) -> NeedVerdict {
+        const ASKED: u8 = 1;
+        const HOLDS: u8 = 2;
+        let frame = &mut *self.0;
+        let place = usize::try_from(term.0).unwrap_or(usize::MAX);
+        let stamp = Count(usize::try_from(frame.fill.store.stamp.0).unwrap_or(usize::MAX));
+        let answers = &mut frame.state.need_terms;
+        if answers.file != stamp {
+            answers.file = stamp;
+            answers.bits.clear();
+        }
+        if answers.bits.len() <= place {
+            answers.bits.resize(
+                frame
+                    .state
+                    .need_masks
+                    .terms
+                    .len()
+                    .max(place.saturating_add(1)),
+                0,
+            );
+        }
+        let held = frame.state.need_terms.bits.get(place).copied().unwrap_or(0);
+        if held & ASKED != 0 {
+            return if held & HOLDS != 0 {
+                NeedVerdict::Holds
+            } else {
+                NeedVerdict::Empty
+            };
+        }
+        let verdict = match frame.state.need_masks.terms.get(place).copied() {
+            Some(FreeTerm::Kinds(list)) => {
+                let code = frame.fill.programs.code;
+                let from = usize::try_from(list.0).unwrap_or(usize::MAX);
+                let length = code
+                    .pool
+                    .get(from)
+                    .map_or(0, |held| usize::try_from(held.0).unwrap_or(usize::MAX));
+                let kinds = code
+                    .pool
+                    .get(from.saturating_add(1)..from.saturating_add(1).saturating_add(length))
+                    .unwrap_or_default();
+                let present = kinds_present(frame.fill.nodes);
+                let any = kinds.iter().any(|kind| {
+                    present
+                        .0
+                        .get(usize::try_from(kind.0 / 64).unwrap_or(usize::MAX))
+                        .is_some_and(|word| (word.0 >> (kind.0 % 64)) & 1 == 1)
+                });
+                if any {
+                    NeedVerdict::Holds
+                } else {
+                    NeedVerdict::Empty
+                }
+            }
+            Some(FreeTerm::NodeRow {
+                relation,
+                column,
+                constant,
+            }) => node_row(frame, relation, column, constant).unwrap_or(NeedVerdict::Holds),
+            None => NeedVerdict::Holds,
+        };
+        if let Some(slot) = frame.state.need_terms.bits.get_mut(place) {
+            *slot = if verdict == NeedVerdict::Holds {
+                ASKED | HOLDS
+            } else {
+                ASKED
+            };
+        }
+        verdict
+    }
+
     /// Whether the relation has a row in the file, with the constant in the column when both are given.
     fn relation_decided(
         &mut self,

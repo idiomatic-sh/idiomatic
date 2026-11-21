@@ -38,7 +38,6 @@ use crate::domain::stages::types::{Batches, FanCursor, HandleRun, KeptWhen};
 use crate::domain::stages::using::service::keep_marked;
 use crate::domain::steps::stages::types::UseMode;
 use crate::domain::steps::types::Register;
-use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::relations::types::Count;
 
 /// What a stage reads of the frame while it runs: the store as it is.
