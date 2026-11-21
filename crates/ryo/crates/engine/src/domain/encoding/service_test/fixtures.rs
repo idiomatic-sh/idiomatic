@@ -180,8 +180,9 @@ pub(super) fn pack(rules: Vec<LoweredRule>) -> LoweredPack {
     }
 }
 
-/// A pipeline that holds every stage, the scan first: it reads a filled relation, made tables 1 and 2 and definitions 0 and 1.
-pub(super) fn every_stage() -> Pipeline {
+/// A pipeline that holds every stage, the scan first: it reads a filled relation, made tables 1 and 2 and definitions 0 and 1,
+/// and its node rows and its walks are through `node`.
+pub(super) fn every_stage_over(node: Relation) -> Pipeline {
     let end = |register| RangeBound {
         value: of(register),
         end: BoundKind::Strict,
@@ -189,7 +190,7 @@ pub(super) fn every_stage() -> Pipeline {
     Pipeline {
         stages: stages(vec![
             FillStage::Scan {
-                source: StepRows::Node(Relation::SyntaxTree),
+                source: StepRows::Node(node),
                 columns: MatchColumns::default(),
                 values: operands([]),
                 out: reg(30),
@@ -265,13 +266,13 @@ pub(super) fn every_stage() -> Pipeline {
                 out: reg(39),
             },
             FillStage::Walk {
-                relation: Relation::SyntaxTree,
+                relation: node,
                 walk: TreeWalk::Axis(AxisDirection::Ancestor),
                 start: reg(30),
                 out: reg(40),
             },
             FillStage::Walk {
-                relation: Relation::SyntaxTree,
+                relation: node,
                 walk: TreeWalk::Children(Some(FieldCode(6))),
                 start: reg(40),
                 out: reg(41),

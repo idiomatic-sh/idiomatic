@@ -60,14 +60,24 @@ pub(super) fn keyed(
     kinds: &KindVocabulary,
     version: EngineVersion<'_>,
 ) -> PackKey {
-    // Each text after its length, so no two vocabularies write the same bytes.
+    // Each text after its length, and the end of each list (the kinds, the fields, the fixed names) as a length no text has:
+    // no two vocabularies write the same bytes, and a name moved from one list to another is another key.
     let mut written = Vec::new();
-    let texts = std::iter::once(&*kinds.language.0)
-        .chain(kinds.kinds.iter().map(|kind| &*kind.0))
-        .chain(std::iter::once(version.0));
+    let end = std::iter::once(None);
+    let texts = std::iter::once(Some(&*kinds.language.0))
+        .chain(kinds.kinds.iter().map(|kind| Some(&*kind.0)))
+        .chain(end.clone())
+        .chain(kinds.fields.iter().map(|field| Some(&*field.0)))
+        .chain(end.clone())
+        .chain(kinds.fixed.iter().map(|name| Some(&*name.0)))
+        .chain(end)
+        .chain(std::iter::once(Some(version.0)));
     for each in texts {
-        written.extend_from_slice(&u64::try_from(each.len()).unwrap_or(u64::MAX).to_le_bytes());
-        written.extend_from_slice(each.as_bytes());
+        let length = each.map_or(u64::MAX, |text| {
+            u64::try_from(text.len()).unwrap_or(u64::MAX)
+        });
+        written.extend_from_slice(&length.to_le_bytes());
+        written.extend_from_slice(each.map_or(&[][..], str::as_bytes));
     }
     let vocabulary = digest.digest(DigestBytes(&written));
     let mut key = PackKey::default();
@@ -124,9 +134,8 @@ pub fn kept(
     })
 }
 
-/// The digest of each step of a rule's plan under what the rule binds its parameters to, by the run's one digest: what names
-/// a definition, a made table and a rule's unit in the engine, which hashes nothing and takes these as data. The port's
-/// sixteen bytes are the node's digest.
+/// The digest of each step of a rule's plan under what the rule binds its parameters to, by the run's one digest: the
+/// engine hashes nothing and takes these as data. The port's sixteen bytes are the node's digest.
 pub(super) fn step_digests(
     digest: &dyn DigestPort,
     plan: &Plan,
@@ -174,8 +183,7 @@ pub fn loaded(
         return load;
     }
     let key = pack_key(digest, request.given, request.kinds);
-    // Each rule with what it binds its parameters to (nothing, for a rule the request states no binding of) and, by the
-    // run's digest, the digest of each step of its plan under them.
+    // Each rule with what it binds its parameters to (nothing past the request's bindings) and its steps' digests.
     let unbound = std::iter::repeat(&[][..]);
     let bound = request.bindings.iter().map(Vec::as_slice).chain(unbound);
     let rules: Vec<(&Plan, RuleBindings<'_>)> = request
@@ -213,8 +221,13 @@ pub fn loaded(
             }
             (loaded.programs, refusals)
         }
-        // Plans are never a pack's fault: an engine that fails them loads no rule, and each is counted as not lowered.
-        Err(LoadError::PackVersion | LoadError::PackDigest | LoadError::PackCorrupt) => (
+        // Plans are never a pack's fault, and refused fixed names leave no words: no rule loads, each counted as not lowered.
+        Err(
+            LoadError::PackVersion
+            | LoadError::PackDigest
+            | LoadError::PackCorrupt
+            | LoadError::Vocabulary(_),
+        ) => (
             Programs::default(),
             Refusals {
                 unlowerable: Count(selected.len()),

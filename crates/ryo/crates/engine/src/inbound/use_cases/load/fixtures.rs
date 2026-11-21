@@ -19,7 +19,7 @@ use crate::domain::statistics::types::{
     EncodedStatistics, MatchedStatistics, Measured, PointCounts, StatisticsBytes,
 };
 use crate::inbound::use_cases::scan::fixtures::scanned;
-use ryo_values::domain::descriptions::types::{KindVocabulary, LanguageName};
+use ryo_values::domain::descriptions::types::{FixedName, KindVocabulary, LanguageName};
 use ryo_values::domain::plan_parts::types::{LiteralText, RepeatedRows};
 use ryo_values::domain::query_bindings::types::{ParameterBinding, RuleBindings};
 use ryo_values::domain::query_plans::types::{NodeDigests, Plan};
@@ -39,6 +39,12 @@ const BOUND: &str = "two rules, one sub-plan, two bound values";
 const OTHER_STATISTICS: &str = "one tree rule, statistics of other rules";
 /// The input whose answer says how many of its tables hold a product stage.
 const PRODUCT: &str = "a product within a file";
+/// The input of no rule and a language that states one fixed name at two places.
+const FIXED_TWICE: &str = "a vocabulary that states a fixed name twice";
+/// The input of a rule that reads the links by key and one that reads them whole.
+const KEYED_THEN_WHOLE: &str = "a keyed read, then the whole relation";
+/// The input of one walk over the file's own tree and the same walk over the tree with the embedded segments.
+const EACH_TREE: &str = "one walk over each tree";
 /// The file a sample of a scene's rules is run over.
 const SAMPLE: &str = "a b a";
 
@@ -51,12 +57,27 @@ struct SceneRule {
     bindings: Vec<ParameterBinding>,
 }
 
+/// The names a scenario's language states: the fixture language's, and one fixed name at two places where the input says so.
+fn vocabulary(scene: &str) -> KindVocabulary {
+    let twice = || vec![FixedName("next".into()), FixedName("next".into())];
+    KindVocabulary {
+        fixed: if scene == FIXED_TWICE {
+            twice()
+        } else {
+            Vec::new()
+        },
+        ..kinds()
+    }
+}
+
 /// The kinds of the fixture language.
 #[must_use]
 pub fn kinds() -> KindVocabulary {
     KindVocabulary {
         language: LanguageName("walking".into()),
         kinds: Vec::new(),
+        fields: Vec::new(),
+        fixed: Vec::new(),
     }
 }
 
@@ -79,6 +100,12 @@ fn scene_rules(scene: &str) -> Vec<SceneRule> {
         ],
         BOUND => vec![bound("a"), bound("b")],
         OTHER_STATISTICS => vec![unbound("one tree rule")],
+        FIXED_TWICE => Vec::new(),
+        KEYED_THEN_WHOLE => vec![unbound("the links of the words"), unbound("every link")],
+        EACH_TREE => vec![
+            unbound("the parents over the syntax tree"),
+            unbound("the parents over the semantic tree"),
+        ],
         other => vec![unbound(other)],
     }
 }
@@ -107,7 +134,7 @@ pub fn loaded_with(scene: &str, statistics: StatisticsBytes<'_>) -> Result<Loade
         .collect();
     LoadUseCaseImpl.load(
         LoadSource::Plans(SelectedRules(&selected), statistics),
-        &kinds(),
+        &vocabulary(scene),
     )
 }
 

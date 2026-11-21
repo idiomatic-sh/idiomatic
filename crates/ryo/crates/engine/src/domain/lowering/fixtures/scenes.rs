@@ -3,8 +3,8 @@
 use super::parts::{at, joined, kept, of, plan, projected, step, without, words, words_written};
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{
-    ComparisonOrigin, HostedNumber, Input, Operand, ParameterId, ParameterName, PlanComparison,
-    Side, StepId, Test,
+    ComparisonOrigin, Direction, HostedNumber, Input, LiteralText, Operand, ParameterId,
+    ParameterName, PlanComparison, QueryLiteral, Side, StepId, Test,
 };
 use ryo_values::domain::plans::types::{Operation, PlanStep};
 use ryo_values::domain::query_bindings::types::{ParameterType, PlanParameter};
@@ -107,6 +107,26 @@ pub(super) fn load_scene(scene: &str) -> Option<Plan> {
     })
 }
 
+/// Every element of `tree` beside its parent by the edges of `edges`: a walk of the parent axis from each element.
+fn parents(tree: Relation, edges: Relation) -> Plan {
+    plan(vec![
+        kept(Input::Relation(tree)),
+        step(Operation::Axis {
+            from: Input::Step(StepId(0)),
+            edges: Input::Relation(edges),
+            domain: Input::Relation(tree),
+            direction: Direction::Parent,
+            id: at(0),
+            parent: at(0),
+            child: at(1),
+            domain_id: at(0),
+            domain_filter: Vec::new(),
+            domain_view: Vec::new(),
+            output: Vec::new(),
+        }),
+    ])
+}
+
 /// The plans of the scan scenarios of the one executor, each the smallest of its shape; none for another name.
 pub(super) fn scan_scene(scene: &str) -> Option<Plan> {
     let words_of = Input::Step(StepId(0));
@@ -189,6 +209,34 @@ pub(super) fn scan_scene(scene: &str) -> Option<Plan> {
                 vec![of(Side::Left, 1), of(Side::Left, 4)],
             ),
         ]),
+        // The links of the file, every one: a read of the whole relation.
+        "every link" => plan(vec![kept(Input::Relation(Relation::TokenLink))]),
+        // The words beside the links that start at them: a read of the links by one key, their source, for each word.
+        "the links of the words" => plan(vec![
+            words(),
+            joined(
+                words_of,
+                Input::Relation(Relation::TokenLink),
+                (&[1], &[0]),
+                vec![of(Side::Left, 1), of(Side::Left, 4)],
+            ),
+        ]),
+        // Each element beside its parent, walked over the file's own tree and over the tree that holds the embedded segments.
+        "the parents over the syntax tree" => parents(Relation::SyntaxTree, Relation::SyntaxChild),
+        "the parents over the semantic tree" => {
+            parents(Relation::SemanticSyntax, Relation::SemanticChild)
+        }
+        // The child edges whose field is named `label`: the field column holds a field's name, never its code.
+        "the edges of the field label" => plan(vec![step(Operation::Select {
+            from: Input::Relation(Relation::SyntaxChild),
+            comparisons: vec![PlanComparison {
+                test: Test::Equal,
+                left: Operand::Column(at(3)),
+                right: Operand::Literal(QueryLiteral::Text(LiteralText("label".into()))),
+                origin: ComparisonOrigin::Unrecorded,
+            }],
+            kept: Vec::new(),
+        })]),
         // Each word beside each word of its text that comes after it: the pairs of one group, a quarter of its square.
         "pairs within one group" => pairs(Some(step(Operation::Select {
             from: Input::Step(StepId(1)),

@@ -4,7 +4,7 @@
 
 use super::errors::LoadError;
 use super::interface::LoadUseCase as _;
-use super::service::sequenced;
+use super::service::{sequenced, worded};
 use super::types::{LoadSource, LoadedRules};
 use super::use_case::LoadUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -26,7 +26,10 @@ use crate::domain::steps::types::{
     AnchorKinds, PlacedStep, Polarity, ProgramStep, Register, RegisterList, StepBody, StepMemo,
     StepProgram,
 };
+use ryo_language::domain::facts::errors::FixedNamesError;
+use ryo_language::domain::facts::types::{FixedNames, FixedWord};
 use ryo_relations::domain::relations::types::{KindBits, Relation};
+use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::descriptions::types::{KindVocabulary, LanguageName};
 use ryo_values::domain::query_bindings::types::RuleBindings;
 use ryo_values::domain::query_plans::types::{NodeDigest, NodeDigests};
@@ -54,6 +57,8 @@ enum Scenario {
     /// Two rules of a plan of three steps, each given its steps' digests with its own unit's node second: where the loaded
     /// programs say each rule's unit, and a node that is no step of its plan, are in the rule's plan.
     UnitSteps,
+    /// The run's words of a language that states one fixed name at two places.
+    FixedTwice,
     /// A pack written for another digest.
     OtherPack,
     /// A pack another engine version wrote.
@@ -143,6 +148,15 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         )),
     },
     Case {
+        name: CaseName("fixed_names_that_state_one_name_twice_are_refused_naming_both_places"),
+        word: Word::Refuses,
+        input: || Scenario::FixedTwice,
+        expect: Expect::Error(LoadError::Vocabulary(FixedNamesError::Twice {
+            first: FixedWord(0),
+            again: FixedWord(1),
+        })),
+    },
+    Case {
         name: CaseName("a_pack_for_other_rules_is_refused"),
         word: Word::Refuses,
         input: || Scenario::OtherPack,
@@ -229,7 +243,7 @@ fn said(loaded: &LoadedRules) -> String {
 }
 
 /// Loads three copies of the tree rule through a lowering that lowers each as `written` says of its ordinal.
-fn sequence(written: [Written; 3], statistics: Option<&Statistics>) -> Value {
+fn sequence(written: [Written; 3], statistics: Option<&Statistics>) -> Result<Value, Failure> {
     let plan = named("one tree rule");
     let digests = digests_of(&plan, RuleBindings(&[]));
     let rules: Vec<SelectedRule<'_>> = (0..3)
@@ -258,21 +272,21 @@ fn sequence(written: [Written; 3], statistics: Option<&Statistics>) -> Value {
             refused: Vec::new(),
         }
     };
-    let loaded = sequenced(SelectedRules(&rules), statistics, &lower);
+    let loaded = sequenced(SelectedRules(&rules), statistics, &lower)?;
     let matched = match loaded.matched {
         MatchedStatistics::Units(matched) => format!("; statistics matched {} units", matched.0),
         MatchedStatistics::Absent => String::new(),
     };
-    Cow::Owned(format!(
+    Ok(Cow::Owned(format!(
         "{}{matched}; lowered {} times",
         said(&loaded),
         lowerings.get()
-    ))
+    )))
 }
 
 /// Loads two rules of a plan of three steps, each with the digests a host would give it but its own unit's node as its second
 /// step's, and says where the programs put each rule's unit and a node of no step of its plan.
-fn unit_steps() -> Value {
+fn unit_steps() -> Result<Value, Failure> {
     let plan = named("two orders of one rule");
     let digests: Vec<NodeDigests> = (0..2)
         .map(|rule| {
@@ -304,7 +318,7 @@ fn unit_steps() -> Value {
         },
         refused: Vec::new(),
     };
-    let loaded = sequenced(SelectedRules(&rules), None, &lower);
+    let loaded = sequenced(SelectedRules(&rules), None, &lower)?;
     let said: Vec<String> = (0..2)
         .map(SelectedRuleOrdinal)
         .map(|rule| {
@@ -316,7 +330,7 @@ fn unit_steps() -> Value {
             )
         })
         .collect();
-    Cow::Owned(said.join("; "))
+    Ok(Cow::Owned(said.join("; ")))
 }
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
@@ -333,26 +347,21 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     }
     let source = match scenario {
         Scenario::OneFault => {
-            return Ok(sequence(
-                [Written::Whole, Written::Faulty, Written::Whole],
-                None,
-            ));
+            return sequence([Written::Whole, Written::Faulty, Written::Whole], None);
         }
         Scenario::OneCountOut => {
-            return Ok(sequence(
-                [Written::Whole, Written::Wide, Written::Whole],
-                None,
-            ));
+            return sequence([Written::Whole, Written::Wide, Written::Whole], None);
         }
         Scenario::TwoFaults => {
-            return Ok(sequence(
-                [Written::Whole, Written::Faulty, Written::Faulty],
-                None,
-            ));
+            return sequence([Written::Whole, Written::Faulty, Written::Faulty], None);
         }
-        Scenario::Measured => return Ok(sequence([Written::Whole; 3], Some(&naming([0, 2, 9])))),
-        Scenario::MeasuredNothing => return Ok(sequence([Written::Whole; 3], Some(&naming([])))),
-        Scenario::UnitSteps => return Ok(unit_steps()),
+        Scenario::Measured => return sequence([Written::Whole; 3], Some(&naming([0, 2, 9]))),
+        Scenario::MeasuredNothing => return sequence([Written::Whole; 3], Some(&naming([]))),
+        Scenario::UnitSteps => return unit_steps(),
+        Scenario::FixedTwice => {
+            let twice = FixedNames(vec![NameText("next"), NameText("next")]);
+            return worded(&twice, &[]).map(|_| Cow::Borrowed("worded"));
+        }
         Scenario::NoRules => LoadSource::Plans(SelectedRules(&[]), StatisticsBytes(&[])),
         Scenario::Pack => LoadSource::Pack(PackBytes(&pack.0), PackDigest([1; 32])),
         Scenario::OtherPack => LoadSource::Pack(PackBytes(&pack.0), PackDigest([2; 32])),
