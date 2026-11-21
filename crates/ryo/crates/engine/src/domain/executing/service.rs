@@ -60,7 +60,7 @@ fn word_at(frame: &StepFrame<'_, '_>, at: CodeEntry) -> CodeWord {
 
 /// Runs one word for the current candidate. A word the executor does not run yet ends the candidate and is counted, so a
 /// rule that holds one never finds a row by it.
-#[inline]
+#[inline(always)]
 fn step(frame: &mut StepFrame<'_, '_>, word: CodeWord, at: CodeEntry, mode: RunMode) -> Flow {
     match word.op {
         Op::End => Flow::Back,
@@ -103,7 +103,7 @@ fn step(frame: &mut StepFrame<'_, '_>, word: CodeWord, at: CodeEntry, mode: RunM
         Op::Let => LetValue::run(frame, word, at),
         Op::Emit => Emit::run(frame, word, at),
         Op::Exists => {
-            exists(frame, word);
+            exists(frame, word, at);
             Exists::run(frame, word, at)
         }
         Op::Or => {
@@ -116,7 +116,7 @@ fn step(frame: &mut StepFrame<'_, '_>, word: CodeWord, at: CodeEntry, mode: RunM
             Axis::run(frame, word, at)
         }
         Op::Nearest => {
-            nearest(frame, word);
+            nearest(frame, word, at);
             Nearest::run(frame, word, at)
         }
         Op::Within => {
@@ -132,7 +132,7 @@ fn step(frame: &mut StepFrame<'_, '_>, word: CodeWord, at: CodeEntry, mode: RunM
             Call::run(frame, word, at)
         }
         Op::Closure => {
-            closure(frame, word);
+            closure(frame, word, at);
             Closure::run(frame, word, at)
         }
         Op::Yield => {
@@ -237,16 +237,22 @@ pub(crate) fn run_counted<C: WordCounter>(
     let (base, staged_base) = (frame.state.frames.len(), frame.state.staged.len());
     let (mut at, mut rows, mut steps, mut visited, mut candidates) =
         (entry, 0_u64, 0_u64, 0_u64, 0_u64);
+    // The words are the code's for the whole run: read once, not through the frame at each step. The counts of a run
+    // are locals that cannot wrap in a run's life (one add a step): plain adds, with no compare.
+    let words: &[CodeWord] = &frame.fill.programs.code.words;
     'program: loop {
-        let word = word_at(frame, at);
+        let word = match words.get(usize::try_from(at.0).unwrap_or(usize::MAX)) {
+            Some(word) => *word,
+            None => CodeWord::default(),
+        };
         C::word(frame, at);
-        steps = steps.saturating_add(1);
+        steps = steps.wrapping_add(1);
         let gives = match mode {
             RunMode::Rows => word.op == Op::Emit,
             RunMode::Collect => word.op == Op::Yield,
             RunMode::Exists => word.op == Op::Yield || word.op == Op::End,
         };
-        rows = rows.saturating_add(u64::from(gives));
+        rows = rows.wrapping_add(u64::from(gives));
         if gives && mode == RunMode::Exists {
             break 'program;
         }
@@ -262,9 +268,9 @@ pub(crate) fn run_counted<C: WordCounter>(
                     if let Some(kept) = frame.state.frames.get_mut(depth.saturating_sub(1)) {
                         *kept = cursor;
                     }
-                    visited = visited.saturating_add(1);
+                    visited = visited.wrapping_add(1);
                     candidates =
-                        candidates.saturating_add(u64::from(depth == base.saturating_add(1)));
+                        candidates.wrapping_add(u64::from(depth == base.saturating_add(1)));
                     at = onward;
                     break;
                 }

@@ -1,7 +1,11 @@
 //! The `programs` service: what the host reads of a rule set's programs.
 
 use super::types::{Programs, ProgramsEngine};
-use crate::domain::code::types::UnitKey;
+use crate::domain::code::controlling::service::exists_of;
+use crate::domain::code::records::service::body_at;
+use crate::domain::code::records::types::ReadBody;
+use crate::domain::code::types::{CodeWord, Op, ProgramCode, UnitKey};
+use crate::domain::code::walking::service::{closure_of, nearest_of};
 use crate::domain::findings::types::RuleColumns;
 use crate::domain::made_tables::types::{FillStore, RuleSetView};
 use crate::domain::scratch::types::{LoopState, Measuring, ScanScratch, ScratchEngine, UnitInFile};
@@ -75,6 +79,62 @@ pub(crate) fn rule_set(programs: &ProgramsEngine) -> RuleSetView<'_> {
     }
 }
 
+/// The body record of each word over one body, by the word's place: what the loop reads at a step in place of the pool.
+pub(crate) fn decoded_bodies(code: &ProgramCode) -> Vec<Option<ReadBody>> {
+    let read = |word: &CodeWord| {
+        let at = match word.op {
+            Op::Exists => exists_of(*word).body,
+            Op::Nearest => nearest_of(*word).operands,
+            Op::Closure => closure_of(*word).operands,
+            Op::End
+            | Op::EachKind
+            | Op::EachMatchNode
+            | Op::EachMatchFilled
+            | Op::EachMatchFilledMany
+            | Op::EachMatchMade
+            | Op::EachRange
+            | Op::EachRowNode
+            | Op::EachRowFilled
+            | Op::EachRowMade
+            | Op::Children
+            | Op::ChildrenOfField
+            | Op::Axis
+            | Op::Within
+            | Op::NearestDerived
+            | Op::ReadNode
+            | Op::ReadFilled
+            | Op::ReadMade
+            | Op::Test
+            | Op::TestEqualConstant
+            | Op::TestNotEqualConstant
+            | Op::TestEqualRegister
+            | Op::TestNotEqualRegister
+            | Op::TestInConstants
+            | Op::Call
+            | Op::Render
+            | Op::Let
+            | Op::Or
+            | Op::Fork
+            | Op::Yield
+            | Op::Latest
+            | Op::Emit
+            | Op::StageScan
+            | Op::StageProbe
+            | Op::StageLatest
+            | Op::StageRead
+            | Op::StageKeep
+            | Op::StageCall
+            | Op::StageProduct
+            | Op::StageUse
+            | Op::StageRender
+            | Op::StageWalk
+            | Op::StageWrite => return None,
+        };
+        body_at(&code.pool, at)
+    };
+    code.words.iter().map(read).collect()
+}
+
 /// A worker's per-file state for `programs`: its registers, one for each the programs name, its words over the programs'
 /// constants, and an empty store of fills.
 ///
@@ -92,6 +152,7 @@ pub fn scratch_for(programs: &Programs) -> ScanScratch {
     ScanScratch(ScratchEngine {
         state: LoopState {
             registers: vec![CellWord(0); registers],
+            bodies: decoded_bodies(&programs.0.code),
             ..LoopState::default()
         },
         store: FillStore::default(),

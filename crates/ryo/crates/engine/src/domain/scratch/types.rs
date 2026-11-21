@@ -1,5 +1,6 @@
 //! The types of the `scratch` concept: a worker's per-file state.
 
+use crate::domain::code::records::types::ReadBody;
 use crate::domain::code::types::RelationNumber;
 use crate::domain::code::types::{CodeEntry, WordSlot};
 use crate::domain::filled::errors::FilledError;
@@ -131,6 +132,10 @@ pub(crate) struct LoopState {
     pub(crate) kept: Vec<BatchRow>,
     /// The room a walk of the tree writes what it reaches in, lent to the fill side's kernel.
     pub(crate) fan: FanRows,
+    /// The body record of each word over one body (`Exists`, `Nearest`, `Closure`), by the word's place in the code:
+    /// read from the pool once, when the worker's state is made for a rule set, and never per step. Kept for the
+    /// worker's life.
+    pub(crate) bodies: Vec<Option<ReadBody>>,
     /// What a call of a per-row meaning works in and answers, lent to the fill side's kernel for a batch of one row.
     pub(crate) calls: CallRoom,
     /// The elements a closure has met: the room of the closure being walked, lent to it and given back.

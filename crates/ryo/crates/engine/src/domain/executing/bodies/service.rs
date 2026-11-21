@@ -7,9 +7,9 @@ use super::types::{CallUse, PushedKey};
 use crate::domain::code::constants::STORAGE;
 use crate::domain::code::controlling::service::exists_of;
 use crate::domain::code::records::service::{body_at, operand_at};
-use crate::domain::code::records::types::BodyRecord;
 use crate::domain::code::records::types::PooledOperand;
-use crate::domain::code::types::{CodeWord, IndexSite, PoolAt, WordSlot};
+use crate::domain::code::records::types::{BodyRecord, ReadBody};
+use crate::domain::code::types::{CodeEntry, CodeWord, IndexSite, PoolAt, WordSlot};
 use crate::domain::executing::budget::service::{begin_unit, end_unit, reach};
 use crate::domain::executing::measuring::service::{entered, evaluated, left, used};
 use crate::domain::executing::sources::service::keyed;
@@ -185,9 +185,22 @@ pub(crate) fn table_rows(
     found
 }
 
-/// How many rows a body has, as far as an `Exists` or a walk's condition asks: none or some.
-pub(crate) fn has_row(frame: &mut StepFrame<'_, '_>, at: PoolAt) -> Count {
-    let Some(body) = body_at(&frame.fill.programs.code.pool, at) else {
+/// The body record of the word at a place of the code, as the worker's state holds it: read from the pool when the
+/// state was made, not at the step.
+#[inline]
+pub(crate) fn body_of(frame: &StepFrame<'_, '_>, at: CodeEntry) -> Option<ReadBody> {
+    frame
+        .state
+        .bodies
+        .get(usize::try_from(at.0).unwrap_or(usize::MAX))
+        .copied()
+        .flatten()
+}
+
+/// How many rows a body has, as far as an `Exists` or a walk's condition asks: none or some; none of a word that
+/// holds no body.
+pub(crate) fn has_row(frame: &mut StepFrame<'_, '_>, body: Option<ReadBody>) -> Count {
+    let Some(body) = body else {
         return Count(0);
     };
     match body.record {
@@ -239,10 +252,11 @@ pub(crate) fn kept_key(frame: &mut StepFrame<'_, '_>, registers: PoolAt, count: 
 
 /// Asks the body of an `Exists` word whether it has a row, once per key when the word keeps its answer, and leaves the
 /// answer in the state for the word's item.
-pub(crate) fn exists(frame: &mut StepFrame<'_, '_>, word: CodeWord) {
+pub(crate) fn exists(frame: &mut StepFrame<'_, '_>, word: CodeWord, at: CodeEntry) {
     let asking = exists_of(word);
+    let body = body_of(frame, at);
     if asking.flag.0 & STORAGE.0 == 0 {
-        let found = has_row(frame, asking.body);
+        let found = has_row(frame, body);
         frame.state.answer = BodyAnswer {
             first: Count(0),
             rows: found,
@@ -258,7 +272,7 @@ pub(crate) fn exists(frame: &mut StepFrame<'_, '_>, word: CodeWord) {
     let found = match kept {
         Some(answer) => row_count(&frame.state.memos, answer),
         None => {
-            let found = has_row(frame, asking.body);
+            let found = has_row(frame, body);
             let LoopState { memos, key, .. } = &mut *frame.state;
             let _kept: MemoId = keep(
                 memos,

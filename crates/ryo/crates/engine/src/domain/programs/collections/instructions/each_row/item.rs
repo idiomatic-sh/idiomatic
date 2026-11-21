@@ -16,6 +16,7 @@ use ryo_language::domain::facts::types::CellWord;
 pub(crate) struct EachRow;
 
 impl InstructionsItem for EachRow {
+    #[inline]
     fn run(frame: &mut StepFrame<'_, '_>, _word: CodeWord, at: CodeEntry) -> Flow {
         let run = frame.state.rows.run;
         frame.state.frames.push(IterationCursor {
@@ -27,6 +28,7 @@ impl InstructionsItem for EachRow {
         Flow::Back
     }
 
+    #[inline]
     fn next(
         frame: &mut StepFrame<'_, '_>,
         word: CodeWord,

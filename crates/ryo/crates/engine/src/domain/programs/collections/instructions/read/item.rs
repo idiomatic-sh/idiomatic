@@ -15,6 +15,7 @@ use ryo_relations::domain::relations::types::NodeExtent;
 pub(crate) struct Read;
 
 impl InstructionsItem for Read {
+    #[inline(always)]
     fn run(frame: &mut StepFrame<'_, '_>, word: CodeWord, _at: CodeEntry) -> Flow {
         let (source, column, row, out) = if word.op == Op::ReadNode {
             let read = read_node_of(word);

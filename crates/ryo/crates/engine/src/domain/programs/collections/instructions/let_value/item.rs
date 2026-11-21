@@ -13,6 +13,7 @@ use crate::domain::steps::types::Register;
 pub(crate) struct LetValue;
 
 impl InstructionsItem for LetValue {
+    #[inline]
     fn run(frame: &mut StepFrame<'_, '_>, word: CodeWord, _at: CodeEntry) -> Flow {
         let read = let_value_of(word);
         let value = if read.flag.0 & THE_FILE.0 != 0 {

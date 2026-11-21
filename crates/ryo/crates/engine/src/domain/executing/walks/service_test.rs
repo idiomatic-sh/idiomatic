@@ -5,7 +5,7 @@
 
 use super::service::{axis, nearest, within};
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::code::types::Op;
+use crate::domain::code::types::{CodeEntry, Op};
 use crate::domain::encoding::service::encoded;
 use crate::domain::executing::entries::types::TheLoop;
 use crate::domain::executing::service::run as run_branch;
@@ -275,13 +275,15 @@ fn subject(input: Input) -> Result<Value, Failure> {
             .words
             .iter()
             .copied()
-            .find(|word| matches!(word.op, Op::Axis | Op::Nearest | Op::Within));
+            .enumerate()
+            .find(|(_, word)| matches!(word.op, Op::Axis | Op::Nearest | Op::Within));
         set(frame, Register(1), handle(first));
-        if let Some(word) = walking {
+        if let Some((place, word)) = walking {
+            let at = CodeEntry(u32::try_from(place).unwrap_or(u32::MAX));
             if word.op == Op::Axis {
                 axis(frame, word);
             } else if word.op == Op::Nearest {
-                nearest(frame, word);
+                nearest(frame, word, at);
             } else {
                 within(frame, word);
             }
