@@ -2,6 +2,7 @@
 
 use crate::domain::code::types::ShapeChoice;
 use crate::domain::lowered::types::{Emptiness, MadeTable, PatternForm};
+use crate::domain::lowering::costing::types::{SampleSizes, UseCosts};
 use crate::domain::lowering::flattening::types::{FlatBranch, FlatVariable, RowColumn, TextNumber};
 use crate::domain::lowering::nodes::types::{NodeHome, StepShape};
 use crate::domain::steps::types::{
@@ -112,6 +113,11 @@ pub(crate) struct Drafts {
     pub(crate) regex_numbers: HashMap<LiteralText, RegexId>,
     /// Every relation some branch reads.
     pub(crate) reads: BTreeSet<Relation>,
+    /// What each use of a definition asked so far costs, by the definition's own plan for the columns bound: a
+    /// definition's branches never change once it is made, so a use is costed once for the pack.
+    pub(crate) costs: UseCosts,
+    /// What a sample measured the buckets of a file at; none for a load given no statistics.
+    pub(crate) sized: Option<SampleSizes>,
 }
 
 /// What a step's flattening gives a definition: its branches, its emptiness and the keyless joins inlined in it.

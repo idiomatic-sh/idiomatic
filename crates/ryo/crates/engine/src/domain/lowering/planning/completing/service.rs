@@ -8,7 +8,9 @@ use crate::domain::lowering::costing::constants::{
     CONSTANT_EQUAL_KEEPS, DEAR_DECISION, DEARER_DECISION, DECISION_WAITS, EQUAL_KEEPS, KEYED_STEPS,
     LEAST_ROWS, ONE, TEST_KEEPS, UNEQUAL_KEEPS, USE_RANK,
 };
-use crate::domain::lowering::costing::service::{keyed, planned_rows, plus, source_rows, times};
+use crate::domain::lowering::costing::service::{
+    keyed, measured, planned_rows, plus, source_rows, times,
+};
 use crate::domain::lowering::costing::types::{AccessCost, CellState, PlanEstimate};
 use crate::domain::lowering::flattening::service::{made_column, pins_of, variables};
 use crate::domain::lowering::flattening::types::{
@@ -99,6 +101,18 @@ fn access(state: &OrderCompletion<'_>, atom: &FlatAtom) -> Option<(CostClass, Ac
     };
     let states: Vec<CellState> = cells.iter().map(|cell| cell_state(state, *cell)).collect();
     let mut choice = keyed(state.drafts, *rows, *per_file, &states);
+    // A bucket a sample sized is taken at its measured rows, not at the fixed prior.
+    let held: Vec<Option<FlatTerm>> = cells
+        .iter()
+        .map(|cell| match cell {
+            FlatTerm::Text(_) | FlatTerm::Number(_) => Some(*cell),
+            FlatTerm::Variable(variable) => state.pins.get(variable).copied(),
+            FlatTerm::File => None,
+        })
+        .collect();
+    if let Some(rows) = measured(state.drafts, *rows, &states, &held) {
+        choice.rows = rows;
+    }
     if *per_file == RowsPerFile::One && state.enumerated == Enumerated::NotYet {
         choice.class = CostClass::File;
     }

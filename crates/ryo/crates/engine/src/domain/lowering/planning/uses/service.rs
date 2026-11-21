@@ -11,9 +11,7 @@ use crate::domain::lowering::costing::constants::{
 use crate::domain::lowering::costing::service::{
     keyed, made_rows, planned_rows, plus, times, whole_rows,
 };
-use crate::domain::lowering::costing::types::{
-    AccessCost, CellState, PackCosts, PlanEstimate, UseAsked, UseCosts,
-};
+use crate::domain::lowering::costing::types::{AccessCost, CellState, PlanEstimate, UseAsked};
 use crate::domain::lowering::definitions::service::draft;
 use crate::domain::lowering::definitions::types::{Drafts, RowEstimate};
 use crate::domain::lowering::flattening::service::made_column;
@@ -25,7 +23,6 @@ use crate::domain::lowering::planning::completing::service::completed;
 use crate::domain::lowering::planning::service::planned_with;
 use crate::domain::lowering::planning::types::{PlanningWith, UnitRole, UnitStart};
 use crate::domain::steps::types::{ColumnMask, DefinitionId, MadeColumn, MadeTableId};
-use std::cell::RefCell;
 use std::collections::HashSet;
 
 /// What a pattern's bound columns give a branch at its start: the variables of those columns, and the rows of one start,
@@ -209,28 +206,12 @@ pub(crate) fn closure(
     }
 }
 
-std::thread_local! {
-    /// The uses costed for the pack this thread is lowering.
-    static PACK: RefCell<PackCosts> = RefCell::new(PackCosts::default());
-}
-
-/// Runs `planning` with the uses costed so far for the pack of `drafts`, and keeps what it costs for the next branch of
-/// the pack. The costs kept are another pack's, and are dropped, when the drafts hold no definition yet (a pack's first
-/// branch is planned, or sized, before its first definition is made), when they are other drafts, or when they hold fewer
-/// definitions than they did; a cost is also kept under its definition's plan node, so one of another node is never read.
+/// Runs `planning` with the uses costed so far for the pack of `drafts`: what it costs is kept for the pack's next branch.
 pub(crate) fn with_pack<T>(drafts: &Drafts, planning: impl FnOnce(PlanningWith<'_>) -> T) -> T {
-    let (at, held) = (std::ptr::from_ref(drafts).addr(), drafts.definitions.len());
-    let mut pack = PACK.with(RefCell::take);
-    if held == 0 || pack.drafts != at || held < pack.definitions {
-        pack.costs = UseCosts::default();
-    }
-    (pack.drafts, pack.definitions) = (at, held);
-    let answer = planning(PlanningWith {
+    planning(PlanningWith {
         drafts,
-        costs: &pack.costs,
-    });
-    let _emptied = PACK.with(|kept| kept.replace(pack));
-    answer
+        costs: &drafts.costs,
+    })
 }
 
 /// The rows a step's branches are taken to give in a file together: each branch's own plan with nothing bound, as a

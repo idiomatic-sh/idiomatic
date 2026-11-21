@@ -9,17 +9,23 @@ use super::constants::{
 };
 use super::types::{CellState, KeyChoice, PlanEstimate};
 use crate::domain::lowered::types::{FillInput, MadeFill, OrderedFill};
-use crate::domain::lowering::definitions::service::draft;
+use crate::domain::lowering::definitions::service::{draft, kind_bits};
 use crate::domain::lowering::definitions::types::{Drafts, RowEstimate};
-use crate::domain::lowering::flattening::types::{AtomRows, FlatBranch, RowColumn, RowsPerFile};
+use crate::domain::lowering::flattening::types::{
+    AtomRows, FlatBranch, FlatTerm, RowColumn, RowsPerFile,
+};
 use crate::domain::lowering::planning::uses::service::branches_estimated;
+use crate::domain::statistics::service::{element_rows, field_rows, kind_rows, literal_rows};
+use crate::domain::statistics::types::SizedRows;
 use crate::domain::steps::stages::types::{FillStage, Pipeline};
-use crate::domain::steps::types::{CostClass, MadeColumn, MadeTableId, StepRows};
+use crate::domain::steps::types::{ConstantText, CostClass, MadeColumn, MadeTableId, StepRows};
+use ryo_language::domain::node_table::types::FieldCode;
 use ryo_relations::domain::catalog::service::{fact_form, node_column, relation_size};
 use ryo_relations::domain::relations::service::{columns, kind};
 use ryo_relations::domain::relations::types::{
     CellKind, Column, FactForm, FilledKey, NodeColumn, Relation, RelationSize,
 };
+use ryo_relations::domain::terms::types::NameText;
 
 /// The product of two estimates, held to the cap.
 #[must_use]
@@ -315,4 +321,79 @@ pub(crate) fn keyed(
 #[must_use]
 pub(crate) fn branches_rows(drafts: &Drafts, branches: &[FlatBranch]) -> RowEstimate {
     branches_estimated(drafts, branches)
+}
+
+/// The mean rows a file of a size a sample measured, in the planner's 1,024ths, and never none.
+fn mean_rows(sized: SizedRows) -> PlanEstimate {
+    let whole = |count: usize| u128::try_from(count).unwrap_or(u128::MAX);
+    let mean = whole(sized.rows.0).saturating_mul(u128::from(ONE.0)) / whole(sized.files.0).max(1);
+    PlanEstimate(u64::try_from(mean).unwrap_or(u64::MAX).max(1)).min(PLAN_CAP)
+}
+
+/// The text a constant is written as: a text as the plan writes it, a number in decimal.
+fn written_as(drafts: &Drafts, constant: FlatTerm) -> Option<String> {
+    match constant {
+        FlatTerm::Text(number) => drafts.written.get(&number).map(|text| text.0.to_string()),
+        FlatTerm::Number(number) => Some(number.0.to_string()),
+        FlatTerm::Variable(_) | FlatTerm::File => None,
+    }
+}
+
+/// The rows a sample measured for the bucket an atom's rows are read by when no register keys them: the kind's or the
+/// field's elements for the node table (its elements, read whole), the rows holding the value for a filled relation.
+/// `held` is the constant each cell is held to. None when the load was given no sizes, when a register keys the read, or
+/// when the sample did not size that bucket: the fixed prior stands.
+#[must_use]
+pub(crate) fn measured(
+    drafts: &Drafts,
+    rows: AtomRows,
+    states: &[CellState],
+    held: &[Option<FlatTerm>],
+) -> Option<PlanEstimate> {
+    let sized = drafts.sized.as_ref()?;
+    let AtomRows::Relation(relation) = rows else {
+        return None;
+    };
+    if states.contains(&CellState::Register) {
+        return None;
+    }
+    let listed = columns(relation);
+    let constant = |place: usize| held.get(place).copied().flatten();
+    let found = match fact_form(relation) {
+        FactForm::NodeTable => {
+            let at = |wanted: NodeColumn| {
+                let mut places = listed.iter().zip(states).enumerate();
+                places.find_map(|(place, (column, state))| {
+                    let named =
+                        *state == CellState::Constant && node_column(*column) == Some(wanted);
+                    named.then(|| constant(place)).flatten()
+                })
+            };
+            if let Some(kind) = at(NodeColumn::Kind) {
+                let text = written_as(drafts, kind)?;
+                let bits = kind_bits(&sized.names, &ConstantText(text.into()))?;
+                kind_rows(&sized.statistics, bits)
+            } else if let Some(field) = at(NodeColumn::Field) {
+                let text = written_as(drafts, field)?;
+                let place = sized
+                    .names
+                    .fields
+                    .iter()
+                    .position(|name| *name.0 == *text)?;
+                field_rows(&sized.statistics, FieldCode(u16::try_from(place).ok()?))
+            } else if states.contains(&CellState::Constant) {
+                None
+            } else {
+                element_rows(&sized.statistics)
+            }
+        }
+        FactForm::Filled(_) => {
+            let sizes = listed.iter().enumerate().filter_map(|(place, column)| {
+                let text = written_as(drafts, constant(place)?)?;
+                literal_rows(&sized.statistics, relation, *column, NameText(&text))
+            });
+            sizes.min_by_key(|sized| sized.rows)
+        }
+    };
+    found.map(mean_rows)
 }

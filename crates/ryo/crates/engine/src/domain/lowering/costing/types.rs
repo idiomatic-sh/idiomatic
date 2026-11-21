@@ -2,7 +2,9 @@
 //! an access is taken to cost.
 
 use crate::domain::lowering::flattening::types::RowColumn;
+use crate::domain::statistics::types::Statistics;
 use crate::domain::steps::types::{ColumnMask, CostClass, DefinitionId};
+use ryo_values::domain::descriptions::types::KindVocabulary;
 use ryo_values::domain::query_plans::types::NodeDigest;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -64,14 +66,12 @@ pub(crate) struct UseAsked {
 #[derive(Debug, Default)]
 pub(crate) struct UseCosts(pub(crate) RefCell<HashMap<UseAsked, Option<AccessCost>>>);
 
-/// The uses costed for the pack a thread is lowering: a definition's branches never change once it is made, so what a use
-/// of it costs is the pack's to keep, not one branch's. `drafts` and `definitions` say which pack the costs are of.
-#[derive(Debug, Default)]
-pub(crate) struct PackCosts {
-    /// Where the pack's drafts are.
-    pub(crate) drafts: usize,
-    /// How many definitions the drafts held when the costs were last read.
-    pub(crate) definitions: usize,
-    /// The costs.
-    pub(crate) costs: UseCosts,
+/// What a sample measured the buckets of a file at, with the language's names the sizes are read by: the costing sizes a
+/// kind's, a field's or a literal's bucket by it where the sample sized one, and by the fixed prior where it did not.
+#[derive(Clone, Debug)]
+pub(crate) struct SampleSizes {
+    /// The statistics the load was given.
+    pub(crate) statistics: Statistics,
+    /// The language's kinds and fields.
+    pub(crate) names: KindVocabulary,
 }

@@ -5,6 +5,7 @@
 
 use super::costing::constants::GROUP_ROWS;
 use super::costing::service::branches_rows;
+use super::costing::types::SampleSizes;
 use super::definitions::service::{defined, use_branch};
 use super::definitions::types::{DefinitionDraft, Drafts, Flattened};
 use super::emptiness::branches::service::{branch_need, with_need};
@@ -164,7 +165,13 @@ fn built(
     store: &NodeStore,
     sample: LoadSample<'_>,
 ) -> Result<LoweredPack, RefusedPlace> {
-    let mut drafts = Drafts::default();
+    let mut drafts = Drafts {
+        sized: sample.statistics.map(|statistics| SampleSizes {
+            statistics: statistics.clone(),
+            names: sample.kinds.clone(),
+        }),
+        ..Drafts::default()
+    };
     let mut flattened = Vec::with_capacity(rules.len());
     for place in (0..rules.len()).map(AcceptedPlace) {
         let mut state = RuleFlattening {
