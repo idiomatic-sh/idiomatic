@@ -268,6 +268,7 @@ fn lent(text: &str, visit: &mut dyn FnMut(FileFacts<'_>)) {
         table,
         source: ByteSlice(text.as_bytes()),
         file: FileId(1),
+        path: crate::domain::files::types::SourcePath("a.walk"),
         facts: &mut source,
     });
 }

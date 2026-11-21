@@ -12,6 +12,7 @@ use ryo_language::domain::facts::service::text;
 use ryo_language::domain::facts::types::{CellWord, FileWords};
 use ryo_operators::domain::comparing::collections::comparisons::affix::item::AffixItem;
 use ryo_operators::domain::comparing::collections::comparisons::interface::ComparisonsItem as _;
+use ryo_operators::domain::comparing::collections::comparisons::ordering::item::OrderingItem;
 use ryo_operators::domain::contract::types::PredicateOutcome;
 use ryo_operators::domain::patterns::service::glob_any_each;
 use ryo_operators::domain::table_texts::types::{Datum, TextView};
@@ -36,10 +37,10 @@ pub(crate) const fn test_runs(test: TestOperation) -> FillRuns {
         | TestOperation::Glob
         | TestOperation::NotGlob
         | TestOperation::StartsWith
-        | TestOperation::EndsWith => FillRuns::Runs,
-        TestOperation::NumericAtLeast | TestOperation::NaturalLess | TestOperation::Successor => {
-            FillRuns::NotYet
-        }
+        | TestOperation::EndsWith
+        | TestOperation::NaturalLess => FillRuns::Runs,
+        // Each side of these two is a number or a text, and the word does not say which (QUESTIONS.md Q8).
+        TestOperation::NumericAtLeast | TestOperation::Successor => FillRuns::NotYet,
     }
 }
 
@@ -101,6 +102,41 @@ fn affixed(
     Ok(())
 }
 
+/// `NaturalLess` of each row's two texts: the operators crate's natural order of texts.
+///
+/// # Errors
+///
+/// The test names no other text.
+fn natural(
+    words: &FileWords,
+    test: TextTest<'_>,
+    rows: Count,
+    keep: &mut Vec<BatchRow>,
+) -> Result<(), FilledError> {
+    let Some(right) = test.right else {
+        return Err(FilledError::Code {
+            named: MissingCode::Word,
+        });
+    };
+    selected(
+        rows,
+        keep,
+        (0..rows.0).map(|row| {
+            let one = TextView(text(words, value_at(test.left, Count(row))).0);
+            let other = TextView(text(words, value_at(right, Count(row))).0);
+            match OrderingItem.holds(
+                Test::NaturalLessThan,
+                &Datum::Text(one),
+                &Datum::Text(other),
+            ) {
+                Ok(PredicateOutcome::Holds) => RowKept::Yes,
+                Ok(PredicateOutcome::Fails) | Err(_) => RowKept::No,
+            }
+        }),
+    );
+    Ok(())
+}
+
 /// `Keep` of a test of a text: the rows of the batch it holds for, as a selection. `Matches` searches each row's text with
 /// its one expression; the glob test asks whether each row's text matches any of its globs, one constant or a set, or
 /// the row's own; its negation keeps the other rows; `StartsWith` and `EndsWith` ask the operators crate's affix
@@ -146,11 +182,10 @@ pub(crate) fn keep_text(
         }
         TestOperation::StartsWith => affixed(words, test, Test::StartsWith, rows, keep),
         TestOperation::EndsWith => affixed(words, test, Test::EndsWith, rows, keep),
-        TestOperation::NumericAtLeast | TestOperation::NaturalLess | TestOperation::Successor => {
-            Err(FilledError::Unbuilt {
-                unbuilt: UnbuiltFill::Stage(Op::StageKeep),
-            })
-        }
+        TestOperation::NaturalLess => natural(words, test, rows, keep),
+        TestOperation::NumericAtLeast | TestOperation::Successor => Err(FilledError::Unbuilt {
+            unbuilt: UnbuiltFill::Stage(Op::StageKeep),
+        }),
         // A regular expression is always against a constant: it is decided by the word, above.
         TestOperation::Matches(_)
         | TestOperation::Equal

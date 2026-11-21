@@ -148,6 +148,7 @@ fn scan_once(
         table: nodes,
         source: ByteSlice(b""),
         file: FileId(0),
+        path: ryo_language::domain::files::types::SourcePath(""),
         facts: &mut facts,
     };
     let steps = scan

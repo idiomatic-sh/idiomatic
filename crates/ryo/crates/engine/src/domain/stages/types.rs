@@ -11,6 +11,7 @@ use ryo_language::domain::facts::service::intern;
 use ryo_language::domain::facts::types::CellWord;
 use ryo_language::domain::facts::types::FileWords;
 use ryo_language::domain::symbols::types::ByteSlice;
+use ryo_operators::domain::functions::types::MadeText;
 use ryo_operators::domain::capture::types::{CaptureOutput, CaptureSpans};
 use ryo_operators::domain::contract::errors::ContractError;
 use ryo_operators::domain::patterns::types::{PatternMatcher, TextGlobSet};
@@ -251,6 +252,17 @@ pub(crate) struct CallScratch {
     pub(crate) joined: Vec<Value>,
     /// The ways a capture matched: every way's slots, one way after the other.
     pub(crate) ways: CaptureWays,
+    /// The texts of a function's arguments for one row, and the text it made of them.
+    pub(crate) texts: FunctionTexts,
+}
+
+/// The texts a function reads and the one it makes, for one row: owned by the scratch.
+#[derive(Debug, Default)]
+pub(crate) struct FunctionTexts {
+    /// The arguments' texts, in order.
+    pub(crate) arguments: Vec<MadeText>,
+    /// The text made.
+    pub(crate) made: MadeText,
 }
 
 /// A text a meaning reads or writes, owned by the scratch.

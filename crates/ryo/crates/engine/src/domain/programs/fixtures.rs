@@ -204,6 +204,7 @@ pub(crate) fn framed_with<T>(
         programs: rule_set(programs),
         nodes,
         file: FILE,
+        path: ryo_language::domain::files::types::SourcePath(""),
         text: ByteSlice(b""),
         facts,
         words: &mut words,
