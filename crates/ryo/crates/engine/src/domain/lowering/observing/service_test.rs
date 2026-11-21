@@ -222,6 +222,35 @@ const CASES: &[Case<Given, Value, Failure>] = &[
         },
         "locals [Some(File), Some(File)]\nbranches [Rows Rows]\ndefinitions 1",
     ),
+    said(
+        "a_step_after_the_files_that_meets_the_files_words_keyed_by_a_node_is_a_step_of_the_file",
+        || Asked {
+            plan: words_met((&[1], &[1])),
+            declared: true,
+        },
+        "locals [Some(File), Some(File)]\nbranches [Rows Rows]\ndefinitions 1",
+    ),
+    said(
+        "a_step_after_the_files_whose_rows_name_no_file_over_the_files_rows_and_a_constant_table_is_a_step_of_the_file",
+        || Asked {
+            plan: {
+                let mut named = words_the_host_names(0);
+                if let Some(PlanStep {
+                    operation: Operation::Join { output, .. },
+                    ..
+                }) = named.steps.get_mut(2)
+                {
+                    output.truncate(1);
+                    if let Some(first) = output.first_mut() {
+                        first.column = ColumnIndex(3);
+                    }
+                }
+                named
+            },
+            declared: true,
+        },
+        "locals [Some(File), Some(Constant), Some(File)]\nbranches [Rows Rows Test, Rows Rows Test]\ndefinitions 0",
+    ),
     refused(
         "a_rule_that_emits_a_constant_table_is_refused_at_its_emit",
         || Asked {

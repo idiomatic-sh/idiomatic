@@ -372,7 +372,7 @@ pub(crate) fn shape_reached(
         }
         let shape = shaped(&rule.rule, rule.given, &rule.shapes, &step.operation)
             .ok_or_else(|| unlowerable(place))?;
-        let local = local_of(&rule.rule, rule.given, &rule.shapes, &rule.locals, step, &shape)
+        let local = local_of(&rule.rule, rule.given, &rule.shapes, &rule.locals, step)
             .ok_or_else(|| unlowerable(place))?;
         if shape.0.len() > usize::from(u16::MAX) {
             return Err(LoadRefusal::Budget(PastWidth::TableColumns));

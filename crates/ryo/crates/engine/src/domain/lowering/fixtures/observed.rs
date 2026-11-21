@@ -5,7 +5,7 @@ use super::parts::{kept, plan, step};
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, ComparisonOrigin, Input, LiteralText, Operand, PlanComparison, QueryLiteral,
-    RepeatedRows, StepId, StepScope, Test,
+    JoinColumn, Side, StepId, StepScope, Test,
 };
 use ryo_values::domain::plans::types::{Operation, PlanStep};
 use ryo_values::domain::query_plans::types::Plan;
@@ -42,16 +42,24 @@ pub(super) fn observed_scene(scene: &str) -> Option<Plan> {
             observed.frontier = vec![Input::Step(StepId(1))];
             observed
         }
-        // The rule's own rows are read after the files: its emit reaches a step that is not per-file, and whose rows (the
-        // tree's elements alone) name no file, so they are rows of every file at once.
+        // The rule's own rows are read after the files: its emit reaches a step that is not per-file and that meets the
+        // tree's elements with the tree's elements on their kind alone, so it pairs elements of two files.
         "a rule that emits after the files" => {
             let mut late = plan(vec![
                 kept(Input::Relation(Relation::SyntaxTree)),
                 PlanStep {
-                    operation: Operation::Project {
-                        from: Input::Step(StepId(0)),
-                        columns: vec![ColumnIndex(0)],
-                        distinct: RepeatedRows::Dropped,
+                    operation: Operation::Join {
+                        left: Input::Step(StepId(0)),
+                        right: Input::Step(StepId(0)),
+                        left_on: vec![ColumnIndex(1)],
+                        right_on: vec![ColumnIndex(1)],
+                        output: vec![
+                            JoinColumn { side: Side::Left, column: ColumnIndex(0) },
+                            JoinColumn { side: Side::Right, column: ColumnIndex(0) },
+                        ],
+                        filter: Vec::new(),
+                        view: Vec::new(),
+                        reach: None,
                     },
                     scope: StepScope::CrossFile,
                 },

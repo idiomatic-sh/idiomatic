@@ -75,7 +75,12 @@ fn names_files(given: LoadGiven<'_>, relation: HostedNumber) -> bool {
     hosted_shape(given, relation).is_some_and(|shape| shape.0.contains(&CellKind::File))
 }
 
-/// Whether some pair of the keys holds a file on both sides: rows of two files never meet.
+/// Whether a column names the file its row is of: the file itself, or a node, whose id holds its file.
+fn names_file(kind: Option<CellKind>) -> bool {
+    matches!(kind, Some(CellKind::File | CellKind::Node))
+}
+
+/// Whether some pair of the keys holds the file on both sides (the file, or a node of it): rows of two files never meet.
 fn file_keyed(
     left: &StepShape,
     right: &StepShape,
@@ -84,7 +89,8 @@ fn file_keyed(
 ) -> bool {
     let kind = |shape: &StepShape, column: &ColumnIndex| shape.0.get(usize::from(*column)).copied();
     left_on.iter().zip(right_on).any(|(left_key, right_key)| {
-        kind(left, left_key) == Some(CellKind::File) && kind(right, right_key) == Some(CellKind::File)
+        let (left_kind, right_kind) = (kind(left, left_key), kind(right, right_key));
+        left_kind == right_kind && names_file(left_kind)
     })
 }
 
@@ -104,26 +110,11 @@ fn met(left: Local, right: Local, keyed: bool, sided: bool) -> Option<Local> {
 /// a constant table. A step after the files reads no relation; it is a step of the file when the union over the files of
 /// its rows file by file is its rows over the run: a row-wise operation of one input, a union of two inputs of one kind,
 /// a join or an absence of the file's rows against a constant table or against the file's rows keyed by the file, a group
-/// keyed by the file, each row of the answer naming the file. A relation the host declares is a constant table, or the
-/// file's rows when it names files; a bound observation holds the rows its producers' observed steps hand over in the file.
+/// keyed by the file (a key pair that holds the file, or a node of it, on both sides). A constant table never makes a step
+/// one of several files by itself. A relation the host declares is a constant table, or the file's rows when it names
+/// files; a bound observation holds the rows its producers' observed steps hand over in the file.
 #[must_use]
 pub(crate) fn local_of(
-    rule: &SelectedRule<'_>,
-    given: LoadGiven<'_>,
-    shapes: &[Option<StepShape>],
-    locals: &[Option<Local>],
-    step: &PlanStep,
-    shape: &StepShape,
-) -> Option<Local> {
-    let local = step_local(rule, given, shapes, locals, step)?;
-    // After the files, a step holds the file's rows only when each of its rows names the file: rows of two files that a
-    // step made alike would be one row over the run and one in each file.
-    let named = step.scope == StepScope::PerFile || shape.0.contains(&CellKind::File);
-    (local == Local::Constant || named).then_some(local)
-}
-
-/// `local_of`, before the rows are asked to name the file.
-fn step_local(
     rule: &SelectedRule<'_>,
     given: LoadGiven<'_>,
     shapes: &[Option<StepShape>],
@@ -171,7 +162,7 @@ fn step_local(
                 let read = kinds(from)?;
                 let by_file = keys
                     .iter()
-                    .any(|key| read.0.get(usize::from(*key)) == Some(&CellKind::File));
+                    .any(|key| names_file(read.0.get(usize::from(*key)).copied()));
                 by_file.then_some(Local::File)
             }
         },
