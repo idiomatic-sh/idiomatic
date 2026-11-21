@@ -50,6 +50,12 @@ pub enum LoopBench {
     /// Asks a pattern in call form for the row's own key, once: every ask evaluates the pattern, whose program is one
     /// `Yield`, and keeps its answer: the cost of an evaluation, its `Yield` in it.
     CallMiss,
+    /// Asks a pattern in call form for the row's own key, once, where the pattern's program tests its key against a cell
+    /// no row holds and so gives no row: every ask evaluates the pattern, keeps its empty answer, and ends the candidate.
+    CallNone,
+    /// Asks an inline body of a test that holds and a `Yield` whether it has a row, `COPIES` times: a run entered for
+    /// each ask.
+    ExistsRun,
     /// Emits the row, once.
     Emit,
     /// Reads the table by key, once: the rows whose cell is the row's own, which is one row. A read by key through the
@@ -75,7 +81,7 @@ pub const COPIES: usize = 8;
 /// ```
 /// use ryo_engine::domain::dispatch::fixtures::workloads::LOOP_BENCHES;
 ///
-/// assert_eq!(LOOP_BENCHES.len(), 9);
+/// assert_eq!(LOOP_BENCHES.len(), 11);
 /// ```
 pub const LOOP_BENCHES: &[LoopBench] = &[
     LoopBench::Rows,
@@ -85,6 +91,8 @@ pub const LOOP_BENCHES: &[LoopBench] = &[
     LoopBench::ExistsInline,
     LoopBench::CallHit,
     LoopBench::CallMiss,
+    LoopBench::CallNone,
+    LoopBench::ExistsRun,
     LoopBench::Emit,
     LoopBench::Match,
 ];
@@ -108,6 +116,8 @@ pub const fn loop_name(bench: LoopBench) -> &'static str {
         LoopBench::ExistsInline => "exists_inline",
         LoopBench::CallHit => "call_hit",
         LoopBench::CallMiss => "call_miss",
+        LoopBench::CallNone => "call_none",
+        LoopBench::ExistsRun => "exists_run",
         LoopBench::Emit => "emit",
         LoopBench::Match => "match",
     }
@@ -198,7 +208,24 @@ pub fn loop_programs(bench: LoopBench, rows: usize) -> Option<Programs> {
         ),
         LoopBench::ExistsInline => (several(&inline), 0),
         LoopBench::CallHit => (several(&|| asked(word(7))), 0),
-        LoopBench::CallMiss => (vec![asked(of(0))], 0),
+        LoopBench::CallMiss | LoopBench::CallNone => (vec![asked(of(0))], 0),
+        LoopBench::ExistsRun => (
+            several(&|| ProgramStep::Exists {
+                polarity: Polarity::Present,
+                body: StepBody::Inline(program(vec![
+                    ProgramStep::Test {
+                        test: TestOperation::Equal,
+                        left: of(0),
+                        right: of(0),
+                    },
+                    ProgramStep::Yield {
+                        row: RegisterList(Box::new([])),
+                    },
+                ])),
+                memo: StepMemo::None,
+            }),
+            0,
+        ),
         LoopBench::Match => (
             vec![
                 read(),
@@ -224,12 +251,26 @@ pub fn loop_programs(bench: LoopBench, rows: usize) -> Option<Programs> {
         out: Register(0),
     }];
     steps.extend(words);
+    let yielded = ProgramStep::Yield {
+        row: RegisterList(Box::new([])),
+    };
+    // The pattern's program: a `Yield`, after a test no key passes in the workload whose asks give no row.
+    let body = if bench == LoopBench::CallNone {
+        vec![
+            ProgramStep::Test {
+                test: TestOperation::Equal,
+                left: of(5),
+                right: StepOperand::Word(CellWord(u64::MAX)),
+            },
+            yielded,
+        ]
+    } else {
+        vec![yielded]
+    };
     let pattern = DefinitionPattern {
         bound: ColumnMask(Box::new([MadeColumn(0)])),
         collected: ColumnMask(Box::new([])),
-        form: PatternForm::Call(program(vec![ProgramStep::Yield {
-            row: RegisterList(Box::new([])),
-        }])),
+        form: PatternForm::Call(program(body)),
         shape: ShapeChoice::Decided,
     };
     let pack = LoweredPack {
