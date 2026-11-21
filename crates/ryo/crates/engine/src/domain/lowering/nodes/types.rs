@@ -2,10 +2,10 @@
 
 use crate::domain::lowering::types::SelectedRule;
 use ryo_relations::domain::relations::types::CellKind;
-use ryo_values::domain::plan_parts::types::{InputNumber, StepId};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, InputNumber, StepId};
 use ryo_values::domain::query_plans::types::{NodeDigest, NodeDigests};
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 /// What each column of a step's rows holds, in column order.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -40,6 +40,15 @@ pub(crate) struct NodeHome {
     pub(crate) step: StepId,
 }
 
+/// The columns of a merged plan node its readers across the pack read.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum ReadColumns {
+    /// Every reader is a projection: the columns they keep, together.
+    Kept(BTreeSet<ColumnIndex>),
+    /// Some reader reads the whole row: an operation that is no projection, or a rule's emit.
+    Whole,
+}
+
 /// One merged plan node of the pack.
 #[derive(Clone, Debug)]
 pub(crate) struct StoredNode {
@@ -47,6 +56,8 @@ pub(crate) struct StoredNode {
     pub(crate) home: NodeHome,
     /// Its distinct readers across the pack.
     pub(crate) readers: HashSet<NodeReader>,
+    /// The columns of it they read.
+    pub(crate) read: ReadColumns,
 }
 
 /// The pack's one store of merged plan nodes, by digest.

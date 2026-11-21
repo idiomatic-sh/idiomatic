@@ -3,7 +3,8 @@
 use crate::domain::code::types::UnitKey;
 use crate::domain::lowered::types::{Emptiness, MadeFill, MadeTable, PatternForm};
 use crate::domain::lowering::definitions::types::{DefinitionDraft, Drafts, WaitingPattern};
-use crate::domain::lowering::flattening::types::{FlatAtom, FlatBranch, FlatTerm, FlatVariable};
+use crate::domain::lowering::flattening::service::own_walks;
+use crate::domain::lowering::flattening::types::{FlatBranch, FlatTerm, FlatVariable, OwnWalks};
 use crate::domain::lowering::nodes::types::AcceptedPlace;
 use crate::domain::lowering::nodes::types::NodeHome;
 use crate::domain::lowering::placement::service::{measured, placed};
@@ -124,16 +125,10 @@ pub(crate) fn pattern_placed(
             .filter(|pattern| matches!(pattern.form, Some(PatternForm::Call(_))))
             .count(),
     );
-    let walks = branches.iter().flat_map(|branch| &branch.atoms);
-    let table = if walks
-        .clone()
-        .any(|atom| matches!(atom, FlatAtom::Nearest { .. } | FlatAtom::Closure { .. }))
-    {
-        TableForm::Calls
-    } else if draft.keyless.is_empty() {
-        TableForm::Keyed
-    } else {
-        TableForm::Product
+    let table = match (own_walks(&branches), draft.keyless.is_empty()) {
+        (OwnWalks::Walked, _) => TableForm::Calls,
+        (OwnWalks::Stageable, true) => TableForm::Keyed,
+        (OwnWalks::Stageable, false) => TableForm::Product,
     };
     // A pattern has a program when every branch has one with the bound columns given: every access keyed.
     let plans: Option<Vec<_>> = branches

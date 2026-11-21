@@ -1,7 +1,7 @@
 //! The services of the `flattening` part: the equalities of a branch resolved in one union-find and one rewrite, a comparison
 //! added to a branch, and the columns of a row picked. Nothing here copies a sub-plan: a branch holds uses, never bodies.
 
-use super::types::{EqualTerms, FlatAtom, FlatBranch, FlatTerm, FlatVariable, RowColumn};
+use super::types::{EqualTerms, FlatAtom, FlatBranch, FlatTerm, FlatVariable, OwnWalks, RowColumn};
 use crate::domain::steps::types::CallMeaning;
 use crate::domain::steps::types::{MadeColumn, TestOperation};
 use ryo_values::domain::plan_parts::types::Function;
@@ -57,6 +57,26 @@ pub(crate) fn variables(atom: &FlatAtom) -> Vec<FlatVariable> {
         }
     });
     found
+}
+
+/// Whether branches hold a walk no stage runs.
+#[must_use]
+pub(crate) fn own_walks(branches: &[FlatBranch]) -> OwnWalks {
+    let mut atoms = branches.iter().flat_map(|branch| &branch.atoms);
+    let walked = atoms.any(|atom| match atom {
+        FlatAtom::Nearest { .. } | FlatAtom::Closure { .. } => true,
+        FlatAtom::Rows { .. }
+        | FlatAtom::Latest { .. }
+        | FlatAtom::Decided { .. }
+        | FlatAtom::Walk { .. }
+        | FlatAtom::Called { .. }
+        | FlatAtom::Test { .. } => false,
+    });
+    if walked {
+        OwnWalks::Walked
+    } else {
+        OwnWalks::Stageable
+    }
 }
 
 /// What a term stands for under the classes made so far: the class's constant when it has one, else its one variable.
