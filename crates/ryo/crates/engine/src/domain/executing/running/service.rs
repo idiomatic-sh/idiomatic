@@ -5,17 +5,17 @@
 //! words and a table's fill are the `filling` part's; what both kinds of word share is the `places` part's.
 
 use super::filling::service::{fill, stage_word};
-use super::places::service::{body, site_table, tested};
+use super::places::service::{body, called, site_table, tested};
 use super::types::{WalkPlace, WordBuilt};
 use crate::domain::code::anchoring::service::{
     each_match_filled_many_of, each_match_filled_of, each_match_made_of, each_match_node_of,
     each_row_made_of, latest_of,
 };
 use crate::domain::code::controlling::service::{exists_of, fork_of, or_of};
-use crate::domain::code::deciding::service::test_of;
-use crate::domain::code::small_codes::service::comparison_of;
+use crate::domain::code::deciding::service::{call_of, test_of};
+use crate::domain::code::small_codes::service::{comparison_of, meaning_of};
 use crate::domain::code::types::{CodeEntry, CodeWord, Op, ProgramCode, RuleCode, WordSlot};
-use crate::domain::code::walking::service::nearest_of;
+use crate::domain::code::walking::service::{closure_of, nearest_of};
 use crate::domain::made_tables::reading::service::latest_site;
 use crate::domain::needs::service::tables_asked;
 use crate::domain::programs::operands::service::listed;
@@ -28,22 +28,10 @@ fn step_word(
     out: &mut Vec<WalkPlace>,
 ) -> WordBuilt {
     match word.op {
-        Op::EachMatchNode => {
-            site_table(code, each_match_node_of(word).index, out);
-            WordBuilt::Runs
-        }
-        Op::EachMatchFilled => {
-            site_table(code, each_match_filled_of(word).index, out);
-            WordBuilt::Runs
-        }
-        Op::EachMatchFilledMany => {
-            site_table(code, each_match_filled_many_of(word).index, out);
-            WordBuilt::Runs
-        }
-        Op::EachMatchMade => {
-            site_table(code, each_match_made_of(word).index, out);
-            WordBuilt::Runs
-        }
+        Op::EachMatchNode => site_table(code, each_match_node_of(word).index, out),
+        Op::EachMatchFilled => site_table(code, each_match_filled_of(word).index, out),
+        Op::EachMatchFilledMany => site_table(code, each_match_filled_many_of(word).index, out),
+        Op::EachMatchMade => site_table(code, each_match_made_of(word).index, out),
         Op::End
         | Op::EachKind
         | Op::EachRowNode
@@ -65,17 +53,23 @@ fn step_word(
             out.push(WalkPlace::Table(each_row_made_of(word).table));
             WordBuilt::Runs
         }
-        Op::Latest => {
-            if let Ok(site) = latest_site(code, latest_of(word).operands) {
-                site_table(code, site, out);
-            }
-            WordBuilt::Runs
+        Op::Latest => match latest_site(code, latest_of(word).operands) {
+            Ok(site) => site_table(code, site, out),
+            Err(_) => WordBuilt::NotYet,
+        },
+        Op::Call => {
+            let read = call_of(word);
+            called(meaning_of(read.meaning, read.regex, read.flag))
         }
         Op::Test => {
             let read = test_of(word);
             tested(comparison_of(read.comparison, read.regex))
         }
         Op::Exists => match body(code, exists_of(word).body, unit, out) {
+            Some(_) => WordBuilt::Runs,
+            None => WordBuilt::NotYet,
+        },
+        Op::Closure => match body(code, closure_of(word).operands, unit, out) {
             Some(_) => WordBuilt::Runs,
             None => WordBuilt::NotYet,
         },
@@ -109,8 +103,6 @@ fn step_word(
         | Op::ChildrenOfField
         | Op::Within
         | Op::NearestDerived
-        | Op::Closure
-        | Op::Call
         | Op::Render => WordBuilt::NotYet,
         // A stage is no word of a step program.
         Op::StageScan

@@ -124,3 +124,31 @@ pub(crate) fn staged_next(
     cursor.at = FramePlace(cursor.at.0.saturating_add(1));
     Some(after(cursor.word))
 }
+
+/// Binds the next staged row of such a cursor, as many cells as `outputs` has registers, each to its register; when the
+/// rows are done the staged room is given back.
+pub(crate) fn staged_row_next(
+    frame: &mut StepFrame<'_, '_>,
+    cursor: &mut IterationCursor,
+    outputs: &[WordSlot],
+) -> Option<CodeEntry> {
+    let first = usize::try_from(cursor.beside.0).unwrap_or(usize::MAX);
+    if cursor.at.0 >= cursor.end.0 {
+        frame.state.staged.truncate(first);
+        return None;
+    }
+    let row = first.saturating_add(
+        usize::try_from(cursor.at.0)
+            .unwrap_or(usize::MAX)
+            .saturating_mul(outputs.len()),
+    );
+    for (place, output) in outputs.iter().enumerate() {
+        let value = match frame.state.staged.get(row.saturating_add(place)) {
+            Some(held) => *held,
+            None => CellWord(0),
+        };
+        set(frame, Register(output.0), value);
+    }
+    cursor.at = FramePlace(cursor.at.0.saturating_add(1));
+    Some(after(cursor.word))
+}

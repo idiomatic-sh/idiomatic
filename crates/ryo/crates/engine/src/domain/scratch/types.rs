@@ -9,7 +9,7 @@ use crate::domain::made_tables::types::FillStore;
 use crate::domain::made_tables::types::FillWork;
 use crate::domain::memos::types::{ChargedUnit, MemoId, MemoMap, RuleStamp};
 use crate::domain::needs::types::NeedVerdict;
-use crate::domain::stages::types::{BatchRow, FanRows};
+use crate::domain::stages::types::{BatchRow, BatchValue, CallScratch, FanRows};
 use crate::domain::steps::types::MadeTableId;
 use ryo_language::domain::facts::types::{CellWord, FileWords};
 use ryo_language::domain::node_table::types::PresenceWord;
@@ -131,6 +131,10 @@ pub(crate) struct LoopState {
     pub(crate) kept: Vec<BatchRow>,
     /// The room a walk of the tree writes what it reaches in, lent to the fill side's kernel.
     pub(crate) fan: FanRows,
+    /// What a call of a per-row meaning works in and answers, lent to the fill side's kernel for a batch of one row.
+    pub(crate) calls: CallRoom,
+    /// The elements a closure has met: the room of the closure being walked, lent to it and given back.
+    pub(crate) seen: hashbrown::HashSet<CellWord>,
     /// Which kinds and which fields occur in the file's node rows: what a need on a node relation's kind or field asks.
     pub(crate) presence: NodePresence,
     /// Whether each need site's formula asks the node rows for a kind or a field, by the site's number: a property of the
@@ -308,4 +312,18 @@ pub(crate) enum NodeNeed {
     Asked,
     /// It does not.
     NotAsked,
+}
+
+/// What a call of a per-row meaning works in, for a batch of one row: its arguments as one cell each, the cells of the
+/// rows it gave, the stretch of those rows the one row gave, and the meanings' scratch.
+#[derive(Debug, Default)]
+pub(crate) struct CallRoom {
+    /// The arguments, each one cell for the row.
+    pub(crate) arguments: Vec<BatchValue<'static>>,
+    /// The cells of the rows given, row by row.
+    pub(crate) answers: Vec<CellWord>,
+    /// The rows the one row gave.
+    pub(crate) spans: Vec<RowRun>,
+    /// The meanings' scratch.
+    pub(crate) scratch: CallScratch,
 }

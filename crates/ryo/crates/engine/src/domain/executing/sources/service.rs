@@ -26,7 +26,7 @@ use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::relations::types::Count;
 
 /// Keeps what the fill side answered instead of rows.
-fn faulted(state: &mut LoopState, fault: FilledError) {
+pub(crate) fn faulted(state: &mut LoopState, fault: FilledError) {
     match fault {
         FilledError::Unbuilt { .. } => {
             state.work.unbuilt = InstructionCount(state.work.unbuilt.0.saturating_add(1));

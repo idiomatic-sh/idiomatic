@@ -13,12 +13,11 @@ use crate::domain::programs::fixtures::{framed, held, table};
 use crate::domain::programs::frames::types::RunMode;
 use crate::domain::programs::types::ProgramsEngine;
 use crate::domain::steps::types::{
-    CallMeaning, EmitTarget, MadeColumn, MadeTableId, MatchColumns, PlacedStep, ProgramStep,
-    ReadColumn, Register, RegisterCount, RegisterList, StepOperand, StepOperands, StepProgram,
-    StepRows, TestOperation,
+    EmitTarget, MadeColumn, MadeTableId, MatchColumns, PlacedStep, ProgramStep, ReadColumn,
+    Register, RegisterCount, StepOperand, StepOperands, StepProgram, StepRows, TestOperation,
 };
 use ryo_language::domain::facts::types::CellWord;
-use ryo_relations::domain::relations::types::CellKind;
+use ryo_relations::domain::relations::types::{CellKind, Relation};
 use ryo_values::domain::query_plans::types::NodeDigest;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 use ryo_values::domain::table_words::types::ColumnCount;
@@ -128,10 +127,10 @@ fn pack(scene: Scene) -> LoweredPack {
         return packed(steps);
     }
     if matches!(scene, Scene::WithAnUnbuiltWord) {
-        steps.push(ProgramStep::Call {
-            meaning: CallMeaning::Lower,
-            arguments: StepOperands(Box::new([])),
-            outputs: RegisterList(Box::new([])),
+        steps.push(ProgramStep::Within {
+            relation: Relation::SyntaxTree,
+            ancestor: Register(0),
+            descendant: Register(0),
         });
     }
     let emits = if matches!(scene, Scene::TwoEmits) {

@@ -20,8 +20,13 @@ use crate::domain::scratch::types::{BodyAnswer, LoopState};
 use crate::domain::steps::types::MadeTableId;
 use ryo_relations::domain::relations::types::Count;
 
-/// Stages the rows of one body of an `Or`, each as the cells of the word's outputs in order, and answers how many.
-fn body_staged(frame: &mut StepFrame<'_, '_>, record: BodyRecord, outputs: PoolAt) -> Count {
+/// Stages the rows of one body, each as the cells of the asking word's output registers in order, and answers how many.
+/// A table-form body's row gives, for each output register, the column its record pairs with that register.
+pub(crate) fn body_staged(
+    frame: &mut StepFrame<'_, '_>,
+    record: BodyRecord,
+    outputs: &[WordSlot],
+) -> Count {
     match record {
         BodyRecord::Inline { entry } => {
             let base = frame.state.yielded.len();
@@ -76,7 +81,7 @@ fn body_staged(frame: &mut StepFrame<'_, '_>, record: BodyRecord, outputs: PoolA
                 let Some(row) = rows_at(frame.fill.store, run).first().copied() else {
                     continue;
                 };
-                for output in listed(&programs.code.pool, outputs) {
+                for output in outputs {
                     // The pair of this output among the body's reads names the column of the table's row.
                     let column = (0..collected.0)
                         .map(|number| {
@@ -141,7 +146,8 @@ pub(crate) fn staged(frame: &mut StepFrame<'_, '_>, word: CodeWord) {
                     break;
                 };
                 at = body.after;
-                total = total.saturating_add(body_staged(frame, body.record, asking.outputs).0);
+                let outputs = listed(&frame.fill.programs.code.pool, asking.outputs);
+                total = total.saturating_add(body_staged(frame, body.record, outputs).0);
             }
             if keeps {
                 let LoopState {

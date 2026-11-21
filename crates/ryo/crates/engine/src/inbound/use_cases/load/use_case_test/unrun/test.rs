@@ -8,10 +8,7 @@ use crate::domain::lowered::types::{Branch, Emptiness, LoweredPack, LoweredRule}
 use crate::domain::lowering::fixtures::{digests_of, named};
 use crate::domain::lowering::types::{LoweredRules, SelectedRule, SelectedRules};
 use crate::domain::programs::service::accepted;
-use crate::domain::steps::types::{
-    AnchorKinds, CallMeaning, PlacedStep, ProgramStep, Register, RegisterList, StepOperands,
-    StepProgram,
-};
+use crate::domain::steps::types::{AnchorKinds, PlacedStep, ProgramStep, Register, StepProgram};
 use crate::inbound::use_cases::load::fixtures::kinds;
 use crate::inbound::use_cases::load::service::sequenced;
 use ryo_relations::domain::relations::types::{KindBits, Relation};
@@ -28,7 +25,7 @@ enum Written {
     Whole,
     /// Its anchor twice: the encoding's own fault.
     Faulty,
-    /// Its anchor and a call of a per-row meaning, a word the loop does not run.
+    /// Its anchor and a test that one node is an ancestor of another, a word the loop does not run.
     Unrun,
 }
 
@@ -79,10 +76,10 @@ fn lowered_rule(rule: SelectedRuleOrdinal, written: Written) -> LoweredRule {
     };
     let call = PlacedStep {
         point: None,
-        step: ProgramStep::Call {
-            meaning: CallMeaning::Lower,
-            arguments: StepOperands(Box::new([])),
-            outputs: RegisterList(Box::new([])),
+        step: ProgramStep::Within {
+            relation: Relation::SyntaxTree,
+            ancestor: Register(0),
+            descendant: Register(0),
         },
     };
     let steps = match written {
