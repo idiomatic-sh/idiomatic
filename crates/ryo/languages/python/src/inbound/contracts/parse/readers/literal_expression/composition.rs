@@ -21,9 +21,12 @@ use crate::domain::{
     nodes::types::Node,
     syntax::{service::kind_bits, types::Kind},
 };
-use crate::outbound::literal_expression::adapters::ruff_string_annotation::grammar::RuffStringAnnotation;
+use crate::outbound::literal_expression::adapters::ruff_string_annotation::grammar::{
+    RuffStringAnnotation, parsed_in_place,
+};
 use crate::outbound::literal_expression::interface::LiteralExpressionSyntaxPort as _;
 use ruff_python_ast::AnyNodeRef;
+use ruff_text_size::Ranged as _;
 use ryo::languages;
 use std::convert::identity;
 
@@ -57,18 +60,30 @@ fn parsed_as_annotation(
     carrier: &mut crate::domain::literal_facts::types::TextBuffer,
 ) -> LiteralParseOutcome {
     string_tokens(file, node, tokens);
+    let untold = tokens
+        .iter()
+        .any(|token| body(RawFormatToken(written(file, *token).0)).is_none());
+    if untold || tokens.is_empty() {
+        return LiteralParseOutcome::Unavailable;
+    }
+    // SPIKE (track X): the string is a node of the file's own tree, so the annotation grammar reads it where it is
+    // written: no carrier is assembled and the string is not parsed a second time to get the node the tree holds
+    // (that was 900 ns a row). A file the parser did not read whole keeps the carrier.
+    if file.completeness.syntax != languages::SyntaxCompleteness::Incomplete
+        && let AnyNodeRef::ExprStringLiteral(literal) = node
+        && file
+            .text
+            .0
+            .get(literal.range().start().to_usize()..literal.range().end().to_usize())
+            .is_some()
+    {
+        return parsed_in_place(literal, file.text.0);
+    }
     carrier.0.clear();
     carrier.0.push_str(CARRIER_OPEN);
     for token in tokens.iter() {
-        let spelling = written(file, *token).0;
-        if body(RawFormatToken(spelling)).is_none() {
-            return LiteralParseOutcome::Unavailable;
-        }
-        carrier.0.push_str(spelling);
+        carrier.0.push_str(written(file, *token).0);
         carrier.0.push('\n');
-    }
-    if tokens.is_empty() {
-        return LiteralParseOutcome::Unavailable;
     }
     carrier.0.push(')');
     RuffStringAnnotation.parse(
