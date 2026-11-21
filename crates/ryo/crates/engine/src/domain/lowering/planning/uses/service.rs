@@ -6,7 +6,7 @@
 //! many accesses ask it.
 
 use crate::domain::lowering::costing::constants::{
-    ANCESTORS, CLOSURE_STEP, CONSTANT_EQUAL_KEEPS, DESCENDANTS, ONE, THINNED_DESCENDANTS,
+    ANCESTORS, CLOSURE_STEP, CONSTANT_EQUAL_KEEPS, DESCENDANTS, MADE_ROWS, ONE, THINNED_DESCENDANTS,
 };
 use crate::domain::lowering::costing::service::{
     keyed, made_rows, planned_rows, plus, times, whole_rows,
@@ -79,6 +79,16 @@ fn planned_use(
             break;
         }
     }
+    // A use by a key gives no more rows than the definition holds.
+    let held = planned_rows(draft.rows);
+    let cost = cost.map(|cost| AccessCost {
+        rows: if bound.0.is_empty() {
+            cost.rows
+        } else {
+            cost.rows.min(held)
+        },
+        ..cost
+    });
     let _old = with.costs.0.borrow_mut().insert(asked, cost);
     cost
 }
@@ -238,5 +248,6 @@ pub(crate) fn branches_estimated(drafts: &Drafts, branches: &[FlatBranch]) -> Ro
             plus(sum, plan.map_or(ONE, |plan| plan.rows))
         })
     });
-    whole_rows(rows)
+    // A step's table is sized as any made table is: between the least and the greatest rows of one.
+    whole_rows(rows.clamp(MADE_ROWS.0, MADE_ROWS.1))
 }

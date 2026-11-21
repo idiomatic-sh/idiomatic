@@ -159,12 +159,10 @@ type Failure = ();
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName(
-            "a_join_of_definitions_starts_from_the_side_that_reads_the_other_by_its_key",
-        ),
+        name: CaseName("a_use_by_a_column_that_is_no_key_waits_for_the_use_read_by_its_key"),
         word: Word::Succeeds,
         input: || Scene::SameName,
-        expect: Expect::Value(&[0, 1, 2]),
+        expect: Expect::Value(&[1, 0, 2]),
     },
     Case {
         name: CaseName("a_dear_decision_waits_for_a_use_by_key_that_a_cheap_one_goes_before"),
