@@ -9,7 +9,7 @@ use crate::domain::indexes::types::FileStamp;
 #[cfg(test)]
 use crate::domain::made_tables::types::TableRows;
 #[cfg(test)]
-use crate::domain::memos::types::MemoMap;
+use crate::domain::memos::types::{MemoId, MemoMap, RuleStamp};
 #[cfg(test)]
 use crate::domain::needs::types::NeedVerdict;
 use ryo_language::domain::facts::types::{CellWord, FileWords, FilledColumns};
@@ -139,4 +139,44 @@ pub(crate) struct LoopState {
     pub(crate) words: FileWords,
     /// What the loop counted.
     pub(crate) work: LoopWork,
+    /// What the running rule did and was charged in the file.
+    pub(crate) budget: RuleBudget,
+}
+
+/// What one unit of the code was charged to the running rule: how many of its keys, and the rows they visited.
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct UnitTally {
+    /// The rule the tally is of: a tally of another rule is nought.
+    pub(crate) stamp: RuleStamp,
+    /// The keys of the unit charged.
+    pub(crate) keys: InstructionCount,
+    /// The rows their programs visited.
+    pub(crate) visited: InstructionCount,
+}
+
+/// What the running rule did in the file and what it was charged: counted in rows, never in time. A unit records its own
+/// work and the list of what it reached; the rule is charged each unit it reaches once, however it was reached, so its
+/// work is the same alone or after any other rule.
+#[cfg(test)]
+#[derive(Debug, Default)]
+pub(crate) struct RuleBudget {
+    /// The running rule's run over the file.
+    pub(crate) stamp: RuleStamp,
+    /// The rows the running unit's own iterations gave: the rule's own program, or the pattern being evaluated.
+    pub(crate) visited: InstructionCount,
+    /// The rule's candidates.
+    pub(crate) candidates: InstructionCount,
+    /// How many patterns are being evaluated, one inside the other.
+    pub(crate) depth: Count,
+    /// The answers the patterns being evaluated asked directly, each pattern's above its caller's.
+    pub(crate) reaching: Vec<MemoId>,
+    /// The work of the units charged to the rule.
+    pub(crate) charged: InstructionCount,
+    /// The keys of the call patterns charged to the rule.
+    pub(crate) keys: InstructionCount,
+    /// What each unit was charged to the rule, by the unit's number.
+    pub(crate) tallies: Vec<UnitTally>,
+    /// The answers still to charge, while a list is followed.
+    pub(crate) pending: Vec<MemoId>,
 }

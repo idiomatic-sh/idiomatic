@@ -37,13 +37,13 @@ impl FactSource for NoFacts {
     }
 }
 
-/// The rows found, each as its cells, and how many notices came.
+/// The rows found, each as its cells, and the notices given.
 #[derive(Debug, Default)]
 pub(crate) struct Collected {
     /// The rows, in the order found.
     pub(crate) rows: Vec<Vec<u64>>,
-    /// How many notices came.
-    pub(crate) notices: usize,
+    /// The notices, in the order given.
+    pub(crate) notices: Vec<WorkNotice>,
 }
 
 impl FoundRows for Collected {
@@ -51,8 +51,8 @@ impl FoundRows for Collected {
         self.rows.push(row.0.iter().map(|cell| cell.0).collect());
     }
 
-    fn noticed(&mut self, _notice: WorkNotice) {
-        self.notices += 1;
+    fn noticed(&mut self, notice: WorkNotice) {
+        self.notices.push(notice);
     }
 }
 

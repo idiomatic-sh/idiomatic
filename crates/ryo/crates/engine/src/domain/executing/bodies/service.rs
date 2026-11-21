@@ -8,6 +8,7 @@ use crate::domain::code::controlling::service::{exists_of, or_of};
 use crate::domain::code::records::service::{body_at, operand_at};
 use crate::domain::code::records::types::BodyRecord;
 use crate::domain::code::types::{CodeEntry, CodeWord, MemoSite, PoolAt, WordSlot};
+use crate::domain::executing::budget::service::{begin_unit, end_unit, reach};
 use crate::domain::executing::types::{RunMode, Runner};
 use crate::domain::findings::types::InstructionCount;
 use crate::domain::memos::service::{asked, keep, row_count, rows};
@@ -39,6 +40,7 @@ pub(crate) fn pattern(
     frame: &mut StepFrame<'_, '_>,
     entry: CodeEntry,
     site: MemoSite,
+    unit: WordSlot,
     bound: WordSlot,
     formals: PoolAt,
     run: Runner,
@@ -62,6 +64,7 @@ pub(crate) fn pattern(
     );
     if let Some(answer) = kept {
         frame.state.key.truncate(start);
+        reach(frame.state, answer);
         return answer;
     }
     for number in 0..bound.0 {
@@ -77,6 +80,7 @@ pub(crate) fn pattern(
         set(frame, Register(formal.0), value);
     }
     let base = frame.state.yielded.len();
+    let caller = begin_unit(frame.state);
     let count = run(frame, entry, RunMode::Collect);
     let LoopState {
         memos,
@@ -93,6 +97,8 @@ pub(crate) fn pattern(
     );
     yielded.truncate(base);
     key.truncate(start);
+    end_unit(frame.state, caller, answer, unit);
+    reach(frame.state, answer);
     answer
 }
 
@@ -110,9 +116,9 @@ fn has_row(frame: &mut StepFrame<'_, '_>, at: PoolAt, run: Runner) -> Count {
             memo,
             bound,
             formals,
-            ..
+            unit,
         } => {
-            let answer = pattern(frame, entry, memo, bound, formals, run);
+            let answer = pattern(frame, entry, memo, unit, bound, formals, run);
             row_count(&frame.state.memos, answer)
         }
         BodyRecord::Table { .. } => {
@@ -192,9 +198,9 @@ fn body_staged(frame: &mut StepFrame<'_, '_>, record: BodyRecord, run: Runner) -
             memo,
             bound,
             formals,
-            ..
+            unit,
         } => {
-            let answer = pattern(frame, entry, memo, bound, formals, run);
+            let answer = pattern(frame, entry, memo, unit, bound, formals, run);
             let LoopState { memos, staged, .. } = &mut *frame.state;
             staged.extend_from_slice(rows(memos, answer));
             row_count(memos, answer)

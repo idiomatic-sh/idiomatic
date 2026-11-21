@@ -208,5 +208,10 @@ pub(crate) fn run(
     if mode == RunMode::Rows {
         work.candidates = InstructionCount(work.candidates.0.saturating_add(candidates));
     }
+    let budget = &mut frame.state.budget;
+    budget.visited = InstructionCount(budget.visited.0.saturating_add(visited));
+    if mode == RunMode::Rows {
+        budget.candidates = InstructionCount(budget.candidates.0.saturating_add(candidates));
+    }
     InstructionCount(rows)
 }
