@@ -4,8 +4,13 @@
     reason = "the loops are built and timed before the executor that runs them (track X, the reference bench first); the executor's commit calls the last of them and removes this"
 )]
 
+pub mod nodes;
+pub mod ranging;
 pub mod service;
+pub mod testing;
 pub mod types;
+pub mod using;
+pub mod walking;
 
 #[cfg(any(test, feature = "fixtures"))]
 pub mod fixtures;

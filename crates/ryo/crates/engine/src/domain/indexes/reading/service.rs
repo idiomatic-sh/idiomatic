@@ -3,7 +3,7 @@
 
 use crate::domain::code::types::IndexSite;
 use crate::domain::indexes::constants::{
-    EMPTY_RUN, HASH_MULTIPLIER, HASH_TURN, RUN_END, RUN_START_SHIFT,
+    EMPTY_RUN, HASH_FOLD, HASH_MULTIPLIER, HASH_TURN, RUN_END, RUN_START_SHIFT,
 };
 use crate::domain::indexes::types::{
     Addressing, ColumnView, HashShift, IndexArena, IndexRead, RangeEnd, RowHash, RowRun, SourceRow,
@@ -35,6 +35,12 @@ pub(crate) const fn mixed(hash: RowHash, cell: CellWord) -> RowHash {
 #[inline]
 pub(crate) fn hashed(key: &[CellWord]) -> RowHash {
     key.iter().fold(RowHash(0), |hash, cell| mixed(hash, *cell))
+}
+
+/// A hash for a map that reads its low bits: the high half folded onto the low.
+#[inline]
+pub(crate) const fn folded(hash: RowHash) -> RowHash {
+    RowHash(hash.0 ^ (hash.0 >> HASH_FOLD.0))
 }
 
 /// Where a key's walk of the table starts: at its hash, or at its one cell less the least; nowhere for a cell outside the

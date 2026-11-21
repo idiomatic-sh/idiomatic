@@ -5,11 +5,13 @@ use crate::domain::code::types::{IndexSite, MemoSite, PoolAt, RelationNumber};
 use crate::domain::filled::errors::FilledError;
 use crate::domain::filled::types::FilledRelations;
 use crate::domain::indexes::types::{FileStamp, IndexArena, RowRun, SourceRow};
+use crate::domain::made_tables::pipelines::types::PipelineRoom;
 use crate::domain::programs::types::ProgramsEngine;
 use crate::domain::steps::types::MadeTableId;
 use ryo_language::domain::facts::types::{CellWord, FactSource, FileWords};
 use ryo_language::domain::node_table::types::NodeTable;
 use ryo_language::domain::symbols::types::ByteSlice;
+use ryo_operators::domain::patterns::types::PatternMatcher;
 use ryo_relations::domain::relations::types::{Count, FileId, Integer, NodeExtent};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
@@ -57,6 +59,42 @@ pub(crate) struct FillStore {
     pub(crate) tables: Vec<TableSlot>,
     /// The room a grouping fill works in.
     pub(crate) room: GroupRoom,
+    /// The rooms pipelines run in, each taken while its pipeline runs and put back after: a pipeline a pattern's
+    /// program starts inside another takes its own.
+    pub(crate) rooms: Vec<PipelineRoom>,
+    /// The gathered inputs of grouping fills, taken and put back the same way.
+    pub(crate) inputs: Vec<TableRows>,
+    /// A node column as cells, while an index over the node table is built.
+    pub(crate) cells: Vec<CellWord>,
+    /// The keys asked of the language through a site while its relation was not whole, by site and cells: each with the
+    /// stretch of the store's rows that holds its rows.
+    pub(crate) asked: hashbrown::HashTable<AskedStretch>,
+    /// The cells of the keys asked, one key after the other.
+    pub(crate) asked_cells: Vec<CellWord>,
+}
+
+/// A key asked of the language through a site: the site, where its cells are among the cells kept, how many, and the
+/// stretch of the store's rows that holds the rows it has.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct AskedStretch {
+    /// The site.
+    pub(crate) site: IndexSite,
+    /// Where the key's cells start among the cells kept.
+    pub(crate) cells: Count,
+    /// How many cells the key has.
+    pub(crate) width: Count,
+    /// The rows it has.
+    pub(crate) rows: RowRun,
+}
+
+/// What asking a relation for one key answered: the key's rows, or that the relation is whole, with the rows the
+/// language wrote to make it so.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum KeyAnswer {
+    /// The key's rows.
+    Rows(KeyRows),
+    /// The relation is whole: its index answers.
+    Whole(Count),
 }
 
 /// Whether a table is made for the file.
@@ -132,6 +170,8 @@ pub(crate) enum ReadSource {
     Filled(RelationNumber),
     /// A made table.
     Made(MadeTableId),
+    /// A made table read while its fill writes it.
+    Written(MadeTableId),
 }
 
 /// Where a key's cells come from: what decides how a relation that is not whole is asked.
@@ -187,6 +227,8 @@ pub(crate) struct FillFrame<'a> {
     pub(crate) words: &'a mut FileWords,
     /// The fill side's state for the file.
     pub(crate) store: &'a mut FillStore,
+    /// What a test of a text is asked of: the operators crate's matcher.
+    pub(crate) matcher: PatternMatcher<'a>,
 }
 
 impl std::fmt::Debug for FillFrame<'_> {
@@ -259,4 +301,52 @@ pub(crate) enum PatternFound {
     Rows,
     /// It has none.
     Nothing,
+}
+
+/// What having a source there made the engine do: nothing when it was there.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct SourceWork {
+    /// How many rows the language wrote.
+    pub(crate) filled: Count,
+    /// How many rows were indexed.
+    pub(crate) indexed: Count,
+}
+
+/// Where a fill's own work and what it reached directly are kept while it runs.
+#[derive(Debug)]
+pub(crate) struct FillKept<'r> {
+    /// The fill's own work.
+    pub(crate) work: &'r mut FillWork,
+    /// What it reached directly.
+    pub(crate) reached: &'r mut Vec<Reached>,
+}
+
+/// What one run of a pipeline writes to and counts in: the table whose fill runs, where the write goes (the table, or a
+/// grouping fill's gathered input), the fill's work, and the room.
+#[derive(Debug)]
+pub(crate) struct PipeRun<'r> {
+    /// The table whose fill runs.
+    pub(crate) table: MadeTableId,
+    /// Where the pipeline's write goes.
+    pub(crate) into: &'r mut TableRows,
+    /// The fill's work.
+    pub(crate) work: &'r mut FillWork,
+    /// The room the pipeline runs in.
+    pub(crate) room: &'r mut PipelineRoom,
+}
+
+/// What a pipeline's scan reads: its source; of a bucket the site and the key's stretch of that site's index; how many
+/// rows; the first row of a whole source; and the bits every handle carries.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct ScanRead {
+    /// The source.
+    pub(crate) source: ReadSource,
+    /// Of a bucket: the site whose index holds it.
+    pub(crate) site: Option<IndexSite>,
+    /// Of a bucket: the key's stretch of the index's rows. Of a whole source: its rows.
+    pub(crate) rows: RowRun,
+    /// How many rows the scan reads.
+    pub(crate) count: Count,
+    /// The bits every handle carries besides the row's number.
+    pub(crate) tag: CellWord,
 }

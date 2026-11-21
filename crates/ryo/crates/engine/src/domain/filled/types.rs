@@ -3,8 +3,11 @@
 
 use crate::domain::code::types::{FillCode, Op, RelationNumber};
 use crate::domain::indexes::types::{FileStamp, RowRun};
-use ryo_language::domain::facts::types::{CellWord, FactSource, FileWords, FilledColumns};
-use ryo_relations::domain::relations::types::{Count, Relation};
+use ryo_language::domain::facts::types::{
+    CellWord, FactSource, FileWords, FilledColumns, PartialRows,
+};
+use ryo_relations::domain::answers::types::AbsenceCause;
+use ryo_relations::domain::relations::types::{Column, Count, Relation};
 
 /// How much of a relation a file holds.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -44,6 +47,10 @@ pub(crate) struct RelationSlot {
     pub(crate) whole: Count,
     /// The keys asked, by column and cell.
     pub(crate) asked: hashbrown::HashTable<AskedKey>,
+    /// The relation's columns by place, as the catalog names them: written the first time the worker reads the relation.
+    pub(crate) named: Vec<Column>,
+    /// What the language answered when it did not write the rows: every later read of the file answers the same.
+    pub(crate) fault: Option<KeptFault>,
 }
 
 /// A worker's relations, by the number the code gives each (`ProgramCode::relations`).
@@ -92,6 +99,8 @@ pub(crate) enum UnbuiltFill {
     Stage(Op),
     /// A read of a table while it is written.
     Written,
+    /// An index over the node table that sorts each key's rows.
+    OrderedNodes,
 }
 
 /// What a word or a record named that the code does not hold.
@@ -111,4 +120,15 @@ pub(crate) enum MissingCode {
     Word,
     /// A column of a source.
     Column,
+    /// A regular expression: one the code does not hold, or one that does not compile.
+    Regex,
+}
+
+/// What a language answered when it did not write a relation's rows.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum KeptFault {
+    /// It refuses the relation for the file.
+    Refused(AbsenceCause),
+    /// Some rows may be missing.
+    Partial(PartialRows),
 }

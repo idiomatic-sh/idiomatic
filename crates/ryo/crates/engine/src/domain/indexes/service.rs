@@ -39,10 +39,17 @@ pub(crate) fn begin(arena: &mut IndexArena, rows: Count, width: Count) {
         .resize(rows.0.saturating_mul(width.0), TableWord(0));
     arena.width = width;
     arena.pending = rows;
+    arena.base = SourceRow(0);
     arena.bounds = KeyBounds {
         least: CellWord(u64::MAX),
         greatest: CellWord(0),
     };
+}
+
+/// Says, of the index `begin` started, that its source's first row is numbered `base`: the rows it holds are numbered
+/// from there, as the handles of that source are.
+pub(crate) fn based(arena: &mut IndexArena, base: SourceRow) {
+    arena.base = base;
 }
 
 /// Writes one cell of each row's key from a column's cells, and answers the bounds widened by them.
@@ -161,6 +168,7 @@ fn grouped(arena: &mut IndexArena, slot: IndexSlot) {
         places,
         groups,
         keys,
+        base,
         ..
     } = arena;
     let stride = slot.width.0.saturating_add(1);
@@ -197,7 +205,7 @@ fn grouped(arena: &mut IndexArena, slot: IndexSlot) {
     for (row, key) in places.iter().enumerate() {
         if let Some(cursor) = groups.get_mut(usize::try_from(key.0).unwrap_or(usize::MAX)) {
             if let Some(cell) = stretches.get_mut(usize::try_from(cursor.0).unwrap_or(usize::MAX)) {
-                *cell = SourceRow(u32::try_from(row).unwrap_or(u32::MAX));
+                *cell = SourceRow(base.0.wrapping_add(u32::try_from(row).unwrap_or(u32::MAX)));
             }
             cursor.0 = cursor.0.wrapping_add(1);
         }

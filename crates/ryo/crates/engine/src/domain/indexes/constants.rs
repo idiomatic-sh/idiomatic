@@ -24,3 +24,7 @@ pub(crate) const RUN_START_SHIFT: HashShift = HashShift(32);
 
 /// How many times its rows the cells of a one-column key may span for its entries to be placed by the cell itself.
 pub(crate) const PLACED_SPAN: Count = Count(2);
+
+/// How far a hash is folded onto itself for a map that reads its low bits: the keys asked of a relation, the rows a
+/// table holds.
+pub(crate) const HASH_FOLD: HashShift = HashShift(32);

@@ -3,7 +3,9 @@
 
 use self::workloads::{BATCH_ROWS, KernelWorkload, ReferenceKernel, plain};
 use super::service::{compact, gather, keep, latest, probe, probe_keep, product, read, scan};
-use super::types::{BatchKey, BatchValue, Batches, CellTest, FanCursor, KeptWhen, KeyPart};
+use super::types::{
+    BatchKey, BatchValue, Batches, CellTest, FanCursor, HandleRun, KeptWhen, KeyPart,
+};
 use crate::domain::code::types::IndexSite;
 use crate::domain::indexes::reading::service::read as index_of;
 use crate::domain::indexes::service::{begin, clear_indexes, finish, key_column};
@@ -51,7 +53,7 @@ pub fn run_kernel(kernel: ReferenceKernel, work: &mut KernelWorkload) -> usize {
             loop {
                 fan.up.clear();
                 fan.out.clear();
-                let done = product(Count(side), Count(side), fan);
+                let done = product(Count(side), Count(0), Count(side), fan);
                 given = given.saturating_add(fan.out.len());
                 if done == Batches::Done {
                     break given;
@@ -132,11 +134,25 @@ fn batched(kernel: ReferenceKernel, work: &mut KernelWorkload) -> usize {
         let mut key = [CellWord(0)];
         match kernel {
             ReferenceKernel::Scan => {
-                scan(Count(first), Count(end), handles);
+                scan(
+                    HandleRun {
+                        first: Count(first),
+                        end: Count(end),
+                        tag: CellWord(0),
+                    },
+                    handles,
+                );
                 given = given.saturating_add(handles.len());
             }
             ReferenceKernel::Read => {
-                scan(Count(first), Count(end), handles);
+                scan(
+                    HandleRun {
+                        first: Count(first),
+                        end: Count(end),
+                        tag: CellWord(0),
+                    },
+                    handles,
+                );
                 read(plain(small), handles, cells);
                 given = given.saturating_add(cells.len());
             }

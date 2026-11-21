@@ -1434,6 +1434,7 @@ dependencies = [
  "hashbrown 0.17.1",
  "idiomatic-sh-ryo-engine",
  "idiomatic-sh-ryo-language",
+ "idiomatic-sh-ryo-matching",
  "idiomatic-sh-ryo-operators",
  "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",

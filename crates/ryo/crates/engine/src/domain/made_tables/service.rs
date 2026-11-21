@@ -3,10 +3,9 @@
 //! one index over the gathered input, every key column as one key, and one walk of its keys; the group's row is the
 //! operators crate's meaning.
 
-use super::constants::HASH_FOLD;
 use super::types::{GroupRoom, TableRows};
 use crate::domain::code::types::IndexSite;
-use crate::domain::indexes::reading::service::{cell_at, hashed, read, rows_of, runs};
+use crate::domain::indexes::reading::service::{cell_at, folded, hashed, read, rows_of, runs};
 use crate::domain::indexes::service::{begin, clear_indexes, finish, key_column};
 use crate::domain::indexes::types::{ColumnView, FileStamp, RowHash, SourceRow};
 use crate::domain::stages::types::BatchValue;
@@ -48,8 +47,7 @@ pub(crate) fn row(table: &TableRows, row: Count) -> &[CellWord] {
 /// The hash a table's rows are kept by: every cell mixed in, then the high half folded onto the low, which the map reads.
 #[inline]
 fn row_hash(cells: &[CellWord]) -> RowHash {
-    let hash = hashed(cells);
-    RowHash(hash.0 ^ (hash.0 >> HASH_FOLD.0))
+    folded(hashed(cells))
 }
 
 /// `Write`: appends `rows` rows to a table, the cells of each read from `sources`, one for each column. One pass per

@@ -75,6 +75,9 @@ pub(crate) struct IndexArena {
     pub(crate) width: Count,
     /// While an index is built: the bounds of its key's first column.
     pub(crate) bounds: KeyBounds,
+    /// While an index is built: the number of its source's first row. A relation filled whole after keys were asked
+    /// starts past their rows.
+    pub(crate) base: SourceRow,
 }
 
 /// Where one index lies, and the file it was built for.
