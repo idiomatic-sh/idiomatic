@@ -2,6 +2,7 @@
 //! made table, reads, tests and emits; what the loop counts; a word it does not run ends each candidate and is counted.
 
 use super::service::run as run_branch;
+use super::types::RunMode;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::encoding::service::encoded;
 use crate::domain::findings::types::{ColumnKinds, RuleColumns};
@@ -153,7 +154,9 @@ fn subject(scene: Input) -> Result<Value, Failure> {
     };
     let mut held = state(3);
     table(&mut held, 0, 2, &[&[1, 10], &[2, 3], &[3, 7]]);
-    let (rows, found) = framed(&programs, &mut held, |frame| run_branch(frame, entry));
+    let (rows, found) = framed(&programs, &mut held, |frame| {
+        run_branch(frame, entry, RunMode::Rows)
+    });
     let mut all: Vec<u64> = found.rows.into_iter().flatten().collect();
     all.extend([
         99,

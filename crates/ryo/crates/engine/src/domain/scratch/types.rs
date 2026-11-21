@@ -8,8 +8,12 @@ use crate::domain::findings::types::InstructionCount;
 use crate::domain::indexes::types::FileStamp;
 #[cfg(test)]
 use crate::domain::made_tables::types::TableRows;
+#[cfg(test)]
+use crate::domain::memos::types::MemoMap;
 use ryo_language::domain::facts::types::{CellWord, FileWords, FilledColumns};
 use ryo_language::domain::node_table::types::KindsPresent;
+#[cfg(test)]
+use ryo_relations::domain::relations::types::Count;
 
 /// A worker's per-file state: registers, the filled relations and their columns, made tables, the file's words and the kinds
 /// present; cleared per file, never freed. Made for a rule set by `scratch::service::scratch_for`.
@@ -84,6 +88,16 @@ pub(crate) struct LoopWork {
     pub(crate) unbuilt: InstructionCount,
 }
 
+/// What a body answered the word over it: how many rows, and for an `Or` where they start among the staged rows.
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct BodyAnswer {
+    /// Where its rows start among the staged rows.
+    pub(crate) first: Count,
+    /// How many rows it has.
+    pub(crate) rows: Count,
+}
+
 /// One made table for a file.
 #[cfg(test)]
 #[derive(Debug, Default)]
@@ -105,8 +119,16 @@ pub(crate) struct LoopState {
     pub(crate) registers: Vec<CellWord>,
     /// Each made table, by number.
     pub(crate) tables: Vec<TableSlot>,
+    /// The answers kept for the file.
+    pub(crate) memos: MemoMap,
     /// The cursors of the running iterations, innermost last.
     pub(crate) frames: Vec<IterationCursor>,
+    /// The rows the running bodies yielded, each body's above its caller's.
+    pub(crate) yielded: Vec<CellWord>,
+    /// The rows each running `Or` iterates, innermost last.
+    pub(crate) staged: Vec<CellWord>,
+    /// What the body of the word about to run answered: the loop asks the body, the word's item reads the answer.
+    pub(crate) answer: BodyAnswer,
     /// The cells of the key or of the row being put together.
     pub(crate) key: Vec<CellWord>,
     /// The file's words over the run's base words.

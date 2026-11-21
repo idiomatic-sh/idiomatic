@@ -3,16 +3,22 @@
 //! allocates, and the loop reads no clock: steps and the rows its iterations gave are counted in locals and added to the
 //! work once, when the program ends.
 
+use super::bodies::service::{exists, staged};
+use super::types::RunMode;
 use crate::domain::code::types::{CodeEntry, CodeWord, Op};
 use crate::domain::findings::types::InstructionCount;
 use crate::domain::programs::collections::instructions::each_row::item::EachRow;
 use crate::domain::programs::collections::instructions::emit::item::Emit;
+use crate::domain::programs::collections::instructions::exists::item::Exists;
+use crate::domain::programs::collections::instructions::fork::item::Fork;
 use crate::domain::programs::collections::instructions::interface::{
     Flow, InstructionsItem, StepFrame,
 };
 use crate::domain::programs::collections::instructions::let_value::item::LetValue;
+use crate::domain::programs::collections::instructions::or::item::Or;
 use crate::domain::programs::collections::instructions::read::item::Read;
 use crate::domain::programs::collections::instructions::test::item::Test;
+use crate::domain::programs::collections::instructions::yield_row::item::YieldRow;
 use crate::domain::programs::operands::service::after;
 use crate::domain::scratch::types::IterationCursor;
 
@@ -33,7 +39,7 @@ fn word_at(frame: &StepFrame<'_, '_>, at: CodeEntry) -> CodeWord {
 /// Runs one word for the current candidate. A word the executor does not run yet ends the candidate and is counted, so a
 /// rule that holds one never finds a row by it.
 #[inline]
-fn step(frame: &mut StepFrame<'_, '_>, word: CodeWord, at: CodeEntry) -> Flow {
+fn step(frame: &mut StepFrame<'_, '_>, word: CodeWord, at: CodeEntry, mode: RunMode) -> Flow {
     match word.op {
         Op::End => Flow::Back,
         Op::EachRowNode | Op::EachRowFilled | Op::EachRowMade => EachRow::run(frame, word, at),
@@ -46,6 +52,22 @@ fn step(frame: &mut StepFrame<'_, '_>, word: CodeWord, at: CodeEntry) -> Flow {
         | Op::TestInConstants => Test::run(frame, word, at),
         Op::Let => LetValue::run(frame, word, at),
         Op::Emit => Emit::run(frame, word, at),
+        Op::Exists => {
+            exists(frame, word, run);
+            Exists::run(frame, word, at)
+        }
+        Op::Or => {
+            staged(frame, word, run);
+            Or::run(frame, word, at)
+        }
+        Op::Fork => Fork::run(frame, word, at),
+        Op::Yield => {
+            if mode == RunMode::Collect {
+                YieldRow::run(frame, word, at)
+            } else {
+                Flow::Back
+            }
+        }
         Op::EachKind
         | Op::EachMatchNode
         | Op::EachMatchFilled
@@ -61,10 +83,6 @@ fn step(frame: &mut StepFrame<'_, '_>, word: CodeWord, at: CodeEntry) -> Flow {
         | Op::Closure
         | Op::Call
         | Op::Render
-        | Op::Exists
-        | Op::Or
-        | Op::Fork
-        | Op::Yield
         | Op::Latest
         | Op::StageScan
         | Op::StageProbe
@@ -90,6 +108,8 @@ fn next(frame: &mut StepFrame<'_, '_>, cursor: &mut IterationCursor) -> Option<C
     let word = word_at(frame, cursor.word);
     match word.op {
         Op::EachRowNode | Op::EachRowFilled | Op::EachRowMade => EachRow::next(frame, word, cursor),
+        Op::Or => Or::next(frame, word, cursor),
+        Op::Fork => Fork::next(frame, word, cursor),
         Op::End
         | Op::EachKind
         | Op::EachMatchNode
@@ -117,8 +137,6 @@ fn next(frame: &mut StepFrame<'_, '_>, cursor: &mut IterationCursor) -> Option<C
         | Op::Render
         | Op::Let
         | Op::Exists
-        | Op::Or
-        | Op::Fork
         | Op::Yield
         | Op::Latest
         | Op::Emit
@@ -136,18 +154,31 @@ fn next(frame: &mut StepFrame<'_, '_>, cursor: &mut IterationCursor) -> Option<C
     }
 }
 
-/// Runs a rule's branch from `entry` to its end and answers how many rows it emitted. Its cursors lie above its caller's
-/// on the one stack and are gone when it answers. The first cursor it pushes is its anchor's: each row that cursor gives
-/// is a candidate.
-pub(crate) fn run(frame: &mut StepFrame<'_, '_>, entry: CodeEntry) -> InstructionCount {
-    let base = frame.state.frames.len();
+/// Runs the program at `entry` for what `mode` says, and answers how many rows it gave: the rows a rule's branch emitted,
+/// the rows a collected body yielded, or one for a body asked whether it has a row, which its first row ends. Its cursors
+/// lie above its caller's on the one stack and are gone when it answers, and so are the rows its `Or` words staged. In a
+/// rule's branch the first cursor pushed is the anchor's: each row that cursor gives is a candidate.
+pub(crate) fn run(
+    frame: &mut StepFrame<'_, '_>,
+    entry: CodeEntry,
+    mode: RunMode,
+) -> InstructionCount {
+    let (base, staged_base) = (frame.state.frames.len(), frame.state.staged.len());
     let (mut at, mut rows, mut steps, mut visited, mut candidates) =
         (entry, 0_u64, 0_u64, 0_u64, 0_u64);
     'program: loop {
         let word = word_at(frame, at);
         steps = steps.saturating_add(1);
-        rows = rows.saturating_add(u64::from(word.op == Op::Emit));
-        match step(frame, word, at) {
+        let gives = match mode {
+            RunMode::Rows => word.op == Op::Emit,
+            RunMode::Collect => word.op == Op::Yield,
+            RunMode::Exists => word.op == Op::Yield || word.op == Op::End,
+        };
+        rows = rows.saturating_add(u64::from(gives));
+        if gives && mode == RunMode::Exists {
+            break 'program;
+        }
+        match step(frame, word, at, mode) {
             Flow::Next => at = after(at),
             Flow::Back => loop {
                 let depth = frame.state.frames.len();
@@ -156,7 +187,7 @@ pub(crate) fn run(frame: &mut StepFrame<'_, '_>, entry: CodeEntry) -> Instructio
                     break 'program;
                 };
                 if let Some(onward) = next(frame, &mut cursor) {
-                    if let Some(kept) = frame.state.frames.last_mut() {
+                    if let Some(kept) = frame.state.frames.get_mut(depth.saturating_sub(1)) {
                         *kept = cursor;
                     }
                     visited = visited.saturating_add(1);
@@ -170,9 +201,12 @@ pub(crate) fn run(frame: &mut StepFrame<'_, '_>, entry: CodeEntry) -> Instructio
         }
     }
     frame.state.frames.truncate(base);
+    frame.state.staged.truncate(staged_base);
     let work = &mut frame.state.work;
     work.steps = InstructionCount(work.steps.0.saturating_add(steps));
     work.visited = InstructionCount(work.visited.0.saturating_add(visited));
-    work.candidates = InstructionCount(work.candidates.0.saturating_add(candidates));
+    if mode == RunMode::Rows {
+        work.candidates = InstructionCount(work.candidates.0.saturating_add(candidates));
+    }
     InstructionCount(rows)
 }
