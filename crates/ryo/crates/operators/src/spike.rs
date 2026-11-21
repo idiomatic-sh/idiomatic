@@ -49,10 +49,10 @@ pub fn emits(emits: Vec<u32>) {
     }
 }
 
-/// Whether evaluation is demand-driven, set once from `RYO_LAZY`.
+/// Whether evaluation is demand-driven, set once from `RYO_LAZY`: the default; `RYO_LAZY=0` keeps the eager path.
 pub fn lazy() -> bool {
     static LAZY: OnceLock<bool> = OnceLock::new();
-    *LAZY.get_or_init(|| std::env::var_os("RYO_LAZY").is_some_and(|value| value != "0"))
+    *LAZY.get_or_init(|| std::env::var_os("RYO_LAZY").is_none_or(|value| value != "0"))
 }
 
 /// Whether the entity-query answers are switched off, set once from `RYO_NO_ENTITY`.
