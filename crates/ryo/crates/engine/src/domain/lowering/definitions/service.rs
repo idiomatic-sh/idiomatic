@@ -6,6 +6,7 @@ use super::types::{
     WaitingPattern,
 };
 use crate::domain::code::types::ShapeChoice;
+use crate::domain::lowering::emptiness::branches::service::{branches_need, with_need};
 use crate::domain::lowering::flattening::types::{
     AtomRows, FlatAtom, FlatBranch, FlatTerm, FlatVariable, RowsPerFile, TextNumber,
 };
@@ -93,12 +94,15 @@ pub(crate) fn defined(
     }
     let definition = DefinitionId(u32::try_from(drafts.definitions.len()).unwrap_or(u32::MAX));
     let formals = shape.0.iter().map(|_| fresh_register(drafts)).collect();
+    // What the operations say of the step, and what its branches themselves need: a literal a branch holds a column to is
+    // carried into the need, through the definitions the branch reads.
+    let need = branches_need(drafts, &flattened.branches);
     drafts.definitions.push(DefinitionDraft {
         node,
         home,
         shape,
         branches: flattened.branches,
-        emptiness: flattened.emptiness,
+        emptiness: with_need(flattened.emptiness, need),
         keyless: flattened.keyless,
         formals,
         rows,

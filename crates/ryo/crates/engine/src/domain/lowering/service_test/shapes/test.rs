@@ -61,7 +61,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "definition 0: 5 columns, emptiness Unknown\n",
             "  pattern bound [] collected []: Table 1\n",
             "  pattern bound [0] collected []: Call: EachMatch:Fanout Yield:Constant\n",
-            "definition 1: 6 columns, emptiness All([Definition(DefinitionId(0)), Unknown, Definition(DefinitionId(0))])\n",
+            "definition 1: 6 columns, emptiness All([All([Definition(DefinitionId(0)), Unknown, Definition(DefinitionId(0))]), Any([All([Definition(DefinitionId(0))])])])\n",
             "  pattern bound [] collected []: Table 0\n",
             "  pattern bound [0] collected [5]: Call: Nearest:Fanout Exists:Fanout Let:Constant Yield:Constant\n",
             "table 0: Rows, 6 columns, indexes []\n",
@@ -117,7 +117,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "definition 0: 5 columns, emptiness All([Unknown, Unknown])\n",
             "  pattern bound [] collected []: Table 1\n",
             "  pattern bound [1] collected []: Call: EachMatch:Fanout EachMatch:Fanout Yield:Constant\n",
-            "definition 1: 6 columns, emptiness All([Definition(DefinitionId(0)), Unknown, Unknown])\n",
+            "definition 1: 6 columns, emptiness All([All([Definition(DefinitionId(0)), Unknown, Unknown]), Any([All([Definition(DefinitionId(0))])])])\n",
             "  pattern bound [] collected []: Table 0\n",
             "  pattern bound [1] collected [5]: Call: Nearest:Fanout Exists:Fanout Let:Constant Yield:Constant\n",
             "table 0: Rows, 6 columns, indexes []\n",
@@ -144,7 +144,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Cow::Borrowed(concat!(
             "definition 0: 5 columns, emptiness All([Unknown, Unknown])\n",
             "  pattern bound [] collected []: Table 2\n",
-            "definition 1: 4 columns, emptiness All([Definition(DefinitionId(0)), Definition(DefinitionId(0))])\n",
+            "definition 1: 4 columns, emptiness All([All([Definition(DefinitionId(0)), Definition(DefinitionId(0))]), Any([All([Definition(DefinitionId(0))])])])\n",
             "  pattern bound [] collected []: Table 1\n",
             "table 0: Group(Count), 2 columns, indexes [[0]]\n",
             "  pipeline: Scan:File Read:Constant Read:Constant Read:Constant Read:Constant\n",
@@ -174,7 +174,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
-            "definition 0: 3 columns, emptiness All([Unknown, Row(StringLiteral, None)])\n",
+            "definition 0: 3 columns, emptiness All([All([Unknown, Row(StringLiteral, None)]), Any([All([Row(StringLiteral, None)])])])\n",
             "  pattern bound [] collected []: Table 0\n",
             "table 0: Rows, 3 columns, indexes []\n",
             "  pipeline: Scan:File Read:Constant Call:Constant Probe:Fanout Read:Constant\n",
@@ -200,10 +200,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || (&["the scopes above each scope"], SampleStage::Absent),
         expect: Expect::Value(Cow::Borrowed(concat!(
-            "definition 0: 4 columns, emptiness Row(Scope, None)\n",
+            "definition 0: 4 columns, emptiness All([Row(Scope, None), Any([All([Row(Scope, None)])])])\n",
             "  pattern bound [] collected []: Table 1\n",
             "  pattern bound [1] collected []: Call: EachMatch:Fanout Yield:Constant\n",
-            "definition 1: 5 columns, emptiness All([Definition(DefinitionId(0)), Unknown, Definition(DefinitionId(0))])\n",
+            "definition 1: 5 columns, emptiness All([All([Definition(DefinitionId(0)), Unknown, Definition(DefinitionId(0))]), Any([All([Definition(DefinitionId(0)), Definition(DefinitionId(0))])])])\n",
             "  pattern bound [] collected []: Table 0\n",
             "  pattern bound [1] collected [4]: Call: Exists:Fanout Closure:Fanout Exists:Fanout Let:Constant Yield:Constant\n",
             "table 0: Rows, 5 columns, indexes []\n",

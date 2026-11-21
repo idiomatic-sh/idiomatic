@@ -7,6 +7,7 @@ use super::costing::constants::GROUP_ROWS;
 use super::costing::service::branches_rows;
 use super::definitions::service::{defined, use_branch};
 use super::definitions::types::{DefinitionDraft, Drafts, Flattened};
+use super::emptiness::branches::service::{branch_need, with_need};
 use super::emptiness::needs::service::needs_added;
 use super::emptiness::service::copied;
 use super::flattening::types::FlatBranch;
@@ -76,8 +77,10 @@ fn rule_lowered(
     for branch in &flattened.branches {
         let program = planned(drafts, branch, &HashSet::new(), UnitRole::Branch)
             .and_then(|plan| branch_program(drafts, sample.kinds, branch, &plan, target));
+        // The rule's formula, and what this branch itself needs.
+        let need = branch_need(drafts, branch);
         branches.push(Branch {
-            emptiness: copied(&flattened.emptiness),
+            emptiness: with_need(copied(&flattened.emptiness), need),
             program: program.ok_or(refused)?,
         });
     }
