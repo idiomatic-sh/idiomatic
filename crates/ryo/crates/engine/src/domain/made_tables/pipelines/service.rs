@@ -95,7 +95,7 @@ fn kept(room: &mut PipelineRoom, at: Count, depth: Count) {
 ///
 /// The word names a site or a constant the code does not hold.
 pub(crate) fn scan_run(frame: BatchFrame<'_>, stage: ScanWord) -> Result<ScanRead, FilledError> {
-    let code = &frame.programs.code;
+    let code = frame.programs.code;
     if stage.flag.0 & BUCKET.0 == 0 {
         let source = source_of(stage.flag, stage.read);
         let rows = rows_in(frame.store, frame.nodes, source);
@@ -137,7 +137,7 @@ pub(crate) fn piped(
     run: &mut PipeRun<'_>,
 ) -> Result<(), FilledError> {
     let programs = frame.programs;
-    let code = &programs.code;
+    let code = programs.code;
     let words = pipeline_words(code, entry)?;
     carried(code, words, run.room)?;
     let registers = Count(usize::try_from(code.counts.registers.0).unwrap_or(usize::MAX));
@@ -312,7 +312,7 @@ fn fanned(
     run: &mut PipeRun<'_>,
 ) -> Result<(), FilledError> {
     let programs = frame.programs;
-    let code = &programs.code;
+    let code = programs.code;
     let word = *words.get(at.0).ok_or(WRONG_WORD)?;
     let registers = Count(usize::try_from(code.counts.registers.0).unwrap_or(usize::MAX));
     let below = Count(depth.0.saturating_add(1));

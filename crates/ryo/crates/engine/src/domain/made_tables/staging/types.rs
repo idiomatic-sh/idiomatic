@@ -1,7 +1,6 @@
 //! The types of the `staging` part: what one stage reads besides its batch.
 
-use crate::domain::made_tables::types::FillStore;
-use crate::domain::programs::types::ProgramsEngine;
+use crate::domain::made_tables::types::{FillStore, RuleSetView};
 use ryo_language::domain::facts::types::CellWord;
 use ryo_language::domain::node_table::types::NodeTable;
 use ryo_language::domain::symbols::types::ByteSlice;
@@ -13,8 +12,8 @@ use ryo_relations::domain::relations::types::FileId;
 /// filled while a stage runs), the file's nodes and the file.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct BatchFrame<'s> {
-    /// The rule set's programs.
-    pub(crate) programs: &'s ProgramsEngine,
+    /// What the fill side reads of the rule set.
+    pub(crate) programs: RuleSetView<'s>,
     /// The fill side's state for the file.
     pub(crate) store: &'s FillStore,
     /// The file's nodes.

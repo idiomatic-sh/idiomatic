@@ -91,7 +91,7 @@ pub(crate) fn matched(
     from: KeyFrom,
 ) -> Result<KeyRows, FilledError> {
     let programs = frame.programs;
-    let source = site_source(&programs.code, site_at(&programs.code, site)?)?;
+    let source = site_source(programs.code, site_at(programs.code, site)?)?;
     let mut filled = Count(0);
     if let (ReadSource::Filled(number), KeyFrom::Row) = (source, from) {
         match key_asked(frame, site, number, key)? {

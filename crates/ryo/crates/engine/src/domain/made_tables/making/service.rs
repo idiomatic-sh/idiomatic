@@ -59,7 +59,7 @@ const fn reached_of(source: ReadSource) -> Reached {
 /// What one stage reads directly, when it reads a source: a scan and a product their source or their bucket's index, a
 /// probe and a `Latest` their index. A `Read` reads by a handle another stage found, so its source is there.
 fn stage_reach(frame: &FillFrame<'_>, word: CodeWord) -> Result<Option<Reached>, FilledError> {
-    let code = &frame.programs.code;
+    let code = frame.programs.code;
     Ok(match stage_kind(word.op).ok_or(WRONG_WORD)? {
         StageKind::Scan => {
             let stage = stage_scan_of(word);
@@ -91,7 +91,7 @@ fn stage_reach(frame: &FillFrame<'_>, word: CodeWord) -> Result<Option<Reached>,
 
 /// Fills a relation whole for the file if it is not whole. Answers the rows the language wrote for it now.
 fn filled_whole(frame: &mut FillFrame<'_>, number: RelationNumber) -> Result<Count, FilledError> {
-    let relation = relation_at(&frame.programs.code, number)?;
+    let relation = relation_at(frame.programs.code, number)?;
     let ask = RelationAsk {
         number,
         relation,
@@ -119,7 +119,7 @@ fn reached_table(
     match uses.table_need(frame, table)? {
         TableNeed::Rows => made_now(frame, uses, table).map(|_| ()),
         TableNeed::Empty => {
-            let width = fill_at(&frame.programs.code, table)?.width;
+            let width = fill_at(frame.programs.code, table)?.width;
             let slot = slot_mut(frame, table).ok_or(FilledError::Code {
                 named: MissingCode::Table,
             })?;
@@ -158,7 +158,7 @@ pub(crate) fn ensured(
                 return Ok(work);
             }
             let programs = frame.programs;
-            match site_source(&programs.code, site_at(&programs.code, site)?)? {
+            match site_source(programs.code, site_at(programs.code, site)?)? {
                 ReadSource::Nodes(_) => {}
                 ReadSource::Filled(number) => work.filled = filled_whole(frame, number)?,
                 ReadSource::Made(table) => reached_table(frame, uses, table)?,
@@ -188,7 +188,7 @@ fn input_piped(
     let programs = frame.programs;
     for entry in entries.entries {
         let entry = CodeEntry(entry.0);
-        let words = pipeline_words(&programs.code, entry)?;
+        let words = pipeline_words(programs.code, entry)?;
         let mut scanned = Count(0);
         for (at, word) in words.iter().enumerate() {
             if let Some(read) = stage_reach(frame, *word)? {
@@ -235,7 +235,7 @@ fn input_width(frame: &FillFrame<'_>, input: FillInputs<'_>) -> Result<Count, Fi
     let Some(entry) = input.entries.first() else {
         return Ok(Count(0));
     };
-    let words = pipeline_words(&frame.programs.code, CodeEntry(entry.0))?;
+    let words = pipeline_words(frame.programs.code, CodeEntry(entry.0))?;
     let write = words.last().ok_or(WRONG_WORD)?;
     Ok(Count(usize::from(stage_write_of(*write).columns.0)))
 }
@@ -251,14 +251,14 @@ fn filled_now(
 ) -> Result<(), FilledError> {
     let programs = frame.programs;
     match fill.kind {
-        FillKind::Constant => constant_rows(&programs.code, fill, rows),
+        FillKind::Constant => constant_rows(programs.code, fill, rows),
         FillKind::Rows => {
-            let input = input_at(&programs.code, fill.inputs)?;
+            let input = input_at(programs.code, fill.inputs)?;
             input_piped(frame, uses, table, input, rows, kept)
         }
         FillKind::Count | FillKind::Sorted => {
             let FillKept { work, reached } = kept;
-            let input = input_at(&programs.code, fill.inputs)?;
+            let input = input_at(programs.code, fill.inputs)?;
             let mut gathered = frame.store.inputs.pop().unwrap_or_default();
             clear_rows(&mut gathered, input_width(frame, input)?);
             let piped = input_piped(
@@ -295,7 +295,7 @@ pub(crate) fn made_now(
     table: MadeTableId,
 ) -> Result<MadeNow, FilledError> {
     let stamp = frame.store.stamp;
-    let fill = fill_at(&frame.programs.code, table)?;
+    let fill = fill_at(frame.programs.code, table)?;
     let slot = slot_mut(frame, table).ok_or(FilledError::Code {
         named: MissingCode::Table,
     })?;

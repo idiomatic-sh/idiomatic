@@ -38,7 +38,7 @@ pub(crate) fn use_asked(
         named: MissingCode::Word,
     };
     let stage = stage_use_of(word);
-    let code = &frame.programs.code;
+    let code = frame.programs.code;
     let (bound, formals) = match body_at(&code.pool, stage.body).map(|body| body.record) {
         Some(BodyRecord::Call { bound, formals, .. }) => {
             (usize::try_from(bound.0).unwrap_or(usize::MAX), formals)

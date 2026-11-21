@@ -45,7 +45,7 @@ pub(crate) fn fan_stage(
     let BatchLevel {
         columns, fan, rows, ..
     } = level;
-    let code = &frame.programs.code;
+    let code = frame.programs.code;
     fan.up.clear();
     fan.out.clear();
     fan.limit = BATCH_ROWS;

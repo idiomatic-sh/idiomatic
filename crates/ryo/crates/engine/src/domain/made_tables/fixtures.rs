@@ -8,9 +8,8 @@ use crate::domain::code::types::{IndexSite, ProgramCode};
 use crate::domain::filled::errors::FilledError;
 use crate::domain::lowered::types::{MadeTable, PackDefinition};
 use crate::domain::made_tables::types::{
-    FillFrame, FillStore, PatternAsk, PatternFound, PatternRows, TableNeed,
+    FillFrame, FillStore, PatternAsk, PatternFound, PatternRows, RuleSetView, TableNeed,
 };
-use crate::domain::programs::types::ProgramsEngine;
 use crate::domain::steps::types::{MadeTableId, StepRegex};
 use ryo_language::domain::facts::service::{base_words, file_words};
 use ryo_language::domain::facts::types::{
@@ -157,11 +156,25 @@ impl PatternRows for Looped {
     }
 }
 
+/// A rule set's parts as the fill side reads them, owned by a world.
+#[derive(Debug)]
+pub(crate) struct RuleSet {
+    /// The code.
+    pub(crate) code: ProgramCode,
+    /// The word of each kind's name, by the kind's code.
+    pub(crate) kinds: Vec<CellWord>,
+    /// The word of each field's name, by the field's code.
+    pub(crate) fields: Vec<CellWord>,
+    /// The sources of the regular expressions, by number.
+    pub(crate) regexes: Vec<StepRegex>,
+}
+
 /// Everything a seam call is made with, owned: a case builds one, then borrows a frame from it.
 #[derive(Debug)]
 pub(crate) struct World {
-    /// The programs: the code the contract's encoding wrote for the case's pack.
-    pub(crate) programs: ProgramsEngine,
+    /// What the fill side reads of the rule set: the code the contract's encoding wrote for the case's pack, and the
+    /// vocabulary's words.
+    pub(crate) programs: RuleSet,
     /// The file's nodes.
     pub(crate) nodes: NodeTable,
     /// The file's words.
@@ -204,12 +217,11 @@ pub(crate) fn world_of(
     let mut store = FillStore::default();
     crate::domain::made_tables::sources::service::next_file(&mut store);
     Ok(World {
-        programs: ProgramsEngine {
+        programs: RuleSet {
             code,
             kinds: [0_u64, 11, 12, 13].map(CellWord).to_vec(),
             fields: [0_u64, 0, 0, 0, 24].map(CellWord).to_vec(),
             regexes: vec![StepRegex("^[ac]".into())],
-            ..ProgramsEngine::default()
         },
         nodes,
         words: file_words(&base_words(
@@ -243,7 +255,12 @@ pub(crate) fn framed(world: &mut World) -> (FillFrame<'_>, &mut Looped) {
     } = world;
     (
         FillFrame {
-            programs,
+            programs: RuleSetView {
+                code: &programs.code,
+                kinds: &programs.kinds,
+                fields: &programs.fields,
+                regexes: &programs.regexes,
+            },
             nodes: file,
             file: FILE,
             text: ByteSlice(TEXT),

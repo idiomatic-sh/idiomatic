@@ -356,7 +356,7 @@ pub fn fill_workload(bench: FillBench, rows: usize) -> Option<FillWorkload> {
             ReadSource::Filled(RelationNumber(0)),
         );
         if bench == FillBench::RowsProbe {
-            let site = site_of(&frame.programs.code, 1, &[0]);
+            let site = site_of(frame.programs.code, 1, &[0]);
             let _built = matched(
                 &mut frame,
                 &mut OneRow,

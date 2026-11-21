@@ -12,8 +12,7 @@ use crate::domain::filled::types::MissingCode;
 use crate::domain::indexes::reading::service::read;
 use crate::domain::indexes::types::{ColumnView, IndexRead, RowRun, SourceRow};
 use crate::domain::made_tables::service::column;
-use crate::domain::made_tables::types::{FillStore, MadeState, ReadSource, TableSlot};
-use crate::domain::programs::types::ProgramsEngine;
+use crate::domain::made_tables::types::{FillStore, MadeState, ReadSource, RuleSetView, TableSlot};
 use crate::domain::stages::nodes::service::node_tag;
 use crate::domain::stages::types::NodeNames;
 use crate::domain::steps::types::MadeTableId;
@@ -216,13 +215,13 @@ pub(crate) fn pipeline_words(
 /// What a node row's cells are read from besides the table: the words of the kinds' and the fields' names, the file's
 /// bytes and the file.
 pub(crate) fn node_names<'a>(
-    programs: &'a ProgramsEngine,
+    programs: RuleSetView<'a>,
     text: ByteSlice<'a>,
     file: FileId,
 ) -> NodeNames<'a> {
     NodeNames {
-        kinds: &programs.kinds,
-        fields: &programs.fields,
+        kinds: programs.kinds,
+        fields: programs.fields,
         text,
         file,
     }

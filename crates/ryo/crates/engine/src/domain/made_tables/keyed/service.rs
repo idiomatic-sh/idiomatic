@@ -59,8 +59,8 @@ pub(crate) fn key_asked(
             ..KeyRows::default()
         }));
     }
-    let places = list(&programs.code.pool, site_at(&programs.code, site)?.columns);
-    let relation = relation_at(&programs.code, number)?;
+    let places = list(&programs.code.pool, site_at(programs.code, site)?.columns);
+    let relation = relation_at(programs.code, number)?;
     let chosen = asked_among(&mut frame.store.relations, number, relation, places).0;
     let wrong = FilledError::Code {
         named: MissingCode::Site,

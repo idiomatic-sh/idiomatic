@@ -127,7 +127,7 @@ pub(crate) fn keep_stage(
         matcher,
     } = scratch;
     let stage = stage_keep_of(word);
-    let code = &frame.programs.code;
+    let code = frame.programs.code;
     let test = comparison_of(stage.comparison, stage.regex).ok_or(WRONG_WORD)?;
     let BatchLevel {
         columns,
@@ -181,7 +181,7 @@ pub(crate) fn keep_stage(
         ) => keep_text(
             TextMeans {
                 matcher,
-                regexes: &frame.programs.regexes,
+                regexes: frame.programs.regexes,
                 compiled,
             },
             words,
@@ -227,7 +227,7 @@ pub(crate) fn probe_key<'l>(
     }
     key_of(
         columns,
-        &frame.programs.code,
+        frame.programs.code,
         frame.file,
         OperandRun {
             first: PoolAt(stage.probed.0),
@@ -248,7 +248,7 @@ pub(crate) fn probe_range<'l>(
     if stage.flag.0 & PROBE_RANGE.0 == 0 {
         return Ok(None);
     }
-    let code = &frame.programs.code;
+    let code = frame.programs.code;
     let (first, values) = (PoolAt(stage.probed.0), usize::from(stage.values.0));
     let bound = |ahead: Count| {
         value_of(
@@ -323,7 +323,7 @@ pub(crate) fn write_stage(
     into: &mut TableRows,
 ) -> Result<(), FilledError> {
     let stage = stage_write_of(word);
-    let code = &frame.programs.code;
+    let code = frame.programs.code;
     let width = usize::from(stage.columns.0);
     let mut sources = Vec::with_capacity(width);
     for place in 0..width {
