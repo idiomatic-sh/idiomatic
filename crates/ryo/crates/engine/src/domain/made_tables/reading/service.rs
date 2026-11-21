@@ -10,8 +10,8 @@ use crate::domain::filled::errors::FilledError;
 use crate::domain::filled::service::whole_rows;
 use crate::domain::filled::types::MissingCode;
 use crate::domain::indexes::reading::service::read;
-use crate::domain::indexes::types::{ColumnView, IndexRead, RowRun, SourceRow};
-use crate::domain::made_tables::service::column;
+use crate::domain::indexes::types::{ColumnView, FixedKeys, IndexRead, RowRun, SourceRow};
+use crate::domain::made_tables::service::{column, file_of, key_mask};
 use crate::domain::made_tables::types::{FillStore, MadeState, ReadSource, RuleSetView, TableSlot};
 use crate::domain::stages::nodes::service::node_tag;
 use crate::domain::stages::types::NodeNames;
@@ -170,6 +170,27 @@ pub(crate) fn view_of(store: &FillStore, source: ReadSource, at: Short) -> Colum
             made_slot(store, table).map_or(nothing, |slot| column(&slot.rows, place))
         }
         ReadSource::Nodes(_) | ReadSource::Written(_) => nothing,
+    }
+}
+
+/// Which columns of a key over a source hold one cell in every row, and that cell: a made table's file columns, of
+/// which it keeps no cell; none of a relation.
+pub(crate) fn fixed_of(store: &FillStore, source: ReadSource, columns: &[WordSlot]) -> FixedKeys {
+    match source {
+        ReadSource::Made(table) => {
+            made_slot(store, table).map_or(FixedKeys::default(), |slot| FixedKeys {
+                skipped: key_mask(
+                    &slot.rows,
+                    columns
+                        .iter()
+                        .map(|column| Count(usize::try_from(column.0).unwrap_or(usize::MAX))),
+                ),
+                cell: file_of(&slot.rows),
+            })
+        }
+        ReadSource::Filled(_) | ReadSource::Nodes(_) | ReadSource::Written(_) => {
+            FixedKeys::default()
+        }
     }
 }
 

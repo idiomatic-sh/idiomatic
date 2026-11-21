@@ -3,8 +3,7 @@
 //! bench build their tables with it.
 
 use self::packs::{FILE, FIRST, SECOND, TEXT, TOLD};
-use crate::domain::code::service::list;
-use crate::domain::code::types::{IndexSite, ProgramCode};
+use crate::domain::code::types::ProgramCode;
 use crate::domain::filled::errors::FilledError;
 use crate::domain::lowered::types::{MadeTable, PackDefinition};
 use crate::domain::made_tables::types::{
@@ -33,6 +32,7 @@ pub mod benches;
 pub mod packs;
 #[cfg(test)]
 pub mod reads;
+pub(crate) mod sites;
 
 /// How the world's language answers a key.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -128,6 +128,17 @@ pub(crate) struct Looped {
     pub(crate) keys: Vec<Vec<u64>>,
     /// How many cells a pattern's row has.
     pub(crate) width: usize,
+    /// Each start and end of a table's fill it was told, in order.
+    pub(crate) fills: Vec<FillMark>,
+}
+
+/// A start or an end of a table's fill, as the stand-in was told it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum FillMark {
+    /// The fill of the table started.
+    Started(MadeTableId),
+    /// The fill of the table ended.
+    Ended(MadeTableId),
 }
 
 impl PatternRows for Looped {
@@ -165,6 +176,14 @@ impl PatternRows for Looped {
         } else {
             PatternFound::Rows
         })
+    }
+
+    fn table_started(&mut self, table: MadeTableId) {
+        self.fills.push(FillMark::Started(table));
+    }
+
+    fn table_ended(&mut self, table: MadeTableId) {
+        self.fills.push(FillMark::Ended(table));
     }
 }
 
@@ -294,6 +313,20 @@ pub(crate) fn framed(world: &mut World) -> (FillFrame<'_>, &mut Looped) {
 }
 
 #[cfg(test)]
+/// The cells of a table's row as a reader of each of its columns is handed them: the file's own column too, of which
+/// the table keeps no cell.
+fn row_cells(table: &crate::domain::made_tables::types::TableRows, row: Count) -> Vec<CellWord> {
+    (0..table.places.len())
+        .map(|column| {
+            crate::domain::indexes::reading::service::cell_at(
+                crate::domain::made_tables::service::column(table, Count(column)),
+                row,
+            )
+        })
+        .collect()
+}
+
+#[cfg(test)]
 /// A table's rows as text: each row's cells, rows separated by `;`.
 pub(crate) fn shown(store: &FillStore, table: MadeTableId) -> String {
     let Some(slot) = crate::domain::made_tables::sources::service::table_of(store, table) else {
@@ -301,7 +334,7 @@ pub(crate) fn shown(store: &FillStore, table: MadeTableId) -> String {
     };
     let rows: Vec<String> = (0..slot.rows.count.0)
         .map(|row| {
-            crate::domain::made_tables::service::row(&slot.rows, Count(row))
+            row_cells(&slot.rows, Count(row))
                 .iter()
                 .map(|cell| cell.0.to_string())
                 .collect::<Vec<_>>()
@@ -334,7 +367,7 @@ pub(crate) fn shown_as(world: &World, table: MadeTableId, columns: &[Shown]) -> 
     };
     let rows: Vec<String> = (0..slot.rows.count.0)
         .map(|row| {
-            crate::domain::made_tables::service::row(&slot.rows, Count(row))
+            row_cells(&slot.rows, Count(row))
                 .iter()
                 .zip(columns)
                 .map(|(cell, shown)| match shown {
@@ -351,31 +384,4 @@ pub(crate) fn shown_as(world: &World, table: MadeTableId, columns: &[Shown]) -> 
         })
         .collect();
     rows.join("; ")
-}
-
-/// The first site of an index over the node table, as the code numbers it; a site past every site when it holds none.
-pub(crate) fn node_site(code: &ProgramCode) -> IndexSite {
-    let found = code.indexes.iter().position(|index| index.source.0 == 0);
-    IndexSite(
-        found
-            .and_then(|at| u32::try_from(at).ok())
-            .unwrap_or(u32::MAX),
-    )
-}
-
-/// The site of the index of a source (0 the node table, 1 a relation, 2 a made table) by the columns, as the code
-/// numbers it; a site past every site when the code holds none.
-pub(crate) fn site_of(code: &ProgramCode, source: u16, columns: &[u32]) -> IndexSite {
-    let found = code.indexes.iter().position(|index| {
-        index.source.0 == source
-            && list(&code.pool, index.columns)
-                .iter()
-                .map(|slot| slot.0)
-                .eq(columns.iter().copied())
-    });
-    IndexSite(
-        found
-            .and_then(|at| u32::try_from(at).ok())
-            .unwrap_or(u32::MAX),
-    )
 }

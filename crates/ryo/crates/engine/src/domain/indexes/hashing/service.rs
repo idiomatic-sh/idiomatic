@@ -6,8 +6,8 @@ use crate::domain::indexes::constants::{EMPTY_RUN, LEAST_ENTRIES, RUN_START_SHIF
 use crate::domain::indexes::reading::service::start_of;
 use crate::domain::indexes::slots::service::{kept, table_of};
 use crate::domain::indexes::types::{
-    Addressing, FileStamp, HashShift, IndexArena, IndexSlot, KeyNumber, SourceRow, StretchPlace,
-    TableWord,
+    Addressing, FileStamp, HashShift, IndexArena, IndexSlot, KeyMask, KeyNumber, SourceRow,
+    StretchPlace, TableWord,
 };
 use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::relations::types::Count;
@@ -161,6 +161,8 @@ pub(crate) fn coded<K: Iterator<Item = Count>>(
         shift: HashShift(u64::BITS.saturating_sub(entries.trailing_zeros())),
         addressing: Addressing::Hashed,
         width: Count(1),
+        skipped: KeyMask(0),
+        fixed: CellWord(0),
         first: Count(arena.rows.len()),
         count: rows,
     };

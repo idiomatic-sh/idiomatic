@@ -8,16 +8,23 @@
 
 use super::types::{FillInputs, FillKind, TableFill};
 use crate::domain::code::constants::NO_SLOT;
+use crate::domain::code::filling::service::stage_write_of;
+use crate::domain::code::records::types::PooledOperand;
 use crate::domain::code::service::list;
-use crate::domain::code::types::{FillCode, PoolAt, ProgramCode, WordSlot};
+use crate::domain::code::types::{CodeEntry, FillCode, PoolAt, ProgramCode, WordSlot};
 use crate::domain::filled::errors::FilledError;
 use crate::domain::filled::types::{MissingCode, UnbuiltFill};
 use crate::domain::lowered::service::fill_code;
 use crate::domain::lowered::types::{ConstantRows, FillInput, GroupFill, MadeFill, OrderedFill};
-use crate::domain::made_tables::operands::service::constant_at;
-use crate::domain::made_tables::service::{count_groups, end_groups, set_keys, sort_groups};
+use crate::domain::made_tables::columns::types::ColumnIs;
+use crate::domain::made_tables::operands::service::{constant_at, operand};
+use crate::domain::made_tables::reading::service::pipeline_words;
+use crate::domain::made_tables::service::{
+    count_groups, end_groups, file_columns, set_keys, sort_groups,
+};
 use crate::domain::made_tables::types::{FillWork, GroupRoom, TableRows};
 use crate::domain::steps::types::{ColumnList, MadeTableId};
+use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::relations::types::Count;
 use ryo_values::domain::plan_orders::types::GroupEnd;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, RepeatedRows};
@@ -28,7 +35,7 @@ const NO_RECORD: FilledError = FilledError::Code {
 };
 
 /// Which fill a code is, of the fills the fill side runs: the code is compared with the lowering's own code of each.
-fn kind_of(code: FillCode) -> Result<FillKind, FilledError> {
+pub(crate) fn kind_of(code: FillCode) -> Result<FillKind, FilledError> {
     let input = || FillInput {
         pipelines: Box::new([]),
         keys: ColumnList(Box::new([])),
@@ -73,6 +80,23 @@ fn after(at: PoolAt, ahead: Count) -> Result<PoolAt, FilledError> {
         Ok(slots) => at.0.checked_add(slots).map(PoolAt).ok_or(NO_RECORD),
         Err(_) => Err(NO_RECORD),
     }
+}
+
+/// The code of a made table's fill, as written: what `built::service::runs` is asked of a fill.
+///
+/// # Errors
+///
+/// The code holds no such table.
+pub(crate) fn fill_code_at(
+    code: &ProgramCode,
+    table: MadeTableId,
+) -> Result<FillCode, FilledError> {
+    code.tables
+        .get(usize::try_from(table.0).unwrap_or(usize::MAX))
+        .map(|written| FillCode(written.fill.0))
+        .ok_or(FilledError::Code {
+            named: MissingCode::Table,
+        })
 }
 
 /// The fill of a made table, as the code holds it: which fill, the table's width, its one parameter, and where its inputs
@@ -180,5 +204,39 @@ pub(crate) fn grouped_rows(
     }
     work.read = Count(work.read.0.saturating_add(gathered.count.0));
     work.given = Count(work.given.0.saturating_add(out.count.0));
+    Ok(())
+}
+
+/// Lays the columns of the emptied table an input's pipelines write into: a column every one of them writes the file
+/// into is the file's own, and the table keeps no cell of it. `writes` is room for where each pipeline's row lies.
+///
+/// # Errors
+///
+/// A pipeline of the input has no write the code holds.
+pub(crate) fn file_laid(
+    code: &ProgramCode,
+    file: CellWord,
+    input: FillInputs<'_>,
+    writes: &mut Vec<PoolAt>,
+    into: &mut TableRows,
+) -> Result<(), FilledError> {
+    writes.clear();
+    for entry in input.entries {
+        let words = pipeline_words(code, CodeEntry(entry.0))?;
+        let write = words.last().ok_or(NO_RECORD)?;
+        writes.push(stage_write_of(*write).operands);
+    }
+    if !writes.is_empty() {
+        file_columns(into, file, |column| {
+            let every = writes
+                .iter()
+                .all(|at| matches!(operand(code, *at, column), Ok(PooledOperand::File)));
+            if every {
+                ColumnIs::TheFile
+            } else {
+                ColumnIs::Written
+            }
+        });
+    }
     Ok(())
 }

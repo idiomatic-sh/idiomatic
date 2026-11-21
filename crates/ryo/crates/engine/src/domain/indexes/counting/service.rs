@@ -5,8 +5,8 @@ use crate::domain::code::types::IndexSite;
 use crate::domain::indexes::constants::{COUNTED_WORDS, LEAST_ENTRIES, PLACED_SPAN};
 use crate::domain::indexes::slots::service::{kept, table_of};
 use crate::domain::indexes::types::{
-    Addressing, CountedKey, FileStamp, HashShift, IndexArena, IndexSlot, KeyCells, SourceRow,
-    TableWord,
+    Addressing, CountedKey, FileStamp, HashShift, IndexArena, IndexSlot, KeyCells, KeyMask,
+    SourceRow, TableWord,
 };
 use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::relations::types::Count;
@@ -101,6 +101,8 @@ pub(crate) fn counted_slot(
         shift: HashShift(0),
         addressing: Addressing::Counted(least),
         width: Count(1),
+        skipped: KeyMask(0),
+        fixed: CellWord(0),
         first: Count(arena.rows.len()),
         count: rows,
     };
@@ -189,6 +191,8 @@ pub(crate) fn own_rows(
         shift: HashShift(0),
         addressing: Addressing::Rows(least),
         width: Count(1),
+        skipped: KeyMask(0),
+        fixed: CellWord(0),
         first,
         count: rows,
     };

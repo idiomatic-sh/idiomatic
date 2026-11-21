@@ -11,8 +11,8 @@ use super::hashing::service::grouped;
 use super::reading::service::{cell_at, runs};
 use super::slots::service::{kept, table_of};
 use super::types::{
-    Addressing, ColumnView, FileStamp, HashShift, IndexArena, IndexBuilt, IndexRead, IndexSlot,
-    KeyBounds, KeyCells, SourceRow, TableWord,
+    Addressing, ColumnView, FileStamp, FixedKeys, HashShift, IndexArena, IndexBuilt, IndexRead,
+    IndexSlot, KeyBounds, KeyCells, KeyMask, SourceRow, TableWord,
 };
 use crate::domain::code::types::IndexSite;
 use ryo_language::domain::facts::types::CellWord;
@@ -55,6 +55,8 @@ pub(crate) fn begin(arena: &mut IndexArena, rows: Count, width: Count) {
     arena.width = width;
     arena.pending = rows;
     arena.base = SourceRow(0);
+    arena.skipped = KeyMask(0);
+    arena.fixed = CellWord(0);
     arena.bounds = KeyBounds {
         least: CellWord(u64::MAX),
         greatest: CellWord(0),
@@ -65,6 +67,14 @@ pub(crate) fn begin(arena: &mut IndexArena, rows: Count, width: Count) {
 /// from there, as the handles of that source are.
 pub(crate) fn based(arena: &mut IndexArena, base: SourceRow) {
     arena.base = base;
+}
+
+/// Says, of the index `begin` started, that the key it is asked by holds more cells than it keeps: at the places
+/// `fixed` names every row of the source holds its cell, so the index keeps none of them, and a key that asks another
+/// cell there has no row. `begin` was told the width of the key without them, and `key_column` is given the others.
+pub(crate) fn fixed_keys(arena: &mut IndexArena, fixed: FixedKeys) {
+    arena.skipped = fixed.skipped;
+    arena.fixed = fixed.cell;
 }
 
 /// Writes one cell of each row's key from a column's cells, and answers the bounds widened by them.
@@ -122,6 +132,8 @@ fn sorted(arena: &mut IndexArena, slot: IndexSlot, order: ColumnView<'_>) {
         shift: slot.shift,
         addressing: slot.addressing,
         width: slot.width,
+        skipped: slot.skipped,
+        fixed: slot.fixed,
     };
     for found in runs(table) {
         if let Some(stretch) = stretches.get_mut(found.start.0..found.end.0)
@@ -156,6 +168,8 @@ pub(crate) fn finish(
             shift: HashShift(0),
             addressing: Addressing::Hashed,
             width: arena.width,
+            skipped: arena.skipped,
+            fixed: arena.fixed,
             first: Count(arena.rows.len()),
             count: Count(0),
         };
@@ -168,7 +182,11 @@ pub(crate) fn finish(
     );
     let slot = if arena.width.0 == 1 && cells_lie(Count(rows), span) == KeyCells::Close {
         let least = arena.bounds.least;
-        let slot = counted_slot(arena, stamp, least, span, Count(rows));
+        let slot = IndexSlot {
+            skipped: arena.skipped,
+            fixed: arena.fixed,
+            ..counted_slot(arena, stamp, least, span, Count(rows))
+        };
         let IndexArena {
             entries,
             rows: stretches,
@@ -203,6 +221,8 @@ pub(crate) fn finish(
             shift: HashShift(u64::BITS.saturating_sub(entries.trailing_zeros())),
             addressing: Addressing::Hashed,
             width: arena.width,
+            skipped: arena.skipped,
+            fixed: arena.fixed,
             first: Count(arena.rows.len()),
             count: Count(rows),
         };

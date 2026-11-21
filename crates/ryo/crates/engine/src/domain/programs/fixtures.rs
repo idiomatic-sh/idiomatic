@@ -17,7 +17,7 @@ use crate::domain::stages::types::BatchValue;
 use crate::domain::steps::types::MadeTableId;
 use ryo_language::domain::facts::service::file_words;
 use ryo_language::domain::facts::types::{
-    CellWord, FactAnswer, FactSource, FileWords, FilledColumns, Wanted,
+    CellWord, FactAnswer, FactSource, FileWords, FillExtent, FilledColumn, FilledColumns, Wanted,
 };
 use ryo_language::domain::node_table::types::NodeTable;
 use ryo_language::domain::semantics::types::{RenderOutcome, RenderRequest};
@@ -42,6 +42,45 @@ impl FactSource for NoFacts {
         _out: &mut FilledColumns,
     ) -> FactAnswer {
         FactAnswer::Refused(AbsenceCause::NoSuchConstruct)
+    }
+
+    fn render(&mut self, _request: RenderRequest) -> RenderOutcome {
+        RenderOutcome::NotApplicable
+    }
+}
+
+/// A language that fills one relation whole with a number of rows of a number of cells, each cell its row's number, and
+/// refuses every other.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Telling {
+    /// The relation it fills.
+    pub(crate) relation: Relation,
+    /// How many cells a row has.
+    pub(crate) width: usize,
+    /// How many rows it writes.
+    pub(crate) rows: u64,
+}
+
+impl FactSource for Telling {
+    fn fill(
+        &mut self,
+        relation: Relation,
+        _wanted: Wanted,
+        _words: &mut FileWords,
+        out: &mut FilledColumns,
+    ) -> FactAnswer {
+        if relation != self.relation {
+            return FactAnswer::Refused(AbsenceCause::NoSuchConstruct);
+        }
+        if out.0.len() < self.width {
+            out.0.resize_with(self.width, FilledColumn::default);
+        }
+        for row in 0..self.rows {
+            for column in &mut out.0 {
+                column.0.push(CellWord(row));
+            }
+        }
+        FactAnswer::Answered(FillExtent::Whole)
     }
 
     fn render(&mut self, _request: RenderRequest) -> RenderOutcome {
@@ -137,7 +176,7 @@ pub(crate) fn framed<T>(
     framed_over(&NodeTable::default(), programs, case, ports, each)
 }
 
-/// `framed` over the file's tree `nodes`.
+/// `framed` over the file's tree `nodes`, with a language that fills nothing.
 pub(crate) fn framed_over<T>(
     nodes: &NodeTable,
     programs: &ProgramsEngine,
@@ -145,14 +184,26 @@ pub(crate) fn framed_over<T>(
     ports: &dyn LoopEntry,
     each: impl FnOnce(&mut StepFrame<'_, '_>) -> T,
 ) -> (T, Collected) {
-    let (mut facts, mut found) = (NoFacts, Collected::default());
+    framed_with(nodes, &mut NoFacts, programs, case, ports, each)
+}
+
+/// `framed` over the file's tree `nodes` and the language `facts`.
+pub(crate) fn framed_with<T>(
+    nodes: &NodeTable,
+    facts: &mut dyn FactSource,
+    programs: &ProgramsEngine,
+    case: &mut Held,
+    ports: &dyn LoopEntry,
+    each: impl FnOnce(&mut StepFrame<'_, '_>) -> T,
+) -> (T, Collected) {
+    let mut found = Collected::default();
     let mut words = file_words(&programs.words);
     let mut fill = FillFrame {
         programs: rule_set(programs),
         nodes,
         file: FILE,
         text: ByteSlice(b""),
-        facts: &mut facts,
+        facts,
         words: &mut words,
         store: &mut case.store,
         matcher: PatternMatcher(&MatchingUseCaseImpl),

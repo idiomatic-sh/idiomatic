@@ -10,7 +10,8 @@ use crate::domain::filled::types::MissingCode;
 use crate::domain::made_tables::fixtures::packs::{FIRST, TOLD};
 use crate::domain::made_tables::fixtures::packs::{constants, of, pipeline, rows, scan_made};
 use crate::domain::made_tables::fixtures::reads::{asked, held, prober, told_of};
-use crate::domain::made_tables::fixtures::{Telling, World, framed, shown, site_of, world_with};
+use crate::domain::made_tables::fixtures::sites::site_of;
+use crate::domain::made_tables::fixtures::{Telling, World, framed, shown, world_with};
 use crate::domain::made_tables::reading::service::{index_at, rows_at};
 use crate::domain::made_tables::sources::service::{
     cell_of, handle_of, made, matched, next_file, relation_rows, table_of,
@@ -28,6 +29,8 @@ enum Read {
     MadeTwice,
     /// Two tables that scan a third, which the loop says has no row.
     NeedEmpty,
+    /// What the loop is told of the fills when a table reads another.
+    FillsTold,
     /// The rows a key holds in a made table.
     OverMade,
     /// The rows a kind holds in the node table, and a node row's cells.
@@ -54,6 +57,16 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Read::MadeTwice,
         expect: Expect::Value(Cow::Borrowed("Made, Held: 1; 3 | asked: whole")),
+    },
+    Case {
+        name: CaseName(
+            "the_loop_is_told_each_fills_start_and_end_a_table_made_inside_within_its_readers",
+        ),
+        word: Word::Succeeds,
+        input: || Read::FillsTold,
+        expect: Expect::Value(Cow::Borrowed(
+            "[Started(MadeTableId(2)), Started(MadeTableId(0)), Ended(MadeTableId(0)), Ended(MadeTableId(2)), Started(MadeTableId(1)), Ended(MadeTableId(1))]",
+        )),
     },
     Case {
         name: CaseName("a_table_the_loop_says_has_no_row_is_made_empty_and_asked_once"),
@@ -111,7 +124,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 fn world_of(read: Read) -> Result<World, FilledError> {
     let told = StepRows::Filled(TOLD);
     let tables = match read {
-        Read::NeedEmpty => vec![
+        Read::NeedEmpty | Read::FillsTold => vec![
             constants(&[1, 4, 3]),
             rows(1, pipeline(Vec::from(scan_made(0, 0, 1)), [of(1)])),
             rows(1, pipeline(Vec::from(scan_made(0, 0, 1)), [of(1)])),
@@ -153,6 +166,15 @@ fn subject(read: Input) -> Result<Value, Failure> {
             let rows = shown(frame.store, MadeTableId(1));
             drop(frame);
             format!("{first:?}, {second:?}: {rows} | asked: {}", told_of(&world))
+        }
+        Read::FillsTold => {
+            let (mut frame, looped) = framed(&mut world);
+            // Table 2 reads table 0, which is made inside its fill; table 1 reads it made; table 2 is then held.
+            let _two = made(&mut frame, looped, MadeTableId(2))?;
+            let _one = made(&mut frame, looped, MadeTableId(1))?;
+            let _held = made(&mut frame, looped, MadeTableId(2))?;
+            drop(frame);
+            format!("{:?}", world.looped.fills)
         }
         Read::NeedEmpty => {
             world.looped.empty.push(MadeTableId(0));

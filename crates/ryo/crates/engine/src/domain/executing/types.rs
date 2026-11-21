@@ -1,6 +1,7 @@
 //! The types of the `executing` concept: the loop as what answers the fill side.
 
 use crate::domain::executing::budget::service::fill_asked;
+use crate::domain::executing::measuring::service::{left, table_entered};
 use crate::domain::filled::errors::FilledError;
 use crate::domain::findings::types::FoundRows;
 use crate::domain::made_tables::types::{
@@ -63,5 +64,13 @@ impl PatternRows for Asker<'_> {
         } else {
             PatternFound::Nothing
         })
+    }
+
+    fn table_started(&mut self, table: MadeTableId) {
+        table_entered(self.state, table);
+    }
+
+    fn table_ended(&mut self, _: MadeTableId) {
+        left(self.state);
     }
 }

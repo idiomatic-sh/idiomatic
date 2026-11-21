@@ -43,6 +43,7 @@ pub(crate) fn told_rows(bench: FillBench, rows: usize) -> Vec<[u64; 2]> {
             FillBench::RowsRead
             | FillBench::RowsKeep
             | FillBench::RowsProbe
+            | FillBench::RowsFile
             | FillBench::Product => [
                 row.wrapping_mul(7919) % all,
                 row.wrapping_mul(104_729) % all,
@@ -52,6 +53,7 @@ pub(crate) fn told_rows(bench: FillBench, rows: usize) -> Vec<[u64; 2]> {
             | FillBench::Sorted
             | FillBench::UseRows
             | FillBench::OrderedMatch
+            | FillBench::RowsFileDropped
             | FillBench::GroupEnds => [row / GROUP_ROWS, row.wrapping_mul(31) % 43],
             FillBench::WalkChildren
             | FillBench::WalkAncestors
@@ -286,6 +288,21 @@ pub(crate) fn bench_table(bench: FillBench) -> MadeTable {
             GroupFill::Ends(GroupEnd::Greatest),
             grouped(Some(MadeColumn(1))),
         )),
+        FillBench::RowsFile | FillBench::RowsFileDropped => table(
+            1,
+            3,
+            MadeFill::Rows(
+                Box::new([pipeline(
+                    vec![scan(0), read(FIRST, 0, 1), read(SECOND, 0, 2)],
+                    [of(1), of(2), StepOperand::File],
+                )]),
+                if bench == FillBench::RowsFile {
+                    RepeatedRows::Kept
+                } else {
+                    RepeatedRows::Dropped
+                },
+            ),
+        ),
         FillBench::IndexNodesKind => probed_nodes(NodeColumn::Kind, 1),
         FillBench::IndexNodesParent => probed_nodes(NodeColumn::Parent, 0),
         FillBench::IndexNodesId => probed_nodes(NodeColumn::Id, 0),

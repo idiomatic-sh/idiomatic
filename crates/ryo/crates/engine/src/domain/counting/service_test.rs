@@ -10,33 +10,48 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::dispatch::service::dispatch;
 use crate::domain::encoding::service::encoded;
 use crate::domain::executing::entries::types::TheMeasuringLoop;
-use crate::domain::executing::measuring::service::file_ended;
+use crate::domain::executing::measuring::sites::service::file_measured;
 use crate::domain::findings::types::RuleColumns;
 use crate::domain::lowered::types::{Branch, Emptiness, LoweredPack, LoweredRule};
 use crate::domain::made_tables::fixtures::packs::{
-    constants, definition, of, operands, pipeline, rows, scan_made, used,
+    FIRST, TOLD, constants, definition, of, operands, pipeline, rows, scan_made, used, word,
 };
-use crate::domain::programs::fixtures::{Held, framed};
+use crate::domain::programs::fixtures::{Held, Telling, framed_with};
 use crate::domain::programs::service::scratch_measuring;
 use crate::domain::programs::types::{Programs, ProgramsEngine};
 use crate::domain::scratch::service::next_file;
 use crate::domain::statistics::types::PointCounts;
 use crate::domain::steps::stages::types::UseMode;
 use crate::domain::steps::types::{
-    EmitTarget, MadeTableId, PlacedStep, PlanPoint, ProgramStep, Register, RegisterCount,
-    StepProgram, StepRows,
+    EmitTarget, MadeTableId, MatchColumns, PlacedStep, PlanPoint, ProgramStep, ReadColumn,
+    Register, RegisterCount, StepProgram, StepRows,
 };
+use ryo_language::domain::node_table::types::NodeTable;
+use ryo_relations::domain::relations::types::Count;
 use ryo_values::domain::query_plans::types::NodeDigest;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 use std::borrow::Cow;
 
-/// Whether the rule set holds the two rules or none, how many files each worker scans, and how many workers' counts are
-/// added up.
-type Input = (bool, usize, usize);
+/// The rule set a case measures.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Measured {
+    /// No rule.
+    Nothing,
+    /// The two rules over the two tables.
+    Tables,
+    /// One rule that reads the rows of a filled relation whose first column holds 3, a size site of the code; the
+    /// language writes six rows, the fourth of which holds 3.
+    ASizeSite,
+}
+
+/// The rule set, how many files each worker scans, and how many workers' counts are added up.
+type Input = (Measured, usize, usize);
 /// The files counted; then for each ledger row: what it is of (a rule's ordinal, 100 and its place for a pattern, 200 and
 /// its place for a table), its class (0 navigation, 1 a fill of rows, 2 a group, 3 an ordered table, 4 a graph), its
 /// owners as a sum of two to the rule's ordinal, its rows, its steps, and whether it has no idle time (1: every unit of
-/// these cases gives a row in every file). Then whether rule 0's own program was timed at all (1), or 8 with no rule 0.
+/// these cases gives a row in every file). Then whether rule 0's own program was timed at all (1), or 8 with no rule 0;
+/// the rows counted at the code's size sites, summed; and whether the piped table's fill was timed (1: the fill side says
+/// when a table's fill starts and ends), or 8 with no such table.
 type Value = Cow<'static, [usize]>;
 type Failure = ();
 
@@ -45,41 +60,47 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_rule_set_with_no_unit_has_no_ledger_row"),
         word: Word::Succeeds,
-        input: || (false, 0, 1),
-        expect: Expect::Value(Cow::Borrowed(&[0, 8])),
+        input: || (Measured::Nothing, 0, 1),
+        expect: Expect::Value(Cow::Borrowed(&[0, 8, 0, 8])),
     },
     Case {
         name: CaseName("the_counts_of_three_workers_add_up_to_no_row_more"),
         word: Word::Succeeds,
-        input: || (false, 0, 3),
-        expect: Expect::Value(Cow::Borrowed(&[0, 8])),
+        input: || (Measured::Nothing, 0, 3),
+        expect: Expect::Value(Cow::Borrowed(&[0, 8, 0, 8])),
     },
     Case {
         name: CaseName("a_measured_scan_is_counted_per_unit_with_its_class_and_owners"),
         word: Word::Succeeds,
-        input: || (true, 1, 1),
+        input: || (Measured::Tables, 1, 1),
         expect: Expect::Value(Cow::Borrowed(&[
             1, 0, 0, 1, 3, 4, 1, 201, 1, 1, 3, 21, 1, 202, 1, 3, 3, 0, 1, 103, 0, 1, 3, 0, 1, 1, 0,
-            2, 3, 0, 1, 1,
+            2, 3, 0, 1, 1, 0, 1,
         ])),
     },
     Case {
         name: CaseName("the_files_of_one_worker_add_up"),
         word: Word::Succeeds,
-        input: || (true, 2, 1),
+        input: || (Measured::Tables, 2, 1),
         expect: Expect::Value(Cow::Borrowed(&[
             2, 0, 0, 1, 6, 8, 1, 201, 1, 1, 6, 42, 1, 202, 1, 3, 6, 0, 1, 103, 0, 1, 6, 0, 1, 1, 0,
-            2, 6, 0, 1, 1,
+            2, 6, 0, 1, 1, 0, 1,
         ])),
     },
     Case {
         name: CaseName("the_counts_of_two_workers_add_up"),
         word: Word::Succeeds,
-        input: || (true, 1, 2),
+        input: || (Measured::Tables, 1, 2),
         expect: Expect::Value(Cow::Borrowed(&[
             2, 0, 0, 1, 6, 8, 1, 201, 1, 1, 6, 42, 1, 202, 1, 3, 6, 0, 1, 103, 0, 1, 6, 0, 1, 1, 0,
-            2, 6, 0, 1, 1,
+            2, 6, 0, 1, 1, 0, 1,
         ])),
+    },
+    Case {
+        name: CaseName("the_rows_of_a_size_site_are_counted_in_every_file"),
+        word: Word::Succeeds,
+        input: || (Measured::ASizeSite, 2, 1),
+        expect: Expect::Value(Cow::Borrowed(&[2, 0, 0, 1, 2, 0, 1, 1, 2, 8])),
     },
 ];
 
@@ -129,15 +150,54 @@ fn pack() -> LoweredPack {
     }
 }
 
+/// The rule set of the size site's case: one rule over the rows of the relation by a constant in its first column.
+fn site_pack() -> LoweredPack {
+    let steps = [
+        ProgramStep::EachMatch {
+            source: StepRows::Filled(TOLD),
+            columns: MatchColumns(Box::new([ReadColumn::Filled(FIRST)])),
+            values: operands([word(3)]),
+            out: Register(0),
+        },
+        ProgramStep::Emit {
+            target: EmitTarget::Rule(SelectedRuleOrdinal(0)),
+            columns: operands([]),
+        },
+    ];
+    LoweredPack {
+        rules: vec![LoweredRule {
+            rule: SelectedRuleOrdinal(0),
+            node: NodeDigest([1; 16]),
+            branches: vec![Branch {
+                emptiness: Emptiness::Unknown,
+                program: StepProgram(
+                    steps
+                        .into_iter()
+                        .map(|step| PlacedStep { point: None, step })
+                        .collect(),
+                ),
+            }],
+            columns: RuleColumns::default(),
+        }],
+        registers: RegisterCount(2),
+        ..LoweredPack::default()
+    }
+}
+
 fn subject((measured, files, workers): Input) -> Result<Value, Failure> {
-    let programs = if measured {
-        Programs(ProgramsEngine {
-            code: encoded(&pack()).map_err(|_| ())?,
+    let programs = match measured {
+        Measured::Nothing => Programs::default(),
+        Measured::Tables | Measured::ASizeSite => Programs(ProgramsEngine {
+            code: encoded(&if measured == Measured::Tables {
+                pack()
+            } else {
+                site_pack()
+            })
+            .map_err(|_| ())?,
             ..ProgramsEngine::default()
-        })
-    } else {
-        Programs::default()
+        }),
     };
+    let nodes = NodeTable::default();
     let mut all = PointCounts::default();
     for _ in 0..workers {
         let mut worker = scratch_measuring(&programs);
@@ -148,17 +208,29 @@ fn subject((measured, files, workers): Input) -> Result<Value, Failure> {
                 state: std::mem::take(&mut worker.0.state),
                 store: std::mem::take(&mut worker.0.store),
             };
-            let (_counters, _found) = framed(&programs.0, &mut held, &TheMeasuringLoop, |frame| {
-                let counters = dispatch(frame, &programs);
-                file_ended(frame);
-                counters
-            });
+            let mut facts = Telling {
+                relation: TOLD,
+                width: 5,
+                rows: 6,
+            };
+            let (_counters, _found) = framed_with(
+                &nodes,
+                &mut facts,
+                &programs.0,
+                &mut held,
+                &TheMeasuringLoop,
+                |frame| {
+                    let counters = dispatch(frame, &programs);
+                    file_measured(frame);
+                    counters
+                },
+            );
             worker.0.state = held.state;
             worker.0.store = held.store;
         }
         merged(&mut all, &counted(&worker));
     }
-    let (mut said, mut timed) = (vec![all.0.files.0], 8);
+    let (mut said, mut timed, mut filled) = (vec![all.0.files.0], 8, 8);
     for row in ledger(&programs, &all).0 {
         said.extend([
             match row.unit {
@@ -184,8 +256,13 @@ fn subject((measured, files, workers): Input) -> Result<Value, Failure> {
         if row.unit == LedgerUnit::Rule(SelectedRuleOrdinal(0)) {
             timed = usize::from(row.nanos.0 > 0);
         }
+        if row.unit == LedgerUnit::Table(Count(1)) {
+            filled = usize::from(row.nanos.0 > 0);
+        }
     }
     said.push(timed);
+    said.push(all.0.literals.iter().map(|rows| rows.0).sum());
+    said.push(filled);
     Ok(Cow::Owned(said))
 }
 

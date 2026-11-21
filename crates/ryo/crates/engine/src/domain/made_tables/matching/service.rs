@@ -8,6 +8,7 @@ use crate::domain::code::types::IndexSite;
 use crate::domain::filled::errors::FilledError;
 use crate::domain::indexes::reading::service::{cell_at, read, rows_of, run_of, runs};
 use crate::domain::indexes::types::{IndexRead, SourceRow};
+use crate::domain::made_tables::columns::types::RowColumn;
 use crate::domain::made_tables::service::{column, row, rows_indexed};
 use crate::domain::made_tables::types::TableRows;
 use ryo_operators::domain::contract::types::PortableOperatorFault;
@@ -21,7 +22,7 @@ fn place(numbered: SourceRow) -> Count {
 }
 
 /// The key columns of a side, as places.
-fn keys_of<'c>(side: MatchSide<'c>) -> impl ExactSizeIterator<Item = Count> + 'c {
+fn keys_of<'c>(side: MatchSide<'c>) -> impl ExactSizeIterator<Item = Count> + Clone + 'c {
     side.keys
         .iter()
         .map(|column| Count(usize::try_from(column.0).unwrap_or(usize::MAX)))
@@ -96,6 +97,16 @@ pub(crate) fn match_rows(
         read(left_index, IndexSite(0)),
         read(right_index, IndexSite(0)),
     );
+    // A row of the table is the left row's kept cells, then the right row's: its columns lie as the two inputs' do.
+    out.places.clear();
+    out.places.extend_from_slice(&left.places);
+    out.places
+        .extend(right.places.iter().map(|place| match place {
+            RowColumn::Kept(at) => RowColumn::Kept(Count(left.width.0.saturating_add(at.0))),
+            RowColumn::File => RowColumn::File,
+        }));
+    out.width = Count(left.width.0.saturating_add(right.width.0));
+    out.file = left.file;
     all_unrepeated(right, right_side.order, right_index, right_orders)?;
     for run in runs(left_index) {
         let left_rows = rows_of(left_index, run);

@@ -103,6 +103,15 @@ pub(crate) enum UnbuiltFill {
     OrderedNodes,
 }
 
+/// Whether the fill side runs a part of the code: a stage word, a fill.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum FillRuns {
+    /// It runs it.
+    Runs,
+    /// It does not yet: running it answers `FilledError::Unbuilt`.
+    NotYet,
+}
+
 /// What a word or a record named that the code does not hold.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum MissingCode {

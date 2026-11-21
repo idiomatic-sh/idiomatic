@@ -3,7 +3,7 @@
 
 use crate::domain::code::types::Op;
 use crate::domain::filled::errors::FilledError;
-use crate::domain::filled::types::{MissingCode, UnbuiltFill};
+use crate::domain::filled::types::{FillRuns, MissingCode, UnbuiltFill};
 use crate::domain::stages::service::{selected, value_at};
 use crate::domain::stages::types::{BatchRow, BatchValue, RowKept, TextMeans, TextTest};
 use crate::domain::steps::types::TestOperation;
@@ -24,6 +24,31 @@ fn kept(outcome: PredicateOutcome, wanted: PredicateOutcome) -> RowKept {
         RowKept::Yes
     } else {
         RowKept::No
+    }
+}
+
+/// Whether a `Keep` runs a test: every test of two cells and of a set, the regular expression, the globs and the affixes;
+/// not yet the numeric and natural orders of texts and the successor. `keep_text` asks it before it runs a test of a
+/// text, so a test said to run here and not built there fails its first case.
+#[must_use]
+pub(crate) const fn test_runs(test: TestOperation) -> FillRuns {
+    match test {
+        TestOperation::Equal
+        | TestOperation::NotEqual
+        | TestOperation::Less
+        | TestOperation::LessOrEqual
+        | TestOperation::Greater
+        | TestOperation::GreaterOrEqual
+        | TestOperation::In
+        | TestOperation::NotIn
+        | TestOperation::Matches(_)
+        | TestOperation::Glob
+        | TestOperation::NotGlob
+        | TestOperation::StartsWith
+        | TestOperation::EndsWith => FillRuns::Runs,
+        TestOperation::NumericAtLeast | TestOperation::NaturalLess | TestOperation::Successor => {
+            FillRuns::NotYet
+        }
     }
 }
 
@@ -122,6 +147,11 @@ pub(crate) fn keep_text(
     rows: Count,
     keep: &mut Vec<BatchRow>,
 ) -> Result<(), FilledError> {
+    if test_runs(test.test) == FillRuns::NotYet {
+        return Err(FilledError::Unbuilt {
+            unbuilt: UnbuiltFill::Stage(Op::StageKeep),
+        });
+    }
     let wrong = FilledError::Code {
         named: MissingCode::Regex,
     };

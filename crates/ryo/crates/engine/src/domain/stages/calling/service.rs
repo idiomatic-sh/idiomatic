@@ -5,7 +5,7 @@
 
 use crate::domain::code::types::Op;
 use crate::domain::filled::errors::FilledError;
-use crate::domain::filled::types::{MissingCode, UnbuiltFill};
+use crate::domain::filled::types::{FillRuns, MissingCode, UnbuiltFill};
 use crate::domain::indexes::types::RowRun;
 use crate::domain::stages::service::value_at;
 use crate::domain::stages::types::{BatchValue, CallMeans, CallOut, SearchedRows};
@@ -259,6 +259,24 @@ fn source_matches(
     Ok(())
 }
 
+/// Whether a `Call` runs a meaning: the four F401's lowering writes. `call_batch` asks it before it runs one, so a
+/// meaning said to run here and not built there fails its first case.
+#[must_use]
+pub(crate) const fn call_runs(meaning: CallMeaning) -> FillRuns {
+    match meaning {
+        CallMeaning::SpanBounds
+        | CallMeaning::Replace(_)
+        | CallMeaning::Capture
+        | CallMeaning::SourceMatches(..) => FillRuns::Runs,
+        CallMeaning::SpanBetween
+        | CallMeaning::Words
+        | CallMeaning::Rank
+        | CallMeaning::Concat
+        | CallMeaning::Lower
+        | CallMeaning::FitsRendered => FillRuns::NotYet,
+    }
+}
+
 /// `Call`: the meaning asked for every row of the batch. After it `out.answers` holds the cells of the rows given, row by
 /// row, and `out.spans` for each row of the batch the stretch of those rows it gave.
 ///
@@ -276,6 +294,11 @@ pub(crate) fn call_batch(
 ) -> Result<(), FilledError> {
     out.answers.clear();
     out.spans.clear();
+    if call_runs(meaning) == FillRuns::NotYet {
+        return Err(FilledError::Unbuilt {
+            unbuilt: UnbuiltFill::Stage(Op::StageCall),
+        });
+    }
     match meaning {
         CallMeaning::SpanBounds => span_bounds(arguments, rows, out),
         CallMeaning::Replace(regex) => replace(means, words, regex, arguments, rows, out),
