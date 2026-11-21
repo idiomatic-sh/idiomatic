@@ -1,9 +1,10 @@
 //! The `programs` service: what the host reads of a rule set's programs.
 
-use super::types::Programs;
+use super::types::{Programs, ProgramsEngine};
 use crate::domain::code::types::UnitKey;
 use crate::domain::findings::types::RuleColumns;
-use crate::domain::scratch::types::{ScanScratch, ScratchEngine};
+use crate::domain::made_tables::types::{FillStore, RuleSetView};
+use crate::domain::scratch::types::{LoopState, ScanScratch, ScratchEngine};
 use ryo_language::domain::facts::service::file_words;
 use ryo_language::domain::facts::types::CellWord;
 use ryo_language::domain::node_table::types::FieldCode;
@@ -63,7 +64,19 @@ pub fn columns(programs: &Programs) -> Vec<RuleColumns> {
         .collect()
 }
 
-/// A worker's per-file state for `programs`: its words over the programs' constants.
+/// What the fill side reads of a rule set, built once per scan: its code, the words of its kinds and fields, and its
+/// regular expressions.
+pub(crate) fn rule_set(programs: &ProgramsEngine) -> RuleSetView<'_> {
+    RuleSetView {
+        code: &programs.code,
+        kinds: &programs.kinds,
+        fields: &programs.fields,
+        regexes: &programs.regexes,
+    }
+}
+
+/// A worker's per-file state for `programs`: its registers, one for each the programs name, its words over the programs'
+/// constants, and an empty store of fills.
 ///
 /// # Examples
 ///
@@ -75,9 +88,14 @@ pub fn columns(programs: &Programs) -> Vec<RuleColumns> {
 /// ```
 #[must_use]
 pub fn scratch_for(programs: &Programs) -> ScanScratch {
+    let registers = usize::try_from(programs.0.code.counts.registers.0).unwrap_or(usize::MAX);
     ScanScratch(ScratchEngine {
+        state: LoopState {
+            registers: vec![CellWord(0); registers],
+            ..LoopState::default()
+        },
+        store: FillStore::default(),
         words: file_words(&programs.0.words),
-        ..ScratchEngine::default()
     })
 }
 

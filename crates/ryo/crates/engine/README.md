@@ -12,9 +12,17 @@ A rule set's programs as the executor runs them and the pack stores them: sixtee
 
 What a measuring worker counted, the counts of several workers added up, and the work ledger read off them.
 
+### dispatch
+
+A file's rules in rule order, each branch run when its need holds in the file; a branch whose need does not hold costs no candidate and no step.
+
 ### encoding
 
 A lowered pack written as code, every site and index numbered, with no count cut to fit a width and a file-sized word only where it may stand.
+
+### executing
+
+The one loop over a program's words: a word is dispatched to its item, and each binding that ends asks the innermost running iteration for its next row.
 
 ### filled
 
@@ -43,6 +51,10 @@ The rows of the tables the engine makes for a file, the write that appends a bat
 ### memos
 
 The answers a worker keeps for a file, one scheme: found by the site that asks and every cell of its key.
+
+### needs
+
+Whether a unit may have a row in the file, decided once per file from the formula the lowering derived; a unit whose need does not hold is never evaluated.
 
 ### packs
 

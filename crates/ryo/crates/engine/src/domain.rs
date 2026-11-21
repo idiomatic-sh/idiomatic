@@ -2,15 +2,17 @@
 
 pub mod code;
 pub mod counting;
+pub mod dispatch;
 pub mod encoding;
+pub mod executing;
 pub mod filled;
 pub mod findings;
 pub mod indexes;
 pub mod lowered;
 pub mod lowering;
-#[cfg(test)]
 pub mod memos;
 pub mod made_tables;
+pub mod needs;
 pub mod packs;
 pub mod passes;
 pub mod programs;

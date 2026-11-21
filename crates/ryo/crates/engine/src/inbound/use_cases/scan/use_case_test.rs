@@ -1,6 +1,7 @@
 //! What the `scan` use case promises: a rule set with no program scans a file, finds nothing and asks the language for nothing.
 
 mod growth;
+mod runs;
 
 use super::interface::ScanUseCase as _;
 use super::use_case::ScanUseCaseImpl;
@@ -17,6 +18,7 @@ use ryo_language::domain::node_table::service::{builder, finished};
 use ryo_language::domain::node_table::types::NodeTable;
 use ryo_language::domain::semantics::types::{RenderOutcome, RenderRequest};
 use ryo_language::domain::symbols::types::ByteSlice;
+use ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl;
 use ryo_relations::domain::answers::types::AbsenceCause;
 use ryo_relations::domain::relations::types::{Count, FileId, Relation};
 
@@ -87,8 +89,12 @@ fn subject((): Input) -> Result<Value, Failure> {
         file: FileId(0),
         facts: &mut facts,
     };
-    let counters =
-        ScanUseCaseImpl.scan(&programs, file, &mut scratch_for(&programs), &mut found)?;
+    let counters = ScanUseCaseImpl::new(std::sync::Arc::new(MatchingUseCaseImpl)).scan(
+        &programs,
+        file,
+        &mut scratch_for(&programs),
+        &mut found,
+    )?;
     Ok((counters, found.0, facts.0))
 }
 

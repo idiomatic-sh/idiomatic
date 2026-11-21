@@ -2,7 +2,7 @@
 //! map for every site; nothing is allocated and no clock is read when an answer is kept.
 
 use super::constants::{HASH_FOLD, SITE_MULTIPLIER};
-use super::types::{CellSpan, MemoEntry, MemoId, MemoMap};
+use super::types::{CellSpan, EntryCharge, MemoEntry, MemoId, MemoMap};
 use crate::domain::code::types::MemoSite;
 use crate::domain::indexes::reading::service::hashed;
 use crate::domain::indexes::types::RowHash;
@@ -14,6 +14,8 @@ pub(crate) fn clear_memos(map: &mut MemoMap) {
     map.entries.clear();
     map.cells.clear();
     map.found.clear();
+    map.charges.clear();
+    map.reached.clear();
 }
 
 /// The cells of a span.
@@ -68,6 +70,7 @@ pub(crate) fn keep(
         entries,
         cells,
         found,
+        ..
     } = map;
     let key_at = CellSpan {
         start: Count(cells.len()),
@@ -104,4 +107,41 @@ pub(crate) fn row_count(map: &MemoMap, answer: MemoId) -> Count {
 #[inline]
 pub(crate) fn rows(map: &MemoMap, answer: MemoId) -> &[CellWord] {
     entry(&map.entries, answer).map_or(&[], |kept| span(&map.cells, kept.rows))
+}
+
+/// Records what an answer of a pattern cost and reached: its own work, its unit, and the answers it asked directly.
+pub(crate) fn set_charge(
+    map: &mut MemoMap,
+    answer: MemoId,
+    mut charge: EntryCharge,
+    asked: &[MemoId],
+) {
+    charge.reached = CellSpan {
+        start: Count(map.reached.len()),
+        length: Count(asked.len()),
+    };
+    map.reached.extend_from_slice(asked);
+    let place = usize::try_from(answer.0).unwrap_or(usize::MAX);
+    if map.charges.len() <= place {
+        map.charges
+            .resize(place.saturating_add(1), EntryCharge::default());
+    }
+    if let Some(slot) = map.charges.get_mut(place) {
+        *slot = charge;
+    }
+}
+
+/// What an answer cost and reached, to be charged; none for an answer that is no pattern's.
+#[inline]
+pub(crate) fn charge_mut(map: &mut MemoMap, answer: MemoId) -> Option<&mut EntryCharge> {
+    map.charges
+        .get_mut(usize::try_from(answer.0).unwrap_or(usize::MAX))
+}
+
+/// The answers a stretch of the map's lists names.
+#[inline]
+pub(crate) fn reached_at(map: &MemoMap, at: CellSpan) -> &[MemoId] {
+    map.reached
+        .get(at.start.0..at.start.0.saturating_add(at.length.0))
+        .unwrap_or_default()
 }
