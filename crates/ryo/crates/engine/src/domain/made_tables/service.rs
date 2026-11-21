@@ -118,7 +118,7 @@ pub(crate) fn write_new(table: &mut TableRows, sources: &[BatchValue<'_>], rows:
 
 /// Builds the index of a gathered input by its key columns, sorted within a key by `order` when one is given, as the one
 /// index of the room.
-fn grouped(input: &TableRows, room: &mut GroupRoom, order: Option<Count>) {
+pub(crate) fn grouped(input: &TableRows, room: &mut GroupRoom, order: Option<Count>) {
     let keys = room
         .keys
         .iter()

@@ -213,7 +213,7 @@ pub(crate) fn column_held(store: &FillStore, source: ReadSource, at: Short) -> H
 
 /// The cells a held column lies in, as they are now: read where they are, with no test of the file, which
 /// `column_held` made when the column was asked.
-#[inline]
+#[inline(always)]
 pub(crate) fn cells_held(store: &FillStore, held: HeldCells) -> &[CellWord] {
     match held {
         HeldCells::Arena => &store.table_cells,
