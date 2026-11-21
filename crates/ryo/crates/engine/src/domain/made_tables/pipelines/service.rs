@@ -19,7 +19,9 @@ use crate::domain::made_tables::carrying::service::{carried, stage_kind};
 use crate::domain::made_tables::constants::BATCH_ROWS;
 use crate::domain::made_tables::fanning::service::{fan_stage, scan_read};
 use crate::domain::made_tables::operands::service::{column_of, registers_at};
-use crate::domain::made_tables::pipelines::types::{BatchLevel, FanKind, PipelineRoom, StageKind};
+use crate::domain::made_tables::pipelines::types::{
+    BatchLevel, FanKind, PipeAt, PipeMemo, PipelineRoom, StageKind,
+};
 use crate::domain::made_tables::reading::service::{index_at, pipeline_words, rows_in, source_of};
 use crate::domain::made_tables::staging::service::{
     WRONG_WORD, file_marked, keep_stage, mode, probe_keep_stage, read_stage, write_stage,
@@ -47,6 +49,32 @@ fn batch_frame<'s>(frame: &'s FillFrame<'_>) -> BatchFrame<'s> {
         text: frame.text,
         source: frame.source,
     }
+}
+
+/// Copies into the room what was found of the pipeline at `entry` before; says whether it was.
+fn recalled(memo: &PipeMemo, entry: CodeEntry, room: &mut PipelineRoom) -> bool {
+    let Some(at) = memo.by_entry.get(&entry.0) else {
+        return false;
+    };
+    let stretch = |(from, count): (Count, Count)| from.0..from.0.saturating_add(count.0);
+    room.live.clear();
+    room.live
+        .extend_from_slice(memo.live.get(stretch(at.live)).unwrap_or_default());
+    room.starts.clear();
+    room.starts
+        .extend_from_slice(memo.starts.get(stretch(at.starts)).unwrap_or_default());
+    true
+}
+
+/// Keeps what the room holds of the pipeline at `entry`: what `carried` just found.
+fn remembered(memo: &mut PipeMemo, entry: CodeEntry, room: &PipelineRoom) {
+    let at = PipeAt {
+        live: (Count(memo.live.len()), Count(room.live.len())),
+        starts: (Count(memo.starts.len()), Count(room.starts.len())),
+    };
+    memo.live.extend_from_slice(&room.live);
+    memo.starts.extend_from_slice(&room.starts);
+    let _before = memo.by_entry.insert(entry.0, at);
 }
 
 /// The batch at `depth`, with a column for each register of the pack.
@@ -106,16 +134,20 @@ pub(crate) fn piped(
     let programs = frame.programs;
     let code = programs.code;
     let words = pipeline_words(code, entry)?;
-    carried(code, words, run.room)?;
     run.room.files.clear();
-    // A pipeline that holds a stage the fill side does not run is refused before its first batch.
-    if let Some(unrun) = words
-        .iter()
-        .find(|word| runs(code, FillPart::Stage(**word)) == FillRuns::NotYet)
-    {
-        return Err(FilledError::Unbuilt {
-            unbuilt: UnbuiltFill::Stage(unrun.op),
-        });
+    // What a pipeline's stages carry on, and that the fill side runs them all, is found at its first run and kept.
+    if !recalled(&frame.store.pipes, entry, run.room) {
+        carried(code, words, run.room)?;
+        // A pipeline that holds a stage the fill side does not run is refused before its first batch.
+        if let Some(unrun) = words
+            .iter()
+            .find(|word| runs(code, FillPart::Stage(**word)) == FillRuns::NotYet)
+        {
+            return Err(FilledError::Unbuilt {
+                unbuilt: UnbuiltFill::Stage(unrun.op),
+            });
+        }
+        remembered(&mut frame.store.pipes, entry, run.room);
     }
     let registers = Count(usize::try_from(code.counts.registers.0).unwrap_or(usize::MAX));
     let first = *words.first().ok_or(WRONG_WORD)?;

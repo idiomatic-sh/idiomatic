@@ -56,6 +56,29 @@ pub(crate) struct PipelineRoom {
     pub(crate) files: Vec<Count>,
 }
 
+/// What was found of each pipeline the first time it ran, kept for the worker's life (a store serves one rule set, whose
+/// code does not change): the registers each of its stages carries on, and that every stage of it is one the fill side
+/// runs. A pipeline runs once a file for each table it fills, most of them over a handful of rows: found again for
+/// every run, the pass over its stages cost more than its rows.
+#[derive(Debug, Default)]
+pub(crate) struct PipeMemo {
+    /// Where each pipeline's registers lie in `live` and its starts in `starts`, by the pipeline's entry.
+    pub(crate) by_entry: hashbrown::HashMap<u32, PipeAt>,
+    /// The registers carried on, one pipeline after the other.
+    pub(crate) live: Vec<Register>,
+    /// Where each stage's registers start among its pipeline's, one pipeline after the other.
+    pub(crate) starts: Vec<Count>,
+}
+
+/// One pipeline's stretches of a `PipeMemo`.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct PipeAt {
+    /// Its registers: from this place of `live`, this many.
+    pub(crate) live: (Count, Count),
+    /// Its starts: from this place of `starts`, this many.
+    pub(crate) starts: (Count, Count),
+}
+
 /// The registers one stage reads and the registers it writes.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct StageRegisters {
