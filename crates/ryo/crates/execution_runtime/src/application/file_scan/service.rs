@@ -5,7 +5,9 @@
 
 use super::errors::FileScanError;
 use super::keeping::service::RowKeeper;
-use super::types::{EmitColumns, FaultedFile, PlaceColumns, ScanReport, ScanRun, ScanWorker};
+use super::types::{
+    EmitColumns, FaultedFile, PlaceColumns, ScanMeasuring, ScanReport, ScanRun, ScanWorker,
+};
 use crate::outbound::engine::interface::EnginePort;
 use ryo_engine::domain::findings::types::{FoundTarget, InstructionCount, ScanCounters};
 use ryo_engine::domain::programs::service::needs;
@@ -84,33 +86,53 @@ pub fn place_columns(rules: &[SelectedRuleOrdinal], emits: &[Emit]) -> PlaceColu
     places
 }
 
-/// A worker's state for a rule set, before its first file.
+/// A worker's state for a rule set, before its first file: the engine's plain state, or, for a measuring run, the one that
+/// counts what its scans do.
 ///
 /// # Examples
 ///
 /// ```
 /// use ryo_engine::domain::programs::types::Programs;
 /// use ryo_execution_runtime::application::file_scan::service::worker;
+/// use ryo_execution_runtime::application::file_scan::types::ScanMeasuring;
 /// use ryo_language::inbound::use_cases::walk::types::WalkEngine;
 /// use ryo_language::inbound::use_cases::walk::use_case::WalkUseCaseImpl;
 /// use std::sync::Arc;
 ///
 /// let engine = ryo_execution_runtime::outbound::engine::factory::use_case();
 /// let language: Arc<dyn WalkEngine> = Arc::new(WalkUseCaseImpl::new());
-/// assert!(worker(&language, &engine, &Programs::default()).report.faults.is_empty());
+/// assert!(worker(&language, &engine, &Programs::default(), ScanMeasuring::Plain).report.faults.is_empty());
 /// ```
 #[must_use]
 pub fn worker(
     language: &Arc<dyn WalkEngine>,
     engine: &dyn EnginePort,
     programs: &Programs,
+    measuring: ScanMeasuring,
 ) -> ScanWorker {
     ScanWorker {
         language: Arc::clone(language),
         table: NodeTable::default(),
         buffers: language.buffers(),
-        scan: engine.state_for(programs),
+        scan: match measuring {
+            ScanMeasuring::Plain => engine.state_for(programs),
+            ScanMeasuring::Measuring => engine.measuring_state_for(programs),
+        },
         report: ScanReport::default(),
+    }
+}
+
+/// Two scans' counts, added.
+fn summed(one: ScanCounters, other: ScanCounters) -> ScanCounters {
+    let sum = |one: InstructionCount, other: InstructionCount| {
+        InstructionCount(one.0.saturating_add(other.0))
+    };
+    ScanCounters {
+        steps: sum(one.steps, other.steps),
+        candidates: sum(one.candidates, other.candidates),
+        made_rows: sum(one.made_rows, other.made_rows),
+        fill_rows: sum(one.fill_rows, other.fill_rows),
+        visited: sum(one.visited, other.visited),
     }
 }
 
@@ -147,8 +169,26 @@ impl FileVisit for Visiting<'_> {
     }
 }
 
+/// What the scans of `workers` counted, together: the steps, the candidates, the rows of the tables made, the rows the fills
+/// read and gave, and the rows the programs' iterations gave, over every file each worker scanned.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_engine::domain::findings::types::ScanCounters;
+/// use ryo_execution_runtime::application::file_scan::service::counted;
+///
+/// assert_eq!(counted([]), ScanCounters::default());
+/// ```
+#[must_use]
+pub fn counted<'a>(workers: impl IntoIterator<Item = &'a ScanWorker>) -> ScanCounters {
+    let each = workers.into_iter().map(|worker| worker.report.counted);
+    each.fold(ScanCounters::default(), summed)
+}
+
 /// One file, in the worker that took it: walked by the worker's language into its table, lent to the engine's scan, its found
-/// rows kept in the worker's report. Rows found before a fault stay kept: the fault says whose rows of the file are not complete.
+/// rows and the engine's notices kept in the worker's report, and what the scan counted added to what the report counted.
+/// Rows found before a fault stay kept: the fault says whose rows of the file are not complete.
 fn scanned(
     engine: &dyn EnginePort,
     run: &ScanRun<'_>,
@@ -168,13 +208,17 @@ fn scanned(
     let walked = worker
         .language
         .walk_file(file, needs, table, buffers, &mut visiting);
-    match (walked, visiting.answer, visiting.misfit) {
+    let answered = match (walked, visiting.answer, visiting.misfit) {
         (Err(cause), _, _) => Err(FileScanError::Walk { cause }),
         (Ok(()), None, _) => Err(FileScanError::NotLent),
         (Ok(()), Some(Err(fault)), _) => Err(FileScanError::Rule { fault }),
         (Ok(()), Some(Ok(_)), Some(target)) => Err(FileScanError::Columns { target }),
         (Ok(()), Some(Ok(counted)), None) => Ok(counted),
+    };
+    if let Ok(counted) = answered {
+        worker.report.counted = summed(worker.report.counted, counted);
     }
+    answered
 }
 
 /// One file, in the worker that took it, its findings taken out of the worker: they are moved to `rows`, after what it holds,
@@ -189,7 +233,7 @@ fn scanned(
 /// ```
 /// use ryo_engine::domain::programs::types::Programs;
 /// use ryo_execution_runtime::application::file_scan::service::{taken, worker};
-/// use ryo_execution_runtime::application::file_scan::types::{EmitColumns, PlaceColumns, ScanRun};
+/// use ryo_execution_runtime::application::file_scan::types::{EmitColumns, PlaceColumns, ScanMeasuring, ScanRun};
 /// use ryo_language::domain::files::types::SourcePath;
 /// use ryo_language::domain::symbols::types::ByteSlice;
 /// use ryo_language::inbound::use_cases::walk::types::{WalkEngine, WalkRequest};
@@ -200,7 +244,7 @@ fn scanned(
 /// let engine = ryo_execution_runtime::outbound::engine::factory::use_case();
 /// let programs = Programs::default();
 /// let language: Arc<dyn WalkEngine> = Arc::new(WalkUseCaseImpl::new());
-/// let mut worker = worker(&language, &engine, &programs);
+/// let mut worker = worker(&language, &engine, &programs, ScanMeasuring::Plain);
 /// let file = WalkRequest { path: SourcePath("a.txt"), file: FileId(0), source: ByteSlice(b"") };
 /// let (columns, places) = (EmitColumns::default(), PlaceColumns::default());
 /// let run = ScanRun { programs: &programs, columns: &columns, places: &places };
@@ -265,7 +309,7 @@ pub fn crossed(fault: &FileScanError) -> ScanFault {
 /// ```
 /// use ryo_engine::domain::programs::types::Programs;
 /// use ryo_execution_runtime::application::file_scan::service::{ran, worker};
-/// use ryo_execution_runtime::application::file_scan::types::{EmitColumns, PlaceColumns, ScanRun};
+/// use ryo_execution_runtime::application::file_scan::types::{EmitColumns, PlaceColumns, ScanMeasuring, ScanRun};
 /// use ryo_language::domain::files::types::SourcePath;
 /// use ryo_language::domain::symbols::types::ByteSlice;
 /// use ryo_language::inbound::use_cases::walk::types::{WalkEngine, WalkRequest};
@@ -276,7 +320,7 @@ pub fn crossed(fault: &FileScanError) -> ScanFault {
 /// let engine = ryo_execution_runtime::outbound::engine::factory::use_case();
 /// let programs = Programs::default();
 /// let language: Arc<dyn WalkEngine> = Arc::new(WalkUseCaseImpl::new());
-/// let mut worker = worker(&language, &engine, &programs);
+/// let mut worker = worker(&language, &engine, &programs, ScanMeasuring::Plain);
 /// let file = WalkRequest { path: SourcePath("a.txt"), file: FileId(0), source: ByteSlice(b"") };
 /// let (columns, places) = (EmitColumns::default(), PlaceColumns::default());
 /// let run = ScanRun { programs: &programs, columns: &columns, places: &places };
@@ -290,20 +334,9 @@ pub fn ran(
     files: &[WalkRequest<'_>],
 ) -> ScanCounters {
     let mut total = ScanCounters::default();
-    let sum = |one: InstructionCount, other: InstructionCount| {
-        InstructionCount(one.0.saturating_add(other.0))
-    };
     for file in files {
         match scanned(engine, run, worker, *file) {
-            Ok(counted) => {
-                total = ScanCounters {
-                    steps: sum(total.steps, counted.steps),
-                    candidates: sum(total.candidates, counted.candidates),
-                    made_rows: sum(total.made_rows, counted.made_rows),
-                    fill_rows: sum(total.fill_rows, counted.fill_rows),
-                    visited: sum(total.visited, counted.visited),
-                };
-            }
+            Ok(counted) => total = summed(total, counted),
             Err(fault) => worker.report.faults.push(FaultedFile {
                 file: file.file,
                 fault,
@@ -314,7 +347,8 @@ pub fn ran(
 }
 
 /// The run's report from its workers': the findings sorted by file, rule, where they start and end, and cells; the frontier rows by
-/// file, rule and entry, in the order each file handed them; the faulted files by file.
+/// file, rule and entry, in the order each file handed them; the faulted files by file; the notices by file and rule; and
+/// what the workers' scans counted, together.
 ///
 /// # Examples
 ///
@@ -331,6 +365,8 @@ pub fn reported(workers: impl IntoIterator<Item = ScanReport>) -> ScanReport {
         report.found.extend(each.found);
         report.frontier.extend(each.frontier);
         report.faults.extend(each.faults);
+        report.notices.extend(each.notices);
+        report.counted = summed(report.counted, each.counted);
     }
     report.found.sort_unstable();
     report.frontier.sort_by(|one, other| {
@@ -340,5 +376,8 @@ pub fn reported(workers: impl IntoIterator<Item = ScanReport>) -> ScanReport {
             .then(one.input.cmp(&other.input))
     });
     report.faults.sort_by_key(|faulted| faulted.file);
+    report
+        .notices
+        .sort_by_key(|noticed| (noticed.file, noticed.notice.rule));
     report
 }

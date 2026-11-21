@@ -3,8 +3,10 @@
 
 pub mod errors;
 pub(crate) mod keeping;
+pub mod measuring;
 pub mod service;
 pub mod types;
+pub mod warning;
 
 #[cfg(test)]
 mod service_test;

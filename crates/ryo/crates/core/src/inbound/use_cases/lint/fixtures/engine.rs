@@ -54,3 +54,16 @@ pub fn new_engine(
         ))
         .running(ryo_operators::spike::EngineMode::New)
 }
+
+/// The analysis of a run of the new engine alone in which a rule passes its work allowance: as `new_engine`, the fake
+/// noticing of the rule it runs, in the second file of the run, a join with no key of a thousand rows with a thousand.
+#[must_use]
+pub fn noticing_engine(
+    analysis: crate::application::file_analysis::service::FileAnalysis,
+) -> crate::application::file_analysis::service::FileAnalysis {
+    use ryo_execution_runtime::outbound::engine::fixtures::fake::{EngineFake, overrun};
+    let second = ryo_relations::domain::relations::types::FileId(1);
+    analysis
+        .scanning(Arc::new(EngineFake::noticing(second, overrun())))
+        .running(ryo_operators::spike::EngineMode::New)
+}

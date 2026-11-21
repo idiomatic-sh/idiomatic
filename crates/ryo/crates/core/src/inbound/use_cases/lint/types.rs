@@ -157,6 +157,9 @@ pub struct LintReport {
     /// The widest handover of each file that handed the steps after the files anything, in the order of the files: the rule whose
     /// per-file steps handed the most rows for each row of the file's syntax tree. Empty unless the run counts.
     pub handovers: Vec<ryo_values::domain::runs::types::Handover>,
+    /// The warnings of the run, by file and rule, each as it was printed when it was noticed: a rule that passed its work
+    /// allowance in a file, which was not stopped and whose findings are complete. Empty for a run with nothing to say.
+    pub notices: Vec<crate::application::file_analysis::types::Notice>,
 }
 
 /// What a run the new engine scanned alone answers: the files no language walked and what the rules could not decide.
@@ -165,6 +168,7 @@ impl From<crate::application::file_analysis::types::ScannedRun> for LintReport {
         Self {
             unread: scanned.unread,
             unknowns: scanned.unknowns,
+            notices: scanned.notices,
             ..Self::default()
         }
     }

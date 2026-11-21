@@ -3,6 +3,8 @@
 use crate::outbound::digest::interface::DigestPort;
 use crate::outbound::engine::interface::EnginePort;
 use ryo_engine::domain::programs::types::Programs;
+use ryo_engine::domain::statistics::types::MatchedStatistics;
+use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::relations::types::Count;
 use ryo_values::domain::descriptions::types::{KindVocabularies, KindVocabulary, LanguageName};
 use ryo_values::domain::query_bindings::types::ParameterBinding;
@@ -11,18 +13,20 @@ use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 use ryo_values::domain::stored_facts::types::Digest;
 use ryo_values::domain::stores::types::StoredPack;
 
-/// What a load is asked: the selected rules' plans and what each binds its parameters to, what the run was given as one digest,
-/// the kinds of the language whose files are scanned, and the packs the store kept.
+/// What a load is asked: the selected rules' plans and what each binds its parameters to, the statistics the rules are
+/// lowered with, what the run was given as one digest, the kinds of the language whose files are scanned, and the packs the
+/// store kept.
 ///
 /// # Examples
 ///
 /// ```
 /// use ryo_execution_runtime::application::pack_load::types::LoadRequest;
+/// use ryo_language::domain::symbols::types::ByteSlice;
 /// use ryo_values::domain::descriptions::types::{KindVocabulary, LanguageName};
 /// use ryo_values::domain::stored_facts::types::Digest;
 ///
 /// let kinds = KindVocabulary { language: LanguageName::default(), kinds: Vec::new(), fields: Vec::new(), fixed: Vec::new() };
-/// let request = LoadRequest { plans: &[], bindings: &[], given: Digest([0; 16]), kinds: &kinds, stored: &[] };
+/// let request = LoadRequest { plans: &[], bindings: &[], statistics: ByteSlice(&[]), given: Digest([0; 16]), kinds: &kinds, stored: &[] };
 /// assert!(request.stored.is_empty());
 /// ```
 #[derive(Clone, Copy, Debug)]
@@ -32,8 +36,11 @@ pub struct LoadRequest<'a> {
     /// What each selected rule binds its plan's parameters to, in rule order: the host's bound values, which the engine lowers
     /// as constants. A rule past the end binds nothing.
     pub bindings: &'a [Vec<ParameterBinding>],
-    /// What the run was given, as one digest: its rules as they were written, their fragments, what the host declared and which
-    /// were selected. Made before any compile.
+    /// The statistics the rules are lowered with, as the bytes of the file that holds them: none, no statistics. They are part
+    /// of what the run was given: `given` is made of them too, so a pack is kept under them.
+    pub statistics: ByteSlice<'a>,
+    /// What the run was given, as one digest: its rules as they were written, their fragments, what the host declared, which
+    /// were selected and the statistics they are lowered with. Made before any compile.
     pub given: Digest,
     /// The kinds of the linked language the rules are lowered against.
     pub kinds: &'a KindVocabulary,
@@ -111,16 +118,17 @@ impl std::fmt::Debug for Harness<'_> {
     }
 }
 
-/// What the harness is asked before the files of one request: the selected rules, what the run was given as one digest, and
-/// the packs the store kept.
+/// What the harness is asked before the files of one request: the selected rules, the statistics they are lowered with,
+/// what the run was given as one digest, and the packs the store kept.
 ///
 /// # Examples
 ///
 /// ```
 /// use ryo_execution_runtime::application::pack_load::types::HarnessRequest;
+/// use ryo_language::domain::symbols::types::ByteSlice;
 /// use ryo_values::domain::stored_facts::types::Digest;
 ///
-/// let request = HarnessRequest { plans: &[], bindings: &[], given: Digest([0; 16]), stored: &[] };
+/// let request = HarnessRequest { plans: &[], bindings: &[], statistics: ByteSlice(&[]), given: Digest([0; 16]), stored: &[] };
 /// assert!(request.stored.is_empty());
 /// ```
 #[derive(Clone, Copy, Debug)]
@@ -129,6 +137,8 @@ pub struct HarnessRequest<'a> {
     pub plans: &'a [&'a Plan],
     /// What each selected rule binds its plan's parameters to, in rule order.
     pub bindings: &'a [Vec<ParameterBinding>],
+    /// The statistics the rules are lowered with, as the bytes of the file that holds them: none, no statistics.
+    pub statistics: ByteSlice<'a>,
     /// What the run was given, as one digest.
     pub given: Digest,
     /// The packs the store kept.
@@ -177,6 +187,9 @@ pub struct HarnessLoad {
     pub accepted: Vec<SelectedRuleOrdinal>,
     /// Whether the rules were lowered, or read back from the store's pack.
     pub from: LoadedFrom,
+    /// What the statistics the rules were lowered with name of the programs: `Absent` for a load given none, or bytes that
+    /// do not read, and for a pack read back.
+    pub matched: MatchedStatistics,
     /// The pack of the rule set, under its key: what the store keeps for the next run.
     pub pack: StoredPack,
 }
@@ -212,12 +225,12 @@ impl Default for LoadedFrom {
 /// use ryo_execution_runtime::application::pack_load::types::Refusals;
 /// use ryo_relations::domain::relations::types::Count;
 ///
-/// assert_eq!(Refusals::default().over_budget, Count(0));
+/// assert_eq!(Refusals::default().past_width, Count(0));
 /// ```
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Refusals {
     /// The rules with a step the engine cannot evaluate.
     pub unlowerable: Count,
     /// The rules with a count past the width the engine's code gives it.
-    pub over_budget: Count,
+    pub past_width: Count,
 }
