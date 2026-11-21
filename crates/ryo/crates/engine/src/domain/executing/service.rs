@@ -6,6 +6,7 @@
 use super::bodies::service::exists;
 use super::sources::service::{keyed, whole};
 use super::staging::service::staged;
+use super::walks::service::{axis, nearest};
 use crate::domain::code::anchoring::service::{
     each_row_filled_of, each_row_made_of, each_row_node_of,
 };
@@ -13,6 +14,8 @@ use crate::domain::code::constants::OWN_TREE;
 use crate::domain::code::types::{CodeEntry, CodeWord, Op};
 use crate::domain::findings::types::InstructionCount;
 use crate::domain::made_tables::types::ReadSource;
+use crate::domain::programs::collections::instructions::axis::item::Axis;
+use crate::domain::programs::collections::instructions::comparing::item::Test;
 use crate::domain::programs::collections::instructions::each_match::item::EachMatch;
 use crate::domain::programs::collections::instructions::each_row::item::EachRow;
 use crate::domain::programs::collections::instructions::emit::item::Emit;
@@ -20,9 +23,9 @@ use crate::domain::programs::collections::instructions::exists::item::Exists;
 use crate::domain::programs::collections::instructions::fork::item::Fork;
 use crate::domain::programs::collections::instructions::interface::{Flow, InstructionsItem};
 use crate::domain::programs::collections::instructions::let_value::item::LetValue;
+use crate::domain::programs::collections::instructions::nearest::item::Nearest;
 use crate::domain::programs::collections::instructions::or::item::Or;
 use crate::domain::programs::collections::instructions::read::item::Read;
-use crate::domain::programs::collections::instructions::comparing::item::Test;
 use crate::domain::programs::collections::instructions::yield_row::item::YieldRow;
 use crate::domain::programs::frames::types::{RunMode, StepFrame};
 use crate::domain::programs::operands::service::after;
@@ -93,6 +96,14 @@ fn step(frame: &mut StepFrame<'_, '_>, word: CodeWord, at: CodeEntry, mode: RunM
             Or::run(frame, word, at)
         }
         Op::Fork => Fork::run(frame, word, at),
+        Op::Axis => {
+            axis(frame, word);
+            Axis::run(frame, word, at)
+        }
+        Op::Nearest => {
+            nearest(frame, word);
+            Nearest::run(frame, word, at)
+        }
         Op::Yield => {
             if mode == RunMode::Collect {
                 YieldRow::run(frame, word, at)
@@ -104,9 +115,7 @@ fn step(frame: &mut StepFrame<'_, '_>, word: CodeWord, at: CodeEntry, mode: RunM
         | Op::EachRange
         | Op::Children
         | Op::ChildrenOfField
-        | Op::Axis
         | Op::Within
-        | Op::Nearest
         | Op::NearestDerived
         | Op::Closure
         | Op::Call
@@ -141,12 +150,12 @@ fn next(frame: &mut StepFrame<'_, '_>, cursor: &mut IterationCursor) -> Option<C
         }
         Op::Or => Or::next(frame, word, cursor),
         Op::Fork => Fork::next(frame, word, cursor),
+        Op::Axis => Axis::next(frame, word, cursor),
         Op::End
         | Op::EachKind
         | Op::EachRange
         | Op::Children
         | Op::ChildrenOfField
-        | Op::Axis
         | Op::Within
         | Op::Nearest
         | Op::NearestDerived

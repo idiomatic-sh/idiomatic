@@ -10,6 +10,7 @@ pub mod service;
 pub mod sources;
 pub mod staging;
 pub mod types;
+pub mod walks;
 
 #[cfg(test)]
 mod service_test;

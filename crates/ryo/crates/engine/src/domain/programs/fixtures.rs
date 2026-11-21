@@ -126,19 +126,30 @@ impl LoopEntry for Idle {
     }
 }
 
-/// Runs `each` over a frame of `programs` and the case's state and store on the fixture file, and answers what it answered
-/// and what was found.
+/// Runs `each` over a frame of `programs` and the case's state and store on the fixture file, with no node, and answers
+/// what it answered and what was found.
 pub(crate) fn framed<T>(
     programs: &ProgramsEngine,
     case: &mut Held,
     ports: &dyn LoopEntry,
     each: impl FnOnce(&mut StepFrame<'_, '_>) -> T,
 ) -> (T, Collected) {
-    let (nodes, mut facts, mut found) = (NodeTable::default(), NoFacts, Collected::default());
+    framed_over(&NodeTable::default(), programs, case, ports, each)
+}
+
+/// `framed` over the file's tree `nodes`.
+pub(crate) fn framed_over<T>(
+    nodes: &NodeTable,
+    programs: &ProgramsEngine,
+    case: &mut Held,
+    ports: &dyn LoopEntry,
+    each: impl FnOnce(&mut StepFrame<'_, '_>) -> T,
+) -> (T, Collected) {
+    let (mut facts, mut found) = (NoFacts, Collected::default());
     let mut words = file_words(&programs.words);
     let mut fill = FillFrame {
         programs: rule_set(programs),
-        nodes: &nodes,
+        nodes,
         file: FILE,
         text: ByteSlice(b""),
         facts: &mut facts,

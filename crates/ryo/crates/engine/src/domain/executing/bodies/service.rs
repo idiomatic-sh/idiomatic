@@ -24,7 +24,7 @@ use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::relations::types::Count;
 
 /// The slot `count` slots after a place of the pool; nought past the pool's end.
-fn slot(frame: &StepFrame<'_, '_>, at: PoolAt, count: WordSlot) -> WordSlot {
+pub(crate) fn slot(frame: &StepFrame<'_, '_>, at: PoolAt, count: WordSlot) -> WordSlot {
     match frame
         .fill
         .programs
@@ -165,8 +165,8 @@ pub(crate) fn table_rows(
     found
 }
 
-/// How many rows a body has, as far as an `Exists` asks: none or some.
-fn has_row(frame: &mut StepFrame<'_, '_>, at: PoolAt) -> Count {
+/// How many rows a body has, as far as an `Exists` or a walk's condition asks: none or some.
+pub(crate) fn has_row(frame: &mut StepFrame<'_, '_>, at: PoolAt) -> Count {
     let Some(body) = body_at(&frame.fill.programs.code.pool, at) else {
         return Count(0);
     };

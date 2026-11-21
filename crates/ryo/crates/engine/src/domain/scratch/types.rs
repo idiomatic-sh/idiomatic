@@ -7,6 +7,7 @@ use crate::domain::indexes::types::RowRun;
 use crate::domain::made_tables::types::FillStore;
 use crate::domain::memos::types::{MemoId, MemoMap, RuleStamp};
 use crate::domain::needs::types::NeedVerdict;
+use crate::domain::stages::types::FanRows;
 use ryo_language::domain::facts::types::{CellWord, FileWords};
 use ryo_relations::domain::relations::types::Count;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
@@ -118,6 +119,8 @@ pub(crate) struct LoopState {
     pub(crate) staged: Vec<CellWord>,
     /// What the source of the word about to run answered: the loop asks the fill side, the word's item reads the rows.
     pub(crate) rows: SeamRows,
+    /// The room a walk of the tree writes what it reaches in, lent to the fill side's kernel.
+    pub(crate) fan: FanRows,
     /// The rule whose work is running; none before a file's first rule.
     pub(crate) rule: Option<SelectedRuleOrdinal>,
     /// The first fault the fill side answered in the file, a relation refused or read in part, and the rule that was
