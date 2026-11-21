@@ -16,7 +16,8 @@ use crate::domain::lowering::definitions::service::draft;
 use crate::domain::lowering::definitions::types::{Drafts, RowEstimate};
 use crate::domain::lowering::flattening::service::made_column;
 use crate::domain::lowering::flattening::types::{
-    EdgeColumns, EdgeRows, FlatBranch, FlatTerm, FlatVariable, RowColumn,
+    AtomRows, EdgeColumns, EdgeRows, FlatAtom, FlatBranch, FlatTerm, FlatVariable, NearestOver,
+    RowColumn,
 };
 use crate::domain::lowering::placement::patterns::service::given;
 use crate::domain::lowering::planning::completing::service::completed;
@@ -204,6 +205,42 @@ pub(crate) fn closure(
         steps: times(reach, plus(step.steps, ONE)),
         once: step.once,
     }
+}
+
+/// How deep a definition's own uses of definitions are looked through for a closure.
+const USES_LOOKED_THROUGH: usize = 4;
+
+/// Whether a definition's rows are bounded by nothing its plan's estimate sees: its own plan, or that of a definition it
+/// uses, walks a closure or climbs over derived edges. Read whole, such a definition is every pair its walk reaches in
+/// the file (`swarm/cut`: "a probe is preferred only when the definition's sub-program walks no closure and no
+/// nearest-over-edges").
+pub(crate) fn walks_edges(drafts: &Drafts, definition: DefinitionId, depth: usize) -> bool {
+    let Some(draft) = draft(drafts, definition) else {
+        return false;
+    };
+    let atoms = draft.branches.iter().flat_map(|branch| &branch.atoms);
+    atoms.into_iter().any(|atom| match atom {
+        FlatAtom::Closure { .. }
+        | FlatAtom::Nearest {
+            over: NearestOver::Derived(_),
+            ..
+        } => true,
+        FlatAtom::Rows {
+            rows: AtomRows::Definition(used),
+            ..
+        }
+        | FlatAtom::Decided {
+            rows: AtomRows::Definition(used),
+            ..
+        } => depth < USES_LOOKED_THROUGH && walks_edges(drafts, *used, depth + 1),
+        FlatAtom::Rows { .. }
+        | FlatAtom::Decided { .. }
+        | FlatAtom::Latest { .. }
+        | FlatAtom::Walk { .. }
+        | FlatAtom::Nearest { .. }
+        | FlatAtom::Called { .. }
+        | FlatAtom::Test { .. } => false,
+    })
 }
 
 /// Runs `planning` with the uses costed so far for the pack of `drafts`: what it costs is kept for the pack's next branch.

@@ -21,7 +21,7 @@ use crate::domain::lowering::planning::types::{
     AtomPlace, AtomPlacing, Enumerated, GivenTerms, NextAccess, OrderCompletion, PlannedBranch,
     PlanningWith, TermGiven, UnitRole, UnitStart, WaitingAtom,
 };
-use crate::domain::lowering::planning::uses::service::{closure, made, read, used};
+use crate::domain::lowering::planning::uses::service::{closure, made, read, used, walks_edges};
 use crate::domain::lowering::planning::walks::service::walk_rows;
 use crate::domain::steps::types::{ColumnMask, CostClass, TestOperation};
 use ryo_relations::domain::relations::types::Count;
@@ -131,6 +131,15 @@ fn access(state: &OrderCompletion<'_>, atom: &FlatAtom) -> Option<(CostClass, Ac
         (AtomRows::Definition(definition), _) => read(with(state), definition, given_rows),
         (AtomRows::Made(table), _) => made(state.drafts, table, given_rows),
         (AtomRows::Relation(_), _) => reading(given_rows),
+    };
+    // A definition's and a made table's rows are distinct: asked with every cell given, a use is one row at most.
+    let every_given = states.iter().all(|state| *state != CellState::Open);
+    let cost = match rows {
+        AtomRows::Definition(_) | AtomRows::Made(_) if every_given => AccessCost {
+            rows: cost.rows.min(ONE),
+            ..cost
+        },
+        AtomRows::Definition(_) | AtomRows::Made(_) | AtomRows::Relation(_) => cost,
     };
     Some((choice.class, cost))
 }
@@ -444,9 +453,18 @@ fn cheapest(state: &OrderCompletion<'_>, class: CostClass) -> Option<NextAccess>
                     reached,
                 } => {
                     let from_source = ready(*source, &given) == TermGiven::Given;
-                    let entered = from_source || ready(*reached, &given) == TermGiven::Given;
-                    (entered && keyed(all_ready(keys, &given)))
-                        .then(|| closure(with(state), edges, from_source))
+                    let to_reached = ready(*reached, &given) == TermGiven::Given;
+                    let entered = from_source || to_reached;
+                    (entered && keyed(all_ready(keys, &given))).then(|| {
+                        let walk = closure(with(state), edges, from_source);
+                        // Between two given elements the walk is a test of them: one row at most.
+                        let rows = if from_source && to_reached {
+                            walk.rows.min(ONE)
+                        } else {
+                            walk.rows
+                        };
+                        AccessCost { rows, ..walk }
+                    })
                 }
                 FlatAtom::Decided { .. } | FlatAtom::Called { .. } | FlatAtom::Test { .. } => None,
             };
@@ -468,14 +486,39 @@ pub(crate) fn anchors(
 ) -> Vec<NextAccess> {
     let state = begun(with, branch, start, role);
     let atoms = branch.atoms.iter().enumerate();
-    atoms
+    let found: Vec<(bool, NextAccess)> = atoms
         .filter_map(|(at, atom)| {
-            access(&state, atom).map(|(class, cost)| NextAccess {
-                atom: AtomPlace(at),
-                cost,
-                rank: rank(atom, class, cost),
+            access(&state, atom).map(|(class, cost)| {
+                // Read whole, a definition whose plan walks a closure is every pair the walk reaches in the file.
+                let unbounded = match atom {
+                    FlatAtom::Rows {
+                        rows: AtomRows::Definition(definition),
+                        ..
+                    } => class != CostClass::Fanout && walks_edges(with.drafts, *definition, 0),
+                    FlatAtom::Rows { .. }
+                    | FlatAtom::Latest { .. }
+                    | FlatAtom::Decided { .. }
+                    | FlatAtom::Walk { .. }
+                    | FlatAtom::Nearest { .. }
+                    | FlatAtom::Closure { .. }
+                    | FlatAtom::Called { .. }
+                    | FlatAtom::Test { .. } => false,
+                };
+                let anchor = NextAccess {
+                    atom: AtomPlace(at),
+                    cost,
+                    rank: rank(atom, class, cost),
+                };
+                (unbounded, anchor)
             })
         })
+        .collect();
+    // Such a read is an anchor only when the branch has no other.
+    let bounded = found.iter().any(|(unbounded, _)| !unbounded);
+    found
+        .into_iter()
+        .filter(|(unbounded, _)| !(bounded && *unbounded))
+        .map(|(_, anchor)| anchor)
         .collect()
 }
 

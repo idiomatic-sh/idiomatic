@@ -199,13 +199,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
             "definition 0: 3 columns, emptiness All([Row(Scope, None), Any([All([Row(Scope, None)])])])\n",
-            "  pattern bound [] collected []: Table 0\n",
             "  pattern bound [1] collected [2]: Call: EachMatch:Fanout Closure:Fanout Let:Constant Yield:Constant\n",
-            "table 0: Rows, 3 columns, indexes []\n",
-            "  pipeline: Scan:File Read:Constant Use:Fanout\n",
             "rule 0: 1 branches\n",
-            "  branch: EachRow:File Read:Constant Read:Constant EachMatch:Fanout Emit:Constant\n",
-            "codes: {\"Closure\": 1, \"EachMatchFilled\": 3, \"EachRowMade\": 1, \"Emit\": 1, \"End\": 4, \"Let\": 1, \"ReadFilled\": 1, \"ReadMade\": 2, \"StageRead\": 1, \"StageScan\": 1, \"StageUse\": 1, \"StageWrite\": 1, \"Yield\": 2}",
+            "  branch: EachRow:File Read:Constant Or:Fanout Emit:Constant\n",
+            "codes: {\"Closure\": 1, \"EachMatchFilled\": 2, \"EachRowFilled\": 1, \"Emit\": 1, \"End\": 4, \"Let\": 1, \"Or\": 1, \"ReadFilled\": 2, \"Yield\": 2}",
         ))),
     },
     Case {
