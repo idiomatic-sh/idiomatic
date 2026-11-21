@@ -12,7 +12,7 @@ use crate::domain::lowering::costing::service::{
     keyed, made_rows, planned_rows, plus, times, whole_rows,
 };
 use crate::domain::lowering::costing::types::{
-    AccessCost, CellState, PlanEstimate, UseAsked, UseCosts,
+    AccessCost, CellState, PackCosts, PlanEstimate, UseAsked, UseCosts,
 };
 use crate::domain::lowering::definitions::service::draft;
 use crate::domain::lowering::definitions::types::{Drafts, RowEstimate};
@@ -25,6 +25,7 @@ use crate::domain::lowering::planning::completing::service::completed;
 use crate::domain::lowering::planning::service::planned_with;
 use crate::domain::lowering::planning::types::{PlanningWith, UnitRole, UnitStart};
 use crate::domain::steps::types::{ColumnMask, DefinitionId, MadeColumn, MadeTableId};
+use std::cell::RefCell;
 use std::collections::HashSet;
 
 /// What a pattern's bound columns give a branch at its start: the variables of those columns, and the rows of one start,
@@ -43,19 +44,28 @@ fn started(branch: &FlatBranch, bound: &ColumnMask) -> (HashSet<FlatVariable>, P
 /// What a definition asked by `bound` costs for one asking, by its own plan: the steps and the rows of its branches
 /// together, each planned as a pattern's with the bound columns given, or as a pipeline's when nothing is bound. None
 /// when a branch has no such program: the definition is then read as its table. Asked once: kept in `with.costs`.
-fn planned_use(with: PlanningWith<'_>, asked: UseAsked) -> Option<AccessCost> {
+fn planned_use(
+    with: PlanningWith<'_>,
+    definition: DefinitionId,
+    bound: &ColumnMask,
+) -> Option<AccessCost> {
+    let draft = draft(with.drafts, definition)?;
+    let asked = UseAsked {
+        definition,
+        node: draft.node,
+        bound: bound.clone(),
+    };
     if let Some(known) = with.costs.0.borrow().get(&asked) {
         return *known;
     }
-    let branches = &draft(with.drafts, asked.definition)?.branches;
     let mut cost = Some(AccessCost::default());
-    for branch in branches {
-        let (given, rows) = started(branch, &asked.bound);
+    for branch in &draft.branches {
+        let (given, rows) = started(branch, bound);
         let start = UnitStart {
             given: &given,
             rows,
         };
-        let plan = if asked.bound.0.is_empty() {
+        let plan = if bound.0.is_empty() {
             planned_with(with, branch, start, UnitRole::Pipeline)
         } else {
             completed(with, branch, start, UnitRole::Pattern, None)
@@ -76,12 +86,9 @@ fn planned_use(with: PlanningWith<'_>, asked: UseAsked) -> Option<AccessCost> {
 /// What making a definition's table costs, once a file: its whole plan's steps. A definition with no whole plan is taken to
 /// cost its rows.
 fn table_made(with: PlanningWith<'_>, definition: DefinitionId) -> PlanEstimate {
-    let whole = UseAsked {
-        definition,
-        bound: ColumnMask::default(),
-    };
     let rows = draft(with.drafts, definition).map_or(RowEstimate(1), |draft| draft.rows);
-    planned_use(with, whole).map_or(planned_rows(rows), |cost| cost.steps)
+    planned_use(with, definition, &ColumnMask::default())
+        .map_or(planned_rows(rows), |cost| cost.steps)
 }
 
 /// What a use of a definition bound on `bound` costs for each row of its unit: the program of the definition's own plan
@@ -92,11 +99,7 @@ pub(crate) fn used(
     bound: &ColumnMask,
     table_rows: PlanEstimate,
 ) -> AccessCost {
-    let asked = UseAsked {
-        definition,
-        bound: bound.clone(),
-    };
-    planned_use(with, asked).unwrap_or_else(|| AccessCost {
+    planned_use(with, definition, bound).unwrap_or_else(|| AccessCost {
         rows: table_rows,
         steps: plus(ONE, table_rows),
         once: table_made(with, definition),
@@ -196,23 +199,44 @@ pub(crate) fn closure(
     }
 }
 
+std::thread_local! {
+    /// The uses costed for the pack this thread is lowering.
+    static PACK: RefCell<PackCosts> = RefCell::new(PackCosts::default());
+}
+
+/// Runs `planning` with the uses costed so far for the pack of `drafts`, and keeps what it costs for the next branch of
+/// the pack. The costs kept are another pack's, and are dropped, when the drafts hold no definition yet (a pack's first
+/// branch is planned, or sized, before its first definition is made), when they are other drafts, or when they hold fewer
+/// definitions than they did; a cost is also kept under its definition's plan node, so one of another node is never read.
+pub(crate) fn with_pack<T>(drafts: &Drafts, planning: impl FnOnce(PlanningWith<'_>) -> T) -> T {
+    let (at, held) = (std::ptr::from_ref(drafts).addr(), drafts.definitions.len());
+    let mut pack = PACK.with(RefCell::take);
+    if held == 0 || pack.drafts != at || held < pack.definitions {
+        pack.costs = UseCosts::default();
+    }
+    (pack.drafts, pack.definitions) = (at, held);
+    let answer = planning(PlanningWith {
+        drafts,
+        costs: &pack.costs,
+    });
+    let _emptied = PACK.with(|kept| kept.replace(pack));
+    answer
+}
+
 /// The rows a step's branches are taken to give in a file together: each branch's own plan with nothing bound, as a
 /// pipeline of the step's table. A branch with no plan counts one row.
 #[must_use]
 pub(crate) fn branches_estimated(drafts: &Drafts, branches: &[FlatBranch]) -> RowEstimate {
-    let costs = UseCosts::default();
-    let with = PlanningWith {
-        drafts,
-        costs: &costs,
-    };
     let nothing = HashSet::new();
     let start = UnitStart {
         given: &nothing,
         rows: ONE,
     };
-    let rows = branches.iter().fold(PlanEstimate(0), |sum, branch| {
-        let plan = planned_with(with, branch, start, UnitRole::Pipeline);
-        plus(sum, plan.map_or(ONE, |plan| plan.rows))
+    let rows = with_pack(drafts, |with| {
+        branches.iter().fold(PlanEstimate(0), |sum, branch| {
+            let plan = planned_with(with, branch, start, UnitRole::Pipeline);
+            plus(sum, plan.map_or(ONE, |plan| plan.rows))
+        })
     });
     whole_rows(rows)
 }

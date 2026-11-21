@@ -1,11 +1,12 @@
 //! The services of the `planning` part: the order of a branch's atoms. A branch and a pipeline try their cheapest anchors
 //! and keep the cheapest completion (`completing`); a pattern starts from its given cells. What a use of a definition
-//! costs along the way is the definition's own plan's (`uses`), planned once for the branch however many accesses ask it.
+//! costs along the way is the definition's own plan's (`uses`), planned once for the pack however many accesses ask it.
 
 use super::completing::service::{anchors, completed};
 use super::types::{GivenTerms, PlannedBranch, PlanningWith, UnitRole, UnitStart};
+use super::uses::service::with_pack;
 use crate::domain::lowering::costing::constants::{ANCHORS_TRIED, ONE};
-use crate::domain::lowering::costing::types::{CellState, UseCosts};
+use crate::domain::lowering::costing::types::CellState;
 use crate::domain::lowering::definitions::types::Drafts;
 use crate::domain::lowering::flattening::types::{FlatBranch, FlatTerm, FlatVariable};
 use std::collections::HashSet;
@@ -59,8 +60,8 @@ pub(crate) fn planned_with(
     }
 }
 
-/// The order of a branch's atoms for a role, with `given` variables bound at its start: `planned_with`, each use the
-/// branch asks costed once for it.
+/// The order of a branch's atoms for a role, with `given` variables bound at its start: `planned_with`, each use costed
+/// once for the pack.
 #[must_use]
 pub(crate) fn planned(
     drafts: &Drafts,
@@ -68,10 +69,7 @@ pub(crate) fn planned(
     given: &HashSet<FlatVariable>,
     role: UnitRole,
 ) -> Option<PlannedBranch> {
-    let costs = UseCosts::default();
-    let with = PlanningWith {
-        drafts,
-        costs: &costs,
-    };
-    planned_with(with, branch, UnitStart { given, rows: ONE }, role)
+    with_pack(drafts, |with| {
+        planned_with(with, branch, UnitStart { given, rows: ONE }, role)
+    })
 }
