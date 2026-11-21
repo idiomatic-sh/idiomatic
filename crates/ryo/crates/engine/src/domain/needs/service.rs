@@ -88,6 +88,11 @@ fn parts(
     offsets: WordSlot,
     stops_at: NeedVerdict,
 ) -> NeedVerdict {
+    // SPIKE (ryo-fmx3.1, fault A): the parts asked in the first pass, by number. What a part costs changes while the
+    // parts are asked (a site decided inside a costly part is kept, and costs nothing from then on), so the second pass
+    // asks every part the first did not ask, not the parts that cost a fill now: a part that cost a fill in the first
+    // pass and nothing in the second was asked in neither, and an `Any` it alone held was decided empty.
+    let mut asked = 0_u128;
     for pass in [NeedVerdict::Empty, NeedVerdict::Holds] {
         for number in 0..count.0 {
             let Some(place) = slot(code, offsets, WordSlot(number)) else {
@@ -97,7 +102,16 @@ fn parts(
                 }
                 continue;
             };
-            if costs(facts, code, place) == pass && formula(facts, code, place) == stops_at {
+            let bit = 1_u128.checked_shl(number).unwrap_or(0);
+            let now = if pass == NeedVerdict::Empty {
+                costs(facts, code, place) == NeedVerdict::Empty
+            } else {
+                asked & bit == 0
+            };
+            if now && pass == NeedVerdict::Empty {
+                asked |= bit;
+            }
+            if now && formula(facts, code, place) == stops_at {
                 return stops_at;
             }
         }
@@ -117,6 +131,9 @@ fn formula(facts: &mut impl NeedFacts, code: &ProgramCode, at: WordSlot) -> Need
     match record {
         NeedRecord::Unknown => NeedVerdict::Holds,
         NeedRecord::Kinds(list) => {
+            if let Some(kept) = facts.leaf(at) {
+                return kept;
+            }
             let present = kinds(code, list).iter().any(|kind| {
                 facts.kind_present(KindBits(u16::try_from(kind.0).unwrap_or(u16::MAX)))
                     == NeedVerdict::Holds
@@ -131,7 +148,10 @@ fn formula(facts: &mut impl NeedFacts, code: &ProgramCode, at: WordSlot) -> Need
             relation,
             column,
             constant,
-        } => facts.relation_row(relation, column, constant),
+        } => match facts.leaf(at) {
+            Some(kept) => kept,
+            None => facts.relation_row(relation, column, constant),
+        },
         NeedRecord::Site(site) => decided(facts, code, site),
         NeedRecord::Table(table) => facts.table_row(table),
         NeedRecord::All {
@@ -249,11 +269,11 @@ pub(crate) fn decided(
     if let Some(kept) = facts.kept(site) {
         return kept;
     }
-    // What costs nothing to ask is asked first, of the engine that keeps it: a site its free terms leave no way to
-    // hold is decided with no walk of its formula.
-    if facts.free_terms(site) == NeedVerdict::Empty {
-        facts.keep(site, NeedVerdict::Empty);
-        return NeedVerdict::Empty;
+    // The site's terms are asked first, of the engine that keeps them, those that cost nothing before the others: a
+    // site they leave no way to hold, or whose whole formula they are, is decided with no walk.
+    if let Some(verdict) = facts.masked(site) {
+        facts.keep(site, verdict);
+        return verdict;
     }
     let verdict = match slot(code, WordSlot(site.0), WordSlot(0)) {
         Some(place) => formula(facts, code, place),
