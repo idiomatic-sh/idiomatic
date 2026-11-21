@@ -123,7 +123,11 @@ pub(crate) fn local_of(
 ) -> Option<Local> {
     let per_file = step.scope == StepScope::PerFile;
     let of = |input: &Input| match input {
-        Input::Relation(_) => per_file.then_some(Local::File),
+        // A relation read after the files is the file's when its rows name their file: each file's scan is handed the
+        // relation's rows of that file (a project relation's, by the host). One that names no file is the whole run's.
+        Input::Relation(relation) => (per_file
+            || ryo_relations::domain::relations::service::kinds(*relation).contains(&CellKind::File))
+        .then_some(Local::File),
         Input::Step(read) => locals.get(usize::from(*read)).copied().flatten(),
         Input::BoundObservation(_) => Some(Local::File),
     };
