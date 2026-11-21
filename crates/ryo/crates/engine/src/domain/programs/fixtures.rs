@@ -30,7 +30,7 @@ use ryo_relations::domain::relations::types::{Count, FileId, Relation};
 pub(crate) const FILE: FileId = FileId(7);
 
 /// A language that fills nothing.
-struct NoFacts;
+pub(crate) struct NoFacts;
 
 impl FactSource for NoFacts {
     fn fill(

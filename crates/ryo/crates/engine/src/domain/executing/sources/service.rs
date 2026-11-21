@@ -13,7 +13,7 @@ use crate::domain::made_tables::types::{KeyFrom, ReadSource};
 use crate::domain::needs::service::decided;
 use crate::domain::needs::types::NeedVerdict;
 use crate::domain::programs::frames::types::StepFrame;
-use crate::domain::scratch::types::{LoopState, SeamRows};
+use crate::domain::scratch::types::{FileFault, LoopState, SeamRows};
 use crate::domain::steps::types::MadeTableId;
 use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::relations::types::Count;
@@ -25,8 +25,10 @@ fn faulted(state: &mut LoopState, fault: FilledError) {
             state.work.unbuilt = InstructionCount(state.work.unbuilt.0.saturating_add(1));
         }
         FilledError::Refused { .. } | FilledError::Partial { .. } | FilledError::Code { .. } => {
-            if state.fault.is_none() {
-                state.fault = Some(fault);
+            if state.fault.is_none()
+                && let Some(rule) = state.rule
+            {
+                state.fault = Some(FileFault { rule, fault });
             }
         }
     }

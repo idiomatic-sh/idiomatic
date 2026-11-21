@@ -26,6 +26,7 @@ use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::inbound::use_cases::walk::errors::WalkError;
 use ryo_language::inbound::use_cases::walk::interface::WalkUseCase as _;
 use ryo_language::inbound::use_cases::walk::types::{FileVisit, RelationNeeds, WalkRequest};
+use ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl;
 use ryo_relations::domain::relations::types::{Count, FileId, Relation};
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 
@@ -136,7 +137,12 @@ impl FileVisit for Scanning<'_> {
             facts: &mut counting,
         };
         let (mut found, mut scratch) = (Found::default(), scratch_measuring(self.programs));
-        let answer = ScanUseCaseImpl.scan(self.programs, lent, &mut scratch, &mut found);
+        let answer = ScanUseCaseImpl::new(std::sync::Arc::new(MatchingUseCaseImpl)).scan(
+            self.programs,
+            lent,
+            &mut scratch,
+            &mut found,
+        );
         let counts = counted(&scratch);
         self.seen = Some(Scanned {
             answer,

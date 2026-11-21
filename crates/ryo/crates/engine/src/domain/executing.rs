@@ -1,15 +1,15 @@
 //! The `executing` concept: the one loop over a program's words.
 
-pub(crate) mod bodies;
-pub(crate) mod budget;
-pub(crate) mod constants;
-pub(crate) mod entries;
+pub mod bodies;
+pub mod budget;
+pub mod constants;
+pub mod entries;
 #[cfg(test)]
-pub(crate) mod fixtures;
-pub(crate) mod service;
-pub(crate) mod sources;
-pub(crate) mod staging;
-pub(crate) mod types;
+pub mod fixtures;
+pub mod service;
+pub mod sources;
+pub mod staging;
+pub mod types;
 
 #[cfg(test)]
 mod service_test;

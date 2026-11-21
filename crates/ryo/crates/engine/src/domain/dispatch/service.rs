@@ -17,6 +17,7 @@ use crate::domain::programs::types::Programs;
 pub(crate) fn dispatch(frame: &mut StepFrame<'_, '_>, rules: &Programs) -> ScanCounters {
     let programs = frame.fill.programs;
     for rule in &programs.code.rules {
+        frame.state.rule = Some(rule.rule);
         begin_rule(frame.state);
         for branch in &rule.branches {
             if decided(&mut FileNeeds(frame), &programs.code, branch.need) == NeedVerdict::Holds {
@@ -28,11 +29,19 @@ pub(crate) fn dispatch(frame: &mut StepFrame<'_, '_>, rules: &Programs) -> ScanC
         }
     }
     let work = frame.state.work;
+    let store = &*frame.fill.store;
+    let (mut made, mut filled) = (0_u64, 0_u64);
+    for slot in store.tables.iter().filter(|slot| slot.stamp == store.stamp) {
+        made = made.saturating_add(u64::try_from(slot.work.made.0).unwrap_or(u64::MAX));
+        filled = filled.saturating_add(
+            u64::try_from(slot.work.read.0.saturating_add(slot.work.given.0)).unwrap_or(u64::MAX),
+        );
+    }
     ScanCounters {
         steps: work.steps,
         candidates: work.candidates,
-        made_rows: InstructionCount(0),
-        fill_rows: InstructionCount(0),
+        made_rows: InstructionCount(made),
+        fill_rows: InstructionCount(filled),
         visited: work.visited,
     }
 }

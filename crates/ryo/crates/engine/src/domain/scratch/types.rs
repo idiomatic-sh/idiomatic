@@ -1,24 +1,19 @@
 //! The types of the `scratch` concept: a worker's per-file state.
 
-#[cfg(test)]
 use crate::domain::code::types::CodeEntry;
-#[cfg(test)]
 use crate::domain::filled::errors::FilledError;
-#[cfg(test)]
 use crate::domain::findings::types::InstructionCount;
-#[cfg(test)]
 use crate::domain::indexes::types::RowRun;
-#[cfg(test)]
+use crate::domain::made_tables::types::FillStore;
 use crate::domain::memos::types::{MemoId, MemoMap, RuleStamp};
-#[cfg(test)]
 use crate::domain::needs::types::NeedVerdict;
-use ryo_language::domain::facts::types::{CellWord, FileWords, FilledColumns};
-use ryo_language::domain::node_table::types::KindsPresent;
-#[cfg(test)]
+use ryo_language::domain::facts::types::{CellWord, FileWords};
 use ryo_relations::domain::relations::types::Count;
+use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 
-/// A worker's per-file state: registers, the filled relations and their columns, made tables, the file's words and the kinds
-/// present; cleared per file, never freed. Made for a rule set by `scratch::service::scratch_for`.
+/// A worker's per-file state: the loop's registers, kept answers and cursors, the fill side's store of filled relations,
+/// indexes and made tables, and the file's words; reset per file, never freed. Made for a rule set by
+/// `programs::service::scratch_for`.
 ///
 /// ```compile_fail,E0603
 /// let forged = ryo_engine::domain::scratch::types::ScanScratch(Default::default());
@@ -35,35 +30,24 @@ use ryo_relations::domain::relations::types::Count;
 #[derive(Debug, Default)]
 pub struct ScanScratch(pub(crate) ScratchEngine);
 
-/// The private body of `ScanScratch`.
+/// The private body of `ScanScratch`: the loop's own state, the fill side's store of what was filled and made, and the
+/// file's words. The store and the words are lent to the fill side for each call of its seam; the state is the loop's.
 #[derive(Debug, Default)]
 pub(crate) struct ScratchEngine {
-    /// The registers of the running candidate.
-    pub(crate) registers: Vec<CellWord>,
-    /// Which relations the file has filled, one bit per relation of the catalog.
-    pub(crate) filled: Vec<FilledWord>,
-    /// The filled columns of each relation, by its number in the catalog.
-    pub(crate) columns: Vec<FilledColumns>,
-    /// The rows of each made table, by number, row-major.
-    pub(crate) made: Vec<Vec<CellWord>>,
+    /// The loop's own per-file state.
+    pub(crate) state: LoopState,
+    /// The fill side's store.
+    pub(crate) store: FillStore,
     /// The file's words over the run's base words.
     pub(crate) words: FileWords,
-    /// The kinds present in the file.
-    pub(crate) present: KindsPresent,
 }
 
-/// Sixty-four relations' filled bits.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct FilledWord(pub(crate) u64);
-
 /// A place a cursor holds: a row's number in what is iterated, a kind's place in a list, or where staged rows start.
-#[cfg(test)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) struct FramePlace(pub(crate) u32);
 
 /// The cursor of one running iteration: the word that iterates, and where it is among what it iterates. It holds places
 /// in the worker's arenas, never a pointer, since the arenas grow while they are read.
-#[cfg(test)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct IterationCursor {
     /// The word that iterates.
@@ -77,7 +61,6 @@ pub(crate) struct IterationCursor {
 }
 
 /// What the loop counted, added once per run of a program and never per row.
-#[cfg(test)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct LoopWork {
     /// The words dispatched.
@@ -91,7 +74,6 @@ pub(crate) struct LoopWork {
 }
 
 /// What a body answered the word over it: how many rows, and for an `Or` where they start among the staged rows.
-#[cfg(test)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct BodyAnswer {
     /// Where its rows start among the staged rows.
@@ -100,9 +82,17 @@ pub(crate) struct BodyAnswer {
     pub(crate) rows: Count,
 }
 
+/// A fault the fill side answered, and the rule that was running: the scan's answer for the file.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct FileFault {
+    /// The rule.
+    pub(crate) rule: SelectedRuleOrdinal,
+    /// The fault.
+    pub(crate) fault: FilledError,
+}
+
 /// What the source of the word about to run answered: the rows it has for the word, as the seam's run, and what turns one
 /// of its rows into the cell a register holds.
-#[cfg(test)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct SeamRows {
     /// The rows: a range of handles for a whole read, a stretch of the store's rows for a read by key.
@@ -114,7 +104,6 @@ pub(crate) struct SeamRows {
 /// The loop's per-file state: what `ScanScratch` holds once the loop is the scan's body. Sized once for a rule set and
 /// reset per file without an allocation: every arena is emptied. The fill side's store and the file's words are beside it, in
 /// the frame's other half.
-#[cfg(test)]
 #[derive(Debug, Default)]
 pub(crate) struct LoopState {
     /// The registers of the rule set, one vector.
@@ -129,8 +118,11 @@ pub(crate) struct LoopState {
     pub(crate) staged: Vec<CellWord>,
     /// What the source of the word about to run answered: the loop asks the fill side, the word's item reads the rows.
     pub(crate) rows: SeamRows,
-    /// The first fault the fill side answered in the file: a relation refused or read in part.
-    pub(crate) fault: Option<FilledError>,
+    /// The rule whose work is running; none before a file's first rule.
+    pub(crate) rule: Option<SelectedRuleOrdinal>,
+    /// The first fault the fill side answered in the file, a relation refused or read in part, and the rule that was
+    /// running.
+    pub(crate) fault: Option<FileFault>,
     /// What the body of the word about to run answered: the loop asks the body, the word's item reads the answer.
     pub(crate) answer: BodyAnswer,
     /// Each emptiness decision made in the file, by `NeedSite`.
@@ -144,7 +136,6 @@ pub(crate) struct LoopState {
 }
 
 /// What one unit of the code was charged to the running rule: how many of its keys, and the rows they visited.
-#[cfg(test)]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct UnitTally {
     /// The rule the tally is of: a tally of another rule is nought.
@@ -158,7 +149,6 @@ pub(crate) struct UnitTally {
 /// What the running rule did in the file and what it was charged: counted in rows, never in time. A unit records its own
 /// work and the list of what it reached; the rule is charged each unit it reaches once, however it was reached, so its
 /// work is the same alone or after any other rule.
-#[cfg(test)]
 #[derive(Debug, Default)]
 pub(crate) struct RuleBudget {
     /// The running rule's run over the file.

@@ -22,7 +22,7 @@ use crate::domain::programs::collections::instructions::interface::{Flow, Instru
 use crate::domain::programs::collections::instructions::let_value::item::LetValue;
 use crate::domain::programs::collections::instructions::or::item::Or;
 use crate::domain::programs::collections::instructions::read::item::Read;
-use crate::domain::programs::collections::instructions::test::item::Test;
+use crate::domain::programs::collections::instructions::comparing::item::Test;
 use crate::domain::programs::collections::instructions::yield_row::item::YieldRow;
 use crate::domain::programs::frames::types::{RunMode, StepFrame};
 use crate::domain::programs::operands::service::after;
