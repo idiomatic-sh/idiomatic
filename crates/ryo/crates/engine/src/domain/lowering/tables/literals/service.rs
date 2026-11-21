@@ -20,7 +20,7 @@ use ryo_relations::domain::dependency_origin::types::DependencyOrigin;
 use ryo_relations::domain::mapping_kind::types::MappingKind;
 use ryo_relations::domain::parameter_kind::types::ParameterKind;
 use ryo_relations::domain::relations::constants::{LOWERED, RAISED};
-use ryo_relations::domain::relations::service::{columns, to_bits, vocabulary_of};
+use ryo_relations::domain::relations::service::{columns, kind, to_bits, vocabulary_of};
 use ryo_relations::domain::relations::types::{CellKind, Column, Integer, Value};
 use ryo_relations::domain::terms::service::{term_symbol, words_of};
 use ryo_relations::domain::terms::types::{Vocabulary, WordBlock};

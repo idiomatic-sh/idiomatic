@@ -291,6 +291,22 @@ fn shaped(
             shape.0.extend([CellKind::Number, CellKind::Number]);
             Some(shape)
         }
+        // A fit check keeps the rows whose candidate fits: the input's shape, its texts symbols and its span a span.
+        Operation::FitsRendered {
+            from,
+            texts,
+            literals,
+            span,
+            ..
+        } => {
+            let shape = of(from)?;
+            let held = picked(&shape, texts)?
+                .0
+                .iter()
+                .all(|kind| *kind == CellKind::Symbol);
+            let spanned = picked(&shape, &[*span])?.0 == [CellKind::Span];
+            (held && spanned && literals.len() == texts.len().saturating_add(1)).then_some(shape)
+        }
         // What is left to lower, each by name: no arm stands for the rest.
         Operation::Intersection { .. }
         | Operation::Difference { .. }
@@ -301,8 +317,7 @@ fn shaped(
         | Operation::Worklist { .. }
         | Operation::Cycles { .. }
         | Operation::Hosted { .. }
-        | Operation::RenderSyntax { .. }
-        | Operation::FitsRendered { .. } => None,
+        | Operation::RenderSyntax { .. } => None,
         // The rows a query wrote: a text for each key. The rows of a parameter's tables are not lowered.
         Operation::Rows { source, keys } => match source {
             RowsSource::Written(rows) => rows

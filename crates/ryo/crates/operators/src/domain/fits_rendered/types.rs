@@ -22,7 +22,7 @@ pub(crate) struct LineColumn(pub usize);
 
 /// Whether a candidate stays within the line width.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Fit {
+pub enum Fit {
     /// Every line is within the width.
     Within,
     /// Some line is wider.
