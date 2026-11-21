@@ -2,132 +2,20 @@
 //! look like. The `match` over `Operation` names every operation: the ones the lowering does not evaluate yet are listed
 //! there, each by name, and refused as the step that cannot be evaluated. A rule is never refused for its cost or its size.
 
-use crate::domain::lowering::flattening::service::function_call;
 use crate::domain::lowering::nodes::service::{digested, input_shape, reached};
 use crate::domain::lowering::nodes::types::{AdmittedRule, StepReach, StepShape};
+use crate::domain::lowering::tables::shapes::service::{
+    comparable, joined, keyed, operand_kind, picked, viewed,
+};
 use crate::domain::lowering::tables::types::TreeAxis;
 use crate::domain::lowering::types::{LoadRefusal, PastWidth, PlanNode, SelectedRule};
-use crate::domain::steps::types::{AxisDirection, TestOperation};
+use crate::domain::steps::types::AxisDirection;
 use ryo_relations::domain::catalog::service::{fact_form, node_column};
 use ryo_relations::domain::relations::service::columns;
 use ryo_relations::domain::relations::types::{CellKind, FactForm, NodeColumn, Relation};
-use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Direction, Input, JoinColumn, Operand, PlanComparison, QueryLiteral, Side,
-    StepScope, Test,
-};
+use ryo_values::domain::plan_parts::service::view_source;
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction, Input, StepScope};
 use ryo_values::domain::plans::types::Operation;
-use ryo_values::domain::query_bindings::types::ParameterBinding;
-
-/// The comparison a plan's test is, as a step's or a stage's test; `Matches` takes its expression's number when written.
-/// None for a test no step makes.
-#[must_use]
-pub(crate) const fn test_of(test: Test) -> Option<TestOperation> {
-    Some(match test {
-        Test::Equal => TestOperation::Equal,
-        Test::NotEqual => TestOperation::NotEqual,
-        Test::LessThan => TestOperation::Less,
-        Test::LessThanOrEqual => TestOperation::LessOrEqual,
-        Test::GreaterThan => TestOperation::Greater,
-        Test::GreaterThanOrEqual => TestOperation::GreaterOrEqual,
-        Test::In => TestOperation::In,
-        Test::NotIn => TestOperation::NotIn,
-        Test::GlobAny => TestOperation::Glob,
-        Test::NotGlobAny => TestOperation::NotGlob,
-        Test::StartsWith => TestOperation::StartsWith,
-        Test::EndsWith => TestOperation::EndsWith,
-        Test::Matches => TestOperation::Matches(crate::domain::steps::types::RegexId(0)),
-        Test::NumericGreaterThanOrEqual => TestOperation::NumericAtLeast,
-        Test::IntegerSuccessor => TestOperation::Successor,
-        Test::NaturalLessThan => TestOperation::NaturalLess,
-        Test::FloatTextGreaterThanOrEqual => return None,
-    })
-}
-
-/// What an operand holds, over a row of `shape`: a column's kind, a literal's, a bound parameter's. None for an operand the
-/// lowering writes no operand for: a function applied, a parameter bound to a list, a column past the row.
-fn operand_kind(rule: &SelectedRule<'_>, shape: &StepShape, operand: &Operand) -> Option<CellKind> {
-    match operand {
-        Operand::Column(column) => shape.0.get(usize::from(*column)).copied(),
-        Operand::Literal(QueryLiteral::Number(_)) => Some(CellKind::Number),
-        Operand::Literal(QueryLiteral::Text(_)) => Some(CellKind::Symbol),
-        Operand::Parameter(parameter) => {
-            let place = usize::try_from(parameter.0).unwrap_or(usize::MAX);
-            match rule.bindings.0.get(place)? {
-                ParameterBinding::Number(_) => Some(CellKind::Number),
-                ParameterBinding::Text(_) => Some(CellKind::Symbol),
-                ParameterBinding::Flag(_)
-                | ParameterBinding::Numbers(_)
-                | ParameterBinding::Texts(_)
-                | ParameterBinding::TextSets(_)
-                | ParameterBinding::Tables(_) => None,
-            }
-        }
-        // A function is text made from texts, when the engine's contract names its meaning.
-        Operand::Function(applied) => {
-            let _meaning = function_call(applied.function)?;
-            let mut arguments = applied.arguments.iter();
-            arguments
-                .all(|argument| operand_kind(rule, shape, argument) == Some(CellKind::Symbol))
-                .then_some(CellKind::Symbol)
-        }
-    }
-}
-
-/// The shape, when every comparison can be written over a row of it; none when one cannot.
-fn comparable<'s>(
-    rule: &SelectedRule<'_>,
-    shape: &'s StepShape,
-    comparisons: &[PlanComparison],
-) -> Option<&'s StepShape> {
-    let mut each = comparisons.iter();
-    let written = each.all(|comparison| {
-        let test = match (comparison.test, &comparison.right) {
-            (Test::Matches, Operand::Literal(QueryLiteral::Text(_))) => true,
-            (Test::Matches, _) => false,
-            (test, _) => test_of(test).is_some(),
-        };
-        test && operand_kind(rule, shape, &comparison.left).is_some()
-            && operand_kind(rule, shape, &comparison.right).is_some()
-    });
-    written.then_some(shape)
-}
-
-/// The kinds of a row at the given columns; none when a column is past the row.
-fn picked(shape: &StepShape, columns: &[ColumnIndex]) -> Option<StepShape> {
-    let kinds: Option<Vec<CellKind>> = columns
-        .iter()
-        .map(|column| shape.0.get(usize::from(*column)).copied())
-        .collect();
-    kinds.map(StepShape)
-}
-
-/// The kinds of a join's answer.
-fn joined(left: &StepShape, right: &StepShape, output: &[JoinColumn]) -> Option<StepShape> {
-    let kinds: Option<Vec<CellKind>> = output
-        .iter()
-        .map(|column| {
-            let side = match column.side {
-                Side::Left => left,
-                Side::Right => right,
-            };
-            side.0.get(usize::from(column.column)).copied()
-        })
-        .collect();
-    kinds.map(StepShape)
-}
-
-/// The left side's shape, when each key column is within its side's row and the two sides have as many keys.
-fn keyed<'s>(
-    left: &'s StepShape,
-    right: &StepShape,
-    left_on: &[ColumnIndex],
-    right_on: &[ColumnIndex],
-) -> Option<&'s StepShape> {
-    let held = left_on.len() == right_on.len()
-        && picked(left, left_on).is_some()
-        && picked(right, right_on).is_some();
-    held.then_some(left)
-}
 
 /// The node relation an axis walks the tree of: its edges are a relation of the node-table form whose parent and child
 /// columns are the node table's parent and element. None for edges a step derives.
@@ -211,11 +99,12 @@ fn shaped(
             reach,
         } => {
             let (left, right) = (of(left)?, of(right)?);
-            // A join against a closure (`reach`) and a join through a view of its right side are not lowered yet.
-            let plain =
-                view.is_empty() && reach.is_none() && comparable(rule, &right, filter).is_some();
-            (plain && keyed(&left, &right, left_on, right_on).is_some())
-                .then(|| joined(&left, &right, output))
+            // A join against a closure (`reach`) is not lowered: the plan the engine receives holds the closure as a step.
+            // The keys and the answer name the right side's columns through its view; the filter reads the whole row.
+            let seen = viewed(&right, view)?;
+            let plain = reach.is_none() && comparable(rule, &right, filter).is_some();
+            (plain && keyed(&left, &seen, left_on, right_on).is_some())
+                .then(|| joined(&left, &seen, output))
                 .flatten()
         }
         Operation::Union { left, right } => {
@@ -288,16 +177,17 @@ fn shaped(
             output,
         } => {
             let (mut shape, domain) = (of(from)?, of(domain)?);
-            // An axis with a view of its domain or its own answer columns is not lowered yet, nor are the axes `walk_of`
-            // names none for. Edges that are no tree of a node relation are walked by a nearest axis alone.
+            // An axis with its own answer columns is not lowered yet, nor are the axes `walk_of` names none for. The
+            // entity column is named through the domain's view; the filter reads the whole row. Edges that are no tree of a node relation are walked by a nearest axis alone.
             let tree = tree_relation(edges, *parent, *child).is_some()
                 || (walk_of(*direction) == Some(TreeAxis::Nearest)
                     && picked(&of(edges)?, &[*parent, *child]).is_some());
-            let plain = domain_view.is_empty()
-                && output.is_empty()
+            let plain = output.is_empty()
                 && comparable(rule, &domain, domain_filter).is_some()
                 && (domain_filter.is_empty() || walk_of(*direction) != Some(TreeAxis::Nearest));
-            let reached = *domain.0.get(usize::from(*domain_id))?;
+            let reached = *domain
+                .0
+                .get(usize::from(view_source(domain_view, *domain_id)?))?;
             let _start = shape.0.get(usize::from(*id))?;
             (tree && plain && walk_of(*direction).is_some()).then(|| {
                 shape.0.push(reached);

@@ -168,6 +168,26 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "codes: {\"EachMatchNode\": 2, \"EachRowMade\": 1, \"Emit\": 1, \"End\": 5, \"Exists\": 1, \"Let\": 2, \"NearestDerived\": 1, \"ReadMade\": 5, \"ReadNode\": 1, \"StageRead\": 7, \"StageScan\": 2, \"StageUse\": 1, \"StageWrite\": 2, \"Yield\": 3}",
         ))),
     },
+    Case {
+        name: CaseName("a_join_names_its_right_columns_through_the_view"),
+        word: Word::Succeeds,
+        input: || (&["the words' spans through a view"], SampleStage::Absent),
+        expect: Expect::Value(Cow::Borrowed(concat!(
+            "rule 0: 1 branches\n",
+            "  branch: EachRow:File Read:Constant EachMatch:Fanout EachMatch:Fanout Read:Constant Emit:Constant\n",
+            "codes: {\"EachMatchNode\": 2, \"EachRowNode\": 1, \"Emit\": 1, \"End\": 2, \"ReadNode\": 2}",
+        ))),
+    },
+    Case {
+        name: CaseName("an_axis_names_its_entity_through_the_domains_view"),
+        word: Word::Succeeds,
+        input: || (&["the parents through a view"], SampleStage::Absent),
+        expect: Expect::Value(Cow::Borrowed(concat!(
+            "rule 0: 1 branches\n",
+            "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Axis:Constant EachMatch:Fanout Emit:Constant\n",
+            "codes: {\"Axis\": 1, \"EachMatchNode\": 1, \"EachRowNode\": 1, \"Emit\": 1, \"End\": 2, \"ReadNode\": 3}",
+        ))),
+    },
 ];
 
 /// The scenes lowered and said in lines, as the cases of the service itself are.

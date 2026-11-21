@@ -21,6 +21,7 @@ use crate::domain::lowering::tables::types::{InputWant, RuleFlattening, TreeAxis
 use crate::domain::steps::types::Polarity;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_relations::domain::relations::types::Count;
+use ryo_values::domain::plan_parts::service::view_source;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side, StepId};
 use ryo_values::domain::plans::types::Operation;
 
@@ -91,6 +92,7 @@ pub(crate) fn join_arm(
         right_on,
         output,
         filter,
+        view,
         ..
     } = operation
     else {
@@ -102,6 +104,13 @@ pub(crate) fn join_arm(
     let lefts = input(state, drafts, *left, wants.left)?;
     let mut rights = input(state, drafts, *right, wants.right)?;
     rights.branches = all_selected(state, drafts, rights.branches, filter)?;
+    // The keys and the answer name the right side's columns through its view, when it has one.
+    if !view.is_empty() {
+        for branch in &mut rights.branches {
+            let seen = view.iter().map(|column| RowColumn(usize::from(*column)));
+            branch.row = picked(&branch.row, seen)?;
+        }
+    }
     let mut branches = Vec::with_capacity(lefts.branches.len() * rights.branches.len());
     for left_branch in &lefts.branches {
         for right_branch in &rights.branches {
@@ -209,13 +218,16 @@ pub(crate) fn axis_arm(
         child,
         domain_id,
         domain_filter,
+        domain_view,
         ..
     } = operation
     else {
         return None;
     };
     let tree = tree_relation(edges, *parent, *child);
-    let (start, entity) = (usize::from(*id), usize::from(*domain_id));
+    // The entity column is named through the domain's view.
+    let entity = usize::from(view_source(domain_view, *domain_id)?);
+    let start = usize::from(*id);
     match walk_of(*direction)? {
         TreeAxis::Nearest => {
             // The start's rows are a definition: the pattern a pipeline uses for the walk is then keyed by the start.

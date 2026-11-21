@@ -16,7 +16,7 @@ use crate::domain::lowering::tables::closures::service::closure_arm;
 use crate::domain::lowering::tables::fills::service::{as_of_arm, group_count_arm, group_rows_arm};
 use crate::domain::lowering::tables::inputs::service::{all_selected, input, rule, term};
 use crate::domain::lowering::tables::joins::service::{antijoin_arm, axis_arm, join_arm};
-use crate::domain::lowering::tables::service::test_of;
+use crate::domain::lowering::tables::shapes::service::test_of;
 use crate::domain::lowering::tables::types::{InputWant, RuleFlattening};
 use crate::domain::steps::types::ConstantText;
 use crate::domain::steps::types::{AnchorKinds, TestOperation};

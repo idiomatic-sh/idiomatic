@@ -15,7 +15,7 @@ use crate::domain::lowering::flattening::types::{
 };
 use crate::domain::lowering::nodes::service::{digest_of, input_shape, readers};
 use crate::domain::lowering::nodes::types::{AdmittedRule, NodeHome};
-use crate::domain::lowering::tables::service::test_of;
+use crate::domain::lowering::tables::shapes::service::test_of;
 use crate::domain::lowering::tables::types::InputSize;
 use crate::domain::lowering::tables::types::{InputWant, RuleFlattening};
 use crate::domain::steps::types::{DefinitionId, TestOperation};

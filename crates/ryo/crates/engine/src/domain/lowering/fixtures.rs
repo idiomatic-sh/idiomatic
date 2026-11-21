@@ -160,6 +160,32 @@ fn operation_scene(scene: &str) -> Option<Plan> {
             kept(Input::Relation(Relation::SyntaxChild)),
             nearest_step(Input::Step(StepId(1))),
         ]),
+        // Each word beside its element's span, the tree read through a view of its id and span: the key and the answer
+        // name the view's columns.
+        "the words' spans through a view" => plan(vec![
+            words(),
+            step(Operation::Join {
+                left: words_of,
+                right: Input::Relation(Relation::SyntaxTree),
+                left_on: vec![at(0)],
+                right_on: vec![at(0)],
+                output: vec![of(Side::Left, 0), of(Side::Right, 1)],
+                filter: Vec::new(),
+                view: vec![at(0), at(4)],
+                reach: None,
+            }),
+        ]),
+        // Each element beside its parent, the domain read through a view of its span and id: the entity is the view's
+        // second column.
+        "the parents through a view" => plan(vec![
+            kept(Input::Relation(Relation::SyntaxTree)),
+            axis(
+                Input::Relation(Relation::SyntaxChild),
+                Direction::Parent,
+                Input::Relation(Relation::SyntaxTree),
+                vec![at(4), at(0)],
+            ),
+        ]),
         // Each element with the span from its own start to its own end.
         "the elements' spans between" => plan(vec![
             kept(Input::Relation(Relation::SyntaxTree)),
@@ -265,17 +291,32 @@ pub fn named(scene: &str) -> Plan {
 
 /// A nearest-ancestor axis from the rows of step 0 over the given edges, its domain step 0 too.
 fn nearest_step(edges: Input) -> PlanStep {
+    axis(
+        edges,
+        Direction::NearestAncestor,
+        Input::Step(StepId(0)),
+        Vec::new(),
+    )
+}
+
+/// An axis from the rows of step 0 over the given edges, its domain read through the given view.
+fn axis(
+    edges: Input,
+    direction: Direction,
+    domain: Input,
+    domain_view: Vec<ColumnIndex>,
+) -> PlanStep {
     step(Operation::Axis {
         from: Input::Step(StepId(0)),
         edges,
-        domain: Input::Step(StepId(0)),
-        direction: Direction::NearestAncestor,
+        domain,
+        direction,
         id: at(0),
         parent: at(0),
         child: at(1),
         domain_id: at(0),
         domain_filter: Vec::new(),
-        domain_view: Vec::new(),
+        domain_view,
         output: Vec::new(),
     })
 }
