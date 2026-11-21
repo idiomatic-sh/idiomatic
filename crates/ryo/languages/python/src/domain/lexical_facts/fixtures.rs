@@ -13,7 +13,7 @@ use ryo::languages::contract::{Collect, read};
 use std::sync::Arc;
 
 use ryo::languages::{
-    self, AbsenceCause, Bits, ByteSlice, CatalogRelation, Elements, FieldRequest, FileId, FileWords, Fill, NoteRequest,
+    self, Bits, ByteSlice, CatalogRelation, Elements, FieldRequest, FileId, FileWords, NoteRequest,
     ParseRequest, Position, Rows, SourcePath, Symbol, Symbols, facts,
 };
 
@@ -24,8 +24,6 @@ pub(crate) struct Told {
     pub rows: Vec<String>,
     /// The causes, in the order given.
     pub causes: Vec<String>,
-    /// Why the relation is not read at all, when it is not.
-    pub absent: Option<AbsenceCause>,
 }
 
 /// How the fillers' rows of a source stand against today's readers' rows of it.
@@ -42,7 +40,7 @@ pub(crate) struct Compared {
 /// What a filler writes for `source`, read through the test view.
 pub(crate) fn filled<R: CatalogRelation>(
     source: &str,
-    fill: impl Fn(&mut FixtureView<'_>, &mut FileWords, &mut dyn Rows<R::Row>) -> Fill,
+    fill: impl Fn(&mut FixtureView<'_>, &mut FileWords, &mut dyn Rows<R::Row>),
 ) -> Told {
     let mut fixture = ModelFixture::default();
     let mut told = Told::default();
@@ -50,10 +48,7 @@ pub(crate) fn filled<R: CatalogRelation>(
         let base = facts::base_words(languages::CheckedNames::default(), &[]);
         let mut words = facts::file_words(&base);
         let mut gathered = Gathered::<R> { rows: Vec::new(), causes: Vec::new() };
-        told.absent = match fill(view, &mut words, &mut gathered) {
-            Fill::Written(_) => None,
-            Fill::Absent(cause) => Some(cause),
-        };
+        fill(view, &mut words, &mut gathered);
         told.rows = gathered.rows.iter().map(|cells| crate::fixtures::model_rows::shown_filled::<R>(cells.as_ref(), view.table, &words)).collect();
         told.rows.sort();
         told.causes = gathered.causes;
@@ -104,13 +99,13 @@ pub(crate) fn read_today<R: CatalogRelation>(source: &'static str) -> Told {
         })
         .collect();
     rows.sort();
-    Told { rows, causes: out.partials.iter().map(|(_, cause, _)| cause.clone()).collect(), absent: None }
+    Told { rows, causes: out.partials.iter().map(|(_, cause, _)| cause.clone()).collect() }
 }
 
 /// The fillers' rows of `source` against today's readers' rows of it.
 pub(crate) fn compared<R: CatalogRelation>(
     source: &'static str,
-    fill: impl Fn(&mut FixtureView<'_>, &mut FileWords, &mut dyn Rows<R::Row>) -> Fill,
+    fill: impl Fn(&mut FixtureView<'_>, &mut FileWords, &mut dyn Rows<R::Row>),
 ) -> Compared {
     let ours = filled::<R>(source, fill);
     let theirs = read_today::<R>(source);

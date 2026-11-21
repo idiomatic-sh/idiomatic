@@ -1,16 +1,24 @@
 //! The fillers of the `walk` contract: for every relation of ryo's catalog the engine fills, how Python fills it from a walked
-//! file (its `fills!` item, or the semantic model's filler), or that it is not in the language, with the cause; and the names
-//! Python states for the whole run. No filler has a body for a key yet: asked for one, each writes the whole relation and says so.
+//! file (its `fills!` item, whole or for one key), or that it is not in the language, with the cause; and the names
+//! Python states for the whole run: its kinds, its fields and the fixed names its fillers write by handle.
 
 use crate::domain::file_view::types::{PythonFile, PythonWalk};
 use crate::domain::labels::service::{field_name, fields};
+use crate::domain::qualification::constants::{
+    AMBIGUOUS, BUILTIN, BUILTIN_NAMES, LOCAL, UNRESOLVED,
+};
+use crate::domain::relations::collections::relations::implicit_symbol::item::{
+    BUILTIN_ATTRIBUTES, MODULE_GLOBALS,
+};
 use crate::domain::syntax::service::{kind_name, kinds};
 use ryo::languages::{
-    self, AbsenceCause, CatalogRelation, FieldNames, FileWords, Fill, FillExtent, Fillers,
-    FixedNames, RenderOutcome, RenderRequest, Rows, WalkKinds, WalkVocabulary, Wanted, fillers,
+    self, AbsenceCause, CatalogRelation, FieldNames, FileWords, Fill, Fillers, FixedNames,
+    NameText, RenderOutcome, RenderRequest, Rows, WalkKinds, WalkVocabulary, Wanted, fillers,
 };
+use std::collections::HashSet;
 
-/// The filler of each relation a `fills!` item writes: the item's run.
+/// The filler of each relation whose `fills!` item writes it whole alone: the item's run. Asked for a key, it writes the whole
+/// relation and says so; `fillers::filled` is the one place that answer is written.
 macro_rules! written {
     ($( $module:ident: $relation:ident => $item:path; )*) => {
         $(
@@ -26,10 +34,10 @@ macro_rules! written {
     };
 }
 
-/// The filler of each relation the semantic model answers: the model's own filler, which writes every row. Asked for a key, it
-/// has written the whole relation, and says so.
-macro_rules! modelled {
-    ($( $module:ident: $relation:ident => $filler:path; )*) => {
+/// The filler of each relation whose `fills!` item has a key clause for every column the catalog declares among the relation's
+/// keys: the item's run, whole or for one key.
+macro_rules! keyed {
+    ($( $module:ident: $relation:ident => $item:path; )*) => {
         $(
             fn $module(
                 file: &mut PythonFile<'_>,
@@ -37,10 +45,7 @@ macro_rules! modelled {
                 wanted: Wanted,
                 rows: &mut dyn Rows<<languages::$relation as CatalogRelation>::Row>,
             ) -> Fill {
-                match ($filler(file, words, rows), wanted) {
-                    (Fill::Written(_), Wanted::Key(_, _)) => Fill::Written(FillExtent::Whole),
-                    (fill, _) => fill,
-                }
+                fillers::filled_keyed::<$item>(file, words, wanted, rows)
             }
         )*
     };
@@ -69,53 +74,52 @@ impl<P: Send + Sync + 'static> Fillers for PythonWalk<P> {
         Self: 'f;
 
     written! {
+        binding_event: BindingEvent => crate::domain::relations::collections::relations::binding_event::item::BindingEventItem;
+        binding_use: BindingUse => crate::domain::relations::collections::relations::binding_use::item::BindingUseItem;
         brace_format_field: BraceFormatField => crate::inbound::contracts::parse::readers::brace_format::composition::BraceFormatFieldItem;
         brace_format_parse: BraceFormatParse => crate::inbound::contracts::parse::readers::brace_format::composition::BraceFormatParseItem;
         bytes_literal: BytesLiteral => crate::domain::relations::collections::relations::bytes_literal::item::BytesLiteralItem;
         call_argument: CallArgument => crate::domain::relations::collections::relations::call_argument::item::CallArgumentItem;
         comment: Comment => crate::domain::relations::collections::relations::comment::item::CommentItem;
-        constant_key: ConstantKey => crate::domain::relations::collections::relations::constant_key::item::ConstantKeyItem;
         compiler_feature: CompilerFeature => crate::domain::relations::collections::relations::compiler_feature::item::CompilerFeatureItem;
         decorates: Decorates => crate::domain::relations::collections::relations::decorates::item::DecoratesItem;
+        defines: Defines => crate::domain::relations::collections::relations::defines::item::DefinesItem;
         embedded_expression: EmbeddedExpression => crate::domain::relations::collections::relations::embedded_expression::item::EmbeddedExpressionItem;
-        expression_shape: ExpressionShape => crate::domain::relations::collections::relations::expression_shape::item::ExpressionShapeItem;
-        expression_type: ExpressionType => crate::domain::relations::collections::relations::expression_type::item::ExpressionTypeItem;
         format_field: FormatField => crate::inbound::contracts::parse::readers::format::composition::FormatFieldItem;
         format_parse: FormatParse => crate::inbound::contracts::parse::readers::format::composition::FormatParseItem;
         format_specification: FormatSpecification => crate::inbound::contracts::parse::readers::format_specification::composition::FormatSpecificationItem;
-        function: Function => crate::domain::relations::collections::relations::function::item::FunctionItem;
         function_terminal: FunctionTerminal => crate::domain::relations::collections::relations::function_terminal::item::FunctionTerminalItem;
         identifier: Identifier => crate::domain::relations::collections::relations::identifier::item::IdentifierItem;
+        implicit_symbol: ImplicitSymbol => crate::domain::relations::collections::relations::implicit_symbol::item::ImplicitSymbolItem;
         indent_region: IndentRegion => crate::domain::relations::collections::relations::indent_region::item::IndentRegionItem;
-        inherits: Inherits => crate::domain::relations::collections::relations::inherits::item::InheritsItem;
         interpolated_string_literal: InterpolatedStringLiteral => crate::domain::relations::collections::relations::interpolated_string_literal::item::InterpolatedStringLiteralItem;
         language_target: LanguageTarget => crate::domain::relations::collections::relations::language_target::item::LanguageTargetItem;
         literal_expression_parse: LiteralExpressionParse => crate::inbound::contracts::parse::readers::literal_expression::composition::LiteralExpressionParseItem;
         literal_properties: LiteralProperties => crate::domain::relations::collections::relations::literal_properties::item::LiteralPropertiesItem;
         numeric_literal: NumericLiteral => crate::domain::relations::collections::relations::numeric_literal::item::NumericLiteralItem;
         parameter: Parameter => crate::domain::relations::collections::relations::parameter::item::ParameterItem;
+        qualified_name: QualifiedName => crate::domain::relations::collections::relations::qualified_name::item::QualifiedNameItem;
         raw_format_field: RawFormatField => crate::inbound::contracts::parse::readers::raw_format::composition::RawFormatFieldItem;
-        raw_format_segment: RawFormatSegment => crate::inbound::contracts::parse::readers::raw_format::composition::RawFormatSegmentItem;
         source_location: SourceLocation => super::source_location::SourceLocationItem;
         standard_library_import: StandardLibraryImport => crate::domain::relations::collections::relations::standard_library_import::item::StandardLibraryImportItem;
         static_import: StaticImport => crate::domain::relations::collections::relations::static_import::item::StaticImportItem;
         string_literal: StringLiteral => crate::domain::relations::collections::relations::string_literal::item::StringLiteralItem;
         syntax_error: SyntaxError => crate::domain::relations::collections::relations::syntax_error::item::SyntaxErrorItem;
-        token_link: TokenLink => crate::inbound::contracts::parse::readers::token_link::composition::TokenLinkItem;
     }
 
-    modelled! {
-        binding_event: BindingEvent => crate::domain::binding_facts::service::binding_event_rows;
-        binding_read: BindingRead => crate::domain::binding_facts::service::binding_read_rows;
-        binding_resolution: BindingResolution => crate::domain::binding_facts::service::binding_resolution_rows;
-        binding_shadow: BindingShadow => crate::domain::binding_facts::service::binding_shadow_rows;
-        binding_use: BindingUse => crate::domain::binding_facts::service::binding_use_rows;
-        defines: Defines => crate::domain::lexical_facts::service::defines_rows;
-        implicit_symbol: ImplicitSymbol => crate::domain::lexical_facts::service::implicit_symbol_rows;
-        qualified_name: QualifiedName => crate::domain::lexical_facts::service::qualified_name_rows;
-        reference: Reference => crate::domain::lexical_facts::service::reference_rows;
-        resolves: Resolves => crate::domain::lexical_facts::service::resolves_rows;
-        scope: Scope => crate::domain::lexical_facts::service::scope_rows;
+    keyed! {
+        binding_read: BindingRead => crate::domain::relations::collections::relations::binding_read::item::BindingReadItem;
+        binding_shadow: BindingShadow => crate::domain::relations::collections::relations::binding_shadow::item::BindingShadowItem;
+        constant_key: ConstantKey => crate::domain::relations::collections::relations::constant_key::item::ConstantKeyItem;
+        expression_shape: ExpressionShape => crate::domain::relations::collections::relations::expression_shape::item::ExpressionShapeItem;
+        expression_type: ExpressionType => crate::domain::relations::collections::relations::expression_type::item::ExpressionTypeItem;
+        function: Function => crate::domain::relations::collections::relations::function::item::FunctionItem;
+        inherits: Inherits => crate::domain::relations::collections::relations::inherits::item::InheritsItem;
+        raw_format_segment: RawFormatSegment => crate::inbound::contracts::parse::readers::raw_format::composition::RawFormatSegmentItem;
+        reference: Reference => crate::domain::relations::collections::relations::reference::item::ReferenceItem;
+        resolves: Resolves => crate::domain::relations::collections::relations::resolves::item::ResolvesItem;
+        scope: Scope => crate::domain::relations::collections::relations::scope::item::ScopeItem;
+        token_link: TokenLink => crate::inbound::contracts::parse::readers::token_link::composition::TokenLinkItem;
     }
 
     absent! {
@@ -123,6 +127,7 @@ impl<P: Send + Sync + 'static> Fillers for PythonWalk<P> {
         annotates: Annotates => NotYetRead;
         assigns: Assigns => NotYetRead;
         attribute_path: AttributePath => NoSuchConstruct;
+        binding_resolution: BindingResolution => NotYetRead;
         directive: Directive => NoSuchConstruct;
         entry: Entry => NotAKeyedDocument;
         file_package: FilePackage => NotYetRead;
@@ -157,12 +162,59 @@ impl<P: Send + Sync + 'static> Fillers for PythonWalk<P> {
     }
 
     /// Python's names for the run: every kind at its code and every field at its code, as the walk writes them into the node
-    /// table. It states no fixed name yet: its fillers intern their fixed words once for each file.
+    /// table, and the fixed names its fillers write by handle.
     fn vocabulary() -> WalkVocabulary {
         WalkVocabulary {
             kinds: WalkKinds(kinds().map(kind_name).collect()),
             fields: FieldNames(fields().map(field_name).collect()),
-            fixed: FixedNames::default(),
+            fixed: fixed_names(),
         }
     }
+}
+
+/// Where a name comes from, as the fillers write it: the same in every file.
+const PROVENANCE: &[&str] = &[BUILTIN, LOCAL, UNRESOLVED, AMBIGUOUS];
+
+/// The texts Python's fillers write that are the same in every file: the fixed names of the run, by place. Each concept states
+/// its own beside its constants; the names the language supplies to every module are read from their catalogs. A fixed name's
+/// word is its place, so each text is stated once, at the place of the first concept that writes it, and the empty text, which
+/// is word 0 of every run, is no fixed name.
+pub(crate) fn fixed_names() -> FixedNames {
+    let concepts: [&[&'static str]; 17] = [
+        crate::domain::token_links::constants::FIXED_NAMES,
+        crate::domain::relations::collections::relations::expression_type::constants::FIXED_NAMES,
+        crate::domain::expression_types::constants::FIXED_NAMES,
+        crate::domain::literal_properties::constants::FIXED_NAMES,
+        crate::domain::semantic_syntax::constants::FIXED_NAMES,
+        crate::domain::relations::collections::relations::compiler_feature::constants::FIXED_NAMES,
+        crate::domain::format_specification::constants::FIXED_NAMES,
+        crate::inbound::contracts::parse::readers::format_specification::constants::FIXED_NAMES,
+        crate::inbound::contracts::parse::readers::format::constants::FIXED_NAMES,
+        crate::inbound::contracts::parse::readers::literal_expression::constants::FIXED_NAMES,
+        crate::domain::literal_expression_parsing::constants::FIXED_NAMES,
+        &crate::domain::format_syntax::constants::FLAG_SPELLINGS,
+        crate::domain::definitions::constants::FIXED_NAMES,
+        crate::domain::terminal_flow::constants::FIXED_NAMES,
+        crate::inbound::contracts::parse::readers::brace_format::constants::FIXED_NAMES,
+        crate::domain::binding_results::constants::FIXED_NAMES,
+        PROVENANCE,
+    ];
+    let implicit =
+        crate::domain::relations::collections::relations::implicit_symbol::constants::FIXED_NAMES;
+    let catalogs = BUILTIN_ATTRIBUTES
+        .iter()
+        .chain(MODULE_GLOBALS)
+        .map(|entry| entry.name);
+    let mut stated = HashSet::new();
+    FixedNames(
+        concepts
+            .into_iter()
+            .chain([implicit])
+            .flatten()
+            .map(|text| NameText(text))
+            .chain(BUILTIN_NAMES.iter().copied())
+            .chain(catalogs)
+            .filter(|name| !name.0.is_empty() && stated.insert(name.0))
+            .collect(),
+    )
 }

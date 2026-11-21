@@ -10,3 +10,5 @@ pub(crate) const OTHER_ERROR: &str = "other-error";
 /// The cause of a reading that is only partial.
 pub(crate) const PARTIAL_CAUSE: &str =
     "format specifications require complete parser-decoded inputs";
+/// The texts of this concept a filler writes that are the same in every file: fixed names of the run.
+pub(crate) const FIXED_NAMES: &[&str] = &[RECOGNIZED, DYNAMIC, INVALID_TYPE, OTHER_ERROR];

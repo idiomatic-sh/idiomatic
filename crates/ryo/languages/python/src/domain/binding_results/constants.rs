@@ -43,3 +43,28 @@ pub(crate) const ALTERNATIVE: &str = "alternative";
 pub(crate) const REPLACEMENT: &str = "replacement";
 /// The text `lexical`.
 pub(crate) const LEXICAL: &str = "lexical";
+/// The words of the binding relations' rows, the same in every file: fixed names of the run.
+pub(crate) const FIXED_NAMES: &[&str] = &[
+    WILDCARD,
+    READ,
+    BIND,
+    crate::domain::syntax::constants::ANNOTATION_SEED,
+    DELETE,
+    CLEANUP,
+    GLOBAL,
+    NONLOCAL,
+    UNIQUE_DECLARATION,
+    ALTERNATIVE_DECLARATIONS,
+    POSSIBLY_UNBOUND,
+    UNBOUND,
+    BUILTIN,
+    DECLARATION_OR_BUILTIN,
+    UNCERTAIN,
+    VALUE,
+    TYPE,
+    DELETION,
+    UNIQUE,
+    ALTERNATIVE,
+    REPLACEMENT,
+    LEXICAL,
+];

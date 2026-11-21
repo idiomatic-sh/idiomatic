@@ -3,6 +3,7 @@
 
 pub mod configuration;
 pub mod contracts;
+pub mod grown;
 #[cfg(not(bless))]
 mod invalid_project;
 pub(crate) mod kinds;

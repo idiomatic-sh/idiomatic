@@ -1,7 +1,8 @@
 //! Read one terminal outcome for every visible function definition.
 use super::constants::INCOMPLETE;
 use crate::domain::file_view::types::PythonWalk;
-use crate::domain::node::service::{fixed, node_cell, nodes_of_kind, span_at};
+use crate::domain::model::names::service::fixed_word;
+use crate::domain::node::service::{node_cell, nodes_of_kind, span_at};
 use crate::domain::node::types::Numbered;
 use crate::domain::terminal_facts::service::outcome as ending;
 use crate::domain::{
@@ -51,7 +52,7 @@ ryo::fills! {
         if file.syntax.completeness.syntax == languages::SyntaxCompleteness::Incomplete {
             rows.partial(languages::ReportText(INCOMPLETE), languages::Missing::Any);
         }
-        let memo = &mut file.buffers.fixed;
+        let memo = &mut file.model.words.get_mut().fixed;
         for kind in [Node::FunctionDef, Node::AsyncFunctionDef] {
             for Numbered { id, node } in nodes_of_kind(&file.syntax, Kind::Node(kind)) {
                 let ruff_python_ast::AnyNodeRef::StmtFunctionDef(function) = node else {
@@ -59,7 +60,7 @@ ryo::fills! {
                 };
                 rows.write(Row {
                     id: node_cell(&file.syntax, id),
-                    outcome: fixed(words, memo, ending(function)),
+                    outcome: fixed_word(words, memo, ending(function)),
                     file: file.syntax.file,
                     span: span_at(&file.syntax, id),
                 });

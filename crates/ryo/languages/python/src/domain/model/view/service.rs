@@ -17,7 +17,7 @@ use crate::domain::model::types::BindingAnnotationTiming;
 /// Builds the parts of `model` that `part` needs and `built` lacks, from the parser's own nodes: `tree` holds the node of each
 /// place with its parent and the end of its subtree, and each node's index is its place. It reads no node table, so the walk can
 /// ask it before its table is finished. Annotations are scheduled lazily when the model's language target defers them or the
-/// module postpones them.
+/// module postpones them. A list of the flow part by key is made by the first fill that asks for one key of it.
 pub(crate) fn built(model: &mut SemanticModel, built: &mut Built, part: ModelPart, tree: TypedTree<'_, '_>) {
     if part != ModelPart::Nothing && built.lexical == PartState::Pending {
         names::clear(&mut model.names);
@@ -31,7 +31,8 @@ pub(crate) fn built(model: &mut SemanticModel, built: &mut Built, part: ModelPar
         resolution::build(&mut model.resolution, &model.definitions, &model.lexical, tree);
         built.resolution = PartState::Ready;
     }
-    if part == ModelPart::Flow && built.flow == PartState::Pending {
+    let flows = matches!(part, ModelPart::Flow | ModelPart::ReadsByName | ModelPart::ShadowsByBinding);
+    if flows && built.flow == PartState::Pending {
         let deferred = model.target >= LAZY_ANNOTATIONS_FROM || tree.annotations == BindingAnnotationTiming::Deferred;
         let timing = if deferred { BindingAnnotationTiming::Deferred } else { BindingAnnotationTiming::Immediate };
         schedule::build(
@@ -49,5 +50,13 @@ pub(crate) fn built(model: &mut SemanticModel, built: &mut Built, part: ModelPar
             },
         );
         built.flow = PartState::Ready;
+    }
+    if part == ModelPart::ReadsByName && built.reads_by_name == PartState::Pending {
+        flow::list_reads(&mut model.flow);
+        built.reads_by_name = PartState::Ready;
+    }
+    if part == ModelPart::ShadowsByBinding && built.shadows_by_binding == PartState::Pending {
+        flow::list_shadows(&mut model.flow);
+        built.shadows_by_binding = PartState::Ready;
     }
 }

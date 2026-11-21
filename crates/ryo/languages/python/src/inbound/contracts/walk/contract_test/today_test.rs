@@ -7,9 +7,9 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::fixtures::today::{
     Read, read, read_keys_all, read_own_count, read_rows, rows_by_relation,
 };
-use crate::fixtures::walking::{ElementKey, Seen, walked, walked_keys, walked_rows};
+use crate::fixtures::walking::{ElementKey, Seen, walk_words, walked, walked_keys, walked_rows};
 use crate::outbound::syntax::fixtures::library::fixture_sources;
-use ryo::languages::{self, FactAnswer, NodeTable, Relation, WalkError};
+use ryo::languages::{FactAnswer, NodeTable, Relation, WalkError};
 
 /// The relations the walk fills with an item of its own.
 const FILLED: &[Relation] = &[
@@ -111,10 +111,8 @@ fn differences(path: &str, bytes: &[u8]) -> Result<String, WalkError> {
         &mut table,
         &mut scratch,
         &mut |mut file| {
-            let mut words = languages::facts::file_words(&languages::facts::base_words(
-                languages::CheckedNames::default(),
-                &[],
-            ));
+            let mut words =
+                walk_words(&crate::walk()).expect("each fixed name of the walk is stated once");
             let keys = walked_keys(file.table);
             for relation in FILLED {
                 let (before, left_out): (Vec<Vec<Seen>>, Vec<Vec<Seen>>) =

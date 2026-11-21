@@ -1,23 +1,22 @@
 //! The `binding_facts` service: free functions named by verb that write the rows of the binding relations from the model, with
-//! no IO and no ports. Each has the parameters of its relation's filler; the per-file view is whatever implements `ModelView`.
+//! no IO and no ports. Each writes every row of its relation; the per-file view is whatever implements `ModelView`.
 //!
 //! The rows are facts of the language: every event, every read with every definition that can reach it. Which event a rule
 //! takes for a read (the latest one in schedule order, say) is the rule pack's selection over these rows, not a row of its own:
-//! `binding_resolution_rows` writes nothing.
+//! the language answers `binding-resolution` as not read.
 
 use crate::domain::binding_results::constants as vocabulary;
 use crate::domain::lexical_facts::service::{node, span_at};
 use crate::domain::model::flow::types::{
     FlowContext, FlowEvent, FlowEventKind, FlowRead, FlowShadow, FlowState, FlowUse, ShadowForm, UseForm,
 };
-use crate::domain::model::names::service::{held_word, name_word};
+use crate::domain::model::names::service::{fixed_word, name_word};
 use crate::domain::model::names::types::FactWords;
 use crate::domain::model::reaching::types::FlowReadState;
 use crate::domain::model::view::types::{ModelPart, ModelRead, ModelView};
 use crate::domain::qualification::constants::NOT_APPLICABLE;
 use ryo::languages::{
-    AbsenceCause, BindingEventRow, BindingReadRow, BindingResolutionRow, BindingShadowRow, BindingUseRow, FileWords, Fill,
-    FillExtent, Missing, NameText, ReportText, Rows,
+    BindingEventRow, BindingReadRow, BindingShadowRow, BindingUseRow, FileWords, Missing, NameText, ReportText, Rows,
 };
 
 /// The word of an event's kind.
@@ -56,9 +55,14 @@ const fn state_word(state: FlowReadState) -> NameText<'static> {
     })
 }
 
-/// The flow part of the file's model; none, with the relation said partly read, when the flow could not be interpreted.
-fn flow_read<'v, V: ModelView, Row>(file: &'v mut V, rows: &mut dyn Rows<Row>) -> Option<ModelRead<'v>> {
-    let read = file.semantics(ModelPart::Flow);
+/// The file's model with `part` built, a part that holds the flow; none, with the relation said partly read, when the flow
+/// could not be interpreted.
+pub(crate) fn flow_read<'v, V: ModelView, Row>(
+    file: &'v mut V,
+    part: ModelPart,
+    rows: &mut dyn Rows<Row>,
+) -> Option<ModelRead<'v>> {
+    let read = file.semantics(part);
     if read.model.flow.state == FlowState::Incomplete {
         rows.partial(ReportText(vocabulary::INCOMPLETE), Missing::Any);
         return None;
@@ -73,7 +77,7 @@ fn event_row(read: ModelRead<'_>, words: &mut FileWords, known: &mut FactWords, 
         name: name_word(&read.model.names, words, &mut known.names, event.name),
         scope: node(read, event.scope),
         phase: node(read, event.phase),
-        kind: held_word(words, &mut known.fixed, event_word(event.kind)),
+        kind: fixed_word(words, &mut known.fixed, event_word(event.kind)),
         ordinal: event.ordinal,
         file: read.file,
         span: span_at(read, event.at),
@@ -86,19 +90,23 @@ pub(crate) fn binding_event_rows<V: ModelView>(
     file: &mut V,
     words: &mut FileWords,
     rows: &mut dyn Rows<BindingEventRow>,
-) -> Fill {
-    let Some(read) = flow_read(file, rows) else {
-        return Fill::Written(FillExtent::Asked);
+) {
+    let Some(read) = flow_read(file, ModelPart::Flow, rows) else {
+        return;
     };
     let mut known = read.model.words.borrow_mut();
     for event in &read.model.flow.events {
         rows.write(event_row(read, words, &mut known, event));
     }
-    Fill::Written(FillExtent::Asked)
 }
 
 /// The row of one read: what the read is for and what can reach it.
-fn read_row(read: ModelRead<'_>, words: &mut FileWords, known: &mut FactWords, each: &FlowRead) -> BindingReadRow {
+pub(crate) fn read_row(
+    read: ModelRead<'_>,
+    words: &mut FileWords,
+    known: &mut FactWords,
+    each: &FlowRead,
+) -> BindingReadRow {
     let since = match each.state {
         FlowReadState::Builtin(since) | FlowReadState::DeclarationOrBuiltin(since) => since,
         FlowReadState::Unique
@@ -112,8 +120,8 @@ fn read_row(read: ModelRead<'_>, words: &mut FileWords, known: &mut FactWords, e
         name: name_word(&read.model.names, words, &mut known.names, each.name),
         scope: node(read, each.scope),
         phase: node(read, each.phase),
-        context: held_word(words, &mut known.fixed, context_word(each.context)),
-        state: held_word(words, &mut known.fixed, state_word(each.state)),
+        context: fixed_word(words, &mut known.fixed, context_word(each.context)),
+        state: fixed_word(words, &mut known.fixed, state_word(each.state)),
         since_major: since.major,
         since_minor: since.minor,
         file: read.file,
@@ -126,15 +134,14 @@ pub(crate) fn binding_read_rows<V: ModelView>(
     file: &mut V,
     words: &mut FileWords,
     rows: &mut dyn Rows<BindingReadRow>,
-) -> Fill {
-    let Some(read) = flow_read(file, rows) else {
-        return Fill::Written(FillExtent::Asked);
+) {
+    let Some(read) = flow_read(file, ModelPart::Flow, rows) else {
+        return;
     };
     let mut known = read.model.words.borrow_mut();
     for each in &read.model.flow.reads {
         rows.write(read_row(read, words, &mut known, each));
     }
-    Fill::Written(FillExtent::Asked)
 }
 
 /// The row of one definition that can reach a read.
@@ -148,8 +155,8 @@ fn use_row(read: ModelRead<'_>, words: &mut FileWords, known: &mut FactWords, ea
         binding: node(read, each.binding),
         scope: node(read, each.scope),
         phase: node(read, each.phase),
-        context: held_word(words, &mut known.fixed, context_word(each.context)),
-        certainty: held_word(words, &mut known.fixed, NameText(certainty)),
+        context: fixed_word(words, &mut known.fixed, context_word(each.context)),
+        certainty: fixed_word(words, &mut known.fixed, NameText(certainty)),
         file: read.file,
         span: span_at(read, each.at),
     }
@@ -160,19 +167,23 @@ pub(crate) fn binding_use_rows<V: ModelView>(
     file: &mut V,
     words: &mut FileWords,
     rows: &mut dyn Rows<BindingUseRow>,
-) -> Fill {
-    let Some(read) = flow_read(file, rows) else {
-        return Fill::Written(FillExtent::Asked);
+) {
+    let Some(read) = flow_read(file, ModelPart::Flow, rows) else {
+        return;
     };
     let mut known = read.model.words.borrow_mut();
     for each in &read.model.flow.uses {
         rows.write(use_row(read, words, &mut known, each));
     }
-    Fill::Written(FillExtent::Asked)
 }
 
 /// The row of one binding that shadows an earlier definition of its name.
-fn shadow_row(read: ModelRead<'_>, words: &mut FileWords, known: &mut FactWords, each: &FlowShadow) -> BindingShadowRow {
+pub(crate) fn shadow_row(
+    read: ModelRead<'_>,
+    words: &mut FileWords,
+    known: &mut FactWords,
+    each: &FlowShadow,
+) -> BindingShadowRow {
     let relationship = match each.form {
         ShadowForm::Lexical => vocabulary::LEXICAL,
         ShadowForm::Replacement => vocabulary::REPLACEMENT,
@@ -183,7 +194,7 @@ fn shadow_row(read: ModelRead<'_>, words: &mut FileWords, known: &mut FactWords,
         scope: node(read, each.scope),
         previous_scope: node(read, each.previous_scope),
         phase: node(read, each.phase),
-        relationship: held_word(words, &mut known.fixed, NameText(relationship)),
+        relationship: fixed_word(words, &mut known.fixed, NameText(relationship)),
         file: read.file,
     }
 }
@@ -193,22 +204,12 @@ pub(crate) fn binding_shadow_rows<V: ModelView>(
     file: &mut V,
     words: &mut FileWords,
     rows: &mut dyn Rows<BindingShadowRow>,
-) -> Fill {
-    let Some(read) = flow_read(file, rows) else {
-        return Fill::Written(FillExtent::Asked);
+) {
+    let Some(read) = flow_read(file, ModelPart::Flow, rows) else {
+        return;
     };
     let mut known = read.model.words.borrow_mut();
     for each in &read.model.flow.shadows {
         rows.write(shadow_row(read, words, &mut known, each));
     }
-    Fill::Written(FillExtent::Asked)
-}
-
-/// Writes nothing: which event answers a read is the rule pack's selection over the events, the reads and the scopes.
-pub(crate) fn binding_resolution_rows<V: ModelView>(
-    _file: &mut V,
-    _words: &mut FileWords,
-    _rows: &mut dyn Rows<BindingResolutionRow>,
-) -> Fill {
-    Fill::Absent(AbsenceCause::NotYetRead)
 }

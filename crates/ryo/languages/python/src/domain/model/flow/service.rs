@@ -3,7 +3,8 @@
 //! shadows. It states what the language does; it selects nothing.
 
 use super::types::{
-    FlowContext, FlowEvent, FlowEventKind, FlowModel, FlowRead, FlowShadow, FlowState, FlowUse, OpenBranch, ShadowForm, UseForm,
+    FlowContext, FlowEvent, FlowEventKind, FlowModel, FlowRead, FlowShadow, FlowState, FlowUse, KeyPlace, OpenBranch,
+    ShadowForm, UseForm,
 };
 use crate::domain::model::definitions::service::definition_of;
 use crate::domain::model::frames::service::{self as frames, assign, delete, join, lookup, open, wildcard};
@@ -264,4 +265,33 @@ pub(crate) fn build(model: &mut FlowModel, source: FlowSource<'_, '_, '_>) {
         }
     }
     model.state = FlowState::Complete;
+}
+
+/// Lists the reads by the name each reads, in evaluation order under one name: one sort of the reads, made once for a file.
+pub(crate) fn list_reads(model: &mut FlowModel) {
+    model.reads_by_name.clear();
+    model
+        .reads_by_name
+        .extend(model.reads.iter().enumerate().map(|(at, read)| KeyPlace { key: read.name, at: Count(at) }));
+    model.reads_by_name.sort_unstable();
+}
+
+/// Lists the shadows by the binding of each, in evaluation order under one binding: one sort of the shadows, made once for a
+/// file.
+pub(crate) fn list_shadows(model: &mut FlowModel) {
+    model.shadows_by_binding.clear();
+    model
+        .shadows_by_binding
+        .extend(model.shadows.iter().enumerate().map(|(at, shadow)| KeyPlace { key: shadow.binding, at: Count(at) }));
+    model.shadows_by_binding.sort_unstable();
+}
+
+/// The places, among the reads or the shadows, of the entries of a list by key that hold `key`, in evaluation order.
+pub(crate) fn listed<K: Copy + Ord>(list: &[KeyPlace<K>], key: K) -> impl Iterator<Item = Count> + '_ {
+    let from = list.partition_point(|each| each.key < key);
+    list.get(from..)
+        .unwrap_or_default()
+        .iter()
+        .take_while(move |each| each.key == key)
+        .map(|each| each.at)
 }

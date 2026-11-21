@@ -18,7 +18,8 @@ use crate::domain::format_syntax::types::{
 use crate::domain::format_syntax::types::{FormatDialect, FormatInput};
 use crate::domain::literal_facts::service::string_value;
 use crate::domain::literal_facts::types::{StringValue, TextBuffer};
-use crate::domain::node::service::{fixed, node_cell, nodes_of_kind, span_at, word};
+use crate::domain::model::names::service::fixed_word;
+use crate::domain::node::service::{node_cell, nodes_of_kind, span_at, word};
 use crate::domain::node::types::{Numbered, SyntaxFile};
 use crate::domain::{
     model::types::Declarations, nodes::types::Node, semantic_syntax::types::Visibility,
@@ -224,7 +225,7 @@ ryo::fills! {
     FormatParseItem => languages::FormatParse, walk(PythonWalk) |file, words, rows| {
         /// One row of the relation.
         type Row = <languages::FormatParse as languages::CatalogRelation>::Row;
-        let memo = &mut file.buffers.fixed;
+        let memo = &mut file.model.words.get_mut().fixed;
         let syntax = file.syntax;
         let mut whole = read_whole(&syntax);
         parsed_strings(&syntax, &mut file.buffers.text, &mut |id, parsed, unknown| {
@@ -240,10 +241,10 @@ ryo::fills! {
             }
             rows.write(Row {
                 id: node_cell(&syntax, id),
-                dialect: fixed(words, memo, languages::NameText(PERCENT_STRING)),
-                representation: fixed(words, memo, languages::NameText(DECODED_PERCENT_STRING)),
-                outcome: fixed(words, memo, summary.outcome),
-                error_category: fixed(words, memo, error.category),
+                dialect: fixed_word(words, memo, languages::NameText(PERCENT_STRING)),
+                representation: fixed_word(words, memo, languages::NameText(DECODED_PERCENT_STRING)),
+                outcome: fixed_word(words, memo, summary.outcome),
+                error_category: fixed_word(words, memo, error.category),
                 error_character: word(words, languages::NameText(character)),
                 error_index: error.index,
                 positional_consumption: languages::Integer(
@@ -267,7 +268,7 @@ ryo::fills! {
     FormatFieldItem => languages::FormatField, walk(PythonWalk) |file, words, rows| {
         /// One row of the relation.
         type Row = <languages::FormatField as languages::CatalogRelation>::Row;
-        let memo = &mut file.buffers.fixed;
+        let memo = &mut file.model.words.get_mut().fixed;
         let syntax = file.syntax;
         let mut whole = read_whole(&syntax);
         parsed_strings(&syntax, &mut file.buffers.text, &mut |id, parsed, _unknown| {
@@ -283,11 +284,11 @@ ryo::fills! {
                 rows.write(Row {
                     id: node_cell(&syntax, id),
                     ordinal: languages::Integer(i64::try_from(field.ordinal.0).unwrap_or(i64::MAX)),
-                    argument_kind: fixed(words, memo, argument_kind(&field.argument)),
+                    argument_kind: fixed_word(words, memo, argument_kind(&field.argument)),
                     mapping_key: word(words, mapping_key(&field.argument)),
                     conversion: word(words, languages::NameText(conversion)),
-                    width_mode: fixed(words, memo, quantity_mode(field.width)),
-                    precision_mode: fixed(words, memo, quantity_mode(field.precision)),
+                    width_mode: fixed_word(words, memo, quantity_mode(field.width)),
+                    precision_mode: fixed_word(words, memo, quantity_mode(field.precision)),
                     file: syntax.file,
                     span: span_at(&syntax, id),
                 });
