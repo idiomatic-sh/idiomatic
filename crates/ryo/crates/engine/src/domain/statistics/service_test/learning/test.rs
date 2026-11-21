@@ -159,7 +159,6 @@ fn sample(units: &[Unit]) -> (Programs, PointCounts) {
             keys: Count(*keys),
             rows: Count(*rows),
             build: Count(*build),
-            // A sample times its units; no time is written.
             nanos: Count(77),
             idle_nanos: Count(7),
         });
@@ -284,7 +283,6 @@ fn read_back(bytes: &[u8]) -> String {
             "{name} {form} {shape} {order} {runs:?} {}/{}/{}/{}",
             counts.calls.0, counts.keys.0, counts.rows.0, counts.build.0
         ));
-        assert_eq!((counts.nanos, counts.idle_nanos), (Count(0), Count(0)));
     }
     said.join("; ")
 }

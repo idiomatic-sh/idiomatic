@@ -2,9 +2,9 @@
 //! that says they are statistics, the version of the engine that wrote them, the stage of the sample that wrote them)
 //! come the units: their count, then each unit as its name (what it is, its node's digest, a pattern's bound and
 //! collected columns or a table's fill code), its form, its shape, its order, what it was asked and gave (uses, keys,
-//! rows, a table's build), and the runs of each of its plan points. Every number is eight bytes, the low byte first. A
-//! header alone is the statistics of a sample that measured no unit. No time is written: the same sample of the same
-//! rules writes the same bytes. Bytes that are not exactly this are no statistics.
+//! rows, a table's build, and its own time and idle time, which no rule here reads), and the runs of each of its plan
+//! points. Every number is eight bytes, the low byte first. A
+//! header alone is the statistics of a sample that measured no unit. Bytes that are not exactly this are no statistics.
 
 use crate::domain::code::types::{FillCode, MeasuredForm, ShapeChoice, UnitKey};
 use crate::domain::packs::constants::ENGINE_VERSION;
@@ -89,7 +89,14 @@ fn unit_written(bytes: &mut EncodedStatistics, unit: &MeasuredUnit) {
         number_written(bytes, chosen);
     }
     let counts = unit.counts;
-    for count in [counts.calls, counts.keys, counts.rows, counts.build] {
+    for count in [
+        counts.calls,
+        counts.keys,
+        counts.rows,
+        counts.build,
+        counts.nanos,
+        counts.idle_nanos,
+    ] {
         number_written(bytes, count);
     }
     number_written(bytes, Count(unit.points.len()));
@@ -205,8 +212,8 @@ fn unit_read(bytes: StatisticsBytes<'_>, at: &mut Count) -> Option<MeasuredUnit>
         keys: number_read(bytes, at)?,
         rows: number_read(bytes, at)?,
         build: number_read(bytes, at)?,
-        nanos: Count(0),
-        idle_nanos: Count(0),
+        nanos: number_read(bytes, at)?,
+        idle_nanos: number_read(bytes, at)?,
     };
     Some(MeasuredUnit {
         key,

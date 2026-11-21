@@ -9,7 +9,7 @@ use crate::domain::code::types::{FillCode, MeasuredForm, ShapeChoice, UnitKey, W
 use crate::domain::lowered::service::fill_code;
 use crate::domain::lowered::types::MadeFill;
 use crate::domain::statistics::constants::{ORDER_SHARE, ORDER_STEPS};
-use crate::domain::statistics::types::{Measured, MeasuredUnit, OrderVerdict, UnitCounts};
+use crate::domain::statistics::types::{Measured, MeasuredUnit, OrderVerdict};
 use ryo_relations::domain::relations::types::Count;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
 
@@ -30,7 +30,7 @@ pub(crate) fn unit_work(unit: &MeasuredUnit) -> Count {
 }
 
 /// Each unit of the programs a sample ran, with what the sample counted of it, in the form it ran in; sorted by name, a
-/// name two units bear kept once (they are one program, lowered from one node). No time is kept.
+/// name two units bear kept once (they are one program, lowered from one node).
 #[must_use]
 pub(crate) fn sampled(sample: Measured<'_>) -> Vec<MeasuredUnit> {
     let (code, counts) = (&sample.programs.0.code, &sample.counts.0);
@@ -53,11 +53,7 @@ pub(crate) fn sampled(sample: Measured<'_>) -> Vec<MeasuredUnit> {
                 shape: unit.shape,
                 order: OrderVerdict::Learned,
                 points,
-                counts: UnitCounts {
-                    nanos: Count(0),
-                    idle_nanos: Count(0),
-                    ..counted
-                },
+                counts: counted,
             }
         })
         .collect();
