@@ -7,18 +7,20 @@ use crate::domain::code::types::{CodeEntry, RelationNumber};
 use crate::domain::filled::errors::FilledError;
 use crate::domain::filled::service::whole;
 use crate::domain::filled::types::{FillRuns, MissingCode, RelationAsk, UnbuiltFill};
-use crate::domain::made_tables::built::service::runs;
 use crate::domain::indexes::service::state_of;
 use crate::domain::indexes::types::IndexBuilt;
+use crate::domain::made_tables::built::service::runs;
+use crate::domain::made_tables::built::types::FillPart;
 use crate::domain::made_tables::carrying::service::stage_reach;
 use crate::domain::made_tables::fanning::service::scan_read;
 use crate::domain::made_tables::fills::service::{
-    constant_rows, fill_at, fill_code_at, grouped_rows, input_at,
+    constant_rows, file_laid, fill_at, fill_code_at, grouped_rows, input_at,
 };
 use crate::domain::made_tables::fills::types::{FillInputs, FillKind, TableFill};
 use crate::domain::made_tables::indexing::service::index_built;
 use crate::domain::made_tables::matching::service::match_rows;
 use crate::domain::made_tables::matching::types::MatchSide;
+use crate::domain::made_tables::operands::service::file_cell;
 use crate::domain::made_tables::pipelines::service::piped;
 use crate::domain::made_tables::reading::service::{
     pipeline_words, relation_at, site_at, site_source,
@@ -28,8 +30,8 @@ use crate::domain::made_tables::staging::service::WRONG_WORD;
 use crate::domain::made_tables::staging::types::BatchFrame;
 use crate::domain::made_tables::types::PipeRun;
 use crate::domain::made_tables::types::{
-    FillFrame, FillKept, FillPart, FillWork, MadeNow, MadeState, PatternRows, Reached,
-    ReadSource, SourceWork, TableNeed, TableRows, TableSlot,
+    FillFrame, FillKept, FillWork, MadeNow, MadeState, PatternRows, Reached, ReadSource,
+    SourceWork, TableNeed, TableRows, TableSlot,
 };
 use crate::domain::steps::types::MadeTableId;
 use ryo_relations::domain::relations::types::Count;
@@ -190,6 +192,24 @@ fn input_piped(
     Ok(())
 }
 
+/// Lays the columns of the emptied table an input's pipelines write into, with the store's room.
+fn laid(
+    frame: &mut FillFrame<'_>,
+    input: FillInputs<'_>,
+    into: &mut TableRows,
+) -> Result<(), FilledError> {
+    let mut writes = std::mem::take(&mut frame.store.writes);
+    let done = file_laid(
+        frame.programs.code,
+        file_cell(frame.file),
+        input,
+        &mut writes,
+        into,
+    );
+    frame.store.writes = writes;
+    done
+}
+
 /// How many cells a row of an input's pipelines has: what its first pipeline's write writes.
 fn input_width(frame: &FillFrame<'_>, input: FillInputs<'_>) -> Result<Count, FilledError> {
     let Some(entry) = input.entries.first() else {
@@ -214,6 +234,7 @@ fn filled_now(
         FillKind::Constant => constant_rows(programs.code, fill, rows),
         FillKind::Rows => {
             let input = input_at(programs.code, fill.inputs)?;
+            laid(frame, input, rows)?;
             input_piped(frame, uses, table, input, rows, kept)
         }
         FillKind::Match => {
@@ -240,6 +261,7 @@ fn filled_now(
                 if piped.is_ok() {
                     piped = input_width(frame, input).and_then(|width| {
                         clear_rows(into, width);
+                        laid(frame, input, into)?;
                         input_piped(
                             frame,
                             uses,
@@ -285,17 +307,19 @@ fn filled_now(
             let input = input_at(programs.code, fill.inputs)?;
             let mut gathered = frame.store.inputs.pop().unwrap_or_default();
             clear_rows(&mut gathered, input_width(frame, input)?);
-            let piped = input_piped(
-                frame,
-                uses,
-                table,
-                input,
-                &mut gathered,
-                FillKept {
-                    work: &mut *work,
-                    reached,
-                },
-            );
+            let piped = laid(frame, input, &mut gathered).and_then(|()| {
+                input_piped(
+                    frame,
+                    uses,
+                    table,
+                    input,
+                    &mut gathered,
+                    FillKept {
+                        work: &mut *work,
+                        reached,
+                    },
+                )
+            });
             let mut room = std::mem::take(&mut frame.store.room);
             let done =
                 piped.and_then(|()| grouped_rows(fill, &gathered, input, &mut room, rows, work));

@@ -3,6 +3,7 @@
 pub(crate) mod built;
 pub mod calling;
 pub mod carrying;
+pub(crate) mod columns;
 pub mod constants;
 pub mod fanning;
 pub mod fills;

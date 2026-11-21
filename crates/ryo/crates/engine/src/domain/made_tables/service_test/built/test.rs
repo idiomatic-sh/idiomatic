@@ -7,13 +7,13 @@ use crate::domain::filled::errors::FilledError;
 use crate::domain::filled::types::FillRuns;
 use crate::domain::lowered::types::{FillInput, GroupFill, MadeFill, MadeTable, OrderedFill};
 use crate::domain::made_tables::built::service::runs;
+use crate::domain::made_tables::built::types::FillPart;
 use crate::domain::made_tables::carrying::service::stage_kind;
 use crate::domain::made_tables::fills::service::fill_code_at;
 use crate::domain::made_tables::fixtures::packs::{
     FIRST, SECOND, coded, constants, keep_equal, node_read, of, operands, pipeline, probe, read,
     rows, scan, scan_nodes, table, walk, word,
 };
-use crate::domain::made_tables::types::FillPart;
 use crate::domain::steps::stages::types::{FillStage, TreeWalk, UseMode};
 use crate::domain::steps::types::{
     CallMeaning, ColumnList, MadeColumn, MadeTableId, Register, RegisterList, TestOperation,

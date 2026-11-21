@@ -7,7 +7,8 @@ use self::tables::{PRODUCT_LEFT, bench_table, bench_text, called, told_rows, tre
 use crate::domain::code::types::RelationNumber;
 use crate::domain::filled::errors::FilledError;
 use crate::domain::made_tables::fixtures::packs::FILE;
-use crate::domain::made_tables::fixtures::{Telling, World, framed, node_site, site_of, world_of};
+use crate::domain::made_tables::fixtures::sites::{node_site, site_of};
+use crate::domain::made_tables::fixtures::{Telling, World, framed, world_of};
 use crate::domain::made_tables::sources::service::{made, matched, next_file, scanned, table_of};
 use crate::domain::made_tables::types::{
     FillFrame, KeyFrom, MadeState, PatternAsk, PatternFound, PatternRows, ReadSource, TableNeed,
@@ -27,7 +28,7 @@ pub(crate) mod tables;
 /// ```
 /// use ryo_engine::domain::made_tables::fixtures::benches::FILL_BENCHES;
 ///
-/// assert_eq!(FILL_BENCHES.len(), 20);
+/// assert_eq!(FILL_BENCHES.len(), 22);
 /// ```
 pub const FILL_BENCHES: &[FillBench] = &[
     FillBench::RowsRead,
@@ -47,6 +48,8 @@ pub const FILL_BENCHES: &[FillBench] = &[
     FillBench::OrderedMatch,
     FillBench::GroupEnds,
     FillBench::Product,
+    FillBench::RowsFile,
+    FillBench::RowsFileDropped,
     FillBench::IndexNodesKind,
     FillBench::IndexNodesParent,
     FillBench::IndexNodesId,
@@ -82,6 +85,8 @@ pub const fn fill_name(bench: FillBench) -> &'static str {
         FillBench::OrderedMatch => "ordered_match",
         FillBench::GroupEnds => "group_ends",
         FillBench::Product => "product_pairs",
+        FillBench::RowsFile => "rows_with_the_file",
+        FillBench::RowsFileDropped => "rows_with_the_file_repeats_dropped",
         FillBench::IndexNodesKind => "index_nodes_by_kind",
         FillBench::IndexNodesParent => "index_nodes_by_parent",
         FillBench::IndexNodesId => "index_nodes_by_id",
@@ -128,6 +133,8 @@ pub const fn fill_units(bench: FillBench, rows: usize) -> usize {
         | FillBench::CallSourceMatches
         | FillBench::OrderedMatch
         | FillBench::GroupEnds
+        | FillBench::RowsFile
+        | FillBench::RowsFileDropped
         | FillBench::IndexNodesKind
         | FillBench::IndexNodesParent
         | FillBench::IndexNodesId => rows,
@@ -215,6 +222,8 @@ pub fn fill_workload(bench: FillBench, rows: usize) -> Option<FillWorkload> {
         | FillBench::UseRows
         | FillBench::OrderedMatch
         | FillBench::GroupEnds
+        | FillBench::RowsFile
+        | FillBench::RowsFileDropped
         | FillBench::Product => true,
         FillBench::WalkChildren
         | FillBench::WalkAncestors
@@ -300,6 +309,8 @@ pub fn run_fill(work: &mut FillWorkload) -> usize {
         | FillBench::CallSourceMatches
         | FillBench::OrderedMatch
         | FillBench::GroupEnds
+        | FillBench::RowsFile
+        | FillBench::RowsFileDropped
         | FillBench::Product => None,
     };
     if let Some(key) = asked {

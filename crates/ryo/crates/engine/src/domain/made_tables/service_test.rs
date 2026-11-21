@@ -166,6 +166,7 @@ fn refuses() {
 
 mod built;
 mod calls;
+mod file_columns;
 mod fills;
 mod matches;
 mod node_indexes;

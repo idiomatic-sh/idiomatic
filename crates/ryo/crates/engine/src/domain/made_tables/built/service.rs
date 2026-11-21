@@ -9,11 +9,12 @@ use crate::domain::code::filling::service::{
 use crate::domain::code::small_codes::service::{comparison_of, meaning_of};
 use crate::domain::code::types::{IndexSite, ProgramCode};
 use crate::domain::filled::types::FillRuns;
+use crate::domain::made_tables::built::types::FillPart;
 use crate::domain::made_tables::carrying::service::stage_kind;
 use crate::domain::made_tables::fills::service::kind_of;
 use crate::domain::made_tables::pipelines::types::StageKind;
 use crate::domain::made_tables::reading::service::{latest_site, site_at, site_source, source_of};
-use crate::domain::made_tables::types::{FillPart, ReadSource};
+use crate::domain::made_tables::types::ReadSource;
 use crate::domain::stages::calling::service::call_runs;
 use crate::domain::stages::testing::service::test_runs;
 

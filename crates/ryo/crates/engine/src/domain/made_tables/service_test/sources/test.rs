@@ -10,7 +10,8 @@ use crate::domain::filled::types::MissingCode;
 use crate::domain::made_tables::fixtures::packs::{FIRST, TOLD};
 use crate::domain::made_tables::fixtures::packs::{constants, of, pipeline, rows, scan_made};
 use crate::domain::made_tables::fixtures::reads::{asked, held, prober, told_of};
-use crate::domain::made_tables::fixtures::{Telling, World, framed, shown, site_of, world_with};
+use crate::domain::made_tables::fixtures::sites::site_of;
+use crate::domain::made_tables::fixtures::{Telling, World, framed, shown, world_with};
 use crate::domain::made_tables::reading::service::{index_at, rows_at};
 use crate::domain::made_tables::sources::service::{
     cell_of, handle_of, made, matched, next_file, relation_rows, table_of,

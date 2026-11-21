@@ -13,6 +13,7 @@ use crate::domain::filled::types::{FillRuns, UnbuiltFill};
 use crate::domain::indexes::reading::service::rows_of;
 use crate::domain::indexes::types::ColumnView;
 use crate::domain::made_tables::built::service::runs;
+use crate::domain::made_tables::built::types::FillPart;
 use crate::domain::made_tables::calling::service::call_asked;
 use crate::domain::made_tables::carrying::service::{carried, stage_kind};
 use crate::domain::made_tables::constants::BATCH_ROWS;
@@ -25,7 +26,7 @@ use crate::domain::made_tables::staging::service::{
 };
 use crate::domain::made_tables::staging::types::{BatchFrame, KeepScratch};
 use crate::domain::made_tables::types::PipeRun;
-use crate::domain::made_tables::types::{FillFrame, FillPart, PatternRows};
+use crate::domain::made_tables::types::{FillFrame, PatternRows};
 use crate::domain::made_tables::using::service::use_asked;
 use crate::domain::stages::service::{compact, gather, read, scan, scan_bucket};
 use crate::domain::stages::types::{Batches, FanCursor, HandleRun, KeptWhen};
