@@ -4,8 +4,9 @@ use crate::domain::lowering::definitions::types::RowEstimate;
 use crate::domain::lowering::flattening::types::FlatVariable;
 use crate::domain::steps::stages::types::UseMode;
 use crate::domain::steps::types::{
-    AnchorKinds, AxisDirection, ColumnMask, DefinitionId, MadeColumn, MadeTableId, MatchColumns,
-    ReadColumn, Register, RegisterList, StepOperand, StepOperands, StepRows, TestOperation,
+    AnchorKinds, AxisDirection, CallMeaning, ColumnMask, DefinitionId, MadeColumn, MadeTableId,
+    MatchColumns, ReadColumn, Register, RegisterList, StepOperand, StepOperands, StepRows,
+    TestOperation,
 };
 use ryo_relations::domain::relations::types::{Count, Relation};
 use ryo_values::domain::plan_orders::types::OrderBound;
@@ -138,6 +139,26 @@ pub(crate) enum WrittenAccess {
         start: Register,
         /// The ancestor reached.
         out: Register,
+    },
+    /// Each element reached over one or more edges of a definition from a seed: a program's only.
+    Closure {
+        /// The use of the edges' definition that gives the next elements of the one in `from`.
+        edges: EdgeUse,
+        /// Where the element whose edges are asked is written.
+        from: Register,
+        /// The element walked from.
+        seed: Register,
+        /// The element reached.
+        out: Register,
+    },
+    /// A per-row meaning of the operators crate.
+    Call {
+        /// The meaning.
+        meaning: CallMeaning,
+        /// What it reads.
+        arguments: StepOperands,
+        /// Where what it gives goes.
+        outputs: RegisterList,
     },
     /// A register takes a value: a program's only.
     Let {
@@ -345,4 +366,26 @@ pub(crate) struct PatternColumns<'a> {
     pub(crate) bound: &'a ColumnMask,
     /// The columns a row gives back.
     pub(crate) collected: &'a ColumnMask,
+}
+
+/// A use of a definition by key, as a walk's body: the columns bound and their cells, and the columns a row gives back.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct EdgeUse {
+    /// The definition.
+    pub(crate) definition: DefinitionId,
+    /// The columns bound, ascending.
+    pub(crate) bound: ColumnMask,
+    /// The columns collected.
+    pub(crate) collected: ColumnMask,
+    /// The cells of the bound columns.
+    pub(crate) values: StepOperands,
+}
+
+/// One bound column of a use, with its cell.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct BoundCell {
+    /// The column.
+    pub(crate) column: MadeColumn,
+    /// Its cell.
+    pub(crate) value: StepOperand,
 }

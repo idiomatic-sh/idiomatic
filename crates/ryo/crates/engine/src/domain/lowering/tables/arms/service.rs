@@ -11,11 +11,14 @@ use crate::domain::lowering::flattening::service::picked;
 use crate::domain::lowering::flattening::types::RowColumn;
 use crate::domain::lowering::nodes::service::digest_of;
 use crate::domain::lowering::nodes::types::StepReach;
+use crate::domain::lowering::tables::calls::service::call_arm;
 use crate::domain::lowering::tables::fills::service::{
     as_of_arm, group_bound_arm, group_count_arm,
 };
 use crate::domain::lowering::tables::inputs::service::{all_selected, input, rule, term};
-use crate::domain::lowering::tables::joins::service::{antijoin_arm, axis_arm, join_arm};
+use crate::domain::lowering::tables::joins::service::{
+    antijoin_arm, axis_arm, closure_arm, join_arm,
+};
 use crate::domain::lowering::tables::service::test_of;
 use crate::domain::lowering::tables::types::{InputWant, RuleFlattening};
 use crate::domain::steps::types::ConstantText;
@@ -116,6 +119,10 @@ fn arm(
         Operation::GroupBound { .. } => group_bound_arm(state, drafts, step, operation),
         Operation::AsOf { .. } => as_of_arm(state, drafts, step, operation),
         Operation::Axis { .. } => axis_arm(state, drafts, operation),
+        Operation::Closure { .. } => closure_arm(state, drafts, operation),
+        Operation::Replace { .. } | Operation::SpanBounds { .. } => {
+            call_arm(state, drafts, operation)
+        }
         // What is left to lower, each by name: `tables::service::shaped` refuses a rule that holds one.
         Operation::Intersection { .. }
         | Operation::Difference { .. }
@@ -123,10 +130,8 @@ fn arm(
         | Operation::GroupOrdinal { .. }
         | Operation::Capture { .. }
         | Operation::Rank { .. }
-        | Operation::Replace { .. }
         | Operation::Words { .. }
         | Operation::OrderedMatch { .. }
-        | Operation::Closure { .. }
         | Operation::Follow { .. }
         | Operation::OrderedDfs { .. }
         | Operation::Worklist { .. }
@@ -136,8 +141,7 @@ fn arm(
         | Operation::SpanBetween { .. }
         | Operation::SourceMatches { .. }
         | Operation::RenderSyntax { .. }
-        | Operation::FitsRendered { .. }
-        | Operation::SpanBounds { .. } => None,
+        | Operation::FitsRendered { .. } => None,
     }
 }
 

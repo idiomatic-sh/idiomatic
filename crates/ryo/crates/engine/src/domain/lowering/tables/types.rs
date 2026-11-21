@@ -1,10 +1,12 @@
 //! The types of the `tables` part: what the flattening of one rule holds, and how a step asks for an input.
 
 use crate::domain::lowering::definitions::types::Flattened;
-use crate::domain::lowering::flattening::types::RowColumn;
+use crate::domain::lowering::flattening::types::{FlatTerm, RowColumn};
 use crate::domain::lowering::nodes::types::{AcceptedPlace, AdmittedRule, NodeStore};
+use crate::domain::steps::types::CallMeaning;
 use ryo_relations::domain::relations::types::Count;
 use ryo_values::domain::descriptions::types::KindVocabulary;
+use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 /// The flattening of one rule: the pack's rules and store, the rule's place, and each of its steps flattened so far. A step's
 /// flattening is taken by its one reader, or becomes a definition.
@@ -77,4 +79,18 @@ pub(crate) struct TableOf {
     pub(crate) home: crate::domain::lowering::nodes::types::NodeHome,
     /// Its emptiness.
     pub(crate) emptiness: crate::domain::lowered::types::Emptiness,
+}
+
+/// An operation as one per-row meaning: the meaning, the columns of its input it reads, the constants it reads after them,
+/// and how many cells it gives.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct OperationCall<'a> {
+    /// The meaning.
+    pub(crate) meaning: CallMeaning,
+    /// The columns read, in the order the operation's fields are declared.
+    pub(crate) reads: &'a [ColumnIndex],
+    /// The constants read after them.
+    pub(crate) constants: &'a [FlatTerm],
+    /// How many cells the meaning gives.
+    pub(crate) gives: Count,
 }

@@ -2,7 +2,7 @@
 //! the unit the planning orders and the two emitters write: steps for a program, stages for a table's pipeline.
 
 use crate::domain::steps::types::{
-    AxisDirection, DefinitionId, MadeColumn, MadeTableId, Polarity, TestOperation,
+    AxisDirection, CallMeaning, DefinitionId, MadeColumn, MadeTableId, Polarity, TestOperation,
 };
 use ryo_relations::domain::relations::types::{Integer, Relation};
 use ryo_values::domain::plan_orders::types::OrderBound;
@@ -106,6 +106,26 @@ pub(crate) enum FlatAtom {
         /// The ancestor reached.
         reached: FlatTerm,
     },
+    /// One element reached from another over one or more edges of a definition: the `closure` operation.
+    Closure {
+        /// The edges.
+        edges: EdgeColumns,
+        /// The cells of the edges' key columns, in the keys' order: the graph the walk stays in.
+        keys: Vec<FlatTerm>,
+        /// The element walked from.
+        source: FlatTerm,
+        /// The element reached.
+        reached: FlatTerm,
+    },
+    /// A per-row meaning of the operators crate: it reads its arguments and gives its outputs, or gives no row.
+    Called {
+        /// The meaning.
+        meaning: CallMeaning,
+        /// What it reads.
+        arguments: Vec<FlatTerm>,
+        /// What it gives.
+        outputs: Vec<FlatTerm>,
+    },
     /// A test of two terms.
     Test {
         /// The comparison.
@@ -137,4 +157,17 @@ pub(crate) struct EqualTerms {
     pub(crate) left: FlatTerm,
     /// The other.
     pub(crate) right: FlatTerm,
+}
+
+/// The edges a closure walks: a definition, and which of its columns hold an edge's keys, its source and its destination.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct EdgeColumns {
+    /// The definition of the edges.
+    pub(crate) definition: DefinitionId,
+    /// The key columns, the file's left out: an edge is walked within one value of them.
+    pub(crate) keys: Vec<MadeColumn>,
+    /// The source column.
+    pub(crate) source: MadeColumn,
+    /// The destination column.
+    pub(crate) destination: MadeColumn,
 }

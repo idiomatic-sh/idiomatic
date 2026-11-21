@@ -288,6 +288,34 @@ fn shaped(
                 shape
             })
         }
+        Operation::Closure {
+            edges,
+            keys,
+            source,
+            destination,
+        } => {
+            // A closure over a relation's own rows (edges that are no step) is not lowered yet: its edges are a definition.
+            let read = match edges {
+                Input::Step(_) => of(edges)?,
+                Input::Relation(_) | Input::BoundObservation(_) => return None,
+            };
+            let mut shape = picked(&read, keys)?;
+            shape.0.extend(picked(&read, &[*source, *destination])?.0);
+            Some(shape)
+        }
+        // The per-row meanings lowered: each appends what the meaning gives to the rows it reads.
+        Operation::Replace { from, text, .. } => {
+            let mut shape = of(from)?;
+            let _read = picked(&shape, &[*text])?;
+            shape.0.push(CellKind::Symbol);
+            Some(shape)
+        }
+        Operation::SpanBounds { from, span } => {
+            let mut shape = of(from)?;
+            let _read = picked(&shape, &[*span])?;
+            shape.0.extend([CellKind::Number, CellKind::Number]);
+            Some(shape)
+        }
         // What is left to lower, each by name: no arm stands for the rest.
         Operation::Intersection { .. }
         | Operation::Difference { .. }
@@ -295,10 +323,8 @@ fn shaped(
         | Operation::GroupOrdinal { .. }
         | Operation::Capture { .. }
         | Operation::Rank { .. }
-        | Operation::Replace { .. }
         | Operation::Words { .. }
         | Operation::OrderedMatch { .. }
-        | Operation::Closure { .. }
         | Operation::Follow { .. }
         | Operation::OrderedDfs { .. }
         | Operation::Worklist { .. }
@@ -308,8 +334,7 @@ fn shaped(
         | Operation::SpanBetween { .. }
         | Operation::SourceMatches { .. }
         | Operation::RenderSyntax { .. }
-        | Operation::FitsRendered { .. }
-        | Operation::SpanBounds { .. } => None,
+        | Operation::FitsRendered { .. } => None,
     }
 }
 

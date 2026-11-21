@@ -2,6 +2,7 @@
 //! its branches, and the made tables of the operations that make one, each filled by pipelines of stages.
 
 pub(crate) mod arms;
+pub(crate) mod calls;
 pub(crate) mod fills;
 pub(crate) mod inputs;
 pub(crate) mod joins;

@@ -270,17 +270,20 @@ pub(crate) fn sized(state: &RuleFlattening<'_>, drafts: &Drafts, read: Input) ->
     }
 }
 
-/// How a step is asked for whatever its reader wants: a nearest axis is always a definition, since a pipeline runs its walk
-/// through a pattern of the step's own definition.
+/// How a step is asked for whatever its reader wants: a nearest axis and a closure are always definitions, since a pipeline
+/// runs their walk through a pattern of the step's own definition.
 pub(crate) fn own_want(state: &RuleFlattening<'_>, step: StepId) -> InputWant {
     let operation = rule(state)
         .and_then(|rule| rule.rule.plan.steps.get(usize::from(step)))
         .map(|step| &step.operation);
     match operation {
-        Some(Operation::Axis {
-            direction: Direction::NearestAncestor,
-            ..
-        }) => InputWant::Defined,
+        Some(
+            Operation::Axis {
+                direction: Direction::NearestAncestor,
+                ..
+            }
+            | Operation::Closure { .. },
+        ) => InputWant::Defined,
         Some(_) | None => InputWant::Inline,
     }
 }

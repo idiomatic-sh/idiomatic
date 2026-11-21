@@ -128,6 +128,39 @@ fn operation_scene(scene: &str) -> Option<Plan> {
                 destination: at(1),
             }),
         ]),
+        // The sentence points to each of its words: every element reached from an element over those edges.
+        "closure of the sentence's edges" => plan(vec![
+            words(),
+            step(Operation::Project {
+                from: words_of,
+                columns: vec![at(0), at(1)],
+                distinct: RepeatedRows::Dropped,
+            }),
+            step(Operation::Closure {
+                edges: Input::Step(StepId(1)),
+                keys: Vec::new(),
+                source: at(0),
+                destination: at(1),
+            }),
+        ]),
+        // Each word with its text, every `a` of it replaced by `b`.
+        "the words' texts replaced" => plan(vec![
+            words(),
+            step(Operation::Replace {
+                from: words_of,
+                text: at(3),
+                pattern: LiteralText("a".into()),
+                replacement: LiteralText("b".into()),
+            }),
+        ]),
+        // Each element with where its span starts and ends.
+        "the elements' span bounds" => plan(vec![
+            kept(Input::Relation(Relation::SyntaxTree)),
+            step(Operation::SpanBounds {
+                from: words_of,
+                span: at(4),
+            }),
+        ]),
         // Two rows written in the query: made once for the run, after the files, so the scan of a file finds none of them.
         "written rows" => plan(vec![PlanStep {
             operation: Operation::Rows {
