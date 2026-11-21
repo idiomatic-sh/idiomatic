@@ -249,13 +249,43 @@ fn keyed_pins(state: &OrderCompletion<'_>, atom: &FlatAtom) -> (Vec<FlatVariable
         return (Vec::new(), false);
     }
     let keys = choice.cells.iter();
-    let pins = keys
+    let mut pins: Vec<FlatVariable> = keys
         .filter(|cell| states.get(cell.0) == Some(&CellState::Constant))
         .filter_map(|cell| match cells.get(cell.0) {
             Some(FlatTerm::Variable(variable)) => Some(*variable),
             Some(FlatTerm::Text(_) | FlatTerm::Number(_) | FlatTerm::File) | None => None,
         })
         .collect();
+    // A parent's children are sized in the field they are held to (`costing::node_access`): the test that pins the field
+    // holds in that size already, and keeps no further share of them.
+    if let AtomRows::Relation(relation) = rows
+        && fact_form(*relation) == FactForm::NodeTable
+        && choice.class == CostClass::Fanout
+    {
+        let listed = columns(*relation);
+        let named = |place: usize, wanted: NodeColumn| {
+            listed.get(place).copied().and_then(node_column) == Some(wanted)
+        };
+        if choice
+            .cells
+            .iter()
+            .any(|cell| named(cell.0, NodeColumn::Parent))
+        {
+            let fields = cells.iter().enumerate().filter_map(|(place, cell)| {
+                let held = states.get(place) == Some(&CellState::Constant);
+                match cell {
+                    FlatTerm::Variable(variable) if held && named(place, NodeColumn::Field) => {
+                        Some(*variable)
+                    }
+                    FlatTerm::Variable(_)
+                    | FlatTerm::Text(_)
+                    | FlatTerm::Number(_)
+                    | FlatTerm::File => None,
+                }
+            });
+            pins.extend(fields);
+        }
+    }
     let rowless = matches!(rows, AtomRows::Definition(_))
         && choice.class == CostClass::Fanout
         && state.role == UnitRole::Pipeline;
