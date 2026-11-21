@@ -285,8 +285,9 @@ pub(crate) struct FileSource<'a, 'f, W: Fillers> {
 /// through `fill_arm`; a `NodeTable` relation has none and is refused.
 macro_rules! file_source_answers {
     ( $( $group:ident { $( $variant:ident $module:ident $row:ident $column:ident ; )* } )* ) => {
-        impl<W: Fillers> FactSource for FileSource<'_, '_, W> {
-            fn fill(
+        impl<W: Fillers> FileSource<'_, '_, W> {
+            /// The fill of a relation by the language's filler of it.
+            fn answered(
                 &mut self,
                 relation: Relation,
                 wanted: Wanted,
@@ -296,6 +297,26 @@ macro_rules! file_source_answers {
                 let file = &mut *self.file;
                 $( $( ::ryo_relations::$module!($crate::fill_arm, $module, W, file, relation, wanted, words, out); )* )*
                 FactAnswer::Refused(AbsenceCause::NoSuchConstruct)
+            }
+        }
+
+        impl<W: Fillers> FactSource for FileSource<'_, '_, W> {
+            fn fill(
+                &mut self,
+                relation: Relation,
+                wanted: Wanted,
+                words: &mut FileWords,
+                out: &mut FilledColumns,
+            ) -> FactAnswer {
+                // SPIKE: under RYO_X_FILLS each fill is counted (`fillers::service::fill_counted`); else nothing is read.
+                let Some(begun) = $crate::domain::fillers::service::fill_begun() else {
+                    return self.answered(relation, wanted, words, out);
+                };
+                let held = out.0.first().map_or(0, |column| column.0.len());
+                let answer = self.answered(relation, wanted, words, out);
+                let rows = out.0.first().map_or(0, |column| column.0.len()).saturating_sub(held);
+                $crate::domain::fillers::service::fill_counted(relation, wanted, rows, begun);
+                answer
             }
 
             fn render(&mut self, request: RenderRequest) -> RenderOutcome {

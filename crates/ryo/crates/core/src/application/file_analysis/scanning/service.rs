@@ -290,6 +290,7 @@ impl FileAnalysis {
                 path: SourcePath(&entry.path.0),
                 file: number,
                 source: ByteSlice(&state.bytes.0),
+                executable: entry.executable,
             },
             &mut state.rows,
             &mut state.noticed,

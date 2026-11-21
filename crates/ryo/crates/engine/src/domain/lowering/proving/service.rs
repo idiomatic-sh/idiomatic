@@ -1,14 +1,19 @@
 //! The services of the `proving` part: the check of a lowered pack against the invariant of scope-engine3 2.5 part 3, by the
 //! contract's own class functions. A fault is the lowering's own: the rule it belongs to is refused, never run.
 
-use super::types::{HeldPrograms, ProductStated, ProgramStanding, ProofFault, ProvedUnit, Unproved, WholeRead};
+use super::types::{
+    HeldPrograms, ProductStated, ProgramStanding, ProofFault, ProvedUnit, Unproved, WholeRead,
+};
 use crate::domain::lowered::service::fill_pipelines;
 use crate::domain::lowered::types::{LoweredPack, PatternForm};
 use crate::domain::lowering::nodes::types::AcceptedPlace;
 use crate::domain::lowering::types::PastWidth;
 use crate::domain::steps::service::{stage_class, step_class};
 use crate::domain::steps::stages::types::{FillStage, Pipeline};
-use crate::domain::steps::types::{CostClass, DefinitionId, MadeTableId, NearestEdges, ProgramStep, StepBody, StepOperand, StepProgram, StepRows};
+use crate::domain::steps::types::{
+    CostClass, DefinitionId, MadeTableId, NearestEdges, ProgramStep, StepBody, StepOperand,
+    StepProgram, StepRows,
+};
 use ryo_relations::domain::relations::types::Count;
 
 /// Holds a count to the sixteen bits a word's operands are counted in.
