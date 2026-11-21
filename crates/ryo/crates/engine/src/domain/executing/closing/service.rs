@@ -19,7 +19,7 @@ use ryo_relations::domain::relations::types::Count;
 
 /// Keeps, of the cells staged from `fresh` on, each element not met before and not the seed, in place and in order;
 /// answers how many cells were staged there.
-fn kept_new(
+pub(crate) fn kept_new(
     state: &mut LoopState,
     seen: &mut hashbrown::HashSet<CellWord>,
     seed: CellWord,
