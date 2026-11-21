@@ -11,6 +11,7 @@ use crate::domain::steps::types::MadeTableId;
 use ryo_language::domain::facts::types::{CellWord, FactSource, FileWords};
 use ryo_language::domain::node_table::types::NodeTable;
 use ryo_language::domain::symbols::types::ByteSlice;
+use ryo_operators::domain::patterns::types::PatternMatcher;
 use ryo_relations::domain::relations::types::{Count, FileId, Integer, NodeExtent};
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
@@ -226,6 +227,8 @@ pub(crate) struct FillFrame<'a> {
     pub(crate) words: &'a mut FileWords,
     /// The fill side's state for the file.
     pub(crate) store: &'a mut FillStore,
+    /// What a test of a text is asked of: the operators crate's matcher.
+    pub(crate) matcher: PatternMatcher<'a>,
 }
 
 impl std::fmt::Debug for FillFrame<'_> {

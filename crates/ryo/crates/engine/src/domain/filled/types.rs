@@ -120,6 +120,8 @@ pub(crate) enum MissingCode {
     Word,
     /// A column of a source.
     Column,
+    /// A regular expression: one the code does not hold, or one that does not compile.
+    Regex,
 }
 
 /// What a language answered when it did not write a relation's rows.

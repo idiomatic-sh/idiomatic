@@ -2,7 +2,7 @@
 //! keep some rows. Each reads its word through the code's readers once for the batch, then calls the one loop of its kind
 //! in `stages`; none makes a table, fills a relation, builds an index or runs a step program.
 
-use super::types::BatchFrame;
+use super::types::{BatchFrame, KeepScratch};
 use crate::domain::code::constants::{
     LEFT_CONSTANT, MODE, PROBE_HIGH_INCLUSIVE, PROBE_LOW_INCLUSIVE, PROBE_MANY, PROBE_RANGE,
     REPEATS_DROPPED, RIGHT_CONSTANT, RIGHT_SET,
@@ -29,7 +29,7 @@ use crate::domain::stages::ranging::service::probe_keep_between;
 use crate::domain::stages::service::{cell_test, keep, keep_in, probe_keep, read};
 use crate::domain::stages::testing::service::keep_text;
 use crate::domain::stages::types::{
-    BatchKey, BatchValue, KeptWhen, KeyPart, KeyRange, NodeNames, TextTest,
+    BatchKey, BatchValue, KeptWhen, KeyPart, KeyRange, NodeNames, TextMeans, TextTest,
 };
 use crate::domain::steps::stages::types::UseMode;
 use crate::domain::steps::types::{BoundKind, Register, TestOperation};
@@ -119,8 +119,13 @@ pub(crate) fn keep_stage(
     words: &FileWords,
     word: CodeWord,
     level: &mut BatchLevel,
-    set: &mut Vec<CellWord>,
+    scratch: KeepScratch<'_>,
 ) -> Result<(), FilledError> {
+    let KeepScratch {
+        set,
+        compiled,
+        matcher,
+    } = scratch;
     let stage = stage_keep_of(word);
     let code = &frame.programs.code;
     let test = comparison_of(stage.comparison, stage.regex).ok_or(WRONG_WORD)?;
@@ -174,7 +179,11 @@ pub(crate) fn keep_stage(
             | TestOperation::Successor,
             right,
         ) => keep_text(
-            &frame.programs.regexes,
+            TextMeans {
+                matcher,
+                regexes: &frame.programs.regexes,
+                compiled,
+            },
             words,
             TextTest {
                 test,

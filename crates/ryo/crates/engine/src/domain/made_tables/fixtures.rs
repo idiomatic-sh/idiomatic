@@ -11,7 +11,7 @@ use crate::domain::made_tables::types::{
     FillFrame, FillStore, PatternAsk, PatternFound, PatternRows, TableNeed,
 };
 use crate::domain::programs::types::ProgramsEngine;
-use crate::domain::steps::types::MadeTableId;
+use crate::domain::steps::types::{MadeTableId, StepRegex};
 use ryo_language::domain::facts::service::{base_words, file_words};
 use ryo_language::domain::facts::types::{
     CellWord, FactAnswer, FactSource, FileWords, FillExtent, FilledColumn, FilledColumns,
@@ -21,8 +21,11 @@ use ryo_language::domain::fixed_names::service::checked;
 use ryo_language::domain::node_table::types::NodeTable;
 use ryo_language::domain::semantics::types::{RenderOutcome, RenderRequest};
 use ryo_language::domain::symbols::types::ByteSlice;
+use ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl;
+use ryo_operators::domain::patterns::types::PatternMatcher;
 use ryo_relations::domain::answers::types::AbsenceCause;
 use ryo_relations::domain::relations::types::{Count, Missing, Relation};
+use ryo_relations::domain::terms::types::NameText;
 
 pub mod packs;
 pub mod reads;
@@ -188,6 +191,7 @@ pub(crate) fn world_with(
             code,
             kinds: [0_u64, 11, 12, 13].map(CellWord).to_vec(),
             fields: [0_u64, 0, 0, 0, 24].map(CellWord).to_vec(),
+            regexes: vec![StepRegex("^[ac]".into())],
             ..ProgramsEngine::default()
         },
         nodes: packs::nodes(),
@@ -195,7 +199,7 @@ pub(crate) fn world_with(
             checked(&[]).map_err(|_| FilledError::Code {
                 named: crate::domain::filled::types::MissingCode::Word,
             })?,
-            &[],
+            &[NameText("a*"), NameText("?d"), NameText("ef")],
         )),
         store,
         told: Told {
@@ -229,6 +233,7 @@ pub(crate) fn framed(world: &mut World) -> (FillFrame<'_>, &mut Looped) {
             facts: told,
             words,
             store,
+            matcher: PatternMatcher(&MatchingUseCaseImpl),
         },
         looped,
     )

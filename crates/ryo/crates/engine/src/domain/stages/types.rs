@@ -2,9 +2,11 @@
 //! its pipeline holds; a loop reads slices and writes vectors, and runs no step program. Crate-private.
 
 use crate::domain::indexes::types::ColumnView;
-use crate::domain::steps::types::{BoundKind, TestOperation};
+use crate::domain::steps::types::{BoundKind, StepRegex, TestOperation};
 use ryo_language::domain::facts::types::CellWord;
 use ryo_language::domain::symbols::types::ByteSlice;
+use ryo_operators::domain::patterns::types::PatternMatcher;
+use ryo_operators::domain::table_scratch::types::Patterns;
 use ryo_relations::domain::relations::types::{Count, FileId};
 
 /// A row of a batch, by its number.
@@ -147,6 +149,18 @@ pub(crate) struct NodeNames<'a> {
     pub(crate) text: ByteSlice<'a>,
     /// The file.
     pub(crate) file: FileId,
+}
+
+/// What a test of a text is decided with besides the file's words: the operators crate's matcher, the sources of the
+/// rule set's regular expressions by number, and the expressions compiled so far.
+#[derive(Debug)]
+pub(crate) struct TextMeans<'a> {
+    /// The matcher.
+    pub(crate) matcher: PatternMatcher<'a>,
+    /// The sources of the regular expressions, by number.
+    pub(crate) regexes: &'a [StepRegex],
+    /// The expressions compiled so far, by source.
+    pub(crate) compiled: &'a mut Patterns,
 }
 
 /// A test of a text over a batch: the test, its left value, and its right: a value, or the cells of a set.

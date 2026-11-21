@@ -25,7 +25,7 @@ use crate::domain::made_tables::reading::service::{
 use crate::domain::made_tables::staging::service::{
     WRONG_WORD, keep_stage, mode, probe_keep_stage, read_stage, write_stage,
 };
-use crate::domain::made_tables::staging::types::BatchFrame;
+use crate::domain::made_tables::staging::types::{BatchFrame, KeepScratch};
 use crate::domain::made_tables::types::{FillFrame, PatternRows};
 use crate::domain::made_tables::types::{PipeRun, ScanRead};
 use crate::domain::made_tables::using::service::use_asked;
@@ -230,7 +230,11 @@ fn staged(
                     frame.words,
                     word,
                     level,
-                    &mut run.room.set,
+                    KeepScratch {
+                        set: &mut run.room.set,
+                        compiled: &mut run.room.compiled,
+                        matcher: frame.matcher,
+                    },
                 )?;
                 true
             }

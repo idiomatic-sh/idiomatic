@@ -5,12 +5,15 @@ use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::filled::errors::FilledError;
 use crate::domain::lowered::types::{MadeFill, MadeTable};
 use crate::domain::made_tables::fixtures::packs::{
-    definition, keep_equal, node_read, of, pipeline, rows, scan_nodes, table, walk,
+    definition, keep_equal, node_read, of, pipeline, rows, scan_nodes, table, walk, word,
 };
 use crate::domain::made_tables::fixtures::{Telling, framed, shown, world_with};
 use crate::domain::made_tables::sources::service::{made, table_of};
 use crate::domain::steps::stages::types::{FillStage, TreeWalk};
-use crate::domain::steps::types::{AxisDirection, MadeTableId, StepOperand};
+use crate::domain::steps::types::{
+    AxisDirection, MadeTableId, RegexId, StepOperand, TestOperation,
+};
+use ryo_language::domain::facts::types::CellWord;
 use ryo_language::domain::node_table::types::FieldCode;
 use ryo_relations::domain::relations::types::{NodeColumn, Relation};
 use ryo_values::domain::plan_parts::types::RepeatedRows;
@@ -33,6 +36,12 @@ enum Staged {
     ReadNode,
     /// A scan of the file's own tree.
     ScanOwn,
+    /// A keep of the tokens whose text a regular expression finds a match in.
+    KeepMatches,
+    /// A keep of the tokens whose text matches one constant glob.
+    KeepGlob,
+    /// A keep of the tokens whose text matches none of a set of globs.
+    KeepNotGlob,
 }
 
 type Input = Staged;
@@ -87,7 +96,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Staged::ReadNode,
         expect: Expect::Value(Cow::Borrowed(
-            "30064771076 30064771073 0 0 0 2 2 7 1; 30064771077 30064771074 0 0 3 5 12884901893 7 2; 30064771078 30064771075 0 0 6 8 25769803784 7 3 | read 51 given 43 made 3",
+            "30064771076 30064771073 0 0 0 2 2 7 4; 30064771077 30064771074 0 0 3 5 12884901893 7 5; 30064771078 30064771075 0 0 6 8 25769803784 7 3 | read 51 given 43 made 3",
         )),
     },
     Case {
@@ -97,6 +106,26 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Cow::Borrowed(
             "own: 30064771072 11; 30064771073 12; 30064771074 12; 30064771075 12; 30064771076 13; 30064771077 13; 30064771078 13 | all: 30064771072 11; 30064771073 12; 30064771074 12; 30064771075 12; 30064771076 13; 30064771077 13; 30064771078 13; 30064771079 12 | read 24 given 16 made 8",
         )),
+    },
+    Case {
+        name: CaseName("a_keep_of_a_regular_expression_holds_the_texts_it_finds_a_match_in"),
+        word: Word::Succeeds,
+        input: || Staged::KeepMatches,
+        expect: Expect::Value(Cow::Borrowed(
+            "30064771076 4; 30064771077 5 | read 32 given 24 made 2",
+        )),
+    },
+    Case {
+        name: CaseName("a_keep_of_a_glob_holds_the_texts_that_match_it"),
+        word: Word::Succeeds,
+        input: || Staged::KeepGlob,
+        expect: Expect::Value(Cow::Borrowed("30064771076 4 | read 31 given 23 made 1")),
+    },
+    Case {
+        name: CaseName("a_keep_of_globs_negated_holds_the_texts_none_matches"),
+        word: Word::Succeeds,
+        input: || Staged::KeepNotGlob,
+        expect: Expect::Value(Cow::Borrowed("30064771078 3 | read 31 given 23 made 1")),
     },
 ];
 
@@ -179,6 +208,29 @@ fn tables(staged: Staged) -> Vec<MadeTable> {
                     RepeatedRows::Kept,
                 ),
             )]
+        }
+        Staged::KeepMatches | Staged::KeepGlob | Staged::KeepNotGlob => {
+            let mut all = Vec::from(scan_nodes(tree));
+            all.push(keep_equal(1, 13));
+            all.push(node_read(tree, NodeColumn::Text, 0, 2));
+            all.push(match staged {
+                Staged::KeepMatches => FillStage::Keep {
+                    test: TestOperation::Matches(RegexId(0)),
+                    left: of(2),
+                    right: of(2),
+                },
+                Staged::KeepGlob => FillStage::Keep {
+                    test: TestOperation::Glob,
+                    left: of(2),
+                    right: word(1),
+                },
+                _ => FillStage::Keep {
+                    test: TestOperation::NotGlob,
+                    left: of(2),
+                    right: StepOperand::Words(Box::new([CellWord(1), CellWord(2)])),
+                },
+            });
+            vec![rows(2, pipeline(all, [of(0), of(2)]))]
         }
         Staged::ScanOwn => vec![
             rows(

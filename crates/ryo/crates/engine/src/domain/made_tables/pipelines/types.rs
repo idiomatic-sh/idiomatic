@@ -6,6 +6,7 @@ use crate::domain::indexes::types::{IndexArena, RowRun};
 use crate::domain::stages::types::{BatchRow, FanRows, RowKept};
 use crate::domain::steps::types::Register;
 use ryo_language::domain::facts::types::CellWord;
+use ryo_operators::domain::table_scratch::types::Patterns;
 use ryo_relations::domain::relations::types::Count;
 
 /// One batch of a pipeline at one depth: a column for each register, how many rows they hold, and what the stage that
@@ -46,6 +47,8 @@ pub(crate) struct PipelineRoom {
     pub(crate) grouping: IndexArena,
     /// What each stage of the pipeline reads and writes.
     pub(crate) touched: Vec<StageRegisters>,
+    /// The regular expressions a `Keep` compiled, by source: kept between files.
+    pub(crate) compiled: Patterns,
 }
 
 /// The registers one stage reads and the registers it writes.
