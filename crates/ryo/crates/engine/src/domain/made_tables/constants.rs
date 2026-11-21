@@ -1,6 +1,6 @@
 //! The constants of the `made_tables` concept.
 
-use crate::domain::indexes::types::HashShift;
+use ryo_relations::domain::relations::types::Count;
 
-/// How far a row's hash is folded onto itself before the map of the rows held reads its low bits.
-pub(crate) const HASH_FOLD: HashShift = HashShift(32);
+/// How many rows a batch holds: what a pipeline's stages read and write at a time.
+pub(crate) const BATCH_ROWS: Count = Count(4096);

@@ -2,14 +2,16 @@
 //! slices and writes vectors; none runs a step program, reads a clock or counts a row: its caller adds a batch's rows to the
 //! work once, after the loop.
 
-use super::types::{BatchKey, BatchRow, BatchValue, Batches, CellTest, FanRows, KeptWhen, RowKept};
+use super::types::{
+    BatchKey, BatchRow, BatchValue, Batches, CellTest, FanRows, HandleRun, KeptWhen, RowKept,
+};
 use crate::domain::indexes::reading::service::{cell_at, rows_of, run_of};
 use crate::domain::indexes::types::{ColumnView, IndexRead, SourceRow};
+use crate::domain::steps::types::TestOperation;
 use ryo_language::domain::facts::types::CellWord;
 use ryo_operators::domain::ordered_groups::service::nearest;
 use ryo_operators::domain::ordered_groups::types::GroupOrders;
 use ryo_relations::domain::relations::types::{Count, Integer};
-use crate::domain::steps::types::TestOperation;
 use ryo_values::domain::plan_orders::types::OrderBound;
 
 /// A row's number as the handle a batch holds of it.
@@ -26,25 +28,25 @@ pub(crate) fn row_of(named: CellWord) -> Count {
 
 /// A row of a batch as a selection holds it.
 #[inline]
-fn selected_row(row: Count) -> BatchRow {
+pub(crate) fn selected_row(row: Count) -> BatchRow {
     BatchRow(u32::try_from(row.0).unwrap_or(u32::MAX))
 }
 
-/// `Scan` over a whole source: the handles of the rows `first..end`.
-pub(crate) fn scan(first: Count, end: Count, out: &mut Vec<CellWord>) {
+/// `Scan` over a whole source: the handles of the rows of `run`.
+pub(crate) fn scan(run: HandleRun, out: &mut Vec<CellWord>) {
     out.clear();
-    out.extend((first.0..end.0).map(|row| handle(Count(row))));
+    out.extend((run.first.0..run.end.0).map(|row| CellWord(handle(Count(row)).0 | run.tag.0)));
 }
 
-/// `Scan` over one bucket of a source: the handles of an index's rows for one key.
-pub(crate) fn scan_bucket(rows: &[SourceRow], out: &mut Vec<CellWord>) {
+/// `Scan` over one bucket of a source: the handles of an index's rows for one key, each with the bits `tag` holds.
+pub(crate) fn scan_bucket(rows: &[SourceRow], tag: CellWord, out: &mut Vec<CellWord>) {
     out.clear();
-    out.extend(rows.iter().map(|row| CellWord(u64::from(row.0))));
+    out.extend(rows.iter().map(|row| CellWord(u64::from(row.0) | tag.0)));
 }
 
 /// Writes the row's cells of a key into their places.
 #[inline]
-fn keyed(key: &mut BatchKey<'_>, row: Count) {
+pub(crate) fn keyed(key: &mut BatchKey<'_>, row: Count) {
     for part in key.parts {
         if let Some(cell) = key.cells.get_mut(part.place.0)
             && let Some(value) = part.column.get(row.0)
@@ -57,10 +59,26 @@ fn keyed(key: &mut BatchKey<'_>, row: Count) {
 /// Gives the rows `found` of the row in the cursor is at, as far as the batch has room, and moves the cursor on. Answers
 /// whether the batch out is full or the row's rows did not all fit: the loop then stops.
 #[inline]
-fn fanned(found: impl ExactSizeIterator<Item = CellWord>, fan: &mut FanRows) -> Batches {
-    let left = found.len().saturating_sub(fan.cursor.within.0);
+pub(crate) fn fanned(found: impl ExactSizeIterator<Item = CellWord>, fan: &mut FanRows) -> Batches {
+    fanned_of(Count(found.len()), found, fan)
+}
+
+/// `fanned` for rows whose number is `all`: what a loop that counts its row's rows before it gives them calls.
+#[inline]
+pub(crate) fn fanned_of(
+    all: Count,
+    found: impl Iterator<Item = CellWord>,
+    fan: &mut FanRows,
+) -> Batches {
+    let left = all.0.saturating_sub(fan.cursor.within.0);
     let given = left.min(fan.limit.0.saturating_sub(fan.out.len()));
-    fan.out.extend(found.skip(fan.cursor.within.0).take(given));
+    let tag = fan.tag.0;
+    fan.out.extend(
+        found
+            .skip(fan.cursor.within.0)
+            .take(given)
+            .map(|cell| CellWord(cell.0 | tag)),
+    );
     fan.up
         .extend(std::iter::repeat_n(selected_row(fan.cursor.row), given));
     if given < left {
@@ -79,7 +97,7 @@ fn fanned(found: impl ExactSizeIterator<Item = CellWord>, fan: &mut FanRows) -> 
 
 /// Whether a loop that stopped has read every one of `rows` rows in.
 #[inline]
-fn read_all(fan: &FanRows, rows: Count) -> Batches {
+pub(crate) fn read_all(fan: &FanRows, rows: Count) -> Batches {
     if fan.cursor.row.0 >= rows.0 {
         Batches::Done
     } else {
@@ -129,11 +147,11 @@ pub(crate) fn probe_keep(
     keep.truncate(count);
 }
 
-/// `Product`: for each of the batch's `rows` rows, from the cursor on, every row of a source of `source` rows. Stops when
-/// the batch out is full; answers whether every row in was read.
-pub(crate) fn product(rows: Count, source: Count, fan: &mut FanRows) -> Batches {
+/// `Product`: for each of the batch's `rows` rows, from the cursor on, every row of a source, from its row `first` to
+/// before its row `end`. Stops when the batch out is full; answers whether every row in was read.
+pub(crate) fn product(rows: Count, first: Count, end: Count, fan: &mut FanRows) -> Batches {
     while fan.cursor.row.0 < rows.0 {
-        if fanned((0..source.0).map(|row| handle(Count(row))), fan) == Batches::More {
+        if fanned((first.0..end.0).map(|row| handle(Count(row))), fan) == Batches::More {
             break;
         }
     }
@@ -216,7 +234,11 @@ pub(crate) fn read(view: ColumnView<'_>, handles: &[CellWord], out: &mut Vec<Cel
 
 /// The rows for which `tests` says yes, as a selection: one store and one add per row, no branch.
 #[inline]
-fn selected(rows: Count, keep: &mut Vec<BatchRow>, tests: impl Iterator<Item = RowKept>) {
+pub(crate) fn selected(
+    rows: Count,
+    keep: &mut Vec<BatchRow>,
+    tests: impl Iterator<Item = RowKept>,
+) {
     keep.clear();
     keep.resize(rows.0, BatchRow(0));
     let mut count = 0_usize;
@@ -262,7 +284,11 @@ fn compared(
 /// What a test that came out true or false says of a row.
 macro_rules! holds {
     ($test:expr) => {
-        if $test { RowKept::Yes } else { RowKept::No }
+        if $test {
+            $crate::domain::stages::types::RowKept::Yes
+        } else {
+            $crate::domain::stages::types::RowKept::No
+        }
     };
 }
 

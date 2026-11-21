@@ -2,26 +2,46 @@
 //! read through here: a made table is made on its first read and once, a relation is asked of the language whole or for
 //! one key, an index is built by the columns asked the first time it is read.
 
-use crate::domain::code::constants::{OWN_TREE, SOURCE};
-use crate::domain::code::types::{IndexSite, Short, WordFlag, WordSlot};
+use crate::domain::code::small_codes::service::node_column_of;
+use crate::domain::code::types::{IndexSite, RelationNumber, Short};
 use crate::domain::filled::errors::FilledError;
+use crate::domain::filled::service::rows_held;
 use crate::domain::filled::types::UnbuiltFill;
+use crate::domain::indexes::reading::service::{cell_at, run_of};
+use crate::domain::indexes::service::clear_indexes;
 use crate::domain::indexes::types::{RowRun, SourceRow};
-use crate::domain::made_tables::types::{
-    FillFrame, FillStore, KeyFrom, MadeNow, KeyRows, PatternRows, ReadSource, WholeRows, TableSlot,
+use crate::domain::made_tables::keyed::service::key_asked;
+use crate::domain::made_tables::making::service::{ensured, made_now};
+use crate::domain::made_tables::reading::service::{
+    index_at, node_names, rows_in, site_at, site_source, view_of,
 };
+use crate::domain::made_tables::types::{
+    FillFrame, FillStore, KeyAnswer, KeyFrom, KeyRows, MadeNow, PatternRows, Reached, ReadSource,
+    TableSlot, WholeRows,
+};
+use crate::domain::stages::nodes::service::{node_cell, node_tag};
+use crate::domain::stages::service::row_of;
 use crate::domain::steps::types::MadeTableId;
 use ryo_language::domain::facts::types::CellWord;
+use ryo_relations::domain::relations::types::Count;
+
+/// The cell of a node column whose code names no column: no word and no number of any row.
+const NO_CELL: CellWord = CellWord(u64::MAX);
 
 /// Starts a file: every relation, index and table of the file before is unset, its buffers kept.
 pub(crate) fn next_file(store: &mut FillStore) {
-    store.stamp.0 = store.stamp.0.wrapping_add(1);
+    store.stamp.0 = store.stamp.0.wrapping_add(1).max(1);
+    clear_indexes(&mut store.indexes);
+    store.asked.clear();
+    store.asked_cells.clear();
 }
 
-/// The source a word names: its flag's source bits and own-tree bit, and the relation's or the table's number.
-pub(crate) const fn source_of(flag: WordFlag, read: WordSlot) -> ReadSource {
-    let _unbuilt = (flag.0 & SOURCE.0, flag.0 & OWN_TREE.0);
-    ReadSource::Made(MadeTableId(read.0))
+/// The bits every handle of a source's rows carries besides the row's number.
+fn tag_of(frame: &FillFrame<'_>, source: ReadSource) -> CellWord {
+    match source {
+        ReadSource::Nodes(_) => node_tag(frame.file),
+        ReadSource::Filled(_) | ReadSource::Made(_) | ReadSource::Written(_) => CellWord(0),
+    }
 }
 
 /// Makes `table` for the file if no read of the file made it: runs its fill once, its pipelines over batches, asking
@@ -38,11 +58,7 @@ pub(crate) fn made(
     uses: &mut dyn PatternRows,
     table: MadeTableId,
 ) -> Result<MadeNow, FilledError> {
-    let _unbuilt = (frame.store.stamp, table);
-    let _held: Option<&mut dyn PatternRows> = Some(uses);
-    Err(FilledError::Unbuilt {
-        unbuilt: UnbuiltFill::Written,
-    })
+    made_now(frame, uses, table)
 }
 
 /// A table's slot: its rows, its work, what it reached; nothing before `made`.
@@ -50,6 +66,22 @@ pub(crate) fn table_of(store: &FillStore, table: MadeTableId) -> Option<&TableSl
     store
         .tables
         .get(usize::try_from(table.0).unwrap_or(usize::MAX))
+        .filter(|slot| slot.stamp == store.stamp)
+}
+
+/// How many rows of a relation the file holds: every row the language wrote for it so far.
+pub(crate) fn relation_rows(store: &FillStore, relation: RelationNumber) -> Count {
+    rows_held(&store.relations, relation, store.stamp)
+}
+
+/// How many rows the index of a site holds for the file: nought before it is built.
+pub(crate) fn index_rows(store: &FillStore, site: IndexSite) -> Count {
+    store
+        .indexes
+        .slots
+        .get(usize::try_from(site.0).unwrap_or(usize::MAX))
+        .filter(|slot| slot.stamp == store.stamp)
+        .map_or(Count(0), |slot| slot.count)
 }
 
 /// The rows of the site's source whose key columns hold `key`. Over a made table, made first, and over the node table: the
@@ -66,16 +98,32 @@ pub(crate) fn matched(
     key: &[CellWord],
     from: KeyFrom,
 ) -> Result<KeyRows, FilledError> {
-    let _unbuilt = (frame.store.stamp, site, key, from);
-    let _held: Option<&mut dyn PatternRows> = Some(uses);
-    Err(FilledError::Unbuilt {
-        unbuilt: UnbuiltFill::Written,
+    let programs = frame.programs;
+    let source = site_source(&programs.code, site_at(&programs.code, site)?)?;
+    let mut filled = Count(0);
+    if let (ReadSource::Filled(number), KeyFrom::Row) = (source, from) {
+        match key_asked(frame, site, number, key)? {
+            KeyAnswer::Rows(rows) => return Ok(rows),
+            KeyAnswer::Whole(written) => filled = written,
+        }
+    }
+    let work = ensured(frame, uses, Reached::Index(site))?;
+    let run = run_of(index_at(frame.store, site), key);
+    let first = frame
+        .store
+        .indexes
+        .slots
+        .get(usize::try_from(site.0).unwrap_or(usize::MAX))
+        .map_or(0, |slot| slot.first.0);
+    Ok(KeyRows {
+        rows: RowRun {
+            start: Count(first.saturating_add(run.start.0)),
+            end: Count(first.saturating_add(run.end.0)),
+        },
+        tag: tag_of(frame, source),
+        filled: Count(filled.0.saturating_add(work.filled.0)),
+        indexed: work.indexed,
     })
-}
-
-/// The rows of a stretch `matched` answered: each a handle of its source.
-pub(crate) fn rows_at(store: &FillStore, run: RowRun) -> &[SourceRow] {
-    store.indexes.rows.get(run.start.0..run.end.0).unwrap_or(&[])
 }
 
 /// Every row of a source: a made table made first, a relation filled whole, the node table's elements of the extent.
@@ -88,10 +136,20 @@ pub(crate) fn scanned(
     uses: &mut dyn PatternRows,
     source: ReadSource,
 ) -> Result<WholeRows, FilledError> {
-    let _unbuilt = (frame.store.stamp, source);
-    let _held: Option<&mut dyn PatternRows> = Some(uses);
-    Err(FilledError::Unbuilt {
-        unbuilt: UnbuiltFill::Written,
+    let work = match source {
+        ReadSource::Nodes(_) => ensured(frame, uses, Reached::Nodes)?,
+        ReadSource::Filled(number) => ensured(frame, uses, Reached::Relation(number))?,
+        ReadSource::Made(table) => ensured(frame, uses, Reached::Table(table))?,
+        ReadSource::Written(_) => {
+            return Err(FilledError::Unbuilt {
+                unbuilt: UnbuiltFill::Written,
+            });
+        }
+    };
+    Ok(WholeRows {
+        rows: rows_in(frame.store, frame.nodes, source),
+        tag: tag_of(frame, source),
+        filled: work.filled,
     })
 }
 
@@ -103,6 +161,26 @@ pub(crate) fn cell_of(
     column: Short,
     row: CellWord,
 ) -> CellWord {
-    let _unbuilt = (frame.store.stamp, source, column);
-    row
+    match source {
+        ReadSource::Filled(_) | ReadSource::Made(_) => {
+            cell_at(view_of(frame.store, source, column), row_of(row))
+        }
+        ReadSource::Nodes(_) => match node_column_of(column) {
+            Some(named) => node_cell(
+                frame.nodes,
+                node_names(frame.programs, frame.text, frame.file),
+                frame.words,
+                named,
+                row,
+            ),
+            None => NO_CELL,
+        },
+        ReadSource::Written(_) => NO_CELL,
+    }
+}
+
+/// The handle of a row of a stretch: what a program binds for it.
+#[inline]
+pub(crate) fn handle_of(row: SourceRow, tag: CellWord) -> CellWord {
+    CellWord(u64::from(row.0) | tag.0)
 }

@@ -4,7 +4,9 @@
 use super::service::{
     compact, gather, keep, keep_in, latest, probe, probe_keep, product, read, scan,
 };
-use super::types::{BatchKey, BatchRow, BatchValue, Batches, CellTest, FanRows, KeptWhen, KeyPart};
+use super::types::{
+    BatchKey, BatchRow, BatchValue, Batches, CellTest, FanRows, HandleRun, KeptWhen, KeyPart,
+};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::code::types::IndexSite;
 use crate::domain::indexes::reading::service::read as index_of;
@@ -190,7 +192,14 @@ fn subject(asked: Input) -> Result<Value, Failure> {
     let mut column = Vec::new();
     Ok(Cow::Owned(match asked {
         Asked::Scan => {
-            scan(Count(2), Count(5), &mut column);
+            scan(
+                HandleRun {
+                    first: Count(2),
+                    end: Count(5),
+                    tag: CellWord(0),
+                },
+                &mut column,
+            );
             numbers(&column)
         }
         Asked::Probe => batches(2, |fan| {
@@ -208,7 +217,7 @@ fn subject(asked: Input) -> Result<Value, Failure> {
             probe_keep(index, probed, Count(probes.len()), kept, &mut selection);
             selection.iter().map(|row| u64::from(row.0)).collect()
         }
-        Asked::Product => batches(4, |fan| product(Count(2), Count(3), fan)),
+        Asked::Product => batches(4, |fan| product(Count(2), Count(0), Count(3), fan)),
         Asked::Latest(side) => {
             // A sorted table of two groups: key 5 at rows 0 to 2 with orders 1, 1, 4; key 6 at row 3 with order 2.
             let sorted = cells(&[5, 5, 5, 6]);
