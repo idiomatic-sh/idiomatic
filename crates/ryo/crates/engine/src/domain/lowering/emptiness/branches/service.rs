@@ -23,6 +23,13 @@ use std::collections::HashMap;
 /// kinds) is where a reader's constant decides most, leaving the one branch that holds it.
 const CARRIED: (usize, usize) = (4, 8);
 
+/// SPIKE: whether the branches a need is read off are printed (`RYO_X_NEED_BRANCHES`, read once): what a branch holds
+/// when its need is read, to see why a literal of the query is not in it.
+fn traced() -> bool {
+    static TRACED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *TRACED.get_or_init(|| std::env::var_os("RYO_X_NEED_BRANCHES").is_some())
+}
+
 /// The constant a cell is held to: its own, or the one an equality pins its variable to.
 fn held(pins: &HashMap<FlatVariable, FlatTerm>, cell: FlatTerm) -> Option<FlatTerm> {
     match cell {
@@ -99,6 +106,13 @@ fn definition_need(
         })
         .collect();
     let branches = draft(drafts, definition).map(|draft| &draft.branches);
+    if traced() {
+        eprintln!(
+            "ryo x: need-use definition={} depth={depth} constants={constants:?} cells={cells:?} branches={}",
+            definition.0,
+            branches.map_or(0, Vec::len)
+        );
+    }
     let Some(branches) = branches.filter(|_| !constants.is_empty() && depth < CARRIED.0) else {
         return Emptiness::Definition(definition);
     };
@@ -187,6 +201,12 @@ fn needed(
 /// What a file must hold for a branch to give a row, read off the branch.
 #[must_use]
 pub(crate) fn branch_need(drafts: &Drafts, branch: &FlatBranch) -> Emptiness {
+    if traced() {
+        eprintln!(
+            "ryo x: need-branch row={:?} atoms={:?}",
+            branch.row, branch.atoms
+        );
+    }
     needed(drafts, branch, &HashMap::new(), 0)
 }
 
