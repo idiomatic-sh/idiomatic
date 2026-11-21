@@ -102,7 +102,12 @@ fn programs(
 /// first ask of each site.
 pub(crate) fn node_needs(code: &ProgramCode) -> Vec<Option<NodeNeed>> {
     let branches = code.rules.iter().flat_map(|rule| rule.branches.iter().map(|branch| branch.need));
-    let sites: Vec<NeedSite> = branches.chain(code.tables.iter().map(|table| table.need)).collect();
+    // A branch or a table that waits on no decision names no site (a place past the needs).
+    let within = |site: &NeedSite| usize::try_from(site.0).is_ok_and(|place| place < code.needs.len());
+    let sites: Vec<NeedSite> = branches
+        .chain(code.tables.iter().map(|table| table.need))
+        .filter(within)
+        .collect();
     let last = sites.iter().map(|site| site.0).max().map_or(0, |last| last.saturating_add(1));
     let mut needs = vec![None; usize::try_from(last).unwrap_or(0)];
     for site in sites {
