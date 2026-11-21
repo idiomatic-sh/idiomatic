@@ -1,6 +1,7 @@
-//! `Test`: the candidate goes on when a comparison holds between two cells, or a cell is in a set of constants. A
-//! comparison of two cells is decided here; a comparison of texts (a pattern, a glob, a prefix) is the fill side's meaning
-//! and is not built yet: the candidate then ends and the word is counted.
+//! `Test`: the candidate goes on when a comparison holds between two cells, a cell is in a set of constants, or a test
+//! of a text holds (a regular expression, a glob). Each meaning is the one a `Keep` stage runs over a batch: the
+//! comparison of two cells is `stages::service::cells_hold`, a test of a text is `stages::testing::service::keep_text`
+//! for a batch of one row. A test of a text that kernel does not run yet ends the candidate and is counted.
 
 use super::super::interface::{Flow, InstructionsItem};
 use crate::domain::code::constants::{LEFT_CONSTANT, NEGATED, RIGHT_CONSTANT, RIGHT_SET};
@@ -13,9 +14,13 @@ use crate::domain::code::types::{CodeEntry, CodeWord, ConstantNumber, Op, PoolAt
 use crate::domain::findings::types::InstructionCount;
 use crate::domain::programs::frames::types::StepFrame;
 use crate::domain::programs::operands::service::{cell, constant, listed};
-use crate::domain::stages::types::CellTest;
+use crate::domain::scratch::types::LoopState;
+use crate::domain::stages::service::{cell_test, cells_hold};
+use crate::domain::stages::testing::service::keep_text;
+use crate::domain::stages::types::{BatchValue, CellTest, RowKept, TextMeans, TextTest};
 use crate::domain::steps::types::{Register, TestOperation};
 use ryo_language::domain::facts::types::CellWord;
+use ryo_relations::domain::relations::types::Count;
 
 /// The `Test` words.
 #[derive(Clone, Copy, Debug)]
@@ -32,42 +37,57 @@ pub(crate) enum Verdict {
     Unbuilt,
 }
 
-/// The comparison of two cells a test operation is, when it is one: what a `Keep` stage's loop takes too.
-pub(crate) const fn cell_test(test: TestOperation) -> Option<CellTest> {
-    match test {
-        TestOperation::Equal => Some(CellTest::Equal),
-        TestOperation::NotEqual => Some(CellTest::NotEqual),
-        TestOperation::Less => Some(CellTest::Less),
-        TestOperation::LessOrEqual => Some(CellTest::LessOrEqual),
-        TestOperation::Greater => Some(CellTest::Greater),
-        TestOperation::GreaterOrEqual => Some(CellTest::GreaterOrEqual),
-        TestOperation::In
-        | TestOperation::NotIn
-        | TestOperation::Matches(_)
-        | TestOperation::Glob
-        | TestOperation::NotGlob
-        | TestOperation::StartsWith
-        | TestOperation::EndsWith
-        | TestOperation::NumericAtLeast
-        | TestOperation::NaturalLess
-        | TestOperation::Successor => None,
+/// Whether a comparison of two cells holds: the one definition of each, which a `Keep` stage's loop runs over a batch.
+const fn compared(test: CellTest, left: CellWord, right: CellWord) -> Verdict {
+    match cells_hold(test, left, right) {
+        RowKept::Yes => Verdict::Holds,
+        RowKept::No => Verdict::Fails,
     }
 }
 
-/// Whether a comparison of two cells holds. An order is of whole numbers.
-const fn compared(test: CellTest, left: CellWord, right: CellWord) -> Verdict {
-    let holds = match test {
-        CellTest::Equal => left.0 == right.0,
-        CellTest::NotEqual => left.0 != right.0,
-        CellTest::Less => left.0.cast_signed() < right.0.cast_signed(),
-        CellTest::LessOrEqual => left.0.cast_signed() <= right.0.cast_signed(),
-        CellTest::Greater => left.0.cast_signed() > right.0.cast_signed(),
-        CellTest::GreaterOrEqual => left.0.cast_signed() >= right.0.cast_signed(),
-    };
-    if holds {
-        Verdict::Holds
-    } else {
-        Verdict::Fails
+/// What a test of a text says of one candidate: the cells are words of the file, and what the test holds for is the
+/// meaning a `Keep` stage runs over a batch, asked here for a batch of one row. The right side is one cell, or the
+/// constants of a set of the pool. A test of a text the kernel does not run is not run here either.
+fn text(
+    frame: &mut StepFrame<'_, '_>,
+    test: TestOperation,
+    left: CellWord,
+    right: Option<CellWord>,
+    set: Option<PoolAt>,
+) -> Verdict {
+    let code = frame.fill.programs.code;
+    let start = frame.state.key.len();
+    for number in set.map(|list| listed(&code.pool, list)).unwrap_or_default() {
+        let held = constant(frame, ConstantNumber(number.0));
+        frame.state.key.push(held);
+    }
+    let LoopState {
+        key,
+        patterns,
+        kept,
+        ..
+    } = &mut *frame.state;
+    let answer = keep_text(
+        TextMeans {
+            matcher: frame.fill.matcher,
+            regexes: frame.fill.programs.regexes,
+            compiled: patterns,
+        },
+        &*frame.fill.words,
+        TextTest {
+            test,
+            left: BatchValue::Constant(left),
+            right: right.map(BatchValue::Constant),
+            set: key.get(start..).unwrap_or_default(),
+        },
+        Count(1),
+        kept,
+    );
+    key.truncate(start);
+    match answer {
+        Ok(()) if kept.is_empty() => Verdict::Fails,
+        Ok(()) => Verdict::Holds,
+        Err(_) => Verdict::Unbuilt,
     }
 }
 
@@ -85,7 +105,7 @@ fn within(frame: &StepFrame<'_, '_>, value: CellWord, list: PoolAt, wanted: Verd
 }
 
 /// What a word of the general test says: both operands by its flag, the comparison by its code.
-fn general(frame: &StepFrame<'_, '_>, word: CodeWord) -> Verdict {
+fn general(frame: &mut StepFrame<'_, '_>, word: CodeWord) -> Verdict {
     let read = test_of(word);
     let left = if read.flag.0 & LEFT_CONSTANT.0 == 0 {
         cell(frame, Register(read.left.0))
@@ -96,9 +116,37 @@ fn general(frame: &StepFrame<'_, '_>, word: CodeWord) -> Verdict {
         return Verdict::Unbuilt;
     };
     if read.flag.0 & RIGHT_SET.0 != 0 {
+        let set = PoolAt(read.right.0);
         return match operation {
-            TestOperation::In => within(frame, left, PoolAt(read.right.0), Verdict::Holds),
-            TestOperation::NotIn => within(frame, left, PoolAt(read.right.0), Verdict::Fails),
+            TestOperation::In => within(frame, left, set, Verdict::Holds),
+            TestOperation::NotIn => within(frame, left, set, Verdict::Fails),
+            TestOperation::Glob | TestOperation::NotGlob => {
+                text(frame, operation, left, None, Some(set))
+            }
+            TestOperation::Equal
+            | TestOperation::NotEqual
+            | TestOperation::Less
+            | TestOperation::LessOrEqual
+            | TestOperation::Greater
+            | TestOperation::GreaterOrEqual
+            | TestOperation::Matches(_)
+            | TestOperation::StartsWith
+            | TestOperation::EndsWith
+            | TestOperation::NumericAtLeast
+            | TestOperation::NaturalLess
+            | TestOperation::Successor => Verdict::Unbuilt,
+        };
+    }
+    let right = if read.flag.0 & RIGHT_CONSTANT.0 == 0 {
+        cell(frame, Register(read.right.0))
+    } else {
+        constant(frame, ConstantNumber(read.right.0))
+    };
+    match (cell_test(operation), operation) {
+        (Some(cells), _) => compared(cells, left, right),
+        (None, TestOperation::In | TestOperation::NotIn) => Verdict::Unbuilt,
+        (
+            None,
             TestOperation::Equal
             | TestOperation::NotEqual
             | TestOperation::Less
@@ -112,17 +160,8 @@ fn general(frame: &StepFrame<'_, '_>, word: CodeWord) -> Verdict {
             | TestOperation::EndsWith
             | TestOperation::NumericAtLeast
             | TestOperation::NaturalLess
-            | TestOperation::Successor => Verdict::Unbuilt,
-        };
-    }
-    let right = if read.flag.0 & RIGHT_CONSTANT.0 == 0 {
-        cell(frame, Register(read.right.0))
-    } else {
-        constant(frame, ConstantNumber(read.right.0))
-    };
-    match cell_test(operation) {
-        Some(cells) => compared(cells, left, right),
-        None => Verdict::Unbuilt,
+            | TestOperation::Successor,
+        ) => text(frame, operation, left, Some(right), None),
     }
 }
 

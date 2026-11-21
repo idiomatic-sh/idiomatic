@@ -4,6 +4,7 @@
 //! work once, when the program ends.
 
 use super::bodies::service::exists;
+use super::ordered::service::latest;
 use super::sources::service::{keyed, whole};
 use super::staging::service::staged;
 use super::walks::service::{axis, nearest};
@@ -22,6 +23,7 @@ use crate::domain::programs::collections::instructions::emit::item::Emit;
 use crate::domain::programs::collections::instructions::exists::item::Exists;
 use crate::domain::programs::collections::instructions::fork::item::Fork;
 use crate::domain::programs::collections::instructions::interface::{Flow, InstructionsItem};
+use crate::domain::programs::collections::instructions::latest::item::Latest;
 use crate::domain::programs::collections::instructions::let_value::item::LetValue;
 use crate::domain::programs::collections::instructions::nearest::item::Nearest;
 use crate::domain::programs::collections::instructions::or::item::Or;
@@ -104,6 +106,10 @@ fn step(frame: &mut StepFrame<'_, '_>, word: CodeWord, at: CodeEntry, mode: RunM
             nearest(frame, word);
             Nearest::run(frame, word, at)
         }
+        Op::Latest => {
+            latest(frame, word);
+            Latest::run(frame, word, at)
+        }
         Op::Yield => {
             if mode == RunMode::Collect {
                 YieldRow::run(frame, word, at)
@@ -120,7 +126,6 @@ fn step(frame: &mut StepFrame<'_, '_>, word: CodeWord, at: CodeEntry, mode: RunM
         | Op::Closure
         | Op::Call
         | Op::Render
-        | Op::Latest
         | Op::StageScan
         | Op::StageProbe
         | Op::StageLatest
@@ -151,6 +156,7 @@ fn next(frame: &mut StepFrame<'_, '_>, cursor: &mut IterationCursor) -> Option<C
         Op::Or => Or::next(frame, word, cursor),
         Op::Fork => Fork::next(frame, word, cursor),
         Op::Axis => Axis::next(frame, word, cursor),
+        Op::Latest => Latest::next(frame, word, cursor),
         Op::End
         | Op::EachKind
         | Op::EachRange
@@ -174,7 +180,6 @@ fn next(frame: &mut StepFrame<'_, '_>, cursor: &mut IterationCursor) -> Option<C
         | Op::Let
         | Op::Exists
         | Op::Yield
-        | Op::Latest
         | Op::Emit
         | Op::StageScan
         | Op::StageProbe

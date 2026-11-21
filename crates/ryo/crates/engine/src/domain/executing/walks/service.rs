@@ -30,6 +30,29 @@ const fn extent(flag: WordFlag) -> NodeExtent {
     }
 }
 
+/// Lends the staged room to a kernel of the fill side that gives several rows for one: its fan writes after the cells
+/// staged so far, every row of a batch of one, each handle with `tag`. Answers where the fan's cells start.
+pub(crate) fn lent(state: &mut LoopState, tag: CellWord) -> Count {
+    let LoopState { staged, fan, .. } = state;
+    let first = staged.len();
+    std::mem::swap(&mut fan.out, staged);
+    fan.up.clear();
+    fan.limit = Count(usize::MAX);
+    fan.tag = tag;
+    fan.cursor = FanCursor::default();
+    Count(first)
+}
+
+/// Takes the staged room back from the fan; answers where the cells it wrote are.
+pub(crate) fn taken_back(state: &mut LoopState, first: Count) -> BodyAnswer {
+    let LoopState { staged, fan, .. } = state;
+    std::mem::swap(&mut fan.out, staged);
+    BodyAnswer {
+        first,
+        rows: Count(staged.len().saturating_sub(first.0)),
+    }
+}
+
 /// Stages the handles of the elements `direction` reaches from `start`, in the walk's order; answers where they are.
 fn reached(
     frame: &mut StepFrame<'_, '_>,
@@ -38,20 +61,16 @@ fn reached(
     start: CellWord,
 ) -> BodyAnswer {
     let tag = node_tag(frame);
-    let LoopState { staged, fan, .. } = &mut *frame.state;
-    let first = staged.len();
-    // The kernel appends to the fan's cells: the staged room is lent as them for the walk, so the reach is written once.
-    std::mem::swap(&mut fan.out, staged);
-    fan.up.clear();
-    fan.limit = Count(usize::MAX);
-    fan.tag = tag;
-    fan.cursor = FanCursor::default();
-    let _all = along(frame.fill.nodes, extent, direction, &[start], Count(1), fan);
-    std::mem::swap(&mut fan.out, staged);
-    BodyAnswer {
-        first: Count(first),
-        rows: Count(staged.len().saturating_sub(first)),
-    }
+    let first = lent(frame.state, tag);
+    let _all = along(
+        frame.fill.nodes,
+        extent,
+        direction,
+        &[start],
+        Count(1),
+        &mut frame.state.fan,
+    );
+    taken_back(frame.state, first)
 }
 
 /// Stages what an `Axis` word reaches from its start, and leaves where in the state for the word's item. A direction the

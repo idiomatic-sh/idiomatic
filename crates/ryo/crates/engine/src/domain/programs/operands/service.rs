@@ -3,7 +3,9 @@
 
 use crate::domain::code::records::types::PooledOperand;
 use crate::domain::code::types::{CodeEntry, ConstantNumber, PoolAt, WordSlot};
+use crate::domain::programs::collections::instructions::interface::Flow;
 use crate::domain::programs::frames::types::StepFrame;
+use crate::domain::scratch::types::{FramePlace, IterationCursor};
 use crate::domain::steps::types::Register;
 use ryo_language::domain::facts::types::CellWord;
 
@@ -85,4 +87,40 @@ pub(crate) fn operand(frame: &StepFrame<'_, '_>, value: PooledOperand) -> CellWo
 #[inline]
 pub(crate) fn node_tag(frame: &StepFrame<'_, '_>) -> CellWord {
     CellWord(u64::from(frame.fill.file.0) << u32::BITS)
+}
+
+/// Pushes the cursor of a word that iterates the cells the loop staged for it, one a row: where they are is the answer the
+/// loop left in the state.
+pub(crate) fn staged_cursor(frame: &mut StepFrame<'_, '_>, at: CodeEntry) -> Flow {
+    let answer = frame.state.answer;
+    frame.state.frames.push(IterationCursor {
+        word: at,
+        at: FramePlace(0),
+        end: FramePlace(u32::try_from(answer.rows.0).unwrap_or(u32::MAX)),
+        beside: FramePlace(u32::try_from(answer.first.0).unwrap_or(u32::MAX)),
+    });
+    Flow::Back
+}
+
+/// Binds the next staged cell of such a cursor to `out`; when they are done the staged room is given back.
+pub(crate) fn staged_next(
+    frame: &mut StepFrame<'_, '_>,
+    cursor: &mut IterationCursor,
+    out: Register,
+) -> Option<CodeEntry> {
+    let first = usize::try_from(cursor.beside.0).unwrap_or(usize::MAX);
+    let place = first.saturating_add(usize::try_from(cursor.at.0).unwrap_or(usize::MAX));
+    let reached = frame
+        .state
+        .staged
+        .get(place)
+        .copied()
+        .filter(|_| cursor.at.0 < cursor.end.0);
+    let Some(element) = reached else {
+        frame.state.staged.truncate(first);
+        return None;
+    };
+    set(frame, out, element);
+    cursor.at = FramePlace(cursor.at.0.saturating_add(1));
+    Some(after(cursor.word))
 }

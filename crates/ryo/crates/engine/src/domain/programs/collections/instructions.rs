@@ -9,6 +9,7 @@ pub mod emit;
 pub mod exists;
 pub mod fork;
 pub mod interface;
+pub mod latest;
 pub mod let_value;
 pub mod nearest;
 pub mod or;

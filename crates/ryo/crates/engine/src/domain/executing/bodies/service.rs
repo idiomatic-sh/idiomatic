@@ -3,7 +3,7 @@
 //! key; a pattern in table form is a read of its table's index, through the fill side's seam. The loop is reached through
 //! the frame's ports, so a body runs through the one loop.
 
-use super::types::CallUse;
+use super::types::{CallUse, PushedKey};
 use crate::domain::code::constants::STORAGE;
 use crate::domain::code::controlling::service::exists_of;
 use crate::domain::code::records::service::{body_at, operand_at};
@@ -142,16 +142,16 @@ pub(crate) fn asked_pattern(frame: &mut StepFrame<'_, '_>, asked_for: PatternAsk
     }
 }
 
-/// The rows of a pattern in table form for the caller's values: the key's stretch of its table's index, through the seam.
-pub(crate) fn table_rows(
+/// Pushes onto the key room the cells of `count` operands of the pool from `values` on; answers where the key starts,
+/// and whether a register is among them: a key that changes with the row.
+pub(crate) fn key_pushed(
     frame: &mut StepFrame<'_, '_>,
-    index: IndexSite,
-    bound: WordSlot,
+    count: WordSlot,
     values: PoolAt,
-) -> SeamRows {
+) -> PushedKey {
     let start = frame.state.key.len();
     let mut from = KeyFrom::Constants;
-    for number in 0..bound.0 {
+    for number in 0..count.0 {
         let at = PoolAt(values.0.wrapping_add(number.wrapping_mul(2)));
         let held = operand_at(&frame.fill.programs.code.pool, at);
         if matches!(held, Some(PooledOperand::Register(_))) {
@@ -160,8 +160,22 @@ pub(crate) fn table_rows(
         let value = held.map_or(CellWord(0), |each| operand(frame, each));
         frame.state.key.push(value);
     }
-    let found = keyed(frame, index, Count(start), from);
-    frame.state.key.truncate(start);
+    PushedKey {
+        start: Count(start),
+        from,
+    }
+}
+
+/// The rows of a pattern in table form for the caller's values: the key's stretch of its table's index, through the seam.
+pub(crate) fn table_rows(
+    frame: &mut StepFrame<'_, '_>,
+    index: IndexSite,
+    bound: WordSlot,
+    values: PoolAt,
+) -> SeamRows {
+    let key = key_pushed(frame, bound, values);
+    let found = keyed(frame, index, key.start, key.from);
+    frame.state.key.truncate(key.start.0);
     found
 }
 
