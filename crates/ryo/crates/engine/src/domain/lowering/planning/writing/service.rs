@@ -5,6 +5,7 @@
 use crate::domain::lowering::definitions::types::Drafts;
 use crate::domain::lowering::flattening::service::pins_of;
 use crate::domain::lowering::flattening::types::{FlatBranch, FlatTerm};
+use crate::domain::lowering::planning::deferring::service::deferred;
 use crate::domain::lowering::planning::emitting::service::atom_written;
 use crate::domain::lowering::planning::forms::service::{stage_of, step_of};
 use crate::domain::lowering::planning::operands::service::{operand, uses_of};
@@ -50,6 +51,8 @@ fn accesses<'a>(
             atom_written(&mut emitter, atom);
         }
     }
+    // Each read waits until its cell is first needed.
+    emitter.written = deferred(std::mem::take(&mut emitter.written));
     emitter
 }
 
