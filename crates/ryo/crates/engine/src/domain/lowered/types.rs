@@ -2,13 +2,13 @@
 
 use crate::domain::code::types::ShapeChoice;
 use crate::domain::findings::types::RuleColumns;
-use crate::domain::steps::stages::types::Pipeline;
+use crate::domain::steps::stages::types::{Pipeline, PlacedStage};
 use crate::domain::steps::types::{
     AnchorKinds, ColumnList, ColumnMask, ConstantText, DefinitionId, MadeColumn, MadeTableId,
-    RegisterCount, RegisterList, StepProgram, StepRegex,
+    PlacedStep, RegisterCount, RegisterList, StepProgram, StepRegex,
 };
 use ryo_language::domain::facts::types::CellWord;
-use ryo_relations::domain::relations::types::{Column, Relation};
+use ryo_relations::domain::relations::types::{Column, Count, Relation};
 use ryo_values::domain::plan_orders::types::GroupEnd;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
 use ryo_values::domain::query_plans::types::NodeDigest;
@@ -225,3 +225,23 @@ pub(crate) struct FillInput {
 /// Rows known at load.
 #[derive(Debug, Default)]
 pub(crate) struct ConstantRows(pub(crate) Vec<Box<[CellWord]>>);
+
+/// A unit of a pack as its walks meet it: what is numbered and counted as one program.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum WalkedUnit {
+    /// A definition's pattern in call form: the definition, and the pattern's place among its patterns.
+    Pattern(DefinitionId, Count),
+    /// A rule's own program, all its branches.
+    Rule(SelectedRuleOrdinal),
+    /// A made table's fill, all its pipelines.
+    Table(MadeTableId),
+}
+
+/// What the walk that lends a pack lends: a step of a program or a stage of a pipeline, with its plan point, to write.
+#[derive(Debug)]
+pub(crate) enum LentPlaced<'a> {
+    /// A step of a definition's call form or of a rule's branch.
+    Step(&'a mut PlacedStep),
+    /// A stage of a pipeline of a table's fill.
+    Stage(&'a mut PlacedStage),
+}
