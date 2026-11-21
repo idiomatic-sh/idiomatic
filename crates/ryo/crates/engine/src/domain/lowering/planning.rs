@@ -2,6 +2,7 @@
 //! steps for a rule's branch or a call-form pattern, stages for a table's pipeline.
 
 pub(crate) mod closures;
+pub(crate) mod deferring;
 pub(crate) mod emitting;
 pub(crate) mod forms;
 pub(crate) mod operands;

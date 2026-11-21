@@ -52,7 +52,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || (&["the elements' span bounds"], SampleStage::Absent),
         expect: Expect::Value(Cow::Borrowed(concat!(
             "rule 0: 1 branches\n",
-            "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Call:Constant Emit:Constant\n",
+            "  branch: EachRow:File Read:Constant Call:Constant Read:Constant Read:Constant Emit:Constant\n",
             "codes: {\"Call\": 1, \"EachRowNode\": 1, \"Emit\": 1, \"End\": 2, \"ReadNode\": 3}",
         ))),
     },
@@ -95,7 +95,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || (&["the elements' spans between"], SampleStage::Absent),
         expect: Expect::Value(Cow::Borrowed(concat!(
             "rule 0: 1 branches\n",
-            "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Call:Constant Emit:Constant\n",
+            "  branch: EachRow:File Read:Constant Call:Constant Read:Constant Read:Constant Emit:Constant\n",
             "codes: {\"Call\": 1, \"EachRowNode\": 1, \"Emit\": 1, \"End\": 2, \"ReadNode\": 3}",
         ))),
     },
