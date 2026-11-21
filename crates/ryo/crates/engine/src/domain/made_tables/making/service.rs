@@ -270,6 +270,8 @@ fn filled_now(
                     .saturating_add(gathered_right.count.0),
             );
             work.given = Count(work.given.0.saturating_add(rows.count.0));
+            work.left = gathered_left.count;
+            work.right = gathered_right.count;
             frame.store.room = room;
             frame.store.inputs.push(gathered_left);
             frame.store.inputs.push(gathered_right);

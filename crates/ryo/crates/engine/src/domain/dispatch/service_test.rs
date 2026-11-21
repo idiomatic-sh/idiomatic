@@ -1,5 +1,8 @@
 //! The `dispatch` service's cases: every rule whose need holds runs, in rule order; a rule whose anchor kind is absent, or
-//! whose table has no row, costs no candidate and no step.
+//! whose table has no row, costs no candidate and no step. The budget's charge of fills and the fill counters are the
+//! cases of `fills`.
+
+mod fills;
 
 use super::service::dispatch;
 use crate::cases::{Case, CaseName, Expect, Word, run};

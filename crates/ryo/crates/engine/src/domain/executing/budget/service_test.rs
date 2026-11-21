@@ -1,6 +1,6 @@
 //! The budget's cases, over fixture packs: a rule whose work passes its allowance is noticed and finds every row; one just
 //! under is not; a rule is charged a pattern's answers alone or after another rule made them, the same; an answer reached
-//! through another answer's list is charged too.
+//! through another answer's list is charged too. The charge of fills is seen through `dispatch`, in its cases.
 
 use super::service::{begin_rule, end_rule};
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -220,7 +220,7 @@ fn subject((rules, asked, rows, keys): Input) -> Result<Value, Failure> {
             for branch in &each.branches {
                 let _rows = run_program(frame, branch.entry, RunMode::Rows);
             }
-            notices.extend(end_rule(frame.state, &programs, each));
+            notices.extend(end_rule(frame.state, frame.fill.store, &programs, each));
         }
         notices
     });

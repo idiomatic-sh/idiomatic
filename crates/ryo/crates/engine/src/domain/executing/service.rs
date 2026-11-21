@@ -4,6 +4,7 @@
 //! work once, when the program ends.
 
 use super::bodies::service::exists;
+use super::budget::service::reach;
 use super::ordered::service::latest;
 use super::sources::service::{keyed, whole};
 use super::staging::service::staged;
@@ -14,9 +15,11 @@ use crate::domain::code::anchoring::service::{
 use crate::domain::code::constants::OWN_TREE;
 use crate::domain::code::types::{CodeEntry, CodeWord, Op};
 use crate::domain::findings::types::InstructionCount;
-use crate::domain::made_tables::types::ReadSource;
+use crate::domain::made_tables::types::{Reached, ReadSource};
+use crate::domain::memos::types::ChargedUnit;
 use crate::domain::programs::collections::instructions::axis::item::Axis;
 use crate::domain::programs::collections::instructions::comparing::item::Test;
+use crate::domain::programs::collections::instructions::each_kind::item::EachKind;
 use crate::domain::programs::collections::instructions::each_match::item::EachMatch;
 use crate::domain::programs::collections::instructions::each_row::item::EachRow;
 use crate::domain::programs::collections::instructions::emit::item::Emit;
@@ -55,6 +58,10 @@ fn word_at(frame: &StepFrame<'_, '_>, at: CodeEntry) -> CodeWord {
 fn step(frame: &mut StepFrame<'_, '_>, word: CodeWord, at: CodeEntry, mode: RunMode) -> Flow {
     match word.op {
         Op::End => Flow::Back,
+        Op::EachKind => {
+            reach(frame, ChargedUnit::Fill(Reached::Nodes));
+            EachKind::run(frame, word, at)
+        }
         Op::EachRowNode | Op::EachRowFilled | Op::EachRowMade => {
             let source = if word.op == Op::EachRowNode {
                 let own = each_row_node_of(word).flag.0 & OWN_TREE.0 != 0;
@@ -117,8 +124,7 @@ fn step(frame: &mut StepFrame<'_, '_>, word: CodeWord, at: CodeEntry, mode: RunM
                 Flow::Back
             }
         }
-        Op::EachKind
-        | Op::EachRange
+        Op::EachRange
         | Op::Children
         | Op::ChildrenOfField
         | Op::Within
@@ -153,12 +159,12 @@ fn next(frame: &mut StepFrame<'_, '_>, cursor: &mut IterationCursor) -> Option<C
         Op::EachMatchNode | Op::EachMatchFilled | Op::EachMatchFilledMany | Op::EachMatchMade => {
             EachMatch::next(frame, word, cursor)
         }
+        Op::EachKind => EachKind::next(frame, word, cursor),
         Op::Or => Or::next(frame, word, cursor),
         Op::Fork => Fork::next(frame, word, cursor),
         Op::Axis => Axis::next(frame, word, cursor),
         Op::Latest => Latest::next(frame, word, cursor),
         Op::End
-        | Op::EachKind
         | Op::EachRange
         | Op::Children
         | Op::ChildrenOfField

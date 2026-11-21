@@ -137,9 +137,9 @@ pub(crate) struct FillWork {
     pub(crate) given: Count,
     /// The rows the table holds.
     pub(crate) made: Count,
-    /// Of its product stage, when it has one: the rows that entered it.
+    /// Of its product stage, when it has one: the rows that entered it. Of an ordered match: its left input's rows.
     pub(crate) left: Count,
-    /// Of its product stage: the rows of the source it paired them with.
+    /// Of its product stage: the rows of the source it paired them with. Of an ordered match: its right input's rows.
     pub(crate) right: Count,
 }
 

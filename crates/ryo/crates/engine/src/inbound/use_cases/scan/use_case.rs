@@ -95,6 +95,11 @@ impl ScanUseCase for ScanUseCaseImpl {
             },
             programs,
         );
+        // The load refuses a rule that can reach a word or a fill the executor does not run: none reaches a scan.
+        debug_assert_eq!(
+            state.work.unbuilt.0, 0,
+            "a word or a fill the executor does not run reached the scan"
+        );
         match state.fault.take() {
             None => Ok(counters),
             Some(FileFault { rule, fault }) => Err(match fault {
