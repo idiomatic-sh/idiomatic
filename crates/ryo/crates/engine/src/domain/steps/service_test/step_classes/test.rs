@@ -120,10 +120,16 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(CostClass::Constant),
     },
     Case {
-        name: CaseName("call_is_constant"),
+        name: CaseName("a_call_of_a_meaning_that_gives_at_most_one_row_is_constant"),
         word: Word::Succeeds,
         input: || Scenario::Call,
         expect: Expect::Value(CostClass::Constant),
+    },
+    Case {
+        name: CaseName("a_call_of_a_meaning_that_gives_several_rows_is_a_fanout"),
+        word: Word::Succeeds,
+        input: || Scenario::CallSeveral,
+        expect: Expect::Value(CostClass::Fanout),
     },
     Case {
         name: CaseName("render_is_constant"),

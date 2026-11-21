@@ -1,5 +1,6 @@
 //! The types of the `steps` concept: the instruction set the lowering writes, one variant per instruction, with its operands; and the stages of a fill's pipeline. Crate-private.
 
+use crate::domain::steps::calls::types::SourceSearch;
 use ryo_language::domain::facts::types::CellWord;
 use ryo_language::domain::node_table::types::FieldCode;
 use ryo_language::domain::semantics::types::RenderContext;
@@ -350,28 +351,28 @@ pub(crate) enum AxisDirection {
     PreviousSibling,
 }
 
-/// The per-row meanings a `Call` runs.
+/// The per-row meanings a `Call` runs. What a call of each takes and gives is the table of `calls::types::CallShape`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum CallMeaning {
-    /// `span-between`.
+    /// `span-between`: of two spans, the span from the first's start to the second's end; one row.
     SpanBetween,
-    /// `span-bounds`.
+    /// `span-bounds`: of a span, its start and its end; one row.
     SpanBounds,
-    /// `source-matches`.
-    SourceMatches(RegexId),
-    /// `capture`.
+    /// `source-matches`: one row for each occurrence of the expression in a span's text, with what the search gives.
+    SourceMatches(RegexId, SourceSearch),
+    /// `capture`: of a path and a pattern, one row for each way the pattern matches, with a text for each slot.
     Capture,
-    /// `replace`.
+    /// `replace`: of a text and a replacement, the text with each occurrence of the expression replaced; one row.
     Replace(RegexId),
-    /// `words`.
+    /// `words`: one row for each word of a text.
     Words,
-    /// `rank`.
+    /// `rank`: of a text and layers of texts, the place of the first layer that holds it; no row when none does.
     Rank,
-    /// `concat`.
+    /// `concat`: of texts, the one after the other; one row.
     Concat,
-    /// `lower`.
+    /// `lower`: of a text, the text in lowercase; one row.
     Lower,
-    /// `fits-rendered`.
+    /// `fits-rendered`: the row goes on when its candidate fits the line.
     FitsRendered,
 }
 

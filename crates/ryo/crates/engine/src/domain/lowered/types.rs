@@ -2,13 +2,13 @@
 
 use crate::domain::code::types::ShapeChoice;
 use crate::domain::findings::types::RuleColumns;
-use crate::domain::steps::stages::types::Pipeline;
+use crate::domain::steps::stages::types::{Pipeline, PlacedStage};
 use crate::domain::steps::types::{
     AnchorKinds, ColumnList, ColumnMask, ConstantText, DefinitionId, MadeColumn, MadeTableId,
-    RegisterCount, RegisterList, StepProgram, StepRegex,
+    PlacedStep, RegisterCount, RegisterList, StepProgram, StepRegex,
 };
 use ryo_language::domain::facts::types::CellWord;
-use ryo_relations::domain::relations::types::{Column, Relation};
+use ryo_relations::domain::relations::types::{Column, Count, Relation};
 use ryo_values::domain::plan_orders::types::GroupEnd;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
 use ryo_values::domain::query_plans::types::NodeDigest;
@@ -172,7 +172,29 @@ pub(crate) enum GroupFill {
 pub(crate) enum OrderedFill {
     /// The right rows of an `as-of`, by (keys, order): the input's columns; read by `Latest`.
     Sorted(FillInput),
-    /// `ordered-match` of a left and a right input: the operation's output columns.
+    /// `ordered-match` of a left and a right input, in that order.
+    ///
+    /// The inputs. Each input's rows are its pipelines' rows. `keys` are the columns of such a row the two sides are
+    /// equated on, the left's and the right's lists of one length and compared place by place; `order` is the column of
+    /// its order, a number, and both inputs have one.
+    ///
+    /// The pairs, as the operators crate's meaning makes them today. Within the rows of one key, the left rows are taken
+    /// in ascending order; each takes the earliest right row of that key whose order is greater than its own and that no
+    /// left row before it took. A left row with no such right row gives nothing, and a right row is in at most one pair.
+    /// So of one key with the orders 1, 2, 3 on each side, the pairs are (1, 2) and (2, 3): the operators crate's case
+    /// `ordered_match_pairs_first_in_first_out`.
+    ///
+    /// The rows. One row for each pair: the left row's cells in their order, then the right row's cells in theirs. The
+    /// table is as wide as the two rows together, and column `c` of the right row is its column `left width + c`
+    /// (`lowered::service::match_column`). The operation's own `output` is no part of the fill: the lowering reads each
+    /// output column from this row by place. Within a key the rows stand in ascending order of the left row's order; the
+    /// order of the keys among themselves is the fill's and no reader may lean on it.
+    ///
+    /// Ties. None is ordered: two rows of one input with one key and one order are the fault `DuplicateOrder` of
+    /// today's meaning, and a left row and a right row of one order do not pair.
+    ///
+    /// The index. A reader reads the table as it reads a group table: by any of its `indexes`, each a list of this row's
+    /// columns and none of them ordered, or every row with no key. `Latest` does not read it.
     Match(FillInput, FillInput),
 }
 
@@ -203,3 +225,23 @@ pub(crate) struct FillInput {
 /// Rows known at load.
 #[derive(Debug, Default)]
 pub(crate) struct ConstantRows(pub(crate) Vec<Box<[CellWord]>>);
+
+/// A unit of a pack as its walks meet it: what is numbered and counted as one program.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum WalkedUnit {
+    /// A definition's pattern in call form: the definition, and the pattern's place among its patterns.
+    Pattern(DefinitionId, Count),
+    /// A rule's own program, all its branches.
+    Rule(SelectedRuleOrdinal),
+    /// A made table's fill, all its pipelines.
+    Table(MadeTableId),
+}
+
+/// What the walk that lends a pack lends: a step of a program or a stage of a pipeline, with its plan point, to write.
+#[derive(Debug)]
+pub(crate) enum LentPlaced<'a> {
+    /// A step of a definition's call form or of a rule's branch.
+    Step(&'a mut PlacedStep),
+    /// A stage of a pipeline of a table's fill.
+    Stage(&'a mut PlacedStage),
+}

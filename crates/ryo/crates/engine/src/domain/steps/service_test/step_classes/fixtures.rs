@@ -51,8 +51,10 @@ pub(super) enum Scenario {
     Read,
     /// `test is constant`.
     Test,
-    /// `call is constant`.
+    /// `a call of a meaning that gives at most one row is constant`.
     Call,
+    /// `a call of a meaning that gives several rows is a fanout`.
+    CallSeveral,
     /// `render is constant`.
     Render,
     /// `let is constant`.
@@ -257,9 +259,14 @@ pub(super) fn step(scenario: Scenario) -> ProgramStep {
             right: StepOperand::Word(CellWord(1)),
         },
         Scenario::Call => ProgramStep::Call {
+            meaning: CallMeaning::Lower,
+            arguments: keyed(),
+            outputs: RegisterList(Box::new([register(1)])),
+        },
+        Scenario::CallSeveral => ProgramStep::Call {
             meaning: CallMeaning::Words,
             arguments: keyed(),
-            outputs: RegisterList::default(),
+            outputs: RegisterList(Box::new([register(1)])),
         },
         Scenario::Render => ProgramStep::Render {
             node: register(0),

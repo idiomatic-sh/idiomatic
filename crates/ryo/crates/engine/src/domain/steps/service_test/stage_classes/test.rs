@@ -1,12 +1,12 @@
-//! The cost class of each stage, with the ways a probe's and a use's operands change it, and of each per-row meaning.
+//! The cost class of each stage, with the ways a probe's and a use's operands and a call's meaning change it.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::steps::service::{call_class, stage_class};
+use crate::domain::steps::service::stage_class;
 use crate::domain::steps::stages::types::{FillStage, ProbeRange, TreeWalk, UseMode};
 use crate::domain::steps::types::{
     AxisDirection, BoundKind, CallMeaning, ColumnMask, CostClass, DefinitionId, MadeColumn,
-    MadeTableId, MatchColumns, RangeBound, ReadColumn, RegexId, Register, RegisterList,
-    StepOperand, StepOperands, StepRows, TestOperation,
+    MadeTableId, MatchColumns, RangeBound, ReadColumn, Register, RegisterList, StepOperand,
+    StepOperands, StepRows, TestOperation,
 };
 use ryo_language::domain::facts::types::CellWord;
 use ryo_language::domain::semantics::types::RenderContext;
@@ -40,14 +40,14 @@ enum Scenario {
     Read,
     /// `a keep is constant`.
     Keep,
-    /// `a stage call is constant`.
+    /// `a stage call of a meaning that gives at most one row is constant`.
     Call,
+    /// `a stage call of a meaning that gives several rows is a fanout`.
+    CallSeveral,
     /// `a stage render is constant`.
     Render,
     /// `a walk is a fanout`.
     Walk,
-    /// A per-row meaning.
-    Meaning(CallMeaning),
 }
 
 type Input = Scenario;
@@ -129,10 +129,16 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(CostClass::Constant),
     },
     Case {
-        name: CaseName("a_stage_call_is_constant"),
+        name: CaseName("a_stage_call_of_a_meaning_that_gives_at_most_one_row_is_constant"),
         word: Word::Succeeds,
         input: || Scenario::Call,
         expect: Expect::Value(CostClass::Constant),
+    },
+    Case {
+        name: CaseName("a_stage_call_of_a_meaning_that_gives_several_rows_is_a_fanout"),
+        word: Word::Succeeds,
+        input: || Scenario::CallSeveral,
+        expect: Expect::Value(CostClass::Fanout),
     },
     Case {
         name: CaseName("a_stage_render_is_constant"),
@@ -145,66 +151,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::Walk,
         expect: Expect::Value(CostClass::Fanout),
-    },
-    Case {
-        name: CaseName("the_meaning_span_between_is_constant"),
-        word: Word::Succeeds,
-        input: || Scenario::Meaning(CallMeaning::SpanBetween),
-        expect: Expect::Value(CostClass::Constant),
-    },
-    Case {
-        name: CaseName("the_meaning_span_bounds_is_constant"),
-        word: Word::Succeeds,
-        input: || Scenario::Meaning(CallMeaning::SpanBounds),
-        expect: Expect::Value(CostClass::Constant),
-    },
-    Case {
-        name: CaseName("the_meaning_source_matches_is_constant"),
-        word: Word::Succeeds,
-        input: || Scenario::Meaning(CallMeaning::SourceMatches(RegexId(0))),
-        expect: Expect::Value(CostClass::Constant),
-    },
-    Case {
-        name: CaseName("the_meaning_capture_is_constant"),
-        word: Word::Succeeds,
-        input: || Scenario::Meaning(CallMeaning::Capture),
-        expect: Expect::Value(CostClass::Constant),
-    },
-    Case {
-        name: CaseName("the_meaning_replace_is_constant"),
-        word: Word::Succeeds,
-        input: || Scenario::Meaning(CallMeaning::Replace(RegexId(0))),
-        expect: Expect::Value(CostClass::Constant),
-    },
-    Case {
-        name: CaseName("the_meaning_words_is_constant"),
-        word: Word::Succeeds,
-        input: || Scenario::Meaning(CallMeaning::Words),
-        expect: Expect::Value(CostClass::Constant),
-    },
-    Case {
-        name: CaseName("the_meaning_rank_is_constant"),
-        word: Word::Succeeds,
-        input: || Scenario::Meaning(CallMeaning::Rank),
-        expect: Expect::Value(CostClass::Constant),
-    },
-    Case {
-        name: CaseName("the_meaning_concat_is_constant"),
-        word: Word::Succeeds,
-        input: || Scenario::Meaning(CallMeaning::Concat),
-        expect: Expect::Value(CostClass::Constant),
-    },
-    Case {
-        name: CaseName("the_meaning_lower_is_constant"),
-        word: Word::Succeeds,
-        input: || Scenario::Meaning(CallMeaning::Lower),
-        expect: Expect::Value(CostClass::Constant),
-    },
-    Case {
-        name: CaseName("the_meaning_fits_rendered_is_constant"),
-        word: Word::Succeeds,
-        input: || Scenario::Meaning(CallMeaning::FitsRendered),
-        expect: Expect::Value(CostClass::Constant),
     },
 ];
 
@@ -263,7 +209,6 @@ fn used(bound: &[u16], mode: UseMode) -> FillStage {
 fn subject(scenario: Input) -> Result<Value, Failure> {
     let made = StepRows::Made(MadeTableId(0));
     let stage = match scenario {
-        Scenario::Meaning(meaning) => return Ok(call_class(meaning)),
         Scenario::Scan => FillStage::Scan {
             source: made,
             columns: MatchColumns::default(),
@@ -302,7 +247,12 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::Call => FillStage::Call {
             meaning: CallMeaning::Lower,
             arguments: keyed(),
-            outputs: RegisterList::default(),
+            outputs: RegisterList(Box::new([Register(1)])),
+        },
+        Scenario::CallSeveral => FillStage::Call {
+            meaning: CallMeaning::Words,
+            arguments: keyed(),
+            outputs: RegisterList(Box::new([Register(1)])),
         },
         Scenario::Render => FillStage::Render {
             node: Register(0),

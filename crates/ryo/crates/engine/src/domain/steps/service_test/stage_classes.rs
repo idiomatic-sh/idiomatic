@@ -1,3 +1,3 @@
-//! The cost class of each stage and of each per-row meaning.
+//! The cost class of each stage.
 #[cfg(test)]
 pub(super) mod test;
