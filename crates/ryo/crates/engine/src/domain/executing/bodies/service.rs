@@ -14,7 +14,7 @@ use crate::domain::executing::budget::service::{begin_unit, end_unit, reach};
 use crate::domain::executing::sources::service::keyed;
 use crate::domain::made_tables::types::{KeyFrom, PatternAsk};
 use crate::domain::memos::service::{asked, keep, row_count};
-use crate::domain::memos::types::MemoId;
+use crate::domain::memos::types::{ChargedUnit, MemoId};
 use crate::domain::programs::frames::types::{RunMode, StepFrame};
 use crate::domain::programs::operands::service::{cell, operand, set};
 use crate::domain::scratch::types::SeamRows;
@@ -48,7 +48,7 @@ fn pattern_keyed(frame: &mut StepFrame<'_, '_>, body: CallUse, start: Count) -> 
     );
     if let Some(answer) = kept {
         frame.state.key.truncate(start.0);
-        reach(frame.state, answer);
+        reach(frame, ChargedUnit::Answer(answer));
         return answer;
     }
     for number in 0..body.bound.0 {
@@ -82,7 +82,7 @@ fn pattern_keyed(frame: &mut StepFrame<'_, '_>, body: CallUse, start: Count) -> 
     yielded.truncate(base);
     key.truncate(start.0);
     end_unit(frame.state, caller, answer, body.unit);
-    reach(frame.state, answer);
+    reach(frame, ChargedUnit::Answer(answer));
     answer
 }
 

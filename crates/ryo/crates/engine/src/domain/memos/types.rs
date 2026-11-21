@@ -2,6 +2,7 @@
 
 use crate::domain::code::types::{MemoSite, WordSlot};
 use crate::domain::findings::types::InstructionCount;
+use crate::domain::made_tables::types::Reached;
 use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::relations::types::Count;
 
@@ -17,7 +18,7 @@ pub(crate) struct MemoMap {
     /// What each answer of a pattern cost and reached, by the answer's number: what a rule that reaches it is charged.
     pub(crate) charges: Vec<EntryCharge>,
     /// The answers each answer asked directly while it was evaluated, one list after the other.
-    pub(crate) reached: Vec<MemoId>,
+    pub(crate) reached: Vec<ChargedUnit>,
 }
 
 /// A stretch of the kept cells.
@@ -58,8 +59,18 @@ pub(crate) struct EntryCharge {
     pub(crate) work: InstructionCount,
     /// The rule last charged for it.
     pub(crate) charged: RuleStamp,
-    /// The answers it asked directly, as a stretch of the map's `reached`.
+    /// The units it reached directly, as a stretch of the map's `reached`.
     pub(crate) reached: CellSpan,
     /// The unit it is of, among the code's units.
     pub(crate) unit: WordSlot,
+}
+
+/// A unit a rule's work reached directly: an answer of a pattern, or something the fill side holds (a made table, a
+/// relation, an index, the node table).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ChargedUnit {
+    /// An answer of a pattern.
+    Answer(MemoId),
+    /// What the fill side holds.
+    Fill(Reached),
 }

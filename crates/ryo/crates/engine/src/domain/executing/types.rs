@@ -1,5 +1,6 @@
 //! The types of the `executing` concept: the loop as what answers the fill side.
 
+use crate::domain::executing::budget::service::fill_asked;
 use crate::domain::filled::errors::FilledError;
 use crate::domain::findings::types::FoundRows;
 use crate::domain::made_tables::types::{
@@ -55,6 +56,7 @@ impl PatternRows for Asker<'_> {
             ports: self.ports,
         };
         let answer = self.ports.pattern(&mut step, asked);
+        fill_asked(self.state, asked.asker, answer);
         out.extend_from_slice(rows(&self.state.memos, answer));
         Ok(if row_count(&self.state.memos, answer).0 > 0 {
             PatternFound::Rows

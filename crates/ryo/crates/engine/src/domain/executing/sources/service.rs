@@ -1,15 +1,20 @@
 //! The services of the `sources` part: a word's rows asked of the fill side. A made table is asked only when its own need
 //! holds in the file; a fault the fill side answers is kept as the scan's (the first of the file), a fill it does not run
-//! yet is counted, and either way the word has no row.
+//! yet is counted, and either way the word has no row. A source read is a unit the running rule reached: the budget is
+//! told after each read. A need's own reads are not: a decision is made once per file, by whichever rule asks first, so
+//! charging them would make a rule's charge depend on the rules before it.
 
 use super::types::FileNeeds;
 use crate::domain::code::types::IndexSite;
+use crate::domain::executing::budget::service::reach;
 use crate::domain::executing::constants::KEY_CELLS;
 use crate::domain::executing::types::Asker;
 use crate::domain::filled::errors::FilledError;
 use crate::domain::findings::types::InstructionCount;
+use crate::domain::made_tables::reading::service::site_source;
 use crate::domain::made_tables::sources::service::{matched, scanned};
-use crate::domain::made_tables::types::{KeyFrom, ReadSource};
+use crate::domain::made_tables::types::{KeyFrom, Reached, ReadSource};
+use crate::domain::memos::types::ChargedUnit;
 use crate::domain::needs::service::decided;
 use crate::domain::needs::types::NeedVerdict;
 use crate::domain::programs::frames::types::StepFrame;
@@ -31,6 +36,16 @@ fn faulted(state: &mut LoopState, fault: FilledError) {
                 state.fault = Some(FileFault { rule, fault });
             }
         }
+    }
+}
+
+/// The unit of the budget a source is: none for a table read while its fill writes it, which is that fill's own.
+const fn unit_of(source: ReadSource) -> Option<ChargedUnit> {
+    match source {
+        ReadSource::Nodes(_) => Some(ChargedUnit::Fill(Reached::Nodes)),
+        ReadSource::Filled(relation) => Some(ChargedUnit::Fill(Reached::Relation(relation))),
+        ReadSource::Made(table) => Some(ChargedUnit::Fill(Reached::Table(table))),
+        ReadSource::Written(_) => None,
     }
 }
 
@@ -64,10 +79,15 @@ pub(crate) fn whole(frame: &mut StepFrame<'_, '_>, source: ReadSource) -> SeamRo
         source,
     );
     match asked {
-        Ok(rows) => SeamRows {
-            run: rows.rows,
-            tag: rows.tag,
-        },
+        Ok(rows) => {
+            if let Some(unit) = unit_of(source) {
+                reach(frame, unit);
+            }
+            SeamRows {
+                run: rows.rows,
+                tag: rows.tag,
+            }
+        }
         Err(fault) => {
             faulted(frame.state, fault);
             SeamRows::default()
@@ -124,10 +144,20 @@ pub(crate) fn keyed(
         from,
     );
     match asked {
-        Ok(rows) => SeamRows {
-            run: rows.rows,
-            tag: rows.tag,
-        },
+        Ok(rows) => {
+            // The site's source is what the rule reached: an index holds no rows of its own.
+            let source = over.and_then(|code| match site_source(frame.fill.programs.code, code) {
+                Ok(source) => Some(source),
+                Err(_) => None,
+            });
+            if let Some(unit) = source.and_then(unit_of) {
+                reach(frame, unit);
+            }
+            SeamRows {
+                run: rows.rows,
+                tag: rows.tag,
+            }
+        }
         Err(fault) => {
             faulted(frame.state, fault);
             SeamRows::default()

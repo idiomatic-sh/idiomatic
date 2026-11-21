@@ -2,7 +2,7 @@
 //! map for every site; nothing is allocated and no clock is read when an answer is kept.
 
 use super::constants::{HASH_FOLD, SITE_MULTIPLIER};
-use super::types::{CellSpan, EntryCharge, MemoEntry, MemoId, MemoMap};
+use super::types::{CellSpan, ChargedUnit, EntryCharge, MemoEntry, MemoId, MemoMap};
 use crate::domain::code::types::MemoSite;
 use crate::domain::indexes::reading::service::hashed;
 use crate::domain::indexes::types::RowHash;
@@ -109,12 +109,12 @@ pub(crate) fn rows(map: &MemoMap, answer: MemoId) -> &[CellWord] {
     entry(&map.entries, answer).map_or(&[], |kept| span(&map.cells, kept.rows))
 }
 
-/// Records what an answer of a pattern cost and reached: its own work, its unit, and the answers it asked directly.
+/// Records what an answer of a pattern cost and reached: its own work, its unit, and the units it reached directly.
 pub(crate) fn set_charge(
     map: &mut MemoMap,
     answer: MemoId,
     mut charge: EntryCharge,
-    asked: &[MemoId],
+    asked: &[ChargedUnit],
 ) {
     charge.reached = CellSpan {
         start: Count(map.reached.len()),
@@ -140,7 +140,7 @@ pub(crate) fn charge_mut(map: &mut MemoMap, answer: MemoId) -> Option<&mut Entry
 
 /// The answers a stretch of the map's lists names.
 #[inline]
-pub(crate) fn reached_at(map: &MemoMap, at: CellSpan) -> &[MemoId] {
+pub(crate) fn reached_at(map: &MemoMap, at: CellSpan) -> &[ChargedUnit] {
     map.reached
         .get(at.start.0..at.start.0.saturating_add(at.length.0))
         .unwrap_or_default()
