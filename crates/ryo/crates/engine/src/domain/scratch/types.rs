@@ -10,6 +10,8 @@ use crate::domain::indexes::types::FileStamp;
 use crate::domain::made_tables::types::TableRows;
 #[cfg(test)]
 use crate::domain::memos::types::MemoMap;
+#[cfg(test)]
+use crate::domain::needs::types::NeedVerdict;
 use ryo_language::domain::facts::types::{CellWord, FileWords, FilledColumns};
 use ryo_language::domain::node_table::types::KindsPresent;
 #[cfg(test)]
@@ -101,7 +103,7 @@ pub(crate) struct BodyAnswer {
 /// One made table for a file.
 #[cfg(test)]
 #[derive(Debug, Default)]
-pub(crate) struct TableSlot {
+pub(crate) struct LoopTable {
     /// The file it was made for.
     pub(crate) stamp: FileStamp,
     /// Its rows.
@@ -118,7 +120,7 @@ pub(crate) struct LoopState {
     /// The registers of the rule set, one vector.
     pub(crate) registers: Vec<CellWord>,
     /// Each made table, by number.
-    pub(crate) tables: Vec<TableSlot>,
+    pub(crate) tables: Vec<LoopTable>,
     /// The answers kept for the file.
     pub(crate) memos: MemoMap,
     /// The cursors of the running iterations, innermost last.
@@ -129,6 +131,8 @@ pub(crate) struct LoopState {
     pub(crate) staged: Vec<CellWord>,
     /// What the body of the word about to run answered: the loop asks the body, the word's item reads the answer.
     pub(crate) answer: BodyAnswer,
+    /// Each emptiness decision made in the file, by `NeedSite`.
+    pub(crate) needs: Vec<Option<NeedVerdict>>,
     /// The cells of the key or of the row being put together.
     pub(crate) key: Vec<CellWord>,
     /// The file's words over the run's base words.

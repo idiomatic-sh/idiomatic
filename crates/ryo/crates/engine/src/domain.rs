@@ -2,6 +2,8 @@
 
 pub mod code;
 pub mod counting;
+#[cfg(test)]
+mod dispatch;
 pub mod encoding;
 #[cfg(test)]
 mod executing;

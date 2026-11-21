@@ -12,6 +12,10 @@ A rule set's programs as the executor runs them and the pack stores them: sixtee
 
 What a measuring worker counted, the counts of several workers added up, and the work ledger read off them.
 
+### dispatch
+
+A file's rules in rule order, each branch run when its need holds in the file; a branch whose need does not hold costs no candidate and no step.
+
 ### encoding
 
 A lowered pack written as code, every site and index numbered, with no count cut to fit a width and a file-sized word only where it may stand.

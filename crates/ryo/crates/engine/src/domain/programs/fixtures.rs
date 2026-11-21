@@ -4,7 +4,7 @@ use crate::domain::findings::types::{FoundCells, FoundRows, FoundTarget, WorkNot
 use crate::domain::made_tables::service::{clear_rows, write};
 use crate::domain::programs::collections::instructions::interface::StepFrame;
 use crate::domain::programs::types::ProgramsEngine;
-use crate::domain::scratch::types::{LoopState, TableSlot};
+use crate::domain::scratch::types::{LoopState, LoopTable};
 use crate::domain::stages::types::BatchValue;
 use ryo_language::domain::facts::types::{
     CellWord, FactAnswer, FactSource, FileFacts, FileWords, FilledColumns, Wanted,
@@ -67,7 +67,7 @@ pub(crate) fn state(registers: usize) -> LoopState {
 /// Makes table `table` of the state hold `rows`, each of `width` cells, for the state's file.
 pub(crate) fn table(held: &mut LoopState, table: usize, width: usize, rows: &[&[u64]]) {
     if held.tables.len() <= table {
-        held.tables.resize_with(table + 1, TableSlot::default);
+        held.tables.resize_with(table + 1, LoopTable::default);
     }
     let slot = &mut held.tables[table];
     slot.stamp = held.stamp;
