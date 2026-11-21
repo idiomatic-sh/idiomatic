@@ -1,5 +1,6 @@
 //! The closure's cases, through the loop, over a fixture pack written as steps and encoded by the straight encoding. The
-//! pack states a table of edges (from, to): 1 to 2, 2 to 3, 3 to 1, 3 to 4, and 1 to 2 once more; the rule reads, for each
+//! pack states a table of edges (from, to): 1 to 2, 2 to 3, 3 to 1, 3 to 4, 1 to 2 once more, and 6 to 6 and 6 to 7 (an
+//! element that is its own edge's end); the rule reads, for each
 //! seed of a table of seeds, every element reached over one or more edges, and emits the seed and the element. The edges
 //! of an element are an inline body: the rows of the table of edges by their first column.
 
@@ -39,10 +40,20 @@ type Failure = ();
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("a_closure_reaches_each_element_once_through_a_cycle_and_never_its_seed"),
+        name: CaseName(
+            "a_closure_reaches_each_element_once_and_its_seed_when_a_cycle_leads_back_to_it",
+        ),
         word: Word::Succeeds,
         input: || &[1],
-        expect: Expect::Value(Cow::Borrowed(&[1, 2, 1, 3, 1, 4, 99, 3, 14, 0, 0, 0, 3, 3])),
+        expect: Expect::Value(Cow::Borrowed(&[
+            1, 2, 1, 3, 1, 1, 1, 4, 99, 4, 19, 0, 0, 0, 4, 4,
+        ])),
+    },
+    Case {
+        name: CaseName("an_element_that_is_its_own_edges_end_reaches_itself"),
+        word: Word::Succeeds,
+        input: || &[6],
+        expect: Expect::Value(Cow::Borrowed(&[6, 6, 6, 7, 99, 2, 11, 0, 0, 0, 2, 2])),
     },
     Case {
         name: CaseName("an_element_with_no_edge_reaches_nothing"),
@@ -55,7 +66,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || &[3, 2],
         expect: Expect::Value(Cow::Borrowed(&[
-            3, 1, 3, 4, 3, 2, 2, 3, 2, 1, 2, 4, 99, 6, 28, 0, 0, 0, 3, 3,
+            3, 1, 3, 4, 3, 2, 3, 3, 2, 3, 2, 1, 2, 4, 2, 2, 99, 8, 36, 0, 0, 0, 4, 4,
         ])),
     },
 ];
@@ -124,6 +135,8 @@ fn pack(seeds: Input) -> LoweredPack {
                     edge(3, 1),
                     edge(3, 4),
                     edge(1, 2),
+                    edge(6, 6),
+                    edge(6, 7),
                 ])),
             ),
             constants(seeds),

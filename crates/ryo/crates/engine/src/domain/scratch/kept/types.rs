@@ -52,3 +52,14 @@ pub(crate) struct SiteAsks {
     /// The asks a kept answer answered.
     pub(crate) hits: Count,
 }
+
+/// What a register holds, as far as a test of a text must know: a cell that is a word of the file, or the file itself,
+/// whose text is its path.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum RegisterHolds {
+    /// A word, a number, a handle: read as it is.
+    #[default]
+    Cells,
+    /// The file: some word that writes the register writes the file into it.
+    TheFile,
+}
