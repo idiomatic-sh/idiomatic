@@ -13,8 +13,8 @@ use ryo_relations::domain::relations::types::Count;
 /// gives several rows for one wrote for the next depth.
 #[derive(Debug, Default)]
 pub(crate) struct BatchLevel {
-    /// The columns, by register.
-    pub(crate) columns: Vec<Vec<CellWord>>,
+    /// The columns of the registers the running pipeline wrote at this depth.
+    pub(crate) columns: LevelColumns,
     /// How many rows the batch holds.
     pub(crate) rows: Count,
     /// What a stage that gives several rows for one wrote.
@@ -27,6 +27,22 @@ pub(crate) struct BatchLevel {
     pub(crate) spans: Vec<RowRun>,
     /// For each row of the batch a `Use` stage reads, whether its key's pattern has a row.
     pub(crate) found: Vec<RowKept>,
+}
+
+/// The columns of one batch: a column for each register the RUNNING pipeline wrote at this depth, and no more. A pack
+/// has a register for every value of every pipeline (the whole Python pack: over a hundred thousand), and a pipeline
+/// writes a handful: kept by register, a worker held a list for each register of the pack at every depth of every
+/// room, each at the size of the largest batch that register ever held (half of the run's memory). Kept by the place
+/// a register was first written at in the run, the lists are as many as the widest pipeline has registers, and are
+/// used again by the next pipeline.
+#[derive(Debug, Default)]
+pub(crate) struct LevelColumns {
+    /// For each register of the pack, the place of its column in `held` and one more; nought: no column in this run.
+    pub(crate) places: Vec<u32>,
+    /// The columns, in the order their registers were first written in the run; those past `used` are spare.
+    pub(crate) held: Vec<Vec<CellWord>>,
+    /// The registers that have a column in this run: what a new run unsets.
+    pub(crate) written: Vec<Register>,
 }
 
 /// The room one pipeline runs in: its batches by depth, which registers each stage must carry on, and the scratch of a
