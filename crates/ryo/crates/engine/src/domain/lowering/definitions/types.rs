@@ -2,7 +2,7 @@
 
 use crate::domain::code::types::ShapeChoice;
 use crate::domain::lowered::types::{Emptiness, MadeTable, PatternForm};
-use crate::domain::lowering::flattening::types::{FlatBranch, FlatVariable, TextNumber};
+use crate::domain::lowering::flattening::types::{FlatBranch, FlatVariable, RowColumn, TextNumber};
 use crate::domain::lowering::nodes::types::{NodeHome, StepShape};
 use crate::domain::steps::types::{
     ColumnMask, ConstantText, DefinitionId, MadeTableId, RegexId, Register, RegisterCount,
@@ -88,6 +88,9 @@ pub(crate) struct Drafts {
     pub(crate) made: HashMap<NodeDigest, MadeTableId>,
     /// Where each made table was lowered from, by table.
     pub(crate) table_homes: Vec<NodeHome>,
+    /// The columns of its step's row a definition holds, in order, for each definition that holds fewer than the step has:
+    /// one whose every reader across the pack is a projection, and no reader asks the others.
+    pub(crate) held: HashMap<DefinitionId, Vec<RowColumn>>,
     /// The patterns asked and not yet placed.
     pub(crate) waiting: Vec<WaitingPattern>,
     /// The next variable no branch names.

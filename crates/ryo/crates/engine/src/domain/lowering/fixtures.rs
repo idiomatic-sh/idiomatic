@@ -8,8 +8,11 @@ pub mod growth;
 mod parts;
 pub mod pending;
 mod scenes;
+mod shapes;
 
-use parts::{as_of, at, joined, kept, of, plan, step, words, words_written};
+use parts::{
+    as_of, at, axis, joined, kept, nearest, nearest_step, of, plan, step, words, words_written,
+};
 use ryo_relations::domain::relations::types::{Integer, Relation};
 use ryo_values::domain::plan_orders::types::{GroupEnd, OrderBound};
 use ryo_values::domain::plan_parts::types::{
@@ -314,7 +317,10 @@ pub fn named(scene: &str) -> Plan {
     if let Some(plan) = operation_scene(scene) {
         return plan;
     }
-    if let Some(plan) = scenes::load_scene(scene).or_else(|| scenes::scan_scene(scene)) {
+    let listed = scenes::load_scene(scene)
+        .or_else(|| scenes::scan_scene(scene))
+        .or_else(|| shapes::shape_scene(scene));
+    if let Some(plan) = listed {
         return plan;
     }
     match scene {
@@ -347,44 +353,4 @@ pub fn named(scene: &str) -> Plan {
         "partial relation" => plan(vec![kept(Input::Relation(Relation::SyntaxError))]),
         _ => plan(vec![kept(Input::Relation(Relation::SyntaxTree))]),
     }
-}
-
-/// A nearest-ancestor axis from the rows of step 0 over the given edges, its domain step 0 too.
-fn nearest_step(edges: Input) -> PlanStep {
-    axis(
-        edges,
-        Direction::NearestAncestor,
-        Input::Step(StepId(0)),
-        Vec::new(),
-    )
-}
-
-/// An axis from the rows of step 0 over the given edges, its domain read through the given view.
-fn axis(
-    edges: Input,
-    direction: Direction,
-    domain: Input,
-    domain_view: Vec<ColumnIndex>,
-) -> PlanStep {
-    step(Operation::Axis {
-        from: Input::Step(StepId(0)),
-        edges,
-        domain,
-        direction,
-        id: at(0),
-        parent: at(0),
-        child: at(1),
-        domain_id: at(0),
-        domain_filter: Vec::new(),
-        domain_view,
-        output: Vec::new(),
-    })
-}
-
-/// The elements of the syntax tree, each beside its nearest ancestor among them, climbed over the given edges.
-fn nearest(edges: Input) -> Plan {
-    plan(vec![
-        kept(Input::Relation(Relation::SyntaxTree)),
-        nearest_step(edges),
-    ])
 }
