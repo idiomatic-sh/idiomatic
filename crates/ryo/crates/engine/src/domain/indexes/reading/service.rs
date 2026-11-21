@@ -113,7 +113,7 @@ fn place_of(word: TableWord) -> Count {
 
 /// What an index does with the `at`-th cell of a key as it is asked.
 #[inline]
-fn key_cell(mask: KeyMask, at: Count) -> CellOfKey {
+pub(crate) fn key_cell(mask: KeyMask, at: Count) -> CellOfKey {
     let fixed = match u32::try_from(at.0) {
         Ok(place) => mask.0.checked_shr(place).unwrap_or(0) & 1,
         Err(_) => 0,

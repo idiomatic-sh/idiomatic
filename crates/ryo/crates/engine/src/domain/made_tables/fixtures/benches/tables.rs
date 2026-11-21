@@ -66,6 +66,7 @@ pub(crate) fn told_rows(bench: FillBench, rows: usize) -> Vec<[u64; 2]> {
             | FillBench::KeepGlobFewWords
             | FillBench::KeepGlobOwnWords
             | FillBench::IndexNodesKind
+            | FillBench::IndexNodesKindMixed
             | FillBench::IndexNodesParent
             | FillBench::IndexNodesId => [row, row],
         })
@@ -96,6 +97,33 @@ pub(crate) fn tree(elements: usize) -> NodeTable {
         leave_node(&mut writer, Offset(start.saturating_add(wide)));
     }
     leave_node(&mut writer, Offset(groups.saturating_mul(wide)));
+    let _table = finished(&mut writer);
+    made
+}
+
+/// A file of `elements` elements under one root: tokens whose kinds are sixteen (1 to 16) in an order that does not
+/// repeat from one element to the next, as a real file's nodes change kind.
+pub(crate) fn mixed_tree(elements: usize) -> NodeTable {
+    let mut made = NodeTable::default();
+    let mut writer = builder(&mut made, Count(17));
+    let count = u32::try_from(elements).unwrap_or(u32::MAX).max(2);
+    enter_node(&mut writer, KindBits(1), FieldCode(0), Offset(0));
+    let mut state = 12_345_u32;
+    for at in 1..count {
+        // A small generator: the kind is its high bits.
+        state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+        let kind = u16::try_from((state >> 28) & 15)
+            .unwrap_or(0)
+            .saturating_add(1);
+        token(
+            &mut writer,
+            KindBits(kind),
+            FieldCode(0),
+            Offset(at),
+            Offset(at.saturating_add(1)),
+        );
+    }
+    leave_node(&mut writer, Offset(count));
     let _table = finished(&mut writer);
     made
 }
@@ -339,7 +367,9 @@ pub(crate) fn bench_table(bench: FillBench) -> MadeTable {
             });
             rows(2, pipeline(all, [of(0), of(2)]))
         }
-        FillBench::IndexNodesKind => probed_nodes(NodeColumn::Kind, 1),
+        FillBench::IndexNodesKind | FillBench::IndexNodesKindMixed => {
+            probed_nodes(NodeColumn::Kind, 1)
+        }
         FillBench::IndexNodesParent => probed_nodes(NodeColumn::Parent, 0),
         FillBench::IndexNodesId => probed_nodes(NodeColumn::Id, 0),
         FillBench::Product => rows(

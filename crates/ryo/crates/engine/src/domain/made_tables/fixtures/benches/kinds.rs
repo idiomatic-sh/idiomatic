@@ -59,6 +59,8 @@ pub enum FillBench {
     KeepGlobOwnWords,
     /// The index of the file's nodes by kind, built for a new file and asked for the tokens.
     IndexNodesKind,
+    /// The same over a file whose elements change kind from one to the next, sixteen kinds in no order.
+    IndexNodesKindMixed,
     /// The index of the file's nodes by parent, built for a new file and asked for the root's children.
     IndexNodesParent,
     /// The index of the file's nodes by id, built for a new file and asked for one node.

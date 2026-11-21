@@ -3,7 +3,7 @@
 //! scan to its write (and a grouping fill's grouping) and neither the language nor an index build.
 
 use self::kinds::FillBench;
-use self::tables::{PRODUCT_LEFT, bench_table, bench_text, called, told_rows, tree};
+use self::tables::{PRODUCT_LEFT, bench_table, bench_text, called, mixed_tree, told_rows, tree};
 use crate::domain::code::types::RelationNumber;
 use crate::domain::filled::errors::FilledError;
 use crate::domain::made_tables::fixtures::packs::FILE;
@@ -31,7 +31,7 @@ pub(crate) mod tables;
 /// ```
 /// use ryo_engine::domain::made_tables::fixtures::benches::FILL_BENCHES;
 ///
-/// assert_eq!(FILL_BENCHES.len(), 24);
+/// assert_eq!(FILL_BENCHES.len(), 25);
 /// ```
 pub const FILL_BENCHES: &[FillBench] = &[
     FillBench::RowsRead,
@@ -56,6 +56,7 @@ pub const FILL_BENCHES: &[FillBench] = &[
     FillBench::KeepGlobFewWords,
     FillBench::KeepGlobOwnWords,
     FillBench::IndexNodesKind,
+    FillBench::IndexNodesKindMixed,
     FillBench::IndexNodesParent,
     FillBench::IndexNodesId,
 ];
@@ -95,6 +96,7 @@ pub const fn fill_name(bench: FillBench) -> &'static str {
         FillBench::KeepGlobFewWords => "keep_glob_few_words",
         FillBench::KeepGlobOwnWords => "keep_glob_own_words",
         FillBench::IndexNodesKind => "index_nodes_by_kind",
+        FillBench::IndexNodesKindMixed => "index_nodes_by_kind_mixed",
         FillBench::IndexNodesParent => "index_nodes_by_parent",
         FillBench::IndexNodesId => "index_nodes_by_id",
     }
@@ -145,6 +147,7 @@ pub const fn fill_units(bench: FillBench, rows: usize) -> usize {
         | FillBench::KeepGlobFewWords
         | FillBench::KeepGlobOwnWords
         | FillBench::IndexNodesKind
+        | FillBench::IndexNodesKindMixed
         | FillBench::IndexNodesParent
         | FillBench::IndexNodesId => rows,
     }
@@ -244,9 +247,15 @@ pub fn fill_workload(bench: FillBench, rows: usize) -> Option<FillWorkload> {
         | FillBench::KeepGlobFewWords
         | FillBench::KeepGlobOwnWords
         | FillBench::IndexNodesKind
+        | FillBench::IndexNodesKindMixed
         | FillBench::IndexNodesParent
         | FillBench::IndexNodesId => false,
     };
+    if bench == FillBench::IndexNodesKindMixed {
+        // Sixteen kinds, each its own word, and a file whose elements take them in no order.
+        world.programs.kinds = (0..=16_u64).map(CellWord).collect();
+        world.nodes = mixed_tree(rows);
+    }
     if matches!(
         bench,
         FillBench::KeepGlobFewWords | FillBench::KeepGlobOwnWords
@@ -316,10 +325,13 @@ pub fn fill_workload(bench: FillBench, rows: usize) -> Option<FillWorkload> {
 /// assert_eq!(kept.map(made), [700, 101]);
 /// let nodes = [FillBench::IndexNodesKind, FillBench::IndexNodesParent, FillBench::IndexNodesId];
 /// assert_eq!(nodes.map(made), [700, 101, 1]);
+/// // Of 800 elements of sixteen kinds in no order, those of the first kind: about one in sixteen.
+/// assert_eq!(made(FillBench::IndexNodesKindMixed), 48);
 /// ```
 pub fn run_fill(work: &mut FillWorkload) -> usize {
     let asked = match work.1 {
         FillBench::IndexNodesKind => Some(TOKEN_KIND),
+        FillBench::IndexNodesKindMixed => Some(CellWord(1)),
         FillBench::IndexNodesParent => Some(CellWord(node_id(FILE, Position(0)).0)),
         FillBench::IndexNodesId => Some(CellWord(node_id(FILE, Position(1)).0)),
         FillBench::RowsRead
