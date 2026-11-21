@@ -3,7 +3,7 @@
 
 use crate::domain::code::records::types::PooledOperand;
 use crate::domain::code::types::{CodeEntry, ConstantNumber, PoolAt, WordSlot};
-use crate::domain::programs::collections::instructions::interface::StepFrame;
+use crate::domain::programs::frames::types::StepFrame;
 use crate::domain::steps::types::Register;
 use ryo_language::domain::facts::types::CellWord;
 
@@ -42,6 +42,7 @@ pub(crate) fn set(frame: &mut StepFrame<'_, '_>, register: Register, value: Cell
 #[inline]
 pub(crate) fn constant(frame: &StepFrame<'_, '_>, number: ConstantNumber) -> CellWord {
     match frame
+        .fill
         .programs
         .code
         .constants
@@ -55,7 +56,7 @@ pub(crate) fn constant(frame: &StepFrame<'_, '_>, number: ConstantNumber) -> Cel
 /// The scanned file, as a cell.
 #[inline]
 pub(crate) fn file_cell(frame: &StepFrame<'_, '_>) -> CellWord {
-    CellWord(u64::from(frame.file.file.0))
+    CellWord(u64::from(frame.fill.file.0))
 }
 
 /// A list of the pool: its length, then its items.
@@ -78,4 +79,10 @@ pub(crate) fn operand(frame: &StepFrame<'_, '_>, value: PooledOperand) -> CellWo
         PooledOperand::Constants(_) => CellWord(0),
         PooledOperand::File => file_cell(frame),
     }
+}
+
+/// What is or-ed onto an element's place to make its id: the scanned file, in the high half.
+#[inline]
+pub(crate) fn node_tag(frame: &StepFrame<'_, '_>) -> CellWord {
+    CellWord(u64::from(frame.fill.file.0) << u32::BITS)
 }

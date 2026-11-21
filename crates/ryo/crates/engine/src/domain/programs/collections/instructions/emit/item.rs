@@ -1,11 +1,12 @@
 //! `Emit`: one found row handed over: the cells its operands stand for, for the rule or for the rule's frontier entry.
 
-use super::super::interface::{Flow, InstructionsItem, StepFrame};
+use super::super::interface::{Flow, InstructionsItem};
 use crate::domain::code::constants::FRONTIER;
 use crate::domain::code::controlling::service::emit_of;
 use crate::domain::code::records::service::operand_at;
 use crate::domain::code::types::{CodeEntry, CodeWord, PoolAt};
 use crate::domain::findings::types::{FoundCells, FoundTarget};
+use crate::domain::programs::frames::types::StepFrame;
 use crate::domain::programs::operands::service::operand;
 use ryo_language::domain::facts::types::CellWord;
 use ryo_values::domain::plan_parts::types::InputNumber;
@@ -20,7 +21,7 @@ impl InstructionsItem for Emit {
         let start = frame.state.key.len();
         for number in 0..u32::from(read.columns.0) {
             let at = PoolAt(read.operands.0.wrapping_add(number.wrapping_mul(2)));
-            let value = operand_at(&frame.programs.code.pool, at)
+            let value = operand_at(&frame.fill.programs.code.pool, at)
                 .map_or(CellWord(0), |held| operand(frame, held));
             frame.state.key.push(value);
         }
@@ -35,7 +36,7 @@ impl InstructionsItem for Emit {
         frame.found.found(
             target,
             FoundCells(frame.state.key.get(start..).unwrap_or_default()),
-            &frame.state.words,
+            &*frame.fill.words,
         );
         frame.state.key.truncate(start);
         Flow::Next

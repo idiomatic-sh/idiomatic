@@ -1,25 +1,10 @@
-//! The shape every word of the `steps` collection implements, and what a word reads and writes: the file lent for the
-//! scan, the worker's per-file state and the rule set's programs. An item is a leaf: it reads its word through the code's
-//! readers, binds registers and pushes or moves a cursor. What runs a body, makes a table or builds an index is the loop's
-//! (`executing`), which calls an item only when what the item reads is there.
+//! The shape every word of the `instructions` collection implements. An item is a leaf over a frame
+//! (`programs::frames`): it reads its word through the code's readers, reads cells and rows through the seam, binds registers and pushes
+//! or moves a cursor. What makes a table, fills a relation, builds an index or runs a body is the loop's (`executing`).
 
 use crate::domain::code::types::{CodeEntry, CodeWord};
-use crate::domain::findings::types::FoundRows;
-use crate::domain::programs::types::ProgramsEngine;
-use crate::domain::scratch::types::{IterationCursor, LoopState};
-use ryo_language::domain::facts::types::FileFacts;
-
-/// What a word runs over: the lent file, the worker's per-file state, the programs it belongs to and where rows go.
-pub(crate) struct StepFrame<'s, 'f> {
-    /// The file: its node table, bytes and facts.
-    pub(crate) file: &'s mut FileFacts<'f>,
-    /// The registers, indexes, made tables, kept answers and stacks of the file.
-    pub(crate) state: &'s mut LoopState,
-    /// The rule set's programs.
-    pub(crate) programs: &'s ProgramsEngine,
-    /// Where found rows and notices go.
-    pub(crate) found: &'s mut dyn FoundRows,
-}
+use crate::domain::programs::frames::types::StepFrame;
+use crate::domain::scratch::types::IterationCursor;
 
 /// What a word answers the loop.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

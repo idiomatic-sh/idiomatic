@@ -2,19 +2,20 @@
 //! made table, reads, tests and emits; what the loop counts; a word it does not run ends each candidate and is counted.
 
 use super::service::run as run_branch;
-use super::types::RunMode;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::encoding::service::encoded;
+use crate::domain::executing::entries::types::TheLoop;
 use crate::domain::findings::types::{ColumnKinds, RuleColumns};
 use crate::domain::lowered::types::{
     Branch, ConstantRows, Emptiness, LoweredPack, LoweredRule, MadeFill, MadeTable,
 };
-use crate::domain::programs::fixtures::{framed, state, table};
+use crate::domain::programs::fixtures::{framed, held, table};
+use crate::domain::programs::frames::types::RunMode;
 use crate::domain::programs::types::ProgramsEngine;
 use crate::domain::steps::types::{
-    CallMeaning, EmitTarget, MadeColumn, MadeTableId, PlacedStep, ProgramStep, ReadColumn,
-    Register, RegisterCount, RegisterList, StepOperand, StepOperands, StepProgram, StepRows,
-    TestOperation,
+    CallMeaning, EmitTarget, MadeColumn, MadeTableId, MatchColumns, PlacedStep, ProgramStep,
+    ReadColumn, Register, RegisterCount, RegisterList, StepOperand, StepOperands, StepProgram,
+    StepRows, TestOperation,
 };
 use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::relations::types::CellKind;
@@ -32,11 +33,13 @@ enum Scene {
     WithAnUnbuiltWord,
     /// The same with the row emitted twice: the rows a run answers are its emits, not its ends.
     TwoEmits,
+    /// For each row, the rows of a second table whose first cell is the row's first cell: an index read.
+    Matched,
 }
 
 type Input = Scene;
 /// The cells of the rows found; then 99, the rows the run answered, the steps, the rows visited, the candidates and the
-/// words counted as not run; then how many cursors are left.
+/// words counted as not run; then how many cursors and how many cells of the key room are left.
 type Value = Cow<'static, [u64]>;
 type Failure = ();
 
@@ -46,20 +49,28 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_branch_walks_a_table_reads_tests_and_emits"),
         word: Word::Succeeds,
         input: || Scene::ReadTestEmit,
-        expect: Expect::Value(Cow::Borrowed(&[1, 7, 3, 7, 99, 2, 13, 3, 3, 0, 0])),
+        expect: Expect::Value(Cow::Borrowed(&[1, 7, 3, 7, 99, 2, 13, 3, 3, 0, 0, 0])),
     },
     Case {
         name: CaseName("a_word_the_loop_does_not_run_ends_each_candidate_and_is_counted"),
         word: Word::Succeeds,
         input: || Scene::WithAnUnbuiltWord,
-        expect: Expect::Value(Cow::Borrowed(&[99, 0, 11, 3, 3, 2, 0])),
+        expect: Expect::Value(Cow::Borrowed(&[99, 0, 11, 3, 3, 2, 0, 0])),
     },
     Case {
         name: CaseName("the_rows_a_run_answers_are_its_emits"),
         word: Word::Succeeds,
         input: || Scene::TwoEmits,
         expect: Expect::Value(Cow::Borrowed(&[
-            1, 7, 1, 7, 3, 7, 3, 7, 99, 4, 15, 3, 3, 0, 0,
+            1, 7, 1, 7, 3, 7, 3, 7, 99, 4, 15, 3, 3, 0, 0, 0,
+        ])),
+    },
+    Case {
+        name: CaseName("an_index_read_binds_the_rows_of_the_key_through_the_seam"),
+        word: Word::Succeeds,
+        input: || Scene::Matched,
+        expect: Expect::Value(Cow::Borrowed(&[
+            1, 100, 1, 101, 3, 300, 99, 3, 16, 6, 3, 0, 0, 0,
         ])),
     },
 ];
@@ -86,6 +97,36 @@ fn pack(scene: Scene) -> LoweredPack {
         },
         read(0, 2),
     ];
+    if matches!(scene, Scene::Matched) {
+        let other = StepRows::Made(MadeTableId(1));
+        steps = vec![
+            ProgramStep::EachRow {
+                source: made,
+                out: Register(0),
+            },
+            read(0, 2),
+            ProgramStep::EachMatch {
+                source: other,
+                columns: MatchColumns(Box::new([ReadColumn::Made(MadeColumn(0))])),
+                values: StepOperands(Box::new([StepOperand::Register(Register(2))])),
+                out: Register(1),
+            },
+            ProgramStep::Read {
+                source: other,
+                column: ReadColumn::Made(MadeColumn(1)),
+                row: Register(1),
+                out: Register(3),
+            },
+            ProgramStep::Emit {
+                target: EmitTarget::Rule(SelectedRuleOrdinal(0)),
+                columns: StepOperands(Box::new([
+                    StepOperand::Register(Register(2)),
+                    StepOperand::Register(Register(3)),
+                ])),
+            },
+        ];
+        return packed(steps);
+    }
     if matches!(scene, Scene::WithAnUnbuiltWord) {
         steps.push(ProgramStep::Call {
             meaning: CallMeaning::Lower,
@@ -107,15 +148,21 @@ fn pack(scene: Scene) -> LoweredPack {
             ])),
         });
     }
+    packed(steps)
+}
+
+/// A pack of one rule of the steps and two tables of two columns.
+fn packed(steps: Vec<ProgramStep>) -> LoweredPack {
+    let made_table = |node: u8| MadeTable {
+        node: NodeDigest([node; 16]),
+        fill: MadeFill::Constant(ConstantRows(Vec::new())),
+        width: ColumnCount(2),
+        indexes: Vec::new(),
+        emptiness: Emptiness::Unknown,
+    };
     LoweredPack {
         definitions: Vec::new(),
-        tables: vec![MadeTable {
-            node: NodeDigest([2; 16]),
-            fill: MadeFill::Constant(ConstantRows(Vec::new())),
-            width: ColumnCount(2),
-            indexes: Vec::new(),
-            emptiness: Emptiness::Unknown,
-        }],
+        tables: vec![made_table(2), made_table(3)],
         rules: vec![LoweredRule {
             rule: SelectedRuleOrdinal(0),
             node: NodeDigest([1; 16]),
@@ -133,7 +180,7 @@ fn pack(scene: Scene) -> LoweredPack {
                 frontier: Vec::new(),
             },
         }],
-        registers: RegisterCount(3),
+        registers: RegisterCount(4),
         regexes: Vec::new(),
         texts: Vec::new(),
         reads: Vec::new(),
@@ -152,20 +199,22 @@ fn subject(scene: Input) -> Result<Value, Failure> {
         code,
         ..ProgramsEngine::default()
     };
-    let mut held = state(3);
+    let mut held = held(4);
     table(&mut held, 0, 2, &[&[1, 10], &[2, 3], &[3, 7]]);
-    let (rows, found) = framed(&programs, &mut held, |frame| {
+    table(&mut held, 1, 2, &[&[1, 100], &[3, 300], &[1, 101]]);
+    let (rows, found) = framed(&programs, &mut held, &TheLoop, |frame| {
         run_branch(frame, entry, RunMode::Rows)
     });
     let mut all: Vec<u64> = found.rows.into_iter().flatten().collect();
     all.extend([
         99,
         rows.0,
-        held.work.steps.0,
-        held.work.visited.0,
-        held.work.candidates.0,
-        held.work.unbuilt.0,
-        u64::try_from(held.frames.len()).unwrap_or(u64::MAX),
+        held.state.work.steps.0,
+        held.state.work.visited.0,
+        held.state.work.candidates.0,
+        held.state.work.unbuilt.0,
+        u64::try_from(held.state.frames.len()).unwrap_or(u64::MAX),
+        u64::try_from(held.state.key.len()).unwrap_or(u64::MAX),
     ]);
     Ok(Cow::Owned(all))
 }

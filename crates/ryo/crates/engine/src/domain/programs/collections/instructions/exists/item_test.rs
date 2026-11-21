@@ -7,7 +7,7 @@ use crate::domain::code::controlling::service::exists;
 use crate::domain::code::controlling::types::ExistsWord;
 use crate::domain::code::types::{CodeEntry, MemoSite, PoolAt, Short, WordFlag};
 use crate::domain::programs::collections::instructions::interface::{Flow, InstructionsItem};
-use crate::domain::programs::fixtures::{framed, state};
+use crate::domain::programs::fixtures::{Idle, framed, held};
 use crate::domain::programs::types::ProgramsEngine;
 use crate::domain::scratch::types::BodyAnswer;
 use ryo_relations::domain::relations::types::Count;
@@ -48,8 +48,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 fn subject((rows, flag): Input) -> Result<Value, Failure> {
     let programs = ProgramsEngine::default();
-    let mut held = state(1);
-    held.answer = BodyAnswer {
+    let mut held = held(1);
+    held.state.answer = BodyAnswer {
         first: Count(0),
         rows: Count(rows),
     };
@@ -60,7 +60,7 @@ fn subject((rows, flag): Input) -> Result<Value, Failure> {
         key: PoolAt(0),
         memo: MemoSite(0),
     });
-    let (flow, _found) = framed(&programs, &mut held, |frame| {
+    let (flow, _found) = framed(&programs, &mut held, &Idle, |frame| {
         Exists::run(frame, word, CodeEntry(1))
     });
     Ok(u8::from(flow == Flow::Next))

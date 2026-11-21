@@ -7,7 +7,7 @@ use crate::domain::code::controlling::types::ForkWord;
 use crate::domain::code::records::service::push_list;
 use crate::domain::code::types::{CodeEntry, ProgramCode, Short, WordSlot};
 use crate::domain::programs::collections::instructions::interface::{Flow, InstructionsItem};
-use crate::domain::programs::fixtures::{framed, state};
+use crate::domain::programs::fixtures::{Idle, framed, held};
 use crate::domain::programs::types::ProgramsEngine;
 use std::borrow::Cow;
 
@@ -47,8 +47,8 @@ fn subject(entries: Input) -> Result<Value, Failure> {
         code,
         ..ProgramsEngine::default()
     };
-    let mut held = state(1);
-    let (ran, _found) = framed(&programs, &mut held, |frame| {
+    let mut held = held(1);
+    let (ran, _found) = framed(&programs, &mut held, &Idle, |frame| {
         let mut ran = Vec::new();
         if Fork::run(frame, word, CodeEntry(3)) != Flow::Back {
             return ran;

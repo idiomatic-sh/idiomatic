@@ -10,7 +10,7 @@ use crate::domain::code::types::{
     CodeEntry, MemoSite, PoolAt, ProgramCode, Short, WordFlag, WordSlot,
 };
 use crate::domain::programs::collections::instructions::interface::{Flow, InstructionsItem};
-use crate::domain::programs::fixtures::{framed, state};
+use crate::domain::programs::fixtures::{Idle, framed, held};
 use crate::domain::programs::types::ProgramsEngine;
 use crate::domain::scratch::types::BodyAnswer;
 use ryo_language::domain::facts::types::CellWord;
@@ -49,15 +49,15 @@ fn subject(rows: Input) -> Result<Value, Failure> {
         code,
         ..ProgramsEngine::default()
     };
-    let mut held = state(2);
-    held.staged.push(CellWord(77));
-    held.staged.extend(
+    let mut held = held(2);
+    held.state.staged.push(CellWord(77));
+    held.state.staged.extend(
         [5_u64, 6, 7, 8]
             .iter()
             .take(rows * 2)
             .map(|cell| CellWord(*cell)),
     );
-    held.answer = BodyAnswer {
+    held.state.answer = BodyAnswer {
         first: Count(1),
         rows: Count(rows),
     };
@@ -68,7 +68,7 @@ fn subject(rows: Input) -> Result<Value, Failure> {
         outputs,
         memo: MemoSite(0),
     });
-    let (bound, _found) = framed(&programs, &mut held, |frame| {
+    let (bound, _found) = framed(&programs, &mut held, &Idle, |frame| {
         let mut bound = Vec::new();
         if Or::run(frame, word, CodeEntry(3)) != Flow::Back {
             return bound;

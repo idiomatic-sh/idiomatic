@@ -2,7 +2,7 @@
 //! comparison of two cells is decided here; a comparison of texts (a pattern, a glob, a prefix) is the fill side's meaning
 //! and is not built yet: the candidate then ends and the word is counted.
 
-use super::super::interface::{Flow, InstructionsItem, StepFrame};
+use super::super::interface::{Flow, InstructionsItem};
 use crate::domain::code::constants::{LEFT_CONSTANT, NEGATED, RIGHT_CONSTANT, RIGHT_SET};
 use crate::domain::code::deciding::service::{
     test_equal_constant_of, test_equal_register_of, test_in_constants_of,
@@ -11,6 +11,7 @@ use crate::domain::code::deciding::service::{
 use crate::domain::code::small_codes::service::comparison_of;
 use crate::domain::code::types::{CodeEntry, CodeWord, ConstantNumber, Op, PoolAt, WordSlot};
 use crate::domain::findings::types::InstructionCount;
+use crate::domain::programs::frames::types::StepFrame;
 use crate::domain::programs::operands::service::{cell, constant, listed};
 use crate::domain::stages::types::CellTest;
 use crate::domain::steps::types::{Register, TestOperation};
@@ -72,7 +73,7 @@ const fn compared(test: CellTest, left: CellWord, right: CellWord) -> Verdict {
 
 /// Whether a cell is in a sorted list of constants of the pool, or with `wanted` fails is not.
 fn within(frame: &StepFrame<'_, '_>, value: CellWord, list: PoolAt, wanted: Verdict) -> Verdict {
-    let constants = listed(&frame.programs.code.pool, list);
+    let constants = listed(&frame.fill.programs.code.pool, list);
     let found = constants
         .binary_search_by(|number: &WordSlot| constant(frame, ConstantNumber(number.0)).cmp(&value))
         .is_ok();

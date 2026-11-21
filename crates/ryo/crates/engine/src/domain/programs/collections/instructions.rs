@@ -3,6 +3,8 @@
 //! collection is compiled with the crate's tests.
 
 #[cfg(test)]
+pub mod each_match;
+#[cfg(test)]
 pub mod each_row;
 #[cfg(test)]
 pub mod emit;

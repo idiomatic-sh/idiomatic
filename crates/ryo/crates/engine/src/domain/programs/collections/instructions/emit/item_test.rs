@@ -10,7 +10,7 @@ use crate::domain::code::types::{
     CodeEntry, ConstantNumber, ProgramCode, Short, WordFlag, WordSlot,
 };
 use crate::domain::programs::collections::instructions::interface::{Flow, InstructionsItem};
-use crate::domain::programs::fixtures::{framed, state};
+use crate::domain::programs::fixtures::{Idle, framed, held};
 use crate::domain::programs::types::ProgramsEngine;
 use crate::domain::steps::types::Register;
 use ryo_language::domain::facts::types::CellWord;
@@ -53,9 +53,9 @@ fn subject(columns: Input) -> Result<Value, Failure> {
         code,
         ..ProgramsEngine::default()
     };
-    let mut held = state(2);
-    held.registers[1] = CellWord(30);
-    held.key.push(CellWord(1));
+    let mut held = held(2);
+    held.state.registers[1] = CellWord(30);
+    held.state.key.push(CellWord(1));
     let word = emit(EmitWord {
         flag: WordFlag(0),
         columns: Short(columns),
@@ -63,7 +63,7 @@ fn subject(columns: Input) -> Result<Value, Failure> {
         input: WordSlot(0),
         operands,
     });
-    let (flow, found) = framed(&programs, &mut held, |frame| {
+    let (flow, found) = framed(&programs, &mut held, &Idle, |frame| {
         Emit::run(frame, word, CodeEntry(1))
     });
     if flow != Flow::Next || found.rows.len() != 1 {
@@ -71,7 +71,7 @@ fn subject(columns: Input) -> Result<Value, Failure> {
     }
     let mut all: Vec<u64> = found.rows.into_iter().flatten().collect();
     all.push(99);
-    all.push(u64::try_from(held.key.len()).unwrap_or(u64::MAX));
+    all.push(u64::try_from(held.state.key.len()).unwrap_or(u64::MAX));
     Ok(Cow::Owned(all))
 }
 

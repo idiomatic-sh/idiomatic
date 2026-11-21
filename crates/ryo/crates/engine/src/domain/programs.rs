@@ -11,6 +11,8 @@ pub mod collections;
 #[cfg(test)]
 pub mod fixtures;
 #[cfg(test)]
+pub mod frames;
+#[cfg(test)]
 pub mod operands;
 pub mod service;
 pub mod types;

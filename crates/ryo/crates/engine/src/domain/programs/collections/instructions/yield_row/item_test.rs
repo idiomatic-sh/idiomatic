@@ -7,7 +7,7 @@ use crate::domain::code::controlling::types::YieldWord;
 use crate::domain::code::records::service::push_list;
 use crate::domain::code::types::{CodeEntry, ProgramCode, Short, WordSlot};
 use crate::domain::programs::collections::instructions::interface::{Flow, InstructionsItem};
-use crate::domain::programs::fixtures::{framed, state};
+use crate::domain::programs::fixtures::{Idle, framed, held};
 use crate::domain::programs::types::ProgramsEngine;
 use ryo_language::domain::facts::types::CellWord;
 use std::borrow::Cow;
@@ -54,18 +54,20 @@ fn subject(registers: Input) -> Result<Value, Failure> {
         code,
         ..ProgramsEngine::default()
     };
-    let mut held = state(3);
-    held.registers = vec![CellWord(5), CellWord(6), CellWord(7)];
-    held.yielded.push(CellWord(40));
+    let mut held = held(3);
+    held.state.registers = vec![CellWord(5), CellWord(6), CellWord(7)];
+    held.state.yielded.push(CellWord(40));
     let word = yield_row(YieldWord {
         cells: Short(u16::try_from(registers.len()).unwrap_or(u16::MAX)),
         row,
     });
-    let (flow, _found) = framed(&programs, &mut held, |frame| {
+    let (flow, _found) = framed(&programs, &mut held, &Idle, |frame| {
         YieldRow::run(frame, word, CodeEntry(1))
     });
     if flow == Flow::Back {
-        Ok(Cow::Owned(held.yielded.iter().map(|cell| cell.0).collect()))
+        Ok(Cow::Owned(
+            held.state.yielded.iter().map(|cell| cell.0).collect(),
+        ))
     } else {
         Err(())
     }

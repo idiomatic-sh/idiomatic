@@ -6,14 +6,15 @@ use super::service::{begin_rule, end_rule};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::code::types::ShapeChoice;
 use crate::domain::encoding::service::encoded;
+use crate::domain::executing::entries::types::TheLoop;
 use crate::domain::executing::service::run as run_program;
-use crate::domain::executing::types::RunMode;
 use crate::domain::findings::types::{ColumnKinds, HeaviestWork, RuleColumns};
 use crate::domain::lowered::types::{
     Branch, ConstantRows, DefinitionPattern, Emptiness, LoweredPack, LoweredRule, MadeFill,
     MadeTable, PackDefinition, PatternForm,
 };
-use crate::domain::programs::fixtures::{framed, state, table};
+use crate::domain::programs::fixtures::{framed, held, table};
+use crate::domain::programs::frames::types::RunMode;
 use crate::domain::programs::types::{Programs, ProgramsEngine};
 use crate::domain::steps::types::{
     ColumnMask, DefinitionId, EmitTarget, MadeColumn, MadeTableId, PlacedStep, Polarity,
@@ -209,10 +210,10 @@ fn subject((rules, asked, rows, keys): Input) -> Result<Value, Failure> {
         code: encoded(&pack).map_err(|_| ())?,
         ..ProgramsEngine::default()
     });
-    let mut held = state(10);
+    let mut held = held(10);
     let held_rows: Vec<&[u64]> = keys.chunks(1).collect();
     table(&mut held, 0, 1, &held_rows);
-    let (notices, found) = framed(&programs.0, &mut held, |frame| {
+    let (notices, found) = framed(&programs.0, &mut held, &TheLoop, |frame| {
         let mut notices = Vec::new();
         for each in &programs.0.code.rules {
             begin_rule(frame.state);

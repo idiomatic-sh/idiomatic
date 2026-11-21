@@ -1,9 +1,10 @@
 //! `Let`: one register written from a register, a constant or the scanned file.
 
-use super::super::interface::{Flow, InstructionsItem, StepFrame};
+use super::super::interface::{Flow, InstructionsItem};
 use crate::domain::code::constants::{CONSTANT, THE_FILE};
 use crate::domain::code::deciding::service::let_value_of;
 use crate::domain::code::types::{CodeEntry, CodeWord, ConstantNumber};
+use crate::domain::programs::frames::types::StepFrame;
 use crate::domain::programs::operands::service::{cell, constant, file_cell, set};
 use crate::domain::steps::types::Register;
 

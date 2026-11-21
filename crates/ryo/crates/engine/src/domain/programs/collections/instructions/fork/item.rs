@@ -1,8 +1,9 @@
 //! `Fork`: the programs that share the words before it, each run in turn from the registers as they stand.
 
-use super::super::interface::{Flow, InstructionsItem, StepFrame};
+use super::super::interface::{Flow, InstructionsItem};
 use crate::domain::code::controlling::service::fork_of;
 use crate::domain::code::types::{CodeEntry, CodeWord};
+use crate::domain::programs::frames::types::StepFrame;
 use crate::domain::programs::operands::service::listed;
 use crate::domain::scratch::types::{FramePlace, IterationCursor};
 
@@ -29,7 +30,7 @@ impl InstructionsItem for Fork {
         if cursor.at.0 >= cursor.end.0 {
             return None;
         }
-        let entry = listed(&frame.programs.code.pool, fork_of(word).entries)
+        let entry = listed(&frame.fill.programs.code.pool, fork_of(word).entries)
             .get(usize::try_from(cursor.at.0).unwrap_or(usize::MAX))
             .map(|slot| CodeEntry(slot.0))?;
         cursor.at = FramePlace(cursor.at.0.saturating_add(1));

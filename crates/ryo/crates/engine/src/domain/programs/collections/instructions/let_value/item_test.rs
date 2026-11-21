@@ -7,7 +7,7 @@ use crate::domain::code::deciding::service::let_value;
 use crate::domain::code::deciding::types::LetWord;
 use crate::domain::code::types::{CodeEntry, ProgramCode, WordFlag, WordSlot};
 use crate::domain::programs::collections::instructions::interface::{Flow, InstructionsItem};
-use crate::domain::programs::fixtures::{framed, state};
+use crate::domain::programs::fixtures::{Idle, framed, held};
 use crate::domain::programs::types::ProgramsEngine;
 use crate::domain::steps::types::Register;
 use ryo_language::domain::facts::types::CellWord;
@@ -48,18 +48,18 @@ fn subject((flag, from): Input) -> Result<Value, Failure> {
         },
         ..ProgramsEngine::default()
     };
-    let mut held = state(2);
-    held.registers[0] = CellWord(40);
+    let mut held = held(2);
+    held.state.registers[0] = CellWord(40);
     let word = let_value(LetWord {
         flag,
         from: WordSlot(from),
         out: Register(1),
     });
-    let (flow, _found) = framed(&programs, &mut held, |frame| {
+    let (flow, _found) = framed(&programs, &mut held, &Idle, |frame| {
         LetValue::run(frame, word, CodeEntry(1))
     });
     if flow == Flow::Next {
-        Ok(held.registers[1].0)
+        Ok(held.state.registers[1].0)
     } else {
         Err(())
     }

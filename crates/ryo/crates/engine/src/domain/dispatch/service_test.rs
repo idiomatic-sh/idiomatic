@@ -4,11 +4,12 @@
 use super::service::dispatch;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::encoding::service::encoded;
+use crate::domain::executing::entries::types::TheLoop;
 use crate::domain::findings::types::{ColumnKinds, RuleColumns};
 use crate::domain::lowered::types::{
     Branch, ConstantRows, Emptiness, LoweredPack, LoweredRule, MadeFill, MadeTable,
 };
-use crate::domain::programs::fixtures::{framed, state, table};
+use crate::domain::programs::fixtures::{framed, held, table};
 use crate::domain::programs::types::{Programs, ProgramsEngine};
 use crate::domain::steps::types::{
     AnchorKinds, EmitTarget, MadeColumn, MadeTableId, PlacedStep, ProgramStep, ReadColumn,
@@ -144,10 +145,12 @@ fn subject(rules: Input) -> Result<Value, Failure> {
         code: encoded(&pack).map_err(|_| ())?,
         ..ProgramsEngine::default()
     });
-    let mut held = state(2);
+    let mut held = held(2);
     table(&mut held, 0, 1, &[&[5], &[6]]);
     table(&mut held, 1, 1, &[]);
-    let (counted, found) = framed(&programs.0, &mut held, |frame| dispatch(frame, &programs));
+    let (counted, found) = framed(&programs.0, &mut held, &TheLoop, |frame| {
+        dispatch(frame, &programs)
+    });
     let mut all: Vec<u64> = found.rows.into_iter().flatten().collect();
     all.extend([99, counted.steps.0, counted.candidates.0, counted.visited.0]);
     Ok(Cow::Owned(all))

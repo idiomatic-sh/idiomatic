@@ -3,29 +3,37 @@
 //! allocates, and the loop reads no clock: steps and the rows its iterations gave are counted in locals and added to the
 //! work once, when the program ends.
 
-use super::bodies::service::{exists, staged};
-use super::types::RunMode;
+use super::bodies::service::exists;
+use super::sources::service::{keyed, whole};
+use super::staging::service::staged;
+use crate::domain::code::anchoring::service::{
+    each_row_filled_of, each_row_made_of, each_row_node_of,
+};
+use crate::domain::code::constants::OWN_TREE;
 use crate::domain::code::types::{CodeEntry, CodeWord, Op};
 use crate::domain::findings::types::InstructionCount;
+use crate::domain::made_tables::types::ReadSource;
+use crate::domain::programs::collections::instructions::each_match::item::EachMatch;
 use crate::domain::programs::collections::instructions::each_row::item::EachRow;
 use crate::domain::programs::collections::instructions::emit::item::Emit;
 use crate::domain::programs::collections::instructions::exists::item::Exists;
 use crate::domain::programs::collections::instructions::fork::item::Fork;
-use crate::domain::programs::collections::instructions::interface::{
-    Flow, InstructionsItem, StepFrame,
-};
+use crate::domain::programs::collections::instructions::interface::{Flow, InstructionsItem};
 use crate::domain::programs::collections::instructions::let_value::item::LetValue;
 use crate::domain::programs::collections::instructions::or::item::Or;
 use crate::domain::programs::collections::instructions::read::item::Read;
 use crate::domain::programs::collections::instructions::test::item::Test;
 use crate::domain::programs::collections::instructions::yield_row::item::YieldRow;
+use crate::domain::programs::frames::types::{RunMode, StepFrame};
 use crate::domain::programs::operands::service::after;
 use crate::domain::scratch::types::IterationCursor;
+use ryo_relations::domain::relations::types::NodeExtent;
 
 /// The word at a place; the word that ends a program past the code's end.
 #[inline]
 fn word_at(frame: &StepFrame<'_, '_>, at: CodeEntry) -> CodeWord {
     match frame
+        .fill
         .programs
         .code
         .words
@@ -42,7 +50,31 @@ fn word_at(frame: &StepFrame<'_, '_>, at: CodeEntry) -> CodeWord {
 fn step(frame: &mut StepFrame<'_, '_>, word: CodeWord, at: CodeEntry, mode: RunMode) -> Flow {
     match word.op {
         Op::End => Flow::Back,
-        Op::EachRowNode | Op::EachRowFilled | Op::EachRowMade => EachRow::run(frame, word, at),
+        Op::EachRowNode | Op::EachRowFilled | Op::EachRowMade => {
+            let source = if word.op == Op::EachRowNode {
+                let own = each_row_node_of(word).flag.0 & OWN_TREE.0 != 0;
+                ReadSource::Nodes(if own {
+                    NodeExtent::Own
+                } else {
+                    NodeExtent::Embedded
+                })
+            } else if word.op == Op::EachRowFilled {
+                ReadSource::Filled(each_row_filled_of(word).relation)
+            } else {
+                ReadSource::Made(each_row_made_of(word).table)
+            };
+            frame.state.rows = whole(frame, source);
+            EachRow::run(frame, word, at)
+        }
+        Op::EachMatchNode | Op::EachMatchFilled | Op::EachMatchFilledMany | Op::EachMatchMade => {
+            let Some(asked) = EachMatch::key(frame, word) else {
+                return Flow::Back;
+            };
+            let rows = keyed(frame, asked.site, asked.start, asked.from);
+            frame.state.key.truncate(asked.start.0);
+            frame.state.rows = rows;
+            EachMatch::run(frame, word, at)
+        }
         Op::ReadNode | Op::ReadFilled | Op::ReadMade => Read::run(frame, word, at),
         Op::Test
         | Op::TestEqualConstant
@@ -53,11 +85,11 @@ fn step(frame: &mut StepFrame<'_, '_>, word: CodeWord, at: CodeEntry, mode: RunM
         Op::Let => LetValue::run(frame, word, at),
         Op::Emit => Emit::run(frame, word, at),
         Op::Exists => {
-            exists(frame, word, run);
+            exists(frame, word);
             Exists::run(frame, word, at)
         }
         Op::Or => {
-            staged(frame, word, run);
+            staged(frame, word);
             Or::run(frame, word, at)
         }
         Op::Fork => Fork::run(frame, word, at),
@@ -69,10 +101,6 @@ fn step(frame: &mut StepFrame<'_, '_>, word: CodeWord, at: CodeEntry, mode: RunM
             }
         }
         Op::EachKind
-        | Op::EachMatchNode
-        | Op::EachMatchFilled
-        | Op::EachMatchFilledMany
-        | Op::EachMatchMade
         | Op::EachRange
         | Op::Children
         | Op::ChildrenOfField
@@ -108,14 +136,13 @@ fn next(frame: &mut StepFrame<'_, '_>, cursor: &mut IterationCursor) -> Option<C
     let word = word_at(frame, cursor.word);
     match word.op {
         Op::EachRowNode | Op::EachRowFilled | Op::EachRowMade => EachRow::next(frame, word, cursor),
+        Op::EachMatchNode | Op::EachMatchFilled | Op::EachMatchFilledMany | Op::EachMatchMade => {
+            EachMatch::next(frame, word, cursor)
+        }
         Op::Or => Or::next(frame, word, cursor),
         Op::Fork => Fork::next(frame, word, cursor),
         Op::End
         | Op::EachKind
-        | Op::EachMatchNode
-        | Op::EachMatchFilled
-        | Op::EachMatchFilledMany
-        | Op::EachMatchMade
         | Op::EachRange
         | Op::Children
         | Op::ChildrenOfField

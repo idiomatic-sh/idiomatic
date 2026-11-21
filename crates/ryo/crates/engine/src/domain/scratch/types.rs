@@ -3,11 +3,11 @@
 #[cfg(test)]
 use crate::domain::code::types::CodeEntry;
 #[cfg(test)]
+use crate::domain::filled::errors::FilledError;
+#[cfg(test)]
 use crate::domain::findings::types::InstructionCount;
 #[cfg(test)]
-use crate::domain::indexes::types::FileStamp;
-#[cfg(test)]
-use crate::domain::made_tables::types::TableRows;
+use crate::domain::indexes::types::RowRun;
 #[cfg(test)]
 use crate::domain::memos::types::{MemoId, MemoMap, RuleStamp};
 #[cfg(test)]
@@ -100,27 +100,25 @@ pub(crate) struct BodyAnswer {
     pub(crate) rows: Count,
 }
 
-/// One made table for a file.
+/// What the source of the word about to run answered: the rows it has for the word, as the seam's run, and what turns one
+/// of its rows into the cell a register holds.
 #[cfg(test)]
-#[derive(Debug, Default)]
-pub(crate) struct LoopTable {
-    /// The file it was made for.
-    pub(crate) stamp: FileStamp,
-    /// Its rows.
-    pub(crate) rows: TableRows,
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct SeamRows {
+    /// The rows: a range of handles for a whole read, a stretch of the store's rows for a read by key.
+    pub(crate) run: RowRun,
+    /// What is or-ed onto a row to make its handle: nought, or the file's half of a node's id.
+    pub(crate) tag: CellWord,
 }
 
 /// The loop's per-file state: what `ScanScratch` holds once the loop is the scan's body. Sized once for a rule set and
-/// reset per file without an allocation: a slot stamped with another file's number is unset, every arena is emptied.
+/// reset per file without an allocation: every arena is emptied. The fill side's store and the file's words are beside it, in
+/// the frame's other half.
 #[cfg(test)]
 #[derive(Debug, Default)]
 pub(crate) struct LoopState {
-    /// The file's number: bumped per file.
-    pub(crate) stamp: FileStamp,
     /// The registers of the rule set, one vector.
     pub(crate) registers: Vec<CellWord>,
-    /// Each made table, by number.
-    pub(crate) tables: Vec<LoopTable>,
     /// The answers kept for the file.
     pub(crate) memos: MemoMap,
     /// The cursors of the running iterations, innermost last.
@@ -129,14 +127,16 @@ pub(crate) struct LoopState {
     pub(crate) yielded: Vec<CellWord>,
     /// The rows each running `Or` iterates, innermost last.
     pub(crate) staged: Vec<CellWord>,
+    /// What the source of the word about to run answered: the loop asks the fill side, the word's item reads the rows.
+    pub(crate) rows: SeamRows,
+    /// The first fault the fill side answered in the file: a relation refused or read in part.
+    pub(crate) fault: Option<FilledError>,
     /// What the body of the word about to run answered: the loop asks the body, the word's item reads the answer.
     pub(crate) answer: BodyAnswer,
     /// Each emptiness decision made in the file, by `NeedSite`.
     pub(crate) needs: Vec<Option<NeedVerdict>>,
     /// The cells of the key or of the row being put together.
     pub(crate) key: Vec<CellWord>,
-    /// The file's words over the run's base words.
-    pub(crate) words: FileWords,
     /// What the loop counted.
     pub(crate) work: LoopWork,
     /// What the running rule did and was charged in the file.
