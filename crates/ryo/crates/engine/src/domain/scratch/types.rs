@@ -289,6 +289,10 @@ pub(crate) struct Measuring {
     pub(crate) idle_nanos: Vec<Count>,
     /// The elements of each kind, by kind code, summed over the files.
     pub(crate) kinds: Vec<Count>,
+    /// The elements that fill each field of their parent, by field code, summed over the files.
+    pub(crate) fields: Vec<Count>,
+    /// The elements of the files, summed.
+    pub(crate) elements: Count,
     /// The rows of each size site, by its place, summed over the files.
     pub(crate) literals: Vec<Count>,
     /// Each unit's time and rows in the file being scanned, by the unit's place.

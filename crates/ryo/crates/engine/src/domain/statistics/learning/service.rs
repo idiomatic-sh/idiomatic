@@ -9,8 +9,20 @@ use crate::domain::code::types::{FillCode, MeasuredForm, ShapeChoice, UnitKey, W
 use crate::domain::lowered::service::fill_code;
 use crate::domain::lowered::types::MadeFill;
 use crate::domain::statistics::constants::{ORDER_SHARE, ORDER_STEPS};
-use crate::domain::statistics::types::{Measured, MeasuredUnit, OrderVerdict};
+use crate::domain::statistics::types::{
+    FieldSize, KindSize, LiteralSize, Measured, MeasuredSizes, MeasuredUnit, NamedSize, NamedSizes,
+    OrderVerdict,
+};
+use ryo_language::domain::facts::service::{base_count, file_words, text};
+use ryo_language::domain::facts::types::CellWord;
+use ryo_language::domain::node_table::types::FieldCode;
+use ryo_relations::domain::labels::types::NameRef;
+use ryo_relations::domain::relations::service::{
+    column_name, column_named, columns, name, relation_named,
+};
 use ryo_relations::domain::relations::types::Count;
+use ryo_relations::domain::relations::types::KindBits;
+use ryo_values::domain::descriptions::types::KindVocabulary;
 use ryo_values::domain::plan_parts::types::RepeatedRows;
 
 /// The unit of a name among units sorted by name.
@@ -60,6 +72,98 @@ pub(crate) fn sampled(sample: Measured<'_>) -> Vec<MeasuredUnit> {
     units.sort_by(|left, right| left.key.cmp(&right.key));
     units.dedup_by(|later, kept| later.key == kept.key);
     units
+}
+
+/// What a sample sized, each under its name: the files and their elements; the elements of each kind and of each field
+/// the programs' language names, by the name's text; and the rows of each constant bucket the programs' plans test (the
+/// code's size sites), by the relation's and the column's catalog names and the value's text (a text as written, any
+/// other cell as its number).
+#[must_use]
+pub(crate) fn sized(sample: Measured<'_>) -> NamedSizes {
+    let (programs, counts) = (&sample.programs.0, &sample.counts.0);
+    let words = file_words(&programs.words);
+    let named = |codes: &[CellWord], rows: &[Count]| -> Vec<NamedSize> {
+        let each = codes.iter().enumerate().map(|(code, word)| NamedSize {
+            name: text(&words, *word).0.into(),
+            rows: rows.get(code).copied().unwrap_or_default(),
+        });
+        // The empty name is no kind and no field (field nought is "no field"): nothing is asked by it.
+        each.filter(|size| !size.name.is_empty()).collect()
+    };
+    let code = &programs.code;
+    let place = |slot: WordSlot| usize::try_from(slot.0).unwrap_or(usize::MAX);
+    let literals = code
+        .sizes
+        .iter()
+        .zip(&counts.literals)
+        .filter_map(|(site, rows)| {
+            let relation = *code.relations.get(place(site.relation))?;
+            let column = *columns(relation).get(usize::from(site.column.0))?;
+            let value = *code.constants.get(place(site.value))?;
+            let value = if value < base_count(&words) {
+                text(&words, value).0.to_owned()
+            } else {
+                value.0.to_string()
+            };
+            let parts = [name(relation).0, column_name(column).0, value.as_str()];
+            Some(NamedSize {
+                name: parts.join("\n").into(),
+                rows: *rows,
+            })
+        });
+    NamedSizes {
+        files: counts.files,
+        elements: counts.elements,
+        kinds: named(&programs.kinds, &counts.kinds),
+        fields: named(&programs.fields, &counts.fields),
+        literals: literals.collect(),
+    }
+}
+
+/// The sizes of statistics read with a vocabulary: a kind and a field by the code the vocabulary gives its name, a name
+/// it does not hold left out; a constant bucket by the relation and the column the catalog names so.
+#[must_use]
+pub(crate) fn coded(sizes: &NamedSizes, names: &KindVocabulary) -> MeasuredSizes {
+    let code = |named: &NamedSize, all: Vec<&str>| {
+        let place = all.iter().position(|each| *each == &*named.name)?;
+        u16::try_from(place).ok()
+    };
+    let kinds = sizes.kinds.iter().filter_map(|named| {
+        let kind = code(named, names.kinds.iter().map(|kind| &*kind.0).collect())?;
+        Some(KindSize {
+            kind: KindBits(kind),
+            ids: named.rows,
+        })
+    });
+    let fields = sizes.fields.iter().filter_map(|named| {
+        let field = code(named, names.fields.iter().map(|field| &*field.0).collect())?;
+        Some(FieldSize {
+            field: FieldCode(field),
+            rows: named.rows,
+        })
+    });
+    let literals = sizes.literals.iter().filter_map(|named| {
+        let mut parts = named.name.splitn(3, '\n');
+        let relation = relation_named(NameRef(parts.next()?))?;
+        let column = column_named(relation, NameRef(parts.next()?))?;
+        Some(LiteralSize {
+            relation,
+            column,
+            value: parts.next()?.into(),
+            rows: named.rows,
+        })
+    });
+    let (mut kinds, mut fields): (Vec<KindSize>, Vec<FieldSize>) =
+        (kinds.collect(), fields.collect());
+    kinds.sort_by_key(|size| size.kind);
+    fields.sort_by_key(|size| size.field);
+    MeasuredSizes {
+        files: sizes.files,
+        elements: sizes.elements,
+        kinds,
+        fields,
+        literals: literals.collect(),
+    }
 }
 
 /// The code of the fill of a definition's own rows: what the table of a pattern in table form is named with.

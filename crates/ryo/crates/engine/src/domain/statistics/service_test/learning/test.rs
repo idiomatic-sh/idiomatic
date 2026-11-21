@@ -15,6 +15,7 @@ use crate::domain::statistics::types::{
     LearnStage, Measured, OrderVerdict, PointCounts, PointCountsEngine, StatisticsBytes, UnitCounts,
 };
 use crate::domain::steps::types::{ColumnMask, MadeColumn};
+use ryo_relations::domain::relations::service::column_name;
 use ryo_relations::domain::relations::types::Count;
 use ryo_values::domain::descriptions::types::{KindVocabulary, LanguageName};
 use ryo_values::domain::query_plans::types::NodeDigest;
@@ -349,4 +350,62 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
+}
+
+/// What a sample sized is read by the names of the vocabulary it is decoded with: a kind and a field take that vocabulary's
+/// codes, a name it does not hold matches nothing, and a constant bucket is found by its relation, column and text.
+#[test]
+fn sizes_are_read_by_name() {
+    use crate::domain::statistics::bytes::service::written;
+    use crate::domain::statistics::service::{element_rows, field_rows, kind_rows, literal_rows};
+    use crate::domain::statistics::types::{NamedSize, NamedSizes, SizedRows};
+    use ryo_language::domain::node_table::types::FieldCode;
+    use ryo_relations::domain::relations::service::{columns, name};
+    use ryo_relations::domain::relations::types::{KindBits, Relation};
+    use ryo_relations::domain::terms::types::NameText;
+    use ryo_values::domain::descriptions::types::{FieldWord, KindWord};
+
+    let named = |name: &str, rows| NamedSize {
+        name: name.into(),
+        rows: Count(rows),
+    };
+    let relation = Relation::SyntaxTree;
+    let column = columns(relation)[1];
+    let bucket = [name(relation).0, column_name(column).0, "global"].join("\n");
+    let sizes = NamedSizes {
+        files: Count(4),
+        elements: Count(4000),
+        kinds: vec![named("compare", 12), named("id", 900), named("gone", 5)],
+        fields: vec![named("left", 30)],
+        literals: vec![named(&bucket, 7)],
+    };
+    let bytes = written(LearnStage::First, &[], &sizes);
+    // The vocabulary of the load: `id` is kind 0 and `compare` kind 1 here, whatever they were when the sample ran.
+    let kinds = KindVocabulary {
+        language: LanguageName("walking".into()),
+        kinds: vec![KindWord("id".into()), KindWord("compare".into())],
+        fields: vec![FieldWord("".into()), FieldWord("left".into())],
+        fixed: Vec::new(),
+    };
+    let statistics = decoded(StatisticsBytes(&bytes.0), &kinds).expect("the sizes read");
+    let sized = |rows| {
+        Some(SizedRows {
+            rows: Count(rows),
+            files: Count(4),
+        })
+    };
+    assert_eq!(element_rows(&statistics), sized(4000));
+    assert_eq!(kind_rows(&statistics, KindBits(0)), sized(900));
+    assert_eq!(kind_rows(&statistics, KindBits(1)), sized(12));
+    assert_eq!(kind_rows(&statistics, KindBits(2)), None);
+    assert_eq!(field_rows(&statistics, FieldCode(1)), sized(30));
+    assert_eq!(field_rows(&statistics, FieldCode(0)), None);
+    assert_eq!(
+        literal_rows(&statistics, relation, column, NameText("global")),
+        sized(7)
+    );
+    assert_eq!(
+        literal_rows(&statistics, relation, column, NameText("local")),
+        None
+    );
 }

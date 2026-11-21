@@ -13,8 +13,8 @@ use crate::domain::statistics::constants::{
     SECOND_CHOICE, TABLE_UNIT,
 };
 use crate::domain::statistics::types::{
-    EncodedStatistics, LearnStage, MeasuredSizes, MeasuredUnit, OrderVerdict, Statistics,
-    StatisticsBytes, UnitCounts,
+    EncodedStatistics, LearnStage, MeasuredUnit, NamedSize, NamedSizes, OrderVerdict,
+    ReadStatistics, StatisticsBytes, UnitCounts,
 };
 use crate::domain::steps::types::{ColumnMask, MadeColumn};
 use ryo_relations::domain::relations::types::Count;
@@ -105,17 +105,43 @@ fn unit_written(bytes: &mut EncodedStatistics, unit: &MeasuredUnit) {
     }
 }
 
-/// Statistics as bytes: the header of their stage, then their units. Statistics of no unit are their header alone.
+/// Writes a text: its length in bytes, then its bytes.
+fn text_written(bytes: &mut EncodedStatistics, text: &str) {
+    number_written(bytes, Count(text.len()));
+    bytes.0.extend_from_slice(text.as_bytes());
+}
+
+/// Writes sizes under names: how many, then each name and its rows.
+fn sizes_written(bytes: &mut EncodedStatistics, sizes: &[NamedSize]) {
+    number_written(bytes, Count(sizes.len()));
+    for size in sizes {
+        text_written(bytes, &size.name);
+        number_written(bytes, size.rows);
+    }
+}
+
+/// Statistics as bytes: the header of their stage, then their units, then what the sample sized (its files, their
+/// elements, the kinds, the fields and the constant buckets, each under its name). Statistics of no unit and no file are
+/// their header alone.
 #[must_use]
-pub(crate) fn written(statistics: &Statistics) -> EncodedStatistics {
-    let mut bytes = header(statistics.stage);
-    if !statistics.units.is_empty() {
-        number_written(&mut bytes, Count(statistics.units.len()));
-        for unit in &statistics.units {
+pub(crate) fn written(
+    stage: LearnStage,
+    units: &[MeasuredUnit],
+    sizes: &NamedSizes,
+) -> EncodedStatistics {
+    let mut bytes = header(stage);
+    if !units.is_empty() || sizes.files.0 > 0 {
+        number_written(&mut bytes, Count(units.len()));
+        for unit in units {
             unit_written(&mut bytes, unit);
         }
+        number_written(&mut bytes, sizes.files);
+        number_written(&mut bytes, sizes.elements);
+        for named in [&sizes.kinds, &sizes.fields, &sizes.literals] {
+            sizes_written(&mut bytes, named);
+        }
     }
-    bytes
+    EncodedStatistics(bytes.0)
 }
 
 /// Reads `width` bytes from `at` on, moving `at` past them; none when the bytes end first.
@@ -225,30 +251,61 @@ fn unit_read(bytes: StatisticsBytes<'_>, at: &mut Count) -> Option<MeasuredUnit>
     })
 }
 
-/// The statistics bytes hold, or none when they are of another engine version or are not exactly a header and its units.
-/// The units are answered sorted by their names, each name once: a name written twice keeps its first unit.
+/// Reads a text.
+fn text_read<'b>(bytes: StatisticsBytes<'b>, at: &mut Count) -> Option<&'b str> {
+    let length = number_read(bytes, at)?;
+    match std::str::from_utf8(taken(bytes, at, length)?.0) {
+        Ok(text) => Some(text),
+        Err(_) => None,
+    }
+}
+
+/// Reads sizes under names.
+fn sizes_read(bytes: StatisticsBytes<'_>, at: &mut Count) -> Option<Vec<NamedSize>> {
+    let count = number_read(bytes, at)?;
+    let mut sizes = Vec::new();
+    for _ in 0..count.0 {
+        let name = text_read(bytes, at)?.into();
+        sizes.push(NamedSize {
+            name,
+            rows: number_read(bytes, at)?,
+        });
+    }
+    Some(sizes)
+}
+
+/// The statistics bytes hold as they are written, or none when they are of another engine version or are not exactly a
+/// header, its units and its sizes. The units are answered sorted by their names, each name once: a name written twice
+/// keeps its first unit.
 #[must_use]
-pub(crate) fn read(bytes: StatisticsBytes<'_>) -> Option<Statistics> {
+pub(crate) fn read(bytes: StatisticsBytes<'_>) -> Option<ReadStatistics> {
     let (stage, body) = [LearnStage::First, LearnStage::Second]
         .into_iter()
         .find_map(|stage| Some((stage, bytes.0.strip_prefix(header(stage).0.as_slice())?)))?;
     let (body, mut at) = (StatisticsBytes(body), Count(0));
-    let mut units = Vec::new();
+    let (mut units, mut sizes) = (Vec::new(), NamedSizes::default());
     if !body.0.is_empty() {
         let count = number_read(body, &mut at)?;
         for _ in 0..count.0 {
             units.push(unit_read(body, &mut at)?);
         }
-        // A count of nought is a header alone, and bytes after the last unit are nobody's.
-        if count.0 == 0 || at.0 != body.0.len() {
+        sizes = NamedSizes {
+            files: number_read(body, &mut at)?,
+            elements: number_read(body, &mut at)?,
+            kinds: sizes_read(body, &mut at)?,
+            fields: sizes_read(body, &mut at)?,
+            literals: sizes_read(body, &mut at)?,
+        };
+        // Units and sizes of nothing are a header alone, and bytes after the sizes are nobody's.
+        if (count.0 == 0 && sizes.files.0 == 0) || at.0 != body.0.len() {
             return None;
         }
     }
     units.sort_by(|left: &MeasuredUnit, right| left.key.cmp(&right.key));
     units.dedup_by(|later, kept| later.key == kept.key);
-    Some(Statistics {
+    Some(ReadStatistics {
         stage,
-        sizes: MeasuredSizes::default(),
         units,
+        sizes,
     })
 }
