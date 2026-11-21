@@ -7,6 +7,7 @@ use crate::domain::code::service::list;
 use crate::domain::code::types::{PoolAt, ProgramCode, WordSlot};
 use crate::domain::filled::errors::FilledError;
 use crate::domain::filled::types::MissingCode;
+use crate::domain::made_tables::pipelines::types::LevelColumns;
 use crate::domain::made_tables::pipelines::types::OperandRun;
 use crate::domain::stages::types::{BatchValue, KeyPart};
 use crate::domain::steps::types::Register;
@@ -37,10 +38,55 @@ pub(crate) fn constant_at(code: &ProgramCode, number: WordSlot) -> Result<CellWo
 
 /// The column of a register in a batch; no rows for a register the batch has no column of.
 #[inline]
-pub(crate) fn column_of(columns: &[Vec<CellWord>], register: Register) -> &[CellWord] {
-    columns
+pub(crate) fn column_of(columns: &LevelColumns, register: Register) -> &[CellWord] {
+    let place = columns
+        .places
         .get(usize::try_from(register.0).unwrap_or(usize::MAX))
-        .map_or(&[], Vec::as_slice)
+        .map_or(0, |place| usize::try_from(*place).unwrap_or(0));
+    match place.checked_sub(1).and_then(|at| columns.held.get(at)) {
+        Some(column) => column,
+        None => &[],
+    }
+}
+
+/// The column of a register, to write: the register's own when the running pipeline wrote it at this depth before,
+/// else the next spare one, emptied. None for a register the pack does not count.
+#[inline]
+pub(crate) fn column_mut(
+    columns: &mut LevelColumns,
+    register: Register,
+) -> Option<&mut Vec<CellWord>> {
+    let LevelColumns {
+        places,
+        held,
+        written,
+    } = columns;
+    let place = places.get_mut(usize::try_from(register.0).unwrap_or(usize::MAX))?;
+    if *place == 0 {
+        let at = written.len();
+        if held.len() <= at {
+            held.push(Vec::new());
+        }
+        if let Some(column) = held.get_mut(at) {
+            column.clear();
+        }
+        written.push(register);
+        *place = u32::try_from(at.saturating_add(1)).unwrap_or(0);
+    }
+    held.get_mut(usize::try_from(*place).unwrap_or(0).checked_sub(1)?)
+}
+
+/// Unsets every column of a batch before a pipeline runs: its registers have none until it writes them. The lists are
+/// kept and used again.
+pub(crate) fn columns_unset(columns: &mut LevelColumns) {
+    let LevelColumns {
+        places, written, ..
+    } = columns;
+    for register in written.drain(..) {
+        if let Some(place) = places.get_mut(usize::try_from(register.0).unwrap_or(usize::MAX)) {
+            *place = 0;
+        }
+    }
 }
 
 /// The `at`-th operand of a run of operands that starts at `first`.
@@ -121,7 +167,7 @@ pub(crate) fn call_arguments(
 /// The operand is a set, which only a membership test reads; or a constant the code does not hold.
 #[inline]
 pub(crate) fn value_of<'l>(
-    columns: &'l [Vec<CellWord>],
+    columns: &'l LevelColumns,
     code: &ProgramCode,
     file: FileId,
     operand: PooledOperand,
@@ -145,7 +191,7 @@ pub(crate) fn value_of<'l>(
 ///
 /// An operand the pool does not hold.
 pub(crate) fn key_of<'l>(
-    columns: &'l [Vec<CellWord>],
+    columns: &'l LevelColumns,
     code: &ProgramCode,
     file: FileId,
     operands: OperandRun,

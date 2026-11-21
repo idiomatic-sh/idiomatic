@@ -12,6 +12,7 @@ use crate::domain::code::walking::service::{closure_of, nearest_of};
 use crate::domain::findings::types::RuleColumns;
 use crate::domain::made_tables::types::{FillStore, KeyFrom, RuleSetView};
 use crate::domain::memos::types::CellSpan;
+use crate::domain::scratch::kept::service::files_marked;
 use crate::domain::scratch::kept::types::QuickBody;
 use crate::domain::scratch::types::{
     AskPart, DecodedCode, LoopState, Measuring, ScanScratch, ScratchEngine, UnitInFile,
@@ -190,6 +191,14 @@ pub(crate) fn decoded_code(code: &ProgramCode) -> DecodedCode {
             // Over derived edges the record starts with the edges' body: the condition's follows it.
             Op::Nearest | Op::NearestDerived => {
                 body = body_at(&code.pool, nearest_of(*word).operands);
+                // The condition's ask is decoded too: without its parts a condition in call form was asked with a key
+                // of noughts and never held (ISC004's next code token).
+                if word.op == Op::NearestDerived
+                    && let Some(edges) = body
+                {
+                    let condition = body_at(&code.pool, PoolAt(edges.after.0.saturating_add(1)));
+                    parts_added(code, condition, &mut decoded);
+                }
             }
             Op::Closure => body = body_at(&code.pool, closure_of(*word).operands),
             Op::StageUse => parts_added(
@@ -285,6 +294,8 @@ pub(crate) fn decoded_code(code: &ProgramCode) -> DecodedCode {
         decoded.lists.push(list);
         decoded.quick.push(quick);
     }
+    let DecodedCode { parts, files, .. } = &mut decoded;
+    files_marked(code, parts, files);
     decoded
 }
 

@@ -1,6 +1,6 @@
 //! The types of the `scratch` concept: a worker's per-file state.
 
-use super::kept::types::{AskedNeed, HeldRead, QuickBody, SiteAsks};
+use super::kept::types::{AskedNeed, HeldRead, NeedFills, QuickBody, RegisterHolds, SiteAsks};
 use crate::domain::code::records::types::{PooledOperand, ReadBody};
 use crate::domain::code::types::RelationNumber;
 use crate::domain::code::types::{CodeEntry, WordSlot};
@@ -306,6 +306,8 @@ pub(crate) struct Measuring {
     pub(crate) running: Vec<WordSlot>,
     /// The thread's time when the innermost unit last changed.
     pub(crate) since: Duration,
+    /// SPIKE: the fills that needs started, by table.
+    pub(crate) need_fills: NeedFills,
 }
 
 /// A unit's time and rows in the file being scanned.
@@ -384,6 +386,8 @@ pub(crate) struct DecodedCode {
     pub(crate) parts_at: Vec<Count>,
     /// How each `Exists` word that keeps no answer of its own asks its body, by the word's place.
     pub(crate) quick: Vec<QuickBody>,
+    /// The registers that hold the file, by number (`scratch::kept::service::files_marked`).
+    pub(crate) files: Vec<RegisterHolds>,
 }
 
 /// One bound column of a call-form body's ask: the formal register the pattern reads it from, the operand the asker

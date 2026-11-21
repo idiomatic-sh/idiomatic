@@ -1,5 +1,5 @@
-//! The services of the `closing` part: every element reached over one or more edges from a seed, each once, never the
-//! seed, staged for the `Closure` word's item. The edges of an element are the rows of the word's body, asked with the
+//! The services of the `closing` part: every element reached over one or more edges from a seed, each once (the seed
+//! too, when an edge leads back to it), staged for the `Closure` word's item. The edges of an element are the rows of the word's body, asked with the
 //! element in the record's register: an inline body run through the one loop, a pattern in call form through the one
 //! memo, a pattern in table form through the seam, as an `Or`'s bodies are. Each element is asked for its edges once, so
 //! a cycle ends; each edge given is a row visited.
@@ -17,12 +17,12 @@ use crate::domain::steps::types::Register;
 use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::relations::types::Count;
 
-/// Keeps, of the cells staged from `fresh` on, each element not met before and not the seed, in place and in order;
-/// answers how many cells were staged there.
+/// Keeps, of the cells staged from `fresh` on, each element not met before, in place and in order; answers how many
+/// cells were staged there. The seed of a walk is not met before the walk: it is kept when an edge leads back to it
+/// (its own edge, or a cycle), as today's kernels keep it (`operators: reach::walked`, `hash_index::keyed_walk`).
 pub(crate) fn kept_new(
     state: &mut LoopState,
     seen: &mut hashbrown::HashSet<CellWord>,
-    seed: CellWord,
     fresh: Count,
 ) -> Count {
     let staged = &mut state.staged;
@@ -32,8 +32,7 @@ pub(crate) fn kept_new(
         let Some(element) = staged.get(place).copied() else {
             break;
         };
-        if element != seed
-            && seen.insert(element)
+        if seen.insert(element)
             && let Some(slot) = staged.get_mut(kept)
         {
             *slot = element;
@@ -79,7 +78,7 @@ pub(crate) fn closure(frame: &mut StepFrame<'_, '_>, word: CodeWord, at: CodeEnt
         set(frame, from, element);
         let fresh = Count(frame.state.staged.len());
         let _rows: Count = body_staged(frame, edges.record, outputs);
-        let edges_given = kept_new(frame.state, &mut seen, seed, fresh);
+        let edges_given = kept_new(frame.state, &mut seen, fresh);
         given = given.saturating_add(u64::try_from(edges_given.0).unwrap_or(u64::MAX));
         let Some(next) = frame.state.staged.get(first.saturating_add(asked)).copied() else {
             break;
