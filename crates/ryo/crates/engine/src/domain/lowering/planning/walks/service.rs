@@ -2,19 +2,15 @@
 
 use crate::domain::lowering::costing::types::CellState;
 use crate::domain::lowering::definitions::service::{asked, fresh_register};
-use crate::domain::lowering::flattening::service::made_column;
 use crate::domain::lowering::flattening::types::FlatTerm;
-use crate::domain::lowering::flattening::types::RowColumn;
+use crate::domain::lowering::planning::closures::service::own_used;
 use crate::domain::lowering::planning::operands::service::{
     given_or_tested, register_of, state_of,
 };
 use crate::domain::lowering::planning::types::NearestTreeWalk;
 use crate::domain::lowering::planning::types::WalkEnds;
 use crate::domain::lowering::planning::types::{Emitter, Enumerated, UnitRole, WrittenAccess};
-use crate::domain::steps::stages::types::UseMode;
-use crate::domain::steps::types::{
-    AxisDirection, ColumnMask, RegisterList, StepOperand, StepOperands,
-};
+use crate::domain::steps::types::{AxisDirection, ColumnMask};
 use ryo_relations::domain::relations::types::Count;
 use ryo_relations::domain::relations::types::Relation;
 
@@ -106,28 +102,11 @@ pub(crate) fn nearest(
     };
     emitter.environment.enumerated = Enumerated::Already;
     let out = fresh_register(emitter.drafts);
-    let column_of = |emitter: &Emitter<'_>, term: FlatTerm| {
-        let place = emitter.row.iter().position(|each| *each == term)?;
-        made_column(RowColumn(place))
-    };
     match (emitter.role, emitter.unit) {
         (UnitRole::Pipeline, Some(unit)) => {
-            let (Some(bound), Some(collected)) =
-                (column_of(emitter, start), column_of(emitter, reached))
-            else {
-                emitter.missed = Count(emitter.missed.0.saturating_add(1));
+            if !own_used(emitter, unit, &[start], reached, out) {
                 return;
-            };
-            let (bound, collected) = (ColumnMask([bound].into()), ColumnMask([collected].into()));
-            asked(emitter.drafts, unit, &bound, &collected);
-            emitter.written.push(WrittenAccess::Use {
-                definition: unit,
-                bound,
-                collected,
-                values: StepOperands([StepOperand::Register(from)].into()),
-                outputs: RegisterList([out].into()),
-                mode: UseMode::Rows,
-            });
+            }
         }
         (UnitRole::Branch | UnitRole::Pattern | UnitRole::Pipeline, _) => {
             let bound = ColumnMask([walk.column].into());

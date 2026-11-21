@@ -53,6 +53,32 @@ fn own_use(
     Some(edge_use(unit, cells, row_column(emitter, other)?))
 }
 
+/// Writes a walk a pipeline cannot hold as a use of the unit's own definition: the pattern that binds the given terms'
+/// columns and collects the other end's, whose program is the walk itself. The one writer of that use: the nearest walk and
+/// the closure both call it. False, with the miss counted, when a term is no column of the unit's row.
+pub(crate) fn own_used(
+    emitter: &mut Emitter<'_>,
+    unit: DefinitionId,
+    given: &[FlatTerm],
+    other: FlatTerm,
+    out: Register,
+) -> bool {
+    let Some(used) = own_use(emitter, unit, given, other) else {
+        emitter.missed = Count(emitter.missed.0.saturating_add(1));
+        return false;
+    };
+    asked(emitter.drafts, unit, &used.bound, &used.collected);
+    emitter.written.push(WrittenAccess::Use {
+        definition: used.definition,
+        bound: used.bound,
+        collected: used.collected,
+        values: used.values,
+        outputs: RegisterList([out].into()),
+        mode: UseMode::Rows,
+    });
+    true
+}
+
 /// Writes a closure's walk. Entered from its source it gives what is reached; entered from what is reached it gives the
 /// sources, over the edges read from their destination. An end that was given already is tested against the walk's.
 pub(crate) fn closed(
@@ -80,19 +106,9 @@ pub(crate) fn closed(
     let out = fresh_register(emitter.drafts);
     if let (UnitRole::Pipeline, Some(unit)) = (emitter.role, emitter.unit) {
         let given: Vec<FlatTerm> = keys.iter().copied().chain([seed_term]).collect();
-        let Some(used) = own_use(emitter, unit, &given, other) else {
-            emitter.missed = Count(emitter.missed.0.saturating_add(1));
+        if !own_used(emitter, unit, &given, other, out) {
             return;
-        };
-        asked(emitter.drafts, unit, &used.bound, &used.collected);
-        emitter.written.push(WrittenAccess::Use {
-            definition: used.definition,
-            bound: used.bound,
-            collected: used.collected,
-            values: used.values,
-            outputs: RegisterList([out].into()),
-            mode: UseMode::Rows,
-        });
+        }
     } else {
         // The element whose edges are asked is written into `from` before the edges run.
         let from: Register = fresh_register(emitter.drafts);
