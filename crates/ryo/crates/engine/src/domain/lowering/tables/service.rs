@@ -5,7 +5,8 @@
 use crate::domain::lowering::nodes::service::{digested, input_shape, reached};
 use crate::domain::lowering::nodes::types::{AdmittedRule, StepReach, StepShape};
 use crate::domain::lowering::tables::shapes::service::{
-    comparable, joined, keyed, operand_kind, picked, viewed,
+    capture_slots, comparable, joined, keyed, operand_kind, picked, search_kinds, source_search,
+    viewed,
 };
 use crate::domain::lowering::tables::types::TreeAxis;
 use crate::domain::lowering::types::{LoadRefusal, PastWidth, PlanNode, SelectedRule};
@@ -213,6 +214,51 @@ fn shaped(
             shape.0.push(CellKind::Symbol);
             Some(shape)
         }
+        Operation::SourceMatches {
+            from,
+            span,
+            base_line,
+            ..
+        } => {
+            let mut shape = of(from)?;
+            let line = base_line.as_slice();
+            let read = picked(&shape, &[*span])?.0 == [CellKind::Span]
+                && picked(&shape, line)?
+                    .0
+                    .iter()
+                    .all(|kind| *kind == CellKind::Number);
+            let search = source_search(operation).filter(|_| read)?;
+            shape.0.extend(search_kinds(search));
+            Some(shape)
+        }
+        Operation::Capture {
+            from,
+            path,
+            pattern,
+        } => {
+            let mut shape = of(from)?;
+            let _read = picked(&shape, &[*path])?;
+            let slots = capture_slots(pattern).0;
+            shape.0.extend(std::iter::repeat_n(CellKind::Symbol, slots));
+            Some(shape)
+        }
+        // An ordered match is a table of pairs, a left row then a right row; its answer names columns of either.
+        Operation::OrderedMatch {
+            left,
+            right,
+            left_on,
+            right_on,
+            left_order,
+            right_order,
+            output,
+        } => {
+            let (left, right) = (of(left)?, of(right)?);
+            let ordered = picked(&left, &[*left_order])?.0 == [CellKind::Number]
+                && picked(&right, &[*right_order])?.0 == [CellKind::Number];
+            (ordered && keyed(&left, &right, left_on, right_on).is_some())
+                .then(|| joined(&left, &right, output))
+                .flatten()
+        }
         Operation::SpanBetween { from, start, end } => {
             let mut shape = of(from)?;
             if picked(&shape, &[*start, *end])?.0 != [CellKind::Span; 2] {
@@ -231,17 +277,14 @@ fn shaped(
         Operation::Intersection { .. }
         | Operation::Difference { .. }
         | Operation::GroupDigest { .. }
-        | Operation::Capture { .. }
         | Operation::Rank { .. }
         | Operation::Words { .. }
-        | Operation::OrderedMatch { .. }
         | Operation::Follow { .. }
         | Operation::OrderedDfs { .. }
         | Operation::Worklist { .. }
         | Operation::Cycles { .. }
         | Operation::Rows { .. }
         | Operation::Hosted { .. }
-        | Operation::SourceMatches { .. }
         | Operation::RenderSyntax { .. }
         | Operation::FitsRendered { .. } => None,
     }

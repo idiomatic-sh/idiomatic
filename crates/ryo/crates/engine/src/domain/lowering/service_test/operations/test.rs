@@ -205,6 +205,48 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "codes: {\"Closure\": 1, \"EachMatchFilled\": 2, \"EachRowFilled\": 1, \"Emit\": 1, \"End\": 4, \"Let\": 1, \"Or\": 1, \"ReadFilled\": 2, \"Yield\": 2}",
         ))),
     },
+    Case {
+        name: CaseName("a_source_search_is_a_call_that_gives_a_row_for_each_occurrence"),
+        word: Word::Succeeds,
+        input: || {
+            (
+                &["the occurrences in the elements' source"],
+                SampleStage::Absent,
+            )
+        },
+        expect: Expect::Value(Cow::Borrowed(concat!(
+            "rule 0: 1 branches\n",
+            "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Call:Fanout Emit:Constant\n",
+            "codes: {\"Call\": 1, \"EachRowNode\": 1, \"Emit\": 1, \"End\": 2, \"ReadNode\": 3}",
+        ))),
+    },
+    Case {
+        name: CaseName("a_capture_is_a_call_that_gives_one_text_for_each_slot"),
+        word: Word::Succeeds,
+        input: || (&["the words' texts captured"], SampleStage::Absent),
+        expect: Expect::Value(Cow::Borrowed(concat!(
+            "rule 0: 1 branches\n",
+            "  branch: EachRow:File Read:Constant Read:Constant EachMatch:Fanout Read:Constant Call:Fanout Emit:Constant\n",
+            "codes: {\"Call\": 1, \"EachMatchNode\": 1, \"EachRowNode\": 1, \"Emit\": 1, \"End\": 2, \"ReadNode\": 3}",
+        ))),
+    },
+    Case {
+        name: CaseName("an_ordered_match_is_a_table_of_pairs_read_by_place"),
+        word: Word::Succeeds,
+        input: || (&["the words matched in order"], SampleStage::Absent),
+        expect: Expect::Value(Cow::Borrowed(concat!(
+            "definition 0: 5 columns, emptiness All([Unknown, Unknown])\n",
+            "  pattern bound [] collected []: Table 1\n",
+            "table 0: Ordered(Match), 10 columns, indexes []\n",
+            "  pipeline: Scan:File Read:Constant Read:Constant Read:Constant Read:Constant\n",
+            "  pipeline: Scan:File Read:Constant Read:Constant Read:Constant Read:Constant\n",
+            "table 1: Rows, 5 columns, indexes []\n",
+            "  pipeline: Scan:File Read:Constant Read:Constant Probe:Fanout Read:Constant\n",
+            "rule 0: 1 branches\n",
+            "  branch: EachRow:File Read:Constant Read:Constant Emit:Constant\n",
+            "codes: {\"EachRowMade\": 1, \"Emit\": 1, \"End\": 2, \"ReadMade\": 2, \"StageProbe\": 1, \"StageRead\": 11, \"StageScan\": 3, \"StageWrite\": 3}",
+        ))),
+    },
 ];
 
 /// The scenes lowered and said in lines, as the cases of the service itself are.

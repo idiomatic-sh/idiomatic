@@ -82,7 +82,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     said(
         "the_kinds_of_operation_the_lowering_evaluates_are_these",
         || Asked::Kinds,
-        "[Replace, AsOf, Select, Project, Extend, Join, Union, Antijoin, GroupCount, GroupBound, GroupOrdinal, Axis, Closure, SpanBetween, SpanBounds]",
+        "[Replace, OrderedMatch, AsOf, Select, Project, Extend, Join, Union, Antijoin, GroupCount, GroupBound, GroupOrdinal, Capture, Axis, Closure, SpanBetween, SourceMatches, SpanBounds]",
     ),
     said(
         "a_plan_walk_visits_each_step_once_a_chain_of_self_joins_twice_as_deep_is_twice_the_work",

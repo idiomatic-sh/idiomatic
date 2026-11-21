@@ -4,12 +4,16 @@
 use crate::domain::lowering::flattening::service::function_call;
 use crate::domain::lowering::nodes::types::StepShape;
 use crate::domain::lowering::types::SelectedRule;
+use crate::domain::steps::calls::types::{SearchGroup, SearchLines, SourceSearch};
 use crate::domain::steps::types::TestOperation;
-use ryo_relations::domain::relations::types::CellKind;
+use ryo_relations::domain::relations::types::{CellKind, Count};
+use ryo_values::domain::plan_parts::types::CapturePattern;
 use ryo_values::domain::plan_parts::types::{
     ColumnIndex, JoinColumn, Operand, PlanComparison, QueryLiteral, Side, Test,
 };
+use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
+use ryo_values::domain::query_operators::types::{LineOutput, TextOutput};
 
 /// The comparison a plan's test is, as a step's or a stage's test; `Matches` takes its expression's number when written.
 /// None for a test no step makes.
@@ -137,4 +141,69 @@ pub(crate) fn keyed<'s>(
         && picked(left, left_on).is_some()
         && picked(right, right_on).is_some();
     held.then_some(left)
+}
+
+/// The search a `source-matches` operation is: whether it numbers lines (it holds a base line), and the group it asks of
+/// each occurrence. None for any other operation, and for a group's line asked of lines that are not numbered, which the
+/// contract states no call for.
+#[must_use]
+pub(crate) fn source_search(operation: &Operation) -> Option<SourceSearch> {
+    let Operation::SourceMatches {
+        base_line,
+        capture,
+        capture_text,
+        capture_line,
+        ..
+    } = operation
+    else {
+        return None;
+    };
+    let lines = match base_line {
+        Some(_) => SearchLines::Numbered,
+        None => SearchLines::Unnumbered,
+    };
+    let group = match capture {
+        Some(_) => SearchGroup::Named {
+            text: *capture_text,
+            line: *capture_line,
+        },
+        None => SearchGroup::Whole,
+    };
+    let unstated = lines == SearchLines::Unnumbered
+        && matches!(
+            group,
+            SearchGroup::Named {
+                line: LineOutput::Appended,
+                ..
+            }
+        );
+    (!unstated).then_some(SourceSearch { lines, group })
+}
+
+/// The cells a search gives for each occurrence, in the contract's order: the occurrence's span; its line, when lines are
+/// numbered; then for a named group its span, its text and its line as asked.
+#[must_use]
+pub(crate) fn search_kinds(search: SourceSearch) -> Vec<CellKind> {
+    let mut kinds = vec![CellKind::Span];
+    if search.lines == SearchLines::Numbered {
+        kinds.push(CellKind::Number);
+    }
+    if let SearchGroup::Named { text, line } = search.group {
+        kinds.push(CellKind::Span);
+        if text == TextOutput::Appended {
+            kinds.push(CellKind::Symbol);
+        }
+        if line == LineOutput::Appended {
+            kinds.push(CellKind::Number);
+        }
+    }
+    kinds
+}
+
+/// How many texts a capture gives: one for each slot of its pattern, and a slot opens with `{`. A COPY of the operators
+/// crate's `capture::service::slot_count`, which the engine crate cannot call (it does not depend on that crate): to be
+/// routed to the one definition when it is where the engine can reach it (build/l1/QUESTIONS.md Q10).
+#[must_use]
+pub(crate) fn capture_slots(pattern: &CapturePattern) -> Count {
+    Count(pattern.0.bytes().filter(|byte| *byte == b'{').count())
 }

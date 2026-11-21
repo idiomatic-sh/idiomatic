@@ -13,12 +13,13 @@ use parts::{as_of, at, joined, kept, of, plan, step, words, words_written};
 use ryo_relations::domain::relations::types::{Integer, Relation};
 use ryo_values::domain::plan_orders::types::{GroupEnd, OrderBound};
 use ryo_values::domain::plan_parts::types::{
-    Applied, ColumnIndex, ComparisonOrigin, Direction, Function, Input, LiteralText, Operand,
-    PlanComparison, QueryLiteral, ReachLookup, RepeatedRows, Side, StepId, StepScope, TableKey,
-    Test,
+    Applied, CapturePattern, ColumnIndex, ComparisonOrigin, Direction, Function, Input,
+    LiteralText, Operand, PlanComparison, QueryLiteral, ReachLookup, RepeatedRows, Side, StepId,
+    StepScope, TableKey, Test,
 };
 use ryo_values::domain::plans::types::{Operation, PlanStep};
 use ryo_values::domain::query_bindings::types::RuleBindings;
+use ryo_values::domain::query_operators::types::{LineOutput, TextOutput};
 use ryo_values::domain::query_plans::service::{node_digests, reach_unfolded};
 use ryo_values::domain::query_plans::types::{NodeBytes, NodeDigest, NodeDigests, Plan};
 use ryo_values::domain::written_rows::types::{RowsSource, WrittenRow, WrittenRows};
@@ -209,6 +210,41 @@ fn operation_scene(scene: &str) -> Option<Plan> {
                 Input::Relation(Relation::SyntaxTree),
                 vec![at(4), at(0)],
             ),
+        ]),
+        // Each occurrence of `a` in an element's source, with the group `g` of it and the group's text.
+        "the occurrences in the elements' source" => plan(vec![
+            kept(Input::Relation(Relation::SyntaxTree)),
+            step(Operation::SourceMatches {
+                from: words_of,
+                span: at(4),
+                base_line: None,
+                pattern: LiteralText("(?P<g>a)".into()),
+                capture: Some(LiteralText("g".into())),
+                capture_text: TextOutput::Appended,
+                capture_line: LineOutput::Omitted,
+            }),
+        ]),
+        // Each word's text taken apart by a pattern of two slots.
+        "the words' texts captured" => plan(vec![
+            words(),
+            step(Operation::Capture {
+                from: words_of,
+                path: at(3),
+                pattern: CapturePattern("{head}.{*rest}".into()),
+            }),
+        ]),
+        // Each word paired with the next word of its text: the pairs of an ordered match, the answer one column of each side.
+        "the words matched in order" => plan(vec![
+            words(),
+            step(Operation::OrderedMatch {
+                left: words_of,
+                right: words_of,
+                left_on: vec![at(3)],
+                right_on: vec![at(3)],
+                left_order: at(2),
+                right_order: at(2),
+                output: vec![of(Side::Left, 0), of(Side::Right, 0)],
+            }),
         ]),
         // Each element with the span from its own start to its own end.
         "the elements' spans between" => plan(vec![

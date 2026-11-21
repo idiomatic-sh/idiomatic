@@ -7,10 +7,14 @@ use crate::domain::lowering::definitions::service::{fresh_variable, regex, text}
 use crate::domain::lowering::definitions::types::{Drafts, Flattened};
 use crate::domain::lowering::flattening::types::{FlatAtom, FlatTerm};
 use crate::domain::lowering::tables::inputs::service::input;
+use crate::domain::lowering::tables::shapes::service::{
+    capture_slots, search_kinds, source_search,
+};
 use crate::domain::lowering::tables::types::{InputWant, OperationCall, RuleFlattening};
 use crate::domain::steps::types::CallMeaning;
 use ryo_relations::domain::relations::types::Count;
 use ryo_values::domain::plan_parts::types::Input;
+use ryo_values::domain::plan_parts::types::LiteralText;
 use ryo_values::domain::plans::types::Operation;
 
 /// Each branch of an input with one call: it reads the columns named, then the constants, and appends what it gives.
@@ -73,6 +77,44 @@ pub(crate) fn call_arm(
             };
             called(state, drafts, *from, call)
         }
+        Operation::SourceMatches {
+            from,
+            span,
+            base_line,
+            pattern,
+            capture,
+            ..
+        } => {
+            let search = source_search(operation)?;
+            let mut reads = vec![*span];
+            reads.extend(base_line.iter().copied());
+            let named: Vec<FlatTerm> = capture
+                .iter()
+                .map(|name| FlatTerm::Text(text(drafts, state.kinds, name)))
+                .collect();
+            let call = OperationCall {
+                meaning: CallMeaning::SourceMatches(regex(drafts, pattern), search),
+                reads: &reads,
+                constants: &named,
+                gives: Count(search_kinds(search).len()),
+            };
+            called(state, drafts, *from, call)
+        }
+        Operation::Capture {
+            from,
+            path,
+            pattern,
+        } => {
+            let written = LiteralText(pattern.0.clone());
+            let with = FlatTerm::Text(text(drafts, state.kinds, &written));
+            let call = OperationCall {
+                meaning: CallMeaning::Capture,
+                reads: &[*path],
+                constants: &[with],
+                gives: capture_slots(pattern),
+            };
+            called(state, drafts, *from, call)
+        }
         Operation::SpanBetween { from, start, end } => {
             let call = OperationCall {
                 meaning: CallMeaning::SpanBetween,
@@ -92,7 +134,6 @@ pub(crate) fn call_arm(
         | Operation::Antijoin { .. }
         | Operation::GroupCount { .. }
         | Operation::GroupDigest { .. }
-        | Operation::Capture { .. }
         | Operation::Rank { .. }
         | Operation::OrderedMatch { .. }
         | Operation::AsOf { .. }
@@ -107,7 +148,6 @@ pub(crate) fn call_arm(
         | Operation::Cycles { .. }
         | Operation::Rows { .. }
         | Operation::Hosted { .. }
-        | Operation::SourceMatches { .. }
         | Operation::RenderSyntax { .. }
         | Operation::FitsRendered { .. } => None,
     }
