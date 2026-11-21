@@ -174,5 +174,6 @@ mod node_indexes;
 mod pipelines;
 mod relations;
 mod sources;
+mod verdict_bounds;
 mod verdicts;
 mod walks;
