@@ -9,8 +9,7 @@ let bodies = select l.id as owner, r.child as member, l.file as file from owners
 let body_counts = group-count(from=bodies, keys=["owner", "file"], count="count", distinct="member");
 let single_bodies = select l.owner as owner, l.member as member, l.file as file from bodies as l join body_counts as r on l.owner = r.owner and l.file = r.file where r.count = 1;
 let root_clauses = select l.id as root, r.child as clause, r.ordinal as ordinal, l.file as file from ifs as l join "semantic-child" as r on l.id = r.parent and l.file = r.file where r.field = "orelse";
-let earlier_clauses = select l.root as root, l.clause as clause, l.file as file from root_clauses as l join root_clauses as r on l.root = r.root and l.file = r.file where l.ordinal < r.ordinal;
-let last_clauses = antijoin(left=root_clauses, right=earlier_clauses, left-on=["root", "clause", "file"], right-on=["root", "clause", "file"]);
+let last_clauses = group-max(from=root_clauses, keys=["root", "file"], order="ordinal");
 let selected_clauses = select l.root as root, l.clause as branch, r.test as test, l.file as file from last_clauses as l join tests as r on l.clause = r.owner and l.file = r.file;
 let roots_without_clauses = antijoin(left=ifs, right=root_clauses, left-on=["id", "file"], right-on=["root", "file"]);
 let selected_roots = select l.id as root, l.id as branch, r.test as test, l.file as file from roots_without_clauses as l join tests as r on l.id = r.owner and l.file = r.file;

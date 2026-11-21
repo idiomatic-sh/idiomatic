@@ -144,7 +144,9 @@ pub(crate) fn run_rules(
     let mut live = std::mem::take(&mut scratch.live);
     unread_unrun(&mut at, intents, &mut live);
     // Spike (ryo-8y7q): each node's last rule turn, found once for the program, for releasing nodes at their last turn.
-    let turns = pass.turns.get_or_init(|| last_turns(pass, program.rule_order()));
+    let turns = pass
+        .turns
+        .get_or_init(|| last_turns(pass, program.rule_order()));
     at.buffers.set_turns(turns);
     let CaptureContext {
         worker,
@@ -154,11 +156,14 @@ pub(crate) fn run_rules(
     } = capture;
     let ran = (|| {
         // Spike (ryo-fmx3, host3): room for every rule's record once, not grown rule by rule.
-        let mut rules = if ryo_operators::spike::host_lever(ryo_operators::spike::HostLever::QuietRoom) {
-            crate::application::file_dag::program::file_session::service::rule_room(program.rule_count().0)
-        } else {
-            Vec::new()
-        };
+        let mut rules =
+            if ryo_operators::spike::host_lever(ryo_operators::spike::HostLever::QuietRoom) {
+                crate::application::file_dag::program::file_session::service::rule_room(
+                    program.rule_count().0,
+                )
+            } else {
+                Vec::new()
+            };
         let mut turn = 0u32;
         for rule in program.rule_order() {
             turn += 1;
@@ -189,7 +194,9 @@ pub(crate) fn run_rules(
                     // Spike (ryo-fmx3, host3): a complete root holding no row delivers nothing: the caller renders no row
                     // of it and notes nothing, so it is withheld rather than handed over empty.
                     let quiet = matches!(&outcome, RootOutcome::Complete(table) if table.count.0 == 0)
-                        && ryo_operators::spike::host_lever(ryo_operators::spike::HostLever::QuietEmit);
+                        && ryo_operators::spike::host_lever(
+                            ryo_operators::spike::HostLever::QuietEmit,
+                        );
                     let emit = if emits && !quiet {
                         EmittedRoot::Delivered(outcome)
                     } else {
@@ -292,10 +299,18 @@ pub(crate) fn delivered_rule(
         // Spike (ryo-fmx3, host3): the rule's outputs are written into the room the last file left, not into new lists.
         let lean = ryo_operators::spike::host_lever(ryo_operators::spike::HostLever::QuietOutputs);
         let (mut states, mut answers) = if lean {
-            let mut states = at.outputs.get_mut(rule.0).map(std::mem::take).unwrap_or_default();
+            let mut states = at
+                .outputs
+                .get_mut(rule.0)
+                .map(std::mem::take)
+                .unwrap_or_default();
             states.clear();
             states.resize(stated.roots.len(), OutputState::default());
-            let mut answers = at.answers.get_mut(rule.0).map(std::mem::take).unwrap_or_default();
+            let mut answers = at
+                .answers
+                .get_mut(rule.0)
+                .map(std::mem::take)
+                .unwrap_or_default();
             answers.clear();
             answers.resize(stated.roots.len(), None);
             (states, answers)
@@ -316,30 +331,30 @@ pub(crate) fn delivered_rule(
                     .observation_admission(&root.reads)
                     == ObservationAdmission::Ready
             {
-                    let source = plan.observations.get(index).map(|output| output.source);
-                    // A refused output is kept as its refusal: a rule bound to it reads that refusal, not a missing producer.
-                    let answer = output_rows(at, symbols, rule, source);
-                    let outcome = match &answer {
-                        // Spike (ryo-fmx3, host3): only the readiness is read of this outcome, so its rows are not copied.
-                        Ok(answer) if lean => match affected_files(&answer.coverage) {
-                            None => RootOutcome::Complete(Table::default()),
-                            Some(_) => RootOutcome::Partial {
-                                table: Table::default(),
-                                affected: Vec::new(),
-                            },
+                let source = plan.observations.get(index).map(|output| output.source);
+                // A refused output is kept as its refusal: a rule bound to it reads that refusal, not a missing producer.
+                let answer = output_rows(at, symbols, rule, source);
+                let outcome = match &answer {
+                    // Spike (ryo-fmx3, host3): only the readiness is read of this outcome, so its rows are not copied.
+                    Ok(answer) if lean => match affected_files(&answer.coverage) {
+                        None => RootOutcome::Complete(Table::default()),
+                        Some(_) => RootOutcome::Partial {
+                            table: Table::default(),
+                            affected: Vec::new(),
                         },
-                        Ok(answer) => answered(answer),
-                        Err(error) => classify(error.clone()),
-                    };
-                    if let Some(kept) = answers.get_mut(index) {
-                        *kept = Some(answer);
-                    }
-                    outcome
-                } else {
-                    classify(OperatingError::ObservationIncomplete {
-                        reason: SOURCE_FACTS_INCOMPLETE.into(),
-                    })
+                    },
+                    Ok(answer) => answered(answer),
+                    Err(error) => classify(error.clone()),
                 };
+                if let Some(kept) = answers.get_mut(index) {
+                    *kept = Some(answer);
+                }
+                outcome
+            } else {
+                classify(OperatingError::ObservationIncomplete {
+                    reason: SOURCE_FACTS_INCOMPLETE.into(),
+                })
+            };
             if let Some(state) = states.get_mut(index) {
                 state.readiness = readiness_of(&outcome);
             }
@@ -459,7 +474,12 @@ fn last_turns(
             }
         }
         for nodes in routes {
-            for node in nodes.steps.iter().chain(std::iter::once(&nodes.emit)).flatten() {
+            for node in nodes
+                .steps
+                .iter()
+                .chain(std::iter::once(&nodes.emit))
+                .flatten()
+            {
                 mark(*node, turn);
             }
         }

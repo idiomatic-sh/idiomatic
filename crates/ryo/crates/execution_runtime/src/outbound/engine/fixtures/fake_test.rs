@@ -4,12 +4,14 @@
 use super::super::contract::{self, ContractFault, found_in};
 use super::{EngineFake, no_kinds};
 use crate::outbound::engine::interface::EnginePort as _;
-use ryo_engine::domain::lowering::fixtures::named;
+use ryo_engine::domain::lowering::fixtures::{digests_of, named};
 use ryo_engine::domain::lowering::types::{SelectedRule, SelectedRules};
 use ryo_engine::domain::packs::types::{PackBytes, PackDigest};
+use ryo_engine::domain::statistics::types::StatisticsBytes;
 use ryo_engine::inbound::use_cases::load::types::LoadSource;
 use ryo_relations::domain::relations::types::Count;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
+use ryo_values::domain::query_bindings::types::RuleBindings;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 use std::borrow::Cow;
 
@@ -48,19 +50,21 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Count(1)),
     },
     Case {
-        name: CaseName("another_plan_is_refused_at_its_first_step"),
+        name: CaseName("another_plan_is_answered_among_the_refused_at_its_first_step"),
         word: Word::Refuses,
         input: || Scenario::OtherPlan,
         expect: Expect::Error(Cow::Borrowed(
-            "Load(Unlowerable { rule: SelectedRuleOrdinal(0), shape: Step(PlanNode(0)) })",
+            "Refused(RefusedRule { rule: SelectedRuleOrdinal(0), refusal: Unlowerable(PlanNode(0)) })",
         )),
     },
     Case {
-        name: CaseName("the_plan_over_budget_is_refused_as_over_budget"),
+        name: CaseName(
+            "the_plan_the_fake_counts_past_a_width_is_answered_among_the_refused_as_a_budget",
+        ),
         word: Word::Refuses,
         input: || Scenario::OverBudget,
         expect: Expect::Error(Cow::Borrowed(
-            "Load(Budget { rule: SelectedRuleOrdinal(0) })",
+            "Refused(RefusedRule { rule: SelectedRuleOrdinal(0), refusal: Budget(Words) })",
         )),
     },
     Case {
@@ -85,18 +89,28 @@ fn asked(scenario: Input) -> Result<Value, ContractFault> {
         Scenario::OtherPlan => "unbound correlated sub-plan",
         Scenario::OverBudget => "program over budget",
     });
+    let digests = digests_of(&plan, RuleBindings(&[]));
     let rule = SelectedRule {
         rule: SelectedRuleOrdinal(0),
         plan: &plan,
+        bindings: RuleBindings(&[]),
+        digests: &digests,
     };
-    let rules = fake
-        .load(LoadSource::Plans(SelectedRules(&[rule])), &kinds)
+    let loaded = fake
+        .load(
+            LoadSource::Plans(SelectedRules(&[rule]), StatisticsBytes(&[])),
+            &kinds,
+        )
         .map_err(ContractFault::Load)?;
+    if let Some(refused) = loaded.refused.first() {
+        return Err(ContractFault::Refused(*refused));
+    }
+    let rules = loaded.programs;
     match scenario {
         Scenario::Pack => {
             let pack = fake.encoded(&rules, digest);
             fake.load(LoadSource::Pack(PackBytes(&pack.0), digest), &kinds)
-                .map(|read| Count(fake.accepted(&read).len()))
+                .map(|read| Count(fake.accepted(&read.programs).len()))
                 .map_err(ContractFault::Load)
         }
         Scenario::PartialFile => found_in(&fake, &rules, "one two?"),

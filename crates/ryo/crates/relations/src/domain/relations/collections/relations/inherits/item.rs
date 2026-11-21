@@ -34,6 +34,8 @@ macro_rules! inherits {
             scope File,
             notes Unneeded,
             form Filled(Many(Occurrence)),
+            size PerElement,
+            keys [Occurrence],
             columns {
                 /// The base or contract: its file and where it starts.
                 occurrence Occurrence: NodeId => Node;

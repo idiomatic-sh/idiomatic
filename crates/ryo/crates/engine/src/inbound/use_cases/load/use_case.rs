@@ -1,13 +1,13 @@
-//! The `load` use case: plans to the lowering, a pack to the decoder.
+//! The `load` use case: plans through the statistics, the lowering, the passes and the encoding; a pack to the decoder.
 
 use super::errors::LoadError;
 use super::interface::LoadUseCase;
-use super::types::LoadSource;
-use crate::domain::lowering::errors::LoweringError;
+use super::service::sequenced;
+use super::types::{LoadSource, LoadedRules};
 use crate::domain::lowering::service::lowered;
 use crate::domain::packs::errors::PacksError;
-use crate::domain::packs::service::decoded;
-use crate::domain::programs::types::Programs;
+use crate::domain::packs::service::decoded as unpacked;
+use crate::domain::statistics::service::decoded;
 use ryo_values::domain::descriptions::types::KindVocabulary;
 
 /// Makes rule sets' programs in process.
@@ -39,21 +39,30 @@ impl LoadUseCaseImpl {
 }
 
 impl LoadUseCase for LoadUseCaseImpl {
-    fn load(&self, source: LoadSource<'_>, kinds: &KindVocabulary) -> Result<Programs, LoadError> {
+    fn load(
+        &self,
+        source: LoadSource<'_>,
+        kinds: &KindVocabulary,
+    ) -> Result<LoadedRules, LoadError> {
         match source {
-            LoadSource::Plans(rules) => lowered(rules, kinds).map_err(|error| match error {
-                LoweringError::Unlowerable { rule, shape } => {
-                    LoadError::Unlowerable { rule, shape }
-                }
-                LoweringError::Budget { rule } => LoadError::Budget { rule },
-            }),
-            LoadSource::Pack(bytes, digest) => {
-                decoded(bytes, digest).map_err(|error| match error {
+            LoadSource::Plans(rules, statistics) => {
+                // Statistics that do not read are no statistics, and none stay none: the lowering is told so, never given
+                // the statistics of a sample that measured nothing.
+                let statistics = decoded(statistics, kinds);
+                sequenced(rules, statistics.as_ref(), kinds, &|selected| {
+                    lowered(selected, statistics.as_ref(), kinds)
+                })
+            }
+            LoadSource::Pack(bytes, digest) => unpacked(bytes, digest)
+                .map(|programs| LoadedRules {
+                    programs,
+                    ..LoadedRules::default()
+                })
+                .map_err(|error| match error {
                     PacksError::Version => LoadError::PackVersion,
                     PacksError::Digest => LoadError::PackDigest,
                     PacksError::Corrupt => LoadError::PackCorrupt,
-                })
-            }
+                }),
         }
     }
 }

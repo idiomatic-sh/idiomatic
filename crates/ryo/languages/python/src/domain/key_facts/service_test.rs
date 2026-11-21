@@ -42,7 +42,10 @@ fn subject(source: Input) -> Result<Value, Failure> {
     let mut shown: Vec<String> = Vec::new();
     with_file(source, &mut |file| {
         let mut index = RetainedKeyIndex::default();
-        let mut words = languages::facts::file_words(&languages::facts::base_words(&[]));
+        let mut words = languages::facts::file_words(&languages::facts::base_words(
+            languages::CheckedNames::default(),
+            &[],
+        ));
         let mut text = TextBuffer::default();
         keyed(
             file,

@@ -33,6 +33,8 @@ macro_rules! workspace_member {
             scope Project,
             notes Unneeded,
             form Filled(Whole),
+            size PerElement,
+            keys [],
             columns {
                 /// The workspace: its manifest.
                 workspace Workspace: FileId => File;

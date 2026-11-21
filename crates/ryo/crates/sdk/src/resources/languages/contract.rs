@@ -12,6 +12,11 @@ pub use ryo_language::domain::elements::service::{element_count, notes_of};
 pub use ryo_language::domain::elements::service::{
     has_incomplete_lexical_stream, has_incomplete_syntax,
 };
+/// The growth harness a language's contract test holds its fillers to: the rows of a whole fill grow with the file as each
+/// relation's catalog item declares, and a fill of a declared key writes that key's rows alone.
+pub use ryo_language::domain::fillers::fixtures::growth::{
+    Growth, GrowthFault, GrowthReport, KeyGrowth, grown,
+};
 pub use ryo_language::domain::names::service::name_count;
 pub use ryo_language::inbound::use_cases::parse::fixtures::expected::{
     Cell, Count, Expected, ExpectedRow, FileName, Fixtures, ManifestExpected, Point,

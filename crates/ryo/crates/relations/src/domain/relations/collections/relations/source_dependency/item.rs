@@ -35,6 +35,8 @@ macro_rules! source_dependency {
             scope Project,
             notes Needed,
             form Filled(Whole),
+            size PerElement,
+            keys [],
             columns {
                 /// The file the path is written in.
                 source Source: FileId => File;

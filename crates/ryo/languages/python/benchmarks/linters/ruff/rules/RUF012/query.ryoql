@@ -48,7 +48,7 @@ let active_statements = select statement, file from active_targets;
 
 let inherits = select declaration as class, occurrence as base, file from "inherits";
 let base_origins = select l.class as class, r.path as path, l.file as file from inherits as l join "qualified-name" as r on l.base = r.id and l.file = r.file;
-let copy_classes = select class, file from base_origins where path = "pydantic.BaseModel" or path = "pydantic.v1.BaseModel" or path = "pydantic.BaseSettings" or path = "pydantic_settings.BaseSettings" or path = "pydantic.BaseConfig" or path = "pydantic.v1.generics.GenericModel" or path = "msgspec.Struct" or path = "sqlmodel.SQLModel";
+let copy_classes = select class, file from base_origins where path in ["pydantic.BaseModel", "pydantic.v1.BaseModel", "pydantic.BaseSettings", "pydantic_settings.BaseSettings", "pydantic.BaseConfig", "pydantic.v1.generics.GenericModel", "msgspec.Struct", "sqlmodel.SQLModel"];
 let class_definitions = select id as class, name, owner, file from "defines" where kind = "class";
 let base_names = select l.class as child, r.name as name, l.file as file from inherits as l join "identifier" as r on l.base = r.id and l.file = r.file;
 let module_nodes = select id, file from "semantic-syntax" where kind = "module";
@@ -66,20 +66,20 @@ let local_ancestry = closure(edges=local_bases, source="child", destination="par
 let inherited_copy_classes = select l.child as class, l.file as file from local_ancestry as l join copy_classes as r on l.parent = r.class and l.file = r.file;
 let all_copy_classes = union(left=copy_classes, right=inherited_copy_classes);
 let copy_statements = select l.statement as statement, l.file as file from assignments as l join all_copy_classes as r on l.class = r.class and l.file = r.file;
-let ctypes_classes = select class, file from base_origins where path = "ctypes.Structure" or path = "ctypes.LittleEndianStructure" or path = "ctypes.BigEndianStructure" or path = "ctypes.Union" or path = "ctypes.LittleEndianUnion" or path = "ctypes.BigEndianUnion";
+let ctypes_classes = select class, file from base_origins where path in ["ctypes.Structure", "ctypes.LittleEndianStructure", "ctypes.BigEndianStructure", "ctypes.Union", "ctypes.LittleEndianUnion", "ctypes.BigEndianUnion"];
 let inherited_ctypes_classes = select l.child as class, l.file as file from local_ancestry as l join ctypes_classes as r on l.parent = r.class and l.file = r.file;
 let all_ctypes_classes = union(left=ctypes_classes, right=inherited_ctypes_classes);
 let ctypes_fields = select l.statement as statement, l.file as file from named_targets as l join all_ctypes_classes as r on l.class = r.class and l.file = r.file where l.name = "_fields_";
 let all_exclusions_1 = union(left=annotated_exclusions, right=copy_statements);
 let all_exclusions = union(left=all_exclusions_1, right=ctypes_fields);
 
-let mutable_literals = select id, file from nodes where kind = "list" or kind = "dict" or kind = "set" or kind = "list-comp" or kind = "dict-comp" or kind = "set-comp";
+let mutable_literals = select id, file from nodes where kind in ["list", "dict", "set", "list-comp", "dict-comp", "set-comp"];
 let call_syntax_rows = call_syntax();
 let calls = select id, file from call_syntax_rows;
 let functions = select parent, child, file from "semantic-child" where field = "func";
 let callees = select l.id as call, r.child as callee, l.file as file from calls as l join functions as r on l.id = r.parent and l.file = r.file;
 let function_origins = select l.call as id, l.file as file, r.path as path from callees as l join "qualified-name" as r on l.callee = r.id and l.file = r.file;
-let mutable_calls = select id, file from function_origins where path = "builtins.list" or path = "builtins.dict" or path = "builtins.set" or path = "collections.Counter" or path = "collections.OrderedDict" or path = "collections.defaultdict" or path = "collections.deque";
+let mutable_calls = select id, file from function_origins where path in ["builtins.list", "builtins.dict", "builtins.set", "collections.Counter", "collections.OrderedDict", "collections.defaultdict", "collections.deque"];
 let mutables = union(left=mutable_literals, right=mutable_calls);
 let mutable_assignments = select l.statement as statement, l.value as id, l.file as file from assignment_values as l join mutables as r on l.value = r.id and l.file = r.file;
 let eligible_0 = antijoin(left=mutable_assignments, right=all_exclusions, left-on=["statement", "file"], right-on=["statement", "file"]);

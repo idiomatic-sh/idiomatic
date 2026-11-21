@@ -28,6 +28,8 @@ struct Behavior {
     input: String,
     /// What the last when step answered, which a then step asserts.
     answer: String,
+    /// The warnings the last when step printed, a line for each.
+    warned: String,
 }
 
 /// The colocated acceptance features of this crate, sorted.

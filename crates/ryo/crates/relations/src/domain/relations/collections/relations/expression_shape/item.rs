@@ -23,6 +23,8 @@ macro_rules! expression_shape {
          scope File,
          notes Unneeded,
          form Filled(Many(Id)),
+         size PerElement,
+         keys [Id],
          columns {
           /// The original expression occurrence.
           id Id: NodeId=>Node;

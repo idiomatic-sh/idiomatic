@@ -5,12 +5,12 @@ use super::errors::ProjectPassError;
 use super::interface::ProjectUseCase as _;
 use super::use_case::ProjectUseCaseImpl;
 use crate::domain::findings::types::{
-    FoundCells, FoundRows, FoundTarget, FrontierCells, FrontierSource, ScanCounters,
+    FoundCells, FoundRows, FoundTarget, FrontierCells, FrontierSource, ScanCounters, WorkNotice,
 };
 use crate::domain::programs::service::scratch_for;
 use crate::domain::programs::types::Programs;
 use ryo_language::domain::facts::types::{
-    FactAnswer, FactSource, FileWords, FilledColumns, ProjectFacts,
+    FactAnswer, FactSource, FileWords, FilledColumns, ProjectFacts, Wanted,
 };
 use ryo_language::domain::semantics::types::{RenderOutcome, RenderRequest};
 use ryo_relations::domain::answers::types::AbsenceCause;
@@ -26,6 +26,7 @@ impl FactSource for NoProject {
     fn fill(
         &mut self,
         _relation: Relation,
+        _wanted: Wanted,
         _words: &mut FileWords,
         _out: &mut FilledColumns,
     ) -> FactAnswer {
@@ -65,6 +66,8 @@ impl FoundRows for Found {
     fn found(&mut self, _target: FoundTarget, _row: FoundCells<'_>, _words: &FileWords) {
         self.0 = Count(self.0.0.saturating_add(1));
     }
+
+    fn noticed(&mut self, _notice: WorkNotice) {}
 }
 
 /// Runs the project pass of `programs` over one file's frontier rows (none when `empty`) and a project with no relation.

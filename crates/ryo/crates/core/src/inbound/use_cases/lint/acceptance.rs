@@ -79,10 +79,19 @@ fn runs(world: &mut Behavior) {
     // port's fake, which runs a rule of the one tree rule's shape and refuses every other.
     let new_engine = matches!(
         world.input.as_str(),
-        "the_new_engine_runs_the_rule" | "the_new_engine_refuses_the_rule"
+        "the_new_engine_runs_the_rule"
+            | "the_new_engine_refuses_the_rule"
+            | "the_new_engine_notices_an_overrun"
+    );
+    // The scenes whose rule the engine port's fake runs: the others' rule it refuses.
+    let runs_the_rule = matches!(
+        world.input.as_str(),
+        "the_new_engine_runs_the_rule" | "the_new_engine_notices_an_overrun"
     );
     let paths: Vec<&str> = match world.input.as_str() {
-        "the_new_engine_runs_the_rule" | "the_new_engine_refuses_the_rule" => {
+        "the_new_engine_runs_the_rule"
+        | "the_new_engine_refuses_the_rule"
+        | "the_new_engine_notices_an_overrun" => {
             vec!["a.walk", "b.walk"]
         }
         "two_rust_files_and_a_text_file" => vec!["a.rs", "b.rs", "notes.txt"],
@@ -97,7 +106,7 @@ fn runs(world: &mut Behavior) {
         outside: Vec::new(),
     };
     let query_language = QueryLanguageFake {
-        plan: if world.input == "the_new_engine_runs_the_rule" {
+        plan: if runs_the_rule {
             ryo_execution::inbound::use_cases::file_scan::fixtures::rule(&["id", "file", "span"])
         } else {
             every_function()
@@ -179,6 +188,9 @@ fn runs(world: &mut Behavior) {
             exclude: Vec::new(),
         }],
     };
+    // What the run warned of, a line for each: the report holds no notice yet (the host track gives it its `notices`, kept
+    // from the engine's `WorkNotice` and worded by the kind of the unit that did the most work), so a run warns of nothing.
+    world.warned = String::new();
     world.answer = match use_case.lint(request) {
         Ok(report) => {
             // What the rules could not decide, each as its rule and where; nothing is said when every rule decided.
@@ -214,4 +226,15 @@ fn runs(world: &mut Behavior) {
 )]
 fn answers(world: &mut Behavior, expected: String) {
     assert_eq!(world.answer, expected, "lint answered otherwise");
+}
+
+/// Asserts the warnings the last `lint` step printed, line for line: the wording of an overrun is this text.
+#[then(expr = "lint warns")]
+fn warns(world: &mut Behavior, #[step] step: &cucumber::gherkin::Step) {
+    let expected = step.docstring.as_deref().unwrap_or_default();
+    assert_eq!(
+        world.warned.trim(),
+        expected.trim(),
+        "lint warned otherwise"
+    );
 }

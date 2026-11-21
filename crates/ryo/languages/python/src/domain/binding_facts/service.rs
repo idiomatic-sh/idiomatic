@@ -17,7 +17,7 @@ use crate::domain::model::view::types::{ModelPart, ModelRead, ModelView};
 use crate::domain::qualification::constants::NOT_APPLICABLE;
 use ryo::languages::{
     AbsenceCause, BindingEventRow, BindingReadRow, BindingResolutionRow, BindingShadowRow, BindingUseRow, FileWords, Fill,
-    Missing, NameText, ReportText, Rows,
+    FillExtent, Missing, NameText, ReportText, Rows,
 };
 
 /// The word of an event's kind.
@@ -88,13 +88,13 @@ pub(crate) fn binding_event_rows<V: ModelView>(
     rows: &mut dyn Rows<BindingEventRow>,
 ) -> Fill {
     let Some(read) = flow_read(file, rows) else {
-        return Fill::Written;
+        return Fill::Written(FillExtent::Asked);
     };
     let mut known = read.model.words.borrow_mut();
     for event in &read.model.flow.events {
         rows.write(event_row(read, words, &mut known, event));
     }
-    Fill::Written
+    Fill::Written(FillExtent::Asked)
 }
 
 /// The row of one read: what the read is for and what can reach it.
@@ -128,13 +128,13 @@ pub(crate) fn binding_read_rows<V: ModelView>(
     rows: &mut dyn Rows<BindingReadRow>,
 ) -> Fill {
     let Some(read) = flow_read(file, rows) else {
-        return Fill::Written;
+        return Fill::Written(FillExtent::Asked);
     };
     let mut known = read.model.words.borrow_mut();
     for each in &read.model.flow.reads {
         rows.write(read_row(read, words, &mut known, each));
     }
-    Fill::Written
+    Fill::Written(FillExtent::Asked)
 }
 
 /// The row of one definition that can reach a read.
@@ -162,13 +162,13 @@ pub(crate) fn binding_use_rows<V: ModelView>(
     rows: &mut dyn Rows<BindingUseRow>,
 ) -> Fill {
     let Some(read) = flow_read(file, rows) else {
-        return Fill::Written;
+        return Fill::Written(FillExtent::Asked);
     };
     let mut known = read.model.words.borrow_mut();
     for each in &read.model.flow.uses {
         rows.write(use_row(read, words, &mut known, each));
     }
-    Fill::Written
+    Fill::Written(FillExtent::Asked)
 }
 
 /// The row of one binding that shadows an earlier definition of its name.
@@ -195,13 +195,13 @@ pub(crate) fn binding_shadow_rows<V: ModelView>(
     rows: &mut dyn Rows<BindingShadowRow>,
 ) -> Fill {
     let Some(read) = flow_read(file, rows) else {
-        return Fill::Written;
+        return Fill::Written(FillExtent::Asked);
     };
     let mut known = read.model.words.borrow_mut();
     for each in &read.model.flow.shadows {
         rows.write(shadow_row(read, words, &mut known, each));
     }
-    Fill::Written
+    Fill::Written(FillExtent::Asked)
 }
 
 /// Writes nothing: which event answers a read is the rule pack's selection over the events, the reads and the scopes.

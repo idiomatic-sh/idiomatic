@@ -62,8 +62,8 @@ fn subject(pack: Input) -> Result<Value, Failure> {
         Pack::EnginesOwn => encoded(&Programs::default(), digest).0,
         Pack::OtherVersion => b"\x01\x00x".to_vec(),
     };
-    let programs = adapter.load(LoadSource::Pack(PackBytes(&bytes), digest), &no_kinds())?;
-    Ok(Count(adapter.accepted(&programs).len()))
+    let loaded = adapter.load(LoadSource::Pack(PackBytes(&bytes), digest), &no_kinds())?;
+    Ok(Count(adapter.accepted(&loaded.programs).len()))
 }
 
 #[test]

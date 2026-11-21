@@ -1,9 +1,9 @@
 //! Why `load` refuses.
 
-use crate::domain::lowering::types::PlanShape;
-use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
+use ryo_language::domain::fixed_names::errors::FixedNamesError;
 
-/// Why a rule set could not be loaded.
+/// Why a rule set could not be loaded: a pack that is not this rule set's, or a language whose fixed names cannot be words of
+/// the run. A rule that cannot be loaded is not an error: `load` answers it among the refused.
 ///
 /// # Examples
 ///
@@ -12,22 +12,22 @@ use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 ///
 /// assert_eq!(LoadError::PackCorrupt.to_string(), "pack bytes do not decode");
 /// ```
+///
+/// A vocabulary that states a fixed name twice is refused, naming it:
+///
+/// ```
+/// use ryo_engine::inbound::use_cases::load::errors::LoadError;
+/// use ryo_language::domain::fixed_names::errors::FixedNamesError;
+/// use ryo_language::domain::fixed_names::types::FixedWord;
+///
+/// let twice = FixedNamesError::Twice { first: FixedWord(0), again: FixedWord(1) };
+/// assert_eq!(
+///     LoadError::Vocabulary(twice).to_string(),
+///     "the language's fixed names are refused: the fixed name at place 1 is stated before, at place 0",
+/// );
+/// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 pub enum LoadError {
-    /// A rule's plan has a shape the lowering cannot express.
-    #[error("rule {rule:?} not loaded: {shape:?}")]
-    Unlowerable {
-        /// The rule.
-        rule: SelectedRuleOrdinal,
-        /// What of its plan the lowering cannot express.
-        shape: PlanShape,
-    },
-    /// A rule's program exceeds the lowering's budget: 4,096 instructions or 50 ms of lowering.
-    #[error("rule {rule:?} not loaded: program over budget")]
-    Budget {
-        /// The rule.
-        rule: SelectedRuleOrdinal,
-    },
     /// The pack was written by another engine version.
     #[error("pack written by another engine version")]
     PackVersion,
@@ -37,4 +37,7 @@ pub enum LoadError {
     /// The pack's bytes do not decode.
     #[error("pack bytes do not decode")]
     PackCorrupt,
+    /// The language's fixed names cannot be words of the run: one is the empty text, or is stated at two places.
+    #[error("the language's fixed names are refused: {0}")]
+    Vocabulary(FixedNamesError),
 }

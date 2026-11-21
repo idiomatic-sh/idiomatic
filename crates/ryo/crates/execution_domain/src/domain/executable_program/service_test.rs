@@ -4,13 +4,14 @@ use super::fixtures::{Request, rules_of};
 use super::service::scopes::service::observation_reach;
 use super::service::{assemble, consumers, logical, roots, rule};
 use super::types::program_inputs::value::ProgramInputs;
-use super::types::{RuleBindings, RuleInput, RuleObservations};
+use super::types::{RuleInput, RuleObservations};
 use crate::domain::coverage::types::RuleIndex;
 use ryo_operators::domain::physical_plan::types::PlanNodeId;
 use ryo_operators::inbound::use_cases::plan::interface::PlanUseCase as _;
 use ryo_operators::inbound::use_cases::plan::use_case::PlanUseCaseImpl;
 use ryo_values::cases::{Case, CaseName, Expect, Word, run};
 use ryo_values::domain::plan_parts::types::LiteralText;
+use ryo_values::domain::query_bindings::types::RuleBindings;
 use std::borrow::Cow;
 
 type Input = Request;

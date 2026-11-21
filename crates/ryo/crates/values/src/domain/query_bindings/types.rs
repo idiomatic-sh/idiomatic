@@ -32,6 +32,19 @@ pub struct BindingCell {
     pub value: LiteralText,
 }
 
+/// What one rule's parameters are bound to, in the order of its plan's parameters: the host's values for that rule. The one
+/// definition: the engine that lowers a plan and the engine that runs one both read a rule's values by it.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_values::domain::query_bindings::types::RuleBindings;
+///
+/// assert!(RuleBindings(&[]).0.is_empty());
+/// ```
+#[derive(Clone, Copy, Debug)]
+pub struct RuleBindings<'a>(pub &'a [ParameterBinding]);
+
 /// A parameter the host supplies when it runs the plan.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct PlanParameter {

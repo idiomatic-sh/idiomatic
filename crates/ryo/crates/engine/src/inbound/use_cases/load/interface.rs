@@ -2,8 +2,7 @@
 //! wrote for the same pack digest and engine version.
 
 use super::errors::LoadError;
-use super::types::LoadSource;
-use crate::domain::programs::types::Programs;
+use super::types::{LoadSource, LoadedRules};
 use ryo_values::domain::descriptions::types::KindVocabulary;
 
 /// Makes a rule set's programs.
@@ -13,18 +12,24 @@ use ryo_values::domain::descriptions::types::KindVocabulary;
 /// ```
 /// use ryo_engine::domain::lowering::types::SelectedRules;
 /// use ryo_engine::inbound::use_cases::load::interface::LoadUseCase;
+/// use ryo_engine::domain::statistics::types::StatisticsBytes;
 /// use ryo_engine::inbound::use_cases::load::types::LoadSource;
 /// use ryo_engine::inbound::use_cases::load::use_case::LoadUseCaseImpl;
 /// use ryo_values::domain::descriptions::types::{KindVocabulary, LanguageName};
 ///
-/// let kinds = KindVocabulary { language: LanguageName::default(), kinds: Vec::new() };
-/// assert!(LoadUseCaseImpl::new().load(LoadSource::Plans(SelectedRules(&[])), &kinds).is_ok());
+/// let kinds = KindVocabulary { language: LanguageName::default(), kinds: Vec::new(), fields: Vec::new(), fixed: Vec::new() };
+/// assert!(LoadUseCaseImpl::new().load(LoadSource::Plans(SelectedRules(&[]), StatisticsBytes(&[])), &kinds).is_ok());
 /// ```
 pub trait LoadUseCase: Send + Sync {
-    /// Lowers `Plans` (shared prefixes merged across rules, constants resolved to the run's words) or decodes `Pack`.
+    /// Lowers `Plans` as one pack, answering the programs of the rules it accepted and each rule it refused with the reason, or
+    /// decodes `Pack`.
     ///
     /// # Errors
     ///
-    /// `Unlowerable` or `Budget` naming the first rule that cannot run; `PackVersion`, `PackDigest` or `PackCorrupt` for a pack.
-    fn load(&self, source: LoadSource<'_>, kinds: &KindVocabulary) -> Result<Programs, LoadError>;
+    /// `PackVersion`, `PackDigest` or `PackCorrupt` for a pack. A rule that cannot be loaded is not an error: it is in `refused`.
+    fn load(
+        &self,
+        source: LoadSource<'_>,
+        kinds: &KindVocabulary,
+    ) -> Result<LoadedRules, LoadError>;
 }

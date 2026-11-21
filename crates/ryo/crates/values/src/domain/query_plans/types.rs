@@ -89,3 +89,99 @@ pub struct Emit {
     /// The headings of the answer's columns: text that leaves the engine.
     pub headings: Vec<Heading>,
 }
+
+/// The digest of a step and everything it reads: its operation and constants, where it runs, the value each parameter it names
+/// is bound to, and its inputs' digests. Equal sub-plans of any two rules have equal digests, whatever their places in their
+/// plans. It is what the caller's digest function answers of the step's bytes (`node_digests`): sixteen
+/// bytes, the first sixteen of the hash where the host's hash is longer.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_values::domain::query_plans::types::NodeDigest;
+///
+/// assert_ne!(NodeDigest([0; 16]), NodeDigest([1; 16]));
+/// ```
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct NodeDigest(pub [u8; 16]);
+
+/// The digest of each step of a plan, in step order.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_values::domain::query_plans::types::NodeDigests;
+///
+/// assert!(NodeDigests::default().0.is_empty());
+/// ```
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct NodeDigests(pub Vec<NodeDigest>);
+
+/// The bytes of one step as `node_digests` writes them, lent to the caller's digest function: the step's operation and where it
+/// runs, then each input's digest, then each bound value, every number at a fixed width with its least byte first.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_values::domain::query_plans::types::NodeBytes;
+///
+/// assert_eq!(NodeBytes(&[1, 2]).0.len(), 2);
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct NodeBytes<'a>(pub &'a [u8]);
+
+/// What a step is written into before it is digested: its bytes, every number at a fixed width with its least byte first, so
+/// the bytes depend on neither the width of the machine that wrote them nor the build that did.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct StepBytes(pub(crate) Vec<u8>);
+
+impl std::hash::Hasher for StepBytes {
+    /// Not a hash: how many bytes were written. Nothing reads it; the bytes go to the caller's digest function.
+    fn finish(&self) -> u64 {
+        u64::try_from(self.0.len()).unwrap_or(u64::MAX)
+    }
+
+    fn write(&mut self, bytes: &[u8]) {
+        self.0.extend_from_slice(bytes);
+    }
+
+    fn write_u16(&mut self, number: u16) {
+        self.write(&number.to_le_bytes());
+    }
+
+    fn write_u32(&mut self, number: u32) {
+        self.write(&number.to_le_bytes());
+    }
+
+    fn write_u64(&mut self, number: u64) {
+        self.write(&number.to_le_bytes());
+    }
+
+    fn write_u128(&mut self, number: u128) {
+        self.write(&number.to_le_bytes());
+    }
+
+    fn write_usize(&mut self, number: usize) {
+        self.write_u64(u64::try_from(number).unwrap_or(u64::MAX));
+    }
+
+    fn write_i16(&mut self, number: i16) {
+        self.write(&number.to_le_bytes());
+    }
+
+    fn write_i32(&mut self, number: i32) {
+        self.write(&number.to_le_bytes());
+    }
+
+    fn write_i64(&mut self, number: i64) {
+        self.write(&number.to_le_bytes());
+    }
+
+    fn write_i128(&mut self, number: i128) {
+        self.write(&number.to_le_bytes());
+    }
+
+    fn write_isize(&mut self, number: isize) {
+        self.write_i64(i64::try_from(number).unwrap_or(i64::MAX));
+    }
+}

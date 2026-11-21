@@ -12,9 +12,7 @@ use ryo_execution_domain::domain::coverage::types::RuleIndex;
 use ryo_execution_domain::domain::executable_program::service::{assemble, logical, root_kinds};
 use ryo_execution_domain::domain::executable_program::types::executable_program::value::ExecutableProgram;
 use ryo_execution_domain::domain::executable_program::types::program_inputs::value::ProgramInputs;
-use ryo_execution_domain::domain::executable_program::types::{
-    RuleBindings, RuleInput, RuleObservations,
-};
+use ryo_execution_domain::domain::executable_program::types::{RuleInput, RuleObservations};
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_execution_domain::domain::operating::service::{
     portable_fault, rendered_batch, unsupported_render,
@@ -43,6 +41,7 @@ use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::{FileId, KindBits, Relation, Value};
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::plan_parts::types::{HostedNumber, StepId};
+use ryo_values::domain::query_bindings::types::RuleBindings;
 use ryo_values::domain::row_texts::types::CellText;
 use std::sync::{Arc, Mutex, PoisonError};
 
@@ -140,27 +139,38 @@ fn fill_roots_by_kind(roots: &mut FileRoots, elements: &Elements, texts: &Texts<
         .all
         .extend(positions(elements).map(|at| node_id(file, at)));
     for kind in roots.kinds_filled.drain(..) {
-        if let Some(list) = roots.kind_lists.get_mut(usize::try_from(kind).unwrap_or(usize::MAX)) {
+        if let Some(list) = roots
+            .kind_lists
+            .get_mut(usize::try_from(kind).unwrap_or(usize::MAX))
+        {
             list.clear();
         }
     }
     for node in roots.nodes_filled.drain(..) {
-        if let Some(list) = roots.lists.get_mut(usize::try_from(node).unwrap_or(usize::MAX)) {
+        if let Some(list) = roots
+            .lists
+            .get_mut(usize::try_from(node).unwrap_or(usize::MAX))
+        {
             list.clear();
         }
     }
     let names = kind_names(elements);
     let same = names.len() == roots.names_seen.len()
-        && names.iter().zip(&roots.names_seen).all(|(name, seen)| {
-            symbol_text(texts, *name).is_some_and(|found| found.0 == &**seen)
-        });
+        && names
+            .iter()
+            .zip(&roots.names_seen)
+            .all(|(name, seen)| symbol_text(texts, *name).is_some_and(|found| found.0 == &**seen));
     if !same {
         roots.names_seen.clear();
         roots.names_seen.extend(names.iter().map(|name| {
-            symbol_text(texts, *name).map_or_else(|| Box::from("\u{0}unnamed"), |found| Box::from(found.0))
+            symbol_text(texts, *name)
+                .map_or_else(|| Box::from("\u{0}unnamed"), |found| Box::from(found.0))
         }));
         // A name with no text never matches a root kind, as `symbol_text` answering none never did.
-        let unnamed: Vec<bool> = names.iter().map(|name| symbol_text(texts, *name).is_none()).collect();
+        let unnamed: Vec<bool> = names
+            .iter()
+            .map(|name| symbol_text(texts, *name).is_none())
+            .collect();
         roots.numbers.clear();
         let numbers: Vec<Option<u16>> = roots
             .kinds
@@ -222,7 +232,10 @@ fn fill_roots_by_kind(roots: &mut FileRoots, elements: &Elements, texts: &Texts<
         }
     }
     for node in &roots.nodes_filled {
-        if let Some(list) = roots.lists.get_mut(usize::try_from(*node).unwrap_or(usize::MAX)) {
+        if let Some(list) = roots
+            .lists
+            .get_mut(usize::try_from(*node).unwrap_or(usize::MAX))
+        {
             list.sort_unstable();
             list.dedup();
         }
@@ -398,9 +411,13 @@ pub(crate) fn conditioned_pass(
             .map(|plan| {
                 plan.steps
                     .iter()
-                    .filter(|step| step.scope == ryo_values::domain::plan_parts::types::StepScope::PerFile)
+                    .filter(|step| {
+                        step.scope == ryo_values::domain::plan_parts::types::StepScope::PerFile
+                    })
                     .filter_map(|step| match step.operation {
-                        ryo_values::domain::plans::types::Operation::Hosted { relation } => Some(relation),
+                        ryo_values::domain::plans::types::Operation::Hosted { relation } => {
+                            Some(relation)
+                        }
                         _ => None,
                     })
                     .collect()

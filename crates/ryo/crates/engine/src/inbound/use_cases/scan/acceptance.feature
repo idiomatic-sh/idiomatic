@@ -21,6 +21,78 @@ Feature: scan
       When scan runs over "one two!"
       Then the language filled "1" relations
 
+  Rule: scan decides what a file can answer before it runs a candidate
+
+    @succeeds
+    Scenario: a node whose input is empty in the file is never evaluated
+      Given the scan input "join with an empty side"
+      When scan runs over "one two"
+      Then scan counted "0" candidates and "0" steps
+
+    @succeeds
+    Scenario: a join that is empty by its keys, though neither input is, runs no candidate
+      Given the scan input "join empty by its keys"
+      When scan runs over "one two"
+      Then scan counted "0" candidates and made the table "1" times
+
+  Rule: scan makes a table once and evaluates a definition once for a key
+
+    @succeeds
+    Scenario: a table is made on its first read and once, however many programs read it
+      Given the scan input "one table, two readers"
+      When scan runs over "a a b"
+      Then scan made the table "1" times
+
+    @succeeds
+    Scenario: a definition asked the same key twice is evaluated once
+      Given the scan input "one definition, two callers"
+      When scan runs over "a a"
+      Then scan evaluated the definition "1" times
+
+    @succeeds
+    Scenario: a read by key asks the language for that key alone
+      Given the scan input "keyed read"
+      When scan runs over "one two!"
+      Then the language filled "1" keys and "0" relations whole
+
+    @succeeds
+    Scenario: a whole fill after keyed fills reads each row once
+      Given the scan input "a keyed read, then the whole relation"
+      When scan runs over "a b c"
+      Then rule "1" found as many rows as "every link" finds alone, and at least one
+
+    @succeeds
+    Scenario: the file's own tree leaves embedded elements out
+      Given the scan input "one walk over each tree"
+      When scan runs over "one <two> three"
+      Then rule "0" found fewer rows than rule "1", and at least one
+
+    @succeeds
+    Scenario: a field test compares the field's name
+      Given the scan input "the edges of the field label"
+      When scan runs over "one: two"
+      Then scan found "1" rows
+
+  Rule: a rule's work is counted against its rows, and an overrun is said, never stopped
+
+    @succeeds
+    Scenario: a rule whose work passes its allowance in a file still finds every row, and the engine says so
+      Given the scan input "pairs within one group"
+      When scan runs over a file of "1000" words in one group
+      Then scan found every row and noticed "1" rule over its allowance
+
+    @succeeds
+    Scenario: a rule just under its allowance is not noticed
+      Given the scan input "pairs within one group"
+      When scan runs over a file of "100" words in one group
+      Then scan found every row and noticed "0" rules
+
+    @succeeds
+    Scenario: the same lookup written with as-of stays within its allowance on 8,000 events
+      Given the scan input "as-of latest before"
+      When scan runs over a file of "8000" events and "8000" probes in one group
+      Then scan noticed "0" rules
+
   Rule: scan runs each operation of a rule by its one meaning
 
     @succeeds

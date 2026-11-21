@@ -39,7 +39,7 @@ let function_name_edges = select parent, child, file from "semantic-child" where
 let function_names = select l.parent as function, l.file as file, r.name as name from function_name_edges as l join "identifier" as r on l.child = r.id and l.file = r.file;
 let dunder_names = select function, file from function_names where matches(name, "^__(?:eq|ne|lt|le|gt|ge)__$");
 let dunder_functions = select l.function as id, l.file as file from dunder_names as l join function_nodes as r on l.function = r.id and l.file = r.file;
-let scope_nodes = select id, file from "semantic-syntax" where kind = "function-def" or kind = "async-function-def" or kind = "class-def" or kind = "lambda" or kind = "list-comp" or kind = "set-comp" or kind = "dict-comp" or kind = "generator-exp";
+let scope_nodes = select id, file from "semantic-syntax" where kind in ["function-def", "async-function-def", "class-def", "lambda", "list-comp", "set-comp", "dict-comp", "generator-exp"];
 let candidate_scopes = axis(from=no_exception_candidates, relation="semantic-child", direction=nearest-ancestor, domain=scope_nodes);
 let dunder_scoped = select l.id as id, l.file as file from candidate_scopes as l join dunder_functions as r on l.related = r.id and l.file = r.file;
 let dunder_body_statements = select r.child as id, l.file as file from dunder_functions as l join body_edges as r on l.id = r.parent and l.file = r.file;

@@ -23,6 +23,7 @@ use ryo_values::domain::stores::types::StoredPack;
 use std::borrow::Cow;
 use std::sync::atomic::Ordering;
 
+mod digests;
 mod read_back;
 
 /// What a row does.
@@ -64,12 +65,12 @@ type Failure = Cow<'static, str>;
 
 /// What a load that lowers the three rules says: one accepted, one the fake cannot lower, one over budget; each lowered alone,
 /// the accepted one once more; no pack read.
-const COLD: &str = "Lowering(Refusals { unlowerable: Count(1), over_budget: Count(1) }); accepted [0]; lowerings 4; packs read 0";
+const COLD: &str = "Lowering(Refusals { unlowerable: Count(1), over_budget: Count(1) }); accepted [0]; lowerings 1; packs read 0";
 
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("a_first_run_lowers_each_rule_and_writes_the_pack"),
+        name: CaseName("a_first_run_lowers_the_rules_in_one_load_and_writes_the_pack"),
         word: Word::Succeeds,
         input: || Scenario::FirstRun,
         expect: Expect::Value(Cow::Borrowed(COLD)),
@@ -93,7 +94,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::BrokenPack,
         expect: Expect::Value(Cow::Borrowed(
-            "Lowering(Refusals { unlowerable: Count(1), over_budget: Count(1) }); accepted [0]; lowerings 4; packs read 1",
+            "Lowering(Refusals { unlowerable: Count(1), over_budget: Count(1) }); accepted [0]; lowerings 1; packs read 1",
         )),
     },
     Case {
@@ -171,6 +172,8 @@ fn kinds(language: &str, kind: &str) -> KindVocabulary {
     KindVocabulary {
         language: LanguageName(language.into()),
         kinds: vec![KindWord(kind.into())],
+        fields: Vec::new(),
+        fixed: Vec::new(),
     }
 }
 
@@ -201,6 +204,7 @@ fn load(seed: u8, kind: &str, stored: &[StoredPack]) -> (HarnessLoad, EngineFake
     let (fake, kinds, rules) = (EngineFake::default(), kinds("words", kind), three_rules());
     let request = LoadRequest {
         plans: &rules.iter().collect::<Vec<&Plan>>(),
+        bindings: &[],
         given: given(seed),
         kinds: &kinds,
         stored,
@@ -219,6 +223,7 @@ fn harness(
     let (vocabularies, rules, digest) = (KindVocabularies(linked), plans(scenes), blake3());
     let request = HarnessRequest {
         plans: &rules.iter().collect::<Vec<&Plan>>(),
+        bindings: &[],
         given: given(1),
         stored: &[],
     };
@@ -273,6 +278,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 &digest,
                 LoadRequest {
                     plans: &[],
+                    bindings: &[],
                     given: given(0),
                     kinds: &kinds,
                     stored: &[],
@@ -285,6 +291,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 &digest,
                 LoadRequest {
                     plans: &[],
+                    bindings: &[],
                     given: given(0),
                     kinds: &kinds,
                     stored: &stored,
@@ -304,6 +311,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let (pack, rules) = (first(), three_rules());
             let request = HarnessRequest {
                 plans: &rules.iter().collect::<Vec<&Plan>>(),
+                bindings: &[],
                 given: given(1),
                 stored: std::slice::from_ref(&pack),
             };
@@ -328,6 +336,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             let refused = plans(&scenes);
             let request = LoadRequest {
                 plans: &refused.iter().collect::<Vec<&Plan>>(),
+                bindings: &[],
                 given: given(1),
                 kinds: &lowered,
                 stored: &[],

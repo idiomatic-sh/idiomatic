@@ -140,6 +140,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     let load = |stored: &[StoredPack]| {
         scan.load(ScanLoadRequest {
             plans: &[&plan],
+            bindings: &[],
             given: Digest([1; 16]),
             stored,
         })

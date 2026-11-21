@@ -1,25 +1,30 @@
-//! The `lowering` service: each selected rule's plan into its programs (scope-engine2 2.5, track L1). Until the lowering expresses
-//! a step, it refuses every rule at its first step, so `load` accepts no rule and the harness counts every rule refused.
+//! The `lowering` service: the selected rules' plans into one lowered pack (scope-engine3 2.6, track L1). Until the lowering
+//! evaluates a step, it refuses every rule at its first step, so `load` accepts no rule and the harness counts every rule
+//! refused.
 
-use super::errors::LoweringError;
-use super::types::{PlanNode, PlanShape, SelectedRules};
-use crate::domain::programs::types::Programs;
+use super::types::{LoadRefusal, LoweredRules, PlanNode, RefusedRule, SelectedRules};
+use crate::domain::lowered::types::LoweredPack;
+use crate::domain::statistics::types::Statistics;
 use ryo_values::domain::descriptions::types::KindVocabulary;
 
-/// The programs of the selected rules, or the first rule whose plan the lowering cannot express.
-///
-/// # Errors
-///
-/// `Unlowerable` naming the first rule and the step of its plan the lowering does not express.
+/// The pack of the rules the lowering accepts, and each rule it refuses with the step it cannot evaluate or the count it cannot
+/// write. No rule is refused for what it costs or for how large it is. `statistics` is none for a load given none: every flip
+/// candidate then takes its call form; given those of a first sample, each takes its table form.
 pub(crate) fn lowered(
     rules: SelectedRules<'_>,
-    _kinds: &KindVocabulary,
-) -> Result<Programs, LoweringError> {
-    match rules.0.first() {
-        Some(first) => Err(LoweringError::Unlowerable {
-            rule: first.rule,
-            shape: PlanShape::Step(PlanNode(0)),
-        }),
-        None => Ok(Programs::default()),
+    statistics: Option<&Statistics>,
+    kinds: &KindVocabulary,
+) -> LoweredRules {
+    let _ = (statistics, kinds);
+    LoweredRules {
+        pack: LoweredPack::default(),
+        refused: rules
+            .0
+            .iter()
+            .map(|rule| RefusedRule {
+                rule: rule.rule,
+                refusal: LoadRefusal::Unlowerable(PlanNode(0)),
+            })
+            .collect(),
     }
 }

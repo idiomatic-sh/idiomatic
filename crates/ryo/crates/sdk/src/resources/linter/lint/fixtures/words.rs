@@ -15,6 +15,7 @@ use ryo_language::domain::builders::service::{enter_node, leave_node, table_buil
 use ryo_language::domain::completion::service::{completion, name_kind};
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::fillers::fixtures::Walking;
+use ryo_language::domain::fillers::types::Fillers as _;
 use ryo_language::domain::semantics::types::SemanticSlot;
 use ryo_language::domain::symbols::types::{ByteSlice, Symbols};
 use ryo_language::inbound::use_cases::parse::errors::ParseError;
@@ -87,9 +88,11 @@ impl QueryLanguagePort for CountingCompiler {
     }
 }
 
-/// The kinds of the language's trees, in the order of their codes: the kind no element has, the sentence, the word. The
-/// fixture walk numbers its sentence 1 and its words 2.
-const KINDS: [&str; 3] = ["blank", "sentence", "word"];
+/// The kinds of the language's trees, in the order of their codes, as the fixture walk states them: it numbers its sentence 1
+/// and its words 2.
+fn kinds() -> Vec<NameText<'static>> {
+    Walking::vocabulary().kinds.0
+}
 
 /// The old engine's parse of a file of words: a sentence over one token for each word. `short` bytes are left off the end of
 /// each word: the difference a row plants between the two engines.
@@ -122,11 +125,11 @@ impl ParseEngine for WordsParse {
     }
 
     fn kind_count(&self) -> Count {
-        Count(KINDS.len())
+        Count(kinds().len())
     }
 
     fn kind_names(&self) -> KindNames {
-        KindNames(KINDS.map(NameText).to_vec())
+        KindNames(kinds())
     }
 
     fn unknown_reasons(&self) -> &'static [UnknownName] {
@@ -167,11 +170,11 @@ impl ParseEngine for WordsParse {
             leave_node(&mut builder, offset(bytes.len()));
         }
         let mut named = completion(table, symbols, request.bytes, request.file);
-        for (code, kind) in KINDS.iter().enumerate() {
+        for (code, kind) in kinds().into_iter().enumerate() {
             name_kind(
                 &mut named,
                 KindBits(u16::try_from(code).unwrap_or(u16::MAX)),
-                NameText(kind),
+                kind,
             );
         }
         Ok(())

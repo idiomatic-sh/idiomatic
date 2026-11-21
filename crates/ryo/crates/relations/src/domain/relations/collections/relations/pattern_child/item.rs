@@ -26,6 +26,8 @@ macro_rules! pattern_child {
             scope File,
             notes Unneeded,
             form Filled(Many(Parent)),
+            size PerElement,
+            keys [],
             columns {
                 /// The parent pattern element.
                 parent Parent: NodeId => Node;

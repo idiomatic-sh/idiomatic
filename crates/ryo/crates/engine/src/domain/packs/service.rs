@@ -33,7 +33,7 @@ pub fn encoded(programs: &Programs, digest: PackDigest) -> EncodedPack {
     bytes.extend_from_slice(version);
     bytes.extend_from_slice(&digest.0);
     bytes.extend_from_slice(
-        &u32::try_from(programs.0.rules.len())
+        &u32::try_from(programs.0.code.rules.len())
             .unwrap_or(u32::MAX)
             .to_le_bytes(),
     );
@@ -41,7 +41,11 @@ pub fn encoded(programs: &Programs, digest: PackDigest) -> EncodedPack {
 }
 
 /// Reads `width` bytes of `bytes` from `at` on, moving `at` past them.
-fn take<'b>(bytes: PackBytes<'b>, at: &mut Count, width: Count) -> Result<PackBytes<'b>, PacksError> {
+fn take<'b>(
+    bytes: PackBytes<'b>,
+    at: &mut Count,
+    width: Count,
+) -> Result<PackBytes<'b>, PacksError> {
     let end = at.0.checked_add(width.0).ok_or(PacksError::Corrupt)?;
     let taken = bytes.0.get(at.0..end).ok_or(PacksError::Corrupt)?;
     *at = Count(end);

@@ -36,6 +36,8 @@ macro_rules! entry {
             scope File,
             notes Unneeded,
             form Filled(Whole),
+            size PerElement,
+            keys [],
             columns {
                 /// The value decoded when it is text, otherwise empty. Free text: a decoded string is whatever the file says.
                 decoded Decoded: Symbol => Symbol;

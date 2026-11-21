@@ -461,3 +461,43 @@ pub enum NodeColumn {
     /// A token's text as the file's word (its decoded text when it has one); nothing for a node.
     Text,
 }
+
+/// Which ids of the node table a relation of the node-table form has rows for: what its catalog item declares as `extent`.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_relations::domain::catalog::service::node_extent;
+/// use ryo_relations::domain::relations::types::{NodeExtent, Relation};
+///
+/// assert_eq!(node_extent(Relation::SyntaxTree), Some(NodeExtent::Own));
+/// assert_eq!(node_extent(Relation::SemanticSyntax), Some(NodeExtent::Embedded));
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NodeExtent {
+    /// The file's own tree: its nodes, then its tokens.
+    Own,
+    /// The file's own tree and every embedded segment.
+    Embedded,
+}
+
+/// How the rows of a filled relation grow with the file: what its catalog item declares as `size`.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_relations::domain::catalog::service::relation_size;
+/// use ryo_relations::domain::relations::types::{Relation, RelationSize};
+///
+/// assert_eq!(relation_size(Relation::LanguageTarget), Some(RelationSize::PerFile));
+/// assert_eq!(relation_size(Relation::TokenLink), Some(RelationSize::PerElement));
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RelationSize {
+    /// At most one row for a file.
+    PerFile,
+    /// A bounded number of rows for each element of the file.
+    PerElement,
+    /// A row for a pair of elements: more than linear in the file.
+    PerPair,
+}

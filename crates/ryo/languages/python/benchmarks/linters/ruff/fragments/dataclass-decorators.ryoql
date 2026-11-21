@@ -6,7 +6,7 @@ let functions = select parent, child, file from "semantic-child" where field = "
 let callables = select l.decorator as decorator, l.class as class, l.expression as expression, r.child as callee, l.file as file from roots as l join functions as r on l.expression = r.parent and l.file = r.file;
 let called = select l.decorator as decorator, l.class as class, l.expression as expression, r.path as path, l.file as file from callables as l join "qualified-name" as r on l.callee = r.id and l.file = r.file;
 let origins = union(left=direct, right=called);
-let recognized = select * from origins where path = "dataclasses.dataclass" or path = "attr.define" or path = "attr.frozen" or path = "attr.mutable" or path = "attrs.define" or path = "attrs.frozen" or path = "attrs.mutable" or path = "attr.s" or path = "attr.attributes" or path = "attr.attrs";
+let recognized = select * from origins where path in ["dataclasses.dataclass", "attr.define", "attr.frozen", "attr.mutable", "attrs.define", "attrs.frozen", "attrs.mutable", "attr.s", "attr.attributes", "attr.attrs"];
 let ordered = select l.decorator as decorator, l.class as class, l.expression as expression, l.path as path, l.file as file, r."start-byte" as start from recognized as l join "source-location" as r on l.decorator = r.id and l.file = r.file;
 let later = select l.decorator as decorator, l.file as file from ordered as l join ordered as r on l.class = r.class and l.file = r.file where l.start > r.start;
 let first = antijoin(left=ordered, right=later, left-on=["decorator","file"], right-on=["decorator","file"]);

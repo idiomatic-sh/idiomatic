@@ -15,7 +15,7 @@ use ryo_relations::domain::relations::types::Count;
 /// use ryo_language::inbound::use_cases::walk::interface::WalkUseCase;
 /// use ryo_language::domain::fillers::fixtures::Walking;
 ///
-/// assert_eq!(<Walking as WalkUseCase>::KIND_COUNT.0, 3);
+/// assert_eq!(<Walking as WalkUseCase>::KIND_COUNT.0, 4);
 /// ```
 pub trait WalkUseCase: Fillers {
     /// Per-worker buffers the language refills for each file (the parse, the model's arenas).

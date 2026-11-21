@@ -33,7 +33,7 @@ macro_rules! syntax_tree {
             class Structure,
             scope File,
             notes Unneeded,
-            form NodeTable { Id => Id, Kind => Kind, Text => Text, File => File, Span => Span },
+            form NodeTable { extent Own; Id => Id, Kind => Kind, Text => Text, File => File, Span => Span },
             columns {
                 /// The element: its file and where it starts.
                 id Id: NodeId => Node;

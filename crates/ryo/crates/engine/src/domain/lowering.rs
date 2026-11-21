@@ -1,5 +1,6 @@
 //! The `lowering` concept: each selected rule's plan turned into its programs, or the plan shape the lowering cannot express named.
 
+pub mod constants;
 pub mod errors;
 pub mod service;
 pub mod types;

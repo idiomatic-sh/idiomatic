@@ -13,16 +13,20 @@ use super::types::{
 use crate::outbound::digest::interface::DigestPort;
 use crate::outbound::digest::types::DigestBytes;
 use crate::outbound::engine::interface::EnginePort;
-use ryo_engine::domain::lowering::types::{SelectedRule, SelectedRules};
+use ryo_engine::domain::lowering::types::{LoadRefusal, SelectedRule, SelectedRules};
 use ryo_engine::domain::packs::constants::ENGINE_VERSION;
 use ryo_engine::domain::packs::types::{PackBytes, PackDigest};
 use ryo_engine::domain::programs::types::Programs;
+use ryo_engine::domain::statistics::types::StatisticsBytes;
 use ryo_engine::inbound::use_cases::load::errors::LoadError;
 use ryo_engine::inbound::use_cases::load::types::LoadSource;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
 use ryo_operators::spike::{EngineMode, engine_loaded, engine_unpacked};
 use ryo_relations::domain::relations::types::{Bytes, Count};
 use ryo_values::domain::descriptions::types::{KindVocabularies, KindVocabulary, LanguageName};
+use ryo_values::domain::query_bindings::types::RuleBindings;
+use ryo_values::domain::query_plans::service::node_digests;
+use ryo_values::domain::query_plans::types::{NodeDigest, NodeDigests, Plan};
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 use ryo_values::domain::stored_facts::types::Digest;
 use ryo_values::domain::stores::types::{PackKey, StoredPack};
@@ -40,7 +44,7 @@ use ryo_values::domain::stores::types::{PackKey, StoredPack};
 /// use ryo_values::domain::stored_facts::types::Digest;
 ///
 /// let digest = ryo_execution_runtime::outbound::digest::factory::blake3();
-/// let kinds = |word: &str| KindVocabulary { language: LanguageName::default(), kinds: vec![KindWord(word.into())] };
+/// let kinds = |word: &str| KindVocabulary { language: LanguageName::default(), kinds: vec![KindWord(word.into())], fields: Vec::new(), fixed: Vec::new() };
 /// assert_ne!(pack_key(&digest, Digest([0; 16]), &kinds("call")), pack_key(&digest, Digest([0; 16]), &kinds("name")));
 /// assert_ne!(pack_key(&digest, Digest([0; 16]), &kinds("call")), pack_key(&digest, Digest([1; 16]), &kinds("call")));
 /// ```
@@ -56,14 +60,24 @@ pub(super) fn keyed(
     kinds: &KindVocabulary,
     version: EngineVersion<'_>,
 ) -> PackKey {
-    // Each text after its length, so no two vocabularies write the same bytes.
+    // Each text after its length, and the end of each list (the kinds, the fields, the fixed names) as a length no text has:
+    // no two vocabularies write the same bytes, and a name moved from one list to another is another key.
     let mut written = Vec::new();
-    let texts = std::iter::once(&*kinds.language.0)
-        .chain(kinds.kinds.iter().map(|kind| &*kind.0))
-        .chain(std::iter::once(version.0));
+    let end = std::iter::once(None);
+    let texts = std::iter::once(Some(&*kinds.language.0))
+        .chain(kinds.kinds.iter().map(|kind| Some(&*kind.0)))
+        .chain(end.clone())
+        .chain(kinds.fields.iter().map(|field| Some(&*field.0)))
+        .chain(end.clone())
+        .chain(kinds.fixed.iter().map(|name| Some(&*name.0)))
+        .chain(end)
+        .chain(std::iter::once(Some(version.0)));
     for each in texts {
-        written.extend_from_slice(&u64::try_from(each.len()).unwrap_or(u64::MAX).to_le_bytes());
-        written.extend_from_slice(each.as_bytes());
+        let length = each.map_or(u64::MAX, |text| {
+            u64::try_from(text.len()).unwrap_or(u64::MAX)
+        });
+        written.extend_from_slice(&length.to_le_bytes());
+        written.extend_from_slice(each.map_or(&[][..], str::as_bytes));
     }
     let vocabulary = digest.digest(DigestBytes(&written));
     let mut key = PackKey::default();
@@ -88,7 +102,7 @@ pub(super) fn keyed(
 ///
 /// let engine = ryo_execution_runtime::outbound::engine::factory::use_case();
 /// let digest = ryo_execution_runtime::outbound::digest::factory::blake3();
-/// let kinds = KindVocabulary { language: LanguageName::default(), kinds: Vec::new() };
+/// let kinds = KindVocabulary { language: LanguageName::default(), kinds: Vec::new(), fields: Vec::new(), fixed: Vec::new() };
 /// let request = KeptRequest { given: Digest([0; 16]), kinds: &kinds, stored: &[] };
 /// assert!(kept(&engine, &digest, request).is_none());
 /// ```
@@ -101,9 +115,10 @@ pub fn kept(
     let key = pack_key(digest, request.given, request.kinds);
     let stored = request.stored.iter().find(|pack| pack.key == key)?;
     let read = LoadSource::Pack(PackBytes(&stored.bytes.0), PackDigest(key.0));
-    let Ok(programs) = engine.load(read, request.kinds) else {
+    let Ok(loaded) = engine.load(read, request.kinds) else {
         return None;
     };
+    let programs = loaded.programs;
     let accepted = engine.accepted(&programs);
     // The host reads a rule's rows by what the pack says the rule emits: a pack that does not say it of each rule its programs
     // run is not this rule set's.
@@ -119,10 +134,22 @@ pub fn kept(
     })
 }
 
-/// The rule set of a run: the store's pack of the same key read back, with nothing lowered (`kept`); otherwise each selected
-/// rule lowered alone, the refused ones counted by why, then the accepted ones together, and their pack written for the store
-/// with what a row of each of them emits. A stored pack the engine refuses (another engine version, bytes that do not decode) is
-/// lowered again.
+/// The digest of each step of a rule's plan under what the rule binds its parameters to, by the run's one digest: the
+/// engine hashes nothing and takes these as data. The port's sixteen bytes are the node's digest.
+pub(super) fn step_digests(
+    digest: &dyn DigestPort,
+    plan: &Plan,
+    bindings: RuleBindings<'_>,
+) -> NodeDigests {
+    node_digests(plan, bindings, &|bytes| {
+        NodeDigest(digest.digest(DigestBytes(bytes.0)).0)
+    })
+}
+
+/// The rule set of a run: the store's pack of the same key read back, with nothing lowered (`kept`); otherwise every selected
+/// rule lowered in one load, each with what it binds its parameters to and its steps' digests, the refused ones counted by why, and the pack of the
+/// accepted ones written for the store with what a row of each of them emits. A stored pack the engine refuses (another engine
+/// version, bytes that do not decode) is lowered again.
 ///
 /// # Examples
 ///
@@ -134,11 +161,11 @@ pub fn kept(
 ///
 /// let engine = ryo_execution_runtime::outbound::engine::factory::use_case();
 /// let digest = ryo_execution_runtime::outbound::digest::factory::blake3();
-/// let kinds = KindVocabulary { language: LanguageName::default(), kinds: Vec::new() };
+/// let kinds = KindVocabulary { language: LanguageName::default(), kinds: Vec::new(), fields: Vec::new(), fixed: Vec::new() };
 /// let given = Digest([0; 16]);
-/// let cold = loaded(&engine, &digest, LoadRequest { plans: &[], given, kinds: &kinds, stored: &[] });
+/// let cold = loaded(&engine, &digest, LoadRequest { plans: &[], bindings: &[], given, kinds: &kinds, stored: &[] });
 /// let stored = [cold.pack];
-/// let warm = loaded(&engine, &digest, LoadRequest { plans: &[], given, kinds: &kinds, stored: &stored });
+/// let warm = loaded(&engine, &digest, LoadRequest { plans: &[], bindings: &[], given, kinds: &kinds, stored: &stored });
 /// assert_eq!(warm.from, LoadedFrom::Pack);
 /// ```
 #[must_use]
@@ -156,32 +183,57 @@ pub fn loaded(
         return load;
     }
     let key = pack_key(digest, request.given, request.kinds);
-    let mut refusals = Refusals::default();
-    let mut accepted: Vec<SelectedRule<'_>> = Vec::new();
-    for (place, plan) in request.plans.iter().enumerate() {
-        let rule = SelectedRule {
+    // Each rule with what it binds its parameters to (nothing past the request's bindings) and its steps' digests.
+    let unbound = std::iter::repeat(&[][..]);
+    let bound = request.bindings.iter().map(Vec::as_slice).chain(unbound);
+    let rules: Vec<(&Plan, RuleBindings<'_>)> = request
+        .plans
+        .iter()
+        .zip(bound)
+        .map(|(plan, bound)| (*plan, RuleBindings(bound)))
+        .collect();
+    let digests: Vec<NodeDigests> = rules
+        .iter()
+        .map(|(plan, bound)| step_digests(digest, plan, *bound))
+        .collect();
+    let selected: Vec<SelectedRule<'_>> = rules
+        .iter()
+        .zip(&digests)
+        .enumerate()
+        .map(|(place, ((plan, bound), digests))| SelectedRule {
             rule: SelectedRuleOrdinal(u32::try_from(place).unwrap_or(u32::MAX)),
             plan,
-        };
-        match engine.load(LoadSource::Plans(SelectedRules(&[rule])), request.kinds) {
-            Ok(_) => accepted.push(rule),
-            Err(LoadError::Budget { .. }) => {
-                refusals.over_budget = Count(refusals.over_budget.0.saturating_add(1));
+            bindings: *bound,
+            digests,
+        })
+        .collect();
+    // One load of every selected rule: a sub-plan two rules share is lowered once, and each refused rule is answered with why.
+    let source = LoadSource::Plans(SelectedRules(&selected), StatisticsBytes(&[]));
+    let (programs, refusals) = match engine.load(source, request.kinds) {
+        Ok(loaded) => {
+            let mut refusals = Refusals::default();
+            for refused in &loaded.refused {
+                let count = match refused.refusal {
+                    LoadRefusal::Unlowerable(_) => &mut refusals.unlowerable,
+                    LoadRefusal::Budget(_) => &mut refusals.over_budget,
+                };
+                *count = Count(count.0.saturating_add(1));
             }
-            Err(_) => refusals.unlowerable = Count(refusals.unlowerable.0.saturating_add(1)),
+            (loaded.programs, refusals)
         }
-    }
-    // Rules lowered alone and refused together are refused: the rule set runs none of them.
-    let programs = match engine.load(LoadSource::Plans(SelectedRules(&accepted)), request.kinds) {
-        Ok(programs) => programs,
-        Err(LoadError::Budget { .. }) => {
-            refusals.over_budget = Count(refusals.over_budget.0.saturating_add(accepted.len()));
-            Programs::default()
-        }
-        Err(_) => {
-            refusals.unlowerable = Count(refusals.unlowerable.0.saturating_add(accepted.len()));
-            Programs::default()
-        }
+        // Plans are never a pack's fault, and refused fixed names leave no words: no rule loads, each counted as not lowered.
+        Err(
+            LoadError::PackVersion
+            | LoadError::PackDigest
+            | LoadError::PackCorrupt
+            | LoadError::Vocabulary(_),
+        ) => (
+            Programs::default(),
+            Refusals {
+                unlowerable: Count(selected.len()),
+                over_budget: Count(0),
+            },
+        ),
     };
     let accepted = engine.accepted(&programs);
     let pack = StoredPack {
@@ -315,7 +367,7 @@ pub fn read_back(
 /// use ryo_operators::spike::EngineMode;
 /// use ryo_values::domain::stored_facts::types::Digest;
 ///
-/// let request = HarnessRequest { plans: &[], given: Digest([0; 16]), stored: &[] };
+/// let request = HarnessRequest { plans: &[], bindings: &[], given: Digest([0; 16]), stored: &[] };
 /// assert!(harnessed(EngineMode::Old, None, request).is_ok_and(|loads| loads.is_empty()));
 /// ```
 pub fn harnessed(
@@ -334,6 +386,7 @@ pub fn harnessed(
             harness.digest,
             LoadRequest {
                 plans: request.plans,
+                bindings: request.bindings,
                 given: request.given,
                 kinds,
                 stored: request.stored,

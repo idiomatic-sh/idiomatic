@@ -13,7 +13,9 @@ use crate::outbound::digest::factory::blake3;
 use crate::outbound::engine::fixtures::fake::EngineFake;
 use ryo_operators::spike::EngineMode;
 use ryo_relations::domain::relations::types::Count;
-use ryo_values::domain::descriptions::types::KindVocabularies;
+use ryo_values::domain::descriptions::types::{
+    FieldWord, FixedName, KindVocabularies, KindVocabulary,
+};
 use ryo_values::domain::query_plans::types::Plan;
 use ryo_values::domain::stores::types::StoredPack;
 use std::borrow::Cow;
@@ -40,6 +42,9 @@ enum Scenario {
     StoredOne,
     /// The old engine, asked of the store before anything is compiled.
     StoredOld,
+    /// The key of one language under vocabularies that differ in one field name, in one fixed name, and in which list holds
+    /// one name; and under the same names twice.
+    KeyedByEveryName,
 }
 
 type Input = Scenario;
@@ -118,7 +123,50 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Scenario::StoredOld,
         expect: Expect::Value(Cow::Borrowed("[]; lowerings 0; packs read 0")),
     },
+    Case {
+        name: CaseName("a_pack_is_keyed_by_the_field_names_and_the_fixed_names_too"),
+        word: Word::Succeeds,
+        input: || Scenario::KeyedByEveryName,
+        expect: Expect::Value(Cow::Borrowed(
+            "a field name more: differ; a fixed name more: differ; the kind's name among the fields: differ; the same names: equal",
+        )),
+    },
 ];
+
+/// Whether two vocabularies of one language key a pack alike, said of `other` against the language of one kind `word`.
+fn keyed_as(other: &KindVocabulary) -> &'static str {
+    let key = |names: &KindVocabulary| keyed(&blake3(), given(1), names, EngineVersion("1"));
+    if key(other) == key(&kinds("words", "word")) {
+        "equal"
+    } else {
+        "differ"
+    }
+}
+
+/// The keys of vocabularies that differ from one language's in one name of one list.
+fn keyed_by_every_name() -> Value {
+    let plain = kinds("words", "word");
+    let field = KindVocabulary {
+        fields: vec![FieldWord("label".into())],
+        ..plain.clone()
+    };
+    let fixed = KindVocabulary {
+        fixed: vec![FixedName("next".into())],
+        ..plain.clone()
+    };
+    let moved = KindVocabulary {
+        kinds: Vec::new(),
+        fields: vec![FieldWord("word".into())],
+        ..plain.clone()
+    };
+    Cow::Owned(format!(
+        "a field name more: {}; a fixed name more: {}; the kind's name among the fields: {}; the same names: {}",
+        keyed_as(&field),
+        keyed_as(&fixed),
+        keyed_as(&moved),
+        keyed_as(&plain),
+    ))
+}
 
 /// What a new fake reads back of `stored`, given `seed` and `kind`, with no plan in hand: the rule set and what its pack says
 /// each of its rules emits, or that nothing was read back; then what the fake was asked.
@@ -175,6 +223,7 @@ fn asked_of_the_store(mode: EngineMode, holding: &[&str]) -> Result<Value, Failu
         .map(|each| {
             let request = LoadRequest {
                 plans: &rules.iter().collect::<Vec<&Plan>>(),
+                bindings: &[],
                 given: given(1),
                 kinds: each,
                 stored: &[],
@@ -247,6 +296,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::StoredBoth => asked_of_the_store(EngineMode::New, &["words", "signs"]),
         Scenario::StoredOne => asked_of_the_store(EngineMode::New, &["words"]),
         Scenario::StoredOld => asked_of_the_store(EngineMode::Old, &["words", "signs"]),
+        Scenario::KeyedByEveryName => Ok(keyed_by_every_name()),
     }
 }
 

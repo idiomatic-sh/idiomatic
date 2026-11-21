@@ -2,7 +2,7 @@ import observation_matches from "python/ruff/suppress-matches";
 
 let functions = select id, file from "semantic-syntax" where kind = "function-def" or kind = "async-function-def";
 let classes = select id, file from "semantic-syntax" where kind = "class-def";
-let parents = select id, file from "semantic-syntax" where kind = "if" or kind = "for" or kind = "async-for" or kind = "while" or kind = "with" or kind = "async-with" or kind = "try" or kind = "try-star" or kind = "match";
+let parents = select id, file from "semantic-syntax" where kind in ["if", "for", "async-for", "while", "with", "async-with", "try", "try-star", "match"];
 let scopes0 = union(left=functions, right=classes);
 let scopes = union(left=scopes0, right=parents);
 let function_ancestors = axis(from=functions, relation="semantic-child", direction=nearest-ancestor, domain=scopes);

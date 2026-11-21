@@ -4,7 +4,7 @@
 //! language's kinds as the kind's code.
 
 use ryo_engine::domain::lowering::fixtures::named;
-use ryo_engine::domain::lowering::types::{PlanNode, PlanShape, SelectedRule};
+use ryo_engine::domain::lowering::types::{LoadRefusal, PastWidth, PlanNode, SelectedRule};
 use ryo_engine::inbound::use_cases::load::errors::LoadError;
 use ryo_relations::domain::catalog::service::{fact_form, node_column};
 use ryo_relations::domain::relations::service::columns;
@@ -131,13 +131,15 @@ fn tree_rule(plan: &Plan, kinds: &KindVocabulary) -> Option<(Anchor, Vec<Held>)>
     Some((anchor, cells?))
 }
 
-/// The fixture's lowering of one rule against a language's kinds.
+/// The fixture's lowering of one rule against a language's kinds, or why the fixture refuses it: its own stand-in for a count
+/// past its width (the plan the lowering fixture calls over budget), and a step it does not lower for every plan it does not
+/// know.
 pub(super) fn lowered(
     rule: &SelectedRule<'_>,
     kinds: &KindVocabulary,
-) -> Result<FixtureRule, LoadError> {
+) -> Result<FixtureRule, LoadRefusal> {
     if *rule.plan == named("program over budget") {
-        return Err(LoadError::Budget { rule: rule.rule });
+        return Err(LoadRefusal::Budget(PastWidth::Words));
     }
     if *rule.plan == named("one tree rule") {
         return Ok(FixtureRule {
@@ -154,10 +156,7 @@ pub(super) fn lowered(
             cells,
             frontier: false,
         }),
-        None => Err(LoadError::Unlowerable {
-            rule: rule.rule,
-            shape: PlanShape::Step(PlanNode(0)),
-        }),
+        None => Err(LoadRefusal::Unlowerable(PlanNode(0))),
     }
 }
 

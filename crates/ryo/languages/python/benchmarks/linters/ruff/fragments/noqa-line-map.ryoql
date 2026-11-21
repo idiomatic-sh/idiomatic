@@ -8,8 +8,7 @@ let mapping_paths = closure(edges=mapping_edges, source="origin", destination="d
 let reachable_ranges = select l.origin as id, r.endline as endline from mapping_paths as l join mapping_ranges as r on l.destination = r.id;
 let initial_ranges = select id, endline from mapping_ranges;
 let all_ranges = union(left=initial_ranges, right=reachable_ranges);
-let earlier_endings = select l.id as id, l.endline as endline from all_ranges as l join all_ranges as r on l.id = r.id where l.endline < r.endline;
-let last_ranges = antijoin(left=all_ranges, right=earlier_endings, left-on=["id", "endline"], right-on=["id", "endline"]);
+let last_ranges = group-max(from=all_ranges, keys=["id"], order="endline");
 let mappings = select l.id as id, l.file as file, l.line as line, r.endline as endline from mapping_ranges as l join last_ranges as r on l.id = r.id;
 let merged_ranges = group-min(from=mappings, keys=["file", "endline"], order="line");
 return merged_ranges;
