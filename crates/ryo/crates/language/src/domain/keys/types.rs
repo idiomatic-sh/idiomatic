@@ -1,9 +1,9 @@
 //! The types of the `keys` concept: plain data, public fields and derives. A file's structural keys, retained between files with
 //! their capacity, each complete key once.
 
+use rustc_hash::FxHashMap;
 use ryo_relations::domain::relations::types::{FieldId, KindBits, Position, PropertyId};
 use ryo_relations::domain::terms::types::Symbol;
-use std::collections::HashMap;
 
 /// An index into the retained collision-chain records.
 ///
@@ -150,7 +150,7 @@ pub struct RetainedKeyIndex<Class, Word> {
     /// Representatives and collision chains.
     pub records: Vec<KeyRecord>,
     /// Bucket heads; equality never relies on a digest alone.
-    pub buckets: HashMap<KeyDigest, KeyRecordIndex>,
+    pub buckets: FxHashMap<KeyDigest, KeyRecordIndex>,
     /// The key being built, its buffer reused.
     pub scratch: Vec<Word>,
     /// Whether this index belongs to the current source revision.
@@ -163,7 +163,7 @@ impl<Class, Word> Default for RetainedKeyIndex<Class, Word> {
             classes: Vec::new(),
             words: Vec::new(),
             records: Vec::new(),
-            buckets: HashMap::new(),
+            buckets: FxHashMap::default(),
             scratch: Vec::new(),
             state: KeyState::default(),
         }
