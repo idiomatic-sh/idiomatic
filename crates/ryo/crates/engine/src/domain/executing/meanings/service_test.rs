@@ -43,8 +43,8 @@ enum Called {
     CaptureNothing,
     /// The text with every occurrence of `[bd]` replaced by `_`: one row, one output.
     Replace,
-    /// The text in lowercase: a meaning the kernel does not run yet.
-    Lower,
+    /// The words of a text: a meaning the kernel does not run yet (`stages::calling::service::call_runs`).
+    Words,
 }
 
 /// The meaning, and the cells of the table, in order.
@@ -103,7 +103,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_meaning_the_kernel_does_not_run_is_counted_and_ends_the_candidate"),
         word: Word::Succeeds,
-        input: || (Called::Lower, &[3]),
+        input: || (Called::Words, &[3]),
         expect: Expect::Value(Cow::Borrowed(&[99, 0, 1, 0, 0, 0, 0, 0])),
     },
 ];
@@ -115,7 +115,7 @@ fn pack((called, cells): Input) -> LoweredPack {
         Called::Capture => (CallMeaning::Capture, vec![of(1), word(6)], &[2, 3]),
         Called::CaptureNothing => (CallMeaning::Capture, vec![of(1), word(5)], &[2]),
         Called::Replace => (CallMeaning::Replace(RegexId(1)), vec![of(1), word(4)], &[2]),
-        Called::Lower => (CallMeaning::Lower, vec![of(1)], &[2]),
+        Called::Words => (CallMeaning::Words, vec![of(1)], &[2]),
     };
     let registers =
         |each: &[u32]| RegisterList(each.iter().map(|number| Register(*number)).collect());

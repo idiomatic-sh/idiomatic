@@ -55,7 +55,12 @@ fn literals_counted(frame: &mut StepFrame<'_, '_>) {
 /// worker does nothing.
 pub(crate) fn file_measured(frame: &mut StepFrame<'_, '_>) {
     if frame.state.measure.is_some() {
-        literals_counted(frame);
+        // SPIKE: under RYO_X_FILLS the size sites are not counted: counting them fills their relations whole in every
+        // file, which a plain run does not, and the run is counting the fills a plain run makes.
+        static PLAIN_FILLS: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        if !*PLAIN_FILLS.get_or_init(|| std::env::var_os("RYO_X_FILLS").is_some()) {
+            literals_counted(frame);
+        }
         file_ended(frame);
     }
 }

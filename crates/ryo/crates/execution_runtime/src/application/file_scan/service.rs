@@ -14,7 +14,20 @@ use ryo_engine::domain::programs::service::needs;
 use ryo_engine::domain::programs::types::Programs;
 use ryo_engine::domain::scratch::types::ScanScratch;
 use ryo_engine::inbound::use_cases::scan::errors::ScanError;
-use ryo_language::domain::facts::types::FileFacts;
+use ryo_language::domain::facts::types::{
+    CellWord, FactAnswer, FactSource, FileFacts, FileWords, FillExtent, FilledColumn, FilledColumns,
+    FillerSentence, PartialRows, Wanted,
+};
+use ryo_language::domain::semantics::types::{RenderOutcome, RenderRequest};
+use ryo_relations::domain::relations::collections::relations::filesystem_executable::item::{
+    FilesystemExecutable, FilesystemExecutableRow,
+};
+use ryo_relations::domain::relations::collections::relations::filesystem_file::item::{
+    FilesystemFile, FilesystemFileRow,
+};
+use ryo_relations::domain::relations::collections::relations::interface::RelationsItem;
+use ryo_relations::domain::relations::types::{FileId, Flag, Missing, Relation};
+use ryo_values::domain::files::types::ExecutablePermission;
 use ryo_language::domain::node_table::types::NodeTable;
 use ryo_language::inbound::use_cases::walk::errors::WalkError;
 use ryo_language::inbound::use_cases::walk::types::{FileVisit, WalkEngine, WalkRequest};
@@ -119,6 +132,7 @@ pub fn worker(
             ScanMeasuring::Measuring => engine.measuring_state_for(programs),
         },
         report: ScanReport::default(),
+        executable: ExecutablePermission::Unknown,
     }
 }
 
@@ -150,10 +164,98 @@ struct Visiting<'a> {
     misfit: Option<FoundTarget>,
     /// What the scan answered; nothing until the language lends the file.
     answer: Option<Result<ScanCounters, ScanError>>,
+    /// Whether the host saw the file as one that may be executed.
+    executable: ExecutablePermission,
+}
+
+/// SPIKE (ryo-fmx3.1, E): the host's rows of a file around the language's: the relations of the file as the host holds it
+/// (`filesystem.file`, `filesystem.executable`, `filesystem.read-failure`) are answered here, as today's engine is answered
+/// them by `core`'s engine source; every other relation is the language's.
+struct HostFacts<'a> {
+    /// The language's view of the file.
+    language: &'a mut dyn FactSource,
+    /// The file's number in the run.
+    file: FileId,
+    /// Whether the host saw the file as one that may be executed.
+    executable: ExecutablePermission,
+}
+
+/// Appends one row to the columns, widened to the row.
+fn host_row(out: &mut FilledColumns, words: &[u64]) {
+    if out.0.len() < words.len() {
+        out.0.resize_with(words.len(), FilledColumn::default);
+    }
+    for (column, word) in out.0.iter_mut().zip(words) {
+        column.0.push(CellWord(*word));
+    }
+}
+
+impl FactSource for HostFacts<'_> {
+    fn fill(
+        &mut self,
+        relation: Relation,
+        wanted: Wanted,
+        words: &mut FileWords,
+        out: &mut FilledColumns,
+    ) -> FactAnswer {
+        let extent = match wanted {
+            Wanted::Whole => FillExtent::Asked,
+            Wanted::Key(_, _) => FillExtent::Whole,
+        };
+        match relation {
+            Relation::FilesystemFile => {
+                let row = FilesystemFile::words(FilesystemFileRow { path: self.file });
+                host_row(out, &row.as_ref().iter().map(|word| word.0).collect::<Vec<u64>>());
+                FactAnswer::Answered(extent)
+            }
+            Relation::FilesystemExecutable => {
+                let raised = match self.executable {
+                    ExecutablePermission::PosixExecutable => Flag::Raised,
+                    ExecutablePermission::PosixNotExecutable => Flag::Lowered,
+                    // A permission model with no executable bit has no row.
+                    ExecutablePermission::Unsupported => return FactAnswer::Answered(extent),
+                    ExecutablePermission::Unknown => {
+                        return FactAnswer::Partial(PartialRows {
+                            cause: FillerSentence(
+                                "input edge did not supply executable permission metadata".into(),
+                            ),
+                            missing: Missing::Any,
+                        });
+                    }
+                };
+                let row = FilesystemExecutable::words(FilesystemExecutableRow {
+                    path: self.file,
+                    executable: raised,
+                });
+                host_row(out, &row.as_ref().iter().map(|word| word.0).collect::<Vec<u64>>());
+                FactAnswer::Answered(extent)
+            }
+            // A file that is scanned was read: it has no row. A file that could not be read is never walked, so its row
+            // has nowhere to be handed yet.
+            Relation::FilesystemReadFailure => FactAnswer::Answered(extent),
+            _ => self.language.fill(relation, wanted, words, out),
+        }
+    }
+
+    fn render(&mut self, request: RenderRequest) -> RenderOutcome {
+        self.language.render(request)
+    }
 }
 
 impl FileVisit for Visiting<'_> {
     fn visit(&mut self, file: FileFacts<'_>) {
+        let mut host = HostFacts {
+            language: file.facts,
+            file: file.file,
+            executable: self.executable,
+        };
+        let file = FileFacts {
+            table: file.table,
+            source: file.source,
+            file: file.file,
+            path: file.path,
+            facts: &mut host,
+        };
         let mut keeping = RowKeeper {
             columns: self.run.columns,
             places: self.run.places,
@@ -202,6 +304,7 @@ fn scanned(
         report: &mut worker.report,
         misfit: None,
         answer: None,
+        executable: worker.executable,
     };
     let (table, buffers) = (&mut worker.table, &mut *worker.buffers);
     let needs = needs(run.programs);
