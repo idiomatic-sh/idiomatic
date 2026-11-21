@@ -94,6 +94,7 @@ fn arm(
         | Operation::SpanBetween { .. }
         | Operation::SourceMatches { .. }
         | Operation::Capture { .. }
+        | Operation::RenderSyntax { .. }
         | Operation::FitsRendered { .. } => call_arm(state, drafts, operation),
         // What is left to lower, each by name: `tables::service::shaped` refuses a rule that holds one.
         Operation::Intersection { .. }
@@ -104,8 +105,7 @@ fn arm(
         | Operation::OrderedDfs { .. }
         | Operation::Worklist { .. }
         | Operation::Cycles { .. }
-        | Operation::Hosted { .. }
-        | Operation::RenderSyntax { .. } => None,
+        | Operation::Hosted { .. } => None,
         // The rows a query wrote are a branch each: no atom, and the row's texts as constants. A reader holds them as
         // its own branches (`inputs::input`), so a join with them is a pin of each key and a constant in the answer:
         // no table is made of them.

@@ -4,8 +4,19 @@
 use crate::domain::steps::types::{
     AxisDirection, CallMeaning, DefinitionId, MadeColumn, MadeTableId, Polarity, TestOperation,
 };
+use ryo_language::domain::semantics::types::RenderContext;
 use ryo_relations::domain::relations::types::{Integer, Relation};
 use ryo_values::domain::plan_orders::types::OrderBound;
+
+/// What a per-row meaning is: one of the operators crate's, or the language's source form of a node in a syntax role (one
+/// node read, its text given, no row when the node has none in the role).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum RowMeaning {
+    /// A meaning of the operators crate.
+    Call(CallMeaning),
+    /// The language's rendering of a node in a syntax role.
+    Render(RenderContext),
+}
 
 /// A variable of a branch: a cell some atom gives and others read.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -115,10 +126,10 @@ pub(crate) enum FlatAtom {
         /// The element reached.
         reached: FlatTerm,
     },
-    /// A per-row meaning of the operators crate: it reads its arguments and gives its outputs, or gives no row.
+    /// A per-row meaning: it reads its arguments and gives its outputs, or gives no row.
     Called {
         /// The meaning.
-        meaning: CallMeaning,
+        meaning: RowMeaning,
         /// What it reads.
         arguments: Vec<FlatTerm>,
         /// What it gives.

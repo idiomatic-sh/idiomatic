@@ -14,7 +14,7 @@ use crate::domain::indexes::reading::service::rows_of;
 use crate::domain::indexes::types::ColumnView;
 use crate::domain::made_tables::built::service::runs;
 use crate::domain::made_tables::built::types::FillPart;
-use crate::domain::made_tables::calling::service::call_asked;
+use crate::domain::made_tables::calling::service::{call_asked, render_asked};
 use crate::domain::made_tables::carrying::service::{carried, stage_kind};
 use crate::domain::made_tables::constants::BATCH_ROWS;
 use crate::domain::made_tables::fanning::service::{fan_stage, scan_read};
@@ -219,9 +219,8 @@ fn staged(
         let selected = match kind {
             StageKind::Scan => return Err(WRONG_WORD),
             StageKind::Render => {
-                return Err(FilledError::Unbuilt {
-                    unbuilt: UnbuiltFill::Stage(word.op),
-                });
+                render_asked(frame, word, run.room, depth)?;
+                true
             }
             StageKind::Call => {
                 call_asked(frame, word, run.room, depth)?;

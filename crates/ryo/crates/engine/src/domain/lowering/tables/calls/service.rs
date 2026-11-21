@@ -5,7 +5,7 @@
 
 use crate::domain::lowering::definitions::service::{fresh_variable, regex, text};
 use crate::domain::lowering::definitions::types::{Drafts, Flattened};
-use crate::domain::lowering::flattening::types::{FlatAtom, FlatTerm};
+use crate::domain::lowering::flattening::types::{FlatAtom, FlatTerm, RowMeaning};
 use crate::domain::lowering::tables::inputs::service::input;
 use crate::domain::lowering::tables::shapes::service::{
     capture_slots, search_kinds, source_search,
@@ -58,7 +58,7 @@ pub(crate) fn call_arm(
             pattern,
             replacement,
         } => {
-            let meaning = CallMeaning::Replace(regex(drafts, pattern));
+            let meaning = RowMeaning::Call(CallMeaning::Replace(regex(drafts, pattern)));
             let with = FlatTerm::Text(text(drafts, state.kinds, replacement));
             let call = OperationCall {
                 meaning,
@@ -70,7 +70,7 @@ pub(crate) fn call_arm(
         }
         Operation::SpanBounds { from, span } => {
             let call = OperationCall {
-                meaning: CallMeaning::SpanBounds,
+                meaning: RowMeaning::Call(CallMeaning::SpanBounds),
                 reads: &[*span],
                 constants: &[],
                 gives: Count(2),
@@ -93,7 +93,10 @@ pub(crate) fn call_arm(
                 .map(|name| FlatTerm::Text(text(drafts, state.kinds, name)))
                 .collect();
             let call = OperationCall {
-                meaning: CallMeaning::SourceMatches(regex(drafts, pattern), search),
+                meaning: RowMeaning::Call(CallMeaning::SourceMatches(
+                    regex(drafts, pattern),
+                    search,
+                )),
                 reads: &reads,
                 constants: &named,
                 gives: Count(search_kinds(search).len()),
@@ -108,7 +111,7 @@ pub(crate) fn call_arm(
             let written = LiteralText(pattern.0.clone());
             let with = FlatTerm::Text(text(drafts, state.kinds, &written));
             let call = OperationCall {
-                meaning: CallMeaning::Capture,
+                meaning: RowMeaning::Call(CallMeaning::Capture),
                 reads: &[*path],
                 constants: &[with],
                 gives: capture_slots(pattern),
@@ -117,7 +120,7 @@ pub(crate) fn call_arm(
         }
         Operation::SpanBetween { from, start, end } => {
             let call = OperationCall {
-                meaning: CallMeaning::SpanBetween,
+                meaning: RowMeaning::Call(CallMeaning::SpanBetween),
                 reads: &[*start, *end],
                 constants: &[],
                 gives: Count(1),
@@ -143,10 +146,24 @@ pub(crate) fn call_arm(
             constants.push(FlatTerm::Number(Integer(max_line.0)));
             constants.push(FlatTerm::Number(Integer(i64::from(tab_width.0))));
             let call = OperationCall {
-                meaning: CallMeaning::FitsRendered,
+                meaning: RowMeaning::Call(CallMeaning::FitsRendered),
                 reads: &reads,
                 constants: &constants,
                 gives: Count(0),
+            };
+            called(state, drafts, *from, call)
+        }
+        // The node read, its text in the role given; no row when the node has none.
+        Operation::RenderSyntax {
+            from,
+            node,
+            context,
+        } => {
+            let call = OperationCall {
+                meaning: RowMeaning::Render(*context),
+                reads: &[*node],
+                constants: &[],
+                gives: Count(1),
             };
             called(state, drafts, *from, call)
         }
@@ -173,7 +190,6 @@ pub(crate) fn call_arm(
         | Operation::Worklist { .. }
         | Operation::Cycles { .. }
         | Operation::Rows { .. }
-        | Operation::Hosted { .. }
-        | Operation::RenderSyntax { .. } => None,
+        | Operation::Hosted { .. } => None,
     }
 }

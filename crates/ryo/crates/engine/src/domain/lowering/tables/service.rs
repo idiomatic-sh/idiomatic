@@ -291,6 +291,15 @@ fn shaped(
             shape.0.extend([CellKind::Number, CellKind::Number]);
             Some(shape)
         }
+        // A rendering appends the node's text in the role: the node column is a node's.
+        Operation::RenderSyntax { from, node, .. } => {
+            let mut shape = of(from)?;
+            if picked(&shape, &[*node])?.0 != [CellKind::Node] {
+                return None;
+            }
+            shape.0.push(CellKind::Symbol);
+            Some(shape)
+        }
         // A fit check keeps the rows whose candidate fits: the input's shape, its texts symbols and its span a span.
         Operation::FitsRendered {
             from,
@@ -316,8 +325,7 @@ fn shaped(
         | Operation::OrderedDfs { .. }
         | Operation::Worklist { .. }
         | Operation::Cycles { .. }
-        | Operation::Hosted { .. }
-        | Operation::RenderSyntax { .. } => None,
+        | Operation::Hosted { .. } => None,
         // The rows a query wrote: a text for each key. The rows of a parameter's tables are not lowered.
         Operation::Rows { source, keys } => match source {
             RowsSource::Written(rows) => rows

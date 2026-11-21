@@ -10,12 +10,16 @@ use crate::domain::qualification::constants::{
 use crate::domain::relations::collections::relations::implicit_symbol::item::{
     BUILTIN_ATTRIBUTES, MODULE_GLOBALS,
 };
+use crate::domain::rendering::constants::UNRENDERED;
+use crate::domain::rendering::service::{render, target};
 use crate::domain::syntax::service::{kind_name, kinds};
 use ryo::languages::{
-    self, AbsenceCause, CatalogRelation, FieldNames, FileWords, Fill, Fillers, FixedNames,
-    NameText, RenderOutcome, RenderRequest, Rows, WalkKinds, WalkVocabulary, Wanted, fillers,
+    self, AbsenceCause, CatalogRelation, FieldNames, FileWords, Fill, Fillers, FixedNames, Flag,
+    NameText, RenderContext, RenderOutcome, RenderRequest, RenderedNode, Rows, WalkKinds,
+    WalkVocabulary, Wanted, fillers,
 };
 use std::collections::HashSet;
+use std::sync::Arc;
 
 /// The filler of each relation whose `fills!` item writes it whole alone: the item's run. Asked for a key, it writes the whole
 /// relation and says so; `fillers::filled` is the one place that answer is written.
@@ -157,8 +161,25 @@ impl<P: Send + Sync + 'static> Fillers for PythonWalk<P> {
         workspace_member: WorkspaceMember => NotYetRead;
     }
 
-    fn render(_file: &mut PythonFile<'_>, _request: RenderRequest) -> RenderOutcome {
-        RenderOutcome::NotApplicable
+    /// The node's typed expression rendered in the role: not applicable as an assignment target when it is not stored to;
+    /// unsupported for a node that is no expression of the file's own tree, or a form the tree does not prove.
+    fn render(file: &mut PythonFile<'_>, request: RenderRequest) -> RenderOutcome {
+        let place = usize::try_from(languages::node_position(request.node).0).unwrap_or(usize::MAX);
+        let Some(expr) = file
+            .syntax
+            .nodes
+            .get(place)
+            .and_then(|node| node.as_expr_ref())
+        else {
+            return RenderOutcome::Unsupported(UNRENDERED);
+        };
+        if request.context == RenderContext::AssignmentTarget && target(expr) == Flag::Lowered {
+            return RenderOutcome::NotApplicable;
+        }
+        match render(expr, request.context, file.syntax.text) {
+            Some(text) => RenderOutcome::Known(RenderedNode(Arc::from(text))),
+            None => RenderOutcome::Unsupported(UNRENDERED),
+        }
     }
 
     /// Python's names for the run: every kind at its code and every field at its code, as the walk writes them into the node

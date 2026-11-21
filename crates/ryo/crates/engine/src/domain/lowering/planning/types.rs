@@ -7,6 +7,7 @@ use crate::domain::steps::types::{
     AnchorKinds, AxisDirection, CallMeaning, ColumnMask, DefinitionId, MadeTableId, MatchColumns,
     ReadColumn, Register, RegisterList, StepOperand, StepOperands, StepRows, TestOperation,
 };
+use ryo_language::domain::semantics::types::RenderContext;
 use ryo_relations::domain::relations::types::{Count, Relation};
 use ryo_values::domain::plan_orders::types::OrderBound;
 use std::collections::HashMap;
@@ -162,6 +163,15 @@ pub(crate) enum WrittenAccess {
         arguments: StepOperands,
         /// Where what it gives goes.
         outputs: RegisterList,
+    },
+    /// The language's source form of the node in a register, in a syntax role: no row when it has none.
+    Render {
+        /// The node.
+        node: Register,
+        /// The role.
+        context: RenderContext,
+        /// Where the text goes.
+        out: Register,
     },
     /// A register takes a value: a program's only.
     Let {

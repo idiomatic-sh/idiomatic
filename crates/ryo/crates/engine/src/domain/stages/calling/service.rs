@@ -13,7 +13,8 @@ use crate::domain::stages::types::{BatchValue, CallMeans, CallOut, FunctionTexts
 use crate::domain::steps::calls::types::{SearchGroup, SearchLines, SourceSearch};
 use crate::domain::steps::types::{CallMeaning, RegexId, StepRegex};
 use ryo_language::domain::facts::service::{intern, text, words_end};
-use ryo_language::domain::facts::types::{CellWord, FileWords};
+use ryo_language::domain::facts::types::{CellWord, FactSource, FileWords};
+use ryo_language::domain::semantics::types::{RenderContext, RenderOutcome, RenderRequest};
 use ryo_operators::domain::capture::service::matches;
 use ryo_operators::domain::capture::types::{CaptureSlots, SlotPattern, SlotSubject};
 use ryo_operators::domain::contract::types::{PortableOperatorFault, SourceByteLength};
@@ -34,7 +35,7 @@ use ryo_operators::domain::span_between::service::between;
 use ryo_operators::domain::span_bounds::service::bounds;
 use ryo_operators::domain::table_texts::types::TextView;
 use ryo_relations::domain::relations::service::{from_bits, to_bits};
-use ryo_relations::domain::relations::types::{Bits, CellKind, Count, Integer, Value};
+use ryo_relations::domain::relations::types::{Bits, CellKind, Count, Integer, NodeId, Value};
 use ryo_relations::domain::terms::types::NameText;
 use ryo_values::domain::files::types::SourceView;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, Function};
@@ -396,6 +397,28 @@ fn fits_rendered(
         spanned(out.spans, &mut made, given);
     }
     Ok(())
+}
+
+/// A rendering: the language's source form of the node `handle` names, in `context`, as a word of the file; none when the
+/// node has none in the role. Today's operator refuses the batch an unsupported rendering is in: here that row faults.
+///
+/// # Errors
+///
+/// `UnsupportedRender` when the language cannot prove the node's text in the role.
+pub(crate) fn rendered(
+    facts: &mut dyn FactSource,
+    words: &mut FileWords,
+    handle: CellWord,
+    context: RenderContext,
+) -> Result<Option<CellWord>, FilledError> {
+    match facts.render(RenderRequest {
+        node: NodeId(handle.0),
+        context,
+    }) {
+        RenderOutcome::Known(text) => Ok(Some(intern(words, NameText(&text.0)))),
+        RenderOutcome::NotApplicable => Ok(None),
+        RenderOutcome::Unsupported(_) => Err(faulted(PortableOperatorFault::UnsupportedRender)),
+    }
 }
 
 /// Whether a `Call` runs a meaning: every meaning a rule of the packs is lowered to; `Words` and
