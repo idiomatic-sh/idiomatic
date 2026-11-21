@@ -9,6 +9,7 @@ use crate::domain::code::types::{IndexSite, WordSlot};
 use crate::domain::executing::budget::service::reach;
 use crate::domain::executing::constants::KEY_CELLS;
 use crate::domain::executing::measuring::service::{entered, left, used};
+use crate::domain::executing::presence::service::consulted;
 use crate::domain::executing::types::Asker;
 use crate::domain::filled::errors::FilledError;
 use crate::domain::findings::types::InstructionCount;
@@ -75,7 +76,11 @@ pub(crate) fn table_needed(frame: &mut StepFrame<'_, '_>, table: MadeTableId) ->
         .tables
         .get(usize::try_from(table.0).unwrap_or(usize::MAX))
     {
-        Some(code) => decided(&mut FileNeeds(frame), &programs.code, code.need),
+        Some(code) => {
+            let verdict = decided(&mut FileNeeds(frame), programs.code, code.need);
+            consulted(frame, code.need);
+            verdict
+        }
         None => NeedVerdict::Empty,
     }
 }

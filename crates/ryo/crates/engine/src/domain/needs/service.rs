@@ -7,6 +7,7 @@ use crate::domain::code::records::service::need_at;
 use crate::domain::code::records::types::NeedRecord;
 use crate::domain::code::types::{NeedSite, PoolAt, ProgramCode, WordSlot};
 use crate::domain::steps::types::MadeTableId;
+use ryo_relations::domain::catalog::service::node_extent;
 use ryo_relations::domain::relations::types::KindBits;
 
 /// The slot `ahead` slots after a place among the needs.
@@ -117,6 +118,55 @@ fn record_tables(code: &ProgramCode, at: WordSlot, out: &mut Vec<MadeTableId>) {
 pub(crate) fn tables_asked(code: &ProgramCode, site: NeedSite, out: &mut Vec<MadeTableId>) {
     if let Some(place) = slot(code, WordSlot(site.0), WordSlot(0)) {
         record_tables(code, place, out);
+    }
+}
+
+/// Whether the record at a place among the needs asks a relation of the node-table form for a row.
+fn record_asks_nodes(code: &ProgramCode, at: WordSlot) -> NeedVerdict {
+    match need_at(&code.needs, at) {
+        Some(NeedRecord::Row { relation, .. }) => {
+            let read = code
+                .relations
+                .get(usize::try_from(relation.0).unwrap_or(usize::MAX));
+            if read.copied().and_then(node_extent).is_some() {
+                NeedVerdict::Holds
+            } else {
+                NeedVerdict::Empty
+            }
+        }
+        Some(NeedRecord::Site(site)) => asks_nodes(code, site),
+        Some(
+            NeedRecord::All {
+                parts: count,
+                offsets,
+            }
+            | NeedRecord::Any {
+                parts: count,
+                offsets,
+            },
+        ) => {
+            let asked = (0..count.0).any(|number| {
+                slot(code, offsets, WordSlot(number))
+                    .is_some_and(|place| record_asks_nodes(code, place) == NeedVerdict::Holds)
+            });
+            if asked {
+                NeedVerdict::Holds
+            } else {
+                NeedVerdict::Empty
+            }
+        }
+        Some(NeedRecord::Unknown | NeedRecord::Kinds(_) | NeedRecord::Table(_)) | None => {
+            NeedVerdict::Empty
+        }
+    }
+}
+
+/// Whether the formula of `site` asks a relation of the node-table form for a row (`Holds`), whatever the file: a rule that
+/// consults such a decision read the node table.
+pub(crate) fn asks_nodes(code: &ProgramCode, site: NeedSite) -> NeedVerdict {
+    match slot(code, WordSlot(site.0), WordSlot(0)) {
+        Some(place) => record_asks_nodes(code, place),
+        None => NeedVerdict::Empty,
     }
 }
 

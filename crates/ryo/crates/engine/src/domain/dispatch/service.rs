@@ -4,6 +4,7 @@
 
 use crate::domain::executing::budget::service::{begin_rule, end_rule};
 use crate::domain::executing::measuring::service::{entered, evaluated, left, used};
+use crate::domain::executing::presence::service::consulted;
 use crate::domain::executing::sources::types::FileNeeds;
 use crate::domain::findings::types::{InstructionCount, ScanCounters};
 use crate::domain::needs::service::decided;
@@ -24,7 +25,9 @@ pub(crate) fn dispatch(frame: &mut StepFrame<'_, '_>, rules: &Programs) -> ScanC
         entered(frame.state, rule.unit);
         let mut rows = 0_u64;
         for branch in &rule.branches {
-            if decided(&mut FileNeeds(frame), &programs.code, branch.need) == NeedVerdict::Holds {
+            let needed = decided(&mut FileNeeds(frame), programs.code, branch.need);
+            consulted(frame, branch.need);
+            if needed == NeedVerdict::Holds {
                 let found = frame.ports.run(frame, branch.entry, RunMode::Rows);
                 rows = rows.saturating_add(found.0);
             }
