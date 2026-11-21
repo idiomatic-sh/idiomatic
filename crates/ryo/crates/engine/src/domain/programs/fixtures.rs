@@ -206,6 +206,7 @@ pub(crate) fn framed_with<T>(
         file: FILE,
         path: ryo_language::domain::files::types::SourcePath(""),
         text: ByteSlice(b""),
+        source: Some(""),
         facts,
         words: &mut words,
         store: &mut case.store,
