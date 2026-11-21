@@ -24,8 +24,14 @@ impl FileAnalysis {
         let mut said: Vec<Box<str>> = Vec::new();
         // A rule the request does not name has no id: the warning is said all the same, of a rule with none.
         let unnamed = RuleId::default();
-        for noticed in std::mem::take(&mut state.noticed) {
+        for mut noticed in std::mem::take(&mut state.noticed) {
             let at = usize::try_from(noticed.rule.0).unwrap_or(usize::MAX);
+            // The engine names a step of the plan it received: the warning names that step's own in the compiled plan.
+            let received = scanning.compiled.get(at).and_then(|steps| steps.get(usize::from(noticed.step)));
+            if let Some(step) = received {
+                noticed.step = *step;
+                noticed.kept.notice.step = *step;
+            }
             let (id, query) = (
                 scanning.ids.get(at).unwrap_or(&unnamed),
                 scanning.queries.get(at),

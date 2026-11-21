@@ -228,6 +228,11 @@ pub(crate) struct Scanning<'a> {
     pub unknown: Vec<ryo_relations::domain::terms::types::UnknownName>,
     /// The query of each selected rule as the run was given it, by rule number: where a warning finds a statement's line.
     pub queries: Vec<ryo_values::domain::query_tokens::types::QueryBundle>,
+    /// For each selected rule, by rule number: the step of the rule's compiled plan that each step of the plan the new
+    /// engine received is. The engine receives a plan with its joins' reaches unfolded into steps appended after the
+    /// plan's last, and an appended step is its join's. No step for a rule whose plan has no such join, and none for a
+    /// run read back from the store, which compiles no plan: a noticed step is then the step it says.
+    pub compiled: Vec<Vec<ryo_values::domain::plan_parts::types::StepId>>,
 }
 
 /// A warning of a run, as its report lists it: the rule, the file, and the warning as it was printed when it was noticed.

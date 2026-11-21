@@ -13,9 +13,10 @@ use ryo_engine::inbound::use_cases::load::errors::LoadError;
 use ryo_engine::inbound::use_cases::load::types::LoadSource;
 use ryo_relations::domain::relations::types::Count;
 use ryo_values::domain::query_bindings::types::RuleBindings;
-use ryo_values::domain::query_plans::service::node_digests;
+use ryo_values::domain::query_plans::service::{node_digests, reach_unfolded};
 use ryo_values::domain::query_plans::types::{NodeDigest, NodeDigests, Plan};
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
+use std::borrow::Cow;
 
 /// The digest of each step of a rule's plan under what the rule binds its parameters to, by the run's one digest: the
 /// engine hashes nothing and takes these as data. The port's sixteen bytes are the node's digest.
@@ -49,11 +50,17 @@ pub(in crate::application::pack_load) fn lowered(
     // Each rule with what it binds its parameters to (nothing past the request's bindings) and its steps' digests.
     let unbound = std::iter::repeat(&[][..]);
     let bound = request.bindings.iter().map(Vec::as_slice).chain(unbound);
-    let rules: Vec<(&Plan, RuleBindings<'_>)> = request
+    // The new engine receives each plan with its joins' reaches unfolded into steps of the plan, so the digests are of the
+    // steps it lowers. Today's engine keeps the request's plans.
+    let unfolded: Vec<Cow<'_, Plan>> = request
         .plans
         .iter()
+        .map(|plan| reach_unfolded(plan))
+        .collect();
+    let rules: Vec<(&Plan, RuleBindings<'_>)> = unfolded
+        .iter()
         .zip(bound)
-        .map(|(plan, bound)| (*plan, RuleBindings(bound)))
+        .map(|(plan, bound)| (&**plan, RuleBindings(bound)))
         .collect();
     let digests: Vec<NodeDigests> = rules
         .iter()

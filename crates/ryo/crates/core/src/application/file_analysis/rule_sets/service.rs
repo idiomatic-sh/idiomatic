@@ -24,12 +24,15 @@ use ryo_execution_runtime::outbound::digest::types::DigestBytes;
 use ryo_operators::spike::{EngineMode, engine_statistics};
 use ryo_relations::domain::relations::types::Count;
 use ryo_values::domain::hosted::service::identity as hosted_identity;
+use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::query_bindings::types::ParameterBinding;
+use ryo_values::domain::query_plans::service::{compiled_step, reach_unfolded};
 use ryo_values::domain::query_plans::types::Plan;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 use ryo_values::domain::runs::types::UnknownCause;
 use ryo_values::domain::stored_facts::types::Digest;
 use ryo_values::domain::stores::types::StoredPack;
+use std::borrow::Cow;
 use std::collections::BTreeSet;
 
 impl Scanning<'_> {
@@ -79,6 +82,7 @@ impl FileVisits {
         scan: Box<dyn FileScanUseCase>,
         session: ScanSession,
         request: ScanRequest<'a, '_>,
+        compiled: Vec<Vec<StepId>>,
     ) -> Scanning<'a> {
         // The path of each file is read only when the new engine scans one.
         let paths = match scan.mode() {
@@ -103,6 +107,7 @@ impl FileVisits {
             read: request.read,
             unknown: self.analysis.language.unknown_reasons().0,
             queries,
+            compiled,
         }
     }
 
@@ -122,7 +127,7 @@ impl FileVisits {
                 stored: &Self::packs(&request)?,
             })?,
         };
-        Ok(session.map(|session| self.over(scan, session, request)))
+        Ok(session.map(|session| self.over(scan, session, request, Vec::new())))
     }
 
     /// The new engine's part of a run, its rule sets loaded from the compiled rules: under the old engine alone nothing is
@@ -146,7 +151,23 @@ impl FileVisits {
                 stored: &Self::packs(&request)?,
             })?,
         };
-        Ok(self.over(scan, session, request))
+        // A notice names a step of the plan the engine received: each such step's own step of the compiled plan.
+        let compiled = match scan.mode() {
+            EngineMode::Old => Vec::new(),
+            EngineMode::New | EngineMode::Both => plans.iter().map(|plan| compiled_steps(plan)).collect(),
+        };
+        Ok(self.over(scan, session, request, compiled))
+    }
+}
+
+/// The step of a compiled plan that each step of the plan the new engine receives is: none for a plan the engine receives
+/// as it was compiled.
+fn compiled_steps(plan: &Plan) -> Vec<StepId> {
+    match reach_unfolded(plan) {
+        Cow::Borrowed(_) => Vec::new(),
+        Cow::Owned(received) => (0..received.steps.len())
+            .map(|place| compiled_step(plan, StepId(u32::try_from(place).unwrap_or(u32::MAX))))
+            .collect(),
     }
 }
 
