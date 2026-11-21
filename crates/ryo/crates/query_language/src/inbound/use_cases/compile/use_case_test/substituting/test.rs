@@ -40,7 +40,9 @@ fn subject(text: Input) -> Result<Value, Failure> {
         &[Relation::Function, Relation::SourceLocation],
         &hosted,
         &[],
-    )?;
+        &ryo_values::domain::program::types::ParsedModules::default(),
+    )?
+    .plan;
     Ok(plan.steps.iter().any(|step| {
         matches!(
             step.operation,

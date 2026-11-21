@@ -202,6 +202,19 @@ pub struct Grammar(pub Vec<Production>);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct StepCount(pub usize);
 
+/// One line of what a query costs, in words: how its work grows with a file, and the statement that says so when one does.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_values::domain::descriptions::types::CostLine;
+///
+/// let line = CostLine("quadratic in the file (statement `pairs`: a join with no key within the file)".into());
+/// assert!(line.0.starts_with("quadratic in the file"));
+/// ```
+#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct CostLine(pub Box<str>);
+
 /// What a valid query uses.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ValidateReport {
@@ -211,6 +224,9 @@ pub struct ValidateReport {
     pub operators: Vec<OperatorName>,
     /// How many steps it compiles to.
     pub steps: StepCount,
+    /// What it costs: the class of the query with the statement that sets it, then a line for each other statement above
+    /// linear. A query is never refused for its cost.
+    pub cost: Vec<CostLine>,
 }
 
 /// The name of a column, as the query writes it or keeps it.

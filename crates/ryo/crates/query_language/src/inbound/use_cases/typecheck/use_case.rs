@@ -6,6 +6,7 @@ use super::errors::TypecheckError;
 use super::interface::TypecheckUseCase;
 use super::service::{invalid, unresolved};
 use crate::domain::assembling::service::lower_with_observations;
+use crate::domain::costing::service::described;
 use crate::domain::linking::errors::LinkingError;
 use crate::domain::syntax::constants::operator_name;
 use crate::domain::syntax::service::{operators_used, relations_read};
@@ -96,11 +97,12 @@ impl TypecheckUseCase for TypecheckUseCaseImpl {
             .collect();
         validate_with_observations(&program, &relations.0, &names, &request.observations)
             .map_err(invalid)?;
-        let plan = lower_with_observations(
+        let lowered = lower_with_observations(
             &program,
             &relations.0,
             &request.hosted,
             &request.observations,
+            &ryo_values::domain::program::types::ParsedModules(Arc::new(parsed.fragments)),
         )
         .map_err(unresolved)?;
         Ok(ValidateReport {
@@ -112,7 +114,8 @@ impl TypecheckUseCase for TypecheckUseCaseImpl {
                 .into_iter()
                 .map(|operator| OperatorName(Box::from(operator_name(operator))))
                 .collect(),
-            steps: StepCount(plan.steps.len()),
+            steps: StepCount(lowered.plan.steps.len()),
+            cost: described(&lowered.cost),
         })
     }
 }

@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use crate::outbound::query_language::errors::QueryLanguageError;
 use crate::outbound::query_language::interface::QueryLanguagePort;
 use ryo_relations::domain::relations::types::{Integer, Offset, Relation, Span};
-use ryo_values::domain::descriptions::types::{RelationName, StepCount, ValidateReport};
+use ryo_values::domain::descriptions::types::{CostLine, RelationName, StepCount, ValidateReport};
 use ryo_values::domain::hosted::types::HostedRelation;
 use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plan_parts::types::{
@@ -26,6 +26,8 @@ pub struct QueryLanguageFake {
     pub plan: Plan,
     /// How many times `compile` was called.
     pub calls: AtomicUsize,
+    /// What every acceptable text is said to cost.
+    pub cost: Vec<CostLine>,
 }
 
 impl Default for QueryLanguageFake {
@@ -47,6 +49,7 @@ impl Default for QueryLanguageFake {
                 comparison_origins: Vec::new(),
             },
             calls: AtomicUsize::new(0),
+            cost: vec![CostLine(LINEAR.into())],
         }
     }
 }
@@ -82,6 +85,16 @@ fn plan_of(steps: Vec<PlanStep>, step: u32) -> Plan {
 }
 
 impl QueryLanguageFake {
+    /// A fake that says of every text what the query language says of a join of two relations on the file alone, written as
+    /// the statement `pairs`: the query is correct, and its cost is quadratic in the file.
+    #[must_use]
+    pub fn joining_on_the_file_alone() -> Self {
+        Self {
+            cost: vec![CostLine(PAIRS_ON_THE_FILE_ALONE.into())],
+            ..Self::default()
+        }
+    }
+
     /// A fake whose plan gives every row of `function`.
     #[must_use]
     pub fn selecting() -> Self {
@@ -174,6 +187,7 @@ impl QueryLanguagePort for QueryLanguageFake {
                 .collect(),
             operators: Vec::new(),
             steps: StepCount(self.plan.steps.len()),
+            cost: self.cost.clone(),
         })
     }
 
@@ -208,6 +222,13 @@ fn refused() -> QueryLanguageError {
 
 /// The text the fake refuses.
 pub const REFUSED: &str = "refuse";
+
+/// What the fake says a text costs unless it is told another cost.
+const LINEAR: &str = "linear";
+
+/// What the query language says a join of two relations on the file alone, written as the statement `pairs`, costs.
+const PAIRS_ON_THE_FILE_ALONE: &str =
+    "quadratic in the file (statement `pairs`: a join with no key within the file)";
 
 #[cfg(test)]
 #[path = "fake_test.rs"]

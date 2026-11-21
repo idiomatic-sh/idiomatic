@@ -150,6 +150,49 @@ fn compiler_over(relations: Vec<Relation>) -> impl CompileUseCase {
     )
 }
 
+/// One document of a query's bundle: the name it is imported or compiled under, and its text.
+#[derive(Clone, Copy)]
+struct Document(&'static str, &'static str);
+
+/// What the compile use case, over the real parser and the language's catalog, says the query `root` costs, with the modules
+/// it may import.
+fn costed(root: Document, modules: &[Document]) -> crate::domain::costing::types::PlanCost {
+    use ryo_values::domain::program::service::{document_source, query_bundle, source_id};
+    use ryo_values::domain::query_tokens::types::QuerySpelling;
+    let source = |document: &Document| {
+        let id = source_id(QuerySpelling(document.0)).expect("the document has a name");
+        document_source(id, document.1)
+    };
+    let bundle = query_bundle(source(&root), modules.iter().map(source)).expect("the names differ");
+    compiler_over_the_language()
+        .compile(QueryRequest {
+            observations: Vec::new(),
+            text: bundle,
+            hosted: Vec::new(),
+            modules: ryo_values::domain::program::types::ParsedModules::default(),
+        })
+        .expect("no query is refused for its cost")
+        .cost
+}
+
+/// A cost on one line: its class, then each finding as its document, its statement, which kind of document writes it, its
+/// shape and its class.
+fn rendered(cost: &crate::domain::costing::types::PlanCost) -> String {
+    let findings = cost
+        .findings
+        .iter()
+        .map(|finding| {
+            let (site, home) = (&finding.site, finding.home);
+            let (shape, class) = (finding.shape, finding.class);
+            format!(
+                "{}::{} {home:?} {shape:?} {class:?}",
+                site.document.0, site.statement
+            )
+        })
+        .collect::<Vec<_>>();
+    format!("{:?} [{}]", cost.class, findings.join("; "))
+}
+
 /// The compile use case over the real parser and the catalog of every relation the language reads.
 fn compiler_over_the_language() -> impl CompileUseCase {
     CompileUseCaseImpl::new(
@@ -273,6 +316,10 @@ mod combining;
 #[cfg(test)]
 mod comparing;
 
+#[cfg(test)]
+mod costing;
+#[cfg(test)]
+mod costing_sites;
 #[cfg(test)]
 mod decoded_columns;
 

@@ -32,6 +32,10 @@ The `query_language` domain's `combining` concept: the set calls (`union`, `inte
 
 The `query_language` domain's `comparing` concept: the sides of a comparison, resolved, and the test checked against their types.
 
+### costing
+
+The `query_language` domain's `costing` concept: the cost class of a query as its text states it, read from its steps as assembled and the sizes the catalog declares, the statement that sets it, and whether a pack's rules hold the ceiling and the list its manifest declares. A compile answers the cost and refuses nothing for it.
+
 ### cutting
 
 The `query_language` domain's `cutting` concept: the rows a file hands over, cut to the columns the steps after the files ask.

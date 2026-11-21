@@ -65,6 +65,58 @@ fn runs(world: &mut Behavior) {
     };
 }
 
+/// Names the scene of a query whose one statement, `pairs`, joins two relations on the file alone.
+#[given(expr = "a query that joins two relations on the file alone")]
+fn given_a_join_on_the_file_alone(world: &mut Behavior) {
+    world.input = "pairs".into();
+}
+
+/// Compiles the scene's query and keeps, one to a line, that it was accepted and each line that words its cost.
+#[when(expr = "the query is validated")]
+fn validated(world: &mut Behavior) {
+    assert_eq!(world.input, "pairs", "the scene names the query");
+    let text = r#"let pairs = select l.id as id, l.file as file, r.id as other from "function" as l join "comment" as r on l.file = r.file; emit pairs subject file key(id, other);"#;
+    let syntax = Arc::new(ryo_query_language::outbound::syntax::factory::winnow());
+    let catalog = Arc::new(ryo_query_language::outbound::catalog::factory::language());
+    world.answer = match CompileUseCaseImpl::new(syntax, catalog).compile(QueryRequest {
+        observations: Vec::new(),
+        text: ryo_values::domain::query_tokens::types::QueryBundle::from(QueryText(text.into())),
+        hosted: Vec::new(),
+        modules: ryo_values::domain::program::types::ParsedModules::default(),
+    }) {
+        Ok(report) => ryo_query_language::domain::costing::service::described(&report.cost)
+            .iter()
+            .fold(String::from("accepted"), |answer, line| {
+                format!("{answer}\ncost: {}", line.0)
+            }),
+        Err(error) => format!("refused: {error}"),
+    };
+}
+
+/// Asserts that one line of the answer is the line given.
+#[then(expr = "the answer holds {string}")]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "cucumber parses a captured `{string}` into an owned value and passes it by value"
+)]
+fn holds(world: &mut Behavior, expected: String) {
+    assert!(
+        world.answer.lines().any(|line| line == expected),
+        "the answer holds no such line: {}",
+        world.answer
+    );
+}
+
+/// Asserts that the query was not refused: no query is refused for its cost.
+#[then(expr = "the query is accepted")]
+fn accepted(world: &mut Behavior) {
+    assert_eq!(
+        world.answer.lines().next(),
+        Some("accepted"),
+        "the query was refused"
+    );
+}
+
 /// Asserts the last `compile` step's answer.
 #[then(expr = "compile answers {string}")]
 #[expect(

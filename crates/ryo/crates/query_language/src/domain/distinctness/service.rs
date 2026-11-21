@@ -6,6 +6,8 @@ use super::types::KeysFollowed;
 use super::types::StepKeys;
 use crate::domain::lowering::types::Uniqueness;
 use crate::domain::resolving::service::relation_fields;
+use ryo_relations::domain::catalog::service::relation_size;
+use ryo_relations::domain::relations::types::{CellKind, RelationSize};
 use ryo_values::domain::plan_parts::service::column_in;
 use ryo_values::domain::plan_parts::service::step_in;
 use ryo_values::domain::plan_parts::service::view_source;
@@ -19,8 +21,8 @@ use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::plans::types::PlanStep;
 
 /// Whether no two rows of `input` hold the same values in the columns `keys`: so that a join keyed on them pairs each row of its other
-/// input with one row of `input` at most, and answers no more rows than that input has. Proven of a relation's key column, of a
-/// projection or a grouping keeping no column outside `keys` (its rows are distinct), and through steps that filter rows, keep them
+/// input with one row of `input` at most, and answers no more rows than that input has. Proven of a relation's key column, of the file of a relation the
+/// catalog declares one row a file, of a projection or a grouping keeping no column outside `keys` (its rows are distinct), and through steps that filter rows, keep them
 /// as they are, or join them to one row at most of their other input; any other step, or a column the plan cannot follow, is
 /// `Shared`.
 #[must_use]
@@ -33,8 +35,13 @@ pub(crate) fn distinct_on(
     let id = match input {
         Input::Relation(relation) => {
             let fields = relation_fields(relation);
+            // A relation the catalog declares one row a file holds each file once.
+            let one_a_file = relation_size(relation) == Some(RelationSize::PerFile);
             return if keys.iter().any(|key| {
-                column_in(&fields, *key).is_some_and(|field| field.unique == Uniqueness::Unique)
+                column_in(&fields, *key).is_some_and(|field| {
+                    field.unique == Uniqueness::Unique
+                        || (one_a_file && field.kind == CellKind::File)
+                })
             }) {
                 Uniqueness::Unique
             } else {
@@ -152,9 +159,17 @@ fn step_distinct(
                 Some(_) | None => Uniqueness::Shared,
             }
         }
+        // It appends columns to the rows it reads and gives each once: distinct on what they are, when asked of their columns.
+        Operation::Extend { from, .. } => {
+            match crate::domain::widths::service::width_of(steps, *from) {
+                Some(width) if keys.iter().all(|key| key.0 < width.0) => {
+                    distinct_on(steps, memo, *from, keys)
+                }
+                Some(_) | None => Uniqueness::Shared,
+            }
+        }
         Operation::Join { .. }
         | Operation::Union { .. }
-        | Operation::Extend { .. }
         | Operation::Capture { .. }
         | Operation::Rank { .. }
         | Operation::Replace { .. }

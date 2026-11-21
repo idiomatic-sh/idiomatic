@@ -14,6 +14,13 @@ Feature: validate
         | hosted relation validated with its declaration | hosted | valid, reading [host.placed] |
         | no languages linked, kinds not asked | kind, no language | valid, reading [] |
 
+    @succeeds
+    Scenario: validate prints a query's cost class and the statement that sets it
+      Given a query that joins two relations on the file alone
+      When the query is validated
+      Then the answer holds "cost: quadratic in the file (statement `pairs`: a join with no key within the file)"
+      And the query is accepted
+
     @refuses
     Scenario Outline: validate refuses
       Given the validate input "<input>"

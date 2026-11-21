@@ -1,13 +1,15 @@
-//! A step is distinct on a relation's key column it keeps, on every column of a projection, and through a join that meets one row at
-//! most; a column many rows share, or a join that meets many rows, is shared.
+//! A step is distinct on a relation's key column it keeps, on the file of a relation of one row a file, on every column of a
+//! projection, through an extension and through a join that meets one row at most; a column many rows share, a column an
+//! extension appends, or a join that meets many rows, is shared.
 
 use super::service::distinct_on;
 use super::types::DistinctMemo;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::lowering::types::Uniqueness;
-use ryo_relations::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::{Integer, Relation};
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Input as Reads, JoinColumn, RepeatedRows, Side, StepId, StepScope,
+    ColumnIndex, Input as Reads, JoinColumn, Operand, QueryLiteral, RepeatedRows, Side, StepId,
+    StepScope,
 };
 use ryo_values::domain::plans::types::{Operation, PlanStep};
 use std::borrow::Cow;
@@ -28,6 +30,12 @@ enum Scenario {
     /// The functions' ids and names after their names were split into words, a projection that keeps its repeated rows, asked of
     /// both columns.
     TheWordsOfOneFunctionKeptRepeated,
+    /// The parser targets of some major version, a filter of a relation the catalog declares one row a file, asked of their file.
+    TheTargetsOfAFile,
+    /// Those targets with a number appended, asked of their file.
+    TheTargetsExtended,
+    /// The same extension, asked of the number it appends.
+    TheNumberAnExtensionAppends,
 }
 
 /// What a row asks: whether one scenario's step is distinct on its columns, or a ladder at a depth and at twice it.
@@ -54,6 +62,24 @@ type Failure = std::convert::Infallible;
 type Input = Ask;
 
 const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: CaseName("a_relation_of_one_row_a_file_is_distinct_on_its_file"),
+        word: Word::Succeeds,
+        input: || Ask::Distinct(Scenario::TheTargetsOfAFile),
+        expect: Expect::Value(Answer::Distinct(Uniqueness::Unique)),
+    },
+    Case {
+        name: CaseName("an_extension_is_distinct_on_what_the_rows_it_reads_are"),
+        word: Word::Succeeds,
+        input: || Ask::Distinct(Scenario::TheTargetsExtended),
+        expect: Expect::Value(Answer::Distinct(Uniqueness::Unique)),
+    },
+    Case {
+        name: CaseName("an_extension_is_shared_on_what_it_appends"),
+        word: Word::Succeeds,
+        input: || Ask::Distinct(Scenario::TheNumberAnExtensionAppends),
+        expect: Expect::Value(Answer::Distinct(Uniqueness::Shared)),
+    },
     Case {
         name: CaseName("a_filter_keeping_a_key_column_of_a_relation_is_distinct_on_it"),
         word: Word::Succeeds,
@@ -206,6 +232,16 @@ fn subject(ask: Input) -> Result<Value, Failure> {
             columns: vec![ColumnIndex(0), ColumnIndex(1)],
             distinct: RepeatedRows::Kept,
         }),
+        // The targets: their file, their major and their minor version.
+        step(Operation::Select {
+            from: Reads::Relation(Relation::LanguageTarget),
+            comparisons: Vec::new(),
+            kept: Vec::new(),
+        }),
+        step(Operation::Extend {
+            from: Reads::Step(StepId(6)),
+            values: vec![Operand::Literal(QueryLiteral::Number(Integer(1)))],
+        }),
     ];
     let (at, columns): (u32, &[u32]) = match scenario {
         Scenario::TheChildOfTheEdges => (0, &[1]),
@@ -215,6 +251,9 @@ fn subject(ask: Input) -> Result<Value, Failure> {
         Scenario::TheEdgesJoinedToTheirSiblings => (3, &[0]),
         // Asked of every column it keeps: a projection that drops repeats would be distinct on them.
         Scenario::TheWordsOfOneFunctionKeptRepeated => (5, &[0, 1]),
+        Scenario::TheTargetsOfAFile => (6, &[0]),
+        Scenario::TheTargetsExtended => (7, &[0]),
+        Scenario::TheNumberAnExtensionAppends => (7, &[3]),
     };
     let keys: Vec<ColumnIndex> = columns.iter().copied().map(ColumnIndex).collect();
     Ok(Answer::Distinct(distinct_on(

@@ -35,6 +35,7 @@ impl QueryLanguagePort for AuthoredQueryProvider {
             relations: vec![],
             operators: vec![],
             steps: ryo_values::domain::descriptions::types::StepCount(self.0.steps.len()),
+            cost: vec![],
         })
     }
 }

@@ -44,6 +44,8 @@ pub(super) struct AnswerSchema {
     pub relations: Vec<String>,
     /// The operations the query uses.
     pub operators: Vec<String>,
+    /// What the query costs: its class with the statement that sets it, then each other statement above linear.
+    pub cost: Vec<String>,
 }
 
 impl From<ValidateReport> for AnswerSchema {
@@ -59,6 +61,11 @@ impl From<ValidateReport> for AnswerSchema {
                 .into_iter()
                 .map(|name| name.0.into_string())
                 .collect(),
+            cost: report
+                .cost
+                .into_iter()
+                .map(|line| line.0.into_string())
+                .collect(),
         }
     }
 }
@@ -67,8 +74,11 @@ impl std::fmt::Display for AnswerSchema {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "ok")?;
         writeln!(f, "relations: {}", self.relations.join(", "))?;
-        write!(f, "operators: {}", self.operators.join(", "))?;
-        writeln!(f)
+        writeln!(f, "operators: {}", self.operators.join(", "))?;
+        for line in &self.cost {
+            writeln!(f, "cost: {line}")?;
+        }
+        Ok(())
     }
 }
 

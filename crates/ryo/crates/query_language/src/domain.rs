@@ -7,6 +7,7 @@ pub(crate) mod capture_pushing;
 pub(crate) mod checking;
 pub(crate) mod combining;
 pub(crate) mod comparing;
+pub mod costing;
 pub(crate) mod cutting;
 pub(crate) mod distinctness;
 pub(crate) mod expanding;

@@ -339,6 +339,7 @@ impl QueryLanguagePort for CompilesNothing {
             relations: Vec::new(),
             operators: Vec::new(),
             steps: StepCount(0),
+            cost: Vec::new(),
         })
     }
 

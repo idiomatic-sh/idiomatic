@@ -18,6 +18,13 @@ Feature: compile
         | written_rows | written_rows | 1 steps |
         | written_list | written_list | 4 steps |
 
+    @succeeds
+    Scenario: validate prints a query's cost class and the statement that sets it
+      Given a query that joins two relations on the file alone
+      When the query is validated
+      Then the answer holds "cost: quadratic in the file (statement `pairs`: a join with no key within the file)"
+      And the query is accepted
+
     @refuses
     Scenario Outline: compile refuses
       Given the compile input "<input>"

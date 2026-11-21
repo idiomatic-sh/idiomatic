@@ -68,6 +68,60 @@ fn runs(world: &mut Behavior) {
     };
 }
 
+/// Names the scene of a query the query language says joins two relations on the file alone in its statement `pairs`.
+#[given(expr = "a query that joins two relations on the file alone")]
+fn given_a_join_on_the_file_alone(world: &mut Behavior) {
+    world.input = "pairs".into();
+}
+
+/// Validates the scene's query and keeps, one to a line, that it was accepted and each line of the cost the report carries.
+#[when(expr = "the query is validated")]
+fn validated(world: &mut Behavior) {
+    let use_case = ValidateUseCaseImpl::new(
+        Arc::new(QueryLanguageFake::joining_on_the_file_alone()),
+        Arc::new(LanguageFake::default()),
+    );
+    world.answer = match use_case.validate(ValidateRequest {
+        observations: Vec::new(),
+        text: ryo_values::domain::query_tokens::types::QueryBundle::from(QueryText(
+            world.input.as_str().into(),
+        )),
+        hosted: Vec::new(),
+    }) {
+        Ok(report) => report
+            .cost
+            .iter()
+            .fold(String::from("accepted"), |answer, line| {
+                format!("{answer}\ncost: {}", line.0)
+            }),
+        Err(error) => format!("refused: {error}"),
+    };
+}
+
+/// Asserts that one line of the answer is the line given.
+#[then(expr = "the answer holds {string}")]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "cucumber parses a step's `{string}` into an owned `String` and passes it by value"
+)]
+fn holds(world: &mut Behavior, expected: String) {
+    assert!(
+        world.answer.lines().any(|line| line == expected),
+        "the answer holds no such line: {}",
+        world.answer
+    );
+}
+
+/// Asserts that the query was not refused: no query is refused for its cost.
+#[then(expr = "the query is accepted")]
+fn accepted(world: &mut Behavior) {
+    assert_eq!(
+        world.answer.lines().next(),
+        Some("accepted"),
+        "the query was refused"
+    );
+}
+
 /// Asserts what the last `validate` step answered.
 #[then(expr = "validate answers {string}")]
 #[expect(

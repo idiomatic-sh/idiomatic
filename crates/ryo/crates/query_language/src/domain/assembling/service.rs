@@ -6,8 +6,11 @@
 use ryo_relations::domain::relations::types::Relation;
 use ryo_relations::domain::terms::types::Vocabulary;
 
+use super::types::Lowered;
 use crate::domain::calling::service::lower_call;
 use crate::domain::capture_pushing::service::{push_below_captures, push_below_captures_roots};
+use crate::domain::costing::service::{classified, sited};
+use crate::domain::costing::types::AssembledSteps;
 use crate::domain::cutting::service::{cut_handover, cut_handover_roots};
 use crate::domain::fusing::service::{fuse_keyed_reaches, fuse_selects};
 use crate::domain::inlining::service::inline_views;
@@ -26,7 +29,9 @@ use crate::domain::walking::service::neighbours::service::fuse_neighbours;
 use ryo_values::domain::hosted::types as hosted;
 use ryo_values::domain::plan_parts::types as parts;
 use ryo_values::domain::plans::types as plans;
+use ryo_values::domain::program::service::identity_of;
 use ryo_values::domain::program::types as syntax;
+use ryo_values::domain::query_syntax::types::Expression;
 use ryo_values::domain::query_tokens::types::QuerySpelling;
 
 /// Lowers a program that validation accepted.
@@ -40,16 +45,19 @@ pub(crate) fn lower(
     catalog: &[Relation],
     hosted: &[hosted::HostedRelation],
 ) -> Result<ryo_values::domain::query_plans::types::Plan, LoweringError> {
-    lower_with_observations(program, catalog, hosted, &[])
+    let modules = syntax::ParsedModules::default();
+    lower_with_observations(program, catalog, hosted, &[], &modules).map(|lowered| lowered.plan)
 }
 
-/// Resolve every declared producer source through the same typed lowering pass.
+/// Resolve every declared producer source through the same typed lowering pass, and read the query's cost off the steps as
+/// assembled, each still the work of one statement, which `modules` and the program's origins place (none wrote the host's).
 pub(crate) fn lower_with_observations(
     program: &syntax::WrittenProgram,
     catalog: &[Relation],
     hosted: &[hosted::HostedRelation],
     observations: &[ryo_values::domain::observations::types::BoundObservationInput],
-) -> Result<ryo_values::domain::query_plans::types::Plan, LoweringError> {
+    modules: &syntax::ParsedModules,
+) -> Result<Lowered, LoweringError> {
     let observation_inputs = observations.to_vec();
     let mut kinds = Vec::new();
     for parameter in &program.parameters {
@@ -97,37 +105,30 @@ pub(crate) fn lower_with_observations(
             step: id,
         });
     }
+    let mut written = vec![None; builder.steps.len()];
     for step in &program.steps {
-        for contract in program.fragment_contracts.iter().filter(|contract| {
-            Some(contract.first) == ryo_values::domain::program::service::identity_of(step.name.1)
-        }) {
-            check_fragment_inputs(&builder, contract)?;
+        let identity = identity_of(step.name.1);
+        for contract in &program.fragment_contracts {
+            if Some(contract.first) == identity {
+                check_fragment_inputs(&builder, contract)?;
+            }
         }
         builder.span = step.span;
-        builder.origin = ryo_values::domain::program::service::identity_of(step.name.1)
-            .and_then(|identity| program.step_origins.get(&identity).cloned());
+        builder.origin = identity.and_then(|identity| program.step_origins.get(&identity).cloned());
         let from = crate::domain::planning::service::next_step(&builder.steps);
         let lowered = match &step.expression {
-            ryo_values::domain::query_syntax::types::Expression::Select(select) => {
-                lower_select(&mut builder, &step.name, select)
-            }
-            ryo_values::domain::query_syntax::types::Expression::Call(call) => {
-                lower_call(&mut builder, &step.name, call)
-            }
+            Expression::Select(select) => lower_select(&mut builder, &step.name, select),
+            Expression::Call(call) => lower_call(&mut builder, &step.name, call),
         }
         .and_then(|()| crate::domain::refusing::service::refuse_spans_alone(&builder, from))
         .and_then(|()| crate::domain::refusing::service::refuse_mixed_vertices(&builder, from));
-        lowered.map_err(|error| {
-            locate_step_error(
-                program,
-                ryo_values::domain::program::service::identity_of(step.name.1),
-                error,
-            )
-        })?;
-        for contract in program.fragment_contracts.iter().filter(|contract| {
-            Some(contract.result) == ryo_values::domain::program::service::identity_of(step.name.1)
-        }) {
-            check_fragment_output(&builder, contract)?;
+        lowered.map_err(|error| locate_step_error(program, identity, error))?;
+        let site = builder.origin.as_ref().map(|at| sited(at, step, modules));
+        written.resize(builder.steps.len(), site);
+        for contract in &program.fragment_contracts {
+            if Some(contract.result) == identity {
+                check_fragment_output(&builder, contract)?;
+            }
         }
     }
     builder.span = program.emit.span;
@@ -155,6 +156,20 @@ pub(crate) fn lower_with_observations(
             Ok((output.name.clone(), step, columns))
         })
         .collect::<Result<Vec<_>, LoweringError>>()?;
+    let mut roots = std::iter::once(named)
+        .chain(observed.iter().map(|output| output.1))
+        .collect::<Vec<_>>();
+    // The cost is of the query as written: the rewrites below move, fuse and drop steps, and none carries its statement on.
+    let cost = classified(
+        AssembledSteps {
+            steps: &builder.steps,
+            lowered: &builder.lowered,
+            observations,
+            written: &written,
+            roots: &roots,
+        },
+        ryo_relations::domain::catalog::service::relation_size,
+    );
     let (steps, emitted, observations) = if observed.is_empty() {
         let Planned {
             steps: pushed,
@@ -174,9 +189,6 @@ pub(crate) fn lower_with_observations(
             without_unused(fuse_keyed_reaches(steps, &[emitted]), emitted);
         (steps, emitted, Vec::new())
     } else {
-        let mut roots = std::iter::once(named)
-            .chain(observed.iter().map(|output| output.1))
-            .collect::<Vec<_>>();
         let steps = fuse_neighbours(fuse_descents(fuse_selects(inline_views(std::mem::take(
             &mut builder.steps,
         )))));
@@ -214,7 +226,7 @@ pub(crate) fn lower_with_observations(
                 .map_err(|error| locate_error(program.emit_origin.clone(), error))?,
         );
     }
-    Ok(ryo_values::domain::query_plans::types::Plan {
+    let plan = ryo_values::domain::query_plans::types::Plan {
         observation_inputs,
         observations,
         parameters: program
@@ -240,7 +252,8 @@ pub(crate) fn lower_with_observations(
                 .map(|field| parts::Heading(field.name.0))
                 .collect(),
         },
-    })
+    };
+    Ok(Lowered { plan, cost })
 }
 
 /// Attaches the expanded fragment origin to a lowering error for one root step.
@@ -334,10 +347,7 @@ fn check_fragment_output(
         .lowered
         .iter()
         .find_map(|step| match &step.name {
-            StepLabel::Named(name)
-                if ryo_values::domain::program::service::identity_of(name.1)
-                    == Some(contract.result) =>
-            {
+            StepLabel::Named(name) if identity_of(name.1) == Some(contract.result) => {
                 Some(&step.fields)
             }
             StepLabel::Named(_) | StepLabel::Unnamed => None,

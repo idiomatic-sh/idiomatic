@@ -93,13 +93,18 @@ impl CompileUseCase for CompileUseCaseImpl {
             .collect();
         validate_with_observations(&program, &relations.0, &names, &request.observations)
             .map_err(invalid)?;
-        let plan = lower_with_observations(
+        let lowered = lower_with_observations(
             &program,
             &relations.0,
             &request.hosted,
             &request.observations,
+            &modules,
         )
         .map_err(unresolved)?;
-        Ok(CompileReport { plan, modules })
+        Ok(CompileReport {
+            plan: lowered.plan,
+            modules,
+            cost: lowered.cost,
+        })
     }
 }

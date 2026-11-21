@@ -6,7 +6,8 @@ use crate::outcome::Outcome;
 
 /// What a row gives the command: the command line, one argument at a time.
 type Input = Vec<&'static str>;
-/// How many lines the command prints when it succeeds.
+/// How many lines the command prints when it succeeds: `ok`, the relations, the operations, and a line of cost for the query's
+/// class and for each other statement above linear.
 type Value = usize;
 /// How the command ends when it does not succeed.
 type Failure = Outcome;
@@ -25,6 +26,9 @@ const MISTYPED_KIND: &str = "let nodes = select * from \"syntax-tree\" where kin
 const HOSTED: &str =
     "let placed = select * from \"host.placed\"; emit placed subject \"path\" key(\"spec\");";
 
+/// A query with a sort and, above it, a join of two relations on the file alone: two statements above linear.
+const SORT_AND_PRODUCT: &str = "let events = select scope, name, file, ordinal from \"binding-event\"; let last = group-max(from=events, keys=[name, file], order=\"ordinal\"); let pairs = select l.name as name, l.file as file, r.id as other from last as l join \"comment\" as r on l.file = r.file; emit pairs subject file key(name, other);";
+
 /// Reads a command line into this command's arguments.
 #[derive(clap::Parser)]
 struct Line {
@@ -39,7 +43,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("prints_ok_for_valid_text"),
         word: Word::Succeeds,
         input: || vec!["--text", VALID],
-        expect: Expect::Value(3),
+        expect: Expect::Value(4),
+    },
+    Case {
+        name: CaseName("prints_a_cost_line_for_each_statement_above_linear_and_accepts_the_query"),
+        word: Word::Succeeds,
+        input: || vec!["--text", SORT_AND_PRODUCT],
+        expect: Expect::Value(5),
     },
     Case {
         name: CaseName("prints_the_error_with_its_span"),

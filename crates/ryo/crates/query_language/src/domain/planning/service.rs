@@ -231,47 +231,62 @@ pub(crate) fn planned_scope(
     }
 }
 
+/// The columns the rows of `input` have, from the steps lowered so far and the inputs the query's producers bind: a relation's
+/// are the catalog's, a step's the ones it answers, a bound input's the ones its producers declare.
+pub(crate) fn fields_of(
+    lowered: &[LoweredStep],
+    observations: &[ryo_values::domain::observations::types::BoundObservationInput],
+    input: parts::Input,
+) -> Vec<PlannedColumn> {
+    match input {
+        parts::Input::Relation(relation) => relation_fields(relation),
+        parts::Input::BoundObservation(id) => {
+            #[expect(
+                clippy::indexing_slicing,
+                reason = "resolving issues a bound observation's id from its index in this builder's observation_inputs, so it is in bounds by construction"
+            )]
+            let bound = &observations[usize::from(id)];
+            bound
+                .columns
+                .iter()
+                .map(|column| PlannedColumn {
+                    name: ryo_values::domain::descriptions::types::ColumnName(
+                        column.name.0.clone(),
+                    ),
+                    kind: column.kind,
+                    unique: crate::domain::lowering::types::Uniqueness::Shared,
+                    words: ryo_relations::domain::terms::types::Vocabulary::Open,
+                })
+                .collect()
+        }
+        parts::Input::Step(id) => step_of(lowered, id).fields.clone(),
+    }
+}
+
 /// Where an input's rows are produced, and the columns they have: a relation's rows are one
 /// file's, a step's are wherever the step runs.
 pub(crate) fn scoped(builder: &Builder<'_>, input: parts::Input) -> ScopedInput {
-    match input {
-        parts::Input::Relation(relation) => ScopedInput {
-            scope: if relation_scope(relation) == RowScope::Project {
+    let scope = match input {
+        parts::Input::Relation(relation) => {
+            if relation_scope(relation) == RowScope::Project {
                 ryo_values::domain::plan_parts::types::StepScope::CrossFile
             } else {
                 ryo_values::domain::plan_parts::types::StepScope::PerFile
-            },
-            fields: relation_fields(relation),
-        },
+            }
+        }
         parts::Input::BoundObservation(id) => {
             #[expect(
                 clippy::indexing_slicing,
                 reason = "resolving issues a bound observation's id from its index in this builder's observation_inputs, so it is in bounds by construction"
             )]
             let bound = &builder.observation_inputs[usize::from(id)];
-            ScopedInput {
-                scope: bound.scope,
-                fields: bound
-                    .columns
-                    .iter()
-                    .map(|column| PlannedColumn {
-                        name: ryo_values::domain::descriptions::types::ColumnName(
-                            column.name.0.clone(),
-                        ),
-                        kind: column.kind,
-                        unique: crate::domain::lowering::types::Uniqueness::Shared,
-                        words: ryo_relations::domain::terms::types::Vocabulary::Open,
-                    })
-                    .collect(),
-            }
+            bound.scope
         }
-        parts::Input::Step(id) => {
-            let lowered = step_of(&builder.lowered, id);
-            ScopedInput {
-                scope: lowered.scope,
-                fields: lowered.fields.clone(),
-            }
-        }
+        parts::Input::Step(id) => step_of(&builder.lowered, id).scope,
+    };
+    ScopedInput {
+        scope,
+        fields: fields_of(&builder.lowered, builder.observation_inputs, input),
     }
 }
 
