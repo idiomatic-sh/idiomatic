@@ -103,6 +103,10 @@ fn not_run(programs: &Programs) -> Vec<RefusedRule> {
             .units
             .get(usize::try_from(unit.0).unwrap_or(usize::MAX))?
             .key;
+        // Spike (ryo-fmx3.1): the unit not run, by its key, when asked.
+        if std::env::var_os("RYO_L2_REFUSED").is_some() {
+            eprintln!("ryo l2: rule {} reaches unit {} not run: {key:?}", rule.rule.0, unit.0);
+        }
         Some(RefusedRule {
             rule: rule.rule,
             refusal: LoadRefusal::Unlowerable(PlanNode(unit_step(programs, rule.rule, key).0)),

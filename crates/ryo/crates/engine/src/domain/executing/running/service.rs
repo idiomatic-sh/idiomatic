@@ -183,6 +183,10 @@ fn walked(code: &ProgramCode, rule: &RuleCode, units: &mut Vec<WordSlot>) -> Opt
                         units.push(unit);
                     }
                     if let Some(unit) = fill(code, table, &mut sites, &mut pending) {
+                        // Spike (ryo-fmx3.1): the fill the executor does not run, when asked.
+                        if std::env::var_os("RYO_L2_REFUSED").is_some() {
+                            eprintln!("ryo l2: the executor does not run the fill of table {}", table.0);
+                        }
                         return Some(unit);
                     }
                 }
@@ -202,6 +206,10 @@ fn walked(code: &ProgramCode, rule: &RuleCode, units: &mut Vec<WordSlot>) -> Opt
                 step_word(code, word, unit, &mut pending)
             };
             if built == FillRuns::NotYet {
+                // Spike (ryo-fmx3.1): the word the executor does not run, when asked.
+                if std::env::var_os("RYO_L2_REFUSED").is_some() {
+                    eprintln!("ryo l2: the executor does not run {:?} in unit {}", word.op, unit.0);
+                }
                 return Some(unit);
             }
             // A step program ends at its `End`, a pipeline at its `StageWrite`.
