@@ -87,7 +87,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     said(
         "a_plan_walk_visits_each_step_once_a_chain_of_self_joins_twice_as_deep_is_twice_the_work",
         || Asked::Chain(40),
-        "linear: work Some(208) at depth 40, Some(408) at twice it",
+        "linear: work Some(207) at depth 40, Some(407) at twice it",
     ),
     refused(
         "a_rule_over_the_hosts_rows_is_refused_at_that_step",
@@ -103,6 +103,20 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         "an_operation_not_lowered_yet_is_refused_at_its_step",
         || Asked::Admitted(named("follow fixed points")),
         LoadRefusal::Unlowerable(PlanNode(4)),
+    ),
+    said(
+        "a_rule_whose_emit_reaches_per_file_steps_alone_is_admitted_though_its_plan_hands_rows_over",
+        || {
+            Asked::Admitted(named(
+                "a rule over the tree whose words another rule observes",
+            ))
+        },
+        "5 columns",
+    ),
+    refused(
+        "a_rule_whose_emit_reaches_a_step_after_the_files_is_refused_at_that_step",
+        || Asked::Admitted(named("a rule that emits after the files")),
+        LoadRefusal::Unlowerable(PlanNode(1)),
     ),
     refused(
         "a_step_that_runs_after_the_files_is_refused",
