@@ -128,9 +128,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "table 1: Rows, 5 columns, indexes [[3]]\n",
             "  pipeline: Scan:File Read:Constant Read:Constant Probe:Fanout Read:Constant\n",
             "rule 0: 2 branches\n",
-            "  branch: EachRow:File Read:Constant Or:Fanout Emit:Constant\n",
+            "  branch: EachRow:File Read:Constant Read:Constant EachMatch:Fanout Emit:Constant\n",
             "  branch: Or:Fanout Let:Constant EachMatch:Fanout Emit:Constant\n",
-            "codes: {\"EachMatchMade\": 1, \"EachRowMade\": 1, \"Emit\": 2, \"End\": 3, \"Let\": 1, \"Or\": 2, \"ReadMade\": 1, \"StageProbe\": 1, \"StageRead\": 7, \"StageScan\": 2, \"StageWrite\": 2}",
+            "codes: {\"EachMatchMade\": 2, \"EachRowMade\": 1, \"Emit\": 2, \"End\": 3, \"Let\": 1, \"Or\": 1, \"ReadMade\": 2, \"StageProbe\": 1, \"StageRead\": 7, \"StageScan\": 2, \"StageWrite\": 2}",
         ))),
     },
     Case {
