@@ -1,5 +1,5 @@
 //! The pack's cost check: every rule's query compiled by the query language, and the costs it answers held against the ceiling
-//! and the list the manifest declares (`[cost]` of `benchmark.toml`). A rule that reaches a statement above the ceiling, or
+//! and the list the pack declares (`cost.toml`, beside the manifest, whose schema is the benchmark's and closed). A rule that reaches a statement above the ceiling, or
 //! above linear with sorts and not on the list, fails here, and so does a listed statement that rose or that no rule reaches
 //! any more. The list names statements: a module's by its document, a rule's own by its rule.
 #![cfg(test)]
@@ -56,21 +56,20 @@ fn document_of(rule: &str) -> QuerySourceId {
     source_id(QuerySpelling(&format!("rules/{rule}"))).expect("a rule has a name")
 }
 
-/// What the manifest declares of the pack's cost: its ceiling and its list. An entry names a module's statement by `document`,
+/// What `cost.toml` declares of the pack's cost: its ceiling and its list. An entry names a module's statement by `document`,
 /// or a rule's own by `rule`.
-fn declared(manifest: &toml::Value) -> PackCeiling {
-    let cost = &manifest["cost"];
+fn declared(cost: &toml::Value) -> PackCeiling {
     let text = |entry: &toml::Value, key: &str| {
         entry[key]
             .as_str()
-            .unwrap_or_else(|| panic!("`{key}` of the manifest's cost is text"))
+            .unwrap_or_else(|| panic!("`{key}` of the pack's cost is text"))
             .to_owned()
     };
     PackCeiling {
         ceiling: class_named(&text(cost, "ceiling")),
         listed: cost["listed"]
             .as_array()
-            .expect("the manifest lists its sites")
+            .expect("the pack lists its sites")
             .iter()
             .map(|entry| {
                 let (document, owner) = match entry.get("rule") {
@@ -156,7 +155,9 @@ fn subject((): Input) -> Result<Value, Failure> {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     let manifest: toml::Value =
         toml::from_str(&read(root.join("benchmark.toml"))).expect("the manifest is TOML");
-    let (costs, pack) = (costs(root, &manifest), declared(&manifest));
+    let declaration: toml::Value =
+        toml::from_str(&read(root.join("cost.toml"))).expect("the pack's cost is TOML");
+    let (costs, pack) = (costs(root, &manifest), declared(&declaration));
     assert!(!costs.is_empty(), "a pack with no rule holds nothing");
     // One line for each breach, the rules that share one counted: a module's statement is one site for every rule.
     let mut breaches: BTreeMap<String, usize> = BTreeMap::new();

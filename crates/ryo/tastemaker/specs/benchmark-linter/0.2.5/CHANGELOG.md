@@ -2,7 +2,7 @@
 
 ## 0.2.5
 
-A linter may hold one `cost_test.rs`: the pack's cost check, which compiles each rule's query with the query language and holds its cost against the `[cost]` its manifest declares (the ceiling, and each statement above linear with sorts). It is the one file of a linter that may name the query language: the SDK, which every other proof of a linter goes through, does not carry a query's cost. Unreleased, joined with the 0.2.5 below.
+A linter may hold one `cost_test.rs`: the pack's cost check, which compiles each rule's query with the query language and holds its cost against what the pack's `cost.toml`, also placed here, declares (the ceiling, and each statement above linear with sorts): the manifest's keys are the benchmark's, and closed. It is the one file of a linter that may name the query language: the SDK, which every other proof of a linter goes through, does not carry a query's cost. Unreleased, joined with the 0.2.5 below.
 
 The spec's reason says what the shared application publishes: PASS, FAIL and DEFERRED, where a default the profile defers under a named capability, with no authored query, is DEFERRED and runs nothing, and a run passes when no row is FAIL. It said PASS/FAIL. This joins the 0.2.4 below with the reason change a 0.2.4 made beside it (both unreleased); nothing else changes.
 
