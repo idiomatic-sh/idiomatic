@@ -13,7 +13,7 @@ use ryo_values::domain::plans::service::{inputs_of, named};
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_plans::types::NodeDigests;
 use ryo_values::domain::query_plans::types::{NodeDigest, Plan};
-use std::collections::{BTreeSet, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 /// The steps of `plan` its emit reaches, by step: each step is visited once, whatever the number of paths to it. A step may
 /// read a step after it (the closure a reach join is unfolded into is appended after the plan's last step): the order the
@@ -144,14 +144,27 @@ pub(crate) fn stored(rules: &[AdmittedRule<'_>]) -> NodeStore {
             NodeReader::Emit(rule.rule.rule),
             ReadColumns::Whole,
         );
+        // The digests the rule holds at more than one shaped place.
+        let mut places: HashMap<NodeDigest, usize> = HashMap::new();
+        for (at, digest) in rule.digests.0.iter().enumerate() {
+            if rule.shapes.get(at).is_some_and(Option::is_some) {
+                *places.entry(*digest).or_default() += 1;
+            }
+        }
         for (at, each) in rule.rule.plan.steps.iter().enumerate() {
             if rule.shapes.get(at).is_none_or(Option::is_none) {
                 continue;
             }
             let reader = rule.digests.0.get(at).copied().unwrap_or_default();
+            let twice = places.get(&reader).is_some_and(|count| *count > 1);
             for (number, input) in named(&inputs_of(&each.operation)).iter().enumerate() {
                 if let Input::Step(step) = input {
-                    let by = NodeReader::Step(reader, InputNumber(number));
+                    let by = if twice {
+                        let place = StepId(u32::try_from(at).unwrap_or(u32::MAX));
+                        NodeReader::Placed(rule.rule.rule, place, InputNumber(number))
+                    } else {
+                        NodeReader::Step(reader, InputNumber(number))
+                    };
                     read(digest_of(rule, *step), *step, by, read_by(&each.operation));
                 }
             }

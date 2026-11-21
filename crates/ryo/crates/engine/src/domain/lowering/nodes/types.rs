@@ -37,6 +37,9 @@ pub(crate) enum NodeReader {
     Step(NodeDigest, InputNumber),
     /// The emit of a rule.
     Emit(SelectedRuleOrdinal),
+    /// A step of a rule whose digest the rule holds at several places, by its place and the input: each place is a reader
+    /// of its own, since each is flattened (`tables::arms`) and takes its input's branches.
+    Placed(SelectedRuleOrdinal, StepId, InputNumber),
 }
 
 /// Where a merged plan node is lowered from: the first accepted rule that holds it, and its place there.
