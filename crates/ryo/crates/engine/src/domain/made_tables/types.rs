@@ -117,7 +117,7 @@ pub(crate) enum Reached {
 /// Whether a read made its table.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum MadeNow {
-    /// This read made the table: its slot holds the work.
+    /// This read made the table: its slot holds the work. A table the loop said has no row is made so, with no fill.
     Made,
     /// An earlier read of the file made it.
     Held,
@@ -148,6 +148,9 @@ pub(crate) enum KeyFrom {
 pub(crate) struct KeyRows {
     /// The rows, a stretch of the store's rows: read with `sources::service::rows_at`.
     pub(crate) rows: RowRun,
+    /// The bits every handle of the rows carries besides the row's number: a node's file in the high half, nothing of
+    /// another source. The cell a program binds for a row is `tag | row`.
+    pub(crate) tag: CellWord,
     /// How many rows the language wrote for this read: nought when they were there.
     pub(crate) filled: Count,
     /// How many rows this read indexed: nought when the index was built.
@@ -159,6 +162,9 @@ pub(crate) struct KeyRows {
 pub(crate) struct WholeRows {
     /// The rows' handles, from the first to past the last: a relation filled whole after keys starts past their rows.
     pub(crate) rows: RowRun,
+    /// The bits every handle carries besides the row's number: a node's file in the high half, nothing of another
+    /// source. The cell a program binds for a row is `tag | row`.
+    pub(crate) tag: CellWord,
     /// How many rows the language wrote for this read: nought when they were there.
     pub(crate) filled: Count,
 }
@@ -205,10 +211,24 @@ pub(crate) struct PatternAsk<'k> {
     pub(crate) key: &'k [CellWord],
 }
 
-/// The callback of the `Use` stage, which the loop implements: the rows of a definition's pattern for one key. A fill asks
-/// once per distinct key of a batch and runs no step program itself; the loop's memo makes the pattern's program run once
-/// per distinct key of the file.
+/// What the fill side asks of the loop, which implements it: the rows of a definition's pattern for one key (the callback
+/// of the `Use` stage), and whether a table it is about to make may have a row. A fill asks a pattern once per distinct key
+/// of a batch and runs no step program itself; the loop's memo makes the pattern's program run once per distinct key of
+/// the file.
 pub(crate) trait PatternRows {
+    /// Whether `table` may have a row in this file: the table's own need, which the loop decides and keeps. The fill side
+    /// asks before it makes a table it reaches itself (a source of a fill, the table of a site `matched` reads, a table
+    /// `scanned` reads); on `Empty` it runs no fill and keeps the table as made with no row, so it asks once per file.
+    ///
+    /// # Errors
+    ///
+    /// A source the decision read could not be read.
+    fn table_need(
+        &mut self,
+        frame: &mut FillFrame<'_>,
+        table: MadeTableId,
+    ) -> Result<TableNeed, FilledError>;
+
     /// Appends to `rows` the rows the pattern yields for the key, row by row, each the cells of its collected columns
     /// ascending; a pattern that collects nothing appends nothing and answers whether it has a row.
     ///
@@ -221,6 +241,15 @@ pub(crate) trait PatternRows {
         asked: PatternAsk<'_>,
         rows: &mut Vec<CellWord>,
     ) -> Result<PatternFound, FilledError>;
+}
+
+/// Whether a table may have a row in a file, as the loop decides its need.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum TableNeed {
+    /// It may: its fill runs.
+    Rows,
+    /// It has none: no fill runs, and the table is kept as made with no row.
+    Empty,
 }
 
 /// Whether a pattern has a row for a key.

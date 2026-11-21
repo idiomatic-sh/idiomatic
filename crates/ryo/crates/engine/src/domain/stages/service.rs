@@ -9,6 +9,7 @@ use ryo_language::domain::facts::types::CellWord;
 use ryo_operators::domain::ordered_groups::service::nearest;
 use ryo_operators::domain::ordered_groups::types::GroupOrders;
 use ryo_relations::domain::relations::types::{Count, Integer};
+use crate::domain::steps::types::TestOperation;
 use ryo_values::domain::plan_orders::types::OrderBound;
 
 /// A row's number as the handle a batch holds of it.
@@ -265,7 +266,45 @@ macro_rules! holds {
     };
 }
 
-/// `Keep` of a comparison of two cells: the rows of the batch it holds for, as a selection. An order is of whole numbers.
+/// Whether a comparison holds between two cells: the one definition of each, which the `Keep` loop runs over a batch and
+/// a program's test asks for one row. An order is of whole numbers.
+#[inline]
+pub(crate) const fn cells_hold(test: CellTest, one: CellWord, other: CellWord) -> RowKept {
+    match test {
+        CellTest::Equal => holds!(one.0 == other.0),
+        CellTest::NotEqual => holds!(one.0 != other.0),
+        CellTest::Less => holds!(one.0.cast_signed() < other.0.cast_signed()),
+        CellTest::LessOrEqual => holds!(one.0.cast_signed() <= other.0.cast_signed()),
+        CellTest::Greater => holds!(one.0.cast_signed() > other.0.cast_signed()),
+        CellTest::GreaterOrEqual => holds!(one.0.cast_signed() >= other.0.cast_signed()),
+    }
+}
+
+/// The comparison of two cells a test is; none for a membership and for a test that reads a text.
+#[must_use]
+pub(crate) const fn cell_test(test: TestOperation) -> Option<CellTest> {
+    match test {
+        TestOperation::Equal => Some(CellTest::Equal),
+        TestOperation::NotEqual => Some(CellTest::NotEqual),
+        TestOperation::Less => Some(CellTest::Less),
+        TestOperation::LessOrEqual => Some(CellTest::LessOrEqual),
+        TestOperation::Greater => Some(CellTest::Greater),
+        TestOperation::GreaterOrEqual => Some(CellTest::GreaterOrEqual),
+        TestOperation::In
+        | TestOperation::NotIn
+        | TestOperation::Matches(_)
+        | TestOperation::Glob
+        | TestOperation::NotGlob
+        | TestOperation::StartsWith
+        | TestOperation::EndsWith
+        | TestOperation::NumericAtLeast
+        | TestOperation::NaturalLess
+        | TestOperation::Successor => None,
+    }
+}
+
+/// `Keep` of a comparison of two cells: the rows of the batch it holds for, as a selection. One loop for each comparison:
+/// the comparison is `cells_hold` with its test written in.
 pub(crate) fn keep(
     test: CellTest,
     left: BatchValue<'_>,
@@ -274,19 +313,23 @@ pub(crate) fn keep(
     keep: &mut Vec<BatchRow>,
 ) {
     match test {
-        CellTest::Equal => compared(left, right, rows, keep, |one, other| holds!(one == other)),
-        CellTest::NotEqual => compared(left, right, rows, keep, |one, other| holds!(one != other)),
+        CellTest::Equal => compared(left, right, rows, keep, |one, other| {
+            cells_hold(CellTest::Equal, one, other)
+        }),
+        CellTest::NotEqual => compared(left, right, rows, keep, |one, other| {
+            cells_hold(CellTest::NotEqual, one, other)
+        }),
         CellTest::Less => compared(left, right, rows, keep, |one, other| {
-            holds!(one.0.cast_signed() < other.0.cast_signed())
+            cells_hold(CellTest::Less, one, other)
         }),
         CellTest::LessOrEqual => compared(left, right, rows, keep, |one, other| {
-            holds!(one.0.cast_signed() <= other.0.cast_signed())
+            cells_hold(CellTest::LessOrEqual, one, other)
         }),
         CellTest::Greater => compared(left, right, rows, keep, |one, other| {
-            holds!(one.0.cast_signed() > other.0.cast_signed())
+            cells_hold(CellTest::Greater, one, other)
         }),
         CellTest::GreaterOrEqual => compared(left, right, rows, keep, |one, other| {
-            holds!(one.0.cast_signed() >= other.0.cast_signed())
+            cells_hold(CellTest::GreaterOrEqual, one, other)
         }),
     }
 }

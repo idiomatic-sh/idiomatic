@@ -26,7 +26,9 @@ pub(crate) const fn source_of(flag: WordFlag, read: WordSlot) -> ReadSource {
 
 /// Makes `table` for the file if no read of the file made it: runs its fill once, its pipelines over batches, asking
 /// `uses` for the rows of each pattern in call form a `Use` stage names. The table's slot then holds its rows, the work
-/// of its own fill and what the fill reached directly.
+/// of its own fill and what the fill reached directly. The caller has decided the table's own need: `made` does not ask
+/// it. Every other table the fill side reaches on the way (a source of this fill, the table of a site, a table scanned)
+/// it asks `uses.table_need` of first, and makes with no row and no fill on `Empty`.
 ///
 /// # Errors
 ///
