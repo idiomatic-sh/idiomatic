@@ -57,11 +57,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         )),
     },
     Case {
-        name: CaseName("a_keep_of_a_prefix_runs_and_one_of_a_numeric_order_does_not_yet"),
+        name: CaseName("a_keep_of_a_prefix_runs_and_so_does_one_of_a_numeric_order"),
         word: Word::Succeeds,
         input: || Asked::Keeps,
         expect: Expect::Value(Cow::Borrowed(
-            "StageScan runs, StageRead runs, StageRead runs, StageKeep runs, StageWrite runs, StageScan runs, StageRead runs, StageRead runs, StageKeep not yet, StageWrite runs | fills: runs, runs | a word that is no stage: not yet",
+            "StageScan runs, StageRead runs, StageRead runs, StageKeep runs, StageWrite runs, StageScan runs, StageRead runs, StageRead runs, StageKeep runs, StageWrite runs | fills: runs, runs | a word that is no stage: not yet",
         )),
     },
     Case {
