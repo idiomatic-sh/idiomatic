@@ -3,6 +3,7 @@
 
 use crate::domain::lowering::flattening::types::RowColumn;
 use crate::domain::steps::types::{ColumnMask, CostClass, DefinitionId};
+use ryo_values::domain::query_plans::types::NodeDigest;
 use std::cell::RefCell;
 use std::collections::HashMap;
 
@@ -52,6 +53,8 @@ pub(crate) struct AccessCost {
 pub(crate) struct UseAsked {
     /// The definition.
     pub(crate) definition: DefinitionId,
+    /// The merged plan node the definition is the rows of.
+    pub(crate) node: NodeDigest,
     /// The bound columns.
     pub(crate) bound: ColumnMask,
 }
@@ -60,3 +63,15 @@ pub(crate) struct UseAsked {
 /// many accesses ask it. None: the definition has no program for the columns, and the use reads its table.
 #[derive(Debug, Default)]
 pub(crate) struct UseCosts(pub(crate) RefCell<HashMap<UseAsked, Option<AccessCost>>>);
+
+/// The uses costed for the pack a thread is lowering: a definition's branches never change once it is made, so what a use
+/// of it costs is the pack's to keep, not one branch's. `drafts` and `definitions` say which pack the costs are of.
+#[derive(Debug, Default)]
+pub(crate) struct PackCosts {
+    /// Where the pack's drafts are.
+    pub(crate) drafts: usize,
+    /// How many definitions the drafts held when the costs were last read.
+    pub(crate) definitions: usize,
+    /// The costs.
+    pub(crate) costs: UseCosts,
+}

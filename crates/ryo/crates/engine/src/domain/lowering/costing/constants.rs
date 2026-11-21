@@ -32,9 +32,9 @@ pub(crate) const CHILDREN: PlanEstimate = PlanEstimate(4 * 1_024);
 pub(crate) const FIELD_CHILDREN: PlanEstimate = PlanEstimate(1_536);
 /// The rows of a relation's own key that holds any number of rows per value.
 pub(crate) const MANY_ROWS: PlanEstimate = PlanEstimate(2 * 1_024);
-/// The rows a filled relation holds for a value of a column that is not its key and holds an element: 1.3.
+/// The rows a filled relation holds for a value of a column that is not its key and holds an element or a span: 1.3.
 pub(crate) const ELEMENT_COLUMN_ROWS: PlanEstimate = PlanEstimate(1_331);
-/// The rows a filled relation holds for a value of a column that is not its key and holds no element.
+/// The rows a filled relation holds for a value of a column that is not its key and holds neither.
 pub(crate) const VALUE_COLUMN_ROWS: PlanEstimate = PlanEstimate(6 * 1_024);
 /// A key of several columns reaches just under what its most selective column does: 0.99 of it.
 pub(crate) const SEVERAL_KEYS_SHARE: PlanEstimate = PlanEstimate(1_014);

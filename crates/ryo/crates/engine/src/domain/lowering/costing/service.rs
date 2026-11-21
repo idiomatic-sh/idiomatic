@@ -228,18 +228,16 @@ fn composite_access(states: &[CellState], whole: RowEstimate, reached: PlanEstim
 }
 
 /// The rows a filled relation holds for one value of a column: one for its unique key, a few for its key of many rows; for
-/// any other column, about a row when the column holds an element, and several when it holds a value.
+/// any other column, about a row when the column holds an element or a span, and several when it holds a value.
 fn column_rows(key: FilledKey, column: Column) -> PlanEstimate {
     match key {
         FilledKey::Unique(own) if own == column => ONE,
         FilledKey::Many(own) if own == column => MANY_ROWS,
         FilledKey::Unique(_) | FilledKey::Many(_) | FilledKey::Whole => match kind(column) {
-            CellKind::Node => ELEMENT_COLUMN_ROWS,
-            CellKind::Symbol
-            | CellKind::Span
-            | CellKind::Number
-            | CellKind::Flag
-            | CellKind::File => VALUE_COLUMN_ROWS,
+            CellKind::Node | CellKind::Span => ELEMENT_COLUMN_ROWS,
+            CellKind::Symbol | CellKind::Number | CellKind::Flag | CellKind::File => {
+                VALUE_COLUMN_ROWS
+            }
         },
     }
 }
