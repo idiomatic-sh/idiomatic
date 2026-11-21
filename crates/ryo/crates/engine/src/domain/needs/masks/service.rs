@@ -2,7 +2,8 @@
 //! its first decision; and what a record of the needs may cost, found once.
 
 use super::types::{
-    MaskExact, NeedMasks, NeedTerm, RecordCost, SiteMasks, SiteStretches, Stretch, TermNumber,
+    MaskExact, NeedMasks, NeedTerm, NodeAsk, RecordCost, SiteMasks, SiteStretches, Stretch,
+    TermNumber,
 };
 use crate::domain::code::records::service::need_at;
 use crate::domain::code::records::types::NeedRecord;
@@ -459,4 +460,66 @@ pub(crate) fn costs_found(code: &ProgramCode, masks: &mut NeedMasks) {
         let at = WordSlot(u32::try_from(place).unwrap_or(u32::MAX));
         let _cost = record_cost(code, at, &mut masks.costs);
     }
+}
+
+/// Whether the record at a place among the needs asks a relation of the node-table form for a row.
+fn record_asks_nodes(code: &ProgramCode, at: WordSlot, masks: &mut NeedMasks) -> NodeAsk {
+    match need_at(&code.needs, at) {
+        Some(NeedRecord::Row { relation, .. }) if node_relation(code, relation) => NodeAsk::Asked,
+        Some(NeedRecord::Site(site)) => node_asked(code, site, masks),
+        Some(
+            NeedRecord::All {
+                parts: count,
+                offsets,
+            }
+            | NeedRecord::Any {
+                parts: count,
+                offsets,
+            },
+        ) => {
+            for number in 0..count.0 {
+                if let Some(place) = slot(code, offsets, WordSlot(number))
+                    && record_asks_nodes(code, place, masks) == NodeAsk::Asked
+                {
+                    return NodeAsk::Asked;
+                }
+            }
+            NodeAsk::NotAsked
+        }
+        Some(
+            NeedRecord::Unknown
+            | NeedRecord::Kinds(_)
+            | NeedRecord::Table(_)
+            | NeedRecord::Row { .. },
+        )
+        | None => NodeAsk::NotAsked,
+    }
+}
+
+/// Whether the formula of `site` asks a relation of the node-table form for a row, whatever the file: a rule that
+/// consults such a decision read the node table. Found once a site and kept: a site many formulas name is walked once
+/// (`needs::service::asks_nodes` walked it once for each formula that names it, at every level).
+pub(crate) fn node_asked(code: &ProgramCode, site: NeedSite, masks: &mut NeedMasks) -> NodeAsk {
+    let place = usize::try_from(site.0).unwrap_or(usize::MAX);
+    match masks.node_asks.get(place).copied() {
+        Some(NodeAsk::Asked) => return NodeAsk::Asked,
+        Some(NodeAsk::NotAsked | NodeAsk::Finding) => return NodeAsk::NotAsked,
+        Some(NodeAsk::Unknown) | None => {}
+    }
+    if masks.node_asks.len() <= place {
+        masks
+            .node_asks
+            .resize(place.saturating_add(1), NodeAsk::Unknown);
+    }
+    if let Some(kept) = masks.node_asks.get_mut(place) {
+        *kept = NodeAsk::Finding;
+    }
+    let found = match slot(code, WordSlot(site.0), WordSlot(0)) {
+        Some(formula) => record_asks_nodes(code, formula, masks),
+        None => NodeAsk::NotAsked,
+    };
+    if let Some(kept) = masks.node_asks.get_mut(place) {
+        *kept = found;
+    }
+    found
 }
