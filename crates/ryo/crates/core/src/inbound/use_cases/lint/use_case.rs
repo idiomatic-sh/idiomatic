@@ -192,16 +192,29 @@ impl LintUseCase for LintUseCaseImpl {
             let listing = self.storing.listing(&findings).map_err(from_storing)?;
             let listed_at = clock.elapsed();
             let scan = asked(&request, &rules, &ids, &placed, &findings, &listing);
-            if let Some(stored) = self.visits.stored(scan)? {
+            if let Some(mut stored) = self.visits.stored(scan)? {
                 let found = clock.elapsed();
+                // A rule set read back reads the project's rows as one lowered here does: the manifests read, and the rows
+                // of every project relation made (a pack names the relations it reads; until the host is told them, all).
+                let mut files = listing.files.clone();
+                let manifests = analysis.read_manifests(&mut files)?;
+                stored.hosted = Arc::new(analysis.hosted_project(
+                    &files,
+                    &request.session,
+                    &manifests,
+                    ryo_relations::domain::relations::service::all(),
+                    named_provider(&request.source_language),
+                )?);
+                let projected = clock.elapsed();
                 let answer = self.visits.answered(&stored, &request.files)?;
                 if std::env::var_os("RYO_L2_START").is_some() {
                     eprintln!(
-                        "ryo l2: start: rules placed {} us; listing {} us; store asked {} us; files scanned and written {} us",
+                        "ryo l2: start: rules placed {} us; listing {} us; store asked {} us; project rows {} us; files scanned and written {} us",
                         placing.as_micros(),
                         listed_at.saturating_sub(placing).as_micros(),
                         found.saturating_sub(listed_at).as_micros(),
-                        clock.elapsed().saturating_sub(found).as_micros()
+                        projected.saturating_sub(found).as_micros(),
+                        clock.elapsed().saturating_sub(projected).as_micros()
                     );
                 }
                 return Ok(answer.into());
