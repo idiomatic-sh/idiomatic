@@ -12,6 +12,7 @@ use crate::domain::code::walking::service::{closure_of, nearest_of};
 use crate::domain::findings::types::RuleColumns;
 use crate::domain::made_tables::types::{FillStore, KeyFrom, RuleSetView};
 use crate::domain::memos::types::CellSpan;
+use crate::domain::scratch::kept::service::files_marked;
 use crate::domain::scratch::kept::types::QuickBody;
 use crate::domain::scratch::types::{
     AskPart, DecodedCode, LoopState, Measuring, ScanScratch, ScratchEngine, UnitInFile,
@@ -293,6 +294,8 @@ pub(crate) fn decoded_code(code: &ProgramCode) -> DecodedCode {
         decoded.lists.push(list);
         decoded.quick.push(quick);
     }
+    let DecodedCode { parts, files, .. } = &mut decoded;
+    files_marked(code, parts, files);
     decoded
 }
 
