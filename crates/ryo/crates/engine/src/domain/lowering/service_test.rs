@@ -230,6 +230,27 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ))),
     },
     Case {
+        name: CaseName("a_group_bound_is_a_group_table_of_its_inputs_rows_and_the_rule_walks_it"),
+        word: Word::Succeeds,
+        input: || (&["group-max ties"], SampleStage::Absent),
+        expect: Expect::Value(Cow::Borrowed(concat!(
+            "definition 0: 5 columns, emptiness All([Unknown, Unknown])\n",
+            "  pattern bound [] collected []: Table 2\n",
+            "  pattern bound [3] collected [2]: Table 2\n",
+            "definition 1: 4 columns, emptiness All([Definition(DefinitionId(0)), Definition(DefinitionId(0))])\n",
+            "  pattern bound [] collected []: Table 1\n",
+            "table 0: Group(Ends), 4 columns, indexes []\n",
+            "  pipeline: Scan:File Read:Constant Read:Constant Read:Constant\n",
+            "table 1: Rows, 4 columns, indexes []\n",
+            "  pipeline: Scan:File Read:Constant Read:Constant Use:Fanout\n",
+            "table 2: Rows, 5 columns, indexes [[3]]\n",
+            "  pipeline: Scan:File Read:Constant Read:Constant Probe:Fanout Read:Constant\n",
+            "rule 0: 1 branches\n",
+            "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Emit:Constant\n",
+            "codes: {\"EachRowMade\": 1, \"Emit\": 1, \"End\": 2, \"ReadMade\": 3, \"StageProbe\": 2, \"StageRead\": 9, \"StageScan\": 3, \"StageWrite\": 3}",
+        ))),
+    },
+    Case {
         name: CaseName("a_rule_set_whose_every_rule_is_refused_answers_the_last_refusal"),
         word: Word::Refuses,
         input: || {

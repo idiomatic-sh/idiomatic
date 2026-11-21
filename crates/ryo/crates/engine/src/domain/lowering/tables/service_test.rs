@@ -82,7 +82,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     said(
         "the_kinds_of_operation_the_lowering_evaluates_are_these",
         || Asked::Kinds,
-        "[AsOf, Select, Project, Extend, Join, Union, Antijoin, GroupCount, Axis]",
+        "[AsOf, Select, Project, Extend, Join, Union, Antijoin, GroupCount, GroupBound, Axis]",
     ),
     said(
         "a_plan_walk_visits_each_step_once_a_chain_of_self_joins_twice_as_deep_is_twice_the_work",
@@ -137,8 +137,8 @@ fn subject(asked: Input) -> Result<Value, Failure> {
             let lowered = OperationKind::ALL.iter().copied();
             let kinds: Vec<OperationKind> = lowered
                 .filter_map(|kind| match admitted_plan(&growth_plan(kind)) {
-                    Ok(columns) if columns > 0 => Some(kind),
-                    Ok(_) | Err(LoadRefusal::Unlowerable(_) | LoadRefusal::Budget(_)) => None,
+                    Ok(columns) => (columns > 0).then_some(kind),
+                    Err(LoadRefusal::Unlowerable(_) | LoadRefusal::Budget(_)) => None,
                 })
                 .collect();
             format!("{kinds:?}")

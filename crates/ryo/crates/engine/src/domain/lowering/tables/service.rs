@@ -228,10 +228,20 @@ fn shaped(
             keys,
             distinct,
         } => {
-            // A count of a column's distinct values is not lowered yet.
-            let mut shape = picked(&of(from)?, keys).filter(|_| distinct.is_none())?;
+            let read = of(from)?;
+            // A count of a column's distinct values names a column of what it groups.
+            let counted: Vec<ColumnIndex> = distinct.iter().copied().collect();
+            let _within = picked(&read, &counted)?;
+            let mut shape = picked(&read, keys)?;
             shape.0.push(CellKind::Number);
             Some(shape)
+        }
+        Operation::GroupBound {
+            from, keys, order, ..
+        } => {
+            let read = of(from)?;
+            let _within = (picked(&read, keys)?, picked(&read, &[*order])?);
+            Some(read)
         }
         Operation::AsOf {
             left,
@@ -282,7 +292,6 @@ fn shaped(
         Operation::Intersection { .. }
         | Operation::Difference { .. }
         | Operation::GroupDigest { .. }
-        | Operation::GroupBound { .. }
         | Operation::GroupOrdinal { .. }
         | Operation::Capture { .. }
         | Operation::Rank { .. }
