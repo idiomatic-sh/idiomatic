@@ -3,10 +3,10 @@
 //! count. Every `match` names every step and stage: a new one does not compile without its name here.
 
 use crate::domain::code::types::ProgramCode;
+use crate::domain::lowered::service::fill_pipelines;
 use crate::domain::lowered::types::{
     GraphFill, GroupFill, LoweredPack, MadeFill, OrderedFill, PatternForm,
 };
-use crate::domain::lowering::proving::service::fill_pipelines;
 use crate::domain::steps::service::{stage_class, step_class};
 use crate::domain::steps::stages::types::{FillStage, Pipeline};
 use crate::domain::steps::types::{ProgramStep, StepProgram};
