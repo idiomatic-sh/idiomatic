@@ -4,8 +4,9 @@
 
 use crate::domain::facts::types::{
     CellWord, FactAnswer, FactSource, FileWords, FillExtent, FilledColumns, FillerSentence,
-    FixedNames, PartialRows, Wanted,
+    PartialRows, Wanted,
 };
+use crate::domain::fixed_names::types::FixedNames;
 use crate::domain::semantics::types::{RenderOutcome, RenderRequest};
 use ryo_relations::domain::answers::types::AbsenceCause;
 use ryo_relations::domain::relations::collections::relations::interface::RelationsItem;

@@ -10,11 +10,10 @@ use super::types::{FileVisit, RelationNeeds, WalkEngine, WalkRequest};
 use super::use_case::WalkUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::facts::service::{base_words, file_words};
-use crate::domain::facts::types::{
-    FactAnswer, FileFacts, FillExtent, FilledColumns, FixedNames, Wanted,
-};
+use crate::domain::facts::types::{FactAnswer, FileFacts, FillExtent, FilledColumns, Wanted};
 use crate::domain::files::types::SourcePath;
 use crate::domain::fillers::fixtures::Walking;
+use crate::domain::fixed_names::types::CheckedNames;
 use crate::domain::node_table::service::{
     builder, element_count, embedded_segments, field_of, node_count, own_end,
 };
@@ -81,8 +80,7 @@ struct Seeing(Option<Seen>);
 
 impl FileVisit for Seeing {
     fn visit(&mut self, file: FileFacts<'_>) {
-        let mut words =
-            file_words(&base_words(&FixedNames::default(), &[]).expect("no fixed name to refuse"));
+        let mut words = file_words(&base_words(CheckedNames::default(), &[]));
         let mut columns = FilledColumns::default();
         let answer = file.facts.fill(
             Relation::SyntaxError,

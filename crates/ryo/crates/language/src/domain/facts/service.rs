@@ -1,12 +1,9 @@
 //! The `facts` service: the words of a file, the one way fillers, the engine and the host turn texts into words and back, the
 //! word of a language's fixed name by its handle, and the `syntax-error` rows every language writes from its node table.
 
-use super::errors::FixedNamesError;
-use super::types::{
-    BaseSet, BaseWords, CellWord, FileWords, FixedNames, FixedWord, InternedText, WordSet,
-    WordsEngine,
-};
+use super::types::{BaseSet, BaseWords, CellWord, FileWords, InternedText, WordSet, WordsEngine};
 use crate::domain::diagnostics::service::{impact_name, listed, phase_name};
+use crate::domain::fixed_names::types::{CheckedNames, FixedWord};
 use crate::domain::node_table::types::NodeTable;
 use ryo_relations::domain::relations::collections::relations::syntax_error::item::SyntaxErrorRow;
 use ryo_relations::domain::relations::service::diagnostic_id;
@@ -38,36 +35,25 @@ fn place_word(place: FixedWord) -> CellWord {
 
 /// The run's base words, each text once, coded from zero: word 0 is the empty text, then the language's fixed names in the order
 /// of their places, then `texts` in the order given. A fixed name's word is its place after the empty text, by construction:
-/// the names that would break that are refused here, once, where a language's names become the words of a run.
-///
-/// # Errors
-///
-/// When a fixed name is the empty text (`FixedNamesError::Empty`) or is stated at two places
-/// (`FixedNamesError::Twice`): its place would have no word of its own.
+/// the names are checked (`fixed_names::service::checked`), each stated once and none empty.
 ///
 /// # Examples
 ///
 /// ```
-/// use ryo_language::domain::facts::errors::FixedNamesError;
 /// use ryo_language::domain::facts::service::{base_words, file_words, text};
-/// use ryo_language::domain::facts::types::{CellWord, FixedNames, FixedWord};
+/// use ryo_language::domain::facts::types::CellWord;
+/// use ryo_language::domain::fixed_names::service::checked;
 /// use ryo_relations::domain::terms::types::NameText;
 ///
-/// let fixed = FixedNames(vec![NameText("next-token")]);
-/// let base = base_words(&fixed, &[NameText("print"), NameText("eval")]).expect("each fixed name is stated once");
-/// let words = file_words(&base);
+/// let names = [NameText("next-token")];
+/// let fixed = checked(&names).expect("one name, stated once");
+/// let words = file_words(&base_words(fixed, &[NameText("print"), NameText("eval")]));
 /// assert_eq!(text(&words, CellWord(0)), NameText(""));
 /// assert_eq!(text(&words, CellWord(1)), NameText("next-token"));
 /// assert_eq!(text(&words, CellWord(3)), NameText("eval"));
-///
-/// let twice = FixedNames(vec![NameText("next-token"), NameText("next-token")]);
-/// let refused = base_words(&twice, &[]).map(|_base| ());
-/// assert_eq!(refused, Err(FixedNamesError::Twice { first: FixedWord(0), again: FixedWord(1) }));
 /// ```
-pub fn base_words(
-    fixed: &FixedNames,
-    texts: &[NameText<'_>],
-) -> Result<BaseWords, FixedNamesError> {
+#[must_use]
+pub fn base_words(fixed: CheckedNames<'_>, texts: &[NameText<'_>]) -> BaseWords {
     let mut words = WordSet::default();
     let empty = added(
         &mut words,
@@ -77,34 +63,28 @@ pub fn base_words(
     debug_assert_eq!(empty, CellWord::default());
     for (number, each) in fixed.0.iter().enumerate() {
         let place = FixedWord(u32::try_from(number).unwrap_or(u32::MAX));
-        // A text the words hold already keeps its word: the empty text's, or an earlier place's.
         let word = added(&mut words, CellWord::default(), *each);
-        if word == empty {
-            return Err(FixedNamesError::Empty { place });
-        }
-        if word != place_word(place) {
-            let first = FixedWord(u32::try_from(word.0.saturating_sub(1)).unwrap_or(u32::MAX));
-            return Err(FixedNamesError::Twice {
-                first,
-                again: place,
-            });
-        }
+        debug_assert_eq!(
+            word,
+            place_word(place),
+            "a checked name is new to the words: its word is its place after the empty text"
+        );
     }
     let codes: Vec<CellWord> = texts
         .iter()
         .map(|each| added(&mut words, CellWord::default(), *each))
         .collect();
     debug_assert_eq!(codes.len(), texts.len());
-    Ok(BaseWords(Arc::new(BaseSet {
+    BaseWords(Arc::new(BaseSet {
         words,
         fixed: Count(fixed.0.len()),
-    })))
+    }))
 }
 
 /// The word of a language's fixed name, by its handle: its place after the empty text, with no lookup and no table, and the same
 /// cell in every file of the run. A release run does not check the handle, which is sound: a handle is a constant of a
 /// language's own filler code, every filler runs under the contract's harness in test builds, where the assertion below
-/// holds it, and the names cannot leave their places because `base_words` refuses a name stated twice or empty.
+/// holds it, and the names cannot leave their places because `base_words` takes checked names alone: none stated twice, none empty.
 ///
 /// # Panics
 ///
@@ -115,11 +95,12 @@ pub fn base_words(
 ///
 /// ```
 /// use ryo_language::domain::facts::service::{base_words, clear_words, file_words, fixed, intern};
-/// use ryo_language::domain::facts::types::{FixedNames, FixedWord};
+/// use ryo_language::domain::fixed_names::service::checked;
+/// use ryo_language::domain::fixed_names::types::FixedWord;
 /// use ryo_relations::domain::terms::types::NameText;
 ///
-/// let base = base_words(&FixedNames(vec![NameText("next-token")]), &[]).expect("one fixed name, stated once");
-/// let mut words = file_words(&base);
+/// let names = [NameText("next-token")];
+/// let mut words = file_words(&base_words(checked(&names).expect("one name, stated once"), &[]));
 /// let first = fixed(&words, FixedWord(0));
 /// clear_words(&mut words);
 /// assert_eq!(fixed(&words, FixedWord(0)), first);
@@ -141,10 +122,11 @@ pub fn fixed(words: &FileWords, word: FixedWord) -> CellWord {
 ///
 /// ```
 /// use ryo_language::domain::facts::service::{base_words, file_words, intern};
-/// use ryo_language::domain::facts::types::{CellWord, FixedNames};
+/// use ryo_language::domain::facts::types::CellWord;
+/// use ryo_language::domain::fixed_names::types::CheckedNames;
 /// use ryo_relations::domain::terms::types::NameText;
 ///
-/// let mut words = file_words(&base_words(&FixedNames::default(), &[NameText("print")]).expect("no fixed name to refuse"));
+/// let mut words = file_words(&base_words(CheckedNames::default(), &[NameText("print")]));
 /// assert_eq!(intern(&mut words, NameText("print")), CellWord(1));
 /// ```
 #[must_use]
@@ -161,10 +143,10 @@ pub fn file_words(base: &BaseWords) -> FileWords {
 ///
 /// ```
 /// use ryo_language::domain::facts::service::{base_words, clear_words, file_words, intern};
-/// use ryo_language::domain::facts::types::FixedNames;
+/// use ryo_language::domain::fixed_names::types::CheckedNames;
 /// use ryo_relations::domain::terms::types::NameText;
 ///
-/// let mut words = file_words(&base_words(&FixedNames::default(), &[]).expect("no fixed name to refuse"));
+/// let mut words = file_words(&base_words(CheckedNames::default(), &[]));
 /// let first = intern(&mut words, NameText("a"));
 /// clear_words(&mut words);
 /// assert_eq!(intern(&mut words, NameText("b")), first);
@@ -186,10 +168,10 @@ fn base_count(words: &FileWords) -> CellWord {
 ///
 /// ```
 /// use ryo_language::domain::facts::service::{base_words, file_words, intern, text};
-/// use ryo_language::domain::facts::types::FixedNames;
+/// use ryo_language::domain::fixed_names::types::CheckedNames;
 /// use ryo_relations::domain::terms::types::NameText;
 ///
-/// let mut words = file_words(&base_words(&FixedNames::default(), &[NameText("print")]).expect("no fixed name to refuse"));
+/// let mut words = file_words(&base_words(CheckedNames::default(), &[NameText("print")]));
 /// let own = intern(&mut words, NameText("local_name"));
 /// assert_eq!(text(&words, own), NameText("local_name"));
 /// ```
@@ -220,10 +202,11 @@ pub fn text(words: &FileWords, cell: CellWord) -> NameText<'_> {
 ///
 /// ```
 /// use ryo_language::domain::facts::service::{base_words, file_words, intern};
-/// use ryo_language::domain::facts::types::{CellWord, FixedNames};
+/// use ryo_language::domain::facts::types::CellWord;
+/// use ryo_language::domain::fixed_names::types::CheckedNames;
 /// use ryo_relations::domain::terms::types::NameText;
 ///
-/// let mut words = file_words(&base_words(&FixedNames::default(), &[NameText("print")]).expect("no fixed name to refuse"));
+/// let mut words = file_words(&base_words(CheckedNames::default(), &[NameText("print")]));
 /// assert_eq!(intern(&mut words, NameText("x")), CellWord(2));
 /// assert_eq!(intern(&mut words, NameText("x")), CellWord(2));
 /// ```
@@ -247,7 +230,7 @@ pub(crate) fn symbol(words: &mut FileWords, text: NameText<'_>) -> Symbol {
 ///
 /// ```
 /// use ryo_language::domain::facts::service::{base_words, file_words, syntax_error_rows};
-/// use ryo_language::domain::facts::types::FixedNames;
+/// use ryo_language::domain::fixed_names::types::CheckedNames;
 /// use ryo_language::domain::node_table::service::{builder, diagnose, enter_node, finished, leave_node};
 /// use ryo_language::domain::node_table::types::{FieldCode, NodeTable};
 /// use ryo_relations::domain::relations::collections::relations::syntax_error::item::SyntaxErrorRow;
@@ -265,7 +248,7 @@ pub(crate) fn symbol(words: &mut FileWords, text: NameText<'_>) -> Symbol {
 /// enter_node(&mut writer, KindBits(1), FieldCode(0), Offset(0));
 /// diagnose(&mut writer, Offset(0), Offset(1), NameText("unexpected token"));
 /// leave_node(&mut writer, Offset(1));
-/// let mut words = file_words(&base_words(&FixedNames::default(), &[]).expect("no fixed name to refuse"));
+/// let mut words = file_words(&base_words(CheckedNames::default(), &[]));
 /// let mut kept = Kept(Vec::new());
 /// syntax_error_rows(finished(&mut writer), FileId(3), &mut words, &mut kept);
 /// assert_eq!(kept.0.len(), 1);

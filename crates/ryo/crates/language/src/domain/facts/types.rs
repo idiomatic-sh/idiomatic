@@ -7,7 +7,6 @@ use crate::domain::semantics::types::{RenderOutcome, RenderRequest};
 use crate::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::answers::types::AbsenceCause;
 use ryo_relations::domain::relations::types::{Column, Count, FileId, Missing, Relation};
-use ryo_relations::domain::terms::types::NameText;
 use std::sync::Arc;
 
 /// One file as the engine reads it: the node table, the bytes, the file's number in the run, and the language's per-file view
@@ -80,7 +79,8 @@ impl std::fmt::Debug for ProjectFacts<'_> {
 ///
 /// ```
 /// use ryo_language::domain::facts::service::{base_words, file_words};
-/// use ryo_language::domain::facts::types::{FactAnswer, FactSource, FileWords, FilledColumns, FixedNames, Wanted};
+/// use ryo_language::domain::facts::types::{FactAnswer, FactSource, FileWords, FilledColumns, Wanted};
+/// use ryo_language::domain::fixed_names::types::CheckedNames;
 /// use ryo_language::domain::semantics::types::{RenderOutcome, RenderRequest};
 /// use ryo_relations::domain::answers::types::AbsenceCause;
 /// use ryo_relations::domain::relations::types::Relation;
@@ -94,7 +94,7 @@ impl std::fmt::Debug for ProjectFacts<'_> {
 ///         RenderOutcome::NotApplicable
 ///     }
 /// }
-/// let mut words = file_words(&base_words(&FixedNames::default(), &[]).expect("no fixed name to refuse"));
+/// let mut words = file_words(&base_words(CheckedNames::default(), &[]));
 /// let answer = Nothing.fill(Relation::Function, Wanted::Whole, &mut words, &mut FilledColumns::default());
 /// assert_eq!(answer, FactAnswer::Refused(AbsenceCause::NotYetRead));
 /// ```
@@ -124,10 +124,10 @@ pub trait FactSource {
 ///
 /// ```
 /// use ryo_language::domain::facts::service::base_words;
-/// use ryo_language::domain::facts::types::FixedNames;
+/// use ryo_language::domain::fixed_names::types::CheckedNames;
 /// use ryo_relations::domain::terms::types::NameText;
 ///
-/// let _base = base_words(&FixedNames::default(), &[NameText("print")]).expect("no fixed name to refuse");
+/// let _base = base_words(CheckedNames::default(), &[NameText("print")]);
 /// ```
 #[derive(Clone, Debug, Default)]
 pub struct BaseWords(pub(crate) Arc<BaseSet>);
@@ -152,10 +152,10 @@ pub(crate) struct BaseSet {
 ///
 /// ```
 /// use ryo_language::domain::facts::service::{base_words, file_words, intern, text};
-/// use ryo_language::domain::facts::types::FixedNames;
+/// use ryo_language::domain::fixed_names::types::CheckedNames;
 /// use ryo_relations::domain::terms::types::NameText;
 ///
-/// let mut words = file_words(&base_words(&FixedNames::default(), &[]).expect("no fixed name to refuse"));
+/// let mut words = file_words(&base_words(CheckedNames::default(), &[]));
 /// let word = intern(&mut words, NameText("x"));
 /// assert_eq!(text(&words, word), NameText("x"));
 /// ```
@@ -315,34 +315,3 @@ pub enum FillExtent {
     /// relation's catalog item does not declare among its `keys`.
     Whole,
 }
-
-/// A place in a language's fixed names (`WalkVocabulary::fixed`): the handle of that name's word for the whole run, read with
-/// `facts::service::fixed`.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_language::domain::facts::service::{base_words, file_words, fixed, text};
-/// use ryo_language::domain::facts::types::{FixedNames, FixedWord};
-/// use ryo_relations::domain::terms::types::NameText;
-///
-/// let base = base_words(&FixedNames(vec![NameText("next-token")]), &[]).expect("one fixed name, stated once");
-/// let words = file_words(&base);
-/// assert_eq!(text(&words, fixed(&words, FixedWord(0))), NameText("next-token"));
-/// ```
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct FixedWord(pub u32);
-
-/// The texts a language's fillers write by handle, each once and none empty: a `FixedWord` is a place here, and
-/// `facts::service::base_words` refuses a name stated twice or the empty text.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_language::domain::facts::types::FixedNames;
-/// use ryo_relations::domain::terms::types::NameText;
-///
-/// assert_eq!(FixedNames(vec![NameText("next-token")]).0.len(), 1);
-/// ```
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct FixedNames(pub Vec<NameText<'static>>);
