@@ -7,7 +7,7 @@ use crate::domain::stages::types::NodeNames;
 use ryo_language::domain::facts::service::intern;
 use ryo_language::domain::facts::types::{CellWord, FileWords};
 use ryo_language::domain::node_table::service::{
-    field_of, kind_of, node_count, ordinal_of, parent_of, span_of,
+    embedded_segments, field_of, kind_of, node_count, ordinal_of, own_end, parent_of, span_of, subtree_end_of,
 };
 use ryo_language::domain::node_table::types::NodeTable;
 use ryo_relations::domain::relations::service::{node_id, node_position, to_bits};
@@ -45,6 +45,18 @@ fn named(names: &[CellWord], code: Count) -> CellWord {
 #[inline]
 fn numbered(value: Offset) -> CellWord {
     CellWord(u64::from(value.0))
+}
+
+/// Whether an element is a token: the file's own tree holds its nodes, then its tokens, and each embedded segment the
+/// nodes under its root, then its tokens.
+fn token(nodes: &NodeTable, at: Position) -> bool {
+    let own = own_end(nodes);
+    if at < own {
+        return u64::from(at.0) >= u64::try_from(node_count(nodes).0).unwrap_or(u64::MAX);
+    }
+    embedded_segments(nodes)
+        .find(|segment| segment.root <= at && at < segment.end)
+        .is_some_and(|segment| at >= subtree_end_of(nodes, segment.root))
 }
 
 /// The cell of one column of one element.
@@ -91,10 +103,15 @@ pub(crate) fn node_cell(
                 return *held;
             }
             let span = span_of(nodes, at);
-            let (start, end) = (
-                usize::try_from(span.start.0).unwrap_or(usize::MAX),
-                usize::try_from(span.end.0).unwrap_or(usize::MAX),
-            );
+            let (start, end) = if token(nodes, at) {
+                (
+                    usize::try_from(span.start.0).unwrap_or(usize::MAX),
+                    usize::try_from(span.end.0).unwrap_or(usize::MAX),
+                )
+            } else {
+                // SPIKE (ryo-fmx3.1, fault F): the catalog's text is a token's exact text and nothing for a node.
+                (0, 0)
+            };
             // A span of a file that is valid UTF-8 is a slice of it when it starts and ends between characters.
             let word = match names.source.and_then(|source| source.get(start..end)) {
                 Some(text) => intern(words, NameText(text)),

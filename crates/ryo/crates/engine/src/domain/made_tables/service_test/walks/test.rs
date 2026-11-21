@@ -78,7 +78,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Staged::WalkDescendants,
         expect: Expect::Value(Cow::Borrowed(
-            "30064771073 12; 30064771074 12; 30064771075 12 | read 31 given 23 made 3",
+            "30064771073 12; 30064771074 12; 30064771075 12; 30064771079 12 | read 33 given 25 made 4",
         )),
     },
     Case {

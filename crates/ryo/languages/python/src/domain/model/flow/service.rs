@@ -16,7 +16,7 @@ use crate::domain::model::lexical::types::{AnnotationMark, NamespaceKey, NodeCla
 use crate::domain::model::names::constants::{NO_NAME, UNKNOWN_NAME};
 use crate::domain::model::reaching::service::{self as reaching, list_mutations, reach, refine};
 use crate::domain::model::reaching::types::{FlowReadState, FlowSource};
-use crate::domain::model::types::{BindingAction, BindingStep};
+use crate::domain::model::types::{BindingAction, BindingPhaseKind, BindingStep};
 use ryo::languages::{Count, Integer, Position};
 
 /// What the read at `at` is for: a type when it is inside an annotation of its phase.
@@ -134,7 +134,14 @@ fn declare(model: &mut FlowModel, source: FlowSource<'_, '_, '_>, step: BindingS
 }
 
 /// Interprets one step that is about a name: records its event, then what it reads or changes.
-fn observe(model: &mut FlowModel, source: FlowSource<'_, '_, '_>, frame: FrameCode, step: BindingStep, ordinal: Integer) {
+fn observe(
+    model: &mut FlowModel,
+    source: FlowSource<'_, '_, '_>,
+    frame: FrameCode,
+    step: BindingStep,
+    ordinal: Integer,
+    reading: FlowContext,
+) {
     let tree = source.tree;
     let definition = definition_of(source.definitions, step.occurrence).copied();
     let kind = match step.action {
@@ -171,7 +178,7 @@ fn observe(model: &mut FlowModel, source: FlowSource<'_, '_, '_>, frame: FrameCo
     let key = NamespaceKey { scope, name };
     match kind {
         FlowEventKind::Wildcard => wildcard(&mut model.frames, frame, scope),
-        FlowEventKind::Read => read(model, source, frame, step, FlowContext::Value),
+        FlowEventKind::Read => read(model, source, frame, step, reading),
         FlowEventKind::Bind | FlowEventKind::Annotation => bind(model, source, frame, step),
         FlowEventKind::Delete => {
             read(model, source, frame, step, FlowContext::Deletion);
@@ -203,6 +210,9 @@ pub(crate) fn build(model: &mut FlowModel, source: FlowSource<'_, '_, '_>) {
     model.state = FlowState::Incomplete;
     let mut frame: Option<FrameCode> = None;
     let mut later = 0_usize;
+    // What a read of the phase in hand is for before its annotations are looked at: a type in a phase that is a type
+    // expression (a postponed annotation, the expression of a string read as a type).
+    let mut reading = FlowContext::Value;
     for (cursor, step) in source.schedule.steps.iter().enumerate() {
         match step.action {
             BindingAction::BeginPhase => {
@@ -211,6 +221,11 @@ pub(crate) fn build(model: &mut FlowModel, source: FlowSource<'_, '_, '_>) {
                 } else {
                     let task = source.schedule.phases.get(later);
                     later = later.saturating_add(1);
+                    reading = if task.is_some_and(|phase| phase.kind == BindingPhaseKind::Type) {
+                        FlowContext::Type
+                    } else {
+                        FlowContext::Value
+                    };
                     let Some(found) = task.and_then(|phase| model.phase_frames.get(&phase.parent).copied()) else {
                         return;
                     };
@@ -260,7 +275,7 @@ pub(crate) fn build(model: &mut FlowModel, source: FlowSource<'_, '_, '_>) {
                     return;
                 };
                 let ordinal = Integer(i64::try_from(cursor).unwrap_or(i64::MAX));
-                observe(model, source, current, *step, ordinal);
+                observe(model, source, current, *step, ordinal, reading);
             }
         }
     }

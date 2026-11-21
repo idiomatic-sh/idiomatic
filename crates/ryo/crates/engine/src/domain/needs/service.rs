@@ -75,6 +75,11 @@ fn parts(
     offsets: WordSlot,
     stops_at: NeedVerdict,
 ) -> NeedVerdict {
+    // SPIKE (ryo-fmx3.1, fault A): the parts asked in the first pass, by number. What a part costs changes while the
+    // parts are asked (a site decided inside a costly part is kept, and costs nothing from then on), so the second pass
+    // asks every part the first did not ask, not the parts that cost a fill now: a part that cost a fill in the first
+    // pass and nothing in the second was asked in neither, and an `Any` it alone held was decided empty.
+    let mut asked = 0_u128;
     for pass in [NeedVerdict::Empty, NeedVerdict::Holds] {
         for number in 0..count.0 {
             let Some(place) = slot(code, offsets, WordSlot(number)) else {
@@ -84,7 +89,16 @@ fn parts(
                 }
                 continue;
             };
-            if costs(facts, code, place) == pass && formula(facts, code, place) == stops_at {
+            let bit = 1_u128.checked_shl(number).unwrap_or(0);
+            let now = if pass == NeedVerdict::Empty {
+                costs(facts, code, place) == NeedVerdict::Empty
+            } else {
+                asked & bit == 0
+            };
+            if now && pass == NeedVerdict::Empty {
+                asked |= bit;
+            }
+            if now && formula(facts, code, place) == stops_at {
                 return stops_at;
             }
         }
