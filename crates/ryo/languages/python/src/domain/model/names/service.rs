@@ -1,6 +1,6 @@
 //! The `names` service of the model: free functions named by verb over the names of one file, with no IO and no ports.
 
-use super::constants::{HASH_START, HASH_STEP, UNKNOWN_NAME};
+use super::constants::{EMPTY_WORD, HASH_START, HASH_STEP, UNKNOWN_NAME};
 use super::types::{
     FactWords, FixedWords, NameCode, NameEntry, NameHash, NameSlot, NameTable, NameWords, TextPlace,
 };
@@ -154,9 +154,13 @@ pub(crate) fn name_word(names: &NameTable, words: &mut FileWords, known: &mut Na
 }
 
 /// The word of a fixed text of the vocabulary: the word of its handle, the same in every file of the run, when the run's fixed
-/// names hold the text; a word of the file for any other text. The handle is found by the text once for a worker and kept by
-/// where the text stands in the program, so a row costs one look there and never a hash of the text.
+/// names hold the text; word 0 for the empty text, which is no fixed name; a word of the file for any other text. The handle is
+/// found by the text once for a worker and kept by where the text stands in the program, so a row costs one look there and
+/// never a hash of the text.
 pub(crate) fn fixed_word(words: &mut FileWords, known: &mut FixedWords, text: NameText<'static>) -> Symbol {
+    if text.0.is_empty() {
+        return EMPTY_WORD;
+    }
     let place = TextPlace(text);
     let held = if let Some(found) = known.held.get(&place) {
         *found

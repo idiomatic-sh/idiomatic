@@ -1,6 +1,7 @@
 //! The `walk` contract's cases of the fixed names: a fixed word is the same cell in every file of the run, and it is the word of
 //! the handle the language's vocabulary gives its name; over every Python source of the language's fixtures, every text a
-//! filler writes as a fixed word is a fixed name the vocabulary states, so none is interned for a file.
+//! filler writes as a fixed word is a fixed name the vocabulary states, so none is interned for a file; the vocabulary states
+//! each fixed name once and none that is empty.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::file_view::types::PythonWalk;
@@ -24,6 +25,8 @@ enum Asked {
     /// How many fixed names the fillers wrote by a handle over every fixture source, and the texts they wrote as fixed words
     /// that the vocabulary does not state.
     Declared,
+    /// How many fixed names the vocabulary states, the names it states at more than one place, and how many are empty.
+    Stated,
 }
 
 type Input = Asked;
@@ -43,9 +46,37 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("every_fixed_word_a_filler_writes_is_a_fixed_name_of_the_run"),
         word: Word::Succeeds,
         input: || Asked::Declared,
-        expect: Expect::Value("262 fixed names written by handle; not fixed names: []"),
+        expect: Expect::Value("261 fixed names written by handle; not fixed names: []"),
+    },
+    Case {
+        name: CaseName("each_fixed_name_is_stated_once_and_none_is_empty"),
+        word: Word::Succeeds,
+        input: || Asked::Stated,
+        expect: Expect::Value("300 fixed names; stated twice: []; empty: 0"),
     },
 ];
+
+/// The fixed names the walk's vocabulary states: how many, the names stated at more than one place, and how many are the empty
+/// text. A fixed name's word is its place, so a name has one place, and the empty text is word 0 of every run and no name's.
+fn stated<W: Walk>(_walk: &W) -> String {
+    let names = W::vocabulary().fixed.0;
+    let mut sorted: Vec<&str> = names.iter().map(|name| name.0).collect();
+    sorted.sort_unstable();
+    let mut twice: Vec<&str> = sorted
+        .windows(2)
+        .filter_map(|pair| {
+            (pair.first() == pair.get(1))
+                .then(|| pair.first().copied())
+                .flatten()
+        })
+        .collect();
+    twice.dedup();
+    let empty = names.iter().filter(|name| name.0.is_empty()).count();
+    format!(
+        "{} fixed names; stated twice: {twice:?}; empty: {empty}",
+        names.len()
+    )
+}
 
 /// The language's walk, as the crate links it, by its own type: its worker's buffers can be read.
 fn own_walk() -> PythonWalk<WalkPorts> {
@@ -160,6 +191,7 @@ fn subject(asked: Input) -> Result<Value, Failure> {
     let found = match asked {
         Asked::SameCell => same_cell(&own_walk()),
         Asked::Declared => declared(),
+        Asked::Stated => Ok(stated(&own_walk())),
     }?;
     Ok(Box::leak(found.into_boxed_str()))
 }

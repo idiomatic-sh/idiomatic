@@ -15,6 +15,7 @@ use ryo::languages::{
     self, AbsenceCause, CatalogRelation, FieldNames, FileWords, Fill, Fillers, FixedNames,
     NameText, RenderOutcome, RenderRequest, Rows, WalkKinds, WalkVocabulary, Wanted, fillers,
 };
+use std::collections::HashSet;
 
 /// The filler of each relation whose `fills!` item writes it whole alone: the item's run. Asked for a key, it writes the whole
 /// relation and says so; `fillers::filled` is the one place that answer is written.
@@ -174,8 +175,9 @@ impl<P: Send + Sync + 'static> Fillers for PythonWalk<P> {
 const PROVENANCE: &[&str] = &[BUILTIN, LOCAL, UNRESOLVED, AMBIGUOUS];
 
 /// The texts Python's fillers write that are the same in every file: the fixed names of the run, by place. Each concept states
-/// its own beside its constants; the names the language supplies to every module are read from their catalogs. A text two
-/// concepts share stands twice and is one word.
+/// its own beside its constants; the names the language supplies to every module are read from their catalogs. A fixed name's
+/// word is its place, so each text is stated once, at the place of the first concept that writes it, and the empty text, which
+/// is word 0 of every run, is no fixed name.
 pub(crate) fn fixed_names() -> FixedNames {
     let concepts: [&[&'static str]; 17] = [
         crate::domain::token_links::constants::FIXED_NAMES,
@@ -202,6 +204,7 @@ pub(crate) fn fixed_names() -> FixedNames {
         .iter()
         .chain(MODULE_GLOBALS)
         .map(|entry| entry.name);
+    let mut stated = HashSet::new();
     FixedNames(
         concepts
             .into_iter()
@@ -210,6 +213,7 @@ pub(crate) fn fixed_names() -> FixedNames {
             .map(|text| NameText(text))
             .chain(BUILTIN_NAMES.iter().copied())
             .chain(catalogs)
+            .filter(|name| !name.0.is_empty() && stated.insert(name.0))
             .collect(),
     )
 }
