@@ -9,7 +9,8 @@ use crate::domain::code::types::{ConstantNumber, NeedSite, RelationNumber, WordS
 use crate::domain::executing::budget::service::reach;
 use crate::domain::made_tables::types::Reached;
 use crate::domain::memos::types::ChargedUnit;
-use crate::domain::needs::service::asks_nodes;
+use crate::domain::needs::masks::service::node_asked;
+use crate::domain::needs::masks::types::NodeAsk;
 use crate::domain::needs::types::NeedVerdict;
 use crate::domain::programs::frames::types::StepFrame;
 use crate::domain::programs::operands::service::constant;
@@ -172,9 +173,10 @@ pub(crate) fn consulted(frame: &mut StepFrame<'_, '_>, site: NeedSite) {
     let asked = match kept.get(place).copied().flatten() {
         Some(known) => known,
         None => {
-            let found = match asks_nodes(frame.fill.programs.code, site) {
-                NeedVerdict::Holds => NodeNeed::Asked,
-                NeedVerdict::Empty => NodeNeed::NotAsked,
+            let code = frame.fill.programs.code;
+            let found = match node_asked(code, site, &mut frame.state.need_masks) {
+                NodeAsk::Asked => NodeNeed::Asked,
+                NodeAsk::NotAsked | NodeAsk::Finding | NodeAsk::Unknown => NodeNeed::NotAsked,
             };
             if let Some(slot) = frame.state.node_needs.get_mut(place) {
                 *slot = Some(found);
