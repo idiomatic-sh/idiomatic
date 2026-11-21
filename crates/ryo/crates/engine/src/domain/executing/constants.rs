@@ -1,6 +1,7 @@
 //! The constants of the `executing` concept.
 
 use crate::domain::findings::types::InstructionCount;
+use crate::domain::memos::types::MemoId;
 use ryo_relations::domain::relations::types::Count;
 
 /// A rule's allowance in a file, as a multiple of the terms of its bound: its candidates, the keys it asked of call
@@ -15,3 +16,7 @@ pub(crate) const ROWS_PER_ELEMENT: Count = Count(16);
 
 /// The rows such a relation may hold beside: a small file's relation is never oversized.
 pub(crate) const ROWS_BESIDE: Count = Count(256);
+
+/// The answer of an ask that was not made: the pattern's definition cannot have a row in the file. It names no kept
+/// answer, so it has no row and no charge (`memos::service::{rows, row_count}` answer nothing for it).
+pub(crate) const NO_ANSWER: MemoId = MemoId(u32::MAX);

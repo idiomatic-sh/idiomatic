@@ -14,6 +14,7 @@ use crate::domain::code::small_codes::service::{mode_code, source_code};
 use crate::domain::code::types::{CodeEntry, MemoSite, PoolAt, WordSlot};
 use crate::domain::code::types::{MeasuredForm, UnitKey};
 use crate::domain::code::types::{Short, WordFlag};
+use crate::domain::encoding::needs::service::definition_site;
 use crate::domain::encoding::pipelines::types::StageUse;
 use crate::domain::encoding::sites::service::{
     definition_table, fresh_register, push_operands, registers_list, short_of,
@@ -108,9 +109,12 @@ pub(crate) fn ready_use(
                     value: pooled(encoding, value)?,
                 });
             }
+            // The definition's own need has a site whether or not a formula reads it: an ask waits on it.
+            let need = definition_site(encoding, used.definition)?;
             Ok(ReadyBody::Call {
                 pattern: key,
                 code,
+                need,
                 formals,
             })
         }
@@ -228,12 +232,14 @@ pub(crate) fn push_body(encoding: &mut Encoding<'_>, body: &ReadyBody) -> PoolAt
         ReadyBody::Call {
             pattern,
             code,
+            need,
             formals,
         } => {
             let at = push_call_body(
                 &mut encoding.code.pool,
                 code.entry.unwrap_or(CodeEntry(0)),
                 code.memo,
+                *need,
                 formals,
             );
             encoding.entries.push(EntryPlace {

@@ -42,6 +42,7 @@ pub(crate) fn body_staged(
             entry,
             memo,
             unit,
+            need,
             bound,
             formals,
         } => {
@@ -51,6 +52,7 @@ pub(crate) fn body_staged(
                     entry,
                     site: memo,
                     unit,
+                    need,
                     bound,
                     formals,
                 },

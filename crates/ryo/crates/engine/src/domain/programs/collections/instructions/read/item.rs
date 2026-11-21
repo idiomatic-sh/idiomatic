@@ -12,7 +12,7 @@ use crate::domain::made_tables::sources::service::cell_of;
 use crate::domain::made_tables::types::ReadSource;
 use crate::domain::programs::frames::types::StepFrame;
 use crate::domain::programs::operands::service::{cell, set};
-use crate::domain::scratch::types::HeldRead;
+use crate::domain::scratch::kept::types::HeldRead;
 use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::relations::types::{Count, NodeExtent};
 
