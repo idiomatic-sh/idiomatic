@@ -2,7 +2,7 @@
 //! already holds, into the table's own list or at the end of the store's arena of the file's tables; and a table's
 //! cells kept the last of the arena while its fill runs.
 
-use crate::domain::indexes::reading::service::{folded, hashed};
+use crate::domain::indexes::reading::service::{folded, hashed, mixed};
 use crate::domain::indexes::types::{RowHash, SourceRow};
 use crate::domain::made_tables::columns::types::CellsLie;
 use crate::domain::made_tables::types::{FillStore, TableRows};
@@ -65,8 +65,9 @@ fn held(cells: &[CellWord], width: Count, at: SourceRow) -> &[CellWord] {
 }
 
 /// `Write` with repeats dropped: appends each of `rows` rows the table does not hold yet. The table's cells lie in
-/// `cells` from `start` to its end. A row is written at the end, looked up by what it holds, and taken back when the
-/// table held it.
+/// `cells` from `start` to its end. The rows' hashes are made first, a column at a time (one pass for each source, no
+/// test of what a source is inside it); then each row is looked up by its hash and compared with a row held where it
+/// lies in its sources, and only a row the table does not hold is written.
 pub(crate) fn written_new(
     cells: &mut Vec<CellWord>,
     start: Count,
@@ -76,24 +77,45 @@ pub(crate) fn written_new(
 ) {
     let TableRows { seen, count, .. } = table;
     let width = Count(sources.len());
-    for at in 0..rows.0 {
-        let base = cells.len();
-        cells.extend(sources.iter().map(|source| match *source {
-            BatchValue::Column(column) => match column.get(at) {
-                Some(cell) => *cell,
-                None => CellWord(0),
-            },
-            BatchValue::Constant(cell) => cell,
-        }));
-        let (before, written) = cells.split_at(base);
-        let own = before.get(start.0..).unwrap_or_default();
-        let hash = row_hash(written);
+    let mut hashes = vec![RowHash(0); rows.0];
+    for source in sources {
+        match *source {
+            BatchValue::Column(column) => {
+                for (hash, cell) in hashes.iter_mut().zip(column) {
+                    *hash = mixed(*hash, *cell);
+                }
+                // A column shorter than the batch holds the zero cell past its end, as a read of it does.
+                for hash in hashes.iter_mut().skip(column.len()) {
+                    *hash = mixed(*hash, CellWord(0));
+                }
+            }
+            BatchValue::Constant(cell) => {
+                for hash in &mut hashes {
+                    *hash = mixed(*hash, cell);
+                }
+            }
+        }
+    }
+    let cell_of = |source: &BatchValue<'_>, at: usize| match *source {
+        BatchValue::Column(column) => match column.get(at) {
+            Some(cell) => *cell,
+            None => CellWord(0),
+        },
+        BatchValue::Constant(cell) => cell,
+    };
+    for (at, mixed_in) in hashes.iter().enumerate() {
+        let hash = folded(*mixed_in);
+        let own = cells.get(start.0..).unwrap_or_default();
         let repeated = seen
-            .find(hash.0, |other| held(own, width, *other) == written)
+            .find(hash.0, |other| {
+                held(own, width, *other)
+                    .iter()
+                    .zip(sources)
+                    .all(|(cell, source)| *cell == cell_of(source, at))
+            })
             .is_some();
-        if repeated {
-            cells.truncate(base);
-        } else {
+        if !repeated {
+            cells.extend(sources.iter().map(|source| cell_of(source, at)));
             let number = SourceRow(u32::try_from(count.0).unwrap_or(u32::MAX));
             let own = cells.get(start.0..).unwrap_or_default();
             drop(seen.insert_unique(hash.0, number, |other| row_hash(held(own, width, *other)).0));
