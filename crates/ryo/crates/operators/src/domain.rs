@@ -2,7 +2,7 @@
 pub(crate) mod append;
 pub(crate) mod project;
 pub mod set_rows;
-pub(crate) mod span_between;
+pub mod span_between;
 pub mod span_bounds;
 
 pub mod equality_join;
