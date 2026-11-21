@@ -51,6 +51,9 @@ pub(crate) struct PipelineRoom {
     pub(crate) compiled: Patterns,
     /// The scratch a `Call`'s meanings work in.
     pub(crate) calls: CallScratch,
+    /// The registers of the running pipeline that hold the file, by place: those a `Read` filled from a made table's
+    /// own file column or from the node table's.
+    pub(crate) files: Vec<Count>,
 }
 
 /// The registers one stage reads and the registers it writes.

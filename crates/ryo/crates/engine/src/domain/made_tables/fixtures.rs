@@ -210,6 +210,8 @@ pub(crate) struct World {
     pub(crate) nodes: NodeTable,
     /// The file's text.
     pub(crate) text: Vec<u8>,
+    /// The file's path.
+    pub(crate) path: &'static str,
     /// The file's words.
     pub(crate) words: FileWords,
     /// The fill side's state.
@@ -262,6 +264,7 @@ pub(crate) fn world_of(
         },
         nodes,
         text: TEXT.to_vec(),
+        path: "ab/cd.walk",
         words: file_words(&base_words(
             checked(&[]).map_err(|_| FilledError::Code {
                 named: crate::domain::filled::types::MissingCode::Word,
@@ -287,6 +290,7 @@ pub(crate) fn framed(world: &mut World) -> (FillFrame<'_>, &mut Looped) {
         programs,
         nodes: file,
         text,
+        path,
         words,
         store,
         told,
@@ -302,6 +306,7 @@ pub(crate) fn framed(world: &mut World) -> (FillFrame<'_>, &mut Looped) {
             },
             nodes: file,
             file: FILE,
+            path: ryo_language::domain::files::types::SourcePath(path),
             text: ByteSlice(text),
             facts: told,
             words,

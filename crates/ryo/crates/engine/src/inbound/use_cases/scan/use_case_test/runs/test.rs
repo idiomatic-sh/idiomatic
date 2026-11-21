@@ -175,6 +175,7 @@ fn subject((scene, files): Input) -> Result<Value, Failure> {
             table: &nodes,
             source: ByteSlice(b""),
             file: FILE,
+            path: ryo_language::domain::files::types::SourcePath(""),
             facts: &mut facts,
         };
         let counted = ScanUseCaseImpl::new(std::sync::Arc::new(MatchingUseCaseImpl))
