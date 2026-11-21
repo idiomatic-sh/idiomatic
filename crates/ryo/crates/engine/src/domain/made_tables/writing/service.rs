@@ -149,6 +149,46 @@ pub(crate) fn fill_ended(store: &mut FillStore, table: &mut TableRows) {
     if own.capacity() != 0 {
         store.own_cells.push(own);
     }
-    table.seen.clear();
+    set_emptied(&store.table_cells, table);
     store.seens.push(std::mem::take(&mut table.seen));
+}
+
+/// How many times larger than its table a set of rows held must be for the table's rows to be taken out one by one.
+const SPARSE_SET: Count = Count(16);
+
+/// Empties a table's set of the rows it holds. A set is emptied whole by writing every one of its control bytes, as
+/// many as the largest table that ever used it has rows, and most tables are a handful of rows in a set that large:
+/// a table far smaller than its set takes its own rows out instead, each found by what it holds.
+fn set_emptied(cells: &[CellWord], table: &mut TableRows) {
+    let TableRows {
+        seen,
+        count,
+        width,
+        lies,
+        ..
+    } = table;
+    if seen.is_empty() {
+        return;
+    }
+    let CellsLie::Arena(start) = *lies else {
+        seen.clear();
+        return;
+    };
+    if seen.len().saturating_mul(SPARSE_SET.0) >= seen.capacity() {
+        seen.clear();
+        return;
+    }
+    let own = cells.get(start.0..).unwrap_or_default();
+    for number in 0..count.0 {
+        let row = SourceRow(u32::try_from(number).unwrap_or(u32::MAX));
+        if let Ok(entry) =
+            seen.find_entry(row_hash(held(own, *width, row)).0, |other| *other == row)
+        {
+            let _taken = entry.remove();
+        }
+    }
+    // A row that was not found leaves the set to be emptied whole.
+    if !seen.is_empty() {
+        seen.clear();
+    }
 }
