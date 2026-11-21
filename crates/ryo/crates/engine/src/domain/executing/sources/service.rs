@@ -95,9 +95,13 @@ pub(crate) fn whole(frame: &mut StepFrame<'_, '_>, source: ReadSource) -> SeamRo
     {
         return SeamRows::default();
     }
+    // A plain worker asks nothing of the measuring hooks: not even whether the table is made.
     let timed = match source {
-        ReadSource::Made(table) => table_read(frame, table),
-        ReadSource::Nodes(_) | ReadSource::Filled(_) | ReadSource::Written(_) => None,
+        ReadSource::Made(table) if frame.state.measure.is_some() => table_read(frame, table),
+        ReadSource::Made(_)
+        | ReadSource::Nodes(_)
+        | ReadSource::Filled(_)
+        | ReadSource::Written(_) => None,
     };
     let asked = scanned(
         frame.fill,
@@ -166,7 +170,7 @@ pub(crate) fn keyed(
         short.get(..width).unwrap_or_default()
     };
     let timed = over
-        .filter(|code| code.source.0 == 2)
+        .filter(|code| code.source.0 == 2 && frame.state.measure.is_some())
         .and_then(|code| table_read(frame, MadeTableId(code.number.0)));
     let asked = matched(
         frame.fill,
