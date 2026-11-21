@@ -74,7 +74,10 @@ fn pattern_keyed(
     };
     if let Some(answer) = kept {
         frame.state.key.truncate(start.0);
-        reach(frame, ChargedUnit::Answer(answer));
+        // SPIKE: an answer a table's fill asks is charged with the table (its sum), to every rule alike.
+        if may == SitePasses::Passing {
+            reach(frame, ChargedUnit::Answer(answer));
+        }
         return answer;
     }
     let first = parts_start(frame.state, body);
@@ -131,7 +134,9 @@ fn pattern_keyed(
     yielded.truncate(base);
     key.truncate(start.0);
     end_unit(frame.state, caller, answer, body.unit);
-    reach(frame, ChargedUnit::Answer(answer));
+    if may == SitePasses::Passing {
+        reach(frame, ChargedUnit::Answer(answer));
+    }
     answer
 }
 

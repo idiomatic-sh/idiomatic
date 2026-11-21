@@ -9,7 +9,7 @@ use crate::domain::findings::types::InstructionCount;
 use crate::domain::indexes::types::{FileStamp, RowRun};
 use crate::domain::made_tables::types::FillWork;
 use crate::domain::made_tables::types::{FillStore, KeyFrom};
-use crate::domain::memos::types::{CellSpan, ChargedUnit, MemoId, MemoMap, RuleStamp};
+use crate::domain::memos::types::{AnswersSum, CellSpan, ChargedUnit, MemoId, MemoMap, RuleStamp};
 use crate::domain::needs::types::NeedVerdict;
 use crate::domain::stages::types::{BatchRow, BatchValue, CallScratch, FanRows};
 use crate::domain::steps::types::{MadeTableId, Register};
@@ -232,6 +232,12 @@ pub(crate) struct RuleBudget {
     pub(crate) asks: Vec<TableAsk>,
     /// The last ask of each table's fill in the file, by the table's number, as its place in `asks` and one.
     pub(crate) asked: Vec<Count>,
+    /// SPIKE: what each table's asks cost together, by the table's number, summed at the first charge of the file.
+    pub(crate) sums: Vec<Option<AnswersSum>>,
+    /// SPIKE: the fill units the sums' answers reached, one sum's after the other; and the last mark given.
+    pub(crate) sum_units: Vec<ChargedUnit>,
+    /// SPIKE: the last mark given to a sum.
+    pub(crate) marks: WordSlot,
 }
 
 /// One fill charged to a rule: its table, the rows its stages read and gave, and its work.
