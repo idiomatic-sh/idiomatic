@@ -1,4 +1,5 @@
 //! Portable source matches semantics.
+pub(crate) mod lines;
 pub mod service;
 
 #[cfg(test)]

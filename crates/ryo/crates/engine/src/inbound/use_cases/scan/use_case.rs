@@ -124,6 +124,9 @@ impl ScanUseCase for ScanUseCaseImpl {
                 // A fill the engine does not run and a number the code does not hold are not faults of a file: the loop
                 // counts the first and keeps neither as the file's fault.
                 FilledError::Unbuilt { .. } | FilledError::Code { .. } => return Ok(counters),
+                // A per-row meaning's fault on a row is the rule's fault in the file, and `ScanError` has no variant to
+                // say it yet (the fill side's QUESTIONS.md Q4): until it has, the scan answers its counters.
+                FilledError::Meaning { .. } => return Ok(counters),
             }),
         }
     }

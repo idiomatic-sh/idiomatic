@@ -15,12 +15,14 @@ use ryo_derived::domain::fault::types::DerivedFault;
 use ryo_relations::domain::relations::types::CellKind;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, RepeatedRows};
 use crate::domain::contract::types::PortableOperatorFault;
+use crate::domain::ordered_groups::types::GroupOrders;
+use crate::domain::ordered_match::service::{paired, unrepeated};
 use crate::domain::ordered_match::types::OrderedParts;
 use crate::domain::physical_plan::types::InputRows;
 #[cfg(test)]
 use crate::domain::physical_plan::types::lowering::value::Lowering;
 use crate::domain::table_texts::types::Texts;
-use ryo_relations::domain::relations::types::Value;
+use ryo_relations::domain::relations::types::{Integer, Value};
 use ryo_values::domain::plan_parts::types::Side;
 use ryo_values::domain::rows::types::{RowCount, RowIndex, Table};
 
@@ -110,42 +112,45 @@ pub(crate) fn matched(
         &right_owned
     };
     let (mut left_row, mut right_row) = (Vec::new(), Vec::new());
-    let mut next_right = 0;
-    for &left_at in &left_side.rows {
-        let left_keys = left_side.keys(left_at);
-        let left_order = left_side.orders[left_at];
-        while next_right < right_side.rows.len() {
-            let right_at = right_side.rows[next_right];
-            let keys = left_keys.cmp(right_side.keys(right_at));
-            if keys.is_gt() || keys.is_eq() && right_side.orders[right_at] <= left_order {
-                next_right += 1;
-            } else {
-                break;
+    // Each side's orders in its sorted rows' order: a key's rows are then one stretch of each, and the pairing within the
+    // key is the operation's own meaning.
+    let in_order = |side: &Sorted<'_>| -> Vec<Integer> { side.rows.iter().map(|at| Integer(side.orders[*at])).collect() };
+    let (left_orders, right_orders) = (in_order(&left_side), in_order(right_side));
+    let mut pairs = Vec::new();
+    let (mut left_from, mut right_from) = (0, 0);
+    while left_from < left_side.rows.len() {
+        let keys = left_side.keys(left_side.rows[left_from]);
+        let left_to = left_from + left_side.rows[left_from..].partition_point(|at| left_side.keys(*at) == keys);
+        right_from += right_side.rows[right_from..].partition_point(|at| right_side.keys(*at) < keys);
+        let right_to = right_from + right_side.rows[right_from..].partition_point(|at| right_side.keys(*at) == keys);
+        pairs.clear();
+        paired(
+            GroupOrders(&left_orders[left_from..left_to]),
+            GroupOrders(&right_orders[right_from..right_to]),
+            &mut pairs,
+        );
+        for pair in &pairs {
+            let left_at = left_side.rows[left_from + usize::try_from(pair.left.0).unwrap_or(usize::MAX)];
+            let right_at = right_side.rows[right_from + usize::try_from(pair.right.0).unwrap_or(usize::MAX)];
+            let left_cells = row_of(left, RowIndex(left_at), &mut left_row);
+            let right_cells = row_of(right, RowIndex(right_at), &mut right_row);
+            for column in &ordered.output {
+                let side = match column.side {
+                    Side::Left => left_cells,
+                    Side::Right => right_cells,
+                };
+                output.cells.push(
+                    *side
+                        .get(usize::try_from(column.column.0).unwrap_or(usize::MAX))
+                        .ok_or(PortableOperatorFault::NoSuchColumn {
+                            index: column.column,
+                        })?,
+                );
             }
+            output.count = RowCount(output.count.0 + 1);
         }
-        let Some(&right_at) = right_side.rows.get(next_right) else {
-            break;
-        };
-        if left_keys != right_side.keys(right_at) {
-            continue;
-        }
-        let left_cells = row_of(left, RowIndex(left_at), &mut left_row);
-        let right_cells = row_of(right, RowIndex(right_at), &mut right_row);
-        for column in &ordered.output {
-            let side = match column.side {
-                Side::Left => left_cells,
-                Side::Right => right_cells,
-            };
-            output.cells.push(
-                *side
-                    .get(usize::try_from(column.column.0).unwrap_or(usize::MAX))
-                    .ok_or(PortableOperatorFault::NoSuchColumn {
-                        index: column.column,
-                    })?,
-            );
-        }
-        output.count = RowCount(output.count.0 + 1);
-        next_right += 1;
+        left_from = left_to;
+        right_from = right_to;
     }
     Ok(())
 }
@@ -222,11 +227,12 @@ fn sorted<'t>(
             .then(side.orders[*one].cmp(&side.orders[*other]))
             .then(one.cmp(other))
     });
-    if ordered
-        .windows(2)
-        .any(|pair| side.keys(pair[0]) == side.keys(pair[1]) && side.orders[pair[0]] == side.orders[pair[1]])
-    {
-        return Err(DerivedFault::DuplicateOrder);
+    // Each key's orders, ascending, hold no order twice: the meaning's one check.
+    let mut held: Vec<Integer> = Vec::new();
+    for group in ordered.chunk_by(|one, other| side.keys(*one) == side.keys(*other)) {
+        held.clear();
+        held.extend(group.iter().map(|row| Integer(side.orders[*row])));
+        unrepeated(GroupOrders(&held))?;
     }
     side.rows = ordered;
     Ok(side)

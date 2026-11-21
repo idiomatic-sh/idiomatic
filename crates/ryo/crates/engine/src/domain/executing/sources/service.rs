@@ -31,7 +31,10 @@ fn faulted(state: &mut LoopState, fault: FilledError) {
         FilledError::Unbuilt { .. } => {
             state.work.unbuilt = InstructionCount(state.work.unbuilt.0.saturating_add(1));
         }
-        FilledError::Refused { .. } | FilledError::Partial { .. } | FilledError::Code { .. } => {
+        FilledError::Refused { .. }
+        | FilledError::Partial { .. }
+        | FilledError::Code { .. }
+        | FilledError::Meaning { .. } => {
             if state.fault.is_none()
                 && let Some(rule) = state.rule
             {

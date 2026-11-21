@@ -1,0 +1,295 @@
+//! The services of the `calling` part: the `Call` stage. One loop for each meaning, over the batch: each row's argument
+//! cells are read, the operators crate's meaning is asked, and the rows it gives are written as cells, as many a row as
+//! the call has outputs, with for each row of the batch the stretch of the rows it gave. A meaning that gives several
+//! rows for one (a source search, a capture) writes them all here, inside the batch's loop.
+
+use crate::domain::code::types::Op;
+use crate::domain::filled::errors::FilledError;
+use crate::domain::filled::types::{MissingCode, UnbuiltFill};
+use crate::domain::indexes::types::RowRun;
+use crate::domain::stages::service::value_at;
+use crate::domain::stages::types::{BatchValue, CallMeans, CallOut, SearchedRows};
+use crate::domain::steps::calls::types::{SearchGroup, SearchLines, SourceSearch};
+use crate::domain::steps::types::{CallMeaning, RegexId, StepRegex};
+use ryo_language::domain::facts::service::{intern, text};
+use ryo_language::domain::facts::types::{CellWord, FileWords};
+use ryo_operators::domain::capture::service::matches;
+use ryo_operators::domain::capture::types::{CaptureSlots, SlotPattern, SlotSubject};
+use ryo_operators::domain::contract::types::PortableOperatorFault;
+use ryo_operators::domain::patterns::service::compiled;
+use ryo_operators::domain::replace::service::replaced;
+use ryo_operators::domain::replace::types::{ReplacedText, ReplacementText};
+use ryo_operators::domain::source_matches::service::{checked_source, searched};
+use ryo_operators::domain::source_matches::types::{
+    BaseLineColumn, CaptureRequest, LineBytes, SearchedSpan, SourceMatchesInput,
+};
+use ryo_operators::domain::span_bounds::service::bounds;
+use ryo_operators::domain::table_texts::types::TextView;
+use ryo_relations::domain::relations::service::{from_bits, to_bits};
+use ryo_relations::domain::relations::types::{Bits, CellKind, Count};
+use ryo_relations::domain::terms::types::NameText;
+use ryo_values::domain::files::types::SourceView;
+use ryo_values::domain::plan_parts::types::ColumnIndex;
+use ryo_values::domain::query_operators::types::{LineOutput, TextOutput};
+use ryo_values::domain::row_texts::types::CellText;
+
+/// The first cell of the values a meaning is handed: a span.
+#[inline]
+fn first_column() -> ColumnIndex {
+    ColumnIndex(u32::MIN)
+}
+
+/// A meaning's fault on a row, as the fill side hands it on.
+fn faulted(fault: PortableOperatorFault) -> FilledError {
+    FilledError::Meaning { fault }
+}
+
+/// The source of a regular expression the code numbers.
+fn regex_at(regexes: &[StepRegex], regex: RegexId) -> Result<&StepRegex, FilledError> {
+    regexes
+        .get(usize::try_from(regex.0).unwrap_or(usize::MAX))
+        .ok_or(FilledError::Code {
+            named: MissingCode::Regex,
+        })
+}
+
+/// The cell of the `at`-th argument for a row of the batch.
+#[inline]
+fn argument(arguments: &[BatchValue<'_>], at: Count, row: Count) -> CellWord {
+    match arguments.get(at.0) {
+        Some(value) => value_at(*value, row),
+        None => CellWord(0),
+    }
+}
+
+/// Says that the batch's next row gave `given` rows, the rows before it being `made`.
+#[inline]
+fn spanned(spans: &mut Vec<RowRun>, made: &mut Count, given: Count) {
+    let end = Count(made.0.saturating_add(given.0));
+    spans.push(RowRun { start: *made, end });
+    *made = end;
+}
+
+/// `SpanBounds`: for each row its span's start and end, two numbers. One row for one.
+fn span_bounds(
+    arguments: &[BatchValue<'_>],
+    rows: Count,
+    out: CallOut<'_>,
+) -> Result<(), FilledError> {
+    let mut made = Count(0);
+    for row in 0..rows.0 {
+        let span = from_bits(
+            CellKind::Span,
+            Bits(argument(arguments, Count(0), Count(row)).0),
+        );
+        let ends = bounds(&[span], first_column()).map_err(faulted)?;
+        out.answers
+            .extend(ends.iter().map(|value| CellWord(to_bits(*value).0)));
+        spanned(out.spans, &mut made, Count(1));
+    }
+    Ok(())
+}
+
+/// `Replace`: for each row its text with every occurrence of the expression replaced, as a word of the file. One row for
+/// one. The expression is compiled once, before the first row.
+fn replace(
+    means: CallMeans<'_>,
+    words: &mut FileWords,
+    regex: RegexId,
+    arguments: &[BatchValue<'_>],
+    rows: Count,
+    out: CallOut<'_>,
+) -> Result<(), FilledError> {
+    let pattern = regex_at(means.regexes, regex)?;
+    let scratch = out.scratch;
+    let mut made = Count(0);
+    for row in 0..rows.0 {
+        scratch.constant.0.clear();
+        scratch
+            .constant
+            .0
+            .push_str(text(words, argument(arguments, Count(1), Count(row))).0);
+        let subject = text(words, argument(arguments, Count(0), Count(row)));
+        replaced(
+            CellText(subject.0),
+            TextView(&pattern.0),
+            ReplacementText(&scratch.constant.0),
+            means.compiled,
+            means.matcher,
+            ReplacedText(&mut scratch.written.0),
+        )
+        .map_err(faulted)?;
+        out.answers
+            .push(intern(words, NameText(&scratch.written.0)));
+        spanned(out.spans, &mut made, Count(1));
+    }
+    Ok(())
+}
+
+/// `Capture`: for each row one row for each way the slot pattern matches the whole path, each the texts of the
+/// pattern's slots in slot order, as words of the file.
+fn capture(
+    words: &mut FileWords,
+    arguments: &[BatchValue<'_>],
+    rows: Count,
+    out: CallOut<'_>,
+) -> Result<(), FilledError> {
+    let scratch = out.scratch;
+    let mut made = Count(0);
+    for row in 0..rows.0 {
+        scratch.constant.0.clear();
+        scratch
+            .constant
+            .0
+            .push_str(text(words, argument(arguments, Count(1), Count(row))).0);
+        scratch.text.0.clear();
+        scratch
+            .text
+            .0
+            .push_str(text(words, argument(arguments, Count(0), Count(row))).0);
+        scratch.slots.0.clear();
+        scratch.ways.ranges.0.clear();
+        scratch.ways.ways = Count(0);
+        matches(
+            SlotPattern(&scratch.constant.0),
+            SlotSubject(&scratch.text.0),
+            SlotSubject(&scratch.text.0),
+            CaptureSlots(&mut scratch.slots.0),
+            &mut scratch.ways,
+        );
+        for range in &scratch.ways.ranges.0 {
+            let slot = scratch.text.0.get(range.clone()).unwrap_or_default();
+            out.answers.push(intern(words, NameText(slot)));
+        }
+        spanned(out.spans, &mut made, scratch.ways.ways);
+    }
+    Ok(())
+}
+
+/// `SourceMatches`: for each row one row for each occurrence of the expression in the text its span covers, left to
+/// right: the occurrence's span, its line when lines are numbered, and for a named group its span, its text and its line
+/// as asked. An absent span gives no row.
+fn source_matches(
+    means: CallMeans<'_>,
+    words: &mut FileWords,
+    regex: RegexId,
+    search: SourceSearch,
+    arguments: &[BatchValue<'_>],
+    rows: Count,
+    out: CallOut<'_>,
+) -> Result<(), FilledError> {
+    let pattern = regex_at(means.regexes, regex)?;
+    let expression = compiled(TextView(&pattern.0), means.compiled, means.matcher)
+        .map_err(|invalid| faulted(invalid.into()))?;
+    let scratch = out.scratch;
+    let base_line = match search.lines {
+        SearchLines::Unnumbered => BaseLineColumn::Unnumbered,
+        SearchLines::Numbered => {
+            BaseLineColumn::At(ColumnIndex(first_column().0.saturating_add(1)))
+        }
+    };
+    let (named, capture_text, capture_line) = match search.group {
+        SearchGroup::Whole => (None, TextOutput::Omitted, LineOutput::Omitted),
+        SearchGroup::Named { text, line } => {
+            (Some(Count(arguments.len().saturating_sub(1))), text, line)
+        }
+    };
+    let mut made = Count(0);
+    for row in 0..rows.0 {
+        scratch.values.clear();
+        scratch.values.push(from_bits(
+            CellKind::Span,
+            Bits(argument(arguments, Count(0), Count(row)).0),
+        ));
+        if search.lines == SearchLines::Numbered {
+            scratch.values.push(from_bits(
+                CellKind::Number,
+                Bits(argument(arguments, Count(1), Count(row)).0),
+            ));
+        }
+        scratch.constant.0.clear();
+        if let Some(name) = named {
+            scratch
+                .constant
+                .0
+                .push_str(text(words, argument(arguments, name, Count(row))).0);
+        }
+        let checked = match checked_source(
+            &scratch.values,
+            first_column(),
+            base_line,
+            SourceView(means.source.0),
+        )
+        .map_err(faulted)?
+        {
+            SearchedSpan::Checked(checked) => checked,
+            SearchedSpan::Absent => {
+                spanned(out.spans, &mut made, Count(0));
+                continue;
+            }
+        };
+        let mut driver = SearchedRows {
+            words: &mut *words,
+            answers: &mut *out.answers,
+            rows: Count(0),
+        };
+        searched(
+            SourceMatchesInput {
+                row: &[],
+                source: LineBytes(means.source.0),
+                base: checked.base,
+                text: checked.text,
+                line: checked.line,
+                regex: expression,
+                capture: match named {
+                    Some(_) => CaptureRequest::Group(CellText(&scratch.constant.0)),
+                    None => CaptureRequest::Whole,
+                },
+                capture_text,
+                capture_line,
+            },
+            means.matcher,
+            &mut driver,
+            &mut scratch.joined,
+        )
+        .map_err(faulted)?;
+        let given = driver.rows;
+        spanned(out.spans, &mut made, given);
+    }
+    Ok(())
+}
+
+/// `Call`: the meaning asked for every row of the batch. After it `out.answers` holds the cells of the rows given, row by
+/// row, and `out.spans` for each row of the batch the stretch of those rows it gave.
+///
+/// # Errors
+///
+/// The meaning faulted on a row; the code names an expression it does not hold; or the meaning is one the fill side
+/// does not run yet.
+pub(crate) fn call_batch(
+    means: CallMeans<'_>,
+    words: &mut FileWords,
+    meaning: CallMeaning,
+    arguments: &[BatchValue<'_>],
+    rows: Count,
+    out: CallOut<'_>,
+) -> Result<(), FilledError> {
+    out.answers.clear();
+    out.spans.clear();
+    match meaning {
+        CallMeaning::SpanBounds => span_bounds(arguments, rows, out),
+        CallMeaning::Replace(regex) => replace(means, words, regex, arguments, rows, out),
+        CallMeaning::Capture => capture(words, arguments, rows, out),
+        CallMeaning::SourceMatches(regex, search) => {
+            source_matches(means, words, regex, search, arguments, rows, out)
+        }
+        CallMeaning::SpanBetween
+        | CallMeaning::Words
+        | CallMeaning::Rank
+        | CallMeaning::Concat
+        | CallMeaning::Lower
+        | CallMeaning::FitsRendered => Err(FilledError::Unbuilt {
+            unbuilt: UnbuiltFill::Stage(Op::StageCall),
+        }),
+    }
+}

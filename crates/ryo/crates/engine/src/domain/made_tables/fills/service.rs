@@ -15,10 +15,11 @@ use crate::domain::filled::types::{MissingCode, UnbuiltFill};
 use crate::domain::lowered::service::fill_code;
 use crate::domain::lowered::types::{ConstantRows, FillInput, GroupFill, MadeFill, OrderedFill};
 use crate::domain::made_tables::operands::service::constant_at;
-use crate::domain::made_tables::service::{count_groups, set_keys, sort_groups};
+use crate::domain::made_tables::service::{count_groups, end_groups, set_keys, sort_groups};
 use crate::domain::made_tables::types::{FillWork, GroupRoom, TableRows};
 use crate::domain::steps::types::{ColumnList, MadeTableId};
 use ryo_relations::domain::relations::types::Count;
+use ryo_values::domain::plan_orders::types::GroupEnd;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, RepeatedRows};
 
 /// The pool does not hold the record a table names.
@@ -36,6 +37,8 @@ fn kind_of(code: FillCode) -> Result<FillKind, FilledError> {
     let rows = MadeFill::Rows(Box::new([]), RepeatedRows::Kept);
     let count = MadeFill::Group(GroupFill::Count { distinct: None }, input());
     let sorted = MadeFill::Ordered(OrderedFill::Sorted(input()));
+    let ends = MadeFill::Group(GroupFill::Ends(GroupEnd::Least), input());
+    let matched = MadeFill::Ordered(OrderedFill::Match(input(), input()));
     let constant = MadeFill::Constant(ConstantRows(Vec::new()));
     if code == fill_code(&rows) {
         Ok(FillKind::Rows)
@@ -43,6 +46,10 @@ fn kind_of(code: FillCode) -> Result<FillKind, FilledError> {
         Ok(FillKind::Count)
     } else if code == fill_code(&sorted) {
         Ok(FillKind::Sorted)
+    } else if code == fill_code(&ends) {
+        Ok(FillKind::Ends)
+    } else if code == fill_code(&matched) {
+        Ok(FillKind::Match)
     } else if code == fill_code(&constant) {
         Ok(FillKind::Constant)
     } else {
@@ -109,6 +116,7 @@ pub(crate) fn input_at(code: &ProgramCode, at: PoolAt) -> Result<FillInputs<'_>,
         entries,
         keys,
         order: (order != NO_SLOT).then_some(Count(usize::try_from(order.0).unwrap_or(usize::MAX))),
+        after: after(order_at, Count(1))?,
     })
 }
 
@@ -159,7 +167,16 @@ pub(crate) fn grouped_rows(
             count_groups(gathered, distinct, room, out).map_err(|_| wrong)?;
         }
         FillKind::Sorted => sort_groups(gathered, read.order.ok_or(wrong)?, room, out),
-        FillKind::Rows | FillKind::Constant => return Err(wrong),
+        FillKind::Ends => {
+            // The record's parameter is the end: 0 the least, 1 the greatest.
+            let end = if fill.parameter == WordSlot(0) {
+                GroupEnd::Least
+            } else {
+                GroupEnd::Greatest
+            };
+            end_groups(gathered, read.order.ok_or(wrong)?, end, room, out);
+        }
+        FillKind::Rows | FillKind::Match | FillKind::Constant => return Err(wrong),
     }
     work.read = Count(work.read.0.saturating_add(gathered.count.0));
     work.given = Count(work.given.0.saturating_add(out.count.0));

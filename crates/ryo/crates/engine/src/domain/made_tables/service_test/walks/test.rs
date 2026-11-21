@@ -42,6 +42,12 @@ enum Staged {
     KeepGlob,
     /// A keep of the tokens whose text matches none of a set of globs.
     KeepNotGlob,
+    /// A keep of the tokens whose text starts with a constant text.
+    KeepStarts,
+    /// A keep of the tokens whose text ends with the row's own text.
+    KeepEnds,
+    /// A keep of the tokens whose text ends with a constant text.
+    KeepEndsWord,
 }
 
 type Input = Staged;
@@ -96,7 +102,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Staged::ReadNode,
         expect: Expect::Value(Cow::Borrowed(
-            "30064771076 30064771073 0 0 0 2 2 7 4; 30064771077 30064771074 0 0 3 5 12884901893 7 5; 30064771078 30064771075 0 0 6 8 25769803784 7 3 | read 51 given 43 made 3",
+            "30064771076 30064771073 0 0 0 2 2 7 10; 30064771077 30064771074 0 0 3 5 12884901893 7 11; 30064771078 30064771075 0 0 6 8 25769803784 7 3 | read 51 given 43 made 3",
         )),
     },
     Case {
@@ -112,19 +118,39 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Staged::KeepMatches,
         expect: Expect::Value(Cow::Borrowed(
-            "30064771076 4; 30064771077 5 | read 32 given 24 made 2",
+            "30064771076 10; 30064771077 11 | read 32 given 24 made 2",
         )),
     },
     Case {
         name: CaseName("a_keep_of_a_glob_holds_the_texts_that_match_it"),
         word: Word::Succeeds,
         input: || Staged::KeepGlob,
-        expect: Expect::Value(Cow::Borrowed("30064771076 4 | read 31 given 23 made 1")),
+        expect: Expect::Value(Cow::Borrowed("30064771076 10 | read 31 given 23 made 1")),
     },
     Case {
         name: CaseName("a_keep_of_globs_negated_holds_the_texts_none_matches"),
         word: Word::Succeeds,
         input: || Staged::KeepNotGlob,
+        expect: Expect::Value(Cow::Borrowed("30064771078 3 | read 31 given 23 made 1")),
+    },
+    Case {
+        name: CaseName("a_keep_of_starts_with_holds_the_texts_that_begin_with_the_other"),
+        word: Word::Succeeds,
+        input: || Staged::KeepStarts,
+        expect: Expect::Value(Cow::Borrowed("30064771076 10 | read 31 given 23 made 1")),
+    },
+    Case {
+        name: CaseName("a_keep_of_ends_with_reads_the_rows_own_other_text"),
+        word: Word::Succeeds,
+        input: || Staged::KeepEnds,
+        expect: Expect::Value(Cow::Borrowed(
+            "30064771076 10; 30064771077 11; 30064771078 3 | read 33 given 25 made 3",
+        )),
+    },
+    Case {
+        name: CaseName("a_keep_of_ends_with_holds_the_texts_that_end_with_the_other"),
+        word: Word::Succeeds,
+        input: || Staged::KeepEndsWord,
         expect: Expect::Value(Cow::Borrowed("30064771078 3 | read 31 given 23 made 1")),
     },
 ];
@@ -208,6 +234,26 @@ fn tables(staged: Staged) -> Vec<MadeTable> {
                     RepeatedRows::Kept,
                 ),
             )]
+        }
+        Staged::KeepStarts | Staged::KeepEnds | Staged::KeepEndsWord => {
+            let mut all = Vec::from(scan_nodes(tree));
+            all.push(keep_equal(1, 13));
+            all.push(node_read(tree, NodeColumn::Text, 0, 2));
+            // Word 8 is `a` and word 9 is `f`: of `ab`, `cd` and `ef` one text starts with the first and one ends with
+            // the second, and neither does the other.
+            let (test, right) = if matches!(staged, Staged::KeepStarts) {
+                (TestOperation::StartsWith, word(8))
+            } else if matches!(staged, Staged::KeepEndsWord) {
+                (TestOperation::EndsWith, word(9))
+            } else {
+                (TestOperation::EndsWith, of(2))
+            };
+            all.push(FillStage::Keep {
+                test,
+                left: of(2),
+                right,
+            });
+            vec![rows(2, pipeline(all, [of(0), of(2)]))]
         }
         Staged::KeepMatches | Staged::KeepGlob | Staged::KeepNotGlob => {
             let mut all = Vec::from(scan_nodes(tree));

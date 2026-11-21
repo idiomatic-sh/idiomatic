@@ -1,9 +1,11 @@
 //! The `indexes` service's cases: every bound column is one key; an index is its site's and its file's, whatever list its
 //! columns were handed in; a key's rows are ascending, or sorted by the order column; a range reads its bounds as written.
 
-use super::reading::service::{read, rows_of, run_between, run_of};
-use super::service::{begin, finish, key_column, state_of};
-use super::types::{ColumnView, FileStamp, IndexArena, IndexBuilt, RangeEnd};
+use super::counting::service::{own_rows, place};
+use super::hashing::service::coded;
+use super::reading::service::{read, rows_of, run_between, run_of, runs};
+use super::service::{begin, clear_indexes, finish, key_column, state_of};
+use super::types::{ColumnView, CountedKey, FileStamp, IndexArena, IndexBuilt, RangeEnd};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::code::types::IndexSite;
 use crate::domain::steps::types::BoundKind;
@@ -29,6 +31,18 @@ enum Asked {
     /// One column whose cells lie far apart, and one whose cells lie close: the rows of one key in each, and of a cell
     /// outside the close ones.
     FarAndClose,
+    /// An index over no row: the rows of a key, then how many words and rows the arena holds.
+    NoRow,
+    /// The rows of a source by their own id, for two files one after the other: the row of one id, of an id past the
+    /// rows and of another file's id, then how many rows the arena holds after each file's index.
+    OwnRows,
+    /// Rows placed by counting a column of offsets from a least cell: the rows of each of its three cells and of one
+    /// past them.
+    Placed,
+    /// Rows placed by a column of small codes, two of which name one word: the rows of each word.
+    Coded,
+    /// An ordered index of cells that lie close together: every key's rows as the fills walk them.
+    Walked,
 }
 
 type Input = Asked;
@@ -101,6 +115,38 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Asked::Missing,
         expect: Expect::Value(Cow::Borrowed(&[])),
+    },
+    Case {
+        name: CaseName("an_index_over_no_row_takes_no_room_and_holds_no_key"),
+        word: Word::Succeeds,
+        input: || Asked::NoRow,
+        expect: Expect::Value(Cow::Borrowed(&[99, 0, 0])),
+    },
+    Case {
+        name: CaseName("rows_by_their_own_id_are_found_by_the_id_and_written_once_a_worker"),
+        word: Word::Succeeds,
+        input: || Asked::OwnRows,
+        expect: Expect::Value(Cow::Borrowed(&[
+            3, 99, 99, 99, 5, 1, 4, 99, 3, 99, 99, 99, 5, 1, 4, 99,
+        ])),
+    },
+    Case {
+        name: CaseName("rows_placed_by_counting_lie_ascending_under_their_cell"),
+        word: Word::Succeeds,
+        input: || Asked::Placed,
+        expect: Expect::Value(Cow::Borrowed(&[1, 4, 99, 3, 99, 0, 2, 5, 99, 99, 99])),
+    },
+    Case {
+        name: CaseName("two_codes_of_one_word_share_its_stretch"),
+        word: Word::Succeeds,
+        input: || Asked::Coded,
+        expect: Expect::Value(Cow::Borrowed(&[0, 2, 4, 5, 99, 1, 3, 99, 6, 99, 99])),
+    },
+    Case {
+        name: CaseName("every_key_of_a_counted_index_is_walked_with_its_rows_in_order"),
+        word: Word::Succeeds,
+        input: || Asked::Walked,
+        expect: Expect::Value(Cow::Borrowed(&[0, 3, 5, 2, 99, 4, 1, 99])),
     },
 ];
 
@@ -198,6 +244,86 @@ fn subject(asked: Input) -> Result<Value, Failure> {
             both.push(99);
             both.extend(found(&arena, 1, &[9_000_000_000]));
             both
+        }
+        Asked::NoRow => {
+            begin(&mut arena, Count(0), Count(1));
+            finish(&mut arena, IndexSite(0), FileStamp(1), None);
+            let mut said = found(&arena, 0, &[1]);
+            said.push(99);
+            said.push(u32::try_from(arena.entries.len()).unwrap_or(u32::MAX));
+            said.push(u32::try_from(arena.rows.len()).unwrap_or(u32::MAX));
+            said
+        }
+        Asked::OwnRows => {
+            let least = 7_u64 << 32;
+            let mut said = Vec::new();
+            for file in [1_u32, 2] {
+                clear_indexes(&mut arena);
+                own_rows(
+                    &mut arena,
+                    IndexSite(0),
+                    FileStamp(file),
+                    CellWord(least),
+                    Count(5),
+                );
+                said.extend(found(&arena, 0, &[least + 3]));
+                said.push(99);
+                said.extend(found(&arena, 0, &[least + 5]));
+                said.push(99);
+                said.extend(found(&arena, 0, &[(8_u64 << 32) + 3]));
+                said.push(99);
+                said.push(u32::try_from(arena.rows.len()).unwrap_or(u32::MAX));
+                // An index built after it lies past the rows that number themselves.
+                built(&mut arena, 1, &[&first], None);
+                said.extend(found(&arena, 1, &[2]));
+                said.push(99);
+            }
+            said
+        }
+        Asked::Placed => {
+            let offsets = [2_usize, 0, 2, 1, 0, 2];
+            let key = CountedKey {
+                least: CellWord(40),
+                span: Count(2),
+                rows: Count(offsets.len()),
+            };
+            place(&mut arena, IndexSite(0), FileStamp(1), key, || {
+                offsets.iter().map(|offset| Count(*offset))
+            });
+            let mut said = Vec::new();
+            for cell in [40_u64, 41, 42, 43, 39] {
+                said.extend(found(&arena, 0, &[cell]));
+                said.push(99);
+            }
+            said
+        }
+        Asked::Coded => {
+            let codes = [0_usize, 1, 2, 1, 0, 2, 3];
+            let words = [7_u64, 9, 7, 5];
+            coded(
+                &mut arena,
+                IndexSite(0),
+                FileStamp(1),
+                Count(codes.len()),
+                |code| CellWord(words.get(code.0).copied().unwrap_or(0)),
+                || codes.iter().map(|code| Count(*code)),
+            );
+            let mut said = Vec::new();
+            for word in [7_u64, 9, 5, 8] {
+                said.extend(found(&arena, 0, &[word]));
+                said.push(99);
+            }
+            said
+        }
+        Asked::Walked => {
+            built(&mut arena, 0, &[&first], Some(&second));
+            let index = read(&arena, IndexSite(0));
+            let mut said = Vec::new();
+            for run in runs(index) {
+                said.extend(rows_of(index, run).iter().map(|row| row.0));
+                said.push(99);
+            }
+            said
         }
         Asked::Missing => {
             built(&mut arena, 0, &[&first, &second], None);

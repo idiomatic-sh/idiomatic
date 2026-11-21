@@ -2,6 +2,7 @@
 
 use super::types::{MissingCode, UnbuiltFill};
 use ryo_language::domain::facts::types::PartialRows;
+use ryo_operators::domain::contract::types::PortableOperatorFault;
 use ryo_relations::domain::answers::types::AbsenceCause;
 use ryo_relations::domain::relations::types::Relation;
 
@@ -30,6 +31,13 @@ pub(crate) enum FilledError {
     Unbuilt {
         /// What is not built.
         unbuilt: UnbuiltFill,
+    },
+    /// A per-row meaning of the operators crate faulted on a row: a span out of order or past the file, a group the
+    /// expression does not name, a duplicate order in an ordered match.
+    #[error("a meaning faulted on a row: {fault:?}")]
+    Meaning {
+        /// The meaning's fault.
+        fault: PortableOperatorFault,
     },
     /// The code names a table, a relation, a site or a pool place it does not hold: the pack is not what the encoding wrote.
     #[error("the code names {named:?}, which it does not hold")]

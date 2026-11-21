@@ -3,7 +3,7 @@
 
 use crate::domain::code::types::PoolAt;
 use crate::domain::indexes::types::{IndexArena, RowRun};
-use crate::domain::stages::types::{BatchRow, FanRows, RowKept};
+use crate::domain::stages::types::{BatchRow, CallScratch, FanRows, RowKept};
 use crate::domain::steps::types::Register;
 use ryo_language::domain::facts::types::CellWord;
 use ryo_operators::domain::table_scratch::types::Patterns;
@@ -47,8 +47,10 @@ pub(crate) struct PipelineRoom {
     pub(crate) grouping: IndexArena,
     /// What each stage of the pipeline reads and writes.
     pub(crate) touched: Vec<StageRegisters>,
-    /// The regular expressions a `Keep` compiled, by source: kept between files.
+    /// The regular expressions a `Keep` or a `Call` compiled, by source: kept between files.
     pub(crate) compiled: Patterns,
+    /// The scratch a `Call`'s meanings work in.
+    pub(crate) calls: CallScratch,
 }
 
 /// The registers one stage reads and the registers it writes.
@@ -109,4 +111,6 @@ pub(crate) enum FanKind {
     Walk,
     /// `Use` in rows mode, its patterns asked.
     Use,
+    /// `Call`, its meaning asked.
+    Call,
 }

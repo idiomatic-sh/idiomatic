@@ -3,31 +3,28 @@
 //! batch of the next depth and the rest of the pipeline runs over it, as often as the stage has rows to give. What a
 //! pipeline reads is there before it starts: nothing is made, filled or indexed here but through a `Use` stage's callback.
 
-use crate::domain::code::constants::BUCKET;
 use crate::domain::code::filling::service::{
-    stage_latest_of, stage_probe_of, stage_product_of, stage_scan_of, stage_use_of, stage_walk_of,
+    stage_call_of, stage_latest_of, stage_probe_of, stage_product_of, stage_scan_of, stage_use_of,
+    stage_walk_of,
 };
-use crate::domain::code::filling::types::ScanWord;
-use crate::domain::code::service::list;
-use crate::domain::code::types::{CodeEntry, CodeWord, IndexSite, WordSlot};
+use crate::domain::code::types::{CodeEntry, CodeWord};
 use crate::domain::filled::errors::FilledError;
 use crate::domain::filled::types::UnbuiltFill;
-use crate::domain::indexes::reading::service::{rows_of, run_of};
+use crate::domain::indexes::reading::service::rows_of;
 use crate::domain::indexes::types::ColumnView;
+use crate::domain::made_tables::calling::service::call_asked;
 use crate::domain::made_tables::carrying::service::{carried, stage_kind};
 use crate::domain::made_tables::constants::BATCH_ROWS;
-use crate::domain::made_tables::fanning::service::fan_stage;
-use crate::domain::made_tables::operands::service::{column_of, constant_at, registers_at};
+use crate::domain::made_tables::fanning::service::{fan_stage, scan_read};
+use crate::domain::made_tables::operands::service::{column_of, registers_at};
 use crate::domain::made_tables::pipelines::types::{BatchLevel, FanKind, PipelineRoom, StageKind};
-use crate::domain::made_tables::reading::service::{
-    index_at, pipeline_words, rows_in, site_at, site_source, source_of, tag_of,
-};
+use crate::domain::made_tables::reading::service::{index_at, pipeline_words, rows_in, source_of};
 use crate::domain::made_tables::staging::service::{
     WRONG_WORD, keep_stage, mode, probe_keep_stage, read_stage, write_stage,
 };
 use crate::domain::made_tables::staging::types::{BatchFrame, KeepScratch};
+use crate::domain::made_tables::types::PipeRun;
 use crate::domain::made_tables::types::{FillFrame, PatternRows};
-use crate::domain::made_tables::types::{PipeRun, ScanRead};
 use crate::domain::made_tables::using::service::use_asked;
 use crate::domain::stages::service::{compact, gather, read, scan, scan_bucket};
 use crate::domain::stages::types::{Batches, FanCursor, HandleRun, KeptWhen};
@@ -89,40 +86,6 @@ fn kept(room: &mut PipelineRoom, at: Count, depth: Count) {
     level.rows = Count(level.keep.len());
 }
 
-/// What a pipeline's scan reads, as the store is: every row of its source, or the rows of one key of an index of it.
-///
-/// # Errors
-///
-/// The word names a site or a constant the code does not hold.
-pub(crate) fn scan_run(frame: BatchFrame<'_>, stage: ScanWord) -> Result<ScanRead, FilledError> {
-    let code = frame.programs.code;
-    if stage.flag.0 & BUCKET.0 == 0 {
-        let source = source_of(stage.flag, stage.read);
-        let rows = rows_in(frame.store, frame.nodes, source);
-        return Ok(ScanRead {
-            source,
-            site: None,
-            rows,
-            count: Count(rows.end.0.saturating_sub(rows.start.0)),
-            tag: tag_of(frame.file, source),
-        });
-    }
-    let site = IndexSite(stage.read.0);
-    let key: Result<Vec<CellWord>, FilledError> = list(&code.pool, WordSlot(stage.constants.0))
-        .iter()
-        .map(|number| constant_at(code, *number))
-        .collect();
-    let rows = run_of(index_at(frame.store, site), &key?);
-    let source = site_source(code, site_at(code, site)?)?;
-    Ok(ScanRead {
-        source,
-        site: Some(site),
-        rows,
-        count: Count(rows.end.0.saturating_sub(rows.start.0)),
-        tag: tag_of(frame.file, source),
-    })
-}
-
 /// Runs the pipeline that starts at `entry`: each batch of its scan through its stages into `run.into`. The rows its
 /// stages read and gave are added to `run.work` once per batch.
 ///
@@ -146,7 +109,7 @@ pub(crate) fn piped(
         return Err(WRONG_WORD);
     }
     let stage = stage_scan_of(first);
-    let scanned = scan_run(batch_frame(frame), stage)?;
+    let scanned = scan_read(batch_frame(frame), stage)?;
     let (site, all, tag, from) = (scanned.site, scanned.count, scanned.tag, scanned.rows.start);
     let mut done = 0_usize;
     while done < all.0 {
@@ -203,10 +166,14 @@ fn staged(
         }
         let selected = match kind {
             StageKind::Scan => return Err(WRONG_WORD),
-            StageKind::Call | StageKind::Render => {
+            StageKind::Render => {
                 return Err(FilledError::Unbuilt {
                     unbuilt: UnbuiltFill::Stage(word.op),
                 });
+            }
+            StageKind::Call => {
+                call_asked(frame, word, run.room, depth)?;
+                return fanned(frame, uses, words, FanKind::Call, Count(at), depth, run);
             }
             StageKind::Write => {
                 write_stage(batch_frame(frame), word, level, run.into)?;
@@ -296,7 +263,7 @@ fn fan_out(kind: FanKind, word: CodeWord) -> Option<Register> {
         FanKind::Product => Some(stage_product_of(word).out),
         FanKind::Latest => Some(stage_latest_of(word).out),
         FanKind::Walk => Some(stage_walk_of(word).out),
-        FanKind::Use => None,
+        FanKind::Use | FanKind::Call => None,
     }
 }
 
@@ -350,9 +317,18 @@ fn fanned(
                 std::mem::swap(column, &mut level.fan.out);
             }
             None => {
-                let stage = stage_use_of(word);
-                let width = Count(usize::from(stage.outputs.0));
-                for (place, register) in registers_at(code, stage.registers).enumerate() {
+                // A use and a call give rows of several cells: each collected column is read from the answers by the
+                // row's number among them.
+                let registers = match kind {
+                    FanKind::Call => stage_call_of(word).outputs,
+                    FanKind::Use
+                    | FanKind::Probe
+                    | FanKind::Product
+                    | FanKind::Latest
+                    | FanKind::Walk => stage_use_of(word).registers,
+                };
+                let width = Count(registers_at(code, registers).count());
+                for (place, register) in registers_at(code, registers).enumerate() {
                     let column = column_mut(&mut next.columns, register).ok_or(WRONG_WORD)?;
                     let view = ColumnView {
                         cells: &level.answers,

@@ -7,10 +7,23 @@ use ryo_relations::domain::relations::{
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
 /// Return start followed by end without validating against a particular source.
-pub(crate) fn bounds(
-    row: &[Value],
-    column: ColumnIndex,
-) -> Result<[Value; 2], PortableOperatorFault> {
+///
+/// # Errors
+///
+/// `NoSuchColumn` when the row has no such column, `ShapeMismatch` when the cell is no span, `InvalidSpanBounds` for the
+/// absent span and for one whose start lies after its end.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_operators::domain::span_bounds::service::bounds;
+/// use ryo_relations::domain::relations::types::{Integer, Offset, Span, Value};
+/// use ryo_values::domain::plan_parts::types::ColumnIndex;
+///
+/// let row = [Value::Span(Span { start: Offset(2), end: Offset(5) })];
+/// assert_eq!(bounds(&row, ColumnIndex(0)), Ok([Value::Number(Integer(2)), Value::Number(Integer(5))]));
+/// ```
+pub fn bounds(row: &[Value], column: ColumnIndex) -> Result<[Value; 2], PortableOperatorFault> {
     let value = row
         .get(usize::try_from(column.0).unwrap_or(usize::MAX))
         .copied()

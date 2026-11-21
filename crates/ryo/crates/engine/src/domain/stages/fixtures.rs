@@ -7,7 +7,7 @@ use super::types::{
     BatchKey, BatchValue, Batches, CellTest, FanCursor, HandleRun, KeptWhen, KeyPart,
 };
 use crate::domain::code::types::IndexSite;
-use crate::domain::indexes::reading::service::read as index_of;
+use crate::domain::indexes::reading::service::{read as index_of, run_of};
 use crate::domain::indexes::service::{begin, clear_indexes, finish, key_column};
 use crate::domain::indexes::types::FileStamp;
 use crate::domain::made_tables::service::{
@@ -60,10 +60,26 @@ pub fn run_kernel(kernel: ReferenceKernel, work: &mut KernelWorkload) -> usize {
                 }
             }
         }
+        ReferenceKernel::ProbeEmpty => {
+            clear_indexes(&mut work.index);
+            begin(&mut work.index, Count(0), Count(1));
+            finish(&mut work.index, IndexSite(0), FileStamp(0), None);
+            let index = index_of(&work.index, IndexSite(0));
+            // How many of the asks found no row: every one.
+            work.unique
+                .iter()
+                .filter(|key| {
+                    let run = run_of(index, std::slice::from_ref(*key));
+                    run.start == run.end
+                })
+                .count()
+        }
         ReferenceKernel::IndexOne
         | ReferenceKernel::IndexIds
         | ReferenceKernel::IndexTwo
-        | ReferenceKernel::IndexOrdered => {
+        | ReferenceKernel::IndexOrdered
+        | ReferenceKernel::IndexCodes
+        | ReferenceKernel::IndexFar => {
             clear_indexes(&mut work.index);
             let two = kernel == ReferenceKernel::IndexTwo;
             begin(
@@ -75,6 +91,10 @@ pub fn run_kernel(kernel: ReferenceKernel, work: &mut KernelWorkload) -> usize {
                 key_column(&mut work.index, Count(0), plain(&work.grouped));
             } else if kernel == ReferenceKernel::IndexIds {
                 key_column(&mut work.index, Count(0), plain(&work.ids));
+            } else if kernel == ReferenceKernel::IndexCodes {
+                key_column(&mut work.index, Count(0), plain(&work.small));
+            } else if kernel == ReferenceKernel::IndexFar {
+                key_column(&mut work.index, Count(0), plain(&work.far));
             } else {
                 key_column(&mut work.index, Count(0), plain(&work.unique));
             }
@@ -265,6 +285,9 @@ fn batched(kernel: ReferenceKernel, work: &mut KernelWorkload) -> usize {
             | ReferenceKernel::IndexIds
             | ReferenceKernel::IndexTwo
             | ReferenceKernel::IndexOrdered
+            | ReferenceKernel::IndexCodes
+            | ReferenceKernel::IndexFar
+            | ReferenceKernel::ProbeEmpty
             | ReferenceKernel::FillGroupCount
             | ReferenceKernel::FillSorted => {}
         }

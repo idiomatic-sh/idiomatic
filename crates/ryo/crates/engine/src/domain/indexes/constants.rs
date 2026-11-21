@@ -22,7 +22,11 @@ pub(crate) const RUN_END: TableWord = TableWord(0xffff_ffff);
 /// How far a run's start is shifted.
 pub(crate) const RUN_START_SHIFT: HashShift = HashShift(32);
 
-/// How many times its rows the cells of a one-column key may span for its entries to be placed by the cell itself.
+/// How many words a counted table has beyond how far its cells span: a word for the cell at the span, one for where the
+/// last stretch ends, and one the count runs ahead by while the table is built.
+pub(crate) const COUNTED_WORDS: Count = Count(3);
+
+/// How many times its rows the cells of a one-column key may span for its rows to be placed by counting.
 pub(crate) const PLACED_SPAN: Count = Count(2);
 
 /// How far a hash is folded onto itself for a map that reads its low bits: the keys asked of a relation, the rows a
