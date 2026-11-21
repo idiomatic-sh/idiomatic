@@ -111,24 +111,40 @@ fn straight_asked(frame: &mut StepFrame<'_, '_>, at: CodeEntry, entry: CodeEntry
         .parts_at
         .get(usize::try_from(formals.0).unwrap_or(usize::MAX))
         .and_then(|held| held.0.checked_sub(1));
-    for number in 0..usize::try_from(bound.0).unwrap_or(usize::MAX) {
-        let part = first.and_then(|start| {
+    // Every operand is read before any formal is written, as an evaluation the memo keeps reads its whole key first: an
+    // operand may be one of the pattern's own formal registers (a pattern asked from inside itself, or from a program
+    // that shares its registers), and writing a formal before reading it gave the ask the wrong cells (ERA001, SIM300
+    // and S307 lost their rows so).
+    let count = usize::try_from(bound.0).unwrap_or(usize::MAX);
+    let part_at = |frame: &StepFrame<'_, '_>, number: usize| {
+        first.and_then(|start| {
             frame
                 .state
                 .decoded
                 .parts
                 .get(start.saturating_add(number))
                 .copied()
-        });
-        let Some(part) = part else {
+        })
+    };
+    let start = frame.state.key.len();
+    for number in 0..count {
+        let value = match part_at(frame, number).and_then(|part| part.value) {
+            Some(held) => operand(frame, held),
+            None => CellWord(0),
+        };
+        frame.state.key.push(value);
+    }
+    for number in 0..count {
+        let Some(part) = part_at(frame, number) else {
             continue;
         };
-        let value = match part.value {
-            Some(held) => operand(frame, held),
+        let value = match frame.state.key.get(start.saturating_add(number)) {
+            Some(held) => *held,
             None => CellWord(0),
         };
         set(frame, part.formal, value);
     }
+    frame.state.key.truncate(start);
     QuickAsk::Run(entry)
 }
 
