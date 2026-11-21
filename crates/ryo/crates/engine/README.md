@@ -40,6 +40,10 @@ Turns the selected rules' plans into one lowered pack, and names each rule it re
 
 The rows of the tables the engine makes for a file, the write that appends a batch to one, and the fills that group their gathered input.
 
+### memos
+
+The answers a worker keeps for a file, one scheme: found by the site that asks and every cell of its key.
+
 ### packs
 
 The byte form of a rule set's programs, written for a pack digest and engine version and read back for the same.
