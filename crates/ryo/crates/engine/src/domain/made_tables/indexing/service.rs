@@ -7,14 +7,17 @@ use crate::domain::code::small_codes::service::node_column_of;
 use crate::domain::code::types::{IndexSite, Short, WordSlot};
 use crate::domain::filled::errors::FilledError;
 use crate::domain::filled::types::{MissingCode, UnbuiltFill};
+use crate::domain::indexes::counting::service::{own_rows, place};
+use crate::domain::indexes::hashing::service::coded;
 use crate::domain::indexes::service::{based, begin, finish, key_column};
-use crate::domain::indexes::types::{ColumnView, SourceRow};
+use crate::domain::indexes::types::{ColumnView, CountedKey, SourceRow};
 use crate::domain::made_tables::reading::service::{
     node_names, rows_in, site_at, site_source, view_of,
 };
 use crate::domain::made_tables::types::{FillFrame, ReadSource};
-use crate::domain::stages::nodes::service::node_cells;
-use ryo_relations::domain::relations::types::{Count, Position};
+use crate::domain::stages::nodes::service::{field_word, kind_word, node_cells, node_tag};
+use ryo_language::domain::node_table::service::{field_of, kind_of, parent_of};
+use ryo_relations::domain::relations::types::{Count, NodeColumn, Position};
 
 /// A column code as the short a view is asked by.
 fn short(code: WordSlot) -> Result<Short, FilledError> {
@@ -54,6 +57,76 @@ pub(crate) fn index_built(
             }
             let names = node_names(programs, frame.text, frame.file);
             let end = Position(u32::try_from(rows.end.0).unwrap_or(u32::MAX));
+            // A key that is one column the node table holds as small numbers needs no cells and no hash of a row.
+            let one = match columns {
+                [only] if count.0 != 0 => match short(*only) {
+                    Ok(code) => node_column_of(code),
+                    Err(_) => None,
+                },
+                _ => None,
+            };
+            let nodes = frame.nodes;
+            let elements = || (0..end.0).map(Position);
+            let placed = match one {
+                Some(NodeColumn::Id) => {
+                    own_rows(
+                        &mut frame.store.indexes,
+                        site,
+                        stamp,
+                        node_tag(names.file),
+                        count,
+                    );
+                    true
+                }
+                Some(NodeColumn::Parent) => {
+                    // A parent is an element of the same rows: its id less the file's first id is its place.
+                    let key = CountedKey {
+                        least: node_tag(names.file),
+                        span: Count(count.0.saturating_sub(1)),
+                        rows: count,
+                    };
+                    place(&mut frame.store.indexes, site, stamp, key, || {
+                        elements().map(|at| {
+                            Count(usize::try_from(parent_of(nodes, at).0).unwrap_or(usize::MAX))
+                        })
+                    });
+                    true
+                }
+                Some(NodeColumn::Kind) => {
+                    coded(
+                        &mut frame.store.indexes,
+                        site,
+                        stamp,
+                        count,
+                        |code| kind_word(names, code),
+                        || elements().map(|at| Count(usize::from(kind_of(nodes, at).0))),
+                    );
+                    true
+                }
+                Some(NodeColumn::Field) => {
+                    coded(
+                        &mut frame.store.indexes,
+                        site,
+                        stamp,
+                        count,
+                        |code| field_word(names, code),
+                        || elements().map(|at| Count(usize::from(field_of(nodes, at).0))),
+                    );
+                    true
+                }
+                Some(
+                    NodeColumn::Ordinal
+                    | NodeColumn::Start
+                    | NodeColumn::End
+                    | NodeColumn::Span
+                    | NodeColumn::File
+                    | NodeColumn::Text,
+                )
+                | None => false,
+            };
+            if placed {
+                return Ok(count);
+            }
             let mut cells = std::mem::take(&mut frame.store.cells);
             begin(&mut frame.store.indexes, count, Count(columns.len()));
             let mut done = Ok(());

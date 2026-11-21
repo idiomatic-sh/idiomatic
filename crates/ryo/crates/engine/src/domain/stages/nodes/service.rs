@@ -139,6 +139,18 @@ pub(crate) fn node_column(
     }
 }
 
+/// The word of a kind by its code: the cell the `Kind` column holds for an element of that kind.
+#[inline]
+pub(crate) fn kind_word(names: NodeNames<'_>, code: Count) -> CellWord {
+    named(names.kinds, code)
+}
+
+/// The word of a field by its code: the cell the `Field` column holds for an element in that field.
+#[inline]
+pub(crate) fn field_word(names: NodeNames<'_>, code: Count) -> CellWord {
+    named(names.fields, code)
+}
+
 /// One column of the node table as cells, element after element up to before `end`: what an index over the node table
 /// is built from.
 pub(crate) fn node_cells(

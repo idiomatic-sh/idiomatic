@@ -92,6 +92,9 @@ fn divisor(kernel: ReferenceKernel, rows: usize) -> f64 {
         | ReferenceKernel::IndexIds
         | ReferenceKernel::IndexTwo
         | ReferenceKernel::IndexOrdered
+        | ReferenceKernel::IndexCodes
+        | ReferenceKernel::IndexFar
+        | ReferenceKernel::ProbeEmpty
         | ReferenceKernel::Write
         | ReferenceKernel::WriteNew
         | ReferenceKernel::FillRows

@@ -167,6 +167,7 @@ fn refuses() {
 mod calls;
 mod fills;
 mod matches;
+mod node_indexes;
 mod pipelines;
 mod relations;
 mod sources;

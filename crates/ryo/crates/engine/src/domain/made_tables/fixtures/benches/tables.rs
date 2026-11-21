@@ -5,7 +5,7 @@ use crate::domain::lowered::types::{
     DefinitionPattern, Emptiness, FillInput, GroupFill, MadeFill, MadeTable, OrderedFill,
     PackDefinition, PatternForm,
 };
-use crate::domain::made_tables::fixtures::benches::FillBench;
+use crate::domain::made_tables::fixtures::benches::kinds::FillBench;
 use crate::domain::made_tables::fixtures::packs::{
     FIRST, SECOND, TOLD, keep_equal, node_read, of, operands, pipeline, probe, read, rows, scan,
     scan_nodes, table, used, walk, word,
@@ -13,8 +13,9 @@ use crate::domain::made_tables::fixtures::packs::{
 use crate::domain::steps::calls::types::{SearchGroup, SearchLines, SourceSearch};
 use crate::domain::steps::stages::types::{FillStage, TreeWalk, UseMode};
 use crate::domain::steps::types::{
-    AxisDirection, CallMeaning, ColumnList, ColumnMask, MadeColumn, PlacedStep, ProgramStep,
-    RegexId, Register, RegisterList, StepOperand, StepProgram, StepRows, TestOperation,
+    AxisDirection, CallMeaning, ColumnList, ColumnMask, MadeColumn, MatchColumns, PlacedStep,
+    ProgramStep, ReadColumn, RegexId, Register, RegisterList, StepOperand, StepProgram, StepRows,
+    TestOperation,
 };
 use ryo_language::domain::node_table::service::{builder, enter_node, finished, leave_node, token};
 use ryo_language::domain::node_table::types::{FieldCode, NodeTable};
@@ -58,7 +59,10 @@ pub(crate) fn told_rows(bench: FillBench, rows: usize) -> Vec<[u64; 2]> {
             | FillBench::CallSpanBounds
             | FillBench::CallReplace
             | FillBench::CallCapture
-            | FillBench::CallSourceMatches => [row, row],
+            | FillBench::CallSourceMatches
+            | FillBench::IndexNodesKind
+            | FillBench::IndexNodesParent
+            | FillBench::IndexNodesId => [row, row],
         })
         .collect()
 }
@@ -124,6 +128,22 @@ fn called_rows<const N: usize>(
     all.push(node_read(tree, column, 0, 2));
     all.push(stage);
     rows(N, pipeline(all, row))
+}
+
+/// A rows fill that probes the nodes by one column with a register of the batch: what gives the pack the site of that
+/// index.
+fn probed_nodes(column: NodeColumn, value: u32) -> MadeTable {
+    let tree = Relation::SemanticSyntax;
+    let mut all = Vec::from(scan_nodes(tree));
+    all.push(FillStage::Probe {
+        source: StepRows::Node(tree),
+        columns: MatchColumns(Box::new([ReadColumn::Node(column)])),
+        values: operands([of(value)]),
+        range: None,
+        mode: UseMode::Rows,
+        out: Register(2),
+    });
+    rows(2, pipeline(all, [of(0), of(2)]))
 }
 
 /// The input of a grouping fill: the relation's two columns, keyed by the first.
@@ -266,6 +286,9 @@ pub(crate) fn bench_table(bench: FillBench) -> MadeTable {
             GroupFill::Ends(GroupEnd::Greatest),
             grouped(Some(MadeColumn(1))),
         )),
+        FillBench::IndexNodesKind => probed_nodes(NodeColumn::Kind, 1),
+        FillBench::IndexNodesParent => probed_nodes(NodeColumn::Parent, 0),
+        FillBench::IndexNodesId => probed_nodes(NodeColumn::Id, 0),
         FillBench::Product => rows(
             2,
             pipeline(

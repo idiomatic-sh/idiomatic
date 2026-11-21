@@ -2,66 +2,23 @@
 //! makes one table from a relation or from the file's nodes that are there already, so a run times the pipeline from its
 //! scan to its write (and a grouping fill's grouping) and neither the language nor an index build.
 
+use self::kinds::FillBench;
 use self::tables::{PRODUCT_LEFT, bench_table, bench_text, called, told_rows, tree};
 use crate::domain::code::types::RelationNumber;
 use crate::domain::filled::errors::FilledError;
-use crate::domain::made_tables::fixtures::{Telling, World, framed, site_of, world_of};
-use crate::domain::made_tables::sources::service::{made, matched, scanned, table_of};
+use crate::domain::made_tables::fixtures::packs::FILE;
+use crate::domain::made_tables::fixtures::{Telling, World, framed, node_site, site_of, world_of};
+use crate::domain::made_tables::sources::service::{made, matched, next_file, scanned, table_of};
 use crate::domain::made_tables::types::{
     FillFrame, KeyFrom, MadeState, PatternAsk, PatternFound, PatternRows, ReadSource, TableNeed,
 };
 use crate::domain::steps::types::MadeTableId;
 use ryo_language::domain::facts::types::CellWord;
+use ryo_relations::domain::relations::service::node_id;
+use ryo_relations::domain::relations::types::Position;
 
+pub mod kinds;
 pub(crate) mod tables;
-
-/// The fills the bench times, each one table made through the seam.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_engine::domain::made_tables::fixtures::benches::{FILL_BENCHES, FillBench};
-///
-/// assert!(FILL_BENCHES.contains(&FillBench::RowsProbe));
-/// ```
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum FillBench {
-    /// A rows fill: a scan of a relation, two reads, the write.
-    RowsRead,
-    /// A rows fill that keeps the rows a comparison holds for: a scan, two reads, a keep, the write.
-    RowsKeep,
-    /// A rows fill that probes the relation by a column of the batch: a scan, a read, a probe, a read, the write.
-    RowsProbe,
-    /// A rows fill that drops repeats: a scan, a read of a column of eight rows a cell, the write.
-    RowsDropped,
-    /// A counted grouping, eight rows a key, through its pipeline.
-    GroupCount,
-    /// A sorted table, eight rows a key, through its pipeline.
-    Sorted,
-    /// A rows fill with a `Use` of a pattern in call form, eight rows a key: the loop's stand-in answers one row a key.
-    UseRows,
-    /// A rows fill that walks to the children of every node.
-    WalkChildren,
-    /// A rows fill that walks to the ancestors of every token.
-    WalkAncestors,
-    /// A rows fill that reads a node row's kind and keeps one kind.
-    NodeKeep,
-    /// A rows fill with a `Call` of `SpanBounds` for every token: one row for one, two numbers.
-    CallSpanBounds,
-    /// A rows fill with a `Call` of `Replace` for every token's text: one row for one, a word of the file.
-    CallReplace,
-    /// A rows fill with a `Call` of `Capture` for every token's text: one way a text, two slots.
-    CallCapture,
-    /// A rows fill with a `Call` of `SourceMatches` for every group of seven tokens: seven occurrences a group.
-    CallSourceMatches,
-    /// An ordered match of the relation with itself, eight rows a key on each side.
-    OrderedMatch,
-    /// The rows at the greatest end of each key's rows, eight rows a key.
-    GroupEnds,
-    /// A rows fill with a `Product`: thirty-two rows each paired with every row of the relation, a read and a keep for
-    /// each pair, one pair in each row's kept.
-    Product,
-}
 
 /// Every fill the bench times.
 ///
@@ -70,7 +27,7 @@ pub enum FillBench {
 /// ```
 /// use ryo_engine::domain::made_tables::fixtures::benches::FILL_BENCHES;
 ///
-/// assert_eq!(FILL_BENCHES.len(), 17);
+/// assert_eq!(FILL_BENCHES.len(), 20);
 /// ```
 pub const FILL_BENCHES: &[FillBench] = &[
     FillBench::RowsRead,
@@ -90,6 +47,9 @@ pub const FILL_BENCHES: &[FillBench] = &[
     FillBench::OrderedMatch,
     FillBench::GroupEnds,
     FillBench::Product,
+    FillBench::IndexNodesKind,
+    FillBench::IndexNodesParent,
+    FillBench::IndexNodesId,
 ];
 
 /// The name a fill's measure carries.
@@ -97,7 +57,8 @@ pub const FILL_BENCHES: &[FillBench] = &[
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::made_tables::fixtures::benches::{FillBench, fill_name};
+/// use ryo_engine::domain::made_tables::fixtures::benches::fill_name;
+/// use ryo_engine::domain::made_tables::fixtures::benches::kinds::FillBench;
 ///
 /// assert_eq!(fill_name(FillBench::RowsProbe), "rows_probe");
 /// ```
@@ -121,6 +82,9 @@ pub const fn fill_name(bench: FillBench) -> &'static str {
         FillBench::OrderedMatch => "ordered_match",
         FillBench::GroupEnds => "group_ends",
         FillBench::Product => "product_pairs",
+        FillBench::IndexNodesKind => "index_nodes_by_kind",
+        FillBench::IndexNodesParent => "index_nodes_by_parent",
+        FillBench::IndexNodesId => "index_nodes_by_id",
     }
 }
 
@@ -130,7 +94,8 @@ pub const fn fill_name(bench: FillBench) -> &'static str {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::made_tables::fixtures::benches::{FillBench, fill_units};
+/// use ryo_engine::domain::made_tables::fixtures::benches::fill_units;
+/// use ryo_engine::domain::made_tables::fixtures::benches::kinds::FillBench;
 ///
 /// assert_eq!(fill_units(FillBench::RowsRead, 100), 100);
 /// assert_eq!(fill_units(FillBench::Product, 100), 3_200);
@@ -162,7 +127,10 @@ pub const fn fill_units(bench: FillBench, rows: usize) -> usize {
         | FillBench::CallCapture
         | FillBench::CallSourceMatches
         | FillBench::OrderedMatch
-        | FillBench::GroupEnds => rows,
+        | FillBench::GroupEnds
+        | FillBench::IndexNodesKind
+        | FillBench::IndexNodesParent
+        | FillBench::IndexNodesId => rows,
     }
 }
 
@@ -171,13 +139,17 @@ pub const fn fill_units(bench: FillBench, rows: usize) -> usize {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::made_tables::fixtures::benches::{FillBench, FillWorkload, fill_workload};
+/// use ryo_engine::domain::made_tables::fixtures::benches::kinds::FillBench;
+/// use ryo_engine::domain::made_tables::fixtures::benches::{FillWorkload, fill_workload};
 ///
 /// let work: Option<FillWorkload> = fill_workload(FillBench::RowsRead, 8);
 /// assert!(work.is_some());
 /// ```
 #[derive(Debug)]
-pub struct FillWorkload(World);
+pub struct FillWorkload(World, FillBench);
+
+/// The word of a token's kind in the bench's vocabulary.
+const TOKEN_KIND: CellWord = CellWord(13);
 
 /// The loop's stand-in of the bench: every table may have a row, and a pattern has one row for a key, which holds the
 /// key's first cell. It keeps nothing, so a run times the `Use` stage and not the stand-in.
@@ -210,7 +182,8 @@ impl PatternRows for OneRow {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::made_tables::fixtures::benches::{FillBench, fill_workload, run_fill};
+/// use ryo_engine::domain::made_tables::fixtures::benches::kinds::FillBench;
+/// use ryo_engine::domain::made_tables::fixtures::benches::{fill_workload, run_fill};
 ///
 /// let mut work = fill_workload(FillBench::RowsRead, 100).expect("the pack encodes");
 /// assert_eq!(run_fill(&mut work), 100);
@@ -245,7 +218,10 @@ pub fn fill_workload(bench: FillBench, rows: usize) -> Option<FillWorkload> {
         | FillBench::CallSpanBounds
         | FillBench::CallReplace
         | FillBench::CallCapture
-        | FillBench::CallSourceMatches => false,
+        | FillBench::CallSourceMatches
+        | FillBench::IndexNodesKind
+        | FillBench::IndexNodesParent
+        | FillBench::IndexNodesId => false,
     };
     if reads_told {
         let (mut frame, _) = framed(&mut world);
@@ -266,7 +242,7 @@ pub fn fill_workload(bench: FillBench, rows: usize) -> Option<FillWorkload> {
             );
         }
     }
-    Some(FillWorkload(world))
+    Some(FillWorkload(world, bench))
 }
 
 /// Makes the workload's table again and answers how many rows it holds: the table alone is unmade first, its sources
@@ -275,7 +251,8 @@ pub fn fill_workload(bench: FillBench, rows: usize) -> Option<FillWorkload> {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::made_tables::fixtures::benches::{FillBench, fill_workload, run_fill};
+/// use ryo_engine::domain::made_tables::fixtures::benches::kinds::FillBench;
+/// use ryo_engine::domain::made_tables::fixtures::benches::{fill_workload, run_fill};
 ///
 /// let mut work = fill_workload(FillBench::GroupCount, 80).expect("the pack encodes");
 /// assert_eq!(run_fill(&mut work), 10);
@@ -293,8 +270,44 @@ pub fn fill_workload(bench: FillBench, rows: usize) -> Option<FillWorkload> {
 ///     FillBench::Product,
 /// ];
 /// assert_eq!(fills.map(made), [700, 700, 700, 700, 700, 100, 32]);
+/// // An index of the nodes, built and asked once: the 700 tokens by kind, the root's 100 children and the root (its
+/// // own parent) by parent, one node by id.
+/// let nodes = [FillBench::IndexNodesKind, FillBench::IndexNodesParent, FillBench::IndexNodesId];
+/// assert_eq!(nodes.map(made), [700, 101, 1]);
 /// ```
 pub fn run_fill(work: &mut FillWorkload) -> usize {
+    let asked = match work.1 {
+        FillBench::IndexNodesKind => Some(TOKEN_KIND),
+        FillBench::IndexNodesParent => Some(CellWord(node_id(FILE, Position(0)).0)),
+        FillBench::IndexNodesId => Some(CellWord(node_id(FILE, Position(1)).0)),
+        FillBench::RowsRead
+        | FillBench::RowsKeep
+        | FillBench::RowsProbe
+        | FillBench::RowsDropped
+        | FillBench::GroupCount
+        | FillBench::Sorted
+        | FillBench::UseRows
+        | FillBench::WalkChildren
+        | FillBench::WalkAncestors
+        | FillBench::NodeKeep
+        | FillBench::CallSpanBounds
+        | FillBench::CallReplace
+        | FillBench::CallCapture
+        | FillBench::CallSourceMatches
+        | FillBench::OrderedMatch
+        | FillBench::GroupEnds
+        | FillBench::Product => None,
+    };
+    if let Some(key) = asked {
+        // A new file: nothing of the last one is held, so the index is built again, then asked once.
+        next_file(&mut work.0.store);
+        let (mut frame, _) = framed(&mut work.0);
+        let site = node_site(frame.programs.code);
+        return matched(&mut frame, &mut OneRow, site, &[key], KeyFrom::Constants)
+            .map_or(0, |found| {
+                found.rows.end.0.saturating_sub(found.rows.start.0)
+            });
+    }
     if let Some(slot) = work.0.store.tables.first_mut() {
         slot.state = MadeState::Unmade;
     }

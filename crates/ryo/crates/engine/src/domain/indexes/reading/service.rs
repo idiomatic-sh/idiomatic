@@ -43,27 +43,20 @@ pub(crate) const fn folded(hash: RowHash) -> RowHash {
     RowHash(hash.0 ^ (hash.0 >> HASH_FOLD.0))
 }
 
-/// Where a key's walk of the table starts: at its hash, or at its one cell less the least; nowhere for a cell outside the
-/// cells a placed table spans.
+/// Where a key's walk of a hashed table starts.
 #[inline]
-pub(crate) fn start_of(
-    addressing: Addressing,
-    shift: HashShift,
-    mask: Count,
-    key: impl Iterator<Item = CellWord>,
-) -> Option<Count> {
-    match addressing {
-        Addressing::Hashed => {
-            let hash = key.fold(RowHash(0), mixed);
-            Some(Count(
-                usize::try_from(hash.0.checked_shr(shift.0).unwrap_or(0)).unwrap_or(usize::MAX),
-            ))
-        }
-        Addressing::Placed(least) => {
-            let cell = key.fold(CellWord(0), |_, cell| cell);
-            let at = usize::try_from(cell.0.wrapping_sub(least.0)).unwrap_or(usize::MAX);
-            (at <= mask.0).then_some(Count(at))
-        }
+pub(crate) fn start_of(shift: HashShift, key: impl Iterator<Item = CellWord>) -> Count {
+    let hash = key.fold(RowHash(0), mixed);
+    Count(usize::try_from(hash.0.checked_shr(shift.0).unwrap_or(0)).unwrap_or(usize::MAX))
+}
+
+/// How far a key's one cell lies past the least cell of an index addressed by the cell; past every place for a key of no
+/// cell.
+#[inline]
+fn offset_of(key: &[CellWord], least: CellWord) -> Count {
+    match key.first() {
+        Some(cell) => Count(usize::try_from(cell.0.wrapping_sub(least.0)).unwrap_or(usize::MAX)),
+        None => Count(usize::MAX),
     }
 }
 
@@ -92,12 +85,10 @@ pub(crate) fn read(arena: &IndexArena, site: IndexSite) -> IndexRead<'_> {
             width: Count(0),
         };
     };
-    let stride = slot.width.0.saturating_add(1);
-    let length = slot.mask.0.saturating_add(1).saturating_mul(stride);
     IndexRead {
         entries: arena
             .entries
-            .get(slot.table.0..slot.table.0.saturating_add(length))
+            .get(slot.table.0..slot.table.0.saturating_add(slot.words.0))
             .unwrap_or_default(),
         rows: arena
             .rows
@@ -110,35 +101,65 @@ pub(crate) fn read(arena: &IndexArena, site: IndexSite) -> IndexRead<'_> {
     }
 }
 
-/// The rows of `key` in an index: the stretch of the index's rows that hold it, empty when none does.
+/// A word of a counted table as a place among the index's rows.
+#[inline]
+fn place_of(word: TableWord) -> Count {
+    Count(usize::try_from(word.0).unwrap_or(usize::MAX))
+}
+
+/// The rows of `key` in an index: the stretch of the index's rows that hold it, empty when none does. An index of no row
+/// answers after one test, whatever its key.
 #[inline]
 pub(crate) fn run_of(index: IndexRead<'_>, key: &[CellWord]) -> RowRun {
-    let stride = index.width.0.saturating_add(1);
-    let Some(start) = start_of(
-        index.addressing,
-        index.shift,
-        index.mask,
-        key.iter().copied(),
-    ) else {
+    if index.rows.is_empty() {
         return RowRun::default();
-    };
-    let mut at = start.0;
-    loop {
-        let from = at.wrapping_mul(stride);
-        let Some((run, held)) = index
-            .entries
-            .get(from..from.wrapping_add(stride))
-            .and_then(<[TableWord]>::split_last)
-        else {
-            return RowRun::default();
-        };
-        if *run == EMPTY_RUN {
-            return RowRun::default();
+    }
+    match index.addressing {
+        Addressing::Rows(least) => {
+            let at = offset_of(key, least);
+            if at.0 < index.rows.len() {
+                RowRun {
+                    start: at,
+                    end: Count(at.0.wrapping_add(1)),
+                }
+            } else {
+                RowRun::default()
+            }
         }
-        if held.iter().zip(key).all(|(cell, asked)| cell.0 == asked.0) {
-            return run_from(*run);
+        Addressing::Counted(least) => {
+            let at = offset_of(key, least);
+            match (
+                index.entries.get(at.0),
+                index.entries.get(at.0.wrapping_add(1)),
+            ) {
+                (Some(start), Some(end)) => RowRun {
+                    start: place_of(*start),
+                    end: place_of(*end),
+                },
+                (Some(_) | None, None) | (None, Some(_)) => RowRun::default(),
+            }
         }
-        at = at.wrapping_add(1) & index.mask.0;
+        Addressing::Hashed => {
+            let stride = index.width.0.saturating_add(1);
+            let mut at = start_of(index.shift, key.iter().copied()).0;
+            loop {
+                let from = at.wrapping_mul(stride);
+                let Some((run, held)) = index
+                    .entries
+                    .get(from..from.wrapping_add(stride))
+                    .and_then(<[TableWord]>::split_last)
+                else {
+                    return RowRun::default();
+                };
+                if *run == EMPTY_RUN {
+                    return RowRun::default();
+                }
+                if held.iter().zip(key).all(|(cell, asked)| cell.0 == asked.0) {
+                    return run_from(*run);
+                }
+                at = at.wrapping_add(1) & index.mask.0;
+            }
+        }
     }
 }
 
@@ -165,14 +186,30 @@ pub(crate) fn stretch_of(arena: &IndexArena, site: IndexSite, run: RowRun) -> Ro
     }
 }
 
-/// Every key of an index with its run, in the table's order: what a fill that groups its input walks.
+/// Every key of an index that holds a row, with its run, in the table's order: what a fill that groups its input walks.
 pub(crate) fn runs(index: IndexRead<'_>) -> impl Iterator<Item = RowRun> + '_ {
-    index
-        .entries
+    let none: &[TableWord] = &[];
+    let (hashed, counted, own) = match index.addressing {
+        Addressing::Hashed => (index.entries, none, 0),
+        Addressing::Counted(_) => (none, index.entries, 0),
+        Addressing::Rows(_) => (none, none, index.rows.len()),
+    };
+    hashed
         .chunks_exact(index.width.0.saturating_add(1))
         .filter_map(|entry| entry.last().copied())
         .filter(|run| *run != EMPTY_RUN)
         .map(run_from)
+        .chain(counted.windows(2).filter_map(|pair| match pair {
+            [start, end] if start != end => Some(RowRun {
+                start: place_of(*start),
+                end: place_of(*end),
+            }),
+            _ => None,
+        }))
+        .chain((0..own).map(|at| RowRun {
+            start: Count(at),
+            end: Count(at.wrapping_add(1)),
+        }))
 }
 
 /// The part of an ordered run whose order cells lie between two bounds. An absent bound leaves that side open.
