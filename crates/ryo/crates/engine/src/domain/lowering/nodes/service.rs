@@ -2,16 +2,18 @@
 //! store of merged plan nodes with every node's readers. A node is named by its digest alone (`digests::service::node_digests`).
 
 use super::types::{
-    AcceptedPlace, AdmittedRule, NodeHome, NodeReader, NodeStore, StepReach, StepShape, StoredNode,
+    AcceptedPlace, AdmittedRule, NodeHome, NodeReader, NodeStore, ReadColumns, StepReach,
+    StepShape, StoredNode,
 };
 use crate::domain::lowering::types::SelectedRule;
 use ryo_relations::domain::relations::service::kinds;
 use ryo_relations::domain::relations::types::Count;
-use ryo_values::domain::plan_parts::types::{Input, InputNumber, StepId};
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Input, InputNumber, StepId};
 use ryo_values::domain::plans::service::{inputs_of, named};
+use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_plans::types::NodeDigests;
 use ryo_values::domain::query_plans::types::{NodeDigest, Plan};
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 
 /// The steps of `plan` its emit reaches, by step: each step is visited once, whatever the number of paths to it. A step may
 /// read a step after it (the closure a reach join is unfolded into is appended after the plan's last step): the order the
@@ -60,28 +62,82 @@ pub(crate) fn digest_of(rule: &AdmittedRule<'_>, step: StepId) -> NodeDigest {
         .unwrap_or_default()
 }
 
+/// What a step reads of the rows of its inputs: a projection reads the columns it keeps; every other operation is taken to
+/// read the whole row. Every operation is named: a new one reads the whole row until it says otherwise here.
+fn read_by(operation: &Operation) -> ReadColumns {
+    match operation {
+        Operation::Project { columns, .. } => ReadColumns::Kept(columns.iter().copied().collect()),
+        Operation::Select { .. }
+        | Operation::Extend { .. }
+        | Operation::Join { .. }
+        | Operation::Union { .. }
+        | Operation::Intersection { .. }
+        | Operation::Difference { .. }
+        | Operation::Antijoin { .. }
+        | Operation::GroupCount { .. }
+        | Operation::GroupDigest { .. }
+        | Operation::Capture { .. }
+        | Operation::Rank { .. }
+        | Operation::Replace { .. }
+        | Operation::OrderedMatch { .. }
+        | Operation::AsOf { .. }
+        | Operation::GroupBound { .. }
+        | Operation::GroupOrdinal { .. }
+        | Operation::Words { .. }
+        | Operation::Axis { .. }
+        | Operation::Closure { .. }
+        | Operation::Follow { .. }
+        | Operation::OrderedDfs { .. }
+        | Operation::Worklist { .. }
+        | Operation::Cycles { .. }
+        | Operation::Rows { .. }
+        | Operation::Hosted { .. }
+        | Operation::SpanBetween { .. }
+        | Operation::SourceMatches { .. }
+        | Operation::RenderSyntax { .. }
+        | Operation::FitsRendered { .. }
+        | Operation::SpanBounds { .. } => ReadColumns::Whole,
+    }
+}
+
+/// The columns two readers read together: the whole row when either reads it.
+fn together(read: ReadColumns, more: ReadColumns) -> ReadColumns {
+    match (read, more) {
+        (ReadColumns::Kept(mut kept), ReadColumns::Kept(more)) => {
+            kept.extend(more);
+            ReadColumns::Kept(kept)
+        }
+        (ReadColumns::Whole, ReadColumns::Kept(_) | ReadColumns::Whole)
+        | (ReadColumns::Kept(_), ReadColumns::Whole) => ReadColumns::Whole,
+    }
+}
+
 /// The pack's store: every step some accepted rule's emit reaches, once per digest, homed in the first rule that holds it,
-/// with its distinct readers across the pack. Two rules that hold one sub-plan give its top step two readers; the steps
-/// below it have the one reader they have in either rule.
+/// with its distinct readers across the pack and the columns they read of it. Two rules that hold one sub-plan give its
+/// top step two readers; the steps below it have the one reader they have in either rule.
 #[must_use]
 pub(crate) fn stored(rules: &[AdmittedRule<'_>]) -> NodeStore {
     let mut store = NodeStore::default();
     for (place, rule) in rules.iter().enumerate() {
-        let mut read = |digest: NodeDigest, step: StepId, reader: NodeReader| {
+        let mut read = |digest: NodeDigest, step: StepId, reader: NodeReader, columns| {
             let node = store.0.entry(digest).or_insert_with(|| StoredNode {
                 home: NodeHome {
                     rule: AcceptedPlace(place),
                     step,
                 },
                 readers: HashSet::new(),
+                read: ReadColumns::Kept(BTreeSet::new()),
             });
             let _new = node.readers.insert(reader);
+            let before = std::mem::replace(&mut node.read, ReadColumns::Whole);
+            node.read = together(before, columns);
         };
         let emitted = rule.rule.plan.emit.step;
         read(
             digest_of(rule, emitted),
             emitted,
             NodeReader::Emit(rule.rule.rule),
+            ReadColumns::Whole,
         );
         for (at, each) in rule.rule.plan.steps.iter().enumerate() {
             if rule.shapes.get(at).is_none_or(Option::is_none) {
@@ -91,12 +147,28 @@ pub(crate) fn stored(rules: &[AdmittedRule<'_>]) -> NodeStore {
             for (number, input) in named(&inputs_of(&each.operation)).iter().enumerate() {
                 if let Input::Step(step) = input {
                     let by = NodeReader::Step(reader, InputNumber(number));
-                    read(digest_of(rule, *step), *step, by);
+                    read(digest_of(rule, *step), *step, by, read_by(&each.operation));
                 }
             }
         }
     }
     store
+}
+
+/// The columns of a node's row its readers across the pack read, ascending, when every reader is a projection and they
+/// keep fewer columns together than the row's `width`; none when some reader reads the whole row, when they keep every
+/// column, and for a node the store does not hold.
+#[must_use]
+pub(crate) fn kept_columns(
+    store: &NodeStore,
+    digest: NodeDigest,
+    width: Count,
+) -> Option<Vec<ColumnIndex>> {
+    let ReadColumns::Kept(kept) = &store.0.get(&digest)?.read else {
+        return None;
+    };
+    let within = kept.iter().all(|column| usize::from(*column) < width.0);
+    (within && !kept.is_empty() && kept.len() < width.0).then(|| kept.iter().copied().collect())
 }
 
 /// How many distinct readers a node has across the pack; none for a node the store does not hold.

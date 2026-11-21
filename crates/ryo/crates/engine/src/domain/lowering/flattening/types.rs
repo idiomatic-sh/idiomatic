@@ -146,6 +146,16 @@ pub(crate) struct FlatBranch {
     pub(crate) row: Vec<FlatTerm>,
 }
 
+/// Whether a step's branches hold a walk that no stage runs: a nearest walk or a closure. A pipeline runs such a walk
+/// through a pattern of the step's own definition, which names the walk's ends by their columns.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum OwnWalks {
+    /// Some branch holds one.
+    Walked,
+    /// None does.
+    Stageable,
+}
+
 /// A column of a row, or a cell of an atom, by place.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) struct RowColumn(pub(crate) usize);

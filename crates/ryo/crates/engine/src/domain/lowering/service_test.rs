@@ -4,6 +4,7 @@
 //! the invariant. Every expected text is what a run printed, read line by line and found right.
 
 mod operations;
+mod shapes;
 
 use super::errors::LoweringError;
 use super::fixtures::described::{code_census, described};

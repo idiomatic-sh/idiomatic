@@ -8,13 +8,14 @@ use crate::domain::lowering::definitions::service::{
 use crate::domain::lowering::definitions::types::{Drafts, Flattened};
 use crate::domain::lowering::emptiness::service::{copied, relation_read};
 use crate::domain::lowering::flattening::constants::{BRANCH_ATOMS, INPUT_BRANCHES};
-use crate::domain::lowering::flattening::service::compared;
 use crate::domain::lowering::flattening::service::function_call;
+use crate::domain::lowering::flattening::service::{compared, own_walks, picked};
 use crate::domain::lowering::flattening::types::{
-    AtomRows, FlatAtom, FlatBranch, FlatTerm, RowsPerFile,
+    AtomRows, FlatAtom, FlatBranch, FlatTerm, OwnWalks, RowColumn, RowsPerFile,
 };
-use crate::domain::lowering::nodes::service::{digest_of, input_shape, readers};
+use crate::domain::lowering::nodes::service::{digest_of, input_shape, kept_columns, readers};
 use crate::domain::lowering::nodes::types::{AdmittedRule, NodeHome};
+use crate::domain::lowering::tables::shapes::service::picked as kinds_picked;
 use crate::domain::lowering::tables::shapes::service::test_of;
 use crate::domain::lowering::tables::types::InputSize;
 use crate::domain::lowering::tables::types::{InputWant, RuleFlattening};
@@ -116,10 +117,24 @@ pub(crate) fn all_selected(
     Some(kept)
 }
 
-/// One use of the definition of a step, made from the step's flattening the first time.
-pub(crate) fn use_of(drafts: &mut Drafts, definition: DefinitionId) -> Flattened {
+/// One use of the definition of a step, made from the step's flattening the first time. Its row is the step's: where the
+/// definition holds fewer columns than the step has, a column it does not hold is a variable nothing gives, which no
+/// reader names (every reader of such a definition is a projection that keeps held columns alone).
+pub(crate) fn use_of(drafts: &mut Drafts, definition: DefinitionId, width: Count) -> Flattened {
+    let mut used = use_branch(drafts, definition);
+    if let Some(held) = drafts.held.get(&definition).cloned() {
+        let mut row: Vec<FlatTerm> = (0..width.0)
+            .map(|_| FlatTerm::Variable(fresh_variable(drafts)))
+            .collect();
+        for (cell, column) in used.row.iter().zip(held) {
+            if let Some(slot) = row.get_mut(column.0) {
+                *slot = *cell;
+            }
+        }
+        used.row = row;
+    }
     Flattened {
-        branches: vec![use_branch(drafts, definition)],
+        branches: vec![used],
         emptiness: Emptiness::Definition(definition),
         keyless: Vec::new(),
     }
@@ -140,7 +155,10 @@ pub(crate) fn bounded(flattened: &Flattened) -> InputWant {
     }
 }
 
-/// The definition of a step of the rule: found when the node has one, else made from the step's flattening.
+/// The definition of a step of the rule: found when the node has one, else made from the step's flattening. A node whose
+/// every reader across the pack is a projection is defined on the columns those projections keep together: no reader
+/// asks the others, so no table of it writes them and no pattern of it reads them. A step that holds a walk no stage runs
+/// keeps its whole row: the pattern of its own definition its pipeline uses names the walk's ends by their columns.
 pub(crate) fn step_defined(
     state: &mut RuleFlattening<'_>,
     drafts: &mut Drafts,
@@ -152,8 +170,8 @@ pub(crate) fn step_defined(
         return Some(*definition);
     }
     let place = usize::from(step);
-    let flattened = state.flat.get_mut(place)?.take()?;
-    let shape = rule.shapes.get(place)?.clone()?;
+    let mut flattened = state.flat.get_mut(place)?.take()?;
+    let mut shape = rule.shapes.get(place)?.clone()?;
     let home = state.store.0.get(&digest).map_or(
         NodeHome {
             rule: state.place,
@@ -161,8 +179,24 @@ pub(crate) fn step_defined(
         },
         |node| node.home,
     );
+    let kept = kept_columns(state.store, digest, Count(shape.0.len()))
+        .filter(|_| own_walks(&flattened.branches) == OwnWalks::Stageable);
+    let held: Option<Vec<RowColumn>> = kept.as_ref().map(|kept| {
+        let columns = kept.iter().map(|column| RowColumn(usize::from(*column)));
+        columns.collect()
+    });
+    if let (Some(kept), Some(held)) = (&kept, &held) {
+        for branch in &mut flattened.branches {
+            branch.row = picked(&branch.row, held.iter().copied())?;
+        }
+        shape = kinds_picked(&shape, kept)?;
+    }
     let rows = branches_rows(drafts, &flattened.branches);
-    Some(defined(drafts, digest, home, shape, flattened, rows))
+    let definition = defined(drafts, digest, home, shape, flattened, rows);
+    if let Some(held) = held {
+        let _new = drafts.held.insert(definition, held);
+    }
+    Some(definition)
 }
 
 /// What a step reads of an input. A relation is one branch of one atom. A step is its own branches, taken, unless it is a
@@ -206,8 +240,9 @@ pub(crate) fn input(
                 || own_want(state, step) == InputWant::Defined
                 || waiting.is_some_and(|flattened| bounded(flattened) == InputWant::Defined);
             if cut || drafts.defined.contains_key(&digest) {
+                let width = input_shape(&rule(state)?.shapes, read)?.0.len();
                 let definition = step_defined(state, drafts, step)?;
-                Some(use_of(drafts, definition))
+                Some(use_of(drafts, definition, Count(width)))
             } else {
                 state.flat.get_mut(usize::from(step))?.take()
             }
