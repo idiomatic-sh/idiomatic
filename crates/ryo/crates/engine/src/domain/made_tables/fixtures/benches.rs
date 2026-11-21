@@ -2,8 +2,9 @@
 //! makes one table from a relation or from the file's nodes that are there already, so a run times the pipeline from its
 //! scan to its write (and a grouping fill's grouping) and neither the language nor an index build.
 
+use self::files::{bench_text, mixed_tree, tree};
 use self::kinds::FillBench;
-use self::tables::{PRODUCT_LEFT, bench_table, bench_text, called, mixed_tree, told_rows, tree};
+use self::tables::{PRODUCT_LEFT, bench_table, called, told_rows};
 use crate::domain::code::types::RelationNumber;
 use crate::domain::filled::errors::FilledError;
 use crate::domain::made_tables::fixtures::packs::FILE;
@@ -21,6 +22,7 @@ use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::Position;
 use ryo_relations::domain::terms::types::NameText;
 
+pub(crate) mod files;
 pub mod kinds;
 pub(crate) mod tables;
 
