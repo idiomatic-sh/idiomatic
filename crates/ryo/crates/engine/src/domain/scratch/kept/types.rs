@@ -6,6 +6,7 @@ use crate::domain::indexes::types::FileStamp;
 use crate::domain::made_tables::columns::types::HeldColumn;
 use crate::domain::memos::types::RuleStamp;
 use crate::domain::needs::types::NeedVerdict;
+use ryo_relations::domain::relations::types::Count;
 
 /// What a definition's need answered a rule's ask in a file.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -39,4 +40,15 @@ pub(crate) enum QuickBody {
     /// A pattern in call form whose program is a short straight line (`STRAIGHT_WORDS`): running it costs less than
     /// keeping its answer, so it is run where the word stands, as an inline body is, and no answer is kept.
     Straight(CodeEntry),
+}
+
+/// SPIKE: what a rule's asks of one memo site came to in a file: how many it made and how many found a kept answer.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct SiteAsks {
+    /// The rule's run over the file these are of.
+    pub(crate) rule: RuleStamp,
+    /// The asks made.
+    pub(crate) asks: Count,
+    /// The asks a kept answer answered.
+    pub(crate) hits: Count,
 }

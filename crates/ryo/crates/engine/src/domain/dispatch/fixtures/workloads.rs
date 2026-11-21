@@ -3,6 +3,7 @@
 //! scans a file with each through the scan use case and divides the time by the steps the scan counted; a word's own
 //! cost is what its rule set costs over the rule set that only reads the rows.
 
+use super::shaped::pack_programs;
 use crate::domain::code::types::ShapeChoice;
 use crate::domain::encoding::service::encoded;
 use crate::domain::findings::types::{ColumnKinds, RuleColumns};
@@ -59,6 +60,16 @@ pub enum LoopBench {
     /// Asks an inline body of a test that holds and a `Yield` whether it has a row, `COPIES` times: a run entered for
     /// each ask.
     ExistsRun,
+    /// Asks a pattern in call form of five words for the row's own key, once: past the straight bound, so its answer is
+    /// looked for and kept by key, and no key comes twice.
+    CallUnique,
+    /// A pack: as many rules as the workload has rows, all but the first with a need the file does not meet (a node of a
+    /// kind it lacks). What a rule that is not run costs a file.
+    PackIdle,
+    /// A pack: as many rules as rows, each reading a table of two constants (a table for every four rules) and asking,
+    /// for each row, a pattern in call form of five words (a definition for every four rules), then emitting. Few
+    /// candidates a rule, many units, sites and tables.
+    PackSmall,
     /// Emits the row, once.
     Emit,
     /// Reads the table by key, once: the rows whose cell is the row's own, which is one row. A read by key through the
@@ -84,7 +95,7 @@ pub const COPIES: usize = 8;
 /// ```
 /// use ryo_engine::domain::dispatch::fixtures::workloads::LOOP_BENCHES;
 ///
-/// assert_eq!(LOOP_BENCHES.len(), 12);
+/// assert_eq!(LOOP_BENCHES.len(), 15);
 /// ```
 pub const LOOP_BENCHES: &[LoopBench] = &[
     LoopBench::Rows,
@@ -97,6 +108,9 @@ pub const LOOP_BENCHES: &[LoopBench] = &[
     LoopBench::CallNone,
     LoopBench::CallNotAsked,
     LoopBench::ExistsRun,
+    LoopBench::CallUnique,
+    LoopBench::PackIdle,
+    LoopBench::PackSmall,
     LoopBench::Emit,
     LoopBench::Match,
 ];
@@ -123,6 +137,9 @@ pub const fn loop_name(bench: LoopBench) -> &'static str {
         LoopBench::CallNone => "call_none",
         LoopBench::CallNotAsked => "call_not_asked",
         LoopBench::ExistsRun => "exists_run",
+        LoopBench::CallUnique => "call_unique",
+        LoopBench::PackIdle => "pack_idle",
+        LoopBench::PackSmall => "pack_small",
         LoopBench::Emit => "emit",
         LoopBench::Match => "match",
     }
@@ -166,6 +183,9 @@ fn asked(value: StepOperand) -> ProgramStep {
 /// ```
 #[must_use]
 pub fn loop_programs(bench: LoopBench, rows: usize) -> Option<Programs> {
+    if matches!(bench, LoopBench::PackIdle | LoopBench::PackSmall) {
+        return pack_programs(bench, rows);
+    }
     let table = StepRows::Made(MadeTableId(0));
     let cells = (0..u64::try_from(rows).ok()?)
         .map(|cell| -> Box<[CellWord]> { Box::new([CellWord(cell)]) });
@@ -213,9 +233,11 @@ pub fn loop_programs(bench: LoopBench, rows: usize) -> Option<Programs> {
         ),
         LoopBench::ExistsInline => (several(&inline), 0),
         LoopBench::CallHit => (several(&|| asked(word(7))), 0),
-        LoopBench::CallMiss | LoopBench::CallNone | LoopBench::CallNotAsked => {
-            (vec![asked(of(0))], 0)
-        }
+        LoopBench::CallMiss
+        | LoopBench::CallNone
+        | LoopBench::CallNotAsked
+        | LoopBench::CallUnique => (vec![asked(of(0))], 0),
+        LoopBench::PackIdle | LoopBench::PackSmall => (Vec::new(), 0),
         LoopBench::ExistsRun => (
             several(&|| ProgramStep::Exists {
                 polarity: Polarity::Present,
@@ -269,6 +291,19 @@ pub fn loop_programs(bench: LoopBench, rows: usize) -> Option<Programs> {
                 left: of(5),
                 right: StepOperand::Word(CellWord(u64::MAX)),
             },
+            yielded,
+        ]
+    } else if bench == LoopBench::CallUnique {
+        let differs = |cell: u64| ProgramStep::Test {
+            test: TestOperation::NotEqual,
+            left: of(5),
+            right: StepOperand::Word(CellWord(cell)),
+        };
+        vec![
+            differs(u64::MAX),
+            differs(u64::MAX - 1),
+            differs(u64::MAX - 2),
+            differs(u64::MAX - 3),
             yielded,
         ]
     } else {

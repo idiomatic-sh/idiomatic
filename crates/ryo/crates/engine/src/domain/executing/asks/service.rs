@@ -4,18 +4,20 @@
 //! which is run as an inline body is and keeps no answer (the budget counts its steps, and no key).
 
 use super::types::QuickAsk;
+use super::types::SitePasses;
 use crate::domain::code::records::types::BodyRecord;
-use crate::domain::code::types::{CodeEntry, NeedSite};
+use crate::domain::code::types::{CodeEntry, MemoSite, NeedSite};
+use crate::domain::executing::constants::{PASS_AFTER, PASS_UNDER};
 use crate::domain::executing::measuring::service::used;
 use crate::domain::executing::presence::service::consulted;
 use crate::domain::executing::sources::types::FileNeeds;
-use crate::domain::memos::types::RuleStamp;
+use crate::domain::memos::types::{MemoId, RuleStamp};
 use crate::domain::needs::service::decided;
 use crate::domain::needs::types::NeedVerdict;
 use crate::domain::programs::frames::types::StepFrame;
 use crate::domain::programs::operands::service::{operand, set};
-use crate::domain::scratch::kept::types::{AskedNeed, QuickBody};
-use crate::domain::scratch::types::BodyAnswer;
+use crate::domain::scratch::kept::types::{AskedNeed, QuickBody, SiteAsks};
+use crate::domain::scratch::types::{BodyAnswer, LoopState};
 use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::relations::types::Count;
 
@@ -123,4 +125,55 @@ fn straight_asked(frame: &mut StepFrame<'_, '_>, at: CodeEntry, entry: CodeEntry
         set(frame, part.formal, value);
     }
     QuickAsk::Run(entry)
+}
+
+/// SPIKE: counts an ask the running rule makes of a memo site in the file, found kept or not, and answers whether the
+/// site passes from now on: after `PASS_AFTER` asks of which fewer than one in `PASS_UNDER` found a kept answer, the
+/// rule's later asks of the site in the file are evaluated without looking for a kept answer and without keeping one
+/// (the memo's table costs more than it saves when keys do not come again). Each rule decides from its own asks, so
+/// the order of the rules changes nothing.
+pub(crate) fn site_passes(
+    state: &mut LoopState,
+    site: MemoSite,
+    found: Option<MemoId>,
+) -> SitePasses {
+    let place = usize::try_from(site.0).unwrap_or(usize::MAX);
+    let stamp = state.budget.stamp;
+    if state.site_asks.len() <= place && place < usize::MAX {
+        state
+            .site_asks
+            .resize(place.saturating_add(1), SiteAsks::default());
+    }
+    let Some(asks) = state.site_asks.get_mut(place) else {
+        return SitePasses::Kept;
+    };
+    if asks.rule != stamp {
+        *asks = SiteAsks {
+            rule: stamp,
+            ..SiteAsks::default()
+        };
+    }
+    asks.asks = Count(asks.asks.0.saturating_add(1));
+    asks.hits = Count(asks.hits.0.saturating_add(usize::from(found.is_some())));
+    passing(*asks)
+}
+
+/// Whether a site with these asks passes.
+#[inline]
+fn passing(asks: SiteAsks) -> SitePasses {
+    if asks.asks.0 >= PASS_AFTER.0 && asks.hits.0.saturating_mul(PASS_UNDER.0) < asks.asks.0 {
+        SitePasses::Passing
+    } else {
+        SitePasses::Kept
+    }
+}
+
+/// SPIKE: whether the running rule's asks of a memo site already pass in the file, before an ask is made.
+#[inline]
+pub(crate) fn site_passing(state: &LoopState, site: MemoSite) -> SitePasses {
+    let place = usize::try_from(site.0).unwrap_or(usize::MAX);
+    match state.site_asks.get(place) {
+        Some(asks) if asks.rule == state.budget.stamp => passing(*asks),
+        Some(_) | None => SitePasses::Kept,
+    }
 }

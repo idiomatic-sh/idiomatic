@@ -19,6 +19,8 @@ pub(crate) struct MemoMap {
     pub(crate) charges: Vec<EntryCharge>,
     /// The answers each answer asked directly while it was evaluated, one list after the other.
     pub(crate) reached: Vec<ChargedUnit>,
+    /// SPIKE: the last answer kept in passing (`keep_passing`): no key finds it, and it is dropped when the next is kept.
+    pub(crate) passing: Option<MemoId>,
 }
 
 /// A stretch of the kept cells.
