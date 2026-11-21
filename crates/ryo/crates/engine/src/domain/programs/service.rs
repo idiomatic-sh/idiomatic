@@ -4,12 +4,12 @@ use super::types::{Programs, ProgramsEngine};
 use crate::domain::code::types::UnitKey;
 use crate::domain::findings::types::RuleColumns;
 use crate::domain::made_tables::types::{FillStore, RuleSetView};
-use crate::domain::scratch::types::{LoopState, ScanScratch, ScratchEngine};
+use crate::domain::scratch::types::{LoopState, Measuring, ScanScratch, ScratchEngine, UnitInFile};
 use ryo_language::domain::facts::service::file_words;
 use ryo_language::domain::facts::types::CellWord;
 use ryo_language::domain::node_table::types::FieldCode;
 use ryo_language::inbound::use_cases::walk::types::RelationNeeds;
-use ryo_relations::domain::relations::types::KindBits;
+use ryo_relations::domain::relations::types::{Count, KindBits};
 use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 
@@ -113,7 +113,22 @@ pub fn scratch_for(programs: &Programs) -> ScanScratch {
 /// ```
 #[must_use]
 pub fn scratch_measuring(programs: &Programs) -> ScanScratch {
-    scratch_for(programs)
+    let mut scratch = scratch_for(programs);
+    let code = &programs.0.code;
+    scratch.0.state.measure = Some(Box::new(Measuring {
+        points: vec![Count(0); usize::try_from(code.counts.points.0).unwrap_or(usize::MAX)],
+        calls: vec![Count(0); code.units.len()],
+        keys: vec![Count(0); code.units.len()],
+        rows: vec![Count(0); code.units.len()],
+        build: vec![Count(0); code.units.len()],
+        nanos: vec![Count(0); code.units.len()],
+        idle_nanos: vec![Count(0); code.units.len()],
+        file: vec![UnitInFile::default(); code.units.len()],
+        kinds: vec![Count(0); programs.0.kinds.len()],
+        literals: vec![Count(0); code.sizes.len()],
+        ..Measuring::default()
+    }));
+    scratch
 }
 
 /// The step of `rule`'s own plan whose rows the unit named `unit` makes: what a work notice names (`WorkNotice.step`). A unit

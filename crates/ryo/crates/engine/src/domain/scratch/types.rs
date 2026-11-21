@@ -1,7 +1,7 @@
 //! The types of the `scratch` concept: a worker's per-file state.
 
-use crate::domain::code::types::CodeEntry;
 use crate::domain::code::types::RelationNumber;
+use crate::domain::code::types::{CodeEntry, WordSlot};
 use crate::domain::filled::errors::FilledError;
 use crate::domain::findings::types::InstructionCount;
 use crate::domain::indexes::types::RowRun;
@@ -15,6 +15,7 @@ use ryo_language::domain::facts::types::{CellWord, FileWords};
 use ryo_operators::domain::table_scratch::types::Patterns;
 use ryo_relations::domain::relations::types::Count;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
+use std::time::Duration;
 
 /// A worker's per-file state: the loop's registers, kept answers and cursors, the fill side's store of filled relations,
 /// indexes and made tables, and the file's words; reset per file, never freed. Made for a rule set by
@@ -129,6 +130,8 @@ pub(crate) struct LoopState {
     pub(crate) kept: Vec<BatchRow>,
     /// The room a walk of the tree writes what it reaches in, lent to the fill side's kernel.
     pub(crate) fan: FanRows,
+    /// What a measuring worker counts and times; none in a worker that does not measure, whose loop reads no clock.
+    pub(crate) measure: Option<Box<Measuring>>,
     /// The rule whose work is running; none before a file's first rule.
     pub(crate) rule: Option<SelectedRuleOrdinal>,
     /// The first fault the fill side answered in the file, a relation refused or read in part, and the rule that was
@@ -220,4 +223,49 @@ pub(crate) struct TableAsk {
     pub(crate) answer: MemoId,
     /// The ask before it.
     pub(crate) before: Count,
+}
+
+/// What a measuring worker counts and times, since its scratch was made: the files scanned, the runs of each plan point,
+/// what each unit was asked and gave (a column per count, by the unit's place), the elements of each kind and the rows
+/// of each size site; each unit's time and rows in the file being scanned (folded into its counts when the file ends);
+/// the units running now, innermost last; and the thread's time when the innermost last changed. A unit's time is its
+/// own: what it called is left out. `counting::service::counted` hands the counts on as the statistics' (`statistics`
+/// names the programs, so a worker's state cannot name `statistics`).
+#[derive(Debug, Default)]
+pub(crate) struct Measuring {
+    /// The files scanned.
+    pub(crate) files: Count,
+    /// The runs of each plan point, by its number.
+    pub(crate) points: Vec<Count>,
+    /// The uses that reached each unit.
+    pub(crate) calls: Vec<Count>,
+    /// The keys each unit was evaluated for.
+    pub(crate) keys: Vec<Count>,
+    /// The rows each unit gave.
+    pub(crate) rows: Vec<Count>,
+    /// For each table's unit: the rows its fill's stages read and gave.
+    pub(crate) build: Vec<Count>,
+    /// The thread time spent in each unit, what it called left out.
+    pub(crate) nanos: Vec<Count>,
+    /// The part of that time spent in files where the unit gave no row.
+    pub(crate) idle_nanos: Vec<Count>,
+    /// The elements of each kind, by kind code, summed over the files.
+    pub(crate) kinds: Vec<Count>,
+    /// The rows of each size site, by its place, summed over the files.
+    pub(crate) literals: Vec<Count>,
+    /// Each unit's time and rows in the file being scanned, by the unit's place.
+    pub(crate) file: Vec<UnitInFile>,
+    /// The units running, innermost last.
+    pub(crate) running: Vec<WordSlot>,
+    /// The thread's time when the innermost unit last changed.
+    pub(crate) since: Duration,
+}
+
+/// A unit's time and rows in the file being scanned.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct UnitInFile {
+    /// The thread time spent in it, what it called left out.
+    pub(crate) nanos: Count,
+    /// The rows it gave.
+    pub(crate) rows: Count,
 }

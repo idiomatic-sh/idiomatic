@@ -6,6 +6,7 @@ use super::types::{NeedFacts, NeedVerdict};
 use crate::domain::code::records::service::need_at;
 use crate::domain::code::records::types::NeedRecord;
 use crate::domain::code::types::{NeedSite, PoolAt, ProgramCode, WordSlot};
+use crate::domain::steps::types::MadeTableId;
 use ryo_relations::domain::relations::types::KindBits;
 
 /// The slot `ahead` slots after a place among the needs.
@@ -84,6 +85,38 @@ fn formula(facts: &mut impl NeedFacts, code: &ProgramCode, at: WordSlot) -> Need
             parts: count,
             offsets,
         } => parts(facts, code, count, offsets, NeedVerdict::Holds),
+    }
+}
+
+/// Adds to `out` every table the record at a place among the needs may ask for a row, whatever the file.
+fn record_tables(code: &ProgramCode, at: WordSlot, out: &mut Vec<MadeTableId>) {
+    match need_at(&code.needs, at) {
+        Some(NeedRecord::Table(table)) => out.push(table),
+        Some(NeedRecord::Site(site)) => tables_asked(code, site, out),
+        Some(
+            NeedRecord::All {
+                parts: count,
+                offsets,
+            }
+            | NeedRecord::Any {
+                parts: count,
+                offsets,
+            },
+        ) => {
+            for number in 0..count.0 {
+                if let Some(place) = slot(code, offsets, WordSlot(number)) {
+                    record_tables(code, place, out);
+                }
+            }
+        }
+        Some(NeedRecord::Unknown | NeedRecord::Kinds(_) | NeedRecord::Row { .. }) | None => {}
+    }
+}
+
+/// Adds to `out` every table the formula of `site` may ask for a row: the tables a decision can make, in any file.
+pub(crate) fn tables_asked(code: &ProgramCode, site: NeedSite, out: &mut Vec<MadeTableId>) {
+    if let Some(place) = slot(code, WordSlot(site.0), WordSlot(0)) {
+        record_tables(code, place, out);
     }
 }
 

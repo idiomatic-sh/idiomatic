@@ -11,6 +11,7 @@ use crate::domain::code::records::types::BodyRecord;
 use crate::domain::code::records::types::PooledOperand;
 use crate::domain::code::types::{CodeWord, IndexSite, PoolAt, WordSlot};
 use crate::domain::executing::budget::service::{begin_unit, end_unit, reach};
+use crate::domain::executing::measuring::service::{entered, evaluated, left, used};
 use crate::domain::executing::sources::service::keyed;
 use crate::domain::made_tables::types::{KeyFrom, PatternAsk};
 use crate::domain::memos::service::{asked, keep, row_count};
@@ -41,6 +42,7 @@ pub(crate) fn slot(frame: &StepFrame<'_, '_>, at: PoolAt, count: WordSlot) -> Wo
 /// pattern's program run once for this key, its yielded rows kept. The key's cells arrive in the formals. The key is taken
 /// off the room.
 fn pattern_keyed(frame: &mut StepFrame<'_, '_>, body: CallUse, start: Count) -> MemoId {
+    used(frame.state, body.unit);
     let kept = asked(
         &frame.state.memos,
         body.site,
@@ -65,7 +67,11 @@ fn pattern_keyed(frame: &mut StepFrame<'_, '_>, body: CallUse, start: Count) -> 
     }
     let base = frame.state.yielded.len();
     let caller = begin_unit(frame.state);
+    entered(frame.state, body.unit);
     let count = frame.ports.run(frame, body.entry, RunMode::Collect);
+    left(frame.state);
+    let given = Count(usize::try_from(count.0).unwrap_or(usize::MAX));
+    evaluated(frame.state, body.unit, Count(1), given);
     let LoopState {
         memos,
         key,

@@ -37,6 +37,7 @@ use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 use std::borrow::Cow;
 use std::cell::Cell;
 
+mod unrun;
 mod words;
 
 /// What a row loads.
