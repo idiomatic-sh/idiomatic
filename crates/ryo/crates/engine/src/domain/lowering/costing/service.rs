@@ -3,8 +3,8 @@
 //! columns bound, which the planning asks (`planning::uses`); here a use is sized only as a read of the definition's table.
 
 use super::constants::{
-    CHILDREN, ELEMENT_COLUMN_ROWS, ELEMENTS, ESTIMATE_CAP, FIELD_CHILDREN, FILLED_ROWS, GROUP_ROWS,
-    KIND_SHARE, LITERAL_SHARE, MADE_ROWS, MANY_ROWS, ONE, PARTIAL_KEY_ROWS, PLAN_CAP,
+    CHILDREN, ELEMENT_COLUMN_ROWS, ELEMENTS, ESTIMATE_CAP, FIELD_CHILDREN, GROUP_ROWS, KIND_SHARE,
+    LITERAL_SHARE, MADE_ROWS, MANY_ROWS, ONE, PAIRS_AN_ELEMENT, PARTIAL_KEY_ROWS, PLAN_CAP,
     SEVERAL_KEYS_SHARE, TABLE_KEY_KEEPS, VALUE_COLUMN_ROWS,
 };
 use super::types::{CellState, KeyChoice, PlanEstimate};
@@ -15,10 +15,10 @@ use crate::domain::lowering::flattening::types::{AtomRows, FlatBranch, RowColumn
 use crate::domain::lowering::planning::uses::service::branches_estimated;
 use crate::domain::steps::stages::types::{FillStage, Pipeline};
 use crate::domain::steps::types::{CostClass, MadeColumn, MadeTableId, StepRows};
-use ryo_relations::domain::catalog::service::{fact_form, node_column};
+use ryo_relations::domain::catalog::service::{fact_form, node_column, relation_size};
 use ryo_relations::domain::relations::service::{columns, kind};
 use ryo_relations::domain::relations::types::{
-    CellKind, Column, FactForm, FilledKey, NodeColumn, Relation,
+    CellKind, Column, FactForm, FilledKey, NodeColumn, Relation, RelationSize,
 };
 
 /// The product of two estimates, held to the cap.
@@ -52,6 +52,17 @@ const fn shared(rows: RowEstimate, share: RowEstimate) -> RowEstimate {
     RowEstimate(if part == 0 { 1 } else { part })
 }
 
+/// The rows a filled relation is taken to hold in a file, by the size its catalog item declares: one for a relation of one
+/// row a file; a row an element for one that grows with the file's elements (a scan of it is a scan of the file, whatever
+/// share of the elements it holds); several an element for a relation of pairs.
+fn filled_rows(relation: Relation) -> RowEstimate {
+    match relation_size(relation) {
+        Some(RelationSize::PerFile) => RowEstimate(1),
+        Some(RelationSize::PerElement) | None => ELEMENTS,
+        Some(RelationSize::PerPair) => RowEstimate(ELEMENTS.0.saturating_mul(PAIRS_AN_ELEMENT)),
+    }
+}
+
 /// The rows the first stage of a pipeline reads: those of its source, a constant among its columns naming a bucket.
 fn scanned_rows(drafts: &Drafts, pipeline: &Pipeline) -> RowEstimate {
     let Some(FillStage::Scan {
@@ -62,7 +73,7 @@ fn scanned_rows(drafts: &Drafts, pipeline: &Pipeline) -> RowEstimate {
     };
     let whole = match source {
         StepRows::Node(_) => ELEMENTS,
-        StepRows::Filled(_) => FILLED_ROWS,
+        StepRows::Filled(relation) => filled_rows(*relation),
         StepRows::Made(table) | StepRows::Written(table) => made_rows(drafts, *table),
         StepRows::Definition(definition) => {
             draft(drafts, *definition).map_or(RowEstimate(1), |draft| draft.rows)
@@ -122,7 +133,7 @@ pub(crate) fn source_rows(drafts: &Drafts, rows: AtomRows) -> RowEstimate {
     match rows {
         AtomRows::Relation(relation) => match fact_form(relation) {
             FactForm::NodeTable => ELEMENTS,
-            FactForm::Filled(_) => FILLED_ROWS,
+            FactForm::Filled(_) => filled_rows(relation),
         },
         AtomRows::Definition(definition) => {
             draft(drafts, definition).map_or(RowEstimate(1), |draft| draft.rows)

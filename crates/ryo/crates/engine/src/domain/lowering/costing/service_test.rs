@@ -90,7 +90,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 &[Open, Constant, Open, Open, Open, File, Open],
             )
         },
-        (2, CostClass::File, 2_048),
+        (2, CostClass::File, 8_192),
     ),
     row(
         "every_bound_cell_of_a_filled_relation_is_one_key",
