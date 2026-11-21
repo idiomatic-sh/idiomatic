@@ -2,17 +2,21 @@
 
 use crate::domain::lowering::costing::types::CellState;
 use crate::domain::lowering::definitions::service::{draft, fresh_register, text_word};
+use crate::domain::lowering::flattening::service::made_column;
 use crate::domain::lowering::flattening::service::variables;
+use crate::domain::lowering::flattening::types::RowColumn;
 use crate::domain::lowering::flattening::types::{AtomRows, FlatBranch, FlatTerm, FlatVariable};
+use crate::domain::lowering::planning::types::KindAnchor;
 use crate::domain::lowering::planning::types::{
     Emitter, Environment, FileCell, UnitRole, WrittenAccess,
 };
 use crate::domain::steps::types::{
-    AnchorKinds, ColumnMask, MadeColumn, ReadColumn, Register, StepOperand, StepRows, TestOperation,
+    AnchorKinds, ColumnMask, ReadColumn, Register, StepOperand, StepRows, TestOperation,
 };
 use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::catalog::service::{fact_form, node_column};
 use ryo_relations::domain::relations::service::{columns, kind};
+use ryo_relations::domain::relations::types::Count;
 use ryo_relations::domain::relations::types::{CellKind, FactForm, KindBits, NodeColumn, Relation};
 use std::collections::HashMap;
 
@@ -22,11 +26,10 @@ use std::collections::HashMap;
 pub(crate) fn uses_of(
     branch: &FlatBranch,
     given: Option<&ColumnMask>,
-) -> HashMap<FlatVariable, usize> {
-    let mut uses: HashMap<FlatVariable, usize> = HashMap::new();
-    let wanted = |place: usize| {
-        given.is_none_or(|mask| mask.0.iter().any(|column| usize::from(column.0) == place))
-    };
+) -> HashMap<FlatVariable, Count> {
+    let mut uses: HashMap<FlatVariable, Count> = HashMap::new();
+    let wanted =
+        |place| given.is_none_or(|mask| mask.0.iter().any(|column| usize::from(column.0) == place));
     let row = branch
         .row
         .iter()
@@ -38,8 +41,8 @@ pub(crate) fn uses_of(
             }
         });
     for variable in branch.atoms.iter().flat_map(variables).chain(row) {
-        let count = uses.entry(variable).or_default();
-        *count = count.saturating_add(1);
+        let count = uses.entry(variable).or_insert(Count(0));
+        *count = Count(count.0.saturating_add(1));
     }
     uses
 }
@@ -135,18 +138,16 @@ pub(crate) fn key_value(emitter: &mut Emitter<'_>, term: FlatTerm) -> Option<Ste
 }
 
 /// The column of a source a cell is read from, by the cell's place.
-pub(crate) fn read_column(rows: AtomRows, place: usize) -> Option<ReadColumn> {
+pub(crate) fn read_column(rows: AtomRows, place: RowColumn) -> Option<ReadColumn> {
     match rows {
         AtomRows::Relation(relation) => {
-            let column = *columns(relation).get(place)?;
+            let column = *columns(relation).get(place.0)?;
             Some(match fact_form(relation) {
                 FactForm::NodeTable => ReadColumn::Node(node_column(column)?),
                 FactForm::Filled(_) => ReadColumn::Filled(column),
             })
         }
-        AtomRows::Definition(_) | AtomRows::Made(_) => {
-            Some(ReadColumn::Made(MadeColumn(u16::try_from(place).ok()?)))
-        }
+        AtomRows::Definition(_) | AtomRows::Made(_) => made_column(place).map(ReadColumn::Made),
     }
 }
 
@@ -167,15 +168,21 @@ pub(crate) fn anchor_kinds(
     emitter: &Emitter<'_>,
     relation: Relation,
     term: FlatTerm,
-) -> Option<(Relation, AnchorKinds)> {
+) -> Option<KindAnchor> {
     let FlatTerm::Text(number) = term else {
         return None;
     };
-    let written = emitter.drafts.texts.get(usize::try_from(number.0).ok()?)?;
+    let written = emitter
+        .drafts
+        .texts
+        .get(usize::try_from(number.0).unwrap_or(usize::MAX))?;
     let named = emitter.kinds.kinds.iter();
     let place = named.clone().position(|kind| kind.0 == written.0)?;
-    let bits = KindBits(u16::try_from(place).ok()?);
-    Some((relation, AnchorKinds([bits].into())))
+    let bits = KindBits(made_column(RowColumn(place))?.0);
+    Some(KindAnchor {
+        relation,
+        kinds: AnchorKinds([bits].into()),
+    })
 }
 
 /// One cell of a row read into a register: over the node table the handle is the element itself, so its own column is the
@@ -215,7 +222,7 @@ pub(crate) fn file_noted(emitter: &mut Emitter<'_>, source: AtomRows, row: Regis
         }),
         AtomRows::Made(_) => None,
     };
-    if let Some(column) = place.and_then(|place| read_column(source, place)) {
+    if let Some(column) = place.and_then(|place| read_column(source, RowColumn(place))) {
         emitter.environment.file = Some(FileCell {
             source: source_of(source),
             column,

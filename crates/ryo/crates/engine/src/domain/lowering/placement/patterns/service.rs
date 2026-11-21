@@ -11,9 +11,10 @@ use crate::domain::lowering::placement::types::{CallForm, FormChoice, PatternFac
 use crate::domain::lowering::placement::types::{LoadSample, RefusedPlace};
 use crate::domain::lowering::planning::emitting::service::indexed;
 use crate::domain::lowering::planning::service::planned;
+use crate::domain::lowering::planning::types::PatternColumns;
 use crate::domain::lowering::planning::types::UnitRole;
 use crate::domain::lowering::planning::writing::service::{
-    PatternColumns, pattern_program, pattern_whole, pipeline,
+    pattern_program, pattern_whole, pipeline,
 };
 use crate::domain::lowering::types::{LoadRefusal, PlanNode};
 use crate::domain::steps::types::{ColumnMask, DefinitionId, MadeTableId, ReadColumn};
@@ -112,7 +113,7 @@ pub(crate) fn pattern_placed(
     let Some(pattern) = draft.patterns.get(waiting.pattern.0) else {
         return Err(missing);
     };
-    let (bound, collected) = (pattern.bound.clone(), pattern.collected.clone());
+    let (bound, collected) = (pattern.asked.bound.clone(), pattern.asked.collected.clone());
     let (home, node, formals) = (draft.home, draft.node, draft.formals.clone());
     let branches: Vec<FlatBranch> = draft.branches.clone();
     let calls = draft.patterns.iter();

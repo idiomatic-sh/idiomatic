@@ -2,15 +2,20 @@
 
 use crate::domain::lowering::costing::types::CellState;
 use crate::domain::lowering::definitions::service::{asked, fresh_register};
+use crate::domain::lowering::flattening::service::made_column;
 use crate::domain::lowering::flattening::types::FlatTerm;
+use crate::domain::lowering::flattening::types::RowColumn;
 use crate::domain::lowering::planning::operands::service::{
     given_or_tested, register_of, state_of,
 };
+use crate::domain::lowering::planning::types::NearestTreeWalk;
+use crate::domain::lowering::planning::types::WalkEnds;
 use crate::domain::lowering::planning::types::{Emitter, Enumerated, UnitRole, WrittenAccess};
 use crate::domain::steps::stages::types::UseMode;
 use crate::domain::steps::types::{
-    AxisDirection, ColumnMask, DefinitionId, MadeColumn, RegisterList, StepOperand, StepOperands,
+    AxisDirection, ColumnMask, RegisterList, StepOperand, StepOperands,
 };
+use ryo_relations::domain::relations::types::Count;
 use ryo_relations::domain::relations::types::Relation;
 
 /// The axis that walks an axis back: from what it reaches to what it starts from.
@@ -31,15 +36,15 @@ pub(crate) fn walked(
     emitter: &mut Emitter<'_>,
     relation: Relation,
     direction: AxisDirection,
-    ends: (FlatTerm, FlatTerm),
+    ends: WalkEnds,
 ) {
     let given =
         |emitter: &Emitter<'_>, term| state_of(&emitter.environment, term) == CellState::Register;
-    let (from_start, from_reached) = (given(emitter, ends.0), given(emitter, ends.1));
+    let (from_start, from_reached) = (given(emitter, ends.start), given(emitter, ends.reached));
     emitter.environment.enumerated = Enumerated::Already;
     let contained = match direction {
-        AxisDirection::Ancestor => Some((ends.1, ends.0)),
-        AxisDirection::Descendant => Some((ends.0, ends.1)),
+        AxisDirection::Ancestor => Some((ends.reached, ends.start)),
+        AxisDirection::Descendant => Some((ends.start, ends.reached)),
         AxisDirection::Parent | AxisDirection::NextSibling | AxisDirection::PreviousSibling => None,
     };
     if let (true, true, Some((ancestor, descendant)), UnitRole::Branch | UnitRole::Pattern) =
@@ -55,18 +60,18 @@ pub(crate) fn walked(
                 ancestor,
                 descendant,
             }),
-            (None, _) | (_, None) => emitter.missed = emitter.missed.saturating_add(1),
+            (None, _) | (_, None) => emitter.missed = Count(emitter.missed.0.saturating_add(1)),
         }
         return;
     }
     // From the start, along the axis; from what is reached, back along it: a parent's children are a walk of their own.
     let (walk, from, to) = if from_start {
-        (Some(direction), ends.0, ends.1)
+        (Some(direction), ends.start, ends.reached)
     } else {
-        (reversed(direction), ends.1, ends.0)
+        (reversed(direction), ends.reached, ends.start)
     };
     let Some(start) = register_of(emitter, from) else {
-        emitter.missed = emitter.missed.saturating_add(1);
+        emitter.missed = Count(emitter.missed.0.saturating_add(1));
         return;
     };
     let out = fresh_register(emitter.drafts);
@@ -91,26 +96,26 @@ pub(crate) fn walked(
 /// what is reached, whose program is this walk, run once per distinct start.
 pub(crate) fn nearest(
     emitter: &mut Emitter<'_>,
-    walk: (Relation, DefinitionId, MadeColumn),
+    walk: NearestTreeWalk,
     start: FlatTerm,
     reached: FlatTerm,
 ) {
     let Some(from) = register_of(emitter, start) else {
-        emitter.missed = emitter.missed.saturating_add(1);
+        emitter.missed = Count(emitter.missed.0.saturating_add(1));
         return;
     };
     emitter.environment.enumerated = Enumerated::Already;
     let out = fresh_register(emitter.drafts);
     let column_of = |emitter: &Emitter<'_>, term: FlatTerm| {
         let place = emitter.row.iter().position(|each| *each == term)?;
-        u16::try_from(place).ok().map(MadeColumn)
+        made_column(RowColumn(place))
     };
     match (emitter.role, emitter.unit) {
         (UnitRole::Pipeline, Some(unit)) => {
             let (Some(bound), Some(collected)) =
                 (column_of(emitter, start), column_of(emitter, reached))
             else {
-                emitter.missed = emitter.missed.saturating_add(1);
+                emitter.missed = Count(emitter.missed.0.saturating_add(1));
                 return;
             };
             let (bound, collected) = (ColumnMask([bound].into()), ColumnMask([collected].into()));
@@ -125,13 +130,13 @@ pub(crate) fn nearest(
             });
         }
         (UnitRole::Branch | UnitRole::Pattern | UnitRole::Pipeline, _) => {
-            let bound = ColumnMask([walk.2].into());
-            asked(emitter.drafts, walk.1, &bound, &ColumnMask::default());
+            let bound = ColumnMask([walk.column].into());
+            asked(emitter.drafts, walk.domain, &bound, &ColumnMask::default());
             let element = fresh_register(emitter.drafts);
             emitter.written.push(WrittenAccess::Nearest {
-                relation: walk.0,
-                domain: walk.1,
-                column: walk.2,
+                relation: walk.relation,
+                domain: walk.domain,
+                column: walk.column,
                 element,
                 start: from,
                 out,

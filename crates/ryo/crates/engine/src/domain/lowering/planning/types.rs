@@ -7,7 +7,7 @@ use crate::domain::steps::types::{
     AnchorKinds, AxisDirection, ColumnMask, DefinitionId, MadeColumn, MadeTableId, MatchColumns,
     ReadColumn, Register, RegisterList, StepOperand, StepOperands, StepRows, TestOperation,
 };
-use ryo_relations::domain::relations::types::Relation;
+use ryo_relations::domain::relations::types::{Count, Relation};
 use ryo_values::domain::plan_orders::types::OrderBound;
 use std::collections::HashMap;
 
@@ -43,7 +43,7 @@ pub(crate) enum WrittenAccess {
         /// The key's values.
         values: StepOperands,
         /// The kinds a bucket of the node table names, when the vocabulary has them.
-        kinds: Option<(Relation, AnchorKinds)>,
+        kinds: Option<KindAnchor>,
         /// The row's handle.
         out: Register,
     },
@@ -200,13 +200,13 @@ pub(crate) struct Emitter<'a> {
     /// The branch's row.
     pub(crate) row: Vec<crate::domain::lowering::flattening::types::FlatTerm>,
     /// How often each variable is written in the branch and its row.
-    pub(crate) uses: HashMap<FlatVariable, usize>,
+    pub(crate) uses: HashMap<FlatVariable, Count>,
     /// The registers given so far.
     pub(crate) environment: Environment,
     /// The accesses written so far.
     pub(crate) written: Vec<WrittenAccess>,
     /// How many atoms could not be written: a term that should have been given was not. A branch with one has no form.
-    pub(crate) missed: usize,
+    pub(crate) missed: Count,
 }
 
 /// An atom of a branch, by its place among the branch's atoms.
@@ -273,4 +273,76 @@ pub(crate) struct OrderCompletion<'a> {
     pub(crate) cost: RowEstimate,
     /// Whether rows were enumerated yet.
     pub(crate) enumerated: Enumerated,
+}
+
+/// The kinds a bucket of the node table names, with the node relation they are read through.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct KindAnchor {
+    /// The node relation.
+    pub(crate) relation: Relation,
+    /// The kinds.
+    pub(crate) kinds: AnchorKinds,
+}
+
+/// The two ends of a walk.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct WalkEnds {
+    /// The element walked from.
+    pub(crate) start: crate::domain::lowering::flattening::types::FlatTerm,
+    /// The element reached.
+    pub(crate) reached: crate::domain::lowering::flattening::types::FlatTerm,
+}
+
+/// A nearest walk: the node relation whose tree is walked, and the column of the definition that holds its domain.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct NearestTreeWalk {
+    /// The node relation.
+    pub(crate) relation: Relation,
+    /// The definition of the domain.
+    pub(crate) domain: DefinitionId,
+    /// The domain's column that holds the element.
+    pub(crate) column: MadeColumn,
+}
+
+/// An atom that waits for its place.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct WaitingAtom<'a> {
+    /// Its place in the branch.
+    pub(crate) place: AtomPlace,
+    /// The atom.
+    pub(crate) atom: &'a crate::domain::lowering::flattening::types::FlatAtom,
+}
+
+/// What a branch is written as: its role, and the definition whose pattern or table it is.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct WrittenUnit {
+    /// The role.
+    pub(crate) role: UnitRole,
+    /// The definition; none for a rule's own branch.
+    pub(crate) definition: Option<DefinitionId>,
+}
+
+/// What a branch is written from: the registers given at its start, the accesses that test them, and the columns of its
+/// row its unit gives (none: every column).
+#[derive(Clone, Debug, Default)]
+pub(crate) struct BranchStart<'a> {
+    /// The registers given at the start.
+    pub(crate) environment: Environment,
+    /// The accesses written before the branch's own.
+    pub(crate) written: Vec<WrittenAccess>,
+    /// The columns the unit gives.
+    pub(crate) gives: Option<&'a ColumnMask>,
+}
+
+/// What a call-form pattern is of: the definition, its formals, and the columns it binds and collects.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct PatternColumns<'a> {
+    /// The definition.
+    pub(crate) definition: DefinitionId,
+    /// One register per column of the definition.
+    pub(crate) formals: &'a [Register],
+    /// The columns that arrive bound.
+    pub(crate) bound: &'a ColumnMask,
+    /// The columns a row gives back.
+    pub(crate) collected: &'a ColumnMask,
 }

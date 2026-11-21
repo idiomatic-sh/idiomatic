@@ -6,9 +6,11 @@ use crate::domain::lowered::types::Emptiness;
 use crate::domain::lowering::definitions::service::text_word;
 use crate::domain::lowering::definitions::types::{Drafts, Flattened};
 use crate::domain::lowering::emptiness::service::{derived, literal_read};
+use crate::domain::lowering::flattening::service::made_column;
 use crate::domain::lowering::flattening::service::picked;
 use crate::domain::lowering::flattening::types::RowColumn;
 use crate::domain::lowering::nodes::service::digest_of;
+use crate::domain::lowering::nodes::types::StepReach;
 use crate::domain::lowering::tables::fills::service::{as_of_arm, group_count_arm};
 use crate::domain::lowering::tables::inputs::service::{all_selected, input, rule, term};
 use crate::domain::lowering::tables::joins::service::{antijoin_arm, axis_arm, join_arm};
@@ -51,7 +53,7 @@ fn selection_emptiness(
             .iter()
             .position(|kind| kind.0 == written.0);
         let kinds = place
-            .and_then(|place| u16::try_from(place).ok())
+            .and_then(|place| made_column(RowColumn(place)).map(|column| column.0))
             .map(|bits| AnchorKinds([KindBits(bits)].into()));
         return literal_read(relation, *column, text_word(*number), kinds);
     }
@@ -145,18 +147,19 @@ fn arm(
 
 /// The steps of the rule that are flattened: those its emit reaches without passing a step that already has a definition.
 /// Each is visited once.
-fn wanted(state: &RuleFlattening<'_>, drafts: &Drafts) -> Option<Vec<bool>> {
+fn wanted(state: &RuleFlattening<'_>, drafts: &Drafts) -> Option<Vec<StepReach>> {
     let rule = rule(state)?;
     let plan = rule.rule.plan;
-    let mut wanted = vec![false; plan.steps.len()];
+    let mut wanted = vec![StepReach::Unreached; plan.steps.len()];
     let mut waiting = vec![plan.emit.step];
     while let Some(step) = waiting.pop() {
         let place = usize::from(step);
-        if wanted.get(place) != Some(&false) || drafts.defined.contains_key(&digest_of(rule, step))
+        if wanted.get(place) != Some(&StepReach::Unreached)
+            || drafts.defined.contains_key(&digest_of(rule, step))
         {
             continue;
         }
-        *wanted.get_mut(place)? = true;
+        *wanted.get_mut(place)? = StepReach::Reached;
         let inputs =
             ryo_values::domain::plans::service::inputs_of(&plan.steps.get(place)?.operation);
         for read in ryo_values::domain::plans::service::named(&inputs) {
@@ -178,7 +181,7 @@ pub(crate) fn rule_flattened(
     let plan = rule(state).ok_or(emitted)?.rule.plan;
     state.flat = plan.steps.iter().map(|_| None).collect();
     for (place, step) in plan.steps.iter().enumerate() {
-        if wanted.get(place) != Some(&true) {
+        if wanted.get(place) != Some(&StepReach::Reached) {
             continue;
         }
         let id = StepId(u32::try_from(place).unwrap_or(u32::MAX));

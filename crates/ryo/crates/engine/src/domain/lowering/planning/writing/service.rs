@@ -8,14 +8,19 @@ use crate::domain::lowering::flattening::types::{FlatBranch, FlatTerm};
 use crate::domain::lowering::planning::emitting::service::atom_written;
 use crate::domain::lowering::planning::forms::service::{stage_of, step_of};
 use crate::domain::lowering::planning::operands::service::{operand, uses_of};
+use crate::domain::lowering::planning::types::BranchStart;
+use crate::domain::lowering::planning::types::Enumerated;
+use crate::domain::lowering::planning::types::PatternColumns;
+use crate::domain::lowering::planning::types::WrittenUnit;
 use crate::domain::lowering::planning::types::{
     Emitter, Environment, PlannedBranch, UnitRole, WrittenAccess,
 };
 use crate::domain::steps::stages::types::{Pipeline, PlacedStage};
 use crate::domain::steps::types::{
-    ColumnMask, DefinitionId, EmitTarget, PlacedStep, ProgramStep, Register, RegisterList,
-    StepOperand, StepOperands, StepProgram, TestOperation,
+    ColumnMask, DefinitionId, EmitTarget, PlacedStep, ProgramStep, RegisterList, StepOperand,
+    StepOperands, StepProgram, TestOperation,
 };
+use ryo_relations::domain::relations::types::Count;
 use ryo_values::domain::descriptions::types::KindVocabulary;
 
 /// The accesses of a branch in its planned order, from an environment.
@@ -24,21 +29,21 @@ fn accesses<'a>(
     kinds: &'a KindVocabulary,
     branch: &FlatBranch,
     plan: &PlannedBranch,
-    unit: (UnitRole, Option<DefinitionId>),
-    start: (Environment, Vec<WrittenAccess>, Option<&ColumnMask>),
+    unit: WrittenUnit,
+    start: BranchStart<'_>,
 ) -> Emitter<'a> {
-    let mut environment = start.0;
+    let mut environment = start.environment;
     environment.pins = pins_of(branch);
     let mut emitter = Emitter {
         drafts,
         kinds,
-        role: unit.0,
-        unit: unit.1,
+        role: unit.role,
+        unit: unit.definition,
         row: branch.row.clone(),
-        uses: uses_of(branch, start.2),
+        uses: uses_of(branch, start.gives),
         environment,
-        written: start.1,
-        missed: 0,
+        written: start.written,
+        missed: Count(0),
     };
     for at in &plan.order {
         if let Some(atom) = branch.atoms.get(at.0) {
@@ -71,9 +76,12 @@ pub(crate) fn branch_program(
     plan: &PlannedBranch,
     target: EmitTarget,
 ) -> Option<StepProgram> {
-    let start = (Environment::default(), Vec::new(), None);
-    let emitter = accesses(drafts, kinds, branch, plan, (UnitRole::Branch, None), start);
-    if emitter.missed > 0 {
+    let unit = WrittenUnit {
+        role: UnitRole::Branch,
+        definition: None,
+    };
+    let emitter = accesses(drafts, kinds, branch, plan, unit, BranchStart::default());
+    if emitter.missed.0 > 0 {
         return None;
     }
     let columns = StepOperands(row_operands(&emitter.environment, &branch.row)?.into());
@@ -83,26 +91,13 @@ pub(crate) fn branch_program(
     ))
 }
 
-/// What a call-form pattern is of: the definition's formals, and the columns it binds and collects.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct PatternColumns<'a> {
-    /// The definition.
-    pub(crate) definition: DefinitionId,
-    /// One register per column of the definition.
-    pub(crate) formals: &'a [Register],
-    /// The columns that arrive bound.
-    pub(crate) bound: &'a ColumnMask,
-    /// The columns a row gives back.
-    pub(crate) collected: &'a ColumnMask,
-}
-
 /// The environment a pattern's branch starts from: each bound column's cell is in its formal. A variable bound twice, and a
 /// constant in a bound column, are tested against the formal first.
 #[must_use]
 pub(crate) fn pattern_start(
     branch: &FlatBranch,
     pattern: PatternColumns<'_>,
-) -> (Environment, Vec<WrittenAccess>) {
+) -> BranchStart<'static> {
     let (mut environment, mut tests) = (Environment::default(), Vec::new());
     for column in &pattern.bound.0 {
         let place = usize::from(column.0);
@@ -122,7 +117,11 @@ pub(crate) fn pattern_start(
             (FlatTerm::Text(_) | FlatTerm::Number(_), None) => {}
         }
     }
-    (environment, tests)
+    BranchStart {
+        environment,
+        written: tests,
+        gives: None,
+    }
 }
 
 /// A call-form pattern's branch as a program: the bound cells arrive in their formals, and each row ends in a `Yield` of the
@@ -134,15 +133,18 @@ pub(crate) fn pattern_program(
     plan: &PlannedBranch,
     pattern: PatternColumns<'_>,
 ) -> Option<Vec<ProgramStep>> {
-    let (environment, tests) = pattern_start(branch, pattern);
+    let mut start = pattern_start(branch, pattern);
     // What a pattern gives is its collected columns: a column nothing collects is read for nothing.
     let mut read = pattern.collected.0.to_vec();
     read.extend(pattern.bound.0.iter().copied());
     let read = ColumnMask(read.into());
-    let start = (environment, tests, Some(&read));
-    let unit = (UnitRole::Pattern, Some(pattern.definition));
+    start.gives = Some(&read);
+    let unit = WrittenUnit {
+        role: UnitRole::Pattern,
+        definition: Some(pattern.definition),
+    };
     let emitter = accesses(drafts, kinds, branch, plan, unit, start);
-    if emitter.missed > 0 {
+    if emitter.missed.0 > 0 {
         return None;
     }
     let mut steps: Vec<ProgramStep> = Vec::new();
@@ -187,25 +189,24 @@ pub(crate) fn pipeline(
     plan: &PlannedBranch,
     unit: Option<DefinitionId>,
 ) -> Option<Pipeline> {
-    let start = (Environment::default(), Vec::new(), None);
-    let emitter = accesses(
-        drafts,
-        kinds,
-        branch,
-        plan,
-        (UnitRole::Pipeline, unit),
-        start,
-    );
-    if emitter.missed > 0 {
+    let unit = WrittenUnit {
+        role: UnitRole::Pipeline,
+        definition: unit,
+    };
+    let emitter = accesses(drafts, kinds, branch, plan, unit, BranchStart::default());
+    if emitter.missed.0 > 0 {
         return None;
     }
     let row = StepOperands(row_operands(&emitter.environment, &branch.row)?.into());
     let mut stages = Vec::with_capacity(emitter.written.len());
-    for (place, access) in emitter.written.into_iter().enumerate() {
+    // The first access is the pipeline's scan.
+    let mut first = Enumerated::NotYet;
+    for access in emitter.written {
         stages.push(PlacedStage {
             point: None,
-            stage: stage_of(access, place == 0)?,
+            stage: stage_of(access, first)?,
         });
+        first = Enumerated::Already;
     }
     Some(Pipeline {
         stages: stages.into(),

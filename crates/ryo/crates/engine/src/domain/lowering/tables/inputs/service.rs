@@ -15,8 +15,10 @@ use crate::domain::lowering::flattening::types::{
 use crate::domain::lowering::nodes::service::{digest_of, input_shape, readers};
 use crate::domain::lowering::nodes::types::{AdmittedRule, NodeHome};
 use crate::domain::lowering::tables::service::test_of;
+use crate::domain::lowering::tables::types::InputSize;
 use crate::domain::lowering::tables::types::{InputWant, RuleFlattening};
 use crate::domain::steps::types::{DefinitionId, TestOperation};
+use ryo_relations::domain::relations::types::Count;
 use ryo_relations::domain::relations::types::Integer;
 use ryo_values::domain::plan_parts::types::{
     Direction, Input, Operand, PlanComparison, QueryLiteral, StepId,
@@ -44,7 +46,7 @@ pub(crate) fn term(
         }
         Operand::Parameter(parameter) => {
             let bindings = rule(state)?.rule.bindings.0;
-            match bindings.get(usize::try_from(parameter.0).ok()?)? {
+            match bindings.get(usize::try_from(parameter.0).unwrap_or(usize::MAX))? {
                 ParameterBinding::Number(number) => Some(FlatTerm::Number(Integer(number.0))),
                 ParameterBinding::Text(written) => Some(FlatTerm::Text(text(drafts, written))),
                 ParameterBinding::Flag(_)
@@ -106,13 +108,19 @@ pub(crate) fn use_of(drafts: &mut Drafts, definition: DefinitionId) -> Flattened
     }
 }
 
-/// Whether a flattening is past a bound of one input: its branches, or the atoms of one of them.
-pub(crate) fn past_bounds(flattened: &Flattened) -> bool {
-    flattened.branches.len() > INPUT_BRANCHES
+/// How an input past a bound is asked for: its branches, or the atoms of one of them, past the bounds of one input make it
+/// one use of its definition.
+pub(crate) fn bounded(flattened: &Flattened) -> InputWant {
+    let past = flattened.branches.len() > INPUT_BRANCHES
         || flattened
             .branches
             .iter()
-            .any(|branch| branch.atoms.len() > BRANCH_ATOMS)
+            .any(|branch| branch.atoms.len() > BRANCH_ATOMS);
+    if past {
+        InputWant::Defined
+    } else {
+        InputWant::Inline
+    }
 }
 
 /// The definition of a step of the rule: found when the node has one, else made from the step's flattening.
@@ -178,8 +186,8 @@ pub(crate) fn input(
             }
             let cut = want == InputWant::Defined
                 || shared
-                || always_defined(state, step)
-                || waiting.is_some_and(past_bounds);
+                || own_want(state, step) == InputWant::Defined
+                || waiting.is_some_and(|flattened| bounded(flattened) == InputWant::Defined);
             if cut || drafts.defined.contains_key(&digest) {
                 let definition = step_defined(state, drafts, step)?;
                 Some(use_of(drafts, definition))
@@ -231,14 +239,15 @@ pub(crate) fn aliased(drafts: &mut Drafts, flattened: &Flattened) -> Option<Flat
     })
 }
 
-/// The size of an input as its reader would hold it: its branches and the atoms of its largest; one of each for a relation
-/// and for a step that is a definition.
-pub(crate) fn sized(state: &RuleFlattening<'_>, drafts: &Drafts, read: Input) -> (usize, usize) {
-    let Input::Step(step) = read else {
-        return (1, 1);
+/// The size of an input as its reader would hold it: one branch of one atom for a relation and for a step that is a
+/// definition, else the step's own branches.
+pub(crate) fn sized(state: &RuleFlattening<'_>, drafts: &Drafts, read: Input) -> InputSize {
+    let one = InputSize {
+        branches: Count(1),
+        atoms: Count(1),
     };
-    let Some(rule) = rule(state) else {
-        return (1, 1);
+    let (Input::Step(step), Some(rule)) = (read, rule(state)) else {
+        return one;
     };
     let digest = digest_of(rule, step);
     let waiting = state.flat.get(usize::from(step)).and_then(Option::as_ref);
@@ -246,27 +255,30 @@ pub(crate) fn sized(state: &RuleFlattening<'_>, drafts: &Drafts, read: Input) ->
         Some(flattened)
             if !drafts.defined.contains_key(&digest)
                 && readers(state.store, digest).0 < 2
-                && !always_defined(state, step)
-                && !past_bounds(flattened) =>
+                && own_want(state, step) == InputWant::Inline
+                && bounded(flattened) == InputWant::Inline =>
         {
             let atoms = flattened.branches.iter().map(|branch| branch.atoms.len());
-            (flattened.branches.len(), atoms.max().unwrap_or(0))
+            InputSize {
+                branches: Count(flattened.branches.len()),
+                atoms: Count(atoms.max().unwrap_or(0)),
+            }
         }
-        Some(_) | None => (1, 1),
+        Some(_) | None => one,
     }
 }
 
-/// Whether a step is always a definition for its readers: a nearest axis, whose walk a pipeline runs through a pattern of
-/// the step's own definition.
-pub(crate) fn always_defined(state: &RuleFlattening<'_>, step: StepId) -> bool {
+/// How a step is asked for whatever its reader wants: a nearest axis is always a definition, since a pipeline runs its walk
+/// through a pattern of the step's own definition.
+pub(crate) fn own_want(state: &RuleFlattening<'_>, step: StepId) -> InputWant {
     let operation = rule(state)
         .and_then(|rule| rule.rule.plan.steps.get(usize::from(step)))
         .map(|step| &step.operation);
-    matches!(
-        operation,
+    match operation {
         Some(Operation::Axis {
             direction: Direction::NearestAncestor,
             ..
-        })
-    )
+        }) => InputWant::Defined,
+        Some(_) | None => InputWant::Inline,
+    }
 }

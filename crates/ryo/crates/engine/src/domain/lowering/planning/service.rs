@@ -5,7 +5,7 @@
 
 use super::types::{
     AtomPlace, AtomPlacing, Enumerated, GivenTerms, NextAccess, OrderCompletion, PlannedBranch,
-    TermGiven, UnitRole,
+    TermGiven, UnitRole, WaitingAtom,
 };
 use crate::domain::lowering::costing::constants::{
     ANCESTORS, ANCHORS_TRIED, CHILDREN, DESCENDANTS, ESTIMATE_CAP,
@@ -114,11 +114,14 @@ fn place(state: &mut OrderCompletion<'_>, next: NextAccess) {
 }
 
 /// The unplaced atoms, by place.
-fn waiting<'a>(state: &'a OrderCompletion<'_>) -> impl Iterator<Item = (AtomPlace, &'a FlatAtom)> {
+fn waiting<'a>(state: &'a OrderCompletion<'_>) -> impl Iterator<Item = WaitingAtom<'a>> {
     let atoms = state.branch.atoms.iter().enumerate();
     atoms
         .filter(|(at, _)| state.placed.get(*at) == Some(&AtomPlacing::Waiting))
-        .map(|(at, atom)| (AtomPlace(at), atom))
+        .map(|(at, atom)| WaitingAtom {
+            place: AtomPlace(at),
+            atom,
+        })
 }
 
 /// Whether the unit may run a test or a decision now: a branch and a pipeline run none before their first enumeration,
@@ -134,7 +137,7 @@ fn settled(state: &OrderCompletion<'_>) -> TermGiven {
 /// The first waiting test whose terms are given: a walk between two given elements is a test of them.
 fn test(state: &OrderCompletion<'_>) -> Option<NextAccess> {
     let given = given_now(state);
-    let found = waiting(state).find(|(_, atom)| match atom {
+    let found = waiting(state).find(|waiting| match waiting.atom {
         FlatAtom::Test { left, right, .. }
         | FlatAtom::Walk {
             start: left,
@@ -148,8 +151,8 @@ fn test(state: &OrderCompletion<'_>) -> Option<NextAccess> {
     });
     found
         .filter(|_| settled(state) == TermGiven::Given)
-        .map(|(atom, _)| NextAccess {
-            atom,
+        .map(|waiting| NextAccess {
+            atom: waiting.place,
             rows: RowEstimate(1),
         })
 }
@@ -157,7 +160,7 @@ fn test(state: &OrderCompletion<'_>) -> Option<NextAccess> {
 /// The first waiting decision whose asked cells are given.
 fn decision(state: &OrderCompletion<'_>) -> Option<NextAccess> {
     let given = given_now(state);
-    let found = waiting(state).find(|(_, atom)| match atom {
+    let found = waiting(state).find(|waiting| match waiting.atom {
         FlatAtom::Decided { cells, .. } => {
             all_ready(cells.iter().flatten(), &given) == TermGiven::Given
         }
@@ -169,8 +172,8 @@ fn decision(state: &OrderCompletion<'_>) -> Option<NextAccess> {
     });
     found
         .filter(|_| settled(state) == TermGiven::Given)
-        .map(|(atom, _)| NextAccess {
-            atom,
+        .map(|waiting| NextAccess {
+            atom: waiting.place,
             rows: RowEstimate(1),
         })
 }
@@ -203,7 +206,8 @@ fn cheapest(state: &OrderCompletion<'_>, class: CostClass) -> Option<NextAccess>
     let given = given_now(state);
     let keyed = |ready: TermGiven| ready == TermGiven::Given && class == CostClass::Fanout;
     waiting(state)
-        .filter_map(|(atom, each)| {
+        .filter_map(|waiting| {
+            let (atom, each) = (waiting.place, waiting.atom);
             let rows = match each {
                 FlatAtom::Rows { .. } => access(state.drafts, each, &given, state.enumerated)
                     .filter(|choice| choice.class == class)

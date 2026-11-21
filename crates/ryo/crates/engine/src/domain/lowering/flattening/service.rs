@@ -2,7 +2,7 @@
 //! added to a branch, and the columns of a row picked. Nothing here copies a sub-plan: a branch holds uses, never bodies.
 
 use super::types::{EqualTerms, FlatAtom, FlatBranch, FlatTerm, FlatVariable, RowColumn};
-use crate::domain::steps::types::TestOperation;
+use crate::domain::steps::types::{MadeColumn, TestOperation};
 use std::collections::HashMap;
 
 /// Visits every term of an atom, in place.
@@ -202,4 +202,13 @@ pub(crate) fn picked(
 ) -> Option<Vec<FlatTerm>> {
     let cells = columns.into_iter().map(|column| row.get(column.0).copied());
     cells.collect()
+}
+
+/// The column of a made table, or of a definition, at a place; none for a place past the sixteen bits a column is counted in.
+#[must_use]
+pub(crate) fn made_column(place: RowColumn) -> Option<MadeColumn> {
+    match u16::try_from(place.0) {
+        Ok(column) => Some(MadeColumn(column)),
+        Err(_) => None,
+    }
 }

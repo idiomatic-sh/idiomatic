@@ -17,13 +17,20 @@ use std::collections::{BTreeSet, HashMap};
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct RowEstimate(pub(crate) u64);
 
-/// One pattern asked of a definition, and its form once it is placed.
-#[derive(Debug)]
-pub(crate) struct PatternDraft {
+/// The columns a use asks a pattern by: the ones it binds, and the ones it collects.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct AskedColumns {
     /// The columns that arrive bound.
     pub(crate) bound: ColumnMask,
     /// The columns a row gives back.
     pub(crate) collected: ColumnMask,
+}
+
+/// One pattern asked of a definition, and how it is placed once it is.
+#[derive(Debug)]
+pub(crate) struct PatternDraft {
+    /// The columns it is asked by.
+    pub(crate) asked: AskedColumns,
     /// How it is evaluated; none until it is placed.
     pub(crate) form: Option<PatternForm>,
     /// Whether the shape of its plans left its form open: a flip candidate.

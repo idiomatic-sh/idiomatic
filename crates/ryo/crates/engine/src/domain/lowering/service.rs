@@ -103,8 +103,8 @@ fn assembled(drafts: Drafts, rules: Vec<LoweredRule>) -> LoweredPack {
             .into_iter()
             .map(|pattern| DefinitionPattern {
                 shape: pattern.shape,
-                bound: pattern.bound,
-                collected: pattern.collected,
+                bound: pattern.asked.bound,
+                collected: pattern.asked.collected,
                 form: pattern
                     .form
                     .unwrap_or_else(|| PatternForm::Call(StepProgram::default())),
@@ -128,18 +128,19 @@ fn fault_refused(
     rules: &[AdmittedRule<'_>],
     unproved: Unproved,
 ) -> RefusedPlace {
-    let at = |homes: &[NodeHome], number: u32| {
-        homes
-            .get(usize::try_from(number).unwrap_or(usize::MAX))
-            .copied()
-    };
     let home = match unproved.unit {
         ProvedUnit::Rule(place) => rules.get(place.0).map(|rule| NodeHome {
             rule: place,
             step: rule.rule.plan.emit.step,
         }),
-        ProvedUnit::Definition(definition) => at(&homes.definitions, definition.0),
-        ProvedUnit::Table(table) => at(&homes.tables, table.0),
+        ProvedUnit::Definition(definition) => {
+            let place = usize::try_from(definition.0).unwrap_or(usize::MAX);
+            homes.definitions.get(place).copied()
+        }
+        ProvedUnit::Table(table) => {
+            let place = usize::try_from(table.0).unwrap_or(usize::MAX);
+            homes.tables.get(place).copied()
+        }
     };
     let home = home.unwrap_or(NodeHome {
         rule: AcceptedPlace(0),

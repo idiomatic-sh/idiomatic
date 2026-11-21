@@ -5,39 +5,50 @@ use crate::domain::lowering::definitions::service::fresh_variable;
 use crate::domain::lowering::definitions::types::{Drafts, Flattened};
 use crate::domain::lowering::emptiness::service::derived;
 use crate::domain::lowering::flattening::constants::{BRANCH_ATOMS, PRODUCT_BRANCHES};
+use crate::domain::lowering::flattening::service::made_column;
 use crate::domain::lowering::flattening::service::{picked, unified};
 use crate::domain::lowering::flattening::types::{EqualTerms, FlatAtom, FlatTerm, RowColumn};
 use crate::domain::lowering::nodes::service::input_shape;
 use crate::domain::lowering::tables::inputs::service::{all_selected, input, rule, sized};
 use crate::domain::lowering::tables::service::{tree_relation, walk_of};
+use crate::domain::lowering::tables::types::InputSize;
+use crate::domain::lowering::tables::types::JoinWants;
+use crate::domain::lowering::tables::types::KeyPair;
 use crate::domain::lowering::tables::types::{InputWant, RuleFlattening, TreeAxis};
-use crate::domain::steps::types::{MadeColumn, Polarity};
+use crate::domain::steps::types::Polarity;
 use ryo_relations::domain::relations::types::CellKind;
+use ryo_relations::domain::relations::types::Count;
 use ryo_values::domain::plan_parts::types::{ColumnIndex, JoinColumn, Side, StepId};
 use ryo_values::domain::plans::types::Operation;
 
 /// How each side of a join is asked for: both inline while the product of their branches and the atoms of a joined branch
 /// are within the bounds; else the larger side is one use of its definition, and both when that is not enough.
-pub(crate) fn join_wants(left: (usize, usize), right: (usize, usize)) -> (InputWant, InputWant) {
-    let fits = |left: (usize, usize), right: (usize, usize)| {
-        left.0.saturating_mul(right.0) <= PRODUCT_BRANCHES
-            && left.1.saturating_add(right.1) <= BRANCH_ATOMS
+pub(crate) fn join_wants(left: InputSize, right: InputSize) -> JoinWants {
+    let one = InputSize {
+        branches: Count(1),
+        atoms: Count(1),
     };
-    if fits(left, right) {
-        return (InputWant::Inline, InputWant::Inline);
-    }
-    let larger_right = right.0.saturating_mul(right.1) >= left.0.saturating_mul(left.1);
-    match (larger_right, fits(left, (1, 1)), fits((1, 1), right)) {
-        (true, true, _) => (InputWant::Inline, InputWant::Defined),
-        (false, _, true) => (InputWant::Defined, InputWant::Inline),
-        (true, false, _) | (false, _, false) => (InputWant::Defined, InputWant::Defined),
-    }
+    let fits = |left: InputSize, right: InputSize| {
+        left.branches.0.saturating_mul(right.branches.0) <= PRODUCT_BRANCHES
+            && left.atoms.0.saturating_add(right.atoms.0) <= BRANCH_ATOMS
+    };
+    let weight = |side: InputSize| side.branches.0.saturating_mul(side.atoms.0);
+    let (left, right) = if fits(left, right) {
+        (InputWant::Inline, InputWant::Inline)
+    } else if weight(right) >= weight(left) && fits(left, one) {
+        (InputWant::Inline, InputWant::Defined)
+    } else if weight(right) < weight(left) && fits(one, right) {
+        (InputWant::Defined, InputWant::Inline)
+    } else {
+        (InputWant::Defined, InputWant::Defined)
+    };
+    JoinWants { left, right }
 }
 
 /// The answer row of a join over the row of its left side followed by the row of its right.
 pub(crate) fn join_row(
     row: &[FlatTerm],
-    left_width: usize,
+    left_width: Count,
     output: &[JoinColumn],
 ) -> Option<Vec<FlatTerm>> {
     picked(
@@ -45,19 +56,22 @@ pub(crate) fn join_row(
         output.iter().map(|column| {
             RowColumn(match column.side {
                 Side::Left => usize::from(column.column),
-                Side::Right => left_width.saturating_add(usize::from(column.column)),
+                Side::Right => left_width.0.saturating_add(usize::from(column.column)),
             })
         }),
     )
 }
 
-/// The keys of a join as pairs of places.
+/// The keys of a join, each a column of its left side and a column of its right.
 pub(crate) fn key_pairs<'k>(
     left_on: &'k [ColumnIndex],
     right_on: &'k [ColumnIndex],
-) -> impl Iterator<Item = (usize, usize)> + 'k {
+) -> impl Iterator<Item = KeyPair> + 'k {
     let pairs = left_on.iter().zip(right_on);
-    pairs.map(|(left, right)| (usize::from(*left), usize::from(*right)))
+    pairs.map(|(left, right)| KeyPair {
+        left: RowColumn(usize::from(*left)),
+        right: RowColumn(usize::from(*right)),
+    })
 }
 
 /// The branches of a join.
@@ -82,15 +96,19 @@ pub(crate) fn join_arm(
     let shapes = &rule(state)?.shapes;
     let left_shape = input_shape(shapes, *left)?;
     let wants = join_wants(sized(state, drafts, *left), sized(state, drafts, *right));
-    let lefts = input(state, drafts, *left, wants.0)?;
-    let mut rights = input(state, drafts, *right, wants.1)?;
+    let lefts = input(state, drafts, *left, wants.left)?;
+    let mut rights = input(state, drafts, *right, wants.right)?;
     rights.branches = all_selected(state, drafts, rights.branches, filter)?;
     let mut branches = Vec::with_capacity(lefts.branches.len() * rights.branches.len());
     for left_branch in &lefts.branches {
         for right_branch in &rights.branches {
             let width = left_branch.row.len();
             let mut pairs = Vec::with_capacity(left_on.len());
-            for (left_key, right_key) in key_pairs(left_on, right_on) {
+            for KeyPair {
+                left: RowColumn(left_key),
+                right: RowColumn(right_key),
+            } in key_pairs(left_on, right_on)
+            {
                 pairs.push(EqualTerms {
                     left: *left_branch.row.get(left_key)?,
                     right: *right_branch.row.get(right_key)?,
@@ -100,14 +118,14 @@ pub(crate) fn join_arm(
             joined.atoms.extend(right_branch.atoms.iter().cloned());
             joined.row.extend(right_branch.row.iter().copied());
             if let Some(mut joined) = unified(joined, &pairs) {
-                joined.row = join_row(&joined.row, width, output)?;
+                joined.row = join_row(&joined.row, Count(width), output)?;
                 branches.push(joined);
             }
         }
     }
     // A join whose every key is the file's own column states no key within the file: its rows are a product.
     let keyless = key_pairs(left_on, right_on)
-        .all(|(left_key, _)| left_shape.0.get(left_key) == Some(&CellKind::File));
+        .all(|key| left_shape.0.get(key.left.0) == Some(&CellKind::File));
     let mut stated = lefts.keyless;
     stated.extend(rights.keyless);
     if keyless {
@@ -144,7 +162,11 @@ pub(crate) fn antijoin_arm(
     for branch in &mut lefts.branches {
         let mut cells: Vec<Option<FlatTerm>> = vec![None; width];
         let mut twice = Vec::new();
-        for (left_key, right_key) in key_pairs(left_on, right_on) {
+        for KeyPair {
+            left: RowColumn(left_key),
+            right: RowColumn(right_key),
+        } in key_pairs(left_on, right_on)
+        {
             let asked = *branch.row.get(left_key)?;
             match cells.get_mut(right_key)? {
                 // One right column asked for two left cells: the two are equal, and one is asked.
@@ -204,7 +226,7 @@ pub(crate) fn axis_arm(
                 branch.atoms.push(FlatAtom::Nearest {
                     relation,
                     domain: definition,
-                    column: MadeColumn(u16::try_from(entity).ok()?),
+                    column: made_column(RowColumn(entity))?,
                     start: *branch.row.get(start)?,
                     reached,
                 });
@@ -218,8 +240,8 @@ pub(crate) fn axis_arm(
         }
         TreeAxis::Along(walk) => {
             let wants = join_wants(sized(state, drafts, *from), sized(state, drafts, *domain));
-            let starts = input(state, drafts, *from, wants.0)?;
-            let mut held = input(state, drafts, *domain, wants.1)?;
+            let starts = input(state, drafts, *from, wants.left)?;
+            let mut held = input(state, drafts, *domain, wants.right)?;
             held.branches = all_selected(state, drafts, held.branches, domain_filter)?;
             let mut branches = Vec::with_capacity(starts.branches.len() * held.branches.len());
             for left in &starts.branches {

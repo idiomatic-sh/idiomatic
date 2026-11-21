@@ -2,7 +2,8 @@
 //! of one, and a pattern asked of one. A definition is lowered once, whoever reads it; nothing below a use is ever copied.
 
 use super::types::{
-    DefinitionDraft, Drafts, Flattened, PatternDraft, PatternPlace, RowEstimate, WaitingPattern,
+    AskedColumns, DefinitionDraft, Drafts, Flattened, PatternDraft, PatternPlace, RowEstimate,
+    WaitingPattern,
 };
 use crate::domain::code::types::ShapeChoice;
 use crate::domain::lowering::flattening::types::{
@@ -144,13 +145,15 @@ pub(crate) fn asked(
     let known = draft
         .patterns
         .iter()
-        .any(|pattern| pattern.bound == *bound && pattern.collected == *collected);
+        .any(|pattern| pattern.asked.bound == *bound && pattern.asked.collected == *collected);
     if known {
         return;
     }
     draft.patterns.push(PatternDraft {
-        bound: bound.clone(),
-        collected: collected.clone(),
+        asked: AskedColumns {
+            bound: bound.clone(),
+            collected: collected.clone(),
+        },
         form: None,
         shape: ShapeChoice::Decided,
     });

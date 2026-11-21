@@ -132,7 +132,10 @@ fn subject(asked: Input) -> Result<Value, Failure> {
         Asked::Kinds => {
             let lowered = OperationKind::ALL.iter().copied();
             let kinds: Vec<OperationKind> = lowered
-                .filter(|kind| admitted(rule(&growth_plan(*kind))).is_ok())
+                .filter_map(|kind| match admitted(rule(&growth_plan(kind))) {
+                    Ok(_) => Some(kind),
+                    Err(_) => None,
+                })
                 .collect();
             format!("{kinds:?}")
         }

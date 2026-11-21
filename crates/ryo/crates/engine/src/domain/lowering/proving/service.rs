@@ -33,19 +33,16 @@ const fn inline(body: &StepBody) -> Option<&StepProgram> {
 }
 
 /// The values a use of a definition passes; none for an inline body.
-const fn passed(body: &StepBody) -> usize {
+const fn passed(body: &StepBody) -> Count {
     match body {
-        StepBody::Inline(_) => 0,
-        StepBody::Definition { values, .. } => values.0.len(),
+        StepBody::Inline(_) => Count(0),
+        StepBody::Definition { values, .. } => Count(values.0.len()),
     }
 }
 
 /// What a step holds, from its inline programs and the operands of its widest list.
-const fn of(programs: Vec<&StepProgram>, operands: usize) -> HeldPrograms<'_> {
-    HeldPrograms {
-        programs,
-        operands: Count(operands),
-    }
+const fn of(programs: Vec<&StepProgram>, operands: Count) -> HeldPrograms<'_> {
+    HeldPrograms { programs, operands }
 }
 
 /// The inline programs a step runs, and how many operands its widest list holds.
@@ -55,9 +52,9 @@ fn held(step: &ProgramStep) -> HeldPrograms<'_> {
         ProgramStep::Or {
             bodies, outputs, ..
         } => {
-            let widest = bodies.iter().map(passed).max().unwrap_or(0);
+            let widest = bodies.iter().map(|body| passed(body).0).max().unwrap_or(0);
             let count = widest.max(bodies.len()).max(outputs.0.len());
-            of(bodies.iter().filter_map(inline).collect(), count)
+            of(bodies.iter().filter_map(inline).collect(), Count(count))
         }
         ProgramStep::Nearest {
             edges, condition, ..
@@ -72,17 +69,17 @@ fn held(step: &ProgramStep) -> HeldPrograms<'_> {
         ProgramStep::Closure { edges, .. } => {
             of(inline(edges).into_iter().collect(), passed(edges))
         }
-        ProgramStep::Fork { slots } => of(slots.iter().collect(), slots.len()),
+        ProgramStep::Fork { slots } => of(slots.iter().collect(), Count(slots.len())),
         ProgramStep::EachMatch { values, .. } | ProgramStep::EachRange { values, .. } => {
-            of(Vec::new(), values.0.len())
+            of(Vec::new(), Count(values.0.len()))
         }
         ProgramStep::Call {
             arguments, outputs, ..
-        } => of(Vec::new(), arguments.0.len().max(outputs.0.len())),
-        ProgramStep::Yield { row } => of(Vec::new(), row.0.len()),
-        ProgramStep::Latest { key, .. } => of(Vec::new(), key.0.len()),
-        ProgramStep::Emit { columns, .. } => of(Vec::new(), columns.0.len()),
-        ProgramStep::EachKind { kinds, .. } => of(Vec::new(), kinds.0.len()),
+        } => of(Vec::new(), Count(arguments.0.len().max(outputs.0.len()))),
+        ProgramStep::Yield { row } => of(Vec::new(), Count(row.0.len())),
+        ProgramStep::Latest { key, .. } => of(Vec::new(), Count(key.0.len())),
+        ProgramStep::Emit { columns, .. } => of(Vec::new(), Count(columns.0.len())),
+        ProgramStep::EachKind { kinds, .. } => of(Vec::new(), Count(kinds.0.len())),
         ProgramStep::EachRow { .. }
         | ProgramStep::Children { .. }
         | ProgramStep::Axis { .. }
@@ -90,7 +87,7 @@ fn held(step: &ProgramStep) -> HeldPrograms<'_> {
         | ProgramStep::Read { .. }
         | ProgramStep::Test { .. }
         | ProgramStep::Render { .. }
-        | ProgramStep::Let { .. } => of(Vec::new(), 0),
+        | ProgramStep::Let { .. } => of(Vec::new(), Count(0)),
     }
 }
 

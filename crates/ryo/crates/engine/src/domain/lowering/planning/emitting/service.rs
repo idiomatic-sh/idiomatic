@@ -6,6 +6,7 @@ use crate::domain::lowering::costing::service::keyed;
 use crate::domain::lowering::costing::types::CellState;
 use crate::domain::lowering::definitions::service::{asked, fresh_register};
 use crate::domain::lowering::definitions::types::Drafts;
+use crate::domain::lowering::flattening::service::made_column;
 use crate::domain::lowering::flattening::types::{
     AtomRows, FlatAtom, FlatTerm, RowColumn, RowsPerFile,
 };
@@ -13,6 +14,8 @@ use crate::domain::lowering::planning::operands::service::{
     anchor_kinds, cell_register, file_noted, file_register, key_value, operand, read_column,
     source_of, state_of, test_operand,
 };
+use crate::domain::lowering::planning::types::NearestTreeWalk;
+use crate::domain::lowering::planning::types::WalkEnds;
 use crate::domain::lowering::planning::types::{
     Emitter, Enumerated, FileCell, UnitRole, WrittenAccess,
 };
@@ -22,6 +25,7 @@ use crate::domain::steps::types::{
     ColumnList, ColumnMask, CostClass, DefinitionId, MadeColumn, MadeTableId, MatchColumns,
     Polarity, ReadColumn, Register, RegisterList, StepOperand, StepOperands, TestOperation,
 };
+use ryo_relations::domain::relations::types::Count;
 use ryo_relations::domain::relations::types::NodeColumn;
 
 /// Reads the cells of a row that its key did not hold: a variable nothing gave yet takes the cell when something else reads
@@ -35,7 +39,8 @@ fn cells_read(
 ) {
     let rows = source_of(source);
     for (place, cell) in cells.iter().enumerate() {
-        let Some(column) = read_column(source, place).filter(|_| !key.contains(&RowColumn(place)))
+        let Some(column) =
+            read_column(source, RowColumn(place)).filter(|_| !key.contains(&RowColumn(place)))
         else {
             continue;
         };
@@ -43,7 +48,7 @@ fn cells_read(
             (_, CellState::File) => {}
             // A variable nothing gave takes the row's cell, when something else reads it: a pin of it is tested after.
             (FlatTerm::Variable(variable), CellState::Open | CellState::Constant) => {
-                if emitter.uses.get(&variable).copied().unwrap_or(0) >= 2 {
+                if emitter.uses.get(&variable).is_some_and(|uses| uses.0 >= 2) {
                     let out = cell_register(emitter, rows, column, row);
                     let _new = emitter.environment.registers.insert(variable, out);
                 }
@@ -72,7 +77,7 @@ fn used(
     let (mut bound, mut values) = (Vec::new(), Vec::new());
     let (mut collected, mut outputs, mut tests) = (Vec::new(), Vec::new(), Vec::new());
     for (place, cell) in cells.iter().enumerate() {
-        let Ok(column) = u16::try_from(place).map(MadeColumn) else {
+        let Some(column) = made_column(RowColumn(place)) else {
             continue;
         };
         let state = state_of(&emitter.environment, *cell);
@@ -89,7 +94,7 @@ fn used(
                 }
             }
             (FlatTerm::Variable(variable), CellState::Open | CellState::Constant, _) => {
-                if emitter.uses.get(&variable).copied().unwrap_or(0) >= 2 {
+                if emitter.uses.get(&variable).is_some_and(|uses| uses.0 >= 2) {
                     let out = fresh_register(emitter.drafts);
                     collected.push(column);
                     outputs.push(out);
@@ -184,7 +189,7 @@ fn rows_read(
     }
     let mut pinned = Vec::new();
     for place in &choice.cells {
-        let (Some(column), Some(cell)) = (read_column(source, place.0), cells.get(place.0)) else {
+        let (Some(column), Some(cell)) = (read_column(source, *place), cells.get(place.0)) else {
             continue;
         };
         let state = states.get(place.0).copied();
@@ -249,8 +254,8 @@ fn decided(
                 operand(&emitter.environment, cell)
             }
         });
-        if let (Some(value), Ok(column)) = (value, u16::try_from(place)) {
-            bound.push(MadeColumn(column));
+        if let (Some(value), Some(column)) = (value, made_column(RowColumn(place))) {
+            bound.push(column);
             values.push(value);
         }
     }
@@ -289,7 +294,7 @@ pub(crate) fn atom_written(emitter: &mut Emitter<'_>, atom: &FlatAtom) {
                 .map(|cell| operand(&emitter.environment, *cell))
                 .collect();
             let (Some(key), Some(bound)) = (operands, operand(&emitter.environment, *bound)) else {
-                emitter.missed = emitter.missed.saturating_add(1);
+                emitter.missed = Count(emitter.missed.0.saturating_add(1));
                 return;
             };
             let out = fresh_register(emitter.drafts);
@@ -313,14 +318,27 @@ pub(crate) fn atom_written(emitter: &mut Emitter<'_>, atom: &FlatAtom) {
             direction,
             start,
             reached,
-        } => walked(emitter, *relation, *direction, (*start, *reached)),
+        } => {
+            let ends = WalkEnds {
+                start: *start,
+                reached: *reached,
+            };
+            walked(emitter, *relation, *direction, ends);
+        }
         FlatAtom::Nearest {
             relation,
             domain,
             column,
             start,
             reached,
-        } => nearest(emitter, (*relation, *domain, *column), *start, *reached),
+        } => {
+            let walk = NearestTreeWalk {
+                relation: *relation,
+                domain: *domain,
+                column: *column,
+            };
+            nearest(emitter, walk, *start, *reached);
+        }
         FlatAtom::Test { test, left, right } => {
             // A pin an access was keyed by holds already.
             if let (TestOperation::Equal, FlatTerm::Variable(variable)) = (test, left)
@@ -332,7 +350,7 @@ pub(crate) fn atom_written(emitter: &mut Emitter<'_>, atom: &FlatAtom) {
             let (Some(left), Some(right)) =
                 (test_operand(emitter, *left), test_operand(emitter, *right))
             else {
-                emitter.missed = emitter.missed.saturating_add(1);
+                emitter.missed = Count(emitter.missed.0.saturating_add(1));
                 return;
             };
             emitter.written.push(WrittenAccess::Test {

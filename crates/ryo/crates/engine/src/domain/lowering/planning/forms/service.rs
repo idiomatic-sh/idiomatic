@@ -1,5 +1,7 @@
 //! The services of the `forms` part: one access in each emitter's form: a step of a program, a stage of a pipeline.
 
+use crate::domain::lowering::planning::types::Enumerated;
+use crate::domain::lowering::planning::types::KindAnchor;
 use crate::domain::lowering::planning::types::WrittenAccess;
 use crate::domain::steps::stages::types::{FillStage, TreeWalk, UseMode};
 use crate::domain::steps::types::{
@@ -16,7 +18,7 @@ pub(crate) fn step_of(access: WrittenAccess) -> ProgramStep {
             kinds,
             out,
         } => match kinds {
-            Some((relation, kinds)) => ProgramStep::EachKind {
+            Some(KindAnchor { relation, kinds }) => ProgramStep::EachKind {
                 relation,
                 kinds,
                 out,
@@ -142,7 +144,7 @@ pub(crate) fn step_of(access: WrittenAccess) -> ProgramStep {
 
 /// One access as a stage of a pipeline: the first enumeration is the scan; a later read by a register is a probe, and one
 /// with no register is every row of its source, a product. None for a `Let`, which no pipeline holds.
-pub(crate) fn stage_of(access: WrittenAccess, first: bool) -> Option<FillStage> {
+pub(crate) fn stage_of(access: WrittenAccess, first: Enumerated) -> Option<FillStage> {
     Some(match access {
         WrittenAccess::Rows {
             source,
@@ -156,13 +158,13 @@ pub(crate) fn stage_of(access: WrittenAccess, first: bool) -> Option<FillStage> 
                 .iter()
                 .any(|value| matches!(value, StepOperand::Register(_)));
             match (first, keyed) {
-                (true, _) => FillStage::Scan {
+                (Enumerated::NotYet, _) => FillStage::Scan {
                     source,
                     columns,
                     values,
                     out,
                 },
-                (false, true) => FillStage::Probe {
+                (Enumerated::Already, true) => FillStage::Probe {
                     source,
                     columns,
                     values,
@@ -170,7 +172,7 @@ pub(crate) fn stage_of(access: WrittenAccess, first: bool) -> Option<FillStage> 
                     mode: UseMode::Rows,
                     out,
                 },
-                (false, false) => FillStage::Product { source, out },
+                (Enumerated::Already, false) => FillStage::Product { source, out },
             }
         }
         WrittenAccess::Use {
