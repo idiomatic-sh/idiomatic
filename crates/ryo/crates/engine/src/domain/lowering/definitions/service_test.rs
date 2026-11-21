@@ -5,16 +5,17 @@ use super::service::{asked, defined, text, use_branch};
 use super::types::{Drafts, Flattened, RowEstimate};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::lowering::fixtures::described::described;
-use crate::domain::lowering::fixtures::named;
+use crate::domain::lowering::fixtures::{digests_of, named};
 use crate::domain::lowering::nodes::types::{AcceptedPlace, NodeHome, StepShape};
 use crate::domain::lowering::service::lowered;
 use crate::domain::lowering::types::{SelectedRule, SelectedRules};
 use crate::domain::steps::types::{ColumnMask, MadeColumn};
 use ryo_relations::domain::relations::types::CellKind;
-use ryo_values::domain::descriptions::types::{KindVocabulary, LanguageName};
+use ryo_values::domain::descriptions::types::{FixedName, KindVocabulary, LanguageName};
 use ryo_values::domain::plan_parts::types::{LiteralText, StepId};
 use ryo_values::domain::query_bindings::types::RuleBindings;
 use ryo_values::domain::query_plans::types::NodeDigest;
+use ryo_values::domain::query_plans::types::NodeDigests;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 use std::borrow::Cow;
 
@@ -37,18 +38,26 @@ type Failure = ();
 /// The lines of a pack's patterns and pipelines, sorted: the rules' own lines left out.
 fn lines(scenes: &[&str]) -> Vec<String> {
     let plans: Vec<_> = scenes.iter().map(|scene| named(scene)).collect();
+    let digests: Vec<NodeDigests> = plans
+        .iter()
+        .map(|plan| digests_of(plan, RuleBindings(&[])))
+        .collect();
     let rules: Vec<SelectedRule<'_>> = plans
         .iter()
+        .zip(&digests)
         .zip(0..)
-        .map(|(plan, rule)| SelectedRule {
+        .map(|((plan, digests), rule)| SelectedRule {
             rule: SelectedRuleOrdinal(rule),
             plan,
             bindings: RuleBindings(&[]),
+            digests,
         })
         .collect();
     let kinds = KindVocabulary {
         language: LanguageName("walking".into()),
         kinds: Vec::new(),
+        fields: Vec::new(),
+        fixed: Vec::new(),
     };
     let lowered = lowered(SelectedRules(&rules), None, &kinds);
     let mut lines: Vec<String> = described(&lowered.pack)
@@ -88,18 +97,23 @@ fn counted() -> String {
     asked(&mut drafts, first, &key, &nothing);
     asked(&mut drafts, first, &nothing, &nothing);
     asked(&mut drafts, first, &key, &nothing);
-    let (a, b) = (LiteralText("a".into()), LiteralText("b".into()));
-    let numbers = [
-        text(&mut drafts, &a),
-        text(&mut drafts, &a),
-        text(&mut drafts, &b),
-    ];
+    // A vocabulary of one fixed name: the empty text is word 0, the fixed name word 1, the pack's own texts after them.
+    let kinds = KindVocabulary {
+        language: LanguageName("walking".into()),
+        kinds: Vec::new(),
+        fields: Vec::new(),
+        fixed: vec![FixedName("fixed".into())],
+    };
+    let written = ["a", "a", "b", "", "fixed"].map(|text| LiteralText(text.into()));
+    let numbers = written
+        .each_ref()
+        .map(|each| text(&mut drafts, &kinds, each));
     let patterns = drafts
         .definitions
         .first()
         .map_or(0, |draft| draft.patterns.len());
     format!(
-        "{} definitions (the second {}); {patterns} patterns, {} waiting; texts {:?}; a use of {} columns",
+        "{} definitions (the second {}); {patterns} patterns, {} waiting; words {:?} of {} texts; a use of {} columns",
         drafts.definitions.len(),
         if first == again {
             "is the first"
@@ -108,6 +122,7 @@ fn counted() -> String {
         },
         drafts.waiting.len(),
         numbers.map(|number| number.0),
+        drafts.texts.len(),
         use_branch(&mut drafts, first).row.len(),
     )
 }
@@ -124,12 +139,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
     Case {
         name: CaseName(
-            "a_node_has_one_definition_a_pattern_is_asked_once_and_a_text_has_one_number",
+            "a_node_has_one_definition_a_pattern_is_asked_once_and_a_text_is_its_base_word",
         ),
         word: Word::Succeeds,
         input: || Asked::Counts,
         expect: Expect::Value(Cow::Borrowed(
-            "1 definitions (the second is the first); 2 patterns, 2 waiting; texts [0, 0, 1]; a use of 2 columns",
+            "1 definitions (the second is the first); 2 patterns, 2 waiting; words [2, 2, 3, 0, 1] of 2 texts; a use of 2 columns",
         )),
     },
 ];

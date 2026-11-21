@@ -172,10 +172,7 @@ pub(crate) fn anchor_kinds(
     let FlatTerm::Text(number) = term else {
         return None;
     };
-    let written = emitter
-        .drafts
-        .texts
-        .get(usize::try_from(number.0).unwrap_or(usize::MAX))?;
+    let written = emitter.drafts.written.get(&number)?;
     let bits = kind_bits(emitter.kinds, written)?;
     Some(KindAnchor {
         relation,

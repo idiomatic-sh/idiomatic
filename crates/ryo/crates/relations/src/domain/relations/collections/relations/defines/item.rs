@@ -36,6 +36,8 @@ macro_rules! defines {
             scope File,
             notes Unneeded,
             form Filled(Many(Id)),
+            size PerElement,
+            keys [],
             columns {
                 /// The declaration: its file and where it starts.
                 id Id: NodeId => Node;

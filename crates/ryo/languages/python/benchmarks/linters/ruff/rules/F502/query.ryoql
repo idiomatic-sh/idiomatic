@@ -19,7 +19,7 @@ let format_expressions = select l.binop as binop, l.left as left, l.right as rig
 let parsed_formats = select * from format_expressions where outcome = "parsed";
 let format_fields = select id as format_id, f."argument-kind" as argument_kind, file from "format-field" as f where f."argument-kind" = "mapping";
 let mapping_formats = select l.binop as binop, l.file as file, r.format_id as field from parsed_formats as l join format_fields as r on l.format_id = r.format_id and l.file = r.file;
-let mapping_shape_formats = select l.binop as binop, l.file as file from mapping_formats as l join parsed_formats as r on l.binop = r.binop and l.file = r.file where r.right_kind = "list" or r.right_kind = "tuple" or r.right_kind = "set" or r.right_kind = "list-comp" or r.right_kind = "set-comp" or r.right_kind = "generator-exp";
+let mapping_shape_formats = select l.binop as binop, l.file as file from mapping_formats as l join parsed_formats as r on l.binop = r.binop and l.file = r.file where r.right_kind in ["list", "tuple", "set", "list-comp", "set-comp", "generator-exp"];
 let candidates = select l.binop as id, l.file as file, r.span as span from mapping_shape_formats as l join binops as r on l.binop = r.id and l.file = r.file;
 let candidate_locations = line_located(candidates=candidates);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:F502)$");

@@ -26,7 +26,7 @@ let literal_strings = select id as node, id as reported from then_strings;
 let literal_templates = select id as node, id as reported from then_templates;
 let literal_thens = union(left=literal_strings, right=literal_templates);
 let thens = union(left=literal_thens, right=constant_thens);
-let keyed_kinds = select id from "semantic-syntax" where kind = "property" or kind = "method-definition" or kind = "property-definition" or kind = "ts-abstract-method-definition" or kind = "ts-abstract-property-definition";
+let keyed_kinds = select id from "semantic-syntax" where kind in ["property", "method-definition", "property-definition", "ts-abstract-method-definition", "ts-abstract-property-definition"];
 let keys = select l.parent as member, l.child as key from "semantic-child" as l join keyed_kinds as r on l.parent = r.id where l.field = "key";
 let object_properties = select l.child as id from "semantic-child" as l join "semantic-syntax" as r on l.parent = r.id where l.field = "properties" and r.kind = "object-expression";
 let object_keys = select l.member as member, l.key as key from keys as l join "semantic-syntax" as r on l.member = r.id where r.kind != "property";
@@ -94,8 +94,7 @@ let elements = select parent as array, child as element, ordinal from "semantic-
 let entries = select l.element as entry from elements as l join entry_arrays as r on l.array = r.list;
 let entry_rows = select l.entry as entry from entries as l join nodes as r on l.entry = r.id where r.kind = "array-expression";
 let entry_elements = select l.array as array, l.element as element, l.ordinal as ordinal from elements as l join entry_rows as r on l.array = r.entry;
-let trailing_elements = select l.array as array, l.element as element from entry_elements as l join entry_elements as r on l.array = r.array where r.ordinal < l.ordinal;
-let entry_keys = antijoin(left=entry_elements, right=trailing_elements, left-on=["array", "element"], right-on=["array", "element"]);
+let entry_keys = group-min(from=entry_elements, keys=["array"], order="ordinal");
 let valued_entries = select l.element as id, r.reported as reported from entry_keys as l join thens as r on l.element = r.node;
 let valued_a = union(left=valued_keys, right=valued_assigned);
 let valued_b = union(left=valued_a, right=valued_defines);

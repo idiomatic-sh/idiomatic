@@ -57,7 +57,7 @@ let unindented_previous0 = antijoin(left=previous_places, right=indented_previou
 let unindented_previous1 = extend(from=unindented_previous0, values={indent: 1});
 let unindented_previous = select first, previous, owner, previous_end_line, indent, file from unindented_previous1;
 let previous_indents = union(left=previous_indents0, right=unindented_previous);
-let gap_trivia = select id, file from tree where kind = "comment" or kind = "whitespace" or kind = "newline" or kind = "nl" or kind = "indent" or kind = "dedent" or kind = "endmarker";
+let gap_trivia = select id, file from tree where kind in ["comment", "whitespace", "newline", "nl", "indent", "dedent", "endmarker"];
 let nontrivia_leaves = antijoin(left=leaves, right=gap_trivia, left-on=["id","file"], right-on=["id","file"]);
 let gap_code0 = select l.first as first, l.item as item, l.file as file from gap_members as l join nontrivia_leaves as r on l.item = r.id and l.file = r.file;
 let code_bad0 = select item as id, file from gap_code0;
@@ -93,7 +93,7 @@ let inline_trailing = select l.id as id, l.owner as owner, l.file as file from i
 let trailing_owners = union(left=own_deeper_trailing, right=inline_trailing);
 let unchanged_owners = antijoin(left=physical_owners, right=trailing_owners, left-on=["id","file"], right-on=["id","file"]);
 let effective_owners = union(left=unchanged_owners, right=trailing_owners);
-let valid_nodes = select id, file from branches where kind = "module" or kind = "expression" or kind = "function-def" or kind = "async-function-def" or kind = "class-def" or kind = "return" or kind = "delete" or kind = "type-alias" or kind = "assign" or kind = "aug-assign" or kind = "ann-assign" or kind = "for" or kind = "async-for" or kind = "while" or kind = "if" or kind = "with" or kind = "async-with" or kind = "match" or kind = "raise" or kind = "try" or kind = "try-star" or kind = "assert" or kind = "import" or kind = "import-from" or kind = "global" or kind = "nonlocal" or kind = "expr" or kind = "pass" or kind = "break" or kind = "continue" or kind = "ipy-escape-command" or kind = "except-handler" or kind = "match-case" or kind = "decorator" or kind = "elif-else-clause";
+let valid_nodes = select id, file from branches where kind in ["module", "expression", "function-def", "async-function-def", "class-def", "return", "delete", "type-alias", "assign", "aug-assign", "ann-assign", "for", "async-for", "while", "if", "with", "async-with", "match", "raise", "try", "try-star", "assert", "import", "import-from", "global", "nonlocal", "expr", "pass", "break", "continue", "ipy-escape-command", "except-handler", "match-case", "decorator", "elif-else-clause"];
 let valid_owners = select l.id as id, l.file as file from effective_owners as l join valid_nodes as r on l.owner = r.id and l.file = r.file;
 let bad_enclosing = antijoin(left=effective_owners, right=valid_owners, left-on=["id","file"], right-on=["id","file"]);
 let own_switches = select id, start, column, file from own_directives where directive = "off" or directive = "on";
@@ -116,7 +116,7 @@ let bad_full_decorator_gaps = select id, file from full_decorator_gaps;
 let following_branches = select l.first as first, r.id as following, r.kind as following_kind, l.file as file from gap_members as l join branches as r on l.item = r.id and l.file = r.file;
 let gap_keyword0 = select l.first as first, r.text as word, l.file as file from gap_members as l join tree as r on l.item = r.id and l.file = r.file where r.text = "else" or r.text = "finally";
 let gap_keyword = group-count(from=gap_keyword0, keys=["first","file"], count="count", distinct="word");
-let alternate_owners = select id, kind, file from branches where kind = "for" or kind = "async-for" or kind = "while" or kind = "try" or kind = "try-star" or kind = "if";
+let alternate_owners = select id, kind, file from branches where kind in ["for", "async-for", "while", "try", "try-star", "if"];
 let alternate_gaps0 = select l.first as first, l.previous as previous, l.owner as owner, r.kind as owner_kind, l.file as file from gap_starts as l join alternate_owners as r on l.owner = r.id and l.file = r.file;
 let keyword_alternates = select l.first as first, l.owner as owner, l.file as file from alternate_gaps0 as l join gap_keyword as r on l.first = r.first and l.file = r.file where l.owner_kind = "for" or l.owner_kind = "async-for" or l.owner_kind = "while";
 let finally_gaps = select first, file from gap_keyword0 where word = "finally";

@@ -26,6 +26,8 @@ macro_rules! pattern_parse {
             scope File,
             notes Unneeded,
             form Filled(Many(Carrier)),
+            size PerElement,
+            keys [],
             columns {
                 /// The source element that carries the pattern, such as a pattern literal or the string a pattern constructor takes; or,
                 /// when a call gives flags but no pattern text, the flags it gives.

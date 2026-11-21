@@ -17,8 +17,26 @@ use ryo_values::domain::plan_parts::types::{
     RepeatedRows, Side, StepId, StepScope, TableKey, Test,
 };
 use ryo_values::domain::plans::types::{Operation, PlanStep};
-use ryo_values::domain::query_plans::types::Plan;
+use ryo_values::domain::query_bindings::types::RuleBindings;
+use ryo_values::domain::query_plans::service::node_digests;
+use ryo_values::domain::query_plans::types::{NodeBytes, NodeDigest, NodeDigests, Plan};
 use ryo_values::domain::written_rows::types::{RowsSource, WrittenRow, WrittenRows};
+
+/// A digest function for the engine's tests: the 128-bit FNV-1a fold of the bytes given. The engine hashes nothing, so its
+/// tests stand in for the host's hash with this.
+fn folded(bytes: NodeBytes<'_>) -> NodeDigest {
+    let mut hash: u128 = 0x6c62_272e_07bb_0142_62b8_2175_6295_c58d;
+    for byte in bytes.0 {
+        hash = (hash ^ u128::from(*byte)).wrapping_mul(0x0100_0000_0000_0000_0000_013b);
+    }
+    NodeDigest(hash.to_le_bytes())
+}
+
+/// The digest of each step of `plan` under `bindings`, as a host gives them to `load`: by the tests' stand-in for its hash.
+#[must_use]
+pub fn digests_of(plan: &Plan, bindings: RuleBindings<'_>) -> NodeDigests {
+    node_digests(plan, bindings, &folded)
+}
 
 /// The plans of the operations' scan scenarios, each over the words of the scanned file (step 0); none for another name.
 fn operation_scene(scene: &str) -> Option<Plan> {

@@ -168,6 +168,8 @@ fn vocabularies() -> KindVocabularies {
             .iter()
             .map(|kind| KindWord(Box::from(*kind)))
             .collect(),
+        fields: Vec::new(),
+        fixed: Vec::new(),
     };
     KindVocabularies(vec![
         language("rust", &["source-file", "fn"]),

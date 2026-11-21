@@ -48,6 +48,7 @@ pub use ryo::languages::CallArgumentRow
 pub use ryo::languages::CatalogRelation
 pub use ryo::languages::CellKind
 pub use ryo::languages::CellWord
+pub use ryo::languages::CheckedNames
 pub use ryo::languages::ChildOrdinal
 pub use ryo::languages::Children
 pub use ryo::languages::Column
@@ -88,6 +89,7 @@ pub use ryo::languages::EmbeddedExpressionRow
 pub use ryo::languages::EmbeddedMapping
 pub use ryo::languages::EmbeddedRoot
 pub use ryo::languages::EmbeddedSource
+pub use ryo::languages::EmbeddedSpan
 pub use ryo::languages::EmbeddedText
 pub use ryo::languages::Entry
 pub use ryo::languages::EntryColumn
@@ -106,6 +108,7 @@ pub use ryo::languages::FactAnswer
 pub use ryo::languages::FactSource
 pub use ryo::languages::FieldCode
 pub use ryo::languages::FieldId
+pub use ryo::languages::FieldNames
 pub use ryo::languages::FieldRequest
 pub use ryo::languages::FileFacts
 pub use ryo::languages::FileId
@@ -128,11 +131,15 @@ pub use ryo::languages::FilesystemReadFailure
 pub use ryo::languages::FilesystemReadFailureColumn
 pub use ryo::languages::FilesystemReadFailureRow
 pub use ryo::languages::Fill
+pub use ryo::languages::FillExtent
 pub use ryo::languages::FillItem
 pub use ryo::languages::FilledColumn
 pub use ryo::languages::FilledColumns
 pub use ryo::languages::FillerSentence
 pub use ryo::languages::Fillers
+pub use ryo::languages::FixedNames
+pub use ryo::languages::FixedNamesError
+pub use ryo::languages::FixedWord
 pub use ryo::languages::Flag
 pub use ryo::languages::Flags
 pub use ryo::languages::FloatBits
@@ -192,6 +199,7 @@ pub use ryo::languages::InterpolatedStringLiteralColumn
 pub use ryo::languages::InterpolatedStringLiteralRow
 pub use ryo::languages::KeptShapeWords
 pub use ryo::languages::KeyState
+pub use ryo::languages::KeyedFillItem
 pub use ryo::languages::KindBits
 pub use ryo::languages::KindName
 pub use ryo::languages::KindNames
@@ -234,6 +242,7 @@ pub use ryo::languages::NO_SYMBOL
 pub use ryo::languages::NameNote
 pub use ryo::languages::NameStart
 pub use ryo::languages::NameText
+pub use ryo::languages::NodeExtent
 pub use ryo::languages::NodeId
 pub use ryo::languages::NodeTable
 pub use ryo::languages::NodeTableBuilder
@@ -303,6 +312,7 @@ pub use ryo::languages::ReferenceRow
 pub use ryo::languages::Refused
 pub use ryo::languages::Relation
 pub use ryo::languages::RelationNeeds
+pub use ryo::languages::RelationSize
 pub use ryo::languages::RenderContext
 pub use ryo::languages::RenderOutcome
 pub use ryo::languages::RenderRequest
@@ -402,7 +412,10 @@ pub use ryo::languages::Visiting
 pub use ryo::languages::WRITTEN_DIGITS_BYTES
 pub use ryo::languages::Walk
 pub use ryo::languages::WalkError
+pub use ryo::languages::WalkKinds
 pub use ryo::languages::WalkRequest
+pub use ryo::languages::WalkVocabulary
+pub use ryo::languages::Wanted
 pub use ryo::languages::Why
 pub use ryo::languages::WorkspaceMember
 pub use ryo::languages::WorkspaceMemberColumn
@@ -450,6 +463,7 @@ pub use ryo::languages::field_name_at
 pub use ryo::languages::fill_to
 pub use ryo::languages::fillers
 pub use ryo::languages::first_token_text
+pub use ryo::languages::fixed_names
 pub use ryo::languages::flags_at
 pub use ryo::languages::flow_edge_word
 pub use ryo::languages::flow_of
@@ -573,11 +587,15 @@ pub use ryo::languages::contract::FormatParseExpectedRow
 pub use ryo::languages::contract::FormatSpecificationExpectedRow
 pub use ryo::languages::contract::FunctionExpectedRow
 pub use ryo::languages::contract::FunctionTerminalExpectedRow
+pub use ryo::languages::contract::Growth
+pub use ryo::languages::contract::GrowthFault
+pub use ryo::languages::contract::GrowthReport
 pub use ryo::languages::contract::IdentifierExpectedRow
 pub use ryo::languages::contract::ImplicitSymbolExpectedRow
 pub use ryo::languages::contract::IndentRegionExpectedRow
 pub use ryo::languages::contract::InheritsExpectedRow
 pub use ryo::languages::contract::InterpolatedStringLiteralExpectedRow
+pub use ryo::languages::contract::KeyGrowth
 pub use ryo::languages::contract::KindSample
 pub use ryo::languages::contract::LanguageTargetExpectedRow
 pub use ryo::languages::contract::Leafness
@@ -640,6 +658,7 @@ pub use ryo::languages::contract::check_item
 pub use ryo::languages::contract::element_count
 pub use ryo::languages::contract::expected_rows
 pub use ryo::languages::contract::file
+pub use ryo::languages::contract::grown
 pub use ryo::languages::contract::has_incomplete_lexical_stream
 pub use ryo::languages::contract::has_incomplete_syntax
 pub use ryo::languages::contract::kept

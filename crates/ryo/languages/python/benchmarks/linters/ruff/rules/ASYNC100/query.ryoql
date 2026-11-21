@@ -9,7 +9,7 @@ let call_syntax_rows = call_syntax();
 let calls = select id, file from call_syntax_rows;
 let context_calls = select l.item as item, l.file as file, r.id as call from item_contexts as l join calls as r on l.expression = r.id;
 let call_functions = select l.parent as call, l.child as function from "semantic-child" as l join calls as r on l.parent = r.id where l.field = "func";
-let timeout_functions = select id from "qualified-name" where path = "asyncio.timeout" or path = "asyncio.timeout_at" or path = "anyio.move_on_after" or path = "anyio.fail_after" or path = "anyio.CancelScope" or path = "trio.CancelScope" or path = "trio.fail_after" or path = "trio.fail_at" or path = "trio.move_on_after" or path = "trio.move_on_at";
+let timeout_functions = select id from "qualified-name" where path in ["asyncio.timeout", "asyncio.timeout_at", "anyio.move_on_after", "anyio.fail_after", "anyio.CancelScope", "trio.CancelScope", "trio.fail_after", "trio.fail_at", "trio.move_on_after", "trio.move_on_at"];
 let timeout_calls = select l.call as call from call_functions as l join timeout_functions as r on l.function = r.id;
 let timeout_context_calls = select l.item as item from context_calls as l join timeout_calls as r on l.call = r.call;
 let checked_timeout_items = select l.statement as statement, l.item as item, l.ordinal as ordinal, l.file as file from with_items as l join timeout_context_calls as r on l.item = r.item;
@@ -41,7 +41,7 @@ let body_comprehensions = axis(from=body_root_ids, relation="semantic-child", di
 let body_comprehension_candidates = select l.statement as statement, r.related as checkpoint from bodies as l join body_comprehensions as r on l.body = r.id;
 let comprehension_checkpoints = select l.statement as statement, l.checkpoint as checkpoint from body_comprehension_candidates as l join async_comprehensions as r on l.checkpoint = r.related;
 let ordinary_and_comprehension_checkpoints = union(left=ordinary_checkpoints, right=comprehension_checkpoints);
-let scopes = select id, file from "semantic-syntax" where kind = "module" or kind = "function-def" or kind = "async-function-def" or kind = "class-def" or kind = "lambda";
+let scopes = select id, file from "semantic-syntax" where kind in ["module", "function-def", "async-function-def", "class-def", "lambda"];
 let statement_scopes = axis(from=with_statements, relation="semantic-child", direction=nearest-ancestor, domain=scopes);
 let checkpoint_scope_ids = select l.checkpoint as id, r.file as file from ordinary_and_comprehension_checkpoints as l join with_statements as r on l.statement = r.id;
 let checkpoint_scopes = axis(from=checkpoint_scope_ids, relation="semantic-child", direction=nearest-ancestor, domain=scopes);

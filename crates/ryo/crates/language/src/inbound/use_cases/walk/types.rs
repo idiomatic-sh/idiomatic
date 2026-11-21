@@ -3,6 +3,7 @@
 use super::errors::WalkError;
 use crate::domain::facts::types::FileFacts;
 use crate::domain::files::types::SourcePath;
+use crate::domain::fillers::types::WalkVocabulary;
 use crate::domain::node_table::types::NodeTable;
 use crate::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::relations::types::{Count, FileId, Relation};
@@ -89,6 +90,10 @@ pub struct RelationNeeds<'a>(pub &'a [Relation]);
 pub trait WalkEngine: Send + Sync {
     /// How many kinds of node and token the language's trees have.
     fn kind_count(&self) -> Count;
+
+    /// The names of the run (`Fillers::vocabulary`): the language's kinds, fields and fixed names, each by place. The host
+    /// reads it once, before the first file.
+    fn vocabulary(&self) -> WalkVocabulary;
 
     /// One worker's buffers of the language's own (`WalkUseCase::Scratch`), refilled for each file and never freed: the host
     /// holds them beside the worker's node table and names nothing inside.

@@ -34,6 +34,8 @@ macro_rules! decorates {
             scope File,
             notes Unneeded,
             form Filled(Many(Occurrence)),
+            size PerElement,
+            keys [],
             columns {
                 /// The attribute: its file and where it starts.
                 occurrence Occurrence: NodeId => Node;

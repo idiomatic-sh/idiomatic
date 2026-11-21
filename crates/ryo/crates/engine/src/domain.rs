@@ -2,7 +2,6 @@
 
 pub mod code;
 pub mod counting;
-pub mod digests;
 pub mod encoding;
 pub mod findings;
 pub mod lowered;

@@ -24,6 +24,8 @@ macro_rules! binding_use {
         scope File,
         notes Unneeded,
         form Filled(Many(Reference)),
+        size PerElement,
+        keys [],
         columns {
         /// Real semantic read, write or deletion occurrence.
         reference Reference: NodeId => Node;

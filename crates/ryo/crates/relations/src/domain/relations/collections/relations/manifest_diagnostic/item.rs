@@ -24,6 +24,8 @@ macro_rules! manifest_diagnostic {
             scope Project,
             notes Unneeded,
             form Filled(Whole),
+            size PerElement,
+            keys [],
             columns {
                 /// The real manifest identity.
                 file File: FileId => File;

@@ -47,6 +47,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     let kinds = KindVocabulary {
         language: LanguageName("walking".into()),
         kinds: Vec::new(),
+        fields: Vec::new(),
+        fixed: Vec::new(),
     };
     let bytes: &[u8] = match scenario {
         Scenario::NoBytes => &[],

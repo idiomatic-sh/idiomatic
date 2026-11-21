@@ -66,6 +66,8 @@ pub fn vocabularies() -> KindVocabularies {
     KindVocabularies(vec![KindVocabulary {
         language: LanguageName("rust".into()),
         kinds: vec![KindWord("fn".into())],
+        fields: Vec::new(),
+        fixed: Vec::new(),
     }])
 }
 /// Retain the former operator-service example/catalog assertion through public descriptors.

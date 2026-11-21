@@ -27,7 +27,7 @@ let mode_keyword_nodes = select keyword, call, file from named_keywords where na
 let keyword_mode_values = select l.call as call, r.value as value, l.file as file from mode_keyword_nodes as l join keyword_values as r on l.keyword = r.keyword and l.file = r.file;
 let mode_values_positional = select l.call as call, l.value as value, l.file as file from first_positional as l;
 let mode_values = union(left=mode_values_positional, right=keyword_mode_values);
-let spawn_names = select call, function, file, span from call_qnames where path = "os.spawnl" or path = "os.spawnle" or path = "os.spawnlp" or path = "os.spawnlpe" or path = "os.spawnv" or path = "os.spawnve" or path = "os.spawnvp" or path = "os.spawnvpe";
+let spawn_names = select call, function, file, span from call_qnames where path in ["os.spawnl", "os.spawnle", "os.spawnlp", "os.spawnlpe", "os.spawnv", "os.spawnve", "os.spawnvp", "os.spawnvpe"];
 let spawn_mode_values = select l.call as call, m.value as value, l.file as file, l.function as function, l.span as span from spawn_names as l join mode_values as m on l.call = m.call and l.file = m.file;
 let p_wait_values = select id, file from "qualified-name" where path = "os.P_WAIT";
 let direct_p_wait = select l.call as call, l.function as function, l.file as file, l.span as span from spawn_mode_values as l join p_wait_values as r on l.value = r.id and l.file = r.file;
@@ -49,7 +49,7 @@ let run_spawn_before_async = union(left=p_wait_spawn_calls, right=missing_mode);
 let create_spawn_before_async = antijoin(left=spawn_mode_values, right=p_wait_spawn_calls, left-on=["call","file"], right-on=["call","file"]);
 let run_spawn_calls = select l.call as call, l.function as function, l.file as file, l.span as span from run_spawn_before_async as l join async_calls as r on l.call = r.call and l.file = r.file;
 let create_spawn_calls = select l.call as call, l.function as function, l.file as file, l.span as span from create_spawn_before_async as l join async_calls as r on l.call = r.call and l.file = r.file;
-let direct_methods = select call, function, file, span from call_qnames where path = "os.system" or path = "os.posix_spawn" or path = "os.posix_spawnp" or path = "subprocess.run" or path = "subprocess.call" or path = "subprocess.check_call" or path = "subprocess.check_output" or path = "subprocess.getoutput" or path = "subprocess.getstatusoutput";
+let direct_methods = select call, function, file, span from call_qnames where path in ["os.system", "os.posix_spawn", "os.posix_spawnp", "subprocess.run", "subprocess.call", "subprocess.check_call", "subprocess.check_output", "subprocess.getoutput", "subprocess.getstatusoutput"];
 let async_direct_methods = select l.call as call, l.function as function, l.file as file, l.span as span from direct_methods as l join async_calls as r on l.call = r.call and l.file = r.file;
 let all_candidates = union(left=async_direct_methods, right=run_spawn_calls);
 let locations = select l.function as id, l.file as file, l.span as span, r."start-line" as line from all_candidates as l join "source-location" as r on l.function = r.id and l.file = r.file;

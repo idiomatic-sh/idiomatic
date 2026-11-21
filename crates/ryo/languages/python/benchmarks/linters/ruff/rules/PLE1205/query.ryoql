@@ -4,7 +4,7 @@ import line_located from "python/ruff/candidate-locations";
 let calls = call_syntax();
 let function_fields = select parent, child from "semantic-child" where field = "func";
 let call_functions = select l.parent as call, l.child as function, r.file as file, r.span as span from function_fields as l join calls as r on l.parent = r.id;
-let logging_function_names = select id, file from "qualified-name" where path = "logging.debug" or path = "logging.critical" or path = "logging.error" or path = "logging.exception" or path = "logging.info" or path = "logging.warn" or path = "logging.warning";
+let logging_function_names = select id, file from "qualified-name" where path in ["logging.debug", "logging.critical", "logging.error", "logging.exception", "logging.info", "logging.warn", "logging.warning"];
 let qname_logging_calls = select l.call as call, l.file as file, l.span as span from call_functions as l join logging_function_names as r on l.function = r.id and l.file = r.file;
 let attribute_functions = select id, file from "semantic-syntax" where kind = "attribute";
 let attribute_value_fields = select parent, child from "semantic-child" where field = "value";
@@ -32,7 +32,7 @@ let inline_logger_receivers = select l.attribute as attribute, l.file as file fr
 let module_logger_receivers = select l.attribute as attribute, l.file as file from attribute_receivers as l join "qualified-name" as r on l.receiver = r.id and l.file = r.file where r.path = "logging" or r.path = "flask.current_app.logger";
 let acceptable_attribute_receivers_a = union(left=named_common_logger_receivers, right=inline_logger_receivers);
 let acceptable_attribute_receivers_b = union(left=acceptable_attribute_receivers_a, right=module_logger_receivers);
-let method_tokens = select id, file, text from "syntax-tree" where text = "debug" or text = "critical" or text = "error" or text = "exception" or text = "info" or text = "warn" or text = "warning";
+let method_tokens = select id, file, text from "syntax-tree" where text in ["debug", "critical", "error", "exception", "info", "warn", "warning"];
 let attribute_ranges = select l.attribute as attribute, l.file as file, r."end-byte" as end_byte from attribute_receivers as l join "source-location" as r on l.attribute = r.id and l.file = r.file;
 let receiver_ranges = select l.attribute as attribute, l.file as file, r."end-byte" as end_byte from attribute_receivers as l join "source-location" as r on l.receiver = r.id and l.file = r.file;
 let receiver_and_attribute_ranges = select l.attribute as attribute, l.file as file, l.end_byte as receiver_end, r.end_byte as attribute_end from receiver_ranges as l join attribute_ranges as r on l.attribute = r.attribute and l.file = r.file;

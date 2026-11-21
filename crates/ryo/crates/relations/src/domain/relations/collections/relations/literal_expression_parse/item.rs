@@ -26,6 +26,8 @@ macro_rules! literal_expression_parse {
             scope File,
             notes Unneeded,
             form Filled(Many(Id)),
+            size PerElement,
+            keys [],
             columns {
                 /// Existing original string-expression identity.
                 id Id: NodeId => Node;

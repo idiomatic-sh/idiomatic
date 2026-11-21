@@ -6,22 +6,25 @@ use super::constants::{
 };
 use crate::domain::lowered::types::LoweredPack;
 use ryo_values::domain::query_bindings::types::RuleBindings;
-use ryo_values::domain::query_plans::types::Plan;
+use ryo_values::domain::query_plans::types::{NodeDigests, Plan};
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 
-/// One selected rule and the plan its query compiled to.
+/// One selected rule: the plan its query compiled to, what its parameters are bound to, and the digest of each of its plan's
+/// steps. The engine hashes nothing: the host computes the digests (`ryo_values::..::query_plans::service::node_digests`, with
+/// its own hash) and hands them in as data.
 ///
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::lowering::fixtures::named;
+/// use ryo_engine::domain::lowering::fixtures::{digests_of, named};
 /// use ryo_engine::domain::lowering::types::SelectedRule;
 /// use ryo_values::domain::query_bindings::types::RuleBindings;
 /// use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 ///
 /// let plan = named("one tree rule");
-/// let rule = SelectedRule { rule: SelectedRuleOrdinal(0), plan: &plan, bindings: RuleBindings(&[]) };
-/// assert_eq!(rule.rule, SelectedRuleOrdinal(0));
+/// let digests = digests_of(&plan, RuleBindings(&[]));
+/// let rule = SelectedRule { rule: SelectedRuleOrdinal(0), plan: &plan, bindings: RuleBindings(&[]), digests: &digests };
+/// assert_eq!(rule.digests.0.len(), rule.plan.steps.len());
 /// ```
 #[derive(Clone, Copy, Debug)]
 pub struct SelectedRule<'a> {
@@ -31,6 +34,9 @@ pub struct SelectedRule<'a> {
     pub plan: &'a Plan,
     /// What the host bound each of the plan's parameters to, in the plan's order: a parameter is a constant from the lowering on.
     pub bindings: RuleBindings<'a>,
+    /// The digest of each step of the plan under those bindings, in step order: one for each step. A definition, a made
+    /// table and the rule's own unit are named by the digest of the step whose rows they are.
+    pub digests: &'a NodeDigests,
 }
 
 /// The selected rules, in rule order.

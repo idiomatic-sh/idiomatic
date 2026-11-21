@@ -12,7 +12,7 @@ let nonlocal_ancestor_paths = select l.id as id, l.file as file, l.scope as nonl
 let nonlocal_scope_self = select id, file, scope as nonlocal_scope, scope, name from outer_function_nonlocals;
 let nonlocal_outer_scopes = union(left=nonlocal_ancestor_paths, right=nonlocal_scope_self);
 let outer_function_declarations = select l.name as name, l.scope as scope, l.file as file from function_declarations as l join functions as r on l.scope = r.id and l.file = r.file;
-let lexical_scopes = select id, file from "semantic-syntax" where kind = "module" or kind = "function-def" or kind = "async-function-def" or kind = "class-def" or kind = "lambda";
+let lexical_scopes = select id, file from "semantic-syntax" where kind in ["module", "function-def", "async-function-def", "class-def", "lambda"];
 let nonlocal_lexical_owners = axis(from=nonlocals, relation="semantic-child", direction=nearest-ancestor, domain=lexical_scopes);
 let nonlocal_owner_rows = select l.id as id, r.related as owner, l.file as file from nonlocals as l join nonlocal_lexical_owners as r on l.id = r.id and l.file = r.file;
 let nonlocal_outer_scopes_with_owner = select l.id as id, l.file as file, l.nonlocal_scope as nonlocal_scope, l.scope as scope, l.name as name, r.owner as owner from nonlocal_outer_scopes as l join nonlocal_owner_rows as r on l.id = r.id and l.file = r.file;

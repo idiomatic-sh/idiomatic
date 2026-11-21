@@ -10,7 +10,7 @@ use crate::domain::nodes::types::Node;
 use crate::domain::siblings::service::{
     among, before, first, last, matching, nodes_after, opening, previous, siblings,
 };
-use crate::domain::siblings::types::{Match, Standing, Wanted};
+use crate::domain::siblings::types::{Match, Standing, WantedSibling};
 use crate::domain::syntax::service::{is_root, is_token, kind, parent};
 use crate::domain::syntax::types::{Kind, Leaf, Rootness};
 use crate::domain::tokens::types::Token;
@@ -64,17 +64,17 @@ fn is(tree: &Tree<'_>, at: Position, wanted: Node) -> Holding {
 
 /// Whether no node comes before `at` among its siblings.
 fn leading(tree: &Tree<'_>, at: Position) -> Holding {
-    none(before(tree, at, Wanted::Node))
+    none(before(tree, at, WantedSibling::Node))
 }
 
 /// Whether no token `wanted` comes before `at` among its siblings.
 fn ahead_of(tree: &Tree<'_>, at: Position, wanted: Token) -> Holding {
-    none(before(tree, at, Wanted::Token(wanted)))
+    none(before(tree, at, WantedSibling::Token(wanted)))
 }
 
 /// The role of the token `spelled` at `at` under a node of kind `holder`: the field of the node that says where it is.
 fn token_role(tree: &Tree<'_>, at: Position, holder: Node, spelled: Token) -> AstField {
-    let assigns = matching(Wanted::Assigning, Kind::Token(spelled)) == Match::Wanted;
+    let assigns = matching(WantedSibling::Assigning, Kind::Token(spelled)) == Match::Wanted;
     match (holder, spelled) {
         (Node::Ident, _) => AstField::Name,
         (Node::BasicLit, _) => AstField::Value,
@@ -144,11 +144,11 @@ fn token_role(tree: &Tree<'_>, at: Position, holder: Node, spelled: Token) -> As
 
 /// The role of a node of a function type: `FuncDecl`'s receiver and name, then type parameters, parameters and results.
 fn signature_role(tree: &Tree<'_>, at: Position) -> AstField {
-    let named = among(tree, at, Wanted::NodeOf(Node::Ident)) > Count(0);
+    let named = among(tree, at, WantedSibling::NodeOf(Node::Ident)) > Count(0);
     if is(tree, at, Node::Ident) == Holding::Holds {
         return AstField::Name;
     }
-    if named && before(tree, at, Wanted::NodeOf(Node::Ident)) == Count(0) {
+    if named && before(tree, at, WantedSibling::NodeOf(Node::Ident)) == Count(0) {
         return AstField::Recv;
     }
     if opening(tree, at) == Some(Token::Lbrack) {
@@ -180,7 +180,7 @@ fn field_role(tree: &Tree<'_>, at: Position) -> AstField {
         .filter(|each| is_token(tree, *each) == Leaf::Node)
         .last()
         .is_some_and(|each| kind(tree, each) == Kind::Node(Node::BasicLit))
-        && among(tree, at, Wanted::Node) > Count(1);
+        && among(tree, at, WantedSibling::Node) > Count(1);
     match (nodes_after(tree, at), tagged) {
         (Count(0), true) => AstField::Tag,
         (Count(0), false) | (Count(1), true) => AstField::Type,
@@ -190,7 +190,7 @@ fn field_role(tree: &Tree<'_>, at: Position) -> AstField {
 
 /// The role of a part of the header of an `if` or a switch: `Init` before its `;`, `then` after it or with no `;`.
 fn header_role(tree: &Tree<'_>, at: Position, then: AstField) -> AstField {
-    let parted = among(tree, at, Wanted::Token(Token::Semicolon)) > Count(0);
+    let parted = among(tree, at, WantedSibling::Token(Token::Semicolon)) > Count(0);
     if parted && ahead_of(tree, at, Token::Semicolon) == Holding::Holds {
         AstField::Init
     } else {
@@ -203,10 +203,10 @@ fn loop_role(tree: &Tree<'_>, at: Position) -> AstField {
     if none(nodes_after(tree, at)) == Holding::Holds {
         return AstField::Body;
     }
-    if among(tree, at, Wanted::Token(Token::Semicolon)) == Count(0) {
+    if among(tree, at, WantedSibling::Token(Token::Semicolon)) == Count(0) {
         return AstField::Cond;
     }
-    match before(tree, at, Wanted::Token(Token::Semicolon)) {
+    match before(tree, at, WantedSibling::Token(Token::Semicolon)) {
         Count(0) => AstField::Init,
         Count(1) => AstField::Cond,
         Count(_) => AstField::Post,
@@ -237,7 +237,7 @@ fn slice_role(tree: &Tree<'_>, at: Position) -> AstField {
     if leading(tree, at) == Holding::Holds {
         return AstField::FieldX;
     }
-    match before(tree, at, Wanted::Token(Token::Colon)) {
+    match before(tree, at, WantedSibling::Token(Token::Colon)) {
         Count(0) => AstField::Low,
         Count(1) => AstField::High,
         Count(_) => AstField::Max,
@@ -328,7 +328,7 @@ fn node_role(tree: &Tree<'_>, at: Position, holder: Node) -> AstField {
             AstField::FieldX
         }
         Node::AssignStmt => either(
-            none(before(tree, at, Wanted::Assigning)),
+            none(before(tree, at, WantedSibling::Assigning)),
             AstField::Lhs,
             AstField::Rhs,
         ),

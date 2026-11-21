@@ -34,6 +34,8 @@ macro_rules! scope {
             scope File,
             notes Unneeded,
             form Filled(Many(Parent)),
+            size PerElement,
+            keys [Child],
             columns {
                 /// The enclosing scope: its file and where it starts; the module of the file, which no scope encloses, is its own.
                 parent Parent: NodeId => Node;

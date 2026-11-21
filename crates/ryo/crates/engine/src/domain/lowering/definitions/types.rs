@@ -96,6 +96,8 @@ pub(crate) struct Drafts {
     pub(crate) registers: RegisterCount,
     /// The constant texts, by number.
     pub(crate) texts: Vec<ConstantText>,
+    /// What each numbered text is, as written: a kind is found by its name.
+    pub(crate) written: HashMap<TextNumber, ConstantText>,
     /// The number of each constant text.
     pub(crate) text_numbers: HashMap<LiteralText, TextNumber>,
     /// The regular expressions, by number.

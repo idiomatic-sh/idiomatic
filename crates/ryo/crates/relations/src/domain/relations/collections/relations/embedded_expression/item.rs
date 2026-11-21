@@ -24,6 +24,8 @@ macro_rules! embedded_expression {
             scope File,
             notes Unneeded,
             form Filled(Many(Root)),
+            size PerElement,
+            keys [],
             columns {
                 /// The parsed expression's root occurrence.
                 root Root: NodeId => Node;

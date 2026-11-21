@@ -149,7 +149,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Wired::Packs(Engines::These(EngineMode::New)),
         expect: Expect::Value(Cow::Borrowed(
-            "New: lowerings 2 packs read 0 findings 2; lowerings 2 packs read 1 findings 2; lowerings 4 packs read 1 findings 2",
+            "New: lowerings 1 packs read 0 findings 2; lowerings 1 packs read 1 findings 2; lowerings 2 packs read 1 findings 2",
         )),
     },
     Case {
@@ -159,7 +159,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Wired::Packs(Engines::These(EngineMode::Both)),
         expect: Expect::Value(Cow::Borrowed(
-            "Both: lowerings 2 packs read 0 findings 2; lowerings 2 packs read 1 findings 2; lowerings 4 packs read 1 findings 2",
+            "Both: lowerings 1 packs read 0 findings 2; lowerings 1 packs read 1 findings 2; lowerings 2 packs read 1 findings 2",
         )),
     },
     Case {
@@ -169,7 +169,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Wired::Given(Engines::These(EngineMode::New)),
         expect: Expect::Value(Cow::Borrowed(
-            "New\nfirst: compiled 1 lowered 2 packs read 0 findings 2\nsame: compiled 0 lowered 0 packs read 1 findings 2\nrule text changed: compiled 1 lowered 2 packs read 0 findings 2\nsame: compiled 0 lowered 0 packs read 1 findings 2\nfragment text changed: compiled 1 lowered 2 packs read 0 findings 2\nsame: compiled 0 lowered 0 packs read 1 findings 2\none more rule selected: compiled 2 lowered 3 packs read 0 findings 4\nsame: compiled 0 lowered 0 packs read 1 findings 4\nthe language named: compiled 2 lowered 3 packs read 0 findings 4\nsame: compiled 0 lowered 0 packs read 1 findings 4",
+            "New\nfirst: compiled 1 lowered 1 packs read 0 findings 2\nsame: compiled 0 lowered 0 packs read 1 findings 2\nrule text changed: compiled 1 lowered 1 packs read 0 findings 2\nsame: compiled 0 lowered 0 packs read 1 findings 2\nfragment text changed: compiled 1 lowered 1 packs read 0 findings 2\nsame: compiled 0 lowered 0 packs read 1 findings 2\none more rule selected: compiled 2 lowered 1 packs read 0 findings 4\nsame: compiled 0 lowered 0 packs read 1 findings 4\nthe language named: compiled 2 lowered 1 packs read 0 findings 4\nsame: compiled 0 lowered 0 packs read 1 findings 4",
         )),
     },
     Case {
@@ -179,7 +179,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Wired::Given(Engines::These(EngineMode::Both)),
         expect: Expect::Value(Cow::Borrowed(
-            "Both\nfirst: compiled 1 lowered 2 packs read 0 findings 2\nsame: compiled 1 lowered 0 packs read 1 findings 2\nrule text changed: compiled 1 lowered 2 packs read 0 findings 2\nsame: compiled 1 lowered 0 packs read 1 findings 2\nfragment text changed: compiled 1 lowered 2 packs read 0 findings 2\nsame: compiled 1 lowered 0 packs read 1 findings 2\none more rule selected: compiled 2 lowered 3 packs read 0 findings 4\nsame: compiled 2 lowered 0 packs read 1 findings 4\nthe language named: compiled 2 lowered 3 packs read 0 findings 4\nsame: compiled 2 lowered 0 packs read 1 findings 4",
+            "Both\nfirst: compiled 1 lowered 1 packs read 0 findings 2\nsame: compiled 1 lowered 0 packs read 1 findings 2\nrule text changed: compiled 1 lowered 1 packs read 0 findings 2\nsame: compiled 1 lowered 0 packs read 1 findings 2\nfragment text changed: compiled 1 lowered 1 packs read 0 findings 2\nsame: compiled 1 lowered 0 packs read 1 findings 2\none more rule selected: compiled 2 lowered 1 packs read 0 findings 4\nsame: compiled 2 lowered 0 packs read 1 findings 4\nthe language named: compiled 2 lowered 1 packs read 0 findings 4\nsame: compiled 2 lowered 0 packs read 1 findings 4",
         )),
     },
     Case {

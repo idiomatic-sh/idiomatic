@@ -24,6 +24,8 @@ macro_rules! implicit_symbol {
         scope File,
         notes Unneeded,
         form Filled(Whole),
+        size PerElement,
+        keys [],
         columns {
         /// Canonical bare name potentially supplied by the language environment.
         name Name: Symbol => Symbol;

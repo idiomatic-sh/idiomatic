@@ -4,7 +4,9 @@
 use super::constants::{OBSERVATION_RECEIPT_DIFFERS, TWO_LANGUAGES_UNLISTED};
 use crate::outbound::language::types::{Answers, LinkedNames, RelationList, UnknownReasons};
 use ryo_relations::domain::terms::types::UnknownName;
-use ryo_values::domain::descriptions::types::{KindVocabularies, KindVocabulary, KindWord};
+use ryo_values::domain::descriptions::types::{
+    FieldWord, FixedName, KindVocabularies, KindVocabulary, KindWord,
+};
 
 use ryo_language::domain::elements::types::Elements;
 use ryo_language::domain::files::types::SourcePath;
@@ -142,19 +144,39 @@ impl LanguagePort for LanguageUseCaseAdapter {
         UnknownReasons(reasons)
     }
 
+    /// Each linked language's names for the run, from its walk: its kinds, its fields and its fixed names, each by place. A
+    /// language linked without a walk has the walk of the language that reads nothing, which names nothing: until its walk
+    /// lands, its kinds are the ones its parse names, as before.
     fn kind_vocabularies(&self) -> KindVocabularies {
         KindVocabularies(
             self.languages
                 .iter()
-                .map(|linked| KindVocabulary {
-                    language: linked.name.clone(),
-                    kinds: linked
-                        .parse
-                        .kind_names()
-                        .0
-                        .into_iter()
-                        .map(|name| KindWord(Box::from(name.0)))
-                        .collect(),
+                .map(|linked| {
+                    let names = linked.walk.vocabulary();
+                    let kinds = if names.kinds.0.is_empty() {
+                        linked.parse.kind_names().0
+                    } else {
+                        names.kinds.0
+                    };
+                    KindVocabulary {
+                        language: linked.name.clone(),
+                        kinds: kinds
+                            .into_iter()
+                            .map(|name| KindWord(Box::from(name.0)))
+                            .collect(),
+                        fields: names
+                            .fields
+                            .0
+                            .into_iter()
+                            .map(|name| FieldWord(Box::from(name.0)))
+                            .collect(),
+                        fixed: names
+                            .fixed
+                            .0
+                            .into_iter()
+                            .map(|name| FixedName(Box::from(name.0)))
+                            .collect(),
+                    }
                 })
                 .collect(),
         )

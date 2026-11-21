@@ -24,6 +24,8 @@ macro_rules! indent_region {
         scope File,
         notes Unneeded,
         form Filled(Many(Id)),
+        size PerElement,
+        keys [],
         columns {
         /// The module node for the root, otherwise the actual INDENT token.
         id Id: NodeId => Node;

@@ -10,7 +10,7 @@ use crate::domain::code::types::UnitKey;
 use crate::domain::lowered::service::fill_code;
 use crate::domain::lowered::types::MadeFill;
 use crate::domain::lowering::errors::LoweringError;
-use crate::domain::lowering::fixtures::named;
+use crate::domain::lowering::fixtures::{digests_of, named};
 use crate::domain::lowering::types::{SelectedRule, SelectedRules};
 use crate::domain::programs::service::accepted;
 use crate::domain::programs::types::Programs;
@@ -19,10 +19,15 @@ use crate::domain::statistics::types::{
     EncodedStatistics, MatchedStatistics, Measured, PointCounts, StatisticsBytes,
 };
 use crate::inbound::use_cases::scan::fixtures::scanned;
-use ryo_values::domain::descriptions::types::{KindVocabulary, LanguageName};
+use ryo_language::domain::fillers::fixtures::Walking;
+use ryo_language::domain::fillers::types::Fillers as _;
+use ryo_relations::domain::terms::types::NameText;
+use ryo_values::domain::descriptions::types::{
+    FieldWord, FixedName, KindVocabulary, KindWord, LanguageName,
+};
 use ryo_values::domain::plan_parts::types::{LiteralText, RepeatedRows};
 use ryo_values::domain::query_bindings::types::{ParameterBinding, RuleBindings};
-use ryo_values::domain::query_plans::types::Plan;
+use ryo_values::domain::query_plans::types::{NodeDigests, Plan};
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 use std::collections::BTreeSet;
 
@@ -39,6 +44,12 @@ const BOUND: &str = "two rules, one sub-plan, two bound values";
 const OTHER_STATISTICS: &str = "one tree rule, statistics of other rules";
 /// The input whose answer says how many of its tables hold a product stage.
 const PRODUCT: &str = "a product within a file";
+/// The input of no rule and a language that states one fixed name at two places.
+const FIXED_TWICE: &str = "a vocabulary that states a fixed name twice";
+/// The input of a rule that reads the links by key and one that reads them whole.
+const KEYED_THEN_WHOLE: &str = "a keyed read, then the whole relation";
+/// The input of one walk over the file's own tree and the same walk over the tree with the embedded segments.
+const EACH_TREE: &str = "one walk over each tree";
 /// The file a sample of a scene's rules is run over.
 const SAMPLE: &str = "a b a";
 
@@ -51,12 +62,31 @@ struct SceneRule {
     bindings: Vec<ParameterBinding>,
 }
 
-/// The kinds of the fixture language.
+/// The names a scenario's language states: the fixture language's, and one fixed name at two places where the input says so.
+fn vocabulary(scene: &str) -> KindVocabulary {
+    let twice = || vec![FixedName("next".into()), FixedName("next".into())];
+    KindVocabulary {
+        fixed: if scene == FIXED_TWICE {
+            twice()
+        } else {
+            Vec::new()
+        },
+        ..kinds()
+    }
+}
+
+/// The names of the fixture language, as its walk states them: its kinds, its fields and its fixed names, each by place.
 #[must_use]
 pub fn kinds() -> KindVocabulary {
+    let stated = Walking::vocabulary();
+    let named = |names: &[NameText<'static>]| -> Vec<Box<str>> {
+        names.iter().map(|name| Box::from(name.0)).collect()
+    };
     KindVocabulary {
         language: LanguageName("walking".into()),
-        kinds: Vec::new(),
+        kinds: named(&stated.kinds.0).into_iter().map(KindWord).collect(),
+        fields: named(&stated.fields.0).into_iter().map(FieldWord).collect(),
+        fixed: named(&stated.fixed.0).into_iter().map(FixedName).collect(),
     }
 }
 
@@ -79,6 +109,12 @@ fn scene_rules(scene: &str) -> Vec<SceneRule> {
         ],
         BOUND => vec![bound("a"), bound("b")],
         OTHER_STATISTICS => vec![unbound("one tree rule")],
+        FIXED_TWICE => Vec::new(),
+        KEYED_THEN_WHOLE => vec![unbound("the links of the words"), unbound("every link")],
+        EACH_TREE => vec![
+            unbound("the parents over the syntax tree"),
+            unbound("the parents over the semantic tree"),
+        ],
         other => vec![unbound(other)],
     }
 }
@@ -90,18 +126,24 @@ fn scene_rules(scene: &str) -> Vec<SceneRule> {
 /// The load's refusal: never for a rule, which is answered among the refused.
 pub fn loaded_with(scene: &str, statistics: StatisticsBytes<'_>) -> Result<LoadedRules, LoadError> {
     let rules = scene_rules(scene);
+    let digests: Vec<NodeDigests> = rules
+        .iter()
+        .map(|rule| digests_of(&rule.plan, RuleBindings(&rule.bindings)))
+        .collect();
     let selected: Vec<SelectedRule<'_>> = rules
         .iter()
+        .zip(&digests)
         .zip(0..)
-        .map(|(rule, ordinal)| SelectedRule {
+        .map(|((rule, digests), ordinal)| SelectedRule {
             rule: SelectedRuleOrdinal(ordinal),
             plan: &rule.plan,
             bindings: RuleBindings(&rule.bindings),
+            digests,
         })
         .collect();
     LoadUseCaseImpl.load(
         LoadSource::Plans(SelectedRules(&selected), statistics),
-        &kinds(),
+        &vocabulary(scene),
     )
 }
 

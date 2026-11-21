@@ -2,7 +2,9 @@
 
 use cucumber::{given, then, when};
 use ryo_engine::domain::findings::types::{HeaviestWork, WorkVerdict};
-use ryo_engine::inbound::use_cases::scan::fixtures::{Scanned, every_row, one_group, scanned};
+use ryo_engine::inbound::use_cases::scan::fixtures::{
+    Scanned, every_row, one_group, rule_rows, scanned,
+};
 
 use crate::Behavior;
 
@@ -209,4 +211,33 @@ fn noticed(world: &mut Behavior, rules: String) {
         "the scan answered: {}",
         world.answer
     );
+}
+
+/// The rows of one rule in the kept scan; a scenario writes the rule's ordinal.
+fn rows_of(world: &Behavior, rule: &str) -> usize {
+    rule_rows(kept(world), u32::try_from(count(rule)).unwrap_or(u32::MAX))
+}
+
+/// Asserts that a rule of the scanned rule set found the rows the scene of that rule alone finds in the same file: a relation
+/// read whole after it was read by key gives each row once.
+#[then(expr = "rule {string} found as many rows as {string} finds alone, and at least one")]
+fn found_as_alone(world: &mut Behavior, rule: String, scene: String) {
+    let together = rows_of(world, &rule);
+    let alone = crate::load::lowered(&scene).map(|programs| scanned(&programs, &world.text));
+    let Ok(Ok(Some(alone))) = alone else {
+        panic!("the scene `{scene}` did not scan alone: {alone:?}");
+    };
+    assert_ne!(together, 0, "the rule found no row");
+    assert_eq!(
+        together, alone.found.0,
+        "the rule found other rows than alone"
+    );
+}
+
+/// Asserts that one rule found rows and another found more: the first's tree leaves out elements the second's holds.
+#[then(expr = "rule {string} found fewer rows than rule {string}, and at least one")]
+fn found_fewer(world: &mut Behavior, fewer: String, more: String) {
+    let (own, every) = (rows_of(world, &fewer), rows_of(world, &more));
+    assert_ne!(own, 0, "the rule found no row");
+    assert!(own < every, "{own} rows are not fewer than {every}");
 }

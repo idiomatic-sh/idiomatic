@@ -34,6 +34,8 @@ macro_rules! static_import {
             scope File,
             notes Unneeded,
             form Filled(Many(Occurrence)),
+            size PerElement,
+            keys [],
             columns {
                 /// The import: its file and where it starts.
                 occurrence Occurrence: NodeId => Node;

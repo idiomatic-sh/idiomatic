@@ -133,13 +133,42 @@ pub struct RelationName(pub Box<str>);
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct KindWord(pub Box<str>);
 
-/// The kinds one linked language has: the words a query can write for a kind of its nodes and tokens.
+/// The name of a field a language's nodes have: the word a query writes for the field an element fills in its parent.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_values::domain::descriptions::types::FieldWord;
+///
+/// assert_eq!(&*FieldWord("body".into()).0, "body");
+/// ```
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FieldWord(pub Box<str>);
+
+/// A text a language's fillers write by handle: one of its fixed names.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_values::domain::descriptions::types::FixedName;
+///
+/// assert_eq!(&*FixedName("next-token".into()).0, "next-token");
+/// ```
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FixedName(pub Box<str>);
+
+/// The names one linked language states for a run: the words a query can write for a kind of its nodes and tokens, the names of
+/// its fields and its fixed names, each by place.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct KindVocabulary {
     /// The language.
     pub language: LanguageName,
     /// The names of its kinds, each once.
     pub kinds: Vec<KindWord>,
+    /// The names of its fields, each once: a field's code is its place, and place 0 is no field.
+    pub fields: Vec<FieldWord>,
+    /// Its fixed names, each once: a fixed word is its place.
+    pub fixed: Vec<FixedName>,
 }
 
 /// The kinds of every linked language, in the order they were linked.

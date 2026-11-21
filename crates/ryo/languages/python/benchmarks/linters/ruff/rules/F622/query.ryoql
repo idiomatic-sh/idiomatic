@@ -6,7 +6,7 @@ let elements = select parent, child from "semantic-child" where field = "elts";
 let star_elements = select l.parent as parent, l.child as child from elements as l join starred as r on l.child = r.id;
 let counts = group-count(from=star_elements, keys=["parent"], count="count", distinct="child");
 let duplicate = select parent from counts where count > 1;
-let stores = select id from "semantic-syntax" where kind = "assign" or kind = "for" or kind = "async-for" or kind = "comprehension" or kind = "withitem";
+let stores = select id from "semantic-syntax" where kind in ["assign", "for", "async-for", "comprehension", "withitem"];
 let target_fields = select parent, child from "semantic-child" where field = "targets" or field = "target" or field = "optional-vars";
 let roots = select r.child as id from stores as l join target_fields as r on l.id = r.parent;
 let container_edges = select r.parent as parent, r.child as child from containers as l join elements as r on l.id = r.parent;
