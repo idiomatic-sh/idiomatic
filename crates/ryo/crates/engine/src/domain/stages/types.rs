@@ -160,6 +160,9 @@ pub(crate) struct NodeNames<'a> {
     pub(crate) fields: &'a [CellWord],
     /// The file's bytes.
     pub(crate) text: ByteSlice<'a>,
+    /// The file's bytes as the text they are, when they are valid UTF-8: checked once a file, so that a node's text
+    /// is a slice of it and no span is checked again.
+    pub(crate) source: Option<&'a str>,
     /// The file.
     pub(crate) file: FileId,
 }

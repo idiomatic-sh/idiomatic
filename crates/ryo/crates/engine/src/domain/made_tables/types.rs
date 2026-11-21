@@ -97,6 +97,8 @@ pub(crate) struct FillStore {
     /// file starts, so a worker holds the most one file's tables needed and not, table by table, the most each ever
     /// needed. A made table is a stretch of it (`TableRows.lies`).
     pub(crate) table_cells: Vec<CellWord>,
+    /// The word of each element's text, by the element's place, for the file: found at the text's first read.
+    pub(crate) node_texts: Vec<CellWord>,
     /// Lists for a table's own cells while a fill that does not write rows straight into the arena runs (a grouping
     /// fill, constant rows): taken when the fill starts, given back emptied when its cells are in the arena. As many
     /// as fills run inside one another.
@@ -282,6 +284,8 @@ pub(crate) struct FillFrame<'a> {
     pub(crate) path: SourcePath<'a>,
     /// The file's bytes.
     pub(crate) text: ByteSlice<'a>,
+    /// The file's bytes as text, when they are valid UTF-8: checked once, by who builds the frame.
+    pub(crate) source: Option<&'a str>,
     /// The language.
     pub(crate) facts: &'a mut dyn FactSource,
     /// The file's words.

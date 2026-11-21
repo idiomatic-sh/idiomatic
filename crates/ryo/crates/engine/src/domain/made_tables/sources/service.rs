@@ -34,6 +34,7 @@ pub(crate) fn next_file(store: &mut FillStore) {
     clear_indexes(&mut store.indexes);
     // The tables' cells of the file before: one list, emptied and kept. No table is visited.
     store.table_cells.clear();
+    store.node_texts.clear();
     store.asked.clear();
     store.asked_cells.clear();
 }
@@ -145,8 +146,9 @@ pub(crate) fn cell_of(
         ReadSource::Nodes(_) => match node_column_of(column) {
             Some(named) => node_cell(
                 frame.nodes,
-                node_names(frame.programs, frame.text, frame.file),
+                node_names(frame.programs, frame.text, frame.source, frame.file),
                 frame.words,
+                &mut frame.store.node_texts,
                 named,
                 row,
             ),

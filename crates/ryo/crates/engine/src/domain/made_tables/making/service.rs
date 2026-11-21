@@ -209,6 +209,7 @@ fn sources_there(
                 file: frame.file,
                 path: frame.path,
                 text: frame.text,
+                source: frame.source,
             };
             scanned = scan_read(batch, stage_scan_of(*word))?.count;
             if scanned.0 == 0 {
