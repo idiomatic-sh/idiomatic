@@ -21,3 +21,12 @@ pub(crate) enum SitePasses {
     /// Not kept: each ask is evaluated, and its answer lasts until the next.
     Passing,
 }
+
+/// Who asks a pattern in call form for a key.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum AskedBy {
+    /// A word of a program: the answer is charged to the running rule.
+    Program,
+    /// A table's fill: the answer is charged with the table.
+    Fill,
+}
