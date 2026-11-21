@@ -1,7 +1,9 @@
 //! The lowering of an ordered match, and its pairing within one key: the meaning the `ordered_match` kernel and the new
 //! engine's `Ordered(Match)` fill both call.
 use super::types::MatchedPair;
+use crate::domain::contract::types::PortableOperatorFault;
 use crate::domain::ordered_groups::types::{GroupOrders, Place};
+use ryo_derived::domain::fault::types::DerivedFault;
 use ryo_values::domain::plan_parts::types::JoinColumn;
 
 /// The pairing of one key's rows, first in, first out: `left` and `right` are the orders of the key's rows on each
@@ -39,6 +41,30 @@ pub fn paired(left: GroupOrders<'_>, right: GroupOrders<'_>, pairs: &mut Vec<Mat
         });
         next = next.saturating_add(1);
     }
+}
+
+/// Whether one key's orders on one side, ascending, hold no order twice: an ordered match pairs by order, and two rows
+/// of one key and one order have none.
+///
+/// # Errors
+///
+/// `Derived(DuplicateOrder)` when two rows of the key hold the same order.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_operators::domain::ordered_groups::types::GroupOrders;
+/// use ryo_operators::domain::ordered_match::service::unrepeated;
+/// use ryo_relations::domain::relations::types::Integer;
+///
+/// assert!(unrepeated(GroupOrders(&[Integer(1), Integer(2)])).is_ok());
+/// assert!(unrepeated(GroupOrders(&[Integer(2), Integer(2)])).is_err());
+/// ```
+pub fn unrepeated(orders: GroupOrders<'_>) -> Result<(), PortableOperatorFault> {
+    if orders.0.windows(2).any(|pair| pair.first() == pair.last()) {
+        return Err(PortableOperatorFault::Derived(DerivedFault::DuplicateOrder));
+    }
+    Ok(())
 }
 
 /// The one lowering of an ordered match: both sides' keys and orders and its output columns, for the `ordered_match` kernel.
