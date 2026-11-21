@@ -35,7 +35,10 @@ fn held(pins: &HashMap<FlatVariable, FlatTerm>, cell: FlatTerm) -> Option<FlatTe
 fn word(kind: CellKind, constant: FlatTerm) -> Option<CellWord> {
     match (kind, constant) {
         (CellKind::Symbol, FlatTerm::Text(number)) => Some(text_word(number)),
-        (CellKind::Number, FlatTerm::Number(number)) => Some(CellWord(number.0.cast_unsigned())),
+        // A number in a symbol column is a closed set's word, held as its own symbol (`tables::literals`).
+        (CellKind::Number | CellKind::Symbol, FlatTerm::Number(number)) => {
+            Some(CellWord(number.0.cast_unsigned()))
+        }
         (
             CellKind::Node
             | CellKind::Symbol

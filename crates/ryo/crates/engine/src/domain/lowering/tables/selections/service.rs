@@ -9,96 +9,73 @@ use crate::domain::lowering::emptiness::service::literal_read;
 use crate::domain::lowering::flattening::service::compared;
 use crate::domain::lowering::flattening::types::{FlatBranch, FlatTerm};
 use crate::domain::lowering::nodes::service::input_shape;
-use crate::domain::lowering::nodes::types::StepShape;
 use crate::domain::lowering::tables::inputs::service::{rule, term};
-use crate::domain::lowering::tables::selections::types::{FlagWord, SelectionAsked};
+use crate::domain::lowering::tables::literals::service::{held_literal, term_cell};
+use crate::domain::lowering::tables::literals::types::LiteralCell;
+use crate::domain::lowering::tables::selections::types::SelectionAsked;
 use crate::domain::lowering::tables::sets::service::{bucket_branches, bucket_column, literals};
 use crate::domain::lowering::tables::sets::types::{RelationColumn, SetTests};
-use crate::domain::lowering::tables::shapes::service::{operand_kind, test_of};
+use crate::domain::lowering::tables::shapes::service::test_of;
 use crate::domain::lowering::tables::types::RuleFlattening;
 use crate::domain::lowering::tables::views::service::relation_read;
 use crate::domain::lowering::tables::views::types::RelationView;
 use crate::domain::steps::types::{AnchorKinds, ConstantText, TestOperation};
 use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::relations::constants::{LOWERED, RAISED};
-use ryo_relations::domain::relations::service::{columns, kind};
-use ryo_relations::domain::relations::types::{CellKind, Integer};
+use ryo_relations::domain::relations::service::{columns, kind, vocabulary_of};
+use ryo_relations::domain::relations::types::CellKind;
+use ryo_relations::domain::terms::types::Vocabulary;
 use ryo_values::domain::plan_parts::types::{
     Input, LiteralText, Operand, PlanComparison, QueryLiteral, Side, Test,
 };
 
-/// The text a comparison holds a flag column to, when it is an equality or an inequality of a flag column and a text the
-/// query wrote. A flag's cell is its stored bits (one raised, nought lowered: `ryo_relations`' `to_bits`), never a word of
-/// a text; today's engine takes a flag to equal the word it is shown as (the operators crate's `equality`), and the query
-/// language lets a query write no other text against a flag. None for every other comparison.
-fn flag_word(
-    state: &RuleFlattening<'_>,
-    shape: &StepShape,
-    comparison: &PlanComparison,
-) -> Option<FlagWord> {
-    let rule = &rule(state)?.rule;
-    let flag = |operand| operand_kind(rule, shape, operand) == Some(CellKind::Flag);
-    let (side, written) = match (&comparison.left, &comparison.right) {
-        (column, Operand::Literal(QueryLiteral::Text(written))) if flag(column) => {
-            (Side::Right, written)
-        }
-        (Operand::Literal(QueryLiteral::Text(written)), column) if flag(column) => {
-            (Side::Left, written)
-        }
-        (
-            Operand::Column(_) | Operand::Parameter(_) | Operand::Literal(_) | Operand::Function(_),
-            Operand::Column(_) | Operand::Parameter(_) | Operand::Literal(_) | Operand::Function(_),
-        ) => return None,
-    };
-    let cell = match &*written.0 {
-        RAISED => Some(Integer(1)),
-        LOWERED => Some(Integer(0)),
-        _ => None,
-    };
-    matches!(comparison.test, Test::Equal | Test::NotEqual).then_some(FlagWord { side, cell })
-}
-
-/// A branch with one comparison added as a pin or a test. Outer none: the comparison cannot be written; inner none: the
-/// branch holds of no row. A flag column held to the word a flag is shown as is held to the flag's own cell; held to any
-/// other text it equals nothing.
+/// A branch with one comparison added as a pin or a test: the branches it then is. None: the comparison cannot be
+/// written; no branch: it holds of no row. A text a column is held to is that column's cell (`literals`): a flag's own
+/// cell, a closed set's word; a text no cell of the column is shown as equals nothing.
 fn tested(
     state: &RuleFlattening<'_>,
     drafts: &mut Drafts,
     mut branch: FlatBranch,
     comparison: &PlanComparison,
-    shape: &StepShape,
-) -> Option<Option<FlatBranch>> {
+    asked: &SelectionAsked<'_>,
+) -> Option<Vec<FlatBranch>> {
     let test = match (test_of(comparison.test)?, &comparison.right) {
         (TestOperation::Matches(_), Operand::Literal(QueryLiteral::Text(source))) => {
             TestOperation::Matches(regex(drafts, source))
         }
         (test, _) => test,
     };
-    let (left, right) = match flag_word(state, shape, comparison) {
-        Some(FlagWord {
-            side: Side::Right,
-            cell: Some(cell),
-        }) => {
-            let left = term(state, drafts, &mut branch, &comparison.left)?;
-            (left, FlatTerm::Number(cell))
-        }
-        Some(FlagWord {
-            side: Side::Left,
-            cell: Some(cell),
-        }) => {
-            let right = term(state, drafts, &mut branch, &comparison.right)?;
-            (FlatTerm::Number(cell), right)
-        }
-        // No flag is shown as the text: an equality holds of no row, an inequality of every row.
-        Some(FlagWord { cell: None, .. }) => {
-            return Some(Some(branch).filter(|_| comparison.test == Test::NotEqual));
-        }
-        None => {
-            let left = term(state, drafts, &mut branch, &comparison.left)?;
-            (left, term(state, drafts, &mut branch, &comparison.right)?)
-        }
+    let Some(held) = held_literal(state, drafts, asked.read, &asked.shape, comparison) else {
+        let left = term(state, drafts, &mut branch, &comparison.left)?;
+        let right = term(state, drafts, &mut branch, &comparison.right)?;
+        return Some(compared(branch, test, left, right).into_iter().collect());
     };
-    Some(compared(branch, test, left, right))
+    let column = match held.side {
+        Side::Right => term(state, drafts, &mut branch, &comparison.left)?,
+        Side::Left => term(state, drafts, &mut branch, &comparison.right)?,
+    };
+    let with = |branch: FlatBranch, cell: FlatTerm| match held.side {
+        Side::Right => compared(branch, test, column, cell),
+        Side::Left => compared(branch, test, cell, column),
+    };
+    Some(match (held.cell, comparison.test) {
+        (LiteralCell::Exactly(cell), _) => with(branch, cell).into_iter().collect(),
+        // No cell of the column is shown as the text: an equality holds of no row, an inequality of every row.
+        (LiteralCell::Never, Test::NotEqual) => vec![branch],
+        (LiteralCell::Never, _) => Vec::new(),
+        // The column holds some one of the cells: unequal to each, or equal to one, a branch each.
+        (LiteralCell::Either(cells), Test::NotEqual) => {
+            let mut kept = Some(branch);
+            for cell in cells {
+                kept = kept.and_then(|branch| with(branch, cell));
+            }
+            kept.into_iter().collect()
+        }
+        (LiteralCell::Either(cells), _) => cells
+            .into_iter()
+            .filter_map(|cell| with(branch.clone(), cell))
+            .collect(),
+    })
 }
 
 /// A branch with every comparison added, each over the branch's own row: the branches it then is. A comparison that holds
@@ -123,7 +100,7 @@ pub(crate) fn selected(
             };
             match buckets {
                 Some(pinned) => next.extend(pinned),
-                None => next.extend(tested(state, drafts, branch, comparison, &asked.shape)?),
+                None => next.extend(tested(state, drafts, branch, comparison, asked)?),
             }
         }
         held = next;
@@ -159,6 +136,14 @@ fn literal_formula(
             LOWERED => CellWord(0),
             _ => return None,
         };
+        return Some(literal_read(read.relation, read.column, cell, None));
+    }
+    // A closed set's column holds the word's own symbol, never a word of the file.
+    if let Vocabulary::Closed(block) = vocabulary_of(read.column) {
+        let FlatTerm::Number(symbol) = term_cell(block, &written.0)? else {
+            return None;
+        };
+        let cell = CellWord(symbol.0.cast_unsigned());
         return Some(literal_read(read.relation, read.column, cell, None));
     }
     let number = drafts.text_numbers.get(written)?;
@@ -230,6 +215,7 @@ pub(crate) fn asked_of<'a>(
     let shape = input_shape(&rule(state)?.shapes, read)?;
     Some(SelectionAsked {
         comparisons,
+        read,
         shape,
         sets,
     })
