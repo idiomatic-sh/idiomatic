@@ -13,8 +13,8 @@
 //!
 //! What is shared: the common run cut back to its last `Keep` (after a keep its rows are fewest; a stage that gives
 //! many rows for one is left to each pipeline), when it has at least `LEAST_STAGES` stages and the registers the
-//! pipelines read after it are no more than `READS_PER_STAGE` times its stages; a run with no keep is shared whole
-//! when a scan and a read a register cost fewer stages than it has. The costing's estimates are of drafts, before the
+//! pipelines read after it are no more than `READS_PER_STAGE` times its stages; a run with no keep stops before its
+//! first `Product` and is shared when a scan and a read a register cost fewer stages than it has. The costing's estimates are of drafts, before the
 //! pipelines are written, and are not at hand here: this rule is of the written stages alone.
 
 use super::types::SharedPrefix;
@@ -181,7 +181,19 @@ fn table_shared(pack: &mut LoweredPack, of: usize, made: &mut Vec<SharedPrefix>)
             .iter()
             .take(length)
             .rposition(|placed| matches!(placed.stage, FillStage::Keep { .. }));
-        let length = last_keep.map_or(length, |place| place.saturating_add(1));
+        // With no keep, the run stops before its first product: a product gives every row of the file for each of its
+        // rows, and a table of those is read by every pipeline in place of being cut by each one's own keep (PLE1206:
+        // 849,311 rows read seven times).
+        let first_product = leader_pipeline
+            .stages
+            .iter()
+            .take(length)
+            .position(|placed| matches!(placed.stage, FillStage::Product { .. }));
+        let length = match (last_keep, first_product) {
+            (Some(place), _) => place.saturating_add(1),
+            (None, Some(place)) => place,
+            (None, None) => length,
+        };
         if length < LEAST_STAGES {
             continue;
         }
