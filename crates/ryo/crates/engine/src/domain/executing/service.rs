@@ -6,6 +6,7 @@
 use super::bodies::service::exists;
 use super::budget::service::reach;
 use super::closing::service::closure;
+use super::meanings::service::call;
 use super::measuring::types::{Uncounted, WordCounter};
 use super::ordered::service::latest;
 use super::sources::service::{keyed, whole};
@@ -20,6 +21,7 @@ use crate::domain::findings::types::InstructionCount;
 use crate::domain::made_tables::types::{Reached, ReadSource};
 use crate::domain::memos::types::ChargedUnit;
 use crate::domain::programs::collections::instructions::axis::item::Axis;
+use crate::domain::programs::collections::instructions::call::item::Call;
 use crate::domain::programs::collections::instructions::comparing::item::Test;
 use crate::domain::programs::collections::instructions::each_kind::item::EachKind;
 use crate::domain::programs::collections::instructions::each_match::item::EachMatch;
@@ -120,6 +122,10 @@ fn step(frame: &mut StepFrame<'_, '_>, word: CodeWord, at: CodeEntry, mode: RunM
             latest(frame, word);
             Latest::run(frame, word, at)
         }
+        Op::Call => {
+            call(frame, word);
+            Call::run(frame, word, at)
+        }
         Op::Closure => {
             closure(frame, word);
             Closure::run(frame, word, at)
@@ -136,7 +142,6 @@ fn step(frame: &mut StepFrame<'_, '_>, word: CodeWord, at: CodeEntry, mode: RunM
         | Op::ChildrenOfField
         | Op::Within
         | Op::NearestDerived
-        | Op::Call
         | Op::Render
         | Op::StageScan
         | Op::StageProbe
@@ -171,6 +176,7 @@ fn next(frame: &mut StepFrame<'_, '_>, cursor: &mut IterationCursor) -> Option<C
         Op::Axis => Axis::next(frame, word, cursor),
         Op::Latest => Latest::next(frame, word, cursor),
         Op::Closure => Closure::next(frame, word, cursor),
+        Op::Call => Call::next(frame, word, cursor),
         Op::End
         | Op::EachRange
         | Op::Children
@@ -187,7 +193,6 @@ fn next(frame: &mut StepFrame<'_, '_>, cursor: &mut IterationCursor) -> Option<C
         | Op::TestEqualRegister
         | Op::TestNotEqualRegister
         | Op::TestInConstants
-        | Op::Call
         | Op::Render
         | Op::Let
         | Op::Exists

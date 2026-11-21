@@ -2,6 +2,7 @@
 //! not called `steps`: that name is a namespace of its own in this project.
 
 pub mod axis;
+pub mod call;
 pub mod comparing;
 pub mod each_kind;
 pub mod each_match;

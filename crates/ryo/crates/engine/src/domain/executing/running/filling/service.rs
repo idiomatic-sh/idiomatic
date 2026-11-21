@@ -1,15 +1,17 @@
 //! The services of the `filling` part: whether the fill side runs a stage word of a pipeline and a table's fill, and what
-//! each reaches. The stages are listed as the fill side runs them at its frozen head (`claude/engine-x2` at 3e01ab9d7);
+//! each reaches. The stages are listed as the fill side runs them at `claude/engine-x2` bae841621 (the call stage for
+//! four meanings, the affix tests, a group's ends and the ordered match beside the first freeze's);
 //! a fill kind it does not run is its own to say (`fills::service::fill_at` refuses it). The fill side is to give one
 //! function that answers both, which replaces the list here.
 
 use crate::domain::code::constants::BUCKET;
 use crate::domain::code::filling::service::{
-    stage_keep_of, stage_latest_of, stage_probe_of, stage_product_of, stage_scan_of, stage_use_of,
+    stage_call_of, stage_keep_of, stage_latest_of, stage_probe_of, stage_product_of, stage_scan_of,
+    stage_use_of,
 };
-use crate::domain::code::small_codes::service::comparison_of;
+use crate::domain::code::small_codes::service::{comparison_of, meaning_of};
 use crate::domain::code::types::{CodeEntry, CodeWord, IndexSite, Op, ProgramCode, WordSlot};
-use crate::domain::executing::running::places::service::{body, site_table, tested};
+use crate::domain::executing::running::places::service::{body, called, site_table, tested};
 use crate::domain::executing::running::types::{WalkPlace, WordBuilt};
 use crate::domain::made_tables::fills::service::{fill_at, input_at};
 use crate::domain::made_tables::fills::types::FillKind;
@@ -18,11 +20,16 @@ use crate::domain::made_tables::types::ReadSource;
 use crate::domain::needs::service::tables_asked;
 use crate::domain::steps::types::MadeTableId;
 
-/// The table a stage reads as a source, when it is one.
-fn source_table(source: ReadSource, out: &mut Vec<WalkPlace>) {
+/// Whether the fill side reads a stage's source, and the table when the source is one. A table read while its fill
+/// writes it, it does not read yet.
+fn source_table(source: ReadSource, out: &mut Vec<WalkPlace>) -> WordBuilt {
     match source {
-        ReadSource::Made(table) | ReadSource::Written(table) => out.push(WalkPlace::Table(table)),
-        ReadSource::Nodes(_) | ReadSource::Filled(_) => {}
+        ReadSource::Made(table) => {
+            out.push(WalkPlace::Table(table));
+            WordBuilt::Runs
+        }
+        ReadSource::Nodes(_) | ReadSource::Filled(_) => WordBuilt::Runs,
+        ReadSource::Written(_) => WordBuilt::NotYet,
     }
 }
 
@@ -38,26 +45,23 @@ pub(crate) fn stage_word(
         Op::StageScan => {
             let stage = stage_scan_of(word);
             if stage.flag.0 & BUCKET.0 == 0 {
-                source_table(source_of(stage.flag, stage.read), out);
+                source_table(source_of(stage.flag, stage.read), out)
             } else {
-                site_table(code, IndexSite(stage.read.0), out);
+                site_table(code, IndexSite(stage.read.0), out)
             }
-            WordBuilt::Runs
         }
         Op::StageProduct => {
             let stage = stage_product_of(word);
-            source_table(source_of(stage.flag, stage.read), out);
-            WordBuilt::Runs
+            source_table(source_of(stage.flag, stage.read), out)
         }
-        Op::StageProbe => {
-            site_table(code, stage_probe_of(word).index, out);
-            WordBuilt::Runs
-        }
-        Op::StageLatest => {
-            if let Ok(site) = latest_site(code, stage_latest_of(word).operands) {
-                site_table(code, site, out);
-            }
-            WordBuilt::Runs
+        Op::StageProbe => site_table(code, stage_probe_of(word).index, out),
+        Op::StageLatest => match latest_site(code, stage_latest_of(word).operands) {
+            Ok(site) => site_table(code, site, out),
+            Err(_) => WordBuilt::NotYet,
+        },
+        Op::StageCall => {
+            let stage = stage_call_of(word);
+            called(meaning_of(stage.meaning, stage.regex, stage.flag))
         }
         Op::StageKeep => {
             let stage = stage_keep_of(word);
@@ -67,8 +71,8 @@ pub(crate) fn stage_word(
             Some(_) => WordBuilt::Runs,
             None => WordBuilt::NotYet,
         },
-        // The fill side answers these as not built.
-        Op::StageCall | Op::StageRender => WordBuilt::NotYet,
+        // The fill side answers this as not built.
+        Op::StageRender => WordBuilt::NotYet,
         // A word of a step program is no stage.
         Op::EachKind
         | Op::EachMatchNode
