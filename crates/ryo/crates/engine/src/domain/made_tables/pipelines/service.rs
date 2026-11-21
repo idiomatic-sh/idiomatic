@@ -22,7 +22,7 @@ use crate::domain::made_tables::operands::service::{column_of, registers_at};
 use crate::domain::made_tables::pipelines::types::{BatchLevel, FanKind, PipelineRoom, StageKind};
 use crate::domain::made_tables::reading::service::{index_at, pipeline_words, rows_in, source_of};
 use crate::domain::made_tables::staging::service::{
-    WRONG_WORD, keep_stage, mode, probe_keep_stage, read_stage, write_stage,
+    WRONG_WORD, file_marked, keep_stage, mode, probe_keep_stage, read_stage, write_stage,
 };
 use crate::domain::made_tables::staging::types::{BatchFrame, KeepScratch};
 use crate::domain::made_tables::types::PipeRun;
@@ -43,6 +43,7 @@ fn batch_frame<'s>(frame: &'s FillFrame<'_>) -> BatchFrame<'s> {
         store: frame.store,
         nodes: frame.nodes,
         file: frame.file,
+        path: frame.path,
         text: frame.text,
     }
 }
@@ -105,6 +106,7 @@ pub(crate) fn piped(
     let code = programs.code;
     let words = pipeline_words(code, entry)?;
     carried(code, words, run.room)?;
+    run.room.files.clear();
     // A pipeline that holds a stage the fill side does not run is refused before its first batch.
     if let Some(unrun) = words
         .iter()
@@ -204,16 +206,26 @@ fn staged(
                     store: frame.store,
                     nodes: frame.nodes,
                     file: frame.file,
+                    path: frame.path,
                     text: frame.text,
                 };
                 read_stage(batch, frame.words, word, level)?;
+                file_marked(batch_frame(frame), word, &mut run.room.files);
                 false
             }
             StageKind::Keep => {
                 // The verdicts are the store's, kept between files: taken while the batch's frame reads the store.
                 let mut verdicts = std::mem::take(&mut frame.store.verdicts);
+                let batch = BatchFrame {
+                    programs: frame.programs,
+                    store: frame.store,
+                    nodes: frame.nodes,
+                    file: frame.file,
+                    path: frame.path,
+                    text: frame.text,
+                };
                 let kept = keep_stage(
-                    batch_frame(frame),
+                    batch,
                     frame.words,
                     word,
                     level,
@@ -222,6 +234,7 @@ fn staged(
                         compiled: &mut run.room.compiled,
                         matcher: frame.matcher,
                         verdicts: &mut verdicts,
+                        files: &run.room.files,
                     },
                 );
                 frame.store.verdicts = verdicts;

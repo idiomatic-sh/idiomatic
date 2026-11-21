@@ -7,4 +7,4 @@ pub mod glob;
 pub mod interface;
 pub(crate) mod membership;
 pub(crate) mod numeric;
-pub(crate) mod ordering;
+pub mod ordering;

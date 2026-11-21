@@ -65,7 +65,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         )),
     },
     Case {
-        name: CaseName("a_call_of_span_bounds_runs_and_one_of_lower_does_not_yet"),
+        name: CaseName("a_call_of_span_bounds_runs_and_one_of_words_does_not"),
         word: Word::Succeeds,
         input: || Asked::Calls,
         expect: Expect::Value(Cow::Borrowed(
@@ -150,7 +150,7 @@ fn tables(asked: Asked) -> Vec<MadeTable> {
                 NodeColumn::Span,
                 vec![call(CallMeaning::SpanBounds, &[3, 4])],
             ),
-            over_nodes(NodeColumn::Text, vec![call(CallMeaning::Lower, &[3])]),
+            over_nodes(NodeColumn::Text, vec![call(CallMeaning::Words, &[3])]),
         ],
         Asked::OrderedNodes => {
             let bound = |cell: u64, end: BoundKind| RangeBound {

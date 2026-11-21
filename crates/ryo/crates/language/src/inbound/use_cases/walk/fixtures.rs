@@ -151,6 +151,7 @@ impl WalkUseCase for Walking {
             table,
             source: request.source,
             file: request.file,
+            path: request.path,
             facts: &mut source,
         });
         Ok(())

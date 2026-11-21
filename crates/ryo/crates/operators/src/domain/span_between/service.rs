@@ -6,8 +6,28 @@ use ryo_relations::domain::relations::{
 };
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 
-/// Return left.start through right.end, checking each present operand first.
-pub(crate) fn between(
+/// Return left.start through right.end, checking each present operand first: the span from the first span's start to the
+/// second's end; the absent span when either is absent.
+///
+/// # Errors
+///
+/// `NoSuchColumn` when the row has no such column, `ShapeMismatch` when a cell is no span, `InvalidSpan` for a span whose
+/// start lies after its end or whose end lies past the source, and for a first span that starts after the second ends.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_operators::domain::contract::types::SourceByteLength;
+/// use ryo_operators::domain::span_between::service::between;
+/// use ryo_relations::domain::relations::types::{Offset, Span, Value};
+/// use ryo_values::domain::plan_parts::types::ColumnIndex;
+///
+/// let span = |start, end| Value::Span(Span { start: Offset(start), end: Offset(end) });
+/// let row = [span(2, 5), span(7, 9)];
+/// let joined = between(&row, ColumnIndex(0), ColumnIndex(1), SourceByteLength(12));
+/// assert_eq!(joined, Ok(span(2, 9)));
+/// ```
+pub fn between(
     row: &[Value],
     start: ColumnIndex,
     end: ColumnIndex,

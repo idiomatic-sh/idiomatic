@@ -87,6 +87,7 @@ fn subject((): Input) -> Result<Value, Failure> {
         table: finished(&mut writer),
         source: ByteSlice(b""),
         file: FileId(0),
+        path: ryo_language::domain::files::types::SourcePath(""),
         facts: &mut facts,
     };
     let counters = ScanUseCaseImpl::new(std::sync::Arc::new(MatchingUseCaseImpl)).scan(
