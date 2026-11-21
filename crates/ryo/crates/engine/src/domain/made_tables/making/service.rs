@@ -113,9 +113,22 @@ pub(crate) fn ensured(
     let mut work = SourceWork::default();
     match reached {
         Reached::Nodes => {}
-        Reached::Relation(number) => work.filled = filled_whole(frame, number)?,
+        Reached::Relation(number) => {
+            // SPIKE (track X, a count under RYO_X_FILLS): a reader reached the relation.
+            if let Ok(relation) = relation_at(frame.programs.code, number) {
+                ryo_language::domain::fillers::service::fill_read(relation);
+            }
+            work.filled = filled_whole(frame, number)?;
+        }
         Reached::Table(table) => reached_table(frame, uses, table)?,
         Reached::Index(site) => {
+            // SPIKE (track X, a count under RYO_X_FILLS): a reader reached the index's relation.
+            if let Ok(ReadSource::Filled(number)) = site_at(frame.programs.code, site)
+                .and_then(|index| site_source(frame.programs.code, index))
+                && let Ok(relation) = relation_at(frame.programs.code, number)
+            {
+                ryo_language::domain::fillers::service::fill_read(relation);
+            }
             if state_of(&frame.store.indexes, site, frame.store.stamp) == IndexBuilt::Built {
                 return Ok(work);
             }

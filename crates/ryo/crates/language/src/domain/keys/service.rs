@@ -6,8 +6,8 @@ use super::types::{
     BucketLink, KeyDigest, KeyRecord, KeyRecordIndex, KeyState, KeyWordIndex, RetainedKeyIndex,
     WordRange,
 };
+use rustc_hash::FxHasher;
 use ryo_relations::domain::relations::types::Position;
-use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher as _};
 
 /// Empties the index for the next source while keeping every allocation, and marks it fresh.
@@ -100,7 +100,9 @@ pub fn intern_key<Class, Word>(index: &mut RetainedKeyIndex<Class, Word>, at: Po
 where
     Word: Hash + Eq + Clone,
 {
-    let mut hasher = DefaultHasher::new();
+    // The digest only chooses a bucket (a collision compares the whole key), so it is the cheap hash: the keyed
+    // SipHash of the standard hasher was two thirds of the `expression-shape` fill (build/x/WHERE-PROVIDER.md).
+    let mut hasher = FxHasher::default();
     index.scratch.hash(&mut hasher);
     let digest = KeyDigest(hasher.finish());
     let mut candidate = index.buckets.get(&digest).copied();
