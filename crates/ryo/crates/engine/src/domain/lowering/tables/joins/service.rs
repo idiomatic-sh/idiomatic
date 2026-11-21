@@ -1,7 +1,6 @@
 //! The services of the `joins` part: the branches of a join, of an antijoin and of an axis.
 
 use crate::domain::lowered::types::Emptiness;
-use crate::domain::lowering::costing::service::branches_rows;
 use crate::domain::lowering::definitions::service::{defined, fresh_variable};
 use crate::domain::lowering::definitions::types::{Drafts, Flattened};
 use crate::domain::lowering::emptiness::service::derived;
@@ -151,8 +150,7 @@ fn side_defined(
         rule: state.place,
         step,
     };
-    let rows = branches_rows(drafts, &side.branches);
-    let definition = defined(drafts, node, home, shape, side, rows);
+    let definition = defined(drafts, node, home, shape, side);
     Some(use_of(drafts, definition, width))
 }
 
