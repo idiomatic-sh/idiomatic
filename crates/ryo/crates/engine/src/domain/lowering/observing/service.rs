@@ -292,6 +292,9 @@ fn observed_shaped(
         .iter_mut()
         .find(|rule| rule.rule.rule == producer.rule)
     else {
+        if std::env::var_os("RYO_L2_REFUSED").is_some() {
+            eprintln!("ryo l2: producer {} is not accepted: it hands no rows", producer.rule.0);
+        }
         return false;
     };
     let place = usize::from(producer.step);
@@ -299,9 +302,22 @@ fn observed_shaped(
         return false;
     };
     let mut trial = held.clone();
-    let shaped = shape_reached(&mut trial, &reach).is_ok()
+    let reached = shape_reached(&mut trial, &reach);
+    let shaped = reached.is_ok()
         && trial.locals.get(place) == Some(&Some(Local::File))
         && trial.shapes.get(place).and_then(Option::as_ref) == Some(declared);
+    // Spike (ryo-fmx3.1): a producer that hands no rows over, and why, when asked.
+    if !shaped && std::env::var_os("RYO_L2_REFUSED").is_some() {
+        eprintln!(
+            "ryo l2: producer {} step {} hands no rows: {:?}, local {:?}, shape {:?} against {:?}",
+            producer.rule.0,
+            producer.step.0,
+            reached.err().map(|refusal| refusal.to_string()),
+            trial.locals.get(place),
+            trial.shapes.get(place),
+            declared
+        );
+    }
     if shaped {
         held.shapes = trial.shapes;
         held.locals = trial.locals;
