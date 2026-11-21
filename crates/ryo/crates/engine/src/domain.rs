@@ -3,13 +3,13 @@
 pub mod code;
 pub mod counting;
 pub mod encoding;
+pub mod filled;
 pub mod findings;
 pub mod indexes;
 pub mod lowered;
 pub mod lowering;
 #[cfg(test)]
 pub mod memos;
-#[cfg(any(test, feature = "fixtures"))]
 pub mod made_tables;
 pub mod packs;
 pub mod passes;

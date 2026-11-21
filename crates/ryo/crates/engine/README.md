@@ -16,6 +16,10 @@ What a measuring worker counted, the counts of several workers added up, and the
 
 A lowered pack written as code, every site and index numbered, with no count cut to fit a width and a file-sized word only where it may stand.
 
+### filled
+
+The relations a language filled for a file, each unfilled, filled for some keys or whole: a key is asked once, and a whole fill's rows start after the rows keys appended.
+
 ### findings
 
 The rows a scan hands over, the work notices beside them, the frontier rows the project pass reads back, and what a scan counted.
