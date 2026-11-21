@@ -308,3 +308,222 @@ fn succeeds() {
 fn refuses() {
     run(CASES, Word::Refuses, subject);
 }
+
+/// What a row of the lowered cases asks: rules lowered together, the host's relations declared, and the bound observation
+/// of the last rule fed by the first rule's step named.
+#[derive(Debug)]
+struct Lowered {
+    /// The plans, in rule order.
+    plans: Vec<Plan>,
+    /// The first rule's step the last rule's binding 0 reads, when it reads one.
+    fed: Option<u32>,
+    /// How many rows the host's codes relation holds.
+    codes: usize,
+}
+
+/// The words the host names, counted by child and file after the files, emitted after the files.
+fn counted_names() -> Plan {
+    let mut named = words_the_host_names(0);
+    named.steps.push(at(
+        Operation::GroupCount {
+            from: Input::Step(StepId(2)),
+            keys: vec![ColumnIndex(0), ColumnIndex(1)],
+            distinct: None,
+        },
+        StepScope::CrossFile,
+    ));
+    named.steps.push(at(
+        Operation::Project {
+            from: Input::Step(StepId(3)),
+            columns: vec![ColumnIndex(0), ColumnIndex(1)],
+            distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Dropped,
+        },
+        StepScope::CrossFile,
+    ));
+    named.emit.step = StepId(4);
+    named
+}
+
+/// A producer: the words written `a`, with their child, their file and the code `a` (step 1), observed; it emits the words.
+fn producer() -> Plan {
+    let mut produced = plan(vec![
+        words(),
+        at(
+            Operation::Project {
+                from: Input::Step(StepId(0)),
+                columns: vec![ColumnIndex(1), ColumnIndex(4), ColumnIndex(3)],
+                distinct: ryo_values::domain::plan_parts::types::RepeatedRows::Dropped,
+            },
+            StepScope::PerFile,
+        ),
+    ]);
+    produced.emit.step = StepId(0);
+    produced
+}
+
+/// A consumer: the observation's rows whose code the host names, after the files, emitted.
+fn consumer() -> Plan {
+    use ryo_values::domain::observations::types::{
+        BoundObservationInput, ObservationBindingName, ObservationColumn, ObservationColumnName,
+    };
+    use ryo_relations::domain::relations::types::CellKind;
+    let column = |name: &str, kind| ObservationColumn {
+        name: ObservationColumnName(name.into()),
+        kind,
+    };
+    let mut consuming = plan(vec![
+        at(
+            Operation::Hosted {
+                relation: HostedNumber(0),
+            },
+            StepScope::CrossFile,
+        ),
+        joined(
+            Input::BoundObservation(ryo_values::domain::plan_parts::types::ObservationBindingId(0)),
+            Input::Step(StepId(0)),
+            (&[2], &[0]),
+            &[(Side::Left, 0), (Side::Left, 1), (Side::Left, 2)],
+            StepScope::CrossFile,
+        ),
+    ]);
+    consuming.observation_inputs = vec![BoundObservationInput {
+        name: ObservationBindingName("matches".into()),
+        columns: vec![
+            column("node", CellKind::Node),
+            column("file", CellKind::File),
+            column("code", CellKind::Symbol),
+        ],
+        scope: StepScope::CrossFile,
+    }];
+    consuming
+}
+
+const fn lowered_said(name: &'static str, input: fn() -> Lowered, value: &'static str) -> Case<Lowered, Value, Failure> {
+    Case {
+        name: CaseName(name),
+        word: Word::Succeeds,
+        input,
+        expect: Expect::Value(Cow::Borrowed(value)),
+    }
+}
+
+/// The rows of the lowered cases.
+const LOWERED: &[Case<Lowered, Value, Failure>] = &[
+    lowered_said(
+        "a_count_after_the_files_of_the_words_a_small_constant_table_names_lowers_and_encodes",
+        || Lowered {
+            plans: vec![counted_names()],
+            fed: None,
+            codes: 2,
+        },
+        "definition 0: 2 columns, emptiness All([All([Unknown, Unknown]), All([])])\ntable 0: Group(Count), 3 columns, indexes []\ntable 1: Rows, 2 columns, indexes []\nrule 0: 1 branches\nencoded\nLOAD",
+    ),
+    lowered_said(
+        "a_count_after_the_files_of_the_words_a_large_constant_table_names_lowers_and_encodes",
+        || Lowered {
+            plans: vec![counted_names()],
+            fed: None,
+            codes: 500,
+        },
+        "definition 0: 1 columns, emptiness All([])\ndefinition 1: 2 columns, emptiness All([All([All([Unknown, Unknown]), Definition(DefinitionId(0))]), Any([All([Definition(DefinitionId(0))])])])\ntable 0: Group(Count), 3 columns, indexes []\ntable 1: Rows, 2 columns, indexes []\nrule 0: 1 branches\nencoded\nLOAD",
+    ),
+    lowered_said(
+        "a_bound_observation_is_one_definition_of_its_producers_observed_steps",
+        || Lowered {
+            plans: vec![producer(), consumer()],
+            fed: Some(1),
+            codes: 2,
+        },
+        "definition 0: 5 columns, emptiness All([Unknown, Unknown])\ndefinition 1: 3 columns, emptiness All([Definition(DefinitionId(0)), Any([All([Definition(DefinitionId(0))])])])\ndefinition 2: 3 columns, emptiness All([Any([Definition(DefinitionId(1))]), Any([All([Definition(DefinitionId(1))])])])\ntable 0: Rows, 5 columns, indexes [[3]]\nrule 0: 1 branches\nrule 1: 3 branches\nencoded\nLOAD",
+    ),
+];
+
+/// The rules lowered and encoded: each refused rule with why, and the pack's lines.
+fn lowered_subject(asked: Lowered) -> Result<Value, Failure> {
+    use crate::domain::encoding::service::encoded;
+    use crate::domain::lowering::fixtures::described::described;
+    use crate::domain::lowering::service::lowered;
+    use crate::domain::lowering::types::{BoundProducer, ObservedBinding, SelectedRules};
+    use ryo_values::domain::plan_parts::types::ObservationBindingId;
+    use ryo_values::domain::query_plans::types::NodeDigest;
+    use crate::domain::programs::service::accepted;
+    use crate::domain::statistics::types::StatisticsBytes;
+    use crate::inbound::use_cases::load::fixtures::kinds as load_kinds;
+    use crate::inbound::use_cases::load::interface::LoadUseCase as _;
+    use crate::inbound::use_cases::load::types::LoadSource;
+    use crate::inbound::use_cases::load::use_case::LoadUseCaseImpl;
+    let mut declared = hosted();
+    if let Some(codes) = declared.first_mut() {
+        codes.rows = (0..asked.codes)
+            .map(|code| HostRow(vec![Cell::Text(format!("c{code}").into())]))
+            .chain([HostRow(vec![Cell::Text("a".into())])])
+            .collect();
+    }
+    let last = u32::try_from(asked.plans.len().saturating_sub(1)).unwrap_or(u32::MAX);
+    let observed: Vec<ObservedBinding> = asked
+        .fed
+        .map(|step| ObservedBinding {
+            consumer: SelectedRuleOrdinal(last),
+            binding: ObservationBindingId(0),
+            node: NodeDigest([9; 16]),
+            producers: vec![BoundProducer {
+                rule: SelectedRuleOrdinal(0),
+                step: StepId(step),
+            }],
+        })
+        .into_iter()
+        .collect();
+    let given = LoadGiven {
+        hosted: &declared,
+        observed: &observed,
+    };
+    let digests: Vec<_> = asked
+        .plans
+        .iter()
+        .map(|plan| digests_of(plan, RuleBindings(&[])))
+        .collect();
+    let rules: Vec<SelectedRule<'_>> = asked
+        .plans
+        .iter()
+        .zip(&digests)
+        .zip(0..)
+        .map(|((plan, digests), rule)| SelectedRule {
+            rule: SelectedRuleOrdinal(rule),
+            plan,
+            bindings: RuleBindings(&[]),
+            digests,
+        })
+        .collect();
+    let kinds = KindVocabulary {
+        language: LanguageName("walking".into()),
+        kinds: Vec::new(),
+        fields: Vec::new(),
+        fixed: Vec::new(),
+    };
+    let lowered = lowered(SelectedRules(&rules), given, None, &kinds);
+    let mut lines: Vec<String> = lowered
+        .refused
+        .iter()
+        .map(|refused| format!("refused rule {}: {}", refused.rule.0, refused.refusal))
+        .collect();
+    lines.extend(described(&lowered.pack).into_iter().filter(|line| !line.starts_with("  ")));
+    let written = encoded(&lowered.pack).map_or_else(|error| format!("encoding refused: {error:?}"), |_| "encoded".to_owned());
+    lines.push(written);
+    // The load's own sequence: lowered, passed, encoded, and every unit asked whether the executor runs it.
+    let source = LoadSource::Plans(SelectedRules(&rules), StatisticsBytes(&[]), given);
+    let loaded = LoadUseCaseImpl.load(source, &load_kinds());
+    lines.push(match loaded {
+        Ok(loaded) => format!(
+            "load: {} accepted, refused {:?}",
+            accepted(&loaded.programs).len(),
+            loaded.refused.iter().map(|refused| (refused.rule.0, refused.refusal.to_string())).collect::<Vec<_>>()
+        ),
+        Err(error) => format!("load error: {error:?}"),
+    });
+    Ok(Cow::Owned(lines.join("\n")))
+}
+
+#[test]
+fn lowered_succeeds() {
+    run(LOWERED, Word::Succeeds, lowered_subject);
+}

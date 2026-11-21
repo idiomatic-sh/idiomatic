@@ -185,6 +185,12 @@ pub(super) fn sequenced(
                 let steps = rule_steps(&code, rules);
                 let lowered = programs(pack, code, steps, names)?;
                 let unrun = not_run(&lowered);
+                // Spike (ryo-fmx3.1): the rules the executor cannot run whole, with the unit's step, when asked.
+                if std::env::var_os("RYO_L2_REFUSED").is_some() {
+                    for each in &unrun {
+                        eprintln!("ryo l2: not run whole: rule {} at {}", each.rule.0, each.refusal);
+                    }
+                }
                 let Some(first) = unrun.first() else {
                     named = statistics.map_or(MatchedStatistics::Absent, |measured| {
                         MatchedStatistics::Units(matched(measured, &lowered.0.code.units))
@@ -196,6 +202,10 @@ pub(super) fn sequenced(
                 (first.refusal, unrun)
             }
             Err(LoweringError::Refused { rule, refusal }) => {
+                // Spike (ryo-fmx3.1): the encoding's refusal as it names the rule, when asked.
+                if std::env::var_os("RYO_L2_REFUSED").is_some() {
+                    eprintln!("ryo l2: encoding refused rule {} at {refusal}", rule.0);
+                }
                 let gone = taken(&written, rule, refusal).into_iter();
                 let gone = gone.map(|each| RefusedRule {
                     rule: each,
