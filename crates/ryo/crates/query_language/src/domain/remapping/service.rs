@@ -31,7 +31,7 @@ pub(crate) fn remap_step(
     inputs: &Bindings,
     parameters: &Bindings,
     source: &QuerySourceId,
-    preceding: &[LetStep],
+    preceding: &[StepName],
     trace: &[QueryTraceSite],
 ) -> Result<(), LinkingError> {
     if let Some(identity) = ryo_values::domain::program::service::identity_of(step.name.1) {
@@ -194,7 +194,7 @@ pub(crate) fn remap_call(
     call: &mut Call,
     inputs: &Bindings,
     parameters: &Bindings,
-    preceding: &[LetStep],
+    preceding: &[StepName],
     source: &QuerySourceId,
     trace: &[QueryTraceSite],
     strictness: ParameterCheck,
@@ -227,10 +227,10 @@ pub(crate) fn remap_call(
                 preceding
                     .iter()
                     .rev()
-                    .find(|step| *step.name.0 == *word.0)
+                    .find(|name| *name.0 == *word.0)
                     .map_or_else(
                         || argument.value.clone(),
-                        |step| ArgumentValue::Step(step.name.clone()),
+                        |name| ArgumentValue::Step(name.clone()),
                     )
             });
         }

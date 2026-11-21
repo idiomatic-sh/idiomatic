@@ -1439,6 +1439,7 @@ dependencies = [
  "idiomatic-sh-ryo-operators",
  "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-values",
+ "rayon",
  "thiserror 2.0.20",
  "tokio",
 ]

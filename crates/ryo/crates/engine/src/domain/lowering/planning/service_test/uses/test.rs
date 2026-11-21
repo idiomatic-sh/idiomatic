@@ -4,7 +4,6 @@
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::lowered::types::Emptiness;
-use crate::domain::lowering::costing::service::branches_rows;
 use crate::domain::lowering::definitions::service::defined;
 use crate::domain::lowering::definitions::types::{Drafts, Flattened};
 use crate::domain::lowering::flattening::types::{
@@ -86,7 +85,6 @@ fn used(definition: u32, cells: &[u32]) -> FlatAtom {
 /// A definition of `branches` over `columns` element columns, sized as the lowering sizes one.
 fn define(drafts: &mut Drafts, columns: usize, branches: Vec<FlatBranch>) -> DefinitionId {
     let number = u8::try_from(drafts.definitions.len()).unwrap_or(u8::MAX);
-    let rows = branches_rows(drafts, &branches);
     let flattened = Flattened {
         branches,
         emptiness: Emptiness::Unknown,
@@ -97,14 +95,7 @@ fn define(drafts: &mut Drafts, columns: usize, branches: Vec<FlatBranch>) -> Def
         step: StepId(u32::from(number)),
     };
     let shape = StepShape(vec![CellKind::Node; columns]);
-    defined(
-        drafts,
-        NodeDigest([number; 16]),
-        home,
-        shape,
-        flattened,
-        rows,
-    )
+    defined(drafts, NodeDigest([number; 16]), home, shape, flattened)
 }
 
 /// The elements of a kind that are a child in a field of their parent, each with its name: (element, name).

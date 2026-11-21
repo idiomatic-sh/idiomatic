@@ -1,16 +1,19 @@
 //! The `compile` use case: it reads the text, checks it, and resolves every name in it once.
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, PoisonError};
 
 use super::errors::CompileError;
 use super::interface::CompileUseCase;
 use super::service::{invalid, syntax_refused, unresolved};
 use super::types::CompileReport;
 use crate::domain::assembling::service::lower_with_observations;
+use crate::domain::checking::service::fragments_checked;
+use crate::domain::checking::types::FragmentChecks;
 use crate::domain::linking::errors::LinkingError;
 use crate::domain::validation::service::validate_with_observations;
 use crate::outbound::catalog::interface::CatalogPort;
 use crate::outbound::syntax::interface::SyntaxPort;
+use ryo_values::domain::program::types::ParsedModules;
 use ryo_values::domain::query_requests::types::QueryRequest;
 
 /// `compile`, over the syntax and the catalog it calls.
@@ -19,6 +22,9 @@ pub struct CompileUseCaseImpl {
     syntax: Arc<dyn SyntaxPort>,
     /// Lists the relations a program may read.
     catalog: Arc<dyn CatalogPort>,
+    /// The checks of the modules last compiled over: a catalog's fragments are checked once, however many rules import
+    /// them. Held with the modules they are of, so they are never read for another catalog's.
+    checked: Mutex<Option<(ParsedModules, Arc<FragmentChecks>)>>,
 }
 
 impl std::fmt::Debug for CompileUseCaseImpl {
@@ -33,7 +39,33 @@ impl CompileUseCaseImpl {
     /// `compile` over the ports the edge injects.
     #[must_use]
     pub fn new(syntax: Arc<dyn SyntaxPort>, catalog: Arc<dyn CatalogPort>) -> Self {
-        Self { syntax, catalog }
+        Self {
+            syntax,
+            catalog,
+            checked: Mutex::new(None),
+        }
+    }
+}
+
+impl CompileUseCaseImpl {
+    /// The checks of `modules`, the fragments a request is compiled over: read when the last compile was over the same
+    /// parsed modules, made and kept otherwise.
+    fn checks_of(
+        &self,
+        bundle: &ryo_values::domain::query_tokens::types::QueryBundle,
+        modules: &ParsedModules,
+    ) -> Arc<FragmentChecks> {
+        let held = self.checked.lock().unwrap_or_else(PoisonError::into_inner);
+        if let Some((of, checks)) = held.as_ref()
+            && Arc::ptr_eq(&of.0, &modules.0)
+        {
+            return Arc::clone(checks);
+        }
+        drop(held);
+        let checks = Arc::new(fragments_checked(bundle, &modules.0));
+        let mut held = self.checked.lock().unwrap_or_else(PoisonError::into_inner);
+        *held = Some((modules.clone(), Arc::clone(&checks)));
+        checks
     }
 }
 
@@ -57,11 +89,13 @@ impl CompileUseCase for CompileUseCaseImpl {
                 request.modules.clone(),
             )
         };
-        let program = crate::domain::expanding::service::link_with_observations(
+        let checks = self.checks_of(&request.text, &modules);
+        let program = crate::domain::expanding::service::link_checked(
             &request.text,
             root,
             &modules.0,
             &request.observations,
+            &checks,
         )
         .map_err(|error| match error {
             LinkingError::Located { origin, message } => CompileError::Located {

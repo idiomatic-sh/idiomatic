@@ -1,7 +1,6 @@
 //! The services of the `inputs` part: what a step reads of an input. A relation is one atom; a step is its own branches, taken by its one reader, or one use of its definition: when it has several readers across the pack, when the reader wants one, or when it is past a bound.
 
 use crate::domain::lowered::types::Emptiness;
-use crate::domain::lowering::costing::service::branches_rows;
 use crate::domain::lowering::definitions::service::{
     defined, fresh_cells, fresh_variable, text, use_branch,
 };
@@ -151,8 +150,7 @@ pub(crate) fn step_defined(
         }
         shape = kinds_picked(&shape, kept)?;
     }
-    let rows = branches_rows(drafts, &flattened.branches);
-    let definition = defined(drafts, digest, home, shape, flattened, rows);
+    let definition = defined(drafts, digest, home, shape, flattened);
     if let Some(held) = held {
         let _new = drafts.held.insert(definition, held);
     }

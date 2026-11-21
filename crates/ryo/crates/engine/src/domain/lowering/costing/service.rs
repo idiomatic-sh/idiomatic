@@ -11,14 +11,14 @@ use super::types::{CellState, KeyChoice, PlanEstimate};
 use crate::domain::lowered::types::{FillInput, MadeFill, OrderedFill};
 use crate::domain::lowering::definitions::service::{draft, kind_bits};
 use crate::domain::lowering::definitions::types::{Drafts, RowEstimate};
-use crate::domain::lowering::flattening::types::{
-    AtomRows, FlatBranch, FlatTerm, RowColumn, RowsPerFile,
-};
+use crate::domain::lowering::flattening::types::{AtomRows, FlatTerm, RowColumn, RowsPerFile};
 use crate::domain::lowering::planning::uses::service::branches_estimated;
 use crate::domain::statistics::service::{element_rows, field_rows, kind_rows, literal_rows};
 use crate::domain::statistics::types::SizedRows;
 use crate::domain::steps::stages::types::{FillStage, Pipeline};
-use crate::domain::steps::types::{ConstantText, CostClass, MadeColumn, MadeTableId, StepRows};
+use crate::domain::steps::types::{
+    ConstantText, CostClass, DefinitionId, MadeColumn, MadeTableId, StepRows,
+};
 use ryo_language::domain::node_table::types::FieldCode;
 use ryo_relations::domain::catalog::service::{fact_form, node_column, relation_size};
 use ryo_relations::domain::relations::service::{columns, kind};
@@ -81,9 +81,7 @@ fn scanned_rows(drafts: &Drafts, pipeline: &Pipeline) -> RowEstimate {
         StepRows::Node(_) => ELEMENTS,
         StepRows::Filled(relation) => filled_rows(*relation),
         StepRows::Made(table) | StepRows::Written(table) => made_rows(drafts, *table),
-        StepRows::Definition(definition) => {
-            draft(drafts, *definition).map_or(RowEstimate(1), |draft| draft.rows)
-        }
+        StepRows::Definition(definition) => definition_rows(drafts, *definition),
     };
     if columns.0.is_empty() {
         whole
@@ -141,9 +139,7 @@ pub(crate) fn source_rows(drafts: &Drafts, rows: AtomRows) -> RowEstimate {
             FactForm::NodeTable => ELEMENTS,
             FactForm::Filled(_) => filled_rows(relation),
         },
-        AtomRows::Definition(definition) => {
-            draft(drafts, definition).map_or(RowEstimate(1), |draft| draft.rows)
-        }
+        AtomRows::Definition(definition) => definition_rows(drafts, definition),
         AtomRows::Made(table) => made_rows(drafts, table),
     }
 }
@@ -317,10 +313,15 @@ pub(crate) fn keyed(
     }
 }
 
-/// The rows of a step's branches together in a file: what each branch's own plan gives with nothing bound.
+/// A definition's rows in a file: what each of its branches' own plans gives with nothing bound, together. Costed on the
+/// first ask and kept: a definition's branches never change once it is made, and they read only definitions before it.
 #[must_use]
-pub(crate) fn branches_rows(drafts: &Drafts, branches: &[FlatBranch]) -> RowEstimate {
-    branches_estimated(drafts, branches)
+pub(crate) fn definition_rows(drafts: &Drafts, definition: DefinitionId) -> RowEstimate {
+    draft(drafts, definition).map_or(RowEstimate(1), |draft| {
+        *draft
+            .rows
+            .get_or_init(|| branches_estimated(drafts, &draft.branches))
+    })
 }
 
 /// The mean rows a file of a size a sample measured, in the planner's 1,024ths, and never none.

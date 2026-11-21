@@ -2,7 +2,7 @@
 //! asked first; a pattern is asked once; a constant text has one number.
 
 use super::service::{asked, defined, text, use_branch};
-use super::types::{Drafts, Flattened, RowEstimate};
+use super::types::{Drafts, Flattened};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::lowering::fixtures::described::described;
 use crate::domain::lowering::fixtures::{digests_of, named};
@@ -76,22 +76,8 @@ fn counted() -> String {
     };
     let shape = || StepShape(vec![CellKind::Node, CellKind::File]);
     let node = NodeDigest([7; 16]);
-    let first = defined(
-        &mut drafts,
-        node,
-        home,
-        shape(),
-        Flattened::default(),
-        RowEstimate(1),
-    );
-    let again = defined(
-        &mut drafts,
-        node,
-        home,
-        shape(),
-        Flattened::default(),
-        RowEstimate(1),
-    );
+    let first = defined(&mut drafts, node, home, shape(), Flattened::default());
+    let again = defined(&mut drafts, node, home, shape(), Flattened::default());
     let key = ColumnMask([MadeColumn(0)].into());
     let nothing = ColumnMask::default();
     asked(&mut drafts, first, &key, &nothing);
