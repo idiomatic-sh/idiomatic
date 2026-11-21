@@ -18,7 +18,28 @@ pub fn slot_count(pattern: SlotPattern<'_>) -> CaptureSlotCount {
     CaptureSlotCount(pattern.0.bytes().filter(|byte| *byte == b'{').count())
 }
 
-pub(crate) fn matches(
+/// `capture`: every way the slot pattern matches the whole path, each handed to `each` as the ranges of its slots in
+/// slot order. `whole` is the path and `tail` the part of it not yet matched (the path itself for a caller); `slots` is
+/// the caller's scratch for the slots matched so far. A pattern of no slot matches once when it is the path.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_operators::domain::capture::service::matches;
+/// use ryo_operators::domain::capture::types::{CaptureOutput, CaptureSlots, CaptureSpans, SlotPattern, SlotSubject};
+///
+/// struct Ways(Vec<Vec<std::ops::Range<usize>>>);
+/// impl CaptureOutput for Ways {
+///     fn captures(&mut self, ranges: CaptureSpans<'_>) {
+///         self.0.push(ranges.0.to_vec());
+///     }
+/// }
+/// let (mut slots, mut ways) = (Vec::new(), Ways(Vec::new()));
+/// let path = "src/a.rs";
+/// matches(SlotPattern("src/{name}.rs"), SlotSubject(path), SlotSubject(path), CaptureSlots(&mut slots), &mut ways);
+/// assert_eq!(ways.0, [vec![4..5]]);
+/// ```
+pub fn matches(
     pattern: SlotPattern<'_>,
     whole: SlotSubject<'_>,
     tail: SlotSubject<'_>,

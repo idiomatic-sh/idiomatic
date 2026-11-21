@@ -11,9 +11,9 @@ use crate::domain::made_tables::fixtures::packs::{FIRST, TOLD};
 use crate::domain::made_tables::fixtures::packs::{constants, of, pipeline, rows, scan_made};
 use crate::domain::made_tables::fixtures::reads::{asked, held, prober, told_of};
 use crate::domain::made_tables::fixtures::{Telling, World, framed, shown, site_of, world_with};
-use crate::domain::made_tables::reading::service::rows_at;
+use crate::domain::made_tables::reading::service::{index_at, rows_at};
 use crate::domain::made_tables::sources::service::{
-    cell_of, handle_of, index_rows, made, matched, next_file, relation_rows, table_of,
+    cell_of, handle_of, made, matched, next_file, relation_rows, table_of,
 };
 use crate::domain::made_tables::types::{KeyFrom, ReadSource};
 use crate::domain::steps::types::{MadeColumn, MadeTableId, ReadColumn, StepRows};
@@ -234,14 +234,14 @@ fn subject(read: Input) -> Result<Value, Failure> {
             let before = format!(
                 "table {:?}, index of {} rows, relation of {} rows",
                 table_of(&world.store, MadeTableId(1)).map(|slot| slot.state),
-                index_rows(&world.store, relation_site).0,
+                index_at(&world.store, relation_site).rows.len(),
                 relation_rows(&world.store, RelationNumber(0)).0
             );
             next_file(&mut world.store);
             format!(
                 "{before} | next file: table {:?}, index of {} rows, relation of {} rows",
                 table_of(&world.store, MadeTableId(1)).map(|slot| slot.state),
-                index_rows(&world.store, relation_site).0,
+                index_at(&world.store, relation_site).rows.len(),
                 relation_rows(&world.store, RelationNumber(0)).0
             )
         }

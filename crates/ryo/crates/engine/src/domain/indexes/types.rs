@@ -63,10 +63,12 @@ pub(crate) struct IndexArena {
     pub(crate) rows: Vec<SourceRow>,
     /// Each index's place in the arenas, by `IndexSite`.
     pub(crate) slots: Vec<IndexSlot>,
-    /// While an index is built: the key each row holds.
+    /// While an index is built: the key each row holds; or, by a column of small codes, the key each code names.
     pub(crate) places: Vec<KeyNumber>,
     /// While an index is built: each key's count, then its next place.
     pub(crate) groups: Vec<StretchPlace>,
+    /// While an index is built by a column of small codes: how many rows hold each code.
+    pub(crate) counts: Vec<StretchPlace>,
     /// While an index is built: how many rows its source has.
     pub(crate) pending: Count,
     /// While an index is built: each row's key, row by row.
@@ -78,6 +80,33 @@ pub(crate) struct IndexArena {
     /// While an index is built: the number of its source's first row. A relation filled whole after keys were asked
     /// starts past their rows.
     pub(crate) base: SourceRow,
+    /// How many rows at the front of `rows` each hold their own number: what an index of rows by their own id reads. They
+    /// are kept from file to file, so such an index is built by writing nothing.
+    pub(crate) own: Count,
+    /// How many such rows the largest file so far asked for: the front is grown to it when the next file starts, never
+    /// while a file's stretches are held.
+    pub(crate) wanted: Count,
+}
+
+/// What a build by counting is told of its key: the least cell, how far the greatest lies past it, and how many rows
+/// the source has.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct CountedKey {
+    /// The least cell a row may hold.
+    pub(crate) least: CellWord,
+    /// How far the greatest cell lies past the least.
+    pub(crate) span: Count,
+    /// How many rows the source has.
+    pub(crate) rows: Count,
+}
+
+/// How the cells of a one-cell key lie.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum KeyCells {
+    /// Close together: its rows are placed by counting.
+    Close,
+    /// Apart: its keys are entered in the open table.
+    Apart,
 }
 
 /// Where one index lies, and the file it was built for.
@@ -87,7 +116,9 @@ pub(crate) struct IndexSlot {
     pub(crate) stamp: FileStamp,
     /// Where its table starts among the entries.
     pub(crate) table: Count,
-    /// How many entries its table has less one: a power of two less one.
+    /// How many words its table has.
+    pub(crate) words: Count,
+    /// How many entries a hashed table has less one: a power of two less one.
     pub(crate) mask: Count,
     /// How many bits of a hash do not name an entry.
     pub(crate) shift: HashShift,
@@ -127,15 +158,20 @@ pub(crate) struct RowRun {
     pub(crate) end: Count,
 }
 
-/// How a key finds its entry in an index's table. One table and one walk either way: only where the walk starts differs.
+/// How a key finds its stretch of an index's rows. A reader is handed the stretch whichever way it was found: an index
+/// has one form, a key's rows side by side, and three ways of being built, chosen by the shape of its key.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) enum Addressing {
-    /// By the key's hash: any cells, any width.
+    /// By the key's hash, in an open table of the distinct keys, each with its stretch: any cells, any width.
     #[default]
     Hashed,
-    /// By the key's one cell less the least cell the source holds: a column of ids or codes that lie close together, where
-    /// each key has an entry of its own and keys in order reach the table in order.
-    Placed(CellWord),
+    /// By the key's one cell less the least cell the source holds: a column of ids or codes that lie close together. The
+    /// table holds no key: word `c` is where the stretch of the cell `least + c` starts and word `c + 1` where it ends, so
+    /// the rows are placed by counting and a key is found by a subtraction.
+    Counted(CellWord),
+    /// By the key's one cell less the least, which is the row itself: the rows of a source by their own id. The index
+    /// has no table, and its rows are the arena's rows that hold their own number.
+    Rows(CellWord),
 }
 
 /// Whether a site's index is built for the file.

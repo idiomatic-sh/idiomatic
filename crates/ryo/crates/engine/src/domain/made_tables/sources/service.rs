@@ -66,16 +66,6 @@ pub(crate) fn relation_rows(store: &FillStore, relation: RelationNumber) -> Coun
     rows_held(&store.relations, relation, store.stamp)
 }
 
-/// How many rows the index of a site holds for the file: nought before it is built.
-pub(crate) fn index_rows(store: &FillStore, site: IndexSite) -> Count {
-    store
-        .indexes
-        .slots
-        .get(usize::try_from(site.0).unwrap_or(usize::MAX))
-        .filter(|slot| slot.stamp == store.stamp)
-        .map_or(Count(0), |slot| slot.count)
-}
-
 /// The rows of the site's source whose key columns hold `key`. Over a made table, made first, and over the node table: the
 /// site's index, built the first time. Over a relation: with a key from a row, while the relation is not whole, the
 /// language is asked for that key alone, once; with constants, or once it is whole, the site's index over the whole fill.
