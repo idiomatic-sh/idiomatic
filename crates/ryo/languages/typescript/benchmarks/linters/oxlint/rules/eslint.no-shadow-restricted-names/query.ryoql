@@ -2,7 +2,7 @@ import directives from "typescript/oxlint/eslint-directives";
 let tokens = select file, span, text from "semantic-syntax" where kind = "identifier-token";
 let identifiers = select id, file, span from "semantic-syntax" where kind = "identifier";
 let names = select l.id as id, r.text as name from identifiers as l join tokens as r on l.file = r.file and l.span = r.span;
-let restricted = select id from names where name = "undefined" or name = "NaN" or name = "Infinity" or name = "arguments" or name = "eval";
+let restricted = select id from names where name in ["undefined", "NaN", "Infinity", "arguments", "eval"];
 let declarators = select l.parent as owner, l.child as id from "semantic-child" as l join "semantic-syntax" as r on l.parent = r.id where l.field = "id" and r.kind = "variable-declarator";
 let initialized = select parent as owner from "semantic-child" where field = "init";
 let undefined_names = select id from names where name = "undefined";

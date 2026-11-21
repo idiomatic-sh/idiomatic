@@ -14,7 +14,7 @@ let literal_values = select l.assignment as assignment, l.subscript as subscript
 let literal_names = select id, file from "qualified-name" where path = "typing.Literal" or path = "typing_extensions.Literal";
 let literal_annotations = select l.assignment as assignment, l.subscript as subscript, l.file as file from literal_values as l join literal_names as r on l.value = r.id and l.file = r.file;
 let literal_slices = select l.assignment as assignment, r.slice as literal, l.file as file from literal_annotations as l join slices as r on l.subscript = r.subscript and l.file = r.file;
-let scalar_literals = select id, file from "literal-properties" where kind = "integer" or kind = "float" or kind = "complex" or kind = "boolean" or kind = "null" or kind = "ellipsis" or kind = "string" or kind = "bytes";
+let scalar_literals = select id, file from "literal-properties" where kind in ["integer", "float", "complex", "boolean", "null", "ellipsis", "string", "bytes"];
 let reportable = select l.assignment as id, l.file as file from literal_slices as l join scalar_literals as r on l.literal = r.id and l.file = r.file;
 let locations = select id, span, "start-line", file from "source-location";
 let candidates = select l.id as id, l.file as file, r.span as span, r."start-line" as line from reportable as l join locations as r on l.id = r.id and l.file = r.file;

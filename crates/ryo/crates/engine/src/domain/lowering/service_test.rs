@@ -51,6 +51,8 @@ fn subject(count: Input) -> Result<Value, Failure> {
     let kinds = KindVocabulary {
         language: LanguageName("walking".into()),
         kinds: Vec::new(),
+        fields: Vec::new(),
+        fixed: Vec::new(),
     };
     let lowered = lowered(SelectedRules(&rules), None, &kinds);
     // Every rule the lowering refuses is answered: the row names the last, which is there only when each before it is.

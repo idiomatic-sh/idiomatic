@@ -108,8 +108,7 @@ let old_typevar_methods = select l.function as function, l.class as class, l.nam
 let new_typevar_methods = select l.function as function, l.class as class, l.name_id as name_id, l.file as file from annotated_typevar_names as l join new_typevars as r on l.name = r.name and l.function = r.function and l.file = r.file;
 let typevar_methods = union(left=old_typevar_methods, right=new_typevar_methods);
 let module_event_ordinals = select l.id as initial_scope, l.file as file, r.ordinal as point from modules as l join "binding-event" as r on l.id = r.scope and l.file = r.file;
-let prior_module_ordinals = select l.initial_scope as initial_scope, l.point as point, l.file as file from module_event_ordinals as l join module_event_ordinals as r on l.initial_scope = r.initial_scope and l.file = r.file where l.point < r.point;
-let last_module_ordinals = antijoin(left=module_event_ordinals, right=prior_module_ordinals, left-on=["initial_scope", "point", "file"], right-on=["initial_scope", "point", "file"]);
+let last_module_ordinals = group-max(from=module_event_ordinals, keys=["initial_scope", "file"], order="point");
 let ordered_contexts = select l.function as context, r.initial_scope as initial_scope, r.point as point, l.file as file from typevar_methods as l join last_module_ordinals as r on l.file = r.file;
 let contextual_class_bases = class_bases(ordered_contexts=ordered_contexts);
 let metaclass_root_classes = select function as context, class, file from typevar_methods;

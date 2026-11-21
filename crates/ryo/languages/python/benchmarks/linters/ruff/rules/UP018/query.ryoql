@@ -50,7 +50,7 @@ let qualified_call_specs = select call, reference, name, file, expected_kind, ke
 let direct_mode = extend(from=direct_call_specs, values={mode: "direct"});
 let qualified_mode = extend(from=qualified_call_specs, values={mode: "qualified"});
 let call_specs = union(left=direct_mode,right=qualified_mode);
-let primitive_literals = select id, file, kind as value_kind from "literal-properties" where kind = "boolean" or kind = "bytes" or kind = "complex" or kind = "float" or kind = "integer" or kind = "string";
+let primitive_literals = select id, file, kind as value_kind from "literal-properties" where kind in ["boolean", "bytes", "complex", "float", "integer", "string"];
 let unary_nodes = select id, file from "semantic-syntax" where kind = "unary-op";
 let operand_fields = select parent, child from "semantic-child" where field = "operand";
 let unary_operands = select l.id as unary, l.file as file, r.child as operand from unary_nodes as l join operand_fields as r on l.id = r.parent;
@@ -67,8 +67,7 @@ let argument_nodes = select id, file from "semantic-syntax" where kind = "call-a
 let call_wrappers = select l.call as call, r.id as wrapper, r.file as file from call_argument_fields as l join argument_nodes as r on l.wrapper = r.id;
 let positional_fields = select parent, child, ordinal from "semantic-child" where field = "args";
 let positional_args = select l.call as call, r.child as argument, r.ordinal as ordinal, l.file as file from call_wrappers as l join positional_fields as r on l.wrapper = r.parent;
-let arguments_with_predecessor = select l.call as call, l.argument as argument, l.file as file from positional_args as l join positional_args as r on l.call = r.call and l.file = r.file where l.ordinal > r.ordinal;
-let first_positional = antijoin(left=positional_args, right=arguments_with_predecessor, left-on=["call","argument","file"], right-on=["call","argument","file"]);
+let first_positional = group-min(from=positional_args, keys=["call", "file"], order="ordinal");
 let later_positionals = select l.call as call, l.argument as argument, l.file as file from positional_args as l join positional_args as r on l.call = r.call and l.file = r.file where l.ordinal < r.ordinal;
 let exactly_one_positional = antijoin(left=first_positional,right=later_positionals,left-on=["call","argument","file"],right-on=["call","argument","file"]);
 let keyword_fields = select parent, child from "semantic-child" where field = "keywords";

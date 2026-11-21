@@ -2,7 +2,7 @@ import directives from "typescript/oxlint/eslint-directives";
 import parenthesized from "typescript/oxlint/parenthesized";
 let statements = select id, file, span from "semantic-syntax" where kind = "expression-statement";
 let expressions = select l.parent as statement, l.child as expression from "semantic-child" as l join statements as r on l.parent = r.id where l.field = "expression";
-let wrappers = select id from "semantic-syntax" where kind = "ts-as-expression" or kind = "ts-type-assertion" or kind = "ts-non-null-expression" or kind = "ts-instantiation-expression" or kind = "chain-expression";
+let wrappers = select id from "semantic-syntax" where kind in ["ts-as-expression", "ts-type-assertion", "ts-non-null-expression", "ts-instantiation-expression", "chain-expression"];
 let unwrapping = select l.parent as outer, l.child as inner from "semantic-child" as l join wrappers as r on l.parent = r.id where l.field = "expression";
 let unwrapped = closure(edges=unwrapping, source="outer", destination="inner");
 let direct = select statement, expression as inner from expressions;
@@ -12,7 +12,7 @@ let innermost = antijoin(left=candidates, right=unwrapping, left-on=["inner"], r
 let unary_allowed = select l.parent as id from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where l.field = "operator" and r.kind = "keyword" and (r.text = "delete" or r.text = "void");
 let unary = select id from "semantic-syntax" where kind = "unary-expression";
 let disallowed_unary = antijoin(left=unary, right=unary_allowed, left-on=["id"], right-on=["id"]);
-let disallowed_kinds = select id from "semantic-syntax" where kind = "literal" or kind = "sequence-expression" or kind = "function-expression" or kind = "array-expression" or kind = "member-expression" or kind = "meta-property" or kind = "object-expression" or kind = "template-literal" or kind = "arrow-function-expression" or kind = "class-expression" or kind = "binary-expression" or kind = "this-expression" or kind = "identifier" or kind = "conditional-expression" or kind = "logical-expression" or kind = "tagged-template-expression";
+let disallowed_kinds = select id from "semantic-syntax" where kind in ["literal", "sequence-expression", "function-expression", "array-expression", "member-expression", "meta-property", "object-expression", "template-literal", "arrow-function-expression", "class-expression", "binary-expression", "this-expression", "identifier", "conditional-expression", "logical-expression", "tagged-template-expression"];
 let disallowed = union(left=disallowed_kinds, right=disallowed_unary);
 let unused = select l.statement as id from innermost as l join disallowed as r on l.inner = r.id;
 let functions = select id from "semantic-syntax" where kind = "function-declaration" or kind = "function-expression" or kind = "arrow-function-expression";

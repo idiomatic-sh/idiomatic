@@ -34,6 +34,8 @@ macro_rules! filesystem_read_failure {
             scope File,
             notes Unneeded,
             form Filled(Whole),
+            size PerFile,
+            keys [],
             columns {
                 /// The file.
                 path Path: FileId => File;

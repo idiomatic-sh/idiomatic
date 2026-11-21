@@ -5,7 +5,7 @@ let quoted = quoted_strings();
 let operators = select l.parent as id from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where l.field = "operator" and (r.text = "==" or r.text = "===" or r.text = "!=" or r.text = "!==");
 let comparisons = select l.id as id from operators as l join "semantic-syntax" as r on l.id = r.id where r.kind = "binary-expression";
 let sides = select l.id as comparison, c.child as id, c.field as field from comparisons as l join "semantic-child" as c on l.id = c.parent where c.field = "left" or c.field = "right";
-let wrappers = select id from "semantic-syntax" where kind = "ts-as-expression" or kind = "ts-satisfies-expression" or kind = "ts-instantiation-expression" or kind = "ts-non-null-expression" or kind = "ts-type-assertion" or kind = "chain-expression";
+let wrappers = select id from "semantic-syntax" where kind in ["ts-as-expression", "ts-satisfies-expression", "ts-instantiation-expression", "ts-non-null-expression", "ts-type-assertion", "chain-expression"];
 let unwrapping = select l.parent as outer, l.child as inner from "semantic-child" as l join wrappers as r on l.parent = r.id where l.field = "expression";
 let unwrapped = closure(edges=unwrapping, source="outer", destination="inner");
 let calls = select id, file, span from "semantic-syntax" where kind = "call-expression";

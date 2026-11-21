@@ -6,8 +6,7 @@ let declarations = select l.reference as reference, l.file as file, l.context as
 let writes = select reference, file from declarations where kind = "class" and (context = "write" or context = "read-write");
 let candidates = select l.reference as reference, l.file as file, l.declared as declared from declarations as l join writes as r on l.reference = r.reference and l.file = r.file;
 let candidate_bounds = span-bounds(from=candidates, span="declared", start-output="begin", end-output="finish");
-let later = select l.reference as reference, l.file as file, l.begin as begin from candidate_bounds as l join candidate_bounds as r on l.reference = r.reference and l.file = r.file where l.begin > r.begin;
-let first = antijoin(left=candidate_bounds, right=later, left-on=["reference", "file", "begin"], right-on=["reference", "file", "begin"]);
+let first = group-min(from=candidate_bounds, keys=["reference", "file"], order="begin");
 let tokens = select file, span from "semantic-syntax" where kind = "identifier-token";
 let token_bounds = span-bounds(from=tokens, span="span", start-output="tbegin", end-output="tfinish");
 let found = select l.reference as id, l.file as file, r.span as span from first as l join token_bounds as r on l.file = r.file and l.begin = r.tbegin;

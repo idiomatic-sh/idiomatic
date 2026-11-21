@@ -323,6 +323,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     let kinds = KindVocabulary {
         language: LanguageName("walking".into()),
         kinds: Vec::new(),
+        fields: Vec::new(),
+        fixed: Vec::new(),
     };
     let pack = encoded(&Programs::default(), PackDigest([1; 32]));
     let mut other = pack.0.clone();

@@ -289,3 +289,25 @@ pub(crate) struct ChildPlace {
 /// The logical text of the embedded segment a builder is writing.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct LogicalText(pub(crate) String);
+
+/// One embedded segment of a table, as `node_table::service::embedded_segments` reads it: the node it was read from, its root
+/// and the id after its last element.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_language::domain::node_table::types::EmbeddedSpan;
+/// use ryo_relations::domain::relations::types::Position;
+///
+/// let segment = EmbeddedSpan { host: Position(0), root: Position(2), end: Position(4) };
+/// assert!(segment.root < segment.end);
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct EmbeddedSpan {
+    /// The node of the file's own tree the segment was read from: the parent of its root.
+    pub host: Position,
+    /// The segment's root: its first id.
+    pub root: Position,
+    /// The id after the segment's last element.
+    pub end: Position,
+}

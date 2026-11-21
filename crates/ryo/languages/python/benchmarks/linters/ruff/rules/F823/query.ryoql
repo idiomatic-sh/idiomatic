@@ -41,8 +41,7 @@ let associated_reads_before_local = union(left=outer_reads, right=builtin_reads)
 let associated_reads = union(left=associated_reads_before_local, right=unbound_local_reads);
 let read_events = select occurrence, ordinal, file from "binding-event" where kind = "read";
 let earlier_reads = select l.binding as binding, l.id as id, l.file as file, l.span as span, r.ordinal as read_order from associated_reads as l join read_events as r on l.id = r.occurrence and l.file = r.file where r.ordinal < l.store_order;
-let later_reads = select l.binding as binding, l.id as id from earlier_reads as l join earlier_reads as r on l.binding = r.binding where r.read_order < l.read_order;
-let first_reads = antijoin(left=earlier_reads, right=later_reads, left-on=["binding", "id"], right-on=["binding", "id"]);
+let first_reads = group-min(from=earlier_reads, keys=["binding"], order="read_order");
 let reportable = select id, file, span from first_reads;
 let candidate_locations = line_located(candidates=reportable);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:F823)$");

@@ -13,8 +13,7 @@ let argument_nodes = select id, file from "semantic-syntax" where kind = "call-a
 let call_wrappers = select l.call as call, r.id as wrapper, r.file as file from call_arguments as l join argument_nodes as r on l.wrapper = r.id;
 let positional_fields = select parent, child, ordinal from "semantic-child" where field = "args";
 let positional = select l.call as call, r.child as argument, r.ordinal as ordinal, l.file as file from call_wrappers as l join positional_fields as r on l.wrapper = r.parent;
-let later_positional_arguments = select l.call as call, l.argument as argument, l.file as file from positional as l join positional as r on l.call = r.call and l.file = r.file where l.ordinal > r.ordinal;
-let first_positional = antijoin(left=positional, right=later_positional_arguments, left-on=["call", "argument", "file"], right-on=["call", "argument", "file"]);
+let first_positional = group-min(from=positional, keys=["call", "file"], order="ordinal");
 let later_positionals = select l.call as call, l.argument as argument, l.file as file from positional as l join positional as r on l.call = r.call and l.file = r.file where l.ordinal < r.ordinal;
 let exactly_one_positional = antijoin(left=first_positional,right=later_positionals,left-on=["call","argument","file"],right-on=["call","argument","file"]);
 let keyword_fields = select parent, child from "semantic-child" where field = "keywords";
@@ -27,7 +26,7 @@ let direct_type_calls = select l.call as call, l.reference as reference, r.argum
 let qualified_type_functions = select id, file from "qualified-name" where path = "builtins.type";
 let qualified_type_function_calls = select l.call as call, l.file as file, l.function as reference from call_functions as l join qualified_type_functions as r on l.function = r.id and l.file = r.file;
 let qualified_type_calls = select l.call as call, l.reference as reference, r.argument as argument, l.file as file from qualified_type_function_calls as l join no_keywords as r on l.call = r.call and l.file = r.file;
-let primitive_arguments = select id, file from "literal-properties" where kind = "boolean" or kind = "string" or kind = "bytes" or kind = "integer" or kind = "float" or kind = "complex";
+let primitive_arguments = select id, file from "literal-properties" where kind in ["boolean", "string", "bytes", "integer", "float", "complex"];
 let direct_typed_calls = select l.call as call, l.reference as reference, l.file as file from direct_type_calls as l join primitive_arguments as r on l.argument = r.id and l.file = r.file;
 let qualified_typed_calls = select l.call as call, l.reference as reference, l.file as file from qualified_type_calls as l join primitive_arguments as r on l.argument = r.id and l.file = r.file;
 let candidates = select l.call as call, l.reference as reference, l.file as file, r.span as span from direct_typed_calls as l join calls as r on l.call = r.id and l.file = r.file;

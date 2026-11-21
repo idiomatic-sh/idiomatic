@@ -3,7 +3,7 @@
 
 use ryo::languages::{self, Count, Position, Tree};
 
-use super::types::{Match, Standing, Triviality, Wanted};
+use super::types::{Match, Standing, Triviality, WantedSibling};
 use crate::domain::syntax::service::{is_token, kind, parent};
 use crate::domain::syntax::types::{Kind, Leaf};
 use crate::domain::tokens::types::Token;
@@ -20,12 +20,12 @@ pub(crate) fn triviality(each: Kind) -> Triviality {
 
 /// Whether an element of kind `each` is one `wanted` counts.
 #[must_use]
-pub(crate) fn matching(wanted: Wanted, each: Kind) -> Match {
+pub(crate) fn matching(wanted: WantedSibling, each: Kind) -> Match {
     let found = match wanted {
-        Wanted::Node => matches!(each, Kind::Node(_)),
-        Wanted::NodeOf(node) => each == Kind::Node(node),
-        Wanted::Token(token) => each == Kind::Token(token),
-        Wanted::Assigning => matches!(
+        WantedSibling::Node => matches!(each, Kind::Node(_)),
+        WantedSibling::NodeOf(node) => each == Kind::Node(node),
+        WantedSibling::Token(token) => each == Kind::Token(token),
+        WantedSibling::Assigning => matches!(
             each,
             Kind::Token(
                 Token::Assign
@@ -58,7 +58,7 @@ pub(crate) fn siblings<'a>(
 
 /// How many siblings of `at` before it `wanted` counts.
 #[must_use]
-pub(crate) fn before(tree: &Tree<'_>, at: Position, wanted: Wanted) -> Count {
+pub(crate) fn before(tree: &Tree<'_>, at: Position, wanted: WantedSibling) -> Count {
     Count(
         siblings(tree, at)
             .take_while(|each| *each != at)
@@ -69,7 +69,7 @@ pub(crate) fn before(tree: &Tree<'_>, at: Position, wanted: Wanted) -> Count {
 
 /// How many siblings of `at`, before it, after it or itself, `wanted` counts.
 #[must_use]
-pub(crate) fn among(tree: &Tree<'_>, at: Position, wanted: Wanted) -> Count {
+pub(crate) fn among(tree: &Tree<'_>, at: Position, wanted: WantedSibling) -> Count {
     Count(
         siblings(tree, at)
             .filter(|each| matching(wanted, kind(tree, *each)) == Match::Wanted)

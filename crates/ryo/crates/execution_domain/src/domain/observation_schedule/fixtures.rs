@@ -130,3 +130,42 @@ pub fn bound_input(name: &str) -> BoundObservationInput {
         scope: StepScope::PerFile,
     }
 }
+
+/// The functions, then `levels` unions, each of the step before with itself and each beside a projection of it nothing reads; the
+/// last union is emitted and named as an output, and every step is handed over.
+pub fn ladder(levels: usize) -> Plan {
+    let mut ladder = plan();
+    let step = |operation| PlanStep {
+        scope: StepScope::PerFile,
+        operation,
+    };
+    ladder.steps = vec![step(Operation::Select {
+        from: InputSource::Relation(Relation::Function),
+        comparisons: vec![],
+        kept: vec![],
+    })];
+    let mut before = StepId(0);
+    for _ in 0..levels {
+        ladder.steps.push(step(Operation::Project {
+            from: InputSource::Step(before),
+            columns: vec![ColumnIndex(0)],
+            distinct: RepeatedRows::Kept,
+        }));
+        ladder.steps.push(step(Operation::Union {
+            left: InputSource::Step(before),
+            right: InputSource::Step(before),
+        }));
+        before = StepId(u32::try_from(ladder.steps.len().saturating_sub(1)).unwrap_or(u32::MAX));
+    }
+    ladder.emit.step = before;
+    ladder.observations.push(PlanObservation {
+        name: ObservationName("top".into()),
+        source: InputSource::Step(before),
+        columns: vec![column()],
+        scope: StepScope::PerFile,
+    });
+    ladder.frontier = (0..ladder.steps.len())
+        .map(|at| InputSource::Step(StepId(u32::try_from(at).unwrap_or(u32::MAX))))
+        .collect();
+    ladder
+}

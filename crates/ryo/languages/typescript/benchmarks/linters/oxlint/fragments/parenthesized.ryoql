@@ -5,7 +5,7 @@ let parent_rows = select l.parent as parent, r.kind as kind from parents as l jo
 let parent_children = select l.parent as parent, l.kind as kind, c.child as child, c.field as field from parent_rows as l join "semantic-child" as c on l.parent = c.parent;
 let child_rows = select l.parent as parent, l.kind as kind, l.child as child, l.field as field, r.kind as child_kind, r.text as text, r.span as span from parent_children as l join "semantic-syntax" as r on l.child = r.id;
 let child_bounds = span-bounds(from=child_rows, span="span", start-output="begin", end-output="finish");
-let statement_opens = select parent, child, begin from child_bounds where child_kind = "punctuator" and text = "(" and (kind = "if-statement" or kind = "while-statement" or kind = "do-while-statement" or kind = "switch-statement" or kind = "with-statement" or kind = "for-statement" or kind = "for-in-statement" or kind = "for-of-statement" or kind = "catch-clause" or kind = "import-expression");
+let statement_opens = select parent, child, begin from child_bounds where child_kind = "punctuator" and text = "(" and (kind in ["if-statement", "while-statement", "do-while-statement", "switch-statement", "with-statement", "for-statement", "for-in-statement", "for-of-statement", "catch-clause", "import-expression"]);
 let callee_ends = select parent, finish from child_bounds where (kind = "call-expression" or kind = "new-expression") and (field = "callee" or field = "type-arguments");
 let call_opens_all = select l.parent as parent, l.child as child, l.begin as begin from child_bounds as l join callee_ends as r on l.parent = r.parent where l.child_kind = "punctuator" and l.text = "(" and l.begin >= r.finish;
 let call_opens = project(from=call_opens_all, columns=["parent", "child", "begin"]);
@@ -14,8 +14,7 @@ let later_opens = select l.parent as parent, l.child as child from syntax_opens_
 let syntax_opens = antijoin(left=syntax_opens_all, right=later_opens, left-on=["parent", "child"], right-on=["parent", "child"]);
 let syntax_owners = select parent from syntax_opens;
 let closes_all = select l.parent as parent, l.child as child, l.begin as begin from child_bounds as l join syntax_owners as r on l.parent = r.parent where l.child_kind = "punctuator" and l.text = ")";
-let earlier_closes = select l.parent as parent, l.child as child from closes_all as l join closes_all as r on l.parent = r.parent where l.begin < r.begin;
-let syntax_closes = antijoin(left=closes_all, right=earlier_closes, left-on=["parent", "child"], right-on=["parent", "child"]);
+let syntax_closes = group-max(from=closes_all, keys=["parent"], order="begin");
 let syntax_open_ids = select child as id from syntax_opens;
 let syntax_close_ids = select child as id from syntax_closes;
 let syntax = union(left=syntax_open_ids, right=syntax_close_ids);

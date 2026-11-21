@@ -9,8 +9,7 @@ let others = select tuple, ordinal from tuple_elements where kind != "wildcard-p
 let left_wilds = select l.tuple as tuple, l.file as file, l.rest as rest, l.rest_ordinal as rest_ordinal, r.ordinal as ordinal, r.span as span from rests as l join wilds as r on l.tuple = r.tuple where r.ordinal < l.rest_ordinal;
 let left_blocked = select l.tuple as tuple, l.ordinal as ordinal from left_wilds as l join others as r on l.tuple = r.tuple where r.ordinal > l.ordinal and r.ordinal < l.rest_ordinal;
 let left_runs = antijoin(left=left_wilds, right=left_blocked, left-on=["tuple", "ordinal"], right-on=["tuple", "ordinal"]);
-let left_inner = select l.tuple as tuple, l.ordinal as ordinal from left_runs as l join left_runs as r on l.tuple = r.tuple where r.ordinal < l.ordinal;
-let left_first = antijoin(left=left_runs, right=left_inner, left-on=["tuple", "ordinal"], right-on=["tuple", "ordinal"]);
+let left_first = group-min(from=left_runs, keys=["tuple"], order="ordinal");
 let siblings = select id from "syntax-tree";
 let rest_ids = select rest as id from rests;
 let before_rests = axis(from=rest_ids, relation="syntax-child", direction=previous-sibling, domain=siblings);
@@ -21,8 +20,7 @@ let left_bounds = select l.tuple as id, l.file as file, l.span as start, r.befor
 let right_wilds = select l.tuple as tuple, l.file as file, l.rest as rest, l.rest_ordinal as rest_ordinal, r.ordinal as ordinal, r.span as span from rests as l join wilds as r on l.tuple = r.tuple where r.ordinal > l.rest_ordinal;
 let right_blocked = select l.tuple as tuple, l.ordinal as ordinal from right_wilds as l join others as r on l.tuple = r.tuple where r.ordinal < l.ordinal and r.ordinal > l.rest_ordinal;
 let right_runs = antijoin(left=right_wilds, right=right_blocked, left-on=["tuple", "ordinal"], right-on=["tuple", "ordinal"]);
-let right_inner = select l.tuple as tuple, l.ordinal as ordinal from right_runs as l join right_runs as r on l.tuple = r.tuple where r.ordinal > l.ordinal;
-let right_last = antijoin(left=right_runs, right=right_inner, left-on=["tuple", "ordinal"], right-on=["tuple", "ordinal"]);
+let right_last = group-max(from=right_runs, keys=["tuple"], order="ordinal");
 let right_bounds = select l.tuple as id, l.file as file, r.after as start, l.span as end from right_last as l join after_spans as r on l.rest = r.rest;
 let field_lists = select id, file from "syntax-tree" where kind = "record-pat-field-list";
 let list_children = select l.parent as list, r.file as file, l.child as child, l.ordinal as ordinal from "syntax-child" as l join field_lists as r on l.parent = r.id;
@@ -34,8 +32,7 @@ let other_fields = antijoin(left=fields, right=wild_field_ids, left-on=["field"]
 let field_runs_all = select l.list as list, l.file as file, l.rest as rest, l.rest_ordinal as rest_ordinal, r.ordinal as ordinal, r.span as span from record_rests as l join wild_fields as r on l.list = r.list where r.ordinal < l.rest_ordinal;
 let field_blocked = select l.list as list, l.ordinal as ordinal from field_runs_all as l join other_fields as r on l.list = r.list where r.ordinal > l.ordinal and r.ordinal < l.rest_ordinal;
 let field_runs = antijoin(left=field_runs_all, right=field_blocked, left-on=["list", "ordinal"], right-on=["list", "ordinal"]);
-let field_inner = select l.list as list, l.ordinal as ordinal from field_runs as l join field_runs as r on l.list = r.list where r.ordinal < l.ordinal;
-let field_first = antijoin(left=field_runs, right=field_inner, left-on=["list", "ordinal"], right-on=["list", "ordinal"]);
+let field_first = group-min(from=field_runs, keys=["list"], order="ordinal");
 let record_rest_ids = select rest as id from record_rests;
 let before_record_rests = axis(from=record_rest_ids, relation="syntax-child", direction=previous-sibling, domain=siblings);
 let before_record_spans = select l.id as rest, r.span as before from before_record_rests as l join "syntax-tree" as r on l.related = r.id;

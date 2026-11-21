@@ -33,7 +33,7 @@ let call_functions = select parent, child from "semantic-child" where field = "f
 let named_call_arguments = select l.call as call, l.arg as arg, r.name as name from calls_without_keywords as l join named_nodes as r on l.arg = r.id;
 let left_call_functions = select l.call as call, r.child as function from calls_without_keywords as l join call_functions as r on l.call = r.parent;
 let function_symbols = select l.call as call, r.path as path, r.provenance as provenance from left_call_functions as l join "qualified-name" as r on l.function = r.id;
-let allowed_pure_functions = select call, path from function_symbols where provenance = "builtin" and (path = "builtins.id" or path = "builtins.len" or path = "builtins.type" or path = "builtins.int" or path = "builtins.bool" or path = "builtins.str" or path = "builtins.repr" or path = "builtins.bytes");
+let allowed_pure_functions = select call, path from function_symbols where provenance = "builtin" and (path in ["builtins.id", "builtins.len", "builtins.type", "builtins.int", "builtins.bool", "builtins.str", "builtins.repr", "builtins.bytes"]);
 let left_call_pairs = select l.comparison as comparison, l.left as left, l.right as right from pair_union as l join "semantic-syntax" as a on l.left = a.id where a.kind = "call";
 let call_pairs = select l.comparison as comparison, l.left as left, l.right as right from left_call_pairs as l join "semantic-syntax" as r on l.right = r.id where r.kind = "call";
 let left_call_args = select l.comparison as comparison, l.left as left, l.right as right, a.arg as arg from call_pairs as l join calls_without_keywords as a on l.left = a.call;

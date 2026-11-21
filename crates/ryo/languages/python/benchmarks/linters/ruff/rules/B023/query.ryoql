@@ -1,7 +1,7 @@
 import observation_matches from "python/ruff/suppress-matches";
 import line_located from "python/ruff/candidate-locations";
 let nodes = select id, kind, text, file, span from "semantic-syntax";
-let loops = select id, kind, file from nodes where kind = "for" or kind = "async-for" or kind = "list-comp" or kind = "set-comp" or kind = "dict-comp" or kind = "generator-exp";
+let loops = select id, kind, file from nodes where kind in ["for", "async-for", "list-comp", "set-comp", "dict-comp", "generator-exp"];
 let target_fields = select parent, child from "semantic-child" where field = "target";
 let body_fields = select parent, child from "semantic-child" where field = "body";
 let statement_loop_targets = select l.id as loop, r.child as id, l.file as file from loops as l join target_fields as r on l.id = r.parent where l.kind = "for" or l.kind = "async-for";
@@ -26,7 +26,7 @@ let body_children = select loop, id, file from body_descendants;
 let all_body_ids = union(left=body_ids, right=body_children);
 let loop_bindings_target = select l.loop as loop, r.occurrence as binding, r.name as name, r.scope as scope, r.file as file from all_target_ids as l join "binding-event" as r on l.id = r.occurrence and l.file = r.file where r.kind = "bind";
 let loop_bindings_body_all = select l.loop as loop, r.occurrence as binding, r.name as name, r.scope as scope, r.file as file from all_body_ids as l join "binding-event" as r on l.id = r.occurrence and l.file = r.file where r.kind = "bind";
-let scope_nodes = select id, kind, file from nodes where kind = "module" or kind = "function-def" or kind = "async-function-def" or kind = "class-def" or kind = "lambda" or kind = "list-comp" or kind = "set-comp" or kind = "dict-comp" or kind = "generator-exp";
+let scope_nodes = select id, kind, file from nodes where kind in ["module", "function-def", "async-function-def", "class-def", "lambda", "list-comp", "set-comp", "dict-comp", "generator-exp"];
 let loop_scope_ancestors = axis(from=loops, relation="semantic-child", direction=nearest-ancestor, domain=scope_nodes);
 let loop_scopes = select l.id as loop, r.related as scope, l.file as file from loops as l join loop_scope_ancestors as r on l.id = r.id and l.file = r.file;
 let loop_bindings_body = select l.loop as loop, l.binding as binding, l.name as name, l.scope as scope, l.file as file from loop_bindings_body_all as l join loop_scopes as r on l.loop = r.loop and l.scope = r.scope and l.file = r.file;

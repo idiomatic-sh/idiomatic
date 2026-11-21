@@ -12,7 +12,7 @@ let bad_tuple_descendants = antijoin(left=tuple_descendants, right=constant_or_t
 let bad_tuples = select origin as id from bad_tuple_descendants;
 let good_tuples = antijoin(left=tuples, right=bad_tuples, left-on=["id"], right-on=["id"]);
 let constant_exprs = union(left=nonsingleton_literals, right=good_tuples);
-let mutable_literals = select id, file from "semantic-syntax" where kind = "list" or kind = "set" or kind = "dict" or kind = "list-comp" or kind = "set-comp" or kind = "dict-comp";
+let mutable_literals = select id, file from "semantic-syntax" where kind in ["list", "set", "dict", "list-comp", "set-comp", "dict-comp"];
 let bad_operands = union(left=constant_exprs, right=mutable_literals);
 let left_fields = select parent, child from "semantic-child" where field = "left";
 let comparator_fields = select parent, child from "semantic-child" where field = "comparators";
@@ -25,12 +25,8 @@ let operator_fields = select parent, child from "semantic-child" where field = "
 let identity_ops = select id, file from "semantic-syntax" where text = "is" or kind = "is" or kind = "is-not";
 let identity_comparisons = select l.parent as comparison, l.child as operator, r.file as file from operator_fields as l join identity_ops as r on l.child = r.id;
 let identity_positions = select l.comparison as comparison, l.operator as operator, l.file as file, r."start-byte" as begin, r."end-byte" as finish from identity_comparisons as l join "source-location" as r on l.operator = r.id and l.file = r.file;
-let possible_left = select l.comparison as comparison, l.operator as operator, r.operand as operand, r.finish as finish, r.file as file from identity_positions as l join operands as r on l.comparison = r.comparison and l.file = r.file where r.finish <= l.begin;
-let nonnearest_left = select l.comparison as comparison, l.operator as operator, l.operand as operand from possible_left as l join possible_left as r on l.comparison = r.comparison and l.operator = r.operator where l.finish < r.finish;
-let nearest_left = antijoin(left=possible_left, right=nonnearest_left, left-on=["comparison", "operator", "operand"], right-on=["comparison", "operator", "operand"]);
-let possible_right = select l.comparison as comparison, l.operator as operator, r.operand as operand, r.begin as begin, r.file as file from identity_positions as l join operands as r on l.comparison = r.comparison and l.file = r.file where r.begin >= l.finish;
-let nonnearest_right = select l.comparison as comparison, l.operator as operator, l.operand as operand from possible_right as l join possible_right as r on l.comparison = r.comparison and l.operator = r.operator where l.begin > r.begin;
-let nearest_right = antijoin(left=possible_right, right=nonnearest_right, left-on=["comparison", "operator", "operand"], right-on=["comparison", "operator", "operand"]);
+let nearest_left = as-of(left=identity_positions, right=operands, left-on=["comparison", "file"], right-on=["comparison", "file"], left-order="begin", right-order="finish", bound=at-or-before, output={comparison: [left, "comparison"], operator: [left, "operator"], operand: [right, "operand"], finish: [right, "finish"], file: [right, "file"]});
+let nearest_right = as-of(left=identity_positions, right=operands, left-on=["comparison", "file"], right-on=["comparison", "file"], left-order="finish", right-order="begin", bound=at-or-after, output={comparison: [left, "comparison"], operator: [left, "operator"], operand: [right, "operand"], begin: [right, "begin"], file: [right, "file"]});
 let bad_left = select l.comparison as comparison, l.operator as operator from nearest_left as l join bad_operands as r on l.operand = r.id and l.file = r.file;
 let bad_right = select l.comparison as comparison, l.operator as operator from nearest_right as l join bad_operands as r on l.operand = r.id and l.file = r.file;
 let bad_right_only = antijoin(left=bad_right, right=bad_left, left-on=["comparison", "operator"], right-on=["comparison", "operator"]);

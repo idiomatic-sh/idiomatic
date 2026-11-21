@@ -14,7 +14,7 @@ let eligible_declarations = select l.id as id, l.file as file from ordinary_decl
 let call_syntax_rows = call_syntax();
 let calls = select id, file from call_syntax_rows;
 let callees = select l.id as call, r.child as callee, l.file as file from calls as l join "semantic-child" as r on l.id = r.parent and l.file = r.file where r.field = "func";
-let factories = select id, file from "qualified-name" where path = "typing.TypeVar" or path = "typing_extensions.TypeVar" or path = "typing.ParamSpec" or path = "typing_extensions.ParamSpec" or path = "typing.TypeVarTuple" or path = "typing_extensions.TypeVarTuple";
+let factories = select id, file from "qualified-name" where path in ["typing.TypeVar", "typing_extensions.TypeVar", "typing.ParamSpec", "typing_extensions.ParamSpec", "typing.TypeVarTuple", "typing_extensions.TypeVarTuple"];
 let factory_calls = select l.call as call, l.file as file from callees as l join factories as r on l.callee = r.id and l.file = r.file;
 let string_nodes = select id, file from "literal-properties" where kind = "string";
 let first_args = select call, expression, file from "call-argument" where position = 0;
@@ -40,8 +40,7 @@ let module_builtin_events = select l.id as id, l.name as name, l.kind as kind, l
 let builtin_points = select l.id as event, l.name as name, l.kind as kind, l.file as file, r."start-byte" as point from module_builtin_events as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let anystr_points = select l.id as id, l.file as file, r."start-byte" as point from raw_anystr_reads as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let earlier_builtin_events = select l.id as id, l.file as file, r.event as event, r.name as name, r.kind as kind, r.point as event_point from anystr_points as l join builtin_points as r on l.file = r.file where r.point < l.point;
-let superseded_builtin_events = select l.id as id, l.file as file, l.event as event from earlier_builtin_events as l join earlier_builtin_events as r on l.id = r.id and l.file = r.file and l.name = r.name where l.event_point < r.event_point;
-let last_builtin_events = antijoin(left=earlier_builtin_events, right=superseded_builtin_events, left-on=["id","file","event"], right-on=["id","file","event"]);
+let last_builtin_events = group-max(from=earlier_builtin_events, keys=["id", "file", "name"], order="event_point");
 let shadowed_anystr = select id, file from last_builtin_events where kind = "bind";
 let anystr_reads = antijoin(left=raw_anystr_reads, right=shadowed_anystr, left-on=["id","file"], right-on=["id","file"]);
 let ordinary_reads = select id, file from typevar_reads;

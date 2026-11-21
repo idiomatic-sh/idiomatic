@@ -2,7 +2,7 @@
 //! left out.
 
 use super::service::{among, before, first, last, nodes_after, previous};
-use super::types::Wanted;
+use super::types::WantedSibling;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::nodes::types::Node;
 use crate::domain::syntax::types::Kind;
@@ -72,8 +72,8 @@ fn subject(question: Input) -> Result<Value, Failure> {
             })
             .last()?;
         Some(match question {
-            Question::NodesBefore => before(tree, operand, Wanted::Node).0.to_string(),
-            Question::Pluses => among(tree, operand, Wanted::Token(Token::Add))
+            Question::NodesBefore => before(tree, operand, WantedSibling::Node).0.to_string(),
+            Question::Pluses => among(tree, operand, WantedSibling::Token(Token::Add))
                 .0
                 .to_string(),
             Question::NodesAfter => nodes_after(tree, operand).0.to_string(),

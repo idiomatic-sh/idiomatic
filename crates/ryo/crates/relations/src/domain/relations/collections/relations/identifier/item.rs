@@ -24,6 +24,8 @@ macro_rules! identifier {
             scope File,
             notes Unneeded,
             form Filled(Many(Id)),
+            size PerElement,
+            keys [],
             columns {
                 /// The syntax occurrence carrying the identifier, not its raw token.
                 id Id: NodeId => Node;

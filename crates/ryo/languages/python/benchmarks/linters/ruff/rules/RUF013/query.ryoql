@@ -23,7 +23,7 @@ let optional_nodes = select subscript as id, file from subscript_paths where pat
 let union_nodes = select subscript as id, file from subscript_paths where path = "typing.Union" or path = "typing_extensions.Union";
 let literal_nodes = select subscript as id, file from subscript_paths where path = "typing.Literal" or path = "typing_extensions.Literal";
 let annotated_nodes = select subscript as id, file from subscript_paths where path = "typing.Annotated" or path = "typing_extensions.Annotated";
-let direct_special = select id, path, file from origins where path = "typing.Optional" or path = "typing_extensions.Optional" or path = "typing.Any" or path = "typing_extensions.Any" or path = "builtins.object" or path = "typing.Hashable" or path = "typing_extensions.Hashable" or path = "collections.abc.Hashable";
+let direct_special = select id, path, file from origins where path in ["typing.Optional", "typing_extensions.Optional", "typing.Any", "typing_extensions.Any", "builtins.object", "typing.Hashable", "typing_extensions.Hashable", "collections.abc.Hashable"];
 let direct_nullable = select id, file from direct_special;
 let nullable_seeds_0 = union(left=nulls, right=direct_nullable);
 let nullable_seeds = union(left=nullable_seeds_0, right=optional_nodes);
@@ -39,8 +39,7 @@ let direct_slices = select parent, slice as child, file from non_tuple_slices;
 let tuple_edges = select parent, child, file from tuple_elements;
 let all_slices = union(left=tuple_edges, right=direct_slices);
 let ordinary_slices = antijoin(left=all_slices, right=annotated_nodes, left-on=["parent", "file"], right-on=["id", "file"]);
-let later_tuple_elements = select l.parent as parent, l.child as child, l.ordinal as ordinal, l.file as file from tuple_elements as l join tuple_elements as r on l.parent = r.parent and l.file = r.file where l.ordinal > r.ordinal;
-let first_tuple_elements = antijoin(left=tuple_elements, right=later_tuple_elements, left-on=["parent", "child", "ordinal", "file"], right-on=["parent", "child", "ordinal", "file"]);
+let first_tuple_elements = group-min(from=tuple_elements, keys=["parent", "file"], order="ordinal");
 let first_tuple_edges = select l.parent as parent, l.child as child, l.file as file from first_tuple_elements as l join annotated_nodes as r on l.parent = r.id and l.file = r.file;
 let direct_annotated_edges = select l.parent as parent, l.child as child, l.file as file from direct_slices as l join annotated_nodes as r on l.parent = r.id and l.file = r.file;
 let annotated_edges = union(left=first_tuple_edges, right=direct_annotated_edges);

@@ -26,6 +26,8 @@ macro_rules! raw_format_field {
             scope File,
             notes Unneeded,
             form Filled(Many(Id)),
+            size PerElement,
+            keys [],
             columns {
                 /// Enclosing original visible string expression.
                 id Id: NodeId => Node;

@@ -172,6 +172,8 @@ fn kinds(language: &str, kind: &str) -> KindVocabulary {
     KindVocabulary {
         language: LanguageName(language.into()),
         kinds: vec![KindWord(kind.into())],
+        fields: Vec::new(),
+        fixed: Vec::new(),
     }
 }
 
