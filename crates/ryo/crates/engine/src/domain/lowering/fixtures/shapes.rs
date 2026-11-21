@@ -159,6 +159,35 @@ pub(super) fn shape_scene(scene: &str) -> Option<Plan> {
             keys: vec![at(2), at(3)],
             distinct: Some(at(0)),
         })]),
+        // Each element beside the element `(` that ends where it starts: a join keyed, on both sides, by a cell the
+        // span's bounds give.
+        "the elements that start where a bracket ends" => plan(vec![
+            kept(Input::Relation(Relation::SyntaxTree)),
+            step(Operation::SpanBounds {
+                from: Input::Step(StepId(0)),
+                span: at(4),
+            }),
+            step(Operation::Select {
+                from: Input::Relation(Relation::SyntaxTree),
+                comparisons: vec![PlanComparison {
+                    test: Test::Equal,
+                    left: Operand::Column(at(2)),
+                    right: Operand::Literal(QueryLiteral::Text(LiteralText("(".into()))),
+                    origin: ComparisonOrigin::Unrecorded,
+                }],
+                kept: Vec::new(),
+            }),
+            step(Operation::SpanBounds {
+                from: Input::Step(StepId(2)),
+                span: at(4),
+            }),
+            joined(
+                Input::Step(StepId(1)),
+                Input::Step(StepId(3)),
+                (&[5, 3], &[6, 3]),
+                vec![of(Side::Left, 0), of(Side::Right, 0), of(Side::Left, 3)],
+            ),
+        ]),
         _ => return None,
     })
 }

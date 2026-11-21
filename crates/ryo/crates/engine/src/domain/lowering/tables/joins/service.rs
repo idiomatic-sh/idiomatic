@@ -9,7 +9,7 @@ use crate::domain::lowering::flattening::service::made_column;
 use crate::domain::lowering::flattening::service::{picked, unified};
 use crate::domain::lowering::flattening::types::EdgeColumns;
 use crate::domain::lowering::flattening::types::{
-    AtomRows, EqualTerms, FlatAtom, FlatTerm, RowColumn,
+    AtomRows, EqualTerms, FlatAtom, FlatBranch, FlatTerm, RowColumn,
 };
 use crate::domain::lowering::flattening::types::{NearestDomain, NearestOver};
 use crate::domain::lowering::nodes::service::input_shape;
@@ -51,6 +51,42 @@ pub(crate) fn join_wants(left: InputSize, right: InputSize) -> JoinWants {
         (InputWant::Defined, InputWant::Defined)
     };
     JoinWants { left, right }
+}
+
+/// How a side of a join is asked for by its keys: `Defined` when the side's own flattening gives every key within the
+/// file by a call (a span's bounds, a capture), so that no source of it can be read by the key.
+fn called_keys(state: &RuleFlattening<'_>, read: Input, on: &[ColumnIndex]) -> InputWant {
+    let waiting = match read {
+        Input::Step(step) => state.flat.get(usize::from(step)).and_then(Option::as_ref),
+        Input::Relation(_) | Input::BoundObservation(_) => None,
+    };
+    let given_by_call = |branch: &FlatBranch, key: &ColumnIndex| {
+        let term = branch.row.get(usize::from(*key));
+        let mut calls = branch.atoms.iter().filter_map(|atom| match atom {
+            FlatAtom::Called { outputs, .. } => Some(outputs),
+            FlatAtom::Rows { .. }
+            | FlatAtom::Latest { .. }
+            | FlatAtom::Decided { .. }
+            | FlatAtom::Walk { .. }
+            | FlatAtom::Nearest { .. }
+            | FlatAtom::Closure { .. }
+            | FlatAtom::Test { .. } => None,
+        });
+        term.is_some_and(|term| *term == FlatTerm::File || calls.any(|given| given.contains(term)))
+    };
+    let within = |branch: &FlatBranch| {
+        let mut keys = on.iter();
+        keys.any(|key| branch.row.get(usize::from(*key)) != Some(&FlatTerm::File))
+    };
+    let called = waiting.is_some_and(|flattened| {
+        let mut branches = flattened.branches.iter();
+        branches.any(|branch| within(branch) && on.iter().all(|key| given_by_call(branch, key)))
+    });
+    if called {
+        InputWant::Defined
+    } else {
+        InputWant::Inline
+    }
 }
 
 /// The answer row of a join over the row of its left side followed by the row of its right.
@@ -104,7 +140,14 @@ pub(crate) fn join_arm(
     };
     let shapes = &rule(state)?.shapes;
     let left_shape = input_shape(shapes, *left)?;
-    let wants = join_wants(sized(state, drafts, *left), sized(state, drafts, *right));
+    let mut wants = join_wants(sized(state, drafts, *left), sized(state, drafts, *right));
+    // A join keyed on both sides by cells calls give has no order with a key: its right side is one use of its
+    // definition, whose table is read by the key.
+    let called = called_keys(state, *left, left_on) == InputWant::Defined
+        && called_keys(state, *right, right_on) == InputWant::Defined;
+    if called {
+        wants.right = InputWant::Defined;
+    }
     let lefts = input(state, drafts, *left, wants.left)?;
     let mut rights = input(state, drafts, *right, wants.right)?;
     rights.branches = all_selected(state, drafts, rights.branches, filter)?;

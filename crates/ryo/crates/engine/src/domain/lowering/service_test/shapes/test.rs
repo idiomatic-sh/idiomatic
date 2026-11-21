@@ -227,6 +227,27 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "codes: {\"EachRowMade\": 1, \"Emit\": 1, \"End\": 2, \"ReadMade\": 2, \"StageRead\": 4, \"StageScan\": 1, \"StageWrite\": 1}",
         ))),
     },
+    Case {
+        name: CaseName(
+            "a_join_keyed_on_both_sides_by_a_calls_cell_reads_its_right_sides_table_by_the_key",
+        ),
+        word: Word::Succeeds,
+        input: || {
+            (
+                &["the elements that start where a bracket ends"],
+                SampleStage::Absent,
+            )
+        },
+        expect: Expect::Value(Cow::Borrowed(concat!(
+            "definition 0: 7 columns, emptiness Unknown\n",
+            "  pattern bound [6] collected [0]: Table 0\n",
+            "table 0: Rows, 7 columns, indexes [[6]]\n",
+            "  pipeline: Scan:File Read:Constant Call:Constant Read:Constant\n",
+            "rule 0: 1 branches\n",
+            "  branch: EachRow:File Read:Constant Call:Constant Or:Fanout Emit:Constant\n",
+            "codes: {\"Call\": 1, \"EachRowNode\": 1, \"Emit\": 1, \"End\": 2, \"Or\": 1, \"ReadNode\": 1, \"StageCall\": 1, \"StageRead\": 2, \"StageScan\": 1, \"StageWrite\": 1}",
+        ))),
+    },
 ];
 
 /// The scenes lowered and said in lines, as the cases of the service itself are.
