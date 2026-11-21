@@ -6,7 +6,7 @@
 use super::types::{CallUse, PushedKey};
 use crate::domain::code::constants::STORAGE;
 use crate::domain::code::controlling::service::exists_of;
-use crate::domain::code::records::service::{body_at, operand_at};
+use crate::domain::code::records::service::operand_at;
 use crate::domain::code::records::types::PooledOperand;
 use crate::domain::code::records::types::{BodyRecord, ReadBody};
 use crate::domain::code::types::{CodeEntry, CodeWord, IndexSite, Op, PoolAt, WordSlot};
@@ -16,7 +16,7 @@ use crate::domain::made_tables::types::KeyFrom;
 use crate::domain::memos::service::{asked, keep, row_count};
 use crate::domain::memos::types::MemoId;
 use crate::domain::programs::frames::types::{RunMode, StepFrame};
-use crate::domain::programs::operands::service::{cell, operand, set};
+use crate::domain::programs::operands::service::{cell, operand};
 use crate::domain::scratch::types::SeamRows;
 use crate::domain::scratch::types::{BodyAnswer, LoopState};
 use crate::domain::steps::types::Register;

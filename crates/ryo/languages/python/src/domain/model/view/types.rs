@@ -1,7 +1,7 @@
 //! The types of the model's `view` part: plain data, public fields and derives, with no constructor and no inherent impl.
 
 use crate::domain::model::definitions::types::DefinitionModel;
-use crate::domain::model::flow::types::FlowModel;
+use crate::domain::model::flow::types::{FlowModel, ScheduleOrder};
 use crate::domain::model::lexical::types::LexicalModel;
 use crate::domain::model::lexical::types::TypedTree;
 use crate::domain::model::names::types::{FactWords, NameTable};
@@ -69,6 +69,8 @@ pub(crate) struct SemanticModel {
     pub flow: FlowModel,
     /// The words the fillers have written for the file in hand, kept from one filler to the next.
     pub words: RefCell<FactWords>,
+    /// The buffers of the fill that runs the schedule in order.
+    pub schedule_order: RefCell<ScheduleOrder>,
 }
 
 /// Whether a part of the model is built for the file in hand.

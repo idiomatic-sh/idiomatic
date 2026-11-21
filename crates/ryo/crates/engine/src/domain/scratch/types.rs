@@ -1,6 +1,6 @@
 //! The types of the `scratch` concept: a worker's per-file state.
 
-use super::kept::types::{AskedNeed, HeldRead, QuickBody, SiteAsks};
+use super::kept::types::{AskedNeed, HeldRead, NeedFills, QuickBody, RegisterHolds, SiteAsks};
 use crate::domain::code::records::types::{PooledOperand, ReadBody};
 use crate::domain::code::types::RelationNumber;
 use crate::domain::code::types::{CodeEntry, WordSlot};
@@ -142,6 +142,9 @@ pub(crate) struct LoopState {
     pub(crate) need_asks: Vec<AskedNeed>,
     /// SPIKE: what the running rule's asks of each memo site came to in the file, by the site's number.
     pub(crate) site_asks: Vec<SiteAsks>,
+    /// How many tables' fills are under way, one inside the other: an ask made inside a fill does not read its
+    /// definition's need (a need's decision may be what is making the table, and a table half made answers nothing).
+    pub(crate) filling: Count,
     /// SPIKE: the work of the last ask a fill made that passed (no answer kept): taken by the fill's callback.
     pub(crate) passed: Option<InstructionCount>,
     /// Where the column of each `Read` of a made table or of a filled relation lies, by the word's slot
@@ -303,6 +306,8 @@ pub(crate) struct Measuring {
     pub(crate) running: Vec<WordSlot>,
     /// The thread's time when the innermost unit last changed.
     pub(crate) since: Duration,
+    /// SPIKE: the fills that needs started, by table.
+    pub(crate) need_fills: NeedFills,
 }
 
 /// A unit's time and rows in the file being scanned.
@@ -381,6 +386,8 @@ pub(crate) struct DecodedCode {
     pub(crate) parts_at: Vec<Count>,
     /// How each `Exists` word that keeps no answer of its own asks its body, by the word's place.
     pub(crate) quick: Vec<QuickBody>,
+    /// The registers that hold the file, by number (`scratch::kept::service::files_marked`).
+    pub(crate) files: Vec<RegisterHolds>,
 }
 
 /// One bound column of a call-form body's ask: the formal register the pattern reads it from, the operand the asker

@@ -179,3 +179,52 @@ pub(crate) fn file_ended(frame: &mut StepFrame<'_, '_>) {
         *spent = UnitInFile::default();
     }
 }
+
+/// SPIKE: the thread's time now, for a need that is about to make a table.
+pub(crate) fn need_fill_begun() -> Duration {
+    thread_time()
+}
+
+/// SPIKE: a need's decision made a table in this file: one more file for the table, the fill's time, and whether the
+/// table had a row. A table with a row waits for the running rule's candidates (`need_fills_settled`).
+pub(crate) fn need_fill_ended(
+    state: &mut LoopState,
+    table: MadeTableId,
+    begun: Duration,
+    rows: Count,
+) {
+    let Some(measure) = state.measure.as_deref_mut() else {
+        return;
+    };
+    let spent =
+        usize::try_from(thread_time().saturating_sub(begun).as_nanos()).unwrap_or(usize::MAX);
+    let place = usize::try_from(table.0).unwrap_or(usize::MAX);
+    if let Some(held) = slot_mut(&mut measure.need_fills.by_table, Count(place)) {
+        held.files = Count(held.files.0.saturating_add(1));
+        held.nanos = Count(held.nanos.0.saturating_add(spent));
+        if rows.0 == 0 {
+            held.empty = Count(held.empty.0.saturating_add(1));
+        } else {
+            measure.need_fills.pending.push(table);
+        }
+    }
+}
+
+/// SPIKE: the running rule's work in the file ended with `candidates`: each table a need made with a row while it
+/// worked is idle when the rule had no candidate all the same.
+pub(crate) fn need_fills_settled(state: &mut LoopState, candidates: Count) {
+    let Some(measure) = state.measure.as_deref_mut() else {
+        return;
+    };
+    let pending = std::mem::take(&mut measure.need_fills.pending);
+    if candidates.0 == 0 {
+        for table in &pending {
+            let place = usize::try_from(table.0).unwrap_or(usize::MAX);
+            if let Some(held) = measure.need_fills.by_table.get_mut(place) {
+                held.idle = Count(held.idle.0.saturating_add(1));
+            }
+        }
+    }
+    measure.need_fills.pending = pending;
+    measure.need_fills.pending.clear();
+}

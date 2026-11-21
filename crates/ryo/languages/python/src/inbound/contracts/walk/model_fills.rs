@@ -3,7 +3,8 @@
 //! relations' own; their `fills!` arms stand here, beside the walk, because the model's row writers read the relations' catalogs.
 
 use crate::domain::binding_facts::service::{
-    binding_event_rows, binding_read_rows, binding_shadow_rows, binding_use_rows, lookup_scope_rows,
+    binding_event_rows, binding_read_rows, binding_resolution_rows, binding_shadow_rows, binding_use_rows,
+    lookup_scope_rows,
 };
 use crate::domain::file_view::types::PythonWalk;
 use crate::domain::keyed_rows::service::{
@@ -16,6 +17,7 @@ use crate::domain::lexical_facts::service::{
 };
 use crate::domain::relations::collections::relations::binding_event::item::BindingEventItem;
 use crate::domain::relations::collections::relations::binding_read::item::BindingReadItem;
+use crate::domain::relations::collections::relations::binding_resolution::item::BindingResolutionItem;
 use crate::domain::relations::collections::relations::binding_shadow::item::BindingShadowItem;
 use crate::domain::relations::collections::relations::binding_use::item::BindingUseItem;
 use crate::domain::relations::collections::relations::defines::item::DefinesItem;
@@ -111,5 +113,11 @@ ryo::fills! {
     }
     key(Column::LookupScope(LookupScopeColumn::Reference)) |file, words, key, rows| {
         lookup_scope_rows_of(file, words, key, rows);
+    }
+}
+
+ryo::fills! {
+    BindingResolutionItem => languages::BindingResolution, walk(PythonWalk) |file, words, rows| {
+        binding_resolution_rows(file, words, rows);
     }
 }

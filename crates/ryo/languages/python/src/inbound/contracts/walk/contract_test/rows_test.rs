@@ -226,6 +226,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || (Relation::LookupScope, "lookup_scope"),
         expect: Expect::Value(String::new()),
     },
+    Case {
+        name: CaseName("the_filler_of_binding_resolution_writes_the_rows_its_fixture_states"),
+        word: Word::Succeeds,
+        input: || (Relation::BindingResolution, "binding_resolution"),
+        expect: Expect::Value(String::new()),
+    },
 ];
 
 /// The rows of one side the other lacks, shown.

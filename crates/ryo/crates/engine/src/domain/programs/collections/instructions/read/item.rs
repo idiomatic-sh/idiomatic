@@ -12,7 +12,10 @@ use crate::domain::made_tables::sources::service::cell_of;
 use crate::domain::made_tables::types::ReadSource;
 use crate::domain::programs::frames::types::StepFrame;
 use crate::domain::programs::operands::service::{cell, set};
-use crate::domain::scratch::kept::types::HeldRead;
+use crate::domain::scratch::kept::service::{files_marked, mark_file};
+use crate::domain::scratch::kept::types::{HeldRead, RegisterHolds};
+use crate::domain::scratch::types::DecodedCode;
+use crate::domain::steps::types::Register;
 use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::relations::types::{Count, NodeExtent};
 
@@ -59,7 +62,11 @@ impl InstructionsItem for Read {
         let held = slot.and_then(|place| frame.state.held_reads.get(place.0));
         let value = match held {
             Some(read) if read.file == file => cell_held(frame.fill.store, read.column, handle),
-            Some(_) | None => first_read(frame, source, column, slot, handle),
+            Some(_) | None => {
+                let value = first_read(frame, source, column, slot, handle);
+                marked(frame, source, column, out);
+                value
+            }
         };
         set(frame, out, value);
         Flow::Next
@@ -94,4 +101,17 @@ fn first_read(
         }
     }
     cell_of(frame.fill, source, column, handle)
+}
+
+/// A register a `Read` fills from a made table's own file column holds the file: marked at the word's first read in a
+/// file (the column is known the file's once the table is made), with what follows from it.
+#[inline(never)]
+fn marked(frame: &mut StepFrame<'_, '_>, source: ReadSource, column: Short, out: Register) {
+    let lies = column_held(frame.fill.store, source, column);
+    if matches!(lies.cells, HeldCells::TableFile(_))
+        && mark_file(&mut frame.state.decoded.files, out) == RegisterHolds::TheFile
+    {
+        let DecodedCode { parts, files, .. } = &mut frame.state.decoded;
+        files_marked(frame.fill.programs.code, parts, files);
+    }
 }

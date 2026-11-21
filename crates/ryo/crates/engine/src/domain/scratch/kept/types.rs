@@ -6,6 +6,7 @@ use crate::domain::indexes::types::FileStamp;
 use crate::domain::made_tables::columns::types::HeldColumn;
 use crate::domain::memos::types::RuleStamp;
 use crate::domain::needs::types::NeedVerdict;
+use crate::domain::steps::types::MadeTableId;
 use ryo_relations::domain::relations::types::Count;
 
 /// What a definition's need answered a rule's ask in a file.
@@ -51,4 +52,37 @@ pub(crate) struct SiteAsks {
     pub(crate) asks: Count,
     /// The asks a kept answer answered.
     pub(crate) hits: Count,
+}
+
+/// What a register holds, as far as a test of a text must know: a cell that is a word of the file, or the file itself,
+/// whose text is its path.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum RegisterHolds {
+    /// A word, a number, a handle: read as it is.
+    #[default]
+    Cells,
+    /// The file: some word that writes the register writes the file into it.
+    TheFile,
+}
+
+/// SPIKE: what the fills a need started cost, for one table, summed over a measuring worker's files.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct NeedFill {
+    /// The files in which a need's decision made the table.
+    pub(crate) files: Count,
+    /// Of those, the files in which the table had no row: the need said the unit cannot have one.
+    pub(crate) empty: Count,
+    /// Of those, the files in which the table had a row and the rule running had no candidate all the same.
+    pub(crate) idle: Count,
+    /// The thread time of those fills, what they called with it.
+    pub(crate) nanos: Count,
+}
+
+/// SPIKE: the fills needs started, by table, and the tables so made with a row while the running rule works.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct NeedFills {
+    /// By the table's number.
+    pub(crate) by_table: Vec<NeedFill>,
+    /// The tables a need made with a row since the running rule began.
+    pub(crate) pending: Vec<MadeTableId>,
 }

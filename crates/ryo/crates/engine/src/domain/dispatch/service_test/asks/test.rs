@@ -8,11 +8,14 @@
 //! and want a pattern past the bound (`code::constants::STRAIGHT_WORDS`) when the spike is hardened.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::code::types::ShapeChoice;
 use crate::domain::dispatch::service::dispatch;
 use crate::domain::encoding::service::encoded;
 use crate::domain::executing::entries::types::TheLoop;
 use crate::domain::findings::types::RuleColumns;
-use crate::domain::lowered::types::{Branch, Emptiness, LoweredPack, LoweredRule, PackDefinition};
+use crate::domain::lowered::types::{
+    Branch, DefinitionPattern, Emptiness, LoweredPack, LoweredRule, PackDefinition, PatternForm,
+};
 use crate::domain::made_tables::fixtures::packs::{constants, definition, of, operands, word};
 use crate::domain::programs::fixtures::{Held, framed_over};
 use crate::domain::programs::service::scratch_for;
@@ -44,6 +47,11 @@ enum Asked {
     RowOfAKind,
     /// The pattern in call form, for the row's own key, kept when it has no row; its definition's need says nothing.
     NoRowOfUnknown,
+    /// A pattern in call form whose program is its end alone (it has no row), for the row's own key, kept when it HAS a
+    /// row.
+    RowOfAnEmptyProgram,
+    /// The same pattern, kept when it has NO row.
+    NoRowOfAnEmptyProgram,
 }
 
 /// What is asked, and how many files the one worker scans.
@@ -98,6 +106,22 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || (Asked::NoRowOfUnknown, 1),
         expect: Expect::Value(Cow::Borrowed(&[0, 7, 0])),
     },
+    Case {
+        name: CaseName(
+            "a_pattern_whose_program_is_its_end_alone_has_no_row_for_an_exists_that_wants_one",
+        ),
+        word: Word::Succeeds,
+        input: || (Asked::RowOfAnEmptyProgram, 1),
+        expect: Expect::Value(Cow::Borrowed(&[0, 7, 0])),
+    },
+    Case {
+        name: CaseName(
+            "a_pattern_whose_program_is_its_end_alone_has_no_row_for_an_exists_that_wants_none",
+        ),
+        word: Word::Succeeds,
+        input: || (Asked::NoRowOfAnEmptyProgram, 1),
+        expect: Expect::Value(Cow::Borrowed(&[3, 13, 0])),
+    },
 ];
 
 /// The rule set of a case.
@@ -109,7 +133,11 @@ fn pack(asked: Asked) -> LoweredPack {
             collected: ColumnMask(Box::new([])),
             values: operands([word(7)]),
         },
-        Asked::NoRowOfAKind | Asked::RowOfAKind | Asked::NoRowOfUnknown => StepBody::Definition {
+        Asked::NoRowOfAKind
+        | Asked::RowOfAKind
+        | Asked::NoRowOfUnknown
+        | Asked::RowOfAnEmptyProgram
+        | Asked::NoRowOfAnEmptyProgram => StepBody::Definition {
             definition: DefinitionId(0),
             bound: ColumnMask(Box::new([MadeColumn(0)])),
             collected: ColumnMask(Box::new([])),
@@ -129,8 +157,13 @@ fn pack(asked: Asked) -> LoweredPack {
         },
         ProgramStep::Exists {
             polarity: match asked {
-                Asked::NoRowOfAKind | Asked::NoRowOfUnknown => Polarity::Absent,
-                Asked::ConstantKey | Asked::OneYield | Asked::RowOfAKind => Polarity::Present,
+                Asked::NoRowOfAKind | Asked::NoRowOfUnknown | Asked::NoRowOfAnEmptyProgram => {
+                    Polarity::Absent
+                }
+                Asked::ConstantKey
+                | Asked::OneYield
+                | Asked::RowOfAKind
+                | Asked::RowOfAnEmptyProgram => Polarity::Present,
             },
             body,
             memo: StepMemo::None,
@@ -146,7 +179,27 @@ fn pack(asked: Asked) -> LoweredPack {
                 Asked::NoRowOfAKind | Asked::RowOfAKind => {
                     Emptiness::Kind(AnchorKinds(Box::new([KindBits(2)])))
                 }
-                Asked::ConstantKey | Asked::OneYield | Asked::NoRowOfUnknown => Emptiness::Unknown,
+                Asked::ConstantKey
+                | Asked::OneYield
+                | Asked::NoRowOfUnknown
+                | Asked::RowOfAnEmptyProgram
+                | Asked::NoRowOfAnEmptyProgram => Emptiness::Unknown,
+            },
+            patterns: match asked {
+                // A pattern whose program holds no step: its code is its end alone.
+                Asked::RowOfAnEmptyProgram | Asked::NoRowOfAnEmptyProgram => {
+                    vec![DefinitionPattern {
+                        bound: ColumnMask(Box::new([MadeColumn(0)])),
+                        collected: ColumnMask(Box::new([])),
+                        form: PatternForm::Call(StepProgram(Box::new([]))),
+                        shape: ShapeChoice::Decided,
+                    }]
+                }
+                Asked::ConstantKey
+                | Asked::OneYield
+                | Asked::NoRowOfAKind
+                | Asked::RowOfAKind
+                | Asked::NoRowOfUnknown => definition().patterns,
             },
             ..definition()
         }],

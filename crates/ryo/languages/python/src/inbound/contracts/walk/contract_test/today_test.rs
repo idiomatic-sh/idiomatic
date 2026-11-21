@@ -15,6 +15,7 @@ use ryo::languages::{FactAnswer, NodeTable, Relation, WalkError};
 const FILLED: &[Relation] = &[
     Relation::BindingEvent,
     Relation::BindingRead,
+    Relation::BindingResolution,
     Relation::BindingShadow,
     Relation::BindingUse,
     Relation::BraceFormatField,
