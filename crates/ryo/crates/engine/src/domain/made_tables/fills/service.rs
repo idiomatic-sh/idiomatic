@@ -17,12 +17,12 @@ use crate::domain::filled::types::{MissingCode, UnbuiltFill};
 use crate::domain::lowered::service::fill_code;
 use crate::domain::lowered::types::{ConstantRows, FillInput, GroupFill, MadeFill, OrderedFill};
 use crate::domain::made_tables::columns::types::ColumnIs;
-use crate::domain::made_tables::operands::service::{constant_at, operand};
+use crate::domain::made_tables::operands::service::{constant_at, file_cell, operand};
 use crate::domain::made_tables::reading::service::pipeline_words;
 use crate::domain::made_tables::service::{
     count_groups, end_groups, file_columns, set_keys, sort_groups,
 };
-use crate::domain::made_tables::types::{FillWork, GroupRoom, TableRows};
+use crate::domain::made_tables::types::{FillFrame, FillWork, GroupRoom, TableRows};
 use crate::domain::steps::types::{ColumnList, MadeTableId};
 use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::relations::types::Count;
@@ -239,4 +239,41 @@ pub(crate) fn file_laid(
         });
     }
     Ok(())
+}
+
+/// How many cells a row of an input's pipelines has: what its first pipeline's write writes.
+///
+/// # Errors
+///
+/// The input's first pipeline has no write the code holds.
+pub(crate) fn input_width(code: &ProgramCode, input: FillInputs<'_>) -> Result<Count, FilledError> {
+    let Some(entry) = input.entries.first() else {
+        return Ok(Count(0));
+    };
+    let words = pipeline_words(code, CodeEntry(entry.0))?;
+    let write = words.last().ok_or(NO_RECORD)?;
+    Ok(Count(usize::from(stage_write_of(*write).columns.0)))
+}
+
+/// Lays the columns of the emptied table an input's pipelines write into, with the store's room for where each writes
+/// from.
+///
+/// # Errors
+///
+/// A pipeline of the input has no write the code holds.
+pub(crate) fn laid(
+    frame: &mut FillFrame<'_>,
+    input: FillInputs<'_>,
+    into: &mut TableRows,
+) -> Result<(), FilledError> {
+    let mut writes = std::mem::take(&mut frame.store.writes);
+    let done = file_laid(
+        frame.programs.code,
+        file_cell(frame.file),
+        input,
+        &mut writes,
+        into,
+    );
+    frame.store.writes = writes;
+    done
 }

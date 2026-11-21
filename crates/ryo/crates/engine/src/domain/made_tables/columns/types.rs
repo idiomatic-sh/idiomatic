@@ -30,7 +30,10 @@ pub(crate) struct FileColumn(pub(crate) [CellWord; 1]);
 /// Which cells a column that is held for the file lies in.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum HeldCells {
-    /// The cells a made table keeps, row by row.
+    /// The store's one arena of the file's tables: a made table's cells are a stretch of it, which the column's first
+    /// place and end say.
+    Arena,
+    /// The cells a table keeps in its own list, row by row: a table written into its slot and not by a fill.
     Table(MadeTableId),
     /// The one cell a made table holds of the file: its file column, of which it keeps no cell a row.
     TableFile(MadeTableId),
@@ -52,4 +55,17 @@ pub(crate) struct HeldColumn {
     pub(crate) first: Count,
     /// How far apart its cells are.
     pub(crate) stride: Count,
+    /// The place after the last cell that is the column's source's: a made table's cells end where another table's
+    /// start. No end (the greatest count) for a list that is the source's alone and may grow.
+    pub(crate) end: Count,
+}
+
+/// Where a table's cells lie.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum CellsLie {
+    /// In the table's own list: a fill's gathered input, a table while a grouping fill writes it, a fixture's table.
+    #[default]
+    Own,
+    /// In the store's one arena of the file's tables, from this place on: every made table, once its fill ended.
+    Arena(Count),
 }

@@ -1,11 +1,13 @@
 //! The types of the `made_tables` concept: the rows of a table the engine makes for a file, and the room its fills work in.
 //! Crate-private.
 
-use crate::domain::code::types::{IndexSite, MemoSite, PoolAt, ProgramCode, RelationNumber};
+use crate::domain::code::types::{
+    CodeEntry, IndexSite, MemoSite, PoolAt, ProgramCode, RelationNumber,
+};
 use crate::domain::filled::errors::FilledError;
 use crate::domain::filled::types::FilledRelations;
 use crate::domain::indexes::types::{FileStamp, IndexArena, RowRun, SourceRow};
-use crate::domain::made_tables::columns::types::{FileColumn, RowColumn};
+use crate::domain::made_tables::columns::types::{CellsLie, FileColumn, RowColumn};
 use crate::domain::made_tables::matching::types::MatchRoom;
 use crate::domain::made_tables::pipelines::types::PipelineRoom;
 use crate::domain::stages::verdicts::types::TextVerdicts;
@@ -20,8 +22,10 @@ use ryo_values::domain::plan_parts::types::ColumnIndex;
 /// The rows of one table for a file: its cells row by row, kept between files and emptied, never freed.
 #[derive(Debug, Default)]
 pub(crate) struct TableRows {
-    /// The cells, row by row: of every column but the file's.
+    /// The cells, row by row: of every column but the file's, when they lie in the table's own list.
     pub(crate) cells: Vec<CellWord>,
+    /// Where the cells lie: here, or in the store's arena of the file's tables.
+    pub(crate) lies: CellsLie,
     /// How many cells a row has: its columns less the file's.
     pub(crate) width: Count,
     /// Where each column lies in a row's cells, or that it is the file's: within one file every row would hold the
@@ -82,6 +86,20 @@ pub(crate) struct FillStore {
     pub(crate) cells: Vec<CellWord>,
     /// Where each pipeline of an input writes its row from, while a table's columns are laid.
     pub(crate) writes: Vec<PoolAt>,
+    /// The cells of every table made for the file, table after table: ONE list a worker, emptied (not freed) when a
+    /// file starts, so a worker holds the most one file's tables needed and not, table by table, the most each ever
+    /// needed. A made table is a stretch of it (`TableRows.lies`).
+    pub(crate) table_cells: Vec<CellWord>,
+    /// Lists for a table's own cells while a fill that does not write rows straight into the arena runs (a grouping
+    /// fill, constant rows): taken when the fill starts, given back emptied when its cells are in the arena. As many
+    /// as fills run inside one another.
+    pub(crate) own_cells: Vec<Vec<CellWord>>,
+    /// Lists of the pipelines of a fill that have a row to run, while the fill has their sources there: as many as
+    /// fills run inside one another.
+    pub(crate) running: Vec<Vec<CodeEntry>>,
+    /// Sets for the rows a table holds while its fill drops repeats: taken when a fill starts and given back emptied
+    /// the moment it ends, since only the fill reads its set. As many as fills run inside one another.
+    pub(crate) seens: Vec<hashbrown::HashTable<SourceRow>>,
     /// What each test of a text against constants holds for, by word: of the run's words for the worker's life, of a
     /// file's own words for the file. The fill's `Keep` and the loop's `Test` share them.
     pub(crate) verdicts: TextVerdicts,
@@ -376,20 +394,4 @@ pub(crate) struct PipeRun<'r> {
     pub(crate) work: &'r mut FillWork,
     /// The room the pipeline runs in.
     pub(crate) room: &'r mut PipelineRoom,
-}
-
-/// What a pipeline's scan reads: its source; of a bucket the site and the key's stretch of that site's index; how many
-/// rows; the first row of a whole source; and the bits every handle carries.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct ScanRead {
-    /// The source.
-    pub(crate) source: ReadSource,
-    /// Of a bucket: the site whose index holds it.
-    pub(crate) site: Option<IndexSite>,
-    /// Of a bucket: the key's stretch of the index's rows. Of a whole source: its rows.
-    pub(crate) rows: RowRun,
-    /// How many rows the scan reads.
-    pub(crate) count: Count,
-    /// The bits every handle carries besides the row's number.
-    pub(crate) tag: CellWord,
 }

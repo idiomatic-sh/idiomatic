@@ -187,7 +187,14 @@ fn staged(
                 return fanned(frame, uses, words, FanKind::Call, Count(at), depth, run);
             }
             StageKind::Write => {
-                write_stage(batch_frame(frame), word, level, run.into)?;
+                write_stage(
+                    frame.programs,
+                    frame.file,
+                    word,
+                    level,
+                    run.into,
+                    &mut frame.store.table_cells,
+                )?;
                 run.work.read = Count(run.work.read.0.saturating_add(rows.0));
                 return Ok(());
             }

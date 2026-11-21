@@ -2,7 +2,7 @@
 //! filled or indexed first, in the order its stages read it; then its pipelines run. A pipeline whose scan has no row
 //! runs nothing and has nothing made for it.
 
-use crate::domain::code::filling::service::{stage_scan_of, stage_write_of};
+use crate::domain::code::filling::service::stage_scan_of;
 use crate::domain::code::types::{CodeEntry, RelationNumber};
 use crate::domain::filled::errors::FilledError;
 use crate::domain::filled::service::whole;
@@ -12,27 +12,27 @@ use crate::domain::indexes::types::IndexBuilt;
 use crate::domain::made_tables::built::service::runs;
 use crate::domain::made_tables::built::types::FillPart;
 use crate::domain::made_tables::carrying::service::stage_reach;
+use crate::domain::made_tables::columns::types::CellsLie;
 use crate::domain::made_tables::fanning::service::scan_read;
 use crate::domain::made_tables::fills::service::{
-    constant_rows, file_laid, fill_at, fill_code_at, grouped_rows, input_at,
+    constant_rows, fill_at, fill_code_at, grouped_rows, input_at, input_width, laid,
 };
 use crate::domain::made_tables::fills::types::{FillInputs, FillKind, TableFill};
 use crate::domain::made_tables::indexing::service::index_built;
 use crate::domain::made_tables::matching::service::match_rows;
 use crate::domain::made_tables::matching::types::MatchSide;
-use crate::domain::made_tables::operands::service::file_cell;
 use crate::domain::made_tables::pipelines::service::piped;
 use crate::domain::made_tables::reading::service::{
     pipeline_words, relation_at, site_at, site_source,
 };
 use crate::domain::made_tables::service::clear_rows;
-use crate::domain::made_tables::staging::service::WRONG_WORD;
 use crate::domain::made_tables::staging::types::BatchFrame;
 use crate::domain::made_tables::types::PipeRun;
 use crate::domain::made_tables::types::{
     FillFrame, FillKept, FillWork, MadeNow, MadeState, PatternRows, Reached, ReadSource,
     SourceWork, TableNeed, TableRows, TableSlot,
 };
+use crate::domain::made_tables::writing::service::{fill_begun, fill_ended};
 use crate::domain::steps::types::MadeTableId;
 use ryo_relations::domain::relations::types::Count;
 
@@ -136,8 +136,9 @@ pub(crate) fn ensured(
     Ok(work)
 }
 
-/// Runs the pipelines of one input into `into`: for each, what its scan reads is there first; a scan with no row ends
-/// the pipeline; else what its other stages read is there, in stage order, and the pipeline runs.
+/// Runs the pipelines of one input into `into`. First each pipeline's sources are there (`sources_there`), then the
+/// pipelines that have a row run, in turn: every table the fill reaches by a stage is made BEFORE its first row is
+/// written, so its rows lie in one stretch of the arena unmoved; the same tables are made as before.
 fn input_piped(
     frame: &mut FillFrame<'_>,
     uses: &mut dyn PatternRows,
@@ -147,38 +148,30 @@ fn input_piped(
     kept: FillKept<'_>,
 ) -> Result<(), FilledError> {
     let FillKept { work, reached } = kept;
-    let programs = frame.programs;
+    let mut running = frame.store.running.pop().unwrap_or_default();
+    running.clear();
+    let mut there = Ok(());
     for entry in entries.entries {
         let entry = CodeEntry(entry.0);
-        let words = pipeline_words(programs.code, entry)?;
-        let mut scanned = Count(0);
-        for (at, word) in words.iter().enumerate() {
-            if let Some(read) = stage_reach(programs.code, *word)? {
-                let _work = ensured(frame, uses, read)?;
-                reached.push(read);
-            }
-            if at == 0 {
-                let batch = BatchFrame {
-                    programs,
-                    store: frame.store,
-                    nodes: frame.nodes,
-                    file: frame.file,
-                    text: frame.text,
-                };
-                scanned = scan_read(batch, stage_scan_of(*word))?.count;
-                if scanned.0 == 0 {
-                    break;
-                }
+        match sources_there(frame, uses, entry, reached) {
+            Ok(Count(0)) => {}
+            Ok(_) => running.push(entry),
+            Err(fault) => {
+                there = Err(fault);
+                break;
             }
         }
-        if scanned.0 == 0 {
-            continue;
+    }
+    let mut done = there;
+    for entry in &running {
+        if done.is_err() {
+            break;
         }
         let mut room = frame.store.rooms.pop().unwrap_or_default();
-        let done = piped(
+        done = piped(
             frame,
             uses,
-            entry,
+            *entry,
             &mut PipeRun {
                 table,
                 into,
@@ -187,37 +180,57 @@ fn input_piped(
             },
         );
         frame.store.rooms.push(room);
-        done?;
     }
-    Ok(())
-}
-
-/// Lays the columns of the emptied table an input's pipelines write into, with the store's room.
-fn laid(
-    frame: &mut FillFrame<'_>,
-    input: FillInputs<'_>,
-    into: &mut TableRows,
-) -> Result<(), FilledError> {
-    let mut writes = std::mem::take(&mut frame.store.writes);
-    let done = file_laid(
-        frame.programs.code,
-        file_cell(frame.file),
-        input,
-        &mut writes,
-        into,
-    );
-    frame.store.writes = writes;
+    frame.store.running.push(running);
     done
 }
 
-/// How many cells a row of an input's pipelines has: what its first pipeline's write writes.
-fn input_width(frame: &FillFrame<'_>, input: FillInputs<'_>) -> Result<Count, FilledError> {
-    let Some(entry) = input.entries.first() else {
-        return Ok(Count(0));
-    };
-    let words = pipeline_words(frame.programs.code, CodeEntry(entry.0))?;
-    let write = words.last().ok_or(WRONG_WORD)?;
-    Ok(Count(usize::from(stage_write_of(*write).columns.0)))
+/// Has what one pipeline reads there: what its scan reads first; when the scan has a row, what its other stages read,
+/// in stage order. Answers how many rows the scan has.
+fn sources_there(
+    frame: &mut FillFrame<'_>,
+    uses: &mut dyn PatternRows,
+    entry: CodeEntry,
+    reached: &mut Vec<Reached>,
+) -> Result<Count, FilledError> {
+    let programs = frame.programs;
+    let words = pipeline_words(programs.code, entry)?;
+    let mut scanned = Count(0);
+    for (at, word) in words.iter().enumerate() {
+        if let Some(read) = stage_reach(programs.code, *word)? {
+            let _work = ensured(frame, uses, read)?;
+            reached.push(read);
+        }
+        if at == 0 {
+            let batch = BatchFrame {
+                programs,
+                store: frame.store,
+                nodes: frame.nodes,
+                file: frame.file,
+                text: frame.text,
+            };
+            scanned = scan_read(batch, stage_scan_of(*word))?.count;
+            if scanned.0 == 0 {
+                break;
+            }
+        }
+    }
+    Ok(scanned)
+}
+
+/// Gathers one input of a grouping fill into `into`: emptied as the rows its pipelines write, its columns laid, its
+/// pipelines run.
+fn gathered_in(
+    frame: &mut FillFrame<'_>,
+    uses: &mut dyn PatternRows,
+    table: MadeTableId,
+    input: FillInputs<'_>,
+    into: &mut TableRows,
+    kept: FillKept<'_>,
+) -> Result<(), FilledError> {
+    clear_rows(into, input_width(frame.programs.code, input)?);
+    laid(frame, input, into)?;
+    input_piped(frame, uses, table, input, into, kept)
 }
 
 /// Runs a table's fill into `rows`.
@@ -259,21 +272,11 @@ fn filled_now(
             let mut piped = Ok(());
             for (input, into) in [left, right].into_iter().zip(gathered.iter_mut()) {
                 if piped.is_ok() {
-                    piped = input_width(frame, input).and_then(|width| {
-                        clear_rows(into, width);
-                        laid(frame, input, into)?;
-                        input_piped(
-                            frame,
-                            uses,
-                            table,
-                            input,
-                            into,
-                            FillKept {
-                                work: &mut *work,
-                                reached: &mut *reached,
-                            },
-                        )
-                    });
+                    let kept = FillKept {
+                        work: &mut *work,
+                        reached: &mut *reached,
+                    };
+                    piped = gathered_in(frame, uses, table, input, into, kept);
                 }
             }
             let mut room = std::mem::take(&mut frame.store.room);
@@ -306,20 +309,11 @@ fn filled_now(
             let FillKept { work, reached } = kept;
             let input = input_at(programs.code, fill.inputs)?;
             let mut gathered = frame.store.inputs.pop().unwrap_or_default();
-            clear_rows(&mut gathered, input_width(frame, input)?);
-            let piped = laid(frame, input, &mut gathered).and_then(|()| {
-                input_piped(
-                    frame,
-                    uses,
-                    table,
-                    input,
-                    &mut gathered,
-                    FillKept {
-                        work: &mut *work,
-                        reached,
-                    },
-                )
-            });
+            let kept = FillKept {
+                work: &mut *work,
+                reached,
+            };
+            let piped = gathered_in(frame, uses, table, input, &mut gathered, kept);
             let mut room = std::mem::take(&mut frame.store.room);
             let done =
                 piped.and_then(|()| grouped_rows(fill, &gathered, input, &mut room, rows, work));
@@ -370,6 +364,12 @@ pub(crate) fn made_now(
     let mut rows = std::mem::take(&mut slot.rows);
     let mut reached = std::mem::take(&mut slot.reached);
     clear_rows(&mut rows, fill.width);
+    let straight = if fill.kind == FillKind::Rows {
+        CellsLie::Arena(Count(frame.store.table_cells.len()))
+    } else {
+        CellsLie::Own
+    };
+    fill_begun(frame.store, &mut rows, straight);
     reached.clear();
     let mut work = FillWork::default();
     uses.table_started(table);
@@ -385,6 +385,7 @@ pub(crate) fn made_now(
         },
     );
     uses.table_ended(table);
+    fill_ended(frame.store, &mut rows);
     work.made = rows.count;
     if let Some(slot) = slot_mut(frame, table) {
         slot.rows = rows;
