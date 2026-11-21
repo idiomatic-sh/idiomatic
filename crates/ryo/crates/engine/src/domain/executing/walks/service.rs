@@ -4,10 +4,14 @@
 //! sibling and of the reach of an extent.
 
 use crate::domain::code::constants::{KEPT, OWN_TREE};
+use crate::domain::code::records::service::body_at;
+use crate::domain::code::records::types::{BodyRecord, ReadBody};
 use crate::domain::code::small_codes::service::direction_of;
-use crate::domain::code::types::{CodeEntry, CodeWord, MemoSite, WordFlag, WordSlot};
+use crate::domain::code::types::{CodeEntry, CodeWord, MemoSite, Op, PoolAt, WordFlag, WordSlot};
 use crate::domain::code::walking::service::{axis_of, nearest_of, within_of};
 use crate::domain::executing::bodies::service::{body_of, has_row, slot};
+use crate::domain::executing::closing::service::kept_new;
+use crate::domain::executing::staging::service::body_staged;
 use crate::domain::findings::types::InstructionCount;
 use crate::domain::memos::service::{asked, keep, rows};
 use crate::domain::memos::types::MemoId;
@@ -122,22 +126,111 @@ fn walked(
     found
 }
 
+/// The condition's body record of a `Nearest` word: over derived edges it follows the edges' record and the register
+/// their element is asked in.
+fn condition_of(frame: &StepFrame<'_, '_>, word: CodeWord, at: CodeEntry) -> Option<ReadBody> {
+    let first = body_of(frame, at)?;
+    if word.op == Op::NearestDerived {
+        body_at(
+            &frame.fill.programs.code.pool,
+            PoolAt(first.after.0.saturating_add(1)),
+        )
+    } else {
+        Some(first)
+    }
+}
+
+/// SPIKE: the nearest element the condition holds of over derived edges, never the start: the elements the edges' body
+/// reaches from the start are met nearest first (each element's edges asked once, as a `Closure` asks them) and the
+/// condition is asked of each as it is met. Each edge given and each element asked is a row visited.
+fn walked_derived(
+    frame: &mut StepFrame<'_, '_>,
+    word: CodeWord,
+    at: CodeEntry,
+    start: CellWord,
+) -> Option<CellWord> {
+    let code = frame.fill.programs.code;
+    let edges = body_of(frame, at)?;
+    let condition = condition_of(frame, word, at)?;
+    let from = Register(slot(frame, edges.after, WordSlot(0)).0);
+    let element = Register(slot(frame, condition.after, WordSlot(0)).0);
+    // A table-form body gives its first collected column: the register its record pairs with that column.
+    let outputs = match edges.record {
+        BodyRecord::Table { reads, .. } => {
+            let register = usize::try_from(reads.0)
+                .unwrap_or(usize::MAX)
+                .saturating_add(1);
+            code.pool
+                .get(register..register.saturating_add(1))
+                .unwrap_or_default()
+        }
+        BodyRecord::Inline { .. } | BodyRecord::Call { .. } => &[],
+    };
+    let first = frame.state.staged.len();
+    let mut seen = std::mem::take(&mut frame.state.seen);
+    seen.clear();
+    let (mut current, mut asked_edges, mut tested, mut tried) = (start, 0_usize, 0_usize, 0_u64);
+    let mut found = None;
+    'walk: loop {
+        set(frame, from, current);
+        let fresh = Count(frame.state.staged.len());
+        let _rows: Count = body_staged(frame, edges.record, outputs);
+        let given = kept_new(frame.state, &mut seen, start, fresh);
+        tried = tried.saturating_add(u64::try_from(given.0).unwrap_or(u64::MAX));
+        while let Some(met) = frame
+            .state
+            .staged
+            .get(first.saturating_add(tested))
+            .copied()
+        {
+            tested = tested.saturating_add(1);
+            tried = tried.saturating_add(1);
+            set(frame, element, met);
+            if has_row(frame, Some(condition)).0 > 0 {
+                found = Some(met);
+                break 'walk;
+            }
+        }
+        let Some(next) = frame
+            .state
+            .staged
+            .get(first.saturating_add(asked_edges))
+            .copied()
+        else {
+            break;
+        };
+        current = next;
+        asked_edges = asked_edges.saturating_add(1);
+    }
+    frame.state.staged.truncate(first);
+    frame.state.seen = seen;
+    let LoopState { work, budget, .. } = &mut *frame.state;
+    work.visited = InstructionCount(work.visited.0.saturating_add(tried));
+    budget.visited = InstructionCount(budget.visited.0.saturating_add(tried));
+    found
+}
+
 /// Answers a `Nearest` word over the tree: the nearest ancestor of its start its condition holds of, never the start;
 /// kept per start for the file when the word says so. The element found is staged, and where is left in the state for
 /// the word's item; nothing is staged when no ancestor holds.
 pub(crate) fn nearest(frame: &mut StepFrame<'_, '_>, word: CodeWord, at: CodeEntry) {
     let asking = nearest_of(word);
     let start = cell(frame, asking.start);
-    let found = if asking.flag.0 & KEPT.0 == 0 {
-        walked(frame, word, at, start)
+    let walk = if word.op == Op::NearestDerived {
+        walked_derived
     } else {
-        let site = body_of(frame, at).map_or(MemoSite(0), |body| {
+        walked
+    };
+    let found = if asking.flag.0 & KEPT.0 == 0 {
+        walk(frame, word, at, start)
+    } else {
+        let site = condition_of(frame, word, at).map_or(MemoSite(0), |body| {
             MemoSite(slot(frame, body.after, WordSlot(1)).0)
         });
         match asked(&frame.state.memos, site, &[start]) {
             Some(answer) => rows(&frame.state.memos, answer).first().copied(),
             None => {
-                let found = walked(frame, word, at, start);
+                let found = walk(frame, word, at, start);
                 let (cells, count) = match &found {
                     Some(held) => (std::slice::from_ref(held), Count(1)),
                     None => (&[][..], Count(0)),

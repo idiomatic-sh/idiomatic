@@ -133,7 +133,7 @@ fn step<C: WordCounter>(
             axis(frame, word);
             Axis::run(frame, word, at)
         }
-        Op::Nearest => {
+        Op::Nearest | Op::NearestDerived => {
             nearest(frame, word, at);
             Nearest::run(frame, word, at)
         }
@@ -163,7 +163,6 @@ fn step<C: WordCounter>(
         Op::EachRange
         | Op::Children
         | Op::ChildrenOfField
-        | Op::NearestDerived
         | Op::Render
         | Op::StageScan
         | Op::StageProbe
