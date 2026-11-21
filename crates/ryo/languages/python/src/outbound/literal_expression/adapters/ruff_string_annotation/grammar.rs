@@ -28,3 +28,18 @@ impl LiteralExpressionSyntaxPort for RuffStringAnnotation {
         }
     }
 }
+
+/// SPIKE (track X): what `RuffStringAnnotation::parse` answers of a carrier of one string, for a string literal the
+/// file's own tree holds, read where it is written in `source`: the string-annotation grammar asked once, with no
+/// carrier parsed first to get the literal's node. The grammar reads a single part whose text is its content in
+/// place, and any other string by its value: neither depends on what stands around the string.
+pub(crate) fn parsed_in_place(
+    literal: &ruff_python_ast::ExprStringLiteral,
+    source: &str,
+) -> LiteralParseOutcome {
+    if ruff_python_parser::typing::parse_type_annotation(literal, source).is_ok() {
+        LiteralParseOutcome::Parsed
+    } else {
+        LiteralParseOutcome::Malformed
+    }
+}

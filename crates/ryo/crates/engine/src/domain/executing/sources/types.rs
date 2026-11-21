@@ -108,6 +108,8 @@ impl FileNeeds<'_, '_, '_> {
             return decided;
         }
         let source = ReadSource::Filled(relation);
+        // SPIKE: a count under RYO_X_FILLS tells this reach of the relation, a need's, from a reader's.
+        ryo_language::domain::fillers::service::fill_need_asking(true);
         let asked = scanned(
             frame.fill,
             &mut Asker {
@@ -117,6 +119,7 @@ impl FileNeeds<'_, '_, '_> {
             },
             source,
         );
+        ryo_language::domain::fillers::service::fill_need_asking(false);
         // A relation the fill side cannot answer for says nothing: the unit is evaluated, and its own read faults.
         let Ok(whole) = asked else {
             return NeedVerdict::Holds;
