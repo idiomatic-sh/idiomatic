@@ -85,12 +85,10 @@ pub(crate) fn view_noted(drafts: &mut Drafts, node: NodeDigest, waiting: Option<
     }
 }
 
-/// The read of a step that is a view of a relation, with fresh variables: what each reader that takes the step's branches
-/// holds. None for a step that is no view.
-pub(crate) fn view_read(drafts: &mut Drafts, node: NodeDigest) -> Option<Flattened> {
-    let view = drafts.views.get(&node)?;
-    let emptiness = copied(&view.emptiness);
-    let mut branches = view.branches.clone();
+/// A branch again, with a fresh variable for each of its variables: one for each VARIABLE, not one for each cell, so
+/// that two cells that held one variable (two columns of a row held equal) still hold one, and a pin still pins its cell.
+pub(crate) fn branch_again(drafts: &mut Drafts, branch: &FlatBranch) -> FlatBranch {
+    let mut again = branch.clone();
     let mut fresh: HashMap<FlatVariable, FlatTerm> = HashMap::new();
     let mut renamed = |term: &mut FlatTerm| {
         if let FlatTerm::Variable(variable) = *term {
@@ -99,14 +97,22 @@ pub(crate) fn view_read(drafts: &mut Drafts, node: NodeDigest) -> Option<Flatten
                 .or_insert_with(|| FlatTerm::Variable(fresh_variable(drafts)));
         }
     };
-    for branch in &mut branches {
-        for atom in &mut branch.atoms {
-            each_term(atom, &mut renamed);
-        }
-        branch.row.iter_mut().for_each(&mut renamed);
+    for atom in &mut again.atoms {
+        each_term(atom, &mut renamed);
     }
+    again.row.iter_mut().for_each(&mut renamed);
+    again
+}
+
+/// The read of a step that is a view of a relation, with fresh variables: what each reader that takes the step's branches
+/// holds. None for a step that is no view.
+pub(crate) fn view_read(drafts: &mut Drafts, node: NodeDigest) -> Option<Flattened> {
+    let view = drafts.views.get(&node)?;
+    let emptiness = copied(&view.emptiness);
+    let read = view.branches.clone();
+    let branches = read.iter().map(|branch| branch_again(drafts, branch));
     Some(Flattened {
-        branches,
+        branches: branches.collect(),
         emptiness,
         keyless: Vec::new(),
     })

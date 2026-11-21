@@ -181,6 +181,78 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "codes: {\"EachRowMade\": 2, \"Emit\": 2, \"End\": 3, \"ReadMade\": 4, \"StageScan\": 3, \"StageWrite\": 3}",
         ))),
     },
+    Case {
+        name: CaseName("a_selection_of_a_view_has_the_emptiness_of_the_relations_own_column"),
+        word: Word::Succeeds,
+        input: || {
+            (
+                &[
+                    "the edges of a projection in two fields",
+                    "the edges of a projection in two fields",
+                ],
+                SampleStage::Absent,
+            )
+        },
+        expect: Expect::Value(Cow::Borrowed(concat!(
+            "definition 0: 4 columns, emptiness Any([Row(SyntaxChild, Some(RowValue { column: SyntaxChild(Field), value: CellWord(1) })), Row(SyntaxChild, Some(RowValue { column: SyntaxChild(Field), value: CellWord(2) }))])\n",
+            "  pattern bound [] collected []: Table 0\n",
+            "table 0: Rows, 4 columns, indexes []\n",
+            "  pipeline: Scan:File Read:Constant\n",
+            "  pipeline: Scan:File Read:Constant\n",
+            "rule 0: 1 branches\n",
+            "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Emit:Constant\n",
+            "rule 1: 1 branches\n",
+            "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Emit:Constant\n",
+            "codes: {\"EachRowMade\": 2, \"Emit\": 2, \"End\": 3, \"ReadMade\": 6, \"StageRead\": 2, \"StageScan\": 2, \"StageWrite\": 2}",
+        ))),
+    },
+    Case {
+        name: CaseName(
+            "two_columns_of_one_row_held_equal_stay_equal_when_the_step_is_one_read_of_a_definition",
+        ),
+        word: Word::Succeeds,
+        input: || {
+            (
+                &["the words that are their own parent, beside their spans"],
+                SampleStage::First,
+            )
+        },
+        expect: Expect::Value(Cow::Borrowed(concat!(
+            "definition 0: 5 columns, emptiness All([Unknown, Unknown])\n",
+            "  pattern bound [] collected []: Table 0\n",
+            "  pattern bound [0, 1] collected [3]: Table 0\n",
+            "table 0: Rows, 5 columns, indexes [[0, 1]]\n",
+            "  pipeline: Scan:File Read:Constant Read:Constant Probe:Fanout Read:Constant\n",
+            "rule 0: 1 branches\n",
+            "  branch: EachRow:File Read:Constant Or:Fanout Emit:Constant\n",
+            "codes: {\"EachRowMade\": 1, \"Emit\": 1, \"End\": 2, \"Or\": 1, \"ReadMade\": 1, \"StageProbe\": 1, \"StageRead\": 3, \"StageScan\": 1, \"StageWrite\": 1}",
+        ))),
+    },
+    Case {
+        name: CaseName(
+            "an_absence_asked_of_a_selection_that_holds_two_columns_equal_asks_the_selection",
+        ),
+        word: Word::Succeeds,
+        input: || {
+            (
+                &["the words no word that is its own parent shares a text with"],
+                SampleStage::First,
+            )
+        },
+        expect: Expect::Value(Cow::Borrowed(concat!(
+            "definition 0: 5 columns, emptiness All([Unknown, Unknown])\n",
+            "  pattern bound [] collected []: Table 1\n",
+            "definition 1: 5 columns, emptiness Definition(DefinitionId(0))\n",
+            "  pattern bound [3] collected []: Table 0\n",
+            "table 0: Rows, 5 columns, indexes [[3]]\n",
+            "  pipeline: Scan:File Read:Constant Read:Constant Keep:Constant Read:Constant Read:Constant\n",
+            "table 1: Rows, 5 columns, indexes []\n",
+            "  pipeline: Scan:File Read:Constant Read:Constant Probe:Fanout Read:Constant\n",
+            "rule 0: 1 branches\n",
+            "  branch: EachRow:File Read:Constant Exists:Fanout Read:Constant Read:Constant Read:Constant Emit:Constant\n",
+            "codes: {\"EachRowMade\": 1, \"Emit\": 1, \"End\": 2, \"Exists\": 1, \"ReadMade\": 4, \"StageKeep\": 1, \"StageProbe\": 1, \"StageRead\": 7, \"StageScan\": 2, \"StageWrite\": 2}",
+        ))),
+    },
 ];
 
 /// The scenes lowered and said in lines, as the cases of the service itself are.
