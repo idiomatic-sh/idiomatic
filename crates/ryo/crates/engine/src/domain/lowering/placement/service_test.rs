@@ -2,7 +2,9 @@
 //! the statistics a load was given: none, a first run's, a second run's.
 
 use super::service::{placed, sampled};
-use super::types::{CallForm, FormChoice, PatternFacts, PatternPlacement, SampleStage, TableForm};
+use super::types::{
+    FormChoice, PatternFacts, PatternPlacement, PatternProgram, SampleStage, TableForm,
+};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::code::types::{MeasuredForm, ShapeChoice};
 use crate::domain::statistics::types::{LearnStage, MeasuredSizes, Statistics};
@@ -16,7 +18,7 @@ type Failure = ();
 /// A pattern that binds one column, has a program, and whose definition's table is keyed throughout: a flip candidate.
 const CANDIDATE: PatternFacts = PatternFacts {
     binds: Count(1),
-    call: CallForm::Keyed,
+    call: PatternProgram::Keyed,
     table: TableForm::Keyed,
     call_patterns: Count(0),
     measured: None,
@@ -59,7 +61,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || {
             let facts = PatternFacts {
-                call: CallForm::Scans,
+                call: PatternProgram::Scans,
                 ..CANDIDATE
             };
             (facts, given(SampleStage::Absent))

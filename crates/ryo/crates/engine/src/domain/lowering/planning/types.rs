@@ -127,8 +127,8 @@ pub(crate) enum WrittenAccess {
     },
     /// The nearest ancestor of an element that a definition holds in a column: a program's only.
     Nearest {
-        /// The node relation whose tree is walked.
-        relation: Relation,
+        /// What is walked toward the root.
+        edges: NearestWalked,
         /// The definition of the domain.
         domain: DefinitionId,
         /// The domain's column.
@@ -142,8 +142,8 @@ pub(crate) enum WrittenAccess {
     },
     /// Each element reached over one or more edges of a definition from a seed: a program's only.
     Closure {
-        /// The use of the edges' definition that gives the next elements of the one in `from`.
-        edges: EdgeUse,
+        /// What gives the next elements of the one in `from`.
+        edges: WalkEdges,
         /// Where the element whose edges are asked is written.
         from: Register,
         /// The element walked from.
@@ -305,26 +305,6 @@ pub(crate) struct KindAnchor {
     pub(crate) kinds: AnchorKinds,
 }
 
-/// The two ends of a walk.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct WalkEnds {
-    /// The element walked from.
-    pub(crate) start: crate::domain::lowering::flattening::types::FlatTerm,
-    /// The element reached.
-    pub(crate) reached: crate::domain::lowering::flattening::types::FlatTerm,
-}
-
-/// A nearest walk: the node relation whose tree is walked, and the column of the definition that holds its domain.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct NearestTreeWalk {
-    /// The node relation.
-    pub(crate) relation: Relation,
-    /// The definition of the domain.
-    pub(crate) domain: DefinitionId,
-    /// The domain's column that holds the element.
-    pub(crate) column: MadeColumn,
-}
-
 /// An atom that waits for its place.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct WaitingAtom<'a> {
@@ -381,11 +361,30 @@ pub(crate) struct EdgeUse {
     pub(crate) values: StepOperands,
 }
 
-/// One bound column of a use, with its cell.
+/// What a closure's walk asks for the next elements.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct BoundCell {
-    /// The column.
-    pub(crate) column: MadeColumn,
-    /// Its cell.
-    pub(crate) value: StepOperand,
+pub(crate) enum WalkEdges {
+    /// A use of the edges' definition by key.
+    Use(EdgeUse),
+    /// Accesses written in place over a source's own rows; a row is the register that holds the next element.
+    Inline {
+        /// The accesses.
+        steps: Vec<WrittenAccess>,
+        /// The register a row gives.
+        gives: Register,
+    },
+}
+
+/// What a nearest walk's step climbs.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum NearestWalked {
+    /// The tree of a node relation.
+    Tree(Relation),
+    /// Edges asked for the parent of the element in `from`.
+    Derived {
+        /// What gives the parent.
+        edges: WalkEdges,
+        /// Where the element whose parent is asked is written.
+        from: Register,
+    },
 }

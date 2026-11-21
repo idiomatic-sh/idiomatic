@@ -13,12 +13,14 @@ use parts::{as_of, at, joined, kept, of, plan, step, words, words_written};
 use ryo_relations::domain::relations::types::{Integer, Relation};
 use ryo_values::domain::plan_orders::types::{GroupEnd, OrderBound};
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, ComparisonOrigin, Input, LiteralText, Operand, PlanComparison, QueryLiteral,
-    RepeatedRows, Side, StepId, StepScope, TableKey, Test,
+    Applied, CapturePattern, ColumnIndex, ComparisonOrigin, Direction, Function, Input,
+    LiteralText, Operand, PlanComparison, QueryLiteral, ReachLookup, RepeatedRows, Side, StepId,
+    StepScope, TableKey, Test,
 };
 use ryo_values::domain::plans::types::{Operation, PlanStep};
 use ryo_values::domain::query_bindings::types::RuleBindings;
-use ryo_values::domain::query_plans::service::node_digests;
+use ryo_values::domain::query_operators::types::{LineOutput, TextOutput};
+use ryo_values::domain::query_plans::service::{node_digests, reach_unfolded};
 use ryo_values::domain::query_plans::types::{NodeBytes, NodeDigest, NodeDigests, Plan};
 use ryo_values::domain::written_rows::types::{RowsSource, WrittenRow, WrittenRows};
 
@@ -143,6 +145,136 @@ fn operation_scene(scene: &str) -> Option<Plan> {
                 destination: at(1),
             }),
         ]),
+        // Each scope beside every scope it is within, as today's compiler writes it (a join that holds a reach over the
+        // scopes) and as the engine receives it: the reach unfolded into a closure step appended after the join.
+        "the scopes above, a reach join unfolded" => {
+            let folded = plan(vec![
+                kept(Input::Relation(Relation::Scope)),
+                step(Operation::Join {
+                    left: Input::Step(StepId(0)),
+                    right: Input::Relation(Relation::Scope),
+                    left_on: vec![at(1), at(2)],
+                    right_on: vec![at(1), at(0)],
+                    output: vec![of(Side::Left, 1), of(Side::Right, 2)],
+                    filter: Vec::new(),
+                    view: Vec::new(),
+                    reach: Some(ReachLookup {
+                        source: at(1),
+                        destination: at(0),
+                        keys: vec![at(2)],
+                        columns: vec![at(0), at(1), at(2)],
+                    }),
+                }),
+            ]);
+            reach_unfolded(&folded).into_owned()
+        }
+        // Every scope a scope is within: the closure of the relation's own rows, from the enclosed scope to the enclosing.
+        "closure of the scopes" => plan(vec![step(Operation::Closure {
+            edges: Input::Relation(Relation::Scope),
+            keys: vec![at(2)],
+            source: at(1),
+            destination: at(0),
+        })]),
+        // Each element beside the nearest element above it, climbed over the file's own tree.
+        "the nearest element above, over the tree" => {
+            nearest(Input::Relation(Relation::SyntaxChild))
+        }
+        // The same, climbed over edges a step derives: the child edges, kept as they are.
+        "the nearest element above, over a step's edges" => plan(vec![
+            kept(Input::Relation(Relation::SyntaxTree)),
+            kept(Input::Relation(Relation::SyntaxChild)),
+            nearest_step(Input::Step(StepId(1))),
+        ]),
+        // Each word beside its element's span, the tree read through a view of its id and span: the key and the answer
+        // name the view's columns.
+        "the words' spans through a view" => plan(vec![
+            words(),
+            step(Operation::Join {
+                left: words_of,
+                right: Input::Relation(Relation::SyntaxTree),
+                left_on: vec![at(0)],
+                right_on: vec![at(0)],
+                output: vec![of(Side::Left, 0), of(Side::Right, 1)],
+                filter: Vec::new(),
+                view: vec![at(0), at(4)],
+                reach: None,
+            }),
+        ]),
+        // Each element beside its parent, the domain read through a view of its span and id: the entity is the view's
+        // second column.
+        "the parents through a view" => plan(vec![
+            kept(Input::Relation(Relation::SyntaxTree)),
+            axis(
+                Input::Relation(Relation::SyntaxChild),
+                Direction::Parent,
+                Input::Relation(Relation::SyntaxTree),
+                vec![at(4), at(0)],
+            ),
+        ]),
+        // Each occurrence of `a` in an element's source, with the group `g` of it and the group's text.
+        "the occurrences in the elements' source" => plan(vec![
+            kept(Input::Relation(Relation::SyntaxTree)),
+            step(Operation::SourceMatches {
+                from: words_of,
+                span: at(4),
+                base_line: None,
+                pattern: LiteralText("(?P<g>a)".into()),
+                capture: Some(LiteralText("g".into())),
+                capture_text: TextOutput::Appended,
+                capture_line: LineOutput::Omitted,
+            }),
+        ]),
+        // Each word's text taken apart by a pattern of two slots.
+        "the words' texts captured" => plan(vec![
+            words(),
+            step(Operation::Capture {
+                from: words_of,
+                path: at(3),
+                pattern: CapturePattern("{head}.{*rest}".into()),
+            }),
+        ]),
+        // Each word paired with the next word of its text: the pairs of an ordered match, the answer one column of each side.
+        "the words matched in order" => plan(vec![
+            words(),
+            step(Operation::OrderedMatch {
+                left: words_of,
+                right: words_of,
+                left_on: vec![at(3)],
+                right_on: vec![at(3)],
+                left_order: at(2),
+                right_order: at(2),
+                output: vec![of(Side::Left, 0), of(Side::Right, 0)],
+            }),
+        ]),
+        // Each element with the span from its own start to its own end.
+        "the elements' spans between" => plan(vec![
+            kept(Input::Relation(Relation::SyntaxTree)),
+            step(Operation::SpanBetween {
+                from: words_of,
+                start: at(4),
+                end: at(4),
+            }),
+        ]),
+        // The words whose text after `x.` is `x.a`: a comparison of a function's text.
+        "the words whose prefixed text is x.a" => plan(vec![
+            words(),
+            step(Operation::Select {
+                from: words_of,
+                comparisons: vec![PlanComparison {
+                    test: Test::Equal,
+                    left: Operand::Function(Applied {
+                        function: Function::Concat,
+                        arguments: vec![
+                            Operand::Literal(QueryLiteral::Text(LiteralText("x.".into()))),
+                            Operand::Column(at(3)),
+                        ],
+                    }),
+                    right: Operand::Literal(QueryLiteral::Text(LiteralText("x.a".into()))),
+                    origin: ComparisonOrigin::Unrecorded,
+                }],
+                kept: Vec::new(),
+            }),
+        ]),
         // Each word with its text, every `a` of it replaced by `b`.
         "the words' texts replaced" => plan(vec![
             words(),
@@ -215,4 +347,44 @@ pub fn named(scene: &str) -> Plan {
         "partial relation" => plan(vec![kept(Input::Relation(Relation::SyntaxError))]),
         _ => plan(vec![kept(Input::Relation(Relation::SyntaxTree))]),
     }
+}
+
+/// A nearest-ancestor axis from the rows of step 0 over the given edges, its domain step 0 too.
+fn nearest_step(edges: Input) -> PlanStep {
+    axis(
+        edges,
+        Direction::NearestAncestor,
+        Input::Step(StepId(0)),
+        Vec::new(),
+    )
+}
+
+/// An axis from the rows of step 0 over the given edges, its domain read through the given view.
+fn axis(
+    edges: Input,
+    direction: Direction,
+    domain: Input,
+    domain_view: Vec<ColumnIndex>,
+) -> PlanStep {
+    step(Operation::Axis {
+        from: Input::Step(StepId(0)),
+        edges,
+        domain,
+        direction,
+        id: at(0),
+        parent: at(0),
+        child: at(1),
+        domain_id: at(0),
+        domain_filter: Vec::new(),
+        domain_view,
+        output: Vec::new(),
+    })
+}
+
+/// The elements of the syntax tree, each beside its nearest ancestor among them, climbed over the given edges.
+fn nearest(edges: Input) -> Plan {
+    plan(vec![
+        kept(Input::Relation(Relation::SyntaxTree)),
+        nearest_step(edges),
+    ])
 }

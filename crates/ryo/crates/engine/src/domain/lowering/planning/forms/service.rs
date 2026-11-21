@@ -3,10 +3,12 @@
 use crate::domain::lowering::planning::types::Enumerated;
 use crate::domain::lowering::planning::types::KindAnchor;
 use crate::domain::lowering::planning::types::WrittenAccess;
+use crate::domain::lowering::planning::types::{NearestWalked, WalkEdges};
 use crate::domain::steps::stages::types::{FillStage, TreeWalk, UseMode};
 use crate::domain::steps::types::{
     ColumnMask, NearestEdges, Polarity, ProgramStep, StepBody, StepMemo, StepOperand, StepOperands,
 };
+use crate::domain::steps::types::{PlacedStep, RegisterList, StepProgram};
 
 /// One access as a step of a program.
 pub(crate) fn step_of(access: WrittenAccess) -> ProgramStep {
@@ -119,14 +121,20 @@ pub(crate) fn step_of(access: WrittenAccess) -> ProgramStep {
             descendant,
         },
         WrittenAccess::Nearest {
-            relation,
+            edges,
             domain,
             column,
             element,
             start,
             out,
         } => ProgramStep::Nearest {
-            edges: NearestEdges::Tree(relation),
+            edges: match edges {
+                NearestWalked::Tree(relation) => NearestEdges::Tree(relation),
+                NearestWalked::Derived { edges, from } => NearestEdges::Derived {
+                    edges: walk_body(edges),
+                    from,
+                },
+            },
             condition: StepBody::Definition {
                 definition: domain,
                 bound: ColumnMask([column].into()),
@@ -144,12 +152,7 @@ pub(crate) fn step_of(access: WrittenAccess) -> ProgramStep {
             seed,
             out,
         } => ProgramStep::Closure {
-            edges: StepBody::Definition {
-                definition: edges.definition,
-                bound: edges.bound,
-                collected: edges.collected,
-                values: edges.values,
-            },
+            edges: walk_body(edges),
             from,
             seed,
             out,
@@ -276,4 +279,28 @@ pub(crate) fn stage_of(access: WrittenAccess, first: Enumerated) -> Option<FillS
         | WrittenAccess::Closure { .. }
         | WrittenAccess::Let { .. } => return None,
     })
+}
+
+/// A closure's edges as the body its step runs: a keyed use of a definition, or the accesses written in place, each row
+/// ending in a `Yield` of the next element.
+fn walk_body(edges: WalkEdges) -> StepBody {
+    match edges {
+        WalkEdges::Use(used) => StepBody::Definition {
+            definition: used.definition,
+            bound: used.bound,
+            collected: used.collected,
+            values: used.values,
+        },
+        WalkEdges::Inline { steps, gives } => {
+            let row = ProgramStep::Yield {
+                row: RegisterList([gives].into()),
+            };
+            let written = steps.into_iter().map(step_of).chain([row]);
+            StepBody::Inline(StepProgram(
+                written
+                    .map(|step| PlacedStep { point: None, step })
+                    .collect(),
+            ))
+        }
+    }
 }

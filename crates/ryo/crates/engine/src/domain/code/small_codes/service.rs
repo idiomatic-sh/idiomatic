@@ -1,12 +1,17 @@
 //! The services of the `small_codes` part: each small code written from its value by a `match` that names every variant, and
 //! read back by its number. A number no value has reads as none: a pack's bytes are never trusted to name one.
 
+use crate::domain::code::constants::{
+    SEARCH_GROUP, SEARCH_GROUP_LINE, SEARCH_GROUP_TEXT, SEARCH_NUMBERED,
+};
 use crate::domain::code::types::{Short, WordFlag};
+use crate::domain::steps::calls::types::{SearchGroup, SearchLines, SourceSearch};
 use crate::domain::steps::stages::types::UseMode;
 use crate::domain::steps::types::{AxisDirection, CallMeaning, RegexId, StepRows, TestOperation};
 use ryo_language::domain::semantics::types::RenderContext;
 use ryo_relations::domain::relations::types::NodeColumn;
 use ryo_values::domain::plan_orders::types::OrderBound;
+use ryo_values::domain::query_operators::types::{LineOutput, TextOutput};
 
 /// The code of a node column.
 #[must_use]
@@ -113,13 +118,14 @@ pub(crate) const fn comparison_regex(test: TestOperation) -> Option<RegexId> {
     }
 }
 
-/// The code of a per-row meaning; the regular expression of one that has one is the word's own operand.
+/// The code of a per-row meaning; the regular expression of one that has one is the word's own operand, and what a source
+/// search reads and gives is the word's flag.
 #[must_use]
 pub(crate) const fn meaning_code(meaning: CallMeaning) -> Short {
     Short(match meaning {
         CallMeaning::SpanBetween => 0,
         CallMeaning::SpanBounds => 1,
-        CallMeaning::SourceMatches(_) => 2,
+        CallMeaning::SourceMatches(..) => 2,
         CallMeaning::Capture => 3,
         CallMeaning::Replace(_) => 4,
         CallMeaning::Words => 5,
@@ -130,13 +136,13 @@ pub(crate) const fn meaning_code(meaning: CallMeaning) -> Short {
     })
 }
 
-/// The per-row meaning of a code, with the word's regular expression.
+/// The per-row meaning of a code, with the word's regular expression and its flag.
 #[must_use]
-pub(crate) const fn meaning_of(code: Short, regex: RegexId) -> Option<CallMeaning> {
+pub(crate) const fn meaning_of(code: Short, regex: RegexId, flag: WordFlag) -> Option<CallMeaning> {
     Some(match code.0 {
         0 => CallMeaning::SpanBetween,
         1 => CallMeaning::SpanBounds,
-        2 => CallMeaning::SourceMatches(regex),
+        2 => CallMeaning::SourceMatches(regex, search_of(flag)),
         3 => CallMeaning::Capture,
         4 => CallMeaning::Replace(regex),
         5 => CallMeaning::Words,
@@ -152,7 +158,7 @@ pub(crate) const fn meaning_of(code: Short, regex: RegexId) -> Option<CallMeanin
 #[must_use]
 pub(crate) const fn meaning_regex(meaning: CallMeaning) -> Option<RegexId> {
     match meaning {
-        CallMeaning::SourceMatches(regex) | CallMeaning::Replace(regex) => Some(regex),
+        CallMeaning::SourceMatches(regex, _) | CallMeaning::Replace(regex) => Some(regex),
         CallMeaning::SpanBetween
         | CallMeaning::SpanBounds
         | CallMeaning::Capture
@@ -161,6 +167,72 @@ pub(crate) const fn meaning_regex(meaning: CallMeaning) -> Option<RegexId> {
         | CallMeaning::Concat
         | CallMeaning::Lower
         | CallMeaning::FitsRendered => None,
+    }
+}
+
+/// The bits a per-row meaning writes in its word's flag: what a source search reads and gives; none for any other meaning.
+#[must_use]
+pub(crate) const fn meaning_flag(meaning: CallMeaning) -> WordFlag {
+    match meaning {
+        CallMeaning::SourceMatches(_, search) => search_flag(search),
+        CallMeaning::SpanBetween
+        | CallMeaning::SpanBounds
+        | CallMeaning::Capture
+        | CallMeaning::Replace(_)
+        | CallMeaning::Words
+        | CallMeaning::Rank
+        | CallMeaning::Concat
+        | CallMeaning::Lower
+        | CallMeaning::FitsRendered => WordFlag(0),
+    }
+}
+
+/// The bits of a source search.
+const fn search_flag(search: SourceSearch) -> WordFlag {
+    let lines = match search.lines {
+        SearchLines::Unnumbered => 0,
+        SearchLines::Numbered => SEARCH_NUMBERED.0,
+    };
+    let group = match search.group {
+        SearchGroup::Whole => 0,
+        SearchGroup::Named { text, line } => {
+            let text = match text {
+                TextOutput::Appended => SEARCH_GROUP_TEXT.0,
+                TextOutput::Omitted => 0,
+            };
+            let line = match line {
+                LineOutput::Appended => SEARCH_GROUP_LINE.0,
+                LineOutput::Omitted => 0,
+            };
+            SEARCH_GROUP.0 | text | line
+        }
+    };
+    WordFlag(lines | group)
+}
+
+/// The source search of a flag's bits. The text and line bits say nothing without the group's.
+const fn search_of(flag: WordFlag) -> SourceSearch {
+    let text = if flag.0 & SEARCH_GROUP_TEXT.0 == 0 {
+        TextOutput::Omitted
+    } else {
+        TextOutput::Appended
+    };
+    let line = if flag.0 & SEARCH_GROUP_LINE.0 == 0 {
+        LineOutput::Omitted
+    } else {
+        LineOutput::Appended
+    };
+    SourceSearch {
+        lines: if flag.0 & SEARCH_NUMBERED.0 == 0 {
+            SearchLines::Unnumbered
+        } else {
+            SearchLines::Numbered
+        },
+        group: if flag.0 & SEARCH_GROUP.0 == 0 {
+            SearchGroup::Whole
+        } else {
+            SearchGroup::Named { text, line }
+        },
     }
 }
 

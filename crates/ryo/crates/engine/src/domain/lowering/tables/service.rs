@@ -4,122 +4,20 @@
 
 use crate::domain::lowering::nodes::service::{digested, input_shape, reached};
 use crate::domain::lowering::nodes::types::{AdmittedRule, StepReach, StepShape};
+use crate::domain::lowering::tables::shapes::service::{
+    capture_slots, comparable, joined, keyed, operand_kind, picked, search_kinds, source_search,
+    viewed,
+};
 use crate::domain::lowering::tables::types::TreeAxis;
 use crate::domain::lowering::types::{LoadRefusal, PastWidth, PlanNode, SelectedRule};
-use crate::domain::steps::types::{AxisDirection, TestOperation};
+use crate::domain::steps::types::AxisDirection;
 use ryo_relations::domain::catalog::service::{fact_form, node_column};
 use ryo_relations::domain::relations::service::columns;
 use ryo_relations::domain::relations::types::{CellKind, FactForm, NodeColumn, Relation};
-use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, Direction, Input, JoinColumn, Operand, PlanComparison, QueryLiteral, Side,
-    StepScope, Test,
-};
+use ryo_values::domain::plan_parts::service::view_source;
+use ryo_values::domain::plan_parts::types::{ColumnIndex, Direction, Input, StepScope};
 use ryo_values::domain::plans::types::Operation;
-use ryo_values::domain::query_bindings::types::ParameterBinding;
-
-/// The comparison a plan's test is, as a step's or a stage's test; `Matches` takes its expression's number when written.
-/// None for a test no step makes.
-#[must_use]
-pub(crate) const fn test_of(test: Test) -> Option<TestOperation> {
-    Some(match test {
-        Test::Equal => TestOperation::Equal,
-        Test::NotEqual => TestOperation::NotEqual,
-        Test::LessThan => TestOperation::Less,
-        Test::LessThanOrEqual => TestOperation::LessOrEqual,
-        Test::GreaterThan => TestOperation::Greater,
-        Test::GreaterThanOrEqual => TestOperation::GreaterOrEqual,
-        Test::In => TestOperation::In,
-        Test::NotIn => TestOperation::NotIn,
-        Test::GlobAny => TestOperation::Glob,
-        Test::NotGlobAny => TestOperation::NotGlob,
-        Test::StartsWith => TestOperation::StartsWith,
-        Test::EndsWith => TestOperation::EndsWith,
-        Test::Matches => TestOperation::Matches(crate::domain::steps::types::RegexId(0)),
-        Test::NumericGreaterThanOrEqual => TestOperation::NumericAtLeast,
-        Test::IntegerSuccessor => TestOperation::Successor,
-        Test::NaturalLessThan => TestOperation::NaturalLess,
-        Test::FloatTextGreaterThanOrEqual => return None,
-    })
-}
-
-/// What an operand holds, over a row of `shape`: a column's kind, a literal's, a bound parameter's. None for an operand the
-/// lowering writes no operand for: a function applied, a parameter bound to a list, a column past the row.
-fn operand_kind(rule: &SelectedRule<'_>, shape: &StepShape, operand: &Operand) -> Option<CellKind> {
-    match operand {
-        Operand::Column(column) => shape.0.get(usize::from(*column)).copied(),
-        Operand::Literal(QueryLiteral::Number(_)) => Some(CellKind::Number),
-        Operand::Literal(QueryLiteral::Text(_)) => Some(CellKind::Symbol),
-        Operand::Parameter(parameter) => {
-            let place = usize::try_from(parameter.0).unwrap_or(usize::MAX);
-            match rule.bindings.0.get(place)? {
-                ParameterBinding::Number(_) => Some(CellKind::Number),
-                ParameterBinding::Text(_) => Some(CellKind::Symbol),
-                ParameterBinding::Flag(_)
-                | ParameterBinding::Numbers(_)
-                | ParameterBinding::Texts(_)
-                | ParameterBinding::TextSets(_)
-                | ParameterBinding::Tables(_) => None,
-            }
-        }
-        Operand::Function(_) => None,
-    }
-}
-
-/// The shape, when every comparison can be written over a row of it; none when one cannot.
-fn comparable<'s>(
-    rule: &SelectedRule<'_>,
-    shape: &'s StepShape,
-    comparisons: &[PlanComparison],
-) -> Option<&'s StepShape> {
-    let mut each = comparisons.iter();
-    let written = each.all(|comparison| {
-        let test = match (comparison.test, &comparison.right) {
-            (Test::Matches, Operand::Literal(QueryLiteral::Text(_))) => true,
-            (Test::Matches, _) => false,
-            (test, _) => test_of(test).is_some(),
-        };
-        test && operand_kind(rule, shape, &comparison.left).is_some()
-            && operand_kind(rule, shape, &comparison.right).is_some()
-    });
-    written.then_some(shape)
-}
-
-/// The kinds of a row at the given columns; none when a column is past the row.
-fn picked(shape: &StepShape, columns: &[ColumnIndex]) -> Option<StepShape> {
-    let kinds: Option<Vec<CellKind>> = columns
-        .iter()
-        .map(|column| shape.0.get(usize::from(*column)).copied())
-        .collect();
-    kinds.map(StepShape)
-}
-
-/// The kinds of a join's answer.
-fn joined(left: &StepShape, right: &StepShape, output: &[JoinColumn]) -> Option<StepShape> {
-    let kinds: Option<Vec<CellKind>> = output
-        .iter()
-        .map(|column| {
-            let side = match column.side {
-                Side::Left => left,
-                Side::Right => right,
-            };
-            side.0.get(usize::from(column.column)).copied()
-        })
-        .collect();
-    kinds.map(StepShape)
-}
-
-/// The left side's shape, when each key column is within its side's row and the two sides have as many keys.
-fn keyed<'s>(
-    left: &'s StepShape,
-    right: &StepShape,
-    left_on: &[ColumnIndex],
-    right_on: &[ColumnIndex],
-) -> Option<&'s StepShape> {
-    let held = left_on.len() == right_on.len()
-        && picked(left, left_on).is_some()
-        && picked(right, right_on).is_some();
-    held.then_some(left)
-}
+use ryo_values::domain::query_plans::service::read_order;
 
 /// The node relation an axis walks the tree of: its edges are a relation of the node-table form whose parent and child
 /// columns are the node table's parent and element. None for edges a step derives.
@@ -203,11 +101,12 @@ fn shaped(
             reach,
         } => {
             let (left, right) = (of(left)?, of(right)?);
-            // A join against a closure (`reach`) and a join through a view of its right side are not lowered yet.
-            let plain =
-                view.is_empty() && reach.is_none() && comparable(rule, &right, filter).is_some();
-            (plain && keyed(&left, &right, left_on, right_on).is_some())
-                .then(|| joined(&left, &right, output))
+            // A join against a closure (`reach`) is not lowered: the plan the engine receives holds the closure as a step.
+            // The keys and the answer name the right side's columns through its view; the filter reads the whole row.
+            let seen = viewed(&right, view)?;
+            let plain = reach.is_none() && comparable(rule, &right, filter).is_some();
+            (plain && keyed(&left, &seen, left_on, right_on).is_some())
+                .then(|| joined(&left, &seen, output))
                 .flatten()
         }
         Operation::Union { left, right } => {
@@ -243,6 +142,12 @@ fn shaped(
             let _within = (picked(&read, keys)?, picked(&read, &[*order])?);
             Some(read)
         }
+        Operation::GroupOrdinal { from, keys, order } => {
+            let mut read = of(from)?;
+            let _within = (picked(&read, keys)?, picked(&read, &[*order])?);
+            read.0.push(CellKind::Number);
+            Some(read)
+        }
         Operation::AsOf {
             left,
             right,
@@ -274,14 +179,17 @@ fn shaped(
             output,
         } => {
             let (mut shape, domain) = (of(from)?, of(domain)?);
-            // A walk over edges a step derives, and an axis with a view of its domain or its own answer columns, are not
-            // lowered yet; nor are the axes `walk_of` names none for.
-            let tree = tree_relation(edges, *parent, *child).is_some();
-            let plain = domain_view.is_empty()
-                && output.is_empty()
+            // An axis with its own answer columns is not lowered yet, nor are the axes `walk_of` names none for. The
+            // entity column is named through the domain's view; the filter reads the whole row. Edges that are no tree of a node relation are walked by a nearest axis alone.
+            let tree = tree_relation(edges, *parent, *child).is_some()
+                || (walk_of(*direction) == Some(TreeAxis::Nearest)
+                    && picked(&of(edges)?, &[*parent, *child]).is_some());
+            let plain = output.is_empty()
                 && comparable(rule, &domain, domain_filter).is_some()
                 && (domain_filter.is_empty() || walk_of(*direction) != Some(TreeAxis::Nearest));
-            let reached = *domain.0.get(usize::from(*domain_id))?;
+            let reached = *domain
+                .0
+                .get(usize::from(view_source(domain_view, *domain_id)?))?;
             let _start = shape.0.get(usize::from(*id))?;
             (tree && plain && walk_of(*direction).is_some()).then(|| {
                 shape.0.push(reached);
@@ -294,11 +202,7 @@ fn shaped(
             source,
             destination,
         } => {
-            // A closure over a relation's own rows (edges that are no step) is not lowered yet: its edges are a definition.
-            let read = match edges {
-                Input::Step(_) => of(edges)?,
-                Input::Relation(_) | Input::BoundObservation(_) => return None,
-            };
+            let read = of(edges)?;
             let mut shape = picked(&read, keys)?;
             shape.0.extend(picked(&read, &[*source, *destination])?.0);
             Some(shape)
@@ -308,6 +212,59 @@ fn shaped(
             let mut shape = of(from)?;
             let _read = picked(&shape, &[*text])?;
             shape.0.push(CellKind::Symbol);
+            Some(shape)
+        }
+        Operation::SourceMatches {
+            from,
+            span,
+            base_line,
+            ..
+        } => {
+            let mut shape = of(from)?;
+            let line = base_line.as_slice();
+            let read = picked(&shape, &[*span])?.0 == [CellKind::Span]
+                && picked(&shape, line)?
+                    .0
+                    .iter()
+                    .all(|kind| *kind == CellKind::Number);
+            let search = source_search(operation).filter(|_| read)?;
+            shape.0.extend(search_kinds(search));
+            Some(shape)
+        }
+        Operation::Capture {
+            from,
+            path,
+            pattern,
+        } => {
+            let mut shape = of(from)?;
+            let _read = picked(&shape, &[*path])?;
+            let slots = capture_slots(pattern).0;
+            shape.0.extend(std::iter::repeat_n(CellKind::Symbol, slots));
+            Some(shape)
+        }
+        // An ordered match is a table of pairs, a left row then a right row; its answer names columns of either.
+        Operation::OrderedMatch {
+            left,
+            right,
+            left_on,
+            right_on,
+            left_order,
+            right_order,
+            output,
+        } => {
+            let (left, right) = (of(left)?, of(right)?);
+            let ordered = picked(&left, &[*left_order])?.0 == [CellKind::Number]
+                && picked(&right, &[*right_order])?.0 == [CellKind::Number];
+            (ordered && keyed(&left, &right, left_on, right_on).is_some())
+                .then(|| joined(&left, &right, output))
+                .flatten()
+        }
+        Operation::SpanBetween { from, start, end } => {
+            let mut shape = of(from)?;
+            if picked(&shape, &[*start, *end])?.0 != [CellKind::Span; 2] {
+                return None;
+            }
+            shape.0.push(CellKind::Span);
             Some(shape)
         }
         Operation::SpanBounds { from, span } => {
@@ -320,19 +277,14 @@ fn shaped(
         Operation::Intersection { .. }
         | Operation::Difference { .. }
         | Operation::GroupDigest { .. }
-        | Operation::GroupOrdinal { .. }
-        | Operation::Capture { .. }
         | Operation::Rank { .. }
         | Operation::Words { .. }
-        | Operation::OrderedMatch { .. }
         | Operation::Follow { .. }
         | Operation::OrderedDfs { .. }
         | Operation::Worklist { .. }
         | Operation::Cycles { .. }
         | Operation::Rows { .. }
         | Operation::Hosted { .. }
-        | Operation::SpanBetween { .. }
-        | Operation::SourceMatches { .. }
         | Operation::RenderSyntax { .. }
         | Operation::FitsRendered { .. } => None,
     }
@@ -347,7 +299,11 @@ pub(crate) fn admitted<'a>(rule: SelectedRule<'a>) -> Result<AdmittedRule<'a>, L
         |step| LoadRefusal::Unlowerable(PlanNode(u32::try_from(step).unwrap_or(u32::MAX)));
     let reached = reached(plan).map_err(|step| unlowerable(usize::from(step)))?;
     let mut shapes: Vec<Option<StepShape>> = vec![None; plan.steps.len()];
-    for (place, step) in plan.steps.iter().enumerate() {
+    // Every step after the steps it reads: a step that reads one with no shape yet is one that cannot be evaluated.
+    for place in read_order(plan).into_iter().map(usize::from) {
+        let Some(step) = plan.steps.get(place) else {
+            continue;
+        };
         if reached.get(place) != Some(&StepReach::Reached) {
             continue;
         }

@@ -8,8 +8,10 @@ use crate::domain::lowering::flattening::types::RowColumn;
 use crate::domain::lowering::flattening::types::{AtomRows, FlatBranch, FlatTerm, FlatVariable};
 use crate::domain::lowering::planning::types::KindAnchor;
 use crate::domain::lowering::planning::types::{
-    Emitter, Environment, FileCell, UnitRole, WrittenAccess,
+    Emitter, Enumerated, Environment, FileCell, UnitRole, WrittenAccess,
 };
+use crate::domain::steps::calls::service::call_shape;
+use crate::domain::steps::calls::types::CallRows;
 use crate::domain::steps::types::CallMeaning;
 use crate::domain::steps::types::RegisterList;
 use crate::domain::steps::types::StepOperands;
@@ -307,6 +309,10 @@ pub(crate) fn called(
         .iter()
         .map(|_| fresh_register(emitter.drafts))
         .collect();
+    // A meaning that gives several rows is an iteration: nothing after it is the unit's first enumeration.
+    if call_shape(meaning).rows == CallRows::Several {
+        emitter.environment.enumerated = Enumerated::Already;
+    }
     emitter.written.push(WrittenAccess::Call {
         meaning,
         arguments: StepOperands(read.into()),

@@ -16,12 +16,11 @@ use crate::domain::lowering::planning::operands::service::{
     anchor_kinds, cell_register, file_noted, file_register, key_value, operand, read_column,
     source_of, state_of, test_operand,
 };
-use crate::domain::lowering::planning::types::NearestTreeWalk;
-use crate::domain::lowering::planning::types::WalkEnds;
 use crate::domain::lowering::planning::types::{
     Emitter, Enumerated, FileCell, UnitRole, WrittenAccess,
 };
 use crate::domain::lowering::planning::walks::service::{nearest, walked};
+use crate::domain::lowering::planning::walks::types::{NearestClimb, WalkEnds};
 use crate::domain::steps::stages::types::UseMode;
 use crate::domain::steps::types::{
     ColumnList, ColumnMask, CostClass, DefinitionId, MadeColumn, MadeTableId, MatchColumns,
@@ -328,18 +327,22 @@ pub(crate) fn atom_written(emitter: &mut Emitter<'_>, atom: &FlatAtom) {
             walked(emitter, *relation, *direction, ends);
         }
         FlatAtom::Nearest {
-            relation,
+            over,
             domain,
             column,
             start,
             reached,
         } => {
-            let walk = NearestTreeWalk {
-                relation: *relation,
+            let walk = NearestClimb {
+                over: over.clone(),
                 domain: *domain,
                 column: *column,
             };
-            nearest(emitter, walk, *start, *reached);
+            let ends = WalkEnds {
+                start: *start,
+                reached: *reached,
+            };
+            nearest(emitter, &walk, ends, atom_written);
         }
         FlatAtom::Closure {
             edges,
@@ -351,7 +354,7 @@ pub(crate) fn atom_written(emitter: &mut Emitter<'_>, atom: &FlatAtom) {
                 start: *source,
                 reached: *reached,
             };
-            closed(emitter, edges, keys, ends);
+            closed(emitter, edges, keys, ends, atom_written);
         }
         FlatAtom::Called {
             meaning,

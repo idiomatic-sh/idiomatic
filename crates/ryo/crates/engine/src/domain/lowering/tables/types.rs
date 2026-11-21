@@ -1,9 +1,10 @@
 //! The types of the `tables` part: what the flattening of one rule holds, and how a step asks for an input.
 
+use crate::domain::lowered::types::FillInput;
 use crate::domain::lowering::definitions::types::Flattened;
 use crate::domain::lowering::flattening::types::{FlatTerm, RowColumn};
 use crate::domain::lowering::nodes::types::{AcceptedPlace, AdmittedRule, NodeStore};
-use crate::domain::steps::types::CallMeaning;
+use crate::domain::steps::types::{CallMeaning, DefinitionId};
 use ryo_relations::domain::relations::types::Count;
 use ryo_values::domain::descriptions::types::KindVocabulary;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
@@ -93,4 +94,13 @@ pub(crate) struct OperationCall<'a> {
     pub(crate) constants: &'a [FlatTerm],
     /// How many cells the meaning gives.
     pub(crate) gives: Count,
+}
+
+/// One side of an ordered match: the definition its rows are of, and those rows as the fill's input.
+#[derive(Debug)]
+pub(crate) struct MatchSide {
+    /// The definition.
+    pub(crate) definition: DefinitionId,
+    /// Its rows, with the side's keys and order.
+    pub(crate) rows: FillInput,
 }

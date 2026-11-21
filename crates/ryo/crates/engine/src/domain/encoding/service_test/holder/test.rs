@@ -2,27 +2,29 @@
 //! rule being written, and a file-sized word stands only first in a rule's branch, first in a pipeline as a `Scan`, or as a
 //! `Product`. The lowering proves a pack before it answers it; these are the cases it must never write.
 
-use super::super::fixtures::{listing, mask, of, operands, pack, program, reg, regs, rule, stages};
+use super::super::fixtures::{
+    anchor, listing, mask, of, operands, pack, program, reg, regs, rule, scan, stages, table_pack,
+};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::code::types::{Op, ShapeChoice};
 use crate::domain::encoding::constants::LAST_STEP;
 use crate::domain::encoding::service::encoded;
 use crate::domain::lowered::types::{
-    DefinitionPattern, Emptiness, LoweredPack, MadeFill, MadeTable, PackDefinition, PatternForm,
+    DefinitionPattern, Emptiness, FillInput, LoweredPack, MadeFill, OrderedFill, PackDefinition,
+    PatternForm,
 };
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::{LoadRefusal, PastWidth};
 use crate::domain::steps::stages::types::{FillStage, Pipeline, UseMode};
 use crate::domain::steps::types::{
-    AnchorKinds, DefinitionId, MadeColumn, MadeTableId, MatchColumns, Polarity, ProgramStep,
-    ReadColumn, Register, RegisterList, StepBody, StepMemo, StepOperand, StepProgram, StepRows,
+    ColumnList, DefinitionId, MadeColumn, MadeTableId, MatchColumns, Polarity, ProgramStep,
+    ReadColumn, Register, RegisterList, StepBody, StepMemo, StepOperand, StepOperands, StepProgram,
+    StepRows,
 };
 use ryo_language::domain::facts::types::CellWord;
-use ryo_relations::domain::relations::types::{KindBits, Relation};
-use ryo_values::domain::plan_parts::types::RepeatedRows;
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::query_plans::types::NodeDigest;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
-use ryo_values::domain::table_words::types::ColumnCount;
 use std::borrow::Cow;
 
 /// The pack a row encodes.
@@ -54,6 +56,10 @@ enum Scenario {
     WideRow,
     /// A table of 65,536 columns.
     WideTable,
+    /// An ordered match whose table is as wide as its two inputs' rows together.
+    MatchRows,
+    /// An ordered match whose table is as wide as the operation's output.
+    MatchProjected,
 }
 
 type Input = Scenario;
@@ -157,58 +163,35 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             refusal: LoadRefusal::Budget(PastWidth::TableColumns),
         }),
     },
+    Case {
+        name: CaseName("an_ordered_match_as_wide_as_its_two_rows_is_written"),
+        word: Word::Succeeds,
+        input: || Scenario::MatchRows,
+        expect: Expect::Value(Cow::Borrowed("2 scans, 0 products, 2 writes")),
+    },
+    Case {
+        name: CaseName("an_ordered_match_as_wide_as_its_output_is_refused"),
+        word: Word::Refuses,
+        input: || Scenario::MatchProjected,
+        expect: Expect::Error(FAULT),
+    },
 ];
 
-/// An anchor: each id of one kind.
-fn anchor() -> ProgramStep {
-    ProgramStep::EachKind {
-        relation: Relation::SyntaxTree,
-        kinds: AnchorKinds(Box::new([KindBits(2)])),
-        out: reg(0),
-    }
-}
-
-/// A scan of the node table into a batch column.
-fn scan(out: u32) -> FillStage {
-    FillStage::Scan {
-        source: StepRows::Node(Relation::SyntaxTree),
-        columns: MatchColumns::default(),
-        values: operands([]),
-        out: reg(out),
-    }
-}
-
-/// A pack of one rule that walks table 0, whose fill is one pipeline of `filled` and whose rows have `width` columns; with
-/// `patterns` of a definition of two columns when a stage uses one.
-fn table_pack(
-    filled: Vec<FillStage>,
-    width: usize,
-    patterns: Vec<DefinitionPattern>,
-) -> LoweredPack {
-    let pipeline = Pipeline {
-        stages: stages(filled),
-        row: operands([of(1)]),
+/// A pack of one rule that walks table 0, an ordered match of `width` columns: its left rows are three cells wide and its
+/// right rows two, each input keyed on its first column and ordered by its second.
+fn match_pack(width: usize) -> LoweredPack {
+    let input = |cells: u32| FillInput {
+        pipelines: Box::new([Pipeline {
+            stages: stages(vec![scan(1)]),
+            row: StepOperands((0..cells).map(|_| of(1)).collect()),
+        }]),
+        keys: ColumnList(Box::new([MadeColumn(0)])),
+        order: Some(MadeColumn(1)),
     };
-    let mut made = pack(vec![rule(
-        0,
-        vec![ProgramStep::EachRow {
-            source: StepRows::Made(MadeTableId(0)),
-            out: reg(0),
-        }],
-    )]);
-    made.tables = vec![MadeTable {
-        node: NodeDigest([9; 16]),
-        fill: MadeFill::Rows(Box::new([pipeline]), RepeatedRows::Kept),
-        width: ColumnCount(width),
-        indexes: Vec::new(),
-        emptiness: Emptiness::Unknown,
-    }];
-    made.definitions = vec![PackDefinition {
-        node: NodeDigest([8; 16]),
-        formals: regs([40, 41]),
-        emptiness: Emptiness::Unknown,
-        patterns,
-    }];
+    let mut made = table_pack(vec![scan(1)], width, Vec::new());
+    if let Some(table) = made.tables.first_mut() {
+        table.fill = MadeFill::Ordered(OrderedFill::Match(input(3), input(2)));
+    }
     made
 }
 
@@ -343,6 +326,8 @@ fn lowered(scenario: Scenario) -> LoweredPack {
             ])
         }
         Scenario::WideTable => table_pack(vec![scan(1)], usize::from(u16::MAX) + 1, Vec::new()),
+        Scenario::MatchRows => match_pack(5),
+        Scenario::MatchProjected => match_pack(2),
     }
 }
 
@@ -360,7 +345,9 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         | Scenario::UnkeyedProbeFirst
         | Scenario::UnboundStageUse
         | Scenario::WideRow
-        | Scenario::WideTable => {
+        | Scenario::WideTable
+        | Scenario::MatchRows
+        | Scenario::MatchProjected => {
             let stage = |op: Op| code.words.iter().filter(|word| word.op == op).count();
             format!(
                 "{} scans, {} products, {} writes",
