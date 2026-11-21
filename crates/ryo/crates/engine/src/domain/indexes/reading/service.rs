@@ -14,7 +14,7 @@ use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::relations::types::Count;
 
 /// The cell of `row` in a column; the zero cell past the column's end.
-#[inline]
+#[inline(always)]
 pub(crate) fn cell_at(view: ColumnView<'_>, row: Count) -> CellWord {
     match view
         .cells
