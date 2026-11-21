@@ -4,6 +4,7 @@
 use super::super::interface::ComparisonsItem;
 use crate::domain::comparing::errors::ComparingError;
 use crate::domain::contract::types::PredicateOutcome;
+use crate::domain::patterns::service::glob_any;
 use crate::domain::patterns::types::PatternMatcher;
 use crate::domain::patterns::types::prepared::value::PreparedMatchers;
 use crate::domain::table_scratch::types::ComparisonSlot;
@@ -68,30 +69,6 @@ pub(crate) fn compiled_glob(
     )
 }
 
-/// Whether the text matches any of the globs, given as one text or as several: it holds when one does.
-fn any(text: &Datum<'_>, globs: &Datum<'_>, matcher: PatternMatcher<'_>) -> PredicateOutcome {
-    let Datum::Text(text) = text else {
-        return PredicateOutcome::Fails;
-    };
-    let matching = matcher.0;
-    let matched = match globs {
-        Datum::Text(glob) => {
-            matching.matches_text_glob(GlobPattern(glob.0), SearchText(text.0))
-                == MatchOutcome::Matches
-        }
-        Datum::Texts(globs) => globs.iter().any(|glob| {
-            matching.matches_text_glob(GlobPattern(&glob.0), SearchText(text.0))
-                == MatchOutcome::Matches
-        }),
-        Datum::Unlocated | Datum::Number(_) | Datum::Flag(_) | Datum::Numbers(_) => false,
-    };
-    if matched {
-        PredicateOutcome::Holds
-    } else {
-        PredicateOutcome::Fails
-    }
-}
-
 impl ComparisonsItem for GlobItem<'_> {
     fn holds(
         &self,
@@ -100,8 +77,8 @@ impl ComparisonsItem for GlobItem<'_> {
         right: &Datum<'_>,
     ) -> Result<PredicateOutcome, ComparingError> {
         match test {
-            Test::GlobAny => Ok(any(left, right, self.0)),
-            Test::NotGlobAny => Ok(match any(left, right, self.0) {
+            Test::GlobAny => Ok(glob_any(left, right, self.0)),
+            Test::NotGlobAny => Ok(match glob_any(left, right, self.0) {
                 PredicateOutcome::Holds => PredicateOutcome::Fails,
                 PredicateOutcome::Fails => PredicateOutcome::Holds,
             }),
