@@ -1,6 +1,6 @@
 //! The types of the `planning` part: what a branch is planned for, the order chosen, and the accesses as both emitters read them.
 
-use crate::domain::lowering::definitions::types::RowEstimate;
+use crate::domain::lowering::costing::types::{AccessCost, PlanEstimate, UseCosts};
 use crate::domain::lowering::flattening::types::FlatVariable;
 use crate::domain::steps::stages::types::UseMode;
 use crate::domain::steps::types::{
@@ -27,8 +27,10 @@ pub(crate) enum UnitRole {
 pub(crate) struct PlannedBranch {
     /// The atoms, by place in the branch, in the order they run.
     pub(crate) order: Vec<AtomPlace>,
-    /// The rows the order visits, by the fixed priors.
-    pub(crate) cost: RowEstimate,
+    /// The steps the order takes for one start of the unit, what it takes once a file among them, by the fixed priors.
+    pub(crate) cost: PlanEstimate,
+    /// The rows the order gives for one start of the unit.
+    pub(crate) rows: PlanEstimate,
     /// How many accesses after the first have no key: the product stages of a pipeline.
     pub(crate) products: Count,
 }
@@ -202,6 +204,9 @@ pub(crate) struct Environment {
     pub(crate) pins: HashMap<FlatVariable, crate::domain::lowering::flattening::types::FlatTerm>,
     /// The pinned variables an access was keyed by: given, as their constant; with the cell of the row found, when there is one.
     pub(crate) keyed: HashMap<FlatVariable, Option<FileCell>>,
+    /// The pinned variables a use of a definition was keyed by in a pipeline: the use leaves no row to read the cell
+    /// from, so each is still its constant for the stages after it.
+    pub(crate) held: std::collections::HashSet<FlatVariable>,
     /// A file column already at hand.
     pub(crate) file: Option<FileCell>,
     /// Whether rows were enumerated yet.
@@ -235,13 +240,16 @@ pub(crate) struct Emitter<'a> {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) struct AtomPlace(pub(crate) usize);
 
-/// An access that can be placed next: the atom, and the rows it is taken to give each time it runs.
+/// An access that can be placed next: the atom, what it is taken to cost each time it runs, and what orders it among the
+/// accesses that can be placed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct NextAccess {
     /// The atom.
     pub(crate) atom: AtomPlace,
-    /// The rows it gives.
-    pub(crate) rows: RowEstimate,
+    /// What it costs.
+    pub(crate) cost: AccessCost,
+    /// Its rank: the rows it gives, or for a use of a definition its steps over those of a well-keyed call when that is more.
+    pub(crate) rank: PlanEstimate,
 }
 
 /// Whether an atom has its place in the order yet.
@@ -277,6 +285,8 @@ pub(crate) struct GivenTerms<'a> {
 pub(crate) struct OrderCompletion<'a> {
     /// The drafts the estimates read.
     pub(crate) drafts: &'a crate::domain::lowering::definitions::types::Drafts,
+    /// What each use asked so far costs.
+    pub(crate) costs: &'a UseCosts,
     /// The branch.
     pub(crate) branch: &'a crate::domain::lowering::flattening::types::FlatBranch,
     /// What the branch is planned for.
@@ -289,10 +299,14 @@ pub(crate) struct OrderCompletion<'a> {
     pub(crate) placed: Vec<AtomPlacing>,
     /// The order so far.
     pub(crate) order: Vec<AtomPlace>,
+    /// The pinned variables an access placed so far was keyed by: the test that pins one holds already.
+    pub(crate) implied: std::collections::HashSet<FlatVariable>,
+    /// The pinned variables a use of a definition was keyed by in a pipeline: the use leaves no row to read the cell from.
+    pub(crate) rowless: std::collections::HashSet<FlatVariable>,
     /// The rows the unit holds at this point.
-    pub(crate) rows: RowEstimate,
-    /// The rows visited so far.
-    pub(crate) cost: RowEstimate,
+    pub(crate) rows: PlanEstimate,
+    /// The steps taken so far.
+    pub(crate) cost: PlanEstimate,
     /// Whether rows were enumerated yet.
     pub(crate) enumerated: Enumerated,
     /// How many accesses after the first had no key.
@@ -306,6 +320,24 @@ pub(crate) struct KindAnchor {
     pub(crate) relation: Relation,
     /// The kinds.
     pub(crate) kinds: AnchorKinds,
+}
+
+/// What a unit's order starts from: the variables given, and the rows of one start.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct UnitStart<'a> {
+    /// The variables given.
+    pub(crate) given: &'a std::collections::HashSet<FlatVariable>,
+    /// The rows one start holds: one, or less when a bound column of a pattern is a constant of the branch.
+    pub(crate) rows: PlanEstimate,
+}
+
+/// What a branch is planned with: the drafts, and what each use asked so far costs.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct PlanningWith<'a> {
+    /// The drafts the estimates read.
+    pub(crate) drafts: &'a crate::domain::lowering::definitions::types::Drafts,
+    /// What each use asked so far costs.
+    pub(crate) costs: &'a UseCosts,
 }
 
 /// An atom that waits for its place.

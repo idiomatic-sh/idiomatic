@@ -56,7 +56,7 @@ pub(crate) fn index_built(
                     unbuilt: UnbuiltFill::OrderedNodes,
                 });
             }
-            let names = node_names(programs, frame.text, frame.file);
+            let names = node_names(programs, frame.text, frame.source, frame.file);
             let end = Position(u32::try_from(rows.end.0).unwrap_or(u32::MAX));
             // A key that is one column the node table holds as small numbers needs no cells and no hash of a row.
             let one = match columns {
@@ -134,7 +134,15 @@ pub(crate) fn index_built(
             for (at, column) in columns.iter().enumerate() {
                 match short(*column).map(node_column_of) {
                     Ok(Some(named)) => {
-                        node_cells(frame.nodes, names, frame.words, named, end, &mut cells);
+                        node_cells(
+                            frame.nodes,
+                            names,
+                            frame.words,
+                            &mut frame.store.node_texts,
+                            named,
+                            end,
+                            &mut cells,
+                        );
                         key_column(
                             &mut frame.store.indexes,
                             Count(at),

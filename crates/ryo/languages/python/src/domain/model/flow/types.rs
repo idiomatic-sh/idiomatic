@@ -1,9 +1,10 @@
 //! The types of the model's `flow` part: plain data, public fields and derives, with no constructor and no inherent impl.
 
 use crate::domain::model::frames::types::{FrameCode, FrameModel};
+use crate::domain::model::lexical::types::NamespaceKey;
 use crate::domain::model::names::types::{KeyHasher, NameCode};
 use crate::domain::model::reaching::types::{FlowReadState, ReachModel};
-use ryo::languages::{Count, Integer, Position};
+use ryo::languages::{BindingResolutionRow, Count, Integer, Position};
 use std::collections::HashMap;
 use std::hash::BuildHasherDefault;
 
@@ -185,4 +186,17 @@ pub(crate) struct FlowModel {
     pub branches: Vec<OpenBranch>,
     /// The finished arms of the open alternatives.
     pub arms: Vec<FrameCode>,
+}
+
+/// What the events in effect in schedule order are worked out with: buffers kept from one file to the next, cleared by the
+/// fill that uses them.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct ScheduleOrder {
+    /// The latest event of each name in each namespace so far, by its place among the events.
+    pub latest: HashMap<NamespaceKey, Count, BuildHasherDefault<KeyHasher>>,
+    /// The reads that are evaluated after the whole schedule (bounds and defaults of type parameters): the place of each
+    /// among the events, and its read.
+    pub lazy: Vec<(Count, FlowRead)>,
+    /// The rows so far, each with the schedule ordinal of its read.
+    pub rows: Vec<(Integer, BindingResolutionRow)>,
 }

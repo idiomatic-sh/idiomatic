@@ -75,6 +75,7 @@ impl<P: Send + Sync + 'static> Fillers for PythonWalk<P> {
 
     written! {
         binding_event: BindingEvent => crate::domain::relations::collections::relations::binding_event::item::BindingEventItem;
+        binding_resolution: BindingResolution => crate::domain::relations::collections::relations::binding_resolution::item::BindingResolutionItem;
         binding_use: BindingUse => crate::domain::relations::collections::relations::binding_use::item::BindingUseItem;
         brace_format_field: BraceFormatField => crate::inbound::contracts::parse::readers::brace_format::composition::BraceFormatFieldItem;
         brace_format_parse: BraceFormatParse => crate::inbound::contracts::parse::readers::brace_format::composition::BraceFormatParseItem;
@@ -128,7 +129,6 @@ impl<P: Send + Sync + 'static> Fillers for PythonWalk<P> {
         annotates: Annotates => NotYetRead;
         assigns: Assigns => NotYetRead;
         attribute_path: AttributePath => NoSuchConstruct;
-        binding_resolution: BindingResolution => NotYetRead;
         directive: Directive => NoSuchConstruct;
         entry: Entry => NotAKeyedDocument;
         file_package: FilePackage => NotYetRead;

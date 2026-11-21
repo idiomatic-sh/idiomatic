@@ -46,7 +46,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
-            "definition 0: 5 columns, emptiness Any([Unknown, Unknown])\n",
+            "definition 0: 5 columns, emptiness All([Any([Unknown, Unknown]), Any([All([Row(SyntaxTree, Some(RowValue { column: SyntaxTree(Kind), value: CellWord(1) }))]), All([Row(SyntaxTree, Some(RowValue { column: SyntaxTree(Kind), value: CellWord(2) }))])])])\n",
             "  pattern bound [] collected []: Table 0\n",
             "table 0: Rows, 5 columns, indexes []\n",
             "  pipeline: Scan:File Read:Constant Read:Constant\n",
@@ -121,7 +121,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
-            "definition 0: 5 columns, emptiness Any([Row(SyntaxChild, Some(RowValue { column: SyntaxChild(Field), value: CellWord(1) })), Row(SyntaxChild, Some(RowValue { column: SyntaxChild(Field), value: CellWord(2) }))])\n",
+            "definition 0: 5 columns, emptiness All([Any([Row(SyntaxChild, Some(RowValue { column: SyntaxChild(Field), value: CellWord(1) })), Row(SyntaxChild, Some(RowValue { column: SyntaxChild(Field), value: CellWord(2) }))]), Any([All([Row(SyntaxChild, Some(RowValue { column: SyntaxChild(Field), value: CellWord(1) }))]), All([Row(SyntaxChild, Some(RowValue { column: SyntaxChild(Field), value: CellWord(2) }))])])])\n",
             "  pattern bound [] collected []: Table 0\n",
             "table 0: Rows, 5 columns, indexes []\n",
             "  pipeline: Scan:File Read:Constant Read:Constant\n",
@@ -178,7 +178,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "definition 0: 5 columns, emptiness All([Unknown, Unknown])\n",
             "  pattern bound [] collected []: Table 1\n",
             "  pattern bound [1] collected []: Call: EachMatch:Fanout EachMatch:Fanout Yield:Constant\n",
-            "definition 1: 6 columns, emptiness All([Definition(DefinitionId(0)), Unknown, Unknown])\n",
+            "definition 1: 6 columns, emptiness All([All([Definition(DefinitionId(0)), Unknown, Unknown]), Any([All([Definition(DefinitionId(0))])])])\n",
             "  pattern bound [] collected []: Table 0\n",
             "  pattern bound [1] collected [5]: Call: Nearest:Fanout Exists:Fanout Let:Constant Yield:Constant\n",
             "table 0: Rows, 6 columns, indexes []\n",

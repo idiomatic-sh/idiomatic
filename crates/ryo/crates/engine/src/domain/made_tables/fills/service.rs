@@ -40,46 +40,72 @@ const NO_RECORD: FilledError = FilledError::Code {
     named: MissingCode::Pool,
 };
 
+/// The codes of the fills the fill side runs with the fill each is: asked of the lowering's own statement of the codes
+/// once a process, since a table's fill is asked for at every read of it.
+fn known_fills() -> &'static [(FillCode, FillKind); 8] {
+    static KNOWN: std::sync::OnceLock<[(FillCode, FillKind); 8]> = std::sync::OnceLock::new();
+    KNOWN.get_or_init(|| {
+        let input = || FillInput {
+            pipelines: Box::new([]),
+            keys: ColumnList(Box::new([])),
+            order: None,
+        };
+        let no_column = EdgeColumns {
+            source: MadeColumn(0),
+            destination: MadeColumn(0),
+        };
+        [
+            (
+                fill_code(&MadeFill::Rows(Box::new([]), RepeatedRows::Kept)),
+                FillKind::Rows,
+            ),
+            (
+                fill_code(&MadeFill::Group(
+                    GroupFill::Count { distinct: None },
+                    input(),
+                )),
+                FillKind::Count,
+            ),
+            (
+                fill_code(&MadeFill::Ordered(OrderedFill::Sorted(input()))),
+                FillKind::Sorted,
+            ),
+            (
+                fill_code(&MadeFill::Group(GroupFill::Ends(GroupEnd::Least), input())),
+                FillKind::Ends,
+            ),
+            (
+                fill_code(&MadeFill::Group(GroupFill::Places, input())),
+                FillKind::Places,
+            ),
+            (
+                fill_code(&MadeFill::Graph(
+                    GraphFill::FixedPoints(no_column),
+                    Box::new([]),
+                )),
+                FillKind::Follow,
+            ),
+            (
+                fill_code(&MadeFill::Ordered(OrderedFill::Match(input(), input()))),
+                FillKind::Match,
+            ),
+            (
+                fill_code(&MadeFill::Constant(ConstantRows(Vec::new()))),
+                FillKind::Constant,
+            ),
+        ]
+    })
+}
+
 /// Which fill a code is, of the fills the fill side runs: the code is compared with the lowering's own code of each.
 pub(crate) fn kind_of(code: FillCode) -> Result<FillKind, FilledError> {
-    let input = || FillInput {
-        pipelines: Box::new([]),
-        keys: ColumnList(Box::new([])),
-        order: None,
-    };
-    let rows = MadeFill::Rows(Box::new([]), RepeatedRows::Kept);
-    let count = MadeFill::Group(GroupFill::Count { distinct: None }, input());
-    let sorted = MadeFill::Ordered(OrderedFill::Sorted(input()));
-    let ends = MadeFill::Group(GroupFill::Ends(GroupEnd::Least), input());
-    let places = MadeFill::Group(GroupFill::Places, input());
-    let no_column = EdgeColumns {
-        source: MadeColumn(0),
-        destination: MadeColumn(0),
-    };
-    let follow = MadeFill::Graph(GraphFill::FixedPoints(no_column), Box::new([]));
-    let matched = MadeFill::Ordered(OrderedFill::Match(input(), input()));
-    let constant = MadeFill::Constant(ConstantRows(Vec::new()));
-    if code == fill_code(&rows) {
-        Ok(FillKind::Rows)
-    } else if code == fill_code(&count) {
-        Ok(FillKind::Count)
-    } else if code == fill_code(&sorted) {
-        Ok(FillKind::Sorted)
-    } else if code == fill_code(&ends) {
-        Ok(FillKind::Ends)
-    } else if code == fill_code(&places) {
-        Ok(FillKind::Places)
-    } else if code == fill_code(&follow) {
-        Ok(FillKind::Follow)
-    } else if code == fill_code(&matched) {
-        Ok(FillKind::Match)
-    } else if code == fill_code(&constant) {
-        Ok(FillKind::Constant)
-    } else {
-        Err(FilledError::Unbuilt {
+    known_fills()
+        .iter()
+        .find(|(known, _)| *known == code)
+        .map(|(_, kind)| *kind)
+        .ok_or(FilledError::Unbuilt {
             unbuilt: UnbuiltFill::Fill(code),
         })
-    }
 }
 
 /// The slot of the pool at a place.

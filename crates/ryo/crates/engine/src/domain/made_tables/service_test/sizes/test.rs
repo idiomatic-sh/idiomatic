@@ -84,6 +84,10 @@ fn kept(store: &FillStore) -> String {
         cells: _,
         writes: _,
         table_cells,
+        // As many cells as the file has elements, emptied a file: not a table's rows.
+        node_texts: _,
+        // What was found of each pipeline at its first run: as many entries as the code has pipelines.
+        pipes: _,
         own_cells,
         running: _,
         seens,
