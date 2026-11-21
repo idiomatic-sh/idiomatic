@@ -4,7 +4,9 @@
 
 use crate::domain::executing::budget::service::{begin_rule, end_rule};
 use crate::domain::executing::budget::types::FileSizes;
-use crate::domain::executing::measuring::service::{entered, evaluated, left, used};
+use crate::domain::executing::measuring::service::{
+    entered, evaluated, left, need_fills_settled, used,
+};
 use crate::domain::executing::presence::service::consulted;
 use crate::domain::executing::sources::types::FileNeeds;
 use crate::domain::findings::types::{InstructionCount, ScanCounters};
@@ -35,6 +37,10 @@ pub(crate) fn dispatch(frame: &mut StepFrame<'_, '_>, rules: &Programs) -> ScanC
         }
         left(frame.state);
         let candidates = frame.state.budget.candidates.0;
+        need_fills_settled(
+            frame.state,
+            Count(usize::try_from(candidates).unwrap_or(usize::MAX)),
+        );
         evaluated(
             frame.state,
             rule.unit,

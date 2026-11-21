@@ -147,18 +147,16 @@ pub(crate) fn fill(
             | FillKind::Places
             | FillKind::Follow,
             inputs,
-        )) => {
-            match input_at(code, inputs) {
-                Ok(input) => {
-                    out.extend(input.entries.iter().map(|entry| WalkPlace::Pipeline {
-                        entry: CodeEntry(entry.0),
-                        unit,
-                    }));
-                    None
-                }
-                Err(_) => Some(unit),
+        )) => match input_at(code, inputs) {
+            Ok(input) => {
+                out.extend(input.entries.iter().map(|entry| WalkPlace::Pipeline {
+                    entry: CodeEntry(entry.0),
+                    unit,
+                }));
+                None
             }
-        }
+            Err(_) => Some(unit),
+        },
         // An ordered match has two inputs, one after the other in its record.
         Ok((FillKind::Match, inputs)) => {
             let both = input_at(code, inputs)
