@@ -27,4 +27,6 @@ pub(crate) fn next_file(scratch: &mut ScanScratch) {
     state.budget.pending.clear();
     state.budget.asks.clear();
     state.budget.asked.clear();
+    state.budget.sums.clear();
+    state.budget.sum_units.clear();
 }

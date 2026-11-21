@@ -9,7 +9,7 @@ use crate::domain::findings::types::InstructionCount;
 use crate::domain::indexes::types::{FileStamp, RowRun};
 use crate::domain::made_tables::types::FillWork;
 use crate::domain::made_tables::types::{FillStore, KeyFrom};
-use crate::domain::memos::types::{CellSpan, ChargedUnit, MemoId, MemoMap, RuleStamp};
+use crate::domain::memos::types::{AnswersSum, CellSpan, ChargedUnit, MemoId, MemoMap, RuleStamp};
 use crate::domain::needs::types::NeedVerdict;
 use crate::domain::stages::types::{BatchRow, BatchValue, CallScratch, FanRows};
 use crate::domain::steps::types::{MadeTableId, Register};
@@ -142,6 +142,8 @@ pub(crate) struct LoopState {
     pub(crate) need_asks: Vec<AskedNeed>,
     /// SPIKE: what the running rule's asks of each memo site came to in the file, by the site's number.
     pub(crate) site_asks: Vec<SiteAsks>,
+    /// SPIKE: the work of the last ask a fill made that passed (no answer kept): taken by the fill's callback.
+    pub(crate) passed: Option<InstructionCount>,
     /// Where the column of each `Read` of a made table or of a filled relation lies, by the word's slot
     /// (`DecodedCode.lists`): asked of the fill side at the word's first read in a file, and good for that file.
     pub(crate) held_reads: Vec<HeldRead>,
@@ -232,6 +234,12 @@ pub(crate) struct RuleBudget {
     pub(crate) asks: Vec<TableAsk>,
     /// The last ask of each table's fill in the file, by the table's number, as its place in `asks` and one.
     pub(crate) asked: Vec<Count>,
+    /// SPIKE: what each table's asks cost together, by the table's number, summed at the first charge of the file.
+    pub(crate) sums: Vec<Option<AnswersSum>>,
+    /// SPIKE: the fill units the sums' answers reached, one sum's after the other; and the last mark given.
+    pub(crate) sum_units: Vec<ChargedUnit>,
+    /// SPIKE: the last mark given to a sum.
+    pub(crate) marks: WordSlot,
 }
 
 /// One fill charged to a rule: its table, the rows its stages read and gave, and its work.
@@ -281,6 +289,10 @@ pub(crate) struct Measuring {
     pub(crate) idle_nanos: Vec<Count>,
     /// The elements of each kind, by kind code, summed over the files.
     pub(crate) kinds: Vec<Count>,
+    /// The elements that fill each field of their parent, by field code, summed over the files.
+    pub(crate) fields: Vec<Count>,
+    /// The elements of the files, summed.
+    pub(crate) elements: Count,
     /// The rows of each size site, by its place, summed over the files.
     pub(crate) literals: Vec<Count>,
     /// Each unit's time and rows in the file being scanned, by the unit's place.

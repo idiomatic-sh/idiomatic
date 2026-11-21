@@ -14,8 +14,10 @@ use crate::domain::made_tables::fills::service::fill_at;
 use crate::domain::made_tables::fills::types::FillKind;
 use crate::domain::made_tables::sources::service::{relation_rows, table_of};
 use crate::domain::made_tables::types::{FillStore, Reached};
-use crate::domain::memos::service::{charge_mut, reached_at, set_charge};
-use crate::domain::memos::types::{ChargedUnit, EntryCharge, MemoId, MemoMap, RuleStamp};
+use crate::domain::memos::service::{charge_mut, reached_at, set_charge, summed};
+use crate::domain::memos::types::{
+    AnswersSum, ChargedUnit, EntryCharge, MemoId, MemoMap, RuleStamp,
+};
 use crate::domain::programs::frames::types::StepFrame;
 use crate::domain::programs::service::unit_step;
 use crate::domain::programs::types::Programs;
@@ -97,7 +99,13 @@ fn rows_of(store: &FillStore, nodes: &NodeTable, unit: Reached) -> Count {
 
 /// Charges the running rule a made table: its fill's rows are work, the rows into it (what its fill read directly) and
 /// out of it are terms of the allowance, and what its fill read and asked is charged next.
-fn charge_table(budget: &mut RuleBudget, store: &FillStore, nodes: &NodeTable, table: MadeTableId) {
+fn charge_table(
+    budget: &mut RuleBudget,
+    memos: &mut MemoMap,
+    store: &FillStore,
+    nodes: &NodeTable,
+    table: MadeTableId,
+) {
     let number = usize::try_from(table.0).unwrap_or(usize::MAX);
     if stamped(&mut budget.tables, Count(number), budget.stamp).is_none() {
         return;
@@ -126,11 +134,68 @@ fn charge_table(budget: &mut RuleBudget, store: &FillStore, nodes: &NodeTable, t
     budget
         .pending
         .extend(slot.reached.iter().map(|each| ChargedUnit::Fill(*each)));
-    let mut place = budget.asked.get(number).copied().unwrap_or_default();
-    while let Some(ask) = place.0.checked_sub(1).and_then(|at| budget.asks.get(at)) {
-        budget.pending.push(ChargedUnit::Answer(ask.answer));
-        place = ask.before;
+    // SPIKE: the answers the table's fill asked are charged as one sum, made once a file for the table (and added to
+    // when its fill asks more), not walked for every rule that reaches the table. The sum is the table's alone, so
+    // the charge does not depend on which rule came first; an answer the rule also asked itself is counted in both.
+    let sum = table_sum(budget, memos, number);
+    budget.charged = InstructionCount(budget.charged.0.saturating_add(sum.work.0));
+    budget.keys = InstructionCount(budget.keys.0.saturating_add(sum.keys.0));
+    let RuleBudget {
+        pending, sum_units, ..
+    } = budget;
+    let units = sum.units.start.0..sum.units.start.0.saturating_add(sum.units.length.0);
+    pending.extend_from_slice(sum_units.get(units).unwrap_or_default());
+}
+
+/// SPIKE: the sum of the answers a table's fill asked in the file, brought up to its last ask.
+fn table_sum(budget: &mut RuleBudget, memos: &mut MemoMap, number: usize) -> AnswersSum {
+    let head = budget.asked.get(number).copied().unwrap_or_default();
+    let known = budget.sums.get(number).copied().flatten();
+    if let Some(sum) = known.filter(|sum| sum.upto == head) {
+        return sum;
     }
+    let RuleBudget {
+        asks,
+        sum_units,
+        marks,
+        ..
+    } = &mut *budget;
+    // The units the sum knew are copied to the list's end, where the new ones follow them.
+    let start = sum_units.len();
+    let mut sum = match known {
+        Some(sum) => {
+            let old = sum.units.start.0..sum.units.start.0.saturating_add(sum.units.length.0);
+            sum_units.extend_from_within(old.start.min(start)..old.end.min(start));
+            sum
+        }
+        None => {
+            *marks = WordSlot(marks.0.wrapping_add(1));
+            AnswersSum {
+                mark: *marks,
+                ..AnswersSum::default()
+            }
+        }
+    };
+    let stop = sum.upto;
+    sum.units.start = Count(start);
+    let mut place = head;
+    let answers = std::iter::from_fn(|| {
+        if place == stop {
+            return None;
+        }
+        let ask = place.0.checked_sub(1).and_then(|at| asks.get(at))?;
+        place = ask.before;
+        Some(ask.answer)
+    });
+    let mut sum = summed(memos, answers, sum, sum_units);
+    sum.upto = head;
+    if budget.sums.len() <= number && number < usize::MAX {
+        budget.sums.resize(number.saturating_add(1), None);
+    }
+    if let Some(slot) = budget.sums.get_mut(number) {
+        *slot = Some(sum);
+    }
+    sum
 }
 
 /// Charges the running rule a unit and everything the unit's lists reach, each once.
@@ -157,7 +222,9 @@ fn charge(frame: &mut StepFrame<'_, '_>, unit: ChargedUnit) {
                 }
                 budget.pending.extend_from_slice(reached_at(memos, asked));
             }
-            ChargedUnit::Fill(Reached::Table(table)) => charge_table(budget, store, nodes, table),
+            ChargedUnit::Fill(Reached::Table(table)) => {
+                charge_table(budget, memos, store, nodes, table);
+            }
             ChargedUnit::Fill(Reached::Relation(relation)) => {
                 let number = usize::try_from(relation.0).unwrap_or(usize::MAX);
                 if stamped(&mut budget.relations, Count(number), budget.stamp).is_some() {
@@ -230,6 +297,31 @@ pub(crate) fn fill_asked(state: &mut LoopState, table: MadeTableId, answer: Memo
         });
         *last = Count(budget.asks.len());
     }
+}
+
+/// SPIKE: a table's fill asked a pattern whose answer was not kept: its work and its key go to the table's sum.
+pub(crate) fn fill_passed(state: &mut LoopState, table: MadeTableId, work: InstructionCount) {
+    let budget = &mut state.budget;
+    let number = usize::try_from(table.0).unwrap_or(usize::MAX);
+    if budget.sums.len() <= number && number < usize::MAX {
+        budget.sums.resize(number.saturating_add(1), None);
+    }
+    let Some(slot) = budget.sums.get_mut(number) else {
+        return;
+    };
+    let mut sum = match *slot {
+        Some(sum) => sum,
+        None => {
+            budget.marks = WordSlot(budget.marks.0.wrapping_add(1));
+            AnswersSum {
+                mark: budget.marks,
+                ..AnswersSum::default()
+            }
+        }
+    };
+    sum.work = InstructionCount(sum.work.0.saturating_add(work.0));
+    sum.keys = InstructionCount(sum.keys.0.saturating_add(1));
+    *slot = Some(sum);
 }
 
 /// Starts a rule's work in a file: nothing is charged to it yet.

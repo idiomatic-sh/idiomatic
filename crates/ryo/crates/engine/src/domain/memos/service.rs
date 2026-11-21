@@ -2,8 +2,9 @@
 //! map for every site; nothing is allocated and no clock is read when an answer is kept.
 
 use super::constants::{HASH_FOLD, SITE_MULTIPLIER};
-use super::types::{CellSpan, ChargedUnit, EntryCharge, MemoEntry, MemoId, MemoMap};
+use super::types::{AnswersSum, CellSpan, ChargedUnit, EntryCharge, MemoEntry, MemoId, MemoMap};
 use crate::domain::code::types::MemoSite;
+use crate::domain::findings::types::InstructionCount;
 use crate::domain::indexes::reading::service::hashed;
 use crate::domain::indexes::types::RowHash;
 use ryo_language::domain::facts::types::CellWord;
@@ -84,17 +85,17 @@ pub(crate) fn keep(
     };
     cells.extend_from_slice(rows);
     let answer = MemoId(u32::try_from(entries.len()).unwrap_or(u32::MAX));
+    let hash = memo_hash(site, key);
     entries.push(MemoEntry {
         site,
         key: key_at,
         rows: rows_at,
         count,
+        hash,
     });
-    drop(
-        found.insert_unique(memo_hash(site, key).0, answer, |other| {
-            entry(entries, *other).map_or(0, |kept| memo_hash(kept.site, span(cells, kept.key)).0)
-        }),
-    );
+    drop(found.insert_unique(hash.0, answer, |other| {
+        entry(entries, *other).map_or(0, |kept| kept.hash.0)
+    }));
     answer
 }
 
@@ -139,6 +140,7 @@ pub(crate) fn keep_passing(
             length: Count(rows.len()),
         },
         count,
+        hash: RowHash(0),
     });
     map.passing = Some(answer);
     answer
@@ -191,4 +193,49 @@ pub(crate) fn reached_at(map: &MemoMap, at: CellSpan) -> &[ChargedUnit] {
     map.reached
         .get(at.start.0..at.start.0.saturating_add(at.length.0))
         .unwrap_or_default()
+}
+
+/// SPIKE: adds to `sum` what the `answers` cost, each once (an answer that carries the sum's mark was counted), with
+/// the answers each asked in turn; the fill units they reached are appended to `units`, each once from `sum.units`'s
+/// start on.
+pub(crate) fn summed(
+    map: &mut MemoMap,
+    answers: impl Iterator<Item = MemoId>,
+    mut sum: AnswersSum,
+    units: &mut Vec<ChargedUnit>,
+) -> AnswersSum {
+    let mut waiting: Vec<MemoId> = Vec::new();
+    for first in answers {
+        waiting.push(first);
+        while let Some(answer) = waiting.pop() {
+            let place = usize::try_from(answer.0).unwrap_or(usize::MAX);
+            let Some(entry) = map.charges.get_mut(place) else {
+                continue;
+            };
+            if entry.summed == sum.mark {
+                continue;
+            }
+            entry.summed = sum.mark;
+            sum.work = InstructionCount(sum.work.0.saturating_add(entry.work.0));
+            sum.keys = InstructionCount(sum.keys.0.saturating_add(1));
+            let reached = entry.reached;
+            let asked = map
+                .reached
+                .get(reached.start.0..reached.start.0.saturating_add(reached.length.0))
+                .unwrap_or_default();
+            for unit in asked {
+                match unit {
+                    ChargedUnit::Answer(inner) => waiting.push(*inner),
+                    ChargedUnit::Fill(_) => {
+                        let known = units.get(sum.units.start.0..).unwrap_or_default();
+                        if !known.contains(unit) {
+                            units.push(*unit);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    sum.units.length = Count(units.len().saturating_sub(sum.units.start.0));
+    sum
 }

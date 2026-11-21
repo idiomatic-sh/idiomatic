@@ -98,7 +98,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
-            "definition 0: 3 columns, emptiness All([All([Unknown, Unknown]), Unknown])\n",
+            "definition 0: 3 columns, emptiness All([All([All([Unknown, Unknown]), Unknown]), Any([All([Row(SyntaxTree, Some(RowValue { column: SyntaxTree(Kind), value: CellWord(1) })), Row(SyntaxTree, Some(RowValue { column: SyntaxTree(Kind), value: CellWord(1) }))])])])\n",
             "  pattern bound [] collected []: Table 0\n",
             "table 0: Rows, 3 columns, indexes []\n",
             "  pipeline: Scan:File Read:Constant Probe:Fanout Read:Constant Probe:Fanout Read:Constant Keep:Constant Read:Constant\n",
@@ -122,7 +122,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
-            "definition 0: 5 columns, emptiness Any([Unknown, Unknown])\n",
+            "definition 0: 5 columns, emptiness All([Any([Unknown, Unknown]), Any([All([Row(SyntaxTree, Some(RowValue { column: SyntaxTree(Kind), value: CellWord(1) }))]), All([Row(SyntaxTree, Some(RowValue { column: SyntaxTree(Kind), value: CellWord(2) }))])])])\n",
             "  pattern bound [] collected []: Table 0\n",
             "table 0: Rows, 5 columns, indexes []\n",
             "  pipeline: Scan:File Read:Constant Read:Constant\n",
@@ -168,7 +168,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
-            "definition 0: 3 columns, emptiness Any([Any([Unknown, Unknown]), Unknown])\n",
+            "definition 0: 3 columns, emptiness All([Any([Any([Unknown, Unknown]), Unknown]), Any([All([Row(SyntaxTree, Some(RowValue { column: SyntaxTree(Kind), value: CellWord(1) }))]), All([Row(SyntaxTree, Some(RowValue { column: SyntaxTree(Kind), value: CellWord(2) }))]), All([Row(SyntaxTree, Some(RowValue { column: SyntaxTree(Kind), value: CellWord(3) }))])])])\n",
             "  pattern bound [] collected []: Table 0\n",
             "table 0: Rows, 3 columns, indexes []\n",
             "  pipeline: Scan:File\n",
@@ -194,7 +194,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
-            "definition 0: 4 columns, emptiness Any([Row(SyntaxChild, Some(RowValue { column: SyntaxChild(Field), value: CellWord(1) })), Row(SyntaxChild, Some(RowValue { column: SyntaxChild(Field), value: CellWord(2) }))])\n",
+            "definition 0: 4 columns, emptiness All([Any([Row(SyntaxChild, Some(RowValue { column: SyntaxChild(Field), value: CellWord(1) })), Row(SyntaxChild, Some(RowValue { column: SyntaxChild(Field), value: CellWord(2) }))]), Any([All([Row(SyntaxChild, Some(RowValue { column: SyntaxChild(Field), value: CellWord(1) }))]), All([Row(SyntaxChild, Some(RowValue { column: SyntaxChild(Field), value: CellWord(2) }))])])])\n",
             "  pattern bound [] collected []: Table 0\n",
             "table 0: Rows, 4 columns, indexes []\n",
             "  pipeline: Scan:File Read:Constant\n",
@@ -220,12 +220,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Cow::Borrowed(concat!(
             "definition 0: 5 columns, emptiness All([Unknown, Unknown])\n",
             "  pattern bound [] collected []: Table 0\n",
-            "  pattern bound [0, 1] collected [3]: Table 0\n",
-            "table 0: Rows, 5 columns, indexes [[0, 1]]\n",
+            "  pattern bound [1] collected []: Table 0\n",
+            "table 0: Rows, 5 columns, indexes [[1]]\n",
             "  pipeline: Scan:File Read:Constant Read:Constant Probe:Fanout Read:Constant\n",
             "rule 0: 1 branches\n",
-            "  branch: EachRow:File Read:Constant Or:Fanout Emit:Constant\n",
-            "codes: {\"EachRowMade\": 1, \"Emit\": 1, \"End\": 2, \"Or\": 1, \"ReadMade\": 1, \"StageProbe\": 1, \"StageRead\": 3, \"StageScan\": 1, \"StageWrite\": 1}",
+            "  branch: EachRow:File Read:Constant Read:Constant Test:Constant Exists:Fanout Read:Constant Emit:Constant\n",
+            "codes: {\"EachRowMade\": 1, \"Emit\": 1, \"End\": 2, \"Exists\": 1, \"ReadMade\": 3, \"StageProbe\": 1, \"StageRead\": 3, \"StageScan\": 1, \"StageWrite\": 1, \"Test\": 1}",
         ))),
     },
     Case {
@@ -242,7 +242,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Cow::Borrowed(concat!(
             "definition 0: 5 columns, emptiness All([Unknown, Unknown])\n",
             "  pattern bound [] collected []: Table 1\n",
-            "definition 1: 5 columns, emptiness Definition(DefinitionId(0))\n",
+            "definition 1: 5 columns, emptiness All([Definition(DefinitionId(0)), Any([All([Definition(DefinitionId(0))])])])\n",
             "  pattern bound [3] collected []: Table 0\n",
             "table 0: Rows, 5 columns, indexes [[3]]\n",
             "  pipeline: Scan:File Read:Constant Read:Constant Keep:Constant Read:Constant Read:Constant\n",
