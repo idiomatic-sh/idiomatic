@@ -149,10 +149,10 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value((1, 1)),
     },
     Case {
-        name: CaseName("any_holds_when_a_later_part_holds"),
+        name: CaseName("any_holds_by_the_part_that_costs_nothing_and_asks_no_relation"),
         word: Word::Succeeds,
         input: || Asked::Any(7),
-        expect: Expect::Value((1, 2)),
+        expect: Expect::Value((1, 1)),
     },
     Case {
         name: CaseName("a_site_asked_twice_is_walked_once"),

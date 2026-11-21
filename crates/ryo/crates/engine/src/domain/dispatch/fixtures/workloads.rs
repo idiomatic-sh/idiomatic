@@ -13,9 +13,9 @@ use crate::domain::lowered::types::{
 use crate::domain::made_tables::fixtures::packs::{of, operands, word};
 use crate::domain::programs::types::{Programs, ProgramsEngine};
 use crate::domain::steps::types::{
-    ColumnMask, DefinitionId, EmitTarget, MadeColumn, MadeTableId, PlacedStep, Polarity,
-    ProgramStep, ReadColumn, Register, RegisterCount, RegisterList, StepBody, StepMemo,
-    StepOperand, StepProgram, StepRows, TestOperation,
+    ColumnList, ColumnMask, DefinitionId, EmitTarget, MadeColumn, MadeTableId, MatchColumns,
+    PlacedStep, Polarity, ProgramStep, ReadColumn, Register, RegisterCount, RegisterList, StepBody,
+    StepMemo, StepOperand, StepProgram, StepRows, TestOperation,
 };
 use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::relations::types::CellKind;
@@ -52,6 +52,9 @@ pub enum LoopBench {
     CallMiss,
     /// Emits the row, once.
     Emit,
+    /// Reads the table by key, once: the rows whose cell is the row's own, which is one row. A read by key through the
+    /// seam, its cursor, and the candidate's end.
+    Match,
 }
 
 /// How many times a workload's rule runs its word for a row.
@@ -72,7 +75,7 @@ pub const COPIES: usize = 8;
 /// ```
 /// use ryo_engine::domain::dispatch::fixtures::workloads::LOOP_BENCHES;
 ///
-/// assert_eq!(LOOP_BENCHES.len(), 8);
+/// assert_eq!(LOOP_BENCHES.len(), 9);
 /// ```
 pub const LOOP_BENCHES: &[LoopBench] = &[
     LoopBench::Rows,
@@ -83,6 +86,7 @@ pub const LOOP_BENCHES: &[LoopBench] = &[
     LoopBench::CallHit,
     LoopBench::CallMiss,
     LoopBench::Emit,
+    LoopBench::Match,
 ];
 
 /// A workload's name in the bench's measures.
@@ -105,6 +109,7 @@ pub const fn loop_name(bench: LoopBench) -> &'static str {
         LoopBench::CallHit => "call_hit",
         LoopBench::CallMiss => "call_miss",
         LoopBench::Emit => "emit",
+        LoopBench::Match => "match",
     }
 }
 
@@ -153,7 +158,7 @@ pub fn loop_programs(bench: LoopBench, rows: usize) -> Option<Programs> {
         node: NodeDigest([90; 16]),
         fill: MadeFill::Constant(ConstantRows(cells.collect())),
         width: ColumnCount(1),
-        indexes: Vec::new(),
+        indexes: vec![ColumnList(Box::new([MadeColumn(0)]))],
         emptiness: Emptiness::Unknown,
     };
     let read = || ProgramStep::Read {
@@ -194,6 +199,18 @@ pub fn loop_programs(bench: LoopBench, rows: usize) -> Option<Programs> {
         LoopBench::ExistsInline => (several(&inline), 0),
         LoopBench::CallHit => (several(&|| asked(word(7))), 0),
         LoopBench::CallMiss => (vec![asked(of(0))], 0),
+        LoopBench::Match => (
+            vec![
+                read(),
+                ProgramStep::EachMatch {
+                    source: table,
+                    columns: MatchColumns(Box::new([ReadColumn::Made(MadeColumn(0))])),
+                    values: operands([of(1)]),
+                    out: Register(3),
+                },
+            ],
+            0,
+        ),
         LoopBench::Emit => (
             vec![ProgramStep::Emit {
                 target: EmitTarget::Rule(SelectedRuleOrdinal(0)),

@@ -132,6 +132,9 @@ pub(crate) struct LoopState {
     pub(crate) kept: Vec<BatchRow>,
     /// The room a walk of the tree writes what it reaches in, lent to the fill side's kernel.
     pub(crate) fan: FanRows,
+    /// The rule that last read each index site, by the site's number: a site the running rule read before in this file
+    /// needs neither its table's need nor its charge asked again.
+    pub(crate) site_reads: Vec<RuleStamp>,
     /// The body record of each word over one body (`Exists`, `Nearest`, `Closure`), by the word's place in the code:
     /// read from the pool once, when the worker's state is made for a rule set, and never per step. Kept for the
     /// worker's life.

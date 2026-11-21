@@ -9,9 +9,6 @@ use ryo_relations::domain::relations::types::Count;
 /// (scope-engine3 2.5 part 5).
 pub(crate) const ALLOWANCE: InstructionCount = InstructionCount(64);
 
-/// How many cells of a key are handed to the fill side from the stack: a longer key is copied to the heap, once per ask.
-pub(crate) const KEY_CELLS: usize = 8;
-
 /// The rows a relation that grows with the file's elements may hold for each element of the file, before the engine says
 /// it is oversized (scope-engine3 2.5 part 7b).
 pub(crate) const ROWS_PER_ELEMENT: Count = Count(16);
