@@ -224,9 +224,9 @@ fn kept(state: &OrderCompletion<'_>, test: TestOperation, terms: [&FlatTerm; 2])
         | TestOperation::NotGlob
         | TestOperation::StartsWith
         | TestOperation::EndsWith
-        | TestOperation::NumericAtLeast
+        | TestOperation::NumericAtLeast(_)
         | TestOperation::NaturalLess
-        | TestOperation::Successor => TEST_KEEPS,
+        | TestOperation::Successor(_) => TEST_KEEPS,
     }
 }
 

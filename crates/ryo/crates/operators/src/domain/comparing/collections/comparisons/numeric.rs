@@ -1,6 +1,6 @@
 //! One exact numeric comparison family.
 
-pub(crate) mod item;
+pub mod item;
 
 #[cfg(test)]
 mod item_test;

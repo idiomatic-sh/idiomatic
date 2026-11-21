@@ -161,11 +161,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
     Case {
         name: CaseName(
-            "a_test_of_a_text_the_kernel_does_not_run_is_counted_and_ends_the_candidate",
+            "a_numeric_test_of_texts_that_write_no_number_ends_the_candidate_and_is_not_counted_as_not_run",
         ),
         word: Word::Succeeds,
-        input: || (Asked::Registers(TestOperation::NumericAtLeast), 5, 5),
-        expect: Expect::Value((0, 1, 0)),
+        input: || (Asked::Registers(TestOperation::NumericAtLeast(crate::domain::steps::types::TEXTS)), 5, 5),
+        expect: Expect::Value((0, 0, 0)),
     },
     Case {
         name: CaseName("a_text_its_expression_matches_goes_on"),

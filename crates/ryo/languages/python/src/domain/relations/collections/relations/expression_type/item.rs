@@ -3,8 +3,8 @@ use crate::domain::file_view::types::{PythonFile, PythonWalk};
 use crate::domain::model::names::service::fixed_word;
 use crate::domain::model::names::types::FixedWords;
 use crate::domain::model::view::types::PartState;
-use crate::domain::node::service::{keyed_node, node_cell, span_at, typed_nodes};
-use crate::domain::node::types::{Numbered, SyntaxFile};
+use crate::domain::node::service::{keyed_place, node_cell, span_at, table_id};
+use crate::domain::node::types::SyntaxFile;
 use crate::domain::syntax::service::{category_of, kind_of};
 use crate::domain::type_facts::service::resolutions;
 use crate::domain::{
@@ -151,17 +151,20 @@ ryo::fills! {
         told_incomplete(file, rows);
         typed(file);
         let memo = &mut file.model.words.get_mut().fixed;
-        for (Numbered { id, .. }, found) in typed_nodes(&file.syntax).zip(file.buffers.types.iter()) {
+        for (place, found) in file.buffers.types.iter().enumerate() {
+            let place = languages::Position(u32::try_from(place).unwrap_or(u32::MAX));
+            let id = table_id(file.syntax.tree.segments, place);
             type_rows(&file.syntax, words, memo, id, found, rows);
         }
     }
     key(languages::Column::ExpressionType(languages::ExpressionTypeColumn::Id)) |file, words, key, rows| {
         told_incomplete(file, rows);
         typed(file);
-        let Some(id) = keyed_node(&file.syntax, key) else {
+        let Some(place) = keyed_place(file.syntax.file, file.syntax.tree, key) else {
             return;
         };
-        if let Some(found) = file.buffers.types.get(usize::from(id)) {
+        if let Some(found) = file.buffers.types.get(usize::from(place)) {
+            let id = table_id(file.syntax.tree.segments, place);
             type_rows(&file.syntax, words, &mut file.model.words.get_mut().fixed, id, found, rows);
         }
     }
