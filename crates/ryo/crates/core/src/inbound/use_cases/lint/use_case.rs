@@ -221,6 +221,13 @@ impl LintUseCase for LintUseCaseImpl {
         let first_bucket = first_buckets(&plans);
         let applicability: Vec<_> = rules.iter().map(|rule| rule.applicability).collect();
         let applicability_can_gate = gating_of(&applicability, &plans);
+        // The new engine alone answers from here: what follows (each plan's needs, what the manifests resolve to, each
+        // rule's digest and identity) is today's engine's and its store's, and a run that never reads it does not make it.
+        let scan = asked(&request, &rules, &ids, &placed, &answering, &listing);
+        let scanning = self.visits.scanning(scan, &plans, compiled.bindings())?;
+        if scanning.mode() == EngineMode::New {
+            return Ok(self.visits.answered(&scanning, &request.files)?.into());
+        }
         let needs: Vec<Needs> = plans
             .iter()
             .map(|plan| kernel_metadata().scoped_needs(plan))
@@ -257,11 +264,6 @@ impl LintUseCase for LintUseCaseImpl {
                 error,
             )
         };
-        let scan = asked(&request, &rules, &ids, &placed, &answering, &listing);
-        let scanning = self.visits.scanning(scan, &plans, compiled.bindings())?;
-        if scanning.mode() == EngineMode::New {
-            return Ok(self.visits.answered(&scanning, &request.files)?.into());
-        }
         let program = Arc::new(
             execution
                 .prepare(PrepareRequest {

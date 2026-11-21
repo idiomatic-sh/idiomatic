@@ -22,6 +22,7 @@ use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::plans::service::{each_input, inputs_of, named};
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::plans::types::PlanStep;
+use std::hash::{BuildHasherDefault, Hasher};
 
 /// The plan with each filter of a join placed on the join's inputs, and the filters of a union made on both its inputs: the join or
 /// the union combines only the rows the filter lets through. A filter of a join moves the comparisons of its infallible prefix
@@ -123,14 +124,62 @@ fn in_reading_order(steps: &[PlanStep]) -> bool {
     })
 }
 
+/// The hasher a repeated step is looked up by: a rotate, an exclusive or and a multiply a word. A hash only names the few
+/// steps a step is compared with in full, so any hasher gives the same plan; this one is several times cheaper than the
+/// standard library's keyed one, and every step of a plan is hashed once a pass.
+#[derive(Default)]
+struct StepHasher(u64);
+
+impl StepHasher {
+    fn add(&mut self, word: u64) {
+        self.0 = (self.0.rotate_left(5) ^ word).wrapping_mul(0x517c_c1b7_2722_0a95);
+    }
+}
+
+impl Hasher for StepHasher {
+    fn finish(&self) -> u64 {
+        self.0
+    }
+
+    fn write(&mut self, bytes: &[u8]) {
+        for chunk in bytes.chunks(8) {
+            let mut word = [0; 8];
+            for (slot, byte) in word.iter_mut().zip(chunk) {
+                *slot = *byte;
+            }
+            self.add(u64::from_le_bytes(word));
+        }
+    }
+
+    fn write_u8(&mut self, word: u8) {
+        self.add(u64::from(word));
+    }
+
+    fn write_u16(&mut self, word: u16) {
+        self.add(u64::from(word));
+    }
+
+    fn write_u32(&mut self, word: u32) {
+        self.add(u64::from(word));
+    }
+
+    fn write_u64(&mut self, word: u64) {
+        self.add(word);
+    }
+
+    fn write_usize(&mut self, word: usize) {
+        self.add(u64::try_from(word).unwrap_or(u64::MAX));
+    }
+}
+
 /// The plan with each step that repeats an earlier one (the same operation on the same inputs, made where it is) read from the
 /// earlier one instead, each filter that tests nothing and keeps every column read as the step it reads, and every later step and
 /// root renumbered: filters pushed down along paths that meet again make the same steps, and a step that only filters read is a
 /// step the next push may go below. A root is never merged into another step, so each stays its own step.
 fn without_repeats(steps: Vec<PlanStep>, roots: &mut [StepId]) -> Vec<PlanStep> {
     let mut made: Vec<PlanStep> = Vec::with_capacity(steps.len());
-    let mut seen: std::collections::HashMap<StepHash, Vec<StepId>> =
-        std::collections::HashMap::new();
+    let mut seen: std::collections::HashMap<StepHash, Vec<StepId>, BuildHasherDefault<StepHasher>> =
+        std::collections::HashMap::default();
     let mut moved: Vec<StepId> = Vec::with_capacity(steps.len());
     for (place, mut step) in steps.into_iter().enumerate() {
         each_input(&mut step.operation, &mut |input| {
@@ -158,9 +207,9 @@ fn without_repeats(steps: Vec<PlanStep>, roots: &mut [StepId]) -> Vec<PlanStep> 
             continue;
         }
         let key = {
-            let mut hasher = std::collections::hash_map::DefaultHasher::new();
+            let mut hasher = StepHasher::default();
             std::hash::Hash::hash(&step, &mut hasher);
-            StepHash(std::hash::Hasher::finish(&hasher))
+            StepHash(hasher.finish())
         };
         let earlier = seen.get(&key).and_then(|ids| {
             ids.iter()
