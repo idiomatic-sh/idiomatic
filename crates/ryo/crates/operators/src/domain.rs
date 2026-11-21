@@ -7,7 +7,7 @@ pub(crate) mod span_bounds;
 
 pub mod equality_join;
 
-pub(crate) mod aggregate;
+pub mod aggregate;
 pub mod capture;
 pub mod contract;
 pub mod distinct_rows;

@@ -24,6 +24,10 @@ A lowered pack written as code, every site and index numbered, with no count cut
 
 The rows a scan hands over, the work notices beside them, the frontier rows the project pass reads back, and what a scan counted.
 
+### indexes
+
+A worker's per-file indexes: the rows of a source grouped by every bound column as one key, built on first read and read by a key's cells.
+
 ### lowered
 
 A rule set as the lowering writes it: the pack's definitions and made tables once each, then each rule's own program, with the cost class of each fill.
@@ -31,6 +35,10 @@ A rule set as the lowering writes it: the pack's definitions and made tables onc
 ### lowering
 
 Turns the selected rules' plans into one lowered pack, and names each rule it refuses with the step that cannot be evaluated or the count that cannot be written.
+
+### made_tables
+
+The rows of the tables the engine makes for a file, the write that appends a batch to one, and the fills that group their gathered input.
 
 ### packs
 
@@ -47,6 +55,10 @@ The programs of a rule set, opaque outside the crate, and what the host reads of
 ### scratch
 
 A worker's per-file state, cleared per file and never freed.
+
+### stages
+
+The compiled loops a fill's pipeline runs over the columns of a batch, one for each kind of stage, none of which runs a step program.
 
 ### statistics
 

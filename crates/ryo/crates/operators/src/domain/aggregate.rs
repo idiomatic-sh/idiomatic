@@ -1,5 +1,5 @@
 //! Portable aggregate semantics.
-pub(crate) mod service;
+pub mod service;
 pub(crate) mod types;
 
 #[cfg(test)]

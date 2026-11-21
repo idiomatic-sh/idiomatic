@@ -5,11 +5,15 @@ pub mod counting;
 pub mod digests;
 pub mod encoding;
 pub mod findings;
+pub mod indexes;
 pub mod lowered;
 pub mod lowering;
+#[cfg(any(test, feature = "fixtures"))]
+pub mod made_tables;
 pub mod packs;
 pub mod passes;
 pub mod programs;
 pub mod scratch;
+pub mod stages;
 pub mod statistics;
 pub mod steps;
