@@ -43,6 +43,12 @@ pub fn counted(scratch: &ScanScratch) -> PointCounts {
             );
         }
     }
+    for (site, formula) in &measure.need_fills.formulas {
+        eprintln!("ryo x: need-formula site={site} {formula}");
+    }
+    for (trace, files) in &measure.need_fills.traces {
+        eprintln!("ryo x: need-trace files={files} {trace}");
+    }
     // A worker keeps a column per count, each as long as the programs have units; the statistics hold a row per unit.
     let columns = measure.calls.iter().zip(&measure.keys).zip(&measure.rows);
     let columns = columns.zip(&measure.build).zip(&measure.nanos);
