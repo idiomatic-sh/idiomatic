@@ -13,6 +13,7 @@ pub mod making;
 pub mod matching;
 pub mod operands;
 pub mod pipelines;
+pub mod placing;
 pub mod reading;
 pub mod service;
 pub mod sources;

@@ -239,7 +239,9 @@ fn fill_work(programs: &Programs, fill: FillTally) -> HeaviestWork {
         };
     }
     match kind {
-        Ok(FillKind::Count | FillKind::Ends) => HeaviestWork::Group { read, made },
+        Ok(FillKind::Count | FillKind::Ends | FillKind::Places) => {
+            HeaviestWork::Group { read, made }
+        }
         Ok(FillKind::Sorted) => HeaviestWork::Sorted { rows: made },
         Ok(FillKind::Rows | FillKind::Constant | FillKind::Match) | Err(_) => {
             HeaviestWork::Rows { read, made }

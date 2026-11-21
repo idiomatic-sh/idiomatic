@@ -44,6 +44,8 @@ pub enum FillBench {
     OrderedMatch,
     /// The rows at the greatest end of each key's rows, eight rows a key.
     GroupEnds,
+    /// Each row with its place among its key's rows, eight rows a key.
+    GroupPlaces,
     /// A rows fill with a `Product`: thirty-two rows each paired with every row of the relation, a read and a keep for
     /// each pair, one pair in each row's kept.
     Product,
@@ -61,6 +63,8 @@ pub enum FillBench {
     SeamCellOf,
     /// The same column held once (`column_held`) and every row read through it (`cell_held`).
     SeamColumnHeld,
+    /// The same column lent once as its cells (`view_of`) and every row read from them.
+    SeamViewOf,
     /// The index of the file's nodes by kind, built for a new file and asked for the tokens.
     IndexNodesKind,
     /// The same over a file whose elements change kind from one to the next, sixteen kinds in no order.
@@ -81,7 +85,7 @@ pub(crate) const PRODUCT_LEFT: usize = 32;
 /// ```
 /// use ryo_engine::domain::made_tables::fixtures::benches::kinds::FILL_BENCHES;
 ///
-/// assert_eq!(FILL_BENCHES.len(), 27);
+/// assert_eq!(FILL_BENCHES.len(), 29);
 /// ```
 pub const FILL_BENCHES: &[FillBench] = &[
     FillBench::RowsRead,
@@ -100,6 +104,7 @@ pub const FILL_BENCHES: &[FillBench] = &[
     FillBench::CallSourceMatches,
     FillBench::OrderedMatch,
     FillBench::GroupEnds,
+    FillBench::GroupPlaces,
     FillBench::Product,
     FillBench::RowsFile,
     FillBench::RowsFileDropped,
@@ -107,6 +112,7 @@ pub const FILL_BENCHES: &[FillBench] = &[
     FillBench::KeepGlobOwnWords,
     FillBench::SeamCellOf,
     FillBench::SeamColumnHeld,
+    FillBench::SeamViewOf,
     FillBench::IndexNodesKind,
     FillBench::IndexNodesKindMixed,
     FillBench::IndexNodesParent,
@@ -142,6 +148,7 @@ pub const fn fill_name(bench: FillBench) -> &'static str {
         FillBench::CallSourceMatches => "call_source_matches",
         FillBench::OrderedMatch => "ordered_match",
         FillBench::GroupEnds => "group_ends",
+        FillBench::GroupPlaces => "group_places",
         FillBench::Product => "product_pairs",
         FillBench::RowsFile => "rows_with_the_file",
         FillBench::RowsFileDropped => "rows_with_the_file_repeats_dropped",
@@ -149,6 +156,7 @@ pub const fn fill_name(bench: FillBench) -> &'static str {
         FillBench::KeepGlobOwnWords => "keep_glob_own_words",
         FillBench::SeamCellOf => "seam_cell_of",
         FillBench::SeamColumnHeld => "seam_column_held",
+        FillBench::SeamViewOf => "seam_view_of",
         FillBench::IndexNodesKind => "index_nodes_by_kind",
         FillBench::IndexNodesKindMixed => "index_nodes_by_kind_mixed",
         FillBench::IndexNodesParent => "index_nodes_by_parent",
@@ -196,12 +204,14 @@ pub const fn fill_units(bench: FillBench, rows: usize) -> usize {
         | FillBench::CallSourceMatches
         | FillBench::OrderedMatch
         | FillBench::GroupEnds
+        | FillBench::GroupPlaces
         | FillBench::RowsFile
         | FillBench::RowsFileDropped
         | FillBench::KeepGlobFewWords
         | FillBench::KeepGlobOwnWords
         | FillBench::SeamCellOf
         | FillBench::SeamColumnHeld
+        | FillBench::SeamViewOf
         | FillBench::IndexNodesKind
         | FillBench::IndexNodesKindMixed
         | FillBench::IndexNodesParent

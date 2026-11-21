@@ -172,6 +172,7 @@ mod held_columns;
 mod matches;
 mod node_indexes;
 mod pipelines;
+mod places;
 mod relations;
 mod sizes;
 mod sources;

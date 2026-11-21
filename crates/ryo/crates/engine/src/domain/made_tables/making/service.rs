@@ -305,7 +305,7 @@ fn filled_now(
             frame.store.inputs.push(gathered_right);
             done
         }
-        FillKind::Count | FillKind::Sorted | FillKind::Ends => {
+        FillKind::Count | FillKind::Sorted | FillKind::Ends | FillKind::Places => {
             let FillKept { work, reached } = kept;
             let input = input_at(programs.code, fill.inputs)?;
             let mut gathered = frame.store.inputs.pop().unwrap_or_default();

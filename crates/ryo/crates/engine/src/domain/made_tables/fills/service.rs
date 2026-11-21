@@ -1,5 +1,6 @@
 //! The services of the `fills` part: a table's fill read from the code, and the fills that are not a pipeline's write: a
-//! counted grouping and a sorted table over their gathered input, and a constant table's rows.
+//! counted grouping, a sorted table, a group's ends and a group's places over their gathered input, and a constant table's
+//! rows.
 //!
 //! The record is read here and nowhere else on the fill side. Its layout is the encoding's (`encoding/tables`): the width;
 //! the list of the table's index sites; one parameter; then for each input the list of its pipelines' entries, the list of
@@ -18,6 +19,7 @@ use crate::domain::lowered::service::fill_code;
 use crate::domain::lowered::types::{ConstantRows, FillInput, GroupFill, MadeFill, OrderedFill};
 use crate::domain::made_tables::columns::types::ColumnIs;
 use crate::domain::made_tables::operands::service::{constant_at, file_cell, operand};
+use crate::domain::made_tables::placing::service::place_groups;
 use crate::domain::made_tables::reading::service::pipeline_words;
 use crate::domain::made_tables::service::{
     count_groups, end_groups, file_columns, set_keys, sort_groups,
@@ -45,6 +47,7 @@ pub(crate) fn kind_of(code: FillCode) -> Result<FillKind, FilledError> {
     let count = MadeFill::Group(GroupFill::Count { distinct: None }, input());
     let sorted = MadeFill::Ordered(OrderedFill::Sorted(input()));
     let ends = MadeFill::Group(GroupFill::Ends(GroupEnd::Least), input());
+    let places = MadeFill::Group(GroupFill::Places, input());
     let matched = MadeFill::Ordered(OrderedFill::Match(input(), input()));
     let constant = MadeFill::Constant(ConstantRows(Vec::new()));
     if code == fill_code(&rows) {
@@ -55,6 +58,8 @@ pub(crate) fn kind_of(code: FillCode) -> Result<FillKind, FilledError> {
         Ok(FillKind::Sorted)
     } else if code == fill_code(&ends) {
         Ok(FillKind::Ends)
+    } else if code == fill_code(&places) {
+        Ok(FillKind::Places)
     } else if code == fill_code(&matched) {
         Ok(FillKind::Match)
     } else if code == fill_code(&constant) {
@@ -166,7 +171,8 @@ pub(crate) fn constant_rows(
 }
 
 /// The fills that group their gathered input: `Group(Count)` writes one row for each key, `Ordered(Sorted)` the input's
-/// rows with each key's together and ascending by the order column. The rows read and given are added to the work.
+/// rows with each key's together and ascending by the order column, `Group(Ends)` the rows at one end of each key's,
+/// `Group(Places)` each distinct row with its place in its key's order. The rows read and given are added to the work.
 ///
 /// # Errors
 ///
@@ -200,6 +206,7 @@ pub(crate) fn grouped_rows(
             };
             end_groups(gathered, read.order.ok_or(wrong)?, end, room, out);
         }
+        FillKind::Places => place_groups(gathered, read.order.ok_or(wrong)?, room, out),
         FillKind::Rows | FillKind::Match | FillKind::Constant => return Err(wrong),
     }
     work.read = Count(work.read.0.saturating_add(gathered.count.0));

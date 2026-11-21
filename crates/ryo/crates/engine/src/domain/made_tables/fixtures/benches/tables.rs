@@ -39,6 +39,7 @@ pub(crate) fn told_rows(bench: FillBench, rows: usize) -> Vec<[u64; 2]> {
             | FillBench::RowsFile
             | FillBench::SeamCellOf
             | FillBench::SeamColumnHeld
+            | FillBench::SeamViewOf
             | FillBench::Product => [
                 row.wrapping_mul(7919) % all,
                 row.wrapping_mul(104_729) % all,
@@ -49,7 +50,8 @@ pub(crate) fn told_rows(bench: FillBench, rows: usize) -> Vec<[u64; 2]> {
             | FillBench::UseRows
             | FillBench::OrderedMatch
             | FillBench::RowsFileDropped
-            | FillBench::GroupEnds => [row / GROUP_ROWS, row.wrapping_mul(31) % 43],
+            | FillBench::GroupEnds
+            | FillBench::GroupPlaces => [row / GROUP_ROWS, row.wrapping_mul(31) % 43],
             FillBench::WalkChildren
             | FillBench::WalkAncestors
             | FillBench::NodeKeep
@@ -133,7 +135,10 @@ pub(crate) fn bench_table(bench: FillBench) -> MadeTable {
     let tree = Relation::SemanticSyntax;
     let kept = |fill| table(1, 2, fill);
     match bench {
-        FillBench::RowsRead | FillBench::SeamCellOf | FillBench::SeamColumnHeld => rows(
+        FillBench::RowsRead
+        | FillBench::SeamCellOf
+        | FillBench::SeamColumnHeld
+        | FillBench::SeamViewOf => rows(
             2,
             pipeline(
                 vec![scan(0), read(FIRST, 0, 1), read(SECOND, 0, 2)],
@@ -251,6 +256,11 @@ pub(crate) fn bench_table(bench: FillBench) -> MadeTable {
                 grouped(Some(MadeColumn(1))),
                 grouped(Some(MadeColumn(1))),
             )),
+        ),
+        FillBench::GroupPlaces => table(
+            1,
+            3,
+            MadeFill::Group(GroupFill::Places, grouped(Some(MadeColumn(1)))),
         ),
         FillBench::GroupEnds => kept(MadeFill::Group(
             GroupFill::Ends(GroupEnd::Greatest),
