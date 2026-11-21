@@ -117,12 +117,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
             "definition 0: 5 columns, emptiness All([Unknown, Unknown])\n",
-            "  pattern bound [1] collected []: Call: EachMatch:Fanout EachMatch:Fanout Yield:Constant\n",
+            "  pattern bound [1] collected []: Call: EachMatch:Fanout Exists:Constant Yield:Constant\n",
             "rule 0: 1 branches\n",
             "  branch: EachRow:File Exists:Fanout Read:Constant Read:Constant Read:Constant Emit:Constant\n",
             "rule 1: 1 branches\n",
             "  branch: EachRow:File Exists:Fanout Read:Constant Read:Constant Read:Constant Emit:Constant\n",
-            "codes: {\"EachMatchNode\": 2, \"EachRowNode\": 2, \"Emit\": 2, \"End\": 4, \"Exists\": 2, \"ReadNode\": 6, \"Yield\": 1}",
+            "codes: {\"EachMatchNode\": 2, \"EachRowNode\": 2, \"Emit\": 2, \"End\": 5, \"Exists\": 3, \"ReadNode\": 6, \"Yield\": 2}",
         ))),
     },
     Case {
@@ -140,9 +140,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "table 1: Rows, 5 columns, indexes [[3]]\n",
             "  pipeline: Scan:File Read:Constant Read:Constant Probe:Fanout Read:Constant\n",
             "rule 0: 2 branches\n",
-            "  branch: EachRow:File Read:Constant Read:Constant EachMatch:Fanout Emit:Constant\n",
+            "  branch: EachRow:File Read:Constant Exists:Constant Read:Constant Emit:Constant\n",
             "  branch: Or:Fanout Let:Constant EachMatch:Fanout Emit:Constant\n",
-            "codes: {\"EachMatchMade\": 2, \"EachRowMade\": 1, \"Emit\": 2, \"End\": 3, \"Let\": 1, \"Or\": 1, \"ReadMade\": 2, \"StageProbe\": 1, \"StageRead\": 7, \"StageScan\": 2, \"StageWrite\": 2}",
+            "codes: {\"EachMatchMade\": 2, \"EachRowMade\": 1, \"Emit\": 2, \"End\": 4, \"Exists\": 1, \"Let\": 1, \"Or\": 1, \"ReadMade\": 2, \"StageProbe\": 1, \"StageRead\": 7, \"StageScan\": 2, \"StageWrite\": 2, \"Yield\": 1}",
         ))),
     },
     Case {

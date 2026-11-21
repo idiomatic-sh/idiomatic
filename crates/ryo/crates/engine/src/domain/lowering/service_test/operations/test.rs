@@ -22,18 +22,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Cow::Borrowed(concat!(
             "definition 0: 2 columns, emptiness All([Unknown, Unknown])\n",
             "  pattern bound [] collected []: Table 1\n",
-            "  pattern bound [0] collected []: Call: EachMatch:Fanout EachMatch:Fanout Yield:Constant\n",
-            "  pattern bound [0] collected [1]: Call: EachMatch:Fanout EachMatch:Fanout Let:Constant Yield:Constant\n",
+            "  pattern bound [0] collected []: Call: EachMatch:Fanout Exists:Constant Yield:Constant\n",
+            "  pattern bound [0] collected [1]: Call: EachMatch:Fanout Exists:Constant Let:Constant Yield:Constant\n",
             "definition 1: 2 columns, emptiness All([Definition(DefinitionId(0)), Any([All([Definition(DefinitionId(0))])])])\n",
             "  pattern bound [] collected []: Table 0\n",
             "  pattern bound [0] collected [1]: Call: Exists:Fanout Closure:Fanout Let:Constant Yield:Constant\n",
             "table 0: Rows, 2 columns, indexes []\n",
             "  pipeline: Scan:File Read:Constant Use:Fanout\n",
             "table 1: Rows, 2 columns, indexes []\n",
-            "  pipeline: Scan:File Read:Constant Probe:Fanout\n",
+            "  pipeline: Scan:File Probe:Fanout Read:Constant\n",
             "rule 0: 1 branches\n",
             "  branch: EachRow:File Read:Constant Read:Constant Emit:Constant\n",
-            "codes: {\"Closure\": 1, \"EachMatchNode\": 4, \"EachRowMade\": 1, \"Emit\": 1, \"End\": 5, \"Exists\": 1, \"Let\": 2, \"ReadMade\": 2, \"StageProbe\": 1, \"StageRead\": 2, \"StageScan\": 2, \"StageUse\": 1, \"StageWrite\": 2, \"Yield\": 3}",
+            "codes: {\"Closure\": 1, \"EachMatchNode\": 4, \"EachRowMade\": 1, \"Emit\": 1, \"End\": 7, \"Exists\": 3, \"Let\": 2, \"ReadMade\": 2, \"StageProbe\": 1, \"StageRead\": 2, \"StageScan\": 2, \"StageUse\": 1, \"StageWrite\": 2, \"Yield\": 5}",
         ))),
     },
     Case {
@@ -158,7 +158,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "  pattern bound [1] collected [0]: Call: EachMatch:Fanout Read:Constant Let:Constant Yield:Constant\n",
             "definition 2: 6 columns, emptiness All([All([Definition(DefinitionId(0)), Unknown, Definition(DefinitionId(0))]), Any([All([Definition(DefinitionId(0))])])])\n",
             "  pattern bound [] collected []: Table 0\n",
-            "  pattern bound [0] collected [5]: Call: Nearest:Fanout Exists:Fanout Let:Constant Yield:Constant\n",
+            "  pattern bound [0] collected [5]: Call: Exists:Fanout Nearest:Fanout Let:Constant Yield:Constant\n",
             "table 0: Rows, 6 columns, indexes []\n",
             "  pipeline: Scan:File Read:Constant Read:Constant Read:Constant Read:Constant Use:Fanout\n",
             "table 1: Rows, 5 columns, indexes []\n",
@@ -174,8 +174,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || (&["the words' spans through a view"], SampleStage::Absent),
         expect: Expect::Value(Cow::Borrowed(concat!(
             "rule 0: 1 branches\n",
-            "  branch: EachRow:File Read:Constant EachMatch:Fanout EachMatch:Fanout Read:Constant Emit:Constant\n",
-            "codes: {\"EachMatchNode\": 2, \"EachRowNode\": 1, \"Emit\": 1, \"End\": 2, \"ReadNode\": 2}",
+            "  branch: EachRow:File Exists:Constant Read:Constant EachMatch:Fanout Read:Constant Emit:Constant\n",
+            "codes: {\"EachMatchNode\": 2, \"EachRowNode\": 1, \"Emit\": 1, \"End\": 3, \"Exists\": 1, \"ReadNode\": 2, \"Yield\": 1}",
         ))),
     },
     Case {
@@ -184,8 +184,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || (&["the parents through a view"], SampleStage::Absent),
         expect: Expect::Value(Cow::Borrowed(concat!(
             "rule 0: 1 branches\n",
-            "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Axis:Constant EachMatch:Fanout Emit:Constant\n",
-            "codes: {\"Axis\": 1, \"EachMatchNode\": 1, \"EachRowNode\": 1, \"Emit\": 1, \"End\": 2, \"ReadNode\": 3}",
+            "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Axis:Constant Exists:Constant Emit:Constant\n",
+            "codes: {\"Axis\": 1, \"EachMatchNode\": 1, \"EachRowNode\": 1, \"Emit\": 1, \"End\": 3, \"Exists\": 1, \"ReadNode\": 3, \"Yield\": 1}",
         ))),
     },
     Case {
