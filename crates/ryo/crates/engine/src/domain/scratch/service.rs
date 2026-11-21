@@ -19,6 +19,7 @@ pub(crate) fn next_file(scratch: &mut ScanScratch) {
     state.staged.clear();
     state.key.clear();
     state.needs.clear();
+    state.need_terms.asked.fill(0);
     state.rows = SeamRows::default();
     state.answer = BodyAnswer::default();
     state.fault = None;

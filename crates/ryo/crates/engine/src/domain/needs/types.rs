@@ -37,11 +37,17 @@ pub(crate) trait NeedFacts {
     /// Whether the table, made now when its own need holds, has a row.
     fn table_row(&mut self, table: MadeTableId) -> NeedVerdict;
 
-    /// What the terms of a site that cost nothing say of it before its formula is walked: `Empty` when they leave it
-    /// no way to hold in the file; `Holds` when they do not say (the walk decides). Says nothing unless the engine
-    /// keeps the masks of its needs.
-    fn free_terms(&mut self, _site: NeedSite) -> NeedVerdict {
-        NeedVerdict::Holds
+    /// What the terms of a site say of it before its formula is walked, when the engine keeps the masks of its needs:
+    /// `Empty` when they leave it no way to hold in the file, `Holds` when they are its whole formula and hold. None:
+    /// the walk decides.
+    fn masked(&mut self, _site: NeedSite) -> Option<NeedVerdict> {
+        None
+    }
+
+    /// The file's answer to the record at a place, when the record is a term the engine keeps the answer of. None:
+    /// the walk asks the record's own leaf.
+    fn leaf(&mut self, _at: WordSlot) -> Option<NeedVerdict> {
+        None
     }
 
     /// Whether deciding the record at a place may cost a fill, whatever the file, when the engine keeps that: `Holds`

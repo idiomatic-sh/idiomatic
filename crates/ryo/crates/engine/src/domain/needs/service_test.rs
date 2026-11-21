@@ -79,6 +79,9 @@ enum Asked {
     Any(u32),
     /// Another site's decision, which is a row of the relation; asked twice.
     SiteTwice(u32),
+    /// Some one of: (that site's decision and a row of a relation that has none), or that site's decision alone. The
+    /// site is decided inside the first part, which costs a fill; from then on it costs nothing.
+    KeptInside(u32),
 }
 
 type Input = Asked;
@@ -166,6 +169,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || Asked::SiteTwice(7),
         expect: Expect::Value((0, 1)),
     },
+    Case {
+        name: CaseName("a_part_that_cost_a_fill_and_then_nothing_is_still_asked"),
+        word: Word::Succeeds,
+        input: || Asked::KeptInside(1),
+        expect: Expect::Value((1, 2)),
+    },
 ];
 
 /// A row record of a relation with no value.
@@ -226,6 +235,30 @@ fn subject(asked: Input) -> Result<Value, Failure> {
             let other = push_need(&mut code.needs, row(relation));
             code.needs[1] = other;
             push_need(&mut code.needs, NeedRecord::Site(NeedSite(1)))
+        }
+        Asked::KeptInside(relation) => {
+            let other = push_need(&mut code.needs, row(relation));
+            code.needs[1] = other;
+            let site = push_need(&mut code.needs, NeedRecord::Site(NeedSite(1)));
+            let absent = push_need(&mut code.needs, row(7));
+            let both = push_need(
+                &mut code.needs,
+                NeedRecord::All {
+                    parts: WordSlot(2),
+                    offsets: WordSlot(0),
+                },
+            );
+            code.needs.extend([site, absent]);
+            let again = push_need(&mut code.needs, NeedRecord::Site(NeedSite(1)));
+            let at = push_need(
+                &mut code.needs,
+                NeedRecord::Any {
+                    parts: WordSlot(2),
+                    offsets: WordSlot(0),
+                },
+            );
+            code.needs.extend([both, again]);
+            at
         }
     };
     code.needs[0] = place;

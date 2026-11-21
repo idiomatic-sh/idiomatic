@@ -12,8 +12,8 @@ use crate::domain::indexes::reading::service::cell_at;
 use crate::domain::made_tables::reading::service::view_of;
 use crate::domain::made_tables::sources::service::{made, scanned, table_of};
 use crate::domain::made_tables::types::ReadSource;
-use crate::domain::needs::masks::service::{clauses_back, clauses_taken};
-use crate::domain::needs::masks::types::{FreeTerm, RecordCost, TermNumber};
+use crate::domain::needs::masks::service::site_masks;
+use crate::domain::needs::masks::types::{MaskExact, NeedTerm, RecordCost, Stretch, TermNumber};
 use crate::domain::needs::types::{NeedFacts, NeedVerdict};
 use crate::domain::programs::frames::types::StepFrame;
 use crate::domain::programs::operands::service::constant;
@@ -83,29 +83,51 @@ impl NeedFacts for FileNeeds<'_, '_, '_> {
         verdict
     }
 
-    fn free_terms(&mut self, site: NeedSite) -> NeedVerdict {
+    fn masked(&mut self, site: NeedSite) -> Option<NeedVerdict> {
         let code = self.0.fill.programs.code;
-        let clauses = clauses_taken(code, site, &mut self.0.state.need_masks);
+        let (clauses, exact) = site_masks(code, site, &mut self.0.state.need_masks);
         // Every clause needs one of its terms in the file: the first clause that has none decides.
-        let mut verdict = NeedVerdict::Holds;
-        for clause in &clauses {
+        for number in clauses.start.0..clauses.start.0.saturating_add(clauses.count.0) {
+            let clause = self.0.state.need_masks.clauses.get(number).copied()?;
             let mut some = false;
-            for term in clause {
-                if self.term_holds(*term) == NeedVerdict::Holds {
+            for at in clause.start.0..clause.start.0.saturating_add(clause.count.0) {
+                let term = self.0.state.need_masks.clause_terms.get(at).copied()?;
+                if self.term_holds(term) == NeedVerdict::Holds {
                     some = true;
                     break;
                 }
             }
             if !some {
-                verdict = NeedVerdict::Empty;
-                break;
+                if self.0.state.measure.is_some() {
+                    let named = self.clause_named(clause);
+                    need_leaf(self.0.state, || format!("none-of({named})=Empty"));
+                }
+                return Some(NeedVerdict::Empty);
             }
         }
-        clauses_back(site, clauses, &mut self.0.state.need_masks);
-        if verdict == NeedVerdict::Empty && self.0.state.measure.is_some() {
-            need_leaf(self.0.state, || "free-terms=Empty".to_owned());
+        match exact {
+            MaskExact::Whole => {
+                if self.0.state.measure.is_some() {
+                    need_leaf(self.0.state, || "terms=Holds".to_owned());
+                }
+                Some(NeedVerdict::Holds)
+            }
+            MaskExact::Part => None,
         }
-        verdict
+    }
+
+    fn leaf(&mut self, at: WordSlot) -> Option<NeedVerdict> {
+        // A measuring worker traces each leaf by name: the walk asks it.
+        if self.0.state.measure.is_some() {
+            return None;
+        }
+        let leaves = &self.0.state.need_masks.leaves;
+        let number = leaves
+            .get(usize::try_from(at.0).unwrap_or(usize::MAX))
+            .copied()
+            .unwrap_or(0)
+            .checked_sub(1)?;
+        Some(self.term_holds(TermNumber(number)))
     }
 
     fn record_cost(&self, at: WordSlot) -> Option<NeedVerdict> {
@@ -132,41 +154,72 @@ impl NeedFacts for FileNeeds<'_, '_, '_> {
 }
 
 impl FileNeeds<'_, '_, '_> {
-    /// Whether a free term of the rule set's needs holds in the file: asked of the node table's sets the first time
-    /// in a file, read after.
-    fn term_holds(&mut self, term: TermNumber) -> NeedVerdict {
-        const ASKED: u8 = 1;
-        const HOLDS: u8 = 2;
-        let frame = &mut *self.0;
-        let place = usize::try_from(term.0).unwrap_or(usize::MAX);
-        let stamp = Count(usize::try_from(frame.fill.store.stamp.0).unwrap_or(usize::MAX));
-        let answers = &mut frame.state.need_terms;
-        if answers.file != stamp {
-            answers.file = stamp;
-            answers.bits.clear();
-        }
-        if answers.bits.len() <= place {
-            answers.bits.resize(
-                frame
-                    .state
-                    .need_masks
+    /// SPIKE: the terms of a clause by name, for a measuring worker's trace.
+    fn clause_named(&self, clause: Stretch) -> String {
+        let masks = &self.0.state.need_masks;
+        let terms = masks
+            .clause_terms
+            .get(clause.start.0..clause.start.0.saturating_add(clause.count.0))
+            .unwrap_or_default();
+        let code = self.0.fill.programs.code;
+        let named: Vec<String> = terms
+            .iter()
+            .filter_map(|term| {
+                masks
                     .terms
-                    .len()
-                    .max(place.saturating_add(1)),
-                0,
-            );
+                    .get(usize::try_from(term.0).unwrap_or(usize::MAX))
+            })
+            .map(|term| match *term {
+                NeedTerm::Kinds(list) => {
+                    let from = usize::try_from(list.0).unwrap_or(usize::MAX);
+                    let length = code
+                        .pool
+                        .get(from)
+                        .map_or(0, |held| usize::try_from(held.0).unwrap_or(0));
+                    let kinds = code
+                        .pool
+                        .get(from.saturating_add(1)..from.saturating_add(1).saturating_add(length))
+                        .unwrap_or_default();
+                    let each: Vec<String> = kinds
+                        .iter()
+                        .map(|kind| {
+                            kind_named(self.0, KindBits(u16::try_from(kind.0).unwrap_or(u16::MAX)))
+                        })
+                        .collect();
+                    each.join("|")
+                }
+                NeedTerm::Row {
+                    relation,
+                    column,
+                    constant,
+                } => row_named(self.0, relation, column, constant),
+            })
+            .collect();
+        named.join(" ")
+    }
+
+    /// Whether a term of the rule set's needs holds in the file: asked the first time in a file (of the node table's
+    /// sets, or of a relation the language fills now), read after.
+    fn term_holds(&mut self, term: TermNumber) -> NeedVerdict {
+        let place = usize::try_from(term.0).unwrap_or(usize::MAX);
+        let (word, bit) = (place / 64, 1_u64 << (place % 64));
+        let answers = &mut self.0.state.need_terms;
+        if answers.asked.len() <= word {
+            answers.asked.resize(word.saturating_add(1), 0);
+            answers.holds.resize(word.saturating_add(1), 0);
         }
-        let held = frame.state.need_terms.bits.get(place).copied().unwrap_or(0);
-        if held & ASKED != 0 {
-            return if held & HOLDS != 0 {
+        if let (Some(asked), Some(holds)) = (answers.asked.get(word), answers.holds.get(word))
+            && asked & bit != 0
+        {
+            return if holds & bit != 0 {
                 NeedVerdict::Holds
             } else {
                 NeedVerdict::Empty
             };
         }
-        let verdict = match frame.state.need_masks.terms.get(place).copied() {
-            Some(FreeTerm::Kinds(list)) => {
-                let code = frame.fill.programs.code;
+        let verdict = match self.0.state.need_masks.terms.get(place).copied() {
+            Some(NeedTerm::Kinds(list)) => {
+                let code = self.0.fill.programs.code;
                 let from = usize::try_from(list.0).unwrap_or(usize::MAX);
                 let length = code
                     .pool
@@ -176,12 +229,12 @@ impl FileNeeds<'_, '_, '_> {
                     .pool
                     .get(from.saturating_add(1)..from.saturating_add(1).saturating_add(length))
                     .unwrap_or_default();
-                let present = kinds_present(frame.fill.nodes);
+                let present = kinds_present(self.0.fill.nodes);
                 let any = kinds.iter().any(|kind| {
                     present
                         .0
                         .get(usize::try_from(kind.0 / 64).unwrap_or(usize::MAX))
-                        .is_some_and(|word| (word.0 >> (kind.0 % 64)) & 1 == 1)
+                        .is_some_and(|held| (held.0 >> (kind.0 % 64)) & 1 == 1)
                 });
                 if any {
                     NeedVerdict::Holds
@@ -189,19 +242,23 @@ impl FileNeeds<'_, '_, '_> {
                     NeedVerdict::Empty
                 }
             }
-            Some(FreeTerm::NodeRow {
+            Some(NeedTerm::Row {
                 relation,
                 column,
                 constant,
-            }) => node_row(frame, relation, column, constant).unwrap_or(NeedVerdict::Holds),
+            }) => self.relation_decided(relation, column, constant),
             None => NeedVerdict::Holds,
         };
-        if let Some(slot) = frame.state.need_terms.bits.get_mut(place) {
-            *slot = if verdict == NeedVerdict::Holds {
-                ASKED | HOLDS
+        let answers = &mut self.0.state.need_terms;
+        if let (Some(asked), Some(holds)) =
+            (answers.asked.get_mut(word), answers.holds.get_mut(word))
+        {
+            *asked |= bit;
+            if verdict == NeedVerdict::Holds {
+                *holds |= bit;
             } else {
-                ASKED
-            };
+                *holds &= !bit;
+            }
         }
         verdict
     }

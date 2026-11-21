@@ -92,6 +92,18 @@ pub(crate) fn row_named(
     )
 }
 
+/// SPIKE: how deep a traced formula is printed: 6, or what `RYO_X_NEED_DEPTH` says (a measuring worker alone reads it,
+/// once), to see what a nested site holds when one rule is traced.
+fn need_depth() -> usize {
+    static DEPTH: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
+    *DEPTH.get_or_init(|| {
+        std::env::var("RYO_X_NEED_DEPTH")
+            .ok()
+            .and_then(|text| text.parse().ok())
+            .unwrap_or(6)
+    })
+}
+
 /// SPIKE: the formula at a place among the needs, as text, to a depth.
 fn formula_named(frame: &StepFrame<'_, '_>, at: WordSlot, depth: usize) -> String {
     let code = frame.fill.programs.code;
@@ -103,7 +115,9 @@ fn formula_named(frame: &StepFrame<'_, '_>, at: WordSlot, depth: usize) -> Strin
     let parts = |count: WordSlot, offsets: WordSlot| -> String {
         let each: Vec<String> = (0..count.0)
             .map(|number| match slot_at(offsets, number) {
-                Some(place) if depth < 6 => formula_named(frame, place, depth.saturating_add(1)),
+                Some(place) if depth < need_depth() => {
+                    formula_named(frame, place, depth.saturating_add(1))
+                }
                 Some(_) | None => "...".to_owned(),
             })
             .collect();
@@ -133,7 +147,7 @@ fn formula_named(frame: &StepFrame<'_, '_>, at: WordSlot, depth: usize) -> Strin
             constant,
         }) => row_named(frame, relation, column, constant),
         Some(NeedRecord::Site(site)) => match slot_at(WordSlot(site.0), 0) {
-            Some(place) if depth < 6 => {
+            Some(place) if depth < need_depth() => {
                 format!(
                     "site:{}{{{}}}",
                     site.0,
