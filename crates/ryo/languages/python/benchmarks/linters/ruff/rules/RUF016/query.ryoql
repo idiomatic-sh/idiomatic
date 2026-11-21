@@ -12,7 +12,7 @@ let valid_values_b = select l.subscript as subscript, l.file as file from subscr
 let valid_values = union(left=valid_values_a,right=valid_values_b);
 let checked_subscripts = select l.subscript as subscript, l.file as file, l.index as index from subscript_slices as l join valid_values as r on l.subscript = r.subscript and l.file = r.file;
 let invalid_simple_literals = select id, file from "literal-properties" where kind != "integer" and kind != "boolean";
-let checked_nodes = select id, file, kind from "semantic-syntax" where kind = "list" or kind = "list-comp" or kind = "tuple" or kind = "joined-str" or kind = "template-str" or kind = "dict" or kind = "dict-comp" or kind = "set" or kind = "set-comp" or kind = "slice" or kind = "generator-exp" or kind = "lambda";
+let checked_nodes = select id, file, kind from "semantic-syntax" where kind in ["list", "list-comp", "tuple", "joined-str", "template-str", "dict", "dict-comp", "set", "set-comp", "slice", "generator-exp", "lambda"];
 let invalid_simple_a = select l.index as id, l.file as file from checked_subscripts as l join invalid_simple_literals as r on l.index = r.id and l.file = r.file;
 let invalid_simple_b = select l.index as id, l.file as file from checked_subscripts as l join checked_nodes as r on l.index = r.id and l.file = r.file where r.kind != "slice";
 let invalid_simple = union(left=invalid_simple_a,right=invalid_simple_b);

@@ -24,6 +24,8 @@ macro_rules! binding_resolution {
         scope File,
         notes Unneeded,
         form Filled(Many(Reference)),
+        size PerElement,
+        keys [],
         columns {
         /// Read or deletion occurrence (a binding-event of kind read or delete).
         reference Reference: NodeId => Node;

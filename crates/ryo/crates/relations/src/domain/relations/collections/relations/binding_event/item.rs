@@ -24,6 +24,8 @@ macro_rules! binding_event {
         scope File,
         notes Unneeded,
         form Filled(Many(Occurrence)),
+        size PerElement,
+        keys [],
         columns {
         /// Real syntax occurrence; declaration events reuse defines.id and cleanup uses its handler.
         occurrence Occurrence: NodeId => Node;

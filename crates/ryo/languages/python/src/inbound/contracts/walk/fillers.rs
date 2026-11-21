@@ -1,10 +1,13 @@
 //! The fillers of the `walk` contract: for every relation of ryo's catalog the engine fills, how Python fills it from a walked
-//! file (its `fills!` item, or the semantic model's filler), or that it is not in the language, with the cause.
+//! file (its `fills!` item, or the semantic model's filler), or that it is not in the language, with the cause; and the names
+//! Python states for the whole run. No filler has a body for a key yet: asked for one, each writes the whole relation and says so.
 
 use crate::domain::file_view::types::{PythonFile, PythonWalk};
+use crate::domain::labels::service::{field_name, fields};
+use crate::domain::syntax::service::{kind_name, kinds};
 use ryo::languages::{
-    self, AbsenceCause, CatalogRelation, FileWords, Fill, Fillers, RenderOutcome, RenderRequest,
-    Rows, fillers,
+    self, AbsenceCause, CatalogRelation, FieldNames, FileWords, Fill, FillExtent, Fillers,
+    FixedNames, RenderOutcome, RenderRequest, Rows, WalkKinds, WalkVocabulary, Wanted, fillers,
 };
 
 /// The filler of each relation a `fills!` item writes: the item's run.
@@ -14,24 +17,30 @@ macro_rules! written {
             fn $module(
                 file: &mut PythonFile<'_>,
                 words: &mut FileWords,
+                wanted: Wanted,
                 rows: &mut dyn Rows<<languages::$relation as CatalogRelation>::Row>,
             ) -> Fill {
-                fillers::filled::<$item>(file, words, rows)
+                fillers::filled::<$item>(file, words, wanted, rows)
             }
         )*
     };
 }
 
-/// The filler of each relation the semantic model answers: the model's own filler.
+/// The filler of each relation the semantic model answers: the model's own filler, which writes every row. Asked for a key, it
+/// has written the whole relation, and says so.
 macro_rules! modelled {
     ($( $module:ident: $relation:ident => $filler:path; )*) => {
         $(
             fn $module(
                 file: &mut PythonFile<'_>,
                 words: &mut FileWords,
+                wanted: Wanted,
                 rows: &mut dyn Rows<<languages::$relation as CatalogRelation>::Row>,
             ) -> Fill {
-                $filler(file, words, rows)
+                match ($filler(file, words, rows), wanted) {
+                    (Fill::Written(_), Wanted::Key(_, _)) => Fill::Written(FillExtent::Whole),
+                    (fill, _) => fill,
+                }
             }
         )*
     };
@@ -44,6 +53,7 @@ macro_rules! absent {
             fn $module(
                 _file: &mut PythonFile<'_>,
                 _words: &mut FileWords,
+                _wanted: Wanted,
                 _rows: &mut dyn Rows<<languages::$relation as CatalogRelation>::Row>,
             ) -> Fill {
                 Fill::Absent(AbsenceCause::$cause)
@@ -143,5 +153,15 @@ impl<P: Send + Sync + 'static> Fillers for PythonWalk<P> {
 
     fn render(_file: &mut PythonFile<'_>, _request: RenderRequest) -> RenderOutcome {
         RenderOutcome::NotApplicable
+    }
+
+    /// Python's names for the run: every kind at its code and every field at its code, as the walk writes them into the node
+    /// table. It states no fixed name yet: its fillers intern their fixed words once for each file.
+    fn vocabulary() -> WalkVocabulary {
+        WalkVocabulary {
+            kinds: WalkKinds(kinds().map(kind_name).collect()),
+            fields: FieldNames(fields().map(field_name).collect()),
+            fixed: FixedNames::default(),
+        }
     }
 }

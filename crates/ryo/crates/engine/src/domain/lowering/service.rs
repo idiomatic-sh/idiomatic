@@ -8,10 +8,11 @@ use crate::domain::statistics::types::Statistics;
 use ryo_values::domain::descriptions::types::KindVocabulary;
 
 /// The pack of the rules the lowering accepts, and each rule it refuses with the step it cannot evaluate or the count it cannot
-/// write. No rule is refused for what it costs or for how large it is.
+/// write. No rule is refused for what it costs or for how large it is. `statistics` is none for a load given none: every flip
+/// candidate then takes its call form; given those of a first sample, each takes its table form.
 pub(crate) fn lowered(
     rules: SelectedRules<'_>,
-    statistics: &Statistics,
+    statistics: Option<&Statistics>,
     kinds: &KindVocabulary,
 ) -> LoweredRules {
     let _ = (statistics, kinds);

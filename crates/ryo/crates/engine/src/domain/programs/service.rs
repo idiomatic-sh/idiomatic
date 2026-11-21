@@ -1,10 +1,12 @@
 //! The `programs` service: what the host reads of a rule set's programs.
 
 use super::types::Programs;
+use crate::domain::code::types::UnitKey;
 use crate::domain::findings::types::RuleColumns;
 use crate::domain::scratch::types::{ScanScratch, ScratchEngine};
 use ryo_language::domain::facts::service::file_words;
 use ryo_language::inbound::use_cases::walk::types::RelationNeeds;
+use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 
 /// The relations some program of the rule set reads: what the host hands every walk, so a language builds only what is read.
@@ -91,4 +93,22 @@ pub fn scratch_for(programs: &Programs) -> ScanScratch {
 #[must_use]
 pub fn scratch_measuring(programs: &Programs) -> ScanScratch {
     scratch_for(programs)
+}
+
+/// The step of `rule`'s own plan whose rows the unit named `unit` makes: what a work notice names (`WorkNotice.step`). A unit
+/// is named by a merged node, shared by every rule that reaches it; the step is the first of the rule's plan with that node.
+/// A unit whose node is no step of the rule's plan (a cut that is one side of a step) answers the step the rule emits; a rule
+/// these programs do not run, which has no notice, answers the first step.
+#[must_use]
+pub(crate) fn unit_step(programs: &Programs, rule: SelectedRuleOrdinal, unit: &UnitKey) -> StepId {
+    let (UnitKey::Pattern(node, ..) | UnitKey::Rule(node) | UnitKey::Table(node, _)) = unit;
+    let Some(steps) = programs.0.steps.iter().find(|steps| steps.rule == rule) else {
+        return StepId(0);
+    };
+    let place = steps.nodes.0.iter().position(|each| each == node);
+    match place.map(u32::try_from) {
+        Some(Ok(place)) => StepId(place),
+        // No step of the plan bears the node, or the plan has more steps than a step is numbered by.
+        Some(Err(_)) | None => steps.emitted,
+    }
 }

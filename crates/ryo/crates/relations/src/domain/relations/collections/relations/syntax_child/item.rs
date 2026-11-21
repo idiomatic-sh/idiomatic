@@ -33,7 +33,7 @@ macro_rules! syntax_child {
             class Structure,
             scope File,
             notes Unneeded,
-            form NodeTable { Parent => Parent, Child => Id, Ordinal => Ordinal, Field => Field, File => File },
+            form NodeTable { extent Own; Parent => Parent, Child => Id, Ordinal => Ordinal, Field => Field, File => File },
             columns {
                 /// The parent node: its file and where it starts.
                 parent Parent: NodeId => Node;

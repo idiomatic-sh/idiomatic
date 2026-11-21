@@ -32,7 +32,7 @@ let final_assignments = select l.assignment as assignment, l.file as file from f
 let call_syntax_rows = call_syntax();
 let calls = select id, file from call_syntax_rows;
 let call_functions = select l.id as call, r.child as function, l.file as file from calls as l join "semantic-child" as r on l.id = r.parent and l.file = r.file where r.field = "func";
-let typevar_names = select id, file from "qualified-name" where path = "typing.TypeVar" or path = "typing.ParamSpec" or path = "typing.TypeVarTuple" or path = "typing.NewType" or path = "typing_extensions.TypeVar" or path = "typing_extensions.ParamSpec" or path = "typing_extensions.TypeVarTuple" or path = "typing_extensions.NewType";
+let typevar_names = select id, file from "qualified-name" where path in ["typing.TypeVar", "typing.ParamSpec", "typing.TypeVarTuple", "typing.NewType", "typing_extensions.TypeVar", "typing_extensions.ParamSpec", "typing_extensions.TypeVarTuple", "typing_extensions.NewType"];
 let typevar_calls = select l.call as id, l.file as file from call_functions as l join typevar_names as r on l.function = r.id and l.file = r.file;
 let typevar_assignments = select l.assignment as assignment, l.file as file from values as l join typevar_calls as r on l.value = r.id and l.file = r.file;
 let plain_value_kinds = select id, file from nodes where kind = "call" or kind = "name" or kind = "attribute" or kind = "subscript";

@@ -3,6 +3,7 @@
 //! order met, say what was met and when.
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
+use crate::domain::code::types::ShapeChoice;
 use crate::domain::findings::types::RuleColumns;
 use crate::domain::lowered::service::each_touched;
 use crate::domain::lowered::types::{
@@ -103,6 +104,7 @@ fn pattern(form: PatternForm) -> DefinitionPattern {
         bound: ColumnMask::default(),
         collected: ColumnMask::default(),
         form,
+        shape: ShapeChoice::Decided,
     }
 }
 

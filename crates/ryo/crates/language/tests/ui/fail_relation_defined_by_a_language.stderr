@@ -22,16 +22,19 @@ note: required by a bound in `ryo_relations::domain::relations::collections::rel
    |     type Words: AsRef<[Bits]>;
    |                 ^^^^^^^^^^^^^ required by this bound in `RelationsItem::Words`
 
-error[E0046]: not all trait items implemented, missing: `SCOPE`, `NOTES`, `FORM`, `NODE_COLUMNS`
+error[E0046]: not all trait items implemented, missing: `SCOPE`, `NOTES`, `FORM`, `NODE_COLUMNS`, `EXTENT`, `SIZE`, `KEYS`
  --> tests/ui/fail_relation_defined_by_a_language.rs:9:1
   |
 9 | impl RelationsItem for Mine {
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^ missing `SCOPE`, `NOTES`, `FORM`, `NODE_COLUMNS` in implementation
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^^ missing `SCOPE`, `NOTES`, `FORM`, `NODE_COLUMNS`, `EXTENT`, `SIZE`, `KEYS` in implementation
   |
   = help: implement the missing item: `const SCOPE: RowScope = /* value */;`
   = help: implement the missing item: `const NOTES: RelationNotes = /* value */;`
   = help: implement the missing item: `const FORM: FactForm = /* value */;`
   = help: implement the missing item: `const NODE_COLUMNS: &'static [(<Self as RelationsItem>::Column, NodeColumn)] = &[];`
+  = help: implement the missing item: `const EXTENT: Option<NodeExtent> = None;`
+  = help: implement the missing item: `const SIZE: Option<RelationSize> = None;`
+  = help: implement the missing item: `const KEYS: &'static [Column] = &[];`
 
 error[E0277]: the trait bound `Mine: interface::sealed::Sealed` is not satisfied
  --> tests/ui/fail_relation_defined_by_a_language.rs:9:24

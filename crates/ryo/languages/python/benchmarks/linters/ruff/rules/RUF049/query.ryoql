@@ -14,7 +14,7 @@ let callable_edges = select parent, child, file from "semantic-child" where fiel
 let decorator_callables = select l.decorator as decorator, l.declaration as declaration, l.file as file, l.span as span, r.child as callable from decorator_roots as l join callable_edges as r on l.expression = r.parent and l.file = r.file;
 let called_decorator_origins = select l.decorator as decorator, l.declaration as declaration, l.file as file, l.span as span, r.path as path from decorator_callables as l join "qualified-name" as r on l.callable = r.id and l.file = r.file;
 let decorator_origins = union(left=direct_decorator_origins, right=called_decorator_origins);
-let recognized_decorators = select * from decorator_origins where path = "dataclasses.dataclass" or path = "attr.define" or path = "attr.frozen" or path = "attr.mutable" or path = "attrs.define" or path = "attrs.frozen" or path = "attrs.mutable" or path = "attr.s" or path = "attr.attributes" or path = "attr.attrs";
+let recognized_decorators = select * from decorator_origins where path in ["dataclasses.dataclass", "attr.define", "attr.frozen", "attr.mutable", "attrs.define", "attrs.frozen", "attrs.mutable", "attr.s", "attr.attributes", "attr.attrs"];
 let ordered_decorators = select l.decorator as decorator, l.declaration as declaration, l.file as file, l.span as span, l.path as path, r."start-byte" as begin from recognized_decorators as l join "source-location" as r on l.decorator = r.id and l.file = r.file;
 let later_decorators = select l.decorator as decorator, l.file as file from ordered_decorators as l join ordered_decorators as r on l.declaration = r.declaration and l.file = r.file where l.begin > r.begin;
 let first_recognized_decorators = antijoin(left=ordered_decorators, right=later_decorators, left-on=["decorator","file"], right-on=["decorator","file"]);
@@ -54,7 +54,7 @@ let lexical_body_events = select l.id as id, l.name as name, l.scope as scope, l
 let named_expressions = select id, file from nodes where kind = "named-expr";
 let walrus_targets = select r.child as id, l.file as file from named_expressions as l join "semantic-child" as r on l.id = r.parent and l.file = r.file where r.field = "target";
 let walrus_events = select l.id as id, l.name as name, l.scope as scope, l.ordinal as ordinal, l.kind as kind, l.file as file from raw_namespace_events as l join walrus_targets as r on l.id = r.id and l.file = r.file;
-let non_comprehension_scopes = select id, file from nodes where kind = "module" or kind = "function-def" or kind = "async-function-def" or kind = "class-def" or kind = "lambda";
+let non_comprehension_scopes = select id, file from nodes where kind in ["module", "function-def", "async-function-def", "class-def", "lambda"];
 let walrus_lexical_owners = axis(from=walrus_events,relation="semantic-child",direction=nearest-ancestor,domain=non_comprehension_scopes);
 let walrus_body_events = select l.id as id, l.name as name, l.scope as scope, l.ordinal as ordinal, l.kind as kind, l.file as file, l.related as related from walrus_lexical_owners as l join event_body_owners as r on l.id = r.id and l.related = r.scope and l.file = r.file;
 let owned_namespace_events = union(left=lexical_body_events,right=walrus_body_events);
@@ -136,7 +136,7 @@ let required_step_counts = group-count(from=candidate_expression_steps, keys=["c
 let matched_step_counts = group-count(from=matched_steps, keys=["context","expression","class","file"], count="count", distinct="step");
 let attribute_class_resolutions = select l.context as context, l.expression as expression, l.class as class, l.file as file from required_step_counts as l join matched_step_counts as r on l.context = r.context and l.expression = r.expression and l.class = r.class and l.file = r.file where l.count = r.count;
 let class_resolutions = union(left=name_class_resolutions, right=attribute_class_resolutions);
-let enum_names = select id, file from "qualified-name" where path = "enum.Enum" or path = "enum.Flag" or path = "enum.IntEnum" or path = "enum.IntFlag" or path = "enum.StrEnum" or path = "enum.ReprEnum" or path = "enum.CheckEnum";
+let enum_names = select id, file from "qualified-name" where path in ["enum.Enum", "enum.Flag", "enum.IntEnum", "enum.IntFlag", "enum.StrEnum", "enum.ReprEnum", "enum.CheckEnum"];
 let direct_enum_classes = select l.class as id, l.file as file from mapped_bases as l join enum_names as r on l.expression = r.id and l.file = r.file;
 let local_ancestry_edges = select r.context as context, l.class as origin, r.class as destination, l.file as file from mapped_bases as l join class_resolutions as r on l.expression = r.expression and l.file = r.file;
 let class_ancestry = closure(edges=local_ancestry_edges,source="origin",destination="destination",keys=["context","file"]);

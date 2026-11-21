@@ -3,7 +3,7 @@
 use crate::domain::lowering::types::{RefusedRule, SelectedRules};
 use crate::domain::packs::types::{PackBytes, PackDigest};
 use crate::domain::programs::types::Programs;
-use crate::domain::statistics::types::{MatchedUnits, StatisticsBytes};
+use crate::domain::statistics::types::{MatchedStatistics, StatisticsBytes};
 
 /// What programs are made from.
 ///
@@ -35,11 +35,12 @@ pub enum LoadSource<'a> {
 ///
 /// ```
 /// use ryo_engine::domain::programs::service::accepted;
+/// use ryo_engine::domain::statistics::types::MatchedStatistics;
 /// use ryo_engine::inbound::use_cases::load::types::LoadedRules;
 ///
 /// let loaded = LoadedRules::default();
 /// assert!(accepted(&loaded.programs).is_empty() && loaded.refused.is_empty());
-/// assert_eq!(loaded.matched.0, 0);
+/// assert_eq!(loaded.matched, MatchedStatistics::Absent);
 /// ```
 #[derive(Debug, Default)]
 pub struct LoadedRules {
@@ -47,9 +48,9 @@ pub struct LoadedRules {
     pub programs: Programs,
     /// The refused rules, in rule order.
     pub refused: Vec<RefusedRule>,
-    /// How many units of the programs the statistics the rules were loaded with name; none for a pack, which is loaded with
-    /// no statistics.
-    pub matched: MatchedUnits,
+    /// What the statistics the rules were loaded with name of the programs: `Absent` when they were loaded with none, and for
+    /// a pack; `Units` of nought when statistics were read and name no unit of these programs.
+    pub matched: MatchedStatistics,
 }
 
 /// Which lowering of a load a pack is of: a load lowers its rules once, and once more without the rules an encoding refused.

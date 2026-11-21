@@ -79,6 +79,14 @@ Feature: load
       When scan runs over "one two"
       Then both programs found the same rows
 
+  Rule: a language whose fixed names cannot be words of the run is refused
+
+    @refuses
+    Scenario: a vocabulary that states a fixed name twice is refused, naming it
+      Given the load input "a vocabulary that states a fixed name twice"
+      When load runs
+      Then load answers "the language's fixed names are refused: the fixed name at place 1 is stated before, at place 0"
+
   Rule: a pack reads back only for the engine that wrote it
 
     @refuses

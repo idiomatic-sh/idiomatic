@@ -38,6 +38,8 @@ macro_rules! flow_step {
             scope File,
             notes Unneeded,
             form Filled(Whole),
+            size PerElement,
+            keys [],
             columns {
                 /// The block the step is in, by its number in the file.
                 block Block: Integer => Number;

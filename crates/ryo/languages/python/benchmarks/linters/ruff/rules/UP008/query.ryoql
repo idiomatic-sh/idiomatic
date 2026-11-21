@@ -50,7 +50,7 @@ let class_lambdas = select l.call as call, l.first as first, l.second as second,
 let owner_calls = union(left=class_methods, right=class_lambdas);
 let qualified_super_calls = antijoin(left=super_calls0, right=bare_super_calls, left-on=["call", "file"], right-on=["call", "file"]);
 let qualified_owners = select l.call as call, r.function as function, r.class as class, l.file as file from qualified_super_calls as l join owner_calls as r on l.call = r.call and l.file = r.file;
-let local_class_cell_bindings = select scope as function, file from "binding-event" where name = "__class__" and (kind = "bind" or kind = "annotation" or kind = "global" or kind = "nonlocal" or kind = "delete");
+let local_class_cell_bindings = select scope as function, file from "binding-event" where name = "__class__" and (kind in ["bind", "annotation", "global", "nonlocal", "delete"]);
 let raw_class_cell_loads = select scope as function, file from "binding-event" where name = "__class__" and kind = "read";
 let class_cell_loads = antijoin(left=raw_class_cell_loads, right=local_class_cell_bindings, left-on=["function", "file"], right-on=["function", "file"]);
 let super_loads = select scope as function, file from "binding-event" where name = "super" and kind = "read";
@@ -110,7 +110,7 @@ let resolved_class_one = select l.expr as expr, r.class as class, l.file as file
 let nested_class_attributes = select l.expr as expr, l.name as name, r.class as parent_class, l.file as file from class_attribute_parts as l join resolved_class_one as r on l.value = r.expr and l.file = r.file;
 let resolved_class_two = select l.expr as expr, r.class as class, l.file as file from nested_class_attributes as l join stable_class_definitions as r on l.parent_class = r.owner and l.name = r.name and l.file = r.file;
 let resolved_class_chains = union(left=resolved_class_one, right=resolved_class_two);
-let mutation_statements = select id, file from syntax where kind = "assign" or kind = "ann-assign" or kind = "aug-assign" or kind = "delete" or kind = "named-expr" or kind = "for" or kind = "async-for" or kind = "withitem";
+let mutation_statements = select id, file from syntax where kind in ["assign", "ann-assign", "aug-assign", "delete", "named-expr", "for", "async-for", "withitem"];
 let mutation_targets = select l.id as statement, r.child as target, l.file as file from mutation_statements as l join "semantic-child" as r on l.id = r.parent and l.file = r.file where r.field = "targets" or r.field = "target" or r.field = "optional-vars";
 let mutation_positions = select l.target as target, l.file as file, r."start-byte" as start from mutation_targets as l join "source-location" as r on l.target = r.id and l.file = r.file;
 let mutated_class_chains = select r.class as class, l.file as file, l.start as start from mutation_positions as l join resolved_class_chains as r on l.target = r.expr and l.file = r.file;

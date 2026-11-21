@@ -11,7 +11,7 @@ let names = select parent as alias, child from "semantic-child" where field = "n
 let identifiers = select id, name from "identifier";
 let alias_name_nodes = select l.alias as alias, l.statement as statement, l.file as file, n.child as name_id from future_aliases as l join names as n on l.alias = n.alias;
 let alias_names = select l.alias as alias, l.statement as statement, l.file as file, r.name as name from alias_name_nodes as l join identifiers as r on l.name_id = r.id;
-let obsolete = select * from alias_names where name = "absolute_import" or name = "division" or name = "generators" or name = "generator_stop" or name = "nested_scopes" or name = "print_function" or name = "unicode_literals" or name = "with_statement";
+let obsolete = select * from alias_names where name in ["absolute_import", "division", "generators", "generator_stop", "nested_scopes", "print_function", "unicode_literals", "with_statement"];
 let aliases_with_asname = select parent as alias from "semantic-child" where field = "asname";
 let unaliased = antijoin(left=obsolete,right=aliases_with_asname,left-on=["alias"],right-on=["alias"]);
 let imported_aliases = select occurrence as alias from "static-import";

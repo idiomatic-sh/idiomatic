@@ -5,7 +5,7 @@ use crate::domain::tokens::types::Token;
 
 /// Which siblings are counted.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Wanted {
+pub(crate) enum WantedSibling {
     /// Every node.
     Node,
     /// The nodes of one kind.

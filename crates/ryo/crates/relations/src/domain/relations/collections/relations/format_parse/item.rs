@@ -26,6 +26,8 @@ macro_rules! format_parse {
             scope File,
             notes Unneeded,
             form Filled(Many(Id)),
+            size PerElement,
+            keys [],
             columns {
                 /// The original literal occurrence.
                 id Id: NodeId => Node;

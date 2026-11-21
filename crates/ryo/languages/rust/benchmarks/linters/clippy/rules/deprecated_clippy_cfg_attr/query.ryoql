@@ -8,7 +8,7 @@ let owners = select id, file from "syntax-tree" where kind = "cfg-meta" or kind 
 let owned = axis(from=features, relation="syntax-child", direction=nearest-ancestor, domain=owners);
 let cfg_attrs = select id, file from "syntax-tree" where kind = "cfg-attr-meta";
 let attr_items = select l.parent as owner, l.child as child, l.file as file from "syntax-child" as l join cfg_attrs as r on l.parent = r.id;
-let attr_metas = select l.owner as owner, l.child as child, l.file as file from attr_items as l join "syntax-tree" as r on l.child = r.id where r.kind = "path-meta" or r.kind = "token-tree-meta" or r.kind = "key-value-meta" or r.kind = "unsafe-meta" or r.kind = "cfg-meta" or r.kind = "cfg-attr-meta";
+let attr_metas = select l.owner as owner, l.child as child, l.file as file from attr_items as l join "syntax-tree" as r on l.child = r.id where r.kind in ["path-meta", "token-tree-meta", "key-value-meta", "unsafe-meta", "cfg-meta", "cfg-attr-meta"];
 let attr_counts = group-count(from=attr_metas, keys=["owner", "file"], count="metas");
 let single_attrs = select owner as id, file from attr_counts where metas = 1;
 let cfgs = select id, file from "syntax-tree" where kind = "cfg-meta";

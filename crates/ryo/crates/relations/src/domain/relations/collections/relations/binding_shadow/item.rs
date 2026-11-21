@@ -24,6 +24,8 @@ macro_rules! binding_shadow {
         scope File,
         notes Unneeded,
         form Filled(Many(Binding)),
+        size PerElement,
+        keys [Binding],
         columns {
         /// Current actual defines.id.
         binding Binding: NodeId => Node;

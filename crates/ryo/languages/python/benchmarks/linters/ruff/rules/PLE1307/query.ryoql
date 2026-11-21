@@ -67,7 +67,7 @@ let dict_bindings = select binop, file, value, conversion from reachable_items;
 let sequence_bindings = union(left=tuple_bindings, right=dict_bindings);
 let bindings = union(left=scalar_bindings, right=sequence_bindings);
 let typed_bindings = select l.binop as binop, l.file as file, l.value as value, l.conversion as conversion, r.resolution as resolution, r.type as type from bindings as l join "expression-type" as r on l.value = r.id and l.file = r.file where r.resolution = "atom" or r.resolution = "union";
-let numeric_mismatches = select binop, file from typed_bindings where (conversion = "d" or conversion = "e" or conversion = "E" or conversion = "f" or conversion = "F" or conversion = "g" or conversion = "G") and type != "integer" and type != "boolean" and type != "float";
+let numeric_mismatches = select binop, file from typed_bindings where (conversion in ["d", "e", "E", "f", "F", "g", "G"]) and type != "integer" and type != "boolean" and type != "float";
 let integer_mismatches = select binop, file from typed_bindings where (conversion = "o" or conversion = "x" or conversion = "X") and type != "integer" and type != "boolean";
 let char_mismatches = select * from typed_bindings where conversion = "c" and type != "integer" and type != "boolean";
 let single_char_literals = select occurrence as id, file from "string-literal" where matches(value, "(?s)^.$");

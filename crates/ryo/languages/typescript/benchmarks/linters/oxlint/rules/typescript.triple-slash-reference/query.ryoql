@@ -17,8 +17,7 @@ let interrupted = select l.id as id from prologue_shaped as l join other_stateme
 let prologue = antijoin(left=prologue_shaped, right=interrupted, left-on=["id"], right-on=["id"]);
 let statements = antijoin(left=body_rows, right=prologue, left-on=["id"], right-on=["id"]);
 let statement_bounds = span-bounds(from=statements, span="span", start-output="begin", end-output="finish");
-let later_statements = select l.id as id from statement_bounds as l join statement_bounds as r on l.program = r.program where r.begin < l.begin;
-let first_statements = antijoin(left=statement_bounds, right=later_statements, left-on=["id"], right-on=["id"]);
+let first_statements = group-min(from=statement_bounds, keys=["program"], order="begin");
 let references = select id, file, span, text from "comment" where starts_with(text, "/") and matches(text, "<reference ");
 let reference_bounds = span-bounds(from=references, span="span", start-output="begin", end-output="finish");
 let late_references = select l.id as id from reference_bounds as l join first_statements as r on l.file = r.file where l.begin >= r.begin;

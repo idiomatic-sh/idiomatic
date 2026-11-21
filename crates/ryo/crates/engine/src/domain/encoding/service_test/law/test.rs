@@ -33,15 +33,15 @@ const WORDS: &str = "\
 5 End no operand @-\n\
 6 Emit EmitWord { flag: WordFlag(0), columns: Short(1), rule: SelectedRuleOrdinal(0), input: WordSlot(0), operands: PoolAt(76) } @0\n\
 7 End no operand @-\n\
-8 EachKind EachKindWord { flag: WordFlag(1), kind: KindBits(0), out: Register(0), kinds: PoolAt(0) } @0\n\
+8 EachKind EachKindWord { flag: WordFlag(129), kind: KindBits(0), out: Register(0), kinds: PoolAt(0) } @0\n\
 9 EachMatchFilled EachMatchWord { flag: WordFlag(0), out: Register(1), value: WordSlot(0), index: IndexSite(0) } @1\n\
 10 EachMatchMade EachMatchMadeWord { flag: WordFlag(0), values: Short(0), out: Register(16), value: WordSlot(1), index: IndexSite(1) } @2\n\
 11 EachRange EachRangeWord { flag: WordFlag(19), values: Short(1), out: Register(2), operands: PoolAt(9), index: IndexSite(2) } @3\n\
 12 EachRowMade EachRowMadeWord { flag: WordFlag(4), out: Register(4), table: MadeTableId(3) } @4\n\
-13 ChildrenOfField ChildrenOfFieldWord { field: FieldCode(6), parent: Register(0), out: Register(5) } @5\n\
-14 Axis AxisWord { direction: WordFlag(3), start: Register(5), out: Register(6) } @6\n\
-15 Within WithinWord { ancestor: Register(0), descendant: Register(6) } @7\n\
-16 Nearest NearestWord { flag: WordFlag(1), start: Register(6), out: Register(7), operands: PoolAt(17) } @8\n\
+13 ChildrenOfField ChildrenOfFieldWord { flag: WordFlag(128), field: FieldCode(6), parent: Register(0), out: Register(5) } @5\n\
+14 Axis AxisWord { flag: WordFlag(128), direction: WordFlag(3), start: Register(5), out: Register(6) } @6\n\
+15 Within WithinWord { flag: WordFlag(128), ancestor: Register(0), descendant: Register(6) } @7\n\
+16 Nearest NearestWord { flag: WordFlag(129), start: Register(6), out: Register(7), operands: PoolAt(17) } @8\n\
 17 Closure ClosureWord { seed: Register(7), out: Register(8), operands: PoolAt(21) } @9\n\
 18 ReadNode ReadNodeWord { column: Short(1), row: Register(8), out: Register(9) } @10\n\
 19 Test TestWord { flag: WordFlag(4), comparison: Short(6), left: WordSlot(9), right: WordSlot(29), regex: RegexId(0) } @11\n\
@@ -54,7 +54,7 @@ const WORDS: &str = "\
 26 Emit EmitWord { flag: WordFlag(1), columns: Short(2), rule: SelectedRuleOrdinal(0), input: WordSlot(1), operands: PoolAt(72) } @18\n\
 27 Fork ForkWord { slots: Short(1), entries: PoolAt(78) } @19\n\
 28 End no operand @-\n\
-29 StageScan ScanWord { flag: WordFlag(0), out: Register(30), constants: PoolAt(0), read: WordSlot(1) } @20\n\
+29 StageScan ScanWord { flag: WordFlag(128), out: Register(30), constants: PoolAt(0), read: WordSlot(1) } @20\n\
 30 StageProbe ProbeWord { flag: WordFlag(0), values: Short(1), out: Register(31), probed: WordSlot(30), index: IndexSite(0) } @21\n\
 31 StageProbe ProbeWord { flag: WordFlag(13), values: Short(1), out: Register(32), probed: WordSlot(80), index: IndexSite(2) } @22\n\
 32 StageProduct ProductWord { flag: WordFlag(2), out: Register(33), read: WordSlot(1) } @23\n\
@@ -66,12 +66,12 @@ const WORDS: &str = "\
 38 StageKeep TestWord { flag: WordFlag(0), comparison: Short(2), left: WordSlot(37), right: WordSlot(30), regex: RegexId(0) } @28\n\
 39 StageCall CallWord { meaning: Short(8), arguments: PoolAt(100), outputs: PoolAt(103), regex: RegexId(0) } @29\n\
 40 StageRender RenderWord { context: Short(0), node: Register(30), out: Register(39) } @30\n\
-41 StageWalk WalkWord { flag: WordFlag(3), field: FieldCode(0), start: Register(30), out: Register(40) } @31\n\
-42 StageWalk WalkWord { flag: WordFlag(0), field: FieldCode(6), start: Register(40), out: Register(41) } @32\n\
+41 StageWalk WalkWord { flag: WordFlag(131), field: FieldCode(0), start: Register(30), out: Register(40) } @31\n\
+42 StageWalk WalkWord { flag: WordFlag(128), field: FieldCode(6), start: Register(40), out: Register(41) } @32\n\
 43 StageWrite WriteWord { flag: WordFlag(1), columns: Short(2), table: MadeTableId(0), operands: PoolAt(105) } @-\n\
 44 StageScan ScanWord { flag: WordFlag(5), out: Register(50), constants: PoolAt(117), read: WordSlot(0) } @33\n\
 45 StageWrite WriteWord { flag: WordFlag(0), columns: Short(2), table: MadeTableId(1), operands: PoolAt(119) } @-\n\
-46 Children ChildrenWord { parent: Register(60), out: Register(61) } @34\n\
+46 Children ChildrenWord { flag: WordFlag(128), parent: Register(60), out: Register(61) } @34\n\
 47 Yield YieldWord { cells: Short(1), row: WordSlot(61) } @35\n\
 48 End no operand @-\n\
 49 StageScan ScanWord { flag: WordFlag(2), out: Register(50), constants: PoolAt(0), read: WordSlot(1) } @36\n\
@@ -84,7 +84,7 @@ counts StateCounts { registers: WordSlot(101), memos: WordSlot(3), indexes: Word
 rules [[BranchCode { need: NeedSite(0), entry: CodeEntry(8) }]]\n\
 tables [TableCode { fill: Short(0), operands: WordSlot(109), need: NeedSite(1) }, TableCode { fill: Short(1), operands: WordSlot(123), need: NeedSite(3) }, TableCode { fill: Short(5), operands: WordSlot(146), need: NeedSite(5) }, TableCode { fill: Short(11), operands: WordSlot(134), need: NeedSite(4) }]\n\
 indexes [IndexCode { source: Short(1), number: WordSlot(0), columns: WordSlot(3), ordered: WordSlot(4294967295) }, IndexCode { source: Short(2), number: WordSlot(0), columns: WordSlot(5), ordered: WordSlot(4294967295) }, IndexCode { source: Short(2), number: WordSlot(1), columns: WordSlot(7), ordered: WordSlot(1) }, IndexCode { source: Short(2), number: WordSlot(1), columns: WordSlot(39), ordered: WordSlot(4294967295) }, IndexCode { source: Short(2), number: WordSlot(2), columns: WordSlot(67), ordered: WordSlot(1) }, IndexCode { source: Short(2), number: WordSlot(3), columns: WordSlot(132), ordered: WordSlot(4294967295) }, IndexCode { source: Short(2), number: WordSlot(2), columns: WordSlot(140), ordered: WordSlot(4294967295) }]\n\
-units Call 0+20, Table 0+0, Table 0+0, Call 20+13, Call 33+1, Call 34+0, Call 34+2, Call 36+1\n\
+units Call Decided 0+20, Table Decided 0+0, Table Open 0+0, Call Decided 20+13, Call Decided 33+1, Call Decided 34+0, Call Open 34+2, Call Decided 36+1\n\
 sizes [SizeSite { relation: WordSlot(0), column: Short(5), value: WordSlot(3) }]\n\
 constants [9, 11, 12, 5, 40]\n\
 relations [SyntaxError, SyntaxTree]\n\
@@ -113,7 +113,12 @@ fn tables(code: &ProgramCode) -> String {
     let units: Vec<String> = code
         .units
         .iter()
-        .map(|unit| format!("{:?} {:?}+{:?}", unit.form, unit.first.0, unit.points.0))
+        .map(|unit| {
+            format!(
+                "{:?} {:?} {:?}+{:?}",
+                unit.form, unit.shape, unit.first.0, unit.points.0
+            )
+        })
         .collect();
     format!(
         "counts {:?}\nrules {:?}\ntables {:?}\nindexes {:?}\nunits {}\nsizes {:?}\nconstants {:?}\nrelations {:?}\nneeds {:?}\npool {:?}\n",

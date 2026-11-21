@@ -1,5 +1,5 @@
 import directives from "typescript/oxlint/eslint-directives";
-let declared = select id, kind, refinement, name, owner, file, span from "defines" where (kind = "constant" or kind = "variable" or kind = "parameter" or kind = "function" or kind = "class" or kind = "import" or kind = "interface" or kind = "type-alias" or kind = "enum" or kind = "namespace" or kind = "type-parameter") and not glob_any(file, "**/*.d.ts") and not glob_any(file, "**/*.d.mts") and not glob_any(file, "**/*.d.cts") and not glob_any(file, "**/*.d.*.ts");
+let declared = select id, kind, refinement, name, owner, file, span from "defines" where (kind in ["constant", "variable", "parameter", "function", "class", "import", "interface", "type-alias", "enum", "namespace", "type-parameter"]) and not glob_any(file, "**/*.d.ts") and not glob_any(file, "**/*.d.mts") and not glob_any(file, "**/*.d.cts") and not glob_any(file, "**/*.d.*.ts");
 let expression_names = select id, name from declared where (kind = "function" and refinement = "function-expression") or (kind = "class" and refinement = "class-expression");
 let symbols = antijoin(left=declared, right=expression_names, left-on=["id", "name"], right-on=["id", "name"]);
 let nodes = select l.id as id, l.kind as kind, l.name as name, l.owner as owner, l.file as file, l.span as span, r.kind as node, r.span as whole from symbols as l join "semantic-syntax" as r on l.id = r.id;
@@ -17,8 +17,8 @@ let function_inits = select l.parent as id, r.span as whole from "semantic-child
 let init_bounds = span-bounds(from=function_inits, span="whole", start-output="ibegin", end-output="ifinish");
 let within_inits = select l.reference as reference from use_bounds as l join init_bounds as r on l.binding = r.id where l.context != "type" and l.begin >= r.ibegin and l.finish <= r.ifinish;
 let statements = select child as action, parent as statement from edges where kind = "expression-statement" and field = "expression";
-let statement_scopes_domain = select id from "semantic-syntax" where kind = "for-statement" or kind = "for-in-statement" or kind = "for-of-statement" or kind = "while-statement" or kind = "do-while-statement" or kind = "function-declaration" or kind = "function-expression" or kind = "arrow-function-expression";
-let loops = select id from "semantic-syntax" where kind = "for-statement" or kind = "for-in-statement" or kind = "for-of-statement" or kind = "while-statement" or kind = "do-while-statement";
+let statement_scopes_domain = select id from "semantic-syntax" where kind in ["for-statement", "for-in-statement", "for-of-statement", "while-statement", "do-while-statement", "function-declaration", "function-expression", "arrow-function-expression"];
+let loops = select id from "semantic-syntax" where kind in ["for-statement", "for-in-statement", "for-of-statement", "while-statement", "do-while-statement"];
 let statement_rows = select statement as id from statements;
 let statement_scopes = axis(from=statement_rows, relation="semantic-child", direction=nearest-ancestor, domain=statement_scopes_domain);
 let looped = select l.id as id from statement_scopes as l join loops as r on l.related = r.id;
@@ -27,13 +27,13 @@ let updated = select l.child as reference from edges as l join discarded as r on
 let operators = select l.parent as action, r.text as operator from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where l.field = "operator";
 let targets = select l.child as target, l.parent as action, r.operator as operator from edges as l join operators as r on l.parent = r.action where l.kind = "assignment-expression" and l.field = "left";
 let discarded_targets = select l.target as target, l.action as action, l.operator as operator from targets as l join discarded as r on l.action = r.action;
-let phase_domain = select id from "semantic-syntax" where kind = "program" or kind = "function-declaration" or kind = "function-expression" or kind = "arrow-function-expression" or kind = "ts-declare-function" or kind = "ts-empty-body-function-expression";
+let phase_domain = select id from "semantic-syntax" where kind in ["program", "function-declaration", "function-expression", "arrow-function-expression", "ts-declare-function", "ts-empty-body-function-expression"];
 let declaration_rows = select id from symbols;
 let declaration_phases = axis(from=declaration_rows, relation="semantic-child", direction=nearest-ancestor, domain=phase_domain);
 let local_uses = select l.reference as reference, l.binding as binding, l.name as name, l.context as context from named as l join declaration_phases as r on l.binding = r.id and l.phase = r.related;
 let compound = select target as reference from discarded_targets where operator != "=";
 let compound_selves = select l.reference as reference from compound as l join local_uses as r on l.reference = r.reference;
-let transparent = select child, parent from edges where kind = "binary-expression" or kind = "logical-expression" or kind = "unary-expression" or kind = "member-expression" or kind = "conditional-expression" or kind = "chain-expression" or kind = "ts-as-expression" or kind = "ts-satisfies-expression" or kind = "ts-non-null-expression" or kind = "ts-type-assertion" or kind = "ts-instantiation-expression" or kind = "await-expression" or kind = "template-literal" or kind = "tagged-template-expression" or kind = "array-expression" or kind = "object-expression" or kind = "property" or kind = "spread-element" or kind = "new-expression" or (kind = "call-expression" and field = "callee");
+let transparent = select child, parent from edges where kind in ["binary-expression", "logical-expression", "unary-expression", "member-expression", "conditional-expression", "chain-expression", "ts-as-expression", "ts-satisfies-expression", "ts-non-null-expression", "ts-type-assertion", "ts-instantiation-expression", "await-expression", "template-literal", "tagged-template-expression", "array-expression", "object-expression", "property", "spread-element", "new-expression"] or (kind = "call-expression" and field = "callee");
 let climbs = closure(edges=transparent, source="child", destination="parent");
 let plain_targets = select target, action from discarded_targets where operator = "=";
 let rights = select l.child as node, l.parent as action from edges as l join plain_targets as r on l.parent = r.action where l.kind = "assignment-expression" and l.field = "right";
@@ -103,8 +103,7 @@ let loop_bodies = select l.child as body, l.parent as loop, r.kind as kind from 
 let body_children = select l.parent as block, l.child as statement, l.ordinal as ordinal, r.kind as kind from "semantic-child" as l join "semantic-syntax" as r on l.child = r.id where l.field = "body";
 let blocks = select id from "semantic-syntax" where kind = "block-statement";
 let block_statements = select l.block as block, l.statement as statement, l.ordinal as ordinal, l.kind as kind from body_children as l join blocks as r on l.block = r.id;
-let later_statements = select l.block as block, l.statement as statement from block_statements as l join block_statements as r on l.block = r.block where l.ordinal > r.ordinal;
-let first_statements = antijoin(left=block_statements, right=later_statements, left-on=["block", "statement"], right-on=["block", "statement"]);
+let first_statements = group-min(from=block_statements, keys=["block"], order="ordinal");
 let returning_blocks = select block from first_statements where kind = "return-statement";
 let direct_returns = select loop from loop_bodies where kind = "return-statement";
 let block_returns = select l.loop as loop from loop_bodies as l join returning_blocks as r on l.body = r.block;

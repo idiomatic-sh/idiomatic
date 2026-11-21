@@ -9,7 +9,7 @@ let other_right = select l.comparison as comparison, l.id as id from sides as l 
 let others = union(left=other_left, right=other_right);
 let strings = select occurrence as id, value from "string-literal";
 let string_ids = select id from strings;
-let valid_strings = select id from strings where value = "symbol" or value = "undefined" or value = "object" or value = "boolean" or value = "number" or value = "string" or value = "function" or value = "bigint";
+let valid_strings = select id from strings where value in ["symbol", "undefined", "object", "boolean", "number", "string", "function", "bigint"];
 let invalid_strings = antijoin(left=string_ids, right=valid_strings, left-on=["id"], right-on=["id"]);
 let identifiers = select id, file, span from "semantic-syntax" where kind = "identifier";
 let tokens = select file, span from "semantic-syntax" where kind = "identifier-token" and text = "undefined";

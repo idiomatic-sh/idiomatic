@@ -24,7 +24,7 @@ let literal_join_calls = select l.call as call, l.collection as collection, r.se
 let elements = select l.call as call, r.child as element, r.ordinal as ordinal, l.file as file from literal_join_calls as l join "semantic-child" as r on l.collection = r.parent and l.file = r.file where r.field = "elts";
 let names = select id, file from nodes where kind = "name";
 let simple_roots = union(left=names, right=attributes);
-let scalars = select id, file from "literal-properties" where kind = "integer" or kind = "float" or kind = "complex" or kind = "boolean" or kind = "string";
+let scalars = select id, file from "literal-properties" where kind in ["integer", "float", "complex", "boolean", "string"];
 let plain_allowed = union(left=simple_roots, right=scalars);
 let joinee_calls = select l.element as id, l.file as file from elements as l join calls as r on l.element = r.id and l.file = r.file;
 let joinee_functions = select l.function as id, l.file as file from functions as l join joinee_calls as r on l.call = r.id and l.file = r.file;

@@ -142,7 +142,7 @@ pub(crate) const fn step_class(step: &ProgramStep) -> CostClass {
             edges, condition, ..
         } => {
             let walked = match edges {
-                NearestEdges::Tree => CostClass::Fanout,
+                NearestEdges::Tree(_) => CostClass::Fanout,
                 NearestEdges::Derived { edges, .. } => {
                     greater(CostClass::Fanout, body_class(edges))
                 }

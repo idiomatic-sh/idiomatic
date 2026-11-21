@@ -18,7 +18,6 @@ ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations",
 ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.2.0" }
 ryo_operators = { package = "idiomatic-sh-ryo-operators", path = "../operators", version = "0.2.0" }
 thiserror.workspace = true
-blake3.workspace = true
 hashbrown.workspace = true
 
 [features]

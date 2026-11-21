@@ -28,7 +28,7 @@ let operated = select l.assignment as assignment, l.constructor as constructor, 
 let unnecessary = select assignment, constructor, name from operated where operator = "=" or operator = "||=" or operator = "&&=" or operator = "??=";
 let others = select assignment, constructor, name from operated where operator != "=" and operator != "||=" and operator != "&&=" and operator != "??=";
 let rights = select parent as assignment, child as value from "semantic-child" where field = "right";
-let wrapper_edges = select l.parent as outer, l.child as inner from "semantic-child" as l join "semantic-syntax" as r on l.parent = r.id where l.field = "expression" and (r.kind = "ts-as-expression" or r.kind = "ts-satisfies-expression" or r.kind = "ts-instantiation-expression" or r.kind = "ts-non-null-expression" or r.kind = "ts-type-assertion");
+let wrapper_edges = select l.parent as outer, l.child as inner from "semantic-child" as l join "semantic-syntax" as r on l.parent = r.id where l.field = "expression" and (r.kind in ["ts-as-expression", "ts-satisfies-expression", "ts-instantiation-expression", "ts-non-null-expression", "ts-type-assertion"]);
 let unwrapped = closure(edges=wrapper_edges, source="outer", destination="inner");
 let unwrapped_values = select l.assignment as assignment, r.inner as value from rights as l join unwrapped as r on l.value = r.outer;
 let values = union(left=rights, right=unwrapped_values);

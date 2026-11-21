@@ -2,7 +2,9 @@
 //! counted at among the code's, and a run of words given its place in the arena.
 
 use crate::domain::code::constants::NO_SLOT;
-use crate::domain::code::types::{CodeEntry, MeasuredForm, UnitCode, UnitKey, WordSlot};
+use crate::domain::code::types::{
+    CodeEntry, MeasuredForm, ShapeChoice, UnitCode, UnitKey, WordSlot,
+};
 use crate::domain::encoding::sites::service::{fault, past, slot_of};
 use crate::domain::encoding::types::{Encoding, PlacedWord, UnitPoints};
 use crate::domain::lowering::errors::LoweringError;
@@ -10,17 +12,20 @@ use crate::domain::lowering::types::PastWidth;
 use crate::domain::steps::types::PlanPoint;
 use ryo_relations::domain::relations::types::Count;
 
-/// Starts a unit: its plan points follow the ones numbered so far.
+/// Starts a unit: its plan points follow the ones numbered so far. `shape` is a pattern's own mark, and `Decided` for a rule's
+/// program and a table's fill.
 pub(crate) fn begin_unit(
     encoding: &mut Encoding<'_>,
     key: UnitKey,
     form: MeasuredForm,
+    shape: ShapeChoice,
 ) -> Result<(), LoweringError> {
     let unit = slot_of(encoding, Count(encoding.code.units.len()), PastWidth::Sites)?;
     let first = encoding.code.counts.points;
     encoding.code.units.push(UnitCode {
         key,
         form,
+        shape,
         first,
         points: WordSlot(0),
     });

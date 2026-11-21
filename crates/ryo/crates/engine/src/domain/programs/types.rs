@@ -4,6 +4,9 @@ use crate::domain::code::types::ProgramCode;
 use crate::domain::steps::types::StepRegex;
 use ryo_language::domain::facts::types::BaseWords;
 use ryo_relations::domain::relations::types::Relation;
+use ryo_values::domain::plan_parts::types::StepId;
+use ryo_values::domain::query_plans::types::NodeDigests;
+use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 
 /// The programs of a rule set: opaque; built only by `load`, encoded by `packs::service`.
 ///
@@ -33,4 +36,18 @@ pub(crate) struct ProgramsEngine {
     pub(crate) regexes: Vec<StepRegex>,
     /// Every relation some program reads: what a language builds its model for (`RelationNeeds`).
     pub(crate) reads: Vec<Relation>,
+    /// For each rule of the code, in the code's rule order: the digests of its own plan's steps, by which a unit's plan step is
+    /// found for that rule (`service::unit_step`). A unit is named by a merged node, which is no step of any one plan.
+    pub(crate) steps: Vec<RuleSteps>,
+}
+
+/// One rule's plan as a work notice needs it: where each node is in the plan.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct RuleSteps {
+    /// The rule.
+    pub(crate) rule: SelectedRuleOrdinal,
+    /// The step the plan emits: the rule's own unit.
+    pub(crate) emitted: StepId,
+    /// The digest of each step of the plan, in step order.
+    pub(crate) nodes: NodeDigests,
 }

@@ -34,6 +34,8 @@ macro_rules! literal_properties {
             scope File,
             notes Unneeded,
             form Filled(Many(Id)),
+            size PerElement,
+            keys [],
             columns {
                 /// The original primitive literal occurrence.
                 id Id: NodeId => Node;

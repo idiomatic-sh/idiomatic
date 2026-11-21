@@ -8,6 +8,7 @@ use crate::domain::steps::types::{
 };
 use ryo_language::domain::node_table::types::FieldCode;
 use ryo_language::domain::semantics::types::RenderContext;
+use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_orders::types::OrderBound;
 
 /// One pipeline of a fill: stages over batches of rows, then the row written.
@@ -92,8 +93,9 @@ pub(crate) enum FillStage {
         context: RenderContext,
         out: Register,
     },
-    /// Per row, the elements a tree walk reaches from a node.
+    /// Per row, the elements a tree walk reaches from a node, among the node rows `relation` covers (as `EachKind`'s).
     Walk {
+        relation: Relation,
         walk: TreeWalk,
         start: Register,
         out: Register,

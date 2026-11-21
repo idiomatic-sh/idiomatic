@@ -34,6 +34,8 @@ macro_rules! call_argument {
             scope File,
             notes Unneeded,
             form Filled(Unique(Expression)),
+            size PerElement,
+            keys [],
             columns {
                 /// The call: the `occurrence` of its `static_call` row.
                 call Call: NodeId => Node;

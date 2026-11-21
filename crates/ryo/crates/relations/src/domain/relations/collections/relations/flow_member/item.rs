@@ -37,6 +37,8 @@ macro_rules! flow_member {
             scope File,
             notes Unneeded,
             form Filled(Many(Node)),
+            size PerElement,
+            keys [],
             columns {
                 /// The element.
                 node Node: NodeId => Node;

@@ -3,7 +3,7 @@
 
 use crate::domain::code::constants::NO_SLOT;
 use crate::domain::code::records::service::next_place;
-use crate::domain::code::types::{MeasuredForm, UnitKey};
+use crate::domain::code::types::{MeasuredForm, ShapeChoice, UnitKey};
 use crate::domain::code::types::{Short, TableCode, WordSlot};
 use crate::domain::encoding::needs::service::{definition_need, need_site};
 use crate::domain::encoding::pipelines::service::pipeline_entry;
@@ -161,6 +161,7 @@ fn table_written(encoding: &mut Encoding<'_>, id: MadeTableId) -> Result<(), Low
         encoding,
         UnitKey::Table(table.node, code),
         MeasuredForm::Call,
+        ShapeChoice::Decided,
     )?;
     let width =
         u16::try_from(table.width.0).map_err(|_| past(encoding, PastWidth::TableColumns))?;
@@ -218,7 +219,7 @@ fn pattern_written(encoding: &mut Encoding<'_>, key: PatternKey) -> Result<(), L
         pattern.bound.clone(),
         pattern.collected.clone(),
     );
-    begin_unit(encoding, name, MeasuredForm::Call)?;
+    begin_unit(encoding, name, MeasuredForm::Call, pattern.shape)?;
     let entry = program_entry(encoding, program, ProgramRole::Keyed)?;
     end_unit(encoding)?;
     match encoding.patterns.get_mut(&key) {

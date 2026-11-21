@@ -39,7 +39,7 @@ let direct_origins = select l.function as function, r.path as path, l.file as fi
 let called_expressions = select l.function as function, r.child as expression, l.file as file from decorator_expressions as l join "semantic-child" as r on l.expression = r.parent and l.file = r.file where r.field = "func";
 let called_origins = select l.function as function, r.path as path, l.file as file from called_expressions as l join "qualified-name" as r on l.expression = r.id and l.file = r.file;
 let origins = union(left=direct_origins, right=called_origins);
-let properties = select function, file from origins where path = "builtins.property" or path = "enum.property" or path = "functools.cached_property" or path = "abc.abstractproperty" or path = "types.DynamicClassAttribute";
+let properties = select function, file from origins where path in ["builtins.property", "enum.property", "functools.cached_property", "abc.abstractproperty", "types.DynamicClassAttribute"];
 let checked_functions = antijoin(left=annotated_functions, right=properties, left-on=["id", "file"], right-on=["function", "file"]);
 let checked_returns = select l.return as id, l.value as value, l.file as file from return_values as l join checked_functions as r on l.function = r.id and l.file = r.file;
 let reportable = select l.id as id, l.file as file from checked_returns as l join nulls as r on l.value = r.id and l.file = r.file;

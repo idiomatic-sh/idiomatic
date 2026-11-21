@@ -1,10 +1,10 @@
 import observation_matches from "python/ruff/suppress-matches";
 let continues = select id, file, span from "semantic-syntax" where kind = "continue";
 let final_roots = select child as id from "semantic-child" where field = "finalbody";
-let body_owners = select id from "semantic-syntax" where kind = "if" or kind = "try" or kind = "try-star" or kind = "with" or kind = "async-with" or kind = "match-case" or kind = "elif-else-clause";
+let body_owners = select id from "semantic-syntax" where kind in ["if", "try", "try-star", "with", "async-with", "match-case", "elif-else-clause"];
 let body_fields = select parent, child from "semantic-child" where field = "body";
 let body_edges = select r.parent as parent, r.child as child from body_owners as l join body_fields as r on l.id = r.parent;
-let else_owners = select id from "semantic-syntax" where kind = "if" or kind = "try" or kind = "try-star" or kind = "for" or kind = "async-for" or kind = "while";
+let else_owners = select id from "semantic-syntax" where kind in ["if", "try", "try-star", "for", "async-for", "while"];
 let else_fields = select parent, child from "semantic-child" where field = "orelse";
 let else_edges = select r.parent as parent, r.child as child from else_owners as l join else_fields as r on l.id = r.parent;
 let case_edges = select parent, child from "semantic-child" where field = "cases";

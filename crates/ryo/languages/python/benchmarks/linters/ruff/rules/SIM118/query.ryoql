@@ -48,8 +48,7 @@ let colon_positions = select l.statement as statement, r."start-byte" as start, 
 let call_ends = select l.id as statement, r."end-byte" as end, l.file as file from loop_iters as l join "source-location" as r on l.call = r.id and l.file = r.file;
 let after_call_closings = select l.statement as statement, l.end as end, l.span as span, l.file as file from closing_positions as l join call_ends as r on l.statement = r.statement and l.file = r.file where l.start >= r.end;
 let header_closings = select l.statement as statement, l.end as end, l.span as span, l.file as file from after_call_closings as l join colon_positions as r on l.statement = r.statement and l.file = r.file where l.end <= r.start;
-let earlier_closings = select l.statement as statement, l.end as end, l.file as file from header_closings as l join header_closings as r on l.statement = r.statement and l.file = r.file where l.end < r.end;
-let last_closings = antijoin(left=header_closings, right=earlier_closings, left-on=["statement", "end", "file"], right-on=["statement", "end", "file"]);
+let last_closings = group-max(from=header_closings, keys=["statement", "file"], order="end");
 let wrapped_bounds = select l.id as id, l.file as file, l.first_span as first_span, r.span as last_span, l.line as line from target_spans as l join last_closings as r on l.id = r.statement and l.file = r.file;
 let wrapped_candidates = span-between(from=wrapped_bounds, start="first_span", end="last_span", output="span");
 let wrapped_ids = select id, file from wrapped_candidates;
