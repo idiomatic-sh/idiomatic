@@ -168,6 +168,7 @@ mod built;
 mod calls;
 mod file_columns;
 mod fills;
+mod held_columns;
 mod matches;
 mod node_indexes;
 mod pipelines;
