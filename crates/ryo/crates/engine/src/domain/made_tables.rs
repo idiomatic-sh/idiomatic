@@ -19,6 +19,7 @@ pub mod sources;
 pub mod staging;
 pub mod types;
 pub mod using;
+pub(crate) mod writing;
 
 #[cfg(any(test, feature = "fixtures"))]
 pub mod fixtures;

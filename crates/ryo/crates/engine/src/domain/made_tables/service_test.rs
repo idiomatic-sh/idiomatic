@@ -173,6 +173,7 @@ mod matches;
 mod node_indexes;
 mod pipelines;
 mod relations;
+mod sizes;
 mod sources;
 mod verdict_bounds;
 mod verdicts;

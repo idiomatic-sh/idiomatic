@@ -3,13 +3,14 @@
 //! one index over the gathered input, every key column as one key, and one walk of its keys; the group's row is the
 //! operators crate's meaning.
 
-use super::columns::types::{ColumnIs, FileColumn, RowColumn};
+use super::columns::types::{CellsLie, ColumnIs, FileColumn, RowColumn};
 use super::types::{GroupRoom, TableRows};
+use super::writing::service::{written, written_new};
 use crate::domain::code::types::IndexSite;
-use crate::domain::indexes::reading::service::{cell_at, folded, hashed, read, rows_of, runs};
+use crate::domain::indexes::reading::service::{cell_at, read, rows_of, runs};
 use crate::domain::indexes::service::{begin, clear_indexes, finish, fixed_keys, key_column};
 use crate::domain::indexes::types::{
-    ColumnView, FileStamp, FixedKeys, IndexArena, KeyMask, RowHash, SourceRow,
+    ColumnView, FileStamp, FixedKeys, IndexArena, KeyMask, SourceRow,
 };
 use crate::domain::stages::types::BatchValue;
 use ryo_language::domain::facts::types::CellWord;
@@ -28,6 +29,7 @@ pub(crate) fn clear_rows(table: &mut TableRows, width: Count) {
     table.orders.clear();
     table.count = Count(0);
     table.width = width;
+    table.lies = CellsLie::Own;
     table.places.clear();
     table
         .places
@@ -72,7 +74,8 @@ pub(crate) fn place_of(table: &TableRows, column: Count) -> RowColumn {
     }
 }
 
-/// One column of a table, as a loop reads it: the file's own is the file's cell for every row.
+/// One column of a table that keeps its own list (a fill's gathered input; a made table's cells lie in the store's
+/// arena and are read through `reading::service`): the file's own is the file's cell for every row.
 #[inline]
 pub(crate) fn column(table: &TableRows, column: Count) -> ColumnView<'_> {
     match place_of(table, column) {
@@ -99,86 +102,18 @@ pub(crate) fn row(table: &TableRows, row: Count) -> &[CellWord] {
         .unwrap_or_default()
 }
 
-/// The hash a table's rows are kept by: every cell mixed in, then the high half folded onto the low, which the map reads.
-#[inline]
-fn row_hash(cells: &[CellWord]) -> RowHash {
-    folded(hashed(cells))
-}
-
-/// `Write`: appends `rows` rows to a table, the cells of each read from `sources`, one for each column. One pass per
-/// column.
+/// `Write` into a table whose cells lie in its own list.
 pub(crate) fn write(table: &mut TableRows, sources: &[BatchValue<'_>], rows: Count) {
-    let base = table.cells.len();
-    let width = sources.len();
-    table.cells.resize(
-        base.saturating_add(rows.0.saturating_mul(width)),
-        CellWord(0),
-    );
-    for (at, source) in sources.iter().enumerate() {
-        let slots = table
-            .cells
-            .get_mut(base.saturating_add(at)..)
-            .unwrap_or_default()
-            .iter_mut()
-            .step_by(width.max(1));
-        match *source {
-            BatchValue::Column(cells) => {
-                for (slot, cell) in slots.zip(cells.iter().take(rows.0)) {
-                    *slot = *cell;
-                }
-            }
-            BatchValue::Constant(cell) => {
-                for slot in slots.take(rows.0) {
-                    *slot = cell;
-                }
-            }
-        }
-    }
-    table.count = Count(table.count.0.saturating_add(rows.0));
+    let mut cells = std::mem::take(&mut table.cells);
+    written(&mut cells, table, sources, rows);
+    table.cells = cells;
 }
 
-/// The cells of the row a table's map holds by number.
-#[inline]
-fn held(cells: &[CellWord], width: Count, at: SourceRow) -> &[CellWord] {
-    let from = usize::try_from(at.0)
-        .unwrap_or(usize::MAX)
-        .saturating_mul(width.0);
-    cells
-        .get(from..from.saturating_add(width.0))
-        .unwrap_or_default()
-}
-
-/// `Write` with repeats dropped: appends each of `rows` rows the table does not hold yet. A row is written at the table's
-/// end, looked up by what it holds, and taken back when the table held it.
+/// `Write` with repeats dropped into a table whose cells lie in its own list.
 pub(crate) fn write_new(table: &mut TableRows, sources: &[BatchValue<'_>], rows: Count) {
-    let TableRows {
-        cells, seen, count, ..
-    } = table;
-    let width = Count(sources.len());
-    for at in 0..rows.0 {
-        let base = cells.len();
-        cells.extend(sources.iter().map(|source| match *source {
-            BatchValue::Column(column) => match column.get(at) {
-                Some(cell) => *cell,
-                None => CellWord(0),
-            },
-            BatchValue::Constant(cell) => cell,
-        }));
-        let (before, written) = cells.split_at(base);
-        let hash = row_hash(written);
-        let repeated = seen
-            .find(hash.0, |other| held(before, width, *other) == written)
-            .is_some();
-        if repeated {
-            cells.truncate(base);
-        } else {
-            let number = SourceRow(u32::try_from(count.0).unwrap_or(u32::MAX));
-            drop(seen.insert_unique(hash.0, number, |other| {
-                row_hash(held(cells, width, *other)).0
-            }));
-            *count = Count(count.0.saturating_add(1));
-        }
-    }
+    let mut cells = std::mem::take(&mut table.cells);
+    written_new(&mut cells, Count(0), table, sources, rows);
+    table.cells = cells;
 }
 
 /// Builds the index of a gathered input by its key columns, sorted within a key by `order` when one is given, as the one

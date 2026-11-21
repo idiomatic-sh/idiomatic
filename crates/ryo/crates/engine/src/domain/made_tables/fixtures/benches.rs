@@ -276,6 +276,8 @@ pub fn run_fill(work: &mut FillWorkload) -> usize {
     if let Some(slot) = work.0.store.tables.first_mut() {
         slot.state = MadeState::Unmade;
     }
+    // The table's cells of the run before are let go, as a file's start does: the arena is emptied, its room kept.
+    work.0.store.table_cells.clear();
     let (mut frame, _) = framed(&mut work.0);
     let _now = made(&mut frame, &mut OneRow, MadeTableId(0));
     table_of(frame.store, MadeTableId(0)).map_or(0, |slot| slot.rows.count.0)
