@@ -13,8 +13,8 @@ use parts::{as_of, at, joined, kept, of, plan, step, words, words_written};
 use ryo_relations::domain::relations::types::{Integer, Relation};
 use ryo_values::domain::plan_orders::types::{GroupEnd, OrderBound};
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, ComparisonOrigin, Input, LiteralText, Operand, PlanComparison, QueryLiteral,
-    RepeatedRows, Side, StepId, StepScope, TableKey, Test,
+    Applied, ColumnIndex, ComparisonOrigin, Function, Input, LiteralText, Operand, PlanComparison,
+    QueryLiteral, RepeatedRows, Side, StepId, StepScope, TableKey, Test,
 };
 use ryo_values::domain::plans::types::{Operation, PlanStep};
 use ryo_values::domain::query_bindings::types::RuleBindings;
@@ -150,6 +150,35 @@ fn operation_scene(scene: &str) -> Option<Plan> {
             source: at(1),
             destination: at(0),
         })]),
+        // Each element with the span from its own start to its own end.
+        "the elements' spans between" => plan(vec![
+            kept(Input::Relation(Relation::SyntaxTree)),
+            step(Operation::SpanBetween {
+                from: words_of,
+                start: at(4),
+                end: at(4),
+            }),
+        ]),
+        // The words whose text after `x.` is `x.a`: a comparison of a function's text.
+        "the words whose prefixed text is x.a" => plan(vec![
+            words(),
+            step(Operation::Select {
+                from: words_of,
+                comparisons: vec![PlanComparison {
+                    test: Test::Equal,
+                    left: Operand::Function(Applied {
+                        function: Function::Concat,
+                        arguments: vec![
+                            Operand::Literal(QueryLiteral::Text(LiteralText("x.".into()))),
+                            Operand::Column(at(3)),
+                        ],
+                    }),
+                    right: Operand::Literal(QueryLiteral::Text(LiteralText("x.a".into()))),
+                    origin: ComparisonOrigin::Unrecorded,
+                }],
+                kept: Vec::new(),
+            }),
+        ]),
         // Each word with its text, every `a` of it replaced by `b`.
         "the words' texts replaced" => plan(vec![
             words(),

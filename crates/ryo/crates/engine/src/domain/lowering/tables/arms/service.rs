@@ -97,7 +97,7 @@ fn arm(
             let mut read = input(state, drafts, *from, InputWant::Inline)?;
             for branch in &mut read.branches {
                 for value in values {
-                    let added = term(state, drafts, &branch.row, value)?;
+                    let added = term(state, drafts, branch, value)?;
                     branch.row.push(added);
                 }
             }
@@ -120,9 +120,9 @@ fn arm(
         Operation::AsOf { .. } => as_of_arm(state, drafts, step, operation),
         Operation::Axis { .. } => axis_arm(state, drafts, operation),
         Operation::Closure { .. } => closure_arm(state, drafts, operation),
-        Operation::Replace { .. } | Operation::SpanBounds { .. } => {
-            call_arm(state, drafts, operation)
-        }
+        Operation::Replace { .. }
+        | Operation::SpanBounds { .. }
+        | Operation::SpanBetween { .. } => call_arm(state, drafts, operation),
         // What is left to lower, each by name: `tables::service::shaped` refuses a rule that holds one.
         Operation::Intersection { .. }
         | Operation::Difference { .. }
@@ -137,7 +137,6 @@ fn arm(
         | Operation::Cycles { .. }
         | Operation::Rows { .. }
         | Operation::Hosted { .. }
-        | Operation::SpanBetween { .. }
         | Operation::SourceMatches { .. }
         | Operation::RenderSyntax { .. }
         | Operation::FitsRendered { .. } => None,

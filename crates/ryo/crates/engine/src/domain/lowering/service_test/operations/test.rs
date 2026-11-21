@@ -89,6 +89,31 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "codes: {\"Closure\": 1, \"EachMatchFilled\": 2, \"EachRowMade\": 1, \"Emit\": 1, \"End\": 4, \"Let\": 1, \"ReadFilled\": 1, \"ReadMade\": 2, \"StageRead\": 1, \"StageScan\": 1, \"StageUse\": 1, \"StageWrite\": 1, \"Yield\": 2}",
         ))),
     },
+    Case {
+        name: CaseName("span_between_is_one_call_of_two_cells_that_gives_one"),
+        word: Word::Succeeds,
+        input: || (&["the elements' spans between"], SampleStage::Absent),
+        expect: Expect::Value(Cow::Borrowed(concat!(
+            "rule 0: 1 branches\n",
+            "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Call:Constant Emit:Constant\n",
+            "codes: {\"Call\": 1, \"EachRowNode\": 1, \"Emit\": 1, \"End\": 2, \"ReadNode\": 3}",
+        ))),
+    },
+    Case {
+        name: CaseName("a_function_in_a_comparison_is_a_call_whose_cell_is_tested"),
+        word: Word::Succeeds,
+        input: || {
+            (
+                &["the words whose prefixed text is x.a"],
+                SampleStage::Absent,
+            )
+        },
+        expect: Expect::Value(Cow::Borrowed(concat!(
+            "rule 0: 1 branches\n",
+            "  branch: EachRow:File Read:Constant Call:Constant Test:Constant EachMatch:Fanout Read:Constant Read:Constant Emit:Constant\n",
+            "codes: {\"Call\": 1, \"EachMatchNode\": 1, \"EachRowNode\": 1, \"Emit\": 1, \"End\": 2, \"ReadNode\": 3, \"Test\": 1}",
+        ))),
+    },
 ];
 
 /// The scenes lowered and said in lines, as the cases of the service itself are.

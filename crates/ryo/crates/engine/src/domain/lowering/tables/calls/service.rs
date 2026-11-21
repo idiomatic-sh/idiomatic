@@ -1,6 +1,7 @@
 //! The services of the `calls` part: an operation that is one per-row meaning of the operators crate. Each row of its
 //! input goes on with what the meaning gives. The arguments are the operation's column operands in the order its fields
-//! are declared, then its constant fields as constants; a regular expression is the meaning's own number.
+//! are declared, then its constant fields as constants; a regular expression is the meaning's own number. A function a
+//! comparison applies is a call too: its arguments in their order, one cell given.
 
 use crate::domain::lowering::definitions::service::{fresh_variable, regex, text};
 use crate::domain::lowering::definitions::types::{Drafts, Flattened};
@@ -72,6 +73,15 @@ pub(crate) fn call_arm(
             };
             called(state, drafts, *from, call)
         }
+        Operation::SpanBetween { from, start, end } => {
+            let call = OperationCall {
+                meaning: CallMeaning::SpanBetween,
+                reads: &[*start, *end],
+                constants: &[],
+                gives: Count(1),
+            };
+            called(state, drafts, *from, call)
+        }
         Operation::Select { .. }
         | Operation::Project { .. }
         | Operation::Extend { .. }
@@ -97,7 +107,6 @@ pub(crate) fn call_arm(
         | Operation::Cycles { .. }
         | Operation::Rows { .. }
         | Operation::Hosted { .. }
-        | Operation::SpanBetween { .. }
         | Operation::SourceMatches { .. }
         | Operation::RenderSyntax { .. }
         | Operation::FitsRendered { .. } => None,

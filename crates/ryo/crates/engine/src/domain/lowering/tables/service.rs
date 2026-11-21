@@ -2,6 +2,7 @@
 //! look like. The `match` over `Operation` names every operation: the ones the lowering does not evaluate yet are listed
 //! there, each by name, and refused as the step that cannot be evaluated. A rule is never refused for its cost or its size.
 
+use crate::domain::lowering::flattening::service::function_call;
 use crate::domain::lowering::nodes::service::{digested, input_shape, reached};
 use crate::domain::lowering::nodes::types::{AdmittedRule, StepReach, StepShape};
 use crate::domain::lowering::tables::types::TreeAxis;
@@ -61,7 +62,14 @@ fn operand_kind(rule: &SelectedRule<'_>, shape: &StepShape, operand: &Operand) -
                 | ParameterBinding::Tables(_) => None,
             }
         }
-        Operand::Function(_) => None,
+        // A function is text made from texts, when the engine's contract names its meaning.
+        Operand::Function(applied) => {
+            let _meaning = function_call(applied.function)?;
+            let mut arguments = applied.arguments.iter();
+            arguments
+                .all(|argument| operand_kind(rule, shape, argument) == Some(CellKind::Symbol))
+                .then_some(CellKind::Symbol)
+        }
     }
 }
 
@@ -312,6 +320,14 @@ fn shaped(
             shape.0.push(CellKind::Symbol);
             Some(shape)
         }
+        Operation::SpanBetween { from, start, end } => {
+            let mut shape = of(from)?;
+            if picked(&shape, &[*start, *end])?.0 != [CellKind::Span; 2] {
+                return None;
+            }
+            shape.0.push(CellKind::Span);
+            Some(shape)
+        }
         Operation::SpanBounds { from, span } => {
             let mut shape = of(from)?;
             let _read = picked(&shape, &[*span])?;
@@ -332,7 +348,6 @@ fn shaped(
         | Operation::Cycles { .. }
         | Operation::Rows { .. }
         | Operation::Hosted { .. }
-        | Operation::SpanBetween { .. }
         | Operation::SourceMatches { .. }
         | Operation::RenderSyntax { .. }
         | Operation::FitsRendered { .. } => None,
