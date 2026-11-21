@@ -1,5 +1,7 @@
 //! The `statistics` service's cases: a file of a sample that measured no unit reads as statistics of its stage, which is not
-//! the same as no statistics; bytes that hold no statistics are absent, never an error, whatever they are.
+//! the same as no statistics; bytes that hold no statistics are absent, never an error, whatever they are. What a sample
+//! and a second sample learn, and how their units read back, are the cases of the `learning` part.
+mod learning;
 
 use super::service::decoded;
 use super::types::{LearnStage, StatisticsBytes};
@@ -71,7 +73,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Held::Absent),
     },
     Case {
-        name: CaseName("a_header_followed_by_bytes_nothing_reads_yet_is_absent"),
+        name: CaseName("a_header_followed_by_bytes_that_are_no_units_is_absent"),
         word: Word::Succeeds,
         input: || Written("ryo-statistics\n{version}\nfirst\nunits"),
         expect: Expect::Value(Held::Absent),
