@@ -145,7 +145,7 @@ fn straight_asked(frame: &mut StepFrame<'_, '_>, at: CodeEntry, entry: CodeEntry
         set(frame, part.formal, value);
     }
     frame.state.key.truncate(start);
-    QuickAsk::Run(entry)
+    QuickAsk::Collect(entry)
 }
 
 /// SPIKE: counts an ask the running rule makes of a memo site in the file, found kept or not, and answers whether the
