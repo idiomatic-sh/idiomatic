@@ -87,3 +87,51 @@ name = "formfeed"
 comparison = "full"
 files = { "case.py" = "#\fcoding: utf-8\n" }
 expected = [{ rule = "UP009", file = "case.py", start = 0, end = 15 }]
+
+[[cases]]
+name = "emacs-form"
+comparison = "full"
+files = { "case.py" = "# -*- coding: utf-8 -*-\nx = 1\n" }
+expected = [{ rule = "UP009", file = "case.py", start = 0, end = 23 }]
+
+[[cases]]
+name = "vim-form"
+comparison = "full"
+files = { "case.py" = "# vim: set fileencoding=utf-8 :\nx = 1\n" }
+expected = [{ rule = "UP009", file = "case.py", start = 0, end = 31 }]
+
+[[cases]]
+name = "text-before-name"
+comparison = "full"
+files = { "case.py" = "# This file: coding=utf-8\nx = 1\n" }
+expected = [{ rule = "UP009", file = "case.py", start = 0, end = 25 }]
+
+[[cases]]
+name = "emacs-after-shebang"
+comparison = "full"
+files = { "case.py" = "#!/usr/bin/env python\n# -*- coding: utf-8 -*-\n" }
+expected = [{ rule = "UP009", file = "case.py", start = 22, end = 45 }]
+
+[[cases]]
+name = "emacs-other-encoding-next"
+comparison = "full"
+files = { "case.py" = "# -*- coding: utf-8 -*-\n# -*- coding: latin-1 -*-\n" }
+expected = []
+
+[[cases]]
+name = "emacs-name-runs-on"
+comparison = "full"
+files = { "case.py" = "#-*-coding:utf-8-*-\n" }
+expected = []
+
+[[cases]]
+name = "other-declared-first-on-line"
+comparison = "full"
+files = { "case.py" = "# coding: latin-1 coding: utf-8\n" }
+expected = []
+
+[[cases]]
+name = "utf8-declared-first-on-line"
+comparison = "full"
+files = { "case.py" = "# coding: utf-8 coding: latin-1\n" }
+expected = [{ rule = "UP009", file = "case.py", start = 0, end = 31 }]

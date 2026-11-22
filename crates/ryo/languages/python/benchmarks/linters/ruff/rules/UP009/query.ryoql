@@ -1,8 +1,9 @@
 import observation_matches from "python/ruff/suppress-unmapped-matches";
 let comment_rows = select id, file, text from "comment";
 let comment_positions = select l.id as id, l.file as file, l.text as text, r."start-byte" as begin, r."end-byte" as finish, r."start-line" as line from comment_rows as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let coding_comments = select * from comment_positions where matches(text, "^\s*coding[:=]\s*[-_.a-zA-Z0-9]+");
-let utf8_comments = select * from coding_comments where matches(text, "^\s*coding[:=]\s*(?:utf8|utf-8)(?:$|[^-_.a-zA-Z0-9])");
+let coding_comments = select * from comment_positions where matches(text, "coding[:=]\s*[-_.a-zA-Z0-9]");
+let declared_encodings = replace(from=coding_comments, text="text", pattern="^.*?coding[:=]\s*", replacement="", output="declared");
+let utf8_comments = select * from declared_encodings where matches(declared, "^(?:utf8|utf-8)(?:$|[^-_.a-zA-Z0-9])");
 let first_coding = group-min(from=coding_comments, keys=["file"], order="begin");
 let first_utf8 = select l.id as id, l.file as file, l.begin as begin, l.finish as finish, l.line as line from first_coding as l join utf8_comments as r on l.id = r.id and l.file = r.file where l.line <= 2;
 let preamble_code_tokens = select id, file from "syntax-tree" where text != "" and kind != "comment" and kind != "whitespace" and kind != "newline" and kind != "nl" and kind != "indent" and kind != "dedent";
