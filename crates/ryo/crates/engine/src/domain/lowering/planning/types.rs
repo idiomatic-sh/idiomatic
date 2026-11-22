@@ -34,8 +34,6 @@ pub(crate) struct PlannedBranch {
     pub(crate) rows: PlanEstimate,
     /// How many accesses after the first have no key: the product stages of a pipeline.
     pub(crate) products: Count,
-    /// SPIKE (cost placement): the most rows the unit held up to each atom of `order`, for one start: an ask's weight.
-    pub(crate) before: Vec<PlanEstimate>,
 }
 
 /// One access as written, its registers decided: what the step emitter and the stage emitter each write in their own form.
@@ -325,8 +323,6 @@ pub(crate) struct OrderCompletion<'a> {
     pub(crate) enumerated: Enumerated,
     /// How many accesses after the first had no key.
     pub(crate) products: Count,
-    /// The rows held just before each placed atom, in the order's order.
-    pub(crate) before: Vec<PlanEstimate>,
 }
 
 /// The kinds a bucket of the node table names, with the node relation they are read through.
@@ -372,8 +368,6 @@ pub(crate) struct WrittenUnit {
     pub(crate) role: UnitRole,
     /// The definition; none for a rule's own branch.
     pub(crate) definition: Option<DefinitionId>,
-    /// SPIKE (cost placement): how often the unit starts in a file: one for a branch and a pipeline, a pattern's lookups.
-    pub(crate) starts: PlanEstimate,
 }
 
 /// What a branch is written from: the registers given at its start, the accesses that test them, and the columns of its

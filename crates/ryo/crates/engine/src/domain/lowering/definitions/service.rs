@@ -5,7 +5,6 @@ use super::types::{
     AskedColumns, DefinitionDraft, Drafts, Flattened, PatternDraft, PatternPlace, WaitingPattern,
 };
 use crate::domain::code::types::ShapeChoice;
-use crate::domain::lowering::costing::service::plus;
 use crate::domain::lowering::emptiness::branches::service::{branches_need, with_need};
 use crate::domain::lowering::flattening::types::{
     AtomRows, FlatAtom, FlatBranch, FlatTerm, FlatVariable, RowsPerFile, TextNumber,
@@ -165,13 +164,11 @@ pub(crate) fn asked(
     let Some(draft) = drafts.definitions.get_mut(place) else {
         return;
     };
-    let asking = drafts.asking;
     let known = draft
         .patterns
-        .iter_mut()
-        .find(|pattern| pattern.asked.bound == *bound && pattern.asked.collected == *collected);
-    if let Some(pattern) = known {
-        pattern.lookups = plus(pattern.lookups, asking);
+        .iter()
+        .any(|pattern| pattern.asked.bound == *bound && pattern.asked.collected == *collected);
+    if known {
         return;
     }
     draft.patterns.push(PatternDraft {
@@ -181,7 +178,6 @@ pub(crate) fn asked(
         },
         form: None,
         shape: ShapeChoice::Decided,
-        lookups: asking,
     });
     drafts.waiting.push(WaitingPattern {
         definition,

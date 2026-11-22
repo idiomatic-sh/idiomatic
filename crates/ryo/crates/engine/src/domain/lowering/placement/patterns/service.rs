@@ -1,11 +1,9 @@
 //! The services of the `patterns` part: one pattern asked of a definition placed and written in its form: its program, or its definition's table.
 
-use crate::domain::code::types::ShapeChoice;
 use crate::domain::code::types::UnitKey;
 use crate::domain::lowered::types::{ConstantRows, Emptiness, MadeFill, MadeTable, PatternForm};
-use crate::domain::lowering::costing::service::{plus, times};
-use crate::domain::lowering::costing::types::PlanEstimate;
 use crate::domain::lowering::definitions::service::text_word;
+use ryo_language::domain::facts::types::CellWord;
 use crate::domain::lowering::definitions::types::{DefinitionDraft, Drafts, WaitingPattern};
 use crate::domain::lowering::flattening::service::own_walks;
 use crate::domain::lowering::flattening::types::{FlatBranch, FlatTerm, FlatVariable, OwnWalks};
@@ -13,7 +11,7 @@ use crate::domain::lowering::nodes::types::AcceptedPlace;
 use crate::domain::lowering::nodes::types::NodeHome;
 use crate::domain::lowering::placement::service::{measured, placed};
 use crate::domain::lowering::placement::types::{
-    FormChoice, PatternFacts, PatternPlacement, PatternProgram, SampleStage, TableForm,
+    FormChoice, PatternFacts, PatternProgram, TableForm,
 };
 use crate::domain::lowering::placement::types::{LoadSample, RefusedPlace};
 use crate::domain::lowering::planning::emitting::service::indexed;
@@ -25,7 +23,6 @@ use crate::domain::lowering::planning::writing::service::{
 };
 use crate::domain::lowering::types::{LoadRefusal, PlanNode};
 use crate::domain::steps::types::{ColumnMask, DefinitionId, MadeTableId, ReadColumn};
-use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::relations::types::Count;
 use ryo_values::domain::plan_parts::types::{RepeatedRows, StepId};
 use ryo_values::domain::table_words::types::ColumnCount;
@@ -137,92 +134,6 @@ pub(crate) fn given(branch: &FlatBranch, bound: &ColumnMask) -> HashSet<FlatVari
         .collect()
 }
 
-/// SPIKE (cost placement): the margin by which a flip candidate's lookups times its call cost must stay below its table's
-/// whole cost for it to keep its call form: `RYO_L1B_COST_MARGIN` (none or nought: the stage decides, as before).
-fn cost_margin() -> u64 {
-    static MARGIN: std::sync::OnceLock<u64> = std::sync::OnceLock::new();
-    *MARGIN.get_or_init(|| {
-        std::env::var("RYO_L1B_COST_MARGIN")
-            .ok()
-            .and_then(|margin| margin.parse().ok())
-            .unwrap_or(0)
-    })
-}
-
-/// SPIKE (cost placement): a flip candidate the first stage puts in its table, with nothing measured of it, keeps its call
-/// form when its readers' expected lookups in a file times what one lookup costs is below, by the margin, what making its
-/// definition's table whole costs in a file. A definition whose table is made already keeps the table: it is paid for.
-fn by_cost(
-    drafts: &Drafts,
-    sample: LoadSample<'_>,
-    waiting: WaitingPattern,
-    branches: &[FlatBranch],
-    plans: Option<&[PlannedBranch]>,
-    placement: PatternPlacement,
-) -> PatternPlacement {
-    let margin = cost_margin();
-    let Some(plans) = plans else {
-        return placement;
-    };
-    let Some(draft) = draft_at(drafts, waiting.definition) else {
-        return placement;
-    };
-    let Some(pattern) = draft.patterns.get(waiting.pattern.0) else {
-        return placement;
-    };
-    let candidate = margin > 0
-        && placement.form == FormChoice::Table
-        && placement.shape == ShapeChoice::Open
-        && sample.stage == SampleStage::First
-        && draft.table.is_none()
-        // A pattern no written ask counted (asked outside a weighed access, or by a pattern whose own lookups were not
-        // known yet) has readers the costing does not know: it keeps its table.
-        && pattern.lookups.0 > 0
-        && measured(
-            sample.statistics,
-            &UnitKey::Pattern(
-                draft.node,
-                pattern.asked.bound.clone(),
-                pattern.asked.collected.clone(),
-            ),
-        )
-        .is_none();
-    if !candidate {
-        return placement;
-    }
-    let call = plans
-        .iter()
-        .fold(PlanEstimate(0), |sum, plan| plus(sum, plan.cost));
-    let mut table = PlanEstimate(0);
-    for branch in branches {
-        match planned(drafts, branch, &HashSet::new(), UnitRole::Pipeline) {
-            Some(plan) => table = plus(table, plan.cost),
-            None => return placement,
-        }
-    }
-    let asked = times(pattern.lookups, call);
-    let kept = u128::from(asked.0).saturating_mul(u128::from(margin)) < u128::from(table.0);
-    if std::env::var_os("RYO_L1B_COST_TRACE").is_some() {
-        eprintln!(
-            "ryo l1b: cost-placement definition={} pattern={} lookups={} call={} table={} form={}",
-            waiting.definition.0,
-            waiting.pattern.0,
-            pattern.lookups.0,
-            call.0,
-            table.0,
-            if kept { "call" } else { "table" }
-        );
-    }
-    if kept {
-        PatternPlacement {
-            form: FormChoice::Call,
-            shape: placement.shape,
-        }
-    } else {
-        placement
-    }
-}
-
 /// The plan of each branch of a pattern's definition with the pattern's bound columns given: a pattern has a program when
 /// every branch has one, every access keyed. None when a branch has none, or the pattern is not one of the drafts'. It
 /// reads the drafts and writes nothing: the plans of patterns that wait may be made in any order, or at once.
@@ -285,14 +196,7 @@ pub(crate) fn pattern_placed(
             &UnitKey::Pattern(node, bound.clone(), collected.clone()),
         ),
     };
-    let placement = by_cost(
-        drafts,
-        sample,
-        waiting,
-        &branches,
-        plans.as_deref(),
-        placed(facts, sample.stage),
-    );
+    let placement = placed(facts, sample.stage);
     let form = match (placement.form, plans) {
         (FormChoice::Call, Some(plans)) => {
             let columns = PatternColumns {

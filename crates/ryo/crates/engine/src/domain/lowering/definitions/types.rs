@@ -2,7 +2,6 @@
 
 use crate::domain::code::types::ShapeChoice;
 use crate::domain::lowered::types::{Emptiness, MadeTable, PatternForm};
-use crate::domain::lowering::costing::types::PlanEstimate;
 use crate::domain::lowering::costing::types::{SampleSizes, UseCosts};
 use crate::domain::lowering::flattening::types::{FlatBranch, FlatVariable, RowColumn, TextNumber};
 use crate::domain::lowering::nodes::types::{NodeHome, StepShape};
@@ -38,8 +37,6 @@ pub(crate) struct PatternDraft {
     pub(crate) form: Option<PatternForm>,
     /// Whether the shape of its plans left its form open: a flip candidate.
     pub(crate) shape: ShapeChoice,
-    /// SPIKE (cost placement): how often its readers are expected to ask it in a file, summed over the asks written.
-    pub(crate) lookups: PlanEstimate,
 }
 
 /// A definition as flattened: its branches are written once and never changed after.
@@ -84,9 +81,6 @@ pub(crate) struct WaitingPattern {
 /// The pack as it is being lowered.
 #[derive(Debug, Default)]
 pub(crate) struct Drafts {
-    /// SPIKE (cost placement): how often the access being written runs in a file: what an ask it makes adds to the
-    /// pattern's lookups. Nought outside a written branch.
-    pub(crate) asking: PlanEstimate,
     /// The definitions, by number: a definition reads only definitions before it.
     pub(crate) definitions: Vec<DefinitionDraft>,
     /// The definition of each merged plan node that has one.
