@@ -843,6 +843,10 @@ mod dump;
 mod type_expression;
 #[path = "annotation_evaluation.rs"]
 mod annotation_evaluation;
+#[path = "deferred_visit.rs"]
+mod deferred_visit;
+#[path = "deferred_resolution.rs"]
+mod deferred_resolution;
 
 /// The visit's facts as the finish's provider.
 struct Facts<'v, 'f, 'w> {
@@ -877,7 +881,7 @@ impl ColFacts<'_, '_, '_, '_> {
             return Ok(t.clone());
         }
         let t = self.whole_fill(run, rel)?;
-        if matches!(rel, "binding-event" | "binding-read" | "binding-resolution" | "qualified-name" | "call-argument" | "identifier" | "embedded-expression" | "compiler-feature" | "language-target") {
+        if matches!(rel, "binding-event" | "binding-read" | "binding-resolution" | "qualified-name" | "call-argument" | "identifier" | "embedded-expression" | "compiler-feature" | "language-target" | "lookup-scope" | "implicit-symbol") {
             let _ = self.kept.insert(rel.to_owned(), t.clone());
         }
         Ok(t)
@@ -1020,6 +1024,73 @@ impl ColFacts<'_, '_, '_, '_> {
     }
 }
 
+impl ColFacts<'_, '_, '_, '_> {
+    /// redo-binding pass 4: a harness fact, made once a file (the facts that compose others read it from here).
+    fn fact(&mut self, run: &mut finish::Run, rel: &str) -> Result<finish::Table, String> {
+        if let Some(t) = self.kept.get(rel) {
+            return Ok(t.clone());
+        }
+        let t = match rel {
+            finish::TYPE_EXPRESSION_REL => self.type_expression(run)?,
+            finish::ANNOTATION_EVALUATION_REL => self.annotation_evaluation(run)?,
+            finish::FINAL_REL => self.namespace_final(run)?,
+            finish::DEFERRED_RESOLUTION_REL => self.deferred_resolution(run)?,
+            _ => self.deferred_visit(run)?,
+        };
+        let _ = self.kept.insert(rel.to_owned(), t.clone());
+        Ok(t)
+    }
+
+    /// redo-binding pass 4: `deferred-resolution` (deferred_resolution.rs) from the provider's reads, events and lookup paths,
+    /// the implicit symbols, and the facts namespace-final and deferred-visit.
+    fn deferred_resolution(&mut self, run: &mut finish::Run) -> Result<finish::Table, String> {
+        let visits = self.fact(run, finish::DEFERRED_VISIT_REL)?;
+        let (_, names, tys) = run.catalog(finish::DEFERRED_RESOLUTION_REL).ok_or("no deferred-resolution")?;
+        if visits.n == 0 {
+            // no postponed or unvisited element: no row (and no fill of the inputs below)
+            return Ok(finish::Table { names, tys, cols: vec![Vec::new(); 5], n: 0 });
+        }
+        let reads = self.whole(run, "binding-read")?;
+        let events = self.whole(run, "binding-event")?;
+        let lookup = self.whole(run, "lookup-scope")?;
+        let implicit = self.whole(run, "implicit-symbol")?;
+        let finals = self.fact(run, finish::FINAL_REL)?;
+        let stub = run.texts[run.path_sym[self.file_no as usize] as usize].ends_with(b".pyi");
+        let inputs = deferred_resolution::Inputs { reads: &reads, events: &events, lookup: &lookup, implicit: &implicit, finals: &finals, visits: &visits, stub };
+        let rows = deferred_resolution::rows(run, self.file.table, &inputs)?;
+        let mut t = finish::Table { names, tys, cols: vec![Vec::with_capacity(rows.len()); 5], n: rows.len() };
+        for (reference, occurrence, kind, point) in rows {
+            for (c, v) in [reference, occurrence, kind, point, 0].into_iter().enumerate() {
+                t.cols[c].push(v);
+            }
+        }
+        Ok(t)
+    }
+
+    /// redo-binding pass 4: `deferred-visit` (deferred_visit.rs) from `type-expression`, `annotation-evaluation`, the node
+    /// table, the file's embedded expressions, its name (a stub) and its annotations future.
+    fn deferred_visit(&mut self, run: &mut finish::Run) -> Result<finish::Table, String> {
+        let types = self.fact(run, finish::TYPE_EXPRESSION_REL)?;
+        let evaluations = self.fact(run, finish::ANNOTATION_EVALUATION_REL)?;
+        let embedded = self.whole(run, "embedded-expression")?;
+        let features = self.whole(run, "compiler-feature")?;
+        let targets = self.whole(run, "language-target")?;
+        let future = annotation_evaluation::target(run, &features, &targets)?.enabled;
+        let stub = run.texts[run.path_sym[self.file_no as usize] as usize].ends_with(b".pyi");
+        let inputs = deferred_visit::Inputs { types: &types, evaluations: &evaluations, embedded: &embedded, stub, future };
+        let rows = deferred_visit::rows(run, self.file.table, &inputs)?;
+        let (_, names, tys) = run.catalog(finish::DEFERRED_VISIT_REL).ok_or("no deferred-visit")?;
+        let (deferred, unvisited) = (u64::from(run.sym(b"deferred")), u64::from(run.sym(b"unvisited")));
+        let mut t = finish::Table { names, tys, cols: vec![Vec::with_capacity(rows.len()); 3], n: rows.len() };
+        for (id, d) in rows {
+            t.cols[0].push(u64::from(id));
+            t.cols[1].push(if d { deferred } else { unvisited });
+            t.cols[2].push(0);
+        }
+        Ok(t)
+    }
+}
+
 impl finish::Provider for ColFacts<'_, '_, '_, '_> {
     fn fill(&mut self, run: &mut finish::Run, rel: &str) -> Result<finish::Table, String> {
         let t0 = thread_cpu();
@@ -1040,12 +1111,17 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
             t
         } else if rel == finish::RESOLUTION_REL {
             self.read_resolution(run)?
-        } else if rel == finish::FINAL_REL {
-            self.namespace_final(run)?
-        } else if rel == finish::TYPE_EXPRESSION_REL {
-            self.type_expression(run)?
-        } else if rel == finish::ANNOTATION_EVALUATION_REL {
-            self.annotation_evaluation(run)?
+        } else if rel == finish::TYPE_REGION_REL {
+            let ids = self.file.type_regions().ok_or("type-region: the model is incomplete")?;
+            let (_, names, tys) = run.catalog(rel).ok_or("no type-region")?;
+            finish::Table { names, tys, n: ids.len(), cols: vec![ids.iter().map(|i| u64::from(*i)).collect(), vec![0; ids.len()]] }
+        } else if rel == finish::FINAL_REL
+            || rel == finish::TYPE_EXPRESSION_REL
+            || rel == finish::ANNOTATION_EVALUATION_REL
+            || rel == finish::DEFERRED_VISIT_REL
+            || rel == finish::DEFERRED_RESOLUTION_REL
+        {
+            self.fact(run, rel)?
         } else {
             self.whole(run, rel)?
         };
