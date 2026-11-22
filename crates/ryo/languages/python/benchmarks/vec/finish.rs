@@ -15,6 +15,9 @@ use serde_json::Value as J;
 use std::cell::RefCell;
 use std::rc::Rc;
 
+#[path = "band.rs"]
+pub(super) mod band;
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum Ty {
     Node,
@@ -688,6 +691,7 @@ pub(super) struct Exec<'p> {
     consumers: Vec<Vec<usize>>,
     keyed_memo: Vec<Option<bool>>,
     emitted: rustc_hash::FxHashSet<usize>,
+    pub(super) tally: band::Tally,
 }
 
 type R<T> = Result<T, String>;
@@ -735,6 +739,7 @@ impl<'p> Exec<'p> {
             },
             keyed_memo: vec![None; k],
             emitted: plan.emits.iter().map(|e| e.1).collect(),
+            tally: band::Tally::default(),
         }
     }
 
@@ -1469,6 +1474,35 @@ impl<'p> Exec<'p> {
             "base" | "select" | "rows" => None,
             _ => Some("from"),
         };
+        let counted = op == "group-count" && a["distinct"].is_null() && std::env::var_os("VEC_NO_SEMI").is_none() && {
+            let fnode = self.arg_rel(node, "from")?;
+            plan.nodes[fnode].j.get("count").is_some()
+        };
+        if counted {
+            let fnode = self.arg_rel(node, "from")?;
+            let pb = plan.nodes[fnode].j["semi"].as_u64().ok_or("count without semi")? as usize;
+            if let Some((from, counts)) = self.band_rows(f, run, p, fnode, pb, true)? {
+                self.stats.rows[fnode] += from.n as u64;
+                let keys: Vec<usize> = strs(&a["keys"])?.iter().map(|c| from.col(c)).collect::<R<_>>()?;
+                let mut groups: FxHashMap<Vec<u64>, u64> = FxHashMap::default();
+                let mut order: Vec<Vec<u64>> = Vec::new();
+                for i in 0..from.n {
+                    let k: Vec<u64> = keys.iter().map(|c| from.cols[*c][i]).collect();
+                    let e = groups.entry(k.clone()).or_insert_with(|| {
+                        order.push(k);
+                        0
+                    });
+                    *e += counts[i];
+                }
+                let mut out = self.empty(run, node)?;
+                for k in order {
+                    let mut row = k.clone();
+                    row.push(groups[&k]);
+                    out.push_row(&row);
+                }
+                return Ok(out);
+            }
+        }
         if let Some(arg) = first {
             let t = self.eval(f, run, p, self.arg_rel(node, arg)?)?;
             if t.n == 0 && op != "union" {
@@ -1886,6 +1920,13 @@ impl<'p> Exec<'p> {
     }
 
     fn select(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Table> {
+        if let Some(pb) = self.plan.nodes[node].j.get("semi").and_then(J::as_u64)
+            && self.plan.nodes[node].j.get("count").is_none()
+            && std::env::var_os("VEC_NO_SEMI").is_none()
+            && let Some(t) = self.semi(f, run, p, node, pb as usize)?
+        {
+            return Ok(t);
+        }
         let sp = self.sel(run, node)?;
         let k = sp.srcs.len();
         let conj = &sp.conj;
