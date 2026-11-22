@@ -112,7 +112,7 @@ fn subject((atoms, role, given): Input) -> Result<Vec<usize>, Failure> {
         atoms,
         row: Vec::new(),
     };
-    let given: HashSet<FlatVariable> = given.iter().copied().map(FlatVariable).collect();
+    let given: rustc_hash::FxHashSet<FlatVariable> = given.iter().copied().map(FlatVariable).collect();
     planned(&Drafts::default(), &branch, &given, role)
         .map(|plan| plan.order.into_iter().map(|at| at.0).collect())
         .ok_or(())
