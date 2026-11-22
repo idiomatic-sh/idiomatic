@@ -169,7 +169,7 @@ fn fset_of(v: &serde_json::Value, vocab: &Vocab, missing: &mut Vec<String>) -> F
     s
 }
 
-fn ops_of(v: &serde_json::Value, vocab: &Vocab, missing: &mut Vec<String>, fc: &mut FactLoad<'_>) -> Vec<Op> {
+pub(super) fn ops_of(v: &serde_json::Value, vocab: &Vocab, missing: &mut Vec<String>, fc: &mut FactLoad<'_>) -> Vec<Op> {
     let u = |o: &serde_json::Value, k: &str| o[k].as_u64().expect("reg") as usize;
     v.as_array()
         .expect("ops")
@@ -222,7 +222,7 @@ pub(super) struct Words {
 }
 
 impl Words {
-    fn id(&mut self, w: &str) -> u16 {
+    pub(super) fn id(&mut self, w: &str) -> u16 {
         if let Some(i) = self.ids.get(w.as_bytes()) {
             return *i;
         }
@@ -231,11 +231,16 @@ impl Words {
         self.ids.insert(w.as_bytes().to_vec(), i);
         i
     }
-    fn cnf(&mut self, v: &serde_json::Value) -> Vec<Vec<u16>> {
+    pub(super) fn cnf(&mut self, v: &serde_json::Value) -> Vec<Vec<u16>> {
         v.as_array()
             .map(|cl| cl.iter().map(|c| c.as_array().expect("clause").iter().map(|w| self.id(w.as_str().expect("word"))).collect()).collect())
             .unwrap_or_default()
     }
+}
+
+#[inline]
+pub(super) fn bit32(set: &[u64], w: u32) -> bool {
+    set.get(w as usize / 64).is_some_and(|x| x >> (w % 64) & 1 == 1)
 }
 
 #[inline]

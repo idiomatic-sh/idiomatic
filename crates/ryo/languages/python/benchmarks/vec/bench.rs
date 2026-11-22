@@ -644,6 +644,8 @@ fn run(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
 mod funnel;
 #[path = "facts.rs"]
 mod facts;
+#[path = "spec.rs"]
+mod spec;
 
 /// `vec funnel <way> <files> <anchors> <plans> [--repeat K] [--rules-out F] [--hits-out F]`: ways `cands`, `structure`,
 /// `interp`, `spec`, `knock`.
@@ -653,9 +655,33 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     let rules = load_rules(args[2], vocab);
     let mut fact_catalog = facts::Catalog::default();
     let mut interner = facts::Interner { ids: facts::Table::named(&flag(args, "--hasher").unwrap_or_else(|| "std".to_owned())), ..Default::default() };
-    let (frules, words) = funnel::load(args[3], vocab, &mut fact_catalog, &mut interner);
+    let (frules, mut words) = funnel::load(args[3], vocab, &mut fact_catalog, &mut interner);
     let use_facts = args.contains(&"--facts");
+    // spec step: the derived requirements and entries
+    let use_req = args.contains(&"--req");
+    let entry_mode = flag(args, "--entry").unwrap_or_else(|| "census".to_owned());
+    let presence_all = flag(args, "--presence").as_deref() == Some("all");
+    let root = flag(args, "--root").unwrap_or_default();
+    let (srules, atoms) = if use_req || way == "entry" {
+        let mut sl = spec::Load { vocab, words: &mut words, catalog: &mut fact_catalog, interner: &mut interner, atoms: spec::Atoms::default() };
+        let r = spec::load(args[3], entry_mode == "census", &mut sl);
+        (r, sl.atoms)
+    } else {
+        (Vec::new(), spec::Atoms::default())
+    };
+    assert!(!use_req || use_facts, "--req needs --facts (row atoms are tested where the facts are lent)");
+    let n_atoms = atoms.list.len();
+    let aw = n_atoms.div_ceil(64).max(1);
+    let atoms_ac = aho_corasick::AhoCorasick::new(&atoms.bytes).expect("byte literals");
+    let mut file_bits = vec![0u64; aw];
+    let (mut req_time, mut row_time) = (0f64, 0f64);
+    let (mut row_tests, mut row_present) = (0u64, 0u64);
+    let mut presence_only_fills = vec![0u64; 0];
+    let mut why_lines = String::new();
+    let mut pairs_lines = String::new();
+    let (mut old_only, mut new_only, mut both_alive) = (0u64, 0u64, 0u64);
     let slots_n = fact_catalog.relations.len();
+    presence_only_fills.resize(slots_n, 0);
     let mut store = facts::Store { remap_on: args.contains(&"--remap"), ..Default::default() };
     let token_pass = args.contains(&"--token-pass");
     let check_links = args.contains(&"--check-token-links");
@@ -719,13 +745,15 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
         units.retain(|u| u.knock);
     }
     let group_list = funnel::groups(&frules, &units);
-    let structured = matches!(way, "structure" | "spec" | "knock");
+    let structured = matches!(way, "structure" | "spec" | "knock" | "entry");
     let max_regs = frules.iter().flat_map(|r| r.plans.iter().map(|p| p.regs)).max().unwrap_or(1).max(1);
     let mut cands = vec![0u64; units.len()];
     let mut surv = vec![0u64; units.len()];
     let mut unit_steps = vec![0u64; units.len()];
     let mut knock_steps = 0u64;
     let mut hits: Vec<(usize, usize)> = Vec::new();
+    let mut rule_cands = vec![0u64; frules.len()];
+    let mut rule_surv = vec![0u64; frules.len()];
     let mut phases = Phases::default();
     let mut table = NodeTable::default();
     let mut scratch = Default::default();
@@ -768,12 +796,60 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                     }
                 }
                 let mut needed = vec![false; slots_n];
-                for (ri, r) in frules.iter().enumerate() {
-                    if r.slots.is_empty() || !skip_of[ri].is_none_or(|i| survives(&rules[i], &kinds, &fp)) || !r.words_alive(&wp) {
-                        continue;
+                let mut for_plans = vec![false; slots_n];
+                if use_req {
+                    // stage 1: every atom but the provider rows (those count as present until tested)
+                    let q0 = thread_cpu();
+                    file_bits.iter_mut().for_each(|w| *w = 0);
+                    let rel = path.strip_prefix(root.as_str()).unwrap_or(path).trim_start_matches('/');
+                    let set = |b: &mut Vec<u64>, a: u32| b[a as usize / 64] |= 1 << (a % 64);
+                    for (a, atom) in atoms.list.iter().enumerate() {
+                        let on = match atom {
+                            spec::Atom::Kind(k) => kinds.get(usize::from(*k) / 64).is_some_and(|w| w >> (k % 64) & 1 == 1),
+                            spec::Atom::Field(f) => fp.get(usize::from(*f) / 64).is_some_and(|w| w >> (f % 64) & 1 == 1),
+                            spec::Atom::Word(w) => funnel::bit(&wp, *w),
+                            spec::Atom::Path(i, negated) => atoms.paths[*i].is_match(rel) != *negated,
+                            spec::Atom::Row(_) | spec::Atom::Unknown => true,
+                            spec::Atom::Bytes => false,
+                        };
+                        if on {
+                            set(&mut file_bits, a as u32);
+                        }
                     }
-                    for s in &r.slots {
-                        needed[*s] = true;
+                    if !atoms.bytes.is_empty() {
+                        for m in atoms_ac.find_overlapping_iter(&bytes[..]) {
+                            set(&mut file_bits, atoms.byte_atom[m.pattern().as_usize()]);
+                        }
+                    }
+                    for (ri, sr) in srules.iter().enumerate() {
+                        if !sr.alive(&file_bits) {
+                            continue;
+                        }
+                        for s in frules[ri].slots.iter().chain(&sr.slots) {
+                            needed[*s] = true;
+                            for_plans[*s] = true;
+                        }
+                        if presence_all {
+                            for s in &sr.req_slots {
+                                needed[*s] = true;
+                            }
+                        }
+                    }
+                    req_time += thread_cpu() - q0;
+                } else {
+                    for (ri, r) in frules.iter().enumerate() {
+                        if r.slots.is_empty() || !skip_of[ri].is_none_or(|i| survives(&rules[i], &kinds, &fp)) || !r.words_alive(&wp) {
+                            continue;
+                        }
+                        for s in &r.slots {
+                            needed[*s] = true;
+                            for_plans[*s] = true;
+                        }
+                    }
+                }
+                for s in 0..slots_n {
+                    if needed[s] && !for_plans[s] {
+                        presence_only_fills[s] += 1;
                     }
                 }
                 let v1 = thread_cpu();
@@ -828,6 +904,22 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                         unanswered[slot] += 1;
                     }
                     write_time[slot] += thread_cpu() - b;
+                }
+                if use_req {
+                    // stage 2: the provider rows of the slots filled for this file
+                    let r0 = thread_cpu();
+                    for (i, t) in atoms.rows.iter().enumerate() {
+                        if store.answered(t.slot) {
+                            row_tests += 1;
+                            let a = atoms.row_atom[i];
+                            if store.any_row(t.slot, &t.conds, &interner.matches) {
+                                row_present += 1;
+                            } else {
+                                file_bits[a as usize / 64] &= !(1u64 << (a % 64));
+                            }
+                        }
+                    }
+                    row_time += thread_cpu() - r0;
                 }
                 visit_time += thread_cpu() - v0;
             })
@@ -975,10 +1067,38 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
         let c3 = thread_cpu();
         let kinds: Vec<u64> = node_table::kinds_present(t).0.iter().map(|w| w.0).collect();
         let kinds_alive: Vec<bool> = skip_of.iter().map(|i| i.is_none_or(|i| survives(&rules[i], &kinds, &cols.field_present))).collect();
-        let alive: Vec<bool> = if word_skip {
+        let old_alive: Vec<bool> = if word_skip {
             kinds_alive.iter().zip(&frules).map(|(a, r)| *a && r.words_alive(&present)).collect()
         } else {
             kinds_alive.clone()
+        };
+        let alive: Vec<bool> = if use_req {
+            let new: Vec<bool> = srules.iter().map(|r| r.alive(&file_bits)).collect();
+            for (ri, (o, n)) in old_alive.iter().zip(&new).enumerate() {
+                match (*o, *n) {
+                    (true, true) => both_alive += 1,
+                    (false, true) => new_only += 1,
+                    (true, false) => {
+                        old_only += 1;
+                        // why: per branch, its first failing clause (atom classes in a fixed order of cost)
+                        let mut why: Vec<String> = Vec::new();
+                        for c in &srules[ri].req {
+                            if let Some(cl) = c.iter().find(|cl| !cl.iter().any(|a| funnel::bit32(&file_bits, *a))) {
+                                let names: Vec<&str> = cl.iter().map(|a| atoms.names[*a as usize].as_str()).collect();
+                                let class = spec::class(&atoms.list[cl[0] as usize]);
+                                why.push(format!("{class}={}", names.join("|")));
+                            }
+                        }
+                        why.sort();
+                        why.dedup();
+                        why_lines.push_str(&format!("{}\t{}\t{}\n", frules[ri].name, path, why.join(" ; ")));
+                    }
+                    (false, false) => {}
+                }
+            }
+            new
+        } else {
+            old_alive.clone()
         };
         rule_files += frules.len() as u64;
         alive_kinds += kinds_alive.iter().filter(|a| **a).count() as u64;
@@ -1017,6 +1137,106 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                 }
             }
         };
+        if way == "entry" {
+            // spec step: each live branch entered at one of its alternatives, chosen per file (fixed: the most specific
+            // level first, then the fewest candidates; fewest: the fewest candidates, then the level), exact bucket sizes
+            let e0 = thread_cpu();
+            let key_len = |k: &Key| -> usize {
+                match *k {
+                    Key::Word(w) => (word_offsets[usize::from(w) + 1] - word_offsets[usize::from(w)]) as usize,
+                    Key::Kind(k) => node_table::ids_of_kind(t, KindBits(k)).len(),
+                    Key::Field(f) => (cols.field_offsets[usize::from(f) + 1] - cols.field_offsets[usize::from(f)]) as usize,
+                }
+            };
+            for (ri, sr) in srules.iter().enumerate() {
+                if !alive[ri] || sr.groups.is_empty() {
+                    continue;
+                }
+                stamp = stamp.wrapping_add(1);
+                let (mut rc, mut rs) = (0u64, 0u64);
+                for g in &sr.groups {
+                    if use_req && !spec::holds(&g.req, &file_bits) {
+                        continue;
+                    }
+                    if word_skip && !funnel::cnf_holds(&g.words, &present) {
+                        continue;
+                    }
+                    let mut best: Option<(u8, usize, usize)> = None;
+                    for (ai, a) in g.alts.iter().enumerate() {
+                        let n = match &a.key {
+                            spec::EKey::Keys(ks) => ks.iter().map(key_len).sum(),
+                            spec::EKey::Fact(f) => {
+                                if !store.answered(f.slot) {
+                                    continue;
+                                }
+                                store.key_nodes(f.slot, f.keys[0].0, &f.conds, &interner.matches, &mut buf);
+                                buf.len()
+                            }
+                        };
+                        let better = match best {
+                            None => true,
+                            Some((l, c, _)) => {
+                                if entry_mode == "fewest" {
+                                    (n, a.level) < (c, l)
+                                } else {
+                                    (a.level, n) < (l, c)
+                                }
+                            }
+                        };
+                        if better {
+                            best = Some((a.level, n, ai));
+                        }
+                    }
+                    let Some((_, _, ai)) = best else { continue };
+                    let alt = &g.alts[ai];
+                    match &alt.key {
+                        spec::EKey::Keys(ks) => {
+                            buf.clear();
+                            let mut part = Vec::new();
+                            for k in ks {
+                                fill(k, &mut part);
+                                buf.extend_from_slice(&part);
+                            }
+                        }
+                        spec::EKey::Fact(f) => store.key_nodes(f.slot, f.keys[0].0, &f.conds, &interner.matches, &mut buf),
+                    }
+                    rc += buf.len() as u64;
+                    let plan = &alt.plan;
+                    let mut st = 0u64;
+                    rows.r = plan.regs.max(1);
+                    rows.d.clear();
+                    rows.d.resize(buf.len() * rows.r, 0);
+                    rows.tag.clear();
+                    for (j, n) in buf.iter().enumerate() {
+                        rows.d[j * rows.r] = *n;
+                        rows.tag.push(j as u32);
+                    }
+                    for stage in &plan.stages {
+                        if rows.len() == 0 {
+                            break;
+                        }
+                        stage(&ctx, &mut rows, &mut st);
+                    }
+                    for j in 0..rows.len() {
+                        let n = rows.d[j * rows.r] as usize;
+                        if marked[n] != stamp {
+                            marked[n] = stamp;
+                            rs += 1;
+                        }
+                    }
+                }
+                rule_cands[ri] += rc;
+                rule_surv[ri] += rs;
+                if rs > 0 {
+                    hits.push((ri, file_no));
+                }
+                if rc > 0 || rs > 0 {
+                    pairs_lines.push_str(&format!("{}\t{}\t{rc}\t{rs}\n", frules[ri].name, path));
+                }
+            }
+            phases.add("entries (choose, enter, prefixes)", thread_cpu() - e0);
+            continue;
+        }
         let c4 = thread_cpu();
         for r in 0..repeat {
             let first = r == 0;
@@ -1142,10 +1362,17 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
             }
             if first {
                 let mut any = vec![false; frules.len()];
+                let mut per_rule = vec![0u64; frules.len()];
                 for (ui, unit) in units.iter().enumerate() {
                     surv[ui] += file_surv[ui];
+                    per_rule[unit.rule] += file_surv[ui];
                     if file_surv[ui] > 0 {
                         any[unit.rule] = true;
+                    }
+                }
+                for (ri, n) in per_rule.iter().enumerate() {
+                    if *n > 0 {
+                        pairs_lines.push_str(&format!("{}\t{}\t0\t{n}\n", frules[ri].name, path));
                     }
                 }
                 for (ri, a) in any.iter().enumerate() {
@@ -1202,7 +1429,34 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
         surv.iter().sum::<u64>(),
         hits.len()
     );
-    if let Some(path) = flag(args, "--rules-out") {
+    if use_req || way == "entry" {
+        println!(
+            "spec: atoms {n_atoms} (byte literals {}, path tests {}, row tests {}); req pass {req_time:.4} s; row presence {row_time:.4} s ({row_tests} tests, {row_present} present); rule-files alive old and new {both_alive}, old only {old_only}, new only {new_only}",
+            atoms.bytes.len(),
+            atoms.paths.len(),
+            atoms.rows.len()
+        );
+        let po: Vec<String> = (0..slots_n).filter(|s| presence_only_fills[*s] > 0).map(|s| format!("{} {}", fact_catalog.names[s], presence_only_fills[s])).collect();
+        println!("spec: files filled only for a presence test, by relation: {}", po.join(", "));
+        if way == "entry" {
+            println!("entry {entry_mode}: candidates {} survivors {} rule-files-with-survivors {}", rule_cands.iter().sum::<u64>(), rule_surv.iter().sum::<u64>(), hits.len());
+        }
+    }
+    if let Some(path) = flag(args, "--why-out") {
+        std::fs::write(path, &why_lines).expect("why out");
+    }
+    if let Some(path) = flag(args, "--pairs-out") {
+        std::fs::write(path, &pairs_lines).expect("pairs out");
+    }
+    if way == "entry" {
+        if let Some(path) = flag(args, "--rules-out") {
+            let mut w = String::from("rule\tunits\tcandidates\tsurvivors\tsteps\n");
+            for (ri, r) in frules.iter().enumerate() {
+                w.push_str(&format!("{}\t{}\t{}\t{}\t0\n", r.name, srules[ri].groups.len(), rule_cands[ri], rule_surv[ri]));
+            }
+            std::fs::write(path, w).expect("rules out");
+        }
+    } else if let Some(path) = flag(args, "--rules-out") {
         let mut w = String::from("rule\tunits\tcandidates\tsurvivors\tsteps\n");
         for (ri, r) in frules.iter().enumerate() {
             let mine: Vec<usize> = (0..units.len()).filter(|u| units[*u].rule == ri).collect();

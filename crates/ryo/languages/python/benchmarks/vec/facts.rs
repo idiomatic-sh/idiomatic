@@ -148,9 +148,9 @@ impl Catalog {
         self.columns[slot].iter().position(|c| c == name).expect("column")
     }
 
-    pub(super) fn op(&mut self, v: &serde_json::Value, interner: &mut Interner) -> Option<FactOp> {
-        let name = v["rel"].as_str().expect("rel");
-        let slot = match self.names.iter().position(|n| n == name) {
+    /// The slot of a provider relation, registered on first use (spec step: also for a relation only a presence test reads).
+    pub(super) fn slot(&mut self, name: &str) -> Option<usize> {
+        Some(match self.names.iter().position(|n| n == name) {
             Some(s) => s,
             None => {
                 let relation = catalog::relation_named(NameRef(name))?;
@@ -162,7 +162,12 @@ impl Catalog {
                 self.re_columns.push(Vec::new());
                 self.names.len() - 1
             }
-        };
+        })
+    }
+
+    pub(super) fn op(&mut self, v: &serde_json::Value, interner: &mut Interner) -> Option<FactOp> {
+        let name = v["rel"].as_str().expect("rel");
+        let slot = self.slot(name)?;
         let col = |c: &str| self.columns[slot].iter().position(|x| x == c);
         let mut keys = Vec::new();
         for k in v["keys"].as_array().expect("keys") {
@@ -172,8 +177,18 @@ impl Catalog {
             }
             keys.push((c, k[1].as_u64().expect("reg") as usize));
         }
+        let conds = self.conds(slot, &v["conds"], interner);
+        if !self.key_columns[slot].contains(&keys[0].0) {
+            self.key_columns[slot].push(keys[0].0);
+        }
+        Some(FactOp { slot, keys, conds })
+    }
+
+    /// A list of `[column, op, [values]]` tests on one slot's columns; a test the column cannot hold is left out (a superset).
+    pub(super) fn conds(&mut self, slot: usize, v: &serde_json::Value, interner: &mut Interner) -> Vec<Cond> {
+        let col = |c: &str| self.columns[slot].iter().position(|x| x == c);
         let mut conds = Vec::new();
-        for c in v["conds"].as_array().expect("conds") {
+        for c in v.as_array().expect("conds") {
             let Some(at) = col(c[0].as_str().expect("column")) else { continue };
             let kind = self.kinds[slot][at];
             let op = c[1].as_str().expect("op");
@@ -206,10 +221,7 @@ impl Catalog {
                 _ => {}
             }
         }
-        if !self.key_columns[slot].contains(&keys[0].0) {
-            self.key_columns[slot].push(keys[0].0);
-        }
-        Some(FactOp { slot, keys, conds })
+        conds
     }
 }
 
@@ -429,6 +441,30 @@ impl Store {
         self.answered[slot] = true;
     }
 
+    /// Whether the slot was filled for this file.
+    pub(super) fn answered(&self, slot: usize) -> bool {
+        self.answered.get(slot).copied().unwrap_or(false)
+    }
+
+    /// spec step: some row of the slot passes the tests (the per-file presence bit of a provider relation).
+    pub(super) fn any_row(&self, slot: usize, conds: &[Cond], matches: &[u128]) -> bool {
+        let cells = &self.cells[slot];
+        (0..self.rows[slot]).any(|r| conds.iter().all(|c| cond_holds(c, cells, r, matches)))
+    }
+
+    /// spec step: the distinct key nodes of the rows passing the tests, in node order (an entry bucket from a fact).
+    pub(super) fn key_nodes(&self, slot: usize, key: usize, conds: &[Cond], matches: &[u128], out: &mut Vec<u32>) {
+        out.clear();
+        let cells = &self.cells[slot];
+        for r in 0..self.rows[slot] {
+            if conds.iter().all(|c| cond_holds(c, cells, r, matches)) {
+                out.push(cells[key][r] as u32);
+            }
+        }
+        out.sort_unstable();
+        out.dedup();
+    }
+
     #[inline]
     pub(super) fn holds(&self, op: &FactOp, regs: &[u32], matches: &[u128]) -> bool {
         if !self.answered.get(op.slot).copied().unwrap_or(false) {
@@ -455,5 +491,19 @@ impl Store {
                     }
                 })
         })
+    }
+}
+
+#[inline]
+fn cond_holds(cond: &Cond, cells: &[Vec<u64>], r: usize, matches: &[u128]) -> bool {
+    match cond {
+        Cond::In(c, vals) => vals.contains(&cells[*c][r]),
+        Cond::NotIn(c, vals) => !vals.contains(&cells[*c][r]),
+        Cond::Re(c, bit) => matches.get(cells[*c][r] as usize).is_some_and(|m| m >> bit & 1 == 1),
+        Cond::Cmp(c, ord, or_equal, n) => {
+            let x = cells[*c][r].cast_signed();
+            let o = x.cmp(n);
+            o == *ord || (*or_equal && o == std::cmp::Ordering::Equal)
+        }
     }
 }
