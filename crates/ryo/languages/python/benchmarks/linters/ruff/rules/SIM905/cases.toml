@@ -75,3 +75,45 @@ name = "maxsplit-negative-past-i32-max"
 comparison = "full"
 files = { "case.py" = "\"a b\".split(maxsplit=-2147483648)\n" }
 expected = []
+
+[[cases]]
+name = "fstring-receiver"
+comparison = "full"
+files = { "case.py" = "x = f\"a b\".split()\n" }
+expected = []
+
+[[cases]]
+name = "fstring-receiver-interpolated"
+comparison = "full"
+files = { "case.py" = "y = 1\nx = f\"git -C {y} log\".split()\n" }
+expected = []
+
+[[cases]]
+name = "fstring-receiver-rsplit-sep"
+comparison = "full"
+files = { "case.py" = "x = f\"a b\".rsplit(\" \")\n" }
+expected = []
+
+[[cases]]
+name = "concatenated-with-fstring-receiver"
+comparison = "full"
+files = { "case.py" = "x = (\"a\" f\"b c\").split()\n" }
+expected = []
+
+[[cases]]
+name = "concatenated-plain-receiver"
+comparison = "full"
+files = { "case.py" = "x = (\"a\" \"b c\").split()\n" }
+expected = [{ rule = "SIM905", file = "case.py", start = 4, end = 23 }]
+
+[[cases]]
+name = "fstring-separator"
+comparison = "full"
+files = { "case.py" = "x = \"a b\".split(f\",\")\n" }
+expected = []
+
+[[cases]]
+name = "fstring-keyword-separator"
+comparison = "full"
+files = { "case.py" = "x = \"a,b\".split(sep=f\",\")\n" }
+expected = []
