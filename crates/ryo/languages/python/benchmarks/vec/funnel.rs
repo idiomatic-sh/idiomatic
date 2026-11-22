@@ -52,6 +52,8 @@ pub(super) enum Op {
     /// Some child of `from`, held in `to`, matches the sub-plan (a subtree's own block: no backtracking across branches).
     Exists { from: usize, to: usize, plan: Vec<Op> },
     IsParent { child: usize, parent: usize },
+    /// A test on the provider's facts, read from the file's fact columns.
+    Fact(super::facts::FactOp),
 }
 
 /// One file's view: the table, the source and the columns, with the structure columns when computed.
@@ -65,6 +67,8 @@ pub(super) struct Ctx<'a> {
     pub(super) parent: &'a [u32],
     pub(super) pkind: &'a [u16],
     pub(super) cmask: &'a [KSet],
+    pub(super) facts: &'a super::facts::Store,
+    pub(super) matches: &'a [u128],
 }
 
 impl Ctx<'_> {
@@ -126,6 +130,8 @@ pub(super) struct FRule {
     pub(super) plans: Vec<Plan>,
     /// One CNF a branch of the rule: the rule can have a row only where some branch's CNF holds (empty list: unknown).
     pub(super) cnfs: Vec<Vec<Vec<u16>>>,
+    /// The fact relations its plans test.
+    pub(super) slots: Vec<usize>,
 }
 
 impl FRule {
@@ -158,12 +164,23 @@ fn fset_of(v: &serde_json::Value, vocab: &Vocab, missing: &mut Vec<String>) -> F
     s
 }
 
-fn ops_of(v: &serde_json::Value, vocab: &Vocab, missing: &mut Vec<String>) -> Vec<Op> {
+fn ops_of(v: &serde_json::Value, vocab: &Vocab, missing: &mut Vec<String>, fc: &mut FactLoad<'_>) -> Vec<Op> {
     let u = |o: &serde_json::Value, k: &str| o[k].as_u64().expect("reg") as usize;
     v.as_array()
         .expect("ops")
         .iter()
-        .map(|o| match o["op"].as_str().expect("op") {
+        .filter_map(|o| {
+            if o["op"].as_str() == Some("fact") {
+                let op = fc.catalog.op(o, fc.interner);
+                if let Some(f) = &op {
+                    if !fc.slots.contains(&f.slot) {
+                        fc.slots.push(f.slot);
+                    }
+                }
+                return op.map(Op::Fact);
+            }
+            Some(o)
+                .map(|o| match o["op"].as_str().expect("op") {
             "check" => Op::Check(Check {
                 v: u(o, "v"),
                 kinds: o.get("kinds").map(|x| kset_of(x, vocab, missing)),
@@ -174,10 +191,11 @@ fn ops_of(v: &serde_json::Value, vocab: &Vocab, missing: &mut Vec<String>) -> Ve
             }),
             "up" => Op::Up { from: u(o, "from"), to: u(o, "to"), leaf: o["leaf"].as_bool().unwrap_or(false) },
             "down" => Op::Down { from: u(o, "from"), to: u(o, "to"), leaf: o["leaf"].as_bool().unwrap_or(false) },
-            "not" => Op::Not(ops_of(&o["plan"], vocab, missing)),
-            "exists" => Op::Exists { from: u(o, "from"), to: u(o, "to"), plan: ops_of(&o["plan"], vocab, missing) },
+            "not" => Op::Not(ops_of(&o["plan"], vocab, missing, fc)),
+            "exists" => Op::Exists { from: u(o, "from"), to: u(o, "to"), plan: ops_of(&o["plan"], vocab, missing, fc) },
             "isparent" => Op::IsParent { child: u(o, "child"), parent: u(o, "parent") },
             other => panic!("op {other}"),
+                })
         })
         .collect()
 }
@@ -216,7 +234,15 @@ pub(super) fn cnf_holds(cnf: &[Vec<u16>], present: &[u64]) -> bool {
     cnf.iter().all(|cl| cl.iter().any(|w| bit(present, *w)))
 }
 
-pub(super) fn load(path: &str, vocab: &Vocab) -> (Vec<FRule>, Words) {
+/// What loading fact tests writes to: the catalog of fact relations, the run's interner, and the rule's slots.
+pub(super) struct FactLoad<'l> {
+    pub(super) catalog: &'l mut super::facts::Catalog,
+    pub(super) interner: &'l mut super::facts::Interner,
+    pub(super) slots: Vec<usize>,
+}
+
+pub(super) fn load(path: &str, vocab: &Vocab, catalog: &mut super::facts::Catalog, interner: &mut super::facts::Interner) -> (Vec<FRule>, Words) {
+    let mut fc = FactLoad { catalog, interner, slots: Vec::new() };
     let mut missing = Vec::new();
     let mut rules = Vec::new();
     let mut words = Words::default();
@@ -245,14 +271,15 @@ pub(super) fn load(path: &str, vocab: &Vocab) -> (Vec<FRule>, Words) {
                     code
                 })
                 .collect();
-            let ops = ops_of(&p["ops"], vocab, &mut missing);
+            let ops = ops_of(&p["ops"], vocab, &mut missing, &mut fc);
             let stages = compile(&ops);
             let knock = knock_tests(&ops);
             let cnf = words.cnf(&p["words"]);
             plans.push(Plan { keys, ops, regs: p["regs"].as_u64().expect("regs") as usize, stages, knock, words: cnf });
         }
         let cnfs: Vec<Vec<Vec<u16>>> = r["word_cnfs"].as_array().map(|a| a.iter().map(|c| words.cnf(c)).collect()).unwrap_or_default();
-        rules.push(FRule { name: r["rule"].as_str().expect("rule").to_owned(), plans, cnfs });
+        let slots = std::mem::take(&mut fc.slots);
+        rules.push(FRule { name: r["rule"].as_str().expect("rule").to_owned(), plans, cnfs, slots });
     }
     missing.sort();
     missing.dedup();
@@ -304,6 +331,7 @@ pub(super) fn exec(ctx: &Ctx<'_>, ops: &[Op], pc: usize, regs: &mut [u32], steps
             let c = regs[*child];
             ctx.parent[c as usize] == regs[*parent] && ctx.parent[c as usize] != c && exec(ctx, ops, pc + 1, regs, steps)
         }
+        Op::Fact(f) => ctx.facts.holds(f, regs, ctx.matches) && exec(ctx, ops, pc + 1, regs, steps),
     }
 }
 
@@ -477,6 +505,10 @@ pub(super) fn compile(ops: &[Op]) -> Vec<Stage> {
                     _ => out.push(pred_stage(compile_pred(&[Op::Exists { from, to, plan: plan.clone() }]))),
                 }
             }
+            Op::Fact(f) => {
+                let f = f.clone();
+                out.push(filt(move |ctx, row| ctx.facts.holds(&f, row, ctx.matches)));
+            }
             Op::IsParent { child, parent } => {
                 let (c, p) = (*child, *parent);
                 out.push(filt(move |ctx, row| {
@@ -639,6 +671,13 @@ pub(super) fn compile_pred(ops: &[Op]) -> Pred {
                 Box::new(move |ctx, r, s| {
                     *s += 1;
                     !inner(ctx, r, s) && next(ctx, r, s)
+                })
+            }
+            Op::Fact(f) => {
+                let f = f.clone();
+                Box::new(move |ctx, r, s| {
+                    *s += 1;
+                    ctx.facts.holds(&f, r, ctx.matches) && next(ctx, r, s)
                 })
             }
             Op::IsParent { child, parent } => {

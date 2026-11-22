@@ -87,6 +87,10 @@ fn vocabulary<W: Walk>(_: &W) -> Vocab {
     }
 }
 
+fn words_of(bits: usize) -> usize {
+    words(bits)
+}
+
 fn words(bits: usize) -> usize {
     bits.div_ceil(64).max(1)
 }
@@ -638,6 +642,8 @@ fn run(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
 
 #[path = "funnel.rs"]
 mod funnel;
+#[path = "facts.rs"]
+mod facts;
 
 /// `vec funnel <way> <files> <anchors> <plans> [--repeat K] [--rules-out F] [--hits-out F]`: ways `cands`, `structure`,
 /// `interp`, `spec`, `knock`.
@@ -645,7 +651,18 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     let way = args[0];
     let list = files(args[1]);
     let rules = load_rules(args[2], vocab);
-    let (frules, words) = funnel::load(args[3], vocab);
+    let mut fact_catalog = facts::Catalog::default();
+    let mut interner = facts::Interner::default();
+    let (frules, words) = funnel::load(args[3], vocab, &mut fact_catalog, &mut interner);
+    let use_facts = args.contains(&"--facts");
+    let slots_n = fact_catalog.relations.len();
+    let mut store = facts::Store::default();
+    let mut fwords = ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names");
+    let mut filled = languages::FilledColumns::default();
+    let (mut fill_time, mut write_time) = (vec![0f64; slots_n], vec![0f64; slots_n]);
+    let (mut fill_files, mut fill_rows, mut unanswered) = (vec![0u64; slots_n], vec![0u64; slots_n], vec![0u64; slots_n]);
+    let mut model_files = 0u64;
+    let mut decide_time = 0f64;
     let word_src = flag(args, "--words").unwrap_or_else(|| "none".to_owned());
     let word_skip = args.contains(&"--word-skip");
     let compare = args.contains(&"--compare");
@@ -713,19 +730,83 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     for (file_no, path) in list.iter().enumerate() {
         let c0 = thread_cpu();
         let bytes = std::fs::read(path).expect("read");
-        let mut builder = node_table::builder(&mut table, walk_kinds(walk));
-        let ok = walk
-            .walk(
-                WalkRequest { path: languages::SourcePath(path), file: FileId(0), source: ByteSlice(&bytes) },
-                RelationNeeds(&[]),
-                &mut builder,
-                &mut scratch,
-                &mut NoVisit,
-            )
-            .is_ok();
-        let t = node_table::finished(&mut builder);
+        store.reset(slots_n);
+        let mut visit_time = 0f64;
+        let ok = if use_facts {
+            // the provider's facts are lent only while the walk runs: decide here which files need them (some rule that
+            // tests a fact survived the kinds-and-words skip), then fill those relations and write their columns
+            ryo_python::fixtures::walking::walked(walk, path, &bytes, &[], &mut table, &mut scratch, &mut |file| {
+                let v0 = thread_cpu();
+                let ft = file.table;
+                let n = node_table::element_count(ft).0;
+                let kinds: Vec<u64> = node_table::kinds_present(ft).0.iter().map(|w| w.0).collect();
+                let mut fp = vec![0u64; words_of(fields_width)];
+                for i in 0..n as u32 {
+                    let f = node_table::field_of(ft, Position(i)).0;
+                    if usize::from(f) < fields_width {
+                        fp[usize::from(f) / 64] |= 1 << (f % 64);
+                    }
+                }
+                let mut wp = vec![0u64; ww];
+                for p in node_table::ids_of_kind(ft, KindBits(name_token)) {
+                    let sp = node_table::span_of(ft, *p);
+                    if let Some(w) = words.ids.get(&bytes[sp.start.0 as usize..sp.end.0 as usize]) {
+                        wp[usize::from(*w) / 64] |= 1 << (w % 64);
+                    }
+                }
+                let mut needed = vec![false; slots_n];
+                for (ri, r) in frules.iter().enumerate() {
+                    if r.slots.is_empty() || !skip_of[ri].is_none_or(|i| survives(&rules[i], &kinds, &fp)) || !r.words_alive(&wp) {
+                        continue;
+                    }
+                    for s in &r.slots {
+                        needed[*s] = true;
+                    }
+                }
+                let v1 = thread_cpu();
+                decide_time += v1 - v0;
+                if needed.iter().any(|x| *x) {
+                    model_files += 1;
+                }
+                languages::facts::clear_words(&mut fwords);
+                for slot in 0..slots_n {
+                    if !needed[slot] {
+                        continue;
+                    }
+                    let a = thread_cpu();
+                    filled.0.clear();
+                    let answer = file.facts.fill(fact_catalog.relations[slot], languages::Wanted::Whole, &mut fwords, &mut filled);
+                    let b = thread_cpu();
+                    fill_time[slot] += b - a;
+                    fill_files[slot] += 1;
+                    if matches!(answer, languages::FactAnswer::Answered(_)) {
+                        store.write(&fact_catalog, slot, &filled, &fwords, &mut interner, n);
+                        fill_rows[slot] += store.rows[slot] as u64;
+                    } else {
+                        unanswered[slot] += 1;
+                    }
+                    write_time[slot] += thread_cpu() - b;
+                }
+                visit_time += thread_cpu() - v0;
+            })
+            .is_ok()
+        } else {
+            let mut builder = node_table::builder(&mut table, walk_kinds(walk));
+            let ok = walk
+                .walk(
+                    WalkRequest { path: languages::SourcePath(path), file: FileId(0), source: ByteSlice(&bytes) },
+                    RelationNeeds(&[]),
+                    &mut builder,
+                    &mut scratch,
+                    &mut NoVisit,
+                )
+                .is_ok();
+            let _ = node_table::finished(&mut builder);
+            ok
+        };
+        let t = &table;
         let c1 = thread_cpu();
-        phases.add("walk+table", c1 - c0);
+        phases.add("walk+table", c1 - c0 - visit_time);
         if !ok {
             continue;
         }
@@ -871,6 +952,8 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
             parent: &st.parent,
             pkind: if structured { &st.pkind } else { &[] },
             cmask: if structured { &st.cmask } else { &[] },
+            facts: &store,
+            matches: &interner.matches,
         };
         if marked.len() < cols.kind.len() {
             marked.resize(cols.kind.len(), 0);
@@ -1032,6 +1115,16 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     );
     println!("byte patterns: files by number of patterns present {byte_files:?}; patterns seen anywhere {byte_hits:#b}");
     println!("skip: rule-files {rule_files} alive by kinds {alive_kinds} by kinds and words {alive_both}; entry bound from the rarest required word {word_entry_bound}");
+    if use_facts {
+        println!("facts: files that needed the model (some fact-testing rule survived the skip) {model_files}; deciding {decide_time:.4} s");
+        for slot in 0..slots_n {
+            println!(
+                "fact {}: files {} rows {} unanswered {} provider fill {:.4} s column write {:.4} s",
+                fact_catalog.names[slot], fill_files[slot], fill_rows[slot], unanswered[slot], fill_time[slot], write_time[slot]
+            );
+        }
+        println!("facts total: provider fills {:.4} s column writes {:.4} s; interned texts {}", fill_time.iter().sum::<f64>(), write_time.iter().sum::<f64>(), interner.matches.len());
+    }
     let knock_units = units.iter().filter(|u| u.knock).count();
     let steps: u64 = unit_steps.iter().sum();
     println!(

@@ -47,6 +47,7 @@ divan.workspace = true
 # THROWAWAY (ryo-fmx3.1): the `vec` measurement bench.
 cpu-time = "1"
 aho-corasick = "1"
+ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../../crates/relations" }
 regex = "1"
 
 [[test]]
