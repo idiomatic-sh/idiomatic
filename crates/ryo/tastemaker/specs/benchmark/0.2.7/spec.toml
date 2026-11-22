@@ -12,7 +12,7 @@ templates = [
   { template = "provider-support", file = "provider/performance/{*support}", count = { min = 0 }, description = "Optional provider workload modules remain below the provider runner." },
   { template = "manifest", file = "benchmark.toml", count = { min = 0 }, description = "The language's shared pinned workloads." },
   { template = "manifest", file = "growth.toml", count = { min = 0 }, description = "The language's growth table: the rules, sizes, frames and operations its bench grows, read by the shared harness." },
-  { template = "patch", file = "patches/{project}.patch", count = { min = 0, max = 3 }, description = "Shared deterministic project edits." },
+  { template = "patch", file = "patches/{project}.patch", count = { min = 0, max = 4 }, description = "Shared deterministic project edits." },
 ]
 [[scenarios]]
 given.files.'provider/bench.rs' = ''
