@@ -6,6 +6,7 @@ pub mod budget;
 pub mod closing;
 pub mod constants;
 pub mod entries;
+pub mod facts;
 #[cfg(test)]
 pub mod fixtures;
 pub mod kept;

@@ -8,7 +8,7 @@ use crate::domain::executing::measuring::service::{
 use crate::domain::executing::measuring::sites::service::{kind_named, row_named};
 use crate::domain::executing::presence::service::{consulted, node_row};
 use crate::domain::executing::types::Asker;
-use crate::domain::filled::service::{held_state, whole_rows};
+use crate::domain::executing::facts::types::FactColumns;
 use crate::domain::filled::types::FilledState;
 use crate::domain::indexes::reading::service::cell_at;
 use crate::domain::made_tables::reading::service::view_of;
@@ -642,8 +642,10 @@ impl FileNeeds<'_, '_, '_> {
             )
             | None => return FilledState::Unfilled,
         };
-        let store = &*self.0.fill.store;
-        held_state(&store.relations, relation, store.stamp)
+        match FactColumns::whole(&*self.0.fill.store, relation) {
+            Some(_) => FilledState::Whole,
+            None => FilledState::Unfilled,
+        }
     }
 
     /// The file's answer to a term when it was asked in the file; none when it was not.
@@ -1032,14 +1034,12 @@ impl FileNeeds<'_, '_, '_> {
         value: WordSlot,
     ) -> NeedVerdict {
         let frame = &mut *self.0;
-        if held_state(&frame.fill.store.relations, relation, frame.fill.store.stamp) != FilledState::Whole {
+        let Some(rows) = FactColumns::whole(&*frame.fill.store, relation) else {
             return NeedVerdict::Holds;
-        }
-        let source = ReadSource::Filled(relation);
-        let rows = whole_rows(&frame.fill.store.relations, relation, frame.fill.store.stamp);
+        };
         let place = Short(u16::try_from(column.0).unwrap_or(u16::MAX));
         for row in rows.start.0..rows.end.0 {
-            let cell = cell_at(view_of(frame.fill.store, source, place), Count(row));
+            let cell = FactColumns::cell(&*frame.fill.store, relation, place, Count(row));
             if cell_passes(frame, test.comparison, test.regex, value, cell) != Verdict::Fails {
                 return NeedVerdict::Holds;
             }
