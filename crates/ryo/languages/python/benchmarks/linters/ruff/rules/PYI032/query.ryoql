@@ -24,7 +24,9 @@ let earliest_second = select arguments, later as parameter, file from prior_coun
 let annotation_edges = select parent as parameter, child as annotation, file from "semantic-child" where field = "annotation";
 let annotated_second = select l.parameter as parameter, r.annotation as annotation, l.file as file from earliest_second as l join annotation_edges as r on l.parameter = r.parameter and l.file = r.file;
 let any_annotations = select id as annotation, file from "qualified-name" where path = "typing.Any" or path = "typing_extensions.Any";
-let matching = select l.annotation as id, l.file as file from annotated_second as l join any_annotations as r on l.annotation = r.annotation and l.file = r.file;
+let embedded_any_annotations = select l.host as annotation, l.file as file from "embedded-expression" as l join any_annotations as r on l.root = r.annotation and l.file = r.file;
+let any_or_quoted_annotations = union(left=any_annotations, right=embedded_any_annotations);
+let matching = select l.annotation as id, l.file as file from annotated_second as l join any_or_quoted_annotations as r on l.annotation = r.annotation and l.file = r.file;
 let locations = select r.id as id, r.file as file, r.span as span, r."start-line" as line from "source-location" as r;
 let candidates = select l.id as id, l.file as file, r.span as span, r.line as line from matching as l join locations as r on l.id = r.id and l.file = r.file;
 let violations_matches = observation_matches(candidates=candidates, codes="^(?:PYI032)$");

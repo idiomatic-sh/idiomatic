@@ -47,3 +47,23 @@ expected = []
 name = "noqa-codes-trailing-reason-suppress-ne-qualified-any"
 files = { "case.pyi" = "import typing\nclass C:\n    def __ne__(self, other: typing.Any) -> bool: ...  # noqa: PYI032 # why\n" }
 expected = []
+
+[[cases]]
+name = "quoted_any_eq"
+files = { "case.py" = "from typing import Any\nclass C:\n    def __eq__(self, other: \"Any\") -> bool: ...\n    def __ne__(self, other: \"Any\") -> bool: ...\n" }
+expected = [{ file = "case.py", start = 60, end = 65 }, { file = "case.py", start = 108, end = 113 }]
+
+[[cases]]
+name = "quoted_any_eq_stub"
+files = { "case.pyi" = "from typing import Any\nclass C:\n    def __eq__(self, other: \"Any\") -> bool: ...\n" }
+expected = [{ file = "case.pyi", start = 60, end = 65 }]
+
+[[cases]]
+name = "quoted_typing_any_eq"
+files = { "case.py" = "import typing\nclass C:\n    def __eq__(self, other: \"typing.Any\") -> bool: ...\n" }
+expected = [{ file = "case.py", start = 51, end = 63 }]
+
+[[cases]]
+name = "quoted_object_eq"
+files = { "case.py" = "class C:\n    def __eq__(self, other: \"object\") -> bool: ...\n" }
+expected = []
