@@ -221,6 +221,7 @@ fn clear(model: &mut LexicalModel) {
     model.usage.clear();
     model.annotation.clear();
     model.declared.clear();
+    model.targets.clear();
     model.binders.clear();
     model.deleted.clear();
     model.hazards.clear();
