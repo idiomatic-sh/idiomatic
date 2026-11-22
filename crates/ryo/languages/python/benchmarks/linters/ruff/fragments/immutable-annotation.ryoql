@@ -24,7 +24,8 @@ let binop_left_locations = select l.binop as binop, l.file as file, r."end-byte"
 let binop_right_locations = select l.binop as binop, l.file as file, r."start-byte" as boundary from binop_rights as l join "source-location" as r on l.child = r.id and l.file = r.file;
 let ordered_binop_operands = select l.binop as binop, l.file as file, l.boundary as left_end, r.boundary as right_start from binop_left_locations as l join binop_right_locations as r on l.binop = r.binop and l.file = r.file;
 let pipe_tokens = select l.id as token, r.file as file, r."start-byte" as start, r."end-byte" as end from "syntax-tree" as l join "source-location" as r on l.id = r.id where l.text = "|";
-let bit_or_nodes = select l.binop as node, l.file as file from ordered_binop_operands as l join pipe_tokens as r on l.file = r.file where r.start >= l.left_end and r.end <= l.right_start;
+let first_pipes = as-of(left=ordered_binop_operands, right=pipe_tokens, left-on=[file], right-on=[file], left-order="left_end", right-order="start", bound=at-or-after, output={binop:[left,binop], right_start:[left,right_start], pipe_end:[right,end], file:[left,file]});
+let bit_or_nodes = select binop as node, file from first_pipes where pipe_end <= right_start;
 let optional_slice_edges = select l.subscript as origin, r.child as destination from subscript_bases as l join "semantic-child" as r on l.subscript = r.parent and l.file = r.file where r.field = "slice";
 let optional_edges = select l.origin as origin, l.destination as destination from optional_slice_edges as l join optional_subscripts as r on l.origin = r.node;
 let union_slice_nodes = select l.subscript as union_node, r.child as slice from subscript_bases as l join "semantic-child" as r on l.subscript = r.parent and l.file = r.file where r.field = "slice";
