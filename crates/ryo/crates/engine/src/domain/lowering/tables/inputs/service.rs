@@ -191,7 +191,11 @@ pub(crate) fn input(
             let waiting = state.flat.get(usize::from(step))?.as_ref();
             // A step that is one read of a made table or of a definition is that read for each of its readers: a table
             // of a table's rows would be a copy.
-            if let Some(alias) = waiting.and_then(|flattened| aliased(drafts, flattened)) {
+            // A reader that asks a definition reads the rows its formula names: an alias of a made table keeps the formula
+            // of what the table was made from (a group's input), whose rows are not the table's, so such a reader has one.
+            if let Some(alias) = waiting.and_then(|flattened| aliased(drafts, flattened))
+                && (want == InputWant::Inline || !made_alias(&alias))
+            {
                 return Some(alias);
             }
             // A step that is one read of a relation with its pins is that read for each reader that takes its
@@ -261,6 +265,21 @@ pub(crate) fn aliased(drafts: &mut Drafts, flattened: &Flattened) -> Option<Flat
         branches: vec![branch_again(drafts, branch)],
         emptiness: copied(&flattened.emptiness),
         keyless: Vec::new(),
+    })
+}
+
+/// Whether an alias is the read of a made table.
+fn made_alias(alias: &Flattened) -> bool {
+    alias.branches.iter().any(|branch| {
+        branch.atoms.iter().any(|atom| {
+            matches!(
+                atom,
+                FlatAtom::Rows {
+                    rows: AtomRows::Made(_),
+                    ..
+                }
+            )
+        })
     })
 }
 
