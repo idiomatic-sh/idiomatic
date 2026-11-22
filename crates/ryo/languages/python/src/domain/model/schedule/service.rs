@@ -12,6 +12,16 @@ use crate::domain::model::lexical::types::{AnnotationMark, NameUse, NodeClass, S
 use ruff_python_ast::{AnyNodeRef, Comprehension, Expr, Stmt};
 use ryo::languages::Position;
 
+/// Spike (6f probe): records the phase the position `at` is evaluated in; a later visit (a deferred phase's own walk)
+/// overwrites the first.
+fn record(model: &mut BindingSchedule, at: Position, phase: Position) {
+    let place = at.0 as usize;
+    if model.region.len() <= place {
+        model.region.resize(place + 1, Position(u32::MAX));
+    }
+    model.region[place] = phase;
+}
+
 /// Writes one step.
 fn push(model: &mut BindingSchedule, at: Position, phase: Position, action: BindingAction) {
     model.steps.push(BindingStep { occurrence: at, phase, action });
@@ -46,6 +56,7 @@ fn walk_children(model: &mut BindingSchedule, source: ScheduleSource<'_, '_, '_>
 
 /// Walks the expressions under `at` that run before a callable is entered: its defaults and annotations.
 fn parameter_values(model: &mut BindingSchedule, source: ScheduleSource<'_, '_, '_>, at: Position, phase: Position) {
+    record(model, at, phase);
     if syntax_form(entry(&source.lexical.class, at)) == SyntaxForm::Expression {
         walk(model, source, at, phase);
         return;
@@ -62,6 +73,7 @@ fn parameter_values(model: &mut BindingSchedule, source: ScheduleSource<'_, '_, 
 fn parameters(model: &mut BindingSchedule, source: ScheduleSource<'_, '_, '_>, at: Position, phase: Position) {
     let class = entry(&source.lexical.class, at);
     if class == NodeClass::Parameter {
+        record(model, at, phase);
         push(model, at, phase, BindingAction::Bind);
         return;
     }
@@ -165,6 +177,7 @@ fn walk(model: &mut BindingSchedule, source: ScheduleSource<'_, '_, '_>, at: Pos
     let Some(node) = node_at(source.tree, at) else {
         return;
     };
+    record(model, at, phase);
     if source.timing == BindingAnnotationTiming::Deferred
         && at != phase
         && entry(&source.lexical.annotation, at) == AnnotationMark::Annotation
@@ -350,6 +363,7 @@ fn later(model: &mut BindingSchedule, source: ScheduleSource<'_, '_, '_>, task: 
 pub(crate) fn build(model: &mut BindingSchedule, source: ScheduleSource<'_, '_, '_>) {
     model.steps.clear();
     model.phases.clear();
+    model.region.clear();
     model.annotations = source.timing;
     push(model, MODULE, MODULE, BindingAction::BeginPhase);
     walk(model, source, MODULE, MODULE);

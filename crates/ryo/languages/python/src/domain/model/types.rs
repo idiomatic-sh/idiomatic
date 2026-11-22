@@ -308,6 +308,9 @@ pub(crate) struct BindingSchedule {
     pub steps: Vec<BindingStep>,
     /// Deferred regions in dependency order.
     pub phases: Vec<BindingPhase>,
+    /// Spike (ryo-fmx3.1, 6f probe): per walked position, the phase it is evaluated in (`Position(u32::MAX)` where the walk
+    /// did not reach it); written by the same walk that writes the steps.
+    pub region: Vec<Position>,
 }
 
 /// Whether the current source has a complete static event analysis.

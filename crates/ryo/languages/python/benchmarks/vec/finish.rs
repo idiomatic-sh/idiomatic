@@ -145,11 +145,58 @@ impl Run {
         if let Some(r) = self.rels.get(name) {
             return Some(r.clone());
         }
+        if name == REGION_REL {
+            // 6f probe: the provider's per-node evaluation region (`ColumnFile::evaluation_region`); not a catalog relation,
+            // so the placeholder relation is never filled (`Provider::fill` answers it by name).
+            let relation = catalog::relation_named(NameRef("binding-read"))?;
+            let names: Vec<String> = REGION_COLS.iter().map(|c| c.0.to_owned()).collect();
+            let tys: Vec<Ty> = REGION_COLS.iter().map(|c| c.1).collect();
+            self.rels.insert(name.to_owned(), (relation, names.clone(), tys.clone()));
+            return Some((relation, names, tys));
+        }
         let relation = catalog::relation_named(NameRef(name))?;
         let names: Vec<String> = catalog::columns(relation).into_iter().map(|c| catalog::column_name(c).0.to_owned()).collect();
         let tys: Vec<Ty> = catalog::kinds(relation).iter().map(|k| ty_of(*k)).collect();
         self.rels.insert(name.to_owned(), (relation, names.clone(), tys.clone()));
         Some((relation, names, tys))
+    }
+}
+
+/// 6f probe: the provider's evaluation region of every node, by name.
+pub(super) const REGION_REL: &str = "evaluation-region";
+pub(super) const REGION_COLS: [(&str, Ty); 6] =
+    [("id", Ty::Node), ("region", Ty::Node), ("region-kind", Ty::Sym), ("annotation", Ty::Node), ("timing", Ty::Sym), ("file", Ty::File)];
+
+/// 6f probe: a made table's rows as text lines (`label`, path, then `column=value` cells; a node as `id:line`).
+pub(super) fn dump_rows(f: &File<'_>, run: &Run, t: &Table, label: &str, path: &str, out: &mut String) {
+    use std::fmt::Write as _;
+    for r in 0..t.n {
+        let _ = write!(out, "{label}\t{path}");
+        for c in 0..t.names.len() {
+            let v = t.cols[c][r];
+            if t.tys[c] == Ty::File {
+                continue;
+            }
+            let _ = write!(out, "\t{}=", t.names[c]);
+            if v == NULL {
+                out.push_str("null");
+                continue;
+            }
+            match t.tys[c] {
+                Ty::Node => {
+                    let line = if (v as usize) < f.n { f.line(f.start[v as usize]) } else { 0 };
+                    let _ = write!(out, "{v}:{line}");
+                }
+                Ty::Sym => out.push_str(&String::from_utf8_lossy(run.text(v as u32)).replace(['\t', '\n'], " ")),
+                Ty::Span => {
+                    let _ = write!(out, "{}-{}", v >> 32, v & 0xffff_ffff);
+                }
+                _ => {
+                    let _ = write!(out, "{}", v as i64);
+                }
+            }
+        }
+        out.push('\n');
     }
 }
 

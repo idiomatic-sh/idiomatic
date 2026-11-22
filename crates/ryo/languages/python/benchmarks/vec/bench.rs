@@ -384,7 +384,9 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
     // `cargo bench` passes `--bench`; drop it.
     let args: Vec<&str> = args.iter().map(String::as_str).filter(|a| *a != "--bench").collect();
-    let walk = ryo_python::walk();
+    // 6f: `VEC_PY310` walks at the pack's configured target (benchmark.toml `python-target=3.10`); without it the walk is at
+    // the parser's default (Latest), as every run before 6f was.
+    let walk = ryo_python::walk_with_settings(target_settings());
     let vocab = vocabulary(&walk);
     match args.get(1).copied() {
         Some("census") => census(&walk, &vocab, args[2], args[3], args[4]),
@@ -393,6 +395,14 @@ fn main() {
         Some("finish") => run_finish(&walk, &vocab, &args[2..]),
         Some("kfloor") => kernel_floor(&walk, args[2]),
         _ => eprintln!("usage: vec census <files> <literals> <out> | vec run <mode> <files> <anchors> [--batch N] [--repeat K] [--rules-out F]"),
+    }
+}
+
+fn target_settings() -> ryo_python::settings::PythonParserSettings {
+    if std::env::var_os("VEC_PY310").is_some() {
+        ryo_python::settings::PythonParserSettings::new(ryo_python::settings::PythonTargetVersion::Py310)
+    } else {
+        ryo_python::settings::PythonParserSettings::default()
     }
 }
 
@@ -660,8 +670,80 @@ struct Facts<'v, 'f, 'w> {
     file: u32,
 }
 
+/// 6f probe: the visit's facts through the direct-columns walk: the reader's fills, the provider's render, and the
+/// evaluation region (`ColumnFile::evaluation_region`).
+struct ColFacts<'v, 'a, 'f, 'w> {
+    file: &'v mut ryo_python::fixtures::columns::ColumnFile<'a, 'f>,
+    words: &'w mut languages::FileWords,
+    filled: languages::FilledColumns,
+    time: f64,
+    rows: u64,
+    by_rel: HashMap<String, (f64, u64, u64)>,
+    file_no: u32,
+}
+
+impl finish::Provider for ColFacts<'_, '_, '_, '_> {
+    fn fill(&mut self, run: &mut finish::Run, rel: &str) -> Result<finish::Table, String> {
+        let t0 = thread_cpu();
+        let mut t = if rel == finish::REGION_REL {
+            let (deferred, rows) = self.file.evaluation_region().ok_or("evaluation-region: the model is incomplete")?;
+            let (_, names, tys) = run.catalog(rel).ok_or("no evaluation-region")?;
+            let mut t = finish::Table { names, tys, cols: vec![Vec::with_capacity(rows.len()); 6], n: rows.len() };
+            let timing = u64::from(run.sym(if deferred { b"deferred" } else { b"immediate" }));
+            for r in &rows {
+                let kind = u64::from(run.sym(r.kind.as_bytes()));
+                t.cols[0].push(u64::from(r.id));
+                t.cols[1].push(u64::from(r.region));
+                t.cols[2].push(kind);
+                t.cols[3].push(if r.annotation == u32::MAX { finish::NULL } else { u64::from(r.annotation) });
+                t.cols[4].push(timing);
+                t.cols[5].push(0);
+            }
+            t
+        } else {
+            let (relation, _, _) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
+            self.filled.0.clear();
+            let answer = self.file.fill(relation, languages::Wanted::Whole, self.words, &mut self.filled);
+            match answer {
+                languages::FactAnswer::Answered(_) => finish::filled_table(run, rel, &self.filled, self.words),
+                _ => Err(format!("{rel} not answered")),
+            }?
+        };
+        for c in 0..t.tys.len() {
+            if t.tys[c] == finish::Ty::File {
+                t.cols[c].iter_mut().for_each(|v| *v = u64::from(self.file_no));
+            }
+        }
+        let dt = thread_cpu() - t0;
+        self.time += dt;
+        self.rows += t.n as u64;
+        let e = self.by_rel.entry(rel.to_owned()).or_default();
+        e.0 += dt;
+        e.1 += t.n as u64;
+        e.2 += 1;
+        Ok(t)
+    }
+
+    fn render(&mut self, node: u32, context: &str) -> Result<Option<Vec<u8>>, String> {
+        let context = match context {
+            "assignment-target" => languages::RenderContext::AssignmentTarget,
+            "attribute-receiver" => languages::RenderContext::AttributeReceiver,
+            "positional-argument" => languages::RenderContext::PositionalArgument,
+            other => return Err(format!("render context {other}")),
+        };
+        match self.file.render(languages::RenderRequest { node: languages::NodeId(u64::from(node)), context }) {
+            languages::RenderOutcome::Known(t) => Ok(Some(t.0.as_bytes().to_vec())),
+            languages::RenderOutcome::NotApplicable => Ok(None),
+            languages::RenderOutcome::Unsupported(_) => Err("render unsupported".to_owned()),
+        }
+    }
+}
+
 impl finish::Provider for Facts<'_, '_, '_> {
     fn fill(&mut self, run: &mut finish::Run, rel: &str) -> Result<finish::Table, String> {
+        if rel == finish::REGION_REL {
+            return Err("evaluation-region needs VEC_COLWALK".to_owned());
+        }
         let t0 = thread_cpu();
         let (relation, _, _) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
         self.filled.0.clear();
@@ -843,6 +925,12 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     run.pairs = [(kind_code("lpar"), kind_code("rpar")), (kind_code("lsqb"), kind_code("rsqb")), (kind_code("lbrace"), kind_code("rbrace"))];
     let mut exec = finish::Exec::new(&plan);
     let mut fwords = ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names");
+    // 6f probe: `VEC_COLWALK` walks through the direct-columns walk (the provider's own model is reachable there, for the
+    // evaluation region); `--dump F` writes every emit's rows instead of findings.
+    let colwalk = std::env::var_os("VEC_COLWALK").is_some();
+    let mut cwalk = ryo_python::fixtures::columns::ColumnWalk::new(ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names"));
+    let dump = flag(args, "--dump");
+    let mut dump_text = String::new();
     let mut table = NodeTable::default();
     let mut scratch = Default::default();
     let mut findings: Vec<String> = Vec::new();
@@ -870,20 +958,16 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
             continue;
         }
         let mut inner = 0f64;
-        let _ = ryo_python::fixtures::walking::walked(walk, path, &bytes, &[], &mut table, &mut scratch, &mut |mut file| {
-            let c0 = thread_cpu();
+        let mut body = |ft: &NodeTable, pv: &mut dyn finish::Provider| {
             files_run += 1;
-            languages::facts::clear_words(&mut fwords);
-            let ft = file.table;
             let mut f = finish::File::new(ft, &bytes, file_no as u32, plan.nodes.len());
             f.seeds = seeds_here.clone();
             finish::handover::expand(&mut f, &plan.seed_paths);
-            let mut pv = Facts { facts: &mut file, words: &mut fwords, filled: languages::FilledColumns::default(), time: 0.0, rows: 0, by_rel: HashMap::new(), file: file_no as u32 };
             exec.reset_file();
             if check {
                 for rel in ["semantic-syntax", "syntax-tree", "semantic-child", "syntax-child", "source-location", "token-link"] {
                     let mine = finish::native_table(&mut f, &mut run, rel);
-                    match finish::Provider::fill(&mut pv, &mut run, rel) {
+                    match pv.fill(&mut run, rel) {
                         Ok(theirs) => check_lines.push(format!("{}\t{rel}\t{}", run.paths[file_no], finish::diff(&run, &mine, &theirs))),
                         Err(e) => check_lines.push(format!("{}\t{rel}\tprovider: {e}", run.paths[file_no])),
                     }
@@ -894,10 +978,14 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                     continue;
                 }
                 run.missing.clear();
-                let got = exec.eval(&mut f, &mut run, &mut pv, e.1);
+                let got = exec.eval(&mut f, &mut run, pv, e.1);
                 let got = if run.missing.is_empty() { got } else { Err(format!("functions {:?} not in the step set", run.missing)) };
                 match got {
                     Ok(t) => {
+                        if dump.is_some() {
+                            finish::dump_rows(&f, &run, &t, &e.0, &run.paths[file_no], &mut dump_text);
+                            continue;
+                        }
                         let sc = t.col("span").ok();
                         for r in 0..t.n {
                             let (st, en) = sc.map_or((0, 0), |c| (t.cols[c][r] >> 32, t.cols[c][r] & 0xffff_ffff));
@@ -909,22 +997,51 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                     }
                 }
             }
-            provider_time += pv.time;
-            provider_rows += pv.rows;
-            for (k, v) in pv.by_rel {
-                let e = by_rel.entry(k).or_default();
-                e.0 += v.0;
-                e.1 += v.1;
-                e.2 += v.2;
-            }
-            inner += thread_cpu() - c0;
-        });
+        };
+        if colwalk {
+            let _ = cwalk.walked(path, &bytes, &mut table, &mut |file| {
+                let c0 = thread_cpu();
+                let ft = file.table;
+                languages::facts::clear_words(&mut fwords);
+                let mut pv = ColFacts { file, words: &mut fwords, filled: languages::FilledColumns::default(), time: 0.0, rows: 0, by_rel: HashMap::new(), file_no: file_no as u32 };
+                body(ft, &mut pv);
+                provider_time += pv.time;
+                provider_rows += pv.rows;
+                for (k, v) in pv.by_rel {
+                    let e = by_rel.entry(k).or_default();
+                    e.0 += v.0;
+                    e.1 += v.1;
+                    e.2 += v.2;
+                }
+                inner += thread_cpu() - c0;
+            });
+        } else {
+            let _ = ryo_python::fixtures::walking::walked(walk, path, &bytes, &[], &mut table, &mut scratch, &mut |mut file| {
+                let c0 = thread_cpu();
+                let ft = file.table;
+                languages::facts::clear_words(&mut fwords);
+                let mut pv = Facts { facts: &mut file, words: &mut fwords, filled: languages::FilledColumns::default(), time: 0.0, rows: 0, by_rel: HashMap::new(), file: file_no as u32 };
+                body(ft, &mut pv);
+                provider_time += pv.time;
+                provider_rows += pv.rows;
+                for (k, v) in pv.by_rel {
+                    let e = by_rel.entry(k).or_default();
+                    e.0 += v.0;
+                    e.1 += v.1;
+                    e.2 += v.2;
+                }
+                inner += thread_cpu() - c0;
+            });
+        }
         file_time += inner;
         walk_time += thread_cpu() - w0 - inner;
     }
     let total = thread_cpu() - started;
     findings.sort();
     findings.dedup();
+    if let Some(d) = &dump {
+        std::fs::write(d, &dump_text).expect("write dump");
+    }
     if let Some(out) = flag(args, "--out") {
         std::fs::write(out, findings.join("\n") + "\n").expect("write findings");
     }

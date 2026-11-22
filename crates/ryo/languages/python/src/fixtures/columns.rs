@@ -281,7 +281,12 @@ impl ColumnWalk {
     /// A walk under the default settings; `words` are the walk's fixed words (`walking::walk_words`), kept for the shapes' keys.
     #[must_use]
     pub fn new(words: FileWords) -> Self {
-        let settings = PythonParserSettings::default();
+        // Spike (6f): `VEC_PY310` sets the pack's configured target; the default is the parser's (Latest).
+        let settings = if std::env::var_os("VEC_PY310").is_some() {
+            PythonParserSettings::new(crate::settings::PythonTargetVersion::Py310)
+        } else {
+            PythonParserSettings::default()
+        };
         Self {
             walk: PythonWalk { ports: WalkPorts { settings, syntax: Arc::new(ruff_python_parser(settings)) } },
             scratch: PythonWalkScratch::default(),
@@ -365,6 +370,19 @@ fn lend(
     visit(&mut ColumnFile { table, file: &mut file, memo, words });
 }
 
+/// Spike (6f probe): one node's evaluation region (`ColumnFile::evaluation_region`).
+#[derive(Clone, Copy, Debug)]
+pub struct Region {
+    /// The node.
+    pub id: u32,
+    /// The root of the phase it is evaluated in.
+    pub region: u32,
+    /// That phase's kind: module, callable, generator or type.
+    pub kind: &'static str,
+    /// The annotation expression it is inside within its phase; `u32::MAX` for none.
+    pub annotation: u32,
+}
+
 /// One walked file, lent over the reader and over the direct columns.
 pub struct ColumnFile<'a, 'f> {
     /// The node table.
@@ -393,6 +411,81 @@ impl ColumnFile<'_, '_> {
     pub fn fill(&mut self, relation: Relation, wanted: Wanted, words: &mut FileWords, out: &mut FilledColumns) -> FactAnswer {
         let mut source = fillers::file_source::<PythonWalk<WalkPorts>>(self.file);
         source.fill(relation, wanted, words, out)
+    }
+
+    /// Spike (ryo-fmx3.1, 6f probe): the provider's render, as the reader's file source answers it.
+    pub fn render(&mut self, request: languages::RenderRequest) -> languages::RenderOutcome {
+        let mut source = fillers::file_source::<PythonWalk<WalkPorts>>(self.file);
+        source.render(request)
+    }
+
+    /// Spike (ryo-fmx3.1, 6f probe): the evaluation region of every node of the file, as the model's schedule walk assigns it:
+    /// the phase the node is evaluated in (its root: the module, a callable, a generator body or a deferred type expression)
+    /// and that phase's kind, and the annotation expression the node is inside within its phase (`u32::MAX`: none). The
+    /// flag says whether native annotations are deferred in the file. `None` where the model is incomplete.
+    pub fn evaluation_region(&mut self) -> Option<(bool, Vec<Region>)> {
+        use crate::domain::model::lexical::service::parent_of;
+        use crate::domain::model::lexical::types::AnnotationMark;
+        use crate::domain::model::types::{BindingAnnotationTiming, BindingPhaseKind};
+        let read = self.file.semantics(ModelPart::Flow);
+        if read.model.flow.state == FlowState::Incomplete {
+            return None;
+        }
+        let schedule = &read.model.schedule;
+        let lexical = &read.model.lexical;
+        let segments = read.tree.segments;
+        let n = lexical.class.len();
+        let mut region = vec![0u32; n];
+        let mut kinds: HashMap<u32, &'static str> = HashMap::new();
+        kinds.insert(0, "module");
+        for phase in &schedule.phases {
+            kinds.insert(
+                phase.root.0,
+                match phase.kind {
+                    BindingPhaseKind::Callable => "callable",
+                    BindingPhaseKind::Generator => "generator",
+                    BindingPhaseKind::Type => "type",
+                },
+            );
+        }
+        for p in 0..n {
+            let r = schedule.region.get(p).copied().unwrap_or(ryo::languages::Position(u32::MAX));
+            region[p] = if r.0 != u32::MAX {
+                r.0
+            } else if p == 0 {
+                0
+            } else {
+                let parent = parent_of(read.tree, ryo::languages::Position(p as u32)).0 as usize;
+                if parent < p { region[parent] } else { 0 }
+            };
+        }
+        let mut out = Vec::with_capacity(n);
+        for p in 0..n {
+            let root = region[p];
+            let mut above = p as u32;
+            let mut annotation = u32::MAX;
+            loop {
+                if entry(&lexical.annotation, ryo::languages::Position(above)) == AnnotationMark::Annotation {
+                    annotation = table_id(segments, ryo::languages::Position(above)).0;
+                    break;
+                }
+                if above == root || above == 0 {
+                    break;
+                }
+                let parent = parent_of(read.tree, ryo::languages::Position(above)).0;
+                if parent >= above {
+                    break;
+                }
+                above = parent;
+            }
+            out.push(Region {
+                id: table_id(segments, ryo::languages::Position(p as u32)).0,
+                region: table_id(segments, ryo::languages::Position(root)).0,
+                kind: kinds.get(&root).copied().unwrap_or("module"),
+                annotation,
+            });
+        }
+        Some((schedule.annotations == BindingAnnotationTiming::Deferred, out))
     }
 
     /// Builds the parts of the semantic model the asks need, and no more (a file whose asks need none builds none): timed
