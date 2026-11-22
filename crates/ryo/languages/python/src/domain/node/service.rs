@@ -26,6 +26,13 @@ pub(crate) fn id_of<'t>(node: impl Into<AnyNodeRef<'t>>) -> Option<Position> {
     node.into().node_index().load().as_u32().map(Position)
 }
 
+/// The id the table gave a typed node of `file`: the walk keeps the node's place in the library's node index, which is the
+/// id in the file's own tree and is counted from the segment's root in an embedded segment.
+#[must_use]
+pub(crate) fn element_id<'t>(file: &SyntaxFile<'_>, node: impl Into<AnyNodeRef<'t>>) -> Option<Position> {
+    id_of(node).map(|place| table_id(file.tree.segments, place))
+}
+
 /// The id the table gave the node at `place`: the place itself in the file's own tree, counted from its segment's root in an
 /// embedded segment.
 #[must_use]
@@ -97,10 +104,15 @@ pub(crate) fn own_end(file: &SyntaxFile<'_>) -> Position {
     )
 }
 
-/// The typed node of a syntax node id; none for a token and for an id the file does not have.
+/// The typed node of a syntax node id: of the file's own tree, or of an embedded segment (the expression of a string read
+/// as a type), whose ids follow the own tree's tokens; none for a token and for an id the file does not have.
 #[must_use]
 pub(crate) fn node_at<'f>(file: &SyntaxFile<'f>, id: Position) -> Option<AnyNodeRef<'f>> {
-    file.nodes.get(usize::from(id)).copied()
+    if let Some(node) = file.nodes.get(usize::from(id)) {
+        return Some(*node);
+    }
+    let place = place_of_id(file.tree, id)?;
+    file.tree.nodes.get(usize::from(place)).copied()
 }
 
 /// The syntax nodes of the file, in id order.
@@ -118,14 +130,15 @@ pub(crate) fn nodes_of_kind<'f>(
     file: &SyntaxFile<'f>,
     kind: Kind,
 ) -> impl Iterator<Item = Numbered<'f>> + use<'f> {
-    let nodes = file.nodes;
+    let (nodes, tree) = (file.nodes, file.tree);
+    // The ids of the kind are the own tree's, then each embedded segment's.
     node_table::ids_of_kind(file.table, kind_bits(kind))
         .iter()
         .filter_map(move |id| {
-            nodes.get(usize::from(*id)).map(|node| Numbered {
-                id: *id,
-                node: *node,
-            })
+            let node = nodes.get(usize::from(*id)).copied().or_else(|| {
+                place_of_id(tree, *id).and_then(|place| tree.nodes.get(usize::from(place)).copied())
+            });
+            node.map(|node| Numbered { id: *id, node })
         })
 }
 
@@ -156,6 +169,13 @@ pub(crate) fn text_between<'f>(file: &SyntaxFile<'f>, start: Offset, end: Offset
 /// The text an element spans, as it is written.
 #[must_use]
 pub(crate) fn written<'f>(file: &SyntaxFile<'f>, id: Position) -> NameText<'f> {
+    // A token of an embedded segment is written in the segment's text, which its host span does not show (an escape, a
+    // concatenation): the table keeps that text.
+    if id >= own_end(file)
+        && let Some(text) = node_table::decoded_of(file.table, id)
+    {
+        return text;
+    }
     let span = node_table::span_of(file.table, id);
     text_between(file, span.start, span.end)
 }

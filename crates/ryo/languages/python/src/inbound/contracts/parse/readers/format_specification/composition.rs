@@ -11,7 +11,7 @@ use crate::domain::literal_facts::types::StringValue;
 use crate::domain::model::names::service::fixed_word;
 use crate::domain::names::service::unknown;
 use crate::domain::names::types::Unresolved;
-use crate::domain::node::service::{id_of, node_at, node_cell, span_at, word};
+use crate::domain::node::service::{element_id, node_at, node_cell, span_at, word};
 use crate::domain::spec_facts::service::{owned_fields, parent_place};
 use crate::domain::standard_format_spec::service::recognize;
 use crate::domain::standard_format_spec::types::{FormatSpecText, StandardFormatTarget};
@@ -203,7 +203,7 @@ ryo::fills! {
                 let Some(spec) = &interpolation.format_spec else {
                     continue;
                 };
-                let Some(origin) = id_of(&**spec) else {
+                let Some(origin) = element_id(&syntax, &**spec) else {
                     continue;
                 };
                 let (value, outcome) = match format_spec_value(AnyNodeRef::from(&**spec), &mut file.buffers.text) {

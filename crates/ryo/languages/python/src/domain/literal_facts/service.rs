@@ -6,7 +6,7 @@ use super::types::{LiteralPiece, NumberFacts, StringValue, TextBuffer};
 use crate::domain::fact_notes::constants::LOADERS;
 use crate::domain::literal_properties::constants::{NULL, STRING};
 use crate::domain::literal_properties::types::Properties;
-use crate::domain::node::service::{id_of, node_at, written};
+use crate::domain::node::service::{element_id, id_of, node_at, written};
 use crate::domain::node::types::SyntaxFile;
 use crate::domain::syntax::constants::{
     BOOLEAN_SCALAR, BYTES_SCALAR, COMPLEX_SCALAR, ELLIPSIS_SCALAR, FLOAT_SCALAR, INTEGER_SCALAR,
@@ -265,7 +265,7 @@ pub(crate) fn string_tokens(
         return;
     };
     for part in &literal.value {
-        let Some(part_id) = id_of(part) else {
+        let Some(part_id) = element_id(file, part) else {
             continue;
         };
         tokens.extend(
@@ -295,10 +295,10 @@ pub(crate) fn specifier(file: &SyntaxFile<'_>, id: Position) -> Flag {
         .iter_source_order()
         .next()
         .and_then(|argument| match argument {
-            ArgOrKeyword::Arg(expression) => id_of(expression),
-            ArgOrKeyword::Keyword(keyword) => id_of(keyword),
+            ArgOrKeyword::Arg(expression) => element_id(file, expression),
+            ArgOrKeyword::Keyword(keyword) => element_id(file, keyword),
         });
-    let loads = id_of(calling.func.as_ref())
+    let loads = element_id(file, calling.func.as_ref())
         .is_some_and(|callee| LOADERS.contains(&written(file, callee).0));
     if first == Some(id) && loads {
         Flag::Raised

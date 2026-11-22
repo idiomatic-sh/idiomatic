@@ -11,7 +11,7 @@ use crate::domain::name_facts::service::base as named_base;
 use crate::domain::names::service::base_target;
 use crate::domain::names::service::unknown;
 use crate::domain::node::service::{
-    id_of, keyed_node, node_at, node_cell, nodes_of_kind, span_at, word,
+    element_id, keyed_node, node_at, node_cell, nodes_of_kind, span_at, word,
 };
 use crate::domain::node::types::{Numbered, SyntaxFile};
 use crate::domain::nodes::types::Category;
@@ -48,7 +48,7 @@ fn base_row(
     class: languages::Position,
     expression: &Expr,
 ) -> Option<languages::InheritsRow> {
-    let at = id_of(expression)?;
+    let at = element_id(file, expression)?;
     let target = match named_base(expression, name) {
         Some(reason) => unknown(reason),
         None => word(words, languages::NameText(&name.0)),
@@ -98,7 +98,7 @@ ryo::fills! {
             return;
         };
         let bases = class.arguments.iter().flat_map(|arguments| &arguments.args);
-        for expression in bases.filter(|expression| id_of(*expression) == Some(at)) {
+        for expression in bases.filter(|expression| element_id(&file.syntax, *expression) == Some(at)) {
             if let Some(row) = base_row(&file.syntax, words, &mut file.buffers.text, id, expression) {
                 rows.write(row);
             }
