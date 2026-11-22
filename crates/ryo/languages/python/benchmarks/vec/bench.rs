@@ -667,6 +667,11 @@ mod deferred_visit;
 #[path = "deferred_resolution.rs"]
 mod deferred_resolution;
 
+thread_local! {
+    /// redo-binding pass 5: the implicit-symbol catalog of this run (module position, table), filled once.
+    static IMPLICIT_CATALOG: std::cell::RefCell<Option<(u32, finish::Table)>> = const { std::cell::RefCell::new(None) };
+}
+
 /// The visit's facts as the finish's provider.
 struct Facts<'v, 'f, 'w> {
     facts: &'v mut FileFacts<'f>,
@@ -699,11 +704,29 @@ impl ColFacts<'_, '_, '_, '_> {
         if let Some(t) = self.kept.get(rel) {
             return Ok(t.clone());
         }
+        // redo-binding pass 5: the implicit-symbol catalog is the same for every file whose module node is the same (the
+        // rows name the module scope and the file only; the file column is set by `fill`), so it is filled once a run
+        let module = (rel == "implicit-symbol").then(|| self.module_position(run)).flatten();
+        if let Some(m) = module
+            && let Some(t) = IMPLICIT_CATALOG.with(|c| c.borrow().as_ref().filter(|(at, _)| *at == m).map(|(_, t)| t.clone()))
+        {
+            let _ = self.kept.insert(rel.to_owned(), t.clone());
+            return Ok(t);
+        }
         let t = self.whole_fill(run, rel)?;
+        if let Some(m) = module {
+            IMPLICIT_CATALOG.with(|c| *c.borrow_mut() = Some((m, t.clone())));
+        }
         if matches!(rel, "binding-event" | "binding-read" | "binding-resolution" | "qualified-name" | "call-argument" | "identifier" | "embedded-expression" | "compiler-feature" | "language-target" | "lookup-scope" | "implicit-symbol") {
             let _ = self.kept.insert(rel.to_owned(), t.clone());
         }
         Ok(t)
+    }
+
+    /// The position of the file's module node (the scope the implicit-symbol rows name).
+    fn module_position(&self, run: &finish::Run) -> Option<u32> {
+        let n = node_table::element_count(self.file.table).0 as u32;
+        (0..n).find(|p| &*run.texts[run.kind_sym[usize::from(node_table::kind_of(self.file.table, Position(*p)).0)] as usize] == b"module")
     }
 
     fn whole_fill(&mut self, run: &mut finish::Run, rel: &str) -> Result<finish::Table, String> {
