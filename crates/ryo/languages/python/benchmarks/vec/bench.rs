@@ -877,6 +877,7 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
             let ft = file.table;
             let mut f = finish::File::new(ft, &bytes, file_no as u32, plan.nodes.len());
             f.seeds = seeds_here.clone();
+            finish::handover::expand(&mut f, &plan.seed_paths);
             let mut pv = Facts { facts: &mut file, words: &mut fwords, filled: languages::FilledColumns::default(), time: 0.0, rows: 0, by_rel: HashMap::new(), file: file_no as u32 };
             exec.reset_file();
             if check {

@@ -17,6 +17,8 @@ use std::rc::Rc;
 
 #[path = "finish/drive.rs"]
 mod drive;
+#[path = "finish/handover.rs"]
+pub(super) mod handover;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum Ty {
@@ -163,6 +165,8 @@ pub(super) struct Plan {
     pub(super) emits: Vec<(String, usize, String, Vec<String>)>,
     /// The survivor sets the plan's seed tests name, by set: the label of the prefix rule whose roots fill it.
     pub(super) seeds: Vec<String>,
+    /// 6e item 2: per set, the move paths from the prefix's roots to the other variables the set also holds.
+    pub(super) seed_paths: Vec<Vec<Vec<String>>>,
 }
 
 fn inputs_of(j: &J, out: &mut Vec<usize>) {
@@ -212,7 +216,11 @@ pub(super) fn load(path: &str) -> Plan {
         ));
     }
     let seeds = j["seeds"].as_array().map(|a| a.iter().map(|x| x.as_str().unwrap_or("").to_owned()).collect()).unwrap_or_default();
-    Plan { nodes, emits, seeds }
+    let seed_paths = j["seed_paths"]
+        .as_array()
+        .map(|a| a.iter().map(|ps| ps.as_array().map(|ps| ps.iter().map(|p| p.as_array().map(|p| p.iter().map(|m| m.as_str().unwrap_or("").to_owned()).collect()).unwrap_or_default()).collect()).unwrap_or_default()).collect())
+        .unwrap_or_default();
+    Plan { nodes, emits, seeds, seed_paths }
 }
 
 /// The relations of the tree read in place, by position.
