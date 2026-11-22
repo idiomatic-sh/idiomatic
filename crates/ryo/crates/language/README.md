@@ -32,6 +32,10 @@ The language domain's `elements` concept: the element table of a file.
 
 The language domain's `expansions` concept: the trees a language reads under a macro call, and the marks on the elements they make.
 
+### fact_tables
+
+The language domain's `fact_tables` concept: the one fact contract between a language and the engine: a request names a relation, the column its rows are found by and what is wanted; the language writes its answer into a table through a writer; the engine reads every table through one lookup, one row at most a key or a list a key, whatever wrote it.
+
 ### facts
 
 The fact contract: the engine asks a language to fill a relation's rows for one file, once, on first use; the words of a file.

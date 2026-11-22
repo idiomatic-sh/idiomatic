@@ -9,6 +9,7 @@ pub mod decoded;
 pub mod diagnostics;
 pub mod elements;
 pub mod expansions;
+pub mod fact_tables;
 pub mod facts;
 pub mod files;
 pub mod fillers;

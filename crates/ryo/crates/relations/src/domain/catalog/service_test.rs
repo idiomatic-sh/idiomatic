@@ -259,13 +259,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("relations_that_promise_a_fill_by_key"),
         word: Word::Succeeds,
         input: || relations_that_promise_a_fill_by_key,
-        expect: Expect::Value(13),
+        expect: Expect::Value(14),
     },
     Case {
         name: CaseName("declared_key_columns"),
         word: Word::Succeeds,
         input: || declared_key_columns,
-        expect: Expect::Value(14),
+        expect: Expect::Value(15),
     },
     Case {
         name: CaseName("key_columns_that_are_not_their_relations_own_once"),

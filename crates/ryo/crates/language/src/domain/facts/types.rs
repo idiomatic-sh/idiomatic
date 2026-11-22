@@ -142,6 +142,9 @@ pub(crate) struct BaseSet {
     pub(crate) words: WordSet,
     /// How many fixed names the words were made with: the words after the empty text, one for each place.
     pub(crate) fixed: Count,
+    /// The run's entities (modules, project symbols), interned by any worker as its files name them: an entity's id is the
+    /// same in every file of the run.
+    pub(crate) entities: std::sync::Mutex<WordSet>,
 }
 
 /// The file's words: the run's base words (shared, read-only) and the texts this file's fills built (cleared per file), coded
@@ -182,6 +185,32 @@ pub(crate) struct WordSet {
     /// The code of each text.
     pub(crate) codes: hashbrown::HashMap<InternedText, CellWord>,
 }
+
+/// An entity of the run: a module or a project symbol, by the text that names it (a dotted module path, say). Interned
+/// once for the run by `facts::service::entity`, so the same entity has the same id in every file and every worker: what a
+/// fact keyed by a module or a project symbol is found by across files.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_language::domain::facts::types::EntityId;
+///
+/// assert!(EntityId(0) < EntityId(1));
+/// ```
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct EntityId(pub u32);
+
+/// The text an entity of the run was interned by.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_language::domain::facts::types::EntityName;
+///
+/// assert_eq!(&*EntityName("pkg.module".into()).0, "pkg.module");
+/// ```
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EntityName(pub Box<str>);
 
 /// A text a word stands for, held until its words are cleared.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]

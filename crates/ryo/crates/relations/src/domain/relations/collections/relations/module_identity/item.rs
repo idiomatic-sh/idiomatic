@@ -24,7 +24,7 @@ macro_rules! module_identity {
             notes Unneeded,
             form Filled(Whole),
             size PerFile,
-            keys [],
+            keys [Path],
             columns {
                 /// Actual requested source file.
                 file File: FileId => File;

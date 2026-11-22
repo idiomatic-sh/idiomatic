@@ -3,8 +3,11 @@
 //! the same cell in every file of the run and the word its text interns to. A handle past the names fails the assertion of a
 //! test build. (That the names are each stated once and none empty is `fixed_names`' check, and its cases.)
 
-use super::service::{base_words, clear_words, file_words, fixed, intern, text};
+use super::service::{
+    base_words, clear_words, entity, entity_name, file_words, fixed, intern, text,
+};
 use super::types::CellWord;
+use super::types::EntityName;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::fixed_names::service::checked;
 use crate::domain::fixed_names::types::FixedWord;
@@ -33,6 +36,10 @@ enum Scenario {
     AfterFixed,
     /// The word of the first handle past the fixed names.
     FixedPast,
+    /// An entity interned by two workers, one of which forgot its file's words between.
+    EntityAcrossWorkers,
+    /// The text of an entity, and of an id the run never gave.
+    EntityText,
 }
 
 type Input = Scenario;
@@ -98,6 +105,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value([3, 4]),
     },
     Case {
+        name: CaseName("an_entity_has_one_id_in_every_worker_and_file_of_the_run"),
+        word: Word::Succeeds,
+        input: || Scenario::EntityAcrossWorkers,
+        expect: Expect::Value([1, 1]),
+    },
+    Case {
+        name: CaseName("an_entity_reads_back_as_its_text_and_an_unknown_id_as_the_empty_text"),
+        word: Word::Succeeds,
+        input: || Scenario::EntityText,
+        expect: Expect::Value([1, 1]),
+    },
+    Case {
         name: CaseName("a_handle_past_the_fixed_names_fails_the_assertion_of_a_test_build"),
         word: Word::Refuses,
         input: || Scenario::FixedPast,
@@ -149,6 +168,25 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             intern(&mut words, NameText("print")).0,
             intern(&mut words, NameText("eval")).0,
         ],
+        Scenario::EntityAcrossWorkers => {
+            let mut other = file_words(&base);
+            let module = entity(&mut words, NameText("pkg.module"));
+            let sibling = entity(&mut other, NameText("pkg.sibling"));
+            clear_words(&mut words);
+            [
+                u64::from(entity(&mut other, NameText("pkg.module")) == module),
+                u64::from(
+                    entity(&mut words, NameText("pkg.sibling")) == sibling && sibling != module,
+                ),
+            ]
+        }
+        Scenario::EntityText => {
+            let module = entity(&mut words, NameText("pkg.module"));
+            [
+                u64::from(entity_name(&words, module) == EntityName("pkg.module".into())),
+                u64::from(entity_name(&words, super::types::EntityId(99)) == EntityName("".into())),
+            ]
+        }
         Scenario::FixedPast => {
             // The read fails its assertion in a test build: the failure is the answer this row expects.
             let read = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {

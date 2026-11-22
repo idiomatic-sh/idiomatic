@@ -1,7 +1,10 @@
 //! The `facts` service: the words of a file, the one way fillers, the engine and the host turn texts into words and back, the
 //! word of a language's fixed name by its handle, and the `syntax-error` rows every language writes from its node table.
 
-use super::types::{BaseSet, BaseWords, CellWord, FileWords, InternedText, WordSet, WordsEngine};
+use super::types::{
+    BaseSet, BaseWords, CellWord, EntityId, EntityName, FileWords, InternedText, WordSet,
+    WordsEngine,
+};
 use crate::domain::diagnostics::service::{impact_name, listed, phase_name};
 use crate::domain::fixed_names::types::{CheckedNames, FixedWord};
 use crate::domain::node_table::types::NodeTable;
@@ -78,6 +81,7 @@ pub fn base_words(fixed: CheckedNames<'_>, texts: &[NameText<'_>]) -> BaseWords 
     BaseWords(Arc::new(BaseSet {
         words,
         fixed: Count(fixed.0.len()),
+        entities: std::sync::Mutex::default(),
     }))
 }
 
@@ -255,6 +259,65 @@ pub fn intern(words: &mut FileWords, text: NameText<'_>) -> CellWord {
     }
     let base = base_count(words);
     added(&mut words.0.own, base, text)
+}
+
+/// The run-wide id of the entity `text` names: interned once for the run, so every file and every worker that names the same
+/// entity gets the same id, and a fact keyed by it is found across files. Forgetting a file's words keeps it.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_language::domain::facts::service::{base_words, clear_words, entity, file_words};
+/// use ryo_language::domain::fixed_names::types::CheckedNames;
+/// use ryo_relations::domain::terms::types::NameText;
+///
+/// let base = base_words(CheckedNames::default(), &[]);
+/// let (mut one, mut other) = (file_words(&base), file_words(&base));
+/// let module = entity(&mut one, NameText("pkg.module"));
+/// clear_words(&mut one);
+/// assert_eq!(entity(&mut other, NameText("pkg.module")), module);
+/// ```
+pub fn entity(words: &mut FileWords, text: NameText<'_>) -> EntityId {
+    let mut entities = words
+        .0
+        .base
+        .0
+        .entities
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let code = added(&mut entities, CellWord::default(), text);
+    EntityId(u32::try_from(code.0).unwrap_or(u32::MAX))
+}
+
+/// The text the entity `id` was interned by; the empty text for an id the run never gave.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_language::domain::facts::service::{base_words, entity, entity_name, file_words};
+/// use ryo_language::domain::facts::types::EntityName;
+/// use ryo_language::domain::fixed_names::types::CheckedNames;
+/// use ryo_relations::domain::terms::types::NameText;
+///
+/// let mut words = file_words(&base_words(CheckedNames::default(), &[]));
+/// let module = entity(&mut words, NameText("pkg.module"));
+/// assert_eq!(entity_name(&words, module), EntityName("pkg.module".into()));
+/// ```
+#[must_use]
+pub fn entity_name(words: &FileWords, id: EntityId) -> EntityName {
+    let entities = words
+        .0
+        .base
+        .0
+        .entities
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    EntityName(
+        entities
+            .texts
+            .get(usize::try_from(id.0).unwrap_or(usize::MAX))
+            .map_or_else(Default::default, |each| each.0.clone()),
+    )
 }
 
 /// The word for `text` as a row's text cell holds it.
