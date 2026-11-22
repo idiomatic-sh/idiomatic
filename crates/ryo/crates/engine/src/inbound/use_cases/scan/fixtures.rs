@@ -178,6 +178,7 @@ pub fn rule_rows(scan: &Scanned, rule: u32) -> usize {
 /// The fixture language's refusal of the file.
 pub fn scanned(programs: &Programs, text: &str) -> Result<Option<Scanned>, WalkError> {
     let request = WalkRequest {
+        selection: ryo_language::inbound::use_cases::walk::types::WalkSelection::Recognized,
         path: SourcePath("scene.walk"),
         file: FileId(1),
         source: ByteSlice(text.as_bytes()),

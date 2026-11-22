@@ -9,7 +9,7 @@ use crate::domain::expression_shapes::service::significant;
 use crate::domain::extras::types::Extra;
 use crate::domain::labels::service::field_bits;
 use crate::domain::labels::types::Field;
-use crate::domain::node::service::{field_code, id_of, word, written};
+use crate::domain::node::service::{field_code, id_of, place_of_id, table_id, word, written};
 use crate::domain::node::types::SyntaxFile;
 use crate::domain::syntax::constants::{
     BOOLEAN_SCALAR, BYTES_SCALAR, COMPLEX_SCALAR, ELLIPSIS_SCALAR, FLOAT_SCALAR, INTEGER_SCALAR,
@@ -218,12 +218,11 @@ fn valued(build: &mut ShapeBuild<'_>, node: AnyNodeRef<'_>) -> ShapeReading {
 /// Appends the children of a node in the order they are written: a node child by its field and its class, an operator or a
 /// keyword by its kind and its text. The arguments of a call are read positional first, then by keyword.
 fn children(file: &SyntaxFile<'_>, build: &mut ShapeBuild<'_>, id: Position, kind: Kind) {
-    let nodes = node_table::node_count(file.table).0;
     let listed = node_table::children_of(file.table, id);
     if kind == Kind::Extra(Extra::CallArguments) {
         for wanted in [Field::Args, Field::Keywords] {
             for child in listed {
-                if usize::from(*child) < nodes
+                if is_node(file, *child)
                     && node_table::field_of(file.table, *child) == field_code(wanted)
                     && let Some(class) = class_of(build, *child)
                 {
@@ -236,7 +235,7 @@ fn children(file: &SyntaxFile<'_>, build: &mut ShapeBuild<'_>, id: Position, kin
     }
     for child in listed {
         let bits = node_table::kind_of(file.table, *child);
-        if usize::from(*child) < nodes {
+        if is_node(file, *child) {
             if let Some(class) = class_of(build, *child) {
                 let field = FieldId(node_table::field_of(file.table, *child).0);
                 let _room = push_key_word(build.index, ShapeWord::Child(field, class));
@@ -252,20 +251,29 @@ fn children(file: &SyntaxFile<'_>, build: &mut ShapeBuild<'_>, id: Position, kin
     }
 }
 
+/// Whether an element is a node: of the file's own tree, or of an embedded segment (the expression of a string read as a
+/// type), whose nodes follow the own tree's tokens.
+fn is_node(file: &SyntaxFile<'_>, id: Position) -> bool {
+    usize::from(id) < file.nodes.len() || place_of_id(file.tree, id).is_some()
+}
+
 /// Finds the shape of every node of `file`, by node id: one pass from the last node to the first, so a child's class is known
-/// before the shape of what holds it is asked.
+/// before the shape of what holds it is asked. The nodes are the file's own, then each embedded segment's (SPIKE ryo-fmx3.1:
+/// as today's reading shapes them, a class is then named by an embedded member when one is last).
 pub(crate) fn shapes(file: &SyntaxFile<'_>, build: &mut ShapeBuild<'_>) {
     clear_keys(build.index);
-    build.index.classes.resize(file.nodes.len(), None);
-    let nodes = node_table::node_count(file.table).0;
-    for (id, node) in file.nodes.iter().enumerate().rev() {
-        let at = Position(u32::try_from(id).unwrap_or(u32::MAX));
+    let tree = file.tree;
+    let elements = usize::try_from(node_table::element_count(file.table).0).unwrap_or(usize::MAX);
+    build.index.classes.clear();
+    build.index.classes.resize(elements.max(file.nodes.len()), None);
+    for (place, node) in tree.nodes.iter().enumerate().rev() {
+        let at = table_id(tree.segments, Position(u32::try_from(place).unwrap_or(u32::MAX)));
         let bits = node_table::kind_of(file.table, at);
         let kind = kind_of(bits);
         let whole = kind != Kind::Extra(Extra::IpyEscapeCommand)
             && node_table::children_of(file.table, at)
                 .iter()
-                .all(|child| usize::from(*child) >= nodes || class_of(build, *child).is_some());
+                .all(|child| !is_node(file, *child) || class_of(build, *child).is_some());
         if !whole {
             continue;
         }
@@ -276,7 +284,7 @@ pub(crate) fn shapes(file: &SyntaxFile<'_>, build: &mut ShapeBuild<'_>) {
             children(file, build, at, kind);
         }
         let class = intern_key(build.index, at);
-        if let Some(slot) = build.index.classes.get_mut(id) {
+        if let Some(slot) = build.index.classes.get_mut(usize::from(at)) {
             *slot = Some(class);
         }
     }

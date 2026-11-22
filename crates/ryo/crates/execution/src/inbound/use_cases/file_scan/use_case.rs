@@ -22,7 +22,7 @@ use ryo_execution_runtime::application::pack_load::types::{
 };
 use ryo_language::domain::files::types::SourcePath;
 use ryo_language::inbound::use_cases::walk::errors::WalkError;
-use ryo_language::inbound::use_cases::walk::types::WalkRequest;
+use ryo_language::inbound::use_cases::walk::types::{WalkRequest, WalkSelection};
 use ryo_operators::spike::{EngineMode, engine_unwalked};
 use ryo_relations::domain::relations::types::{CellKind, Count};
 use ryo_values::domain::query_plans::types::Emit;
@@ -227,11 +227,17 @@ impl FileScanUseCase for FileScanUseCaseImpl {
                 places: &set.places,
             };
             let request = WalkRequest {
+                // The language the request names reads every file it selects, whatever the path.
+                selection: match &self.setting.language {
+                    ScanLanguage::Named(name) if *name == set.load.language => WalkSelection::Named,
+                    ScanLanguage::Named(_) | ScanLanguage::EveryLinked => WalkSelection::Recognized,
+                },
                 path: file.path,
                 file: file.file,
                 source: file.source,
             };
             state.executable = file.executable;
+            state.read.clone_from(&file.read);
             if let Some(hosted) = file.hosted
                 && !std::sync::Arc::ptr_eq(hosted, &state.hosted)
             {

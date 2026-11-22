@@ -34,10 +34,10 @@ pub trait FileVisit {
 /// ```
 /// use ryo_language::domain::files::types::SourcePath;
 /// use ryo_language::domain::symbols::types::ByteSlice;
-/// use ryo_language::inbound::use_cases::walk::types::WalkRequest;
+/// use ryo_language::inbound::use_cases::walk::types::{WalkRequest, WalkSelection};
 /// use ryo_relations::domain::relations::types::FileId;
 ///
-/// let request = WalkRequest { path: SourcePath("a.walk"), file: FileId(0), source: ByteSlice(b"one") };
+/// let request = WalkRequest { path: SourcePath("a.walk"), file: FileId(0), source: ByteSlice(b"one"), selection: WalkSelection::Recognized };
 /// assert_eq!(request.file, FileId(0));
 /// ```
 #[derive(Clone, Copy, Debug)]
@@ -48,6 +48,26 @@ pub struct WalkRequest<'a> {
     pub file: FileId,
     /// The bytes.
     pub source: ByteSlice<'a>,
+    /// Whether the language reads the file by its path, or because the request names it to.
+    pub selection: WalkSelection,
+}
+
+/// Why a language walks a file: it recognizes the path, or the request names the language to read every file it selects,
+/// whatever the path (a file with no extension, a `.txt` file).
+///
+/// # Examples
+///
+/// ```
+/// use ryo_language::inbound::use_cases::walk::types::WalkSelection;
+///
+/// assert_ne!(WalkSelection::Recognized, WalkSelection::Named);
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum WalkSelection {
+    /// The language reads the files whose paths it recognizes.
+    Recognized,
+    /// The request names the language: it reads the file whatever the path.
+    Named,
 }
 
 /// The relations some loaded program can read in this file: what the language builds its model for.
@@ -82,7 +102,7 @@ pub struct RelationNeeds<'a>(pub &'a [Relation]);
 ///     fn visit(&mut self, _file: FileFacts<'_>) {}
 /// }
 /// let language: &dyn WalkEngine = &WalkUseCaseImpl::new();
-/// let request = WalkRequest { path: SourcePath("a.txt"), file: FileId(0), source: ByteSlice(b"") };
+/// let request = WalkRequest { selection: ryo_language::inbound::use_cases::walk::types::WalkSelection::Recognized, path: SourcePath("a.txt"), file: FileId(0), source: ByteSlice(b"") };
 /// let (mut table, mut buffers) = (NodeTable::default(), language.buffers());
 /// let walked = language.walk_file(request, RelationNeeds(&[]), &mut table, &mut *buffers, &mut Ignored);
 /// assert_eq!(walked, Err(WalkError::Unsupported));

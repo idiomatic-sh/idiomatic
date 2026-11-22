@@ -10,7 +10,7 @@ use crate::domain::definitions::types::{ParameterPlace, Refinement};
 use crate::domain::literal_facts::types::TextBuffer;
 use crate::domain::names::constants::DOT;
 use crate::domain::names::types::{Dottedness, Unresolved};
-use crate::domain::node::service::{id_of, node_at, text_between};
+use crate::domain::node::service::{element_id, node_at, text_between};
 use crate::domain::node::types::SyntaxFile;
 use ruff_python_ast::{AnyNodeRef, Expr, Parameter};
 use ruff_text_size::Ranged as _;
@@ -194,7 +194,7 @@ pub(crate) fn parameter_place(file: &SyntaxFile<'_>, id: Position) -> Option<Par
         return None;
     };
     let callable = node_table::parent_of(file.table, holder);
-    let is = |parameter: &Parameter| id_of(parameter) == Some(id);
+    let is = |parameter: &Parameter| element_id(file, parameter) == Some(id);
     let mut ordinal = Integer(0);
     for each in &parameters.posonlyargs {
         if is(&each.parameter) {
@@ -261,7 +261,7 @@ pub(crate) fn decorator_ordinal(file: &SyntaxFile<'_>, id: Position) -> Integer 
     };
     let ordinal = decorators
         .iter()
-        .position(|each| id_of(each) == Some(id))
+        .position(|each| element_id(file, each) == Some(id))
         .unwrap_or(0);
     Integer(i64::try_from(ordinal).unwrap_or(i64::MAX))
 }

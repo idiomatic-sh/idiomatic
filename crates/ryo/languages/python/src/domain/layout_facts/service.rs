@@ -254,12 +254,15 @@ pub(crate) fn indent_regions(
 pub(crate) fn line_starts(file: &SyntaxFile<'_>, lines: &mut FileLines) {
     lines.0.clear();
     lines.0.push(Offset(0));
+    // As the source's own line index: CRLF is one break, and a lone CR ends a line as LF does.
+    let bytes = file.text.0.as_bytes();
     lines.0.extend(
-        file.text
-            .0
-            .bytes()
+        bytes
+            .iter()
             .enumerate()
-            .filter(|(_, byte)| *byte == b'\n')
+            .filter(|(at, byte)| {
+                **byte == b'\n' || (**byte == b'\r' && bytes.get(at + 1) != Some(&b'\n'))
+            })
             .map(|(at, _)| Offset(u32::try_from(at + 1).unwrap_or(u32::MAX))),
     );
 }

@@ -2,7 +2,7 @@
 //! row, and what a file must hold for the selection to have a row. A comparison that holds a node's kind or field to a set
 //! of literals gives one branch for each literal (`sets`); every other comparison is a pin or a test of the branch.
 
-use crate::domain::lowering::observing::service::input_kinds;
+use crate::domain::lowering::observing::service::{exactly, input_kinds};
 use crate::domain::lowered::types::Emptiness;
 use crate::domain::lowering::definitions::service::{kind_bits, regex, text_word};
 use crate::domain::lowering::definitions::types::{Drafts, Flattened};
@@ -67,6 +67,17 @@ fn tested(
         (TestOperation::Successor(_), _) => TestOperation::Successor(sides(state, asked, comparison)?),
         (test, _) => test,
     };
+    // A file's cell is its number in the run, never the word of a text: a file held equal to a text is its path held to it,
+    // which is a test of the path's text (an expression of the whole text, as `matches` reads the path).
+    if comparison.test == Test::Equal
+        && let Some((column, written)) = file_held(state, asked, comparison)
+    {
+        let whole = exactly(&written.0);
+        let left = term(state, drafts, &mut branch, column)?;
+        let right = term(state, drafts, &mut branch, &Operand::Literal(QueryLiteral::Text(whole.clone())))?;
+        let test = TestOperation::Matches(regex(drafts, &whole));
+        return Some(compared(branch, test, left, right).into_iter().collect());
+    }
     let Some(held) = held_literal(state, drafts, asked.read, &asked.shape, comparison) else {
         let left = term(state, drafts, &mut branch, &comparison.left)?;
         let right = term(state, drafts, &mut branch, &comparison.right)?;
@@ -98,6 +109,20 @@ fn tested(
             .filter_map(|cell| with(branch.clone(), cell))
             .collect(),
     })
+}
+
+/// The file column of a comparison that holds it to a text, and the text: none for any other comparison.
+fn file_held<'c>(
+    state: &RuleFlattening<'_>,
+    asked: &SelectionAsked<'_>,
+    comparison: &'c PlanComparison,
+) -> Option<(&'c Operand, &'c LiteralText)> {
+    let (column, written) = match (&comparison.left, &comparison.right) {
+        (column @ Operand::Column(_), Operand::Literal(QueryLiteral::Text(written)))
+        | (Operand::Literal(QueryLiteral::Text(written)), column @ Operand::Column(_)) => (column, written),
+        _ => return None,
+    };
+    (operand_kind(&rule(state)?.rule, &asked.shape, column)? == CellKind::File).then_some((column, written))
 }
 
 /// A branch with every comparison added, each over the branch's own row: the branches it then is. A comparison that holds
@@ -152,6 +177,10 @@ fn literal_formula(
     read: RelationColumn,
     written: &LiteralText,
 ) -> Option<Emptiness> {
+    // A file's cell is no word of a text: the file's rows say nothing of it.
+    if kind(read.column) == CellKind::File {
+        return None;
+    }
     if kind(read.column) == CellKind::Flag {
         let cell = match &*written.0 {
             RAISED => CellWord(1),

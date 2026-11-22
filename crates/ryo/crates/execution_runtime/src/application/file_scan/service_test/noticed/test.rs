@@ -119,6 +119,7 @@ fn worked(files: &[(u32, &[u8])], noticed: &[u32]) -> ScanReport {
             places: &places,
         };
         let file = WalkRequest {
+            selection: ryo_language::inbound::use_cases::walk::types::WalkSelection::Recognized,
             path: SourcePath("a.walk"),
             file: FileId(*number),
             source: ByteSlice(bytes),

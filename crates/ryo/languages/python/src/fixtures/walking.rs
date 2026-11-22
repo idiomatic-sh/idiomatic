@@ -6,7 +6,7 @@
 use ryo::languages::{
     self, ByteSlice, CatalogRelation, CellKind, CellWord, Column, FactAnswer, FileFacts, FileId,
     FileVisit, FilledColumns, KindBits, NodeTable, Offset, Position, Relation, RelationNeeds, Walk,
-    WalkRequest, facts, node_table,
+    WalkRequest, WalkSelection, facts, node_table,
 };
 use std::collections::HashMap;
 
@@ -385,6 +385,7 @@ pub fn walked<W: Walk>(
     let mut builder = node_table::builder(table, W::KIND_COUNT);
     walk.walk(
         WalkRequest {
+            selection: WalkSelection::Recognized,
             path: languages::SourcePath(path),
             file: FileId(0),
             source: ByteSlice(bytes),

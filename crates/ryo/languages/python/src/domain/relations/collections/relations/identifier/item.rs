@@ -46,7 +46,9 @@ ryo::fills! {
             return;
         }
         for kind in [TypedKind::Node(TypedNode::Name), TypedKind::Extra(TypedExtra::Identifier)] {
-            for Numbered { id, node } in nodes_of_kind(&file.syntax, kind) {
+            // The own tree's names here; an embedded segment's below, by place, each once.
+            let own = nodes_of_kind(&file.syntax, kind).filter(|each| usize::from(each.id) < file.syntax.nodes.len());
+            for Numbered { id, node } in own {
                 // An identifier with no name is the parser's stand-in for a missing one, and `*` is no name.
                 let name = if let AnyNodeRef::ExprName(name) = node {
                     name.id.as_str()

@@ -50,12 +50,22 @@ ryo::reads! {
     }
 }
 
+/// Whether a node is of the file's own tree, whose text is the file's, or of an embedded segment.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Own {
+    /// Of the file's own tree.
+    Tree,
+    /// Of an embedded segment.
+    Embedded,
+}
+
 /// Whether the string `node` reads as an expression the way a string annotation is read: its string tokens as they are written,
 /// one on each line between parentheses, parsed by the string-annotation grammar. Unavailable for a string with no token or
 /// with a token whose body is not told from its quotes.
 fn parsed_as_annotation(
     file: &SyntaxFile<'_>,
     node: AnyNodeRef<'_>,
+    own: Own,
     tokens: &mut Vec<languages::Position>,
     carrier: &mut crate::domain::literal_facts::types::TextBuffer,
 ) -> LiteralParseOutcome {
@@ -70,6 +80,7 @@ fn parsed_as_annotation(
     // written: no carrier is assembled and the string is not parsed a second time to get the node the tree holds
     // (that was 900 ns a row). A file the parser did not read whole keeps the carrier.
     if file.completeness.syntax != languages::SyntaxCompleteness::Incomplete
+        && own == Own::Tree
         && let AnyNodeRef::ExprStringLiteral(literal) = node
         && file
             .text
@@ -110,7 +121,9 @@ ryo::fills! {
             if !matches!(node, AnyNodeRef::ExprStringLiteral(_)) {
                 continue;
             }
-            let outcome = parsed_as_annotation(&syntax, node, &mut tokens, carrier);
+            // A string of an embedded segment is written in the segment's text, not where the file's text is.
+            let own = if usize::from(id) < syntax.nodes.len() { Own::Tree } else { Own::Embedded };
+            let outcome = parsed_as_annotation(&syntax, node, own, &mut tokens, carrier);
             if outcome == LiteralParseOutcome::Unavailable {
                 whole = languages::SyntaxCompleteness::Incomplete;
             }

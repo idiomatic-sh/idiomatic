@@ -324,7 +324,7 @@ fn observed_shaped(
 }
 
 /// A regular expression that matches the text alone.
-fn exactly(written: &str) -> LiteralText {
+pub(crate) fn exactly(written: &str) -> LiteralText {
     let mut pattern = String::with_capacity(written.len().saturating_add(2));
     pattern.push('^');
     for character in written.chars() {

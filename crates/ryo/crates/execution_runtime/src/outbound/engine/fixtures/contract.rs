@@ -125,6 +125,7 @@ pub fn found_in(
     text: &str,
 ) -> Result<Count, ContractFault> {
     let request = WalkRequest {
+        selection: ryo_language::inbound::use_cases::walk::types::WalkSelection::Recognized,
         path: SourcePath("scene.walk"),
         file: FileId(1),
         source: ByteSlice(text.as_bytes()),

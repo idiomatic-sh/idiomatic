@@ -4,7 +4,7 @@ use crate::domain::file_view::types::PythonWalk;
 use crate::domain::model::types::Declarations;
 use crate::domain::name_facts::service::passed as handed_on;
 use crate::domain::names::service::{arguments_of, passed};
-use crate::domain::node::service::{id_of, node_cell, nodes_of_kind, span_at, word};
+use crate::domain::node::service::{element_id, node_cell, nodes_of_kind, span_at, word};
 use crate::domain::node::types::Numbered;
 use crate::domain::nodes::types::Node;
 use crate::domain::semantic_syntax::types::Visibility;
@@ -47,7 +47,7 @@ ryo::fills! {
                     ArgOrKeyword::Arg(expression) => expression,
                     ArgOrKeyword::Keyword(keyword) => &keyword.value,
                 };
-                let Some(at) = id_of(expression) else {
+                let Some(at) = element_id(&file.syntax, expression) else {
                     continue;
                 };
                 rows.write(Row {

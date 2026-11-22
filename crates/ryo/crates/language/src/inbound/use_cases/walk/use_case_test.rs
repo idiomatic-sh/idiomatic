@@ -231,6 +231,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         }
     };
     let request = WalkRequest {
+        selection: crate::inbound::use_cases::walk::types::WalkSelection::Recognized,
         path: SourcePath(path),
         file: FileId(1),
         source: ByteSlice(bytes),
@@ -288,6 +289,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                 RelationNeeds(&[]),
             );
             let first = WalkRequest {
+                selection: crate::inbound::use_cases::walk::types::WalkSelection::Recognized,
                 source: ByteSlice(b"one"),
                 ..request
             };

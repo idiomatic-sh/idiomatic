@@ -163,6 +163,52 @@ pub struct ScanWorker {
     /// SPIKE (ryo-fmx3.1): the project's rows the host holds, answered to each file's scan around the language's view; a
     /// file no language walks is scanned with no node table when they hold a row about it. None until the host hands them.
     pub hosted: Arc<super::hosted::types::HostedRows>,
+    /// SPIKE (ryo-fmx3.1): what the host read of the file in hand, set with `executable`.
+    pub read: HostRead,
+}
+
+/// SPIKE (ryo-fmx3.1): what the host read of a file it hands the scan, as today's engine is told it: its bytes, a manifest no
+/// language walks (whose rows are the host's), or nothing, with the reason; a file that could not be read is still scanned,
+/// with no node table, so that the rules that ask for it run.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_runtime::application::file_scan::types::HostRead;
+///
+/// assert_eq!(HostRead::default(), HostRead::Source);
+/// ```
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub enum HostRead {
+    /// The file's bytes were read.
+    #[default]
+    Source,
+    /// The bytes of a manifest of a linked language were read; no language walks it.
+    Manifest,
+    /// The file could not be read.
+    Failed {
+        /// Why, as the host says it.
+        detail: Box<str>,
+        /// Whether the host saw the file at all: one the request names and the disk lacks was not.
+        observed: ObservedPath,
+    },
+}
+
+/// SPIKE (ryo-fmx3.1): whether the host saw a file it could not read.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_execution_runtime::application::file_scan::types::ObservedPath;
+///
+/// assert_ne!(ObservedPath::Observed, ObservedPath::Unobserved);
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ObservedPath {
+    /// The host saw the file.
+    Observed,
+    /// The file the request names is not there.
+    Unobserved,
 }
 
 impl std::fmt::Debug for ScanWorker {

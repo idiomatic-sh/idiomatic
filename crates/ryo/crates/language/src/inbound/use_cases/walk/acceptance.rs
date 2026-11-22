@@ -32,6 +32,7 @@ impl FileVisit for Lent<'_> {
 /// Walks `text` as the file at `path` through the fixture language, lending it to `visit`; answers why the walk refused.
 fn walked(path: &str, text: &str, visit: &mut dyn FnMut(FileFacts<'_>)) -> Option<String> {
     let request = WalkRequest {
+        selection: ryo_language::inbound::use_cases::walk::types::WalkSelection::Recognized,
         path: SourcePath(path),
         file: FileId(1),
         source: ByteSlice(text.as_bytes()),

@@ -290,10 +290,10 @@ pub struct FileScanWorker {
 /// use ryo_language::domain::symbols::types::ByteSlice;
 /// use ryo_relations::domain::relations::types::{Count, FileId};
 ///
-/// let file = FileToScan { path: SourcePath("a.txt"), file: FileId(0), source: ByteSlice(b""), executable: Default::default(), hosted: None };
+/// let file = FileToScan { path: SourcePath("a.txt"), file: FileId(0), source: ByteSlice(b""), executable: Default::default(), hosted: None, read: Default::default() };
 /// assert_eq!(file.file, FileId(0));
 /// ```
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct FileToScan<'a> {
     /// The file's path, relative to the root.
     pub path: SourcePath<'a>,
@@ -305,6 +305,8 @@ pub struct FileToScan<'a> {
     pub executable: ryo_values::domain::files::types::ExecutablePermission,
     /// SPIKE (ryo-fmx3.1): the project's rows the host holds, the same for every file of the run; none when it holds none.
     pub hosted: Option<&'a std::sync::Arc<ryo_execution_runtime::application::file_scan::hosted::types::HostedRows>>,
+    /// SPIKE (ryo-fmx3.1): what the host read of the file: its bytes, a manifest's, or nothing and why.
+    pub read: ryo_execution_runtime::application::file_scan::types::HostRead,
 }
 
 /// What the scan of one file answered. The rows it found are in the buffer the worker was handed, whatever it answered.
