@@ -15,7 +15,10 @@ use crate::domain::made_tables::types::ReadSource;
 use crate::domain::needs::formulas::service::{node_musts, site_root};
 use crate::domain::needs::formulas::types::{FormulaNode, FreeValue};
 use crate::domain::needs::masks::types::{NeedTerm, RecordCost, Stretch, TermNumber};
+use crate::domain::needs::bytes::service::{held as bytes_held, term_wants};
 use crate::domain::needs::spelled::service::{file_read, spelled, text_number};
+use ryo_operators::domain::patterns::service::required_texts;
+use ryo_operators::domain::table_texts::types::TextView;
 use ryo_language::domain::facts::service::{base_count, text};
 use ryo_relations::domain::catalog::service::{node_column, node_extent};
 use ryo_relations::domain::catalog::types::Spelling;
@@ -27,6 +30,7 @@ use crate::domain::needs::types::{NeedFacts, NeedVerdict};
 use crate::domain::programs::frames::types::StepFrame;
 use crate::domain::programs::collections::instructions::comparing::item::path_passes;
 use crate::domain::programs::operands::service::constant;
+use crate::domain::programs::operands::service::constant as constant_word;
 use crate::domain::steps::types::MadeTableId;
 use ryo_language::domain::node_table::service::kinds_present;
 use ryo_relations::domain::relations::types::{Count, KindBits};
@@ -187,6 +191,14 @@ impl NeedFacts for FileNeeds<'_, '_, '_> {
         verdict
     }
 
+    fn bytes_held(&mut self, regex: WordSlot, constant: WordSlot) -> NeedVerdict {
+        let verdict = self.bytes_verdict(regex, constant);
+        if self.0.state.measure.is_some() {
+            need_leaf(self.0.state, || format!("bytes={verdict:?}"));
+        }
+        verdict
+    }
+
     fn table_row(&mut self, table: MadeTableId) -> NeedVerdict {
         if self.0.state.measure.is_none() {
             return self.table_decided(table);
@@ -231,7 +243,13 @@ impl FileNeeds<'_, '_, '_> {
                     format!("{named}:value")
                 }
             }
-            Some(NeedTerm::Kinds(_) | NeedTerm::Spelled { .. } | NeedTerm::Path { .. }) | None => "?".to_owned(),
+            Some(
+                NeedTerm::Kinds(_)
+                | NeedTerm::Spelled { .. }
+                | NeedTerm::Path { .. }
+                | NeedTerm::Bytes { .. },
+            )
+            | None => "?".to_owned(),
         }
     }
 
@@ -699,6 +717,7 @@ impl FileNeeds<'_, '_, '_> {
                 regex,
                 constant,
             }) => self.path_passes(comparison, regex, constant),
+            Some(NeedTerm::Bytes { regex, constant }) => self.bytes_held(regex, constant),
             None => NeedVerdict::Holds,
         }
     }
@@ -751,7 +770,10 @@ impl FileNeeds<'_, '_, '_> {
                 }
                 Some((text(words, cell).0.to_owned(), extent == NodeExtent::Own))
             }
-            NeedTerm::Row { .. } | NeedTerm::Kinds(_) | NeedTerm::Path { .. } => None,
+            NeedTerm::Row { .. }
+            | NeedTerm::Kinds(_)
+            | NeedTerm::Path { .. }
+            | NeedTerm::Bytes { .. } => None,
         }
     }
 
@@ -778,6 +800,64 @@ impl FileNeeds<'_, '_, '_> {
             }
         }
         self.0.state.need_masks.texts_found = all;
+    }
+
+    /// Numbers the literals of every byte term met since the last look, so that a file's bytes are read for all of them
+    /// at once: a constant's text, or the texts the matcher reads off a regular expression (`required_texts`).
+    fn bytes_found(&mut self) {
+        let all = self.0.state.need_masks.terms.len();
+        let from = self.0.state.need_masks.bytes_found;
+        if from >= all {
+            return;
+        }
+        for place in from..all {
+            if let Some(NeedTerm::Bytes { regex, constant }) = self.0.state.need_masks.terms.get(place).copied() {
+                let texts = self.byte_texts(regex, constant);
+                // SPIKE: the literals each byte term asks, printed once a worker (`RYO_X_BYTES`).
+                if std::env::var_os("RYO_X_BYTES").is_some() {
+                    eprintln!("ryo x: bytes-term regex={} constant={} texts={:?}", regex.0, constant.0, texts.as_ref().map(|all| all.iter().map(|text| String::from_utf8_lossy(text).into_owned()).collect::<Vec<_>>()));
+                }
+                let _place = term_wants(&mut self.0.state.need_masks.bytes, (regex, constant), || texts);
+            }
+        }
+        self.0.state.need_masks.bytes_found = all;
+    }
+
+    /// The texts of which a byte term asks the file to hold one; none: it asks nothing.
+    fn byte_texts(&self, regex: WordSlot, constant: WordSlot) -> Option<Vec<Vec<u8>>> {
+        if regex != NO_SLOT {
+            let pattern = self
+                .0
+                .fill
+                .programs
+                .regexes
+                .get(usize::try_from(regex.0).unwrap_or(usize::MAX))?;
+            return required_texts(TextView(&pattern.0), self.0.fill.matcher);
+        }
+        if constant == NO_SLOT {
+            return None;
+        }
+        let word = constant_word(self.0, ConstantNumber(constant.0));
+        Some(vec![text(self.0.fill.words, word).0.as_bytes().to_vec()])
+    }
+
+    /// Whether the file's bytes hold a literal a byte term asks for, the bytes read for every literal on the first such
+    /// ask of the file. A file whose bytes are no text says nothing.
+    fn bytes_verdict(&mut self, regex: WordSlot, constant: WordSlot) -> NeedVerdict {
+        self.bytes_found();
+        let frame = &mut *self.0;
+        let Some(source) = frame.fill.source else {
+            return NeedVerdict::Holds;
+        };
+        let literals = &frame.state.need_masks.bytes;
+        let Some(place) = literals.terms.get(&(regex, constant)).copied() else {
+            return NeedVerdict::Holds;
+        };
+        if bytes_held(literals, source.as_bytes(), &mut frame.state.need_terms.bytes, place) {
+            NeedVerdict::Holds
+        } else {
+            NeedVerdict::Empty
+        }
     }
 
     /// Whether the file spells the text a term asks for, the file's tokens read on the first such ask; none for a term

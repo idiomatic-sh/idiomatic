@@ -6,7 +6,7 @@ use ryo_matching::inbound::use_cases::matching::errors::MatchingError;
 use ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase;
 use ryo_matching::inbound::use_cases::matching::types::{
     CompiledGlobs, CompiledRegex, CompiledTextGlobs, GlobHits, GlobPattern, GroupName,
-    MatchOutcome, RegexSource, SearchText, TextSpan,
+    MatchOutcome, RegexSource, RequiredTexts, SearchText, TextSpan,
 };
 use ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -30,6 +30,9 @@ impl MatchingUseCase for CountingMatching {
     fn compile_regex(&self, pattern: RegexSource<'_>) -> Result<CompiledRegex, MatchingError> {
         let _before = self.compiles.fetch_add(1, Ordering::Relaxed);
         MatchingUseCaseImpl::new().compile_regex(pattern)
+    }
+    fn required_texts(&self, pattern: RegexSource<'_>) -> RequiredTexts {
+        MatchingUseCaseImpl::new().required_texts(pattern)
     }
     fn matches_regex(&self, regex: &CompiledRegex, text: SearchText<'_>) -> MatchOutcome {
         MatchingUseCaseImpl::new().matches_regex(regex, text)

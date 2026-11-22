@@ -2,6 +2,7 @@
 //! them.
 
 use crate::domain::needs::formulas::types::{FreeValue, NeedFormulas};
+use crate::domain::needs::bytes::types::{ByteFile, ByteLiterals};
 use crate::domain::needs::spelled::types::{SpelledFile, SpelledTexts};
 use ryo_relations::domain::catalog::types::Spelling;
 use crate::domain::code::types::{PoolAt, RelationNumber, WordSlot};
@@ -39,6 +40,14 @@ pub(crate) enum NeedTerm {
         /// The regular expression's number, or `NO_SLOT`.
         regex: WordSlot,
         /// The constant's number.
+        constant: WordSlot,
+    },
+    /// The file's texts hold a literal: the constant's text (`NO_SLOT` regular expression), or one of the texts every
+    /// match of the regular expression holds. It costs nothing: one pass over the file's bytes answers all.
+    Bytes {
+        /// The regular expression's number, or `NO_SLOT`.
+        regex: WordSlot,
+        /// The constant's number, or `NO_SLOT`.
         constant: WordSlot,
     },
 }
@@ -126,6 +135,11 @@ pub(crate) struct NeedMasks {
     pub(crate) term_texts: Vec<u32>,
     /// How many terms `term_texts` has looked at.
     pub(crate) texts_found: usize,
+    /// The literals the byte terms ask the file's texts to hold, numbered.
+    pub(crate) bytes: ByteLiterals,
+    /// How many terms have been looked at for the literals they ask: every byte term met so far is numbered at once,
+    /// so a file's bytes are read for all of them together.
+    pub(crate) bytes_found: usize,
 }
 
 /// A file's answers to the terms, each asked at most once a file: a bit for "asked" and a bit for "holds".
@@ -145,4 +159,6 @@ pub(crate) struct TermAnswers {
     pub(crate) sites: Vec<FreeValue>,
     /// What the file spells of the texts the terms ask for: read on the first such ask of the file.
     pub(crate) spelled: SpelledFile,
+    /// What the file's bytes hold of the literals the byte terms ask for: read on the first such ask of the file.
+    pub(crate) bytes: ByteFile,
 }

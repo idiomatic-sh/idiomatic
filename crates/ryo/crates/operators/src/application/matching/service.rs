@@ -7,7 +7,7 @@ use ryo_matching::inbound::use_cases::matching::errors::MatchingError;
 use ryo_matching::inbound::use_cases::matching::interface::MatchingUseCase;
 use ryo_matching::inbound::use_cases::matching::types::{
     CompiledRegex, CompiledTextGlobs, GlobPattern, GroupName, MatchOutcome, RegexSource,
-    SearchText, TextSpan,
+    RequiredTexts, SearchText, TextSpan,
 };
 
 impl<Matching: MatchingUseCase + ?Sized> Sealed for Matching {}
@@ -15,6 +15,9 @@ impl<Matching: MatchingUseCase + ?Sized> Sealed for Matching {}
 impl<Matching: MatchingUseCase + ?Sized> PatternSemantics for Matching {
     fn compile_regex(&self, pattern: RegexSource<'_>) -> Result<CompiledRegex, MatchingError> {
         MatchingUseCase::compile_regex(self, pattern)
+    }
+    fn required_texts(&self, pattern: RegexSource<'_>) -> RequiredTexts {
+        MatchingUseCase::required_texts(self, pattern)
     }
     fn matches_regex(&self, regex: &CompiledRegex, text: SearchText<'_>) -> MatchOutcome {
         MatchingUseCase::matches_regex(self, regex, text)
@@ -52,6 +55,9 @@ impl Sealed for super::types::PortSemantics<'_> {}
 impl PatternSemantics for super::types::PortSemantics<'_> {
     fn compile_regex(&self, pattern: RegexSource<'_>) -> Result<CompiledRegex, MatchingError> {
         self.0.compile_regex(pattern)
+    }
+    fn required_texts(&self, pattern: RegexSource<'_>) -> RequiredTexts {
+        self.0.required_texts(pattern)
     }
     fn matches_regex(&self, regex: &CompiledRegex, text: SearchText<'_>) -> MatchOutcome {
         self.0.matches_regex(regex, text)

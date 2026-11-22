@@ -115,6 +115,14 @@ pub(crate) enum NeedRecord {
         /// The constant's number.
         constant: WordSlot,
     },
+    /// `8, regular expression, constant`: the file's texts hold the constant's text (`NO_SLOT` regular expression), or
+    /// one of the texts every match of the regular expression holds (`NO_SLOT` constant).
+    Bytes {
+        /// The regular expression's number, or `NO_SLOT`.
+        regex: WordSlot,
+        /// The constant's number, or `NO_SLOT`.
+        constant: WordSlot,
+    },
     /// `5, n, offsets`: every part holds.
     All {
         /// How many parts.

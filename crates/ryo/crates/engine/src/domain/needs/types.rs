@@ -43,6 +43,12 @@ pub(crate) trait NeedFacts {
         NeedVerdict::Holds
     }
 
+    /// Whether the file's texts hold the literal (the constant's text, or one of the texts every match of the regular
+    /// expression holds). It costs nothing: one pass over the file's bytes answers every literal.
+    fn bytes_held(&mut self, _regex: WordSlot, _constant: WordSlot) -> NeedVerdict {
+        NeedVerdict::Holds
+    }
+
     /// What the terms of a site say of it before its formula is walked, when the engine keeps the masks of its needs:
     /// `Empty` when they leave it no way to hold in the file, `Holds` when they are its whole formula and hold. None:
     /// the walk decides.

@@ -27,6 +27,7 @@ pub(crate) fn next_file(scratch: &mut ScanScratch) {
     state.need_terms.free_known = Count(0);
     state.need_terms.sites.clear();
     state.need_terms.spelled.known = 0;
+    state.need_terms.bytes.known = 0;
     state.rows = SeamRows::default();
     state.answer = BodyAnswer::default();
     state.fault = None;

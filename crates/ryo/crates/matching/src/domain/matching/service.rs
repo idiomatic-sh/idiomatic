@@ -19,6 +19,73 @@ pub(crate) fn compile_regex(pattern: AuthoredRegex<'_>) -> Result<Regex, Compile
     })
 }
 
+/// The most alternatives a set of required texts holds, and the most chars a class may stand for to be one: past either,
+/// the set says too little to be worth a search, and none is given.
+const REQUIRED_WIDTH: usize = 16;
+
+/// The texts of which every match of the regex holds one, read off the parse the compiler reads (`util::syntax::parse`,
+/// the syntax `meta::Regex::new` compiles): a literal is itself; a concatenation needs what its most specific part
+/// needs; an alternation, one of each branch's; a repetition at least once, its body's; a small class, one of its chars.
+/// None for an invalid regex, or one that can match without any (an empty match, a look-around, an optional part).
+pub(crate) fn required_texts(pattern: AuthoredRegex<'_>) -> Option<Vec<Vec<u8>>> {
+    let hir = regex_automata::util::syntax::parse(pattern.0).ok()?;
+    let mut texts = required(&hir)?;
+    texts.sort_unstable();
+    texts.dedup();
+    Some(texts)
+}
+
+/// What a part of a parse needs, as `required_texts` reads it.
+fn required(hir: &regex_syntax::hir::Hir) -> Option<Vec<Vec<u8>>> {
+    use regex_syntax::hir::{Class, HirKind};
+    match hir.kind() {
+        HirKind::Literal(literal) if !literal.0.is_empty() => Some(vec![literal.0.to_vec()]),
+        HirKind::Capture(capture) => required(&capture.sub),
+        HirKind::Repetition(repetition) if repetition.min >= 1 => required(&repetition.sub),
+        HirKind::Class(Class::Unicode(class)) => {
+            let mut texts = Vec::new();
+            for range in class.ranges() {
+                for each in range.start()..=range.end() {
+                    if texts.len() >= REQUIRED_WIDTH {
+                        return None;
+                    }
+                    let mut buffer = [0_u8; 4];
+                    texts.push(each.encode_utf8(&mut buffer).as_bytes().to_vec());
+                }
+            }
+            (!texts.is_empty()).then_some(texts)
+        }
+        HirKind::Class(Class::Bytes(class)) => {
+            let mut texts = Vec::new();
+            for range in class.ranges() {
+                for each in range.start()..=range.end() {
+                    if texts.len() >= REQUIRED_WIDTH {
+                        return None;
+                    }
+                    texts.push(vec![each]);
+                }
+            }
+            (!texts.is_empty()).then_some(texts)
+        }
+        // The part whose least specific text is longest; of those, the one with the fewest texts.
+        HirKind::Concat(parts) => parts.iter().filter_map(required).max_by_key(|texts| {
+            let shortest = texts.iter().map(Vec::len).min().unwrap_or(0);
+            (shortest, std::cmp::Reverse(texts.len()))
+        }),
+        HirKind::Alternation(branches) => {
+            let mut texts = Vec::new();
+            for branch in branches {
+                texts.extend(required(branch)?);
+                if texts.len() > REQUIRED_WIDTH {
+                    return None;
+                }
+            }
+            Some(texts)
+        }
+        HirKind::Literal(_) | HirKind::Empty | HirKind::Look(_) | HirKind::Repetition(_) => None,
+    }
+}
+
 /// Search using the caller's already acquired matcher.
 pub(crate) fn matches_regex(regex: &Regex, text: Haystack<'_>) -> RegexMatch {
     if regex.is_match(text.0) {

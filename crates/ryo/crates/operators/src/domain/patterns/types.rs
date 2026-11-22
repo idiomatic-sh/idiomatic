@@ -5,7 +5,7 @@ pub mod prepared;
 use ryo_matching::inbound::use_cases::matching::errors::MatchingError;
 use ryo_matching::inbound::use_cases::matching::types::{
     CompiledRegex, CompiledTextGlobs, GlobPattern, GroupName, MatchOutcome, RegexSource,
-    SearchText, TextSpan,
+    RequiredTexts, SearchText, TextSpan,
 };
 
 /// Seals [`PatternSemantics`]: the trait is public so the engine crates can lend it, and its one implementation is the blanket
@@ -44,6 +44,8 @@ pub trait PatternSemantics: sealed::Sealed {
     ///
     /// [`MatchingError::InvalidRegex`] when the pattern is not valid regex syntax.
     fn compile_regex(&self, pattern: RegexSource<'_>) -> Result<CompiledRegex, MatchingError>;
+    /// The texts of which every match of the regex holds one; none when no such set is known.
+    fn required_texts(&self, pattern: RegexSource<'_>) -> RequiredTexts;
     /// Searches text with a compiled regex.
     fn matches_regex(&self, regex: &CompiledRegex, text: SearchText<'_>) -> MatchOutcome;
     /// Visits the occurrences of a compiled regex in source order, stopping when `each` breaks.

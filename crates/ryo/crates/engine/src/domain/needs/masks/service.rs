@@ -44,7 +44,10 @@ pub(crate) fn numbered(
         let number = TermNumber(u32::try_from(terms.len()).unwrap_or(u32::MAX));
         terms.push(term);
         let cost = match term {
-            NeedTerm::Kinds(_) | NeedTerm::Spelled { .. } | NeedTerm::Path { .. } => RecordCost::Free,
+            NeedTerm::Kinds(_)
+            | NeedTerm::Spelled { .. }
+            | NeedTerm::Path { .. }
+            | NeedTerm::Bytes { .. } => RecordCost::Free,
             NeedTerm::Row { relation, .. } if node_relation(code, relation) => RecordCost::Free,
             NeedTerm::Row {
                 column, constant, ..
@@ -87,7 +90,10 @@ fn record_cost(code: &ProgramCode, at: WordSlot, costs: &mut Vec<RecordCost>) ->
         *held = RecordCost::Dear;
     }
     let dear = match need_at(&code.needs, at) {
-        Some(NeedRecord::Unknown | NeedRecord::Kinds(_) | NeedRecord::Path { .. }) | None => false,
+        Some(
+            NeedRecord::Unknown | NeedRecord::Kinds(_) | NeedRecord::Path { .. } | NeedRecord::Bytes { .. },
+        )
+        | None => false,
         Some(NeedRecord::Row { relation, .. }) => !node_relation(code, relation),
         Some(NeedRecord::Site(site)) => slot(code, WordSlot(site.0), WordSlot(0))
             .is_some_and(|formula| record_cost(code, formula, costs) == RecordCost::Dear),
@@ -157,7 +163,8 @@ fn record_asks_nodes(code: &ProgramCode, at: WordSlot, masks: &mut NeedMasks) ->
             | NeedRecord::Kinds(_)
             | NeedRecord::Table(_)
             | NeedRecord::Row { .. }
-            | NeedRecord::Path { .. },
+            | NeedRecord::Path { .. }
+            | NeedRecord::Bytes { .. },
         )
         | None => NodeAsk::NotAsked,
     }

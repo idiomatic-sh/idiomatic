@@ -655,6 +655,9 @@ fn compiled(code: &ProgramCode, at: WordSlot, masks: &mut NeedMasks) -> u32 {
             },
             at,
         ),
+        Some(NeedRecord::Bytes { regex, constant }) => {
+            term_node(code, masks, NeedTerm::Bytes { regex, constant }, at)
+        }
         Some(NeedRecord::Row {
             relation,
             column,
