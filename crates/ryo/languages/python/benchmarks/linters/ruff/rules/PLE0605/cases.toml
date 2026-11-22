@@ -75,3 +75,93 @@ name = "right-nested-sequence-concatenation-is-invalid"
 comparison = "full"
 files = { "case.py" = "__all__ = [] + ([\"missing\"] + [])\n" }
 expected = [{ rule = "PLE0605", file = "case.py", start = 0, end = 7 }]
+
+[[cases]]
+name = "binop-of-calls"
+comparison = "full"
+files = { "case.py" = "__all__ = list(['a']) + list(['b'])\n" }
+expected = []
+
+[[cases]]
+name = "binop-call-and-tuple"
+comparison = "full"
+files = { "case.py" = "__all__ = tuple(['a']) + ('b',)\n" }
+expected = []
+
+[[cases]]
+name = "binop-all-name"
+comparison = "full"
+files = { "case.py" = "__all__ = []\n__all__ = __all__ + ['a']\n" }
+expected = []
+
+[[cases]]
+name = "binop-attribute-all"
+comparison = "full"
+files = { "case.py" = "import m\n__all__ = m.__all__ + ['a']\n" }
+expected = []
+
+[[cases]]
+name = "binop-two-attributes"
+comparison = "full"
+files = { "case.py" = "import m, n\n__all__ = m.__all__ + n.__all__\n" }
+expected = []
+
+[[cases]]
+name = "subscripted-list-call"
+comparison = "full"
+files = { "case.py" = "__all__ = list[str](['a'])\n" }
+expected = []
+
+[[cases]]
+name = "subscripted-list-call-dynamic"
+comparison = "full"
+files = { "case.py" = "__all__ = list[str](foo())\n" }
+expected = []
+
+[[cases]]
+name = "walrus-of-name"
+comparison = "full"
+files = { "case.py" = "__all__ = (foo := bar)\n" }
+expected = [{ rule = "PLE0605", file = "case.py", start = 0, end = 7 }, { rule = "PLE0605", file = "case.py", start = 11, end = 14 }]
+
+[[cases]]
+name = "walrus-of-list"
+comparison = "full"
+files = { "case.py" = "__all__ = (foo := ['a'])\n" }
+expected = []
+
+[[cases]]
+name = "binop-with-name"
+comparison = "full"
+files = { "case.py" = "__all__ = ['a'] + other\n" }
+expected = [{ rule = "PLE0605", file = "case.py", start = 0, end = 7 }]
+
+[[cases]]
+name = "binop-nested-right"
+comparison = "full"
+files = { "case.py" = "__all__ = ['a'] + (['b'] + ['c'])\n" }
+expected = [{ rule = "PLE0605", file = "case.py", start = 0, end = 7 }]
+
+[[cases]]
+name = "binop-call-dynamic-arg"
+comparison = "full"
+files = { "case.py" = "__all__ = list(foo()) + ['a']\n" }
+expected = []
+
+[[cases]]
+name = "list-call-two-args"
+comparison = "full"
+files = { "case.py" = "__all__ = list(a, b)\n" }
+expected = [{ rule = "PLE0605", file = "case.py", start = 0, end = 7 }]
+
+[[cases]]
+name = "binop-of-comprehension"
+comparison = "full"
+files = { "case.py" = "__all__ = [x for x in y] + ['a']\n" }
+expected = []
+
+[[cases]]
+name = "binop-minus"
+comparison = "full"
+files = { "case.py" = "__all__ = ['a'] - ['b']\n" }
+expected = []
