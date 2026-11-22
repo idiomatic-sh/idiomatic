@@ -218,11 +218,196 @@ expected = [{ "rule" = "UP036", "file" = "case.py", "start" = 27, "end" = 52 }]
 name = "micro-varies"
 comparison = "full"
 files = { "case.py" = "import sys\nif sys.version_info[2] == 3:\n    branch = \"micro-three\"\nelse:\n    branch = \"other-micro\"\n" }
-expected = []
-reference-discrepancy = { "expected" = [{ "rule" = "UP036", "file" = "case.py", "start" = 14, "end" = 38 }], "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "61ebf50964fb6029b01094f9f06aecce0069219b8eca9fdf337bc4a111af0eb2", "settings-sha256" = "a5e83900a9c97aa5b9b98330ec86c904e9d8d0b7936faf9bca3591ba65717c3d", "source-sha256" = "1ca495b66f1ac3ed99416263d1468901ff2273eed3e1125add64c7a3f53ae193", "reference-output-sha256" = "92ff7f4c93bdc06bcc4de2d420fa7af7889aaa34f0c7acbf80a43fbdf826c315", "intended-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a" }, "evidence" = [{ "path" = "evidence/micro-version-probe.py", "sha256" = "45b03145659ad7f7cfc173ac84814df5aea859667e15dde50b100e18a614213e", "kind" = "independent-language-run", "language-version" = "CPython 3.13.5 with explicitly modeled supported patch versions", "target-configuration" = "python-target=3.10", "version-rationale" = "The host executes the complete unchanged case against modeled version tuples (3,10,0) and (3,10,3). These are explicitly modeled supported patch versions, not actual interpreter samples. Micro comparison takes both branches; the major-index positive control takes the same branch. No source expression is rewritten." }, { "path" = "evidence/micro-version-inputs.json", "sha256" = "ada6f12ba9c027676337a6f486b6ffdca48f1a9bd1fcf4f5149eaa8335b1655d", "kind" = "independent-language-run", "language-version" = "CPython 3.13.5 with explicitly modeled supported patch versions", "target-configuration" = "python-target=3.10", "version-rationale" = "The host executes the complete unchanged case against modeled version tuples (3,10,0) and (3,10,3). These are explicitly modeled supported patch versions, not actual interpreter samples. Micro comparison takes both branches; the major-index positive control takes the same branch. No source expression is rewritten." }, { "path" = "evidence/micro-version-observations.json", "sha256" = "b6ec02ecc26bb21a5373ecab2c309815cc15950caec623b90d69d4a92a0f0d10", "kind" = "independent-language-run", "language-version" = "CPython 3.13.5 with explicitly modeled supported patch versions", "target-configuration" = "python-target=3.10", "version-rationale" = "The host executes the complete unchanged case against modeled version tuples (3,10,0) and (3,10,3). These are explicitly modeled supported patch versions, not actual interpreter samples. Micro comparison takes both branches; the major-index positive control takes the same branch. No source expression is rewritten." }], "reason" = "Index 2 of sys.version_info denotes the micro version, not the major version. The exact predicate can be true or false for supported patch releases sharing the same major/minor minimum. Pinned Ruff strips the arbitrary subscript and applies its major-version scalar comparison policy; this exact-source exception preserves its observed finding while the intended guarantee policy reports none. Standard full-version, prefix-slice, major attribute, and index-zero controls remain independently positive." }
+expected = [{ rule = "UP036", file = "case.py", start = 14, end = 38 }]
 
 [[cases]]
 name = "two-file-node-isolation"
 comparison = "full"
 files = { "positive.py" = "import sys\nif sys.version_info < (3, 0): pass\n", "negative.py" = "import other\nif other.version_info < (3, 0): pass\n" }
 expected = [{ "rule" = "UP036", "file" = "positive.py", "start" = 14, "end" = 39 }]
+
+[[cases]]
+name = "slice-lt"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info[0:2] < (3, 4):\n    pass\n" }
+expected = [{ rule = "UP036", file = "case.py", start = 14, end = 44 }]
+
+[[cases]]
+name = "slice-ge"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info[0:2] >= (3, 7):\n    pass\n" }
+expected = [{ rule = "UP036", file = "case.py", start = 14, end = 45 }]
+
+[[cases]]
+name = "slice-open-start"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info[:2] >= (3, 7):\n    pass\n" }
+expected = [{ rule = "UP036", file = "case.py", start = 14, end = 44 }]
+
+[[cases]]
+name = "slice-three"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info[:3] >= (3, 7, 1):\n    pass\n" }
+expected = [{ rule = "UP036", file = "case.py", start = 14, end = 47 }]
+
+[[cases]]
+name = "index-zero-eq"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info[0] == 2:\n    pass\n" }
+expected = [{ rule = "UP036", file = "case.py", start = 14, end = 38 }]
+
+[[cases]]
+name = "index-zero-ge"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info[0] >= 3:\n    pass\n" }
+expected = [{ rule = "UP036", file = "case.py", start = 14, end = 38 }]
+
+[[cases]]
+name = "index-float"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info[0.0] == 2:\n    pass\n" }
+expected = [{ rule = "UP036", file = "case.py", start = 14, end = 40 }]
+
+[[cases]]
+name = "index-false"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info[False] == 2:\n    pass\n" }
+expected = [{ rule = "UP036", file = "case.py", start = 14, end = 42 }]
+
+[[cases]]
+name = "slice-true"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info[:True] >= (2, 7):\n    pass\n" }
+expected = [{ rule = "UP036", file = "case.py", start = 14, end = 47 }]
+
+[[cases]]
+name = "slice-float"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info[:2.0] >= (3, 9):\n    pass\n" }
+expected = [{ rule = "UP036", file = "case.py", start = 14, end = 46 }]
+
+[[cases]]
+name = "slice-tuple"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info[:, :] >= (2, 7):\n    pass\n" }
+expected = [{ rule = "UP036", file = "case.py", start = 14, end = 46 }]
+
+[[cases]]
+name = "slice-step"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info[0:2:1] >= (3, 7):\n    pass\n" }
+expected = [{ rule = "UP036", file = "case.py", start = 14, end = 47 }]
+
+[[cases]]
+name = "slice-from-one"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info[1:] >= (3, 7):\n    pass\n" }
+expected = [{ rule = "UP036", file = "case.py", start = 14, end = 44 }]
+
+[[cases]]
+name = "slice-future"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info[:2] >= (3, 14):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "index-one"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info[1] >= 7:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "float-index-tuple"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info[0.0] >= (3, 7):\n    pass\n" }
+expected = [{ rule = "UP036", file = "case.py", start = 14, end = 45 }]
+
+[[cases]]
+name = "slice-from-one-int"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info[1:] == 2:\n    pass\n" }
+expected = [{ rule = "UP036", file = "case.py", start = 14, end = 39 }]
+
+[[cases]]
+name = "name-index-int"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info[x] == 2:\n    pass\n" }
+expected = [{ rule = "UP036", file = "case.py", start = 14, end = 38 }]
+
+[[cases]]
+name = "name-index-tuple"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info[x] >= (3, 7):\n    pass\n" }
+expected = [{ rule = "UP036", file = "case.py", start = 14, end = 43 }]
+
+[[cases]]
+name = "index-two-tuple"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info[2] >= (3, 7):\n    pass\n" }
+expected = [{ rule = "UP036", file = "case.py", start = 14, end = 43 }]
+
+[[cases]]
+name = "index-minus-one-int"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info[-1] == 2:\n    pass\n" }
+expected = [{ rule = "UP036", file = "case.py", start = 14, end = 39 }]
+
+[[cases]]
+name = "index-one-tuple"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info[1] >= (3, 7):\n    pass\n" }
+expected = [{ rule = "UP036", file = "case.py", start = 14, end = 43 }]
+
+[[cases]]
+name = "slice-int"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info[:2] == 2:\n    pass\n" }
+expected = [{ rule = "UP036", file = "case.py", start = 14, end = 39 }]
+
+[[cases]]
+name = "index-zero-tuple"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info[0] >= (3, 7):\n    pass\n" }
+expected = [{ rule = "UP036", file = "case.py", start = 14, end = 43 }]
+
+[[cases]]
+name = "index-false-ge"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info[False] >= 3:\n    pass\n" }
+expected = [{ rule = "UP036", file = "case.py", start = 14, end = 42 }]
+
+[[cases]]
+name = "string-index-int"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info[\"a\"] == 2:\n    pass\n" }
+expected = [{ rule = "UP036", file = "case.py", start = 14, end = 40 }]
+
+[[cases]]
+name = "index-zero-lt-three"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info[0] < 3:\n    pass\n" }
+expected = [{ rule = "UP036", file = "case.py", start = 14, end = 37 }]
+
+[[cases]]
+name = "slice-lt-future"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info[:2] < (3, 14):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "slice-eq-tuple"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info[:2] == (3, 7):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "index-zero-eq-three"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info[0] == 3:\n    pass\n" }
+expected = [{ rule = "UP036", file = "case.py", start = 14, end = 38 }]
+
+[[cases]]
+name = "index-true"
+comparison = "full"
+files = { "case.py" = "import sys\nif sys.version_info[True] == 2:\n    pass\n" }
+expected = [{ rule = "UP036", file = "case.py", start = 14, end = 41 }]
