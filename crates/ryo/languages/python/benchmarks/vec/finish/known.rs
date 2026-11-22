@@ -154,12 +154,7 @@ impl Exec<'_> {
             self.stats.static_file_tests += 1;
             e = self.file_fails_of(f, run, node);
         }
-        // redo-empty: the leaves the propagation adds (a fill with no rows, a literal no row of the file holds)
         let mut ep = false;
-        if !e && r.flags & EP_LEAF != 0 {
-            e = self.ep_leaf_empty(f, run, p, node);
-            ep = e;
-        }
         if !e && r.n_ins > 0 {
             let (a, b) = (r.ins as usize, r.ins as usize + usize::from(r.n_ins));
             if r.flags & ALL != 0 {
@@ -177,6 +172,12 @@ impl Exec<'_> {
                     y
                 });
             }
+        }
+        // redo-empty: the leaves the propagation adds (a fill with no rows, a literal no row of the file holds), after the
+        // inputs: a fill is not asked where an input decides already
+        if !e && r.flags & EP_LEAF != 0 {
+            e = self.ep_leaf_empty(f, run, p, node);
+            ep = e;
         }
         f.known[node] = if e && ep { YES_EP } else if e { YES } else { NO };
         e
