@@ -183,6 +183,8 @@ pub(super) struct Run {
     pub(super) missing: std::collections::BTreeSet<String>,
     /// 6h: the provider relations read in place (`Native::Fact`), with their column counts.
     pub(super) fact_rels: Vec<(String, usize)>,
+    /// 8: kind symbol -> kind codes, made on first ask.
+    pub(super) kind_codes: std::cell::OnceCell<FxHashMap<u32, Vec<u16>>>,
 }
 
 impl Run {
@@ -2886,9 +2888,23 @@ impl<'p> Exec<'p> {
                     };
                     let mut probe_key: Vec<u64> = Vec::new();
                     let mut hits = Vec::new();
+                    // 8: a key that is a made table's column is read from it, not through the expression
+                    let direct: Option<(&[u64], usize)> = match other {
+                        E::Col(s2, c2, _) => match &srcs[*s2] {
+                            Src::Tab(t, _) => Some((&t.cols[*c2][..], *s2)),
+                            _ => None,
+                        },
+                        _ => None,
+                    };
                     for ti in 0..count {
                         fill_cur(&mut cur, &tuples, ti, bound);
-                        let v = eval(run, f, &srcs, &cur, other);
+                        let v = match direct {
+                            Some((col_v, s2)) => {
+                                let x = col_v[tuples[s2][ti] as usize];
+                                V::new(Ty::Node, x)
+                            }
+                            None => eval(run, f, &srcs, &cur, other),
+                        };
                         hits.clear();
                         match &srcs[si] {
                             Src::View(vs, _) => {
@@ -2975,6 +2991,22 @@ impl<'p> Exec<'p> {
         for (c, (_, e)) in sp.items.iter().enumerate() {
             let col = &mut out.cols[c];
             col.reserve(count);
+            // 8: a picked column is gathered through its source's row list
+            if let E::Col(si, sc, _) = e {
+                match &srcs[*si] {
+                    Src::Tab(t, _) => {
+                        let src = &t.cols[*sc][..];
+                        col.extend(tuples[*si][..count].iter().map(|r| src[*r as usize]));
+                        continue;
+                    }
+                    Src::View(v, _) => {
+                        let (base, bc) = (v.base, v.map[*sc]);
+                        col.extend(tuples[*si][..count].iter().map(|r| f.native_get(run, base, *r, bc)));
+                        continue;
+                    }
+                    _ => {}
+                }
+            }
             for ti in 0..count {
                 for (s2, cur_s) in cur.iter_mut().enumerate() {
                     *cur_s = tuples[s2][ti];
@@ -3491,22 +3523,13 @@ fn view_rows(f: &mut File<'_>, run: &mut Run, v: &ViewSpec, node: usize) -> Rc<V
 /// How many elements some kinds have.
 /// 8: a kind symbol's codes (a symbol may name several codes), from the run's kind table, made once a run.
 fn kind_codes(run: &Run, sym: u32) -> &[u16] {
-    thread_local! {
-        static CODES: RefCell<Option<std::rc::Rc<FxHashMap<u32, Vec<u16>>>>> = const { RefCell::new(None) };
-    }
-    let m = CODES.with(|c| {
-        c.borrow_mut()
-            .get_or_insert_with(|| {
-                let mut m: FxHashMap<u32, Vec<u16>> = FxHashMap::default();
-                for (code, s) in run.kind_sym.iter().enumerate() {
-                    m.entry(*s).or_default().push(code as u16);
-                }
-                std::rc::Rc::new(m)
-            })
-            .clone()
+    let m = run.kind_codes.get_or_init(|| {
+        let mut m: FxHashMap<u32, Vec<u16>> = FxHashMap::default();
+        for (code, s) in run.kind_sym.iter().enumerate() {
+            m.entry(*s).or_default().push(code as u16);
+        }
+        m
     });
-    // the map lives for the run (never replaced): hand out a slice of it
-    let m: &'static FxHashMap<u32, Vec<u16>> = unsafe { &*std::rc::Rc::as_ptr(&m) };
     m.get(&sym).map_or(&[], Vec::as_slice)
 }
 
