@@ -15,6 +15,9 @@ use serde_json::Value as J;
 use std::cell::RefCell;
 use std::rc::Rc;
 
+#[path = "finish/drive.rs"]
+mod drive;
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum Ty {
     Node,
@@ -287,6 +290,8 @@ pub(super) struct File<'a> {
     text_memo: RefCell<Vec<u32>>,
     by_start: RefCell<Option<FxHashMap<u32, Vec<u32>>>>,
     by_end: RefCell<Option<FxHashMap<u32, Vec<u32>>>>,
+    /// 6e: elements by start line and by end line (a keyed list made on first ask).
+    by_line: [RefCell<Option<FxHashMap<u32, Vec<u32>>>>; 2],
     tokens: RefCell<Option<Rc<Tokens>>>,
     memo: Vec<Option<Res>>,
     /// The nodes made, in order: a probe's override drops what was made under it.
@@ -325,6 +330,7 @@ impl File<'_> {
             text_memo: RefCell::new(vec![u32::MAX; n]),
             by_start: RefCell::new(None),
             by_end: RefCell::new(None),
+            by_line: [RefCell::new(None), RefCell::new(None)],
             tokens: RefCell::new(None),
             memo: vec![None; nodes],
             log: Vec::new(),
@@ -511,7 +517,7 @@ impl File<'_> {
     }
     /// Whether a native relation is probed in place on a column.
     fn probes(nat: Native, col: usize) -> bool {
-        matches!((nat, col), (Native::Tree | Native::Location, 0) | (Native::Child, 0 | 1) | (Native::Location, 5 | 6) | (Native::Token, 0 | 1))
+        matches!((nat, col), (Native::Tree | Native::Location, 0) | (Native::Child, 0 | 1) | (Native::Location, 3..=6) | (Native::Token, 0 | 1))
     }
     /// Rows of a native relation whose column holds `v`.
     fn native_probe(&self, run: &Run, nat: Native, col: usize, v: u64, out: &mut Vec<u32>) {
@@ -544,6 +550,20 @@ impl File<'_> {
                     let src = if col == 5 { &self.start } else { &self.end };
                     for (p, s) in src.iter().enumerate() {
                         m.entry(*s).or_default().push(p as u32);
+                    }
+                    m
+                });
+                if let Some(rows) = idx.get(&(v as u32)) {
+                    out.extend_from_slice(rows);
+                }
+            }
+            (Native::Location, 3) | (Native::Location, 4) => {
+                let mut b = self.by_line[col - 3].borrow_mut();
+                let idx = b.get_or_insert_with(|| {
+                    let mut m: FxHashMap<u32, Vec<u32>> = FxHashMap::default();
+                    let src = if col == 3 { &self.start } else { &self.end };
+                    for (p, s) in src.iter().enumerate() {
+                        m.entry(self.line(*s) as u32).or_default().push(p as u32);
                     }
                     m
                 });
@@ -592,6 +612,8 @@ pub(super) struct Stats {
     pub(super) probes: Vec<u64>,
     /// The step that first asked a node whole in a file (diagnostic).
     pub(super) made_by: Vec<usize>,
+    /// Why a node was first made whole in a file, where the asking step says (empty: read whole by `made_by`).
+    pub(super) why: Vec<&'static str>,
 }
 
 // ------------------------------------------------------------------------------------------------ expressions
@@ -688,6 +710,15 @@ pub(super) struct Exec<'p> {
     consumers: Vec<Vec<usize>>,
     keyed_memo: Vec<Option<bool>>,
     emitted: rustc_hash::FxHashSet<usize>,
+    /// 6e item 1: whether a step's rows are restricted by a survivor seed (static, through row-wise positions).
+    bound_memo: Vec<Option<bool>>,
+    /// The reason the next whole make is asked for (taken by `res`).
+    reason: &'static str,
+    /// `VEC_STATIC_KEYED`: the 6c static rule decides which steps are read by key (the base of 6e item 1).
+    static_keyed: bool,
+    /// 6e item 1: a probed input put in place for one step's run only (step, input, rows), never in the file's memo, so
+    /// another input that reads the same step (a diamond) still sees all of it.
+    over: Option<(usize, usize, Option<usize>, Rc<Table>)>,
 }
 
 type R<T> = Result<T, String>;
@@ -713,7 +744,7 @@ impl<'p> Exec<'p> {
         let k = plan.nodes.len();
         Exec {
             plan,
-            stats: Stats { time: vec![0.0; k], rows: vec![0; k], calls: vec![0; k], touched: vec![0; k], empty: vec![0; k], probes: vec![0; k], made_by: vec![usize::MAX; k] },
+            stats: Stats { time: vec![0.0; k], rows: vec![0; k], calls: vec![0; k], touched: vec![0; k], empty: vec![0; k], probes: vec![0; k], made_by: vec![usize::MAX; k], why: vec![""; k] },
             schemas: vec![None; k],
             views: vec![None; k],
             sels: vec![None; k],
@@ -735,6 +766,10 @@ impl<'p> Exec<'p> {
             },
             keyed_memo: vec![None; k],
             emitted: plan.emits.iter().map(|e| e.1).collect(),
+            bound_memo: vec![None; k],
+            reason: "",
+            static_keyed: std::env::var_os("VEC_STATIC_KEYED").is_some(),
+            over: None,
         }
     }
 
@@ -1150,6 +1185,7 @@ impl<'p> Exec<'p> {
 
     /// A node's answer in this file, made once; an input is asked only when the step needs it.
     pub(super) fn res(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Res> {
+        let why = std::mem::take(&mut self.reason);
         if let Some(r) = &f.memo[node] {
             return Ok(r.clone());
         }
@@ -1168,6 +1204,7 @@ impl<'p> Exec<'p> {
         self.inner = 0.0;
         if self.stats.made_by[node] == usize::MAX {
             self.stats.made_by[node] = self.stack.last().copied().unwrap_or(usize::MAX - 1);
+            self.stats.why[node] = why;
         }
         self.stack.push(node);
         let out = self.body(f, run, p, node);
@@ -1198,6 +1235,9 @@ impl<'p> Exec<'p> {
         if keys.is_empty() {
             return Ok(Rc::new(Table::with(sc.names.clone(), sc.tys.clone())));
         }
+        if let Some(o) = self.overridden(node) {
+            return Ok(Rc::new(drive::subset_of(&o, col, keys)));
+        }
         if let Some(Res::Tab(t)) = &f.memo[node] {
             let t = t.clone();
             return Ok(Rc::new(subset(f, node, &t, col, keys)));
@@ -1217,6 +1257,7 @@ impl<'p> Exec<'p> {
                 self.stats.touched[node] += rows.len() as u64;
                 return Ok(Rc::new(out));
             }
+            self.reason = "view probed on a column it has no keyed read for";
             let t = self.eval(f, run, p, node)?;
             return Ok(Rc::new(subset(f, node, &t, col, keys)));
         }
@@ -1296,6 +1337,18 @@ impl<'p> Exec<'p> {
                 return Ok(Rc::new(distinct(out)));
             }
             "antijoin" => unary(self, run, "left")?,
+            "as-of" | "ordered-match" if !self.static_keyed => {
+                // as-of is row-wise on its left; ordered-match pairs within a key group, so only a left key carries
+                let m = &a["output"][name.as_str()];
+                match (m[0].as_str(), m[1].as_str()) {
+                    (Some("left"), Some(lc)) if op == "as-of" || strs(&a["left-on"])?.iter().any(|k| k == lc) => {
+                        let ln = self.arg_rel(node, "left")?;
+                        let lsc = self.schema(run, ln)?;
+                        Some((ln, pos(&lsc.names, lc)?))
+                    }
+                    _ => None,
+                }
+            }
             "extend" | "project" | "span-between" | "span-bounds" | "source-matches" | "replace" | "capture" => unary(self, run, "from")?,
             "axis" => {
                 if name == "related" {
@@ -1346,12 +1399,44 @@ impl<'p> Exec<'p> {
             }
             _ => None,
         };
-        // the input may be put in place only where no other input of the step reads it
+        // the input may be put in place only where no other input of the step reads it (6c); with the override (6e) only
+        // where the step reads it once
+        let carried = target.is_some();
+        if !self.static_keyed {
+            // the probed source's position, where a select reads the same step at several (a self-join)
+            let at = if op == "select" {
+                match &self.sel(run, node)?.items[col].1 {
+                    E::Col(si, c, _) => Some((*si, *c)),
+                    _ => None,
+                }
+            } else {
+                None
+            };
+            let at_pos = at.map(|x| x.0);
+            let target = match (at, target) {
+                (Some((si, c)), None) if op == "select" => Some((self.sel(run, node)?.srcs[si], c)),
+                (_, t) => t,
+            };
+            let target = target.filter(|(input, _)| at_pos.is_some() || matches!(op.as_str(), "antijoin" | "ordered-match" | "as-of") || self.plan.nodes[node].inputs.iter().filter(|i| *i == input).count() == 1);
+            if target.is_none()
+                && let Some(t) = self.probe_by_group(f, run, p, node, col, keys)?
+            {
+                return Ok(Rc::new(t));
+            }
+            let Some((input, icol)) = target else {
+                self.reason = if carried { "probed on a column of an input it reads twice" } else { "probed on a column no input carries" };
+                let t = self.eval(f, run, p, node)?;
+                return Ok(Rc::new(subset(f, node, &t, col, keys)));
+            };
+            let sub = self.probe(f, run, p, input, icol, keys)?;
+            return self.run_over(f, run, p, node, input, at_pos, sub).map(Rc::new);
+        }
         let target = target.filter(|(input, _)| {
             let others: Vec<usize> = self.plan.nodes[node].inputs.iter().copied().filter(|i| i != input).collect();
             self.plan.nodes[node].inputs.iter().filter(|i| *i == input).count() == 1 && others.iter().all(|o| !self.depends(*o, *input))
         });
         let Some((input, icol)) = target else {
+            self.reason = if carried { "probed on a column its input shares with another input" } else { "probed on a column no input carries" };
             let t = self.eval(f, run, p, node)?;
             return Ok(Rc::new(subset(f, node, &t, col, keys)));
         };
@@ -1395,6 +1480,10 @@ impl<'p> Exec<'p> {
 
     /// A node's rows as a table (a view is made whole here, once a file).
     pub(super) fn eval(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Table>> {
+        let why = self.reason;
+        if let Some(t) = self.overridden(node) {
+            return Ok(t);
+        }
         match self.res(f, run, p, node)? {
             Res::Tab(t) => Ok(t),
             Res::View(v) => {
@@ -1410,6 +1499,10 @@ impl<'p> Exec<'p> {
                 }
                 out.n = rows.len();
                 let rc = Rc::new(out);
+                if self.stats.made_by[node] == usize::MAX {
+                    self.stats.made_by[node] = self.stack.last().copied().unwrap_or(usize::MAX - 1);
+                    self.stats.why[node] = if why.is_empty() { "a view read whole" } else { why };
+                }
                 f.vmat.insert(node, rc.clone());
                 f.log.push(node);
                 let dt = super::thread_cpu() - t0;
@@ -1431,6 +1524,7 @@ impl<'p> Exec<'p> {
         if let Some(l) = f.lazies.get(&node) {
             return Ok(l.clone());
         }
+        self.reason = "closure edges";
         let edges = self.eval(f, run, p, self.arg_rel(node, "edges")?)?;
         let t0 = super::thread_cpu();
         let a = &self.plan.nodes[node].j["args"];
@@ -1821,7 +1915,8 @@ impl<'p> Exec<'p> {
         let mut out = Table::with(l.names.clone(), l.tys.clone());
         let mut row = Vec::new();
         // a right side that is a view probed in place on a key: a knock-out per left row, nothing made
-        if let Res::View(v) = self.res(f, run, p, rn)?
+        if self.view(run, rn)?.is_some()
+            && let Res::View(v) = self.res(f, run, p, rn)?
             && let Some(ki) = (0..rk.len()).find(|i| File::probes(v.base, v.map[rk[*i]]))
         {
             let mut hits = Vec::new();
@@ -1839,12 +1934,7 @@ impl<'p> Exec<'p> {
             }
             return Ok(out);
         }
-        let r = if f.memo[rn].is_none() && self.view(run, rn)?.is_none() && std::env::var_os("VEC_NO_KEYED").is_none() && self.keyed(run, rn) {
-            let ks: Vec<u64> = l.cols[lk[0]].iter().copied().collect::<rustc_hash::FxHashSet<u64>>().into_iter().collect();
-            self.probe(f, run, p, rn, rk[0], &ks)?
-        } else {
-            self.eval(f, run, p, rn)?
-        };
+        let r = self.right_by_keys(f, run, p, rn, &l, &lk, &rk)?;
         if r.n == 0 {
             return Ok((*l).clone());
         }
@@ -1873,10 +1963,13 @@ impl<'p> Exec<'p> {
     }
 
     fn src_of(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Src> {
+        if let Some(t) = self.overridden(node) {
+            return Ok(Src::Tab(t, usize::MAX - 40));
+        }
         if self.plan.nodes[node].op == "closure" {
             return Ok(Src::Lazy(self.lazy(f, run, p, node)?));
         }
-        if f.memo[node].is_none() && self.view(run, node)?.is_none() && std::env::var_os("VEC_NO_KEYED").is_none() && self.keyed(run, node) {
+        if self.deferred(f, run, node)? {
             return Ok(Src::Pending(node));
         }
         Ok(match self.res(f, run, p, node)? {
@@ -1890,10 +1983,15 @@ impl<'p> Exec<'p> {
         let k = sp.srcs.len();
         let conj = &sp.conj;
         let refs = &sp.refs;
+        // 6e: a probed source put in place at one position (the others read the step itself)
+        let ov = self.take_positional(&sp.srcs);
         // the made inputs first, in order: an empty one ends the step
         let mut srcs: Vec<Src> = Vec::with_capacity(k);
         for (i, n) in sp.srcs.iter().enumerate() {
-            let src = self.src_of(f, run, p, *n)?;
+            let src = match &ov {
+                Some((at, t)) if *at == i => Src::Tab(t.clone(), usize::MAX - 40),
+                _ => self.src_of(f, run, p, *n)?,
+            };
             if let Src::Tab(t, _) = &src
                 && t.n == 0
             {
@@ -1919,6 +2017,21 @@ impl<'p> Exec<'p> {
             }
             srcs[si] = Src::Tab(t, usize::MAX - si);
             driver = Some(si);
+        }
+        // 6e item 1: a source the survivors bound is made first (it is small), so exact counts choose the driver
+        if driver.is_none() && !self.static_keyed {
+            for i in 0..k {
+                if let Src::Pending(n) = srcs[i]
+                    && self.bound(run, n)
+                {
+                    self.reason = "bound by the survivors (made, to drive)";
+                    let t = self.eval(f, run, p, n)?;
+                    if t.n == 0 {
+                        return self.empty(run, node);
+                    }
+                    srcs[i] = Src::Tab(t, n);
+                }
+            }
         }
         // the driver: the smallest entry that is already a count, a made table's rows or a view's kind bucket
         let mut best = if driver.is_some() { 0 } else { usize::MAX };
@@ -1966,6 +2079,7 @@ impl<'p> Exec<'p> {
                     None => match (0..k).find(|i| matches!(srcs[*i], Src::Pending(_))) {
                     Some(d) => {
                         let Src::Pending(n) = srcs[d] else { unreachable!() };
+                        self.reason = "join driver: no source bound";
                         let t = self.eval(f, run, p, n)?;
                         if t.n == 0 {
                             return self.empty(run, node);
@@ -2071,6 +2185,7 @@ impl<'p> Exec<'p> {
                         && !native
                     {
                         let vn = *vn;
+                        self.reason = "view probed on a column it has no keyed read for";
                         srcs[si] = Src::Tab(self.eval(f, run, p, vn)?, vn);
                     }
                     // a closure is made for the ends this join asks, and only those
@@ -2202,9 +2317,11 @@ impl<'p> Exec<'p> {
                     let si = (0..k).find(|s2| bound & (1 << s2) == 0).expect("an unbound source");
                     if let Src::Lazy(l) = &srcs[si] {
                         let ln = l.node;
+                        self.reason = "closure crossed (no key joins it)";
                         srcs[si] = Src::Tab(self.eval(f, run, p, ln)?, ln);
                     }
                     if let Src::Pending(pn) = srcs[si] {
+                        self.reason = "cross product: no key joins it";
                         srcs[si] = Src::Tab(self.eval(f, run, p, pn)?, pn);
                     }
                     let nb = bound | (1 << si);
@@ -2270,6 +2387,7 @@ impl<'p> Exec<'p> {
         Ok(match self.res(f, run, p, rel)? {
             Res::View(v) if File::probes(v.base, v.map[pc]) && File::probes(v.base, v.map[cc]) => Hier::View(v, pc, cc),
             _ => {
+                self.reason = "axis hierarchy";
                 let t = self.eval(f, run, p, rel)?;
                 let mut up: FxHashMap<u64, Vec<u64>> = FxHashMap::default();
                 let mut down: FxHashMap<u64, Vec<u64>> = FxHashMap::default();
@@ -2289,9 +2407,10 @@ impl<'p> Exec<'p> {
         let dn = self.arg_rel(node, "domain")?;
         let sc = self.schema(run, dn)?;
         let c = pos(&sc.names, "id")?;
-        if f.memo[dn].is_none() && self.view(run, dn)?.is_none() && std::env::var_os("VEC_NO_KEYED").is_none() && self.keyed(run, dn) {
+        if self.deferred(f, run, dn)? {
             return Ok(Dom::Keyed(dn, c));
         }
+        self.reason = "axis domain";
         Ok(match self.res(f, run, p, dn)? {
             Res::View(v) if File::probes(v.base, v.map[c]) => Dom::View(v, c),
             _ => {
@@ -2519,11 +2638,14 @@ impl<'p> Exec<'p> {
 
     fn ordered(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, a: &J, as_of: bool) -> R<Table> {
         let l = self.eval(f, run, p, self.arg_rel(node, "left")?)?;
-        let r = self.eval(f, run, p, self.arg_rel(node, "right")?)?;
+        let rn = self.arg_rel(node, "right")?;
+        let lk: Vec<usize> = strs(&a["left-on"])?.iter().map(|c| l.col(c)).collect::<R<_>>()?;
+        let rsc = self.schema(run, rn)?;
+        let rk0: Vec<usize> = strs(&a["right-on"])?.iter().map(|c| pos(&rsc.names, c)).collect::<R<_>>()?;
+        let r = self.right_by_keys(f, run, p, rn, &l, &lk, &rk0)?;
         if r.n == 0 {
             return self.empty(run, node);
         }
-        let lk: Vec<usize> = strs(&a["left-on"])?.iter().map(|c| l.col(c)).collect::<R<_>>()?;
         let rk: Vec<usize> = strs(&a["right-on"])?.iter().map(|c| r.col(c)).collect::<R<_>>()?;
         let (lo, ro) = (l.col(s(&a["left-order"])?)?, r.col(s(&a["right-order"])?)?);
         let outm = a["output"].as_object().ok_or("output")?;
