@@ -437,6 +437,28 @@ pub(super) struct File<'a> {
     known: Vec<u8>,
     /// The kinds the file has, one bit a kind code (made at the first ask).
     kind_bits: Vec<u64>,
+    /// pass 2: the steps whose memo entry `res` set: cleared at the file's end, and the memo (and `known`) kept for the
+    /// next file (no 30 k-entry table made and dropped a file).
+    touched: Vec<u32>,
+}
+
+thread_local! {
+    static SPARE: RefCell<(Vec<Option<Res>>, Vec<u8>, Vec<u32>)> = const { RefCell::new((Vec::new(), Vec::new(), Vec::new())) };
+}
+
+impl Drop for File<'_> {
+    fn drop(&mut self) {
+        let mut memo = std::mem::take(&mut self.memo);
+        let mut known = std::mem::take(&mut self.known);
+        let mut touched = std::mem::take(&mut self.touched);
+        for n in touched.drain(..) {
+            memo[n as usize] = None;
+        }
+        // a substitution's restore never leaves an entry `res` did not set (checked where it is cheap)
+        debug_assert!(memo.iter().all(Option::is_none));
+        known.fill(0);
+        SPARE.with(|s| *s.borrow_mut() = (memo, known, touched));
+    }
 }
 
 /// How a step asks the provider for a relation's rows: the visit's facts.
@@ -464,7 +486,7 @@ impl File<'_> {
             by_end: RefCell::new(None),
             by_line: [RefCell::new(None), RefCell::new(None)],
             tokens: RefCell::new(None),
-            memo: vec![None; nodes],
+            memo: Vec::new(),
             log: Vec::new(),
             vrows: FxHashMap::default(),
             vmat: FxHashMap::default(),
@@ -475,9 +497,14 @@ impl File<'_> {
             walks: FxHashMap::default(),
             facts: Vec::new(),
             fact_ix: RefCell::new(FxHashMap::default()),
-            known: vec![0; nodes],
+            known: Vec::new(),
             kind_bits: Vec::new(),
+            touched: Vec::new(),
         };
+        SPARE.with(|sp| {
+            let (memo, known, touched) = std::mem::take(&mut *sp.borrow_mut());
+            (f.memo, f.known, f.touched) = if memo.len() == nodes && known.len() == nodes { (memo, known, touched) } else { (vec![None; nodes], vec![0; nodes], Vec::new()) };
+        });
         for i in 0..n as u32 {
             let p = Position(i);
             f.kind.push(node_table::kind_of(table, p).0);
@@ -1487,11 +1514,13 @@ impl<'p> Exec<'p> {
         if let Some(v) = self.view(run, node)? {
             self.load_fact(f, run, p, v.base)?;
             let r = Res::View(v);
+            f.touched.push(node as u32);
             f.memo[node] = Some(r.clone());
             return Ok(r);
         }
         if let Some(t) = &self.run_memo[node] {
             let r = Res::Tab(t.clone());
+            f.touched.push(node as u32);
             f.memo[node] = Some(r.clone());
             return Ok(r);
         }
@@ -1499,6 +1528,7 @@ impl<'p> Exec<'p> {
         if !sw!("VEC_NO_KNOWN") && self.known_empty(f, run, node) {
             self.stats.known[node] += 1;
             let r = Res::Tab(self.empty_rc(run, node)?);
+            f.touched.push(node as u32);
             f.memo[node] = Some(r.clone());
             f.log.push(node);
             if sw!("VEC_STEP_TIME") && decided {
@@ -1539,6 +1569,7 @@ impl<'p> Exec<'p> {
             self.run_memo[node] = Some(t.clone());
         }
         let rc = Res::Tab(t);
+        f.touched.push(node as u32);
         f.memo[node] = Some(rc.clone());
         f.log.push(node);
         Ok(rc)
