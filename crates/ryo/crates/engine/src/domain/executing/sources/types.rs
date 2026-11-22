@@ -8,6 +8,8 @@ use crate::domain::executing::measuring::service::{
 use crate::domain::executing::measuring::sites::service::{kind_named, row_named};
 use crate::domain::executing::presence::service::{consulted, node_row};
 use crate::domain::executing::types::Asker;
+use crate::domain::filled::service::held_state;
+use crate::domain::filled::types::FilledState;
 use crate::domain::indexes::reading::service::cell_at;
 use crate::domain::made_tables::reading::service::view_of;
 use crate::domain::made_tables::sources::service::{made, scanned, table_of};
@@ -253,6 +255,23 @@ impl FileNeeds<'_, '_, '_> {
         }
     }
 
+    /// SPIKE (ryo-fmx3.1.1, a measuring worker's count): what a site's formula says of the file from the free terms
+    /// alone at the moment its decision begins, as `masked` reads it first: a site decided in the file is its decision.
+    pub(crate) fn free_value(&mut self, site: NeedSite) -> FreeValue {
+        if let Some(kept) = self.kept(site) {
+            return match kept {
+                NeedVerdict::Holds => FreeValue::Holds,
+                NeedVerdict::Empty => FreeValue::Empty,
+            };
+        }
+        let code = self.0.fill.programs.code;
+        let Some(root) = site_root(code, site, &mut self.0.state.need_masks) else {
+            return FreeValue::Holds;
+        };
+        self.free_answered();
+        self.site_free(site, root)
+    }
+
     /// A site's value from the free terms alone, kept for the file.
     fn site_valued(&mut self, site: NeedSite, value: FreeValue) {
         let place = usize::try_from(site.0).unwrap_or(usize::MAX);
@@ -409,6 +428,8 @@ impl FileNeeds<'_, '_, '_> {
             FormulaNode::Free(bit) => holds(self.free_bit(bit)),
             FormulaNode::Term(term) => match self.term_known(term) {
                 Some(verdict) => holds(verdict == NeedVerdict::Holds),
+                // A row of a relation the file already holds whole is read where it lies: no fill.
+                None if self.term_filled(term) => holds(self.term_holds(term) == NeedVerdict::Holds),
                 None => FreeValue::Open,
             },
             FormulaNode::Table(table) => match table_of(self.0.fill.store, table) {
@@ -571,6 +592,22 @@ impl FileNeeds<'_, '_, '_> {
             held.iter()
                 .any(|word| answers.get(word.word.0).copied().unwrap_or(0) & word.bits != 0)
         }
+    }
+
+    /// Whether a term asks a row of a relation the file already holds whole: answering it costs no fill.
+    fn term_filled(&self, term: TermNumber) -> bool {
+        let Some(NeedTerm::Row { relation, .. }) = self
+            .0
+            .state
+            .need_masks
+            .terms
+            .get(usize::try_from(term.0).unwrap_or(usize::MAX))
+            .copied()
+        else {
+            return false;
+        };
+        let store = &*self.0.fill.store;
+        held_state(&store.relations, relation, store.stamp) == FilledState::Whole
     }
 
     /// The file's answer to a term when it was asked in the file; none when it was not.

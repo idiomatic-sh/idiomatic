@@ -99,7 +99,10 @@ fn pushed(masks: &mut NeedMasks, node: FormulaNode, rank: AskRank, musts: &[Must
     formulas.musts.extend_from_slice(musts);
     formulas.node_clauses.push(Stretch::default());
     let informs = match node {
-        FormulaNode::Term(_) | FormulaNode::Table(_) => false,
+        // A term that costs a fill is read by the pass over the free terms once the file holds its relation whole
+        // (`executing::sources`): what a reader already filled costs nothing to ask.
+        FormulaNode::Term(_) => true,
+        FormulaNode::Table(_) => false,
         FormulaNode::All(parts) | FormulaNode::Any(parts) => formulas
             .parts
             .get(parts.start.0..parts.start.0.saturating_add(parts.count.0))
