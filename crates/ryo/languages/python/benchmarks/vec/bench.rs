@@ -1161,6 +1161,9 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     for (r, e) in f {
         println!("FAILED {r}: {e}");
     }
+    // pass 2: the process ends here: the executor and the plan (30 k nodes of JSON) are not dropped one by one
+    std::mem::forget(exec);
+    std::mem::forget(plan);
 }
 
 /// `vec funnel <way> <files> <anchors> <plans> [--repeat K] [--rules-out F] [--hits-out F]`: ways `cands`, `structure`,
