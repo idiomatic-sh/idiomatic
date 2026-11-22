@@ -134,6 +134,7 @@ pub(crate) fn pushed_join(
     steps: &[PlanStep],
     id: StepId,
     reader: StepIndex,
+    fresh: Option<StepId>,
 ) -> Option<PushedFilter> {
     let made = step_in(steps, id)?;
     let filtering = steps.get(reader.0)?;
@@ -173,7 +174,7 @@ pub(crate) fn pushed_join(
     }
     let left_on: Vec<ColumnIndex> = left_on.iter().chain(&split.left_on).copied().collect();
     let right_on: Vec<ColumnIndex> = right_on.iter().chain(&split.right_on).copied().collect();
-    let first = StepId(u32::try_from(reader.0).unwrap_or(u32::MAX));
+    let first = fresh.unwrap_or(StepId(u32::try_from(reader.0).unwrap_or(u32::MAX)));
     let mut before = Vec::new();
     let mut from = |input: Input, moved: Vec<PlanComparison>| -> Option<Input> {
         if moved.is_empty() {
@@ -220,6 +221,6 @@ pub(crate) fn pushed_join(
         scope: made.scope,
     };
     Some(finished(
-        reader, before, combined, filtering, split.rest, kept,
+        reader, first, before, combined, filtering, split.rest, kept,
     ))
 }

@@ -2,7 +2,7 @@
 //! and keep the cheapest completion (`completing`); a pattern starts from its given cells. What a use of a definition
 //! costs along the way is the definition's own plan's (`uses`), planned once for the pack however many accesses ask it.
 
-use super::completing::service::{anchors, completed};
+use super::completing::service::{anchors_of, begun, completed, completed_from};
 use super::types::{GivenTerms, PlannedBranch, PlanningWith, UnitRole, UnitStart};
 use super::uses::service::with_pack;
 use crate::domain::lowering::costing::constants::{ANCHORS_TRIED, ONE};
@@ -13,7 +13,7 @@ use crate::domain::lowering::flattening::types::{
 };
 use crate::domain::steps::calls::service::call_shape;
 use crate::domain::steps::calls::types::CallRows;
-use std::collections::HashSet;
+use rustc_hash::FxHashSet as HashSet;
 
 /// How a term stands for the variables given so far.
 #[must_use]
@@ -70,15 +70,16 @@ pub(crate) fn planned_with(
         }
         return completed(with, branch, start, role, None);
     }
-    let mut tried = anchors(with, branch, start, role);
+    let begun = begun(with, branch, start, role);
+    let mut tried = anchors_of(with, branch, &begun);
     tried.sort_by_key(|anchor| (anchor.rank, anchor.atom));
     if tried.is_empty() {
-        return completed(with, branch, start, role, None);
+        return completed_from(begun, role, None);
     }
     let best = |tried: &[super::types::NextAccess]| {
         let plans = tried
             .iter()
-            .filter_map(|anchor| completed(with, branch, start, role, Some(*anchor)));
+            .filter_map(|anchor| completed_from(begun.clone(), role, Some(*anchor)));
         plans.min_by_key(|plan| (plan.products.0, plan.cost))
     };
     let (first, rest) = tried.split_at(tried.len().min(ANCHORS_TRIED));

@@ -5,7 +5,7 @@ use super::types::{EqualTerms, FlatAtom, FlatBranch, FlatTerm, FlatVariable, Own
 use crate::domain::steps::types::CallMeaning;
 use crate::domain::steps::types::{MadeColumn, TestOperation};
 use ryo_values::domain::plan_parts::types::Function;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 /// Visits every term of an atom, in place.
 pub(crate) fn each_term(atom: &mut FlatAtom, visit: &mut impl FnMut(&mut FlatTerm)) {
@@ -118,7 +118,7 @@ pub(crate) fn pins_of(branch: &FlatBranch) -> HashMap<FlatVariable, FlatTerm> {
 /// constants equal, or a constant equal to the file.
 #[must_use]
 pub(crate) fn unified(mut branch: FlatBranch, pairs: &[EqualTerms]) -> Option<FlatBranch> {
-    let mut classes: HashMap<FlatVariable, FlatTerm> = HashMap::new();
+    let mut classes: HashMap<FlatVariable, FlatTerm> = HashMap::default();
     let mut pinned: Vec<(FlatVariable, FlatTerm)> = Vec::new();
     for pair in pairs {
         let (left, right) = (found(&classes, pair.left), found(&classes, pair.right));
@@ -164,7 +164,7 @@ pub(crate) fn unified(mut branch: FlatBranch, pairs: &[EqualTerms]) -> Option<Fl
     }
     // One pin a variable: the same pin written twice is one, and two constants for one variable hold of no row. A pin
     // whose two sides the rewrite made constants is decided here.
-    let mut pins: HashMap<FlatVariable, FlatTerm> = HashMap::new();
+    let mut pins: HashMap<FlatVariable, FlatTerm> = HashMap::default();
     let mut kept = Vec::with_capacity(branch.atoms.len());
     for atom in branch.atoms {
         match atom {

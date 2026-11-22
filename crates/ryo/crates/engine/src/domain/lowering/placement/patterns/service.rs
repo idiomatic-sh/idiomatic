@@ -29,7 +29,7 @@ use crate::domain::steps::types::{ColumnMask, DefinitionId, MadeTableId, ReadCol
 use ryo_relations::domain::relations::types::Count;
 use ryo_values::domain::plan_parts::types::{RepeatedRows, StepId};
 use ryo_values::domain::table_words::types::ColumnCount;
-use std::collections::HashSet;
+use rustc_hash::FxHashSet as HashSet;
 
 /// The refusal of a step that cannot be evaluated.
 pub(crate) fn unlowerable(step: StepId) -> LoadRefusal {
@@ -78,7 +78,7 @@ pub(crate) fn definition_table(
         let mut pipelines = Vec::with_capacity(branches.len());
         for branch in &branches {
             let branch = &per_file(drafts, branch);
-            let written = planned(drafts, branch, &HashSet::new(), UnitRole::Pipeline)
+            let written = planned(drafts, branch, &HashSet::default(), UnitRole::Pipeline)
                 .and_then(|plan| pipeline(drafts, sample.kinds, branch, &plan, Some(definition)));
             pipelines.push(written.ok_or_else(|| home_refused(home))?);
         }

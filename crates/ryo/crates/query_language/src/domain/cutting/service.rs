@@ -3,7 +3,6 @@
 use crate::domain::inlining::service::columns_read;
 use crate::domain::inlining::service::projection_column;
 use crate::domain::inlining::service::reading_through;
-use crate::domain::inlining::types::StepReading;
 use crate::domain::narrowing::service::{narrow_lookups, narrow_lookups_roots};
 use crate::domain::regrouping::service::{regroup_joins, regroup_joins_roots};
 use crate::domain::rewriting::types::Planned;
@@ -60,6 +59,9 @@ fn reduced_frontier_roots(mut steps: Vec<PlanStep>, roots: &mut [StepId]) -> Vec
     }) {
         return steps;
     }
+    // The steps after the files that read each step, read once and again after each cut (prototype ryo-fmx3.1: each
+    // candidate scanned every step).
+    let mut cross_readers = cross_file_readers(&steps);
     for candidate in (0..steps.len()).rev() {
         let read = StepId(u32::try_from(candidate).unwrap_or(u32::MAX));
         let Some(cut_step) = steps.get(candidate) else {
@@ -68,15 +70,7 @@ fn reduced_frontier_roots(mut steps: Vec<PlanStep>, roots: &mut [StepId]) -> Vec
         if cut_step.scope != StepScope::PerFile || roots.contains(&read) {
             continue;
         }
-        let consumers: Vec<usize> = steps
-            .iter()
-            .enumerate()
-            .filter(|(_, step)| {
-                step.scope == StepScope::CrossFile
-                    && operation_reads(&step.operation, read) == StepReading::Reads
-            })
-            .map(|(place, _)| place)
-            .collect();
+        let consumers: Vec<usize> = cross_readers.get(candidate).cloned().unwrap_or_default();
         if consumers.is_empty() {
             continue;
         }
@@ -174,8 +168,30 @@ fn reduced_frontier_roots(mut steps: Vec<PlanStep>, roots: &mut [StepId]) -> Vec
                 &|column| Some(projection_column(&used, column)),
             );
         }
+        cross_readers = cross_file_readers(&steps);
     }
     steps
+}
+
+/// For each step, the places of the steps after the files that read it, in step order: the steps `operation_reads` finds.
+fn cross_file_readers(steps: &[PlanStep]) -> Vec<Vec<usize>> {
+    let mut lists: Vec<Vec<usize>> = vec![Vec::new(); steps.len()];
+    for (place, step) in steps.iter().enumerate() {
+        if step.scope != StepScope::CrossFile {
+            continue;
+        }
+        let inputs = inputs_of(&step.operation);
+        let named = named(&inputs);
+        for (at, input) in named.iter().enumerate() {
+            if let Input::Step(id) = *input
+                && !named.get(..at).is_some_and(|before| before.contains(input))
+                && let Some(list) = usize::try_from(id.0).ok().and_then(|read| lists.get_mut(read))
+            {
+                list.push(place);
+            }
+        }
+    }
+    lists
 }
 
 /// Whether a step that reads rows drops their repeats itself, so a row repeated before it changes nothing it answers: a
@@ -224,15 +240,6 @@ fn repeats_read(operation: &Operation) -> RepeatedRows {
         | Operation::RenderSyntax { .. }
         | Operation::FitsRendered { .. }
         | Operation::SpanBounds { .. } => RepeatedRows::Kept,
-    }
-}
-
-/// Whether the operation reads the step `read`.
-fn operation_reads(operation: &Operation, read: StepId) -> StepReading {
-    if named(&inputs_of(operation)).contains(&Input::Step(read)) {
-        StepReading::Reads
-    } else {
-        StepReading::Ignores
     }
 }
 

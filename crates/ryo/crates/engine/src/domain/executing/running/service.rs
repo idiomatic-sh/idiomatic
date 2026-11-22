@@ -6,7 +6,7 @@
 
 use super::filling::service::{fill, stage_word};
 use super::places::service::{body, called, site_table, tested};
-use super::types::WalkPlace;
+use super::types::{KindMarks, WalkMarks, WalkPlace};
 use crate::domain::code::anchoring::service::{
     each_match_filled_many_of, each_match_filled_of, each_match_made_of, each_match_node_of,
     each_row_made_of, latest_of,
@@ -130,54 +130,89 @@ fn step_word(
 }
 
 /// The first unit `rule` can reach that holds a word or a fill the executor does not run; none when it runs them all.
-pub(crate) fn unit_not_run(code: &ProgramCode, rule: &RuleCode) -> Option<WordSlot> {
-    walked(code, rule, &mut Vec::new())
+pub(crate) fn unit_not_run(
+    code: &ProgramCode,
+    rule: &RuleCode,
+    marks: &mut WalkMarks,
+) -> Option<WordSlot> {
+    walked(code, &[rule], Some(&mut Vec::new()), marks, KindMarks::Shared)
+}
+
+/// Whether some rule of the code can reach a unit that holds a word or a fill the executor does not run: one walk from
+/// every rule's entries at once, the marks kept for the whole walk and apart for a word walked as a step and as a stage
+/// (prototype ryo-fmx3.1: `unit_not_run` walked the shared code again for each rule). Every word and table a rule's own
+/// walk meets, this walk meets, so when it finds none, `unit_not_run` answers none for every rule.
+pub(crate) fn any_unit_not_run(code: &ProgramCode, marks: &mut WalkMarks) -> bool {
+    let rules: Vec<&RuleCode> = code.rules.iter().collect();
+    walked(code, &rules, None, marks, KindMarks::Apart).is_some()
 }
 
 /// The units `rule` can reach, its own first: what the work ledger names the rule an owner of.
-pub(crate) fn units_reached(code: &ProgramCode, rule: &RuleCode) -> Vec<WordSlot> {
+pub(crate) fn units_reached(
+    code: &ProgramCode,
+    rule: &RuleCode,
+    marks: &mut WalkMarks,
+) -> Vec<WordSlot> {
     let mut units = Vec::new();
-    let _unrun: Option<WordSlot> = walked(code, rule, &mut units);
+    let _unrun: Option<WordSlot> = walked(code, &[rule], Some(&mut units), marks, KindMarks::Shared);
     units
 }
 
 /// Walks all `rule` can reach, adding each unit met to `units` once; stops at the first unit that holds a word or a fill
 /// the executor does not run, and answers it.
-fn walked(code: &ProgramCode, rule: &RuleCode, units: &mut Vec<WordSlot>) -> Option<WordSlot> {
+fn walked(
+    code: &ProgramCode,
+    rules: &[&RuleCode],
+    mut units: Option<&mut Vec<WordSlot>>,
+    marks: &mut WalkMarks,
+    kinds: KindMarks,
+) -> Option<WordSlot> {
     let mut pending: Vec<WalkPlace> = Vec::new();
     let mut asked = Vec::new();
     // The need sites met in this walk: each site's formula is read once, however many units name it.
     let mut sites = hashbrown::HashSet::new();
-    for branch in &rule.branches {
-        pending.push(WalkPlace::Program {
-            entry: branch.entry,
-            unit: rule.unit,
-        });
-        tables_asked(code, branch.need, &mut sites, &mut asked);
+    for rule in rules {
+        for branch in &rule.branches {
+            pending.push(WalkPlace::Program {
+                entry: branch.entry,
+                unit: rule.unit,
+            });
+            tables_asked(code, branch.need, &mut sites, &mut asked);
+        }
     }
     pending.extend(asked.into_iter().map(WalkPlace::Table));
-    let (mut words, mut tables) = (
-        vec![false; code.words.len()],
-        vec![false; code.tables.len()],
-    );
+    if marks.words.len() != code.words.len() || marks.tables.len() != code.tables.len() {
+        *marks = WalkMarks {
+            walk: 0,
+            words: vec![0; code.words.len()],
+            stages: vec![0; code.words.len()],
+            tables: vec![0; code.tables.len()],
+        };
+    }
+    marks.walk += 1;
+    let walk = marks.walk;
+    let (words, stages, tables) = (&mut marks.words, &mut marks.stages, &mut marks.tables);
     while let Some(next) = pending.pop() {
         let (entry, unit) = match next {
             WalkPlace::Program { entry, unit } | WalkPlace::Pipeline { entry, unit } => {
-                if !units.contains(&unit) {
+                if let Some(units) = units.as_deref_mut()
+                    && !units.contains(&unit)
+                {
                     units.push(unit);
                 }
                 (entry, unit)
             }
             WalkPlace::Table(table) => {
                 let seen = tables.get_mut(usize::try_from(table.0).unwrap_or(usize::MAX));
-                if let Some(seen) = seen.filter(|seen| !**seen) {
-                    *seen = true;
+                if let Some(seen) = seen.filter(|seen| **seen != walk) {
+                    *seen = walk;
                     let own = code
                         .tables
                         .get(usize::try_from(table.0).unwrap_or(usize::MAX));
-                    if let Some(unit) = own
-                        .map(|held| held.unit)
-                        .filter(|unit| !units.contains(unit))
+                    if let Some(units) = units.as_deref_mut()
+                        && let Some(unit) = own
+                            .map(|held| held.unit)
+                            .filter(|unit| !units.contains(unit))
                     {
                         units.push(unit);
                     }
@@ -194,8 +229,12 @@ fn walked(code: &ProgramCode, rule: &RuleCode, units: &mut Vec<WordSlot>) -> Opt
         };
         let mut at = usize::try_from(entry.0).unwrap_or(usize::MAX);
         // A word walked before ends the walk: the words after it were walked then.
-        while let Some(seen) = words.get_mut(at).filter(|seen| !**seen) {
-            *seen = true;
+        let marked = match (kinds, next) {
+            (KindMarks::Apart, WalkPlace::Pipeline { .. }) => &mut *stages,
+            (KindMarks::Apart | KindMarks::Shared, _) => &mut *words,
+        };
+        while let Some(seen) = marked.get_mut(at).filter(|seen| **seen != walk) {
+            *seen = walk;
             let Some(word) = code.words.get(at).copied() else {
                 break;
             };

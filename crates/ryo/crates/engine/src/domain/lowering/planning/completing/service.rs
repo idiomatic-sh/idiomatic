@@ -28,7 +28,7 @@ use crate::domain::steps::types::{AxisDirection, ColumnMask, CostClass, TestOper
 use ryo_relations::domain::catalog::service::{fact_form, node_column};
 use ryo_relations::domain::relations::service::columns;
 use ryo_relations::domain::relations::types::{Count, FactForm, NodeColumn};
-use std::collections::HashSet;
+use rustc_hash::FxHashSet as HashSet;
 
 /// Whether a term is given: a constant, the file, or a variable some access gave.
 fn ready(term: FlatTerm, given: &GivenTerms<'_>) -> TermGiven {
@@ -602,17 +602,17 @@ fn cheapest(state: &OrderCompletion<'_>, class: CostClass) -> Option<NextAccess>
 }
 
 /// The access each rows atom of a branch is as a unit's first enumeration, nothing enumerated yet: its anchors.
-pub(crate) fn anchors(
+/// Made from the completion with nothing placed (`begun`), made once for every completion of the branch.
+pub(crate) fn anchors_of(
     with: PlanningWith<'_>,
     branch: &FlatBranch,
-    start: UnitStart<'_>,
-    role: UnitRole,
+    state: &OrderCompletion<'_>,
 ) -> Vec<NextAccess> {
-    let state = begun(with, branch, start, role);
+    let state = state;
     let atoms = branch.atoms.iter().enumerate();
     let found: Vec<(bool, NextAccess)> = atoms
         .filter_map(|(at, atom)| {
-            access(&state, atom).map(|(class, cost)| {
+            access(state, atom).map(|(class, cost)| {
                 // Read whole, a definition whose plan walks a closure is every pair the walk reaches in the file.
                 let unbounded = match atom {
                     FlatAtom::Rows {
@@ -647,7 +647,7 @@ pub(crate) fn anchors(
 }
 
 /// A completion with nothing placed.
-fn begun<'a>(
+pub(crate) fn begun<'a>(
     with: PlanningWith<'a>,
     branch: &'a FlatBranch,
     start: UnitStart<'_>,
@@ -663,8 +663,8 @@ fn begun<'a>(
         placed: vec![AtomPlacing::Waiting; branch.atoms.len()],
         order: Vec::with_capacity(branch.atoms.len()),
         uses: uses_of(branch, None),
-        implied: HashSet::new(),
-        rowless: HashSet::new(),
+        implied: HashSet::default(),
+        rowless: HashSet::default(),
         rows: start.rows,
         cost: PlanEstimate(0),
         enumerated: Enumerated::NotYet,
@@ -680,7 +680,17 @@ pub(crate) fn completed(
     role: UnitRole,
     first: Option<NextAccess>,
 ) -> Option<PlannedBranch> {
-    let mut state = begun(with, branch, start, role);
+    completed_from(begun(with, branch, start, role), role, first)
+}
+
+/// `completed`, from a completion with nothing placed (`begun`; prototype ryo-fmx3.1: each anchor's completion made the
+/// branch's pins and uses again).
+pub(crate) fn completed_from(
+    mut state: OrderCompletion<'_>,
+    role: UnitRole,
+    first: Option<NextAccess>,
+) -> Option<PlannedBranch> {
+    let branch = state.branch;
     if let Some(first) = first {
         place(&mut state, first);
     }

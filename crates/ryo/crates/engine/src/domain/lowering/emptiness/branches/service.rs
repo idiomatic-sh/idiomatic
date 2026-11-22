@@ -15,7 +15,7 @@ use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::catalog::service::{fact_form, node_column};
 use ryo_relations::domain::relations::service::{columns, kind};
 use ryo_relations::domain::relations::types::{CellKind, FactForm, NodeColumn, Relation};
-use std::collections::HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 /// How deep a constant is carried through definitions, and how many branches of a definition may be left that can give
 /// a row with it: past either, the use needs the definition's own formula. Ten deep: a fragment's output is a chain
@@ -123,7 +123,7 @@ fn definition_need(
     };
     let mut some = Vec::new();
     for branch in branches {
-        let mut carried = HashMap::new();
+        let mut carried = HashMap::default();
         let mut possible = true;
         for (place, constant) in &constants {
             match branch.row.get(*place) {
@@ -212,7 +212,7 @@ pub(crate) fn branch_need(drafts: &Drafts, branch: &FlatBranch) -> Emptiness {
             branch.row, branch.atoms
         );
     }
-    needed(drafts, branch, &HashMap::new(), 0)
+    needed(drafts, branch, &HashMap::default(), 0)
 }
 
 /// What a file must hold for some of a step's branches to give a row.

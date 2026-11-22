@@ -21,7 +21,7 @@ use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::PastWidth;
 use ryo_relations::domain::relations::types::Count;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 /// An encoding of `pack` with nothing written but the word no entry names: entry 0 holds an `End`, so no entry is 0.
 fn started(pack: &LoweredPack) -> Encoding<'_> {
@@ -41,9 +41,9 @@ fn started(pack: &LoweredPack) -> Encoding<'_> {
             ..ProgramCode::default()
         },
         rule: SelectedRuleOrdinal(0),
-        constants: HashMap::new(),
-        indexes: HashMap::new(),
-        patterns: HashMap::new(),
+        constants: HashMap::default(),
+        indexes: HashMap::default(),
+        patterns: HashMap::default(),
         reached: Vec::new(),
         written: Count(0),
         entries: Vec::new(),
@@ -51,8 +51,8 @@ fn started(pack: &LoweredPack) -> Encoding<'_> {
         need_places: Vec::new(),
         need_records: Vec::new(),
         need_offsets: Vec::new(),
-        definition_needs: HashMap::new(),
-        sizes: HashSet::new(),
+        definition_needs: HashMap::default(),
+        sizes: HashSet::default(),
         memos: WordSlot(0),
         unit: UnitPoints::default(),
         registers: pack.registers,

@@ -23,6 +23,8 @@ thiserror.workspace = true
 # The thread's own clock, read by a measuring scratch alone (the work ledger's nanoseconds).
 cpu-time.workspace = true
 hashbrown.workspace = true
+# The hasher of the lowering's maps keyed by its own small ids (prototype ryo-fmx3.1).
+rustc-hash.workspace = true
 # The run's worker pool: the load plans independent branches on it before the first file is scanned.
 rayon.workspace = true
 

@@ -203,7 +203,7 @@ fn subject(scene: Input) -> Result<Vec<usize>, Failure> {
         atoms,
         row: vec![variable(51)],
     };
-    let given: HashSet<FlatVariable> = given.iter().copied().map(FlatVariable).collect();
+    let given: rustc_hash::FxHashSet<FlatVariable> = given.iter().copied().map(FlatVariable).collect();
     planned(&drafts, &branch, &given, role)
         .map(|plan| plan.order.into_iter().map(|at| at.0).collect())
         .ok_or(())

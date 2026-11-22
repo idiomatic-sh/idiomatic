@@ -101,17 +101,6 @@ pub(crate) fn find_column<T>(
         .map(|place| parts::ColumnIndex(u32::try_from(place).unwrap_or(u32::MAX)))
 }
 
-/// The step of the first of `items` that `holds` for.
-pub(crate) fn find_step<T>(
-    items: &[T],
-    holds: impl Fn(&T) -> SearchMatch,
-) -> Option<parts::StepId> {
-    items
-        .iter()
-        .position(|item| holds(item) == SearchMatch::Matches)
-        .map(|place| parts::StepId(u32::try_from(place).unwrap_or(u32::MAX)))
-}
-
 /// The parameter of the first of `items` that `holds` for.
 pub(crate) fn find_parameter<T>(
     items: &[T],
@@ -128,17 +117,18 @@ pub(crate) fn step_named(
     builder: &Builder<'_>,
     name: &ryo_values::domain::query_tokens::types::StepName,
 ) -> Result<parts::StepId, LoweringError> {
-    find_step(&builder.lowered, |lowered| {
-        if matches!(&lowered.name, StepLabel::Named(named) if match (ryo_values::domain::program::service::identity_of(named.1), ryo_values::domain::program::service::identity_of(name.1)) {
-            (Some(left), Some(right)) => left == right,
-            _ => named.0 == name.0,
-        }) {
-            SearchMatch::Matches
-        } else {
-            SearchMatch::Differs
+    let names = &builder.names;
+    let found = match ryo_values::domain::program::service::identity_of(name.1) {
+        Some(identity) => {
+            match (names.by_identity.get(&identity), names.unidentified.get(&name.0)) {
+                (Some(left), Some(right)) => Some(*left.min(right)),
+                (Some(one), None) | (None, Some(one)) => Some(*one),
+                (None, None) => None,
+            }
         }
-    })
-    .ok_or_else(|| LoweringError::UnknownStep {
+        None => names.by_spelling.get(&name.0).copied(),
+    };
+    found.ok_or_else(|| LoweringError::UnknownStep {
         name: name.0.to_string(),
         span: builder.span,
     })

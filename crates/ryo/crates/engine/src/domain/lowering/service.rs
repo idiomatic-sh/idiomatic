@@ -41,7 +41,7 @@ use crate::domain::steps::types::{DefinitionId, EmitTarget, RegisterList, StepPr
 use rayon::iter::{IntoParallelRefIterator as _, ParallelIterator as _};
 use ryo_values::domain::descriptions::types::KindVocabulary;
 use ryo_values::domain::plan_parts::types::StepId;
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 /// The fewest patterns waiting together whose plans are made on the pool.
 const POOLED_PATTERNS: usize = 16;
@@ -50,7 +50,7 @@ const POOLED_PATTERNS: usize = 16;
 fn branch_plans(drafts: &Drafts, branches: &[FlatBranch]) -> Vec<Option<PlannedBranch>> {
     let plans = branches
         .iter()
-        .map(|branch| planned(drafts, branch, &HashSet::new(), UnitRole::Branch));
+        .map(|branch| planned(drafts, branch, &HashSet::default(), UnitRole::Branch));
     plans.collect()
 }
 
@@ -59,7 +59,7 @@ fn branch_plans(drafts: &Drafts, branches: &[FlatBranch]) -> Vec<Option<PlannedB
 /// together on the pool, and each is placed with its own when its turn comes: the pack is the one a pattern at a time
 /// makes.
 fn patterns_placed(drafts: &mut Drafts, sample: LoadSample<'_>) -> Result<(), RefusedPlace> {
-    let mut plans: HashMap<WaitingPattern, Option<Vec<PlannedBranch>>> = HashMap::new();
+    let mut plans: HashMap<WaitingPattern, Option<Vec<PlannedBranch>>> = HashMap::default();
     // How many of the patterns that wait, from the first asked, have their plans: the ones asked since stand after them.
     let mut planned = 0;
     while let Some(waiting) = drafts.waiting.last().copied() {

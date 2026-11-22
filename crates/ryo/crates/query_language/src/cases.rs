@@ -156,6 +156,7 @@ pub(crate) fn lowering_builder() -> crate::domain::lowering::types::Builder<'sta
         kinds: Vec::new(),
         steps: Vec::new(),
         lowered: Vec::new(),
+        names: crate::domain::lowering::types::StepNames::default(),
         span: ryo_values::domain::query_tokens::types::QuerySpan {
             start: ryo_values::domain::query_tokens::types::ByteOffset(7),
             end: ryo_values::domain::query_tokens::types::ByteOffset(19),

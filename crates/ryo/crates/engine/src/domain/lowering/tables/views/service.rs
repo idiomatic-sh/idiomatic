@@ -24,7 +24,7 @@ use crate::domain::lowering::flattening::types::{
 };
 use crate::domain::steps::types::TestOperation;
 use ryo_values::domain::query_plans::types::NodeDigest;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 /// The read a step's branches are, when they are one read of a relation with its pins. None for anything else: two
 /// branches, a second source, an atom that is no pin of the read's own cells, a row that holds anything but those cells.
@@ -89,7 +89,7 @@ pub(crate) fn view_noted(drafts: &mut Drafts, node: NodeDigest, waiting: Option<
 /// that two cells that held one variable (two columns of a row held equal) still hold one, and a pin still pins its cell.
 pub(crate) fn branch_again(drafts: &mut Drafts, branch: &FlatBranch) -> FlatBranch {
     let mut again = branch.clone();
-    let mut fresh: HashMap<FlatVariable, FlatTerm> = HashMap::new();
+    let mut fresh: HashMap<FlatVariable, FlatTerm> = HashMap::default();
     let mut renamed = |term: &mut FlatTerm| {
         if let FlatTerm::Variable(variable) = *term {
             *term = *fresh

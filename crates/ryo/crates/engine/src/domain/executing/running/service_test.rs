@@ -257,7 +257,7 @@ fn subject(scene: Input) -> Result<Value, Failure> {
         let unit = code
             .rules
             .get(number)
-            .and_then(|rule| unit_not_run(&code, rule));
+            .and_then(|rule| unit_not_run(&code, rule, &mut crate::domain::executing::running::types::WalkMarks::default()));
         let key = unit.and_then(|unit| {
             code.units
                 .get(usize::try_from(unit.0).unwrap_or(usize::MAX))
