@@ -652,7 +652,14 @@ impl Exec<'_> {
             }
             let pick = if np == 0 { None } else { self.pendsize_pick(f, run, p, &pend[..np], best)? };
             super::empty_sel::lap(4, self.inner);
-            if let Some((i, n, _)) = pick {
+            if let Some((i, n, bs)) = pick {
+                // redo-empty: a bound of zero is the size of a superset of the driver's rows: it is empty, and so is
+                // this select; the driver is not made
+                if bs == 0 && !sw!("VEC_NO_EMPTYPROP") {
+                    super::empty_sel::at(super::empty_sel::stage::BOUND_ZERO);
+                    super::emptyprop::bound_zero();
+                    return self.empty_rc(run, node);
+                }
                 self.reason = "join driver: a step bounded by a small input";
                 let t = self.eval(f, run, p, n)?;
                 if t.n == 0 {

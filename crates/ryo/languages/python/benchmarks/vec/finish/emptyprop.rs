@@ -261,6 +261,8 @@ struct Leaves {
     codes: rustc_hash::FxHashMap<u32, Vec<u16>>,
     /// runs not made because the propagation's leaves decided them, by step
     skipped: Vec<u64>,
+    /// selects answered empty by a bounded driver's zero bound
+    bound_zero: u64,
 }
 
 thread_local! {
@@ -300,6 +302,12 @@ fn tests(conj: &[E], si: usize, base: Native, map: &[usize]) -> (bool, Vec<u32>)
     (lit, fields)
 }
 
+/// A select answered empty because its bounded driver's bound is zero (the driver not made).
+#[inline]
+pub(super) fn bound_zero() {
+    L.with(|l| l.borrow_mut().bound_zero += 1);
+}
+
 /// A step skipped (answered empty before the bracket) because the propagation's leaves decided it.
 #[inline]
 pub(super) fn skipped(f: &File<'_>, node: usize) {
@@ -326,6 +334,7 @@ pub(crate) fn print_skipped(ops: &dyn Fn(usize) -> String) {
         }
         let total: u64 = by.values().sum();
         println!("EPSKIP\tall\t{total}");
+        println!("EPSKIP\tselect: bounded driver's bound zero\t{}", l.bound_zero);
         for (op, k) in by {
             println!("EPSKIP\t{op}\t{k}");
         }
