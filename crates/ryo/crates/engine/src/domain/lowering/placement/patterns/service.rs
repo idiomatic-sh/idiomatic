@@ -134,6 +134,44 @@ pub(crate) fn given(branch: &FlatBranch, bound: &ColumnMask) -> HashSet<FlatVari
         .collect()
 }
 
+/// SPIKE (the walk): a pattern placed in call form that a pipeline asked later is placed again in table form, unless its
+/// definition's own pipelines use its call form. Its program is left unread: the encoding reads the form placed last.
+pub(crate) fn late_placed(
+    drafts: &mut Drafts,
+    sample: LoadSample<'_>,
+    waiting: WaitingPattern,
+) -> Result<(), RefusedPlace> {
+    let Some(draft) = draft_at(drafts, waiting.definition) else {
+        return Ok(());
+    };
+    let keyed = matches!(own_walks(&draft.branches), OwnWalks::Stageable) && draft.keyless.is_empty();
+    let product = matches!(own_walks(&draft.branches), OwnWalks::Stageable);
+    if !(keyed || (product && crate::domain::walk::on("products"))) {
+        return Ok(());
+    }
+    let Some(pattern) = draft.patterns.get(waiting.pattern.0) else {
+        return Ok(());
+    };
+    if !matches!(pattern.form, Some(PatternForm::Call(_))) {
+        return Ok(());
+    }
+    let bound = pattern.asked.bound.clone();
+    let table = definition_table(drafts, sample, waiting.definition)?;
+    let listed: Vec<ReadColumn> = bound.0.iter().map(|column| ReadColumn::Made(*column)).collect();
+    if !listed.is_empty() {
+        indexed(drafts, table, &listed);
+    }
+    let place = usize::try_from(waiting.definition.0).unwrap_or(usize::MAX);
+    let slot = drafts
+        .definitions
+        .get_mut(place)
+        .and_then(|draft| draft.patterns.get_mut(waiting.pattern.0));
+    if let Some(slot) = slot {
+        slot.form = Some(PatternForm::Table(table));
+    }
+    Ok(())
+}
+
 /// SPIKE (the walk): whether a table's pipeline asked the pattern.
 fn draft_fill_asked(drafts: &Drafts, waiting: WaitingPattern) -> bool {
     draft_at(drafts, waiting.definition)
@@ -207,8 +245,10 @@ pub(crate) fn pattern_placed(
     // SPIKE (the walk): `RYO_WALK=fill`: a pattern a table's pipeline asks is made whole: the pipeline enumerates its
     // keys from a whole input anyway, so its asks scale with the input, and a probe of the definition's table is
     // cheaper than a navigation program run for each.
-    // A definition whose own pipelines use its call form (a nearest walk, which no stage runs) keeps it.
+    // A definition whose own pipelines use its call form (a nearest walk, which no stage runs) keeps it; so does one
+    // whose table holds a product stage (as in the table form), unless `products` is in the switch.
     if crate::domain::walk::on("fill")
+        && (facts.table == TableForm::Keyed || crate::domain::walk::on("products"))
         && facts.table != TableForm::Calls
         && draft_fill_asked(drafts, waiting)
     {
@@ -223,10 +263,16 @@ pub(crate) fn pattern_placed(
                 collected: &collected,
             };
             let mut programs = Vec::with_capacity(branches.len());
+            let before = drafts.writing.replace(waiting);
             for (branch, plan) in branches.iter().zip(&plans) {
                 let written = pattern_program(drafts, sample.kinds, branch, plan, columns);
-                programs.push(written.ok_or_else(|| home_refused(home))?);
+                let Some(written) = written else {
+                    drafts.writing = before;
+                    return Err(home_refused(home));
+                };
+                programs.push(written);
             }
+            drafts.writing = before;
             PatternForm::Call(pattern_whole(programs))
         }
         (FormChoice::Table, _) | (FormChoice::Call, None) => {

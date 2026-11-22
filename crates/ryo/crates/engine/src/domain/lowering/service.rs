@@ -16,7 +16,7 @@ use super::nodes::service::{digest_of, stored};
 use super::nodes::types::{AcceptedPlace, AdmittedRule, NodeHome, NodeStore};
 use super::observing::service::{reads_observations, resolved};
 use super::placement::patterns::service::{
-    home_refused, pattern_placed, pattern_plans, unlowerable,
+    home_refused, late_placed, pattern_placed, pattern_plans, unlowerable,
 };
 use super::placement::service::sampled;
 use super::placement::types::SampleStage;
@@ -89,6 +89,13 @@ fn patterns_placed(drafts: &mut Drafts, sample: LoadSample<'_>) -> Result<(), Re
             None => pattern_plans(drafts, waiting),
         };
         pattern_placed(drafts, sample, waiting, own)?;
+        // SPIKE (the walk): once nothing waits, a pattern placed in call form before a pipeline asked it is placed again,
+        // in table form; that may ask more.
+        if drafts.waiting.is_empty() && crate::domain::walk::on("late") {
+            while let Some(late) = drafts.late.pop() {
+                late_placed(drafts, sample, late)?;
+            }
+        }
     }
     if crate::domain::walk::on("report") {
         let patterns = drafts.definitions.iter().flat_map(|draft| &draft.patterns);

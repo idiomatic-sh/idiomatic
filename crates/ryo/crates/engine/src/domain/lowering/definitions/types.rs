@@ -103,6 +103,12 @@ pub(crate) struct Drafts {
     pub(crate) waiting: Vec<WaitingPattern>,
     /// SPIKE (the walk): asks by a table's pipeline of a pattern already placed in call form.
     pub(crate) late_fill_asks: usize,
+    /// SPIKE (the walk): the patterns placed in call form that a pipeline asked after: each is placed again, in table form.
+    pub(crate) late: Vec<WaitingPattern>,
+    /// SPIKE (the walk): the call-form pattern whose program is being written, when one is.
+    pub(crate) writing: Option<WaitingPattern>,
+    /// SPIKE (the walk): the patterns each call-form pattern's program asks.
+    pub(crate) callees: HashMap<WaitingPattern, Vec<WaitingPattern>>,
     /// The next variable no branch names.
     pub(crate) variables: FlatVariable,
     /// How many registers the programs name.

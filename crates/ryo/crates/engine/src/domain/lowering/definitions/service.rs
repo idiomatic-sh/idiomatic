@@ -186,7 +186,8 @@ pub(crate) fn asked(
     });
 }
 
-/// SPIKE (the walk): `asked`, and the pattern marked as asked by a table's pipeline when the asker writes one.
+/// SPIKE (the walk): `asked`, and the pattern marked as asked by a table's fill: by a table's pipeline, or by the program
+/// of a call-form pattern that a fill asks (its asks are made once for each row of the fill).
 pub(crate) fn asked_by(
     drafts: &mut Drafts,
     definition: DefinitionId,
@@ -194,23 +195,68 @@ pub(crate) fn asked_by(
     collected: &ColumnMask,
     role: crate::domain::lowering::planning::types::UnitRole,
 ) {
+    use crate::domain::lowering::planning::types::UnitRole;
     asked(drafts, definition, bound, collected);
-    if role != crate::domain::lowering::planning::types::UnitRole::Pipeline {
-        return;
-    }
     let place = usize::try_from(definition.0).unwrap_or(usize::MAX);
-    let Some(draft) = drafts.definitions.get_mut(place) else {
+    let Some(draft) = drafts.definitions.get(place) else {
         return;
     };
-    let pattern = draft
+    let Some(at) = draft
         .patterns
-        .iter_mut()
-        .find(|pattern| pattern.asked.bound == *bound && pattern.asked.collected == *collected);
-    if let Some(pattern) = pattern {
+        .iter()
+        .position(|pattern| pattern.asked.bound == *bound && pattern.asked.collected == *collected)
+    else {
+        return;
+    };
+    let this = WaitingPattern {
+        definition,
+        pattern: PatternPlace(at),
+    };
+    match role {
+        UnitRole::Pipeline => fill_marked(drafts, this),
+        UnitRole::Pattern => {
+            let Some(writer) = drafts.writing else {
+                return;
+            };
+            drafts.callees.entry(writer).or_default().push(this);
+            if pattern_fill_asked(drafts, writer) {
+                fill_marked(drafts, this);
+            }
+        }
+        UnitRole::Branch => {}
+    }
+}
+
+/// SPIKE (the walk): whether a pattern is marked as asked by a fill.
+pub(crate) fn pattern_fill_asked(drafts: &Drafts, pattern: WaitingPattern) -> bool {
+    drafts
+        .definitions
+        .get(usize::try_from(pattern.definition.0).unwrap_or(usize::MAX))
+        .and_then(|draft| draft.patterns.get(pattern.pattern.0))
+        .is_some_and(|held| held.fill_asked)
+}
+
+/// SPIKE (the walk): marks a pattern as asked by a fill, and every pattern its program asks; a pattern placed in call
+/// form already is listed to be placed again (`late`).
+fn fill_marked(drafts: &mut Drafts, first: WaitingPattern) {
+    let mut waiting = vec![first];
+    while let Some(next) = waiting.pop() {
+        let slot = drafts
+            .definitions
+            .get_mut(usize::try_from(next.definition.0).unwrap_or(usize::MAX))
+            .and_then(|draft| draft.patterns.get_mut(next.pattern.0));
+        let Some(pattern) = slot else {
+            continue;
+        };
+        if pattern.fill_asked {
+            continue;
+        }
         pattern.fill_asked = true;
         if matches!(pattern.form, Some(crate::domain::lowered::types::PatternForm::Call(_))) {
             drafts.late_fill_asks = drafts.late_fill_asks.saturating_add(1);
+            drafts.late.push(next);
         }
+        waiting.extend(drafts.callees.get(&next).into_iter().flatten().copied());
     }
 }
 
