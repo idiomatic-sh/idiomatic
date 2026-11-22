@@ -196,6 +196,8 @@ struct K {
     targets: Vec<Option<(usize, usize, usize)>>,
     /// By source, where it is a view: the kinds its own tests name, and the kinds the select's tests name of it (static).
     kinds: Vec<(Option<Vec<u32>>, Option<Vec<u32>>)>,
+    /// A semi step's probed side: the band is tried first.
+    semi: Option<usize>,
 }
 
 /// Keys of the per-file row lists a kernel keeps in the file's `vrows` (above any node number).
@@ -258,7 +260,10 @@ impl Clk {
         Clk::now().0 - self.0
     }
 }
-static PROF: std::sync::Mutex<([f64; 6], u64)> = std::sync::Mutex::new(([0.0; 6], 0));
+static PROF: std::sync::Mutex<([f64; 8], u64)> = std::sync::Mutex::new(([0.0; 8], 0));
+fn prof0() -> bool {
+    sw!("VEC_KSEL_PROF")
+}
 fn prof_add(i: usize, dt: f64) {
     let mut p = PROF.lock().expect("prof");
     p.0[i] += dt;
@@ -269,7 +274,7 @@ fn prof_add(i: usize, dt: f64) {
         {
             let mut path = path;
             path.push(".prof");
-            let _ = std::fs::write(path, format!("calls {} whole {:.3} front {:.3} filter {:.3} join {:.3} project {:.3} old {:.3}\n", p.1, p.0[0], p.0[1], p.0[2], p.0[3], p.0[4], p.0[5]));
+            let _ = std::fs::write(path, format!("calls {} whole {:.3} front {:.3} filter {:.3} join {:.3} project {:.3} old {:.3} one-source tail {:.3} set-up {:.3}\n", p.1, p.0[0], p.0[1], p.0[2], p.0[3], p.0[4], p.0[5], p.0[6], p.0[7]));
         }
     }
 }
@@ -323,6 +328,7 @@ impl Exec<'_> {
         if let Some(path) = std::env::var_os("VEC_KSEL_LOG") {
             use std::io::Write;
             let why = match &*prep {
+                Prep::K(k) if k.semi.is_some() => "semi (band, else kernel)",
                 Prep::K(_) => "kernel",
                 Prep::Old(w) => w,
             };
@@ -346,7 +352,9 @@ impl Exec<'_> {
     fn ksel_make(&mut self, run: &mut Run, node: usize) -> R<Prep> {
         let plan = self.plan;
         let j = &plan.nodes[node].j;
-        if j.get("semi").and_then(J::as_u64).is_some() && j.get("count").is_none() && !sw!("VEC_NO_SEMI") {
+        // a semi step tries the band first (band.rs); where it declines, the kernels run it (`VEC_KSEL_NO_SEMI`: the old path)
+        let semi = j.get("semi").and_then(J::as_u64).filter(|_| j.get("count").is_none() && !sw!("VEC_NO_SEMI")).map(|x| x as usize);
+        if semi.is_some() && sw!("VEC_KSEL_NO_SEMI") {
             return Ok(Prep::Old("semi"));
         }
         let sp = self.sel(run, node)?;
@@ -397,7 +405,7 @@ impl Exec<'_> {
                 None => (None, None),
             });
         }
-        Ok(Prep::K(K { preds, file_const, items, set, targets, kinds }))
+        Ok(Prep::K(K { preds, file_const, items, set, targets, kinds, semi }))
     }
 
     /// The dispatch: the kernels, or the interpreter's `select` (`VEC_OLD_SELECT`, or a node they do not cover).
@@ -415,6 +423,16 @@ impl Exec<'_> {
             }
             return out;
         };
+        if let Some(pb) = kp.semi {
+            let sp = self.sel(run, node)?;
+            if super::filter_order::file_fails(run, f, &sp.conj) {
+                *self.tally.back.entry((node, "a per-file test fails")).or_default() += 1;
+                return self.empty(run, node);
+            }
+            if let Some(t) = self.semi(f, run, p, node, pb)? {
+                return Ok(t);
+            }
+        }
         let mut b = take_bufs();
         let out = self.ksel_run(f, run, p, node, kp, &mut b, None);
         give_bufs(b);
@@ -436,6 +454,9 @@ impl Exec<'_> {
         }
         let prep = self.ksel_prep(run, node)?;
         let Prep::K(kp) = &*prep else { return Ok(None) };
+        if kp.semi.is_some() {
+            return Ok(None);
+        }
         let Some((si, input, icol)) = kp.targets[col] else { return Ok(None) };
         let sub = self.probe(f, run, p, input, icol, keys)?;
         let mut b = take_bufs();
@@ -456,6 +477,9 @@ impl Exec<'_> {
         let conj = &sp.conj;
         let refs = &sp.refs;
         // ---- the front: the interpreter's, kept (which inputs are made or probed, which side drives)
+        if prof0() {
+            prof_add(7, t0.elapsed());
+        }
         let ov = match put {
             Some(x) => Some(x),
             None => self.take_positional(&sp.srcs),
@@ -640,38 +664,12 @@ impl Exec<'_> {
         let i2 = self.inner;
         let all: u64 = if conj.len() >= 64 { u64::MAX } else { (1u64 << conj.len()) - 1 };
         if k == 1 {
-            if used != all {
-                return Err("a test no source binds".to_owned());
+            let t6 = Clk::now();
+            let out = self.ksel_one(run, f, node, kp, &srcs, sel, used == all, &mut b.seen, &mut b.left, &mut b.right);
+            if prof {
+                prof_add(6, t6.elapsed());
             }
-            let mut out = self.empty(run, node)?;
-            let n = sel.len();
-            for (c, (_, sc)) in kp.items.iter().enumerate() {
-                let col = &mut out.cols[c];
-                col.reserve(n);
-                match &srcs[0] {
-                    Src::Tab(t, _) => {
-                        let src = &t.cols[*sc][..];
-                        col.extend(sel.iter().map(|r| src[*r as usize]));
-                    }
-                    Src::View(v, _) => {
-                        let (base, bc) = (v.base, v.map[*sc]);
-                        col.extend(sel.iter().map(|r| f.native_get(run, base, *r, bc)));
-                    }
-                    _ => return Err("a select reads no table or view".to_owned()),
-                }
-            }
-            out.n = n;
-            if kp.set
-                && !sw!("VEC_SELECT_BAG")
-                && match &srcs[0] {
-                    Src::Tab(t, _) => kp.items.len() < t.names.len(),
-                    Src::View(v, _) => kp.items.len() < v.map.len(),
-                    _ => false,
-                }
-            {
-                return Ok(distinct(out));
-            }
-            return Ok(out);
+            return out;
         }
         // ---- kernel 2: the other source, joined on the columns the conjuncts equate
         if sel.is_empty() {
@@ -931,5 +929,80 @@ impl Exec<'_> {
             prof_add(4, t3.elapsed());
         }
         Ok(out)
+    }
+
+    /// Kernel 1's tail: the kept rows projected by position; a projection that drops columns kept as a set (first
+    /// occurrences, in row order), deduplicated in the worker's buffers.
+    #[expect(clippy::too_many_arguments, reason = "a throwaway")]
+    fn ksel_one(&mut self, run: &mut Run, f: &File<'_>, node: usize, kp: &K, srcs: &[Src], sel: &[u32], all_used: bool, seen: &mut FxHashSet<u64>, idx: &mut Vec<u32>, kept: &mut Vec<u32>) -> R<Table> {
+        if !all_used {
+            return Err("a test no source binds".to_owned());
+        }
+        let mut out = self.empty(run, node)?;
+        let n = sel.len();
+        for (c, (_, sc)) in kp.items.iter().enumerate() {
+            let col = &mut out.cols[c];
+            col.reserve(n);
+            match &srcs[0] {
+                Src::Tab(t, _) => {
+                    let src = &t.cols[*sc][..];
+                    col.extend(sel.iter().map(|r| src[*r as usize]));
+                }
+                Src::View(v, _) => {
+                    let (base, bc) = (v.base, v.map[*sc]);
+                    col.extend(sel.iter().map(|r| f.native_get(run, base, *r, bc)));
+                }
+                _ => return Err("a select reads no table or view".to_owned()),
+            }
+        }
+        out.n = n;
+        let set = kp.set
+            && !sw!("VEC_SELECT_BAG")
+            && match &srcs[0] {
+                Src::Tab(t, _) => kp.items.len() < t.names.len(),
+                Src::View(v, _) => kp.items.len() < v.map.len(),
+                _ => false,
+            };
+        if !set || n < 2 || sw!("VEC_UNION_ALL") {
+            return Ok(out);
+        }
+        if sw!("VEC_KSEL_DISTINCT") {
+            return Ok(distinct(out));
+        }
+        kept.clear();
+        if out.cols.len() == 1 {
+            seen.clear();
+            let c = &out.cols[0];
+            kept.extend((0..n as u32).filter(|r| seen.insert(c[*r as usize])));
+        } else {
+            idx.clear();
+            idx.extend(0..n as u32);
+            let cols = &out.cols;
+            idx.sort_unstable_by(|a, b| {
+                for c in cols {
+                    match c[*a as usize].cmp(&c[*b as usize]) {
+                        std::cmp::Ordering::Equal => {}
+                        o => return o,
+                    }
+                }
+                a.cmp(b)
+            });
+            let same = |a: u32, b: u32| cols.iter().all(|c| c[a as usize] == c[b as usize]);
+            for (i, r) in idx.iter().enumerate() {
+                if i == 0 || !same(idx[i - 1], *r) {
+                    kept.push(*r);
+                }
+            }
+            kept.sort_unstable();
+        }
+        if kept.len() == n {
+            return Ok(out);
+        }
+        let mut d = self.empty(run, node)?;
+        for (c, col) in out.cols.iter().enumerate() {
+            d.cols[c].extend(kept.iter().map(|r| col[*r as usize]));
+        }
+        d.n = kept.len();
+        Ok(d)
     }
 }
