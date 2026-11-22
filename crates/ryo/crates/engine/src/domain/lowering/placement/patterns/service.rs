@@ -175,6 +175,9 @@ fn by_cost(
         && placement.shape == ShapeChoice::Open
         && sample.stage == SampleStage::First
         && draft.table.is_none()
+        // A pattern no written ask counted (asked outside a weighed access, or by a pattern whose own lookups were not
+        // known yet) has readers the costing does not know: it keeps its table.
+        && pattern.lookups.0 > 0
         && measured(
             sample.statistics,
             &UnitKey::Pattern(
