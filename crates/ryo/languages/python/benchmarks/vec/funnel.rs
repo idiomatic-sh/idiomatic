@@ -1112,20 +1112,24 @@ pub(super) struct NodeSets {
 }
 
 /// One forward pass: parent kind, child-kind and child-field bitsets.
-pub(super) fn structure(table: &NodeTable, s: &mut Structure) {
+/// The same loop counts each field's elements into `field_counts[field + 1]` (cleared to `fields + 1` zeros).
+pub(super) fn structure(table: &NodeTable, s: &mut Structure, field_counts: &mut Vec<u32>, fields: usize) {
     let n = node_table::element_count(table).0 as usize;
     let kind = |i: usize| node_table::kind_of(table, Position(i as u32)).0;
     s.sets.clear();
     s.sets.resize(n, NodeSets::default());
+    field_counts.clear();
+    field_counts.resize(fields + 1, 0);
     for i in 0..n {
         let p = node_table::parent_of(table, Position(i as u32)).0 as usize;
         let k = kind(i);
+        let f = node_table::field_of(table, Position(i as u32)).0;
+        field_counts[usize::from(f) + 1] += 1;
         s.sets[i].pkind = kind(p);
         s.sets[i].root = p == i;
         if p != i {
             let m = &mut s.sets[p];
             m.cmask[usize::from(k) / 64] |= 1 << (k % 64);
-            let f = node_table::field_of(table, Position(i as u32)).0;
             if f < 128 {
                 m.cfmask[usize::from(f) / 64] |= 1 << (f % 64);
             }

@@ -231,12 +231,19 @@ fn field_index(cols: &mut Columns, fields: usize) {
 /// The field buckets and the fields present, read from the node table's own field column.
 fn field_buckets(table: &NodeTable, cols: &mut Columns, fields: usize) {
     let n = node_table::element_count(table).0;
-    let Columns { field_offsets, by_field, field_present, .. } = cols;
-    field_offsets.clear();
-    field_offsets.resize(fields + 1, 0);
+    cols.field_offsets.clear();
+    cols.field_offsets.resize(fields + 1, 0);
     for i in 0..n as u32 {
-        field_offsets[usize::from(node_table::field_of(table, Position(i)).0) + 1] += 1;
+        cols.field_offsets[usize::from(node_table::field_of(table, Position(i)).0) + 1] += 1;
     }
+    field_buckets_counted(table, cols, fields);
+}
+
+/// The field buckets from `field_offsets` holding each field's count at `field + 1` (counted by `field_buckets` or in the
+/// structure pass's own loop): the offsets summed, the ids scattered by field, the fields present.
+fn field_buckets_counted(table: &NodeTable, cols: &mut Columns, fields: usize) {
+    let n = node_table::element_count(table).0;
+    let Columns { field_offsets, by_field, field_present, .. } = cols;
     for f in 0..fields {
         field_offsets[f + 1] += field_offsets[f];
     }
@@ -1249,8 +1256,14 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
             ($t:expr) => {{
                 let pt: &NodeTable = $t;
                 let c1 = thread_cpu();
-                field_buckets(pt, &mut cols, fields_width.max(1));
-                phases.add("field buckets", thread_cpu() - c1);
+                // the structure pass counts the fields in its own loop: one read of the field column fewer
+                if structured {
+                    funnel::structure(pt, &mut st, &mut cols.field_offsets, fields_width.max(1));
+                    field_buckets_counted(pt, &mut cols, fields_width.max(1));
+                } else {
+                    field_buckets(pt, &mut cols, fields_width.max(1));
+                }
+                phases.add("field buckets + structure pass", thread_cpu() - c1);
                 if way != "structure" {
                 // the file's required words
                 let cw = thread_cpu();
@@ -1379,12 +1392,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
         macro_rules! prefix {
             ($t:expr) => {{
                 let t: &NodeTable = $t;
-                let c2 = thread_cpu();
                 if structured {
-                    for _ in 0..repeat {
-                        funnel::structure(t, &mut st);
-                    }
-                    phases.add("structure pass", (thread_cpu() - c2) / repeat as f64);
                     if !fact_catalog.enc_sets.is_empty() {
                         let e0 = thread_cpu();
                         funnel::enclosing(t, &mut st, &fact_catalog.enc_sets);
