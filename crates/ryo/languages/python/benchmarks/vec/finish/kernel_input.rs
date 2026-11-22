@@ -72,11 +72,11 @@ pub(super) fn input_probe(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p:
     let out = ex.probe_body(f, run, p, node, col, keys, &sc);
     ex.stack.pop();
     let dt = super::step_clock() - t0;
-    ex.stats.time[node] += dt - ex.inner;
+    let own = dt - ex.inner;
+    ex.stats.time[node] += own;
     ex.inner = saved + dt;
     let out = out?;
-    ex.stats.probes[node] += 1;
-    ex.stats.rows[node] += out.n as u64;
+    ex.count_probe(node, own, out.n);
     if sw!("VEC_KERNEL_CHECK") {
         let want: rustc_hash::FxHashSet<u64> = keys.iter().copied().collect();
         let stray = out.cols[col].iter().filter(|k| !want.contains(k)).count();

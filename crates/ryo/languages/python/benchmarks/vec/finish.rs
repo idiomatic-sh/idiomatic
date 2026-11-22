@@ -765,6 +765,8 @@ pub(super) struct Stats {
     /// bracketed runs that returned nothing.
     pub(super) known: Vec<u64>,
     pub(super) empty_time: Vec<f64>,
+    /// pass 2: probe runs that returned nothing (bracketed).
+    pub(super) probe_empty: Vec<u64>,
     /// The step that first asked a node whole in a file (diagnostic).
     pub(super) made_by: Vec<usize>,
     /// Why a node was first made whole in a file, where the asking step says (empty: read whole by `made_by`).
@@ -780,6 +782,13 @@ pub(super) struct Stats {
     /// how many (the clock's own pair cost is taken off in the report).
     pub(super) known_time: f64,
     pub(super) known_timed: u64,
+    /// pass 2 (`VEC_STEP_TIME`): seconds deciding the per-file static part (`known::static_empty_`, outermost calls).
+    pub(super) static_time: f64,
+    pub(super) static_depth: u32,
+    pub(super) static_visits: u64,
+    pub(super) static_file_tests: u64,
+    pub(super) rec_time: f64,
+    pub(super) rec_busy: bool,
     /// pass 2: keys the per-key memo did not have (run below it), and probes it answered whole.
     pub(super) memo_missing: u64,
     pub(super) memo_whole_hits: u64,
@@ -878,6 +887,8 @@ pub(super) struct Exec<'p> {
     /// redo-union pass 2: per node, what the step bracket reads on every run (`frame`).
     frames: Vec<frame::Frame>,
     ptargets: Vec<Option<Box<[(u32, u32)]>>>,
+    /// each step's `args` in the plan (read once).
+    args: Vec<&'p J>,
     scratch_made: Vec<usize>,
     scratch_ranges: Vec<(usize, usize)>,
     scratch_order: Vec<(u64, u32)>,
@@ -905,6 +916,7 @@ pub(super) struct Exec<'p> {
     scratch_keys: Vec<u64>,
     /// redo-union pass 2: what each step needs to return anything (`known`), and its shared empty answer.
     needs: Vec<Option<&'static known::Need>>,
+    flat: known::Flat,
     empties: Vec<Option<Rc<Table>>>,
 }
 
@@ -980,7 +992,7 @@ impl<'p> Exec<'p> {
         let k = plan.nodes.len();
         Exec {
             plan,
-            stats: Stats { time: vec![0.0; k], rows: vec![0; k], calls: vec![0; k], touched: vec![0; k], empty: vec![0; k], probes: vec![0; k], known: vec![0; k], empty_time: vec![0.0; k], made_by: vec![usize::MAX; k], why: vec![""; k], memo_in: 0, memo_out: 0, memo_keys: 0, memo_reused: 0, memo_reused_keys: 0, known_time: 0.0, known_timed: 0, memo_missing: 0, memo_whole_hits: 0 },
+            stats: Stats { time: vec![0.0; k], rows: vec![0; k], calls: vec![0; k], touched: vec![0; k], empty: vec![0; k], probes: vec![0; k], known: vec![0; k], empty_time: vec![0.0; k], probe_empty: vec![0; k], made_by: vec![usize::MAX; k], why: vec![""; k], memo_in: 0, memo_out: 0, memo_keys: 0, memo_reused: 0, memo_reused_keys: 0, known_time: 0.0, known_timed: 0, static_time: 0.0, static_depth: 0, static_visits: 0, static_file_tests: 0, rec_time: 0.0, rec_busy: false, memo_missing: 0, memo_whole_hits: 0 },
             schemas: vec![None; k],
             views: vec![None; k],
             sels: vec![None; k],
@@ -991,6 +1003,7 @@ impl<'p> Exec<'p> {
             run_memo: vec![None; k],
             frames: frame::frames(plan),
             ptargets: vec![None; k],
+            args: plan.nodes.iter().map(|n| &n.j["args"]).collect(),
             scratch_made: Vec::new(),
             scratch_ranges: Vec::new(),
             scratch_order: Vec::new(),
@@ -1019,6 +1032,7 @@ impl<'p> Exec<'p> {
             stamp: 0,
             scratch_keys: Vec::new(),
             needs: vec![None; k],
+            flat: known::Flat::new(k),
             empties: vec![None; k],
         }
     }
@@ -1481,12 +1495,13 @@ impl<'p> Exec<'p> {
             f.memo[node] = Some(r.clone());
             return Ok(r);
         }
+        let decided = f.known[node] != 0;
         if !sw!("VEC_NO_KNOWN") && self.known_empty(f, run, node) {
             self.stats.known[node] += 1;
             let r = Res::Tab(self.empty_rc(run, node)?);
             f.memo[node] = Some(r.clone());
             f.log.push(node);
-            if sw!("VEC_STEP_TIME") {
+            if sw!("VEC_STEP_TIME") && decided {
                 self.stats.known_time += step_clock() - tk;
                 self.stats.known_timed += 1;
             }
@@ -1634,7 +1649,8 @@ impl<'p> Exec<'p> {
         let out = self.probe_body(f, run, p, node, col, &missing, &sc);
         self.stack.pop();
         let dt = step_clock() - t0;
-        self.stats.time[node] += dt - self.inner;
+        let own = dt - self.inner;
+        self.stats.time[node] += own;
         self.inner = saved + dt;
         let out = match out {
             Ok(o) => o,
@@ -1652,8 +1668,7 @@ impl<'p> Exec<'p> {
         if *TRACE.get_or_init(|| std::env::var("VEC_TRACE_PROBE").ok().and_then(|x| x.parse::<usize>().ok())) == Some(node) {
             eprintln!("probe {node} col {col} keys {} rows {} stack {:?}", missing.len(), out.n, &self.stack[self.stack.len().saturating_sub(6)..]);
         }
-        self.stats.probes[node] += 1;
-        self.stats.rows[node] += out.n as u64;
+        self.count_probe(node, own, out.n);
         let Some(slot) = slot else {
             self.scratch_keys = missing;
             return Ok(out);
@@ -1710,6 +1725,17 @@ impl<'p> Exec<'p> {
         Ok(t)
     }
 
+    /// pass 2: a probe run counted: its rows, and when it returned nothing, its own seconds (timing on).
+    #[inline]
+    pub(super) fn count_probe(&mut self, node: usize, own: f64, n: usize) {
+        self.stats.probes[node] += 1;
+        self.stats.rows[node] += n as u64;
+        if n == 0 {
+            self.stats.probe_empty[node] += 1;
+            self.stats.empty_time[node] += own;
+        }
+    }
+
     /// pass 2: a probe of a slot whose memo does not answer: the step's body by the distinct keys, timed as its probe,
     /// and its rows of keys asked only (what the memo would hand on; no filing).
     #[expect(clippy::too_many_arguments, reason = "a throwaway")]
@@ -1737,7 +1763,8 @@ impl<'p> Exec<'p> {
         let out = self.probe_body(f, run, p, node, col, &ks, sc);
         self.stack.pop();
         let dt = step_clock() - t0;
-        self.stats.time[node] += dt - self.inner;
+        let own = dt - self.inner;
+        self.stats.time[node] += own;
         self.inner = saved + dt;
         let out = match out {
             Ok(o) => o,
@@ -1747,8 +1774,7 @@ impl<'p> Exec<'p> {
                 return Err(e);
             }
         };
-        self.stats.probes[node] += 1;
-        self.stats.rows[node] += out.n as u64;
+        self.count_probe(node, own, out.n);
         let asked = |k: &u64| if small { ks.contains(k) } else { set.contains(k) };
         let out = if out.cols[col].iter().all(asked) {
             out
@@ -2240,7 +2266,7 @@ impl<'p> Exec<'p> {
         let pn = &plan.nodes[node];
         let op = pn.op.as_str();
         let j = &pn.j;
-        let a = &j["args"];
+        let a = self.args[node];
         match op {
             "base" => self.base(f, run, p, s(&j["rel"])?),
             "select" => self.select(f, run, p, node),
@@ -2257,7 +2283,7 @@ impl<'p> Exec<'p> {
             }
             "antijoin" => self.antijoin(f, run, p, node, a),
             "extend" => {
-                let from = self.eval(f, run, p, self.arg_rel(node, "from")?)?;
+                let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
                 let mut out = (*from).clone();
                 for (k, v) in a["values"].as_object().ok_or("extend values")? {
                     let (t, x) = match v {
@@ -2273,7 +2299,7 @@ impl<'p> Exec<'p> {
                 Ok(out)
             }
             "project" => {
-                let from = self.eval(f, run, p, self.arg_rel(node, "from")?)?;
+                let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
                 let cols: Vec<usize> = strs(&a["columns"])?.iter().map(|c| from.col(c)).collect::<R<_>>()?;
                 let osc = self.schema(run, node)?;
                 let mut out = Table::with(osc.names.clone(), osc.tys.clone());
@@ -2288,7 +2314,7 @@ impl<'p> Exec<'p> {
             }
             "axis" => self.axis(f, run, p, node, a),
             "group-count" => {
-                let from = self.eval(f, run, p, self.arg_rel(node, "from")?)?;
+                let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
                 let keys: Vec<usize> = strs(&a["keys"])?.iter().map(|c| from.col(c)).collect::<R<_>>()?;
                 let distinct = match &a["distinct"] {
                     J::String(d) => Some(from.col(d)?),
@@ -2320,7 +2346,7 @@ impl<'p> Exec<'p> {
                 Ok(out)
             }
             "group-min" | "group-max" => {
-                let from = self.eval(f, run, p, self.arg_rel(node, "from")?)?;
+                let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
                 let keys: Vec<usize> = strs(&a["keys"])?.iter().map(|c| from.col(c)).collect::<R<_>>()?;
                 let oc = from.col(s(&a["order"])?)?;
                 let max = op == "group-max";
@@ -2405,7 +2431,7 @@ impl<'p> Exec<'p> {
             }
             "ordered-match" | "as-of" => self.ordered(f, run, p, node, a, op == "as-of"),
             "span-between" => {
-                let from = self.eval(f, run, p, self.arg_rel(node, "from")?)?;
+                let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
                 let (sc, ec) = (from.col(s(&a["start"])?)?, from.col(s(&a["end"])?)?);
                 let mut out = (*from).clone();
                 let col: Vec<u64> = (0..from.n)
@@ -2420,7 +2446,7 @@ impl<'p> Exec<'p> {
                 Ok(out)
             }
             "span-bounds" => {
-                let from = self.eval(f, run, p, self.arg_rel(node, "from")?)?;
+                let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
                 let sc = from.col(s(&a["span"])?)?;
                 let mut out = (*from).clone();
                 out.cols.push(from.cols[sc].iter().map(|x| x >> 32).collect());
@@ -2431,7 +2457,7 @@ impl<'p> Exec<'p> {
             }
             "source-matches" => self.source_matches(f, run, p, node, a),
             "replace" => {
-                let from = self.eval(f, run, p, self.arg_rel(node, "from")?)?;
+                let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
                 let tc = from.col(s(&a["text"])?)?;
                 let re = run.re(s(&a["pattern"])?)?;
                 let rep = s(&a["replacement"])?.as_bytes().to_vec();
@@ -2449,7 +2475,7 @@ impl<'p> Exec<'p> {
                 Ok(out)
             }
             "capture" => {
-                let from = self.eval(f, run, p, self.arg_rel(node, "from")?)?;
+                let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
                 let pc = from.col(s(&a["path"])?)?;
                 let caps = strs(&a["captures"])?;
                 let re = run.re(&path_pattern(s(&a["pattern"])?))?;
@@ -2471,7 +2497,7 @@ impl<'p> Exec<'p> {
             }
             "group-ordinal" => {
                 // the distinct rows, each with how many distinct rows of its group have a strictly smaller order
-                let from = self.eval(f, run, p, self.arg_rel(node, "from")?)?;
+                let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
                 let keys: Vec<usize> = strs(&a["keys"])?.iter().map(|c| from.col(c)).collect::<R<_>>()?;
                 let oc = from.col(s(&a["order"])?)?;
                 let mut seen = rustc_hash::FxHashSet::default();
@@ -2501,7 +2527,7 @@ impl<'p> Exec<'p> {
                 Ok(out)
             }
             "render-syntax" => {
-                let from = self.eval(f, run, p, self.arg_rel(node, "from")?)?;
+                let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
                 let nc = from.col(s(&a["node"])?)?;
                 let ctx = s(&a["context"])?;
                 let mut out = self.empty(run, node)?;
@@ -2516,7 +2542,7 @@ impl<'p> Exec<'p> {
                 Ok(out)
             }
             "fits-rendered" => {
-                let from = self.eval(f, run, p, self.arg_rel(node, "from")?)?;
+                let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
                 let texts: Vec<usize> = strs(&a["texts"])?.iter().map(|c| from.col(c)).collect::<R<_>>()?;
                 let lits = strs(&a["literals"])?;
                 let sc = from.col(s(&a["span"])?)?;

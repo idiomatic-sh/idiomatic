@@ -1080,7 +1080,7 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
         let mut lines = vec!["node\top\tcalls\trows\ttouched\tseconds".to_owned()];
         for (i, pn) in plan.nodes.iter().enumerate() {
             if exec.stats.calls[i] > 0 || exec.stats.time[i] > 0.0 || exec.stats.known[i] > 0 || exec.stats.probes[i] > 0 {
-                lines.push(format!("{i}\t{}\t{}\t{}\t{}\t{:.6}\t{}\t{}\t{}\t{}\t{}\t{:.6}", pn.op, exec.stats.calls[i], exec.stats.rows[i], exec.stats.touched[i], exec.stats.time[i], exec.stats.empty[i], exec.stats.probes[i], exec.stats.made_by[i] as i64, exec.stats.why[i], exec.stats.known[i], exec.stats.empty_time[i]));
+                lines.push(format!("{i}\t{}\t{}\t{}\t{}\t{:.6}\t{}\t{}\t{}\t{}\t{}\t{:.6}\t{}", pn.op, exec.stats.calls[i], exec.stats.rows[i], exec.stats.touched[i], exec.stats.time[i], exec.stats.empty[i], exec.stats.probes[i], exec.stats.made_by[i] as i64, exec.stats.why[i], exec.stats.known[i], exec.stats.empty_time[i], exec.stats.probe_empty[i]));
             }
         }
         for (k, v) in &by_rel {
@@ -1111,10 +1111,30 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
         let pair = (thread_cpu() - t0) / f64::from(n);
         std::hint::black_box(x);
         let per = exec.stats.known_time / exec.stats.known_timed as f64;
-        println!("known-empty whole runs: {} timed, {:.0} ns a run measured, clock pair {:.0} ns, {:.0} ns a run net", exec.stats.known_timed, per * 1e9, pair * 1e9 / 2.0, (per - pair / 2.0) * 1e9);
+        println!("known-empty whole runs (decided before): {} timed, {:.0} ns a run measured, clock pair {:.0} ns, {:.0} ns a run net; deciding the static part a file: {:.3} s over {} steps ({} per-file tests), of which preparing the needs once a run {:.3} s", exec.stats.known_timed, per * 1e9, pair * 1e9 / 2.0, (per - pair / 2.0) * 1e9, exec.stats.static_time, exec.stats.static_visits, exec.stats.static_file_tests, exec.stats.rec_time);
     }
     println!("fact keyed lists: fill rows listed {}", finish::FACT_IX_ROWS.load(std::sync::atomic::Ordering::Relaxed));
     finish::empty_why::print();
+    {
+        // pass 2: per step kind: runs (whole, by key, known empty), runs that returned nothing (known before the bracket,
+        // bracketed whole, bracketed by key) and the seconds in the bracketed ones (`VEC_STEP_TIME`), the kind's seconds
+        let mut by: std::collections::BTreeMap<&str, [f64; 8]> = std::collections::BTreeMap::new();
+        for (i, pn) in plan.nodes.iter().enumerate() {
+            let e = by.entry(pn.op.as_str()).or_default();
+            let st = &exec.stats;
+            for (k, v) in [st.calls[i] as f64, st.probes[i] as f64, st.known[i] as f64, st.empty[i] as f64, st.probe_empty[i] as f64, st.empty_time[i], st.time[i], 0.0].into_iter().enumerate() {
+                e[k] += v;
+            }
+        }
+        println!("KIND\top\twhole\tprobes\tknown-empty\tempty-whole\tempty-probes\tempty-s\tempty-ns-a-run\tseconds");
+        for (op, e) in &by {
+            if e[0] + e[1] + e[2] == 0.0 {
+                continue;
+            }
+            let ne = e[3] + e[4];
+            println!("KIND\t{op}\t{}\t{}\t{}\t{}\t{}\t{:.3}\t{:.0}\t{:.3}", e[0], e[1], e[2], e[3], e[4], e[5], if ne > 0.0 { e[5] * 1e9 / ne } else { 0.0 }, e[6]);
+        }
+    }
     let mut f: Vec<_> = failed.into_iter().collect();
     f.sort();
     for (r, e) in f {
