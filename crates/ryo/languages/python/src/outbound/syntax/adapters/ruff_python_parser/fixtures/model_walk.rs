@@ -42,6 +42,11 @@ impl<'a> SourceOrderVisitor<'a> for Walker<'_, '_, 'a> {
         );
         if matches!(node, AnyNodeRef::ModModule(_)) {
             node_property(self.builder, MODULE_FUTURE_ANNOTATIONS, self.future);
+            node_property(
+                self.builder,
+                crate::domain::syntax::constants::MODULE_ANNOTATION_TIMING,
+                super::super::future::annotation_timing(self.future.0 == MODULE_FUTURE_ANNOTATIONS_ENABLED),
+            );
         }
         self.nodes.push(node);
         TraversalSignal::Traverse

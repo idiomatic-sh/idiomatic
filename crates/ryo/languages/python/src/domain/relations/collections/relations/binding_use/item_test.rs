@@ -34,3 +34,32 @@ fn succeeds() {
         Ok(proposed::<BindingUseItem>(input))
     });
 }
+
+/// The `binding-use` rows of `source` read under `path` at Python 3.10: each as its reference's and its definition's text.
+fn uses_of(path: &str, source: &'static str) -> Vec<String> {
+    let report = ryo::languages::contract::reading::<BindingUseItem>(
+        &crate::linked_with_settings(crate::settings::PythonParserSettings::new(
+            crate::settings::PythonTargetVersion::Py310,
+        )),
+        ryo::languages::SourcePath(path),
+        ryo::languages::SampleText(source),
+    )
+    .expect("Python source is recognized");
+    assert!(report.causes.is_empty(), "{:?}", report.causes);
+    report.rows.iter().map(|row| format!("{row:?}")).collect()
+}
+
+/// A stub is never run: its annotations are postponed, as under the future import, so an annotation reads the class
+/// defined after it; a module's annotation evaluated where it stands does not.
+#[test]
+fn stub_annotations_read_definitions_that_follow_them() {
+    const LATER: &str = "def f(value: Later) -> Later: ...\nclass Later: ...\n";
+    const FUTURE: &str =
+        "from __future__ import annotations\ndef f(value: Later) -> Later: ...\nclass Later: ...\n";
+    let counts = (
+        uses_of("case.py", LATER).len(),
+        uses_of("case.pyi", LATER).len(),
+        uses_of("case.py", FUTURE).len(),
+    );
+    assert_eq!(counts, (0, 2, 2), "{:?}", uses_of("case.pyi", LATER));
+}
