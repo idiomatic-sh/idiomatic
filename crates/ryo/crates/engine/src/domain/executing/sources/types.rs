@@ -174,6 +174,10 @@ impl NeedFacts for FileNeeds<'_, '_, '_> {
         }
     }
 
+    fn table_least(&mut self, table: MadeTableId) -> Option<u64> {
+        Some(crate::domain::made_tables::making::service::table_least(self.0.fill, table, 3, true))
+    }
+
     fn table_row(&mut self, table: MadeTableId) -> NeedVerdict {
         if self.0.state.measure.is_none() {
             return self.table_decided(table);

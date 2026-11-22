@@ -254,10 +254,34 @@ pub(super) fn sequenced(
         } = lower(SelectedRules(&selected));
         refused.extend(unlowered);
         passed(&mut pack, statistics);
+        // PROTOTYPE (ryo-fmx3.1, join order): the passed pack, one line a table, definition and rule, when asked.
+        if let Some(path) = std::env::var_os("RYO_ENGINE_DUMP_PACK") {
+            let mut text = String::new();
+            for (at, table) in pack.tables.iter().enumerate() {
+                text.push_str(&format!("T{at} {table:?}\n"));
+            }
+            for (at, definition) in pack.definitions.iter().enumerate() {
+                text.push_str(&format!("D{at} {definition:?}\n"));
+            }
+            for rule in &pack.rules {
+                text.push_str(&format!("R{} {rule:?}\n", rule.rule.0));
+            }
+            let _written = std::fs::write(path, text);
+        }
         let written: Vec<SelectedRuleOrdinal> = pack.rules.iter().map(|rule| rule.rule).collect();
         // What this lowering's pack is refused for, and the rules that takes out.
         let (cause, gone) = match encoded(&pack) {
             Ok(code) => {
+                // PROTOTYPE (ryo-fmx3.1, join order): each made table's unit, as the ledger numbers it, when asked.
+                if let Some(path) = std::env::var_os("RYO_ENGINE_DUMP_PACK") {
+                    let mut text = String::new();
+                    for (at, table) in code.tables.iter().enumerate() {
+                        text.push_str(&format!("U{} T{at}\n", table.unit.0));
+                    }
+                    let mut path = std::path::PathBuf::from(path);
+                    path.set_extension("units");
+                    let _written = std::fs::write(path, text);
+                }
                 let steps = rule_steps(&code, rules);
                 let lowered = programs(pack, code, steps, names)?;
                 let unrun = not_run(&lowered);

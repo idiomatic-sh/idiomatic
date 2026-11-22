@@ -77,6 +77,12 @@ fn costs(facts: &impl NeedFacts, code: &ProgramCode, at: WordSlot) -> NeedVerdic
     }
 }
 
+/// PROTOTYPE (ryo-fmx3.1, join order): `RYO_ORDER2_OFF` set to anything turns rule 2 off, read once.
+fn rule_two_off() -> bool {
+    static OFF: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *OFF.get_or_init(|| std::env::var_os("RYO_ORDER2_OFF").is_some())
+}
+
 /// Whether every part of a record holds, or with `stops_at` holding whether some part holds: the parts' places follow
 /// the record's count. The parts that cost nothing are asked first, in the record's order, then the parts that may cost
 /// a fill; the walk stops at the first part that decides, so a part that makes a table is asked only when nothing
@@ -93,8 +99,28 @@ fn parts(
     // asks every part the first did not ask, not the parts that cost a fill now: a part that cost a fill in the first
     // pass and nothing in the second was asked in neither, and an `Any` it alone held was decided empty.
     let mut asked = 0_u128;
+    // PROTOTYPE (ryo-fmx3.1, join order), rule 2: in the pass of what may cost a fill, the parts of an `All` that ask a
+    // table are asked in the order of the least work the file needs to make each (the cheapest way to find the branch
+    // empty first); the parts the engine can say nothing of keep their place after them. Sound for any formula: an
+    // `All` is the same whichever part is asked first, and a table is the file's rows whoever made it.
+    let mut order: Vec<(u64, u32)> = (0..count.0).map(|number| (u64::MAX, number)).collect();
+    let mut ordered = false;
     for pass in [NeedVerdict::Empty, NeedVerdict::Holds] {
-        for number in 0..count.0 {
+        if pass == NeedVerdict::Holds && stops_at == NeedVerdict::Empty && !rule_two_off() {
+            for (least, number) in &mut order {
+                if let Some(place) = slot(code, offsets, WordSlot(*number))
+                    && let Some(NeedRecord::Table(table)) = need_at(&code.needs, place)
+                    && let Some(work) = facts.table_least(table)
+                {
+                    *least = work;
+                    ordered = true;
+                }
+            }
+            if ordered {
+                order.sort_by_key(|(least, number)| (*least, *number));
+            }
+        }
+        for number in order.iter().map(|(_, number)| *number).collect::<Vec<u32>>() {
             let Some(place) = slot(code, offsets, WordSlot(number)) else {
                 // A part that cannot be read says nothing is known: it holds, in the pass of what costs nothing.
                 if pass == NeedVerdict::Empty && stops_at == NeedVerdict::Holds {

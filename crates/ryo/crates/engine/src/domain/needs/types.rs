@@ -50,6 +50,12 @@ pub(crate) trait NeedFacts {
         None
     }
 
+    /// PROTOTYPE (ryo-fmx3.1, join order): the least work the file is known to need to make the table, when the engine
+    /// can say (a count of the file, never an estimate); none: the record's own order stands.
+    fn table_least(&mut self, _table: MadeTableId) -> Option<u64> {
+        None
+    }
+
     /// Whether deciding the record at a place may cost a fill, whatever the file, when the engine keeps that: `Holds`
     /// it may, `Empty` it costs nothing. None: the walk finds it from the record.
     fn record_cost(&self, _at: WordSlot) -> Option<NeedVerdict> {
