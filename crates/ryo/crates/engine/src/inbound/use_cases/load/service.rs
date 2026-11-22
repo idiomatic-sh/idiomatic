@@ -159,8 +159,12 @@ fn not_run(programs: &Programs) -> Vec<RefusedRule> {
 /// Each rule the executor cannot run whole, with whether the unit not run is a step of the rule's own plan.
 fn unrun_units(programs: &Programs) -> Vec<(RefusedRule, bool)> {
     let code = &programs.0.code;
+    let mut marks = crate::domain::executing::running::types::WalkMarks::default();
+    if !crate::domain::executing::running::service::any_unit_not_run(code, &mut marks) {
+        return Vec::new();
+    }
     let refused = code.rules.iter().filter_map(|rule| {
-        let unit = unit_not_run(code, rule)?;
+        let unit = unit_not_run(code, rule, &mut marks)?;
         let key = &code
             .units
             .get(usize::try_from(unit.0).unwrap_or(usize::MAX))?

@@ -146,10 +146,11 @@ pub fn merged(into: &mut PointCounts, from: &PointCounts) {
 #[must_use]
 pub fn ledger(programs: &Programs, counts: &PointCounts) -> WorkLedger {
     let code = &programs.0.code;
+    let mut marks = crate::domain::executing::running::types::WalkMarks::default();
     let reached: Vec<Vec<WordSlot>> = code
         .rules
         .iter()
-        .map(|rule| units_reached(code, rule))
+        .map(|rule| units_reached(code, rule, &mut marks))
         .collect();
     let rows = code.units.iter().enumerate().map(|(place, unit)| {
         let slot = WordSlot(u32::try_from(place).unwrap_or(u32::MAX));
