@@ -2,7 +2,6 @@
 //! program, or as one pipeline of a table. The two emitters read the same accesses; a program runs per candidate or per key,
 //! a pipeline's stages are loops over a batch's columns and hold no program.
 
-use crate::domain::lowering::costing::types::PlanEstimate;
 use crate::domain::lowering::definitions::types::Drafts;
 use crate::domain::lowering::flattening::service::pins_of;
 use crate::domain::lowering::flattening::types::{FlatBranch, FlatTerm};
@@ -47,30 +46,11 @@ fn accesses<'a>(
         written: start.written,
         missed: Count(0),
     };
-    // SPIKE (restricted tables): a rule's branch and a table's pipeline start from nothing given, so what an ask of theirs
-    // is keyed by comes from the atoms written before it: each ask keeps them. A pattern's program starts from its formals.
-    let sited = matches!(unit.role, UnitRole::Branch | UnitRole::Pipeline);
-    let outer = std::mem::take(&mut emitter.drafts.asking);
-    emitter.drafts.asking.serial = outer.serial;
-    emitter.drafts.asking.origin = match unit.role {
-        UnitRole::Pipeline => unit.definition,
-        UnitRole::Branch | UnitRole::Pattern => None,
-    };
-    for (place, at) in plan.order.iter().enumerate() {
+    for at in &plan.order {
         if let Some(atom) = branch.atoms.get(at.0) {
-            if sited {
-                let rows = plan.before.get(place).copied().unwrap_or(PlanEstimate(0));
-                emitter.drafts.asking.atom = Some((atom.clone(), rows));
-            }
             atom_written(&mut emitter, atom);
-            if sited {
-                emitter.drafts.asking.prefix.push(atom.clone());
-            }
         }
     }
-    let serial = emitter.drafts.asking.serial;
-    emitter.drafts.asking = outer;
-    emitter.drafts.asking.serial = serial;
     // Each read waits until its cell is first needed.
     emitter.written = deferred(std::mem::take(&mut emitter.written));
     emitter

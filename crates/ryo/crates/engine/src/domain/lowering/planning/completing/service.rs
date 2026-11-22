@@ -303,7 +303,6 @@ fn place(state: &mut OrderCompletion<'_>, next: NextAccess) {
         *placed = AtomPlacing::Placed;
     }
     state.order.push(next.atom);
-    state.before.push(state.rows);
     let once = times(next.cost.once, state.rows.min(ONE));
     let taken = plus(once, times(state.rows, next.cost.steps));
     match atom {
@@ -638,18 +637,6 @@ pub(crate) fn anchors(
             })
         })
         .collect();
-    // SPIKE (restricted tables): a branch that reads a table's asked keys starts from them: they are the rows its readers
-    // hold, few, whatever their own plan walks.
-    let keyed = branch.atoms.iter().position(|atom| {
-        matches!(atom, FlatAtom::Rows { rows: AtomRows::Definition(definition), .. } if with.drafts.keys.contains(definition))
-    });
-    if let Some(keyed) = keyed
-        && let Some((_, anchor)) = found
-            .iter()
-            .find(|(_, anchor)| anchor.atom == AtomPlace(keyed))
-    {
-        return vec![*anchor];
-    }
     // Such a read is an anchor only when the branch has no other.
     let bounded = found.iter().any(|(unbounded, _)| !unbounded);
     found
@@ -675,7 +662,6 @@ fn begun<'a>(
         pins: pins_of(branch),
         placed: vec![AtomPlacing::Waiting; branch.atoms.len()],
         order: Vec::with_capacity(branch.atoms.len()),
-        before: Vec::with_capacity(branch.atoms.len()),
         uses: uses_of(branch, None),
         implied: HashSet::new(),
         rowless: HashSet::new(),
@@ -729,6 +715,5 @@ pub(crate) fn completed(
         cost: state.cost,
         rows: state.rows,
         products: state.products,
-        before: state.before,
     })
 }

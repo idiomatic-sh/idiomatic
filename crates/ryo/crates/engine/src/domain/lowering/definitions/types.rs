@@ -2,9 +2,7 @@
 
 use crate::domain::code::types::ShapeChoice;
 use crate::domain::lowered::types::{Emptiness, MadeTable, PatternForm};
-use crate::domain::lowering::costing::types::PlanEstimate;
 use crate::domain::lowering::costing::types::{SampleSizes, UseCosts};
-use crate::domain::lowering::flattening::types::FlatAtom;
 use crate::domain::lowering::flattening::types::{FlatBranch, FlatVariable, RowColumn, TextNumber};
 use crate::domain::lowering::nodes::types::{NodeHome, StepShape};
 use crate::domain::steps::types::{
@@ -39,40 +37,6 @@ pub(crate) struct PatternDraft {
     pub(crate) form: Option<PatternForm>,
     /// Whether the shape of its plans left its form open: a flip candidate.
     pub(crate) shape: ShapeChoice,
-    /// SPIKE (restricted tables): where each ask of it was written, for an ask a rule's branch or a table's pipeline wrote.
-    pub(crate) sites: Vec<AskSite>,
-    /// SPIKE (restricted tables): whether some ask of it was written where no site is kept (a pattern's program, a whole
-    /// read): its asked keys are not all known before its table is needed.
-    pub(crate) opaque: bool,
-}
-
-/// SPIKE (restricted tables): where an ask was written: the atoms its unit ran before it, in their order, the atom that
-/// asks, and the rows the unit is estimated to hold there.
-#[derive(Clone, Debug)]
-pub(crate) struct AskSite {
-    /// The atoms before the ask, in the order they run.
-    pub(crate) prefix: Vec<FlatAtom>,
-    /// The atom that asks.
-    pub(crate) atom: FlatAtom,
-    /// The rows the unit holds when it asks, for one start.
-    pub(crate) rows: PlanEstimate,
-    /// The definition whose table's pipeline asked; none for a rule's branch.
-    pub(crate) origin: Option<DefinitionId>,
-    /// Its number among the sites of the pack.
-    pub(crate) serial: u64,
-}
-
-/// SPIKE (restricted tables): the ask being written, while a rule's branch or a table's pipeline is written.
-#[derive(Clone, Debug, Default)]
-pub(crate) struct AskContext {
-    /// The atoms written so far, in order.
-    pub(crate) prefix: Vec<FlatAtom>,
-    /// The atom being written, with the rows held before it; none outside such a unit.
-    pub(crate) atom: Option<(FlatAtom, PlanEstimate)>,
-    /// The definition whose table's pipeline is written; none for a rule's branch.
-    pub(crate) origin: Option<DefinitionId>,
-    /// How many sites were kept so far.
-    pub(crate) serial: u64,
 }
 
 /// A definition as flattened: its branches are written once and never changed after.
@@ -117,10 +81,6 @@ pub(crate) struct WaitingPattern {
 /// The pack as it is being lowered.
 #[derive(Debug, Default)]
 pub(crate) struct Drafts {
-    /// SPIKE (restricted tables): the ask being written.
-    pub(crate) asking: AskContext,
-    /// SPIKE (restricted tables): the definitions of a table's asked keys: a branch that reads one starts from it.
-    pub(crate) keys: std::collections::HashSet<DefinitionId>,
     /// The definitions, by number: a definition reads only definitions before it.
     pub(crate) definitions: Vec<DefinitionDraft>,
     /// The definition of each merged plan node that has one.
