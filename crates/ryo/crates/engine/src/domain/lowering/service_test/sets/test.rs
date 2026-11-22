@@ -23,7 +23,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 &["the elements of two kinds, by a glob"],
-                SampleStage::Absent,
+                SampleStage::Second,
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
@@ -42,7 +42,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                     "the elements of two kinds, by a glob",
                     "the elements of two kinds, by a glob",
                 ],
-                SampleStage::Absent,
+                SampleStage::Second,
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
@@ -64,7 +64,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 &["the elements of two kinds, by a union"],
-                SampleStage::Absent,
+                SampleStage::Second,
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
@@ -80,7 +80,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 &["the elements of two kinds, by an expression"],
-                SampleStage::Absent,
+                SampleStage::Second,
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
@@ -96,7 +96,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 &["the elements of two kinds, by a list"],
-                SampleStage::Absent,
+                SampleStage::Second,
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
@@ -117,7 +117,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                     "the edges in two fields, by a glob",
                     "the edges in two fields, by a glob",
                 ],
-                SampleStage::Absent,
+                SampleStage::Second,
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
@@ -139,7 +139,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 &["the elements of a kind by a glob with a star"],
-                SampleStage::Absent,
+                SampleStage::Second,
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
@@ -154,7 +154,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 &["the elements of two texts, by a glob"],
-                SampleStage::Absent,
+                SampleStage::Second,
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
@@ -171,7 +171,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 &["the nearest sentence or clause above each word"],
-                SampleStage::Absent,
+                SampleStage::Second,
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
@@ -196,7 +196,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 &["the elements of two texts, by a list"],
-                SampleStage::Absent,
+                SampleStage::Second,
             )
         },
         expect: Expect::Error(LoweringError::Refused {

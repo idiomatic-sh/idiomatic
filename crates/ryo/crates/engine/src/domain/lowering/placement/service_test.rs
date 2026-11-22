@@ -24,7 +24,7 @@ const CANDIDATE: PatternFacts = PatternFacts {
     measured: None,
 };
 
-/// The statistics a load of a stage is given: none; a first run's, which names no unit; a second run's.
+/// The statistics a load of a stage is given: a first run's, which names no unit; a second run's.
 fn given(stage: SampleStage) -> Option<Statistics> {
     let of = |stage| Statistics {
         stage,
@@ -32,7 +32,6 @@ fn given(stage: SampleStage) -> Option<Statistics> {
         units: Vec::new(),
     };
     match stage {
-        SampleStage::Absent => None,
         SampleStage::First => Some(of(LearnStage::First)),
         SampleStage::Second => Some(of(LearnStage::Second)),
     }
@@ -52,7 +51,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 binds: Count(0),
                 ..CANDIDATE
             };
-            (facts, given(SampleStage::Absent))
+            (facts, given(SampleStage::Second))
         },
         expect: answer(FormChoice::Table, ShapeChoice::Decided),
     },
@@ -64,14 +63,22 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 call: PatternProgram::Scans,
                 ..CANDIDATE
             };
-            (facts, given(SampleStage::Absent))
+            (facts, given(SampleStage::Second))
         },
         expect: answer(FormChoice::Table, ShapeChoice::Decided),
     },
     Case {
-        name: CaseName("with_no_statistics_a_keyed_pattern_takes_call_and_is_marked_a_candidate"),
+        name: CaseName(
+            "with_no_statistics_a_keyed_pattern_takes_table_as_after_a_first_run_and_is_marked_a_candidate",
+        ),
         word: Word::Succeeds,
-        input: || (CANDIDATE, given(SampleStage::Absent)),
+        input: || (CANDIDATE, None),
+        expect: answer(FormChoice::Table, ShapeChoice::Open),
+    },
+    Case {
+        name: CaseName("with_a_second_run_that_names_nothing_a_keyed_pattern_takes_call"),
+        word: Word::Succeeds,
+        input: || (CANDIDATE, given(SampleStage::Second)),
         expect: answer(FormChoice::Call, ShapeChoice::Open),
     },
     Case {
@@ -100,7 +107,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 call_patterns: Count(4),
                 ..CANDIDATE
             };
-            (facts, given(SampleStage::Absent))
+            (facts, given(SampleStage::Second))
         },
         expect: answer(FormChoice::Table, ShapeChoice::Decided),
     },

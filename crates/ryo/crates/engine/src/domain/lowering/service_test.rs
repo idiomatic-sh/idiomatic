@@ -35,13 +35,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("no_rule_lowers_to_an_empty_pack"),
         word: Word::Succeeds,
-        input: || (&[], SampleStage::Absent),
+        input: || (&[], SampleStage::Second),
         expect: Expect::Value(Cow::Borrowed("codes: {\"End\": 1}")),
     },
     Case {
         name: CaseName("a_rule_over_one_relation_is_one_branch_that_walks_it"),
         word: Word::Succeeds,
-        input: || (&["one tree rule"], SampleStage::Absent),
+        input: || (&["one tree rule"], SampleStage::Second),
         expect: Expect::Value(Cow::Borrowed(concat!(
             "rule 0: 1 branches\n",
             "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Emit:Constant\n",
@@ -57,7 +57,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                     "the elements that are no comment",
                     "the elements that are no comment",
                 ],
-                SampleStage::Absent,
+                SampleStage::Second,
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
@@ -75,7 +75,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("an_antijoin_is_one_decision_of_its_right_sides_definition_by_its_key"),
         word: Word::Succeeds,
-        input: || (&["unbound correlated sub-plan"], SampleStage::Absent),
+        input: || (&["unbound correlated sub-plan"], SampleStage::Second),
         expect: Expect::Value(Cow::Borrowed(concat!(
             "definition 0: 5 columns, emptiness Unknown\n",
             "  pattern bound [1] collected []: Call: EachMatch:Fanout Yield:Constant\n",
@@ -89,7 +89,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "a_join_on_the_file_alone_is_one_table_with_one_product_stage_and_the_rule_walks_it",
         ),
         word: Word::Succeeds,
-        input: || (&["a product within a file"], SampleStage::Absent),
+        input: || (&["a product within a file"], SampleStage::Second),
         expect: Expect::Value(Cow::Borrowed(concat!(
             "definition 0: 5 columns, emptiness All([Unknown, Unknown])\n",
             "  pattern bound [] collected []: Table 2\n",
@@ -120,7 +120,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 &["the elements that are no word", "the edges to no word"],
-                SampleStage::Absent,
+                SampleStage::Second,
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
@@ -138,7 +138,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "a_group_count_is_one_table_whoever_reads_it_and_a_key_pinned_to_a_constant_stays_a_key",
         ),
         word: Word::Succeeds,
-        input: || (&["one table, two readers"], SampleStage::Absent),
+        input: || (&["one table, two readers"], SampleStage::Second),
         expect: Expect::Value(Cow::Borrowed(concat!(
             "definition 0: 5 columns, emptiness All([Unknown, Unknown])\n",
             "  pattern bound [] collected []: Table 1\n",
@@ -156,7 +156,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("an_as_of_is_an_ordered_table_of_its_right_side_read_by_latest"),
         word: Word::Succeeds,
-        input: || (&["as-of latest before"], SampleStage::Absent),
+        input: || (&["as-of latest before"], SampleStage::Second),
         expect: Expect::Value(Cow::Borrowed(concat!(
             "definition 0: 5 columns, emptiness All([Unknown, Unknown])\n",
             "  pattern bound [] collected []: Table 1\n",
@@ -193,7 +193,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_self_join_on_a_key_is_a_use_by_that_key_and_its_comparison_a_test_after"),
         word: Word::Succeeds,
-        input: || (&["pairs within one group"], SampleStage::Absent),
+        input: || (&["pairs within one group"], SampleStage::Second),
         expect: Expect::Value(Cow::Borrowed(concat!(
             "definition 0: 5 columns, emptiness All([Unknown, Unknown])\n",
             "  pattern bound [] collected []: Table 0\n",
@@ -208,7 +208,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_join_on_the_file_alone_with_a_relation_is_a_product_over_that_relation"),
         word: Word::Succeeds,
-        input: || (&["join with an empty side"], SampleStage::Absent),
+        input: || (&["join with an empty side"], SampleStage::Second),
         expect: Expect::Value(Cow::Borrowed(concat!(
             "definition 0: 5 columns, emptiness All([Unknown, Unknown])\n",
             "  pattern bound [] collected []: Table 1\n",
@@ -246,7 +246,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 &["one tree rule", "over the host's rows"],
-                SampleStage::Absent,
+                SampleStage::Second,
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
@@ -259,7 +259,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_group_bound_is_a_group_table_of_its_inputs_rows_and_the_rule_walks_it"),
         word: Word::Succeeds,
-        input: || (&["group-max ties"], SampleStage::Absent),
+        input: || (&["group-max ties"], SampleStage::Second),
         expect: Expect::Value(Cow::Borrowed(concat!(
             "definition 0: 5 columns, emptiness All([Unknown, Unknown])\n",
             "  pattern bound [] collected []: Table 2\n",
@@ -285,7 +285,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 &["a rule over the tree whose words another rule observes"],
-                SampleStage::Absent,
+                SampleStage::Second,
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
@@ -300,7 +300,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 &["over the host's rows", "a rule that emits after the files"],
-                SampleStage::Absent,
+                SampleStage::Second,
             )
         },
         expect: Expect::Error(LoweringError::Refused {
@@ -344,12 +344,13 @@ fn subject_with(
         fields: Vec::new(),
         fixed: Vec::new(),
     };
-    let lowered = match stage {
-        SampleStage::Absent => lowered(SelectedRules(&rules), LoadGiven::default(), None, &kinds),
-        SampleStage::First | SampleStage::Second => {
-            lowered_at(SelectedRules(&rules), LoadGiven::default(), stage, None, &kinds)
-        }
-    };
+    let lowered = lowered_at(
+        SelectedRules(&rules),
+        LoadGiven::default(),
+        stage,
+        None,
+        &kinds,
+    );
     // Every rule refused: the row names the last refusal, which is there only when each before it is.
     if let Some(last) = lowered.refused.last()
         && lowered.refused.len() == rules.len()

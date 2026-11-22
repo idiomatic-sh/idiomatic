@@ -64,6 +64,7 @@ pub(crate) fn call_asked(
             regexes: frame.programs.regexes,
             compiled,
             source: frame.text,
+            text: frame.source,
         },
         frame.words,
         meaning,

@@ -18,7 +18,7 @@ use ryo_language::domain::semantics::types::{RenderContext, RenderOutcome, Rende
 use ryo_operators::domain::capture::service::matches;
 use ryo_operators::domain::capture::types::{CaptureSlots, SlotPattern, SlotSubject};
 use ryo_operators::domain::contract::types::{PortableOperatorFault, SourceByteLength};
-use ryo_operators::domain::fits_rendered::service::{fits, line_prefix};
+use ryo_operators::domain::fits_rendered::service::{fits, line_prefix, line_prefix_in};
 use ryo_operators::domain::fits_rendered::types::{
     CandidateText, Fit, LinePrefix, LineWidth, TabStop,
 };
@@ -351,7 +351,12 @@ fn fits_rendered(
             CellKind::Span,
             Bits(argument(arguments, span_at, Count(row)).0),
         );
-        let LinePrefix(before) = line_prefix(SourceView(means.source.0), span).map_err(faulted)?;
+        // The file is checked to be text once, by who built the frame: not again for each row.
+        let LinePrefix(before) = match means.text {
+            Some(text) => line_prefix_in(text, span),
+            None => line_prefix(SourceView(means.source.0), span),
+        }
+        .map_err(faulted)?;
         scratch.text.0.clear();
         scratch.text.0.push_str(before);
         scratch.written.0.clear();

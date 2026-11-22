@@ -7,9 +7,7 @@ use ryo_relations::domain::relations::types::Count;
 /// What the load was given of a sample: nothing, the first run's statistics, or the second's.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum SampleStage {
-    /// No statistics: every flip candidate takes Call.
-    Absent,
-    /// The first run's: every flip candidate takes Table.
+    /// The first run's, or none: every flip candidate takes Table.
     First,
     /// The second's: every unit takes the form written for it.
     Second,

@@ -98,10 +98,29 @@ pub fn line_prefix<'a>(
     source: ryo_values::domain::files::types::SourceView<'a>,
     span: ryo_relations::domain::relations::types::Value,
 ) -> Result<LinePrefix<'a>, PortableOperatorFault> {
+    if !matches!(
+        span,
+        ryo_relations::domain::relations::types::Value::Span(_)
+    ) {
+        return Err(PortableOperatorFault::ShapeMismatch);
+    }
+    let source = std::str::from_utf8(source.0).map_err(|_| PortableOperatorFault::InvalidSpan)?;
+    line_prefix_in(source, span)
+}
+
+/// The source text on the candidate's line before its span, of a source already known to be text: what `line_prefix`
+/// answers once the source is checked, for a caller that checks a file once for all its rows.
+///
+/// # Errors
+///
+/// `ShapeMismatch` for a cell that is no span; `InvalidSpan` for an absent span, or one out of order or off the source.
+pub fn line_prefix_in<'a>(
+    source: &'a str,
+    span: ryo_relations::domain::relations::types::Value,
+) -> Result<LinePrefix<'a>, PortableOperatorFault> {
     let ryo_relations::domain::relations::types::Value::Span(span) = span else {
         return Err(PortableOperatorFault::ShapeMismatch);
     };
-    let source = std::str::from_utf8(source.0).map_err(|_| PortableOperatorFault::InvalidSpan)?;
     let start = usize::try_from(span.start.0).map_err(|_| PortableOperatorFault::InvalidSpan)?;
     let end = usize::try_from(span.end.0).map_err(|_| PortableOperatorFault::InvalidSpan)?;
     if span == ryo_relations::domain::relations::constants::NO_SPAN

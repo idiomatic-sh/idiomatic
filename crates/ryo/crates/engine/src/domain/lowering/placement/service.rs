@@ -42,8 +42,7 @@ pub(crate) const fn placed(facts: PatternFacts, stage: SampleStage) -> PatternPl
         TableForm::Product | TableForm::Calls => decided(FormChoice::Call),
         TableForm::Keyed => PatternPlacement {
             form: match (stage, facts.measured) {
-                (SampleStage::Absent, None | Some(MeasuredForm::Call | MeasuredForm::Table))
-                | (SampleStage::Second, None | Some(MeasuredForm::Call)) => FormChoice::Call,
+                (SampleStage::Second, None | Some(MeasuredForm::Call)) => FormChoice::Call,
                 (SampleStage::First, None | Some(MeasuredForm::Call | MeasuredForm::Table))
                 | (SampleStage::Second, Some(MeasuredForm::Table)) => FormChoice::Table,
             },
@@ -52,11 +51,13 @@ pub(crate) const fn placed(facts: PatternFacts, stage: SampleStage) -> PatternPl
     }
 }
 
-/// What a load's statistics are of: none given, a first run's (with or without a unit), or a second run's.
+/// What a load's statistics are of: a first run's (with or without a unit), or a second run's. A load given none is a
+/// first run's with nothing measured: every flip candidate takes Table, as a header-only first-stage file says, so a user
+/// with no statistics gets the table form; the call form is a second-stage file's.
 #[must_use]
 pub(crate) const fn sampled(statistics: Option<&Statistics>) -> SampleStage {
     match statistics {
-        None => SampleStage::Absent,
+        None => SampleStage::First,
         Some(statistics) => match statistics.stage {
             LearnStage::First => SampleStage::First,
             LearnStage::Second => SampleStage::Second,

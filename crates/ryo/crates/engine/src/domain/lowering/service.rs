@@ -14,6 +14,7 @@ use super::emptiness::service::copied;
 use super::flattening::types::FlatBranch;
 use super::nodes::service::{digest_of, stored};
 use super::nodes::types::{AcceptedPlace, AdmittedRule, NodeHome, NodeStore};
+use super::observing::service::{reads_observations, resolved};
 use super::placement::patterns::service::{
     home_refused, pattern_placed, pattern_plans, unlowerable,
 };
@@ -27,7 +28,6 @@ use super::proving::service::proved;
 use super::proving::types::{ProductStated, ProofFault, ProvedUnit, UnitHomes, Unproved};
 use super::sharing::service::prefixes_shared;
 use super::tables::arms::service::rule_flattened;
-use super::observing::service::{reads_observations, resolved};
 use super::tables::inputs::service::step_defined;
 use super::tables::service::admitted_in;
 use super::tables::types::RuleFlattening;
@@ -248,7 +248,10 @@ fn built(
             *slot = Some(rows);
         }
     }
-    let flattened: Vec<Flattened> = flattened.into_iter().map(Option::unwrap_or_default).collect();
+    let flattened: Vec<Flattened> = flattened
+        .into_iter()
+        .map(Option::unwrap_or_default)
+        .collect();
     // Every rule's branches are planned on the pool: a plan reads the drafts as the flattening left them. The programs
     // are then written a rule at a time, in rule order.
     let planned: Vec<Vec<Option<PlannedBranch>>> = {
@@ -313,7 +316,7 @@ fn built(
 
 /// The pack of the rules the lowering accepts, and each rule it refuses with the step it cannot evaluate or the count it cannot
 /// write. No rule is refused for what it costs or for how large it is. `statistics` is none for a load given none: every flip
-/// candidate then takes its call form; given those of a first sample, each takes its table form.
+/// candidate then takes its table form, as given those of a first sample; a second sample's say each unit's form.
 pub(crate) fn lowered(
     rules: SelectedRules<'_>,
     given: LoadGiven<'_>,

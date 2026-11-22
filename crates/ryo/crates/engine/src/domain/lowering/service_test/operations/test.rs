@@ -18,7 +18,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "a_closure_is_a_definition_whose_table_uses_its_own_walk_and_a_program_walks_in_place",
         ),
         word: Word::Succeeds,
-        input: || (&["closure of the sentence's edges"], SampleStage::Absent),
+        input: || (&["closure of the sentence's edges"], SampleStage::Second),
         expect: Expect::Value(Cow::Borrowed(concat!(
             "definition 0: 2 columns, emptiness All([Unknown, Unknown])\n",
             "  pattern bound [] collected []: Table 1\n",
@@ -39,7 +39,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_replace_is_one_call_after_the_cells_it_reads_are_given"),
         word: Word::Succeeds,
-        input: || (&["the words' texts replaced"], SampleStage::Absent),
+        input: || (&["the words' texts replaced"], SampleStage::Second),
         expect: Expect::Value(Cow::Borrowed(concat!(
             "rule 0: 1 branches\n",
             "  branch: EachRow:File Read:Constant Read:Constant EachMatch:Fanout Read:Constant Call:Constant Emit:Constant\n",
@@ -49,7 +49,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("span_bounds_is_one_call_that_gives_two_cells"),
         word: Word::Succeeds,
-        input: || (&["the elements' span bounds"], SampleStage::Absent),
+        input: || (&["the elements' span bounds"], SampleStage::Second),
         expect: Expect::Value(Cow::Borrowed(concat!(
             "rule 0: 1 branches\n",
             "  branch: EachRow:File Read:Constant Call:Constant Read:Constant Read:Constant Emit:Constant\n",
@@ -61,7 +61,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             "a_group_ordinal_is_a_group_table_of_its_inputs_distinct_rows_with_their_places",
         ),
         word: Word::Succeeds,
-        input: || (&["group-ordinal from zero"], SampleStage::Absent),
+        input: || (&["group-ordinal from zero"], SampleStage::Second),
         expect: Expect::Value(Cow::Borrowed(concat!(
             "definition 0: 5 columns, emptiness All([Unknown, Unknown])\n",
             "  pattern bound [] collected []: Table 1\n",
@@ -77,7 +77,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_closure_of_a_relations_own_rows_reads_them_in_place"),
         word: Word::Succeeds,
-        input: || (&["closure of the scopes"], SampleStage::Absent),
+        input: || (&["closure of the scopes"], SampleStage::Second),
         expect: Expect::Value(Cow::Borrowed(concat!(
             "definition 0: 3 columns, emptiness All([Row(Scope, None), Any([All([Row(Scope, None)])])])\n",
             "  pattern bound [] collected []: Table 0\n",
@@ -92,7 +92,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("span_between_is_one_call_of_two_cells_that_gives_one"),
         word: Word::Succeeds,
-        input: || (&["the elements' spans between"], SampleStage::Absent),
+        input: || (&["the elements' spans between"], SampleStage::Second),
         expect: Expect::Value(Cow::Borrowed(concat!(
             "rule 0: 1 branches\n",
             "  branch: EachRow:File Read:Constant Call:Constant Read:Constant Read:Constant Emit:Constant\n",
@@ -105,7 +105,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 &["the words whose prefixed text is x.a"],
-                SampleStage::Absent,
+                SampleStage::Second,
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
@@ -122,7 +122,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 &["the nearest element above, over the tree"],
-                SampleStage::Absent,
+                SampleStage::Second,
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
@@ -147,7 +147,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 &["the nearest element above, over a step's edges"],
-                SampleStage::Absent,
+                SampleStage::Second,
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
@@ -171,7 +171,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_join_names_its_right_columns_through_the_view"),
         word: Word::Succeeds,
-        input: || (&["the words' spans through a view"], SampleStage::Absent),
+        input: || (&["the words' spans through a view"], SampleStage::Second),
         expect: Expect::Value(Cow::Borrowed(concat!(
             "rule 0: 1 branches\n",
             "  branch: EachRow:File Exists:Constant Read:Constant EachMatch:Fanout Read:Constant Emit:Constant\n",
@@ -181,7 +181,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("an_axis_names_its_entity_through_the_domains_view"),
         word: Word::Succeeds,
-        input: || (&["the parents through a view"], SampleStage::Absent),
+        input: || (&["the parents through a view"], SampleStage::Second),
         expect: Expect::Value(Cow::Borrowed(concat!(
             "rule 0: 1 branches\n",
             "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Axis:Constant Exists:Constant Emit:Constant\n",
@@ -194,7 +194,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 &["the scopes above, a reach join unfolded"],
-                SampleStage::Absent,
+                SampleStage::Second,
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
@@ -211,7 +211,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || {
             (
                 &["the occurrences in the elements' source"],
-                SampleStage::Absent,
+                SampleStage::Second,
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
@@ -223,7 +223,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_capture_is_a_call_that_gives_one_text_for_each_slot"),
         word: Word::Succeeds,
-        input: || (&["the words' texts captured"], SampleStage::Absent),
+        input: || (&["the words' texts captured"], SampleStage::Second),
         expect: Expect::Value(Cow::Borrowed(concat!(
             "rule 0: 1 branches\n",
             "  branch: EachRow:File Read:Constant Read:Constant EachMatch:Fanout Read:Constant Call:Fanout Emit:Constant\n",
@@ -233,7 +233,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("an_ordered_match_is_a_table_of_pairs_read_by_place"),
         word: Word::Succeeds,
-        input: || (&["the words matched in order"], SampleStage::Absent),
+        input: || (&["the words matched in order"], SampleStage::Second),
         expect: Expect::Value(Cow::Borrowed(concat!(
             "definition 0: 5 columns, emptiness All([Unknown, Unknown])\n",
             "  pattern bound [] collected []: Table 1\n",
@@ -250,7 +250,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
         name: CaseName("a_selection_by_a_constant_field_reads_the_fields_bucket_of_the_node_table"),
         word: Word::Succeeds,
-        input: || (&["the edges of the field label"], SampleStage::Absent),
+        input: || (&["the edges of the field label"], SampleStage::Second),
         expect: Expect::Value(Cow::Borrowed(concat!(
             "rule 0: 1 branches\n",
             "  branch: EachMatch:File Read:Constant Read:Constant Emit:Constant\n",
@@ -268,7 +268,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                     "the edges of the field label, past the first",
                     "the edges of the field label, past the first",
                 ],
-                SampleStage::Absent,
+                SampleStage::Second,
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
