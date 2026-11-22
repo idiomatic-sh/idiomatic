@@ -675,6 +675,10 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     // cols prototype: the provider writes the facts directly as per-node columns and keyed lists
     let direct = args.contains(&"--direct");
     let check_direct = args.contains(&"--check-direct");
+    // ablations: every fact asked whole (no yes/no form); every fact asked in every file (no per-file decision)
+    let no_yes_no = args.contains(&"--no-yes-no");
+    let ask_all = args.contains(&"--ask-all");
+    let no_project = args.contains(&"--no-project");
     let mut cwalk = ryo_python::fixtures::columns::ColumnWalk::new(ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names"));
     store.direct_on = direct;
     if args.contains(&"--regex-set") {
@@ -687,6 +691,8 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     let mut ask_of: Vec<(usize, usize)> = Vec::new();
     let (mut direct_fill, mut direct_write, mut direct_files) = (0f64, 0f64, vec![0u64; slots_n]);
     let mut model_time = 0f64;
+    let per_fact = args.contains(&"--per-fact");
+    let mut fact_time = vec![0f64; slots_n];
     let (mut direct_rows, mut direct_exists_files) = (vec![0u64; slots_n], vec![0u64; slots_n]);
     // the check: rows compared and differing, by slot; yes/no answers compared and differing; answers differing; reference
     // cells that do not fit 32 bits
@@ -788,8 +794,9 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                             wp[usize::from(*w) / 64] |= 1 << (w % 64);
                         }
                     }
-                    let mut needed = vec![false; slots_n];
-                    let mut valued = vec![false; slots_n];
+                    let mut needed = vec![ask_all; slots_n];
+                    let mut valued = vec![ask_all; slots_n];
+                    let mut key_needed: Vec<(usize, usize)> = Vec::new();
                     for (ri, r) in frules.iter().enumerate() {
                         if r.slots.is_empty() || !skip_of[ri].is_none_or(|i| survives(&rules[i], &kinds, &fp)) || !r.words_alive(&wp) {
                             continue;
@@ -799,6 +806,11 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                         }
                         for s in &r.valued {
                             valued[*s] = true;
+                        }
+                        for k in &r.keyed {
+                            if !key_needed.contains(k) {
+                                key_needed.push(*k);
+                            }
                         }
                     }
                     let v1 = thread_cpu();
@@ -824,16 +836,21 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                         if !needed[slot] || Some(slot) == token_slot {
                             continue;
                         }
-                        let exists = !valued[slot] && !check_direct;
+                        let exists = !valued[slot] && !check_direct && !no_yes_no;
                         if exists {
                             direct_exists_files[slot] += 1;
                         }
                         direct_files[slot] += 1;
+                        let full = check_direct || no_project || ask_all;
+                        let columns = if full { u64::MAX } else { fact_catalog.read_columns[slot] };
                         for &kc in &fact_catalog.key_columns[slot] {
-                            asks.push(ryo_python::fixtures::columns::Ask { relation: fact_catalog.relations[slot], key: kc, exists });
+                            if !full && !key_needed.contains(&(slot, kc)) {
+                                continue;
+                            }
+                            asks.push(ryo_python::fixtures::columns::Ask { relation: fact_catalog.relations[slot], key: kc, exists, columns });
                             ask_of.push((slot, kc));
                             if check_direct {
-                                asks.push(ryo_python::fixtures::columns::Ask { relation: fact_catalog.relations[slot], key: kc, exists: true });
+                                asks.push(ryo_python::fixtures::columns::Ask { relation: fact_catalog.relations[slot], key: kc, exists: true, columns });
                                 ask_of.push((slot, kc));
                             }
                         }
@@ -842,7 +859,16 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                     file.prepare(&asks);
                     let a = thread_cpu();
                     model_time += a - m;
-                    file.columns(&asks, &mut interner, &mut store.direct);
+                    if per_fact {
+                        store.direct.tables.resize_with(asks.len().max(store.direct.tables.len()), Default::default);
+                        for (i, ask) in asks.iter().enumerate() {
+                            let c = thread_cpu();
+                            file.column(ask, &mut interner, &mut store.direct.tables[i]);
+                            fact_time[ask_of[i].0] += thread_cpu() - c;
+                        }
+                    } else {
+                        file.columns(&asks, &mut interner, &mut store.direct);
+                    }
                     let b = thread_cpu();
                     direct_fill += b - a;
                     for (i, (slot, kc)) in ask_of.iter().enumerate() {
@@ -895,12 +921,8 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                                 if !t.present.get(k / 64).is_some_and(|w| w >> (k % 64) & 1 == 1) {
                                     continue;
                                 }
-                                let rows = match t.layout {
-                                    ryo_python::fixtures::columns::Layout::PerNode => k..k + 1,
-                                    ryo_python::fixtures::columns::Layout::Keyed => t.offsets[k] as usize..t.offsets[k + 1] as usize,
-                                };
-                                for r in rows {
-                                    let r = if t.order.is_empty() || t.layout != ryo_python::fixtures::columns::Layout::Keyed { r } else { t.order[r] as usize };
+                                for r in t.rows_of(k) {
+                                    let r = t.row(r);
                                     let mut row = vec![k as u32];
                                     row.extend(cols.iter().map(|c| t.columns[*c][r]));
                                     out.push(row);
@@ -1472,8 +1494,8 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
         if direct {
             for slot in 0..slots_n {
                 println!(
-                    "direct {}: files {} (yes/no only {}) rows {} check: rows {} differing {} keys with more than one row {} yes/no keys {} differing {} answers differing {} wide cells {} columns compared beside the key {:?}",
-                    fact_catalog.names[slot], direct_files[slot], direct_exists_files[slot], direct_rows[slot], chk_rows[slot], chk_diff[slot], chk_multi[slot], chk_yes[slot], chk_yes_diff[slot], chk_answer_diff[slot], chk_wide[slot], chk_cols[slot]
+                    "direct {}: files {} (yes/no only {}) rows {} time {:.4} s check: rows {} differing {} keys with more than one row {} yes/no keys {} differing {} answers differing {} wide cells {} columns compared beside the key {:?}",
+                    fact_catalog.names[slot], direct_files[slot], direct_exists_files[slot], direct_rows[slot], fact_time[slot], chk_rows[slot], chk_diff[slot], chk_multi[slot], chk_yes[slot], chk_yes_diff[slot], chk_answer_diff[slot], chk_wide[slot], chk_cols[slot]
                 );
             }
             println!(

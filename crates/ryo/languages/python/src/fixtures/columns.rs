@@ -72,6 +72,8 @@ pub struct Ask {
     pub key: usize,
     /// Only the yes/no question: the presence bits, and no column.
     pub exists: bool,
+    /// The catalog places of the columns wanted, one bit a place (`u64::MAX`: all): a column no test reads is not written.
+    pub columns: u64,
 }
 
 /// One fact of one file, as the provider wrote it.
@@ -83,8 +85,10 @@ pub struct FactTable {
     pub answered: bool,
     /// Per node, one bit: the node has a row (both layouts, so the yes/no question is one bit read).
     pub present: Vec<u64>,
-    /// `Keyed`: per node, where its rows start in `order`; one more entry at the end.
+    /// `Keyed`: per node that has rows (in node order), where its rows start in `order`; one more entry at the end.
     pub offsets: Vec<u32>,
+    /// `Keyed`: per word of `present`, how many nodes before it have rows.
+    pub rank: Vec<u32>,
     /// `Keyed`: the rows by key, as row numbers into the columns (empty: the rows came in key order, row `i` is `order[i]`).
     pub order: Vec<u32>,
     /// By catalog place, the values: by node (`PerNode`) or by row (`Keyed`); empty for a column not written.
@@ -93,10 +97,13 @@ pub struct FactTable {
     pub rows: usize,
     /// `Keyed`, while writing: each row's key node.
     keys: Vec<u32>,
+    /// The columns wanted, one bit a catalog place.
+    wanted: u64,
 }
 
 impl FactTable {
-    fn begin(&mut self, layout: Layout, width: usize, elements: usize, written: &[usize], exists: bool) {
+    fn begin(&mut self, layout: Layout, width: usize, elements: usize, written: &[usize], exists: bool, wanted: u64) {
+        self.wanted = wanted;
         self.layout = layout;
         self.answered = true;
         self.rows = 0;
@@ -111,11 +118,19 @@ impl FactTable {
         }
         if layout == Layout::PerNode && !exists {
             for place in written {
+                if wanted >> place & 1 == 0 {
+                    continue;
+                }
                 if let Some(column) = self.columns.get_mut(*place) {
                     column.resize(elements, 0);
                 }
             }
         }
+    }
+
+    #[inline]
+    fn wants(&self, place: usize) -> bool {
+        self.wanted >> place & 1 == 1
     }
 
     #[inline]
@@ -144,57 +159,73 @@ impl FactTable {
         self.keys.push(node);
         self.rows += 1;
         for (place, value) in values {
-            if let Some(column) = self.columns.get_mut(*place) {
+            if self.wanted >> place & 1 == 1
+                && let Some(column) = self.columns.get_mut(*place)
+            {
                 column.push(*value);
             }
         }
     }
 
-    /// Ends a keyed table: the offsets by a sweep when the rows came in key order, else a stable counting sort.
-    fn finish(&mut self, elements: usize) {
+    /// Ends a keyed table: the rows are put in key order by a sort of (key, row) pairs, O(rows log rows), and indexed by
+    /// key through the presence bits and a rank a word, O(elements / 64): no pass over the file's elements.
+    fn finish(&mut self, _elements: usize) {
         if self.layout != Layout::Keyed {
             return;
         }
-        self.offsets.resize(elements + 1, 0);
+        self.rank.clear();
+        let mut before = 0u32;
+        for word in &self.present {
+            self.rank.push(before);
+            before += word.count_ones();
+        }
+        self.offsets.clear();
+        self.order.clear();
         if self.keys.is_sorted() {
-            let mut next = 0usize;
+            let mut last = u32::MAX;
             for (row, key) in self.keys.iter().enumerate() {
-                let key = (*key as usize).min(elements);
-                while next <= key {
-                    self.offsets[next] = row as u32;
-                    next += 1;
+                if *key != last {
+                    self.offsets.push(row as u32);
+                    last = *key;
                 }
             }
-            while next <= elements {
-                self.offsets[next] = self.keys.len() as u32;
-                next += 1;
+        } else {
+            let mut pairs: Vec<u64> = self.keys.iter().enumerate().map(|(row, key)| u64::from(*key) << 32 | row as u64).collect();
+            pairs.sort_unstable();
+            let mut last = u32::MAX;
+            for (at, pair) in pairs.iter().enumerate() {
+                let key = (pair >> 32) as u32;
+                if key != last {
+                    self.offsets.push(at as u32);
+                    last = key;
+                }
+                self.order.push(*pair as u32);
             }
-            return;
         }
-        for key in &self.keys {
-            if (*key as usize) < elements {
-                self.offsets[*key as usize + 1] += 1;
-            }
+        self.offsets.push(self.keys.len() as u32);
+    }
+
+    /// The rows of `node`, as places into `order` (or into the columns when `order` is empty); none when it has no row.
+    #[inline]
+    #[must_use]
+    pub fn rows_of(&self, node: usize) -> std::ops::Range<usize> {
+        let Some(word) = self.present.get(node / 64) else { return 0..0 };
+        let bit = 1u64 << (node % 64);
+        if word & bit == 0 {
+            return 0..0;
         }
-        for at in 0..elements {
-            self.offsets[at + 1] += self.offsets[at];
+        if self.layout == Layout::PerNode {
+            return node..node + 1;
         }
-        // the rows stay where they were written; `order` lists them by key (one u32 a row, no column moved)
-        self.order.resize(self.keys.len(), 0);
-        let mut place = std::mem::take(&mut self.keys);
-        for (row, key) in place.iter_mut().enumerate() {
-            let at = (*key as usize).min(elements - 1);
-            let slot = self.offsets[at] as usize;
-            self.offsets[at] += 1;
-            self.order[slot] = row as u32;
-            *key = 0;
-        }
-        // the offsets were advanced to each key's end: shift them back by one key
-        for at in (1..=elements).rev() {
-            self.offsets[at] = self.offsets[at - 1];
-        }
-        self.offsets[0] = 0;
-        self.keys = place;
+        let at = (self.rank[node / 64] + (word & (bit - 1)).count_ones()) as usize;
+        self.offsets[at] as usize..self.offsets[at + 1] as usize
+    }
+
+    /// The row number in the columns of a place `rows_of` gave.
+    #[inline]
+    #[must_use]
+    pub fn row(&self, place: usize) -> usize {
+        if self.layout == Layout::Keyed && !self.order.is_empty() { self.order[place] as usize } else { place }
     }
 }
 
@@ -387,23 +418,28 @@ impl ColumnFile<'_, '_> {
     /// The direct path: one table an ask, written into `out.tables` in ask order. An ask of a fact the prototype does not
     /// write leaves its table unanswered.
     pub fn columns(&mut self, asks: &[Ask], ids: &mut dyn TextIds, out: &mut FactColumns) {
-        let elements = node_table::element_count(self.table).0 as usize;
         out.tables.resize_with(asks.len().max(out.tables.len()), FactTable::default);
         for (ask, table) in asks.iter().zip(&mut out.tables) {
-            match ask.relation {
-                Relation::QualifiedName => self.qualified_name(ask, ids, table, elements),
-                Relation::Identifier => self.identifier(ask, ids, table, elements),
-                Relation::LiteralProperties => self.literal_properties(ask, ids, table, elements),
-                Relation::NumericLiteral => self.numeric_literal(ask, ids, table, elements),
-                Relation::StringLiteral => self.string_literal(ask, ids, table, elements),
-                Relation::ExpressionShape => self.expression_shape(ask, table, elements),
-                Relation::ExpressionType => self.expression_type(ask, ids, table, elements),
-                Relation::BindingEvent => self.binding_event(ask, ids, table, elements),
-                Relation::BindingRead => self.binding_read(ask, ids, table, elements),
-                _ => {
-                    table.begin(Layout::PerNode, 0, elements, &[], false);
-                    table.answered = false;
-                }
+            self.column(ask, ids, table);
+        }
+    }
+
+    /// One ask's table.
+    pub fn column(&mut self, ask: &Ask, ids: &mut dyn TextIds, table: &mut FactTable) {
+        let elements = node_table::element_count(self.table).0 as usize;
+        match ask.relation {
+            Relation::QualifiedName => self.qualified_name(ask, ids, table, elements),
+            Relation::Identifier => self.identifier(ask, ids, table, elements),
+            Relation::LiteralProperties => self.literal_properties(ask, ids, table, elements),
+            Relation::NumericLiteral => self.numeric_literal(ask, ids, table, elements),
+            Relation::StringLiteral => self.string_literal(ask, ids, table, elements),
+            Relation::ExpressionShape => self.expression_shape(ask, table, elements),
+            Relation::ExpressionType => self.expression_type(ask, ids, table, elements),
+            Relation::BindingEvent => self.binding_event(ask, ids, table, elements),
+            Relation::BindingRead => self.binding_read(ask, ids, table, elements),
+            _ => {
+                table.begin(Layout::PerNode, 0, elements, &[], false, u64::MAX);
+                table.answered = false;
             }
         }
     }
@@ -412,7 +448,7 @@ impl ColumnFile<'_, '_> {
         let width = <languages::QualifiedName as CatalogRelation>::columns().len();
         let (path_at, provenance_at, major_at, minor_at) =
             (place!(QualifiedName, QualifiedNameColumn::Path), place!(QualifiedName, QualifiedNameColumn::Provenance), place!(QualifiedName, QualifiedNameColumn::SinceMajor), place!(QualifiedName, QualifiedNameColumn::SinceMinor));
-                table.begin(Layout::PerNode, width, elements, &[path_at, provenance_at, major_at, minor_at], ask.exists);
+                table.begin(Layout::PerNode, width, elements, &[path_at, provenance_at, major_at, minor_at], ask.exists, ask.columns);
         let read = self.file.semantics(if ask.exists { ModelPart::Lexical } else { ModelPart::Resolution });
         let memo = &mut *self.memo;
         let labels = [refinements::IMPORT, BUILTIN, LOCAL, UNRESOLVED, AMBIGUOUS].map(|text| memo.fixed(ids, NameText(text)));
@@ -447,7 +483,7 @@ impl ColumnFile<'_, '_> {
     fn identifier(&mut self, ask: &Ask, ids: &mut dyn TextIds, table: &mut FactTable, elements: usize) {
         let width = <languages::Identifier as CatalogRelation>::columns().len();
         let name_at = place!(Identifier, IdentifierColumn::Name);
-        table.begin(Layout::PerNode, width, elements, &[name_at], ask.exists);
+        table.begin(Layout::PerNode, width, elements, &[name_at], ask.exists, ask.columns);
         let syntax = &self.file.syntax;
         if syntax.completeness.syntax == languages::SyntaxCompleteness::Incomplete {
             table.answered = false;
@@ -494,7 +530,7 @@ impl ColumnFile<'_, '_> {
             place!(LiteralProperties, LiteralPropertiesColumn::Empty),
             place!(LiteralProperties, LiteralPropertiesColumn::Boolean),
         );
-        table.begin(Layout::PerNode, width, elements, &[kind_at, zero_at, empty_at, boolean_at], ask.exists);
+        table.begin(Layout::PerNode, width, elements, &[kind_at, zero_at, empty_at, boolean_at], ask.exists, ask.columns);
         for Numbered { id, node } in nodes_of_kind(&self.file.syntax, Kind::Node(Node::Constant)) {
             if let Some(found) = properties(node) {
                 if ask.exists {
@@ -512,7 +548,7 @@ impl ColumnFile<'_, '_> {
         let width = <languages::NumericLiteral as CatalogRelation>::columns().len();
         let (kind_at, value_at, exact_at) =
             (place!(NumericLiteral, NumericLiteralColumn::Kind), place!(NumericLiteral, NumericLiteralColumn::Value), place!(NumericLiteral, NumericLiteralColumn::ExactDigits));
-        table.begin(Layout::PerNode, width, elements, &[kind_at, value_at, exact_at], ask.exists);
+        table.begin(Layout::PerNode, width, elements, &[kind_at, value_at, exact_at], ask.exists, ask.columns);
         let value = &mut self.file.buffers.text;
         for Numbered { id, .. } in nodes_of_kind(&self.file.syntax, Kind::Node(Node::Constant)) {
             if let Some(found) = number(&self.file.syntax, id, value) {
@@ -522,7 +558,8 @@ impl ColumnFile<'_, '_> {
                     continue;
                 }
                 let kind = self.memo.fixed(ids, found.kind);
-                table.put(id.0, &[(kind_at, kind), (value_at, ids.id(value.0.as_bytes())), (exact_at, flag(found.exact))]);
+                let text = if table.wants(value_at) { ids.id(value.0.as_bytes()) } else { 0 };
+                table.put(id.0, &[(kind_at, kind), (value_at, text), (exact_at, flag(found.exact))]);
             }
         }
     }
@@ -531,7 +568,7 @@ impl ColumnFile<'_, '_> {
         let width = <languages::StringLiteral as CatalogRelation>::columns().len();
         let (owner_at, value_at, import_at) =
             (place!(StringLiteral, StringLiteralColumn::Owner), place!(StringLiteral, StringLiteralColumn::Value), place!(StringLiteral, StringLiteralColumn::Import));
-        table.begin(Layout::PerNode, width, elements, &[owner_at, value_at, import_at], ask.exists);
+        table.begin(Layout::PerNode, width, elements, &[owner_at, value_at, import_at], ask.exists, ask.columns);
         if !ask.exists {
             built(self.file.model, &mut self.file.built, ModelPart::Lexical, self.file.syntax.tree);
         }
@@ -542,7 +579,7 @@ impl ColumnFile<'_, '_> {
             for Numbered { id, node } in nodes_of_kind(&self.file.syntax, Kind::Node(kind)) {
                 let value = match string_value(node, joined) {
                     Some(StringValue::Known(text)) => {
-                        if ask.exists {
+                        if ask.exists || !table.wants(value_at) {
                             0
                         } else {
                             ids.id(text.0.as_bytes())
@@ -567,7 +604,7 @@ impl ColumnFile<'_, '_> {
     fn expression_shape(&mut self, ask: &Ask, table: &mut FactTable, elements: usize) {
         let width = <languages::ExpressionShape as CatalogRelation>::columns().len();
         let shape_at = place!(ExpressionShape, ExpressionShapeColumn::Shape);
-        table.begin(Layout::PerNode, width, elements, &[shape_at], ask.exists);
+        table.begin(Layout::PerNode, width, elements, &[shape_at], ask.exists, ask.columns);
         let syntax = &self.file.syntax;
         if syntax.completeness.syntax == languages::SyntaxCompleteness::Incomplete {
             table.answered = false;
@@ -610,7 +647,7 @@ impl ColumnFile<'_, '_> {
     fn expression_type(&mut self, ask: &Ask, ids: &mut dyn TextIds, table: &mut FactTable, elements: usize) {
         let width = <languages::ExpressionType as CatalogRelation>::columns().len();
         let (resolution_at, type_at) = (place!(ExpressionType, ExpressionTypeColumn::Resolution), place!(ExpressionType, ExpressionTypeColumn::Type));
-        table.begin(Layout::Keyed, width, elements, &[], false);
+        table.begin(Layout::Keyed, width, elements, &[], false, ask.columns);
         if self.file.analysed.types == PartState::Pending {
             resolutions(&self.file.syntax, &mut self.file.buffers.types);
             self.file.analysed.types = PartState::Ready;
@@ -665,7 +702,7 @@ impl ColumnFile<'_, '_> {
             place!(BindingEvent, BindingEventColumn::Ordinal),
             place!(BindingEvent, BindingEventColumn::Lexical),
         );
-        table.begin(Layout::Keyed, width, elements, &[], false);
+        table.begin(Layout::Keyed, width, elements, &[], false, ask.columns);
         let read = self.file.semantics(ModelPart::Flow);
         if read.model.flow.state == FlowState::Incomplete {
             table.answered = false;
@@ -685,7 +722,7 @@ impl ColumnFile<'_, '_> {
                 table.rows += 1;
                 continue;
             }
-            let name = memo.name(ids, &read.model.names, event.name);
+            let name = if table.wants(cols.1) { memo.name(ids, &read.model.names, event.name) } else { 0 };
             let kind = memo.fixed(ids, event_word(event.kind));
             table.push(
                 key,
@@ -719,7 +756,7 @@ impl ColumnFile<'_, '_> {
             place!(BindingRead, BindingReadColumn::SinceMajor),
             place!(BindingRead, BindingReadColumn::SinceMinor),
         );
-        table.begin(Layout::Keyed, width, elements, &[], false);
+        table.begin(Layout::Keyed, width, elements, &[], false, ask.columns);
         let read = self.file.semantics(ModelPart::Flow);
         if read.model.flow.state == FlowState::Incomplete {
             table.answered = false;
@@ -740,7 +777,7 @@ impl ColumnFile<'_, '_> {
                 FlowReadState::Builtin(since) | FlowReadState::DeclarationOrBuiltin(since) => since,
                 FlowReadState::Unique | FlowReadState::Alternatives | FlowReadState::PossiblyUnbound | FlowReadState::Unbound | FlowReadState::Uncertain => NOT_APPLICABLE,
             };
-            let name = memo.name(ids, &read.model.names, each.name);
+            let name = if table.wants(cols.0) { memo.name(ids, &read.model.names, each.name) } else { 0 };
             let context = memo.fixed(ids, context_word(each.context));
             let state = memo.fixed(ids, state_word(each.state));
             table.push(

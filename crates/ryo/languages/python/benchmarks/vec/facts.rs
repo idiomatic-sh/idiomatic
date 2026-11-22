@@ -186,6 +186,8 @@ pub(super) struct Catalog {
     pub(super) re_columns: Vec<Vec<usize>>,
     /// The enclosing kind sets the plans ask (step 5).
     pub(super) enc_sets: Vec<[u64; 4]>,
+    /// Per slot, the columns some test reads beside its first key, one bit a catalog place (cols prototype).
+    pub(super) read_columns: Vec<u64>,
 }
 
 impl Catalog {
@@ -209,6 +211,7 @@ impl Catalog {
                 self.columns.push(catalog::columns(relation).into_iter().map(|c| catalog::column_name(c).0.to_owned()).collect());
                 self.key_columns.push(Vec::new());
                 self.re_columns.push(Vec::new());
+                self.read_columns.push(0);
                 self.names.len() - 1
             }
         };
@@ -257,6 +260,13 @@ impl Catalog {
         }
         if !self.key_columns[slot].contains(&keys[0].0) {
             self.key_columns[slot].push(keys[0].0);
+        }
+        for (c, _) in &keys[1..] {
+            self.read_columns[slot] |= 1 << c;
+        }
+        for c in &conds {
+            let (Cond::In(at, _) | Cond::NotIn(at, _) | Cond::Re(at, _) | Cond::Cmp(at, ..)) = c;
+            self.read_columns[slot] |= 1 << at;
         }
         Some(FactOp { slot, keys, conds })
     }
@@ -522,7 +532,6 @@ impl Store {
 
     #[inline]
     fn holds_direct(&self, op: &FactOp, regs: &[u32], matches: &[u128]) -> bool {
-        use ryo_python::fixtures::columns::Layout;
         let (kc, reg) = op.keys[0];
         let node = regs[reg] as usize;
         if let Some((slot, src, dst, next_id)) = self.token_slot
@@ -550,14 +559,10 @@ impl Store {
         if op.keys.len() == 1 && op.conds.is_empty() {
             return true;
         }
-        let rows = match t.layout {
-            Layout::PerNode => node..node + 1,
-            Layout::Keyed => t.offsets[node] as usize..t.offsets[node + 1] as usize,
-        };
+        let rows = t.rows_of(node);
         let cell = |c: usize, r: usize| -> Option<u64> { t.columns.get(c).and_then(|col| col.get(r)).map(|v| u64::from(*v)) };
-        let keyed = t.layout == Layout::Keyed && !t.order.is_empty();
         rows.into_iter().any(|r| {
-            let r = if keyed { t.order[r] as usize } else { r };
+            let r = t.row(r);
             let mut missing = false;
             let ok = op.keys[1..].iter().all(|(c, g)| match cell(*c, r) {
                 Some(v) => v == u64::from(regs[*g]),
