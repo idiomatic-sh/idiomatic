@@ -3,7 +3,7 @@
 //! operations specialised at load (one closure per operation and column type, run over a selection vector), and bit-mask
 //! knock-out (per node a few tests ANDed into a mask of the plans of its bucket).
 
-use super::{Columns, Key, Vocab};
+use super::{Key, Vocab};
 use ryo::languages::{NodeTable, Position, node_table};
 use std::collections::HashMap;
 
@@ -60,17 +60,14 @@ pub(super) enum Op {
     AncX { from: usize, to: usize, plan: Vec<Op> },
 }
 
-/// One file's view: the table, the source and the columns, with the structure columns when computed.
+/// One file's view: the table (its columns read in place), the source, and the structure columns when computed.
 pub(super) struct Ctx<'a> {
     pub(super) table: &'a NodeTable,
     pub(super) src: &'a [u8],
-    pub(super) kind: &'a [u16],
-    pub(super) field: &'a [u16],
-    pub(super) start: &'a [u32],
-    pub(super) end: &'a [u32],
-    pub(super) parent: &'a [u32],
     pub(super) pkind: &'a [u16],
     pub(super) cmask: &'a [KSet],
+    /// Per node, the fields of its children (codes below 128).
+    pub(super) cfmask: &'a [FSet],
     pub(super) facts: &'a super::facts::Store,
     pub(super) enc: &'a [Vec<u32>],
     pub(super) matches: &'a [u128],
@@ -81,15 +78,76 @@ impl Ctx<'_> {
     fn children(&self, n: u32) -> &[Position] {
         node_table::children_of(self.table, Position(n))
     }
-    #[inline]
+    // the node table's own columns, read in place (no copy a file)
+    #[inline(always)]
+    fn kind(&self, n: u32) -> u16 {
+        node_table::kind_of(self.table, Position(n)).0
+    }
+    #[inline(always)]
+    fn field(&self, n: u32) -> u16 {
+        node_table::field_of(self.table, Position(n)).0
+    }
+    #[inline(always)]
+    fn parent(&self, n: u32) -> u32 {
+        node_table::parent_of(self.table, Position(n)).0
+    }
+    #[inline(always)]
     fn text(&self, n: u32) -> &[u8] {
-        &self.src[self.start[n as usize] as usize..self.end[n as usize] as usize]
+        let s = node_table::span_of(self.table, Position(n));
+        &self.src[s.start.0 as usize..s.end.0 as usize]
+    }
+}
+
+/// A check's tests of one node in one test: the kinds it lets through (its not-kinds taken out; every kind when it tests
+/// none), its fields, texts and regex. One kernel a check, whatever its shape, in place of a closure a test.
+#[derive(Clone)]
+struct Own {
+    kinds: KSet,
+    fields: Option<FSet>,
+    texts: Option<Vec<Vec<u8>>>,
+    re: Option<regex::bytes::Regex>,
+}
+
+const ALL_KINDS: KSet = [u64::MAX; 4];
+
+impl Own {
+    fn of(c: &Check) -> Self {
+        Own {
+            kinds: if c.kinds.is_some() || c.notkinds.is_some() { c.kind_set() } else { ALL_KINDS },
+            fields: c.fields,
+            texts: c.texts.clone(),
+            re: c.re.clone(),
+        }
+    }
+    #[inline(always)]
+    fn eval(&self, ctx: &Ctx<'_>, n: u32) -> bool {
+        let i = n as usize;
+        kbit(&self.kinds, ctx.kind(i as u32))
+            && self.fields.as_ref().is_none_or(|s| fbit(s, ctx.field(i as u32)))
+            && self.texts.as_ref().is_none_or(|t| {
+                let x = ctx.text(n);
+                t.iter().any(|y| y.as_slice() == x)
+            })
+            && self.re.as_ref().is_none_or(|re| re.is_match(ctx.text(n)))
+    }
+    /// Whether some child of `n` can pass: false when no child has a kind, or a field, this test lets through (the
+    /// structure's child-kind and child-field sets), so its children need not be read.
+    #[inline]
+    fn some_child_can(&self, ctx: &Ctx<'_>, n: u32) -> bool {
+        let i = n as usize;
+        (self.kinds == ALL_KINDS || {
+            let m = &ctx.cmask[i];
+            (m[0] & self.kinds[0]) | (m[1] & self.kinds[1]) | (m[2] & self.kinds[2]) | (m[3] & self.kinds[3]) != 0
+        }) && self.fields.as_ref().is_none_or(|s| {
+            let m = &ctx.cfmask[i];
+            (m[0] & s[0]) | (m[1] & s[1]) != 0
+        })
     }
 }
 
 #[inline]
 fn passes(ctx: &Ctx<'_>, c: &Check, n: u32) -> bool {
-    let k = ctx.kind[n as usize];
+    let k = ctx.kind(n);
     if let Some(s) = &c.kinds {
         if !kbit(s, k) {
             return false;
@@ -101,7 +159,7 @@ fn passes(ctx: &Ctx<'_>, c: &Check, n: u32) -> bool {
         }
     }
     if let Some(s) = &c.fields {
-        if !fbit(s, ctx.field[n as usize]) {
+        if !fbit(s, ctx.field(n)) {
             return false;
         }
     }
@@ -132,6 +190,9 @@ pub(super) struct Plan {
 
 pub(super) struct FRule {
     pub(super) name: String,
+    /// Its plans are of the node class: its rows are found from tree survivors (else the second half runs it wherever
+    /// the skip kept it).
+    pub(super) node: bool,
     pub(super) plans: Vec<Plan>,
     /// One CNF a branch of the rule: the rule can have a row only where some branch's CNF holds (empty list: unknown).
     pub(super) cnfs: Vec<Vec<Vec<u16>>>,
@@ -308,7 +369,7 @@ pub(super) fn load(path: &str, vocab: &Vocab, catalog: &mut super::facts::Catalo
         let slots = std::mem::take(&mut fc.slots);
         let valued = std::mem::take(&mut fc.valued);
         let keyed = std::mem::take(&mut fc.keyed);
-        rules.push(FRule { name: r["rule"].as_str().expect("rule").to_owned(), plans, cnfs, slots, valued, keyed });
+        rules.push(FRule { name: r["rule"].as_str().expect("rule").to_owned(), node: r["class"].as_str() == Some("node"), plans, cnfs, slots, valued, keyed });
     }
     missing.sort();
     missing.dedup();
@@ -326,7 +387,7 @@ pub(super) fn exec(ctx: &Ctx<'_>, ops: &[Op], pc: usize, regs: &mut [u32], steps
         Op::Check(c) => passes(ctx, c, regs[c.v]) && exec(ctx, ops, pc + 1, regs, steps),
         Op::Up { from, to, .. } => {
             let n = regs[*from];
-            let p = ctx.parent[n as usize];
+            let p = ctx.parent(n);
             if p == n {
                 return false;
             }
@@ -358,7 +419,7 @@ pub(super) fn exec(ctx: &Ctx<'_>, ops: &[Op], pc: usize, regs: &mut [u32], steps
         }
         Op::IsParent { child, parent } => {
             let c = regs[*child];
-            ctx.parent[c as usize] == regs[*parent] && ctx.parent[c as usize] != c && exec(ctx, ops, pc + 1, regs, steps)
+            ctx.parent(c) == regs[*parent] && ctx.parent(c) != c && exec(ctx, ops, pc + 1, regs, steps)
         }
         Op::Fact(f) => ctx.facts.holds(f, regs, ctx.matches) && exec(ctx, ops, pc + 1, regs, steps),
         Op::Enc { from, to, set } => {
@@ -372,7 +433,7 @@ pub(super) fn exec(ctx: &Ctx<'_>, ops: &[Op], pc: usize, regs: &mut [u32], steps
             let mut n = regs[*from];
             let mut found = false;
             loop {
-                let p = ctx.parent[n as usize];
+                let p = ctx.parent(n);
                 if p == n {
                     break;
                 }
@@ -390,33 +451,43 @@ pub(super) fn exec(ctx: &Ctx<'_>, ops: &[Op], pc: usize, regs: &mut [u32], steps
 }
 
 // ---------------------------------------------------------------- 2. specialised at load, selection vectors
-/// Rows of registers (stride `r`) with the index of the row they came from (for a negation's sub-run).
+/// Rows of registers, `r` a row.
 #[derive(Default)]
 pub(super) struct Rows {
     pub(super) r: usize,
     pub(super) d: Vec<u32>,
-    pub(super) tag: Vec<u32>,
 }
 
 impl Rows {
     pub(super) fn len(&self) -> usize {
-        self.tag.len()
+        self.d.len().checked_div(self.r).unwrap_or(0)
+    }
+    /// The rows of one candidate each, register 0 holding it.
+    pub(super) fn enter(&mut self, r: usize, nodes: &[u32]) {
+        self.r = r;
+        self.d.clear();
+        if r == 1 {
+            self.d.extend_from_slice(nodes);
+            return;
+        }
+        self.d.resize(nodes.len() * r, 0);
+        for (j, n) in nodes.iter().enumerate() {
+            self.d[j * r] = *n;
+        }
     }
     #[inline]
     fn retain<F: Fn(&[u32]) -> bool>(&mut self, f: F) {
         let r = self.r;
         let mut w = 0;
-        for i in 0..self.tag.len() {
+        for i in 0..self.len() {
             if f(&self.d[i * r..i * r + r]) {
                 if w != i {
                     self.d.copy_within(i * r..i * r + r, w * r);
-                    self.tag[w] = self.tag[i];
                 }
                 w += 1;
             }
         }
         self.d.truncate(w * r);
-        self.tag.truncate(w);
     }
 }
 
@@ -432,49 +503,41 @@ where
     })
 }
 
-fn check_stages(c: &Check, out: &mut Vec<Stage>) {
-    let v = c.v;
-    if let Some(s) = c.kinds {
-        let ones: Vec<u16> = (0..256u16).filter(|k| kbit(&s, *k)).collect();
-        if ones.len() == 1 {
-            let k = ones[0];
-            out.push(filt(move |ctx, row| ctx.kind[row[v] as usize] == k));
-        } else {
-            out.push(filt(move |ctx, row| kbit(&s, ctx.kind[row[v] as usize])));
-        }
-    }
-    if let Some(s) = c.notkinds {
-        out.push(filt(move |ctx, row| !kbit(&s, ctx.kind[row[v] as usize])));
-    }
-    if let Some(s) = c.fields {
-        let ones: Vec<u16> = (0..128u16).filter(|f| fbit(&s, *f)).collect();
-        if ones.len() == 1 {
-            let f = ones[0];
-            out.push(filt(move |ctx, row| ctx.field[row[v] as usize] == f));
-        } else {
-            out.push(filt(move |ctx, row| fbit(&s, ctx.field[row[v] as usize])));
-        }
-    }
-    if let Some(t) = &c.texts {
-        if t.len() == 1 {
-            let t = t[0].clone();
-            out.push(filt(move |ctx, row| ctx.text(row[v]) == t.as_slice()));
-        } else {
-            let t = t.clone();
-            out.push(filt(move |ctx, row| {
-                let x = ctx.text(row[v]);
-                t.iter().any(|y| y.as_slice() == x)
-            }));
-        }
-    }
-    if let Some(re) = &c.re {
-        let re = re.clone();
-        out.push(filt(move |ctx, row| re.is_match(ctx.text(row[v]))));
-    }
+/// Some child of the row's `from` passes `head` (children read only when one can).
+fn any_child(from: usize, head: Own) -> Stage {
+    filt(move |ctx, row| {
+        let n = row[from];
+        head.some_child_can(ctx, n) && ctx.children(n).iter().any(|x| head.eval(ctx, x.0))
+    })
 }
 
-/// Compiles a plan into stages, fusing a leaf `up` + kind check into a parent-kind test, a leaf `down` + kind check into a
-/// child-kind-bitset test, and any other leaf `down` + check into one scan of the children.
+/// A stage that moves each row from register `from` to the node `to_of` gives (`u32::MAX`: none, the row is dropped).
+fn mover<F>(from: usize, to: usize, to_of: F) -> Stage
+where
+    F: for<'c> Fn(&Ctx<'c>, u32) -> u32 + 'static,
+{
+    Box::new(move |ctx, rows, steps| {
+        *steps += rows.len() as u64;
+        let r = rows.r;
+        let mut w = 0;
+        for j in 0..rows.len() {
+            let t = to_of(ctx, rows.d[j * r + from]);
+            if t != u32::MAX {
+                if w != j {
+                    rows.d.copy_within(j * r..j * r + r, w * r);
+                }
+                rows.d[w * r + to] = t;
+                w += 1;
+            }
+        }
+        rows.d.truncate(w * r);
+    })
+}
+
+/// Compiles a plan into stages: one kernel a check; a leaf `up` + kind check as a parent-kind test; a leaf `down` + kind
+/// check as a child-kind-bitset test; any other leaf `down` + check, and an `exists` of one check, as one scan of the
+/// children, skipped when the child-kind and child-field sets rule it out; a `down` + check of the child as one expansion
+/// to the children that pass.
 pub(super) fn compile(ops: &[Op]) -> Vec<Stage> {
     let mut out: Vec<Stage> = Vec::new();
     let mut i = 0;
@@ -484,41 +547,26 @@ pub(super) fn compile(ops: &[Op]) -> Vec<Stage> {
             _ => None,
         };
         match &ops[i] {
-            Op::Check(c) => check_stages(c, &mut out),
+            Op::Check(c) => {
+                let (v, own) = (c.v, Own::of(c));
+                out.push(filt(move |ctx, row| own.eval(ctx, row[v])));
+            }
             Op::Up { from, to, leaf } => {
                 let from = *from;
                 match next_check(*to) {
                     Some(c) if *leaf && c.kinds_only() => {
                         let s = c.kind_set();
                         out.push(filt(move |ctx, row| {
-                            let n = row[from] as usize;
-                            ctx.parent[n] as usize != n && kbit(&s, ctx.pkind[n])
-                        }));
+                                let n = row[from] as usize;
+                                ctx.parent(n as u32) as usize != n && kbit(&s, ctx.pkind[n])
+                            }));
                         i += 1;
                     }
-                    _ if *leaf && next_check(*to).is_none() => out.push(filt(move |ctx, row| ctx.parent[row[from] as usize] != row[from])),
-                    _ => {
-                        let to = *to;
-                        out.push(Box::new(move |ctx, rows, steps| {
-                            *steps += rows.len() as u64;
-                            let r = rows.r;
-                            let mut w = 0;
-                            for j in 0..rows.tag.len() {
-                                let n = rows.d[j * r + from];
-                                let p = ctx.parent[n as usize];
-                                if p != n {
-                                    if w != j {
-                                        rows.d.copy_within(j * r..j * r + r, w * r);
-                                        rows.tag[w] = rows.tag[j];
-                                    }
-                                    rows.d[w * r + to] = p;
-                                    w += 1;
-                                }
-                            }
-                            rows.d.truncate(w * r);
-                            rows.tag.truncate(w);
-                        }));
-                    }
+                    _ if *leaf && next_check(*to).is_none() => out.push(filt(move |ctx, row| ctx.parent(row[from]) != row[from])),
+                    _ => out.push(mover(from, *to, |ctx, n| {
+                            let p = ctx.parent(n);
+                            if p == n { u32::MAX } else { p }
+                        })),
                 }
             }
             Op::Down { from, to, leaf } => {
@@ -527,20 +575,24 @@ pub(super) fn compile(ops: &[Op]) -> Vec<Stage> {
                     Some(c) if *leaf && c.kinds_only() => {
                         let s = c.kind_set();
                         out.push(filt(move |ctx, row| {
-                            let m = &ctx.cmask[row[from] as usize];
-                            (m[0] & s[0]) | (m[1] & s[1]) | (m[2] & s[2]) | (m[3] & s[3]) != 0
-                        }));
+                                let m = &ctx.cmask[row[from] as usize];
+                                (m[0] & s[0]) | (m[1] & s[1]) | (m[2] & s[2]) | (m[3] & s[3]) != 0
+                            }));
                         i += 1;
                     }
                     Some(c) if *leaf => {
-                        out.push(filt(move |ctx, row| ctx.children(row[from]).iter().any(|x| passes(ctx, &c, x.0))));
+                        out.push(any_child(from, Own::of(&c)));
                         i += 1;
                     }
                     None if *leaf => out.push(filt(move |ctx, row| !ctx.children(row[from]).is_empty())),
-                    _ => out.push(expand(from, *to)),
+                    Some(c) => {
+                        out.push(expand(from, *to, Some(Own::of(&c))));
+                        i += 1;
+                    }
+                    None => out.push(expand(from, *to, None)),
                 }
             }
-            Op::Not(sub) => out.push(pred_stage(compile_pred(&[Op::Not(sub.clone())]))),
+            Op::Not(_) => out.push(pred_stage(compile_pred(std::slice::from_ref(&ops[i])))),
             Op::Exists { from, to, plan } => {
                 let (from, to) = (*from, *to);
                 match plan.as_slice() {
@@ -548,15 +600,12 @@ pub(super) fn compile(ops: &[Op]) -> Vec<Stage> {
                     [Op::Check(c)] if c.v == to && c.kinds_only() => {
                         let s = c.kind_set();
                         out.push(filt(move |ctx, row| {
-                            let m = &ctx.cmask[row[from] as usize];
-                            (m[0] & s[0]) | (m[1] & s[1]) | (m[2] & s[2]) | (m[3] & s[3]) != 0
-                        }));
+                                let m = &ctx.cmask[row[from] as usize];
+                                (m[0] & s[0]) | (m[1] & s[1]) | (m[2] & s[2]) | (m[3] & s[3]) != 0
+                            }));
                     }
-                    [Op::Check(c)] if c.v == to => {
-                        let c = c.clone();
-                        out.push(filt(move |ctx, row| ctx.children(row[from]).iter().any(|x| passes(ctx, &c, x.0))));
-                    }
-                    _ => out.push(pred_stage(compile_pred(&[Op::Exists { from, to, plan: plan.clone() }]))),
+                    [Op::Check(c)] if c.v == to => out.push(any_child(from, Own::of(c))),
+                    _ => out.push(pred_stage(compile_pred(std::slice::from_ref(&ops[i])))),
                 }
             }
             Op::Fact(f) => {
@@ -564,33 +613,16 @@ pub(super) fn compile(ops: &[Op]) -> Vec<Stage> {
                 out.push(filt(move |ctx, row| ctx.facts.holds(&f, row, ctx.matches)));
             }
             Op::Enc { from, to, set } => {
-                let (from, to, set) = (*from, *to, *set);
-                out.push(Box::new(move |ctx, rows, steps| {
-                    *steps += rows.len() as u64;
-                    let r = rows.r;
-                    let mut w = 0;
-                    for j in 0..rows.tag.len() {
-                        let e = ctx.enc[set][rows.d[j * r + from] as usize];
-                        if e != u32::MAX {
-                            if w != j {
-                                rows.d.copy_within(j * r..j * r + r, w * r);
-                                rows.tag[w] = rows.tag[j];
-                            }
-                            rows.d[w * r + to] = e;
-                            w += 1;
-                        }
-                    }
-                    rows.d.truncate(w * r);
-                    rows.tag.truncate(w);
-                }));
+                let set = *set;
+                out.push(mover(*from, *to, move |ctx, n| ctx.enc[set][n as usize]));
             }
             Op::AncX { .. } => out.push(pred_stage(compile_pred(std::slice::from_ref(&ops[i])))),
             Op::IsParent { child, parent } => {
                 let (c, p) = (*child, *parent);
                 out.push(filt(move |ctx, row| {
-                    let n = row[c] as usize;
-                    ctx.parent[n] == row[p] && ctx.parent[n] as usize != n
-                }));
+                        let n = row[c] as usize;
+                        ctx.parent(n as u32) == row[p] && ctx.parent(n as u32) as usize != n
+                    }));
             }
         }
         i += 1;
@@ -598,51 +630,37 @@ pub(super) fn compile(ops: &[Op]) -> Vec<Stage> {
     out
 }
 
-/// A load-time specialised predicate over registers: one closure per operation and column type, chained in continuation
-/// style (a `down` tries each child against the rest of the chain).
+/// A load-time specialised predicate over registers: one closure per operation, chained in continuation style (a `down`
+/// tries each child against the rest of the chain).
 pub(super) type Pred = Box<dyn for<'c> Fn(&Ctx<'c>, &mut [u32], &mut u64) -> bool>;
 
 fn check_pred(c: &Check, next: Pred) -> Pred {
-    let v = c.v;
-    let mut k = next;
-    if let Some(re) = &c.re {
-        let re = re.clone();
-        k = Box::new(move |ctx, r, s| re.is_match(ctx.text(r[v])) && k(ctx, r, s));
-    }
-    if let Some(t) = &c.texts {
-        if t.len() == 1 {
-            let t = t[0].clone();
-            k = Box::new(move |ctx, r, s| ctx.text(r[v]) == t.as_slice() && k(ctx, r, s));
-        } else {
-            let t = t.clone();
-            k = Box::new(move |ctx, r, s| {
-                let x = ctx.text(r[v]);
-                t.iter().any(|y| y.as_slice() == x) && k(ctx, r, s)
-            });
-        }
-    }
-    if let Some(f) = c.fields {
-        let ones: Vec<u16> = (0..128u16).filter(|x| fbit(&f, *x)).collect();
-        if ones.len() == 1 {
-            let one = ones[0];
-            k = Box::new(move |ctx, r, s| ctx.field[r[v] as usize] == one && k(ctx, r, s));
-        } else {
-            k = Box::new(move |ctx, r, s| fbit(&f, ctx.field[r[v] as usize]) && k(ctx, r, s));
-        }
-    }
-    if c.kinds.is_some() || c.notkinds.is_some() {
-        let set = c.kind_set();
-        let ones: Vec<u16> = (0..256u16).filter(|x| kbit(&set, *x)).collect();
-        if ones.len() == 1 {
-            let one = ones[0];
-            k = Box::new(move |ctx, r, s| ctx.kind[r[v] as usize] == one && k(ctx, r, s));
-        } else {
-            k = Box::new(move |ctx, r, s| kbit(&set, ctx.kind[r[v] as usize]) && k(ctx, r, s));
-        }
-    }
+    let (v, own) = (c.v, Own::of(c));
     Box::new(move |ctx, r, s| {
         *s += 1;
-        k(ctx, r, s)
+        own.eval(ctx, r[v]) && next(ctx, r, s)
+    })
+}
+
+/// A `down` from `from` to `to` whose first test is `head` on the child: the children are read only when one can pass,
+/// and the rest of the chain runs only on a child that passes.
+fn down_pred(from: usize, to: usize, head: Own, next: Pred) -> Pred {
+    Box::new(move |ctx, r, s| {
+        *s += 1;
+        let n = r[from];
+        if !head.some_child_can(ctx, n) {
+            return false;
+        }
+        for c in ctx.children(n) {
+            *s += 1;
+            if head.eval(ctx, c.0) {
+                r[to] = c.0;
+                if next(ctx, r, s) {
+                    return true;
+                }
+            }
+        }
+        false
     })
 }
 
@@ -672,7 +690,7 @@ pub(super) fn compile_pred(ops: &[Op]) -> Pred {
                         Box::new(move |ctx, r, s| {
                             *s += 1;
                             let n = r[from] as usize;
-                            ctx.parent[n] as usize != n && kbit(&set, ctx.pkind[n]) && next(ctx, r, s)
+                            ctx.parent(n as u32) as usize != n && kbit(&set, ctx.pkind[n]) && next(ctx, r, s)
                         })
                     } else {
                         Box::new(move |ctx, r, s| {
@@ -681,6 +699,14 @@ pub(super) fn compile_pred(ops: &[Op]) -> Pred {
                             ((m[0] & set[0]) | (m[1] & set[1]) | (m[2] & set[2]) | (m[3] & set[3]) != 0) && next(ctx, r, s)
                         })
                     };
+                    i -= 1;
+                    continue;
+                }
+            }
+            // any other `down` followed by a check of the child: the check is the down's head
+            if let (Op::Down { from, to, .. }, Op::Check(c)) = (&ops[i - 1], &ops[i]) {
+                if c.v == *to {
+                    k = down_pred(*from, *to, Own::of(c), k);
                     i -= 1;
                     continue;
                 }
@@ -694,7 +720,7 @@ pub(super) fn compile_pred(ops: &[Op]) -> Pred {
                 Box::new(move |ctx, r, s| {
                     *s += 1;
                     let n = r[from];
-                    let p = ctx.parent[n as usize];
+                    let p = ctx.parent(n);
                     p != n && {
                         r[to] = p;
                         next(ctx, r, s)
@@ -723,6 +749,31 @@ pub(super) fn compile_pred(ops: &[Op]) -> Pred {
                             *s += 1;
                             let m = &ctx.cmask[r[from] as usize];
                             ((m[0] & set[0]) | (m[1] & set[1]) | (m[2] & set[2]) | (m[3] & set[3]) != 0) && next(ctx, r, s)
+                        })
+                    }
+                    // the block's first test is a check of the child: one kernel a child, the rest of the block only on
+                    // the children that pass it, none read when the child sets rule them out
+                    [Op::Check(c), rest @ ..] if c.v == to => {
+                        let head = Own::of(c);
+                        let inner = compile_pred(rest);
+                        Box::new(move |ctx, r, s| {
+                            *s += 1;
+                            let n = r[from];
+                            if !head.some_child_can(ctx, n) {
+                                return false;
+                            }
+                            let mut found = false;
+                            for c in ctx.children(n) {
+                                *s += 1;
+                                if head.eval(ctx, c.0) {
+                                    r[to] = c.0;
+                                    if inner(ctx, r, s) {
+                                        found = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            found && next(ctx, r, s)
                         })
                     }
                     _ => {
@@ -775,7 +826,7 @@ pub(super) fn compile_pred(ops: &[Op]) -> Pred {
                     let mut n = r[from];
                     let mut found = false;
                     loop {
-                        let p = ctx.parent[n as usize];
+                        let p = ctx.parent(n);
                         if p == n {
                             break;
                         }
@@ -794,7 +845,7 @@ pub(super) fn compile_pred(ops: &[Op]) -> Pred {
                 Box::new(move |ctx, r, s| {
                     *s += 1;
                     let n = r[c] as usize;
-                    ctx.parent[n] == r[p] && ctx.parent[n] as usize != n && next(ctx, r, s)
+                    ctx.parent(n as u32) == r[p] && ctx.parent(n as u32) as usize != n && next(ctx, r, s)
                 })
             }
         };
@@ -808,38 +859,41 @@ fn pred_stage(pred: Pred) -> Stage {
         let r = rows.r;
         let mut regs = [0u32; 256];
         let mut w = 0;
-        for j in 0..rows.tag.len() {
+        for j in 0..rows.len() {
             regs[..r].copy_from_slice(&rows.d[j * r..j * r + r]);
             if pred(ctx, &mut regs, steps) {
                 if w != j {
                     rows.d.copy_within(j * r..j * r + r, w * r);
-                    rows.tag[w] = rows.tag[j];
                 }
                 w += 1;
             }
         }
         rows.d.truncate(w * r);
-        rows.tag.truncate(w);
     })
 }
 
-fn expand(from: usize, to: usize) -> Stage {
+/// A row for each child of `from` (each child that passes `head`, when the next op checks the child).
+fn expand(from: usize, to: usize, head: Option<Own>) -> Stage {
     Box::new(move |ctx, rows, steps| {
         *steps += rows.len() as u64;
         let r = rows.r;
         let mut d = Vec::with_capacity(rows.d.len());
-        let mut tag = Vec::with_capacity(rows.tag.len());
-        for j in 0..rows.tag.len() {
+        for j in 0..rows.len() {
             let row = &rows.d[j * r..j * r + r];
-            for c in ctx.children(row[from]) {
+            let n = row[from];
+            if head.as_ref().is_some_and(|h| !h.some_child_can(ctx, n)) {
+                continue;
+            }
+            for c in ctx.children(n) {
+                if head.as_ref().is_some_and(|h| !h.eval(ctx, c.0)) {
+                    continue;
+                }
                 d.extend_from_slice(row);
                 let at = d.len() - r + to;
                 d[at] = c.0;
-                tag.push(rows.tag[j]);
             }
         }
         rows.d = d;
-        rows.tag = tag;
     })
 }
 
@@ -859,11 +913,11 @@ impl Test {
             Test::ChildKind(s) => format!("child {s:?}"),
         }
     }
-    #[inline]
+    #[inline(always)]
     fn eval(&self, ctx: &Ctx<'_>, n: u32) -> bool {
         match self {
             Test::Own(c) => passes(ctx, c, n),
-            Test::ParentKind(s) => ctx.parent[n as usize] != n && kbit(s, ctx.pkind[n as usize]),
+            Test::ParentKind(s) => ctx.parent(n) != n && kbit(s, ctx.pkind[n as usize]),
             Test::ChildKind(s) => {
                 let m = &ctx.cmask[n as usize];
                 (m[0] & s[0]) | (m[1] & s[1]) | (m[2] & s[2]) | (m[3] & s[3]) != 0
@@ -1044,9 +1098,10 @@ pub(super) fn knock(ctx: &Ctx<'_>, group: &Group, nodes: &[u32], file: &[u64], s
 // ---------------------------------------------------------------- the structure pass
 #[derive(Default)]
 pub(super) struct Structure {
-    pub(super) parent: Vec<u32>,
     pub(super) pkind: Vec<u16>,
     pub(super) cmask: Vec<KSet>,
+    /// Per node, the fields (codes below 128) of its children.
+    pub(super) cfmask: Vec<FSet>,
     pub(super) sibling: Vec<u32>,
     pub(super) enc_function: Vec<u32>,
     pub(super) enc_class: Vec<u32>,
@@ -1055,30 +1110,30 @@ pub(super) struct Structure {
     pub(super) enc: Vec<Vec<u32>>,
 }
 
-pub(super) fn parents(table: &NodeTable, cols: &Columns, s: &mut Structure) {
-    s.parent.clear();
-    for i in 0..cols.kind.len() as u32 {
-        s.parent.push(node_table::parent_of(table, Position(i)).0);
-    }
-}
-
-/// One forward pass: parent kind, child-kind bitset, sibling index, nearest enclosing function, class and loop.
-pub(super) fn structure(table: &NodeTable, cols: &Columns, s: &mut Structure, function: &KSet, class: &KSet, looping: &KSet) {
-    let n = cols.kind.len();
+/// One forward pass: parent kind, child-kind and child-field bitsets, sibling index, nearest enclosing function, class and loop.
+pub(super) fn structure(table: &NodeTable, s: &mut Structure, function: &KSet, class: &KSet, looping: &KSet) {
+    let n = node_table::element_count(table).0 as usize;
+    let kind = |i: usize| node_table::kind_of(table, Position(i as u32)).0;
     s.pkind.clear();
     s.cmask.clear();
     s.cmask.resize(n, [0; 4]);
+    s.cfmask.clear();
+    s.cfmask.resize(n, [0; 2]);
     s.sibling.clear();
     s.enc_function.clear();
     s.enc_class.clear();
     s.enc_loop.clear();
     for i in 0..n {
-        let p = s.parent[i] as usize;
-        let k = cols.kind[i];
-        let pk = cols.kind[p];
+        let p = node_table::parent_of(table, Position(i as u32)).0 as usize;
+        let k = kind(i);
+        let pk = kind(p);
         s.pkind.push(pk);
         if p != i {
             s.cmask[p][usize::from(k) / 64] |= 1 << (k % 64);
+            let f = node_table::field_of(table, Position(i as u32)).0;
+            if f < 128 {
+                s.cfmask[p][usize::from(f) / 64] |= 1 << (f % 64);
+            }
         }
         s.sibling.push(node_table::ordinal_of(table, Position(i as u32)).0);
         let up = |enc: &Vec<u32>, set: &KSet| -> u32 {
@@ -1100,23 +1155,25 @@ pub(super) fn structure(table: &NodeTable, cols: &Columns, s: &mut Structure, fu
 }
 
 /// The enclosing columns of the plans' kind sets, one forward pass each over the parent and kind columns.
-pub(super) fn enclosing(cols: &Columns, s: &mut Structure, sets: &[KSet]) {
-    let n = cols.kind.len();
+pub(super) fn enclosing(table: &NodeTable, s: &mut Structure, sets: &[KSet]) {
+    let n = node_table::element_count(table).0 as usize;
+    let kind = |i: usize| node_table::kind_of(table, Position(i as u32)).0;
+    let parent = |i: usize| node_table::parent_of(table, Position(i as u32)).0 as usize;
     s.enc.resize_with(sets.len(), Vec::new);
     for (k, set) in sets.iter().enumerate() {
         let col = &mut s.enc[k];
         col.clear();
         col.resize(n, u32::MAX);
         for i in 0..n {
-            let p = s.parent[i] as usize;
+            let p = parent(i);
             if p == i || p >= i {
                 // a root, or a parent written after its child (an embedded segment's host comes first: never here)
-                if p != i && p < n && kbit(set, cols.kind[p]) {
+                if p != i && p < n && kbit(set, kind(p)) {
                     col[i] = p as u32;
                 }
                 continue;
             }
-            col[i] = if kbit(set, cols.kind[p]) { p as u32 } else { col[p] };
+            col[i] = if kbit(set, kind(p)) { p as u32 } else { col[p] };
         }
     }
 }
