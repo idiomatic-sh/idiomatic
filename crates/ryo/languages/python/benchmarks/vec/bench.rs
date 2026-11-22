@@ -909,7 +909,7 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
         let mut lines = vec!["node\top\tcalls\trows\ttouched\tseconds".to_owned()];
         for (i, pn) in plan.nodes.iter().enumerate() {
             if exec.stats.calls[i] > 0 || exec.stats.time[i] > 0.0 {
-                lines.push(format!("{i}\t{}\t{}\t{}\t{}\t{:.6}\t{}\t{}", pn.op, exec.stats.calls[i], exec.stats.rows[i], exec.stats.touched[i], exec.stats.time[i], exec.stats.empty[i], exec.stats.probes[i]));
+                lines.push(format!("{i}\t{}\t{}\t{}\t{}\t{:.6}\t{}\t{}\t{}", pn.op, exec.stats.calls[i], exec.stats.rows[i], exec.stats.touched[i], exec.stats.time[i], exec.stats.empty[i], exec.stats.probes[i], exec.stats.made_by[i] as i64));
             }
         }
         for (k, v) in &by_rel {

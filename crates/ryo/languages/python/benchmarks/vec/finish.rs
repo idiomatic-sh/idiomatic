@@ -581,6 +581,8 @@ pub(super) struct Stats {
     pub(super) touched: Vec<u64>,
     pub(super) empty: Vec<u64>,
     pub(super) probes: Vec<u64>,
+    /// The step that first asked a node whole in a file (diagnostic).
+    pub(super) made_by: Vec<usize>,
 }
 
 // ------------------------------------------------------------------------------------------------ expressions
@@ -667,9 +669,14 @@ pub(super) struct Exec<'p> {
     sels: Vec<Option<Rc<SelPlan>>>,
     inner: f64,
     deps: FxHashMap<(usize, usize), bool>,
+    stack: Vec<usize>,
     /// Steps whose inputs are all run-wide (the file list, written rows): made once a run.
     constant: Vec<Option<bool>>,
     run_memo: FxHashMap<usize, Rc<Table>>,
+    /// The steps that read each node, and whether every one of them reads it only by key (never made whole then).
+    consumers: Vec<Vec<usize>>,
+    keyed_memo: Vec<Option<bool>>,
+    emitted: rustc_hash::FxHashSet<usize>,
 }
 
 type R<T> = Result<T, String>;
@@ -695,18 +702,118 @@ impl<'p> Exec<'p> {
         let k = plan.nodes.len();
         Exec {
             plan,
-            stats: Stats { time: vec![0.0; k], rows: vec![0; k], calls: vec![0; k], touched: vec![0; k], empty: vec![0; k], probes: vec![0; k] },
+            stats: Stats { time: vec![0.0; k], rows: vec![0; k], calls: vec![0; k], touched: vec![0; k], empty: vec![0; k], probes: vec![0; k], made_by: vec![usize::MAX; k] },
             schemas: vec![None; k],
             views: vec![None; k],
             sels: vec![None; k],
             inner: 0.0,
             deps: FxHashMap::default(),
+            stack: Vec::new(),
             constant: vec![None; k],
             run_memo: FxHashMap::default(),
+            consumers: {
+                let mut c = vec![Vec::new(); k];
+                for (i, n) in plan.nodes.iter().enumerate() {
+                    for x in &n.inputs {
+                        if !c[*x].contains(&i) {
+                            c[*x].push(i);
+                        }
+                    }
+                }
+                c
+            },
+            keyed_memo: vec![None; k],
+            emitted: plan.emits.iter().map(|e| e.1).collect(),
         }
     }
 
     pub(super) fn reset_file(&mut self) {}
+
+    /// Whether every step that reads `node` reads it only by key: a join that binds one of its columns from another
+    /// source, the right side of an antijoin, or a step that passes rows through and is itself read only by key. Such a
+    /// node is never made whole: it is read as a batch of keys in, rows out.
+    fn keyed(&mut self, run: &mut Run, node: usize) -> bool {
+        if let Some(k) = self.keyed_memo[node] {
+            return k;
+        }
+        self.keyed_memo[node] = Some(false);
+        let plan: &'p Plan = self.plan;
+        let k = !self.emitted.contains(&node)
+            && !plan.nodes[node].op.starts_with("closure")
+            && !self.consumers[node].is_empty()
+            && self.consumers[node].clone().into_iter().all(|c| {
+                let op = plan.nodes[c].op.as_str();
+                let arg = |name: &str| plan.nodes[c].j["args"][name]["rel"].as_u64() == Some(node as u64);
+                match op {
+                    "select" => {
+                        let Ok(sp) = self.sel(run, c) else { return false };
+                        let at: Vec<usize> = (0..sp.srcs.len()).filter(|i| sp.srcs[*i] == node).collect();
+                        if at.len() != 1 {
+                            return false;
+                        }
+                        if sp.srcs.len() == 1 {
+                            return self.keyed(run, c);
+                        }
+                        let me = at[0];
+                        sp.conj.iter().any(|e| match e {
+                            E::Cmp(o, x, y) if o == "=" => matches!((&**x, &**y), (E::Col(a, _, _), E::Col(b, _, _)) if (*a == me) != (*b == me)),
+                            _ => false,
+                        })
+                    }
+                    "antijoin" if arg("right") => true,
+                    "antijoin" | "union" | "extend" | "project" | "span-between" | "span-bounds" | "replace" | "capture" | "source-matches" | "fits-rendered" | "render-syntax" => self.keyed(run, c),
+                    "axis" if !arg("relation") && arg("from") => self.keyed(run, c),
+                    "axis" if !arg("relation") && arg("domain") => true,
+                    _ => false,
+                }
+            });
+        self.keyed_memo[node] = Some(k);
+        k
+    }
+
+    /// Whether column `kc` of `node` is the tree's kind of the node in its column `ic` (through picks, equal-id joins,
+    /// unions and steps that pass rows through): then a kind test on it may enter by the kind bucket.
+    fn tree_kind(&mut self, run: &mut Run, node: usize, kc: usize, ic: usize) -> bool {
+        if let Ok(Some(v)) = self.view(run, node) {
+            return v.base == Native::Tree && v.map.get(kc) == Some(&1) && v.map.get(ic) == Some(&0);
+        }
+        let plan: &'p Plan = self.plan;
+        let pn = &plan.nodes[node];
+        let Ok(sc) = self.schema(run, node) else { return false };
+        let (kn, inm) = (sc.names[kc].clone(), sc.names[ic].clone());
+        let through = |me: &mut Self, run: &mut Run, arg: &str| -> bool {
+            let Ok(n) = me.arg_rel(node, arg) else { return false };
+            let Ok(isc) = me.schema(run, n) else { return false };
+            match (isc.names.iter().position(|c| *c == kn), isc.names.iter().position(|c| *c == inm)) {
+                (Some(a), Some(b)) => me.tree_kind(run, n, a, b),
+                _ => false,
+            }
+        };
+        match pn.op.as_str() {
+            "select" => {
+                let Ok(sp) = self.sel(run, node) else { return false };
+                let (E::Col(sk, a, _), E::Col(si, b, _)) = (&sp.items[kc].1, &sp.items[ic].1) else { return false };
+                let (sk, a, si, b) = (*sk, *a, *si, *b);
+                if sk == si {
+                    return self.tree_kind(run, sp.srcs[sk], a, b);
+                }
+                // the id from one source, the kind from another joined to it on the id
+                let joined = sp.conj.iter().find_map(|e| match e {
+                    E::Cmp(o, x, y) if o == "=" => match (&**x, &**y) {
+                        (E::Col(s1, c1, _), E::Col(s2, c2, _)) if *s1 == si && *c1 == b && *s2 == sk => Some(*c2),
+                        (E::Col(s2, c2, _), E::Col(s1, c1, _)) if *s1 == si && *c1 == b && *s2 == sk => Some(*c2),
+                        _ => None,
+                    },
+                    _ => None,
+                });
+                joined.is_some_and(|c| self.tree_kind(run, sp.srcs[sk], a, c))
+            }
+            "union" => through(self, run, "left") && through(self, run, "right"),
+            "antijoin" => through(self, run, "left"),
+            "extend" | "span-between" | "span-bounds" | "replace" | "source-matches" | "axis" | "group-min" | "group-max" | "fits-rendered" | "render-syntax" => through(self, run, "from"),
+            _ => false,
+        }
+    }
 
     /// Whether a step's rows are the same in every file: it reads only run-wide relations, through steps that read no file.
     fn is_constant(&mut self, node: usize) -> bool {
@@ -1047,7 +1154,12 @@ impl<'p> Exec<'p> {
         let t0 = super::thread_cpu();
         let saved = self.inner;
         self.inner = 0.0;
+        if self.stats.made_by[node] == usize::MAX {
+            self.stats.made_by[node] = self.stack.last().copied().unwrap_or(usize::MAX - 1);
+        }
+        self.stack.push(node);
         let out = self.body(f, run, p, node);
+        self.stack.pop();
         let dt = super::thread_cpu() - t0;
         self.stats.time[node] += dt - self.inner;
         self.inner = saved + dt;
@@ -1099,7 +1211,9 @@ impl<'p> Exec<'p> {
         let t0 = super::thread_cpu();
         let saved = self.inner;
         self.inner = 0.0;
+        self.stack.push(node);
         let out = self.probe_body(f, run, p, node, col, keys, &sc);
+        self.stack.pop();
         let dt = super::thread_cpu() - t0;
         self.stats.time[node] += dt - self.inner;
         self.inner = saved + dt;
@@ -1144,7 +1258,20 @@ impl<'p> Exec<'p> {
             }
             "antijoin" => unary(self, run, "left")?,
             "extend" | "project" | "span-between" | "span-bounds" | "source-matches" | "replace" | "capture" => unary(self, run, "from")?,
-            "axis" if name != "related" => unary(self, run, "from")?,
+            "axis" => {
+                if name == "related" {
+                    if let Some(t) = self.axis_related(f, run, p, node, keys)? {
+                        return Ok(Rc::new(t));
+                    }
+                    None
+                } else {
+                    let fnode = self.arg_rel(node, "from")?;
+                    let fsc = self.schema(run, fnode)?;
+                    let icol = pos(&fsc.names, &name)?;
+                    let sub = self.probe(f, run, p, fnode, icol, keys)?;
+                    return Ok(Rc::new(self.axis_over(f, run, p, node, &a, &sub)?));
+                }
+            }
             "group-count" | "group-min" | "group-max" => {
                 let ks = strs(&a["keys"])?;
                 if ks.contains(&name) { unary(self, run, "from")? } else { None }
@@ -1671,7 +1798,7 @@ impl<'p> Exec<'p> {
             }
             return Ok(out);
         }
-        let r = if f.memo[rn].is_none() && self.view(run, rn)?.is_none() && std::env::var_os("VEC_KEY_PASSING").is_some() {
+        let r = if f.memo[rn].is_none() && self.view(run, rn)?.is_none() && std::env::var_os("VEC_NO_KEYED").is_none() && self.keyed(run, rn) {
             let ks: Vec<u64> = l.cols[lk[0]].iter().copied().collect::<rustc_hash::FxHashSet<u64>>().into_iter().collect();
             self.probe(f, run, p, rn, rk[0], &ks)?
         } else {
@@ -1708,7 +1835,7 @@ impl<'p> Exec<'p> {
         if self.plan.nodes[node].op == "closure" {
             return Ok(Src::Lazy(self.lazy(f, run, p, node)?));
         }
-        if f.memo[node].is_none() && self.view(run, node)?.is_none() && std::env::var_os("VEC_KEY_PASSING").is_some() {
+        if f.memo[node].is_none() && self.view(run, node)?.is_none() && std::env::var_os("VEC_NO_KEYED").is_none() && self.keyed(run, node) {
             return Ok(Src::Pending(node));
         }
         Ok(match self.res(f, run, p, node)? {
@@ -1760,7 +1887,25 @@ impl<'p> Exec<'p> {
                 _ => false,
             }) {
                 Some(d) => d,
-                None => match (0..k).find(|i| matches!(srcs[*i], Src::Pending(_))) {
+                None => match (0..k).find_map(|i| {
+                    let Src::Pending(n) = srcs[i] else { return None };
+                    let sc = self.schema(run, n).ok()?;
+                    let (kc, ic) = (sc.names.iter().position(|c| c == "kind")?, sc.names.iter().position(|c| c == "id")?);
+                    let ks = conj.iter().filter(|e| refs_of(e) == 1 << i).find_map(|e| kinds_required(e, i, kc))?;
+                    self.tree_kind(run, n, kc, ic).then_some((i, n, ic, ks))
+                }) {
+                    Some((d, n, ic, ks)) => {
+                        // entered by the kind bucket: the step is read only at those ids (its own tests still apply)
+                        let ids: Vec<u64> = bucket(f, run, &ks).into_iter().map(u64::from).collect();
+                        let t = self.probe(f, run, p, n, ic, &ids)?;
+                        self.stats.touched[node] += ids.len() as u64;
+                        if t.n == 0 {
+                            return self.empty(run, node);
+                        }
+                        srcs[d] = Src::Tab(t, usize::MAX - d);
+                        d
+                    }
+                    None => match (0..k).find(|i| matches!(srcs[*i], Src::Pending(_))) {
                     Some(d) => {
                         let Src::Pending(n) = srcs[d] else { unreachable!() };
                         let t = self.eval(f, run, p, n)?;
@@ -1771,6 +1916,7 @@ impl<'p> Exec<'p> {
                         d
                     }
                     None => (0..k).find(|i| matches!(srcs[*i], Src::View(..))).ok_or("a select with no source to start from")?,
+                    },
                 },
             },
         };
@@ -2053,174 +2199,167 @@ impl<'p> Exec<'p> {
 
     fn axis(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, a: &J) -> R<Table> {
         let from = self.eval(f, run, p, self.arg_rel(node, "from")?)?;
+        self.axis_over(f, run, p, node, a, &from)
+    }
+
+    /// The hierarchy an axis walks: the tree, a view probed by its child and parent columns, or a made table indexed once.
+    fn hier(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, rel: usize) -> R<Hier> {
+        if self.plan.nodes[rel].op == "base" && native_of(self.plan.nodes[rel].j["rel"].as_str().unwrap_or("")) == Some(Native::Child) {
+            return Ok(Hier::Tree);
+        }
+        let rsc = self.schema(run, rel)?;
+        let (pc, cc) = (pos(&rsc.names, "parent")?, pos(&rsc.names, "child")?);
+        Ok(match self.res(f, run, p, rel)? {
+            Res::View(v) if File::probes(v.base, v.map[pc]) && File::probes(v.base, v.map[cc]) => Hier::View(v, pc, cc),
+            _ => {
+                let t = self.eval(f, run, p, rel)?;
+                let mut up: FxHashMap<u64, Vec<u64>> = FxHashMap::default();
+                let mut down: FxHashMap<u64, Vec<u64>> = FxHashMap::default();
+                for r in 0..t.n {
+                    up.entry(t.cols[cc][r]).or_default().push(t.cols[pc][r]);
+                    down.entry(t.cols[pc][r]).or_default().push(t.cols[cc][r]);
+                }
+                Hier::Maps(up, down)
+            }
+        })
+    }
+
+    /// The domain an axis admits by: everything, a set, a view probed by id, or a step read by key (never made whole).
+    fn dom(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Dom> {
+        let plan: &'p Plan = self.plan;
+        let Some(J::Object(_)) = plan.nodes[node].j["args"].get("domain") else { return Ok(Dom::All) };
+        let dn = self.arg_rel(node, "domain")?;
+        let sc = self.schema(run, dn)?;
+        let c = pos(&sc.names, "id")?;
+        if f.memo[dn].is_none() && self.view(run, dn)?.is_none() && std::env::var_os("VEC_NO_KEYED").is_none() && self.keyed(run, dn) {
+            return Ok(Dom::Keyed(dn, c));
+        }
+        Ok(match self.res(f, run, p, dn)? {
+            Res::View(v) if File::probes(v.base, v.map[c]) => Dom::View(v, c),
+            _ => {
+                let d = self.eval(f, run, p, dn)?;
+                Dom::Set(d.cols[c].iter().copied().collect())
+            }
+        })
+    }
+
+    /// Which of `xs` the domain admits, asked as one batch.
+    fn admit(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, dom: &Dom, xs: &[u64]) -> R<rustc_hash::FxHashSet<u64>> {
+        Ok(match dom {
+            Dom::All => xs.iter().copied().collect(),
+            Dom::Set(s) => xs.iter().copied().filter(|x| s.contains(x)).collect(),
+            Dom::View(v, c) => {
+                let mut hits = Vec::new();
+                let mut out = rustc_hash::FxHashSet::default();
+                for x in xs {
+                    hits.clear();
+                    f.native_probe(run, v.base, v.map[*c], *x, &mut hits);
+                    if hits.iter().any(|h| view_holds(f, run, v, *h)) {
+                        out.insert(*x);
+                    }
+                }
+                out
+            }
+            Dom::Keyed(dn, c) => {
+                let mut ks: Vec<u64> = xs.to_vec();
+                ks.sort_unstable();
+                ks.dedup();
+                let t = self.probe(f, run, p, *dn, *c, &ks)?;
+                t.cols[*c].iter().copied().collect()
+            }
+        })
+    }
+
+    /// The axis over given start rows (made, or a probed subset).
+    fn axis_over(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, a: &J, from: &Table) -> R<Table> {
         let rel = self.arg_rel(node, "relation")?;
         let dir = s(&a["direction"])?.to_owned();
-        // the domain: a view is asked in place by id; a made table becomes a set
-        let dom_node = match a.get("domain") {
-            Some(J::Object(_)) => Some(self.arg_rel(node, "domain")?),
-            _ => None,
-        };
-        enum Dom {
-            All,
-            Set(rustc_hash::FxHashSet<u64>),
-            View(Rc<ViewSpec>, usize),
-        }
-        let dom = match dom_node {
-            None => Dom::All,
-            Some(dn) => match self.res(f, run, p, dn)? {
-                Res::View(v) => {
-                    let sc = self.schema(run, dn)?;
-                    let c = pos(&sc.names, "id")?;
-                    if File::probes(v.base, v.map[c]) {
-                        Dom::View(v, c)
-                    } else {
-                        let d = self.eval(f, run, p, dn)?;
-                        Dom::Set(d.cols[d.col("id")?].iter().copied().collect())
-                    }
-                }
-                Res::Tab(d) => Dom::Set(d.cols[d.col("id")?].iter().copied().collect()),
-            },
-        };
-        let mut hits = Vec::new();
-        let mut admitted = |f: &File<'_>, run: &mut Run, x: u64| match &dom {
-            Dom::All => true,
-            Dom::Set(s) => s.contains(&x),
-            Dom::View(v, c) => {
-                hits.clear();
-                f.native_probe(run, v.base, v.map[*c], x, &mut hits);
-                hits.iter().any(|h| view_holds(f, run, v, *h))
-            }
-        };
-        let ic = from.col("id")?;
         let mut out = self.empty(run, node)?;
-        let mut row = Vec::new();
-        let tree = self.plan.nodes[rel].op == "base" && native_of(self.plan.nodes[rel].j["rel"].as_str().unwrap_or("")) == Some(Native::Child);
-        // a hierarchy that is a view is walked by probes on its child and parent columns; a made one is indexed once
-        enum Hier {
-            Tree,
-            View(Rc<ViewSpec>, usize, usize),
-            Maps(FxHashMap<u64, Vec<u64>>, FxHashMap<u64, Vec<u64>>),
+        if from.n == 0 {
+            return Ok(out);
         }
-        let hier = if tree {
-            Hier::Tree
-        } else {
-            let rsc = self.schema(run, rel)?;
-            let (pc, cc) = (pos(&rsc.names, "parent")?, pos(&rsc.names, "child")?);
-            match self.res(f, run, p, rel)? {
-                Res::View(v) if File::probes(v.base, v.map[pc]) && File::probes(v.base, v.map[cc]) => Hier::View(v, pc, cc),
-                _ => {
-                    let t = self.eval(f, run, p, rel)?;
-                    let mut up: FxHashMap<u64, Vec<u64>> = FxHashMap::default();
-                    let mut down: FxHashMap<u64, Vec<u64>> = FxHashMap::default();
-                    for r in 0..t.n {
-                        up.entry(t.cols[cc][r]).or_default().push(t.cols[pc][r]);
-                        down.entry(t.cols[pc][r]).or_default().push(t.cols[cc][r]);
+        let dom = self.dom(f, run, p, node)?;
+        let hier = self.hier(f, run, p, rel)?;
+        let ic = from.col("id")?;
+        let mut row = Vec::new();
+        let mut nbrs = Vec::new();
+        // nearest ancestor: walked level by level for all starts at once, the domain asked once a level
+        if dir == "nearest-ancestor" {
+            let mut found: Vec<u64> = vec![NULL; from.n];
+            let mut frontier: Vec<(usize, u64)> = (0..from.n).map(|i| (i, from.cols[ic][i])).collect();
+            for _ in 0..4096 {
+                if frontier.is_empty() {
+                    break;
+                }
+                let mut next: Vec<(usize, u64)> = Vec::new();
+                for (i, x) in &frontier {
+                    hier_step(f, run, &hier, *x, true, &mut nbrs);
+                    for q in &nbrs {
+                        next.push((*i, *q));
                     }
-                    Hier::Maps(up, down)
+                }
+                self.stats.touched[node] += next.len() as u64;
+                let qs: Vec<u64> = next.iter().map(|x| x.1).collect();
+                let ok = self.admit(f, run, p, &dom, &qs)?;
+                frontier.clear();
+                for (i, q) in next {
+                    if found[i] != NULL {
+                        continue;
+                    }
+                    if ok.contains(&q) {
+                        found[i] = q;
+                    } else {
+                        frontier.push((i, q));
+                    }
+                }
+                frontier.retain(|(i, _)| found[*i] == NULL);
+            }
+            for (i, q) in found.iter().enumerate() {
+                if *q != NULL {
+                    from.row(i, &mut row);
+                    row.push(*q);
+                    out.push_row(&row);
                 }
             }
-        };
-        let mut step_hits = Vec::new();
-        // the other end of each edge from `x`, upward (by child) or downward (by parent)
-        let mut step = |f: &File<'_>, run: &mut Run, x: u64, up: bool, out: &mut Vec<u64>| {
-            out.clear();
-            match &hier {
-                Hier::Tree => {}
-                Hier::View(v, pc, cc) => {
-                    step_hits.clear();
-                    let (by, to) = if up { (*cc, *pc) } else { (*pc, *cc) };
-                    f.native_probe(run, v.base, v.map[by], x, &mut step_hits);
-                    for h in &step_hits {
-                        if view_holds(f, run, v, *h) {
-                            out.push(f.native_get(run, v.base, *h, v.map[to]));
-                        }
-                    }
-                }
-                Hier::Maps(u, d) => {
-                    if let Some(xs) = if up { u.get(&x) } else { d.get(&x) } {
-                        out.extend_from_slice(xs);
-                    }
-                }
-            }
-        };
-        let mut found: Vec<u64> = Vec::new();
-        let mut nbrs: Vec<u64> = Vec::new();
+            return Ok(out);
+        }
+        let mut all: Vec<(usize, u64)> = Vec::new();
         for i in 0..from.n {
             let x = from.cols[ic][i];
-            found.clear();
             match dir.as_str() {
-                "parent" | "ancestor" | "nearest-ancestor" => {
-                    if tree {
-                        let mut at = x as u32;
-                        while (at as usize) < f.n && f.has_parent(at) {
-                            at = f.parent[at as usize];
-                            if dir != "nearest-ancestor" || admitted(f, run, u64::from(at)) {
-                                found.push(u64::from(at));
-                            }
-                            if dir == "parent" || (dir == "nearest-ancestor" && !found.is_empty()) {
-                                break;
-                            }
-                        }
-                    } else {
-                        let mut chained = false;
-                        if dir == "nearest-ancestor" {
-                            let mut at = x;
-                            for _ in 0..64 {
-                                step(f, run, at, true, &mut nbrs);
-                                if nbrs.len() != 1 {
-                                    chained = nbrs.is_empty();
-                                    break;
-                                }
-                                at = nbrs[0];
-                                if admitted(f, run, at) {
-                                    found.push(at);
-                                    chained = true;
-                                    break;
-                                }
-                            }
-                        }
-                        let mut seen = rustc_hash::FxHashSet::default();
-                        let mut frontier = if chained { Vec::new() } else { vec![x] };
-                        'walk: while let Some(at) = frontier.pop() {
-                            step(f, run, at, true, &mut nbrs);
-                            for q in nbrs.clone() {
-                                if seen.insert(q) {
-                                    if dir == "nearest-ancestor" {
-                                        if admitted(f, run, q) {
-                                            found.push(q);
-                                            break 'walk;
-                                        }
-                                    } else {
-                                        found.push(q);
-                                    }
-                                    if dir != "parent" {
-                                        frontier.push(q);
-                                    }
+                "parent" | "ancestor" => {
+                    let mut seen = rustc_hash::FxHashSet::default();
+                    let mut frontier = vec![x];
+                    while let Some(at) = frontier.pop() {
+                        hier_step(f, run, &hier, at, true, &mut nbrs);
+                        for q in nbrs.clone() {
+                            if seen.insert(q) {
+                                all.push((i, q));
+                                if dir != "parent" {
+                                    frontier.push(q);
                                 }
                             }
                         }
                     }
                 }
                 "descendant" | "child" => {
-                    if tree {
-                        if (x as usize) < f.n {
-                            if dir == "child" {
-                                for c in node_table::children_of(f.table, Position(x as u32)) {
-                                    found.push(u64::from(c.0));
-                                }
-                            } else {
-                                let end = node_table::subtree_end_of(f.table, Position(x as u32)).0;
-                                found.extend((x as u32 + 1..end).map(u64::from));
+                    if matches!(hier, Hier::Tree) && (x as usize) < f.n {
+                        if dir == "child" {
+                            for c in node_table::children_of(f.table, Position(x as u32)) {
+                                all.push((i, u64::from(c.0)));
                             }
+                        } else {
+                            let end = node_table::subtree_end_of(f.table, Position(x as u32)).0;
+                            all.extend((x as u32 + 1..end).map(|q| (i, u64::from(q))));
                         }
                     } else {
                         let mut seen = rustc_hash::FxHashSet::default();
                         let mut stack = vec![x];
                         while let Some(at) = stack.pop() {
-                            step(f, run, at, false, &mut nbrs);
+                            hier_step(f, run, &hier, at, false, &mut nbrs);
                             for c in nbrs.clone() {
                                 if seen.insert(c) {
-                                    found.push(c);
+                                    all.push((i, c));
                                     if dir != "child" {
                                         stack.push(c);
                                     }
@@ -2235,26 +2374,89 @@ impl<'p> Exec<'p> {
                         if let Some(at) = sibs.iter().position(|c| u64::from(c.0) == x)
                             && let Some(nx) = sibs.get(at + 1)
                         {
-                            found.push(u64::from(nx.0));
+                            all.push((i, u64::from(nx.0)));
                         }
                     }
                 }
                 other => return Err(format!("axis direction {other}")),
             }
-            self.stats.touched[node] += found.len() as u64;
-            for qi in 0..found.len() {
-                let q = found[qi];
-                if dir == "nearest-ancestor" || admitted(f, run, q) {
-                    from.row(i, &mut row);
-                    row.push(q);
-                    out.push_row(&row);
-                    if dir == "nearest-ancestor" {
-                        break;
-                    }
-                }
+        }
+        self.stats.touched[node] += all.len() as u64;
+        let qs: Vec<u64> = all.iter().map(|x| x.1).collect();
+        let ok = self.admit(f, run, p, &dom, &qs)?;
+        for (i, q) in all {
+            if ok.contains(&q) {
+                from.row(i, &mut row);
+                row.push(q);
+                out.push_row(&row);
             }
         }
         Ok(out)
+    }
+
+    /// The axis read by its `related` end: the start rows whose nearest admitted ancestor is one of `keys`. Walked down from
+    /// each key through nodes the domain does not admit (a tree or a single-parent chain), then the starts probed by id.
+    fn axis_related(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, keys: &[u64]) -> R<Option<Table>> {
+        let plan: &'p Plan = self.plan;
+        let a = &plan.nodes[node].j["args"];
+        if s(&a["direction"])? != "nearest-ancestor" {
+            return Ok(None);
+        }
+        let rel = self.arg_rel(node, "relation")?;
+        let hier = self.hier(f, run, p, rel)?;
+        if matches!(hier, Hier::Tree) {
+            return Ok(None);
+        }
+        let dom = self.dom(f, run, p, node)?;
+        let fnode = self.arg_rel(node, "from")?;
+        let fsc = self.schema(run, fnode)?;
+        let ic = pos(&fsc.names, "id")?;
+        let mut pairs: Vec<(u64, u64)> = Vec::new();
+        let admitted = self.admit(f, run, p, &dom, keys)?;
+        let mut frontier: Vec<(u64, u64)> = keys.iter().filter(|k| admitted.contains(k)).map(|k| (*k, *k)).collect();
+        let mut nbrs = Vec::new();
+        for _ in 0..4096 {
+            if frontier.is_empty() {
+                break;
+            }
+            let mut next = Vec::new();
+            for (x, at) in &frontier {
+                hier_step(f, run, &hier, *at, false, &mut nbrs);
+                for c in &nbrs {
+                    next.push((*x, *c));
+                }
+            }
+            self.stats.touched[node] += next.len() as u64;
+            let cs: Vec<u64> = next.iter().map(|x| x.1).collect();
+            let ok = self.admit(f, run, p, &dom, &cs)?;
+            frontier.clear();
+            for (x, c) in next {
+                pairs.push((c, x));
+                if !ok.contains(&c) {
+                    frontier.push((x, c));
+                }
+            }
+        }
+        let mut cs: Vec<u64> = pairs.iter().map(|x| x.0).collect();
+        cs.sort_unstable();
+        cs.dedup();
+        let starts = self.probe(f, run, p, fnode, ic, &cs)?;
+        let mut by: FxHashMap<u64, Vec<u64>> = FxHashMap::default();
+        for (c, x) in pairs {
+            by.entry(c).or_default().push(x);
+        }
+        let mut out = self.empty(run, node)?;
+        let mut row = Vec::new();
+        for i in 0..starts.n {
+            if let Some(xs) = by.get(&starts.cols[ic][i]) {
+                for x in xs {
+                    starts.row(i, &mut row);
+                    row.push(*x);
+                    out.push_row(&row);
+                }
+            }
+        }
+        Ok(Some(out))
     }
 
     fn ordered(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, a: &J, as_of: bool) -> R<Table> {
@@ -2386,6 +2588,54 @@ impl<'p> Exec<'p> {
     }
 }
 
+/// The hierarchy an axis walks.
+pub(super) enum Hier {
+    Tree,
+    View(Rc<ViewSpec>, usize, usize),
+    Maps(FxHashMap<u64, Vec<u64>>, FxHashMap<u64, Vec<u64>>),
+}
+
+/// The domain an axis admits by.
+pub(super) enum Dom {
+    All,
+    Set(rustc_hash::FxHashSet<u64>),
+    View(Rc<ViewSpec>, usize),
+    Keyed(usize, usize),
+}
+
+/// The other end of each edge from `x`: upward (its parents) or downward (its children).
+fn hier_step(f: &File<'_>, run: &mut Run, h: &Hier, x: u64, up: bool, out: &mut Vec<u64>) {
+    out.clear();
+    match h {
+        Hier::Tree => {
+            if (x as usize) < f.n {
+                if up {
+                    if f.has_parent(x as u32) {
+                        out.push(u64::from(f.parent[x as usize]));
+                    }
+                } else {
+                    out.extend(node_table::children_of(f.table, Position(x as u32)).iter().map(|c| u64::from(c.0)));
+                }
+            }
+        }
+        Hier::View(v, pc, cc) => {
+            let mut hits = Vec::new();
+            let (by, to) = if up { (*cc, *pc) } else { (*pc, *cc) };
+            f.native_probe(run, v.base, v.map[by], x, &mut hits);
+            for h in hits {
+                if view_holds(f, run, v, h) {
+                    out.push(f.native_get(run, v.base, h, v.map[to]));
+                }
+            }
+        }
+        Hier::Maps(u, d) => {
+            if let Some(xs) = if up { u.get(&x) } else { d.get(&x) } {
+                out.extend_from_slice(xs);
+            }
+        }
+    }
+}
+
 /// Whether a view's tests hold on one of its base rows.
 fn view_holds(f: &File<'_>, run: &mut Run, v: &ViewSpec, row: u32) -> bool {
     if v.filter.is_empty() {
@@ -2466,6 +2716,27 @@ fn kind_set(_run: &Run, conj: &[E], si: usize, base: Native, map: &[usize]) -> O
         }
     }
     None
+}
+
+/// The kinds a test requires of column `kc` of source `si`: a literal, a list, an `or` of such, or an `and` holding one.
+fn kinds_required(e: &E, si: usize, kc: usize) -> Option<Vec<u32>> {
+    match e {
+        E::Cmp(o, a, b) if o == "=" => match (&**a, &**b) {
+            (E::Col(s, c, _), E::Text(t)) | (E::Text(t), E::Col(s, c, _)) if *s == si && *c == kc => Some(vec![*t]),
+            _ => None,
+        },
+        E::In(a, b, false) => match (&**a, &**b) {
+            (E::Col(s, c, _), E::List(items)) if *s == si && *c == kc => items.iter().map(|i| if let E::Text(t) = i { Some(*t) } else { None }).collect(),
+            _ => None,
+        },
+        E::Or(a, b) => {
+            let mut x = kinds_required(a, si, kc)?;
+            x.extend(kinds_required(b, si, kc)?);
+            Some(x)
+        }
+        E::And(a, b) => kinds_required(a, si, kc).or_else(|| kinds_required(b, si, kc)),
+        _ => None,
+    }
 }
 
 /// An expression over a view's columns, rewritten over its base's.
