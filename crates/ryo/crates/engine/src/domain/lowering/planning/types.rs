@@ -34,7 +34,7 @@ pub(crate) struct PlannedBranch {
     pub(crate) rows: PlanEstimate,
     /// How many accesses after the first have no key: the product stages of a pipeline.
     pub(crate) products: Count,
-    /// SPIKE (cost placement): the rows the unit holds just before each atom of `order` runs, for one start.
+    /// SPIKE (cost placement): the most rows the unit held up to each atom of `order`, for one start: an ask's weight.
     pub(crate) before: Vec<PlanEstimate>,
 }
 

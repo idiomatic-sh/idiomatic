@@ -303,7 +303,9 @@ fn place(state: &mut OrderCompletion<'_>, next: NextAccess) {
         *placed = AtomPlacing::Placed;
     }
     state.order.push(next.atom);
-    state.before.push(state.rows);
+    // The most rows the unit held up to here: a test's share is right for ordering and too small as a count of asks.
+    let peak = state.before.last().copied().unwrap_or(state.rows).max(state.rows);
+    state.before.push(peak);
     let once = times(next.cost.once, state.rows.min(ONE));
     let taken = plus(once, times(state.rows, next.cost.steps));
     match atom {
