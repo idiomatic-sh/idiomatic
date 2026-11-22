@@ -1,7 +1,8 @@
 //! A file of the local context adapter's test support: tracked trees with symbolic links, and the scenarios that seal
-//! them. A tracked link is sealed by its exact target text, which must name a sealed file of the same snapshot or a
-//! directory of it that holds one; a changed, non-canonical or unsealed link, a link to a directory that holds it, a
-//! requested source that is a link, and a target that is not UTF-8 are refused.
+//! them. A tracked link is sealed by its exact target text, which must name a sealed file of the same snapshot, a
+//! directory of it that holds one, or nothing at all; a changed, non-canonical or unsealed link, a link to a directory
+//! that holds it, a dangling link whose target appears later, a requested source that is a link, and a target that is
+//! not UTF-8 are refused.
 use super::super::adapter::{seal_existing, validate};
 use ryo_benchmark_contracts::domain::context::types::{ContextManifest, LinkTarget};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
@@ -102,6 +103,34 @@ pub(crate) fn seal_records_a_tracked_link_to_a_sealed_directory() -> Result<(), 
     );
     assert_eq!(manifest.auxiliary_files.len(), 2);
     validate(&manifest, root)
+}
+/// A tracked link that names nothing (dagster tracks `.github/styles -> docs/vale/styles/`, which resolves beside the link,
+/// where nothing is) is sealed by its exact text; once something appears at its destination, the seal is refused.
+#[cfg(unix)]
+pub(crate) fn seal_records_a_dangling_tracked_link() -> Result<(), Error> {
+    let scratch = tempfile::tempdir()?;
+    let root = scratch.path();
+    let tracked = tree(
+        root,
+        &["docs/vale/styles/a.yml", "b/img.png"],
+        &[(".github/styles", "docs/vale/styles/"), ("b/gone.png", "../a/gone.png")],
+    )?;
+    let manifest = sealed(root, &tracked)?;
+    assert_eq!(
+        manifest.links,
+        std::collections::BTreeMap::from([
+            (".github/styles".into(), LinkTarget("docs/vale/styles/".into())),
+            ("b/gone.png".into(), LinkTarget("../a/gone.png".into())),
+        ])
+    );
+    validate(&manifest, root)?;
+    std::fs::create_dir_all(root.join("a"))?;
+    std::fs::write(root.join("a/gone.png"), b"untracked")?;
+    assert!(refused_with(
+        validate(&manifest, root),
+        super::super::constants::CONTEXT_LINK_TARGET_UNSEALED
+    ));
+    Ok(())
 }
 /// A link to a directory that holds the link itself is a cycle, and is refused.
 #[cfg(unix)]

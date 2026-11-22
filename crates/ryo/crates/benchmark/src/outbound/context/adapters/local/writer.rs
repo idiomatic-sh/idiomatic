@@ -145,9 +145,10 @@ fn link_destination(link: &Path, target: &LinkTarget) -> Result<PathBuf, Error> 
     Ok(destination)
 }
 
-/// Require the link at `link` to name, by its text `target`, a sealed file of the manifest's snapshot or a directory of it
-/// that holds one. A link to a directory is sealed by its exact text alone: nothing is read through it, since every sealed
-/// and missing path is refused a symlink on its way.
+/// Require the link at `link` to name, by its text `target`, a sealed file of the manifest's snapshot, a directory of it
+/// that holds one, or nothing at all (a dangling link: no file, directory or link is at its destination, now or at any
+/// later check). A link to a directory or to nothing is sealed by its exact text alone: nothing is read through it, since
+/// every sealed and missing path is refused a symlink on its way.
 pub(super) fn sealed_link_target(
     manifest: &ContextManifest,
     link: &Path,
@@ -172,12 +173,17 @@ pub(super) fn sealed_link_target(
             constants::CONTEXT_LINK_TARGET_HOLDS_THE_LINK.into(),
         ));
     }
-    if !sealed_file && !sealed_directory {
-        return Err(Error::Invalid(
-            constants::CONTEXT_LINK_TARGET_UNSEALED.into(),
-        ));
+    if sealed_file || sealed_directory {
+        return Ok(());
     }
-    Ok(())
+    no_symlinked_parent(&manifest.boundary, &destination)?;
+    match std::fs::symlink_metadata(manifest.boundary.join(&destination)) {
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(error.into()),
+        Ok(_) => Err(Error::Invalid(
+            constants::CONTEXT_LINK_TARGET_UNSEALED.into(),
+        )),
+    }
 }
 
 /// Reject symlinks on the way to a path, the path itself excepted: the walk a sealed link's own directory must pass.

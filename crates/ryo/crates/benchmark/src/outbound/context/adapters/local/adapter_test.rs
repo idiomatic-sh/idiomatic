@@ -297,6 +297,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
     #[cfg(unix)]
     Case {
+        name: CaseName("seal_records_a_dangling_tracked_link"),
+        word: Word::Succeeds,
+        input: || links::seal_records_a_dangling_tracked_link,
+        expect: Expect::Value(()),
+    },
+    #[cfg(unix)]
+    Case {
         name: CaseName("seal_refuses_a_link_to_a_directory_that_holds_it"),
         word: Word::Succeeds,
         input: || links::seal_refuses_a_link_to_a_directory_that_holds_it,
