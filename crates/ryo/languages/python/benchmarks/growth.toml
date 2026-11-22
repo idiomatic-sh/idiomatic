@@ -8,6 +8,8 @@
 # effect with every other, or tests every handler against every read grows 3.5 to 8 times per doubling and holds gigabytes.
 # ISC004 grows over implicitly concatenated strings in collections (`collection-strings`): a rule that meets each string with
 # every earlier token of its file, not only the token before it, grows the same way.
+# PYI034 grows over iterator classes (`iterator-classes`): a rule that resolves every class's bases, or every name, at every
+# method it checks, rather than only the bases its own class reaches, grows the same way.
 #
 # A shape is `<rule>/<frame>/<operation>/<whole size>`. A segment's line `i` is `lines[i % len]` with `{i}` replaced by `i`,
 # written `fixed + per-size * size` times, each line indented by the frame's indent. Profiles are relative to the linter's bench.
@@ -33,6 +35,10 @@ profile = "profiles/F821"
 [[rules]]
 rule = "ISC004"
 profile = "profiles/ISC004"
+
+[[rules]]
+rule = "PYI034"
+profile = "profiles/PYI034"
 
 [frames.module]
 head = ""
@@ -308,4 +314,12 @@ name = "collection-strings"
 frames = ["module", "function"]
 segments = [
   { lines = ["v{i} = [\"a\" \"b\", (\"c\" \"d\"), \"e\"]\n", "w{i} = (\"a\" \"b\"), (\n    \"c\" \"d\"), \"e\" \"f\"\n"], fixed = 0, per-size = 1 },
+]
+
+[[operations]]
+name = "iterator-classes"
+frames = ["module"]
+segments = [
+  { lines = ["from collections.abc import Iterator\n"], fixed = 1, per-size = 0 },
+  { lines = ["class C{i}(Iterator[int]):\n    def __iter__(self) -> Iterator[int]: ...\n    def __next__(self) -> int: ...\n"], fixed = 0, per-size = 1 },
 ]

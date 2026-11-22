@@ -67,3 +67,33 @@ expected = []
 name = "noqa-codes-trailing-reason-suppress-function-private-leading-parameter"
 files = { "case.pyi" = "def f(__x): ...  # noqa: PYI063 # why\n" }
 expected = []
+
+[[cases]]
+name = "new_dunder_second_parameter"
+files = { "case.pyi" = "class C:\n    def __new__(cls, __x: int) -> C: ...\n" }
+expected = []
+
+[[cases]]
+name = "new_overloads_dunder_second_parameter"
+files = { "case.pyi" = "from typing import overload\nclass C:\n    @overload\n    def __new__(cls, __x: str = ...) -> C: ...\n    @overload\n    def __new__(cls, __x: str, base: int) -> C: ...\n" }
+expected = []
+
+[[cases]]
+name = "new_dunder_first_parameter"
+files = { "case.pyi" = "class D:\n    def __new__(__cls, __x: int) -> D: ...\n" }
+expected = [{ file = "case.pyi", start = 25, end = 30 }]
+
+[[cases]]
+name = "init_subclass_dunder_second_parameter"
+files = { "case.pyi" = "class C:\n    def __init_subclass__(cls, __x: int) -> None: ...\n" }
+expected = [{ file = "case.pyi", start = 40, end = 43 }]
+
+[[cases]]
+name = "class_getitem_dunder_second_parameter"
+files = { "case.pyi" = "class C:\n    def __class_getitem__(cls, __x: int) -> None: ...\n" }
+expected = [{ file = "case.pyi", start = 40, end = 43 }]
+
+[[cases]]
+name = "classmethod_new_dunder_second_parameter"
+files = { "case.pyi" = "from typing import Self\nclass Metaclass(type):\n    @classmethod\n    def __new__(mcls, __name: str, __bases: tuple[type, ...], __namespace: dict, **kwds) -> Self: ...\n" }
+expected = [{ file = "case.pyi", start = 86, end = 92 }]

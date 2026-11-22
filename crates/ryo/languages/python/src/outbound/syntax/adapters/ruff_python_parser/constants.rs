@@ -63,6 +63,10 @@ pub(super) const FUTURE_DIRECTIVE_INVALID: ryo::languages::DiagnosticCode =
 /// A future statement cannot be a lazy import, independent of directive placement.
 pub(super) const FUTURE_LAZY_INVALID: ryo::languages::DiagnosticCode =
     ryo::languages::DiagnosticCode("future-lazy-invalid");
+/// A compiler check of the parser library's that the declaration visitor leaves to it (patterns, starred expressions, an
+/// asynchronous comprehension in a synchronous one).
+pub(super) const COMPILER_CHECK: ryo::languages::DiagnosticCode =
+    ryo::languages::DiagnosticCode("compiler-check");
 /// Alternatives of one OR pattern must bind the same names.
 pub(super) const PATTERN_BINDINGS_MISMATCH: ryo::languages::DiagnosticCode =
     ryo::languages::DiagnosticCode("pattern-bindings-mismatch");

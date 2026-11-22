@@ -495,3 +495,18 @@ name = "enum-member-catalog-6"
 comparison = "full"
 files = { "case.pyi" = "from enum import CheckEnum\nclass Subject(CheckEnum):\n x=1\n" }
 expected = []
+
+[[cases]]
+name = "stub_global_assignment_in_function"
+files = { "case.pyi" = "def f():\n    global Set\n    Set = 1\n" }
+expected = []
+
+[[cases]]
+name = "stub_global_assignment_in_method"
+files = { "case.pyi" = "class C:\n    def f(self):\n        global l\n        l = 0\n" }
+expected = []
+
+[[cases]]
+name = "stub_module_assignment"
+files = { "case.pyi" = "Set = 1\n" }
+expected = [{ file = "case.pyi", start = 6, end = 7 }]

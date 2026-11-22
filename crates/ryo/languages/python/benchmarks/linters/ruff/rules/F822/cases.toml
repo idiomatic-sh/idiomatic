@@ -164,3 +164,18 @@ expected = []
 name = "package-init-module-is-not-checked"
 files = { "pkg/__init__.py" = "__all__ = [\"x\"]\n" }
 expected = []
+
+[[cases]]
+name = "stub_package_init_submodule_export"
+files = { "pkg/__init__.pyi" = "__all__ = [\"sub\", \"missing\"]\n", "pkg/sub.pyi" = "" }
+expected = [{ file = "pkg/__init__.pyi", start = 11, end = 16 }, { file = "pkg/__init__.pyi", start = 18, end = 27 }]
+
+[[cases]]
+name = "package_init_submodule_export"
+files = { "pkg/__init__.py" = "__all__ = [\"sub\", \"missing\"]\n", "pkg/sub.py" = "" }
+expected = []
+
+[[cases]]
+name = "stub_module_missing_export"
+files = { "mod.pyi" = "__all__ = [\"missing\"]\n" }
+expected = [{ file = "mod.pyi", start = 11, end = 20 }]

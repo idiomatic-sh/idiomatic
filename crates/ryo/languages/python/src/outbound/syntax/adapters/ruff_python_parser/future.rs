@@ -9,6 +9,7 @@ use super::types::{
     DiagnosticMessage, FutureAnnotations, FutureValidity, ParserRefusal, Said,
     SemanticSyntaxDiagnostic,
 };
+use crate::outbound::syntax::types::PythonSourceKind;
 use ruff_python_ast::Stmt;
 use ruff_python_ast::token::{TokenKind, Tokens};
 use ruff_python_ast::visitor::{Visitor, walk_stmt};
@@ -75,6 +76,56 @@ impl<'a> Visitor<'a> for FutureImports<'_> {
         }
         walk_stmt(self, stmt);
     }
+}
+
+/// When a module's annotations are evaluated: postponed under a valid future import, or in a stub, which is never run.
+pub(super) fn annotation_timing(
+    future: FutureAnnotations,
+    kind: PythonSourceKind,
+) -> crate::domain::model::types::BindingAnnotationTiming {
+    if future.0 || kind == PythonSourceKind::Stub {
+        crate::domain::model::types::BindingAnnotationTiming::Deferred
+    } else {
+        crate::domain::model::types::BindingAnnotationTiming::Immediate
+    }
+}
+
+/// The text of the module property that records [`annotation_timing`].
+pub(super) const fn timing_text(
+    timing: crate::domain::model::types::BindingAnnotationTiming,
+) -> ryo::languages::NameText<'static> {
+    ryo::languages::NameText(match timing {
+        crate::domain::model::types::BindingAnnotationTiming::Deferred => {
+            crate::domain::syntax::constants::MODULE_ANNOTATIONS_DEFERRED
+        }
+        crate::domain::model::types::BindingAnnotationTiming::Immediate => {
+            crate::domain::syntax::constants::MODULE_ANNOTATIONS_IMMEDIATE
+        }
+    })
+}
+
+/// Writes the module node's two annotation properties: the future import's, and when its annotations are evaluated.
+pub(super) fn module_properties(
+    builder: &mut ryo::languages::TableBuilder<'_>,
+    future: FutureAnnotations,
+    timing: crate::domain::model::types::BindingAnnotationTiming,
+) {
+    use crate::domain::syntax::constants as names;
+    let feature = if future.0 {
+        names::MODULE_FUTURE_ANNOTATIONS_ENABLED
+    } else {
+        names::MODULE_FUTURE_ANNOTATIONS_DISABLED
+    };
+    ryo::languages::node_property(
+        builder,
+        names::MODULE_FUTURE_ANNOTATIONS,
+        ryo::languages::NameText(feature),
+    );
+    ryo::languages::node_property(
+        builder,
+        names::MODULE_ANNOTATION_TIMING,
+        timing_text(timing),
+    );
 }
 
 /// Validate compiler directives and enable features only in a legal module prefix.

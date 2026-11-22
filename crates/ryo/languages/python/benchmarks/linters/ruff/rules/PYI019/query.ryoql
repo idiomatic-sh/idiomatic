@@ -109,7 +109,9 @@ let typevar_methods = union(left=old_typevar_methods, right=new_typevar_methods)
 let module_event_ordinals = select l.id as initial_scope, l.file as file, r.ordinal as point from modules as l join "binding-event" as r on l.id = r.scope and l.file = r.file;
 let last_module_ordinals = group-max(from=module_event_ordinals, keys=["initial_scope", "file"], order="point");
 let ordered_contexts = select l.function as context, r.initial_scope as initial_scope, r.point as point, l.file as file from typevar_methods as l join last_module_ordinals as r on l.file = r.file;
-let contextual_class_bases = class_bases(ordered_contexts=ordered_contexts);
+let all_class_nodes = select id, file from "semantic-syntax" where kind = "class-def";
+let contextual_classes = select l.context as context, r.id as class, l.file as file from ordered_contexts as l join all_class_nodes as r on l.file = r.file;
+let contextual_class_bases = class_bases(ordered_contexts=ordered_contexts, roots=contextual_classes);
 let metaclass_root_classes = select function as context, class, file from typevar_methods;
 let metaclass_mode_rows = extend(from=ordered_contexts, values={mode: 1});
 let metaclass_modes = select context, mode, file from metaclass_mode_rows;

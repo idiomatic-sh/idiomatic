@@ -167,6 +167,7 @@ fn a_module_without_declarations_reports_no_semantic_syntax_error() {
     assert!(
         semantic_syntax_errors(
             parsed.syntax(),
+            languages::NameText("value = 1\n"),
             ruff_python_ast::PythonVersion::PY314,
             super::types::FutureAnnotations(false)
         )

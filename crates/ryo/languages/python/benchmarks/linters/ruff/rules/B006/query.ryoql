@@ -78,7 +78,14 @@ let mutable_constructor_calls = select l.call as id, l.file as file, r.span as s
 let default_calls = select l.value as id, l.file as file, r.span as span from default_roots as l join mutable_constructor_calls as r on l.value = r.id and l.file = r.file;
 let mutable_defaults_and_calls = union(left=mutable_defaults, right=default_calls);
 let unannotated_defaults = antijoin(left=mutable_defaults_and_calls, right=immutable_annotation_defaults, left-on=["id","file"], right-on=["id","file"]);
-let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from unannotated_defaults as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let stub_files = select path as file from "filesystem.file" where ends_with(path, ".pyi");
+let nonstub_defaults = antijoin(left=unannotated_defaults, right=stub_files, left-on=["file"], right-on=["file"]);
+let lambda_nodes = select id, file from "semantic-syntax" where kind = "lambda";
+let lambda_argument_lists = select r.child as arguments, l.file as file from lambda_nodes as l join "semantic-child" as r on l.id = r.parent and l.file = r.file where r.field = "args";
+let lambda_wrappers = select r.child as wrapper, l.file as file from lambda_argument_lists as l join "semantic-child" as r on l.arguments = r.parent and l.file = r.file where r.field = "args" or r.field = "posonlyargs" or r.field = "kwonlyargs";
+let lambda_defaults = select l.value as id, l.file as file from wrapper_defaults as l join lambda_wrappers as r on l.wrapper = r.wrapper and l.file = r.file;
+let source_defaults = antijoin(left=nonstub_defaults, right=lambda_defaults, left-on=["id", "file"], right-on=["id", "file"]);
+let candidate_locations = select l.id as id, l.file as file, l.span as span, r."start-line" as line from source_defaults as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:B006)$");
 let violations_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);

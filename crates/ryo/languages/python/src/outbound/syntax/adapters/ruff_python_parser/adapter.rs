@@ -140,10 +140,13 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
             AnnotationContext::Runtime,
         );
         writer.future_annotations = future_annotations;
+        writer.annotation_timing =
+            super::future::annotation_timing(future_annotations, source_kind);
         writer.visit_mod(parsed.syntax());
         let mut semantic_errors = if parsed.errors().is_empty() {
             semantic_syntax_errors(
                 parsed.syntax(),
+                languages::NameText(&source),
                 options(source_kind, &self.settings).target_version(),
                 future_annotations,
             )

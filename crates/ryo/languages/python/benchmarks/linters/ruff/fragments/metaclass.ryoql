@@ -11,7 +11,11 @@ let value_edges = select parent, child, file from "semantic-child" where field =
 let class_bases = select declaration as class, occurrence as base, file from "inherits";
 let name_nodes = select id, file from nodes where kind = "name";
 let attribute_nodes = select id, file from nodes where kind = "attribute";
-let origin_expressions = union(left=name_nodes, right=attribute_nodes);
+let named_expressions = union(left=name_nodes, right=attribute_nodes);
+let base_expressions = select base as id, file from class_bases;
+let base_inner_expressions = select r.child as id, l.file as file from class_bases as l join "semantic-child" as r on l.base = r.parent and l.file = r.file where r.field = "value" or r.field = "func";
+let base_part_expressions = union(left=base_expressions, right=base_inner_expressions);
+let origin_expressions = select l.id as id, l.file as file from base_part_expressions as l join named_expressions as r on l.id = r.id and l.file = r.file;
 let initial_mode_contexts = select l.context as context, l.initial_scope as initial_scope, l.point as point, l.point as header_point, l.file as file from ordered_contexts as l join modes as r on l.context = r.context and l.file = r.file where r.mode = 0 and matches(l.file, "\.pyi$");
 let initial_origin_context_rows = extend(from=initial_mode_contexts, values={stage: 0});
 let initial_origin_contexts = select context, initial_scope, point, header_point, stage, file from initial_origin_context_rows;
@@ -21,7 +25,7 @@ let late_origin_expressions = select l.id as id, l.file as file from origin_expr
 let late_cached_origins = deferred_class_origins(expressions=late_origin_expressions);
 let late_origins = select l.context as context, r.expression as expression, r.path as path, l.file as file from modes as l join late_cached_origins as r on l.file = r.file where l.mode = 1;
 let contextual_origins = union(left=initial_origins, right=late_origins);
-let original_origins = select id as expression, path, file from "qualified-name";
+let original_origins = select l.id as expression, r.path as path, l.file as file from origin_expressions as l join "qualified-name" as r on l.id = r.id and l.file = r.file;
 let stub_contexts = select * from ordered_contexts where matches(file, "\.pyi$");
 let py_contexts = antijoin(left=ordered_contexts, right=stub_contexts, left-on=["context", "file"], right-on=["context", "file"]);
 let cached_py_origins = select l.context as context, r.expression as expression, r.path as path, l.file as file from py_contexts as l join original_origins as r on l.file = r.file;
@@ -41,7 +45,10 @@ let direct_success_bases0 = union(left=named_success_bases, right=subscript_succ
 let direct_success_bases = union(left=direct_success_bases0, right=call_success_bases);
 let direct_context_success_bases = select context, class, base, file from direct_success_bases;
 let base_locations = select l.class as class, l.base as base, l.file as file, r."start-byte" as position from class_bases as l join "source-location" as r on l.base = r.id and l.file = r.file;
-let contextual_base_locations = select l.context as context, r.class as source, r.base as base, r.position as position, l.file as file from ordered_contexts as l join base_locations as r on l.file = r.file;
+let resolved_class_paths = closure(edges=resolved_base_edges, source="child_class", destination="parent_class", keys=["context", "file"]);
+let root_parent_classes = select l.context as context, r.parent_class as class, l.file as file from root_classes as l join resolved_class_paths as r on l.context = r.context and l.class = r.child_class and l.file = r.file;
+let reached_classes = union(left=root_classes, right=root_parent_classes);
+let contextual_base_locations = select l.context as context, r.class as source, r.base as base, r.position as position, l.file as file from reached_classes as l join base_locations as r on l.class = r.class and l.file = r.file;
 let resolved_class_edges = select l.context as context, l.source as source, r.parent_class as destination, l.position as position, l.base as base, l.file as file from contextual_base_locations as l join resolved_base_edges as r on l.context = r.context and l.base = r.base and l.file = r.file;
 let unresolved_base_locations = antijoin(left=contextual_base_locations, right=resolved_base_edges, left-on=["context", "base", "file"], right-on=["context", "base", "file"]);
 let terminal_edges = select context, source, base as destination, position, base, file from unresolved_base_locations;
@@ -94,7 +101,7 @@ let correct_new_annotations = select function, class, position, file from builti
 let correct_new_counts = group-count(from=correct_new_annotations, keys=["function", "class", "file"], count="count", distinct="position");
 let signature_classes = select class, file from correct_new_counts where count = 3;
 let signature_classes_with_bases = select l.class as class, l.file as file from signature_classes as l join class_bases as r on l.class = r.class and l.file = r.file;
-let contextual_signature_classes = select l.context as context, r.class as class, l.file as file from ordered_contexts as l join signature_classes_with_bases as r on l.file = r.file;
+let contextual_signature_classes = select l.context as context, r.class as class, l.file as file from root_classes as l join signature_classes_with_bases as r on l.class = r.class and l.file = r.file;
 let signature_only_classes = antijoin(left=contextual_signature_classes, right=successful_classes, left-on=["context", "class", "file"], right-on=["context", "class", "file"]);
 let all_maybe_rows = union(left=call_maybe_rows, right=signature_only_classes);
 let typed_maybe_classes = select l.context as context, l.class as class, r.kind as kind, l.file as file from all_maybe_rows as l join classification_kinds as r on l.class = r.class and l.file = r.file;

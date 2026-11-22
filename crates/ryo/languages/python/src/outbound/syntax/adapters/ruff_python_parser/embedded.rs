@@ -142,6 +142,7 @@ fn write_segment<'q>(
         parsed_tokens: parsed.tokens(),
         refused: Vec::new(),
         future_annotations: FutureAnnotations(false),
+        annotation_timing: crate::domain::model::types::BindingAnnotationTiming::Immediate,
         length: Offset(string.end.0.saturating_sub(string.start.0)),
         nodes: std::mem::take(&mut tree.nodes),
         parents: std::mem::take(&mut tree.parents),

@@ -75,3 +75,23 @@ name = "suppressed-attribute"
 comparison = "full"
 files = { "case.pyi" = "import typing\nx: typing.ByteString # noqa: PYI057\n" }
 expected = []
+
+[[cases]]
+name = "imported_name_use_not_reported"
+files = { "case.py" = "from collections.abc import ByteString\ndef f(b: ByteString) -> None: ...\n" }
+expected = [{ file = "case.py", start = 28, end = 38 }]
+
+[[cases]]
+name = "module_attribute_use"
+files = { "case.py" = "import typing\ndef f(b: typing.ByteString) -> None: ...\n" }
+expected = [{ file = "case.py", start = 23, end = 40 }]
+
+[[cases]]
+name = "module_attribute_subscript_use"
+files = { "case.py" = "import collections.abc\ndef f(b: collections.abc.ByteString[int]) -> None: ...\n" }
+expected = [{ file = "case.py", start = 32, end = 58 }]
+
+[[cases]]
+name = "imported_name_subscript_use_not_reported"
+files = { "case.py" = "from typing import ByteString\ndef f(b: ByteString[int]) -> None: ...\n" }
+expected = [{ file = "case.py", start = 19, end = 29 }]
