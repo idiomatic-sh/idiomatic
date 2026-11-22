@@ -192,6 +192,9 @@ pub(super) struct FRule {
     /// the skip kept it).
     pub(super) node: bool,
     pub(super) plans: Vec<Plan>,
+    /// The plans of each disjunct with more than one: alternatives, each file entering at the one of them whose buckets
+    /// hold the fewest of its nodes.
+    pub(super) alts: Vec<Vec<usize>>,
     /// One CNF a branch of the rule: the rule can have a row only where some branch's CNF holds (empty list: unknown).
     pub(super) cnfs: Vec<Vec<Vec<u16>>>,
     /// The fact relations its plans test.
@@ -203,10 +206,148 @@ pub(super) struct FRule {
     pub(super) keyed: Vec<(usize, usize)>,
 }
 
-fn kset_of(v: &serde_json::Value, vocab: &Vocab, missing: &mut Vec<String>) -> KSet {
+// ---------------------------------------------------------------- the spec, typed (from the JSON lines or prepared in the process)
+/// The bucket a plan is entered at.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Bucket {
+    Kinds,
+    Fields,
+    Words,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(super) struct SpecCheck {
+    pub(super) v: usize,
+    pub(super) kinds: Option<Vec<String>>,
+    pub(super) notkinds: Option<Vec<String>>,
+    pub(super) texts: Option<Vec<Vec<u8>>>,
+    pub(super) fields: Option<Vec<String>>,
+    pub(super) re: Option<String>,
+}
+
+/// A fact test: the relation, its (key column, register) pairs and its (column, op, values) conditions.
+#[derive(Clone, Debug, PartialEq)]
+pub(super) struct SpecFact {
+    pub(super) rel: String,
+    pub(super) keys: Vec<(String, usize)>,
+    pub(super) conds: Vec<(String, String, Vec<String>)>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(super) enum SpecOp {
+    Check(SpecCheck),
+    Up { from: usize, to: usize, leaf: bool },
+    Down { from: usize, to: usize, leaf: bool },
+    Not(Vec<SpecOp>),
+    Exists { from: usize, to: usize, plan: Vec<SpecOp> },
+    IsParent { child: usize, parent: usize },
+    Fact(SpecFact),
+    Enc { from: usize, to: usize, kinds: Vec<String> },
+    AncX { from: usize, to: usize, plan: Vec<SpecOp> },
+}
+
+/// One plan: the disjunct of its rule it enters (plans of one disjunct are alternatives: each file enters at one of them),
+/// its bucket and keys, its ops and registers, and its required-word CNF.
+#[derive(Clone, Debug)]
+pub(super) struct SpecPlan {
+    pub(super) disjunct: usize,
+    pub(super) bucket: Bucket,
+    pub(super) keys: Vec<String>,
+    pub(super) ops: Vec<SpecOp>,
+    pub(super) regs: usize,
+    pub(super) words: Vec<Vec<String>>,
+}
+
+impl SpecPlan {
+    pub(super) fn same(&self, o: &SpecPlan) -> bool {
+        self.bucket == o.bucket && self.keys == o.keys && self.ops == o.ops && self.words == o.words
+    }
+}
+
+#[derive(Clone, Debug)]
+pub(super) struct SpecRule {
+    pub(super) name: String,
+    /// Of the node class: its rows are found from tree survivors.
+    pub(super) node: bool,
+    pub(super) plans: Vec<SpecPlan>,
+    pub(super) word_cnfs: Vec<Vec<Vec<String>>>,
+}
+
+fn strings(v: &serde_json::Value) -> Vec<String> {
+    v.as_array().expect("names").iter().map(|n| n.as_str().expect("name").to_owned()).collect()
+}
+
+fn spec_ops(v: &serde_json::Value) -> Vec<SpecOp> {
+    let u = |o: &serde_json::Value, k: &str| o[k].as_u64().expect("reg") as usize;
+    v.as_array()
+        .expect("ops")
+        .iter()
+        .map(|o| match o["op"].as_str().expect("op") {
+            "fact" => SpecOp::Fact(SpecFact {
+                rel: o["rel"].as_str().expect("rel").to_owned(),
+                keys: o["keys"].as_array().expect("keys").iter().map(|k| (k[0].as_str().expect("key column").to_owned(), k[1].as_u64().expect("reg") as usize)).collect(),
+                conds: o["conds"]
+                    .as_array()
+                    .expect("conds")
+                    .iter()
+                    .map(|c| (c[0].as_str().expect("column").to_owned(), c[1].as_str().expect("op").to_owned(), c[2].as_array().expect("vals").iter().map(|x| x.as_str().expect("val").to_owned()).collect()))
+                    .collect(),
+            }),
+            "check" => SpecOp::Check(SpecCheck {
+                v: u(o, "v"),
+                kinds: o.get("kinds").map(strings),
+                notkinds: o.get("notkinds").map(strings),
+                texts: o.get("texts").map(|x| x.as_array().expect("texts").iter().map(|t| t.as_str().expect("text").as_bytes().to_vec()).collect()),
+                fields: o.get("fields").map(strings),
+                re: o.get("re").map(|x| x.as_str().expect("re").to_owned()),
+            }),
+            "up" => SpecOp::Up { from: u(o, "from"), to: u(o, "to"), leaf: o["leaf"].as_bool().unwrap_or(false) },
+            "down" => SpecOp::Down { from: u(o, "from"), to: u(o, "to"), leaf: o["leaf"].as_bool().unwrap_or(false) },
+            "not" => SpecOp::Not(spec_ops(&o["plan"])),
+            "exists" => SpecOp::Exists { from: u(o, "from"), to: u(o, "to"), plan: spec_ops(&o["plan"]) },
+            "isparent" => SpecOp::IsParent { child: u(o, "child"), parent: u(o, "parent") },
+            "enc" => SpecOp::Enc { from: u(o, "from"), to: u(o, "to"), kinds: strings(&o["kinds"]) },
+            "ancx" => SpecOp::AncX { from: u(o, "from"), to: u(o, "to"), plan: spec_ops(&o["plan"]) },
+            other => panic!("op {other}"),
+        })
+        .collect()
+}
+
+fn cnf_strings(v: &serde_json::Value) -> Vec<Vec<String>> {
+    v.as_array().map(|cl| cl.iter().map(strings).collect()).unwrap_or_default()
+}
+
+/// One line of a prepared plans file (`funnel4j.jsonl`) as the typed spec: each plan its own disjunct.
+fn spec_of_line(r: &serde_json::Value) -> SpecRule {
+    let plans = r["plans"]
+        .as_array()
+        .expect("plans")
+        .iter()
+        .enumerate()
+        .map(|(i, p)| SpecPlan {
+            disjunct: i,
+            bucket: match p["bucket"].as_str() {
+                Some("fields") => Bucket::Fields,
+                Some("words") => Bucket::Words,
+                _ => Bucket::Kinds,
+            },
+            keys: strings(&p["keys"]),
+            ops: spec_ops(&p["ops"]),
+            regs: p["regs"].as_u64().expect("regs") as usize,
+            words: cnf_strings(&p["words"]),
+        })
+        .collect();
+    SpecRule {
+        name: r["rule"].as_str().expect("rule").to_owned(),
+        node: r["class"].as_str() == Some("node"),
+        plans,
+        word_cnfs: r["word_cnfs"].as_array().map(|a| a.iter().map(cnf_strings).collect()).unwrap_or_default(),
+    }
+}
+
+fn kset_of(names: &[String], vocab: &Vocab, missing: &mut Vec<String>) -> KSet {
     let mut s = [0u64; 4];
-    for n in v.as_array().expect("kinds") {
-        let n = n.as_str().expect("kind");
+    for n in names {
         match vocab.kinds.get(n) {
             Some(c) => s[usize::from(*c) / 64] |= 1 << (c % 64),
             None => missing.push(format!("kind {n}")),
@@ -215,10 +356,9 @@ fn kset_of(v: &serde_json::Value, vocab: &Vocab, missing: &mut Vec<String>) -> K
     s
 }
 
-fn fset_of(v: &serde_json::Value, vocab: &Vocab, missing: &mut Vec<String>) -> FSet {
+fn fset_of(names: &[String], vocab: &Vocab, missing: &mut Vec<String>) -> FSet {
     let mut s = [0u64; 2];
-    for n in v.as_array().expect("fields") {
-        let n = n.as_str().expect("field");
+    for n in names {
         match vocab.fields.get(n) {
             Some(c) if *c < 128 => s[usize::from(*c) / 64] |= 1 << (c % 64),
             _ => missing.push(format!("field {n}")),
@@ -227,53 +367,46 @@ fn fset_of(v: &serde_json::Value, vocab: &Vocab, missing: &mut Vec<String>) -> F
     s
 }
 
-fn ops_of(v: &serde_json::Value, vocab: &Vocab, missing: &mut Vec<String>, fc: &mut FactLoad<'_>) -> Vec<Op> {
-    let u = |o: &serde_json::Value, k: &str| o[k].as_u64().expect("reg") as usize;
-    v.as_array()
-        .expect("ops")
-        .iter()
+fn ops_of(v: &[SpecOp], vocab: &Vocab, missing: &mut Vec<String>, fc: &mut FactLoad<'_>) -> Vec<Op> {
+    v.iter()
         .filter_map(|o| {
-            if o["op"].as_str() == Some("fact") {
-                let op = fc.catalog.op(o, fc.interner);
-                if let Some(f) = &op {
-                    if !fc.slots.contains(&f.slot) {
-                        fc.slots.push(f.slot);
+            Some(match o {
+                SpecOp::Fact(f) => {
+                    let op = fc.catalog.op_of(&f.rel, &f.keys, &f.conds, fc.interner)?;
+                    if !fc.slots.contains(&op.slot) {
+                        fc.slots.push(op.slot);
                     }
-                    if !fc.keyed.contains(&(f.slot, f.keys[0].0)) {
-                        fc.keyed.push((f.slot, f.keys[0].0));
+                    if !fc.keyed.contains(&(op.slot, op.keys[0].0)) {
+                        fc.keyed.push((op.slot, op.keys[0].0));
                     }
-                    if (!f.conds.is_empty() || f.keys.len() > 1) && !fc.valued.contains(&f.slot) {
-                        fc.valued.push(f.slot);
+                    if (!op.conds.is_empty() || op.keys.len() > 1) && !fc.valued.contains(&op.slot) {
+                        fc.valued.push(op.slot);
                     }
+                    Op::Fact(op)
                 }
-                return op.map(Op::Fact);
-            }
-            Some(o)
-                .map(|o| match o["op"].as_str().expect("op") {
-            "check" => Op::Check(Check {
-                v: u(o, "v"),
-                kinds: o.get("kinds").map(|x| kset_of(x, vocab, missing)),
-                notkinds: o.get("notkinds").map(|x| kset_of(x, vocab, missing)),
-                texts: o.get("texts").map(|x| x.as_array().expect("texts").iter().map(|t| t.as_str().expect("text").as_bytes().to_vec()).collect()),
-                fields: o.get("fields").map(|x| fset_of(x, vocab, missing)),
-                re: o.get("re").map(|x| regex::bytes::Regex::new(x.as_str().expect("re")).expect("regex")),
-            }),
-            "up" => Op::Up { from: u(o, "from"), to: u(o, "to"), leaf: o["leaf"].as_bool().unwrap_or(false) },
-            "down" => Op::Down { from: u(o, "from"), to: u(o, "to"), leaf: o["leaf"].as_bool().unwrap_or(false) },
-            "not" => Op::Not(ops_of(&o["plan"], vocab, missing, fc)),
-            "exists" => Op::Exists { from: u(o, "from"), to: u(o, "to"), plan: ops_of(&o["plan"], vocab, missing, fc) },
-            "isparent" => Op::IsParent { child: u(o, "child"), parent: u(o, "parent") },
-            "enc" => {
-                let set = kset_of(&o["kinds"], vocab, missing);
-                let at = fc.catalog.enc_sets.iter().position(|x| *x == set).unwrap_or_else(|| {
-                    fc.catalog.enc_sets.push(set);
-                    fc.catalog.enc_sets.len() - 1
-                });
-                Op::Enc { from: u(o, "from"), to: u(o, "to"), set: at }
-            }
-            "ancx" => Op::AncX { from: u(o, "from"), to: u(o, "to"), plan: ops_of(&o["plan"], vocab, missing, fc) },
-            other => panic!("op {other}"),
-                })
+                SpecOp::Check(c) => Op::Check(Check {
+                    v: c.v,
+                    kinds: c.kinds.as_ref().map(|x| kset_of(x, vocab, missing)),
+                    notkinds: c.notkinds.as_ref().map(|x| kset_of(x, vocab, missing)),
+                    texts: c.texts.clone(),
+                    fields: c.fields.as_ref().map(|x| fset_of(x, vocab, missing)),
+                    re: c.re.as_ref().map(|x| regex::bytes::Regex::new(x).expect("regex")),
+                }),
+                SpecOp::Up { from, to, leaf } => Op::Up { from: *from, to: *to, leaf: *leaf },
+                SpecOp::Down { from, to, leaf } => Op::Down { from: *from, to: *to, leaf: *leaf },
+                SpecOp::Not(p) => Op::Not(ops_of(p, vocab, missing, fc)),
+                SpecOp::Exists { from, to, plan } => Op::Exists { from: *from, to: *to, plan: ops_of(plan, vocab, missing, fc) },
+                SpecOp::IsParent { child, parent } => Op::IsParent { child: *child, parent: *parent },
+                SpecOp::Enc { from, to, kinds } => {
+                    let set = kset_of(kinds, vocab, missing);
+                    let at = fc.catalog.enc_sets.iter().position(|x| *x == set).unwrap_or_else(|| {
+                        fc.catalog.enc_sets.push(set);
+                        fc.catalog.enc_sets.len() - 1
+                    });
+                    Op::Enc { from: *from, to: *to, set: at }
+                }
+                SpecOp::AncX { from, to, plan } => Op::AncX { from: *from, to: *to, plan: ops_of(plan, vocab, missing, fc) },
+            })
         })
         .collect()
 }
@@ -295,10 +428,8 @@ impl Words {
         self.ids.insert(w.as_bytes().to_vec(), i);
         i
     }
-    fn cnf(&mut self, v: &serde_json::Value) -> Vec<Vec<u16>> {
-        v.as_array()
-            .map(|cl| cl.iter().map(|c| c.as_array().expect("clause").iter().map(|w| self.id(w.as_str().expect("word"))).collect()).collect())
-            .unwrap_or_default()
+    fn cnf(&mut self, v: &[Vec<String>]) -> Vec<Vec<u16>> {
+        v.iter().map(|c| c.iter().map(|w| self.id(w)).collect()).collect()
     }
 }
 
@@ -321,29 +452,33 @@ pub(super) struct FactLoad<'l> {
     pub(super) keyed: Vec<(usize, usize)>,
 }
 
+/// The plans file prepared beforehand (the oracle path).
 pub(super) fn load(path: &str, vocab: &Vocab, catalog: &mut super::facts::Catalog, interner: &mut super::facts::Interner) -> (Vec<FRule>, Words) {
+    let specs: Vec<SpecRule> = std::fs::read_to_string(path).expect("funnel plans").lines().map(|l| spec_of_line(&serde_json::from_str(l).expect("json"))).collect();
+    build(&specs, vocab, catalog, interner)
+}
+
+/// The harness's rules from the typed spec: each plan's keys coded and its stages specialised; the alternatives of each
+/// disjunct grouped (a plan with no key in the vocabulary is left out of its disjunct; a disjunct with none left, or a plan
+/// file's plan with no key, makes the rule run from the skip alone).
+pub(super) fn build(specs: &[SpecRule], vocab: &Vocab, catalog: &mut super::facts::Catalog, interner: &mut super::facts::Interner) -> (Vec<FRule>, Words) {
     let mut fc = FactLoad { catalog, interner, slots: Vec::new(), valued: Vec::new(), keyed: Vec::new() };
     let mut missing = Vec::new();
     let mut rules = Vec::new();
     let mut words = Words::default();
-    for line in std::fs::read_to_string(path).expect("funnel plans").lines() {
-        let r: serde_json::Value = serde_json::from_str(line).expect("json");
+    for r in specs {
         let mut plans = Vec::new();
-        for p in r["plans"].as_array().expect("plans") {
-            let fields = p["bucket"].as_str() == Some("fields");
-            let by_word = p["bucket"].as_str() == Some("words");
-            let keys: Vec<Key> = p["keys"]
-                .as_array()
-                .expect("keys")
+        let mut disjuncts: Vec<(usize, Vec<usize>)> = Vec::new();
+        let mut enterable = true;
+        for p in &r.plans {
+            let keys: Vec<Key> = p
+                .keys
                 .iter()
                 .filter_map(|k| {
-                    let k = k.as_str().expect("key");
-                    let code = if by_word {
-                        Some(Key::Word(words.id(k)))
-                    } else if fields {
-                        vocab.fields.get(k).map(|c| Key::Field(*c))
-                    } else {
-                        vocab.kinds.get(k).map(|c| Key::Kind(*c))
+                    let code = match p.bucket {
+                        Bucket::Words => Some(Key::Word(words.id(k))),
+                        Bucket::Fields => vocab.fields.get(k).map(|c| Key::Field(*c)),
+                        Bucket::Kinds => vocab.kinds.get(k).map(|c| Key::Kind(*c)),
                     };
                     if code.is_none() {
                         missing.push(format!("bucket {k}"));
@@ -351,20 +486,34 @@ pub(super) fn load(path: &str, vocab: &Vocab, catalog: &mut super::facts::Catalo
                     code
                 })
                 .collect();
-            let ops = ops_of(&p["ops"], vocab, &mut missing, &mut fc);
+            let ops = ops_of(&p.ops, vocab, &mut missing, &mut fc);
             let stages = compile(&ops);
             let knock = knock_tests(&ops);
-            let cnf = words.cnf(&p["words"]);
-            plans.push(Plan { keys, ops, regs: p["regs"].as_u64().expect("regs") as usize, stages, knock, words: cnf });
+            let cnf = words.cnf(&p.words);
+            let at = disjuncts.iter().position(|(d, _)| *d == p.disjunct).unwrap_or_else(|| {
+                disjuncts.push((p.disjunct, Vec::new()));
+                disjuncts.len() - 1
+            });
+            // redo-honest: a plan with no bucket key is entered from no bucket, so it finds no survivor; a node-class rule with
+            // such a plan would never be seeded and its findings were lost. Left out of its disjunct; a disjunct with no plan
+            // left runs the rule from the skip alone.
+            if keys.is_empty() {
+                continue;
+            }
+            disjuncts[at].1.push(plans.len());
+            plans.push(Plan { keys, ops, regs: p.regs, stages, knock, words: cnf });
         }
-        let cnfs: Vec<Vec<Vec<u16>>> = r["word_cnfs"].as_array().map(|a| a.iter().map(|c| words.cnf(c)).collect()).unwrap_or_default();
+        for (_, d) in &disjuncts {
+            if d.is_empty() {
+                enterable = false;
+            }
+        }
+        let cnfs: Vec<Vec<Vec<u16>>> = r.word_cnfs.iter().map(|c| words.cnf(c)).collect();
         let slots = std::mem::take(&mut fc.slots);
         let valued = std::mem::take(&mut fc.valued);
         let keyed = std::mem::take(&mut fc.keyed);
-        // redo-honest: a plan with no bucket key is entered from no bucket, so it finds no survivor; a node-class rule with
-        // such a plan would never be seeded and its findings were lost. It runs from the skip alone instead.
-        let enterable = plans.iter().all(|p| !p.keys.is_empty());
-        rules.push(FRule { name: r["rule"].as_str().expect("rule").to_owned(), node: r["class"].as_str() == Some("node") && enterable, plans, cnfs, slots, valued, keyed });
+        let alts = disjuncts.into_iter().map(|(_, d)| d).filter(|d| d.len() > 1).collect();
+        rules.push(FRule { name: r.name.clone(), node: r.node && enterable, plans, alts, cnfs, slots, valued, keyed });
     }
     missing.sort();
     missing.dedup();

@@ -170,6 +170,40 @@ fn load_rules(path: &str, vocab: &Vocab) -> Vec<Rule> {
     rules
 }
 
+/// The kinds-and-fields skip of each rule from the first half's spec prepared in the process (`first::prepare`): per rule its
+/// name, whether it never matches, and its clauses of `k:<kind>` / `f:<field>` names. No anchors (the `run` modes read them).
+fn rules_of_skips(skips: &[(String, bool, Vec<Vec<String>>)], vocab: &Vocab) -> Vec<Rule> {
+    let mut missing = std::collections::BTreeSet::new();
+    let (kw, fw) = (words(vocab.kind_names.len()), words(vocab.field_names.len()));
+    let rules = skips
+        .iter()
+        .map(|(name, never, clauses)| {
+            let clauses = clauses
+                .iter()
+                .map(|clause| {
+                    let (mut k, mut f) = (vec![0u64; kw], vec![0u64; fw]);
+                    for n in clause {
+                        let (tag, name) = n.split_at(2);
+                        let code = if tag == "k:" { vocab.kinds.get(name).map(|c| (&mut k, *c)) } else { vocab.fields.get(name).map(|c| (&mut f, *c)) };
+                        match code {
+                            Some((m, c)) => m[usize::from(c) / 64] |= 1 << (c % 64),
+                            None => {
+                                missing.insert(n.clone());
+                            }
+                        }
+                    }
+                    (k, f)
+                })
+                .collect();
+            Rule { name: name.clone(), anchors: Vec::new(), clauses, never: *never, whole: None }
+        })
+        .collect();
+    if !missing.is_empty() {
+        eprintln!("vec: names not in the vocabulary: {missing:?}");
+    }
+    rules
+}
+
 /// One file's columns the experiment reads beyond the table's own buckets.
 #[derive(Default)]
 struct Columns {
@@ -540,6 +574,7 @@ fn main() {
     match args.get(1).copied() {
         Some("lower") => return lower::run_lower(&args[2..]),
         Some("stage") => return lower::run_stage(&args[2..]),
+        Some("first") => return first::run_first(&args[2..]),
         _ => {}
     }
     // 6f: `VEC_PY310` walks at the pack's configured target (benchmark.toml `python-target=3.10`); without it the walk is at
@@ -575,23 +610,26 @@ fn main() {
                 // redo-lowering: `--finish <pack dir>` prepares the plan in this process from the rule text (the one parser,
                 // the engine's lowering); `--finish <plan file>` reads a plan prepared beforehand (the oracle).
                 let t0 = thread_cpu();
+                let mut pack = None;
                 let plan = if std::path::Path::new(finish_args[0]).is_dir() {
                     // `--request F`: the run's request, for the rule context the lowering reads
                     let request = args.iter().position(|a| *a == "--request").map(|i| args[i + 1]);
-                    let pack = lower::read_pack(std::path::Path::new(finish_args[0]), request);
-                    println!("start-up pack: read {:.4} parse {:.4} s", pack.read, pack.parse);
-                    lower::second_half_plan(&pack)
+                    let read = lower::read_pack(std::path::Path::new(finish_args[0]), request);
+                    println!("start-up pack: read {:.4} parse {:.4} s", read.read, read.parse);
+                    let plan = lower::second_half_plan(&read);
+                    pack = Some((finish_args[0], read));
+                    plan
                 } else {
                     finish::load(finish_args[0])
                 };
                 println!("start-up total {:.4} s", thread_cpu() - t0);
                 let mut fin = finisher::Finisher::new(&plan, &walk, &vocab, &finish_args);
-                run_funnel(&walk, &vocab, &args[2..], Some(&mut fin));
+                run_funnel(&walk, &vocab, &args[2..], Some(&mut fin), pack.as_ref().map(|(d, r)| (*d, r)));
                 fin.end(0.0);
                 // redo-union pass 2 c18: the plan (30 k nodes of JSON) is not dropped one by one at exit
                 std::mem::forget(plan);
             } else {
-                run_funnel(&walk, &vocab, &args[2..], None);
+                run_funnel(&walk, &vocab, &args[2..], None, None);
             }
         }
         Some("finish") => run_finish(&walk, &vocab, &args[2..]),
@@ -864,6 +902,8 @@ mod survivors;
 mod finish;
 #[path = "lower.rs"]
 mod lower;
+#[path = "first.rs"]
+mod first;
 #[path = "finisher.rs"]
 mod finisher;
 #[path = "dump.rs"]
@@ -1384,13 +1424,50 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
 
 /// `vec funnel <way> <files> <anchors> <plans> [--repeat K] [--rules-out F] [--hits-out F]`: ways `cands`, `structure`,
 /// `interp`, `spec`, `knock`.
-fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&mut finisher::Finisher<'_>>) {
+/// `<anchors>` a directory: the pack; the first half's spec is prepared in this process from its parsed rules (`first.rs`), the
+/// parse shared with the second half's when `--finish` names the same pack (`pack`); `<anchors>` and `<plans>` files: the
+/// spec prepared beforehand (the oracle path).
+fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&mut finisher::Finisher<'_>>, pack: Option<(&str, &lower::ReadPack)>) {
     let way = args[0];
     let list = files(args[1]);
-    let rules = load_rules(args[2], vocab);
     let mut fact_catalog = facts::Catalog::default();
     let mut interner = facts::Interner { ids: facts::Table::named(&flag(args, "--hasher").unwrap_or_else(|| "std".to_owned())), ..Default::default() };
-    let (frules, words) = funnel::load(args[3], vocab, &mut fact_catalog, &mut interner);
+    let f0 = thread_cpu();
+    let (rules, frules, words) = if std::path::Path::new(args[2]).is_dir() {
+        let owned;
+        let read = match pack {
+            Some((dir, read)) if std::fs::canonicalize(dir).ok() == std::fs::canonicalize(args[2]).ok() => read,
+            _ => {
+                let request = flag(args, "--request");
+                owned = lower::read_pack(std::path::Path::new(args[2]), request.as_deref());
+                println!("start-up first half pack: read {:.4} parse {:.4} s", owned.read, owned.parse);
+                &owned
+            }
+        };
+        let f1 = thread_cpu();
+        let prepared = first::prepare(&read.programs, "name-token");
+        let f2 = thread_cpu();
+        let rules = rules_of_skips(&prepared.skips, vocab);
+        let (frules, words) = funnel::build(&prepared.rules, vocab, &mut fact_catalog, &mut interner);
+        let f3 = thread_cpu();
+        println!(
+            "start-up first half: from the pack: analysis {:.4} load {:.4} total {:.4} s; rules {} node {} plans {} disjuncts with alternatives {} (plans in them {})",
+            f2 - f1,
+            f3 - f2,
+            f3 - f0,
+            frules.len(),
+            frules.iter().filter(|r| r.node).count(),
+            frules.iter().map(|r| r.plans.len()).sum::<usize>(),
+            frules.iter().map(|r| r.alts.len()).sum::<usize>(),
+            frules.iter().flat_map(|r| r.alts.iter().map(Vec::len)).sum::<usize>()
+        );
+        (rules, frules, words)
+    } else {
+        let rules = load_rules(args[2], vocab);
+        let (frules, words) = funnel::load(args[3], vocab, &mut fact_catalog, &mut interner);
+        println!("start-up first half: from the files: load {:.4} s; rules {} node {} plans {}", thread_cpu() - f0, frules.len(), frules.iter().filter(|r| r.node).count(), frules.iter().map(|r| r.plans.len()).sum::<usize>());
+        (rules, frules, words)
+    };
     let use_facts = args.contains(&"--facts");
     let slots_n = fact_catalog.relations.len();
     let mut store = facts::Store { remap_on: args.contains(&"--remap"), ..Default::default() };
@@ -1486,6 +1563,9 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
         cwalk.structured(enclosing.clone());
     }
     let max_regs = frules.iter().flat_map(|r| r.plans.iter().map(|p| p.regs)).max().unwrap_or(1).max(1);
+    // each plan's place in `plan_on`: whether this file enters its disjunct at it (always, for a disjunct of one plan)
+    let plan_base: Vec<usize> = frules.iter().scan(0, |a, r| { let b = *a; *a += r.plans.len(); Some(b) }).collect();
+    let mut plan_on = vec![true; frules.iter().map(|r| r.plans.len()).sum::<usize>()];
     let mut cands = vec![0u64; units.len()];
     let mut surv = vec![0u64; units.len()];
     let mut unit_steps = vec![0u64; units.len()];
@@ -1719,6 +1799,25 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                         }
                     };
                     let c4 = thread_cpu();
+                    // no census: each disjunct with alternatives enters this file at the one whose buckets hold the fewest of
+                    // the file's nodes (any of them covers every node that can match)
+                    let bucket_len = |key: &Key| match *key {
+                        Key::Word(w) => (word_offsets[usize::from(w) + 1] - word_offsets[usize::from(w)]) as usize,
+                        Key::Kind(k) => node_table::ids_of_kind(t, KindBits(k)).len(),
+                        Key::Field(f) => node_table::ids_of_field(t, languages::FieldCode(f)).len(),
+                    };
+                    for (ri, rule) in frules.iter().enumerate() {
+                        if !alive[ri] {
+                            continue;
+                        }
+                        for alts in &rule.alts {
+                            let size = |p: &usize| rule.plans[*p].keys.iter().map(bucket_len).sum::<usize>();
+                            let best = alts.iter().min_by_key(|p| size(p)).copied();
+                            for p in alts {
+                                plan_on[plan_base[ri] + p] = Some(*p) == best;
+                            }
+                        }
+                    }
                     for r in 0..repeat {
                         let first = r == 0;
                         let mut file_surv = vec![0u64; units.len()];
@@ -1760,6 +1859,10 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                             if !alive[unit.rule] || (way == "knock" && unit.knock) {
                                 continue;
                             }
+                            let on = |p: &usize| plan_on[plan_base[unit.rule] + p];
+                            if !unit.plans.iter().any(on) {
+                                continue;
+                            }
                             let rule = &frules[unit.rule];
                             if word_skip && !unit.plans.iter().any(|p| funnel::cnf_holds(&rule.plans[*p].words, &present)) {
                                 continue;
@@ -1788,7 +1891,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                                 "cands" => {}
                                 "interp" => {
                                     for &n in &buf {
-                                        for p in &unit.plans {
+                                        for p in unit.plans.iter().filter(|p| on(p)) {
                                             regs[0] = n;
                                             if funnel::exec(&ctx, &rule.plans[*p].ops, 0, &mut regs, &mut s) {
                                                 n_s += 1;
@@ -1808,7 +1911,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                                             break;
                                         }
                                         let plan = &rule.plans[*p];
-                                        if word_skip && !funnel::cnf_holds(&plan.words, &present) {
+                                        if !on(p) || (word_skip && !funnel::cnf_holds(&plan.words, &present)) {
                                             continue;
                                         }
                                         rows.enter(plan.regs.max(1), from);
@@ -2365,13 +2468,17 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
         sv.hits.len()
     );
     if let Some(path) = flag(args, "--rules-out") {
-        let mut w = String::from("rule\tunits\tcandidates\tsurvivors\tsteps\n");
+        let mut w = String::from("rule\tunits\tcandidates\tsurvivors\tsteps\tfiles\n");
+        let mut files_of = vec![0u64; frules.len()];
+        for (r, _) in &sv.alive {
+            files_of[*r as usize] += 1;
+        }
         for (ri, r) in frules.iter().enumerate() {
             let mine: Vec<usize> = (0..units.len()).filter(|u| units[*u].rule == ri).collect();
             let c: u64 = mine.iter().map(|u| cands[*u]).sum();
             let s: u64 = mine.iter().map(|u| surv[*u]).sum();
             let k: u64 = mine.iter().map(|u| unit_steps[*u]).sum();
-            w.push_str(&format!("{}\t{}\t{c}\t{s}\t{k}\n", r.name, mine.len()));
+            w.push_str(&format!("{}\t{}\t{c}\t{s}\t{k}\t{}\n", r.name, mine.len(), files_of[ri]));
         }
         std::fs::write(path, w).expect("rules out");
     }
