@@ -658,6 +658,8 @@ mod funnel;
 mod facts;
 #[path = "finish.rs"]
 mod finish;
+#[path = "dump.rs"]
+mod dump;
 
 /// The visit's facts as the finish's provider.
 struct Facts<'v, 'f, 'w> {
@@ -1225,11 +1227,16 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     let mut last = vec![0u32; units.len()];
     let mut buf: Vec<u32> = Vec::new();
     let mut remaining: Vec<u32> = Vec::new();
+    // one pass: `--dump <file>` writes per file a hash of each part the first half reads (dump.rs)
+    let dump_out = flag(args, "--dump");
+    let mut dumped = String::new();
+    let mut reader_dump = String::new();
     let started = thread_cpu();
     for (file_no, path) in list.iter().enumerate() {
         let c0 = thread_cpu();
         let bytes = std::fs::read(path).expect("read");
         store.reset(slots_n);
+        reader_dump.clear();
         let mut visit_time = 0f64;
         let ok = if use_facts && direct {
             cwalk
@@ -1534,6 +1541,18 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                             chk_diff[t] += u64::from(mine != theirs) * (mine.len().abs_diff(theirs.len()).max(1) as u64) + u64::from(back != theirs);
                         }
                     }
+                    if dump_out.is_some() {
+                        // the reader's rows of every relation the plans ask, whole
+                        for slot in 0..slots_n {
+                            languages::facts::clear_words(&mut fwords);
+                            filled.0.clear();
+                            let answer = file.fill(fact_catalog.relations[slot], languages::Wanted::Whole, &mut fwords, &mut filled);
+                            let mut h = dump::Hashed::default();
+                            h.row(&answer);
+                            h.rows(&filled.0);
+                            h.line(&mut reader_dump, file_no, &format!("reader/{}", fact_catalog.names[slot]));
+                        }
+                    }
                     visit_time += thread_cpu() - v0;
                 })
                 .is_ok()
@@ -1761,6 +1780,37 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                 }
             }
         }
+        if dump_out.is_some() {
+            dump::table(&mut dumped, file_no, t, vocab.kind_names.len());
+            let mut h = dump::Hashed::default();
+            h.rows(&st.parent);
+            h.rows(&st.pkind);
+            h.rows(&st.cmask);
+            h.rows(&st.sibling);
+            h.rows(&st.enc_function);
+            h.rows(&st.enc_class);
+            h.rows(&st.enc_loop);
+            h.rows(&st.enc);
+            h.line(&mut dumped, file_no, "structure");
+            let mut h = dump::Hashed::default();
+            h.rows(&cols.field_offsets);
+            h.rows(&cols.by_field);
+            h.rows(&cols.field_present);
+            h.line(&mut dumped, file_no, "fields");
+            let mut h = dump::Hashed::default();
+            h.rows(&present);
+            h.rows(&word_pairs);
+            h.rows(&word_offsets);
+            h.rows(&word_pos);
+            h.line(&mut dumped, file_no, "words");
+            for (i, (slot, kc)) in ask_of.iter().enumerate() {
+                let mut h = dump::Hashed::default();
+                h.row(&asks[i]);
+                h.row(&store.direct.tables[i]);
+                h.line(&mut dumped, file_no, &format!("fact/{}/{kc}/{}", fact_catalog.names[*slot], asks[i].exists));
+            }
+            dumped.push_str(&reader_dump);
+        }
         if way == "words" {
             continue;
         }
@@ -1962,6 +2012,9 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
         phases.add("prefixes", (thread_cpu() - c4) / repeat as f64);
     }
     let total = thread_cpu() - started;
+    if let Some(path) = &dump_out {
+        std::fs::write(path, &dumped).expect("dump out");
+    }
     println!(
         "words: {n_words} required words; word src {word_src}; present (file, word) {present_total}; distinct name-token words summed over files {distinct_total}; compare: in the table but not the source scan {missing_in_src}, in the source scan only {extra_in_src}"
     );
