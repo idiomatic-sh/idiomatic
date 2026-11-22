@@ -91,6 +91,8 @@ mod view_cols;
 /// redo-empty: emptiness for the file, by propagation over the plan.
 #[path = "finish/emptyprop.rs"]
 pub(super) mod emptyprop;
+#[path = "ordering.rs"]
+mod ordering;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum Ty {
@@ -1594,7 +1596,10 @@ impl<'p> Exec<'p> {
         }
         let pn = &self.plan.nodes[node];
         let c = match pn.op.as_str() {
-            "base" => pn.j["rel"].as_str() == Some("filesystem.file"),
+            // redo-binding c32: `filesystem.file` is answered per file (the current file's row): every file column of a
+            // step is the current file (`file_fails` reads a test on it so), and a run-wide memo of a step over it kept the
+            // first file's answer for the run (no stub ever held, and a file join held every file)
+            "base" => false,
             "rows" => true,
             "select" | "union" | "antijoin" | "extend" | "project" | "group-count" | "group-min" | "group-max" | "capture" | "replace" => {
                 let ins = pn.inputs.clone();
@@ -1750,6 +1755,14 @@ impl<'p> Exec<'p> {
                         tys.push(Ty::Num);
                     }
                 }
+                // redo-binding pass 6: `capture-texts={group: column, ...}`, the text of each named group ("" when it did
+                // not take part), so one scan answers several spellings of a span
+                if let Some(ct) = a.get("capture-texts").and_then(J::as_object) {
+                    for v in ct.values() {
+                        names.push(s(v)?.to_owned());
+                        tys.push(Ty::Sym);
+                    }
+                }
                 mk(names, tys)
             }
             "capture" => {
@@ -1798,6 +1811,13 @@ impl<'p> Exec<'p> {
             "ordered-dfs" => {
                 let (f, e) = (from(self, run, "from")?, from(self, run, "edges")?);
                 let (names, tys) = ordered_dfs::schema(a, (&f.names, &f.tys), (&e.names, &e.tys))?;
+                mk(names, tys)
+            }
+            "order" => {
+                let f = from(self, run, "from")?;
+                let (mut names, mut tys) = ((*f.names).clone(), (*f.tys).clone());
+                names.extend([s(&a["rank"])?.to_owned(), s(&a["step"])?.to_owned()]);
+                tys.extend([Ty::Num, Ty::Num]);
                 mk(names, tys)
             }
             other => return Err(format!("operator {other} not in the step set")),
@@ -3229,6 +3249,7 @@ impl<'p> Exec<'p> {
             }
             "subtree-class" => self.subtree_class(f, run, p, node),
             "prefixes" => self.prefixes(f, run, p, node),
+            "order" => self.order(f, run, p, node),
             "fits-rendered" => {
                 let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
                 let texts: Vec<usize> = strs(&a["texts"])?.iter().map(|c| from.col(c)).collect::<R<_>>()?;
@@ -3343,9 +3364,7 @@ impl<'p> Exec<'p> {
     fn base(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, rel: &str) -> R<Table> {
         if rel == "filesystem.file" {
             let mut out = Table::with(vec!["path".to_owned()], vec![Ty::File]);
-            for i in 0..run.paths.len() {
-                out.push_row(&[i as u64]);
-            }
+            out.push_row(&[u64::from(f.file)]);
             return Ok(out);
         }
         if let Some(t) = f.fills.get(rel) {
@@ -4411,6 +4430,7 @@ impl<'p> Exec<'p> {
         let cap = a.get("capture").and_then(J::as_str).map(str::to_owned);
         let cap_text = a.get("capture-text-output").and_then(J::as_str).is_some();
         let cap_line = a.get("capture-line-output").and_then(J::as_str).is_some();
+        let groups: Vec<String> = a.get("capture-texts").and_then(J::as_object).map(|o| o.keys().cloned().collect()).unwrap_or_default();
         let mut out = self.empty(run, node)?;
         let mut row = Vec::new();
         for i in 0..from.n {
@@ -4454,6 +4474,9 @@ impl<'p> Exec<'p> {
                     if cap_line {
                         row.push(line_at(g.start()) as u64);
                     }
+                }
+                for c in &groups {
+                    row.push(u64::from(run.sym(m.name(c).map_or(&b""[..], |x| x.as_bytes()))));
                 }
                 out.push_row(&row);
             }

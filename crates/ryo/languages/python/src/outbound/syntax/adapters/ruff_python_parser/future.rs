@@ -9,6 +9,7 @@ use super::types::{
     DiagnosticMessage, FutureAnnotations, FutureValidity, ParserRefusal, Said,
     SemanticSyntaxDiagnostic,
 };
+use crate::outbound::syntax::types::PythonSourceKind;
 use ruff_python_ast::Stmt;
 use ruff_python_ast::token::{TokenKind, Tokens};
 use ruff_python_ast::visitor::{Visitor, walk_stmt};
@@ -75,6 +76,20 @@ impl<'a> Visitor<'a> for FutureImports<'_> {
         }
         walk_stmt(self, stmt);
     }
+}
+
+/// Whether a module's annotations are postponed: under a valid future import, or in a stub, which is never run.
+pub(super) fn annotations_deferred(future: FutureAnnotations, kind: PythonSourceKind) -> bool {
+    future.0 || kind == PythonSourceKind::Stub
+}
+
+/// The text of the module property that records [`annotations_deferred`].
+pub(super) const fn annotation_timing(deferred: bool) -> ryo::languages::NameText<'static> {
+    ryo::languages::NameText(if deferred {
+        crate::domain::syntax::constants::MODULE_ANNOTATIONS_DEFERRED
+    } else {
+        crate::domain::syntax::constants::MODULE_ANNOTATIONS_IMMEDIATE
+    })
 }
 
 /// Validate compiler directives and enable features only in a legal module prefix.

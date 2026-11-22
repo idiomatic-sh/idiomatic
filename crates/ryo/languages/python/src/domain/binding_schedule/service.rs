@@ -85,10 +85,10 @@ pub(crate) fn schedule(
         || languages::property_at(
             tree.elements,
             Position(0),
-            crate::domain::syntax::constants::MODULE_FUTURE_ANNOTATIONS,
+            crate::domain::syntax::constants::MODULE_ANNOTATION_TIMING,
         )
         .is_some_and(|value| {
-            value.0 == crate::domain::syntax::constants::MODULE_FUTURE_ANNOTATIONS_ENABLED
+            value.0 == crate::domain::syntax::constants::MODULE_ANNOTATIONS_DEFERRED
         }) {
         BindingAnnotationTiming::Deferred
     } else {
