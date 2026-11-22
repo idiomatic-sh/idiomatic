@@ -266,7 +266,7 @@ fn gather(pr: &Prep, l: &Rc<Table>, keep: &[u32]) -> Rc<Table> {
         return pr.empty.clone();
     }
     // redo-alloc: the table and its columns from the worker's pools (recycle.rs)
-    let mut out = Table::with(l.names.clone(), l.tys.clone());
+    let mut out = Table::with_rows(l.names.clone(), l.tys.clone(), keep.len());
     for (c, src) in l.cols.iter().enumerate() {
         let mut v = std::mem::take(&mut out.cols[c]);
         v.extend(keep.iter().map(|i| src[*i as usize]));

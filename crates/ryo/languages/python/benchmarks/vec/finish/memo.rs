@@ -372,7 +372,7 @@ impl Memo {
                 }
             }
         }
-        let mut out = Table::with(sc.names.clone(), sc.tys.clone());
+        let mut out = Table::with_rows(sc.names.clone(), sc.tys.clone(), total);
         for c in 0..out.cols.len() {
             let mut v = std::mem::take(&mut out.cols[c]);
             v.reserve(total);

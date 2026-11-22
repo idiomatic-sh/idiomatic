@@ -139,10 +139,34 @@ pub(super) struct Table {
 thread_local! {
     /// 8: the worker's column buffers: a dropped table's columns come back here (cleared, capacity kept) and the next
     /// table takes them, so a file's executions reuse the same memory instead of allocating and freeing per execution.
-    static POOL: RefCell<(Vec<Vec<u64>>, usize)> = const { RefCell::new((Vec::new(), 0)) };
+    /// redo-alloc: by size class (a column of room 2^c..2^(c+1) in class c), so a small table never holds a large column.
+    static POOL: RefCell<([Vec<Vec<u64>>; CLASSES], usize)> = const { RefCell::new(([const { Vec::new() }; CLASSES], 0)) };
 }
 /// 8: the pool keeps at most this many cells in all (32 MB), and no single column above a sixteenth of it.
 const POOL_CELLS: usize = 1 << 22;
+/// redo-alloc: size classes of the pool (2^0 .. 2^19 cells: the largest pooled column is POOL_CELLS / 16 = 2^18).
+const CLASSES: usize = 20;
+
+/// redo-alloc: a pooled column with room for `n` cells (no more than 32 times that), or a new one with room for the next
+/// power of two (so it is found again by its class); for an unknown size (`n` 0) one of the small classes (up to 512
+/// cells) or an empty one.
+#[inline]
+fn take_col(p: &mut ([Vec<Vec<u64>>; CLASSES], usize), n: usize) -> Vec<u64> {
+    let (lo, hi) = if n == 0 { (0, 8) } else { let c = (usize::BITS - (n - 1).leading_zeros()) as usize; (c.saturating_sub(1), (c + 4).min(CLASSES - 1)) };
+    for c in lo..=hi.min(CLASSES - 1) {
+        if let Some(v) = p.0[c].pop() {
+            p.1 -= v.capacity();
+            if v.capacity() >= n {
+                return v;
+            }
+            // a column just below the room asked: grown once here
+            let mut v = v;
+            v.reserve(n);
+            return v;
+        }
+    }
+    Vec::with_capacity(if n >= 16 { n.next_power_of_two() } else { n })
+}
 
 impl Drop for Table {
     fn drop(&mut self) {
@@ -154,19 +178,17 @@ impl Drop for Table {
 
 impl Table {
     fn with(names: impl Into<Names>, tys: impl Into<Tys>) -> Self {
+        Self::with_rows(names, tys, 0)
+    }
+    /// redo-alloc: `with` for a table about to hold `n` rows (its columns taken with that room; 0: unknown).
+    fn with_rows(names: impl Into<Names>, tys: impl Into<Tys>, n: usize) -> Self {
         let (names, tys) = (names.into(), tys.into());
         let k = names.len();
         // redo-alloc: the list of columns from the kept ones (recycle.rs), each column from the pool
         let mut cols = recycle::take_cols(k);
         POOL.with(|p| {
-            let (p, cells) = &mut *p.borrow_mut();
-            cols.extend((0..k).map(|_| match p.pop() {
-                Some(c) => {
-                    *cells -= c.capacity();
-                    c
-                }
-                None => Vec::new(),
-            }));
+            let p = &mut *p.borrow_mut();
+            cols.extend((0..k).map(|_| take_col(p, n)));
         });
         Table { names, tys, cols, n: 0 }
     }
@@ -174,15 +196,9 @@ impl Table {
     pub(super) fn copy(&self) -> Table {
         let mut cols = recycle::take_cols(self.cols.len());
         POOL.with(|p| {
-            let (p, cells) = &mut *p.borrow_mut();
+            let p = &mut *p.borrow_mut();
             for c in &self.cols {
-                let mut v = match p.pop() {
-                    Some(v) => {
-                        *cells -= v.capacity();
-                        v
-                    }
-                    None => Vec::new(),
-                };
+                let mut v = take_col(p, c.len());
                 v.extend_from_slice(c);
                 cols.push(v);
             }
@@ -204,7 +220,7 @@ impl Table {
                 }
                 c.clear();
                 *cells += cap;
-                p.push(c);
+                p[(usize::BITS - 1 - cap.leading_zeros()) as usize].push(c);
             }
         });
     }
@@ -2003,7 +2019,7 @@ impl<'p> Exec<'p> {
                     self.memo.vrows = rows;
                     return self.empty_rc(run, node);
                 }
-                let mut out = Table::with(sc.names.clone(), sc.tys.clone());
+                let mut out = Table::with_rows(sc.names.clone(), sc.tys.clone(), rows.len());
                 for c in 0..v.map.len() {
                     out.cols[c].extend(rows.iter().map(|r| f.native_get(run, v.base, *r, v.map[c])));
                 }
@@ -2246,7 +2262,7 @@ impl<'p> Exec<'p> {
                 self.empty_rc(run, node)?
             } else {
                 // redo-alloc: the table and its columns from the worker's pools
-                let mut t = Table::with(out.names.clone(), out.tys.clone());
+                let mut t = Table::with_rows(out.names.clone(), out.tys.clone(), keep.len());
                 for (c, src) in out.cols.iter().enumerate() {
                     let mut v = std::mem::take(&mut t.cols[c]);
                     v.extend(keep.iter().map(|r| src[*r]));
@@ -2330,7 +2346,7 @@ impl<'p> Exec<'p> {
             self.empties[node] = Some(t.clone());
             return t;
         }
-        let mut out = Table::with(sl.t.names.clone(), sl.t.tys.clone());
+        let mut out = Table::with_rows(sl.t.names.clone(), sl.t.tys.clone(), total);
         for (c, col) in sl.t.cols.iter().enumerate() {
             // redo-alloc: the pooled column, grown (not dropped for a new one)
             let mut v = std::mem::take(&mut out.cols[c]);
@@ -2630,7 +2646,7 @@ impl<'p> Exec<'p> {
                 let t0 = step_clock();
                 let sc = self.schema(run, node)?;
                 let rows = view_rows(f, run, &v, node);
-                let mut out = Table::with(sc.names.clone(), sc.tys.clone());
+                let mut out = Table::with_rows(sc.names.clone(), sc.tys.clone(), rows.len());
                 for c in 0..v.map.len() {
                     out.cols[c].extend(rows.iter().map(|r| f.native_get(run, v.base, *r, v.map[c])));
                 }
@@ -2699,8 +2715,13 @@ impl<'p> Exec<'p> {
     }
 
     fn empty(&mut self, run: &mut Run, node: usize) -> R<Table> {
+        self.empty_rows(run, node, 0)
+    }
+
+    /// redo-alloc: `empty` for a table about to hold `n` rows.
+    pub(super) fn empty_rows(&mut self, run: &mut Run, node: usize, n: usize) -> R<Table> {
         let sc = self.schema(run, node)?;
-        Ok(Table::with(sc.names.clone(), sc.tys.clone()))
+        Ok(Table::with_rows(sc.names.clone(), sc.tys.clone(), n))
     }
 
     fn lazy(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Lazy>> {
@@ -4640,7 +4661,7 @@ fn distinct(t: Table) -> Table {
     if keep.len() == t.n {
         return t;
     }
-    let mut out = Table::with(t.names.clone(), t.tys.clone());
+    let mut out = Table::with_rows(t.names.clone(), t.tys.clone(), keep.len());
     for (c, col) in t.cols.iter().enumerate() {
         out.cols[c].extend(keep.iter().map(|r| col[*r]));
     }
@@ -4911,7 +4932,6 @@ fn get(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], si: usize, col: u
 /// The rows of a made table whose column holds one of `keys`, through its index on that column (made once a file).
 fn subset(f: &mut File<'_>, node: usize, t: &Table, col: usize, keys: &[u64]) -> Table {
     let ix = table_index(f, node, t, &[col]);
-    let mut out = Table::with(t.names.clone(), t.tys.clone());
     // 10: the rows found first, then each column gathered (the same rows in the same order as row by row)
     thread_local! {
         static ROWS: RefCell<Vec<u32>> = const { RefCell::new(Vec::new()) };
@@ -4924,14 +4944,16 @@ fn subset(f: &mut File<'_>, node: usize, t: &Table, col: usize, keys: &[u64]) ->
                 rs.extend_from_slice(rows);
             }
         }
+        // redo-alloc: the columns taken with the rows' room now that their count is known
+        let mut out = Table::with_rows(t.names.clone(), t.tys.clone(), rs.len());
         for (c, src) in t.cols.iter().enumerate() {
             let mut v = std::mem::take(&mut out.cols[c]);
             v.extend(rs.iter().map(|r| src[*r as usize]));
             out.cols[c] = v;
         }
         out.n = rs.len();
-    });
-    out
+        out
+    })
 }
 
 /// redo-alloc: an interned text is read where it lies (no copy); a number's text is made.
@@ -5232,7 +5254,7 @@ fn token_links(f: &File<'_>, run: &mut Run) -> Table {
 pub(super) fn filled_table(run: &mut Run, rel: &str, filled: &languages::FilledColumns, words: &languages::FileWords) -> R<Table> {
     let (_, names, tys) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
     let n = filled.0.first().map_or(0, |c| c.0.len());
-    let mut out = Table::with(names, tys.clone());
+    let mut out = Table::with_rows(names, tys.clone(), n);
     for (c, ty) in tys.iter().enumerate() {
         let Some(column) = filled.0.get(c) else {
             out.cols[c] = vec![NULL; n];

@@ -210,7 +210,7 @@ fn combine(pr: &Prep, got: &[(Rc<Table>, u32)]) -> Rc<Table> {
             return got[0].0.clone();
         }
         // redo-alloc: the answer's table and columns from the worker's pools (recycle.rs), not made new
-        let mut out = Table::with(pr.names.clone(), pr.tys.clone());
+        let mut out = Table::with_rows(pr.names.clone(), pr.tys.clone(), n);
         for c in 0..k {
             let mut v = std::mem::take(&mut out.cols[c]);
             v.reserve(n);

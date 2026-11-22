@@ -1082,8 +1082,9 @@ impl Exec<'_> {
         if prof {
             prof_add(3, t2.elapsed() - (self.inner - i2));
         }
-        let mut out = self.empty(run, node)?;
         let n = left.len();
+        // redo-alloc: the columns taken with the join's room
+        let mut out = self.empty_rows(run, node, n)?;
         for (c, (si, sc)) in kp.items.iter().enumerate() {
             let rows: &[u32] = if *si == driver { left } else { right };
             let col = &mut out.cols[c];
