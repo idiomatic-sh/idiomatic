@@ -11,7 +11,8 @@ pub(super) struct Finisher<'p> {
     /// The plan's emits the run asks for (`--rules`), by index into `plan.emits`.
     emits: Vec<usize>,
     /// The plan's seed rules (their rows start from the first half's survivors by node), by name.
-    seed_set: HashSet<String>,
+    /// redo-union pass 2 c12: per plan emit, whether its rule is a seed rule (decided once a run, not looked up a file).
+    emit_seeded: Vec<bool>,
     /// The survivors by node of each (rule, path) (`--surv`), and their rules by path.
     surv: HashMap<(String, String), Vec<u32>>,
     surv_by_path: HashMap<String, HashSet<String>>,
@@ -82,7 +83,7 @@ impl<'p> Finisher<'p> {
         let mut me = Self {
             plan,
             emits,
-            seed_set: plan.seeds.iter().cloned().collect(),
+            emit_seeded: plan.emits.iter().map(|e| plan.seeds.contains(&e.0)).collect(),
             surv,
             surv_by_path,
             check: args.contains(&"--check-bases"),
@@ -120,7 +121,7 @@ impl<'p> Finisher<'p> {
             .copied()
             .filter(|e| {
                 let name = &self.plan.emits[*e].0;
-                if self.seed_set.contains(name) { surv_here.is_some_and(|s| s.contains(name)) } else { seeded(*e) }
+                if self.emit_seeded[*e] { surv_here.is_some_and(|s| s.contains(name)) } else { seeded(*e) }
             })
             .collect();
         self.time += thread_cpu() - t0;
@@ -182,7 +183,8 @@ impl<'p> Finisher<'p> {
         self.files_run += 1;
         let plan = self.plan;
         let mut f = finish::File::new(ft, bytes, file_no as u32, plan.nodes.len());
-        f.seeds = plan.seeds.iter().map(|r| self.surv.get(&(r.clone(), path.to_owned())).cloned().unwrap_or_default()).collect();
+        // redo-union pass 2 c12: no survivor lists given: every set empty, without a lookup a set a file
+        f.seeds = if self.surv.is_empty() { vec![Vec::new(); plan.seeds.len()] } else { plan.seeds.iter().map(|r| self.surv.get(&(r.clone(), path.to_owned())).cloned().unwrap_or_default()).collect() };
         finish::handover::expand(&mut f, &plan.seed_paths);
         self.exec.reset_file(f.n);
         let run = &mut self.run;
@@ -242,8 +244,8 @@ impl<'p> Finisher<'p> {
         if let Some(out) = &self.stats {
             let mut lines = vec!["node\top\tcalls\trows\ttouched\tseconds".to_owned()];
             for (i, pn) in self.plan.nodes.iter().enumerate() {
-                if exec.stats.calls[i] > 0 || exec.stats.probes[i] > 0 || exec.stats.touched[i] > 0 || exec.stats.rows[i] > 0 || exec.stats.time[i] > 0.0 {
-                    lines.push(format!("{i}\t{}\t{}\t{}\t{}\t{:.6}\t{}\t{}\t{}\t{}", pn.op, exec.stats.calls[i], exec.stats.rows[i], exec.stats.touched[i], exec.stats.time[i], exec.stats.empty[i], exec.stats.probes[i], exec.stats.made_by[i] as i64, exec.stats.why[i]));
+                if exec.stats.calls[i] > 0 || exec.stats.probes[i] > 0 || exec.stats.touched[i] > 0 || exec.stats.rows[i] > 0 || exec.stats.time[i] > 0.0 || exec.stats.known[i] > 0 {
+                    lines.push(format!("{i}\t{}\t{}\t{}\t{}\t{:.6}\t{}\t{}\t{}\t{}\t{}\t{:.6}\t{}", pn.op, exec.stats.calls[i], exec.stats.rows[i], exec.stats.touched[i], exec.stats.time[i], exec.stats.empty[i], exec.stats.probes[i], exec.stats.made_by[i] as i64, exec.stats.why[i], exec.stats.known[i], exec.stats.empty_time[i], exec.stats.probe_empty[i]));
                 }
             }
             for (k, v) in &self.by_rel {
@@ -260,9 +262,44 @@ impl<'p> Finisher<'p> {
         }
         println!("files run {}; findings {}; rules {} ({} failed)", self.files_run, self.findings.len(), self.emits.len(), self.failed.len());
         println!("thread CPU-s: total {total:.3}; walk+table {walk_time:.3}; in the visit {file_time:.3}: steps {steps:.3}, provider fills {:.3} ({} rows)", self.provider_time, self.provider_rows);
-        println!("per-key memo: rows in {} rows out {} keys asked {}", exec.stats.memo_in, exec.stats.memo_out, exec.stats.memo_keys);
+        println!("per-key memo: rows in {} rows out {} keys asked {} keys missing {} probes answered whole {}", exec.stats.memo_in, exec.stats.memo_out, exec.stats.memo_keys, exec.stats.memo_missing, exec.stats.memo_whole_hits);
         println!("memo key lists answered whole: {} ({} keys)", exec.stats.memo_reused, exec.stats.memo_reused_keys);
+        if exec.stats.known_timed > 0 {
+            // redo-union pass 2: the clock's pair cost, calibrated here (a million back-to-back pairs)
+            let n = 1_000_000;
+            let t0 = thread_cpu();
+            let mut x = 0.0;
+            for _ in 0..n {
+                let a = thread_cpu();
+                x += thread_cpu() - a;
+            }
+            let pair = (thread_cpu() - t0) / f64::from(n);
+            std::hint::black_box(x);
+            let per = exec.stats.known_time / exec.stats.known_timed as f64;
+            println!("known-empty whole runs (decided before): {} timed, {:.0} ns a run measured, clock pair {:.0} ns, {:.0} ns a run net; deciding the static part a file: {:.3} s over {} steps ({} per-file tests), of which preparing the needs once a run {:.3} s", exec.stats.known_timed, per * 1e9, pair * 1e9 / 2.0, (per - pair / 2.0) * 1e9, exec.stats.static_time, exec.stats.static_visits, exec.stats.static_file_tests, exec.stats.rec_time);
+        }
         println!("fact keyed lists: fill rows listed {}", finish::FACT_IX_ROWS.load(std::sync::atomic::Ordering::Relaxed));
+        finish::empty_why::print();
+        {
+            // redo-union pass 2: per step kind: runs (whole, by key, known empty), runs that returned nothing (known before
+            // the bracket, bracketed whole, bracketed by key) and the seconds in the bracketed ones (`VEC_STEP_TIME`)
+            let mut by: std::collections::BTreeMap<&str, [f64; 8]> = std::collections::BTreeMap::new();
+            for (i, pn) in self.plan.nodes.iter().enumerate() {
+                let e = by.entry(pn.op.as_str()).or_default();
+                let st = &exec.stats;
+                for (k, v) in [st.calls[i] as f64, st.probes[i] as f64, st.known[i] as f64, st.empty[i] as f64, st.probe_empty[i] as f64, st.empty_time[i], st.time[i], 0.0].into_iter().enumerate() {
+                    e[k] += v;
+                }
+            }
+            println!("KIND\top\twhole\tprobes\tknown-empty\tempty-whole\tempty-probes\tempty-s\tempty-ns-a-run\tseconds");
+            for (op, e) in &by {
+                if e[0] + e[1] + e[2] == 0.0 {
+                    continue;
+                }
+                let ne = e[3] + e[4];
+                println!("KIND\t{op}\t{}\t{}\t{}\t{}\t{}\t{:.3}\t{:.0}\t{:.3}", e[0], e[1], e[2], e[3], e[4], e[5], if ne > 0.0 { e[5] * 1e9 / ne } else { 0.0 }, e[6]);
+            }
+        }
         let mut f: Vec<_> = self.failed.into_iter().collect();
         f.sort();
         for (r, e) in f {
