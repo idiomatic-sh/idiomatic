@@ -27,7 +27,15 @@ pub(crate) fn dispatch(frame: &mut StepFrame<'_, '_>, rules: &Programs) -> ScanC
     if frame.state.need_masks.costs.len() != programs.code.needs.len() {
         costs_found(programs.code, &mut frame.state.need_masks);
     }
+    let seed = seed();
     for rule in &programs.code.rules {
+        // THROWAWAY (ryo-fmx3.1 step 6): with RYO_SEED set, a rule runs in a file only when the harness's prefix left it a
+        // survivor there (the seed lists selected-rule ordinal and file path pairs); the same gate for every rule.
+        if let Some(seed) = seed {
+            if !seed.contains(&(rule.rule.0, frame.fill.path.0.to_owned())) {
+                continue;
+            }
+        }
         frame.state.rule = Some(rule.rule);
         begin_rule(frame.state);
         used(frame.state, rule.unit);
@@ -79,4 +87,22 @@ pub(crate) fn dispatch(frame: &mut StepFrame<'_, '_>, rules: &Programs) -> ScanC
         fill_rows: InstructionCount(filled),
         visited: work.visited,
     }
+}
+
+/// THROWAWAY (ryo-fmx3.1 step 6): the (selected-rule ordinal, file path) pairs of `RYO_SEED`, read once.
+fn seed() -> Option<&'static std::collections::HashSet<(u32, String)>> {
+    static SEED: std::sync::OnceLock<Option<std::collections::HashSet<(u32, String)>>> = std::sync::OnceLock::new();
+    SEED.get_or_init(|| {
+        let path = std::env::var("RYO_SEED").ok()?;
+        let text = std::fs::read_to_string(path).ok()?;
+        Some(
+            text.lines()
+                .filter_map(|line| {
+                    let (ordinal, file) = line.split_once('\t')?;
+                    Some((ordinal.parse().ok()?, file.to_owned()))
+                })
+                .collect(),
+        )
+    })
+    .as_ref()
 }
