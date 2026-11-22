@@ -91,19 +91,109 @@ fn pushed(masks: &mut NeedMasks, node: FormulaNode, rank: AskRank, musts: &[Must
         count: Count(musts.len()),
     });
     formulas.musts.extend_from_slice(musts);
+    formulas.node_clauses.push(Stretch::default());
     formulas.nodes.push(node);
     formulas.ranks.push(rank);
     u32::try_from(formulas.nodes.len().saturating_sub(1)).unwrap_or(u32::MAX)
 }
 
+/// The most words of a node's clause: an Any whose alternatives' terms spread wider keeps none.
+const MOST_CLAUSE_WORDS: usize = 16;
+
+/// The clause of a node.
+fn clause_of(masks: &NeedMasks, node: u32) -> &[MustWord] {
+    let formulas = &masks.formulas;
+    let stretch = formulas
+        .node_clauses
+        .get(usize::try_from(node).unwrap_or(usize::MAX))
+        .copied()
+        .unwrap_or_default();
+    formulas
+        .musts
+        .get(stretch.start.0..stretch.start.0.saturating_add(stretch.count.0))
+        .unwrap_or_default()
+}
+
+/// A clause a node cannot hold without, the narrowest at hand: its own clause, else one of its musts. None: nothing
+/// is known it needs.
+fn best_clause(masks: &NeedMasks, node: u32) -> Option<Vec<MustWord>> {
+    let own = clause_of(masks, node);
+    if !own.is_empty() {
+        return Some(own.to_vec());
+    }
+    let first = musts_of(masks, node).first()?;
+    Some(vec![MustWord {
+        word: first.word,
+        bits: first.bits & first.bits.wrapping_neg(),
+    }])
+}
+
+/// Sets a node's clause.
+fn clause_set(masks: &mut NeedMasks, node: u32, clause: &[MustWord]) {
+    if clause.is_empty() {
+        return;
+    }
+    let formulas = &mut masks.formulas;
+    let stretch = Stretch {
+        start: Count(formulas.musts.len()),
+        count: Count(clause.len()),
+    };
+    formulas.musts.extend_from_slice(clause);
+    if let Some(held) = formulas
+        .node_clauses
+        .get_mut(usize::try_from(node).unwrap_or(usize::MAX))
+    {
+        *held = stretch;
+    }
+}
+
+/// The clause of an Any: some part must hold, so the file must hold some term of the narrowest clause of each part.
+/// None when a part has none, or when they spread past the width.
+fn any_clause(masks: &NeedMasks, parts: &[u32]) -> Vec<MustWord> {
+    let mut all: Vec<MustWord> = Vec::new();
+    for part in parts {
+        let Some(clause) = best_clause(masks, *part) else {
+            return Vec::new();
+        };
+        for word in clause {
+            match all.iter_mut().find(|held| held.word == word.word) {
+                Some(held) => held.bits |= word.bits,
+                None => all.push(word),
+            }
+        }
+        if all.len() > MOST_CLAUSE_WORDS {
+            return Vec::new();
+        }
+    }
+    all.sort_unstable_by_key(|word| word.word);
+    all
+}
+
+/// The clause of an All: the narrowest clause of a part.
+fn all_clause(masks: &NeedMasks, parts: &[u32]) -> Vec<MustWord> {
+    let fewest = parts
+        .iter()
+        .map(|part| clause_of(masks, *part))
+        .filter(|clause| !clause.is_empty())
+        .min_by_key(|clause| clause.iter().map(|word| word.bits.count_ones()).sum::<u32>());
+    fewest.map_or_else(Vec::new, <[MustWord]>::to_vec)
+}
+
 /// The musts of a node, by number, as the file's free bits must hold them: a stretch of the formulas' musts.
-pub(crate) fn node_musts(masks: &NeedMasks, node: u32) -> Stretch {
-    masks
+pub(crate) fn node_musts(masks: &NeedMasks, node: u32) -> (Stretch, Stretch) {
+    let clause = masks
+        .formulas
+        .node_clauses
+        .get(usize::try_from(node).unwrap_or(usize::MAX))
+        .copied()
+        .unwrap_or_default();
+    let musts = masks
         .formulas
         .node_musts
         .get(usize::try_from(node).unwrap_or(usize::MAX))
         .copied()
-        .unwrap_or_default()
+        .unwrap_or_default();
+    (musts, clause)
 }
 
 /// What asking a node may cost.
@@ -185,6 +275,9 @@ fn parts_node(
             (FormulaNode::AnyBits(stretch), Vec::new())
         };
         let bits = pushed(masks, node, AskRank::Free, &musts);
+        if !every && !one {
+            clause_set(masks, bits, &words);
+        }
         if parts.is_empty() {
             return bits;
         }
@@ -209,12 +302,14 @@ fn parts_node(
         count: Count(parts.len()),
     };
     masks.formulas.parts.extend_from_slice(&parts);
-    let (node, musts) = if every {
-        (FormulaNode::All(stretch), union(masks, &parts))
+    let (node, musts, clause) = if every {
+        (FormulaNode::All(stretch), union(masks, &parts), all_clause(masks, &parts))
     } else {
-        (FormulaNode::Any(stretch), intersection(masks, &parts))
+        (FormulaNode::Any(stretch), intersection(masks, &parts), any_clause(masks, &parts))
     };
-    pushed(masks, node, rank, &musts)
+    let number = pushed(masks, node, rank, &musts);
+    clause_set(masks, number, &clause);
+    number
 }
 
 /// The node of a table's row: its own need and then its row, so that a need the free terms decide is decided with no
@@ -232,13 +327,17 @@ fn table_node(code: &ProgramCode, masks: &mut NeedMasks, table: MadeTableId) -> 
     let root = site_root(code, need, masks);
     let rank = root.map_or(AskRank::Table, |root| rank_of(masks, root));
     let musts = root.map_or_else(Vec::new, |root| musts_of(masks, root).to_vec());
+    let clause = root.map_or_else(Vec::new, |root| clause_of(masks, root).to_vec());
     let own = pushed(masks, FormulaNode::TableNeed(table), rank, &musts);
+    clause_set(masks, own, &clause);
     let stretch = Stretch {
         start: Count(masks.formulas.parts.len()),
         count: Count(2),
     };
     masks.formulas.parts.extend_from_slice(&[own, row]);
-    pushed(masks, FormulaNode::All(stretch), AskRank::Table, &musts)
+    let number = pushed(masks, FormulaNode::All(stretch), AskRank::Table, &musts);
+    clause_set(masks, number, &clause);
+    number
 }
 
 /// The node compiled from the record at a place among the needs: compiled once, read again after.
@@ -275,7 +374,10 @@ fn compiled(code: &ProgramCode, at: WordSlot, masks: &mut NeedMasks) -> u32 {
             let root = site_root(code, site, masks);
             let rank = root.map_or(AskRank::Table, |root| rank_of(masks, root));
             let musts = root.map_or_else(Vec::new, |root| musts_of(masks, root).to_vec());
-            pushed(masks, FormulaNode::Site(site), rank, &musts)
+            let clause = root.map_or_else(Vec::new, |root| clause_of(masks, root).to_vec());
+            let number = pushed(masks, FormulaNode::Site(site), rank, &musts);
+            clause_set(masks, number, &clause);
+            number
         }
         Some(NeedRecord::Table(table)) => table_node(code, masks, table),
         Some(NeedRecord::All {

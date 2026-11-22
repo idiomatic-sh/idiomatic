@@ -63,6 +63,10 @@ pub(crate) struct NeedFormulas {
     pub(crate) node_musts: Vec<Stretch>,
     /// The words of every node's musts, one node after the other.
     pub(crate) musts: Vec<MustWord>,
+    /// For each node, a clause it cannot hold without: free terms SOME one of which the file must hold, as a stretch of
+    /// `musts` (none: an empty stretch). An Any of alternatives each of which needs its own term is empty, off one
+    /// word's compare, when the file holds none of those terms.
+    pub(crate) node_clauses: Vec<Stretch>,
     /// For each place among the needs, the number of the node compiled from the record there and one more; nought:
     /// none yet.
     pub(crate) at_place: Vec<u32>,

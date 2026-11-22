@@ -382,24 +382,29 @@ impl FileNeeds<'_, '_, '_> {
         }
     }
 
-    /// Whether the file's free bits hold every free term a node cannot hold without.
+    /// Whether the file's free bits hold every free term a node cannot hold without, and some term of its clause.
     #[inline]
     fn musts_held(&self, node: u32) -> bool {
-        let musts = node_musts(&self.0.state.need_masks, node);
-        if musts.count.0 == 0 {
+        let (musts, clause) = node_musts(&self.0.state.need_masks, node);
+        if musts.count.0 == 0 && clause.count.0 == 0 {
             return true;
         }
         let answers = &self.0.state.need_terms.free;
-        let held = self
-            .0
-            .state
-            .need_masks
-            .formulas
-            .musts
-            .get(musts.start.0..musts.start.0.saturating_add(musts.count.0))
-            .unwrap_or_default();
-        held.iter()
-            .all(|word| answers.get(word.word.0).copied().unwrap_or(0) & word.bits == word.bits)
+        let words = &self.0.state.need_masks.formulas.musts;
+        let within =
+            |stretch: Stretch| stretch.start.0..stretch.start.0.saturating_add(stretch.count.0);
+        let all = words.get(within(musts)).unwrap_or_default();
+        let every = all
+            .iter()
+            .all(|word| answers.get(word.word.0).copied().unwrap_or(0) & word.bits == word.bits);
+        if !every {
+            return false;
+        }
+        let some = words.get(within(clause)).unwrap_or_default();
+        some.is_empty()
+            || some
+                .iter()
+                .any(|word| answers.get(word.word.0).copied().unwrap_or(0) & word.bits != 0)
     }
 
     /// Whether the file's free bits hold every bit of the words (`every`), or some one of them.
