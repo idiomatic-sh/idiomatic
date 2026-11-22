@@ -179,10 +179,8 @@ fn walk(model: &mut BindingSchedule, source: ScheduleSource<'_, '_, '_>, at: Pos
     };
     record(model, at, phase);
     let mark = entry(&source.lexical.annotation, at);
-    if at != phase
-        && (mark == AnnotationMark::Unevaluated
-            || (source.timing == BindingAnnotationTiming::Deferred && mark == AnnotationMark::Annotation))
-    {
+    let deferred = source.timing == BindingAnnotationTiming::Deferred && mark == AnnotationMark::Annotation;
+    if at != phase && (deferred || mark == AnnotationMark::Unevaluated) {
         model.phases.push(BindingPhase { root: at, parent: phase, kind: BindingPhaseKind::Type });
         return;
     }

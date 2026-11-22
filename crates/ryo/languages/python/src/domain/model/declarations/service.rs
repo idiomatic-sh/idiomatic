@@ -6,11 +6,8 @@ use crate::domain::model::lexical::service::{entry, name_of, parent_of, scope_at
 use crate::domain::model::lexical::types::{
     LexicalModel, NameHazard, NamespaceKey, NodeClass, ScopeForm, ScopeRedirect, TypedTree,
 };
-use crate::domain::model::definitions::service::definitions_of;
-use crate::domain::model::definitions::types::{DefinitionModel, NameDefinition};
-use crate::domain::model::names::constants::NO_NAME;
 use crate::domain::model::names::types::NameCode;
-use ryo::languages::{DeclarationKind, Position};
+use ryo::languages::Position;
 
 /// The scope whose namespace the node `at` binds in, before any `global` or `nonlocal`: a named expression's target binds
 /// outside the comprehensions around it.
@@ -30,7 +27,8 @@ pub(crate) fn lexical_scope(model: &LexicalModel, tree: TypedTree<'_, '_>, at: P
 }
 
 /// The nearest function around the scope `scope`; the module when there is none.
-fn function_around(model: &LexicalModel, scope: Position) -> Position {
+#[must_use]
+pub(crate) fn function_around(model: &LexicalModel, scope: Position) -> Position {
     let mut around = scope_at(model, scope);
     while entry(&model.class, around) != NodeClass::FunctionDef && around != MODULE {
         around = scope_at(model, around);
@@ -90,88 +88,6 @@ fn declare(model: &mut LexicalModel, tree: TypedTree<'_, '_>) {
             child = subtree_end_of(tree, child);
         }
     }
-}
-
-/// The scope whose block binds the definition `definition` before any `global` or `nonlocal`: a parameter's and a type
-/// parameter's is their owner.
-fn written_in(model: &LexicalModel, tree: TypedTree<'_, '_>, definition: &NameDefinition) -> Position {
-    if matches!(definition.kind, DeclarationKind::Parameter | DeclarationKind::TypeParameter) {
-        definition.owner
-    } else {
-        lexical_scope(model, tree, definition.at)
-    }
-}
-
-/// Whether the block of the function `function` binds the name `name` itself.
-fn binds_itself(
-    model: &LexicalModel,
-    definitions: &DefinitionModel,
-    tree: TypedTree<'_, '_>,
-    function: Position,
-    name: NameCode,
-) -> bool {
-    definitions_of(definitions, function, name).iter().any(|code| {
-        definitions
-            .all
-            .get(usize::from(*code))
-            .is_some_and(|definition| written_in(model, tree, definition) == function)
-    })
-}
-
-/// The function the `nonlocal` name `name` of the scope `scope` is bound in: the nearest enclosing function whose block binds
-/// the name, passing through a function that declares it `nonlocal` too; none when a function declares it `global` first or
-/// none binds it (the parser's error).
-fn nonlocal_target(
-    model: &LexicalModel,
-    definitions: &DefinitionModel,
-    tree: TypedTree<'_, '_>,
-    scope: Position,
-    name: NameCode,
-) -> Option<Position> {
-    let mut around = function_around(model, scope);
-    while around != MODULE {
-        match redirect_of(model, around, name) {
-            Some(ScopeRedirect::Global) => return None,
-            Some(ScopeRedirect::Nonlocal) => {}
-            None if binds_itself(model, definitions, tree, around, name) => return Some(around),
-            None => {}
-        }
-        around = function_around(model, around);
-    }
-    None
-}
-
-/// Routes each `nonlocal` name to the function that binds it, once the definitions are known, and re-routes the deletions
-/// of the names it moves. Answers whether any name moved off the nearest function around its scope: the definitions are then
-/// to be built again.
-pub(crate) fn routed(model: &mut LexicalModel, definitions: &DefinitionModel, tree: TypedTree<'_, '_>) -> bool {
-    let mut moved = Vec::new();
-    for (key, redirect) in &model.declared {
-        if *redirect != ScopeRedirect::Nonlocal {
-            continue;
-        }
-        if let Some(target) = nonlocal_target(model, definitions, tree, key.scope, key.name)
-            && target != function_around(model, key.scope)
-        {
-            moved.push((*key, target));
-        }
-    }
-    if moved.is_empty() {
-        return false;
-    }
-    model.targets.extend(moved);
-    for number in 0..model.hazards.len() {
-        let Some(hazard) = model.hazards.get(number).copied() else {
-            continue;
-        };
-        if hazard.name != NO_NAME {
-            let scope = binding_scope(model, tree, hazard.at, hazard.name);
-            if let Some(slot) = model.hazards.get_mut(number) {
-                slot.scope = scope;
-            }
-        }
-    }
-    true
 }
 
 /// Records the file's declarations and its deletions, once every node's scope and name are known.
