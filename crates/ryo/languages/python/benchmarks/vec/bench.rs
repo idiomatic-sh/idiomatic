@@ -925,6 +925,7 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
         surv_by_path.entry(f.as_str()).or_default().insert(r.as_str());
     }
     let seed_set: HashMap<&str, usize> = plan.seeds.iter().enumerate().map(|(k, r)| (r.as_str(), k)).collect();
+    let emit_seeded: Vec<bool> = emits.iter().map(|e| seed_set.contains_key(e.0.as_str())).collect();
     let mut run = finish::Run::default();
     run.empty = run.sym(b"");
     run.links();
@@ -965,15 +966,18 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
         let surv_here = surv_by_path.get(path.as_str());
         let wanted: Vec<&&(String, usize, String, Vec<String>)> = emits
             .iter()
-            .filter(|e| {
-                if seed_set.contains_key(e.0.as_str()) {
+            .zip(&emit_seeded)
+            .filter(|(e, seeded)| {
+                if **seeded {
                     surv_here.is_some_and(|s| s.contains(e.0.as_str()))
                 } else {
                     seed.is_none() || seed_here.is_some_and(|s| s.contains(e.0.as_str()))
                 }
             })
+            .map(|(e, _)| e)
             .collect();
-        let seeds_here: Vec<Vec<u32>> = plan.seeds.iter().map(|r| surv.get(&(r.clone(), path.clone())).cloned().unwrap_or_default()).collect();
+        // pass 2: no survivor lists given: every set empty, without a lookup a set a file
+        let seeds_here: Vec<Vec<u32>> = if surv.is_empty() { vec![Vec::new(); plan.seeds.len()] } else { plan.seeds.iter().map(|r| surv.get(&(r.clone(), path.clone())).cloned().unwrap_or_default()).collect() };
         if wanted.is_empty() && !check {
             continue;
         }
