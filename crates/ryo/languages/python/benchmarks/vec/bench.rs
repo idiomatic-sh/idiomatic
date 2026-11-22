@@ -839,6 +839,8 @@ mod finish;
 mod finisher;
 #[path = "dump.rs"]
 mod dump;
+#[path = "type_expression.rs"]
+mod type_expression;
 
 /// The visit's facts as the finish's provider.
 struct Facts<'v, 'f, 'w> {
@@ -873,7 +875,7 @@ impl ColFacts<'_, '_, '_, '_> {
             return Ok(t.clone());
         }
         let t = self.whole_fill(run, rel)?;
-        if matches!(rel, "binding-event" | "binding-read" | "binding-resolution") {
+        if matches!(rel, "binding-event" | "binding-read" | "binding-resolution" | "qualified-name" | "call-argument" | "identifier" | "embedded-expression") {
             let _ = self.kept.insert(rel.to_owned(), t.clone());
         }
         Ok(t)
@@ -974,6 +976,27 @@ impl ColFacts<'_, '_, '_, '_> {
     }
 }
 
+impl ColFacts<'_, '_, '_, '_> {
+    /// redo-binding pass 4: `type-expression` (type_expression.rs) from the node table and four provider relations.
+    fn type_expression(&mut self, run: &mut finish::Run) -> Result<finish::Table, String> {
+        let qualified = self.whole(run, "qualified-name")?;
+        let arguments = self.whole(run, "call-argument")?;
+        let identifiers = self.whole(run, "identifier")?;
+        let embedded = self.whole(run, "embedded-expression")?;
+        let inputs = type_expression::Inputs { qualified: &qualified, arguments: &arguments, identifiers: &identifiers, embedded: &embedded };
+        let rows = type_expression::rows(run, self.file.table, &inputs)?;
+        let (_, names, tys) = run.catalog(finish::TYPE_EXPRESSION_REL).ok_or("no type-expression")?;
+        let (ty, skipped) = (u64::from(run.sym(b"type")), u64::from(run.sym(b"skipped")));
+        let mut t = finish::Table { names, tys, cols: vec![Vec::with_capacity(rows.len()); 3], n: rows.len() };
+        for (id, typed) in rows {
+            t.cols[0].push(u64::from(id));
+            t.cols[1].push(if typed { ty } else { skipped });
+            t.cols[2].push(0);
+        }
+        Ok(t)
+    }
+}
+
 impl finish::Provider for ColFacts<'_, '_, '_, '_> {
     fn fill(&mut self, run: &mut finish::Run, rel: &str) -> Result<finish::Table, String> {
         let t0 = thread_cpu();
@@ -996,6 +1019,8 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
             self.read_resolution(run)?
         } else if rel == finish::FINAL_REL {
             self.namespace_final(run)?
+        } else if rel == finish::TYPE_EXPRESSION_REL {
+            self.type_expression(run)?
         } else {
             self.whole(run, rel)?
         };

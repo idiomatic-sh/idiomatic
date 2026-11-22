@@ -239,7 +239,7 @@ impl Run {
         if let Some(r) = self.rels.get(name) {
             return Some(r.clone());
         }
-        if name == REGION_REL || name == RESOLUTION_REL || name == FINAL_REL {
+        if name == REGION_REL || name == RESOLUTION_REL || name == FINAL_REL || name == TYPE_EXPRESSION_REL {
             // 6f probe: the provider's per-node evaluation region (`ColumnFile::evaluation_region`); not a catalog relation,
             // so the placeholder relation is never filled (`Provider::fill` answers it by name). redo-binding: the same for
             // the provider's read resolution (`RESOLUTION_REL`).
@@ -247,6 +247,7 @@ impl Run {
             let cols: &[(&str, Ty)] = match name {
                 REGION_REL => &REGION_COLS,
                 RESOLUTION_REL => &RESOLUTION_COLS,
+                TYPE_EXPRESSION_REL => &TYPE_EXPRESSION_COLS,
                 _ => &FINAL_COLS,
             };
             let names: Names = Rc::new(cols.iter().map(|c| c.0.to_owned()).collect());
@@ -276,6 +277,11 @@ pub(super) const REGION_COLS: [(&str, Ty); 6] =
 pub(super) const FINAL_REL: &str = "namespace-final";
 pub(super) const FINAL_COLS: [(&str, Ty); 6] =
     [("namespace", Ty::Node), ("name", Ty::Sym), ("event", Ty::Node), ("kind", Ty::Sym), ("ordinal", Ty::Num), ("file", Ty::File)];
+
+/// redo-binding pass 4: every element of a file in a type expression (`type`), or left unvisited by a typing form
+/// (`skipped`); no row: a value expression (`type_expression.rs`).
+pub(super) const TYPE_EXPRESSION_REL: &str = "type-expression";
+pub(super) const TYPE_EXPRESSION_COLS: [(&str, Ty); 3] = [("id", Ty::Node), ("kind", Ty::Sym), ("file", Ty::File)];
 
 pub(super) const RESOLUTION_REL: &str = "read-resolution";
 pub(super) const RESOLUTION_COLS: [(&str, Ty); 9] = [
