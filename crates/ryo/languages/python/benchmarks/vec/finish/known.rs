@@ -11,7 +11,7 @@
 //! static part (kinds, seeds, file tests, through the inputs) is kept a file; the made part is read live (a probe's
 //! substitution changes what is made, never what the file holds).
 
-use super::{E, Exec, File, Native, Res, Run, filter_order};
+use super::{E, Exec, File, Native, Provider, Res, Run, filter_order};
 
 /// What a step needs to return anything, prepared once a run (at its first ask).
 pub(super) struct Need {
@@ -31,6 +31,8 @@ pub(super) struct Need {
 const NO: u8 = 1;
 const YES: u8 = 2;
 const BUSY: u8 = 3;
+/// redo-empty: known empty by the propagation's own leaves (directly or through an input): counted apart.
+pub(super) const YES_EP: u8 = 4;
 
 /// pass 2: a step's needs in flat arrays (one record a step, its lists in shared arrays), for the per-file decisions:
 /// the inputs kept are those that can be known empty themselves (`CAN`); a step none of whose needs can is never
@@ -50,6 +52,8 @@ const NEVER: u8 = 2;
 const ALL: u8 = 4;
 const FILE_TEST: u8 = 8;
 const CAN: u8 = 16;
+/// redo-empty: the step has a leaf of the propagation (`emptyprop`).
+const EP_LEAF: u8 = 32;
 
 #[derive(Default)]
 pub(super) struct Flat {
@@ -69,12 +73,12 @@ impl Flat {
 impl Exec<'_> {
     /// Whether a run of `node` in this file returns nothing, known without running it.
     #[inline(always)]
-    pub(super) fn known_empty(&mut self, f: &mut File<'_>, run: &mut Run, node: usize) -> bool {
+    pub(super) fn known_empty(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> bool {
         match f.known[node] {
-            YES => return true,
+            YES | YES_EP => return true,
             NO | BUSY => {}
             _ => {
-                if self.static_empty_(f, run, node) {
+                if self.static_empty_(f, run, p, node) {
                     return true;
                 }
             }
@@ -100,20 +104,20 @@ impl Exec<'_> {
 
     /// Whether the file's kinds, survivor sets or per-file tests leave `node` empty (kept a file).
     #[inline]
-    pub(super) fn static_empty(&mut self, f: &mut File<'_>, run: &mut Run, node: usize) -> bool {
+    pub(super) fn static_empty(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> bool {
         match f.known[node] {
             NO | BUSY => false,
-            YES => true,
-            _ => self.static_empty_(f, run, node),
+            YES | YES_EP => true,
+            _ => self.static_empty_(f, run, p, node),
         }
     }
 
     #[inline(never)]
-    fn static_empty_(&mut self, f: &mut File<'_>, run: &mut Run, node: usize) -> bool {
+    fn static_empty_(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> bool {
         if sw!("VEC_STEP_TIME") && self.stats.static_depth == 0 {
             self.stats.static_depth = 1;
             let t0 = super::step_clock();
-            let e = self.static_empty_(f, run, node);
+            let e = self.static_empty_(f, run, p, node);
             self.stats.static_time += super::step_clock() - t0;
             self.stats.static_depth = 0;
             return e;
@@ -150,21 +154,31 @@ impl Exec<'_> {
             self.stats.static_file_tests += 1;
             e = self.file_fails_of(f, run, node);
         }
+        // redo-empty: the leaves the propagation adds (a fill with no rows, a literal no row of the file holds)
+        let mut ep = false;
+        if !e && r.flags & EP_LEAF != 0 {
+            e = self.ep_leaf_empty(f, run, p, node);
+            ep = e;
+        }
         if !e && r.n_ins > 0 {
             let (a, b) = (r.ins as usize, r.ins as usize + usize::from(r.n_ins));
             if r.flags & ALL != 0 {
                 e = (a..b).all(|i| {
                     let x = self.flat.ins[i] as usize;
-                    self.static_empty(f, run, x)
+                    let y = self.static_empty(f, run, p, x);
+                    ep |= y && f.known[x] == YES_EP;
+                    y
                 });
             } else {
                 e = (a..b).any(|i| {
                     let x = self.flat.ins[i] as usize;
-                    self.static_empty(f, run, x)
+                    let y = self.static_empty(f, run, p, x);
+                    ep = y && f.known[x] == YES_EP;
+                    y
                 });
             }
         }
-        f.known[node] = if e { YES } else { NO };
+        f.known[node] = if e && ep { YES_EP } else if e { YES } else { NO };
         e
     }
 
@@ -221,7 +235,10 @@ impl Exec<'_> {
         if need.file_test {
             r.flags |= FILE_TEST;
         }
-        if r.n_ins > 0 || r.n_kinds > 0 || r.n_seeds > 0 || need.file_test {
+        if !sw!("VEC_NO_EMPTYPROP") && self.ep_has_leaf(run, node) {
+            r.flags |= EP_LEAF;
+        }
+        if r.n_ins > 0 || r.n_kinds > 0 || r.n_seeds > 0 || need.file_test || r.flags & EP_LEAF != 0 {
             r.flags |= CAN;
         }
         self.flat.recs[node] = r;

@@ -838,7 +838,7 @@ impl Exec<'_> {
                         }
                     }
                     // redo-select2: the keys looked up where the probe would end (key_absent.rs): none present, nothing joins
-                    if self.keys_absent(f, run, pn, col, &b.keys)? {
+                    if self.keys_absent(f, run, p, pn, col, &b.keys)? {
                         super::empty_sel::at(super::empty_sel::stage::KEYS_ABSENT);
                         return self.empty_rc(run, node);
                     }

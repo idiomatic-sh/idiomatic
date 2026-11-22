@@ -60,8 +60,9 @@ pub(super) fn input_probe(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p:
         return out;
     }
     // pass 2: known empty before the bracket (as `Exec::probe` does)
-    if !sw!("VEC_NO_KNOWN") && ex.known_empty(f, run, node) {
+    if !sw!("VEC_NO_KNOWN") && ex.known_empty(f, run, p, node) {
         ex.stats.known[node] += 1;
+        super::emptyprop::skipped(f, node);
         return ex.empty_rc(run, node);
     }
     let sc = ex.schema(run, node)?;

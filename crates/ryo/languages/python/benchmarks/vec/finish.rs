@@ -1753,8 +1753,9 @@ impl<'p> Exec<'p> {
             return Ok(r);
         }
         let decided = f.known[node] != 0;
-        if !sw!("VEC_NO_KNOWN") && self.known_empty(f, run, node) {
+        if !sw!("VEC_NO_KNOWN") && self.known_empty(f, run, p, node) {
             self.stats.known[node] += 1;
+            emptyprop::skipped(f, node);
             let r = Res::Tab(self.empty_rc(run, node)?);
             f.touched.push(node as u32);
             f.memo[node] = Some(r.clone());
@@ -1846,8 +1847,9 @@ impl<'p> Exec<'p> {
             }
             return Ok(Rc::new(subset(f, node, &t, col, keys)));
         }
-        if !sw!("VEC_NO_KNOWN") && self.known_empty(f, run, node) {
+        if !sw!("VEC_NO_KNOWN") && self.known_empty(f, run, p, node) {
             self.stats.known[node] += 1;
+            emptyprop::skipped(f, node);
             return self.empty_rc(run, node);
         }
         if let Some(v) = self.view(run, node)? {
