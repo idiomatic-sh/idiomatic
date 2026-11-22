@@ -244,7 +244,7 @@ macro_rules! absent_filler {
         class $class:ident, scope $scope:ident, notes $notes:ident, form NodeTable $nodes:tt, columns $columns:tt) => {};
     ($module:ident item $item:ident, row { $( #[$row_doc:meta] )* $row:ident }, column $column:tt, expected $expected:tt,
         class $class:ident, scope $scope:ident, notes $notes:ident, form Filled $key:tt, size $size:ident, keys $keys:tt,
-        columns $columns:tt) => {
+        $( spells $spells:tt, )? columns $columns:tt) => {
         fn $module(
             _file: &mut WalkingFile<'_>,
             _words: &mut FileWords,
