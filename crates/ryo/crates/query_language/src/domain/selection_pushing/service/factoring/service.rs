@@ -124,7 +124,12 @@ pub(crate) fn shared_into(
     steps: &mut Vec<PlanStep>,
     push: SharedPush,
     fresh: Option<StepId>,
-    splice: &mut dyn FnMut(&mut Vec<PlanStep>, StepIndex, Vec<PlanStep>, PlanStep) -> Option<SplicePlaces>,
+    splice: &mut dyn FnMut(
+        &mut Vec<PlanStep>,
+        StepIndex,
+        Vec<PlanStep>,
+        PlanStep,
+    ) -> Option<SplicePlaces>,
 ) -> Option<()> {
     let SharedPush {
         below: Below {

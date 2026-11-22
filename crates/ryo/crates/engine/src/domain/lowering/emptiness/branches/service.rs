@@ -4,20 +4,22 @@
 //! held to it: a literal is carried through a definition into the need, and each reader of a shared definition has its own.
 
 use crate::domain::lowered::types::{ByteLiteral, Emptiness, PathTest, RowValue};
-use crate::domain::lowering::emptiness::service::path_test;
 use crate::domain::lowering::definitions::service::{draft, text_word};
 use crate::domain::lowering::definitions::types::Drafts;
+use crate::domain::lowering::emptiness::service::path_test;
 use crate::domain::lowering::flattening::service::pins_of;
+use crate::domain::lowering::flattening::types::RowMeaning;
 use crate::domain::lowering::flattening::types::{
     AtomRows, FlatAtom, FlatBranch, FlatTerm, FlatVariable,
 };
-use crate::domain::lowering::flattening::types::RowMeaning;
 use crate::domain::steps::types::{CallMeaning, DefinitionId, Polarity, TestOperation};
+use rustc_hash::FxHashMap as HashMap;
 use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::catalog::service::{fact_form, node_column, node_extent};
 use ryo_relations::domain::relations::service::{columns, kind};
-use ryo_relations::domain::relations::types::{CellKind, FactForm, NodeColumn, NodeExtent, Relation};
-use rustc_hash::FxHashMap as HashMap;
+use ryo_relations::domain::relations::types::{
+    CellKind, FactForm, NodeColumn, NodeExtent, Relation,
+};
 
 /// How deep a constant is carried through definitions, and how many branches of a definition may be left that can give
 /// a row with it: past either, the use needs the definition's own formula. Ten deep: a fragment's output is a chain
@@ -79,7 +81,9 @@ fn relation_need(
         // A node relation's row is asked by its kind, its field, or the token text it holds: each a set of the file's
         // read once a file.
         let decided = match (filled, node_column(column)) {
-            (true, _) | (false, Some(NodeColumn::Kind | NodeColumn::Field | NodeColumn::Text)) => true,
+            (true, _) | (false, Some(NodeColumn::Kind | NodeColumn::Field | NodeColumn::Text)) => {
+                true
+            }
             (false, _) => false,
         };
         let value = cell
@@ -180,11 +184,15 @@ fn own_texts(branch: &FlatBranch) -> Vec<FlatVariable> {
             | FlatAtom::Called { .. }
             | FlatAtom::Test { .. } => continue,
         };
-        if !matches!(fact_form(relation), FactForm::NodeTable) || node_extent(relation) != Some(NodeExtent::Own) {
+        if !matches!(fact_form(relation), FactForm::NodeTable)
+            || node_extent(relation) != Some(NodeExtent::Own)
+        {
             continue;
         }
         for (column, cell) in columns(relation).into_iter().zip(cells) {
-            if let (Some(NodeColumn::Text), Some(FlatTerm::Variable(variable))) = (node_column(column), cell) {
+            if let (Some(NodeColumn::Text), Some(FlatTerm::Variable(variable))) =
+                (node_column(column), cell)
+            {
                 texts.push(variable);
             }
         }
