@@ -72,7 +72,10 @@ impl Walk for PythonWalk<WalkPorts> {
         scratch: &mut PythonWalkScratch,
         visit: &mut dyn FileVisit,
     ) -> Result<(), WalkError> {
-        if reads(request.path) != languages::Recognition::Reads {
+        // A file the request names the language for is read whatever its path, as today's explicit parse reads it.
+        if request.selection == languages::WalkSelection::Recognized
+            && reads(request.path) != languages::Recognition::Reads
+        {
             return Err(WalkError::Unsupported);
         }
         let reported = if needs.0.contains(&languages::Relation::SyntaxError) {

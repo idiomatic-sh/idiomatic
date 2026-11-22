@@ -105,6 +105,7 @@ fn subject((languages, statistics): Input) -> Result<Value, Failure> {
             let mut worker = worker(&words, &fake, &load.programs, ScanMeasuring::Plain);
             let files: Vec<WalkRequest<'_>> = (0..3)
                 .map(|number| WalkRequest {
+                    selection: ryo_language::inbound::use_cases::walk::types::WalkSelection::Recognized,
                     path: SourcePath("a.walk"),
                     file: FileId(number),
                     source: ByteSlice(b"one two"),

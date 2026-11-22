@@ -23,7 +23,7 @@ pub use ryo_language::inbound::use_cases::parse::interface::ParseUseCase as Pars
 /// Open on purpose: the walk contract a language implements for the engine, beside `Parse` until the swap deletes `Parse`.
 pub use ryo_language::inbound::use_cases::walk::interface::WalkUseCase as Walk;
 pub use ryo_language::inbound::use_cases::walk::errors::WalkError;
-pub use ryo_language::inbound::use_cases::walk::types::{FileVisit, RelationNeeds, WalkRequest};
+pub use ryo_language::inbound::use_cases::walk::types::{FileVisit, RelationNeeds, WalkRequest, WalkSelection};
 /// Open on purpose: a language implements it, through `ryo::fills!` items, and nothing else does.
 pub use ryo_language::domain::fillers::types::Fillers;
 pub use ryo_language::domain::fillers::types::{FieldNames, Fill, FillItem, KeyedFillItem, WalkKinds, WalkVocabulary};

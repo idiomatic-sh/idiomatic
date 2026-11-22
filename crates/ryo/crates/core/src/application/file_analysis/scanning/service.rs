@@ -29,7 +29,9 @@ use ryo_language::domain::files::types::{FilePath, SourcePath};
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_operators::spike::{EngineMode, engine_compared, engine_difference};
 use ryo_relations::domain::relations::types::FileId;
-use ryo_values::domain::files::types::{CorpusInput, SourceView};
+use ryo_values::domain::files::types::{CorpusInput, ExecutablePermission, SourceView};
+use ryo_execution_runtime::application::file_scan::types::{HostRead, ObservedPath};
+use crate::outbound::language::types::ManifestReading;
 use ryo_values::domain::records::types::{Unread, Unreadable};
 use ryo_values::domain::row_texts::types::RowTotal;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
@@ -325,45 +327,59 @@ impl FileAnalysis {
             path: path.clone(),
             reason: Unreadable::Failed(said),
         };
-        let entry = match file_at(files, at) {
-            Some(CorpusInput::Available(entry)) => entry,
-            Some(CorpusInput::ReadFailed { entry, reason }) => {
-                let said = ReadFailure(reason.0.clone());
-                state.unread.push(unread(&entry.path, said));
-                return Ok(());
-            }
-            Some(CorpusInput::Unreadable { path, reason }) => {
-                state
-                    .unread
-                    .push(unread(path, ReadFailure(reason.0.clone())));
-                return Ok(());
-            }
+        // SPIKE (ryo-fmx3.1): a file that could not be read is noted unread and still scanned, with no bytes, so that the
+        // rules that ask for it (its read failure) run, as today's engine runs them; a manifest no language walks is scanned
+        // with no node table.
+        let (path, executable, failed) = match file_at(files, at) {
+            Some(CorpusInput::Available(entry)) => (&entry.path, entry.executable, None),
+            Some(CorpusInput::ReadFailed { entry, reason }) => (
+                &entry.path,
+                entry.executable,
+                Some((reason.0.clone(), ObservedPath::Observed)),
+            ),
+            Some(CorpusInput::Unreadable { path, reason }) => (
+                path,
+                ExecutablePermission::Unknown,
+                Some((reason.0.clone(), ObservedPath::Unobserved)),
+            ),
             None => return Ok(()),
         };
         state.bytes.0.clear();
-        if let Err(error) = self.read_into(entry, &mut state.bytes) {
-            state.bytes.0.clear();
-            let said = ReadFailure(error.to_string().into());
-            state.unread.push(unread(&entry.path, said));
-            return Ok(());
-        }
+        let failed = match (failed, file_at(files, at)) {
+            (None, Some(CorpusInput::Available(entry))) => self
+                .read_into(entry, &mut state.bytes)
+                .err()
+                .map(|error| (error.to_string().into(), ObservedPath::Observed)),
+            (failed, _) => failed,
+        };
+        let read = match failed {
+            Some((detail, observed)) => {
+                state.bytes.0.clear();
+                state.unread.push(unread(path, ReadFailure(detail.clone())));
+                HostRead::Failed { detail, observed }
+            }
+            None if self.language.reads_manifest(path) == ManifestReading::Read => HostRead::Manifest,
+            None => HostRead::Source,
+        };
+        let failed_read = matches!(read, HostRead::Failed { .. });
         let number = FileId(job.0);
         state.rows.clear();
         let scanned = scanning.scan.scan(
             &scanning.session,
             &mut state.worker,
             FileToScan {
-                path: SourcePath(&entry.path.0),
+                path: SourcePath(&path.0),
                 file: number,
                 source: ByteSlice(&state.bytes.0),
-                executable: entry.executable,
+                executable,
                 hosted: Some(&scanning.hosted),
+                read,
             },
             &mut state.rows,
             &mut state.noticed,
         );
         // A rule that passed its allowance is warned of whatever the scan answered; a run set to fail on it stops here.
-        let warned = self.warned(scanning, state, &entry.path);
+        let warned = self.warned(scanning, state, path);
         if let Scanned::Overran(_) = scanned {
             let reason = [OVERRAN, &*warned.0].concat();
             return Err(OperatingError::EngineHarness { reason }.into());
@@ -376,12 +392,14 @@ impl FileAnalysis {
         state.by = by;
         state.walked.extend(by);
         match fault.map(|fault| (fault.of, fault.sentence.0)) {
+            // A file that could not be read is noted unread already.
+            Some((FaultOf::NoLanguage | FaultOf::File, _)) if failed_read => {}
             Some((FaultOf::NoLanguage, _)) => state.unread.push(Unread {
-                path: entry.path.clone(),
+                path: path.clone(),
                 reason: Unreadable::NoLanguage,
             }),
             Some((FaultOf::File, said)) => {
-                state.unread.push(unread(&entry.path, ReadFailure(said)));
+                state.unread.push(unread(path, ReadFailure(said)));
             }
             Some((FaultOf::Rule(rule), said)) => {
                 let id = scanning
@@ -389,7 +407,7 @@ impl FileAnalysis {
                     .get(usize::try_from(rule.0).unwrap_or(usize::MAX));
                 state.unknowns.extend(id.map(|id| Unknown {
                     rule: id.clone(),
-                    path: entry.path.clone(),
+                    path: path.clone(),
                     message: Message(said),
                     cause: UnknownCause::Undecided,
                 }));
@@ -402,7 +420,7 @@ impl FileAnalysis {
         // Which rules govern the file, once for it: a file with no row is never asked.
         MetadataUseCaseImpl.place(
             scanning.placed,
-            &entry.path,
+            path,
             &mut state.mask,
             &mut state.hits,
         );

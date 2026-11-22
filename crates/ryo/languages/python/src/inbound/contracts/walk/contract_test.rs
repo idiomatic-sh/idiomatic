@@ -13,7 +13,7 @@ use crate::fixtures::walking::{Placement, walked, walked_own_keys, walked_placem
 use crate::outbound::syntax::fixtures::library::fixture_sources;
 use ryo::languages::{
     self, ByteSlice, FileFacts, FileId, FileVisit, KindBits, NodeTable, Offset, RelationNeeds,
-    Walk, WalkError, WalkRequest, node_table,
+    Walk, WalkError, WalkRequest, WalkSelection, node_table,
 };
 
 /// What a case asks of the walk.
@@ -259,6 +259,7 @@ fn numbered<W: Walk>(walk: &W, number: FileId) -> Result<String, WalkError> {
     let (mut table, mut numbering) = (NodeTable::default(), Numbering(None));
     walk.walk(
         WalkRequest {
+            selection: WalkSelection::Recognized,
             path: languages::SourcePath("module.py"),
             file: number,
             source: ByteSlice(b"x = 1\n"),
@@ -279,6 +280,7 @@ fn numbered<W: Walk>(walk: &W, number: FileId) -> Result<String, WalkError> {
 fn linked<W: Walk>(walk: &W) -> Result<String, WalkError> {
     const SOURCE: &[u8] = b"x = 1\n";
     let request = WalkRequest {
+        selection: WalkSelection::Recognized,
         path: languages::SourcePath("module.py"),
         file: FileId(3),
         source: ByteSlice(SOURCE),

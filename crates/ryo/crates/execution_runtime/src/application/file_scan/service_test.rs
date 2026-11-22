@@ -205,6 +205,7 @@ fn words() -> Arc<dyn WalkEngine> {
 /// A file of the cases: its path, its number and its bytes.
 fn file<'a>(path: &'a str, number: u32, bytes: &'a [u8]) -> WalkRequest<'a> {
     WalkRequest {
+        selection: ryo_language::inbound::use_cases::walk::types::WalkSelection::Recognized,
         path: SourcePath(path),
         file: FileId(number),
         source: ByteSlice(bytes),

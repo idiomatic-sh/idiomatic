@@ -25,8 +25,14 @@ use ryo_relations::domain::relations::collections::relations::filesystem_executa
 use ryo_relations::domain::relations::collections::relations::filesystem_file::item::{
     FilesystemFile, FilesystemFileRow,
 };
+use ryo_relations::domain::relations::collections::relations::filesystem_read_failure::item::{
+    FilesystemReadFailure, FilesystemReadFailureRow,
+};
 use ryo_relations::domain::relations::collections::relations::interface::RelationsItem;
-use ryo_relations::domain::relations::types::{FileId, Flag, Missing, Relation};
+use ryo_relations::domain::relations::types::{CellKind, FileId, Flag, Missing, Offset, Relation, Span};
+use ryo_relations::domain::terms::types::{NameText, Symbol};
+use ryo_language::domain::facts::service::intern;
+use super::types::{HostRead, ObservedPath};
 use ryo_values::domain::files::types::ExecutablePermission;
 use super::hosted::service::{HostedFacts, NoLanguage, holds_file};
 use super::hosted::types::HostedRows;
@@ -136,6 +142,7 @@ pub fn worker(
         report: ScanReport::default(),
         executable: ExecutablePermission::Unknown,
         hosted: Arc::default(),
+        read: HostRead::Source,
     }
 }
 
@@ -171,6 +178,8 @@ struct Visiting<'a> {
     executable: ExecutablePermission,
     /// The project's rows the host holds.
     hosted: &'a HostedRows,
+    /// What the host read of the file.
+    read: &'a HostRead,
 }
 
 /// SPIKE (ryo-fmx3.1, E): the host's rows of a file around the language's: the relations of the file as the host holds it
@@ -183,6 +192,8 @@ struct HostFacts<'a> {
     file: FileId,
     /// Whether the host saw the file as one that may be executed.
     executable: ExecutablePermission,
+    /// What the host read of the file.
+    read: &'a HostRead,
 }
 
 /// Appends one row to the columns, widened to the row.
@@ -208,6 +219,18 @@ impl FactSource for HostFacts<'_> {
             Wanted::Key(_, _) => FillExtent::Whole,
         };
         match relation {
+            // A file the request names and the disk lacks has no row.
+            Relation::FilesystemFile
+                if matches!(
+                    self.read,
+                    HostRead::Failed {
+                        observed: ObservedPath::Unobserved,
+                        ..
+                    }
+                ) =>
+            {
+                FactAnswer::Answered(extent)
+            }
             Relation::FilesystemFile => {
                 let row = FilesystemFile::words(FilesystemFileRow { path: self.file });
                 host_row(out, &row.as_ref().iter().map(|word| word.0).collect::<Vec<u64>>());
@@ -235,9 +258,29 @@ impl FactSource for HostFacts<'_> {
                 host_row(out, &row.as_ref().iter().map(|word| word.0).collect::<Vec<u64>>());
                 FactAnswer::Answered(extent)
             }
-            // A file that is scanned was read: it has no row. A file that could not be read is never walked, so its row
-            // has nowhere to be handed yet.
-            Relation::FilesystemReadFailure => FactAnswer::Answered(extent),
+            // A file that was read has no row; one that could not be read has its reason, at the file's origin.
+            Relation::FilesystemReadFailure => {
+                if let HostRead::Failed { detail, .. } = self.read {
+                    let row = FilesystemReadFailure::words(FilesystemReadFailureRow {
+                        path: self.file,
+                        detail: Symbol(0),
+                        span: Span {
+                            start: Offset(0),
+                            end: Offset(0),
+                        },
+                    });
+                    let mut cells: Vec<u64> = row.as_ref().iter().map(|word| word.0).collect();
+                    // The reason is a name of the file's words, not of the catalog's numbering.
+                    let named = FilesystemReadFailure::kinds()
+                        .iter()
+                        .position(|kind| *kind == CellKind::Symbol);
+                    if let Some(cell) = named.and_then(|at| cells.get_mut(at)) {
+                        *cell = intern(words, NameText(detail)).0;
+                    }
+                    host_row(out, &cells);
+                }
+                FactAnswer::Answered(extent)
+            }
             _ => self.language.fill(relation, wanted, words, out),
         }
     }
@@ -253,6 +296,7 @@ impl FileVisit for Visiting<'_> {
             language: file.facts,
             file: file.file,
             executable: self.executable,
+            read: self.read,
         };
         let mut hosted = HostedFacts {
             language: &mut host,
@@ -316,15 +360,24 @@ fn scanned(
         answer: None,
         executable: worker.executable,
         hosted: &worker.hosted,
+        read: &worker.read,
     };
     let (table, buffers) = (&mut worker.table, &mut *worker.buffers);
     let needs = needs(run.programs);
-    let mut walked = worker
-        .language
-        .walk_file(file, needs, table, buffers, &mut visiting);
-    // SPIKE (ryo-fmx3.1): a file no language walks that the host holds rows about (a manifest) is scanned with no node
-    // table: its rows are the host's alone.
-    if walked == Err(WalkError::Unsupported) && holds_file(visiting.hosted, file.file) {
+    // SPIKE (ryo-fmx3.1): a manifest and a file the host could not read are not walked: each is scanned with no node table,
+    // so that the rules that ask for it (its read failure, its manifest's rows) run, as today's engine runs them.
+    let mut walked = match visiting.read {
+        HostRead::Failed { .. } | HostRead::Manifest => Err(WalkError::Unsupported),
+        HostRead::Source => {
+            worker
+                .language
+                .walk_file(file, needs, table, buffers, &mut visiting)
+        }
+    };
+    // SPIKE (ryo-fmx3.1): a file no language walks that is a manifest, that the host could not read or that the host holds
+    // rows about is scanned with no node table: its rows are the host's alone.
+    let hosts = !matches!(visiting.read, HostRead::Source) || holds_file(visiting.hosted, file.file);
+    if walked == Err(WalkError::Unsupported) && hosts {
         let empty = NodeTable::default();
         visiting.visit(FileFacts {
             table: &empty,
@@ -372,7 +425,7 @@ fn scanned(
 /// let programs = Programs::default();
 /// let language: Arc<dyn WalkEngine> = Arc::new(WalkUseCaseImpl::new());
 /// let mut worker = worker(&language, &engine, &programs, ScanMeasuring::Plain);
-/// let file = WalkRequest { path: SourcePath("a.txt"), file: FileId(0), source: ByteSlice(b"") };
+/// let file = WalkRequest { selection: ryo_language::inbound::use_cases::walk::types::WalkSelection::Recognized, path: SourcePath("a.txt"), file: FileId(0), source: ByteSlice(b"") };
 /// let (columns, places) = (EmitColumns::default(), PlaceColumns::default());
 /// let run = ScanRun { programs: &programs, columns: &columns, places: &places };
 /// let mut rows = Vec::new();
@@ -448,7 +501,7 @@ pub fn crossed(fault: &FileScanError) -> ScanFault {
 /// let programs = Programs::default();
 /// let language: Arc<dyn WalkEngine> = Arc::new(WalkUseCaseImpl::new());
 /// let mut worker = worker(&language, &engine, &programs, ScanMeasuring::Plain);
-/// let file = WalkRequest { path: SourcePath("a.txt"), file: FileId(0), source: ByteSlice(b"") };
+/// let file = WalkRequest { selection: ryo_language::inbound::use_cases::walk::types::WalkSelection::Recognized, path: SourcePath("a.txt"), file: FileId(0), source: ByteSlice(b"") };
 /// let (columns, places) = (EmitColumns::default(), PlaceColumns::default());
 /// let run = ScanRun { programs: &programs, columns: &columns, places: &places };
 /// let _counted = ran(&engine, &run, &mut worker, &[file]);

@@ -110,6 +110,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     for (number, source) in (0..).zip(sources) {
         let mut worker = worker(&words, &engine, &programs, measuring);
         let file = WalkRequest {
+            selection: ryo_language::inbound::use_cases::walk::types::WalkSelection::Recognized,
             path: SourcePath("a.walk"),
             file: FileId(number),
             source: ByteSlice(source),
