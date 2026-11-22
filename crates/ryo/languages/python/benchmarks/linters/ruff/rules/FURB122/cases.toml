@@ -194,9 +194,7 @@ expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 53, "end" = 82 }
 name = "io-binding-2"
 comparison = "full"
 files = { "case.py" = "import io,os\nfrom pathlib import Path\nf=os.open(\"x\",0)\nfor x in rows:\n    f.write(x)\n" }
-expected = []
-reference-discrepancy = { "expected" = [{ "end" = 84, "file" = "case.py", "rule" = "FURB122", "start" = 55 }], "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "198d37474641e70c77af4d61ca4eb5622791a2016b0d511f68ec9714fac1ce35", "settings-sha256" = "de72afc5c0a129844c67da3b6bde55ebc481f79f53bdcd33d4dc45457871f707", "source-sha256" = "b9aa9123299d17fb72ee9ac498c0bd282dab4df220d195b7548dec41218e6e99", "reference-output-sha256" = "aea2e3ee06a3ff817d1fe6a410b75e2722d9331cf9337f4b2bae0d86d153c2c4", "intended-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a" }, "evidence" = [{ "path" = "evidence/independent-io-cpython310.json", "sha256" = "7de13ae2b6d61c393fb1e73a75952d6fa3259c016b56ffe70bc6bb3a63940e15", "kind" = "independent-language-run", "language-version" = "CPython3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "The exact target-version source is executed with bounded rows and IO environment; receiver type or prior guard binding is observed. No universal rewrite equivalence is claimed." }], "reason" = "CPython 3.10 executes the exact os.open initializer and observes an integer descriptor with no write method; the loop raises AttributeError. This is not an IOBase receiver, so the candidate declines the pinned reference diagnostic." }
-
+expected = [{ end = 84, file = "case.py", rule = "FURB122", start = 55 }]
 
 [[cases]]
 name = "io-binding-3"
@@ -208,9 +206,7 @@ expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 57, "end" = 86 }
 name = "io-binding-4"
 comparison = "full"
 files = { "case.py" = "import io,os\nfrom pathlib import Path\nf=io.StringIO()\nfor x in rows:\n    f.write(x)\n" }
-expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 54, "end" = 83 }]
-reference-discrepancy = { "expected" = [], "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "198d37474641e70c77af4d61ca4eb5622791a2016b0d511f68ec9714fac1ce35", "settings-sha256" = "de72afc5c0a129844c67da3b6bde55ebc481f79f53bdcd33d4dc45457871f707", "source-sha256" = "3894a7b728c0cfc9da6e0d1f44ec1e878330a603db8b13410c77414752ce7023", "reference-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a", "intended-output-sha256" = "32d242dbfef6beb1eb4d8b365487329b28782feb51648174033fc15599ac2444" }, "evidence" = [{ "path" = "evidence/independent-io-cpython310.json", "sha256" = "7de13ae2b6d61c393fb1e73a75952d6fa3259c016b56ffe70bc6bb3a63940e15", "kind" = "independent-language-run", "language-version" = "CPython3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "The exact target-version source is executed with bounded rows and IO environment; receiver type or prior guard binding is observed. No universal rewrite equivalence is claimed." }], "reason" = "CPython 3.10 executes the exact io.StringIO initializer and observes a TextIOBase stream with write and writelines. Under the standard IO diagnostic policy, the candidate reports the write-loop idiom omitted by the pinned reference." }
-
+expected = []
 
 [[cases]]
 name = "io-binding-5"
@@ -246,9 +242,7 @@ expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 47, "end" = 80 }
 name = "io-annotation-3"
 comparison = "full"
 files = { "case.py" = "import io,typing\ndef fn(f: typing.IO[str]):\n    for x in rows:\n        f.write(x)\n" }
-expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 48, "end" = 81 }]
-reference-discrepancy = { "expected" = [], "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "198d37474641e70c77af4d61ca4eb5622791a2016b0d511f68ec9714fac1ce35", "settings-sha256" = "de72afc5c0a129844c67da3b6bde55ebc481f79f53bdcd33d4dc45457871f707", "source-sha256" = "ea9dc31ab96c843e849b9f5c20c38a3b33bb99cd839c144681d8fa3f8548bf3d", "reference-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a", "intended-output-sha256" = "475855770e9906950755822f0f02146805887f6dc7e47485d2dd6c8fbb247320" }, "evidence" = [{ "path" = "evidence/qualified-guard-cpython310.json", "sha256" = "21c6510b33fa30c5c256c61dbd9c58ec5d28c44478e8d231c1d5fc6679b1af26", "kind" = "independent-language-run", "language-version" = "CPython3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact authored source hashes, target-version execution, and framed IO/guard controls are recorded. This supports the stated conservative diagnostic policy, not universal rewrite equivalence." }], "reason" = "The declared generic typing.IO[str] has typing.IO as its origin and exposes writelines; the exact framed StringIO consumer writes the same elements. Under the declared IO interface diagnostic policy this is a write-loop idiom, while the pinned Ruff result omits it. No universal rewrite equivalence is claimed." }
-
+expected = []
 
 [[cases]]
 name = "io-annotation-4"
@@ -527,17 +521,13 @@ expected = []
 name = "independent-nested-generator-does-not-change-factory-result"
 comparison = "full"
 files = { "case.py" = "import io\ndef factory()->io.TextIOBase:\n    def nested():\n        yield \"inner\"\n    return io.StringIO(\"line\\n\")\nstream=factory()\nfor item in rows:\n    stream.write(item)\n" }
-expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 130, "end" = 170 }]
-reference-discrepancy = { "expected" = [], "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "198d37474641e70c77af4d61ca4eb5622791a2016b0d511f68ec9714fac1ce35", "settings-sha256" = "de72afc5c0a129844c67da3b6bde55ebc481f79f53bdcd33d4dc45457871f707", "source-sha256" = "9cbed16da8b789db19cd689b1ec516ef53ad1498ef38531e7ac7e5c635a1ca7a", "reference-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a", "intended-output-sha256" = "295f52b5c4e49e7db438ba44519ef7733663f62740c80815311debab9e9633ab" }, "evidence" = [{ "path" = "evidence/independent-io-cpython310.json", "sha256" = "7de13ae2b6d61c393fb1e73a75952d6fa3259c016b56ffe70bc6bb3a63940e15", "kind" = "independent-language-run", "language-version" = "CPython3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "The exact target-version source is executed with bounded rows and IO environment; receiver type or prior guard binding is observed. No universal rewrite equivalence is claimed." }], "reason" = "The exact CPython 3.10 source returns an io.StringIO from factory() and writes through it. A yield inside a nested function does not make the outer factory a generator. The candidate reports the IO write-loop idiom omitted by the pinned reference." }
-
+expected = []
 
 [[cases]]
 name = "independent-nested-generator-lambda-does-not-change-factory-result"
 comparison = "full"
 files = { "case.py" = "import io\ndef factory()->io.TextIOBase:\n    nested = lambda: (yield \"inner\")\n    return io.StringIO(\"line\\n\")\nstream=factory()\nfor item in rows:\n    stream.write(item)\n" }
-expected = [{ "rule" = "FURB122", "file" = "case.py", "start" = 127, "end" = 167 }]
-reference-discrepancy = { "expected" = [], "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "198d37474641e70c77af4d61ca4eb5622791a2016b0d511f68ec9714fac1ce35", "settings-sha256" = "de72afc5c0a129844c67da3b6bde55ebc481f79f53bdcd33d4dc45457871f707", "source-sha256" = "85cbcc4414e3f788e6b9296f8122c8b2d34fed8e0590273129dfaac7af2e3909", "reference-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a", "intended-output-sha256" = "e5667d88cab13796d9d11d315187752a5b1df7c5b92f6d2bcbce322fa094b0d4" }, "evidence" = [{ "path" = "evidence/independent-io-cpython310.json", "sha256" = "7de13ae2b6d61c393fb1e73a75952d6fa3259c016b56ffe70bc6bb3a63940e15", "kind" = "independent-language-run", "language-version" = "CPython3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "The exact target-version source is executed with bounded rows and IO environment; receiver type or prior guard binding is observed. No universal rewrite equivalence is claimed." }], "reason" = "The exact CPython 3.10 source returns an io.StringIO from factory() and writes through it. A yield inside a nested lambda does not make the outer factory a generator. The candidate reports the IO write-loop idiom omitted by the pinned reference." }
-
+expected = []
 
 [[cases]]
 name = "independent-yield-in-nested-function-default-belongs-to-outer"
@@ -618,3 +608,321 @@ expected = []
 name = "async-standard-iobase-has-no-aenter"
 files = { "case.py" = "import io\nasync def f():\n async with io.StringIO() as fp:\n  for line in [\"a\",\"b\"]:\n   fp.write(line)\n" }
 expected = []
+
+[[cases]]
+name = "stringio-from-io"
+comparison = "full"
+files = { "case.py" = "from io import StringIO\ndef f(lst):\n    out = StringIO()\n    for el in lst:\n        out.write(el)\n" }
+expected = []
+
+[[cases]]
+name = "io-stringio-attribute"
+comparison = "full"
+files = { "case.py" = "import io\ndef f(lst):\n    out = io.StringIO()\n    for el in lst:\n        out.write(el)\n" }
+expected = []
+
+[[cases]]
+name = "bytesio"
+comparison = "full"
+files = { "case.py" = "import io\ndef f(lst):\n    out = io.BytesIO()\n    for el in lst:\n        out.write(el)\n" }
+expected = []
+
+[[cases]]
+name = "open-builtin"
+comparison = "full"
+files = { "case.py" = "def f(lst):\n    out = open(\"x\", \"w\")\n    for el in lst:\n        out.write(el)\n" }
+expected = [{ rule = "FURB122", file = "case.py", start = 41, end = 77 }]
+
+[[cases]]
+name = "io-open"
+comparison = "full"
+files = { "case.py" = "import io\ndef f(lst):\n    out = io.open(\"x\", \"w\")\n    for el in lst:\n        out.write(el)\n" }
+expected = [{ rule = "FURB122", file = "case.py", start = 54, end = 90 }]
+
+[[cases]]
+name = "with-open"
+comparison = "full"
+files = { "case.py" = "def f(lst):\n    with open(\"x\", \"w\") as out:\n        for el in lst:\n            out.write(el)\n" }
+expected = [{ rule = "FURB122", file = "case.py", start = 52, end = 92 }]
+
+[[cases]]
+name = "pathlib-open"
+comparison = "full"
+files = { "case.py" = "import pathlib\ndef f(lst):\n    out = pathlib.Path(\"x\").open(\"w\")\n    for el in lst:\n        out.write(el)\n" }
+expected = [{ rule = "FURB122", file = "case.py", start = 69, end = 105 }]
+
+[[cases]]
+name = "textiowrapper"
+comparison = "full"
+files = { "case.py" = "import io\ndef f(lst, b):\n    out = io.TextIOWrapper(b)\n    for el in lst:\n        out.write(el)\n" }
+expected = []
+
+[[cases]]
+name = "annotated-textio-parameter"
+comparison = "full"
+files = { "case.py" = "import typing\ndef f(out: typing.TextIO, lst):\n    for el in lst:\n        out.write(el)\n" }
+expected = [{ rule = "FURB122", file = "case.py", start = 50, end = 86 }]
+
+[[cases]]
+name = "annotated-stringio-parameter"
+comparison = "full"
+files = { "case.py" = "import io\ndef f(out: io.StringIO, lst):\n    for el in lst:\n        out.write(el)\n" }
+expected = [{ rule = "FURB122", file = "case.py", start = 44, end = 80 }]
+
+[[cases]]
+name = "annotated-io-parameter"
+comparison = "full"
+files = { "case.py" = "import typing\ndef f(out: typing.IO[str], lst):\n    for el in lst:\n        out.write(el)\n" }
+expected = []
+
+[[cases]]
+name = "stringio-with"
+comparison = "full"
+files = { "case.py" = "import io\ndef f(lst):\n    with io.StringIO() as out:\n        for el in lst:\n            out.write(el)\n" }
+expected = []
+
+[[cases]]
+name = "module-level-stringio"
+comparison = "full"
+files = { "case.py" = "from io import StringIO\nout = StringIO(\"\")\nfor el in lst:\n    out.write(el)\n" }
+expected = []
+
+[[cases]]
+name = "value-os-fdopen"
+comparison = "full"
+files = { "case.py" = "import os\ndef f(lst, b):\n    out = os.fdopen(3)\n    for el in lst:\n        out.write(el)\n" }
+expected = []
+
+[[cases]]
+name = "value-io-open-code"
+comparison = "full"
+files = { "case.py" = "import io\ndef f(lst, b):\n    out = io.open_code('x')\n    for el in lst:\n        out.write(el)\n" }
+expected = [{ rule = "FURB122", file = "case.py", start = 57, end = 93 }]
+
+[[cases]]
+name = "value-codecs-open"
+comparison = "full"
+files = { "case.py" = "import codecs\ndef f(lst, b):\n    out = codecs.open('x')\n    for el in lst:\n        out.write(el)\n" }
+expected = []
+
+[[cases]]
+name = "value-tempfile"
+comparison = "full"
+files = { "case.py" = "import tempfile\ndef f(lst, b):\n    out = tempfile.TemporaryFile()\n    for el in lst:\n        out.write(el)\n" }
+expected = []
+
+[[cases]]
+name = "value-path-variable-open"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\ndef f(lst, b):\n    out = Path('x').open()\n    for el in lst:\n        out.write(el)\n" }
+expected = [{ rule = "FURB122", file = "case.py", start = 71, end = 107 }]
+
+[[cases]]
+name = "value-windows-path-open"
+comparison = "full"
+files = { "case.py" = "import pathlib\ndef f(lst, b):\n    out = pathlib.WindowsPath('x').open()\n    for el in lst:\n        out.write(el)\n" }
+expected = []
+
+[[cases]]
+name = "value-pure-path-open"
+comparison = "full"
+files = { "case.py" = "import pathlib\ndef f(lst, b):\n    out = pathlib.PurePath('x').open()\n    for el in lst:\n        out.write(el)\n" }
+expected = [{ rule = "FURB122", file = "case.py", start = 73, end = 109 }]
+
+[[cases]]
+name = "value-posix-path-open"
+comparison = "full"
+files = { "case.py" = "import pathlib\ndef f(lst, b):\n    out = pathlib.PosixPath('x').open()\n    for el in lst:\n        out.write(el)\n" }
+expected = []
+
+[[cases]]
+name = "value-builtins-open"
+comparison = "full"
+files = { "case.py" = "import builtins\ndef f(lst, b):\n    out = builtins.open('x')\n    for el in lst:\n        out.write(el)\n" }
+expected = [{ rule = "FURB122", file = "case.py", start = 64, end = 100 }]
+
+[[cases]]
+name = "value-aliased-open"
+comparison = "full"
+files = { "case.py" = "from io import open as o\ndef f(lst, b):\n    out = o('x')\n    for el in lst:\n        out.write(el)\n" }
+expected = [{ rule = "FURB122", file = "case.py", start = 61, end = 97 }]
+
+[[cases]]
+name = "value-io-textiowrapper"
+comparison = "full"
+files = { "case.py" = "import io\ndef f(lst, b):\n    out = io.TextIOWrapper(b)\n    for el in lst:\n        out.write(el)\n" }
+expected = []
+
+[[cases]]
+name = "value-io-fileio"
+comparison = "full"
+files = { "case.py" = "import io\ndef f(lst, b):\n    out = io.FileIO('x')\n    for el in lst:\n        out.write(el)\n" }
+expected = []
+
+[[cases]]
+name = "value-io-bufferedwriter"
+comparison = "full"
+files = { "case.py" = "import io\ndef f(lst, b):\n    out = io.BufferedWriter(b)\n    for el in lst:\n        out.write(el)\n" }
+expected = []
+
+[[cases]]
+name = "ann-textiowrapper"
+comparison = "full"
+files = { "case.py" = "import io\ndef f(out: io.TextIOWrapper, lst):\n    for el in lst:\n        out.write(el)\n" }
+expected = [{ rule = "FURB122", file = "case.py", start = 49, end = 85 }]
+
+[[cases]]
+name = "ann-iobase"
+comparison = "full"
+files = { "case.py" = "import io\ndef f(out: io.IOBase, lst):\n    for el in lst:\n        out.write(el)\n" }
+expected = [{ rule = "FURB122", file = "case.py", start = 42, end = 78 }]
+
+[[cases]]
+name = "ann-binaryio"
+comparison = "full"
+files = { "case.py" = "import typing\ndef f(out: typing.BinaryIO, lst):\n    for el in lst:\n        out.write(el)\n" }
+expected = [{ rule = "FURB122", file = "case.py", start = 52, end = 88 }]
+
+[[cases]]
+name = "ann-io-bare"
+comparison = "full"
+files = { "case.py" = "import typing\ndef f(out: typing.IO, lst):\n    for el in lst:\n        out.write(el)\n" }
+expected = [{ rule = "FURB122", file = "case.py", start = 46, end = 82 }]
+
+[[cases]]
+name = "ann-bytesio"
+comparison = "full"
+files = { "case.py" = "import io\ndef f(out: io.BytesIO, lst):\n    for el in lst:\n        out.write(el)\n" }
+expected = [{ rule = "FURB122", file = "case.py", start = 43, end = 79 }]
+
+[[cases]]
+name = "ann-textiobase"
+comparison = "full"
+files = { "case.py" = "import io\ndef f(out: io.TextIOBase, lst):\n    for el in lst:\n        out.write(el)\n" }
+expected = [{ rule = "FURB122", file = "case.py", start = 46, end = 82 }]
+
+[[cases]]
+name = "ann-optional-textio"
+comparison = "full"
+files = { "case.py" = "import typing\ndef f(out: typing.Optional[typing.TextIO], lst):\n    for el in lst:\n        out.write(el)\n" }
+expected = []
+
+[[cases]]
+name = "ann-string-textio"
+comparison = "full"
+files = { "case.py" = "import typing\ndef f(out: 'typing.TextIO', lst):\n    for el in lst:\n        out.write(el)\n" }
+expected = []
+
+[[cases]]
+name = "ann-typeshed-supportswrite"
+comparison = "full"
+files = { "case.py" = "from _typeshed import SupportsWrite\ndef f(out: SupportsWrite[str], lst):\n    for el in lst:\n        out.write(el)\n" }
+expected = []
+
+[[cases]]
+name = "ann-fileio"
+comparison = "full"
+files = { "case.py" = "import io\ndef f(out: io.FileIO, lst):\n    for el in lst:\n        out.write(el)\n" }
+expected = []
+
+[[cases]]
+name = "ann-rawiobase"
+comparison = "full"
+files = { "case.py" = "import io\ndef f(out: io.RawIOBase, lst):\n    for el in lst:\n        out.write(el)\n" }
+expected = [{ rule = "FURB122", file = "case.py", start = 45, end = 81 }]
+
+[[cases]]
+name = "ann-bufferedreader"
+comparison = "full"
+files = { "case.py" = "import io\ndef f(out: io.BufferedReader, lst):\n    for el in lst:\n        out.write(el)\n" }
+expected = [{ rule = "FURB122", file = "case.py", start = 50, end = 86 }]
+
+[[cases]]
+name = "annotated-assignment-stringio"
+comparison = "full"
+files = { "case.py" = "import io\ndef f(lst):\n    out: io.StringIO = g()\n    for el in lst:\n        out.write(el)\n" }
+expected = [{ rule = "FURB122", file = "case.py", start = 53, end = 89 }]
+
+[[cases]]
+name = "function-returning-textio"
+comparison = "full"
+files = { "case.py" = "import typing\ndef g() -> typing.TextIO: ...\ndef f(lst):\n    out = g()\n    for el in lst:\n        out.write(el)\n" }
+expected = []
+
+[[cases]]
+name = "writelines-receiver-attribute"
+comparison = "full"
+files = { "case.py" = "def f(self, lst):\n    for el in lst:\n        self.out.write(el)\n" }
+expected = []
+
+[[cases]]
+name = "value-os-open"
+comparison = "full"
+files = { "case.py" = "import os\ndef f(lst, b):\n    out = os.open(\"x\", 0)\n    for el in lst:\n        out.write(el)\n" }
+expected = [{ rule = "FURB122", file = "case.py", start = 55, end = 91 }]
+
+[[cases]]
+name = "ann-bufferedwriter"
+comparison = "full"
+files = { "case.py" = "import io\ndef f(out: io.BufferedWriter, lst):\n    for el in lst:\n        out.write(el)\n" }
+expected = [{ rule = "FURB122", file = "case.py", start = 50, end = 86 }]
+
+[[cases]]
+name = "ann-bufferedrandom"
+comparison = "full"
+files = { "case.py" = "import io\ndef f(out: io.BufferedRandom, lst):\n    for el in lst:\n        out.write(el)\n" }
+expected = [{ rule = "FURB122", file = "case.py", start = 50, end = 86 }]
+
+[[cases]]
+name = "ann-bufferedrwpair"
+comparison = "full"
+files = { "case.py" = "import io\ndef f(out: io.BufferedRWPair, lst):\n    for el in lst:\n        out.write(el)\n" }
+expected = [{ rule = "FURB122", file = "case.py", start = 50, end = 86 }]
+
+[[cases]]
+name = "ann-bufferediobase"
+comparison = "full"
+files = { "case.py" = "import io\ndef f(out: io.BufferedIOBase, lst):\n    for el in lst:\n        out.write(el)\n" }
+expected = [{ rule = "FURB122", file = "case.py", start = 50, end = 86 }]
+
+[[cases]]
+name = "with-path-open"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\ndef f(lst):\n    with Path(\"x\").open(\"w\") as out:\n        for el in lst:\n            out.write(el)\n" }
+expected = [{ rule = "FURB122", file = "case.py", start = 82, end = 122 }]
+
+[[cases]]
+name = "ann-typing-extensions-textio"
+comparison = "full"
+files = { "case.py" = "import typing_extensions\ndef f(out: typing_extensions.TextIO, lst):\n    for el in lst:\n        out.write(el)\n" }
+expected = [{ rule = "FURB122", file = "case.py", start = 72, end = 108 }]
+
+[[cases]]
+name = "value-open-alias"
+comparison = "full"
+files = { "case.py" = "o = open\ndef f(lst):\n    out = o(\"x\")\n    for el in lst:\n        out.write(el)\n" }
+expected = []
+
+[[cases]]
+name = "ann-io-subscript"
+comparison = "full"
+files = { "case.py" = "import typing\ndef f(out: typing.IO[str], lst):\n    for el in lst:\n        out.write(el)\n" }
+expected = []
+
+[[cases]]
+name = "ann-string"
+comparison = "full"
+files = { "case.py" = "import typing\ndef f(out: \"typing.TextIO\", lst):\n    for el in lst:\n        out.write(el)\n" }
+expected = []
+
+[[cases]]
+name = "value-open-in-tuple"
+comparison = "full"
+files = { "case.py" = "def f(lst):\n    out, x = open(\"x\"), 1\n    for el in lst:\n        out.write(el)\n" }
+expected = [{ rule = "FURB122", file = "case.py", start = 42, end = 78 }]
+
+[[cases]]
+name = "value-walrus-open"
+comparison = "full"
+files = { "case.py" = "def f(lst):\n    if (out := open(\"x\")):\n        for el in lst:\n            out.write(el)\n" }
+expected = [{ rule = "FURB122", file = "case.py", start = 47, end = 87 }]

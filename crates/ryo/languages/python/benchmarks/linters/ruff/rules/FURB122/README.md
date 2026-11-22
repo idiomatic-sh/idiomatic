@@ -1,33 +1,27 @@
 
 
+## IO receivers
+
+A writer is an IO object exactly as the pinned Ruff 0.16.5 decides it for this rule (probes in the parity-b evidence,
+`probes/furb122`): its one binding is a call of `open`, `io.open`, `io.open_code` or `os.open`, a `.open()` on a
+`pathlib.Path(...)` or `pathlib.PurePath(...)` call (not `PosixPath` or `WindowsPath`), the same in a `with ... as` item, or
+an unpacked or walrus target of one; or its annotation is written directly as one of `typing.IO`, `typing.BinaryIO`,
+`typing.TextIO` or an `io` class other than `io.FileIO`. A constructor call (`io.StringIO()`, `io.BytesIO()`,
+`io.TextIOWrapper(...)`), a subscripted (`typing.IO[str]`) or string annotation, a call of a function annotated to return
+one, `os.fdopen` and an alias of `open` are not. FURB129 asks the same fragments (io-base-binding, io-base-initializer,
+io-base-annotation) with its own wider tables, as Ruff's FURB129 decides differently.
+
 ## Reference discrepancy report
 
 **Reference:** pinned Ruff 0.16.5 (`python-target=3.10`; [profile](../../profiles/FURB122/benchmark.toml)). **Scope:** Source-specific reference difference; upstream bug status is unverified.
 
-The 13 certified cases below retain their exact source bytes and full intended and observed finding arrays in [cases.toml](cases.toml). The archived raw receipt records an executed worker snapshot; the source and reference-output hashes in each case certificate bind the precise observation. A historical combined receipt may predate a later targeted certificate; follow the certificate identity for that case. Diagnostic spans below are UTF-8 byte offsets.
+The 8 certified cases below retain their exact source bytes and full intended and observed finding arrays in [cases.toml](cases.toml). The archived raw receipt records an executed worker snapshot; the source and reference-output hashes in each case certificate bind the precise observation. A historical combined receipt may predate a later targeted certificate; follow the certificate identity for that case. Diagnostic spans below are UTF-8 byte offsets.
 
 To reproduce Ruff's reference finding for `nested-scope-prebinding`, write its exact named file from [cases.toml](cases.toml) into an isolated directory and run the pinned Ruff 0.16.5 executable (SHA256 `52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8`):
 
 ```sh
 RAYON_NUM_THREADS=1 ruff check --isolated --output-format json --cache-dir ./ruff-cache --select FURB122 --target-version py310 -- case.py
 ```
-
-### IO receiver and annotation
-
-Cases (5): `io-binding-2`, `io-binding-4`, `io-annotation-3`, `independent-nested-generator-does-not-change-factory-result`, `independent-nested-generator-lambda-does-not-change-factory-result`.
-
-Representative exact source, `io-annotation-3` (`case.py`):
-
-```python
-import io,typing
-def fn(f: typing.IO[str]):
-    for x in rows:
-        f.write(x)
-```
-
-- Intended: FURB122 case.py:48–81. Pinned Ruff observed: none.
-- Basis: The declared generic typing.IO[str] has typing.IO as its origin and exposes writelines; the exact framed StringIO consumer writes the same elements. Primary evidence: [qualified-guard-cpython310.json](../../profiles/FURB122/evidence/qualified-guard-cpython310.json).
-- Reproduce: use the [profile](../../profiles/FURB122/benchmark.toml), exact named source in [cases.toml](cases.toml), and raw receipt; the case's `reference-discrepancy.identity` binds executable, settings, source, and output hashes.
 
 ### Lexical scope and binding history
 
@@ -74,6 +68,6 @@ The shared helper distinguishes a context manager from its enter result. Existin
 
 The canonical profile now states `project-context-mode = "isolated"` explicitly. Full-inventory staging had already selected this same isolated context; adding it changed the raw profile digest and caused strict certificate admission to refuse the prior implicit-default profile identity.
 
-All 13 certified discrepancy cases were rerun against the approved Ruff 0.16.5 executable (SHA256 `52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8`). Their complete reference diagnostic multisets and normalized invocation settings match their existing seals exactly. The raw reference captures retain argv, environment overrides, exit status, stdout, stderr, observed findings, settings and original certificate identities. The migration record binds the old and explicit-context profile hashes.
+All 13 certified discrepancy cases of that date were rerun against the approved Ruff 0.16.5 executable (SHA256 `52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8`). Their complete reference diagnostic multisets and normalized invocation settings match their existing seals exactly. The raw reference captures retain argv, environment overrides, exit status, stdout, stderr, observed findings, settings and original certificate identities. The migration record binds the old and explicit-context profile hashes.
 
 Only the certificate's `profile-sha256` changed. Source bytes, intended and reference expectations, executable pin, settings identity, and independent language-evidence artifacts remain unchanged; those artifact hashes were revalidated. No candidate execution or fresh independent-language execution is claimed by this reference-only replay, and no upstream bug status is inferred.
