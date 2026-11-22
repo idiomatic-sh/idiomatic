@@ -51,15 +51,15 @@ pub(crate) struct NameTable {
     pub slots: Vec<NameSlot>,
 }
 
-/// The names the walk interns as it writes the file: the table, the name each node carries (by its place; the code of no
-/// name for a node that carries none) and the code of each name token of the file's own tree, in id order (none when the
-/// file's bytes were not text). The model's lexical part copies the table and the node names; the engine reads the token codes.
+/// What the walk writes of the model as it writes the file: the names it interned, the lexical part (each node read as it
+/// opens, `lexical::opened`) and the code of each name token of the file's own tree, in id order (none when the file's bytes
+/// were not text). The model copies the table and the lexical part; the engine reads the token codes.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct WalkNames {
     /// The table the walk interned into.
     pub names: NameTable,
-    /// The name of each node, by its place.
-    pub of_node: Vec<NameCode>,
+    /// The lexical part, by place: the name each node carries among it.
+    pub lexical: crate::domain::model::lexical::types::LexicalModel,
     /// The code of each name token of the file's own tree, in id order.
     pub of_token: Vec<NameCode>,
 }

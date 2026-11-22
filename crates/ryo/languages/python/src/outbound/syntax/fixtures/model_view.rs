@@ -65,7 +65,7 @@ pub(crate) fn viewed(
             let postponed = property_of(table, MODULE, MODULE_FUTURE_ANNOTATIONS)
                 .is_some_and(|value| value.0 == MODULE_FUTURE_ANNOTATIONS_ENABLED);
             let annotations = if postponed { BindingAnnotationTiming::Deferred } else { BindingAnnotationTiming::Immediate };
-            let named = crate::fixtures::syntax_files::names_of(nodes);
+            let named = crate::fixtures::syntax_files::names_of(nodes, &parents, &ends);
             let tree = TypedTree { segments: &[], parents: &parents, ends: &ends, nodes, annotations, named: &named };
             visit(&mut FixtureView { table, tree, file, model, built: Built::default(), asked: Count(0) });
         },

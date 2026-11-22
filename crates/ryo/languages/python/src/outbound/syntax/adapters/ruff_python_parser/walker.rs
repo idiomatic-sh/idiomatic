@@ -16,7 +16,7 @@ use crate::domain::syntax::constants::{
     MODULE_FUTURE_ANNOTATIONS_ENABLED,
 };
 use crate::domain::syntax::service::kind_bits;
-use crate::domain::model::lexical::service::named;
+use crate::domain::model::lexical::service::opened;
 use crate::domain::model::names::service::{intern, text_of};
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
@@ -91,7 +91,7 @@ impl Walker<'_, '_, '_> {
         let held = self
             .open
             .last()
-            .and_then(|open| self.names.of_node.get(usize::from(open.at)).copied())
+            .and_then(|open| self.names.lexical.name.get(usize::from(open.at)).copied())
             .filter(|code| text_of(&self.names.names, *code) == Some(NameText(text)));
         let code = held.unwrap_or_else(|| intern(&mut self.names.names, NameText(text)));
         self.names.of_token.push(code);
@@ -186,8 +186,6 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
             );
         }
         self.nodes.push(node);
-        let code = named(&mut self.names.names, node);
-        self.names.of_node.push(code);
         let at = Position(id);
         // The root of a file is its own parent; the root of a string's expression has the string for its parent.
         self.parents.push(
@@ -210,6 +208,7 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
             // No other node is kept apart for the reader of the tree.
         }
         self.subtree_ends.push(Position(id.saturating_add(1)));
+        opened(&mut self.names.lexical, &mut self.names.names, &self.nodes, &self.parents, &self.subtree_ends, at);
         let from = FieldIndex(self.fields.len());
         child_fields(
             Placed {
