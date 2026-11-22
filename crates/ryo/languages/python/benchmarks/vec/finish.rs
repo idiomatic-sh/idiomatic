@@ -158,6 +158,8 @@ pub(super) struct PNode {
 pub(super) struct Plan {
     pub(super) nodes: Vec<PNode>,
     pub(super) emits: Vec<(String, usize, String, Vec<String>)>,
+    /// The survivor sets the plan's seed tests name, by set: the label of the prefix rule whose roots fill it.
+    pub(super) seeds: Vec<String>,
 }
 
 fn inputs_of(j: &J, out: &mut Vec<usize>) {
@@ -206,7 +208,8 @@ pub(super) fn load(path: &str) -> Plan {
             e["key"].as_array().map(|a| a.iter().map(|x| x.as_str().unwrap_or("").to_owned()).collect()).unwrap_or_default(),
         ));
     }
-    Plan { nodes, emits }
+    let seeds = j["seeds"].as_array().map(|a| a.iter().map(|x| x.as_str().unwrap_or("").to_owned()).collect()).unwrap_or_default();
+    Plan { nodes, emits, seeds }
 }
 
 /// The relations of the tree read in place, by position.
@@ -293,6 +296,10 @@ pub(super) struct File<'a> {
     index: FxHashMap<usize, Vec<(Vec<usize>, Rc<Index>)>>,
     fills: FxHashMap<String, Rc<Table>>,
     lazies: FxHashMap<usize, Rc<Lazy>>,
+    /// The survivor sets of this file (sorted node ids), by set: the prefix's roots for each seeded rule.
+    pub(super) seeds: Vec<Vec<u32>>,
+    /// Probed steps' rows by (step, column): the rows made so far and, per key asked, its rows.
+    pmemo: FxHashMap<(usize, usize), (Table, FxHashMap<u64, Vec<u32>>)>,
 }
 
 /// How a step asks the provider for a relation's rows: the visit's facts.
@@ -326,6 +333,8 @@ impl File<'_> {
             index: FxHashMap::default(),
             fills: FxHashMap::default(),
             lazies: FxHashMap::default(),
+            seeds: Vec::new(),
+            pmemo: FxHashMap::default(),
         };
         for i in 0..n as u32 {
             let p = Position(i);
@@ -602,6 +611,8 @@ enum E {
     Not(Box<E>),
     /// A text tested against a constant regex (from `matches` or `glob_any`), compiled once.
     Re(Box<E>, Rc<regex::bytes::Regex>),
+    /// The survivor handoff: whether a node id is in survivor set `k` of this file (the prefix's roots for a rule).
+    Seed(Box<E>, usize),
 }
 
 /// A node's column names and types, known from the plan before any file.
@@ -1057,6 +1068,7 @@ impl<'p> Exec<'p> {
             "and" => E::And(Box::new(self.expr(run, &a[1], names)?), Box::new(self.expr(run, &a[2], names)?)),
             "or" => E::Or(Box::new(self.expr(run, &a[1], names)?), Box::new(self.expr(run, &a[2], names)?)),
             "not" => E::Not(Box::new(self.expr(run, &a[1], names)?)),
+            "seed" => E::Seed(Box::new(self.expr(run, &a[1], names)?), a[2].as_u64().ok_or("seed set")? as usize),
             other => return Err(format!("expression {other}")),
         })
     }
@@ -1208,11 +1220,23 @@ impl<'p> Exec<'p> {
             let t = self.eval(f, run, p, node)?;
             return Ok(Rc::new(subset(f, node, &t, col, keys)));
         }
+        // the per-key memo (P1): a (step, column, key) is computed once a file, whichever consumer asks
+        let pm = std::env::var_os("VEC_NO_PMEMO").is_none();
+        let missing: Vec<u64> = if pm {
+            let e = f.pmemo.entry((node, col)).or_insert_with(|| (Table::with(sc.names.clone(), sc.tys.clone()), FxHashMap::default()));
+            let mut seen = rustc_hash::FxHashSet::default();
+            keys.iter().copied().filter(|k| !e.1.contains_key(k) && seen.insert(*k)).collect()
+        } else {
+            keys.to_vec()
+        };
+        if pm && missing.is_empty() {
+            return Ok(Rc::new(pmemo_rows(f, node, col, keys)));
+        }
         let t0 = super::thread_cpu();
         let saved = self.inner;
         self.inner = 0.0;
         self.stack.push(node);
-        let out = self.probe_body(f, run, p, node, col, keys, &sc);
+        let out = self.probe_body(f, run, p, node, col, &missing, &sc);
         self.stack.pop();
         let dt = super::thread_cpu() - t0;
         self.stats.time[node] += dt - self.inner;
@@ -1220,7 +1244,22 @@ impl<'p> Exec<'p> {
         let out = out?;
         self.stats.probes[node] += 1;
         self.stats.rows[node] += out.n as u64;
-        Ok(out)
+        if !pm {
+            return Ok(out);
+        }
+        let e = f.pmemo.entry((node, col)).or_insert_with(|| (Table::with(sc.names.clone(), sc.tys.clone()), FxHashMap::default()));
+        for k in &missing {
+            e.1.entry(*k).or_default();
+        }
+        let base = e.0.n as u32;
+        for r in 0..out.n {
+            for c in 0..out.cols.len() {
+                e.0.cols[c].push(out.cols[c][r]);
+            }
+            e.1.entry(out.cols[col][r]).or_default().push(base + r as u32);
+        }
+        e.0.n += out.n;
+        Ok(Rc::new(pmemo_rows(f, node, col, keys)))
     }
 
     #[expect(clippy::too_many_arguments, reason = "a throwaway")]
@@ -1349,6 +1388,8 @@ impl<'p> Exec<'p> {
                 f.index.remove(n);
             }
         }
+        // no other input of the step reads the substituted one (checked above), so no probe memo is made over it but this
+        // step's own, which is filed under the keys it was asked
         Ok(Rc::new(out?))
     }
 
@@ -1861,9 +1902,26 @@ impl<'p> Exec<'p> {
             }
             srcs.push(src);
         }
-        // the driver: the smallest entry that is already a count, a made table's rows or a view's kind bucket
+        // the survivor handoff: a source with a seed test starts the step from the rule's survivors, read by key
         let mut driver: Option<usize> = None;
-        let mut best = usize::MAX;
+        if let Some((si, c, k)) = conj.iter().find_map(|e| match e {
+            E::Seed(x, k) => match **x {
+                E::Col(si, c, _) => Some((si, c, *k)),
+                _ => None,
+            },
+            _ => None,
+        }) {
+            let ids: Vec<u64> = f.seeds.get(k).map(|s| s.iter().map(|x| u64::from(*x)).collect()).unwrap_or_default();
+            let t = self.probe(f, run, p, sp.srcs[si], c, &ids)?;
+            self.stats.touched[node] += ids.len() as u64;
+            if t.n == 0 {
+                return self.empty(run, node);
+            }
+            srcs[si] = Src::Tab(t, usize::MAX - si);
+            driver = Some(si);
+        }
+        // the driver: the smallest entry that is already a count, a made table's rows or a view's kind bucket
+        let mut best = if driver.is_some() { 0 } else { usize::MAX };
         for (i, sr) in srcs.iter().enumerate() {
             let size = match sr {
                 Src::Tab(t, _) => Some(t.n),
@@ -2752,10 +2810,30 @@ fn remap(e: &E, map: &[usize]) -> E {
         E::Or(x, y) => E::Or(b(x), b(y)),
         E::Not(x) => E::Not(b(x)),
         E::Re(x, r) => E::Re(b(x), r.clone()),
+        E::Seed(x, k) => E::Seed(b(x), *k),
         other => other.clone(),
     }
 }
 
+
+/// The memoised rows of a probed step for these keys, in key order.
+fn pmemo_rows(f: &File<'_>, node: usize, col: usize, keys: &[u64]) -> Table {
+    let (t, ix) = &f.pmemo[&(node, col)];
+    let mut out = Table::with(t.names.clone(), t.tys.clone());
+    let mut seen = rustc_hash::FxHashSet::default();
+    for k in keys {
+        if !seen.insert(*k) {
+            continue;
+        }
+        for &r in ix.get(k).map_or(&[][..], |v| &v[..]) {
+            for c in 0..t.cols.len() {
+                out.cols[c].push(t.cols[c][r as usize]);
+            }
+            out.n += 1;
+        }
+    }
+    out
+}
 
 fn reach_dir(l: &Lazy, key: &[u64], forward: bool) -> Rc<Vec<u64>> {
     let (cache, adj) = if forward { (&l.cache, &l.adj) } else { (&l.rcache, &l.radj) };
@@ -2834,7 +2912,7 @@ fn refs_of(e: &E) -> u64 {
         E::Col(s, _, _) => 1 << s,
         E::List(v) | E::Call(_, v) => v.iter().map(refs_of).fold(0, |a, b| a | b),
         E::Cmp(_, a, b) | E::In(a, b, _) | E::And(a, b) | E::Or(a, b) => refs_of(a) | refs_of(b),
-        E::Not(a) | E::Re(a, _) => refs_of(a),
+        E::Not(a) | E::Re(a, _) | E::Seed(a, _) => refs_of(a),
         _ => 0,
     }
 }
@@ -2973,6 +3051,10 @@ fn eval(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], e: &E) -> V {
         E::Call(name, args) => {
             let vs: Vec<V> = args.iter().map(|x| eval(run, f, srcs, cur, x)).collect();
             call(run, name, &vs)
+        }
+        E::Seed(a, k) => {
+            let x = eval(run, f, srcs, cur, a);
+            flag(f.seeds.get(*k).is_some_and(|s| s.binary_search(&(x.1 as u32)).is_ok()))
         }
     }
 }

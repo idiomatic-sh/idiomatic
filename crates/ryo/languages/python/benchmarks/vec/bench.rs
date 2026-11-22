@@ -812,6 +812,21 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
         std::fs::read_to_string(p).expect("seed").lines().filter_map(|l| l.split_once('\t')).map(|(a, b)| (a.to_owned(), b.to_owned())).collect()
     });
     let check = args.contains(&"--check-bases");
+    // the survivor handoff: per (rule, file) the prefix's root nodes (`vec funnel ... --surv-out`); a seeded rule runs
+    // only where it has survivors, from them
+    let mut surv: HashMap<(String, String), Vec<u32>> = HashMap::new();
+    if let Some(p) = flag(args, "--surv") {
+        for l in std::fs::read_to_string(p).expect("survivors").lines() {
+            let mut it = l.split('\t');
+            let (Some(r), Some(f), Some(ns)) = (it.next(), it.next(), it.next()) else { continue };
+            surv.entry((r.to_owned(), f.to_owned())).or_default().extend(ns.split(' ').filter_map(|x| x.parse::<u32>().ok()));
+        }
+        for v in surv.values_mut() {
+            v.sort_unstable();
+            v.dedup();
+        }
+    }
+    let seed_set: HashMap<&str, usize> = plan.seeds.iter().enumerate().map(|(k, r)| (r.as_str(), k)).collect();
     let mut run = finish::Run::default();
     run.empty = run.sym(b"");
     run.links();
@@ -840,8 +855,17 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     for (file_no, path) in list.iter().enumerate() {
         let w0 = thread_cpu();
         let bytes = std::fs::read(path).expect("read");
-        let wanted: Vec<&&(String, usize, String, Vec<String>)> =
-            emits.iter().filter(|e| seed.as_ref().is_none_or(|s| s.contains(&(e.0.clone(), path.clone())))).collect();
+        let wanted: Vec<&&(String, usize, String, Vec<String>)> = emits
+            .iter()
+            .filter(|e| {
+                if seed_set.contains_key(e.0.as_str()) {
+                    surv.contains_key(&(e.0.clone(), path.clone()))
+                } else {
+                    seed.as_ref().is_none_or(|s| s.contains(&(e.0.clone(), path.clone())))
+                }
+            })
+            .collect();
+        let seeds_here: Vec<Vec<u32>> = plan.seeds.iter().map(|r| surv.get(&(r.clone(), path.clone())).cloned().unwrap_or_default()).collect();
         if wanted.is_empty() && !check {
             continue;
         }
@@ -852,6 +876,7 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
             languages::facts::clear_words(&mut fwords);
             let ft = file.table;
             let mut f = finish::File::new(ft, &bytes, file_no as u32, plan.nodes.len());
+            f.seeds = seeds_here.clone();
             let mut pv = Facts { facts: &mut file, words: &mut fwords, filled: languages::FilledColumns::default(), time: 0.0, rows: 0, by_rel: HashMap::new(), file: file_no as u32 };
             exec.reset_file();
             if check {
@@ -1037,6 +1062,9 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     let mut unit_steps = vec![0u64; units.len()];
     let mut knock_steps = 0u64;
     let mut hits: Vec<(usize, usize)> = Vec::new();
+    let surv_out = flag(args, "--surv-out");
+    let mut surv_lines = String::new();
+    let mut unit_nodes: Vec<u32> = Vec::new();
     let mut phases = Phases::default();
     let mut table = NodeTable::default();
     let mut scratch = Default::default();
@@ -1745,11 +1773,23 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                                 if marked[n] != stamp {
                                     marked[n] = stamp;
                                     n_s += 1;
+                                    if surv_out.is_some() && first {
+                                        unit_nodes.push(n as u32);
+                                    }
                                 }
                             }
                             remaining.retain(|n| marked[*n as usize] != stamp);
                         }
                     }
+                }
+                if surv_out.is_some() && first && !unit_nodes.is_empty() {
+                    use std::fmt::Write as _;
+                    let _ = write!(surv_lines, "{}\t{}\t", rule.name, list[file_no]);
+                    for (i, x) in unit_nodes.iter().enumerate() {
+                        let _ = write!(surv_lines, "{}{x}", if i == 0 { "" } else { " " });
+                    }
+                    surv_lines.push('\n');
+                    unit_nodes.clear();
                 }
                 if first {
                     cands[ui] += buf.len() as u64;
@@ -1850,6 +1890,9 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
             w.push_str(&format!("{}\t{}\n", frules[*ri].name, list[*f]));
         }
         std::fs::write(path, w).expect("alive out");
+    }
+    if let Some(path) = &surv_out {
+        std::fs::write(path, &surv_lines).expect("survivors out");
     }
     if let Some(path) = flag(args, "--hits-out") {
         let mut w = String::new();
