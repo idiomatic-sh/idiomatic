@@ -390,6 +390,7 @@ fn main() {
         Some("census") => census(&walk, &vocab, args[2], args[3], args[4]),
         Some("run") => run(&walk, &vocab, &args[2..]),
         Some("funnel") => run_funnel(&walk, &vocab, &args[2..]),
+        Some("finish") => run_finish(&walk, &vocab, &args[2..]),
         _ => eprintln!("usage: vec census <files> <literals> <out> | vec run <mode> <files> <anchors> [--batch N] [--repeat K] [--rules-out F]"),
     }
 }
@@ -644,6 +645,166 @@ fn run(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
 mod funnel;
 #[path = "facts.rs"]
 mod facts;
+#[path = "finish.rs"]
+mod finish;
+
+/// The visit's facts as the finish's provider.
+struct Facts<'v, 'f, 'w> {
+    facts: &'v mut FileFacts<'f>,
+    words: &'w mut languages::FileWords,
+    filled: languages::FilledColumns,
+    time: f64,
+    rows: u64,
+    by_rel: HashMap<String, (f64, u64, u64)>,
+    file: u32,
+}
+
+impl finish::Provider for Facts<'_, '_, '_> {
+    fn fill(&mut self, run: &mut finish::Run, rel: &str) -> Result<finish::Table, String> {
+        let t0 = thread_cpu();
+        let (relation, _, _) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
+        self.filled.0.clear();
+        let answer = self.facts.facts.fill(relation, languages::Wanted::Whole, self.words, &mut self.filled);
+        let mut t = match answer {
+            languages::FactAnswer::Answered(_) => finish::filled_table(run, rel, &self.filled, self.words),
+            _ => Err(format!("{rel} not answered")),
+        }?;
+        for c in 0..t.tys.len() {
+            if t.tys[c] == finish::Ty::File {
+                t.cols[c].iter_mut().for_each(|v| *v = u64::from(self.file));
+            }
+        }
+        let dt = thread_cpu() - t0;
+        self.time += dt;
+        self.rows += t.n as u64;
+        let e = self.by_rel.entry(rel.to_owned()).or_default();
+        e.0 += dt;
+        e.1 += t.n as u64;
+        e.2 += 1;
+        Ok(t)
+    }
+}
+
+/// `vec finish <plan.json> <files> <root> [--rules A,B] [--seed rule-file.tsv] [--out findings.jsonl] [--stats stats.tsv]
+/// [--check-bases]`: each rule's whole lowered query run per file (`finish.rs`); findings as the reference writes them.
+fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
+    let plan = finish::load(args[0]);
+    let list = files(args[1]);
+    let root = format!("{}/", args[2].trim_end_matches('/'));
+    let only: Option<std::collections::HashSet<String>> = flag(args, "--rules").map(|r| r.split(',').map(str::to_owned).collect());
+    let emits: Vec<&(String, usize, String, Vec<String>)> = plan.emits.iter().filter(|e| only.as_ref().is_none_or(|o| o.contains(&e.0))).collect();
+    let seed: Option<std::collections::HashSet<(String, String)>> = flag(args, "--seed").map(|p| {
+        std::fs::read_to_string(p).expect("seed").lines().filter_map(|l| l.split_once('\t')).map(|(a, b)| (a.to_owned(), b.to_owned())).collect()
+    });
+    let check = args.contains(&"--check-bases");
+    let mut run = finish::Run::default();
+    run.empty = run.sym(b"");
+    run.kind_sym = vocab.kind_names.clone().iter().map(|k| run.sym(k.as_bytes())).collect();
+    run.field_sym = vocab.field_names.clone().iter().map(|k| run.sym(k.as_bytes())).collect();
+    run.paths = list.iter().map(|p| p.strip_prefix(&root).unwrap_or(p).to_owned()).collect();
+    run.path_sym = run.paths.clone().iter().map(|p| run.sym(p.as_bytes())).collect();
+    let kind_code = |n: &str| vocab.kinds.get(n).copied().expect("kind");
+    run.token_first = kind_code("name-token");
+    run.token_last = kind_code("colonequal");
+    run.token_error = kind_code("errortoken");
+    run.pairs = [(kind_code("lpar"), kind_code("rpar")), (kind_code("lsqb"), kind_code("rsqb")), (kind_code("lbrace"), kind_code("rbrace"))];
+    let mut exec = finish::Exec::new(&plan);
+    let mut fwords = ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names");
+    let mut table = NodeTable::default();
+    let mut scratch = Default::default();
+    let mut findings: Vec<String> = Vec::new();
+    let mut failed: HashMap<String, String> = HashMap::new();
+    let (mut provider_time, mut provider_rows, mut file_time, mut walk_time) = (0f64, 0u64, 0f64, 0f64);
+    let mut by_rel: HashMap<String, (f64, u64, u64)> = HashMap::new();
+    let mut check_lines: Vec<String> = Vec::new();
+    let mut files_run = 0u64;
+    let started = thread_cpu();
+    for (file_no, path) in list.iter().enumerate() {
+        let w0 = thread_cpu();
+        let bytes = std::fs::read(path).expect("read");
+        let wanted: Vec<&&(String, usize, String, Vec<String>)> =
+            emits.iter().filter(|e| seed.as_ref().is_none_or(|s| s.contains(&(e.0.clone(), path.clone())))).collect();
+        if wanted.is_empty() && !check {
+            continue;
+        }
+        let mut inner = 0f64;
+        let _ = ryo_python::fixtures::walking::walked(walk, path, &bytes, &[], &mut table, &mut scratch, &mut |mut file| {
+            let c0 = thread_cpu();
+            files_run += 1;
+            languages::facts::clear_words(&mut fwords);
+            let ft = file.table;
+            let mut f = finish::File::new(ft, &bytes, file_no as u32, plan.nodes.len());
+            let mut pv = Facts { facts: &mut file, words: &mut fwords, filled: languages::FilledColumns::default(), time: 0.0, rows: 0, by_rel: HashMap::new(), file: file_no as u32 };
+            exec.reset_file();
+            if check {
+                for rel in ["semantic-syntax", "syntax-tree", "semantic-child", "syntax-child", "source-location", "token-link"] {
+                    let mine = finish::native_table(&mut f, &mut run, rel);
+                    match finish::Provider::fill(&mut pv, &mut run, rel) {
+                        Ok(theirs) => check_lines.push(format!("{}\t{rel}\t{}", run.paths[file_no], finish::diff(&run, &mine, &theirs))),
+                        Err(e) => check_lines.push(format!("{}\t{rel}\tprovider: {e}", run.paths[file_no])),
+                    }
+                }
+            }
+            for e in &wanted {
+                if failed.contains_key(&e.0) {
+                    continue;
+                }
+                match exec.eval(&mut f, &mut run, &mut pv, e.1) {
+                    Ok(t) => {
+                        let sc = t.col("span").ok();
+                        for r in 0..t.n {
+                            let (st, en) = sc.map_or((0, 0), |c| (t.cols[c][r] >> 32, t.cols[c][r] & 0xffff_ffff));
+                            findings.push(format!("{{\"rule\":\"{}\",\"file\":\"{}\",\"start\":{st},\"end\":{en}}}", e.0, run.paths[file_no]));
+                        }
+                    }
+                    Err(err) => {
+                        failed.insert(e.0.clone(), format!("{}: {err}", run.paths[file_no]));
+                    }
+                }
+            }
+            provider_time += pv.time;
+            provider_rows += pv.rows;
+            for (k, v) in pv.by_rel {
+                let e = by_rel.entry(k).or_default();
+                e.0 += v.0;
+                e.1 += v.1;
+                e.2 += v.2;
+            }
+            inner += thread_cpu() - c0;
+        });
+        file_time += inner;
+        walk_time += thread_cpu() - w0 - inner;
+    }
+    let total = thread_cpu() - started;
+    findings.sort();
+    findings.dedup();
+    if let Some(out) = flag(args, "--out") {
+        std::fs::write(out, findings.join("\n") + "\n").expect("write findings");
+    }
+    if check {
+        std::fs::write(flag(args, "--check-out").unwrap_or_else(|| "check-bases.tsv".to_owned()), check_lines.join("\n") + "\n").expect("write check");
+    }
+    if let Some(out) = flag(args, "--stats") {
+        let mut lines = vec!["node\top\tcalls\trows\ttouched\tseconds".to_owned()];
+        for (i, pn) in plan.nodes.iter().enumerate() {
+            if exec.stats.calls[i] > 0 {
+                lines.push(format!("{i}\t{}\t{}\t{}\t{}\t{:.6}", pn.op, exec.stats.calls[i], exec.stats.rows[i], exec.stats.touched[i], exec.stats.time[i]));
+            }
+        }
+        for (k, v) in &by_rel {
+            lines.push(format!("fill:{k}\tfill\t{}\t{}\t0\t{:.6}", v.2, v.1, v.0));
+        }
+        std::fs::write(out, lines.join("\n") + "\n").expect("write stats");
+    }
+    let steps: f64 = exec.stats.time.iter().sum();
+    println!("files run {files_run}; findings {}; rules {} ({} failed)", findings.len(), emits.len(), failed.len());
+    println!("thread CPU-s: total {total:.3}; walk+table {walk_time:.3}; in the visit {file_time:.3}: steps {steps:.3}, provider fills {provider_time:.3} ({provider_rows} rows)");
+    let mut f: Vec<_> = failed.into_iter().collect();
+    f.sort();
+    for (r, e) in f {
+        println!("FAILED {r}: {e}");
+    }
+}
 
 /// `vec funnel <way> <files> <anchors> <plans> [--repeat K] [--rules-out F] [--hits-out F]`: ways `cands`, `structure`,
 /// `interp`, `spec`, `knock`.
