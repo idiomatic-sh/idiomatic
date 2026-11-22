@@ -26,7 +26,8 @@ pub(super) mod stage {
     pub(crate) const ONE_SOURCE_FILTERED: u8 = 14;
     pub(crate) const KEYS_ABSENT: u8 = 15;
     pub(crate) const ZERO_ENTRY: u8 = 16;
-    pub(crate) const NAMES: [&str; 17] = [
+    pub(crate) const BOUND_ZERO: u8 = 17;
+    pub(crate) const NAMES: [&str; 18] = [
         "none marked",
         "a per-file test fails",
         "semi band empty",
@@ -44,6 +45,7 @@ pub(super) mod stage {
         "one source: its tests reject every row",
         "other side's keys absent where its probe ends (not probed)",
         "a view source's entry empty (decided before the front)",
+        "bounded driver's bound is zero (not made)",
     ];
     /// What was built before the answer was known.
     pub(crate) const B_INDEX_FRESH: u8 = 1;

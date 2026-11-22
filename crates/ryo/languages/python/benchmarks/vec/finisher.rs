@@ -214,6 +214,7 @@ impl<'p> Finisher<'p> {
             let e = &plan.emits[*ei];
             run.missing.clear();
             let got = self.exec.eval(&mut f, run, pv, e.1);
+            finish::emptyprop::emit_done(&f, e.1);
             let got = if run.missing.is_empty() { got } else { Err(format!("functions {:?} not in the step set", run.missing)) };
             match got {
                 Ok(t) => {
@@ -233,6 +234,7 @@ impl<'p> Finisher<'p> {
                 }
             }
         }
+        finish::emptyprop::file_end(&mut self.exec, &mut f, run, pv);
     }
 
     /// Writes the findings, dumps and stats, and prints the second half's lines; `walk_time` is the walk's own time when
@@ -297,6 +299,9 @@ impl<'p> Finisher<'p> {
         }
         finish::empty_why::print();
         finish::empty_sel::print();
+        finish::emptyprop::print();
+        let plan = self.plan;
+        finish::emptyprop::print_skipped(&|n| plan.nodes[n].op.clone());
         if std::env::var_os("VEC_MEMO_DUMP").is_some() {
             // redo-union pass 2 c19
             for l in exec.memo_dump() {

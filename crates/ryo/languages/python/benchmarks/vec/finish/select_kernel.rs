@@ -203,8 +203,8 @@ struct K {
 }
 
 /// Keys of the per-file row lists a kernel keeps in the file's `vrows` (above any node number).
-const LIT_FILTER: usize = 1 << 56;
-const LIT_CONJ: usize = 2 << 56;
+pub(super) const LIT_FILTER: usize = 1 << 56;
+pub(super) const LIT_CONJ: usize = 2 << 56;
 const ENTRY_KIND: usize = 3 << 56;
 const ENTRY_LIT: usize = 4 << 56;
 const ABSENT: usize = 1 << 60;
@@ -652,7 +652,14 @@ impl Exec<'_> {
             }
             let pick = if np == 0 { None } else { self.pendsize_pick(f, run, p, &pend[..np], best)? };
             super::empty_sel::lap(4, self.inner);
-            if let Some((i, n, _)) = pick {
+            if let Some((i, n, bs)) = pick {
+                // redo-empty: a bound of zero is the size of a superset of the driver's rows: it is empty, and so is
+                // this select; the driver is not made
+                if bs == 0 && !sw!("VEC_NO_EMPTYPROP") {
+                    super::empty_sel::at(super::empty_sel::stage::BOUND_ZERO);
+                    super::emptyprop::bound_zero();
+                    return self.empty_rc(run, node);
+                }
                 self.reason = "join driver: a step bounded by a small input";
                 let t = self.eval(f, run, p, n)?;
                 if t.n == 0 {
@@ -846,7 +853,7 @@ impl Exec<'_> {
                         }
                     }
                     // redo-select2: the keys looked up where the probe would end (key_absent.rs): none present, nothing joins
-                    if self.keys_absent(f, run, pn, col, &b.keys)? {
+                    if self.keys_absent(f, run, p, pn, col, &b.keys)? {
                         super::empty_sel::at(super::empty_sel::stage::KEYS_ABSENT);
                         return self.empty_rc(run, node);
                     }

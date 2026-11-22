@@ -21,17 +21,17 @@ const LEAVES: usize = 16;
 
 impl Exec<'_> {
     /// Whether a probe of `node` on `col` by `keys` is known to answer no row (false: not known).
-    pub(super) fn keys_absent(&mut self, f: &mut File<'_>, run: &mut Run, node: usize, col: usize, keys: &[u64]) -> R<bool> {
+    pub(super) fn keys_absent(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn super::Provider, node: usize, col: usize, keys: &[u64]) -> R<bool> {
         if !self.static_keyed || sw!("VEC_PTARGET_OFF") || sw!("VEC_OLD_EMPTYSEL") || sw!("VEC_ESEL_NO_ABSENT") {
             return Ok(false);
         }
         let mut budget = LEAVES;
-        self.absent(f, run, node, col, keys, &mut budget)
+        self.absent(f, run, p, node, col, keys, &mut budget)
     }
 
     /// The chain from (`node`, `col`); a union's inputs each (all absent), an antijoin's left where its probe runs over
     /// the probed left (`antijoin_kernel`'s `direct`), within `budget` chains.
-    fn absent(&mut self, f: &mut File<'_>, run: &mut Run, node: usize, col: usize, keys: &[u64], budget: &mut usize) -> R<bool> {
+    fn absent(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn super::Provider, node: usize, col: usize, keys: &[u64], budget: &mut usize) -> R<bool> {
         if *budget == 0 {
             return Ok(false);
         }
@@ -71,7 +71,7 @@ impl Exec<'_> {
                 stop(if a { "view (not read yet): absent" } else { "view (not read yet): present or unread" }, "");
                 return Ok(a);
             }
-            if self.known_empty(f, run, n) {
+            if self.known_empty(f, run, p, n) {
                 return Ok(true);
             }
             // a semi step may be made whole for a probe; a counted group count runs over an input that answered nothing
@@ -88,7 +88,7 @@ impl Exec<'_> {
                     let ins = self.plan.nodes[n].inputs.clone();
                     for i in ins {
                         let Some(ic) = self.schema(run, i)?.names.iter().position(|x| *x == name) else { return Ok(false) };
-                        if !self.absent(f, run, i, ic, keys, budget)? {
+                        if !self.absent(f, run, p, i, ic, keys, budget)? {
                             return Ok(false);
                         }
                     }

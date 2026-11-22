@@ -80,6 +80,9 @@ mod capture;
 pub(super) mod fill_prof;
 #[path = "finish/view_cols.rs"]
 mod view_cols;
+/// redo-empty: emptiness for the file, by propagation over the plan.
+#[path = "finish/emptyprop.rs"]
+pub(super) mod emptyprop;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum Ty {
@@ -1806,8 +1809,9 @@ impl<'p> Exec<'p> {
             return Ok(r);
         }
         let decided = f.known[node] != 0;
-        if !sw!("VEC_NO_KNOWN") && self.known_empty(f, run, node) {
+        if !sw!("VEC_NO_KNOWN") && self.known_empty(f, run, p, node) {
             self.stats.known[node] += 1;
+            emptyprop::skipped(f, node);
             let r = Res::Tab(self.empty_rc(run, node)?);
             f.touched.push(node as u32);
             f.memo[node] = Some(r.clone());
@@ -1858,7 +1862,9 @@ impl<'p> Exec<'p> {
         let out = out?;
         if out.n == 0 {
             self.stats.empty_time[node] += own;
+            emptyprop::empty_run(node, false, own);
         }
+        emptyprop::ran();
         if let Some(c) = ew {
             empty_why::tally(self, f, node, c, out.n == 0);
         }
@@ -1897,8 +1903,9 @@ impl<'p> Exec<'p> {
             }
             return Ok(Rc::new(subset(f, node, &t, col, keys)));
         }
-        if !sw!("VEC_NO_KNOWN") && self.known_empty(f, run, node) {
+        if !sw!("VEC_NO_KNOWN") && self.known_empty(f, run, p, node) {
             self.stats.known[node] += 1;
+            emptyprop::skipped(f, node);
             return self.empty_rc(run, node);
         }
         if let Some(v) = self.view(run, node)? {
@@ -2110,9 +2117,11 @@ impl<'p> Exec<'p> {
     pub(super) fn count_probe(&mut self, node: usize, own: f64, n: usize) {
         self.stats.probes[node] += 1;
         self.stats.rows[node] += n as u64;
+        emptyprop::ran();
         if n == 0 {
             self.stats.probe_empty[node] += 1;
             self.stats.empty_time[node] += own;
+            emptyprop::empty_run(node, true, own);
         }
     }
 
