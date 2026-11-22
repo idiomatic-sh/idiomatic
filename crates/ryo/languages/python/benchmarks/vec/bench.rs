@@ -1256,6 +1256,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
         let mut visit_time = 0f64;
         let mut words_time = 0f64;
         let mut words_written = false;
+        let mut fields_done = false;
         let ok = if use_facts && direct {
             cwalk
                 .walked(path, &bytes, &mut table, &mut |file| {
@@ -1263,13 +1264,10 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                     let ft = file.table;
                     let n = node_table::element_count(ft).0;
                     let kinds: Vec<u64> = node_table::kinds_present(ft).0.iter().map(|w| w.0).collect();
-                    let mut fp = vec![0u64; words_of(fields_width)];
-                    for i in 0..n as u32 {
-                        let f = node_table::field_of(ft, Position(i)).0;
-                        if usize::from(f) < fields_width {
-                            fp[usize::from(f) / 64] |= 1 << (f % 64);
-                        }
-                    }
+                    // the fields present, once, from the table's field lists (a step a field code, not an element)
+                    fields_present(ft, &mut cols, fields_width.max(1));
+                    fields_done = true;
+                    let fp = &cols.field_present;
                     // the file's required words, once: from the walk's name codes (one lookup a distinct name); the word
                     // phase then only lays out the index (timed there, not in deciding)
                     let fw = thread_cpu();
@@ -1283,7 +1281,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                     let mut valued = vec![ask_all; slots_n];
                     let mut key_needed: Vec<(usize, usize)> = Vec::new();
                     for (ri, r) in frules.iter().enumerate() {
-                        if r.slots.is_empty() || !skip_of[ri].is_none_or(|i| survives(&rules[i], &kinds, &fp)) || !r.words_alive(wp) {
+                        if r.slots.is_empty() || !skip_of[ri].is_none_or(|i| survives(&rules[i], &kinds, fp)) || !r.words_alive(wp) {
                             continue;
                         }
                         for s in &r.slots {
@@ -1686,7 +1684,9 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
         }
         // one pass: the table's own columns and field lists are read in place; only the fields present are gathered (a step a
         // field code, not an element)
-        fields_present(t, &mut cols, fields_width.max(1));
+        if !fields_done {
+            fields_present(t, &mut cols, fields_width.max(1));
+        }
         phases.add("extract columns + parents + field buckets", thread_cpu() - c1);
         if way == "structure" {
             continue;
