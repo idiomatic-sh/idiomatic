@@ -83,6 +83,22 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             BindingAction::EndPhase,
         ]),
     },
+    Case {
+        name: CaseName("a_function_variable_annotation_is_never_evaluated_and_is_read_as_a_type_in_a_phase_of_its_own"),
+        word: Word::Succeeds,
+        input: || ("def f():\n    x: Unknown = 1\n", BindingAnnotationTiming::Immediate),
+        expect: Expect::Value(&[
+            BindingAction::BeginPhase,
+            BindingAction::Bind,
+            BindingAction::EndPhase,
+            BindingAction::BeginPhase,
+            BindingAction::Bind,
+            BindingAction::EndPhase,
+            BindingAction::BeginPhase,
+            BindingAction::Read,
+            BindingAction::EndPhase,
+        ]),
+    },
 ];
 
 fn subject((source, timing): Input) -> Value {

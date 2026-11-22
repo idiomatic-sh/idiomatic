@@ -71,7 +71,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("paths_of_every_construct_equal_todays"),
         word: Word::Succeeds,
         input: || (Filler::Path, CONSTRUCTS),
-        expect: equal(222),
+        expect: equal(221),
     },
     Case {
         name: CaseName("paths_from_a_function_then_the_module_equal_todays"),

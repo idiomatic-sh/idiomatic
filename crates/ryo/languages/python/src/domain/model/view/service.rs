@@ -3,6 +3,7 @@
 use super::types::{Built, ModelPart, PartState, SemanticModel};
 use crate::domain::model::declarations::service as declarations;
 use crate::domain::model::definitions::service as definitions;
+use crate::domain::model::definitions::types::Routing;
 use crate::domain::model::flow::service as flow;
 use crate::domain::model::lexical::service as lexical;
 use crate::domain::model::lexical::types::TypedTree;
@@ -25,6 +26,9 @@ pub(crate) fn built(model: &mut SemanticModel, built: &mut Built, part: ModelPar
         lexical::build(&mut model.lexical, &mut model.names, tree);
         declarations::build(&mut model.lexical, tree);
         definitions::build(&mut model.definitions, &model.lexical, &model.names, tree);
+        if definitions::routed(&mut model.lexical, &model.definitions, tree) == Routing::Moved {
+            definitions::build(&mut model.definitions, &model.lexical, &model.names, tree);
+        }
         built.lexical = PartState::Ready;
     }
     if part == ModelPart::Resolution && built.resolution == PartState::Pending {

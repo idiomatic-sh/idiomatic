@@ -1,13 +1,15 @@
 //! The `definitions` service of the model: free functions named by verb, with no IO and no ports.
 
 use super::constants::NO_DEFINITION;
-use super::types::{DefinitionCode, DefinitionModel, DefinitionRange, DefinitionWord, NameDefinition, PlacedParameter};
-use crate::domain::model::lexical::constants::{NO_NODE, WILDCARD};
+use super::types::{
+    DefinitionCode, DefinitionModel, DefinitionRange, DefinitionWord, NameDefinition, PlacedParameter, Routing,
+};
+use crate::domain::model::lexical::constants::{MODULE, NO_NODE, WILDCARD};
 use crate::domain::syntax::constants::DOT;
-use crate::domain::model::declarations::service::binding_scope;
+use crate::domain::model::declarations::service::{binding_scope, function_around, lexical_scope, redirect_of};
 use crate::domain::model::lexical::service::{entry, id_of, name_of, node_at, parent_of, scope_at, span_of};
-use crate::domain::model::lexical::types::{LexicalModel, NameUse, NamespaceKey, NodeClass, TypedTree};
-use crate::domain::model::names::constants::UNKNOWN_NAME;
+use crate::domain::model::lexical::types::{LexicalModel, NameUse, NamespaceKey, NodeClass, ScopeRedirect, TypedTree};
+use crate::domain::model::names::constants::{NO_NAME, UNKNOWN_NAME};
 use crate::domain::model::names::service::find;
 use crate::domain::model::names::types::{NameCode, NameTable};
 use ruff_python_ast::{AnyNodeRef, Identifier, ParameterWithDefault};
@@ -212,6 +214,77 @@ fn definition(lexical: &LexicalModel, names: &NameTable, tree: TypedTree<'_, '_>
         }
         _ => None,
     }
+}
+
+/// The scope whose block binds the definition `definition` before any `global` or `nonlocal`: a parameter's and a type
+/// parameter's is their owner.
+fn written_in(model: &LexicalModel, tree: TypedTree<'_, '_>, definition: &NameDefinition) -> Position {
+    if matches!(definition.kind, DeclarationKind::Parameter | DeclarationKind::TypeParameter) {
+        definition.owner
+    } else {
+        lexical_scope(model, tree, definition.at)
+    }
+}
+
+/// The function the `nonlocal` name `name` of the scope `scope` is bound in: the nearest enclosing function whose block binds
+/// the name, passing through a function that declares it `nonlocal` too; none when a function declares it `global` first or
+/// none binds it (the parser's error).
+fn nonlocal_target(
+    model: &LexicalModel,
+    definitions: &DefinitionModel,
+    tree: TypedTree<'_, '_>,
+    scope: Position,
+    name: NameCode,
+) -> Option<Position> {
+    let mut around = function_around(model, scope);
+    while around != MODULE {
+        match redirect_of(model, around, name) {
+            Some(ScopeRedirect::Global) => return None,
+            Some(ScopeRedirect::Nonlocal) => {}
+            None if definitions_of(definitions, around, name).iter().any(|code| {
+                definitions.all.get(usize::from(*code)).is_some_and(|found| written_in(model, tree, found) == around)
+            }) =>
+            {
+                return Some(around);
+            }
+            None => {}
+        }
+        around = function_around(model, around);
+    }
+    None
+}
+
+/// Routes each `nonlocal` name to the function that binds it, once the definitions are known, and re-routes the deletions
+/// of the names it moves. Answers whether any name moved off the nearest function around its scope: the definitions are then
+/// to be built again.
+pub(crate) fn routed(model: &mut LexicalModel, definitions: &DefinitionModel, tree: TypedTree<'_, '_>) -> Routing {
+    let mut moved = Vec::new();
+    for (key, redirect) in &model.declared {
+        if *redirect != ScopeRedirect::Nonlocal {
+            continue;
+        }
+        if let Some(target) = nonlocal_target(model, definitions, tree, key.scope, key.name)
+            && target != function_around(model, key.scope)
+        {
+            moved.push((*key, target));
+        }
+    }
+    if moved.is_empty() {
+        return Routing::Kept;
+    }
+    model.targets.extend(moved);
+    for number in 0..model.hazards.len() {
+        let Some(hazard) = model.hazards.get(number).copied() else {
+            continue;
+        };
+        if hazard.name != NO_NAME {
+            let scope = binding_scope(model, tree, hazard.at, hazard.name);
+            if let Some(slot) = model.hazards.get_mut(number) {
+                slot.scope = scope;
+            }
+        }
+    }
+    Routing::Moved
 }
 
 /// The definitions of the name `name` in the namespace of `owner`, in source order.

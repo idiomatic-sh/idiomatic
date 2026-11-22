@@ -277,7 +277,8 @@ pub(crate) enum BindingPhaseKind {
     Callable,
     /// Generator target/filter/result evaluated separately from its first iterable.
     Generator,
-    /// Deferred native or embedded type expression.
+    /// A type expression not evaluated where it stands: a deferred native or embedded one, or one Python never evaluates (the
+    /// annotation of a function's variable). Its names are read over the finished environment of the phase around it.
     Type,
 }
 /// A deferred region waits for its enclosing execution phase to complete.

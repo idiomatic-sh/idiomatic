@@ -174,12 +174,14 @@ impl Run {
         if let Some(r) = self.rels.get(name) {
             return Some(r.clone());
         }
-        if name == REGION_REL {
+        if name == REGION_REL || name == RESOLUTION_REL {
             // 6f probe: the provider's per-node evaluation region (`ColumnFile::evaluation_region`); not a catalog relation,
-            // so the placeholder relation is never filled (`Provider::fill` answers it by name).
+            // so the placeholder relation is never filled (`Provider::fill` answers it by name). redo-binding: the same for
+            // the provider's read resolution (`RESOLUTION_REL`).
             let relation = catalog::relation_named(NameRef("binding-read"))?;
-            let names: Names = Rc::new(REGION_COLS.iter().map(|c| c.0.to_owned()).collect());
-            let tys: Tys = Rc::new(REGION_COLS.iter().map(|c| c.1).collect());
+            let cols: &[(&str, Ty)] = if name == REGION_REL { &REGION_COLS } else { &RESOLUTION_COLS };
+            let names: Names = Rc::new(cols.iter().map(|c| c.0.to_owned()).collect());
+            let tys: Tys = Rc::new(cols.iter().map(|c| c.1).collect());
             self.rels.insert(name.to_owned(), (relation, names.clone(), tys.clone()));
             return Some((relation, names, tys));
         }
@@ -195,6 +197,23 @@ impl Run {
 pub(super) const REGION_REL: &str = "evaluation-region";
 pub(super) const REGION_COLS: [(&str, Ty); 6] =
     [("id", Ty::Node), ("region", Ty::Node), ("region-kind", Ty::Sym), ("annotation", Ty::Node), ("timing", Ty::Sym), ("file", Ty::File)];
+
+/// redo-binding probe: the provider's resolution of every read and deletion, one row each: the event in effect in the nearest
+/// namespace of its lookup path that holds one (a deletion looks in its own namespace only), by name. `kind` is that event's
+/// kind (`none`: no namespace holds an event of the name), `namespace` says whether the event was made in that namespace
+/// itself (`own`) or routed into it by a `global` / `nonlocal` declaration elsewhere (`routed`).
+pub(super) const RESOLUTION_REL: &str = "read-resolution";
+pub(super) const RESOLUTION_COLS: [(&str, Ty); 9] = [
+    ("reference", Ty::Node),
+    ("event", Ty::Node),
+    ("kind", Ty::Sym),
+    ("namespace", Ty::Sym),
+    ("scope", Ty::Node),
+    ("depth", Ty::Num),
+    ("ordinal", Ty::Num),
+    ("context", Ty::Sym),
+    ("file", Ty::File),
+];
 
 /// 6f probe: a made table's rows as text lines (`label`, path, then `column=value` cells; a node as `id:line`).
 pub(super) fn dump_rows(f: &File<'_>, run: &Run, t: &Table, label: &str, path: &str, out: &mut String) {
@@ -3615,7 +3634,7 @@ impl Index {
     pub(super) fn get(&self, k: &u64) -> Option<&[u32]> {
         if self.dense {
             let k = *k;
-            if k + 1 >= self.offs.len() as u64 {
+            if k.saturating_add(1) >= self.offs.len() as u64 {
                 return None;
             }
             let (a, b) = (self.offs[k as usize] as usize, self.offs[k as usize + 1] as usize);
@@ -4020,13 +4039,27 @@ pub(super) fn filled_table(run: &mut Run, rel: &str, filled: &languages::FilledC
             continue;
         };
         out.cols[c] = match ty {
-            Ty::Sym => column.0.iter().map(|w| u64::from(run.sym(languages::facts::text(words, *w).0.as_bytes()))).collect(),
+            Ty::Sym => column.0.iter().map(|w| u64::from(run.sym(&cell_text(words, *w)))).collect(),
             Ty::Node => column.0.iter().map(|w| w.0 & 0xffff_ffff).collect(),
             _ => column.0.iter().map(|w| w.0).collect(),
         };
     }
     out.n = n;
     Ok(out)
+}
+
+/// redo-binding: a cell's text, a word of a closed set (`defines.kind` and the other closed columns: the catalog's term blocks
+/// from 0xFFFF_0000, 0x100 words a block, `ryo_relations::domain::terms`) read by its number, which the file's words do not hold.
+fn cell_text(words: &languages::FileWords, w: languages::CellWord) -> Vec<u8> {
+    use ryo_relations::domain::terms::{service::words_of, types::WordBlock};
+    if (0xFFFF_0000..0xFFFF_0700).contains(&w.0) {
+        let at = w.0 - 0xFFFF_0000;
+        let block = [WordBlock::Declaration, WordBlock::Parameter, WordBlock::Value, WordBlock::Mapping, WordBlock::Dependency, WordBlock::Unknown, WordBlock::Origin][(at / 0x100) as usize];
+        if let Some(t) = words_of(block).get((at % 0x100) as usize) {
+            return t.0.as_bytes().to_vec();
+        }
+    }
+    languages::facts::text(words, w).0.as_bytes().to_vec()
 }
 
 /// A tree relation as this file reads it in place, made whole (for `--check-bases`).

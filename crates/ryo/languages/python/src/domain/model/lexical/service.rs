@@ -221,6 +221,7 @@ fn clear(model: &mut LexicalModel) {
     model.usage.clear();
     model.annotation.clear();
     model.declared.clear();
+    model.targets.clear();
     model.binders.clear();
     model.deleted.clear();
     model.hazards.clear();
@@ -305,7 +306,12 @@ fn read(model: &mut LexicalModel, names: &mut NameTable, tree: TypedTree<'_, '_>
             model.binders.push(at);
         }
         AnyNodeRef::StmtAnnAssign(assignment) => {
-            put(&mut model.annotation, id_of(&*assignment.annotation), AnnotationMark::Annotation);
+            let mark = if matches!(entry(&model.class, scope), NodeClass::FunctionDef | NodeClass::Lambda) {
+                AnnotationMark::Unevaluated
+            } else {
+                AnnotationMark::Annotation
+            };
+            put(&mut model.annotation, id_of(&*assignment.annotation), mark);
         }
         AnyNodeRef::StmtClassDef(_)
         | AnyNodeRef::TypeParamTypeVar(_)
