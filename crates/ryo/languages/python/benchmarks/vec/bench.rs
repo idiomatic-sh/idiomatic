@@ -1298,6 +1298,10 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
     let mut word_pairs: Vec<(u16, u32)> = Vec::new();
     let mut word_offsets: Vec<u32> = Vec::new();
     let mut word_pos: Vec<u32> = Vec::new();
+    // the walk's code of each name token, and the required word of each code met in the file
+    let mut name_codes: Vec<u32> = Vec::new();
+    let mut word_memo: Vec<u32> = Vec::new();
+    let mut fixed_memo: Vec<u32> = Vec::new();
     let (mut missing_in_src, mut extra_in_src, mut present_total, mut distinct_total) = (0u64, 0u64, 0u64, 0u64);
     let (mut alive_kinds, mut alive_both, mut rule_files) = (0u64, 0u64, 0u64);
     let mut word_entry_bound = 0u64;
@@ -1314,6 +1318,11 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
     }
     let group_list = funnel::groups(&frules, &units);
     let structured = matches!(way, "structure" | "spec" | "knock");
+    // the table writes the structure the checks read (element sets, the plans' enclosing columns) as ids are numbered
+    let enclosing: Vec<ryo::languages::KindSet> = fact_catalog.enc_sets.iter().map(|s| ryo::languages::KindSet(*s)).collect();
+    if structured {
+        cwalk.structured(enclosing.clone());
+    }
     let max_regs = frules.iter().flat_map(|r| r.plans.iter().map(|p| p.regs)).max().unwrap_or(1).max(1);
     let mut cands = vec![0u64; units.len()];
     let mut surv = vec![0u64; units.len()];
@@ -1324,7 +1333,6 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
     let mut table = NodeTable::default();
     let mut scratch = Default::default();
     let mut cols = Columns::default();
-    let mut st = funnel::Structure::default();
     let mut regs = vec![0u32; max_regs + 1];
     let mut rows = funnel::Rows::default();
     let mut file_mask: Vec<u64> = Vec::new();
@@ -1356,16 +1364,14 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
         // the file's skip, made once (inside the walk when the provider's facts are decided there, else after it): the
         // columns read, the required words present, and which rules can match by kinds and fields and by words
         let mut prepared = false;
+        let mut codes_taken = false;
         macro_rules! prepare {
             ($t:expr) => {{
                 let pt: &NodeTable = $t;
                 let c1 = thread_cpu();
                 fields_present(pt, &mut cols, fields_width.max(1));
-                // prefix cycle 3: the structure pass runs in the file's skip preparation (its field counting is not
-                // needed: the table holds a list of ids a field, redo-onepass)
-                if structured {
-                    funnel::structure(pt, &mut st);
-                }
+                // the structure (element sets, enclosing columns) is written by the table as ids are numbered (redo-onepass
+                // pass 2), so prefix cycle 3's structure pass here is gone
                 phases.add("field buckets + structure pass", thread_cpu() - c1);
                 if way != "structure" {
                 // the file's required words
@@ -1385,7 +1391,8 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                     };
                     match word_src.as_str() {
                         "table" => {
-                            from_table(&mut present, &mut word_pairs);
+                            // redo-onepass pass 2: the walk's name codes when the visit took them, else by bytes
+                            funnel::file_words(pt, &bytes, name_token, if codes_taken { &name_codes } else { &[] }, &words, &mut word_memo, &mut fixed_memo, &mut present, &mut word_pairs);
                             // the index: name-token positions of each required word
                             word_offsets.clear();
                             word_offsets.resize(n_words + 1, 0);
@@ -1495,24 +1502,9 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
         macro_rules! prefix {
             ($t:expr) => {{
                 let t: &NodeTable = $t;
-                if structured {
-                    if !fact_catalog.enc_sets.is_empty() {
-                        let e0 = thread_cpu();
-                        funnel::enclosing(t, &mut st, &fact_catalog.enc_sets);
-                        phases.add("enclosing columns (one per kind set)", thread_cpu() - e0);
-                    }
-                }
                 if dump_out.is_some() {
                     dump::table(&mut dumped, file_no, t, vocab.kind_names.len());
-                    let mut h = dump::Hashed::default();
-                    h.rows(node_table::parent_ids(t));
-                    // prefix cycle 2: the structure pass writes only the node sets and the enclosing columns
-                    h.rows(&st.sets.iter().map(|m| m.pkind).collect::<Vec<_>>());
-                    h.rows(&st.sets.iter().map(|m| m.cmask).collect::<Vec<_>>());
-                    h.rows(&st.sets.iter().map(|m| m.cfmask).collect::<Vec<_>>());
-                    h.rows(&st.sets.iter().map(|m| m.root).collect::<Vec<_>>());
-                    h.rows(&st.enc);
-                    h.line(&mut dumped, file_no, "structure");
+                    dump::structure(&mut dumped, file_no, t);
                     let mut h = dump::Hashed::default();
                     // the field buckets as the harness's counting sort laid them out: offsets, then the ids, then the present bits
                     let mut offsets = vec![0u32];
@@ -1543,9 +1535,9 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                     let ctx = funnel::Ctx {
                         table: t,
                         src: &bytes,
-                        sets: if structured { &st.sets } else { &[] },
+                        sets: node_table::element_sets(t),
                         facts: &store,
-                        enc: &st.enc,
+                        enc: node_table::enclosing_ids(t),
                         matches: &interner.matches,
                     };
                     let elements = node_table::element_count(t).0 as usize;
@@ -1718,6 +1710,8 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                     let p0 = thread_cpu();
                     let ft = file.table;
                     let n = node_table::element_count(ft).0;
+                    file.name_token_codes(&mut name_codes);
+                    codes_taken = true;
                     prepare!(ft);
                     prepared = true;
                     let v0 = thread_cpu();
@@ -2031,7 +2025,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
         } else if use_facts {
             // the provider's facts are lent only while the walk runs: decide here which files need them (some rule that
             // tests a fact survived the kinds-and-words skip), then fill those relations and write their columns
-            ryo_python::fixtures::walking::walked(walk, path, &bytes, &[], &mut table, &mut scratch, &mut |file| {
+            ryo_python::fixtures::walking::walked_structured(walk, path, &bytes, &[], &mut table, &mut scratch, structured.then_some(enclosing.as_slice()), &mut |file| {
                 let p0 = thread_cpu();
                 let ft = file.table;
                 let n = node_table::element_count(ft).0;
@@ -2104,7 +2098,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
             })
             .is_ok()
         } else {
-            let mut builder = node_table::builder(&mut table, walk_kinds(walk));
+            let mut builder = if structured { node_table::structured(&mut table, walk_kinds(walk), &enclosing) } else { node_table::builder(&mut table, walk_kinds(walk)) };
             let ok = walk
                 .walk(
                     WalkRequest { path: languages::SourcePath(path), file: FileId(0), source: ByteSlice(&bytes) },

@@ -4,7 +4,7 @@
 //! knock-out (per node a few tests ANDed into a mask of the plans of its bucket).
 
 use super::{Key, Vocab};
-use ryo::languages::{NodeTable, Position, node_table};
+use ryo::languages::{ElementSets, NodeTable, Position, node_table};
 use std::collections::HashMap;
 
 pub(super) type KSet = [u64; 4];
@@ -65,7 +65,7 @@ pub(super) struct Ctx<'a> {
     pub(super) table: &'a NodeTable,
     pub(super) src: &'a [u8],
     /// Per node, its child sets and parent kind in one cache line (the structure pass).
-    pub(super) sets: &'a [NodeSets],
+    pub(super) sets: &'a [ElementSets],
     pub(super) facts: &'a super::facts::Store,
     pub(super) enc: &'a [Vec<u32>],
     pub(super) matches: &'a [u128],
@@ -134,10 +134,10 @@ impl Own {
     fn some_child_can(&self, ctx: &Ctx<'_>, n: u32) -> bool {
         let i = n as usize;
         (self.kinds == ALL_KINDS || {
-            let m = &ctx.sets[i].cmask;
+            let m = &ctx.sets[i].child_kinds;
             (m[0] & self.kinds[0]) | (m[1] & self.kinds[1]) | (m[2] & self.kinds[2]) | (m[3] & self.kinds[3]) != 0
         }) && self.fields.as_ref().is_none_or(|s| {
-            let m = &ctx.sets[i].cfmask;
+            let m = &ctx.sets[i].child_fields;
             (m[0] & s[0]) | (m[1] & s[1]) != 0
         })
     }
@@ -549,10 +549,9 @@ pub(super) fn compile(ops: &[Op]) -> Vec<Stage> {
                     Some(c) if *leaf && c.kinds_only() => {
                         let s = c.kind_set();
                         out.push(filt(move |ctx, row| {
-                                let n = row[from] as usize;
-                                let x = &ctx.sets[n];
-                                !x.root && kbit(&s, x.pkind)
-                            }));
+                            let n = row[from] as usize;
+                            !ctx.sets[n].root && kbit(&s, ctx.sets[n].parent_kind)
+                        }));
                         i += 1;
                     }
                     _ if *leaf && next_check(*to).is_none() => out.push(filt(move |ctx, row| ctx.parent(row[from]) != row[from])),
@@ -568,9 +567,9 @@ pub(super) fn compile(ops: &[Op]) -> Vec<Stage> {
                     Some(c) if *leaf && c.kinds_only() => {
                         let s = c.kind_set();
                         out.push(filt(move |ctx, row| {
-                                let m = &ctx.sets[row[from] as usize].cmask;
-                                (m[0] & s[0]) | (m[1] & s[1]) | (m[2] & s[2]) | (m[3] & s[3]) != 0
-                            }));
+                            let m = &ctx.sets[row[from] as usize].child_kinds;
+                            (m[0] & s[0]) | (m[1] & s[1]) | (m[2] & s[2]) | (m[3] & s[3]) != 0
+                        }));
                         i += 1;
                     }
                     Some(c) if *leaf => {
@@ -593,9 +592,9 @@ pub(super) fn compile(ops: &[Op]) -> Vec<Stage> {
                     [Op::Check(c)] if c.v == to && c.kinds_only() => {
                         let s = c.kind_set();
                         out.push(filt(move |ctx, row| {
-                                let m = &ctx.sets[row[from] as usize].cmask;
-                                (m[0] & s[0]) | (m[1] & s[1]) | (m[2] & s[2]) | (m[3] & s[3]) != 0
-                            }));
+                            let m = &ctx.sets[row[from] as usize].child_kinds;
+                            (m[0] & s[0]) | (m[1] & s[1]) | (m[2] & s[2]) | (m[3] & s[3]) != 0
+                        }));
                     }
                     [Op::Check(c)] if c.v == to => out.push(any_child(from, Own::of(c))),
                     _ => out.push(pred_stage(compile_pred(std::slice::from_ref(&ops[i])))),
@@ -683,13 +682,12 @@ pub(super) fn compile_pred(ops: &[Op]) -> Pred {
                         Box::new(move |ctx, r, s| {
                             *s += 1;
                             let n = r[from] as usize;
-                            let x = &ctx.sets[n];
-                            !x.root && kbit(&set, x.pkind) && next(ctx, r, s)
+                            !ctx.sets[n].root && kbit(&set, ctx.sets[n].parent_kind) && next(ctx, r, s)
                         })
                     } else {
                         Box::new(move |ctx, r, s| {
                             *s += 1;
-                            let m = &ctx.sets[r[from] as usize].cmask;
+                            let m = &ctx.sets[r[from] as usize].child_kinds;
                             ((m[0] & set[0]) | (m[1] & set[1]) | (m[2] & set[2]) | (m[3] & set[3]) != 0) && next(ctx, r, s)
                         })
                     };
@@ -741,7 +739,7 @@ pub(super) fn compile_pred(ops: &[Op]) -> Pred {
                         let set = c.kind_set();
                         Box::new(move |ctx, r, s| {
                             *s += 1;
-                            let m = &ctx.sets[r[from] as usize].cmask;
+                            let m = &ctx.sets[r[from] as usize].child_kinds;
                             ((m[0] & set[0]) | (m[1] & set[1]) | (m[2] & set[2]) | (m[3] & set[3]) != 0) && next(ctx, r, s)
                         })
                     }
@@ -911,12 +909,9 @@ impl Test {
     fn eval(&self, ctx: &Ctx<'_>, n: u32) -> bool {
         match self {
             Test::Own(c) => passes(ctx, c, n),
-            Test::ParentKind(s) => {
-                let x = &ctx.sets[n as usize];
-                !x.root && kbit(s, x.pkind)
-            }
+            Test::ParentKind(s) => !ctx.sets[n as usize].root && kbit(s, ctx.sets[n as usize].parent_kind),
             Test::ChildKind(s) => {
-                let m = &ctx.sets[n as usize].cmask;
+                let m = &ctx.sets[n as usize].child_kinds;
                 (m[0] & s[0]) | (m[1] & s[1]) | (m[2] & s[2]) | (m[3] & s[3]) != 0
             }
         }
@@ -1092,66 +1087,55 @@ pub(super) fn knock(ctx: &Ctx<'_>, group: &Group, nodes: &[u32], file: &[u64], s
     steps
 }
 
-// ---------------------------------------------------------------- the structure pass
-#[derive(Default)]
-pub(super) struct Structure {
-    pub(super) sets: Vec<NodeSets>,
-    /// One column per enclosing kind set the plans ask: the nearest strict ancestor with a kind in the set.
-    pub(super) enc: Vec<Vec<u32>>,
-}
+// ---------------------------------------------------------------- the file's required words
+/// A memo entry not looked up yet.
+const UNSEEN: u32 = u32::MAX;
+/// A memo entry whose text is no required word.
+const NO_WORD: u32 = u32::MAX - 1;
 
-/// What the checks read of a node's neighbours, in one cache line: the kinds and the fields (codes below 128) of its
-/// children, its parent's kind, and whether it is a root (no parent).
-#[derive(Clone, Copy, Default)]
-#[repr(C, align(64))]
-pub(super) struct NodeSets {
-    pub(super) cmask: KSet,
-    pub(super) cfmask: FSet,
-    pub(super) pkind: u16,
-    pub(super) root: bool,
-}
+/// The high bit of a name code: a fixed text of the language, the same in every file of the run.
+pub(super) const FIXED_TEXT: u32 = 1 << 31;
 
-/// One forward pass: parent kind, child-kind and child-field bitsets.
-pub(super) fn structure(table: &NodeTable, s: &mut Structure) {
-    let (kind, parent) = (node_table::kind_codes(table), node_table::parent_ids(table));
-    let n = kind.len();
-    s.sets.clear();
-    s.sets.resize(n, NodeSets::default());
-    for i in 0..n {
-        let p = parent[i] as usize;
-        let k = kind[i];
-        s.sets[i].pkind = kind[p];
-        s.sets[i].root = p == i;
-        if p != i {
-            let m = &mut s.sets[p];
-            m.cmask[usize::from(k) / 64] |= 1 << (k % 64);
-            let f = node_table::field_of(table, Position(i as u32)).0;
-            if f < 128 {
-                m.cfmask[usize::from(f) / 64] |= 1 << (f % 64);
-            }
-        }
-    }
-}
-
-/// The enclosing columns of the plans' kind sets, one forward pass each over the parent and kind columns.
-pub(super) fn enclosing(table: &NodeTable, s: &mut Structure, sets: &[KSet]) {
-    let (kind, parent) = (node_table::kind_codes(table), node_table::parent_ids(table));
-    let n = kind.len();
-    s.enc.resize_with(sets.len(), Vec::new);
-    for (k, set) in sets.iter().enumerate() {
-        let col = &mut s.enc[k];
-        col.clear();
-        col.resize(n, u32::MAX);
-        for i in 0..n {
-            let p = parent[i] as usize;
-            if p == i || p >= i {
-                // a root, or a parent written after its child (an embedded segment's host comes first: never here)
-                if p != i && p < n && kbit(set, kind[p]) {
-                    col[i] = p as u32;
+/// The file's required words from its name tokens, in id order: the present bits and the (word, token id) pairs. A token the
+/// walk gave a code (`codes`: the file's own tree, in id order) is looked up once a code through `memo` (a fixed text's,
+/// once a run through `fixed`); every other (an embedded segment's, or all of a file whose bytes were no text) by its bytes.
+#[expect(clippy::too_many_arguments, reason = "throwaway prototype")]
+pub(super) fn file_words(
+    table: &NodeTable,
+    src: &[u8],
+    name_token: u16,
+    codes: &[u32],
+    words: &Words,
+    memo: &mut Vec<u32>,
+    fixed: &mut Vec<u32>,
+    present: &mut [u64],
+    pairs: &mut Vec<(u16, u32)>,
+) {
+    present.iter_mut().for_each(|w| *w = 0);
+    pairs.clear();
+    memo.clear();
+    let (starts, ends) = (node_table::starts(table), node_table::ends(table));
+    let text = |i: usize| &src[starts[i] as usize..ends[i] as usize];
+    for (j, p) in node_table::ids_of_kind(table, ryo::languages::KindBits(name_token)).iter().enumerate() {
+        let i = p.0 as usize;
+        let w = match codes.get(j) {
+            Some(&c) => {
+                let m = if c & FIXED_TEXT == 0 { &mut *memo } else { &mut *fixed };
+                let c = (c & !FIXED_TEXT) as usize;
+                if c >= m.len() {
+                    m.resize(c + 1, UNSEEN);
                 }
-                continue;
+                if m[c] == UNSEEN {
+                    m[c] = words.ids.get(text(i)).map_or(NO_WORD, |w| u32::from(*w));
+                }
+                m[c]
             }
-            col[i] = if kbit(set, kind[p]) { p as u32 } else { col[p] };
+            None => words.ids.get(text(i)).map_or(NO_WORD, |w| u32::from(*w)),
+        };
+        if w != NO_WORD {
+            let w = w as u16;
+            present[usize::from(w) / 64] |= 1 << (w % 64);
+            pairs.push((w, p.0));
         }
     }
 }

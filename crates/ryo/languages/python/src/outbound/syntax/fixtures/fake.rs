@@ -48,6 +48,7 @@ impl SyntaxPort for SyntaxFake {
         _source_kind: PythonSourceKind,
         _reported: crate::outbound::syntax::types::ReportedSyntax,
         builder: &mut languages::NodeTableBuilder<'_>,
+        names: crate::domain::model::names::types::WalkNames,
         read: &mut dyn FnMut(crate::domain::node::types::Walked<'_, '_, '_>) -> Vec<languages::Position>,
     ) {
         use crate::domain::node::types::{Wholeness, WalkedTree};
@@ -83,6 +84,7 @@ impl SyntaxPort for SyntaxFake {
                     syntax: SyntaxCompleteness::Complete,
                     lexical: SyntaxCompleteness::Complete,
                 },
+                names,
             },
         ));
     }

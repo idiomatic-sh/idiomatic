@@ -197,6 +197,7 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
         source_kind: PythonSourceKind,
         reported: crate::outbound::syntax::types::ReportedSyntax,
         builder: &mut languages::NodeTableBuilder<'_>,
+        names: crate::domain::model::names::types::WalkNames,
         read: &mut dyn FnMut(
             crate::domain::node::types::Walked<'_, '_, '_>,
         ) -> Vec<languages::Position>,
@@ -205,7 +206,7 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
         let _previous = self
             .file_parses
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        super::walk::walked(&self.settings, text, source_kind, reported, builder, read);
+        super::walk::walked(&self.settings, text, source_kind, reported, builder, names, read);
     }
 }
 

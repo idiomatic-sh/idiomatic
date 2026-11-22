@@ -44,6 +44,20 @@ impl Hashed {
     }
 }
 
+/// The structure the checks read, one row an element: parent kind, child-kind set, child-field set (codes below 128) and
+/// whether it is a root; then the enclosing column of each kind set: the node table's own columns.
+pub(super) fn structure(out: &mut String, file: usize, t: &NodeTable) {
+    let mut h = Hashed::default();
+    h.rows(node_table::parent_ids(t));
+    for x in node_table::element_sets(t) {
+        h.row(&(Some(&x.parent_kind), Some(&x.child_kinds), x.child_fields, x.root));
+    }
+    for col in node_table::enclosing_ids(t) {
+        h.rows(col);
+    }
+    h.line(out, file, "structure");
+}
+
 /// The node table, through its readers: per element, then per kind, then the file's own facts.
 pub(super) fn table(out: &mut String, file: usize, t: &NodeTable, kinds: usize) {
     let mut h = Hashed::default();

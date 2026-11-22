@@ -18,3 +18,7 @@ pub(crate) const HASH_START: NameHash = NameHash(0xcbf2_9ce4_8422_2325);
 
 /// What the hash is multiplied by after each eight bytes of the text (the 64-bit golden-ratio constant, odd).
 pub(crate) const HASH_STEP: NameHash = NameHash(0x9e37_79b9_7f4a_7c15);
+
+/// The bit of a name token's code that says the code is a fixed text of the language (a keyword, by its token kind): the
+/// same text in every file of a run, interned in no file's table.
+pub(crate) const FIXED_TEXT: u32 = 1 << 31;

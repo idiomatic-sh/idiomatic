@@ -382,7 +382,30 @@ pub fn walked<W: Walk>(
     scratch: &mut W::Scratch,
     visit: &mut dyn FnMut(FileFacts<'_>),
 ) -> Result<(), languages::WalkError> {
-    let mut builder = node_table::builder(table, W::KIND_COUNT);
+    walked_structured(walk, path, bytes, needs, table, scratch, None, visit)
+}
+
+/// Walks as [`walked`] does; with `structure`, the table is written `structured` (`node_table::structured`) with those
+/// enclosing kind sets.
+///
+/// # Errors
+///
+/// When the language does not walk the file.
+#[expect(clippy::too_many_arguments, reason = "throwaway prototype")]
+pub fn walked_structured<W: Walk>(
+    walk: &W,
+    path: &str,
+    bytes: &[u8],
+    needs: &[Relation],
+    table: &mut NodeTable,
+    scratch: &mut W::Scratch,
+    structure: Option<&[languages::KindSet]>,
+    visit: &mut dyn FnMut(FileFacts<'_>),
+) -> Result<(), languages::WalkError> {
+    let mut builder = match structure {
+        Some(enclosing) => node_table::structured(table, W::KIND_COUNT, enclosing),
+        None => node_table::builder(table, W::KIND_COUNT),
+    };
     walk.walk(
         WalkRequest {
             path: languages::SourcePath(path),

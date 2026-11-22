@@ -8,7 +8,7 @@ use super::types::{
     SyntaxForm, TypedTree,
 };
 use crate::domain::model::names::constants::NO_NAME;
-use crate::domain::model::names::service::intern;
+use crate::domain::model::names::service::{copy, intern};
 use crate::domain::model::names::types::{NameCode, NameTable};
 use crate::domain::syntax::constants::DOT;
 use ruff_python_ast::{Alias, AnyNodeRef, ExprContext, HasNodeIndex as _};
@@ -19,12 +19,6 @@ use ryo::languages::{Count, NameText, Offset, Position, Span};
 #[must_use]
 pub(crate) fn id_of<'a>(node: impl Into<AnyNodeRef<'a>>) -> Position {
     Position(node.into().node_index().load().as_u32().unwrap_or(u32::MAX))
-}
-
-/// How many nodes the tree has.
-#[must_use]
-pub(crate) const fn node_count(tree: TypedTree<'_, '_>) -> Count {
-    Count(tree.nodes.len())
 }
 
 /// The parent of the node `at`; the root's is itself.
@@ -76,6 +70,18 @@ pub(crate) fn scope_at(model: &LexicalModel, at: Position) -> Position {
 #[must_use]
 pub(crate) fn name_of(model: &LexicalModel, at: Position) -> NameCode {
     model.name.get(usize::from(at)).copied().unwrap_or(NO_NAME)
+}
+
+/// The name the node carries, interned: a name's identifier, an attribute's attribute, an identifier's text; the code of no
+/// name for every other node. The walk calls it as each node opens.
+#[expect(clippy::wildcard_enum_match_arm, reason = "three of the parser's node kinds carry a name; every other carries none")]
+pub(crate) fn named(names: &mut NameTable, node: AnyNodeRef<'_>) -> NameCode {
+    match node {
+        AnyNodeRef::ExprName(name) => intern(names, NameText(name.id.as_str())),
+        AnyNodeRef::ExprAttribute(attribute) => intern(names, NameText(attribute.attr.as_str())),
+        AnyNodeRef::Identifier(identifier) => intern(names, NameText(identifier.id.as_str())),
+        _ => NO_NAME,
+    }
 }
 
 /// What the parser's node is to the name rules.
@@ -193,52 +199,119 @@ fn evaluated(model: &LexicalModel, parent: Position, parent_class: NodeClass, ch
 }
 
 /// The comprehension whose first clause is `clause`, when `child` is that clause's iterable: it is evaluated around the
-/// comprehension.
-fn first_iterable(model: &LexicalModel, tree: TypedTree<'_, '_>, clause: Position, child: Position) -> Option<Position> {
-    let Some(AnyNodeRef::Comprehension(typed)) = node_at(tree, clause) else {
+/// comprehension. Read as `child` opens: the owner's children before `clause` are closed, so their subtree ends are final,
+/// and `clause` is itself a comprehension, so the search ends there at the latest.
+fn first_iterable(model: &LexicalModel, nodes: &[AnyNodeRef<'_>], parents: &[Position], ends: &[Position], clause: Position, child: Position) -> Option<Position> {
+    let Some(AnyNodeRef::Comprehension(typed)) = nodes.get(usize::from(clause)).copied() else {
         return None;
     };
     if id_of(&typed.iter) != child {
         return None;
     }
-    let owner = parent_of(tree, clause);
-    let end = subtree_end_of(tree, owner);
+    let owner = parents.get(usize::from(clause)).copied().unwrap_or(clause);
     let mut first = Position(owner.0.saturating_add(1));
-    while first < end {
+    while first <= clause {
         if entry(&model.class, first) == NodeClass::Comprehension {
             return (first == clause).then_some(owner);
         }
-        first = subtree_end_of(tree, first);
+        first = ends.get(usize::from(first)).copied().unwrap_or(Position(first.0.saturating_add(1)));
     }
     None
 }
 
-/// Forgets the file, keeping the buffers.
-fn clear(model: &mut LexicalModel) {
-    model.class.clear();
-    model.scope_of.clear();
-    model.name.clear();
-    model.usage.clear();
-    model.annotation.clear();
+/// Makes `model` the lexical part `walked` the walk wrote, keeping `model`'s buffers; the declarations are its own.
+fn copy_walked(model: &mut LexicalModel, walked: &LexicalModel) {
+    model.nodes = walked.nodes;
+    model.class.clone_from(&walked.class);
+    model.scope_of.clone_from(&walked.scope_of);
+    model.name.clone_from(&walked.name);
+    model.usage.clone_from(&walked.usage);
+    model.annotation.clone_from(&walked.annotation);
     model.declared.clear();
     model.targets.clear();
-    model.binders.clear();
-    model.deleted.clear();
-    model.hazards.clear();
-    model.imports.clear();
+    model.binders.clone_from(&walked.binders);
+    model.deleted.clone_from(&walked.deleted);
+    model.hazards.clone_from(&walked.hazards);
+    model.imports.clone_from(&walked.imports);
+}
+
+/// Whether the node `child` is the annotation its parent `parent` holds: a function's return annotation, a parameter's or
+/// an annotated assignment's annotation.
+#[expect(clippy::wildcard_enum_match_arm, reason = "three of the parser's node kinds hold an annotation; every other holds none")]
+fn annotation_of(parent: AnyNodeRef<'_>, child: AnyNodeRef<'_>) -> AnnotationMark {
+    let held = match parent {
+        AnyNodeRef::StmtFunctionDef(function) => function.returns.as_deref().is_some_and(|returns| AnyNodeRef::from(returns).ptr_eq(child)),
+        AnyNodeRef::Parameter(parameter) => parameter.annotation.as_deref().is_some_and(|annotation| AnyNodeRef::from(annotation).ptr_eq(child)),
+        AnyNodeRef::StmtAnnAssign(assignment) => AnyNodeRef::from(&*assignment.annotation).ptr_eq(child),
+        _ => false,
+    };
+    if held { AnnotationMark::Annotation } else { AnnotationMark::Plain }
+}
+
+/// Reads the node just opened at `at` into the lexical part the walk writes: what it is, the scope it is evaluated in, its
+/// name (interned into `names`), whether it is an annotation, and what it does with its name. Every earlier place, its
+/// parent's included, is read before it; `nodes`, `parents` and `ends` hold the places so far (an open node ends after
+/// itself).
+pub(crate) fn opened(
+    model: &mut LexicalModel,
+    names: &mut NameTable,
+    nodes: &[AnyNodeRef<'_>],
+    parents: &[Position],
+    ends: &[Position],
+    at: Position,
+) {
+    let Some(node) = nodes.get(usize::from(at)).copied() else {
+        return;
+    };
+    let class = class_of(node);
+    model.class.push(class);
+    model.name.push(named(names, node));
+    model.usage.push(NameUse::Load);
+    model.nodes = Count(model.class.len());
+    let parent = parents.get(usize::from(at)).copied().unwrap_or(at);
+    if at == MODULE {
+        model.annotation.push(AnnotationMark::Plain);
+        model.scope_of.push(MODULE);
+        return;
+    }
+    let held = nodes.get(usize::from(parent)).copied();
+    let mark = held.map_or(AnnotationMark::Plain, |held| annotation_of(held, node));
+    // a function variable's annotation is never evaluated (PEP 526; redo-binding 7ece413c1): the annotated assignment's
+    // own scope is a function or a lambda
+    let unevaluated = mark == AnnotationMark::Annotation
+        && matches!(held, Some(AnyNodeRef::StmtAnnAssign(_)))
+        && matches!(entry(&model.class, scope_at(model, parent)), NodeClass::FunctionDef | NodeClass::Lambda);
+    model.annotation.push(if unevaluated { AnnotationMark::Unevaluated } else { mark });
+    let parent_class = entry(&model.class, parent);
+    let scope = if parent == MODULE {
+        MODULE
+    } else if let Some(owner) = (parent_class == NodeClass::Comprehension)
+        .then(|| first_iterable(model, nodes, parents, ends, parent, at))
+        .flatten()
+    {
+        scope_at(model, owner)
+    } else if scope_form(parent_class).is_some() {
+        evaluated(model, parent, parent_class, class)
+    } else {
+        scope_at(model, parent)
+    };
+    model.scope_of.push(scope);
+    read(model, names, nodes, parents, at, scope);
 }
 
 /// Records where the imported name of `alias` comes from, and interns the names it is read by.
 fn import_origin(
     model: &mut LexicalModel,
     names: &mut NameTable,
-    tree: TypedTree<'_, '_>,
+    nodes: &[AnyNodeRef<'_>],
+    parents: &[Position],
     at: Position,
     alias: &Alias,
 ) {
     let written = alias.name.as_str();
     let head = written.split(DOT).next().unwrap_or_default();
-    let (level, module) = if let Some(AnyNodeRef::StmtImportFrom(from)) = node_at(tree, parent_of(tree, at)) {
+    let parent = parents.get(usize::from(at)).copied().unwrap_or(at);
+    let (level, module) = if let Some(AnyNodeRef::StmtImportFrom(from)) = nodes.get(usize::from(parent)).copied() {
         (
             Some(ImportLevel(from.level)),
             from.module
@@ -263,13 +336,12 @@ fn import_origin(
     clippy::wildcard_enum_match_arm,
     reason = "seventeen of the parser's node kinds carry a name, an annotation or a definition; every other carries none"
 )]
-fn read(model: &mut LexicalModel, names: &mut NameTable, tree: TypedTree<'_, '_>, at: Position, scope: Position) {
-    let Some(node) = node_at(tree, at) else {
+fn read(model: &mut LexicalModel, names: &mut NameTable, nodes: &[AnyNodeRef<'_>], parents: &[Position], at: Position, scope: Position) {
+    let Some(node) = nodes.get(usize::from(at)).copied() else {
         return;
     };
     match node {
         AnyNodeRef::ExprName(name) => {
-            put(&mut model.name, at, intern(names, NameText(name.id.as_str())));
             match name.ctx {
                 ExprContext::Load | ExprContext::Invalid => {}
                 ExprContext::Store => {
@@ -283,36 +355,13 @@ fn read(model: &mut LexicalModel, names: &mut NameTable, tree: TypedTree<'_, '_>
             }
         }
         AnyNodeRef::ExprAttribute(attribute) => {
-            put(&mut model.name, at, intern(names, NameText(attribute.attr.as_str())));
             match attribute.ctx {
                 ExprContext::Load | ExprContext::Invalid => {}
                 ExprContext::Store => put(&mut model.usage, at, NameUse::Store),
                 ExprContext::Del => put(&mut model.usage, at, NameUse::Delete),
             }
         }
-        AnyNodeRef::Identifier(identifier) => {
-            put(&mut model.name, at, intern(names, NameText(identifier.id.as_str())));
-        }
-        AnyNodeRef::StmtFunctionDef(function) => {
-            if let Some(returns) = &function.returns {
-                put(&mut model.annotation, id_of(&**returns), AnnotationMark::Annotation);
-            }
-            model.binders.push(at);
-        }
-        AnyNodeRef::Parameter(parameter) => {
-            if let Some(annotation) = &parameter.annotation {
-                put(&mut model.annotation, id_of(&**annotation), AnnotationMark::Annotation);
-            }
-            model.binders.push(at);
-        }
-        AnyNodeRef::StmtAnnAssign(assignment) => {
-            let mark = if matches!(entry(&model.class, scope), NodeClass::FunctionDef | NodeClass::Lambda) {
-                AnnotationMark::Unevaluated
-            } else {
-                AnnotationMark::Annotation
-            };
-            put(&mut model.annotation, id_of(&*assignment.annotation), mark);
-        }
+        AnyNodeRef::StmtFunctionDef(_) | AnyNodeRef::Parameter(_) => model.binders.push(at),
         AnyNodeRef::StmtClassDef(_)
         | AnyNodeRef::TypeParamTypeVar(_)
         | AnyNodeRef::TypeParamTypeVarTuple(_)
@@ -325,40 +374,16 @@ fn read(model: &mut LexicalModel, names: &mut NameTable, tree: TypedTree<'_, '_>
             if alias.name.as_str() == WILDCARD.0 {
                 model.hazards.push(NameHazard { scope, at, name: NO_NAME });
             }
-            import_origin(model, names, tree, at, alias);
+            import_origin(model, names, nodes, parents, at, alias);
             model.binders.push(at);
         }
         _ => {}
     }
 }
 
-/// Builds the lexical part of the model for one file.
+/// Builds the lexical part of the model for one file: the walk wrote it as each node opened (`opened`); it is copied, with
+/// the names the walk interned.
 pub(crate) fn build(model: &mut LexicalModel, names: &mut NameTable, tree: TypedTree<'_, '_>) {
-    clear(model);
-    model.nodes = node_count(tree);
-    let count = model.nodes.0.min(tree.nodes.len());
-    model.class.extend(tree.nodes.iter().take(count).map(|node| class_of(*node)));
-    model.scope_of.resize(count, MODULE);
-    model.name.resize(count, NO_NAME);
-    model.usage.resize(count, NameUse::Load);
-    model.annotation.resize(count, AnnotationMark::Plain);
-    for number in 1..u32::try_from(count).unwrap_or(u32::MAX) {
-        let at = Position(number);
-        let parent = parent_of(tree, at);
-        let parent_class = entry(&model.class, parent);
-        let scope = if parent == MODULE {
-            MODULE
-        } else if let Some(owner) = (parent_class == NodeClass::Comprehension)
-            .then(|| first_iterable(model, tree, parent, at))
-            .flatten()
-        {
-            scope_at(model, owner)
-        } else if scope_form(parent_class).is_some() {
-            evaluated(model, parent, parent_class, entry(&model.class, at))
-        } else {
-            scope_at(model, parent)
-        };
-        put(&mut model.scope_of, at, scope);
-        read(model, names, tree, at, scope);
-    }
+    copy(names, &tree.named.names);
+    copy_walked(model, &tree.named.lexical);
 }
