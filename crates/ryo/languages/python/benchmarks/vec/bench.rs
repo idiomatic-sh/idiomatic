@@ -1061,6 +1061,12 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
         std::fs::write(out, lines.join("\n") + "\n").expect("write stats");
     }
     let steps: f64 = exec.stats.time.iter().sum();
+    if let Some(out) = flag(args, "--tally") {
+        let mut lines: Vec<String> = exec.tally.ran.iter().map(|(n, c)| format!("{n}\tran\t{c}")).collect();
+        lines.extend(exec.tally.back.iter().map(|((n, why), c)| format!("{n}\tback\t{c}\t{why}")));
+        lines.sort();
+        std::fs::write(out, lines.join("\n") + "\n").expect("write tally");
+    }
     println!("files run {files_run}; findings {}; rules {} ({} failed)", findings.len(), emits.len(), failed.len());
     println!("thread CPU-s: total {total:.3}; walk+table {walk_time:.3}; in the visit {file_time:.3}: steps {steps:.3}, provider fills {provider_time:.3} ({provider_rows} rows)");
     println!("per-key memo: rows in {} rows out {} keys asked {}", exec.stats.memo_in, exec.stats.memo_out, exec.stats.memo_keys);

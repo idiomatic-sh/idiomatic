@@ -19,6 +19,14 @@ use std::rc::Rc;
 mod drive;
 #[path = "finish/handover.rs"]
 pub(super) mod handover;
+#[path = "band.rs"]
+pub(super) mod band;
+#[path = "closure_walk.rs"]
+mod closure_walk;
+#[path = "walk.rs"]
+mod walk;
+#[path = "filter_order.rs"]
+mod filter_order;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum Ty {
@@ -360,6 +368,8 @@ pub(super) struct File<'a> {
     pub(super) seeds: Vec<Vec<u32>>,
     /// Probed steps' rows by (step, column): the rows made so far and, per key asked, its rows.
     pmemo: FxHashMap<(usize, usize), (Table, FxHashMap<u64, Vec<u32>>)>,
+    /// A probed closure walk's adjacency by (closure, forward): the nodes asked so far and their neighbours.
+    walks: FxHashMap<(usize, bool), FxHashMap<u64, Vec<u64>>>,
 }
 
 /// How a step asks the provider for a relation's rows: the visit's facts.
@@ -396,6 +406,7 @@ impl File<'_> {
             lazies: FxHashMap::default(),
             seeds: Vec::new(),
             pmemo: FxHashMap::default(),
+            walks: FxHashMap::default(),
         };
         for i in 0..n as u32 {
             let p = Position(i);
@@ -778,6 +789,7 @@ pub(super) struct Exec<'p> {
     /// 6e item 1: a probed input put in place for one step's run only (step, input, rows), never in the file's memo, so
     /// another input that reads the same step (a diamond) still sees all of it.
     over: Option<(usize, usize, Option<usize>, Rc<Table>)>,
+    pub(super) tally: band::Tally,
 }
 
 type R<T> = Result<T, String>;
@@ -829,6 +841,7 @@ impl<'p> Exec<'p> {
             reason: "",
             static_keyed: std::env::var_os("VEC_STATIC_KEYED").is_some(),
             over: None,
+            tally: band::Tally::default(),
         }
     }
 
@@ -1348,6 +1361,11 @@ impl<'p> Exec<'p> {
         self.stats.time[node] += dt - self.inner;
         self.inner = saved + dt;
         let out = out?;
+        if let Some(t) = std::env::var_os("VEC_TRACE_PROBE")
+            && t.to_str().and_then(|x| x.parse::<usize>().ok()) == Some(node)
+        {
+            eprintln!("probe {node} col {col} keys {} rows {} stack {:?}", missing.len(), out.n, &self.stack[self.stack.len().saturating_sub(6)..]);
+        }
         self.stats.probes[node] += 1;
         self.stats.rows[node] += out.n as u64;
         if !pm {
@@ -1383,7 +1401,15 @@ impl<'p> Exec<'p> {
             let isc = me.schema(run, n)?;
             Ok(isc.names.iter().position(|c| *c == name).map(|c| (n, c)))
         };
+        if op == "closure"
+            && !f.lazies.contains_key(&node)
+            && std::env::var_os("VEC_NO_WALK").is_none()
+            && let Some(t) = self.walk_probed(f, run, p, node, col, keys, sc)?
+        {
+            return Ok(Rc::new(t));
+        }
         let target = match op.as_str() {
+            "select" if self.semi_drives_whole(f, run, p, node, keys.len())? => None,
             "select" => {
                 let sp = self.sel(run, node)?;
                 match &sp.items[col].1 {
@@ -1631,6 +1657,35 @@ impl<'p> Exec<'p> {
             "base" | "select" | "rows" => None,
             _ => Some("from"),
         };
+        let counted = op == "group-count" && a["distinct"].is_null() && std::env::var_os("VEC_NO_SEMI").is_none() && {
+            let fnode = self.arg_rel(node, "from")?;
+            plan.nodes[fnode].j.get("count").is_some()
+        };
+        if counted {
+            let fnode = self.arg_rel(node, "from")?;
+            let pb = plan.nodes[fnode].j["semi"].as_u64().ok_or("count without semi")? as usize;
+            if let Some((from, counts)) = self.band_rows(f, run, p, fnode, pb, true)? {
+                self.stats.rows[fnode] += from.n as u64;
+                let keys: Vec<usize> = strs(&a["keys"])?.iter().map(|c| from.col(c)).collect::<R<_>>()?;
+                let mut groups: FxHashMap<Vec<u64>, u64> = FxHashMap::default();
+                let mut order: Vec<Vec<u64>> = Vec::new();
+                for i in 0..from.n {
+                    let k: Vec<u64> = keys.iter().map(|c| from.cols[*c][i]).collect();
+                    let e = groups.entry(k.clone()).or_insert_with(|| {
+                        order.push(k);
+                        0
+                    });
+                    *e += counts[i];
+                }
+                let mut out = self.empty(run, node)?;
+                for k in order {
+                    let mut row = k.clone();
+                    row.push(groups[&k]);
+                    out.push_row(&row);
+                }
+                return Ok(out);
+            }
+        }
         if let Some(arg) = first {
             let t = self.eval(f, run, p, self.arg_rel(node, arg)?)?;
             if t.n == 0 && op != "union" {
@@ -2035,6 +2090,19 @@ impl<'p> Exec<'p> {
             return Ok(Src::Tab(t, usize::MAX - 40));
         }
         if self.plan.nodes[node].op == "closure" {
+            // a closure put in place by a probe (its rows for the keys asked) is read as that table
+            if std::env::var_os("VEC_NO_WALK").is_none()
+                && let Some(Res::Tab(t)) = &f.memo[node]
+            {
+                return Ok(Src::Tab(t.clone(), node));
+            }
+            if !f.lazies.contains_key(&node) && f.memo[node].is_none() && std::env::var_os("VEC_NO_WALK").is_none() && {
+                let sc = self.schema(run, node)?;
+                let nk = strs(&self.plan.nodes[node].j["args"]["keys"])?.len();
+                sc.tys[..nk].iter().all(|t| *t == Ty::File)
+            } {
+                return Ok(Src::Pending(node));
+            }
             return Ok(Src::Lazy(self.lazy(f, run, p, node)?));
         }
         if self.deferred(f, run, node)? {
@@ -2047,6 +2115,20 @@ impl<'p> Exec<'p> {
     }
 
     fn select(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Table> {
+        {
+            let sp = self.sel(run, node)?;
+            if filter_order::file_fails(run, f, &sp.conj) {
+                *self.tally.back.entry((node, "a per-file test fails")).or_default() += 1;
+                return self.empty(run, node);
+            }
+        }
+        if let Some(pb) = self.plan.nodes[node].j.get("semi").and_then(J::as_u64)
+            && self.plan.nodes[node].j.get("count").is_none()
+            && std::env::var_os("VEC_NO_SEMI").is_none()
+            && let Some(t) = self.semi(f, run, p, node, pb as usize)?
+        {
+            return Ok(t);
+        }
         let sp = self.sel(run, node)?;
         let k = sp.srcs.len();
         let conj = &sp.conj;
@@ -2523,6 +2605,9 @@ impl<'p> Exec<'p> {
         if from.n == 0 {
             return Ok(out);
         }
+        if let Some(t) = self.walk_axis(f, run, p, node, a, from)? {
+            return Ok(t);
+        }
         let dom = self.dom(f, run, p, node)?;
         let hier = self.hier(f, run, p, rel)?;
         let ic = from.col("id")?;
@@ -2898,6 +2983,11 @@ fn view_holds(f: &File<'_>, run: &mut Run, v: &ViewSpec, row: u32) -> bool {
 fn view_rows(f: &mut File<'_>, run: &mut Run, v: &ViewSpec, node: usize) -> Rc<Vec<u32>> {
     if let Some(r) = f.vrows.get(&node) {
         return r.clone();
+    }
+    if filter_order::file_fails(run, f, &v.filter) {
+        let rc = Rc::new(Vec::new());
+        f.vrows.insert(node, rc.clone());
+        return rc;
     }
     let rows = match kind_set(run, &v.filter, 0, v.base, &[]) {
         Some(ks) => bucket(f, run, &ks),
