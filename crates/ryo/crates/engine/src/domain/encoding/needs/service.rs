@@ -128,6 +128,13 @@ fn formula(encoding: &mut Encoding<'_>, emptiness: &Emptiness) -> Result<WordSlo
             regex: WordSlot(regex.0),
             constant: NO_SLOT,
         },
+        Emptiness::RowTest(read, test) => NeedRecord::RowTest {
+            relation: relation(encoding, *read)?,
+            column: WordSlot(column_place(test.column).0),
+            comparison: WordSlot(u32::from(comparison_code(test.test).0)),
+            regex: comparison_regex(test.test).map_or(NO_SLOT, |regex| WordSlot(regex.0)),
+            constant: WordSlot(constant(encoding, test.value)?.0),
+        },
         Emptiness::All(parts) => {
             return combined(encoding, parts, |count| NeedRecord::All {
                 parts: count,

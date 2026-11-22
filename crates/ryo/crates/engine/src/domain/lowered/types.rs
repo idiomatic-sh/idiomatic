@@ -95,6 +95,10 @@ pub(crate) enum Emptiness {
     /// ends with it, matches a regular expression that needs it), or searches the file's bytes for an expression, has
     /// no row in a file that holds none. Known from the file's bytes alone, before anything is filled.
     Bytes(ByteLiteral),
+    /// A row of a filled relation whose text in a column passes a test of a text against a constant: a branch that
+    /// holds the test of a cell of the relation has no row in a file whose rows hold no such text. Known for nothing
+    /// once a reader has filled the relation whole in the file; never a fill of its own.
+    RowTest(Relation, RowTest),
     /// Every part holds; none: always.
     All(Box<[Emptiness]>),
     /// Some part holds; none: never.
@@ -107,6 +111,17 @@ pub(crate) struct PathTest {
     /// The test: one of a text's (`path_test`).
     pub(crate) test: TestOperation,
     /// The constant the path is tested against.
+    pub(crate) value: CellWord,
+}
+
+/// A test of a text a row of a filled relation must pass in a column, as the branch's own test atom holds it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct RowTest {
+    /// The column.
+    pub(crate) column: Column,
+    /// The test: one of a text's (`path_test`).
+    pub(crate) test: TestOperation,
+    /// The constant the cell is tested against.
     pub(crate) value: CellWord,
 }
 

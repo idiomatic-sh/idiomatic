@@ -8,7 +8,7 @@ use crate::domain::executing::measuring::service::{
 use crate::domain::executing::measuring::sites::service::{kind_named, row_named};
 use crate::domain::executing::presence::service::{consulted, node_row};
 use crate::domain::executing::types::Asker;
-use crate::domain::filled::service::held_state;
+use crate::domain::filled::service::{held_state, whole_rows};
 use crate::domain::filled::types::FilledState;
 use crate::domain::indexes::reading::service::cell_at;
 use crate::domain::made_tables::reading::service::view_of;
@@ -30,7 +30,7 @@ use ryo_values::domain::plan_parts::types::ColumnIndex;
 use crate::domain::needs::service::decided;
 use crate::domain::needs::types::{NeedFacts, NeedVerdict};
 use crate::domain::programs::frames::types::StepFrame;
-use crate::domain::programs::collections::instructions::comparing::item::path_passes;
+use crate::domain::programs::collections::instructions::comparing::item::{cell_passes, path_passes};
 use crate::domain::programs::operands::service::constant;
 use crate::domain::programs::operands::service::constant as constant_word;
 use crate::domain::steps::types::MadeTableId;
@@ -201,6 +201,20 @@ impl NeedFacts for FileNeeds<'_, '_, '_> {
         verdict
     }
 
+    fn row_passes(
+        &mut self,
+        relation: RelationNumber,
+        column: WordSlot,
+        test: (WordSlot, WordSlot),
+        constant: WordSlot,
+    ) -> NeedVerdict {
+        let verdict = self.row_test_decided(relation, column, test, constant);
+        if self.0.state.measure.is_some() {
+            need_leaf(self.0.state, || format!("row-test={verdict:?}"));
+        }
+        verdict
+    }
+
     fn table_row(&mut self, table: MadeTableId) -> NeedVerdict {
         if self.0.state.measure.is_none() {
             return self.table_decided(table);
@@ -249,7 +263,8 @@ impl FileNeeds<'_, '_, '_> {
                 NeedTerm::Kinds(_)
                 | NeedTerm::Spelled { .. }
                 | NeedTerm::Path { .. }
-                | NeedTerm::Bytes { .. },
+                | NeedTerm::Bytes { .. }
+                | NeedTerm::RowTest { .. },
             )
             | None => "?".to_owned(),
         }
@@ -596,15 +611,22 @@ impl FileNeeds<'_, '_, '_> {
 
     /// Whether a term asks a row of a relation the file already holds whole: answering it costs no fill.
     fn term_filled(&self, term: TermNumber) -> bool {
-        let Some(NeedTerm::Row { relation, .. }) = self
+        let relation = match self
             .0
             .state
             .need_masks
             .terms
             .get(usize::try_from(term.0).unwrap_or(usize::MAX))
             .copied()
-        else {
-            return false;
+        {
+            Some(NeedTerm::Row { relation, .. } | NeedTerm::RowTest { relation, .. }) => relation,
+            Some(
+                NeedTerm::Kinds(_)
+                | NeedTerm::Spelled { .. }
+                | NeedTerm::Path { .. }
+                | NeedTerm::Bytes { .. },
+            )
+            | None => return false,
         };
         let store = &*self.0.fill.store;
         held_state(&store.relations, relation, store.stamp) == FilledState::Whole
@@ -697,6 +719,15 @@ impl FileNeeds<'_, '_, '_> {
                 NeedVerdict::Empty
             };
         }
+        // A row test asked before its relation is whole holds for now: its answer is not kept, so the free pass reads it
+        // once a reader has filled the relation.
+        if matches!(
+            self.0.state.need_masks.terms.get(place),
+            Some(NeedTerm::RowTest { .. })
+        ) && !self.term_filled(term)
+        {
+            return NeedVerdict::Holds;
+        }
         let verdict = self.term_asked(term);
         let answers = &mut self.0.state.need_terms;
         if let (Some(asked), Some(holds)) =
@@ -755,6 +786,13 @@ impl FileNeeds<'_, '_, '_> {
                 constant,
             }) => self.path_passes(comparison, regex, constant),
             Some(NeedTerm::Bytes { regex, constant }) => self.bytes_held(regex, constant),
+            Some(NeedTerm::RowTest {
+                relation,
+                column,
+                comparison,
+                regex,
+                constant,
+            }) => self.row_test_decided(relation, column, (comparison, regex), constant),
             None => NeedVerdict::Holds,
         }
     }
@@ -810,7 +848,8 @@ impl FileNeeds<'_, '_, '_> {
             NeedTerm::Row { .. }
             | NeedTerm::Kinds(_)
             | NeedTerm::Path { .. }
-            | NeedTerm::Bytes { .. } => None,
+            | NeedTerm::Bytes { .. }
+            | NeedTerm::RowTest { .. } => None,
         }
     }
 
@@ -965,6 +1004,31 @@ impl FileNeeds<'_, '_, '_> {
         } else {
             NeedVerdict::Empty
         }
+    }
+
+    /// Whether the relation, filled whole in the file, has a row whose text in the column passes the test against the
+    /// constant: its cells read where they lie. A relation not whole yet holds: the term never fills.
+    fn row_test_decided(
+        &mut self,
+        relation: RelationNumber,
+        column: WordSlot,
+        (comparison, regex): (WordSlot, WordSlot),
+        value: WordSlot,
+    ) -> NeedVerdict {
+        let frame = &mut *self.0;
+        if held_state(&frame.fill.store.relations, relation, frame.fill.store.stamp) != FilledState::Whole {
+            return NeedVerdict::Holds;
+        }
+        let source = ReadSource::Filled(relation);
+        let rows = whole_rows(&frame.fill.store.relations, relation, frame.fill.store.stamp);
+        let place = Short(u16::try_from(column.0).unwrap_or(u16::MAX));
+        for row in rows.start.0..rows.end.0 {
+            let cell = cell_at(view_of(frame.fill.store, source, place), Count(row));
+            if cell_passes(frame, comparison, regex, value, cell) {
+                return NeedVerdict::Holds;
+            }
+        }
+        NeedVerdict::Empty
     }
 
     /// Whether the table has a row in the file: made when its own need holds.

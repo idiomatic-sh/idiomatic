@@ -50,6 +50,20 @@ pub(crate) enum NeedTerm {
         /// The constant's number, or `NO_SLOT`.
         constant: WordSlot,
     },
+    /// A row of a filled relation whose text in a column passes a test of a text against the constant. It costs no
+    /// fill: answered once a reader has filled the relation whole in the file, and holding until then.
+    RowTest {
+        /// The relation.
+        relation: RelationNumber,
+        /// The column's place.
+        column: WordSlot,
+        /// The comparison's code.
+        comparison: WordSlot,
+        /// The regular expression's number, or `NO_SLOT`.
+        regex: WordSlot,
+        /// The constant's number.
+        constant: WordSlot,
+    },
 }
 
 /// The number of a term among a rule set's.

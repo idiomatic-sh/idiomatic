@@ -211,6 +211,13 @@ pub(crate) fn push_need(needs: &mut Vec<WordSlot>, record: NeedRecord) -> WordSl
             constant,
         } => needs.extend_from_slice(&[WordSlot(7), comparison, regex, constant]),
         NeedRecord::Bytes { regex, constant } => needs.extend_from_slice(&[WordSlot(8), regex, constant]),
+        NeedRecord::RowTest {
+            relation,
+            column,
+            comparison,
+            regex,
+            constant,
+        } => needs.extend_from_slice(&[WordSlot(9), WordSlot(relation.0), column, comparison, regex, constant]),
         // The offsets of the parts follow the count: the caller writes them, each the place of a part's record.
         NeedRecord::All { parts, .. } => needs.extend_from_slice(&[WordSlot(5), parts]),
         NeedRecord::Any { parts, .. } => needs.extend_from_slice(&[WordSlot(6), parts]),
@@ -249,7 +256,14 @@ pub(crate) fn need_at(needs: &[WordSlot], at: WordSlot) -> Option<NeedRecord> {
             regex: slot(1)?,
             constant: slot(2)?,
         },
-        9..=u32::MAX => return None,
+        9 => NeedRecord::RowTest {
+            relation: RelationNumber(slot(1)?.0),
+            column: slot(2)?,
+            comparison: slot(3)?,
+            regex: slot(4)?,
+            constant: slot(5)?,
+        },
+        10..=u32::MAX => return None,
     })
 }
 

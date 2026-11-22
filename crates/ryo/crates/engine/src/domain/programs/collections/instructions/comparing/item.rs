@@ -212,6 +212,27 @@ pub(crate) fn path_passes(frame: &mut StepFrame<'_, '_>, comparison: WordSlot, r
     text(frame, test, left, Some(right), None) != Verdict::Fails
 }
 
+/// Whether a cell passes a test of a text against a constant, as `path_passes` tests the path: a filled relation's
+/// text asked by a need over its rows. A code that names no test of a text says nothing: it holds.
+pub(crate) fn cell_passes(
+    frame: &mut StepFrame<'_, '_>,
+    comparison: WordSlot,
+    regex: WordSlot,
+    value: WordSlot,
+    cell: CellWord,
+) -> bool {
+    let code = u16::try_from(comparison.0).unwrap_or(u16::MAX);
+    let Some(test) = comparison_of(Short(code), RegexId(regex.0)) else {
+        return true;
+    };
+    let right = constant(frame, ConstantNumber(value.0));
+    let left = TextLeft {
+        cell,
+        register: None,
+    };
+    text(frame, test, left, Some(right), None) != Verdict::Fails
+}
+
 impl InstructionsItem for Test {
     #[inline(always)]
     fn run(frame: &mut StepFrame<'_, '_>, word: CodeWord, _at: CodeEntry) -> Flow {

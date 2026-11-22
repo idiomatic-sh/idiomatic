@@ -49,6 +49,18 @@ pub(crate) trait NeedFacts {
         NeedVerdict::Holds
     }
 
+    /// Whether the relation, once filled whole in the file, has a row whose text in the column passes the test against
+    /// the constant. It never fills: asked before the relation is whole, it holds.
+    fn row_passes(
+        &mut self,
+        _relation: RelationNumber,
+        _column: WordSlot,
+        _test: (WordSlot, WordSlot),
+        _constant: WordSlot,
+    ) -> NeedVerdict {
+        NeedVerdict::Holds
+    }
+
     /// What the terms of a site say of it before its formula is walked, when the engine keeps the masks of its needs:
     /// `Empty` when they leave it no way to hold in the file, `Holds` when they are its whole formula and hold. None:
     /// the walk decides.

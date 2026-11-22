@@ -53,6 +53,8 @@ pub(crate) fn numbered(
                 column, constant, ..
             } if column == NO_SLOT || constant == NO_SLOT => RecordCost::Presence,
             NeedTerm::Row { .. } => RecordCost::Dear,
+            // Not a free bit: its answer waits on a reader's fill, so it is a term the walk reads (`AskRank::Row`).
+            NeedTerm::RowTest { .. } => RecordCost::Dear,
         };
         term_costs.push(cost);
         if cost == RecordCost::Free {
@@ -91,7 +93,11 @@ fn record_cost(code: &ProgramCode, at: WordSlot, costs: &mut Vec<RecordCost>) ->
     }
     let dear = match need_at(&code.needs, at) {
         Some(
-            NeedRecord::Unknown | NeedRecord::Kinds(_) | NeedRecord::Path { .. } | NeedRecord::Bytes { .. },
+            NeedRecord::Unknown
+            | NeedRecord::Kinds(_)
+            | NeedRecord::Path { .. }
+            | NeedRecord::Bytes { .. }
+            | NeedRecord::RowTest { .. },
         )
         | None => false,
         Some(NeedRecord::Row { relation, .. }) => !node_relation(code, relation),
@@ -164,7 +170,8 @@ fn record_asks_nodes(code: &ProgramCode, at: WordSlot, masks: &mut NeedMasks) ->
             | NeedRecord::Table(_)
             | NeedRecord::Row { .. }
             | NeedRecord::Path { .. }
-            | NeedRecord::Bytes { .. },
+            | NeedRecord::Bytes { .. }
+            | NeedRecord::RowTest { .. },
         )
         | None => NodeAsk::NotAsked,
     }

@@ -123,6 +123,21 @@ pub(crate) enum NeedRecord {
         /// The constant's number, or `NO_SLOT`.
         constant: WordSlot,
     },
+    /// `9, relation, column, comparison, regular expression, constant`: the relation, once filled whole in the file, has
+    /// a row whose text in the column passes the test of a text against the constant; asked before the relation is
+    /// whole, it holds (it never fills).
+    RowTest {
+        /// The relation, by its place among the code's relations.
+        relation: RelationNumber,
+        /// The column's place.
+        column: WordSlot,
+        /// The comparison's code.
+        comparison: WordSlot,
+        /// The regular expression's number, or `NO_SLOT`.
+        regex: WordSlot,
+        /// The constant's number.
+        constant: WordSlot,
+    },
     /// `5, n, offsets`: every part holds.
     All {
         /// How many parts.
