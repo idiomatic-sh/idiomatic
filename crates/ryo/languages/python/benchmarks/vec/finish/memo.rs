@@ -238,9 +238,11 @@ pub(super) struct Memo {
     missing: Vec<u64>,
     ranges: Vec<(u32, u32, u32)>,
     order: Vec<(u64, u32)>,
+    /// a view probe's rows (finish.rs `probe`)
+    pub(super) vrows: Vec<u32>,
     prof: bool,
     /// asks, keys, keys new to the slot, batches run, answers handed back whole, gathered, empty, batches filed row by row
-    pub(super) n: [u64; 8],
+    pub(super) n: [u64; 12],
     /// seconds: before the run, after it (filing and answer)
     t: [f64; 2],
 }
@@ -255,8 +257,9 @@ impl Memo {
             missing: Vec::new(),
             ranges: Vec::new(),
             order: Vec::new(),
+            vrows: Vec::new(),
             prof: std::env::var_os("VEC_MEMO_PROF").is_some(),
-            n: [0; 8],
+            n: [0; 12],
             t: [0.0; 2],
         }
     }
@@ -390,8 +393,8 @@ impl Drop for Memo {
         if self.prof || std::env::var_os("VEC_MEMO_COUNT").is_some() {
             let n = &self.n;
             eprintln!(
-                "memo10: asks {} keys {} new {} runs {} whole {} gathered {} empty {} filed row by row {}; slots {}; seen words {}; row entries {}; s before {:.3} after {:.3}",
-                n[0], n[1], n[2], n[3], n[4], n[5], n[6], n[7], self.slots.len(), self.slots.iter().map(|s| s.seen.len()).sum::<usize>(), self.slots.iter().map(|s| s.rows.len()).sum::<usize>(), self.t[0], self.t[1]
+                "memo10: asks {} keys {} new {} runs {} whole {} gathered {} empty {} filed row by row {}; made tables probed {} ({} keys), views probed {} ({} keys); slots {}; seen words {}; row entries {}; s before {:.3} after {:.3}",
+                n[0], n[1], n[2], n[3], n[4], n[5], n[6], n[7], n[8], n[9], n[10], n[11], self.slots.len(), self.slots.iter().map(|s| s.seen.len()).sum::<usize>(), self.slots.iter().map(|s| s.rows.len()).sum::<usize>(), self.t[0], self.t[1]
             );
         }
     }
