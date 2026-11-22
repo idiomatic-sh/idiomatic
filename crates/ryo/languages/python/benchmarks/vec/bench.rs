@@ -975,7 +975,7 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
             let mut f = finish::File::new(ft, &bytes, file_no as u32, plan.nodes.len());
             f.seeds = seeds_here.clone();
             finish::handover::expand(&mut f, &plan.seed_paths);
-            exec.reset_file();
+            exec.reset_file(f.n);
             if check {
                 for rel in ["semantic-syntax", "syntax-tree", "semantic-child", "syntax-child", "source-location", "token-link"] {
                     let mine = finish::native_table(&mut f, &mut run, rel);
@@ -1071,7 +1071,7 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     if let Some(out) = flag(args, "--stats") {
         let mut lines = vec!["node\top\tcalls\trows\ttouched\tseconds".to_owned()];
         for (i, pn) in plan.nodes.iter().enumerate() {
-            if exec.stats.calls[i] > 0 || exec.stats.time[i] > 0.0 {
+            if exec.stats.calls[i] > 0 || exec.stats.probes[i] > 0 || exec.stats.touched[i] > 0 || exec.stats.rows[i] > 0 || exec.stats.time[i] > 0.0 {
                 lines.push(format!("{i}\t{}\t{}\t{}\t{}\t{:.6}\t{}\t{}\t{}\t{}", pn.op, exec.stats.calls[i], exec.stats.rows[i], exec.stats.touched[i], exec.stats.time[i], exec.stats.empty[i], exec.stats.probes[i], exec.stats.made_by[i] as i64, exec.stats.why[i]));
             }
         }

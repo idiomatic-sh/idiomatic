@@ -23,7 +23,7 @@ fn subst(e: &E, file: u64) -> E {
         E::Col(_, _, Ty::File) => E::Lit(V::new(Ty::File, file)),
         E::List(xs) => E::List(xs.iter().map(|x| subst(x, file)).collect()),
         E::Call(n, xs) => E::Call(n.clone(), xs.iter().map(|x| subst(x, file)).collect()),
-        E::Cmp(o, x, y) => E::Cmp(o.clone(), b(x), b(y)),
+        E::Cmp(o, x, y) => E::Cmp(*o, b(x), b(y)),
         E::In(x, y, n) => E::In(b(x), b(y), *n),
         E::And(x, y) => E::And(b(x), b(y)),
         E::Or(x, y) => E::Or(b(x), b(y)),

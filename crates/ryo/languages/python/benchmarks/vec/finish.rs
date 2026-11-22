@@ -23,6 +23,11 @@ macro_rules! sw {
     }};
 }
 
+/// 8: the per-step thread clock (a system call each read) only under `VEC_STEP_TIME`; else 0 (the stats' time column empty).
+fn step_clock() -> f64 {
+    if sw!("VEC_STEP_TIME") { super::thread_cpu() } else { 0.0 }
+}
+
 #[path = "finish/drive.rs"]
 mod drive;
 #[path = "finish/handover.rs"]
@@ -89,11 +94,51 @@ pub(super) struct Table {
     pub(super) n: usize,
 }
 
+thread_local! {
+    /// 8: the worker's column buffers: a dropped table's columns come back here (cleared, capacity kept) and the next
+    /// table takes them, so a file's executions reuse the same memory instead of allocating and freeing per execution.
+    static POOL: RefCell<(Vec<Vec<u64>>, usize)> = const { RefCell::new((Vec::new(), 0)) };
+}
+/// 8: the pool keeps at most this many cells in all (32 MB), and no single column above a sixteenth of it.
+const POOL_CELLS: usize = 1 << 22;
+
+impl Drop for Table {
+    fn drop(&mut self) {
+        if self.cols.is_empty() {
+            return;
+        }
+        let _ = POOL.try_with(|p| {
+            let (p, cells) = &mut *p.borrow_mut();
+            for mut c in self.cols.drain(..) {
+                let cap = c.capacity();
+                if cap == 0 || cap > POOL_CELLS / 16 || *cells + cap > POOL_CELLS {
+                    continue;
+                }
+                c.clear();
+                *cells += cap;
+                p.push(c);
+            }
+        });
+    }
+}
+
 impl Table {
     fn with(names: impl Into<Names>, tys: impl Into<Tys>) -> Self {
         let (names, tys) = (names.into(), tys.into());
         let k = names.len();
-        Table { names, tys, cols: vec![Vec::new(); k], n: 0 }
+        let cols = POOL.with(|p| {
+            let (p, cells) = &mut *p.borrow_mut();
+            (0..k)
+                .map(|_| match p.pop() {
+                    Some(c) => {
+                        *cells -= c.capacity();
+                        c
+                    }
+                    None => Vec::new(),
+                })
+                .collect()
+        });
+        Table { names, tys, cols, n: 0 }
     }
     pub(super) fn col(&self, name: &str) -> Result<usize, String> {
         self.names.iter().position(|c| c == name).ok_or_else(|| format!("no column {name} in {:?}", self.names))
@@ -759,7 +804,7 @@ enum E {
     Num(i64),
     List(Vec<E>),
     Call(String, Vec<E>),
-    Cmp(String, Box<E>, Box<E>),
+    Cmp(Op, Box<E>, Box<E>),
     In(Box<E>, Box<E>, bool),
     And(Box<E>, Box<E>),
     Or(Box<E>, Box<E>),
@@ -768,6 +813,42 @@ enum E {
     Re(Box<E>, Rc<regex::bytes::Regex>),
     /// The survivor handoff: whether a node id is in survivor set `k` of this file (the prefix's roots for a rule).
     Seed(Box<E>, usize),
+}
+
+/// 8: a comparison operator, resolved once a run when the plan's expression is compiled (never compared as text per row).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(super) enum Op {
+    Eq,
+    Ne,
+    Lt,
+    Le,
+    Gt,
+    Ge,
+    Other,
+}
+impl Op {
+    pub(super) fn of(o: &str) -> Op {
+        match o {
+            "=" => Op::Eq,
+            "!=" => Op::Ne,
+            "<" => Op::Lt,
+            "<=" => Op::Le,
+            ">" => Op::Gt,
+            ">=" => Op::Ge,
+            _ => Op::Other,
+        }
+    }
+    pub(super) fn as_str(self) -> &'static str {
+        match self {
+            Op::Eq => "=",
+            Op::Ne => "!=",
+            Op::Lt => "<",
+            Op::Le => "<=",
+            Op::Gt => ">",
+            Op::Ge => ">=",
+            Op::Other => "?",
+        }
+    }
 }
 
 /// A node's column names and types, known from the plan before any file.
@@ -857,18 +938,19 @@ pub(super) struct Exec<'p> {
     pmemo: Vec<MemoSlot>,
     pmemo_at: FxHashMap<(usize, usize), usize>,
     pmemo_dirty: Vec<usize>,
-    stamp: u32,
+    /// 8: the per-key memo's rows and ranges (the engine's `keyed_ranges`): one lookup a key, by position below the file's
+    /// node count.
+    ranges: ryo_engine::domain::keyed_ranges::types::KeyedRanges,
+    /// 8: the asked lists' ranges, one buffer a probe frame (probes nest), reused.
+    asked_pool: Vec<Vec<ryo_engine::domain::keyed_ranges::types::AskedRange>>,
+    /// 8: row-number buffers of the join (tuples a source), reused across executions; the join's key set, reused.
+    u32_pool: Vec<Vec<u32>>,
+    key_set: rustc_hash::FxHashSet<u64>,
     scratch_keys: Vec<u64>,
+    /// 8: per step, its empty answer (made once a run, shared) and the input whose emptiness empties it (resolved once a run).
+    empties: Vec<Option<Rc<Table>>>,
+    firsts: Vec<Option<Option<usize>>>,
 }
-
-/// 7: a key's rows in a memo slot: one range of the slot's table (`start` PENDING while its batch runs).
-#[derive(Clone, Copy)]
-struct MemoKey {
-    start: u32,
-    len: u32,
-    stamp: u32,
-}
-const PENDING: u32 = u32::MAX;
 
 /// 7: key lists this short are looked up key by key; longer ones are remembered whole.
 const LIST_MIN: usize = 4;
@@ -882,8 +964,10 @@ fn hash_keys(keys: &[u64]) -> u64 {
 }
 
 struct MemoSlot {
-    t: Table,
-    ix: FxHashMap<u64, MemoKey>,
+    /// 8: the slot in the engine's store, and the step's column names and types.
+    slot: ryo_engine::domain::keyed_ranges::types::SlotId,
+    names: Names,
+    tys: Tys,
     /// 7: answers by key list (its hash: the list, the answer), this file.
     lists: FxHashMap<u64, (Vec<u64>, Rc<Table>)>,
     dirty: bool,
@@ -953,20 +1037,23 @@ impl<'p> Exec<'p> {
             pmemo: Vec::new(),
             pmemo_at: FxHashMap::default(),
             pmemo_dirty: Vec::new(),
-            stamp: 0,
+            ranges: ryo_engine::domain::keyed_ranges::types::KeyedRanges::default(),
+            asked_pool: Vec::new(),
+            u32_pool: Vec::new(),
+            key_set: rustc_hash::FxHashSet::default(),
             scratch_keys: Vec::new(),
+            empties: vec![None; k],
+            firsts: vec![None; k],
         }
     }
 
-    pub(super) fn reset_file(&mut self) {
+    pub(super) fn reset_file(&mut self, nodes: usize) {
         for i in std::mem::take(&mut self.pmemo_dirty) {
             let sl = &mut self.pmemo[i];
             sl.dirty = false;
-            sl.t.n = 0;
-            sl.t.cols.iter_mut().for_each(Vec::clear);
-            sl.ix.clear();
             sl.lists.clear();
         }
+        ryo_engine::domain::keyed_ranges::service::next_file(&mut self.ranges, nodes as u64 + 1);
     }
 
     /// Whether every step that reads `node` reads it only by key: a join that binds one of its columns from another
@@ -996,7 +1083,7 @@ impl<'p> Exec<'p> {
                         }
                         let me = at[0];
                         sp.conj.iter().any(|e| match e {
-                            E::Cmp(o, x, y) if o == "=" => matches!((&**x, &**y), (E::Col(a, _, _), E::Col(b, _, _)) if (*a == me) != (*b == me)),
+                            E::Cmp(Op::Eq, x, y) => matches!((&**x, &**y), (E::Col(a, _, _), E::Col(b, _, _)) if (*a == me) != (*b == me)),
                             _ => false,
                         })
                     }
@@ -1039,7 +1126,7 @@ impl<'p> Exec<'p> {
                 }
                 // the id from one source, the kind from another joined to it on the id
                 let joined = sp.conj.iter().find_map(|e| match e {
-                    E::Cmp(o, x, y) if o == "=" => match (&**x, &**y) {
+                    E::Cmp(Op::Eq, x, y) => match (&**x, &**y) {
                         (E::Col(s1, c1, _), E::Col(s2, c2, _)) if *s1 == si && *c1 == b && *s2 == sk => Some(*c2),
                         (E::Col(s2, c2, _), E::Col(s1, c1, _)) if *s1 == si && *c1 == b && *s2 == sk => Some(*c2),
                         _ => None,
@@ -1295,7 +1382,7 @@ impl<'p> Exec<'p> {
                     _ => E::Call(name, args),
                 }
             }
-            "cmp" => E::Cmp(s(&a[1])?.to_owned(), Box::new(self.expr(run, &a[2], names)?), Box::new(self.expr(run, &a[3], names)?)),
+            "cmp" => E::Cmp(Op::of(s(&a[1])?), Box::new(self.expr(run, &a[2], names)?), Box::new(self.expr(run, &a[3], names)?)),
             "in" | "notin" => E::In(Box::new(self.expr(run, &a[1], names)?), Box::new(self.expr(run, &a[2], names)?), tag == "notin"),
             "and" => E::And(Box::new(self.expr(run, &a[1], names)?), Box::new(self.expr(run, &a[2], names)?)),
             "or" => E::Or(Box::new(self.expr(run, &a[1], names)?), Box::new(self.expr(run, &a[2], names)?)),
@@ -1325,7 +1412,7 @@ impl<'p> Exec<'p> {
             flatten(e, &mut conj);
         }
         // a test of two file columns always holds: every relation here is the file's
-        conj.retain(|c| !matches!(c, E::Cmp(o, a, b) if o == "=" && matches!(**a, E::Col(_, _, Ty::File)) && matches!(**b, E::Col(_, _, Ty::File))));
+        conj.retain(|c| !matches!(c, E::Cmp(Op::Eq, a, b) if matches!(**a, E::Col(_, _, Ty::File)) && matches!(**b, E::Col(_, _, Ty::File))));
         let refs = conj.iter().map(refs_of).collect();
         let items: Vec<(String, E)> = match &j["items"] {
             J::Null => {
@@ -1408,7 +1495,27 @@ impl<'p> Exec<'p> {
             f.memo[node] = Some(r.clone());
             return Ok(r);
         }
-        let t0 = super::thread_cpu();
+        // 8: an execution over an empty input answers the step's shared empty table before any set-up
+        if let Some(inp) = self.first_input(node)? {
+            let t = self.eval(f, run, p, inp)?;
+            if t.n == 0 {
+                if self.stats.made_by[node] == usize::MAX {
+                    self.stats.made_by[node] = self.stack.last().copied().unwrap_or(usize::MAX - 1);
+                    self.stats.why[node] = why;
+                }
+                self.stats.calls[node] += 1;
+                self.stats.empty[node] += 1;
+                let e = self.empty_rc(run, node)?;
+                if self.is_constant(node) {
+                    self.run_memo.insert(node, e.clone());
+                }
+                let rc = Res::Tab(e);
+                f.memo[node] = Some(rc.clone());
+                f.log.push(node);
+                return Ok(rc);
+            }
+        }
+        let t0 = step_clock();
         let saved = self.inner;
         self.inner = 0.0;
         if self.stats.made_by[node] == usize::MAX {
@@ -1418,16 +1525,19 @@ impl<'p> Exec<'p> {
         self.stack.push(node);
         let out = self.body(f, run, p, node);
         self.stack.pop();
-        let dt = super::thread_cpu() - t0;
+        let dt = step_clock() - t0;
         self.stats.time[node] += dt - self.inner;
         self.inner = saved + dt;
         let out = out?;
         self.stats.calls[node] += 1;
         self.stats.rows[node] += out.n as u64;
-        if out.n == 0 {
+        let t = if out.n == 0 {
             self.stats.empty[node] += 1;
-        }
-        let t = Rc::new(out);
+            drop(out);
+            self.empty_rc(run, node)?
+        } else {
+            Rc::new(out)
+        };
         if self.is_constant(node) {
             self.run_memo.insert(node, t.clone());
         }
@@ -1440,10 +1550,10 @@ impl<'p> Exec<'p> {
     /// The rows of a node whose column `col` holds one of `keys`, without making the node whole where its inputs can be
     /// probed in turn (sideways key passing through the steps a query defines). What is made under a probe is dropped.
     fn probe(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64]) -> R<Rc<Table>> {
-        let sc = self.schema(run, node)?;
         if keys.is_empty() {
-            return Ok(Rc::new(Table::with(sc.names.clone(), sc.tys.clone())));
+            return self.empty_rc(run, node);
         }
+        let sc = self.schema(run, node)?;
         if let Some(o) = self.overridden(node) {
             return Ok(Rc::new(drive::subset_of(&o, col, keys)));
         }
@@ -1461,7 +1571,7 @@ impl<'p> Exec<'p> {
                 rows.retain(|r| view_holds(f, run, &v, *r));
                 let mut out = Table::with(sc.names.clone(), sc.tys.clone());
                 for c in 0..v.map.len() {
-                    out.cols[c] = rows.iter().map(|r| f.native_get(run, v.base, *r, v.map[c])).collect();
+                    out.cols[c].extend(rows.iter().map(|r| f.native_get(run, v.base, *r, v.map[c])));
                 }
                 out.n = rows.len();
                 self.stats.touched[node] += rows.len() as u64;
@@ -1493,43 +1603,38 @@ impl<'p> Exec<'p> {
                 }
             }
             self.stats.memo_keys += keys.len() as u64;
-            let ix = &mut self.pmemo[slot].ix;
-            for k in keys {
-                if let std::collections::hash_map::Entry::Vacant(v) = ix.entry(*k) {
-                    v.insert(MemoKey { start: PENDING, len: 0, stamp: 0 });
-                    missing.push(*k);
-                }
-            }
-            if missing.is_empty() {
+            let es = self.pmemo[slot].slot;
+            let mut asked = self.asked_pool.pop().unwrap_or_default();
+            if ryo_engine::domain::keyed_ranges::service::ask(&mut self.ranges, es, keys, &mut missing, &mut asked) == ryo_engine::domain::keyed_ranges::types::Asked::Filed {
                 self.scratch_keys = missing;
-                let t = Rc::new(self.memo_rows(slot, keys));
+                let t = Rc::new(self.memo_rows(slot, keys, &mut asked, false));
+                self.asked_pool.push(asked);
                 self.stats.memo_out += t.n as u64;
                 if keys.len() >= LIST_MIN {
                     self.pmemo[slot].lists.insert(list_hash, (keys.to_vec(), t.clone()));
                 }
                 return Ok(t);
             }
-            Some(slot)
+            Some((slot, asked))
         } else {
             missing.extend_from_slice(keys);
             None
         };
-        let t0 = super::thread_cpu();
+        let t0 = step_clock();
         let saved = self.inner;
         self.inner = 0.0;
         self.stack.push(node);
         let out = self.probe_body(f, run, p, node, col, &missing, &sc);
         self.stack.pop();
-        let dt = super::thread_cpu() - t0;
+        let dt = step_clock() - t0;
         self.stats.time[node] += dt - self.inner;
         self.inner = saved + dt;
         let out = match out {
             Ok(o) => o,
             Err(e) => {
-                if let Some(slot) = slot {
-                    for k in &missing {
-                        self.pmemo[slot].ix.remove(k);
-                    }
+                if let Some((slot, asked)) = slot {
+                    ryo_engine::domain::keyed_ranges::service::forget(&mut self.ranges, self.pmemo[slot].slot, &missing);
+                    self.asked_pool.push(asked);
                 }
                 self.scratch_keys = missing;
                 return Err(e);
@@ -1541,51 +1646,22 @@ impl<'p> Exec<'p> {
         }
         self.stats.probes[node] += 1;
         self.stats.rows[node] += out.n as u64;
-        let Some(slot) = slot else {
+        let Some((slot, mut asked)) = slot else {
             self.scratch_keys = missing;
             return Ok(out);
         };
-        let sl = &mut self.pmemo[slot];
-        for k in &missing {
-            if let Some(e) = sl.ix.get_mut(k) {
-                e.start = 0;
-            }
-        }
-        // the batch's rows by key (in row order within a key), each key's run appended as one range
-        let mut order: Vec<(u64, u32)> = (0..out.n as u32).map(|r| (out.cols[col][r as usize], r)).collect();
-        order.sort_unstable();
-        let mut i = 0;
-        while i < order.len() {
-            let k = order[i].0;
-            let mut j = i;
-            while j < order.len() && order[j].0 == k {
-                j += 1;
-            }
-            let start = sl.t.n as u32;
-            let e = sl.ix.entry(k).or_insert(MemoKey { start, len: 0, stamp: 0 });
-            if e.len > 0 {
+        let moved = {
+            let cols: Vec<&[u64]> = out.cols.iter().map(Vec::as_slice).collect();
+            let sl = &mut self.pmemo[slot];
+            let moved = ryo_engine::domain::keyed_ranges::service::file(&mut self.ranges, sl.slot, &missing, col, &cols, out.n);
+            if moved {
                 sl.lists.clear();
-                // rows for a key answered before (a step that returned rows not asked): its old range moves to the end first
-                let (os, ol) = (e.start as usize, e.len as usize);
-                for c in 0..sl.t.cols.len() {
-                    let col_c = &mut sl.t.cols[c];
-                    col_c.extend_from_within(os..os + ol);
-                }
-                sl.t.n += ol;
             }
-            let e = sl.ix.get_mut(&k).expect("the key just filed");
-            let ol = e.len;
-            e.start = start;
-            e.len = ol + (j - i) as u32;
-            for c in 0..sl.t.cols.len() {
-                let (dst, src) = (&mut sl.t.cols[c], &out.cols[c]);
-                dst.extend(order[i..j].iter().map(|x| src[x.1 as usize]));
-            }
-            sl.t.n += j - i;
-            i = j;
-        }
+            moved
+        };
         self.stats.memo_in += out.n as u64;
-        let t = Rc::new(self.memo_rows(slot, keys));
+        let t = Rc::new(self.memo_rows(slot, keys, &mut asked, moved));
+        self.asked_pool.push(asked);
         self.stats.memo_out += t.n as u64;
         if keys.len() >= LIST_MIN {
             self.pmemo[slot].lists.insert(list_hash, (keys.to_vec(), t.clone()));
@@ -1604,39 +1680,19 @@ impl<'p> Exec<'p> {
             return i;
         }
         let i = self.pmemo.len();
-        self.pmemo.push(MemoSlot { t: Table::with(sc.names.clone(), sc.tys.clone()), ix: FxHashMap::default(), lists: FxHashMap::default(), dirty: true });
+        let slot = ryo_engine::domain::keyed_ranges::service::new_slot(&mut self.ranges, sc.names.len());
+        self.pmemo.push(MemoSlot { slot, names: sc.names.clone(), tys: sc.tys.clone(), lists: FxHashMap::default(), dirty: true });
         self.pmemo_at.insert((node, col), i);
         self.pmemo_dirty.push(i);
         i
     }
 
-    /// 7: the memoised rows of a probed step for these keys, in key order (each key once).
-    fn memo_rows(&mut self, slot: usize, keys: &[u64]) -> Table {
-        self.stamp = self.stamp.wrapping_add(1);
-        let st = self.stamp;
-        let sl = &mut self.pmemo[slot];
-        let mut ranges: Vec<(usize, usize)> = Vec::with_capacity(keys.len());
-        let mut total = 0;
-        for k in keys {
-            if let Some(e) = sl.ix.get_mut(k)
-                && e.stamp != st
-            {
-                e.stamp = st;
-                if e.len > 0 {
-                    ranges.push((e.start as usize, e.len as usize));
-                    total += e.len as usize;
-                }
-            }
-        }
-        let mut out = Table::with(sl.t.names.clone(), sl.t.tys.clone());
-        for (c, col) in sl.t.cols.iter().enumerate() {
-            let mut v = Vec::with_capacity(total);
-            for (a, l) in &ranges {
-                v.extend_from_slice(&col[*a..*a + *l]);
-            }
-            out.cols[c] = v;
-        }
-        out.n = total;
+    /// 7: the memoised rows of a probed step for these keys, in key order (each key once). 8: gathered by the engine's
+    /// `keyed_ranges` into the worker's pooled columns.
+    fn memo_rows(&mut self, slot: usize, keys: &[u64], asked: &mut Vec<ryo_engine::domain::keyed_ranges::types::AskedRange>, moved: bool) -> Table {
+        let sl = &self.pmemo[slot];
+        let mut out = Table::with(sl.names.clone(), sl.tys.clone());
+        out.n = ryo_engine::domain::keyed_ranges::service::gather(&mut self.ranges, sl.slot, keys, asked, moved, &mut out.cols);
         out
     }
 
@@ -1835,12 +1891,12 @@ impl<'p> Exec<'p> {
                 if let Some(t) = f.vmat.get(&node) {
                     return Ok(t.clone());
                 }
-                let t0 = super::thread_cpu();
+                let t0 = step_clock();
                 let sc = self.schema(run, node)?;
                 let rows = view_rows(f, run, &v, node);
                 let mut out = Table::with(sc.names.clone(), sc.tys.clone());
                 for c in 0..v.map.len() {
-                    out.cols[c] = rows.iter().map(|r| f.native_get(run, v.base, *r, v.map[c])).collect();
+                    out.cols[c].extend(rows.iter().map(|r| f.native_get(run, v.base, *r, v.map[c])));
                 }
                 out.n = rows.len();
                 let rc = Rc::new(out);
@@ -1850,7 +1906,7 @@ impl<'p> Exec<'p> {
                 }
                 f.vmat.insert(node, rc.clone());
                 f.log.push(node);
-                let dt = super::thread_cpu() - t0;
+                let dt = step_clock() - t0;
                 self.stats.time[node] += dt;
                 self.inner += dt;
                 self.stats.calls[node] += 1;
@@ -1858,6 +1914,50 @@ impl<'p> Exec<'p> {
                 Ok(rc)
             }
         }
+    }
+
+    /// 8: the input whose empty answer empties this step (the one `body` tests first), resolved once a run; none for the
+    /// steps that test no input first and for a counted group (which may not make its input).
+    fn first_input(&mut self, node: usize) -> R<Option<usize>> {
+        if let Some(x) = self.firsts[node] {
+            return Ok(x);
+        }
+        let plan: &'p Plan = self.plan;
+        let pn = &plan.nodes[node];
+        let arg = match pn.op.as_str() {
+            "antijoin" | "ordered-match" | "as-of" => Some("left"),
+            "closure" | "follow" => Some("edges"),
+            "base" | "select" | "rows" | "union" | "group-count" => None,
+            _ => Some("from"),
+        };
+        let x = match arg {
+            Some(a) => Some(self.arg_rel(node, a)?),
+            None => None,
+        };
+        self.firsts[node] = Some(x);
+        Ok(x)
+    }
+
+    /// 8: a cleared row-number buffer from the worker's pool.
+    fn take_u32(&mut self) -> Vec<u32> {
+        self.u32_pool.pop().unwrap_or_default()
+    }
+
+    fn give_u32(&mut self, mut v: Vec<u32>) {
+        if v.capacity() > 0 && v.capacity() <= 1 << 20 && self.u32_pool.len() < 256 {
+            v.clear();
+            self.u32_pool.push(v);
+        }
+    }
+
+    /// 8: a step's empty answer, made once a run and shared.
+    fn empty_rc(&mut self, run: &mut Run, node: usize) -> R<Rc<Table>> {
+        if let Some(e) = &self.empties[node] {
+            return Ok(e.clone());
+        }
+        let e = Rc::new(self.empty(run, node)?);
+        self.empties[node] = Some(e.clone());
+        Ok(e)
     }
 
     fn empty(&mut self, run: &mut Run, node: usize) -> R<Table> {
@@ -1871,7 +1971,7 @@ impl<'p> Exec<'p> {
         }
         self.reason = "closure edges";
         let edges = self.eval(f, run, p, self.arg_rel(node, "edges")?)?;
-        let t0 = super::thread_cpu();
+        let t0 = step_clock();
         let a = &self.plan.nodes[node].j["args"];
         let keys: Vec<usize> = strs(&a["keys"])?.iter().map(|k| edges.col(k)).collect::<R<_>>()?;
         let (si, di) = (edges.col(s(&a["source"])?)?, edges.col(s(&a["destination"])?)?);
@@ -1887,7 +1987,7 @@ impl<'p> Exec<'p> {
         }
         let sc = self.schema(run, node)?;
         let l = Rc::new(Lazy { keys, adj, radj, node, names: sc.names.clone(), tys: sc.tys.clone(), cache: RefCell::new(FxHashMap::default()), rcache: RefCell::new(FxHashMap::default()) });
-        let dt = super::thread_cpu() - t0;
+        let dt = step_clock() - t0;
         self.stats.time[node] += dt;
         self.inner += dt;
         f.lazies.insert(node, l.clone());
@@ -2580,10 +2680,28 @@ impl<'p> Exec<'p> {
         };
         let mut used = vec![false; conj.len()];
         let mut bound: u64 = 1 << driver;
-        let mut tuples: Vec<Vec<u32>> = vec![Vec::new(); k];
+        let mut tuples: Vec<Vec<u32>> = (0..k).map(|_| self.take_u32()).collect();
         let own = own_of(driver);
+        let mut cur = vec![0u32; k];
         let first: Rc<Vec<u32>> = match &srcs[driver] {
-            Src::Tab(t, _) => Rc::new((0..t.n as u32).collect()),
+            Src::Tab(t, _) => {
+                // 8: a made table drives by position: its own tests run over its columns, no row list made
+                let n = t.n;
+                self.stats.touched[node] += n as u64;
+                let mut kept = self.take_u32();
+                if own.is_empty() {
+                    kept.extend(0..n as u32);
+                } else {
+                    for r in 0..n as u32 {
+                        cur[driver] = r;
+                        if own.iter().all(|c| truthy(eval(run, f, &srcs, &cur, &conj[*c]))) {
+                            kept.push(r);
+                        }
+                    }
+                }
+                tuples[driver] = kept;
+                Rc::new(Vec::new())
+            }
             Src::View(v, vn) => {
                 // the select's own kind tests narrow the view's entry too
                 match kind_set(run, conj, driver, v.base, &v.map) {
@@ -2597,7 +2715,6 @@ impl<'p> Exec<'p> {
             _ => return Err("a select starts from no table or view".to_owned()),
         };
         self.stats.touched[node] += first.len() as u64;
-        let mut cur = vec![0u32; k];
         for &r in first.iter() {
             cur[driver] = r;
             if own.iter().all(|c| truthy(eval(run, f, &srcs, &cur, &conj[*c]))) {
@@ -2610,6 +2727,9 @@ impl<'p> Exec<'p> {
         let mut count = tuples[driver].len();
         while bound.count_ones() as usize != k {
             if count == 0 {
+                for t in tuples {
+                    self.give_u32(t);
+                }
                 return self.empty(run, node);
             }
             // the next source: one an unused equality joins to the bound ones, one probed in place first
@@ -2618,8 +2738,7 @@ impl<'p> Exec<'p> {
                 if used[ci] {
                     continue;
                 }
-                if let E::Cmp(o, x, y) = c
-                    && o == "="
+                if let E::Cmp(Op::Eq, x, y) = c
                 {
                     for (a, b) in [(x, y), (y, x)] {
                         if let E::Col(si, col, _) = **a
@@ -2640,7 +2759,7 @@ impl<'p> Exec<'p> {
                     }
                 }
             }
-            let mut next: Vec<Vec<u32>> = vec![Vec::new(); k];
+            let mut next: Vec<Vec<u32>> = (0..k).map(|_| self.take_u32()).collect();
             let fill_cur = |cur: &mut Vec<u32>, tuples: &Vec<Vec<u32>>, ti: usize, bound: u64| {
                 for (s2, cur_s) in cur.iter_mut().enumerate() {
                     if bound & (1 << s2) != 0 {
@@ -2651,20 +2770,25 @@ impl<'p> Exec<'p> {
             match pick {
                 Some((si, col, ci, native)) => {
                     used[ci] = true;
-                    let other = match &conj[ci] {
+                    let other: &E = match &conj[ci] {
                         E::Cmp(_, x, y) => {
-                            if matches!(**x, E::Col(a, b, _) if a == si && b == col) { (**y).clone() } else { (**x).clone() }
+                            if matches!(**x, E::Col(a, b, _) if a == si && b == col) { y } else { x }
                         }
                         _ => unreachable!(),
                     };
                     // a step not made yet is probed with the keys the bound rows give it
                     if let Src::Pending(pn) = srcs[si] {
-                        let mut ks = rustc_hash::FxHashSet::default();
+                        let mut seen = std::mem::take(&mut self.key_set);
+                        seen.clear();
+                        let mut ks: Vec<u64> = Vec::with_capacity(count.min(1 << 12));
                         for ti in 0..count {
                             fill_cur(&mut cur, &tuples, ti, bound);
-                            ks.insert(eval(run, f, &srcs, &cur, &other).1);
+                            let v = eval(run, f, &srcs, &cur, other).1;
+                            if seen.insert(v) {
+                                ks.push(v);
+                            }
                         }
-                        let ks: Vec<u64> = ks.into_iter().collect();
+                        self.key_set = seen;
                         let sub = self.probe(f, run, p, pn, col, &ks)?;
                         self.stats.touched[node] += sub.n as u64;
                         srcs[si] = Src::Tab(sub, usize::MAX - si);
@@ -2684,7 +2808,7 @@ impl<'p> Exec<'p> {
                         let mut key_exprs: Vec<E> = Vec::new();
                         for kc in 0..nk {
                             let found = conj.iter().enumerate().find_map(|(cj, c)| match c {
-                                E::Cmp(o, x, y) if o == "=" && !used[cj] => {
+                                E::Cmp(Op::Eq, x, y) if !used[cj] => {
                                     let hit = |a: &E, b: &E| matches!(a, E::Col(s3, c3, _) if *s3 == si && *c3 == kc) && refs_of(b) & !bound == 0;
                                     if hit(x, y) {
                                         Some((**y).clone())
@@ -2708,7 +2832,7 @@ impl<'p> Exec<'p> {
                         for ti in 0..count {
                             fill_cur(&mut cur, &tuples, ti, bound);
                             let mut key: Vec<u64> = key_exprs.iter().map(|e| eval(run, f, &srcs, &cur, e).1).collect();
-                            let at = eval(run, f, &srcs, &cur, &other).1;
+                            let at = eval(run, f, &srcs, &cur, other).1;
                             key.push(at);
                             if asked.insert(key.clone()) {
                                 for d in reach_dir(&l, &key, forward).iter() {
@@ -2728,14 +2852,13 @@ impl<'p> Exec<'p> {
                     let nb = bound | (1 << si);
                     // a made table is probed on every column an equality binds, at once
                     let mut tab_cols = vec![col];
-                    let mut tab_exprs = vec![other.clone()];
+                    let mut tab_exprs: Vec<&E> = vec![other];
                     if let Src::Tab(..) = &srcs[si] {
                         for (cj, c) in conj.iter().enumerate() {
                             if used[cj] {
                                 continue;
                             }
-                            if let E::Cmp(o, x, y) = c
-                                && o == "="
+                            if let E::Cmp(Op::Eq, x, y) = c
                             {
                                 for (a2, b2) in [(x, y), (y, x)] {
                                     if let E::Col(s3, c3, _) = **a2
@@ -2745,7 +2868,7 @@ impl<'p> Exec<'p> {
                                         && !tab_cols.contains(&c3)
                                     {
                                         tab_cols.push(c3);
-                                        tab_exprs.push((**b2).clone());
+                                        tab_exprs.push(&**b2);
                                         break;
                                     }
                                 }
@@ -2765,7 +2888,7 @@ impl<'p> Exec<'p> {
                     let mut hits = Vec::new();
                     for ti in 0..count {
                         fill_cur(&mut cur, &tuples, ti, bound);
-                        let v = eval(run, f, &srcs, &cur, &other);
+                        let v = eval(run, f, &srcs, &cur, other);
                         hits.clear();
                         match &srcs[si] {
                             Src::View(vs, _) => {
@@ -2775,7 +2898,7 @@ impl<'p> Exec<'p> {
                             Src::Tab(..) => {
                                 probe_key.clear();
                                 probe_key.push(v.1);
-                                for e in &tab_exprs[1..] {
+                                for e in tab_exprs[1..].iter().copied() {
                                     probe_key.push(eval(run, f, &srcs, &cur, e).1);
                                 }
                                 if let Some(rows) = index.as_ref().and_then(|ix| ix.get(&key_of(probe_key.iter().copied()))) {
@@ -2841,23 +2964,28 @@ impl<'p> Exec<'p> {
                 }
             }
             count = next[driver].len();
-            tuples = next;
+            for t in std::mem::replace(&mut tuples, next) {
+                self.give_u32(t);
+            }
         }
         if used.iter().any(|u| !u) {
             return Err("a test no source binds".to_owned());
         }
         let mut out = self.empty(run, node)?;
         for (c, (_, e)) in sp.items.iter().enumerate() {
-            let mut col = Vec::with_capacity(count);
+            let col = &mut out.cols[c];
+            col.reserve(count);
             for ti in 0..count {
                 for (s2, cur_s) in cur.iter_mut().enumerate() {
                     *cur_s = tuples[s2][ti];
                 }
                 col.push(eval(run, f, &srcs, &cur, e).1);
             }
-            out.cols[c] = col;
         }
         out.n = count;
+        for t in tuples {
+            self.give_u32(t);
+        }
         // 7: a projection of one source that drops columns is a set, as the engine's relations are (`VEC_SELECT_BAG`: carried as a bag, the interpreter before 7)
         if !sw!("VEC_SELECT_BAG")
             && k == 1
@@ -3361,8 +3489,39 @@ fn view_rows(f: &mut File<'_>, run: &mut Run, v: &ViewSpec, node: usize) -> Rc<V
 }
 
 /// How many elements some kinds have.
+/// 8: a kind symbol's codes (a symbol may name several codes), from the run's kind table, made once a run.
+fn kind_codes(run: &Run, sym: u32) -> &[u16] {
+    thread_local! {
+        static CODES: RefCell<Option<std::rc::Rc<FxHashMap<u32, Vec<u16>>>>> = const { RefCell::new(None) };
+    }
+    let m = CODES.with(|c| {
+        c.borrow_mut()
+            .get_or_insert_with(|| {
+                let mut m: FxHashMap<u32, Vec<u16>> = FxHashMap::default();
+                for (code, s) in run.kind_sym.iter().enumerate() {
+                    m.entry(*s).or_default().push(code as u16);
+                }
+                std::rc::Rc::new(m)
+            })
+            .clone()
+    });
+    // the map lives for the run (never replaced): hand out a slice of it
+    let m: &'static FxHashMap<u32, Vec<u16>> = unsafe { &*std::rc::Rc::as_ptr(&m) };
+    m.get(&sym).map_or(&[], Vec::as_slice)
+}
+
 fn bucket_len(f: &File<'_>, run: &Run, ks: &[u32]) -> usize {
-    run.kind_sym.iter().enumerate().filter(|(_, s)| ks.contains(s)).map(|(c, _)| node_table::ids_of_kind(f.table, KindBits(c as u16)).len()).sum()
+    if ks.len() > 16 {
+        return run.kind_sym.iter().enumerate().filter(|(_, s)| ks.contains(s)).map(|(c, _)| node_table::ids_of_kind(f.table, KindBits(c as u16)).len()).sum();
+    }
+    let mut n = 0;
+    for (i, k) in ks.iter().enumerate() {
+        if ks[..i].contains(k) {
+            continue;
+        }
+        n += kind_codes(run, *k).iter().map(|c| node_table::ids_of_kind(f.table, KindBits(*c)).len()).sum::<usize>();
+    }
+    n
 }
 
 /// The elements of some kinds, in position order.
@@ -3422,7 +3581,7 @@ fn kind_set(_run: &Run, conj: &[E], si: usize, base: Native, map: &[usize]) -> O
     let is_kind = |c: usize| if map.is_empty() { c == 1 } else { map.get(c) == Some(&1) };
     fn kinds(e: &E, si: usize, is_kind: &dyn Fn(usize) -> bool, out: &mut Vec<u32>) -> bool {
         match e {
-            E::Cmp(o, a, b) if o == "=" => match (&**a, &**b) {
+            E::Cmp(Op::Eq, a, b) => match (&**a, &**b) {
                 (E::Col(s, c, _), E::Text(t)) | (E::Text(t), E::Col(s, c, _)) if *s == si && is_kind(*c) => {
                     out.push(*t);
                     true
@@ -3456,7 +3615,7 @@ fn kind_set(_run: &Run, conj: &[E], si: usize, base: Native, map: &[usize]) -> O
 /// The kinds a test requires of column `kc` of source `si`: a literal, a list, an `or` of such, or an `and` holding one.
 fn kinds_required(e: &E, si: usize, kc: usize) -> Option<Vec<u32>> {
     match e {
-        E::Cmp(o, a, b) if o == "=" => match (&**a, &**b) {
+        E::Cmp(Op::Eq, a, b) => match (&**a, &**b) {
             (E::Col(s, c, _), E::Text(t)) | (E::Text(t), E::Col(s, c, _)) if *s == si && *c == kc => Some(vec![*t]),
             _ => None,
         },
@@ -3481,7 +3640,7 @@ fn remap(e: &E, map: &[usize]) -> E {
         E::Col(s, c, t) => E::Col(*s, map[*c], *t),
         E::List(v) => E::List(v.iter().map(|x| remap(x, map)).collect()),
         E::Call(n, v) => E::Call(n.clone(), v.iter().map(|x| remap(x, map)).collect()),
-        E::Cmp(o, x, y) => E::Cmp(o.clone(), b(x), b(y)),
+        E::Cmp(o, x, y) => E::Cmp(*o, b(x), b(y)),
         E::In(x, y, n) => E::In(b(x), b(y), *n),
         E::And(x, y) => E::And(b(x), b(y)),
         E::Or(x, y) => E::Or(b(x), b(y)),
@@ -3523,7 +3682,7 @@ fn distinct(t: Table) -> Table {
     }
     let mut out = Table::with(t.names.clone(), t.tys.clone());
     for (c, col) in t.cols.iter().enumerate() {
-        out.cols[c] = keep.iter().map(|r| col[*r]).collect();
+        out.cols[c].extend(keep.iter().map(|r| col[*r]));
     }
     out.n = keep.len();
     out
@@ -3747,7 +3906,8 @@ fn eval(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], e: &E) -> V {
         E::And(a, b) => flag(truthy(eval(run, f, srcs, cur, a)) && truthy(eval(run, f, srcs, cur, b))),
         E::Or(a, b) => flag(truthy(eval(run, f, srcs, cur, a)) || truthy(eval(run, f, srcs, cur, b))),
         E::Not(a) => flag(!truthy(eval(run, f, srcs, cur, a))),
-        E::Cmp(o, a, b) if o == "=" || o == "!=" => {
+        E::Cmp(o @ (Op::Eq | Op::Ne), a, b) => {
+            let want = *o == Op::Eq;
             let eq = match (&**a, &**b) {
                 (E::Col(s1, c1, t1), E::Col(s2, c2, t2)) if t1 == t2 => {
                     let (x, y) = (get(run, f, srcs, cur, *s1, *c1), get(run, f, srcs, cur, *s2, *c2));
@@ -3757,11 +3917,11 @@ fn eval(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], e: &E) -> V {
                 _ => None,
             };
             match eq {
-                Some(e) => flag(e == (o == "=")),
+                Some(e) => flag(e == want),
                 None => {
                     let (x, y) = (eval(run, f, srcs, cur, a), eval(run, f, srcs, cur, b));
                     match compare(run, x, y) {
-                        Some(ord) => flag((ord == std::cmp::Ordering::Equal) == (o == "=")),
+                        Some(ord) => flag((ord == std::cmp::Ordering::Equal) == want),
                         None => flag(false),
                     }
                 }
@@ -3771,14 +3931,14 @@ fn eval(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], e: &E) -> V {
             let (x, y) = (eval(run, f, srcs, cur, a), eval(run, f, srcs, cur, b));
             let Some(ord) = compare(run, x, y) else { return flag(false) };
             use std::cmp::Ordering::*;
-            flag(match o.as_str() {
-                "=" => ord == Equal,
-                "!=" => ord != Equal,
-                "<" => ord == Less,
-                "<=" => ord != Greater,
-                ">" => ord == Greater,
-                ">=" => ord != Less,
-                _ => false,
+            flag(match o {
+                Op::Eq => ord == Equal,
+                Op::Ne => ord != Equal,
+                Op::Lt => ord == Less,
+                Op::Le => ord != Greater,
+                Op::Gt => ord == Greater,
+                Op::Ge => ord != Less,
+                Op::Other => false,
             })
         }
         E::In(a, b, neg) => {
