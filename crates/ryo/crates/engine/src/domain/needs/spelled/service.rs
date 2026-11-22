@@ -2,7 +2,7 @@
 
 use super::types::{SpelledFile, SpelledTexts};
 use ryo_language::domain::node_table::service::{
-    element_count, embedded_segments, node_count, own_end, span_of, subtree_end_of,
+    decoded_of, element_count, embedded_segments, node_count, own_end, span_of, subtree_end_of,
 };
 use ryo_language::domain::node_table::types::NodeTable;
 use ryo_relations::domain::relations::types::Position;
@@ -31,13 +31,21 @@ fn token_read(
     at: Position,
     bits: &mut [u64],
 ) -> bool {
-    let span = span_of(nodes, at);
-    let (start, end) = (
-        usize::try_from(span.start.0).unwrap_or(usize::MAX),
-        usize::try_from(span.end.0).unwrap_or(usize::MAX),
-    );
-    let Some(text) = source.get(start..end) else {
-        return false;
+    // A token of an embedded segment is read by its logical text (a string's escapes and pieces undone), which a
+    // language's names inside it are made of; any other by its exact source text.
+    let text = match decoded_of(nodes, at) {
+        Some(decoded) => decoded.0,
+        None => {
+            let span = span_of(nodes, at);
+            let (start, end) = (
+                usize::try_from(span.start.0).unwrap_or(usize::MAX),
+                usize::try_from(span.end.0).unwrap_or(usize::MAX),
+            );
+            let Some(text) = source.get(start..end) else {
+                return false;
+            };
+            text
+        }
     };
     if !text.is_ascii() {
         // A token past ASCII may be a name the language reads as another text (a normalised one): unless it holds what
