@@ -11,6 +11,7 @@ pub mod indexes;
 pub mod keyed_ranges;
 pub mod lowered;
 pub mod lowering;
+pub mod plan_lowering;
 pub mod memos;
 pub mod made_tables;
 pub mod needs;

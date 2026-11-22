@@ -25,6 +25,9 @@ cpu-time.workspace = true
 hashbrown.workspace = true
 # The run's worker pool: the load plans independent branches on it before the first file is scanned.
 rayon.workspace = true
+# The finish plan's encoding (outbound plan_codec, the JSON adapter's schemas): the plan crosses to the executor as JSON.
+serde.workspace = true
+serde_json.workspace = true
 
 [features]
 # Test support, not a public API: it may change without notice. Only a dev-dependency or this crate's own `fixtures` switches it on (`fixtures-feature`).

@@ -536,6 +536,12 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
     // `cargo bench` passes `--bench`; drop it.
     let args: Vec<&str> = args.iter().map(String::as_str).filter(|a| *a != "--bench").collect();
+    // ryo-fmx3.1 redo-lowering: the plan lowering in Rust, before any walk is made.
+    match args.get(1).copied() {
+        Some("lower") => return lower::run_lower(&args[2..]),
+        Some("stage") => return lower::run_stage(&args[2..]),
+        _ => {}
+    }
     // 6f: `VEC_PY310` walks at the pack's configured target (benchmark.toml `python-target=3.10`); without it the walk is at
     // the parser's default (Latest), as every run before 6f was.
     let walk = ryo_python::walk_with_settings(target_settings());
@@ -566,7 +572,19 @@ fn main() {
                 if let Some(at) = args.iter().position(|a| *a == "--applicability") {
                     finish_args.extend(["--applicability", args[at + 1]]);
                 }
-                let plan = finish::load(finish_args[0]);
+                // redo-lowering: `--finish <pack dir>` prepares the plan in this process from the rule text (the one parser,
+                // the engine's lowering); `--finish <plan file>` reads a plan prepared beforehand (the oracle).
+                let t0 = thread_cpu();
+                let plan = if std::path::Path::new(finish_args[0]).is_dir() {
+                    // `--request F`: the run's request, for the rule context the lowering reads
+                    let request = args.iter().position(|a| *a == "--request").map(|i| args[i + 1]);
+                    let pack = lower::read_pack(std::path::Path::new(finish_args[0]), request);
+                    println!("start-up pack: read {:.4} parse {:.4} s", pack.read, pack.parse);
+                    lower::second_half_plan(&pack)
+                } else {
+                    finish::load(finish_args[0])
+                };
+                println!("start-up total {:.4} s", thread_cpu() - t0);
                 let mut fin = finisher::Finisher::new(&plan, &walk, &vocab, &finish_args);
                 run_funnel(&walk, &vocab, &args[2..], Some(&mut fin));
                 fin.end(0.0);
@@ -844,6 +862,8 @@ mod facts;
 mod survivors;
 #[path = "finish.rs"]
 mod finish;
+#[path = "lower.rs"]
+mod lower;
 #[path = "finisher.rs"]
 mod finisher;
 #[path = "dump.rs"]

@@ -72,13 +72,16 @@ pub(crate) fn select_join(
         ryo_values::domain::query_syntax::types::Columns::Every => &[],
     };
     for column in listed {
-        let from_right = column.column.alias
+        let ryo_values::domain::query_syntax::types::SelectedValue::Column(reference) = &column.column else {
+            return Err(LoweringError::ComputedColumn { span: builder.span });
+        };
+        let from_right = reference.alias
             != ryo_values::domain::query_syntax::types::Alias::Unwritten
-            && column.column.alias != *left_alias;
+            && reference.alias != *left_alias;
         let side_fields = if from_right { &right_fields } else { &fields };
         let index = position(
             side_fields,
-            QuerySpelling(&column.column.column.0),
+            QuerySpelling(&reference.column.0),
             builder.span,
         )?;
         output.push(parts::JoinColumn {
@@ -95,7 +98,7 @@ pub(crate) fn select_join(
                     renamed.clone()
                 }
                 ryo_values::domain::query_syntax::types::Renaming::Unchanged => {
-                    column.column.column.clone()
+                    reference.column.clone()
                 }
             },
             kind: column_of(side_fields, index).kind,
