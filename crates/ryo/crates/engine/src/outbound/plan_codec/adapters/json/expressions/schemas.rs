@@ -2,7 +2,7 @@
 //! constant as a JSON value.
 
 use super::super::ordered::schemas::OrderedMap;
-use crate::domain::finish_plans::expressions::types::{
+use ryo_values::domain::finish_plans::expressions::types::{
     ColumnRead, Comparator, ConstantEntry, ConstantEntryKey, ExpressionPair, FractionNumber,
     FunctionCall, FunctionName, PlanConstant, PlanExpression, PlanNumber, RowComparison,
     SourceAlias,

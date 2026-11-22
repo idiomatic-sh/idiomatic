@@ -1,16 +1,16 @@
 //! The types of the `joins` part: what the operators over two inputs: `union`, `antijoin`, `as-of`, `ordered-match` are given. Plain data.
 
 use crate::domain::finish_plans::arguments::types::StepNumber;
-use ryo_values::domain::descriptions::types::ColumnName;
-use ryo_values::domain::plan_parts::types::Side;
+use crate::domain::descriptions::types::ColumnName;
+use crate::domain::plan_parts::types::Side;
 
 /// `union`: the rows of both inputs, each once.
 ///
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::arguments::types::StepNumber;
-/// use ryo_engine::domain::finish_plans::arguments::joins::types::UnionArguments;
+/// use ryo_values::domain::finish_plans::arguments::types::StepNumber;
+/// use ryo_values::domain::finish_plans::arguments::joins::types::UnionArguments;
 ///
 /// let union = UnionArguments { left: StepNumber(0), right: StepNumber(1) };
 /// assert_ne!(union.left, union.right);
@@ -28,8 +28,8 @@ pub struct UnionArguments {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::arguments::types::StepNumber;
-/// use ryo_engine::domain::finish_plans::arguments::joins::types::AntijoinArguments;
+/// use ryo_values::domain::finish_plans::arguments::types::StepNumber;
+/// use ryo_values::domain::finish_plans::arguments::joins::types::AntijoinArguments;
 ///
 /// let antijoin = AntijoinArguments { left: StepNumber(0), right: StepNumber(1), left_on: Vec::new(), right_on: Vec::new() };
 /// assert!(antijoin.left_on.is_empty());
@@ -51,8 +51,8 @@ pub struct AntijoinArguments {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::arguments::types::StepNumber;
-/// use ryo_engine::domain::finish_plans::arguments::joins::types::{AsOfArguments, AsOfBound};
+/// use ryo_values::domain::finish_plans::arguments::types::StepNumber;
+/// use ryo_values::domain::finish_plans::arguments::joins::types::{AsOfArguments, AsOfBound};
 /// use ryo_values::domain::descriptions::types::ColumnName;
 ///
 /// let line = || ColumnName("line".into());
@@ -88,7 +88,7 @@ pub struct AsOfArguments {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::arguments::joins::types::AsOfBound;
+/// use ryo_values::domain::finish_plans::arguments::joins::types::AsOfBound;
 ///
 /// assert_ne!(AsOfBound::Before, AsOfBound::After);
 /// ```
@@ -109,7 +109,7 @@ pub enum AsOfBound {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::arguments::joins::types::OutputColumn;
+/// use ryo_values::domain::finish_plans::arguments::joins::types::OutputColumn;
 /// use ryo_values::domain::descriptions::types::ColumnName;
 /// use ryo_values::domain::plan_parts::types::Side;
 ///
@@ -131,8 +131,8 @@ pub struct OutputColumn {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::arguments::types::StepNumber;
-/// use ryo_engine::domain::finish_plans::arguments::joins::types::OrderedMatchArguments;
+/// use ryo_values::domain::finish_plans::arguments::types::StepNumber;
+/// use ryo_values::domain::finish_plans::arguments::joins::types::OrderedMatchArguments;
 /// use ryo_values::domain::descriptions::types::ColumnName;
 ///
 /// let ordinal = || ColumnName("ordinal".into());

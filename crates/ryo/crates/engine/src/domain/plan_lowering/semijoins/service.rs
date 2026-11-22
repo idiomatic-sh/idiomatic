@@ -1,7 +1,7 @@
 //! The `semijoins` service.
 
-use crate::domain::finish_plans::arguments::types::StepNumber;
-use crate::domain::finish_plans::types::{
+use ryo_values::domain::finish_plans::arguments::types::StepNumber;
+use ryo_values::domain::finish_plans::types::{
     FinishPlan, FinishStep, ProbeMark, RowCondition, SelectStep, SelectedColumns, SourceOrdinal,
 };
 use crate::domain::plan_lowering::readers::service::{

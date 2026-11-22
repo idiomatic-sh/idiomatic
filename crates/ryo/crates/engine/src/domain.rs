@@ -10,7 +10,6 @@ pub mod findings;
 pub mod indexes;
 pub mod lowered;
 pub mod lowering;
-pub mod finish_plans;
 pub mod plan_lowering;
 pub mod memos;
 pub mod made_tables;

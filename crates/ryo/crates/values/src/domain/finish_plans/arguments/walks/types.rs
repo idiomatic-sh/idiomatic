@@ -1,16 +1,16 @@
 //! The types of the `walks` part: what the operators that walk a tree or an edge relation: `axis`, `closure`, `follow`, `ordered-dfs`, `subtree-class` are given. Plain data.
 
 use crate::domain::finish_plans::arguments::types::StepNumber;
-use ryo_values::domain::descriptions::types::ColumnName;
-use ryo_values::domain::plan_parts::types::Direction;
+use crate::domain::descriptions::types::ColumnName;
+use crate::domain::plan_parts::types::Direction;
 
 /// `axis`: each start with the relatives the tree relation's direction reaches, kept to those of the domain.
 ///
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::arguments::types::StepNumber;
-/// use ryo_engine::domain::finish_plans::arguments::walks::types::AxisArguments;
+/// use ryo_values::domain::finish_plans::arguments::types::StepNumber;
+/// use ryo_values::domain::finish_plans::arguments::walks::types::AxisArguments;
 /// use ryo_values::domain::plan_parts::types::Direction;
 ///
 /// let axis = AxisArguments { from: StepNumber(2), relation: StepNumber(0), direction: Direction::Ancestor, domain: StepNumber(1) };
@@ -34,8 +34,8 @@ pub struct AxisArguments {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::arguments::types::StepNumber;
-/// use ryo_engine::domain::finish_plans::arguments::walks::types::{EdgeArguments, EdgeKeys};
+/// use ryo_values::domain::finish_plans::arguments::types::StepNumber;
+/// use ryo_values::domain::finish_plans::arguments::walks::types::{EdgeArguments, EdgeKeys};
 /// use ryo_values::domain::descriptions::types::ColumnName;
 ///
 /// let name = |text: &str| ColumnName(text.into());
@@ -59,7 +59,7 @@ pub struct EdgeArguments {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::arguments::walks::types::EdgeKeys;
+/// use ryo_values::domain::finish_plans::arguments::walks::types::EdgeKeys;
 ///
 /// assert_ne!(EdgeKeys::Written(Vec::new()), EdgeKeys::Unwritten);
 /// ```
@@ -76,8 +76,8 @@ pub enum EdgeKeys {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::arguments::types::StepNumber;
-/// use ryo_engine::domain::finish_plans::arguments::walks::types::OrderedDfsArguments;
+/// use ryo_values::domain::finish_plans::arguments::types::StepNumber;
+/// use ryo_values::domain::finish_plans::arguments::walks::types::OrderedDfsArguments;
 /// use ryo_values::domain::descriptions::types::ColumnName;
 ///
 /// let name = |text: &str| ColumnName(text.into());
@@ -116,8 +116,8 @@ pub struct OrderedDfsArguments {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::arguments::types::StepNumber;
-/// use ryo_engine::domain::finish_plans::arguments::walks::types::SubtreeClassArguments;
+/// use ryo_values::domain::finish_plans::arguments::types::StepNumber;
+/// use ryo_values::domain::finish_plans::arguments::walks::types::SubtreeClassArguments;
 /// use ryo_values::domain::descriptions::types::ColumnName;
 ///
 /// let name = |text: &str| ColumnName(text.into());

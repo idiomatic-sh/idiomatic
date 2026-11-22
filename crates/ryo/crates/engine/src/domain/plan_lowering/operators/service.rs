@@ -1,22 +1,22 @@
 //! The `operators` service: a call's arguments as its operator's step.
 
-use crate::domain::finish_plans::arguments::groups::types::{
+use ryo_values::domain::finish_plans::arguments::groups::types::{
     CountedRows, GroupCountArguments, GroupOrdinalArguments, ProjectArguments,
 };
-use crate::domain::finish_plans::arguments::joins::types::{
+use ryo_values::domain::finish_plans::arguments::joins::types::{
     AntijoinArguments, AsOfArguments, OrderedMatchArguments, UnionArguments,
 };
-use crate::domain::finish_plans::arguments::literals::types::{
+use ryo_values::domain::finish_plans::arguments::literals::types::{
     ExtendArguments, RowsArguments, UnlistedArgument, UnlistedArguments,
 };
-use crate::domain::finish_plans::arguments::texts::types::{
+use ryo_values::domain::finish_plans::arguments::texts::types::{
     CaptureArguments, FitsRenderedArguments, OptionalColumn, PrefixesArguments, RenderSyntaxArguments,
     ReplaceArguments, SourceMatchesArguments, SpanBetweenArguments, SpanBoundsArguments,
 };
-use crate::domain::finish_plans::arguments::walks::types::{
+use ryo_values::domain::finish_plans::arguments::walks::types::{
     AxisArguments, OrderedDfsArguments, SubtreeClassArguments,
 };
-use crate::domain::finish_plans::constants::{
+use ryo_values::domain::finish_plans::constants::{
     ARG_BASE_LINE, ARG_CAPTURE, ARG_CAPTURE_LINE_OUTPUT, ARG_CAPTURE_OUTPUT, ARG_CAPTURE_TEXT_OUTPUT, ARG_CAPTURES,
     ARG_COLUMNS, ARG_CONTEXT, ARG_COUNT, ARG_DESTINATION, ARG_DISTINCT, ARG_DOMAIN, ARG_EDGE, ARG_EDGES, ARG_END,
     ARG_END_OUTPUT, ARG_FROM, ARG_KEYS, ARG_LABEL, ARG_LABELS, ARG_LEAF_LABEL, ARG_LEAVES, ARG_LEFT, ARG_LEFT_ON,
@@ -27,7 +27,7 @@ use crate::domain::finish_plans::constants::{
     OP_GROUP_MIN, OP_GROUP_ORDINAL, OP_ORDERED_DFS, OP_ORDERED_MATCH, OP_PREFIXES, OP_PROJECT, OP_RENDER_SYNTAX,
     OP_REPLACE, OP_ROWS, OP_SOURCE_MATCHES, OP_SPAN_BETWEEN, OP_SPAN_BOUNDS, OP_SUBTREE_CLASS, OP_UNION,
 };
-use crate::domain::finish_plans::types::{AxisStep, ExistsMark, FinishStep};
+use ryo_values::domain::finish_plans::types::{AxisStep, ExistsMark, FinishStep};
 use crate::domain::plan_lowering::errors::PlanLoweringError;
 use crate::domain::plan_lowering::given::service::{
     bound, column, columns, constant_rows, direction, edges, extended_values, group_order, optional_column,

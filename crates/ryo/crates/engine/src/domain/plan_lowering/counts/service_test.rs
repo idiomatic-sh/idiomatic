@@ -3,7 +3,7 @@
 
 use super::service::counted;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::finish_plans::types::FinishPlan;
+use ryo_values::domain::finish_plans::types::FinishPlan;
 use crate::domain::plan_lowering::fixtures::{select_marks, small_plan};
 use crate::domain::plan_lowering::semijoins::service::semijoined;
 

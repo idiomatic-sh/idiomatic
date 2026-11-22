@@ -5,7 +5,7 @@
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::types::FinishPlan;
+/// use ryo_values::domain::finish_plans::types::FinishPlan;
 /// use ryo_engine::outbound::plan_codec::factory::json;
 /// use ryo_engine::outbound::plan_codec::interface::PlanCodecPort;
 ///

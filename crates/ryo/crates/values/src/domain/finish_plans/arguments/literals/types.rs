@@ -2,16 +2,16 @@
 
 use crate::domain::finish_plans::arguments::types::StepNumber;
 use crate::domain::finish_plans::expressions::types::PlanConstant;
-use ryo_values::domain::descriptions::types::{ColumnName, OperatorName};
-use ryo_values::domain::plan_parts::types::LiteralText;
+use crate::domain::descriptions::types::{ColumnName, OperatorName};
+use crate::domain::plan_parts::types::LiteralText;
 
 /// `extend`: every input row with constant columns added.
 ///
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::arguments::types::StepNumber;
-/// use ryo_engine::domain::finish_plans::arguments::literals::types::ExtendArguments;
+/// use ryo_values::domain::finish_plans::arguments::types::StepNumber;
+/// use ryo_values::domain::finish_plans::arguments::literals::types::ExtendArguments;
 ///
 /// assert!(ExtendArguments { from: StepNumber(0), values: Vec::new() }.values.is_empty());
 /// ```
@@ -28,8 +28,8 @@ pub struct ExtendArguments {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::arguments::literals::types::ExtendedValue;
-/// use ryo_engine::domain::finish_plans::expressions::types::PlanConstant;
+/// use ryo_values::domain::finish_plans::arguments::literals::types::ExtendedValue;
+/// use ryo_values::domain::finish_plans::expressions::types::PlanConstant;
 /// use ryo_values::domain::descriptions::types::ColumnName;
 ///
 /// let code = ExtendedValue { name: ColumnName("code".into()), value: PlanConstant::Absent };
@@ -48,7 +48,7 @@ pub struct ExtendedValue {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::arguments::literals::types::RowsArguments;
+/// use ryo_values::domain::finish_plans::arguments::literals::types::RowsArguments;
 ///
 /// assert!(RowsArguments { rows: Vec::new(), columns: Vec::new() }.rows.is_empty());
 /// ```
@@ -65,7 +65,7 @@ pub struct RowsArguments {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::arguments::literals::types::ConstantRow;
+/// use ryo_values::domain::finish_plans::arguments::literals::types::ConstantRow;
 ///
 /// assert!(ConstantRow { cells: Vec::new() }.cells.is_empty());
 /// ```
@@ -80,7 +80,7 @@ pub struct ConstantRow {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::arguments::literals::types::UnlistedArguments;
+/// use ryo_values::domain::finish_plans::arguments::literals::types::UnlistedArguments;
 /// use ryo_values::domain::descriptions::types::OperatorName;
 ///
 /// let unlisted = UnlistedArguments { operator: OperatorName("undefined".into()), arguments: Vec::new() };
@@ -99,8 +99,8 @@ pub struct UnlistedArguments {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::arguments::types::StepNumber;
-/// use ryo_engine::domain::finish_plans::arguments::literals::types::{ArgumentValue, StepArgumentName, UnlistedArgument};
+/// use ryo_values::domain::finish_plans::arguments::types::StepNumber;
+/// use ryo_values::domain::finish_plans::arguments::literals::types::{ArgumentValue, StepArgumentName, UnlistedArgument};
 ///
 /// let from = UnlistedArgument { name: StepArgumentName("from".into()), value: ArgumentValue::Step(StepNumber(0)) };
 /// assert_eq!(from.value, ArgumentValue::Step(StepNumber(0)));
@@ -118,7 +118,7 @@ pub struct UnlistedArgument {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::arguments::literals::types::StepArgumentName;
+/// use ryo_values::domain::finish_plans::arguments::literals::types::StepArgumentName;
 ///
 /// assert_eq!(&*StepArgumentName("left-on".into()).0, "left-on");
 /// ```
@@ -130,8 +130,8 @@ pub struct StepArgumentName(pub Box<str>);
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::arguments::literals::types::ArgumentValue;
-/// use ryo_engine::domain::finish_plans::expressions::types::PlanConstant;
+/// use ryo_values::domain::finish_plans::arguments::literals::types::ArgumentValue;
+/// use ryo_values::domain::finish_plans::expressions::types::PlanConstant;
 ///
 /// assert!(matches!(ArgumentValue::Constant(PlanConstant::Absent), ArgumentValue::Constant(_)));
 /// ```

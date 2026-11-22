@@ -1,7 +1,7 @@
 //! The `axes` service.
 
-use crate::domain::finish_plans::arguments::types::StepNumber;
-use crate::domain::finish_plans::types::{ExistsMark, FinishPlan, FinishStep};
+use ryo_values::domain::finish_plans::arguments::types::StepNumber;
+use ryo_values::domain::finish_plans::types::{ExistsMark, FinishPlan, FinishStep};
 use crate::domain::plan_lowering::readers::service::{blind, plan_readers, used};
 use crate::domain::plan_lowering::readers::types::Worked;
 use ryo_values::domain::plan_parts::types::Direction;

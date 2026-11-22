@@ -5,7 +5,7 @@ use super::counts::service::counted;
 use super::expansion::service::expanded;
 use super::semijoins::service::semijoined;
 use super::types::{PackPrograms, PlanningStage};
-use crate::domain::finish_plans::types::FinishPlan;
+use ryo_values::domain::finish_plans::types::FinishPlan;
 
 /// The pack's plan, through `stage`: its rules expanded, then each pass up to the stage in its order.
 ///
@@ -40,7 +40,7 @@ pub fn lowered(pack: &PackPrograms, stage: PlanningStage) -> FinishPlan {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::types::FinishPlan;
+/// use ryo_values::domain::finish_plans::types::FinishPlan;
 /// use ryo_engine::domain::plan_lowering::service::passed;
 /// use ryo_engine::domain::plan_lowering::types::PlanningStage;
 ///

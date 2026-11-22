@@ -4,7 +4,7 @@
 //! operator of the step set, and the marks the planner passes add.
 
 pub mod arguments;
-pub(crate) mod constants;
+pub mod constants;
 pub mod expressions;
 pub mod service;
 pub mod types;

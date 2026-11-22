@@ -5,16 +5,16 @@
 //! seen. That is a defect of the prototype's passes, kept here until both are fixed together.
 
 use super::types::{Emitted, PlanReaders, ReadAlias, Worked};
-use crate::domain::finish_plans::arguments::groups::types::CountedRows;
-use crate::domain::finish_plans::arguments::literals::types::ArgumentValue;
-use crate::domain::finish_plans::arguments::texts::types::OptionalColumn;
-use crate::domain::finish_plans::arguments::types::StepNumber;
-use crate::domain::finish_plans::constants::{
+use ryo_values::domain::finish_plans::arguments::groups::types::CountedRows;
+use ryo_values::domain::finish_plans::arguments::literals::types::ArgumentValue;
+use ryo_values::domain::finish_plans::arguments::texts::types::OptionalColumn;
+use ryo_values::domain::finish_plans::arguments::types::StepNumber;
+use ryo_values::domain::finish_plans::constants::{
     ARG_DOMAIN, ARG_EDGES, ARG_FROM, ARG_LABELS, ARG_LEAVES, ARG_LEFT, ARG_RELATION, ARG_RIGHT,
 };
-use crate::domain::finish_plans::expressions::types::{PlanConstant, PlanExpression, SourceAlias};
-use crate::domain::finish_plans::service::{direction_name, inputs, readers};
-use crate::domain::finish_plans::types::{FinishPlan, FinishStep, RuleEmit, SelectStep};
+use ryo_values::domain::finish_plans::expressions::types::{PlanConstant, PlanExpression, SourceAlias};
+use ryo_values::domain::finish_plans::service::{direction_name, inputs, readers};
+use ryo_values::domain::finish_plans::types::{FinishPlan, FinishStep, RuleEmit, SelectStep};
 use hashbrown::HashSet;
 
 /// The plan with who reads each step and which are emitted.
@@ -216,16 +216,16 @@ fn selects_column(
             && (aliases.contains(alias) || (*alias == ReadAlias::Unaliased && single))
     };
     let in_condition = match &select.condition {
-        crate::domain::finish_plans::types::RowCondition::Every => false,
-        crate::domain::finish_plans::types::RowCondition::Tested(condition) => {
+        ryo_values::domain::finish_plans::types::RowCondition::Every => false,
+        ryo_values::domain::finish_plans::types::RowCondition::Tested(condition) => {
             any_column(condition, &reads)
         }
     };
     match &select.columns {
-        crate::domain::finish_plans::types::SelectedColumns::All => {
+        ryo_values::domain::finish_plans::types::SelectedColumns::All => {
             in_condition || used(plan, memo, reader, column)
         }
-        crate::domain::finish_plans::types::SelectedColumns::Items(items) => {
+        ryo_values::domain::finish_plans::types::SelectedColumns::Items(items) => {
             in_condition || items.iter().any(|item| any_column(&item.value, &reads))
         }
     }

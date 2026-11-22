@@ -1,7 +1,7 @@
 //! What the `plan_codec` port asks of the outside: a plan's bytes, and the plan bytes hold.
 
 use super::errors::PlanCodecError;
-use crate::domain::finish_plans::types::FinishPlan;
+use ryo_values::domain::finish_plans::types::FinishPlan;
 
 /// What every `plan_codec` adapter implements.
 pub trait PlanCodecPort: Send + Sync {

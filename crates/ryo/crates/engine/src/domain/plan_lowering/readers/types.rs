@@ -1,7 +1,7 @@
 //! The types of the `readers` part: a plan with who reads each step, and the answers already worked out.
 
-use crate::domain::finish_plans::arguments::types::StepNumber;
-use crate::domain::finish_plans::types::FinishStep;
+use ryo_values::domain::finish_plans::arguments::types::StepNumber;
+use ryo_values::domain::finish_plans::types::FinishStep;
 
 /// A plan's steps, who reads each, and which are emitted.
 #[derive(Debug)]
@@ -43,5 +43,5 @@ pub(crate) enum ReadAlias {
     /// This alias.
     Named(Box<str>),
     /// A constant in an alias's place.
-    Other(crate::domain::finish_plans::expressions::types::PlanConstant),
+    Other(ryo_values::domain::finish_plans::expressions::types::PlanConstant),
 }

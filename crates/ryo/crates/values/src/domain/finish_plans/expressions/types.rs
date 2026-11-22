@@ -1,15 +1,15 @@
 //! The types of the `expressions` part: a select's tests and items, and the constants a step is given. Plain data.
 
-use ryo_values::domain::descriptions::types::ColumnName;
-use ryo_values::domain::plan_parts::types::{LiteralText, WholeNumber};
-use ryo_values::domain::query_tokens::types::AliasName;
+use crate::domain::descriptions::types::ColumnName;
+use crate::domain::plan_parts::types::{LiteralText, WholeNumber};
+use crate::domain::query_tokens::types::AliasName;
 
 /// A value a select computes or tests, over the columns of its sources.
 ///
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::expressions::types::{ColumnRead, PlanExpression, SourceAlias};
+/// use ryo_values::domain::finish_plans::expressions::types::{ColumnRead, PlanExpression, SourceAlias};
 /// use ryo_values::domain::descriptions::types::ColumnName;
 ///
 /// let read = PlanExpression::Column(ColumnRead { column: ColumnName("id".into()), alias: SourceAlias::Unwritten });
@@ -46,7 +46,7 @@ pub enum PlanExpression {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::expressions::types::{ColumnRead, SourceAlias};
+/// use ryo_values::domain::finish_plans::expressions::types::{ColumnRead, SourceAlias};
 /// use ryo_values::domain::descriptions::types::ColumnName;
 /// use ryo_values::domain::query_tokens::types::AliasName;
 ///
@@ -66,7 +66,7 @@ pub struct ColumnRead {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::expressions::types::SourceAlias;
+/// use ryo_values::domain::finish_plans::expressions::types::SourceAlias;
 /// use ryo_values::domain::query_tokens::types::AliasName;
 ///
 /// assert_ne!(SourceAlias::Written(AliasName("l".into())), SourceAlias::Unwritten);
@@ -84,7 +84,7 @@ pub enum SourceAlias {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::expressions::types::{FunctionCall, FunctionName};
+/// use ryo_values::domain::finish_plans::expressions::types::{FunctionCall, FunctionName};
 ///
 /// let call = FunctionCall { function: FunctionName("lower".into()), arguments: Vec::new() };
 /// assert!(call.arguments.is_empty());
@@ -102,7 +102,7 @@ pub struct FunctionCall {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::expressions::types::FunctionName;
+/// use ryo_values::domain::finish_plans::expressions::types::FunctionName;
 ///
 /// assert_eq!(&*FunctionName("matches".into()).0, "matches");
 /// ```
@@ -114,7 +114,7 @@ pub struct FunctionName(pub Box<str>);
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::expressions::types::{Comparator, PlanExpression, PlanNumber, RowComparison};
+/// use ryo_values::domain::finish_plans::expressions::types::{Comparator, PlanExpression, PlanNumber, RowComparison};
 /// use ryo_values::domain::plan_parts::types::WholeNumber;
 ///
 /// let one = || Box::new(PlanExpression::Number(PlanNumber::Whole(WholeNumber(1))));
@@ -136,7 +136,7 @@ pub struct RowComparison {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::expressions::types::Comparator;
+/// use ryo_values::domain::finish_plans::expressions::types::Comparator;
 ///
 /// assert_ne!(Comparator::Equal, Comparator::NotEqual);
 /// ```
@@ -161,7 +161,7 @@ pub enum Comparator {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::expressions::types::{ExpressionPair, PlanConstant, PlanExpression};
+/// use ryo_values::domain::finish_plans::expressions::types::{ExpressionPair, PlanConstant, PlanExpression};
 ///
 /// let absent = || Box::new(PlanExpression::Literal(PlanConstant::Absent));
 /// let pair = ExpressionPair { left: absent(), right: absent() };
@@ -180,7 +180,7 @@ pub struct ExpressionPair {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::expressions::types::PlanConstant;
+/// use ryo_values::domain::finish_plans::expressions::types::PlanConstant;
 /// use ryo_values::domain::plan_parts::types::LiteralText;
 ///
 /// let text = PlanConstant::Text(LiteralText("call".into()));
@@ -205,7 +205,7 @@ pub enum PlanConstant {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::expressions::types::{ConstantEntry, ConstantEntryKey, PlanConstant};
+/// use ryo_values::domain::finish_plans::expressions::types::{ConstantEntry, ConstantEntryKey, PlanConstant};
 ///
 /// let entry = ConstantEntry { key: ConstantEntryKey("scope".into()), value: PlanConstant::Absent };
 /// assert_eq!(&*entry.key.0, "scope");
@@ -223,7 +223,7 @@ pub struct ConstantEntry {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::expressions::types::ConstantEntryKey;
+/// use ryo_values::domain::finish_plans::expressions::types::ConstantEntryKey;
 ///
 /// assert_eq!(&*ConstantEntryKey("code".into()).0, "code");
 /// ```
@@ -235,7 +235,7 @@ pub struct ConstantEntryKey(pub Box<str>);
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::expressions::types::PlanNumber;
+/// use ryo_values::domain::finish_plans::expressions::types::PlanNumber;
 /// use ryo_values::domain::plan_parts::types::WholeNumber;
 ///
 /// assert_eq!(PlanNumber::Whole(WholeNumber(2)), PlanNumber::Whole(WholeNumber(2)));
@@ -253,7 +253,7 @@ pub enum PlanNumber {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::expressions::types::FractionNumber;
+/// use ryo_values::domain::finish_plans::expressions::types::FractionNumber;
 ///
 /// assert_eq!(FractionNumber(0.5_f64.to_bits()), FractionNumber(0.5_f64.to_bits()));
 /// ```

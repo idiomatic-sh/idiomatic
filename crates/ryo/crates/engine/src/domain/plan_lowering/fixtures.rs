@@ -7,14 +7,14 @@
 //! a distinct group-count (10); 11 an ancestor axis read through a select (12) that keeps `id`; 13 a descendant axis
 //! whose `related` a select (14) keeps; 15 a parent axis.
 
-use crate::domain::finish_plans::arguments::groups::types::{CountedRows, GroupCountArguments};
-use crate::domain::finish_plans::arguments::joins::types::UnionArguments;
-use crate::domain::finish_plans::arguments::types::StepNumber;
-use crate::domain::finish_plans::arguments::walks::types::AxisArguments;
-use crate::domain::finish_plans::expressions::types::{
+use ryo_values::domain::finish_plans::arguments::groups::types::{CountedRows, GroupCountArguments};
+use ryo_values::domain::finish_plans::arguments::joins::types::UnionArguments;
+use ryo_values::domain::finish_plans::arguments::types::StepNumber;
+use ryo_values::domain::finish_plans::arguments::walks::types::AxisArguments;
+use ryo_values::domain::finish_plans::expressions::types::{
     ColumnRead, Comparator, PlanConstant, PlanExpression, RowComparison, SourceAlias,
 };
-use crate::domain::finish_plans::types::{
+use ryo_values::domain::finish_plans::types::{
     AxisStep, CountMark, EmitSubject, ExistsMark, FinishPlan, FinishStep, PlanEmit, PlannedRule, ProbeMark,
     RowCondition, RuleEmit, SelectItem, SelectSource, SelectStep, SelectedColumns,
 };

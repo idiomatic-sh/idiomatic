@@ -1,6 +1,6 @@
 //! The types of the `given` part: the arguments of one call, taken one by one as its step is built.
 
-use crate::domain::finish_plans::arguments::literals::types::UnlistedArgument;
+use ryo_values::domain::finish_plans::arguments::literals::types::UnlistedArgument;
 
 /// The arguments of one call not yet taken into its step, in the order written; a name written twice is there once,
 /// at its first place, with its last value.

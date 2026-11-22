@@ -1,16 +1,16 @@
 //! The types of the `texts` part: what the operators over spans and text: `span-bounds`, `span-between`, `replace`, `source-matches`, `capture`, `fits-rendered`, `render-syntax`, `prefixes` are given. Plain data.
 
 use crate::domain::finish_plans::arguments::types::StepNumber;
-use ryo_values::domain::descriptions::types::ColumnName;
-use ryo_values::domain::plan_parts::types::{LiteralText, WholeNumber};
+use crate::domain::descriptions::types::ColumnName;
+use crate::domain::plan_parts::types::{LiteralText, WholeNumber};
 
 /// `span-bounds`: every input row with the start and the end of one of its spans.
 ///
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::arguments::types::StepNumber;
-/// use ryo_engine::domain::finish_plans::arguments::texts::types::SpanBoundsArguments;
+/// use ryo_values::domain::finish_plans::arguments::types::StepNumber;
+/// use ryo_values::domain::finish_plans::arguments::texts::types::SpanBoundsArguments;
 /// use ryo_values::domain::descriptions::types::ColumnName;
 ///
 /// let name = |text: &str| ColumnName(text.into());
@@ -34,8 +34,8 @@ pub struct SpanBoundsArguments {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::arguments::types::StepNumber;
-/// use ryo_engine::domain::finish_plans::arguments::texts::types::SpanBetweenArguments;
+/// use ryo_values::domain::finish_plans::arguments::types::StepNumber;
+/// use ryo_values::domain::finish_plans::arguments::texts::types::SpanBetweenArguments;
 /// use ryo_values::domain::descriptions::types::ColumnName;
 ///
 /// let name = |text: &str| ColumnName(text.into());
@@ -59,8 +59,8 @@ pub struct SpanBetweenArguments {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::arguments::types::StepNumber;
-/// use ryo_engine::domain::finish_plans::arguments::texts::types::ReplaceArguments;
+/// use ryo_values::domain::finish_plans::arguments::types::StepNumber;
+/// use ryo_values::domain::finish_plans::arguments::texts::types::ReplaceArguments;
 /// use ryo_values::domain::descriptions::types::ColumnName;
 /// use ryo_values::domain::plan_parts::types::LiteralText;
 ///
@@ -89,8 +89,8 @@ pub struct ReplaceArguments {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::arguments::types::StepNumber;
-/// use ryo_engine::domain::finish_plans::arguments::texts::types::{OptionalColumn, SourceMatchesArguments};
+/// use ryo_values::domain::finish_plans::arguments::types::StepNumber;
+/// use ryo_values::domain::finish_plans::arguments::texts::types::{OptionalColumn, SourceMatchesArguments};
 /// use ryo_values::domain::descriptions::types::ColumnName;
 /// use ryo_values::domain::plan_parts::types::LiteralText;
 ///
@@ -131,7 +131,7 @@ pub struct SourceMatchesArguments {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::arguments::texts::types::OptionalColumn;
+/// use ryo_values::domain::finish_plans::arguments::texts::types::OptionalColumn;
 /// use ryo_values::domain::descriptions::types::ColumnName;
 ///
 /// assert_ne!(OptionalColumn::Written(ColumnName("line".into())), OptionalColumn::Unwritten);
@@ -149,8 +149,8 @@ pub enum OptionalColumn {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::arguments::types::StepNumber;
-/// use ryo_engine::domain::finish_plans::arguments::texts::types::CaptureArguments;
+/// use ryo_values::domain::finish_plans::arguments::types::StepNumber;
+/// use ryo_values::domain::finish_plans::arguments::texts::types::CaptureArguments;
 /// use ryo_values::domain::descriptions::types::ColumnName;
 /// use ryo_values::domain::plan_parts::types::LiteralText;
 ///
@@ -176,8 +176,8 @@ pub struct CaptureArguments {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::arguments::types::StepNumber;
-/// use ryo_engine::domain::finish_plans::arguments::texts::types::FitsRenderedArguments;
+/// use ryo_values::domain::finish_plans::arguments::types::StepNumber;
+/// use ryo_values::domain::finish_plans::arguments::texts::types::FitsRenderedArguments;
 /// use ryo_values::domain::descriptions::types::ColumnName;
 /// use ryo_values::domain::plan_parts::types::WholeNumber;
 ///
@@ -208,8 +208,8 @@ pub struct FitsRenderedArguments {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::arguments::types::StepNumber;
-/// use ryo_engine::domain::finish_plans::arguments::texts::types::RenderSyntaxArguments;
+/// use ryo_values::domain::finish_plans::arguments::types::StepNumber;
+/// use ryo_values::domain::finish_plans::arguments::texts::types::RenderSyntaxArguments;
 /// use ryo_values::domain::descriptions::types::ColumnName;
 /// use ryo_values::domain::plan_parts::types::LiteralText;
 ///
@@ -237,8 +237,8 @@ pub struct RenderSyntaxArguments {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::arguments::types::StepNumber;
-/// use ryo_engine::domain::finish_plans::arguments::texts::types::PrefixesArguments;
+/// use ryo_values::domain::finish_plans::arguments::types::StepNumber;
+/// use ryo_values::domain::finish_plans::arguments::texts::types::PrefixesArguments;
 /// use ryo_values::domain::descriptions::types::ColumnName;
 /// use ryo_values::domain::plan_parts::types::LiteralText;
 ///

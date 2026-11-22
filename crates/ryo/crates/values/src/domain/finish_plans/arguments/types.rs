@@ -6,7 +6,7 @@
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::arguments::types::StepNumber;
+/// use ryo_values::domain::finish_plans::arguments::types::StepNumber;
 ///
 /// assert!(StepNumber(1) < StepNumber(2));
 /// ```

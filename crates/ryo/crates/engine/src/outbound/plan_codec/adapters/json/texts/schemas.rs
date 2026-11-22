@@ -5,11 +5,11 @@ use super::super::fields::schemas::{
     column_in, column_out, columns_in, columns_out, no_column, optional_in, optional_out, step_in, step_out, text_in,
     text_out, texts_in, texts_out, unwritten, whole_in, whole_out,
 };
-use crate::domain::finish_plans::arguments::texts::types::{
+use ryo_values::domain::finish_plans::arguments::texts::types::{
     CaptureArguments, FitsRenderedArguments, OptionalColumn, PrefixesArguments, RenderSyntaxArguments,
     ReplaceArguments, SourceMatchesArguments, SpanBetweenArguments, SpanBoundsArguments,
 };
-use crate::domain::finish_plans::arguments::types::StepNumber;
+use ryo_values::domain::finish_plans::arguments::types::StepNumber;
 use ryo_values::domain::descriptions::types::ColumnName;
 use ryo_values::domain::plan_parts::types::{LiteralText, WholeNumber};
 use serde::{Deserialize, Serialize};

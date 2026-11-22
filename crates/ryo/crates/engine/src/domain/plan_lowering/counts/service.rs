@@ -1,10 +1,10 @@
 //! The `counts` service.
 
-use crate::domain::finish_plans::arguments::groups::types::CountedRows;
-use crate::domain::finish_plans::types::{
+use ryo_values::domain::finish_plans::arguments::groups::types::CountedRows;
+use ryo_values::domain::finish_plans::types::{
     CountMark, FinishPlan, FinishStep, ProbeMark, RuleEmit, SourceOrdinal,
 };
-use crate::domain::finish_plans::service::readers;
+use ryo_values::domain::finish_plans::service::readers;
 use crate::domain::plan_lowering::semijoins::service::kept_source;
 use hashbrown::HashSet;
 

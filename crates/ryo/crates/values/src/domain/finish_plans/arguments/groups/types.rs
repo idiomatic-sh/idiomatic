@@ -1,15 +1,15 @@
 //! The types of the `groups` part: what the operators over the rows of a key: `group-count`, `group-min`, `group-max`, `group-ordinal`, `project` are given. Plain data.
 
 use crate::domain::finish_plans::arguments::types::StepNumber;
-use ryo_values::domain::descriptions::types::ColumnName;
+use crate::domain::descriptions::types::ColumnName;
 
 /// `group-count`: one row per key, with how many rows (or distinct values of a column) it has.
 ///
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::arguments::types::StepNumber;
-/// use ryo_engine::domain::finish_plans::arguments::groups::types::{CountedRows, GroupCountArguments};
+/// use ryo_values::domain::finish_plans::arguments::types::StepNumber;
+/// use ryo_values::domain::finish_plans::arguments::groups::types::{CountedRows, GroupCountArguments};
 /// use ryo_values::domain::descriptions::types::ColumnName;
 ///
 /// let count = GroupCountArguments { from: StepNumber(0), keys: Vec::new(), count: ColumnName("n".into()), distinct: CountedRows::Every };
@@ -32,7 +32,7 @@ pub struct GroupCountArguments {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::arguments::groups::types::CountedRows;
+/// use ryo_values::domain::finish_plans::arguments::groups::types::CountedRows;
 /// use ryo_values::domain::descriptions::types::ColumnName;
 ///
 /// assert_ne!(CountedRows::Distinct(ColumnName("id".into())), CountedRows::Every);
@@ -50,8 +50,8 @@ pub enum CountedRows {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::arguments::types::StepNumber;
-/// use ryo_engine::domain::finish_plans::arguments::groups::types::GroupOrderArguments;
+/// use ryo_values::domain::finish_plans::arguments::types::StepNumber;
+/// use ryo_values::domain::finish_plans::arguments::groups::types::GroupOrderArguments;
 /// use ryo_values::domain::descriptions::types::ColumnName;
 ///
 /// let least = GroupOrderArguments { from: StepNumber(0), keys: Vec::new(), order: ColumnName("line".into()) };
@@ -72,8 +72,8 @@ pub struct GroupOrderArguments {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::arguments::types::StepNumber;
-/// use ryo_engine::domain::finish_plans::arguments::groups::types::GroupOrdinalArguments;
+/// use ryo_values::domain::finish_plans::arguments::types::StepNumber;
+/// use ryo_values::domain::finish_plans::arguments::groups::types::GroupOrdinalArguments;
 /// use ryo_values::domain::descriptions::types::ColumnName;
 ///
 /// let name = |text: &str| ColumnName(text.into());
@@ -97,8 +97,8 @@ pub struct GroupOrdinalArguments {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::arguments::types::StepNumber;
-/// use ryo_engine::domain::finish_plans::arguments::groups::types::ProjectArguments;
+/// use ryo_values::domain::finish_plans::arguments::types::StepNumber;
+/// use ryo_values::domain::finish_plans::arguments::groups::types::ProjectArguments;
 ///
 /// assert!(ProjectArguments { from: StepNumber(0), columns: Vec::new() }.columns.is_empty());
 /// ```

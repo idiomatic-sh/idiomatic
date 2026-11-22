@@ -16,15 +16,15 @@ use super::arguments::walks::types::{
     AxisArguments, EdgeArguments, OrderedDfsArguments, SubtreeClassArguments,
 };
 use super::expressions::types::{PlanExpression, SourceAlias};
-use ryo_values::domain::descriptions::types::{ColumnName, RelationName};
-use ryo_values::domain::runs::types::RuleId;
+use crate::domain::descriptions::types::{ColumnName, RelationName};
+use crate::domain::runs::types::RuleId;
 
 /// A finish plan: the steps every rule shares, what each rule that lowered emits, and why each other rule did not.
 ///
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::types::FinishPlan;
+/// use ryo_values::domain::finish_plans::types::FinishPlan;
 ///
 /// let plan = FinishPlan { steps: Vec::new(), rules: Vec::new(), unplanned: Vec::new() };
 /// assert!(plan.steps.is_empty());
@@ -44,7 +44,7 @@ pub struct FinishPlan {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::types::{PlannedRule, RuleEmit};
+/// use ryo_values::domain::finish_plans::types::{PlannedRule, RuleEmit};
 /// use ryo_values::domain::runs::types::RuleId;
 ///
 /// let rule = PlannedRule { rule: RuleId("F401".into()), emit: RuleEmit::Unwritten };
@@ -63,8 +63,8 @@ pub struct PlannedRule {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::arguments::types::StepNumber;
-/// use ryo_engine::domain::finish_plans::types::{EmitSubject, PlanEmit, RuleEmit};
+/// use ryo_values::domain::finish_plans::arguments::types::StepNumber;
+/// use ryo_values::domain::finish_plans::types::{EmitSubject, PlanEmit, RuleEmit};
 ///
 /// let emit = RuleEmit::Written(PlanEmit { step: StepNumber(4), subject: EmitSubject("file".into()), key: Vec::new() });
 /// assert_ne!(emit, RuleEmit::Unwritten);
@@ -82,8 +82,8 @@ pub enum RuleEmit {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::arguments::types::StepNumber;
-/// use ryo_engine::domain::finish_plans::types::{EmitSubject, PlanEmit};
+/// use ryo_values::domain::finish_plans::arguments::types::StepNumber;
+/// use ryo_values::domain::finish_plans::types::{EmitSubject, PlanEmit};
 /// use ryo_values::domain::descriptions::types::ColumnName;
 ///
 /// let emit = PlanEmit { step: StepNumber(4), subject: EmitSubject("file".into()), key: vec![ColumnName("span".into())] };
@@ -104,7 +104,7 @@ pub struct PlanEmit {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::types::EmitSubject;
+/// use ryo_values::domain::finish_plans::types::EmitSubject;
 ///
 /// assert_eq!(&*EmitSubject("file".into()).0, "file");
 /// ```
@@ -116,7 +116,7 @@ pub struct EmitSubject(pub Box<str>);
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::types::{UnplannedReason, UnplannedRule};
+/// use ryo_values::domain::finish_plans::types::{UnplannedReason, UnplannedRule};
 /// use ryo_values::domain::runs::types::RuleId;
 ///
 /// let rule = UnplannedRule { rule: RuleId("RUF100".into()), reason: UnplannedReason("unknown step x".into()) };
@@ -135,7 +135,7 @@ pub struct UnplannedRule {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::types::UnplannedReason;
+/// use ryo_values::domain::finish_plans::types::UnplannedReason;
 ///
 /// assert!(!UnplannedReason("unknown step x".into()).0.is_empty());
 /// ```
@@ -148,7 +148,7 @@ pub struct UnplannedReason(pub Box<str>);
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::types::FinishStep;
+/// use ryo_values::domain::finish_plans::types::FinishStep;
 /// use ryo_values::domain::descriptions::types::RelationName;
 ///
 /// let base = FinishStep::Base(RelationName("syntax-tree".into()));
@@ -217,7 +217,7 @@ pub enum FinishStep {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::types::{CountMark, ProbeMark, RowCondition, SelectStep, SelectedColumns};
+/// use ryo_values::domain::finish_plans::types::{CountMark, ProbeMark, RowCondition, SelectStep, SelectedColumns};
 ///
 /// let select = SelectStep {
 ///     sources: Vec::new(), columns: SelectedColumns::All, condition: RowCondition::Every,
@@ -244,9 +244,9 @@ pub struct SelectStep {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::arguments::types::StepNumber;
-/// use ryo_engine::domain::finish_plans::expressions::types::SourceAlias;
-/// use ryo_engine::domain::finish_plans::types::SelectSource;
+/// use ryo_values::domain::finish_plans::arguments::types::StepNumber;
+/// use ryo_values::domain::finish_plans::expressions::types::SourceAlias;
+/// use ryo_values::domain::finish_plans::types::SelectSource;
 ///
 /// let source = SelectSource { step: StepNumber(0), alias: SourceAlias::Unwritten };
 /// assert_eq!(source.step, StepNumber(0));
@@ -264,7 +264,7 @@ pub struct SelectSource {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::types::SelectedColumns;
+/// use ryo_values::domain::finish_plans::types::SelectedColumns;
 ///
 /// assert_ne!(SelectedColumns::Items(Vec::new()), SelectedColumns::All);
 /// ```
@@ -281,8 +281,8 @@ pub enum SelectedColumns {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::expressions::types::{PlanConstant, PlanExpression};
-/// use ryo_engine::domain::finish_plans::types::SelectItem;
+/// use ryo_values::domain::finish_plans::expressions::types::{PlanConstant, PlanExpression};
+/// use ryo_values::domain::finish_plans::types::SelectItem;
 /// use ryo_values::domain::descriptions::types::ColumnName;
 ///
 /// let item = SelectItem { name: ColumnName("id".into()), value: PlanExpression::Literal(PlanConstant::Absent) };
@@ -301,8 +301,8 @@ pub struct SelectItem {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::expressions::types::{PlanConstant, PlanExpression};
-/// use ryo_engine::domain::finish_plans::types::RowCondition;
+/// use ryo_values::domain::finish_plans::expressions::types::{PlanConstant, PlanExpression};
+/// use ryo_values::domain::finish_plans::types::RowCondition;
 ///
 /// assert_ne!(RowCondition::Tested(PlanExpression::Literal(PlanConstant::Absent)), RowCondition::Every);
 /// ```
@@ -319,7 +319,7 @@ pub enum RowCondition {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::types::{ProbeMark, SourceOrdinal};
+/// use ryo_values::domain::finish_plans::types::{ProbeMark, SourceOrdinal};
 ///
 /// assert_ne!(ProbeMark::Probed(SourceOrdinal(1)), ProbeMark::Unmarked);
 /// ```
@@ -336,7 +336,7 @@ pub enum ProbeMark {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::types::SourceOrdinal;
+/// use ryo_values::domain::finish_plans::types::SourceOrdinal;
 ///
 /// assert_eq!(SourceOrdinal(1).0, 1);
 /// ```
@@ -348,7 +348,7 @@ pub struct SourceOrdinal(pub usize);
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::types::CountMark;
+/// use ryo_values::domain::finish_plans::types::CountMark;
 ///
 /// assert_ne!(CountMark::Counted, CountMark::Unmarked);
 /// ```
@@ -365,9 +365,9 @@ pub enum CountMark {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::arguments::types::StepNumber;
-/// use ryo_engine::domain::finish_plans::arguments::walks::types::AxisArguments;
-/// use ryo_engine::domain::finish_plans::types::{AxisStep, ExistsMark};
+/// use ryo_values::domain::finish_plans::arguments::types::StepNumber;
+/// use ryo_values::domain::finish_plans::arguments::walks::types::AxisArguments;
+/// use ryo_values::domain::finish_plans::types::{AxisStep, ExistsMark};
 /// use ryo_values::domain::plan_parts::types::Direction;
 ///
 /// let arguments = AxisArguments { from: StepNumber(2), relation: StepNumber(0), direction: Direction::Ancestor, domain: StepNumber(1) };
@@ -387,7 +387,7 @@ pub struct AxisStep {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::types::ExistsMark;
+/// use ryo_values::domain::finish_plans::types::ExistsMark;
 ///
 /// assert_ne!(ExistsMark::Marked, ExistsMark::Unmarked);
 /// ```

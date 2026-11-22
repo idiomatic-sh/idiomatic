@@ -1,8 +1,8 @@
 //! The types of the `expansion` pass: the plan being made and what a program in lowering can name.
 
-use crate::domain::finish_plans::arguments::types::StepNumber;
-use crate::domain::finish_plans::expressions::types::PlanConstant;
-use crate::domain::finish_plans::types::FinishStep;
+use ryo_values::domain::finish_plans::arguments::types::StepNumber;
+use ryo_values::domain::finish_plans::expressions::types::PlanConstant;
+use ryo_values::domain::finish_plans::types::FinishStep;
 use crate::domain::plan_lowering::filters::types::Parameters;
 use hashbrown::HashMap;
 use ryo_values::domain::program::types::FragmentProgram;

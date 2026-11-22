@@ -3,12 +3,12 @@
 
 use super::super::expressions::schemas::ConstantSchema;
 use super::super::ordered::schemas::OrderedMap;
-use crate::domain::finish_plans::arguments::groups::types::CountedRows;
-use crate::domain::finish_plans::arguments::joins::types::{AsOfBound, OutputColumn};
-use crate::domain::finish_plans::arguments::literals::types::{ConstantRow, ExtendedValue};
-use crate::domain::finish_plans::arguments::texts::types::OptionalColumn;
-use crate::domain::finish_plans::arguments::types::StepNumber;
-use crate::domain::finish_plans::arguments::walks::types::EdgeKeys;
+use ryo_values::domain::finish_plans::arguments::groups::types::CountedRows;
+use ryo_values::domain::finish_plans::arguments::joins::types::{AsOfBound, OutputColumn};
+use ryo_values::domain::finish_plans::arguments::literals::types::{ConstantRow, ExtendedValue};
+use ryo_values::domain::finish_plans::arguments::texts::types::OptionalColumn;
+use ryo_values::domain::finish_plans::arguments::types::StepNumber;
+use ryo_values::domain::finish_plans::arguments::walks::types::EdgeKeys;
 use ryo_values::domain::descriptions::types::ColumnName;
 use ryo_values::domain::plan_parts::types::{Direction, LiteralText, Side, WholeNumber};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};

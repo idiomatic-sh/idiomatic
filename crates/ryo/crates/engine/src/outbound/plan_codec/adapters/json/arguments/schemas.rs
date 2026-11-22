@@ -6,19 +6,19 @@ use super::super::fields::schemas::{
     direction_out, distinct_in, distinct_out, every_row, keys_in, keys_out, no_keys, output_in,
     output_out, rows_in, rows_out, step_in, step_out, unkeyed, values_in, values_out,
 };
-use crate::domain::finish_plans::arguments::groups::types::{
+use ryo_values::domain::finish_plans::arguments::groups::types::{
     CountedRows, GroupCountArguments, GroupOrderArguments, GroupOrdinalArguments,
     ProjectArguments,
 };
-use crate::domain::finish_plans::arguments::joins::types::{
+use ryo_values::domain::finish_plans::arguments::joins::types::{
     AntijoinArguments, AsOfArguments, AsOfBound, OrderedMatchArguments, OutputColumn,
     UnionArguments,
 };
-use crate::domain::finish_plans::arguments::literals::types::{
+use ryo_values::domain::finish_plans::arguments::literals::types::{
     ConstantRow, ExtendArguments, ExtendedValue, RowsArguments,
 };
-use crate::domain::finish_plans::arguments::types::StepNumber;
-use crate::domain::finish_plans::arguments::walks::types::{
+use ryo_values::domain::finish_plans::arguments::types::StepNumber;
+use ryo_values::domain::finish_plans::arguments::walks::types::{
     AxisArguments, EdgeArguments, EdgeKeys, OrderedDfsArguments, SubtreeClassArguments,
 };
 use ryo_values::domain::descriptions::types::ColumnName;

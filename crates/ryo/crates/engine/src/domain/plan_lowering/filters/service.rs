@@ -5,11 +5,11 @@ use super::constants::{
     NATURAL_LT, NUMERIC_GTE, PASCAL, SNAKE, STARTS_WITH, TRUTH_WORDS,
 };
 use super::types::Parameters;
-use crate::domain::finish_plans::expressions::types::{
+use ryo_values::domain::finish_plans::expressions::types::{
     ColumnRead, Comparator, ConstantEntry, ConstantEntryKey, ExpressionPair, FunctionCall,
     FunctionName, PlanConstant, PlanExpression, PlanNumber, RowComparison, SourceAlias,
 };
-use crate::domain::finish_plans::types::RowCondition;
+use ryo_values::domain::finish_plans::types::RowCondition;
 use crate::domain::plan_lowering::errors::PlanLoweringError;
 use crate::domain::plan_lowering::types::WrittenText;
 use ryo_values::domain::plan_parts::types::{LiteralText, WholeNumber};

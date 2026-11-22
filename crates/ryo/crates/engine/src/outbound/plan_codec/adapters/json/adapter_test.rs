@@ -3,7 +3,7 @@
 
 use super::adapter::PlanCodecJsonAdapter;
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::finish_plans::types::FinishPlan;
+use ryo_values::domain::finish_plans::types::FinishPlan;
 use crate::domain::plan_lowering::fixtures::small_plan;
 use crate::outbound::plan_codec::errors::PlanCodecError;
 use crate::outbound::plan_codec::interface::PlanCodecPort as _;

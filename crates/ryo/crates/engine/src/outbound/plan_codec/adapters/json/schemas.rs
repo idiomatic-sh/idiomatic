@@ -3,8 +3,8 @@
 
 use super::nodes::schemas::NodeSchema;
 use super::ordered::schemas::OrderedMap;
-use crate::domain::finish_plans::arguments::types::StepNumber;
-use crate::domain::finish_plans::types::{
+use ryo_values::domain::finish_plans::arguments::types::StepNumber;
+use ryo_values::domain::finish_plans::types::{
     EmitSubject, FinishPlan, FinishStep, PlanEmit, PlannedRule, RuleEmit, UnplannedReason,
     UnplannedRule,
 };

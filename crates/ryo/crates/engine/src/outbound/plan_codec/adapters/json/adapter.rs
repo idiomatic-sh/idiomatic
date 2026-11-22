@@ -2,7 +2,7 @@
 
 use super::formatter::PythonFormatter;
 use super::schemas::PlanSchema;
-use crate::domain::finish_plans::types::FinishPlan;
+use ryo_values::domain::finish_plans::types::FinishPlan;
 use crate::outbound::plan_codec::errors::PlanCodecError;
 use crate::outbound::plan_codec::interface::PlanCodecPort;
 use serde::Serialize;

@@ -8,17 +8,17 @@ use super::constants::{
     DIRECTION_PREVIOUS_SIBLING,
 };
 use super::types::FinishStep;
-use ryo_values::domain::plan_parts::types::Direction;
+use crate::domain::plan_parts::types::Direction;
 
 /// The steps a step reads, in the order its sources or relation arguments are written; a step read twice is named twice.
 ///
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::arguments::joins::types::UnionArguments;
-/// use ryo_engine::domain::finish_plans::arguments::types::StepNumber;
-/// use ryo_engine::domain::finish_plans::service::inputs;
-/// use ryo_engine::domain::finish_plans::types::FinishStep;
+/// use ryo_values::domain::finish_plans::arguments::joins::types::UnionArguments;
+/// use ryo_values::domain::finish_plans::arguments::types::StepNumber;
+/// use ryo_values::domain::finish_plans::service::inputs;
+/// use ryo_values::domain::finish_plans::types::FinishStep;
 ///
 /// let union = FinishStep::Union(UnionArguments { left: StepNumber(0), right: StepNumber(1) });
 /// assert_eq!(inputs(&union), vec![StepNumber(0), StepNumber(1)]);
@@ -71,10 +71,10 @@ pub fn inputs(step: &FinishStep) -> Vec<StepNumber> {
 /// # Examples
 ///
 /// ```
-/// use ryo_engine::domain::finish_plans::arguments::joins::types::UnionArguments;
-/// use ryo_engine::domain::finish_plans::arguments::types::StepNumber;
-/// use ryo_engine::domain::finish_plans::service::readers;
-/// use ryo_engine::domain::finish_plans::types::FinishStep;
+/// use ryo_values::domain::finish_plans::arguments::joins::types::UnionArguments;
+/// use ryo_values::domain::finish_plans::arguments::types::StepNumber;
+/// use ryo_values::domain::finish_plans::service::readers;
+/// use ryo_values::domain::finish_plans::types::FinishStep;
 /// use ryo_values::domain::descriptions::types::RelationName;
 ///
 /// let steps = vec![
@@ -100,7 +100,7 @@ pub fn readers(steps: &[FinishStep]) -> Vec<Vec<StepNumber>> {
 }
 
 /// How the plan format writes an axis direction.
-pub(crate) fn direction_name(direction: Direction) -> &'static str {
+pub fn direction_name(direction: Direction) -> &'static str {
     match direction {
         Direction::Parent => DIRECTION_PARENT,
         Direction::Child => DIRECTION_CHILD,
