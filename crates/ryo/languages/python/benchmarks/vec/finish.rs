@@ -172,7 +172,7 @@ impl Run {
         if let Some(r) = self.rels.get(name) {
             return Some(r.clone());
         }
-        if name == REGION_REL || name == RESOLUTION_REL || name == FINAL_REL || name == TYPE_EXPRESSION_REL {
+        if name == REGION_REL || name == RESOLUTION_REL || name == FINAL_REL || name == TYPE_EXPRESSION_REL || name == ANNOTATION_EVALUATION_REL {
             // 6f probe: the provider's per-node evaluation region (`ColumnFile::evaluation_region`); not a catalog relation,
             // so the placeholder relation is never filled (`Provider::fill` answers it by name). redo-binding: the same for
             // the provider's read resolution (`RESOLUTION_REL`).
@@ -181,6 +181,7 @@ impl Run {
                 REGION_REL => &REGION_COLS,
                 RESOLUTION_REL => &RESOLUTION_COLS,
                 TYPE_EXPRESSION_REL => &TYPE_EXPRESSION_COLS,
+                ANNOTATION_EVALUATION_REL => &ANNOTATION_EVALUATION_COLS,
                 _ => &FINAL_COLS,
             };
             let names: Names = Rc::new(cols.iter().map(|c| c.0.to_owned()).collect());
@@ -215,6 +216,11 @@ pub(super) const FINAL_COLS: [(&str, Ty); 6] =
 /// (`skipped`); no row: a value expression (`type_expression.rs`).
 pub(super) const TYPE_EXPRESSION_REL: &str = "type-expression";
 pub(super) const TYPE_EXPRESSION_COLS: [(&str, Ty); 3] = [("id", Ty::Node), ("kind", Ty::Sym), ("file", Ty::File)];
+
+/// redo-binding pass 4: every element inside an annotation, when Python evaluates it (`annotation_evaluation.rs`).
+pub(super) const ANNOTATION_EVALUATION_REL: &str = "annotation-evaluation";
+pub(super) const ANNOTATION_EVALUATION_COLS: [(&str, Ty); 5] =
+    [("id", Ty::Node), ("root", Ty::Node), ("evaluation", Ty::Sym), ("mode", Ty::Sym), ("file", Ty::File)];
 
 pub(super) const RESOLUTION_REL: &str = "read-resolution";
 pub(super) const RESOLUTION_COLS: [(&str, Ty); 9] = [

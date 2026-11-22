@@ -77,7 +77,7 @@ fn col(t: &finish::Table, n: &str) -> Result<usize, String> {
 
 /// The fact's rows: (element, `type` | `skipped`).
 pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -> Result<Vec<(u32, bool)>, String> {
-    let n = node_table::element_count(table).0 as usize;
+    let n = node_table::element_count(table).0;
     let sym = |run: &mut finish::Run, t: &[u8]| run.sym(t);
     let k_call = sym(run, b"call");
     let k_keyword = sym(run, b"keyword");
