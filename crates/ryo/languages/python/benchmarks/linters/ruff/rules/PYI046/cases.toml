@@ -69,3 +69,28 @@ name = "class-scope-protocol-in-runtime-module"
 comparison = "full"
 files = { "case.py" = "from typing import Protocol\nclass Outer:\n    class _Private(Protocol): ...\n" }
 expected = []
+
+[[cases]]
+name = "subscripted_protocol_unused"
+files = { "case.py" = "from typing import Protocol, TypeVar\n_T = TypeVar(\"_T\")\nclass _Baz(Protocol[_T]):\n    x: _T\n" }
+expected = [{ file = "case.py", start = 62, end = 66 }]
+
+[[cases]]
+name = "subscripted_protocol_unused_stub"
+files = { "case.pyi" = "from typing import Protocol, TypeVar\n_T = TypeVar(\"_T\")\nclass _Baz(Protocol[_T]):\n    x: _T\n" }
+expected = [{ file = "case.pyi", start = 62, end = 66 }]
+
+[[cases]]
+name = "double_underscore_subscripted_protocol_unused"
+files = { "case.py" = "from typing import Protocol, TypeVar\nT_co = TypeVar(\"T_co\", covariant=True)\nclass __SupportsInt(Protocol[T_co]):\n    def __int__(self) -> int: pass\n" }
+expected = [{ file = "case.py", start = 82, end = 95 }]
+
+[[cases]]
+name = "multiline_subscripted_protocol_unused"
+files = { "case.py" = "from typing import Protocol, TypeVar\n_T = TypeVar(\"_T\")\nclass _chunked(\n    Protocol[_T]\n):\n    x: _T\n" }
+expected = [{ file = "case.py", start = 62, end = 70 }]
+
+[[cases]]
+name = "subscripted_generic_not_protocol"
+files = { "case.py" = "from typing import Generic, TypeVar\n_T = TypeVar(\"_T\")\nclass _Baz(Generic[_T]):\n    x: _T\n" }
+expected = []
