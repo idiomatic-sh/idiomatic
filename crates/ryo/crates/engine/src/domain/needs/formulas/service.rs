@@ -450,7 +450,31 @@ fn all_of(masks: &mut NeedMasks, words: &[MustWord], mut others: Vec<u32>) -> u3
 
 /// The node of an All (`every`) or an Any of compiled parts: the parts that are free terms joined into one node of bit
 /// words, the others ordered by what asking them may cost.
-fn joined(masks: &mut NeedMasks, mut parts: Vec<u32>, every: bool) -> u32 {
+fn joined(masks: &mut NeedMasks, parts: Vec<u32>, every: bool) -> u32 {
+    // An All of Alls is one All, an Any of Anys one Any: their parts are ordered together, so a dear part of one is
+    // not asked before a cheaper part of another.
+    let mut flat: Vec<u32> = Vec::with_capacity(parts.len());
+    for part in parts {
+        match masks.formulas.nodes.get(usize::try_from(part).unwrap_or(usize::MAX)).copied() {
+            Some(FormulaNode::All(inner)) if every => flat.extend_from_slice(
+                masks
+                    .formulas
+                    .parts
+                    .get(inner.start.0..inner.start.0.saturating_add(inner.count.0))
+                    .unwrap_or_default(),
+            ),
+            Some(FormulaNode::Any(inner)) if !every => flat.extend_from_slice(
+                masks
+                    .formulas
+                    .parts
+                    .get(inner.start.0..inner.start.0.saturating_add(inner.count.0))
+                    .unwrap_or_default(),
+            ),
+            Some(_) | None => flat.push(part),
+        }
+    }
+    flat.dedup();
+    let mut parts = flat;
     if parts.len() == 1
         && let Some(only) = parts.first()
     {
