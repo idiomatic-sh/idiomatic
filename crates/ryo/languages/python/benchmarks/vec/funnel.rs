@@ -190,6 +190,9 @@ pub(super) struct Plan {
 
 pub(super) struct FRule {
     pub(super) name: String,
+    /// Its plans are of the node class: its rows are found from tree survivors (else the second half runs it wherever
+    /// the skip kept it).
+    pub(super) node: bool,
     pub(super) plans: Vec<Plan>,
     /// One CNF a branch of the rule: the rule can have a row only where some branch's CNF holds (empty list: unknown).
     pub(super) cnfs: Vec<Vec<Vec<u16>>>,
@@ -366,7 +369,7 @@ pub(super) fn load(path: &str, vocab: &Vocab, catalog: &mut super::facts::Catalo
         let slots = std::mem::take(&mut fc.slots);
         let valued = std::mem::take(&mut fc.valued);
         let keyed = std::mem::take(&mut fc.keyed);
-        rules.push(FRule { name: r["rule"].as_str().expect("rule").to_owned(), plans, cnfs, slots, valued, keyed });
+        rules.push(FRule { name: r["rule"].as_str().expect("rule").to_owned(), node: r["class"].as_str() == Some("node"), plans, cnfs, slots, valued, keyed });
     }
     missing.sort();
     missing.dedup();

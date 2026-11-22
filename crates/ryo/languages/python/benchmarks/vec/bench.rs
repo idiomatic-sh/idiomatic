@@ -465,8 +465,22 @@ fn main() {
     match args.get(1).copied() {
         Some("census") => census(&walk, &vocab, args[2], args[3], args[4]),
         Some("run") => run(&walk, &vocab, &args[2..]),
-        Some("funnel") => run_funnel(&walk, &vocab, &args[2..]),
-        Some("finish") => run_finish(&walk, &vocab, &args[2..]),
+        Some("funnel") => {
+            // with `--finish <plan> <root> [--findings-out F]`, the second half runs in this process on the first half's
+            // result in memory (whole.sh's `fileseed.py` seed, made by `Survivors::seed`)
+            let handed = run_funnel(&walk, &vocab, &args[2..]);
+            if let Some(at) = args.iter().position(|a| *a == "--finish") {
+                let mut finish_args = vec![args[at + 1], args[3], args[at + 2]];
+                if let Some(at) = args.iter().position(|a| *a == "--findings-out") {
+                    finish_args.extend(["--out", args[at + 1]]);
+                }
+                // the seed is all the second half reads of the first half's result: the rest is dropped first
+                let seed = handed.seed();
+                drop(handed);
+                run_finish(&walk, &vocab, &finish_args, Some(seed));
+            }
+        }
+        Some("finish") => run_finish(&walk, &vocab, &args[2..], None),
         Some("kfloor") => kernel_floor(&walk, args[2]),
         _ => eprintln!("usage: vec census <files> <literals> <out> | vec run <mode> <files> <anchors> [--batch N] [--repeat K] [--rules-out F]"),
     }
@@ -730,6 +744,8 @@ fn run(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
 mod funnel;
 #[path = "facts.rs"]
 mod facts;
+#[path = "survivors.rs"]
+mod survivors;
 #[path = "finish.rs"]
 mod finish;
 
@@ -958,14 +974,14 @@ fn kernel_floor(walk: &impl Walk, list: &str) {
 
 /// `vec finish <plan.json> <files> <root> [--rules A,B] [--seed rule-file.tsv] [--out findings.jsonl] [--stats stats.tsv]
 /// [--check-bases]`: each rule's whole lowered query run per file (`finish.rs`); findings as the reference writes them.
-fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
+fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str], seed_in: Option<std::collections::HashSet<(String, String)>>) {
     let plan = finish::load(args[0]);
     let list = files(args[1]);
     let root = format!("{}/", args[2].trim_end_matches('/'));
     let only: Option<std::collections::HashSet<String>> = flag(args, "--rules").map(|r| r.split(',').map(str::to_owned).collect());
     let emits: Vec<&(String, usize, String, Vec<String>)> = plan.emits.iter().filter(|e| only.as_ref().is_none_or(|o| o.contains(&e.0))).collect();
-    let seed: Option<std::collections::HashSet<(String, String)>> = flag(args, "--seed").map(|p| {
-        std::fs::read_to_string(p).expect("seed").lines().filter_map(|l| l.split_once('\t')).map(|(a, b)| (a.to_owned(), b.to_owned())).collect()
+    let seed: Option<std::collections::HashSet<(String, String)>> = seed_in.or_else(|| {
+        flag(args, "--seed").map(|p| std::fs::read_to_string(p).expect("seed").lines().filter_map(|l| l.split_once('\t')).map(|(a, b)| (a.to_owned(), b.to_owned())).collect())
     });
     let check = args.contains(&"--check-bases");
     // the survivor handoff: per (rule, file) the prefix's root nodes (`vec funnel ... --surv-out`); a seeded rule runs
@@ -1175,7 +1191,22 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
 
 /// `vec funnel <way> <files> <anchors> <plans> [--repeat K] [--rules-out F] [--hits-out F]`: ways `cands`, `structure`,
 /// `interp`, `spec`, `knock`.
-fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
+/// The first half's result as the second half takes it: the survivors in memory, the files and the rules by number.
+struct Handed {
+    survivors: survivors::Survivors,
+    list: Vec<String>,
+    names: Vec<String>,
+    node_class: Vec<bool>,
+}
+
+impl Handed {
+    /// The second half's seed by rule and file name.
+    fn seed(&self) -> std::collections::HashSet<(String, String)> {
+        self.survivors.seed(&self.node_class).into_iter().map(|(r, f)| (self.names[r as usize].clone(), self.list[f as usize].clone())).collect()
+    }
+}
+
+fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) -> Handed {
     let way = args[0];
     let list = files(args[1]);
     let rules = load_rules(args[2], vocab);
@@ -1254,7 +1285,6 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     let (mut missing_in_src, mut extra_in_src, mut present_total, mut distinct_total) = (0u64, 0u64, 0u64, 0u64);
     let (mut alive_kinds, mut alive_both, mut rule_files) = (0u64, 0u64, 0u64);
     let mut word_entry_bound = 0u64;
-    let mut alive_pairs: Vec<(usize, usize)> = Vec::new();
     let repeat: usize = flag(args, "--repeat").map_or(1, |b| b.parse().expect("repeat"));
     let by_name: HashMap<&str, usize> = rules.iter().enumerate().map(|(i, r)| (r.name.as_str(), i)).collect();
     let skip_of: Vec<Option<usize>> = frules.iter().map(|r| by_name.get(r.name.as_str()).copied()).collect();
@@ -1285,10 +1315,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     let mut surv = vec![0u64; units.len()];
     let mut unit_steps = vec![0u64; units.len()];
     let mut knock_steps = 0u64;
-    let mut hits: Vec<(usize, usize)> = Vec::new();
-    let surv_out = flag(args, "--surv-out");
-    let mut surv_lines = String::new();
-    let mut unit_nodes: Vec<u32> = Vec::new();
+    let mut sv = survivors::Survivors::default();
     let mut phases = Phases::default();
     let mut table = NodeTable::default();
     let mut scratch = Default::default();
@@ -1432,7 +1459,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                 alive_both += alive.iter().filter(|a| **a).count() as u64;
                 for (ri, a) in alive.iter().enumerate() {
                     if *a {
-                        alive_pairs.push((ri, file_no));
+                        sv.alive.push((ri as u32, file_no as u32));
                     }
                 }
                 phases.add("skip tests", thread_cpu() - c3);
@@ -1977,8 +2004,8 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                                 if marked[n] != stamp {
                                     marked[n] = stamp;
                                     kept += 1;
-                                    if surv_out.is_some() && first {
-                                        unit_nodes.push(n as u32);
+                                    if first {
+                                        sv.nodes.push(n as u32);
                                     }
                                 }
                             }
@@ -1995,14 +2022,8 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                         }
                     }
                 }
-                if surv_out.is_some() && first && !unit_nodes.is_empty() {
-                    use std::fmt::Write as _;
-                    let _ = write!(surv_lines, "{}\t{}\t", rule.name, list[file_no]);
-                    for (i, x) in unit_nodes.iter().enumerate() {
-                        let _ = write!(surv_lines, "{}{x}", if i == 0 { "" } else { " " });
-                    }
-                    surv_lines.push('\n');
-                    unit_nodes.clear();
+                if first {
+                    sv.close(unit.rule, file_no);
                 }
                 if first {
                     cands[ui] += buf.len() as u64;
@@ -2020,7 +2041,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                 }
                 for (ri, a) in any.iter().enumerate() {
                     if *a {
-                        hits.push((ri, file_no));
+                        sv.hits.push((ri as u32, file_no as u32));
                     }
                 }
             }
@@ -2084,7 +2105,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
         "candidates {} survivors {} steps {steps} knock-steps {knock_steps} (knock-out units: candidates {knock_c} survivors {knock_s}) rule-files-with-survivors {}",
         cands.iter().sum::<u64>(),
         surv.iter().sum::<u64>(),
-        hits.len()
+        sv.hits.len()
     );
     if let Some(path) = flag(args, "--rules-out") {
         let mut w = String::from("rule\tunits\tcandidates\tsurvivors\tsteps\n");
@@ -2097,23 +2118,19 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
         }
         std::fs::write(path, w).expect("rules out");
     }
+    // the dumps for comparing, after the timed part
+    let names: Vec<String> = frules.iter().map(|r| r.name.clone()).collect();
+    let name_refs: Vec<&str> = names.iter().map(String::as_str).collect();
     if let Some(path) = flag(args, "--alive-out") {
-        let mut w = String::new();
-        for (ri, f) in &alive_pairs {
-            w.push_str(&format!("{}\t{}\n", frules[*ri].name, list[*f]));
-        }
-        std::fs::write(path, w).expect("alive out");
+        std::fs::write(path, survivors::Survivors::pairs_text(&sv.alive, &name_refs, &list)).expect("alive out");
     }
-    if let Some(path) = &surv_out {
-        std::fs::write(path, &surv_lines).expect("survivors out");
+    if let Some(path) = flag(args, "--surv-out") {
+        std::fs::write(path, sv.surv_text(&name_refs, &list)).expect("survivors out");
     }
     if let Some(path) = flag(args, "--hits-out") {
-        let mut w = String::new();
-        for (ri, f) in &hits {
-            w.push_str(&format!("{}\t{}\n", frules[*ri].name, list[*f]));
-        }
-        std::fs::write(path, w).expect("hits out");
+        std::fs::write(path, survivors::Survivors::pairs_text(&sv.hits, &name_refs, &list)).expect("hits out");
     }
+    Handed { node_class: frules.iter().map(|r| r.node).collect(), survivors: sv, list, names }
 }
 
 #[cfg(not(feature = "vec-arrow"))]
