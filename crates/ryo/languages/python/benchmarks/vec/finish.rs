@@ -1592,22 +1592,36 @@ impl<'p> Exec<'p> {
         }
         if let Some(Res::Tab(t)) = &f.memo[node] {
             let t = t.clone();
+            self.memo.n[8] += 1;
+            self.memo.n[9] += keys.len() as u64;
+            if t.n == 0 {
+                return Ok(t);
+            }
             return Ok(Rc::new(subset(f, node, &t, col, keys)));
         }
         if let Some(v) = self.view(run, node)? {
+            self.memo.n[10] += 1;
+            self.memo.n[11] += keys.len() as u64;
             self.load_fact(f, run, p, v.base)?;
             if File::probes(v.base, v.map[col]) {
-                let mut rows = Vec::new();
+                // 10: the row buffer reused across asks
+                let mut rows = std::mem::take(&mut self.memo.vrows);
+                rows.clear();
                 for k in keys {
                     f.native_probe(run, v.base, v.map[col], *k, &mut rows);
                 }
                 rows.retain(|r| view_holds(f, run, &v, *r));
+                if rows.is_empty() {
+                    self.memo.vrows = rows;
+                    return self.empty_rc(run, node);
+                }
                 let mut out = Table::with(sc.names.clone(), sc.tys.clone());
                 for c in 0..v.map.len() {
                     out.cols[c].extend(rows.iter().map(|r| f.native_get(run, v.base, *r, v.map[c])));
                 }
                 out.n = rows.len();
                 self.stats.touched[node] += rows.len() as u64;
+                self.memo.vrows = rows;
                 return Ok(Rc::new(out));
             }
             self.reason = "view probed on a column it has no keyed read for";
@@ -4000,15 +4014,25 @@ fn get(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], si: usize, col: u
 fn subset(f: &mut File<'_>, node: usize, t: &Table, col: usize, keys: &[u64]) -> Table {
     let ix = table_index(f, node, t, &[col]);
     let mut out = Table::with(t.names.clone(), t.tys.clone());
-    let mut row = Vec::new();
-    for k in keys {
-        if let Some(rows) = ix.get(k) {
-            for r in rows {
-                t.row(*r as usize, &mut row);
-                out.push_row(&row);
+    // 10: the rows found first, then each column gathered (the same rows in the same order as row by row)
+    thread_local! {
+        static ROWS: RefCell<Vec<u32>> = const { RefCell::new(Vec::new()) };
+    }
+    ROWS.with(|b| {
+        let mut rs = b.borrow_mut();
+        rs.clear();
+        for k in keys {
+            if let Some(rows) = ix.get(k) {
+                rs.extend_from_slice(rows);
             }
         }
-    }
+        for (c, src) in t.cols.iter().enumerate() {
+            let mut v = std::mem::take(&mut out.cols[c]);
+            v.extend(rs.iter().map(|r| src[*r as usize]));
+            out.cols[c] = v;
+        }
+        out.n = rs.len();
+    });
     out
 }
 
