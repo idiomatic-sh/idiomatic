@@ -778,6 +778,19 @@ pub fn engine_statistics() -> ryo_language::domain::symbols::types::ByteSlice<'s
     }))
 }
 
+/// Whether a harness run says its load on stderr (what was accepted and refused, the statistics matched), from
+/// `RYO_ENGINE_LOAD_LINES`, read once: set to anything but nothing or `0`. A plain run says nothing there.
+///
+/// # Examples
+///
+/// ```
+/// let _said = ryo_operators::spike::engine_load_lines();
+/// ```
+pub fn engine_load_lines() -> bool {
+    static SAID: OnceLock<bool> = OnceLock::new();
+    *SAID.get_or_init(|| std::env::var_os("RYO_ENGINE_LOAD_LINES").is_some_and(|value| !value.is_empty() && value != "0"))
+}
+
 /// Whether a harness run measures, from `RYO_ENGINE_MEASURE`, read once: set to anything but nothing or `0`, the new
 /// engine's workers count what their scans do, and after the files the run says its counters and its work ledger on stderr.
 ///

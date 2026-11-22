@@ -19,7 +19,7 @@ use ryo_engine::domain::packs::types::{PackBytes, PackDigest};
 use ryo_engine::domain::statistics::types::MatchedStatistics;
 use ryo_engine::inbound::use_cases::load::types::LoadSource;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_operators::spike::{EngineMode, engine_loaded, engine_said, engine_unpacked};
+use ryo_operators::spike::{EngineMode, engine_load_lines, engine_loaded, engine_said, engine_unpacked};
 use ryo_relations::domain::relations::types::{Bytes, Count};
 use ryo_values::domain::descriptions::types::{KindVocabularies, KindVocabulary, LanguageName};
 use ryo_values::domain::stored_facts::types::Digest;
@@ -242,6 +242,9 @@ fn languages<'h>(
 
 /// Says a load by count, as the harness reports it: what was lowered and refused, or that the store's pack was read back.
 fn said(mode: EngineMode, load: &HarnessLoad, selected: Count) {
+    if !engine_load_lines() {
+        return;
+    }
     let ran = load.accepted.len();
     match load.from {
         LoadedFrom::Lowering(refused) => engine_loaded(
