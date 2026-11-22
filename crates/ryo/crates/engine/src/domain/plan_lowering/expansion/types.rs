@@ -1,6 +1,7 @@
 //! The types of the `expansion` pass: the plan being made and what a program in lowering can name.
 
 use crate::domain::finish_plans::arguments::types::StepNumber;
+use crate::domain::finish_plans::expressions::types::PlanConstant;
 use crate::domain::finish_plans::types::FinishStep;
 use crate::domain::plan_lowering::filters::types::Parameters;
 use hashbrown::HashMap;
@@ -13,10 +14,28 @@ use std::collections::BTreeMap;
 pub(crate) struct Expansion<'p> {
     /// The steps, in the order they were made.
     pub(crate) steps: Vec<FinishStep>,
-    /// Each step's number, by its identity: the step with every map's entries in key order.
-    pub(crate) numbers: HashMap<FinishStep, StepNumber>,
+    /// Each step's number, by the hash of its identity (the step with every map's entries in key order): the steps
+    /// are held once, in `steps`.
+    pub(crate) numbers: hashbrown::HashTable<StepNumber>,
+    /// The hasher of the identities.
+    pub(crate) hasher: hashbrown::DefaultHashBuilder,
     /// The fragments of the pack, by name.
     pub(crate) fragments: &'p BTreeMap<QuerySourceId, FragmentProgram>,
+    /// The step each fragment instance returned: a fragment given the same inputs and parameters makes the same
+    /// steps, each already numbered, so it is lowered once.
+    pub(crate) instances: HashMap<FragmentInstance<'p>, StepNumber>,
+}
+
+/// A fragment as one call gives it: the fragment, the step each input names (in declaration order) and each
+/// parameter's value (in declaration order, absent when not given).
+#[derive(Debug, PartialEq, Eq, Hash)]
+pub(crate) struct FragmentInstance<'p> {
+    /// The fragment, by the name its imports give it.
+    pub(crate) fragment: &'p str,
+    /// Each input's step.
+    pub(crate) inputs: Vec<StepNumber>,
+    /// Each parameter's value.
+    pub(crate) values: Vec<PlanConstant>,
 }
 
 /// What a program being lowered can name: its steps and inputs, its parameters, and the fragments it imports.

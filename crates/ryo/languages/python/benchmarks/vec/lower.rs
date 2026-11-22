@@ -5,7 +5,7 @@
 //! `vec lower <pack> <out prefix> [--repeat K]`: writes `<out prefix>-u.json` (expanded), `-b1.json` (semijoins), `-b2.json`
 //! (counts) and `.json` (axes), the names the Python chain (`scripts6h/plan.sh`) writes; prints each phase's thread CPU
 //! (user + system) and the peak resident set after it. With `--repeat K` the phases run K times in one process, and each
-//! repeat's CPU is printed.
+//! repeat's CPU is printed. With `--measure` nothing is written but the final plan's encoding, after the peak is read.
 //! `vec stage <in.json> <stage> <out.json>`: decodes a plan, runs the one pass `stage` (`semijoins`, `counts`, `axes`) adds,
 //! writes it; `stage` `none` writes the decoded plan back (a round trip).
 
@@ -106,8 +106,11 @@ pub(crate) fn run_lower(args: &[&str]) {
     let pack = Path::new(args[0]);
     let out = args[1];
     let repeat: usize = args.iter().position(|a| *a == "--repeat").map_or(1, |i| args[i + 1].parse().expect("repeat"));
+    // `--measure`: no stage is written, so the peak after the passes is preparation's own.
+    let measure = args.contains(&"--measure");
     let codec = json();
     for round in 0..repeat {
+        let write = round == 0 && !measure;
         let t0 = super::thread_cpu();
         let texts = read_texts(pack);
         let t1 = super::thread_cpu();
@@ -116,7 +119,7 @@ pub(crate) fn run_lower(args: &[&str]) {
         let hwm_parse = peak_kb();
         let mut plan = lowered(&pack_programs, PlanningStage::Expanded);
         let t3 = super::thread_cpu();
-        let expanded_bytes = (round == 0).then(|| codec.encoded(&plan));
+        let expanded_bytes = write.then(|| codec.encoded(&plan));
         let t4 = super::thread_cpu();
         let mut stages = Vec::new();
         let mut pass_cpu = 0.0;
@@ -124,11 +127,12 @@ pub(crate) fn run_lower(args: &[&str]) {
             let a = super::thread_cpu();
             let marked = passed(&mut plan, stage);
             pass_cpu += super::thread_cpu() - a;
-            if round == 0 {
+            if write {
                 stages.push((suffix, marked, codec.encoded(&plan)));
             }
         }
         let t5 = super::thread_cpu();
+        let hwm_passes = peak_kb();
         let final_bytes = codec.encoded(&plan);
         let t6 = super::thread_cpu();
         let hwm = peak_kb();
@@ -142,7 +146,7 @@ pub(crate) fn run_lower(args: &[&str]) {
             plan.unplanned.len()
         );
         println!(
-            "round {round} cpu read {:.4} parse {:.4} expand {:.4} passes {:.4} encode {:.4} total-prep {:.4} peak-after-parse-kb {hwm_parse} peak-kb {hwm}",
+            "round {round} cpu read {:.4} parse {:.4} expand {:.4} passes {:.4} encode {:.4} total-prep {:.4} peak-after-parse-kb {hwm_parse} peak-after-passes-kb {hwm_passes} peak-kb {hwm}",
             t1 - t0,
             t2 - t1,
             t3 - t2,

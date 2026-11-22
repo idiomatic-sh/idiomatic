@@ -1,6 +1,7 @@
 //! The `expansion` service: a pack's programs as one plan.
 
-use super::types::{Expansion, ProgramScope};
+use core::hash::BuildHasher as _;
+use super::types::{Expansion, FragmentInstance, ProgramScope};
 use crate::domain::finish_plans::arguments::literals::types::{
     ArgumentValue as StepArgument, StepArgumentName, UnlistedArgument,
 };
@@ -13,7 +14,6 @@ use crate::domain::finish_plans::types::{
 };
 use crate::domain::plan_lowering::errors::PlanLoweringError;
 use crate::domain::plan_lowering::filters::service::{alias, column, constant, function, select_condition};
-use crate::domain::plan_lowering::filters::types::Parameters;
 use crate::domain::plan_lowering::operators::service::operator_step;
 use crate::domain::plan_lowering::types::{PackPrograms, RuleProgram, WrittenText};
 use ryo_values::domain::descriptions::types::RelationName;
@@ -28,8 +28,10 @@ use ryo_values::domain::query_tokens::types::QuerySourceId;
 pub(crate) fn expanded(pack: &PackPrograms) -> FinishPlan {
     let mut expansion = Expansion {
         steps: Vec::new(),
-        numbers: hashbrown::HashMap::new(),
+        numbers: hashbrown::HashTable::new(),
+        hasher: hashbrown::DefaultHashBuilder::default(),
         fragments: &pack.fragments.0,
+        instances: hashbrown::HashMap::new(),
     };
     let mut plan = FinishPlan {
         steps: Vec::new(),
@@ -117,16 +119,33 @@ fn base(expansion: &mut Expansion<'_>, relation: &str) -> StepNumber {
     numbered(expansion, FinishStep::Base(RelationName(relation.into())))
 }
 
-/// The number of a step: an equal step's when one was made, else the next.
+/// The number of a step: an equal step's when one was made, else the next. A step that holds no map is its own identity
+/// and is compared as it is; only a step that holds one is copied into its identity.
 fn numbered(expansion: &mut Expansion<'_>, step: FinishStep) -> StepNumber {
-    let identity = identity(&step);
-    if let Some(number) = expansion.numbers.get(&identity) {
+    let Expansion { steps, numbers, hasher, .. } = expansion;
+    let mapped = holds_map(&step);
+    let identity_form = mapped.then(|| identity(&step));
+    let key = identity_form.as_ref().unwrap_or(&step);
+    let hash = hasher.hash_one(key);
+    let found = numbers.find(hash, |number| {
+        steps.get(number.0).is_some_and(|made| if mapped { identity(made) == *key } else { made == key })
+    });
+    if let Some(number) = found {
         return *number;
     }
-    let number = StepNumber(expansion.steps.len());
-    let _new = expansion.numbers.insert(identity, number);
-    expansion.steps.push(step);
+    let number = StepNumber(steps.len());
+    let _slot = numbers.insert_unique(hash, number, |earlier| {
+        steps.get(earlier.0).map_or(0, |made| {
+            if holds_map(made) { hasher.hash_one(identity(made)) } else { hasher.hash_one(made) }
+        })
+    });
+    steps.push(step);
     number
+}
+
+/// Whether a step holds a map, whose entries its identity orders.
+fn holds_map(step: &FinishStep) -> bool {
+    matches!(step, FinishStep::Extend(_) | FinishStep::AsOf(_) | FinishStep::OrderedMatch(_) | FinishStep::Unlisted(_))
 }
 
 /// A step's identity: the step with the entries of every map it holds in key order, so that two steps differing only
@@ -311,7 +330,7 @@ fn called<'p>(
             .fragments
             .get(&QuerySourceId((*fragment).into()))
             .ok_or_else(|| PlanLoweringError::UnknownFragment(WrittenText((*fragment).into())))?;
-        return inlined(expansion, scope, program, &call.arguments);
+        return inlined(expansion, scope, *fragment, program, &call.arguments);
     }
     let mut arguments = Vec::with_capacity(call.arguments.len());
     for argument in deduplicated(&call.arguments) {
@@ -336,30 +355,42 @@ fn called<'p>(
 fn inlined<'p>(
     expansion: &mut Expansion<'p>,
     caller: &ProgramScope<'p>,
+    name: &'p str,
     fragment: &'p FragmentProgram,
     arguments: &'p [Argument],
 ) -> Result<StepNumber, PlanLoweringError> {
     let given = |name: &str| arguments.iter().rev().find(|argument| &*argument.name.0 == name);
-    let mut scope = ProgramScope {
-        imports: imported(&fragment.imports),
-        ..ProgramScope::default()
+    let mut instance = FragmentInstance {
+        fragment: name,
+        inputs: Vec::with_capacity(fragment.inputs.len()),
+        values: Vec::with_capacity(fragment.parameters.len()),
     };
     for input in &fragment.inputs {
         let argument =
             given(&input.name.0).ok_or_else(|| PlanLoweringError::NotGiven(WrittenText(input.name.0.clone())))?;
-        let step = relation(expansion, caller, &argument.value)?;
-        let _earlier = scope.steps.insert(&*input.name.0, step);
+        instance.inputs.push(relation(expansion, caller, &argument.value)?);
     }
-    let mut parameters = Parameters::default();
     for declared in &fragment.parameters {
-        let name = &declared.parameter.0;
-        let value = match given(name) {
+        instance.values.push(match given(&declared.parameter.0) {
             Some(argument) => constant(&argument.value, &caller.parameters)?,
             None => PlanConstant::Absent,
-        };
-        let _earlier = parameters.values.insert(name.clone(), value);
+        });
     }
-    scope.parameters = parameters;
+    if let Some(step) = expansion.instances.get(&instance) {
+        return Ok(*step);
+    }
+    let mut scope = ProgramScope {
+        imports: imported(&fragment.imports),
+        ..ProgramScope::default()
+    };
+    for (input, step) in fragment.inputs.iter().zip(&instance.inputs) {
+        let _earlier = scope.steps.insert(&*input.name.0, *step);
+    }
+    for (declared, value) in fragment.parameters.iter().zip(&instance.values) {
+        let _earlier = scope.parameters.values.insert(declared.parameter.0.clone(), value.clone());
+    }
     lets(expansion, &mut scope, &fragment.steps)?;
-    named(&scope, &fragment.result.step.0.0)
+    let step = named(&scope, &fragment.result.step.0.0)?;
+    let _new = expansion.instances.insert(instance, step);
+    Ok(step)
 }
