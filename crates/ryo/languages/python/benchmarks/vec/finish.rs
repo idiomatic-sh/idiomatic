@@ -68,6 +68,8 @@ mod prefixes;
 mod ordered_dfs;
 #[path = "finish/host.rs"]
 pub(super) mod host;
+#[path = "finish/capture.rs"]
+mod capture;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum Ty {
@@ -2848,17 +2850,24 @@ impl<'p> Exec<'p> {
                 let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
                 let pc = from.col(s(&a["path"])?)?;
                 let caps = strs(&a["captures"])?;
-                let re = run.re(&path_pattern(s(&a["pattern"])?))?;
+                // redo-honest: every split of the text into the slots (capture.rs), not the first regex match
+                let pattern = s(&a["pattern"])?;
+                let slot_names = capture::names(pattern);
+                let at: Vec<Option<usize>> = caps.iter().map(|c| slot_names.iter().position(|n| n == c)).collect();
                 let mut out = self.empty(run, node)?;
                 let mut row = Vec::new();
+                let mut found: Vec<Vec<std::ops::Range<usize>>> = Vec::new();
                 for i in 0..from.n {
                     let v = from.cols[pc][i];
                     let text = if from.tys[pc] == Ty::File { run.text(run.path_sym[v as usize]).to_vec() } else { run.text(v as u32).to_vec() };
-                    if let Some(m) = re.captures(&text) {
+                    let Ok(text) = String::from_utf8(text) else { continue };
+                    found.clear();
+                    capture::matches(pattern, &text, &mut |sl| found.push(sl.to_vec()));
+                    for sl in &found {
                         from.row(i, &mut row);
-                        for c in caps.iter() {
-                            let t = m.name(c).map_or(&b""[..], |x| x.as_bytes()).to_vec();
-                            row.push(u64::from(run.sym(&t)));
+                        for k in &at {
+                            let t = k.and_then(|k| sl.get(k)).map_or("", |r| &text[r.clone()]);
+                            row.push(u64::from(run.sym(t.as_bytes())));
                         }
                         out.push_row(&row);
                     }
@@ -4696,25 +4705,6 @@ fn glob_pattern(g: &str) -> String {
             c => s.push_str(&regex::escape(&c.to_string())),
         }
     }
-    s.push('$');
-    s
-}
-
-fn path_pattern(p: &str) -> String {
-    let mut s = String::from("^");
-    let mut rest = p;
-    while let Some(o) = rest.find('{') {
-        s.push_str(&regex::escape(&rest[..o]));
-        let c = rest[o..].find('}').expect("a closed capture") + o;
-        let name = &rest[o + 1..c];
-        if let Some(n) = name.strip_prefix('*') {
-            s.push_str(&format!("(?P<{n}>.*)"));
-        } else {
-            s.push_str(&format!("(?P<{name}>[^/]*)"));
-        }
-        rest = &rest[c + 1..];
-    }
-    s.push_str(&regex::escape(rest));
     s.push('$');
     s
 }
