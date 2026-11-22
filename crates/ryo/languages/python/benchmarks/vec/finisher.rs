@@ -147,7 +147,7 @@ impl<'p> Finisher<'p> {
         let ft = file.table;
         let mut fwords = std::mem::take(&mut self.fwords);
         languages::facts::clear_words(&mut fwords);
-        let mut pv = ColFacts { file, words: &mut fwords, filled: languages::FilledColumns::default(), time: 0.0, rows: 0, by_rel: HashMap::new(), file_no: file_no as u32 };
+        let mut pv = ColFacts { file, words: &mut fwords, filled: languages::FilledColumns::default(), time: 0.0, rows: 0, by_rel: HashMap::new(), file_no: file_no as u32, kept: HashMap::new() };
         self.file(file_no, path, ft, bytes, &mut pv, wanted);
         self.provider_time += pv.time;
         self.provider_rows += pv.rows;

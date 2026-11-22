@@ -861,11 +861,25 @@ struct ColFacts<'v, 'a, 'f, 'w> {
     rows: u64,
     by_rel: HashMap<String, (f64, u64, u64)>,
     file_no: u32,
+    /// redo-binding pass 3: the provider relations the harness facts are written from, kept for the file once filled, so
+    /// a fact and the steps that read the same relation share one fill.
+    kept: HashMap<String, finish::Table>,
 }
 
 impl ColFacts<'_, '_, '_, '_> {
-    /// A catalog relation of this file, filled whole.
+    /// A catalog relation of this file, filled whole (once a file for the relations the harness facts read).
     fn whole(&mut self, run: &mut finish::Run, rel: &str) -> Result<finish::Table, String> {
+        if let Some(t) = self.kept.get(rel) {
+            return Ok(t.clone());
+        }
+        let t = self.whole_fill(run, rel)?;
+        if matches!(rel, "binding-event" | "binding-read" | "binding-resolution") {
+            let _ = self.kept.insert(rel.to_owned(), t.clone());
+        }
+        Ok(t)
+    }
+
+    fn whole_fill(&mut self, run: &mut finish::Run, rel: &str) -> Result<finish::Table, String> {
         let (relation, _, _) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
         self.filled.0.clear();
         match self.file.fill(relation, languages::Wanted::Whole, self.words, &mut self.filled) {
@@ -983,13 +997,7 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
         } else if rel == finish::FINAL_REL {
             self.namespace_final(run)?
         } else {
-            let (relation, _, _) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
-            self.filled.0.clear();
-            let answer = self.file.fill(relation, languages::Wanted::Whole, self.words, &mut self.filled);
-            match answer {
-                languages::FactAnswer::Answered(_) => finish::filled_table(run, rel, &self.filled, self.words),
-                _ => Err(format!("{rel} not answered")),
-            }?
+            self.whole(run, rel)?
         };
         for c in 0..t.tys.len() {
             if t.tys[c] == finish::Ty::File {
