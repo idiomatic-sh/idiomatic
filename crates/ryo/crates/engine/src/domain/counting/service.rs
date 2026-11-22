@@ -60,13 +60,11 @@ pub fn counted(scratch: &ScanScratch) -> PointCounts {
     let visits = &crate::domain::executing::sources::types::NEED_VISITS;
     let taken = |at: usize| visits.get(at).map_or(0, |count| count.swap(0, std::sync::atomic::Ordering::Relaxed));
     eprintln!(
-        "ryo x: need-visits decisions={} free={} asked={} musts-failed={} nodes={} free-terms={}",
+        "ryo x: need-visits decisions={} free={} asked={} musts-failed={}",
         taken(0),
         taken(1),
         taken(2),
-        taken(3),
-        taken(4),
-        taken(5)
+        taken(3)
     );
     for (site, formula) in &measure.need_fills.formulas {
         eprintln!("ryo x: need-formula site={site} {formula}");

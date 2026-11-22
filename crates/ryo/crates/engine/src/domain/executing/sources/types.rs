@@ -11,12 +11,7 @@ use crate::domain::executing::types::Asker;
 use crate::domain::indexes::reading::service::cell_at;
 use crate::domain::made_tables::reading::service::view_of;
 use crate::domain::made_tables::sources::service::{made, scanned, table_of};
-use crate::domain::filled::service::{held_state, keyed};
-use crate::domain::filled::types::{FilledState, RelationAsk};
-use crate::domain::made_tables::reading::service::relation_at;
 use crate::domain::made_tables::types::ReadSource;
-use ryo_relations::domain::catalog::service::key_columns;
-use ryo_relations::domain::relations::service::columns;
 use crate::domain::needs::formulas::service::{node_musts, site_root};
 use crate::domain::needs::formulas::types::{FormulaNode, FreeValue};
 use crate::domain::needs::masks::types::{NeedTerm, RecordCost, Stretch, TermNumber};
@@ -30,14 +25,14 @@ use ryo_relations::domain::relations::types::{Count, KindBits};
 
 /// SPIKE: what a measuring worker's decisions visited, for the run: decisions, nodes valued from the free bits, nodes
 /// asked, nodes whose musts failed. Printed by `counting::service::counted`.
-pub(crate) static NEED_VISITS: [std::sync::atomic::AtomicU64; 6] = [const { std::sync::atomic::AtomicU64::new(0) }; 6];
+pub(crate) static NEED_VISITS: [std::sync::atomic::AtomicU64; 4] = [const { std::sync::atomic::AtomicU64::new(0) }; 4];
 
 /// SPIKE: counts one visit of kind `which` when the worker measures.
 fn visit(state: &crate::domain::scratch::types::LoopState, which: usize) {
     if state.measure.is_some()
         && let Some(count) = NEED_VISITS.get(which)
     {
-        let _was = count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     }
 }
 
@@ -108,13 +103,6 @@ impl NeedFacts for FileNeeds<'_, '_, '_> {
         // What the terms that cost nothing say of the whole formula, read off the file's bits: most sites are decided
         // here. Only a site they leave open asks what costs, the cheapest first.
         visit(self.0.state, 0);
-        if self.0.state.measure.is_some() {
-            let formulas = &self.0.state.need_masks.formulas;
-            let nodes = u64::try_from(formulas.nodes.len()).unwrap_or(u64::MAX);
-            let frees = u64::try_from(self.0.state.need_masks.free_terms.len()).unwrap_or(u64::MAX);
-            let _nodes = NEED_VISITS.get(4).map(|held| held.fetch_max(nodes, std::sync::atomic::Ordering::Relaxed));
-            let _frees = NEED_VISITS.get(5).map(|held| held.fetch_max(frees, std::sync::atomic::Ordering::Relaxed));
-        }
         let Some(root) = site_root(code, site, &mut self.0.state.need_masks) else {
             return Some(NeedVerdict::Holds);
         };
@@ -590,10 +578,6 @@ impl FileNeeds<'_, '_, '_> {
         if let Some(decided) = node_row(frame, relation, column, value) {
             return decided;
         }
-        if let Some(decided) = self.key_decided(relation, column, value) {
-            return decided;
-        }
-        let frame = &mut *self.0;
         let source = ReadSource::Filled(relation);
         // SPIKE: a count under RYO_X_FILLS tells this reach of the relation, a need's, from a reader's.
         ryo_language::domain::fillers::service::fill_need_asking(true);
@@ -626,66 +610,6 @@ impl FileNeeds<'_, '_, '_> {
         } else {
             NeedVerdict::Empty
         }
-    }
-
-    /// Whether the relation has a row with the constant in the column, asked of the language for that key alone when
-    /// the column is one the relation's catalog item declares a key and the relation is not whole in the file: the key's
-    /// rows are written and kept, never the relation's. None: the term is answered by the whole fill.
-    fn key_decided(
-        &mut self,
-        relation: RelationNumber,
-        column: WordSlot,
-        value: WordSlot,
-    ) -> Option<NeedVerdict> {
-        if column == NO_SLOT || value == NO_SLOT {
-            return None;
-        }
-        let frame = &mut *self.0;
-        let fill = &mut *frame.fill;
-        let stamp = fill.store.stamp;
-        if held_state(&fill.store.relations, relation, stamp) == FilledState::Whole {
-            return None;
-        }
-        let named = relation_at(fill.programs.code, relation).ok()?;
-        let place = usize::try_from(column.0).ok()?;
-        let declared = columns(named).get(place).copied()?;
-        if !key_columns(named).contains(&declared) {
-            return None;
-        }
-        let wanted = constant(frame, ConstantNumber(value.0));
-        let fill = &mut *frame.fill;
-        // SPIKE: a count under RYO_X_FILLS tells this reach of the relation, a need's, from a reader's.
-        ryo_language::domain::fillers::service::fill_need_asking(true);
-        let answer = keyed(
-            &mut fill.store.relations,
-            RelationAsk {
-                number: relation,
-                relation: named,
-                stamp,
-                facts: &mut *fill.facts,
-                words: &mut *fill.words,
-            },
-            Count(place),
-            wanted,
-        );
-        ryo_language::domain::fillers::service::fill_need_asking(false);
-        // A relation the language cannot answer for says nothing: the unit is evaluated, and its own read faults.
-        let Ok(rows) = answer else {
-            return Some(NeedVerdict::Holds);
-        };
-        // The rows the answer names (the key's, or every row when the language wrote the relation whole) are searched
-        // for the constant where they lie.
-        let held = view_of(
-            fill.store,
-            ReadSource::Filled(relation),
-            Short(u16::try_from(column.0).unwrap_or(u16::MAX)),
-        );
-        let holds = (rows.rows.start.0..rows.rows.end.0).any(|row| cell_at(held, Count(row)) == wanted);
-        Some(if holds {
-            NeedVerdict::Holds
-        } else {
-            NeedVerdict::Empty
-        })
     }
 
     /// Whether the table has a row in the file: made when its own need holds.
