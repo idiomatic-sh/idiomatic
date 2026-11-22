@@ -37,6 +37,8 @@ mod walk;
 mod filter_order;
 #[path = "tree_class.rs"]
 mod tree_class;
+#[path = "prefixes.rs"]
+mod prefixes;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum Ty {
@@ -1274,6 +1276,13 @@ impl<'p> Exec<'p> {
                 mk(names, tys)
             }
             "fits-rendered" => from(self, run, "from")?,
+            "prefixes" => {
+                let f = from(self, run, "from")?;
+                let (mut names, mut tys) = ((*f.names).clone(), (*f.tys).clone());
+                names.push(s(&a["output"])?.to_owned());
+                tys.push(Ty::Sym);
+                mk(names, tys)
+            }
             "subtree-class" => {
                 let f = from(self, run, "from")?;
                 let (mut names, mut tys) = ((*f.names).clone(), (*f.tys).clone());
@@ -2259,6 +2268,7 @@ impl<'p> Exec<'p> {
                 Ok(out)
             }
             "subtree-class" => self.subtree_class(f, run, p, node),
+            "prefixes" => self.prefixes(f, run, p, node),
             "fits-rendered" => {
                 let from = self.eval(f, run, p, self.arg_rel(node, "from")?)?;
                 let texts: Vec<usize> = strs(&a["texts"])?.iter().map(|c| from.col(c)).collect::<R<_>>()?;
