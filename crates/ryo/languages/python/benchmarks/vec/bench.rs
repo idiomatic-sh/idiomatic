@@ -638,7 +638,33 @@ fn main() {
     }
 }
 
+/// The first half's language knowledge, as the provider declares it (the column walk's per-node facts and the token order
+/// this harness writes, the spelled columns, the identifier rule, the name-token kind).
+fn python_language() -> first::Language {
+    use ryo_python::fixtures::columns::{NAME_KIND, PER_NODE_FACTS, SPELLED_COLUMNS, Spelling, is_identifier};
+    let mut facts: Vec<String> = PER_NODE_FACTS.iter().map(|s| (*s).to_owned()).collect();
+    // the harness writes the token order itself (`Store::token_order`)
+    facts.push("token-link".to_owned());
+    first::Language {
+        facts,
+        spelled: SPELLED_COLUMNS.iter().map(|(r, c, how)| ((*r).to_owned(), (*c).to_owned(), match how { Spelling::Whole => None, Spelling::LastSegment(c) => Some(*c) })).collect(),
+        is_identifier,
+        word_kind: NAME_KIND.to_owned(),
+    }
+}
+
+/// The parser's settings from the run's request (`--request` or `--applicability`: its `parser_configuration`, the
+/// provider's identity); with no request, `VEC_PY310` as before.
 fn target_settings() -> ryo_python::settings::PythonParserSettings {
+    let args: Vec<String> = std::env::args().collect();
+    let req = args.iter().position(|a| a == "--request" || a == "--applicability").and_then(|i| args.get(i + 1));
+    if let Some(path) = req
+        && let Ok(text) = std::fs::read_to_string(path)
+        && let Ok(r) = serde_json::from_str::<serde_json::Value>(&text)
+        && let Some(id) = r["parser_configuration"].as_str()
+    {
+        return ryo_python::settings::PythonParserSettings::from_identity(id).unwrap_or_else(|| panic!("parser configuration {id}"));
+    }
     if std::env::var_os("VEC_PY310").is_some() {
         ryo_python::settings::PythonParserSettings::new(ryo_python::settings::PythonTargetVersion::Py310)
     } else {
@@ -1445,7 +1471,8 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
             }
         };
         let f1 = thread_cpu();
-        let prepared = first::prepare(&read.programs, "name-token");
+        let prepared = first::prepare(&read.programs, python_language());
+        println!("start-up first half: products past the CAP {}", first::counts()[6]);
         let f2 = thread_cpu();
         let rules = rules_of_skips(&prepared.skips, vocab);
         let (frules, words) = funnel::build(&prepared.rules, vocab, &mut fact_catalog, &mut interner);
@@ -1524,7 +1551,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
     let compare = args.contains(&"--compare");
     let n_words = words.names.len();
     let ww = n_words.div_ceil(64).max(1);
-    let name_token = vocab.kinds.get("name-token").copied().expect("name-token kind");
+    let name_token = vocab.kinds.get(ryo_python::fixtures::columns::NAME_KIND).copied().expect("name-token kind");
     let ac = aho_corasick::AhoCorasick::builder()
         .match_kind(aho_corasick::MatchKind::LeftmostLongest)
         .build(words.names.iter().map(String::as_bytes))
