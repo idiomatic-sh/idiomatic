@@ -252,9 +252,18 @@ fn modelled((source, line, text): Input) -> Result<Value, Failure> {
     Ok(Box::leak(rows.join(" | ").into_boxed_str()))
 }
 
+/// The clauses the semantic model alone answers: today's parse keeps the paths it had, until the swap retires it.
+const MODELLED: &[Case<Input, Value, Failure>] = &[Case {
+    name: CaseName("P4 a deletion in a function looks only in the function: the name is its own"),
+    word: Word::Succeeds,
+    input: || ("x = 1\ndef f():\n    del x\n", 3, "x"),
+    expect: Expect::Value("d0 deletion scope=[2:def f():]"),
+}];
+
 #[test]
 fn succeeds() {
     run(CASES, Word::Succeeds, subject);
     run(INCOMPLETE, Word::Succeeds, subject);
     run(CASES, Word::Succeeds, modelled);
+    run(MODELLED, Word::Succeeds, modelled);
 }

@@ -40,6 +40,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || "x = 1\ndel x\nx\n",
         expect: Expect::Value(&[FlowReadState::Unique, FlowReadState::Unbound]),
     },
+    Case {
+        name: CaseName("a_name_a_function_deletes_is_its_own_and_is_not_looked_up_around_it"),
+        word: Word::Succeeds,
+        input: || "def handlers(v):\n    del handlers\n",
+        expect: Expect::Value(&[FlowReadState::Unbound]),
+    },
 ];
 
 fn subject(source: Input) -> Value {

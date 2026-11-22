@@ -225,10 +225,16 @@ pub(crate) fn binding_scope(
 /// Whether the scope `scope` declares `name` `global`: lookups from it continue at the module.
 #[must_use]
 pub(crate) fn declares_global(tree: &Tree<'_>, model: &Declarations, scope: Position, name: Symbol) -> bool {
+    declared(tree, model, scope, name) == Some(BindingRedirect::Global)
+}
+
+/// Where the block `scope` says the name `name` is bound instead of in itself, when a `global` or `nonlocal` of it says so.
+#[must_use]
+pub(crate) fn declared(tree: &Tree<'_>, model: &Declarations, scope: Position, name: Symbol) -> Option<BindingRedirect> {
     if model.declared_state.get() == QualificationState::Fresh {
         declare(tree, model);
     }
-    redirect_of(model, scope, name) == Some(BindingRedirect::Global)
+    redirect_of(model, scope, name)
 }
 
 /// What the expression at `at` does with what it names: in a target of an assignment, a loop, a `with`, a comprehension or an
