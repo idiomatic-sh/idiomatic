@@ -142,10 +142,10 @@ thread_local! {
     /// redo-alloc: by size class (a column of room 2^c..2^(c+1) in class c), so a small table never holds a large column.
     static POOL: RefCell<([Vec<Vec<u64>>; CLASSES], usize)> = const { RefCell::new(([const { Vec::new() }; CLASSES], 0)) };
 }
-/// 8: the pool keeps at most this many cells in all (redo-alloc: 64 MB, from 32: size classes keep less in tables), and no
-/// single column above a 32nd of it.
-const POOL_CELLS: usize = 1 << 23;
-/// redo-alloc: size classes of the pool (2^0 .. 2^19 cells: the largest pooled column is POOL_CELLS / 32 = 2^18).
+/// 8: the pool keeps at most this many cells in all (32 MB), and no single column above a sixteenth of it (redo-alloc c8
+/// tried 64 MB: no fewer misses, 37 MB more live).
+const POOL_CELLS: usize = 1 << 22;
+/// redo-alloc: size classes of the pool (2^0 .. 2^19 cells: the largest pooled column is POOL_CELLS / 16 = 2^18).
 const CLASSES: usize = 20;
 
 /// redo-alloc: a pooled column with room for `n` cells (no more than 32 times that), or a new one with room for the next
@@ -222,7 +222,7 @@ impl Table {
             let (p, cells) = &mut *p.borrow_mut();
             for mut c in self.cols.drain(..) {
                 let cap = c.capacity();
-                if cap == 0 || cap > POOL_CELLS / 32 || *cells + cap > POOL_CELLS {
+                if cap == 0 || cap > POOL_CELLS / 16 || *cells + cap > POOL_CELLS {
                     continue;
                 }
                 c.clear();
@@ -5182,10 +5182,10 @@ fn glob_pattern(g: &str) -> String {
 
 /// Natural order, as the language reference states it.
 fn natural_lt(a: &str, b: &str) -> bool {
-    // redo-alloc: the units as slices of the text (a digit run, or one other character; whitespace splits), not a string
-    // a unit
-    fn units(s: &str) -> Vec<(bool, &str)> {
-        let mut out: Vec<(bool, &str)> = Vec::new();
+    // redo-alloc: the units as ranges of the text (a digit run, or one other character; whitespace splits) in the worker's
+    // two buffers, not a string a unit
+    fn units(s: &str, out: &mut Vec<(bool, usize, usize)>) {
+        out.clear();
         let mut run: Option<usize> = None;
         for (at, ch) in s.char_indices() {
             if ch.is_ascii_digit() {
@@ -5193,19 +5193,30 @@ fn natural_lt(a: &str, b: &str) -> bool {
                 continue;
             }
             if let Some(st) = run.take() {
-                out.push((true, &s[st..at]));
+                out.push((true, st, at));
             }
             if !ch.is_whitespace() {
-                out.push((false, &s[at..at + ch.len_utf8()]));
+                out.push((false, at, at + ch.len_utf8()));
             }
         }
         if let Some(st) = run {
-            out.push((true, &s[st..]));
+            out.push((true, st, s.len()));
         }
-        out
     }
-    let (x, y) = (units(a), units(b));
-    for (p, q) in x.iter().zip(y.iter()) {
+    thread_local! {
+        static UNITS: RefCell<(Vec<(bool, usize, usize)>, Vec<(bool, usize, usize)>)> = const { RefCell::new((Vec::new(), Vec::new())) };
+    }
+    let (mut xr, mut yr) = UNITS.with(|u| std::mem::take(&mut *u.borrow_mut()));
+    units(a, &mut xr);
+    units(b, &mut yr);
+    let lt = natural_lt_of(xr.iter().map(|(d, s, e)| (*d, &a[*s..*e])), yr.iter().map(|(d, s, e)| (*d, &b[*s..*e])), xr.len() < yr.len());
+    UNITS.with(|u| *u.borrow_mut() = (xr, yr));
+    lt
+}
+
+/// redo-alloc: `natural_lt`'s comparison of two unit lists (`shorter`: the first has fewer units).
+fn natural_lt_of<'a>(x: impl Iterator<Item = (bool, &'a str)>, y: impl Iterator<Item = (bool, &'a str)>, shorter: bool) -> bool {
+    for (p, q) in x.zip(y) {
         let ord = match (p.0, q.0) {
             (true, true) => {
                 if p.1.starts_with('0') || q.1.starts_with('0') {
@@ -5220,7 +5231,7 @@ fn natural_lt(a: &str, b: &str) -> bool {
             return ord == std::cmp::Ordering::Less;
         }
     }
-    x.len() < y.len()
+    shorter
 }
 
 /// `token-link` from the token order (step 5's pass): next token, matching and enclosing delimiter.
