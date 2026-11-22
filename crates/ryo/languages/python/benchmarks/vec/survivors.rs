@@ -25,13 +25,19 @@ impl Survivors {
         }
     }
 
-    /// The second half's seed: every (rule, file) with survivors, and every pair the skip kept of a rule with no plan of
-    /// the node class (its rows are not found from tree survivors); sorted, once each (as `scripts6g/fileseed.py`).
-    pub(super) fn seed(&self, node_class: &[bool]) -> Vec<(u32, u32)> {
-        let mut s: Vec<(u32, u32)> = self.hits.iter().copied().chain(self.alive.iter().copied().filter(|(r, _)| !node_class[*r as usize])).collect();
-        s.sort_unstable();
-        s.dedup();
-        s
+    /// The second half's seed of the file whose pairs start at `hits0` and `alive0` (pairs are pushed file by file):
+    /// every rule with survivors there, and every rule the skip kept there with no plan of the node class (its rows are
+    /// not found from tree survivors), as `scripts6g/fileseed.py` makes it; marked in `seeded`, cleared first.
+    pub(super) fn seed_of_file(&self, hits0: usize, alive0: usize, node_class: &[bool], seeded: &mut [bool]) {
+        seeded.iter_mut().for_each(|x| *x = false);
+        for (r, _) in &self.hits[hits0..] {
+            seeded[*r as usize] = true;
+        }
+        for (r, _) in &self.alive[alive0..] {
+            if !node_class[*r as usize] {
+                seeded[*r as usize] = true;
+            }
+        }
     }
 
     /// The survivors as text: a line an entry, `rule \t path \t node node ...`.

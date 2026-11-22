@@ -467,20 +467,23 @@ fn main() {
         Some("run") => run(&walk, &vocab, &args[2..]),
         Some("funnel") => {
             // with `--finish <plan> <root> [--findings-out F]`, the second half runs in this process on the first half's
-            // result in memory (whole.sh's `fileseed.py` seed, made by `Survivors::seed`)
-            let handed = run_funnel(&walk, &vocab, &args[2..]);
+            // survivors, file by file inside its walk (the seed of each file as `fileseed.py` makes it: `Survivors::seed_of_file`)
             if let Some(at) = args.iter().position(|a| *a == "--finish") {
+                // pass 2: the second half runs file by file inside the first half's walk, on the same parsed file (one
+                // parse a file)
                 let mut finish_args = vec![args[at + 1], args[3], args[at + 2]];
                 if let Some(at) = args.iter().position(|a| *a == "--findings-out") {
                     finish_args.extend(["--out", args[at + 1]]);
                 }
-                // the seed is all the second half reads of the first half's result: the rest is dropped first
-                let seed = handed.seed();
-                drop(handed);
-                run_finish(&walk, &vocab, &finish_args, Some(seed));
+                let plan = finish::load(finish_args[0]);
+                let mut fin = finisher::Finisher::new(&plan, &walk, &vocab, &finish_args);
+                run_funnel(&walk, &vocab, &args[2..], Some(&mut fin));
+                fin.end(0.0);
+            } else {
+                run_funnel(&walk, &vocab, &args[2..], None);
             }
         }
-        Some("finish") => run_finish(&walk, &vocab, &args[2..], None),
+        Some("finish") => run_finish(&walk, &vocab, &args[2..]),
         Some("kfloor") => kernel_floor(&walk, args[2]),
         _ => eprintln!("usage: vec census <files> <literals> <out> | vec run <mode> <files> <anchors> [--batch N] [--repeat K] [--rules-out F]"),
     }
@@ -748,6 +751,8 @@ mod facts;
 mod survivors;
 #[path = "finish.rs"]
 mod finish;
+#[path = "finisher.rs"]
+mod finisher;
 
 /// The visit's facts as the finish's provider.
 struct Facts<'v, 'f, 'w> {
@@ -974,169 +979,40 @@ fn kernel_floor(walk: &impl Walk, list: &str) {
 
 /// `vec finish <plan.json> <files> <root> [--rules A,B] [--seed rule-file.tsv] [--out findings.jsonl] [--stats stats.tsv]
 /// [--check-bases]`: each rule's whole lowered query run per file (`finish.rs`); findings as the reference writes them.
-fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str], seed_in: Option<std::collections::HashSet<(String, String)>>) {
+fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     let plan = finish::load(args[0]);
     let list = files(args[1]);
-    let root = format!("{}/", args[2].trim_end_matches('/'));
-    let only: Option<std::collections::HashSet<String>> = flag(args, "--rules").map(|r| r.split(',').map(str::to_owned).collect());
-    let emits: Vec<&(String, usize, String, Vec<String>)> = plan.emits.iter().filter(|e| only.as_ref().is_none_or(|o| o.contains(&e.0))).collect();
-    let seed: Option<std::collections::HashSet<(String, String)>> = seed_in.or_else(|| {
-        flag(args, "--seed").map(|p| std::fs::read_to_string(p).expect("seed").lines().filter_map(|l| l.split_once('\t')).map(|(a, b)| (a.to_owned(), b.to_owned())).collect())
-    });
-    let check = args.contains(&"--check-bases");
-    // the survivor handoff: per (rule, file) the prefix's root nodes (`vec funnel ... --surv-out`); a seeded rule runs
-    // only where it has survivors, from them
-    let mut surv: HashMap<(String, String), Vec<u32>> = HashMap::new();
-    if let Some(p) = flag(args, "--surv") {
-        for l in std::fs::read_to_string(p).expect("survivors").lines() {
-            let mut it = l.split('\t');
-            let (Some(r), Some(f), Some(ns)) = (it.next(), it.next(), it.next()) else { continue };
-            surv.entry((r.to_owned(), f.to_owned())).or_default().extend(ns.split(' ').filter_map(|x| x.parse::<u32>().ok()));
-        }
-        for v in surv.values_mut() {
-            v.sort_unstable();
-            v.dedup();
-        }
-    }
+    let mut fin = finisher::Finisher::new(&plan, walk, vocab, args);
+    let seed: Option<std::collections::HashSet<(String, String)>> =
+        flag(args, "--seed").map(|p| std::fs::read_to_string(p).expect("seed").lines().filter_map(|l| l.split_once('\t')).map(|(a, b)| (a.to_owned(), b.to_owned())).collect());
     let mut seed_by_path: HashMap<&str, std::collections::HashSet<&str>> = HashMap::new();
     for (r, f) in seed.iter().flatten() {
         seed_by_path.entry(f.as_str()).or_default().insert(r.as_str());
     }
-    let mut surv_by_path: HashMap<&str, std::collections::HashSet<&str>> = HashMap::new();
-    for (r, f) in surv.keys() {
-        surv_by_path.entry(f.as_str()).or_default().insert(r.as_str());
-    }
-    let seed_set: HashMap<&str, usize> = plan.seeds.iter().enumerate().map(|(k, r)| (r.as_str(), k)).collect();
-    let mut run = finish::Run::default();
-    run.empty = run.sym(b"");
-    run.links();
-    run.root_dir = args[2].trim_end_matches('/').to_owned();
-    run.search_roots = vec![String::new(), "src".to_owned()];
-    run.kind_sym = vocab.kind_names.clone().iter().map(|k| run.sym(k.as_bytes())).collect();
-    run.field_sym = vocab.field_names.clone().iter().map(|k| run.sym(k.as_bytes())).collect();
-    run.paths = list.iter().map(|p| p.strip_prefix(&root).unwrap_or(p).to_owned()).collect();
-    run.path_sym = run.paths.clone().iter().map(|p| run.sym(p.as_bytes())).collect();
-    let kind_code = |n: &str| vocab.kinds.get(n).copied().expect("kind");
-    run.token_first = kind_code("name-token");
-    run.token_last = kind_code("colonequal");
-    run.token_error = kind_code("errortoken");
-    run.pairs = [(kind_code("lpar"), kind_code("rpar")), (kind_code("lsqb"), kind_code("rsqb")), (kind_code("lbrace"), kind_code("rbrace"))];
-    let mut exec = finish::Exec::new(&plan);
-    let mut fwords = ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names");
     // 6f probe: `VEC_COLWALK` walks through the direct-columns walk (the provider's own model is reachable there, for the
     // evaluation region); `--dump F` writes every emit's rows instead of findings.
     let colwalk = std::env::var_os("VEC_COLWALK").is_some();
     let mut cwalk = ryo_python::fixtures::columns::ColumnWalk::new(ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names"));
-    let dump = flag(args, "--dump");
-    let mut dump_text = String::new();
     let mut table = NodeTable::default();
     let mut scratch = Default::default();
-    let mut findings: Vec<String> = Vec::new();
-    let mut failed: HashMap<String, String> = HashMap::new();
-    let (mut provider_time, mut provider_rows, mut file_time, mut walk_time) = (0f64, 0u64, 0f64, 0f64);
-    let mut by_rel: HashMap<String, (f64, u64, u64)> = HashMap::new();
-    let mut check_lines: Vec<String> = Vec::new();
-    let mut files_run = 0u64;
-    let started = thread_cpu();
+    let mut walk_time = 0f64;
     let mut rss_peak = 0u64;
     for (file_no, path) in list.iter().enumerate() {
         let w0 = thread_cpu();
+        let in_fin = fin.time;
         let bytes = std::fs::read(path).expect("read");
         // 7: the (rule, file) seeds read by file once, not a key copied per rule
         let seed_here = seed_by_path.get(path.as_str());
-        let surv_here = surv_by_path.get(path.as_str());
-        let wanted: Vec<&&(String, usize, String, Vec<String>)> = emits
-            .iter()
-            .filter(|e| {
-                if seed_set.contains_key(e.0.as_str()) {
-                    surv_here.is_some_and(|s| s.contains(e.0.as_str()))
-                } else {
-                    seed.is_none() || seed_here.is_some_and(|s| s.contains(e.0.as_str()))
-                }
-            })
-            .collect();
-        let seeds_here: Vec<Vec<u32>> = plan.seeds.iter().map(|r| surv.get(&(r.clone(), path.clone())).cloned().unwrap_or_default()).collect();
-        if wanted.is_empty() && !check {
+        let wanted = fin.wanted(path, &|e| seed.is_none() || seed_here.is_some_and(|s| s.contains(plan.emits[e].0.as_str())));
+        if !fin.visits(&wanted) {
             continue;
         }
-        let mut inner = 0f64;
-        let mut body = |ft: &NodeTable, pv: &mut dyn finish::Provider| {
-            files_run += 1;
-            let mut f = finish::File::new(ft, &bytes, file_no as u32, plan.nodes.len());
-            f.seeds = seeds_here.clone();
-            finish::handover::expand(&mut f, &plan.seed_paths);
-            exec.reset_file();
-            if check {
-                for rel in ["semantic-syntax", "syntax-tree", "semantic-child", "syntax-child", "source-location", "token-link"] {
-                    let mine = finish::native_table(&mut f, &mut run, rel);
-                    match pv.fill(&mut run, rel) {
-                        Ok(theirs) => check_lines.push(format!("{}\t{rel}\t{}", run.paths[file_no], finish::diff(&run, &mine, &theirs))),
-                        Err(e) => check_lines.push(format!("{}\t{rel}\tprovider: {e}", run.paths[file_no])),
-                    }
-                }
-            }
-            for e in &wanted {
-                if failed.contains_key(&e.0) {
-                    continue;
-                }
-                run.missing.clear();
-                let got = exec.eval(&mut f, &mut run, pv, e.1);
-                let got = if run.missing.is_empty() { got } else { Err(format!("functions {:?} not in the step set", run.missing)) };
-                match got {
-                    Ok(t) => {
-                        if dump.is_some() {
-                            finish::dump_rows(&f, &run, &t, &e.0, &run.paths[file_no], &mut dump_text);
-                            continue;
-                        }
-                        let sc = t.col("span").ok();
-                        for r in 0..t.n {
-                            let (st, en) = sc.map_or((0, 0), |c| (t.cols[c][r] >> 32, t.cols[c][r] & 0xffff_ffff));
-                            findings.push(format!("{{\"rule\":\"{}\",\"file\":\"{}\",\"start\":{st},\"end\":{en}}}", e.0, run.paths[file_no]));
-                        }
-                    }
-                    Err(err) => {
-                        failed.insert(e.0.clone(), format!("{}: {err}", run.paths[file_no]));
-                    }
-                }
-            }
-        };
         if colwalk {
-            let _ = cwalk.walked(path, &bytes, &mut table, &mut |file| {
-                let c0 = thread_cpu();
-                let ft = file.table;
-                languages::facts::clear_words(&mut fwords);
-                let mut pv = ColFacts { file, words: &mut fwords, filled: languages::FilledColumns::default(), time: 0.0, rows: 0, by_rel: HashMap::new(), file_no: file_no as u32 };
-                body(ft, &mut pv);
-                provider_time += pv.time;
-                provider_rows += pv.rows;
-                for (k, v) in pv.by_rel {
-                    let e = by_rel.entry(k).or_default();
-                    e.0 += v.0;
-                    e.1 += v.1;
-                    e.2 += v.2;
-                }
-                inner += thread_cpu() - c0;
-            });
+            let _ = cwalk.walked(path, &bytes, &mut table, &mut |file| fin.column_file(file_no, path, file, &bytes, &wanted));
         } else {
-            let _ = ryo_python::fixtures::walking::walked(walk, path, &bytes, &[], &mut table, &mut scratch, &mut |mut file| {
-                let c0 = thread_cpu();
-                let ft = file.table;
-                languages::facts::clear_words(&mut fwords);
-                let mut pv = Facts { facts: &mut file, words: &mut fwords, filled: languages::FilledColumns::default(), time: 0.0, rows: 0, by_rel: HashMap::new(), file: file_no as u32 };
-                body(ft, &mut pv);
-                provider_time += pv.time;
-                provider_rows += pv.rows;
-                for (k, v) in pv.by_rel {
-                    let e = by_rel.entry(k).or_default();
-                    e.0 += v.0;
-                    e.1 += v.1;
-                    e.2 += v.2;
-                }
-                inner += thread_cpu() - c0;
-            });
+            let _ = ryo_python::fixtures::walking::walked(walk, path, &bytes, &[], &mut table, &mut scratch, &mut |mut file| fin.reader_file(file_no, path, &mut file, &bytes, &wanted));
         }
-        file_time += inner;
-        walk_time += thread_cpu() - w0 - inner;
+        walk_time += thread_cpu() - w0 - (fin.time - in_fin);
         // 7: `VEC_RSS_TRACE`: the files after which the process's resident peak rose by 32 MiB or more
         if std::env::var_os("VEC_RSS_TRACE").is_some() {
             let hwm = std::fs::read_to_string("/proc/self/status").ok().and_then(|st| st.lines().find(|l| l.starts_with("VmHWM:")).and_then(|l| l.split_whitespace().nth(1)?.parse::<u64>().ok())).unwrap_or(0);
@@ -1146,67 +1022,12 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str], seed_in: Option<st
             }
         }
     }
-    let total = thread_cpu() - started;
-    findings.sort();
-    findings.dedup();
-    if let Some(d) = &dump {
-        std::fs::write(d, &dump_text).expect("write dump");
-    }
-    if let Some(out) = flag(args, "--out") {
-        std::fs::write(out, findings.join("\n") + "\n").expect("write findings");
-    }
-    if check {
-        std::fs::write(flag(args, "--check-out").unwrap_or_else(|| "check-bases.tsv".to_owned()), check_lines.join("\n") + "\n").expect("write check");
-    }
-    if let Some(out) = flag(args, "--stats") {
-        let mut lines = vec!["node\top\tcalls\trows\ttouched\tseconds".to_owned()];
-        for (i, pn) in plan.nodes.iter().enumerate() {
-            if exec.stats.calls[i] > 0 || exec.stats.time[i] > 0.0 {
-                lines.push(format!("{i}\t{}\t{}\t{}\t{}\t{:.6}\t{}\t{}\t{}\t{}", pn.op, exec.stats.calls[i], exec.stats.rows[i], exec.stats.touched[i], exec.stats.time[i], exec.stats.empty[i], exec.stats.probes[i], exec.stats.made_by[i] as i64, exec.stats.why[i]));
-            }
-        }
-        for (k, v) in &by_rel {
-            lines.push(format!("fill:{k}\tfill\t{}\t{}\t0\t{:.6}", v.2, v.1, v.0));
-        }
-        std::fs::write(out, lines.join("\n") + "\n").expect("write stats");
-    }
-    let steps: f64 = exec.stats.time.iter().sum();
-    if let Some(out) = flag(args, "--tally") {
-        let mut lines: Vec<String> = exec.tally.ran.iter().map(|(n, c)| format!("{n}\tran\t{c}")).collect();
-        lines.extend(exec.tally.back.iter().map(|((n, why), c)| format!("{n}\tback\t{c}\t{why}")));
-        lines.sort();
-        std::fs::write(out, lines.join("\n") + "\n").expect("write tally");
-    }
-    println!("files run {files_run}; findings {}; rules {} ({} failed)", findings.len(), emits.len(), failed.len());
-    println!("thread CPU-s: total {total:.3}; walk+table {walk_time:.3}; in the visit {file_time:.3}: steps {steps:.3}, provider fills {provider_time:.3} ({provider_rows} rows)");
-    println!("per-key memo: rows in {} rows out {} keys asked {}", exec.stats.memo_in, exec.stats.memo_out, exec.stats.memo_keys);
-    println!("memo key lists answered whole: {} ({} keys)", exec.stats.memo_reused, exec.stats.memo_reused_keys);
-    println!("fact keyed lists: fill rows listed {}", finish::FACT_IX_ROWS.load(std::sync::atomic::Ordering::Relaxed));
-    let mut f: Vec<_> = failed.into_iter().collect();
-    f.sort();
-    for (r, e) in f {
-        println!("FAILED {r}: {e}");
-    }
+    fin.end(walk_time);
 }
 
 /// `vec funnel <way> <files> <anchors> <plans> [--repeat K] [--rules-out F] [--hits-out F]`: ways `cands`, `structure`,
 /// `interp`, `spec`, `knock`.
-/// The first half's result as the second half takes it: the survivors in memory, the files and the rules by number.
-struct Handed {
-    survivors: survivors::Survivors,
-    list: Vec<String>,
-    names: Vec<String>,
-    node_class: Vec<bool>,
-}
-
-impl Handed {
-    /// The second half's seed by rule and file name.
-    fn seed(&self) -> std::collections::HashSet<(String, String)> {
-        self.survivors.seed(&self.node_class).into_iter().map(|(r, f)| (self.names[r as usize].clone(), self.list[f as usize].clone())).collect()
-    }
-}
-
-fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) -> Handed {
+fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&mut finisher::Finisher<'_>>) {
     let way = args[0];
     let list = files(args[1]);
     let rules = load_rules(args[2], vocab);
@@ -1331,9 +1152,17 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) -> Handed {
     let mut remaining: Vec<u32> = Vec::new();
     let (mut kinds_alive, mut words_alive, mut alive): (Vec<bool>, Vec<bool>, Vec<bool>) = (Vec::new(), Vec::new(), Vec::new());
     let started = thread_cpu();
+    // the second half inside this walk (`--finish`): each plan emit's rules of this plan set by name (the seed's rule is a
+    // name), and the file's seed as a set over the rules
+    assert!(fin.is_none() || (use_facts && direct), "--finish in the first half's walk needs --facts --direct");
+    let emit_rules: Vec<Vec<usize>> = fin.as_ref().map(|f| f.emit_names().map(|(_, n)| frules.iter().enumerate().filter(|(_, r)| r.name == n).map(|(i, _)| i).collect()).collect()).unwrap_or_default();
+    let mut in_seed = vec![false; frules.len()];
+    let node_class: Vec<bool> = frules.iter().map(|r| r.node).collect();
+    let fin0 = fin.as_ref().map_or(0.0, |f| f.time);
     for (file_no, path) in list.iter().enumerate() {
         let c0 = thread_cpu();
         let bytes = std::fs::read(path).expect("read");
+        let (hits0, alive0) = (sv.hits.len(), sv.alive.len());
         store.reset(slots_n);
         let mut visit_time = 0f64;
         // the file's skip, made once (inside the walk when the provider's facts are decided there, else after it): the
@@ -1463,6 +1292,202 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) -> Handed {
                     }
                 }
                 phases.add("skip tests", thread_cpu() - c3);
+                }
+            }};
+        }
+        // the file's prefix: the structure pass, then each live unit's plans over its bucket (inside the fact visit when the
+        // walk lends the file there, so the second half can run on the same parsed file after it)
+        let mut prefixed = false;
+        macro_rules! prefix {
+            ($t:expr) => {{
+                let t: &NodeTable = $t;
+                let c2 = thread_cpu();
+                if structured {
+                    for _ in 0..repeat {
+                        funnel::structure(t, &mut st, &function, &class, &looping);
+                    }
+                    phases.add("structure pass", (thread_cpu() - c2) / repeat as f64);
+                    if !fact_catalog.enc_sets.is_empty() {
+                        let e0 = thread_cpu();
+                        funnel::enclosing(t, &mut st, &fact_catalog.enc_sets);
+                        phases.add("enclosing columns (one per kind set)", thread_cpu() - e0);
+                    }
+                }
+                if way != "structure" && way != "words" {
+                    let ctx = funnel::Ctx {
+                        table: t,
+                        src: &bytes,
+                        pkind: if structured { &st.pkind } else { &[] },
+                        cmask: if structured { &st.cmask } else { &[] },
+                        cfmask: if structured { &st.cfmask } else { &[] },
+                        facts: &store,
+                        enc: &st.enc,
+                        matches: &interner.matches,
+                    };
+                    let elements = node_table::element_count(t).0 as usize;
+                    if marked.len() < elements {
+                        marked.resize(elements, 0);
+                    }
+                    let fill = |key: &Key, buf: &mut Vec<u32>| {
+                        buf.clear();
+                        match *key {
+                            Key::Word(w) => buf.extend_from_slice(&word_pos[word_offsets[usize::from(w)] as usize..word_offsets[usize::from(w) + 1] as usize]),
+                            Key::Kind(k) => buf.extend(node_table::ids_of_kind(t, KindBits(k)).iter().map(|p| p.0)),
+                            Key::Field(f) => {
+                                let (a, b) = (cols.field_offsets[usize::from(f)] as usize, cols.field_offsets[usize::from(f) + 1] as usize);
+                                buf.extend_from_slice(&cols.by_field[a..b]);
+                            }
+                        }
+                    };
+                    let c4 = thread_cpu();
+                    for r in 0..repeat {
+                        let first = r == 0;
+                        let mut file_surv = vec![0u64; units.len()];
+                        let k0 = thread_cpu();
+                        if way == "knock" {
+                            for u in &mut last {
+                                *u = 0;
+                            }
+                            for g in &group_list {
+                                file_mask.clear();
+                                file_mask.resize(g.words(), 0);
+                                let mut i = 0;
+                                for (slot, u) in g.slot_unit.iter().enumerate() {
+                                    if alive[units[*u].rule] {
+                                        file_mask[slot / 64] |= 1 << (slot % 64);
+                                    }
+                                    i += 1;
+                                }
+                                let _ = i;
+                                if file_mask.iter().all(|w| *w == 0) {
+                                    continue;
+                                }
+                                fill(&g.key, &mut buf);
+                                let s = funnel::knock(&ctx, g, &buf, &file_mask, &mut file_surv, &mut last);
+                                if first {
+                                    knock_steps += s;
+                                    for u in &g.units {
+                                        if alive[units[*u].rule] {
+                                            cands[*u] += buf.len() as u64;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        if way == "knock" {
+                            phases.add("prefixes: knock-out units", (thread_cpu() - k0) / repeat as f64);
+                        }
+                        for (ui, unit) in units.iter().enumerate() {
+                            if !alive[unit.rule] || (way == "knock" && unit.knock) {
+                                continue;
+                            }
+                            let rule = &frules[unit.rule];
+                            if word_skip && !unit.plans.iter().any(|p| funnel::cnf_holds(&rule.plans[*p].words, &present)) {
+                                continue;
+                            }
+                            fill(&unit.key, &mut buf);
+                            if first && word_src == "table" {
+                                // what entering from the rarest required word would start from: per plan the fewest name tokens of
+                                // a clause's words, never more than the bucket
+                                for p in &unit.plans {
+                                    let plan = &rule.plans[*p];
+                                    if word_skip && !funnel::cnf_holds(&plan.words, &present) {
+                                        continue;
+                                    }
+                                    let fewest = plan
+                                        .words
+                                        .iter()
+                                        .map(|cl| cl.iter().map(|w| u64::from(word_offsets[usize::from(*w) + 1] - word_offsets[usize::from(*w)])).sum::<u64>())
+                                        .min()
+                                        .unwrap_or(u64::MAX);
+                                    word_entry_bound += fewest.min(buf.len() as u64);
+                                }
+                            }
+                            let mut n_s = 0u64;
+                            let mut s = 0u64;
+                            match way {
+                                "cands" => {}
+                                "interp" => {
+                                    for &n in &buf {
+                                        for p in &unit.plans {
+                                            regs[0] = n;
+                                            if funnel::exec(&ctx, &rule.plans[*p].ops, 0, &mut regs, &mut s) {
+                                                n_s += 1;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                                _ => {
+                                    // each plan runs over the candidates no earlier plan of the unit kept: the first from the
+                                    // bucket itself, the next ones from what is left (made only when a later plan reads it)
+                                    stamp = stamp.wrapping_add(1);
+                                    let mut left = false;
+                                    for (pi, p) in unit.plans.iter().enumerate() {
+                                        let from: &[u32] = if left { &remaining } else { &buf };
+                                        if from.is_empty() {
+                                            break;
+                                        }
+                                        let plan = &rule.plans[*p];
+                                        if word_skip && !funnel::cnf_holds(&plan.words, &present) {
+                                            continue;
+                                        }
+                                        rows.enter(plan.regs.max(1), from);
+                                        for stage in &plan.stages {
+                                            if rows.len() == 0 {
+                                                break;
+                                            }
+                                            stage(&ctx, &mut rows, &mut s);
+                                        }
+                                        let mut kept = 0;
+                                        for j in 0..rows.len() {
+                                            let n = rows.d[j * rows.r] as usize;
+                                            if marked[n] != stamp {
+                                                marked[n] = stamp;
+                                                kept += 1;
+                                                if first {
+                                                    sv.nodes.push(n as u32);
+                                                }
+                                            }
+                                        }
+                                        n_s += kept;
+                                        if pi + 1 < unit.plans.len() && kept > 0 {
+                                            if left {
+                                                remaining.retain(|n| marked[*n as usize] != stamp);
+                                            } else {
+                                                remaining.clear();
+                                                remaining.extend(buf.iter().filter(|n| marked[**n as usize] != stamp));
+                                                left = true;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            if first {
+                                sv.close(unit.rule, file_no);
+                            }
+                            if first {
+                                cands[ui] += buf.len() as u64;
+                                file_surv[ui] += n_s;
+                                unit_steps[ui] += s;
+                            }
+                        }
+                        if first {
+                            let mut any = vec![false; frules.len()];
+                            for (ui, unit) in units.iter().enumerate() {
+                                surv[ui] += file_surv[ui];
+                                if file_surv[ui] > 0 {
+                                    any[unit.rule] = true;
+                                }
+                            }
+                            for (ri, a) in any.iter().enumerate() {
+                                if *a {
+                                    sv.hits.push((ri as u32, file_no as u32));
+                                }
+                            }
+                        }
+                    }
+                    phases.add("prefixes", (thread_cpu() - c4) / repeat as f64);
                 }
             }};
         }
@@ -1757,6 +1782,16 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) -> Handed {
                             chk_diff[t] += u64::from(mine != theirs) * (mine.len().abs_diff(theirs.len()).max(1) as u64) + u64::from(back != theirs);
                         }
                     }
+                    // one parse a file: the prefix and then the second half on this walked file, before the walk drops it
+                    prefix!(ft);
+                    prefixed = true;
+                    if let Some(fin) = fin.as_deref_mut() {
+                        sv.seed_of_file(hits0, alive0, &node_class, &mut in_seed);
+                        let wanted = fin.wanted(path, &|e| emit_rules[e].iter().any(|r| in_seed[*r]));
+                        if fin.visits(&wanted) {
+                            fin.column_file(file_no, path, file, &bytes, &wanted);
+                        }
+                    }
                     visit_time += thread_cpu() - p0;
                 })
                 .is_ok()
@@ -1858,197 +1893,16 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) -> Handed {
         if !prepared {
             prepare!(t);
         }
-        let c2 = thread_cpu();
-        if structured {
-            for _ in 0..repeat {
-                funnel::structure(t, &mut st, &function, &class, &looping);
-            }
-            phases.add("structure pass", (thread_cpu() - c2) / repeat as f64);
-            if !fact_catalog.enc_sets.is_empty() {
-                let e0 = thread_cpu();
-                funnel::enclosing(t, &mut st, &fact_catalog.enc_sets);
-                phases.add("enclosing columns (one per kind set)", thread_cpu() - e0);
-            }
+        if !prefixed {
+            prefix!(t);
         }
-        if way == "structure" || way == "words" {
-            continue;
-        }
-        let ctx = funnel::Ctx {
-            table: t,
-            src: &bytes,
-            pkind: if structured { &st.pkind } else { &[] },
-            cmask: if structured { &st.cmask } else { &[] },
-            cfmask: if structured { &st.cfmask } else { &[] },
-            facts: &store,
-            enc: &st.enc,
-            matches: &interner.matches,
-        };
-        let elements = node_table::element_count(t).0 as usize;
-        if marked.len() < elements {
-            marked.resize(elements, 0);
-        }
-        let fill = |key: &Key, buf: &mut Vec<u32>| {
-            buf.clear();
-            match *key {
-                Key::Word(w) => buf.extend_from_slice(&word_pos[word_offsets[usize::from(w)] as usize..word_offsets[usize::from(w) + 1] as usize]),
-                Key::Kind(k) => buf.extend(node_table::ids_of_kind(t, KindBits(k)).iter().map(|p| p.0)),
-                Key::Field(f) => {
-                    let (a, b) = (cols.field_offsets[usize::from(f)] as usize, cols.field_offsets[usize::from(f) + 1] as usize);
-                    buf.extend_from_slice(&cols.by_field[a..b]);
-                }
-            }
-        };
-        let c4 = thread_cpu();
-        for r in 0..repeat {
-            let first = r == 0;
-            let mut file_surv = vec![0u64; units.len()];
-            let k0 = thread_cpu();
-            if way == "knock" {
-                for u in &mut last {
-                    *u = 0;
-                }
-                for g in &group_list {
-                    file_mask.clear();
-                    file_mask.resize(g.words(), 0);
-                    let mut i = 0;
-                    for (slot, u) in g.slot_unit.iter().enumerate() {
-                        if alive[units[*u].rule] {
-                            file_mask[slot / 64] |= 1 << (slot % 64);
-                        }
-                        i += 1;
-                    }
-                    let _ = i;
-                    if file_mask.iter().all(|w| *w == 0) {
-                        continue;
-                    }
-                    fill(&g.key, &mut buf);
-                    let s = funnel::knock(&ctx, g, &buf, &file_mask, &mut file_surv, &mut last);
-                    if first {
-                        knock_steps += s;
-                        for u in &g.units {
-                            if alive[units[*u].rule] {
-                                cands[*u] += buf.len() as u64;
-                            }
-                        }
-                    }
-                }
-            }
-            if way == "knock" {
-                phases.add("prefixes: knock-out units", (thread_cpu() - k0) / repeat as f64);
-            }
-            for (ui, unit) in units.iter().enumerate() {
-                if !alive[unit.rule] || (way == "knock" && unit.knock) {
-                    continue;
-                }
-                let rule = &frules[unit.rule];
-                if word_skip && !unit.plans.iter().any(|p| funnel::cnf_holds(&rule.plans[*p].words, &present)) {
-                    continue;
-                }
-                fill(&unit.key, &mut buf);
-                if first && word_src == "table" {
-                    // what entering from the rarest required word would start from: per plan the fewest name tokens of
-                    // a clause's words, never more than the bucket
-                    for p in &unit.plans {
-                        let plan = &rule.plans[*p];
-                        if word_skip && !funnel::cnf_holds(&plan.words, &present) {
-                            continue;
-                        }
-                        let fewest = plan
-                            .words
-                            .iter()
-                            .map(|cl| cl.iter().map(|w| u64::from(word_offsets[usize::from(*w) + 1] - word_offsets[usize::from(*w)])).sum::<u64>())
-                            .min()
-                            .unwrap_or(u64::MAX);
-                        word_entry_bound += fewest.min(buf.len() as u64);
-                    }
-                }
-                let mut n_s = 0u64;
-                let mut s = 0u64;
-                match way {
-                    "cands" => {}
-                    "interp" => {
-                        for &n in &buf {
-                            for p in &unit.plans {
-                                regs[0] = n;
-                                if funnel::exec(&ctx, &rule.plans[*p].ops, 0, &mut regs, &mut s) {
-                                    n_s += 1;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    _ => {
-                        // each plan runs over the candidates no earlier plan of the unit kept: the first from the
-                        // bucket itself, the next ones from what is left (made only when a later plan reads it)
-                        stamp = stamp.wrapping_add(1);
-                        let mut left = false;
-                        for (pi, p) in unit.plans.iter().enumerate() {
-                            let from: &[u32] = if left { &remaining } else { &buf };
-                            if from.is_empty() {
-                                break;
-                            }
-                            let plan = &rule.plans[*p];
-                            if word_skip && !funnel::cnf_holds(&plan.words, &present) {
-                                continue;
-                            }
-                            rows.enter(plan.regs.max(1), from);
-                            for stage in &plan.stages {
-                                if rows.len() == 0 {
-                                    break;
-                                }
-                                stage(&ctx, &mut rows, &mut s);
-                            }
-                            let mut kept = 0;
-                            for j in 0..rows.len() {
-                                let n = rows.d[j * rows.r] as usize;
-                                if marked[n] != stamp {
-                                    marked[n] = stamp;
-                                    kept += 1;
-                                    if first {
-                                        sv.nodes.push(n as u32);
-                                    }
-                                }
-                            }
-                            n_s += kept;
-                            if pi + 1 < unit.plans.len() && kept > 0 {
-                                if left {
-                                    remaining.retain(|n| marked[*n as usize] != stamp);
-                                } else {
-                                    remaining.clear();
-                                    remaining.extend(buf.iter().filter(|n| marked[**n as usize] != stamp));
-                                    left = true;
-                                }
-                            }
-                        }
-                    }
-                }
-                if first {
-                    sv.close(unit.rule, file_no);
-                }
-                if first {
-                    cands[ui] += buf.len() as u64;
-                    file_surv[ui] += n_s;
-                    unit_steps[ui] += s;
-                }
-            }
-            if first {
-                let mut any = vec![false; frules.len()];
-                for (ui, unit) in units.iter().enumerate() {
-                    surv[ui] += file_surv[ui];
-                    if file_surv[ui] > 0 {
-                        any[unit.rule] = true;
-                    }
-                }
-                for (ri, a) in any.iter().enumerate() {
-                    if *a {
-                        sv.hits.push((ri as u32, file_no as u32));
-                    }
-                }
-            }
-        }
-        phases.add("prefixes", (thread_cpu() - c4) / repeat as f64);
     }
-    let total = thread_cpu() - started;
+    // the second half's time inside this walk is not the first half's
+    let fin_spent = fin.as_ref().map_or(0.0, |f| f.time) - fin0;
+    let total = thread_cpu() - started - fin_spent;
+    if fin.is_some() {
+        println!("one walk: the second half inside the first half's visit {fin_spent:.4} s");
+    }
     println!(
         "words: {n_words} required words; word src {word_src}; present (file, word) {present_total}; distinct name-token words summed over files {distinct_total}; compare: in the table but not the source scan {missing_in_src}, in the source scan only {extra_in_src}"
     );
@@ -2130,7 +1984,6 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) -> Handed {
     if let Some(path) = flag(args, "--hits-out") {
         std::fs::write(path, survivors::Survivors::pairs_text(&sv.hits, &name_refs, &list)).expect("hits out");
     }
-    Handed { node_class: frules.iter().map(|r| r.node).collect(), survivors: sv, list, names }
 }
 
 #[cfg(not(feature = "vec-arrow"))]
