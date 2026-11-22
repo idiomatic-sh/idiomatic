@@ -111,3 +111,75 @@ name = "unicode-prefix"
 comparison = "full"
 files = { "case.py" = "import pytest\nπ = 1\nwith pytest.warns(Warning):\n    setup()\n    work()\n" }
 expected = [{ rule = "PT031", file = "case.py", start = 21, end = 71 }]
+
+[[cases]]
+name = "nested-async-with-two-statements"
+comparison = "full"
+files = { "case.py" = "import pytest\nasync def test():\n    with pytest.warns(UserWarning):\n        async with f() as s:\n            a()\n            b()\n" }
+expected = [{ rule = "PT031", file = "case.py", start = 36, end = 128 }]
+
+[[cases]]
+name = "nested-with-two-statements"
+comparison = "full"
+files = { "case.py" = "import pytest\ndef test():\n    with pytest.warns(UserWarning):\n        with f() as s:\n            a()\n            b()\n" }
+expected = [{ rule = "PT031", file = "case.py", start = 30, end = 116 }]
+
+[[cases]]
+name = "nested-async-with-one-statement"
+comparison = "full"
+files = { "case.py" = "import pytest\nasync def test():\n    with pytest.warns(UserWarning):\n        async with f() as s:\n            a()\n" }
+expected = []
+
+[[cases]]
+name = "two-level-nested-with"
+comparison = "full"
+files = { "case.py" = "import pytest\ndef test():\n    with pytest.warns(UserWarning):\n        with f():\n            with g():\n                a()\n                b()\n" }
+expected = [{ rule = "PT031", file = "case.py", start = 30, end = 141 }]
+
+[[cases]]
+name = "nested-for-loop"
+comparison = "full"
+files = { "case.py" = "import pytest\ndef test():\n    with pytest.warns(UserWarning):\n        for x in y:\n            a()\n            b()\n" }
+expected = [{ rule = "PT031", file = "case.py", start = 30, end = 113 }]
+
+[[cases]]
+name = "nested-if"
+comparison = "full"
+files = { "case.py" = "import pytest\ndef test():\n    with pytest.warns(UserWarning):\n        if x:\n            a()\n            b()\n" }
+expected = [{ rule = "PT031", file = "case.py", start = 30, end = 107 }]
+
+[[cases]]
+name = "pass-body"
+comparison = "full"
+files = { "case.py" = "import pytest\ndef test():\n    with pytest.warns(UserWarning):\n        pass\n" }
+expected = []
+
+[[cases]]
+name = "raises-nested-async-with"
+comparison = "full"
+files = { "case.py" = "import pytest\nasync def test():\n    with pytest.raises(ValueError):\n        async with f() as s:\n            a()\n            b()\n" }
+expected = []
+
+[[cases]]
+name = "async-warns"
+comparison = "full"
+files = { "case.py" = "import pytest\nasync def test():\n    async with pytest.warns(UserWarning):\n        a()\n        b()\n" }
+expected = [{ rule = "PT031", file = "case.py", start = 36, end = 97 }]
+
+[[cases]]
+name = "nested-async-for-two-statements"
+comparison = "full"
+files = { "case.py" = "import pytest\nasync def test():\n    with pytest.warns(UserWarning):\n        async for x in y:\n            a()\n            b()\n" }
+expected = [{ rule = "PT031", file = "case.py", start = 36, end = 125 }]
+
+[[cases]]
+name = "nested-async-for-pass"
+comparison = "full"
+files = { "case.py" = "import pytest\nasync def test():\n    with pytest.warns(UserWarning):\n        async for x in y:\n            pass\n" }
+expected = []
+
+[[cases]]
+name = "nested-with-async-for"
+comparison = "full"
+files = { "case.py" = "import pytest\nasync def test():\n    with pytest.warns(UserWarning):\n        with f():\n            async for x in y:\n                a()\n" }
+expected = [{ rule = "PT031", file = "case.py", start = 36, end = 135 }]
