@@ -63,6 +63,12 @@ pub(crate) struct NeedFormulas {
     pub(crate) node_musts: Vec<Stretch>,
     /// The words of every node's musts, one node after the other.
     pub(crate) musts: Vec<MustWord>,
+    /// For each node, whether the free terms can say anything of it: false for a node whose every leaf costs (a term
+    /// that fills, a table), which the pass over the free terms takes to be open with no part read.
+    pub(crate) informs: Vec<bool>,
+    /// The node of each leaf met (a term, another site, a table), and one more, by what it names: a leaf is one node
+    /// wherever it is met, so parts the alternatives of an Any share are found by number.
+    pub(crate) leaves: hashbrown::HashMap<(u8, u32), u32>,
     /// For each node, a clause it cannot hold without: free terms SOME one of which the file must hold, as a stretch of
     /// `musts` (none: an empty stretch). An Any of alternatives each of which needs its own term is empty, off one
     /// word's compare, when the file holds none of those terms.

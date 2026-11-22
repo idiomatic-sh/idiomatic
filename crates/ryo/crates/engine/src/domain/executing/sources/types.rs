@@ -182,6 +182,39 @@ impl NeedFacts for FileNeeds<'_, '_, '_> {
 }
 
 impl FileNeeds<'_, '_, '_> {
+    /// SPIKE: a term's relation and whether it asks a value, for a measuring worker's trace.
+    fn term_relation(&self, term: TermNumber) -> String {
+        match self
+            .0
+            .state
+            .need_masks
+            .terms
+            .get(usize::try_from(term.0).unwrap_or(usize::MAX))
+            .copied()
+        {
+            Some(NeedTerm::Row {
+                relation,
+                column,
+                constant,
+            }) => {
+                let named = self
+                    .0
+                    .fill
+                    .programs
+                    .code
+                    .relations
+                    .get(usize::try_from(relation.0).unwrap_or(usize::MAX))
+                    .map_or_else(|| "?".to_owned(), |held| format!("{held:?}"));
+                if column == NO_SLOT || constant == NO_SLOT {
+                    format!("{named}:any")
+                } else {
+                    format!("{named}:value")
+                }
+            }
+            Some(NeedTerm::Kinds(_)) | None => "?".to_owned(),
+        }
+    }
+
     /// A site's value from the free terms alone, kept for the file.
     fn site_valued(&mut self, site: NeedSite, value: FreeValue) {
         let place = usize::try_from(site.0).unwrap_or(usize::MAX);
@@ -280,6 +313,16 @@ impl FileNeeds<'_, '_, '_> {
     /// tables already made: `Open` when what is not known yet decides. Asks nothing that costs.
     fn node_free(&mut self, node: u32) -> FreeValue {
         visit(self.0.state, 1);
+        let formulas = &self.0.state.need_masks.formulas;
+        // A node whose every leaf costs is open here: what the file already answered of it is read when it is asked.
+        if !formulas
+            .informs
+            .get(usize::try_from(node).unwrap_or(usize::MAX))
+            .copied()
+            .unwrap_or(true)
+        {
+            return FreeValue::Open;
+        }
         let held = self.node(node);
         // A node of parts, or another site, is first held to the free terms it cannot hold without; a leaf is its own.
         if matches!(
@@ -376,7 +419,15 @@ impl FileNeeds<'_, '_, '_> {
                     NeedVerdict::Empty
                 }
             }
-            FormulaNode::Term(term) => self.term_holds(term),
+            FormulaNode::Term(term) => {
+                let verdict = self.term_holds(term);
+                if self.0.state.measure.is_some() {
+                    // SPIKE: a measuring worker traces each term that costs, by its relation.
+                    let named = self.term_relation(term);
+                    need_leaf(self.0.state, || format!("term:{named}={verdict:?}"));
+                }
+                verdict
+            }
             FormulaNode::Table(table) => self.table_row(table),
             FormulaNode::TableNeed(table) => {
                 let ports = self.0.ports;

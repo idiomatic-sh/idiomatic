@@ -7,7 +7,9 @@ use crate::domain::code::records::service::need_at;
 use crate::domain::code::records::types::NeedRecord;
 use crate::domain::code::types::{NeedSite, ProgramCode, WordSlot};
 use crate::domain::needs::masks::service::numbered;
-use crate::domain::needs::masks::types::{MustWord, NeedMasks, NeedTerm, RecordCost, Stretch};
+use crate::domain::needs::masks::types::{
+    MustWord, NeedMasks, NeedTerm, RecordCost, Stretch, TermNumber,
+};
 use crate::domain::steps::types::MadeTableId;
 use ryo_relations::domain::relations::types::Count;
 
@@ -92,6 +94,29 @@ fn pushed(masks: &mut NeedMasks, node: FormulaNode, rank: AskRank, musts: &[Must
     });
     formulas.musts.extend_from_slice(musts);
     formulas.node_clauses.push(Stretch::default());
+    let informs = match node {
+        FormulaNode::Term(_) | FormulaNode::Table(_) => false,
+        FormulaNode::All(parts) | FormulaNode::Any(parts) => formulas
+            .parts
+            .get(parts.start.0..parts.start.0.saturating_add(parts.count.0))
+            .unwrap_or_default()
+            .iter()
+            .any(|part| {
+                formulas
+                    .informs
+                    .get(usize::try_from(*part).unwrap_or(usize::MAX))
+                    .copied()
+                    .unwrap_or(true)
+            }),
+        FormulaNode::Always
+        | FormulaNode::Never
+        | FormulaNode::Free(_)
+        | FormulaNode::Site(_)
+        | FormulaNode::TableNeed(_)
+        | FormulaNode::AllBits(_)
+        | FormulaNode::AnyBits(_) => true,
+    };
+    formulas.informs.push(informs);
     formulas.nodes.push(node);
     formulas.ranks.push(rank);
     u32::try_from(formulas.nodes.len().saturating_sub(1)).unwrap_or(u32::MAX)
@@ -209,6 +234,16 @@ pub(crate) fn rank_of(masks: &NeedMasks, node: u32) -> AskRank {
 /// The node of a term: a bit of the file's free answers when it costs nothing, else the term by number.
 fn term_node(code: &ProgramCode, masks: &mut NeedMasks, term: NeedTerm, at: WordSlot) -> u32 {
     let number = numbered(code, masks, term, at);
+    if let Some(node) = masks.formulas.leaves.get(&(0, number.0)).copied() {
+        return node;
+    }
+    let node = term_pushed(masks, number);
+    let _was = masks.formulas.leaves.insert((0, number.0), node);
+    node
+}
+
+/// The node of a term met the first time.
+fn term_pushed(masks: &mut NeedMasks, number: TermNumber) -> u32 {
     let place = usize::try_from(number.0).unwrap_or(usize::MAX);
     let cost = masks.term_costs.get(place).copied().unwrap_or_default();
     let free = masks.free_places.get(place).copied().unwrap_or(0);
@@ -240,6 +275,129 @@ fn parts_node(
             None if every => {}
             None => parts.push(pushed(masks, FormulaNode::Always, AskRank::Free, &[])),
         }
+    }
+    if every {
+        joined(masks, parts, true)
+    } else {
+        factored(masks, parts)
+    }
+}
+
+/// A part's own parts as an All sees them: its free bits, and its other parts by number.
+fn conjuncts(masks: &NeedMasks, part: u32) -> (Vec<MustWord>, Vec<u32>) {
+    let (mut words, mut others) = (Vec::new(), Vec::new());
+    let mut add = |masks: &NeedMasks, node: u32, words: &mut Vec<MustWord>| {
+        let held = masks.formulas.nodes.get(usize::try_from(node).unwrap_or(usize::MAX)).copied();
+        let more: Vec<MustWord> = match held {
+            Some(FormulaNode::Free(bit)) => bit_words(bit),
+            Some(FormulaNode::AllBits(stretch)) => masks
+                .formulas
+                .bits
+                .get(stretch.start.0..stretch.start.0.saturating_add(stretch.count.0))
+                .unwrap_or_default()
+                .to_vec(),
+            Some(_) | None => {
+                others.push(node);
+                return;
+            }
+        };
+        for word in more {
+            match words.iter_mut().find(|held: &&mut MustWord| held.word == word.word) {
+                Some(held) => held.bits |= word.bits,
+                None => words.push(word),
+            }
+        }
+    };
+    match masks.formulas.nodes.get(usize::try_from(part).unwrap_or(usize::MAX)).copied() {
+        Some(FormulaNode::All(stretch)) => {
+            let inner = masks
+                .formulas
+                .parts
+                .get(stretch.start.0..stretch.start.0.saturating_add(stretch.count.0))
+                .unwrap_or_default()
+                .to_vec();
+            for node in inner {
+                add(masks, node, &mut words);
+            }
+        }
+        Some(_) | None => add(masks, part, &mut words),
+    }
+    (words, others)
+}
+
+/// The node of an Any, with what all its alternatives need taken out in front: an Any of (C and R1), (C and R2) is C
+/// and an Any of R1, R2, so C is tested once and the alternatives keep what tells them apart. An alternative left with
+/// nothing holds whenever C does.
+fn factored(masks: &mut NeedMasks, parts: Vec<u32>) -> u32 {
+    if parts.len() < 2 {
+        return joined(masks, parts, false);
+    }
+    let each: Vec<(Vec<MustWord>, Vec<u32>)> = parts.iter().map(|part| conjuncts(masks, *part)).collect();
+    let Some((first_words, first_others)) = each.first() else {
+        return joined(masks, parts, false);
+    };
+    let mut common_words = first_words.clone();
+    let mut common_others = first_others.clone();
+    for (words, others) in each.iter().skip(1) {
+        for word in &mut common_words {
+            word.bits &= words.iter().find(|held| held.word == word.word).map_or(0, |held| held.bits);
+        }
+        common_words.retain(|word| word.bits != 0);
+        common_others.retain(|node| others.contains(node));
+    }
+    if common_words.is_empty() && common_others.is_empty() {
+        return joined(masks, parts, false);
+    }
+    let mut rests: Vec<u32> = Vec::with_capacity(each.len());
+    let mut always = false;
+    for (words, others) in each {
+        let left_words: Vec<MustWord> = words
+            .iter()
+            .map(|word| MustWord {
+                word: word.word,
+                bits: word.bits
+                    & !common_words.iter().find(|held| held.word == word.word).map_or(0, |held| held.bits),
+            })
+            .filter(|word| word.bits != 0)
+            .collect();
+        let left_others: Vec<u32> = others.into_iter().filter(|node| !common_others.contains(node)).collect();
+        if left_words.is_empty() && left_others.is_empty() {
+            always = true;
+            break;
+        }
+        rests.push(all_of(masks, &left_words, left_others));
+    }
+    let mut all = common_others;
+    if !common_words.is_empty() {
+        all.push(all_of(masks, &common_words, Vec::new()));
+    }
+    if !always {
+        all.push(joined(masks, rests, false));
+    }
+    joined(masks, all, true)
+}
+
+/// The node of an All of free bits and other parts.
+fn all_of(masks: &mut NeedMasks, words: &[MustWord], mut others: Vec<u32>) -> u32 {
+    if !words.is_empty() {
+        let stretch = Stretch {
+            start: Count(masks.formulas.bits.len()),
+            count: Count(words.len()),
+        };
+        masks.formulas.bits.extend_from_slice(words);
+        let bits = pushed(masks, FormulaNode::AllBits(stretch), AskRank::Free, words);
+        others.insert(0, bits);
+    }
+    joined(masks, others, true)
+}
+
+/// The node of an All (`every`) or an Any of compiled parts: the parts that are free terms joined into one node of bit
+/// words, the others ordered by what asking them may cost.
+fn joined(masks: &mut NeedMasks, mut parts: Vec<u32>, every: bool) -> u32 {
+    if parts.len() == 1
+        && let Some(only) = parts.first()
+    {
+        return *only;
     }
     // The parts that are free terms become one node of bit words: a word's and-compare in place of a node a term.
     let mut words: Vec<MustWord> = Vec::new();
@@ -369,6 +527,12 @@ fn compiled(code: &ProgramCode, at: WordSlot, masks: &mut NeedMasks) -> u32 {
             },
             at,
         ),
+        Some(NeedRecord::Site(site)) if masks.formulas.leaves.contains_key(&(1, site.0)) => {
+            masks.formulas.leaves.get(&(1, site.0)).copied().unwrap_or(0)
+        }
+        Some(NeedRecord::Table(table)) if masks.formulas.leaves.contains_key(&(2, table.0)) => {
+            masks.formulas.leaves.get(&(2, table.0)).copied().unwrap_or(0)
+        }
         Some(NeedRecord::Site(site)) => {
             // A site met while its own formula is compiled says nothing of itself: it is taken to cost a table.
             let root = site_root(code, site, masks);
@@ -377,9 +541,17 @@ fn compiled(code: &ProgramCode, at: WordSlot, masks: &mut NeedMasks) -> u32 {
             let clause = root.map_or_else(Vec::new, |root| clause_of(masks, root).to_vec());
             let number = pushed(masks, FormulaNode::Site(site), rank, &musts);
             clause_set(masks, number, &clause);
+            // Only a site whose formula was compiled is shared: one met inside itself is not.
+            if root.is_some() {
+                let _was = masks.formulas.leaves.insert((1, site.0), number);
+            }
             number
         }
-        Some(NeedRecord::Table(table)) => table_node(code, masks, table),
+        Some(NeedRecord::Table(table)) => {
+            let number = table_node(code, masks, table);
+            let _was = masks.formulas.leaves.insert((2, table.0), number);
+            number
+        }
         Some(NeedRecord::All {
             parts: count,
             offsets,
