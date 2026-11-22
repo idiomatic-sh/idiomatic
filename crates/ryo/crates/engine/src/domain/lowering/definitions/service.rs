@@ -2,7 +2,8 @@
 //! of one, and a pattern asked of one. A definition is lowered once, whoever reads it; nothing below a use is ever copied.
 
 use super::types::{
-    AskedColumns, DefinitionDraft, Drafts, Flattened, PatternDraft, PatternPlace, WaitingPattern,
+    AskSite, AskedColumns, DefinitionDraft, Drafts, Flattened, PatternDraft, PatternPlace,
+    WaitingPattern,
 };
 use crate::domain::code::types::ShapeChoice;
 use crate::domain::lowering::emptiness::branches::service::{branches_need, with_need};
@@ -161,14 +162,23 @@ pub(crate) fn asked(
     collected: &ColumnMask,
 ) {
     let place = usize::try_from(definition.0).unwrap_or(usize::MAX);
+    let site = drafts.asking.atom.as_ref().map(|(atom, rows)| AskSite {
+        prefix: drafts.asking.prefix.clone(),
+        atom: atom.clone(),
+        rows: *rows,
+    });
     let Some(draft) = drafts.definitions.get_mut(place) else {
         return;
     };
     let known = draft
         .patterns
-        .iter()
-        .any(|pattern| pattern.asked.bound == *bound && pattern.asked.collected == *collected);
-    if known {
+        .iter_mut()
+        .find(|pattern| pattern.asked.bound == *bound && pattern.asked.collected == *collected);
+    if let Some(pattern) = known {
+        match site {
+            Some(site) => pattern.sites.push(site),
+            None => pattern.opaque = true,
+        }
         return;
     }
     draft.patterns.push(PatternDraft {
@@ -178,6 +188,8 @@ pub(crate) fn asked(
         },
         form: None,
         shape: ShapeChoice::Decided,
+        opaque: site.is_none(),
+        sites: site.into_iter().collect(),
     });
     drafts.waiting.push(WaitingPattern {
         definition,

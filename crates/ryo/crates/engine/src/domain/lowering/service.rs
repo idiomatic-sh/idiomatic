@@ -26,6 +26,7 @@ use super::planning::types::{PlannedBranch, UnitRole};
 use super::planning::writing::service::branch_program;
 use super::proving::service::proved;
 use super::proving::types::{ProductStated, ProofFault, ProvedUnit, UnitHomes, Unproved};
+use super::restricting::service::{checked, restrict_margin, restricted};
 use super::sharing::service::prefixes_shared;
 use super::tables::arms::service::rule_flattened;
 use super::tables::inputs::service::step_defined;
@@ -268,6 +269,13 @@ fn built(
     }
     // Each pattern asked is placed once; placing one may ask patterns of the definitions it reads.
     patterns_placed(&mut drafts, sample)?;
+    // SPIKE (restricted tables): a table its readers reach by key from keys they hold before it is made for those keys.
+    let margin = restrict_margin();
+    if margin > 0 {
+        let done = restricted(&mut drafts, sample, margin);
+        patterns_placed(&mut drafts, sample)?;
+        let _kept = checked(&mut drafts, done);
+    }
     let stated = |definition: &DefinitionDraft| {
         if definition.keyless.is_empty() {
             ProductStated::Keyed

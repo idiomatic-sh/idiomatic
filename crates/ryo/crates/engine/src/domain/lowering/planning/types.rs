@@ -34,6 +34,8 @@ pub(crate) struct PlannedBranch {
     pub(crate) rows: PlanEstimate,
     /// How many accesses after the first have no key: the product stages of a pipeline.
     pub(crate) products: Count,
+    /// SPIKE (restricted tables): the rows the unit holds just before each atom of `order` runs, for one start.
+    pub(crate) before: Vec<PlanEstimate>,
 }
 
 /// One access as written, its registers decided: what the step emitter and the stage emitter each write in their own form.
@@ -323,6 +325,8 @@ pub(crate) struct OrderCompletion<'a> {
     pub(crate) enumerated: Enumerated,
     /// How many accesses after the first had no key.
     pub(crate) products: Count,
+    /// The rows held just before each placed atom, in the order's order.
+    pub(crate) before: Vec<PlanEstimate>,
 }
 
 /// The kinds a bucket of the node table names, with the node relation they are read through.
