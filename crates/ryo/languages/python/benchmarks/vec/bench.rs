@@ -557,6 +557,11 @@ fn main() {
                 if let Some(at) = args.iter().position(|a| *a == "--finish-stats") {
                     finish_args.extend(["--stats", args[at + 1]]);
                 }
+                // redo-honest: `--finish-rules A,B` (the run's selected rules: only their findings are made and written) to
+                // the second half's `--rules`
+                if let Some(at) = args.iter().position(|a| *a == "--finish-rules") {
+                    finish_args.extend(["--rules", args[at + 1]]);
+                }
                 // redo-honest: `--applicability F` (the request's rule_applicability) to the second half
                 if let Some(at) = args.iter().position(|a| *a == "--applicability") {
                     finish_args.extend(["--applicability", args[at + 1]]);
