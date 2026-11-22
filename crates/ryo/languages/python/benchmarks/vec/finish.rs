@@ -987,6 +987,12 @@ struct MemoSlot {
 /// pass 2: probes of a memo slot before it may be found useless.
 const MEMO_TRIAL: u32 = 256;
 
+/// pass 2: the share of keys missed (percent) above which a slot is probed straight (`VEC_MEMO_MISS`, default 97).
+fn memo_miss_pct() -> u64 {
+    static P: std::sync::OnceLock<u64> = std::sync::OnceLock::new();
+    *P.get_or_init(|| std::env::var("VEC_MEMO_MISS").ok().and_then(|x| x.parse().ok()).unwrap_or(97))
+}
+
 type R<T> = Result<T, String>;
 
 fn s(j: &J) -> R<&str> {
@@ -1636,6 +1642,8 @@ impl<'p> Exec<'p> {
                 {
                     let t = t.clone();
                     self.pmemo[slot].list_hits += 1;
+                    // a key list answered: all its keys answered
+                    self.pmemo[slot].asked += keys.len() as u64;
                     self.stats.memo_reused += 1;
                     self.stats.memo_reused_keys += keys.len() as u64;
                     self.scratch_keys = missing;
@@ -1656,7 +1664,7 @@ impl<'p> Exec<'p> {
                 sl.asked += keys.len() as u64;
                 sl.missed += missing.len() as u64;
                 sl.tried += 1;
-                if sl.tried >= MEMO_TRIAL && sl.list_hits == 0 && sl.missed * 100 >= sl.asked * 97 && !sw!("VEC_MEMO_ALWAYS") {
+                if (sl.tried >= MEMO_TRIAL || sl.asked >= 1 << 16) && (sl.list_hits == 0 || !sw!("VEC_MEMO_LISTS_KEEP")) && sl.missed * 100 >= sl.asked * memo_miss_pct() && !sw!("VEC_MEMO_ALWAYS") {
                     sl.direct = true;
                 }
             }
@@ -1756,6 +1764,19 @@ impl<'p> Exec<'p> {
         }
         self.scratch_keys = missing;
         Ok(t)
+    }
+
+    /// pass 2 (`VEC_MEMO_DUMP`): the memo slots by keys missed: (node, column, probes, asked, missed, list hits, direct).
+    pub(super) fn memo_dump(&self) -> Vec<String> {
+        let mut v: Vec<(u64, String)> = Vec::new();
+        for (node, cs) in self.pmemo_at.iter().enumerate() {
+            for (col, sl) in cs {
+                let m = &self.pmemo[*sl as usize];
+                v.push((m.missed, format!("MEMO\t{node}\t{}\t{col}\t{}\t{}\t{}\t{}\t{}", self.plan.nodes[node].op, m.tried, m.asked, m.missed, m.list_hits, m.direct)));
+            }
+        }
+        v.sort_by(|a, b| b.0.cmp(&a.0));
+        v.into_iter().take(25).map(|x| x.1).collect()
     }
 
     /// pass 2: a probe run counted: its rows, and when it returned nothing, its own seconds (timing on).

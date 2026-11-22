@@ -1136,6 +1136,11 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     }
     println!("fact keyed lists: fill rows listed {}", finish::FACT_IX_ROWS.load(std::sync::atomic::Ordering::Relaxed));
     finish::empty_why::print();
+    if std::env::var_os("VEC_MEMO_DUMP").is_some() {
+        for l in exec.memo_dump() {
+            println!("{l}");
+        }
+    }
     {
         // pass 2: per step kind: runs (whole, by key, known empty), runs that returned nothing (known before the bracket,
         // bracketed whole, bracketed by key) and the seconds in the bracketed ones (`VEC_STEP_TIME`), the kind's seconds
