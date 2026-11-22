@@ -50,23 +50,23 @@ pub(super) fn input_probe(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p:
         if keys.is_empty() || sw!("VEC_KERNEL_INPUT_UNTIMED") {
             return ex.probe(f, run, p, node, col, keys);
         }
-        let t0 = crate::thread_cpu();
+        let t0 = super::step_clock();
         let saved = ex.inner;
         ex.inner = 0.0;
         let out = ex.probe(f, run, p, node, col, keys);
-        let dt = crate::thread_cpu() - t0;
+        let dt = super::step_clock() - t0;
         ex.stats.time[node] += dt - ex.inner;
         ex.inner = saved + dt;
         return out;
     }
     let sc = ex.schema(run, node)?;
-    let t0 = crate::thread_cpu();
+    let t0 = super::step_clock();
     let saved = ex.inner;
     ex.inner = 0.0;
     ex.stack.push(node);
     let out = ex.probe_body(f, run, p, node, col, keys, &sc);
     ex.stack.pop();
-    let dt = crate::thread_cpu() - t0;
+    let dt = super::step_clock() - t0;
     ex.stats.time[node] += dt - ex.inner;
     ex.inner = saved + dt;
     let out = out?;
