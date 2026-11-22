@@ -3,7 +3,7 @@ import noqa_locations from "python/ruff/noqa-locations";
 import suppression_edges from "python/ruff/noqa-suppressions-with-additional-lines";
 let module_roots = select id, file, span from "semantic-syntax" where kind = "module";
 let modules = extend(from=module_roots, values={base_line: 1});
-let captured_lines = source-matches(from=modules, span="span", base-line="base_line", pattern="(?m)^(?P<line>[^\r\n]+)", output="whole", line-output="whole_line", capture="line", capture-output="line_span", capture-text-output="text", capture-line-output="line");
+let captured_lines = source-matches(from=modules, span="span", base-line="base_line", pattern="(?m)^(?P<line>[^\r\n]{89,}|[^\r\n]*[\t\x{80}-\x{10FFFF}][^\r\n]*)", output="whole", line-output="whole_line", capture="line", capture-output="line_span", capture-text-output="text", capture-line-output="line");
 let raw_lines = select id, file, line_span as span, text, line from captured_lines;
 let line_positions = span-bounds(from=raw_lines, span="span", start-output="begin", end-output="finish");
 let comments = select id, file, span from "comment";
