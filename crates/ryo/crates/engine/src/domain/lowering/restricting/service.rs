@@ -326,6 +326,7 @@ pub(crate) fn restricted(
             continue;
         };
         let (node, home, shape) = (draft.node, draft.home, draft.shape.clone());
+        let keyless = !draft.keyless.is_empty();
         let own: Vec<FlatBranch> = draft.branches.clone();
         let key_shape = StepShape(
             mask.0
@@ -385,7 +386,9 @@ pub(crate) fn restricted(
                 cells,
                 per_file: RowsPerFile::Many,
             });
+            // A plan the keys leave a product stage in is not this table's: its definition states no keyless join.
             let written = planned(drafts, &joined, &HashSet::new(), UnitRole::Pipeline)
+                .filter(|plan| plan.products.0 == 0 || keyless)
                 .and_then(|plan| pipeline(drafts, sample.kinds, &joined, &plan, Some(definition)));
             match written {
                 Some(written) => pipelines.push(written),

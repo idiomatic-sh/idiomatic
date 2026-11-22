@@ -366,6 +366,9 @@ pub(crate) fn lowered_at<'a>(
         match built(&accepted, &store, sample) {
             Ok(pack) => break pack,
             Err(RefusedPlace { rule, refusal }) if rule.0 < accepted.len() => {
+                if std::env::var_os("RYO_L1B_RESTRICT_TRACE").is_some() {
+                    eprintln!("ryo l1b: build refused rule {}: {refusal:?}", rule.0);
+                }
                 let rule = accepted.remove(rule.0);
                 refused.push(RefusedRule {
                     rule: rule.rule.rule,
