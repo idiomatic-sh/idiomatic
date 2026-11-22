@@ -622,6 +622,10 @@ pub(super) struct Stats {
     pub(super) made_by: Vec<usize>,
     /// Why a node was first made whole in a file, where the asking step says (empty: read whole by `made_by`).
     pub(super) why: Vec<&'static str>,
+    /// 6e item 4: rows copied into the per-key memo, rows copied out of it, keys looked up in it.
+    pub(super) memo_in: u64,
+    pub(super) memo_out: u64,
+    pub(super) memo_keys: u64,
 }
 
 // ------------------------------------------------------------------------------------------------ expressions
@@ -752,7 +756,7 @@ impl<'p> Exec<'p> {
         let k = plan.nodes.len();
         Exec {
             plan,
-            stats: Stats { time: vec![0.0; k], rows: vec![0; k], calls: vec![0; k], touched: vec![0; k], empty: vec![0; k], probes: vec![0; k], made_by: vec![usize::MAX; k], why: vec![""; k] },
+            stats: Stats { time: vec![0.0; k], rows: vec![0; k], calls: vec![0; k], touched: vec![0; k], empty: vec![0; k], probes: vec![0; k], made_by: vec![usize::MAX; k], why: vec![""; k], memo_in: 0, memo_out: 0, memo_keys: 0 },
             schemas: vec![None; k],
             views: vec![None; k],
             sels: vec![None; k],
@@ -1170,7 +1174,8 @@ impl<'p> Exec<'p> {
                 match self.view(run, inner)? {
                     Some(iv) => {
                         let sp = self.sel(run, node)?;
-                        let plain = sp.items.iter().all(|(_, e)| matches!(e, E::Col(0, _, _)));
+                        // 6e: `VEC_SEED_NOT_VIEW`: a seed test is never a view's filter (measured a loss: j13 239.6 M against j12 212.0 M)
+                        let plain = sp.items.iter().all(|(_, e)| matches!(e, E::Col(0, _, _))) && (std::env::var_os("VEC_SEED_NOT_VIEW").is_none() || !sp.conj.iter().any(|e| matches!(e, E::Seed(..))));
                         if plain {
                             let map = sp.items.iter().map(|(_, e)| if let E::Col(_, c, _) = e { iv.map[*c] } else { 0 }).collect();
                             let mut filter = iv.filter.clone();
@@ -1278,8 +1283,13 @@ impl<'p> Exec<'p> {
         } else {
             keys.to_vec()
         };
+        if pm {
+            self.stats.memo_keys += keys.len() as u64;
+        }
         if pm && missing.is_empty() {
-            return Ok(Rc::new(pmemo_rows(f, node, col, keys)));
+            let t = pmemo_rows(f, node, col, keys);
+            self.stats.memo_out += t.n as u64;
+            return Ok(Rc::new(t));
         }
         let t0 = super::thread_cpu();
         let saved = self.inner;
@@ -1308,7 +1318,10 @@ impl<'p> Exec<'p> {
             e.1.entry(out.cols[col][r]).or_default().push(base + r as u32);
         }
         e.0.n += out.n;
-        Ok(Rc::new(pmemo_rows(f, node, col, keys)))
+        self.stats.memo_in += out.n as u64;
+        let t = pmemo_rows(f, node, col, keys);
+        self.stats.memo_out += t.n as u64;
+        Ok(Rc::new(t))
     }
 
     #[expect(clippy::too_many_arguments, reason = "a throwaway")]

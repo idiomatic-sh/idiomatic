@@ -946,6 +946,7 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     let steps: f64 = exec.stats.time.iter().sum();
     println!("files run {files_run}; findings {}; rules {} ({} failed)", findings.len(), emits.len(), failed.len());
     println!("thread CPU-s: total {total:.3}; walk+table {walk_time:.3}; in the visit {file_time:.3}: steps {steps:.3}, provider fills {provider_time:.3} ({provider_rows} rows)");
+    println!("per-key memo: rows in {} rows out {} keys asked {}", exec.stats.memo_in, exec.stats.memo_out, exec.stats.memo_keys);
     let mut f: Vec<_> = failed.into_iter().collect();
     f.sort();
     for (r, e) in f {
