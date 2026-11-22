@@ -1293,7 +1293,7 @@ impl<'p> Exec<'p> {
                     out.cols[c].extend_from_slice(&r.cols[pos(&r.names, nm)?]);
                 }
                 out.n += r.n;
-                return Ok(Rc::new(out));
+                return Ok(Rc::new(distinct(out)));
             }
             "antijoin" => unary(self, run, "left")?,
             "extend" | "project" | "span-between" | "span-bounds" | "source-matches" | "replace" | "capture" => unary(self, run, "from")?,
@@ -1487,7 +1487,7 @@ impl<'p> Exec<'p> {
                     out.cols[c].extend_from_slice(&r.cols[*m]);
                 }
                 out.n += r.n;
-                Ok(out)
+                Ok(distinct(out))
             }
             "antijoin" => self.antijoin(f, run, p, node, a),
             "extend" => {
@@ -2815,6 +2815,29 @@ fn remap(e: &E, map: &[usize]) -> E {
     }
 }
 
+
+/// A union's rows as a set, as the language's `union` is (`set_rows`): the first of equal rows kept, in order.
+fn distinct(t: Table) -> Table {
+    if std::env::var_os("VEC_UNION_ALL").is_some() {
+        return t;
+    }
+    let mut seen: rustc_hash::FxHashSet<Vec<u64>> = rustc_hash::FxHashSet::default();
+    let mut keep = Vec::with_capacity(t.n);
+    for r in 0..t.n {
+        if seen.insert(t.cols.iter().map(|c| c[r]).collect()) {
+            keep.push(r);
+        }
+    }
+    if keep.len() == t.n {
+        return t;
+    }
+    let mut out = Table::with(t.names.clone(), t.tys.clone());
+    for (c, col) in t.cols.iter().enumerate() {
+        out.cols[c] = keep.iter().map(|r| col[*r]).collect();
+    }
+    out.n = keep.len();
+    out
+}
 
 /// The memoised rows of a probed step for these keys, in key order.
 fn pmemo_rows(f: &File<'_>, node: usize, col: usize, keys: &[u64]) -> Table {
