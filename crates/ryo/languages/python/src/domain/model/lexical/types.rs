@@ -160,8 +160,11 @@ pub(crate) enum AnnotationMark {
     /// It is not.
     #[default]
     Plain,
-    /// It is.
+    /// It is, and Python evaluates it (or, when the file defers annotations, stores it to be evaluated later).
     Annotation,
+    /// It is the annotation of a variable of a function, which Python never evaluates (PEP 526: "annotations for local
+    /// variables will not be evaluated").
+    Unevaluated,
 }
 
 /// Where a scope says a name it assigns is bound instead of in itself.
