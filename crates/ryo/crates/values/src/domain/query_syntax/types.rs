@@ -77,10 +77,19 @@ pub enum Alias {
 /// One column of a `select`, with the name it is kept under.
 #[derive(Clone, Debug, PartialEq)]
 pub struct SelectColumn {
-    /// The column read.
-    pub column: ColumnReference,
+    /// What it holds.
+    pub column: SelectedValue,
     /// The name it is kept under.
     pub rename: Renaming,
+}
+
+/// What a column of a `select` holds: a column of what it reads, or a function applied to such columns and to texts.
+#[derive(Clone, Debug, PartialEq)]
+pub enum SelectedValue {
+    /// `l.name`.
+    Column(ColumnReference),
+    /// `concat(l.path, ".", l.name)`: computed from each row; the query names it with `as`.
+    Applied(WrittenApplied),
 }
 
 /// A column, with the alias of the source it belongs to when the query writes one.

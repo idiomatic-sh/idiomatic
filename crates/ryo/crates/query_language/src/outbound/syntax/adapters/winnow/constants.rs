@@ -235,7 +235,7 @@ pub(crate) const GRAMMAR: &[GrammarLine] = &[
     },
     GrammarLine {
         name: "select_column",
-        form: "column_reference [ as name_or_string ]",
+        form: "( function | column_reference ) [ as name_or_string ]",
         example: "l.name as \"name\"",
     },
     GrammarLine {

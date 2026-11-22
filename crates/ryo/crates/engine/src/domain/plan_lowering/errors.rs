@@ -33,6 +33,9 @@ pub enum PlanLoweringError {
     /// A relation argument that is neither a relation nor a step.
     #[error("relation argument {0}")]
     RelationArgument(WrittenText),
+    /// A select keeps a computed column without naming it with `as`.
+    #[error("computed column without a name")]
+    UnnamedColumn,
     /// An operator of the step set given an argument it does not take, or of a shape it does not take.
     #[error("operator {operator}: argument {argument}")]
     OperatorArgument {

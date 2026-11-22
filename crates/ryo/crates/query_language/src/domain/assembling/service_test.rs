@@ -14,10 +14,10 @@ type Failure = std::convert::Infallible;
 fn select(column: &str) -> ast::Select {
     ast::Select {
         columns: ast::Columns::Listed(vec![ast::SelectColumn {
-            column: ast::ColumnReference {
+            column: ast::SelectedValue::Column(ast::ColumnReference {
                 alias: ast::Alias::Unwritten,
                 column: ryo_values::domain::descriptions::types::ColumnName(column.into()),
-            },
+            }),
             rename: ast::Renaming::Unchanged,
         }]),
         from: ast::QuerySource {

@@ -12,7 +12,7 @@ use crate::domain::finish_plans::types::{
     SelectItem, SelectSource, SelectStep, SelectedColumns, UnplannedReason, UnplannedRule,
 };
 use crate::domain::plan_lowering::errors::PlanLoweringError;
-use crate::domain::plan_lowering::filters::service::{alias, column, constant, select_condition};
+use crate::domain::plan_lowering::filters::service::{alias, column, constant, function, select_condition};
 use crate::domain::plan_lowering::filters::types::Parameters;
 use crate::domain::plan_lowering::operators::service::operator_step;
 use crate::domain::plan_lowering::types::{PackPrograms, RuleProgram, WrittenText};
@@ -20,7 +20,7 @@ use ryo_values::domain::descriptions::types::RelationName;
 use ryo_values::domain::program::types::{FragmentProgram, ImportDeclaration, LetStep, WrittenProgram};
 use ryo_values::domain::query_syntax::types::{
     Argument, ArgumentValue, Call, Columns, Expression, Joining, QuerySource, Renaming, Select,
-    SourceReference,
+    SelectedValue, SourceReference,
 };
 use ryo_values::domain::query_tokens::types::QuerySourceId;
 
@@ -227,18 +227,29 @@ fn selected(
 ) -> Result<StepNumber, PlanLoweringError> {
     let columns = match &select.columns {
         Columns::Every => SelectedColumns::All,
-        Columns::Listed(listed) => SelectedColumns::Items(
-            listed
-                .iter()
-                .map(|item| SelectItem {
-                    name: match &item.rename {
-                        Renaming::Unchanged => item.column.column.clone(),
-                        Renaming::Renamed(name) => name.clone(),
+        Columns::Listed(listed) => {
+            let mut items = Vec::with_capacity(listed.len());
+            for item in listed {
+                items.push(match (&item.column, &item.rename) {
+                    (SelectedValue::Column(reference), Renaming::Unchanged) => SelectItem {
+                        name: reference.column.clone(),
+                        value: column(reference),
                     },
-                    value: column(&item.column),
-                })
-                .collect(),
-        ),
+                    (SelectedValue::Column(reference), Renaming::Renamed(name)) => SelectItem {
+                        name: name.clone(),
+                        value: column(reference),
+                    },
+                    (SelectedValue::Applied(applied), Renaming::Renamed(name)) => SelectItem {
+                        name: name.clone(),
+                        value: function(applied, &scope.parameters)?,
+                    },
+                    (SelectedValue::Applied(_), Renaming::Unchanged) => {
+                        return Err(PlanLoweringError::UnnamedColumn);
+                    }
+                });
+            }
+            SelectedColumns::Items(items)
+        }
     };
     let mut sources = vec![source_step(expansion, scope, &select.from)?];
     if let Joining::Joined(join) = &select.join {

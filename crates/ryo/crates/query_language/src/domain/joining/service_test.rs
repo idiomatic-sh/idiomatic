@@ -35,7 +35,7 @@ fn lower(key: &str) -> Result<plans::Operation, LoweringError> {
     };
     let select = ast::Select {
         columns: ast::Columns::Listed(vec![ast::SelectColumn {
-            column: column("left", "file"),
+            column: ast::SelectedValue::Column(column("left", "file")),
             rename: ast::Renaming::Unchanged,
         }]),
         from: source("left"),
@@ -102,7 +102,7 @@ fn refusal_of(key: ast::JoinKey, filters: Vec<ast::Condition>) -> LoweringError 
     };
     let select = ast::Select {
         columns: ast::Columns::Listed(vec![ast::SelectColumn {
-            column: column("left", "file"),
+            column: ast::SelectedValue::Column(column("left", "file")),
             rename: ast::Renaming::Unchanged,
         }]),
         from: source("left"),

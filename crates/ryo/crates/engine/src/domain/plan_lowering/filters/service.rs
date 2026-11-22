@@ -162,7 +162,7 @@ fn operand(
 }
 
 /// A function applied to operands.
-fn function(
+pub(crate) fn function(
     applied: &WrittenApplied,
     parameters: &Parameters,
 ) -> Result<PlanExpression, PlanLoweringError> {

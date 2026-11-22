@@ -54,7 +54,10 @@ fn projected(
     indexes: &mut Vec<parts::ColumnIndex>,
 ) -> Result<(), LoweringError> {
     for column in columns {
-        let index = position(fields, QuerySpelling(&column.column.column.0), span)?;
+        let ryo_values::domain::query_syntax::types::SelectedValue::Column(reference) = &column.column else {
+            return Err(LoweringError::ComputedColumn { span });
+        };
+        let index = position(fields, QuerySpelling(&reference.column.0), span)?;
         indexes.push(index);
         kept.push(PlannedColumn {
             name: match &column.rename {
@@ -62,7 +65,7 @@ fn projected(
                     renamed.clone()
                 }
                 ryo_values::domain::query_syntax::types::Renaming::Unchanged => {
-                    column.column.column.clone()
+                    reference.column.clone()
                 }
             },
             kind: column_of(fields, index).kind,

@@ -24,7 +24,7 @@ use ryo_values::domain::program::types::{
 };
 use ryo_values::domain::query_syntax::types::{
     Alias, Argument, ArgumentValue, Call, ColumnReference, Columns, Condition, Expression, Filter,
-    Join, JoinKey, Joining, QuerySource, Renaming, Select, SelectColumn, SourceReference,
+    Join, JoinKey, Joining, QuerySource, Renaming, Select, SelectColumn, SelectedValue, SourceReference,
     WrittenApplied, WrittenFunction, WrittenOperand, WrittenTest,
 };
 use ryo_values::domain::query_tokens::types::{
@@ -616,9 +616,14 @@ pub(super) fn select(input: &mut Input<'_>) -> ModalResult<Select> {
     })
 }
 
-/// One column a `select` lists, with the name it is renamed to when it has one.
+/// One column a `select` lists (a column, or a function applied to columns and texts), with the name it is renamed to
+/// when it has one.
 pub(super) fn select_column(input: &mut Input<'_>) -> ModalResult<SelectColumn> {
-    let column = column_reference.parse_next(input)?;
+    let column = alt((
+        function.map(SelectedValue::Applied),
+        column_reference.map(SelectedValue::Column),
+    ))
+    .parse_next(input)?;
     let rename = opt(preceded(
         (multispace1, keyword(Keyword::As), multispace1),
         name_or_string.map(|name| ColumnName(name.0)),
