@@ -299,15 +299,16 @@ fn take_bufs() -> Bufs {
 }
 
 fn give_bufs(mut b: Bufs) {
+    // redo-select2: buffers kept up to 64 k entries (1 M kept up to 28 MB a worker past a large run)
     for v in [&mut b.sel, &mut b.left, &mut b.right, &mut b.hits] {
-        if v.capacity() > 1 << 20 {
+        if v.capacity() > 1 << 16 {
             *v = Vec::new();
         }
         v.clear();
     }
     b.keys.clear();
     b.key.clear();
-    if b.pairs.capacity() > 1 << 20 {
+    if b.pairs.capacity() > 1 << 16 {
         b.pairs = Vec::new();
     }
     b.pairs.clear();
