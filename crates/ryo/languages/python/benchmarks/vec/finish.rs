@@ -940,11 +940,7 @@ pub(super) struct Exec<'p> {
     pmemo: Vec<MemoSlot>,
     pmemo_at: FxHashMap<(usize, usize), usize>,
     pmemo_dirty: Vec<usize>,
-    /// 8: the per-key memo's rows and ranges (the engine's `keyed_ranges`): one lookup a key, by position below the file's
-    /// node count.
-    ranges: ryo_engine::domain::keyed_ranges::types::KeyedRanges,
-    /// 8: the asked lists' ranges, one buffer a probe frame (probes nest), reused.
-    asked_pool: Vec<Vec<ryo_engine::domain::keyed_ranges::types::AskedRange>>,
+    stamp: u32,
     /// 8: row-number buffers of the join (tuples a source), reused across executions; the join's key set, reused.
     u32_pool: Vec<Vec<u32>>,
     key_set: rustc_hash::FxHashSet<u64>,
@@ -953,6 +949,15 @@ pub(super) struct Exec<'p> {
     empties: Vec<Option<Rc<Table>>>,
     firsts: Vec<Option<Option<usize>>>,
 }
+
+/// 7: a key's rows in a memo slot: one range of the slot's table (`start` PENDING while its batch runs).
+#[derive(Clone, Copy)]
+struct MemoKey {
+    start: u32,
+    len: u32,
+    stamp: u32,
+}
+const PENDING: u32 = u32::MAX;
 
 /// 7: key lists this short are looked up key by key; longer ones are remembered whole.
 const LIST_MIN: usize = 4;
@@ -966,10 +971,8 @@ fn hash_keys(keys: &[u64]) -> u64 {
 }
 
 struct MemoSlot {
-    /// 8: the slot in the engine's store, and the step's column names and types.
-    slot: ryo_engine::domain::keyed_ranges::types::SlotId,
-    names: Names,
-    tys: Tys,
+    t: Table,
+    ix: FxHashMap<u64, MemoKey>,
     /// 7: answers by key list (its hash: the list, the answer), this file.
     lists: FxHashMap<u64, (Vec<u64>, Rc<Table>)>,
     dirty: bool,
@@ -1039,8 +1042,7 @@ impl<'p> Exec<'p> {
             pmemo: Vec::new(),
             pmemo_at: FxHashMap::default(),
             pmemo_dirty: Vec::new(),
-            ranges: ryo_engine::domain::keyed_ranges::types::KeyedRanges::default(),
-            asked_pool: Vec::new(),
+            stamp: 0,
             u32_pool: Vec::new(),
             key_set: rustc_hash::FxHashSet::default(),
             scratch_keys: Vec::new(),
@@ -1049,13 +1051,15 @@ impl<'p> Exec<'p> {
         }
     }
 
-    pub(super) fn reset_file(&mut self, nodes: usize) {
+    pub(super) fn reset_file(&mut self, _nodes: usize) {
         for i in std::mem::take(&mut self.pmemo_dirty) {
             let sl = &mut self.pmemo[i];
             sl.dirty = false;
+            sl.t.n = 0;
+            sl.t.cols.iter_mut().for_each(Vec::clear);
+            sl.ix.clear();
             sl.lists.clear();
         }
-        ryo_engine::domain::keyed_ranges::service::next_file(&mut self.ranges, nodes as u64 + 1);
     }
 
     /// Whether every step that reads `node` reads it only by key: a join that binds one of its columns from another
@@ -1605,19 +1609,23 @@ impl<'p> Exec<'p> {
                 }
             }
             self.stats.memo_keys += keys.len() as u64;
-            let es = self.pmemo[slot].slot;
-            let mut asked = self.asked_pool.pop().unwrap_or_default();
-            if ryo_engine::domain::keyed_ranges::service::ask(&mut self.ranges, es, keys, &mut missing, &mut asked) == ryo_engine::domain::keyed_ranges::types::Asked::Filed {
+            let ix = &mut self.pmemo[slot].ix;
+            for k in keys {
+                if let std::collections::hash_map::Entry::Vacant(v) = ix.entry(*k) {
+                    v.insert(MemoKey { start: PENDING, len: 0, stamp: 0 });
+                    missing.push(*k);
+                }
+            }
+            if missing.is_empty() {
                 self.scratch_keys = missing;
-                let t = Rc::new(self.memo_rows(slot, keys, &mut asked, false));
-                self.asked_pool.push(asked);
+                let t = Rc::new(self.memo_rows(slot, keys));
                 self.stats.memo_out += t.n as u64;
                 if keys.len() >= LIST_MIN {
                     self.pmemo[slot].lists.insert(list_hash, (keys.to_vec(), t.clone()));
                 }
                 return Ok(t);
             }
-            Some((slot, asked))
+            Some(slot)
         } else {
             missing.extend_from_slice(keys);
             None
@@ -1634,9 +1642,10 @@ impl<'p> Exec<'p> {
         let out = match out {
             Ok(o) => o,
             Err(e) => {
-                if let Some((slot, asked)) = slot {
-                    ryo_engine::domain::keyed_ranges::service::forget(&mut self.ranges, self.pmemo[slot].slot, &missing);
-                    self.asked_pool.push(asked);
+                if let Some(slot) = slot {
+                    for k in &missing {
+                        self.pmemo[slot].ix.remove(k);
+                    }
                 }
                 self.scratch_keys = missing;
                 return Err(e);
@@ -1648,22 +1657,51 @@ impl<'p> Exec<'p> {
         }
         self.stats.probes[node] += 1;
         self.stats.rows[node] += out.n as u64;
-        let Some((slot, mut asked)) = slot else {
+        let Some(slot) = slot else {
             self.scratch_keys = missing;
             return Ok(out);
         };
-        let moved = {
-            let cols: Vec<&[u64]> = out.cols.iter().map(Vec::as_slice).collect();
-            let sl = &mut self.pmemo[slot];
-            let moved = ryo_engine::domain::keyed_ranges::service::file(&mut self.ranges, sl.slot, &missing, col, &cols, out.n);
-            if moved {
-                sl.lists.clear();
+        let sl = &mut self.pmemo[slot];
+        for k in &missing {
+            if let Some(e) = sl.ix.get_mut(k) {
+                e.start = 0;
             }
-            moved
-        };
+        }
+        // the batch's rows by key (in row order within a key), each key's run appended as one range
+        let mut order: Vec<(u64, u32)> = (0..out.n as u32).map(|r| (out.cols[col][r as usize], r)).collect();
+        order.sort_unstable();
+        let mut i = 0;
+        while i < order.len() {
+            let k = order[i].0;
+            let mut j = i;
+            while j < order.len() && order[j].0 == k {
+                j += 1;
+            }
+            let start = sl.t.n as u32;
+            let e = sl.ix.entry(k).or_insert(MemoKey { start, len: 0, stamp: 0 });
+            if e.len > 0 {
+                sl.lists.clear();
+                // rows for a key answered before (a step that returned rows not asked): its old range moves to the end first
+                let (os, ol) = (e.start as usize, e.len as usize);
+                for c in 0..sl.t.cols.len() {
+                    let col_c = &mut sl.t.cols[c];
+                    col_c.extend_from_within(os..os + ol);
+                }
+                sl.t.n += ol;
+            }
+            let e = sl.ix.get_mut(&k).expect("the key just filed");
+            let ol = e.len;
+            e.start = start;
+            e.len = ol + (j - i) as u32;
+            for c in 0..sl.t.cols.len() {
+                let (dst, src) = (&mut sl.t.cols[c], &out.cols[c]);
+                dst.extend(order[i..j].iter().map(|x| src[x.1 as usize]));
+            }
+            sl.t.n += j - i;
+            i = j;
+        }
         self.stats.memo_in += out.n as u64;
-        let t = Rc::new(self.memo_rows(slot, keys, &mut asked, moved));
-        self.asked_pool.push(asked);
+        let t = Rc::new(self.memo_rows(slot, keys));
         self.stats.memo_out += t.n as u64;
         if keys.len() >= LIST_MIN {
             self.pmemo[slot].lists.insert(list_hash, (keys.to_vec(), t.clone()));
@@ -1682,19 +1720,39 @@ impl<'p> Exec<'p> {
             return i;
         }
         let i = self.pmemo.len();
-        let slot = ryo_engine::domain::keyed_ranges::service::new_slot(&mut self.ranges, sc.names.len());
-        self.pmemo.push(MemoSlot { slot, names: sc.names.clone(), tys: sc.tys.clone(), lists: FxHashMap::default(), dirty: true });
+        self.pmemo.push(MemoSlot { t: Table::with(sc.names.clone(), sc.tys.clone()), ix: FxHashMap::default(), lists: FxHashMap::default(), dirty: true });
         self.pmemo_at.insert((node, col), i);
         self.pmemo_dirty.push(i);
         i
     }
 
-    /// 7: the memoised rows of a probed step for these keys, in key order (each key once). 8: gathered by the engine's
-    /// `keyed_ranges` into the worker's pooled columns.
-    fn memo_rows(&mut self, slot: usize, keys: &[u64], asked: &mut Vec<ryo_engine::domain::keyed_ranges::types::AskedRange>, moved: bool) -> Table {
-        let sl = &self.pmemo[slot];
-        let mut out = Table::with(sl.names.clone(), sl.tys.clone());
-        out.n = ryo_engine::domain::keyed_ranges::service::gather(&mut self.ranges, sl.slot, keys, asked, moved, &mut out.cols);
+    /// 7: the memoised rows of a probed step for these keys, in key order (each key once).
+    fn memo_rows(&mut self, slot: usize, keys: &[u64]) -> Table {
+        self.stamp = self.stamp.wrapping_add(1);
+        let st = self.stamp;
+        let sl = &mut self.pmemo[slot];
+        let mut ranges: Vec<(usize, usize)> = Vec::with_capacity(keys.len());
+        let mut total = 0;
+        for k in keys {
+            if let Some(e) = sl.ix.get_mut(k)
+                && e.stamp != st
+            {
+                e.stamp = st;
+                if e.len > 0 {
+                    ranges.push((e.start as usize, e.len as usize));
+                    total += e.len as usize;
+                }
+            }
+        }
+        let mut out = Table::with(sl.t.names.clone(), sl.t.tys.clone());
+        for (c, col) in sl.t.cols.iter().enumerate() {
+            let mut v = Vec::with_capacity(total);
+            for (a, l) in &ranges {
+                v.extend_from_slice(&col[*a..*a + *l]);
+            }
+            out.cols[c] = v;
+        }
+        out.n = total;
         out
     }
 
