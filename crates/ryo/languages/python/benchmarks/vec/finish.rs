@@ -228,6 +228,8 @@ pub(super) struct PNode {
     pub(super) op: String,
     pub(super) j: J,
     pub(super) inputs: Vec<usize>,
+    /// 7: the relation arguments (`args.<name>.rel`), by name.
+    pub(super) rels: Vec<(String, usize)>,
 }
 
 pub(super) struct Plan {
@@ -273,7 +275,8 @@ pub(super) fn load(path: &str) -> Plan {
             } else if op != "base" {
                 inputs_of(&n["args"], &mut inputs);
             }
-            PNode { op, j: n.clone(), inputs }
+            let rels = n["args"].as_object().map(|m| m.iter().filter_map(|(k, v)| v.get("rel").and_then(J::as_u64).map(|r| (k.clone(), r as usize))).collect()).unwrap_or_default();
+            PNode { op, j: n.clone(), inputs, rels }
         })
         .collect();
     let mut emits = Vec::new();
@@ -741,6 +744,9 @@ pub(super) struct Stats {
     pub(super) memo_in: u64,
     pub(super) memo_out: u64,
     pub(super) memo_keys: u64,
+    /// 7: probes answered by a key list asked before, and their keys.
+    pub(super) memo_reused: u64,
+    pub(super) memo_reused_keys: u64,
 }
 
 // ------------------------------------------------------------------------------------------------ expressions
@@ -864,9 +870,22 @@ struct MemoKey {
 }
 const PENDING: u32 = u32::MAX;
 
+/// 7: key lists this short are looked up key by key; longer ones are remembered whole.
+const LIST_MIN: usize = 4;
+
+fn hash_keys(keys: &[u64]) -> u64 {
+    let mut h: u64 = keys.len() as u64;
+    for k in keys {
+        h = (h.rotate_left(5) ^ k).wrapping_mul(0x517c_c1b7_2722_0a95);
+    }
+    h
+}
+
 struct MemoSlot {
     t: Table,
     ix: FxHashMap<u64, MemoKey>,
+    /// 7: answers by key list (its hash: the list, the answer), this file.
+    lists: FxHashMap<u64, (Vec<u64>, Rc<Table>)>,
     dirty: bool,
 }
 
@@ -875,13 +894,24 @@ type R<T> = Result<T, String>;
 fn s(j: &J) -> R<&str> {
     j.as_str().ok_or_else(|| format!("not a text: {j}"))
 }
-fn strs(j: &J) -> R<Vec<String>> {
-    match j {
-        J::Array(a) => a.iter().map(|x| s(x).map(str::to_owned)).collect(),
-        J::String(x) => Ok(vec![x.clone()]),
-        J::Null => Ok(Vec::new()),
-        _ => Err(format!("not a list: {j}")),
+/// A plan argument's names. 7: read once a run (the plan is not changed while it runs: a value is known by its address).
+fn strs(j: &J) -> R<Rc<Vec<String>>> {
+    thread_local! {
+        static SEEN: RefCell<FxHashMap<usize, Rc<Vec<String>>>> = RefCell::new(FxHashMap::default());
     }
+    let at = std::ptr::from_ref(j) as usize;
+    if let Some(v) = SEEN.with(|m| m.borrow().get(&at).cloned()) {
+        return Ok(v);
+    }
+    let v: Vec<String> = match j {
+        J::Array(a) => a.iter().map(|x| s(x).map(str::to_owned)).collect::<R<_>>()?,
+        J::String(x) => vec![x.clone()],
+        J::Null => Vec::new(),
+        _ => return Err(format!("not a list: {j}")),
+    };
+    let v = Rc::new(v);
+    SEEN.with(|m| m.borrow_mut().insert(at, v.clone()));
+    Ok(v)
 }
 
 fn pos(names: &[String], c: &str) -> R<usize> {
@@ -893,7 +923,7 @@ impl<'p> Exec<'p> {
         let k = plan.nodes.len();
         Exec {
             plan,
-            stats: Stats { time: vec![0.0; k], rows: vec![0; k], calls: vec![0; k], touched: vec![0; k], empty: vec![0; k], probes: vec![0; k], made_by: vec![usize::MAX; k], why: vec![""; k], memo_in: 0, memo_out: 0, memo_keys: 0 },
+            stats: Stats { time: vec![0.0; k], rows: vec![0; k], calls: vec![0; k], touched: vec![0; k], empty: vec![0; k], probes: vec![0; k], made_by: vec![usize::MAX; k], why: vec![""; k], memo_in: 0, memo_out: 0, memo_keys: 0, memo_reused: 0, memo_reused_keys: 0 },
             schemas: vec![None; k],
             views: vec![None; k],
             sels: vec![None; k],
@@ -935,6 +965,7 @@ impl<'p> Exec<'p> {
             sl.t.n = 0;
             sl.t.cols.iter_mut().for_each(Vec::clear);
             sl.ix.clear();
+            sl.lists.clear();
         }
     }
 
@@ -1058,7 +1089,8 @@ impl<'p> Exec<'p> {
     }
 
     fn arg_rel(&self, node: usize, name: &str) -> R<usize> {
-        self.plan.nodes[node].j["args"][name]["rel"].as_u64().map(|x| x as usize).ok_or_else(|| format!("no relation argument {name}"))
+        // 7: the step's relation arguments, read from the plan once (`PNode::rels`)
+        self.plan.nodes[node].rels.iter().find(|(n, _)| n == name).map(|x| x.1).ok_or_else(|| format!("no relation argument {name}"))
     }
 
     // -------------------------------------------------------------------------------------------- static: schemas, views
@@ -1067,8 +1099,10 @@ impl<'p> Exec<'p> {
         if let Some(sc) = &self.schemas[node] {
             return Ok(sc.clone());
         }
-        let pn = &self.plan.nodes[node];
-        let j = pn.j.clone();
+        // 7: the plan's own JSON (never a copy: `strs` knows a plan value by its address)
+        let plan: &'p Plan = self.plan;
+        let pn = &plan.nodes[node];
+        let j = &pn.j;
         let a = &j["args"];
         let op = pn.op.clone();
         let from = |me: &mut Self, run: &mut Run, name: &str| -> R<Rc<Schema>> {
@@ -1188,7 +1222,7 @@ impl<'p> Exec<'p> {
             "capture" => {
                 let f = from(self, run, "from")?;
                 let (mut names, mut tys) = ((*f.names).clone(), (*f.tys).clone());
-                for c in strs(&a["captures"])? {
+                for c in strs(&a["captures"])?.iter().cloned() {
                     names.push(c);
                     tys.push(Ty::Sym);
                 }
@@ -1197,7 +1231,7 @@ impl<'p> Exec<'p> {
             "rows" => {
                 let names = strs(&a["columns"])?;
                 let k = names.len();
-                mk(names, vec![Ty::Sym; k])
+                mk((*names).clone(), vec![Ty::Sym; k])
             }
             "render-syntax" => {
                 let f = from(self, run, "from")?;
@@ -1276,7 +1310,8 @@ impl<'p> Exec<'p> {
         if let Some(sp) = &self.sels[node] {
             return Ok(sp.clone());
         }
-        let j = self.plan.nodes[node].j.clone();
+        let plan: &'p Plan = self.plan;
+        let j = &plan.nodes[node].j;
         let mut srcs = Vec::new();
         let mut names = Vec::new();
         for sj in j["src"].as_array().ok_or("src")? {
@@ -1442,9 +1477,22 @@ impl<'p> Exec<'p> {
         let pm = !sw!("VEC_NO_PMEMO");
         let mut missing: Vec<u64> = std::mem::take(&mut self.scratch_keys);
         missing.clear();
+        let mut list_hash = 0u64;
         let slot = if pm {
-            self.stats.memo_keys += keys.len() as u64;
             let slot = self.memo_slot(node, col, &sc);
+            // 7: a key list asked before of this slot is answered by the table made for it then (by reference, no copy)
+            if keys.len() >= LIST_MIN {
+                list_hash = hash_keys(keys);
+                if let Some((ks, t)) = self.pmemo[slot].lists.get(&list_hash)
+                    && ks[..] == keys[..]
+                {
+                    self.stats.memo_reused += 1;
+                    self.stats.memo_reused_keys += keys.len() as u64;
+                    self.scratch_keys = missing;
+                    return Ok(t.clone());
+                }
+            }
+            self.stats.memo_keys += keys.len() as u64;
             let ix = &mut self.pmemo[slot].ix;
             for k in keys {
                 if let std::collections::hash_map::Entry::Vacant(v) = ix.entry(*k) {
@@ -1454,9 +1502,12 @@ impl<'p> Exec<'p> {
             }
             if missing.is_empty() {
                 self.scratch_keys = missing;
-                let t = self.memo_rows(slot, keys);
+                let t = Rc::new(self.memo_rows(slot, keys));
                 self.stats.memo_out += t.n as u64;
-                return Ok(Rc::new(t));
+                if keys.len() >= LIST_MIN {
+                    self.pmemo[slot].lists.insert(list_hash, (keys.to_vec(), t.clone()));
+                }
+                return Ok(t);
             }
             Some(slot)
         } else {
@@ -1513,6 +1564,7 @@ impl<'p> Exec<'p> {
             let start = sl.t.n as u32;
             let e = sl.ix.entry(k).or_insert(MemoKey { start, len: 0, stamp: 0 });
             if e.len > 0 {
+                sl.lists.clear();
                 // rows for a key answered before (a step that returned rows not asked): its old range moves to the end first
                 let (os, ol) = (e.start as usize, e.len as usize);
                 for c in 0..sl.t.cols.len() {
@@ -1533,10 +1585,13 @@ impl<'p> Exec<'p> {
             i = j;
         }
         self.stats.memo_in += out.n as u64;
-        let t = self.memo_rows(slot, keys);
+        let t = Rc::new(self.memo_rows(slot, keys));
         self.stats.memo_out += t.n as u64;
+        if keys.len() >= LIST_MIN {
+            self.pmemo[slot].lists.insert(list_hash, (keys.to_vec(), t.clone()));
+        }
         self.scratch_keys = missing;
-        Ok(Rc::new(t))
+        Ok(t)
     }
 
     /// 7: the memo slot of a (step, column) for this file (its buffers kept across files).
@@ -1549,7 +1604,7 @@ impl<'p> Exec<'p> {
             return i;
         }
         let i = self.pmemo.len();
-        self.pmemo.push(MemoSlot { t: Table::with(sc.names.clone(), sc.tys.clone()), ix: FxHashMap::default(), dirty: true });
+        self.pmemo.push(MemoSlot { t: Table::with(sc.names.clone(), sc.tys.clone()), ix: FxHashMap::default(), lists: FxHashMap::default(), dirty: true });
         self.pmemo_at.insert((node, col), i);
         self.pmemo_dirty.push(i);
         i
@@ -1587,15 +1642,15 @@ impl<'p> Exec<'p> {
 
     #[expect(clippy::too_many_arguments, reason = "a throwaway")]
     fn probe_body(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64], sc: &Schema) -> R<Rc<Table>> {
-        let op = self.plan.nodes[node].op.clone();
         let plan: &'p Plan = self.plan;
+        let op: &'p String = &plan.nodes[node].op;
         let a = &plan.nodes[node].j["args"];
-        let name = sc.names[col].clone();
+        let name: &String = &sc.names[col];
         // the input a unary step reads, when the probed column is one of its input's
         let unary = |me: &mut Self, run: &mut Run, arg: &str| -> R<Option<(usize, usize)>> {
             let n = me.arg_rel(node, arg)?;
             let isc = me.schema(run, n)?;
-            Ok(isc.names.iter().position(|c| *c == name).map(|c| (n, c)))
+            Ok(isc.names.iter().position(|c| c == name).map(|c| (n, c)))
         };
         if op == "closure"
             && !f.lazies.contains_key(&node)
@@ -2107,7 +2162,7 @@ impl<'p> Exec<'p> {
                     let text = if from.tys[pc] == Ty::File { run.text(run.path_sym[v as usize]).to_vec() } else { run.text(v as u32).to_vec() };
                     if let Some(m) = re.captures(&text) {
                         from.row(i, &mut row);
-                        for c in &caps {
+                        for c in caps.iter() {
                             let t = m.name(c).map_or(&b""[..], |x| x.as_bytes()).to_vec();
                             row.push(u64::from(run.sym(&t)));
                         }
@@ -2803,6 +2858,18 @@ impl<'p> Exec<'p> {
             out.cols[c] = col;
         }
         out.n = count;
+        // 7: a projection of one source that drops columns is a set, as the engine's relations are (`VEC_SELECT_BAG`: carried as a bag, the interpreter before 7)
+        if !sw!("VEC_SELECT_BAG")
+            && k == 1
+            && sp.items.iter().all(|(_, e)| matches!(e, E::Col(0, _, _)))
+            && match &srcs[0] {
+                Src::Tab(t, _) => sp.items.len() < t.names.len(),
+                Src::View(v, _) => sp.items.len() < v.map.len(),
+                _ => false,
+            }
+        {
+            return Ok(distinct(out));
+        }
         Ok(out)
     }
 
@@ -3431,11 +3498,24 @@ fn distinct(t: Table) -> Table {
     if sw!("VEC_UNION_ALL") {
         return t;
     }
-    let mut seen: rustc_hash::FxHashSet<Vec<u64>> = rustc_hash::FxHashSet::default();
     let mut keep = Vec::with_capacity(t.n);
-    for r in 0..t.n {
-        if seen.insert(t.cols.iter().map(|c| c[r]).collect()) {
-            keep.push(r);
+    // 7: one or two columns are hashed as words, not as a list a row
+    match t.cols.len() {
+        1 => {
+            let mut seen: rustc_hash::FxHashSet<u64> = rustc_hash::FxHashSet::default();
+            keep.extend((0..t.n).filter(|r| seen.insert(t.cols[0][*r])));
+        }
+        2 => {
+            let mut seen: rustc_hash::FxHashSet<(u64, u64)> = rustc_hash::FxHashSet::default();
+            keep.extend((0..t.n).filter(|r| seen.insert((t.cols[0][*r], t.cols[1][*r]))));
+        }
+        _ => {
+            let mut seen: rustc_hash::FxHashSet<Vec<u64>> = rustc_hash::FxHashSet::default();
+            for r in 0..t.n {
+                if seen.insert(t.cols.iter().map(|c| c[r]).collect()) {
+                    keep.push(r);
+                }
+            }
         }
     }
     if keep.len() == t.n {

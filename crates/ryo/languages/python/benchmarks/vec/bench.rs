@@ -948,6 +948,7 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     let mut check_lines: Vec<String> = Vec::new();
     let mut files_run = 0u64;
     let started = thread_cpu();
+    let mut rss_peak = 0u64;
     for (file_no, path) in list.iter().enumerate() {
         let w0 = thread_cpu();
         let bytes = std::fs::read(path).expect("read");
@@ -1046,6 +1047,14 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
         }
         file_time += inner;
         walk_time += thread_cpu() - w0 - inner;
+        // 7: `VEC_RSS_TRACE`: the files after which the process's resident peak rose by 32 MiB or more
+        if std::env::var_os("VEC_RSS_TRACE").is_some() {
+            let hwm = std::fs::read_to_string("/proc/self/status").ok().and_then(|st| st.lines().find(|l| l.starts_with("VmHWM:")).and_then(|l| l.split_whitespace().nth(1)?.parse::<u64>().ok())).unwrap_or(0);
+            if hwm >= rss_peak + 32 * 1024 {
+                eprintln!("rss peak {} MiB after {}", hwm / 1024, path);
+                rss_peak = hwm;
+            }
+        }
     }
     let total = thread_cpu() - started;
     findings.sort();
@@ -1081,6 +1090,7 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     println!("files run {files_run}; findings {}; rules {} ({} failed)", findings.len(), emits.len(), failed.len());
     println!("thread CPU-s: total {total:.3}; walk+table {walk_time:.3}; in the visit {file_time:.3}: steps {steps:.3}, provider fills {provider_time:.3} ({provider_rows} rows)");
     println!("per-key memo: rows in {} rows out {} keys asked {}", exec.stats.memo_in, exec.stats.memo_out, exec.stats.memo_keys);
+    println!("memo key lists answered whole: {} ({} keys)", exec.stats.memo_reused, exec.stats.memo_reused_keys);
     println!("fact keyed lists: fill rows listed {}", finish::FACT_IX_ROWS.load(std::sync::atomic::Ordering::Relaxed));
     let mut f: Vec<_> = failed.into_iter().collect();
     f.sort();
