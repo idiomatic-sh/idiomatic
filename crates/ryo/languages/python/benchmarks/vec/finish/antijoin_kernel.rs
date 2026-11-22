@@ -134,7 +134,7 @@ fn over(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider
                 w.hits.clear();
                 f.native_probe(run, v.base, probe_col, lcol[i], &mut w.hits);
                 touched += w.hits.len() as u64;
-                let knocked = w.hits.iter().any(|h| view_holds(f, run, &v, *h) && (0..rk.len()).all(|k| pr.rfile[k] || f.native_get(run, v.base, *h, v.map[rk[k]]) == l.cols[lk[k]][i]));
+                let knocked = w.hits.iter().any(|h| view_holds(f, run, &v, *h) && (0..rk.len()).all(|k| pr.rfile[k] || super::view_cols::cell(f, run, v.base, *h, v.map[rk[k]]) == l.cols[lk[k]][i]));
                 if !knocked {
                     w.keep.push(i as u32);
                 }

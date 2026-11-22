@@ -11,7 +11,7 @@
 //! interpreter's `select` too (`VEC_KSEL_LOG=<path>` lists each node's path once a run).
 
 use super::{E, Exec, File, Op, Provider, R, Run, Src, Table, Ty, V, NULL};
-use super::{bucket, bucket_len, compare, distinct, eval, get, index_of, key_of, kind_set, kinds_required, lit_rows, refs_of, table_index, text_of, truthy, view_holds, view_rows};
+use super::{bucket, bucket_len, compare, distinct, eval, get, index_of, key_of, kind_set, kinds_required, lit_rows, refs_of, table_index, text_of, truthy, view_rows};
 use rustc_hash::FxHashSet;
 use serde_json::Value as J;
 use std::cell::RefCell;
@@ -728,7 +728,11 @@ impl Exec<'_> {
                     (None, Some(ks)) => match f.vrows.get(&(ENTRY_KIND | (node << 1) | driver)) {
                         Some(r) => r.clone(),
                         None => {
-                            let rc: Rc<Vec<u32>> = Rc::new(bucket(f, run, ks).into_iter().filter(|r| view_holds(f, run, v, *r)).collect());
+                            let rc: Rc<Vec<u32>> = {
+                                let mut rows = bucket(f, run, ks);
+                                super::view_cols::retain(f, run, v, &mut rows);
+                                Rc::new(rows)
+                            };
                             f.vrows.insert(ENTRY_KIND | (node << 1) | driver, rc.clone());
                             rc
                         }
@@ -737,7 +741,11 @@ impl Exec<'_> {
                         Some(rows) if lit_file(f, LIT_FILTER | *vn, &v.filter, 0, v.base, &[]).is_none() => match f.vrows.get(&(ENTRY_LIT | (node << 1) | driver)) {
                             Some(r) => r.clone(),
                             None => {
-                                let rc: Rc<Vec<u32>> = Rc::new(rows.iter().copied().filter(|r| view_holds(f, run, v, *r)).collect());
+                                let rc: Rc<Vec<u32>> = {
+                                    let mut kept = rows.to_vec();
+                                    super::view_cols::retain(f, run, v, &mut kept);
+                                    Rc::new(kept)
+                                };
                                 f.vrows.insert(ENTRY_LIT | (node << 1) | driver, rc.clone());
                                 rc
                             }
@@ -982,7 +990,7 @@ impl Exec<'_> {
                             let v = get(run, f, &srcs, &cur, driver, dc);
                             hits.clear();
                             f.native_probe(run, base, bcol, v, hits);
-                            hits.retain(|h| view_holds(f, run, vs, *h));
+                            super::view_cols::retain(f, run, vs, hits);
                             touched += hits.len() as u64;
                             for h in hits.iter() {
                                 cur[si] = *h;
@@ -1056,7 +1064,7 @@ impl Exec<'_> {
                 }
                 Src::View(v, _) => {
                     let (base, bc) = (v.base, v.map[*sc]);
-                    col.extend(rows.iter().map(|r| f.native_get(run, base, *r, bc)));
+                    super::view_cols::gather(f, run, base, bc, &rows, col);
                 }
                 _ => return Err("a select reads no table or view".to_owned()),
             }
@@ -1090,7 +1098,7 @@ impl Exec<'_> {
                 }
                 Src::View(v, _) => {
                     let (base, bc) = (v.base, v.map[*sc]);
-                    col.extend(sel.iter().map(|r| f.native_get(run, base, *r, bc)));
+                    super::view_cols::gather(f, run, base, bc, &sel, col);
                 }
                 _ => return Err("a select reads no table or view".to_owned()),
             }

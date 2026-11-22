@@ -78,6 +78,8 @@ pub(super) mod host;
 mod capture;
 #[path = "finish/fill_prof.rs"]
 pub(super) mod fill_prof;
+#[path = "finish/view_cols.rs"]
+mod view_cols;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum Ty {
@@ -544,6 +546,8 @@ pub(super) struct File<'a> {
     pub(super) start: Vec<u32>,
     pub(super) end: Vec<u32>,
     pub(super) parent: Vec<u32>,
+    /// redo-fills c4: each element's field code (`node_table::field_of`), read as a column.
+    field: Vec<u16>,
     pub(super) line_starts: Vec<u32>,
     text_memo: RefCell<Vec<u32>>,
     by_start: RefCell<Option<Index>>,
@@ -622,6 +626,7 @@ impl File<'_> {
             start: Vec::with_capacity(n),
             end: Vec::with_capacity(n),
             parent: Vec::with_capacity(n),
+            field: Vec::with_capacity(n),
             line_starts: vec![0],
             text_memo: RefCell::new(vec![u32::MAX; n]),
             by_start: RefCell::new(None),
@@ -655,6 +660,7 @@ impl File<'_> {
             f.start.push(s.start.0);
             f.end.push(s.end.0);
             f.parent.push(node_table::parent_of(table, p).0);
+            f.field.push(node_table::field_of(table, p).0);
         }
         let mut i = 0;
         while i < src.len() {
@@ -756,6 +762,7 @@ impl File<'_> {
     /// A native relation's cell.
     fn native_get(&self, run: &mut Run, nat: Native, row: u32, col: usize) -> u64 {
         fill_prof::read(0);
+        fill_prof::read_at(match nat { Native::Tree => 0, Native::Child => 1, Native::Location => 2, Native::Token => 3, Native::Fact(_) => 4 }, col);
         let r = row as usize;
         match (nat, col) {
             (Native::Tree, 0) | (Native::Location, 0) => u64::from(row),
@@ -1056,6 +1063,15 @@ pub(super) struct ViewSpec {
     base: Native,
     map: Vec<usize>,
     filter: Vec<E>,
+    /// redo-fills c4: `filter` compiled once (when the view is made), read as columns (`view_cols`).
+    tests: Vec<view_cols::Test>,
+}
+
+impl ViewSpec {
+    fn new(base: Native, map: Vec<usize>, filter: Vec<E>) -> Self {
+        let tests = view_cols::compile(&filter);
+        ViewSpec { base, map, filter, tests }
+    }
 }
 
 /// What a node answers in a file.
@@ -1733,10 +1749,10 @@ impl<'p> Exec<'p> {
             "base" => {
                 let rel = pn.j["rel"].as_str().unwrap_or("").to_owned();
                 match native_of(&rel) {
-                    Some(nat) => Some(Rc::new(ViewSpec { base: nat, map: (0..native_cols(nat).len()).collect(), filter: Vec::new() })),
+                    Some(nat) => Some(Rc::new(ViewSpec::new(nat, (0..native_cols(nat).len()).collect(), Vec::new()))),
                     None => fact_of(run, &rel).map(|nat| {
                         let Native::Fact(i) = nat else { unreachable!() };
-                        Rc::new(ViewSpec { base: nat, map: (0..run.fact_rels[usize::from(i)].1).collect(), filter: Vec::new() })
+                        Rc::new(ViewSpec::new(nat, (0..run.fact_rels[usize::from(i)].1).collect(), Vec::new()))
                     }),
                 }
             }
@@ -1751,7 +1767,7 @@ impl<'p> Exec<'p> {
                             let map = sp.items.iter().map(|(_, e)| if let E::Col(_, c, _) = e { iv.map[*c] } else { 0 }).collect();
                             let mut filter = iv.filter.clone();
                             filter.extend(sp.conj.iter().map(|e| remap(e, &iv.map)));
-                            Some(Rc::new(ViewSpec { base: iv.base, map, filter }))
+                            Some(Rc::new(ViewSpec::new(iv.base, map, filter)))
                         } else {
                             None
                         }
@@ -1898,14 +1914,16 @@ impl<'p> Exec<'p> {
                 for k in keys {
                     f.native_probe(run, v.base, v.map[col], *k, &mut rows);
                 }
-                rows.retain(|r| view_holds(f, run, &v, *r));
+                if !v.filter.is_empty() {
+                    view_cols::retain(f, run, &v, &mut rows);
+                }
                 if rows.is_empty() {
                     self.memo.vrows = rows;
                     return self.empty_rc(run, node);
                 }
                 let mut out = Table::with(sc.names.clone(), sc.tys.clone());
                 for c in 0..v.map.len() {
-                    out.cols[c].extend(rows.iter().map(|r| f.native_get(run, v.base, *r, v.map[c])));
+                    view_cols::gather(f, run, v.base, v.map[c], &rows, &mut out.cols[c]);
                 }
                 out.n = rows.len();
                 self.stats.touched[node] += rows.len() as u64;
@@ -2523,7 +2541,7 @@ impl<'p> Exec<'p> {
                 let rows = view_rows(f, run, &v, node);
                 let mut out = Table::with(sc.names.clone(), sc.tys.clone());
                 for c in 0..v.map.len() {
-                    out.cols[c].extend(rows.iter().map(|r| f.native_get(run, v.base, *r, v.map[c])));
+                    view_cols::gather(f, run, v.base, v.map[c], &rows, &mut out.cols[c]);
                 }
                 out.n = rows.len();
                 let rc = Rc::new(out);
@@ -3134,7 +3152,7 @@ impl<'p> Exec<'p> {
                 hits.clear();
                 f.native_probe(run, v.base, v.map[rk[ki]], l.cols[lk[ki]][i], &mut hits);
                 let knocked = hits.iter().any(|h| {
-                    view_holds(f, run, &v, *h) && (0..rk.len()).all(|k| f.native_get(run, v.base, *h, v.map[rk[k]]) == l.cols[lk[k]][i] || rsc.tys[rk[k]] == Ty::File)
+                    view_holds(f, run, &v, *h) && (0..rk.len()).all(|k| view_cols::cell(f, run, v.base, *h, v.map[rk[k]]) == l.cols[lk[k]][i] || rsc.tys[rk[k]] == Ty::File)
                 });
                 self.stats.touched[node] += hits.len() as u64;
                 if !knocked {
@@ -3394,9 +3412,16 @@ impl<'p> Exec<'p> {
             Src::View(v, vn) => {
                 // the select's own kind tests narrow the view's entry too
                 match kind_set(run, conj, driver, v.base, &v.map) {
-                    Some(ks) if kind_set(run, &v.filter, 0, v.base, &[]).is_none() => Rc::new(bucket(f, run, &ks).into_iter().filter(|r| view_holds(f, run, v, *r)).collect()),
+                    Some(ks) if kind_set(run, &v.filter, 0, v.base, &[]).is_none() => {
+                        let mut rows = bucket(f, run, &ks);
+                        view_cols::retain(f, run, v, &mut rows);
+                        Rc::new(rows)
+                    },
                     _ => match lit_rows(f, conj, driver, v.base, &v.map) {
-                        Some(rows) if lit_rows(f, &v.filter, 0, v.base, &[]).is_none() => Rc::new(rows.into_iter().filter(|r| view_holds(f, run, v, *r)).collect()),
+                        Some(mut rows) if lit_rows(f, &v.filter, 0, v.base, &[]).is_none() => {
+                            view_cols::retain(f, run, v, &mut rows);
+                            Rc::new(rows)
+                        }
                         _ => view_rows(f, run, v, *vn),
                     },
                 }
@@ -3633,7 +3658,7 @@ impl<'p> Exec<'p> {
                         match &srcs[si] {
                             Src::View(vs, _) => {
                                 f.native_probe(run, vs.base, vs.map[col], v.1, &mut hits);
-                                hits.retain(|h| view_holds(f, run, vs, *h));
+                                view_cols::retain(f, run, vs, &mut hits);
                             }
                             Src::Tab(..) => {
                                 probe_key.clear();
@@ -3732,7 +3757,7 @@ impl<'p> Exec<'p> {
                     }
                     Src::View(v, _) => {
                         let (base, bc) = (v.base, v.map[*sc]);
-                        col.extend(tuples[*si][..count].iter().map(|r| f.native_get(run, base, *r, bc)));
+                        view_cols::gather(f, run, base, bc, &tuples[*si][..count], col);
                         continue;
                     }
                     _ => {}
@@ -4209,7 +4234,7 @@ fn hier_step(f: &File<'_>, run: &mut Run, h: &Hier, x: u64, up: bool, out: &mut 
             f.native_probe(run, v.base, v.map[by], x, &mut hits);
             for h in hits {
                 if view_holds(f, run, v, h) {
-                    out.push(f.native_get(run, v.base, h, v.map[to]));
+                    out.push(view_cols::cell(f, run, v.base, h, v.map[to]));
                 }
             }
         }
@@ -4227,9 +4252,7 @@ fn view_holds(f: &File<'_>, run: &mut Run, v: &ViewSpec, row: u32) -> bool {
     if v.filter.is_empty() {
         return true;
     }
-    let srcs = [Src::Base(v.base)];
-    let cur = [row];
-    v.filter.iter().all(|e| truthy(eval(run, f, &srcs, &cur, e)))
+    view_cols::row_holds(f, run, v, row)
 }
 
 /// A view's rows in this file: its kind bucket when its tests name kinds, else every base row; tested; made once a file.
@@ -4247,7 +4270,10 @@ fn view_rows(f: &mut File<'_>, run: &mut Run, v: &ViewSpec, node: usize) -> Rc<V
         Some(ks) => bucket(f, run, &ks),
         None => lit_rows(f, &v.filter, 0, v.base, &[]).unwrap_or_else(|| f.native_rows(run, v.base)),
     };
-    let kept: Vec<u32> = rows.into_iter().filter(|r| view_holds(f, run, v, *r)).collect();
+    let mut kept = rows;
+    if !v.filter.is_empty() {
+        view_cols::retain(f, run, v, &mut kept);
+    }
     let rc = Rc::new(kept);
     f.vrows.insert(node, rc.clone());
     rc
@@ -4607,8 +4633,14 @@ fn static_ty(e: &E) -> Ty {
 fn get(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], si: usize, col: usize) -> u64 {
     match &srcs[si] {
         Src::Tab(t, _) => t.cols[col][cur[si] as usize],
-        Src::View(v, _) => f.native_get(run, v.base, cur[si], v.map[col]),
-        Src::Base(n) => f.native_get(run, *n, cur[si], col),
+        Src::View(v, _) => {
+            fill_prof::read(6);
+            view_cols::cell(f, run, v.base, cur[si], v.map[col])
+        }
+        Src::Base(n) => {
+            fill_prof::read(7);
+            view_cols::cell(f, run, *n, cur[si], col)
+        }
         Src::Lazy(_) | Src::Pending(_) => NULL,
     }
 }

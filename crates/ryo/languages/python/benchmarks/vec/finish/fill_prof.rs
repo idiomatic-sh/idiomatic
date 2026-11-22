@@ -10,10 +10,12 @@ use std::hash::Hasher;
 thread_local! {
     /// The step kind that asked the provider for the fill in flight.
     pub(in super::super) static SITE: Cell<&'static str> = const { Cell::new("other") };
-    /// Calls: native_get, view_holds, lit_rows, view_rows, native_probe, native_rows.
-    pub(in super::super) static READS: RefCell<[u64; 6]> = const { RefCell::new([0; 6]) };
+    /// Calls: native_get, view_holds, lit_rows, view_rows, native_probe, native_rows; cells an expression read of a view, of a base.
+    pub(in super::super) static READS: RefCell<[u64; 8]> = const { RefCell::new([0; 8]) };
     /// Per fact slot: files filled, files whose fill no step read (size only, or never).
     static FILLED: RefCell<Vec<(u64, u64)>> = const { RefCell::new(Vec::new()) };
+    /// native_get calls by (relation kind: tree, child, location, token, fact; column).
+    static AT: RefCell<[[u64; 16]; 5]> = const { RefCell::new([[0; 16]; 5]) };
     static DUMP: RefCell<Option<std::io::BufWriter<std::fs::File>>> = const { RefCell::new(None) };
 }
 
@@ -35,6 +37,14 @@ pub(in super::super) fn read(i: usize) {
     }
 }
 
+/// Counts a native_get of a relation kind and column (under `VEC_READ_COUNT`).
+#[inline]
+pub(in super::super) fn read_at(kind: usize, col: usize) {
+    if sw!("VEC_READ_COUNT") {
+        AT.with(|r| r.borrow_mut()[kind][col.min(15)] += 1);
+    }
+}
+
 /// Sets the step kind asking now; the previous comes back for the caller to restore.
 #[inline]
 pub(in super::super) fn site(s: &'static str) -> &'static str {
@@ -44,7 +54,9 @@ pub(in super::super) fn site(s: &'static str) -> &'static str {
 /// The reads line for the report.
 pub(in super::super) fn reads_line() -> String {
     let r = READS.with(|r| *r.borrow());
-    format!("native reads: native_get {} view_holds {} lit_rows {} view_rows {} native_probe {} native_rows {}", r[0], r[1], r[2], r[3], r[4], r[5])
+    let at = AT.with(|a| *a.borrow());
+    let by: Vec<String> = ["tree", "child", "location", "token", "fact"].iter().enumerate().flat_map(|(k, n)| at[k].iter().enumerate().filter(|(_, v)| **v > 0).map(move |(c, v)| format!("{n}.{c}={v}"))).collect();
+    format!("native_get by relation.column: {}\nnative reads: native_get {} view_holds {} lit_rows {} view_rows {} native_probe {} native_rows {} (cells read by a step's expression: of a view {}, of a base {})", by.join(" "), r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7])
 }
 
 /// One fill's line in the dump (under `VEC_FILL_DUMP`).
