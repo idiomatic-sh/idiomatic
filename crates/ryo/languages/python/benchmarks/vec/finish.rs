@@ -66,6 +66,8 @@ pub(super) mod empty_why;
 mod prefixes;
 #[path = "finish/ordered_dfs.rs"]
 mod ordered_dfs;
+#[path = "finish/host.rs"]
+pub(super) mod host;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum Ty {
