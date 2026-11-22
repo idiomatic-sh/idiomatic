@@ -262,6 +262,10 @@ impl Table {
     }
 }
 
+/// redo-fills pass 2: the executor's steps a run declares as the suppliers of their relations (`Run::declare`): a seam,
+/// the provider's knowledge (packaging, import resolution) to move behind provider facts.
+pub(super) const STEPS: [(&str, fn(&File<'_>, &mut Run) -> R<Table>); 2] = [("project-namespace-membership", namespace_membership), ("module-identity", module_identity)];
+
 /// The run: texts, regexes, kind and field names, file paths.
 #[derive(Default)]
 pub(super) struct Run {
@@ -277,7 +281,9 @@ pub(super) struct Run {
     pub(super) token_last: u16,
     pub(super) token_error: u16,
     pub(super) pairs: [(u16, u16); 3],
-    pub(super) rels: FxHashMap<String, (languages::Relation, Names, Tys)>,
+    pub(super) rels: FxHashMap<String, (Option<languages::Relation>, Names, Tys)>,
+    /// redo-fills pass 2: the relations the run's suppliers declared (`declare`).
+    pub(super) declared: FxHashMap<String, Declared>,
     pub(super) link_sym: [u32; 3],
     /// The project's root on disk and its search roots, for `project-namespace-membership`.
     pub(super) root_dir: String,
@@ -294,6 +300,8 @@ pub(super) struct Run {
     /// symbols by one array read, not a text copy and a hash a cell.
     pub(super) base_word_sym: Vec<u32>,
     pub(super) own_word_sym: Vec<u32>,
+    /// redo-fills pass 2: the symbol of each closed-set word (`cell_text`'s blocks, by number from 0xFFFF_0000).
+    pub(super) closed_word_sym: Vec<u32>,
 }
 
 impl Run {
@@ -320,88 +328,60 @@ impl Run {
         self.regexes.insert(p.to_owned(), r.clone());
         Ok(r)
     }
-    pub(super) fn catalog(&mut self, name: &str) -> Option<(languages::Relation, Names, Tys)> {
+    /// A relation's catalog entry: the reader's relation when the provider's relations catalog has it (None: a relation
+    /// the provider declared at the run's start, `declare`), its columns and their types.
+    pub(super) fn catalog(&mut self, name: &str) -> Option<(Option<languages::Relation>, Names, Tys)> {
         if let Some(r) = self.rels.get(name) {
             return Some(r.clone());
         }
-        if name == REGION_REL || name == RESOLUTION_REL || name == FINAL_REL || name == TYPE_EXPRESSION_REL || name == ANNOTATION_EVALUATION_REL || name == DEFERRED_VISIT_REL || name == DEFERRED_RESOLUTION_REL || name == TYPE_REGION_REL {
-            // 6f probe: the provider's per-node evaluation region (`ColumnFile::evaluation_region`); not a catalog relation,
-            // so the placeholder relation is never filled (`Provider::fill` answers it by name). redo-binding: the same for
-            // the provider's read resolution (`RESOLUTION_REL`).
-            let relation = catalog::relation_named(NameRef("binding-read"))?;
-            let cols: &[(&str, Ty)] = match name {
-                REGION_REL => &REGION_COLS,
-                RESOLUTION_REL => &RESOLUTION_COLS,
-                TYPE_EXPRESSION_REL => &TYPE_EXPRESSION_COLS,
-                ANNOTATION_EVALUATION_REL => &ANNOTATION_EVALUATION_COLS,
-                DEFERRED_VISIT_REL => &DEFERRED_VISIT_COLS,
-                DEFERRED_RESOLUTION_REL => &DEFERRED_RESOLUTION_COLS,
-                TYPE_REGION_REL => &TYPE_REGION_COLS,
-                _ => &FINAL_COLS,
-            };
-            let names: Names = Rc::new(cols.iter().map(|c| c.0.to_owned()).collect());
-            let tys: Tys = Rc::new(cols.iter().map(|c| c.1).collect());
-            self.rels.insert(name.to_owned(), (relation, names.clone(), tys.clone()));
-            return Some((relation, names, tys));
+        if let Some(d) = self.declared.get(name) {
+            let r = (None, d.names.clone(), d.tys.clone());
+            self.rels.insert(name.to_owned(), r.clone());
+            return Some(r);
         }
         let relation = catalog::relation_named(NameRef(name))?;
         let names: Names = Rc::new(catalog::columns(relation).into_iter().map(|c| catalog::column_name(c).0.to_owned()).collect());
         let tys: Tys = Rc::new(catalog::kinds(relation).iter().map(|k| ty_of(*k)).collect());
-        self.rels.insert(name.to_owned(), (relation, names.clone(), tys.clone()));
-        Some((relation, names, tys))
+        self.rels.insert(name.to_owned(), (Some(relation), names.clone(), tys.clone()));
+        Some((Some(relation), names, tys))
+    }
+
+    /// redo-fills pass 2: a relation the run's suppliers declare (the provider's own facts beyond its relations catalog, the
+    /// host's, the executor's steps), with its columns and who supplies its rows. A relation not declared here and in the
+    /// provider's relations catalog is the provider's.
+    pub(super) fn declare(&mut self, name: &str, cols: &[(&str, Ty)], supplier: Supplier) {
+        let names: Names = Rc::new(cols.iter().map(|c| c.0.to_owned()).collect());
+        let tys: Tys = Rc::new(cols.iter().map(|c| c.1).collect());
+        self.rels.remove(name);
+        self.declared.insert(name.to_owned(), Declared { names, tys, supplier });
+    }
+
+    /// Who supplies `rel`'s rows (the provider unless declared otherwise).
+    pub(super) fn supplier(&self, rel: &str) -> Supplier {
+        self.declared.get(rel).map_or(Supplier::Provider, |d| d.supplier)
     }
 }
 
-/// 6f probe: the provider's evaluation region of every node, by name.
-pub(super) const REGION_REL: &str = "evaluation-region";
-pub(super) const REGION_COLS: [(&str, Ty); 6] =
-    [("id", Ty::Node), ("region", Ty::Node), ("region-kind", Ty::Sym), ("annotation", Ty::Node), ("timing", Ty::Sym), ("file", Ty::File)];
+/// redo-fills pass 2: who supplies a relation's rows, as the run's catalog declares it.
+#[derive(Clone, Copy)]
+pub(super) enum Supplier {
+    /// The language provider (`Provider::fill`), for a scope.
+    Provider,
+    /// The host, for a file (the file system's facts: `host::host_fill`).
+    Host,
+    /// The host, for the run: the files of the run (one row a file, the same in every file).
+    RunFiles,
+    /// A step of the executor over the file (a seam: the provider's knowledge, to move behind a provider fact).
+    Step(fn(&File<'_>, &mut Run) -> R<Table>),
+}
 
-/// redo-binding probe: the provider's resolution of every read and deletion, one row each: the event in effect in the nearest
-/// namespace of its lookup path that holds one (a deletion looks in its own namespace only), by name. `kind` is that event's
-/// kind (`none`: no namespace holds an event of the name), `namespace` says whether the event was made in that namespace
-/// itself (`own`) or routed into it by a `global` / `nonlocal` declaration elsewhere (`routed`).
-/// redo-binding pass 3: the event in effect for each name in each namespace once the schedule has run (the namespace's state
-/// after the module ran: what a postponed annotation sees, PEP 563), one row per (namespace, name) that holds an event.
-pub(super) const FINAL_REL: &str = "namespace-final";
-pub(super) const FINAL_COLS: [(&str, Ty); 6] =
-    [("namespace", Ty::Node), ("name", Ty::Sym), ("event", Ty::Node), ("kind", Ty::Sym), ("ordinal", Ty::Num), ("file", Ty::File)];
-
-/// redo-binding pass 4: every element of a file in a type expression (`type`), or the root of a value expression nested in
-/// one (`value`); no row: a value expression (`type_expression.rs`).
-pub(super) const TYPE_EXPRESSION_REL: &str = "type-expression";
-pub(super) const TYPE_EXPRESSION_COLS: [(&str, Ty); 3] = [("id", Ty::Node), ("kind", Ty::Sym), ("file", Ty::File)];
-
-/// redo-binding pass 4: every element inside an annotation, when Python evaluates it (`annotation_evaluation.rs`).
-pub(super) const ANNOTATION_EVALUATION_REL: &str = "annotation-evaluation";
-pub(super) const ANNOTATION_EVALUATION_COLS: [(&str, Ty); 5] =
-    [("id", Ty::Node), ("root", Ty::Node), ("evaluation", Ty::Sym), ("mode", Ty::Sym), ("file", Ty::File)];
-
-/// redo-binding pass 4: every element whose evaluation is postponed past its statement (`deferred`) (`deferred_visit.rs`).
-pub(super) const DEFERRED_VISIT_REL: &str = "deferred-visit";
-pub(super) const DEFERRED_VISIT_COLS: [(&str, Ty); 3] = [("id", Ty::Node), ("visit", Ty::Sym), ("file", Ty::File)];
-
-/// redo-binding pass 4: every postponed read's event once the module has run (`deferred_resolution.rs`).
-pub(super) const DEFERRED_RESOLUTION_REL: &str = "deferred-resolution";
-pub(super) const DEFERRED_RESOLUTION_COLS: [(&str, Ty); 5] =
-    [("reference", Ty::Node), ("occurrence", Ty::Node), ("kind", Ty::Sym), ("point", Ty::Num), ("file", Ty::File)];
-
-/// redo-binding pass 4: the elements evaluation-region places in a deferred type phase, alone (`ColumnFile::type_regions`).
-pub(super) const TYPE_REGION_REL: &str = "type-region";
-pub(super) const TYPE_REGION_COLS: [(&str, Ty); 2] = [("id", Ty::Node), ("file", Ty::File)];
-
-pub(super) const RESOLUTION_REL: &str = "read-resolution";
-pub(super) const RESOLUTION_COLS: [(&str, Ty); 9] = [
-    ("reference", Ty::Node),
-    ("event", Ty::Node),
-    ("kind", Ty::Sym),
-    ("namespace", Ty::Sym),
-    ("scope", Ty::Node),
-    ("depth", Ty::Num),
-    ("ordinal", Ty::Num),
-    ("context", Ty::Sym),
-    ("file", Ty::File),
-];
+/// A declared relation.
+#[derive(Clone)]
+pub(super) struct Declared {
+    names: Names,
+    tys: Tys,
+    supplier: Supplier,
+}
 
 /// 6f probe: a made table's rows as text lines (`label`, path, then `column=value` cells; a node as `id:line`).
 pub(super) fn dump_rows(f: &File<'_>, run: &Run, t: &Table, label: &str, path: &str, out: &mut String) {
@@ -570,9 +550,9 @@ fn native_cols(n: Native) -> &'static [(&'static str, Ty)] {
 }
 
 /// 6h: a provider relation's place among the facts read in place (`VEC_NO_FACTVIEW` turns this off): every catalog
-/// relation the provider fills per file; never the file list or the two project relations made here.
+/// relation the provider or the host fills per file; never the run's file list or a relation a step makes.
 fn fact_of(run: &mut Run, rel: &str) -> Option<Native> {
-    if sw!("VEC_NO_FACTVIEW") || native_of(rel).is_some() || matches!(rel, "filesystem.file" | "project-namespace-membership" | "module-identity") {
+    if sw!("VEC_NO_FACTVIEW") || native_of(rel).is_some() || matches!(run.supplier(rel), Supplier::RunFiles | Supplier::Step(_)) {
         return None;
     }
     let (_, names, _) = run.catalog(rel)?;
@@ -752,11 +732,21 @@ impl Drop for File<'_> {
     }
 }
 
+/// redo-fills pass 2: what a provider's answer covers: one file of the run, or a project (a set of the run's files) for a
+/// relation whose rows relate files to each other. Cells name files by the run's file number, never "this file".
+#[derive(Clone, Copy, Debug)]
+pub(super) enum Scope<'s> {
+    File(u32),
+    #[expect(dead_code, reason = "the project-scope form of the same call; no relation asks it yet")]
+    Files(&'s [u32]),
+}
+
 /// How a step asks the provider for a relation's rows: the visit's facts.
 pub(super) trait Provider {
-    fn fill(&mut self, run: &mut Run, rel: &str) -> Result<Table, String>;
-    /// redo-fills pass 2: how many rows `fill(rel)` answers in this file, where known without making them; None: not known.
-    fn fill_len(&mut self, _run: &mut Run, _rel: &str) -> Option<usize> {
+    /// Every row of `rel` in `scope`, each cell as the run names it (a file cell is the run's number of the file it names).
+    fn fill(&mut self, run: &mut Run, rel: &str, scope: Scope<'_>) -> Result<Table, String>;
+    /// redo-fills pass 2: how many rows `fill(rel, scope)` answers, where known without making them; None: not known.
+    fn fill_len(&mut self, _run: &mut Run, _rel: &str, _scope: Scope<'_>) -> Option<usize> {
         None
     }
     /// A node's text in a syntax role: `Ok(None)` where the role cannot hold it.
@@ -1590,20 +1580,19 @@ impl<'p> Exec<'p> {
     }
 
     /// Whether a step's rows are the same in every file: it reads only run-wide relations, through steps that read no file.
-    fn is_constant(&mut self, node: usize) -> bool {
+    fn is_constant(&mut self, run: &Run, node: usize) -> bool {
         if let Some(c) = self.constant[node] {
             return c;
         }
         let pn = &self.plan.nodes[node];
         let c = match pn.op.as_str() {
-            // redo-binding c32: `filesystem.file` is answered per file (the current file's row): every file column of a
-            // step is the current file (`file_fails` reads a test on it so), and a run-wide memo of a step over it kept the
-            // first file's answer for the run (no stub ever held, and a file join held every file)
-            "base" => false,
+            // redo-binding c32 (filesystem.file per file) through redo-fills' catalog: it is declared a host relation of the
+            // file (fact_catalog.rs), so only a RunFiles relation is constant, and none is declared now
+            "base" => pn.j["rel"].as_str().is_some_and(|r| matches!(run.supplier(r), Supplier::RunFiles)),
             "rows" => true,
             "select" | "union" | "antijoin" | "extend" | "project" | "group-count" | "group-min" | "group-max" | "capture" | "replace" => {
                 let ins = pn.inputs.clone();
-                !ins.is_empty() && ins.iter().all(|i| self.is_constant(*i))
+                !ins.is_empty() && ins.iter().all(|i| self.is_constant(run, *i))
             }
             _ => false,
         };
@@ -1653,8 +1642,6 @@ impl<'p> Exec<'p> {
                 let rel = s(&j["rel"])?;
                 if let Some(nat) = native_of(rel) {
                     mk(native_cols(nat).iter().map(|c| c.0.to_owned()).collect(), native_cols(nat).iter().map(|c| c.1).collect())
-                } else if rel == "filesystem.file" {
-                    mk(vec!["path".into()], vec![Ty::File])
                 } else {
                     let (_, names, tys) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
                     Rc::new(Schema { names, tys })
@@ -1903,7 +1890,7 @@ impl<'p> Exec<'p> {
         // a test of two file columns always holds: every relation here is the file's
         // redo-honest: except a source whose rows are the run's (`is_constant`: `filesystem.file` and what reads only it),
         // whose file column names any file of the run
-        let wide: Vec<bool> = srcs.iter().map(|n| self.is_constant(*n)).collect();
+        let wide: Vec<bool> = srcs.iter().map(|n| self.is_constant(run, *n)).collect();
         conj.retain(|c| !matches!(c, E::Cmp(Op::Eq, a, b) if matches!(**a, E::Col(sa, _, Ty::File) if !wide[sa]) && matches!(**b, E::Col(sb, _, Ty::File) if !wide[sb])));
         let refs = conj.iter().map(refs_of).collect();
         let items: Vec<(String, E)> = match &j["items"] {
@@ -2035,7 +2022,7 @@ impl<'p> Exec<'p> {
                 self.stats.calls[node] += 1;
                 self.stats.empty[node] += 1;
                 let e = self.empty_rc(run, node)?;
-                if self.is_constant(node) {
+                if self.is_constant(run, node) {
                     self.run_memo[node] = Some(e.clone());
                 }
                 let rc = Res::Tab(e);
@@ -2076,7 +2063,7 @@ impl<'p> Exec<'p> {
             self.stats.empty[node] += 1;
         }
         let t = out;
-        if self.is_constant(node) {
+        if self.is_constant(run, node) {
             self.run_memo[node] = Some(t.clone());
         }
         let rc = Res::Tab(t);
@@ -3347,8 +3334,18 @@ impl<'p> Exec<'p> {
             return Ok(());
         }
         let rel = run.fact_rels[i].0.clone();
+        if fill_prof::counting() {
+            let by = self.stack.last().map_or(u32::MAX, |n| *n as u32);
+            fill_prof::asked(i, by);
+            if sw!("VEC_ASKER_PLAN") && by != u32::MAX && fill_prof::first_asker(by) {
+                eprintln!("ASKER-SITE {by} {} {}", fill_prof::SITE.with(std::cell::Cell::get), std::backtrace::Backtrace::force_capture().to_string().lines().filter(|l| l.contains("Exec") || l.contains("kernel") || l.contains("finish")).take(12).map(str::trim).collect::<Vec<_>>().join(" < "));
+                let pn = &self.plan.nodes[by as usize];
+                let ins: Vec<String> = pn.inputs.iter().map(|x| format!("{x}:{}:{}", self.plan.nodes[*x].op, self.plan.nodes[*x].j.to_string().chars().take(160).collect::<String>())).collect();
+                eprintln!("ASKER-PLAN {by} {} {} INPUTS {}", pn.op, pn.j.to_string().chars().take(900).collect::<String>(), ins.join(" | "));
+            }
+        }
         if !f.fills.contains_key(&rel) {
-            let t = fill_len::fill_or_empty(run, p, &rel)?;
+            let t = fill_len::fill_or_empty(run, p, &rel, f.file)?;
             f.fills.insert(rel.clone(), recycle::rc(t));
         }
         if f.facts.len() <= i {
@@ -3362,22 +3359,24 @@ impl<'p> Exec<'p> {
     }
 
     fn base(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, rel: &str) -> R<Table> {
-        if rel == "filesystem.file" {
-            let mut out = Table::with(vec!["path".to_owned()], vec![Ty::File]);
-            out.push_row(&[u64::from(f.file)]);
-            return Ok(out);
+        // redo-fills pass 2: by who supplies the relation, as the run's catalog declares it
+        match run.supplier(rel) {
+            Supplier::RunFiles => {
+                let (_, names, tys) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
+                let mut out = Table::with(names, tys);
+                for i in 0..run.paths.len() {
+                    out.push_row(&[i as u64]);
+                }
+                return Ok(out);
+            }
+            Supplier::Step(step) => return step(f, run),
+            Supplier::Provider | Supplier::Host => {}
         }
         if let Some(t) = f.fills.get(rel) {
             return Ok(t.copy());
         }
-        if rel == "project-namespace-membership" {
-            return namespace_membership(f, run);
-        }
-        if rel == "module-identity" {
-            return module_identity(f, run);
-        }
         let was = fill_prof::site("base");
-        let t = fill_len::fill_or_empty(run, p, rel);
+        let t = fill_len::fill_or_empty(run, p, rel, f.file);
         fill_prof::site(was);
         let t = t?;
         f.fills.insert(rel.to_owned(), recycle::rc(t.clone()));
@@ -5481,7 +5480,27 @@ pub(super) fn filled_table(run: &mut Run, rel: &str, filled: &languages::FilledC
 
 /// redo-fills c2: a provider word's run-wide symbol, through the run's word caches (`Run::base_word_sym`).
 fn word_sym(run: &mut Run, words: &languages::FileWords, w: languages::CellWord, base: u64) -> u32 {
-    let (own, at) = if w.0 < base { (false, w.0 as usize) } else if w.0 < 0xFFFF_0000 { (true, (w.0 - base) as usize) } else { return cell_sym(run, words, w) };
+    let (own, at) = if w.0 < base {
+        (false, w.0 as usize)
+    } else if w.0 < 0xFFFF_0000 {
+        (true, (w.0 - base) as usize)
+    } else if w.0 < 0xFFFF_0700 {
+        // redo-fills pass 2: a closed-set word's symbol, once a run (no text copied and hashed a cell)
+        let at = (w.0 - 0xFFFF_0000) as usize;
+        if let Some(&s) = run.closed_word_sym.get(at)
+            && s != u32::MAX
+        {
+            return s;
+        }
+        let s = cell_sym(run, words, w);
+        if run.closed_word_sym.len() <= at {
+            run.closed_word_sym.resize(at + 1, u32::MAX);
+        }
+        run.closed_word_sym[at] = s;
+        return s;
+    } else {
+        return cell_sym(run, words, w);
+    };
     let cache = if own { &run.own_word_sym } else { &run.base_word_sym };
     if let Some(&s) = cache.get(at)
         && s != u32::MAX

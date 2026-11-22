@@ -75,6 +75,8 @@ impl<'p> Finisher<'p> {
         }
         let mut run = finish::Run::default();
         run.empty = run.sym(b"");
+        // redo-fills pass 2: the suppliers declare their relations beyond the provider's relations catalog
+        super::fact_catalog::declare(&mut run);
         run.links();
         run.root_dir = args[2].trim_end_matches('/').to_owned();
         run.search_roots = vec![String::new(), "src".to_owned()];
@@ -151,6 +153,7 @@ impl<'p> Finisher<'p> {
     /// The second half on one walked file of the direct-columns walk (its own model by parts, built on demand).
     pub(super) fn column_file(&mut self, file_no: usize, path: &str, file: &mut ryo_python::fixtures::columns::ColumnFile<'_, '_>, bytes: &[u8], wanted: &[usize]) {
         let t0 = thread_cpu();
+        file.set_file(languages::FileId(file_no as u32));
         let ft = file.table;
         let mut fwords = std::mem::take(&mut self.fwords);
         languages::facts::clear_words(&mut fwords);
@@ -212,7 +215,7 @@ impl<'p> Finisher<'p> {
         if self.check {
             for rel in ["semantic-syntax", "syntax-tree", "semantic-child", "syntax-child", "source-location", "token-link"] {
                 let mine = finish::native_table(&mut f, run, rel);
-                match pv.fill(run, rel) {
+                match pv.fill(run, rel, finish::Scope::File(file_no as u32)) {
                     Ok(theirs) => self.check_lines.push(format!("{}\t{rel}\t{}", run.paths[file_no], finish::diff(run, &mine, &theirs))),
                     Err(e) => self.check_lines.push(format!("{}\t{rel}\tprovider: {e}", run.paths[file_no])),
                 }

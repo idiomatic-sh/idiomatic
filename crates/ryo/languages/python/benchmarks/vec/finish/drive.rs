@@ -17,7 +17,7 @@ impl Exec<'_> {
             return Ok(self.keyed(run, node));
         }
         let op = self.plan.nodes[node].op.as_str();
-        Ok(!op.starts_with("closure") && !self.emitted.contains(&node) && !self.is_constant(node))
+        Ok(!op.starts_with("closure") && !self.emitted.contains(&node) && !self.is_constant(run, node))
     }
 
     /// Whether a step's rows are restricted by a survivor seed: a select with a seed test or a bound source, and every
