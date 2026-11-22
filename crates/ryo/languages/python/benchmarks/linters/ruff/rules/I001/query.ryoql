@@ -153,7 +153,7 @@ let star_short_comment_gaps = source-matches(from=star_comment_gaps, span="gap",
 let star_comment_spacing = select l.id as block, l.span as span, l.file as file from blocks as l join star_short_comment_gaps as r on l.id = r.block and l.file = r.file;
 let import_ends = select l.block as block, l.file as file, l.statement as statement, l.statement_span as statement_span, l.spelling_text as spelling_text, r.end_line as line, r.end_byte as end_byte from unparenthesized_texts as l join line_locations as r on l.statement = r.id and l.file = r.file;
 let imports_with_comments = select l.block as block, l.file as file, l.statement as statement, l.statement_span as statement_span, l.spelling_text as spelling_text, r.comment_text as comment_text from import_ends as l join inline_comments as r on l.file = r.file and l.line = r.line where l.end_byte <= r.at;
-let fitting_comments = fits-rendered(from=imports_with_comments, texts=["spelling_text", "comment_text"], literals=["", "  ", ""], span="statement_span", max-line=88, tab-width=4);
+let fitting_comments = fits-rendered(from=imports_with_comments, texts=["spelling_text", "comment_text"], literals=["", "  #", ""], span="statement_span", max-line=88, tab-width=4);
 let overflowing_comments = antijoin(left=imports_with_comments, right=fitting_comments, left-on=["block","file","statement"], right-on=["block","file","statement"]);
 let comment_width_problems = select l.id as block, l.span as span, l.file as file from blocks as l join overflowing_comments as r on l.id = r.block and l.file = r.file;
 let spelling_counts = group-count(from=spelled_members, keys=["block","file","spelling"], count="count", distinct="statement");
@@ -177,7 +177,12 @@ let relative_aliases = select alias, file from imports where matches(target, "^[
 let first_party_aliases0 = select l.alias as alias, l.file as file from imports as l join "project-namespace-membership" as r on l.file = r.file where r.membership = "present" and (r.kind = "module" or r.kind = "package") and (l.target = r.path or starts_with(l.target, concat(r.path, ".")));
 let file_package_roots = select file, "package-root-name" as root from "module-identity" where "package-root-name" != "";
 let same_package_aliases = select l.alias as alias, l.file as file from imports as l join file_package_roots as r on l.file = r.file where l.target = r.root or starts_with(l.target, concat(r.root, "."));
-let project_aliases = union(left=first_party_aliases0, right=same_package_aliases);
+let plain_import_modules = select l.alias as alias, l.target as module, l.file as file from imports as l join import_forms as r on l.alias = r.alias and l.file = r.file where r.form = "import";
+let from_import_modules = select alias, module, file from from_module_keys;
+let alias_modules = union(left=plain_import_modules, right=from_import_modules);
+let namespace_aliases = select l.alias as alias, l.file as file from alias_modules as l join "project-namespace-membership" as r on l.file = r.file where r.membership = "present" and r.kind = "namespace" and l.module = r.path;
+let project_member_aliases = union(left=first_party_aliases0, right=namespace_aliases);
+let project_aliases = union(left=project_member_aliases, right=same_package_aliases);
 let first_party_spelled = select l.alias as alias, l.file as file from project_aliases as l join source_module_matches as r on l.alias = r.alias and l.file = r.file;
 let first_party_counts = group-count(from=first_party_spelled, keys=["alias","file"], count="count", distinct="alias");
 let first_party_aliases = select alias, file from first_party_counts;
