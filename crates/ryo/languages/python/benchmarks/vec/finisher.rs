@@ -40,6 +40,8 @@ pub(super) struct Finisher<'p> {
     stats: Option<String>,
     tally: Option<String>,
     check_out: Option<String>,
+    /// redo-alloc: blocks and bytes allocated inside `file` (the second half's own), summed.
+    alloc: [u64; 2],
 }
 
 use ryo::languages;
@@ -111,6 +113,7 @@ impl<'p> Finisher<'p> {
             stats: flag(args, "--stats"),
             tally: flag(args, "--tally"),
             check_out: flag(args, "--check-out"),
+            alloc: [0; 2],
         };
         me.time += thread_cpu() - t0;
         me
@@ -187,6 +190,15 @@ impl<'p> Finisher<'p> {
 
     /// One file's emits run on its node table and source through the provider `pv`.
     fn file(&mut self, file_no: usize, path: &str, ft: &NodeTable, bytes: &[u8], pv: &mut dyn finish::Provider, wanted: &[usize]) {
+        let a0 = super::alloc_count::counts();
+        self.file_inner(file_no, path, ft, bytes, pv, wanted);
+        let a1 = super::alloc_count::counts();
+        for i in 0..2 {
+            self.alloc[i] += a1[i] - a0[i];
+        }
+    }
+
+    fn file_inner(&mut self, file_no: usize, path: &str, ft: &NodeTable, bytes: &[u8], pv: &mut dyn finish::Provider, wanted: &[usize]) {
         self.files_run += 1;
         let plan = self.plan;
         let mut f = finish::File::new(ft, bytes, file_no as u32, plan.nodes.len());
@@ -269,6 +281,8 @@ impl<'p> Finisher<'p> {
             lines.sort();
             std::fs::write(out, lines.join("\n") + "\n").expect("write tally");
         }
+        let a = super::alloc_count::counts();
+        println!("ALLOC {} process: blocks {} bytes {} peak-live {}; second half (inside the file calls): blocks {} bytes {}", super::alloc_count::NAME, a[0], a[1], a[2], self.alloc[0], self.alloc[1]);
         println!("files run {}; findings {}; rules {} ({} failed)", self.files_run, self.findings.len(), self.emits.len(), self.failed.len());
         println!("thread CPU-s: total {total:.3}; walk+table {walk_time:.3}; in the visit {file_time:.3}: steps {steps:.3}, provider fills {:.3} ({} rows)", self.provider_time, self.provider_rows);
         println!("per-key memo: rows in {} rows out {} keys asked {} keys missing {} probes answered whole {}", exec.stats.memo_in, exec.stats.memo_out, exec.stats.memo_keys, exec.stats.memo_missing, exec.stats.memo_whole_hits);
