@@ -136,3 +136,68 @@ comparison = "full"
 files = { "case.py" = "from pathlib import Path\nasync def f():\n    path = object()\n    path = Path(\"x\")\n    path.open()\n" }
 expected = [{ rule = "ASYNC230", file = "case.py", start = 85, end = 94 }]
 
+[[cases]]
+name = "tuple-unpacking"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nasync def func():\n    (p1, p2) = (Path(\"foo\"), Path(\"bar\"))\n    p1.open()\n" }
+expected = [{ rule = "ASYNC230", file = "case.py", start = 89, end = 96 }]
+
+[[cases]]
+name = "tuple-unpacking-second"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nasync def func():\n    p1, p2 = Path(\"foo\"), Path(\"bar\")\n    p2.open()\n" }
+expected = [{ rule = "ASYNC230", file = "case.py", start = 85, end = 92 }]
+
+[[cases]]
+name = "nested-tuple-unpacking"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nasync def func():\n    (a, (p, b)) = (1, (Path(\"foo\"), 2))\n    p.open()\n" }
+expected = [{ rule = "ASYNC230", file = "case.py", start = 87, end = 93 }]
+
+[[cases]]
+name = "list-unpacking"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nasync def func():\n    [p, q] = [Path(\"foo\"), 1]\n    p.open()\n" }
+expected = [{ rule = "ASYNC230", file = "case.py", start = 77, end = 83 }]
+
+[[cases]]
+name = "annotated-assignment"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nasync def func():\n    p: Path = Path(\"foo\")\n    p.open()\n" }
+expected = [{ rule = "ASYNC230", file = "case.py", start = 73, end = 79 }]
+
+[[cases]]
+name = "annotated-only"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nasync def func(p: Path):\n    p.open()\n" }
+expected = []
+
+[[cases]]
+name = "walrus"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nasync def func():\n    if (p := Path(\"foo\")):\n        p.open()\n" }
+expected = [{ rule = "ASYNC230", file = "case.py", start = 78, end = 84 }]
+
+[[cases]]
+name = "chained-assignment"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nasync def func():\n    p = q = Path(\"foo\")\n    q.open()\n" }
+expected = [{ rule = "ASYNC230", file = "case.py", start = 71, end = 77 }]
+
+[[cases]]
+name = "unpacking-mismatch"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nasync def func():\n    p, q = Path(\"foo\")\n    p.open()\n" }
+expected = []
+
+[[cases]]
+name = "starred-unpacking"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nasync def func():\n    p, *q = Path(\"foo\"), 1, 2\n    p.open()\n" }
+expected = [{ rule = "ASYNC230", file = "case.py", start = 77, end = 83 }]
+
+[[cases]]
+name = "non-path-element"
+comparison = "full"
+files = { "case.py" = "from pathlib import Path\nasync def func():\n    p, q = 1, Path(\"bar\")\n    p.open()\n" }
+expected = []
