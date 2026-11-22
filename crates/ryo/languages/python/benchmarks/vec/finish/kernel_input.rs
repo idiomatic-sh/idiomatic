@@ -42,8 +42,22 @@ pub(super) fn sole(ex: &Exec<'_>, input: usize, tree: &[usize]) -> bool {
 /// where `sole`).
 #[expect(clippy::too_many_arguments, reason = "a throwaway")]
 pub(super) fn input_probe(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64], sole: bool) -> R<Rc<Table>> {
-    if !sole || keys.is_empty() || sw!("VEC_KERNEL_MEMO") || sw!("VEC_NO_PMEMO") || ex.overridden(node).is_some() || f.memo[node].is_some() || ex.view(run, node)?.is_some() {
-        return ex.probe(f, run, p, node, col, keys);
+    // 7 redo-union: every probe a kernel makes of an input is timed as the input's own: the per-key probe leaves a view
+    // read in place and a memo answer untimed, so that work fell to the asking step. `VEC_KERNEL_INPUT_UNTIMED` leaves
+    // it to the asker as before.
+    let direct = sole && !keys.is_empty() && !sw!("VEC_KERNEL_MEMO") && !sw!("VEC_NO_PMEMO") && ex.overridden(node).is_none() && f.memo[node].is_none() && ex.view(run, node)?.is_none();
+    if !direct {
+        if keys.is_empty() || sw!("VEC_KERNEL_INPUT_UNTIMED") {
+            return ex.probe(f, run, p, node, col, keys);
+        }
+        let t0 = crate::thread_cpu();
+        let saved = ex.inner;
+        ex.inner = 0.0;
+        let out = ex.probe(f, run, p, node, col, keys);
+        let dt = crate::thread_cpu() - t0;
+        ex.stats.time[node] += dt - ex.inner;
+        ex.inner = saved + dt;
+        return out;
     }
     let sc = ex.schema(run, node)?;
     let t0 = crate::thread_cpu();

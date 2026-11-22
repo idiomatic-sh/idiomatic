@@ -1910,6 +1910,7 @@ impl<'p> Exec<'p> {
         let j = &pn.j;
         let a = &j["args"];
         if op == "union" && !sw!("VEC_OLD_UNION") { return union_kernel::whole(self, f, run, p, node); }
+        if op == "antijoin" && !sw!("VEC_OLD_ANTIJOIN") { return antijoin_kernel::whole(self, f, run, p, node); }
         // a step over an empty input answers nothing, and asks for nothing else
         let first = match op {
             "union" | "antijoin" | "ordered-match" | "as-of" => Some("left"),
@@ -1966,7 +1967,7 @@ impl<'p> Exec<'p> {
                 out.n += r.n;
                 Ok(distinct(out))
             }
-            "antijoin" => if sw!("VEC_OLD_ANTIJOIN") { self.antijoin(f, run, p, node, a) } else { antijoin_kernel::whole(self, f, run, p, node) },
+            "antijoin" => self.antijoin(f, run, p, node, a),
             "extend" => {
                 let from = self.eval(f, run, p, self.arg_rel(node, "from")?)?;
                 let mut out = (*from).clone();

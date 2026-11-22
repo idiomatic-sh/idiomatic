@@ -24,6 +24,9 @@ pub(super) struct Prep {
     /// A probe of the step runs over the probed left (no other input reads it, the left is read once).
     direct: bool,
     left_sole: bool,
+    /// The right side is read by this step alone and the step is never probed (made whole once a file): the right is
+    /// asked its keys once, so its per-key memo never answers.
+    right_sole: bool,
     names: Names,
     tys: Tys,
     empty: Rc<Table>,
@@ -39,7 +42,8 @@ struct Work {
 }
 
 thread_local! {
-    static PREP: RefCell<Vec<Option<Rc<Prep>>>> = const { RefCell::new(Vec::new()) };
+    /// Prepared once a run and kept for the process (one plan a process): read by a plain reference, no count.
+    static PREP: RefCell<Vec<Option<&'static Prep>>> = const { RefCell::new(Vec::new()) };
     static WORK: RefCell<Work> = RefCell::new(Work::default());
 }
 
@@ -47,8 +51,8 @@ thread_local! {
 const SCAN: usize = 8;
 const NONE: u32 = u32::MAX;
 
-fn prep(ex: &mut Exec<'_>, run: &mut Run, node: usize) -> R<Rc<Prep>> {
-    if let Some(Some(pr)) = PREP.with(|m| m.borrow().get(node).cloned()) {
+fn prep(ex: &mut Exec<'_>, run: &mut Run, node: usize) -> R<&'static Prep> {
+    if let Some(Some(pr)) = PREP.with(|m| m.borrow().get(node).copied()) {
         return Ok(pr);
     }
     let plan = ex.plan;
@@ -66,7 +70,7 @@ fn prep(ex: &mut Exec<'_>, run: &mut Run, node: usize) -> R<Rc<Prep>> {
     let inputs = plan.nodes[node].inputs.clone();
     let direct = inputs.iter().filter(|i| **i == left).count() == 1 && inputs.iter().filter(|i| **i != left).all(|o| !ex.depends(*o, left));
     let sc = ex.schema(run, node)?;
-    let pr = Rc::new(Prep {
+    let pr: &'static Prep = Box::leak(Box::new(Prep {
         left,
         right,
         lk,
@@ -76,16 +80,17 @@ fn prep(ex: &mut Exec<'_>, run: &mut Run, node: usize) -> R<Rc<Prep>> {
         rk_at,
         direct,
         left_sole: left != right && sole(ex, left, &[node]),
+        right_sole: left != right && !ex.keyed(run, node) && sole(ex, right, &[node]),
         names: sc.names.clone(),
         tys: sc.tys.clone(),
         empty: Rc::new(Table::with(sc.names.clone(), sc.tys.clone())),
-    });
+    }));
     PREP.with(|m| {
         let mut m = m.borrow_mut();
         if m.len() <= node {
             m.resize(ex.plan.nodes.len().max(node + 1), None);
         }
-        m[node] = Some(pr.clone());
+        m[node] = Some(pr);
     });
     Ok(pr)
 }
@@ -166,12 +171,25 @@ fn right(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provide
         && ex.deferred(f, run, pr.right)?
     {
         let mut ks = take_keys();
-        WORK.with(|w| {
-            let w = &mut *w.borrow_mut();
-            w.set.clear();
-            ks.extend(l.cols[pr.lk[i]].iter().copied().filter(|k| w.set.insert(*k)));
-        });
-        let out = ex.probe(f, run, p, pr.right, pr.rk[i], &ks);
+        let lc = &l.cols[pr.lk[i]];
+        if l.n <= 2 * SCAN {
+            for k in lc {
+                if !ks.contains(k) {
+                    ks.push(*k);
+                }
+            }
+        } else {
+            WORK.with(|w| {
+                let w = &mut *w.borrow_mut();
+                // a set grown by a large left is dropped, not cleared (clearing costs its capacity)
+                if w.set.capacity() > 8 * l.n && w.set.capacity() > 4096 {
+                    w.set = FxHashSet::default();
+                }
+                w.set.clear();
+                ks.extend(lc.iter().copied().filter(|k| w.set.insert(*k)));
+            });
+        }
+        let out = input_probe(ex, f, run, p, pr.right, pr.rk[i], &ks, pr.right_sole);
         give_keys(ks);
         return out;
     }
