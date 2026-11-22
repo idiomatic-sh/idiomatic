@@ -168,7 +168,7 @@ let restored_builtin_deletions = select l.context as context, l.expression as ex
 let ignored_deletions = union(left=restored_deletions, right=restored_builtin_deletions);
 let unchanged_last_bindings = antijoin(left=unadjusted_last_bindings, right=ignored_deletions, left-on=["context", "expression", "definition", "file"], right-on=["context", "expression", "definition", "file"]);
 let last_bindings = union(left=unchanged_last_bindings, right=restored_bindings);
-let competing_scopes = select l.context as context, l.expression as expression, l.definition as definition, l.lookup_scope as farther, r.lookup_scope as closer, l.file as file from last_bindings as l join last_bindings as r on l.context = r.context and l.expression = r.expression and l.file = r.file where l.lookup_scope != r.lookup_scope;
+let competing_scopes = select l.context as context, l.expression as expression, r.definition as definition, r.lookup_scope as farther, l.lookup_scope as closer, l.file as file from last_bindings as l join last_bindings as r on l.context = r.context and l.expression = r.expression and l.file = r.file where l.lookup_scope != r.lookup_scope;
 let farther_bindings = select l.context as context, l.expression as expression, l.definition as definition, l.file as file from competing_scopes as l join scope_paths as r on l.closer = r.origin and l.farther = r.destination and l.file = r.file;
 let nearest_bindings = antijoin(left=last_bindings,right=farther_bindings,left-on=["context","expression","definition","file"],right-on=["context","expression","definition","file"]);
 let results = select context, expression, definition as occurrence, lookup_scope as scope, kind, file from nearest_bindings;
