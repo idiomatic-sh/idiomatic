@@ -505,7 +505,8 @@ let binop_left_locations = select l.binop as binop, l.file as file, r."end-byte"
 let binop_right_locations = select l.binop as binop, l.file as file, r."start-byte" as boundary from binop_rights as l join "source-location" as r on l.child = r.id and l.file = r.file;
 let ordered_binop_operands = select l.binop as binop, l.file as file, l.boundary as left_end, r.boundary as right_start from binop_left_locations as l join binop_right_locations as r on l.binop = r.binop and l.file = r.file;
 let pipe_tokens = select l.id as token, r.file as file, r."start-byte" as start, r."end-byte" as end from "syntax-tree" as l join "source-location" as r on l.id = r.id where l.text = "|";
-let raw_bit_or_nodes = select l.binop as node, l.file as file from ordered_binop_operands as l join pipe_tokens as r on l.file = r.file where r.start >= l.left_end and r.end <= l.right_start;
+let first_pipes = as-of(left=ordered_binop_operands, right=pipe_tokens, left-on=[file], right-on=[file], left-order="left_end", right-order="start", bound=at-or-after, output={binop:[left,binop], right_start:[left,right_start], pipe_end:[right,end], file:[left,file]});
+let raw_bit_or_nodes = select binop as node, file from first_pipes where pipe_end <= right_start;
 let bit_or_nodes = select l.check as check, l.id as id, l.file as file from members as l join raw_bit_or_nodes as r on l.id = r.node and l.file = r.file;
 let binary_sides = select parent, child, file from "semantic-child" where field = "left" or field = "right";
 let binary_edges = select l.check as check, l.id as source, r.child as destination, l.file as file from bit_or_nodes as l join binary_sides as r on l.id = r.parent and l.file = r.file;

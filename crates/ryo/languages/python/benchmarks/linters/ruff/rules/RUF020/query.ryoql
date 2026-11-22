@@ -9,7 +9,8 @@ let left_ends = select l.binary as binary, r."end-byte" as position, l.file as f
 let right_starts = select l.binary as binary, r."start-byte" as position, l.file as file from rights as l join "source-location" as r on l.operand = r.id and l.file = r.file;
 let gaps = select l.binary as binary, l.position as start, r.position as end, l.file as file from left_ends as l join right_starts as r on l.binary = r.binary and l.file = r.file;
 let pipes = select l.id as id, r."start-byte" as start, r."end-byte" as end, l.file as file from "semantic-syntax" as l join "source-location" as r on l.id = r.id and l.file = r.file where l.text = "|";
-let pipe_nodes = select l.binary as id, l.file as file from gaps as l join pipes as r on l.file = r.file where r.start >= l.start and r.end <= l.end;
+let first_pipes = as-of(left=gaps, right=pipes, left-on=[file], right-on=[file], left-order="start", right-order="start", bound=at-or-after, output={binary:[left,binary], gap_end:[left,end], pipe_end:[right,end], file:[left,file]});
+let pipe_nodes = select binary as id, file from first_pipes where pipe_end <= gap_end;
 let operands = union(left=lefts, right=rights);
 let pipe_members = select l.binary as owner, l.operand as member, l.file as file from operands as l join pipe_nodes as r on l.binary = r.id and l.file = r.file;
 let subscript_nodes = select id, file from nodes where kind = "subscript";

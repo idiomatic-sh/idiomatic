@@ -1,7 +1,8 @@
 import observation_matches from "python/ruff/suppress-matches";
 import line_located from "python/ruff/candidate-locations";
 let bodies = select parent, child, ordinal from "semantic-child" where field = "body";
-let multiple = select l.parent as id from bodies as l join bodies as r on l.parent = r.parent where l.ordinal != r.ordinal;
+let body_counts = group-count(from=bodies, keys=["parent"], count="count", distinct="ordinal");
+let multiple = select parent as id from body_counts where count > 1;
 let single = antijoin(left=bodies, right=multiple, left-on=["parent"], right-on=["id"]);
 let scopes = select id from "semantic-syntax" where (kind = "function-def" or kind = "async-function-def" or kind = "class-def") and glob_any(file, "**/*.pyi");
 let scoped = select r.child as id from scopes as l join single as r on l.id = r.parent;
