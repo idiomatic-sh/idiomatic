@@ -123,6 +123,9 @@ pub(crate) enum NeedRecord {
         /// The constant's number, or `NO_SLOT`.
         constant: WordSlot,
     },
+    /// `10, list`: some element of the file has one of the neighbourhoods the pool's list writes (`encoding::needs`'s
+    /// shape words), each of its stars entered at its kind's elements.
+    Shape(PoolAt),
     /// `9, relation, column, comparison, regular expression, constant`: the relation, once filled whole in the file, has
     /// a row whose text in the column passes the test of a text against the constant; asked before the relation is
     /// whole, it holds (it never fills).

@@ -99,6 +99,10 @@ pub(crate) enum Emptiness {
     /// holds the test of a cell of the relation has no row in a file whose rows hold no such text. Known for nothing
     /// once a reader has filled the relation whole in the file; never a fill of its own.
     RowTest(Relation, RowTest),
+    /// Some element of the file has a node's neighbourhood: a branch that holds node rows of an element with a kind, its
+    /// field, its parent's kind and field, and its children's, has no row in a file where no element of that kind has
+    /// them all. Read off the node table: a kind's elements are the candidates, the one with fewest in the file first.
+    Shape(Box<TreeShape>),
     /// Every part holds; none: always.
     All(Box<[Emptiness]>),
     /// Some part holds; none: never.
@@ -112,6 +116,36 @@ pub(crate) struct PathTest {
     pub(crate) test: TestOperation,
     /// The constant the path is tested against.
     pub(crate) value: CellWord,
+}
+
+/// What a branch holds of one element of the node table: its kind and its field when held to a constant, and whether
+/// its rows are the file's own tree alone.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct ShapeNode {
+    /// Its kind's word.
+    pub(crate) kind: Option<CellWord>,
+    /// The word of the field it fills in its parent.
+    pub(crate) field: Option<CellWord>,
+    /// Whether it is an element of the file's own tree (a relation of extent `Own` holds it).
+    pub(crate) own: bool,
+}
+
+/// One element with a kind (the entry) and the neighbours the branch holds of it: its parent and its children.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct ShapeStar {
+    /// The element entered at: its kind's elements are the candidates.
+    pub(crate) anchor: ShapeNode,
+    /// Its parent, when the branch holds a kind or a field of it.
+    pub(crate) parent: Option<ShapeNode>,
+    /// Its children the branch holds a kind or a field of; one child may stand for several.
+    pub(crate) children: Vec<ShapeNode>,
+}
+
+/// The elements with a kind a branch holds, each with its neighbourhood: every one must have a candidate in the file.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct TreeShape {
+    /// One star an element with a kind.
+    pub(crate) stars: Vec<ShapeStar>,
 }
 
 /// A test of a text a row of a filled relation must pass in a column, as the branch's own test atom holds it.

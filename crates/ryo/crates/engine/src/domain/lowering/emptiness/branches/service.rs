@@ -4,7 +4,7 @@
 //! held to it: a literal is carried through a definition into the need, and each reader of a shared definition has its own.
 
 use crate::domain::lowered::types::{ByteLiteral, Emptiness, PathTest, RowTest, RowValue};
-use crate::domain::lowering::emptiness::cells::service::{filled_texts, own_texts};
+use crate::domain::lowering::emptiness::cells::service::{filled_texts, own_texts, tree_shape};
 use crate::domain::lowering::emptiness::cells::types::FilledCell;
 use crate::domain::lowering::emptiness::service::path_test;
 use crate::domain::lowering::definitions::service::{draft, text_word};
@@ -288,6 +288,10 @@ fn needed(
             AtomRows::Made(_) => {}
         }
     }
+    // The neighbourhoods of the branch's elements, read off the node table.
+    if let Some(shape) = tree_shape(branch, &pins) {
+        parts.push(Emptiness::Shape(Box::new(shape)));
+    }
     // What a relation says is asked before what another unit decides.
     parts.extend(uses);
     Emptiness::All(parts.into())
@@ -324,7 +328,8 @@ fn never(formula: &Emptiness) -> bool {
         | Emptiness::Table(_)
         | Emptiness::Path(_)
         | Emptiness::Bytes(_)
-        | Emptiness::RowTest(..) => false,
+        | Emptiness::RowTest(..)
+        | Emptiness::Shape(_) => false,
     }
 }
 
@@ -340,7 +345,8 @@ fn always(formula: &Emptiness) -> bool {
         | Emptiness::Table(_)
         | Emptiness::Path(_)
         | Emptiness::Bytes(_)
-        | Emptiness::RowTest(..) => false,
+        | Emptiness::RowTest(..)
+        | Emptiness::Shape(_) => false,
     }
 }
 

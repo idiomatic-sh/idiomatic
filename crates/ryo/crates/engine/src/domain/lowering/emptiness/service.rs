@@ -109,6 +109,7 @@ pub(crate) fn copied(formula: &Emptiness) -> Emptiness {
         Emptiness::Path(test) => Emptiness::Path(*test),
         Emptiness::Bytes(literal) => Emptiness::Bytes(*literal),
         Emptiness::RowTest(relation, test) => Emptiness::RowTest(*relation, *test),
+        Emptiness::Shape(shape) => Emptiness::Shape(shape.clone()),
         Emptiness::All(parts) => Emptiness::All(each(parts)),
         Emptiness::Any(parts) => Emptiness::Any(each(parts)),
     }

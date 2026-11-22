@@ -1,6 +1,6 @@
 //! The types of the `needs` concept: a decision, and what a formula's leaves ask of the engine.
 
-use crate::domain::code::types::{NeedSite, RelationNumber, WordSlot};
+use crate::domain::code::types::{NeedSite, PoolAt, RelationNumber, WordSlot};
 use crate::domain::steps::types::MadeTableId;
 use ryo_relations::domain::relations::types::KindBits;
 
@@ -68,6 +68,12 @@ pub(crate) trait NeedFacts {
         _test: TextTestCode,
         _constant: WordSlot,
     ) -> NeedVerdict {
+        NeedVerdict::Holds
+    }
+
+    /// Whether some element of the file has one of the neighbourhoods of the shape at the pool's list. It costs a read
+    /// of a kind's elements and their neighbours, no fill.
+    fn shape_holds(&mut self, _list: PoolAt) -> NeedVerdict {
         NeedVerdict::Holds
     }
 

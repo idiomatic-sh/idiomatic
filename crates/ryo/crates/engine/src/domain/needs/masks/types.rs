@@ -50,6 +50,9 @@ pub(crate) enum NeedTerm {
         /// The constant's number, or `NO_SLOT`.
         constant: WordSlot,
     },
+    /// Some element of the file has one of the neighbourhoods of a shape (the pool's list). It costs no fill: a read of
+    /// the node table, once a file, shared by every rule whose shape it is.
+    Shape(PoolAt),
     /// A row of a filled relation whose text in a column passes a test of a text against the constant. It costs no
     /// fill: answered once a reader has filled the relation whole in the file, and holding until then.
     RowTest {
@@ -151,6 +154,9 @@ pub(crate) struct NeedMasks {
     pub(crate) texts_found: usize,
     /// The literals the byte terms ask the file's texts to hold, numbered.
     pub(crate) bytes: ByteLiterals,
+    /// The first list of the pool written with each shape's words: a shape several units write is one term, decided
+    /// once a file.
+    pub(crate) shapes: hashbrown::HashMap<Box<[WordSlot]>, PoolAt>,
     /// How many terms have been looked at for the literals they ask: every byte term met so far is numbered at once,
     /// so a file's bytes are read for all of them together.
     pub(crate) bytes_found: usize,

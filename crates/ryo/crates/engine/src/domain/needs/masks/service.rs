@@ -54,7 +54,7 @@ pub(crate) fn numbered(
             } if column == NO_SLOT || constant == NO_SLOT => RecordCost::Presence,
             NeedTerm::Row { .. } => RecordCost::Dear,
             // Not a free bit: its answer waits on a reader's fill, so it is a term the walk reads (`AskRank::Row`).
-            NeedTerm::RowTest { .. } => RecordCost::Dear,
+            NeedTerm::RowTest { .. } | NeedTerm::Shape(_) => RecordCost::Dear,
         };
         term_costs.push(cost);
         if cost == RecordCost::Free {
@@ -97,7 +97,8 @@ fn record_cost(code: &ProgramCode, at: WordSlot, costs: &mut Vec<RecordCost>) ->
             | NeedRecord::Kinds(_)
             | NeedRecord::Path { .. }
             | NeedRecord::Bytes { .. }
-            | NeedRecord::RowTest { .. },
+            | NeedRecord::RowTest { .. }
+            | NeedRecord::Shape(_),
         )
         | None => false,
         Some(NeedRecord::Row { relation, .. }) => !node_relation(code, relation),
@@ -144,6 +145,8 @@ pub(crate) fn costs_found(code: &ProgramCode, masks: &mut NeedMasks) {
 fn record_asks_nodes(code: &ProgramCode, at: WordSlot, masks: &mut NeedMasks) -> NodeAsk {
     match need_at(&code.needs, at) {
         Some(NeedRecord::Row { relation, .. }) if node_relation(code, relation) => NodeAsk::Asked,
+        // A shape reads the node table's elements and their neighbours.
+        Some(NeedRecord::Shape(_)) => NodeAsk::Asked,
         Some(NeedRecord::Site(site)) => node_asked(code, site, masks),
         Some(
             NeedRecord::All {

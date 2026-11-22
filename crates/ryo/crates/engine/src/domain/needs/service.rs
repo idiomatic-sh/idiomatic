@@ -52,7 +52,8 @@ fn costs(facts: &impl NeedFacts, code: &ProgramCode, at: WordSlot) -> NeedVerdic
             | NeedRecord::Kinds(_)
             | NeedRecord::Path { .. }
             | NeedRecord::Bytes { .. }
-            | NeedRecord::RowTest { .. },
+            | NeedRecord::RowTest { .. }
+            | NeedRecord::Shape(_),
         )
         | None => false,
         Some(NeedRecord::Row { relation, .. }) => {
@@ -173,6 +174,10 @@ fn formula(facts: &mut impl NeedFacts, code: &ProgramCode, at: WordSlot) -> Need
             Some(kept) => kept,
             None => facts.bytes_held(regex, constant),
         },
+        NeedRecord::Shape(list) => match facts.leaf(at) {
+            Some(kept) => kept,
+            None => facts.shape_holds(list),
+        },
         NeedRecord::RowTest {
             relation,
             column,
@@ -226,7 +231,8 @@ fn record_tables(
             | NeedRecord::Row { .. }
             | NeedRecord::Path { .. }
             | NeedRecord::Bytes { .. }
-            | NeedRecord::RowTest { .. },
+            | NeedRecord::RowTest { .. }
+            | NeedRecord::Shape(_),
         )
         | None => {}
     }

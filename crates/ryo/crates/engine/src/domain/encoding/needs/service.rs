@@ -10,7 +10,7 @@ use crate::domain::code::small_codes::service::{comparison_code, comparison_rege
 use crate::domain::code::types::{NeedSite, WordSlot};
 use crate::domain::encoding::sites::service::{constant, fault, reach_table, relation, slot_of};
 use crate::domain::encoding::types::{Encoding, ReachedUnit};
-use crate::domain::lowered::types::Emptiness;
+use crate::domain::lowered::types::{Emptiness, ShapeNode};
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::PastWidth;
 use crate::domain::steps::types::DefinitionId;
@@ -18,6 +18,21 @@ use ryo_relations::domain::relations::types::Count;
 use ryo_values::domain::plan_parts::service::column_place;
 
 /// A need site with no record yet.
+fn shape_node(
+    encoding: &mut Encoding<'_>,
+    node: &ShapeNode,
+    words: &mut Vec<WordSlot>,
+) -> Result<(), LoweringError> {
+    for word in [node.kind, node.field] {
+        words.push(match word {
+            Some(word) => WordSlot(constant(encoding, word)?.0),
+            None => NO_SLOT,
+        });
+    }
+    words.push(WordSlot(u32::from(node.own)));
+    Ok(())
+}
+
 fn site(encoding: &mut Encoding<'_>) -> Result<NeedSite, LoweringError> {
     let site = NeedSite(
         slot_of(
@@ -128,6 +143,26 @@ fn formula(encoding: &mut Encoding<'_>, emptiness: &Emptiness) -> Result<WordSlo
             regex: WordSlot(regex.0),
             constant: NO_SLOT,
         },
+        Emptiness::Shape(shape) => {
+            // The shape as words of the pool: its stars, each its anchor, then its parent (a flag and the node), then
+            // its children: a node is its kind's constant, its field's (`NO_SLOT`: none) and whether it is the own tree's.
+            let mut words = vec![WordSlot(u32::try_from(shape.stars.len()).unwrap_or(u32::MAX))];
+            for star in &shape.stars {
+                shape_node(encoding, &star.anchor, &mut words)?;
+                match &star.parent {
+                    Some(parent) => {
+                        words.push(WordSlot(1));
+                        shape_node(encoding, parent, &mut words)?;
+                    }
+                    None => words.push(WordSlot(0)),
+                }
+                words.push(WordSlot(u32::try_from(star.children.len()).unwrap_or(u32::MAX)));
+                for child in &star.children {
+                    shape_node(encoding, child, &mut words)?;
+                }
+            }
+            NeedRecord::Shape(push_list(&mut encoding.code.pool, &words))
+        }
         Emptiness::RowTest(read, test) => NeedRecord::RowTest {
             relation: relation(encoding, *read)?,
             column: WordSlot(column_place(test.column).0),

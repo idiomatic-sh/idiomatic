@@ -4,6 +4,7 @@
 pub(crate) mod bytes;
 pub(crate) mod formulas;
 pub(crate) mod masks;
+pub(crate) mod shapes;
 pub(crate) mod spelled;
 pub mod service;
 pub mod types;

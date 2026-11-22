@@ -168,6 +168,7 @@ fn formula_named(frame: &StepFrame<'_, '_>, at: WordSlot, depth: usize) -> Strin
             constant,
         }) => format!("path:{}:{}:{}", comparison.0, regex.0, constant.0),
         Some(NeedRecord::Bytes { regex, constant }) => format!("bytes:{}:{}", regex.0, constant.0),
+        Some(NeedRecord::Shape(list)) => format!("shape:{}", list.0),
         Some(NeedRecord::RowTest {
             relation,
             column,

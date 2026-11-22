@@ -6,7 +6,7 @@ use super::types::{AskRank, FormulaNode};
 use crate::domain::code::records::service::need_at;
 use crate::domain::code::records::types::NeedRecord;
 use crate::domain::code::constants::NO_SLOT;
-use crate::domain::code::types::{NeedSite, ProgramCode, RelationNumber, WordSlot};
+use crate::domain::code::types::{NeedSite, PoolAt, ProgramCode, RelationNumber, WordSlot};
 use ryo_relations::domain::catalog::service::spelled;
 use ryo_relations::domain::catalog::types::Spelling;
 use ryo_relations::domain::relations::service::columns;
@@ -343,6 +343,26 @@ fn spelling_of(code: &ProgramCode, relation: RelationNumber, column: WordSlot) -
         .map(|(_, spelling)| *spelling)
 }
 
+/// The words of a list of the pool: its length, then its words.
+pub(crate) fn list_words(code: &ProgramCode, list: PoolAt) -> &[WordSlot] {
+    let from = usize::try_from(list.0).unwrap_or(usize::MAX);
+    let length = code
+        .pool
+        .get(from)
+        .map_or(0, |held| usize::try_from(held.0).unwrap_or(usize::MAX));
+    code.pool
+        .get(from.saturating_add(1)..from.saturating_add(1).saturating_add(length))
+        .unwrap_or_default()
+}
+
+/// The first list of the pool that writes the same shape as `list`: one term for every unit that holds it.
+fn shape_canonical(code: &ProgramCode, masks: &mut NeedMasks, list: PoolAt) -> PoolAt {
+    *masks
+        .shapes
+        .entry(list_words(code, list).into())
+        .or_insert(list)
+}
+
 /// The node of a term met the first time.
 fn term_pushed(masks: &mut NeedMasks, number: TermNumber) -> u32 {
     let place = usize::try_from(number.0).unwrap_or(usize::MAX);
@@ -660,6 +680,10 @@ fn compiled(code: &ProgramCode, at: WordSlot, masks: &mut NeedMasks) -> u32 {
         ),
         Some(NeedRecord::Bytes { regex, constant }) => {
             term_node(code, masks, NeedTerm::Bytes { regex, constant }, at)
+        }
+        Some(NeedRecord::Shape(list)) => {
+            let list = shape_canonical(code, masks, list);
+            term_node(code, masks, NeedTerm::Shape(list), at)
         }
         Some(NeedRecord::RowTest {
             relation,

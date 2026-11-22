@@ -1,7 +1,7 @@
 //! The types of the `sources` part: the loop's frame as what answers a need's leaves.
 
 use crate::domain::code::constants::NO_SLOT;
-use crate::domain::code::types::{ConstantNumber, NeedSite, RelationNumber, Short, WordSlot};
+use crate::domain::code::types::{ConstantNumber, NeedSite, PoolAt, RelationNumber, Short, WordSlot};
 use crate::domain::executing::measuring::service::{
     need_fill_begun, need_fill_ended, need_leaf, need_nested,
 };
@@ -14,7 +14,9 @@ use crate::domain::indexes::reading::service::cell_at;
 use crate::domain::made_tables::reading::service::view_of;
 use crate::domain::made_tables::sources::service::{made, scanned, table_of};
 use crate::domain::made_tables::types::ReadSource;
-use crate::domain::needs::formulas::service::{node_musts, site_root};
+use crate::domain::needs::formulas::service::{list_words, node_musts, site_root};
+use crate::domain::needs::shapes::service::{shape_held, stars_of};
+use crate::domain::needs::shapes::types::{ShapeCounts, ShapeWords};
 use crate::domain::needs::formulas::types::{FormulaNode, FreeValue};
 use crate::domain::needs::masks::types::{NeedTerm, RecordCost, Stretch, TermNumber};
 use crate::domain::needs::bytes::service::{held as bytes_held, term_wants};
@@ -39,7 +41,7 @@ use ryo_relations::domain::relations::types::{Count, KindBits};
 
 /// SPIKE: what a measuring worker's decisions visited, for the run: decisions, nodes valued from the free bits, nodes
 /// asked, nodes whose musts failed. Printed by `counting::service::counted`.
-pub(crate) static NEED_VISITS: [std::sync::atomic::AtomicU64; 6] = [const { std::sync::atomic::AtomicU64::new(0) }; 6];
+pub(crate) static NEED_VISITS: [std::sync::atomic::AtomicU64; 8] = [const { std::sync::atomic::AtomicU64::new(0) }; 8];
 
 /// SPIKE: counts one visit of kind `which` when the worker measures.
 pub(crate) fn visit(state: &crate::domain::scratch::types::LoopState, which: usize) {
@@ -215,6 +217,14 @@ impl NeedFacts for FileNeeds<'_, '_, '_> {
         verdict
     }
 
+    fn shape_holds(&mut self, list: PoolAt) -> NeedVerdict {
+        let verdict = self.shape_decided(list);
+        if self.0.state.measure.is_some() {
+            need_leaf(self.0.state, || format!("shape={verdict:?}"));
+        }
+        verdict
+    }
+
     fn table_row(&mut self, table: MadeTableId) -> NeedVerdict {
         if self.0.state.measure.is_none() {
             return self.table_decided(table);
@@ -264,7 +274,8 @@ impl FileNeeds<'_, '_, '_> {
                 | NeedTerm::Spelled { .. }
                 | NeedTerm::Path { .. }
                 | NeedTerm::Bytes { .. }
-                | NeedTerm::RowTest { .. },
+                | NeedTerm::RowTest { .. }
+                | NeedTerm::Shape(_),
             )
             | None => "?".to_owned(),
         }
@@ -621,6 +632,8 @@ impl FileNeeds<'_, '_, '_> {
             .copied()
         {
             Some(NeedTerm::Row { relation, .. } | NeedTerm::RowTest { relation, .. }) => relation,
+            // A shape reads the node table, which every file holds whole.
+            Some(NeedTerm::Shape(_)) => return FilledState::Whole,
             Some(
                 NeedTerm::Kinds(_)
                 | NeedTerm::Spelled { .. }
@@ -794,6 +807,7 @@ impl FileNeeds<'_, '_, '_> {
                 regex,
                 constant,
             }) => self.row_test_decided(relation, column, TextTestCode { comparison, regex }, constant),
+            Some(NeedTerm::Shape(list)) => self.shape_decided(list),
             None => NeedVerdict::Holds,
         }
     }
@@ -850,7 +864,8 @@ impl FileNeeds<'_, '_, '_> {
             | NeedTerm::Kinds(_)
             | NeedTerm::Path { .. }
             | NeedTerm::Bytes { .. }
-            | NeedTerm::RowTest { .. } => None,
+            | NeedTerm::RowTest { .. }
+            | NeedTerm::Shape(_) => None,
         }
     }
 
@@ -1030,6 +1045,28 @@ impl FileNeeds<'_, '_, '_> {
             }
         }
         NeedVerdict::Empty
+    }
+
+    /// Whether some element of the file has a neighbourhood of the shape at the pool's list, read off the node table.
+    fn shape_decided(&mut self, list: PoolAt) -> NeedVerdict {
+        let programs = self.0.fill.programs;
+        let stars = stars_of(list_words(programs.code, list));
+        let words = ShapeWords {
+            constants: &programs.code.constants,
+            kinds: programs.kinds,
+            fields: programs.fields,
+        };
+        let mut counts = ShapeCounts::default();
+        let verdict = shape_held(&stars, self.0.fill.nodes, &words, &mut counts);
+        // SPIKE: a measuring worker counts the shapes decided, the candidates read at their entries and the survivors.
+        visit(self.0.state, 5);
+        if self.0.state.measure.is_some()
+            && let (Some(read), Some(passed)) = (NEED_VISITS.get(6), NEED_VISITS.get(7))
+        {
+            let _was = read.fetch_add(u64::try_from(counts.candidates.0).unwrap_or(0), std::sync::atomic::Ordering::Relaxed);
+            let _was = passed.fetch_add(u64::try_from(counts.survivors.0).unwrap_or(0), std::sync::atomic::Ordering::Relaxed);
+        }
+        verdict
     }
 
     /// Whether the table has a row in the file: made when its own need holds.
