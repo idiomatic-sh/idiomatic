@@ -1692,6 +1692,8 @@ impl<'p> Exec<'p> {
                     self.run_memo[node] = Some(e.clone());
                 }
                 let rc = Res::Tab(e);
+                // redo-int: union pass 2 c14 clears at the file's end only the memo entries listed in `touched`
+                f.touched.push(node as u32);
                 f.memo[node] = Some(rc.clone());
                 f.log.push(node);
                 return Ok(rc);
