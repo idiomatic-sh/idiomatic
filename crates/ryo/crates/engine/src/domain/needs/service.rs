@@ -2,7 +2,7 @@
 //! evaluated: a branch is not run, a table is not made. A decision depends on the file alone, never on what another rule
 //! happened to build: a formula that asks a table makes it, in the formula's own order.
 
-use super::types::{NeedFacts, NeedVerdict};
+use super::types::{NeedFacts, NeedVerdict, TextTestCode};
 use crate::domain::code::records::service::need_at;
 use crate::domain::code::records::types::NeedRecord;
 use crate::domain::code::types::{NeedSite, PoolAt, ProgramCode, WordSlot};
@@ -181,7 +181,7 @@ fn formula(facts: &mut impl NeedFacts, code: &ProgramCode, at: WordSlot) -> Need
             constant,
         } => match facts.leaf(at) {
             Some(kept) => kept,
-            None => facts.row_passes(relation, column, (comparison, regex), constant),
+            None => facts.row_passes(relation, column, TextTestCode { comparison, regex }, constant),
         },
         NeedRecord::All {
             parts: count,

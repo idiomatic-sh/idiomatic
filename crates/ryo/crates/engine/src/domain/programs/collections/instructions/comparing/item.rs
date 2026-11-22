@@ -220,17 +220,17 @@ pub(crate) fn cell_passes(
     regex: WordSlot,
     value: WordSlot,
     cell: CellWord,
-) -> bool {
+) -> Verdict {
     let code = u16::try_from(comparison.0).unwrap_or(u16::MAX);
     let Some(test) = comparison_of(Short(code), RegexId(regex.0)) else {
-        return true;
+        return Verdict::Holds;
     };
     let right = constant(frame, ConstantNumber(value.0));
     let left = TextLeft {
         cell,
         register: None,
     };
-    text(frame, test, left, Some(right), None) != Verdict::Fails
+    text(frame, test, left, Some(right), None)
 }
 
 impl InstructionsItem for Test {

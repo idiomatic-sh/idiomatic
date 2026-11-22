@@ -28,9 +28,9 @@ use ryo_relations::domain::relations::types::{NodeColumn, NodeExtent};
 use ryo_values::domain::plan_parts::service::relation_column;
 use ryo_values::domain::plan_parts::types::ColumnIndex;
 use crate::domain::needs::service::decided;
-use crate::domain::needs::types::{NeedFacts, NeedVerdict};
+use crate::domain::needs::types::{NeedFacts, NeedVerdict, TextTestCode};
 use crate::domain::programs::frames::types::StepFrame;
-use crate::domain::programs::collections::instructions::comparing::item::{cell_passes, path_passes};
+use crate::domain::programs::collections::instructions::comparing::item::{Verdict, cell_passes, path_passes};
 use crate::domain::programs::operands::service::constant;
 use crate::domain::programs::operands::service::constant as constant_word;
 use crate::domain::steps::types::MadeTableId;
@@ -40,6 +40,16 @@ use ryo_relations::domain::relations::types::{Count, KindBits};
 /// SPIKE: what a measuring worker's decisions visited, for the run: decisions, nodes valued from the free bits, nodes
 /// asked, nodes whose musts failed. Printed by `counting::service::counted`.
 pub(crate) static NEED_VISITS: [std::sync::atomic::AtomicU64; 6] = [const { std::sync::atomic::AtomicU64::new(0) }; 6];
+
+/// SPIKE: the (rule, file) pairs a measuring worker's free terms left alive, printed by `counting::service::counted`.
+pub(crate) static ALIVE: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
+
+/// SPIKE: notes a (rule, file) pair the free terms left alive.
+pub(crate) fn alive_noted(rule: u32, path: &str) {
+    if let Ok(mut held) = ALIVE.lock() {
+        held.push(format!("{rule}\t{path}"));
+    }
+}
 
 /// SPIKE: counts one visit of kind `which` when the worker measures.
 pub(crate) fn visit(state: &crate::domain::scratch::types::LoopState, which: usize) {
@@ -205,7 +215,7 @@ impl NeedFacts for FileNeeds<'_, '_, '_> {
         &mut self,
         relation: RelationNumber,
         column: WordSlot,
-        test: (WordSlot, WordSlot),
+        test: TextTestCode,
         constant: WordSlot,
     ) -> NeedVerdict {
         let verdict = self.row_test_decided(relation, column, test, constant);
@@ -270,7 +280,7 @@ impl FileNeeds<'_, '_, '_> {
         }
     }
 
-    /// SPIKE (ryo-fmx3.1.1, a measuring worker's count): what a site's formula says of the file from the free terms
+    /// SPIKE (a measuring worker's count): what a site's formula says of the file from the free terms
     /// alone at the moment its decision begins, as `masked` reads it first: a site decided in the file is its decision.
     pub(crate) fn free_value(&mut self, site: NeedSite) -> FreeValue {
         if let Some(kept) = self.kept(site) {
@@ -444,7 +454,7 @@ impl FileNeeds<'_, '_, '_> {
             FormulaNode::Term(term) => match self.term_known(term) {
                 Some(verdict) => holds(verdict == NeedVerdict::Holds),
                 // A row of a relation the file already holds whole is read where it lies: no fill.
-                None if self.term_filled(term) => holds(self.term_holds(term) == NeedVerdict::Holds),
+                None if self.term_state(term) == FilledState::Whole => holds(self.term_holds(term) == NeedVerdict::Holds),
                 None => FreeValue::Open,
             },
             FormulaNode::Table(table) => match table_of(self.0.fill.store, table) {
@@ -609,8 +619,9 @@ impl FileNeeds<'_, '_, '_> {
         }
     }
 
-    /// Whether a term asks a row of a relation the file already holds whole: answering it costs no fill.
-    fn term_filled(&self, term: TermNumber) -> bool {
+    /// How far the file holds the relation a term asks a row of: answering it costs no fill once it is whole. A term
+    /// of no relation is unfilled.
+    fn term_state(&self, term: TermNumber) -> FilledState {
         let relation = match self
             .0
             .state
@@ -626,10 +637,10 @@ impl FileNeeds<'_, '_, '_> {
                 | NeedTerm::Path { .. }
                 | NeedTerm::Bytes { .. },
             )
-            | None => return false,
+            | None => return FilledState::Unfilled,
         };
         let store = &*self.0.fill.store;
-        held_state(&store.relations, relation, store.stamp) == FilledState::Whole
+        held_state(&store.relations, relation, store.stamp)
     }
 
     /// The file's answer to a term when it was asked in the file; none when it was not.
@@ -724,7 +735,7 @@ impl FileNeeds<'_, '_, '_> {
         if matches!(
             self.0.state.need_masks.terms.get(place),
             Some(NeedTerm::RowTest { .. })
-        ) && !self.term_filled(term)
+        ) && self.term_state(term) != FilledState::Whole
         {
             return NeedVerdict::Holds;
         }
@@ -792,7 +803,7 @@ impl FileNeeds<'_, '_, '_> {
                 comparison,
                 regex,
                 constant,
-            }) => self.row_test_decided(relation, column, (comparison, regex), constant),
+            }) => self.row_test_decided(relation, column, TextTestCode { comparison, regex }, constant),
             None => NeedVerdict::Holds,
         }
     }
@@ -1012,7 +1023,7 @@ impl FileNeeds<'_, '_, '_> {
         &mut self,
         relation: RelationNumber,
         column: WordSlot,
-        (comparison, regex): (WordSlot, WordSlot),
+        test: TextTestCode,
         value: WordSlot,
     ) -> NeedVerdict {
         let frame = &mut *self.0;
@@ -1024,7 +1035,7 @@ impl FileNeeds<'_, '_, '_> {
         let place = Short(u16::try_from(column.0).unwrap_or(u16::MAX));
         for row in rows.start.0..rows.end.0 {
             let cell = cell_at(view_of(frame.fill.store, source, place), Count(row));
-            if cell_passes(frame, comparison, regex, value, cell) {
+            if cell_passes(frame, test.comparison, test.regex, value, cell) != Verdict::Fails {
                 return NeedVerdict::Holds;
             }
         }

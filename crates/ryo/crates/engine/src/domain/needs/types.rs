@@ -4,6 +4,16 @@ use crate::domain::code::types::{NeedSite, RelationNumber, WordSlot};
 use crate::domain::steps::types::MadeTableId;
 use ryo_relations::domain::relations::types::KindBits;
 
+/// A test of a text as a need record holds it: the comparison's code and its regular expression's number (`NO_SLOT`
+/// for none).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct TextTestCode {
+    /// The comparison's code.
+    pub(crate) comparison: WordSlot,
+    /// The regular expression's number, or `NO_SLOT`.
+    pub(crate) regex: WordSlot,
+}
+
 /// Whether a unit may have a row in the file.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum NeedVerdict {
@@ -55,7 +65,7 @@ pub(crate) trait NeedFacts {
         &mut self,
         _relation: RelationNumber,
         _column: WordSlot,
-        _test: (WordSlot, WordSlot),
+        _test: TextTestCode,
         _constant: WordSlot,
     ) -> NeedVerdict {
         NeedVerdict::Holds

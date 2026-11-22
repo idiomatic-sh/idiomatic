@@ -4,6 +4,8 @@
 //! held to it: a literal is carried through a definition into the need, and each reader of a shared definition has its own.
 
 use crate::domain::lowered::types::{ByteLiteral, Emptiness, PathTest, RowTest, RowValue};
+use crate::domain::lowering::emptiness::cells::service::{filled_texts, own_texts};
+use crate::domain::lowering::emptiness::cells::types::FilledCell;
 use crate::domain::lowering::emptiness::service::path_test;
 use crate::domain::lowering::definitions::service::{draft, text_word};
 use crate::domain::lowering::definitions::types::Drafts;
@@ -14,9 +16,9 @@ use crate::domain::lowering::flattening::types::{
 use crate::domain::lowering::flattening::types::RowMeaning;
 use crate::domain::steps::types::{CallMeaning, DefinitionId, Polarity, TestOperation};
 use ryo_language::domain::facts::types::CellWord;
-use ryo_relations::domain::catalog::service::{fact_form, node_column, node_extent};
+use ryo_relations::domain::catalog::service::{fact_form, node_column};
 use ryo_relations::domain::relations::service::{columns, kind};
-use ryo_relations::domain::relations::types::{CellKind, Column, FactForm, NodeColumn, NodeExtent, Relation};
+use ryo_relations::domain::relations::types::{CellKind, FactForm, NodeColumn, Relation};
 use std::collections::HashMap;
 
 /// How deep a constant is carried through definitions, and how many branches of a definition may be left that can give
@@ -152,84 +154,6 @@ fn definition_need(
     Emptiness::Any(some.into())
 }
 
-/// The variables of a branch that hold a text of the file's own tree: a cell of a node relation's `Text` column, in a
-/// relation whose rows are the file's own tree (`NodeExtent::Own`). Such a text is a slice of the file's bytes, or a
-/// text the language decoded for the element when the table was built (kept among the file's derived names): the
-/// node table's declaration (`NodeColumn::Text`). An embedded segment's logical text is not counted: it may be made
-/// after the file's first decision.
-fn own_texts(branch: &FlatBranch) -> Vec<FlatVariable> {
-    let mut texts = Vec::new();
-    for atom in &branch.atoms {
-        let (relation, cells): (Relation, Vec<Option<FlatTerm>>) = match atom {
-            FlatAtom::Rows {
-                rows: AtomRows::Relation(relation),
-                cells,
-                ..
-            } => (*relation, cells.iter().copied().map(Some).collect()),
-            FlatAtom::Decided {
-                polarity: Polarity::Present,
-                rows: AtomRows::Relation(relation),
-                cells,
-            } => (*relation, cells.clone()),
-            FlatAtom::Rows { .. }
-            | FlatAtom::Decided { .. }
-            | FlatAtom::Latest { .. }
-            | FlatAtom::Walk { .. }
-            | FlatAtom::Nearest { .. }
-            | FlatAtom::Closure { .. }
-            | FlatAtom::Called { .. }
-            | FlatAtom::Test { .. } => continue,
-        };
-        if !matches!(fact_form(relation), FactForm::NodeTable) || node_extent(relation) != Some(NodeExtent::Own) {
-            continue;
-        }
-        for (column, cell) in columns(relation).into_iter().zip(cells) {
-            if let (Some(NodeColumn::Text), Some(FlatTerm::Variable(variable))) = (node_column(column), cell) {
-                texts.push(variable);
-            }
-        }
-    }
-    texts
-}
-
-/// The text cells of a branch's rows of filled relations: each variable bound to a symbol column of a relation the
-/// language fills, with that relation and column. A test such a cell must pass is a test some row of the relation
-/// passes in the file.
-fn filled_texts(branch: &FlatBranch) -> HashMap<FlatVariable, (Relation, Column)> {
-    let mut texts = HashMap::new();
-    for atom in &branch.atoms {
-        let (relation, cells): (Relation, Vec<Option<FlatTerm>>) = match atom {
-            FlatAtom::Rows {
-                rows: AtomRows::Relation(relation),
-                cells,
-                ..
-            } => (*relation, cells.iter().copied().map(Some).collect()),
-            FlatAtom::Decided {
-                polarity: Polarity::Present,
-                rows: AtomRows::Relation(relation),
-                cells,
-            } => (*relation, cells.clone()),
-            FlatAtom::Rows { .. }
-            | FlatAtom::Decided { .. }
-            | FlatAtom::Latest { .. }
-            | FlatAtom::Walk { .. }
-            | FlatAtom::Nearest { .. }
-            | FlatAtom::Closure { .. }
-            | FlatAtom::Called { .. }
-            | FlatAtom::Test { .. } => continue,
-        };
-        if !matches!(fact_form(relation), FactForm::Filled(_)) {
-            continue;
-        }
-        for (column, cell) in columns(relation).into_iter().zip(cells) {
-            if let (CellKind::Symbol, Some(FlatTerm::Variable(variable))) = (kind(column), cell) {
-                let _first = texts.entry(variable).or_insert((relation, column));
-            }
-        }
-    }
-    texts
-}
-
 /// The literal a test of a text against a constant needs the text to hold: the constant's own for a prefix or a
 /// suffix, the expression's for a match. None for any other test: an equality is the spelled term's (a token of the
 /// exact text), a glob or a negated test needs nothing.
@@ -323,7 +247,7 @@ fn needed(
                 right,
             } if filled.contains_key(variable) && path_test(*test) => {
                 if let Some(FlatTerm::Text(number)) = held(&pins, *right)
-                    && let Some((relation, column)) = filled.get(variable).copied()
+                    && let Some(FilledCell { relation, column }) = filled.get(variable).copied()
                 {
                     parts.push(Emptiness::RowTest(
                         relation,

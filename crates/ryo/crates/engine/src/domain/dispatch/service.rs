@@ -36,12 +36,12 @@ pub(crate) fn dispatch(frame: &mut StepFrame<'_, '_>, rules: &Programs) -> ScanC
         let mut ran = false;
         let mut alive = false;
         for branch in &rule.branches {
-            // SPIKE (ryo-fmx3.1.1): a measuring worker names each (rule, file) pair the free terms leave alive.
+            // SPIKE: a measuring worker names each (rule, file) pair the free terms leave alive.
             if frame.state.measure.is_some() && !alive {
                 alive = FileNeeds(frame).free_value(branch.need)
                     != crate::domain::needs::formulas::types::FreeValue::Empty;
                 if alive {
-                    eprintln!("ryo x: alive {}\t{}", rule.rule.0, &*frame.fill.path);
+                    crate::domain::executing::sources::types::alive_noted(rule.rule.0, &frame.fill.path);
                 }
             }
             need_decision_begun(frame, branch.need, rule.rule);
