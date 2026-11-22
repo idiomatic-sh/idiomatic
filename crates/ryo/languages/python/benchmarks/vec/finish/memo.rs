@@ -117,97 +117,112 @@ impl Drop for Count {
 use super::{Exec, File, Provider, Run, Schema, Table, R};
 use std::rc::Rc;
 
-/// An entry's rows are pending (its batch is running, or it ran and gave none).
-const PENDING: u32 = u32::MAX;
-/// An entry taken back (its batch failed): absent to every lookup.
-const DEAD: u32 = u32::MAX - 1;
-/// An entry's rows are in the slot's own table (filed row by row: rows for a key not asked, or a key's rows grown).
-const OWN: u32 = u32::MAX - 2;
-/// A slot holding this many keys in one file indexes them densely.
-/// (`VEC_MEMO_PROMOTE=<n>`; 0: never)
-fn promote_at() -> usize {
-    static P: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
-    *P.get_or_init(|| match std::env::var("VEC_MEMO_PROMOTE").ok().and_then(|x| x.parse().ok()) {
-        Some(0) => usize::MAX,
-        Some(n) => n,
-        None => 64,
-    })
-}
+/// The chunk number of a range in the slot's own table (rows filed row by row).
+const OWN: u32 = u32::MAX;
 
-/// A key's state in a slot this file: its rows are `len` rows from `start` of chunk `chunk` (a batch's answer kept whole)
+/// A key's rows this file (`file`: else stale): `len` rows from `start` of chunk `chunk` (a batch's answer kept whole)
 /// or of the slot's own table.
 #[derive(Clone, Copy)]
-struct Ent {
-    key: u64,
+struct Rng {
+    file: u32,
     chunk: u32,
     start: u32,
     len: u32,
     /// the gather that last handed this key out (a key is handed out once an answer)
     ask: u32,
-    /// the batch that asked for it, and its place in that batch's missing keys
-    batch: u32,
-    pos: u32,
 }
 
-/// One (step, column) slot. Keys below `dense.len()` (the file's node ids) find their entry through `dense` (an entry
-/// index, valid when it is below `ents.len()` and that entry holds the key: a sparse set, so nothing is cleared between
-/// files); other keys through `far` (one hash probe a key). The slot is reset lazily when first asked in a new file.
+/// One (step, column) slot. Nothing in it is cleared between files: every entry carries the file's number.
 struct Slot {
     file: u32,
-    /// `dense` is in use this file (allocated for a slot once it held `PROMOTE` keys in a file, sized to the file)
-    dense_on: bool,
     nodes: usize,
-    dense: Vec<u32>,
+    /// the keys asked this file below `nodes` (the file's node ids): a word per 32 keys, the file's number in the high
+    /// half and a bit a key in the low half (grown to the largest key asked)
+    seen: Vec<u64>,
+    /// the keys asked this file at or above `nodes` (the file's number a key)
     far: FxHashMap<u64, u32>,
-    ents: Vec<Ent>,
+    /// the ranges of the keys that have rows, indexed lazily (a chunk's keys are filed here only once a key asked again
+    /// needs them); cleared at a file that used it
+    rows: FxHashMap<u64, Rng>,
+    /// keys given rows this file (none: no key is looked up in `rows`)
+    with_rows: u32,
+    /// the slot's column (a chunk's keys) and the chunks indexed into `rows`
+    col: usize,
+    indexed: usize,
     chunks: Vec<Rc<Table>>,
     own: Table,
-    /// bumped by every row-by-row filing (a batch's answer handed back whole must see no such change while it ran)
+    /// bumped by every filing (an answer handed back whole must see no filing while its batch ran)
     filed: u32,
 }
 
 impl Slot {
+    /// Marks `k` asked this file; whether it was asked before.
     #[inline]
-    fn find(&self, k: u64) -> Option<usize> {
-        let i = if self.dense_on && (k as usize) < self.dense.len() {
-            self.dense[k as usize] as usize
+    fn mark(&mut self, k: u64, file: u32) -> bool {
+        if (k as usize) < self.nodes {
+            let w = (k >> 5) as usize;
+            if w >= self.seen.len() {
+                self.seen.resize(w + 1, 0);
+            }
+            let x = self.seen[w];
+            let b = 1u64 << (k & 31);
+            if (x >> 32) as u32 != file {
+                self.seen[w] = (u64::from(file) << 32) | b;
+                false
+            } else if x & b != 0 {
+                true
+            } else {
+                self.seen[w] = x | b;
+                false
+            }
         } else {
-            *self.far.get(&k)? as usize
-        };
-        match self.ents.get(i) {
-            Some(e) if e.key == k && e.chunk != DEAD => Some(i),
-            _ => None,
+            self.far.insert(k, file) == Some(file)
+        }
+    }
+
+    fn unmark(&mut self, k: u64, file: u32) {
+        if (k as usize) < self.nodes {
+            let w = (k >> 5) as usize;
+            if let Some(x) = self.seen.get_mut(w)
+                && (*x >> 32) as u32 == file
+            {
+                *x &= !(1u64 << (k & 31));
+            }
+        } else {
+            self.far.remove(&k);
+        }
+    }
+
+    /// Files the keys of the chunks not indexed yet (each chunk's rows are grouped by key).
+    fn index(&mut self, file: u32) {
+        while self.indexed < self.chunks.len() {
+            let ch = self.indexed;
+            let t = &self.chunks[ch];
+            let kc = &t.cols[self.col][..t.n];
+            let mut r = 0;
+            while r < kc.len() {
+                let k = kc[r];
+                let s = r;
+                r += 1;
+                while r < kc.len() && kc[r] == k {
+                    r += 1;
+                }
+                self.rows.insert(k, Rng { file, chunk: ch as u32, start: s as u32, len: (r - s) as u32, ask: 0 });
+                self.with_rows += 1;
+            }
+            self.indexed += 1;
         }
     }
 
     #[inline]
-    fn add(&mut self, e: Ent) -> usize {
-        let i = self.ents.len();
-        self.ents.push(e);
-        if self.dense_on && (e.key as usize) < self.dense.len() {
-            self.dense[e.key as usize] = i as u32;
-        } else {
-            self.far.insert(e.key, i as u32);
-            if !self.dense_on && i + 1 >= promote_at() && self.nodes > 0 {
-                self.promote();
-            }
+    fn rng(&mut self, k: u64, file: u32) -> Option<Rng> {
+        if self.indexed < self.chunks.len() {
+            self.index(file);
         }
-        i
-    }
-
-    /// The slot holds many keys this file: index its node-id keys densely from now on (the hashed entries stay valid
-    /// for keys above the array).
-    #[cold]
-    fn promote(&mut self) {
-        if self.dense.len() < self.nodes {
-            self.dense.resize(self.nodes, u32::MAX);
+        if self.with_rows == 0 {
+            return None;
         }
-        self.dense_on = true;
-        for (i, e) in self.ents.iter().enumerate() {
-            if (e.key as usize) < self.dense.len() {
-                self.dense[e.key as usize] = i as u32;
-            }
-        }
+        self.rows.get(&k).filter(|r| r.file == file).copied()
     }
 
     fn col(&self, chunk: u32, c: usize) -> &[u64] {
@@ -219,16 +234,13 @@ pub(super) struct Memo {
     slots: Vec<Slot>,
     at: Vec<Vec<(u32, u32)>>,
     file: u32,
-    batch: u32,
     ask: u32,
     missing: Vec<u64>,
     ranges: Vec<(u32, u32, u32)>,
-    counts: Vec<u32>,
-    perm: Vec<u32>,
     order: Vec<(u64, u32)>,
     prof: bool,
-    /// asks, keys, keys new to the slot, batches run, answers handed back whole (a batch's own table), gathered, empty
-    pub(super) n: [u64; 7],
+    /// asks, keys, keys new to the slot, batches run, answers handed back whole, gathered, empty, batches filed row by row
+    pub(super) n: [u64; 8],
     /// seconds: before the run, after it (filing and answer)
     t: [f64; 2],
 }
@@ -239,15 +251,12 @@ impl Memo {
             slots: Vec::new(),
             at: Vec::new(),
             file: 1,
-            batch: 0,
             ask: 0,
             missing: Vec::new(),
             ranges: Vec::new(),
-            counts: Vec::new(),
-            perm: Vec::new(),
             order: Vec::new(),
             prof: std::env::var_os("VEC_MEMO_PROF").is_some(),
-            n: [0; 7],
+            n: [0; 8],
             t: [0.0; 2],
         }
     }
@@ -275,7 +284,7 @@ impl Memo {
             Some(x) => x.1 as usize,
             None => {
                 let i = self.slots.len();
-                self.slots.push(Slot { file: 0, dense_on: false, nodes: 0, dense: Vec::new(), far: FxHashMap::default(), ents: Vec::new(), chunks: Vec::new(), own: Table::with(sc.names.clone(), sc.tys.clone()), filed: 0 });
+                self.slots.push(Slot { file: 0, nodes: 0, seen: Vec::new(), far: FxHashMap::default(), rows: FxHashMap::default(), with_rows: 0, col, indexed: 0, chunks: Vec::new(), own: Table::with(sc.names.clone(), sc.tys.clone()), filed: 0 });
                 self.at[node].push((col as u32, i as u32));
                 i
             }
@@ -283,15 +292,15 @@ impl Memo {
         let sl = &mut self.slots[i];
         if sl.file != self.file {
             sl.file = self.file;
-            sl.ents.clear();
-            if !sl.far.is_empty() {
-                sl.far.clear();
+            sl.nodes = nodes;
+            if sl.with_rows > 0 {
+                sl.rows.clear();
             }
+            sl.with_rows = 0;
+            sl.indexed = 0;
             sl.chunks.clear();
             sl.own.n = 0;
             sl.own.cols.iter_mut().for_each(Vec::clear);
-            sl.nodes = nodes;
-            sl.dense_on = !sl.dense.is_empty() && sl.dense.len() >= nodes;
         }
         i
     }
@@ -299,19 +308,20 @@ impl Memo {
     /// The rows of `keys` (each key once, in the keys' order; a key's rows in the order filed).
     fn gather(&mut self, slot: usize, keys: &[u64], sc: &Schema) -> Table {
         self.ask = self.ask.wrapping_add(1);
-        let ask = self.ask;
+        let (ask, file) = (self.ask, self.file);
         let sl = &mut self.slots[slot];
+        sl.index(file);
         self.ranges.clear();
         let mut total = 0usize;
-        for k in keys {
-            if let Some(i) = sl.find(*k) {
-                let e = &mut sl.ents[i];
-                if e.ask != ask {
-                    e.ask = ask;
-                    if e.len > 0 {
-                        self.ranges.push((e.chunk, e.start, e.len));
-                        total += e.len as usize;
-                    }
+        if sl.with_rows > 0 {
+            for k in keys {
+                if let Some(r) = sl.rows.get_mut(k)
+                    && r.file == file
+                    && r.ask != ask
+                {
+                    r.ask = ask;
+                    self.ranges.push((r.chunk, r.start, r.len));
+                    total += r.len as usize;
                 }
             }
         }
@@ -331,7 +341,9 @@ impl Memo {
     /// The old memo's filing, row by row into the slot's own table: the batch's rows sorted by (key, row); a key that
     /// already has rows has them moved to the end first, so each key's rows stay one range.
     fn file_rows(&mut self, slot: usize, out: &Table, col: usize) {
+        let file = self.file;
         let sl = &mut self.slots[slot];
+        sl.index(file);
         sl.filed = sl.filed.wrapping_add(1);
         let order = &mut self.order;
         order.clear();
@@ -344,34 +356,30 @@ impl Memo {
             while j < order.len() && order[j].0 == k {
                 j += 1;
             }
+            sl.mark(k, file);
             let start = sl.own.n as u32;
-            let ix = match sl.find(k) {
-                Some(x) => x,
-                None => sl.add(Ent { key: k, chunk: OWN, start, len: 0, ask: 0, batch: 0, pos: 0 }),
-            };
-            let e = sl.ents[ix];
             let mut len = 0u32;
-            if e.len > 0 {
-                for c in 0..sl.own.cols.len() {
-                    let (a, b) = (e.start as usize, (e.start + e.len) as usize);
-                    if e.chunk == OWN {
-                        sl.own.cols[c].extend_from_within(a..b);
-                    } else {
-                        sl.own.cols[c].extend_from_slice(&sl.chunks[e.chunk as usize].cols[c][a..b]);
+            match sl.rng(k, file) {
+                Some(e) => {
+                    for c in 0..sl.own.cols.len() {
+                        let (a, b) = (e.start as usize, (e.start + e.len) as usize);
+                        if e.chunk == OWN {
+                            sl.own.cols[c].extend_from_within(a..b);
+                        } else {
+                            sl.own.cols[c].extend_from_slice(&sl.chunks[e.chunk as usize].cols[c][a..b]);
+                        }
                     }
+                    sl.own.n += e.len as usize;
+                    len = e.len;
                 }
-                sl.own.n += e.len as usize;
-                len = e.len;
+                None => sl.with_rows += 1,
             }
             for c in 0..sl.own.cols.len() {
                 let src = &out.cols[c];
                 sl.own.cols[c].extend(order[i..j].iter().map(|x| src[x.1 as usize]));
             }
             sl.own.n += j - i;
-            let e = &mut sl.ents[ix];
-            e.chunk = OWN;
-            e.start = start;
-            e.len = len + (j - i) as u32;
+            sl.rows.insert(k, Rng { file, chunk: OWN, start, len: len + (j - i) as u32, ask: 0 });
             i = j;
         }
     }
@@ -382,8 +390,8 @@ impl Drop for Memo {
         if self.prof || std::env::var_os("VEC_MEMO_COUNT").is_some() {
             let n = &self.n;
             eprintln!(
-                "memo10: asks {} keys {} new {} runs {} whole {} gathered {} empty {}; slots {}; dense cells {}; s before {:.3} after {:.3}",
-                n[0], n[1], n[2], n[3], n[4], n[5], n[6], self.slots.len(), self.slots.iter().map(|s| s.dense.len()).sum::<usize>(), self.t[0], self.t[1]
+                "memo10: asks {} keys {} new {} runs {} whole {} gathered {} empty {} filed row by row {}; slots {}; seen words {}; row entries {}; s before {:.3} after {:.3}",
+                n[0], n[1], n[2], n[3], n[4], n[5], n[6], n[7], self.slots.len(), self.slots.iter().map(|s| s.seen.len()).sum::<usize>(), self.slots.iter().map(|s| s.rows.len()).sum::<usize>(), self.t[0], self.t[1]
             );
         }
     }
@@ -394,14 +402,13 @@ impl Exec<'_> {
     /// (as one batch) and are filed. Rows and their order are the old memo's (`VEC_OLD_MEMO=1`).
     #[expect(clippy::too_many_arguments, reason = "a throwaway")]
     pub(super) fn probe_memo(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64], sc: &Schema) -> R<Rc<Table>> {
-        let t0 = if self.memo.prof { super::select_kernel::ticks() } else { 0.0 };
+        let t0 = self.memo.tick();
         let m = &mut self.memo;
         let slot = m.slot(node, col, f.n, sc);
+        let file = m.file;
         m.n[0] += 1;
         m.n[1] += keys.len() as u64;
         self.stats.memo_keys += keys.len() as u64;
-        m.batch = m.batch.wrapping_add(1);
-        let batch = m.batch;
         let mut missing = std::mem::take(&mut m.missing);
         missing.clear();
         let sl = &mut m.slots[slot];
@@ -413,28 +420,23 @@ impl Exec<'_> {
         let mut whole: Option<(u32, u32)> = None;
         let mut whole_ok = true;
         for (at, &k) in keys.iter().enumerate() {
-            if let Some(i) = sl.find(k) {
-                let e = sl.ents[i];
+            if sl.mark(k, file) {
                 if all_new == at {
                     missing.extend_from_slice(&keys[..at]);
                     all_new = usize::MAX;
                 }
-                if e.len > 0 {
+                if let Some(e) = sl.rng(k, file) {
                     hit_rows = true;
                     match whole {
-                        None if e.start == 0 && e.chunk != OWN && e.chunk != PENDING => whole = Some((e.chunk, e.len)),
+                        None if e.start == 0 && e.chunk != OWN => whole = Some((e.chunk, e.len)),
                         Some((ch, next)) if ch == e.chunk && next == e.start => whole = Some((ch, next + e.len)),
                         _ => whole_ok = false,
                     }
                 }
+            } else if all_new == at {
+                all_new += 1;
             } else {
-                let pos = if all_new == at { at } else { missing.len() };
-                sl.add(Ent { key: k, chunk: PENDING, start: 0, len: 0, ask: 0, batch, pos: pos as u32 });
-                if all_new == at {
-                    all_new += 1;
-                } else {
-                    missing.push(k);
-                }
+                missing.push(k);
             }
         }
         let fresh = if all_new == keys.len() { keys.len() } else { missing.len() };
@@ -454,28 +456,21 @@ impl Exec<'_> {
                 Rc::new(m.gather(slot, keys, sc))
             };
             self.stats.memo_out += out.n as u64;
-            if self.memo.prof {
-                self.memo.t[0] += super::select_kernel::ticks() - t0;
-            }
+            self.memo.tock(0, t0);
             return Ok(out);
         }
         m.n[3] += 1;
-        if self.memo.prof {
-            self.memo.t[0] += super::select_kernel::ticks() - t0;
-        }
+        self.memo.tock(0, t0);
         let run_keys: &[u64] = if all_new == keys.len() { keys } else { &missing };
         let out = self.probe_run(f, run, p, node, col, run_keys, sc);
-        let t1 = if self.memo.prof { super::select_kernel::ticks() } else { 0.0 };
+        let t1 = self.memo.tick();
         let m = &mut self.memo;
         let out = match out {
             Ok(o) => o,
             Err(e) => {
                 let sl = &mut m.slots[slot];
-                let run_keys: &[u64] = if all_new == keys.len() { keys } else { &missing };
                 for k in run_keys {
-                    if let Some(i) = sl.find(*k) {
-                        sl.ents[i].chunk = DEAD;
-                    }
+                    sl.unmark(*k, file);
                 }
                 m.missing = missing;
                 return Err(e);
@@ -484,86 +479,39 @@ impl Exec<'_> {
         self.stats.memo_in += out.n as u64;
         let mut answer: Option<Rc<Table>> = None;
         if out.n > 0 {
-            // every row a key of this batch's (else the row-by-row filing), and whether they come grouped in its order
+            // no filing while the batch ran, and its rows grouped by key in the order of its keys: kept whole as a chunk
             let sl = &m.slots[slot];
-            let kc = &out.cols[col];
-            let mut grouped = true;
-            let mut general = false;
-            let mut last = 0u32;
-            for &k in kc.iter().take(out.n) {
-                match sl.find(k) {
-                    Some(i) if sl.ents[i].batch == batch && sl.ents[i].chunk == PENDING && sl.ents[i].len == 0 => {
-                        let pos = sl.ents[i].pos;
-                        if pos < last {
-                            grouped = false;
-                        }
-                        last = pos;
+            let mut ok = sl.filed == filed0;
+            if ok {
+                let kc = &out.cols[col][..out.n];
+                let (mut j, mut r) = (0usize, 0usize);
+                while r < kc.len() {
+                    let k = kc[r];
+                    while j < run_keys.len() && run_keys[j] != k {
+                        j += 1;
                     }
-                    _ => {
-                        general = true;
+                    if j == run_keys.len() {
+                        ok = false;
                         break;
+                    }
+                    j += 1;
+                    r += 1;
+                    while r < kc.len() && kc[r] == k {
+                        r += 1;
                     }
                 }
             }
-            if general {
-                m.file_rows(slot, &out, col);
-            } else {
-                let t = if grouped {
-                    out
-                } else {
-                    // a stable counting sort of the rows by their key's place in the batch
-                    let sl = &m.slots[slot];
-                    let counts = &mut m.counts;
-                    counts.clear();
-                    counts.resize(fresh + 1, 0);
-                    for &k in &out.cols[col][..out.n] {
-                        let i = sl.find(k).expect("a key of the batch");
-                        counts[sl.ents[i].pos as usize + 1] += 1;
-                    }
-                    for i in 1..counts.len() {
-                        counts[i] += counts[i - 1];
-                    }
-                    let at = &mut m.perm;
-                    at.clear();
-                    at.resize(out.n, 0);
-                    for r in 0..out.n {
-                        let i = sl.find(out.cols[col][r]).expect("a key of the batch");
-                        let p = &mut counts[sl.ents[i].pos as usize];
-                        at[*p as usize] = r as u32;
-                        *p += 1;
-                    }
-                    let mut t = Table::with(sc.names.clone(), sc.tys.clone());
-                    for c in 0..t.cols.len() {
-                        let src = &out.cols[c];
-                        let mut v = std::mem::take(&mut t.cols[c]);
-                        v.extend(at.iter().map(|r| src[*r as usize]));
-                        t.cols[c] = v;
-                    }
-                    t.n = out.n;
-                    Rc::new(t)
-                };
+            if ok {
                 let sl = &mut m.slots[slot];
-                let ch = sl.chunks.len() as u32;
-                let kc = &t.cols[col];
-                let mut r = 0;
-                while r < t.n {
-                    let k = kc[r];
-                    let mut s = r + 1;
-                    while s < t.n && kc[s] == k {
-                        s += 1;
-                    }
-                    let i = sl.find(k).expect("a key of the batch");
-                    let e = &mut sl.ents[i];
-                    e.chunk = ch;
-                    e.start = r as u32;
-                    e.len = (s - r) as u32;
-                    r = s;
-                }
-                sl.chunks.push(t.clone());
-                if !hit_rows && sl.filed == filed0 {
+                sl.filed = sl.filed.wrapping_add(1);
+                sl.chunks.push(out.clone());
+                if !hit_rows {
                     m.n[4] += 1;
-                    answer = Some(t);
+                    answer = Some(out);
                 }
+            } else {
+                m.n[7] += 1;
+                m.file_rows(slot, &out, col);
             }
         } else if !hit_rows && m.slots[slot].filed == filed0 {
             m.n[6] += 1;
@@ -579,9 +527,7 @@ impl Exec<'_> {
         };
         m.missing = missing;
         self.stats.memo_out += answer.n as u64;
-        if self.memo.prof {
-            self.memo.t[1] += super::select_kernel::ticks() - t1;
-        }
+        self.memo.tock(1, t1);
         Ok(answer)
     }
 }
