@@ -17,3 +17,9 @@ name = "fastapi"
 repository = "https://github.com/fastapi/fastapi.git"
 revision = "8322a4445a3b25acd9b26b61192571b2d92f9bcd"
 patch = "patches/fastapi.patch"
+
+[[projects]]
+name = "dagster"
+repository = "https://github.com/dagster-io/dagster.git"
+revision = "176cae912b6531813f718d44bb7f2a1e06aed52f"
+patch = "patches/dagster.patch"
