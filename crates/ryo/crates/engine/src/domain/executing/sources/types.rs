@@ -13,9 +13,10 @@ use crate::domain::made_tables::reading::service::view_of;
 use crate::domain::made_tables::sources::service::{made, scanned, table_of};
 use crate::domain::made_tables::types::ReadSource;
 use crate::domain::needs::masks::service::site_masks;
-use crate::domain::needs::masks::types::{
-    MaskExact, NeedTerm, RecordCost, SiteStretches, Stretch, TermNumber,
-};
+use crate::domain::needs::formulas::service::site_root;
+use crate::domain::needs::formulas::types::{FormulaNode, FreeValue};
+use crate::domain::needs::masks::types::{NeedTerm, RecordCost, Stretch, TermNumber};
+use crate::domain::needs::service::decided;
 use crate::domain::needs::types::{NeedFacts, NeedVerdict};
 use crate::domain::programs::frames::types::StepFrame;
 use crate::domain::programs::operands::service::constant;
@@ -87,7 +88,7 @@ impl NeedFacts for FileNeeds<'_, '_, '_> {
 
     fn masked(&mut self, site: NeedSite) -> Option<NeedVerdict> {
         let code = self.0.fill.programs.code;
-        let (held, exact) = site_masks(code, site, &mut self.0.state.need_masks);
+        let (held, _exact) = site_masks(code, site, &mut self.0.state.need_masks);
         let within =
             |stretch: Stretch| stretch.start.0..stretch.start.0.saturating_add(stretch.count.0);
         // The free terms the site needs every one of, against the file's free bits: an and-compare a word.
@@ -110,32 +111,35 @@ impl NeedFacts for FileNeeds<'_, '_, '_> {
                 return Some(NeedVerdict::Empty);
             }
         }
-        // In passes: first with the terms that cost nothing alone (a clause or an alternative that would ask a
-        // filled relation is taken to hold), so that no relation is filled for a site its free terms decide; then
-        // with the filled relations asked for a value.
-        for asked in [RecordCost::Free, RecordCost::Dear] {
-            if self.pass_fails(held, asked) {
+        // What the terms that cost nothing say of the whole formula, read off the file's bits: most sites are decided
+        // here. Only a site they leave open asks what costs, the cheapest first.
+        let Some(root) = site_root(code, site, &mut self.0.state.need_masks) else {
+            return Some(NeedVerdict::Holds);
+        };
+        self.free_answered();
+        match self.site_free(site, root) {
+            FreeValue::Empty => {
+                if self.0.state.measure.is_some() {
+                    need_leaf(self.0.state, || "free=Empty".to_owned());
+                }
                 return Some(NeedVerdict::Empty);
             }
-        }
-        if exact == MaskExact::Part {
-            return None;
-        }
-        // They are the whole formula but for its tables: each is asked, in the formula's order; and last the filled
-        // relations asked for any row at all.
-        for number in within(held.tables) {
-            let table = self.0.state.need_masks.tables.get(number).copied()?;
-            if self.table_row(table) == NeedVerdict::Empty {
-                return Some(NeedVerdict::Empty);
+            FreeValue::Holds => {
+                if self.0.state.measure.is_some() {
+                    need_leaf(self.0.state, || "free=Holds".to_owned());
+                }
+                return Some(NeedVerdict::Holds);
             }
+            // A site met inside its own decision says nothing of itself.
+            FreeValue::Deciding => return Some(NeedVerdict::Holds),
+            FreeValue::Unfound | FreeValue::Open => {}
         }
-        if self.pass_fails(held, RecordCost::Presence) {
-            return Some(NeedVerdict::Empty);
-        }
+        self.site_valued(site, FreeValue::Deciding);
+        let verdict = self.node_decided(root);
         if self.0.state.measure.is_some() {
-            need_leaf(self.0.state, || "terms=Holds".to_owned());
+            need_leaf(self.0.state, || format!("asked={verdict:?}"));
         }
-        Some(NeedVerdict::Holds)
+        Some(verdict)
     }
 
     fn leaf(&mut self, at: WordSlot) -> Option<NeedVerdict> {
@@ -176,88 +180,6 @@ impl NeedFacts for FileNeeds<'_, '_, '_> {
 }
 
 impl FileNeeds<'_, '_, '_> {
-    /// Whether a site's clauses or groups leave it no way to hold, asking no term that costs more than `asked`
-    /// (a clause or an alternative that would is taken to hold).
-    fn pass_fails(&mut self, held: SiteStretches, asked: RecordCost) -> bool {
-        // Every clause needs one of its terms in the file: the first clause that has none decides.
-        if let Some(failed) = self.clause_failing(held.clauses, asked) {
-            if self.0.state.measure.is_some() {
-                let named = self.clause_named(failed);
-                need_leaf(self.0.state, || format!("none-of({named})=Empty"));
-            }
-            return true;
-        }
-        // Every group needs an alternative whose clauses all hold.
-        let groups = held.groups;
-        for number in groups.start.0..groups.start.0.saturating_add(groups.count.0) {
-            let Some(group) = self.0.state.need_masks.groups.get(number).copied() else {
-                continue;
-            };
-            let mut some = false;
-            for place in group.start.0..group.start.0.saturating_add(group.count.0) {
-                let Some(alternative) = self.0.state.need_masks.alternatives.get(place).copied()
-                else {
-                    continue;
-                };
-                if self.clause_failing(alternative, asked).is_none() {
-                    some = true;
-                    break;
-                }
-            }
-            if !some {
-                if self.0.state.measure.is_some() {
-                    need_leaf(self.0.state, || "no-alternative=Empty".to_owned());
-                }
-                return true;
-            }
-        }
-        false
-    }
-
-    /// The first clause of a stretch of the masks' clauses that has no term in the file; none when each has one. With
-    /// `asked` free, a term that costs a fill is not asked and its clause is taken to hold (a clause's free terms come
-    /// first).
-    fn clause_failing(&mut self, clauses: Stretch, asked: RecordCost) -> Option<Stretch> {
-        for number in clauses.start.0..clauses.start.0.saturating_add(clauses.count.0) {
-            let Some(clause) = self.0.state.need_masks.clauses.get(number).copied() else {
-                continue;
-            };
-            let mut some = false;
-            for at in clause.start.0..clause.start.0.saturating_add(clause.count.0) {
-                let Some(term) = self.0.state.need_masks.clause_terms.get(at).copied() else {
-                    continue;
-                };
-                let costs = self
-                    .0
-                    .state
-                    .need_masks
-                    .term_costs
-                    .get(usize::try_from(term.0).unwrap_or(usize::MAX))
-                    .copied()
-                    .unwrap_or_default();
-                if costs > asked || self.term_holds(term) == NeedVerdict::Holds {
-                    some = true;
-                    break;
-                }
-            }
-            if !some {
-                // The clause that decided is asked first the next time: a site's clauses are tried in the order they
-                // last failed in, so a site that is empty in most files is decided by one clause. Only among the
-                // clauses of free terms (the pass that asks nothing else): which relation is filled never depends on
-                // the files a worker saw before.
-                if asked == RecordCost::Free && number != clauses.start.0 {
-                    self.0
-                        .state
-                        .need_masks
-                        .clauses
-                        .swap(clauses.start.0, number);
-                }
-                return Some(clause);
-            }
-        }
-        None
-    }
-
     /// SPIKE: a term by name, for a measuring worker's trace.
     fn term_named(&self, term: TermNumber) -> String {
         let code = self.0.fill.programs.code;
@@ -290,19 +212,6 @@ impl FileNeeds<'_, '_, '_> {
         }
     }
 
-    /// SPIKE: the terms of a clause by name, for a measuring worker's trace.
-    fn clause_named(&self, clause: Stretch) -> String {
-        let terms = self
-            .0
-            .state
-            .need_masks
-            .clause_terms
-            .get(clause.start.0..clause.start.0.saturating_add(clause.count.0))
-            .unwrap_or_default();
-        let named: Vec<String> = terms.iter().map(|term| self.term_named(*term)).collect();
-        named.join(" ")
-    }
-
     /// SPIKE: the first free term of a word's bits by name, for a measuring worker's trace.
     fn must_named(&self, word: Count, missing: u64) -> String {
         let index = word
@@ -313,6 +222,193 @@ impl FileNeeds<'_, '_, '_> {
             Some(term) => self.term_named(term),
             None => "?".to_owned(),
         }
+    }
+
+    /// A site's value from the free terms alone, kept for the file.
+    fn site_valued(&mut self, site: NeedSite, value: FreeValue) {
+        let place = usize::try_from(site.0).unwrap_or(usize::MAX);
+        let sites = &mut self.0.state.need_terms.sites;
+        if sites.len() <= place {
+            sites.resize(place.saturating_add(1), FreeValue::Unfound);
+        }
+        if let Some(held) = sites.get_mut(place) {
+            *held = value;
+        }
+    }
+
+    /// What a site's formula says of the file from the free terms alone (and what the file already answered): found
+    /// once a file. A site decided in the file is its decision.
+    fn site_free(&mut self, site: NeedSite, root: u32) -> FreeValue {
+        if let Some(kept) = self.kept(site) {
+            return match kept {
+                NeedVerdict::Holds => FreeValue::Holds,
+                NeedVerdict::Empty => FreeValue::Empty,
+            };
+        }
+        let place = usize::try_from(site.0).unwrap_or(usize::MAX);
+        match self.0.state.need_terms.sites.get(place).copied() {
+            Some(FreeValue::Unfound) | None => {}
+            Some(known) => return known,
+        }
+        self.site_valued(site, FreeValue::Deciding);
+        let value = self.node_free(root);
+        self.site_valued(site, value);
+        value
+    }
+
+    /// A node of a compiled formula.
+    fn node(&self, node: u32) -> FormulaNode {
+        self.0
+            .state
+            .need_masks
+            .formulas
+            .nodes
+            .get(usize::try_from(node).unwrap_or(usize::MAX))
+            .copied()
+            .unwrap_or(FormulaNode::Always)
+    }
+
+    /// The part at a place of the formulas' parts.
+    fn part(&self, at: usize) -> u32 {
+        self.0
+            .state
+            .need_masks
+            .formulas
+            .parts
+            .get(at)
+            .copied()
+            .unwrap_or(u32::MAX)
+    }
+
+    /// Whether the file's free bit is set: the free terms met since the bits were brought up (a site compiled inside
+    /// a decision) are asked first.
+    fn free_bit(&mut self, bit: u32) -> bool {
+        let place = usize::try_from(bit).unwrap_or(usize::MAX);
+        if place >= self.0.state.need_terms.free_known.0 {
+            self.free_answered();
+        }
+        self.0
+            .state
+            .need_terms
+            .free
+            .get(place / 64)
+            .is_some_and(|word| word & (1_u64 << (place % 64)) != 0)
+    }
+
+    /// What a node says of the file from the free terms, the terms that cost that the file already answered, and the
+    /// tables already made: `Open` when what is not known yet decides. Asks nothing that costs.
+    fn node_free(&mut self, node: u32) -> FreeValue {
+        let holds = |held: bool| {
+            if held {
+                FreeValue::Holds
+            } else {
+                FreeValue::Empty
+            }
+        };
+        match self.node(node) {
+            FormulaNode::Always => FreeValue::Holds,
+            FormulaNode::Never => FreeValue::Empty,
+            FormulaNode::Free(bit) => holds(self.free_bit(bit)),
+            FormulaNode::Term(term) => match self.term_known(term) {
+                Some(verdict) => holds(verdict == NeedVerdict::Holds),
+                None => FreeValue::Open,
+            },
+            FormulaNode::Table(table) => match table_of(self.0.fill.store, table) {
+                Some(slot) => holds(slot.rows.count.0 > 0),
+                None => FreeValue::Open,
+            },
+            FormulaNode::Site(site) => {
+                let code = self.0.fill.programs.code;
+                match site_root(code, site, &mut self.0.state.need_masks) {
+                    Some(root) => match self.site_free(site, root) {
+                        FreeValue::Deciding | FreeValue::Unfound => FreeValue::Open,
+                        value => value,
+                    },
+                    None => FreeValue::Open,
+                }
+            }
+            FormulaNode::All(parts) => {
+                let mut value = FreeValue::Holds;
+                for at in parts.start.0..parts.start.0.saturating_add(parts.count.0) {
+                    match self.node_free(self.part(at)) {
+                        FreeValue::Empty => return FreeValue::Empty,
+                        FreeValue::Holds => {}
+                        FreeValue::Open | FreeValue::Unfound | FreeValue::Deciding => {
+                            value = FreeValue::Open;
+                        }
+                    }
+                }
+                value
+            }
+            FormulaNode::Any(parts) => {
+                let mut value = FreeValue::Empty;
+                for at in parts.start.0..parts.start.0.saturating_add(parts.count.0) {
+                    match self.node_free(self.part(at)) {
+                        FreeValue::Holds => return FreeValue::Holds,
+                        FreeValue::Empty => {}
+                        FreeValue::Open | FreeValue::Unfound | FreeValue::Deciding => {
+                            value = FreeValue::Open;
+                        }
+                    }
+                }
+                value
+            }
+        }
+    }
+
+    /// What a node says of the file, asking what it costs: its parts in the order compiled (what costs nothing first,
+    /// a filled relation's any-row term last), stopping at the first part that decides.
+    fn node_decided(&mut self, node: u32) -> NeedVerdict {
+        match self.node(node) {
+            FormulaNode::Always => NeedVerdict::Holds,
+            FormulaNode::Never => NeedVerdict::Empty,
+            FormulaNode::Free(bit) => {
+                if self.free_bit(bit) {
+                    NeedVerdict::Holds
+                } else {
+                    NeedVerdict::Empty
+                }
+            }
+            FormulaNode::Term(term) => self.term_holds(term),
+            FormulaNode::Table(table) => self.table_row(table),
+            FormulaNode::Site(site) => {
+                let code = self.0.fill.programs.code;
+                decided(self, code, site)
+            }
+            FormulaNode::All(parts) => {
+                for at in parts.start.0..parts.start.0.saturating_add(parts.count.0) {
+                    if self.node_decided(self.part(at)) == NeedVerdict::Empty {
+                        return NeedVerdict::Empty;
+                    }
+                }
+                NeedVerdict::Holds
+            }
+            FormulaNode::Any(parts) => {
+                for at in parts.start.0..parts.start.0.saturating_add(parts.count.0) {
+                    if self.node_decided(self.part(at)) == NeedVerdict::Holds {
+                        return NeedVerdict::Holds;
+                    }
+                }
+                NeedVerdict::Empty
+            }
+        }
+    }
+
+    /// The file's answer to a term when it was asked in the file; none when it was not.
+    fn term_known(&self, term: TermNumber) -> Option<NeedVerdict> {
+        let place = usize::try_from(term.0).unwrap_or(usize::MAX);
+        let (word, bit) = (place / 64, 1_u64 << (place % 64));
+        let answers = &self.0.state.need_terms;
+        let asked = answers.asked.get(word).copied().unwrap_or(0);
+        if asked & bit == 0 {
+            return None;
+        }
+        let holds = answers.holds.get(word).copied().unwrap_or(0);
+        Some(if holds & bit != 0 {
+            NeedVerdict::Holds
+        } else {
+            NeedVerdict::Empty
+        })
     }
 
     /// Has the file's answer to every free term met so far in the file's free bits: the terms met since the bits

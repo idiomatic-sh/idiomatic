@@ -1,6 +1,7 @@
 //! The types of the `masks` part: the terms of a rule set's needs, and for each site the clauses of them its formula
 //! cannot hold without.
 
+use crate::domain::needs::formulas::types::{FreeValue, NeedFormulas};
 use crate::domain::code::types::{PoolAt, RelationNumber, WordSlot};
 use crate::domain::steps::types::MadeTableId;
 use ryo_relations::domain::relations::types::Count;
@@ -153,6 +154,8 @@ pub(crate) struct NeedMasks {
     /// For each site, whether its formula asks a relation of the node-table form for a row, whatever the file: found
     /// once a site.
     pub(crate) node_asks: Vec<NodeAsk>,
+    /// Each site's formula compiled, at the site's first decision.
+    pub(crate) formulas: NeedFormulas,
 }
 
 /// A file's answers to the terms, each asked at most once a file: a bit for "asked" and a bit for "holds".
@@ -167,4 +170,7 @@ pub(crate) struct TermAnswers {
     pub(crate) free: Vec<u64>,
     /// How many of the free terms `free` holds the answers of.
     pub(crate) free_known: Count,
+    /// What each site's formula says of the file from the free terms alone, by the site's number: found at most once a
+    /// file.
+    pub(crate) sites: Vec<FreeValue>,
 }

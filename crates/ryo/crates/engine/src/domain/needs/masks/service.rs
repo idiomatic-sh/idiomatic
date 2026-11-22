@@ -58,7 +58,12 @@ fn node_relation(code: &ProgramCode, relation: RelationNumber) -> bool {
 }
 
 /// The number of a term, given the first time it is met; the record at `at` is that term.
-fn numbered(code: &ProgramCode, masks: &mut NeedMasks, term: NeedTerm, at: WordSlot) -> TermNumber {
+pub(crate) fn numbered(
+    code: &ProgramCode,
+    masks: &mut NeedMasks,
+    term: NeedTerm,
+    at: WordSlot,
+) -> TermNumber {
     let NeedMasks {
         terms,
         term_costs,

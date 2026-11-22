@@ -20,8 +20,8 @@ use std::collections::HashMap;
 /// How deep a constant is carried through definitions, and how many branches of a definition may be left that can give
 /// a row with it: past either, the use needs the definition's own formula. Ten deep: a fragment's output is a chain
 /// of definitions (a selection over a union over a view over the relation), and the relation whose column the
-/// constant names lies at its end; at four the constant of `kind = "global"` over the binding events never reached
-/// the `binding-event` read (PLW0602: the read is six definitions down). The branches LEFT are counted, not the
+/// constant names lies at its end; at four a constant held in a reader's query was seen never to reach a relation
+/// read six definitions down. The branches LEFT are counted, not the
 /// definition's: a definition of many branches that each hold the column to its own constant (a union of a relation's
 /// kinds) is where a reader's constant decides most, leaving the one branch that holds it.
 const CARRIED: (usize, usize) = (10, 8);
