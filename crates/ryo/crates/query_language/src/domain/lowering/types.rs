@@ -200,6 +200,20 @@ pub(crate) struct HostedStep {
     pub step: StepId,
 }
 
+/// The first step each name names among the steps made so far (prototype ryo-fmx3.1: `step_named` searched every step
+/// for each name it was asked): by identity among the steps that have one, and by spelling among all named steps and
+/// among the named steps with no identity. A name with an identity names a step of that identity or a step with none
+/// spelled the same; a name with none names a step spelled the same; the first such step either way.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct StepNames {
+    /// The first step of each identity.
+    pub by_identity: std::collections::HashMap<ryo_values::domain::query_tokens::types::StepIdentity, StepId>,
+    /// The first named step of each spelling.
+    pub by_spelling: std::collections::HashMap<ryo_values::domain::query_tokens::types::StepSpelling, StepId>,
+    /// The first named step with no identity of each spelling.
+    pub unidentified: std::collections::HashMap<ryo_values::domain::query_tokens::types::StepSpelling, StepId>,
+}
+
 /// The plan under construction.
 #[derive(Debug)]
 pub(crate) struct Builder<'a> {
@@ -217,6 +231,8 @@ pub(crate) struct Builder<'a> {
     pub steps: Vec<plans::PlanStep>,
     /// The same steps with the names and columns lowering keeps for the steps below.
     pub lowered: Vec<LoweredStep>,
+    /// The first step of `lowered` each name names, kept as steps are pushed: a name is found with no search.
+    pub names: StepNames,
     /// Where the line being lowered is written.
     pub span: QuerySpan,
     /// The source document and trace of the step currently lowered.

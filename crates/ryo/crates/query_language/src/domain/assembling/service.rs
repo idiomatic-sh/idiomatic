@@ -69,6 +69,7 @@ pub(crate) fn lower_with_observations(
         kinds,
         steps: Vec::new(),
         lowered: Vec::new(),
+        names: crate::domain::lowering::types::StepNames::default(),
         span: program.emit.span,
         origin: None,
         comparison_origins: Vec::new(),

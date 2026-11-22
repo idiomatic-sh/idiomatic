@@ -288,6 +288,19 @@ pub(crate) fn push(
         .collect();
     let scope = scope_of(&operation, &inputs, &fields);
     builder.steps.push(plans::PlanStep { operation, scope });
+    if let Some(name) = name {
+        let at = parts::StepId(u32::try_from(builder.lowered.len()).unwrap_or(u32::MAX));
+        let names = &mut builder.names;
+        let _first = names.by_spelling.entry(name.0.clone()).or_insert(at);
+        match ryo_values::domain::program::service::identity_of(name.1) {
+            Some(identity) => {
+                let _first = names.by_identity.entry(identity).or_insert(at);
+            }
+            None => {
+                let _first = names.unidentified.entry(name.0.clone()).or_insert(at);
+            }
+        }
+    }
     builder.lowered.push(LoweredStep {
         name: name.map_or(StepLabel::Unnamed, |name| StepLabel::Named(name.clone())),
         fields,
