@@ -841,6 +841,8 @@ mod finisher;
 mod dump;
 #[path = "type_expression.rs"]
 mod type_expression;
+#[path = "annotation_evaluation.rs"]
+mod annotation_evaluation;
 
 /// The visit's facts as the finish's provider.
 struct Facts<'v, 'f, 'w> {
@@ -875,7 +877,7 @@ impl ColFacts<'_, '_, '_, '_> {
             return Ok(t.clone());
         }
         let t = self.whole_fill(run, rel)?;
-        if matches!(rel, "binding-event" | "binding-read" | "binding-resolution" | "qualified-name" | "call-argument" | "identifier" | "embedded-expression") {
+        if matches!(rel, "binding-event" | "binding-read" | "binding-resolution" | "qualified-name" | "call-argument" | "identifier" | "embedded-expression" | "compiler-feature" | "language-target") {
             let _ = self.kept.insert(rel.to_owned(), t.clone());
         }
         Ok(t)
@@ -997,6 +999,27 @@ impl ColFacts<'_, '_, '_, '_> {
     }
 }
 
+impl ColFacts<'_, '_, '_, '_> {
+    /// redo-binding pass 4: `annotation-evaluation` (annotation_evaluation.rs) from the node table, the file's compiler features
+    /// and target, and its embedded expressions.
+    fn annotation_evaluation(&mut self, run: &mut finish::Run) -> Result<finish::Table, String> {
+        let features = self.whole(run, "compiler-feature")?;
+        let targets = self.whole(run, "language-target")?;
+        let embedded = self.whole(run, "embedded-expression")?;
+        let target = annotation_evaluation::target(run, &features, &targets)?;
+        let rows = annotation_evaluation::rows(run, self.file.table, &target, &embedded)?;
+        let (_, names, tys) = run.catalog(finish::ANNOTATION_EVALUATION_REL).ok_or("no annotation-evaluation")?;
+        let mut t = finish::Table { names, tys, cols: vec![Vec::with_capacity(rows.len()); 5], n: rows.len() };
+        for (id, root, evaluation, mode) in rows {
+            let (e, m) = (u64::from(run.sym(evaluation)), u64::from(run.sym(mode)));
+            for (c, v) in [u64::from(id), u64::from(root), e, m, 0].into_iter().enumerate() {
+                t.cols[c].push(v);
+            }
+        }
+        Ok(t)
+    }
+}
+
 impl finish::Provider for ColFacts<'_, '_, '_, '_> {
     fn fill(&mut self, run: &mut finish::Run, rel: &str) -> Result<finish::Table, String> {
         let t0 = thread_cpu();
@@ -1021,6 +1044,8 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
             self.namespace_final(run)?
         } else if rel == finish::TYPE_EXPRESSION_REL {
             self.type_expression(run)?
+        } else if rel == finish::ANNOTATION_EVALUATION_REL {
+            self.annotation_evaluation(run)?
         } else {
             self.whole(run, rel)?
         };
