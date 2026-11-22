@@ -9,7 +9,7 @@ use ryo_relations::domain::terms::types::Vocabulary;
 
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::{
-    ArgumentFault, Builder, PlannedColumn, SearchMatch, Sourced, StepLabel, Uniqueness,
+    ArgumentFault, Builder, PlannedColumn, SearchMatch, Sourced, Uniqueness,
 };
 use crate::domain::syntax::constants::slot_name;
 use crate::domain::syntax::types::ArgumentSlot;
