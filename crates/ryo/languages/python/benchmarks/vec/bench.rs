@@ -315,40 +315,129 @@ fn first_condition(table: &NodeTable, cols: &Columns, source: &[u8], anchor: &An
 
 /// The kinds-and-fields skip of a run's plan rules, flat: per rule whether it never matches and its clauses, a clause its
 /// kind words then its field words; a rule with no anchor line always passes.
+/// The file skip, flat: each rule's kinds-and-fields clauses and its word CNFs as numbers of distinct clauses, a clause
+/// stored once however many rules share it. A file's kinds-and-fields clauses are all tested once (`file`); a word clause
+/// is tested once a file, when a rule its kinds keep first asks it.
 struct Skip {
     kw: usize,
     fw: usize,
+    /// The distinct kinds-and-fields clauses, `kw + fw` words each: kind words then field words.
     masks: Vec<u64>,
-    rules: Vec<(bool, std::ops::Range<usize>)>,
+    /// Per rule: never matches, and its clauses (a range of `of`).
+    rules: Vec<(bool, std::ops::Range<u32>)>,
+    of: Vec<u32>,
+    /// This file's answer of each distinct kinds-and-fields clause.
+    held: Vec<bool>,
+    /// Per rule its branches (a range of `branches`; none: unknown, alive), a branch its clauses (a range of `wof`), a
+    /// distinct word clause its words (a range of `wwords`).
+    wrules: Vec<std::ops::Range<u32>>,
+    branches: Vec<std::ops::Range<u32>>,
+    wof: Vec<u32>,
+    wclauses: Vec<std::ops::Range<u32>>,
+    wwords: Vec<u16>,
+    /// Per distinct word clause: `stamp << 1 | answer` once asked in the file of `stamp`.
+    wmemo: Vec<u32>,
+    stamp: u32,
 }
 
 impl Skip {
-    fn new(rules: &[Rule], skip_of: &[Option<usize>], kw: usize, fw: usize) -> Self {
-        let mut masks = Vec::new();
-        let rules = skip_of
+    fn new(rules: &[Rule], skip_of: &[Option<usize>], frules: &[funnel::FRule], kw: usize, fw: usize) -> Self {
+        let mut masks: Vec<u64> = Vec::new();
+        let mut seen: HashMap<Vec<u64>, u32> = HashMap::new();
+        let mut of = Vec::new();
+        let rules: Vec<(bool, std::ops::Range<u32>)> = skip_of
             .iter()
             .map(|i| {
-                let a = masks.len();
+                let a = of.len() as u32;
                 if let Some(i) = i {
                     for (k, f) in &rules[*i].clauses {
-                        masks.extend_from_slice(k);
-                        masks.extend_from_slice(f);
+                        let c: Vec<u64> = k.iter().chain(f).copied().collect();
+                        assert_eq!(c.len(), kw + fw, "a clause is kw + fw words");
+                        let n = seen.len() as u32;
+                        let id = *seen.entry(c.clone()).or_insert_with(|| {
+                            masks.extend_from_slice(&c);
+                            n
+                        });
+                        of.push(id);
                     }
                 }
-                (i.is_some_and(|i| rules[i].never), a..masks.len())
+                (i.is_some_and(|i| rules[i].never), a..of.len() as u32)
             })
             .collect();
-        Skip { kw, fw, masks, rules }
+        let mut wseen: HashMap<Vec<u16>, u32> = HashMap::new();
+        let (mut wrules, mut branches, mut wof, mut wclauses, mut wwords) = (Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new());
+        for r in frules {
+            let a = branches.len() as u32;
+            for cnf in &r.cnfs {
+                let b = wof.len() as u32;
+                for cl in cnf {
+                    let n = wseen.len() as u32;
+                    let id = *wseen.entry(cl.clone()).or_insert_with(|| {
+                        let w = wwords.len() as u32;
+                        wwords.extend_from_slice(cl);
+                        wclauses.push(w..wwords.len() as u32);
+                        n
+                    });
+                    wof.push(id);
+                }
+                branches.push(b..wof.len() as u32);
+            }
+            wrules.push(a..branches.len() as u32);
+        }
+        let n_masks = masks.len() / (kw + fw).max(1);
+        let n_w = wclauses.len();
+        Skip { kw, fw, masks, rules, of, held: vec![false; n_masks], wrules, branches, wof, wclauses, wwords, wmemo: vec![0; n_w], stamp: 0 }
     }
 
-    /// Whether every clause of the rule meets a kind or a field the file has (`survives` over the flat clauses).
+    /// A new file: every distinct kinds-and-fields clause tested once against its kinds and fields; the word answers of
+    /// the last file forgotten.
+    fn file(&mut self, kinds: &[u64], fields: &[u64]) {
+        let (kw, fw) = (self.kw, self.fw);
+        for (c, h) in self.masks.chunks_exact(kw + fw).zip(&mut self.held) {
+            *h = c[..kw].iter().zip(kinds).any(|(a, b)| a & b != 0) || c[kw..].iter().zip(fields).any(|(a, b)| a & b != 0);
+        }
+        self.stamp += 1;
+    }
+
+    /// Whether every clause of the rule meets a kind or a field the file has (`survives` over the distinct clauses).
     #[inline]
-    fn alive(&self, rule: usize, kinds: &[u64], fields: &[u64]) -> bool {
+    fn alive(&self, rule: usize) -> bool {
         let (never, range) = &self.rules[rule];
-        !never
-            && self.masks[range.clone()].chunks_exact(self.kw + self.fw).all(|c| {
-                c[..self.kw].iter().zip(kinds).any(|(a, b)| a & b != 0) || c[self.kw..].iter().zip(fields).any(|(a, b)| a & b != 0)
-            })
+        !never && self.of[range.start as usize..range.end as usize].iter().all(|c| self.held[*c as usize])
+    }
+
+    /// Whether some branch of the rule's word CNFs has every clause met by a word the file has (`FRule::words_alive`).
+    #[inline]
+    fn words_alive(&mut self, rule: usize, present: &[u64]) -> bool {
+        let r = self.wrules[rule].clone();
+        if r.is_empty() {
+            return true;
+        }
+        let stamp = self.stamp << 1;
+        for b in r {
+            let br = self.branches[b as usize].clone();
+            let mut all = true;
+            for k in br {
+                let c = self.wof[k as usize] as usize;
+                let m = self.wmemo[c];
+                let held = if m & !1 == stamp {
+                    m & 1 == 1
+                } else {
+                    let ws = self.wclauses[c].clone();
+                    let h = self.wwords[ws.start as usize..ws.end as usize].iter().any(|w| funnel::bit(present, *w));
+                    self.wmemo[c] = stamp | u32::from(h);
+                    h
+                };
+                if !held {
+                    all = false;
+                    break;
+                }
+            }
+            if all {
+                return true;
+            }
+        }
+        false
     }
 }
 
@@ -1167,21 +1256,9 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
     let by_name: HashMap<&str, usize> = rules.iter().enumerate().map(|(i, r)| (r.name.as_str(), i)).collect();
     let skip_of: Vec<Option<usize>> = frules.iter().map(|r| by_name.get(r.name.as_str()).copied()).collect();
     // the kinds-and-fields skip of each plan rule, flat: a clause is its kind words then its field words
-    let skip = Skip::new(&rules, &skip_of, words_of(vocab.kind_names.len()), words_of(vocab.field_names.len()));
+    let mut skip = Skip::new(&rules, &skip_of, &frules, words_of(vocab.kind_names.len()), words_of(vocab.field_names.len()));
     let mut kinds: Vec<u64> = Vec::new();
     let fields_width = vocab.field_names.len();
-    let set_of = |names: &[&str]| {
-        let mut s = [0u64; 4];
-        for n in names {
-            if let Some(c) = vocab.kinds.get(*n) {
-                s[usize::from(*c) / 64] |= 1 << (c % 64);
-            }
-        }
-        s
-    };
-    let function = set_of(&["function-def", "async-function-def", "lambda"]);
-    let class = set_of(&["class-def"]);
-    let looping = set_of(&["for", "async-for", "while"]);
     let mut units = funnel::units(&frules);
     if args.contains(&"--only-knock-units") {
         units.retain(|u| u.knock);
@@ -1339,10 +1416,11 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                 kinds.clear();
                 kinds.extend(node_table::kinds_present(pt).0.iter().map(|w| w.0));
                 kinds_alive.clear();
-                kinds_alive.extend((0..frules.len()).map(|ri| skip.alive(ri, &kinds, &cols.field_present)));
+                skip.file(&kinds, &cols.field_present);
+                kinds_alive.extend((0..frules.len()).map(|ri| skip.alive(ri)));
                 // the words only of a rule the kinds and fields keep
                 words_alive.clear();
-                words_alive.extend(frules.iter().zip(&kinds_alive).map(|(r, k)| *k && r.words_alive(&present)));
+                words_alive.extend(kinds_alive.iter().enumerate().map(|(ri, k)| *k && skip.words_alive(ri, &present)));
                 alive.clear();
                 alive.extend(kinds_alive.iter().zip(&words_alive).map(|(k, w)| *k && (!word_skip || *w)));
                 rule_files += frules.len() as u64;
@@ -1366,7 +1444,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                 let c2 = thread_cpu();
                 if structured {
                     for _ in 0..repeat {
-                        funnel::structure(t, &mut st, &function, &class, &looping);
+                        funnel::structure(t, &mut st);
                     }
                     phases.add("structure pass", (thread_cpu() - c2) / repeat as f64);
                     if !fact_catalog.enc_sets.is_empty() {
@@ -1379,12 +1457,11 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                     dump::table(&mut dumped, file_no, t, vocab.kind_names.len());
                     let mut h = dump::Hashed::default();
                     h.rows(node_table::parent_ids(t));
-                    h.rows(&st.pkind);
-                    h.rows(&st.cmask);
-                    h.rows(&st.sibling);
-                    h.rows(&st.enc_function);
-                    h.rows(&st.enc_class);
-                    h.rows(&st.enc_loop);
+                    // prefix cycle 2: the structure pass writes only the node sets and the enclosing columns
+                    h.rows(&st.sets.iter().map(|m| m.pkind).collect::<Vec<_>>());
+                    h.rows(&st.sets.iter().map(|m| m.cmask).collect::<Vec<_>>());
+                    h.rows(&st.sets.iter().map(|m| m.cfmask).collect::<Vec<_>>());
+                    h.rows(&st.sets.iter().map(|m| m.root).collect::<Vec<_>>());
                     h.rows(&st.enc);
                     h.line(&mut dumped, file_no, "structure");
                     let mut h = dump::Hashed::default();
@@ -1417,9 +1494,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                     let ctx = funnel::Ctx {
                         table: t,
                         src: &bytes,
-                        pkind: if structured { &st.pkind } else { &[] },
-                        cmask: if structured { &st.cmask } else { &[] },
-                        cfmask: if structured { &st.cfmask } else { &[] },
+                        sets: if structured { &st.sets } else { &[] },
                         facts: &store,
                         enc: &st.enc,
                         matches: &interner.matches,
