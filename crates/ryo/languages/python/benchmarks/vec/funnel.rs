@@ -3,7 +3,7 @@
 //! operations specialised at load (one closure per operation and column type, run over a selection vector), and bit-mask
 //! knock-out (per node a few tests ANDed into a mask of the plans of its bucket).
 
-use super::{Columns, Key, Vocab};
+use super::{Key, Vocab};
 use ryo::languages::{NodeTable, Position, node_table};
 use std::collections::HashMap;
 
@@ -60,15 +60,10 @@ pub(super) enum Op {
     AncX { from: usize, to: usize, plan: Vec<Op> },
 }
 
-/// One file's view: the table, the source and the columns, with the structure columns when computed.
+/// One file's view: the table (its columns read in place), the source, and the structure columns when computed.
 pub(super) struct Ctx<'a> {
     pub(super) table: &'a NodeTable,
     pub(super) src: &'a [u8],
-    pub(super) kind: &'a [u16],
-    pub(super) field: &'a [u16],
-    pub(super) start: &'a [u32],
-    pub(super) end: &'a [u32],
-    pub(super) parent: &'a [u32],
     pub(super) pkind: &'a [u16],
     pub(super) cmask: &'a [KSet],
     /// Per node, the fields of its children (codes below 128).
@@ -83,9 +78,23 @@ impl Ctx<'_> {
     fn children(&self, n: u32) -> &[Position] {
         node_table::children_of(self.table, Position(n))
     }
-    #[inline]
+    // the node table's own columns, read in place (no copy a file)
+    #[inline(always)]
+    fn kind(&self, n: u32) -> u16 {
+        node_table::kind_of(self.table, Position(n)).0
+    }
+    #[inline(always)]
+    fn field(&self, n: u32) -> u16 {
+        node_table::field_of(self.table, Position(n)).0
+    }
+    #[inline(always)]
+    fn parent(&self, n: u32) -> u32 {
+        node_table::parent_of(self.table, Position(n)).0
+    }
+    #[inline(always)]
     fn text(&self, n: u32) -> &[u8] {
-        &self.src[self.start[n as usize] as usize..self.end[n as usize] as usize]
+        let s = node_table::span_of(self.table, Position(n));
+        &self.src[s.start.0 as usize..s.end.0 as usize]
     }
 }
 
@@ -113,8 +122,8 @@ impl Own {
     #[inline(always)]
     fn eval(&self, ctx: &Ctx<'_>, n: u32) -> bool {
         let i = n as usize;
-        kbit(&self.kinds, ctx.kind[i])
-            && self.fields.as_ref().is_none_or(|s| fbit(s, ctx.field[i]))
+        kbit(&self.kinds, ctx.kind(i as u32))
+            && self.fields.as_ref().is_none_or(|s| fbit(s, ctx.field(i as u32)))
             && self.texts.as_ref().is_none_or(|t| {
                 let x = ctx.text(n);
                 t.iter().any(|y| y.as_slice() == x)
@@ -138,7 +147,7 @@ impl Own {
 
 #[inline]
 fn passes(ctx: &Ctx<'_>, c: &Check, n: u32) -> bool {
-    let k = ctx.kind[n as usize];
+    let k = ctx.kind(n);
     if let Some(s) = &c.kinds {
         if !kbit(s, k) {
             return false;
@@ -150,7 +159,7 @@ fn passes(ctx: &Ctx<'_>, c: &Check, n: u32) -> bool {
         }
     }
     if let Some(s) = &c.fields {
-        if !fbit(s, ctx.field[n as usize]) {
+        if !fbit(s, ctx.field(n)) {
             return false;
         }
     }
@@ -375,7 +384,7 @@ pub(super) fn exec(ctx: &Ctx<'_>, ops: &[Op], pc: usize, regs: &mut [u32], steps
         Op::Check(c) => passes(ctx, c, regs[c.v]) && exec(ctx, ops, pc + 1, regs, steps),
         Op::Up { from, to, .. } => {
             let n = regs[*from];
-            let p = ctx.parent[n as usize];
+            let p = ctx.parent(n);
             if p == n {
                 return false;
             }
@@ -407,7 +416,7 @@ pub(super) fn exec(ctx: &Ctx<'_>, ops: &[Op], pc: usize, regs: &mut [u32], steps
         }
         Op::IsParent { child, parent } => {
             let c = regs[*child];
-            ctx.parent[c as usize] == regs[*parent] && ctx.parent[c as usize] != c && exec(ctx, ops, pc + 1, regs, steps)
+            ctx.parent(c) == regs[*parent] && ctx.parent(c) != c && exec(ctx, ops, pc + 1, regs, steps)
         }
         Op::Fact(f) => ctx.facts.holds(f, regs, ctx.matches) && exec(ctx, ops, pc + 1, regs, steps),
         Op::Enc { from, to, set } => {
@@ -421,7 +430,7 @@ pub(super) fn exec(ctx: &Ctx<'_>, ops: &[Op], pc: usize, regs: &mut [u32], steps
             let mut n = regs[*from];
             let mut found = false;
             loop {
-                let p = ctx.parent[n as usize];
+                let p = ctx.parent(n);
                 if p == n {
                     break;
                 }
@@ -546,13 +555,13 @@ pub(super) fn compile(ops: &[Op]) -> Vec<Stage> {
                         let s = c.kind_set();
                         out.push(filt(move |ctx, row| {
                                 let n = row[from] as usize;
-                                ctx.parent[n] as usize != n && kbit(&s, ctx.pkind[n])
+                                ctx.parent(n as u32) as usize != n && kbit(&s, ctx.pkind[n])
                             }));
                         i += 1;
                     }
-                    _ if *leaf && next_check(*to).is_none() => out.push(filt(move |ctx, row| ctx.parent[row[from] as usize] != row[from])),
+                    _ if *leaf && next_check(*to).is_none() => out.push(filt(move |ctx, row| ctx.parent(row[from]) != row[from])),
                     _ => out.push(mover(from, *to, |ctx, n| {
-                            let p = ctx.parent[n as usize];
+                            let p = ctx.parent(n);
                             if p == n { u32::MAX } else { p }
                         })),
                 }
@@ -609,7 +618,7 @@ pub(super) fn compile(ops: &[Op]) -> Vec<Stage> {
                 let (c, p) = (*child, *parent);
                 out.push(filt(move |ctx, row| {
                         let n = row[c] as usize;
-                        ctx.parent[n] == row[p] && ctx.parent[n] as usize != n
+                        ctx.parent(n as u32) == row[p] && ctx.parent(n as u32) as usize != n
                     }));
             }
         }
@@ -678,7 +687,7 @@ pub(super) fn compile_pred(ops: &[Op]) -> Pred {
                         Box::new(move |ctx, r, s| {
                             *s += 1;
                             let n = r[from] as usize;
-                            ctx.parent[n] as usize != n && kbit(&set, ctx.pkind[n]) && next(ctx, r, s)
+                            ctx.parent(n as u32) as usize != n && kbit(&set, ctx.pkind[n]) && next(ctx, r, s)
                         })
                     } else {
                         Box::new(move |ctx, r, s| {
@@ -708,7 +717,7 @@ pub(super) fn compile_pred(ops: &[Op]) -> Pred {
                 Box::new(move |ctx, r, s| {
                     *s += 1;
                     let n = r[from];
-                    let p = ctx.parent[n as usize];
+                    let p = ctx.parent(n);
                     p != n && {
                         r[to] = p;
                         next(ctx, r, s)
@@ -814,7 +823,7 @@ pub(super) fn compile_pred(ops: &[Op]) -> Pred {
                     let mut n = r[from];
                     let mut found = false;
                     loop {
-                        let p = ctx.parent[n as usize];
+                        let p = ctx.parent(n);
                         if p == n {
                             break;
                         }
@@ -833,7 +842,7 @@ pub(super) fn compile_pred(ops: &[Op]) -> Pred {
                 Box::new(move |ctx, r, s| {
                     *s += 1;
                     let n = r[c] as usize;
-                    ctx.parent[n] == r[p] && ctx.parent[n] as usize != n && next(ctx, r, s)
+                    ctx.parent(n as u32) == r[p] && ctx.parent(n as u32) as usize != n && next(ctx, r, s)
                 })
             }
         };
@@ -905,7 +914,7 @@ impl Test {
     fn eval(&self, ctx: &Ctx<'_>, n: u32) -> bool {
         match self {
             Test::Own(c) => passes(ctx, c, n),
-            Test::ParentKind(s) => ctx.parent[n as usize] != n && kbit(s, ctx.pkind[n as usize]),
+            Test::ParentKind(s) => ctx.parent(n) != n && kbit(s, ctx.pkind[n as usize]),
             Test::ChildKind(s) => {
                 let m = &ctx.cmask[n as usize];
                 (m[0] & s[0]) | (m[1] & s[1]) | (m[2] & s[2]) | (m[3] & s[3]) != 0
@@ -1086,7 +1095,6 @@ pub(super) fn knock(ctx: &Ctx<'_>, group: &Group, nodes: &[u32], file: &[u64], s
 // ---------------------------------------------------------------- the structure pass
 #[derive(Default)]
 pub(super) struct Structure {
-    pub(super) parent: Vec<u32>,
     pub(super) pkind: Vec<u16>,
     pub(super) cmask: Vec<KSet>,
     /// Per node, the fields (codes below 128) of its children.
@@ -1099,16 +1107,10 @@ pub(super) struct Structure {
     pub(super) enc: Vec<Vec<u32>>,
 }
 
-pub(super) fn parents(table: &NodeTable, cols: &Columns, s: &mut Structure) {
-    s.parent.clear();
-    for i in 0..cols.kind.len() as u32 {
-        s.parent.push(node_table::parent_of(table, Position(i)).0);
-    }
-}
-
 /// One forward pass: parent kind, child-kind and child-field bitsets, sibling index, nearest enclosing function, class and loop.
-pub(super) fn structure(table: &NodeTable, cols: &Columns, s: &mut Structure, function: &KSet, class: &KSet, looping: &KSet) {
-    let n = cols.kind.len();
+pub(super) fn structure(table: &NodeTable, s: &mut Structure, function: &KSet, class: &KSet, looping: &KSet) {
+    let n = node_table::element_count(table).0 as usize;
+    let kind = |i: usize| node_table::kind_of(table, Position(i as u32)).0;
     s.pkind.clear();
     s.cmask.clear();
     s.cmask.resize(n, [0; 4]);
@@ -1119,13 +1121,13 @@ pub(super) fn structure(table: &NodeTable, cols: &Columns, s: &mut Structure, fu
     s.enc_class.clear();
     s.enc_loop.clear();
     for i in 0..n {
-        let p = s.parent[i] as usize;
-        let k = cols.kind[i];
-        let pk = cols.kind[p];
+        let p = node_table::parent_of(table, Position(i as u32)).0 as usize;
+        let k = kind(i);
+        let pk = kind(p);
         s.pkind.push(pk);
         if p != i {
             s.cmask[p][usize::from(k) / 64] |= 1 << (k % 64);
-            let f = cols.field[i];
+            let f = node_table::field_of(table, Position(i as u32)).0;
             if f < 128 {
                 s.cfmask[p][usize::from(f) / 64] |= 1 << (f % 64);
             }
@@ -1150,23 +1152,25 @@ pub(super) fn structure(table: &NodeTable, cols: &Columns, s: &mut Structure, fu
 }
 
 /// The enclosing columns of the plans' kind sets, one forward pass each over the parent and kind columns.
-pub(super) fn enclosing(cols: &Columns, s: &mut Structure, sets: &[KSet]) {
-    let n = cols.kind.len();
+pub(super) fn enclosing(table: &NodeTable, s: &mut Structure, sets: &[KSet]) {
+    let n = node_table::element_count(table).0 as usize;
+    let kind = |i: usize| node_table::kind_of(table, Position(i as u32)).0;
+    let parent = |i: usize| node_table::parent_of(table, Position(i as u32)).0 as usize;
     s.enc.resize_with(sets.len(), Vec::new);
     for (k, set) in sets.iter().enumerate() {
         let col = &mut s.enc[k];
         col.clear();
         col.resize(n, u32::MAX);
         for i in 0..n {
-            let p = s.parent[i] as usize;
+            let p = parent(i);
             if p == i || p >= i {
                 // a root, or a parent written after its child (an embedded segment's host comes first: never here)
-                if p != i && p < n && kbit(set, cols.kind[p]) {
+                if p != i && p < n && kbit(set, kind(p)) {
                     col[i] = p as u32;
                 }
                 continue;
             }
-            col[i] = if kbit(set, cols.kind[p]) { p as u32 } else { col[p] };
+            col[i] = if kbit(set, kind(p)) { p as u32 } else { col[p] };
         }
     }
 }

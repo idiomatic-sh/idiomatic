@@ -228,6 +228,41 @@ fn field_index(cols: &mut Columns, fields: usize) {
     }
 }
 
+/// The field buckets and the fields present, read from the node table's own field column.
+fn field_buckets(table: &NodeTable, cols: &mut Columns, fields: usize) {
+    let n = node_table::element_count(table).0;
+    let Columns { field_offsets, by_field, field_present, .. } = cols;
+    field_offsets.clear();
+    field_offsets.resize(fields + 1, 0);
+    for i in 0..n as u32 {
+        field_offsets[usize::from(node_table::field_of(table, Position(i)).0) + 1] += 1;
+    }
+    for f in 0..fields {
+        field_offsets[f + 1] += field_offsets[f];
+    }
+    by_field.clear();
+    by_field.resize(n as usize, 0);
+    let mut fill: Vec<u32> = field_offsets[..fields].to_vec();
+    for i in 0..n as u32 {
+        let slot = &mut fill[usize::from(node_table::field_of(table, Position(i)).0)];
+        by_field[*slot as usize] = i;
+        *slot += 1;
+    }
+    field_present.clear();
+    field_present.resize(words(fields), 0);
+    for f in 0..fields {
+        if field_offsets[f + 1] > field_offsets[f] {
+            field_present[f / 64] |= 1 << (f % 64);
+        }
+    }
+}
+
+/// An element's bytes, from the node table's own span column.
+fn span_bytes(table: &NodeTable, i: usize) -> std::ops::Range<usize> {
+    let s = node_table::span_of(table, Position(i as u32));
+    s.start.0 as usize..s.end.0 as usize
+}
+
 fn test_lit(lit: &Lit, text: &[u8]) -> bool {
     match lit {
         Lit::None => true,
@@ -1281,10 +1316,8 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
             ($t:expr) => {{
                 let pt: &NodeTable = $t;
                 let c1 = thread_cpu();
-                extract(pt, &mut cols, true, true);
-                funnel::parents(pt, &cols, &mut st);
-                field_index(&mut cols, fields_width.max(1));
-                phases.add("extract columns + parents + field buckets", thread_cpu() - c1);
+                field_buckets(pt, &mut cols, fields_width.max(1));
+                phases.add("field buckets", thread_cpu() - c1);
                 if way != "structure" {
                 // the file's required words
                 let cw = thread_cpu();
@@ -1295,7 +1328,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                         pairs.clear();
                         for p in node_table::ids_of_kind(pt, KindBits(name_token)) {
                             let i = p.0 as usize;
-                            if let Some(w) = words.ids.get(&bytes[cols.start[i] as usize..cols.end[i] as usize]) {
+                            if let Some(w) = words.ids.get(&bytes[span_bytes(pt, i)]) {
                                 present[usize::from(*w) / 64] |= 1 << (w % 64);
                                 pairs.push((*w, p.0));
                             }
@@ -1325,7 +1358,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                             let mut set: std::collections::HashSet<&[u8]> = std::collections::HashSet::new();
                             for p in node_table::ids_of_kind(pt, KindBits(name_token)) {
                                 let i = p.0 as usize;
-                                let _ = set.insert(&bytes[cols.start[i] as usize..cols.end[i] as usize]);
+                                let _ = set.insert(&bytes[span_bytes(pt, i)]);
                             }
                             distinct_total += set.len() as u64;
                             present.iter_mut().for_each(|w| *w = 0);
@@ -1801,12 +1834,12 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
         let c2 = thread_cpu();
         if structured {
             for _ in 0..repeat {
-                funnel::structure(t, &cols, &mut st, &function, &class, &looping);
+                funnel::structure(t, &mut st, &function, &class, &looping);
             }
             phases.add("structure pass", (thread_cpu() - c2) / repeat as f64);
             if !fact_catalog.enc_sets.is_empty() {
                 let e0 = thread_cpu();
-                funnel::enclosing(&cols, &mut st, &fact_catalog.enc_sets);
+                funnel::enclosing(t, &mut st, &fact_catalog.enc_sets);
                 phases.add("enclosing columns (one per kind set)", thread_cpu() - e0);
             }
         }
@@ -1816,11 +1849,6 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
         let ctx = funnel::Ctx {
             table: t,
             src: &bytes,
-            kind: &cols.kind,
-            field: &cols.field,
-            start: &cols.start,
-            end: &cols.end,
-            parent: &st.parent,
             pkind: if structured { &st.pkind } else { &[] },
             cmask: if structured { &st.cmask } else { &[] },
             cfmask: if structured { &st.cfmask } else { &[] },
@@ -1828,8 +1856,9 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
             enc: &st.enc,
             matches: &interner.matches,
         };
-        if marked.len() < cols.kind.len() {
-            marked.resize(cols.kind.len(), 0);
+        let elements = node_table::element_count(t).0 as usize;
+        if marked.len() < elements {
+            marked.resize(elements, 0);
         }
         let fill = |key: &Key, buf: &mut Vec<u32>| {
             buf.clear();
