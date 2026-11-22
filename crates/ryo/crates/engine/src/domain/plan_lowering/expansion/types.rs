@@ -4,6 +4,7 @@ use ryo_values::domain::finish_plans::arguments::types::StepNumber;
 use ryo_values::domain::finish_plans::expressions::types::PlanConstant;
 use ryo_values::domain::finish_plans::types::FinishStep;
 use crate::domain::plan_lowering::filters::types::Parameters;
+use crate::domain::plan_lowering::types::RuleContext;
 use hashbrown::HashMap;
 use ryo_values::domain::program::types::FragmentProgram;
 use ryo_values::domain::query_tokens::types::QuerySourceId;
@@ -24,6 +25,13 @@ pub(crate) struct Expansion<'p> {
     /// The step each fragment instance returned: a fragment given the same inputs and parameters makes the same
     /// steps, each already numbered, so it is lowered once.
     pub(crate) instances: HashMap<FragmentInstance<'p>, StepNumber>,
+    /// What the run gives the rules beside the catalog.
+    pub(crate) context: &'p RuleContext,
+    /// The step each rule's observed output is, by (rule, output name), for the rules lowered so far.
+    pub(crate) observed: HashMap<(&'p str, &'p str), StepNumber>,
+    /// Whether rule observations can be read: only once every rule that reads none is lowered, so that each reader sees
+    /// all of its producers.
+    pub(crate) observations_open: bool,
 }
 
 /// A fragment as one call gives it: the fragment, the step each input names (in declaration order) and each

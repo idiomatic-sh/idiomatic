@@ -4,6 +4,7 @@
 //! (`lower6d.py`, `pass_semi.py`, `pass_count.py`, `pass_axis.py`), so each can be compared with it on its own.
 
 pub(crate) mod axes;
+pub(crate) mod context;
 pub(crate) mod counts;
 pub mod errors;
 pub(crate) mod expansion;
@@ -11,6 +12,8 @@ pub(crate) mod filters;
 #[cfg(test)]
 pub(crate) mod fixtures;
 pub(crate) mod given;
+pub(crate) mod joins;
+pub(crate) mod numbering;
 pub(crate) mod readers;
 pub(crate) mod operators;
 pub(crate) mod semijoins;

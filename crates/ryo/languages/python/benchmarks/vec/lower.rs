@@ -6,11 +6,16 @@
 //! (counts) and `.json` (axes), the names the Python chain (`scripts6h/plan.sh`) writes; prints each phase's thread CPU
 //! (user + system) and the peak resident set after it. With `--repeat K` the phases run K times in one process, and each
 //! repeat's CPU is printed. With `--measure` nothing is written but the final plan's encoding, after the peak is read.
+//! `--request F`: the run's request, whose rule context (context tables, rule observations) the lowering reads.
 //! `vec stage <in.json> <stage> <out.json>`: decodes a plan, runs the one pass `stage` (`semijoins`, `counts`, `axes`) adds,
 //! writes it; `stage` `none` writes the decoded plan back (a round trip).
 
 use ryo_engine::domain::plan_lowering::service::{lowered, passed};
-use ryo_engine::domain::plan_lowering::types::{PackPrograms, PackRule, PlanningStage, RuleProgram, UnreadQuery};
+use ryo_engine::domain::plan_lowering::types::{
+    ContextObservation, ContextTable, ObservationProducer, PackPrograms, PackRule, PlanningStage, RuleContext, RuleProgram, UnreadQuery,
+};
+use ryo_values::domain::descriptions::types::{ColumnName, RelationName};
+use ryo_values::domain::observations::types::ObservationName;
 use ryo_engine::outbound::plan_codec::factory::json;
 use ryo_engine::outbound::plan_codec::interface::PlanCodecPort as _;
 use ryo_query_language::outbound::syntax::factory::winnow;
@@ -65,7 +70,51 @@ fn read_texts(pack: &Path) -> PackTexts {
     PackTexts { rules, fragments }
 }
 
-fn parsed(texts: &PackTexts) -> PackPrograms {
+/// The run's rule context from its request (the bench's `request.json`), as the shipping host gives it to the compiler:
+/// each `rule_context.tables` entry's rows (`selected`: the selected rules' codes; `disabled`: the configuration's (file,
+/// code) pairs; `external`: its external prefixes), and each `rule_observations` spec. No request: none.
+fn rule_context(request: Option<&str>) -> RuleContext {
+    let Some(path) = request else { return RuleContext::default() };
+    let r: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(path).expect("request")).expect("request json");
+    let texts = |v: &serde_json::Value| v.as_array().map(|a| a.iter().filter_map(|x| x.as_str().map(Box::<str>::from)).collect::<Vec<_>>()).unwrap_or_default();
+    let names = |cols: &[&str]| cols.iter().map(|c| ColumnName((*c).into())).collect::<Vec<_>>();
+    let conf = &r["rule_context"]["configuration"];
+    let mut tables = Vec::new();
+    for (which, relation) in r["rule_context"]["tables"].as_object().into_iter().flatten() {
+        let relation = RelationName(relation.as_str().expect("table name").into());
+        let (columns, rows) = match which.as_str() {
+            "selected" => (names(&["code"]), texts(&r["selected_rules"]).into_iter().map(|c| vec![c]).collect()),
+            "disabled" => (
+                names(&["file", "code"]),
+                conf["disabled-rules"].as_object().into_iter().flatten().flat_map(|(f, cs)| texts(cs).into_iter().map(move |c| vec![Box::<str>::from(f.as_str()), c])).collect(),
+            ),
+            "external" => (names(&["prefix"]), texts(&conf["external-prefixes"]).into_iter().map(|p| vec![p]).collect()),
+            other => panic!("rule-context table {other}"),
+        };
+        tables.push(ContextTable { relation, columns, rows });
+    }
+    let mut observations = Vec::new();
+    for specs in r["rule_observations"].as_object().into_iter().flatten().map(|(_, v)| v) {
+        for spec in specs.as_array().into_iter().flatten() {
+            observations.push(ContextObservation {
+                name: ObservationName(spec["name"].as_str().expect("observation name").into()),
+                columns: spec["columns"].as_array().into_iter().flatten().map(|c| ColumnName(c["name"].as_str().expect("column").into())).collect(),
+                producers: spec["producers"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .map(|p| ObservationProducer {
+                        rule: RuleId(p["rule"].as_str().expect("producer rule").into()),
+                        output: ObservationName(p["output"].as_str().expect("producer output").into()),
+                    })
+                    .collect(),
+            });
+        }
+    }
+    RuleContext { tables, observations }
+}
+
+fn parsed(texts: &PackTexts, context: RuleContext) -> PackPrograms {
     let syntax = winnow();
     // One bundle a fragment, so that a fragment the parser refuses refuses only the rules that import it.
     let mut fragments = BTreeMap::new();
@@ -99,7 +148,7 @@ fn parsed(texts: &PackTexts) -> PackPrograms {
             },
         })
         .collect();
-    PackPrograms { rules, fragments: ParsedModules(Arc::new(fragments)) }
+    PackPrograms { rules, fragments: ParsedModules(Arc::new(fragments)), context }
 }
 
 pub(crate) fn run_lower(args: &[&str]) {
@@ -108,13 +157,14 @@ pub(crate) fn run_lower(args: &[&str]) {
     let repeat: usize = args.iter().position(|a| *a == "--repeat").map_or(1, |i| args[i + 1].parse().expect("repeat"));
     // `--measure`: no stage is written, so the peak after the passes is preparation's own.
     let measure = args.contains(&"--measure");
+    let request = args.iter().position(|a| *a == "--request").map(|i| args[i + 1]);
     let codec = json();
     for round in 0..repeat {
         let write = round == 0 && !measure;
         let t0 = super::thread_cpu();
         let texts = read_texts(pack);
         let t1 = super::thread_cpu();
-        let pack_programs = parsed(&texts);
+        let pack_programs = parsed(&texts, rule_context(request));
         let t2 = super::thread_cpu();
         let hwm_parse = peak_kb();
         let mut plan = lowered(&pack_programs, PlanningStage::Expanded);
@@ -187,16 +237,17 @@ pub(crate) fn run_stage(args: &[&str]) {
 /// The pack's rules and fragments read and parsed once at start, for both halves' plans (`vec funnel ... --finish <pack dir>`).
 pub(crate) struct ReadPack {
     pub(crate) programs: PackPrograms,
-    /// Thread CPU of reading the texts and of parsing them.
+    /// Thread CPU of reading the texts (and the request's rule context) and of parsing them.
     pub(crate) read: f64,
     pub(crate) parse: f64,
 }
 
-pub(crate) fn read_pack(pack: &Path) -> ReadPack {
+pub(crate) fn read_pack(pack: &Path, request: Option<&str>) -> ReadPack {
     let t0 = super::thread_cpu();
     let texts = read_texts(pack);
+    let context = rule_context(request);
     let t1 = super::thread_cpu();
-    let programs = parsed(&texts);
+    let programs = parsed(&texts, context);
     let t2 = super::thread_cpu();
     drop(texts);
     ReadPack { programs, read: t1 - t0, parse: t2 - t1 }

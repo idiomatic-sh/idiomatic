@@ -1,21 +1,26 @@
 //! The `expansion` service: a pack's programs as one plan.
 
-use core::hash::BuildHasher as _;
 use super::types::{Expansion, FragmentInstance, ProgramScope};
 use ryo_values::domain::finish_plans::arguments::literals::types::{
     ArgumentValue as StepArgument, StepArgumentName, UnlistedArgument,
 };
 use ryo_values::domain::finish_plans::arguments::types::StepNumber;
-use ryo_values::domain::finish_plans::constants::{ARG_FROM, OP_ROWS, RELATION_ARGUMENTS};
-use ryo_values::domain::finish_plans::expressions::types::{ConstantEntry, PlanConstant};
+use ryo_values::domain::finish_plans::constants::{
+    ARG_FROM, ARG_LEFT, ARG_LEFT_ON, ARG_OUTPUT, ARG_RIGHT, ARG_RIGHT_ON, OP_ROWS, OP_UNION, RELATION_ARGUMENTS,
+};
+use ryo_values::domain::finish_plans::expressions::types::PlanConstant;
 use ryo_values::domain::finish_plans::types::{
     CountMark, EmitSubject, FinishPlan, FinishStep, PlanEmit, PlannedRule, ProbeMark, RuleEmit,
     SelectItem, SelectSource, SelectStep, SelectedColumns, UnplannedReason, UnplannedRule,
 };
+use crate::domain::plan_lowering::context::service::{producer_select, table_arguments, union_arguments};
 use crate::domain::plan_lowering::errors::PlanLoweringError;
+use crate::domain::plan_lowering::joins::constants::JOIN;
+use crate::domain::plan_lowering::joins::service::{JoinCall, joined};
+use crate::domain::plan_lowering::numbering::service::numbered;
 use crate::domain::plan_lowering::filters::service::{alias, column, constant, function, select_condition};
 use crate::domain::plan_lowering::operators::service::operator_step;
-use crate::domain::plan_lowering::types::{PackPrograms, RuleProgram, WrittenText};
+use crate::domain::plan_lowering::types::{PackPrograms, PackRule, RuleProgram, WrittenText};
 use ryo_values::domain::descriptions::types::RelationName;
 use ryo_values::domain::program::types::{FragmentProgram, ImportDeclaration, LetStep, WrittenProgram};
 use ryo_values::domain::query_syntax::types::{
@@ -32,17 +37,57 @@ pub(crate) fn expanded(pack: &PackPrograms) -> FinishPlan {
         hasher: hashbrown::DefaultHashBuilder::default(),
         fragments: &pack.fragments.0,
         instances: hashbrown::HashMap::new(),
+        context: &pack.context,
+        observed: hashbrown::HashMap::new(),
+        observations_open: false,
     };
     let mut plan = FinishPlan {
         steps: Vec::new(),
         rules: Vec::new(),
         unplanned: Vec::new(),
     };
+    // A rule that reads a rule observation before all its producers are lowered is lowered after every other rule, its
+    // steps of the first try taken back.
+    let mut deferred: Vec<&PackRule> = Vec::new();
     for rule in &pack.rules {
-        let lowered = match &rule.program {
-            RuleProgram::Parsed(program) => rule_emit(&mut expansion, program),
-            RuleProgram::Unread(why) => Err(PlanLoweringError::Unread(WrittenText(why.0.clone()))),
-        };
+        let made = expansion.steps.len();
+        let lowered = rule_lowered(&mut expansion, rule);
+        if let Err(PlanLoweringError::UnknownStep(name)) = &lowered
+            && pack.context.observations.iter().any(|seen| *seen.name.0 == *name.0)
+        {
+            taken_back(&mut expansion, made);
+            deferred.push(rule);
+            continue;
+        }
+        recorded(&mut plan, rule, lowered);
+    }
+    expansion.observations_open = true;
+    for rule in deferred {
+        let lowered = rule_lowered(&mut expansion, rule);
+        recorded(&mut plan, rule, lowered);
+    }
+    plan.steps = expansion.steps;
+    plan
+}
+
+/// A rule's emit, its observed outputs recorded for the rules that read them.
+fn rule_lowered<'p>(expansion: &mut Expansion<'p>, rule: &'p PackRule) -> Result<RuleEmit, PlanLoweringError> {
+    match &rule.program {
+        RuleProgram::Parsed(program) => rule_emit(expansion, &rule.rule.0, program),
+        RuleProgram::Unread(why) => Err(PlanLoweringError::Unread(WrittenText(why.0.clone()))),
+    }
+}
+
+/// The steps made from `made` on taken back, with every number and fragment instance that names one of them.
+fn taken_back(expansion: &mut Expansion<'_>, made: usize) {
+    expansion.steps.truncate(made);
+    expansion.numbers.retain(|number| number.0 < made);
+    expansion.instances.retain(|_, step| step.0 < made);
+    expansion.observed.retain(|_, step| step.0 < made);
+}
+
+/// A rule's lowering in the plan: planned, or unplanned with its refusal.
+fn recorded(plan: &mut FinishPlan, rule: &PackRule, lowered: Result<RuleEmit, PlanLoweringError>) {
         match lowered {
             Ok(emit) => plan.rules.push(PlannedRule {
                 rule: rule.rule.clone(),
@@ -53,14 +98,12 @@ pub(crate) fn expanded(pack: &PackPrograms) -> FinishPlan {
                 reason: UnplannedReason(refusal.to_string().into()),
             }),
         }
-    }
-    plan.steps = expansion.steps;
-    plan
 }
 
 /// A rule's program lowered: the step it emits.
 fn rule_emit<'p>(
     expansion: &mut Expansion<'p>,
+    rule: &'p str,
     program: &'p WrittenProgram,
 ) -> Result<RuleEmit, PlanLoweringError> {
     if let Some(parameter) = program.parameters.first() {
@@ -73,6 +116,10 @@ fn rule_emit<'p>(
         ..ProgramScope::default()
     };
     lets(expansion, &mut scope, &program.steps)?;
+    for observation in &program.observations {
+        let step = named(&scope, &observation.step.0.0)?;
+        let _earlier = expansion.observed.insert((rule, &*observation.name.0), step);
+    }
     let step = named(&scope, &program.emit.step.0.0)?;
     Ok(RuleEmit::Written(PlanEmit {
         step,
@@ -114,100 +161,46 @@ fn named(scope: &ProgramScope<'_>, name: &str) -> Result<StepNumber, PlanLowerin
         .ok_or_else(|| PlanLoweringError::UnknownStep(WrittenText(name.into())))
 }
 
-/// The step of a relation of the catalog.
-fn base(expansion: &mut Expansion<'_>, relation: &str) -> StepNumber {
-    numbered(expansion, FinishStep::Base(RelationName(relation.into())))
+/// The step of a relation of the catalog, or the rows of the context table of that name.
+fn base(expansion: &mut Expansion<'_>, relation: &str) -> Result<StepNumber, PlanLoweringError> {
+    let table = expansion.context.tables.iter().find(|table| *table.relation.0 == *relation);
+    let step = match table {
+        Some(table) => operator_step(OP_ROWS, table_arguments(table))?,
+        None => FinishStep::Base(RelationName(relation.into())),
+    };
+    Ok(numbered(expansion, step))
 }
 
-/// The number of a step: an equal step's when one was made, else the next. A step that holds no map is its own identity
-/// and is compared as it is; only a step that holds one is copied into its identity.
-fn numbered(expansion: &mut Expansion<'_>, step: FinishStep) -> StepNumber {
-    let Expansion { steps, numbers, hasher, .. } = expansion;
-    let mapped = holds_map(&step);
-    let identity_form = mapped.then(|| identity(&step));
-    let key = identity_form.as_ref().unwrap_or(&step);
-    let hash = hasher.hash_one(key);
-    let found = numbers.find(hash, |number| {
-        steps.get(number.0).is_some_and(|made| if mapped { identity(made) == *key } else { made == key })
-    });
-    if let Some(number) = found {
-        return *number;
+/// The step a name read as a relation names: the program's, else the rule observation of that name (the union of its
+/// producers' outputs lowered so far; unknown while none is).
+fn step_named(
+    expansion: &mut Expansion<'_>,
+    scope: &ProgramScope<'_>,
+    name: &str,
+) -> Result<StepNumber, PlanLoweringError> {
+    if let Ok(step) = named(scope, name) {
+        return Ok(step);
     }
-    let number = StepNumber(steps.len());
-    let _slot = numbers.insert_unique(hash, number, |earlier| {
-        steps.get(earlier.0).map_or(0, |made| {
-            if holds_map(made) { hasher.hash_one(identity(made)) } else { hasher.hash_one(made) }
-        })
-    });
-    steps.push(step);
-    number
-}
-
-/// Whether a step holds a map, whose entries its identity orders.
-fn holds_map(step: &FinishStep) -> bool {
-    matches!(step, FinishStep::Extend(_) | FinishStep::AsOf(_) | FinishStep::OrderedMatch(_) | FinishStep::Unlisted(_))
-}
-
-/// A step's identity: the step with the entries of every map it holds in key order, so that two steps differing only
-/// in the order a map was written are one.
-fn identity(step: &FinishStep) -> FinishStep {
-    let mut identity = step.clone();
-    match &mut identity {
-        FinishStep::Extend(extend) => {
-            extend.values.sort_by(|a, b| a.name.cmp(&b.name));
-            for value in &mut extend.values {
-                sorted_constant(&mut value.value);
+    let context = expansion.context;
+    let Some(seen) = context.observations.iter().find(|seen| *seen.name.0 == *name).filter(|_| expansion.observations_open)
+    else {
+        return named(scope, name);
+    };
+    let mut united: Option<StepNumber> = None;
+    for producer in &seen.producers {
+        let Some(output) = expansion.observed.get(&(&*producer.rule.0, &*producer.output.0)).copied() else {
+            continue;
+        };
+        let part = numbered(expansion, producer_select(output, &seen.columns));
+        united = Some(match united {
+            None => part,
+            Some(left) => {
+                let union = operator_step(OP_UNION, union_arguments(left, part))?;
+                numbered(expansion, union)
             }
-        }
-        FinishStep::AsOf(as_of) => as_of.output.sort_by(|a, b| a.name.cmp(&b.name)),
-        FinishStep::OrderedMatch(matched) => matched.output.sort_by(|a, b| a.name.cmp(&b.name)),
-        FinishStep::Unlisted(unlisted) => {
-            unlisted.arguments.sort_by(|a, b| a.name.cmp(&b.name));
-            for argument in &mut unlisted.arguments {
-                if let StepArgument::Constant(constant) = &mut argument.value {
-                    sorted_constant(constant);
-                }
-            }
-        }
-        FinishStep::Base(_)
-        | FinishStep::Select(_)
-        | FinishStep::Union(_)
-        | FinishStep::Antijoin(_)
-        | FinishStep::Axis(_)
-        | FinishStep::Closure(_)
-        | FinishStep::Follow(_)
-        | FinishStep::OrderedDfs(_)
-        | FinishStep::GroupCount(_)
-        | FinishStep::GroupMin(_)
-        | FinishStep::GroupMax(_)
-        | FinishStep::GroupOrdinal(_)
-        | FinishStep::Project(_)
-        | FinishStep::SpanBounds(_)
-        | FinishStep::SpanBetween(_)
-        | FinishStep::Replace(_)
-        | FinishStep::SourceMatches(_)
-        | FinishStep::Capture(_)
-        | FinishStep::FitsRendered(_)
-        | FinishStep::RenderSyntax(_)
-        | FinishStep::Rows(_)
-        | FinishStep::Prefixes(_)
-        | FinishStep::SubtreeClass(_) => {}
+        });
     }
-    identity
-}
-
-/// A constant with every map's entries in key order.
-fn sorted_constant(constant: &mut PlanConstant) {
-    match constant {
-        PlanConstant::List(items) => items.iter_mut().for_each(sorted_constant),
-        PlanConstant::Map(entries) => {
-            entries.sort_by(|a: &ConstantEntry, b: &ConstantEntry| a.key.cmp(&b.key));
-            for entry in entries {
-                sorted_constant(&mut entry.value);
-            }
-        }
-        PlanConstant::Text(_) | PlanConstant::Number(_) | PlanConstant::Absent => {}
-    }
+    united.ok_or_else(|| PlanLoweringError::UnknownStep(WrittenText(name.into())))
 }
 
 /// The step of a `let`'s expression.
@@ -229,8 +222,8 @@ fn source_step(
     source: &QuerySource,
 ) -> Result<SelectSource, PlanLoweringError> {
     let step = match &source.reference {
-        SourceReference::Relation(relation) => base(expansion, &relation.0),
-        SourceReference::Step(name) => named(scope, &name.0.0)?,
+        SourceReference::Relation(relation) => base(expansion, &relation.0)?,
+        SourceReference::Step(name) => step_named(expansion, scope, &name.0.0)?,
     };
     Ok(SelectSource {
         step,
@@ -306,9 +299,9 @@ fn relation(
     value: &ArgumentValue,
 ) -> Result<StepNumber, PlanLoweringError> {
     match value {
-        ArgumentValue::Text(relation) => Ok(base(expansion, &relation.0)),
-        ArgumentValue::Word(word) => named(scope, &word.0),
-        ArgumentValue::Step(name) => named(scope, &name.0.0),
+        ArgumentValue::Text(relation) => base(expansion, &relation.0),
+        ArgumentValue::Word(word) => step_named(expansion, scope, &word.0),
+        ArgumentValue::Step(name) => step_named(expansion, scope, &name.0.0),
         ArgumentValue::Number(_)
         | ArgumentValue::Parameter(_)
         | ArgumentValue::List(_)
@@ -332,6 +325,9 @@ fn called<'p>(
             .ok_or_else(|| PlanLoweringError::UnknownFragment(WrittenText((*fragment).into())))?;
         return inlined(expansion, scope, *fragment, program, &call.arguments);
     }
+    if operator == JOIN {
+        return join_called(expansion, scope, &call.arguments);
+    }
     let mut arguments = Vec::with_capacity(call.arguments.len());
     for argument in deduplicated(&call.arguments) {
         let name = &*argument.name.0;
@@ -347,6 +343,29 @@ fn called<'p>(
         });
     }
     let step = operator_step(operator, arguments)?;
+    Ok(numbered(expansion, step))
+}
+
+/// A `join` call's select (the `joins` concept); a missing argument refuses it.
+fn join_called<'p>(
+    expansion: &mut Expansion<'p>,
+    scope: &ProgramScope<'p>,
+    arguments: &'p [Argument],
+) -> Result<StepNumber, PlanLoweringError> {
+    let given = |name: &str| {
+        arguments
+            .iter()
+            .rev()
+            .find(|argument| &*argument.name.0 == name)
+            .map(|argument| &argument.value)
+            .ok_or_else(|| PlanLoweringError::NotGiven(WrittenText(name.into())))
+    };
+    let left = relation(expansion, scope, given(ARG_LEFT)?)?;
+    let right = relation(expansion, scope, given(ARG_RIGHT)?)?;
+    let left_on = constant(given(ARG_LEFT_ON)?, &scope.parameters)?;
+    let right_on = constant(given(ARG_RIGHT_ON)?, &scope.parameters)?;
+    let output = constant(given(ARG_OUTPUT)?, &scope.parameters)?;
+    let step = joined(&JoinCall { left, right, left_on: &left_on, right_on: &right_on, output: &output })?;
     Ok(numbered(expansion, step))
 }
 

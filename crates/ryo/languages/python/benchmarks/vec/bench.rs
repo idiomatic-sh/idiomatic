@@ -576,7 +576,9 @@ fn main() {
                 // the engine's lowering); `--finish <plan file>` reads a plan prepared beforehand (the oracle).
                 let t0 = thread_cpu();
                 let plan = if std::path::Path::new(finish_args[0]).is_dir() {
-                    let pack = lower::read_pack(std::path::Path::new(finish_args[0]));
+                    // `--request F`: the run's request, for the rule context the lowering reads
+                    let request = args.iter().position(|a| *a == "--request").map(|i| args[i + 1]);
+                    let pack = lower::read_pack(std::path::Path::new(finish_args[0]), request);
                     println!("start-up pack: read {:.4} parse {:.4} s", pack.read, pack.parse);
                     lower::second_half_plan(&pack)
                 } else {
