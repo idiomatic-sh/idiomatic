@@ -62,6 +62,12 @@ mod frame;
 mod known;
 #[path = "finish/empty_why.rs"]
 pub(super) mod empty_why;
+#[path = "finish/empty_sel.rs"]
+pub(super) mod empty_sel;
+#[path = "finish/select_bound.rs"]
+mod select_bound;
+#[path = "finish/key_absent.rs"]
+mod key_absent;
 #[path = "prefixes.rs"]
 mod prefixes;
 
@@ -2176,7 +2182,7 @@ impl<'p> Exec<'p> {
             && self.static_keyed
             && let Some(t) = self.ksel_probe(f, run, p, node, col, keys)?
         {
-            return Ok(Rc::new(t));
+            return Ok(t);
         }
         if op == "closure"
             && !f.lazies.contains_key(&node)
@@ -2551,7 +2557,10 @@ impl<'p> Exec<'p> {
         }
         // an empty answer is the step's shared one (the body's own table is dropped, nothing kept a run); the select's
         // dispatch point (by the frame's code)
-        let t = if fr.op == frame::Op::Select { self.select(f, run, p, node)? } else { self.step(f, run, p, node)? };
+        if fr.op == frame::Op::Select {
+            return self.select_entry(f, run, p, node);
+        }
+        let t = self.step(f, run, p, node)?;
         if t.n == 0 { self.empty_rc(run, node) } else { Ok(Rc::new(t)) }
     }
 
@@ -3081,6 +3090,7 @@ impl<'p> Exec<'p> {
             let sp = self.sel(run, node)?;
             if filter_order::file_fails(run, f, &sp.conj) {
                 *self.tally.back.entry((node, "a per-file test fails")).or_default() += 1;
+                empty_sel::at(empty_sel::stage::FILE_TEST);
                 return self.empty(run, node);
             }
         }
@@ -3089,6 +3099,7 @@ impl<'p> Exec<'p> {
             && !sw!("VEC_NO_SEMI")
             && let Some(t) = self.semi(f, run, p, node, pb as usize)?
         {
+            empty_sel::at(empty_sel::stage::SEMI);
             return Ok(t);
         }
         let sp = self.sel(run, node)?;
@@ -3107,7 +3118,11 @@ impl<'p> Exec<'p> {
             if let Src::Tab(t, _) = &src
                 && t.n == 0
             {
-                let _ = i;
+                empty_sel::with(|m| {
+                    m.stage = empty_sel::stage::SOURCE_EMPTY;
+                    m.src = i as u8;
+                    m.srcn = *n as u32;
+                });
                 return self.empty(run, node);
             }
             srcs.push(src);
@@ -3125,6 +3140,7 @@ impl<'p> Exec<'p> {
             let t = self.probe(f, run, p, sp.srcs[si], c, &ids)?;
             self.stats.touched[node] += ids.len() as u64;
             if t.n == 0 {
+                empty_sel::at(empty_sel::stage::SEED_EMPTY);
                 return self.empty(run, node);
             }
             srcs[si] = Src::Tab(t, usize::MAX - si);
@@ -3139,6 +3155,7 @@ impl<'p> Exec<'p> {
                     self.reason = "bound by the survivors (made, to drive)";
                     let t = self.eval(f, run, p, n)?;
                     if t.n == 0 {
+                        empty_sel::at(empty_sel::stage::BOUND_EMPTY);
                         return self.empty(run, node);
                     }
                     srcs[i] = Src::Tab(t, n);
@@ -3180,6 +3197,7 @@ impl<'p> Exec<'p> {
                 self.reason = "join driver: a step bounded by a small input";
                 let t = self.eval(f, run, p, n)?;
                 if t.n == 0 {
+                    empty_sel::at(empty_sel::stage::PENDSIZE_EMPTY);
                     return self.empty(run, node);
                 }
                 best = t.n;
@@ -3210,6 +3228,7 @@ impl<'p> Exec<'p> {
                         let t = self.probe(f, run, p, n, ic, &ids)?;
                         self.stats.touched[node] += ids.len() as u64;
                         if t.n == 0 {
+                            empty_sel::at(empty_sel::stage::BUCKET_EMPTY);
                             return self.empty(run, node);
                         }
                         srcs[d] = Src::Tab(t, usize::MAX - d);
@@ -3221,6 +3240,7 @@ impl<'p> Exec<'p> {
                         self.reason = "join driver: no source bound";
                         let t = self.eval(f, run, p, n)?;
                         if t.n == 0 {
+                            empty_sel::at(empty_sel::stage::PENDING_EMPTY);
                             return self.empty(run, node);
                         }
                         srcs[d] = Src::Tab(t, n);
@@ -3278,6 +3298,14 @@ impl<'p> Exec<'p> {
             used[c] = true;
         }
         let mut count = tuples[driver].len();
+        empty_sel::with(|m| {
+            m.d0 = match &srcs[driver] {
+                Src::Tab(t, _) => t.n as u32,
+                _ => first.len() as u32,
+            };
+            m.d1 = count as u32;
+            m.stage = if k == 1 { empty_sel::stage::ONE_SOURCE_FILTERED } else { empty_sel::stage::DRIVER_FILTERED };
+        });
         while bound.count_ones() as usize != k {
             if count == 0 {
                 for t in tuples {
@@ -3344,6 +3372,12 @@ impl<'p> Exec<'p> {
                         self.key_set = seen;
                         let sub = self.probe(f, run, p, pn, col, &ks)?;
                         self.stats.touched[node] += sub.n as u64;
+                        empty_sel::with(|m| {
+                            m.built |= empty_sel::stage::B_PROBE;
+                            if sub.n == 0 {
+                                m.stage = empty_sel::stage::OTHER_PROBED_EMPTY;
+                            }
+                        });
                         srcs[si] = Src::Tab(sub, usize::MAX - si);
                     }
                     // a view probed on a column it cannot be probed on in place is made whole, then indexed
@@ -3432,6 +3466,18 @@ impl<'p> Exec<'p> {
                         used[ci] = false;
                     }
                     let checks: Vec<usize> = (0..conj.len()).filter(|c| !used[*c] && refs[*c] & !nb == 0).collect();
+                    empty_sel::with(|m| {
+                        m.o = match &srcs[si] {
+                            Src::Tab(t, _) => t.n as u32,
+                            _ => u32::MAX,
+                        };
+                        m.built |= match &srcs[si] {
+                            Src::Tab(_, tn) if *tn > usize::MAX - 64 => empty_sel::stage::B_INDEX_FRESH,
+                            Src::Tab(..) => empty_sel::stage::B_INDEX_FILE,
+                            _ => empty_sel::stage::B_VIEW_PROBE,
+                        };
+                    });
+                    let mut any_hit = false;
                     let index = if let Src::Tab(t, tn) = &srcs[si] {
                         Some(if *tn > usize::MAX - 64 { Rc::new(index_of(t, &tab_cols)) } else { table_index(f, *tn, t, &tab_cols) })
                     } else {
@@ -3475,6 +3521,7 @@ impl<'p> Exec<'p> {
                             _ => unreachable!(),
                         }
                         self.stats.touched[node] += hits.len() as u64;
+                        any_hit |= !hits.is_empty();
                         for h in &hits {
                             cur[si] = *h;
                             if checks.iter().all(|c| truthy(eval(run, f, &srcs, &cur, &conj[*c]))) {
@@ -3489,6 +3536,11 @@ impl<'p> Exec<'p> {
                     for c in checks {
                         used[c] = true;
                     }
+                    empty_sel::with(|m| {
+                        if m.stage != empty_sel::stage::OTHER_PROBED_EMPTY {
+                            m.stage = if any_hit { empty_sel::stage::RESIDUAL } else { empty_sel::stage::KEYS_MISS };
+                        }
+                    });
                     bound = nb;
                 }
                 None => {
@@ -3504,6 +3556,7 @@ impl<'p> Exec<'p> {
                         srcs[si] = Src::Tab(self.eval(f, run, p, pn)?, pn);
                     }
                     let nb = bound | (1 << si);
+                    empty_sel::at(empty_sel::stage::CROSS);
                     let checks: Vec<usize> = (0..conj.len()).filter(|c| !used[*c] && refs[*c] & !nb == 0).collect();
                     let rows: Rc<Vec<u32>> = match &srcs[si] {
                         Src::Tab(t, _) => Rc::new((0..t.n as u32).collect()),
