@@ -156,6 +156,34 @@ fn purged(drafts: &mut Drafts, origin: DefinitionId, below: u64) {
     }
 }
 
+/// The table-form patterns of a definition as the trace says them: each key, its sites, whether some ask had none.
+fn readers_said(drafts: &Drafts, definition: DefinitionId) -> String {
+    let Some(draft) = usize::try_from(definition.0)
+        .ok()
+        .and_then(|place| drafts.definitions.get(place))
+    else {
+        return String::new();
+    };
+    draft
+        .patterns
+        .iter()
+        .map(|pattern| {
+            format!(
+                "[{} bound {:?} sites {} opaque {}]",
+                match pattern.form {
+                    Some(PatternForm::Table(_)) => "table",
+                    Some(PatternForm::Call(_)) => "call",
+                    None => "none",
+                },
+                pattern.asked.bound.0.iter().map(|column| column.0).collect::<Vec<_>>(),
+                pattern.sites.len(),
+                pattern.opaque
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
 /// Says why a table was not restricted, when traced.
 fn skipped(definition: DefinitionId, why: &str) {
     if std::env::var_os("RYO_L1B_RESTRICT_TRACE").is_some() {
@@ -197,7 +225,7 @@ pub(crate) fn restricted(
         let Some((mask, sites)) = readers(drafts, definition) else {
             skipped(
                 definition,
-                "readers: whole, two keys, none, or asked where no site is kept",
+                &format!("table={} readers: {}", table.0, readers_said(drafts, definition)),
             );
             continue;
         };
