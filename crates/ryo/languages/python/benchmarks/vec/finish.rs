@@ -21,6 +21,8 @@ pub(super) mod band;
 mod closure_walk;
 #[path = "walk.rs"]
 mod walk;
+#[path = "filter_order.rs"]
+mod filter_order;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum Ty {
@@ -1953,6 +1955,13 @@ impl<'p> Exec<'p> {
     }
 
     fn select(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Table> {
+        {
+            let sp = self.sel(run, node)?;
+            if filter_order::file_fails(run, f, &sp.conj) {
+                *self.tally.back.entry((node, "a per-file test fails")).or_default() += 1;
+                return self.empty(run, node);
+            }
+        }
         if let Some(pb) = self.plan.nodes[node].j.get("semi").and_then(J::as_u64)
             && self.plan.nodes[node].j.get("count").is_none()
             && std::env::var_os("VEC_NO_SEMI").is_none()
@@ -2785,6 +2794,11 @@ fn view_holds(f: &File<'_>, run: &mut Run, v: &ViewSpec, row: u32) -> bool {
 fn view_rows(f: &mut File<'_>, run: &mut Run, v: &ViewSpec, node: usize) -> Rc<Vec<u32>> {
     if let Some(r) = f.vrows.get(&node) {
         return r.clone();
+    }
+    if filter_order::file_fails(run, f, &v.filter) {
+        let rc = Rc::new(Vec::new());
+        f.vrows.insert(node, rc.clone());
+        return rc;
     }
     let rows = match kind_set(run, &v.filter, 0, v.base, &[]) {
         Some(ks) => bucket(f, run, &ks),
