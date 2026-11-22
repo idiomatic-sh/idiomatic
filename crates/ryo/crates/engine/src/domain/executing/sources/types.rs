@@ -59,6 +59,18 @@ impl NeedFacts for FileNeeds<'_, '_, '_> {
         if let Some(slot) = self.0.state.needs.get_mut(place) {
             *slot = Some(verdict);
         }
+        // A site decided is its own value from the free terms for the rest of the file: one read finds either.
+        let value = match verdict {
+            NeedVerdict::Holds => FreeValue::Holds,
+            NeedVerdict::Empty => FreeValue::Empty,
+        };
+        let sites = &mut self.0.state.need_terms.sites;
+        if sites.len() <= place {
+            sites.resize(place.saturating_add(1), FreeValue::Unfound);
+        }
+        if let Some(held) = sites.get_mut(place) {
+            *held = value;
+        }
     }
 
     fn kind_present(&mut self, kind: KindBits) -> NeedVerdict {
@@ -185,12 +197,7 @@ impl FileNeeds<'_, '_, '_> {
     /// What a site's formula says of the file from the free terms alone (and what the file already answered): found
     /// once a file. A site decided in the file is its decision.
     fn site_free(&mut self, site: NeedSite, root: u32) -> FreeValue {
-        if let Some(kept) = self.kept(site) {
-            return match kept {
-                NeedVerdict::Holds => FreeValue::Holds,
-                NeedVerdict::Empty => FreeValue::Empty,
-            };
-        }
+        // A site decided in the file holds its decision here (`keep`).
         let place = usize::try_from(site.0).unwrap_or(usize::MAX);
         match self.0.state.need_terms.sites.get(place).copied() {
             Some(FreeValue::Unfound) | None => {}
@@ -204,6 +211,19 @@ impl FileNeeds<'_, '_, '_> {
 
     /// What another site's formula says of the file from the free terms alone, compiled now when this is its first ask.
     fn site_free_named(&mut self, site: NeedSite) -> FreeValue {
+        match self
+            .0
+            .state
+            .need_terms
+            .sites
+            .get(usize::try_from(site.0).unwrap_or(usize::MAX))
+            .copied()
+        {
+            Some(FreeValue::Empty) => return FreeValue::Empty,
+            Some(FreeValue::Holds) => return FreeValue::Holds,
+            Some(FreeValue::Open | FreeValue::Deciding) => return FreeValue::Open,
+            Some(FreeValue::Unfound) | None => {}
+        }
         let code = self.0.fill.programs.code;
         let root = site_root(code, site, &mut self.0.state.need_masks);
         // A site compiled now may have met free terms the file's bits do not answer yet.
@@ -260,7 +280,13 @@ impl FileNeeds<'_, '_, '_> {
     /// tables already made: `Open` when what is not known yet decides. Asks nothing that costs.
     fn node_free(&mut self, node: u32) -> FreeValue {
         visit(self.0.state, 1);
-        if !self.musts_held(node) {
+        let held = self.node(node);
+        // A node of parts, or another site, is first held to the free terms it cannot hold without; a leaf is its own.
+        if matches!(
+            held,
+            FormulaNode::All(_) | FormulaNode::Any(_) | FormulaNode::Site(_) | FormulaNode::TableNeed(_)
+        ) && !self.musts_held(node)
+        {
             visit(self.0.state, 3);
             return FreeValue::Empty;
         }
@@ -271,7 +297,7 @@ impl FileNeeds<'_, '_, '_> {
                 FreeValue::Empty
             }
         };
-        match self.node(node) {
+        match held {
             FormulaNode::Always => FreeValue::Holds,
             FormulaNode::Never => FreeValue::Empty,
             FormulaNode::Free(bit) => holds(self.free_bit(bit)),
@@ -332,10 +358,15 @@ impl FileNeeds<'_, '_, '_> {
     /// a filled relation's any-row term last), stopping at the first part that decides.
     fn node_decided(&mut self, node: u32) -> NeedVerdict {
         visit(self.0.state, 2);
-        if !self.musts_held(node) {
+        let held = self.node(node);
+        if matches!(
+            held,
+            FormulaNode::All(_) | FormulaNode::Any(_) | FormulaNode::Site(_) | FormulaNode::TableNeed(_)
+        ) && !self.musts_held(node)
+        {
             return NeedVerdict::Empty;
         }
-        match self.node(node) {
+        match held {
             FormulaNode::Always => NeedVerdict::Holds,
             FormulaNode::Never => NeedVerdict::Empty,
             FormulaNode::Free(bit) => {
@@ -352,7 +383,7 @@ impl FileNeeds<'_, '_, '_> {
                 ports.table_need(self.0, table)
             }
             FormulaNode::AllBits(words) | FormulaNode::AnyBits(words) => {
-                let every = matches!(self.node(node), FormulaNode::AllBits(_));
+                let every = matches!(held, FormulaNode::AllBits(_));
                 if self.bits_held(words, every) {
                     NeedVerdict::Holds
                 } else {
