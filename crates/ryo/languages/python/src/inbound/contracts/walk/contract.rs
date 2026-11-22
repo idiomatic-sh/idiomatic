@@ -43,6 +43,8 @@ pub(crate) struct PythonWalkScratch {
     pub(crate) forms: FormImports,
     /// The qualified name in hand while the walk asks what a name is.
     pub(crate) path: QualifiedPath,
+    /// The buffers the walk interns names and writes the lexical part into, handed to the walk and back from file to file.
+    pub(crate) names: crate::domain::model::names::types::WalkNames,
 }
 
 impl Default for PythonWalkScratch {
@@ -55,6 +57,7 @@ impl Default for PythonWalkScratch {
             file,
             forms: FormImports::default(),
             path: QualifiedPath::default(),
+            names: crate::domain::model::names::types::WalkNames::default(),
         }
     }
 }
@@ -82,6 +85,8 @@ impl Walk for PythonWalk<WalkPorts> {
         };
         let target = self.ports.settings.target_version().components();
         scratch.file.model.target = target;
+        let mut names = std::mem::take(&mut scratch.names);
+        crate::domain::model::names::service::cleared(&mut names);
         let mut reading = Reading {
             request,
             target,
@@ -94,6 +99,7 @@ impl Walk for PythonWalk<WalkPorts> {
             source_kind(request.path),
             reported,
             builder,
+            names,
             &mut |walked| match walked {
                 Walked::Strings(tree) => type_hosts(&mut reading, tree),
                 Walked::Whole(written, tree) => {
@@ -154,39 +160,43 @@ fn type_hosts(reading: &mut Reading<'_, '_>, tree: &WalkedTree<'_>) -> Vec<Posit
 
 /// Lends the engine the walked file, over the language's fillers, while the parses live.
 fn lent(reading: &mut Reading<'_, '_>, builder: &mut NodeTableBuilder<'_>, tree: WalkedTree<'_>) {
-    let table = node_table::finished(builder);
-    let own = tree
-        .segments
-        .first()
-        .map_or(tree.nodes.len(), |segment| usize::from(segment.first));
-    let mut file = PythonFile {
-        syntax: SyntaxFile {
-            table,
-            nodes: tree.nodes.get(..own).unwrap_or_default(),
-            tree: TypedTree {
-                segments: &tree.segments,
-                parents: &tree.parents,
-                ends: &tree.ends,
-                nodes: &tree.nodes,
-                annotations: tree.annotations,
-                named: &tree.names,
+    {
+        let table = node_table::finished(builder);
+        let own = tree
+            .segments
+            .first()
+            .map_or(tree.nodes.len(), |segment| usize::from(segment.first));
+        let mut file = PythonFile {
+            syntax: SyntaxFile {
+                table,
+                nodes: tree.nodes.get(..own).unwrap_or_default(),
+                tree: TypedTree {
+                    segments: &tree.segments,
+                    parents: &tree.parents,
+                    ends: &tree.ends,
+                    nodes: &tree.nodes,
+                    annotations: tree.annotations,
+                    named: &tree.names,
+                },
+                text: tree.text,
+                file: reading.request.file,
+                completeness: tree.completeness,
             },
-            text: tree.text,
+            target: reading.target,
+            model: &mut reading.scratch.file.model,
+            built: reading.built,
+            analysed: Analysed::default(),
+            buffers: &mut reading.scratch.file.buffers,
+        };
+        let mut source = fillers::file_source::<PythonWalk<WalkPorts>>(&mut file);
+        reading.visit.visit(FileFacts {
+            table,
+            source: reading.request.source,
             file: reading.request.file,
-            completeness: tree.completeness,
-        },
-        target: reading.target,
-        model: &mut reading.scratch.file.model,
-        built: reading.built,
-        analysed: Analysed::default(),
-        buffers: &mut reading.scratch.file.buffers,
-    };
-    let mut source = fillers::file_source::<PythonWalk<WalkPorts>>(&mut file);
-    reading.visit.visit(FileFacts {
-        table,
-        source: reading.request.source,
-        file: reading.request.file,
-        path: reading.request.path,
-        facts: &mut source,
-    });
+            path: reading.request.path,
+            facts: &mut source,
+        });
+    }
+    // The walk's buffers go back to the worker for the next file.
+    reading.scratch.names = tree.names;
 }

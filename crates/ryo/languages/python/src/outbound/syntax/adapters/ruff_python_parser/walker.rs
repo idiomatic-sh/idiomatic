@@ -17,7 +17,9 @@ use crate::domain::syntax::constants::{
 };
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::model::lexical::service::opened;
+use crate::domain::model::names::constants::FIXED_TEXT;
 use crate::domain::model::names::service::{intern, text_of};
+use crate::domain::model::names::types::NameCode;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
 use ruff_python_ast::visitor::source_order::{
@@ -75,7 +77,12 @@ impl Walker<'_, '_, '_> {
             (Some(_) | None, Kind::Node(_) | Kind::Token(_) | Kind::Extra(_)) => Field::None,
         };
         if matches!(kind, Kind::Token(Token::Name)) && !self.text.is_empty() {
-            self.name_token(start, end);
+            if token.kind().is_non_soft_keyword() {
+                // A keyword is a fixed text of the language: its code is its kind's, the same in every file.
+                self.names.of_token.push(NameCode(FIXED_TEXT | token.kind() as u32));
+            } else {
+                self.name_token(start, end);
+            }
         }
         node_table::token(self.builder, kind_bits(kind), field_code(field), start, end);
         self.written = end;

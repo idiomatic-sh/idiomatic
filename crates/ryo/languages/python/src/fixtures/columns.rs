@@ -327,7 +327,9 @@ impl ColumnWalk {
         let scratch = &mut self.scratch;
         let memo = &mut self.memo;
         let words = &mut self.words;
-        self.walk.ports.syntax.walk(SourceText(bytes), source_kind(source_path), ReportedSyntax::Refusals, &mut builder, &mut |walked| match walked {
+        let mut names = std::mem::take(&mut scratch.names);
+        crate::domain::model::names::service::cleared(&mut names);
+        self.walk.ports.syntax.walk(SourceText(bytes), source_kind(source_path), ReportedSyntax::Refusals, &mut builder, names, &mut |walked| match walked {
             Walked::Strings(tree) => {
                 built_parts = Built::default();
                 let mut hosts = Vec::new();
@@ -345,6 +347,8 @@ impl ColumnWalk {
             }
             Walked::Whole(written, tree) => {
                 lend(written, &tree, target, scratch, built_parts, memo, words, visit);
+                // the walk's buffers go back to the worker for the next file
+                scratch.names = tree.names;
                 Vec::new()
             }
         });
@@ -421,7 +425,8 @@ fn flag(value: Flag) -> u32 {
 
 impl ColumnFile<'_, '_> {
     /// The code the walk interned for each name token of the file's own tree, in id order, into `out` (cleared first): equal
-    /// codes are equal texts. Empty when the file's bytes were not text.
+    /// codes are equal texts. A code with the high bit set (`FIXED_TEXT`) is a fixed text of the language, the same text in
+    /// every file of the run. Empty when the file's bytes were not text.
     pub fn name_token_codes(&self, out: &mut Vec<u32>) {
         out.clear();
         out.extend(self.file.syntax.tree.named.of_token.iter().map(|code| code.0));

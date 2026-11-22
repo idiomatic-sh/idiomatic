@@ -2,13 +2,34 @@
 
 use super::constants::{EMPTY_WORD, HASH_START, HASH_STEP, UNKNOWN_NAME};
 use super::types::{
-    FactWords, FixedWords, NameCode, NameEntry, NameHash, NameSlot, NameTable, NameWords, TextPlace,
+    FactWords, FixedWords, NameCode, NameEntry, NameHash, NameSlot, NameTable, NameWords, TextPlace, WalkNames,
 };
 use crate::domain::names::service::unknown;
 use crate::domain::names::types::Unresolved;
 use crate::domain::qualification::service::builtin_named;
 use crate::domain::qualification::types::Version;
 use ryo::languages::{CellWord, FileWords, FixedWord, NameText, Offset, Symbol, facts};
+
+/// Forgets every name the walk interned and the lexical part it wrote, keeping the buffers: what a walk of the next file starts
+/// from.
+pub(crate) fn cleared(walked: &mut WalkNames) {
+    walked.names.texts.0.clear();
+    walked.names.entries.clear();
+    walked.names.slots.fill(NameSlot(0));
+    let lexical = &mut walked.lexical;
+    lexical.nodes = ryo::languages::Count(0);
+    lexical.class.clear();
+    lexical.scope_of.clear();
+    lexical.name.clear();
+    lexical.usage.clear();
+    lexical.annotation.clear();
+    lexical.declared.clear();
+    lexical.binders.clear();
+    lexical.deleted.clear();
+    lexical.hazards.clear();
+    lexical.imports.clear();
+    walked.of_token.clear();
+}
 
 /// Makes `into` a copy of `from`, keeping `into`'s buffers.
 pub(crate) fn copy(into: &mut NameTable, from: &NameTable) {

@@ -89,6 +89,7 @@ pub(super) fn walked(
     source_kind: PythonSourceKind,
     reported: ReportedSyntax,
     builder: &mut languages::NodeTableBuilder<'_>,
+    names: crate::domain::model::names::types::WalkNames,
     read: &mut dyn FnMut(Walked<'_, '_, '_>) -> Vec<Position>,
 ) {
     let Readable(source) = readable(text);
@@ -131,7 +132,7 @@ pub(super) fn walked(
         annotating: Depth(0),
         literals: Vec::new(),
         imports: Vec::new(),
-        names: crate::domain::model::names::types::WalkNames::default(),
+        names,
         text: if utf8 { &source } else { "" },
     };
     walker.visit_mod(parsed.syntax());

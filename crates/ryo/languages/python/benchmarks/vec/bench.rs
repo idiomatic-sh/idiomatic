@@ -1193,6 +1193,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     // the walk's code of each name token, and the required word of each code met in the file
     let mut name_codes: Vec<u32> = Vec::new();
     let mut word_memo: Vec<u32> = Vec::new();
+    let mut fixed_memo: Vec<u32> = Vec::new();
     let (mut missing_in_src, mut extra_in_src, mut present_total, mut distinct_total) = (0u64, 0u64, 0u64, 0u64);
     let (mut alive_kinds, mut alive_both, mut rule_files) = (0u64, 0u64, 0u64);
     let mut word_entry_bound = 0u64;
@@ -1273,7 +1274,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                     // phase then only lays out the index (timed there, not in deciding)
                     let fw = thread_cpu();
                     file.name_token_codes(&mut name_codes);
-                    funnel::file_words(ft, &bytes, name_token, &name_codes, &words, &mut word_memo, &mut present, &mut word_pairs);
+                    funnel::file_words(ft, &bytes, name_token, &name_codes, &words, &mut word_memo, &mut fixed_memo, &mut present, &mut word_pairs);
                     words_written = true;
                     let fw = thread_cpu() - fw;
                     words_time += fw;
@@ -1708,7 +1709,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
             match word_src.as_str() {
                 "table" => {
                     if !words_written {
-                        funnel::file_words(t, &bytes, name_token, &[], &words, &mut word_memo, &mut present, &mut word_pairs);
+                        funnel::file_words(t, &bytes, name_token, &[], &words, &mut word_memo, &mut fixed_memo, &mut present, &mut word_pairs);
                     }
                     // the index: name-token positions of each required word
                     word_offsets.clear();
