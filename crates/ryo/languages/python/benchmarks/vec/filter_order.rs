@@ -35,7 +35,7 @@ fn subst(e: &E, file: u64) -> E {
 
 /// Whether some per-file test of `conj` fails in this file (the step is then empty).
 pub(super) fn file_fails(run: &mut Run, f: &File<'_>, conj: &[E]) -> bool {
-    if std::env::var_os("VEC_NO_FILECONST").is_some() {
+    if sw!("VEC_NO_FILECONST") {
         return false;
     }
     let srcs: [Src; 0] = [];

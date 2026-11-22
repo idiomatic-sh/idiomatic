@@ -10,7 +10,7 @@ use std::rc::Rc;
 impl Exec<'_> {
     /// Whether a step not made yet is left pending, to be read by the keys of whatever reads it.
     pub(super) fn deferred(&mut self, f: &File<'_>, run: &mut Run, node: usize) -> R<bool> {
-        if f.memo[node].is_some() || self.view(run, node)?.is_some() || std::env::var_os("VEC_NO_KEYED").is_some() {
+        if f.memo[node].is_some() || self.view(run, node)?.is_some() || sw!("VEC_NO_KEYED") {
             return Ok(false);
         }
         if self.static_keyed {

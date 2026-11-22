@@ -16,7 +16,7 @@ use serde_json::Value as J;
 impl Exec<'_> {
     /// The axis `node` over `from` in one of the forms above, or None (the axis runs as before).
     pub(super) fn walk_axis(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, a: &J, from: &Table) -> R<Option<Table>> {
-        if std::env::var_os("VEC_NO_AXISWALK").is_some() {
+        if sw!("VEC_NO_AXISWALK") {
             return Ok(None);
         }
         let dir = s(&a["direction"])?.to_owned();

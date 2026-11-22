@@ -109,7 +109,7 @@ impl Exec<'_> {
         let (an, bn) = (sp.srcs[ka], sp.srcs[pb]);
         let bty = self.schema(run, bn)?.tys.clone();
         let sh = shape(&sp.conj, pb, &bty);
-        if !count && sh.band.is_none() && std::env::var_os("VEC_SEMI_EQ").is_none() {
+        if !count && sh.band.is_none() && !sw!("VEC_SEMI_EQ") {
             *self.tally.back.entry((node, "no band")).or_default() += 1;
             return Ok(None);
         }
@@ -312,7 +312,7 @@ impl Exec<'_> {
     pub(super) fn semi_drives_whole(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, asked: usize) -> R<bool> {
         let j = &self.plan.nodes[node].j;
         let Some(pb) = j.get("semi").and_then(serde_json::Value::as_u64) else { return Ok(false) };
-        if j.get("count").is_some() || std::env::var_os("VEC_NO_SEMI").is_some() {
+        if j.get("count").is_some() || sw!("VEC_NO_SEMI") {
             return Ok(false);
         }
         let sp = self.sel(run, node)?;
