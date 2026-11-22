@@ -1,11 +1,12 @@
 //! redo-binding pass 4 (THROWAWAY, bead ryo-fmx3.1): the `deferred-visit` fact. For every element of a file, whether its
-//! evaluation is postponed past its statement (`deferred`) or it is never evaluated as an expression (`unvisited`): an
+//! evaluation is postponed past its statement (`deferred`): an
 //! element of a type expression in a stub (PEP 484: a stub's annotations are never evaluated in order), of an annotation
 //! Python stores without evaluating (PEP 563 postponed, PEP 649 deferred, an unevaluated local annotation under the
 //! future), of any annotation in a stub, of a type parameter's bound or default, a `type` alias value, a string
-//! annotation's embedded expression, or a stub class header; `unvisited`: what a typing form leaves unvisited
-//! (`type-expression`'s `skipped`). Written from the node table and the two facts it composes (`type-expression`,
-//! `annotation-evaluation`); proved against `deferred-type-reads` by the equality probe.
+//! annotation's embedded expression, or a stub class header. Written from the node table and the two facts it composes
+//! (`type-expression`, `annotation-evaluation`); proved against `deferred-type-reads` by the equality probe. Pass 5
+//! (PRINCIPLE): what a checker leaves unvisited (Ruff: the unpacked keywords of some typing calls, `bool`'s keywords) is
+//! rule text (`deferred-type-reads` over `type-definition-skipped`), not this fact.
 
 use super::finish;
 use ryo::languages::{NodeTable, Position, node_table};
@@ -29,7 +30,7 @@ pub(super) struct Inputs<'t> {
     pub(super) future: bool,
 }
 
-/// The fact's rows: (element, deferred = true | unvisited = false).
+/// The fact's rows: (element, deferred = true).
 pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -> Result<Vec<(u32, bool)>, String> {
     let n = node_table::element_count(table).0 as u32;
     let expression: Vec<u32> = EXPRESSION_KINDS.iter().map(|k| run.sym(k)).collect();
@@ -37,7 +38,7 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
     let k_function = [run.sym(b"function-def"), run.sym(b"async-function-def")];
     let k_params = [run.sym(b"type-var"), run.sym(b"type-var-tuple"), run.sym(b"param-spec")];
     let (f_annotation, f_returns, f_bound, f_default, f_value) = (run.sym(b"annotation"), run.sym(b"returns"), run.sym(b"bound"), run.sym(b"default-value"), run.sym(b"value"));
-    let (s_type, s_skipped) = (u64::from(run.sym(b"type")), u64::from(run.sym(b"skipped")));
+    let s_type = u64::from(run.sym(b"type"));
     let (s_postponed, s_deferred, s_unevaluated) = (u64::from(run.sym(b"postponed")), u64::from(run.sym(b"deferred")), u64::from(run.sym(b"unevaluated")));
     let kind = |p: u32| run.kind_sym[usize::from(node_table::kind_of(table, Position(p)).0)];
     let field = |p: u32| run.field_sym.get(usize::from(node_table::field_of(table, Position(p)).0)).copied().unwrap_or(run.empty);
@@ -48,15 +49,12 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
     let children = |x: u32| node_table::children_of(table, Position(x)).iter().map(|c| c.0).filter(move |c| *c < n);
     let subtree = |x: u32| x..node_table::subtree_end_of(table, Position(x)).0.max(x + 1);
     let mut typed = vec![false; n as usize];
-    let mut skipped = vec![false; n as usize];
     let (t_id, t_kind) = (col(inp.types, "id")?, col(inp.types, "kind")?);
     for r in 0..inp.types.n {
         let x = inp.types.cols[t_id][r] as usize;
         if x < n as usize {
             if inp.types.cols[t_kind][r] == s_type {
                 typed[x] = true;
-            } else if inp.types.cols[t_kind][r] == s_skipped {
-                skipped[x] = true;
             }
         }
     }
@@ -142,9 +140,7 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
     }
     let mut out = Vec::new();
     for x in 0..n as usize {
-        if is_expression[x] && skipped[x] {
-            out.push((x as u32, false));
-        } else if deferred[x] {
+        if deferred[x] {
             out.push((x as u32, true));
         }
     }

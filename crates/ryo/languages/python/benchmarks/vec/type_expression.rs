@@ -1,15 +1,18 @@
 //! redo-binding pass 4 (THROWAWAY, bead ryo-fmx3.1): the `type-expression` fact. For every element of a file, whether the
-//! typing rules make it part of a type expression, as the checker's type-definition context classifies it: the roots
-//! (annotations, `TypeAlias` values, type parameter payloads, string annotations, the slices of the generic forms, the type
-//! arguments of the typing calls: cast, NewType, TypeVar, TypeAliasType, NamedTuple, TypedDict, the mypy_extensions forms,
-//! the first argument of `Annotated`, the field types of a TypedDict form) make their subtree a type expression down to the
-//! nearest value root (a call's arguments but those of `bool`, `Annotated` metadata, the TypedDict form's keys). Elements a
-//! typing form leaves unvisited as an expression (the unpacked keywords of cast / NewType / TypeAliasType and every keyword
-//! of `bool`, with their subtrees) are `skipped`. Every other element is a value expression and has no row.
+//! typing rules make it part of a type expression: the roots (annotations, `TypeAlias` values, type parameter payloads,
+//! string annotations, the slices of the generic forms, the type arguments of the typing calls: cast, NewType, TypeVar,
+//! TypeAliasType, NamedTuple, TypedDict, the mypy_extensions forms, the first argument of `Annotated`, the field types of a
+//! TypedDict form) make their subtree a type expression down to the nearest value root (every call's arguments, `Annotated`
+//! metadata, the TypedDict form's keys). `type` for an element of a type expression; `value` for a value root nested in a
+//! type expression (the start of a value expression some enclosing expression's type expression holds); every other
+//! element is a value expression and has no row.
+//!
+//! Pass 5 (PRINCIPLE): the fact states the typing rules only. What one checker chooses on top (Ruff keeps a `bool(...)`
+//! argument in its enclosing context, and leaves the unpacked keywords of cast / NewType / TypeAliasType and every keyword
+//! of `bool` unvisited) is rule text: the pack fragments `type-definition-context` and `type-definition-skipped`.
 //!
 //! The prototype computes it from the provider's node table and four provider relations (qualified-name, call-argument,
-//! identifier, embedded-expression); a provider would write it from its own model. Proved against the fragment it replaces
-//! (`type-definition-context`, `type-definition-skipped`) by the equality probe on every element of every file.
+//! identifier, embedded-expression); a provider would write it from its own model.
 
 use super::finish;
 use ryo::languages::{NodeTable, Position, node_table};
@@ -18,7 +21,7 @@ use std::sync::LazyLock;
 
 static TYPED: LazyLock<regex::bytes::Regex> = LazyLock::new(|| {
     regex::bytes::Regex::new(
-        "^(?:(?:typing|typing_extensions|_typeshed)[.](?:cast|NewType|TypeVar|TypeAliasType|NamedTuple|TypedDict)|mypy_extensions[.](?:Arg|DefaultArg|NamedArg|DefaultNamedArg|VarArg|KwArg)|builtins[.]bool)$",
+        "^(?:(?:typing|typing_extensions|_typeshed)[.](?:cast|NewType|TypeVar|TypeAliasType|NamedTuple|TypedDict)|mypy_extensions[.](?:Arg|DefaultArg|NamedArg|DefaultNamedArg|VarArg|KwArg))$",
     )
     .expect("regex")
 });
@@ -37,7 +40,6 @@ enum Form {
     NamedTuple,
     TypedDict,
     Mypy,
-    Bool,
 }
 
 fn form_of(path: &[u8]) -> Option<Form> {
@@ -56,10 +58,8 @@ fn form_of(path: &[u8]) -> Option<Form> {
         Form::NamedTuple
     } else if path.ends_with(b".TypedDict") {
         Form::TypedDict
-    } else if path.starts_with(b"mypy_extensions.") {
-        Form::Mypy
     } else {
-        Form::Bool
+        Form::Mypy
     })
 }
 
@@ -75,7 +75,7 @@ fn col(t: &finish::Table, n: &str) -> Result<usize, String> {
     t.names.iter().position(|c| c == n).ok_or_else(|| format!("no column {n}"))
 }
 
-/// The fact's rows: (element, `type` | `skipped`).
+/// The fact's rows: (element, `type` | `value`): `value` for the root of a value expression nested in a type expression.
 pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -> Result<Vec<(u32, bool)>, String> {
     let n = node_table::element_count(table).0;
     let sym = |run: &mut finish::Run, t: &[u8]| run.sym(t);
@@ -207,16 +207,13 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
     let (a_call, a_expr, a_pos) = (col(inp.arguments, "call")?, col(inp.arguments, "expression")?, col(inp.arguments, "position")?);
     let mut types = vec![false; n];
     let mut values = vec![false; n];
-    let mut skipped_roots: Vec<u32> = Vec::new();
     let mut positional: FxHashMap<u32, Vec<(i64, u32)>> = FxHashMap::default();
     for r in 0..inp.arguments.n {
         let (call, value, position) = (inp.arguments.cols[a_call][r] as u32, inp.arguments.cols[a_expr][r] as u32, inp.arguments.cols[a_pos][r] as i64);
         if (value as usize) >= n {
             continue;
         }
-        if !has_form(call, Form::Bool) {
-            values[value as usize] = true;
-        }
+        values[value as usize] = true;
         if forms.contains_key(&call) {
             if (has_form(call, Form::Cast) && position == 0) || ((has_form(call, Form::NewType) || has_form(call, Form::TypeAliasType)) && position == 1) {
                 types[value as usize] = true;
@@ -287,17 +284,8 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
             if has_form(call, Form::TypedDict) {
                 types[value as usize] = true;
             }
-            if has_form(call, Form::Cast) || has_form(call, Form::NewType) || has_form(call, Form::TypeAliasType) {
-                skipped_roots.push(value);
-            }
-            if has_form(call, Form::Bool) {
-                skipped_roots.push(value);
-            }
             continue;
         };
-        if has_form(call, Form::Bool) {
-            skipped_roots.push(value);
-        }
         let named = |t: &[u8]| name_is(run, name, t);
         if (has_form(call, Form::Cast) && named(b"typ"))
             || (has_form(call, Form::NewType) && named(b"tp"))
@@ -397,15 +385,6 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
             }
         }
     }
-    // skipped subtrees
-    let mut skipped = vec![false; n];
-    for r in skipped_roots {
-        for q in subtree(r) {
-            if (q as usize) < n {
-                skipped[q as usize] = true;
-            }
-        }
-    }
     // each element: its own root, else the nearest root above it
     const UNKNOWN: u8 = 0;
     const TYPE: u8 = 1;
@@ -413,6 +392,8 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
     let mut class = vec![UNKNOWN; n];
     let mut out = Vec::new();
     let mut chain: Vec<usize> = Vec::new();
+    // a type element strictly above (elements come in preorder: a parent before its children)
+    let mut type_above = vec![false; n];
     for p in 0..n {
         let mut at = p;
         chain.clear();
@@ -445,10 +426,14 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
         for c in &chain {
             class[*c] = found;
         }
-        if skipped[p] {
-            out.push((p as u32, false));
-        } else if own == TYPE {
+        let up = parent[p];
+        if up != u32::MAX && (up as usize) < p {
+            type_above[p] = class[up as usize] == TYPE || type_above[up as usize];
+        }
+        if own == TYPE {
             out.push((p as u32, true));
+        } else if values[p] && type_above[p] {
+            out.push((p as u32, false));
         }
     }
     Ok(out)

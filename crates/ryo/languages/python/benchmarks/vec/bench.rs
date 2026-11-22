@@ -992,11 +992,11 @@ impl ColFacts<'_, '_, '_, '_> {
         let inputs = type_expression::Inputs { qualified: &qualified, arguments: &arguments, identifiers: &identifiers, embedded: &embedded };
         let rows = type_expression::rows(run, self.file.table, &inputs)?;
         let (_, names, tys) = run.catalog(finish::TYPE_EXPRESSION_REL).ok_or("no type-expression")?;
-        let (ty, skipped) = (u64::from(run.sym(b"type")), u64::from(run.sym(b"skipped")));
+        let (ty, value) = (u64::from(run.sym(b"type")), u64::from(run.sym(b"value")));
         let mut t = finish::Table { names, tys, cols: vec![Vec::with_capacity(rows.len()); 3], n: rows.len() };
         for (id, typed) in rows {
             t.cols[0].push(u64::from(id));
-            t.cols[1].push(if typed { ty } else { skipped });
+            t.cols[1].push(if typed { ty } else { value });
             t.cols[2].push(0);
         }
         Ok(t)
