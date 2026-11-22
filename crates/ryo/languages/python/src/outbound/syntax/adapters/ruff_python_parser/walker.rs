@@ -165,7 +165,7 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
             node_table::node_property(
                 self.builder,
                 crate::domain::syntax::constants::MODULE_ANNOTATION_TIMING,
-                super::future::annotation_timing(self.annotations_deferred),
+                super::future::timing_text(self.annotation_timing),
             );
         }
         self.nodes.push(node);

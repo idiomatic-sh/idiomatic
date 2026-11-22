@@ -45,7 +45,11 @@ impl<'a> SourceOrderVisitor<'a> for Walker<'_, '_, 'a> {
             node_property(
                 self.builder,
                 crate::domain::syntax::constants::MODULE_ANNOTATION_TIMING,
-                super::super::future::annotation_timing(self.future.0 == MODULE_FUTURE_ANNOTATIONS_ENABLED),
+                super::super::future::timing_text(if self.future.0 == MODULE_FUTURE_ANNOTATIONS_ENABLED {
+                    crate::domain::model::types::BindingAnnotationTiming::Deferred
+                } else {
+                    crate::domain::model::types::BindingAnnotationTiming::Immediate
+                }),
             );
         }
         self.nodes.push(node);

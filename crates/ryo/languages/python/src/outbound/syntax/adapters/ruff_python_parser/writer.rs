@@ -9,8 +9,7 @@ use super::types::{
 };
 use crate::domain::extras::types::Extra;
 use crate::domain::syntax::constants::{
-    ANNOTATION_CONTEXT, ANNOTATION_SEED, CANDIDATE_SEED, MODULE_FUTURE_ANNOTATIONS,
-    NORMALIZED_IDENTIFIER,
+    ANNOTATION_CONTEXT, ANNOTATION_SEED, CANDIDATE_SEED, NORMALIZED_IDENTIFIER,
 };
 use crate::domain::syntax::service::kind_bits;
 use crate::domain::syntax::types::Kind;
@@ -68,7 +67,7 @@ impl<'b, 'w, 't> Writer<'b, 'w, 't> {
     ) -> Self {
         Self {
             future_annotations: FutureAnnotations(false),
-            annotations_deferred: false,
+            annotation_timing: crate::domain::model::types::BindingAnnotationTiming::Immediate,
             annotations: Vec::new(),
             annotation: context,
             start,
@@ -237,20 +236,8 @@ impl<'a> SourceOrderVisitor<'a> for Writer<'_, '_, 'a> {
             );
         }
         if matches!(node, AnyNodeRef::ModModule(_)) {
-            languages::node_property(
-                self.tree.builder,
-                MODULE_FUTURE_ANNOTATIONS,
-                languages::NameText(if self.future_annotations.0 {
-                    crate::domain::syntax::constants::MODULE_FUTURE_ANNOTATIONS_ENABLED
-                } else {
-                    crate::domain::syntax::constants::MODULE_FUTURE_ANNOTATIONS_DISABLED
-                }),
-            );
-            languages::node_property(
-                self.tree.builder,
-                crate::domain::syntax::constants::MODULE_ANNOTATION_TIMING,
-                super::future::annotation_timing(self.annotations_deferred),
-            );
+            let (future, timing) = (self.future_annotations, self.annotation_timing);
+            super::future::module_properties(self.tree.builder, future, timing);
         }
         scalar_properties(node, self.tree.builder, &mut self.scalar);
         let canonical = if let AnyNodeRef::Identifier(identifier) = node {

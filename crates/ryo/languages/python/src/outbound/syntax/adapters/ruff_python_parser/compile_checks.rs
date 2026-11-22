@@ -14,28 +14,24 @@ use ruff_python_parser::semantic_errors::{
     SemanticSyntaxErrorKind,
 };
 use ruff_text_size::TextRange;
-use ryo::languages::{DiagnosticPhase, TreeImpact};
-use std::cell::{Cell, RefCell};
+use ryo::languages::{DiagnosticPhase, NameText, TreeImpact};
+use std::cell::RefCell;
 
-/// Whether the declaration visitor leaves `kind` to this check.
-const fn kept(kind: &SemanticSyntaxErrorKind) -> bool {
-    matches!(
-        kind,
-        SemanticSyntaxErrorKind::IrrefutableCasePattern(_)
-            | SemanticSyntaxErrorKind::DuplicateMatchKey(_)
-            | SemanticSyntaxErrorKind::DuplicateMatchClassAttribute(_)
-            | SemanticSyntaxErrorKind::MultipleCaseAssignment(_)
-            | SemanticSyntaxErrorKind::InvalidStarExpression
-            | SemanticSyntaxErrorKind::AsyncComprehensionInSyncComprehension(_)
-    )
+/// Where an expression sits, as the asynchronous-comprehension check asks it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Place {
+    /// Inside a synchronous comprehension of its function.
+    SyncComprehension,
+    /// Anywhere else.
+    Elsewhere,
 }
 
 /// What the library's checker is told while it walks: the file, the target, and whether the expression in hand sits inside a
 /// synchronous comprehension of its function.
 struct Context<'s> {
-    source: &'s str,
+    source: NameText<'s>,
     target: PythonVersion,
-    in_sync_comprehension: Cell<bool>,
+    place: RefCell<Place>,
     found: RefCell<Vec<SemanticSyntaxError>>,
 }
 
@@ -50,7 +46,7 @@ impl SemanticSyntaxContext for Context<'_> {
         self.target
     }
     fn source(&self) -> &str {
-        self.source
+        self.source.0
     }
     fn global(&self, _name: &str) -> Option<TextRange> {
         None
@@ -68,7 +64,7 @@ impl SemanticSyntaxContext for Context<'_> {
         true
     }
     fn in_sync_comprehension(&self) -> bool {
-        self.in_sync_comprehension.get()
+        *self.place.borrow() == Place::SyncComprehension
     }
     fn in_class_body_comprehension(&self) -> bool {
         false
@@ -85,9 +81,18 @@ impl SemanticSyntaxContext for Context<'_> {
     fn in_notebook(&self) -> bool {
         false
     }
+    /// Keeps only the kinds the declaration visitor leaves to this check.
     fn report_semantic_error(&self, error: SemanticSyntaxError) {
-        if kept(&error.kind) {
-            self.found.borrow_mut().push(error);
+        match error.kind {
+            SemanticSyntaxErrorKind::IrrefutableCasePattern(_)
+            | SemanticSyntaxErrorKind::DuplicateMatchKey(_)
+            | SemanticSyntaxErrorKind::DuplicateMatchClassAttribute(_)
+            | SemanticSyntaxErrorKind::MultipleCaseAssignment(_)
+            | SemanticSyntaxErrorKind::InvalidStarExpression
+            | SemanticSyntaxErrorKind::AsyncComprehensionInSyncComprehension(_) => {
+                self.found.borrow_mut().push(error);
+            }
+            _ => {}
         }
     }
     fn in_loop_context(&self) -> bool {
@@ -106,21 +111,25 @@ struct Walk<'s> {
 }
 
 impl Walk<'_> {
-    /// Visit `inner` with the comprehension flag set to `inside`, restoring it after.
-    fn within(&mut self, inside: bool, inner: impl FnOnce(&mut Self)) {
-        let outer = self.context.in_sync_comprehension.replace(inside);
+    /// Visit `inner` at `place`, restoring the place after.
+    fn within(&mut self, place: Place, inner: impl FnOnce(&mut Self)) {
+        let outer = self.context.place.replace(place);
         inner(self);
-        self.context.in_sync_comprehension.set(outer);
+        let _inner = self.context.place.replace(outer);
     }
 
     /// A comprehension: its first iterable in the enclosing scope, the rest in its own, synchronous unless a clause is
     /// asynchronous.
     fn comprehension(&mut self, elements: &[&Expr], generators: &[ruff_python_ast::Comprehension]) {
-        let inside = !generators.iter().any(|generator| generator.is_async);
+        let place = if generators.iter().any(|generator| generator.is_async) {
+            Place::Elsewhere
+        } else {
+            Place::SyncComprehension
+        };
         if let Some(first) = generators.first() {
             self.visit_expr(&first.iter);
         }
-        self.within(inside, |walk| {
+        self.within(place, |walk| {
             for (index, generator) in generators.iter().enumerate() {
                 walk.visit_expr(&generator.target);
                 if index > 0 {
@@ -141,7 +150,7 @@ impl<'a> Visitor<'a> for Walk<'_> {
     fn visit_stmt(&mut self, stmt: &'a Stmt) {
         self.checker.visit_stmt(stmt, &self.context);
         if matches!(stmt, Stmt::FunctionDef(_) | Stmt::ClassDef(_)) {
-            self.within(false, |walk| walk_stmt(walk, stmt));
+            self.within(Place::Elsewhere, |walk| walk_stmt(walk, stmt));
         } else {
             walk_stmt(self, stmt);
         }
@@ -168,7 +177,7 @@ impl<'a> Visitor<'a> for Walk<'_> {
 /// among `known` (same range) is not repeated.
 pub(super) fn compile_errors(
     module: &ModModule,
-    source: &str,
+    source: NameText<'_>,
     target: PythonVersion,
     known: &[SemanticSyntaxDiagnostic],
 ) -> Vec<SemanticSyntaxDiagnostic> {
@@ -177,7 +186,7 @@ pub(super) fn compile_errors(
         context: Context {
             source,
             target,
-            in_sync_comprehension: Cell::new(false),
+            place: RefCell::new(Place::Elsewhere),
             found: RefCell::new(Vec::new()),
         },
     };
