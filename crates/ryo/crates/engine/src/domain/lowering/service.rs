@@ -319,7 +319,12 @@ fn built(
             homes.tables.push(home);
         }
     }
-    proved(&pack, &products).map_err(|unproved| fault_refused(&homes, rules, unproved))?;
+    proved(&pack, &products).map_err(|unproved| {
+        if std::env::var_os("RYO_L1B_RESTRICT_TRACE").is_some() {
+            eprintln!("ryo l1b: unproved {unproved:?}");
+        }
+        fault_refused(&homes, rules, unproved)
+    })?;
     Ok(pack)
 }
 

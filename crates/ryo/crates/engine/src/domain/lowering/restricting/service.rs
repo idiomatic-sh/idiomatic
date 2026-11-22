@@ -367,9 +367,21 @@ pub(crate) fn restricted(
         let _new = drafts.keys.insert(keyed);
         // The keys' table is made here: a prefix that only a program can run has no pipeline, and the table is not
         // restricted (made later, its failure would refuse the reader's rule).
-        if definition_table(drafts, sample, keyed).is_err() {
+        let keys_keyed = drafts
+            .definitions
+            .get(usize::try_from(keyed.0).unwrap_or(usize::MAX))
+            .is_some_and(|draft| {
+                draft.branches.iter().all(|branch| {
+                    planned(drafts, branch, &HashSet::new(), UnitRole::Pipeline)
+                        .is_some_and(|plan| plan.products.0 == 0)
+                })
+            });
+        if !keys_keyed || definition_table(drafts, sample, keyed).is_err() {
             let _gone = drafts.keys.remove(&keyed);
-            skipped(definition, "its keys have no pipeline");
+            skipped(
+                definition,
+                "its keys have no pipeline without a product stage",
+            );
             continue;
         }
         let mut pipelines = Vec::with_capacity(own.len());
