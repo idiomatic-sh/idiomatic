@@ -11,8 +11,8 @@ let guarded_ifs = select l.owner as id, l.file as file from tests as l join type
 let guarded_bodies = select r.child as id, l.file as file from guarded_ifs as l join "semantic-child" as r on l.id = r.parent and l.file = r.file where r.field = "body";
 let definition_rows = select id, owner, name, file from "defines";
 let definition_nodes = select id, file from definition_rows;
-let guarded_definition_axes = axis(from=definition_nodes, relation="semantic-child", direction=ancestor, domain=guarded_bodies);
-let guarded_definition_nested = select id, file from guarded_definition_axes;
+let guarded_definition_axes = axis(from=guarded_bodies, relation="semantic-child", direction=descendant, domain=definition_nodes);
+let guarded_definition_nested = select related as id, file from guarded_definition_axes;
 let guarded_definition_self = select l.id as id, l.file as file from definition_nodes as l join guarded_bodies as r on l.id = r.id and l.file = r.file;
 let guarded_definition_ids = union(left=guarded_definition_nested, right=guarded_definition_self);
 let guarded_definitions = select l.id as id, l.owner as owner, l.name as name, l.file as file from definition_rows as l join guarded_definition_ids as r on l.id = r.id and l.file = r.file;

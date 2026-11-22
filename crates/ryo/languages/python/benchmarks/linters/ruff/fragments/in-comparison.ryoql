@@ -9,9 +9,14 @@ let one_comparators = select l.test as test, l.container as container, l.file as
 let keys = select l.test as test, l.container as container, r.child as key, l.file as file from one_comparators as l join "semantic-child" as r on l.test = r.parent and l.file = r.file where r.field = "left";
 let key_ends = select l.test as test, l.container as container, l.key as key, r."end-byte" as start, l.file as file from keys as l join "source-location" as r on l.key = r.id and l.file = r.file;
 let gaps = select l.test as test, l.container as container, l.key as key, l.start as start, r."start-byte" as end, l.file as file from key_ends as l join "source-location" as r on l.container = r.id and l.file = r.file;
-let operator_tokens = select l.id as id, l.text as text, r."start-byte" as start, r."end-byte" as end, l.file as file from "syntax-tree" as l join "source-location" as r on l.id = r.id and l.file = r.file where l.text = "in" or l.text = "not";
-let ins = select l.test as test, l.container as container, l.key as key, l.file as file from gaps as l join operator_tokens as r on l.file = r.file where r.text = "in" and r.start >= l.start and r.end <= l.end;
-let not_ins = select l.test as test, l.file as file from gaps as l join operator_tokens as r on l.file = r.file where r.text = "not" and r.start >= l.start and r.end <= l.end;
+let in_tokens0 = select id, file from "syntax-tree" where text = "in";
+let in_tokens = select l.id as id, r."start-byte" as start, r."end-byte" as end, l.file as file from in_tokens0 as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let not_tokens0 = select id, file from "syntax-tree" where text = "not";
+let not_tokens = select l.id as id, r."start-byte" as start, r."end-byte" as end, l.file as file from not_tokens0 as l join "source-location" as r on l.id = r.id and l.file = r.file;
+let first_ins = as-of(left=gaps, right=in_tokens, left-on=[file], right-on=[file], left-order="start", right-order="start", bound=at-or-after, output={test:[left,test], container:[left,container], key:[left,key], gap_end:[left,end], token_end:[right,end], file:[left,file]});
+let ins = select test, container, key, file from first_ins where token_end <= gap_end;
+let first_nots = as-of(left=gaps, right=not_tokens, left-on=[file], right-on=[file], left-order="start", right-order="start", bound=at-or-after, output={test:[left,test], gap_end:[left,end], token_end:[right,end], file:[left,file]});
+let not_ins = select test, file from first_nots where token_end <= gap_end;
 let in_tests = antijoin(left=ins, right=not_ins, left-on=["test","file"], right-on=["test","file"]);
 let result = select test as id, key, container, file from in_tests;
 return result;

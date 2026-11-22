@@ -9,12 +9,14 @@ let class_statements = select l.id as owner, r.child as id from classes as l joi
 let assignments = select id from "semantic-syntax" where kind = "assign";
 let annotated = select id from "semantic-syntax" where kind = "ann-assign";
 let target_fields = select parent, child from "semantic-child" where field = "targets";
-let target_counts = group-count(from=target_fields, keys=["parent"], count="count", distinct="child");
-let single = select parent from target_counts where count = 1;
-let assign_targets = select l.id as id, r.child as target from assignments as l join target_fields as r on l.id = r.parent;
+let class_assignments = select l.id as id from class_statements as l join assignments as r on l.id = r.id;
+let assign_targets = select l.id as id, r.child as target from class_assignments as l join target_fields as r on l.id = r.parent;
+let target_counts = group-count(from=assign_targets, keys=["id"], count="count", distinct="target");
+let single = select id as parent from target_counts where count = 1;
 let single_targets = select l.id as id, l.target as target from assign_targets as l join single as r on l.id = r.parent;
 let annotated_fields = select parent, child from "semantic-child" where field = "target";
-let annotated_targets = select l.id as id, r.child as target from annotated as l join annotated_fields as r on l.id = r.parent;
+let class_annotated = select l.id as id from class_statements as l join annotated as r on l.id = r.id;
+let annotated_targets = select l.id as id, r.child as target from class_annotated as l join annotated_fields as r on l.id = r.parent;
 let targets = union(left=single_targets, right=annotated_targets);
 let id_fields = select parent, child from "semantic-child" where field = "id";
 let identifiers = select id, text from semantic_identifiers;

@@ -26,13 +26,14 @@ let deferred_reads = select l.id as id, r.scope as initial_scope, l.file as file
 let context_points = select l.id as context, l.initial_scope as initial_scope, r.point as point, r.point as header_point, l.file as file from deferred_reads as l join final_points as r on l.file = r.file;
 let context_rows = extend(from=context_points, values={stage: 0});
 let contexts = select context, initial_scope, point, header_point, stage, file from context_rows;
-let local_events0 = lookup_events(ordered_contexts=contexts, expressions=expressions);
+let context_expressions = select id, file from deferred_reads;
+let local_events0 = lookup_events(ordered_contexts=contexts, expressions=context_expressions);
 let local_events = select context, expression, occurrence, scope, kind, file from local_events0 where context = expression;
 let local_bound = select context as id, file from local_events where kind = "bind" or kind = "annotation" and matches(file, "[.]pyi$");
 let modules = select id, file from nodes where kind = "module";
 let module_context_points = select l.context as context, r.id as initial_scope, l.point as point, l.header_point as header_point, l.stage as stage, l.file as file from contexts as l join modules as r on l.file = r.file;
 let module_contexts = select context, initial_scope, point, header_point, stage, file from module_context_points;
-let module_events0 = lookup_events(ordered_contexts=module_contexts, expressions=expressions);
+let module_events0 = lookup_events(ordered_contexts=module_contexts, expressions=context_expressions);
 let module_bound = select context as id, file from module_events0 where context = expression and kind = "bind";
 let deletion_events = select l.context as id, l.occurrence as deletion, l.scope as scope, r.name as name, r.ordinal as point, l.file as file from local_events as l join events as r on l.occurrence = r.id and l.file = r.file where l.kind = "delete" and matches(l.file, "[.]pyi$");
 let source_locations = select id, "start-byte" as start, file from "source-location";

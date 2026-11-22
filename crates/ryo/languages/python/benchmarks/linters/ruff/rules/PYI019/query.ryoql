@@ -27,8 +27,7 @@ let instance_methods = antijoin(left=concrete_methods, right=class_method_kinds,
 let args_edges = select parent as function, child as arguments, file from "semantic-child" where field = "args";
 let method_args = select l.function as function, l.class as class, l.name_id as name_id, r.arguments as arguments, l.file as file from concrete_methods as l join args_edges as r on l.function = r.function and l.file = r.file;
 let positional_edges = select parent as arguments, child as wrapper, ordinal, file from "semantic-child" where field = "args" or field = "posonlyargs";
-let earlier_parameters = select l.arguments as arguments, r.wrapper as wrapper, l.file as file from positional_edges as l join positional_edges as r on l.arguments = r.arguments and l.file = r.file where l.ordinal < r.ordinal;
-let first_wrappers = antijoin(left=positional_edges, right=earlier_parameters, left-on=["arguments", "wrapper", "file"], right-on=["arguments", "wrapper", "file"]);
+let first_wrappers = group-min(from=positional_edges, keys=["arguments", "file"], order="ordinal");
 let wrapper_parameters = select parent as wrapper, child as parameter, file from "semantic-child" where field = "args" or field = "posonlyargs";
 let first_parameters = select l.arguments as arguments, r.parameter as parameter, l.file as file from first_wrappers as l join wrapper_parameters as r on l.wrapper = r.wrapper and l.file = r.file;
 let method_first_parameters = select l.function as function, l.class as class, l.name_id as name_id, r.parameter as parameter, l.file as file from method_args as l join first_parameters as r on l.arguments = r.arguments and l.file = r.file;

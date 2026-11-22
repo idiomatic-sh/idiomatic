@@ -6,7 +6,8 @@ let statement_tests = select r.child as id, l.file as file from statement_test_o
 let guards = select child as id, file from "semantic-child" where field = "guard" or field = "ifs";
 let unary_nodes = select id, file from nodes where kind = "unary-op";
 let unary_locations = select l.id as id, r."start-byte" as position, l.file as file from unary_nodes as l join "source-location" as r on l.id = r.id and l.file = r.file;
-let not_tokens = select l.id as id, r."start-byte" as position, l.file as file from "syntax-tree" as l join "source-location" as r on l.id = r.id and l.file = r.file where l.text = "not";
+let not_tokens0 = select id, text, file from "syntax-tree" where text = "not";
+let not_tokens = select l.id as id, r."start-byte" as position, l.file as file from not_tokens0 as l join "source-location" as r on l.id = r.id and l.file = r.file;
 let not_nodes = select l.id as id, l.file as file from unary_locations as l join not_tokens as r on l.position = r.position and l.file = r.file;
 let not_operands = select r.child as id, l.file as file from not_nodes as l join "semantic-child" as r on l.id = r.parent and l.file = r.file where r.field = "operand";
 let calls = select id, file from nodes where kind = "call";
