@@ -1111,6 +1111,10 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
             t
         } else if rel == finish::RESOLUTION_REL {
             self.read_resolution(run)?
+        } else if rel == finish::TYPE_REGION_REL {
+            let ids = self.file.type_regions().ok_or("type-region: the model is incomplete")?;
+            let (_, names, tys) = run.catalog(rel).ok_or("no type-region")?;
+            finish::Table { names, tys, n: ids.len(), cols: vec![ids.iter().map(|i| u64::from(*i)).collect(), vec![0; ids.len()]] }
         } else if rel == finish::FINAL_REL
             || rel == finish::TYPE_EXPRESSION_REL
             || rel == finish::ANNOTATION_EVALUATION_REL
