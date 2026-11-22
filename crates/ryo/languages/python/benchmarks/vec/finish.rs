@@ -70,6 +70,12 @@ mod select_bound;
 mod key_absent;
 #[path = "prefixes.rs"]
 mod prefixes;
+#[path = "finish/ordered_dfs.rs"]
+mod ordered_dfs;
+#[path = "finish/host.rs"]
+pub(super) mod host;
+#[path = "finish/capture.rs"]
+mod capture;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum Ty {
@@ -1556,6 +1562,11 @@ impl<'p> Exec<'p> {
                 tys.push(Ty::Num);
                 mk(names, tys)
             }
+            "ordered-dfs" => {
+                let (f, e) = (from(self, run, "from")?, from(self, run, "edges")?);
+                let (names, tys) = ordered_dfs::schema(a, (&f.names, &f.tys), (&e.names, &e.tys))?;
+                mk(names, tys)
+            }
             other => return Err(format!("operator {other} not in the step set")),
         };
         self.schemas[node] = Some(sc.clone());
@@ -1571,7 +1582,9 @@ impl<'p> Exec<'p> {
                 let alias = a[2].as_str();
                 let mut found = None;
                 for (i, (al, sc)) in names.iter().enumerate() {
-                    if alias.is_some() && al.as_deref() != alias {
+                    // redo-honest: a qualifier over a lone unaliased source names that source (the shipping compiler
+                    // accepts `select l.a from t`, and so runs a rule the harness refused)
+                    if alias.is_some() && al.as_deref() != alias && !(names.len() == 1 && al.is_none()) {
                         continue;
                     }
                     if let Some(c) = sc.names.iter().position(|x| x == name) {
@@ -1630,7 +1643,8 @@ impl<'p> Exec<'p> {
         }
         let mut conj = Vec::new();
         if !j["cond"].is_null() {
-            let e = self.expr(run, &j["cond"], &names)?;
+            // redo-honest: a refusal names the step and its sources
+            let e = self.expr(run, &j["cond"], &names).map_err(|e| format!("{e} in step {node} over {srcs:?}"))?;
             flatten(e, &mut conj);
         }
         // a test of two file columns always holds: every relation here is the file's
@@ -1648,7 +1662,7 @@ impl<'p> Exec<'p> {
                 }
                 v
             }
-            J::Array(a) => a.iter().map(|it| Ok((s(&it[0])?.to_owned(), self.expr(run, &it[1], &names)?))).collect::<R<_>>()?,
+            J::Array(a) => a.iter().map(|it| Ok((s(&it[0])?.to_owned(), self.expr(run, &it[1], &names)?))).collect::<R<_>>().map_err(|e| format!("{e} in step {node} over {srcs:?}"))?,
             _ => return Err("items".to_owned()),
         };
         let sp = Rc::new(SelPlan { srcs, conj, refs, items });
@@ -2844,17 +2858,24 @@ impl<'p> Exec<'p> {
                 let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
                 let pc = from.col(s(&a["path"])?)?;
                 let caps = strs(&a["captures"])?;
-                let re = run.re(&path_pattern(s(&a["pattern"])?))?;
+                // redo-honest: every split of the text into the slots (capture.rs), not the first regex match
+                let pattern = s(&a["pattern"])?;
+                let slot_names = capture::names(pattern);
+                let at: Vec<Option<usize>> = caps.iter().map(|c| slot_names.iter().position(|n| n == c)).collect();
                 let mut out = self.empty(run, node)?;
                 let mut row = Vec::new();
+                let mut found: Vec<Vec<std::ops::Range<usize>>> = Vec::new();
                 for i in 0..from.n {
                     let v = from.cols[pc][i];
                     let text = if from.tys[pc] == Ty::File { run.text(run.path_sym[v as usize]).to_vec() } else { run.text(v as u32).to_vec() };
-                    if let Some(m) = re.captures(&text) {
+                    let Ok(text) = String::from_utf8(text) else { continue };
+                    found.clear();
+                    capture::matches(pattern, &text, &mut |sl| found.push(sl.to_vec()));
+                    for sl in &found {
                         from.row(i, &mut row);
-                        for c in caps.iter() {
-                            let t = m.name(c).map_or(&b""[..], |x| x.as_bytes()).to_vec();
-                            row.push(u64::from(run.sym(&t)));
+                        for k in &at {
+                            let t = k.and_then(|k| sl.get(k)).map_or("", |r| &text[r.clone()]);
+                            row.push(u64::from(run.sym(t.as_bytes())));
                         }
                         out.push_row(&row);
                     }
@@ -2944,6 +2965,13 @@ impl<'p> Exec<'p> {
                     let row: Vec<u64> = r.as_array().ok_or("row")?.iter().map(|x| u64::from(run.sym(x.as_str().unwrap_or("").as_bytes()))).collect();
                     out.push_row(&row);
                 }
+                Ok(out)
+            }
+            "ordered-dfs" => {
+                let from = self.eval(f, run, p, self.arg_rel(node, "from")?)?;
+                let edges = self.eval(f, run, p, self.arg_rel(node, "edges")?)?;
+                let mut out = self.empty(run, node)?;
+                ordered_dfs::walked(a, &from, &edges, &mut out)?;
                 Ok(out)
             }
             other => Err(format!("operator {other} not in the step set")),
@@ -3423,6 +3451,9 @@ impl<'p> Exec<'p> {
                         let l = l.clone();
                         let nk = l.keys.len();
                         let mut key_exprs: Vec<E> = Vec::new();
+                        // redo-honest: a key column this join does not bind makes the closure whole (as a crossed closure
+                        // is made), instead of refusing the rule
+                        let mut unkeyed = false;
                         for kc in 0..nk {
                             let found = conj.iter().enumerate().find_map(|(cj, c)| match c {
                                 E::Cmp(Op::Eq, x, y) if !used[cj] => {
@@ -3440,9 +3471,16 @@ impl<'p> Exec<'p> {
                             match found {
                                 Some(e) => key_exprs.push(e),
                                 None if l.tys[kc] == Ty::File => key_exprs.push(E::Lit(V::new(Ty::File, u64::from(f.file)))),
-                                None => return Err("a keyed closure probed without its keys".to_owned()),
+                                None => {
+                                    unkeyed = true;
+                                    break;
+                                }
                             }
                         }
+                        if unkeyed {
+                            self.reason = "closure probed without its keys (made whole)";
+                            srcs[si] = Src::Tab(self.eval(f, run, p, l.node)?, l.node);
+                        } else {
                         let mut t = Table::with(l.names.clone(), l.tys.clone());
                         let mut asked = rustc_hash::FxHashSet::default();
                         let forward = col + 2 == l.names.len();
@@ -3465,6 +3503,7 @@ impl<'p> Exec<'p> {
                         }
                         self.stats.touched[node] += t.n as u64;
                         srcs[si] = Src::Tab(Rc::new(t), usize::MAX - si);
+                        }
                     }
                     let nb = bound | (1 << si);
                     // a made table is probed on every column an equality binds, at once
@@ -4718,25 +4757,6 @@ fn glob_pattern(g: &str) -> String {
             c => s.push_str(&regex::escape(&c.to_string())),
         }
     }
-    s.push('$');
-    s
-}
-
-fn path_pattern(p: &str) -> String {
-    let mut s = String::from("^");
-    let mut rest = p;
-    while let Some(o) = rest.find('{') {
-        s.push_str(&regex::escape(&rest[..o]));
-        let c = rest[o..].find('}').expect("a closed capture") + o;
-        let name = &rest[o + 1..c];
-        if let Some(n) = name.strip_prefix('*') {
-            s.push_str(&format!("(?P<{n}>.*)"));
-        } else {
-            s.push_str(&format!("(?P<{name}>[^/]*)"));
-        }
-        rest = &rest[c + 1..];
-    }
-    s.push_str(&regex::escape(rest));
     s.push('$');
     s
 }

@@ -892,6 +892,10 @@ impl ColFacts<'_, '_, '_, '_> {
     }
 
     fn whole_fill(&mut self, run: &mut finish::Run, rel: &str) -> Result<finish::Table, String> {
+        // redo-honest: the host's own rows (the file system's), not the language provider's
+        if let Some(t) = finish::host::host_fill(run, rel, self.file_no) {
+            return t;
+        }
         let (relation, _, _) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
         self.filled.0.clear();
         match self.file.fill(relation, languages::Wanted::Whole, self.words, &mut self.filled) {
@@ -1163,6 +1167,9 @@ impl finish::Provider for Facts<'_, '_, '_> {
     fn fill(&mut self, run: &mut finish::Run, rel: &str) -> Result<finish::Table, String> {
         if rel == finish::REGION_REL {
             return Err("evaluation-region needs VEC_COLWALK".to_owned());
+        }
+        if let Some(t) = finish::host::host_fill(run, rel, self.file) {
+            return t;
         }
         let t0 = thread_cpu();
         let (relation, _, _) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
