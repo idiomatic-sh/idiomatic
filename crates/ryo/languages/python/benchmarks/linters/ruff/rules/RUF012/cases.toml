@@ -43,3 +43,69 @@ name = "base-classes-resolve-to-the-latest-module-binding"
 comparison = "full"
 files = { "case.py" = "import ctypes\nfrom pydantic import BaseModel\n\n\nclass Base(BaseModel):\n    name: str\n\n\nclass Child(Base):\n    tags = []\n\n\nclass Model(BaseModel):\n    name: str\n\n\ndef test_read_with_orm_mode() -> None:\n    class PersonBase(BaseModel):\n        name: str\n\n    class PersonRead(PersonBase):\n        model_config = {\"from_attributes\": True}\n\n    class Local(Base):\n        tags = []\n\n    class LocalModel(Model):\n        tags = []\n\n\nclass Outer:\n    class Inner(BaseModel):\n        pass\n\n    class Sibling(Inner):\n        tags = []\n\n\nclass Inner:\n    pass\n\n\nclass Base(ctypes.Structure):\n    pass\n\n\nclass Point(Base):\n    _fields_ = [(\"x\", ctypes.c_int)]\n\n\ndef build():\n    class LocalBase(ctypes.Structure):\n        pass\n\n    class LocalPoint(LocalBase):\n        _fields_ = [(\"x\", ctypes.c_int)]\n" }
 expected = [{ rule = "RUF012", file = "case.py", start = 116, end = 118 }, { rule = "RUF012", file = "case.py", start = 309, end = 334 }, { rule = "RUF012", file = "case.py", start = 374, end = 376 }, { rule = "RUF012", file = "case.py", start = 523, end = 525 }, { rule = "RUF012", file = "case.py", start = 769, end = 790 }]
+
+[[cases]]
+name = "pydantic-root-model"
+comparison = "full"
+files = { "case.py" = "import pydantic\nclass A(pydantic.RootModel):\n    x = {}\n" }
+expected = []
+
+[[cases]]
+name = "pydantic-root-model-subscripted"
+comparison = "full"
+files = { "case.py" = "import pydantic\nclass A(pydantic.RootModel[dict]):\n    x = {}\n" }
+expected = []
+
+[[cases]]
+name = "pydantic-base-model-subscripted"
+comparison = "full"
+files = { "case.py" = "import pydantic\nclass A(pydantic.BaseModel[int]):\n    x = {}\n" }
+expected = []
+
+[[cases]]
+name = "pydantic-generic-model"
+comparison = "full"
+files = { "case.py" = "import pydantic.generics\nclass A(pydantic.generics.GenericModel):\n    x = {}\n" }
+expected = []
+
+[[cases]]
+name = "pydantic-v1-base-settings"
+comparison = "full"
+files = { "case.py" = "import pydantic.v1\nclass A(pydantic.v1.BaseSettings):\n    x = {}\n" }
+expected = []
+
+[[cases]]
+name = "pydantic-v1-base-config"
+comparison = "full"
+files = { "case.py" = "import pydantic.v1\nclass A(pydantic.v1.BaseConfig):\n    x = {}\n" }
+expected = []
+
+[[cases]]
+name = "pydantic-root-model-subclass"
+comparison = "full"
+files = { "case.py" = "from pydantic import RootModel\nclass A(RootModel):\n    x = {}\nclass B(A):\n    y = []\n" }
+expected = []
+
+[[cases]]
+name = "pydantic-root-model-imported-subscripted-config"
+comparison = "full"
+files = { "case.py" = "from pydantic import RootModel\nclass A(RootModel[dict[str, str]]):\n    model_config = {\"a\": 1}\n" }
+expected = []
+
+[[cases]]
+name = "pydantic-v1-root-model-is-not-pydantic"
+comparison = "full"
+files = { "case.py" = "import pydantic.v1\nclass A(pydantic.v1.RootModel):\n    x = {}\n" }
+expected = [{ rule = "RUF012", file = "case.py", start = 59, end = 61 }]
+
+[[cases]]
+name = "pydantic-root-model-module-path"
+comparison = "full"
+files = { "case.py" = "import pydantic.root_model\nclass A(pydantic.root_model.RootModel):\n    x = {}\n" }
+expected = [{ rule = "RUF012", file = "case.py", start = 75, end = 77 }]
+
+[[cases]]
+name = "generic-subscripted-base"
+comparison = "full"
+files = { "case.py" = "import typing\nclass A(typing.Generic[int]):\n    x = {}\n" }
+expected = [{ rule = "RUF012", file = "case.py", start = 52, end = 54 }]

@@ -11,7 +11,8 @@ let attr_names = select l.parent as attribute, l.file as file, r.name as name fr
 let split_methods = select attribute, file from attr_names where name = "split" or name = "rsplit";
 let split_calls_with_attribute = select l.call as call, l.file as file, l.span as span, l.function as attribute from call_functions as l join split_methods as r on l.function = r.attribute and l.file = r.file;
 let split_calls = select l.call as call, l.file as file, l.span as span, r.receiver as receiver from split_calls_with_attribute as l join attribute_receivers as r on l.attribute = r.attribute and l.file = r.file;
-let literal_occurrences = select occurrence as id, file, span from "string-literal";
+let string_occurrences = select occurrence as id, file, span from "string-literal";
+let literal_occurrences = select l.id as id, l.file as file, l.span as span from string_occurrences as l join "semantic-syntax" as r on l.id = r.id and l.file = r.file where r.kind = "constant";
 let static_string_receivers = select l.call as call, l.file as file, l.span as span from split_calls as l join literal_occurrences as r on l.receiver = r.id and l.file = r.file;
 let argument_nodes = select id, file from "semantic-syntax" where kind = "call-arguments";
 let wrappers = select l.parent as call, l.file as file, r.id as wrapper from "semantic-child" as l join argument_nodes as r on l.child = r.id and l.file = r.file;

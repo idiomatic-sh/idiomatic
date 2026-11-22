@@ -266,3 +266,51 @@ files = { "case.py" = "x = \"\"\"a\n\"\"\"  # flake8: noqa\n" }
 expected = []
 "selected-rules" = ["RUF100"]
 "rule-observations" = { "RUF100" = [{ "name" = "suppression_matches", "columns" = [{ "name" = "directive", "kind" = "node" }, { "name" = "file", "kind" = "file" }, { "name" = "code", "kind" = "symbol" }], "producers" = [] }] }
+
+[[cases]]
+name = "file-blanket-exempts-itself-with-violation"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa\nimport os\n" }
+expected = []
+
+[[cases]]
+name = "file-blanket-exempts-itself"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa\nx = 1\n" }
+expected = []
+
+[[cases]]
+name = "flake8-file-blanket-exempts-itself"
+comparison = "full"
+files = { "case.py" = "# flake8: noqa\nx = 1\n" }
+expected = []
+
+[[cases]]
+name = "file-blanket-exempts-unused-line-code"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa\nx = 1  # noqa: F401\n" }
+expected = []
+
+[[cases]]
+name = "trailing-file-blanket-exempts-earlier-line"
+comparison = "full"
+files = { "case.py" = "x = 1  # noqa: F401\n# ruff: noqa\n" }
+expected = []
+
+[[cases]]
+name = "flake8-file-blanket-exempts-unused-line-code"
+comparison = "full"
+files = { "case.py" = "# flake8: noqa\nx = 1  # noqa: F401\n" }
+expected = []
+
+[[cases]]
+name = "file-code-unused"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: F401\nx = 1\n" }
+expected = [{ rule = "RUF100", file = "case.py", start = 0, end = 18 }]
+
+[[cases]]
+name = "file-code-and-line-code-unused"
+comparison = "full"
+files = { "case.py" = "# ruff: noqa: F401\nx = 1  # noqa: E501\n" }
+expected = [{ rule = "RUF100", file = "case.py", start = 0, end = 18 }, { rule = "RUF100", file = "case.py", start = 26, end = 38 }]

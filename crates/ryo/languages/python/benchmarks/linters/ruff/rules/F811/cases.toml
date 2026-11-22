@@ -2478,3 +2478,87 @@ comparison="full"
 files={"case.py"="v = 0\ndef f():\n    import v\n    class C:\n        nonlocal v\n        try:\n            pass\n        except Exception as v:\n            if c:\n                del v\n        del v\n"}
 expected=[]
 
+
+[[cases]]
+name = "with-body-defs-in-two-withs"
+comparison = "full"
+files = { "case.py" = "import contextlib\nwith contextlib.suppress(Exception):\n    def fn(): ...\nwith contextlib.suppress(Exception):\n    def fn(): ...\n" }
+expected = []
+
+[[cases]]
+name = "with-body-def-twice"
+comparison = "full"
+files = { "case.py" = "import contextlib\nwith contextlib.suppress(Exception):\n    def fn(): ...\n    def fn(): ...\n" }
+expected = [{ rule = "F811", file = "case.py", start = 81, end = 83 }]
+
+[[cases]]
+name = "with-body-def-then-module-def"
+comparison = "full"
+files = { "case.py" = "import contextlib\nwith contextlib.suppress(Exception):\n    def fn(): ...\ndef fn(): ...\n" }
+expected = []
+
+[[cases]]
+name = "module-def-then-with-body-def"
+comparison = "full"
+files = { "case.py" = "import contextlib\ndef fn(): ...\nwith contextlib.suppress(Exception):\n    def fn(): ...\n" }
+expected = []
+
+[[cases]]
+name = "function-with-body-defs"
+comparison = "full"
+files = { "case.py" = "import contextlib\ndef f():\n    with contextlib.suppress(Exception):\n        def fn(): ...\n    with contextlib.suppress(Exception):\n        def fn(): ...\n" }
+expected = []
+
+[[cases]]
+name = "with-body-decorated-defs"
+comparison = "full"
+files = { "case.py" = "import contextlib\ndef deco(f): return f\nwith contextlib.suppress(Exception):\n\n    @deco\n    def fn(): ...\n\nwith contextlib.suppress(Exception):\n\n    @deco\n    def fn(): ...\n" }
+expected = []
+
+[[cases]]
+name = "with-body-class-then-module-class"
+comparison = "full"
+files = { "case.py" = "import contextlib\nwith contextlib.suppress(Exception):\n    class C: ...\nclass C: ...\n" }
+expected = []
+
+[[cases]]
+name = "with-body-def-after-statement"
+comparison = "full"
+files = { "case.py" = "import contextlib\nwith contextlib.suppress(Exception):\n    pass\n    def fn(): ...\ndef fn(): ...\n" }
+expected = []
+
+[[cases]]
+name = "if-body-def-then-module-def"
+comparison = "full"
+files = { "case.py" = "import os\nif os.sep:\n    def fn(): ...\ndef fn(): ...\n" }
+expected = []
+
+[[cases]]
+name = "if-body-def-twice"
+comparison = "full"
+files = { "case.py" = "import os\nif os.sep:\n    def fn(): ...\n    def fn(): ...\n" }
+expected = [{ rule = "F811", file = "case.py", start = 47, end = 49 }]
+
+[[cases]]
+name = "elif-and-else-defs"
+comparison = "full"
+files = { "case.py" = "import os\nif os.sep:\n    pass\nelif os.name:\n    def fn(): ...\nelse:\n    def fn(): ...\n" }
+expected = []
+
+[[cases]]
+name = "try-and-handler-defs"
+comparison = "full"
+files = { "case.py" = "try:\n    def fn(): ...\nexcept Exception:\n    def fn(): ...\n" }
+expected = []
+
+[[cases]]
+name = "match-case-defs"
+comparison = "full"
+files = { "case.py" = "match 1:\n    case 1:\n        def fn(): ...\n    case _:\n        def fn(): ...\n" }
+expected = []
+
+[[cases]]
+name = "finally-def-then-module-def"
+comparison = "full"
+files = { "case.py" = "try:\n    pass\nfinally:\n    def fn(): ...\ndef fn(): ...\n" }
+expected = []

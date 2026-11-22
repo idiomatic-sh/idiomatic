@@ -59,7 +59,11 @@ let branch_owners = select l.binding as binding, l.owner as owner from event_bra
 let branch_arm_candidates = select l.binding as binding, l.owner as owner, r.child as arm_node, r.field as field from branch_owners as l join "semantic-child" as r on l.owner = r.parent;
 let arm_starts = select binding as id, owner, field, arm_node from branch_arm_candidates;
 let arm_walk = axis(from=arm_starts, relation="semantic-child", direction=ancestor, domain=tree_parents);
-let branch_members = select id as binding, owner, field, arm_node from arm_walk where related = arm_node;
+let walked_members = select id as binding, owner, field, arm_node from arm_walk where related = arm_node;
+let definition_statements = select id from nodes where kind in ["function-def", "async-function-def", "class-def"];
+let arm_statements = select l.id as id, l.owner as owner, l.field as field, l.arm_node as arm_node from arm_starts as l join definition_statements as r on l.arm_node = r.id;
+let statement_members = select id as binding, owner, field, arm_node from arm_statements where id = arm_node;
+let branch_members = union(left=walked_members, right=statement_members);
 let try_body = select l.binding as binding, l.owner as owner from branch_members as l join nodes as r on l.owner = r.id where (r.kind = "try" or r.kind = "try-star") and l.field = "body";
 let try_orelse = select l.binding as binding, l.owner as owner from branch_members as l join nodes as r on l.owner = r.id where (r.kind = "try" or r.kind = "try-star") and l.field = "orelse";
 let try_main = union(left=try_body,right=try_orelse);

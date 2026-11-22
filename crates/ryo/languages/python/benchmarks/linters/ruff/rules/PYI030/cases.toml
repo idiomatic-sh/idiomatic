@@ -32,3 +32,68 @@ expected = []
 name = "noqa-codes-trailing-reason-suppress-two-literal-members"
 files = { "case.pyi" = "from typing import Literal\nvalue: Literal[1] | Literal[2]  # noqa: PYI030 # why\n" }
 expected = []
+
+[[cases]]
+name = "nested-pipe-unions-report-outermost"
+files = { "case.py" = "from typing import Literal, Union, Optional, TypeAlias\nx: Literal[1] | Literal[2] | Literal[3]\n" }
+expected = [{ file = "case.py", start = 58, end = 94 }]
+
+[[cases]]
+name = "literal-inside-generic-member"
+files = { "case.py" = "from typing import Literal, Union, Optional, TypeAlias\nx: Literal[1] | list[Literal[2]]\n" }
+expected = []
+
+[[cases]]
+name = "typing-union-subscript"
+files = { "case.py" = "from typing import Literal, Union, Optional, TypeAlias\nx: Union[Literal[1], Literal[2]]\n" }
+expected = [{ file = "case.py", start = 58, end = 87 }]
+
+[[cases]]
+name = "other-member-between"
+files = { "case.py" = "from typing import Literal, Union, Optional, TypeAlias\nx: Literal[1] | int | Literal[2]\n" }
+expected = [{ file = "case.py", start = 58, end = 87 }]
+
+[[cases]]
+name = "parenthesized-inner-union"
+files = { "case.py" = "from typing import Literal, Union, Optional, TypeAlias\nx: (Literal[1] | Literal[2]) | int\n" }
+expected = [{ file = "case.py", start = 58, end = 89 }]
+
+[[cases]]
+name = "runtime-union"
+files = { "case.py" = "from typing import Literal, Union, Optional, TypeAlias\ny = Literal[1] | Literal[2]\n" }
+expected = [{ file = "case.py", start = 59, end = 82 }]
+
+[[cases]]
+name = "union-inside-optional"
+files = { "case.py" = "from typing import Literal, Union, Optional, TypeAlias\nx: Optional[Literal[1] | Literal[2]]\n" }
+expected = [{ file = "case.py", start = 67, end = 90 }]
+
+[[cases]]
+name = "pipe-union-inside-typing-union"
+files = { "case.py" = "from typing import Literal, Union, Optional, TypeAlias\nx: Union[Literal[1] | Literal[2], int]\n" }
+expected = [{ file = "case.py", start = 58, end = 93 }]
+
+[[cases]]
+name = "type-alias-four-literals"
+files = { "case.py" = "from typing import Literal, Union, Optional, TypeAlias\nT: TypeAlias = Literal[\"a\"] | Literal[\"b\"] | Literal[\"c\"] | Literal[\"d\"]\n" }
+expected = [{ file = "case.py", start = 70, end = 127 }]
+
+[[cases]]
+name = "parameter-annotation-with-none"
+files = { "case.py" = "from typing import Literal, Union, Optional, TypeAlias\ndef f(a: Literal[1] | Literal[2] | None): ...\n" }
+expected = [{ file = "case.py", start = 64, end = 94 }]
+
+[[cases]]
+name = "inner-union-inside-generic"
+files = { "case.py" = "from typing import Literal, Union, Optional, TypeAlias\nx: list[Literal[1] | Literal[2]] | Literal[3]\n" }
+expected = [{ file = "case.py", start = 63, end = 86 }]
+
+[[cases]]
+name = "literals-after-other-member"
+files = { "case.py" = "from typing import Literal, Union, Optional, TypeAlias\nx: int | Literal[1] | Literal[2]\n" }
+expected = [{ file = "case.py", start = 58, end = 87 }]
+
+[[cases]]
+name = "parenthesized-tail-union"
+files = { "case.py" = "from typing import Literal, Union, Optional, TypeAlias\nx: Literal[1] | (int | Literal[2])\n" }
+expected = [{ file = "case.py", start = 58, end = 89 }]

@@ -1,4 +1,4 @@
-//! The corpus a language's benchmark measures: that language's projects, two or three of them.
+//! The corpus a language's benchmark measures: that language's projects, two to four of them.
 use super::super::super::constants::{FEWEST_PROJECTS, MOST_PROJECTS, RESERVED_PROJECTS};
 use super::super::LanguageTitle;
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
@@ -15,10 +15,10 @@ pub struct CorpusShape<'a> {
 }
 
 impl CorpusShape<'_> {
-    /// Require the staged corpus to be the language's, of two or three projects.
+    /// Require the staged corpus to be the language's, of two to four projects.
     ///
     /// # Errors
-    /// Refuses another language's corpus, or one of fewer or more projects, as `<display> suite requires 2–3 projects`.
+    /// Refuses another language's corpus, or one of fewer or more projects, as `<display> suite requires 2–4 projects`.
     ///
     /// # Examples
     /// ```
@@ -27,7 +27,7 @@ impl CorpusShape<'_> {
     /// let fixture = "fixture".into();
     /// let shape = CorpusShape { language: &fixture, display: LanguageTitle("Fixture") };
     /// let empty = Suite { language: "fixture".into(), projects: Vec::new() };
-    /// assert_eq!(shape.admit(&empty).unwrap_err().to_string(), "Fixture suite requires 2–3 projects");
+    /// assert_eq!(shape.admit(&empty).unwrap_err().to_string(), "Fixture suite requires 2–4 projects");
     /// ```
     pub fn admit(&self, suite: &Suite) -> Result<(), Error> {
         if suite.language != *self.language

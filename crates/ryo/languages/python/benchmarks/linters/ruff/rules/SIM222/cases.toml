@@ -103,3 +103,231 @@ name = "test-nonterminal-literal"
 comparison = "full"
 files = { "case.py" = "if x or True or y:\n    pass\n" }
 expected = [{ rule = "SIM222", file = "case.py", start = 3, end = 17 }]
+
+[[cases]]
+name = "fstring-text-middle"
+comparison = "full"
+files = { "case.py" = "x or f\"a{y}\" or z\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 5, end = 17 }]
+
+[[cases]]
+name = "fstring-text-first"
+comparison = "full"
+files = { "case.py" = "f\"a{y}\" or x\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 0, end = 12 }]
+
+[[cases]]
+name = "fstring-text-assert-last"
+comparison = "full"
+files = { "case.py" = "assert x or f\"{y}_schedule\"\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 7, end = 27 }]
+
+[[cases]]
+name = "fstring-only-interpolation"
+comparison = "full"
+files = { "case.py" = "x or f\"{y}\" or z\n" }
+expected = []
+
+[[cases]]
+name = "fstring-empty-middle"
+comparison = "full"
+files = { "case.py" = "x or f\"\" or z\n" }
+expected = []
+
+[[cases]]
+name = "fstring-empty-start"
+comparison = "full"
+files = { "case.py" = "f\"\" or True or z\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 0, end = 16 }]
+
+[[cases]]
+name = "fstring-interpolated-blocks"
+comparison = "full"
+files = { "case.py" = "f\"{y}\" or True or z\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 10, end = 19 }]
+
+[[cases]]
+name = "fstring-empty-after-unknown"
+comparison = "full"
+files = { "case.py" = "x or f\"\" or True or z\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 5, end = 21 }]
+
+[[cases]]
+name = "fstring-concatenated-text"
+comparison = "full"
+files = { "case.py" = "x or f\"\" f\"a\" or z\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 5, end = 18 }]
+
+[[cases]]
+name = "fstring-concatenated-plain-text"
+comparison = "full"
+files = { "case.py" = "x or f\"{y}\" \"a\" or z\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 5, end = 20 }]
+
+[[cases]]
+name = "fstring-concatenated-empty"
+comparison = "full"
+files = { "case.py" = "x or \"\" f\"{y}\" or z\n" }
+expected = []
+
+[[cases]]
+name = "fstring-debug"
+comparison = "full"
+files = { "case.py" = "x or f\"{y=}\" or z\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 5, end = 17 }]
+
+[[cases]]
+name = "fstring-conversion-of-unknown"
+comparison = "full"
+files = { "case.py" = "x or f\"{y!r}\" or z\n" }
+expected = []
+
+[[cases]]
+name = "fstring-conversion-of-number"
+comparison = "full"
+files = { "case.py" = "x or f\"{1!r}\" or z\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 5, end = 18 }]
+
+[[cases]]
+name = "fstring-format-spec"
+comparison = "full"
+files = { "case.py" = "x or f\"{1:>3}\" or z\n" }
+expected = []
+
+[[cases]]
+name = "fstring-empty-format-spec"
+comparison = "full"
+files = { "case.py" = "x or f\"{1:}\" or z\n" }
+expected = []
+
+[[cases]]
+name = "fstring-string-value"
+comparison = "full"
+files = { "case.py" = "x or f\"{'a'}\" or z\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 5, end = 18 }]
+
+[[cases]]
+name = "fstring-empty-string-value"
+comparison = "full"
+files = { "case.py" = "x or f\"{''}\" or z\n" }
+expected = []
+
+[[cases]]
+name = "fstring-number-value"
+comparison = "full"
+files = { "case.py" = "x or f\"{0}\" or z\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 5, end = 16 }]
+
+[[cases]]
+name = "fstring-none-value"
+comparison = "full"
+files = { "case.py" = "x or f\"{None}\" or z\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 5, end = 19 }]
+
+[[cases]]
+name = "fstring-bytes-value"
+comparison = "full"
+files = { "case.py" = "x or f\"{b''}\" or z\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 5, end = 18 }]
+
+[[cases]]
+name = "fstring-list-value"
+comparison = "full"
+files = { "case.py" = "x or f\"{[]}\" or z\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 5, end = 17 }]
+
+[[cases]]
+name = "fstring-tuple-value"
+comparison = "full"
+files = { "case.py" = "x or f\"{()}\" or z\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 5, end = 17 }]
+
+[[cases]]
+name = "fstring-dict-value"
+comparison = "full"
+files = { "case.py" = "x or f\"{ {} }\" or z\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 5, end = 19 }]
+
+[[cases]]
+name = "fstring-comprehension-value"
+comparison = "full"
+files = { "case.py" = "x or f\"{[i for i in y]}\" or z\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 5, end = 29 }]
+
+[[cases]]
+name = "fstring-generator-value"
+comparison = "full"
+files = { "case.py" = "x or f\"{(i for i in y)}\" or z\n" }
+expected = []
+
+[[cases]]
+name = "fstring-lambda-value"
+comparison = "full"
+files = { "case.py" = "x or f\"{(lambda: 1)}\" or z\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 5, end = 26 }]
+
+[[cases]]
+name = "fstring-compare-value"
+comparison = "full"
+files = { "case.py" = "x or f\"{x == y}\" or z\n" }
+expected = []
+
+[[cases]]
+name = "fstring-unary-value"
+comparison = "full"
+files = { "case.py" = "x or f\"{-1}\" or z\n" }
+expected = []
+
+[[cases]]
+name = "fstring-call-value"
+comparison = "full"
+files = { "case.py" = "x or f\"{y()}\" or z\n" }
+expected = []
+
+[[cases]]
+name = "fstring-conditional-value"
+comparison = "full"
+files = { "case.py" = "x or f\"{1 if y else 2}\" or z\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 5, end = 28 }]
+
+[[cases]]
+name = "fstring-conditional-empty-branch"
+comparison = "full"
+files = { "case.py" = "x or f\"{1 if y else ''}\" or z\n" }
+expected = []
+
+[[cases]]
+name = "fstring-named-value"
+comparison = "full"
+files = { "case.py" = "x or f\"{(w := 1)}\" or z\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 5, end = 23 }]
+
+[[cases]]
+name = "fstring-named-empty-value"
+comparison = "full"
+files = { "case.py" = "x or f\"{(w := '')}\" or z\n" }
+expected = []
+
+[[cases]]
+name = "fstring-nested-text"
+comparison = "full"
+files = { "case.py" = "x or f\"{f'a{y}'}\" or z\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 5, end = 22 }]
+
+[[cases]]
+name = "fstring-nested-interpolation"
+comparison = "full"
+files = { "case.py" = "x or f\"{f'{y}'}\" or z\n" }
+expected = []
+
+[[cases]]
+name = "fstring-raw-text"
+comparison = "full"
+files = { "case.py" = "x or rf\"a{y}\" or z\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 5, end = 18 }]
+
+[[cases]]
+name = "fstring-newline-text"
+comparison = "full"
+files = { "case.py" = "x or f\"\"\"\n\"\"\" or z\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 5, end = 18 }]

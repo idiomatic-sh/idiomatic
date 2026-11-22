@@ -103,3 +103,69 @@ name = "test-nonterminal-literal"
 comparison = "full"
 files = { "case.py" = "if x and False and y:\n    pass\n" }
 expected = [{ rule = "SIM223", file = "case.py", start = 3, end = 20 }]
+
+[[cases]]
+name = "fstring-empty-middle"
+comparison = "full"
+files = { "case.py" = "x and f\"\" and z\n" }
+expected = [{ rule = "SIM223", file = "case.py", start = 6, end = 15 }]
+
+[[cases]]
+name = "fstring-empty-string-value"
+comparison = "full"
+files = { "case.py" = "x and f\"{''}\" and z\n" }
+expected = [{ rule = "SIM223", file = "case.py", start = 6, end = 19 }]
+
+[[cases]]
+name = "fstring-concatenated-empty"
+comparison = "full"
+files = { "case.py" = "x and \"\" f\"\" and z\n" }
+expected = [{ rule = "SIM223", file = "case.py", start = 6, end = 18 }]
+
+[[cases]]
+name = "fstring-nested-empty"
+comparison = "full"
+files = { "case.py" = "x and f\"{f''}\" and z\n" }
+expected = [{ rule = "SIM223", file = "case.py", start = 6, end = 20 }]
+
+[[cases]]
+name = "fstring-only-interpolation"
+comparison = "full"
+files = { "case.py" = "x and f\"{y}\" and z\n" }
+expected = []
+
+[[cases]]
+name = "fstring-empty-format-spec"
+comparison = "full"
+files = { "case.py" = "x and f\"{'':}\" and z\n" }
+expected = []
+
+[[cases]]
+name = "fstring-conversion-of-empty"
+comparison = "full"
+files = { "case.py" = "x and f\"{''!r}\" and z\n" }
+expected = []
+
+[[cases]]
+name = "fstring-named-empty-value"
+comparison = "full"
+files = { "case.py" = "x and f\"{(w := '')}\" and z\n" }
+expected = []
+
+[[cases]]
+name = "fstring-text"
+comparison = "full"
+files = { "case.py" = "x and f\"a{y}\" and z\n" }
+expected = []
+
+[[cases]]
+name = "fstring-empty-triple"
+comparison = "full"
+files = { "case.py" = "x and f\"\"\"\"\"\" and z\n" }
+expected = [{ rule = "SIM223", file = "case.py", start = 6, end = 19 }]
+
+[[cases]]
+name = "fstring-empty-start"
+comparison = "full"
+files = { "case.py" = "f\"\" and False and z\n" }
+expected = [{ rule = "SIM223", file = "case.py", start = 0, end = 19 }]

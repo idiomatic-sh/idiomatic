@@ -1,4 +1,5 @@
 import observation_matches from "python/ruff/suppress-matches";
+import interpolated_string_truth from "python/ruff/interpolated-string-truth";
 let boolean_nodes = select id, file, span from "semantic-syntax" where kind = "bool-op";
 let operator_edges = select parent, child, file from "semantic-child" where field = "op";
 let operator_tokens = select id, file from "semantic-syntax" where text = "and";
@@ -12,11 +13,15 @@ let falsey_strings = select id, file from literals where (kind = "string" or kin
 let falsey_nulls = select id, file from literals where kind = "null";
 let falsey_a = union(left=falsey_booleans,right=falsey_numbers);
 let falsey_b = union(left=falsey_strings,right=falsey_nulls);
-let truthy_values = union(left=falsey_a,right=falsey_b);
+let interpolated_truth = interpolated_string_truth();
+let falsey_interpolated = select id, file from interpolated_truth where truthy = "false";
+let falsey_literals = union(left=falsey_a,right=falsey_b);
+let truthy_values = union(left=falsey_literals,right=falsey_interpolated);
 let prior_values = select l.boolop as boolop, l.file as file, l.value as value, l.ordinal as ordinal from boolean_values as l join boolean_values as r on l.boolop = r.boolop and l.file = r.file where l.ordinal < r.ordinal;
 let selected_values = select l.boolop as boolop, l.file as file, l.value as value, l.ordinal as ordinal from boolean_values as l join truthy_values as r on l.value = r.id and l.file = r.file;
 let chosen_values = group-min(from=selected_values, keys=["boolop", "file"], order="ordinal");
-let unknown_values = antijoin(left=boolean_values, right=literals, left-on=["value","file"], right-on=["id","file"]);
+let literal_values = antijoin(left=boolean_values, right=literals, left-on=["value","file"], right-on=["id","file"]);
+let unknown_values = antijoin(left=literal_values, right=interpolated_truth, left-on=["value","file"], right-on=["id","file"]);
 let possible_starts = select l.boolop as boolop, l.file as file, l.value as value, l.ordinal as ordinal, r.value as start_value, r.ordinal as start_ordinal from chosen_values as l join boolean_values as r on l.boolop = r.boolop and l.file = r.file where r.ordinal <= l.ordinal;
 let blocked_starts = select l.boolop as boolop, l.file as file, l.start_value as start_value from possible_starts as l join unknown_values as r on l.boolop = r.boolop and l.file = r.file where r.ordinal >= l.start_ordinal and r.ordinal < l.ordinal;
 let unblocked_starts = antijoin(left=possible_starts, right=blocked_starts, left-on=["boolop","start_value","file"], right-on=["boolop","start_value","file"]);

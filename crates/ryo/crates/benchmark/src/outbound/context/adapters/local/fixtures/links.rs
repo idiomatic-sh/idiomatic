@@ -1,7 +1,8 @@
 //! A file of the local context adapter's test support: tracked trees with symbolic links, and the scenarios that seal
-//! them. A tracked link is sealed by its exact target text, which must name a sealed file of the same snapshot; a
-//! changed, non-canonical or unsealed link, a requested source that is a link, and a target that is not UTF-8 are
-//! refused.
+//! them. A tracked link is sealed by its exact target text, which must name a sealed file of the same snapshot, a
+//! directory of it that holds one, or nothing at all; a changed, non-canonical or unsealed link, a link to a directory
+//! that holds it, a dangling link whose target appears later, a requested source that is a link, and a target that is
+//! not UTF-8 are refused.
 use super::super::adapter::{seal_existing, validate};
 use ryo_benchmark_contracts::domain::context::types::{ContextManifest, LinkTarget};
 use ryo_benchmark_contracts::domain::reports::errors::ReportsError as Error;
@@ -74,6 +75,79 @@ pub(crate) fn seal_records_a_tracked_link_to_a_sealed_file() -> Result<(), Error
     );
     assert!(!manifest.source_files.contains_key(Path::new("b/img.png")));
     validate(&manifest, root)
+}
+/// A tracked link to a directory of the snapshot (git keeps `ln -s ../docs/styles/ styles` as that text) is sealed by its
+/// exact text, with or without the trailing `/`; nothing under it is sealed, since every sealed path is refused a link on
+/// its way.
+#[cfg(unix)]
+pub(crate) fn seal_records_a_tracked_link_to_a_sealed_directory() -> Result<(), Error> {
+    let scratch = tempfile::tempdir()?;
+    let root = scratch.path();
+    let tracked = tree(
+        root,
+        &["docs/styles/a.yml", "src/m.py"],
+        &[(".github/styles", "../docs/styles/"), ("styles", "docs/styles")],
+    )?;
+    let manifest = sealed(root, &tracked)?;
+    assert_eq!(
+        manifest.links,
+        std::collections::BTreeMap::from([
+            (".github/styles".into(), LinkTarget("../docs/styles/".into())),
+            ("styles".into(), LinkTarget("docs/styles".into())),
+        ])
+    );
+    assert!(
+        manifest
+            .auxiliary_files
+            .contains_key(Path::new("docs/styles/a.yml"))
+    );
+    assert_eq!(manifest.auxiliary_files.len(), 2);
+    validate(&manifest, root)
+}
+/// A tracked link that names nothing (dagster tracks `.github/styles -> docs/vale/styles/`, which resolves beside the link,
+/// where nothing is) is sealed by its exact text; once something appears at its destination, the seal is refused.
+#[cfg(unix)]
+pub(crate) fn seal_records_a_dangling_tracked_link() -> Result<(), Error> {
+    let scratch = tempfile::tempdir()?;
+    let root = scratch.path();
+    let tracked = tree(
+        root,
+        &["docs/vale/styles/a.yml", "b/img.png"],
+        &[(".github/styles", "docs/vale/styles/"), ("b/gone.png", "../a/gone.png")],
+    )?;
+    let manifest = sealed(root, &tracked)?;
+    assert_eq!(
+        manifest.links,
+        std::collections::BTreeMap::from([
+            (".github/styles".into(), LinkTarget("docs/vale/styles/".into())),
+            ("b/gone.png".into(), LinkTarget("../a/gone.png".into())),
+        ])
+    );
+    validate(&manifest, root)?;
+    std::fs::create_dir_all(root.join("a"))?;
+    std::fs::write(root.join("a/gone.png"), b"untracked")?;
+    assert!(refused_with(
+        validate(&manifest, root),
+        super::super::constants::CONTEXT_LINK_TARGET_UNSEALED
+    ));
+    Ok(())
+}
+/// A link to a directory that holds the link itself is a cycle, and is refused.
+#[cfg(unix)]
+pub(crate) fn seal_refuses_a_link_to_a_directory_that_holds_it() -> Result<(), Error> {
+    for text in ["../../a", "../../a/", "../"] {
+        let scratch = tempfile::tempdir()?;
+        let root = scratch.path();
+        let tracked = tree(root, &["a/x.py", "a/b/y.py"], &[("a/b/l", text)])?;
+        assert!(
+            refused_with(
+                sealed(root, &tracked),
+                super::super::constants::CONTEXT_LINK_TARGET_HOLDS_THE_LINK
+            ),
+            "{text}"
+        );
+    }
+    Ok(())
 }
 #[cfg(unix)]
 pub(crate) fn validate_refuses_a_sealed_link_changed_after_the_seal() -> Result<(), Error> {
@@ -191,7 +265,9 @@ pub(crate) fn seal_refuses_a_link_to_an_unsealed_target() -> Result<(), Error> {
         super::super::constants::CONTEXT_LINK_TARGET_UNSEALED
     ));
     let directory = tempfile::tempdir()?;
-    let tracked = tree(directory.path(), &["a/img.png"], &[("b/img.png", "../a")])?;
+    std::fs::create_dir_all(directory.path().join("c"))?;
+    std::fs::write(directory.path().join("c/untracked.png"), b"untracked")?;
+    let tracked = tree(directory.path(), &["a/img.png"], &[("b/img", "../c")])?;
     assert!(refused_with(
         sealed(directory.path(), &tracked),
         super::super::constants::CONTEXT_LINK_TARGET_UNSEALED

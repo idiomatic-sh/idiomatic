@@ -1941,3 +1941,121 @@ requested-files = ["fastapi/__init__.py", "fastapi/middleware/__init__.py", "fas
 given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "fastapi", state = "directory" }, { path = "fastapi/__init__.py", state = "file" }, { path = "fastapi/middleware", state = "directory" }, { path = "fastapi/middleware/__init__.py", state = "file" }, { path = "fastapi/testclient.py", state = "file" }, { path = "tests", state = "directory" }, { path = "tests/test_ws_router.py", state = "file" }] }
 files = { "fastapi/__init__.py" = "", "fastapi/middleware/__init__.py" = "", "fastapi/testclient.py" = "", "tests/test_ws_router.py" = "import functools\n\nimport pytest\nfrom fastapi import (\n    APIRouter,\n    Depends,\n    FastAPI,\n    Header,\n    WebSocket,\n    WebSocketDisconnect,\n    status,\n)\nfrom fastapi.middleware import Middleware\nfrom fastapi.testclient import TestClient\n" }
 expected = [{ rule = "I001", file = "tests/test_ws_router.py", start = 0, end = 244 }]
+
+[[cases]]
+name = "namespace-directory-from-import-firstparty-clean"
+comparison = "full"
+project-search-roots = ["", "src"]
+requested-files = ["input.py"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "config", state = "directory" }, { path = "config/ruff.toml", state = "file" }] }
+files = { "input.py" = "from pydantic import Field\n\nfrom config import settings\n", "config/ruff.toml" = "x = 1\n" }
+expected = []
+
+[[cases]]
+name = "namespace-directory-from-import-firstparty-misordered"
+comparison = "full"
+project-search-roots = ["", "src"]
+requested-files = ["input.py"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "config", state = "directory" }, { path = "config/ruff.toml", state = "file" }] }
+files = { "input.py" = "from config import settings\nfrom pydantic import Field\n", "config/ruff.toml" = "x = 1\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 54 }]
+
+[[cases]]
+name = "namespace-directory-import-firstparty-clean"
+comparison = "full"
+project-search-roots = ["", "src"]
+requested-files = ["input.py"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "config", state = "directory" }, { path = "config/ruff.toml", state = "file" }] }
+files = { "input.py" = "import pydantic\n\nimport config\n", "config/ruff.toml" = "x = 1\n" }
+expected = []
+
+[[cases]]
+name = "namespace-directory-missing-child-import-external-misordered"
+comparison = "full"
+project-search-roots = ["", "src"]
+requested-files = ["input.py"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "config", state = "directory" }, { path = "config/ruff.toml", state = "file" }] }
+files = { "input.py" = "import pydantic\n\nimport config.settings\n", "config/ruff.toml" = "x = 1\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 39 }]
+
+[[cases]]
+name = "namespace-directory-missing-child-import-external-clean"
+comparison = "full"
+project-search-roots = ["", "src"]
+requested-files = ["input.py"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "config", state = "directory" }, { path = "config/ruff.toml", state = "file" }] }
+files = { "input.py" = "import config.settings\nimport pydantic\n", "config/ruff.toml" = "x = 1\n" }
+expected = []
+
+[[cases]]
+name = "namespace-directory-missing-child-from-import-external-clean"
+comparison = "full"
+project-search-roots = ["", "src"]
+requested-files = ["input.py"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "config", state = "directory" }, { path = "config/ruff.toml", state = "file" }] }
+files = { "input.py" = "from config.settings import x\nfrom pydantic import Field\n", "config/ruff.toml" = "x = 1\n" }
+expected = []
+
+[[cases]]
+name = "trailing-comment-passes-line-from-import-wraps"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import torch\nfrom project_ml.defs.assets.model_assets import DigitCNN  # ty: ignore[unresolved-import]\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 69 }]
+
+[[cases]]
+name = "trailing-comment-reaches-line-from-import-fits"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import torch\nfrom project_ml.defs.assets.model_asset import DigitCNN  # ty: ignore[unresolved-import]\n" }
+expected = []
+
+[[cases]]
+name = "trailing-comment-passes-line-single-from-import"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from project_ml.defs.assets.model_assets import DigitCNN  # ty: ignore[unresolved-import]\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 56 }]
+
+[[cases]]
+name = "trailing-comment-passes-line-plain-import-stays"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import project_ml.defs.assets.model_assets.digits.a.b.c.d.e  # ty: ignore[unresolved-import]\n" }
+expected = []
+
+[[cases]]
+name = "trailing-comment-passes-line-two-members"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from project_ml.defs.assets.model_assets import DigitCNN, Other  # ty: ignore[unresolved-import]\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 63 }]
+
+[[cases]]
+name = "trailing-noqa-comment-passes-line"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from project_ml.defs.assets.model_assets import DigitCNN  # noqa: F401 and a long comment here\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 56 }]
+
+[[cases]]
+name = "trailing-comment-passes-line-aliased-member"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from project_ml.defs.assets.model_assets import DigitCNN as D  # ty: ignore[unresolved-import]\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 61 }]
+
+[[cases]]
+name = "long-trailing-comment-short-from-import"
+comparison = "full"
+project-search-roots = ["", "src"]
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from a import b  # xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 15 }]

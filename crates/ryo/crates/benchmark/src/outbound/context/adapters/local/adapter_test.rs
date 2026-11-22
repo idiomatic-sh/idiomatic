@@ -290,6 +290,27 @@ const CASES: &[Case<Input, Value, Failure>] = &[
     },
     #[cfg(unix)]
     Case {
+        name: CaseName("seal_records_a_tracked_link_to_a_sealed_directory"),
+        word: Word::Succeeds,
+        input: || links::seal_records_a_tracked_link_to_a_sealed_directory,
+        expect: Expect::Value(()),
+    },
+    #[cfg(unix)]
+    Case {
+        name: CaseName("seal_records_a_dangling_tracked_link"),
+        word: Word::Succeeds,
+        input: || links::seal_records_a_dangling_tracked_link,
+        expect: Expect::Value(()),
+    },
+    #[cfg(unix)]
+    Case {
+        name: CaseName("seal_refuses_a_link_to_a_directory_that_holds_it"),
+        word: Word::Succeeds,
+        input: || links::seal_refuses_a_link_to_a_directory_that_holds_it,
+        expect: Expect::Value(()),
+    },
+    #[cfg(unix)]
+    Case {
         name: CaseName("validate_refuses_a_sealed_link_changed_after_the_seal"),
         word: Word::Succeeds,
         input: || links::validate_refuses_a_sealed_link_changed_after_the_seal,

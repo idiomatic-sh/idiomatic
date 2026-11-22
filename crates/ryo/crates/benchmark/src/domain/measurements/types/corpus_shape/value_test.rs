@@ -1,4 +1,4 @@
-//! A Python benchmark admits a Python corpus of two or three projects and refuses any other in its own words.
+//! A Python benchmark admits a Python corpus of two to four projects and refuses any other in its own words.
 use super::super::LanguageTitle;
 use super::value::CorpusShape;
 use crate::cases::{Case, CaseName, Expect, Word, run};
@@ -26,16 +26,28 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value("admitted"),
     },
     Case {
-        name: CaseName("a corpus of four projects is refused"),
-        word: Word::Refuses,
+        name: CaseName("a corpus of four projects of the language is admitted"),
+        word: Word::Succeeds,
         input: || ("python", 4, "project-1"),
-        expect: Expect::Error("Python suite requires 2–3 projects"),
+        expect: Expect::Value("admitted"),
+    },
+    Case {
+        name: CaseName("a corpus of five projects is refused"),
+        word: Word::Refuses,
+        input: || ("python", 5, "project-1"),
+        expect: Expect::Error("Python suite requires 2–4 projects"),
+    },
+    Case {
+        name: CaseName("a corpus of one project is refused"),
+        word: Word::Refuses,
+        input: || ("python", 1, "project-1"),
+        expect: Expect::Error("Python suite requires 2–4 projects"),
     },
     Case {
         name: CaseName("another language's corpus is refused"),
         word: Word::Refuses,
         input: || ("typescript", 2, "project-1"),
-        expect: Expect::Error("Python suite requires 2–3 projects"),
+        expect: Expect::Error("Python suite requires 2–4 projects"),
     },
     Case {
         name: CaseName("a project named django is admitted"),

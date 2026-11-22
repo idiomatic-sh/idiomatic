@@ -37,3 +37,93 @@ expected = []
 name = "noqa-codes-trailing-reason-suppress-equality"
 files = { "case.pyi" = "import sys\nif sys.version_info == (3, 10):  # noqa: PYI006 # why\n    ...\n" }
 expected = []
+
+[[cases]]
+name = "less-or-equal"
+files = { "case.pyi" = "import sys\nif sys.version_info <= (3, 12):\n    ...\n" }
+expected = [{ file = "case.pyi", start = 14, end = 41 }]
+
+[[cases]]
+name = "greater"
+files = { "case.pyi" = "import sys\nif sys.version_info > (3, 12):\n    ...\n" }
+expected = [{ file = "case.pyi", start = 14, end = 40 }]
+
+[[cases]]
+name = "greater-or-equal"
+files = { "case.pyi" = "import sys\nif sys.version_info >= (3, 12):\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "identity"
+files = { "case.pyi" = "import sys\nif sys.version_info is (3, 12):\n    ...\n" }
+expected = [{ file = "case.pyi", start = 14, end = 41 }]
+
+[[cases]]
+name = "not-identity"
+files = { "case.pyi" = "import sys\nif sys.version_info is not (3, 12):\n    ...\n" }
+expected = [{ file = "case.pyi", start = 14, end = 45 }]
+
+[[cases]]
+name = "membership"
+files = { "case.pyi" = "import sys\nif sys.version_info in [(3, 12)]:\n    ...\n" }
+expected = [{ file = "case.pyi", start = 14, end = 43 }]
+
+[[cases]]
+name = "not-membership"
+files = { "case.pyi" = "import sys\nif sys.version_info not in [(3, 12)]:\n    ...\n" }
+expected = [{ file = "case.pyi", start = 14, end = 47 }]
+
+[[cases]]
+name = "elif-test"
+files = { "case.pyi" = "import sys\nif x:\n    ...\nelif sys.version_info > (3, 1):\n    ...\n" }
+expected = [{ file = "case.pyi", start = 30, end = 55 }]
+
+[[cases]]
+name = "and-operand"
+files = { "case.pyi" = "import sys\nif x and sys.version_info > (3, 1) and y:\n    ...\n" }
+expected = [{ file = "case.pyi", start = 20, end = 45 }]
+
+[[cases]]
+name = "nested-bool-operand"
+files = { "case.pyi" = "import sys\nif x and (y or sys.version_info == (3, 1)):\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "negated"
+files = { "case.pyi" = "import sys\nif not sys.version_info == (3, 1):\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "chained"
+files = { "case.pyi" = "import sys\nif sys.version_info == (3, 12) == y:\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "reversed-operands"
+files = { "case.pyi" = "import sys\nif (3, 12) == sys.version_info:\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "assignment"
+files = { "case.pyi" = "import sys\nx = sys.version_info == (3, 12)\n" }
+expected = []
+
+[[cases]]
+name = "conditional-expression"
+files = { "case.pyi" = "import sys\ny = 1 if sys.version_info == (3, 1) else 2\n" }
+expected = []
+
+[[cases]]
+name = "while-test"
+files = { "case.pyi" = "import sys\nwhile sys.version_info == (3, 1):\n    break\n" }
+expected = []
+
+[[cases]]
+name = "assert-test"
+files = { "case.pyi" = "import sys\nassert sys.version_info == (3, 1)\n" }
+expected = []
+
+[[cases]]
+name = "nested-function"
+files = { "case.pyi" = "import sys\ndef f():\n    if sys.version_info > (3, 1):\n        ...\n" }
+expected = [{ file = "case.pyi", start = 27, end = 52 }]
