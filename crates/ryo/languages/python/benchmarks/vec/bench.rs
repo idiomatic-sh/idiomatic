@@ -1791,6 +1791,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
             parent: &st.parent,
             pkind: if structured { &st.pkind } else { &[] },
             cmask: if structured { &st.cmask } else { &[] },
+            cfmask: if structured { &st.cfmask } else { &[] },
             facts: &store,
             enc: &st.enc,
             matches: &interner.matches,
@@ -1889,43 +1890,47 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                         }
                     }
                     _ => {
-                        // each plan runs over the candidates no earlier plan of the unit kept
+                        // each plan runs over the candidates no earlier plan of the unit kept: the first from the
+                        // bucket itself, the next ones from what is left (made only when a later plan reads it)
                         stamp = stamp.wrapping_add(1);
-                        remaining.clear();
-                        remaining.extend_from_slice(&buf);
-                        for p in &unit.plans {
-                            if remaining.is_empty() {
+                        let mut left = false;
+                        for (pi, p) in unit.plans.iter().enumerate() {
+                            let from: &[u32] = if left { &remaining } else { &buf };
+                            if from.is_empty() {
                                 break;
                             }
                             let plan = &rule.plans[*p];
                             if word_skip && !funnel::cnf_holds(&plan.words, &present) {
                                 continue;
                             }
-                            rows.r = plan.regs.max(1);
-                            rows.d.clear();
-                            rows.d.resize(remaining.len() * rows.r, 0);
-                            rows.tag.clear();
-                            for (j, n) in remaining.iter().enumerate() {
-                                rows.d[j * rows.r] = *n;
-                                rows.tag.push(j as u32);
-                            }
+                            rows.enter(plan.regs.max(1), from);
                             for stage in &plan.stages {
                                 if rows.len() == 0 {
                                     break;
                                 }
                                 stage(&ctx, &mut rows, &mut s);
                             }
+                            let mut kept = 0;
                             for j in 0..rows.len() {
                                 let n = rows.d[j * rows.r] as usize;
                                 if marked[n] != stamp {
                                     marked[n] = stamp;
-                                    n_s += 1;
+                                    kept += 1;
                                     if surv_out.is_some() && first {
                                         unit_nodes.push(n as u32);
                                     }
                                 }
                             }
-                            remaining.retain(|n| marked[*n as usize] != stamp);
+                            n_s += kept;
+                            if pi + 1 < unit.plans.len() && kept > 0 {
+                                if left {
+                                    remaining.retain(|n| marked[*n as usize] != stamp);
+                                } else {
+                                    remaining.clear();
+                                    remaining.extend(buf.iter().filter(|n| marked[**n as usize] != stamp));
+                                    left = true;
+                                }
+                            }
                         }
                     }
                 }
