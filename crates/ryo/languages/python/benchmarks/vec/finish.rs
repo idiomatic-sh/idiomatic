@@ -783,6 +783,8 @@ enum E {
     And(Box<E>, Box<E>),
     Or(Box<E>, Box<E>),
     Not(Box<E>),
+    /// redo-binding: the null test (`x is null`, `x is not null` when the flag is set): whether a value is the absent cell.
+    Null(Box<E>, bool),
     /// A text tested against a constant regex (from `matches` or `glob_any`), compiled once.
     Re(Box<E>, Rc<regex::bytes::Regex>),
     /// The survivor handoff: whether a node id is in survivor set `k` of this file (the prefix's roots for a rule).
@@ -1319,6 +1321,7 @@ impl<'p> Exec<'p> {
             "and" => E::And(Box::new(self.expr(run, &a[1], names)?), Box::new(self.expr(run, &a[2], names)?)),
             "or" => E::Or(Box::new(self.expr(run, &a[1], names)?), Box::new(self.expr(run, &a[2], names)?)),
             "not" => E::Not(Box::new(self.expr(run, &a[1], names)?)),
+            "null" => E::Null(Box::new(self.expr(run, &a[1], names)?), a[2].as_bool().ok_or("null test")?),
             "seed" => E::Seed(Box::new(self.expr(run, &a[1], names)?), a[2].as_u64().ok_or("seed set")? as usize),
             other => return Err(format!("expression {other}")),
         })
@@ -3505,6 +3508,7 @@ fn remap(e: &E, map: &[usize]) -> E {
         E::And(x, y) => E::And(b(x), b(y)),
         E::Or(x, y) => E::Or(b(x), b(y)),
         E::Not(x) => E::Not(b(x)),
+        E::Null(x, n) => E::Null(b(x), *n),
         E::Re(x, r) => E::Re(b(x), r.clone()),
         E::Seed(x, k) => E::Seed(b(x), *k),
         other => other.clone(),
@@ -3682,7 +3686,7 @@ fn refs_of(e: &E) -> u64 {
         E::Col(s, _, _) => 1 << s,
         E::List(v) | E::Call(_, v) => v.iter().map(refs_of).fold(0, |a, b| a | b),
         E::Cmp(_, a, b) | E::In(a, b, _) | E::And(a, b) | E::Or(a, b) => refs_of(a) | refs_of(b),
-        E::Not(a) | E::Re(a, _) | E::Seed(a, _) => refs_of(a),
+        E::Not(a) | E::Null(a, _) | E::Re(a, _) | E::Seed(a, _) => refs_of(a),
         _ => 0,
     }
 }
@@ -3766,6 +3770,7 @@ fn eval(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], e: &E) -> V {
         E::And(a, b) => flag(truthy(eval(run, f, srcs, cur, a)) && truthy(eval(run, f, srcs, cur, b))),
         E::Or(a, b) => flag(truthy(eval(run, f, srcs, cur, a)) || truthy(eval(run, f, srcs, cur, b))),
         E::Not(a) => flag(!truthy(eval(run, f, srcs, cur, a))),
+        E::Null(a, not) => flag((eval(run, f, srcs, cur, a).1 == NULL) != *not),
         E::Cmp(o, a, b) if o == "=" || o == "!=" => {
             let eq = match (&**a, &**b) {
                 (E::Col(s1, c1, t1), E::Col(s2, c2, t2)) if t1 == t2 => {
