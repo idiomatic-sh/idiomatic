@@ -144,6 +144,7 @@ impl FactTable {
     #[inline]
     fn put(&mut self, node: u32, values: &[(usize, u32)]) {
         self.mark(node);
+        self.keys.push(node);
         self.rows += 1;
         for (place, value) in values {
             if let Some(cell) = self.columns.get_mut(*place).and_then(|column| column.get_mut(node as usize)) {
@@ -221,6 +222,12 @@ impl FactTable {
         self.offsets[at] as usize..self.offsets[at + 1] as usize
     }
 
+    /// redo-fills pass 2: each row's key node, in the order the rows were written (both layouts; empty for a yes/no ask).
+    #[must_use]
+    pub fn keys(&self) -> &[u32] {
+        &self.keys
+    }
+
     /// The row number in the columns of a place `rows_of` gave.
     #[inline]
     #[must_use]
@@ -242,6 +249,17 @@ pub struct FactColumns {
 struct TextMemo {
     fixed: HashMap<(usize, usize), u32, std::hash::BuildHasherDefault<crate::domain::model::names::types::KeyHasher>>,
     names: Vec<u32>,
+}
+
+/// redo-fills pass 2: a second text memo, for a caller whose text ids are not the walk's own caller's (the memo holds ids).
+#[derive(Debug, Default)]
+pub struct ColumnMemo(TextMemo);
+
+impl ColumnMemo {
+    /// A new file starts: its model names are forgotten (the fixed texts are kept for the run).
+    pub fn new_file(&mut self) {
+        self.0.names.clear();
+    }
 }
 
 impl TextMemo {
@@ -629,6 +647,29 @@ impl ColumnFile<'_, '_> {
         for (ask, table) in asks.iter().zip(&mut out.tables) {
             self.column(ask, ids, table);
         }
+    }
+
+    /// redo-fills pass 2: how many rows the reader's fill of `relation` writes in this file, where the file's own contents
+    /// say it without the fill: a comment a comment token, an embedded expression a segment the walk wrote. None: not
+    /// known without the fill.
+    #[must_use]
+    pub fn row_count(&self, relation: Relation) -> Option<usize> {
+        match relation {
+            Relation::Comment => Some(
+                crate::domain::layout_facts::service::tokens(&self.file.syntax)
+                    .filter(|at| at.token == crate::domain::tokens::types::Token::Comment)
+                    .count(),
+            ),
+            Relation::EmbeddedExpression => Some(self.file.syntax.tree.segments.len()),
+            _ => None,
+        }
+    }
+
+    /// `column` with the caller's own text memo (`ColumnMemo`): the ids are `ids`', never the walk's memo's.
+    pub fn column_with(&mut self, ask: &Ask, ids: &mut dyn TextIds, table: &mut FactTable, memo: &mut ColumnMemo) {
+        std::mem::swap(self.memo, &mut memo.0);
+        self.column(ask, ids, table);
+        std::mem::swap(self.memo, &mut memo.0);
     }
 
     /// One ask's table.

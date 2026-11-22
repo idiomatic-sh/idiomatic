@@ -880,6 +880,8 @@ mod annotation_evaluation;
 mod deferred_visit;
 #[path = "deferred_resolution.rs"]
 mod deferred_resolution;
+#[path = "direct_fill.rs"]
+mod direct_fill;
 
 thread_local! {
     /// redo-binding pass 5: the implicit-symbol catalog of this run (module position, table), filled once.
@@ -948,9 +950,31 @@ impl ColFacts<'_, '_, '_, '_> {
         if let Some(t) = finish::host::host_fill(run, rel, self.file_no) {
             return t;
         }
+        let timed = finish::fill_prof::timed();
+        // redo-fills pass 2: the provider's direct columns, no reader rows and no conversion (direct_fill.rs)
+        if direct_fill::direct(rel)
+            && let Some((t, write, make)) = direct_fill::fill(self.file, run, rel, self.file_no, timed)
+        {
+            if timed {
+                let n = t.as_ref().map_or(0, |t| t.n as u64);
+                for (k, s) in [("reader", write), ("convert", make)] {
+                    let e = self.by_rel.entry(format!("{k}:{rel}")).or_default();
+                    e.0 += s;
+                    e.1 += n;
+                    e.2 += 1;
+                }
+            }
+            if direct_fill::checking() {
+                let (relation, _, _) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
+                self.filled.0.clear();
+                let _ = self.file.fill(relation, languages::Wanted::Whole, self.words, &mut self.filled);
+                let r = finish::filled_table(run, rel, &self.filled, self.words)?;
+                direct_fill::check(run, rel, self.file_no, &r, t.as_ref().map_err(String::clone)?);
+            }
+            return t;
+        }
         let (relation, _, _) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
         self.filled.0.clear();
-        let timed = finish::fill_prof::timed();
         let t0 = if timed { thread_cpu() } else { 0.0 };
         let answer = self.file.fill(relation, languages::Wanted::Whole, self.words, &mut self.filled);
         let t1 = if timed { thread_cpu() } else { 0.0 };
@@ -1189,6 +1213,18 @@ impl ColFacts<'_, '_, '_, '_> {
 }
 
 impl finish::Provider for ColFacts<'_, '_, '_, '_> {
+    fn fill_len(&mut self, run: &mut finish::Run, rel: &str) -> Option<usize> {
+        // the host's: a file the harness lints was read (host.rs), so it has no read failure
+        if rel == "filesystem.read-failure" {
+            return Some(0);
+        }
+        if rel.starts_with("filesystem.") || self.kept.contains_key(rel) {
+            return None;
+        }
+        let (relation, _, _) = run.catalog(rel)?;
+        self.file.row_count(relation)
+    }
+
     fn fill(&mut self, run: &mut finish::Run, rel: &str) -> Result<finish::Table, String> {
         let timed = finish::fill_prof::timed();
         let t0 = if timed { thread_cpu() } else { 0.0 };

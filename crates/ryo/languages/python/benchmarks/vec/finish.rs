@@ -76,6 +76,10 @@ mod key_absent;
 mod prefixes;
 #[path = "finish/ordered_dfs.rs"]
 mod ordered_dfs;
+#[path = "finish/lazy_view.rs"]
+mod lazy_view;
+#[path = "finish/fill_len.rs"]
+pub(super) mod fill_len;
 #[path = "finish/host.rs"]
 pub(super) mod host;
 #[path = "finish/capture.rs"]
@@ -749,6 +753,10 @@ impl Drop for File<'_> {
 /// How a step asks the provider for a relation's rows: the visit's facts.
 pub(super) trait Provider {
     fn fill(&mut self, run: &mut Run, rel: &str) -> Result<Table, String>;
+    /// redo-fills pass 2: how many rows `fill(rel)` answers in this file, where known without making them; None: not known.
+    fn fill_len(&mut self, _run: &mut Run, _rel: &str) -> Option<usize> {
+        None
+    }
     /// A node's text in a syntax role: `Ok(None)` where the role cannot hold it.
     fn render(&mut self, node: u32, context: &str) -> Result<Option<Vec<u8>>, String>;
 }
@@ -1953,6 +1961,17 @@ impl<'p> Exec<'p> {
     pub(super) fn res(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Res> {
         let why = std::mem::take(&mut self.reason);
         if let Some(r) = &f.memo[node] {
+            // redo-fills pass 2: a view a lazy select source left unfilled is filled at its first read (lazy_view.rs)
+            if let Res::View(v) = r
+                && let Native::Fact(x) = v.base
+                && f.facts.get(usize::from(x)).is_none_or(Option::is_none)
+            {
+                let (r, base) = (r.clone(), v.base);
+                let was = fill_prof::site("view");
+                self.load_fact(f, run, p, base)?;
+                fill_prof::site(was);
+                return Ok(r);
+            }
             return Ok(r.clone());
         }
         let tk = step_clock();
@@ -3308,7 +3327,7 @@ impl<'p> Exec<'p> {
         }
         let rel = run.fact_rels[i].0.clone();
         if !f.fills.contains_key(&rel) {
-            let t = p.fill(run, &rel)?;
+            let t = fill_len::fill_or_empty(run, p, &rel)?;
             f.fills.insert(rel.clone(), recycle::rc(t));
         }
         if f.facts.len() <= i {
@@ -3339,7 +3358,7 @@ impl<'p> Exec<'p> {
             return module_identity(f, run);
         }
         let was = fill_prof::site("base");
-        let t = p.fill(run, rel);
+        let t = fill_len::fill_or_empty(run, p, rel);
         fill_prof::site(was);
         let t = t?;
         f.fills.insert(rel.to_owned(), recycle::rc(t.clone()));
