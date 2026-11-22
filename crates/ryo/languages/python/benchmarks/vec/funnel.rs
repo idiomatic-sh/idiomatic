@@ -1112,8 +1112,8 @@ pub(super) struct Structure {
 
 /// One forward pass: parent kind, child-kind and child-field bitsets, sibling index, nearest enclosing function, class and loop.
 pub(super) fn structure(table: &NodeTable, s: &mut Structure, function: &KSet, class: &KSet, looping: &KSet) {
-    let n = node_table::element_count(table).0 as usize;
-    let kind = |i: usize| node_table::kind_of(table, Position(i as u32)).0;
+    let (kind, parent) = (node_table::kind_codes(table), node_table::parent_ids(table));
+    let n = kind.len();
     s.pkind.clear();
     s.cmask.clear();
     s.cmask.resize(n, [0; 4]);
@@ -1124,9 +1124,9 @@ pub(super) fn structure(table: &NodeTable, s: &mut Structure, function: &KSet, c
     s.enc_class.clear();
     s.enc_loop.clear();
     for i in 0..n {
-        let p = node_table::parent_of(table, Position(i as u32)).0 as usize;
-        let k = kind(i);
-        let pk = kind(p);
+        let p = parent[i] as usize;
+        let k = kind[i];
+        let pk = kind[p];
         s.pkind.push(pk);
         if p != i {
             s.cmask[p][usize::from(k) / 64] |= 1 << (k % 64);
@@ -1156,24 +1156,23 @@ pub(super) fn structure(table: &NodeTable, s: &mut Structure, function: &KSet, c
 
 /// The enclosing columns of the plans' kind sets, one forward pass each over the parent and kind columns.
 pub(super) fn enclosing(table: &NodeTable, s: &mut Structure, sets: &[KSet]) {
-    let n = node_table::element_count(table).0 as usize;
-    let kind = |i: usize| node_table::kind_of(table, Position(i as u32)).0;
-    let parent = |i: usize| node_table::parent_of(table, Position(i as u32)).0 as usize;
+    let (kind, parent) = (node_table::kind_codes(table), node_table::parent_ids(table));
+    let n = kind.len();
     s.enc.resize_with(sets.len(), Vec::new);
     for (k, set) in sets.iter().enumerate() {
         let col = &mut s.enc[k];
         col.clear();
         col.resize(n, u32::MAX);
         for i in 0..n {
-            let p = parent(i);
+            let p = parent[i] as usize;
             if p == i || p >= i {
                 // a root, or a parent written after its child (an embedded segment's host comes first: never here)
-                if p != i && p < n && kbit(set, kind(p)) {
+                if p != i && p < n && kbit(set, kind[p]) {
                     col[i] = p as u32;
                 }
                 continue;
             }
-            col[i] = if kbit(set, kind(p)) { p as u32 } else { col[p] };
+            col[i] = if kbit(set, kind[p]) { p as u32 } else { col[p] };
         }
     }
 }

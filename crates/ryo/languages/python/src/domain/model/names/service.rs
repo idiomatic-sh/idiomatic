@@ -17,13 +17,29 @@ pub(crate) fn clear(table: &mut NameTable) {
     table.slots.fill(NameSlot(0));
 }
 
-/// The hash of `text`.
+/// The hash of `text`, eight bytes at a time: the slot a name is looked for in. Codes are given in the order names are first
+/// interned, so the hash places names and never numbers them.
 fn hashed(text: NameText<'_>) -> NameHash {
-    let mut hash = HASH_START.0;
-    for byte in text.0.bytes() {
-        hash = (hash ^ u64::from(byte)).wrapping_mul(HASH_STEP.0);
+    let bytes = text.0.as_bytes();
+    let mut hash = HASH_START.0 ^ u64::try_from(bytes.len()).unwrap_or(u64::MAX);
+    let mut chunks = bytes.chunks_exact(8);
+    for chunk in &mut chunks {
+        let mut word = [0_u8; 8];
+        word.copy_from_slice(chunk);
+        hash = (hash ^ u64::from_le_bytes(word)).wrapping_mul(HASH_STEP.0);
+        hash ^= hash >> 32;
     }
-    NameHash(hash)
+    let rest = chunks.remainder();
+    if !rest.is_empty() {
+        let mut word = [0_u8; 8];
+        if let Some(head) = word.get_mut(..rest.len()) {
+            head.copy_from_slice(rest);
+        }
+        hash = (hash ^ u64::from_le_bytes(word)).wrapping_mul(HASH_STEP.0);
+    }
+    hash ^= hash >> 29;
+    hash = hash.wrapping_mul(HASH_STEP.0);
+    NameHash(hash ^ (hash >> 32))
 }
 
 /// The text of the entry `entry`.
@@ -36,8 +52,12 @@ fn entry_text<'a>(table: &'a NameTable, entry: &NameEntry) -> NameText<'a> {
 /// The code `text` has in the table, when it is a name of the file.
 #[must_use]
 pub(crate) fn find(table: &NameTable, text: NameText<'_>) -> Option<NameCode> {
+    found(table, text, hashed(text))
+}
+
+/// The code of `text`, whose hash is `hash`, if the table holds it.
+fn found(table: &NameTable, text: NameText<'_>, hash: NameHash) -> Option<NameCode> {
     let mask = table.slots.len().checked_sub(1)?;
-    let hash = hashed(text);
     let mut place = usize::try_from(hash.0).unwrap_or(usize::MAX) & mask;
     loop {
         let slot = table.slots.get(place)?;
@@ -86,14 +106,14 @@ fn grow(table: &mut NameTable) {
 
 /// The code of `text`, added to the table when the file has not named it yet.
 pub(crate) fn intern(table: &mut NameTable, text: NameText<'_>) -> NameCode {
-    if let Some(code) = find(table, text) {
+    let hash = hashed(text);
+    if let Some(code) = found(table, text, hash) {
         return code;
     }
     grow(table);
     let code = NameCode(u32::try_from(table.entries.len()).unwrap_or(u32::MAX));
     let start = Offset(u32::try_from(table.texts.0.len()).unwrap_or(u32::MAX));
     table.texts.0.push_str(text.0);
-    let hash = hashed(text);
     table.entries.push(NameEntry {
         start,
         end: Offset(u32::try_from(table.texts.0.len()).unwrap_or(u32::MAX)),

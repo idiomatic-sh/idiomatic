@@ -236,39 +236,20 @@ fn field_index(cols: &mut Columns, fields: usize) {
     }
 }
 
-/// The field buckets and the fields present, read from the node table's own field column.
-fn field_buckets(table: &NodeTable, cols: &mut Columns, fields: usize) {
-    let n = node_table::element_count(table).0;
-    let Columns { field_offsets, by_field, field_present, .. } = cols;
-    field_offsets.clear();
-    field_offsets.resize(fields + 1, 0);
-    for i in 0..n as u32 {
-        field_offsets[usize::from(node_table::field_of(table, Position(i)).0) + 1] += 1;
-    }
+/// One pass: the fields present in a file, read off the table's field lists (a step a field code).
+fn fields_present(table: &NodeTable, cols: &mut Columns, fields: usize) {
+    cols.field_present.clear();
+    cols.field_present.resize(words(fields), 0);
     for f in 0..fields {
-        field_offsets[f + 1] += field_offsets[f];
-    }
-    by_field.clear();
-    by_field.resize(n as usize, 0);
-    let mut fill: Vec<u32> = field_offsets[..fields].to_vec();
-    for i in 0..n as u32 {
-        let slot = &mut fill[usize::from(node_table::field_of(table, Position(i)).0)];
-        by_field[*slot as usize] = i;
-        *slot += 1;
-    }
-    field_present.clear();
-    field_present.resize(words(fields), 0);
-    for f in 0..fields {
-        if field_offsets[f + 1] > field_offsets[f] {
-            field_present[f / 64] |= 1 << (f % 64);
+        if !node_table::ids_of_field(table, languages::FieldCode(f as u16)).is_empty() {
+            cols.field_present[f / 64] |= 1 << (f % 64);
         }
     }
 }
 
 /// An element's bytes, from the node table's own span column.
 fn span_bytes(table: &NodeTable, i: usize) -> std::ops::Range<usize> {
-    let s = node_table::span_of(table, Position(i as u32));
-    s.start.0 as usize..s.end.0 as usize
+    node_table::starts(table)[i] as usize..node_table::ends(table)[i] as usize
 }
 
 fn test_lit(lit: &Lit, text: &[u8]) -> bool {
@@ -482,6 +463,10 @@ fn main() {
                 let mut finish_args = vec![args[at + 1], args[3], args[at + 2]];
                 if let Some(at) = args.iter().position(|a| *a == "--findings-out") {
                     finish_args.extend(["--out", args[at + 1]]);
+                }
+                // redo-int: `--finish-stats F` writes the second half's per-step stats (its `--stats`)
+                if let Some(at) = args.iter().position(|a| *a == "--finish-stats") {
+                    finish_args.extend(["--stats", args[at + 1]]);
                 }
                 let plan = finish::load(finish_args[0]);
                 let mut fin = finisher::Finisher::new(&plan, &walk, &vocab, &finish_args);
@@ -761,6 +746,8 @@ mod survivors;
 mod finish;
 #[path = "finisher.rs"]
 mod finisher;
+#[path = "dump.rs"]
+mod dump;
 
 /// The visit's facts as the finish's provider.
 struct Facts<'v, 'f, 'w> {
@@ -1221,6 +1208,10 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
     let mut buf: Vec<u32> = Vec::new();
     let mut remaining: Vec<u32> = Vec::new();
     let (mut kinds_alive, mut words_alive, mut alive): (Vec<bool>, Vec<bool>, Vec<bool>) = (Vec::new(), Vec::new(), Vec::new());
+    // one pass: `--dump <file>` writes per file a hash of each part the first half reads (dump.rs)
+    let dump_out = flag(args, "--dump");
+    let mut dumped = String::new();
+    let mut reader_dump = String::new();
     let started = thread_cpu();
     // the second half inside this walk (`--finish`): each plan emit's rules of this plan set by name (the seed's rule is a
     // name), and the file's seed as a set over the rules
@@ -1234,6 +1225,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
         let bytes = std::fs::read(path).expect("read");
         let (hits0, alive0) = (sv.hits.len(), sv.alive.len());
         store.reset(slots_n);
+        reader_dump.clear();
         let mut visit_time = 0f64;
         // the file's skip, made once (inside the walk when the provider's facts are decided there, else after it): the
         // columns read, the required words present, and which rules can match by kinds and fields and by words
@@ -1242,7 +1234,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
             ($t:expr) => {{
                 let pt: &NodeTable = $t;
                 let c1 = thread_cpu();
-                field_buckets(pt, &mut cols, fields_width.max(1));
+                fields_present(pt, &mut cols, fields_width.max(1));
                 phases.add("field buckets", thread_cpu() - c1);
                 if way != "structure" {
                 // the file's required words
@@ -1383,6 +1375,44 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                         phases.add("enclosing columns (one per kind set)", thread_cpu() - e0);
                     }
                 }
+                if dump_out.is_some() {
+                    dump::table(&mut dumped, file_no, t, vocab.kind_names.len());
+                    let mut h = dump::Hashed::default();
+                    h.rows(node_table::parent_ids(t));
+                    h.rows(&st.pkind);
+                    h.rows(&st.cmask);
+                    h.rows(&st.sibling);
+                    h.rows(&st.enc_function);
+                    h.rows(&st.enc_class);
+                    h.rows(&st.enc_loop);
+                    h.rows(&st.enc);
+                    h.line(&mut dumped, file_no, "structure");
+                    let mut h = dump::Hashed::default();
+                    // the field buckets as the harness's counting sort laid them out: offsets, then the ids, then the present bits
+                    let mut offsets = vec![0u32];
+                    let mut ids: Vec<u32> = Vec::new();
+                    for f in 0..fields_width.max(1) {
+                        ids.extend(node_table::ids_of_field(t, languages::FieldCode(f as u16)).iter().map(|p| p.0));
+                        offsets.push(ids.len() as u32);
+                    }
+                    h.rows(&offsets);
+                    h.rows(&ids);
+                    h.rows(&cols.field_present);
+                    h.line(&mut dumped, file_no, "fields");
+                    let mut h = dump::Hashed::default();
+                    h.rows(&present);
+                    h.rows(&word_pairs);
+                    h.rows(&word_offsets);
+                    h.rows(&word_pos);
+                    h.line(&mut dumped, file_no, "words");
+                    for (i, (slot, kc)) in ask_of.iter().enumerate() {
+                        let mut h = dump::Hashed::default();
+                        h.row(&asks[i]);
+                        h.row(&store.direct.tables[i]);
+                        h.line(&mut dumped, file_no, &format!("fact/{}/{kc}/{}", fact_catalog.names[*slot], asks[i].exists));
+                    }
+                    dumped.push_str(&reader_dump);
+                }
                 if way != "structure" && way != "words" {
                     let ctx = funnel::Ctx {
                         table: t,
@@ -1403,10 +1433,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                         match *key {
                             Key::Word(w) => buf.extend_from_slice(&word_pos[word_offsets[usize::from(w)] as usize..word_offsets[usize::from(w) + 1] as usize]),
                             Key::Kind(k) => buf.extend(node_table::ids_of_kind(t, KindBits(k)).iter().map(|p| p.0)),
-                            Key::Field(f) => {
-                                let (a, b) = (cols.field_offsets[usize::from(f)] as usize, cols.field_offsets[usize::from(f) + 1] as usize);
-                                buf.extend_from_slice(&cols.by_field[a..b]);
-                            }
+                            Key::Field(f) => buf.extend(node_table::ids_of_field(t, languages::FieldCode(f)).iter().map(|p| p.0)),
                         }
                     };
                     let c4 = thread_cpu();
@@ -1852,6 +1879,18 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                             chk_diff[t] += u64::from(mine != theirs) * (mine.len().abs_diff(theirs.len()).max(1) as u64) + u64::from(back != theirs);
                         }
                     }
+                    if dump_out.is_some() {
+                        // the reader's rows of every relation the plans ask, whole
+                        for slot in 0..slots_n {
+                            languages::facts::clear_words(&mut fwords);
+                            filled.0.clear();
+                            let answer = file.fill(fact_catalog.relations[slot], languages::Wanted::Whole, &mut fwords, &mut filled);
+                            let mut h = dump::Hashed::default();
+                            h.row(&answer);
+                            h.rows(&filled.0);
+                            h.line(&mut reader_dump, file_no, &format!("reader/{}", fact_catalog.names[slot]));
+                        }
+                    }
                     // one parse a file: the prefix and then the second half on this walked file, before the walk drops it
                     prefix!(ft);
                     prefixed = true;
@@ -1970,6 +2009,9 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
     // the second half's time inside this walk is not the first half's
     let fin_spent = fin.as_ref().map_or(0.0, |f| f.time) - fin0;
     let total = thread_cpu() - started - fin_spent;
+    if let Some(path) = &dump_out {
+        std::fs::write(path, &dumped).expect("dump out");
+    }
     if fin.is_some() {
         println!("one walk: the second half inside the first half's visit {fin_spent:.4} s");
     }

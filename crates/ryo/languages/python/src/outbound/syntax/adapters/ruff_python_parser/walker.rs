@@ -229,7 +229,8 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
     }
 
     fn leave_node(&mut self, node: AnyNodeRef<'t>) {
-        let _: Option<Offset> = self.ends.pop();
+        // Where the node ends, as it was placed when it opened.
+        let placed_end = self.ends.pop();
         if opens(node.kind()).is_some() {
             let _: Option<Strings> = self.strings.pop();
         }
@@ -240,7 +241,7 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
             }
             self.length
         } else {
-            let end = placed(self.origin, node.end());
+            let end = placed_end.unwrap_or_else(|| placed(self.origin, node.end()));
             self.write_within(end);
             end
         };
