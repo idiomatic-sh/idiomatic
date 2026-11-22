@@ -1117,8 +1117,6 @@ pub(super) fn structure(table: &NodeTable, s: &mut Structure) {
     let n = kind.len();
     s.sets.clear();
     s.sets.resize(n, NodeSets::default());
-    field_counts.clear();
-    field_counts.resize(fields + 1, 0);
     for i in 0..n {
         let p = parent[i] as usize;
         let k = kind[i];
@@ -1127,6 +1125,7 @@ pub(super) fn structure(table: &NodeTable, s: &mut Structure) {
         if p != i {
             let m = &mut s.sets[p];
             m.cmask[usize::from(k) / 64] |= 1 << (k % 64);
+            let f = node_table::field_of(table, Position(i as u32)).0;
             if f < 128 {
                 m.cfmask[usize::from(f) / 64] |= 1 << (f % 64);
             }
