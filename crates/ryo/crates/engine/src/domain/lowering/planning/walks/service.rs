@@ -2,7 +2,7 @@
 
 use crate::domain::lowering::costing::constants::{ANCESTORS, CHILDREN, DESCENDANTS, ONE};
 use crate::domain::lowering::costing::types::{CellState, PlanEstimate};
-use crate::domain::lowering::definitions::service::{asked, fresh_register};
+use crate::domain::lowering::definitions::service::{asked_by, fresh_register};
 use crate::domain::lowering::flattening::types::{NearestDomain, NearestOver};
 use crate::domain::lowering::planning::closures::service::{own_used, read_condition, walk_edges};
 use crate::domain::lowering::planning::closures::types::{AtomWriter, EdgeEnds};
@@ -166,7 +166,7 @@ pub(crate) fn nearest(
             let condition = match &walk.domain {
                 NearestDomain::Held { definition, column } => {
                     let bound = ColumnMask([*column].into());
-                    asked(emitter.drafts, *definition, &bound, &ColumnMask::default());
+                    asked_by(emitter.drafts, *definition, &bound, &ColumnMask::default(), emitter.role);
                     Some(WalkEdges::Use(EdgeUse {
                         definition: *definition,
                         bound,

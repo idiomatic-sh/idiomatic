@@ -2,7 +2,7 @@
 //! the decision binds, which collects nothing. A relation's own rows are asked in place by the cells given: a program
 //! writes the read as the body of an `Exists`, a pipeline as a probe that asks present or absent.
 
-use crate::domain::lowering::definitions::service::{asked, fresh_register};
+use crate::domain::lowering::definitions::service::{asked_by, fresh_register};
 use crate::domain::lowering::flattening::service::made_column;
 use crate::domain::lowering::flattening::types::{AtomRows, FlatTerm, RowColumn};
 use crate::domain::lowering::planning::deciding::types::AskedCell;
@@ -64,7 +64,7 @@ pub(crate) fn decided(
         AtomRows::Definition(definition) => {
             let columns = asked_of.iter().filter_map(|cell| made_column(cell.place));
             let bound = ColumnMask(columns.collect());
-            asked(emitter.drafts, definition, &bound, &ColumnMask::default());
+            asked_by(emitter.drafts, definition, &bound, &ColumnMask::default(), emitter.role);
             emitter.written.push(WrittenAccess::Use {
                 definition,
                 bound,

@@ -182,7 +182,8 @@ pub(crate) fn site_passes(
 /// Whether a site with these asks passes.
 #[inline]
 fn passing(asks: SiteAsks) -> SitePasses {
-    if asks.asks.0 >= PASS_AFTER.0 && asks.hits.0.saturating_mul(PASS_UNDER.0) < asks.asks.0 {
+    let after = crate::domain::walk::pass_after().unwrap_or(PASS_AFTER.0);
+    if asks.asks.0 >= after && asks.hits.0.saturating_mul(PASS_UNDER.0) < asks.asks.0 {
         SitePasses::Passing
     } else {
         SitePasses::Kept

@@ -4,7 +4,7 @@
 
 use crate::domain::lowering::costing::service::keyed;
 use crate::domain::lowering::costing::types::CellState;
-use crate::domain::lowering::definitions::service::{asked, fresh_register};
+use crate::domain::lowering::definitions::service::{asked_by, fresh_register};
 use crate::domain::lowering::definitions::types::Drafts;
 use crate::domain::lowering::flattening::service::made_column;
 use crate::domain::lowering::flattening::types::{
@@ -127,7 +127,7 @@ fn used(
         }
     }
     let (bound, collected) = (ColumnMask(bound.into()), ColumnMask(collected.into()));
-    asked(emitter.drafts, definition, &bound, &collected);
+    asked_by(emitter.drafts, definition, &bound, &collected, emitter.role);
     let mode = if collected.0.is_empty() {
         UseMode::Present
     } else {
@@ -223,7 +223,7 @@ fn rows_read(
     }
     if let AtomRows::Definition(definition) = source {
         let nothing = ColumnMask::default();
-        asked(emitter.drafts, definition, &nothing, &nothing);
+        asked_by(emitter.drafts, definition, &nothing, &nothing, emitter.role);
     }
     if let (AtomRows::Made(table), false) = (source, listed.is_empty()) {
         indexed(emitter.drafts, table, &listed);

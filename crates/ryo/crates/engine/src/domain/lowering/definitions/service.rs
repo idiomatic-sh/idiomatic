@@ -178,11 +178,40 @@ pub(crate) fn asked(
         },
         form: None,
         shape: ShapeChoice::Decided,
+        fill_asked: false,
     });
     drafts.waiting.push(WaitingPattern {
         definition,
         pattern: PatternPlace(draft.patterns.len().saturating_sub(1)),
     });
+}
+
+/// SPIKE (the walk): `asked`, and the pattern marked as asked by a table's pipeline when the asker writes one.
+pub(crate) fn asked_by(
+    drafts: &mut Drafts,
+    definition: DefinitionId,
+    bound: &ColumnMask,
+    collected: &ColumnMask,
+    role: crate::domain::lowering::planning::types::UnitRole,
+) {
+    asked(drafts, definition, bound, collected);
+    if role != crate::domain::lowering::planning::types::UnitRole::Pipeline {
+        return;
+    }
+    let place = usize::try_from(definition.0).unwrap_or(usize::MAX);
+    let Some(draft) = drafts.definitions.get_mut(place) else {
+        return;
+    };
+    let pattern = draft
+        .patterns
+        .iter_mut()
+        .find(|pattern| pattern.asked.bound == *bound && pattern.asked.collected == *collected);
+    if let Some(pattern) = pattern {
+        pattern.fill_asked = true;
+        if matches!(pattern.form, Some(crate::domain::lowered::types::PatternForm::Call(_))) {
+            drafts.late_fill_asks = drafts.late_fill_asks.saturating_add(1);
+        }
+    }
 }
 
 /// The kind a written name is in a language's vocabulary: its place there. None when the vocabulary does not hold the name,

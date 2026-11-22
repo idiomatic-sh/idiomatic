@@ -20,3 +20,4 @@ pub mod scratch;
 pub mod stages;
 pub mod statistics;
 pub mod steps;
+pub mod walk;

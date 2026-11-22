@@ -90,6 +90,26 @@ fn patterns_placed(drafts: &mut Drafts, sample: LoadSample<'_>) -> Result<(), Re
         };
         pattern_placed(drafts, sample, waiting, own)?;
     }
+    if crate::domain::walk::on("report") {
+        let patterns = drafts.definitions.iter().flat_map(|draft| &draft.patterns);
+        let (mut calls, mut tables, mut fill_calls) = (0_usize, 0_usize, 0_usize);
+        for pattern in patterns {
+            match pattern.form {
+                Some(crate::domain::lowered::types::PatternForm::Call(_)) => {
+                    calls = calls.saturating_add(1);
+                    fill_calls = fill_calls.saturating_add(usize::from(pattern.fill_asked));
+                }
+                Some(crate::domain::lowered::types::PatternForm::Table(_)) => {
+                    tables = tables.saturating_add(1);
+                }
+                None => {}
+            }
+        }
+        eprintln!(
+            "ryo walk: patterns call={calls} table={tables} call-asked-by-a-fill={fill_calls} late-fill-asks={}",
+            drafts.late_fill_asks
+        );
+    }
     Ok(())
 }
 

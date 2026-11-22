@@ -134,6 +134,13 @@ pub(crate) fn given(branch: &FlatBranch, bound: &ColumnMask) -> HashSet<FlatVari
         .collect()
 }
 
+/// SPIKE (the walk): whether a table's pipeline asked the pattern.
+fn draft_fill_asked(drafts: &Drafts, waiting: WaitingPattern) -> bool {
+    draft_at(drafts, waiting.definition)
+        .and_then(|draft| draft.patterns.get(waiting.pattern.0))
+        .is_some_and(|pattern| pattern.fill_asked)
+}
+
 /// The plan of each branch of a pattern's definition with the pattern's bound columns given: a pattern has a program when
 /// every branch has one, every access keyed. None when a branch has none, or the pattern is not one of the drafts'. It
 /// reads the drafts and writes nothing: the plans of patterns that wait may be made in any order, or at once.
@@ -196,7 +203,17 @@ pub(crate) fn pattern_placed(
             &UnitKey::Pattern(node, bound.clone(), collected.clone()),
         ),
     };
-    let placement = placed(facts, sample.stage);
+    let mut placement = placed(facts, sample.stage);
+    // SPIKE (the walk): `RYO_WALK=fill`: a pattern a table's pipeline asks is made whole: the pipeline enumerates its
+    // keys from a whole input anyway, so its asks scale with the input, and a probe of the definition's table is
+    // cheaper than a navigation program run for each.
+    // A definition whose own pipelines use its call form (a nearest walk, which no stage runs) keeps it.
+    if crate::domain::walk::on("fill")
+        && facts.table != TableForm::Calls
+        && draft_fill_asked(drafts, waiting)
+    {
+        placement.form = FormChoice::Table;
+    }
     let form = match (placement.form, plans) {
         (FormChoice::Call, Some(plans)) => {
             let columns = PatternColumns {

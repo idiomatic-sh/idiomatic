@@ -34,7 +34,10 @@ fn pattern_keyed(
     // of the rule's own program, whose answer nothing lists.
     // A fill's ask may pass at any depth: its work goes to its table's sum. A program's only at depth nought, where
     // its steps are the rule's own.
-    let passes = if by == AskedBy::Fill || frame.state.budget.depth.0 == 0 {
+    let passes = if by == AskedBy::Fill
+        || frame.state.budget.depth.0 == 0
+        || crate::domain::walk::any_depth()
+    {
         site_passing(frame.state, body.site)
     } else {
         SitePasses::Kept

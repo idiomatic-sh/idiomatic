@@ -4,7 +4,7 @@
 //! program is this walk, run once per distinct seed.
 
 use crate::domain::lowering::costing::types::CellState;
-use crate::domain::lowering::definitions::service::{asked, fresh_register};
+use crate::domain::lowering::definitions::service::{asked_by, fresh_register};
 use crate::domain::lowering::flattening::service::{made_column, pins_of};
 use crate::domain::lowering::flattening::types::{
     EdgeColumns, EdgeRows, FlatAtom, FlatBranch, FlatTerm, RowColumn,
@@ -71,7 +71,7 @@ pub(crate) fn own_used(
         emitter.missed = Count(emitter.missed.0.saturating_add(1));
         return None;
     };
-    asked(emitter.drafts, unit, &used.bound, &used.collected);
+    asked_by(emitter.drafts, unit, &used.bound, &used.collected, emitter.role);
     emitter.written.push(WrittenAccess::Use {
         definition: used.definition,
         bound: used.bound,
@@ -103,12 +103,10 @@ fn defined_edges(
         });
     }
     let used = edge_use(definition, cells, asks.gives);
-    asked(
-        emitter.drafts,
+    asked_by(emitter.drafts,
         used.definition,
         &used.bound,
-        &used.collected,
-    );
+        &used.collected, emitter.role);
     Some(WalkEdges::Use(used))
 }
 

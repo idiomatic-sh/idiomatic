@@ -37,6 +37,8 @@ pub(crate) struct PatternDraft {
     pub(crate) form: Option<PatternForm>,
     /// Whether the shape of its plans left its form open: a flip candidate.
     pub(crate) shape: ShapeChoice,
+    /// SPIKE (the walk): whether a table's pipeline asks it (a `Use` stage), not only a program.
+    pub(crate) fill_asked: bool,
 }
 
 /// A definition as flattened: its branches are written once and never changed after.
@@ -99,6 +101,8 @@ pub(crate) struct Drafts {
     pub(crate) views: HashMap<NodeDigest, Flattened>,
     /// The patterns asked and not yet placed.
     pub(crate) waiting: Vec<WaitingPattern>,
+    /// SPIKE (the walk): asks by a table's pipeline of a pattern already placed in call form.
+    pub(crate) late_fill_asks: usize,
     /// The next variable no branch names.
     pub(crate) variables: FlatVariable,
     /// How many registers the programs name.
