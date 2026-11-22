@@ -46,6 +46,11 @@ pub(crate) enum RecordCost {
     Free,
     /// It may: a table, a filled relation, or a part that holds one.
     Dear,
+    /// Of a term alone: a filled relation asked for ANY row, the least a relation can say of a file (it holds in
+    /// nearly every file that has what the relation is about, and costs the relation's whole fill to learn). Asked
+    /// last, after a site's tables: 43% of the whole fills of a run were read by nothing but such a term
+    /// (build/x/WHERE-PROVIDER.md).
+    Presence,
 }
 
 /// Whether a site's formula asks a relation of the node-table form for a row.
@@ -84,6 +89,18 @@ pub(crate) struct SiteStretches {
     pub(crate) groups: Stretch,
     /// Its tables: a stretch of the masks' tables.
     pub(crate) tables: Stretch,
+    /// The free terms every one of which it needs (its clauses of one free term), as words of the file's free bits:
+    /// a stretch of the masks' `must`. One and-compare a word decides most sites.
+    pub(crate) must: Stretch,
+}
+
+/// Bits of one word of a file's free answers that must all be set.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct MustWord {
+    /// Which word.
+    pub(crate) word: Count,
+    /// The bits.
+    pub(crate) bits: u64,
 }
 
 /// What the masks hold of one site.
@@ -109,6 +126,12 @@ pub(crate) struct NeedMasks {
     pub(crate) term_costs: Vec<RecordCost>,
     /// The number of each term met.
     pub(crate) numbers: hashbrown::HashMap<NeedTerm, TermNumber>,
+    /// For each term that costs nothing, its place among the free terms and one more; nought for a term that costs.
+    pub(crate) free_places: Vec<u32>,
+    /// The terms that cost nothing, in the order they were met: a file's free bits are in this order.
+    pub(crate) free_terms: Vec<TermNumber>,
+    /// The words of every site's `must`, one site after the other.
+    pub(crate) must: Vec<MustWord>,
     /// What is held of each site, by the site's number.
     pub(crate) sites: Vec<SiteMasks>,
     /// Each clause's stretch of `clause_terms`.
@@ -139,4 +162,9 @@ pub(crate) struct TermAnswers {
     pub(crate) asked: Vec<u64>,
     /// Whether each term asked holds.
     pub(crate) holds: Vec<u64>,
+    /// The file's answers to the free terms, a bit a term in the order of the masks' free terms: every free term met
+    /// so far is asked once, together, at the file's first decision.
+    pub(crate) free: Vec<u64>,
+    /// How many of the free terms `free` holds the answers of.
+    pub(crate) free_known: Count,
 }

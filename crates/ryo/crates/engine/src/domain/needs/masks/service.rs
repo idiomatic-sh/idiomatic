@@ -2,9 +2,10 @@
 //! its first decision; and what a record of the needs may cost, found once.
 
 use super::types::{
-    MaskExact, NeedMasks, NeedTerm, NodeAsk, RecordCost, SiteMasks, SiteStretches, Stretch,
-    TermNumber,
+    MaskExact, MustWord, NeedMasks, NeedTerm, NodeAsk, RecordCost, SiteMasks, SiteStretches,
+    Stretch, TermNumber,
 };
+use crate::domain::code::constants::NO_SLOT;
 use crate::domain::code::records::service::need_at;
 use crate::domain::code::records::types::NeedRecord;
 use crate::domain::code::types::{NeedSite, ProgramCode, RelationNumber, WordSlot};
@@ -63,16 +64,29 @@ fn numbered(code: &ProgramCode, masks: &mut NeedMasks, term: NeedTerm, at: WordS
         term_costs,
         numbers,
         leaves,
+        free_places,
+        free_terms,
         ..
     } = masks;
     let number = *numbers.entry(term).or_insert_with(|| {
+        let number = TermNumber(u32::try_from(terms.len()).unwrap_or(u32::MAX));
         terms.push(term);
-        term_costs.push(match term {
+        let cost = match term {
             NeedTerm::Kinds(_) => RecordCost::Free,
             NeedTerm::Row { relation, .. } if node_relation(code, relation) => RecordCost::Free,
+            NeedTerm::Row {
+                column, constant, ..
+            } if column == NO_SLOT || constant == NO_SLOT => RecordCost::Presence,
             NeedTerm::Row { .. } => RecordCost::Dear,
-        });
-        TermNumber(u32::try_from(terms.len().saturating_sub(1)).unwrap_or(u32::MAX))
+        };
+        term_costs.push(cost);
+        if cost == RecordCost::Free {
+            free_terms.push(number);
+            free_places.push(u32::try_from(free_terms.len()).unwrap_or(0));
+        } else {
+            free_places.push(0);
+        }
+        number
     });
     let place = usize::try_from(at.0).unwrap_or(usize::MAX);
     if leaves.len() <= place {
@@ -258,8 +272,28 @@ fn record_found(code: &ProgramCode, at: WordSlot, masks: &mut NeedMasks) -> Foun
             if alternatives.len() > MOST.2.0 {
                 return nothing(MaskExact::Part);
             }
+            // What every alternative needs, the group needs: those clauses are the site's own (most are of one free
+            // term, decided by the and-compare), and the alternatives keep what tells them apart. An alternative
+            // left with nothing holds whenever they do: the group is then no more than they.
+            let common: Vec<Clause> = alternatives.first().map_or_else(Vec::new, |first| {
+                let shared = first.iter().filter(|clause| {
+                    alternatives
+                        .iter()
+                        .all(|alternative| alternative.contains(clause))
+                });
+                shared.cloned().collect()
+            });
+            for alternative in &mut alternatives {
+                alternative.retain(|clause| !common.contains(clause));
+            }
+            let groups = if alternatives.iter().any(Vec::is_empty) {
+                Vec::new()
+            } else {
+                vec![alternatives]
+            };
             Found {
-                groups: vec![alternatives],
+                clauses: common,
+                groups,
                 ..nothing(exact)
             }
         }
@@ -367,6 +401,28 @@ fn site_found(code: &ProgramCode, site: NeedSite, masks: &mut NeedMasks) -> Foun
     masks.groups.extend_from_slice(&groups);
     let table_start = Count(masks.tables.len());
     masks.tables.extend_from_slice(&found.tables);
+    // The clauses of one free term, as bits of the file's free answers, word by word.
+    let mut words: Vec<MustWord> = Vec::new();
+    for clause in &found.clauses {
+        let [only] = clause.as_slice() else {
+            continue;
+        };
+        let place = masks
+            .free_places
+            .get(usize::try_from(only.0).unwrap_or(usize::MAX))
+            .copied()
+            .unwrap_or(0);
+        let Some(index) = usize::try_from(place).unwrap_or(0).checked_sub(1) else {
+            continue;
+        };
+        let (word, bits) = (Count(index / 64), 1_u64 << (index % 64));
+        match words.iter_mut().find(|held| held.word == word) {
+            Some(held) => held.bits |= bits,
+            None => words.push(MustWord { word, bits }),
+        }
+    }
+    let must_start = Count(masks.must.len());
+    masks.must.extend_from_slice(&words);
     let at = SiteStretches {
         clauses,
         groups: Stretch {
@@ -376,6 +432,10 @@ fn site_found(code: &ProgramCode, site: NeedSite, masks: &mut NeedMasks) -> Foun
         tables: Stretch {
             start: table_start,
             count: Count(found.tables.len()),
+        },
+        must: Stretch {
+            start: must_start,
+            count: Count(words.len()),
         },
     };
     let place = usize::try_from(site.0).unwrap_or(usize::MAX);
