@@ -4643,7 +4643,7 @@ fn lit_pick(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize]) ->
         static BUF: RefCell<(Vec<usize>, Vec<u32>)> = const { RefCell::new((Vec::new(), Vec::new())) };
     }
     let (mut cs, mut vals) = BUF.with(|b| std::mem::take(&mut *b.borrow_mut()));
-    let mut out = false;
+    let mut out = None;
     'conj: for e in conj {
         cs.clear();
         cols(e, si, &mut cs);
