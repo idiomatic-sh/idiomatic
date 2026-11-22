@@ -117,6 +117,9 @@ impl Drop for Count {
 use super::{Exec, File, Provider, Run, Schema, Table, R};
 use std::rc::Rc;
 
+/// Columns of a node whose slots are found by position.
+const AT: usize = 4;
+
 /// The chunk number of a range in the slot's own table (rows filed row by row).
 const OWN: u32 = u32::MAX;
 
@@ -136,6 +139,10 @@ struct Rng {
 struct Slot {
     file: u32,
     nodes: usize,
+    /// asked this file; the keys of its first ask when they came strictly increasing (so distinct, all new): a range of
+    /// the memo's arena, not marked in `seen` until a second ask needs them
+    asked: bool,
+    first: Option<(u32, u32)>,
     /// the keys asked this file below `nodes` (the file's node ids): a word per 32 keys, the file's number in the high
     /// half and a bit a key in the low half (grown to the largest key asked)
     seen: Vec<u64>,
@@ -232,19 +239,22 @@ impl Slot {
 
 pub(super) struct Memo {
     slots: Vec<Slot>,
-    at: Vec<Vec<(u32, u32)>>,
+    at: Vec<u32>,
+    at_far: FxHashMap<(u32, u32), u32>,
     file: u32,
     ask: u32,
     missing: Vec<u64>,
+    /// the first asks' keys this file (cleared at the next: a counter)
+    arena: Vec<u64>,
     ranges: Vec<(u32, u32, u32)>,
     order: Vec<(u64, u32)>,
     /// a view probe's rows (finish.rs `probe`)
     pub(super) vrows: Vec<u32>,
     prof: bool,
     /// asks, keys, keys new to the slot, batches run, answers handed back whole, gathered, empty, batches filed row by row
-    pub(super) n: [u64; 12],
+    pub(super) n: [u64; 14],
     /// seconds: before the run, after it (filing and answer)
-    t: [f64; 2],
+    t: [f64; 4],
 }
 
 impl Memo {
@@ -252,15 +262,17 @@ impl Memo {
         Memo {
             slots: Vec::new(),
             at: Vec::new(),
+            at_far: FxHashMap::default(),
             file: 1,
             ask: 0,
             missing: Vec::new(),
+            arena: Vec::new(),
             ranges: Vec::new(),
             order: Vec::new(),
             vrows: Vec::new(),
             prof: std::env::var_os("VEC_MEMO_PROF").is_some(),
-            n: [0; 12],
-            t: [0.0; 2],
+            n: [0; 14],
+            t: [0.0; 4],
         }
     }
 
@@ -277,33 +289,62 @@ impl Memo {
     /// A new file: a counter (slots reset themselves when first asked in it).
     pub(super) fn next_file(&mut self) {
         self.file += 1;
+        self.arena.clear();
+    }
+
+    /// Marks the keys of a slot's first ask, kept aside, as asked.
+    fn settle(&mut self, slot: usize) {
+        let sl = &mut self.slots[slot];
+        if let Some((s, l)) = sl.first.take() {
+            for k in &self.arena[s as usize..(s + l) as usize] {
+                sl.mark(*k, self.file);
+            }
+        }
     }
 
     fn slot(&mut self, node: usize, col: usize, nodes: usize, sc: &Schema) -> usize {
-        if self.at.len() <= node {
-            self.at.resize_with(node + 1, Vec::new);
-        }
-        let i = match self.at[node].iter().find(|x| x.0 as usize == col) {
-            Some(x) => x.1 as usize,
+        // the slot of (node, col): one read of a flat array for the first `AT` columns of a node (slot + 1; 0: none)
+        let found = if col < AT {
+            if self.at.len() <= node * AT + col {
+                self.at.resize((node + 1) * AT, 0);
+            }
+            self.at[node * AT + col].checked_sub(1)
+        } else {
+            self.at_far.get(&(node as u32, col as u32)).copied()
+        };
+        let i = match found {
+            Some(x) => x as usize,
             None => {
                 let i = self.slots.len();
-                self.slots.push(Slot { file: 0, nodes: 0, seen: Vec::new(), far: FxHashMap::default(), rows: FxHashMap::default(), with_rows: 0, col, indexed: 0, chunks: Vec::new(), own: Table::with(sc.names.clone(), sc.tys.clone()), filed: 0 });
-                self.at[node].push((col as u32, i as u32));
+                self.slots.push(Slot { file: 0, nodes: 0, asked: false, first: None, seen: Vec::new(), far: FxHashMap::default(), rows: FxHashMap::default(), with_rows: 0, col, indexed: 0, chunks: Vec::new(), own: Table::with(sc.names.clone(), sc.tys.clone()), filed: 0 });
+                if col < AT {
+                    self.at[node * AT + col] = i as u32 + 1;
+                } else {
+                    self.at_far.insert((node as u32, col as u32), i as u32);
+                }
                 i
             }
         };
         let sl = &mut self.slots[i];
         if sl.file != self.file {
+            self.n[12] += 1;
+            self.n[13] += sl.chunks.len() as u64;
             sl.file = self.file;
+            sl.asked = false;
+            sl.first = None;
             sl.nodes = nodes;
             if sl.with_rows > 0 {
                 sl.rows.clear();
             }
             sl.with_rows = 0;
             sl.indexed = 0;
-            sl.chunks.clear();
-            sl.own.n = 0;
-            sl.own.cols.iter_mut().for_each(Vec::clear);
+            if !sl.chunks.is_empty() {
+                sl.chunks.clear();
+            }
+            if sl.own.n > 0 {
+                sl.own.n = 0;
+                sl.own.cols.iter_mut().for_each(Vec::clear);
+            }
         }
         i
     }
@@ -345,6 +386,7 @@ impl Memo {
     /// already has rows has them moved to the end first, so each key's rows stay one range.
     fn file_rows(&mut self, slot: usize, out: &Table, col: usize) {
         let file = self.file;
+        self.settle(slot);
         let sl = &mut self.slots[slot];
         sl.index(file);
         sl.filed = sl.filed.wrapping_add(1);
@@ -393,8 +435,8 @@ impl Drop for Memo {
         if self.prof || std::env::var_os("VEC_MEMO_COUNT").is_some() {
             let n = &self.n;
             eprintln!(
-                "memo10: asks {} keys {} new {} runs {} whole {} gathered {} empty {} filed row by row {}; made tables probed {} ({} keys), views probed {} ({} keys); slots {}; seen words {}; row entries {}; s before {:.3} after {:.3}",
-                n[0], n[1], n[2], n[3], n[4], n[5], n[6], n[7], n[8], n[9], n[10], n[11], self.slots.len(), self.slots.iter().map(|s| s.seen.len()).sum::<usize>(), self.slots.iter().map(|s| s.rows.len()).sum::<usize>(), self.t[0], self.t[1]
+                "memo10: asks {} keys {} new {} runs {} whole {} gathered {} empty {} filed row by row {}; made tables probed {} ({} keys), views probed {} ({} keys); slot resets {} (chunks dropped {}); slots {}; seen words {}; row entries {}; s before {:.3} after {:.3} (key loop {:.3}, slot {:.3})",
+                n[0], n[1], n[2], n[3], n[4], n[5], n[6], n[7], n[8], n[9], n[10], n[11], n[12], n[13], self.slots.len(), self.slots.iter().map(|s| s.seen.len()).sum::<usize>(), self.slots.iter().map(|s| s.rows.len()).sum::<usize>(), self.t[0], self.t[1], self.t[2], self.t[3]
             );
         }
     }
@@ -407,13 +449,27 @@ impl Exec<'_> {
     pub(super) fn probe_memo(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64], sc: &Schema) -> R<Rc<Table>> {
         let t0 = self.memo.tick();
         let m = &mut self.memo;
+        let prof = m.prof;
         let slot = m.slot(node, col, f.n, sc);
+        if prof {
+            m.t[3] += super::select_kernel::ticks() - t0;
+        }
         let file = m.file;
         m.n[0] += 1;
         m.n[1] += keys.len() as u64;
         self.stats.memo_keys += keys.len() as u64;
         let mut missing = std::mem::take(&mut m.missing);
         missing.clear();
+        // a slot's first ask this file with keys strictly increasing: every key is new, nothing to look up or mark yet
+        let first = !m.slots[slot].asked && keys.windows(2).all(|w| w[0] < w[1]);
+        m.slots[slot].asked = true;
+        if first {
+            let s = m.arena.len() as u32;
+            m.arena.extend_from_slice(keys);
+            m.slots[slot].first = Some((s, keys.len() as u32));
+        } else {
+            m.settle(slot);
+        }
         let sl = &mut m.slots[slot];
         let filed0 = sl.filed;
         // while every key so far is new, the missing keys are a prefix of `keys` (no copy)
@@ -422,7 +478,11 @@ impl Exec<'_> {
         // a hit answer that is one chunk whole, in order
         let mut whole: Option<(u32, u32)> = None;
         let mut whole_ok = true;
-        for (at, &k) in keys.iter().enumerate() {
+        let tk = if prof { super::select_kernel::ticks() } else { 0.0 };
+        if first {
+            all_new = keys.len();
+        }
+        for (at, &k) in keys.iter().enumerate().skip(if first { keys.len() } else { 0 }) {
             if sl.mark(k, file) {
                 if all_new == at {
                     missing.extend_from_slice(&keys[..at]);
@@ -441,6 +501,9 @@ impl Exec<'_> {
             } else {
                 missing.push(k);
             }
+        }
+        if prof {
+            m.t[2] += super::select_kernel::ticks() - tk;
         }
         let fresh = if all_new == keys.len() { keys.len() } else { missing.len() };
         m.n[2] += fresh as u64;
@@ -471,6 +534,7 @@ impl Exec<'_> {
         let out = match out {
             Ok(o) => o,
             Err(e) => {
+                m.settle(slot);
                 let sl = &mut m.slots[slot];
                 for k in run_keys {
                     sl.unmark(*k, file);
