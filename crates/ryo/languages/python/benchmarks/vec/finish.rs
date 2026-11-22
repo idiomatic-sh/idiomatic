@@ -30,6 +30,8 @@ fn step_clock() -> f64 {
 
 #[path = "finish/drive.rs"]
 mod drive;
+#[path = "finish/select_kernel.rs"]
+mod select_kernel;
 #[path = "finish/handover.rs"]
 pub(super) mod handover;
 #[path = "band.rs"]
@@ -2105,7 +2107,7 @@ impl<'p> Exec<'p> {
         }
         match op {
             "base" => self.base(f, run, p, s(&j["rel"])?),
-            "select" => self.select(f, run, p, node),
+            "select" => self.select_k(f, run, p, node),
             "union" => {
                 let l = self.eval(f, run, p, self.arg_rel(node, "left")?)?;
                 let r = self.eval(f, run, p, self.arg_rel(node, "right")?)?;
