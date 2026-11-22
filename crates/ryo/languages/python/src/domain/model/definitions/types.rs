@@ -94,6 +94,15 @@ pub(crate) struct DefinitionRange {
     pub end: Count,
 }
 
+/// Whether routing the `nonlocal` names moved one off the nearest function around its scope.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Routing {
+    /// None moved: the definitions stand.
+    Kept,
+    /// One moved: the definitions are to be built again.
+    Moved,
+}
+
 /// The definitions part of the model, cleared between files.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct DefinitionModel {

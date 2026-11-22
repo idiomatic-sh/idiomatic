@@ -160,8 +160,11 @@ pub(crate) enum AnnotationMark {
     /// It is not.
     #[default]
     Plain,
-    /// It is.
+    /// It is, and Python evaluates it (or, when the file defers annotations, stores it to be evaluated later).
     Annotation,
+    /// It is the annotation of a variable of a function, which Python never evaluates (PEP 526: "annotations for local
+    /// variables will not be evaluated").
+    Unevaluated,
 }
 
 /// Where a scope says a name it assigns is bound instead of in itself.
@@ -169,7 +172,7 @@ pub(crate) enum AnnotationMark {
 pub(crate) enum ScopeRedirect {
     /// `global`: in the module.
     Global,
-    /// `nonlocal`: in the nearest enclosing function.
+    /// `nonlocal`: in the nearest enclosing function that has the name (`LexicalModel::targets`).
     Nonlocal,
 }
 
@@ -241,6 +244,10 @@ pub(crate) struct LexicalModel {
     pub annotation: Vec<AnnotationMark>,
     /// The `global` and `nonlocal` names of each scope: the first declaration of a name in a scope is the one that holds.
     pub declared: HashMap<NamespaceKey, ScopeRedirect, BuildHasherDefault<KeyHasher>>,
+    /// The function each `nonlocal` name of a scope is bound in, when it is not the nearest function around the scope: the
+    /// nearest enclosing function that binds the name (Language Reference 7.13), a function that declares the name
+    /// `nonlocal` itself passed through.
+    pub targets: HashMap<NamespaceKey, Position, BuildHasherDefault<KeyHasher>>,
     /// The nodes that may define a name, in source order.
     pub binders: Vec<Position>,
     /// The deleted name expressions, in source order.

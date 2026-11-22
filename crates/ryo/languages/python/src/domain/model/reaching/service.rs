@@ -8,7 +8,7 @@ use crate::domain::model::frames::types::{Doubt, FrameCode, FrameModel, NameAbse
 use crate::domain::model::lexical::constants::MODULE;
 use crate::domain::model::declarations::service::{binding_scope, redirected};
 use crate::domain::model::lexical::service::{entry, id_of, name_of, node_at, parent_of, scope_at, scope_form, subtree_end_of};
-use crate::domain::model::lexical::types::{NamespaceKey, NodeClass, ScopeForm};
+use crate::domain::model::lexical::types::{NameUse, NamespaceKey, NodeClass, ScopeForm};
 use crate::domain::model::names::constants::NO_NAME;
 use crate::domain::model::names::service::builtin_of;
 use crate::domain::model::names::types::NameCode;
@@ -35,7 +35,8 @@ fn binds(source: FlowSource<'_, '_, '_>, at: Position) -> Binds {
 }
 
 /// The definitions of `name` that can reach `reference` at this point of the schedule, left in the model's candidates, and what
-/// they amount to.
+/// they amount to. A deletion unbinds the name in the namespace it binds in, and only there (Language Reference 4.2.2, 7.5:
+/// deletion is a binding operation, so a name a function deletes is local to it): it is never looked up around it.
 pub(crate) fn reach(
     model: &mut ReachModel,
     frames: &FrameModel,
@@ -58,6 +59,7 @@ pub(crate) fn reach(
             FlowReadState::Alternatives
         }
     };
+    let deleting = entry(&source.lexical.usage, reference) == NameUse::Delete;
     let initial = scope_at(source.lexical, reference);
     let mut scope = redirected(source.lexical, initial, name);
     let mut uncertain = false;
@@ -86,6 +88,9 @@ pub(crate) fn reach(
             ) {
                 return classified(model.candidates.len(), true, uncertain);
             }
+        }
+        if deleting {
+            return classified(model.candidates.len(), true, uncertain || imported);
         }
         if scope == MODULE {
             break;

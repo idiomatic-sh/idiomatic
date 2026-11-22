@@ -14,14 +14,14 @@ use crate::domain::{
     definitions::service::definition,
     model::declarations::service::redirect_of,
     model::definitions::service::definition_of,
-    model::flow::types::FlowRead,
+    model::flow::types::{FlowContext, FlowRead},
     model::lexical::constants::MODULE,
     model::lexical::service::{entry, id_of, node_at, parent_of, scope_at},
     model::lexical::types::{NodeClass, ScopeRedirect},
     model::types::{BindingAnalysisIndex, Declarations},
     model::view::types::ModelRead,
     nodes::types::Node,
-    scopes::service::{declares_global, enclosing},
+    scopes::service::{declared, declares_global, enclosing},
     syntax::{
         service::{is_root, kind, parent},
         types::{Kind, Rootness},
@@ -128,6 +128,10 @@ fn reference(
             // 7.12: after a block that declares the name global, the name is the module's.
             if scope != root && declares_global(tree, model, scope, event.name) {
                 step(out, event, root, depth, context);
+                break;
+            }
+            // 4.2.2, 7.5: a deletion binds; a name a block deletes and declares neither global nor nonlocal is the block's own.
+            if event.kind == EventKind::Delete && first && declared(tree, model, scope, event.name).is_none() {
                 break;
             }
         }
@@ -255,7 +259,8 @@ fn headed(
 /// model: the type parameters a header sees, then the scope the read is evaluated in and each scope around it but the class
 /// blocks, the module directly after a scope that declares the name global, and the type parameters of a scope between it and
 /// the scope around it. Namespaces that share a step share a depth; a step with type parameters none of which has the name
-/// keeps its depth and tells nothing.
+/// keeps its depth and tells nothing. A deletion of a name its block declares neither global nor nonlocal has its own block
+/// alone: the name is the block's (4.2.2, 7.5).
 pub(crate) fn stepped(
     read: ModelRead<'_>,
     each: &FlowRead,
@@ -277,6 +282,10 @@ pub(crate) fn stepped(
                 step(MODULE, depth);
                 return;
             }
+        }
+        // 4.2.2, 7.5: a deletion binds; a name a block deletes and declares neither global nor nonlocal is the block's own.
+        if each.context == FlowContext::Deletion && redirect_of(lexical, scope, each.name).is_none() {
+            return;
         }
         if scope == MODULE {
             return;

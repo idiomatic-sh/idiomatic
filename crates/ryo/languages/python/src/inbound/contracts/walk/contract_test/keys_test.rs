@@ -92,7 +92,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Asked::Keys(Relation::LookupScope),
         expect: Expect::Value(
-            "592 files, 39826 rows whole, 20856 keys of LookupScope(Reference) wrote 39826: no difference",
+            "592 files, 39819 rows whole, 20856 keys of LookupScope(Reference) wrote 39819: no difference",
         ),
     },
     Case {
