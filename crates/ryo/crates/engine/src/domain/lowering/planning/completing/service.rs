@@ -303,6 +303,7 @@ fn place(state: &mut OrderCompletion<'_>, next: NextAccess) {
         *placed = AtomPlacing::Placed;
     }
     state.order.push(next.atom);
+    state.before.push(state.rows);
     let once = times(next.cost.once, state.rows.min(ONE));
     let taken = plus(once, times(state.rows, next.cost.steps));
     match atom {
@@ -662,6 +663,7 @@ fn begun<'a>(
         pins: pins_of(branch),
         placed: vec![AtomPlacing::Waiting; branch.atoms.len()],
         order: Vec::with_capacity(branch.atoms.len()),
+        before: Vec::with_capacity(branch.atoms.len()),
         uses: uses_of(branch, None),
         implied: HashSet::new(),
         rowless: HashSet::new(),
@@ -715,5 +717,6 @@ pub(crate) fn completed(
         cost: state.cost,
         rows: state.rows,
         products: state.products,
+        before: state.before,
     })
 }

@@ -13,7 +13,7 @@ use super::errors::LoweringError;
 use super::fixtures::described::{code_census, described};
 use super::fixtures::{bound, digests_of, named};
 use super::placement::types::SampleStage;
-use super::service::{lowered, lowered_at};
+use super::service::lowered_at;
 use super::types::{LoadGiven, LoadRefusal, PlanNode, SelectedRule, SelectedRules};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::encoding::service::encoded;

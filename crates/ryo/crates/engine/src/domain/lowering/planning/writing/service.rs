@@ -2,6 +2,9 @@
 //! program, or as one pipeline of a table. The two emitters read the same accesses; a program runs per candidate or per key,
 //! a pipeline's stages are loops over a batch's columns and hold no program.
 
+use crate::domain::lowering::costing::constants::ONE;
+use crate::domain::lowering::costing::service::times;
+use crate::domain::lowering::costing::types::PlanEstimate;
 use crate::domain::lowering::definitions::types::Drafts;
 use crate::domain::lowering::flattening::service::pins_of;
 use crate::domain::lowering::flattening::types::{FlatBranch, FlatTerm};
@@ -46,11 +49,14 @@ fn accesses<'a>(
         written: start.written,
         missed: Count(0),
     };
-    for at in &plan.order {
+    for (place, at) in plan.order.iter().enumerate() {
         if let Some(atom) = branch.atoms.get(at.0) {
+            let before = plan.before.get(place).copied().unwrap_or(ONE);
+            emitter.drafts.asking = times(unit.starts, before);
             atom_written(&mut emitter, atom);
         }
     }
+    emitter.drafts.asking = PlanEstimate(0);
     // Each read waits until its cell is first needed.
     emitter.written = deferred(std::mem::take(&mut emitter.written));
     emitter
@@ -82,6 +88,7 @@ pub(crate) fn branch_program(
     let unit = WrittenUnit {
         role: UnitRole::Branch,
         definition: None,
+        starts: ONE,
     };
     let emitter = accesses(drafts, kinds, branch, plan, unit, BranchStart::default());
     if emitter.missed.0 > 0 {
@@ -145,6 +152,7 @@ pub(crate) fn pattern_program(
     let unit = WrittenUnit {
         role: UnitRole::Pattern,
         definition: Some(pattern.definition),
+        starts: pattern_lookups(drafts, &pattern),
     };
     let emitter = accesses(drafts, kinds, branch, plan, unit, start);
     if emitter.missed.0 > 0 {
@@ -195,6 +203,7 @@ pub(crate) fn pipeline(
     let unit = WrittenUnit {
         role: UnitRole::Pipeline,
         definition: unit,
+        starts: ONE,
     };
     let emitter = accesses(drafts, kinds, branch, plan, unit, BranchStart::default());
     if emitter.missed.0 > 0 {
@@ -215,4 +224,17 @@ pub(crate) fn pipeline(
         stages: stages.into(),
         row,
     })
+}
+
+/// SPIKE (cost placement): how often a pattern is asked in a file, by the asks written so far.
+fn pattern_lookups(drafts: &Drafts, pattern: &PatternColumns<'_>) -> PlanEstimate {
+    drafts
+        .definitions
+        .get(usize::try_from(pattern.definition.0).unwrap_or(usize::MAX))
+        .and_then(|draft| {
+            draft.patterns.iter().find(|each| {
+                each.asked.bound == *pattern.bound && each.asked.collected == *pattern.collected
+            })
+        })
+        .map_or(ONE, |each| each.lookups)
 }
