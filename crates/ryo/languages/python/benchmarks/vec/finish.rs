@@ -195,7 +195,7 @@ impl Table {
         Self::with_rows(names, tys, 0)
     }
     /// redo-alloc: `with` for a table about to hold `n` rows (its columns taken with that room; 0: unknown).
-    fn with_rows(names: impl Into<Names>, tys: impl Into<Tys>, n: usize) -> Self {
+    pub(super) fn with_rows(names: impl Into<Names>, tys: impl Into<Tys>, n: usize) -> Self {
         let (names, tys) = (names.into(), tys.into());
         let k = names.len();
         // redo-alloc: the list of columns from the kept ones (recycle.rs), each column from the pool

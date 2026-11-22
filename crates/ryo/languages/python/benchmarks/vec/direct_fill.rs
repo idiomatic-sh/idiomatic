@@ -57,26 +57,25 @@ pub(super) fn fill(file: &mut ColumnFile<'_, '_>, run: &mut finish::Run, rel: &s
         }
         let keys = ft.keys();
         let n = keys.len();
-        let mut cols: Vec<Vec<u64>> = Vec::with_capacity(tys.len());
-        for (c, ty) in tys.iter().enumerate() {
+        // redo-alloc (merged by redo-int): the table through the pool's constructor, each column written in place
+        let tys2 = tys.clone();
+        let mut out = Table::with_rows(names, tys, n);
+        for (c, ty) in tys2.iter().enumerate() {
             let written = ft.columns.get(c).filter(|col| !col.is_empty());
-            let col: Vec<u64> = match (written, ty) {
-                (Some(col), _) if ft.layout == Layout::PerNode => keys.iter().map(|k| widen(*ty, col[*k as usize])).collect(),
-                (Some(col), _) => col.iter().map(|v| widen(*ty, *v)).collect(),
-                (None, _) if c == key => keys.iter().map(|k| u64::from(*k)).collect(),
-                (None, Ty::File) => vec![u64::from(file_no); n],
-                (None, Ty::Span) => keys
-                    .iter()
-                    .map(|k| {
-                        let s = node_table::span_of(table, Position(*k));
-                        (u64::from(s.start.0) << 32) | u64::from(s.end.0)
-                    })
-                    .collect(),
+            let col = &mut out.cols[c];
+            match (written, ty) {
+                (Some(w), _) if ft.layout == Layout::PerNode => col.extend(keys.iter().map(|k| widen(*ty, w[*k as usize]))),
+                (Some(w), _) => col.extend(w.iter().map(|v| widen(*ty, *v))),
+                (None, _) if c == key => col.extend(keys.iter().map(|k| u64::from(*k))),
+                (None, Ty::File) => col.resize(n, u64::from(file_no)),
+                (None, Ty::Span) => col.extend(keys.iter().map(|k| {
+                    let s = node_table::span_of(table, Position(*k));
+                    (u64::from(s.start.0) << 32) | u64::from(s.end.0)
+                })),
                 (None, _) => return None,
-            };
-            cols.push(col);
+            }
         }
-        let out = Table { names, tys, cols, n };
+        out.n = n;
         let t2 = if timed { super::thread_cpu() } else { 0.0 };
         Some((Ok(out), t1 - t0, t2 - t1))
     })
