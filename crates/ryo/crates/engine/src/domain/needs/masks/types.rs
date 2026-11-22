@@ -3,6 +3,7 @@
 
 use crate::domain::needs::formulas::types::{FreeValue, NeedFormulas};
 use crate::domain::needs::bytes::types::{ByteFile, ByteLiterals};
+use crate::domain::needs::shapes::types::EnclosingColumns;
 use crate::domain::needs::spelled::types::{SpelledFile, SpelledTexts};
 use ryo_relations::domain::catalog::types::Spelling;
 use crate::domain::code::types::{PoolAt, RelationNumber, WordSlot};
@@ -181,4 +182,6 @@ pub(crate) struct TermAnswers {
     pub(crate) spelled: SpelledFile,
     /// What the file's bytes hold of the literals the byte terms ask for: read on the first such ask of the file.
     pub(crate) bytes: ByteFile,
+    /// The file's enclosing columns: for each kind a shape asked of an ancestor, which nodes lie inside a node of it.
+    pub(crate) enclosing: EnclosingColumns,
 }

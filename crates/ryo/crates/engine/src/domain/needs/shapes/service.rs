@@ -2,12 +2,12 @@
 //! entered at its kind's elements, the star with the fewest in the file first, and every element of the list is
 //! held to the star's field, parent and children. A shape holds when every star has an element that passes.
 
-use super::types::{OwnTree, ShapeCounts, ShapeWords, WrittenNode, WrittenStar};
+use super::types::{EnclosingColumns, OwnTree, ShapeCounts, ShapeWords, WrittenNode, WrittenStar};
 use crate::domain::code::constants::NO_SLOT;
 use crate::domain::code::types::WordSlot;
 use crate::domain::needs::types::NeedVerdict;
 use ryo_language::domain::node_table::service::{
-    children_of, field_of, ids_of_kind, kind_of, own_end, parent_of,
+    children_of, field_of, ids_of_kind, kind_of, node_count, own_end, parent_of, subtree_end_of,
 };
 use ryo_language::domain::node_table::types::NodeTable;
 use ryo_relations::domain::relations::types::{Count, KindBits, Position};
@@ -35,10 +35,17 @@ pub(crate) fn stars_of(words: &[WordSlot]) -> Vec<WrittenStar> {
                 children.push(child);
             }
         }
+        let mut ancestors = Vec::new();
+        for _ in 0..at.next().map_or(0, |count| count.0) {
+            if let Some(kind) = at.next() {
+                ancestors.push(kind);
+            }
+        }
         stars.push(WrittenStar {
             anchor,
             parent,
             children,
+            ancestors,
         });
     }
     stars
@@ -79,9 +86,67 @@ fn passes(nodes: &NodeTable, own: Position, element: Position, node: Wanted) -> 
         && node.field.is_none_or(|field| field_of(nodes, element).0 == field)
 }
 
-/// Whether an element has the neighbourhood of a star: its own field and tree, its parent, a child for each child.
-fn neighbourhood(nodes: &NodeTable, own: Position, element: Position, star: &DecidedStar) -> bool {
+/// The enclosing column of a kind in the file, made on its first ask: a bit for each own-tree node that is of the kind
+/// or inside a node of it (a node's subtree is the nodes from it to its subtree's end).
+fn enclosing_column<'c>(nodes: &NodeTable, kind: u16, columns: &'c mut EnclosingColumns) -> &'c [u64] {
+    columns.columns.entry(kind).or_insert_with(|| {
+        let count = node_count(nodes).0;
+        let mut depth = vec![0_i32; count.saturating_add(1)];
+        for element in ids_of_kind(nodes, KindBits(kind)) {
+            let (from, to) = (
+                usize::try_from(element.0).unwrap_or(usize::MAX),
+                usize::try_from(subtree_end_of(nodes, *element).0).unwrap_or(usize::MAX),
+            );
+            if from < count {
+                if let Some(at) = depth.get_mut(from) {
+                    *at += 1;
+                }
+                if let Some(at) = depth.get_mut(to.min(count)) {
+                    *at -= 1;
+                }
+            }
+        }
+        let mut bits = vec![0_u64; count.div_ceil(64)];
+        let mut inside = 0_i32;
+        for (place, step) in depth.iter().take(count).enumerate() {
+            inside += step;
+            if inside > 0
+                && let Some(word) = bits.get_mut(place / 64)
+            {
+                *word |= 1 << (place % 64);
+            }
+        }
+        bits
+    })
+}
+
+/// Whether an element lies inside a node of each kind the star asks of its ancestors: a token by its parent node. An
+/// element of an embedded segment is not decided (its ancestors cross into the host's tree): it passes.
+fn enclosed(nodes: &NodeTable, own: Position, element: Position, star: &DecidedStar, columns: &mut EnclosingColumns) -> bool {
+    if star.ancestors.is_empty() || element.0 >= own.0 {
+        return true;
+    }
+    let first = u32::try_from(node_count(nodes).0).unwrap_or(u32::MAX);
+    let node = if element.0 >= first { parent_of(nodes, element) } else { element };
+    let place = usize::try_from(node.0).unwrap_or(usize::MAX);
+    star.ancestors.iter().all(|kind| {
+        enclosing_column(nodes, *kind, columns)
+            .get(place / 64)
+            .is_some_and(|word| (word >> (place % 64)) & 1 == 1)
+    })
+}
+
+/// Whether an element has the neighbourhood of a star: its own field and tree, its parent, a child for each child, an
+/// enclosing node of each ancestor's kind.
+fn neighbourhood(
+    nodes: &NodeTable,
+    own: Position,
+    element: Position,
+    star: &DecidedStar,
+    columns: &mut EnclosingColumns,
+) -> bool {
     passes(nodes, own, element, star.anchor)
+        && enclosed(nodes, own, element, star, columns)
         && star
             .parent
             .is_none_or(|parent| passes(nodes, own, parent_of(nodes, element), parent))
@@ -97,6 +162,7 @@ struct DecidedStar {
     anchor: Wanted,
     parent: Option<Wanted>,
     children: Vec<Wanted>,
+    ancestors: Vec<u16>,
     kind: KindBits,
 }
 
@@ -108,6 +174,7 @@ pub(crate) fn shape_held(
     nodes: &NodeTable,
     words: &ShapeWords<'_>,
     counts: &mut ShapeCounts,
+    columns: &mut EnclosingColumns,
 ) -> NeedVerdict {
     let mut decided = Vec::with_capacity(stars.len());
     for star in stars {
@@ -131,10 +198,19 @@ pub(crate) fn shape_held(
                 None => return NeedVerdict::Empty,
             }
         }
+        let mut ancestors = Vec::with_capacity(star.ancestors.len());
+        for slot in &star.ancestors {
+            match code_of(words, words.kinds, *slot) {
+                Some(Some(code)) => ancestors.push(code),
+                Some(None) => {}
+                None => return NeedVerdict::Empty,
+            }
+        }
         decided.push(DecidedStar {
             anchor,
             parent,
             children,
+            ancestors,
             kind: KindBits(kind),
         });
     }
@@ -146,14 +222,14 @@ pub(crate) fn shape_held(
             counts.candidates = Count(counts.candidates.0.saturating_add(elements.len()));
             let passed = elements
                 .iter()
-                .filter(|element| neighbourhood(nodes, own, **element, star))
+                .filter(|element| neighbourhood(nodes, own, **element, star, columns))
                 .count();
             counts.survivors = Count(counts.survivors.0.saturating_add(passed));
             passed > 0
         } else {
             elements
                 .iter()
-                .any(|element| neighbourhood(nodes, own, *element, star))
+                .any(|element| neighbourhood(nodes, own, *element, star, columns))
         };
         if !found {
             return NeedVerdict::Empty;

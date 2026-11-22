@@ -35,6 +35,8 @@ pub(crate) struct WrittenStar {
     pub(crate) parent: Option<WrittenNode>,
     /// Its children held.
     pub(crate) children: Vec<WrittenNode>,
+    /// The kinds' constants of the ancestors held.
+    pub(crate) ancestors: Vec<WordSlot>,
 }
 
 /// The words a shape's constants are read in: the run's constants, and the node table's kind and field names by code.
@@ -54,4 +56,12 @@ pub(crate) struct ShapeCounts {
     pub(crate) candidates: Count,
     /// Of them, those whose neighbourhood the entry star holds.
     pub(crate) survivors: Count,
+}
+
+/// A file's enclosing columns, made on the first ask of each kind: for a kind code, a bit for each node of the own tree
+/// that is a node of that kind or lies inside one. One pass over the kind's elements and their subtrees' ends.
+#[derive(Debug, Default)]
+pub(crate) struct EnclosingColumns {
+    /// The column of each kind asked, by kind code.
+    pub(crate) columns: hashbrown::HashMap<u16, Vec<u64>>,
 }

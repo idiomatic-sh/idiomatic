@@ -1057,7 +1057,13 @@ impl FileNeeds<'_, '_, '_> {
             fields: programs.fields,
         };
         let mut counts = ShapeCounts::default();
-        let verdict = shape_held(&stars, self.0.fill.nodes, &words, &mut counts);
+        let verdict = shape_held(
+            &stars,
+            self.0.fill.nodes,
+            &words,
+            &mut counts,
+            &mut self.0.state.need_terms.enclosing,
+        );
         // SPIKE: a measuring worker counts the shapes decided, the candidates read at their entries and the survivors.
         visit(self.0.state, 5);
         if self.0.state.measure.is_some()

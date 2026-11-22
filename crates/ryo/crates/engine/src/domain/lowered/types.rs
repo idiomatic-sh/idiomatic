@@ -139,6 +139,8 @@ pub(crate) struct ShapeStar {
     pub(crate) parent: Option<ShapeNode>,
     /// Its children the branch holds a kind or a field of; one child may stand for several.
     pub(crate) children: Vec<ShapeNode>,
+    /// The kinds of ancestors the branch walks to from it (an ancestor axis, or a descendant axis to it).
+    pub(crate) ancestors: Vec<CellWord>,
 }
 
 /// The elements with a kind a branch holds, each with its neighbourhood: every one must have a candidate in the file.

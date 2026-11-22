@@ -6,7 +6,7 @@ use crate::domain::lowered::types::{ShapeNode, ShapeStar, TreeShape};
 use crate::domain::lowering::definitions::service::text_word;
 use ryo_language::domain::facts::types::CellWord;
 use crate::domain::lowering::flattening::types::{AtomRows, FlatAtom, FlatBranch, FlatTerm, FlatVariable};
-use crate::domain::steps::types::Polarity;
+use crate::domain::steps::types::{AxisDirection, Polarity};
 use ryo_relations::domain::catalog::service::{fact_form, node_column, node_extent};
 use ryo_relations::domain::relations::service::{columns, kind};
 use ryo_relations::domain::relations::types::{CellKind, FactForm, NodeColumn, NodeExtent, Relation};
@@ -171,6 +171,32 @@ fn elements(
     found
 }
 
+/// The elements a branch walks to above an element: the reached end of an ancestor axis from it, the start of a
+/// descendant axis to it.
+fn walked_above(branch: &FlatBranch, element: FlatVariable) -> Vec<FlatVariable> {
+    let mut above = Vec::new();
+    for atom in &branch.atoms {
+        if let FlatAtom::Walk {
+            direction,
+            start: FlatTerm::Variable(start),
+            reached: FlatTerm::Variable(reached),
+            ..
+        } = atom
+        {
+            match direction {
+                AxisDirection::Ancestor if *start == element => above.push(*reached),
+                AxisDirection::Descendant if *reached == element => above.push(*start),
+                AxisDirection::Ancestor
+                | AxisDirection::Descendant
+                | AxisDirection::Parent
+                | AxisDirection::NextSibling
+                | AxisDirection::PreviousSibling => {}
+            }
+        }
+    }
+    above
+}
+
 /// The neighbourhoods a branch holds of its elements with a kind: for each, its own field, its parent's kind and field,
 /// and its children's, where the branch holds any. None when no element with a kind has a neighbour held, or a field:
 /// the kind alone is the free terms' already.
@@ -201,13 +227,20 @@ pub(crate) fn tree_shape(
             .collect();
         children.sort_by_key(|child| format!("{child:?}"));
         children.dedup();
-        if parent.is_none() && children.is_empty() && element.field.is_none() {
+        let mut ancestors: Vec<CellWord> = walked_above(branch, *variable)
+            .iter()
+            .filter_map(|above| found.get(above).and_then(|held| held.kind))
+            .collect();
+        ancestors.sort_by_key(|word| word.0);
+        ancestors.dedup();
+        if parent.is_none() && children.is_empty() && ancestors.is_empty() && element.field.is_none() {
             continue;
         }
         stars.push(ShapeStar {
             anchor: node(element),
             parent,
             children,
+            ancestors,
         });
     }
     stars.sort_by_key(|star| format!("{star:?}"));

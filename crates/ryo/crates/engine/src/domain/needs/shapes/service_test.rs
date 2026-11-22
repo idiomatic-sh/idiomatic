@@ -1,9 +1,10 @@
 //! The `shapes` part's cases: a shape's words read back and decided over a small tree (a module holding a call whose
 //! `func` child is a name): a star whose neighbourhood an element has holds, one whose child is in another field is
-//! empty, a kind no element has is empty, and of two stars the one with fewer elements is entered.
+//! empty, a kind no element has is empty, of two stars the one with fewer elements is entered, and an element is held
+//! to the kinds of its ancestors (a token by its parent node).
 
 use super::service::{shape_held, stars_of};
-use super::types::{ShapeCounts, ShapeWords};
+use super::types::{EnclosingColumns, ShapeCounts, ShapeWords};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::code::constants::NO_SLOT;
 use crate::domain::code::types::WordSlot;
@@ -19,8 +20,8 @@ type Input = &'static [WordSlot];
 /// The verdict, and the entry star's candidates and survivors.
 type Value = (NeedVerdict, usize, usize);
 
-/// The run's constants: the kind `call`, the kind `name`, the field `func`, a name no vocabulary holds.
-const CONSTANTS: [CellWord; 4] = [CellWord(102), CellWord(103), CellWord(201), CellWord(999)];
+/// The run's constants: the kind `call`, the kind `name`, the field `func`, a name no vocabulary holds, the kind `module`.
+const CONSTANTS: [CellWord; 5] = [CellWord(102), CellWord(103), CellWord(201), CellWord(999), CellWord(101)];
 /// Kind codes 0 to 3: none, `module`, `call`, `name`.
 const KINDS: [CellWord; 4] = [CellWord(100), CellWord(101), CellWord(102), CellWord(103)];
 /// Field codes 0 and 1: none, `func`.
@@ -45,6 +46,7 @@ const CALL: WordSlot = WordSlot(0);
 const NAME: WordSlot = WordSlot(1);
 const FUNC: WordSlot = WordSlot(2);
 const UNKNOWN: WordSlot = WordSlot(3);
+const MODULE: WordSlot = WordSlot(4);
 const ONE: WordSlot = WordSlot(1);
 const TWO: WordSlot = WordSlot(2);
 
@@ -52,19 +54,19 @@ const CASES: &[Case<Input, Value, ()>] = &[
     Case {
         name: CaseName("a_call_with_a_name_in_its_func_field_holds"),
         word: Word::Succeeds,
-        input: || &[ONE, CALL, NO_SLOT, ANY, ANY, ONE, NAME, FUNC, ANY],
+        input: || &[ONE, CALL, NO_SLOT, ANY, ANY, ONE, NAME, FUNC, ANY, ANY],
         expect: Expect::Value((NeedVerdict::Holds, 1, 1)),
     },
     Case {
         name: CaseName("a_call_whose_name_child_is_in_another_field_is_empty"),
         word: Word::Succeeds,
-        input: || &[ONE, CALL, FUNC, ANY, ANY, ONE, NAME, NO_SLOT, ANY],
+        input: || &[ONE, CALL, FUNC, ANY, ANY, ONE, NAME, NO_SLOT, ANY, ANY],
         expect: Expect::Value((NeedVerdict::Empty, 1, 0)),
     },
     Case {
         name: CaseName("a_kind_no_element_has_is_empty"),
         word: Word::Succeeds,
-        input: || &[ONE, UNKNOWN, NO_SLOT, ANY, ANY, ANY],
+        input: || &[ONE, UNKNOWN, NO_SLOT, ANY, ANY, ANY, ANY],
         expect: Expect::Value((NeedVerdict::Empty, 0, 0)),
     },
     Case {
@@ -72,10 +74,23 @@ const CASES: &[Case<Input, Value, ()>] = &[
         word: Word::Succeeds,
         input: || {
             &[
-                TWO, NAME, FUNC, ANY, ONE, CALL, NO_SLOT, ANY, ANY, CALL, NO_SLOT, ANY, ANY, ONE, NAME, FUNC, ANY,
+                TWO, NAME, FUNC, ANY, ONE, CALL, NO_SLOT, ANY, ANY, ANY, CALL, NO_SLOT, ANY, ANY, ONE, NAME, FUNC, ANY,
+                ANY,
             ]
         },
         expect: Expect::Value((NeedVerdict::Holds, 1, 1)),
+    },
+    Case {
+        name: CaseName("a_name_inside_a_module_and_a_call_holds_for_both_names"),
+        word: Word::Succeeds,
+        input: || &[ONE, NAME, NO_SLOT, ANY, ANY, ANY, TWO, MODULE, CALL],
+        expect: Expect::Value((NeedVerdict::Holds, 2, 2)),
+    },
+    Case {
+        name: CaseName("a_name_inside_a_name_is_empty_a_token_encloses_nothing"),
+        word: Word::Succeeds,
+        input: || &[ONE, NAME, NO_SLOT, ANY, ANY, ANY, ONE, NAME],
+        expect: Expect::Value((NeedVerdict::Empty, 2, 0)),
     },
 ];
 
@@ -87,7 +102,8 @@ fn subject(words: Input) -> Result<Value, ()> {
         fields: &FIELDS,
     };
     let mut counts = ShapeCounts::default();
-    let verdict = shape_held(&stars_of(words), &nodes, &vocabulary, &mut counts);
+    let mut columns = EnclosingColumns::default();
+    let verdict = shape_held(&stars_of(words), &nodes, &vocabulary, &mut counts, &mut columns);
     Ok((verdict, counts.candidates.0, counts.survivors.0))
 }
 

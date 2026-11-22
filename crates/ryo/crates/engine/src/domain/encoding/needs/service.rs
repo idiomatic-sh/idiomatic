@@ -160,6 +160,10 @@ fn formula(encoding: &mut Encoding<'_>, emptiness: &Emptiness) -> Result<WordSlo
                 for child in &star.children {
                     shape_node(encoding, child, &mut words)?;
                 }
+                words.push(WordSlot(u32::try_from(star.ancestors.len()).unwrap_or(u32::MAX)));
+                for kind in &star.ancestors {
+                    words.push(WordSlot(constant(encoding, *kind)?.0));
+                }
             }
             NeedRecord::Shape(push_list(&mut encoding.code.pool, &words))
         }
