@@ -6,7 +6,10 @@ use crate::domain::lowering::definitions::service::text_word;
 use ryo_language::domain::facts::types::CellWord;
 use crate::domain::lowering::definitions::types::{DefinitionDraft, Drafts, WaitingPattern};
 use crate::domain::lowering::flattening::service::own_walks;
-use crate::domain::lowering::flattening::types::{FlatBranch, FlatTerm, FlatVariable, OwnWalks};
+use crate::domain::lowering::flattening::types::{
+    AtomRows, FlatAtom, FlatBranch, FlatTerm, FlatVariable, OwnWalks, RowsPerFile,
+};
+use ryo_relations::domain::relations::types::Relation;
 use crate::domain::lowering::nodes::types::AcceptedPlace;
 use crate::domain::lowering::nodes::types::NodeHome;
 use crate::domain::lowering::placement::service::{measured, placed};
@@ -74,6 +77,7 @@ pub(crate) fn definition_table(
     } else {
         let mut pipelines = Vec::with_capacity(branches.len());
         for branch in &branches {
+            let branch = &per_file(drafts, branch);
             let written = planned(drafts, branch, &HashSet::new(), UnitRole::Pipeline)
                 .and_then(|plan| pipeline(drafts, sample.kinds, branch, &plan, Some(definition)));
             pipelines.push(written.ok_or_else(|| home_refused(home))?);
@@ -93,6 +97,28 @@ pub(crate) fn definition_table(
         draft.table = Some(table);
     }
     Ok(table)
+}
+
+/// A branch that reads no source and only tests the file (a row a host declares of the file being scanned: its path held
+/// to the row's) holds its row once in each file it holds in: its pipeline reads the file's own row, which every scanned
+/// file has one of, so that it has rows to read. Any other branch is as it is.
+fn per_file(drafts: &mut Drafts, branch: &FlatBranch) -> FlatBranch {
+    let tests_alone = !branch.atoms.is_empty()
+        && branch.atoms.iter().all(|atom| matches!(atom, FlatAtom::Test { .. }));
+    if !tests_alone {
+        return branch.clone();
+    }
+    let _new = drafts.reads.insert(Relation::FilesystemFile);
+    let mut atoms = vec![FlatAtom::Rows {
+        rows: AtomRows::Relation(Relation::FilesystemFile),
+        cells: vec![FlatTerm::File],
+        per_file: RowsPerFile::One,
+    }];
+    atoms.extend(branch.atoms.iter().cloned());
+    FlatBranch {
+        atoms,
+        row: branch.row.clone(),
+    }
 }
 
 /// The rows of a definition whose every branch reads nothing and holds constants alone, each once, as the cells a table
