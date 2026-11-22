@@ -18,11 +18,19 @@ impl FileVisit for NoVisit {
     fn visit(&mut self, _file: FileFacts<'_>) {}
 }
 
+/// redo-union: the step clock. The thread's CPU time is a system call (157 ns a read here, two a timed step: about
+/// 2.3 s of django's 2.4 s system time); the monotonic clock is read in user space (19 ns). Runs are single thread pinned
+/// to one core under the timing lock, so the two agree; `VEC_THREAD_CLOCK` restores the CPU-time clock.
 fn thread_cpu() -> f64 {
     thread_local! {
         static ORIGIN: cpu_time::ThreadTime = cpu_time::ThreadTime::now();
+        static WALL: std::time::Instant = std::time::Instant::now();
     }
-    ORIGIN.with(|origin| origin.elapsed().as_secs_f64())
+    static CPU: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    if *CPU.get_or_init(|| std::env::var_os("VEC_THREAD_CLOCK").is_some()) {
+        return ORIGIN.with(|origin| origin.elapsed().as_secs_f64());
+    }
+    WALL.with(|origin| origin.elapsed().as_secs_f64())
 }
 
 #[derive(Default)]
