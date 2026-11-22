@@ -368,7 +368,7 @@ pub enum CountMark {
 /// let axis = AxisStep { arguments, exists: ExistsMark::Unmarked };
 /// assert_eq!(axis.exists, ExistsMark::Unmarked);
 /// ```
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct AxisStep {
     /// What it walks.
     pub arguments: AxisArguments,
