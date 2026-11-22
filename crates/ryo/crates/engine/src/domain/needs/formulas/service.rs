@@ -641,6 +641,23 @@ fn compiled(code: &ProgramCode, at: WordSlot, masks: &mut NeedMasks) -> u32 {
     let node = match need_at(&code.needs, at) {
         None | Some(NeedRecord::Unknown) => pushed(masks, FormulaNode::Always, AskRank::Free, &[]),
         Some(NeedRecord::Kinds(list)) => term_node(code, masks, NeedTerm::Kinds(list), at),
+        Some(NeedRecord::Path {
+            comparison,
+            regex,
+            constant,
+        }) => term_node(
+            code,
+            masks,
+            NeedTerm::Path {
+                comparison,
+                regex,
+                constant,
+            },
+            at,
+        ),
+        Some(NeedRecord::Bytes { regex, constant }) => {
+            term_node(code, masks, NeedTerm::Bytes { regex, constant }, at)
+        }
         Some(NeedRecord::Row {
             relation,
             column,

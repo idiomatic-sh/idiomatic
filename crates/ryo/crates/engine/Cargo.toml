@@ -27,6 +27,8 @@ hashbrown.workspace = true
 rustc-hash.workspace = true
 # The run's worker pool: the load plans independent branches on it before the first file is scanned.
 rayon.workspace = true
+# The search of a file's bytes for the literals the needs ask (`needs::bytes`), stopping at the first occurrence.
+memchr.workspace = true
 
 [features]
 # Test support, not a public API: it may change without notice. Only a dev-dependency or this crate's own `fixtures` switches it on (`fixtures-feature`).

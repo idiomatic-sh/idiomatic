@@ -3,7 +3,7 @@
 use super::errors::MatchingError;
 use super::types::{
     CompiledGlobs, CompiledRegex, CompiledTextGlobs, GlobHits, GlobPattern, GroupName,
-    MatchOutcome, RegexSource, SearchText, TextSpan,
+    MatchOutcome, RegexSource, RequiredTexts, SearchText, TextSpan,
 };
 
 /// Pure regex and glob semantics over caller-owned values.
@@ -14,6 +14,9 @@ pub trait MatchingUseCase {
     ///
     /// [`MatchingError::InvalidRegex`] when the pattern is not valid regex syntax.
     fn compile_regex(&self, pattern: RegexSource<'_>) -> Result<CompiledRegex, MatchingError>;
+    /// The texts of which every match of the regex holds one, read off its parse: what a text must contain to be
+    /// searched at all. An invalid regex says nothing (none).
+    fn required_texts(&self, pattern: RegexSource<'_>) -> RequiredTexts;
     /// Search text with the matcher already acquired by the caller.
     fn matches_regex(&self, regex: &CompiledRegex, text: SearchText<'_>) -> MatchOutcome;
     /// Visit source-order matches, stopping immediately when the caller breaks.

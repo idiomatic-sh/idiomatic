@@ -6,7 +6,7 @@ use crate::domain::findings::types::RuleColumns;
 use crate::domain::steps::stages::types::{Pipeline, PlacedStage};
 use crate::domain::steps::types::{
     AnchorKinds, ColumnList, ColumnMask, ConstantText, DefinitionId, MadeColumn, MadeTableId,
-    PlacedStep, RegisterCount, RegisterList, StepProgram, StepRegex,
+    PlacedStep, RegexId, RegisterCount, RegisterList, StepProgram, StepRegex, TestOperation,
 };
 use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::relations::types::{Column, Count, Relation};
@@ -88,10 +88,36 @@ pub(crate) enum Emptiness {
     Definition(DefinitionId),
     /// A row of a made table: its own formula.
     Table(MadeTableId),
+    /// The scanned file's path passes a test of a text against a constant: a branch that holds the test in its
+    /// conjunction has no row in a file whose path fails it. Known from the path alone, before anything is filled.
+    Path(PathTest),
+    /// The file's texts hold a literal: a branch that tests a text of the file's own tree against a constant (starts or
+    /// ends with it, matches a regular expression that needs it), or searches the file's bytes for an expression, has
+    /// no row in a file that holds none. Known from the file's bytes alone, before anything is filled.
+    Bytes(ByteLiteral),
     /// Every part holds; none: always.
     All(Box<[Emptiness]>),
     /// Some part holds; none: never.
     Any(Box<[Emptiness]>),
+}
+
+/// A test of the scanned file's path against a constant, as the branch's own test atom holds it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct PathTest {
+    /// The test: one of a text's (`path_test`).
+    pub(crate) test: TestOperation,
+    /// The constant the path is tested against.
+    pub(crate) value: CellWord,
+}
+
+/// What a branch needs the file's texts to hold: the constant's own text, or one of the texts every match of a regular
+/// expression holds (the matcher reads them off the expression, `required_texts`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ByteLiteral {
+    /// The constant's text.
+    Text(CellWord),
+    /// One of the texts every match of the expression holds.
+    Regex(RegexId),
 }
 
 /// A value a row must hold in a column.

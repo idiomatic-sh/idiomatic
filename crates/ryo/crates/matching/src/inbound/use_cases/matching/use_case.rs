@@ -4,7 +4,7 @@ use super::errors::MatchingError;
 use super::interface::MatchingUseCase;
 use super::types::{
     CompiledGlobs, CompiledRegex, CompiledTextGlobs, GlobHits, GlobPattern, GroupName,
-    MatchOutcome, RegexSource, SearchText, TextSpan,
+    MatchOutcome, RegexSource, RequiredTexts, SearchText, TextSpan,
 };
 use crate::domain::matching::service;
 use crate::domain::matching::types::{
@@ -28,6 +28,10 @@ impl MatchingUseCase for MatchingUseCaseImpl {
         service::compile_regex(AuthoredRegex(pattern.0))
             .map(|regex| CompiledRegex { regex })
             .map_err(|reason| MatchingError::InvalidRegex { reason: reason.0 })
+    }
+
+    fn required_texts(&self, pattern: RegexSource<'_>) -> RequiredTexts {
+        RequiredTexts(service::required_texts(AuthoredRegex(pattern.0)))
     }
 
     fn matches_regex(&self, regex: &CompiledRegex, text: SearchText<'_>) -> MatchOutcome {

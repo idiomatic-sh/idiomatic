@@ -254,6 +254,26 @@ fn compile(
     Ok(())
 }
 
+/// The texts of which every match of `pattern` holds one, as the matcher reads them off the pattern: what a text must hold
+/// to be worth searching. None when no such set is known, or the pattern does not compile.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_matching::inbound::use_cases::matching::use_case::MatchingUseCaseImpl;
+/// use ryo_operators::domain::patterns::service::required_texts;
+/// use ryo_operators::domain::patterns::types::PatternMatcher;
+/// use ryo_operators::domain::table_texts::types::TextView;
+///
+/// let matcher = PatternMatcher(&MatchingUseCaseImpl);
+/// assert_eq!(required_texts(TextView("^#!"), matcher), Some(vec![b"#!".to_vec()]));
+/// assert_eq!(required_texts(TextView(".*"), matcher), None);
+/// ```
+#[must_use]
+pub fn required_texts(pattern: TextView<'_>, matcher: PatternMatcher<'_>) -> Option<Vec<Vec<u8>>> {
+    matcher.0.required_texts(ryo_matching::inbound::use_cases::matching::types::RegexSource(pattern.0)).0
+}
+
 /// The compiled regex of `pattern` from `compiled`, compiled into it at its first use: one compile per pattern while the
 /// cache holds it.
 ///

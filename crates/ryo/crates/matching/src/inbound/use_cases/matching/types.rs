@@ -18,6 +18,20 @@ pub struct GroupName<'a>(pub &'a str);
 #[derive(Clone, Copy, Debug)]
 pub struct GlobPattern<'a>(pub &'a str);
 
+/// The texts of which every match of a regex holds one somewhere, as bytes: a text that holds none of them has no match.
+/// None when no such finite set is known (a regex that can match the empty text, a wide class).
+///
+/// # Examples
+///
+/// ```
+/// use ryo_matching::inbound::use_cases::matching::{interface::MatchingUseCase, types::{RegexSource, RequiredTexts}, use_case::MatchingUseCaseImpl};
+/// let matching = MatchingUseCaseImpl::new();
+/// assert_eq!(matching.required_texts(RegexSource("^#!")), RequiredTexts(Some(vec![b"#!".to_vec()])));
+/// assert_eq!(matching.required_texts(RegexSource("a*")), RequiredTexts(None));
+/// ```
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct RequiredTexts(pub Option<Vec<Vec<u8>>>);
+
 /// A span of bytes of the searched text.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TextSpan(pub std::ops::Range<usize>);

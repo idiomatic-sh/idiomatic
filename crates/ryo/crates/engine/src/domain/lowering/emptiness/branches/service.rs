@@ -3,18 +3,20 @@
 //! a use of a definition with a cell held to a constant needs what the definition's own branches need with that column
 //! held to it: a literal is carried through a definition into the need, and each reader of a shared definition has its own.
 
-use crate::domain::lowered::types::{Emptiness, RowValue};
+use crate::domain::lowered::types::{ByteLiteral, Emptiness, PathTest, RowValue};
+use crate::domain::lowering::emptiness::service::path_test;
 use crate::domain::lowering::definitions::service::{draft, text_word};
 use crate::domain::lowering::definitions::types::Drafts;
 use crate::domain::lowering::flattening::service::pins_of;
 use crate::domain::lowering::flattening::types::{
     AtomRows, FlatAtom, FlatBranch, FlatTerm, FlatVariable,
 };
-use crate::domain::steps::types::{DefinitionId, Polarity};
+use crate::domain::lowering::flattening::types::RowMeaning;
+use crate::domain::steps::types::{CallMeaning, DefinitionId, Polarity, TestOperation};
 use ryo_language::domain::facts::types::CellWord;
-use ryo_relations::domain::catalog::service::{fact_form, node_column};
+use ryo_relations::domain::catalog::service::{fact_form, node_column, node_extent};
 use ryo_relations::domain::relations::service::{columns, kind};
-use ryo_relations::domain::relations::types::{CellKind, FactForm, NodeColumn, Relation};
+use ryo_relations::domain::relations::types::{CellKind, FactForm, NodeColumn, NodeExtent, Relation};
 use rustc_hash::FxHashMap as HashMap;
 
 /// How deep a constant is carried through definitions, and how many branches of a definition may be left that can give
@@ -150,6 +152,69 @@ fn definition_need(
     Emptiness::Any(some.into())
 }
 
+/// The variables of a branch that hold a text of the file's own tree: a cell of a node relation's `Text` column, in a
+/// relation whose rows are the file's own tree (`NodeExtent::Own`). Such a text is a slice of the file's bytes, or a
+/// text the language decoded for the element when the table was built (kept among the file's derived names): the
+/// node table's declaration (`NodeColumn::Text`). An embedded segment's logical text is not counted: it may be made
+/// after the file's first decision.
+fn own_texts(branch: &FlatBranch) -> Vec<FlatVariable> {
+    let mut texts = Vec::new();
+    for atom in &branch.atoms {
+        let (relation, cells): (Relation, Vec<Option<FlatTerm>>) = match atom {
+            FlatAtom::Rows {
+                rows: AtomRows::Relation(relation),
+                cells,
+                ..
+            } => (*relation, cells.iter().copied().map(Some).collect()),
+            FlatAtom::Decided {
+                polarity: Polarity::Present,
+                rows: AtomRows::Relation(relation),
+                cells,
+            } => (*relation, cells.clone()),
+            FlatAtom::Rows { .. }
+            | FlatAtom::Decided { .. }
+            | FlatAtom::Latest { .. }
+            | FlatAtom::Walk { .. }
+            | FlatAtom::Nearest { .. }
+            | FlatAtom::Closure { .. }
+            | FlatAtom::Called { .. }
+            | FlatAtom::Test { .. } => continue,
+        };
+        if !matches!(fact_form(relation), FactForm::NodeTable) || node_extent(relation) != Some(NodeExtent::Own) {
+            continue;
+        }
+        for (column, cell) in columns(relation).into_iter().zip(cells) {
+            if let (Some(NodeColumn::Text), Some(FlatTerm::Variable(variable))) = (node_column(column), cell) {
+                texts.push(variable);
+            }
+        }
+    }
+    texts
+}
+
+/// The literal a test of a text against a constant needs the text to hold: the constant's own for a prefix or a
+/// suffix, the expression's for a match. None for any other test: an equality is the spelled term's (a token of the
+/// exact text), a glob or a negated test needs nothing.
+fn test_literal(test: TestOperation, constant: CellWord) -> Option<ByteLiteral> {
+    match test {
+        TestOperation::StartsWith | TestOperation::EndsWith => Some(ByteLiteral::Text(constant)),
+        TestOperation::Matches(regex) => Some(ByteLiteral::Regex(regex)),
+        TestOperation::Equal
+        | TestOperation::NotEqual
+        | TestOperation::Less
+        | TestOperation::LessOrEqual
+        | TestOperation::Greater
+        | TestOperation::GreaterOrEqual
+        | TestOperation::In
+        | TestOperation::NotIn
+        | TestOperation::Glob
+        | TestOperation::NotGlob
+        | TestOperation::NumericAtLeast(_)
+        | TestOperation::NaturalLess
+        | TestOperation::Successor(_) => None,
+    }
+}
+
 /// What a file must hold for a branch to give a row, with `carried` variables of it held to constants by its reader.
 fn needed(
     drafts: &Drafts,
@@ -168,6 +233,7 @@ fn needed(
         }
     }
     let (mut parts, mut uses) = (Vec::new(), Vec::new());
+    let texts = own_texts(branch);
     for atom in &branch.atoms {
         let (rows, cells): (AtomRows, Vec<Option<FlatTerm>>) = match atom {
             FlatAtom::Rows { rows, cells, .. } => {
@@ -185,9 +251,49 @@ fn needed(
             | FlatAtom::Latest { .. }
             | FlatAtom::Walk { .. }
             | FlatAtom::Nearest { .. }
-            | FlatAtom::Closure { .. }
-            | FlatAtom::Called { .. }
-            | FlatAtom::Test { .. } => continue,
+            | FlatAtom::Closure { .. } => continue,
+            // A search of the file's bytes for an expression: no occurrence, no row, in a file that holds none of
+            // the texts every match of it holds.
+            FlatAtom::Called {
+                meaning: RowMeaning::Call(CallMeaning::SourceMatches(regex, _)),
+                ..
+            } => {
+                parts.push(Emptiness::Bytes(ByteLiteral::Regex(*regex)));
+                continue;
+            }
+            FlatAtom::Called { .. } => continue,
+            // A test of a text of the file's own tree against a constant text: the text holds the literal the test
+            // needs, so the file's texts do.
+            FlatAtom::Test {
+                test,
+                left: FlatTerm::Variable(variable),
+                right,
+            } if texts.contains(variable) => {
+                if let Some(FlatTerm::Text(number)) = held(&pins, *right)
+                    && let Some(literal) = test_literal(*test, text_word(number))
+                {
+                    parts.push(Emptiness::Bytes(literal));
+                }
+                continue;
+            }
+            // A test of the scanned file's path against a constant text: the branch has no row in a file whose path
+            // fails it, whatever else it holds.
+            FlatAtom::Test {
+                test,
+                left: FlatTerm::File,
+                right,
+            } => {
+                if let Some(FlatTerm::Text(number)) = held(&pins, *right)
+                    && path_test(*test)
+                {
+                    parts.push(Emptiness::Path(PathTest {
+                        test: *test,
+                        value: text_word(number),
+                    }));
+                }
+                continue;
+            }
+            FlatAtom::Test { .. } => continue,
         };
         match rows {
             AtomRows::Relation(relation) => relation_need(relation, &cells, &pins, &mut parts),
@@ -231,7 +337,9 @@ fn never(formula: &Emptiness) -> bool {
         | Emptiness::Kind(_)
         | Emptiness::Row(..)
         | Emptiness::Definition(_)
-        | Emptiness::Table(_) => false,
+        | Emptiness::Table(_)
+        | Emptiness::Path(_)
+        | Emptiness::Bytes(_) => false,
     }
 }
 
@@ -244,7 +352,9 @@ fn always(formula: &Emptiness) -> bool {
         | Emptiness::Kind(_)
         | Emptiness::Row(..)
         | Emptiness::Definition(_)
-        | Emptiness::Table(_) => false,
+        | Emptiness::Table(_)
+        | Emptiness::Path(_)
+        | Emptiness::Bytes(_) => false,
     }
 }
 

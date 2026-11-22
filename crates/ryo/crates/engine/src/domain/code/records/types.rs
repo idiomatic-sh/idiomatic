@@ -105,6 +105,24 @@ pub(crate) enum NeedRecord {
     Site(NeedSite),
     /// `4, table`: the table's own need; when that holds, the table is made and has a row.
     Table(MadeTableId),
+    /// `7, comparison, regular expression, constant`: the scanned file's path passes the test of a text against the
+    /// constant (`small_codes::service::comparison_code` writes the test, with its regular expression or `NO_SLOT`).
+    Path {
+        /// The comparison's code.
+        comparison: WordSlot,
+        /// The regular expression's number, or `NO_SLOT`.
+        regex: WordSlot,
+        /// The constant's number.
+        constant: WordSlot,
+    },
+    /// `8, regular expression, constant`: the file's texts hold the constant's text (`NO_SLOT` regular expression), or
+    /// one of the texts every match of the regular expression holds (`NO_SLOT` constant).
+    Bytes {
+        /// The regular expression's number, or `NO_SLOT`.
+        regex: WordSlot,
+        /// The constant's number, or `NO_SLOT`.
+        constant: WordSlot,
+    },
     /// `5, n, offsets`: every part holds.
     All {
         /// How many parts.

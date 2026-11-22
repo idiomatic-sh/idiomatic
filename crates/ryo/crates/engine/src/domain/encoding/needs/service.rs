@@ -5,6 +5,8 @@
 use crate::domain::code::constants::NO_SLOT;
 use crate::domain::code::records::service::{push_list, push_need};
 use crate::domain::code::records::types::NeedRecord;
+use crate::domain::lowered::types::ByteLiteral;
+use crate::domain::code::small_codes::service::{comparison_code, comparison_regex};
 use crate::domain::code::types::{NeedSite, WordSlot};
 use crate::domain::encoding::sites::service::{constant, fault, reach_table, relation, slot_of};
 use crate::domain::encoding::types::{Encoding, ReachedUnit};
@@ -113,6 +115,19 @@ fn formula(encoding: &mut Encoding<'_>, emptiness: &Emptiness) -> Result<WordSlo
             reach_table(encoding, *table)?;
             NeedRecord::Table(*table)
         }
+        Emptiness::Path(path) => NeedRecord::Path {
+            comparison: WordSlot(u32::from(comparison_code(path.test).0)),
+            regex: comparison_regex(path.test).map_or(NO_SLOT, |regex| WordSlot(regex.0)),
+            constant: WordSlot(constant(encoding, path.value)?.0),
+        },
+        Emptiness::Bytes(ByteLiteral::Text(text)) => NeedRecord::Bytes {
+            regex: NO_SLOT,
+            constant: WordSlot(constant(encoding, *text)?.0),
+        },
+        Emptiness::Bytes(ByteLiteral::Regex(regex)) => NeedRecord::Bytes {
+            regex: WordSlot(regex.0),
+            constant: NO_SLOT,
+        },
         Emptiness::All(parts) => {
             return combined(encoding, parts, |count| NeedRecord::All {
                 parts: count,

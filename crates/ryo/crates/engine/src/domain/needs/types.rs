@@ -37,6 +37,18 @@ pub(crate) trait NeedFacts {
     /// Whether the table, made now when its own need holds, has a row.
     fn table_row(&mut self, table: MadeTableId) -> NeedVerdict;
 
+    /// Whether the scanned file's path passes the test (`comparison` and `regex` as a need record holds them) against
+    /// the constant. It costs nothing: the path is the file's own.
+    fn path_passes(&mut self, _comparison: WordSlot, _regex: WordSlot, _constant: WordSlot) -> NeedVerdict {
+        NeedVerdict::Holds
+    }
+
+    /// Whether the file's texts hold the literal (the constant's text, or one of the texts every match of the regular
+    /// expression holds). It costs nothing: one pass over the file's bytes answers every literal.
+    fn bytes_held(&mut self, _regex: WordSlot, _constant: WordSlot) -> NeedVerdict {
+        NeedVerdict::Holds
+    }
+
     /// What the terms of a site say of it before its formula is walked, when the engine keeps the masks of its needs:
     /// `Empty` when they leave it no way to hold in the file, `Holds` when they are its whole formula and hold. None:
     /// the walk decides.
