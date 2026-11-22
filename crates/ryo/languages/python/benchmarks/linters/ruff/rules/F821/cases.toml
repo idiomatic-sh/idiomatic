@@ -6342,3 +6342,69 @@ name = "class-in-function-global-bind-del-then-reads"
 comparison = "full"
 files = { "case.py" = "def f():\n    class A:\n        global v\n        v = 1\n        del v\n        print(v)\nf()\nprint(v)\n" }
 expected = [{ rule = "F821", file = "case.py", start = 81, end = 82 }, { rule = "F821", file = "case.py", start = 94, end = 95 }]
+
+[[cases]]
+name = "lambda-in-annotated-parameter-annotation"
+comparison = "full"
+files = { "case.py" = "from typing import Annotated\ndef R(f): return f\ndef g(num: Annotated[int, R(lambda _, v: int(v))]): ...\n" }
+expected = []
+
+[[cases]]
+name = "lambda-in-annotated-method-parameter-of-local-class"
+comparison = "full"
+files = { "case.py" = "from typing import Annotated\ndef R(f): return f\ndef test():\n    class C:\n        def __init__(self, num: Annotated[int, R(lambda _, v: int(v))]): ...\n" }
+expected = []
+
+[[cases]]
+name = "lambda-in-annotated-nested-function-parameter"
+comparison = "full"
+files = { "case.py" = "from typing import Annotated\ndef R(f): return f\ndef test():\n    def g(num: Annotated[int, R(lambda _, v: int(v))]): ...\n" }
+expected = []
+
+[[cases]]
+name = "lambda-in-annotated-method-parameter"
+comparison = "full"
+files = { "case.py" = "from typing import Annotated\ndef R(f): return f\nclass C:\n    def g(self, num: Annotated[int, R(lambda _, v: int(v))]): ...\n" }
+expected = []
+
+[[cases]]
+name = "lambda-in-postponed-parameter-annotation"
+comparison = "full"
+files = { "case.py" = "from __future__ import annotations\nfrom typing import Annotated\ndef R(f): return f\ndef test():\n    def g(num: Annotated[int, R(lambda v: v)]): ...\n" }
+expected = []
+
+[[cases]]
+name = "lambda-in-call-parameter-annotation"
+comparison = "full"
+files = { "case.py" = "def R(f): return f\ndef test():\n    def g(num: R(lambda v: v)): ...\n" }
+expected = []
+
+[[cases]]
+name = "lambda-as-annotated-metadata"
+comparison = "full"
+files = { "case.py" = "from typing import Annotated\ndef test():\n    def g(num: Annotated[int, lambda v: v]): ...\n" }
+expected = []
+
+[[cases]]
+name = "lambda-in-annotated-module-annotation"
+comparison = "full"
+files = { "case.py" = "from typing import Annotated\ndef R(f): return f\nx: Annotated[int, R(lambda v: v)] = 1\n" }
+expected = []
+
+[[cases]]
+name = "lambda-in-annotated-local-annotation"
+comparison = "full"
+files = { "case.py" = "from typing import Annotated\ndef R(f): return f\ndef test():\n    x: Annotated[int, R(lambda v: v)] = 1\n" }
+expected = []
+
+[[cases]]
+name = "walrus-in-parameter-annotation-binds-outside"
+comparison = "full"
+files = { "case.py" = "def test():\n    def g(num: (w := int)): ...\n    return w\n" }
+expected = [{ rule = "F821", file = "case.py", start = 55, end = 56 }]
+
+[[cases]]
+name = "lambda-body-name-undefined-in-parameter-annotation"
+comparison = "full"
+files = { "case.py" = "from typing import Annotated\ndef test():\n    def g(num: Annotated[int, lambda v: w]): ...\n" }
+expected = [{ rule = "F821", file = "case.py", start = 81, end = 82 }]

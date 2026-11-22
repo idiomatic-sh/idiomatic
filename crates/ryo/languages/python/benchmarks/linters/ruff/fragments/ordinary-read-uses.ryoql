@@ -48,7 +48,9 @@ let return_type_roots = select r.child as id, l.id as owner, l.file as file from
 let function_type_roots = union(left=parameter_type_roots,right=return_type_roots);
 let type_scope_roots = union(left=class_type_roots,right=function_type_roots);
 let body_evaluation_roots = select id, scope as owner, file from scope_body_roots;
-let evaluation_roots = union(left=body_evaluation_roots,right=type_scope_roots);
+let nested_scope_roots = select id, id as owner, file from nodes where kind in ["lambda", "list-comp", "set-comp", "dict-comp", "generator-exp"];
+let own_evaluation_roots = union(left=body_evaluation_roots,right=nested_scope_roots);
+let evaluation_roots = union(left=own_evaluation_roots,right=type_scope_roots);
 let nearest_evaluations = axis(from=all_raw_namespace_events,relation="semantic-child",direction=nearest-ancestor,domain=evaluation_roots);
 let class_type_namespace_events = select l.id as id, l.file as file from nearest_evaluations as l join class_type_roots as r on l.related = r.id and l.file = r.file;
 let function_type_namespace_candidates = select l.id as id, l.file as file from nearest_evaluations as l join function_type_roots as r on l.related = r.id and l.file = r.file;
