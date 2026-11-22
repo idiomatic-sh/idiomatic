@@ -89,6 +89,26 @@ fn sibling(nodes: &NodeTable, end: Position, at: Position, ahead: Count) -> Opti
     all.get(wanted).copied().filter(|found| found.0 < end.0)
 }
 
+/// SPIKE (ryo-fmx3.1): adds to the descendant nodes `found` of `at` the tokens under each of them and under `at`: a node's
+/// tokens stand after the nodes of its tree (the file's own, or an embedded segment's), outside the ids of its subtree, so
+/// the walk down by ids reaches none, though they are children of its nodes as a tree relation states them.
+fn with_tokens(nodes: &NodeTable, end: Position, at: Position, found: &mut Vec<Position>) {
+    let roots: Vec<Position> = embedded_segments(nodes).map(|segment| segment.root).collect();
+    let count = found.len();
+    for place in 0..=count {
+        let Some(node) = (if place == count { Some(at) } else { found.get(place).copied() }) else {
+            continue;
+        };
+        let last = subtree_end_of(nodes, node);
+        for child in children_of(nodes, node) {
+            let token = (child.0 <= node.0 || child.0 >= last.0) && child.0 < end.0;
+            if token && !roots.contains(child) {
+                found.push(*child);
+            }
+        }
+    }
+}
+
 /// `Walk` along an axis: for each row of the batch, from the cursor on, the parent of its start, each ancestor nearest
 /// first, each descendant node in pre-order, or the next or the previous sibling. Stops when the batch out is full;
 /// answers whether every row in was read.
@@ -112,7 +132,9 @@ pub(crate) fn along(
             AxisDirection::Descendant => {
                 let below = at.0.saturating_add(1)..subtree_end_of(nodes, at).0.min(end.0);
                 if extent == NodeExtent::Own || embedded_segments(nodes).next().is_none() {
-                    walked(below.map(Position), fan)
+                    let mut found: Vec<Position> = below.clone().map(Position).collect();
+                    with_tokens(nodes, end, at, &mut found);
+                    walked(found.into_iter(), fan)
                 } else {
                     // SPIKE (ryo-fmx3.1, fault I): an embedded segment stands after the file's own elements, outside the
                     // ids of its host's subtree, and its root's parent is the host: the nodes of each segment hosted
@@ -129,6 +151,7 @@ pub(crate) fn along(
                             held.push((segment.root.0, last));
                         }
                     }
+                    with_tokens(nodes, end, at, &mut found);
                     walked(found.into_iter(), fan)
                 }
             }
