@@ -51,6 +51,19 @@ pub(crate) struct NameTable {
     pub slots: Vec<NameSlot>,
 }
 
+/// The names the walk interns as it writes the file: the table, the name each node carries (by its place; the code of no
+/// name for a node that carries none) and the code of each name token of the file's own tree, in id order (none when the
+/// file's bytes were not text). The model's lexical part copies the table and the node names; the engine reads the token codes.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct WalkNames {
+    /// The table the walk interned into.
+    pub names: NameTable,
+    /// The name of each node, by its place.
+    pub of_node: Vec<NameCode>,
+    /// The code of each name token of the file's own tree, in id order.
+    pub of_token: Vec<NameCode>,
+}
+
 /// The word of each name of the file that a filler has written so far, by the name's code.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct NameWords(pub Vec<Option<Symbol>>);

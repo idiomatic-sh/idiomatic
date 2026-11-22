@@ -334,7 +334,7 @@ impl ColumnWalk {
                 if tree.strings.is_empty() {
                     return hosts;
                 }
-                let typed = TypedTree { segments: &tree.segments, parents: &tree.parents, ends: &tree.ends, nodes: &tree.nodes, annotations: tree.annotations };
+                let typed = TypedTree { segments: &tree.segments, parents: &tree.parents, ends: &tree.ends, nodes: &tree.nodes, annotations: tree.annotations, named: &tree.names };
                 form_imports(typed, &tree.imports, &mut scratch.forms);
                 type_strings(
                     &mut FormSource { tree: typed, imports: &scratch.forms, model: &mut scratch.file.model, built: &mut built_parts, path: &mut scratch.path },
@@ -369,7 +369,7 @@ fn lend(
         syntax: SyntaxFile {
             table,
             nodes: tree.nodes.get(..own).unwrap_or_default(),
-            tree: TypedTree { segments: &tree.segments, parents: &tree.parents, ends: &tree.ends, nodes: &tree.nodes, annotations: tree.annotations },
+            tree: TypedTree { segments: &tree.segments, parents: &tree.parents, ends: &tree.ends, nodes: &tree.nodes, annotations: tree.annotations, named: &tree.names },
             text: tree.text,
             file: FileId(0),
             completeness: tree.completeness,
@@ -420,6 +420,13 @@ fn flag(value: Flag) -> u32 {
 }
 
 impl ColumnFile<'_, '_> {
+    /// The code the walk interned for each name token of the file's own tree, in id order, into `out` (cleared first): equal
+    /// codes are equal texts. Empty when the file's bytes were not text.
+    pub fn name_token_codes(&self, out: &mut Vec<u32>) {
+        out.clear();
+        out.extend(self.file.syntax.tree.named.of_token.iter().map(|code| code.0));
+    }
+
     /// The reader: today's rows of `relation` (the reference).
     pub fn fill(&mut self, relation: Relation, wanted: Wanted, words: &mut FileWords, out: &mut FilledColumns) -> FactAnswer {
         let mut source = fillers::file_source::<PythonWalk<WalkPorts>>(self.file);

@@ -20,7 +20,6 @@ use crate::domain::model::types::BindingAnnotationTiming;
 /// module postpones them. A list of the flow part by key is made by the first fill that asks for one key of it.
 pub(crate) fn built(model: &mut SemanticModel, built: &mut Built, part: ModelPart, tree: TypedTree<'_, '_>) {
     if part != ModelPart::Nothing && built.lexical == PartState::Pending {
-        names::clear(&mut model.names);
         names::clear_words(model.words.get_mut());
         lexical::build(&mut model.lexical, &mut model.names, tree);
         declarations::build(&mut model.lexical, tree);

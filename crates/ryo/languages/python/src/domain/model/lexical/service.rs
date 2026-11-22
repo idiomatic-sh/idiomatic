@@ -8,7 +8,7 @@ use super::types::{
     SyntaxForm, TypedTree,
 };
 use crate::domain::model::names::constants::NO_NAME;
-use crate::domain::model::names::service::intern;
+use crate::domain::model::names::service::{copy, intern};
 use crate::domain::model::names::types::{NameCode, NameTable};
 use crate::domain::syntax::constants::DOT;
 use ruff_python_ast::{Alias, AnyNodeRef, ExprContext, HasNodeIndex as _};
@@ -76,6 +76,18 @@ pub(crate) fn scope_at(model: &LexicalModel, at: Position) -> Position {
 #[must_use]
 pub(crate) fn name_of(model: &LexicalModel, at: Position) -> NameCode {
     model.name.get(usize::from(at)).copied().unwrap_or(NO_NAME)
+}
+
+/// The name the node carries, interned: a name's identifier, an attribute's attribute, an identifier's text; the code of no
+/// name for every other node. The walk calls it as each node opens.
+#[expect(clippy::wildcard_enum_match_arm, reason = "three of the parser's node kinds carry a name; every other carries none")]
+pub(crate) fn named(names: &mut NameTable, node: AnyNodeRef<'_>) -> NameCode {
+    match node {
+        AnyNodeRef::ExprName(name) => intern(names, NameText(name.id.as_str())),
+        AnyNodeRef::ExprAttribute(attribute) => intern(names, NameText(attribute.attr.as_str())),
+        AnyNodeRef::Identifier(identifier) => intern(names, NameText(identifier.id.as_str())),
+        _ => NO_NAME,
+    }
 }
 
 /// What the parser's node is to the name rules.
@@ -268,7 +280,6 @@ fn read(model: &mut LexicalModel, names: &mut NameTable, tree: TypedTree<'_, '_>
     };
     match node {
         AnyNodeRef::ExprName(name) => {
-            put(&mut model.name, at, intern(names, NameText(name.id.as_str())));
             match name.ctx {
                 ExprContext::Load | ExprContext::Invalid => {}
                 ExprContext::Store => {
@@ -282,15 +293,11 @@ fn read(model: &mut LexicalModel, names: &mut NameTable, tree: TypedTree<'_, '_>
             }
         }
         AnyNodeRef::ExprAttribute(attribute) => {
-            put(&mut model.name, at, intern(names, NameText(attribute.attr.as_str())));
             match attribute.ctx {
                 ExprContext::Load | ExprContext::Invalid => {}
                 ExprContext::Store => put(&mut model.usage, at, NameUse::Store),
                 ExprContext::Del => put(&mut model.usage, at, NameUse::Delete),
             }
-        }
-        AnyNodeRef::Identifier(identifier) => {
-            put(&mut model.name, at, intern(names, NameText(identifier.id.as_str())));
         }
         AnyNodeRef::StmtFunctionDef(function) => {
             if let Some(returns) = &function.returns {
@@ -326,13 +333,15 @@ fn read(model: &mut LexicalModel, names: &mut NameTable, tree: TypedTree<'_, '_>
     }
 }
 
-/// Builds the lexical part of the model for one file.
+/// Builds the lexical part of the model for one file: the names are the walk's (`named`), copied.
 pub(crate) fn build(model: &mut LexicalModel, names: &mut NameTable, tree: TypedTree<'_, '_>) {
     clear(model);
     model.nodes = node_count(tree);
     let count = model.nodes.0.min(tree.nodes.len());
     model.class.extend(tree.nodes.iter().take(count).map(|node| class_of(*node)));
     model.scope_of.resize(count, MODULE);
+    copy(names, &tree.named.names);
+    model.name.extend(tree.named.of_node.iter().take(count).copied());
     model.name.resize(count, NO_NAME);
     model.usage.resize(count, NameUse::Load);
     model.annotation.resize(count, AnnotationMark::Plain);

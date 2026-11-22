@@ -51,6 +51,16 @@ pub(crate) fn outline(table: &NodeTable) -> (Vec<Position>, Vec<Position>) {
     )
 }
 
+/// The names of `nodes` as the walk interns them as each opens (`lexical::named`); no name token codes.
+pub(crate) fn names_of(nodes: &[ruff_python_ast::AnyNodeRef<'_>]) -> crate::domain::model::names::types::WalkNames {
+    let mut names = crate::domain::model::names::types::WalkNames::default();
+    for node in nodes {
+        let code = crate::domain::model::lexical::service::named(&mut names.names, *node);
+        names.of_node.push(code);
+    }
+    names
+}
+
 /// Walks `source` and hands `read` the walked file.
 ///
 /// # Panics
@@ -78,6 +88,7 @@ pub(crate) fn with_file(source: &str, read: &mut dyn FnMut(&SyntaxFile<'_>)) {
     let mut numbering = Numbering(&mut nodes);
     numbering.visit_mod(parsed.syntax());
     let (parents, ends) = outline(&table);
+    let named = names_of(&nodes);
     read(&SyntaxFile {
         table: &table,
         nodes: &nodes,
@@ -87,6 +98,7 @@ pub(crate) fn with_file(source: &str, read: &mut dyn FnMut(&SyntaxFile<'_>)) {
             ends: &ends,
             nodes: &nodes,
             annotations: BindingAnnotationTiming::Immediate,
+            named: &named,
         },
         text: NameText(source),
         file: FileId(0),

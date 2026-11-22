@@ -1190,6 +1190,9 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     let mut word_pairs: Vec<(u16, u32)> = Vec::new();
     let mut word_offsets: Vec<u32> = Vec::new();
     let mut word_pos: Vec<u32> = Vec::new();
+    // the walk's code of each name token, and the required word of each code met in the file
+    let mut name_codes: Vec<u32> = Vec::new();
+    let mut word_memo: Vec<u32> = Vec::new();
     let (mut missing_in_src, mut extra_in_src, mut present_total, mut distinct_total) = (0u64, 0u64, 0u64, 0u64);
     let (mut alive_kinds, mut alive_both, mut rule_files) = (0u64, 0u64, 0u64);
     let mut word_entry_bound = 0u64;
@@ -1250,6 +1253,8 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
         store.reset(slots_n);
         reader_dump.clear();
         let mut visit_time = 0f64;
+        let mut words_time = 0f64;
+        let mut words_written = false;
         let ok = if use_facts && direct {
             cwalk
                 .walked(path, &bytes, &mut table, &mut |file| {
@@ -1264,18 +1269,20 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                             fp[usize::from(f) / 64] |= 1 << (f % 64);
                         }
                     }
-                    let mut wp = vec![0u64; ww];
-                    for p in node_table::ids_of_kind(ft, KindBits(name_token)) {
-                        let sp = node_table::span_of(ft, *p);
-                        if let Some(w) = words.ids.get(&bytes[sp.start.0 as usize..sp.end.0 as usize]) {
-                            wp[usize::from(*w) / 64] |= 1 << (w % 64);
-                        }
-                    }
+                    // the file's required words, once: from the walk's name codes (one lookup a distinct name); the word
+                    // phase then only lays out the index (timed there, not in deciding)
+                    let fw = thread_cpu();
+                    file.name_token_codes(&mut name_codes);
+                    funnel::file_words(ft, &bytes, name_token, &name_codes, &words, &mut word_memo, &mut present, &mut word_pairs);
+                    words_written = true;
+                    let fw = thread_cpu() - fw;
+                    words_time += fw;
+                    let wp = &present;
                     let mut needed = vec![ask_all; slots_n];
                     let mut valued = vec![ask_all; slots_n];
                     let mut key_needed: Vec<(usize, usize)> = Vec::new();
                     for (ri, r) in frules.iter().enumerate() {
-                        if r.slots.is_empty() || !skip_of[ri].is_none_or(|i| survives(&rules[i], &kinds, &fp)) || !r.words_alive(&wp) {
+                        if r.slots.is_empty() || !skip_of[ri].is_none_or(|i| survives(&rules[i], &kinds, &fp)) || !r.words_alive(wp) {
                             continue;
                         }
                         for s in &r.slots {
@@ -1291,7 +1298,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                         }
                     }
                     let v1 = thread_cpu();
-                    decide_time += v1 - v0;
+                    decide_time += v1 - v0 - fw;
                     let model_needed = needed.iter().enumerate().any(|(i, x)| *x && Some(i) != token_slot);
                     let tokens_needed = token_slot.is_some_and(|t| needed[t]);
                     if model_needed {
@@ -1672,6 +1679,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
         let t = &table;
         let c1 = thread_cpu();
         phases.add("walk+table", c1 - c0 - visit_time);
+        let visit_words = words_time;
         if !ok {
             continue;
         }
@@ -1699,7 +1707,9 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
             };
             match word_src.as_str() {
                 "table" => {
-                    from_table(&mut present, &mut word_pairs);
+                    if !words_written {
+                        funnel::file_words(t, &bytes, name_token, &[], &words, &mut word_memo, &mut present, &mut word_pairs);
+                    }
                     // the index: name-token positions of each required word
                     word_offsets.clear();
                     word_offsets.resize(n_words + 1, 0);
@@ -1770,7 +1780,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                 }
                 other => panic!("--words {other}"),
             }
-            phases.add(if word_src == "bytes6" { "byte-pattern pass (aho-corasick, 6 patterns)" } else if word_src == "table" { "word pass (name tokens -> required-word bitset + index)" } else if word_src == "all" { "word pass (distinct word set of all name tokens)" } else if word_src == "bytes" { "word pass (identifier runs of the source bytes)" } else { "word pass (aho-corasick over the source bytes)" }, thread_cpu() - cw);
+            phases.add(if word_src == "bytes6" { "byte-pattern pass (aho-corasick, 6 patterns)" } else if word_src == "table" { "word pass (name tokens -> required-word bitset + index)" } else if word_src == "all" { "word pass (distinct word set of all name tokens)" } else if word_src == "bytes" { "word pass (identifier runs of the source bytes)" } else { "word pass (aho-corasick over the source bytes)" }, thread_cpu() - cw + visit_words);
             present_total += present.iter().map(|w| u64::from(w.count_ones())).sum::<u64>();
             if compare {
                 from_table(&mut table_present, &mut word_pairs);

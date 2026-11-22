@@ -16,7 +16,10 @@ use crate::domain::syntax::constants::{
     MODULE_FUTURE_ANNOTATIONS_ENABLED,
 };
 use crate::domain::syntax::service::kind_bits;
+use crate::domain::model::lexical::service::named;
+use crate::domain::model::names::service::{intern, text_of};
 use crate::domain::syntax::types::Kind;
+use crate::domain::tokens::types::Token;
 use ruff_python_ast::visitor::source_order::{
     SourceOrderVisitor, TraversalSignal, walk_annotation,
 };
@@ -71,8 +74,27 @@ impl Walker<'_, '_, '_> {
             (Some(open), Kind::Token(named)) => token_field(open.node, token.kind(), named),
             (Some(_) | None, Kind::Node(_) | Kind::Token(_) | Kind::Extra(_)) => Field::None,
         };
+        if matches!(kind, Kind::Token(Token::Name)) && !self.text.is_empty() {
+            self.name_token(start, end);
+        }
         node_table::token(self.builder, kind_bits(kind), field_code(field), start, end);
         self.written = end;
+    }
+
+    /// Interns the text of a name token of the file's own tree, from `start` to `end`: the name of the innermost open node when
+    /// it is that text (a name's token under its node), else the text itself.
+    fn name_token(&mut self, start: Offset, end: Offset) {
+        let text = self
+            .text
+            .get(usize::from(Position(start.0))..usize::from(Position(end.0)))
+            .unwrap_or_default();
+        let held = self
+            .open
+            .last()
+            .and_then(|open| self.names.of_node.get(usize::from(open.at)).copied())
+            .filter(|code| text_of(&self.names.names, *code) == Some(NameText(text)));
+        let code = held.unwrap_or_else(|| intern(&mut self.names.names, NameText(text)));
+        self.names.of_token.push(code);
     }
 
     /// Writes every token that ends at or before `at`: what comes before a node that starts there. A token of no length where the
@@ -164,6 +186,8 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
             );
         }
         self.nodes.push(node);
+        let code = named(&mut self.names.names, node);
+        self.names.of_node.push(code);
         let at = Position(id);
         // The root of a file is its own parent; the root of a string's expression has the string for its parent.
         self.parents.push(

@@ -10,11 +10,11 @@ use crate::domain::qualification::service::builtin_named;
 use crate::domain::qualification::types::Version;
 use ryo::languages::{CellWord, FileWords, FixedWord, NameText, Offset, Symbol, facts};
 
-/// Forgets every name, keeping the buffers.
-pub(crate) fn clear(table: &mut NameTable) {
-    table.texts.0.clear();
-    table.entries.clear();
-    table.slots.fill(NameSlot(0));
+/// Makes `into` a copy of `from`, keeping `into`'s buffers.
+pub(crate) fn copy(into: &mut NameTable, from: &NameTable) {
+    into.texts.0.clone_from(&from.texts.0);
+    into.entries.clone_from(&from.entries);
+    into.slots.clone_from(&from.slots);
 }
 
 /// The hash of `text`, eight bytes at a time: the slot a name is looked for in. Codes are given in the order names are first

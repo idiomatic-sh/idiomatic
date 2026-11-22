@@ -1040,3 +1040,51 @@ pub(super) fn knock(ctx: &Ctx<'_>, group: &Group, nodes: &[u32], file: &[u64], s
     }
     steps
 }
+
+// ---------------------------------------------------------------- the file's required words
+/// A memo entry not looked up yet.
+const UNSEEN: u32 = u32::MAX;
+/// A memo entry whose text is no required word.
+const NO_WORD: u32 = u32::MAX - 1;
+
+/// The file's required words from its name tokens, in id order: the present bits and the (word, token id) pairs. A token the
+/// walk gave a code (`codes`: the file's own tree, in id order) is looked up once a code through `memo`; every other (an
+/// embedded segment's, or all of a file whose bytes were no text) by its bytes.
+#[expect(clippy::too_many_arguments, reason = "throwaway prototype")]
+pub(super) fn file_words(
+    table: &NodeTable,
+    src: &[u8],
+    name_token: u16,
+    codes: &[u32],
+    words: &Words,
+    memo: &mut Vec<u32>,
+    present: &mut [u64],
+    pairs: &mut Vec<(u16, u32)>,
+) {
+    present.iter_mut().for_each(|w| *w = 0);
+    pairs.clear();
+    memo.clear();
+    let (starts, ends) = (node_table::starts(table), node_table::ends(table));
+    let text = |i: usize| &src[starts[i] as usize..ends[i] as usize];
+    for (j, p) in node_table::ids_of_kind(table, ryo::languages::KindBits(name_token)).iter().enumerate() {
+        let i = p.0 as usize;
+        let w = match codes.get(j) {
+            Some(&c) => {
+                let c = c as usize;
+                if c >= memo.len() {
+                    memo.resize(c + 1, UNSEEN);
+                }
+                if memo[c] == UNSEEN {
+                    memo[c] = words.ids.get(text(i)).map_or(NO_WORD, |w| u32::from(*w));
+                }
+                memo[c]
+            }
+            None => words.ids.get(text(i)).map_or(NO_WORD, |w| u32::from(*w)),
+        };
+        if w != NO_WORD {
+            let w = w as u16;
+            present[usize::from(w) / 64] |= 1 << (w % 64);
+            pairs.push((w, p.0));
+        }
+    }
+}

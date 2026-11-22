@@ -83,6 +83,7 @@ impl SyntaxPort for SyntaxFake {
                     syntax: SyntaxCompleteness::Complete,
                     lexical: SyntaxCompleteness::Complete,
                 },
+                names: crate::domain::model::names::types::WalkNames::default(),
             },
         ));
     }
