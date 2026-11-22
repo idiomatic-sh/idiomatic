@@ -1312,7 +1312,12 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                 let pt: &NodeTable = $t;
                 let c1 = thread_cpu();
                 fields_present(pt, &mut cols, fields_width.max(1));
-                phases.add("field buckets", thread_cpu() - c1);
+                // prefix cycle 3: the structure pass runs in the file's skip preparation (its field counting is not
+                // needed: the table holds a list of ids a field, redo-onepass)
+                if structured {
+                    funnel::structure(pt, &mut st);
+                }
+                phases.add("field buckets + structure pass", thread_cpu() - c1);
                 if way != "structure" {
                 // the file's required words
                 let cw = thread_cpu();
@@ -1441,12 +1446,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
         macro_rules! prefix {
             ($t:expr) => {{
                 let t: &NodeTable = $t;
-                let c2 = thread_cpu();
                 if structured {
-                    for _ in 0..repeat {
-                        funnel::structure(t, &mut st);
-                    }
-                    phases.add("structure pass", (thread_cpu() - c2) / repeat as f64);
                     if !fact_catalog.enc_sets.is_empty() {
                         let e0 = thread_cpu();
                         funnel::enclosing(t, &mut st, &fact_catalog.enc_sets);
