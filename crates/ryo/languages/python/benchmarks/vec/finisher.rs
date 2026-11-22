@@ -284,6 +284,12 @@ impl<'p> Finisher<'p> {
         }
         println!("fact keyed lists: fill rows listed {}", finish::FACT_IX_ROWS.load(std::sync::atomic::Ordering::Relaxed));
         finish::empty_why::print();
+        if std::env::var_os("VEC_MEMO_DUMP").is_some() {
+            // redo-union pass 2 c19
+            for l in exec.memo_dump() {
+                println!("{l}");
+            }
+        }
         {
             // redo-union pass 2: per step kind: runs (whole, by key, known empty), runs that returned nothing (known before
             // the bracket, bracketed whole, bracketed by key) and the seconds in the bracketed ones (`VEC_STEP_TIME`)
