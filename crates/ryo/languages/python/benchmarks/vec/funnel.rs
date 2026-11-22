@@ -192,7 +192,7 @@ pub(super) fn ops_of(v: &serde_json::Value, vocab: &Vocab, missing: &mut Vec<Str
                 notkinds: o.get("notkinds").map(|x| kset_of(x, vocab, missing)),
                 texts: o.get("texts").map(|x| x.as_array().expect("texts").iter().map(|t| t.as_str().expect("text").as_bytes().to_vec()).collect()),
                 fields: o.get("fields").map(|x| fset_of(x, vocab, missing)),
-                re: o.get("re").map(|x| regex::bytes::Regex::new(x.as_str().expect("re")).expect("regex")),
+                re: o.get("re").map(|x| cached_regex(x.as_str().expect("re"))),
             }),
             "up" => Op::Up { from: u(o, "from"), to: u(o, "to"), leaf: o["leaf"].as_bool().unwrap_or(false) },
             "down" => Op::Down { from: u(o, "from"), to: u(o, "to"), leaf: o["leaf"].as_bool().unwrap_or(false) },
@@ -212,6 +212,14 @@ pub(super) fn ops_of(v: &serde_json::Value, vocab: &Vocab, missing: &mut Vec<Str
                 })
         })
         .collect()
+}
+
+/// A regex of the plans, compiled once however many plans test it (spec step: the entries repeat their checks).
+fn cached_regex(pattern: &str) -> regex::bytes::Regex {
+    thread_local! {
+        static CACHE: std::cell::RefCell<HashMap<String, regex::bytes::Regex>> = std::cell::RefCell::new(HashMap::new());
+    }
+    CACHE.with(|c| c.borrow_mut().entry(pattern.to_owned()).or_insert_with(|| regex::bytes::Regex::new(pattern).expect("regex")).clone())
 }
 
 /// The required words of the pack, numbered.

@@ -224,11 +224,14 @@ pub(super) enum EKey {
 pub(super) struct Group {
     pub(super) req: Cnf,
     pub(super) words: Vec<Vec<u16>>,
-    pub(super) alts: Vec<Alt>,
+    /// Indices into the rule's `alts`.
+    pub(super) alts: Vec<usize>,
 }
 
 pub(super) struct SRule {
     pub(super) req: Vec<Cnf>,
+    /// The rule's entry alternatives, each compiled once (branches share them).
+    pub(super) alts: Vec<Alt>,
     pub(super) groups: Vec<Group>,
     /// Fact slots the entries test (in their ops or as their bucket).
     pub(super) slots: Vec<usize>,
@@ -359,36 +362,50 @@ pub(super) fn load(path: &str, census: bool, l: &mut Load<'_>) -> Vec<SRule> {
     for line in std::fs::read_to_string(path).expect("plans").lines() {
         let r: serde_json::Value = serde_json::from_str(line).expect("json");
         let req: Vec<Cnf> = r["req"].as_array().expect("req (a spec.py plan file)").iter().map(|c| l.cnf(c)).collect();
-        let mut slots = Vec::new();
         let mut groups = Vec::new();
-        let specs: Vec<(Cnf, Vec<Vec<u16>>, Vec<(u8, serde_json::Value)>)> = if census {
-            r["plans"]
-                .as_array()
-                .expect("plans")
-                .iter()
-                .map(|p| {
-                    let greq = if p["req"].is_array() { l.cnf(&p["req"]) } else { Vec::new() };
-                    let level = if p["bucket"].as_str() == Some("words") { 0 } else { 2 };
-                    (greq, l.words.cnf(&p["words"]), vec![(level, p.clone())])
-                })
-                .collect()
+        // the alternatives: the shared table (`alts` + `alt_ids`, scripts/share.py), the inline form, or the census plans
+        let mut table: Vec<(u8, &serde_json::Value)> = Vec::new();
+        let mut specs: Vec<(Cnf, Vec<Vec<u16>>, Vec<usize>)> = Vec::new();
+        if census {
+            for p in r["plans"].as_array().expect("plans") {
+                let greq = if p["req"].is_array() { l.cnf(&p["req"]) } else { Vec::new() };
+                let level = if p["bucket"].as_str() == Some("words") { 0 } else { 2 };
+                table.push((level, p));
+                specs.push((greq, l.words.cnf(&p["words"]), vec![table.len() - 1]));
+            }
+        } else if let Some(shared) = r["alts"].as_array() {
+            table = shared.iter().map(|a| (a["level"].as_u64().expect("level") as u8, a)).collect();
+            for e in r["entries"].as_array().expect("entries") {
+                let ids = e["alt_ids"].as_array().expect("alt ids").iter().map(|x| x.as_u64().expect("id") as usize).collect();
+                specs.push((l.cnf(&e["req"]), l.words.cnf(&e["words"]), ids));
+            }
         } else {
-            r["entries"]
-                .as_array()
-                .expect("entries")
-                .iter()
-                .map(|e| {
-                    let alts = e["alts"].as_array().expect("alts").iter().map(|a| (a["level"].as_u64().expect("level") as u8, a.clone())).collect();
-                    (l.cnf(&e["req"]), l.words.cnf(&e["words"]), alts)
-                })
-                .collect()
-        };
-        for (greq, words, alts) in specs {
-            let mut fl = funnel::FactLoad { catalog: &mut *l.catalog, interner: &mut *l.interner, slots: std::mem::take(&mut slots) };
-            let alts: Vec<Alt> = alts.iter().filter_map(|(level, p)| alt_of(p, *level, vocab, &mut missing, &mut fl, l.words)).collect();
-            slots = fl.slots;
-            if !alts.is_empty() {
-                groups.push(Group { req: greq, words, alts });
+            for e in r["entries"].as_array().expect("entries") {
+                let mut ids = Vec::new();
+                for a in e["alts"].as_array().expect("alts") {
+                    table.push((a["level"].as_u64().expect("level") as u8, a));
+                    ids.push(table.len() - 1);
+                }
+                specs.push((l.cnf(&e["req"]), l.words.cnf(&e["words"]), ids));
+            }
+        }
+        let mut fl = funnel::FactLoad { catalog: &mut *l.catalog, interner: &mut *l.interner, slots: Vec::new() };
+        let mut alts: Vec<Alt> = Vec::new();
+        let mut remap: Vec<Option<usize>> = Vec::new();
+        for (level, p) in &table {
+            match alt_of(p, *level, vocab, &mut missing, &mut fl, l.words) {
+                Some(a) => {
+                    remap.push(Some(alts.len()));
+                    alts.push(a);
+                }
+                None => remap.push(None),
+            }
+        }
+        let slots = fl.slots;
+        for (greq, words, ids) in specs {
+            let ids: Vec<usize> = ids.iter().filter_map(|i| remap[*i]).collect();
+            if !ids.is_empty() {
+                groups.push(Group { req: greq, words, alts: ids });
             }
         }
         let mut req_slots: Vec<usize> = Vec::new();
@@ -404,7 +421,7 @@ pub(super) fn load(path: &str, census: bool, l: &mut Load<'_>) -> Vec<SRule> {
                 }
             }
         }
-        out.push(SRule { req, groups, slots, req_slots });
+        out.push(SRule { req, alts, groups, slots, req_slots });
     }
     missing.sort();
     missing.dedup();

@@ -690,6 +690,8 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     let mut file_bits = vec![0u64; aw];
     let mut clause_bits: Vec<u64> = Vec::new();
     let mut file_alive = vec![false; srules.len()];
+    let mut sizes: Vec<usize> = Vec::new();
+    let mut value_index: HashMap<(usize, usize), HashMap<u64, Vec<u32>>> = HashMap::new();
     let mut req_bytes_time = 0f64;
     let want_why = flag(args, "--why-out").is_some();
     let skip_compare = want_why || args.contains(&"--skip-compare");
@@ -1196,6 +1198,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                     Key::Field(f) => (cols.field_offsets[usize::from(f) + 1] - cols.field_offsets[usize::from(f)]) as usize,
                 }
             };
+            value_index.clear();
             for (ri, sr) in srules.iter().enumerate() {
                 if !alive[ri] || sr.groups.is_empty() {
                     continue;
@@ -1203,6 +1206,9 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                 stamp = stamp.wrapping_add(1);
                 let (mut rc, mut rs) = (0u64, 0u64);
                 let mut chosen: Vec<(usize, usize)> = Vec::new();
+                // each alternative's bucket size once a rule and file (branches share alternatives)
+                sizes.clear();
+                sizes.resize(sr.alts.len(), usize::MAX);
                 for (gi, g) in sr.groups.iter().enumerate() {
                     if use_req && !spec::holds(&g.req, &clause_bits) {
                         continue;
@@ -1211,17 +1217,25 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                         continue;
                     }
                     let mut best: Option<(u8, usize, usize)> = None;
-                    for (ai, a) in g.alts.iter().enumerate() {
-                        let n = match &a.key {
-                            spec::EKey::Keys(ks) => ks.iter().map(key_len).sum(),
-                            spec::EKey::Fact(f) => {
-                                if !store.answered(f.slot) {
-                                    continue;
+                    for &ai in &g.alts {
+                        let a = &sr.alts[ai];
+                        if sizes[ai] == usize::MAX {
+                            sizes[ai] = match &a.key {
+                                spec::EKey::Keys(ks) => ks.iter().map(key_len).sum(),
+                                spec::EKey::Fact(f) => {
+                                    if store.answered(f.slot) {
+                                        store.key_nodes(f.slot, f.keys[0].0, &f.conds, &interner.matches, &mut value_index, &mut buf);
+                                        buf.len()
+                                    } else {
+                                        usize::MAX - 1
+                                    }
                                 }
-                                store.key_nodes(f.slot, f.keys[0].0, &f.conds, &interner.matches, &mut buf);
-                                buf.len()
-                            }
-                        };
+                            };
+                        }
+                        let n = sizes[ai];
+                        if n == usize::MAX - 1 {
+                            continue;
+                        }
                         let better = match best {
                             None => true,
                             Some((l, c, _)) => {
@@ -1241,15 +1255,16 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                 }
                 // the branches entered at the same bucket share it: filled once, each plan over the candidates no
                 // earlier branch kept (as the units of the census form)
-                chosen.sort_by_key(|(gi, ai)| sr.groups[*gi].alts[*ai].key_text.clone());
+                chosen.sort_by(|a, b| sr.alts[a.1].key_text.cmp(&sr.alts[b.1].key_text).then(a.1.cmp(&b.1)));
+                chosen.dedup_by_key(|(_, ai)| *ai);
                 let mut k = 0;
                 while k < chosen.len() {
-                    let key_text = &sr.groups[chosen[k].0].alts[chosen[k].1].key_text;
+                    let key_text = &sr.alts[chosen[k].1].key_text;
                     let mut end = k;
-                    while end < chosen.len() && &sr.groups[chosen[end].0].alts[chosen[end].1].key_text == key_text {
+                    while end < chosen.len() && &sr.alts[chosen[end].1].key_text == key_text {
                         end += 1;
                     }
-                    let first = &sr.groups[chosen[k].0].alts[chosen[k].1];
+                    let first = &sr.alts[chosen[k].1];
                     match &first.key {
                         spec::EKey::Keys(ks) => {
                             buf.clear();
@@ -1259,16 +1274,16 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                                 buf.extend_from_slice(&part);
                             }
                         }
-                        spec::EKey::Fact(f) => store.key_nodes(f.slot, f.keys[0].0, &f.conds, &interner.matches, &mut buf),
+                        spec::EKey::Fact(f) => store.key_nodes(f.slot, f.keys[0].0, &f.conds, &interner.matches, &mut value_index, &mut buf),
                     }
                     rc += buf.len() as u64;
                     remaining.clear();
                     remaining.extend_from_slice(&buf);
-                    for &(gi, ai) in &chosen[k..end] {
+                    for &(_, ai) in &chosen[k..end] {
                         if remaining.is_empty() {
                             break;
                         }
-                        let plan = &sr.groups[gi].alts[ai].plan;
+                        let plan = &sr.alts[ai].plan;
                         let mut st = 0u64;
                         rows.r = plan.regs.max(1);
                         rows.d.clear();

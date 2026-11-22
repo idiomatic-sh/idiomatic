@@ -446,13 +446,31 @@ impl Store {
         self.answered.get(slot).copied().unwrap_or(false)
     }
 
-    /// spec step: the distinct key nodes of the rows passing the tests, in node order (an entry bucket from a fact).
-    pub(super) fn key_nodes(&self, slot: usize, key: usize, conds: &[Cond], matches: &[u128], out: &mut Vec<u32>) {
+    /// spec step: the distinct key nodes of the rows passing the tests, in node order (an entry bucket from a fact). The
+    /// first `In` test reads the file's index of that column (value -> rows, built once a file and column).
+    pub(super) fn key_nodes(&self, slot: usize, key: usize, conds: &[Cond], matches: &[u128], index: &mut HashMap<(usize, usize), HashMap<u64, Vec<u32>>>, out: &mut Vec<u32>) {
         out.clear();
         let cells = &self.cells[slot];
-        for r in 0..self.rows[slot] {
-            if conds.iter().all(|c| cond_holds(c, cells, r, matches)) {
-                out.push(cells[key][r] as u32);
+        if let Some(Cond::In(col, vals)) = conds.iter().find(|c| matches!(c, Cond::In(..))) {
+            let by_value = index.entry((slot, *col)).or_insert_with(|| {
+                let mut m: HashMap<u64, Vec<u32>> = HashMap::new();
+                for (r, v) in cells[*col][..self.rows[slot]].iter().enumerate() {
+                    m.entry(*v).or_default().push(r as u32);
+                }
+                m
+            });
+            for v in vals {
+                for &r in by_value.get(v).map_or(&[][..], Vec::as_slice) {
+                    if conds.iter().all(|c| cond_holds(c, cells, r as usize, matches)) {
+                        out.push(cells[key][r as usize] as u32);
+                    }
+                }
+            }
+        } else {
+            for r in 0..self.rows[slot] {
+                if conds.iter().all(|c| cond_holds(c, cells, r, matches)) {
+                    out.push(cells[key][r] as u32);
+                }
             }
         }
         out.sort_unstable();
