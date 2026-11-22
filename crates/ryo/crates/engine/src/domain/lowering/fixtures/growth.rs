@@ -290,6 +290,7 @@ pub fn growth_plan(kind: OperationKind) -> Plan {
         OperationKind::Worklist => worklist(),
         OperationKind::Rows => over_words(vec![
             PlanStep {
+                written: Default::default(),
                 operation: Operation::Rows {
                     source: RowsSource::Written(WrittenRows(vec![WrittenRow(vec![text("w0")])])),
                     keys: vec![TableKey("text".into())],

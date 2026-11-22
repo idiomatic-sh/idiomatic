@@ -35,6 +35,7 @@ fn column(index: u32) -> ColumnIndex {
 fn view_and_projection(scope: StepScope) -> Vec<PlanStep> {
     vec![
         PlanStep {
+            written: Default::default(),
             operation: Operation::Select {
                 from: Reads::Relation(Relation::SyntaxTree),
                 comparisons: Vec::new(),
@@ -43,6 +44,7 @@ fn view_and_projection(scope: StepScope) -> Vec<PlanStep> {
             scope,
         },
         PlanStep {
+            written: Default::default(),
             operation: Operation::Project {
                 from: Reads::Step(StepId(0)),
                 columns: vec![column(0)],

@@ -36,6 +36,7 @@ fn syntax_applicability_skips_only_gated_rules_and_names_the_reason()
         observations: Vec::new(),
         parameters: Vec::new(),
         steps: vec![ryo_values::domain::plans::types::PlanStep {
+            written: Default::default(),
             scope: ryo_values::domain::plan_parts::types::StepScope::PerFile,
             operation: ryo_values::domain::plans::types::Operation::Select {
                 from: ryo_values::domain::plan_parts::types::Input::Relation(Relation::Function),

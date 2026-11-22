@@ -64,6 +64,7 @@ fn each_member_of_a_binding_reads_its_own_producer() {
         let plan = &mut crate::boundary_fixture::fixtures::plans(&mut authored)[producer];
         plan.steps = vec![
             PlanStep {
+                written: Default::default(),
                 scope: StepScope::CrossFile,
                 operation: Operation::Select {
                     from: Input::Relation(relation),
@@ -72,6 +73,7 @@ fn each_member_of_a_binding_reads_its_own_producer() {
                 },
             },
             PlanStep {
+                written: Default::default(),
                 scope: StepScope::CrossFile,
                 operation: Operation::Extend {
                     from: Input::Step(StepId(0)),
@@ -97,6 +99,7 @@ fn each_member_of_a_binding_reads_its_own_producer() {
         .to_vec();
     let consumer = &mut crate::boundary_fixture::fixtures::plans(&mut authored)[2];
     consumer.steps = vec![PlanStep {
+        written: Default::default(),
         scope: StepScope::CrossFile,
         operation: Operation::Select {
             from: Input::BoundObservation(ObservationBindingId(0)),
@@ -203,6 +206,7 @@ fn each_member_of_a_file_binding_reads_its_own_producer() {
     for (producer, code) in [(0, "A"), (1, "B")] {
         let plan = &mut crate::boundary_fixture::fixtures::plans(&mut authored)[producer];
         plan.steps.push(PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Extend {
                 from: Input::Step(StepId(0)),
@@ -227,6 +231,7 @@ fn each_member_of_a_file_binding_reads_its_own_producer() {
         .to_vec();
     let consumer = &mut crate::boundary_fixture::fixtures::plans(&mut authored)[2];
     consumer.steps = vec![PlanStep {
+        written: Default::default(),
         scope: StepScope::PerFile,
         operation: Operation::Select {
             from: Input::BoundObservation(ObservationBindingId(0)),

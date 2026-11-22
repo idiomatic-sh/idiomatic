@@ -59,6 +59,7 @@ fn select_over_function() -> Plan {
         observations: Vec::new(),
         parameters: Vec::new(),
         steps: vec![PlanStep {
+            written: Default::default(),
             operation: Operation::Select {
                 from: PlanInput::Relation(Relation::Function),
                 comparisons: vec![PlanComparison {

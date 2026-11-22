@@ -27,6 +27,7 @@ use ryo_values::domain::plan_parts::types::StepScope;
 use ryo_values::domain::plans::service::each_input;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::plans::types::PlanStep;
+use ryo_values::domain::written_sites::types::StepWritten;
 
 /// The plan with each join after the files of a per-file input with a join after the files, keyed on columns of that join's per-file
 /// input, made two joins: the two per-file inputs joined in each file, and the join's other input joined with that after the files.
@@ -70,14 +71,17 @@ pub(crate) fn regroup_joins_roots(mut steps: Vec<PlanStep>, roots: &mut [StepId]
                     root.0 += 1;
                 }
             }
+            let mut written = StepWritten::default();
             if let Some(step) = steps.get_mut(place) {
                 step.operation = outer;
+                written.clone_from(&step.written);
             }
             steps.insert(
                 place,
                 PlanStep {
                     operation: inner,
                     scope: StepScope::PerFile,
+                    written,
                 },
             );
             place += 1;

@@ -56,6 +56,7 @@ pub(crate) fn authored_request(count: usize) -> PrepareRequest {
                     observation_inputs: vec![],
                     observations: vec![],
                     steps: vec![PlanStep {
+                        written: Default::default(),
                         scope: StepScope::PerFile,
                         operation: Operation::Select {
                             from: Input::Relation(Relation::Function),

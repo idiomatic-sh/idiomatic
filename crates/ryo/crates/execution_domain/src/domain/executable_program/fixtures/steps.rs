@@ -62,6 +62,7 @@ pub(super) fn bound_plan(
 /// A step on each file.
 pub(super) fn per_file(operation: Operation) -> PlanStep {
     PlanStep {
+        written: Default::default(),
         operation,
         scope: StepScope::PerFile,
     }

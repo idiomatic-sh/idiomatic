@@ -44,6 +44,7 @@ pub(super) fn over_a_shared_node(last: &[Option<Operation>]) -> PreparedExecutio
     {
         if let Some(operation) = step {
             plan.steps.push(PlanStep {
+                written: Default::default(),
                 scope: StepScope::PerFile,
                 operation: operation.clone(),
             });

@@ -77,6 +77,7 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
         kind: CellKind::File,
     }];
     crate::boundary_fixture::fixtures::plans(&mut authored)[0].steps = vec![PlanStep {
+        written: Default::default(),
         scope: StepScope::CrossFile,
         operation: Operation::Select {
             from: Input::Relation(relation),
@@ -92,6 +93,7 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
         crate::boundary_fixture::fixtures::plans(&mut authored)[0]
             .steps
             .push(PlanStep {
+                written: Default::default(),
                 scope: StepScope::CrossFile,
                 operation: Operation::Extend {
                     from: Input::Step(StepId(0)),
@@ -112,6 +114,7 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
             scope: StepScope::CrossFile,
         });
     crate::boundary_fixture::fixtures::plans(&mut authored)[1].steps = vec![PlanStep {
+        written: Default::default(),
         scope: StepScope::CrossFile,
         operation: Operation::Select {
             from: Input::BoundObservation(ObservationBindingId(0)),
@@ -145,12 +148,14 @@ fn exercise_project_observation_union(refused: bool, selected_text: Option<&str>
             .steps
             .extend([
                 PlanStep {
+                    written: Default::default(),
                     scope: StepScope::CrossFile,
                     operation: Operation::Hosted {
                         relation: HostedNumber(0),
                     },
                 },
                 PlanStep {
+                    written: Default::default(),
                     scope: StepScope::CrossFile,
                     operation: Operation::Join {
                         left: Input::Step(StepId(0)),

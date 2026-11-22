@@ -48,6 +48,7 @@ fn project_text_identity_does_not_depend_on_inherited_arenas() {
                 });
                 crate::boundary_fixture::fixtures::plans(&mut authored)[0].steps = vec![
                     PlanStep {
+                        written: Default::default(),
                         scope: StepScope::CrossFile,
                         operation: Operation::Select {
                             from: Input::Relation(Relation::ModuleIdentity),
@@ -56,6 +57,7 @@ fn project_text_identity_does_not_depend_on_inherited_arenas() {
                         },
                     },
                     PlanStep {
+                        written: Default::default(),
                         scope: StepScope::CrossFile,
                         operation: Operation::Extend {
                             from: Input::Step(StepId(0)),
@@ -65,12 +67,14 @@ fn project_text_identity_does_not_depend_on_inherited_arenas() {
                         },
                     },
                     PlanStep {
+                        written: Default::default(),
                         scope: StepScope::CrossFile,
                         operation: Operation::Hosted {
                             relation: HostedNumber(0),
                         },
                     },
                     PlanStep {
+                        written: Default::default(),
                         scope: StepScope::CrossFile,
                         operation: Operation::Join {
                             left: Input::Step(StepId(1)),

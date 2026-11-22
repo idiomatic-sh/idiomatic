@@ -70,6 +70,7 @@ pub(super) fn authored(project_away_file: bool, mode: Mode) -> PrepareRequest {
     crate::boundary_fixture::fixtures::plans(&mut authored)[0]
         .steps
         .push(PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Extend {
                 from: Input::Step(StepId(0)),
@@ -90,6 +91,7 @@ pub(super) fn authored(project_away_file: bool, mode: Mode) -> PrepareRequest {
     // A real empty project producer makes the declared union project-scoped.
     // It is evaluated and installed through the same public phase protocol.
     crate::boundary_fixture::fixtures::plans(&mut authored)[1].steps = vec![PlanStep {
+        written: Default::default(),
         scope: StepScope::CrossFile,
         operation: Operation::Hosted {
             relation: HostedNumber(0),
@@ -111,6 +113,7 @@ pub(super) fn authored(project_away_file: bool, mode: Mode) -> PrepareRequest {
         crate::boundary_fixture::fixtures::plans(&mut authored)[1]
             .steps
             .push(PlanStep {
+                written: Default::default(),
                 scope: StepScope::CrossFile,
                 operation: Operation::Extend {
                     from: Input::Step(StepId(0)),
@@ -125,6 +128,7 @@ pub(super) fn authored(project_away_file: bool, mode: Mode) -> PrepareRequest {
         crate::boundary_fixture::fixtures::plans(&mut authored)[1]
             .steps
             .push(PlanStep {
+                written: Default::default(),
                 scope: StepScope::CrossFile,
                 operation: Operation::Hosted {
                     relation: HostedNumber(2),
@@ -133,6 +137,7 @@ pub(super) fn authored(project_away_file: bool, mode: Mode) -> PrepareRequest {
         crate::boundary_fixture::fixtures::plans(&mut authored)[1]
             .steps
             .push(PlanStep {
+                written: Default::default(),
                 scope: StepScope::CrossFile,
                 operation: Operation::Join {
                     left: Input::Step(StepId(1)),
@@ -188,12 +193,14 @@ pub(super) fn authored(project_away_file: bool, mode: Mode) -> PrepareRequest {
     }];
     crate::boundary_fixture::fixtures::plans(&mut authored)[2].steps = vec![
         PlanStep {
+            written: Default::default(),
             scope: StepScope::CrossFile,
             operation: Operation::Hosted {
                 relation: HostedNumber(1),
             },
         },
         PlanStep {
+            written: Default::default(),
             scope: StepScope::CrossFile,
             operation: Operation::Antijoin {
                 left: Input::Step(StepId(0)),
@@ -225,6 +232,7 @@ pub(super) fn authored(project_away_file: bool, mode: Mode) -> PrepareRequest {
     if let Mode::Rekey { file_key } = mode {
         let key = ColumnIndex(if file_key { 0 } else { 1 });
         crate::boundary_fixture::fixtures::plans(&mut authored)[2].steps[1] = PlanStep {
+            written: Default::default(),
             scope: StepScope::CrossFile,
             operation: Operation::Hosted {
                 relation: HostedNumber(2),
@@ -233,6 +241,7 @@ pub(super) fn authored(project_away_file: bool, mode: Mode) -> PrepareRequest {
         crate::boundary_fixture::fixtures::plans(&mut authored)[2]
             .steps
             .push(PlanStep {
+                written: Default::default(),
                 scope: StepScope::CrossFile,
                 operation: Operation::Join {
                     left: Input::BoundObservation(ObservationBindingId(0)),
@@ -257,6 +266,7 @@ pub(super) fn authored(project_away_file: bool, mode: Mode) -> PrepareRequest {
         crate::boundary_fixture::fixtures::plans(&mut authored)[2]
             .steps
             .push(PlanStep {
+                written: Default::default(),
                 scope: StepScope::CrossFile,
                 operation: Operation::Antijoin {
                     left: Input::Step(StepId(0)),
@@ -283,6 +293,7 @@ pub(super) fn authored(project_away_file: bool, mode: Mode) -> PrepareRequest {
         crate::boundary_fixture::fixtures::plans(&mut authored)[2]
             .steps
             .push(PlanStep {
+                written: Default::default(),
                 scope: StepScope::CrossFile,
                 operation: Operation::Project {
                     from: Input::Step(StepId(

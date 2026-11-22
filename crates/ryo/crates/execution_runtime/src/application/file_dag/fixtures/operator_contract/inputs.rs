@@ -40,6 +40,7 @@ pub fn plan(operations: Vec<ryo_values::domain::plans::types::Operation>) -> Pla
         steps: operations
             .into_iter()
             .map(|operation| PlanStep {
+                written: Default::default(),
                 scope: StepScope::PerFile,
                 operation,
             })

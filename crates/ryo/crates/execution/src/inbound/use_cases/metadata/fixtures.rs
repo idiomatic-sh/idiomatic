@@ -43,6 +43,7 @@ pub fn plan(relation: Relation, word: Option<&str>) -> Plan {
         observation_inputs: Vec::new(),
         parameters: Vec::new(),
         steps: vec![PlanStep {
+            written: Default::default(),
             operation: Operation::Select {
                 from: PlanInput::Relation(relation),
                 comparisons,

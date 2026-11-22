@@ -132,6 +132,7 @@ impl ObserverPort for RefusesFirst {
 /// A step after the files.
 fn after_files(operation: Operation) -> PlanStep {
     PlanStep {
+        written: Default::default(),
         scope: StepScope::CrossFile,
         operation,
     }

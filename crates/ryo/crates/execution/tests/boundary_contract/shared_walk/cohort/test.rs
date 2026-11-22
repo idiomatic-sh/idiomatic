@@ -83,6 +83,7 @@ fn a_failed_dependency_does_not_prepare_a_later_class_of_the_same_rule() {
     let mut authored = authored_request(1);
     crate::boundary_fixture::fixtures::plans(&mut authored)[0].steps = vec![
         PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Select {
                 from: Input::Relation(Relation::SyntaxTree),
@@ -91,6 +92,7 @@ fn a_failed_dependency_does_not_prepare_a_later_class_of_the_same_rule() {
             },
         },
         PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Select {
                 from: Input::Relation(Relation::SyntaxTree),
@@ -99,6 +101,7 @@ fn a_failed_dependency_does_not_prepare_a_later_class_of_the_same_rule() {
             },
         },
         PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Union {
                 left: Input::Step(StepId(0)),
@@ -136,6 +139,7 @@ fn later_cohorts_add_only_the_new_class_and_aliases_replay_both_results() {
     for plan in crate::boundary_fixture::fixtures::plans(&mut authored) {
         plan.steps = vec![
             PlanStep {
+                written: Default::default(),
                 scope: StepScope::PerFile,
                 operation: Operation::Select {
                     from: Input::Relation(Relation::SyntaxTree),
@@ -144,6 +148,7 @@ fn later_cohorts_add_only_the_new_class_and_aliases_replay_both_results() {
                 },
             },
             PlanStep {
+                written: Default::default(),
                 scope: StepScope::PerFile,
                 operation: Operation::Select {
                     from: Input::Relation(Relation::SyntaxTree),
@@ -152,6 +157,7 @@ fn later_cohorts_add_only_the_new_class_and_aliases_replay_both_results() {
                 },
             },
             PlanStep {
+                written: Default::default(),
                 scope: StepScope::PerFile,
                 operation: Operation::Union {
                     left: Input::Step(StepId(0)),

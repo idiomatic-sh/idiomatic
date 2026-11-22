@@ -6,6 +6,7 @@ use crate::domain::code::types::{ProgramCode, UnitKey, WordSlot};
 use crate::domain::executing::running::service::units_reached;
 use crate::domain::made_tables::fills::service::fill_at;
 use crate::domain::made_tables::fills::types::FillKind;
+use crate::domain::programs::service::step_of_unit;
 use crate::domain::programs::types::Programs;
 use crate::domain::scratch::types::ScanScratch;
 use crate::domain::statistics::types::{PointCounts, PointCountsEngine, UnitCounts};
@@ -58,7 +59,11 @@ pub fn counted(scratch: &ScanScratch) -> PointCounts {
     }
     // SPIKE: what the decisions visited.
     let visits = &crate::domain::executing::sources::types::NEED_VISITS;
-    let taken = |at: usize| visits.get(at).map_or(0, |count| count.swap(0, std::sync::atomic::Ordering::Relaxed));
+    let taken = |at: usize| {
+        visits.get(at).map_or(0, |count| {
+            count.swap(0, std::sync::atomic::Ordering::Relaxed)
+        })
+    };
     eprintln!(
         "ryo x: need-visits decisions={} free={} asked={} musts-failed={} rule-files-run={}",
         taken(0),
@@ -76,14 +81,16 @@ pub fn counted(scratch: &ScanScratch) -> PointCounts {
     // A worker keeps a column per count, each as long as the programs have units; the statistics hold a row per unit.
     let columns = measure.calls.iter().zip(&measure.keys).zip(&measure.rows);
     let columns = columns.zip(&measure.build).zip(&measure.nanos);
-    let units = columns.zip(&measure.idle_nanos).map(
-        |(((((calls, keys), rows), build), nanos), idle_nanos)| UnitCounts {
+    let units = columns.zip(&measure.idle_nanos).enumerate().map(
+        |(place, (((((calls, keys), rows), build), nanos), idle_nanos))| UnitCounts {
             calls: *calls,
             keys: *keys,
             rows: *rows,
             build: *build,
             nanos: *nanos,
             idle_nanos: *idle_nanos,
+            decide_nanos: measure.decide.get(place).copied().unwrap_or_default(),
+            provider_nanos: measure.provider.get(place).copied().unwrap_or_default(),
         },
     );
     PointCounts(PointCountsEngine {
@@ -94,6 +101,7 @@ pub fn counted(scratch: &ScanScratch) -> PointCounts {
         fields: measure.fields.clone(),
         elements: measure.elements,
         literals: measure.literals.clone(),
+        providers: measure.providers.clone(),
     })
 }
 
@@ -127,12 +135,26 @@ pub fn merged(into: &mut PointCounts, from: &PointCounts) {
             build: Count(sum.build.0.saturating_add(each.build.0)),
             nanos: Count(sum.nanos.0.saturating_add(each.nanos.0)),
             idle_nanos: Count(sum.idle_nanos.0.saturating_add(each.idle_nanos.0)),
+            decide_nanos: Count(sum.decide_nanos.0.saturating_add(each.decide_nanos.0)),
+            provider_nanos: Count(sum.provider_nanos.0.saturating_add(each.provider_nanos.0)),
         };
+    }
+    for each in &one.providers {
+        match all.providers.iter_mut().find(|held| held.work == each.work) {
+            Some(held) => {
+                held.asks = Count(held.asks.0.saturating_add(each.asks.0));
+                held.rows = Count(held.rows.0.saturating_add(each.rows.0));
+                held.nanos = Count(held.nanos.0.saturating_add(each.nanos.0));
+                held.idle_nanos = Count(held.idle_nanos.0.saturating_add(each.idle_nanos.0));
+            }
+            None => all.providers.push(*each),
+        }
     }
 }
 
 /// The work ledger of a measured run: one row for each unit of `programs` (a rule's own program, a definition's pattern, a
-/// made table), with what `counts` holds of it and the rules that reach it.
+/// made table), with what `counts` holds of it, the rules that reach it and the step of each one's plan it makes the rows
+/// of; then one row for each kind of work the language did for them, whose time no unit holds, in the order first done.
 ///
 /// # Examples
 ///
@@ -163,7 +185,13 @@ pub fn ledger(programs: &Programs, counts: &PointCounts) -> WorkLedger {
             .iter()
             .fold(counted.build.0, |sum, each| sum.saturating_add(each.0));
         let own = code.rules.iter().find(|rule| rule.unit == slot);
-        let owners = code.rules.iter().zip(&reached);
+        let owners: Vec<_> = code
+            .rules
+            .iter()
+            .zip(&reached)
+            .filter(|(_, units)| units.contains(&slot))
+            .map(|(rule, _)| rule.rule)
+            .collect();
         LedgerRow {
             unit: match (&unit.key, own) {
                 (UnitKey::Rule(_), Some(rule)) => LedgerUnit::Rule(rule.rule),
@@ -173,17 +201,32 @@ pub fn ledger(programs: &Programs, counts: &PointCounts) -> WorkLedger {
                 }
             },
             class: class_of(code, &unit.key, slot),
-            owners: owners
-                .filter(|(_, units)| units.contains(&slot))
-                .map(|(rule, _)| rule.rule)
+            owner_steps: owners
+                .iter()
+                .map(|rule| step_of_unit(programs, *rule, &unit.key))
                 .collect(),
+            owners,
             rows: counted.rows,
             steps: Count(steps),
             nanos: counted.nanos,
             idle_nanos: counted.idle_nanos,
+            decide_nanos: counted.decide_nanos,
+            provider_nanos: counted.provider_nanos,
         }
     });
-    WorkLedger(rows.collect())
+    let providers = counts.0.providers.iter().map(|done| LedgerRow {
+        unit: LedgerUnit::Provider(done.work),
+        class: WorkClass::ProviderFill,
+        owners: Vec::new(),
+        owner_steps: Vec::new(),
+        rows: done.rows,
+        steps: done.asks,
+        nanos: done.nanos,
+        idle_nanos: done.idle_nanos,
+        decide_nanos: Count(0),
+        provider_nanos: Count(0),
+    });
+    WorkLedger(rows.chain(providers).collect())
 }
 
 /// Adds each count of `one` to the count at its place in `all`.

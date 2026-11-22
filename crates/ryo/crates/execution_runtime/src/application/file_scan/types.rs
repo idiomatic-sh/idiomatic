@@ -253,3 +253,7 @@ pub struct ScanRun<'a> {
 /// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LedgerLine(pub Box<str>);
+
+/// One value of a ledger line, as it is written after its name.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct LedgerValue(pub(crate) String);

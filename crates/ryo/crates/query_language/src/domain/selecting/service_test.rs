@@ -44,6 +44,7 @@ fn projection_is_typed_and_file_scoped() {
     assert_eq!(
         builder.steps,
         vec![plans::PlanStep {
+            written: Default::default(),
             scope: ryo_values::domain::plan_parts::types::StepScope::PerFile,
             operation: plans::Operation::Project {
                 from: parts::Input::Relation(Relation::Function),

@@ -105,6 +105,7 @@ impl<'a> DemandClosure<'a> {
                 };
                 PlanStep {
                     scope: step.scope,
+                    written: step.written.clone(),
                     operation: Operation::Join {
                         left: *left,
                         right: rooted.edges,

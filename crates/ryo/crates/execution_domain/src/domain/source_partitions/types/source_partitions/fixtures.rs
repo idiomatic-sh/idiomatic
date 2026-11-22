@@ -106,6 +106,7 @@ fn observed(phase: StepScope) -> (RuleSpec, Plan, ResolvedObservationBinding) {
 fn producer(phase: StepScope) -> Plan {
     let mut plan = plan();
     plan.steps.push(PlanStep {
+        written: Default::default(),
         operation: Operation::Hosted {
             relation: HostedNumber(0),
         },

@@ -52,6 +52,7 @@ const AFTER_THE_FILES: &str = concat!(
 /// `operation` made after the files.
 fn after(operation: Operation) -> PlanStep {
     PlanStep {
+        written: Default::default(),
         scope: StepScope::CrossFile,
         operation,
     }

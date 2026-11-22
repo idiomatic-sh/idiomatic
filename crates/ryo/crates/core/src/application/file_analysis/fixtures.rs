@@ -98,6 +98,7 @@ pub(crate) fn one_capture_plan() -> Plan {
         observations: Vec::new(),
         parameters: vec![],
         steps: vec![ryo_values::domain::plans::types::PlanStep {
+            written: Default::default(),
             scope: ryo_values::domain::plan_parts::types::StepScope::PerFile,
             operation: ryo_values::domain::plans::types::Operation::Select {
                 from: ryo_values::domain::plan_parts::types::Input::Relation(Relation::Function),

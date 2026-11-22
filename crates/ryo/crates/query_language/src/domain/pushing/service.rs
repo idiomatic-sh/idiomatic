@@ -49,11 +49,18 @@ pub(crate) fn push_lookups_roots(mut steps: Vec<PlanStep>, roots: &mut [StepId])
             above,
             residual,
         }) = pushed(&steps, StepIndex(place))
-            && let Some(scope) = steps.get(place).map(|step| step.scope)
+            && let Some((scope, written)) = steps
+                .get(place)
+                .map(|step| (step.scope, step.written.clone()))
         {
             // The first of the two joins takes the place of the one it was made from, the second and any filter of its
-            // answer follow it, and the last of them is what the readers of the one it was made from read.
-            let step = |operation| PlanStep { operation, scope };
+            // answer follow it, and the last of them is what the readers of the one it was made from read: each is the
+            // work of the statement that wrote it.
+            let step = |operation| PlanStep {
+                operation,
+                scope,
+                written: written.clone(),
+            };
             let (before, last) = match residual {
                 Some(residual) => (vec![step(below), step(above)], step(residual)),
                 None => (vec![step(below)], step(above)),

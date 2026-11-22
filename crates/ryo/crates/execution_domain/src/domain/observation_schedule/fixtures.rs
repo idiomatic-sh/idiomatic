@@ -28,6 +28,7 @@ pub fn plan() -> Plan {
         frontier: vec![],
         steps: vec![
             PlanStep {
+                written: Default::default(),
                 scope: StepScope::PerFile,
                 operation: Operation::Select {
                     from: InputSource::Relation(Relation::Function),
@@ -41,6 +42,7 @@ pub fn plan() -> Plan {
                 },
             },
             PlanStep {
+                written: Default::default(),
                 scope: StepScope::PerFile,
                 operation: Operation::Project {
                     from: InputSource::Step(StepId(0)),
@@ -136,6 +138,7 @@ pub fn bound_input(name: &str) -> BoundObservationInput {
 pub fn ladder(levels: usize) -> Plan {
     let mut ladder = plan();
     let step = |operation| PlanStep {
+        written: Default::default(),
         scope: StepScope::PerFile,
         operation,
     };

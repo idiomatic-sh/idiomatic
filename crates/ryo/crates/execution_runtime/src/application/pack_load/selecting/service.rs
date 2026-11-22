@@ -9,17 +9,21 @@ use crate::outbound::engine::interface::EnginePort;
 use ryo_engine::domain::lowering::types::{
     BoundProducer, LoadGiven, LoadRefusal, ObservedBinding, SelectedRule, SelectedRules,
 };
-use ryo_values::domain::observations::types::ObservationProducer;
-use ryo_values::domain::plan_parts::types::{Input, ObservationBindingId};
 use ryo_engine::domain::programs::types::Programs;
 use ryo_engine::domain::statistics::types::{MatchedStatistics, StatisticsBytes};
 use ryo_engine::inbound::use_cases::load::errors::LoadError;
 use ryo_engine::inbound::use_cases::load::types::LoadSource;
+use ryo_operators::spike::{EngineMeasure, engine_measure};
 use ryo_relations::domain::relations::types::Count;
+use ryo_values::domain::observations::types::ObservationProducer;
+use ryo_values::domain::plan_parts::types::QueryText;
+use ryo_values::domain::plan_parts::types::{Input, ObservationBindingId};
 use ryo_values::domain::query_bindings::types::RuleBindings;
 use ryo_values::domain::query_plans::service::{node_digests, reach_unfolded};
 use ryo_values::domain::query_plans::types::{NodeDigest, NodeDigests, Plan};
+use ryo_values::domain::query_tokens::types::QueryBundle;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
+use ryo_values::domain::written_sites::types::{RuleWritten, RulesWritten};
 use std::borrow::Cow;
 
 /// The digest of each step of a rule's plan under what the rule binds its parameters to, by the run's one digest: the
@@ -48,7 +52,11 @@ fn observed(
     let mut observed = Vec::new();
     for (consumer, ((plan, _), spec)) in rules.iter().zip(specs).enumerate() {
         for (place, input) in plan.observation_inputs.iter().enumerate() {
-            let Some(binding) = spec.observations.iter().find(|each| each.name == input.name) else {
+            let Some(binding) = spec
+                .observations
+                .iter()
+                .find(|each| each.name == input.name)
+            else {
                 continue;
             };
             let mut named: Vec<u8> = input.name.0.as_bytes().to_vec();
@@ -84,7 +92,10 @@ fn observed(
             if std::env::var_os("RYO_L2_REFUSED").is_some() {
                 let outputs = |at: usize| {
                     rules.get(at).map(|(plan, _)| {
-                        plan.observations.iter().map(|each| each.name.0.to_string()).collect::<Vec<_>>()
+                        plan.observations
+                            .iter()
+                            .map(|each| each.name.0.to_string())
+                            .collect::<Vec<_>>()
                     })
                 };
                 eprintln!(
@@ -93,7 +104,10 @@ fn observed(
                     binding.producers.len(),
                     producers.len(),
                     binding.producers.first().and_then(|first| match first {
-                        ObservationProducer::Output { rule, .. } => specs.iter().position(|each| each.id == *rule).and_then(outputs),
+                        ObservationProducer::Output { rule, .. } => specs
+                            .iter()
+                            .position(|each| each.id == *rule)
+                            .and_then(outputs),
                         ObservationProducer::NoQuery { .. } => None,
                     })
                 );
@@ -117,6 +131,8 @@ pub(in crate::application::pack_load) struct Lowered {
     pub(in crate::application::pack_load) refusals: Refusals,
     /// What the statistics name of the programs.
     pub(in crate::application::pack_load) matched: MatchedStatistics,
+    /// Where each step of each plan the engine received was written: kept by a measuring run only.
+    pub(in crate::application::pack_load) written: RulesWritten,
 }
 
 /// Every selected rule of `request` lowered in one load: a sub-plan two rules share is lowered once, and each refused rule
@@ -136,6 +152,7 @@ pub(in crate::application::pack_load) fn lowered(
         .iter()
         .map(|plan| reach_unfolded(plan))
         .collect();
+    let written = written_of(request, &unfolded);
     let rules: Vec<(&Plan, RuleBindings<'_>)> = unfolded
         .iter()
         .zip(bound)
@@ -168,7 +185,10 @@ pub(in crate::application::pack_load) fn lowered(
             // Spike (ryo-fmx3.1): each refused rule with why, when the run asks for them.
             if std::env::var_os("RYO_L2_REFUSED").is_some() {
                 for refused in &loaded.refused {
-                    eprintln!("ryo l2: refused rule {}: {}", refused.rule.0, refused.refusal);
+                    eprintln!(
+                        "ryo l2: refused rule {}: {}",
+                        refused.rule.0, refused.refusal
+                    );
                 }
             }
             let mut refusals = Refusals::default();
@@ -183,6 +203,7 @@ pub(in crate::application::pack_load) fn lowered(
                 programs: loaded.programs,
                 refusals,
                 matched: loaded.matched,
+                written,
             }
         }
         // Plans are never a pack's fault, and refused fixed names leave no words: no rule loads, each counted as not lowered.
@@ -198,6 +219,27 @@ pub(in crate::application::pack_load) fn lowered(
                 past_width: Count(0),
             },
             matched: MatchedStatistics::Absent,
+            written,
         },
     }
+}
+
+/// Where each step of each plan the engine receives was written, in rule order, with each rule's id and its own query's
+/// identity: what a measuring run's ledger names its units by. Nothing for a run that does not measure.
+fn written_of(request: &LoadRequest<'_>, unfolded: &[Cow<'_, Plan>]) -> RulesWritten {
+    if engine_measure() == EngineMeasure::Off {
+        return RulesWritten::default();
+    }
+    let rules = unfolded.iter().enumerate().map(|(place, plan)| {
+        let spec = request.declared.rules.get(place);
+        RuleWritten {
+            id: spec.map(|spec| spec.id.clone()).unwrap_or_default(),
+            root: spec.map_or_else(
+                || QueryBundle::from(QueryText(Box::default())).root.id,
+                |spec| spec.query.root.id.clone(),
+            ),
+            steps: plan.steps.iter().map(|step| step.written.clone()).collect(),
+        }
+    });
+    RulesWritten(rules.collect())
 }

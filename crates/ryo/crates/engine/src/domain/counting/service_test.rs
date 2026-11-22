@@ -1,11 +1,12 @@
 //! The `counting` service's cases: a worker that scanned nothing counted nothing, and a rule set with no unit has no ledger
 //! row; a measuring worker's scans are counted per unit, files and workers add up, and the ledger names each unit's class,
-//! owners, rows and steps. The rule set of the measured cases: a table of three constants (table 0); a table (table 1)
+//! owners, rows and steps; the language's fills are timed apart from the unit that asked for them, in a row of their own.
+//! The rule set of the measured cases: a table of three constants (table 0); a table (table 1)
 //! whose pipeline reads each constant and asks a pattern in call form for it; rule 0 reads table 1 and emits each row,
 //! its two steps placed at plan points; rule 1 reads table 0 and emits each row.
 
 use super::service::{counted, ledger, merged};
-use super::types::{LedgerUnit, WorkClass};
+use super::types::{LedgerUnit, ProviderWork, WorkClass};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::dispatch::service::dispatch;
 use crate::domain::encoding::service::encoded;
@@ -49,9 +50,10 @@ type Input = (Measured, usize, usize);
 /// The files counted; then for each ledger row: what it is of (a rule's ordinal, 100 and its place for a pattern, 200 and
 /// its place for a table), its class (0 navigation, 1 a fill of rows, 2 a group, 3 an ordered table, 4 a graph), its
 /// owners as a sum of two to the rule's ordinal, its rows, its steps, and whether it has no idle time (1: every unit of
-/// these cases gives a row in every file). Then whether rule 0's own program was timed at all (1), or 8 with no rule 0;
-/// the rows counted at the code's size sites, summed; and whether the piped table's fill was timed (1: the fill side says
-/// when a table's fill starts and ends), or 8 with no such table.
+/// these cases gives a row in every file); the language's work is a row of its own (300, class 5). Then whether rule 0's own
+/// program was timed at all (1), or 8 with no rule 0; the rows counted at the code's size sites, summed; whether the piped
+/// table's fill was timed (1: the fill side says when a table's fill starts and ends), or 8 with no such table; and whether
+/// the language's work, timed apart, is the told relation's and exactly what rule 0 asked for (1), or 8 when it did none.
 type Value = Cow<'static, [usize]>;
 type Failure = ();
 
@@ -61,13 +63,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_rule_set_with_no_unit_has_no_ledger_row"),
         word: Word::Succeeds,
         input: || (Measured::Nothing, 0, 1),
-        expect: Expect::Value(Cow::Borrowed(&[0, 8, 0, 8])),
+        expect: Expect::Value(Cow::Borrowed(&[0, 8, 0, 8, 8])),
     },
     Case {
         name: CaseName("the_counts_of_three_workers_add_up_to_no_row_more"),
         word: Word::Succeeds,
         input: || (Measured::Nothing, 0, 3),
-        expect: Expect::Value(Cow::Borrowed(&[0, 8, 0, 8])),
+        expect: Expect::Value(Cow::Borrowed(&[0, 8, 0, 8, 8])),
     },
     Case {
         name: CaseName("a_measured_scan_is_counted_per_unit_with_its_class_and_owners"),
@@ -75,7 +77,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || (Measured::Tables, 1, 1),
         expect: Expect::Value(Cow::Borrowed(&[
             1, 0, 0, 1, 3, 4, 1, 201, 1, 1, 3, 21, 1, 202, 1, 3, 3, 0, 1, 103, 0, 1, 3, 0, 1, 1, 0,
-            2, 3, 0, 1, 1, 0, 1,
+            2, 3, 0, 1, 1, 0, 1, 8,
         ])),
     },
     Case {
@@ -84,7 +86,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || (Measured::Tables, 2, 1),
         expect: Expect::Value(Cow::Borrowed(&[
             2, 0, 0, 1, 6, 8, 1, 201, 1, 1, 6, 42, 1, 202, 1, 3, 6, 0, 1, 103, 0, 1, 6, 0, 1, 1, 0,
-            2, 6, 0, 1, 1, 0, 1,
+            2, 6, 0, 1, 1, 0, 1, 8,
         ])),
     },
     Case {
@@ -93,14 +95,17 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         input: || (Measured::Tables, 1, 2),
         expect: Expect::Value(Cow::Borrowed(&[
             2, 0, 0, 1, 6, 8, 1, 201, 1, 1, 6, 42, 1, 202, 1, 3, 6, 0, 1, 103, 0, 1, 6, 0, 1, 1, 0,
-            2, 6, 0, 1, 1, 0, 1,
+            2, 6, 0, 1, 1, 0, 1, 8,
         ])),
     },
     Case {
         name: CaseName("the_rows_of_a_size_site_are_counted_in_every_file"),
         word: Word::Succeeds,
         input: || (Measured::ASizeSite, 2, 1),
-        expect: Expect::Value(Cow::Borrowed(&[2, 0, 0, 1, 2, 0, 1, 1, 2, 8])),
+        // The told relation's two whole fills (one a file, six rows each) are a row of their own, not rule 0's.
+        expect: Expect::Value(Cow::Borrowed(&[
+            2, 0, 0, 1, 2, 0, 1, 300, 5, 0, 12, 2, 1, 1, 2, 8, 1,
+        ])),
     },
 ];
 
@@ -231,12 +236,14 @@ fn subject((measured, files, workers): Input) -> Result<Value, Failure> {
         merged(&mut all, &counted(&worker));
     }
     let (mut said, mut timed, mut filled) = (vec![all.0.files.0], 8, 8);
+    let (mut asked, mut provided) = (Count(0), None);
     for row in ledger(&programs, &all).0 {
         said.extend([
             match row.unit {
                 LedgerUnit::Rule(rule) => usize::try_from(rule.0).unwrap_or(usize::MAX),
                 LedgerUnit::Pattern(place) => place.0.saturating_add(100),
                 LedgerUnit::Table(place) => place.0.saturating_add(200),
+                LedgerUnit::Provider(_) => 300,
             },
             match row.class {
                 WorkClass::Navigation => 0,
@@ -244,6 +251,7 @@ fn subject((measured, files, workers): Input) -> Result<Value, Failure> {
                 WorkClass::GroupFill => 2,
                 WorkClass::OrderedFill => 3,
                 WorkClass::GraphFill => 4,
+                WorkClass::ProviderFill => 5,
             },
             row.owners
                 .iter()
@@ -259,10 +267,24 @@ fn subject((measured, files, workers): Input) -> Result<Value, Failure> {
         if row.unit == LedgerUnit::Table(Count(1)) {
             filled = usize::from(row.nanos.0 > 0);
         }
+        if row.unit == LedgerUnit::Rule(SelectedRuleOrdinal(0)) {
+            asked = row.provider_nanos;
+        }
+        if let LedgerUnit::Provider(work) = row.unit {
+            provided = Some((work, row.nanos));
+        }
     }
     said.push(timed);
     said.push(all.0.literals.iter().map(|rows| rows.0).sum());
     said.push(filled);
+    // The language's work is the told relation's alone, timed, and is all of what rule 0, the one unit running while it
+    // filled, asked for: 1; 8 when the language did no work.
+    said.push(match provided {
+        Some((work, nanos)) => {
+            usize::from(work == ProviderWork::Relation(TOLD) && nanos.0 > 0 && asked == nanos)
+        }
+        None => 8,
+    });
     Ok(Cow::Owned(said))
 }
 

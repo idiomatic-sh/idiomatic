@@ -19,11 +19,14 @@ use ryo_engine::domain::packs::types::{PackBytes, PackDigest};
 use ryo_engine::domain::statistics::types::MatchedStatistics;
 use ryo_engine::inbound::use_cases::load::types::LoadSource;
 use ryo_execution_domain::domain::operating::errors::OperatingError;
-use ryo_operators::spike::{EngineMode, engine_load_lines, engine_loaded, engine_said, engine_unpacked};
+use ryo_operators::spike::{
+    EngineMode, engine_load_lines, engine_loaded, engine_said, engine_unpacked,
+};
 use ryo_relations::domain::relations::types::{Bytes, Count};
 use ryo_values::domain::descriptions::types::{KindVocabularies, KindVocabulary, LanguageName};
 use ryo_values::domain::stored_facts::types::Digest;
 use ryo_values::domain::stores::types::{PackKey, StoredPack};
+use ryo_values::domain::written_sites::types::RulesWritten;
 
 /// What a rule set's pack is kept under: `given`, what the run was given as one digest (the rules as they were written, their
 /// fragments, what the host declared and which were selected: the caller's, made before any compile), then what the kind
@@ -126,6 +129,8 @@ pub fn kept(
         from: LoadedFrom::Pack,
         matched,
         pack: stored.clone(),
+        // A pack read back compiled no plan: nothing says where its steps were written.
+        written: RulesWritten::default(),
     })
 }
 
@@ -186,6 +191,7 @@ pub fn loaded(
         programs,
         refusals,
         matched,
+        written,
     } = lowered(engine, digest, &request);
     let accepted = engine.accepted(&programs);
     let pack = StoredPack {
@@ -208,6 +214,7 @@ pub fn loaded(
         from: LoadedFrom::Lowering(refusals),
         matched,
         pack,
+        written,
     }
 }
 

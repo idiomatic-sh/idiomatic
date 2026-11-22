@@ -117,6 +117,7 @@ fn request(
     plan.steps = steps
         .iter()
         .map(|(scope, operation)| PlanStep {
+            written: Default::default(),
             scope: *scope,
             operation: operation.clone(),
         })

@@ -102,6 +102,7 @@ const OBSERVATIONS_ONLY: FileRuleIntent = FileRuleIntent::Run {
 /// A step in each file that selects the tree nodes of the classes: a select rooted at their kind.
 fn classes() -> PlanStep {
     PlanStep {
+        written: Default::default(),
         scope: StepScope::PerFile,
         operation: Operation::Select {
             from: StepInput::Relation(Relation::SyntaxTree),
@@ -119,6 +120,7 @@ fn classes() -> PlanStep {
 /// A step in each file doing `operation`.
 fn per_file(operation: Operation) -> PlanStep {
     PlanStep {
+        written: Default::default(),
         scope: StepScope::PerFile,
         operation,
     }

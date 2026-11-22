@@ -31,6 +31,7 @@ pub(crate) fn producer_and_consumers(engine: &PrepareUseCaseImpl) -> PreparedExe
         kind: CellKind::File,
     }];
     crate::boundary_fixture::fixtures::plans(&mut authored)[0].steps = vec![PlanStep {
+        written: Default::default(),
         scope: StepScope::CrossFile,
         operation: Operation::Select {
             from: Input::Relation(relation),
@@ -50,6 +51,7 @@ pub(crate) fn producer_and_consumers(engine: &PrepareUseCaseImpl) -> PreparedExe
     let producer = authored.rules[0].id.clone();
     for consumer in [1, 2] {
         crate::boundary_fixture::fixtures::plans(&mut authored)[consumer].steps = vec![PlanStep {
+            written: Default::default(),
             scope: StepScope::CrossFile,
             operation: Operation::Select {
                 from: Input::BoundObservation(ObservationBindingId(0)),

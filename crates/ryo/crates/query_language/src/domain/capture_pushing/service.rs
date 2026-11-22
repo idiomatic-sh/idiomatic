@@ -73,6 +73,7 @@ pub(crate) fn push_below_captures_roots(
             )]
             let captured = &steps[capture];
             let scope = captured.scope;
+            let written = captured.written.clone();
             steps.insert(
                 capture,
                 PlanStep {
@@ -82,6 +83,7 @@ pub(crate) fn push_below_captures_roots(
                         kept: Vec::new(),
                     },
                     scope,
+                    written,
                 },
             );
             place += 1;

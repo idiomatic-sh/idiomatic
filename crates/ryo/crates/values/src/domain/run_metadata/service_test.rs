@@ -241,6 +241,7 @@ fn plan(steps: Vec<PlanStep>, frontier: Vec<PlanInput>) -> Plan {
 }
 fn select(from: Relation) -> PlanStep {
     PlanStep {
+        written: Default::default(),
         operation: Operation::Select {
             from: PlanInput::Relation(from),
             comparisons: Vec::new(),
@@ -251,6 +252,7 @@ fn select(from: Relation) -> PlanStep {
 }
 fn project(from: PlanInput) -> PlanStep {
     PlanStep {
+        written: Default::default(),
         operation: Operation::Project {
             from,
             columns: vec![ColumnIndex(0)],
@@ -310,6 +312,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
         Scenario::Features => vec![plan(
             vec![
                 PlanStep {
+                    written: Default::default(),
                     operation: Operation::Select {
                         from: PlanInput::Relation(Relation::Identifier),
                         comparisons: vec![comparison(Test::Equal)],
@@ -318,6 +321,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
                     scope: StepScope::PerFile,
                 },
                 PlanStep {
+                    written: Default::default(),
                     operation: Operation::Join {
                         left: PlanInput::Step(StepId(0)),
                         right: PlanInput::Relation(Relation::Function),
@@ -331,6 +335,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
                     scope: StepScope::PerFile,
                 },
                 PlanStep {
+                    written: Default::default(),
                     operation: Operation::Axis {
                         from: PlanInput::Step(StepId(1)),
                         edges: PlanInput::Relation(Relation::SyntaxChild),

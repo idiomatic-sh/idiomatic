@@ -40,6 +40,7 @@ fn exercise_readiness_chain(empty: bool) {
             (last, first)
         };
         plan.steps.push(PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Union { left, right },
         });
@@ -101,12 +102,14 @@ fn failed_producers_wake_their_roots_without_erasing_independent_output() {
             (last, first)
         };
         plan.steps.push(PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Union { left, right },
         });
         plan.emit.step = StepId(u32::try_from(plan.steps.len() - 1).unwrap());
     }
     crate::boundary_fixture::fixtures::plans(&mut authored)[0].steps = vec![PlanStep {
+        written: Default::default(),
         scope: StepScope::PerFile,
         operation: Operation::Hosted {
             relation: HostedNumber(0),

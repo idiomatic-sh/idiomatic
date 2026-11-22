@@ -41,6 +41,7 @@ pub(super) fn evaluate(
 
 pub(super) fn step(operation: Operation) -> PlanStep {
     PlanStep {
+        written: Default::default(),
         scope: StepScope::PerFile,
         operation,
     }

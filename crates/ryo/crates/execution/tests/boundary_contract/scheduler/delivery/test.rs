@@ -28,6 +28,7 @@ fn a_second_run_of_a_file_reads_its_own_facts_and_never_a_cached_row() {
     let mut authored = authored_request(2);
     for plan in crate::boundary_fixture::fixtures::plans(&mut authored) {
         plan.steps.push(PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Union {
                 left: Input::Step(StepId(0)),

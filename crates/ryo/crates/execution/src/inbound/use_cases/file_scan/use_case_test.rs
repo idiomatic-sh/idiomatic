@@ -131,7 +131,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::Measuring,
         expect: Expect::Value(Cow::Borrowed(
-            "New: rule sets [[SelectedRuleOrdinal(0)]]\na.walk: by Some(0); kinds Some([Node, File, Span, Symbol]); fault None\n  rule 0 at 0..3: 1 0 3 two\n  rule 0 at 4..7: 2 0 17179869191 one\nb.walk: by Some(0); kinds Some([Node, File, Span, Symbol]); fault None\n  rule 0 at 0..5: 4294967297 1 5 three\n  rule 0 at 6..10: 4294967298 1 25769803786 four\ncounted [4, 4, 0, 0, 4]; ledger [\"unit=Rule:0 class=Navigation rows=4 steps=0 nanos=0 idle_nanos=0 owners=0\"]; counting states 1",
+            "New: rule sets [[SelectedRuleOrdinal(0)]]\na.walk: by Some(0); kinds Some([Node, File, Span, Symbol]); fault None\n  rule 0 at 0..3: 1 0 3 two\n  rule 0 at 4..7: 2 0 17179869191 one\nb.walk: by Some(0); kinds Some([Node, File, Span, Symbol]); fault None\n  rule 0 at 0..5: 4294967297 1 5 three\n  rule 0 at 6..10: 4294967298 1 25769803786 four\ncounted [4, 4, 0, 0, 4]; ledger [\"unit=Rule:0 class=Navigation rows=4 steps=0 nanos=0 idle_nanos=0 owners=0 decide_nanos=0 provider_nanos=0 rules=0 written=?\"]; counting states 1",
         )),
     },
 ];

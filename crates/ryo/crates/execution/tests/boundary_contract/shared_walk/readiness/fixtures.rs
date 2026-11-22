@@ -10,6 +10,7 @@ use ryo_values::domain::{
 
 pub(crate) fn readiness_chain() -> Vec<PlanStep> {
     let mut steps = vec![PlanStep {
+        written: Default::default(),
         scope: StepScope::PerFile,
         operation: Operation::Hosted {
             relation: HostedNumber(0),
@@ -17,6 +18,7 @@ pub(crate) fn readiness_chain() -> Vec<PlanStep> {
     }];
     for (left, right) in [(0, 0), (1, 0), (1, 2)] {
         steps.push(PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Union {
                 left: Input::Step(StepId(left)),
@@ -27,6 +29,7 @@ pub(crate) fn readiness_chain() -> Vec<PlanStep> {
     for _ in 0..96 {
         let prior = StepId(u32::try_from(steps.len() - 1).unwrap());
         steps.push(PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Union {
                 left: Input::Step(prior),

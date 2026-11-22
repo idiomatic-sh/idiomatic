@@ -113,6 +113,7 @@ fn conditional_join_request(count: usize) -> PrepareRequest {
     let mut authored = authored_request(count);
     crate::boundary_fixture::fixtures::plans(&mut authored)[0].steps = vec![
         PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Select {
                 from: Input::Relation(Relation::SyntaxTree),
@@ -121,6 +122,7 @@ fn conditional_join_request(count: usize) -> PrepareRequest {
             },
         },
         PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Select {
                 from: Input::Relation(Relation::SyntaxTree),
@@ -129,6 +131,7 @@ fn conditional_join_request(count: usize) -> PrepareRequest {
             },
         },
         PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Join {
                 left: Input::Step(StepId(0)),

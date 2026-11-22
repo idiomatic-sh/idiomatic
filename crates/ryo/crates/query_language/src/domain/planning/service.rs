@@ -8,13 +8,15 @@ use ryo_values::domain::lineage::service::anchor_of;
 use ryo_values::domain::lineage::types::ColumnAnchor;
 
 use crate::domain::lowering::types::{
-    Builder, FileOrigin, LoweredStep, PlannedColumn, ScopedInput, StepLabel,
+    Builder, FileOrigin, LoweredStep, PlannedColumn, ScopedInput, StepLabel, WrittenDocuments,
 };
 use crate::domain::resolving::service::{column_of, relation_fields, step_of};
 use ryo_values::domain::plan_parts::types as parts;
 use ryo_values::domain::plans::service::{inputs_of, named};
 use ryo_values::domain::plans::types as plans;
 use ryo_values::domain::query_tokens::types as tokens;
+use ryo_values::domain::written_sites::types::{StepWritten, WrittenSite};
+use std::sync::Arc;
 
 /// The step the next one pushed onto `items` will be.
 pub(crate) fn next_step<T>(items: &[T]) -> parts::StepId {
@@ -287,7 +289,11 @@ pub(crate) fn push(
         .map(|input| scoped(builder, *input))
         .collect();
     let scope = scope_of(&operation, &inputs, &fields);
-    builder.steps.push(plans::PlanStep { operation, scope });
+    builder.steps.push(plans::PlanStep {
+        operation,
+        scope,
+        written: builder.written.clone(),
+    });
     if let Some(name) = name {
         let at = parts::StepId(u32::try_from(builder.lowered.len()).unwrap_or(u32::MAX));
         let names = &mut builder.names;
@@ -318,4 +324,31 @@ pub(crate) fn pushed(
     let id = next_step(&builder.steps);
     push(builder, name, operation, fields);
     id
+}
+
+/// Where the statement `step` is written: in the module its origin names, under the name its `let` gives there (the statement
+/// a module returns is expanded under its caller's name, so the name is read off the module), through the origin's import and
+/// call sites; or, for a statement with no origin, in the rule's own query under its own name.
+pub(crate) fn written_at(
+    documents: WrittenDocuments<'_>,
+    step: &ryo_values::domain::program::types::LetStep,
+    origin: Option<&ryo_values::domain::query_tokens::types::QueryOrigin>,
+) -> StepWritten {
+    let site = match origin {
+        Some(origin) => WrittenSite {
+            document: origin.source_id.clone(),
+            statement: documents
+                .modules
+                .get(&origin.source_id)
+                .and_then(|module| module.steps.iter().find(|each| each.span == origin.span))
+                .map_or_else(|| step.name.0.clone(), |written| written.name.0.clone()),
+            trace: Arc::clone(&origin.trace),
+        },
+        None => WrittenSite {
+            document: documents.root.clone(),
+            statement: step.name.0.clone(),
+            trace: Arc::from([]),
+        },
+    };
+    StepWritten::Written(Arc::new(site))
 }

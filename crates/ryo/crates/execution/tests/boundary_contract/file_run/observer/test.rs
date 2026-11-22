@@ -11,6 +11,7 @@ fn a_file_run_answers_the_same_with_or_without_the_counting_observer() {
     let plan = &mut crate::boundary_fixture::fixtures::plans(&mut input)[0];
     plan.steps = vec![
         PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Select {
                 from: Input::Relation(Relation::Function),
@@ -24,6 +25,7 @@ fn a_file_run_answers_the_same_with_or_without_the_counting_observer() {
             },
         },
         PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::GroupCount {
                 from: Input::Step(StepId(0)),
@@ -97,6 +99,7 @@ fn each_fused_step_is_counted_for_the_rows_it_was_fed() {
     let plan = &mut crate::boundary_fixture::fixtures::plans(&mut input)[0];
     plan.steps = vec![
         PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Select {
                 from: Input::Relation(Relation::SyntaxTree),
@@ -105,6 +108,7 @@ fn each_fused_step_is_counted_for_the_rows_it_was_fed() {
             },
         },
         PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Select {
                 from: Input::Step(StepId(0)),

@@ -2,6 +2,7 @@
 //! store, with the rows it found collected.
 
 use crate::domain::code::types::CodeEntry;
+use crate::domain::executing::measuring::service::{clock_of, facts_read};
 use crate::domain::findings::types::{
     FoundCells, FoundRows, FoundTarget, InstructionCount, WorkNotice,
 };
@@ -200,23 +201,27 @@ pub(crate) fn framed_with<T>(
     // A worker's state made for a rule set holds its words' body records: a case's state is made before its programs.
     case.state.decoded = decoded_code(&programs.code);
     let mut words = file_words(&programs.words);
-    let mut fill = FillFrame {
-        programs: rule_set(programs),
-        nodes,
-        file: FILE,
-        path: ryo_language::domain::files::types::SourcePath(""),
-        text: ByteSlice(b""),
-        source: Some(""),
-        facts,
-        words: &mut words,
-        store: &mut case.store,
-        matcher: PatternMatcher(&MatchingUseCaseImpl),
-    };
-    let answer = each(&mut StepFrame {
-        fill: &mut fill,
-        state: &mut case.state,
-        found: &mut found,
-        ports,
-    });
-    (answer, found)
+    // The facts as the scan reads them: timed when the case's state measures.
+    let clock = clock_of(&case.state);
+    facts_read(clock.as_deref(), facts, |facts| {
+        let mut fill = FillFrame {
+            programs: rule_set(programs),
+            nodes,
+            file: FILE,
+            path: ryo_language::domain::files::types::SourcePath(""),
+            text: ByteSlice(b""),
+            source: Some(""),
+            facts,
+            words: &mut words,
+            store: &mut case.store,
+            matcher: PatternMatcher(&MatchingUseCaseImpl),
+        };
+        let answer = each(&mut StepFrame {
+            fill: &mut fill,
+            state: &mut case.state,
+            found: &mut found,
+            ports,
+        });
+        (answer, found)
+    })
 }

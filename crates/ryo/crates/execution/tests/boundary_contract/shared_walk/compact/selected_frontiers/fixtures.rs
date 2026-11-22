@@ -14,6 +14,7 @@ pub(crate) fn selected_join(distinct: bool) -> Plan {
     let mut plan = crate::boundary_fixture::fixtures::plans(&mut authored_request(1)).remove(0);
     plan.steps = vec![
         PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Select {
                 from: Input::Relation(Relation::Function),
@@ -27,6 +28,7 @@ pub(crate) fn selected_join(distinct: bool) -> Plan {
             },
         },
         PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Project {
                 from: Input::Step(StepId(0)),
@@ -39,6 +41,7 @@ pub(crate) fn selected_join(distinct: bool) -> Plan {
             },
         },
         PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Join {
                 left: Input::Step(StepId(1)),

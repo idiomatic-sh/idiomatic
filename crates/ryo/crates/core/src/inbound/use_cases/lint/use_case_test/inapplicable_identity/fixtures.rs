@@ -133,6 +133,7 @@ impl QueryLanguagePort for Queries {
         let file = ColumnIndex(u32::try_from(file).unwrap());
         plan.steps = if first {
             vec![PlanStep {
+                written: Default::default(),
                 scope: StepScope::PerFile,
                 operation: Operation::Select {
                     from: PlanInput::Relation(Relation::Function),
@@ -154,6 +155,7 @@ impl QueryLanguagePort for Queries {
         };
         plan.frontier = vec![from()];
         plan.steps.push(PlanStep {
+            written: Default::default(),
             scope: StepScope::CrossFile,
             operation: Operation::GroupCount {
                 from: from(),

@@ -10,6 +10,7 @@ use crate::domain::plan_parts::types::{
 use crate::domain::plans::service::{inputs_of, named};
 use crate::domain::plans::types::{Operation, PlanStep};
 use crate::domain::query_bindings::types::RuleBindings;
+use crate::domain::written_sites::types::StepWritten;
 use ryo_relations::domain::relations::types::Count;
 use std::borrow::Cow;
 
@@ -156,6 +157,7 @@ fn reach_appended(
     edges: Input,
     reach: &ReachLookup,
     scope: StepScope,
+    written: &StepWritten,
 ) -> StepId {
     let closure = step_at(Count(steps.len()));
     steps.push(PlanStep {
@@ -166,6 +168,7 @@ fn reach_appended(
             destination: reach.destination,
         },
         scope,
+        written: written.clone(),
     });
     let Some(columns) = reach_projection(reach) else {
         return closure;
@@ -178,6 +181,7 @@ fn reach_appended(
             distinct: RepeatedRows::Kept,
         },
         scope,
+        written: written.clone(),
     });
     projected
 }
@@ -221,7 +225,7 @@ pub fn reach_unfolded(plan: &Plan) -> Cow<'_, Plan> {
             continue;
         };
         let whole = unfolded.get_or_insert_with(|| plan.clone());
-        let logical = reach_appended(&mut whole.steps, *edges, lookup, step.scope);
+        let logical = reach_appended(&mut whole.steps, *edges, lookup, step.scope, &step.written);
         if let Some(PlanStep {
             operation: Operation::Join { right, reach, .. },
             ..

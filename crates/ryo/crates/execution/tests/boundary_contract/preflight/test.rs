@@ -15,6 +15,7 @@ use ryo_values::domain::rows::types::RowCount;
 fn projection(column: u32) -> PreparedExecutionProgram {
     let mut input = authored_request(1);
     crate::boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![PlanStep {
+        written: Default::default(),
         scope: StepScope::PerFile,
         operation: Operation::Project {
             from: Input::Relation(Relation::Function),

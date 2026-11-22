@@ -2,6 +2,7 @@
 
 pub mod service;
 pub mod sites;
+pub(crate) mod timed;
 pub mod types;
 
 #[cfg(test)]

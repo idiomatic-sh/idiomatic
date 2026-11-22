@@ -66,6 +66,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 /// before with itself, counts, beside how many steps it has.
 fn ladder_counted(levels: usize) -> String {
     let mut steps = vec![PlanStep {
+        written: Default::default(),
         operation: Operation::Select {
             from: Source::Relation(Relation::BindingEvent),
             comparisons: Vec::new(),
@@ -76,6 +77,7 @@ fn ladder_counted(levels: usize) -> String {
     for at in 0..levels {
         let before = Source::Step(StepId(u32::try_from(at).unwrap_or(u32::MAX)));
         steps.push(PlanStep {
+            written: Default::default(),
             operation: Operation::Union {
                 left: before,
                 right: before,

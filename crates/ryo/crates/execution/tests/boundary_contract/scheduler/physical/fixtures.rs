@@ -29,18 +29,21 @@ pub(crate) fn ordered() -> PrepareRequest {
     for plan in crate::boundary_fixture::fixtures::plans(&mut authored) {
         plan.steps = vec![
             PlanStep {
+                written: Default::default(),
                 scope: StepScope::PerFile,
                 operation: Operation::Hosted {
                     relation: HostedNumber(0),
                 },
             },
             PlanStep {
+                written: Default::default(),
                 scope: StepScope::PerFile,
                 operation: Operation::Hosted {
                     relation: HostedNumber(1),
                 },
             },
             PlanStep {
+                written: Default::default(),
                 scope: StepScope::PerFile,
                 operation: Operation::OrderedMatch {
                     left: Input::Step(StepId(0)),

@@ -246,6 +246,8 @@ mod defines_kinds;
 mod fragment_hygiene;
 #[cfg(test)]
 mod fragment_refusal;
+#[cfg(test)]
+mod written_sites;
 
 #[cfg(test)]
 mod validation;

@@ -12,12 +12,15 @@ use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::plans::service::each_input;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::plans::types::PlanStep;
+use ryo_values::domain::written_sites::types::StepWritten;
 
-/// A filter of `from` by `comparisons`, made where `from` is.
+/// A filter of `from` by `comparisons`, made where `from` is: the work of the statement `written` names, whose comparisons
+/// they are.
 pub(crate) fn filter_of(
     steps: &[PlanStep],
     from: Input,
     comparisons: Vec<PlanComparison>,
+    written: &StepWritten,
 ) -> Option<PlanStep> {
     Some(PlanStep {
         operation: Operation::Select {
@@ -26,6 +29,7 @@ pub(crate) fn filter_of(
             kept: Vec::new(),
         },
         scope: planned_scope(steps, from)?,
+        written: written.clone(),
     })
 }
 
@@ -47,6 +51,7 @@ pub(crate) fn finished(
             filter: PlanStep {
                 operation: combined.operation,
                 scope: filtering.scope,
+                written: combined.written,
             },
         };
     }
@@ -62,6 +67,7 @@ pub(crate) fn finished(
                 kept,
             },
             scope: filtering.scope,
+            written: filtering.written.clone(),
         },
     }
 }

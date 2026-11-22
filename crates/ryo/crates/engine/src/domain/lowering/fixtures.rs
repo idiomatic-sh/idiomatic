@@ -302,6 +302,7 @@ fn operation_scene(scene: &str) -> Option<Plan> {
         ]),
         // Two rows written in the query: made once for the run, after the files, so the scan of a file finds none of them.
         "written rows" => plan(vec![PlanStep {
+            written: Default::default(),
             operation: Operation::Rows {
                 source: RowsSource::Written(WrittenRows(vec![
                     WrittenRow(vec![LiteralText("a".into())]),
@@ -345,6 +346,7 @@ pub fn named(scene: &str) -> Plan {
             kept(Input::Relation(Relation::SyntaxTree)),
             kept(Input::Relation(Relation::SyntaxChild)),
             PlanStep {
+                written: Default::default(),
                 operation: Operation::Antijoin {
                     left: Input::Step(StepId(0)),
                     right: Input::Step(StepId(1)),

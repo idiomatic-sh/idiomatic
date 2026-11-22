@@ -4,8 +4,8 @@
 use super::parts::{kept, plan, step};
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{
-    ColumnIndex, ComparisonOrigin, Input, LiteralText, Operand, PlanComparison, QueryLiteral,
-    JoinColumn, Side, StepId, StepScope, Test,
+    ColumnIndex, ComparisonOrigin, Input, JoinColumn, LiteralText, Operand, PlanComparison,
+    QueryLiteral, Side, StepId, StepScope, Test,
 };
 use ryo_values::domain::plans::types::{Operation, PlanStep};
 use ryo_values::domain::query_plans::types::Plan;
@@ -48,14 +48,21 @@ pub(super) fn observed_scene(scene: &str) -> Option<Plan> {
             let mut late = plan(vec![
                 kept(Input::Relation(Relation::SyntaxTree)),
                 PlanStep {
+                    written: Default::default(),
                     operation: Operation::Join {
                         left: Input::Step(StepId(0)),
                         right: Input::Step(StepId(0)),
                         left_on: vec![ColumnIndex(1)],
                         right_on: vec![ColumnIndex(1)],
                         output: vec![
-                            JoinColumn { side: Side::Left, column: ColumnIndex(0) },
-                            JoinColumn { side: Side::Right, column: ColumnIndex(0) },
+                            JoinColumn {
+                                side: Side::Left,
+                                column: ColumnIndex(0),
+                            },
+                            JoinColumn {
+                                side: Side::Right,
+                                column: ColumnIndex(0),
+                            },
                         ],
                         filter: Vec::new(),
                         view: Vec::new(),

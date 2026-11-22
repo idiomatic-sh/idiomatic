@@ -70,6 +70,7 @@ fn plan(index: usize) -> Plan {
         observation_inputs: vec![],
         observations: vec![],
         steps: vec![PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation,
         }],

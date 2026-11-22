@@ -34,6 +34,7 @@ fn wholly_skipped_frontier_is_unavailable_without_fabricating_a_schema_or_rows()
     crate::boundary_fixture::fixtures::plans(&mut authored)[0]
         .steps
         .push(PlanStep {
+            written: Default::default(),
             scope: StepScope::CrossFile,
             operation: Operation::Select {
                 from: Input::Step(StepId(0)),

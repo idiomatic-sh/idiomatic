@@ -248,10 +248,14 @@ impl EnginePort for EngineFake {
             unit: LedgerUnit::Rule(rule.rule),
             class: WorkClass::Navigation,
             owners: vec![rule.rule],
+            // The fake's rule's own unit makes the rows of its plan's first step.
+            owner_steps: vec![Some(StepId(0))],
             rows: std::mem::take(&mut found),
             steps: Count(0),
             nanos: Count(0),
             idle_nanos: Count(0),
+            decide_nanos: Count(0),
+            provider_nanos: Count(0),
         };
         WorkLedger(self.rules().iter().map(row).collect())
     }

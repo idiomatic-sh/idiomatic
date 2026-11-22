@@ -58,6 +58,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 /// A select of everything `relation` holds, after the files.
 fn read(relation: Relation) -> PlanStep {
     PlanStep {
+        written: Default::default(),
         scope: StepScope::CrossFile,
         operation: Operation::Select {
             from: StepInput::Relation(relation),

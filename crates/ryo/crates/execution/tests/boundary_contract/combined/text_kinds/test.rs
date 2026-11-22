@@ -29,6 +29,7 @@ fn an_unbound_rank_over_no_rows() {
         });
         plan.steps = vec![
             PlanStep {
+                written: Default::default(),
                 scope: StepScope::PerFile,
                 operation: Operation::Select {
                     from: Input::Relation(Relation::Function),
@@ -37,6 +38,7 @@ fn an_unbound_rank_over_no_rows() {
                 },
             },
             PlanStep {
+                written: Default::default(),
                 scope: StepScope::PerFile,
                 operation: Operation::Rank {
                     from: Input::Step(StepId(0)),
@@ -67,6 +69,7 @@ fn ordered_match_over_two_failing_inputs() {
     let mut input = authored_request(1);
     let plan = &mut crate::boundary_fixture::fixtures::plans(&mut input)[0];
     plan.steps.push(PlanStep {
+        written: Default::default(),
         scope: StepScope::PerFile,
         operation: Operation::SpanBounds {
             from: Input::Step(StepId(0)),
@@ -74,6 +77,7 @@ fn ordered_match_over_two_failing_inputs() {
         },
     });
     plan.steps.push(PlanStep {
+        written: Default::default(),
         scope: StepScope::PerFile,
         operation: Operation::SpanBounds {
             from: Input::Step(StepId(0)),
@@ -81,6 +85,7 @@ fn ordered_match_over_two_failing_inputs() {
         },
     });
     plan.steps.push(PlanStep {
+        written: Default::default(),
         scope: StepScope::PerFile,
         operation: Operation::OrderedMatch {
             left: Input::Step(StepId(1)),
@@ -111,6 +116,7 @@ fn source_matches_absent_span_with_an_invalid_pattern() {
         let plan = &mut crate::boundary_fixture::fixtures::plans(&mut input)[0];
         plan.steps = vec![
             PlanStep {
+                written: Default::default(),
                 scope: StepScope::PerFile,
                 operation: Operation::Select {
                     from: Input::Relation(Relation::Function),
@@ -119,6 +125,7 @@ fn source_matches_absent_span_with_an_invalid_pattern() {
                 },
             },
             PlanStep {
+                written: Default::default(),
                 scope: StepScope::PerFile,
                 operation: Operation::SourceMatches {
                     from: Input::Step(StepId(0)),
@@ -255,6 +262,7 @@ fn rendered_rules(rules: &[Vec<Operation>]) -> String {
     {
         plan.steps.truncate(1);
         plan.steps.extend(steps.iter().map(|operation| PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: operation.clone(),
         }));

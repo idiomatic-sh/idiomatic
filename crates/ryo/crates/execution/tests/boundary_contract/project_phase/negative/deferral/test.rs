@@ -117,6 +117,7 @@ fn a_skipped_project_frontier_preserves_the_later_original_file_error_index() {
     .unwrap();
     crate::boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![
         PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Select {
                 from: Input::Relation(Relation::Function),
@@ -125,6 +126,7 @@ fn a_skipped_project_frontier_preserves_the_later_original_file_error_index() {
             },
         },
         PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Select {
                 from: Input::Relation(Relation::Function),
@@ -133,6 +135,7 @@ fn a_skipped_project_frontier_preserves_the_later_original_file_error_index() {
             },
         },
         PlanStep {
+            written: Default::default(),
             scope: StepScope::CrossFile,
             operation: Operation::Select {
                 from: Input::Relation(Relation::ModuleIdentity),

@@ -125,12 +125,14 @@ fn closure_runs_every_partition_and_empty_input_through_the_owner() {
         let mut input = authored_request(1);
         boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![
             PlanStep {
+                written: Default::default(),
                 scope: StepScope::PerFile,
                 operation: Operation::Hosted {
                     relation: HostedNumber(0),
                 },
             },
             PlanStep {
+                written: Default::default(),
                 scope: StepScope::PerFile,
                 operation: Operation::Closure {
                     edges: Input::Step(StepId(0)),
@@ -232,6 +234,7 @@ fn independent_compilation_preserves_unused_steps_and_original_frontier_order() 
         .steps
         .extend([
             PlanStep {
+                written: Default::default(),
                 scope: StepScope::PerFile,
                 operation: Operation::Project {
                     from: Input::Step(StepId(0)),
@@ -240,6 +243,7 @@ fn independent_compilation_preserves_unused_steps_and_original_frontier_order() 
                 },
             },
             PlanStep {
+                written: Default::default(),
                 scope: StepScope::PerFile,
                 operation: Operation::Project {
                     from: Input::Relation(Relation::Function),

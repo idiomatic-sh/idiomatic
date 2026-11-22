@@ -145,6 +145,7 @@ where
 pub(crate) fn lowering_builder() -> crate::domain::lowering::types::Builder<'static> {
     use ryo_relations::domain::relations::types::Relation;
     crate::domain::lowering::types::Builder {
+        written: Default::default(),
         catalog: &[
             Relation::Function,
             Relation::SyntaxChild,

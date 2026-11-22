@@ -211,6 +211,7 @@ fn many_distinct_project_populations_allocate_only_reached_region_state()
         if seed != 0 {
             // Separate dormant regions, with a semantically valid literal predicate.
             plan.steps.push(PlanStep {
+                written: Default::default(),
                 scope: StepScope::CrossFile,
                 operation: Operation::Select {
                     from: PlanInput::Step(StepId(1)),

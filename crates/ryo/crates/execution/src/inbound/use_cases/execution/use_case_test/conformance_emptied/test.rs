@@ -52,6 +52,7 @@ fn compare_emptied(
                 u32::try_from(authored.plan.steps.len()).expect("a step number fits in u32"),
             )));
             authored.plan.steps.push(PlanStep {
+                written: Default::default(),
                 scope: StepScope::PerFile,
                 operation: Operation::Difference {
                     left: *source,

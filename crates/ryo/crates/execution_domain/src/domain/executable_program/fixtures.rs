@@ -56,6 +56,7 @@ pub(super) enum Request {
 /// A step after the files.
 fn after_files(operation: Operation) -> PlanStep {
     PlanStep {
+        written: Default::default(),
         operation,
         scope: StepScope::CrossFile,
     }
@@ -141,6 +142,7 @@ pub(super) fn rules_of(request: Request) -> Vec<(Arc<Plan>, Vec<ParameterBinding
             (
                 plan(
                     vec![PlanStep {
+                        written: Default::default(),
                         operation: named(),
                         scope: StepScope::CrossFile,
                     }],

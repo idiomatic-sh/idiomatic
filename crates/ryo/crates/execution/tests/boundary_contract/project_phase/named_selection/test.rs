@@ -33,6 +33,7 @@ fn named_function_selection_replays_without_running_project_steps_or_hiding_abse
         let engine = engine();
         let mut input = authored_request(2);
         let selected = PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Select {
                 from: Input::Relation(Relation::Function),
@@ -51,6 +52,7 @@ fn named_function_selection_replays_without_running_project_steps_or_hiding_abse
             },
         };
         let projected = PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Project {
                 from: Input::Step(StepId(0)),
@@ -67,6 +69,7 @@ fn named_function_selection_replays_without_running_project_steps_or_hiding_abse
             selected,
             projected,
             PlanStep {
+                written: Default::default(),
                 scope: StepScope::CrossFile,
                 operation: Operation::GroupCount {
                     from: Input::Step(StepId(1)),

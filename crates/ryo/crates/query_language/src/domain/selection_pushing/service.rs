@@ -418,15 +418,21 @@ fn pushed_union(
     let first = fresh.unwrap_or(StepId(u32::try_from(reader.0).unwrap_or(u32::MAX)));
     let mut before = Vec::new();
     let filtered_left = place_after(first, &before);
-    before.push(filter_of(steps, left, prefix.to_vec())?);
+    before.push(filter_of(steps, left, prefix.to_vec(), &filtering.written)?);
     let filtered_right = place_after(first, &before);
-    before.push(filter_of(steps, right, prefix.to_vec())?);
+    before.push(filter_of(
+        steps,
+        right,
+        prefix.to_vec(),
+        &filtering.written,
+    )?);
     let combined = PlanStep {
         operation: Operation::Union {
             left: filtered_left,
             right: filtered_right,
         },
         scope: made.scope,
+        written: made.written.clone(),
     };
     let rest = comparisons.get(prefix.len()..).unwrap_or_default().to_vec();
     Some(finished(

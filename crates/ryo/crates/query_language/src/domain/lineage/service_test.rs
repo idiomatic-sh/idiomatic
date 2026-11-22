@@ -88,6 +88,7 @@ fn ladder(levels: usize, scope: StepScope, level: fn(Reads) -> Operation) -> Vec
     for _ in 0..levels {
         let before = last(&steps);
         steps.push(PlanStep {
+            written: Default::default(),
             operation: level(before),
             scope,
         });
@@ -165,6 +166,7 @@ fn origins_followed(levels: usize) -> String {
 
 fn step(operation: Operation) -> PlanStep {
     PlanStep {
+        written: Default::default(),
         operation,
         scope: StepScope::PerFile,
     }

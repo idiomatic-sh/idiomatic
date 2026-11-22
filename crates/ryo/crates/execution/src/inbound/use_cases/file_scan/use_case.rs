@@ -304,7 +304,7 @@ impl FileScanUseCase for FileScanUseCaseImpl {
                     .iter()
                     .filter_map(|worker| worker.workers.get(number))
                     .collect();
-                let lines = ledger_lines(engine, &set.load.programs, &of_set);
+                let lines = ledger_lines(engine, &set.load.programs, &set.load.written, &of_set);
                 measured.ledger.extend(lines);
             }
         }

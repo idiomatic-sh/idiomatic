@@ -35,11 +35,10 @@ fn subject(text: Input) -> Result<Value, Failure> {
             },
         ],
     }];
-    let plan = crate::domain::assembling::service::lower_with_observations(
+    let plan = crate::domain::assembling::fixtures::lower(
         &program,
         &[Relation::Function, Relation::SourceLocation],
         &hosted,
-        &[],
     )?;
     Ok(plan.steps.iter().any(|step| {
         matches!(

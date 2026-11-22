@@ -107,6 +107,7 @@ pub(super) fn fixture(
             },
             parameters: vec![],
             steps: vec![PlanStep {
+                written: Default::default(),
                 scope: phase,
                 operation,
             }],

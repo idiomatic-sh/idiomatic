@@ -26,6 +26,7 @@ fn grouped_dependency_and_original_source_join_in_both_input_positions() {
         let source = Input::Relation(Relation::LanguageTarget);
         crate::boundary_fixture::fixtures::plans(&mut authored)[0].steps = vec![
             PlanStep {
+                written: Default::default(),
                 scope: StepScope::PerFile,
                 operation: Operation::Select {
                     from: source,
@@ -34,6 +35,7 @@ fn grouped_dependency_and_original_source_join_in_both_input_positions() {
                 },
             },
             PlanStep {
+                written: Default::default(),
                 scope: StepScope::PerFile,
                 operation: Operation::GroupCount {
                     from: Input::Step(StepId(0)),
@@ -42,6 +44,7 @@ fn grouped_dependency_and_original_source_join_in_both_input_positions() {
                 },
             },
             PlanStep {
+                written: Default::default(),
                 scope: StepScope::PerFile,
                 operation: Operation::Select {
                     from: Input::Step(StepId(1)),
@@ -50,6 +53,7 @@ fn grouped_dependency_and_original_source_join_in_both_input_positions() {
                 },
             },
             PlanStep {
+                written: Default::default(),
                 scope: StepScope::PerFile,
                 operation: Operation::Join {
                     left: if reversed {

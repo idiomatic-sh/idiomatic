@@ -176,6 +176,7 @@ fn unknown_kind() -> Result<Compiled, RuleCompilationError> {
     use ryo_values::domain::plans::types::{Operation, PlanStep};
     let mut fake = QueryLanguageFake::default();
     fake.plan.steps = vec![PlanStep {
+        written: Default::default(),
         operation: Operation::Select {
             from: PlanInput::Relation(Relation::SyntaxTree),
             comparisons: vec![PlanComparison {

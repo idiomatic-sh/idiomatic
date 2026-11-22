@@ -32,3 +32,4 @@ pub mod run_metadata;
 
 pub mod table_words;
 pub mod written_rows;
+pub mod written_sites;

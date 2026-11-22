@@ -62,6 +62,7 @@ fn pulled_through(length: usize) -> String {
     let mut before = Reads::Relation(Relation::SemanticChild);
     for _ in 0..length {
         steps.push(PlanStep {
+            written: Default::default(),
             operation: Operation::Select {
                 from: before,
                 comparisons: Vec::new(),

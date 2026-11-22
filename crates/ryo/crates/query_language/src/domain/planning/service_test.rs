@@ -10,6 +10,7 @@ type Failure = std::convert::Infallible;
 fn frontier_keeps_only_file_to_project_dependencies() {
     let steps = vec![
         plans::PlanStep {
+            written: Default::default(),
             scope: ryo_values::domain::plan_parts::types::StepScope::PerFile,
             operation: plans::Operation::Select {
                 from: parts::Input::Relation(Relation::Function),
@@ -18,6 +19,7 @@ fn frontier_keeps_only_file_to_project_dependencies() {
             },
         },
         plans::PlanStep {
+            written: Default::default(),
             scope: ryo_values::domain::plan_parts::types::StepScope::CrossFile,
             operation: plans::Operation::Union {
                 left: parts::Input::Step(parts::StepId(0)),
@@ -25,6 +27,7 @@ fn frontier_keeps_only_file_to_project_dependencies() {
             },
         },
         plans::PlanStep {
+            written: Default::default(),
             scope: ryo_values::domain::plan_parts::types::StepScope::CrossFile,
             operation: plans::Operation::Union {
                 left: parts::Input::Step(parts::StepId(1)),

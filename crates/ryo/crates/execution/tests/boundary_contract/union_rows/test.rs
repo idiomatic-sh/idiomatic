@@ -57,6 +57,7 @@ fn union_preserves_left_source_refusal_and_demands_right_after_empty_left() {
         let mut input = authored_request(1);
         boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![
             PlanStep {
+                written: Default::default(),
                 scope: StepScope::PerFile,
                 operation: Operation::Select {
                     from: Input::Relation(Relation::Function),
@@ -65,6 +66,7 @@ fn union_preserves_left_source_refusal_and_demands_right_after_empty_left() {
                 },
             },
             PlanStep {
+                written: Default::default(),
                 scope: StepScope::PerFile,
                 operation: Operation::Select {
                     from: Input::Relation(Relation::SemanticChild),
@@ -73,6 +75,7 @@ fn union_preserves_left_source_refusal_and_demands_right_after_empty_left() {
                 },
             },
             PlanStep {
+                written: Default::default(),
                 scope: StepScope::PerFile,
                 operation: Operation::Union {
                     left: Input::Step(StepId(0)),

@@ -144,6 +144,11 @@ fn reduced_frontier_roots(mut steps: Vec<PlanStep>, roots: &mut [StepId]) -> Vec
                 root.0 += 1;
             }
         }
+        // The cut is the work of the statement that wrote the step it cuts.
+        let written = steps
+            .get(candidate)
+            .map(|step| step.written.clone())
+            .unwrap_or_default();
         steps.insert(
             candidate + 1,
             PlanStep {
@@ -153,6 +158,7 @@ fn reduced_frontier_roots(mut steps: Vec<PlanStep>, roots: &mut [StepId]) -> Vec
                     distinct: multiplicity,
                 },
                 scope: StepScope::PerFile,
+                written,
             },
         );
         for place in consumers {
@@ -294,6 +300,12 @@ pub(crate) fn cut_relations_roots(mut steps: Vec<PlanStep>, roots: &mut [StepId]
         {
             continue;
         }
+        // The cut is the work of the first statement that reads the relation.
+        let written = consumers
+            .first()
+            .and_then(|place| steps.get(*place))
+            .map(|step| step.written.clone())
+            .unwrap_or_default();
         // The cut comes first, so every step reads only what comes before it.
         for step in &mut steps {
             each_input(&mut step.operation, &mut |input| {
@@ -314,6 +326,7 @@ pub(crate) fn cut_relations_roots(mut steps: Vec<PlanStep>, roots: &mut [StepId]
                     kept: used.clone(),
                 },
                 scope: StepScope::PerFile,
+                written,
             },
         );
         for place in consumers {

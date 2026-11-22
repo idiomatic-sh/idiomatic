@@ -88,6 +88,7 @@ fn rule(operation: Operation) -> Arc<Plan> {
             headings: Vec::new(),
         },
         steps: vec![PlanStep {
+            written: Default::default(),
             operation,
             scope: StepScope::PerFile,
         }],

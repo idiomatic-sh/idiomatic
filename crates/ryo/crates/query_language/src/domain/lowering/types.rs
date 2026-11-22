@@ -239,6 +239,21 @@ pub(crate) struct Builder<'a> {
     pub origin: Option<QueryOrigin>,
     /// Source origins interned for comparisons in this plan.
     pub comparison_origins: Vec<QueryOrigin>,
+    /// The statement whose steps are being made: each step made records it.
+    pub written: ryo_values::domain::written_sites::types::StepWritten,
+}
+
+/// The documents a program's statements are written in, as parsed: the rule's own query, by its identity, and each module it
+/// reads. Where a step was written is read off them.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct WrittenDocuments<'a> {
+    /// The identity of the rule's own query.
+    pub root: &'a ryo_values::domain::query_tokens::types::QuerySourceId,
+    /// Each module, by its identity.
+    pub modules: &'a std::collections::BTreeMap<
+        ryo_values::domain::query_tokens::types::QuerySourceId,
+        ryo_values::domain::program::types::FragmentProgram,
+    >,
 }
 
 /// The join the pairs of the same-sets idiom come from, as recognized.

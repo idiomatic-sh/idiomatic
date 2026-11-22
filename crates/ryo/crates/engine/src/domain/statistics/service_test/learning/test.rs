@@ -162,6 +162,8 @@ fn sample(units: &[Unit]) -> (Programs, PointCounts) {
             build: Count(*build),
             nanos: Count(77),
             idle_nanos: Count(7),
+            decide_nanos: Count(0),
+            provider_nanos: Count(0),
         });
     }
     let programs = ProgramsEngine {

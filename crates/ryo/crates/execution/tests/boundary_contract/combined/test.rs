@@ -89,6 +89,7 @@ fn partial_read_with_an_antijoin_and_an_absence() {
     let plans = crate::boundary_fixture::fixtures::plans(&mut input);
     plans[0].steps = vec![
         PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Select {
                 from: Input::Relation(Relation::Function),
@@ -97,6 +98,7 @@ fn partial_read_with_an_antijoin_and_an_absence() {
             },
         },
         PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Antijoin {
                 left: Input::Step(StepId(0)),
@@ -215,6 +217,7 @@ fn failing_pipeline_stage_with_an_earlier_failing_stage_on_a_later_row() {
     // The first stage fails only on the file's last row, whose text is not a pattern; the second stage fails on its first row.
     crate::boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![
         PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Select {
                 from: Input::Relation(Relation::SyntaxTree),
@@ -223,6 +226,7 @@ fn failing_pipeline_stage_with_an_earlier_failing_stage_on_a_later_row() {
             },
         },
         PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Select {
                 from: Input::Step(StepId(0)),

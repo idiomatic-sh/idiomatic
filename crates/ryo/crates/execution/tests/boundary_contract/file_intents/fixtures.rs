@@ -174,6 +174,7 @@ pub(crate) fn named_request() -> PrepareRequest {
     }];
     let producer = &mut boundary_fixture::fixtures::plans(&mut authored)[0];
     producer.steps.push(PlanStep {
+        written: Default::default(),
         scope: StepScope::PerFile,
         operation: Operation::Select {
             from: Input::Relation(Relation::Identifier),
@@ -182,6 +183,7 @@ pub(crate) fn named_request() -> PrepareRequest {
         },
     });
     producer.steps.push(PlanStep {
+        written: Default::default(),
         scope: StepScope::CrossFile,
         operation: Operation::Select {
             from: Input::Step(StepId(1)),
@@ -240,6 +242,7 @@ pub(crate) fn consumer_before_its_producer_request() -> PrepareRequest {
     }];
     let producer = &mut boundary_fixture::fixtures::plans(&mut authored)[1];
     producer.steps.push(PlanStep {
+        written: Default::default(),
         scope: StepScope::PerFile,
         operation: Operation::Capture {
             from: Input::Step(StepId(0)),
@@ -295,6 +298,7 @@ pub(crate) fn consumer_of_a_capture_request() -> PrepareRequest {
         pattern: ryo_values::domain::plan_parts::types::CapturePattern("ma{rest}".into()),
     };
     producer.steps.push(PlanStep {
+        written: Default::default(),
         scope: StepScope::PerFile,
         operation: Operation::Project {
             from: Input::Step(StepId(1)),

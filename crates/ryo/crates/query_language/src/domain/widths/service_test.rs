@@ -93,6 +93,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 /// The two columns of functions kept, then `levels` levels of a union of the step before with itself and a split of that union.
 fn ladder(levels: usize) -> Vec<PlanStep> {
     let step = |operation| PlanStep {
+        written: Default::default(),
         operation,
         scope: StepScope::PerFile,
     };
@@ -142,6 +143,7 @@ fn subject(ask: Input) -> Result<Value, Failure> {
         }
     };
     let kept = PlanStep {
+        written: Default::default(),
         operation: Operation::Select {
             from: Reads::Relation(Relation::Function),
             comparisons: Vec::new(),
@@ -178,6 +180,7 @@ fn subject(ask: Input) -> Result<Value, Failure> {
     let steps = vec![
         kept,
         PlanStep {
+            written: Default::default(),
             operation,
             scope: StepScope::PerFile,
         },

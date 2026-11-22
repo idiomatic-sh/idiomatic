@@ -75,6 +75,7 @@ fn plan_reading(relation: Relation) -> Plan {
         observations: Vec::new(),
         parameters: Vec::new(),
         steps: vec![PlanStep {
+            written: Default::default(),
             operation: Operation::Select {
                 from: PlanInput::Relation(relation),
                 comparisons: Vec::new(),
@@ -298,6 +299,7 @@ fn plan_reading_edges(reading: Reading, relation: Relation) -> Plan {
     };
     Plan {
         steps: vec![PlanStep {
+            written: Default::default(),
             operation,
             scope: StepScope::PerFile,
         }],

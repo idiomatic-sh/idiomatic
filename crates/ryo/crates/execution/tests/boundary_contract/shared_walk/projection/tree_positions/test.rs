@@ -45,6 +45,7 @@ fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
             };
             crate::boundary_fixture::fixtures::plans(&mut authored)[0].steps = vec![
                 PlanStep {
+                    written: Default::default(),
                     scope: StepScope::PerFile,
                     operation: Operation::Select {
                         from: Input::Relation(relation),
@@ -53,6 +54,7 @@ fn shared_tree_positions_keep_native_join_projection_refusal_and_replay() {
                     },
                 },
                 PlanStep {
+                    written: Default::default(),
                     scope: StepScope::PerFile,
                     operation: Operation::Join {
                         left: Input::Step(StepId(0)),
