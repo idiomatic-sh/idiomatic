@@ -56,6 +56,10 @@ pub(crate) struct AskSite {
     pub(crate) atom: FlatAtom,
     /// The rows the unit holds when it asks, for one start.
     pub(crate) rows: PlanEstimate,
+    /// The definition whose table's pipeline asked; none for a rule's branch.
+    pub(crate) origin: Option<DefinitionId>,
+    /// Its number among the sites of the pack.
+    pub(crate) serial: u64,
 }
 
 /// SPIKE (restricted tables): the ask being written, while a rule's branch or a table's pipeline is written.
@@ -65,6 +69,10 @@ pub(crate) struct AskContext {
     pub(crate) prefix: Vec<FlatAtom>,
     /// The atom being written, with the rows held before it; none outside such a unit.
     pub(crate) atom: Option<(FlatAtom, PlanEstimate)>,
+    /// The definition whose table's pipeline is written; none for a rule's branch.
+    pub(crate) origin: Option<DefinitionId>,
+    /// How many sites were kept so far.
+    pub(crate) serial: u64,
 }
 
 /// A definition as flattened: its branches are written once and never changed after.

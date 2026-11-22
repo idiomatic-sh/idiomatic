@@ -10,6 +10,7 @@ use crate::domain::lowering::costing::service::{definition_rows, planned_rows, p
 use crate::domain::lowering::costing::types::PlanEstimate;
 use crate::domain::lowering::definitions::service::defined;
 use crate::domain::lowering::definitions::types::{AskSite, Drafts, Flattened};
+use crate::domain::lowering::flattening::service::variables;
 use crate::domain::lowering::flattening::types::{
     AtomRows, FlatAtom, FlatBranch, FlatTerm, RowsPerFile,
 };
@@ -30,8 +31,8 @@ pub(crate) struct Restricted {
     definition: DefinitionId,
     /// Its table.
     table: MadeTableId,
-    /// How many sites its keys were taken from.
-    sites: usize,
+    /// The sites its keys were taken from, by number.
+    sites: HashSet<u64>,
     /// The fill it had.
     original: MadeFill,
 }
@@ -123,21 +124,43 @@ fn readers(drafts: &Drafts, definition: DefinitionId) -> Option<(ColumnMask, Vec
     Some((mask?, sites)).filter(|(_, sites)| !sites.is_empty())
 }
 
-/// How many sites the table-form patterns of a definition were asked from, and whether any ask had none.
-fn sites_now(drafts: &Drafts, definition: DefinitionId) -> (usize, bool) {
+/// Whether every ask of a definition's table-form patterns is one of `sites`, none with no site.
+fn covered(drafts: &Drafts, definition: DefinitionId, sites: &HashSet<u64>) -> bool {
     let Some(draft) = usize::try_from(definition.0)
         .ok()
         .and_then(|place| drafts.definitions.get(place))
     else {
-        return (0, true);
+        return false;
     };
-    let tables = draft
+    let mut tables = draft
         .patterns
         .iter()
         .filter(|pattern| matches!(pattern.form, Some(PatternForm::Table(_))));
-    tables.fold((0, false), |(count, opaque), pattern| {
-        (count + pattern.sites.len(), opaque || pattern.opaque)
+    tables.all(|pattern| {
+        !pattern.opaque
+            && pattern
+                .sites
+                .iter()
+                .all(|site| sites.contains(&site.serial))
     })
+}
+
+/// Drops the sites a definition's table's pipelines wrote before site `below`: they are written again.
+fn purged(drafts: &mut Drafts, origin: DefinitionId, below: u64) {
+    for draft in &mut drafts.definitions {
+        for pattern in &mut draft.patterns {
+            pattern
+                .sites
+                .retain(|site| site.origin != Some(origin) || site.serial >= below);
+        }
+    }
+}
+
+/// Says why a table was not restricted, when traced.
+fn skipped(definition: DefinitionId, why: &str) {
+    if std::env::var_os("RYO_L1B_RESTRICT_TRACE").is_some() {
+        eprintln!("ryo l1b: not restricted definition={} {why}", definition.0);
+    }
 }
 
 /// A node no plan names, for the definition of a table's asked keys.
@@ -158,7 +181,8 @@ pub(crate) fn restricted(
 ) -> Vec<Restricted> {
     let mut done = Vec::new();
     let count = drafts.definitions.len();
-    for place in 0..count {
+    // A definition reads only definitions before it: from the last, every reader of a table is rewritten before it.
+    for place in (0..count).rev() {
         let definition = DefinitionId(u32::try_from(place).unwrap_or(u32::MAX));
         let Some(table) = drafts.definitions.get(place).and_then(|draft| draft.table) else {
             continue;
@@ -171,12 +195,20 @@ pub(crate) fn restricted(
             continue;
         }
         let Some((mask, sites)) = readers(drafts, definition) else {
+            skipped(
+                definition,
+                "readers: whole, two keys, none, or asked where no site is kept",
+            );
             continue;
         };
         if !sites
             .iter()
             .all(|site| site.prefix.iter().all(|atom| before(atom, definition)))
         {
+            skipped(
+                definition,
+                "a reader's prefix reads a later definition, a made table or a walk of a definition",
+            );
             continue;
         }
         let keys: Option<Vec<Vec<FlatTerm>>> = sites
@@ -184,14 +216,30 @@ pub(crate) fn restricted(
             .map(|site| key_cells(site, definition, &mask))
             .collect();
         let Some(keys) = keys else {
+            skipped(definition, "a reader does not read it by its key cells");
             continue;
         };
+        // A key a test holds to a constant may be given by no atom before the ask: the keys' branch could not run.
+        let given = sites.iter().zip(&keys).all(|(site, row)| {
+            row.iter().all(|cell| match cell {
+                FlatTerm::Variable(variable) => site
+                    .prefix
+                    .iter()
+                    .any(|atom| variables(atom).contains(variable)),
+                FlatTerm::Text(_) | FlatTerm::Number(_) | FlatTerm::File => true,
+            })
+        });
+        if !given {
+            skipped(definition, "a key no atom before the ask gives");
+            continue;
+        }
         let asked = sites
             .iter()
             .fold(PlanEstimate(0), |sum, site| plus(sum, site.rows));
         let whole = planned_rows(definition_rows(drafts, definition));
         let margin = PlanEstimate(margin.saturating_mul(ONE.0));
         if times(asked, margin) >= whole {
+            skipped(definition, &format!("keys {} of {} rows", asked.0, whole.0));
             continue;
         }
         let Some(draft) = drafts.definitions.get(place) else {
@@ -224,6 +272,8 @@ pub(crate) fn restricted(
                 keyless: Vec::new(),
             },
         );
+        let serials: HashSet<u64> = sites.iter().map(|site| site.serial).collect();
+        let first_new = drafts.asking.serial;
         let mut pipelines = Vec::with_capacity(own.len());
         for branch in &own {
             let cells: Option<Vec<FlatTerm>> = mask
@@ -248,8 +298,10 @@ pub(crate) fn restricted(
             }
         }
         if pipelines.len() != own.len() {
+            skipped(definition, "a branch joined with its keys has no pipeline");
             continue;
         }
+        purged(drafts, definition, first_new);
         let Some(made) = drafts
             .tables
             .get_mut(usize::try_from(table.0).unwrap_or(usize::MAX))
@@ -274,7 +326,7 @@ pub(crate) fn restricted(
         done.push(Restricted {
             definition,
             table,
-            sites: sites.len(),
+            sites: serials,
             original,
         });
     }
@@ -286,8 +338,7 @@ pub(crate) fn restricted(
 pub(crate) fn checked(drafts: &mut Drafts, done: Vec<Restricted>) -> usize {
     let mut kept = 0;
     for each in done {
-        let (sites, opaque) = sites_now(drafts, each.definition);
-        if sites == each.sites && !opaque {
+        if covered(drafts, each.definition, &each.sites) {
             kept += 1;
             continue;
         }

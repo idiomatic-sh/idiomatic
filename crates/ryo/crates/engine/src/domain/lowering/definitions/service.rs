@@ -162,11 +162,17 @@ pub(crate) fn asked(
     collected: &ColumnMask,
 ) {
     let place = usize::try_from(definition.0).unwrap_or(usize::MAX);
+    let serial = drafts.asking.serial;
     let site = drafts.asking.atom.as_ref().map(|(atom, rows)| AskSite {
         prefix: drafts.asking.prefix.clone(),
         atom: atom.clone(),
         rows: *rows,
+        origin: drafts.asking.origin,
+        serial,
     });
+    if site.is_some() {
+        drafts.asking.serial = serial.saturating_add(1);
+    }
     let Some(draft) = drafts.definitions.get_mut(place) else {
         return;
     };

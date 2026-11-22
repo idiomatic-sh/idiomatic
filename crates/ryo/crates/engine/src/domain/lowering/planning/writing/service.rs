@@ -51,6 +51,11 @@ fn accesses<'a>(
     // is keyed by comes from the atoms written before it: each ask keeps them. A pattern's program starts from its formals.
     let sited = matches!(unit.role, UnitRole::Branch | UnitRole::Pipeline);
     let outer = std::mem::take(&mut emitter.drafts.asking);
+    emitter.drafts.asking.serial = outer.serial;
+    emitter.drafts.asking.origin = match unit.role {
+        UnitRole::Pipeline => unit.definition,
+        UnitRole::Branch | UnitRole::Pattern => None,
+    };
     for (place, at) in plan.order.iter().enumerate() {
         if let Some(atom) = branch.atoms.get(at.0) {
             if sited {
@@ -63,7 +68,9 @@ fn accesses<'a>(
             }
         }
     }
+    let serial = emitter.drafts.asking.serial;
     emitter.drafts.asking = outer;
+    emitter.drafts.asking.serial = serial;
     // Each read waits until its cell is first needed.
     emitter.written = deferred(std::mem::take(&mut emitter.written));
     emitter
