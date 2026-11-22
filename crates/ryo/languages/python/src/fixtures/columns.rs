@@ -485,6 +485,32 @@ impl ColumnFile<'_, '_> {
                 annotation,
             });
         }
+        // Nodes of the table the model does not number (tokens and identifiers under an expression) are evaluated where
+        // their parent is.
+        let elements = node_table::element_count(self.table).0 as usize;
+        let mut by_id: Vec<Option<usize>> = vec![None; elements];
+        for (row, r) in out.iter().enumerate() {
+            if let Some(slot) = by_id.get_mut(r.id as usize) {
+                *slot = Some(row);
+            }
+        }
+        for id in 0..elements {
+            if by_id[id].is_some() {
+                continue;
+            }
+            let parent = node_table::parent_of(self.table, ryo::languages::Position(id as u32)).0 as usize;
+            if parent < id
+                && let Some(row) = by_id[parent]
+            {
+                let mut r = out[row];
+                if r.annotation == u32::MAX && entry(&lexical.annotation, ryo::languages::Position(parent as u32)) == AnnotationMark::Annotation {
+                    r.annotation = parent as u32;
+                }
+                r.id = id as u32;
+                out.push(r);
+                by_id[id] = Some(out.len() - 1);
+            }
+        }
         Some((schedule.annotations == BindingAnnotationTiming::Deferred, out))
     }
 
