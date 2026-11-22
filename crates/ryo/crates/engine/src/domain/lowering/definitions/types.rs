@@ -121,6 +121,9 @@ pub(crate) struct Drafts {
     pub(crate) costs: UseCosts,
     /// What a sample measured the buckets of a file at; none for a load given no statistics.
     pub(crate) sized: Option<SampleSizes>,
+    /// What each definition's rows hold of the element in each column, read once a definition the first time a need
+    /// asks it (`emptiness::branches`): a definition's branches never change once it is made.
+    pub(crate) shapes: std::sync::Mutex<HashMap<DefinitionId, std::sync::Arc<[crate::domain::lowering::emptiness::branches::types::ColumnShape]>>>,
 }
 
 /// What a step's flattening gives a definition: its branches, its emptiness and the keyless joins inlined in it.

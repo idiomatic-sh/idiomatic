@@ -3,7 +3,8 @@
 //! a use of a definition with a cell held to a constant needs what the definition's own branches need with that column
 //! held to it: a literal is carried through a definition into the need, and each reader of a shared definition has its own.
 
-use crate::domain::lowered::types::{ByteLiteral, Emptiness, PathTest, RowValue};
+use super::types::{ColumnShape, Words};
+use crate::domain::lowered::types::{ByteLiteral, Emptiness, PathTest, RowValue, ShapeTest};
 use crate::domain::lowering::definitions::service::{draft, text_word};
 use crate::domain::lowering::definitions::types::Drafts;
 use crate::domain::lowering::emptiness::service::path_test;
@@ -12,7 +13,9 @@ use crate::domain::lowering::flattening::types::RowMeaning;
 use crate::domain::lowering::flattening::types::{
     AtomRows, FlatAtom, FlatBranch, FlatTerm, FlatVariable,
 };
-use crate::domain::steps::types::{CallMeaning, DefinitionId, Polarity, TestOperation};
+use crate::domain::steps::types::{
+    AxisDirection, CallMeaning, DefinitionId, Polarity, TestOperation,
+};
 use rustc_hash::FxHashMap as HashMap;
 use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::catalog::service::{fact_form, node_column, node_extent};
@@ -35,6 +38,13 @@ const CARRIED: (usize, usize) = (10, 8);
 fn traced() -> bool {
     static TRACED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     *TRACED.get_or_init(|| std::env::var_os("RYO_X_NEED_BRANCHES").is_some())
+}
+
+/// SPIKE: whether the shape term is derived (on unless `RYO_X_NO_SHAPES`, read once): the same binary measures with
+/// and without it.
+fn shapes_on() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var_os("RYO_X_NO_SHAPES").is_none())
 }
 
 /// The constant a cell is held to: its own, or the one an equality pins its variable to.
@@ -200,6 +210,301 @@ fn own_texts(branch: &FlatBranch) -> Vec<FlatVariable> {
     texts
 }
 
+/// How many words a set of a shape's part may hold before it is taken as any, and how many shapes one element may ask
+/// for together (one of them must hold): past either the part says nothing.
+const SHAPE_WORDS: usize = 8;
+const SHAPE_ALTERNATIVES: usize = 16;
+
+/// What a branch's positive rows hold of one element of the file's tree: what every row holds of it, and the variable
+/// that is its parent.
+#[derive(Clone, Debug, Default)]
+struct ElementHeld {
+    shape: ColumnShape,
+    parent: Option<FlatVariable>,
+}
+
+/// Of two conditions that both hold, the one that says more: a set over any, the smaller of two sets.
+fn narrower(own: Words, other: Words) -> Words {
+    match (own, other) {
+        (Some(own), Some(other)) if other.len() < own.len() => Some(other),
+        (Some(own), _) => Some(own),
+        (None, other) => other,
+    }
+}
+
+/// A condition that holds where either does: the two sets together; any when either is any or they grow too large.
+fn either(own: &Words, other: &Words) -> Words {
+    let (Some(own), Some(other)) = (own, other) else {
+        return None;
+    };
+    let mut both = own.clone();
+    for word in other {
+        if !both.contains(word) {
+            both.push(*word);
+        }
+    }
+    (both.len() <= SHAPE_WORDS).then_some(both)
+}
+
+/// What holds of an element where it holds in either of two branches.
+fn either_shape(own: &ColumnShape, other: &ColumnShape) -> ColumnShape {
+    ColumnShape {
+        kinds: either(&own.kinds, &other.kinds),
+        fields: either(&own.fields, &other.fields),
+        parent_kinds: either(&own.parent_kinds, &other.parent_kinds),
+    }
+}
+
+/// What every row of a definition holds of the element in each of its columns: what each branch holds of it, either
+/// way; read once a definition and kept in the drafts. Of a definition of more branches than `CARRIED` allows, or met
+/// inside its own reading, nothing.
+fn definition_shapes(
+    drafts: &Drafts,
+    definition: DefinitionId,
+    depth: usize,
+) -> std::sync::Arc<[ColumnShape]> {
+    let kept = drafts
+        .shapes
+        .lock()
+        .ok()
+        .and_then(|kept| kept.get(&definition).cloned());
+    if let Some(kept) = kept {
+        return kept;
+    }
+    let Some(draft) = draft(drafts, definition) else {
+        return std::sync::Arc::from([]);
+    };
+    let width = draft.shape.0.len();
+    let nothing: std::sync::Arc<[ColumnShape]> = vec![ColumnShape::default(); width].into();
+    if let Ok(mut kept) = drafts.shapes.lock() {
+        let _reading = kept.insert(definition, nothing.clone());
+    }
+    let branches = &draft.branches;
+    if depth >= CARRIED.0 || branches.is_empty() || branches.len() > CARRIED.1 {
+        return nothing;
+    }
+    let mut columns: Option<Vec<ColumnShape>> = None;
+    for branch in branches {
+        let pins = pins_of(branch);
+        let (_order, elements) = elements_held(drafts, branch, &pins, depth.saturating_add(1));
+        let this: Vec<ColumnShape> = (0..width)
+            .map(|column| match branch.row.get(column) {
+                Some(FlatTerm::Variable(variable)) => elements
+                    .get(variable)
+                    .map(|held| held.shape.clone())
+                    .unwrap_or_default(),
+                Some(FlatTerm::Text(_) | FlatTerm::Number(_) | FlatTerm::File) | None => {
+                    ColumnShape::default()
+                }
+            })
+            .collect();
+        columns = Some(match columns {
+            None => this,
+            Some(columns) => columns
+                .iter()
+                .zip(&this)
+                .map(|(own, other)| either_shape(own, other))
+                .collect(),
+        });
+    }
+    let held: std::sync::Arc<[ColumnShape]> = columns.unwrap_or_default().into();
+    if let Ok(mut kept) = drafts.shapes.lock() {
+        let _read = kept.insert(definition, held.clone());
+    }
+    held
+}
+
+/// What a branch's positive rows hold of each element of the file's tree they name: a variable in the `Id` column of a
+/// node relation's row (its kind and field the constants the branch holds those cells to, its parent the `Parent`
+/// cell, or a walk to the parent), or in a column of a definition's row (what every row of the definition holds of
+/// that column's element). The elements in the order the branch first names them, so a need's parts are the same at
+/// every load; each element's parent kinds read off its parent's.
+fn elements_held(
+    drafts: &Drafts,
+    branch: &FlatBranch,
+    pins: &HashMap<FlatVariable, FlatTerm>,
+    depth: usize,
+) -> (Vec<FlatVariable>, HashMap<FlatVariable, ElementHeld>) {
+    let mut order: Vec<FlatVariable> = Vec::new();
+    let mut elements: HashMap<FlatVariable, ElementHeld> = HashMap::default();
+    let constant = |cell: Option<FlatTerm>| match cell.and_then(|cell| held(pins, cell)) {
+        Some(FlatTerm::Text(number)) => Some(vec![text_word(number)]),
+        Some(FlatTerm::Number(_) | FlatTerm::Variable(_) | FlatTerm::File) | None => None,
+    };
+    let element = |variable: FlatVariable, order: &mut Vec<FlatVariable>| -> FlatVariable {
+        if !order.contains(&variable) {
+            order.push(variable);
+        }
+        variable
+    };
+    for atom in &branch.atoms {
+        let (rows, cells): (AtomRows, Vec<Option<FlatTerm>>) = match atom {
+            FlatAtom::Rows { rows, cells, .. } => {
+                (*rows, cells.iter().copied().map(Some).collect())
+            }
+            FlatAtom::Decided {
+                polarity: Polarity::Present,
+                rows,
+                cells,
+            } => (*rows, cells.clone()),
+            FlatAtom::Walk {
+                direction: AxisDirection::Parent,
+                start: FlatTerm::Variable(start),
+                reached: FlatTerm::Variable(reached),
+                ..
+            } => {
+                let start = element(*start, &mut order);
+                let held = elements.entry(start).or_default();
+                held.parent = held.parent.or(Some(*reached));
+                continue;
+            }
+            FlatAtom::Decided { .. }
+            | FlatAtom::Latest { .. }
+            | FlatAtom::Walk { .. }
+            | FlatAtom::Nearest { .. }
+            | FlatAtom::Closure { .. }
+            | FlatAtom::Called { .. }
+            | FlatAtom::Test { .. } => continue,
+        };
+        match rows {
+            AtomRows::Relation(relation) if matches!(fact_form(relation), FactForm::NodeTable) => {
+                let named: Vec<(NodeColumn, Option<FlatTerm>)> = columns(relation)
+                    .into_iter()
+                    .zip(cells)
+                    .filter_map(|(column, cell)| node_column(column).map(|named| (named, cell)))
+                    .collect();
+                let Some(FlatTerm::Variable(id)) = named
+                    .iter()
+                    .find(|(named, _)| *named == NodeColumn::Id)
+                    .and_then(|(_, cell)| *cell)
+                else {
+                    continue;
+                };
+                let id = element(id, &mut order);
+                let held = elements.entry(id).or_default();
+                for (named, cell) in named {
+                    match named {
+                        NodeColumn::Kind => {
+                            held.shape.kinds = narrower(held.shape.kinds.take(), constant(cell))
+                        }
+                        NodeColumn::Field => {
+                            held.shape.fields = narrower(held.shape.fields.take(), constant(cell))
+                        }
+                        NodeColumn::Parent => {
+                            if let Some(FlatTerm::Variable(parent)) = cell {
+                                held.parent = held.parent.or(Some(parent));
+                            }
+                        }
+                        NodeColumn::Id
+                        | NodeColumn::Ordinal
+                        | NodeColumn::Start
+                        | NodeColumn::End
+                        | NodeColumn::Span
+                        | NodeColumn::File
+                        | NodeColumn::Text => {}
+                    }
+                }
+            }
+            AtomRows::Definition(definition) => {
+                let shapes = definition_shapes(drafts, definition, depth);
+                for (cell, of) in cells.into_iter().zip(shapes.iter()) {
+                    let Some(FlatTerm::Variable(variable)) = cell else {
+                        continue;
+                    };
+                    if *of == ColumnShape::default() {
+                        continue;
+                    }
+                    let variable = element(variable, &mut order);
+                    let held = &mut elements.entry(variable).or_default().shape;
+                    held.kinds = narrower(held.kinds.take(), of.kinds.clone());
+                    held.fields = narrower(held.fields.take(), of.fields.clone());
+                    held.parent_kinds = narrower(held.parent_kinds.take(), of.parent_kinds.clone());
+                }
+            }
+            AtomRows::Relation(_) | AtomRows::Made(_) => {}
+        }
+    }
+    // An element's parent's kinds, once every row of the branch is read: a root is its own parent and says nothing.
+    for id in &order {
+        let parent_kinds = elements
+            .get(id)
+            .and_then(|held| held.parent)
+            .filter(|parent| parent != id)
+            .and_then(|parent| elements.get(&parent))
+            .and_then(|parent| parent.shape.kinds.clone());
+        if let Some(held) = elements.get_mut(id) {
+            held.shape.parent_kinds = narrower(held.shape.parent_kinds.take(), parent_kinds);
+        }
+    }
+    (order, elements)
+}
+
+/// The shapes a branch needs the file's tree to hold: for each element its positive rows name, with at least two of its
+/// parent's kind, its field and its kind held to constants (`elements_held`), one of the triples of those constants.
+/// One part alone says no more than the kind and field terms do and is left out. Every row of a node relation is an
+/// element of the file's node table with its kind, parent and field as the table holds them (`stages::nodes`), and a
+/// definition's column holds what each of its branches holds there, so the requirement is never stronger than the rows':
+/// the file's shapes are read over every element, the embedded segments' too, for either extent.
+fn shape_tests(
+    drafts: &Drafts,
+    branch: &FlatBranch,
+    pins: &HashMap<FlatVariable, FlatTerm>,
+    depth: usize,
+) -> Vec<Emptiness> {
+    let (order, elements) = elements_held(drafts, branch, pins, depth);
+    let mut tests: Vec<Vec<ShapeTest>> = Vec::new();
+    for id in &order {
+        let Some(held) = elements.get(id).map(|held| &held.shape) else {
+            continue;
+        };
+        let parts = [&held.parent_kinds, &held.fields, &held.kinds];
+        if parts.iter().filter(|part| part.is_some()).count() < 2 {
+            continue;
+        }
+        let each = |part: &Words| {
+            part.as_ref().map_or_else(
+                || vec![None],
+                |words| words.iter().copied().map(Some).collect(),
+            )
+        };
+        let (parents, fields, kinds) = (
+            each(&held.parent_kinds),
+            each(&held.fields),
+            each(&held.kinds),
+        );
+        if parents
+            .len()
+            .saturating_mul(fields.len())
+            .saturating_mul(kinds.len())
+            > SHAPE_ALTERNATIVES
+        {
+            continue;
+        }
+        let mut alternatives = Vec::new();
+        for parent in &parents {
+            for field in &fields {
+                for child in &kinds {
+                    alternatives.push(ShapeTest {
+                        parent: *parent,
+                        field: *field,
+                        child: *child,
+                    });
+                }
+            }
+        }
+        if !tests.contains(&alternatives) {
+            tests.push(alternatives);
+        }
+    }
+    tests
+        .into_iter()
+        .map(|alternatives| match alternatives.as_slice() {
+            [one] => Emptiness::Shape(*one),
+            _ => Emptiness::Any(alternatives.into_iter().map(Emptiness::Shape).collect()),
+        })
+        .collect()
+}
+
 /// The literal a test of a text against a constant needs the text to hold: the constant's own for a prefix or a
 /// suffix, the expression's for a match. None for any other test: an equality is the spelled term's (a token of the
 /// exact text), a glob or a negated test needs nothing.
@@ -242,6 +547,9 @@ fn needed(
     }
     let (mut parts, mut uses) = (Vec::new(), Vec::new());
     let texts = own_texts(branch);
+    if shapes_on() {
+        parts.extend(shape_tests(drafts, branch, &pins, depth));
+    }
     for atom in &branch.atoms {
         let (rows, cells): (AtomRows, Vec<Option<FlatTerm>>) = match atom {
             FlatAtom::Rows { rows, cells, .. } => {
@@ -347,7 +655,8 @@ fn never(formula: &Emptiness) -> bool {
         | Emptiness::Definition(_)
         | Emptiness::Table(_)
         | Emptiness::Path(_)
-        | Emptiness::Bytes(_) => false,
+        | Emptiness::Bytes(_)
+        | Emptiness::Shape(_) => false,
     }
 }
 
@@ -362,7 +671,8 @@ fn always(formula: &Emptiness) -> bool {
         | Emptiness::Definition(_)
         | Emptiness::Table(_)
         | Emptiness::Path(_)
-        | Emptiness::Bytes(_) => false,
+        | Emptiness::Bytes(_)
+        | Emptiness::Shape(_) => false,
     }
 }
 

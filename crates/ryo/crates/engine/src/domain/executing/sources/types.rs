@@ -16,6 +16,9 @@ use crate::domain::needs::formulas::service::{node_musts, site_root};
 use crate::domain::needs::formulas::types::{FormulaNode, FreeValue};
 use crate::domain::needs::masks::types::{NeedTerm, RecordCost, Stretch, TermNumber};
 use crate::domain::needs::bytes::service::{held as bytes_held, term_wants};
+use crate::domain::needs::shapes::service::{held as shapes_held, term_wants as shape_wants};
+use crate::domain::needs::shapes::types::ShapeCodes;
+use ryo_language::domain::node_table::types::FieldCode;
 use crate::domain::needs::spelled::service::{file_read, spelled, text_number};
 use ryo_operators::domain::patterns::service::required_texts;
 use ryo_operators::domain::table_texts::types::TextView;
@@ -199,6 +202,14 @@ impl NeedFacts for FileNeeds<'_, '_, '_> {
         verdict
     }
 
+    fn shape_held(&mut self, parent: WordSlot, field: WordSlot, child: WordSlot) -> NeedVerdict {
+        let verdict = self.shape_verdict(parent, field, child);
+        if self.0.state.measure.is_some() {
+            need_leaf(self.0.state, || format!("shape={verdict:?}"));
+        }
+        verdict
+    }
+
     fn table_row(&mut self, table: MadeTableId) -> NeedVerdict {
         if self.0.state.measure.is_none() {
             return self.table_decided(table);
@@ -247,7 +258,8 @@ impl FileNeeds<'_, '_, '_> {
                 NeedTerm::Kinds(_)
                 | NeedTerm::Spelled { .. }
                 | NeedTerm::Path { .. }
-                | NeedTerm::Bytes { .. },
+                | NeedTerm::Bytes { .. }
+                | NeedTerm::Shape { .. },
             )
             | None => "?".to_owned(),
         }
@@ -718,6 +730,7 @@ impl FileNeeds<'_, '_, '_> {
                 constant,
             }) => self.path_passes(comparison, regex, constant),
             Some(NeedTerm::Bytes { regex, constant }) => self.bytes_held(regex, constant),
+            Some(NeedTerm::Shape { parent, field, child }) => self.shape_held(parent, field, child),
             None => NeedVerdict::Holds,
         }
     }
@@ -773,7 +786,8 @@ impl FileNeeds<'_, '_, '_> {
             NeedTerm::Row { .. }
             | NeedTerm::Kinds(_)
             | NeedTerm::Path { .. }
-            | NeedTerm::Bytes { .. } => None,
+            | NeedTerm::Bytes { .. }
+            | NeedTerm::Shape { .. } => None,
         }
     }
 
@@ -854,6 +868,65 @@ impl FileNeeds<'_, '_, '_> {
             return NeedVerdict::Holds;
         };
         if bytes_held(literals, source.as_bytes(), &mut frame.state.need_terms.bytes, place) {
+            NeedVerdict::Holds
+        } else {
+            NeedVerdict::Empty
+        }
+    }
+
+    /// The codes a shape term names, in the language's vocabulary of kinds and fields: each constant's word matched to
+    /// the names, the way a node relation's kind or field cell is read (`stages::nodes`).
+    fn shape_codes(&self, parent: WordSlot, field: WordSlot, child: WordSlot) -> ShapeCodes {
+        let programs = self.0.fill.programs;
+        let word = |slot: WordSlot| (slot != NO_SLOT).then(|| constant_word(self.0, ConstantNumber(slot.0)));
+        let kinds = |slot: WordSlot| {
+            word(slot).map(|wanted| {
+                let codes = programs.kinds.iter().enumerate().filter(|(_, name)| **name == wanted);
+                codes
+                    .filter_map(|(code, _)| u16::try_from(code).ok().map(KindBits))
+                    .collect::<Box<[KindBits]>>()
+            })
+        };
+        let fields = word(field).map(|wanted| {
+            let codes = programs.fields.iter().enumerate().filter(|(_, name)| **name == wanted);
+            codes
+                .filter_map(|(code, _)| u16::try_from(code).ok().map(FieldCode))
+                .collect::<Box<[FieldCode]>>()
+        });
+        ShapeCodes {
+            parent: kinds(parent),
+            field: fields,
+            child: kinds(child),
+        }
+    }
+
+    /// Numbers the shapes of every shape term met since the last look, so that a file's tree is read for all of them at
+    /// once.
+    fn shapes_found(&mut self) {
+        let all = self.0.state.need_masks.terms.len();
+        let from = self.0.state.need_masks.shapes_found;
+        if from >= all {
+            return;
+        }
+        for place in from..all {
+            if let Some(NeedTerm::Shape { parent, field, child }) = self.0.state.need_masks.terms.get(place).copied() {
+                let codes = self.shape_codes(parent, field, child);
+                let _place = shape_wants(&mut self.0.state.need_masks.shapes, (parent, field, child), || codes);
+            }
+        }
+        self.0.state.need_masks.shapes_found = all;
+    }
+
+    /// Whether the file's tree holds the shape a shape term asks for, the tree read for every shape on the first such
+    /// ask of the file.
+    fn shape_verdict(&mut self, parent: WordSlot, field: WordSlot, child: WordSlot) -> NeedVerdict {
+        self.shapes_found();
+        let frame = &mut *self.0;
+        let wants = &frame.state.need_masks.shapes;
+        let Some(place) = wants.terms.get(&(parent, field, child)).copied() else {
+            return NeedVerdict::Holds;
+        };
+        if shapes_held(wants, frame.fill.nodes, &mut frame.state.need_terms.shapes, place) {
             NeedVerdict::Holds
         } else {
             NeedVerdict::Empty

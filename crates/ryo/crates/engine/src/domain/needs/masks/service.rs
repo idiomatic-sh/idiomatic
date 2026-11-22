@@ -47,7 +47,8 @@ pub(crate) fn numbered(
             NeedTerm::Kinds(_)
             | NeedTerm::Spelled { .. }
             | NeedTerm::Path { .. }
-            | NeedTerm::Bytes { .. } => RecordCost::Free,
+            | NeedTerm::Bytes { .. }
+            | NeedTerm::Shape { .. } => RecordCost::Free,
             NeedTerm::Row { relation, .. } if node_relation(code, relation) => RecordCost::Free,
             NeedTerm::Row {
                 column, constant, ..
@@ -91,7 +92,11 @@ fn record_cost(code: &ProgramCode, at: WordSlot, costs: &mut Vec<RecordCost>) ->
     }
     let dear = match need_at(&code.needs, at) {
         Some(
-            NeedRecord::Unknown | NeedRecord::Kinds(_) | NeedRecord::Path { .. } | NeedRecord::Bytes { .. },
+            NeedRecord::Unknown
+            | NeedRecord::Kinds(_)
+            | NeedRecord::Path { .. }
+            | NeedRecord::Bytes { .. }
+            | NeedRecord::Shape { .. },
         )
         | None => false,
         Some(NeedRecord::Row { relation, .. }) => !node_relation(code, relation),
@@ -164,7 +169,8 @@ fn record_asks_nodes(code: &ProgramCode, at: WordSlot, masks: &mut NeedMasks) ->
             | NeedRecord::Table(_)
             | NeedRecord::Row { .. }
             | NeedRecord::Path { .. }
-            | NeedRecord::Bytes { .. },
+            | NeedRecord::Bytes { .. }
+            | NeedRecord::Shape { .. },
         )
         | None => NodeAsk::NotAsked,
     }

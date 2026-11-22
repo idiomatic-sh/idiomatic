@@ -6,6 +6,7 @@ use crate::domain::code::constants::NO_SLOT;
 use crate::domain::code::records::service::{push_list, push_need};
 use crate::domain::code::records::types::NeedRecord;
 use crate::domain::lowered::types::ByteLiteral;
+use ryo_language::domain::facts::types::CellWord;
 use crate::domain::code::small_codes::service::{comparison_code, comparison_regex};
 use crate::domain::code::types::{NeedSite, WordSlot};
 use crate::domain::encoding::sites::service::{constant, fault, reach_table, relation, slot_of};
@@ -128,6 +129,19 @@ fn formula(encoding: &mut Encoding<'_>, emptiness: &Emptiness) -> Result<WordSlo
             regex: WordSlot(regex.0),
             constant: NO_SLOT,
         },
+        Emptiness::Shape(shape) => {
+            let mut slot = |word: Option<CellWord>| -> Result<WordSlot, LoweringError> {
+                Ok(match word {
+                    Some(word) => WordSlot(constant(encoding, word)?.0),
+                    None => NO_SLOT,
+                })
+            };
+            NeedRecord::Shape {
+                parent: slot(shape.parent)?,
+                field: slot(shape.field)?,
+                child: slot(shape.child)?,
+            }
+        }
         Emptiness::All(parts) => {
             return combined(encoding, parts, |count| NeedRecord::All {
                 parts: count,

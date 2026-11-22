@@ -123,6 +123,16 @@ pub(crate) enum NeedRecord {
         /// The constant's number, or `NO_SLOT`.
         constant: WordSlot,
     },
+    /// `9, parent kind, field, child kind`: the file's tree holds an element under a parent with the kind and field
+    /// constants given (`NO_SLOT`: any), at least two of the three.
+    Shape {
+        /// The parent's kind constant, or `NO_SLOT`.
+        parent: WordSlot,
+        /// The element's field constant, or `NO_SLOT`.
+        field: WordSlot,
+        /// The element's kind constant, or `NO_SLOT`.
+        child: WordSlot,
+    },
     /// `5, n, offsets`: every part holds.
     All {
         /// How many parts.

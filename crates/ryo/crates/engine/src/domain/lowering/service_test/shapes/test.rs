@@ -149,7 +149,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Cow::Borrowed(concat!(
             "definition 0: 5 columns, emptiness All([Unknown, Unknown])\n",
             "  pattern bound [] collected []: Table 2\n",
-            "definition 1: 4 columns, emptiness All([All([Definition(DefinitionId(0)), Definition(DefinitionId(0))]), Any([All([Definition(DefinitionId(0))])])])\n",
+            "definition 1: 4 columns, emptiness All([All([Definition(DefinitionId(0)), Definition(DefinitionId(0))]), Any([All([Path(PathTest { test: Glob, value: CellWord(1) }), Definition(DefinitionId(0))])])])\n",
             "  pattern bound [] collected []: Table 1\n",
             "table 0: Group(Count), 2 columns, indexes [[0]]\n",
             "  pipeline: Scan:File Read:Constant Read:Constant Read:Constant Read:Constant\n",

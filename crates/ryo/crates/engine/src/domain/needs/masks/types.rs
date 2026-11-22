@@ -3,6 +3,7 @@
 
 use crate::domain::needs::formulas::types::{FreeValue, NeedFormulas};
 use crate::domain::needs::bytes::types::{ByteFile, ByteLiterals};
+use crate::domain::needs::shapes::types::{ShapeFile, ShapeWants};
 use crate::domain::needs::spelled::types::{SpelledFile, SpelledTexts};
 use ryo_relations::domain::catalog::types::Spelling;
 use crate::domain::code::types::{PoolAt, RelationNumber, WordSlot};
@@ -49,6 +50,16 @@ pub(crate) enum NeedTerm {
         regex: WordSlot,
         /// The constant's number, or `NO_SLOT`.
         constant: WordSlot,
+    },
+    /// The file's tree holds an element under a parent with the kind and field constants given (`NO_SLOT`: any). It
+    /// costs nothing: the node table's lists by kind answer every shape at the file's first decision.
+    Shape {
+        /// The parent's kind constant, or `NO_SLOT`.
+        parent: WordSlot,
+        /// The element's field constant, or `NO_SLOT`.
+        field: WordSlot,
+        /// The element's kind constant, or `NO_SLOT`.
+        child: WordSlot,
     },
 }
 
@@ -140,6 +151,10 @@ pub(crate) struct NeedMasks {
     /// How many terms have been looked at for the literals they ask: every byte term met so far is numbered at once,
     /// so a file's bytes are read for all of them together.
     pub(crate) bytes_found: usize,
+    /// The shapes the shape terms ask the file's tree to hold, numbered.
+    pub(crate) shapes: ShapeWants,
+    /// How many terms have been looked at for the shapes they ask.
+    pub(crate) shapes_found: usize,
 }
 
 /// A file's answers to the terms, each asked at most once a file: a bit for "asked" and a bit for "holds".
@@ -161,4 +176,6 @@ pub(crate) struct TermAnswers {
     pub(crate) spelled: SpelledFile,
     /// What the file's bytes hold of the literals the byte terms ask for: read on the first such ask of the file.
     pub(crate) bytes: ByteFile,
+    /// What the file's tree holds of the shapes the shape terms ask for: read on the first such ask of the file.
+    pub(crate) shapes: ShapeFile,
 }
