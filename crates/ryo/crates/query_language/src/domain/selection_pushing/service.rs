@@ -197,7 +197,7 @@ impl Hasher for StepHasher {
 fn without_repeats(steps: Vec<PlanStep>, roots: &mut [StepId]) -> Vec<PlanStep> {
     let mut made: Vec<PlanStep> = Vec::with_capacity(steps.len());
     let mut seen: std::collections::HashMap<StepHash, Vec<StepId>, BuildHasherDefault<StepHasher>> =
-        std::collections::HashMap::default();
+        std::collections::HashMap::with_capacity_and_hasher(steps.len(), BuildHasherDefault::default());
     let mut moved: Vec<StepId> = Vec::with_capacity(steps.len());
     for (place, mut step) in steps.into_iter().enumerate() {
         each_input(&mut step.operation, &mut |input| {
