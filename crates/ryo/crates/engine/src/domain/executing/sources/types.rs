@@ -32,7 +32,7 @@ fn visit(state: &crate::domain::scratch::types::LoopState, which: usize) {
     if state.measure.is_some()
         && let Some(count) = NEED_VISITS.get(which)
     {
-        let _was = count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     }
 }
 
@@ -258,7 +258,7 @@ impl FileNeeds<'_, '_, '_> {
 
     /// What a node says of the file from the free terms, the terms that cost that the file already answered, and the
     /// tables already made: `Open` when what is not known yet decides. Asks nothing that costs.
-    fn node_free_now(&mut self, node: u32) -> FreeValue {
+    fn node_free(&mut self, node: u32) -> FreeValue {
         visit(self.0.state, 1);
         if !self.musts_held(node) {
             visit(self.0.state, 3);
@@ -330,7 +330,7 @@ impl FileNeeds<'_, '_, '_> {
 
     /// What a node says of the file, asking what it costs: its parts in the order compiled (what costs nothing first,
     /// a filled relation's any-row term last), stopping at the first part that decides.
-    fn node_decided_now(&mut self, node: u32) -> NeedVerdict {
+    fn node_decided(&mut self, node: u32) -> NeedVerdict {
         visit(self.0.state, 2);
         if !self.musts_held(node) {
             return NeedVerdict::Empty;
@@ -380,66 +380,6 @@ impl FileNeeds<'_, '_, '_> {
                 NeedVerdict::Empty
             }
         }
-    }
-
-    /// The value kept for a node in this file, by a memo of `epoch` and a code; none when it was not kept.
-    fn node_memo(memo: &[u32], epoch: u32, node: u32) -> Option<u32> {
-        let held = memo.get(usize::try_from(node).unwrap_or(usize::MAX)).copied()?;
-        (held >> 2 == epoch).then_some(held & 3)
-    }
-
-    /// Keeps a node's value in a memo for this file.
-    fn node_kept(memo: &mut Vec<u32>, epoch: u32, node: u32, code: u32) {
-        let place = usize::try_from(node).unwrap_or(usize::MAX);
-        if memo.len() <= place {
-            memo.resize(place.saturating_add(1), 0);
-        }
-        if let Some(held) = memo.get_mut(place) {
-            *held = epoch << 2 | code;
-        }
-    }
-
-    /// What a node says of the file from the free terms (`node_free_now`), found once a file for a node of parts: a part
-    /// many nodes share is valued once, not once for each way to it.
-    fn node_free(&mut self, node: u32) -> FreeValue {
-        if !matches!(self.node(node), FormulaNode::All(_) | FormulaNode::Any(_)) {
-            return self.node_free_now(node);
-        }
-        let epoch = self.0.state.need_terms.epoch;
-        match Self::node_memo(&self.0.state.need_terms.node_free, epoch, node) {
-            Some(1) => return FreeValue::Empty,
-            Some(2) => return FreeValue::Holds,
-            Some(3) => return FreeValue::Open,
-            Some(_) | None => {}
-        }
-        let value = self.node_free_now(node);
-        let code = match value {
-            FreeValue::Empty => 1,
-            FreeValue::Holds => 2,
-            FreeValue::Open | FreeValue::Unfound | FreeValue::Deciding => 3,
-        };
-        Self::node_kept(&mut self.0.state.need_terms.node_free, epoch, node, code);
-        value
-    }
-
-    /// What a node says of the file, asking what it costs (`node_decided_now`), found once a file for a node of parts.
-    fn node_decided(&mut self, node: u32) -> NeedVerdict {
-        if !matches!(self.node(node), FormulaNode::All(_) | FormulaNode::Any(_)) {
-            return self.node_decided_now(node);
-        }
-        let epoch = self.0.state.need_terms.epoch;
-        match Self::node_memo(&self.0.state.need_terms.node_asked, epoch, node) {
-            Some(1) => return NeedVerdict::Empty,
-            Some(2) => return NeedVerdict::Holds,
-            Some(_) | None => {}
-        }
-        let verdict = self.node_decided_now(node);
-        let code = match verdict {
-            NeedVerdict::Empty => 1,
-            NeedVerdict::Holds => 2,
-        };
-        Self::node_kept(&mut self.0.state.need_terms.node_asked, epoch, node, code);
-        verdict
     }
 
     /// Whether the file's free bits hold every free term a node cannot hold without.

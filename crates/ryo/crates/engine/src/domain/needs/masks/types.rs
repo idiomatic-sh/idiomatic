@@ -117,10 +117,4 @@ pub(crate) struct TermAnswers {
     /// What each site's formula says of the file from the free terms alone, by the site's number: found at most once a
     /// file.
     pub(crate) sites: Vec<FreeValue>,
-    /// The file's number in the worker's life, as the node memos hold it: a memo of another number is not this file's.
-    pub(crate) epoch: u32,
-    /// For each node of parts, its value from the free terms in the file whose `epoch` it holds (`epoch << 2 | code`).
-    pub(crate) node_free: Vec<u32>,
-    /// For each node of parts, what it was decided in the file whose `epoch` it holds (`epoch << 2 | code`).
-    pub(crate) node_asked: Vec<u32>,
 }
