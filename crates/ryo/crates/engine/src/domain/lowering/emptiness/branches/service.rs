@@ -3,7 +3,8 @@
 //! a use of a definition with a cell held to a constant needs what the definition's own branches need with that column
 //! held to it: a literal is carried through a definition into the need, and each reader of a shared definition has its own.
 
-use crate::domain::lowered::types::{Emptiness, RowValue};
+use crate::domain::lowered::types::{Emptiness, PathTest, RowValue};
+use crate::domain::lowering::emptiness::service::path_test;
 use crate::domain::lowering::definitions::service::{draft, text_word};
 use crate::domain::lowering::definitions::types::Drafts;
 use crate::domain::lowering::flattening::service::pins_of;
@@ -186,8 +187,25 @@ fn needed(
             | FlatAtom::Walk { .. }
             | FlatAtom::Nearest { .. }
             | FlatAtom::Closure { .. }
-            | FlatAtom::Called { .. }
-            | FlatAtom::Test { .. } => continue,
+            | FlatAtom::Called { .. } => continue,
+            // A test of the scanned file's path against a constant text: the branch has no row in a file whose path
+            // fails it, whatever else it holds.
+            FlatAtom::Test {
+                test,
+                left: FlatTerm::File,
+                right,
+            } => {
+                if let Some(FlatTerm::Text(number)) = held(&pins, *right)
+                    && path_test(*test)
+                {
+                    parts.push(Emptiness::Path(PathTest {
+                        test: *test,
+                        value: text_word(number),
+                    }));
+                }
+                continue;
+            }
+            FlatAtom::Test { .. } => continue,
         };
         match rows {
             AtomRows::Relation(relation) => relation_need(relation, &cells, &pins, &mut parts),
@@ -231,7 +249,8 @@ fn never(formula: &Emptiness) -> bool {
         | Emptiness::Kind(_)
         | Emptiness::Row(..)
         | Emptiness::Definition(_)
-        | Emptiness::Table(_) => false,
+        | Emptiness::Table(_)
+        | Emptiness::Path(_) => false,
     }
 }
 
@@ -244,7 +263,8 @@ fn always(formula: &Emptiness) -> bool {
         | Emptiness::Kind(_)
         | Emptiness::Row(..)
         | Emptiness::Definition(_)
-        | Emptiness::Table(_) => false,
+        | Emptiness::Table(_)
+        | Emptiness::Path(_) => false,
     }
 }
 

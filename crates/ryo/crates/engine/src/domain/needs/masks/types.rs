@@ -31,6 +31,16 @@ pub(crate) enum NeedTerm {
         /// How the column spells it.
         spelling: Spelling,
     },
+    /// The scanned file's path passes a test of a text against the constant: what a branch that holds the test cannot
+    /// give a row without. It costs nothing: the path is the file's own.
+    Path {
+        /// The comparison's code.
+        comparison: WordSlot,
+        /// The regular expression's number, or `NO_SLOT`.
+        regex: WordSlot,
+        /// The constant's number.
+        constant: WordSlot,
+    },
 }
 
 /// The number of a term among a rule set's.

@@ -25,6 +25,7 @@ use ryo_values::domain::plan_parts::types::ColumnIndex;
 use crate::domain::needs::service::decided;
 use crate::domain::needs::types::{NeedFacts, NeedVerdict};
 use crate::domain::programs::frames::types::StepFrame;
+use crate::domain::programs::collections::instructions::comparing::item::path_passes;
 use crate::domain::programs::operands::service::constant;
 use crate::domain::steps::types::MadeTableId;
 use ryo_language::domain::node_table::service::kinds_present;
@@ -174,6 +175,18 @@ impl NeedFacts for FileNeeds<'_, '_, '_> {
         }
     }
 
+    fn path_passes(&mut self, comparison: WordSlot, regex: WordSlot, constant: WordSlot) -> NeedVerdict {
+        let verdict = if path_passes(self.0, comparison, regex, constant) {
+            NeedVerdict::Holds
+        } else {
+            NeedVerdict::Empty
+        };
+        if self.0.state.measure.is_some() {
+            need_leaf(self.0.state, || format!("path={verdict:?}"));
+        }
+        verdict
+    }
+
     fn table_row(&mut self, table: MadeTableId) -> NeedVerdict {
         if self.0.state.measure.is_none() {
             return self.table_decided(table);
@@ -218,7 +231,7 @@ impl FileNeeds<'_, '_, '_> {
                     format!("{named}:value")
                 }
             }
-            Some(NeedTerm::Kinds(_) | NeedTerm::Spelled { .. }) | None => "?".to_owned(),
+            Some(NeedTerm::Kinds(_) | NeedTerm::Spelled { .. } | NeedTerm::Path { .. }) | None => "?".to_owned(),
         }
     }
 
@@ -681,6 +694,11 @@ impl FileNeeds<'_, '_, '_> {
                 None => self.relation_decided(relation, column, constant),
             },
             Some(NeedTerm::Spelled { .. }) => self.text_spelled(term).unwrap_or(NeedVerdict::Holds),
+            Some(NeedTerm::Path {
+                comparison,
+                regex,
+                constant,
+            }) => self.path_passes(comparison, regex, constant),
             None => NeedVerdict::Holds,
         }
     }
@@ -733,7 +751,7 @@ impl FileNeeds<'_, '_, '_> {
                 }
                 Some((text(words, cell).0.to_owned(), extent == NodeExtent::Own))
             }
-            NeedTerm::Row { .. } | NeedTerm::Kinds(_) => None,
+            NeedTerm::Row { .. } | NeedTerm::Kinds(_) | NeedTerm::Path { .. } => None,
         }
     }
 

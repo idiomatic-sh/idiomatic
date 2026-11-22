@@ -10,7 +10,7 @@ use crate::domain::code::deciding::service::{
     test_not_equal_constant_of, test_not_equal_register_of, test_of,
 };
 use crate::domain::code::small_codes::service::comparison_of;
-use crate::domain::code::types::{CodeEntry, CodeWord, ConstantNumber, Op, PoolAt, WordSlot};
+use crate::domain::code::types::{CodeEntry, CodeWord, ConstantNumber, Op, PoolAt, Short, WordSlot};
 use crate::domain::findings::types::InstructionCount;
 use crate::domain::programs::frames::types::StepFrame;
 use crate::domain::programs::operands::service::{cell, constant, listed};
@@ -20,7 +20,7 @@ use crate::domain::scratch::types::LoopState;
 use crate::domain::stages::service::{cell_test, cells_hold};
 use crate::domain::stages::testing::service::keep_text;
 use crate::domain::stages::types::{BatchValue, CellTest, RowKept, TextMeans, TextTest};
-use crate::domain::steps::types::{Register, TestOperation};
+use crate::domain::steps::types::{RegexId, Register, TestOperation};
 use ryo_language::domain::facts::service::intern;
 use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::relations::types::Count;
@@ -193,6 +193,23 @@ fn general(frame: &mut StepFrame<'_, '_>, word: CodeWord) -> Verdict {
             | TestOperation::Successor(_),
         ) => text(frame, operation, text_left, Some(right), None),
     }
+}
+
+/// Whether the scanned file's path passes a test of a text against a constant: the test a `Test` word runs on a
+/// register that holds the file (`text`), asked by a need before anything of the file is filled. A code that names no
+/// test of a text says nothing: it holds.
+pub(crate) fn path_passes(frame: &mut StepFrame<'_, '_>, comparison: WordSlot, regex: WordSlot, value: WordSlot) -> bool {
+    let code = u16::try_from(comparison.0).unwrap_or(u16::MAX);
+    let Some(test) = comparison_of(Short(code), RegexId(regex.0)) else {
+        return true;
+    };
+    let path = intern(frame.fill.words, NameText(frame.fill.path.0));
+    let right = constant(frame, ConstantNumber(value.0));
+    let left = TextLeft {
+        cell: path,
+        register: None,
+    };
+    text(frame, test, left, Some(right), None) != Verdict::Fails
 }
 
 impl InstructionsItem for Test {

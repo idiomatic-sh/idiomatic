@@ -3,6 +3,7 @@
 //! per file, before anything of the node runs; a formula never says a node has a row, only when it cannot.
 
 use crate::domain::lowered::types::{Emptiness, RowValue};
+use crate::domain::steps::types::TestOperation;
 use crate::domain::steps::types::AnchorKinds;
 use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::catalog::service::{fact_form, node_column};
@@ -105,7 +106,33 @@ pub(crate) fn copied(formula: &Emptiness) -> Emptiness {
         Emptiness::Row(relation, value) => Emptiness::Row(*relation, *value),
         Emptiness::Definition(definition) => Emptiness::Definition(*definition),
         Emptiness::Table(table) => Emptiness::Table(*table),
+        Emptiness::Path(test) => Emptiness::Path(*test),
         Emptiness::All(parts) => Emptiness::All(each(parts)),
         Emptiness::Any(parts) => Emptiness::Any(each(parts)),
+    }
+}
+
+/// Whether a test of the scanned file against a constant is one the needs ask of the path before anything is filled: a
+/// test of a text, which the file's path answers alone (`programs::collections::instructions::comparing`'s `text`). A
+/// comparison of cells, a set or a number is not.
+#[must_use]
+pub(crate) const fn path_test(test: TestOperation) -> bool {
+    match test {
+        TestOperation::Matches(_)
+        | TestOperation::Glob
+        | TestOperation::NotGlob
+        | TestOperation::StartsWith
+        | TestOperation::EndsWith => true,
+        TestOperation::Equal
+        | TestOperation::NotEqual
+        | TestOperation::Less
+        | TestOperation::LessOrEqual
+        | TestOperation::Greater
+        | TestOperation::GreaterOrEqual
+        | TestOperation::In
+        | TestOperation::NotIn
+        | TestOperation::NumericAtLeast(_)
+        | TestOperation::NaturalLess
+        | TestOperation::Successor(_) => false,
     }
 }

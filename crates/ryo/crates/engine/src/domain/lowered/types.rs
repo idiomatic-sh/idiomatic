@@ -6,7 +6,7 @@ use crate::domain::findings::types::RuleColumns;
 use crate::domain::steps::stages::types::{Pipeline, PlacedStage};
 use crate::domain::steps::types::{
     AnchorKinds, ColumnList, ColumnMask, ConstantText, DefinitionId, MadeColumn, MadeTableId,
-    PlacedStep, RegisterCount, RegisterList, StepProgram, StepRegex,
+    PlacedStep, RegisterCount, RegisterList, StepProgram, StepRegex, TestOperation,
 };
 use ryo_language::domain::facts::types::CellWord;
 use ryo_relations::domain::relations::types::{Column, Count, Relation};
@@ -88,10 +88,22 @@ pub(crate) enum Emptiness {
     Definition(DefinitionId),
     /// A row of a made table: its own formula.
     Table(MadeTableId),
+    /// The scanned file's path passes a test of a text against a constant: a branch that holds the test in its
+    /// conjunction has no row in a file whose path fails it. Known from the path alone, before anything is filled.
+    Path(PathTest),
     /// Every part holds; none: always.
     All(Box<[Emptiness]>),
     /// Some part holds; none: never.
     Any(Box<[Emptiness]>),
+}
+
+/// A test of the scanned file's path against a constant, as the branch's own test atom holds it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct PathTest {
+    /// The test: one of a text's (`path_test`).
+    pub(crate) test: TestOperation,
+    /// The constant the path is tested against.
+    pub(crate) value: CellWord,
 }
 
 /// A value a row must hold in a column.

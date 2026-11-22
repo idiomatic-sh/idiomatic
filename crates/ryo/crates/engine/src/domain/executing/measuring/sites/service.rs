@@ -162,6 +162,11 @@ fn formula_named(frame: &StepFrame<'_, '_>, at: WordSlot, depth: usize) -> Strin
             Some(_) | None => format!("site:{}", site.0),
         },
         Some(NeedRecord::Table(table)) => format!("table:{}", table.0),
+        Some(NeedRecord::Path {
+            comparison,
+            regex,
+            constant,
+        }) => format!("path:{}:{}:{}", comparison.0, regex.0, constant.0),
         Some(NeedRecord::All {
             parts: count,
             offsets,
