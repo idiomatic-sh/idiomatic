@@ -52,3 +52,23 @@ expected = []
 name = "noqa-codes-trailing-reason-suppress-none-alias"
 files = { "case.pyi" = "Alias = None  # noqa: PYI026 # why\n" }
 expected = []
+
+[[cases]]
+name = "stub_enum_member_none"
+files = { "case.pyi" = "from enum import Enum\nclass SafeUUID(Enum):\n    safe = 0\n    unknown = None\n" }
+expected = []
+
+[[cases]]
+name = "stub_enum_subclass_member_none"
+files = { "case.pyi" = "from enum import Enum\nclass Foo(Enum): ...\nclass Bar(Foo):\n    BAR = None\n" }
+expected = []
+
+[[cases]]
+name = "stub_plain_class_member_none"
+files = { "case.pyi" = "class P:\n    X = None\n" }
+expected = [{ file = "case.pyi", start = 13, end = 14 }]
+
+[[cases]]
+name = "stub_module_none"
+files = { "case.pyi" = "Y = None\n" }
+expected = [{ file = "case.pyi", start = 0, end = 1 }]
