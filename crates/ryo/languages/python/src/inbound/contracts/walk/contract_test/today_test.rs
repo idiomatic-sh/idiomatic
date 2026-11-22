@@ -77,14 +77,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
 /// The relations whose rows on the nodes of embedded expressions the walk does not write as today's reading does: today's
 /// rows on those nodes are left out for them and the walk's are held to the file's own tree. Every other relation is compared
 /// on embedded nodes too. `source-location` is here because today's table embeds every string it may read as a type
-/// expression and the walk the ones the language reads as one; the two expression relations are not written on embedded
-/// nodes yet, nor are `constant-key` and `literal-properties` (SPIKE ryo-fmx3.1, D: the walk's open rows on embedded nodes).
-const NOT_EMBEDDED: &[Relation] = &[
-    Relation::ConstantKey,
-    Relation::ExpressionShape,
-    Relation::LiteralProperties,
-    Relation::SourceLocation,
-];
+/// expression and the walk the ones the language reads as one; `constant-key` is not written on embedded nodes yet (SPIKE
+/// ryo-fmx3.1, D: the walk's open rows on embedded nodes).
+const NOT_EMBEDDED: &[Relation] = &[Relation::ConstantKey, Relation::SourceLocation];
 
 /// Whether a row names an element today's table holds outside the file's own tree: an embedded expression's.
 fn embedded(row: &[Seen], outside: &[ElementKey]) -> bool {
