@@ -41,16 +41,6 @@ use ryo_relations::domain::relations::types::{Count, KindBits};
 /// asked, nodes whose musts failed. Printed by `counting::service::counted`.
 pub(crate) static NEED_VISITS: [std::sync::atomic::AtomicU64; 6] = [const { std::sync::atomic::AtomicU64::new(0) }; 6];
 
-/// SPIKE: the (rule, file) pairs a measuring worker's free terms left alive, printed by `counting::service::counted`.
-pub(crate) static ALIVE: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
-
-/// SPIKE: notes a (rule, file) pair the free terms left alive.
-pub(crate) fn alive_noted(rule: u32, path: &str) {
-    if let Ok(mut held) = ALIVE.lock() {
-        held.push(format!("{rule}\t{path}"));
-    }
-}
-
 /// SPIKE: counts one visit of kind `which` when the worker measures.
 pub(crate) fn visit(state: &crate::domain::scratch::types::LoopState, which: usize) {
     if state.measure.is_some()

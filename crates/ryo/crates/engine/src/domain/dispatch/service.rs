@@ -40,8 +40,9 @@ pub(crate) fn dispatch(frame: &mut StepFrame<'_, '_>, rules: &Programs) -> ScanC
             if frame.state.measure.is_some() && !alive {
                 alive = FileNeeds(frame).free_value(branch.need)
                     != crate::domain::needs::formulas::types::FreeValue::Empty;
-                if alive {
-                    crate::domain::executing::sources::types::alive_noted(rule.rule.0, &frame.fill.path);
+                if alive && let Some(measure) = frame.state.measure.as_deref_mut() {
+                    let pair = format!("alive {}\t{}", rule.rule.0, &*frame.fill.path);
+                    *measure.need_fills.traces.entry(pair).or_insert(0) += 1;
                 }
             }
             need_decision_begun(frame, branch.need, rule.rule);

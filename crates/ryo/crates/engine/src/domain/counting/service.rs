@@ -56,12 +56,6 @@ pub fn counted(scratch: &ScanScratch) -> PointCounts {
             fills.unread_nanos
         );
     }
-    // SPIKE: the (rule, file) pairs the free terms left alive.
-    if let Ok(mut held) = crate::domain::executing::sources::types::ALIVE.lock() {
-        for pair in held.drain(..) {
-            eprintln!("ryo x: alive {pair}");
-        }
-    }
     // SPIKE: what the decisions visited.
     let visits = &crate::domain::executing::sources::types::NEED_VISITS;
     let taken = |at: usize| visits.get(at).map_or(0, |count| count.swap(0, std::sync::atomic::Ordering::Relaxed));
