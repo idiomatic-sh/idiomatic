@@ -28,7 +28,10 @@ pub(super) fn take_got() -> Vec<(Rc<Table>, u32)> {
 }
 
 pub(super) fn give_got(mut v: Vec<(Rc<Table>, u32)>) {
-    v.clear();
+    // redo-alloc: the inputs' answers given back (recycle.rs)
+    for (t, _) in v.drain(..) {
+        super::recycle::recycle(t);
+    }
     GOT.with(|k| k.borrow_mut().push(v));
 }
 

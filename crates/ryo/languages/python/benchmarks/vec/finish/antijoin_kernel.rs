@@ -109,7 +109,7 @@ pub(super) fn probe(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut 
     if !pr.direct {
         ex.reason = "probed on a column its input shares with another input";
         let t = ex.eval(f, run, p, node)?;
-        return Ok(Rc::new(super::subset(f, node, &t, col, keys)));
+        return Ok(super::recycle::rc(super::subset(f, node, &t, col, keys)));
     }
     let l = input_probe(ex, f, run, p, pr.left, col, keys, pr.left_sole)?;
     if l.n == 0 {
@@ -265,6 +265,13 @@ fn gather(pr: &Prep, l: &Rc<Table>, keep: &[u32]) -> Rc<Table> {
     if keep.is_empty() {
         return pr.empty.clone();
     }
-    let cols = l.cols.iter().map(|c| keep.iter().map(|i| c[*i as usize]).collect()).collect();
-    Rc::new(Table { names: l.names.clone(), tys: l.tys.clone(), cols, n: keep.len() })
+    // redo-alloc: the table and its columns from the worker's pools (recycle.rs)
+    let mut out = Table::with_rows(l.names.clone(), l.tys.clone(), keep.len());
+    for (c, src) in l.cols.iter().enumerate() {
+        let mut v = std::mem::take(&mut out.cols[c]);
+        v.extend(keep.iter().map(|i| src[*i as usize]));
+        out.cols[c] = v;
+    }
+    out.n = keep.len();
+    super::recycle::rc(out)
 }

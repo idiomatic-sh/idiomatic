@@ -339,7 +339,10 @@ impl Memo {
             sl.with_rows = 0;
             sl.indexed = 0;
             if !sl.chunks.is_empty() {
-                sl.chunks.clear();
+                // redo-alloc: the last file's chunks given back (recycle.rs)
+                for t in sl.chunks.drain(..) {
+                    super::recycle::recycle(t);
+                }
             }
             if sl.own.n > 0 {
                 sl.own.n = 0;
@@ -369,7 +372,7 @@ impl Memo {
                 }
             }
         }
-        let mut out = Table::with(sc.names.clone(), sc.tys.clone());
+        let mut out = Table::with_rows(sc.names.clone(), sc.tys.clone(), total);
         for c in 0..out.cols.len() {
             let mut v = std::mem::take(&mut out.cols[c]);
             v.reserve(total);
@@ -523,7 +526,7 @@ impl Exec<'_> {
                 m.slots[slot].chunks[ch as usize].clone()
             } else {
                 m.n[5] += 1;
-                Rc::new(m.gather(slot, keys, sc))
+                super::recycle::rc(m.gather(slot, keys, sc))
             };
             self.stats.memo_out += out.n as u64;
             self.memo.tock(0, t0);
@@ -593,7 +596,7 @@ impl Exec<'_> {
             Some(a) => a,
             None => {
                 m.n[5] += 1;
-                Rc::new(m.gather(slot, keys, sc))
+                super::recycle::rc(m.gather(slot, keys, sc))
             }
         };
         m.missing = missing;

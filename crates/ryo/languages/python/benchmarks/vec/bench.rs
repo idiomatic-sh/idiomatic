@@ -533,6 +533,8 @@ fn walk_kinds<W: Walk>(_: &W) -> languages::Count {
 }
 
 fn main() {
+    // redo-alloc: the allocation counter of a `vec-dhat` build (nothing in any other)
+    let _counter = alloc_count::start();
     let args: Vec<String> = std::env::args().collect();
     // `cargo bench` passes `--bench`; drop it.
     let args: Vec<&str> = args.iter().map(String::as_str).filter(|a| *a != "--bench").collect();
@@ -854,6 +856,8 @@ fn run(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     }
 }
 
+#[path = "alloc_count.rs"]
+mod alloc_count;
 #[path = "funnel.rs"]
 mod funnel;
 #[path = "facts.rs"]

@@ -209,9 +209,11 @@ fn combine(pr: &Prep, got: &[(Rc<Table>, u32)]) -> Rc<Table> {
         if n == total && got.len() == 1 && pr.leaves[got[0].1 as usize].ident {
             return got[0].0.clone();
         }
-        let mut cols = Vec::with_capacity(k);
+        // redo-alloc: the answer's table and columns from the worker's pools (recycle.rs), not made new
+        let mut out = Table::with_rows(pr.names.clone(), pr.tys.clone(), n);
         for c in 0..k {
-            let mut v = Vec::with_capacity(n);
+            let mut v = std::mem::take(&mut out.cols[c]);
+            v.reserve(n);
             if n == total {
                 for i in 0..got.len() {
                     v.extend_from_slice(col(i, c));
@@ -219,8 +221,9 @@ fn combine(pr: &Prep, got: &[(Rc<Table>, u32)]) -> Rc<Table> {
             } else {
                 v.extend(w.kept.iter().map(|(i, r)| col(*i as usize, c)[*r as usize]));
             }
-            cols.push(v);
+            out.cols[c] = v;
         }
-        Rc::new(Table { names: pr.names.clone(), tys: pr.tys.clone(), cols, n })
+        out.n = n;
+        super::recycle::rc(out)
     })
 }

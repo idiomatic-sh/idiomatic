@@ -108,7 +108,21 @@ impl Exec<'_> {
         let ka = 1 - pb;
         let (an, bn) = (sp.srcs[ka], sp.srcs[pb]);
         let bty = self.schema(run, bn)?.tys.clone();
-        let sh = shape(&sp.conj, pb, &bty);
+        // redo-alloc: the select's split of tests made once a run (it reads only the plan), not a call
+        let sh = {
+            thread_local! {
+                static SHAPES: std::cell::RefCell<FxHashMap<(usize, usize, usize), std::rc::Rc<Shape>>> = std::cell::RefCell::new(FxHashMap::default());
+            }
+            let key = (std::ptr::from_ref(self.plan) as usize, node, pb);
+            match SHAPES.with(|m| m.borrow().get(&key).cloned()) {
+                Some(sh) => sh,
+                None => {
+                    let sh = std::rc::Rc::new(shape(&sp.conj, pb, &bty));
+                    SHAPES.with(|m| m.borrow_mut().insert(key, sh.clone()));
+                    sh
+                }
+            }
+        };
         if !count && sh.band.is_none() && !sw!("VEC_SEMI_EQ") {
             *self.tally.back.entry((node, "no band")).or_default() += 1;
             return Ok(None);

@@ -44,13 +44,17 @@ impl Exec<'_> {
         let mut out = Table::with(sc.names.clone(), sc.tys.clone());
         let file = u64::from(f.file);
         let mut row: Vec<u64> = Vec::with_capacity(nk + 2);
+        // redo-alloc: one walk's set and stack, emptied a key (not made a key)
+        let mut seen: FxHashSet<u64> = FxHashSet::default();
+        let mut stack: Vec<u64> = Vec::new();
         for k in keys {
             // a chain walk where every node on the way has one neighbour; else a visit with a set
-            let mut seen: FxHashSet<u64> = FxHashSet::default();
-            let mut stack = vec![*k];
+            seen.clear();
+            stack.clear();
+            stack.push(*k);
             while let Some(x) = stack.pop() {
                 let Some(ns) = adj.get(&x) else { continue };
-                for y in ns {
+                for y in ns.iter() {
                     if seen.insert(*y) {
                         row.clear();
                         row.extend(std::iter::repeat_n(file, nk));

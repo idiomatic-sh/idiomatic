@@ -224,7 +224,8 @@ pub(super) fn lit_file(f: &mut File<'_>, key: usize, conj: &[E], si: usize, base
             Some(rc)
         }
         None => {
-            f.vrows.insert(key | ABSENT, Rc::new(Vec::new()));
+            // redo-alloc: the run's one empty list marks it (no list made a mark)
+            f.vrows.insert(key | ABSENT, super::recycle::no_rows());
             None
         }
     }
@@ -292,6 +293,9 @@ struct Bufs {
     key: Vec<u64>,
     /// A probed side's (key, row) pairs, sorted: the join's index for a table made for this execution only.
     pairs: Vec<(u64, u32)>,
+    /// redo-alloc: the sources of one run (emptied after it), and its join's columns (the probed side's, the driver's)
+    srcs: Vec<Src>,
+    join_cols: (Vec<usize>, Vec<usize>),
 }
 
 fn take_bufs() -> Bufs {
@@ -489,7 +493,7 @@ impl Exec<'_> {
         let prep = self.ksel_prep(run, node)?;
         let Prep::K(kp) = &*prep else {
             let t = self.select(f, run, p, node)?;
-            return if t.n == 0 { self.empty_rc(run, node) } else { Ok(Rc::new(t)) };
+            return if t.n == 0 { self.empty_rc(run, node) } else { Ok(super::recycle::rc(t)) };
         };
         if let Some(pb) = kp.semi {
             let sp = self.sel(run, node)?;
@@ -500,7 +504,7 @@ impl Exec<'_> {
             }
             if let Some(t) = self.semi(f, run, p, node, pb)? {
                 super::empty_sel::at(super::empty_sel::stage::SEMI);
-                return if t.n == 0 { self.empty_rc(run, node) } else { Ok(Rc::new(t)) };
+                return if t.n == 0 { self.empty_rc(run, node) } else { Ok(super::recycle::rc(t)) };
             }
         }
         let mut b = take_bufs();
@@ -541,6 +545,23 @@ impl Exec<'_> {
 
     #[expect(clippy::too_many_arguments, reason = "a throwaway")]
     fn ksel_run(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, kp: &K, b: &mut Bufs, put: Option<(usize, Rc<Table>)>) -> R<Rc<Table>> {
+        // redo-alloc: the sources' list is the worker's (reused across runs); its tables given back after the run
+        let mut srcs = std::mem::take(&mut b.srcs);
+        srcs.clear();
+        let mut jc = std::mem::take(&mut b.join_cols);
+        let out = self.ksel_run_(f, run, p, node, kp, b, put, &mut srcs, &mut jc);
+        for s in srcs.drain(..) {
+            if let Src::Tab(t, _) = s {
+                super::recycle::recycle(t);
+            }
+        }
+        b.srcs = srcs;
+        b.join_cols = jc;
+        out
+    }
+
+    #[expect(clippy::too_many_arguments, reason = "a throwaway")]
+    fn ksel_run_(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, kp: &K, b: &mut Bufs, put: Option<(usize, Rc<Table>)>, srcs: &mut Vec<Src>, jc: &mut (Vec<usize>, Vec<usize>)) -> R<Rc<Table>> {
         let (t0, i0) = (Clk::now(), self.inner);
         super::empty_sel::origin(self.inner);
         let sp = self.sel(run, node)?;
@@ -568,7 +589,6 @@ impl Exec<'_> {
             None => self.take_positional(&sp.srcs),
         };
         super::empty_sel::lap(0, self.inner);
-        let mut srcs: Vec<Src> = Vec::with_capacity(k);
         for (i, n) in sp.srcs.iter().enumerate() {
             let src = match &ov {
                 Some((at, t)) if *at == i => Src::Tab(t.clone(), usize::MAX - 40),
@@ -791,7 +811,7 @@ impl Exec<'_> {
             if prof {
                 prof_add(6, t6.elapsed());
             }
-            return if out.n == 0 { self.empty_rc(run, node) } else { Ok(Rc::new(out)) };
+            return if out.n == 0 { self.empty_rc(run, node) } else { Ok(super::recycle::rc(out)) };
         }
         // ---- kernel 2: the other source, joined on the columns the conjuncts equate
         if sel.is_empty() {
@@ -875,8 +895,12 @@ impl Exec<'_> {
                     srcs[si] = Src::Tab(self.eval(f, run, p, vn)?, vn);
                 }
                 // a made table is probed on every column an equality binds, at once
-                let mut tab_cols: Vec<usize> = vec![col];
-                let mut drv_cols: Vec<usize> = vec![dc];
+                // redo-alloc: the join's columns in the worker's two buffers
+                let (tab_cols, drv_cols) = (&mut jc.0, &mut jc.1);
+                tab_cols.clear();
+                drv_cols.clear();
+                tab_cols.push(col);
+                drv_cols.push(dc);
                 if let Src::Tab(..) = &srcs[si] {
                     for (cj, c) in conj.iter().enumerate() {
                         if used & (1 << cj) != 0 {
@@ -902,7 +926,14 @@ impl Exec<'_> {
                     used &= !(1 << ci);
                 }
                 let nb = dmask | omask;
-                let checks: Vec<usize> = (0..conj.len()).filter(|c| used & (1 << c) == 0 && refs[*c] & !nb == 0).collect();
+                // redo-alloc: the tests left, on the stack (a select has fewer than 64: `used` is a word)
+                let mut ckb = [0usize; 64];
+                let mut nck = 0;
+                for c in (0..conj.len()).filter(|c| used & (1 << c) == 0 && refs[*c] & !nb == 0) {
+                    ckb[nck] = c;
+                    nck += 1;
+                }
+                let checks = &ckb[..nck];
                 let hits = &mut b.hits;
                 let mut touched = 0u64;
                 super::empty_sel::with(|m| {
@@ -938,19 +969,20 @@ impl Exec<'_> {
                             Some(table_index(f, *tn, t, &tab_cols))
                         };
                         let pairs = &b.pairs;
-                        let dcols: Option<Vec<&[u64]>> = match &srcs[driver] {
-                            Src::Tab(dt, _) => Some(drv_cols.iter().map(|c| &dt.cols[*c][..]).collect()),
+                        // redo-alloc: the driver's table read by its key columns in place (no list of them made a run)
+                        let dtab: Option<&Table> = match &srcs[driver] {
+                            Src::Tab(dt, _) => Some(dt),
                             _ => None,
                         };
                         for r in sel.iter() {
                             let r = *r;
                             cur[driver] = r;
-                            let key = match &dcols {
-                                Some(dc) if dc.len() == 1 => dc[0][r as usize],
-                                Some(dc) => key_of(dc.iter().map(|c| c[r as usize])),
+                            let key = match dtab {
+                                Some(dt) if drv_cols.len() == 1 => dt.cols[drv_cols[0]][r as usize],
+                                Some(dt) => key_of(drv_cols.iter().map(|c| dt.cols[*c][r as usize])),
                                 None => {
                                     b.key.clear();
-                                    for c in &drv_cols {
+                                    for c in drv_cols.iter() {
                                         b.key.push(get(run, f, &srcs, &cur, driver, *c));
                                     }
                                     key_of(b.key.iter().copied())
@@ -1028,7 +1060,14 @@ impl Exec<'_> {
                     srcs[other] = Src::Tab(self.eval(f, run, p, pn)?, pn);
                 }
                 let nb = dmask | omask;
-                let checks: Vec<usize> = (0..conj.len()).filter(|c| used & (1 << c) == 0 && refs[*c] & !nb == 0).collect();
+                // redo-alloc: the tests left, on the stack (a select has fewer than 64: `used` is a word)
+                let mut ckb = [0usize; 64];
+                let mut nck = 0;
+                for c in (0..conj.len()).filter(|c| used & (1 << c) == 0 && refs[*c] & !nb == 0) {
+                    ckb[nck] = c;
+                    nck += 1;
+                }
+                let checks = &ckb[..nck];
                 let rows: Rc<Vec<u32>> = match &srcs[other] {
                     Src::Tab(t, _) => Rc::new((0..t.n as u32).collect()),
                     Src::View(v, vn) => view_rows(f, run, v, *vn),
@@ -1058,8 +1097,9 @@ impl Exec<'_> {
         if prof {
             prof_add(3, t2.elapsed() - (self.inner - i2));
         }
-        let mut out = self.empty(run, node)?;
         let n = left.len();
+        // redo-alloc: the columns taken with the join's room
+        let mut out = self.empty_rows(run, node, n)?;
         for (c, (si, sc)) in kp.items.iter().enumerate() {
             let rows: &[u32] = if *si == driver { left } else { right };
             let col = &mut out.cols[c];
@@ -1083,7 +1123,7 @@ impl Exec<'_> {
         if n == 0 {
             return self.empty_rc(run, node);
         }
-        Ok(Rc::new(out))
+        Ok(super::recycle::rc(out))
     }
 
     /// Kernel 1's tail: the kept rows projected by position; a projection that drops columns kept as a set (first
