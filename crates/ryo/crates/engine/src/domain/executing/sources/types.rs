@@ -32,7 +32,7 @@ fn visit(state: &crate::domain::scratch::types::LoopState, which: usize) {
     if state.measure.is_some()
         && let Some(count) = NEED_VISITS.get(which)
     {
-        count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let _was = count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     }
 }
 
