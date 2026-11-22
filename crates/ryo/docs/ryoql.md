@@ -77,6 +77,7 @@ A `where` holds comparisons joined with `and` and `or`; `and` binds tighter than
 | --- | --- | --- |
 | `=`, `!=` | `kind = "class"` | the two sides are equal, or differ |
 | `<`, `<=`, `>`, `>=` | `lines > $max-lines` | the numbers, or the texts, compare so |
+| `is null`, `is not null` | `annotation is not null` | the column holds no value (a fact's absent cell), or holds one |
 | `in`, `not in` | `kind in $kinds`, `kind in ["for", "async-for"]` | the value is, or is not, in a `list<…>` or `set<…>` parameter, or in a list written in the query |
 | `glob_any`, `not glob_any` | `glob_any(target, $forbidden)` | the text matches the glob, or any glob of a parameter, or none |
 | `starts_with`, `ends_with` | `ends_with(name, "Service")` | the first text starts, or ends, with the second |
