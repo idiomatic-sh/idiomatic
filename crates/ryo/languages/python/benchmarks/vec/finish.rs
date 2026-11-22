@@ -35,6 +35,12 @@ mod closure_walk;
 mod walk;
 #[path = "filter_order.rs"]
 mod filter_order;
+#[path = "finish/kernel_input.rs"]
+mod kernel_input;
+#[path = "finish/union_kernel.rs"]
+mod union_kernel;
+#[path = "finish/antijoin_kernel.rs"]
+mod antijoin_kernel;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum Ty {
@@ -1668,6 +1674,8 @@ impl<'p> Exec<'p> {
                     _ => None,
                 }
             }
+            "union" if !sw!("VEC_OLD_UNION") => return union_kernel::probe(self, f, run, p, node, col, keys),
+            "antijoin" if self.static_keyed && !sw!("VEC_OLD_ANTIJOIN") => return antijoin_kernel::probe(self, f, run, p, node, col, keys),
             "union" => {
                 let (ln, rn) = (self.arg_rel(node, "left")?, self.arg_rel(node, "right")?);
                 let rsc = self.schema(run, rn)?;
@@ -1901,6 +1909,7 @@ impl<'p> Exec<'p> {
         let op = pn.op.as_str();
         let j = &pn.j;
         let a = &j["args"];
+        if op == "union" && !sw!("VEC_OLD_UNION") { return union_kernel::whole(self, f, run, p, node); }
         // a step over an empty input answers nothing, and asks for nothing else
         let first = match op {
             "union" | "antijoin" | "ordered-match" | "as-of" => Some("left"),
@@ -1957,7 +1966,7 @@ impl<'p> Exec<'p> {
                 out.n += r.n;
                 Ok(distinct(out))
             }
-            "antijoin" => self.antijoin(f, run, p, node, a),
+            "antijoin" => if sw!("VEC_OLD_ANTIJOIN") { self.antijoin(f, run, p, node, a) } else { antijoin_kernel::whole(self, f, run, p, node) },
             "extend" => {
                 let from = self.eval(f, run, p, self.arg_rel(node, "from")?)?;
                 let mut out = (*from).clone();
