@@ -16,16 +16,16 @@ use super::{E, Exec, File, Native, Res, Run, filter_order};
 /// What a step needs to return anything, prepared once a run (at its first ask).
 pub(super) struct Need {
     /// Empty when any of these is empty (or, `all`, when every one is).
-    inputs: Box<[usize]>,
-    all: bool,
+    pub(super) inputs: Box<[usize]>,
+    pub(super) all: bool,
     /// Kind sets the rows must have one of (kind codes): empty when the file has none of a set.
-    kinds: Box<[Box<[u16]>]>,
+    pub(super) kinds: Box<[Box<[u16]>]>,
     /// Survivor sets a seed test reads.
-    seeds: Box<[usize]>,
+    pub(super) seeds: Box<[usize]>,
     /// A per-file test to decide.
-    file_test: bool,
+    pub(super) file_test: bool,
     /// Never known empty (a constant step: made once a run, as before).
-    never: bool,
+    pub(super) never: bool,
 }
 
 const NO: u8 = 1;
@@ -100,7 +100,7 @@ impl Exec<'_> {
 
     /// Whether the file's kinds, survivor sets or per-file tests leave `node` empty (kept a file).
     #[inline]
-    fn static_empty(&mut self, f: &mut File<'_>, run: &mut Run, node: usize) -> bool {
+    pub(super) fn static_empty(&mut self, f: &mut File<'_>, run: &mut Run, node: usize) -> bool {
         match f.known[node] {
             NO | BUSY => false,
             YES => true,
@@ -230,7 +230,7 @@ impl Exec<'_> {
 
     /// The step's needs, prepared at its first ask and kept for the process (one plan a process).
     #[inline]
-    fn need(&mut self, run: &mut Run, node: usize) -> &'static Need {
+    pub(super) fn need(&mut self, run: &mut Run, node: usize) -> &'static Need {
         if let Some(n) = self.needs[node] {
             return n;
         }

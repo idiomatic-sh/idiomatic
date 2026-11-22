@@ -231,6 +231,7 @@ impl<'p> Finisher<'p> {
                 }
             }
         }
+        finish::emptyprop::file_end(&mut self.exec, &mut f, run);
     }
 
     /// Writes the findings, dumps and stats, and prints the second half's lines; `walk_time` is the walk's own time when
@@ -290,6 +291,7 @@ impl<'p> Finisher<'p> {
         println!("fact keyed lists: fill rows listed {}", finish::FACT_IX_ROWS.load(std::sync::atomic::Ordering::Relaxed));
         finish::empty_why::print();
         finish::empty_sel::print();
+        finish::emptyprop::print();
         if std::env::var_os("VEC_MEMO_DUMP").is_some() {
             // redo-union pass 2 c19
             for l in exec.memo_dump() {

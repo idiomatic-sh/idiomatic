@@ -76,6 +76,9 @@ mod ordered_dfs;
 pub(super) mod host;
 #[path = "finish/capture.rs"]
 mod capture;
+/// redo-empty: emptiness for the file, by propagation over the plan.
+#[path = "finish/emptyprop.rs"]
+pub(super) mod emptyprop;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum Ty {
@@ -1802,7 +1805,9 @@ impl<'p> Exec<'p> {
         let out = out?;
         if out.n == 0 {
             self.stats.empty_time[node] += own;
+            emptyprop::empty_run(node, false, own);
         }
+        emptyprop::ran();
         if let Some(c) = ew {
             empty_why::tally(self, f, node, c, out.n == 0);
         }
@@ -2050,9 +2055,11 @@ impl<'p> Exec<'p> {
     pub(super) fn count_probe(&mut self, node: usize, own: f64, n: usize) {
         self.stats.probes[node] += 1;
         self.stats.rows[node] += n as u64;
+        emptyprop::ran();
         if n == 0 {
             self.stats.probe_empty[node] += 1;
             self.stats.empty_time[node] += own;
+            emptyprop::empty_run(node, true, own);
         }
     }
 
