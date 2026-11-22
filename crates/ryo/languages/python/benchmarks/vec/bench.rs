@@ -391,6 +391,7 @@ fn main() {
         Some("run") => run(&walk, &vocab, &args[2..]),
         Some("funnel") => run_funnel(&walk, &vocab, &args[2..]),
         Some("finish") => run_finish(&walk, &vocab, &args[2..]),
+        Some("kfloor") => kernel_floor(&walk, args[2]),
         _ => eprintln!("usage: vec census <files> <literals> <out> | vec run <mode> <files> <anchors> [--batch N] [--repeat K] [--rules-out F]"),
     }
 }
@@ -699,6 +700,106 @@ impl finish::Provider for Facts<'_, '_, '_> {
     }
 }
 
+/// `vec kfloor <files>`: the floor of the finish's batch steps per row on Django's real node tables (each file's own
+/// columns, cache-resident as a step would see them): gather, filter, position read, hash build and probe, set knock-out,
+/// and a next-token walk. Each kernel runs over every file; ns per row-op, thread clock, median of 5.
+fn kernel_floor(walk: &impl Walk, list: &str) {
+    let list = files(list);
+    let mut tables: Vec<(Vec<u64>, Vec<u32>, Vec<u32>)> = Vec::new();
+    let mut table = NodeTable::default();
+    let mut scratch = Default::default();
+    for path in &list {
+        let bytes = std::fs::read(path).expect("read");
+        let mut builder = node_table::builder(&mut table, walk_kinds(walk));
+        let _ = walk.walk(WalkRequest { path: languages::SourcePath(path), file: FileId(0), source: ByteSlice(&bytes) }, RelationNeeds(&[]), &mut builder, &mut scratch, &mut NoVisit);
+        let t = node_table::finished(&mut builder);
+        let n = node_table::element_count(t).0 as u32;
+        let kind: Vec<u64> = (0..n).map(|i| u64::from(node_table::kind_of(t, Position(i)).0)).collect();
+        let parent: Vec<u32> = (0..n).map(|i| node_table::parent_of(t, Position(i)).0).collect();
+        let ids: Vec<u32> = (0..n).collect();
+        tables.push((kind, parent, ids));
+    }
+    let rows: usize = tables.iter().map(|t| t.0.len()).sum();
+    let time = |name: &str, ops: usize, f: &mut dyn FnMut() -> u64| {
+        let mut v = Vec::new();
+        let mut sink = 0;
+        for _ in 0..5 {
+            let a = thread_cpu();
+            sink ^= f();
+            v.push(thread_cpu() - a);
+        }
+        v.sort_by(f64::total_cmp);
+        println!("{name}: {:.2} ns a row-op ({ops} row-ops, {:.4} s) [{sink}]", v[2] * 1e9 / ops as f64, v[2]);
+    };
+    let mut sel: Vec<u32> = Vec::new();
+    let mut out: Vec<u64> = Vec::new();
+    time("filter (two != tests on a column, selection out)", rows, &mut || {
+        let mut c = 0;
+        for (kind, _, _) in &tables {
+            sel.clear();
+            sel.extend((0..kind.len() as u32).filter(|i| kind[*i as usize] != 7 && kind[*i as usize] != 9));
+            c += sel.len() as u64;
+        }
+        c
+    });
+    time("gather (a column by a selection)", rows, &mut || {
+        let mut c = 0;
+        for (kind, _, ids) in &tables {
+            out.clear();
+            out.extend(ids.iter().map(|i| kind[*i as usize]));
+            c += out.len() as u64;
+        }
+        c
+    });
+    time("position read join (parent of each row, then its kind)", rows, &mut || {
+        let mut c = 0u64;
+        for (kind, parent, ids) in &tables {
+            out.clear();
+            out.extend(ids.iter().map(|i| kind[parent[*i as usize] as usize]));
+            c += out.len() as u64;
+        }
+        c
+    });
+    time("hash build (one key a row) + probe (one a row)", 2 * rows, &mut || {
+        let mut c = 0u64;
+        for (kind, parent, _) in &tables {
+            let mut m: rustc_hash::FxHashMap<u64, u32> = rustc_hash::FxHashMap::default();
+            m.reserve(kind.len());
+            for (i, p) in parent.iter().enumerate() {
+                m.insert(u64::from(*p) << 8 | kind[i], i as u32);
+            }
+            for (i, p) in parent.iter().enumerate() {
+                c += u64::from(m.get(&(u64::from(*p) << 8 | kind[i])).is_some());
+            }
+        }
+        c
+    });
+    time("set knock-out (antijoin: build a set of half, test every row)", rows + rows / 2, &mut || {
+        let mut c = 0u64;
+        for (_, parent, ids) in &tables {
+            let set: rustc_hash::FxHashSet<u32> = parent.iter().step_by(2).copied().collect();
+            c += ids.iter().filter(|i| !set.contains(i)).count() as u64;
+        }
+        c
+    });
+    time("chain walk (nearest next row of a kind set, per row)", rows, &mut || {
+        let mut c = 0u64;
+        for (kind, _, _) in &tables {
+            let n = kind.len();
+            let mut next = vec![u32::MAX; n];
+            let mut last = u32::MAX;
+            for i in (0..n).rev() {
+                next[i] = last;
+                if kind[i] != 7 {
+                    last = i as u32;
+                }
+            }
+            c += next.iter().filter(|x| **x != u32::MAX).count() as u64;
+        }
+        c
+    });
+}
+
 /// `vec finish <plan.json> <files> <root> [--rules A,B] [--seed rule-file.tsv] [--out findings.jsonl] [--stats stats.tsv]
 /// [--check-bases]`: each rule's whole lowered query run per file (`finish.rs`); findings as the reference writes them.
 fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
@@ -766,7 +867,10 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                 if failed.contains_key(&e.0) {
                     continue;
                 }
-                match exec.eval(&mut f, &mut run, &mut pv, e.1) {
+                run.missing.clear();
+                let got = exec.eval(&mut f, &mut run, &mut pv, e.1);
+                let got = if run.missing.is_empty() { got } else { Err(format!("functions {:?} not in the step set", run.missing)) };
+                match got {
                     Ok(t) => {
                         let sc = t.col("span").ok();
                         for r in 0..t.n {
@@ -804,8 +908,8 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     if let Some(out) = flag(args, "--stats") {
         let mut lines = vec!["node\top\tcalls\trows\ttouched\tseconds".to_owned()];
         for (i, pn) in plan.nodes.iter().enumerate() {
-            if exec.stats.calls[i] > 0 {
-                lines.push(format!("{i}\t{}\t{}\t{}\t{}\t{:.6}\t{}", pn.op, exec.stats.calls[i], exec.stats.rows[i], exec.stats.touched[i], exec.stats.time[i], exec.stats.empty[i]));
+            if exec.stats.calls[i] > 0 || exec.stats.time[i] > 0.0 {
+                lines.push(format!("{i}\t{}\t{}\t{}\t{}\t{:.6}\t{}\t{}", pn.op, exec.stats.calls[i], exec.stats.rows[i], exec.stats.touched[i], exec.stats.time[i], exec.stats.empty[i], exec.stats.probes[i]));
             }
         }
         for (k, v) in &by_rel {

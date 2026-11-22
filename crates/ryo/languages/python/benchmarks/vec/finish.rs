@@ -108,6 +108,8 @@ pub(super) struct Run {
     pub(super) root_dir: String,
     pub(super) search_roots: Vec<String>,
     pub(super) classified: FxHashMap<String, Vec<&'static str>>,
+    /// Functions a step asked that are not in the step set (the rule is refused).
+    pub(super) missing: std::collections::BTreeSet<String>,
 }
 
 impl Run {
@@ -665,6 +667,9 @@ pub(super) struct Exec<'p> {
     sels: Vec<Option<Rc<SelPlan>>>,
     inner: f64,
     deps: FxHashMap<(usize, usize), bool>,
+    /// Steps whose inputs are all run-wide (the file list, written rows): made once a run.
+    constant: Vec<Option<bool>>,
+    run_memo: FxHashMap<usize, Rc<Table>>,
 }
 
 type R<T> = Result<T, String>;
@@ -696,10 +701,31 @@ impl<'p> Exec<'p> {
             sels: vec![None; k],
             inner: 0.0,
             deps: FxHashMap::default(),
+            constant: vec![None; k],
+            run_memo: FxHashMap::default(),
         }
     }
 
     pub(super) fn reset_file(&mut self) {}
+
+    /// Whether a step's rows are the same in every file: it reads only run-wide relations, through steps that read no file.
+    fn is_constant(&mut self, node: usize) -> bool {
+        if let Some(c) = self.constant[node] {
+            return c;
+        }
+        let pn = &self.plan.nodes[node];
+        let c = match pn.op.as_str() {
+            "base" => pn.j["rel"].as_str() == Some("filesystem.file"),
+            "rows" => true,
+            "select" | "union" | "antijoin" | "extend" | "project" | "group-count" | "group-min" | "group-max" | "capture" | "replace" => {
+                let ins = pn.inputs.clone();
+                !ins.is_empty() && ins.iter().all(|i| self.is_constant(*i))
+            }
+            _ => false,
+        };
+        self.constant[node] = Some(c);
+        c
+    }
 
     /// Whether `node` reads `input`, directly or through other steps.
     fn depends(&mut self, node: usize, input: usize) -> bool {
@@ -865,6 +891,13 @@ impl<'p> Exec<'p> {
                 mk(names, tys)
             }
             "fits-rendered" => from(self, run, "from")?,
+            "group-ordinal" => {
+                let f = from(self, run, "from")?;
+                let (mut names, mut tys) = (f.names.clone(), f.tys.clone());
+                names.push(s(&a["output"])?.to_owned());
+                tys.push(Ty::Num);
+                mk(names, tys)
+            }
             other => return Err(format!("operator {other} not in the step set")),
         };
         self.schemas[node] = Some(sc.clone());
@@ -1006,6 +1039,11 @@ impl<'p> Exec<'p> {
             f.memo[node] = Some(r.clone());
             return Ok(r);
         }
+        if let Some(t) = self.run_memo.get(&node) {
+            let r = Res::Tab(t.clone());
+            f.memo[node] = Some(r.clone());
+            return Ok(r);
+        }
         let t0 = super::thread_cpu();
         let saved = self.inner;
         self.inner = 0.0;
@@ -1019,7 +1057,11 @@ impl<'p> Exec<'p> {
         if out.n == 0 {
             self.stats.empty[node] += 1;
         }
-        let rc = Res::Tab(Rc::new(out));
+        let t = Rc::new(out);
+        if self.is_constant(node) {
+            self.run_memo.insert(node, t.clone());
+        }
+        let rc = Res::Tab(t);
         f.memo[node] = Some(rc.clone());
         f.log.push(node);
         Ok(rc)
@@ -1150,9 +1192,14 @@ impl<'p> Exec<'p> {
         // the input probed, put in its place while the step runs once over it; everything made meanwhile is dropped
         let sub = self.probe(f, run, p, input, icol, keys)?;
         let saved = f.memo[input].replace(Res::Tab(sub));
+        let saved_ix = f.index.remove(&input);
         let mark = f.log.len();
         let out = self.body(f, run, p, node);
         f.memo[input] = saved;
+        f.index.remove(&input);
+        if let Some(ix) = saved_ix {
+            f.index.insert(input, ix);
+        }
         let made: Vec<usize> = f.log.drain(mark..).collect();
         let mut dropped: rustc_hash::FxHashSet<usize> = rustc_hash::FxHashSet::default();
         dropped.insert(input);
@@ -1171,7 +1218,9 @@ impl<'p> Exec<'p> {
             f.lazies.remove(n);
         }
         for n in &dropped {
-            f.index.remove(n);
+            if *n != input {
+                f.index.remove(n);
+            }
         }
         Ok(Rc::new(out?))
     }
@@ -1486,6 +1535,37 @@ impl<'p> Exec<'p> {
                 }
                 Ok(out)
             }
+            "group-ordinal" => {
+                // the distinct rows, each with how many distinct rows of its group have a strictly smaller order
+                let from = self.eval(f, run, p, self.arg_rel(node, "from")?)?;
+                let keys: Vec<usize> = strs(&a["keys"])?.iter().map(|c| from.col(c)).collect::<R<_>>()?;
+                let oc = from.col(s(&a["order"])?)?;
+                let mut seen = rustc_hash::FxHashSet::default();
+                let mut distinct = Vec::new();
+                let mut row = Vec::new();
+                for i in 0..from.n {
+                    from.row(i, &mut row);
+                    if seen.insert(row.clone()) {
+                        distinct.push(i);
+                    }
+                }
+                let mut groups: FxHashMap<Vec<u64>, Vec<i64>> = FxHashMap::default();
+                for &i in &distinct {
+                    groups.entry(keys.iter().map(|c| from.cols[*c][i]).collect()).or_default().push(from.cols[oc][i] as i64);
+                }
+                for g in groups.values_mut() {
+                    g.sort_unstable();
+                }
+                let mut out = self.empty(run, node)?;
+                for &i in &distinct {
+                    let g = &groups[&keys.iter().map(|c| from.cols[*c][i]).collect::<Vec<u64>>()];
+                    let place = g.partition_point(|x| *x < from.cols[oc][i] as i64);
+                    from.row(i, &mut row);
+                    row.push(place as u64);
+                    out.push_row(&row);
+                }
+                Ok(out)
+            }
             "render-syntax" => {
                 let from = self.eval(f, run, p, self.arg_rel(node, "from")?)?;
                 let nc = from.col(s(&a["node"])?)?;
@@ -1591,7 +1671,7 @@ impl<'p> Exec<'p> {
             }
             return Ok(out);
         }
-        let r = if f.memo[rn].is_none() && self.view(run, rn)?.is_none() {
+        let r = if f.memo[rn].is_none() && self.view(run, rn)?.is_none() && std::env::var_os("VEC_KEY_PASSING").is_some() {
             let ks: Vec<u64> = l.cols[lk[0]].iter().copied().collect::<rustc_hash::FxHashSet<u64>>().into_iter().collect();
             self.probe(f, run, p, rn, rk[0], &ks)?
         } else {
@@ -1628,7 +1708,7 @@ impl<'p> Exec<'p> {
         if self.plan.nodes[node].op == "closure" {
             return Ok(Src::Lazy(self.lazy(f, run, p, node)?));
         }
-        if f.memo[node].is_none() && self.view(run, node)?.is_none() {
+        if f.memo[node].is_none() && self.view(run, node)?.is_none() && std::env::var_os("VEC_KEY_PASSING").is_some() {
             return Ok(Src::Pending(node));
         }
         Ok(match self.res(f, run, p, node)? {
@@ -2654,7 +2734,19 @@ fn call(run: &mut Run, name: &str, vs: &[V]) -> V {
         }
         "natural_lt" => flag(natural_lt(&String::from_utf8_lossy(&t(run, 0)), &String::from_utf8_lossy(&t(run, 1)))),
         "integer_successor" => V::new(Ty::Num, (vs[0].1 as i64 + 1) as u64),
-        _ => panic!("function {name} not in the step set"),
+        "numeric_gte" => {
+            let num = |run: &Run, v: V| -> Option<f64> {
+                match v.ty() {
+                    Ty::Num => Some(v.1 as i64 as f64),
+                    _ => String::from_utf8_lossy(&text_of(run, v)).replace('_', "").parse::<f64>().ok(),
+                }
+            };
+            flag(matches!((num(run, vs[0]), num(run, vs[1])), (Some(a), Some(b)) if a >= b))
+        }
+        _ => {
+            run.missing.insert(name.to_owned());
+            flag(false)
+        }
     }
 }
 
