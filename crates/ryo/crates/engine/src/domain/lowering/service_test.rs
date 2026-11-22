@@ -93,9 +93,9 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Cow::Borrowed(concat!(
             "definition 0: 5 columns, emptiness All([Unknown, Unknown])\n",
             "  pattern bound [] collected []: Table 2\n",
-            "definition 1: 5 columns, emptiness Definition(DefinitionId(0))\n",
+            "definition 1: 5 columns, emptiness All([Definition(DefinitionId(0)), Any([All([Any([All([Row(SyntaxTree, Some(RowValue { column: SyntaxTree(Text), value: CellWord(1) }))])])])])])\n",
             "  pattern bound [] collected []: Table 3\n",
-            "definition 2: 5 columns, emptiness Definition(DefinitionId(0))\n",
+            "definition 2: 5 columns, emptiness All([Definition(DefinitionId(0)), Any([All([Any([All([Row(SyntaxTree, Some(RowValue { column: SyntaxTree(Text), value: CellWord(2) }))])])])])])\n",
             "  pattern bound [] collected []: Table 1\n",
             "definition 3: 3 columns, emptiness All([All([Definition(DefinitionId(1)), Definition(DefinitionId(2))]), Any([All([Definition(DefinitionId(1)), Definition(DefinitionId(2))])])])\n",
             "  pattern bound [] collected []: Table 0\n",
