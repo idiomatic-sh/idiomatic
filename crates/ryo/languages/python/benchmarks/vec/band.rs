@@ -4,7 +4,7 @@
 //! finds its key's run by hash and the rows inside its band by binary search, and stops at the first that passes every
 //! other test. The pairs are never made. No rule id: the shape is read from the select's own tests.
 
-use super::{E, Exec, File, NULL, Provider, R, Run, Src, Table, Ty, V, bucket, eval, kind_set, key_of, refs_of, truthy, view_rows, view_holds};
+use super::{E, Exec, bucket_len, File, NULL, Provider, R, Run, Src, Table, Ty, V, bucket, eval, kind_set, key_of, refs_of, truthy, view_rows, view_holds};
 use rustc_hash::FxHashMap;
 
 /// A select's tests, split for the semijoin.
@@ -301,5 +301,28 @@ impl Exec<'_> {
         *self.tally.ran.entry(node).or_default() += 1;
         let _ = V::new;
         Ok(Some((out, counts)))
+    }
+
+    /// Whether a select marked `semi`, asked by `asked` keys of its kept rows, is cheaper made whole: its probed source's
+    /// entry (a made table's rows or a kind bucket, exact counts) is smaller than the keys asked, so the whole select
+    /// drives from it and asks the kept rows by its own keys.
+    pub(super) fn semi_drives_whole(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, asked: usize) -> R<bool> {
+        let j = &self.plan.nodes[node].j;
+        let Some(pb) = j.get("semi").and_then(serde_json::Value::as_u64) else { return Ok(false) };
+        if j.get("count").is_some() || std::env::var_os("VEC_NO_SEMI").is_some() {
+            return Ok(false);
+        }
+        let sp = self.sel(run, node)?;
+        let pb = pb as usize;
+        let size = match self.src_of(f, run, p, sp.srcs[pb])? {
+            Src::Tab(t, _) => Some(t.n),
+            Src::View(v, _) => kind_set(run, &v.filter, 0, v.base, &[]).or_else(|| kind_set(run, &sp.conj, pb, v.base, &v.map)).map(|ks| bucket_len(f, run, &ks)),
+            _ => None,
+        };
+        let whole = size.is_some_and(|n| n < asked);
+        if whole {
+            *self.tally.back.entry((node, "probed by more keys than its probed side: made whole")).or_default() += 1;
+        }
+        Ok(whole)
     }
 }

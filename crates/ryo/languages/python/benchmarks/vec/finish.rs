@@ -17,6 +17,10 @@ use std::rc::Rc;
 
 #[path = "band.rs"]
 pub(super) mod band;
+#[path = "closure_walk.rs"]
+mod closure_walk;
+#[path = "walk.rs"]
+mod walk;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum Ty {
@@ -303,6 +307,8 @@ pub(super) struct File<'a> {
     pub(super) seeds: Vec<Vec<u32>>,
     /// Probed steps' rows by (step, column): the rows made so far and, per key asked, its rows.
     pmemo: FxHashMap<(usize, usize), (Table, FxHashMap<u64, Vec<u32>>)>,
+    /// A probed closure walk's adjacency by (closure, forward): the nodes asked so far and their neighbours.
+    walks: FxHashMap<(usize, bool), FxHashMap<u64, Vec<u64>>>,
 }
 
 /// How a step asks the provider for a relation's rows: the visit's facts.
@@ -338,6 +344,7 @@ impl File<'_> {
             lazies: FxHashMap::default(),
             seeds: Vec::new(),
             pmemo: FxHashMap::default(),
+            walks: FxHashMap::default(),
         };
         for i in 0..n as u32 {
             let p = Position(i);
@@ -1247,6 +1254,11 @@ impl<'p> Exec<'p> {
         self.stats.time[node] += dt - self.inner;
         self.inner = saved + dt;
         let out = out?;
+        if let Some(t) = std::env::var_os("VEC_TRACE_PROBE")
+            && t.to_str().and_then(|x| x.parse::<usize>().ok()) == Some(node)
+        {
+            eprintln!("probe {node} col {col} keys {} rows {} stack {:?}", missing.len(), out.n, &self.stack[self.stack.len().saturating_sub(6)..]);
+        }
         self.stats.probes[node] += 1;
         self.stats.rows[node] += out.n as u64;
         if !pm {
@@ -1279,7 +1291,15 @@ impl<'p> Exec<'p> {
             let isc = me.schema(run, n)?;
             Ok(isc.names.iter().position(|c| *c == name).map(|c| (n, c)))
         };
+        if op == "closure"
+            && !f.lazies.contains_key(&node)
+            && std::env::var_os("VEC_NO_WALK").is_none()
+            && let Some(t) = self.walk_probed(f, run, p, node, col, keys, sc)?
+        {
+            return Ok(Rc::new(t));
+        }
         let target = match op.as_str() {
+            "select" if self.semi_drives_whole(f, run, p, node, keys.len())? => None,
             "select" => {
                 let sp = self.sel(run, node)?;
                 match &sp.items[col].1 {
@@ -1908,6 +1928,19 @@ impl<'p> Exec<'p> {
 
     fn src_of(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Src> {
         if self.plan.nodes[node].op == "closure" {
+            // a closure put in place by a probe (its rows for the keys asked) is read as that table
+            if std::env::var_os("VEC_NO_WALK").is_none()
+                && let Some(Res::Tab(t)) = &f.memo[node]
+            {
+                return Ok(Src::Tab(t.clone(), node));
+            }
+            if !f.lazies.contains_key(&node) && f.memo[node].is_none() && std::env::var_os("VEC_NO_WALK").is_none() && {
+                let sc = self.schema(run, node)?;
+                let nk = strs(&self.plan.nodes[node].j["args"]["keys"])?.len();
+                sc.tys[..nk].iter().all(|t| *t == Ty::File)
+            } {
+                return Ok(Src::Pending(node));
+            }
             return Ok(Src::Lazy(self.lazy(f, run, p, node)?));
         }
         if f.memo[node].is_none() && self.view(run, node)?.is_none() && std::env::var_os("VEC_NO_KEYED").is_none() && self.keyed(run, node) {
@@ -2376,6 +2409,9 @@ impl<'p> Exec<'p> {
         let mut out = self.empty(run, node)?;
         if from.n == 0 {
             return Ok(out);
+        }
+        if let Some(t) = self.walk_axis(f, run, p, node, a, from)? {
+            return Ok(t);
         }
         let dom = self.dom(f, run, p, node)?;
         let hier = self.hier(f, run, p, rel)?;
