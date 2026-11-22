@@ -23,6 +23,19 @@ use crate::domain::steps::types::MadeTableId;
 use ryo_language::domain::node_table::service::kinds_present;
 use ryo_relations::domain::relations::types::{Count, KindBits};
 
+/// SPIKE: what a measuring worker's decisions visited, for the run: decisions, nodes valued from the free bits, nodes
+/// asked, nodes whose musts failed. Printed by `counting::service::counted`.
+pub(crate) static NEED_VISITS: [std::sync::atomic::AtomicU64; 4] = [const { std::sync::atomic::AtomicU64::new(0) }; 4];
+
+/// SPIKE: counts one visit of kind `which` when the worker measures.
+fn visit(state: &crate::domain::scratch::types::LoopState, which: usize) {
+    if state.measure.is_some()
+        && let Some(count) = NEED_VISITS.get(which)
+    {
+        count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    }
+}
+
 /// The loop's frame, as what a need's formula asks: its decisions are kept in the loop's state; a kind's presence is the
 /// node table's; a relation's row is asked of the fill side, which fills the relation; a table's row makes the table when
 /// its own need holds.
@@ -89,6 +102,7 @@ impl NeedFacts for FileNeeds<'_, '_, '_> {
         let code = self.0.fill.programs.code;
         // What the terms that cost nothing say of the whole formula, read off the file's bits: most sites are decided
         // here. Only a site they leave open asks what costs, the cheapest first.
+        visit(self.0.state, 0);
         let Some(root) = site_root(code, site, &mut self.0.state.need_masks) else {
             return Some(NeedVerdict::Holds);
         };
@@ -245,7 +259,9 @@ impl FileNeeds<'_, '_, '_> {
     /// What a node says of the file from the free terms, the terms that cost that the file already answered, and the
     /// tables already made: `Open` when what is not known yet decides. Asks nothing that costs.
     fn node_free(&mut self, node: u32) -> FreeValue {
+        visit(self.0.state, 1);
         if !self.musts_held(node) {
+            visit(self.0.state, 3);
             return FreeValue::Empty;
         }
         let holds = |held: bool| {
@@ -315,6 +331,7 @@ impl FileNeeds<'_, '_, '_> {
     /// What a node says of the file, asking what it costs: its parts in the order compiled (what costs nothing first,
     /// a filled relation's any-row term last), stopping at the first part that decides.
     fn node_decided(&mut self, node: u32) -> NeedVerdict {
+        visit(self.0.state, 2);
         if !self.musts_held(node) {
             return NeedVerdict::Empty;
         }
