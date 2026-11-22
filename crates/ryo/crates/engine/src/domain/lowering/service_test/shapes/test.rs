@@ -135,6 +135,29 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ))),
     },
     Case {
+        name: CaseName("a_test_of_a_filled_relations_text_is_a_term_of_the_need"),
+        word: Word::Succeeds,
+        input: || {
+            (
+                &["the comments that start with todo", "the comments that start with todo"],
+                SampleStage::Second,
+            )
+        },
+        // The test of the comment's text is the need's row test: a file whose comments are whole and none starts so is
+        // decided empty with nothing filled.
+        expect: Expect::Value(Cow::Borrowed(concat!(
+            "definition 0: 5 columns, emptiness All([Row(Comment, None), Any([All([Row(Comment, None), RowTest(Comment, RowTest { column: Comment(Text), test: StartsWith, value: CellWord(1) })])])])\n",
+            "  pattern bound [] collected []: Table 0\n",
+            "table 0: Rows, 5 columns, indexes []\n",
+            "  pipeline: Scan:File Read:Constant Keep:Constant Read:Constant Read:Constant Read:Constant\n",
+            "rule 0: 1 branches\n",
+            "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Read:Constant Emit:Constant\n",
+            "rule 1: 1 branches\n",
+            "  branch: EachRow:File Read:Constant Read:Constant Read:Constant Read:Constant Emit:Constant\n",
+            "codes: {\"EachRowMade\": 2, \"Emit\": 2, \"End\": 3, \"ReadMade\": 8, \"StageKeep\": 1, \"StageRead\": 4, \"StageScan\": 1, \"StageWrite\": 1}",
+        ))),
+    },
+    Case {
         name: CaseName("a_test_of_the_file_waits_in_a_pipeline_for_a_row_that_holds_the_file"),
         word: Word::Succeeds,
         input: || {

@@ -110,6 +110,17 @@ pub(super) fn shape_scene(scene: &str) -> Option<Plan> {
                 kept: Vec::new(),
             }),
         ]),
+        // The comments whose text starts with `todo`: a test of a text of a filled relation's row against a constant.
+        "the comments that start with todo" => plan(vec![step(Operation::Select {
+            from: Input::Relation(Relation::Comment),
+            comparisons: vec![PlanComparison {
+                test: Test::StartsWith,
+                left: Operand::Column(at(1)),
+                right: Operand::Literal(QueryLiteral::Text(LiteralText("todo".into()))),
+                origin: ComparisonOrigin::Unrecorded,
+            }],
+            kept: Vec::new(),
+        })]),
         // Each element whose text, every `a` of it replaced by `b`, is the value of an import's string literal: a join
         // keyed by a cell a call gives. Scanned from the literals no order has a key; scanned from the elements every
         // access after the scan is keyed.
