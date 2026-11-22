@@ -49,6 +49,12 @@ pub(crate) trait NeedFacts {
         NeedVerdict::Holds
     }
 
+    /// Whether the file's tree holds an element under a parent with the kind and field constants given (`NO_SLOT`:
+    /// any). It costs nothing: the node table's lists by kind answer every shape at once.
+    fn shape_held(&mut self, _parent: WordSlot, _field: WordSlot, _child: WordSlot) -> NeedVerdict {
+        NeedVerdict::Holds
+    }
+
     /// What the terms of a site say of it before its formula is walked, when the engine keeps the masks of its needs:
     /// `Empty` when they leave it no way to hold in the file, `Holds` when they are its whole formula and hold. None:
     /// the walk decides.

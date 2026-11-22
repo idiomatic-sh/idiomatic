@@ -48,7 +48,11 @@ fn costs(facts: &impl NeedFacts, code: &ProgramCode, at: WordSlot) -> NeedVerdic
     }
     let costly = match need_at(&code.needs, at) {
         Some(
-            NeedRecord::Unknown | NeedRecord::Kinds(_) | NeedRecord::Path { .. } | NeedRecord::Bytes { .. },
+            NeedRecord::Unknown
+            | NeedRecord::Kinds(_)
+            | NeedRecord::Path { .. }
+            | NeedRecord::Bytes { .. }
+            | NeedRecord::Shape { .. },
         )
         | None => false,
         Some(NeedRecord::Row { relation, .. }) => {
@@ -169,6 +173,10 @@ fn formula(facts: &mut impl NeedFacts, code: &ProgramCode, at: WordSlot) -> Need
             Some(kept) => kept,
             None => facts.bytes_held(regex, constant),
         },
+        NeedRecord::Shape { parent, field, child } => match facts.leaf(at) {
+            Some(kept) => kept,
+            None => facts.shape_held(parent, field, child),
+        },
         NeedRecord::All {
             parts: count,
             offsets,
@@ -211,7 +219,8 @@ fn record_tables(
             | NeedRecord::Kinds(_)
             | NeedRecord::Row { .. }
             | NeedRecord::Path { .. }
-            | NeedRecord::Bytes { .. },
+            | NeedRecord::Bytes { .. }
+            | NeedRecord::Shape { .. },
         )
         | None => {}
     }

@@ -95,6 +95,11 @@ pub(crate) enum Emptiness {
     /// ends with it, matches a regular expression that needs it), or searches the file's bytes for an expression, has
     /// no row in a file that holds none. Known from the file's bytes alone, before anything is filled.
     Bytes(ByteLiteral),
+    /// The file's tree holds an element under a parent with the kinds and the field a branch holds them to (at least two
+    /// of the three given): a branch whose positive rows of node relations name an element's kind or field and its
+    /// parent's kind has no row in a file where no element and parent hold them together. Known from the node table
+    /// alone, before anything is filled.
+    Shape(ShapeTest),
     /// Every part holds; none: always.
     All(Box<[Emptiness]>),
     /// Some part holds; none: never.
@@ -118,6 +123,18 @@ pub(crate) enum ByteLiteral {
     Text(CellWord),
     /// One of the texts every match of the expression holds.
     Regex(RegexId),
+}
+
+/// What a branch holds of one element of the file's tree and its parent: the parent's kind, the element's field under it,
+/// the element's kind, each the word of its name; none: any.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(crate) struct ShapeTest {
+    /// The parent's kind.
+    pub(crate) parent: Option<CellWord>,
+    /// The element's field in its parent.
+    pub(crate) field: Option<CellWord>,
+    /// The element's kind.
+    pub(crate) child: Option<CellWord>,
 }
 
 /// A value a row must hold in a column.
