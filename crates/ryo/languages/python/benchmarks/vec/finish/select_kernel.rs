@@ -198,6 +198,8 @@ struct K {
     kinds: Vec<(Option<Vec<u32>>, Option<Vec<u32>>)>,
     /// A semi step's probed side: the band is tried first.
     semi: Option<usize>,
+    /// redo-select2: a run is decided by a view source whose entry is empty before anything is read (`ksel_zero`).
+    zero: bool,
 }
 
 /// Keys of the per-file row lists a kernel keeps in the file's `vrows` (above any node number).
@@ -208,7 +210,7 @@ const ENTRY_LIT: usize = 4 << 56;
 const ABSENT: usize = 1 << 60;
 
 /// `lit_rows`, once a file under `key` (`ABSENT` marks a None).
-fn lit_file(f: &mut File<'_>, key: usize, conj: &[E], si: usize, base: super::Native, map: &[usize]) -> Option<Rc<Vec<u32>>> {
+pub(super) fn lit_file(f: &mut File<'_>, key: usize, conj: &[E], si: usize, base: super::Native, map: &[usize]) -> Option<Rc<Vec<u32>>> {
     if let Some(r) = f.vrows.get(&key) {
         return Some(r.clone());
     }
@@ -405,7 +407,19 @@ impl Exec<'_> {
                 None => (None, None),
             });
         }
-        Ok(Prep::K(K { preds, file_const, items, set, targets, kinds, semi }))
+        let zero = semi.is_none() && self.static_keyed && !sp.conj.iter().any(|e| matches!(e, E::Seed(..))) && {
+            let mut views = false;
+            let mut ok = true;
+            for s in sp.srcs.iter() {
+                match self.view(run, *s)? {
+                    Some(_) => views = true,
+                    None if self.keyed(run, *s) && self.plan.nodes[*s].op != "closure" => {}
+                    None => ok = false,
+                }
+            }
+            ok && views
+        };
+        Ok(Prep::K(K { preds, file_const, items, set, targets, kinds, semi, zero }))
     }
 
     /// The dispatch: the kernels, or the interpreter's `select` (`VEC_OLD_SELECT`, or a node they do not cover).
@@ -439,6 +453,58 @@ impl Exec<'_> {
         if prof {
             prof_add(0, t0.elapsed() - (self.inner - i0));
         }
+        out.map(|t| Rc::try_unwrap(t).unwrap_or_else(|t| (*t).clone()))
+    }
+
+    /// redo-select2: whether a view source's entry (the size the front measures it by) is empty in this file, for a node
+    /// whose run reads nothing else first (`K::zero`: not semi, no seed test, every source a view or a keyed step). The
+    /// front would read the views, find that entry the smallest, drive from it and end. Only views
+    /// whose fill is read already are measured (an unread fill is not read here; `lit_rows` would read it as absent).
+    fn ksel_zero(&mut self, f: &mut File<'_>, run: &mut Run, node: usize, kp: &K, sp: &super::SelPlan, put: Option<usize>) -> bool {
+        for (i, s) in sp.srcs.iter().enumerate() {
+            // a source put in place (the keyed entry's probed rows, a substitution's, a positional override) is a table
+            if put == Some(i) || matches!(f.memo[*s], Some(super::Res::Tab(_))) || self.overridden(*s).is_some() {
+                continue;
+            }
+            let Ok(Some(v)) = self.view(run, *s) else { continue };
+            if let super::Native::Fact(x) = v.base
+                && f.facts.get(usize::from(x)).is_none_or(Option::is_none)
+            {
+                continue;
+            }
+            let size = match &kp.kinds[i] {
+                (Some(ks), _) | (None, Some(ks)) => Some(bucket_len(f, run, ks)),
+                (None, None) => lit_file(f, LIT_FILTER | *s, &v.filter, 0, v.base, &[]).or_else(|| lit_file(f, LIT_CONJ | (node << 1) | i, &sp.conj, i, v.base, &v.map)).map(|r| r.len()),
+            };
+            if size == Some(0) {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// redo-select2: the kernels' entry for a whole run (from `empty_sel::select_entry`): the step's shared table out.
+    pub(super) fn select_kr(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Table>> {
+        let prep = self.ksel_prep(run, node)?;
+        let Prep::K(kp) = &*prep else {
+            let t = self.select(f, run, p, node)?;
+            return if t.n == 0 { self.empty_rc(run, node) } else { Ok(Rc::new(t)) };
+        };
+        if let Some(pb) = kp.semi {
+            let sp = self.sel(run, node)?;
+            if super::filter_order::file_fails(run, f, &sp.conj) {
+                *self.tally.back.entry((node, "a per-file test fails")).or_default() += 1;
+                super::empty_sel::at(super::empty_sel::stage::FILE_TEST);
+                return self.empty_rc(run, node);
+            }
+            if let Some(t) = self.semi(f, run, p, node, pb)? {
+                super::empty_sel::at(super::empty_sel::stage::SEMI);
+                return if t.n == 0 { self.empty_rc(run, node) } else { Ok(Rc::new(t)) };
+            }
+        }
+        let mut b = take_bufs();
+        let out = self.ksel_run(f, run, p, node, kp, &mut b, None);
+        give_bufs(b);
         out
     }
 
@@ -448,7 +514,7 @@ impl Exec<'_> {
     /// made over it (the memo swapped, the made log drained, a dropped set built a probe). Here the probed input's rows are
     /// handed to the kernel as that source directly: nothing else reads them (no other source depends on the input, as
     /// the static rule requires), so nothing is swapped or dropped. None: a column the static rule does not pass on.
-    pub(super) fn ksel_probe(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64]) -> R<Option<Table>> {
+    pub(super) fn ksel_probe(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64]) -> R<Option<Rc<Table>>> {
         if sw!("VEC_OLD_SELECT") || sw!("VEC_OLD_KPROBE") {
             return Ok(None);
         }
@@ -460,18 +526,34 @@ impl Exec<'_> {
         let Some((si, input, icol)) = kp.targets[col] else { return Ok(None) };
         let sub = self.probe(f, run, p, input, icol, keys)?;
         let mut b = take_bufs();
+        let saved = super::empty_sel::begin();
+        let (t0, i0) = (super::step_clock(), self.inner);
         let out = self.ksel_run(f, run, p, node, kp, &mut b, Some((si, sub)));
+        if super::empty_sel::on() {
+            let secs = super::step_clock() - t0 - (self.inner - i0);
+            let plan = self.plan;
+            super::empty_sel::end(saved, matches!(&out, Ok(t) if t.n == 0), secs, |n| plan.nodes[n as usize].op.clone());
+        }
         give_bufs(b);
         out.map(Some)
     }
 
     #[expect(clippy::too_many_arguments, reason = "a throwaway")]
-    fn ksel_run(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, kp: &K, b: &mut Bufs, put: Option<(usize, Rc<Table>)>) -> R<Table> {
+    fn ksel_run(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, kp: &K, b: &mut Bufs, put: Option<(usize, Rc<Table>)>) -> R<Rc<Table>> {
         let (t0, i0) = (Clk::now(), self.inner);
+        super::empty_sel::origin(self.inner);
         let sp = self.sel(run, node)?;
         if kp.file_const && super::filter_order::file_fails(run, f, &sp.conj) {
             *self.tally.back.entry((node, "a per-file test fails")).or_default() += 1;
-            return self.empty(run, node);
+            super::empty_sel::at(super::empty_sel::stage::FILE_TEST);
+            return self.empty_rc(run, node);
+        }
+        if kp.zero && !sw!("VEC_ESEL_NO_ZERO") && !sw!("VEC_OLD_EMPTYSEL") && self.ksel_zero(f, run, node, kp, &sp, put.as_ref().map(|x| x.0)) {
+            super::empty_sel::at(super::empty_sel::stage::ZERO_ENTRY);
+            if super::empty_sel::on() && sw!("VEC_ESEL_NODES") {
+                super::empty_sel::count(Box::leak(format!("zero node {node} srcs {:?}", sp.srcs).into_boxed_str()), 0.0);
+            }
+            return self.empty_rc(run, node);
         }
         let k = sp.srcs.len();
         let conj = &sp.conj;
@@ -484,6 +566,7 @@ impl Exec<'_> {
             Some(x) => Some(x),
             None => self.take_positional(&sp.srcs),
         };
+        super::empty_sel::lap(0, self.inner);
         let mut srcs: Vec<Src> = Vec::with_capacity(k);
         for (i, n) in sp.srcs.iter().enumerate() {
             let src = match &ov {
@@ -493,10 +576,16 @@ impl Exec<'_> {
             if let Src::Tab(t, _) = &src
                 && t.n == 0
             {
-                return self.empty(run, node);
+                super::empty_sel::with(|m| {
+                    m.stage = super::empty_sel::stage::SOURCE_EMPTY;
+                    m.src = i as u8;
+                    m.srcn = *n as u32;
+                });
+                return self.empty_rc(run, node);
             }
             srcs.push(src);
         }
+        super::empty_sel::lap(1, self.inner);
         let mut driver: Option<usize> = None;
         if let Some((si, c, sk)) = conj.iter().find_map(|e| match e {
             E::Seed(x, sk) => match **x {
@@ -509,7 +598,8 @@ impl Exec<'_> {
             let t = self.probe(f, run, p, sp.srcs[si], c, &ids)?;
             self.stats.touched[node] += ids.len() as u64;
             if t.n == 0 {
-                return self.empty(run, node);
+                super::empty_sel::at(super::empty_sel::stage::SEED_EMPTY);
+                return self.empty_rc(run, node);
             }
             srcs[si] = Src::Tab(t, usize::MAX - si);
             driver = Some(si);
@@ -522,12 +612,14 @@ impl Exec<'_> {
                     self.reason = "bound by the survivors (made, to drive)";
                     let t = self.eval(f, run, p, n)?;
                     if t.n == 0 {
-                        return self.empty(run, node);
+                        super::empty_sel::at(super::empty_sel::stage::BOUND_EMPTY);
+                        return self.empty_rc(run, node);
                     }
                     srcs[i] = Src::Tab(t, n);
                 }
             }
         }
+        super::empty_sel::lap(2, self.inner);
         let mut best = if driver.is_some() { 0 } else { usize::MAX };
         for (i, sr) in srcs.iter().enumerate() {
             let size = match sr {
@@ -545,22 +637,26 @@ impl Exec<'_> {
                 driver = Some(i);
             }
         }
+        super::empty_sel::lap(3, self.inner);
         if !sw!("VEC_NO_PENDSIZE") && best != 0 {
-            let mut pick: Option<(usize, usize, usize)> = None;
-            for i in 0..k {
-                if let Src::Pending(n) = srcs[i]
-                    && let Some(bs) = self.bound_size(f, run, p, n, 6)?
-                    && bs < best
-                    && pick.is_none_or(|q| bs < q.2)
+            let mut pend = [(0usize, 0usize); 2];
+            let mut np = 0;
+            for (i, sr) in srcs.iter().enumerate() {
+                if let Src::Pending(n) = sr
+                    && np < 2
                 {
-                    pick = Some((i, n, bs));
+                    pend[np] = (i, *n);
+                    np += 1;
                 }
             }
+            let pick = if np == 0 { None } else { self.pendsize_pick(f, run, p, &pend[..np], best)? };
+            super::empty_sel::lap(4, self.inner);
             if let Some((i, n, _)) = pick {
                 self.reason = "join driver: a step bounded by a small input";
                 let t = self.eval(f, run, p, n)?;
                 if t.n == 0 {
-                    return self.empty(run, node);
+                    super::empty_sel::at(super::empty_sel::stage::PENDSIZE_EMPTY);
+                    return self.empty_rc(run, node);
                 }
                 srcs[i] = Src::Tab(t, n);
                 driver = Some(i);
@@ -585,7 +681,8 @@ impl Exec<'_> {
                         let t = self.probe(f, run, p, n, ic, &ids)?;
                         self.stats.touched[node] += ids.len() as u64;
                         if t.n == 0 {
-                            return self.empty(run, node);
+                            super::empty_sel::at(super::empty_sel::stage::BUCKET_EMPTY);
+                            return self.empty_rc(run, node);
                         }
                         srcs[d] = Src::Tab(t, usize::MAX - d);
                         d
@@ -596,7 +693,8 @@ impl Exec<'_> {
                             self.reason = "join driver: no source bound";
                             let t = self.eval(f, run, p, n)?;
                             if t.n == 0 {
-                                return self.empty(run, node);
+                                super::empty_sel::at(super::empty_sel::stage::PENDING_EMPTY);
+                                return self.empty_rc(run, node);
                             }
                             srcs[d] = Src::Tab(t, n);
                             d
@@ -606,6 +704,7 @@ impl Exec<'_> {
                 },
             },
         };
+        super::empty_sel::lap(5, self.inner);
         let prof = sw!("VEC_KSEL_PROF");
         if prof {
             prof_add(1, t0.elapsed() - (self.inner - i0));
@@ -619,6 +718,7 @@ impl Exec<'_> {
         match &srcs[driver] {
             Src::Tab(t, _) => {
                 self.stats.touched[node] += t.n as u64;
+                super::empty_sel::with(|m| m.d0 = t.n as u32);
                 sel.extend(0..t.n as u32);
             }
             Src::View(v, vn) => {
@@ -645,6 +745,7 @@ impl Exec<'_> {
                     },
                 };
                 self.stats.touched[node] += first.len() as u64;
+                super::empty_sel::with(|m| m.d0 = first.len() as u32);
                 sel.extend_from_slice(&first);
             }
             _ => return Err("a select starts from no table or view".to_owned()),
@@ -660,20 +761,25 @@ impl Exec<'_> {
         if prof {
             prof_add(2, t1.elapsed());
         }
+        super::empty_sel::lap(6, self.inner);
+        super::empty_sel::with(|m| {
+            m.d1 = sel.len() as u32;
+            m.stage = if k == 1 { super::empty_sel::stage::ONE_SOURCE_FILTERED } else { super::empty_sel::stage::DRIVER_FILTERED };
+        });
         let t2 = Clk::now();
         let i2 = self.inner;
         let all: u64 = if conj.len() >= 64 { u64::MAX } else { (1u64 << conj.len()) - 1 };
         if k == 1 {
             let t6 = Clk::now();
-            let out = self.ksel_one(run, f, node, kp, &srcs, sel, used == all, &mut b.seen, &mut b.left, &mut b.right);
+            let out = self.ksel_one(run, f, node, kp, &srcs, sel, used == all, &mut b.seen, &mut b.left, &mut b.right)?;
             if prof {
                 prof_add(6, t6.elapsed());
             }
-            return out;
+            return if out.n == 0 { self.empty_rc(run, node) } else { Ok(Rc::new(out)) };
         }
         // ---- kernel 2: the other source, joined on the columns the conjuncts equate
         if sel.is_empty() {
-            return self.empty(run, node);
+            return self.empty_rc(run, node);
         }
         let other = 1 - driver;
         let omask = 1u64 << other;
@@ -701,6 +807,7 @@ impl Exec<'_> {
                 }
             }
         }
+        super::empty_sel::lap(7, self.inner);
         let left = &mut b.left;
         let right = &mut b.right;
         left.clear();
@@ -729,8 +836,19 @@ impl Exec<'_> {
                             b.keys.push(v);
                         }
                     }
+                    // redo-select2: the keys looked up where the probe would end (key_absent.rs): none present, nothing joins
+                    if self.keys_absent(f, run, pn, col, &b.keys)? {
+                        super::empty_sel::at(super::empty_sel::stage::KEYS_ABSENT);
+                        return self.empty_rc(run, node);
+                    }
                     let sub = self.probe(f, run, p, pn, col, &b.keys)?;
                     self.stats.touched[node] += sub.n as u64;
+                    super::empty_sel::with(|m| {
+                        m.built |= super::empty_sel::stage::B_PROBE;
+                        if sub.n == 0 {
+                            m.stage = super::empty_sel::stage::OTHER_PROBED_EMPTY;
+                        }
+                    });
                     srcs[si] = Src::Tab(sub, usize::MAX - si);
                 }
                 if let Src::View(_, vn) = &srcs[si]
@@ -771,6 +889,17 @@ impl Exec<'_> {
                 let checks: Vec<usize> = (0..conj.len()).filter(|c| used & (1 << c) == 0 && refs[*c] & !nb == 0).collect();
                 let hits = &mut b.hits;
                 let mut touched = 0u64;
+                super::empty_sel::with(|m| {
+                    m.o = match &srcs[si] {
+                        Src::Tab(t, _) => t.n as u32,
+                        _ => u32::MAX,
+                    };
+                    m.built |= match &srcs[si] {
+                        Src::Tab(_, tn) if *tn > usize::MAX - 64 => super::empty_sel::stage::B_INDEX_FRESH,
+                        Src::Tab(..) => super::empty_sel::stage::B_INDEX_FILE,
+                        _ => super::empty_sel::stage::B_VIEW_PROBE,
+                    };
+                });
                 match &srcs[si] {
                     Src::Tab(t, tn) => {
                         // a table made for this execution (probed, or put in place) is indexed by sorting its (key, row)
@@ -866,12 +995,18 @@ impl Exec<'_> {
                     _ => return Err("a join side that is no table or view".to_owned()),
                 }
                 self.stats.touched[node] += touched;
+                super::empty_sel::with(|m| {
+                    if m.stage != super::empty_sel::stage::OTHER_PROBED_EMPTY {
+                        m.stage = if touched > 0 { super::empty_sel::stage::RESIDUAL } else { super::empty_sel::stage::KEYS_MISS };
+                    }
+                });
                 for c in checks {
                     used |= 1 << c;
                 }
             }
             None => {
                 // no key joins the other source: every pair
+                super::empty_sel::at(super::empty_sel::stage::CROSS);
                 if let Src::Pending(pn) = srcs[other] {
                     self.reason = "cross product: no key joins it";
                     srcs[other] = Src::Tab(self.eval(f, run, p, pn)?, pn);
@@ -899,6 +1034,7 @@ impl Exec<'_> {
                 }
             }
         }
+        super::empty_sel::lap(8, self.inner);
         if used != all {
             return Err("a test no source binds".to_owned());
         }
@@ -928,7 +1064,10 @@ impl Exec<'_> {
         if prof {
             prof_add(4, t3.elapsed());
         }
-        Ok(out)
+        if n == 0 {
+            return self.empty_rc(run, node);
+        }
+        Ok(Rc::new(out))
     }
 
     /// Kernel 1's tail: the kept rows projected by position; a projection that drops columns kept as a set (first

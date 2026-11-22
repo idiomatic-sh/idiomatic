@@ -284,6 +284,7 @@ impl<'p> Finisher<'p> {
         }
         println!("fact keyed lists: fill rows listed {}", finish::FACT_IX_ROWS.load(std::sync::atomic::Ordering::Relaxed));
         finish::empty_why::print();
+        finish::empty_sel::print();
         if std::env::var_os("VEC_MEMO_DUMP").is_some() {
             // redo-union pass 2 c19
             for l in exec.memo_dump() {
