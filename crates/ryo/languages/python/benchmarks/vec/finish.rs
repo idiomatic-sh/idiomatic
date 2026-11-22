@@ -34,6 +34,8 @@ pub(super) fn step_clock() -> f64 {
 
 #[path = "finish/drive.rs"]
 mod drive;
+#[path = "finish/recycle.rs"]
+mod recycle;
 #[path = "finish/select_kernel.rs"]
 mod select_kernel;
 #[path = "finish/memo.rs"]
@@ -116,6 +118,8 @@ impl V {
 }
 
 pub(super) const NULL: u64 = u64::MAX;
+/// redo-alloc: a placeholder cell for an argument array's unused places (never read).
+const NULL_V: V = V(Ty2::T(5), NULL);
 
 /// 7: a table's column names and types, shared with its step's schema (never copied per table).
 pub(super) type Names = Rc<Vec<String>>;
@@ -140,6 +144,52 @@ const POOL_CELLS: usize = 1 << 22;
 
 impl Drop for Table {
     fn drop(&mut self) {
+        self.release();
+        // redo-alloc: the emptied list of columns kept too (recycle.rs)
+        recycle::give_cols(std::mem::take(&mut self.cols));
+    }
+}
+
+impl Table {
+    fn with(names: impl Into<Names>, tys: impl Into<Tys>) -> Self {
+        let (names, tys) = (names.into(), tys.into());
+        let k = names.len();
+        // redo-alloc: the list of columns from the kept ones (recycle.rs), each column from the pool
+        let mut cols = recycle::take_cols(k);
+        POOL.with(|p| {
+            let (p, cells) = &mut *p.borrow_mut();
+            cols.extend((0..k).map(|_| match p.pop() {
+                Some(c) => {
+                    *cells -= c.capacity();
+                    c
+                }
+                None => Vec::new(),
+            }));
+        });
+        Table { names, tys, cols, n: 0 }
+    }
+    /// redo-alloc: a copy of the table in the worker's pooled list and columns (`clone` makes both new).
+    pub(super) fn copy(&self) -> Table {
+        let mut cols = recycle::take_cols(self.cols.len());
+        POOL.with(|p| {
+            let (p, cells) = &mut *p.borrow_mut();
+            for c in &self.cols {
+                let mut v = match p.pop() {
+                    Some(v) => {
+                        *cells -= v.capacity();
+                        v
+                    }
+                    None => Vec::new(),
+                };
+                v.extend_from_slice(c);
+                cols.push(v);
+            }
+        });
+        Table { names: self.names.clone(), tys: self.tys.clone(), cols, n: self.n }
+    }
+    /// 8: the table's columns back in the pool (cleared, capacity kept); the table is left with no rows and no columns.
+    pub(super) fn release(&mut self) {
+        self.n = 0;
         if self.cols.is_empty() {
             return;
         }
@@ -155,26 +205,6 @@ impl Drop for Table {
                 p.push(c);
             }
         });
-    }
-}
-
-impl Table {
-    fn with(names: impl Into<Names>, tys: impl Into<Tys>) -> Self {
-        let (names, tys) = (names.into(), tys.into());
-        let k = names.len();
-        let cols = POOL.with(|p| {
-            let (p, cells) = &mut *p.borrow_mut();
-            (0..k)
-                .map(|_| match p.pop() {
-                    Some(c) => {
-                        *cells -= c.capacity();
-                        c
-                    }
-                    None => Vec::new(),
-                })
-                .collect()
-        });
-        Table { names, tys, cols, n: 0 }
     }
     pub(super) fn col(&self, name: &str) -> Result<usize, String> {
         self.names.iter().position(|c| c == name).ok_or_else(|| format!("no column {name} in {:?}", self.names))
@@ -570,6 +600,37 @@ pub(super) struct File<'a> {
 
 thread_local! {
     static SPARE: RefCell<(Vec<Option<Res>>, Vec<u8>, Vec<u32>)> = const { RefCell::new((Vec::new(), Vec::new(), Vec::new())) };
+    /// redo-alloc: the last file's buffers and maps, emptied (capacity kept), for the next file.
+    static SPARE_BUFS: RefCell<Option<FileBufs>> = const { RefCell::new(None) };
+}
+
+/// redo-alloc: a file's own buffers and maps, emptied at the file's end and handed to the next file (no per-file make
+/// and free of each; their answers given back to the pools, recycle.rs).
+#[derive(Default)]
+struct FileBufs {
+    kind: Vec<u16>,
+    start: Vec<u32>,
+    end: Vec<u32>,
+    parent: Vec<u32>,
+    line_starts: Vec<u32>,
+    text_memo: Vec<u32>,
+    log: Vec<usize>,
+    vrows: FxHashMap<usize, Rc<Vec<u32>>>,
+    vmat: FxHashMap<usize, Rc<Table>>,
+    index: FxHashMap<usize, Vec<(Vec<usize>, Rc<Index>)>>,
+    fills: FxHashMap<String, Rc<Table>>,
+    lazies: FxHashMap<usize, Rc<Lazy>>,
+    walks: FxHashMap<(usize, bool), FxHashMap<u64, Vec<u64>>>,
+    facts: Vec<Option<Rc<Table>>>,
+    fact_ix: FxHashMap<(u16, usize), Rc<Index>>,
+    kind_bits: Vec<u64>,
+}
+
+/// A map's tables given back (recycle.rs) and the map emptied, its room kept.
+fn give_tables<K>(m: &mut FxHashMap<K, Rc<Table>>) {
+    for (_, t) in m.drain() {
+        recycle::recycle(t);
+    }
 }
 
 impl Drop for File<'_> {
@@ -578,12 +639,57 @@ impl Drop for File<'_> {
         let mut known = std::mem::take(&mut self.known);
         let mut touched = std::mem::take(&mut self.touched);
         for n in touched.drain(..) {
-            memo[n as usize] = None;
+            // redo-alloc: the answer given back for the next (recycle.rs), not freed
+            if let Some(Res::Tab(t)) = memo[n as usize].take() {
+                recycle::recycle(t);
+            }
         }
         // a substitution's restore never leaves an entry `res` did not set (checked where it is cheap)
         debug_assert!(memo.iter().all(Option::is_none));
         known.fill(0);
         SPARE.with(|s| *s.borrow_mut() = (memo, known, touched));
+        // redo-alloc: the file's buffers and maps emptied and kept for the next file
+        let mut b = FileBufs {
+            kind: std::mem::take(&mut self.kind),
+            start: std::mem::take(&mut self.start),
+            end: std::mem::take(&mut self.end),
+            parent: std::mem::take(&mut self.parent),
+            line_starts: std::mem::take(&mut self.line_starts),
+            text_memo: std::mem::take(self.text_memo.get_mut()),
+            log: std::mem::take(&mut self.log),
+            vrows: std::mem::take(&mut self.vrows),
+            vmat: std::mem::take(&mut self.vmat),
+            index: std::mem::take(&mut self.index),
+            fills: std::mem::take(&mut self.fills),
+            lazies: std::mem::take(&mut self.lazies),
+            walks: std::mem::take(&mut self.walks),
+            facts: std::mem::take(&mut self.facts),
+            fact_ix: std::mem::take(self.fact_ix.get_mut()),
+            kind_bits: std::mem::take(&mut self.kind_bits),
+        };
+        b.kind.clear();
+        b.start.clear();
+        b.end.clear();
+        b.parent.clear();
+        b.line_starts.clear();
+        b.text_memo.clear();
+        b.log.clear();
+        b.vrows.clear();
+        give_tables(&mut b.vmat);
+        b.index.clear();
+        give_tables(&mut b.fills);
+        b.lazies.clear();
+        b.walks.clear();
+        for t in b.facts.drain(..).flatten() {
+            recycle::recycle(t);
+        }
+        b.fact_ix.clear();
+        b.kind_bits.clear();
+        // a map grown far past a usual file is not kept (its room would stay with the worker)
+        if b.vrows.capacity() > 1 << 12 || b.index.capacity() > 1 << 12 || b.walks.capacity() > 1 << 10 || b.fact_ix.capacity() > 1 << 12 {
+            return;
+        }
+        SPARE_BUFS.with(|s| *s.borrow_mut() = Some(b));
     }
 }
 
@@ -597,34 +703,42 @@ pub(super) trait Provider {
 impl File<'_> {
     pub(super) fn new<'a>(table: &'a NodeTable, src: &'a [u8], file: u32, nodes: usize) -> File<'a> {
         let n = node_table::element_count(table).0;
+        // redo-alloc: the last file's emptied buffers and maps (none at the first file)
+        let mut b = SPARE_BUFS.with(|s| s.borrow_mut().take()).unwrap_or_default();
+        b.kind.reserve(n);
+        b.start.reserve(n);
+        b.end.reserve(n);
+        b.parent.reserve(n);
+        b.line_starts.push(0);
+        b.text_memo.resize(n, u32::MAX);
         let mut f = File {
             table,
             src,
             file,
             n,
-            kind: Vec::with_capacity(n),
-            start: Vec::with_capacity(n),
-            end: Vec::with_capacity(n),
-            parent: Vec::with_capacity(n),
-            line_starts: vec![0],
-            text_memo: RefCell::new(vec![u32::MAX; n]),
+            kind: b.kind,
+            start: b.start,
+            end: b.end,
+            parent: b.parent,
+            line_starts: b.line_starts,
+            text_memo: RefCell::new(b.text_memo),
             by_start: RefCell::new(None),
             by_end: RefCell::new(None),
             by_line: [RefCell::new(None), RefCell::new(None)],
             tokens: RefCell::new(None),
             memo: Vec::new(),
-            log: Vec::new(),
-            vrows: FxHashMap::default(),
-            vmat: FxHashMap::default(),
-            index: FxHashMap::default(),
-            fills: FxHashMap::default(),
-            lazies: FxHashMap::default(),
+            log: b.log,
+            vrows: b.vrows,
+            vmat: b.vmat,
+            index: b.index,
+            fills: b.fills,
+            lazies: b.lazies,
             seeds: Vec::new(),
-            walks: FxHashMap::default(),
-            facts: Vec::new(),
-            fact_ix: RefCell::new(FxHashMap::default()),
+            walks: b.walks,
+            facts: b.facts,
+            fact_ix: RefCell::new(b.fact_ix),
             known: Vec::new(),
-            kind_bits: Vec::new(),
+            kind_bits: b.kind_bits,
             touched: Vec::new(),
         };
         SPARE.with(|sp| {
@@ -1387,8 +1501,9 @@ impl<'p> Exec<'p> {
         if let Some(d) = self.deps.get(&(node, input)) {
             return *d;
         }
-        let ins = self.plan.nodes[node].inputs.clone();
-        let d = ins.iter().any(|i| self.depends(*i, input));
+        // redo-alloc: the inputs read by position (no copy of the list a call)
+        let plan: &'p Plan = self.plan;
+        let d = plan.nodes[node].inputs.iter().any(|i| self.depends(*i, input));
         self.deps.insert((node, input), d);
         d
     }
@@ -1830,7 +1945,7 @@ impl<'p> Exec<'p> {
         }
         let sc = self.schema(run, node)?;
         if let Some(o) = self.overridden(node) {
-            return Ok(Rc::new(drive::subset_of(&o, col, keys)));
+            return Ok(recycle::rc(drive::subset_of(&o, col, keys)));
         }
         if let Some(Res::Tab(t)) = &f.memo[node] {
             let t = t.clone();
@@ -1839,7 +1954,7 @@ impl<'p> Exec<'p> {
             if t.n == 0 {
                 return Ok(t);
             }
-            return Ok(Rc::new(subset(f, node, &t, col, keys)));
+            return Ok(recycle::rc(subset(f, node, &t, col, keys)));
         }
         if !sw!("VEC_NO_KNOWN") && self.known_empty(f, run, node) {
             self.stats.known[node] += 1;
@@ -1868,11 +1983,11 @@ impl<'p> Exec<'p> {
                 out.n = rows.len();
                 self.stats.touched[node] += rows.len() as u64;
                 self.memo.vrows = rows;
-                return Ok(Rc::new(out));
+                return Ok(recycle::rc(out));
             }
             self.reason = "view probed on a column it has no keyed read for";
             let t = self.eval(f, run, p, node)?;
-            return Ok(Rc::new(subset(f, node, &t, col, keys)));
+            return Ok(recycle::rc(subset(f, node, &t, col, keys)));
         }
         // the per-key memo (P1): a (step, column, key) is computed once a file, whichever consumer asks. 7: each key's rows
         // are one contiguous range of the slot's table (no list a key); a key asked is marked pending at once, so the
@@ -2103,8 +2218,15 @@ impl<'p> Exec<'p> {
             if keep.is_empty() {
                 self.empty_rc(run, node)?
             } else {
-                let cols = out.cols.iter().map(|c| keep.iter().map(|r| c[*r]).collect()).collect();
-                Rc::new(Table { names: out.names.clone(), tys: out.tys.clone(), cols, n: keep.len() })
+                // redo-alloc: the table and its columns from the worker's pools
+                let mut t = Table::with(out.names.clone(), out.tys.clone());
+                for (c, src) in out.cols.iter().enumerate() {
+                    let mut v = std::mem::take(&mut t.cols[c]);
+                    v.extend(keep.iter().map(|r| src[*r]));
+                    t.cols[c] = v;
+                }
+                t.n = keep.len();
+                recycle::rc(t)
             }
         };
         kernel_input::give_keys(ks);
@@ -2183,7 +2305,9 @@ impl<'p> Exec<'p> {
         }
         let mut out = Table::with(sl.t.names.clone(), sl.t.tys.clone());
         for (c, col) in sl.t.cols.iter().enumerate() {
-            let mut v = Vec::with_capacity(total);
+            // redo-alloc: the pooled column, grown (not dropped for a new one)
+            let mut v = std::mem::take(&mut out.cols[c]);
+            v.reserve(total);
             for (a, l) in &ranges {
                 v.extend_from_slice(&col[*a..*a + *l]);
             }
@@ -2191,7 +2315,7 @@ impl<'p> Exec<'p> {
         }
         out.n = total;
         self.scratch_ranges = ranges;
-        Rc::new(out)
+        recycle::rc(out)
     }
 
     #[expect(clippy::too_many_arguments, reason = "a throwaway")]
@@ -2207,13 +2331,13 @@ impl<'p> Exec<'p> {
                     }
                     self.reason = if input == frame::WHOLE_CARRIED { "probed on a column its input shares with another input" } else { "probed on a column no input carries" };
                     let t = self.eval(f, run, p, node)?;
-                    return Ok(Rc::new(subset(f, node, &t, col, keys)));
+                    return Ok(recycle::rc(subset(f, node, &t, col, keys)));
                 }
                 _ => {
                     if self.frames[node].semi && self.semi_drives_whole(f, run, p, node, keys.len())? {
                         self.reason = "probed on a column no input carries";
                         let t = self.eval(f, run, p, node)?;
-                        return Ok(Rc::new(subset(f, node, &t, col, keys)));
+                        return Ok(recycle::rc(subset(f, node, &t, col, keys)));
                     }
                     return self.substituted(f, run, p, node, input as usize, icol as usize, keys);
                 }
@@ -2241,7 +2365,7 @@ impl<'p> Exec<'p> {
             && !sw!("VEC_NO_WALK")
             && let Some(t) = self.walk_probed(f, run, p, node, col, keys, sc)?
         {
-            return Ok(Rc::new(t));
+            return Ok(recycle::rc(t));
         }
         let target = match op.as_str() {
             "select" if self.semi_drives_whole(f, run, p, node, keys.len())? => None,
@@ -2260,12 +2384,12 @@ impl<'p> Exec<'p> {
                 let rc = pos(&rsc.names, &name)?;
                 let l = self.probe(f, run, p, ln, col, keys)?;
                 let r = self.probe(f, run, p, rn, rc, keys)?;
-                let mut out = (*l).clone();
+                let mut out = l.copy();
                 for (c, nm) in l.names.iter().enumerate() {
                     out.cols[c].extend_from_slice(&r.cols[pos(&r.names, nm)?]);
                 }
                 out.n += r.n;
-                return Ok(Rc::new(distinct(out)));
+                return Ok(recycle::rc(distinct(out)));
             }
             "antijoin" => unary(self, run, "left")?,
             "as-of" | "ordered-match" if !self.static_keyed => {
@@ -2284,7 +2408,7 @@ impl<'p> Exec<'p> {
             "axis" => {
                 if name == "related" {
                     if let Some(t) = self.axis_related(f, run, p, node, keys)? {
-                        return Ok(Rc::new(t));
+                        return Ok(recycle::rc(t));
                     }
                     None
                 } else {
@@ -2292,7 +2416,7 @@ impl<'p> Exec<'p> {
                     let fsc = self.schema(run, fnode)?;
                     let icol = pos(&fsc.names, &name)?;
                     let sub = self.probe(f, run, p, fnode, icol, keys)?;
-                    return Ok(Rc::new(self.axis_over(f, run, p, node, &a, &sub)?));
+                    return Ok(recycle::rc(self.axis_over(f, run, p, node, &a, &sub)?));
                 }
             }
             "group-count" | "group-min" | "group-max" => {
@@ -2310,7 +2434,7 @@ impl<'p> Exec<'p> {
                             out.push_row(&if forward { [*k, *d] } else { [*d, *k] });
                         }
                     }
-                    return Ok(Rc::new(out));
+                    return Ok(recycle::rc(out));
                 }
                 if col >= nk && l.tys[..nk].iter().all(|t| *t == Ty::File) {
                     let forward = col == nk;
@@ -2324,7 +2448,7 @@ impl<'p> Exec<'p> {
                             out.push_row(&row);
                         }
                     }
-                    return Ok(Rc::new(out));
+                    return Ok(recycle::rc(out));
                 }
                 None
             }
@@ -2352,12 +2476,12 @@ impl<'p> Exec<'p> {
             if target.is_none()
                 && let Some(t) = self.probe_by_group(f, run, p, node, col, keys)?
             {
-                return Ok(Rc::new(t));
+                return Ok(recycle::rc(t));
             }
             let Some((input, icol)) = target else {
                 self.reason = if carried { "probed on a column of an input it reads twice" } else { "probed on a column no input carries" };
                 let t = self.eval(f, run, p, node)?;
-                return Ok(Rc::new(subset(f, node, &t, col, keys)));
+                return Ok(recycle::rc(subset(f, node, &t, col, keys)));
             };
             let sub = self.probe(f, run, p, input, icol, keys)?;
             return self.run_over(f, run, p, node, input, at_pos, sub);
@@ -2369,7 +2493,7 @@ impl<'p> Exec<'p> {
         let Some((input, icol)) = target else {
             self.reason = if carried { "probed on a column its input shares with another input" } else { "probed on a column no input carries" };
             let t = self.eval(f, run, p, node)?;
-            return Ok(Rc::new(subset(f, node, &t, col, keys)));
+            return Ok(recycle::rc(subset(f, node, &t, col, keys)));
         };
         // the input probed, put in its place while the step runs once over it; everything made meanwhile is dropped
         let sub = self.probe(f, run, p, input, icol, keys)?;
@@ -2484,7 +2608,7 @@ impl<'p> Exec<'p> {
                     out.cols[c].extend(rows.iter().map(|r| f.native_get(run, v.base, *r, v.map[c])));
                 }
                 out.n = rows.len();
-                let rc = Rc::new(out);
+                let rc = recycle::rc(out);
                 if self.stats.made_by[node] == usize::MAX {
                     self.stats.made_by[node] = self.stack.last().copied().unwrap_or(usize::MAX - 1);
                     self.stats.why[node] = if why.is_empty() { "a view read whole" } else { why };
@@ -2595,7 +2719,7 @@ impl<'p> Exec<'p> {
         if fr.counted
             && let Some(t) = self.counted(f, run, p, node)?
         {
-            return Ok(Rc::new(t));
+            return Ok(recycle::rc(t));
         }
         // a step over an empty input answers nothing, and asks for nothing else
         if fr.first == frame::MISSING {
@@ -2613,7 +2737,7 @@ impl<'p> Exec<'p> {
             return self.select_entry(f, run, p, node);
         }
         let t = self.step(f, run, p, node)?;
-        if t.n == 0 { self.empty_rc(run, node) } else { Ok(Rc::new(t)) }
+        if t.n == 0 { self.empty_rc(run, node) } else { Ok(recycle::rc(t)) }
     }
 
     /// A group count over a counted select: its kept rows and their counts, grouped (None: the band does not apply).
@@ -2661,7 +2785,7 @@ impl<'p> Exec<'p> {
             "union" => {
                 let l = self.eval(f, run, p, self.arg_rel(node, "left")?)?;
                 let r = self.eval(f, run, p, self.arg_rel(node, "right")?)?;
-                let mut out = (*l).clone();
+                let mut out = l.copy();
                 let map: Vec<usize> = l.names.iter().map(|c| r.col(c)).collect::<R<_>>()?;
                 for (c, m) in map.iter().enumerate() {
                     out.cols[c].extend_from_slice(&r.cols[*m]);
@@ -2672,7 +2796,7 @@ impl<'p> Exec<'p> {
             "antijoin" => self.antijoin(f, run, p, node, a),
             "extend" => {
                 let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
-                let mut out = (*from).clone();
+                let mut out = from.copy();
                 for (k, v) in a["values"].as_object().ok_or("extend values")? {
                     let (t, x) = match v {
                         J::Number(n) => (Ty::Num, n.as_i64().ok_or("extend number")? as u64),
@@ -2821,7 +2945,7 @@ impl<'p> Exec<'p> {
             "span-between" => {
                 let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
                 let (sc, ec) = (from.col(s(&a["start"])?)?, from.col(s(&a["end"])?)?);
-                let mut out = (*from).clone();
+                let mut out = from.copy();
                 let col: Vec<u64> = (0..from.n)
                     .map(|i| {
                         let (x, y) = (from.cols[sc][i], from.cols[ec][i]);
@@ -2836,7 +2960,7 @@ impl<'p> Exec<'p> {
             "span-bounds" => {
                 let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
                 let sc = from.col(s(&a["span"])?)?;
-                let mut out = (*from).clone();
+                let mut out = from.copy();
                 out.cols.push(from.cols[sc].iter().map(|x| x >> 32).collect());
                 out.cols.push(from.cols[sc].iter().map(|x| x & 0xffff_ffff).collect());
                 let osc = self.schema(run, node)?;
@@ -2849,7 +2973,7 @@ impl<'p> Exec<'p> {
                 let tc = from.col(s(&a["text"])?)?;
                 let re = run.re(s(&a["pattern"])?)?;
                 let rep = s(&a["replacement"])?.as_bytes().to_vec();
-                let mut out = (*from).clone();
+                let mut out = from.copy();
                 let col: Vec<u64> = (0..from.n)
                     .map(|i| {
                         let t = run.text(from.cols[tc][i] as u32).to_vec();
@@ -3035,7 +3159,7 @@ impl<'p> Exec<'p> {
         let rel = run.fact_rels[i].0.clone();
         if !f.fills.contains_key(&rel) {
             let t = p.fill(run, &rel)?;
-            f.fills.insert(rel.clone(), Rc::new(t));
+            f.fills.insert(rel.clone(), recycle::rc(t));
         }
         if f.facts.len() <= i {
             f.facts.resize(i + 1, None);
@@ -3053,7 +3177,7 @@ impl<'p> Exec<'p> {
             return Ok(out);
         }
         if let Some(t) = f.fills.get(rel) {
-            return Ok((**t).clone());
+            return Ok(t.copy());
         }
         if rel == "project-namespace-membership" {
             return namespace_membership(f, run);
@@ -3062,7 +3186,7 @@ impl<'p> Exec<'p> {
             return module_identity(f, run);
         }
         let t = p.fill(run, rel)?;
-        f.fills.insert(rel.to_owned(), Rc::new(t.clone()));
+        f.fills.insert(rel.to_owned(), recycle::rc(t.clone()));
         Ok(t)
     }
 
@@ -3096,7 +3220,7 @@ impl<'p> Exec<'p> {
         }
         let r = self.right_by_keys(f, run, p, rn, &l, &lk, &rk)?;
         if r.n == 0 {
-            return Ok((*l).clone());
+            return Ok(l.copy());
         }
         self.stats.touched[node] += r.n as u64;
         if rk.len() == 1 {
@@ -3510,7 +3634,7 @@ impl<'p> Exec<'p> {
                             }
                         }
                         self.stats.touched[node] += t.n as u64;
-                        srcs[si] = Src::Tab(Rc::new(t), usize::MAX - si);
+                        srcs[si] = Src::Tab(recycle::rc(t), usize::MAX - si);
                         }
                     }
                     let nb = bound | (1 << si);
@@ -4000,21 +4124,40 @@ impl<'p> Exec<'p> {
             picks.push((side == "left", if side == "left" { l.col(s(&v[1])?)? } else { r.col(s(&v[1])?)? }));
         }
         let mut out = self.empty(run, node)?;
+        // redo-alloc: a row's key read into one buffer; a key list made only for a key not seen (same keys, same order)
+        let mut kb: Vec<u64> = Vec::with_capacity(rk.len().max(lk.len()));
         let mut groups: FxHashMap<Vec<u64>, Vec<(i64, u32)>> = FxHashMap::default();
         for i in 0..r.n {
-            let k: Vec<u64> = rk.iter().map(|c| r.cols[*c][i]).collect();
-            groups.entry(k).or_default().push((r.cols[ro][i] as i64, i as u32));
+            kb.clear();
+            kb.extend(rk.iter().map(|c| r.cols[*c][i]));
+            let v = (r.cols[ro][i] as i64, i as u32);
+            match groups.get_mut(&kb[..]) {
+                Some(g) => g.push(v),
+                None => {
+                    groups.insert(kb.clone(), vec![v]);
+                }
+            }
         }
         for g in groups.values_mut() {
             g.sort_unstable();
         }
         let mut lefts: FxHashMap<Vec<u64>, Vec<(i64, u32)>> = FxHashMap::default();
         for i in 0..l.n {
-            let k: Vec<u64> = lk.iter().map(|c| l.cols[*c][i]).collect();
-            lefts.entry(k).or_default().push((l.cols[lo][i] as i64, i as u32));
+            kb.clear();
+            kb.extend(lk.iter().map(|c| l.cols[*c][i]));
+            let v = (l.cols[lo][i] as i64, i as u32);
+            match lefts.get_mut(&kb[..]) {
+                Some(g) => g.push(v),
+                None => {
+                    lefts.insert(kb.clone(), vec![v]);
+                }
+            }
         }
+        let row = RefCell::new(Vec::with_capacity(picks.len()));
         let emit = |out: &mut Table, li: u32, ri: u32| {
-            let row: Vec<u64> = picks.iter().map(|(left, c)| if *left { l.cols[*c][li as usize] } else { r.cols[*c][ri as usize] }).collect();
+            let mut row = row.borrow_mut();
+            row.clear();
+            row.extend(picks.iter().map(|(left, c)| if *left { l.cols[*c][li as usize] } else { r.cols[*c][ri as usize] }));
             out.push_row(&row);
         };
         if as_of {
@@ -4187,7 +4330,7 @@ fn view_rows(f: &mut File<'_>, run: &mut Run, v: &ViewSpec, node: usize) -> Rc<V
         return r.clone();
     }
     if filter_order::file_fails(run, f, &v.filter) {
-        let rc = Rc::new(Vec::new());
+        let rc = recycle::no_rows();
         f.vrows.insert(node, rc.clone());
         return rc;
     }
@@ -4263,11 +4406,18 @@ fn lit_rows(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize]) ->
             _ => {}
         }
     }
-    for e in conj {
-        let mut cs = Vec::new();
+    // redo-alloc: the columns and literals of each conjunct in the worker's two buffers (none made a conjunct)
+    thread_local! {
+        static BUF: RefCell<(Vec<usize>, Vec<u32>)> = const { RefCell::new((Vec::new(), Vec::new())) };
+    }
+    let (mut cs, mut vals) = BUF.with(|b| std::mem::take(&mut *b.borrow_mut()));
+    let mut out = None;
+    'conj: for e in conj {
+        cs.clear();
         cols(e, si, &mut cs);
-        for c in cs {
-            if let Some(vals) = kinds_required(e, si, c) {
+        for &c in &cs {
+            vals.clear();
+            if kinds_required_into(e, si, c, &mut vals) {
                 let bc = if map.is_empty() { c } else { map[c] };
                 // a text literal names a symbol cell only; a flag or number column is tested row by row
                 if f.facts[usize::from(i)].as_ref().is_none_or(|t| t.tys[bc] != Ty::Sym) {
@@ -4277,11 +4427,13 @@ fn lit_rows(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize]) ->
                 let mut rows: Vec<u32> = vals.iter().filter_map(|v| ix.get(&u64::from(*v))).flatten().copied().collect();
                 rows.sort_unstable();
                 rows.dedup();
-                return Some(rows);
+                out = Some(rows);
+                break 'conj;
             }
         }
     }
-    None
+    BUF.with(|b| *b.borrow_mut() = (cs, vals));
+    out
 }
 
 /// The kinds a conjunction requires of a tree source's `kind` column (a literal or an or of literals), if any. `map` takes a
@@ -4326,23 +4478,43 @@ fn kind_set(_run: &Run, conj: &[E], si: usize, base: Native, map: &[usize]) -> O
 
 /// The kinds a test requires of column `kc` of source `si`: a literal, a list, an `or` of such, or an `and` holding one.
 fn kinds_required(e: &E, si: usize, kc: usize) -> Option<Vec<u32>> {
-    match e {
+    let mut v = Vec::new();
+    kinds_required_into(e, si, kc, &mut v).then_some(v)
+}
+
+/// redo-alloc: `kinds_required` into `out` (appended; whether it holds, `out` as it was when not).
+fn kinds_required_into(e: &E, si: usize, kc: usize, out: &mut Vec<u32>) -> bool {
+    let at = out.len();
+    let ok = match e {
         E::Cmp(Op::Eq, a, b) => match (&**a, &**b) {
-            (E::Col(s, c, _), E::Text(t)) | (E::Text(t), E::Col(s, c, _)) if *s == si && *c == kc => Some(vec![*t]),
-            _ => None,
+            (E::Col(s, c, _), E::Text(t)) | (E::Text(t), E::Col(s, c, _)) if *s == si && *c == kc => {
+                out.push(*t);
+                true
+            }
+            _ => false,
         },
         E::In(a, b, false) => match (&**a, &**b) {
-            (E::Col(s, c, _), E::List(items)) if *s == si && *c == kc => items.iter().map(|i| if let E::Text(t) = i { Some(*t) } else { None }).collect(),
-            _ => None,
+            (E::Col(s, c, _), E::List(items)) if *s == si && *c == kc => items.iter().all(|i| {
+                if let E::Text(t) = i {
+                    out.push(*t);
+                    true
+                } else {
+                    false
+                }
+            }),
+            _ => false,
         },
-        E::Or(a, b) => {
-            let mut x = kinds_required(a, si, kc)?;
-            x.extend(kinds_required(b, si, kc)?);
-            Some(x)
-        }
-        E::And(a, b) => kinds_required(a, si, kc).or_else(|| kinds_required(b, si, kc)),
-        _ => None,
+        E::Or(a, b) => kinds_required_into(a, si, kc, out) && kinds_required_into(b, si, kc, out),
+        E::And(a, b) => kinds_required_into(a, si, kc, out) || {
+            out.truncate(at);
+            kinds_required_into(b, si, kc, out)
+        },
+        _ => false,
+    };
+    if !ok {
+        out.truncate(at);
     }
+    ok
 }
 
 /// An expression over a view's columns, rewritten over its base's.
@@ -4437,42 +4609,87 @@ pub(super) struct Index {
     rows: Vec<u32>,
 }
 
+thread_local! {
+    /// redo-alloc: an index's scratch (its keys, the fill cursor, the sorted pairs) and the kept buffers of dropped indexes.
+    static IX_SCRATCH: RefCell<(Vec<u64>, Vec<u32>, Vec<(u64, u32)>)> = const { RefCell::new((Vec::new(), Vec::new(), Vec::new())) };
+    static IX_KEPT: RefCell<(Vec<Vec<u32>>, Vec<FxHashMap<u64, (u32, u32)>>)> = const { RefCell::new((Vec::new(), Vec::new())) };
+}
+
+/// redo-alloc: a kept row buffer (empty) or a new one.
+fn ix_u32() -> Vec<u32> {
+    IX_KEPT.with(|k| k.borrow_mut().0.pop()).unwrap_or_default()
+}
+
+impl Drop for Index {
+    fn drop(&mut self) {
+        // redo-alloc: the buffers kept for the next index (a worker's working set; one far past it is freed)
+        let _ = IX_KEPT.try_with(|k| {
+            let mut k = k.borrow_mut();
+            for mut v in [std::mem::take(&mut self.offs), std::mem::take(&mut self.rows)] {
+                if v.capacity() > 0 && v.capacity() <= 1 << 16 && k.0.len() < 1024 {
+                    v.clear();
+                    k.0.push(v);
+                }
+            }
+            let mut m = std::mem::take(&mut self.at);
+            if m.capacity() > 0 && m.capacity() <= 1 << 14 && k.1.len() < 256 {
+                m.clear();
+                k.1.push(m);
+            }
+        });
+    }
+}
+
 impl Index {
     pub(super) fn build(n: usize, key: impl Fn(usize) -> u64) -> Index {
-        let keys: Vec<u64> = (0..n).map(key).collect();
+        // redo-alloc: the scratch and the index's own buffers from the worker's kept ones (same rows, same order)
+        let (mut keys, mut fill, mut order) = IX_SCRATCH.with(|b| std::mem::take(&mut *b.borrow_mut()));
+        keys.clear();
+        keys.extend((0..n).map(key));
         let max = keys.iter().copied().max().unwrap_or(0);
-        if n > 0 && max < (4 * n as u64).max(1024) {
+        let ix = if n > 0 && max < (4 * n as u64).max(1024) {
             let m = max as usize + 1;
-            let mut offs = vec![0u32; m + 1];
+            let mut offs = ix_u32();
+            offs.resize(m + 1, 0);
             for k in &keys {
                 offs[*k as usize + 1] += 1;
             }
             for i in 0..m {
                 offs[i + 1] += offs[i];
             }
-            let mut fill = offs[..m].to_vec();
-            let mut rows = vec![0u32; n];
+            fill.clear();
+            fill.extend_from_slice(&offs[..m]);
+            let mut rows = ix_u32();
+            rows.resize(n, 0);
             for (r, k) in keys.iter().enumerate() {
                 let p = &mut fill[*k as usize];
                 rows[*p as usize] = r as u32;
                 *p += 1;
             }
-            return Index { dense: true, offs, at: FxHashMap::default(), rows };
-        }
-        let mut order: Vec<(u64, u32)> = keys.iter().enumerate().map(|(r, k)| (*k, r as u32)).collect();
-        order.sort_unstable();
-        let mut at: FxHashMap<u64, (u32, u32)> = FxHashMap::default();
-        at.reserve(n.min(1 << 16));
-        let mut i = 0;
-        while i < order.len() {
-            let mut j = i;
-            while j < order.len() && order[j].0 == order[i].0 {
-                j += 1;
+            Index { dense: true, offs, at: FxHashMap::default(), rows }
+        } else {
+            order.clear();
+            order.extend(keys.iter().enumerate().map(|(r, k)| (*k, r as u32)));
+            order.sort_unstable();
+            let mut at: FxHashMap<u64, (u32, u32)> = IX_KEPT.with(|k| k.borrow_mut().1.pop()).unwrap_or_default();
+            at.reserve(n.min(1 << 16));
+            let mut i = 0;
+            while i < order.len() {
+                let mut j = i;
+                while j < order.len() && order[j].0 == order[i].0 {
+                    j += 1;
+                }
+                at.insert(order[i].0, (i as u32, (j - i) as u32));
+                i = j;
             }
-            at.insert(order[i].0, (i as u32, (j - i) as u32));
-            i = j;
+            let mut rows = ix_u32();
+            rows.extend(order.iter().map(|x| x.1));
+            Index { dense: false, offs: Vec::new(), at, rows }
+        };
+        if keys.capacity() <= 1 << 16 && order.capacity() <= 1 << 16 {
+            IX_SCRATCH.with(|b| *b.borrow_mut() = (keys, fill, order));
         }
-        Index { dense: false, offs: Vec::new(), at, rows: order.into_iter().map(|x| x.1).collect() }
+        ix
     }
     pub(super) fn get(&self, k: &u64) -> Option<&[u32]> {
         if self.dense {
@@ -4586,13 +4803,15 @@ fn subset(f: &mut File<'_>, node: usize, t: &Table, col: usize, keys: &[u64]) ->
     out
 }
 
-fn text_of(run: &Run, v: V) -> Vec<u8> {
+/// redo-alloc: an interned text is read where it lies (no copy); a number's text is made.
+fn text_of(run: &Run, v: V) -> std::borrow::Cow<'_, [u8]> {
+    use std::borrow::Cow;
     match v.ty() {
-        Ty::Sym => run.text(v.1 as u32).to_vec(),
-        Ty::File => run.text(run.path_sym[v.1 as usize]).to_vec(),
-        Ty::Num => (v.1 as i64).to_string().into_bytes(),
-        Ty::Flag => if v.1 == 1 { b"true".to_vec() } else { b"false".to_vec() },
-        _ => Vec::new(),
+        Ty::Sym => Cow::Borrowed(run.text(v.1 as u32)),
+        Ty::File => Cow::Borrowed(run.text(run.path_sym[v.1 as usize])),
+        Ty::Num => Cow::Owned((v.1 as i64).to_string().into_bytes()),
+        Ty::Flag => Cow::Borrowed(if v.1 == 1 { b"true".as_slice() } else { b"false".as_slice() }),
+        _ => Cow::Borrowed(&[]),
     }
 }
 
@@ -4685,6 +4904,14 @@ fn eval(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], e: &E) -> V {
             })
         }
         E::Call(name, args) => {
+            // redo-alloc: up to four arguments on the stack (the common sizes), more in a list
+            if args.len() <= 4 {
+                let mut vs = [NULL_V; 4];
+                for (i, x) in args.iter().enumerate() {
+                    vs[i] = eval(run, f, srcs, cur, x);
+                }
+                return call(run, name, &vs[..args.len()]);
+            }
             let vs: Vec<V> = args.iter().map(|x| eval(run, f, srcs, cur, x)).collect();
             call(run, name, &vs)
         }
@@ -4696,7 +4923,7 @@ fn eval(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], e: &E) -> V {
 }
 
 fn call(run: &mut Run, name: &str, vs: &[V]) -> V {
-    let t = |run: &Run, i: usize| text_of(run, vs[i]);
+    let t = |run: &Run, i: usize| text_of(run, vs[i]).into_owned();
     match name {
         "matches" => {
             let p = String::from_utf8(t(run, 1)).unwrap_or_default();
@@ -4889,14 +5116,24 @@ pub(super) fn filled_table(run: &mut Run, rel: &str, filled: &languages::FilledC
             out.cols[c] = vec![NULL; n];
             continue;
         };
-        out.cols[c] = match ty {
-            Ty::Sym => column.0.iter().map(|w| u64::from(run.sym(&cell_text(words, *w)))).collect(),
-            Ty::Node => column.0.iter().map(|w| w.0 & 0xffff_ffff).collect(),
-            _ => column.0.iter().map(|w| w.0).collect(),
-        };
+        // redo-alloc: into the pooled column, each text interned from where it lies (no copy a cell)
+        let v = &mut out.cols[c];
+        match ty {
+            Ty::Sym => v.extend(column.0.iter().map(|w| u64::from(cell_sym(run, words, *w)))),
+            Ty::Node => v.extend(column.0.iter().map(|w| w.0 & 0xffff_ffff)),
+            _ => v.extend(column.0.iter().map(|w| w.0)),
+        }
     }
     out.n = n;
     Ok(out)
+}
+
+/// redo-alloc: a cell's text interned (`cell_text`'s text, read in place where the file's words hold it).
+fn cell_sym(run: &mut Run, words: &languages::FileWords, w: languages::CellWord) -> u32 {
+    if (0xFFFF_0000..0xFFFF_0700).contains(&w.0) {
+        return run.sym(&cell_text(words, w));
+    }
+    run.sym(languages::facts::text(words, w).0.as_bytes())
 }
 
 /// redo-binding: a cell's text, a word of a closed set (`defines.kind` and the other closed columns: the catalog's term blocks

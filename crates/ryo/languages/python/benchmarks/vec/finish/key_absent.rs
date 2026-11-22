@@ -84,10 +84,12 @@ impl Exec<'_> {
                 let op = self.frames[n].op;
                 if op == frame::Op::Union && !sw!("VEC_OLD_UNION") {
                     // the union's rows for the keys are its inputs' (each by the column of that name)
-                    let name = self.schema(run, n)?.names[c].clone();
-                    let ins = self.plan.nodes[n].inputs.clone();
-                    for i in ins {
-                        let Some(ic) = self.schema(run, i)?.names.iter().position(|x| *x == name) else { return Ok(false) };
+                    // redo-alloc: the schema's names and the plan's inputs read in place (no copy a call)
+                    let names = self.schema(run, n)?.names.clone();
+                    let name = &names[c];
+                    let plan = self.plan;
+                    for &i in &plan.nodes[n].inputs {
+                        let Some(ic) = self.schema(run, i)?.names.iter().position(|x| x == name) else { return Ok(false) };
                         if !self.absent(f, run, i, ic, keys, budget)? {
                             return Ok(false);
                         }

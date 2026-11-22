@@ -234,7 +234,7 @@ impl super::Exec<'_> {
     fn select_entry_(&mut self, f: &mut super::File<'_>, run: &mut super::Run, p: &mut dyn super::Provider, node: usize) -> super::R<Rc<super::Table>> {
         if sw!("VEC_OLD_EMPTYSEL") || sw!("VEC_OLD_SELECT") {
             let t = self.select(f, run, p, node)?;
-            return if t.n == 0 { self.empty_rc(run, node) } else { Ok(Rc::new(t)) };
+            return if t.n == 0 { self.empty_rc(run, node) } else { Ok(super::recycle::rc(t)) };
         }
         self.select_kr(f, run, p, node)
     }
