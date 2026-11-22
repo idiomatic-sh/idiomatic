@@ -15,6 +15,54 @@ thread_local! {
     static COLS: RefCell<Vec<Vec<Vec<u64>>>> = const { RefCell::new(Vec::new()) };
     static RCS: RefCell<Vec<Rc<Table>>> = const { RefCell::new(Vec::new()) };
     static NO_ROWS: Rc<Vec<u32>> = Rc::new(Vec::new());
+    static ROW_LISTS: RefCell<(Vec<Rc<Vec<u32>>>, usize)> = const { RefCell::new((Vec::new(), 0)) };
+}
+
+/// The kept row lists' room in all (cells): a worker keeps no more than this (4 MB).
+const ROW_CELLS: usize = 1 << 20;
+
+/// A shared row list made by `fill` into a kept list's room when there is one.
+#[inline]
+pub(super) fn rows_with(fill: impl FnOnce(&mut Vec<u32>)) -> Rc<Vec<u32>> {
+    let kept = ROW_LISTS.with(|r| {
+        let r = &mut *r.borrow_mut();
+        let x = r.0.pop();
+        if let Some(x) = &x {
+            r.1 -= x.capacity();
+        }
+        x
+    });
+    let mut rc = kept.unwrap_or_default();
+    match Rc::get_mut(&mut rc) {
+        Some(v) => {
+            v.clear();
+            fill(v);
+            rc
+        }
+        None => {
+            let mut v = Vec::new();
+            fill(&mut v);
+            Rc::new(v)
+        }
+    }
+}
+
+/// A row list given back: kept when no one else holds it (and the worker's room allows).
+#[inline]
+pub(super) fn recycle_rows(mut r: Rc<Vec<u32>>) {
+    if let Some(v) = Rc::get_mut(&mut r) {
+        let cap = v.capacity();
+        if cap == 0 {
+            return;
+        }
+        let _ = ROW_LISTS.try_with(|p| {
+            let p = &mut *p.borrow_mut();
+            if p.1 + cap <= ROW_CELLS && p.0.len() < KEEP {
+                p.1 += cap;
+                p.0.push(r);
+            }
+        });
+    }
 }
 
 /// The worker's one empty row list (shared: never written).

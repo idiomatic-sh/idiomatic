@@ -36,6 +36,8 @@ pub(super) fn step_clock() -> f64 {
 mod drive;
 #[path = "finish/recycle.rs"]
 mod recycle;
+#[path = "finish/inline_key.rs"]
+mod inline_key;
 #[path = "finish/select_kernel.rs"]
 mod select_kernel;
 #[path = "finish/memo.rs"]
@@ -579,13 +581,13 @@ pub(super) struct File<'a> {
     log: Vec<usize>,
     vrows: FxHashMap<usize, Rc<Vec<u32>>>,
     vmat: FxHashMap<usize, Rc<Table>>,
-    index: FxHashMap<usize, Vec<(Vec<usize>, Rc<Index>)>>,
+    index: FxHashMap<usize, Vec<(inline_key::Key, Rc<Index>)>>,
     fills: FxHashMap<String, Rc<Table>>,
     lazies: FxHashMap<usize, Rc<Lazy>>,
     /// The survivor sets of this file (sorted node ids), by set: the prefix's roots for each seeded rule.
     pub(super) seeds: Vec<Vec<u32>>,
     /// A probed closure walk's adjacency by (closure, forward): the nodes asked so far and their neighbours.
-    walks: FxHashMap<(usize, bool), FxHashMap<u64, Vec<u64>>>,
+    walks: FxHashMap<(usize, bool), FxHashMap<u64, inline_key::List<u64>>>,
     /// 6h: the fills read in place, by `Native::Fact` place, and their keyed lists by (place, column).
     facts: Vec<Option<Rc<Table>>>,
     fact_ix: RefCell<FxHashMap<(u16, usize), Rc<Index>>>,
@@ -617,10 +619,10 @@ struct FileBufs {
     log: Vec<usize>,
     vrows: FxHashMap<usize, Rc<Vec<u32>>>,
     vmat: FxHashMap<usize, Rc<Table>>,
-    index: FxHashMap<usize, Vec<(Vec<usize>, Rc<Index>)>>,
+    index: FxHashMap<usize, Vec<(inline_key::Key, Rc<Index>)>>,
     fills: FxHashMap<String, Rc<Table>>,
     lazies: FxHashMap<usize, Rc<Lazy>>,
-    walks: FxHashMap<(usize, bool), FxHashMap<u64, Vec<u64>>>,
+    walks: FxHashMap<(usize, bool), FxHashMap<u64, inline_key::List<u64>>>,
     facts: Vec<Option<Rc<Table>>>,
     fact_ix: FxHashMap<(u16, usize), Rc<Index>>,
     kind_bits: Vec<u64>,
@@ -674,9 +676,16 @@ impl Drop for File<'_> {
         b.line_starts.clear();
         b.text_memo.clear();
         b.log.clear();
-        b.vrows.clear();
+        for (_, r) in b.vrows.drain() {
+            recycle::recycle_rows(r);
+        }
         give_tables(&mut b.vmat);
-        b.index.clear();
+        // redo-alloc: the indexes given back (their own allocation and buffers kept)
+        for (_, v) in b.index.drain() {
+            for (_, ix) in v {
+                recycle_index(ix);
+            }
+        }
         give_tables(&mut b.fills);
         b.lazies.clear();
         b.walks.clear();
@@ -899,6 +908,24 @@ impl File<'_> {
             0 => t.next[s] != NONE,
             1 => t.opener[s],
             _ => t.enc[s] != NONE,
+        }
+    }
+    /// redo-alloc: `native_rows` into `out` (empty).
+    fn native_rows_into(&self, run: &Run, nat: Native, out: &mut Vec<u32>) {
+        match nat {
+            Native::Tree | Native::Location => out.extend(0..self.n as u32),
+            Native::Child => out.extend((0..self.n as u32).filter(|p| self.has_parent(*p))),
+            Native::Token => {
+                let t = self.toks(run);
+                for &p in &t.order {
+                    for k in 0..3 {
+                        if Self::token_row(&t, p, k) {
+                            out.push(p * 3 + k);
+                        }
+                    }
+                }
+            }
+            Native::Fact(i) => out.extend(0..self.facts[usize::from(i)].as_ref().map_or(0, |t| t.n as u32)),
         }
     }
     fn native_rows(&self, run: &Run, nat: Native) -> Vec<u32> {
@@ -2750,8 +2777,8 @@ impl<'p> Exec<'p> {
             if let Some((from, counts)) = self.band_rows(f, run, p, fnode, pb, true)? {
                 self.stats.rows[fnode] += from.n as u64;
                 let keys: Vec<usize> = strs(&a["keys"])?.iter().map(|c| from.col(c)).collect::<R<_>>()?;
-                let mut groups: FxHashMap<Vec<u64>, u64> = FxHashMap::default();
-                let mut order: Vec<Vec<u64>> = Vec::new();
+                let mut groups: FxHashMap<inline_key::Key, u64> = FxHashMap::default();
+                let mut order: Vec<inline_key::Key> = Vec::new();
                 // redo-alloc: a row's key read into one buffer; lists made only for a key not seen (same groups, same order)
                 let mut kb: Vec<u64> = Vec::with_capacity(keys.len() + 1);
                 for i in 0..from.n {
@@ -2760,15 +2787,15 @@ impl<'p> Exec<'p> {
                     match groups.get_mut(&kb[..]) {
                         Some(e) => *e += counts[i],
                         None => {
-                            order.push(kb.clone());
-                            groups.insert(kb.clone(), counts[i]);
+                            order.push(inline_key::Key::of(&kb));
+                            groups.insert(inline_key::Key::of(&kb), counts[i]);
                         }
                     }
                 }
                 let mut out = self.empty(run, node)?;
                 for k in order {
                     kb.clear();
-                    kb.extend_from_slice(&k);
+                    kb.extend_from_slice(k.cells());
                     kb.push(groups[&k]);
                     out.push_row(&kb);
                 }
@@ -2821,14 +2848,14 @@ impl<'p> Exec<'p> {
                 let cols: Vec<usize> = strs(&a["columns"])?.iter().map(|c| from.col(c)).collect::<R<_>>()?;
                 let osc = self.schema(run, node)?;
                 let mut out = Table::with(osc.names.clone(), osc.tys.clone());
-                let mut seen: rustc_hash::FxHashSet<Vec<u64>> = rustc_hash::FxHashSet::default();
+                let mut seen: rustc_hash::FxHashSet<inline_key::Key> = rustc_hash::FxHashSet::default();
                 // redo-alloc: a row read into one buffer; a set entry made only for a row not seen
                 let mut row: Vec<u64> = Vec::with_capacity(cols.len());
                 for i in 0..from.n {
                     row.clear();
                     row.extend(cols.iter().map(|c| from.cols[*c][i]));
                     if !seen.contains(&row[..]) {
-                        seen.insert(row.clone());
+                        seen.insert(inline_key::Key::of(&row));
                         out.push_row(&row);
                     }
                 }
@@ -2842,16 +2869,16 @@ impl<'p> Exec<'p> {
                     J::String(d) => Some(from.col(d)?),
                     _ => None,
                 };
-                let mut groups: FxHashMap<Vec<u64>, (u64, rustc_hash::FxHashSet<u64>)> = FxHashMap::default();
-                let mut order: Vec<Vec<u64>> = Vec::new();
+                let mut groups: FxHashMap<inline_key::Key, (u64, rustc_hash::FxHashSet<u64>)> = FxHashMap::default();
+                let mut order: Vec<inline_key::Key> = Vec::new();
                 // redo-alloc: a row's key read into one buffer; lists made only for a key not seen (same groups, same order)
                 let mut kb: Vec<u64> = Vec::with_capacity(keys.len() + 1);
                 for i in 0..from.n {
                     kb.clear();
                     kb.extend(keys.iter().map(|c| from.cols[*c][i]));
                     if !groups.contains_key(&kb[..]) {
-                        order.push(kb.clone());
-                        groups.insert(kb.clone(), (0, rustc_hash::FxHashSet::default()));
+                        order.push(inline_key::Key::of(&kb));
+                        groups.insert(inline_key::Key::of(&kb), (0, rustc_hash::FxHashSet::default()));
                     }
                     let e = groups.get_mut(&kb[..]).expect("the group just made");
                     match distinct {
@@ -2866,7 +2893,7 @@ impl<'p> Exec<'p> {
                     let g = &groups[&k];
                     let c = if distinct.is_some() { g.1.len() as u64 } else { g.0 };
                     kb.clear();
-                    kb.extend_from_slice(&k);
+                    kb.extend_from_slice(k.cells());
                     kb.push(c);
                     out.push_row(&kb);
                 }
@@ -2877,7 +2904,7 @@ impl<'p> Exec<'p> {
                 let keys: Vec<usize> = strs(&a["keys"])?.iter().map(|c| from.col(c)).collect::<R<_>>()?;
                 let oc = from.col(s(&a["order"])?)?;
                 let max = op == "group-max";
-                let mut best: FxHashMap<Vec<u64>, i64> = FxHashMap::default();
+                let mut best: FxHashMap<inline_key::Key, i64> = FxHashMap::default();
                 // redo-alloc: a row's key read into one buffer; a key list made only for a key not seen
                 let mut kb: Vec<u64> = Vec::with_capacity(keys.len());
                 for i in 0..from.n {
@@ -2891,7 +2918,7 @@ impl<'p> Exec<'p> {
                             }
                         }
                         None => {
-                            best.insert(kb.clone(), v);
+                            best.insert(inline_key::Key::of(&kb), v);
                         }
                     }
                 }
@@ -4158,7 +4185,8 @@ impl<'p> Exec<'p> {
         let mut out = self.empty(run, node)?;
         // redo-alloc: a row's key read into one buffer; a key list made only for a key not seen (same keys, same order)
         let mut kb: Vec<u64> = Vec::with_capacity(rk.len().max(lk.len()));
-        let mut groups: FxHashMap<Vec<u64>, Vec<(i64, u32)>> = FxHashMap::default();
+        // redo-alloc: keys inline (inline_key.rs: hashed as the Vec was, so the same order), a group's first row inline
+        let mut groups: FxHashMap<inline_key::Key, inline_key::List<(i64, u32)>> = FxHashMap::default();
         for i in 0..r.n {
             kb.clear();
             kb.extend(rk.iter().map(|c| r.cols[*c][i]));
@@ -4166,14 +4194,14 @@ impl<'p> Exec<'p> {
             match groups.get_mut(&kb[..]) {
                 Some(g) => g.push(v),
                 None => {
-                    groups.insert(kb.clone(), vec![v]);
+                    groups.insert(inline_key::Key::of(&kb), inline_key::List::One([v]));
                 }
             }
         }
         for g in groups.values_mut() {
             g.sort_unstable();
         }
-        let mut lefts: FxHashMap<Vec<u64>, Vec<(i64, u32)>> = FxHashMap::default();
+        let mut lefts: FxHashMap<inline_key::Key, inline_key::List<(i64, u32)>> = FxHashMap::default();
         for i in 0..l.n {
             kb.clear();
             kb.extend(lk.iter().map(|c| l.cols[*c][i]));
@@ -4181,7 +4209,7 @@ impl<'p> Exec<'p> {
             match lefts.get_mut(&kb[..]) {
                 Some(g) => g.push(v),
                 None => {
-                    lefts.insert(kb.clone(), vec![v]);
+                    lefts.insert(inline_key::Key::of(&kb), inline_key::List::One([v]));
                 }
             }
         }
@@ -4196,7 +4224,7 @@ impl<'p> Exec<'p> {
             let bound = s(&a["bound"])?;
             for (k, ls) in &lefts {
                 let Some(g) = groups.get(k) else { continue };
-                for (o, li) in ls {
+                for (o, li) in ls.iter() {
                     let (lo_i, hi_i) = (g.partition_point(|x| x.0 < *o), g.partition_point(|x| x.0 <= *o));
                     let target = match bound {
                         "before" => (lo_i > 0).then(|| g[lo_i - 1].0),
@@ -4366,12 +4394,17 @@ fn view_rows(f: &mut File<'_>, run: &mut Run, v: &ViewSpec, node: usize) -> Rc<V
         f.vrows.insert(node, rc.clone());
         return rc;
     }
-    let rows = match kind_set(run, &v.filter, 0, v.base, &[]) {
-        Some(ks) => bucket(f, run, &ks),
-        None => lit_rows(f, &v.filter, 0, v.base, &[]).unwrap_or_else(|| f.native_rows(run, v.base)),
-    };
-    let kept: Vec<u32> = rows.into_iter().filter(|r| view_holds(f, run, v, *r)).collect();
-    let rc = Rc::new(kept);
+    // redo-alloc: the rows made into a kept list (recycle.rs), tested in place
+    let rc = recycle::rows_with(|out| {
+        match kind_set(run, &v.filter, 0, v.base, &[]) {
+            Some(ks) => bucket_into(f, run, &ks, out),
+            None => match lit_rows(f, &v.filter, 0, v.base, &[]) {
+                Some(r) => out.extend_from_slice(&r),
+                None => f.native_rows_into(run, v.base, out),
+            },
+        }
+        out.retain(|r| view_holds(f, run, v, *r));
+    });
     f.vrows.insert(node, rc.clone());
     rc
 }
@@ -4409,8 +4442,14 @@ fn kind_codes(run: &Run) -> &FxHashMap<u32, Box<[u16]>> {
 
 /// The elements of some kinds, in position order.
 fn bucket(f: &File<'_>, run: &Run, ks: &[u32]) -> Vec<u32> {
-    let codes = kind_codes(run);
     let mut rows = Vec::new();
+    bucket_into(f, run, ks, &mut rows);
+    rows
+}
+
+/// redo-alloc: `bucket` into `rows` (empty).
+fn bucket_into(f: &File<'_>, run: &Run, ks: &[u32], rows: &mut Vec<u32>) {
+    let codes = kind_codes(run);
     for (i, s) in ks.iter().enumerate() {
         if ks[..i].contains(s) {
             continue;
@@ -4420,7 +4459,6 @@ fn bucket(f: &File<'_>, run: &Run, ks: &[u32]) -> Vec<u32> {
         }
     }
     rows.sort_unstable();
-    rows
 }
 
 /// 6h: a fact view's rows where a test fixes one of its columns to literals (`col = "x"`, `col in [..]`, an or of such): that
@@ -4586,9 +4624,14 @@ fn distinct(t: Table) -> Table {
             keep.extend((0..t.n).filter(|r| seen.insert((t.cols[0][*r], t.cols[1][*r]))));
         }
         _ => {
-            let mut seen: rustc_hash::FxHashSet<Vec<u64>> = rustc_hash::FxHashSet::default();
+            // redo-alloc: a row read into one buffer, its key inline (inline_key.rs)
+            let mut seen: rustc_hash::FxHashSet<inline_key::Key> = rustc_hash::FxHashSet::default();
+            let mut row: Vec<u64> = Vec::with_capacity(t.cols.len());
             for r in 0..t.n {
-                if seen.insert(t.cols.iter().map(|c| c[r]).collect()) {
+                row.clear();
+                row.extend(t.cols.iter().map(|c| c[r]));
+                if !seen.contains(&row[..]) {
+                    seen.insert(inline_key::Key::of(&row));
                     keep.push(r);
                 }
             }
@@ -4771,14 +4814,58 @@ fn index_of(t: &Table, cols: &[usize]) -> Index {
 }
 
 fn table_index(f: &mut File<'_>, tn: usize, t: &Table, cols: &[usize]) -> Rc<Index> {
+    // redo-alloc: the index's columns as an inline key, the index in a kept allocation (`index_rc`)
+    let same = |c: &inline_key::Key| c.cells().len() == cols.len() && c.cells().iter().zip(cols).all(|(a, b)| *a == *b as u64);
     if let Some(v) = f.index.get(&tn)
-        && let Some((_, ix)) = v.iter().find(|(c, _)| c == cols)
+        && let Some((_, ix)) = v.iter().find(|(c, _)| same(c))
     {
         return ix.clone();
     }
-    let rc = Rc::new(index_of(t, cols));
-    f.index.entry(tn).or_default().push((cols.to_vec(), rc.clone()));
+    let rc = index_rc(index_of(t, cols));
+    let mut kb = [0u64; 8];
+    let k = if cols.len() <= kb.len() {
+        for (i, c) in cols.iter().enumerate() {
+            kb[i] = *c as u64;
+        }
+        inline_key::Key::of(&kb[..cols.len()])
+    } else {
+        inline_key::Key::of(&cols.iter().map(|c| *c as u64).collect::<Vec<u64>>())
+    };
+    f.index.entry(tn).or_default().push((k, rc.clone()));
     rc
+}
+
+thread_local! {
+    /// redo-alloc: emptied indexes' own allocations, for the next index made in a file.
+    static IX_RCS: RefCell<Vec<Rc<Index>>> = const { RefCell::new(Vec::new()) };
+}
+
+/// redo-alloc: `ix` shared, in a kept allocation when there is one.
+fn index_rc(ix: Index) -> Rc<Index> {
+    match IX_RCS.with(|r| r.borrow_mut().pop()) {
+        Some(mut r) => match Rc::get_mut(&mut r) {
+            Some(slot) => {
+                *slot = ix;
+                r
+            }
+            None => Rc::new(ix),
+        },
+        None => Rc::new(ix),
+    }
+}
+
+/// redo-alloc: an index given back: emptied (its buffers kept, `Index`'s drop) and its allocation kept when no one else
+/// holds it.
+fn recycle_index(mut r: Rc<Index>) {
+    if let Some(slot) = Rc::get_mut(&mut r) {
+        *slot = Index { dense: true, offs: Vec::new(), at: FxHashMap::default(), rows: Vec::new() };
+        let _ = IX_RCS.try_with(|p| {
+            let mut p = p.borrow_mut();
+            if p.len() < 4096 {
+                p.push(r);
+            }
+        });
+    }
 }
 
 fn flatten(e: E, out: &mut Vec<E>) {
@@ -5042,34 +5129,25 @@ fn glob_pattern(g: &str) -> String {
 
 /// Natural order, as the language reference states it.
 fn natural_lt(a: &str, b: &str) -> bool {
-    fn units(s: &str) -> Vec<(bool, String)> {
-        let mut out: Vec<(bool, String)> = Vec::new();
-        let mut cur = String::new();
-        let mut digits = false;
-        for ch in s.chars() {
-            if ch.is_whitespace() {
-                if !cur.is_empty() {
-                    out.push((digits, std::mem::take(&mut cur)));
-                }
+    // redo-alloc: the units as slices of the text (a digit run, or one other character; whitespace splits), not a string
+    // a unit
+    fn units(s: &str) -> Vec<(bool, &str)> {
+        let mut out: Vec<(bool, &str)> = Vec::new();
+        let mut run: Option<usize> = None;
+        for (at, ch) in s.char_indices() {
+            if ch.is_ascii_digit() {
+                run.get_or_insert(at);
                 continue;
             }
-            let d = ch.is_ascii_digit();
-            if d {
-                if !digits && !cur.is_empty() {
-                    out.push((false, std::mem::take(&mut cur)));
-                }
-                digits = true;
-                cur.push(ch);
-            } else {
-                if digits && !cur.is_empty() {
-                    out.push((true, std::mem::take(&mut cur)));
-                }
-                digits = false;
-                out.push((false, ch.to_string()));
+            if let Some(st) = run.take() {
+                out.push((true, &s[st..at]));
+            }
+            if !ch.is_whitespace() {
+                out.push((false, &s[at..at + ch.len_utf8()]));
             }
         }
-        if !cur.is_empty() {
-            out.push((digits, cur));
+        if let Some(st) = run {
+            out.push((true, &s[st..]));
         }
         out
     }
@@ -5172,26 +5250,47 @@ pub(super) fn filled_table(run: &mut Run, rel: &str, filled: &languages::FilledC
     Ok(out)
 }
 
-/// redo-alloc: a cell's text interned (`cell_text`'s text, read in place where the file's words hold it).
+/// redo-alloc: a cell's text interned (a closed set's word by `closed_text`, else the file's word read in place).
 fn cell_sym(run: &mut Run, words: &languages::FileWords, w: languages::CellWord) -> u32 {
     if (0xFFFF_0000..0xFFFF_0700).contains(&w.0) {
-        return run.sym(&cell_text(words, w));
+        // a closed set's word: its symbol once a run (the closed set's word list is made a call)
+        thread_local! {
+            static CLOSED: RefCell<(usize, FxHashMap<u64, u32>)> = RefCell::new((0, FxHashMap::default()));
+        }
+        let at = std::ptr::from_ref(&*run) as usize;
+        if let Some(x) = CLOSED.with(|c| {
+            let c = c.borrow();
+            if c.0 == at { c.1.get(&w.0).copied() } else { None }
+        }) {
+            return x;
+        }
+        let Some(t) = closed_text(w) else { return run.sym(languages::facts::text(words, w).0.as_bytes()) };
+        let x = run.sym(&t);
+        CLOSED.with(|c| {
+            let mut c = c.borrow_mut();
+            if c.0 != at {
+                *c = (at, FxHashMap::default());
+            }
+            c.1.insert(w.0, x);
+        });
+        return x;
     }
     run.sym(languages::facts::text(words, w).0.as_bytes())
 }
 
 /// redo-binding: a cell's text, a word of a closed set (`defines.kind` and the other closed columns: the catalog's term blocks
 /// from 0xFFFF_0000, 0x100 words a block, `ryo_relations::domain::terms`) read by its number, which the file's words do not hold.
-fn cell_text(words: &languages::FileWords, w: languages::CellWord) -> Vec<u8> {
+/// redo-alloc: its closed-set part only (the file's words are read in place by `cell_sym`).
+fn closed_text(w: languages::CellWord) -> Option<Vec<u8>> {
     use ryo_relations::domain::terms::{service::words_of, types::WordBlock};
     if (0xFFFF_0000..0xFFFF_0700).contains(&w.0) {
         let at = w.0 - 0xFFFF_0000;
         let block = [WordBlock::Declaration, WordBlock::Parameter, WordBlock::Value, WordBlock::Mapping, WordBlock::Dependency, WordBlock::Unknown, WordBlock::Origin][(at / 0x100) as usize];
         if let Some(t) = words_of(block).get((at % 0x100) as usize) {
-            return t.0.as_bytes().to_vec();
+            return Some(t.0.as_bytes().to_vec());
         }
     }
-    languages::facts::text(words, w).0.as_bytes().to_vec()
+    None
 }
 
 /// A tree relation as this file reads it in place, made whole (for `--check-bases`).
