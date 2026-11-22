@@ -33,6 +33,8 @@ pub(crate) enum FormulaNode {
     Term(TermNumber),
     /// A table's row, made when its own need holds.
     Table(MadeTableId),
+    /// A table's own need: the decision of the site it waits on, as a reader of the table consults it.
+    TableNeed(MadeTableId),
     /// Another unit's decision.
     Site(NeedSite),
     /// Every part holds: a stretch of the formulas' parts, cheapest first.
@@ -56,6 +58,11 @@ pub(crate) struct NeedFormulas {
     pub(crate) parts: Vec<u32>,
     /// The bit words of every `AllBits` and `AnyBits`, one node after the other.
     pub(crate) bits: Vec<MustWord>,
+    /// For each node, the free terms it cannot hold without, as a stretch of `musts`: a node whose words the file's
+    /// free bits do not all hold is empty, decided with no part of it read.
+    pub(crate) node_musts: Vec<Stretch>,
+    /// The words of every node's musts, one node after the other.
+    pub(crate) musts: Vec<MustWord>,
     /// For each place among the needs, the number of the node compiled from the record there and one more; nought:
     /// none yet.
     pub(crate) at_place: Vec<u32>,

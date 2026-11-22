@@ -1,11 +1,8 @@
-//! The types of the `masks` part: the terms of a rule set's needs, and for each site the clauses of them its formula
-//! cannot hold without.
+//! The types of the `masks` part: the terms of a rule set's needs, what asking each costs, and a file's answers to
+//! them.
 
 use crate::domain::needs::formulas::types::{FreeValue, NeedFormulas};
 use crate::domain::code::types::{PoolAt, RelationNumber, WordSlot};
-use crate::domain::indexes::types::FileStamp;
-use ryo_language::domain::facts::types::CellWord;
-use crate::domain::steps::types::MadeTableId;
 use ryo_relations::domain::relations::types::Count;
 
 /// A term of a need that is a fact of the file alone: a node of one of a list's kinds, or a row of a relation (with a
@@ -70,33 +67,6 @@ pub(crate) enum NodeAsk {
     NotAsked,
 }
 
-/// Whether a site's clauses are all its formula says.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) enum MaskExact {
-    /// They are what it needs and more is asked that is not kept here: a table under an `Any`, or what was left out
-    /// past a bound. When they all hold the formula is walked.
-    #[default]
-    Part,
-    /// They are the formula: when they all hold and every table of the site has a row, it holds.
-    Whole,
-}
-
-/// Where what the masks hold of one site lies: its clauses (every one must have a term in the file), its groups (in
-/// every one some alternative must have all its clauses hold: an `Any` of parts kept as it is, never multiplied out),
-/// and the tables its formula cannot hold without a row of, in the formula's order.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct SiteStretches {
-    /// Its clauses: a stretch of the masks' clauses.
-    pub(crate) clauses: Stretch,
-    /// Its groups: a stretch of the masks' groups.
-    pub(crate) groups: Stretch,
-    /// Its tables: a stretch of the masks' tables.
-    pub(crate) tables: Stretch,
-    /// The free terms every one of which it needs (its clauses of one free term), as words of the file's free bits:
-    /// a stretch of the masks' `must`. One and-compare a word decides most sites.
-    pub(crate) must: Stretch,
-}
-
 /// Bits of one word of a file's free answers that must all be set.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct MustWord {
@@ -106,21 +76,9 @@ pub(crate) struct MustWord {
     pub(crate) bits: u64,
 }
 
-/// What the masks hold of one site.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) enum SiteMasks {
-    /// Not found yet: found at the site's first decision.
-    #[default]
-    Unfound,
-    /// Its clauses, groups and tables, and whether they are all of its formula.
-    Found(SiteStretches, MaskExact),
-}
-
-/// What a rule set's needs say of a file in its terms, found once for a worker (the code does not change). Every
-/// distinct term has a number. For each site, clauses: each a list of terms of which SOME must hold in a file for the
-/// site's formula to hold; the clauses of terms that cost nothing first, and in a clause those terms first. A site
-/// one of whose clauses has no term in the file cannot hold, and is decided without a walk of its formula and without
-/// making a table; a site whose clauses are its whole formula and all hold is decided too; any other is walked.
+/// What a rule set's needs say of a file in its terms, found once for a worker (the code does not change): every
+/// distinct term has a number, the terms that cost nothing a place among the file's free bits, and each site's formula
+/// its compiled nodes (`needs::formulas`).
 #[derive(Debug, Default)]
 pub(crate) struct NeedMasks {
     /// The terms, by number.
@@ -133,22 +91,6 @@ pub(crate) struct NeedMasks {
     pub(crate) free_places: Vec<u32>,
     /// The terms that cost nothing, in the order they were met: a file's free bits are in this order.
     pub(crate) free_terms: Vec<TermNumber>,
-    /// The words of every site's `must`, one site after the other.
-    pub(crate) must: Vec<MustWord>,
-    /// What is held of each site, by the site's number.
-    pub(crate) sites: Vec<SiteMasks>,
-    /// Each clause's stretch of `clause_terms`.
-    pub(crate) clauses: Vec<Stretch>,
-    /// The terms of every clause, one clause after the other.
-    pub(crate) clause_terms: Vec<TermNumber>,
-    /// Each alternative's clauses: a stretch of `clauses`.
-    pub(crate) alternatives: Vec<Stretch>,
-    /// Each group's alternatives: a stretch of `alternatives`.
-    pub(crate) groups: Vec<Stretch>,
-    /// The tables of every site, one site after the other.
-    pub(crate) tables: Vec<MadeTableId>,
-    /// The sites being found: a formula that names itself says nothing of itself.
-    pub(crate) open: hashbrown::HashSet<u32>,
     /// For each place among the needs, whether the record there may cost a fill; empty until the first file.
     pub(crate) costs: Vec<RecordCost>,
     /// For each place among the needs whose record is a term, the term's number and one more; nought: none.
@@ -175,20 +117,4 @@ pub(crate) struct TermAnswers {
     /// What each site's formula says of the file from the free terms alone, by the site's number: found at most once a
     /// file.
     pub(crate) sites: Vec<FreeValue>,
-    /// The values of the filled columns a term asked for a constant, each column's found once a file.
-    pub(crate) values: Vec<ColumnValues>,
-}
-
-/// The distinct values of one column of a filled relation in one file, ascending: what a term that asks the column for a
-/// constant searches.
-#[derive(Debug)]
-pub(crate) struct ColumnValues {
-    /// The relation.
-    pub(crate) relation: RelationNumber,
-    /// The column's place.
-    pub(crate) column: WordSlot,
-    /// The file the values are of.
-    pub(crate) stamp: FileStamp,
-    /// The values.
-    pub(crate) cells: Vec<CellWord>,
 }
