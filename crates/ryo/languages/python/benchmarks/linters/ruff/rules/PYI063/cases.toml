@@ -92,3 +92,8 @@ expected = [{ file = "case.pyi", start = 40, end = 43 }]
 name = "class_getitem_dunder_second_parameter"
 files = { "case.pyi" = "class C:\n    def __class_getitem__(cls, __x: int) -> None: ...\n" }
 expected = [{ file = "case.pyi", start = 40, end = 43 }]
+
+[[cases]]
+name = "classmethod_new_dunder_second_parameter"
+files = { "case.pyi" = "from typing import Self\nclass Metaclass(type):\n    @classmethod\n    def __new__(mcls, __name: str, __bases: tuple[type, ...], __namespace: dict, **kwds) -> Self: ...\n" }
+expected = [{ file = "case.pyi", start = 86, end = 92 }]
