@@ -2073,6 +2073,45 @@ impl<'p> Exec<'p> {
         }
     }
 
+    /// 6i: an upper bound on a step's rows from what is known without making it: a made table's rows, a view's bucket, a
+    /// select bounded by its smallest bounded source (a join's rows never exceed... a heuristic: the smallest source's),
+    /// a union's sum, a pass-through step's input. None: unknown.
+    fn bound_size(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, depth: u32) -> R<Option<usize>> {
+        if let Some(Res::Tab(t)) = &f.memo[node] {
+            return Ok(Some(t.n));
+        }
+        if let Some(v) = self.view(run, node)? {
+            self.load_fact(f, run, p, v.base)?;
+            return Ok(kind_set(run, &v.filter, 0, v.base, &[]).map(|ks| bucket_len(f, run, &ks)).or_else(|| lit_rows(f, &v.filter, 0, v.base, &[]).map(|r| r.len())));
+        }
+        if depth == 0 {
+            return Ok(None);
+        }
+        let plan: &'p Plan = self.plan;
+        let pn = &plan.nodes[node];
+        Ok(match pn.op.as_str() {
+            "select" => {
+                let mut m: Option<usize> = None;
+                for i in pn.inputs.clone() {
+                    if let Some(b) = self.bound_size(f, run, p, i, depth - 1)? {
+                        m = Some(m.map_or(b, |x| x.min(b)));
+                    }
+                }
+                m
+            }
+            "union" => {
+                let (l, r) = (self.arg_rel(node, "left")?, self.arg_rel(node, "right")?);
+                match (self.bound_size(f, run, p, l, depth - 1)?, self.bound_size(f, run, p, r, depth - 1)?) {
+                    (Some(a), Some(b)) => Some(a + b),
+                    _ => None,
+                }
+            }
+            "antijoin" => self.bound_size(f, run, p, self.arg_rel(node, "left")?, depth - 1)?,
+            "extend" | "project" => self.bound_size(f, run, p, self.arg_rel(node, "from")?, depth - 1)?,
+            _ => None,
+        })
+    }
+
     /// 6h: a fact view's fill, asked once a file (the same fill a whole `base` step reads).
     fn load_fact(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, nat: Native) -> R<()> {
         let Native::Fact(i) = nat else { return Ok(()) };
@@ -2283,6 +2322,30 @@ impl<'p> Exec<'p> {
                 && n < best
             {
                 best = n;
+                driver = Some(i);
+            }
+        }
+        // 6i: a step not made yet whose rows are bounded by a small made or bucketed input gets that bound as its size;
+        // when it is smaller than every sized entry it is made and drives (`VEC_NO_PENDSIZE` off)
+        if std::env::var_os("VEC_NO_PENDSIZE").is_none() && best != 0 {
+            let mut pick: Option<(usize, usize, usize)> = None;
+            for i in 0..k {
+                if let Src::Pending(n) = srcs[i]
+                    && let Some(b) = self.bound_size(f, run, p, n, 6)?
+                    && b < best
+                    && pick.is_none_or(|q| b < q.2)
+                {
+                    pick = Some((i, n, b));
+                }
+            }
+            if let Some((i, n, _)) = pick {
+                self.reason = "join driver: a step bounded by a small input";
+                let t = self.eval(f, run, p, n)?;
+                if t.n == 0 {
+                    return self.empty(run, node);
+                }
+                best = t.n;
+                srcs[i] = Src::Tab(t, n);
                 driver = Some(i);
             }
         }
