@@ -639,17 +639,17 @@ impl Exec<'_> {
         }
         super::empty_sel::lap(3, self.inner);
         if !sw!("VEC_NO_PENDSIZE") && best != 0 {
-            super::select_bound::bound_fresh();
-            let mut pick: Option<(usize, usize, usize)> = None;
-            for i in 0..k {
-                if let Src::Pending(n) = srcs[i]
-                    && let Some(bs) = self.bound_k(f, run, p, n, 6)?
-                    && bs < best
-                    && pick.is_none_or(|q| bs < q.2)
+            let mut pend = [(0usize, 0usize); 2];
+            let mut np = 0;
+            for (i, sr) in srcs.iter().enumerate() {
+                if let Src::Pending(n) = sr
+                    && np < 2
                 {
-                    pick = Some((i, n, bs));
+                    pend[np] = (i, *n);
+                    np += 1;
                 }
             }
+            let pick = if np == 0 { None } else { self.pendsize_pick(f, run, p, &pend[..np], best)? };
             super::empty_sel::lap(4, self.inner);
             if let Some((i, n, _)) = pick {
                 self.reason = "join driver: a step bounded by a small input";
