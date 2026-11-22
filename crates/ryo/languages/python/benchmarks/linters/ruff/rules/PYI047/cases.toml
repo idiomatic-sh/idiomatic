@@ -69,3 +69,28 @@ name = "runtime-module-class-alias"
 comparison = "full"
 files = { "case.py" = "from typing import TypeAlias\nclass Outer:\n    _Private: TypeAlias = int\n" }
 expected = []
+
+[[cases]]
+name = "stub_forward_reference_in_annotation"
+files = { "case.pyi" = "from typing import Literal, TypeAlias\ndef f() -> _W: ...\n_W: TypeAlias = Literal[0, 1]\n" }
+expected = []
+
+[[cases]]
+name = "future_forward_reference_in_annotation"
+files = { "case.py" = "from __future__ import annotations\nfrom typing import Literal, TypeAlias\ndef f() -> _W: ...\n_W: TypeAlias = Literal[0, 1]\n" }
+expected = []
+
+[[cases]]
+name = "stub_forward_reference_in_nested_annotation"
+files = { "case.pyi" = "from typing import TypeAlias\nclass C:\n    def keys(self) -> list[_K]: ...\n_K: TypeAlias = str | int\n" }
+expected = []
+
+[[cases]]
+name = "stub_noqa_flake8_pyi_code"
+files = { "case.pyi" = "from typing import TypeAlias\n_A: TypeAlias = int  # noqa: Y047\n" }
+expected = [{ file = "case.pyi", start = 29, end = 31 }]
+
+[[cases]]
+name = "stub_unused_private_alias"
+files = { "case.pyi" = "from typing import TypeAlias\n_A: TypeAlias = int\n" }
+expected = [{ file = "case.pyi", start = 29, end = 31 }]

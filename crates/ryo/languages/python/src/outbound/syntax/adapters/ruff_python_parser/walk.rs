@@ -120,6 +120,7 @@ pub(super) fn walked(
         parsed_tokens: parsed.tokens(),
         refused: Vec::new(),
         future_annotations,
+        annotations_deferred: super::future::annotations_deferred(future_annotations, source_kind),
         length: offset(ByteIndex(text.0.len())),
         nodes: Vec::new(),
         parents: Vec::new(),
@@ -239,7 +240,7 @@ pub(super) fn walked(
         nodes,
         parents,
         ends: subtree_ends,
-        annotations: if future_annotations.0 {
+        annotations: if super::future::annotations_deferred(future_annotations, source_kind) {
             BindingAnnotationTiming::Deferred
         } else {
             BindingAnnotationTiming::Immediate

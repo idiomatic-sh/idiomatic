@@ -116,6 +116,15 @@ pub(crate) const MODULE_FUTURE_ANNOTATIONS_ENABLED: &str = "enabled";
 /// No valid module compiler directive enables postponed annotations.
 pub(crate) const MODULE_FUTURE_ANNOTATIONS_DISABLED: &str = "disabled";
 
+/// When the module's annotations are evaluated: never where they stand under the future import or in a stub (a stub is never
+/// run), else where they stand.
+pub(crate) const MODULE_ANNOTATION_TIMING: ryo::languages::PropertyId =
+    ryo::languages::PropertyId(9);
+/// The module's annotations are postponed.
+pub(crate) const MODULE_ANNOTATIONS_DEFERRED: &str = "deferred";
+/// The module's annotations are evaluated where they stand.
+pub(crate) const MODULE_ANNOTATIONS_IMMEDIATE: &str = "immediate";
+
 /// The keyword of a coroutine definition or comprehension, as its `NAME` token writes it.
 pub(crate) const ASYNC: &str = "async";
 
