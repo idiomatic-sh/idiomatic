@@ -323,6 +323,58 @@ pub(crate) fn restricted(
             skipped(definition, &format!("keys {} of {} rows", asked.0, whole.0));
             continue;
         }
+        // What the keys cost to make (their readers' prefixes, run again) beside what the table saves: the table's own
+        // pipelines' cost in the asked share of its rows.
+        let cost = |branch: &FlatBranch| {
+            planned(drafts, branch, &HashSet::new(), UnitRole::Pipeline).map(|plan| plan.cost)
+        };
+        let own_cost: Option<PlanEstimate> = drafts
+            .definitions
+            .get(place)
+            .map(|draft| {
+                draft
+                    .branches
+                    .iter()
+                    .map(cost)
+                    .try_fold(PlanEstimate(0), |sum, each| {
+                        each.map(|each| plus(sum, each))
+                    })
+            })
+            .flatten();
+        let keys_cost: Option<PlanEstimate> = sites
+            .iter()
+            .zip(&keys)
+            .map(|(site, row)| {
+                cost(&FlatBranch {
+                    atoms: site.prefix.clone(),
+                    row: row.clone(),
+                })
+            })
+            .try_fold(PlanEstimate(0), |sum, each| {
+                each.map(|each| plus(sum, each))
+            });
+        let (Some(own_cost), Some(keys_cost)) = (own_cost, keys_cost) else {
+            skipped(definition, "no pipeline plan for it or its keys");
+            continue;
+        };
+        let share = PlanEstimate(
+            u64::try_from(
+                u128::from(own_cost.0).saturating_mul(u128::from(asked.0))
+                    / u128::from(whole.0.max(1)),
+            )
+            .unwrap_or(u64::MAX)
+            .min(own_cost.0),
+        );
+        if times(plus(keys_cost, share), margin) >= own_cost {
+            skipped(
+                definition,
+                &format!(
+                    "cost keys {} + share {} of {}",
+                    keys_cost.0, share.0, own_cost.0
+                ),
+            );
+            continue;
+        }
         let Some(draft) = drafts.definitions.get(place) else {
             continue;
         };
