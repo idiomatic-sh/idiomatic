@@ -64,10 +64,8 @@ pub(super) enum Op {
 pub(super) struct Ctx<'a> {
     pub(super) table: &'a NodeTable,
     pub(super) src: &'a [u8],
-    pub(super) pkind: &'a [u16],
-    pub(super) cmask: &'a [KSet],
-    /// Per node, the fields of its children (codes below 128).
-    pub(super) cfmask: &'a [FSet],
+    /// Per node, its child sets and parent kind in one cache line (the structure pass).
+    pub(super) sets: &'a [NodeSets],
     pub(super) facts: &'a super::facts::Store,
     pub(super) enc: &'a [Vec<u32>],
     pub(super) matches: &'a [u128],
@@ -136,10 +134,10 @@ impl Own {
     fn some_child_can(&self, ctx: &Ctx<'_>, n: u32) -> bool {
         let i = n as usize;
         (self.kinds == ALL_KINDS || {
-            let m = &ctx.cmask[i];
+            let m = &ctx.sets[i].cmask;
             (m[0] & self.kinds[0]) | (m[1] & self.kinds[1]) | (m[2] & self.kinds[2]) | (m[3] & self.kinds[3]) != 0
         }) && self.fields.as_ref().is_none_or(|s| {
-            let m = &ctx.cfmask[i];
+            let m = &ctx.sets[i].cfmask;
             (m[0] & s[0]) | (m[1] & s[1]) != 0
         })
     }
@@ -203,12 +201,6 @@ pub(super) struct FRule {
     pub(super) valued: Vec<usize>,
     /// The (slot, key column) pairs its plans enter a fact by (cols prototype).
     pub(super) keyed: Vec<(usize, usize)>,
-}
-
-impl FRule {
-    pub(super) fn words_alive(&self, present: &[u64]) -> bool {
-        self.cnfs.is_empty() || self.cnfs.iter().any(|c| cnf_holds(c, present))
-    }
 }
 
 fn kset_of(v: &serde_json::Value, vocab: &Vocab, missing: &mut Vec<String>) -> KSet {
@@ -558,7 +550,8 @@ pub(super) fn compile(ops: &[Op]) -> Vec<Stage> {
                         let s = c.kind_set();
                         out.push(filt(move |ctx, row| {
                                 let n = row[from] as usize;
-                                ctx.parent(n as u32) as usize != n && kbit(&s, ctx.pkind[n])
+                                let x = &ctx.sets[n];
+                                !x.root && kbit(&s, x.pkind)
                             }));
                         i += 1;
                     }
@@ -575,7 +568,7 @@ pub(super) fn compile(ops: &[Op]) -> Vec<Stage> {
                     Some(c) if *leaf && c.kinds_only() => {
                         let s = c.kind_set();
                         out.push(filt(move |ctx, row| {
-                                let m = &ctx.cmask[row[from] as usize];
+                                let m = &ctx.sets[row[from] as usize].cmask;
                                 (m[0] & s[0]) | (m[1] & s[1]) | (m[2] & s[2]) | (m[3] & s[3]) != 0
                             }));
                         i += 1;
@@ -600,7 +593,7 @@ pub(super) fn compile(ops: &[Op]) -> Vec<Stage> {
                     [Op::Check(c)] if c.v == to && c.kinds_only() => {
                         let s = c.kind_set();
                         out.push(filt(move |ctx, row| {
-                                let m = &ctx.cmask[row[from] as usize];
+                                let m = &ctx.sets[row[from] as usize].cmask;
                                 (m[0] & s[0]) | (m[1] & s[1]) | (m[2] & s[2]) | (m[3] & s[3]) != 0
                             }));
                     }
@@ -690,12 +683,13 @@ pub(super) fn compile_pred(ops: &[Op]) -> Pred {
                         Box::new(move |ctx, r, s| {
                             *s += 1;
                             let n = r[from] as usize;
-                            ctx.parent(n as u32) as usize != n && kbit(&set, ctx.pkind[n]) && next(ctx, r, s)
+                            let x = &ctx.sets[n];
+                            !x.root && kbit(&set, x.pkind) && next(ctx, r, s)
                         })
                     } else {
                         Box::new(move |ctx, r, s| {
                             *s += 1;
-                            let m = &ctx.cmask[r[from] as usize];
+                            let m = &ctx.sets[r[from] as usize].cmask;
                             ((m[0] & set[0]) | (m[1] & set[1]) | (m[2] & set[2]) | (m[3] & set[3]) != 0) && next(ctx, r, s)
                         })
                     };
@@ -747,7 +741,7 @@ pub(super) fn compile_pred(ops: &[Op]) -> Pred {
                         let set = c.kind_set();
                         Box::new(move |ctx, r, s| {
                             *s += 1;
-                            let m = &ctx.cmask[r[from] as usize];
+                            let m = &ctx.sets[r[from] as usize].cmask;
                             ((m[0] & set[0]) | (m[1] & set[1]) | (m[2] & set[2]) | (m[3] & set[3]) != 0) && next(ctx, r, s)
                         })
                     }
@@ -917,9 +911,12 @@ impl Test {
     fn eval(&self, ctx: &Ctx<'_>, n: u32) -> bool {
         match self {
             Test::Own(c) => passes(ctx, c, n),
-            Test::ParentKind(s) => ctx.parent(n) != n && kbit(s, ctx.pkind[n as usize]),
+            Test::ParentKind(s) => {
+                let x = &ctx.sets[n as usize];
+                !x.root && kbit(s, x.pkind)
+            }
             Test::ChildKind(s) => {
-                let m = &ctx.cmask[n as usize];
+                let m = &ctx.sets[n as usize].cmask;
                 (m[0] & s[0]) | (m[1] & s[1]) | (m[2] & s[2]) | (m[3] & s[3]) != 0
             }
         }
@@ -1098,59 +1095,41 @@ pub(super) fn knock(ctx: &Ctx<'_>, group: &Group, nodes: &[u32], file: &[u64], s
 // ---------------------------------------------------------------- the structure pass
 #[derive(Default)]
 pub(super) struct Structure {
-    pub(super) pkind: Vec<u16>,
-    pub(super) cmask: Vec<KSet>,
-    /// Per node, the fields (codes below 128) of its children.
-    pub(super) cfmask: Vec<FSet>,
-    pub(super) sibling: Vec<u32>,
-    pub(super) enc_function: Vec<u32>,
-    pub(super) enc_class: Vec<u32>,
-    pub(super) enc_loop: Vec<u32>,
+    pub(super) sets: Vec<NodeSets>,
     /// One column per enclosing kind set the plans ask: the nearest strict ancestor with a kind in the set.
     pub(super) enc: Vec<Vec<u32>>,
 }
 
-/// One forward pass: parent kind, child-kind and child-field bitsets, sibling index, nearest enclosing function, class and loop.
-pub(super) fn structure(table: &NodeTable, s: &mut Structure, function: &KSet, class: &KSet, looping: &KSet) {
+/// What the checks read of a node's neighbours, in one cache line: the kinds and the fields (codes below 128) of its
+/// children, its parent's kind, and whether it is a root (no parent).
+#[derive(Clone, Copy, Default)]
+#[repr(C, align(64))]
+pub(super) struct NodeSets {
+    pub(super) cmask: KSet,
+    pub(super) cfmask: FSet,
+    pub(super) pkind: u16,
+    pub(super) root: bool,
+}
+
+/// One forward pass: parent kind, child-kind and child-field bitsets.
+pub(super) fn structure(table: &NodeTable, s: &mut Structure) {
     let n = node_table::element_count(table).0 as usize;
     let kind = |i: usize| node_table::kind_of(table, Position(i as u32)).0;
-    s.pkind.clear();
-    s.cmask.clear();
-    s.cmask.resize(n, [0; 4]);
-    s.cfmask.clear();
-    s.cfmask.resize(n, [0; 2]);
-    s.sibling.clear();
-    s.enc_function.clear();
-    s.enc_class.clear();
-    s.enc_loop.clear();
+    s.sets.clear();
+    s.sets.resize(n, NodeSets::default());
     for i in 0..n {
         let p = node_table::parent_of(table, Position(i as u32)).0 as usize;
         let k = kind(i);
-        let pk = kind(p);
-        s.pkind.push(pk);
+        s.sets[i].pkind = kind(p);
+        s.sets[i].root = p == i;
         if p != i {
-            s.cmask[p][usize::from(k) / 64] |= 1 << (k % 64);
+            let m = &mut s.sets[p];
+            m.cmask[usize::from(k) / 64] |= 1 << (k % 64);
             let f = node_table::field_of(table, Position(i as u32)).0;
             if f < 128 {
-                s.cfmask[p][usize::from(f) / 64] |= 1 << (f % 64);
+                m.cfmask[usize::from(f) / 64] |= 1 << (f % 64);
             }
         }
-        s.sibling.push(node_table::ordinal_of(table, Position(i as u32)).0);
-        let up = |enc: &Vec<u32>, set: &KSet| -> u32 {
-            if p == i || p >= enc.len() {
-                u32::MAX
-            } else if kbit(set, pk) {
-                p as u32
-            } else {
-                enc[p]
-            }
-        };
-        let f = up(&s.enc_function, function);
-        let c = up(&s.enc_class, class);
-        let l = up(&s.enc_loop, looping);
-        s.enc_function.push(f);
-        s.enc_class.push(c);
-        s.enc_loop.push(l);
     }
 }
 
