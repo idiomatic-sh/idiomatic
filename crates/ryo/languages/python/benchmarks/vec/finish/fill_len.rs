@@ -2,7 +2,7 @@
 //! provider knows it (`Provider::fill_len`), for the emptiness tests and the fills: a fill known to have no row is never
 //! made (its table is the relation's empty one).
 
-use super::{Exec, File, Provider, R, Run, Table};
+use super::{Exec, File, Provider, R, Run, Scope, Supplier, Table};
 
 /// The relation's empty table in this run's catalog.
 pub(super) fn empty_fill(run: &mut Run, rel: &str) -> R<Table> {
@@ -11,14 +11,22 @@ pub(super) fn empty_fill(run: &mut Run, rel: &str) -> R<Table> {
     Ok(Table { names, tys, cols: vec![Vec::new(); k], n: 0 })
 }
 
-/// The provider's fill of `rel`, or its empty table where the provider says the file has no row of it.
-pub(super) fn fill_or_empty(run: &mut Run, p: &mut dyn Provider, rel: &str) -> R<Table> {
-    if sw!("VEC_NO_FILL_LEN") {
-        return p.fill(run, rel);
+/// The fill of `rel` in file `file` by its supplier (the host's or the provider's), or its empty table where the supplier
+/// says the file has no row of it.
+pub(super) fn fill_or_empty(run: &mut Run, p: &mut dyn Provider, rel: &str, file: u32) -> R<Table> {
+    if let Supplier::Host = run.supplier(rel) {
+        if !sw!("VEC_NO_FILL_LEN") && super::host::host_len(rel) == Some(0) {
+            return empty_fill(run, rel);
+        }
+        return super::host::host_fill(run, rel, file).unwrap_or_else(|| Err(format!("the host supplies no {rel}")));
     }
-    match p.fill_len(run, rel) {
+    let scope = Scope::File(file);
+    if sw!("VEC_NO_FILL_LEN") {
+        return p.fill(run, rel, scope);
+    }
+    match p.fill_len(run, rel, scope) {
         Some(0) => empty_fill(run, rel),
-        _ => p.fill(run, rel),
+        _ => p.fill(run, rel, scope),
     }
 }
 
@@ -30,10 +38,15 @@ impl Exec<'_> {
         if let Some(t) = f.fills.get(rel) {
             return Ok(t.n);
         }
-        if let Some(n) = p.fill_len(run, rel) {
+        if let Supplier::Host = run.supplier(rel)
+            && let Some(n) = super::host::host_len(rel)
+        {
             return Ok(n);
         }
-        let t = p.fill(run, rel)?;
+        if let Some(n) = p.fill_len(run, rel, Scope::File(f.file)) {
+            return Ok(n);
+        }
+        let t = fill_or_empty(run, p, rel, f.file)?;
         let n = t.n;
         f.fills.insert(rel.to_owned(), std::rc::Rc::new(t));
         Ok(n)

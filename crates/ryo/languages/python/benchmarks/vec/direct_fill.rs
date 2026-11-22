@@ -37,6 +37,7 @@ pub(super) fn direct(rel: &str) -> bool {
 /// of the table's making come back for the fills' clock.
 pub(super) fn fill(file: &mut ColumnFile<'_, '_>, run: &mut finish::Run, rel: &str, file_no: u32, timed: bool) -> Option<(Result<Table, String>, f64, f64)> {
     let (relation, names, tys) = run.catalog(rel)?;
+    let relation = relation?;
     let key = tys.iter().position(|t| *t == Ty::Node)?;
     let table: &NodeTable = file.table;
     FT.with(|ft| {
@@ -63,7 +64,7 @@ pub(super) fn fill(file: &mut ColumnFile<'_, '_>, run: &mut finish::Run, rel: &s
                 (Some(col), _) if ft.layout == Layout::PerNode => keys.iter().map(|k| widen(*ty, col[*k as usize])).collect(),
                 (Some(col), _) => col.iter().map(|v| widen(*ty, *v)).collect(),
                 (None, _) if c == key => keys.iter().map(|k| u64::from(*k)).collect(),
-                (None, Ty::File) => vec![0; n],
+                (None, Ty::File) => vec![u64::from(file_no); n],
                 (None, Ty::Span) => keys
                     .iter()
                     .map(|k| {

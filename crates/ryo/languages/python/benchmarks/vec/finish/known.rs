@@ -251,7 +251,7 @@ impl Exec<'_> {
 
     fn need_of(&mut self, run: &mut Run, node: usize) -> Need {
         let mut n = Need { inputs: Box::new([]), all: false, kinds: Box::new([]), seeds: Box::new([]), file_test: false, never: false };
-        if self.is_constant(node) {
+        if self.is_constant(run, node) {
             n.never = true;
             return n;
         }

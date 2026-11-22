@@ -6,6 +6,12 @@
 use super::{R, Run, Table};
 use std::os::unix::fs::PermissionsExt as _;
 
+/// redo-fills pass 2: how many rows the host has of `rel` in a file without reading it: a file the harness lints was read,
+/// so it has no read failure. None: not known (or not the host's).
+pub(in super::super) fn host_len(rel: &str) -> Option<usize> {
+    (rel == "filesystem.read-failure").then_some(0)
+}
+
 /// The host's rows of `rel` for file `file_no`, or `None` when `rel` is not a host relation.
 pub(in super::super) fn host_fill(run: &mut Run, rel: &str, file_no: u32) -> Option<R<Table>> {
     if rel != "filesystem.executable" && rel != "filesystem.read-failure" {

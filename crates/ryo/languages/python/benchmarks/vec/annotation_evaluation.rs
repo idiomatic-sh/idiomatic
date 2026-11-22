@@ -10,6 +10,14 @@
 use super::finish;
 use ryo::languages::{NodeTable, Position, node_table};
 
+/// redo-fills pass 2: whether any element of the file is an annotation or a return annotation (its field), read from the
+/// node table's field lists: a file with none has no element inside an annotation, so no row (`rows`), and no annotation
+/// root of a type expression.
+pub(super) fn has_annotation(run: &mut finish::Run, table: &NodeTable) -> bool {
+    let (a, r) = (run.sym(b"annotation"), run.sym(b"returns"));
+    run.field_sym.iter().enumerate().any(|(c, s)| (*s == a || *s == r) && u16::try_from(c).is_ok_and(|c| !node_table::ids_of_field(table, ryo::languages::FieldCode(c)).is_empty()))
+}
+
 /// One row: element, root, evaluation, mode.
 pub(super) type Row = (u32, u32, &'static [u8], &'static [u8]);
 

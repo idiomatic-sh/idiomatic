@@ -450,6 +450,12 @@ impl ColumnFile<'_, '_> {
         out.extend(self.file.syntax.tree.named.of_token.iter().map(|code| code.0));
     }
 
+    /// redo-fills pass 2: the run's number of this file: the file every row of the file names (its file cells and the file
+    /// part of its node ids) is this one, not `FileId(0)`.
+    pub fn set_file(&mut self, file: FileId) {
+        self.file.syntax.file = file;
+    }
+
     /// The reader: today's rows of `relation` (the reference).
     pub fn fill(&mut self, relation: Relation, wanted: Wanted, words: &mut FileWords, out: &mut FilledColumns) -> FactAnswer {
         let mut source = fillers::file_source::<PythonWalk<WalkPorts>>(self.file);
@@ -661,6 +667,8 @@ impl ColumnFile<'_, '_> {
                     .count(),
             ),
             Relation::EmbeddedExpression => Some(self.file.syntax.tree.segments.len()),
+            // a row an import alias: a file with no alias has none
+            Relation::StaticImport | Relation::StandardLibraryImport => nodes_of_kind(&self.file.syntax, Kind::Node(Node::Alias)).next().is_none().then_some(0),
             _ => None,
         }
     }
