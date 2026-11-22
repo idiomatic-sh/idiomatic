@@ -664,6 +664,8 @@ mod type_expression;
 mod annotation_evaluation;
 #[path = "deferred_visit.rs"]
 mod deferred_visit;
+#[path = "deferred_resolution.rs"]
+mod deferred_resolution;
 
 /// The visit's facts as the finish's provider.
 struct Facts<'v, 'f, 'w> {
@@ -698,7 +700,7 @@ impl ColFacts<'_, '_, '_, '_> {
             return Ok(t.clone());
         }
         let t = self.whole_fill(run, rel)?;
-        if matches!(rel, "binding-event" | "binding-read" | "binding-resolution" | "qualified-name" | "call-argument" | "identifier" | "embedded-expression" | "compiler-feature" | "language-target") {
+        if matches!(rel, "binding-event" | "binding-read" | "binding-resolution" | "qualified-name" | "call-argument" | "identifier" | "embedded-expression" | "compiler-feature" | "language-target" | "lookup-scope" | "implicit-symbol") {
             let _ = self.kept.insert(rel.to_owned(), t.clone());
         }
         Ok(t)
@@ -850,9 +852,37 @@ impl ColFacts<'_, '_, '_, '_> {
         let t = match rel {
             finish::TYPE_EXPRESSION_REL => self.type_expression(run)?,
             finish::ANNOTATION_EVALUATION_REL => self.annotation_evaluation(run)?,
+            finish::FINAL_REL => self.namespace_final(run)?,
+            finish::DEFERRED_RESOLUTION_REL => self.deferred_resolution(run)?,
             _ => self.deferred_visit(run)?,
         };
         let _ = self.kept.insert(rel.to_owned(), t.clone());
+        Ok(t)
+    }
+
+    /// redo-binding pass 4: `deferred-resolution` (deferred_resolution.rs) from the provider's reads, events and lookup paths,
+    /// the implicit symbols, and the facts namespace-final and deferred-visit.
+    fn deferred_resolution(&mut self, run: &mut finish::Run) -> Result<finish::Table, String> {
+        let visits = self.fact(run, finish::DEFERRED_VISIT_REL)?;
+        let (_, names, tys) = run.catalog(finish::DEFERRED_RESOLUTION_REL).ok_or("no deferred-resolution")?;
+        if visits.n == 0 {
+            // no postponed or unvisited element: no row (and no fill of the inputs below)
+            return Ok(finish::Table { names, tys, cols: vec![Vec::new(); 5], n: 0 });
+        }
+        let reads = self.whole(run, "binding-read")?;
+        let events = self.whole(run, "binding-event")?;
+        let lookup = self.whole(run, "lookup-scope")?;
+        let implicit = self.whole(run, "implicit-symbol")?;
+        let finals = self.fact(run, finish::FINAL_REL)?;
+        let stub = run.texts[run.path_sym[self.file_no as usize] as usize].ends_with(b".pyi");
+        let inputs = deferred_resolution::Inputs { reads: &reads, events: &events, lookup: &lookup, implicit: &implicit, finals: &finals, visits: &visits, stub };
+        let rows = deferred_resolution::rows(run, self.file.table, &inputs)?;
+        let mut t = finish::Table { names, tys, cols: vec![Vec::with_capacity(rows.len()); 5], n: rows.len() };
+        for (reference, occurrence, kind, point) in rows {
+            for (c, v) in [reference, occurrence, kind, point, 0].into_iter().enumerate() {
+                t.cols[c].push(v);
+            }
+        }
         Ok(t)
     }
 
@@ -900,9 +930,12 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
             t
         } else if rel == finish::RESOLUTION_REL {
             self.read_resolution(run)?
-        } else if rel == finish::FINAL_REL {
-            self.namespace_final(run)?
-        } else if rel == finish::TYPE_EXPRESSION_REL || rel == finish::ANNOTATION_EVALUATION_REL || rel == finish::DEFERRED_VISIT_REL {
+        } else if rel == finish::FINAL_REL
+            || rel == finish::TYPE_EXPRESSION_REL
+            || rel == finish::ANNOTATION_EVALUATION_REL
+            || rel == finish::DEFERRED_VISIT_REL
+            || rel == finish::DEFERRED_RESOLUTION_REL
+        {
             self.fact(run, rel)?
         } else {
             self.whole(run, rel)?
