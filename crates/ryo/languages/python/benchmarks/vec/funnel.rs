@@ -117,11 +117,21 @@ pub(super) struct Plan {
     pub(super) regs: usize,
     pub(super) stages: Vec<Stage>,
     pub(super) knock: Option<Vec<(Test, bool)>>,
+    /// Required words: every clause has a word spelled in the file.
+    pub(super) words: Vec<Vec<u16>>,
 }
 
 pub(super) struct FRule {
     pub(super) name: String,
     pub(super) plans: Vec<Plan>,
+    /// One CNF a branch of the rule: the rule can have a row only where some branch's CNF holds (empty list: unknown).
+    pub(super) cnfs: Vec<Vec<Vec<u16>>>,
+}
+
+impl FRule {
+    pub(super) fn words_alive(&self, present: &[u64]) -> bool {
+        self.cnfs.is_empty() || self.cnfs.iter().any(|c| cnf_holds(c, present))
+    }
 }
 
 fn kset_of(v: &serde_json::Value, vocab: &Vocab, missing: &mut Vec<String>) -> KSet {
@@ -172,21 +182,63 @@ fn ops_of(v: &serde_json::Value, vocab: &Vocab, missing: &mut Vec<String>) -> Ve
         .collect()
 }
 
-pub(super) fn load(path: &str, vocab: &Vocab) -> Vec<FRule> {
+/// The required words of the pack, numbered.
+#[derive(Default)]
+pub(super) struct Words {
+    pub(super) ids: HashMap<Vec<u8>, u16>,
+    pub(super) names: Vec<String>,
+}
+
+impl Words {
+    fn id(&mut self, w: &str) -> u16 {
+        if let Some(i) = self.ids.get(w.as_bytes()) {
+            return *i;
+        }
+        let i = self.names.len() as u16;
+        self.names.push(w.to_owned());
+        self.ids.insert(w.as_bytes().to_vec(), i);
+        i
+    }
+    fn cnf(&mut self, v: &serde_json::Value) -> Vec<Vec<u16>> {
+        v.as_array()
+            .map(|cl| cl.iter().map(|c| c.as_array().expect("clause").iter().map(|w| self.id(w.as_str().expect("word"))).collect()).collect())
+            .unwrap_or_default()
+    }
+}
+
+#[inline]
+pub(super) fn bit(set: &[u64], w: u16) -> bool {
+    set.get(usize::from(w) / 64).is_some_and(|x| x >> (w % 64) & 1 == 1)
+}
+
+/// Every clause has a word present.
+pub(super) fn cnf_holds(cnf: &[Vec<u16>], present: &[u64]) -> bool {
+    cnf.iter().all(|cl| cl.iter().any(|w| bit(present, *w)))
+}
+
+pub(super) fn load(path: &str, vocab: &Vocab) -> (Vec<FRule>, Words) {
     let mut missing = Vec::new();
     let mut rules = Vec::new();
+    let mut words = Words::default();
     for line in std::fs::read_to_string(path).expect("funnel plans").lines() {
         let r: serde_json::Value = serde_json::from_str(line).expect("json");
         let mut plans = Vec::new();
         for p in r["plans"].as_array().expect("plans") {
             let fields = p["bucket"].as_str() == Some("fields");
+            let by_word = p["bucket"].as_str() == Some("words");
             let keys: Vec<Key> = p["keys"]
                 .as_array()
                 .expect("keys")
                 .iter()
                 .filter_map(|k| {
                     let k = k.as_str().expect("key");
-                    let code = if fields { vocab.fields.get(k).map(|c| Key::Field(*c)) } else { vocab.kinds.get(k).map(|c| Key::Kind(*c)) };
+                    let code = if by_word {
+                        Some(Key::Word(words.id(k)))
+                    } else if fields {
+                        vocab.fields.get(k).map(|c| Key::Field(*c))
+                    } else {
+                        vocab.kinds.get(k).map(|c| Key::Kind(*c))
+                    };
                     if code.is_none() {
                         missing.push(format!("bucket {k}"));
                     }
@@ -196,16 +248,18 @@ pub(super) fn load(path: &str, vocab: &Vocab) -> Vec<FRule> {
             let ops = ops_of(&p["ops"], vocab, &mut missing);
             let stages = compile(&ops);
             let knock = knock_tests(&ops);
-            plans.push(Plan { keys, ops, regs: p["regs"].as_u64().expect("regs") as usize, stages, knock });
+            let cnf = words.cnf(&p["words"]);
+            plans.push(Plan { keys, ops, regs: p["regs"].as_u64().expect("regs") as usize, stages, knock, words: cnf });
         }
-        rules.push(FRule { name: r["rule"].as_str().expect("rule").to_owned(), plans });
+        let cnfs: Vec<Vec<Vec<u16>>> = r["word_cnfs"].as_array().map(|a| a.iter().map(|c| words.cnf(c)).collect()).unwrap_or_default();
+        rules.push(FRule { name: r["rule"].as_str().expect("rule").to_owned(), plans, cnfs });
     }
     missing.sort();
     missing.dedup();
     if !missing.is_empty() {
         eprintln!("funnel: names not in the vocabulary: {missing:?}");
     }
-    rules
+    (rules, words)
 }
 
 // ---------------------------------------------------------------- 1. the generic interpreter

@@ -46,6 +46,7 @@ idiomatic-sh-ryo-python = { path = ".", features = ["fixtures"] }
 divan.workspace = true
 # THROWAWAY (ryo-fmx3.1): the `vec` measurement bench.
 cpu-time = "1"
+aho-corasick = "1"
 regex = "1"
 
 [[test]]

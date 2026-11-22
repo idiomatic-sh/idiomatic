@@ -1810,6 +1810,7 @@ dependencies = [
 name = "idiomatic-sh-ryo-python"
 version = "0.2.0"
 dependencies = [
+ "aho-corasick",
  "arrow-array",
  "arrow-buffer",
  "arrow-select",

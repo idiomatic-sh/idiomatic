@@ -48,6 +48,8 @@ enum Lit {
 enum Key {
     Kind(u16),
     Field(u16),
+    /// The name tokens spelling one required word (step 3).
+    Word(u16),
 }
 
 #[derive(Clone)]
@@ -237,6 +239,7 @@ fn bucket<'t>(table: &'t NodeTable, cols: &'t Columns, key: Key) -> Bucket<'t> {
             let (a, b) = (cols.field_offsets[usize::from(f)] as usize, cols.field_offsets[usize::from(f) + 1] as usize);
             Bucket::Own(&cols.by_field[a..b])
         }
+        Key::Word(_) => Bucket::Own(&[]),
     }
 }
 
@@ -642,7 +645,29 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     let way = args[0];
     let list = files(args[1]);
     let rules = load_rules(args[2], vocab);
-    let frules = funnel::load(args[3], vocab);
+    let (frules, words) = funnel::load(args[3], vocab);
+    let word_src = flag(args, "--words").unwrap_or_else(|| "none".to_owned());
+    let word_skip = args.contains(&"--word-skip");
+    let compare = args.contains(&"--compare");
+    let n_words = words.names.len();
+    let ww = n_words.div_ceil(64).max(1);
+    let name_token = vocab.kinds.get("name-token").copied().expect("name-token kind");
+    let ac = aho_corasick::AhoCorasick::builder()
+        .match_kind(aho_corasick::MatchKind::LeftmostLongest)
+        .build(words.names.iter().map(String::as_bytes))
+        .expect("aho-corasick");
+    let bytes_ac = aho_corasick::AhoCorasick::new([&b"\x08"[..], b"\x1a", b"\x1b", b"\x00", "\u{200b}".as_bytes(), b"\\"]).expect("byte patterns");
+    let mut byte_files = [0u64; 8];
+    let mut byte_hits = 0u64;
+    let mut present = vec![0u64; ww];
+    let mut table_present = vec![0u64; ww];
+    let mut word_pairs: Vec<(u16, u32)> = Vec::new();
+    let mut word_offsets: Vec<u32> = Vec::new();
+    let mut word_pos: Vec<u32> = Vec::new();
+    let (mut missing_in_src, mut extra_in_src, mut present_total, mut distinct_total) = (0u64, 0u64, 0u64, 0u64);
+    let (mut alive_kinds, mut alive_both, mut rule_files) = (0u64, 0u64, 0u64);
+    let mut word_entry_bound = 0u64;
+    let mut alive_pairs: Vec<(usize, usize)> = Vec::new();
     let repeat: usize = flag(args, "--repeat").map_or(1, |b| b.parse().expect("repeat"));
     let by_name: HashMap<&str, usize> = rules.iter().enumerate().map(|(i, r)| (r.name.as_str(), i)).collect();
     let skip_of: Vec<Option<usize>> = frules.iter().map(|r| by_name.get(r.name.as_str()).copied()).collect();
@@ -718,9 +743,123 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
         if way == "structure" {
             continue;
         }
+        // the file's required words
+        let cw = thread_cpu();
+        if word_src != "none" {
+            let is_word = |b: u8| b.is_ascii_alphanumeric() || b == b'_' || b >= 0x80;
+            let from_table = |present: &mut Vec<u64>, pairs: &mut Vec<(u16, u32)>| {
+                present.iter_mut().for_each(|w| *w = 0);
+                pairs.clear();
+                for p in node_table::ids_of_kind(t, KindBits(name_token)) {
+                    let i = p.0 as usize;
+                    if let Some(w) = words.ids.get(&bytes[cols.start[i] as usize..cols.end[i] as usize]) {
+                        present[usize::from(*w) / 64] |= 1 << (w % 64);
+                        pairs.push((*w, p.0));
+                    }
+                }
+            };
+            match word_src.as_str() {
+                "table" => {
+                    from_table(&mut present, &mut word_pairs);
+                    // the index: name-token positions of each required word
+                    word_offsets.clear();
+                    word_offsets.resize(n_words + 1, 0);
+                    for (w, _) in &word_pairs {
+                        word_offsets[usize::from(*w) + 1] += 1;
+                    }
+                    for i in 0..n_words {
+                        word_offsets[i + 1] += word_offsets[i];
+                    }
+                    word_pos.clear();
+                    word_pos.resize(word_pairs.len(), 0);
+                    let mut fill: Vec<u32> = word_offsets[..n_words].to_vec();
+                    for (w, p) in &word_pairs {
+                        word_pos[fill[usize::from(*w)] as usize] = *p;
+                        fill[usize::from(*w)] += 1;
+                    }
+                }
+                "all" => {
+                    let mut set: std::collections::HashSet<&[u8]> = std::collections::HashSet::new();
+                    for p in node_table::ids_of_kind(t, KindBits(name_token)) {
+                        let i = p.0 as usize;
+                        let _ = set.insert(&bytes[cols.start[i] as usize..cols.end[i] as usize]);
+                    }
+                    distinct_total += set.len() as u64;
+                    present.iter_mut().for_each(|w| *w = 0);
+                    for x in &set {
+                        if let Some(w) = words.ids.get(*x) {
+                            present[usize::from(*w) / 64] |= 1 << (w % 64);
+                        }
+                    }
+                }
+                "bytes" => {
+                    present.iter_mut().for_each(|w| *w = 0);
+                    let mut i = 0;
+                    while i < bytes.len() {
+                        if is_word(bytes[i]) {
+                            let a = i;
+                            while i < bytes.len() && is_word(bytes[i]) {
+                                i += 1;
+                            }
+                            if let Some(w) = words.ids.get(&bytes[a..i]) {
+                                present[usize::from(*w) / 64] |= 1 << (w % 64);
+                            }
+                        } else {
+                            i += 1;
+                        }
+                    }
+                }
+                "ac" => {
+                    present.iter_mut().for_each(|w| *w = 0);
+                    for m in ac.find_iter(&bytes) {
+                        let (a, b) = (m.start(), m.end());
+                        if (a == 0 || !is_word(bytes[a - 1])) && (b == bytes.len() || !is_word(bytes[b])) {
+                            let w = m.pattern().as_usize();
+                            present[w / 64] |= 1 << (w % 64);
+                        }
+                    }
+                }
+                "bytes6" => {
+                    // the byte patterns the source-matches rules need (PLE2510..2515, W605): one multi-pattern scan
+                    let mut hit = 0u64;
+                    for m in bytes_ac.find_iter(&bytes) {
+                        hit |= 1 << m.pattern().as_usize();
+                    }
+                    present[0] = hit;
+                    byte_files[hit.count_ones() as usize] += 1;
+                    byte_hits |= hit;
+                }
+                other => panic!("--words {other}"),
+            }
+            phases.add(if word_src == "bytes6" { "byte-pattern pass (aho-corasick, 6 patterns)" } else if word_src == "table" { "word pass (name tokens -> required-word bitset + index)" } else if word_src == "all" { "word pass (distinct word set of all name tokens)" } else if word_src == "bytes" { "word pass (identifier runs of the source bytes)" } else { "word pass (aho-corasick over the source bytes)" }, thread_cpu() - cw);
+            present_total += present.iter().map(|w| u64::from(w.count_ones())).sum::<u64>();
+            if compare {
+                from_table(&mut table_present, &mut word_pairs);
+                for i in 0..ww {
+                    missing_in_src += u64::from((table_present[i] & !present[i]).count_ones());
+                    extra_in_src += u64::from((present[i] & !table_present[i]).count_ones());
+                }
+            }
+        }
+        if way == "words" {
+            continue;
+        }
         let c3 = thread_cpu();
         let kinds: Vec<u64> = node_table::kinds_present(t).0.iter().map(|w| w.0).collect();
-        let alive: Vec<bool> = skip_of.iter().map(|i| i.is_none_or(|i| survives(&rules[i], &kinds, &cols.field_present))).collect();
+        let kinds_alive: Vec<bool> = skip_of.iter().map(|i| i.is_none_or(|i| survives(&rules[i], &kinds, &cols.field_present))).collect();
+        let alive: Vec<bool> = if word_skip {
+            kinds_alive.iter().zip(&frules).map(|(a, r)| *a && r.words_alive(&present)).collect()
+        } else {
+            kinds_alive.clone()
+        };
+        rule_files += frules.len() as u64;
+        alive_kinds += kinds_alive.iter().filter(|a| **a).count() as u64;
+        alive_both += alive.iter().filter(|a| **a).count() as u64;
+        for (ri, a) in alive.iter().enumerate() {
+            if *a {
+                alive_pairs.push((ri, file_no));
+            }
+        }
         phases.add("skip tests", thread_cpu() - c3);
         let ctx = funnel::Ctx {
             table: t,
@@ -733,21 +872,13 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
             pkind: if structured { &st.pkind } else { &[] },
             cmask: if structured { &st.cmask } else { &[] },
         };
-        let bucket = |key: &Key| -> Vec<u32> {
-            match *key {
-                Key::Kind(k) => node_table::ids_of_kind(t, KindBits(k)).iter().map(|p| p.0).collect(),
-                Key::Field(f) => {
-                    let (a, b) = (cols.field_offsets[usize::from(f)] as usize, cols.field_offsets[usize::from(f) + 1] as usize);
-                    cols.by_field[a..b].to_vec()
-                }
-            }
-        };
         if marked.len() < cols.kind.len() {
             marked.resize(cols.kind.len(), 0);
         }
         let fill = |key: &Key, buf: &mut Vec<u32>| {
             buf.clear();
             match *key {
+                Key::Word(w) => buf.extend_from_slice(&word_pos[word_offsets[usize::from(w)] as usize..word_offsets[usize::from(w) + 1] as usize]),
                 Key::Kind(k) => buf.extend(node_table::ids_of_kind(t, KindBits(k)).iter().map(|p| p.0)),
                 Key::Field(f) => {
                     let (a, b) = (cols.field_offsets[usize::from(f)] as usize, cols.field_offsets[usize::from(f) + 1] as usize);
@@ -798,7 +929,27 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                     continue;
                 }
                 let rule = &frules[unit.rule];
+                if word_skip && !unit.plans.iter().any(|p| funnel::cnf_holds(&rule.plans[*p].words, &present)) {
+                    continue;
+                }
                 fill(&unit.key, &mut buf);
+                if first && word_src == "table" {
+                    // what entering from the rarest required word would start from: per plan the fewest name tokens of
+                    // a clause's words, never more than the bucket
+                    for p in &unit.plans {
+                        let plan = &rule.plans[*p];
+                        if word_skip && !funnel::cnf_holds(&plan.words, &present) {
+                            continue;
+                        }
+                        let fewest = plan
+                            .words
+                            .iter()
+                            .map(|cl| cl.iter().map(|w| u64::from(word_offsets[usize::from(*w) + 1] - word_offsets[usize::from(*w)])).sum::<u64>())
+                            .min()
+                            .unwrap_or(u64::MAX);
+                        word_entry_bound += fewest.min(buf.len() as u64);
+                    }
+                }
                 let mut n_s = 0u64;
                 let mut s = 0u64;
                 match way {
@@ -824,6 +975,9 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                                 break;
                             }
                             let plan = &rule.plans[*p];
+                            if word_skip && !funnel::cnf_holds(&plan.words, &present) {
+                                continue;
+                            }
                             rows.r = plan.regs.max(1);
                             rows.d.clear();
                             rows.d.resize(remaining.len() * rows.r, 0);
@@ -873,6 +1027,11 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
         phases.add("prefixes", (thread_cpu() - c4) / repeat as f64);
     }
     let total = thread_cpu() - started;
+    println!(
+        "words: {n_words} required words; word src {word_src}; present (file, word) {present_total}; distinct name-token words summed over files {distinct_total}; compare: in the table but not the source scan {missing_in_src}, in the source scan only {extra_in_src}"
+    );
+    println!("byte patterns: files by number of patterns present {byte_files:?}; patterns seen anywhere {byte_hits:#b}");
+    println!("skip: rule-files {rule_files} alive by kinds {alive_kinds} by kinds and words {alive_both}; entry bound from the rarest required word {word_entry_bound}");
     let knock_units = units.iter().filter(|u| u.knock).count();
     let steps: u64 = unit_steps.iter().sum();
     println!(
@@ -907,6 +1066,13 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
             w.push_str(&format!("{}\t{}\t{c}\t{s}\t{k}\n", r.name, mine.len()));
         }
         std::fs::write(path, w).expect("rules out");
+    }
+    if let Some(path) = flag(args, "--alive-out") {
+        let mut w = String::new();
+        for (ri, f) in &alive_pairs {
+            w.push_str(&format!("{}\t{}\n", frules[*ri].name, list[*f]));
+        }
+        std::fs::write(path, w).expect("alive out");
     }
     if let Some(path) = flag(args, "--hits-out") {
         let mut w = String::new();
