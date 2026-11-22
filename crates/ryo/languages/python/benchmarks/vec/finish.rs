@@ -1653,7 +1653,10 @@ impl<'p> Exec<'p> {
             flatten(e, &mut conj);
         }
         // a test of two file columns always holds: every relation here is the file's
-        conj.retain(|c| !matches!(c, E::Cmp(Op::Eq, a, b) if matches!(**a, E::Col(_, _, Ty::File)) && matches!(**b, E::Col(_, _, Ty::File))));
+        // redo-honest: except a source whose rows are the run's (`is_constant`: `filesystem.file` and what reads only it),
+        // whose file column names any file of the run
+        let wide: Vec<bool> = srcs.iter().map(|n| self.is_constant(*n)).collect();
+        conj.retain(|c| !matches!(c, E::Cmp(Op::Eq, a, b) if matches!(**a, E::Col(sa, _, Ty::File) if !wide[sa]) && matches!(**b, E::Col(sb, _, Ty::File) if !wide[sb])));
         let refs = conj.iter().map(refs_of).collect();
         let items: Vec<(String, E)> = match &j["items"] {
             J::Null => {
