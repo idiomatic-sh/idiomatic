@@ -1,11 +1,11 @@
 //! redo-binding pass 4 (THROWAWAY, bead ryo-fmx3.1): the `deferred-resolution` fact. For every read whose evaluation is
 //! postponed (`deferred-visit`), the event it sees once the module has run (PEP 563: the module's globals, else the
-//! nearest namespace of its lookup path holding the name at the end); in a stub, a final deletion found that way that
-//! comes after the read in the source gives back the event before it (a stub is never run in order: PEP 484), a module
-//! deletion with nothing before it gives back the builtin; `absent` where nothing answers (and for an unvisited read).
-//! Every row carries the file's last schedule point. The same rows `deferred-read-events` made from `binding-read`;
-//! written from binding-read, binding-event, lookup-scope, implicit-symbol and the facts namespace-final and
-//! deferred-visit; proved by the equality probe.
+//! nearest namespace of its lookup path holding the name at the end; annotation-only declarations count in a stub, PEP
+//! 484); `absent` where nothing answers. Every row carries the file's last schedule point. Written from binding-read,
+//! binding-event, lookup-scope, implicit-symbol and the facts namespace-final and deferred-visit; proved by the equality
+//! probe. Pass 5 (PRINCIPLE): Ruff's stub convention (a stub read whose name some namespace finally deletes skips the
+//! module's final bind, and a forward deletion gives back the event before it) and its unvisited reads are rule text
+//! (`deferred-read-events`), not this fact.
 
 use super::finish;
 use ryo::languages::{NodeTable, Position, node_table};
@@ -31,13 +31,12 @@ pub(super) type Row = (u64, u64, u64, u64);
 pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -> Result<Vec<Row>, String> {
     let mut out: Vec<Row> = Vec::new();
     let s = |run: &mut finish::Run, t: &[u8]| u64::from(run.sym(t));
-    let (s_read, s_bind, s_delete, s_annotation, s_cleanup, s_absent) =
-        (s(run, b"read"), s(run, b"bind"), s(run, b"delete"), s(run, b"annotation"), s(run, b"cleanup"), s(run, b"absent"));
-    let (s_deferred, s_unvisited, s_builtin) = (s(run, b"deferred"), s(run, b"unvisited"), s(run, b"builtin"));
+    let (s_read, s_bind, s_annotation, s_absent) = (s(run, b"read"), s(run, b"bind"), s(run, b"annotation"), s(run, b"absent"));
+    let (s_deferred, s_builtin) = (s(run, b"deferred"), s(run, b"builtin"));
     let k_module = run.sym(b"module");
     // the file's last point
     let ev = inp.events;
-    let (e_occ, e_scope, e_name, e_ord, e_kind) = (col(ev, "occurrence")?, col(ev, "scope")?, col(ev, "name")?, col(ev, "ordinal")?, col(ev, "kind")?);
+    let (e_occ, e_ord, e_kind) = (col(ev, "occurrence")?, col(ev, "ordinal")?, col(ev, "kind")?);
     // the old text's final points: every event's point paired with the next unpaired greater one (an ordered self-match
     // over the multiset of points); the points left unpaired. With unique points that is the last one; a statement that
     // makes several events at one point (`global a, b, c`) leaves (copies - 1) more points unpaired at the end, and the old
@@ -60,14 +59,13 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
     if finals_points.is_empty() {
         return Ok(out);
     }
-    // deferred / unvisited references
+    // deferred references
     let (v_id, v_visit) = (col(inp.visits, "id")?, col(inp.visits, "visit")?);
-    let mut visit: FxHashMap<u64, (bool, bool)> = FxHashMap::default();
+    let mut visit: FxHashSet<u64> = FxHashSet::default();
     for r in 0..inp.visits.n {
-        let e = visit.entry(inp.visits.cols[v_id][r]).or_default();
-        let v = inp.visits.cols[v_visit][r];
-        e.0 |= v == s_deferred;
-        e.1 |= v == s_unvisited;
+        if inp.visits.cols[v_visit][r] == s_deferred {
+            visit.insert(inp.visits.cols[v_id][r]);
+        }
     }
     let (b_ref, b_name, b_scope) = (col(inp.reads, "reference")?, col(inp.reads, "name")?, col(inp.reads, "scope")?);
     let mut read_points: FxHashMap<u64, Vec<usize>> = FxHashMap::default();
@@ -84,11 +82,13 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
         let mut seen_ids: FxHashSet<u64> = FxHashSet::default();
         for r in 0..inp.reads.n {
             let id = inp.reads.cols[b_ref][r];
-            let Some(&(d, u)) = visit.get(&id) else { continue };
-            if (d || u) && seen_ids.insert(id) {
+            if !visit.contains(&id) {
+                continue;
+            }
+            if seen_ids.insert(id) {
                 deferred_ids.push(id);
             }
-            if d && read_points.contains_key(&id) {
+            if read_points.contains_key(&id) {
                 let t = (id, inp.reads.cols[b_name][r], inp.reads.cols[b_scope][r]);
                 if seen.insert(t) {
                     deferred_reads.push(t);
@@ -107,13 +107,9 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
     let (f_ns, f_name, f_event, f_kind) = (col(fin, "namespace")?, col(fin, "name")?, col(fin, "event")?, col(fin, "kind")?);
     let mut final_of: FxHashMap<(u64, u64), (u64, u64)> = FxHashMap::default();
     let mut held_names: FxHashSet<u64> = FxHashSet::default();
-    let mut deleted_names: FxHashSet<u64> = FxHashSet::default();
     for r in 0..fin.n {
         let _ = final_of.insert((fin.cols[f_ns][r], fin.cols[f_name][r]), (fin.cols[f_event][r], fin.cols[f_kind][r]));
         held_names.insert(fin.cols[f_name][r]);
-        if fin.cols[f_kind][r] == s_delete {
-            deleted_names.insert(fin.cols[f_name][r]);
-        }
     }
     let (i_name, i_kind, i_major, i_minor) = (col(inp.implicit, "name")?, col(inp.implicit, "kind")?, col(inp.implicit, "since-major")?, col(inp.implicit, "since-minor")?);
     let mut builtins: FxHashSet<u64> = FxHashSet::default();
@@ -128,14 +124,6 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
     for r in 0..inp.lookup.n {
         paths.entry(inp.lookup.cols[l_ref][r]).or_default().push((inp.lookup.cols[l_depth][r] as i64, inp.lookup.cols[l_scope][r]));
     }
-    let start = |x: u64| node_table::span_of(table, Position(x as u32)).start.0;
-    // events by (scope, name): (ordinal, occurrence, kind)
-    let mut by_scope_name: FxHashMap<(u64, u64), Vec<(i64, u64, u64)>> = FxHashMap::default();
-    let mut event_row: FxHashMap<u64, Vec<usize>> = FxHashMap::default();
-    for r in 0..ev.n {
-        by_scope_name.entry((ev.cols[e_scope][r], ev.cols[e_name][r])).or_default().push((ev.cols[e_ord][r] as i64, ev.cols[e_occ][r], ev.cols[e_kind][r]));
-        event_row.entry(ev.cols[e_occ][r]).or_default().push(r);
-    }
     let mut results: FxHashSet<(u64, u64, u64)> = FxHashSet::default();
     for &(id, name, _) in &deferred_reads {
         // the module's final bind
@@ -147,9 +135,7 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
                 finals.push(event);
             }
         }
-        let deleted_stub = inp.stub && deleted_names.contains(&name);
-        let has_final = !finals.is_empty() && !deleted_stub;
-        if has_final {
+        if !finals.is_empty() {
             for e in finals {
                 results.insert((id, e, s_bind));
             }
@@ -173,44 +159,7 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
                 }
             }
         }
-        let Some((_, occurrence, scope, kind)) = best else { continue };
-        // a stub's forward deletion gives back what came before it
-        if kind == s_delete && inp.stub {
-            let mut restored = false;
-            let mut dropped = false;
-            for &r in event_row.get(&occurrence).map_or(&[][..], Vec::as_slice) {
-                let (d_name, d_point) = (ev.cols[e_name][r], ev.cols[e_ord][r] as i64);
-                if start(id) >= start(occurrence) {
-                    continue;
-                }
-                let options: Vec<(i64, u64, u64)> = by_scope_name
-                    .get(&(scope, d_name))
-                    .map_or(&[][..], Vec::as_slice)
-                    .iter()
-                    .copied()
-                    .filter(|(o, _, k)| *o < d_point && (*k == s_bind || *k == s_annotation || *k == s_delete || *k == s_cleanup))
-                    .collect();
-                if let Some(max) = options.iter().map(|o| o.0).max() {
-                    for (o, occ, k) in &options {
-                        if *o == max && *k == s_bind {
-                            restored = true;
-                            // the event at that point of that scope and name
-                            for (o2, occ2, k2) in by_scope_name.get(&(scope, d_name)).map_or(&[][..], Vec::as_slice) {
-                                if *o2 == *o {
-                                    results.insert((id, *occ2, *k2));
-                                }
-                            }
-                            let _ = occ;
-                        }
-                    }
-                } else if modules.contains(&scope) && builtins.contains(&d_name) {
-                    dropped = true;
-                }
-            }
-            if restored || dropped {
-                continue;
-            }
-        }
+        let Some((_, occurrence, _, kind)) = best else { continue };
         results.insert((id, occurrence, kind));
     }
     let answered: FxHashSet<u64> = results.iter().map(|r| r.0).collect();

@@ -215,8 +215,8 @@ pub(super) const FINAL_REL: &str = "namespace-final";
 pub(super) const FINAL_COLS: [(&str, Ty); 6] =
     [("namespace", Ty::Node), ("name", Ty::Sym), ("event", Ty::Node), ("kind", Ty::Sym), ("ordinal", Ty::Num), ("file", Ty::File)];
 
-/// redo-binding pass 4: every element of a file in a type expression (`type`), or left unvisited by a typing form
-/// (`skipped`); no row: a value expression (`type_expression.rs`).
+/// redo-binding pass 4: every element of a file in a type expression (`type`), or the root of a value expression nested in
+/// one (`value`); no row: a value expression (`type_expression.rs`).
 pub(super) const TYPE_EXPRESSION_REL: &str = "type-expression";
 pub(super) const TYPE_EXPRESSION_COLS: [(&str, Ty); 3] = [("id", Ty::Node), ("kind", Ty::Sym), ("file", Ty::File)];
 
@@ -225,8 +225,7 @@ pub(super) const ANNOTATION_EVALUATION_REL: &str = "annotation-evaluation";
 pub(super) const ANNOTATION_EVALUATION_COLS: [(&str, Ty); 5] =
     [("id", Ty::Node), ("root", Ty::Node), ("evaluation", Ty::Sym), ("mode", Ty::Sym), ("file", Ty::File)];
 
-/// redo-binding pass 4: every element whose evaluation is postponed past its statement (`deferred`) or that is never
-/// evaluated as an expression (`unvisited`) (`deferred_visit.rs`).
+/// redo-binding pass 4: every element whose evaluation is postponed past its statement (`deferred`) (`deferred_visit.rs`).
 pub(super) const DEFERRED_VISIT_REL: &str = "deferred-visit";
 pub(super) const DEFERRED_VISIT_COLS: [(&str, Ty); 3] = [("id", Ty::Node), ("visit", Ty::Sym), ("file", Ty::File)];
 
