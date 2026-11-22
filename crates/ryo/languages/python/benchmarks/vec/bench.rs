@@ -2144,6 +2144,13 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                     prefixed = true;
                     if let Some(fin) = fin.as_deref_mut() {
                         sv.seed_of_file(hits0, alive0, &node_class, &mut in_seed);
+                        // redo-honest: `VEC_NO_PREFIX` seeds every rule the skip kept, survivors or not (a check of the
+                        // prefix: a node-class rule's findings must not depend on its prefix plans finding survivors)
+                        if std::env::var_os("VEC_NO_PREFIX").is_some() {
+                            for (r, _) in &sv.alive[alive0..] {
+                                in_seed[*r as usize] = true;
+                            }
+                        }
                         let wanted = fin.wanted(path, &|e| emit_rules[e].iter().any(|r| in_seed[*r]));
                         if fin.visits(&wanted) {
                             fin.column_file(file_no, path, file, &bytes, &wanted);
