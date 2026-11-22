@@ -199,8 +199,8 @@ impl Catalog {
         self.columns[slot].iter().position(|c| c == name).expect("column")
     }
 
-    pub(super) fn op(&mut self, v: &serde_json::Value, interner: &mut Interner) -> Option<FactOp> {
-        let name = v["rel"].as_str().expect("rel");
+    /// A fact test of the spec: `keys` its (key column, register) pairs, `conds` its (column, op, values).
+    pub(super) fn op_of(&mut self, name: &str, keys_in: &[(String, usize)], conds_in: &[(String, String, Vec<String>)], interner: &mut Interner) -> Option<FactOp> {
         let slot = match self.names.iter().position(|n| n == name) {
             Some(s) => s,
             None => {
@@ -217,19 +217,19 @@ impl Catalog {
         };
         let col = |c: &str| self.columns[slot].iter().position(|x| x == c);
         let mut keys = Vec::new();
-        for k in v["keys"].as_array().expect("keys") {
-            let c = col(k[0].as_str().expect("key column"))?;
+        for (k, r) in keys_in {
+            let c = col(k)?;
             if self.kinds[slot][c] != CellKind::Node {
                 return None;
             }
-            keys.push((c, k[1].as_u64().expect("reg") as usize));
+            keys.push((c, *r));
         }
         let mut conds = Vec::new();
-        for c in v["conds"].as_array().expect("conds") {
-            let Some(at) = col(c[0].as_str().expect("column")) else { continue };
+        for (c, op, vals) in conds_in {
+            let Some(at) = col(c) else { continue };
             let kind = self.kinds[slot][at];
-            let op = c[1].as_str().expect("op");
-            let vals: Vec<&str> = c[2].as_array().expect("vals").iter().map(|x| x.as_str().expect("val")).collect();
+            let op = op.as_str();
+            let vals: Vec<&str> = vals.iter().map(String::as_str).collect();
             match op {
                 "eq" | "ne" => {
                     let parsed: Option<Vec<u64>> = vals.iter().map(|x| literal(kind, x, interner)).collect();
