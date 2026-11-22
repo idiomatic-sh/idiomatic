@@ -47,8 +47,12 @@ let active_targets = antijoin(left=assignment_targets, right=excluded_targets, l
 let active_statements = select statement, file from active_targets;
 
 let inherits = select declaration as class, occurrence as base, file from "inherits";
-let base_origins = select l.class as class, r.path as path, l.file as file from inherits as l join "qualified-name" as r on l.base = r.id and l.file = r.file;
-let copy_classes = select class, file from base_origins where path in ["pydantic.BaseModel", "pydantic.v1.BaseModel", "pydantic.BaseSettings", "pydantic_settings.BaseSettings", "pydantic.BaseConfig", "pydantic.v1.generics.GenericModel", "msgspec.Struct", "sqlmodel.SQLModel"];
+let subscript_nodes = select id, file from "semantic-syntax" where kind = "subscript";
+let subscript_class_bases = select l.class as class, l.base as base, l.file as file from inherits as l join subscript_nodes as r on l.base = r.id and l.file = r.file;
+let subscript_class_base_values = select l.class as class, r.child as base, l.file as file from subscript_class_bases as l join "semantic-child" as r on l.base = r.parent and l.file = r.file where r.field = "value";
+let base_expressions = union(left=inherits, right=subscript_class_base_values);
+let base_origins = select l.class as class, r.path as path, l.file as file from base_expressions as l join "qualified-name" as r on l.base = r.id and l.file = r.file;
+let copy_classes = select class, file from base_origins where path in ["pydantic.BaseModel", "pydantic.RootModel", "pydantic.BaseSettings", "pydantic.BaseConfig", "pydantic.generics.GenericModel", "pydantic.v1.BaseModel", "pydantic.v1.BaseSettings", "pydantic.v1.BaseConfig", "pydantic.v1.generics.GenericModel", "pydantic_settings.BaseSettings", "msgspec.Struct", "sqlmodel.SQLModel"];
 let class_definitions = select id as class, name, owner, file from "defines" where kind = "class";
 let base_names = select l.class as child, r.name as name, l.file as file from inherits as l join "identifier" as r on l.base = r.id and l.file = r.file;
 let module_nodes = select id, file from "semantic-syntax" where kind = "module";
