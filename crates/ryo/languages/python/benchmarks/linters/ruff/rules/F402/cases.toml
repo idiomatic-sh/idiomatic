@@ -27,3 +27,93 @@ expected = [{ rule = "F402", file = "case.py", start = 31, end = 33 }]
 name = "noqa-suppresses-loop-shadow"
 files = { "case.py" = "import os\nfor os in range(2):  # noqa: F402\n    pass\n" }
 expected = []
+
+[[cases]]
+name = "function-loop-in-else-shadows-module-import"
+files = { "case.py" = "from m import record\ndef f(x):\n    if x:\n        pass\n    else:\n        for record in x:\n            pass\n" }
+expected = []
+
+[[cases]]
+name = "module-loop-in-else"
+files = { "case.py" = "import os\nif os:\n    pass\nelse:\n    for os in []:\n        pass\n" }
+expected = []
+
+[[cases]]
+name = "module-loop-in-if-body"
+files = { "case.py" = "import os\nif os:\n    for os in []:\n        pass\n" }
+expected = []
+
+[[cases]]
+name = "function-loop-in-if-body"
+files = { "case.py" = "from m import record\ndef f(x):\n    if x:\n        for record in x:\n            pass\n" }
+expected = []
+
+[[cases]]
+name = "method-loop-in-else"
+files = { "case.py" = "from m import record\nclass C:\n    def f(self, x):\n        if x:\n            pass\n        else:\n            for record in x:\n                pass\n" }
+expected = []
+
+[[cases]]
+name = "decorator-import-method-loop-in-else"
+files = { "case.py" = "from m import record\n@record\nclass C:\n    def f(self, x):\n        if x:\n            pass\n        else:\n            for record in x:\n                pass\n" }
+expected = []
+
+[[cases]]
+name = "loop-in-except-handler"
+files = { "case.py" = "import os\ntry:\n    pass\nexcept Exception:\n    for os in []:\n        pass\n" }
+expected = []
+
+[[cases]]
+name = "loop-in-with-body"
+files = { "case.py" = "import os\nwith open(\"f\"):\n    for os in []:\n        pass\n" }
+expected = []
+
+[[cases]]
+name = "import-in-if-loop-after"
+files = { "case.py" = "import sys\nif sys:\n    import os\nfor os in []:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "loop-in-match-case"
+files = { "case.py" = "import os\nmatch 1:\n    case 1:\n        for os in []:\n            pass\n" }
+expected = []
+
+[[cases]]
+name = "loop-in-try-body"
+files = { "case.py" = "import os\ntry:\n    for os in []:\n        pass\nexcept Exception:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "import-in-inner-if-loop-in-outer-if"
+files = { "case.py" = "import sys\nif sys:\n    if sys:\n        import os\n    for os in []:\n        pass\n" }
+expected = []
+
+[[cases]]
+name = "function-loop-shadows-module-import"
+files = { "case.py" = "from m import record\ndef f(x):\n    for record in x:\n        pass\n" }
+expected = [{ file = "case.py", start = 39, end = 45 }]
+
+[[cases]]
+name = "loop-in-for-body"
+files = { "case.py" = "import os\nfor x in []:\n    for os in []:\n        pass\n" }
+expected = [{ file = "case.py", start = 31, end = 33 }]
+
+[[cases]]
+name = "loop-in-while-body"
+files = { "case.py" = "import os\nwhile True:\n    for os in []:\n        pass\n" }
+expected = [{ file = "case.py", start = 30, end = 32 }]
+
+[[cases]]
+name = "import-and-loop-in-one-if-body"
+files = { "case.py" = "import sys\nif sys:\n    import os\n    for os in []:\n        pass\n" }
+expected = [{ file = "case.py", start = 41, end = 43 }]
+
+[[cases]]
+name = "import-in-if-loop-in-else"
+files = { "case.py" = "import sys\nif sys:\n    import os\nelse:\n    for os in []:\n        pass\n" }
+expected = []
+
+[[cases]]
+name = "comprehension-target"
+files = { "case.py" = "import os\nx = [1 for os in []]\n" }
+expected = []
