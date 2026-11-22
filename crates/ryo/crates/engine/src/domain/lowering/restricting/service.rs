@@ -61,20 +61,37 @@ fn named(text: &str, word: &str) -> Vec<u32> {
         .collect()
 }
 
-/// Whether what a value reads, followed through the made tables it names, holds only definitions numbered below `below`:
-/// a prefix holding it is no cycle. SPIKE: read off the value's debug form (every `DefinitionId(n)` and `MadeTableId(n)`
-/// it names), so no kind of atom or stage is left out.
+/// Whether what a value reads, followed through the definitions and made tables it names, never leads to `table`'s
+/// definition: a prefix holding it is no cycle. SPIKE: read off the debug form of the value, of each definition's branches
+/// and of each made table's fill (every `DefinitionId(n)` and `MadeTableId(n)` named), so no kind of atom or stage is left
+/// out.
 fn before(drafts: &Drafts, text: &str, below: DefinitionId) -> bool {
+    let mut definitions: Vec<u32> = named(text, "DefinitionId");
     let mut tables: Vec<u32> = named(text, "MadeTableId");
-    let mut seen: HashSet<u32> = HashSet::new();
-    if named(text, "DefinitionId")
-        .iter()
-        .any(|number| *number >= below.0)
-    {
-        return false;
-    }
-    while let Some(table) = tables.pop() {
-        if !seen.insert(table) {
+    let (mut seen_definitions, mut seen_tables) = (HashSet::new(), HashSet::new());
+    loop {
+        if let Some(definition) = definitions.pop() {
+            if definition == below.0 {
+                return false;
+            }
+            if !seen_definitions.insert(definition) {
+                continue;
+            }
+            let Some(draft) = drafts
+                .definitions
+                .get(usize::try_from(definition).unwrap_or(usize::MAX))
+            else {
+                return false;
+            };
+            let branches = format!("{:?}", draft.branches);
+            definitions.extend(named(&branches, "DefinitionId"));
+            tables.extend(named(&branches, "MadeTableId"));
+            continue;
+        }
+        let Some(table) = tables.pop() else {
+            return true;
+        };
+        if !seen_tables.insert(table) {
             continue;
         }
         let Some(made) = drafts
@@ -84,15 +101,9 @@ fn before(drafts: &Drafts, text: &str, below: DefinitionId) -> bool {
             return false;
         };
         let fill = format!("{:?}", made.fill);
-        if named(&fill, "DefinitionId")
-            .iter()
-            .any(|number| *number >= below.0)
-        {
-            return false;
-        }
+        definitions.extend(named(&fill, "DefinitionId"));
         tables.extend(named(&fill, "MadeTableId"));
     }
-    true
 }
 
 /// The key cells an ask reads the definition by, in the mask's order: none when the asking atom does not read this
@@ -276,10 +287,7 @@ pub(crate) fn restricted(
                 .iter()
                 .all(|atom| before(drafts, &format!("{atom:?}"), definition))
         }) {
-            skipped(
-                definition,
-                "a reader's prefix reads a later definition, a made table or a walk of a definition",
-            );
+            skipped(definition, "a reader's prefix reads what leads back to it");
             continue;
         }
         let keys: Option<Vec<Vec<FlatTerm>>> = sites
@@ -352,6 +360,7 @@ pub(crate) fn restricted(
         {
             let _set = draft.rows.set(RowEstimate(asked.0.div_ceil(ONE.0).max(1)));
         }
+        let _new = drafts.keys.insert(keyed);
         let mut pipelines = Vec::with_capacity(own.len());
         for branch in &own {
             let cells: Option<Vec<FlatTerm>> = mask

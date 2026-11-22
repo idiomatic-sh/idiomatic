@@ -638,6 +638,18 @@ pub(crate) fn anchors(
             })
         })
         .collect();
+    // SPIKE (restricted tables): a branch that reads a table's asked keys starts from them: they are the rows its readers
+    // hold, few, whatever their own plan walks.
+    let keyed = branch.atoms.iter().position(|atom| {
+        matches!(atom, FlatAtom::Rows { rows: AtomRows::Definition(definition), .. } if with.drafts.keys.contains(definition))
+    });
+    if let Some(keyed) = keyed
+        && let Some((_, anchor)) = found
+            .iter()
+            .find(|(_, anchor)| anchor.atom == AtomPlace(keyed))
+    {
+        return vec![*anchor];
+    }
     // Such a read is an anchor only when the branch has no other.
     let bounded = found.iter().any(|(unbounded, _)| !unbounded);
     found

@@ -119,6 +119,8 @@ pub(crate) struct WaitingPattern {
 pub(crate) struct Drafts {
     /// SPIKE (restricted tables): the ask being written.
     pub(crate) asking: AskContext,
+    /// SPIKE (restricted tables): the definitions of a table's asked keys: a branch that reads one starts from it.
+    pub(crate) keys: std::collections::HashSet<DefinitionId>,
     /// The definitions, by number: a definition reads only definitions before it.
     pub(crate) definitions: Vec<DefinitionDraft>,
     /// The definition of each merged plan node that has one.
