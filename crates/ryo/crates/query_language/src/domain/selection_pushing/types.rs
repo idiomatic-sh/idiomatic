@@ -108,19 +108,14 @@ pub(crate) struct CrossingKey {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) struct StepHash(pub u64);
 
-/// The splice a push places its steps with: the steps made just before a place, the step at the place replaced, every later
-/// step and root renumbered.
-pub(crate) type PlanSplice =
-    fn(&mut Vec<PlanStep>, &mut [StepId], StepIndex, Vec<PlanStep>, PlanStep);
-
-/// What one push changed of a plan: `count` steps made just before the step that stood at `at` (which was replaced and now
-/// stands `count` later), and the other steps replaced where they stand, by their places after the splice.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct Spliced {
-    /// Where the steps were made.
-    pub at: StepIndex,
+/// Where a deferred splice put its steps (prototype ryo-fmx3.1): `count` steps made before the step at `at`, put at the
+/// end of the plan from `base`; the step at `at` was replaced where it stands.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct SplicePlaces {
+    /// The place of the step they were made before.
+    pub at: usize,
     /// How many were made.
     pub count: usize,
-    /// The other steps replaced.
-    pub replaced: Vec<StepIndex>,
+    /// Where the first stands.
+    pub base: usize,
 }

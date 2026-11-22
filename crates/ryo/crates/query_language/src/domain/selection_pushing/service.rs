@@ -6,10 +6,11 @@ pub(crate) mod placing;
 
 use self::factoring::service::{shared_into, shared_push};
 use self::joins::service::pushed_join;
-use self::placing::service::{filter_of, finished, insert_before, insert_ordered, place_after};
+use self::placing::service::{
+    FRESH, PlanOrder, filter_of, finished, insert_before, insert_deferred, materialized, order_of, place_after,
+};
 use super::types::PushedFilter;
 use super::types::StepHash;
-use super::types::{PlanSplice, Spliced};
 use crate::domain::pruning::service::without_unused_roots;
 use crate::domain::rewriting::types::Planned;
 use crate::domain::rewriting::types::StepIndex;
@@ -51,14 +52,16 @@ pub(crate) fn push_selections_roots(
     let mut readers = Readers::default();
     loop {
         let mut moved = false;
-        // A plan whose every step reads only steps before it is renumbered from the splice on, and its readers are kept
-        // as it changes; any other plan is renumbered whole and its readers read again after each push.
+        // A plan whose every step reads only steps before it is pushed into with no step renumbered: the steps a push
+        // makes are put at the end of the plan and the pass ends by sorting the plan into the order the insertions give
+        // (`insert_deferred`, `materialized`; prototype ryo-fmx3.1); its readers are kept as it changes. Any other plan is
+        // renumbered whole and its readers read again after each push.
         let ordered = in_reading_order(&steps);
-        let splice: PlanSplice = if ordered {
-            insert_ordered
-        } else {
-            insert_before
+        let mut order = PlanOrder {
+            original: steps.len(),
+            ..PlanOrder::default()
         };
+        let fresh = ordered.then_some(FRESH);
         readers.rebuild(&steps);
         for place in (0..steps.len()).rev() {
             let id = StepId(u32::try_from(place).unwrap_or(u32::MAX));
@@ -67,19 +70,31 @@ pub(crate) fn push_selections_roots(
             }
             if let Some(push) = readers
                 .get(place)
-                .and_then(|reading| shared_push(&steps, id, reading))
+                .and_then(|reading| shared_push(&steps, id, reading, fresh))
             {
-                let spliced = shared_into(&mut steps, roots, push, splice);
-                match spliced {
-                    Some(spliced) if ordered => readers.spliced(&steps, &spliced, place),
-                    Some(_) | None => readers.rebuild(&steps),
+                if ordered {
+                    let touched: Vec<usize> =
+                        push.residuals.iter().map(|residual| residual.reader.0).collect();
+                    readers.forget(&steps, &touched, place, &order);
+                    let made_from = steps.len();
+                    let _made = shared_into(&mut steps, push, fresh, &mut |steps, at, before, filter| {
+                        Some(insert_deferred(steps, &mut order, at, before, filter))
+                    });
+                    let made: Vec<usize> = touched.iter().copied().chain(made_from..steps.len()).collect();
+                    readers.noted(&steps, &made, place, &order);
+                } else {
+                    let _made = shared_into(&mut steps, push, None, &mut |steps, at, before, filter| {
+                        insert_before(steps, roots, at, before, filter);
+                        None
+                    });
+                    readers.rebuild(&steps);
                 }
                 moved = true;
                 continue;
             }
             let pushed = readers
                 .get(place)
-                .map(|reading| placed(&steps, id, reading))
+                .map(|reading| placed(&steps, id, reading, fresh))
                 .unwrap_or_default();
             if pushed.is_empty() {
                 continue;
@@ -91,14 +106,14 @@ pub(crate) fn push_selections_roots(
                 filter,
             } in pushed.into_iter().rev()
             {
-                let spliced = Spliced {
-                    at: reader,
-                    count: before.len(),
-                    replaced: Vec::new(),
-                };
-                splice(&mut steps, roots, reader, before, filter);
                 if ordered {
-                    readers.spliced(&steps, &spliced, place);
+                    readers.forget(&steps, &[reader.0], place, &order);
+                    let made_from = steps.len();
+                    let _places = insert_deferred(&mut steps, &mut order, reader, before, filter);
+                    let made: Vec<usize> = std::iter::once(reader.0).chain(made_from..steps.len()).collect();
+                    readers.noted(&steps, &made, place, &order);
+                } else {
+                    insert_before(&mut steps, roots, reader, before, filter);
                 }
             }
             if !ordered {
@@ -108,6 +123,9 @@ pub(crate) fn push_selections_roots(
         }
         if !moved {
             return steps;
+        }
+        if ordered {
+            steps = materialized(steps, roots, &order);
         }
         steps = without_repeats(without_unused_roots(steps, roots), roots);
     }
@@ -272,58 +290,54 @@ impl Readers {
         }
     }
 
-    /// Notes the step at `place` among the readers of each step below `below` that it reads.
-    fn note(&mut self, steps: &[PlanStep], place: usize, below: usize) {
-        let Some(step) = steps.get(place) else {
-            return;
-        };
-        Self::each_read(step, &mut |read| {
-            if read < below
-                && let Some(list) = self.lists.get_mut(read)
-            {
-                let at = list.partition_point(|reader| reader.0 < place);
-                if list.get(at) != Some(&StepIndex(place)) {
-                    list.insert(at, StepIndex(place));
+    /// Takes each of `touched`, a step a deferred push is about to replace, from the readers of the steps below `below` it
+    /// reads now.
+    fn forget(&mut self, steps: &[PlanStep], touched: &[usize], below: usize, order: &PlanOrder) {
+        for place in touched {
+            let Some(step) = steps.get(*place) else {
+                continue;
+            };
+            Self::each_read(step, &mut |read| {
+                if read < below
+                    && let Some(list) = self.lists.get_mut(read)
+                    && let Ok(found) =
+                        list.binary_search_by(|reader| order_of(order, reader.0, *place))
+                {
+                    let _forgotten = list.remove(found);
                 }
-            }
-        });
+            });
+        }
     }
 
-    /// Brings the readers of the steps below `below` up to date after a push, for a plan in reading order: the readers from
-    /// the splice on stand `count` later; the step replaced at the splice, the steps made before it and the other steps
-    /// replaced read what they read now.
-    fn spliced(&mut self, steps: &[PlanStep], spliced: &Spliced, below: usize) {
-        let (at, count) = (spliced.at.0, spliced.count);
-        for list in self.lists.iter_mut().take(below) {
-            let from = list.partition_point(|reader| reader.0 < at);
-            if list.get(from) == Some(&StepIndex(at)) {
-                let _replaced = list.remove(from);
-            }
-            for reader in list.iter_mut().skip(from) {
-                reader.0 += count;
-            }
-        }
-        for place in at..=at.saturating_add(count) {
-            self.note(steps, place, below);
-        }
-        for other in &spliced.replaced {
-            for list in self.lists.iter_mut().take(below) {
-                if let Ok(found) = list.binary_search_by_key(&other.0, |reader| reader.0) {
-                    let _replaced = list.remove(found);
+    /// Notes each of `made`, a step a deferred push made or replaced, among the readers of each step below `below` that it
+    /// reads, the lists kept in the order the plan takes once materialized.
+    fn noted(&mut self, steps: &[PlanStep], made: &[usize], below: usize, order: &PlanOrder) {
+        for place in made {
+            let Some(step) = steps.get(*place) else {
+                continue;
+            };
+            Self::each_read(step, &mut |read| {
+                if read < below
+                    && let Some(list) = self.lists.get_mut(read)
+                    && let Err(at) = list.binary_search_by(|reader| order_of(order, reader.0, *place))
+                {
+                    list.insert(at, StepIndex(*place));
                 }
-            }
-            self.note(steps, other.0, below);
+            });
         }
         debug_assert!(
-            self.agrees(steps, below),
+            self.agrees(steps, below, order),
             "the readers kept differ from the readers read again"
         );
     }
 
-    /// Whether the lists of the steps below `below` are what reading `steps` again gives.
-    fn agrees(&self, steps: &[PlanStep], below: usize) -> bool {
+    /// Whether the lists of the steps below `below` are what reading `steps` again gives, in the plan's order.
+    fn agrees(&self, steps: &[PlanStep], below: usize, order: &PlanOrder) -> bool {
         let mut again = Self::default();
         again.rebuild(steps);
+        for list in &mut again.lists {
+            list.sort_by(|left, right| order_of(order, left.0, right.0));
+        }
         self.lists
             .iter()
             .zip(&again.lists)
@@ -340,7 +354,12 @@ impl Readers {
 /// What takes the place of each of `readers`, the steps that read the union or the join `id`, whose comparisons move: for a join,
 /// each filter that places some on an input; for a union, every reader, when each is a filter whose infallible prefix moves, and
 /// none otherwise.
-fn placed(steps: &[PlanStep], id: StepId, readers: &[StepIndex]) -> Vec<PushedFilter> {
+fn placed(
+    steps: &[PlanStep],
+    id: StepId,
+    readers: &[StepIndex],
+    fresh: Option<StepId>,
+) -> Vec<PushedFilter> {
     let Some(made) = step_in(steps, id) else {
         return Vec::new();
     };
@@ -361,13 +380,13 @@ fn placed(steps: &[PlanStep], id: StepId, readers: &[StepIndex]) -> Vec<PushedFi
         }
         filtering
             .iter()
-            .map(|reader| pushed_union(steps, id, *reader, *left, *right))
+            .map(|reader| pushed_union(steps, id, *reader, *left, *right, fresh))
             .collect::<Option<Vec<_>>>()
             .unwrap_or_default()
     } else if let Operation::Join { reach: None, .. } = &made.operation {
         filtering
             .iter()
-            .filter_map(|reader| pushed_join(steps, id, *reader))
+            .filter_map(|reader| pushed_join(steps, id, *reader, fresh))
             .collect()
     } else {
         Vec::new()
@@ -381,6 +400,7 @@ fn pushed_union(
     reader: StepIndex,
     left: Input,
     right: Input,
+    fresh: Option<StepId>,
 ) -> Option<PushedFilter> {
     let made = step_in(steps, id)?;
     let filtering = steps.get(reader.0)?;
@@ -395,7 +415,7 @@ fn pushed_union(
     if prefix.is_empty() {
         return None;
     }
-    let first = StepId(u32::try_from(reader.0).unwrap_or(u32::MAX));
+    let first = fresh.unwrap_or(StepId(u32::try_from(reader.0).unwrap_or(u32::MAX)));
     let mut before = Vec::new();
     let filtered_left = place_after(first, &before);
     before.push(filter_of(steps, left, prefix.to_vec())?);
@@ -411,6 +431,7 @@ fn pushed_union(
     let rest = comparisons.get(prefix.len()..).unwrap_or_default().to_vec();
     Some(finished(
         reader,
+        first,
         before,
         combined,
         filtering,

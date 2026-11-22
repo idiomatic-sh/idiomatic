@@ -4,10 +4,10 @@
 use super::super::super::types::Below;
 use super::super::super::types::Residual;
 use super::super::super::types::SharedPush;
-use super::super::placing::service::{filter_of, met_key, place_after};
+use super::super::placing::service::{filter_of, met_key, place_after, placed_as};
 use crate::domain::fusing::service::fuse;
 use crate::domain::rewriting::types::StepIndex;
-use crate::domain::selection_pushing::types::{PlanSplice, Spliced};
+use crate::domain::selection_pushing::types::SplicePlaces;
 use crate::domain::widths::service::width_of;
 use ryo_values::domain::plan_parts::service::column_in;
 use ryo_values::domain::plan_parts::service::fixed_prefix;
@@ -28,6 +28,7 @@ pub(crate) fn shared_push(
     steps: &[PlanStep],
     id: StepId,
     readers: &[StepIndex],
+    fresh: Option<StepId>,
 ) -> Option<SharedPush> {
     let made = step_in(steps, id)?;
     let below: fn(&[PlanStep], StepId, &[PlanComparison], StepId) -> Option<Below> =
@@ -85,7 +86,7 @@ pub(crate) fn shared_push(
         steps,
         id,
         &common,
-        StepId(u32::try_from(head.reader.0).unwrap_or(u32::MAX)),
+        fresh.unwrap_or(StepId(u32::try_from(head.reader.0).unwrap_or(u32::MAX))),
     )?;
     if below.moved.is_empty() {
         return None;
@@ -113,13 +114,15 @@ fn without(comparisons: &[PlanComparison], moved: &[PlanComparison]) -> Vec<Plan
 }
 
 /// The plan with `push` made: the step made again below the filters, and what is made before it, just before the first filter,
-/// which then reads it, and each other filter reading it too, every later step and root renumbered.
+/// which then reads it, and each other filter reading it too, by `splice`, which answers where the steps it made stand. The
+/// push named its steps from `fresh` (the first filter's place when none): `splice` renumbers every later step and root, or
+/// defers the push (`insert_deferred`).
 pub(crate) fn shared_into(
     steps: &mut Vec<PlanStep>,
-    roots: &mut [StepId],
     push: SharedPush,
-    splice: PlanSplice,
-) -> Option<Spliced> {
+    fresh: Option<StepId>,
+    splice: &mut dyn FnMut(&mut Vec<PlanStep>, StepIndex, Vec<PlanStep>, PlanStep) -> Option<SplicePlaces>,
+) -> Option<()> {
     let SharedPush {
         below: Below {
             mut before,
@@ -129,11 +132,11 @@ pub(crate) fn shared_into(
         residuals,
     } = push;
     let (head, others) = residuals.split_first()?;
-    let first = StepId(u32::try_from(head.reader.0).unwrap_or(u32::MAX));
+    let first = fresh.unwrap_or(StepId(u32::try_from(head.reader.0).unwrap_or(u32::MAX)));
     let at = place_after(first, &before);
-    let residual = |residual: &Residual| PlanStep {
+    let residual = |residual: &Residual, from: Input| PlanStep {
         operation: Operation::Select {
-            from: at,
+            from,
             comparisons: residual.comparisons.clone(),
             kept: residual.kept.clone(),
         },
@@ -147,22 +150,20 @@ pub(crate) fn shared_into(
         }
     } else {
         before.push(combined);
-        residual(head)
+        residual(head, at)
     };
     let count = before.len();
-    splice(steps, roots, head.reader, before, filter);
-    let mut replaced = Vec::with_capacity(others.len());
+    let deferred = splice(steps, head.reader, before, filter);
+    let (shift, from) = match (&deferred, at) {
+        (Some(places), Input::Step(id)) => (0, Input::Step(placed_as(places, id))),
+        _ => (count, at),
+    };
     for other in others {
-        if let Some(step) = steps.get_mut(other.reader.0 + count) {
-            *step = residual(other);
-            replaced.push(StepIndex(other.reader.0 + count));
+        if let Some(step) = steps.get_mut(other.reader.0 + shift) {
+            *step = residual(other, from);
         }
     }
-    Some(Spliced {
-        at: head.reader,
-        count,
-        replaced,
-    })
+    Some(())
 }
 
 /// The antijoin `id` over its inputs filtered by `comparisons`, of its left's columns: an antijoin keeps left rows as they are,

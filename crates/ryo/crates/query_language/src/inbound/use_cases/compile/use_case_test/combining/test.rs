@@ -145,6 +145,7 @@ fn subject(text: Input) -> Result<Value, Failure> {
         kinds: Vec::new(),
         steps: Vec::new(),
         lowered: Vec::new(),
+        names: crate::domain::lowering::types::StepNames::default(),
         span: program.emit.span,
         origin: None,
         comparison_origins: Vec::new(),
