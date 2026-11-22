@@ -102,9 +102,8 @@ fn order(ex: &Exec<'_>, u: usize, tree: &[usize], out: &mut Vec<usize>) -> R<()>
     Ok(())
 }
 
-/// The union made whole (its leaves made whole). The table is handed on owned: a single answer passed through is copied
-/// here, because a step's body returns its own table.
-pub(super) fn whole(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Table> {
+/// The union made whole (its leaves made whole). pass 2: handed on shared, a single answer passed through uncopied.
+pub(super) fn whole(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Table>> {
     let pr = prep(ex, run, node)?;
     let mut got = take_got();
     for (i, lf) in pr.leaves.iter().enumerate() {
@@ -113,7 +112,7 @@ pub(super) fn whole(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut 
             got.push((t, i as u32));
         }
     }
-    let out = if got.is_empty() { Table::with(pr.names.clone(), pr.tys.clone()) } else { Rc::try_unwrap(combine(&pr, &got)).unwrap_or_else(|rc| (*rc).clone()) };
+    let out = combine(pr, &got);
     give_got(got);
     Ok(out)
 }

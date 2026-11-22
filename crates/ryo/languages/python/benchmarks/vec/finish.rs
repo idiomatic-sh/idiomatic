@@ -41,6 +41,12 @@ mod kernel_input;
 mod union_kernel;
 #[path = "finish/antijoin_kernel.rs"]
 mod antijoin_kernel;
+#[path = "finish/frame.rs"]
+mod frame;
+#[path = "finish/known.rs"]
+mod known;
+#[path = "finish/empty_why.rs"]
+pub(super) mod empty_why;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum Ty {
@@ -376,6 +382,13 @@ fn fact_of(run: &mut Run, rel: &str) -> Option<Native> {
 
 const NONE: u32 = u32::MAX;
 
+/// redo-union pass 2: the step clock, read only where `VEC_STEP_TIME` asks for per-step timing; else no clock is read per
+/// run (0: the stats carry calls and rows only).
+#[inline]
+pub(super) fn step_clock() -> f64 {
+    if sw!("VEC_STEP_TIME") { super::thread_cpu() } else { 0.0 }
+}
+
 /// The token order's links, one pass a file, made the first time a step reads `token-link` in that file: next token,
 /// matching delimiter (both ways) and enclosing delimiter by position, and the tokens each opener encloses.
 pub(super) struct Tokens {
@@ -420,6 +433,10 @@ pub(super) struct File<'a> {
     /// 6h: the fills read in place, by `Native::Fact` place, and their keyed lists by (place, column).
     facts: Vec<Option<Rc<Table>>>,
     fact_ix: RefCell<FxHashMap<(u16, usize), Rc<Index>>>,
+    /// redo-union pass 2: whether a step is known empty in this file from its kinds, seeds and per-file tests (`known`).
+    known: Vec<u8>,
+    /// The kinds the file has, one bit a kind code (made at the first ask).
+    kind_bits: Vec<u64>,
 }
 
 /// How a step asks the provider for a relation's rows: the visit's facts.
@@ -458,6 +475,8 @@ impl File<'_> {
             walks: FxHashMap::default(),
             facts: Vec::new(),
             fact_ix: RefCell::new(FxHashMap::default()),
+            known: vec![0; nodes],
+            kind_bits: Vec::new(),
         };
         for i in 0..n as u32 {
             let p = Position(i);
@@ -742,6 +761,10 @@ pub(super) struct Stats {
     pub(super) touched: Vec<u64>,
     pub(super) empty: Vec<u64>,
     pub(super) probes: Vec<u64>,
+    /// redo-union pass 2: runs (whole or by key) answered empty before the bracket (`known`), and the seconds of the
+    /// bracketed runs that returned nothing.
+    pub(super) known: Vec<u64>,
+    pub(super) empty_time: Vec<f64>,
     /// The step that first asked a node whole in a file (diagnostic).
     pub(super) made_by: Vec<usize>,
     /// Why a node was first made whole in a file, where the asking step says (empty: read whole by `made_by`).
@@ -844,7 +867,13 @@ pub(super) struct Exec<'p> {
     stack: Vec<usize>,
     /// Steps whose inputs are all run-wide (the file list, written rows): made once a run.
     constant: Vec<Option<bool>>,
-    run_memo: FxHashMap<usize, Rc<Table>>,
+    run_memo: Vec<Option<Rc<Table>>>,
+    /// redo-union pass 2: per node, what the step bracket reads on every run (`frame`).
+    frames: Vec<frame::Frame>,
+    ptargets: Vec<Option<Box<[(u32, u32)]>>>,
+    scratch_made: Vec<usize>,
+    scratch_ranges: Vec<(usize, usize)>,
+    scratch_order: Vec<(u64, u32)>,
     /// The steps that read each node, and whether every one of them reads it only by key (never made whole then).
     consumers: Vec<Vec<usize>>,
     keyed_memo: Vec<Option<bool>>,
@@ -861,10 +890,14 @@ pub(super) struct Exec<'p> {
     pub(super) tally: band::Tally,
     /// 7: the per-key memo, by (step, column) slot; slots used in this file are cleared at the next (buffers kept).
     pmemo: Vec<MemoSlot>,
-    pmemo_at: FxHashMap<(usize, usize), usize>,
+    /// pass 2: the memo slots by node, (column, slot) (no map looked up a probe).
+    pmemo_at: Vec<Vec<(u32, u32)>>,
     pmemo_dirty: Vec<usize>,
     stamp: u32,
     scratch_keys: Vec<u64>,
+    /// redo-union pass 2: what each step needs to return anything (`known`), and its shared empty answer.
+    needs: Vec<Option<&'static known::Need>>,
+    empties: Vec<Option<Rc<Table>>>,
 }
 
 /// 7: a key's rows in a memo slot: one range of the slot's table (`start` PENDING while its batch runs).
@@ -929,7 +962,7 @@ impl<'p> Exec<'p> {
         let k = plan.nodes.len();
         Exec {
             plan,
-            stats: Stats { time: vec![0.0; k], rows: vec![0; k], calls: vec![0; k], touched: vec![0; k], empty: vec![0; k], probes: vec![0; k], made_by: vec![usize::MAX; k], why: vec![""; k], memo_in: 0, memo_out: 0, memo_keys: 0, memo_reused: 0, memo_reused_keys: 0 },
+            stats: Stats { time: vec![0.0; k], rows: vec![0; k], calls: vec![0; k], touched: vec![0; k], empty: vec![0; k], probes: vec![0; k], known: vec![0; k], empty_time: vec![0.0; k], made_by: vec![usize::MAX; k], why: vec![""; k], memo_in: 0, memo_out: 0, memo_keys: 0, memo_reused: 0, memo_reused_keys: 0 },
             schemas: vec![None; k],
             views: vec![None; k],
             sels: vec![None; k],
@@ -937,7 +970,12 @@ impl<'p> Exec<'p> {
             deps: FxHashMap::default(),
             stack: Vec::new(),
             constant: vec![None; k],
-            run_memo: FxHashMap::default(),
+            run_memo: vec![None; k],
+            frames: frame::frames(plan),
+            ptargets: vec![None; k],
+            scratch_made: Vec::new(),
+            scratch_ranges: Vec::new(),
+            scratch_order: Vec::new(),
             consumers: {
                 let mut c = vec![Vec::new(); k];
                 for (i, n) in plan.nodes.iter().enumerate() {
@@ -957,10 +995,12 @@ impl<'p> Exec<'p> {
             over: None,
             tally: band::Tally::default(),
             pmemo: Vec::new(),
-            pmemo_at: FxHashMap::default(),
+            pmemo_at: vec![Vec::new(); k],
             pmemo_dirty: Vec::new(),
             stamp: 0,
             scratch_keys: Vec::new(),
+            needs: vec![None; k],
+            empties: vec![None; k],
         }
     }
 
@@ -1354,10 +1394,17 @@ impl<'p> Exec<'p> {
     }
 
     /// The view a node is, when it is one: a tree relation, or a select of column picks and tests over one view.
+    #[inline]
     fn view(&mut self, run: &mut Run, node: usize) -> R<Option<Rc<ViewSpec>>> {
-        if let Some(v) = &self.views[node] {
-            return Ok(v.clone());
+        match &self.views[node] {
+            Some(None) => Ok(None),
+            Some(v) => Ok(v.clone()),
+            None => self.view_slow(run, node),
         }
+    }
+
+    #[inline(never)]
+    fn view_slow(&mut self, run: &mut Run, node: usize) -> R<Option<Rc<ViewSpec>>> {
         let pn = &self.plan.nodes[node];
         let v = match pn.op.as_str() {
             "base" => {
@@ -1409,12 +1456,20 @@ impl<'p> Exec<'p> {
             f.memo[node] = Some(r.clone());
             return Ok(r);
         }
-        if let Some(t) = self.run_memo.get(&node) {
+        if let Some(t) = &self.run_memo[node] {
             let r = Res::Tab(t.clone());
             f.memo[node] = Some(r.clone());
             return Ok(r);
         }
-        let t0 = super::thread_cpu();
+        if !sw!("VEC_NO_KNOWN") && self.known_empty(f, run, node) {
+            self.stats.known[node] += 1;
+            let r = Res::Tab(self.empty_rc(run, node)?);
+            f.memo[node] = Some(r.clone());
+            f.log.push(node);
+            return Ok(r);
+        }
+        let ew = if sw!("VEC_EMPTY_WHY") { Some(empty_why::class(self, f, run, node)) } else { None };
+        let t0 = step_clock();
         let saved = self.inner;
         self.inner = 0.0;
         if self.stats.made_by[node] == usize::MAX {
@@ -1424,18 +1479,25 @@ impl<'p> Exec<'p> {
         self.stack.push(node);
         let out = self.body(f, run, p, node);
         self.stack.pop();
-        let dt = super::thread_cpu() - t0;
-        self.stats.time[node] += dt - self.inner;
+        let dt = step_clock() - t0;
+        let own = dt - self.inner;
+        self.stats.time[node] += own;
         self.inner = saved + dt;
         let out = out?;
+        if out.n == 0 {
+            self.stats.empty_time[node] += own;
+        }
+        if let Some(c) = ew {
+            empty_why::tally(self, f, node, c, out.n == 0);
+        }
         self.stats.calls[node] += 1;
         self.stats.rows[node] += out.n as u64;
         if out.n == 0 {
             self.stats.empty[node] += 1;
         }
-        let t = Rc::new(out);
+        let t = out;
         if self.is_constant(node) {
-            self.run_memo.insert(node, t.clone());
+            self.run_memo[node] = Some(t.clone());
         }
         let rc = Res::Tab(t);
         f.memo[node] = Some(rc.clone());
@@ -1446,16 +1508,20 @@ impl<'p> Exec<'p> {
     /// The rows of a node whose column `col` holds one of `keys`, without making the node whole where its inputs can be
     /// probed in turn (sideways key passing through the steps a query defines). What is made under a probe is dropped.
     fn probe(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64]) -> R<Rc<Table>> {
-        let sc = self.schema(run, node)?;
         if keys.is_empty() {
-            return Ok(Rc::new(Table::with(sc.names.clone(), sc.tys.clone())));
+            return self.empty_rc(run, node);
         }
+        let sc = self.schema(run, node)?;
         if let Some(o) = self.overridden(node) {
             return Ok(Rc::new(drive::subset_of(&o, col, keys)));
         }
         if let Some(Res::Tab(t)) = &f.memo[node] {
             let t = t.clone();
             return Ok(Rc::new(subset(f, node, &t, col, keys)));
+        }
+        if !sw!("VEC_NO_KNOWN") && self.known_empty(f, run, node) {
+            self.stats.known[node] += 1;
+            return self.empty_rc(run, node);
         }
         if let Some(v) = self.view(run, node)? {
             self.load_fact(f, run, p, v.base)?;
@@ -1508,7 +1574,7 @@ impl<'p> Exec<'p> {
             }
             if missing.is_empty() {
                 self.scratch_keys = missing;
-                let t = Rc::new(self.memo_rows(slot, keys));
+                let t = self.memo_rows(node, slot, keys);
                 self.stats.memo_out += t.n as u64;
                 if keys.len() >= LIST_MIN {
                     self.pmemo[slot].lists.insert(list_hash, (keys.to_vec(), t.clone()));
@@ -1520,13 +1586,13 @@ impl<'p> Exec<'p> {
             missing.extend_from_slice(keys);
             None
         };
-        let t0 = super::thread_cpu();
+        let t0 = step_clock();
         let saved = self.inner;
         self.inner = 0.0;
         self.stack.push(node);
         let out = self.probe_body(f, run, p, node, col, &missing, &sc);
         self.stack.pop();
-        let dt = super::thread_cpu() - t0;
+        let dt = step_clock() - t0;
         self.stats.time[node] += dt - self.inner;
         self.inner = saved + dt;
         let out = match out {
@@ -1551,15 +1617,17 @@ impl<'p> Exec<'p> {
             self.scratch_keys = missing;
             return Ok(out);
         };
-        let sl = &mut self.pmemo[slot];
         for k in &missing {
-            if let Some(e) = sl.ix.get_mut(k) {
+            if let Some(e) = self.pmemo[slot].ix.get_mut(k) {
                 e.start = 0;
             }
         }
         // the batch's rows by key (in row order within a key), each key's run appended as one range
-        let mut order: Vec<(u64, u32)> = (0..out.n as u32).map(|r| (out.cols[col][r as usize], r)).collect();
+        let mut order = std::mem::take(&mut self.scratch_order);
+        order.clear();
+        order.extend((0..out.n as u32).map(|r| (out.cols[col][r as usize], r)));
         order.sort_unstable();
+        let sl = &mut self.pmemo[slot];
         let mut i = 0;
         while i < order.len() {
             let k = order[i].0;
@@ -1590,8 +1658,9 @@ impl<'p> Exec<'p> {
             sl.t.n += j - i;
             i = j;
         }
+        self.scratch_order = order;
         self.stats.memo_in += out.n as u64;
-        let t = Rc::new(self.memo_rows(slot, keys));
+        let t = self.memo_rows(node, slot, keys);
         self.stats.memo_out += t.n as u64;
         if keys.len() >= LIST_MIN {
             self.pmemo[slot].lists.insert(list_hash, (keys.to_vec(), t.clone()));
@@ -1602,7 +1671,8 @@ impl<'p> Exec<'p> {
 
     /// 7: the memo slot of a (step, column) for this file (its buffers kept across files).
     fn memo_slot(&mut self, node: usize, col: usize, sc: &Schema) -> usize {
-        if let Some(&i) = self.pmemo_at.get(&(node, col)) {
+        if let Some(&(_, i)) = self.pmemo_at[node].iter().find(|x| x.0 as usize == col) {
+            let i = i as usize;
             if !self.pmemo[i].dirty {
                 self.pmemo[i].dirty = true;
                 self.pmemo_dirty.push(i);
@@ -1611,17 +1681,18 @@ impl<'p> Exec<'p> {
         }
         let i = self.pmemo.len();
         self.pmemo.push(MemoSlot { t: Table::with(sc.names.clone(), sc.tys.clone()), ix: FxHashMap::default(), lists: FxHashMap::default(), dirty: true });
-        self.pmemo_at.insert((node, col), i);
+        self.pmemo_at[node].push((col as u32, i as u32));
         self.pmemo_dirty.push(i);
         i
     }
 
     /// 7: the memoised rows of a probed step for these keys, in key order (each key once).
-    fn memo_rows(&mut self, slot: usize, keys: &[u64]) -> Table {
+    fn memo_rows(&mut self, node: usize, slot: usize, keys: &[u64]) -> Rc<Table> {
         self.stamp = self.stamp.wrapping_add(1);
         let st = self.stamp;
+        let mut ranges = std::mem::take(&mut self.scratch_ranges);
+        ranges.clear();
         let sl = &mut self.pmemo[slot];
-        let mut ranges: Vec<(usize, usize)> = Vec::with_capacity(keys.len());
         let mut total = 0;
         for k in keys {
             if let Some(e) = sl.ix.get_mut(k)
@@ -1634,6 +1705,16 @@ impl<'p> Exec<'p> {
                 }
             }
         }
+        if total == 0 {
+            self.scratch_ranges = ranges;
+            // pass 2: no rows: the step's shared empty answer
+            if let Some(t) = &self.empties[node] {
+                return t.clone();
+            }
+            let t = Rc::new(Table::with(sl.t.names.clone(), sl.t.tys.clone()));
+            self.empties[node] = Some(t.clone());
+            return t;
+        }
         let mut out = Table::with(sl.t.names.clone(), sl.t.tys.clone());
         for (c, col) in sl.t.cols.iter().enumerate() {
             let mut v = Vec::with_capacity(total);
@@ -1643,11 +1724,35 @@ impl<'p> Exec<'p> {
             out.cols[c] = v;
         }
         out.n = total;
-        out
+        self.scratch_ranges = ranges;
+        Rc::new(out)
     }
 
     #[expect(clippy::too_many_arguments, reason = "a throwaway")]
     fn probe_body(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64], sc: &Schema) -> R<Rc<Table>> {
+        // pass 2: the target resolved once a run by (step, column); the substitution with reused buffers
+        if self.static_keyed && !sw!("VEC_PTARGET_OFF") {
+            let (input, icol) = self.ptarget(run, node, col)?;
+            match input {
+                frame::GENERAL => {}
+                frame::WHOLE_CARRIED | frame::WHOLE_UNCARRIED => {
+                    if self.frames[node].semi {
+                        let _ = self.semi_drives_whole(f, run, p, node, keys.len())?;
+                    }
+                    self.reason = if input == frame::WHOLE_CARRIED { "probed on a column its input shares with another input" } else { "probed on a column no input carries" };
+                    let t = self.eval(f, run, p, node)?;
+                    return Ok(Rc::new(subset(f, node, &t, col, keys)));
+                }
+                _ => {
+                    if self.frames[node].semi && self.semi_drives_whole(f, run, p, node, keys.len())? {
+                        self.reason = "probed on a column no input carries";
+                        let t = self.eval(f, run, p, node)?;
+                        return Ok(Rc::new(subset(f, node, &t, col, keys)));
+                    }
+                    return self.substituted(f, run, p, node, input as usize, icol as usize, keys);
+                }
+            }
+        }
         let plan: &'p Plan = self.plan;
         let op: &'p String = &plan.nodes[node].op;
         let a = &plan.nodes[node].j["args"];
@@ -1782,7 +1887,7 @@ impl<'p> Exec<'p> {
                 return Ok(Rc::new(subset(f, node, &t, col, keys)));
             };
             let sub = self.probe(f, run, p, input, icol, keys)?;
-            return self.run_over(f, run, p, node, input, at_pos, sub).map(Rc::new);
+            return self.run_over(f, run, p, node, input, at_pos, sub);
         }
         let target = target.filter(|(input, _)| {
             let others: Vec<usize> = self.plan.nodes[node].inputs.iter().copied().filter(|i| i != input).collect();
@@ -1795,6 +1900,12 @@ impl<'p> Exec<'p> {
         };
         // the input probed, put in its place while the step runs once over it; everything made meanwhile is dropped
         let sub = self.probe(f, run, p, input, icol, keys)?;
+        // the input has no rows for these keys: the step over it answers nothing (its body would return at once; a
+        // counted group count reads its select's sources, not the input, and runs)
+        if sub.n == 0 && !self.frames[node].counted {
+            self.stats.known[node] += 1;
+            return self.empty_rc(run, node);
+        }
         let saved = f.memo[input].replace(Res::Tab(sub));
         let saved_ix = f.index.remove(&input);
         let mark = f.log.len();
@@ -1828,7 +1939,56 @@ impl<'p> Exec<'p> {
         }
         // no other input of the step reads the substituted one (checked above), so no probe memo is made over it but this
         // step's own, which is filed under the keys it was asked
-        Ok(Rc::new(out?))
+        out
+    }
+
+    /// pass 2: the step run once over its input probed by `keys`, put in its place; what was made meanwhile over it is
+    /// dropped (the same as the general path below, with reused buffers and no set).
+    #[expect(clippy::too_many_arguments, reason = "a throwaway")]
+    fn substituted(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, input: usize, icol: usize, keys: &[u64]) -> R<Rc<Table>> {
+        let sub = self.probe(f, run, p, input, icol, keys)?;
+        // the input has no rows for these keys: the step over it answers nothing (its body would return at once; a
+        // counted group count reads its select's sources, not the input, and runs)
+        if sub.n == 0 && !self.frames[node].counted {
+            self.stats.known[node] += 1;
+            return self.empty_rc(run, node);
+        }
+        let saved = f.memo[input].replace(Res::Tab(sub));
+        let saved_ix = if f.index.is_empty() { None } else { f.index.remove(&input) };
+        let mark = f.log.len();
+        let out = self.body(f, run, p, node);
+        f.memo[input] = saved;
+        if let Some(ix) = saved_ix {
+            f.index.insert(input, ix);
+        } else if !f.index.is_empty() {
+            f.index.remove(&input);
+        }
+        if f.log.len() > mark {
+            let mut made = std::mem::take(&mut self.scratch_made);
+            made.clear();
+            made.extend(f.log.drain(mark..));
+            for &n in &made {
+                if n == input {
+                    continue;
+                }
+                if self.depends(n, input) {
+                    f.memo[n] = None;
+                    f.vmat.remove(&n);
+                    f.lazies.remove(&n);
+                    f.index.remove(&n);
+                } else {
+                    f.log.push(n);
+                }
+            }
+            self.scratch_made = made;
+        }
+        if !f.vmat.is_empty() {
+            f.vmat.remove(&input);
+        }
+        if !f.lazies.is_empty() {
+            f.lazies.remove(&input);
+        }
+        out
     }
 
     /// A node's rows as a table (a view is made whole here, once a file).
@@ -1843,7 +2003,7 @@ impl<'p> Exec<'p> {
                 if let Some(t) = f.vmat.get(&node) {
                     return Ok(t.clone());
                 }
-                let t0 = super::thread_cpu();
+                let t0 = step_clock();
                 let sc = self.schema(run, node)?;
                 let rows = view_rows(f, run, &v, node);
                 let mut out = Table::with(sc.names.clone(), sc.tys.clone());
@@ -1858,7 +2018,7 @@ impl<'p> Exec<'p> {
                 }
                 f.vmat.insert(node, rc.clone());
                 f.log.push(node);
-                let dt = super::thread_cpu() - t0;
+                let dt = step_clock() - t0;
                 self.stats.time[node] += dt;
                 self.inner += dt;
                 self.stats.calls[node] += 1;
@@ -1866,6 +2026,18 @@ impl<'p> Exec<'p> {
                 Ok(rc)
             }
         }
+    }
+
+    /// The step's shared empty answer (made once a run).
+    #[inline]
+    pub(super) fn empty_rc(&mut self, run: &mut Run, node: usize) -> R<Rc<Table>> {
+        if let Some(t) = &self.empties[node] {
+            return Ok(t.clone());
+        }
+        let sc = self.schema(run, node)?;
+        let t = Rc::new(Table::with(sc.names.clone(), sc.tys.clone()));
+        self.empties[node] = Some(t.clone());
+        Ok(t)
     }
 
     fn empty(&mut self, run: &mut Run, node: usize) -> R<Table> {
@@ -1879,7 +2051,7 @@ impl<'p> Exec<'p> {
         }
         self.reason = "closure edges";
         let edges = self.eval(f, run, p, self.arg_rel(node, "edges")?)?;
-        let t0 = super::thread_cpu();
+        let t0 = step_clock();
         let a = &self.plan.nodes[node].j["args"];
         let keys: Vec<usize> = strs(&a["keys"])?.iter().map(|k| edges.col(k)).collect::<R<_>>()?;
         let (si, di) = (edges.col(s(&a["source"])?)?, edges.col(s(&a["destination"])?)?);
@@ -1895,7 +2067,7 @@ impl<'p> Exec<'p> {
         }
         let sc = self.schema(run, node)?;
         let l = Rc::new(Lazy { keys, adj, radj, node, names: sc.names.clone(), tys: sc.tys.clone(), cache: RefCell::new(FxHashMap::default()), rcache: RefCell::new(FxHashMap::default()) });
-        let dt = super::thread_cpu() - t0;
+        let dt = step_clock() - t0;
         self.stats.time[node] += dt;
         self.inner += dt;
         f.lazies.insert(node, l.clone());
@@ -1903,26 +2075,41 @@ impl<'p> Exec<'p> {
         Ok(l)
     }
 
-    fn body(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Table> {
-        let plan: &'p Plan = self.plan;
-        let pn = &plan.nodes[node];
-        let op = pn.op.as_str();
-        let j = &pn.j;
-        let a = &j["args"];
-        if op == "union" && !sw!("VEC_OLD_UNION") { return union_kernel::whole(self, f, run, p, node); }
-        if op == "antijoin" && !sw!("VEC_OLD_ANTIJOIN") { return antijoin_kernel::whole(self, f, run, p, node); }
+    /// A step's run: the kernels' dispatch, then what ends the step before anything else (the frame, prepared at plan
+    /// load), then the operator's body. redo-union pass 2: the answer is shared (`Rc`): a kernel's passed-through input
+    /// and the step's empty answer are handed on, not copied.
+    fn body(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Table>> {
+        let fr = self.frames[node];
+        match fr.op {
+            frame::Op::Union if !sw!("VEC_OLD_UNION") => return union_kernel::whole(self, f, run, p, node),
+            frame::Op::Antijoin if !sw!("VEC_OLD_ANTIJOIN") => return antijoin_kernel::whole(self, f, run, p, node),
+            _ => {}
+        }
+        if fr.counted
+            && let Some(t) = self.counted(f, run, p, node)?
+        {
+            return Ok(Rc::new(t));
+        }
         // a step over an empty input answers nothing, and asks for nothing else
-        let first = match op {
-            "union" | "antijoin" | "ordered-match" | "as-of" => Some("left"),
-            "closure" | "follow" => Some("edges"),
-            "base" | "select" | "rows" => None,
-            _ => Some("from"),
-        };
-        let counted = op == "group-count" && a["distinct"].is_null() && !sw!("VEC_NO_SEMI") && {
-            let fnode = self.arg_rel(node, "from")?;
-            plan.nodes[fnode].j.get("count").is_some()
-        };
-        if counted {
+        if fr.first == frame::MISSING {
+            return Err(format!("no relation argument of {}", self.plan.nodes[node].op));
+        }
+        if fr.first != NONE {
+            let t = self.eval(f, run, p, fr.first as usize)?;
+            if t.n == 0 && fr.op != frame::Op::Union {
+                return self.empty_rc(run, node);
+            }
+        }
+        // an empty answer is the step's shared one (the body's own table is dropped, nothing kept a run)
+        let t = self.step(f, run, p, node)?;
+        if t.n == 0 { self.empty_rc(run, node) } else { Ok(Rc::new(t)) }
+    }
+
+    /// A group count over a counted select: its kept rows and their counts, grouped (None: the band does not apply).
+    fn counted(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Option<Table>> {
+        let plan: &'p Plan = self.plan;
+        let a = &plan.nodes[node].j["args"];
+        {
             let fnode = self.arg_rel(node, "from")?;
             let pb = plan.nodes[fnode].j["semi"].as_u64().ok_or("count without semi")? as usize;
             if let Some((from, counts)) = self.band_rows(f, run, p, fnode, pb, true)? {
@@ -1944,15 +2131,19 @@ impl<'p> Exec<'p> {
                     row.push(groups[&k]);
                     out.push_row(&row);
                 }
-                return Ok(out);
+                return Ok(Some(out));
             }
         }
-        if let Some(arg) = first {
-            let t = self.eval(f, run, p, self.arg_rel(node, arg)?)?;
-            if t.n == 0 && op != "union" {
-                return self.empty(run, node);
-            }
-        }
+        Ok(None)
+    }
+
+    /// The operator's body (its first input is not empty).
+    fn step(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Table> {
+        let plan: &'p Plan = self.plan;
+        let pn = &plan.nodes[node];
+        let op = pn.op.as_str();
+        let j = &pn.j;
+        let a = &j["args"];
         match op {
             "base" => self.base(f, run, p, s(&j["rel"])?),
             "select" => self.select(f, run, p, node),

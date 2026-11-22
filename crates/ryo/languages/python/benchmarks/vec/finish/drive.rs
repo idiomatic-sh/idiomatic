@@ -95,7 +95,7 @@ impl Exec<'_> {
     /// One run of `node` over `sub` in place of its input `input` (the step's own run only: nothing in the file's memo
     /// changes, so what other inputs make is exact and stays).
     #[expect(clippy::too_many_arguments, reason = "a throwaway")]
-    pub(super) fn run_over(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, input: usize, at: Option<usize>, sub: Rc<Table>) -> R<Table> {
+    pub(super) fn run_over(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, input: usize, at: Option<usize>, sub: Rc<Table>) -> R<Rc<Table>> {
         let saved = self.over.replace((node, input, at, sub));
         let out = self.body(f, run, p, node);
         self.over = saved;

@@ -5,7 +5,7 @@
 //! on the prepared empty table; else the kept rows are gathered into exact-size columns.
 
 use super::kernel_input::{give_keys, input_probe, sole, take_keys};
-use super::{Exec, File, Names, Provider, R, Res, Run, Table, Ty, Tys, view_holds};
+use super::{Exec, File, Provider, R, Res, Run, Table, Ty, view_holds};
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -27,8 +27,6 @@ pub(super) struct Prep {
     /// The right side is read by this step alone and the step is never probed (made whole once a file): the right is
     /// asked its keys once, so its per-key memo never answers.
     right_sole: bool,
-    names: Names,
-    tys: Tys,
     empty: Rc<Table>,
 }
 
@@ -81,8 +79,6 @@ fn prep(ex: &mut Exec<'_>, run: &mut Run, node: usize) -> R<&'static Prep> {
         direct,
         left_sole: left != right && sole(ex, left, &[node]),
         right_sole: left != right && !ex.keyed(run, node) && sole(ex, right, &[node]),
-        names: sc.names.clone(),
-        tys: sc.tys.clone(),
         empty: Rc::new(Table::with(sc.names.clone(), sc.tys.clone())),
     }));
     PREP.with(|m| {
@@ -96,15 +92,13 @@ fn prep(ex: &mut Exec<'_>, run: &mut Run, node: usize) -> R<&'static Prep> {
 }
 
 /// The antijoin made whole (body of the step; its left is not empty: the body returned before).
-pub(super) fn whole(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Table> {
+pub(super) fn whole(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Table>> {
     let pr = prep(ex, run, node)?;
     let l = ex.eval(f, run, p, pr.left)?;
     if l.n == 0 {
-        return Ok(Table::with(pr.names.clone(), pr.tys.clone()));
+        return Ok(pr.empty.clone());
     }
-    let out = over(ex, f, run, p, node, &pr, &l)?;
-    drop(l);
-    Ok(Rc::try_unwrap(out).unwrap_or_else(|rc| (*rc).clone()))
+    over(ex, f, run, p, node, pr, &l)
 }
 
 /// The antijoin's rows whose column `col` holds one of `keys` (the static keyed read: the left probed, the step run over

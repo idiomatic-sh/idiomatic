@@ -1079,8 +1079,8 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     if let Some(out) = flag(args, "--stats") {
         let mut lines = vec!["node\top\tcalls\trows\ttouched\tseconds".to_owned()];
         for (i, pn) in plan.nodes.iter().enumerate() {
-            if exec.stats.calls[i] > 0 || exec.stats.time[i] > 0.0 {
-                lines.push(format!("{i}\t{}\t{}\t{}\t{}\t{:.6}\t{}\t{}\t{}\t{}", pn.op, exec.stats.calls[i], exec.stats.rows[i], exec.stats.touched[i], exec.stats.time[i], exec.stats.empty[i], exec.stats.probes[i], exec.stats.made_by[i] as i64, exec.stats.why[i]));
+            if exec.stats.calls[i] > 0 || exec.stats.time[i] > 0.0 || exec.stats.known[i] > 0 || exec.stats.probes[i] > 0 {
+                lines.push(format!("{i}\t{}\t{}\t{}\t{}\t{:.6}\t{}\t{}\t{}\t{}\t{}\t{:.6}", pn.op, exec.stats.calls[i], exec.stats.rows[i], exec.stats.touched[i], exec.stats.time[i], exec.stats.empty[i], exec.stats.probes[i], exec.stats.made_by[i] as i64, exec.stats.why[i], exec.stats.known[i], exec.stats.empty_time[i]));
             }
         }
         for (k, v) in &by_rel {
@@ -1100,6 +1100,7 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     println!("per-key memo: rows in {} rows out {} keys asked {}", exec.stats.memo_in, exec.stats.memo_out, exec.stats.memo_keys);
     println!("memo key lists answered whole: {} ({} keys)", exec.stats.memo_reused, exec.stats.memo_reused_keys);
     println!("fact keyed lists: fill rows listed {}", finish::FACT_IX_ROWS.load(std::sync::atomic::Ordering::Relaxed));
+    finish::empty_why::print();
     let mut f: Vec<_> = failed.into_iter().collect();
     f.sort();
     for (r, e) in f {
