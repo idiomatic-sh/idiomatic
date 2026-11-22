@@ -50,6 +50,7 @@ pub fn rule(names: &[&str]) -> Plan {
         observation_inputs: Vec::new(),
         parameters: Vec::new(),
         steps: vec![PlanStep {
+            written: Default::default(),
             operation: Operation::Select {
                 from: Input::Relation(Relation::SyntaxTree),
                 comparisons: vec![words],

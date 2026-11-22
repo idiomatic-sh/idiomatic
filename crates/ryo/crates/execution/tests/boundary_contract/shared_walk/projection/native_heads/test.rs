@@ -104,6 +104,7 @@ fn fused_select_reads_projected_ordinals_and_forwards_exact_rows_in_source_order
         let mut authored = authored_request(1);
         crate::boundary_fixture::fixtures::plans(&mut authored)[0].steps = vec![
             PlanStep {
+                written: Default::default(),
                 scope: StepScope::PerFile,
                 operation: Operation::Select {
                     from: Input::Relation(Relation::SyntaxTree),
@@ -112,6 +113,7 @@ fn fused_select_reads_projected_ordinals_and_forwards_exact_rows_in_source_order
                 },
             },
             PlanStep {
+                written: Default::default(),
                 scope: StepScope::PerFile,
                 operation: Operation::Select {
                     from: Input::Step(StepId(0)),

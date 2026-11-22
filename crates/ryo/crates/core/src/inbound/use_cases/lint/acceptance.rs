@@ -48,6 +48,7 @@ fn every_function() -> Plan {
         observations: Vec::new(),
         parameters: Vec::new(),
         steps: vec![PlanStep {
+            written: Default::default(),
             operation: Operation::Select {
                 from: Input::Relation(Relation::Function),
                 comparisons: Vec::new(),

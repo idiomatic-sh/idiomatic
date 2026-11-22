@@ -71,6 +71,7 @@ fn a_partial_input_and_an_inapplicable_input_merge_into_a_partial_answer() {
         .unwrap()
     };
     let select = |relation| PlanStep {
+        written: Default::default(),
         scope: StepScope::PerFile,
         operation: Operation::Select {
             from: Input::Relation(relation),
@@ -82,6 +83,7 @@ fn a_partial_input_and_an_inapplicable_input_merge_into_a_partial_answer() {
         select(Relation::Function),
         select(Relation::Comment),
         PlanStep {
+            written: Default::default(),
             scope: StepScope::CrossFile,
             operation: Operation::Union {
                 left: Input::Step(StepId(0)),

@@ -65,6 +65,8 @@ pub(crate) struct PointCountsEngine {
     pub(crate) elements: Count,
     /// The rows of each size site, by its place in `ProgramCode.sizes`, summed over the files.
     pub(crate) literals: Vec<Count>,
+    /// What each kind of work the language did for the programs came to, one entry a kind, in the order first done.
+    pub(crate) providers: Vec<crate::domain::counting::types::ProviderCounts>,
 }
 
 /// What a unit was asked and gave in the files a worker scanned.
@@ -82,6 +84,10 @@ pub(crate) struct UnitCounts {
     pub(crate) nanos: Count,
     /// The part of that time spent in files where it gave no row.
     pub(crate) idle_nanos: Count,
+    /// The part of that time a rule's own program spent deciding whether the file can hold a row of it.
+    pub(crate) decide_nanos: Count,
+    /// The time the language spent filling while it ran, which it asked for; not in `nanos`.
+    pub(crate) provider_nanos: Count,
 }
 
 /// One sample run: the programs it ran and what it counted.

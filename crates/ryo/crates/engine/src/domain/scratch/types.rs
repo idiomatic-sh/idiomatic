@@ -313,6 +313,16 @@ pub(crate) struct Measuring {
     pub(crate) since: Duration,
     /// SPIKE: the fills that needs started, by table.
     pub(crate) need_fills: NeedFills,
+    /// For each unit, by place: the part of its time a rule's own program spent deciding whether the file can hold a row.
+    pub(crate) decide: Vec<Count>,
+    /// For each unit, by place: the time the language spent filling while it ran, which is not its own.
+    pub(crate) provider: Vec<Count>,
+    /// The rule's own unit whose need is being decided now: none while no decision runs.
+    pub(crate) deciding: Option<WordSlot>,
+    /// The language's work for the file being scanned, timed where it is asked (`executing::measuring::timed`).
+    pub(crate) clock: std::sync::Arc<crate::domain::counting::types::FillClock>,
+    /// What each kind of the language's work came to, in the order first done.
+    pub(crate) providers: Vec<crate::domain::counting::types::ProviderCounts>,
 }
 
 /// A unit's time and rows in the file being scanned.
@@ -322,6 +332,10 @@ pub(crate) struct UnitInFile {
     pub(crate) nanos: Count,
     /// The rows it gave.
     pub(crate) rows: Count,
+    /// The part of `nanos` a rule's own program spent deciding whether the file can hold a row of it.
+    pub(crate) decide: Count,
+    /// The time the language spent filling while it ran: not in `nanos`.
+    pub(crate) provider: Count,
 }
 
 /// Which kinds and which fields occur in the file's node rows, each built on its first ask in the file and shared by

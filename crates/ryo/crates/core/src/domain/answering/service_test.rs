@@ -40,6 +40,7 @@ fn plan(scopes: &[StepScope]) -> Plan {
         steps: scopes
             .iter()
             .map(|scope| PlanStep {
+                written: Default::default(),
                 operation: Operation::Union {
                     left: PlanInput::Relation(Relation::Defines),
                     right: PlanInput::Step(StepId(0)),

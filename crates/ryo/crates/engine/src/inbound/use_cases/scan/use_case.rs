@@ -5,6 +5,7 @@ use super::errors::ScanError;
 use super::interface::ScanUseCase;
 use crate::domain::dispatch::service::dispatch;
 use crate::domain::executing::entries::types::{TheLoop, TheMeasuringLoop};
+use crate::domain::executing::measuring::service::{clock_of, facts_read};
 use crate::domain::executing::measuring::sites::service::file_measured;
 use crate::domain::filled::errors::FilledError;
 use crate::domain::findings::types::{FoundRows, ScanCounters};
@@ -77,33 +78,38 @@ impl ScanUseCase for ScanUseCaseImpl {
             store,
             words,
         } = &mut scratch.0;
-        let mut fill = FillFrame {
-            programs: rule_set(&programs.0),
-            nodes: file.table,
-            file: file.file,
-            path: file.path,
-            text: file.source,
-            source: std::str::from_utf8(file.source.0).ok(),
-            facts: file.facts,
-            words,
-            store,
-            matcher: PatternMatcher(&*self.matcher),
-        };
-        // One loop, two instances: a measuring worker's counts each word at its plan point, and its scan ends by folding
-        // the file's counts.
-        let ports: &dyn LoopEntry = if state.measure.is_some() {
-            &TheMeasuringLoop
-        } else {
-            &TheLoop
-        };
-        let mut frame = StepFrame {
-            fill: &mut fill,
-            state: &mut *state,
-            found,
-            ports,
-        };
-        let counters = dispatch(&mut frame, programs);
-        file_measured(&mut frame);
+        // A measuring worker reads the language through facts that time its work apart from the unit that asks for it.
+        let clock = clock_of(state);
+        let counters = facts_read(clock.as_deref(), file.facts, |facts| {
+            let mut fill = FillFrame {
+                programs: rule_set(&programs.0),
+                nodes: file.table,
+                file: file.file,
+                path: file.path,
+                text: file.source,
+                source: std::str::from_utf8(file.source.0).ok(),
+                facts,
+                words,
+                store,
+                matcher: PatternMatcher(&*self.matcher),
+            };
+            // One loop, two instances: a measuring worker's counts each word at its plan point, and its scan ends by folding
+            // the file's counts.
+            let ports: &dyn LoopEntry = if state.measure.is_some() {
+                &TheMeasuringLoop
+            } else {
+                &TheLoop
+            };
+            let mut frame = StepFrame {
+                fill: &mut fill,
+                state: &mut *state,
+                found,
+                ports,
+            };
+            let counters = dispatch(&mut frame, programs);
+            file_measured(&mut frame);
+            counters
+        });
         // The load refuses a rule that can reach a word or a fill the executor does not run: none reaches a scan.
         debug_assert_eq!(
             state.work.unbuilt.0, 0,

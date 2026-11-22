@@ -172,6 +172,7 @@ fn subject(ask: Input) -> Result<Value, Failure> {
 /// A per-file step of `operation`.
 fn step(operation: Operation) -> PlanStep {
     PlanStep {
+        written: Default::default(),
         scope: StepScope::PerFile,
         operation,
     }

@@ -6,6 +6,7 @@ use ryo_values::domain::plan_parts::types::LiteralText;
 pub(crate) fn program(engine: &PrepareUseCaseImpl) -> PreparedExecutionProgram {
     let mut input = authored_request(1);
     boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![PlanStep {
+        written: Default::default(),
         scope: StepScope::PerFile,
         operation: Operation::FitsRendered {
             from: Input::Relation(Relation::Function),

@@ -51,6 +51,7 @@ fn public_group_reduction_and_emission_use_the_admitted_semantic_path() {
     boundary_fixture::fixtures::plans(&mut input)[0]
         .steps
         .push(PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::GroupCount {
                 from: Input::Step(StepId(0)),

@@ -23,6 +23,8 @@ pub struct PlanStep {
     pub operation: Operation,
     /// Where it runs.
     pub scope: StepScope,
+    /// The statement it was written as: no part of what it does.
+    pub written: crate::domain::written_sites::types::StepWritten,
 }
 
 /// The operations of the language, one variant each, with typed fields.

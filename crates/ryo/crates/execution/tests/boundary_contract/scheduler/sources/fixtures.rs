@@ -31,6 +31,7 @@ pub(crate) fn named() -> PrepareRequest {
             scope: StepScope::PerFile,
         }];
     crate::boundary_fixture::fixtures::plans(&mut authored)[1].steps = vec![PlanStep {
+        written: Default::default(),
         scope: StepScope::PerFile,
         operation: Operation::Union {
             left: Input::BoundObservation(ObservationBindingId(0)),
@@ -44,6 +45,7 @@ pub(crate) fn named() -> PrepareRequest {
     crate::boundary_fixture::fixtures::plans(&mut authored)[1]
         .steps
         .push(PlanStep {
+            written: Default::default(),
             scope: StepScope::CrossFile,
             operation: Operation::Union {
                 left: Input::BoundObservation(ObservationBindingId(0)),
@@ -77,6 +79,7 @@ pub(crate) fn named() -> PrepareRequest {
         },
     ];
     crate::boundary_fixture::fixtures::plans(&mut authored)[2].steps = vec![PlanStep {
+        written: Default::default(),
         scope: StepScope::CrossFile,
         operation: Operation::Union {
             left: Input::BoundObservation(ObservationBindingId(0)),

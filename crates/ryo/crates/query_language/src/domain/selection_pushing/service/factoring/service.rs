@@ -20,6 +20,7 @@ use ryo_values::domain::plan_parts::types::RowWidth;
 use ryo_values::domain::plan_parts::types::StepId;
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::plans::types::PlanStep;
+use ryo_values::domain::written_sites::types::StepWritten;
 
 /// The comparisons every filter of the step `id` shares, placed below it once, when each reader of the step is a filter of it
 /// and the step is an antijoin, a projection, an extension or a filter: every filter keeps what is its own, after the step made
@@ -30,7 +31,7 @@ pub(crate) fn shared_push(
     readers: &[StepIndex],
 ) -> Option<SharedPush> {
     let made = step_in(steps, id)?;
-    let below: fn(&[PlanStep], StepId, &[PlanComparison], StepId) -> Option<Below> =
+    let below: fn(&[PlanStep], StepId, &[PlanComparison], StepId, &StepWritten) -> Option<Below> =
         if matches!(made.operation, Operation::Antijoin { .. }) {
             below_antijoin
         } else if matches!(made.operation, Operation::Project { .. }) {
@@ -63,6 +64,7 @@ pub(crate) fn shared_push(
             comparisons: comparisons.clone(),
             kept: kept.clone(),
             scope: step.scope,
+            written: step.written.clone(),
         });
     }
     let (head, others) = residuals.split_first()?;
@@ -86,6 +88,7 @@ pub(crate) fn shared_push(
         id,
         &common,
         StepId(u32::try_from(head.reader.0).unwrap_or(u32::MAX)),
+        &head.written,
     )?;
     if below.moved.is_empty() {
         return None;
@@ -138,12 +141,14 @@ pub(crate) fn shared_into(
             kept: residual.kept.clone(),
         },
         scope: residual.scope,
+        written: residual.written.clone(),
     };
     // A first filter with nothing of its own left is the step made again itself.
     let filter = if head.comparisons.is_empty() && head.kept.is_empty() {
         PlanStep {
             operation: combined.operation,
             scope: head.scope,
+            written: combined.written,
         }
     } else {
         before.push(combined);
@@ -173,6 +178,7 @@ fn below_antijoin(
     id: StepId,
     comparisons: &[PlanComparison],
     first: StepId,
+    written: &StepWritten,
 ) -> Option<Below> {
     let made = step_in(steps, id)?;
     let Operation::Antijoin {
@@ -191,12 +197,12 @@ fn below_antijoin(
         .collect();
     let mut before = Vec::new();
     let placed_left = place_after(first, &before);
-    before.push(filter_of(steps, *left, comparisons.to_vec())?);
+    before.push(filter_of(steps, *left, comparisons.to_vec(), written)?);
     let placed_right = if keyed.is_empty() {
         *right
     } else {
         let at = place_after(first, &before);
-        before.push(filter_of(steps, *right, keyed)?);
+        before.push(filter_of(steps, *right, keyed, written)?);
         at
     };
     Some(Below {
@@ -209,6 +215,7 @@ fn below_antijoin(
                 right_on: right_on.clone(),
             },
             scope: made.scope,
+            written: made.written.clone(),
         },
         moved: comparisons.to_vec(),
     })
@@ -221,6 +228,7 @@ fn below_project(
     id: StepId,
     comparisons: &[PlanComparison],
     first: StepId,
+    written: &StepWritten,
 ) -> Option<Below> {
     let made = step_in(steps, id)?;
     let Operation::Project {
@@ -238,7 +246,7 @@ fn below_project(
         })
         .collect::<Option<Vec<_>>>()?;
     Some(Below {
-        before: vec![filter_of(steps, *from, read)?],
+        before: vec![filter_of(steps, *from, read, written)?],
         combined: PlanStep {
             operation: Operation::Project {
                 from: place_after(first, &[]),
@@ -246,6 +254,7 @@ fn below_project(
                 distinct: *distinct,
             },
             scope: made.scope,
+            written: made.written.clone(),
         },
         moved: comparisons.to_vec(),
     })
@@ -257,6 +266,7 @@ fn below_extend(
     id: StepId,
     comparisons: &[PlanComparison],
     first: StepId,
+    written: &StepWritten,
 ) -> Option<Below> {
     let made = step_in(steps, id)?;
     let Operation::Extend { from, values } = &made.operation else {
@@ -279,13 +289,14 @@ fn below_extend(
         return None;
     }
     Some(Below {
-        before: vec![filter_of(steps, *from, moved.clone())?],
+        before: vec![filter_of(steps, *from, moved.clone(), written)?],
         combined: PlanStep {
             operation: Operation::Extend {
                 from: place_after(first, &[]),
                 values: values.clone(),
             },
             scope: made.scope,
+            written: made.written.clone(),
         },
         moved,
     })
@@ -297,6 +308,7 @@ fn below_select(
     id: StepId,
     comparisons: &[PlanComparison],
     _first: StepId,
+    _written: &StepWritten,
 ) -> Option<Below> {
     let made = step_in(steps, id)?;
     let reading = Operation::Select {
@@ -309,6 +321,7 @@ fn below_select(
         combined: PlanStep {
             operation: fuse(&made.operation, &reading)?,
             scope: made.scope,
+            written: made.written.clone(),
         },
         moved: comparisons.to_vec(),
     })

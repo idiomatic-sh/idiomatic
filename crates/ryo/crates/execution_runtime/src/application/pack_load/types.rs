@@ -12,6 +12,7 @@ use ryo_values::domain::query_plans::types::Plan;
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
 use ryo_values::domain::stored_facts::types::Digest;
 use ryo_values::domain::stores::types::StoredPack;
+use ryo_values::domain::written_sites::types::RulesWritten;
 
 /// What the host declares for a run beside the plans: the selected rules as the run was given them, in rule order (each
 /// names the producers of the observations it binds), and the relations the host declares, with their rows. The load hands
@@ -216,6 +217,10 @@ pub struct HarnessLoad {
     pub matched: MatchedStatistics,
     /// The pack of the rule set, under its key: what the store keeps for the next run.
     pub pack: StoredPack,
+    /// Where each step of each selected rule's plan, as the engine received it, was written: what a measuring run's ledger
+    /// names its units by. Kept by a measuring run that lowered its rules; empty for any other run, and for a pack read back,
+    /// which compiled no plan.
+    pub written: RulesWritten,
 }
 
 /// Where a rule set came from.

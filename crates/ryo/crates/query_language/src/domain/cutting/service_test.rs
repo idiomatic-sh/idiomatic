@@ -88,6 +88,7 @@ fn joined_then_asked(asked: Vec<ColumnIndex>) -> Vec<PlanStep> {
     };
     let steps = vec![
         PlanStep {
+            written: Default::default(),
             operation: Operation::Join {
                 left: Reads::Relation(Relation::Function),
                 right: Reads::Relation(Relation::Comment),
@@ -105,6 +106,7 @@ fn joined_then_asked(asked: Vec<ColumnIndex>) -> Vec<PlanStep> {
             scope: StepScope::PerFile,
         },
         PlanStep {
+            written: Default::default(),
             operation: Operation::Select {
                 from: Reads::Step(StepId(0)),
                 comparisons: Vec::new(),
@@ -140,6 +142,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         }
     };
     let steps = vec![PlanStep {
+        written: Default::default(),
         operation: Operation::Select {
             from: Reads::Relation(Relation::Function),
             comparisons: Vec::new(),
@@ -163,6 +166,7 @@ fn planned() -> Value {
     let mut expected = steps.clone();
     expected.truncate(1);
     expected.push(PlanStep {
+        written: Default::default(),
         operation: Operation::Project {
             from: Reads::Step(StepId(0)),
             columns: vec![ColumnIndex(0), ColumnIndex(2)],
@@ -171,6 +175,7 @@ fn planned() -> Value {
         scope: StepScope::PerFile,
     });
     expected.push(PlanStep {
+        written: Default::default(),
         operation: Operation::Select {
             from: Reads::Step(StepId(1)),
             comparisons: Vec::new(),
@@ -191,6 +196,7 @@ fn planned() -> Value {
 fn grouping_asked() -> Value {
     let steps = vec![
         PlanStep {
+            written: Default::default(),
             operation: Operation::GroupCount {
                 from: Reads::Relation(Relation::Function),
                 keys: vec![ColumnIndex(2), ColumnIndex(1)],
@@ -199,6 +205,7 @@ fn grouping_asked() -> Value {
             scope: StepScope::PerFile,
         },
         PlanStep {
+            written: Default::default(),
             operation: Operation::Project {
                 from: Reads::Step(StepId(0)),
                 columns: vec![ColumnIndex(1)],

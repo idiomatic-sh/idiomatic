@@ -365,15 +365,23 @@ pub fn scratch_measuring(programs: &Programs) -> ScanScratch {
 /// these programs do not run, which has no notice, answers the first step.
 #[must_use]
 pub(crate) fn unit_step(programs: &Programs, rule: SelectedRuleOrdinal, unit: &UnitKey) -> StepId {
+    let emitted = programs.0.steps.iter().find(|steps| steps.rule == rule);
+    step_of_unit(programs, rule, unit).unwrap_or(emitted.map_or(StepId(0), |steps| steps.emitted))
+}
+
+/// The first step of `rule`'s own plan whose node names the unit `unit`: none when no step of it bears the node (a cut that
+/// is one side of a step), when the plan has more steps than a step is numbered by, and for a rule these programs do not run.
+#[must_use]
+pub(crate) fn step_of_unit(
+    programs: &Programs,
+    rule: SelectedRuleOrdinal,
+    unit: &UnitKey,
+) -> Option<StepId> {
     let (UnitKey::Pattern(node, ..) | UnitKey::Rule(node) | UnitKey::Table(node, _)) = unit;
-    let Some(steps) = programs.0.steps.iter().find(|steps| steps.rule == rule) else {
-        return StepId(0);
-    };
-    let place = steps.nodes.0.iter().position(|each| each == node);
-    match place.map(u32::try_from) {
-        Some(Ok(place)) => StepId(place),
-        // No step of the plan bears the node, or the plan has more steps than a step is numbered by.
-        Some(Err(_)) | None => steps.emitted,
+    let steps = programs.0.steps.iter().find(|steps| steps.rule == rule)?;
+    match u32::try_from(steps.nodes.0.iter().position(|each| each == node)?) {
+        Ok(place) => Some(StepId(place)),
+        Err(_) => None,
     }
 }
 

@@ -13,7 +13,7 @@ use crate::domain::fusing::service::{fuse_keyed_reaches, fuse_selects};
 use crate::domain::inlining::service::inline_views;
 use crate::domain::lowering::errors::LoweringError;
 use crate::domain::lowering::types::{Builder, HostedStep, PlannedColumn, StepLabel, Uniqueness};
-use crate::domain::planning::service::{frontier_of, pushed};
+use crate::domain::planning::service::{frontier_of, pushed, written_at};
 use crate::domain::pruning::service::{without_unused, without_unused_roots};
 use crate::domain::pushing::service::{push_lookups, push_lookups_roots};
 use crate::domain::resolving::service::{position, read_source, step_named, step_of};
@@ -29,26 +29,13 @@ use ryo_values::domain::plans::types as plans;
 use ryo_values::domain::program::types as syntax;
 use ryo_values::domain::query_tokens::types::QuerySpelling;
 
-/// Lowers a program that validation accepted.
-///
-/// # Errors
-///
-/// The first name that resolves to nothing, or comparison of unlike types, with its place.
-#[cfg(test)]
-pub(crate) fn lower(
-    program: &syntax::WrittenProgram,
-    catalog: &[Relation],
-    hosted: &[hosted::HostedRelation],
-) -> Result<ryo_values::domain::query_plans::types::Plan, LoweringError> {
-    lower_with_observations(program, catalog, hosted, &[])
-}
-
 /// Resolve every declared producer source through the same typed lowering pass.
 pub(crate) fn lower_with_observations(
     program: &syntax::WrittenProgram,
     catalog: &[Relation],
     hosted: &[hosted::HostedRelation],
     observations: &[ryo_values::domain::observations::types::BoundObservationInput],
+    documents: crate::domain::lowering::types::WrittenDocuments<'_>,
 ) -> Result<ryo_values::domain::query_plans::types::Plan, LoweringError> {
     let observation_inputs = observations.to_vec();
     let mut kinds = Vec::new();
@@ -72,6 +59,7 @@ pub(crate) fn lower_with_observations(
         span: program.emit.span,
         origin: None,
         comparison_origins: Vec::new(),
+        written: Default::default(),
     };
     // The relations the host declared are steps that run once, after the files; the ones nothing reads are dropped with the unused steps.
     for (place, relation) in hosted.iter().enumerate() {
@@ -106,6 +94,7 @@ pub(crate) fn lower_with_observations(
         builder.span = step.span;
         builder.origin = ryo_values::domain::program::service::identity_of(step.name.1)
             .and_then(|identity| program.step_origins.get(&identity).cloned());
+        builder.written = written_at(documents, step, builder.origin.as_ref());
         let from = crate::domain::planning::service::next_step(&builder.steps);
         let lowered = match &step.expression {
             ryo_values::domain::query_syntax::types::Expression::Select(select) => {

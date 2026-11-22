@@ -240,6 +240,9 @@ fn unit_read(bytes: StatisticsBytes<'_>, at: &mut Count) -> Option<MeasuredUnit>
         build: number_read(bytes, at)?,
         nanos: number_read(bytes, at)?,
         idle_nanos: number_read(bytes, at)?,
+        // The bytes keep no split of a unit's time: a load reads none.
+        decide_nanos: Count(0),
+        provider_nanos: Count(0),
     };
     Some(MeasuredUnit {
         key,

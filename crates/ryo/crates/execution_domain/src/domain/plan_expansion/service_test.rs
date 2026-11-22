@@ -54,6 +54,7 @@ fn plan_of(operations: Vec<Operation>) -> Plan {
         steps: operations
             .into_iter()
             .map(|operation| PlanStep {
+                written: Default::default(),
                 operation,
                 scope: StepScope::PerFile,
             })

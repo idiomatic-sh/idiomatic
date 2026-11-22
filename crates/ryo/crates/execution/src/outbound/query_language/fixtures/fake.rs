@@ -57,6 +57,7 @@ impl Default for QueryLanguageFake {
 /// A per-file step over `function` that keeps the rows `comparisons` admit.
 fn select(comparisons: Vec<PlanComparison>) -> PlanStep {
     PlanStep {
+        written: Default::default(),
         operation: Operation::Select {
             from: Input::Relation(Relation::Function),
             comparisons,
@@ -142,6 +143,7 @@ impl QueryLanguageFake {
     #[must_use]
     pub fn counting_across_files() -> Self {
         let count = PlanStep {
+            written: Default::default(),
             operation: Operation::GroupCount {
                 from: Input::Step(StepId(0)),
                 keys: vec![ColumnIndex(1)],

@@ -303,6 +303,7 @@ fn demanded() -> (Vec<Plan>, Vec<Vec<ResolvedObservationBinding>>) {
     let mut consumer = plan();
     consumer.observation_inputs = vec![bound_input("rows")];
     consumer.steps = vec![PlanStep {
+        written: Default::default(),
         scope: StepScope::PerFile,
         operation: Operation::Project {
             from: PlanInput::BoundObservation(ObservationBindingId(0)),
@@ -329,6 +330,7 @@ fn demanded() -> (Vec<Plan>, Vec<Vec<ResolvedObservationBinding>>) {
 fn undemanded() -> (Vec<Plan>, Vec<Vec<ResolvedObservationBinding>>) {
     let mut unread = plan();
     unread.steps.push(PlanStep {
+        written: Default::default(),
         scope: StepScope::PerFile,
         operation: Operation::Select {
             from: PlanInput::Relation(Relation::Function),

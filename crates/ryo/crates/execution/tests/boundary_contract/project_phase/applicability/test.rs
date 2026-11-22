@@ -102,6 +102,7 @@ fn exercise(case: Case) {
     crate::boundary_fixture::fixtures::plans(&mut authored)[0]
         .steps
         .push(PlanStep {
+            written: Default::default(),
             scope: StepScope::CrossFile,
             operation: Operation::Select {
                 from: Input::Step(StepId(0)),

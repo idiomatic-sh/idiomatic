@@ -17,18 +17,21 @@ pub(super) fn program(
     let mut input = authored_request(1);
     crate::boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![
         PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Hosted {
                 relation: HostedNumber(0),
             },
         },
         PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Hosted {
                 relation: HostedNumber(1),
             },
         },
         PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Union {
                 left: Input::Step(StepId(0)),

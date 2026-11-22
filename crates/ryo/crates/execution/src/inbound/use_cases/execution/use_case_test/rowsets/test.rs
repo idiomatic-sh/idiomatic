@@ -90,6 +90,7 @@ fn authored(rowsets: Input) -> (Plan, Vec<HostRelation>) {
     };
     let mut steps: Vec<_> = (0..hosts.len())
         .map(|index| PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Hosted {
                 relation: HostedNumber(u32::try_from(index).expect("a hosted number fits in u32")),
@@ -98,6 +99,7 @@ fn authored(rowsets: Input) -> (Plan, Vec<HostRelation>) {
         .collect();
     if hosts.is_empty() {
         steps.push(PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Select {
                 from: PlanInput::Relation(Relation::Function),
@@ -132,6 +134,7 @@ fn authored(rowsets: Input) -> (Plan, Vec<HostRelation>) {
         },
     };
     steps.push(PlanStep {
+        written: Default::default(),
         scope: StepScope::PerFile,
         operation,
     });

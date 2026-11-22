@@ -66,6 +66,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 
 fn step(operation: Operation) -> PlanStep {
     PlanStep {
+        written: Default::default(),
         operation,
         scope: StepScope::CrossFile,
     }

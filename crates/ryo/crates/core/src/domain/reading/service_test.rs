@@ -44,6 +44,7 @@ fn plan(frontiers: usize) -> Plan {
         parameters: vec![],
         comparison_origins: vec![],
         steps: vec![PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Select {
                 from: PlanInput::Relation(Relation::SyntaxTree),

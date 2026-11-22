@@ -59,6 +59,7 @@ fn subject(refused_file: Input) -> Result<Value, Failure> {
     let plan = &mut crate::boundary_fixture::fixtures::plans(&mut input)[0];
     plan.steps = vec![
         PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Select {
                 from: StepInput::Relation(Relation::Function),
@@ -67,6 +68,7 @@ fn subject(refused_file: Input) -> Result<Value, Failure> {
             },
         },
         PlanStep {
+            written: Default::default(),
             scope: StepScope::CrossFile,
             operation: Operation::Antijoin {
                 left: StepInput::Step(StepId(0)),

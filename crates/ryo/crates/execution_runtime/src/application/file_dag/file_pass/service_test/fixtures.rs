@@ -56,6 +56,7 @@ pub(super) const RUN: FileRuleIntent = FileRuleIntent::Run {
 /// A step in each file that selects every row of `relation`.
 pub(super) fn every(relation: Relation) -> PlanStep {
     PlanStep {
+        written: Default::default(),
         scope: StepScope::PerFile,
         operation: Operation::Select {
             from: Input::Relation(relation),
@@ -68,6 +69,7 @@ pub(super) fn every(relation: Relation) -> PlanStep {
 /// A step in each file that keeps the first column of step `from`, its repeated rows kept.
 pub(super) fn first_column(from: u32) -> PlanStep {
     PlanStep {
+        written: Default::default(),
         scope: StepScope::PerFile,
         operation: Operation::Project {
             from: Input::Step(StepId(from)),

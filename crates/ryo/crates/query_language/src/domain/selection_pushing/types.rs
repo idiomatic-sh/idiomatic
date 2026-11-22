@@ -83,6 +83,8 @@ pub(crate) struct Residual {
     pub kept: Vec<ColumnIndex>,
     /// Where it runs.
     pub scope: StepScope,
+    /// The statement it was written as.
+    pub written: ryo_values::domain::written_sites::types::StepWritten,
 }
 
 /// The comparisons every filter of a step shares, placed below the step once, and what each filter keeps of its own.

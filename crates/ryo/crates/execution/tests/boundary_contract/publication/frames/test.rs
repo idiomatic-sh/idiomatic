@@ -20,6 +20,7 @@ fn captured_name_frames_do_not_inherit_previous_frame_place_numbers() {
         boundary_fixture::fixtures::plans(&mut input)[0]
             .steps
             .push(PlanStep {
+                written: Default::default(),
                 scope: StepScope::PerFile,
                 operation: Operation::Project {
                     from: Input::Relation(Relation::Function),

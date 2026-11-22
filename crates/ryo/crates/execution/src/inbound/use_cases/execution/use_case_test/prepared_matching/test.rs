@@ -180,6 +180,7 @@ fn prepare(
         *input = Source::Step(StepId(0))
     });
     authored.plan.steps.push(PlanStep {
+        written: Default::default(),
         scope: StepScope::PerFile,
         operation: shadow,
     });

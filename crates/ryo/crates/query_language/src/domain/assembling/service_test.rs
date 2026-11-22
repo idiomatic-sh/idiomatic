@@ -63,11 +63,12 @@ fn program() -> syntax::WrittenProgram {
     }
 }
 fn typed_program_keeps_emitted_projection() {
-    let plan = super::service::lower(&program(), &[Relation::Function], &[]).unwrap();
+    let plan = super::fixtures::lower(&program(), &[Relation::Function], &[]).unwrap();
     assert_eq!(plan.emit.step, parts::StepId(0));
     assert_eq!(
         plan.steps,
         vec![plans::PlanStep {
+            written: Default::default(),
             scope: ryo_values::domain::plan_parts::types::StepScope::PerFile,
             operation: plans::Operation::Project {
                 from: parts::Input::Relation(Relation::Function),
@@ -86,7 +87,7 @@ fn unknown_parameter_kind_keeps_its_location() {
         span,
     });
     assert_eq!(
-        super::service::lower(&program, &[Relation::Function], &[]),
+        super::fixtures::lower(&program, &[Relation::Function], &[]),
         Err(LoweringError::UnknownParameterType {
             name: "nothing".into(),
             span
@@ -111,7 +112,7 @@ fn a_refusal_of_an_expanded_fragment_names_its_origin() {
     program.emit_origin =
         ryo_values::domain::query_tokens::types::Attribution::Located(origin_of(span));
     assert!(matches!(
-        super::service::lower(&program, &[Relation::Function], &[]),
+        super::fixtures::lower(&program, &[Relation::Function], &[]),
         Err(LoweringError::Located { .. })
     ));
 }
@@ -143,7 +144,7 @@ fn a_fragment_input_that_is_not_a_relation_is_refused() {
         origin: origin_of(span),
     });
     assert!(matches!(
-        super::service::lower(&program, &[Relation::Function], &[]),
+        super::fixtures::lower(&program, &[Relation::Function], &[]),
         Err(LoweringError::FragmentContract { .. })
     ));
 }

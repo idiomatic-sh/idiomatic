@@ -145,6 +145,7 @@ fn plan_with_a_frontier() -> Plan {
         observations: Vec::new(),
         parameters: Vec::new(),
         steps: vec![PlanStep {
+            written: Default::default(),
             operation: Operation::Project {
                 from: PlanInput::Relation(Relation::Function),
                 columns: vec![ColumnIndex(0)],

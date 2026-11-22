@@ -151,6 +151,7 @@ pub(crate) fn author(
         a.plan
             .steps
             .push(ryo_values::domain::plans::types::PlanStep {
+                written: Default::default(),
                 scope: ryo_values::domain::plan_parts::types::StepScope::PerFile,
                 operation: span,
             });

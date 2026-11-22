@@ -73,6 +73,7 @@ fn a_fused_child_error_precedes_a_later_head_error_and_is_terminal() {
     let mut authored = authored_request(1);
     crate::boundary_fixture::fixtures::plans(&mut authored)[0].steps = vec![
         PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Select {
                 from: Input::Relation(Relation::SyntaxTree),
@@ -81,6 +82,7 @@ fn a_fused_child_error_precedes_a_later_head_error_and_is_terminal() {
             },
         },
         PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Select {
                 from: Input::Step(StepId(0)),

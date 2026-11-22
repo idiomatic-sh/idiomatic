@@ -292,7 +292,11 @@ fn undominated(
 /// Writes `operation` after `steps`, to run in `scope`, and answers the step it is.
 fn pushed(steps: &mut Vec<PlanStep>, scope: StepScope, operation: Operation) -> Input {
     let id = next(steps);
-    steps.push(PlanStep { operation, scope });
+    steps.push(PlanStep {
+        written: Default::default(),
+        operation,
+        scope,
+    });
     Input::Step(id)
 }
 

@@ -6,13 +6,18 @@
 
 use crate::domain::code::constants::NO_SLOT;
 use crate::domain::code::types::{CodeEntry, WordSlot};
+use crate::domain::counting::types::{FillClock, ProviderCounts};
+use crate::domain::executing::measuring::timed::service::thread_time;
+use crate::domain::executing::measuring::timed::types::TimedFacts;
 use crate::domain::needs::types::NeedVerdict;
 use crate::domain::programs::frames::types::StepFrame;
 use crate::domain::scratch::types::{LoopState, Measuring, UnitInFile};
 use crate::domain::steps::types::MadeTableId;
-use cpu_time::ThreadTime;
+use ryo_language::domain::facts::types::FactSource;
 use ryo_language::domain::node_table::service::{element_count, field_of, ids_of_kind};
 use ryo_relations::domain::relations::types::{Count, KindBits, Position};
+use std::sync::Arc;
+use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 /// The slot of a list grown to hold place `at`.
@@ -41,20 +46,55 @@ fn in_file_mut(measure: &mut Measuring, unit: WordSlot) -> Option<&mut UnitInFil
         .flatten()
 }
 
-/// The thread's own time; nought where the system has no such clock.
-fn thread_time() -> Duration {
-    ThreadTime::try_now().map_or(Duration::ZERO, |now| now.as_duration())
-}
-
-/// Gives the time since the unit running last changed to the innermost unit running.
+/// Gives the time since the unit running last changed to the innermost unit running: the language's work in it, timed where
+/// it was asked, is not the unit's own and is kept apart as what the unit asked of the language; the rest is the unit's, and
+/// is also its deciding time while its need is being decided.
 fn switched(measure: &mut Measuring) {
     let now = thread_time();
     let spent = usize::try_from(now.saturating_sub(measure.since).as_nanos()).unwrap_or(usize::MAX);
     measure.since = now;
+    let paid =
+        usize::try_from(measure.clock.unpaid.swap(0, Ordering::Relaxed)).unwrap_or(usize::MAX);
+    let own = spent.saturating_sub(paid);
+    let deciding = measure.deciding;
     if let Some(unit) = measure.running.last().copied()
         && let Some(held) = in_file_mut(measure, unit)
     {
-        held.nanos = Count(held.nanos.0.saturating_add(spent));
+        held.nanos = Count(held.nanos.0.saturating_add(own));
+        held.provider = Count(held.provider.0.saturating_add(paid));
+        if deciding == Some(unit) {
+            held.decide = Count(held.decide.0.saturating_add(own));
+        }
+    }
+}
+
+/// The need of the rule whose own unit is `unit` starts (`Some`) or ends (`None`) being decided: the rule's own time
+/// meanwhile is its deciding time.
+pub(crate) fn deciding(state: &mut LoopState, unit: Option<WordSlot>) {
+    if let Some(measure) = state.measure.as_deref_mut() {
+        switched(measure);
+        measure.deciding = unit;
+    }
+}
+
+/// The clock of the language's work a measuring state keeps: none for a plain state.
+pub(crate) fn clock_of(state: &LoopState) -> Option<Arc<FillClock>> {
+    state
+        .measure
+        .as_ref()
+        .map(|measure| Arc::clone(&measure.clock))
+}
+
+/// Runs `scan` over the language's `facts` as a worker reads them: through facts that time the language's work on `clock`
+/// apart from the unit that asks for it when the worker measures (it has a clock), the language's own otherwise.
+pub(crate) fn facts_read<T>(
+    clock: Option<&FillClock>,
+    facts: &mut dyn FactSource,
+    scan: impl FnOnce(&mut dyn FactSource) -> T,
+) -> T {
+    match clock {
+        Some(clock) => scan(&mut TimedFacts { facts, clock }),
+        None => scan(facts),
     }
 }
 
@@ -168,16 +208,51 @@ pub(crate) fn file_ended(frame: &mut StepFrame<'_, '_>) {
     let Measuring {
         nanos,
         idle_nanos,
+        decide,
+        provider,
         file,
+        clock,
+        providers,
         ..
     } = measure;
     for (place, spent) in file.iter_mut().enumerate() {
         let unit = WordSlot(u32::try_from(place).unwrap_or(u32::MAX));
         added(nanos, unit, spent.nanos);
+        added(decide, unit, spent.decide);
+        added(provider, unit, spent.provider);
         if spent.rows.0 == 0 {
             added(idle_nanos, unit, spent.nanos);
         }
         *spent = UnitInFile::default();
+    }
+    // The language's work of the file, a kind of work an entry.
+    let done = clock
+        .done
+        .lock()
+        .map(|mut done| std::mem::take(&mut *done))
+        .unwrap_or_default();
+    for fill in done {
+        let at = match providers.iter().position(|each| each.work == fill.work) {
+            Some(at) => at,
+            None => {
+                providers.push(ProviderCounts {
+                    work: fill.work,
+                    asks: Count(0),
+                    rows: Count(0),
+                    nanos: Count(0),
+                    idle_nanos: Count(0),
+                });
+                providers.len().saturating_sub(1)
+            }
+        };
+        if let Some(held) = providers.get_mut(at) {
+            held.asks = Count(held.asks.0.saturating_add(1));
+            held.rows = Count(held.rows.0.saturating_add(fill.rows.0));
+            held.nanos = Count(held.nanos.0.saturating_add(fill.nanos.0));
+            if fill.rows.0 == 0 {
+                held.idle_nanos = Count(held.idle_nanos.0.saturating_add(fill.nanos.0));
+            }
+        }
     }
 }
 

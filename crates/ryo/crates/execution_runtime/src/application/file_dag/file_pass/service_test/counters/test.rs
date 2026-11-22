@@ -120,6 +120,7 @@ fn plan() -> Arc<Plan> {
             headings: Vec::new(),
         },
         steps: vec![PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Select {
                 from: StepInput::Relation(Relation::Defines),

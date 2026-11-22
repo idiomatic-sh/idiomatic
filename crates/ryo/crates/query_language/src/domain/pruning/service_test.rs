@@ -46,6 +46,7 @@ fn column(index: u32) -> ColumnIndex {
 
 fn step(operation: Operation) -> PlanStep {
     PlanStep {
+        written: Default::default(),
         operation,
         scope: StepScope::CrossFile,
     }

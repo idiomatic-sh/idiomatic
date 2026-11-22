@@ -70,6 +70,7 @@ pub(super) fn counting_plan(subject: u32, key: Vec<ColumnIndex>) -> Plan {
         parameters: Vec::new(),
         steps: vec![
             PlanStep {
+                written: Default::default(),
                 operation: Operation::Project {
                     from: PlanInput::Relation(Relation::Function),
                     columns: vec![ColumnIndex(0)],
@@ -78,6 +79,7 @@ pub(super) fn counting_plan(subject: u32, key: Vec<ColumnIndex>) -> Plan {
                 scope: StepScope::PerFile,
             },
             PlanStep {
+                written: Default::default(),
                 operation: Operation::GroupCount {
                     from: PlanInput::Step(StepId(0)),
                     keys: vec![ColumnIndex(0)],

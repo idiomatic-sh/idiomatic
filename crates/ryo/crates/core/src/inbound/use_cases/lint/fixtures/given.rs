@@ -111,12 +111,14 @@ pub(crate) fn plan_over_hosted() -> Plan {
     let mut plan = plan_with_name("");
     plan.steps = vec![
         PlanStep {
+            written: Default::default(),
             operation: Operation::Hosted {
                 relation: HostedNumber(0),
             },
             scope: StepScope::CrossFile,
         },
         PlanStep {
+            written: Default::default(),
             operation: Operation::Select {
                 from: PlanInput::Step(StepId(0)),
                 comparisons: Vec::new(),

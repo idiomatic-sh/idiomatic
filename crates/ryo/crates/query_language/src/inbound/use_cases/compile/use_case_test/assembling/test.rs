@@ -5,7 +5,7 @@ use crate::inbound::use_cases::compile::use_case_test::SELECT_PROJECT;
 use ryo_relations::domain::relations::types::{CellKind, Relation};
 
 use crate::cases::{Case, CaseName, Expect, Word, run};
-use crate::domain::assembling::service::lower as lower_program;
+use crate::domain::assembling::fixtures::lower as lower_program;
 use crate::domain::lowering::errors::LoweringError;
 use crate::outbound::syntax::fixtures::winnow::winnow;
 use crate::outbound::syntax::interface::SyntaxPort as _;

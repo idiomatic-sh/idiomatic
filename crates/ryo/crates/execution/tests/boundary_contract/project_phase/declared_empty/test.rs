@@ -62,6 +62,7 @@ fn declared() -> PrepareRequest {
             scope: StepScope::CrossFile,
         });
     crate::boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![PlanStep {
+        written: Default::default(),
         scope: StepScope::CrossFile,
         operation: Operation::Select {
             from: Input::BoundObservation(ObservationBindingId(0)),

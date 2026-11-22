@@ -188,6 +188,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
         ],
         Scenario::SkippedSharesALastProbe => {
             let unremarked = |left: StepInput| PlanStep {
+                written: Default::default(),
                 scope: StepScope::PerFile,
                 operation: Operation::Antijoin {
                     left,
@@ -275,6 +276,7 @@ fn subject(input: Input) -> Result<Value, Failure> {
 /// A step in each file doing `operation`.
 fn per_file(operation: Operation) -> PlanStep {
     PlanStep {
+        written: Default::default(),
         scope: StepScope::PerFile,
         operation,
     }

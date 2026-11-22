@@ -106,6 +106,7 @@ fn functions(
 /// A selection of the function relation's columns, made in each file.
 pub(crate) fn functions_kept(kept: &[ColumnIndex]) -> PlanStep {
     PlanStep {
+        written: Default::default(),
         scope: StepScope::PerFile,
         operation: Operation::Select {
             from: Input::Relation(Relation::Function),
@@ -258,6 +259,7 @@ pub(crate) fn rows(steps: Vec<PlanStep>, emitted: StepId, files: &[Vec<Function>
 /// A step after the files.
 pub(crate) fn after_the_files(operation: Operation) -> PlanStep {
     PlanStep {
+        written: Default::default(),
         scope: StepScope::CrossFile,
         operation,
     }
@@ -266,6 +268,7 @@ pub(crate) fn after_the_files(operation: Operation) -> PlanStep {
 /// A step made in each file.
 pub(crate) fn in_each_file(operation: Operation) -> PlanStep {
     PlanStep {
+        written: Default::default(),
         scope: StepScope::PerFile,
         operation,
     }

@@ -18,7 +18,11 @@ use ryo_values::domain::{
 const FILES: usize = 3;
 
 fn step(scope: StepScope, operation: Operation) -> PlanStep {
-    PlanStep { scope, operation }
+    PlanStep {
+        written: Default::default(),
+        scope,
+        operation,
+    }
 }
 
 /// The ids of every element of the syntax tree, in each file.

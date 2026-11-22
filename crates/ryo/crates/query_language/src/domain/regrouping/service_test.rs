@@ -93,7 +93,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 ];
 
 fn step(operation: Operation, scope: StepScope) -> PlanStep {
-    PlanStep { operation, scope }
+    PlanStep {
+        written: Default::default(),
+        operation,
+        scope,
+    }
 }
 
 fn column(side: Side, index: u32) -> JoinColumn {

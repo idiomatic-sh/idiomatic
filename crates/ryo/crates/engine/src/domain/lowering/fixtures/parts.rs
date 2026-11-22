@@ -12,6 +12,7 @@ use ryo_values::domain::query_plans::types::{Emit, Plan};
 /// A step that keeps every row of `from`.
 pub(super) fn kept(from: Input) -> PlanStep {
     PlanStep {
+        written: Default::default(),
         operation: Operation::Select {
             from,
             comparisons: Vec::new(),
@@ -43,6 +44,7 @@ pub(super) fn plan(steps: Vec<PlanStep>) -> Plan {
 /// A per-file step of `operation`.
 pub(super) fn step(operation: Operation) -> PlanStep {
     PlanStep {
+        written: Default::default(),
         operation,
         scope: StepScope::PerFile,
     }

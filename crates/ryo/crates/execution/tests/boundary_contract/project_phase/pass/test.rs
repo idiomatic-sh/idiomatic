@@ -128,6 +128,7 @@ fn numbers(name: &str, values: &[i64]) -> HostRelation {
 /// A step after the files.
 fn after_files(operation: Operation) -> PlanStep {
     PlanStep {
+        written: Default::default(),
         scope: StepScope::CrossFile,
         operation,
     }
@@ -141,6 +142,7 @@ fn files_of_functions() -> PlanStep {
         .and_then(|at| u32::try_from(at).ok())
         .unwrap_or(u32::MAX);
     PlanStep {
+        written: Default::default(),
         scope: StepScope::PerFile,
         operation: Operation::Select {
             from: StepInput::Relation(Relation::Function),
@@ -153,6 +155,7 @@ fn files_of_functions() -> PlanStep {
 /// A union after the files of the steps `left` and `right`.
 fn united(left: u32, right: u32) -> PlanStep {
     PlanStep {
+        written: Default::default(),
         scope: StepScope::CrossFile,
         operation: Operation::Union {
             left: StepInput::Step(StepId(left)),

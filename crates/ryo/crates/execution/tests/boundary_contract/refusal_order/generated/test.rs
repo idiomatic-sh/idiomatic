@@ -145,6 +145,7 @@ fn across(label: &str, steps: &[(StepScope, Operation)]) -> String {
     let plan: Vec<PlanStep> = steps
         .iter()
         .map(|(scope, operation)| PlanStep {
+            written: Default::default(),
             scope: *scope,
             operation: operation.clone(),
         })

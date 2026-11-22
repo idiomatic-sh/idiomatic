@@ -36,12 +36,14 @@ fn unbound_rank(names: &[&str]) -> RootOutcome {
     });
     plan.steps = vec![
         PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Hosted {
                 relation: HostedNumber(0),
             },
         },
         PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Rank {
                 from: Input::Step(StepId(0)),

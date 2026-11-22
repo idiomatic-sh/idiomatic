@@ -15,6 +15,7 @@ use ryo_values::domain::rows::types::{RowCount, Table};
 fn functions_without_comments() -> PreparedExecutionProgram {
     let mut input = authored_request(1);
     let select = |relation| PlanStep {
+        written: Default::default(),
         scope: StepScope::PerFile,
         operation: Operation::Select {
             from: Input::Relation(relation),
@@ -26,6 +27,7 @@ fn functions_without_comments() -> PreparedExecutionProgram {
         select(Relation::Function),
         select(Relation::Comment),
         PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Antijoin {
                 left: Input::Step(StepId(0)),
@@ -87,6 +89,7 @@ fn functions_without_comment_relation() -> PreparedExecutionProgram {
     let mut input = authored_request(1);
     crate::boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![
         PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Select {
                 from: Input::Relation(Relation::Function),
@@ -95,6 +98,7 @@ fn functions_without_comment_relation() -> PreparedExecutionProgram {
             },
         },
         PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Antijoin {
                 left: Input::Step(StepId(0)),
@@ -244,6 +248,7 @@ fn first_of_each_line_plan(
     plan.steps = steps
         .into_iter()
         .map(|operation| PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation,
         })

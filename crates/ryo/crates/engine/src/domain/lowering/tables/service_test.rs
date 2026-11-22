@@ -193,6 +193,7 @@ fn chain(depth: u32) -> Plan {
     for step in 0..depth {
         let read = PlanInput::Step(StepId(step));
         plan.steps.push(PlanStep {
+            written: Default::default(),
             operation: Operation::Join {
                 left: read,
                 right: read,

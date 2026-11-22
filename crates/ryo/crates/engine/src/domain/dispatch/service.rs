@@ -5,7 +5,7 @@
 use crate::domain::executing::budget::service::{begin_rule, end_rule};
 use crate::domain::executing::budget::types::FileSizes;
 use crate::domain::executing::measuring::service::{
-    entered, evaluated, left, need_decision_ended, need_fills_settled, used,
+    deciding, entered, evaluated, left, need_decision_ended, need_fills_settled, used,
 };
 use crate::domain::executing::measuring::sites::service::need_decision_begun;
 use crate::domain::executing::presence::service::consulted;
@@ -35,10 +35,12 @@ pub(crate) fn dispatch(frame: &mut StepFrame<'_, '_>, rules: &Programs) -> ScanC
         let mut rows = 0_u64;
         let mut ran = false;
         for branch in &rule.branches {
+            deciding(frame.state, Some(rule.unit));
             need_decision_begun(frame, branch.need, rule.rule);
             let needed = decided(&mut FileNeeds(frame), programs.code, branch.need);
             need_decision_ended(frame.state, needed);
             consulted(frame, branch.need);
+            deciding(frame.state, None);
             if needed == NeedVerdict::Holds {
                 ran = true;
                 let found = frame.ports.run(frame, branch.entry, RunMode::Rows);

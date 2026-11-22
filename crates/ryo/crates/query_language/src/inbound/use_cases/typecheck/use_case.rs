@@ -96,11 +96,16 @@ impl TypecheckUseCase for TypecheckUseCaseImpl {
             .collect();
         validate_with_observations(&program, &relations.0, &names, &request.observations)
             .map_err(invalid)?;
+        let documents = crate::domain::lowering::types::WrittenDocuments {
+            root: &request.text.root.id,
+            modules: &parsed.fragments,
+        };
         let plan = lower_with_observations(
             &program,
             &relations.0,
             &request.hosted,
             &request.observations,
+            documents,
         )
         .map_err(unresolved)?;
         Ok(ValidateReport {

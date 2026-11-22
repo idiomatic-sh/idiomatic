@@ -149,6 +149,8 @@ fn narrowed(steps: &[PlanStep], memo: &mut LineageMemo, place: StepIndex) -> Opt
             })
     })?;
     let first = StepId(u32::try_from(place.0).unwrap_or(u32::MAX));
+    // Every step of the narrowing is the work of the statement that wrote the join it narrows.
+    let written = &step.written;
     let mut made: Vec<PlanStep> = origins
         .iter()
         .map(|origin| PlanStep {
@@ -158,6 +160,7 @@ fn narrowed(steps: &[PlanStep], memo: &mut LineageMemo, place: StepIndex) -> Opt
                 distinct: RepeatedRows::Dropped,
             },
             scope: StepScope::PerFile,
+            written: written.clone(),
         })
         .collect();
     // Each projection after the first is united with the values before it.
@@ -173,6 +176,7 @@ fn narrowed(steps: &[PlanStep], memo: &mut LineageMemo, place: StepIndex) -> Opt
                 right: projection,
             },
             scope: StepScope::PerFile,
+            written: written.clone(),
         });
         values = union;
     }
@@ -194,6 +198,7 @@ fn narrowed(steps: &[PlanStep], memo: &mut LineageMemo, place: StepIndex) -> Opt
             reach: None,
         },
         scope: StepScope::PerFile,
+        written: written.clone(),
     });
     Some(Narrowed { local, kept, made })
 }

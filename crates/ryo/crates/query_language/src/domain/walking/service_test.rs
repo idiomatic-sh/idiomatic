@@ -90,6 +90,7 @@ const fn right(at: u32) -> JoinColumn {
 
 fn per_file(operation: Operation) -> PlanStep {
     PlanStep {
+        written: Default::default(),
         operation,
         scope: StepScope::PerFile,
     }

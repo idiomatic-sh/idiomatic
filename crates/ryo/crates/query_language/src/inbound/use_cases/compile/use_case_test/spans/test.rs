@@ -352,7 +352,7 @@ pub(in crate::inbound::use_cases::compile::use_case_test) fn span_plan(
         &[],
     )
     .map_err(|error| error.to_string())?;
-    crate::domain::assembling::service::lower(
+    crate::domain::assembling::fixtures::lower(
         &program,
         &[ryo_relations::domain::relations::types::Relation::Function],
         hosted,

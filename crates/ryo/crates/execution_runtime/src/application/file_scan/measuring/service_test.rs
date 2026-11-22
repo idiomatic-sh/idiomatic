@@ -1,6 +1,8 @@
 //! The cases of a measuring run's report: a rule set with no rule has no ledger line; and a worker made for a measuring run
 //! asks the engine for its counting state, and its ledger has a line for each rule the rule set runs, with what was counted.
-//! Over the engine itself for the empty rule set, and the engine port's fake, whose ledger says the rows its scans found.
+//! Over the engine itself for the empty rule set, and the engine port's fake, whose ledger says the rows its scans found. A
+//! load that recorded where its plans' steps were written names each unit's rules and statements; one that did not says it
+//! knows none.
 
 use super::service::ledger_lines;
 use crate::application::file_scan::service::{emit_columns, place_columns, ran, worker};
@@ -20,7 +22,12 @@ use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::inbound::use_cases::walk::types::{WalkEngine, WalkRequest};
 use ryo_relations::domain::relations::types::FileId;
 use ryo_values::domain::query_bindings::types::RuleBindings;
+use ryo_values::domain::query_tokens::types::{QuerySourceId, StepSpelling};
 use ryo_values::domain::rule_requests::types::SelectedRuleOrdinal;
+use ryo_values::domain::runs::types::RuleId;
+use ryo_values::domain::written_sites::types::{
+    RuleWritten, RulesWritten, StepWritten, WrittenSite,
+};
 use std::borrow::Cow;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
@@ -34,6 +41,8 @@ enum Scenario {
     Measuring,
     /// The same, the workers made for a run that does not measure.
     Plain,
+    /// The measuring run, its load's record naming the rule `R1` and its first step's statement, `words`, of its own query.
+    Named,
 }
 
 type Input = Scenario;
@@ -54,7 +63,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::Measuring,
         expect: Expect::Value(Cow::Borrowed(
-            "unit=Rule:0 class=Navigation rows=5 steps=0 nanos=0 idle_nanos=0 owners=0\ncounting states asked for: 2",
+            "unit=Rule:0 class=Navigation rows=5 steps=0 nanos=0 idle_nanos=0 owners=0 decide_nanos=0 provider_nanos=0 rules=0 written=?\ncounting states asked for: 2",
         )),
     },
     Case {
@@ -62,10 +71,35 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Scenario::Plain,
         expect: Expect::Value(Cow::Borrowed(
-            "unit=Rule:0 class=Navigation rows=5 steps=0 nanos=0 idle_nanos=0 owners=0\ncounting states asked for: 0",
+            "unit=Rule:0 class=Navigation rows=5 steps=0 nanos=0 idle_nanos=0 owners=0 decide_nanos=0 provider_nanos=0 rules=0 written=?\ncounting states asked for: 0",
+        )),
+    },
+    Case {
+        name: CaseName(
+            "a_load_that_recorded_where_its_steps_were_written_names_each_units_rules_and_statements",
+        ),
+        word: Word::Succeeds,
+        input: || Scenario::Named,
+        expect: Expect::Value(Cow::Borrowed(
+            "unit=Rule:0 class=Navigation rows=5 steps=0 nanos=0 idle_nanos=0 owners=0 decide_nanos=0 provider_nanos=0 rules=R1 written=R1:words\ncounting states asked for: 2",
         )),
     },
 ];
+
+/// The record of a load of the fake's one rule, `R1`, whose first step was written as `words` in the rule's own query.
+fn named_load() -> RulesWritten {
+    let root = QuerySourceId("<query>".into());
+    let site = WrittenSite {
+        document: root.clone(),
+        statement: StepSpelling("words".into()),
+        trace: Arc::from([]),
+    };
+    RulesWritten(vec![RuleWritten {
+        id: RuleId("R1".into()),
+        root,
+        steps: vec![StepWritten::Written(Arc::new(site))],
+    }])
+}
 
 /// The ledger's lines, one a line.
 fn said(lines: &[LedgerLine]) -> String {
@@ -76,11 +110,20 @@ fn said(lines: &[LedgerLine]) -> String {
 fn subject(scenario: Input) -> Result<Value, Failure> {
     let measuring = match scenario {
         Scenario::NoRule => {
-            let lines = ledger_lines(&use_case(), &Programs::default(), &[]);
+            let lines = ledger_lines(
+                &use_case(),
+                &Programs::default(),
+                &RulesWritten::default(),
+                &[],
+            );
             return Ok(Cow::Owned(said(&lines)));
         }
-        Scenario::Measuring => ScanMeasuring::Measuring,
+        Scenario::Measuring | Scenario::Named => ScanMeasuring::Measuring,
         Scenario::Plain => ScanMeasuring::Plain,
+    };
+    let written = match scenario {
+        Scenario::Named => named_load(),
+        Scenario::NoRule | Scenario::Measuring | Scenario::Plain => RulesWritten::default(),
     };
     let (engine, plan) = (EngineFake::default(), named("one tree rule"));
     let digests = digests_of(&plan, RuleBindings(&[]));
@@ -90,7 +133,11 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         bindings: RuleBindings(&[]),
         digests: &digests,
     };
-    let source = LoadSource::Plans(SelectedRules(&[rule]), StatisticsBytes(&[]), LoadGiven::default());
+    let source = LoadSource::Plans(
+        SelectedRules(&[rule]),
+        StatisticsBytes(&[]),
+        LoadGiven::default(),
+    );
     let programs = engine
         .load(source, &no_kinds())
         .map(|loaded| loaded.programs)
@@ -119,7 +166,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         workers.push(worker);
     }
     let held: Vec<_> = workers.iter().collect();
-    let lines = ledger_lines(&engine, &programs, &held);
+    let lines = ledger_lines(&engine, &programs, &written, &held);
     Ok(Cow::Owned(format!(
         "{}\ncounting states asked for: {}",
         said(&lines),

@@ -136,11 +136,13 @@ impl QueryLanguagePort for ProjectQueries {
                 }
             };
             vec![PlanStep {
+                written: Default::default(),
                 scope: StepScope::PerFile,
                 operation,
             }]
         };
         plan.steps.push(PlanStep {
+            written: Default::default(),
             scope: StepScope::CrossFile,
             operation: Operation::GroupCount {
                 from,

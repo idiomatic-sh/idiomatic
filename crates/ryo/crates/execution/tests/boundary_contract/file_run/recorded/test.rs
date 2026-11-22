@@ -11,6 +11,7 @@ fn three_rules_over_three_files_answer_the_recorded_file_rules() {
     let mut input = authored_request(3);
     let plans = crate::boundary_fixture::fixtures::plans(&mut input);
     plans[1].steps.push(PlanStep {
+        written: Default::default(),
         scope: StepScope::PerFile,
         operation: Operation::GroupCount {
             from: Input::Step(StepId(0)),

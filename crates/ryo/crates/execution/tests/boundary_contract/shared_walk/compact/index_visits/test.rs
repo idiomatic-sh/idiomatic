@@ -63,6 +63,7 @@ fn indexed_join_counts_actual_matching_rhs_visits_and_does_no_work_on_replay() {
         let plan = &mut crate::boundary_fixture::fixtures::plans(&mut authored)[0];
         plan.steps = [0, 1]
             .map(|relation| PlanStep {
+                written: Default::default(),
                 scope: StepScope::PerFile,
                 operation: Operation::Hosted {
                     relation: HostedNumber(relation),
@@ -70,6 +71,7 @@ fn indexed_join_counts_actual_matching_rhs_visits_and_does_no_work_on_replay() {
             })
             .to_vec();
         plan.steps.push(PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Join {
                 left: Input::Step(StepId(0)),

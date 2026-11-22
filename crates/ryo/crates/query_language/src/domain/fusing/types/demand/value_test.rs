@@ -10,6 +10,7 @@ use ryo_values::domain::plans::types::{Operation, PlanStep};
 
 fn step(operation: Operation) -> PlanStep {
     PlanStep {
+        written: Default::default(),
         operation,
         scope: StepScope::PerFile,
     }

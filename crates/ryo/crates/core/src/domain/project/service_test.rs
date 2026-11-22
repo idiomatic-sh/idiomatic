@@ -41,6 +41,7 @@ fn plan(frontier: Vec<PlanInput>, reads: &[Relation]) -> Plan {
         steps: reads
             .iter()
             .map(|relation| PlanStep {
+                written: Default::default(),
                 operation: Operation::Union {
                     left: PlanInput::Relation(*relation),
                     right: PlanInput::Step(StepId(0)),

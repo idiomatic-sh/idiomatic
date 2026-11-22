@@ -118,6 +118,7 @@ fn subject(text: Input) -> Result<Value, Failure> {
         .read(QueryView(text))
         .expect("the row's text is readable");
     let mut builder = Builder {
+        written: Default::default(),
         catalog: CATALOG,
         observation_inputs: &[],
         hosted_steps: Vec::new(),

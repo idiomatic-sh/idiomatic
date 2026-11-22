@@ -65,6 +65,7 @@ x
         let engine = engine();
         let mut input = authored_request(1);
         boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Axis {
                 from: Input::Relation(Relation::Function),
@@ -141,6 +142,7 @@ fn ordinary_select_does_not_publish_a_prefix_before_late_predicate_failure() {
     let engine = engine();
     let mut input = authored_request(1);
     boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![PlanStep {
+        written: Default::default(),
         scope: StepScope::PerFile,
         operation: Operation::Select {
             from: Input::Relation(Relation::SyntaxTree),

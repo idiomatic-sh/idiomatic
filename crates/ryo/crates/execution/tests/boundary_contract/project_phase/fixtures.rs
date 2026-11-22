@@ -59,6 +59,7 @@ pub(crate) fn mixed_program_with(
             });
         let consumer = &mut crate::boundary_fixture::fixtures::plans(&mut input)[1];
         consumer.steps = vec![PlanStep {
+            written: Default::default(),
             scope: StepScope::CrossFile,
             operation: Operation::Select {
                 from: Input::BoundObservation(ObservationBindingId(0)),
@@ -97,6 +98,7 @@ pub(crate) fn mixed_plan(relation: Relation) -> ryo_values::domain::query_plans:
         .unwrap();
     crate::boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![
         PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Select {
                 from: Input::Relation(Relation::Function),
@@ -105,6 +107,7 @@ pub(crate) fn mixed_plan(relation: Relation) -> ryo_values::domain::query_plans:
             },
         },
         PlanStep {
+            written: Default::default(),
             scope: StepScope::CrossFile,
             operation: Operation::Select {
                 from: Input::Relation(relation),
@@ -113,6 +116,7 @@ pub(crate) fn mixed_plan(relation: Relation) -> ryo_values::domain::query_plans:
             },
         },
         PlanStep {
+            written: Default::default(),
             scope: StepScope::CrossFile,
             operation: Operation::Join {
                 left: Input::Step(StepId(0)),

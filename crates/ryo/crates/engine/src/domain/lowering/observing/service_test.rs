@@ -43,11 +43,21 @@ type Failure = LoadRefusal;
 
 /// A step of `operation` at `scope`.
 const fn at(operation: Operation, scope: StepScope) -> PlanStep {
-    PlanStep { operation, scope }
+    PlanStep {
+        written: ryo_values::domain::written_sites::types::StepWritten::Unrecorded,
+        operation,
+        scope,
+    }
 }
 
 /// A join of two inputs on the columns `on` names of each, answering `output`.
-fn joined(left: Input, right: Input, on: (&[u32], &[u32]), output: &[(Side, u32)], scope: StepScope) -> PlanStep {
+fn joined(
+    left: Input,
+    right: Input,
+    on: (&[u32], &[u32]),
+    output: &[(Side, u32)],
+    scope: StepScope,
+) -> PlanStep {
     let columns = |places: &[u32]| places.iter().copied().map(ColumnIndex).collect();
     let output = output
         .iter()
@@ -77,7 +87,13 @@ fn words() -> PlanStep {
         Input::Relation(Relation::SyntaxChild),
         Input::Relation(Relation::SyntaxTree),
         (&[1], &[0]),
-        &[(Side::Left, 0), (Side::Left, 1), (Side::Left, 2), (Side::Right, 2), (Side::Left, 4)],
+        &[
+            (Side::Left, 0),
+            (Side::Left, 1),
+            (Side::Left, 2),
+            (Side::Right, 2),
+            (Side::Left, 4),
+        ],
         StepScope::PerFile,
     )
 }
@@ -156,13 +172,20 @@ fn hosted() -> Vec<HostRelation> {
         },
         HostRelation {
             name: HostName("codes of a file".into()),
-            columns: vec![column("file", HostKind::File), column("code", HostKind::Text)],
+            columns: vec![
+                column("file", HostKind::File),
+                column("code", HostKind::Text),
+            ],
             rows: vec![HostRow(vec![Cell::File("x/y.walk".into()), text("a")])],
         },
     ]
 }
 
-const fn said(name: &'static str, input: fn() -> Given, value: &'static str) -> Case<Given, Value, Failure> {
+const fn said(
+    name: &'static str,
+    input: fn() -> Given,
+    value: &'static str,
+) -> Case<Given, Value, Failure> {
     Case {
         name: CaseName(name),
         word: Word::Succeeds,
@@ -171,7 +194,11 @@ const fn said(name: &'static str, input: fn() -> Given, value: &'static str) -> 
     }
 }
 
-const fn refused(name: &'static str, input: fn() -> Given, refusal: LoadRefusal) -> Case<Given, Value, Failure> {
+const fn refused(
+    name: &'static str,
+    input: fn() -> Given,
+    refusal: LoadRefusal,
+) -> Case<Given, Value, Failure> {
     Case {
         name: CaseName(name),
         word: Word::Refuses,
@@ -296,10 +323,12 @@ fn subject(asked: Given) -> Result<Value, Failure> {
         place: AcceptedPlace(0),
         flat: Vec::new(),
     };
-    let locals = rules.first().map(|rule| format!("{:?}", rule.locals)).unwrap_or_default();
-    let flattened = rule_flattened(&mut state, &mut drafts).map_err(|step| {
-        LoadRefusal::Unlowerable(PlanNode(step.0))
-    })?;
+    let locals = rules
+        .first()
+        .map(|rule| format!("{:?}", rule.locals))
+        .unwrap_or_default();
+    let flattened = rule_flattened(&mut state, &mut drafts)
+        .map_err(|step| LoadRefusal::Unlowerable(PlanNode(step.0)))?;
     let branches: Vec<String> = flattened
         .branches
         .iter()
@@ -392,10 +421,10 @@ fn producer() -> Plan {
 
 /// A consumer: the observation's rows whose code the host names, after the files, emitted.
 fn consumer() -> Plan {
+    use ryo_relations::domain::relations::types::CellKind;
     use ryo_values::domain::observations::types::{
         BoundObservationInput, ObservationBindingName, ObservationColumn, ObservationColumnName,
     };
-    use ryo_relations::domain::relations::types::CellKind;
     let column = |name: &str, kind| ObservationColumn {
         name: ObservationColumnName(name.into()),
         kind,
@@ -408,7 +437,9 @@ fn consumer() -> Plan {
             StepScope::CrossFile,
         ),
         joined(
-            Input::BoundObservation(ryo_values::domain::plan_parts::types::ObservationBindingId(0)),
+            Input::BoundObservation(ryo_values::domain::plan_parts::types::ObservationBindingId(
+                0,
+            )),
             Input::Step(StepId(0)),
             (&[2], &[0]),
             &[(Side::Left, 0), (Side::Left, 1), (Side::Left, 2)],
@@ -427,7 +458,11 @@ fn consumer() -> Plan {
     consuming
 }
 
-const fn lowered_said(name: &'static str, input: fn() -> Lowered, value: &'static str) -> Case<Lowered, Value, Failure> {
+const fn lowered_said(
+    name: &'static str,
+    input: fn() -> Lowered,
+    value: &'static str,
+) -> Case<Lowered, Value, Failure> {
     Case {
         name: CaseName(name),
         word: Word::Succeeds,
@@ -473,14 +508,14 @@ fn lowered_subject(asked: Lowered) -> Result<Value, Failure> {
     use crate::domain::lowering::fixtures::described::described;
     use crate::domain::lowering::service::lowered;
     use crate::domain::lowering::types::{BoundProducer, ObservedBinding, SelectedRules};
-    use ryo_values::domain::plan_parts::types::ObservationBindingId;
-    use ryo_values::domain::query_plans::types::NodeDigest;
     use crate::domain::programs::service::accepted;
     use crate::domain::statistics::types::StatisticsBytes;
     use crate::inbound::use_cases::load::fixtures::kinds as load_kinds;
     use crate::inbound::use_cases::load::interface::LoadUseCase as _;
     use crate::inbound::use_cases::load::types::LoadSource;
     use crate::inbound::use_cases::load::use_case::LoadUseCaseImpl;
+    use ryo_values::domain::plan_parts::types::ObservationBindingId;
+    use ryo_values::domain::query_plans::types::NodeDigest;
     let mut declared = hosted();
     if let Some(codes) = declared.first_mut() {
         codes.rows = (0..asked.codes)
@@ -535,8 +570,15 @@ fn lowered_subject(asked: Lowered) -> Result<Value, Failure> {
         .iter()
         .map(|refused| format!("refused rule {}: {}", refused.rule.0, refused.refusal))
         .collect();
-    lines.extend(described(&lowered.pack).into_iter().filter(|line| !line.starts_with("  ")));
-    let written = encoded(&lowered.pack).map_or_else(|error| format!("encoding refused: {error:?}"), |_| "encoded".to_owned());
+    lines.extend(
+        described(&lowered.pack)
+            .into_iter()
+            .filter(|line| !line.starts_with("  ")),
+    );
+    let written = encoded(&lowered.pack).map_or_else(
+        |error| format!("encoding refused: {error:?}"),
+        |_| "encoded".to_owned(),
+    );
     lines.push(written);
     // The load's own sequence: lowered, passed, encoded, and every unit asked whether the executor runs it.
     let source = LoadSource::Plans(SelectedRules(&rules), StatisticsBytes(&[]), given);
@@ -545,7 +587,11 @@ fn lowered_subject(asked: Lowered) -> Result<Value, Failure> {
         Ok(loaded) => format!(
             "load: {} accepted, refused {:?}",
             accepted(&loaded.programs).len(),
-            loaded.refused.iter().map(|refused| (refused.rule.0, refused.refusal.to_string())).collect::<Vec<_>>()
+            loaded
+                .refused
+                .iter()
+                .map(|refused| (refused.rule.0, refused.refusal.to_string()))
+                .collect::<Vec<_>>()
         ),
         Err(error) => format!("load error: {error:?}"),
     });
@@ -594,7 +640,10 @@ fn scanned_subject(plans: Vec<Plan>) -> Result<Value, Failure> {
     use crate::inbound::use_cases::load::types::LoadSource;
     use crate::inbound::use_cases::load::use_case::LoadUseCaseImpl;
     use crate::inbound::use_cases::scan::fixtures::{rule_rows, scanned};
-    let digests: Vec<_> = plans.iter().map(|plan| digests_of(plan, RuleBindings(&[]))).collect();
+    let digests: Vec<_> = plans
+        .iter()
+        .map(|plan| digests_of(plan, RuleBindings(&[])))
+        .collect();
     let rules: Vec<SelectedRule<'_>> = plans
         .iter()
         .zip(&digests)
@@ -608,8 +657,17 @@ fn scanned_subject(plans: Vec<Plan>) -> Result<Value, Failure> {
         .collect();
     let last = u32::try_from(plans.len().saturating_sub(1)).unwrap_or(u32::MAX);
     let kinds = load_kinds();
-    let pack = crate::domain::lowering::service::lowered(SelectedRules(&rules), LoadGiven::default(), None, &kinds);
-    let source = LoadSource::Plans(SelectedRules(&rules), StatisticsBytes(&[]), LoadGiven::default());
+    let pack = crate::domain::lowering::service::lowered(
+        SelectedRules(&rules),
+        LoadGiven::default(),
+        None,
+        &kinds,
+    );
+    let source = LoadSource::Plans(
+        SelectedRules(&rules),
+        StatisticsBytes(&[]),
+        LoadGiven::default(),
+    );
     let loaded = LoadUseCaseImpl
         .load(source, &kinds)
         .map_err(|_| LoadRefusal::Unlowerable(PlanNode(u32::MAX)))?;
@@ -620,7 +678,11 @@ fn scanned_subject(plans: Vec<Plan>) -> Result<Value, Failure> {
     Ok(Cow::Owned(lines.join("\n")))
 }
 
-const fn scanned_said(name: &'static str, input: fn() -> Vec<Plan>, value: &'static str) -> Case<Vec<Plan>, Value, Failure> {
+const fn scanned_said(
+    name: &'static str,
+    input: fn() -> Vec<Plan>,
+    value: &'static str,
+) -> Case<Vec<Plan>, Value, Failure> {
     Case {
         name: CaseName(name),
         word: Word::Succeeds,

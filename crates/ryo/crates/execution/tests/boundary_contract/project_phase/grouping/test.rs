@@ -42,6 +42,7 @@ fn project_grouping_reads_only_actual_captured_function_names() {
     let mut input = authored_request(1);
     crate::boundary_fixture::fixtures::plans(&mut input)[0].steps = vec![
         PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Select {
                 from: Input::Relation(Relation::Function),
@@ -50,6 +51,7 @@ fn project_grouping_reads_only_actual_captured_function_names() {
             },
         },
         PlanStep {
+            written: Default::default(),
             scope: StepScope::CrossFile,
             operation: Operation::GroupCount {
                 from: Input::Step(StepId(0)),

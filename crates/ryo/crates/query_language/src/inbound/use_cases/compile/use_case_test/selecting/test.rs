@@ -181,6 +181,7 @@ fn lower(text: Text) -> Result<Operations, Failure> {
         .read(QueryView(text))
         .expect("the row's text is readable");
     let mut builder = Builder {
+        written: Default::default(),
         catalog: CATALOG,
         observation_inputs: &[],
         hosted_steps: Vec::new(),
@@ -230,6 +231,7 @@ fn many_or_alternatives_keep_each_filter_and_bound_union_depth() {
     );
     let program = winnow().read(QueryView(&query)).expect("readable OR query");
     let mut builder = Builder {
+        written: Default::default(),
         catalog: CATALOG,
         observation_inputs: &[],
         hosted_steps: Vec::new(),

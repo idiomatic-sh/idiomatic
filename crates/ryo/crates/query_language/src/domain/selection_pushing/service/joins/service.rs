@@ -180,7 +180,7 @@ pub(crate) fn pushed_join(
             return Some(input);
         }
         let at = place_after(first, &before);
-        before.push(filter_of(steps, input, moved)?);
+        before.push(filter_of(steps, input, moved, &filtering.written)?);
         Some(at)
     };
     let placed_left = from(*left, split.left)?;
@@ -218,6 +218,7 @@ pub(crate) fn pushed_join(
             reach: None,
         },
         scope: made.scope,
+        written: made.written.clone(),
     };
     Some(finished(
         reader, before, combined, filtering, split.rest, kept,

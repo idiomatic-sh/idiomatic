@@ -79,6 +79,7 @@ fn plan() -> Plan {
         parameters: vec![],
         steps: vec![
             PlanStep {
+                written: Default::default(),
                 scope: StepScope::PerFile,
                 operation: Operation::Select {
                     from: Input::Relation(Relation::Function),
@@ -87,6 +88,7 @@ fn plan() -> Plan {
                 },
             },
             PlanStep {
+                written: Default::default(),
                 scope: StepScope::CrossFile,
                 operation: Operation::Select {
                     from: Input::Relation(PROJECT),

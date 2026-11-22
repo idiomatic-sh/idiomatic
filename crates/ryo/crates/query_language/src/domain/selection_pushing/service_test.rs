@@ -84,6 +84,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
 /// A step of `operation`, made for each file.
 pub(super) fn step(operation: Operation) -> PlanStep {
     PlanStep {
+        written: Default::default(),
         operation,
         scope: StepScope::PerFile,
     }

@@ -90,6 +90,7 @@ fn plan_comparing_kind(test: Test, right: Operand, relation: Relation, site: Kin
         observations: Vec::new(),
         parameters: Vec::new(),
         steps: vec![PlanStep {
+            written: Default::default(),
             operation,
             scope: StepScope::PerFile,
         }],

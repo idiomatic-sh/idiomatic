@@ -24,6 +24,7 @@ fn shared_walk_uses_the_same_join_dependency_contract_for_callback_delivery() {
     let mut authored = authored_request(2);
     crate::boundary_fixture::fixtures::plans(&mut authored)[0].steps = vec![
         PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Select {
                 from: Input::Relation(Relation::SyntaxTree),
@@ -32,6 +33,7 @@ fn shared_walk_uses_the_same_join_dependency_contract_for_callback_delivery() {
             },
         },
         PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Select {
                 from: Input::Relation(Relation::SyntaxTree),
@@ -40,6 +42,7 @@ fn shared_walk_uses_the_same_join_dependency_contract_for_callback_delivery() {
             },
         },
         PlanStep {
+            written: Default::default(),
             scope: StepScope::PerFile,
             operation: Operation::Join {
                 left: Input::Step(StepId(0)),
