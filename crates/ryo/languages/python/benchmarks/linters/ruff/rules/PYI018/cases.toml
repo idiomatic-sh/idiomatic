@@ -37,3 +37,28 @@ expected = [{ file = "case.pyi", start = 33, end = 35 }]
 name = "suppressed-private-typevar"
 files = { "case.pyi" = "from typing import TypeVar\n_Private = TypeVar(\"_Private\")  # noqa: PYI018\n" }
 expected = []
+
+[[cases]]
+name = "typing_extensions_typevar_unused"
+files = { "case.py" = "from typing_extensions import TypeVar\n_T = TypeVar(\"_T\")\n" }
+expected = [{ file = "case.py", start = 38, end = 40 }]
+
+[[cases]]
+name = "typing_extensions_module_typevartuple_unused"
+files = { "case.py" = "import typing_extensions\n_Ts = typing_extensions.TypeVarTuple(\"_Ts\")\n" }
+expected = [{ file = "case.py", start = 25, end = 28 }]
+
+[[cases]]
+name = "typing_extensions_paramspec_unused"
+files = { "case.py" = "from typing_extensions import ParamSpec\n_P = ParamSpec(\"_P\")\n" }
+expected = [{ file = "case.py", start = 40, end = 42 }]
+
+[[cases]]
+name = "chained_targets_typevar_unused"
+files = { "case.py" = "from typing import TypeVar\n_C = _D = TypeVar(\"_C\")\n" }
+expected = []
+
+[[cases]]
+name = "tuple_targets_typevar_unused"
+files = { "case.py" = "from typing import TypeVar\n_A, _B = TypeVar(\"_A\"), TypeVar(\"_B\")\n" }
+expected = []
