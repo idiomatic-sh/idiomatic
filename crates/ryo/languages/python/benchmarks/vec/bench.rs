@@ -679,6 +679,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     let no_yes_no = args.contains(&"--no-yes-no");
     let ask_all = args.contains(&"--ask-all");
     let no_project = args.contains(&"--no-project");
+    let plant = std::env::var("COLS_PLANT").is_ok_and(|v| v == "1");
     let mut cwalk = ryo_python::fixtures::columns::ColumnWalk::new(ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names"));
     store.direct_on = direct;
     if args.contains(&"--regex-set") {
@@ -930,7 +931,27 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                             }
                             out
                         };
-                        let kept = std::mem::take(&mut store.direct);
+                        let mut kept = std::mem::take(&mut store.direct);
+                        // the plant (`COLS_PLANT=1`): one value of the first written column of each whole table is changed, and
+                        // one yes/no bit dropped; the check must count them
+                        if plant {
+                            for (i, t) in kept.tables.iter_mut().enumerate().take(asks.len()) {
+                                if asks[i].exists {
+                                    if let Some(w) = t.present.iter_mut().find(|w| **w != 0) {
+                                        *w &= *w - 1;
+                                    }
+                                    continue;
+                                }
+                                let first = t.present.iter().enumerate().find(|(_, w)| **w != 0).map(|(wi, w)| wi * 64 + w.trailing_zeros() as usize);
+                                if let Some(k) = first {
+                                    let r = t.rows_of(k).start;
+                                    let r = t.row(r);
+                                    if let Some(col) = t.columns.iter_mut().find(|c| c.len() > r) {
+                                        col[r] ^= 1;
+                                    }
+                                }
+                            }
+                        }
                         let mut i = 0;
                         while i < asks.len() {
                             let (slot, kc) = ask_of[i];
