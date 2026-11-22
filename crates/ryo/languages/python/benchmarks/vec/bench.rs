@@ -1610,6 +1610,10 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                 words_alive.extend(kinds_alive.iter().enumerate().map(|(ri, k)| *k && skip.words_alive(ri, &present)));
                 alive.clear();
                 alive.extend(kinds_alive.iter().zip(&words_alive).map(|(k, w)| *k && (!word_skip || *w)));
+                // redo-honest: `VEC_NO_SKIP` keeps every rule alive in every file (a check of the skip: findings must not change)
+                if std::env::var_os("VEC_NO_SKIP").is_some() {
+                    alive.iter_mut().for_each(|a| *a = true);
+                }
                 rule_files += frules.len() as u64;
                 alive_kinds += kinds_alive.iter().filter(|a| **a).count() as u64;
                 alive_both += alive.iter().filter(|a| **a).count() as u64;
