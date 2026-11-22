@@ -382,6 +382,7 @@ fn main() {
     match args.get(1).copied() {
         Some("census") => census(&walk, &vocab, args[2], args[3], args[4]),
         Some("run") => run(&walk, &vocab, &args[2..]),
+        Some("funnel") => run_funnel(&walk, &vocab, &args[2..]),
         _ => eprintln!("usage: vec census <files> <literals> <out> | vec run <mode> <files> <anchors> [--batch N] [--repeat K] [--rules-out F]"),
     }
 }
@@ -629,6 +630,290 @@ fn run(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
             w.push_str(&format!("{}\t{}\t{}\t{}\n", r.name, per_rule_files[i], per_rule_entries[i], per_rule_survivors[i]));
         }
         std::fs::write(path, w).expect("rules out");
+    }
+}
+
+#[path = "funnel.rs"]
+mod funnel;
+
+/// `vec funnel <way> <files> <anchors> <plans> [--repeat K] [--rules-out F] [--hits-out F]`: ways `cands`, `structure`,
+/// `interp`, `spec`, `knock`.
+fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
+    let way = args[0];
+    let list = files(args[1]);
+    let rules = load_rules(args[2], vocab);
+    let frules = funnel::load(args[3], vocab);
+    let repeat: usize = flag(args, "--repeat").map_or(1, |b| b.parse().expect("repeat"));
+    let by_name: HashMap<&str, usize> = rules.iter().enumerate().map(|(i, r)| (r.name.as_str(), i)).collect();
+    let skip_of: Vec<Option<usize>> = frules.iter().map(|r| by_name.get(r.name.as_str()).copied()).collect();
+    let fields_width = vocab.field_names.len();
+    let set_of = |names: &[&str]| {
+        let mut s = [0u64; 4];
+        for n in names {
+            if let Some(c) = vocab.kinds.get(*n) {
+                s[usize::from(*c) / 64] |= 1 << (c % 64);
+            }
+        }
+        s
+    };
+    let function = set_of(&["function-def", "async-function-def", "lambda"]);
+    let class = set_of(&["class-def"]);
+    let looping = set_of(&["for", "async-for", "while"]);
+    let mut units = funnel::units(&frules);
+    if args.contains(&"--only-knock-units") {
+        units.retain(|u| u.knock);
+    }
+    let group_list = funnel::groups(&frules, &units);
+    let structured = matches!(way, "structure" | "spec" | "knock");
+    let max_regs = frules.iter().flat_map(|r| r.plans.iter().map(|p| p.regs)).max().unwrap_or(1).max(1);
+    let mut cands = vec![0u64; units.len()];
+    let mut surv = vec![0u64; units.len()];
+    let mut unit_steps = vec![0u64; units.len()];
+    let mut knock_steps = 0u64;
+    let mut hits: Vec<(usize, usize)> = Vec::new();
+    let mut phases = Phases::default();
+    let mut table = NodeTable::default();
+    let mut scratch = Default::default();
+    let mut cols = Columns::default();
+    let mut st = funnel::Structure::default();
+    let mut regs = vec![0u32; max_regs + 1];
+    let mut rows = funnel::Rows::default();
+    let mut file_mask: Vec<u64> = Vec::new();
+    let mut marked: Vec<u32> = Vec::new();
+    let mut stamp = 0u32;
+    let mut last = vec![0u32; units.len()];
+    let mut buf: Vec<u32> = Vec::new();
+    let mut remaining: Vec<u32> = Vec::new();
+    let started = thread_cpu();
+    for (file_no, path) in list.iter().enumerate() {
+        let c0 = thread_cpu();
+        let bytes = std::fs::read(path).expect("read");
+        let mut builder = node_table::builder(&mut table, walk_kinds(walk));
+        let ok = walk
+            .walk(
+                WalkRequest { path: languages::SourcePath(path), file: FileId(0), source: ByteSlice(&bytes) },
+                RelationNeeds(&[]),
+                &mut builder,
+                &mut scratch,
+                &mut NoVisit,
+            )
+            .is_ok();
+        let t = node_table::finished(&mut builder);
+        let c1 = thread_cpu();
+        phases.add("walk+table", c1 - c0);
+        if !ok {
+            continue;
+        }
+        extract(t, &mut cols, true, true);
+        funnel::parents(t, &cols, &mut st);
+        field_index(&mut cols, fields_width.max(1));
+        let c2 = thread_cpu();
+        phases.add("extract columns + parents + field buckets", c2 - c1);
+        if structured {
+            for _ in 0..repeat {
+                funnel::structure(t, &cols, &mut st, &function, &class, &looping);
+            }
+            phases.add("structure pass", (thread_cpu() - c2) / repeat as f64);
+        }
+        if way == "structure" {
+            continue;
+        }
+        let c3 = thread_cpu();
+        let kinds: Vec<u64> = node_table::kinds_present(t).0.iter().map(|w| w.0).collect();
+        let alive: Vec<bool> = skip_of.iter().map(|i| i.is_none_or(|i| survives(&rules[i], &kinds, &cols.field_present))).collect();
+        phases.add("skip tests", thread_cpu() - c3);
+        let ctx = funnel::Ctx {
+            table: t,
+            src: &bytes,
+            kind: &cols.kind,
+            field: &cols.field,
+            start: &cols.start,
+            end: &cols.end,
+            parent: &st.parent,
+            pkind: if structured { &st.pkind } else { &[] },
+            cmask: if structured { &st.cmask } else { &[] },
+        };
+        let bucket = |key: &Key| -> Vec<u32> {
+            match *key {
+                Key::Kind(k) => node_table::ids_of_kind(t, KindBits(k)).iter().map(|p| p.0).collect(),
+                Key::Field(f) => {
+                    let (a, b) = (cols.field_offsets[usize::from(f)] as usize, cols.field_offsets[usize::from(f) + 1] as usize);
+                    cols.by_field[a..b].to_vec()
+                }
+            }
+        };
+        if marked.len() < cols.kind.len() {
+            marked.resize(cols.kind.len(), 0);
+        }
+        let fill = |key: &Key, buf: &mut Vec<u32>| {
+            buf.clear();
+            match *key {
+                Key::Kind(k) => buf.extend(node_table::ids_of_kind(t, KindBits(k)).iter().map(|p| p.0)),
+                Key::Field(f) => {
+                    let (a, b) = (cols.field_offsets[usize::from(f)] as usize, cols.field_offsets[usize::from(f) + 1] as usize);
+                    buf.extend_from_slice(&cols.by_field[a..b]);
+                }
+            }
+        };
+        let c4 = thread_cpu();
+        for r in 0..repeat {
+            let first = r == 0;
+            let mut file_surv = vec![0u64; units.len()];
+            let k0 = thread_cpu();
+            if way == "knock" {
+                for u in &mut last {
+                    *u = 0;
+                }
+                for g in &group_list {
+                    file_mask.clear();
+                    file_mask.resize(g.words(), 0);
+                    let mut i = 0;
+                    for (slot, u) in g.slot_unit.iter().enumerate() {
+                        if alive[units[*u].rule] {
+                            file_mask[slot / 64] |= 1 << (slot % 64);
+                        }
+                        i += 1;
+                    }
+                    let _ = i;
+                    if file_mask.iter().all(|w| *w == 0) {
+                        continue;
+                    }
+                    fill(&g.key, &mut buf);
+                    let s = funnel::knock(&ctx, g, &buf, &file_mask, &mut file_surv, &mut last);
+                    if first {
+                        knock_steps += s;
+                        for u in &g.units {
+                            if alive[units[*u].rule] {
+                                cands[*u] += buf.len() as u64;
+                            }
+                        }
+                    }
+                }
+            }
+            if way == "knock" {
+                phases.add("prefixes: knock-out units", (thread_cpu() - k0) / repeat as f64);
+            }
+            for (ui, unit) in units.iter().enumerate() {
+                if !alive[unit.rule] || (way == "knock" && unit.knock) {
+                    continue;
+                }
+                let rule = &frules[unit.rule];
+                fill(&unit.key, &mut buf);
+                let mut n_s = 0u64;
+                let mut s = 0u64;
+                match way {
+                    "cands" => {}
+                    "interp" => {
+                        for &n in &buf {
+                            for p in &unit.plans {
+                                regs[0] = n;
+                                if funnel::exec(&ctx, &rule.plans[*p].ops, 0, &mut regs, &mut s) {
+                                    n_s += 1;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    _ => {
+                        // each plan runs over the candidates no earlier plan of the unit kept
+                        stamp = stamp.wrapping_add(1);
+                        remaining.clear();
+                        remaining.extend_from_slice(&buf);
+                        for p in &unit.plans {
+                            if remaining.is_empty() {
+                                break;
+                            }
+                            let plan = &rule.plans[*p];
+                            rows.r = plan.regs.max(1);
+                            rows.d.clear();
+                            rows.d.resize(remaining.len() * rows.r, 0);
+                            rows.tag.clear();
+                            for (j, n) in remaining.iter().enumerate() {
+                                rows.d[j * rows.r] = *n;
+                                rows.tag.push(j as u32);
+                            }
+                            for stage in &plan.stages {
+                                if rows.len() == 0 {
+                                    break;
+                                }
+                                stage(&ctx, &mut rows, &mut s);
+                            }
+                            for j in 0..rows.len() {
+                                let n = rows.d[j * rows.r] as usize;
+                                if marked[n] != stamp {
+                                    marked[n] = stamp;
+                                    n_s += 1;
+                                }
+                            }
+                            remaining.retain(|n| marked[*n as usize] != stamp);
+                        }
+                    }
+                }
+                if first {
+                    cands[ui] += buf.len() as u64;
+                    file_surv[ui] += n_s;
+                    unit_steps[ui] += s;
+                }
+            }
+            if first {
+                let mut any = vec![false; frules.len()];
+                for (ui, unit) in units.iter().enumerate() {
+                    surv[ui] += file_surv[ui];
+                    if file_surv[ui] > 0 {
+                        any[unit.rule] = true;
+                    }
+                }
+                for (ri, a) in any.iter().enumerate() {
+                    if *a {
+                        hits.push((ri, file_no));
+                    }
+                }
+            }
+        }
+        phases.add("prefixes", (thread_cpu() - c4) / repeat as f64);
+    }
+    let total = thread_cpu() - started;
+    let knock_units = units.iter().filter(|u| u.knock).count();
+    let steps: u64 = unit_steps.iter().sum();
+    println!(
+        "funnel {way} repeat {repeat}: rules {} with plans {} plans {} units {} knock-out units {knock_units} groups {} (tests {}, words {})",
+        frules.len(),
+        frules.iter().filter(|r| !r.plans.is_empty()).count(),
+        frules.iter().map(|r| r.plans.len()).sum::<usize>(),
+        units.len(),
+        group_list.len(),
+        group_list.iter().map(funnel::Group::tests).sum::<usize>(),
+        group_list.iter().map(funnel::Group::words).sum::<usize>()
+    );
+    println!("thread CPU total {total:.4} s");
+    for (n, s) in &phases.0 {
+        println!("phase {n}: {s:.4} s");
+    }
+    let knock_c: u64 = units.iter().enumerate().filter(|(_, u)| u.knock).map(|(i, _)| cands[i]).sum();
+    let knock_s: u64 = units.iter().enumerate().filter(|(_, u)| u.knock).map(|(i, _)| surv[i]).sum();
+    println!(
+        "candidates {} survivors {} steps {steps} knock-steps {knock_steps} (knock-out units: candidates {knock_c} survivors {knock_s}) rule-files-with-survivors {}",
+        cands.iter().sum::<u64>(),
+        surv.iter().sum::<u64>(),
+        hits.len()
+    );
+    if let Some(path) = flag(args, "--rules-out") {
+        let mut w = String::from("rule\tunits\tcandidates\tsurvivors\tsteps\n");
+        for (ri, r) in frules.iter().enumerate() {
+            let mine: Vec<usize> = (0..units.len()).filter(|u| units[*u].rule == ri).collect();
+            let c: u64 = mine.iter().map(|u| cands[*u]).sum();
+            let s: u64 = mine.iter().map(|u| surv[*u]).sum();
+            let k: u64 = mine.iter().map(|u| unit_steps[*u]).sum();
+            w.push_str(&format!("{}\t{}\t{c}\t{s}\t{k}\n", r.name, mine.len()));
+        }
+        std::fs::write(path, w).expect("rules out");
+    }
+    if let Some(path) = flag(args, "--hits-out") {
+        let mut w = String::new();
+        for (ri, f) in &hits {
+            w.push_str(&format!("{}\t{}\n", frules[*ri].name, list[*f]));
+        }
+        std::fs::write(path, w).expect("hits out");
     }
 }
 
