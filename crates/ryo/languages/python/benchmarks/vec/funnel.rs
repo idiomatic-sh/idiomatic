@@ -361,7 +361,10 @@ pub(super) fn load(path: &str, vocab: &Vocab, catalog: &mut super::facts::Catalo
         let slots = std::mem::take(&mut fc.slots);
         let valued = std::mem::take(&mut fc.valued);
         let keyed = std::mem::take(&mut fc.keyed);
-        rules.push(FRule { name: r["rule"].as_str().expect("rule").to_owned(), node: r["class"].as_str() == Some("node"), plans, cnfs, slots, valued, keyed });
+        // redo-honest: a plan with no bucket key is entered from no bucket, so it finds no survivor; a node-class rule with
+        // such a plan would never be seeded and its findings were lost. It runs from the skip alone instead.
+        let enterable = plans.iter().all(|p| !p.keys.is_empty());
+        rules.push(FRule { name: r["rule"].as_str().expect("rule").to_owned(), node: r["class"].as_str() == Some("node") && enterable, plans, cnfs, slots, valued, keyed });
     }
     missing.sort();
     missing.dedup();
