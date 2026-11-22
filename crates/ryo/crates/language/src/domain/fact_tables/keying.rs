@@ -2,3 +2,4 @@
 //! declares (the column it is filled by, then the columns it is read by), built once when the table is finished.
 
 pub(crate) mod service;
+pub(crate) mod types;

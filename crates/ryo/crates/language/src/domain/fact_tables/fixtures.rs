@@ -5,6 +5,7 @@ use super::reading::service::cells_of;
 use super::service::{begun, finished, request_of, row, writer};
 use super::types::{FactCells, FactRowList, FactSet, FactTable};
 use crate::domain::facts::types::CellWord;
+use ryo_relations::domain::relations::collections::relations::expression_type::item::ExpressionTypeColumn;
 use ryo_relations::domain::relations::service::{columns, kind, node_id};
 use ryo_relations::domain::relations::types::{CellKind, Column, FileId, Position, Relation};
 
@@ -67,4 +68,45 @@ pub fn read(table: &FactTable, column: Column, rows: FactRowList<'_>) -> Vec<Cel
                 .copied()
         })
         .collect()
+}
+
+/// The column `expression-type` is filled by.
+pub const EXPRESSION: Column = Column::ExpressionType(ExpressionTypeColumn::Id);
+
+/// Six rows of `expression-type` over three nodes, the nodes out of order and each with several rows: node, then type.
+#[must_use]
+pub fn expression_types() -> Vec<Vec<CellWord>> {
+    [(5, 10), (2, 11), (5, 12), (9, 13), (2, 14), (5, 15)]
+        .into_iter()
+        .map(|(place, type_)| {
+            vec![
+                node(place),
+                CellWord(1),
+                CellWord(type_),
+                CellWord(u64::from(FILE.0)),
+                CellWord(0),
+            ]
+        })
+        .collect()
+}
+
+/// `rows` with the cell at `place` of each row set to the matching cell of `cells`.
+#[must_use]
+pub fn with_cells(
+    mut rows: Vec<Vec<CellWord>>,
+    place: usize,
+    cells: &[CellWord],
+) -> Vec<Vec<CellWord>> {
+    for (each_row, cell) in rows.iter_mut().zip(cells) {
+        if let Some(each) = each_row.get_mut(place) {
+            *each = *cell;
+        }
+    }
+    rows
+}
+
+/// A one-relation answer of `rows`.
+#[must_use]
+pub fn one(relation: Relation, rows: Vec<Vec<CellWord>>) -> FactSet {
+    answered(&[(relation, rows)])
 }

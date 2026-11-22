@@ -1,9 +1,10 @@
 //! The services of the `keying` part: the indexes a relation's table is made with, each row's key in each of them, the rows
 //! put in the first key's order, and each index's presence bits, ranks and stretches.
 
+use super::types::{BitAt, KeyBits, KeyedRow};
 use crate::domain::fact_tables::types::{
-    BitAt, FactKey, FactRow, FactTable, IndexOrder, KeyBits, KeyCode, KeyColumnIndex, KeyRank,
-    KeySpace, KeyedRow, SortRoom, TableBody, TableLayout,
+    FactKey, FactRow, FactTable, IndexOrder, KeyCode, KeyColumnIndex, KeyRank, KeySpace, SortRoom,
+    TableBody, TableLayout,
 };
 use crate::domain::facts::types::CellWord;
 use ryo_relations::domain::catalog::service::{fact_form, key_columns, scope_of};

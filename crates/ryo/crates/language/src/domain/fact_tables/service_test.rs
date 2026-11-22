@@ -7,26 +7,23 @@
 //! or one no row holds, has no row; and every relation of the catalog is written and read by the same calls, so a new
 //! family of facts needs no code here.
 
-use super::fixtures::{FILE, answered, length, node, read, row_of};
+use super::fixtures::{EXPRESSION, expression_types, length, node, one, read, row_of, with_cells};
 use super::reading::service::{every_row, presence, rows_of};
-use super::service::{
-    answer_of, asked, begun, finished, partial, refused, request_of, row, table_of, writer,
-};
-use super::types::{FactCells, FactKey, FactRowList, FactSet, KeyPresence};
+use super::service::table_of;
+use super::types::{FactKey, KeyPresence};
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::facts::service::{base_words, clear_words, entity, file_words, intern};
-use crate::domain::facts::types::{CellWord, FactAnswer, FillerSentence, PartialRows};
+use crate::domain::facts::types::CellWord;
 use crate::domain::fixed_names::types::CheckedNames;
-use ryo_relations::domain::answers::types::AbsenceCause;
 use ryo_relations::domain::catalog::service::{fact_form, key_columns};
 use ryo_relations::domain::relations::collections::relations::binding_read::item::BindingReadColumn;
 use ryo_relations::domain::relations::collections::relations::expression_type::item::ExpressionTypeColumn;
 use ryo_relations::domain::relations::collections::relations::module_identity::item::ModuleIdentityColumn;
 use ryo_relations::domain::relations::collections::relations::string_literal::item::StringLiteralColumn;
 use ryo_relations::domain::relations::collections::relations::token_link::item::TokenLinkColumn;
-use ryo_relations::domain::relations::service::{ALL, columns, kind};
+use ryo_relations::domain::relations::service::{ALL, kind};
 use ryo_relations::domain::relations::types::{
-    CellKind, Column, FactForm, FilledKey, Missing, Position, Relation,
+    CellKind, Column, FactForm, FilledKey, Position, Relation,
 };
 use ryo_relations::domain::terms::types::NameText;
 
@@ -45,14 +42,6 @@ enum Scenario {
     EntityKey,
     /// Presence against the rows, key by key.
     PresenceAgrees,
-    /// `language-target`, filled whole.
-    FilledWhole,
-    /// A filler says some rows may be missing, twice.
-    PartialSaysSo,
-    /// A relation refused, and one the request did not ask.
-    RefusedAndUnasked,
-    /// The next file's request after an answer.
-    NextFile,
     /// A node-keyed table read by a word key and by a node no row holds.
     KeyNoRowHolds,
     /// Every relation of the catalog, written and read by each of its node keys.
@@ -106,30 +95,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value([12, 3, 0, 0]),
     },
     Case {
-        name: CaseName("a_relation_filled_whole_answers_every_row_in_written_order"),
-        word: Word::Succeeds,
-        input: || Scenario::FilledWhole,
-        expect: Expect::Value([3, 1, 0, 0]),
-    },
-    Case {
-        name: CaseName("a_partial_answer_says_the_first_cause_and_keeps_its_rows"),
-        word: Word::Succeeds,
-        input: || Scenario::PartialSaysSo,
-        expect: Expect::Value([1, 2, 0, 0]),
-    },
-    Case {
-        name: CaseName("a_refused_or_unasked_relation_says_so_and_has_no_row"),
-        word: Word::Succeeds,
-        input: || Scenario::RefusedAndUnasked,
-        expect: Expect::Value([1, 1, 0, 1]),
-    },
-    Case {
-        name: CaseName("the_next_file_request_forgets_the_last_file_answer"),
-        word: Word::Succeeds,
-        input: || Scenario::NextFile,
-        expect: Expect::Value([0, 1, 0, 0]),
-    },
-    Case {
         name: CaseName("a_key_of_another_space_or_one_no_row_holds_has_no_row"),
         word: Word::Succeeds,
         input: || Scenario::KeyNoRowHolds,
@@ -142,44 +107,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value([1, 0, 1, 1]),
     },
 ];
-
-/// The column `expression-type` is filled by.
-const EXPRESSION: Column = Column::ExpressionType(ExpressionTypeColumn::Id);
-
-/// Six rows of `expression-type` over three nodes, the nodes out of order and each with several rows: node, then type.
-fn expression_types() -> Vec<Vec<CellWord>> {
-    [(5, 10), (2, 11), (5, 12), (9, 13), (2, 14), (5, 15)]
-        .into_iter()
-        .map(|(place, type_)| {
-            vec![
-                node(place),
-                CellWord(1),
-                CellWord(type_),
-                CellWord(u64::from(FILE.0)),
-                CellWord(0),
-            ]
-        })
-        .collect()
-}
-
-/// `rows` with the cell at `place` of each row set to the matching cell of `cells`.
-fn with_cells(
-    mut rows: Vec<Vec<CellWord>>,
-    place: usize,
-    cells: &[CellWord],
-) -> Vec<Vec<CellWord>> {
-    for (each_row, cell) in rows.iter_mut().zip(cells) {
-        if let Some(each) = each_row.get_mut(place) {
-            *each = *cell;
-        }
-    }
-    rows
-}
-
-/// A one-relation answer of `rows`.
-fn one(relation: Relation, rows: Vec<Vec<CellWord>>) -> FactSet {
-    answered(&[(relation, rows)])
-}
 
 fn subject(scenario: Input) -> Result<Value, Failure> {
     Ok(match scenario {
@@ -327,93 +254,6 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
             }
             [12, held, differing, 0]
         }
-        Scenario::FilledWhole => {
-            let rows = vec![
-                row_of(Relation::LanguageTarget, 0, 30),
-                row_of(Relation::LanguageTarget, 0, 10),
-                row_of(Relation::LanguageTarget, 0, 20),
-            ];
-            let set = one(Relation::LanguageTarget, rows);
-            let table = table_of(&set, Relation::LanguageTarget);
-            let all = every_row(table);
-            let major = columns(Relation::LanguageTarget)
-                .get(1)
-                .copied()
-                .ok_or(())?;
-            let majors = read(table, major, FactRowList::Run(all));
-            [
-                u64::from(all.end.0 - all.first.0),
-                u64::from(majors == [CellWord(30), CellWord(10), CellWord(20)]),
-                length(rows_of(table, major, FactKey::Word(CellWord(30)))),
-                0,
-            ]
-        }
-        Scenario::PartialSaysSo => {
-            let first = PartialRows {
-                cause: FillerSentence("an unread construct".into()),
-                missing: Missing::Any,
-            };
-            let second = PartialRows {
-                cause: FillerSentence("another".into()),
-                missing: Missing::Any,
-            };
-            let mut set = FactSet::default();
-            begun(&mut set, &request_of(&[Relation::LanguageTarget]));
-            let mut writing = writer(&mut set, Relation::LanguageTarget);
-            row(
-                &mut writing,
-                FactCells(&row_of(Relation::LanguageTarget, 0, 1)),
-            );
-            partial(&mut writing, first.clone());
-            row(
-                &mut writing,
-                FactCells(&row_of(Relation::LanguageTarget, 0, 2)),
-            );
-            partial(&mut writing, second);
-            finished(writing);
-            let all = every_row(table_of(&set, Relation::LanguageTarget));
-            [
-                u64::from(answer_of(&set, Relation::LanguageTarget) == FactAnswer::Partial(first)),
-                u64::from(all.end.0 - all.first.0),
-                0,
-                0,
-            ]
-        }
-        Scenario::RefusedAndUnasked => {
-            let mut set = one(Relation::ExpressionType, expression_types());
-            refused(
-                &mut set,
-                Relation::ExpressionType,
-                AbsenceCause::NoSuchConstruct,
-            );
-            let request = request_of(&[Relation::ExpressionType]);
-            [
-                u64::from(
-                    answer_of(&set, Relation::ExpressionType)
-                        == FactAnswer::Refused(AbsenceCause::NoSuchConstruct),
-                ),
-                u64::from(
-                    answer_of(&set, Relation::Comment)
-                        == FactAnswer::Refused(AbsenceCause::NotYetRead),
-                ),
-                u64::from(every_row(table_of(&set, Relation::ExpressionType)).end.0),
-                u64::from(asked(&request).eq([Relation::ExpressionType])),
-            ]
-        }
-        Scenario::NextFile => {
-            let mut set = one(Relation::ExpressionType, expression_types());
-            begun(&mut set, &request_of(&[Relation::StringLiteral]));
-            let table = table_of(&set, Relation::ExpressionType);
-            [
-                u64::from(every_row(table).end.0),
-                u64::from(
-                    answer_of(&set, Relation::ExpressionType)
-                        == FactAnswer::Refused(AbsenceCause::NotYetRead),
-                ),
-                length(rows_of(table, EXPRESSION, FactKey::Node(Position(5)))),
-                0,
-            ]
-        }
         Scenario::KeyNoRowHolds => {
             let set = one(Relation::ExpressionType, expression_types());
             let table = table_of(&set, Relation::ExpressionType);
@@ -474,6 +314,9 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         }
     })
 }
+
+#[cfg(test)]
+mod answers_test;
 
 #[test]
 fn succeeds() {

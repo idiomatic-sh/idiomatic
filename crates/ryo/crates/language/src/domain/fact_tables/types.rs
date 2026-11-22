@@ -4,11 +4,16 @@
 //! table's layout, its indexes and the source that wrote it are private: the engine reads every table through the one lookup
 //! of `fact_tables::service` and never asks the language again for the file.
 
+use super::keying::types::{KeyBits, KeyedRow};
 use crate::domain::facts::types::{CellWord, EntityId, FactAnswer, PartialRows};
 use ryo_relations::domain::relations::types::{Column, Count, Position};
 
 /// The one request of a file: the relations its surviving rules read, one bit a relation by its place in the catalog's
 /// list. Made by `fact_tables::service::request_of`.
+///
+/// ```compile_fail,E0451
+/// let forged = ryo_language::domain::fact_tables::types::FactRequest { relations: Vec::new() };
+/// ```
 ///
 /// # Examples
 ///
@@ -99,7 +104,22 @@ pub enum FactRowList<'t> {
     Listed(&'t [FactRow]),
 }
 
-/// The rows of a `FactRowList`, one at a time.
+/// The rows of a `FactRowList`, one at a time: made by its `into_iter`.
+///
+/// ```compile_fail,E0451
+/// fn forged(walk: ryo_language::domain::fact_tables::types::FactRowListIter<'_>) {
+///     let _again = ryo_language::domain::fact_tables::types::FactRowListIter { walk: walk.walk };
+/// }
+/// ```
+///
+/// # Examples
+///
+/// ```
+/// use ryo_language::domain::fact_tables::types::{FactRow, FactRowList};
+///
+/// let rows = [FactRow(4)];
+/// assert_eq!(FactRowList::Listed(&rows).into_iter().next(), Some(FactRow(4)));
+/// ```
 #[derive(Clone, Debug)]
 pub struct FactRowListIter<'t> {
     /// Where the walk is.
@@ -284,19 +304,6 @@ pub(crate) enum IndexOrder {
     Other,
 }
 
-/// Where a key's bit is: its word of `present`, and the bit in it.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct BitAt {
-    /// The word.
-    pub(crate) word: Count,
-    /// The bit.
-    pub(crate) bit: KeyBits,
-}
-
-/// Sixty-four keys of an index, one bit each: the key has a row.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct KeyBits(pub(crate) u64);
-
 /// How many keys before a word of `KeyBits` have rows: the rank a key's row or rows are found by.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct KeyRank(pub(crate) u32);
@@ -304,11 +311,6 @@ pub(crate) struct KeyRank(pub(crate) u32);
 /// A key as a table numbers it: a node's place, a word's code or an entity's id.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct KeyCode(pub(crate) u32);
-
-/// A row's key number above its row number, in one word: sorted, the rows are in key order and, within a key, in the order
-/// they were written.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) struct KeyedRow(pub(crate) u64);
 
 /// The room a table puts its rows in key order with, kept from file to file.
 #[derive(Clone, Debug, Default)]
