@@ -7,7 +7,7 @@ use crate::domain::stages::types::NodeNames;
 use ryo_language::domain::facts::service::intern;
 use ryo_language::domain::facts::types::{CellWord, FileWords};
 use ryo_language::domain::node_table::service::{
-    embedded_segments, field_of, kind_of, node_count, ordinal_of, own_end, parent_of, span_of, subtree_end_of,
+    decoded_of, embedded_segments, field_of, kind_of, node_count, ordinal_of, own_end, parent_of, span_of, subtree_end_of,
 };
 use ryo_language::domain::node_table::types::NodeTable;
 use ryo_relations::domain::relations::service::{node_id, node_position, to_bits};
@@ -101,6 +101,18 @@ pub(crate) fn node_cell(
                 && *held != NO_WORD
             {
                 return *held;
+            }
+            // A token of an embedded segment is the text the language read there (an escape decoded, the parts of a
+            // concatenation joined), not the bytes of the host span it is placed at.
+            if at >= own_end(nodes)
+                && token(nodes, at)
+                && let Some(text) = decoded_of(nodes, at)
+            {
+                let word = intern(words, text);
+                if let Some(held) = texts.get_mut(place) {
+                    *held = word;
+                }
+                return word;
             }
             let span = span_of(nodes, at);
             let (start, end) = if token(nodes, at) {
