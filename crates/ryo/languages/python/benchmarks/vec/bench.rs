@@ -228,6 +228,17 @@ fn field_index(cols: &mut Columns, fields: usize) {
     }
 }
 
+/// One pass: the fields present in a file, read off the table's field lists (a step a field code).
+fn fields_present(table: &NodeTable, cols: &mut Columns, fields: usize) {
+    cols.field_present.clear();
+    cols.field_present.resize(words(fields), 0);
+    for f in 0..fields {
+        if !node_table::ids_of_field(table, languages::FieldCode(f as u16)).is_empty() {
+            cols.field_present[f / 64] |= 1 << (f % 64);
+        }
+    }
+}
+
 fn test_lit(lit: &Lit, text: &[u8]) -> bool {
     match lit {
         Lit::None => true,
@@ -1663,19 +1674,19 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
         if !ok {
             continue;
         }
-        extract(t, &mut cols, true, true);
-        funnel::parents(t, &cols, &mut st);
-        field_index(&mut cols, fields_width.max(1));
+        // one pass: the table's own columns and field lists are read in place; only the fields present are gathered (a step a
+        // field code, not an element)
+        fields_present(t, &mut cols, fields_width.max(1));
         let c2 = thread_cpu();
         phases.add("extract columns + parents + field buckets", c2 - c1);
         if structured {
             for _ in 0..repeat {
-                funnel::structure(t, &cols, &mut st, &function, &class, &looping);
+                funnel::structure(t, &mut st, &function, &class, &looping);
             }
             phases.add("structure pass", (thread_cpu() - c2) / repeat as f64);
             if !fact_catalog.enc_sets.is_empty() {
                 let e0 = thread_cpu();
-                funnel::enclosing(&cols, &mut st, &fact_catalog.enc_sets);
+                funnel::enclosing(t, &mut st, &fact_catalog.enc_sets);
                 phases.add("enclosing columns (one per kind set)", thread_cpu() - e0);
             }
         }
@@ -1691,7 +1702,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                 pairs.clear();
                 for p in node_table::ids_of_kind(t, KindBits(name_token)) {
                     let i = p.0 as usize;
-                    if let Some(w) = words.ids.get(&bytes[cols.start[i] as usize..cols.end[i] as usize]) {
+                    if let Some(w) = words.ids.get(&bytes[node_table::starts(t)[i] as usize..node_table::ends(t)[i] as usize]) {
                         present[usize::from(*w) / 64] |= 1 << (w % 64);
                         pairs.push((*w, p.0));
                     }
@@ -1721,7 +1732,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                     let mut set: std::collections::HashSet<&[u8]> = std::collections::HashSet::new();
                     for p in node_table::ids_of_kind(t, KindBits(name_token)) {
                         let i = p.0 as usize;
-                        let _ = set.insert(&bytes[cols.start[i] as usize..cols.end[i] as usize]);
+                        let _ = set.insert(&bytes[node_table::starts(t)[i] as usize..node_table::ends(t)[i] as usize]);
                     }
                     distinct_total += set.len() as u64;
                     present.iter_mut().for_each(|w| *w = 0);
@@ -1783,7 +1794,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
         if dump_out.is_some() {
             dump::table(&mut dumped, file_no, t, vocab.kind_names.len());
             let mut h = dump::Hashed::default();
-            h.rows(&st.parent);
+            h.rows(node_table::parent_ids(t));
             h.rows(&st.pkind);
             h.rows(&st.cmask);
             h.rows(&st.sibling);
@@ -1793,8 +1804,15 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
             h.rows(&st.enc);
             h.line(&mut dumped, file_no, "structure");
             let mut h = dump::Hashed::default();
-            h.rows(&cols.field_offsets);
-            h.rows(&cols.by_field);
+            // the field buckets as the harness's counting sort laid them out: offsets, then the ids, then the present bits
+            let mut offsets = vec![0u32];
+            let mut ids: Vec<u32> = Vec::new();
+            for f in 0..fields_width.max(1) {
+                ids.extend(node_table::ids_of_field(t, languages::FieldCode(f as u16)).iter().map(|p| p.0));
+                offsets.push(ids.len() as u32);
+            }
+            h.rows(&offsets);
+            h.rows(&ids);
             h.rows(&cols.field_present);
             h.line(&mut dumped, file_no, "fields");
             let mut h = dump::Hashed::default();
@@ -1834,29 +1852,26 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
         let ctx = funnel::Ctx {
             table: t,
             src: &bytes,
-            kind: &cols.kind,
-            field: &cols.field,
-            start: &cols.start,
-            end: &cols.end,
-            parent: &st.parent,
+            kind: node_table::kind_codes(t),
+            field: node_table::field_codes(t),
+            start: node_table::starts(t),
+            end: node_table::ends(t),
+            parent: node_table::parent_ids(t),
             pkind: if structured { &st.pkind } else { &[] },
             cmask: if structured { &st.cmask } else { &[] },
             facts: &store,
             enc: &st.enc,
             matches: &interner.matches,
         };
-        if marked.len() < cols.kind.len() {
-            marked.resize(cols.kind.len(), 0);
+        if marked.len() < node_table::kind_codes(t).len() {
+            marked.resize(node_table::kind_codes(t).len(), 0);
         }
         let fill = |key: &Key, buf: &mut Vec<u32>| {
             buf.clear();
             match *key {
                 Key::Word(w) => buf.extend_from_slice(&word_pos[word_offsets[usize::from(w)] as usize..word_offsets[usize::from(w) + 1] as usize]),
                 Key::Kind(k) => buf.extend(node_table::ids_of_kind(t, KindBits(k)).iter().map(|p| p.0)),
-                Key::Field(f) => {
-                    let (a, b) = (cols.field_offsets[usize::from(f)] as usize, cols.field_offsets[usize::from(f) + 1] as usize);
-                    buf.extend_from_slice(&cols.by_field[a..b]);
-                }
+                Key::Field(f) => buf.extend(node_table::ids_of_field(t, languages::FieldCode(f)).iter().map(|p| p.0)),
             }
         };
         let c4 = thread_cpu();

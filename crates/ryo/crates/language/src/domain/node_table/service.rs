@@ -45,12 +45,16 @@ pub fn builder(table: &mut NodeTable, kinds: Count) -> NodeTableBuilder<'_> {
     columns.kind.clear();
     columns.parent.clear();
     columns.subtree_end.clear();
-    columns.span.clear();
+    columns.start.clear();
+    columns.end.clear();
     columns.field.clear();
     columns.ordinal.clear();
     columns.child_range.clear();
     columns.children.clear();
     for ids in &mut columns.by_kind {
+        ids.clear();
+    }
+    for ids in &mut columns.by_field {
         ids.clear();
     }
     if columns.by_kind.len() < kinds.0 {
@@ -89,26 +93,42 @@ fn mapped(state: &BuilderState<'_>, start: Offset, end: Offset) -> ByteSpan {
             start: Offset(start.0.saturating_add(content.0)),
             end: Offset(end.0.saturating_add(content.0)),
         },
-        BuilderSegment::Embedded(host, EmbeddedMapping::WholeHost) => state
-            .table
-            .0
-            .span
-            .get(usize::from(host))
-            .copied()
-            .unwrap_or_default(),
+        BuilderSegment::Embedded(host, EmbeddedMapping::WholeHost) => {
+            let columns = &state.table.0;
+            match (
+                columns.start.get(usize::from(host)),
+                columns.end.get(usize::from(host)),
+            ) {
+                (Some(start), Some(end)) => ByteSpan {
+                    start: Offset(*start),
+                    end: Offset(*end),
+                },
+                (Some(_) | None, _) => ByteSpan::default(),
+            }
+        }
     }
 }
 
 /// Adds the element `id` of `kind` to its kind's list as it is numbered: ids are numbered in increasing order, so each list
 /// stays in id order. The builder made a list for every kind of the language; a code past them makes its own.
-fn numbered(columns: &mut super::types::NodeTableEngine, kind: KindBits, id: Position) {
-    let code = usize::from(kind.0);
-    if let Some(ids) = columns.by_kind.get_mut(code) {
+fn numbered(
+    columns: &mut super::types::NodeTableEngine,
+    kind: KindBits,
+    field: FieldCode,
+    id: Position,
+) {
+    listed(&mut columns.by_kind, usize::from(kind.0), id);
+    listed(&mut columns.by_field, usize::from(field.0), id);
+}
+
+/// Adds `id` to the list of `code`, making the lists up to it when there are fewer.
+fn listed(lists: &mut Vec<Vec<Position>>, code: usize, id: Position) {
+    if let Some(ids) = lists.get_mut(code) {
         ids.push(id);
         return;
     }
-    columns.by_kind.resize_with(code.saturating_add(1), Vec::new);
-    if let Some(ids) = columns.by_kind.get_mut(code) {
+    lists.resize_with(code.saturating_add(1), Vec::new);
+    if let Some(ids) = lists.get_mut(code) {
         ids.push(id);
     }
 }
@@ -192,14 +212,15 @@ pub fn enter_node(
     let ChildPlace { parent, ordinal } = placed(state, id);
     let span = mapped(state, start, start);
     let columns = &mut state.table.0;
-    columns.kind.push(kind);
-    columns.parent.push(parent);
+    columns.kind.push(kind.0);
+    columns.parent.push(parent.0);
     columns.subtree_end.push(Position(id.0.saturating_add(1)));
-    columns.span.push(span);
-    columns.field.push(field);
+    columns.start.push(span.start.0);
+    columns.end.push(span.end.0);
+    columns.field.push(field.0);
     columns.ordinal.push(ordinal);
     columns.child_range.push(ChildRange::default());
-    numbered(columns, kind, id);
+    numbered(columns, kind, field, id);
     state.open.push(OpenNode {
         position: id,
         next: ChildOrdinal(0),
@@ -288,8 +309,13 @@ fn leave_open(state: &mut BuilderState<'_>, end: Offset) {
     if let Some(subtree) = columns.subtree_end.get_mut(usize::from(open.position)) {
         *subtree = after;
     }
-    if !implied && let Some(span) = columns.span.get_mut(usize::from(open.position)) {
-        span.end = span_end.max(span.start);
+    if !implied
+        && let (Some(start), Some(stop)) = (
+            columns.start.get(usize::from(open.position)),
+            columns.end.get_mut(usize::from(open.position)),
+        )
+    {
+        *stop = span_end.0.max(*start);
     }
     state.cursor = state.cursor.max(end);
     if state.open.is_empty() {
@@ -306,14 +332,15 @@ fn close_segment(state: &mut BuilderState<'_>) {
     }
     for token in state.pending.drain(..) {
         let id = id_after(Count(columns.kind.len()));
-        columns.kind.push(token.kind);
-        columns.parent.push(token.parent);
+        columns.kind.push(token.kind.0);
+        columns.parent.push(token.parent.0);
         columns.subtree_end.push(Position(id.0.saturating_add(1)));
-        columns.span.push(token.span);
-        columns.field.push(token.field);
+        columns.start.push(token.span.start.0);
+        columns.end.push(token.span.end.0);
+        columns.field.push(token.field.0);
         columns.ordinal.push(token.ordinal);
         columns.child_range.push(ChildRange::default());
-        numbered(columns, token.kind, id);
+        numbered(columns, token.kind, token.field, id);
         if let Some(slot) = columns.children.get_mut(usize::from(token.slot)) {
             *slot = id;
         }
@@ -724,12 +751,7 @@ pub fn finished<'b>(builder: &'b mut NodeTableBuilder<'_>) -> &'b NodeTable {
 /// ```
 #[must_use]
 pub fn kind_of(table: &NodeTable, id: Position) -> KindBits {
-    table
-        .0
-        .kind
-        .get(usize::from(id))
-        .copied()
-        .unwrap_or(KindBits(0))
+    KindBits(table.0.kind.get(usize::from(id)).copied().unwrap_or(0))
 }
 
 /// The parent of an element: a root's is itself, an embedded root's its host.
@@ -749,7 +771,11 @@ pub fn kind_of(table: &NodeTable, id: Position) -> KindBits {
 /// ```
 #[must_use]
 pub fn parent_of(table: &NodeTable, id: Position) -> Position {
-    table.0.parent.get(usize::from(id)).copied().unwrap_or(id)
+    table
+        .0
+        .parent
+        .get(usize::from(id))
+        .map_or(id, |parent| Position(*parent))
 }
 
 /// Where an element is in the file's bytes.
@@ -769,12 +795,17 @@ pub fn parent_of(table: &NodeTable, id: Position) -> Position {
 /// ```
 #[must_use]
 pub fn span_of(table: &NodeTable, id: Position) -> ByteSpan {
-    table
-        .0
-        .span
-        .get(usize::from(id))
-        .copied()
-        .unwrap_or_default()
+    let columns = &table.0;
+    match (
+        columns.start.get(usize::from(id)),
+        columns.end.get(usize::from(id)),
+    ) {
+        (Some(start), Some(end)) => ByteSpan {
+            start: Offset(*start),
+            end: Offset(*end),
+        },
+        (Some(_) | None, _) => ByteSpan::default(),
+    }
 }
 
 /// The field an element fills in its parent; zero for none.
@@ -796,12 +827,7 @@ pub fn span_of(table: &NodeTable, id: Position) -> ByteSpan {
 /// ```
 #[must_use]
 pub fn field_of(table: &NodeTable, id: Position) -> FieldCode {
-    table
-        .0
-        .field
-        .get(usize::from(id))
-        .copied()
-        .unwrap_or_default()
+    FieldCode(table.0.field.get(usize::from(id)).copied().unwrap_or(0))
 }
 
 /// The place of an element among its parent's children, nodes and tokens merged in source order.
@@ -910,6 +936,134 @@ pub fn ids_of_kind(table: &NodeTable, kind: KindBits) -> &[Position] {
         .by_kind
         .get(usize::from(kind.0))
         .map_or(&[], Vec::as_slice)
+}
+
+/// The ids of every element that fills `field` in its parent, in id order; field zero lists the elements that fill none.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_language::domain::node_table::service::{builder, enter_node, finished, ids_of_field, leave_node};
+/// use ryo_language::domain::node_table::types::{FieldCode, NodeTable};
+/// use ryo_relations::domain::relations::types::{Count, KindBits, Offset, Position};
+///
+/// let mut table = NodeTable::default();
+/// let mut writer = builder(&mut table, Count(2));
+/// enter_node(&mut writer, KindBits(1), FieldCode(0), Offset(0));
+/// enter_node(&mut writer, KindBits(1), FieldCode(3), Offset(0));
+/// leave_node(&mut writer, Offset(0));
+/// leave_node(&mut writer, Offset(0));
+/// assert_eq!(ids_of_field(finished(&mut writer), FieldCode(3)), &[Position(1)]);
+/// ```
+#[must_use]
+pub fn ids_of_field(table: &NodeTable, field: FieldCode) -> &[Position] {
+    table
+        .0
+        .by_field
+        .get(usize::from(field.0))
+        .map_or(&[], Vec::as_slice)
+}
+
+/// The kind code of every element, by id: the column itself, for an engine that reads it whole.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_language::domain::node_table::service::{builder, enter_node, finished, kind_codes, leave_node};
+/// use ryo_language::domain::node_table::types::{FieldCode, NodeTable};
+/// use ryo_relations::domain::relations::types::{Count, KindBits, Offset};
+///
+/// let mut table = NodeTable::default();
+/// let mut writer = builder(&mut table, Count(8));
+/// enter_node(&mut writer, KindBits(7), FieldCode(0), Offset(0));
+/// leave_node(&mut writer, Offset(0));
+/// assert_eq!(kind_codes(finished(&mut writer)), &[7]);
+/// ```
+#[must_use]
+pub fn kind_codes(table: &NodeTable) -> &[u16] {
+    &table.0.kind
+}
+
+/// The field code of every element, by id (zero: none): the column itself.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_language::domain::node_table::service::{builder, enter_node, field_codes, finished, leave_node};
+/// use ryo_language::domain::node_table::types::{FieldCode, NodeTable};
+/// use ryo_relations::domain::relations::types::{Count, KindBits, Offset};
+///
+/// let mut table = NodeTable::default();
+/// let mut writer = builder(&mut table, Count(2));
+/// enter_node(&mut writer, KindBits(1), FieldCode(0), Offset(0));
+/// leave_node(&mut writer, Offset(0));
+/// assert_eq!(field_codes(finished(&mut writer)), &[0]);
+/// ```
+#[must_use]
+pub fn field_codes(table: &NodeTable) -> &[u16] {
+    &table.0.field
+}
+
+/// The parent id of every element, by id (a root's is itself): the column itself.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_language::domain::node_table::service::{builder, enter_node, finished, leave_node, parent_ids};
+/// use ryo_language::domain::node_table::types::{FieldCode, NodeTable};
+/// use ryo_relations::domain::relations::types::{Count, KindBits, Offset};
+///
+/// let mut table = NodeTable::default();
+/// let mut writer = builder(&mut table, Count(2));
+/// enter_node(&mut writer, KindBits(1), FieldCode(0), Offset(0));
+/// enter_node(&mut writer, KindBits(1), FieldCode(0), Offset(0));
+/// leave_node(&mut writer, Offset(0));
+/// leave_node(&mut writer, Offset(0));
+/// assert_eq!(parent_ids(finished(&mut writer)), &[0, 0]);
+/// ```
+#[must_use]
+pub fn parent_ids(table: &NodeTable) -> &[u32] {
+    &table.0.parent
+}
+
+/// The first byte of every element, by id: the column itself.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_language::domain::node_table::service::{builder, enter_node, finished, leave_node, starts};
+/// use ryo_language::domain::node_table::types::{FieldCode, NodeTable};
+/// use ryo_relations::domain::relations::types::{Count, KindBits, Offset};
+///
+/// let mut table = NodeTable::default();
+/// let mut writer = builder(&mut table, Count(2));
+/// enter_node(&mut writer, KindBits(1), FieldCode(0), Offset(2));
+/// leave_node(&mut writer, Offset(5));
+/// assert_eq!(starts(finished(&mut writer)), &[2]);
+/// ```
+#[must_use]
+pub fn starts(table: &NodeTable) -> &[u32] {
+    &table.0.start
+}
+
+/// The byte after the last of every element, by id: the column itself.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_language::domain::node_table::service::{builder, ends, enter_node, finished, leave_node};
+/// use ryo_language::domain::node_table::types::{FieldCode, NodeTable};
+/// use ryo_relations::domain::relations::types::{Count, KindBits, Offset};
+///
+/// let mut table = NodeTable::default();
+/// let mut writer = builder(&mut table, Count(2));
+/// enter_node(&mut writer, KindBits(1), FieldCode(0), Offset(2));
+/// leave_node(&mut writer, Offset(5));
+/// assert_eq!(ends(finished(&mut writer)), &[5]);
+/// ```
+#[must_use]
+pub fn ends(table: &NodeTable) -> &[u32] {
+    &table.0.end
 }
 
 /// The kinds that occur in the file.

@@ -33,16 +33,18 @@ pub struct NodeTable(pub(crate) NodeTableEngine);
 /// The private columns of a `NodeTable`, one entry per id unless said otherwise.
 #[derive(Debug, Default)]
 pub(crate) struct NodeTableEngine {
-    /// Kind of each node and token, in the language's own numbering.
-    pub(crate) kind: Vec<KindBits>,
-    /// Parent of each node and token (a root is its own parent; an embedded root's parent is its host).
-    pub(crate) parent: Vec<Position>,
+    /// Kind code of each node and token, in the language's own numbering: the column an engine reads as it is.
+    pub(crate) kind: Vec<u16>,
+    /// Parent id of each node and token (a root is its own parent; an embedded root's parent is its host).
+    pub(crate) parent: Vec<u32>,
     /// For a node, the id after its last descendant node; for a token, the id after it.
     pub(crate) subtree_end: Vec<Position>,
-    /// First byte and the byte after the last, in the file's bytes.
-    pub(crate) span: Vec<ByteSpan>,
-    /// The field each element fills in its parent.
-    pub(crate) field: Vec<FieldCode>,
+    /// First byte of each element, in the file's bytes.
+    pub(crate) start: Vec<u32>,
+    /// The byte after each element's last.
+    pub(crate) end: Vec<u32>,
+    /// The field code each element fills in its parent.
+    pub(crate) field: Vec<u16>,
     /// The place of each element among its parent's children.
     pub(crate) ordinal: Vec<ChildOrdinal>,
     /// Where each element's children are in `children`: written as the element closes (a token has none).
@@ -52,7 +54,9 @@ pub(crate) struct NodeTableEngine {
     /// Ids of each kind, in id order, one list a kind code: each id is added as it is numbered. Lists are cleared between
     /// files, never dropped.
     pub(crate) by_kind: Vec<Vec<Position>>,
-    /// The kinds present, set as each element is numbered.
+    /// Ids of each field, in id order, one list a field code (zero: no field), added as each id is numbered.
+    pub(crate) by_field: Vec<Vec<Position>>,
+    /// The kinds present, read off the kind lists when the table is finished.
     pub(crate) present: KindsPresent,
     /// How many syntax nodes the file's own tree has: its tokens start here.
     pub(crate) nodes: Count,

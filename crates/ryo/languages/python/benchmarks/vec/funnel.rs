@@ -3,7 +3,7 @@
 //! operations specialised at load (one closure per operation and column type, run over a selection vector), and bit-mask
 //! knock-out (per node a few tests ANDed into a mask of the plans of its bucket).
 
-use super::{Columns, Key, Vocab};
+use super::{Key, Vocab};
 use ryo::languages::{NodeTable, Position, node_table};
 use std::collections::HashMap;
 
@@ -1044,7 +1044,6 @@ pub(super) fn knock(ctx: &Ctx<'_>, group: &Group, nodes: &[u32], file: &[u64], s
 // ---------------------------------------------------------------- the structure pass
 #[derive(Default)]
 pub(super) struct Structure {
-    pub(super) parent: Vec<u32>,
     pub(super) pkind: Vec<u16>,
     pub(super) cmask: Vec<KSet>,
     pub(super) sibling: Vec<u32>,
@@ -1055,16 +1054,10 @@ pub(super) struct Structure {
     pub(super) enc: Vec<Vec<u32>>,
 }
 
-pub(super) fn parents(table: &NodeTable, cols: &Columns, s: &mut Structure) {
-    s.parent.clear();
-    for i in 0..cols.kind.len() as u32 {
-        s.parent.push(node_table::parent_of(table, Position(i)).0);
-    }
-}
-
 /// One forward pass: parent kind, child-kind bitset, sibling index, nearest enclosing function, class and loop.
-pub(super) fn structure(table: &NodeTable, cols: &Columns, s: &mut Structure, function: &KSet, class: &KSet, looping: &KSet) {
-    let n = cols.kind.len();
+pub(super) fn structure(table: &NodeTable, s: &mut Structure, function: &KSet, class: &KSet, looping: &KSet) {
+    let (kind, parent) = (node_table::kind_codes(table), node_table::parent_ids(table));
+    let n = kind.len();
     s.pkind.clear();
     s.cmask.clear();
     s.cmask.resize(n, [0; 4]);
@@ -1073,9 +1066,9 @@ pub(super) fn structure(table: &NodeTable, cols: &Columns, s: &mut Structure, fu
     s.enc_class.clear();
     s.enc_loop.clear();
     for i in 0..n {
-        let p = s.parent[i] as usize;
-        let k = cols.kind[i];
-        let pk = cols.kind[p];
+        let p = parent[i] as usize;
+        let k = kind[i];
+        let pk = kind[p];
         s.pkind.push(pk);
         if p != i {
             s.cmask[p][usize::from(k) / 64] |= 1 << (k % 64);
@@ -1100,23 +1093,24 @@ pub(super) fn structure(table: &NodeTable, cols: &Columns, s: &mut Structure, fu
 }
 
 /// The enclosing columns of the plans' kind sets, one forward pass each over the parent and kind columns.
-pub(super) fn enclosing(cols: &Columns, s: &mut Structure, sets: &[KSet]) {
-    let n = cols.kind.len();
+pub(super) fn enclosing(table: &NodeTable, s: &mut Structure, sets: &[KSet]) {
+    let (kind, parent) = (node_table::kind_codes(table), node_table::parent_ids(table));
+    let n = kind.len();
     s.enc.resize_with(sets.len(), Vec::new);
     for (k, set) in sets.iter().enumerate() {
         let col = &mut s.enc[k];
         col.clear();
         col.resize(n, u32::MAX);
         for i in 0..n {
-            let p = s.parent[i] as usize;
+            let p = parent[i] as usize;
             if p == i || p >= i {
                 // a root, or a parent written after its child (an embedded segment's host comes first: never here)
-                if p != i && p < n && kbit(set, cols.kind[p]) {
+                if p != i && p < n && kbit(set, kind[p]) {
                     col[i] = p as u32;
                 }
                 continue;
             }
-            col[i] = if kbit(set, cols.kind[p]) { p as u32 } else { col[p] };
+            col[i] = if kbit(set, kind[p]) { p as u32 } else { col[p] };
         }
     }
 }
