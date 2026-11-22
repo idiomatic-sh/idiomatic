@@ -15,6 +15,7 @@ use crate::domain::lowering::flattening::types::{
     AtomRows, FlatAtom, FlatBranch, FlatTerm, RowsPerFile,
 };
 use crate::domain::lowering::nodes::types::StepShape;
+use crate::domain::lowering::placement::patterns::service::definition_table;
 use crate::domain::lowering::placement::types::LoadSample;
 use crate::domain::lowering::planning::service::planned;
 use crate::domain::lowering::planning::types::UnitRole;
@@ -361,6 +362,13 @@ pub(crate) fn restricted(
             let _set = draft.rows.set(RowEstimate(asked.0.div_ceil(ONE.0).max(1)));
         }
         let _new = drafts.keys.insert(keyed);
+        // The keys' table is made here: a prefix that only a program can run has no pipeline, and the table is not
+        // restricted (made later, its failure would refuse the reader's rule).
+        if definition_table(drafts, sample, keyed).is_err() {
+            let _gone = drafts.keys.remove(&keyed);
+            skipped(definition, "its keys have no pipeline");
+            continue;
+        }
         let mut pipelines = Vec::with_capacity(own.len());
         for branch in &own {
             let cells: Option<Vec<FlatTerm>> = mask
