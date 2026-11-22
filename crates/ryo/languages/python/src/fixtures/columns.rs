@@ -297,6 +297,38 @@ pub struct ColumnWalk {
     structure: Option<Vec<languages::KindSet>>,
 }
 
+/// The relations this walk writes per node as fact columns (`ColumnWalk::column`), by catalog name: a consumer may test
+/// them per node.
+pub const PER_NODE_FACTS: [&str; 9] =
+    ["qualified-name", "identifier", "literal-properties", "numeric-literal", "string-literal", "expression-shape", "expression-type", "binding-event", "binding-read"];
+
+/// How a column's literal is spelled in the source as a word: whole, or its last segment after a separator.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Spelling {
+    Whole,
+    LastSegment(char),
+}
+
+/// The (relation, column) pairs whose text is spelled in the file as a name: a reference to `a.b.c` spells `c` (or imports
+/// it under an alias by a statement that spells `c`); an identifier's and a definition's name are spelled whole.
+pub const SPELLED_COLUMNS: [(&str, &str, Spelling); 4] = [
+    ("qualified-name", "path", Spelling::LastSegment('.')),
+    ("static-import", "target", Spelling::LastSegment('.')),
+    ("identifier", "name", Spelling::Whole),
+    ("defines", "name", Spelling::Whole),
+];
+
+/// The kind of the tokens that spell names (the words the first half's word index reads).
+pub const NAME_KIND: &str = "name-token";
+
+/// Whether `text` is a name as this language spells one (a Python identifier: a letter or `_`, then letters, digits or
+/// `_`; Unicode letters and digits count).
+#[must_use]
+pub fn is_identifier(text: &str) -> bool {
+    let mut cs = text.chars();
+    cs.next().is_some_and(|c| c.is_alphabetic() || c == '_') && cs.all(|c| c.is_alphanumeric() || c == '_')
+}
+
 impl ColumnWalk {
     /// A walk under the default settings; `words` are the walk's fixed words (`walking::walk_words`), kept for the shapes' keys.
     #[must_use]

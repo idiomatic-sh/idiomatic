@@ -22,6 +22,7 @@ use ryo_values::domain::query_syntax::types::{
     WrittenOperand, WrittenTest,
 };
 use ryo_values::domain::query_tokens::types::{QuerySourceId, StepName};
+use ryo_values::domain::finish_plans::constants::{OP_CLOSURE, OP_FOLLOW, OP_ORDERED_DFS, OP_ROWS};
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::rc::Rc;
 
@@ -29,41 +30,48 @@ use std::rc::Rc;
 const SYNTAX: [&str; 2] = ["semantic-syntax", "syntax-tree"];
 /// The parent-child relations: a scan gives a parent, a child and the child's field.
 const CHILD: [&str; 2] = ["semantic-child", "syntax-child"];
-/// The derived relations the harness writes per node as fact columns (the column walk and the token order): a scan of one is
-/// a fact variable.
-const FACTS: [&str; 10] = [
-    "qualified-name",
-    "binding-read",
-    "binding-event",
-    "expression-shape",
-    "expression-type",
-    "literal-properties",
-    "numeric-literal",
-    "string-literal",
-    "token-link",
-    "identifier",
-];
-/// Operations whose output keeps no condition of their input but its required words and derived relations.
-const UNCONDITIONED: [&str; 9] = ["closure", "rows", "follow", "symbols", "accesses", "metaclass", "unpack", "mock", "ordered-dfs"];
-/// The arguments of an operation whose relations its output requires (anchors.py `AND_ARGS`).
-const AND_ARGS: [&str; 11] = ["from", "left", "right", "edges", "relation", "expressions", "contexts", "starts", "ordered_contexts", "tokens", "candidates"];
-/// A select with more combinations of its sources' disjuncts than this is not followed (a superset).
+/// What the first half needs to know of the language, all given by the provider: the relations written per node as fact
+/// columns, the columns whose text is spelled in the source as a name (and how), what a name is, and the kind of the
+/// tokens that spell names.
+pub(super) struct Language {
+    pub(super) facts: Vec<String>,
+    pub(super) spelled: Vec<(String, String, Option<char>)>,
+    pub(super) is_identifier: fn(&str) -> bool,
+    pub(super) word_kind: String,
+}
+
+thread_local! {
+    /// The language of the pack being prepared (`prepare` installs it).
+    static LANGUAGE: std::cell::RefCell<Option<Rc<Language>>> = const { std::cell::RefCell::new(None) };
+}
+
+fn language() -> Rc<Language> {
+    LANGUAGE.with(|l| l.borrow().clone()).expect("prepare installs the language")
+}
+
+/// Operations whose rows are reached from their input (traversals, a literal table), not the input's rows: their output
+/// keeps no tree condition of an input. The plan language's own operations (`finish_plans` constants), not a pack's.
+const NEW_ROWS: [&str; 4] = [OP_CLOSURE, OP_FOLLOW, OP_ORDERED_DFS, OP_ROWS];
+/// A select with more combinations of its sources' disjuncts than this is not followed: its relation is opaque (a
+/// superset, so never a lost finding). funnel4.py's own bound on the symbolic product (not a corpus figure); every time it
+/// is reached is counted and printed by `prepare`.
 const CAP: usize = 512;
-/// Registers of a negation's own variables are numbered from here, then renumbered after the positive ones.
+/// Registers of a negation's own variables are numbered from here, then renumbered after the positive ones; a plan with
+/// this many positive registers is refused loudly (a panic), never folded into a negation's.
 const SUB_REG: usize = 1000;
 
 fn ident(w: &str) -> bool {
-    let b = w.as_bytes();
-    !b.is_empty() && (b[0].is_ascii_alphabetic() || b[0] == b'_') && b.iter().all(|c| c.is_ascii_alphanumeric() || *c == b'_')
+    (language().is_identifier)(w)
 }
 
-/// The derived columns whose literal is spelled in the file as a word, and the word it spells.
+/// The word a derived column's literal is spelled as in the source, when the provider declares the column spelled.
 fn word_of(rel: &str, col: &str, value: &str) -> Option<String> {
-    match (rel, col) {
-        ("qualified-name", "path") | ("static-import", "target") => Some(value.rsplit('.').next().unwrap_or(value).to_owned()),
-        ("identifier", "name") | ("defines", "name") => Some(value.to_owned()),
-        _ => None,
-    }
+    let lang = language();
+    let (_, _, how) = lang.spelled.iter().find(|(r, c, _)| r == rel && c == col)?;
+    Some(match how {
+        Some(sep) => value.rsplit(*sep).next().unwrap_or(value).to_owned(),
+        None => value.to_owned(),
+    })
 }
 
 type Set = BTreeSet<String>;
@@ -385,7 +393,8 @@ impl SkipAnalyzer<'_> {
         if name == "antijoin" {
             return SRel::Formula(self.rel(arg(&c.arguments, "left"), env).map_or_else(|| Rc::new(Req::True), |r| r.req()));
         }
-        let reqs = c.arguments.iter().filter(|a| AND_ARGS.contains(&&*a.name.0)).filter_map(|a| self.rel(Some(&a.value), env)).map(|r| r.req()).collect();
+        // every step the call reads is required non-empty (a quoted name gives no clause unless it is a tree relation)
+        let reqs = c.arguments.iter().filter(|a| matches!(a.value, ArgumentValue::Step(_) | ArgumentValue::Word(_))).filter_map(|a| self.rel(Some(&a.value), env)).map(|r| r.req()).collect();
         SRel::Formula(and(reqs))
     }
 
@@ -634,7 +643,8 @@ enum MemoArg {
 }
 
 type MemoKey = (String, Vec<(String, MemoArg)>);
-type Scope = Vec<(Option<String>, Cols)>;
+/// A select's sources by alias, their columns borrowed.
+type Scope<'a> = [(Option<&'a str>, &'a Cols)];
 
 struct Analyzer<'p> {
     frags: &'p ParsedModules,
@@ -714,7 +724,6 @@ impl<'p> Analyzer<'p> {
     }
 
     fn fresh_rel(&mut self, r: &Rel) -> Rel {
-        let _t = timed(0);
         Rel {
             disjs: r
                 .disjs
@@ -751,7 +760,7 @@ impl<'p> Analyzer<'p> {
             ];
             return Rel { disjs: vec![Disj { atoms: Atoms::of(vec![Atom::Parent(c, p)]), negs: Vec::new(), exact: true, cols: Cols::Map(cols) }], opaque: false };
         }
-        if FACTS.contains(&name) {
+        if language().facts.iter().any(|f| f == name) {
             let f = self.fresh();
             let atoms = vec![Atom::Derived(name.into()), Atom::Fact(f, name.into())];
             return Rel { disjs: vec![Disj { atoms: Atoms::of(atoms), negs: Vec::new(), exact: false, cols: Cols::Derived(name.into(), Some(f)) }], opaque: true };
@@ -792,7 +801,6 @@ impl<'p> Analyzer<'p> {
     }
 
     fn select(&mut self, s: &Select, env: &Env<'p>) -> Rel {
-        let _t = timed(1);
         count(1, 1);
         let items: Option<Vec<(String, Option<(Option<String>, String)>)>> = match &s.columns {
             Columns::Every => None,
@@ -822,7 +830,6 @@ impl<'p> Analyzer<'p> {
                     .collect(),
             );
         }
-        let t7 = timed(7);
         let mut rels = Vec::new();
         for src in &sources {
             let r = match &src.reference {
@@ -831,49 +838,42 @@ impl<'p> Analyzer<'p> {
             };
             rels.push((alias_of(&src.alias), r));
         }
-        drop(t7);
         let w = conds(&s.filters);
-        let t4 = timed(4);
-        let mut combos: Vec<Vec<(Option<String>, &Disj)>> = vec![Vec::new()];
+        let mut combos: Vec<Vec<(Option<&str>, &Disj)>> = vec![Vec::new()];
         for (alias, rel) in &rels {
             // more combinations than the cap: not followed (the size is known before the product is made)
             if combos.len() * rel.disjs.len() > CAP {
+                count(6, 1);
                 return opaque();
             }
-            combos = combos.iter().flat_map(|c| rel.disjs.iter().map(move |d| { let mut c = c.clone(); c.push((alias.clone(), d)); c })).collect();
+            combos = combos.iter().flat_map(|c| rel.disjs.iter().map(move |d| { let mut c = c.clone(); c.push((alias.as_deref(), d)); c })).collect();
         }
-        drop(t4);
         let mut out = Vec::new();
         for combo in combos {
-            let t5 = timed(5);
             count(0, 1);
             let (mut atoms, mut negs, mut exact) = (Atoms::default(), Vec::new(), true);
-            let mut scope: Scope = Vec::new();
+            let mut scope: Vec<(Option<&str>, &Cols)> = Vec::new();
             for (alias, d) in combo {
                 atoms.extend_from(&d.atoms);
                 negs.extend(d.negs.iter().cloned());
                 exact = exact && d.exact;
                 match scope.iter_mut().find(|(a, _)| *a == alias) {
-                    Some(slot) => slot.1 = d.cols.clone(),
-                    None => scope.push((alias, d.cols.clone())),
+                    Some(slot) => slot.1 = &d.cols,
+                    None => scope.push((alias, &d.cols)),
                 }
             }
             let mut d = Disj { atoms, negs, exact, cols: Cols::empty() };
-            drop(t5);
             for o in &ons {
                 apply_where(&mut d, o, &scope);
             }
             apply_where(&mut d, &w, &scope);
-            let t6 = timed(5);
             d.cols = project(&scope, items.as_deref());
             out.push(d);
-            drop(t6);
         }
         Rel { disjs: out, opaque: rels.iter().all(|(_, r)| r.opaque) }
     }
 
     fn antijoin(&mut self, args: &[Argument], env: &Env<'p>) -> Rel {
-        let _t = timed(3);
         let left = self.rel(arg(args, "left"), env);
         let right = self.rel(arg(args, "right"), env);
         let (lk, rk) = (keylist(arg(args, "left-on")), keylist(arg(args, "right-on")));
@@ -965,6 +965,7 @@ impl<'p> Analyzer<'p> {
             let (l, r) = (self.rel(arg(args, "left"), env), self.rel(arg(args, "right"), env));
             let opaque_both = l.opaque && r.opaque;
             if l.disjs.len() + r.disjs.len() > CAP {
+                count(6, 1);
                 return opaque();
             }
             let mut ds = l.disjs.clone();
@@ -977,14 +978,15 @@ impl<'p> Analyzer<'p> {
         if name == "antijoin" {
             return self.antijoin(args, env);
         }
-        if name == "rows" && arg(args, "from").is_some() && arg(args, "columns").is_some() {
+        if name == OP_ROWS && arg(args, "from").is_some() && arg(args, "columns").is_some() {
             return rows_table(arg(args, "from"), arg(args, "columns")).unwrap_or_else(opaque);
         }
         let src = arg(args, "from").or_else(|| arg(args, "left"));
-        if UNCONDITIONED.contains(&name) || src.is_none() {
-            let inp = ["from", "edges", "expressions", "contexts", "ordered_contexts"].iter().find_map(|k| arg(args, k));
+        if NEW_ROWS.contains(&name) || src.is_none() {
+            // the first relation the call is given (a step it reads)
+            let inp = args.iter().map(|a| &a.value).find(|v| matches!(v, ArgumentValue::Step(_) | ArgumentValue::Word(_)));
             if let Some(inp) = inp
-                && name != "rows"
+                && name != OP_ROWS
             {
                 let x = self.rel(Some(inp), env);
                 return Rel {
@@ -1068,7 +1070,7 @@ fn rows_table(from: Option<&ArgumentValue>, columns: Option<&ArgumentValue>) -> 
     Some(Rel { disjs: vec![Disj { atoms: Atoms::default(), negs: Vec::new(), exact: false, cols: Cols::Map(cols) }], opaque: true })
 }
 
-fn project(scope: &Scope, items: Option<&[(String, Option<(Option<String>, String)>)]>) -> Cols {
+fn project(scope: &Scope<'_>, items: Option<&[(String, Option<(Option<String>, String)>)]>) -> Cols {
     let mut out = Vec::new();
     let Some(items) = items else {
         for (_, c) in scope {
@@ -1083,7 +1085,7 @@ fn project(scope: &Scope, items: Option<&[(String, Option<(Option<String>, Strin
     for (name, r) in items {
         let v = match r {
             None => None,
-            Some((Some(alias), col)) => scope.iter().find(|(a, _)| a.as_deref() == Some(alias)).and_then(|(_, c)| c.get(col)),
+            Some((Some(alias), col)) => scope.iter().find(|(a, _)| *a == Some(alias.as_str())).and_then(|(_, c)| c.get(col)),
             Some((None, col)) => scope.iter().find(|(_, c)| c.contains(col)).and_then(|(_, c)| c.get(col)),
         };
         put(&mut out, name, v);
@@ -1091,14 +1093,14 @@ fn project(scope: &Scope, items: Option<&[(String, Option<(Option<String>, Strin
     Cols::Map(out)
 }
 
-fn col_of(o: &Opd, scope: &Scope) -> Option<CRef> {
+fn col_of(o: &Opd, scope: &Scope<'_>) -> Option<CRef> {
     let Opd::Col(name, alias) = o else { return None };
     if let Some(a) = alias {
-        return scope.iter().find(|(x, _)| x.as_deref() == Some(a.as_str())).and_then(|(_, c)| c.get(name));
+        return scope.iter().find(|(x, _)| *x == Some(a.as_str())).and_then(|(_, c)| c.get(name));
     }
-    let mut ordered: Vec<&(Option<String>, Cols)> = scope.iter().collect();
-    ordered.sort_by_key(|(_, c)| c.derived());
-    ordered.iter().find(|(_, c)| c.contains(name)).and_then(|(_, c)| c.get(name))
+    // the sources with listed columns first, then the derived ones (every name is one of their columns)
+    let listed = scope.iter().find(|(_, c)| !c.derived() && c.contains(name));
+    listed.or_else(|| scope.iter().find(|(_, c)| c.derived())).and_then(|(_, c)| c.get(name))
 }
 
 fn dlit_atoms(rel: &str, col: &str, f: Option<V>, vals: &Set, op: Cmp) -> Vec<Atom> {
@@ -1136,7 +1138,7 @@ fn lits(o: &Opd) -> Option<Set> {
 }
 
 /// The atoms of one conjunct, or `None` when it cannot be expressed (dropped: inexact).
-fn cond_atoms(c: &Cond, scope: &Scope) -> Option<Vec<Atom>> {
+fn cond_atoms(c: &Cond, scope: &Scope<'_>) -> Option<Vec<Atom>> {
     match c {
         Cond::Cmp(op @ (Cmp::Lt | Cmp::Le | Cmp::Gt | Cmp::Ge), l @ Opd::Col(..), Opd::Lit(v)) => match col_of(l, scope)? {
             CRef::D(_, col, Some(f)) => Some(vec![Atom::Fcond(f, col, op.name(), Rc::from(vec![v.clone()]))]),
@@ -1177,7 +1179,7 @@ fn cond_atoms(c: &Cond, scope: &Scope) -> Option<Vec<Atom>> {
 }
 
 /// An OR: of equalities on one attribute column or one derived column; else its required words and literal marks only.
-fn or_atoms(branches: &[Vec<Cond>], scope: &Scope) -> Option<Vec<Atom>> {
+fn or_atoms(branches: &[Vec<Cond>], scope: &Scope<'_>) -> Option<Vec<Atom>> {
     let mut parts: Vec<&[Cond]> = Vec::new();
     fn flat<'c>(bs: &'c [Vec<Cond>], parts: &mut Vec<&'c [Cond]>) {
         for b in bs {
@@ -1250,8 +1252,7 @@ fn or_atoms(branches: &[Vec<Cond>], scope: &Scope) -> Option<Vec<Atom>> {
     None
 }
 
-fn apply_where(d: &mut Disj, w: &[Cond], scope: &Scope) {
-    let _t = timed(2);
+fn apply_where(d: &mut Disj, w: &[Cond], scope: &Scope<'_>) {
     for c in w {
         match cond_atoms(c, scope) {
             None => d.exact = false,
@@ -1684,6 +1685,7 @@ impl Rooted<'_> {
         if placed.iter().all(|x| *x) && fplaced.iter().all(|x| *x) {
             ops = tree;
         }
+        assert!(reg.len() < SUB_REG, "a plan with {} registers: more than the negations' numbering allows", reg.len());
         renumber(ops, reg.len())
     }
 
@@ -1862,7 +1864,10 @@ pub(super) struct Prepared {
 }
 
 /// Both analyses over every rule of the parsed pack. `word_kind`: the kind of a name token (the walk's vocabulary).
-pub(super) fn prepare(programs: &PackPrograms, word_kind: &str) -> Prepared {
+pub(super) fn prepare(programs: &PackPrograms, lang: Language) -> Prepared {
+    let word_kind = lang.word_kind.clone();
+    let word_kind = word_kind.as_str();
+    LANGUAGE.with(|l| *l.borrow_mut() = Some(Rc::new(lang)));
     let skip = SkipAnalyzer { frags: &programs.fragments };
     let mut an = Analyzer { frags: &programs.fragments, counter: 0, pure: HashMap::new(), local: HashMap::new(), slots: Vec::new(), stamp: 0 };
     let mut skips = Vec::new();
@@ -1898,9 +1903,7 @@ pub(super) fn prepare(programs: &PackPrograms, word_kind: &str) -> Prepared {
         let (mut plans, mut cnfs, mut noanchor) = (Vec::<SpecPlan>::new(), Vec::<Vec<Vec<String>>>::new(), 0usize);
         let mut groups: Vec<Vec<SpecPlan>> = Vec::new();
         for d in &rel.disjs {
-            let tp = timed(6);
             let got = plan_disjunct(d, word_kind, groups.len());
-            drop(tp);
             if !matches!(got, Planned::Unsat) {
                 let c = cnf_of(d);
                 if !cnfs.contains(&c) {
@@ -1942,11 +1945,10 @@ pub(super) fn run_first(args: &[&str]) {
     let read = super::lower::read_pack(std::path::Path::new(args[0]), request);
     for round in 0..repeat {
         let t0 = super::thread_cpu();
-        let p = prepare(&read.programs, "name-token");
+        let p = prepare(&read.programs, super::python_language());
         let t1 = super::thread_cpu();
         let plans: usize = p.rules.iter().map(|r| r.plans.len()).sum();
-        println!("exclusive times (rename, select, where, antijoin, combos, assembly+project, planning, sources) {:?}", times());
-        println!("counts (combos, selects, atoms renamed, disjuncts renamed, fragment calls, memo hits) {:?}", counts());
+        println!("counts (combos, selects, atoms renamed, disjuncts renamed, fragment calls, memo hits, products past the CAP) {:?}", counts());
         println!("round {round} parse {:.4} analysis {:.4} s rules {} node {} plans {plans}", read.parse, t1 - t0, p.rules.len(), p.rules.iter().filter(|r| r.node).count());
         if round == 0
             && let Some(i) = args.iter().position(|a| *a == "--out")
@@ -1964,39 +1966,6 @@ pub(super) fn run_first(args: &[&str]) {
 }
 
 thread_local! {
-    static TIMES: std::cell::RefCell<[f64; 8]> = const { std::cell::RefCell::new([0.0; 8]) };
-    static STACK: std::cell::RefCell<Vec<(usize, f64)>> = const { std::cell::RefCell::new(Vec::new()) };
-}
-/// Exclusive CPU of a category (entering one pauses the one around it), for `vec first`.
-struct Timed;
-fn timed(i: usize) -> Timed {
-    let now = super::thread_cpu();
-    STACK.with(|st| {
-        let mut st = st.borrow_mut();
-        if let Some((c, t)) = st.last_mut() {
-            let (c, e) = (*c, now - *t);
-            TIMES.with(|x| x.borrow_mut()[c] += e);
-            *t = now;
-        }
-        st.push((i, now));
-    });
-    Timed
-}
-impl Drop for Timed {
-    fn drop(&mut self) {
-        let now = super::thread_cpu();
-        STACK.with(|st| {
-            let mut st = st.borrow_mut();
-            if let Some((c, t)) = st.pop() {
-                TIMES.with(|x| x.borrow_mut()[c] += now - t);
-            }
-            if let Some((_, t)) = st.last_mut() {
-                *t = now;
-            }
-        });
-    }
-}
-thread_local! {
     static COUNTS: std::cell::RefCell<[u64; 8]> = const { std::cell::RefCell::new([0; 8]) };
 }
 fn count(i: usize, n: u64) {
@@ -2004,7 +1973,4 @@ fn count(i: usize, n: u64) {
 }
 pub(super) fn counts() -> [u64; 8] {
     COUNTS.with(|c| *c.borrow())
-}
-pub(super) fn times() -> [f64; 8] {
-    TIMES.with(|t| *t.borrow())
 }

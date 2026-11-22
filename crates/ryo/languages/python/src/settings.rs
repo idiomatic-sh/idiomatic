@@ -100,6 +100,13 @@ impl PythonParserSettings {
         self.target_version
     }
 
+    /// The setting whose canonical identity is `text` (a request's parser configuration, `python-target=3.10`).
+    #[must_use]
+    pub fn from_identity(text: &str) -> Option<Self> {
+        use PythonTargetVersion::{Latest, Py37, Py38, Py39, Py310, Py311, Py312, Py313, Py314, Py315};
+        [Py37, Py38, Py39, Py310, Py311, Py312, Py313, Py314, Py315, Latest].into_iter().map(Self::new).find(|s| s.identity().0 == text)
+    }
+
     /// Canonical identity of the effective parser setting.
     #[must_use]
     pub(crate) const fn identity(self) -> ParseConfigurationIdentity<'static> {
