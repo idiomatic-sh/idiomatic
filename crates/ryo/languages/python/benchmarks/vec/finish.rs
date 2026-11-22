@@ -391,10 +391,10 @@ pub(super) struct File<'a> {
     pub(super) parent: Vec<u32>,
     pub(super) line_starts: Vec<u32>,
     text_memo: RefCell<Vec<u32>>,
-    by_start: RefCell<Option<FxHashMap<u32, Vec<u32>>>>,
-    by_end: RefCell<Option<FxHashMap<u32, Vec<u32>>>>,
+    by_start: RefCell<Option<Index>>,
+    by_end: RefCell<Option<Index>>,
     /// 6e: elements by start line and by end line (a keyed list made on first ask).
-    by_line: [RefCell<Option<FxHashMap<u32, Vec<u32>>>>; 2],
+    by_line: [RefCell<Option<Index>>; 2],
     tokens: RefCell<Option<Rc<Tokens>>>,
     memo: Vec<Option<Res>>,
     /// The nodes made, in order: a probe's override drops what was made under it.
@@ -410,7 +410,7 @@ pub(super) struct File<'a> {
     walks: FxHashMap<(usize, bool), FxHashMap<u64, Vec<u64>>>,
     /// 6h: the fills read in place, by `Native::Fact` place, and their keyed lists by (place, column).
     facts: Vec<Option<Rc<Table>>>,
-    fact_ix: RefCell<FxHashMap<(u16, usize), Rc<FxHashMap<u64, Vec<u32>>>>>,
+    fact_ix: RefCell<FxHashMap<(u16, usize), Rc<Index>>>,
 }
 
 /// How a step asks the provider for a relation's rows: the visit's facts.
@@ -626,17 +626,17 @@ impl File<'_> {
         }
     }
     /// 6h: a fill's keyed list on one column (made on the first ask in a file).
-    fn fact_list(&self, i: u16, col: usize) -> Rc<FxHashMap<u64, Vec<u32>>> {
+    fn fact_list(&self, i: u16, col: usize) -> Rc<Index> {
         if let Some(ix) = self.fact_ix.borrow().get(&(i, col)) {
             return ix.clone();
         }
-        let mut m: FxHashMap<u64, Vec<u32>> = FxHashMap::default();
-        if let Some(t) = &self.facts[usize::from(i)] {
-            for (r, v) in t.cols[col].iter().enumerate() {
-                m.entry(*v).or_default().push(r as u32);
+        let m = match &self.facts[usize::from(i)] {
+            Some(t) => {
+                FACT_IX_ROWS.fetch_add(t.n as u64, std::sync::atomic::Ordering::Relaxed);
+                Index::build(t.n, |r| t.cols[col][r])
             }
-            FACT_IX_ROWS.fetch_add(t.n as u64, std::sync::atomic::Ordering::Relaxed);
-        }
+            None => Index::build(0, |_| 0),
+        };
         let rc = Rc::new(m);
         self.fact_ix.borrow_mut().insert((i, col), rc.clone());
         rc
@@ -672,28 +672,20 @@ impl File<'_> {
                 let cell = if col == 5 { &self.by_start } else { &self.by_end };
                 let mut b = cell.borrow_mut();
                 let idx = b.get_or_insert_with(|| {
-                    let mut m: FxHashMap<u32, Vec<u32>> = FxHashMap::default();
                     let src = if col == 5 { &self.start } else { &self.end };
-                    for (p, s) in src.iter().enumerate() {
-                        m.entry(*s).or_default().push(p as u32);
-                    }
-                    m
+                    Index::build(src.len(), |p| u64::from(src[p]))
                 });
-                if let Some(rows) = idx.get(&(v as u32)) {
+                if let Some(rows) = idx.get(&v) {
                     out.extend_from_slice(rows);
                 }
             }
             (Native::Location, 3) | (Native::Location, 4) => {
                 let mut b = self.by_line[col - 3].borrow_mut();
                 let idx = b.get_or_insert_with(|| {
-                    let mut m: FxHashMap<u32, Vec<u32>> = FxHashMap::default();
                     let src = if col == 3 { &self.start } else { &self.end };
-                    for (p, s) in src.iter().enumerate() {
-                        m.entry(self.line(*s) as u32).or_default().push(p as u32);
-                    }
-                    m
+                    Index::build(src.len(), |p| u64::from(self.line(src[p]) as u32))
                 });
-                if let Some(rows) = idx.get(&(v as u32)) {
+                if let Some(rows) = idx.get(&(u64::from(v as u32))) {
                     out.extend_from_slice(rows);
                 }
             }
@@ -3182,7 +3174,17 @@ impl<'p> Exec<'p> {
             let (st, en) = ((sp >> 32) as usize, (sp & 0xffff_ffff) as usize);
             let text = &f.src[st..en];
             let line0 = base_line.map(|b| from.cols[b][i] as i64);
-            let line_at = |off: usize| -> i64 { line0.unwrap_or(0) + text[..off].iter().filter(|c| **c == b'\n').count() as i64 };
+            // 7: the newlines before `off`, counted on from the last offset asked (matches come in order), not from the start
+            let counted = std::cell::Cell::new((0usize, 0i64));
+            let line_at = |off: usize| -> i64 {
+                let (mut at, mut lines) = counted.get();
+                if off < at {
+                    (at, lines) = (0, 0);
+                }
+                lines += text[at..off].iter().filter(|c| **c == b'\n').count() as i64;
+                counted.set((off, lines));
+                line0.unwrap_or(0) + lines
+            };
             for m in re.captures_iter(text) {
                 let w = m.get(0).expect("whole");
                 let g = match &cap {
@@ -3474,7 +3476,64 @@ fn reach_dir(l: &Lazy, key: &[u64], forward: bool) -> Rc<Vec<u64>> {
 }
 
 /// A made table's rows by the value of one column, or by a hash of several (a hash hit is tested again by the join).
-pub(super) type Index = FxHashMap<u64, Vec<u32>>;
+/// 7: rows by key, compressed: one row array, each key's rows one range of it (ascending), found through an offset array
+/// when the keys are small and dense (node ids, offsets), else through a flat hash of (start, length).
+pub(super) struct Index {
+    dense: bool,
+    offs: Vec<u32>,
+    at: FxHashMap<u64, (u32, u32)>,
+    rows: Vec<u32>,
+}
+
+impl Index {
+    pub(super) fn build(n: usize, key: impl Fn(usize) -> u64) -> Index {
+        let keys: Vec<u64> = (0..n).map(key).collect();
+        let max = keys.iter().copied().max().unwrap_or(0);
+        if n > 0 && max < (4 * n as u64).max(1024) {
+            let m = max as usize + 1;
+            let mut offs = vec![0u32; m + 1];
+            for k in &keys {
+                offs[*k as usize + 1] += 1;
+            }
+            for i in 0..m {
+                offs[i + 1] += offs[i];
+            }
+            let mut fill = offs[..m].to_vec();
+            let mut rows = vec![0u32; n];
+            for (r, k) in keys.iter().enumerate() {
+                let p = &mut fill[*k as usize];
+                rows[*p as usize] = r as u32;
+                *p += 1;
+            }
+            return Index { dense: true, offs, at: FxHashMap::default(), rows };
+        }
+        let mut order: Vec<(u64, u32)> = keys.iter().enumerate().map(|(r, k)| (*k, r as u32)).collect();
+        order.sort_unstable();
+        let mut at: FxHashMap<u64, (u32, u32)> = FxHashMap::default();
+        at.reserve(n.min(1 << 16));
+        let mut i = 0;
+        while i < order.len() {
+            let mut j = i;
+            while j < order.len() && order[j].0 == order[i].0 {
+                j += 1;
+            }
+            at.insert(order[i].0, (i as u32, (j - i) as u32));
+            i = j;
+        }
+        Index { dense: false, offs: Vec::new(), at, rows: order.into_iter().map(|x| x.1).collect() }
+    }
+    pub(super) fn get(&self, k: &u64) -> Option<&[u32]> {
+        if self.dense {
+            let k = *k;
+            if k + 1 >= self.offs.len() as u64 {
+                return None;
+            }
+            let (a, b) = (self.offs[k as usize] as usize, self.offs[k as usize + 1] as usize);
+            return if a == b { None } else { Some(&self.rows[a..b]) };
+        }
+        self.at.get(k).map(|(a, l)| &self.rows[*a as usize..(*a + *l) as usize])
+    }
+}
 
 fn key_of(vals: impl Iterator<Item = u64>) -> u64 {
     let mut h: u64 = 0;
@@ -3491,11 +3550,11 @@ fn key_of(vals: impl Iterator<Item = u64>) -> u64 {
 }
 
 fn index_of(t: &Table, cols: &[usize]) -> Index {
-    let mut m: Index = FxHashMap::default();
-    for r in 0..t.n {
-        m.entry(key_of(cols.iter().map(|c| t.cols[*c][r]))).or_default().push(r as u32);
+    if cols.len() == 1 {
+        let c = &t.cols[cols[0]];
+        return Index::build(t.n, |r| c[r]);
     }
-    m
+    Index::build(t.n, |r| key_of(cols.iter().map(|c| t.cols[*c][r])))
 }
 
 fn table_index(f: &mut File<'_>, tn: usize, t: &Table, cols: &[usize]) -> Rc<Index> {

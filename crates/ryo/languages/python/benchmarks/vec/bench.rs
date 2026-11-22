@@ -908,6 +908,14 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
             v.dedup();
         }
     }
+    let mut seed_by_path: HashMap<&str, std::collections::HashSet<&str>> = HashMap::new();
+    for (r, f) in seed.iter().flatten() {
+        seed_by_path.entry(f.as_str()).or_default().insert(r.as_str());
+    }
+    let mut surv_by_path: HashMap<&str, std::collections::HashSet<&str>> = HashMap::new();
+    for (r, f) in surv.keys() {
+        surv_by_path.entry(f.as_str()).or_default().insert(r.as_str());
+    }
     let seed_set: HashMap<&str, usize> = plan.seeds.iter().enumerate().map(|(k, r)| (r.as_str(), k)).collect();
     let mut run = finish::Run::default();
     run.empty = run.sym(b"");
@@ -943,13 +951,16 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     for (file_no, path) in list.iter().enumerate() {
         let w0 = thread_cpu();
         let bytes = std::fs::read(path).expect("read");
+        // 7: the (rule, file) seeds read by file once, not a key copied per rule
+        let seed_here = seed_by_path.get(path.as_str());
+        let surv_here = surv_by_path.get(path.as_str());
         let wanted: Vec<&&(String, usize, String, Vec<String>)> = emits
             .iter()
             .filter(|e| {
                 if seed_set.contains_key(e.0.as_str()) {
-                    surv.contains_key(&(e.0.clone(), path.clone()))
+                    surv_here.is_some_and(|s| s.contains(e.0.as_str()))
                 } else {
-                    seed.as_ref().is_none_or(|s| s.contains(&(e.0.clone(), path.clone())))
+                    seed.is_none() || seed_here.is_some_and(|s| s.contains(e.0.as_str()))
                 }
             })
             .collect();
