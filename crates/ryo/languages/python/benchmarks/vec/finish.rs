@@ -4497,7 +4497,8 @@ fn static_ty(e: &E) -> Ty {
     match e {
         E::Col(_, _, t) => *t,
         E::Num(_) => Ty::Num,
-        E::Call(n, _) if n == "integer_successor" => Ty::Num,
+        // redo-honest: `integer_successor(a, b)` is a test (the shipping engine's `Test::IntegerSuccessor`)
+        E::Call(n, _) if n == "integer_successor" => Ty::Flag,
         E::Text(_) | E::Call(..) => Ty::Sym,
         _ => Ty::Flag,
     }
@@ -4674,7 +4675,21 @@ fn call(run: &mut Run, name: &str, vs: &[V]) -> V {
             flag(re.is_match(&t(run, 0)))
         }
         "natural_lt" => flag(natural_lt(&String::from_utf8_lossy(&t(run, 0)), &String::from_utf8_lossy(&t(run, 1)))),
-        "integer_successor" => V::new(Ty::Num, (vs[0].1 as i64 + 1) as u64),
+        // redo-honest: the shipping engine's meaning (operators numeric_values::integer_successor): whether the right is
+        // exactly the left plus one, both integers (an integer cell, or normalized decimal text); a float never is. It was
+        // a function answering left + 1, read as a test, so every comparison failed.
+        "integer_successor" => {
+            let int = |run: &Run, v: V| -> Option<i128> {
+                match v.ty() {
+                    Ty::Num => Some(i128::from(v.1 as i64)),
+                    _ => {
+                        let s = String::from_utf8_lossy(&text_of(run, v)).replace('_', "");
+                        if s.contains(['.', 'e', 'E']) { None } else { s.parse::<i128>().ok() }
+                    }
+                }
+            };
+            flag(matches!((int(run, vs[0]), int(run, vs[1])), (Some(a), Some(b)) if a.checked_add(1) == Some(b)))
+        }
         "numeric_gte" => {
             let num = |run: &Run, v: V| -> Option<f64> {
                 match v.ty() {

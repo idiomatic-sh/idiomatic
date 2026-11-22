@@ -557,6 +557,10 @@ fn main() {
                 if let Some(at) = args.iter().position(|a| *a == "--finish-stats") {
                     finish_args.extend(["--stats", args[at + 1]]);
                 }
+                // redo-honest: `--applicability F` (the request's rule_applicability) to the second half
+                if let Some(at) = args.iter().position(|a| *a == "--applicability") {
+                    finish_args.extend(["--applicability", args[at + 1]]);
+                }
                 let plan = finish::load(finish_args[0]);
                 let mut fin = finisher::Finisher::new(&plan, &walk, &vocab, &finish_args);
                 run_funnel(&walk, &vocab, &args[2..], Some(&mut fin));

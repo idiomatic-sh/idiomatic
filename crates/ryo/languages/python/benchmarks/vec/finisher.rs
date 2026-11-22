@@ -24,6 +24,9 @@ pub(super) struct Finisher<'p> {
     fwords: languages::FileWords,
     findings: Vec<String>,
     failed: HashMap<String, String>,
+    /// redo-honest: per plan emit, whether its rule runs only on a file whose syntax the parser accepted (the request's
+    /// `rule_applicability`, `--applicability F`: "accepted-syntax"); without the flag every rule runs on every file.
+    accepted_only: Vec<bool>,
     /// redo-union pass 2 c16: a failed emit by its index (no name hashed an emit a file).
     failed_idx: Vec<bool>,
     check_lines: Vec<String>,
@@ -97,6 +100,7 @@ impl<'p> Finisher<'p> {
             findings: Vec::new(),
             failed: HashMap::new(),
             failed_idx: vec![false; plan.emits.len()],
+            accepted_only: applicability(plan, flag(args, "--applicability").as_deref()),
             check_lines: Vec::new(),
             files_run: 0,
             provider_time: 0.0,
@@ -200,8 +204,9 @@ impl<'p> Finisher<'p> {
                 }
             }
         }
+        let rejected = languages::node_table::acceptance_of(ft) == languages::SyntaxAcceptance::Rejected;
         for ei in wanted {
-            if self.failed_idx[*ei] {
+            if self.failed_idx[*ei] || (rejected && self.accepted_only[*ei]) {
                 continue;
             }
             let e = &plan.emits[*ei];
@@ -319,4 +324,13 @@ impl<'p> Finisher<'p> {
         // redo-union pass 2 c18: the process ends here: the executor is not dropped one by one
         std::mem::forget(self.exec);
     }
+}
+
+/// redo-honest: per plan emit, whether its rule's applicability is "accepted-syntax" in `path` (a request's
+/// `rule_applicability`, or that map alone); none given: false for every emit (every rule runs on every file).
+fn applicability(plan: &finish::Plan, path: Option<&str>) -> Vec<bool> {
+    let Some(path) = path else { return vec![false; plan.emits.len()] };
+    let j: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(path).expect("applicability file")).expect("applicability json");
+    let map = j.get("rule_applicability").unwrap_or(&j);
+    plan.emits.iter().map(|e| map.get(&e.0).and_then(serde_json::Value::as_str) == Some("accepted-syntax")).collect()
 }
