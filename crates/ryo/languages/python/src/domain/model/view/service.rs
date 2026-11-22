@@ -25,6 +25,9 @@ pub(crate) fn built(model: &mut SemanticModel, built: &mut Built, part: ModelPar
         lexical::build(&mut model.lexical, &mut model.names, tree);
         declarations::build(&mut model.lexical, tree);
         definitions::build(&mut model.definitions, &model.lexical, &model.names, tree);
+        if declarations::routed(&mut model.lexical, &model.definitions, tree) {
+            definitions::build(&mut model.definitions, &model.lexical, &model.names, tree);
+        }
         built.lexical = PartState::Ready;
     }
     if part == ModelPart::Resolution && built.resolution == PartState::Pending {
