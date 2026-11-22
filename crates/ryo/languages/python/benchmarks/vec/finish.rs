@@ -776,6 +776,13 @@ pub(super) struct Stats {
     /// 7: probes answered by a key list asked before, and their keys.
     pub(super) memo_reused: u64,
     pub(super) memo_reused_keys: u64,
+    /// pass 2 (`VEC_STEP_TIME`): seconds of the whole runs answered known empty, from the memo miss to the answer, and
+    /// how many (the clock's own pair cost is taken off in the report).
+    pub(super) known_time: f64,
+    pub(super) known_timed: u64,
+    /// pass 2: keys the per-key memo did not have (run below it), and probes it answered whole.
+    pub(super) memo_missing: u64,
+    pub(super) memo_whole_hits: u64,
 }
 
 // ------------------------------------------------------------------------------------------------ expressions
@@ -874,6 +881,7 @@ pub(super) struct Exec<'p> {
     scratch_made: Vec<usize>,
     scratch_ranges: Vec<(usize, usize)>,
     scratch_order: Vec<(u64, u32)>,
+    scratch_set: rustc_hash::FxHashSet<u64>,
     /// The steps that read each node, and whether every one of them reads it only by key (never made whole then).
     consumers: Vec<Vec<usize>>,
     keyed_memo: Vec<Option<bool>>,
@@ -926,7 +934,17 @@ struct MemoSlot {
     /// 7: answers by key list (its hash: the list, the answer), this file.
     lists: FxHashMap<u64, (Vec<u64>, Rc<Table>)>,
     dirty: bool,
+    /// pass 2: over the run, keys asked and keys missing, probes, key lists answered; `direct` once the memo is seen not
+    /// to answer (after `MEMO_TRIAL` probes, under 3% of keys answered and no list): the slot is probed straight.
+    asked: u64,
+    missed: u64,
+    tried: u32,
+    list_hits: u32,
+    direct: bool,
 }
+
+/// pass 2: probes of a memo slot before it may be found useless.
+const MEMO_TRIAL: u32 = 256;
 
 type R<T> = Result<T, String>;
 
@@ -962,7 +980,7 @@ impl<'p> Exec<'p> {
         let k = plan.nodes.len();
         Exec {
             plan,
-            stats: Stats { time: vec![0.0; k], rows: vec![0; k], calls: vec![0; k], touched: vec![0; k], empty: vec![0; k], probes: vec![0; k], known: vec![0; k], empty_time: vec![0.0; k], made_by: vec![usize::MAX; k], why: vec![""; k], memo_in: 0, memo_out: 0, memo_keys: 0, memo_reused: 0, memo_reused_keys: 0 },
+            stats: Stats { time: vec![0.0; k], rows: vec![0; k], calls: vec![0; k], touched: vec![0; k], empty: vec![0; k], probes: vec![0; k], known: vec![0; k], empty_time: vec![0.0; k], made_by: vec![usize::MAX; k], why: vec![""; k], memo_in: 0, memo_out: 0, memo_keys: 0, memo_reused: 0, memo_reused_keys: 0, known_time: 0.0, known_timed: 0, memo_missing: 0, memo_whole_hits: 0 },
             schemas: vec![None; k],
             views: vec![None; k],
             sels: vec![None; k],
@@ -976,6 +994,7 @@ impl<'p> Exec<'p> {
             scratch_made: Vec::new(),
             scratch_ranges: Vec::new(),
             scratch_order: Vec::new(),
+            scratch_set: rustc_hash::FxHashSet::default(),
             consumers: {
                 let mut c = vec![Vec::new(); k];
                 for (i, n) in plan.nodes.iter().enumerate() {
@@ -1450,6 +1469,7 @@ impl<'p> Exec<'p> {
         if let Some(r) = &f.memo[node] {
             return Ok(r.clone());
         }
+        let tk = step_clock();
         if let Some(v) = self.view(run, node)? {
             self.load_fact(f, run, p, v.base)?;
             let r = Res::View(v);
@@ -1466,6 +1486,10 @@ impl<'p> Exec<'p> {
             let r = Res::Tab(self.empty_rc(run, node)?);
             f.memo[node] = Some(r.clone());
             f.log.push(node);
+            if sw!("VEC_STEP_TIME") {
+                self.stats.known_time += step_clock() - tk;
+                self.stats.known_timed += 1;
+            }
             return Ok(r);
         }
         let ew = if sw!("VEC_EMPTY_WHY") { Some(empty_why::class(self, f, run, node)) } else { None };
@@ -1552,16 +1576,22 @@ impl<'p> Exec<'p> {
         let mut list_hash = 0u64;
         let slot = if pm {
             let slot = self.memo_slot(node, col, &sc);
+            if self.pmemo[slot].direct {
+                self.scratch_keys = missing;
+                return self.probe_direct(f, run, p, node, col, keys, &sc);
+            }
             // 7: a key list asked before of this slot is answered by the table made for it then (by reference, no copy)
             if keys.len() >= LIST_MIN {
                 list_hash = hash_keys(keys);
                 if let Some((ks, t)) = self.pmemo[slot].lists.get(&list_hash)
                     && ks[..] == keys[..]
                 {
+                    let t = t.clone();
+                    self.pmemo[slot].list_hits += 1;
                     self.stats.memo_reused += 1;
                     self.stats.memo_reused_keys += keys.len() as u64;
                     self.scratch_keys = missing;
-                    return Ok(t.clone());
+                    return Ok(t);
                 }
             }
             self.stats.memo_keys += keys.len() as u64;
@@ -1572,7 +1602,18 @@ impl<'p> Exec<'p> {
                     missing.push(*k);
                 }
             }
+            self.stats.memo_missing += missing.len() as u64;
+            {
+                let sl = &mut self.pmemo[slot];
+                sl.asked += keys.len() as u64;
+                sl.missed += missing.len() as u64;
+                sl.tried += 1;
+                if sl.tried >= MEMO_TRIAL && sl.list_hits == 0 && sl.missed * 100 >= sl.asked * 97 && !sw!("VEC_MEMO_ALWAYS") {
+                    sl.direct = true;
+                }
+            }
             if missing.is_empty() {
+                self.stats.memo_whole_hits += 1;
                 self.scratch_keys = missing;
                 let t = self.memo_rows(node, slot, keys);
                 self.stats.memo_out += t.n as u64;
@@ -1669,6 +1710,62 @@ impl<'p> Exec<'p> {
         Ok(t)
     }
 
+    /// pass 2: a probe of a slot whose memo does not answer: the step's body by the distinct keys, timed as its probe,
+    /// and its rows of keys asked only (what the memo would hand on; no filing).
+    #[expect(clippy::too_many_arguments, reason = "a throwaway")]
+    fn probe_direct(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64], sc: &Schema) -> R<Rc<Table>> {
+        let mut ks = kernel_input::take_keys();
+        let mut set = std::mem::take(&mut self.scratch_set);
+        set.clear();
+        let small = keys.len() <= 16;
+        if small {
+            for k in keys {
+                if !ks.contains(k) {
+                    ks.push(*k);
+                }
+            }
+        } else {
+            if set.capacity() > 8 * keys.len() && set.capacity() > 4096 {
+                set = rustc_hash::FxHashSet::default();
+            }
+            ks.extend(keys.iter().copied().filter(|k| set.insert(*k)));
+        }
+        let t0 = step_clock();
+        let saved = self.inner;
+        self.inner = 0.0;
+        self.stack.push(node);
+        let out = self.probe_body(f, run, p, node, col, &ks, sc);
+        self.stack.pop();
+        let dt = step_clock() - t0;
+        self.stats.time[node] += dt - self.inner;
+        self.inner = saved + dt;
+        let out = match out {
+            Ok(o) => o,
+            Err(e) => {
+                kernel_input::give_keys(ks);
+                self.scratch_set = set;
+                return Err(e);
+            }
+        };
+        self.stats.probes[node] += 1;
+        self.stats.rows[node] += out.n as u64;
+        let asked = |k: &u64| if small { ks.contains(k) } else { set.contains(k) };
+        let out = if out.cols[col].iter().all(asked) {
+            out
+        } else {
+            let keep: Vec<usize> = (0..out.n).filter(|r| asked(&out.cols[col][*r])).collect();
+            if keep.is_empty() {
+                self.empty_rc(run, node)?
+            } else {
+                let cols = out.cols.iter().map(|c| keep.iter().map(|r| c[*r]).collect()).collect();
+                Rc::new(Table { names: out.names.clone(), tys: out.tys.clone(), cols, n: keep.len() })
+            }
+        };
+        kernel_input::give_keys(ks);
+        self.scratch_set = set;
+        Ok(out)
+    }
+
     /// 7: the memo slot of a (step, column) for this file (its buffers kept across files).
     fn memo_slot(&mut self, node: usize, col: usize, sc: &Schema) -> usize {
         if let Some(&(_, i)) = self.pmemo_at[node].iter().find(|x| x.0 as usize == col) {
@@ -1680,7 +1777,7 @@ impl<'p> Exec<'p> {
             return i;
         }
         let i = self.pmemo.len();
-        self.pmemo.push(MemoSlot { t: Table::with(sc.names.clone(), sc.tys.clone()), ix: FxHashMap::default(), lists: FxHashMap::default(), dirty: true });
+        self.pmemo.push(MemoSlot { t: Table::with(sc.names.clone(), sc.tys.clone()), ix: FxHashMap::default(), lists: FxHashMap::default(), dirty: true, asked: 0, missed: 0, tried: 0, list_hits: 0, direct: false });
         self.pmemo_at[node].push((col as u32, i as u32));
         self.pmemo_dirty.push(i);
         i

@@ -1097,8 +1097,22 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     }
     println!("files run {files_run}; findings {}; rules {} ({} failed)", findings.len(), emits.len(), failed.len());
     println!("thread CPU-s: total {total:.3}; walk+table {walk_time:.3}; in the visit {file_time:.3}: steps {steps:.3}, provider fills {provider_time:.3} ({provider_rows} rows)");
-    println!("per-key memo: rows in {} rows out {} keys asked {}", exec.stats.memo_in, exec.stats.memo_out, exec.stats.memo_keys);
+    println!("per-key memo: rows in {} rows out {} keys asked {} keys missing {} probes answered whole {}", exec.stats.memo_in, exec.stats.memo_out, exec.stats.memo_keys, exec.stats.memo_missing, exec.stats.memo_whole_hits);
     println!("memo key lists answered whole: {} ({} keys)", exec.stats.memo_reused, exec.stats.memo_reused_keys);
+    if exec.stats.known_timed > 0 {
+        // the clock's pair cost, calibrated here (a million back-to-back pairs)
+        let n = 1_000_000;
+        let t0 = thread_cpu();
+        let mut x = 0.0;
+        for _ in 0..n {
+            let a = thread_cpu();
+            x += thread_cpu() - a;
+        }
+        let pair = (thread_cpu() - t0) / f64::from(n);
+        std::hint::black_box(x);
+        let per = exec.stats.known_time / exec.stats.known_timed as f64;
+        println!("known-empty whole runs: {} timed, {:.0} ns a run measured, clock pair {:.0} ns, {:.0} ns a run net", exec.stats.known_timed, per * 1e9, pair * 1e9 / 2.0, (per - pair / 2.0) * 1e9);
+    }
     println!("fact keyed lists: fill rows listed {}", finish::FACT_IX_ROWS.load(std::sync::atomic::Ordering::Relaxed));
     finish::empty_why::print();
     let mut f: Vec<_> = failed.into_iter().collect();
