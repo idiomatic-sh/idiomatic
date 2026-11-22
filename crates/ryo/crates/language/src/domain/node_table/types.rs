@@ -45,15 +45,14 @@ pub(crate) struct NodeTableEngine {
     pub(crate) field: Vec<FieldCode>,
     /// The place of each element among its parent's children.
     pub(crate) ordinal: Vec<ChildOrdinal>,
-    /// Where each element's children start in `children`; one more entry than there are elements.
-    pub(crate) child_offsets: Vec<Position>,
-    /// The children of every element, nodes and tokens merged in source order.
+    /// Where each element's children are in `children`: written as the element closes (a token has none).
+    pub(crate) child_range: Vec<ChildRange>,
+    /// The children of every node, nodes and tokens merged in source order, one block a node in the order the nodes close.
     pub(crate) children: Vec<Position>,
-    /// Ids of each kind, in id order.
-    pub(crate) by_kind: Vec<Position>,
-    /// Where each kind's ids start in `by_kind`; one more entry than there are kinds.
-    pub(crate) kind_offsets: Vec<Position>,
-    /// The kinds present.
+    /// Ids of each kind, in id order, one list a kind code: each id is added as it is numbered. Lists are cleared between
+    /// files, never dropped.
+    pub(crate) by_kind: Vec<Vec<Position>>,
+    /// The kinds present, set as each element is numbered.
     pub(crate) present: KindsPresent,
     /// How many syntax nodes the file's own tree has: its tokens start here.
     pub(crate) nodes: Count,
@@ -71,6 +70,25 @@ pub(crate) struct NodeTableEngine {
     pub(crate) embedded: Vec<EmbeddedSegment>,
     /// The nodes the parser implied, in id order.
     pub(crate) implied: Vec<Position>,
+}
+
+/// Where one element's children are in the table's `children`: `from..to`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct ChildRange {
+    /// The first child's place.
+    pub(crate) from: Position,
+    /// The place after the last child.
+    pub(crate) to: Position,
+}
+
+impl Default for ChildRange {
+    /// No children.
+    fn default() -> Self {
+        Self {
+            from: Position(0),
+            to: Position(0),
+        }
+    }
 }
 
 /// One embedded segment of the table.
@@ -222,10 +240,15 @@ pub struct NodeTableBuilder<'a>(pub(crate) BuilderState<'a>);
 pub(crate) struct BuilderState<'a> {
     /// The table written.
     pub(crate) table: &'a mut NodeTable,
-    /// How many kinds the language has: sizes `KindsPresent` and the kind buckets.
+    /// How many kinds the language has: the kinds present have a bit for each.
     pub(crate) kinds: Count,
     /// The open nodes, innermost last, each with the ordinal its next child takes.
     pub(crate) open: Vec<OpenNode>,
+    /// The children of the open nodes written so far, each open node's after the place `opened` holds for it: a node by
+    /// its id, a token by `PENDING` with its place among `pending`.
+    pub(crate) written: Vec<Position>,
+    /// For each open node, innermost last, where its children start in `written`.
+    pub(crate) opened: Vec<Position>,
     /// The tokens of the segment being written, kept until its nodes are numbered.
     pub(crate) pending: Vec<PendingToken>,
     /// The id the segment's first token takes once its nodes are numbered: the file's tree starts at zero.
@@ -257,6 +280,8 @@ pub(crate) struct PendingToken {
     pub(crate) span: ByteSpan,
     /// Where its decoded text is in the table's `texts`, when it has one.
     pub(crate) decoded: Option<Span>,
+    /// Its place in the table's `children`, once its parent has closed.
+    pub(crate) slot: Position,
 }
 
 /// Which segment the builder is writing.
