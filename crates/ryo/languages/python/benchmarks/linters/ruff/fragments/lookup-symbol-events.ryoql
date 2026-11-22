@@ -42,7 +42,7 @@ let function_type_namespace_events = select id, file from function_event_context
 let all_type_namespace_events = union(left=class_type_namespace_events, right=function_type_namespace_events);
 let raw_namespace_events = antijoin(left=all_raw_namespace_events,right=all_type_namespace_events,left-on=["id","file"],right-on=["id","file"]);
 let lexical_event_owners = axis(from=raw_namespace_events,relation="semantic-child",direction=nearest-ancestor,domain=scope_nodes_for_events);
-let event_body_ancestors = axis(from=raw_namespace_events,relation="semantic-child",direction=ancestor,domain=scope_body_roots);
+let event_body_ancestors = axis(from=raw_namespace_events,relation="semantic-child",direction=nearest-ancestor,domain=scope_body_roots);
 let ancestor_body_owners = select l.id as id, l.file as file, r.scope as scope from event_body_ancestors as l join scope_body_roots as r on l.related = r.id and l.file = r.file;
 let self_body_owners = select l.id as id, l.file as file, r.scope as scope from raw_namespace_events as l join scope_body_roots as r on l.id = r.id and l.file = r.file;
 let event_body_owners = union(left=ancestor_body_owners,right=self_body_owners);

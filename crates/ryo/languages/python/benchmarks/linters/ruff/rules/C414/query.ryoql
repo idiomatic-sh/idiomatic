@@ -27,9 +27,8 @@ let argument_owners = select l.parent as call, l.child as wrapper, l.file as fil
 let positional_fields = select parent, child from "semantic-child" where field = "args";
 let positional_arguments = select l.call as call, r.child as argument, l.file as file from argument_owners as l join positional_fields as r on l.wrapper = r.parent;
 let positional_locations = select l.call as call, l.argument as argument, l.file as file, r."start-byte" as start_byte from positional_arguments as l join "source-location" as r on l.argument = r.id and l.file = r.file;
-let earlier_arguments = select l.call as call, l.argument as later_argument, r.argument as earlier_argument, l.file as file from positional_locations as l join positional_locations as r on l.call = r.call and l.file = r.file where r.start_byte < l.start_byte;
-let later_first_arguments = select call, later_argument as argument, file from earlier_arguments;
-let first_arguments = antijoin(left=positional_arguments, right=later_first_arguments, left-on=["call", "argument", "file"], right-on=["call", "argument", "file"]);
+let first_locations = group-min(from=positional_locations, keys=["call", "file"], order="start_byte");
+let first_arguments = select call, argument, file from first_locations;
 let outer_first_args = select l.call as outer_call, l.file as file, l.argument as argument, r.name as outer_name from first_arguments as l join recognized_call_functions as r on l.call = r.call and l.file = r.file;
 let inner_calls = select l.outer_call as outer_call, l.file as file, l.argument as inner_call, l.outer_name as outer_name from outer_first_args as l join calls as r on l.argument = r.id and l.file = r.file;
 let nested_function_names = select l.inner_call as inner_call, l.outer_call as outer_call, l.file as file, l.outer_name as outer_name, r.name as inner_name from inner_calls as l join recognized_call_functions as r on l.inner_call = r.call and l.file = r.file;
