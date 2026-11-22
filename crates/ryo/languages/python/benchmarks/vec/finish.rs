@@ -25,6 +25,8 @@ macro_rules! sw {
 
 /// 8: the per-step thread clock (a system call each read) only under `VEC_STEP_TIME`; else 0 (the stats' time column empty).
 fn step_clock() -> f64 {
+    // 9: `VEC_STEP_TICKS`: the monotonic clock (vDSO, no system call), for a per-step split that the clock does not distort
+    if sw!("VEC_STEP_TICKS") { return select_kernel::ticks(); }
     if sw!("VEC_STEP_TIME") { super::thread_cpu() } else { 0.0 }
 }
 
@@ -1770,6 +1772,13 @@ impl<'p> Exec<'p> {
             let isc = me.schema(run, n)?;
             Ok(isc.names.iter().position(|c| c == name).map(|c| (n, c)))
         };
+        // 9: a select's keyed entry (select_kernel.rs), where the static rule passes the column on
+        if op == "select"
+            && self.static_keyed
+            && let Some(t) = self.ksel_probe(f, run, p, node, col, keys)?
+        {
+            return Ok(Rc::new(t));
+        }
         if op == "closure"
             && !f.lazies.contains_key(&node)
             && !sw!("VEC_NO_WALK")

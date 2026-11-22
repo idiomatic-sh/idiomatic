@@ -191,6 +191,39 @@ struct K {
     items: Vec<(usize, usize)>,
     /// One source, every item a column: a projection that drops columns is a set.
     set: bool,
+    /// By output column: the source position and the input's column a keyed probe of that column is passed to, where the
+    /// interpreter's static rule passes it (the input read once, no other source depending on it).
+    targets: Vec<Option<(usize, usize, usize)>>,
+    /// By source, where it is a view: the kinds its own tests name, and the kinds the select's tests name of it (static).
+    kinds: Vec<(Option<Vec<u32>>, Option<Vec<u32>>)>,
+}
+
+/// Keys of the per-file row lists a kernel keeps in the file's `vrows` (above any node number).
+const LIT_FILTER: usize = 1 << 56;
+const LIT_CONJ: usize = 2 << 56;
+const ENTRY_KIND: usize = 3 << 56;
+const ENTRY_LIT: usize = 4 << 56;
+const ABSENT: usize = 1 << 60;
+
+/// `lit_rows`, once a file under `key` (`ABSENT` marks a None).
+fn lit_file(f: &mut File<'_>, key: usize, conj: &[E], si: usize, base: super::Native, map: &[usize]) -> Option<Rc<Vec<u32>>> {
+    if let Some(r) = f.vrows.get(&key) {
+        return Some(r.clone());
+    }
+    if f.vrows.contains_key(&(key | ABSENT)) {
+        return None;
+    }
+    match lit_rows(f, conj, si, base, map) {
+        Some(r) => {
+            let rc = Rc::new(r);
+            f.vrows.insert(key, rc.clone());
+            Some(rc)
+        }
+        None => {
+            f.vrows.insert(key | ABSENT, Rc::new(Vec::new()));
+            None
+        }
+    }
 }
 
 enum Prep {
@@ -199,7 +232,7 @@ enum Prep {
 }
 
 /// Step 9 order of work: kernel 1 (one source) measured first, then kernel 2 switched on.
-const KERNEL2: bool = false;
+const KERNEL2: bool = true;
 
 thread_local! {
     /// The prepared nodes (by the plan's address, then node), and the worker's buffers (a stack: executions nest).
@@ -209,11 +242,17 @@ thread_local! {
 
 /// `VEC_KSEL_PROF`: seconds by section (whole kernel call exclusive of inner steps, front, driver filter, join, projection,
 /// the interpreter's select exclusive), and the calls; written to `$VEC_KSEL_LOG.prof` every 2^16 calls.
+/// The monotonic clock in seconds (`VEC_STEP_TICKS`): read through the vDSO, not a system call.
+pub(super) fn ticks() -> f64 {
+    static ORIGIN: std::sync::OnceLock<std::time::Instant> = std::sync::OnceLock::new();
+    ORIGIN.get_or_init(std::time::Instant::now).elapsed().as_secs_f64()
+}
+
 #[derive(Clone, Copy)]
 struct Clk(f64);
 impl Clk {
     fn now() -> Clk {
-        Clk(if sw!("VEC_KSEL_PROF") { super::super::thread_cpu() } else { 0.0 })
+        Clk(if sw!("VEC_KSEL_PROF") { super::step_clock() } else { 0.0 })
     }
     fn elapsed(self) -> f64 {
         Clk::now().0 - self.0
@@ -244,6 +283,8 @@ struct Bufs {
     keys: Vec<u64>,
     seen: FxHashSet<u64>,
     key: Vec<u64>,
+    /// A probed side's (key, row) pairs, sorted: the join's index for a table made for this execution only.
+    pairs: Vec<(u64, u32)>,
 }
 
 fn take_bufs() -> Bufs {
@@ -259,6 +300,10 @@ fn give_bufs(mut b: Bufs) {
     }
     b.keys.clear();
     b.key.clear();
+    if b.pairs.capacity() > 1 << 20 {
+        b.pairs = Vec::new();
+    }
+    b.pairs.clear();
     if b.seen.capacity() > 1 << 16 {
         b.seen = FxHashSet::default();
     }
@@ -337,7 +382,22 @@ impl Exec<'_> {
         let preds = sp.conj.iter().map(compile).collect();
         let file_const = sp.conj.iter().any(|c| super::filter_order::file_const(c) && !matches!(c, E::Lit(_)));
         let set = k == 1 && items.iter().all(|(s, _)| *s == 0);
-        Ok(Prep::K(K { preds, file_const, items, set }))
+        let mut targets = Vec::with_capacity(items.len());
+        for (si, c) in &items {
+            let input = sp.srcs[*si];
+            let once = sp.srcs.iter().filter(|x| **x == input).count() == 1;
+            let others: Vec<usize> = sp.srcs.iter().copied().filter(|x| *x != input).collect();
+            let free = others.iter().all(|o| !self.depends(*o, input));
+            targets.push((once && free).then_some((*si, input, *c)));
+        }
+        let mut kinds = Vec::with_capacity(k);
+        for (i, n) in sp.srcs.iter().enumerate() {
+            kinds.push(match self.view(run, *n)? {
+                Some(v) => (kind_set(run, &v.filter, 0, v.base, &[]), kind_set(run, &sp.conj, i, v.base, &v.map)),
+                None => (None, None),
+            });
+        }
+        Ok(Prep::K(K { preds, file_const, items, set, targets, kinds }))
     }
 
     /// The dispatch: the kernels, or the interpreter's `select` (`VEC_OLD_SELECT`, or a node they do not cover).
@@ -356,7 +416,7 @@ impl Exec<'_> {
             return out;
         };
         let mut b = take_bufs();
-        let out = self.ksel_run(f, run, p, node, kp, &mut b);
+        let out = self.ksel_run(f, run, p, node, kp, &mut b, None);
         give_bufs(b);
         if prof {
             prof_add(0, t0.elapsed() - (self.inner - i0));
@@ -365,7 +425,27 @@ impl Exec<'_> {
     }
 
     #[expect(clippy::too_many_lines, reason = "a throwaway: the front is the interpreter's, kept")]
-    fn ksel_run(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, kp: &K, b: &mut Bufs) -> R<Table> {
+    /// The keyed entry: the rows of `node` whose column `col` holds one of `keys`. The interpreter probes the input that
+    /// column comes from, puts the answer in the file's memo in the input's place, runs the step, then drops whatever was
+    /// made over it (the memo swapped, the made log drained, a dropped set built a probe). Here the probed input's rows are
+    /// handed to the kernel as that source directly: nothing else reads them (no other source depends on the input, as
+    /// the static rule requires), so nothing is swapped or dropped. None: a column the static rule does not pass on.
+    pub(super) fn ksel_probe(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64]) -> R<Option<Table>> {
+        if sw!("VEC_OLD_SELECT") || sw!("VEC_OLD_KPROBE") {
+            return Ok(None);
+        }
+        let prep = self.ksel_prep(run, node)?;
+        let Prep::K(kp) = &*prep else { return Ok(None) };
+        let Some((si, input, icol)) = kp.targets[col] else { return Ok(None) };
+        let sub = self.probe(f, run, p, input, icol, keys)?;
+        let mut b = take_bufs();
+        let out = self.ksel_run(f, run, p, node, kp, &mut b, Some((si, sub)));
+        give_bufs(b);
+        out.map(Some)
+    }
+
+    #[expect(clippy::too_many_arguments, reason = "a throwaway")]
+    fn ksel_run(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, kp: &K, b: &mut Bufs, put: Option<(usize, Rc<Table>)>) -> R<Table> {
         let (t0, i0) = (Clk::now(), self.inner);
         let sp = self.sel(run, node)?;
         if kp.file_const && super::filter_order::file_fails(run, f, &sp.conj) {
@@ -376,7 +456,10 @@ impl Exec<'_> {
         let conj = &sp.conj;
         let refs = &sp.refs;
         // ---- the front: the interpreter's, kept (which inputs are made or probed, which side drives)
-        let ov = self.take_positional(&sp.srcs);
+        let ov = match put {
+            Some(x) => Some(x),
+            None => self.take_positional(&sp.srcs),
+        };
         let mut srcs: Vec<Src> = Vec::with_capacity(k);
         for (i, n) in sp.srcs.iter().enumerate() {
             let src = match &ov {
@@ -425,10 +508,10 @@ impl Exec<'_> {
         for (i, sr) in srcs.iter().enumerate() {
             let size = match sr {
                 Src::Tab(t, _) => Some(t.n),
-                Src::View(v, _) => kind_set(run, &v.filter, 0, v.base, &[])
-                    .or_else(|| kind_set(run, conj, i, v.base, &v.map))
-                    .map(|ks| bucket_len(f, run, &ks))
-                    .or_else(|| lit_rows(f, &v.filter, 0, v.base, &[]).or_else(|| lit_rows(f, conj, i, v.base, &v.map)).map(|r| r.len())),
+                Src::View(v, vn) => match &kp.kinds[i] {
+                    (Some(ks), _) | (None, Some(ks)) => Some(bucket_len(f, run, ks)),
+                    (None, None) => lit_file(f, LIT_FILTER | *vn, &v.filter, 0, v.base, &[]).or_else(|| lit_file(f, LIT_CONJ | (node << 1) | i, conj, i, v.base, &v.map)).map(|r| r.len()),
+                },
                 _ => None,
             };
             if let Some(n) = size
@@ -462,7 +545,7 @@ impl Exec<'_> {
         let driver = match driver {
             Some(d) => d,
             None => match (0..k).find(|i| match &srcs[*i] {
-                Src::View(v, _) => kind_set(run, &v.filter, 0, v.base, &[]).is_some() || kind_set(run, conj, *i, v.base, &v.map).is_some() || lit_rows(f, &v.filter, 0, v.base, &[]).is_some() || lit_rows(f, conj, *i, v.base, &v.map).is_some(),
+                Src::View(v, vn) => kp.kinds[*i].0.is_some() || kp.kinds[*i].1.is_some() || lit_file(f, LIT_FILTER | *vn, &v.filter, 0, v.base, &[]).is_some() || lit_file(f, LIT_CONJ | (node << 1) | *i, conj, *i, v.base, &v.map).is_some(),
                 _ => false,
             }) {
                 Some(d) => d,
@@ -515,10 +598,25 @@ impl Exec<'_> {
                 sel.extend(0..t.n as u32);
             }
             Src::View(v, vn) => {
-                let first: Rc<Vec<u32>> = match kind_set(run, conj, driver, v.base, &v.map) {
-                    Some(ks) if kind_set(run, &v.filter, 0, v.base, &[]).is_none() => Rc::new(bucket(f, run, &ks).into_iter().filter(|r| view_holds(f, run, v, *r)).collect()),
-                    _ => match lit_rows(f, conj, driver, v.base, &v.map) {
-                        Some(rows) if lit_rows(f, &v.filter, 0, v.base, &[]).is_none() => Rc::new(rows.into_iter().filter(|r| view_holds(f, run, v, *r)).collect()),
+                // the entry rows, once a file a (step, driver): the select's kind bucket or literal rows of the view, tested
+                let first: Rc<Vec<u32>> = match &kp.kinds[driver] {
+                    (None, Some(ks)) => match f.vrows.get(&(ENTRY_KIND | (node << 1) | driver)) {
+                        Some(r) => r.clone(),
+                        None => {
+                            let rc: Rc<Vec<u32>> = Rc::new(bucket(f, run, ks).into_iter().filter(|r| view_holds(f, run, v, *r)).collect());
+                            f.vrows.insert(ENTRY_KIND | (node << 1) | driver, rc.clone());
+                            rc
+                        }
+                    },
+                    _ => match lit_file(f, LIT_CONJ | (node << 1) | driver, conj, driver, v.base, &v.map) {
+                        Some(rows) if lit_file(f, LIT_FILTER | *vn, &v.filter, 0, v.base, &[]).is_none() => match f.vrows.get(&(ENTRY_LIT | (node << 1) | driver)) {
+                            Some(r) => r.clone(),
+                            None => {
+                                let rc: Rc<Vec<u32>> = Rc::new(rows.iter().copied().filter(|r| view_holds(f, run, v, *r)).collect());
+                                f.vrows.insert(ENTRY_LIT | (node << 1) | driver, rc.clone());
+                                rc
+                            }
+                        },
                         _ => view_rows(f, run, v, *vn),
                     },
                 };
@@ -677,7 +775,26 @@ impl Exec<'_> {
                 let mut touched = 0u64;
                 match &srcs[si] {
                     Src::Tab(t, tn) => {
-                        let ix = if *tn > usize::MAX - 64 { Rc::new(index_of(t, &tab_cols)) } else { table_index(f, *tn, t, &tab_cols) };
+                        // a table made for this execution (probed, or put in place) is indexed by sorting its (key, row)
+                        // pairs in the worker's buffer and searched by halving; a step's own table by its index, once a file
+                        let fresh = *tn > usize::MAX - 64;
+                        let ix = if fresh && !sw!("VEC_KSEL_INDEX") {
+                            let pairs = &mut b.pairs;
+                            pairs.clear();
+                            if tab_cols.len() == 1 {
+                                let c = &t.cols[tab_cols[0]];
+                                pairs.extend((0..t.n).map(|r| (c[r], r as u32)));
+                            } else {
+                                pairs.extend((0..t.n).map(|r| (key_of(tab_cols.iter().map(|c| t.cols[*c][r])), r as u32)));
+                            }
+                            pairs.sort_unstable();
+                            None
+                        } else if fresh {
+                            Some(Rc::new(index_of(t, &tab_cols)))
+                        } else {
+                            Some(table_index(f, *tn, t, &tab_cols))
+                        };
+                        let pairs = &b.pairs;
                         let dcols: Option<Vec<&[u64]>> = match &srcs[driver] {
                             Src::Tab(dt, _) => Some(drv_cols.iter().map(|c| &dt.cols[*c][..]).collect()),
                             _ => None,
@@ -696,7 +813,22 @@ impl Exec<'_> {
                                     key_of(b.key.iter().copied())
                                 }
                             };
-                            let Some(rows) = ix.get(&key) else { continue };
+                            let rows: &[u32] = match &ix {
+                                Some(ix) => match ix.get(&key) {
+                                    Some(rows) => rows,
+                                    None => continue,
+                                },
+                                None => {
+                                    let a = pairs.partition_point(|x| x.0 < key);
+                                    let e = a + pairs[a..].partition_point(|x| x.0 == key);
+                                    if a == e {
+                                        continue;
+                                    }
+                                    hits.clear();
+                                    hits.extend(pairs[a..e].iter().map(|x| x.1));
+                                    &hits[..]
+                                }
+                            };
                             touched += rows.len() as u64;
                             if checks.is_empty() {
                                 for h in rows {
