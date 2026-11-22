@@ -193,6 +193,7 @@ pub(super) fn walked(
         let mut semantic = if parsed.errors().is_empty() {
             semantic_syntax_errors(
                 parsed.syntax(),
+                &source,
                 options(source_kind, settings).target_version(),
                 future_annotations,
             )

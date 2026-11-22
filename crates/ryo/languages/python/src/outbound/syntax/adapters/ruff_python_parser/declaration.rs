@@ -346,6 +346,7 @@ impl<'a> Visitor<'a> for ComprehensionTargets {
 /// Report Python syntax constraints that preserve a complete parsed AST.
 pub(super) fn semantic_syntax_errors(
     module: &Mod,
+    source: &str,
     target_version: PythonVersion,
     future_annotations: FutureAnnotations,
 ) -> Vec<SemanticSyntaxDiagnostic> {
@@ -368,5 +369,7 @@ pub(super) fn semantic_syntax_errors(
             future_annotations,
         ),
     );
+    let checked = super::compile_checks::compile_errors(module, source, target_version, &errors);
+    errors.extend(checked);
     errors
 }

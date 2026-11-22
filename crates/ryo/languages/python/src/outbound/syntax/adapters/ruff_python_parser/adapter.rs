@@ -146,6 +146,7 @@ impl SyntaxPort for SyntaxRuffPythonParserAdapter {
         let mut semantic_errors = if parsed.errors().is_empty() {
             semantic_syntax_errors(
                 parsed.syntax(),
+                &source,
                 options(source_kind, &self.settings).target_version(),
                 future_annotations,
             )
