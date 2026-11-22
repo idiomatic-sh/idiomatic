@@ -142,9 +142,10 @@ thread_local! {
     /// redo-alloc: by size class (a column of room 2^c..2^(c+1) in class c), so a small table never holds a large column.
     static POOL: RefCell<([Vec<Vec<u64>>; CLASSES], usize)> = const { RefCell::new(([const { Vec::new() }; CLASSES], 0)) };
 }
-/// 8: the pool keeps at most this many cells in all (32 MB), and no single column above a sixteenth of it.
-const POOL_CELLS: usize = 1 << 22;
-/// redo-alloc: size classes of the pool (2^0 .. 2^19 cells: the largest pooled column is POOL_CELLS / 16 = 2^18).
+/// 8: the pool keeps at most this many cells in all (redo-alloc: 64 MB, from 32: size classes keep less in tables), and no
+/// single column above a 32nd of it.
+const POOL_CELLS: usize = 1 << 23;
+/// redo-alloc: size classes of the pool (2^0 .. 2^19 cells: the largest pooled column is POOL_CELLS / 32 = 2^18).
 const CLASSES: usize = 20;
 
 /// redo-alloc: a pooled column with room for `n` cells (no more than 32 times that), or a new one with room for the next
@@ -205,6 +206,12 @@ impl Table {
         });
         Table { names: self.names.clone(), tys: self.tys.clone(), cols, n: self.n }
     }
+    /// redo-alloc: a column of `n` cells `x` appended, its room from the pool.
+    pub(super) fn push_const_col(&mut self, x: u64, n: usize) {
+        let mut v = POOL.with(|p| take_col(&mut p.borrow_mut(), n));
+        v.resize(n, x);
+        self.cols.push(v);
+    }
     /// 8: the table's columns back in the pool (cleared, capacity kept); the table is left with no rows and no columns.
     pub(super) fn release(&mut self) {
         self.n = 0;
@@ -215,7 +222,7 @@ impl Table {
             let (p, cells) = &mut *p.borrow_mut();
             for mut c in self.cols.drain(..) {
                 let cap = c.capacity();
-                if cap == 0 || cap > POOL_CELLS / 16 || *cells + cap > POOL_CELLS {
+                if cap == 0 || cap > POOL_CELLS / 32 || *cells + cap > POOL_CELLS {
                     continue;
                 }
                 c.clear();
@@ -571,7 +578,7 @@ pub(super) struct Tokens {
     pair: Vec<u32>,
     opener: Vec<bool>,
     enc: Vec<u32>,
-    enclosed: FxHashMap<u32, Vec<u32>>,
+    enclosed: FxHashMap<u32, inline_key::List<u32>>,
     order: Vec<u32>,
 }
 
@@ -597,7 +604,7 @@ pub(super) struct File<'a> {
     log: Vec<usize>,
     vrows: FxHashMap<usize, Rc<Vec<u32>>>,
     vmat: FxHashMap<usize, Rc<Table>>,
-    index: FxHashMap<usize, Vec<(inline_key::Key, Rc<Index>)>>,
+    index: FxHashMap<usize, inline_key::List<(inline_key::Key, Rc<Index>)>>,
     fills: FxHashMap<String, Rc<Table>>,
     lazies: FxHashMap<usize, Rc<Lazy>>,
     /// The survivor sets of this file (sorted node ids), by set: the prefix's roots for each seeded rule.
@@ -635,7 +642,7 @@ struct FileBufs {
     log: Vec<usize>,
     vrows: FxHashMap<usize, Rc<Vec<u32>>>,
     vmat: FxHashMap<usize, Rc<Table>>,
-    index: FxHashMap<usize, Vec<(inline_key::Key, Rc<Index>)>>,
+    index: FxHashMap<usize, inline_key::List<(inline_key::Key, Rc<Index>)>>,
     fills: FxHashMap<String, Rc<Table>>,
     lazies: FxHashMap<usize, Rc<Lazy>>,
     walks: FxHashMap<(usize, bool), FxHashMap<u64, inline_key::List<u64>>>,
@@ -697,10 +704,8 @@ impl Drop for File<'_> {
         }
         give_tables(&mut b.vmat);
         // redo-alloc: the indexes given back (their own allocation and buffers kept)
-        for (_, v) in b.index.drain() {
-            for (_, ix) in v {
-                recycle_index(ix);
-            }
+        for (_, mut v) in b.index.drain() {
+            v.drain_each(|(_, ix)| recycle_index(ix));
         }
         give_tables(&mut b.fills);
         b.lazies.clear();
@@ -2858,7 +2863,8 @@ impl<'p> Exec<'p> {
                         J::String(t) => (Ty::Sym, u64::from(run.sym(t.as_bytes()))),
                         _ => return Err(format!("extend value {v}")),
                     };
-                    out.cols.push(vec![x; from.n]);
+                    // redo-alloc: the constant column from the pool
+                    out.push_const_col(x, from.n);
                 }
                 let sc = self.schema(run, node)?;
                 (out.names, out.tys) = (sc.names.clone(), sc.tys.clone());
@@ -4141,11 +4147,14 @@ impl<'p> Exec<'p> {
         let admitted = self.admit(f, run, p, &dom, keys)?;
         let mut frontier: Vec<(u64, u64)> = keys.iter().filter(|k| admitted.contains(k)).map(|k| (*k, *k)).collect();
         let mut nbrs = Vec::new();
+        // redo-alloc: one level's list and its keys, emptied a level (not made a level)
+        let mut next: Vec<(u64, u64)> = Vec::new();
+        let mut cs: Vec<u64> = Vec::new();
         for _ in 0..4096 {
             if frontier.is_empty() {
                 break;
             }
-            let mut next = Vec::new();
+            next.clear();
             for (x, at) in &frontier {
                 hier_step(f, run, &hier, *at, false, &mut nbrs);
                 for c in &nbrs {
@@ -4153,21 +4162,24 @@ impl<'p> Exec<'p> {
                 }
             }
             self.stats.touched[node] += next.len() as u64;
-            let cs: Vec<u64> = next.iter().map(|x| x.1).collect();
+            cs.clear();
+            cs.extend(next.iter().map(|x| x.1));
             let ok = self.admit(f, run, p, &dom, &cs)?;
             frontier.clear();
-            for (x, c) in next {
+            for &(x, c) in &next {
                 pairs.push((c, x));
                 if !ok.contains(&c) {
                     frontier.push((x, c));
                 }
             }
         }
-        let mut cs: Vec<u64> = pairs.iter().map(|x| x.0).collect();
+        cs.clear();
+        cs.extend(pairs.iter().map(|x| x.0));
         cs.sort_unstable();
         cs.dedup();
         let starts = self.probe(f, run, p, fnode, ic, &cs)?;
-        let mut by: FxHashMap<u64, Vec<u64>> = FxHashMap::default();
+        // redo-alloc: a start's first ancestor inline (inline_key::List)
+        let mut by: FxHashMap<u64, inline_key::List<u64>> = FxHashMap::default();
         for (c, x) in pairs {
             by.entry(c).or_default().push(x);
         }
@@ -4175,7 +4187,7 @@ impl<'p> Exec<'p> {
         let mut row = Vec::new();
         for i in 0..starts.n {
             if let Some(xs) = by.get(&starts.cols[ic][i]) {
-                for x in xs {
+                for x in xs.iter() {
                     starts.row(i, &mut row);
                     row.push(*x);
                     out.push_row(&row);
@@ -4378,14 +4390,20 @@ fn hier_step(f: &File<'_>, run: &mut Run, h: &Hier, x: u64, up: bool, out: &mut 
             }
         }
         Hier::View(v, pc, cc) => {
-            let mut hits = Vec::new();
+            // redo-alloc: the probe's rows in the worker's one buffer (not a list made a step)
+            thread_local! {
+                static HITS: RefCell<Vec<u32>> = const { RefCell::new(Vec::new()) };
+            }
+            let mut hits = HITS.with(|h| std::mem::take(&mut *h.borrow_mut()));
+            hits.clear();
             let (by, to) = if up { (*cc, *pc) } else { (*pc, *cc) };
             f.native_probe(run, v.base, v.map[by], x, &mut hits);
-            for h in hits {
+            for &h in &hits {
                 if view_holds(f, run, v, h) {
                     out.push(f.native_get(run, v.base, h, v.map[to]));
                 }
             }
+            HITS.with(|b| *b.borrow_mut() = hits);
         }
         Hier::Maps(u, d) => {
             if let Some(xs) = if up { u.get(&x) } else { d.get(&x) } {
@@ -4486,7 +4504,13 @@ fn bucket_into(f: &File<'_>, run: &Run, ks: &[u32], rows: &mut Vec<u32>) {
 /// column's keyed list read at those values, a per-file bucket. `map` takes a view's column to its base column (empty: the
 /// base's own).
 fn lit_rows(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize]) -> Option<Vec<u32>> {
-    let Native::Fact(i) = base else { return None };
+    let mut v = Vec::new();
+    lit_rows_into(f, conj, si, base, map, &mut v).then_some(v)
+}
+
+/// redo-alloc: `lit_rows` into `out` (empty; whether a test fixes a column).
+fn lit_rows_into(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize], rows: &mut Vec<u32>) -> bool {
+    let Native::Fact(i) = base else { return false };
     fn cols(e: &E, si: usize, out: &mut Vec<usize>) {
         match e {
             E::Col(s, c, _) if *s == si => out.push(*c),
@@ -4502,7 +4526,7 @@ fn lit_rows(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize]) ->
         static BUF: RefCell<(Vec<usize>, Vec<u32>)> = const { RefCell::new((Vec::new(), Vec::new())) };
     }
     let (mut cs, mut vals) = BUF.with(|b| std::mem::take(&mut *b.borrow_mut()));
-    let mut out = None;
+    let mut out = false;
     'conj: for e in conj {
         cs.clear();
         cols(e, si, &mut cs);
@@ -4515,10 +4539,10 @@ fn lit_rows(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize]) ->
                     continue;
                 }
                 let ix = f.fact_list(i, bc);
-                let mut rows: Vec<u32> = vals.iter().filter_map(|v| ix.get(&u64::from(*v))).flatten().copied().collect();
+                rows.extend(vals.iter().filter_map(|v| ix.get(&u64::from(*v))).flatten().copied());
                 rows.sort_unstable();
                 rows.dedup();
-                out = Some(rows);
+                out = true;
                 break 'conj;
             }
         }
@@ -5090,11 +5114,18 @@ fn call(run: &mut Run, name: &str, vs: &[V]) -> V {
             V::new(Ty::Sym, u64::from(run.sym(s.as_bytes())))
         }
         "concat" => {
-            let mut s = Vec::new();
+            // redo-alloc: the worker's one buffer for the text before it is interned
+            thread_local! {
+                static BUF: RefCell<Vec<u8>> = const { RefCell::new(Vec::new()) };
+            }
+            let mut s = BUF.with(|b| std::mem::take(&mut *b.borrow_mut()));
+            s.clear();
             for i in 0..vs.len() {
                 s.extend_from_slice(&text_of(run, vs[i]));
             }
-            V::new(Ty::Sym, u64::from(run.sym(&s)))
+            let v = V::new(Ty::Sym, u64::from(run.sym(&s)));
+            BUF.with(|b| *b.borrow_mut() = s);
+            v
         }
         "glob_any" => {
             let g = String::from_utf8(text_of(run, vs[1]).into_owned()).unwrap_or_default();

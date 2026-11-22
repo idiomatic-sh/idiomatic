@@ -54,29 +54,41 @@ impl PartialEq for Key {
 impl Eq for Key {}
 
 /// A group's items, the first held inline (most groups of a row's key hold one row).
-pub(super) enum List<T: Copy> {
+pub(super) enum List<T> {
     Zero,
     One([T; 1]),
     Many(Vec<T>),
 }
 
-impl<T: Copy> Default for List<T> {
+impl<T> Default for List<T> {
     fn default() -> Self {
         List::Zero
     }
 }
 
-impl<T: Copy> List<T> {
+impl<T> List<T> {
     pub(super) fn push(&mut self, x: T) {
-        match self {
-            List::Zero => *self = List::One([x]),
-            List::One([a]) => *self = List::Many(vec![*a, x]),
-            List::Many(v) => v.push(x),
+        if let List::Many(v) = self {
+            v.push(x);
+            return;
+        }
+        *self = match std::mem::take(self) {
+            List::Zero => List::One([x]),
+            List::One([a]) => List::Many(vec![a, x]),
+            List::Many(v) => List::Many(v),
+        };
+    }
+    /// Each item, by value (the list emptied).
+    pub(super) fn drain_each(&mut self, mut f: impl FnMut(T)) {
+        match std::mem::take(self) {
+            List::Zero => {}
+            List::One([a]) => f(a),
+            List::Many(v) => v.into_iter().for_each(f),
         }
     }
 }
 
-impl<T: Copy> std::ops::Deref for List<T> {
+impl<T> std::ops::Deref for List<T> {
     type Target = [T];
     fn deref(&self) -> &[T] {
         match self {
@@ -87,7 +99,7 @@ impl<T: Copy> std::ops::Deref for List<T> {
     }
 }
 
-impl<T: Copy> std::ops::DerefMut for List<T> {
+impl<T> std::ops::DerefMut for List<T> {
     fn deref_mut(&mut self) -> &mut [T] {
         match self {
             List::Zero => &mut [],
