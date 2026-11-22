@@ -39,7 +39,7 @@ let plain_value_kinds = select id, file from nodes where kind = "call" or kind =
 let plain_values = select l.assignment as assignment, r.value as value, l.file as file from named_plain as l join values as r on l.assignment = r.assignment and l.file = r.file;
 let accepted_plain = select l.assignment as assignment, l.file as file from plain_values as l join plain_value_kinds as r on l.value = r.id and l.file = r.file;
 let pipe_tokens = select id, file from "syntax-tree" where text = "|";
-let pipes = select l.parent as id, l.file as file from "semantic-child" as l join pipe_tokens as r on l.child = r.id and l.file = r.file where l.field = "op";
+let pipes = select r.parent as id, l.file as file from pipe_tokens as l join "semantic-child" as r on l.id = r.child and l.file = r.file where r.field = "op";
 let pipe_edges = select l.id as parent, r.child as child, l.file as file from pipes as l join "semantic-child" as r on l.id = r.parent and l.file = r.file where r.field = "left" or r.field = "right";
 let pipe_nesting = select l.parent as parent, l.child as child, l.file as file from pipe_edges as l join pipes as r on l.child = r.id and l.file = r.file;
 let pipe_paths = closure(edges=pipe_nesting, source="parent", destination="child", keys=["file"]);

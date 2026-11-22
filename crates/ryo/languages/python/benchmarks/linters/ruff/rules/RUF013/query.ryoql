@@ -55,7 +55,8 @@ let rights = select l.id as binop, r.child as child, l.file as file from binops 
 let left_spans = select l.binop as binop, r."end-byte" as boundary, l.file as file from lefts as l join "source-location" as r on l.child = r.id and l.file = r.file;
 let right_spans = select l.binop as binop, r."start-byte" as boundary, l.file as file from rights as l join "source-location" as r on l.child = r.id and l.file = r.file;
 let operand_bounds = select l.binop as binop, l.boundary as left_end, r.boundary as right_start, l.file as file from left_spans as l join right_spans as r on l.binop = r.binop and l.file = r.file;
-let pipe_tokens = select l.id as token, r."start-byte" as start, r."end-byte" as end, r.file as file from "syntax-tree" as l join "source-location" as r on l.id = r.id where l.text = "|";
+let pipe_tokens0 = select id, text, file from "syntax-tree" where text = "|";
+let pipe_tokens = select l.id as token, r."start-byte" as start, r."end-byte" as end, r.file as file from pipe_tokens0 as l join "source-location" as r on l.id = r.id;
 let first_pipes = as-of(left=operand_bounds, right=pipe_tokens, left-on=[file], right-on=[file], left-order="left_end", right-order="start", bound=at-or-after, output={binop:[left,binop], right_start:[left,right_start], pipe_end:[right,end], file:[left,file]});
 let pipe_binops = select binop as id, file from first_pipes where pipe_end <= right_start;
 let pipe_lefts = select l.id as parent, r.child as child, l.file as file from pipe_binops as l join lefts as r on l.id = r.binop and l.file = r.file;

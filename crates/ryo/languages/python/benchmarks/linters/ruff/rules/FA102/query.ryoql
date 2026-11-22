@@ -6,8 +6,8 @@ let values = select parent, child, file from "semantic-child" where field = "val
 let generic_origins = select id, file from "qualified-name" where matches(path, "^(?:builtins[.](?:dict|frozenset|list|set|tuple|type)|collections[.](?:deque|defaultdict|ChainMap|Counter|OrderedDict)|asyncio[.](?:Future|Task)|contextlib[.](?:AbstractAsyncContextManager|AbstractContextManager)|dataclasses[.]Field|functools[.](?:cached_property|partialmethod)|os[.]PathLike|queue[.](?:LifoQueue|PriorityQueue|Queue|SimpleQueue)|re[.](?:Match|Pattern)|shelve[.](?:BsdDbShelf|DbfilenameShelf|Shelf)|types[.]MappingProxyType|weakref[.](?:WeakKeyDictionary|WeakMethod|WeakSet|WeakValueDictionary)|collections[.]abc[.](?:AsyncGenerator|AsyncIterable|AsyncIterator|Awaitable|ByteString|Callable|Collection|Container|Coroutine|Generator|ItemsView|Iterable|Iterator|KeysView|Mapping|MappingView|MutableMapping|MutableSequence|MutableSet|Reversible|Sequence|Set|ValuesView))$");
 let subscript_values = select l.id as id, r.child as value, l.file as file from subscripts as l join values as r on l.id = r.parent and l.file = r.file;
 let pep585 = select l.id as id, l.file as file from subscript_values as l join generic_origins as r on l.value = r.id and l.file = r.file;
-let pipe_tokens = select id, file from nodes where text = "|";
-let pep604 = select l.parent as id, l.file as file from "semantic-child" as l join pipe_tokens as r on l.child = r.id and l.file = r.file where l.field = "op";
+let pipe_tokens = select id, file from "semantic-syntax" where text = "|";
+let pep604 = select r.parent as id, l.file as file from pipe_tokens as l join "semantic-child" as r on l.id = r.child and l.file = r.file where r.field = "op";
 let old_generic_files = select file from "language-target" where major = 3 and minor >= 7 and minor < 9;
 let old_union_files = select file from "language-target" where major = 3 and minor >= 7 and minor < 10;
 let generic_candidates = select l.id as id, l.file as file from pep585 as l join old_generic_files as r on l.file = r.file;

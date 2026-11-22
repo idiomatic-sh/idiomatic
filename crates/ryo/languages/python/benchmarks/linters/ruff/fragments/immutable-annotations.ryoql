@@ -4,8 +4,8 @@ input checks: relation<check: node, root: node, scope: node, point: number, file
 output relation<check: node, file: file>;
 let nodes = select id, kind, file from "semantic-syntax";
 let roots = select root as id, file from checks;
-let root_axes = axis(from=nodes, relation="semantic-child", direction=ancestor, domain=roots);
-let nested_members = select r.check as check, l.id as id, l.file as file from root_axes as l join checks as r on l.related = r.root and l.file = r.file;
+let root_axes = axis(from=roots, relation="semantic-child", direction=descendant, domain=nodes);
+let nested_members = select r.check as check, l.related as id, l.file as file from root_axes as l join checks as r on l.id = r.root and l.file = r.file;
 let root_members = select check, root as id, file from checks;
 let members = union(left=nested_members, right=root_members);
 let name_nodes = select id, file from nodes where kind = "name";
@@ -504,7 +504,8 @@ let binop_rights = select l.id as binop, l.file as file, r.child as child from b
 let binop_left_locations = select l.binop as binop, l.file as file, r."end-byte" as boundary from binop_lefts as l join "source-location" as r on l.child = r.id and l.file = r.file;
 let binop_right_locations = select l.binop as binop, l.file as file, r."start-byte" as boundary from binop_rights as l join "source-location" as r on l.child = r.id and l.file = r.file;
 let ordered_binop_operands = select l.binop as binop, l.file as file, l.boundary as left_end, r.boundary as right_start from binop_left_locations as l join binop_right_locations as r on l.binop = r.binop and l.file = r.file;
-let pipe_tokens = select l.id as token, r.file as file, r."start-byte" as start, r."end-byte" as end from "syntax-tree" as l join "source-location" as r on l.id = r.id where l.text = "|";
+let pipe_tokens0 = select id, text, file from "syntax-tree" where text = "|";
+let pipe_tokens = select l.id as token, r.file as file, r."start-byte" as start, r."end-byte" as end from pipe_tokens0 as l join "source-location" as r on l.id = r.id;
 let first_pipes = as-of(left=ordered_binop_operands, right=pipe_tokens, left-on=[file], right-on=[file], left-order="left_end", right-order="start", bound=at-or-after, output={binop:[left,binop], right_start:[left,right_start], pipe_end:[right,end], file:[left,file]});
 let raw_bit_or_nodes = select binop as node, file from first_pipes where pipe_end <= right_start;
 let bit_or_nodes = select l.check as check, l.id as id, l.file as file from members as l join raw_bit_or_nodes as r on l.id = r.node and l.file = r.file;
