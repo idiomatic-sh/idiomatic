@@ -123,6 +123,8 @@ pub(super) struct Run {
     pub(super) classified: FxHashMap<String, Vec<&'static str>>,
     /// Functions a step asked that are not in the step set (the rule is refused).
     pub(super) missing: std::collections::BTreeSet<String>,
+    /// 6h: the provider relations read in place (`Native::Fact`), with their column counts.
+    pub(super) fact_rels: Vec<(String, usize)>,
 }
 
 impl Run {
@@ -289,7 +291,14 @@ pub(super) enum Native {
     Location,
     /// `token-link`: a row a (source token, link kind), from the token order; row = source * 3 + kind.
     Token,
+    /// 6h: a provider relation read in place by key: the file's fill, never copied into a step; a probe on any column reads
+    /// that column's keyed list (made from the fill on the first ask in a file), and `col = literal` enters by its bucket.
+    /// The number is the relation's place in `Run::fact_rels`.
+    Fact(u16),
 }
+
+/// 6h: the rows of the keyed lists made from provider fills (one entry a fill row a column asked), for the report.
+pub(super) static FACT_IX_ROWS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
 const TREE_COLS: [(&str, Ty); 5] = [("id", Ty::Node), ("kind", Ty::Sym), ("text", Ty::Sym), ("file", Ty::File), ("span", Ty::Span)];
 const CHILD_COLS: [(&str, Ty); 5] = [("parent", Ty::Node), ("child", Ty::Node), ("ordinal", Ty::Num), ("field", Ty::Sym), ("file", Ty::File)];
@@ -322,7 +331,25 @@ fn native_cols(n: Native) -> &'static [(&'static str, Ty)] {
         Native::Child => &CHILD_COLS,
         Native::Location => &LOC_COLS,
         Native::Token => &TOKEN_COLS,
+        Native::Fact(_) => &[],
     }
+}
+
+/// 6h: a provider relation's place among the facts read in place (`VEC_NO_FACTVIEW` turns this off): every catalog
+/// relation the provider fills per file; never the file list or the two project relations made here.
+fn fact_of(run: &mut Run, rel: &str) -> Option<Native> {
+    if std::env::var_os("VEC_NO_FACTVIEW").is_some() || native_of(rel).is_some() || matches!(rel, "filesystem.file" | "project-namespace-membership" | "module-identity") {
+        return None;
+    }
+    let (_, names, _) = run.catalog(rel)?;
+    let at = match run.fact_rels.iter().position(|(r, _)| r == rel) {
+        Some(i) => i,
+        None => {
+            run.fact_rels.push((rel.to_owned(), names.len()));
+            run.fact_rels.len() - 1
+        }
+    };
+    Some(Native::Fact(at as u16))
 }
 
 const NONE: u32 = u32::MAX;
@@ -370,6 +397,9 @@ pub(super) struct File<'a> {
     pmemo: FxHashMap<(usize, usize), (Table, FxHashMap<u64, Vec<u32>>)>,
     /// A probed closure walk's adjacency by (closure, forward): the nodes asked so far and their neighbours.
     walks: FxHashMap<(usize, bool), FxHashMap<u64, Vec<u64>>>,
+    /// 6h: the fills read in place, by `Native::Fact` place, and their keyed lists by (place, column).
+    facts: Vec<Option<Rc<Table>>>,
+    fact_ix: RefCell<FxHashMap<(u16, usize), Rc<FxHashMap<u64, Vec<u32>>>>>,
 }
 
 /// How a step asks the provider for a relation's rows: the visit's facts.
@@ -407,6 +437,8 @@ impl File<'_> {
             seeds: Vec::new(),
             pmemo: FxHashMap::default(),
             walks: FxHashMap::default(),
+            facts: Vec::new(),
+            fact_ix: RefCell::new(FxHashMap::default()),
         };
         for i in 0..n as u32 {
             let p = Position(i);
@@ -535,6 +567,7 @@ impl File<'_> {
             (Native::Location, 6) => u64::from(self.end[r]),
             (Native::Location, 7) => self.column(self.start[r]) as u64,
             (Native::Location, 8) => self.column(self.end[r]) as u64,
+            (Native::Fact(i), c) => self.facts[usize::from(i)].as_ref().map_or(NULL, |t| t.cols[c][r]),
             (Native::Token, _) => {
                 let (src, k) = (row / 3, row % 3);
                 match col {
@@ -579,11 +612,28 @@ impl File<'_> {
                 }
                 out
             }
+            Native::Fact(i) => (0..self.facts[usize::from(i)].as_ref().map_or(0, |t| t.n as u32)).collect(),
         }
+    }
+    /// 6h: a fill's keyed list on one column (made on the first ask in a file).
+    fn fact_list(&self, i: u16, col: usize) -> Rc<FxHashMap<u64, Vec<u32>>> {
+        if let Some(ix) = self.fact_ix.borrow().get(&(i, col)) {
+            return ix.clone();
+        }
+        let mut m: FxHashMap<u64, Vec<u32>> = FxHashMap::default();
+        if let Some(t) = &self.facts[usize::from(i)] {
+            for (r, v) in t.cols[col].iter().enumerate() {
+                m.entry(*v).or_default().push(r as u32);
+            }
+            FACT_IX_ROWS.fetch_add(t.n as u64, std::sync::atomic::Ordering::Relaxed);
+        }
+        let rc = Rc::new(m);
+        self.fact_ix.borrow_mut().insert((i, col), rc.clone());
+        rc
     }
     /// Whether a native relation is probed in place on a column.
     fn probes(nat: Native, col: usize) -> bool {
-        matches!((nat, col), (Native::Tree | Native::Location, 0) | (Native::Child, 0 | 1) | (Native::Location, 3..=6) | (Native::Token, 0 | 1))
+        matches!((nat, col), (Native::Tree | Native::Location, 0) | (Native::Child, 0 | 1) | (Native::Location, 3..=6) | (Native::Token, 0 | 1) | (Native::Fact(_), _))
     }
     /// Rows of a native relation whose column holds `v`.
     fn native_probe(&self, run: &Run, nat: Native, col: usize, v: u64, out: &mut Vec<u32>) {
@@ -645,6 +695,11 @@ impl File<'_> {
                             out.push(v as u32 * 3 + k);
                         }
                     }
+                }
+            }
+            (Native::Fact(i), c) => {
+                if let Some(rows) = self.fact_list(i, c).get(&v) {
+                    out.extend_from_slice(rows);
                 }
             }
             (Native::Token, 1) => {
@@ -1228,7 +1283,16 @@ impl<'p> Exec<'p> {
         }
         let pn = &self.plan.nodes[node];
         let v = match pn.op.as_str() {
-            "base" => native_of(pn.j["rel"].as_str().unwrap_or("")).map(|nat| Rc::new(ViewSpec { base: nat, map: (0..native_cols(nat).len()).collect(), filter: Vec::new() })),
+            "base" => {
+                let rel = pn.j["rel"].as_str().unwrap_or("").to_owned();
+                match native_of(&rel) {
+                    Some(nat) => Some(Rc::new(ViewSpec { base: nat, map: (0..native_cols(nat).len()).collect(), filter: Vec::new() })),
+                    None => fact_of(run, &rel).map(|nat| {
+                        let Native::Fact(i) = nat else { unreachable!() };
+                        Rc::new(ViewSpec { base: nat, map: (0..run.fact_rels[usize::from(i)].1).collect(), filter: Vec::new() })
+                    }),
+                }
+            }
             "select" if pn.j["src"].as_array().is_some_and(|a| a.len() == 1) => {
                 let inner = pn.j["src"][0][0].as_u64().unwrap_or(0) as usize;
                 match self.view(run, inner)? {
@@ -1263,6 +1327,7 @@ impl<'p> Exec<'p> {
             return Ok(r.clone());
         }
         if let Some(v) = self.view(run, node)? {
+            self.load_fact(f, run, p, v.base)?;
             let r = Res::View(v);
             f.memo[node] = Some(r.clone());
             return Ok(r);
@@ -1316,6 +1381,7 @@ impl<'p> Exec<'p> {
             return Ok(Rc::new(subset(f, node, &t, col, keys)));
         }
         if let Some(v) = self.view(run, node)? {
+            self.load_fact(f, run, p, v.base)?;
             if File::probes(v.base, v.map[col]) {
                 let mut rows = Vec::new();
                 for k in keys {
@@ -2007,6 +2073,25 @@ impl<'p> Exec<'p> {
         }
     }
 
+    /// 6h: a fact view's fill, asked once a file (the same fill a whole `base` step reads).
+    fn load_fact(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, nat: Native) -> R<()> {
+        let Native::Fact(i) = nat else { return Ok(()) };
+        let i = usize::from(i);
+        if f.facts.get(i).is_some_and(Option::is_some) {
+            return Ok(());
+        }
+        let rel = run.fact_rels[i].0.clone();
+        if !f.fills.contains_key(&rel) {
+            let t = p.fill(run, &rel)?;
+            f.fills.insert(rel.clone(), Rc::new(t));
+        }
+        if f.facts.len() <= i {
+            f.facts.resize(i + 1, None);
+        }
+        f.facts[i] = f.fills.get(&rel).cloned();
+        Ok(())
+    }
+
     fn base(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, rel: &str) -> R<Table> {
         if rel == "filesystem.file" {
             let mut out = Table::with(vec!["path".to_owned()], vec![Ty::File]);
@@ -2188,7 +2273,10 @@ impl<'p> Exec<'p> {
         for (i, sr) in srcs.iter().enumerate() {
             let size = match sr {
                 Src::Tab(t, _) => Some(t.n),
-                Src::View(v, _) => kind_set(run, &v.filter, 0, v.base, &[]).or_else(|| kind_set(run, conj, i, v.base, &v.map)).map(|ks| bucket_len(f, run, &ks)),
+                Src::View(v, _) => kind_set(run, &v.filter, 0, v.base, &[])
+                    .or_else(|| kind_set(run, conj, i, v.base, &v.map))
+                    .map(|ks| bucket_len(f, run, &ks))
+                    .or_else(|| lit_rows(f, &v.filter, 0, v.base, &[]).or_else(|| lit_rows(f, conj, i, v.base, &v.map)).map(|r| r.len())),
                 _ => None,
             };
             if let Some(n) = size
@@ -2204,7 +2292,7 @@ impl<'p> Exec<'p> {
         let driver = match driver {
             Some(d) => d,
             None => match (0..k).find(|i| match &srcs[*i] {
-                Src::View(v, _) => kind_set(run, &v.filter, 0, v.base, &[]).is_some() || kind_set(run, conj, *i, v.base, &v.map).is_some(),
+                Src::View(v, _) => kind_set(run, &v.filter, 0, v.base, &[]).is_some() || kind_set(run, conj, *i, v.base, &v.map).is_some() || lit_rows(f, &v.filter, 0, v.base, &[]).is_some() || lit_rows(f, conj, *i, v.base, &v.map).is_some(),
                 _ => false,
             }) {
                 Some(d) => d,
@@ -2252,7 +2340,10 @@ impl<'p> Exec<'p> {
                 // the select's own kind tests narrow the view's entry too
                 match kind_set(run, conj, driver, v.base, &v.map) {
                     Some(ks) if kind_set(run, &v.filter, 0, v.base, &[]).is_none() => Rc::new(bucket(f, run, &ks).into_iter().filter(|r| view_holds(f, run, v, *r)).collect()),
-                    _ => view_rows(f, run, v, *vn),
+                    _ => match lit_rows(f, conj, driver, v.base, &v.map) {
+                        Some(rows) if lit_rows(f, &v.filter, 0, v.base, &[]).is_none() => Rc::new(rows.into_iter().filter(|r| view_holds(f, run, v, *r)).collect()),
+                        _ => view_rows(f, run, v, *vn),
+                    },
                 }
             }
             _ => return Err("a select starts from no table or view".to_owned()),
@@ -2991,7 +3082,7 @@ fn view_rows(f: &mut File<'_>, run: &mut Run, v: &ViewSpec, node: usize) -> Rc<V
     }
     let rows = match kind_set(run, &v.filter, 0, v.base, &[]) {
         Some(ks) => bucket(f, run, &ks),
-        None => f.native_rows(run, v.base),
+        None => lit_rows(f, &v.filter, 0, v.base, &[]).unwrap_or_else(|| f.native_rows(run, v.base)),
     };
     let kept: Vec<u32> = rows.into_iter().filter(|r| view_holds(f, run, v, *r)).collect();
     let rc = Rc::new(kept);
@@ -3014,6 +3105,42 @@ fn bucket(f: &File<'_>, run: &Run, ks: &[u32]) -> Vec<u32> {
     }
     rows.sort_unstable();
     rows
+}
+
+/// 6h: a fact view's rows where a test fixes one of its columns to literals (`col = "x"`, `col in [..]`, an or of such): that
+/// column's keyed list read at those values, a per-file bucket. `map` takes a view's column to its base column (empty: the
+/// base's own).
+fn lit_rows(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize]) -> Option<Vec<u32>> {
+    let Native::Fact(i) = base else { return None };
+    fn cols(e: &E, si: usize, out: &mut Vec<usize>) {
+        match e {
+            E::Col(s, c, _) if *s == si => out.push(*c),
+            E::Cmp(_, a, b) | E::And(a, b) | E::Or(a, b) | E::In(a, b, _) => {
+                cols(a, si, out);
+                cols(b, si, out);
+            }
+            _ => {}
+        }
+    }
+    for e in conj {
+        let mut cs = Vec::new();
+        cols(e, si, &mut cs);
+        for c in cs {
+            if let Some(vals) = kinds_required(e, si, c) {
+                let bc = if map.is_empty() { c } else { map[c] };
+                // a text literal names a symbol cell only; a flag or number column is tested row by row
+                if f.facts[usize::from(i)].as_ref().is_none_or(|t| t.tys[bc] != Ty::Sym) {
+                    continue;
+                }
+                let ix = f.fact_list(i, bc);
+                let mut rows: Vec<u32> = vals.iter().filter_map(|v| ix.get(&u64::from(*v))).flatten().copied().collect();
+                rows.sort_unstable();
+                rows.dedup();
+                return Some(rows);
+            }
+        }
+    }
+    None
 }
 
 /// The kinds a conjunction requires of a tree source's `kind` column (a literal or an or of literals), if any. `map` takes a
