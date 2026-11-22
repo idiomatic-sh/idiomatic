@@ -1818,6 +1818,7 @@ dependencies = [
  "dhat",
  "divan",
  "foldhash 0.2.0",
+ "idiomatic-sh-ryo-engine",
  "idiomatic-sh-ryo-python",
  "idiomatic-sh-ryo-relations",
  "idiomatic-sh-ryo-sdk",
