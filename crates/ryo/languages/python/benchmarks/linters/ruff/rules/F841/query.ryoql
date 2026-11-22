@@ -70,12 +70,6 @@ let timeline_pairs = ordered-match(left=replacement_timeline, right=replacement_
 let local_replacements = select earlier, later, ordinal from timeline_pairs where before = "bind" and after = "bind";
 let replacement_edges = select earlier, later from local_replacements;
 let read_events = select occurrence as reference, ordinal from "binding-event" where kind = "read" or kind = "delete";
-let read_nodes = select occurrence as id, file from "binding-event" where kind = "read" or kind = "delete";
-let embedded_roots = select root as id, file from "embedded-expression";
-let embedded_reads_axis = axis(from=embedded_roots, relation="semantic-child", direction=descendant, domain=read_nodes);
-let embedded_descendant_reads = select l.related as reference, l.file as file from embedded_reads_axis as l;
-let embedded_root_reads = select l.id as reference, l.file as file from embedded_roots as l join read_nodes as r on l.id = r.id and l.file = r.file;
-let embedded_reads = union(left=embedded_descendant_reads, right=embedded_root_reads);
 let all_read_contexts = select reference as id, name, scope, phase, file from "binding-read";
 let deferred_resolutions = deferred_events(missing=all_read_contexts);
 let read_ids = select occurrence as reference, file from "binding-event" where kind = "read" or kind = "delete";
@@ -87,10 +81,8 @@ let ordinary_binding_uses = antijoin(left=ordinary_binding_uses0, right=nonlocal
 let ordinary_use_rows = select binding, reference, file from ordinary_binding_uses;
 let replayed_use_rows = select occurrence as binding, reference, file from deferred_resolutions where kind = "bind";
 let effective_binding_uses = union(left=ordinary_use_rows, right=replayed_use_rows);
-let embedded_reference_uses = select l.binding as binding, l.reference as reference from effective_binding_uses as l join embedded_reads as r on l.reference = r.reference and l.file = r.file;
 let all_binding_uses = select binding, reference from effective_binding_uses;
-let nonembedded_binding_uses = antijoin(left=all_binding_uses, right=embedded_reference_uses, left-on=["binding", "reference"], right-on=["binding", "reference"]);
-let direct_uses = select binding from nonembedded_binding_uses;
+let direct_uses = select binding from all_binding_uses;
 let ordinary_dated_uses = select l.binding as binding, r.ordinal as ordinal from ordinary_binding_uses as l join read_events as r on l.reference = r.reference;
 let deferred_dated_uses = select occurrence as binding, point as ordinal from deferred_resolutions where kind = "bind";
 let dated_uses = union(left=ordinary_dated_uses, right=deferred_dated_uses);
