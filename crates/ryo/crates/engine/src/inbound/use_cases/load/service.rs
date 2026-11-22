@@ -6,8 +6,8 @@
 use super::errors::LoadError;
 use super::types::{LoadedRules, NamedWords};
 use crate::domain::code::types::{NeedSite, ProgramCode, UnitKey};
-use crate::domain::needs::service::asks_nodes;
-use crate::domain::needs::types::NeedVerdict;
+use crate::domain::needs::masks::service::node_asked;
+use crate::domain::needs::masks::types::{NeedMasks, NodeAsk};
 use crate::domain::scratch::types::NodeNeed;
 use crate::domain::encoding::service::encoded;
 use crate::domain::executing::running::service::unit_not_run;
@@ -110,14 +110,16 @@ pub(crate) fn node_needs(code: &ProgramCode) -> Vec<Option<NodeNeed>> {
         .collect();
     let last = sites.iter().map(|site| site.0).max().map_or(0, |last| last.saturating_add(1));
     let mut needs = vec![None; usize::try_from(last).unwrap_or(0)];
+    // The answer for each site named on the way is kept, so a site many formulas name is walked once.
+    let mut masks = NeedMasks::default();
     for site in sites {
         let Some(slot) = needs.get_mut(usize::try_from(site.0).unwrap_or(usize::MAX)) else {
             continue;
         };
         if slot.is_none() {
-            *slot = Some(match asks_nodes(code, site) {
-                NeedVerdict::Holds => NodeNeed::Asked,
-                NeedVerdict::Empty => NodeNeed::NotAsked,
+            *slot = Some(match node_asked(code, site, &mut masks) {
+                NodeAsk::Asked => NodeNeed::Asked,
+                NodeAsk::NotAsked | NodeAsk::Finding | NodeAsk::Unknown => NodeNeed::NotAsked,
             });
         }
     }

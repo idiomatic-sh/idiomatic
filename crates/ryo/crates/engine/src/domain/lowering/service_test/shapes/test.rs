@@ -239,7 +239,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             )
         },
         expect: Expect::Value(Cow::Borrowed(concat!(
-            "definition 0: 7 columns, emptiness Unknown\n",
+            "definition 0: 7 columns, emptiness All([Unknown, Any([All([Row(SyntaxTree, Some(RowValue { column: SyntaxTree(Text), value: CellWord(1) }))])])])\n",
             "  pattern bound [6] collected [0]: Table 0\n",
             "table 0: Rows, 7 columns, indexes [[6]]\n",
             "  pipeline: Scan:File Read:Constant Call:Constant Read:Constant\n",

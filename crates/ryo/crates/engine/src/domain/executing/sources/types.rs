@@ -6,20 +6,42 @@ use crate::domain::executing::measuring::service::{
     need_fill_begun, need_fill_ended, need_leaf, need_nested,
 };
 use crate::domain::executing::measuring::sites::service::{kind_named, row_named};
-use crate::domain::executing::presence::service::node_row;
+use crate::domain::executing::presence::service::{consulted, node_row};
 use crate::domain::executing::types::Asker;
 use crate::domain::indexes::reading::service::cell_at;
 use crate::domain::made_tables::reading::service::view_of;
 use crate::domain::made_tables::sources::service::{made, scanned, table_of};
 use crate::domain::made_tables::types::ReadSource;
-use crate::domain::needs::masks::service::site_masks;
-use crate::domain::needs::masks::types::{MaskExact, NeedTerm, RecordCost, Stretch, TermNumber};
+use crate::domain::needs::formulas::service::{node_musts, site_root};
+use crate::domain::needs::formulas::types::{FormulaNode, FreeValue};
+use crate::domain::needs::masks::types::{NeedTerm, RecordCost, Stretch, TermNumber};
+use crate::domain::needs::spelled::service::{file_read, spelled, text_number};
+use ryo_language::domain::facts::service::{base_count, text};
+use ryo_relations::domain::catalog::service::{node_column, node_extent};
+use ryo_relations::domain::catalog::types::Spelling;
+use ryo_relations::domain::relations::types::{NodeColumn, NodeExtent};
+use ryo_values::domain::plan_parts::service::relation_column;
+use ryo_values::domain::plan_parts::types::ColumnIndex;
+use crate::domain::needs::service::decided;
 use crate::domain::needs::types::{NeedFacts, NeedVerdict};
 use crate::domain::programs::frames::types::StepFrame;
 use crate::domain::programs::operands::service::constant;
 use crate::domain::steps::types::MadeTableId;
 use ryo_language::domain::node_table::service::kinds_present;
 use ryo_relations::domain::relations::types::{Count, KindBits};
+
+/// SPIKE: what a measuring worker's decisions visited, for the run: decisions, nodes valued from the free bits, nodes
+/// asked, nodes whose musts failed. Printed by `counting::service::counted`.
+pub(crate) static NEED_VISITS: [std::sync::atomic::AtomicU64; 6] = [const { std::sync::atomic::AtomicU64::new(0) }; 6];
+
+/// SPIKE: counts one visit of kind `which` when the worker measures.
+pub(crate) fn visit(state: &crate::domain::scratch::types::LoopState, which: usize) {
+    if state.measure.is_some()
+        && let Some(count) = NEED_VISITS.get(which)
+    {
+        let _was = count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    }
+}
 
 /// The loop's frame, as what a need's formula asks: its decisions are kept in the loop's state; a kind's presence is the
 /// node table's; a relation's row is asked of the fill side, which fills the relation; a table's row makes the table when
@@ -43,6 +65,18 @@ impl NeedFacts for FileNeeds<'_, '_, '_> {
         }
         if let Some(slot) = self.0.state.needs.get_mut(place) {
             *slot = Some(verdict);
+        }
+        // A site decided is its own value from the free terms for the rest of the file: one read finds either.
+        let value = match verdict {
+            NeedVerdict::Holds => FreeValue::Holds,
+            NeedVerdict::Empty => FreeValue::Empty,
+        };
+        let sites = &mut self.0.state.need_terms.sites;
+        if sites.len() <= place {
+            sites.resize(place.saturating_add(1), FreeValue::Unfound);
+        }
+        if let Some(held) = sites.get_mut(place) {
+            *held = value;
         }
     }
 
@@ -85,53 +119,36 @@ impl NeedFacts for FileNeeds<'_, '_, '_> {
 
     fn masked(&mut self, site: NeedSite) -> Option<NeedVerdict> {
         let code = self.0.fill.programs.code;
-        let (held, exact) = site_masks(code, site, &mut self.0.state.need_masks);
-        let within =
-            |stretch: Stretch| stretch.start.0..stretch.start.0.saturating_add(stretch.count.0);
-        // Twice: first with the terms that cost nothing alone (a clause or an alternative that would ask a filled
-        // relation is taken to hold), so that no relation is filled for a site its free terms decide; then with all.
-        for asked in [RecordCost::Free, RecordCost::Dear] {
-            // Every clause needs one of its terms in the file: the first clause that has none decides.
-            if let Some(failed) = self.clause_failing(held.clauses, asked) {
+        // What the terms that cost nothing say of the whole formula, read off the file's bits: most sites are decided
+        // here. Only a site they leave open asks what costs, the cheapest first.
+        visit(self.0.state, 0);
+        let Some(root) = site_root(code, site, &mut self.0.state.need_masks) else {
+            return Some(NeedVerdict::Holds);
+        };
+        self.free_answered();
+        match self.site_free(site, root) {
+            FreeValue::Empty => {
                 if self.0.state.measure.is_some() {
-                    let named = self.clause_named(failed);
-                    need_leaf(self.0.state, || format!("none-of({named})=Empty"));
+                    need_leaf(self.0.state, || "free=Empty".to_owned());
                 }
                 return Some(NeedVerdict::Empty);
             }
-            // Every group needs an alternative whose clauses all hold.
-            for number in within(held.groups) {
-                let group = self.0.state.need_masks.groups.get(number).copied()?;
-                let mut some = false;
-                for place in within(group) {
-                    let alternative = self.0.state.need_masks.alternatives.get(place).copied()?;
-                    if self.clause_failing(alternative, asked).is_none() {
-                        some = true;
-                        break;
-                    }
+            FreeValue::Holds => {
+                if self.0.state.measure.is_some() {
+                    need_leaf(self.0.state, || "free=Holds".to_owned());
                 }
-                if !some {
-                    if self.0.state.measure.is_some() {
-                        need_leaf(self.0.state, || "no-alternative=Empty".to_owned());
-                    }
-                    return Some(NeedVerdict::Empty);
-                }
+                return Some(NeedVerdict::Holds);
             }
+            // A site met inside its own decision says nothing of itself.
+            FreeValue::Deciding => return Some(NeedVerdict::Holds),
+            FreeValue::Unfound | FreeValue::Open => {}
         }
-        if exact == MaskExact::Part {
-            return None;
-        }
-        // They are the whole formula but for its tables: each is asked, in the formula's order.
-        for number in within(held.tables) {
-            let table = self.0.state.need_masks.tables.get(number).copied()?;
-            if self.table_row(table) == NeedVerdict::Empty {
-                return Some(NeedVerdict::Empty);
-            }
-        }
+        self.site_valued(site, FreeValue::Deciding);
+        let verdict = self.node_decided(root);
         if self.0.state.measure.is_some() {
-            need_leaf(self.0.state, || "terms=Holds".to_owned());
+            need_leaf(self.0.state, || format!("asked={verdict:?}"));
         }
-        Some(NeedVerdict::Holds)
+        Some(verdict)
     }
 
     fn leaf(&mut self, at: WordSlot) -> Option<NeedVerdict> {
@@ -152,7 +169,7 @@ impl NeedFacts for FileNeeds<'_, '_, '_> {
         let costs = &self.0.state.need_masks.costs;
         match costs.get(usize::try_from(at.0).unwrap_or(usize::MAX)) {
             Some(RecordCost::Free) => Some(NeedVerdict::Empty),
-            Some(RecordCost::Dear) => Some(NeedVerdict::Holds),
+            Some(RecordCost::Dear | RecordCost::Presence) => Some(NeedVerdict::Holds),
             Some(RecordCost::Unknown) | None => None,
         }
     }
@@ -172,100 +189,431 @@ impl NeedFacts for FileNeeds<'_, '_, '_> {
 }
 
 impl FileNeeds<'_, '_, '_> {
-    /// The first clause of a stretch of the masks' clauses that has no term in the file; none when each has one. With
-    /// `asked` free, a term that costs a fill is not asked and its clause is taken to hold (a clause's free terms come
-    /// first).
-    fn clause_failing(&mut self, clauses: Stretch, asked: RecordCost) -> Option<Stretch> {
-        for number in clauses.start.0..clauses.start.0.saturating_add(clauses.count.0) {
-            let Some(clause) = self.0.state.need_masks.clauses.get(number).copied() else {
-                continue;
-            };
-            let mut some = false;
-            for at in clause.start.0..clause.start.0.saturating_add(clause.count.0) {
-                let Some(term) = self.0.state.need_masks.clause_terms.get(at).copied() else {
-                    continue;
-                };
-                let costs = self
+    /// SPIKE: a term's relation and whether it asks a value, for a measuring worker's trace.
+    fn term_relation(&self, term: TermNumber) -> String {
+        match self
+            .0
+            .state
+            .need_masks
+            .terms
+            .get(usize::try_from(term.0).unwrap_or(usize::MAX))
+            .copied()
+        {
+            Some(NeedTerm::Row {
+                relation,
+                column,
+                constant,
+            }) => {
+                let named = self
                     .0
-                    .state
-                    .need_masks
-                    .term_costs
-                    .get(usize::try_from(term.0).unwrap_or(usize::MAX))
-                    .copied()
-                    .unwrap_or_default();
-                if (asked == RecordCost::Free && costs == RecordCost::Dear)
-                    || self.term_holds(term) == NeedVerdict::Holds
-                {
-                    some = true;
-                    break;
+                    .fill
+                    .programs
+                    .code
+                    .relations
+                    .get(usize::try_from(relation.0).unwrap_or(usize::MAX))
+                    .map_or_else(|| "?".to_owned(), |held| format!("{held:?}"));
+                if column == NO_SLOT || constant == NO_SLOT {
+                    format!("{named}:any")
+                } else {
+                    format!("{named}:value")
                 }
             }
-            if !some {
-                // The clause that decided is asked first the next time: a site's clauses are tried in the order they
-                // last failed in, so a site that is empty in most files is decided by one clause. Only among the
-                // clauses of free terms (the pass that asks nothing else): which relation is filled never depends on
-                // the files a worker saw before.
-                if asked == RecordCost::Free && number != clauses.start.0 {
-                    self.0
-                        .state
-                        .need_masks
-                        .clauses
-                        .swap(clauses.start.0, number);
+            Some(NeedTerm::Kinds(_) | NeedTerm::Spelled { .. }) | None => "?".to_owned(),
+        }
+    }
+
+    /// A site's value from the free terms alone, kept for the file.
+    fn site_valued(&mut self, site: NeedSite, value: FreeValue) {
+        let place = usize::try_from(site.0).unwrap_or(usize::MAX);
+        let sites = &mut self.0.state.need_terms.sites;
+        if sites.len() <= place {
+            sites.resize(place.saturating_add(1), FreeValue::Unfound);
+        }
+        if let Some(held) = sites.get_mut(place) {
+            *held = value;
+        }
+    }
+
+    /// What a site's formula says of the file from the free terms alone (and what the file already answered): found
+    /// once a file. A site decided in the file is its decision.
+    fn site_free(&mut self, site: NeedSite, root: u32) -> FreeValue {
+        // A site decided in the file holds its decision here (`keep`).
+        let place = usize::try_from(site.0).unwrap_or(usize::MAX);
+        match self.0.state.need_terms.sites.get(place).copied() {
+            Some(FreeValue::Unfound) | None => {}
+            Some(known) => return known,
+        }
+        self.site_valued(site, FreeValue::Deciding);
+        let value = self.node_free(root);
+        self.site_valued(site, value);
+        value
+    }
+
+    /// What another site's formula says of the file from the free terms alone, compiled now when this is its first ask.
+    fn site_free_named(&mut self, site: NeedSite) -> FreeValue {
+        match self
+            .0
+            .state
+            .need_terms
+            .sites
+            .get(usize::try_from(site.0).unwrap_or(usize::MAX))
+            .copied()
+        {
+            Some(FreeValue::Empty) => return FreeValue::Empty,
+            Some(FreeValue::Holds) => return FreeValue::Holds,
+            Some(FreeValue::Open | FreeValue::Deciding) => return FreeValue::Open,
+            Some(FreeValue::Unfound) | None => {}
+        }
+        let code = self.0.fill.programs.code;
+        let root = site_root(code, site, &mut self.0.state.need_masks);
+        // A site compiled now may have met free terms the file's bits do not answer yet.
+        self.free_answered();
+        match root {
+            Some(root) => match self.site_free(site, root) {
+                FreeValue::Deciding | FreeValue::Unfound => FreeValue::Open,
+                value => value,
+            },
+            None => FreeValue::Open,
+        }
+    }
+
+    /// A node of a compiled formula.
+    fn node(&self, node: u32) -> FormulaNode {
+        self.0
+            .state
+            .need_masks
+            .formulas
+            .nodes
+            .get(usize::try_from(node).unwrap_or(usize::MAX))
+            .copied()
+            .unwrap_or(FormulaNode::Always)
+    }
+
+    /// The part at a place of the formulas' parts.
+    fn part(&self, at: usize) -> u32 {
+        self.0
+            .state
+            .need_masks
+            .formulas
+            .parts
+            .get(at)
+            .copied()
+            .unwrap_or(u32::MAX)
+    }
+
+    /// Whether the file's free bit is set: the free terms met since the bits were brought up (a site compiled inside
+    /// a decision) are asked first.
+    fn free_bit(&mut self, bit: u32) -> bool {
+        let place = usize::try_from(bit).unwrap_or(usize::MAX);
+        if place >= self.0.state.need_terms.free_known.0 {
+            self.free_answered();
+        }
+        self.0
+            .state
+            .need_terms
+            .free
+            .get(place / 64)
+            .is_some_and(|word| word & (1_u64 << (place % 64)) != 0)
+    }
+
+    /// A part's value from the free terms, a leaf read in place: a part whose every leaf costs is open, a bit and bit
+    /// words are read, and only a part of parts or another site is valued by `node_free`.
+    #[inline]
+    fn part_free(&mut self, part: u32) -> FreeValue {
+        let place = usize::try_from(part).unwrap_or(usize::MAX);
+        let formulas = &self.0.state.need_masks.formulas;
+        if !formulas.informs.get(place).copied().unwrap_or(true) {
+            return FreeValue::Open;
+        }
+        let holds = |held: bool| {
+            if held {
+                FreeValue::Holds
+            } else {
+                FreeValue::Empty
+            }
+        };
+        match formulas.nodes.get(place).copied() {
+            Some(FormulaNode::AllBits(words)) => holds(self.bits_held(words, true)),
+            Some(FormulaNode::AnyBits(words)) => holds(self.bits_held(words, false)),
+            Some(FormulaNode::Always) => FreeValue::Holds,
+            Some(FormulaNode::Never) => FreeValue::Empty,
+            Some(_) | None => self.node_free(part),
+        }
+    }
+
+    /// What a node says of the file from the free terms, the terms that cost that the file already answered, and the
+    /// tables already made: `Open` when what is not known yet decides. Asks nothing that costs.
+    fn node_free(&mut self, node: u32) -> FreeValue {
+        visit(self.0.state, 1);
+        let formulas = &self.0.state.need_masks.formulas;
+        // A node whose every leaf costs is open here: what the file already answered of it is read when it is asked.
+        if !formulas
+            .informs
+            .get(usize::try_from(node).unwrap_or(usize::MAX))
+            .copied()
+            .unwrap_or(true)
+        {
+            return FreeValue::Open;
+        }
+        let held = self.node(node);
+        // A node of parts, or another site, is first held to the free terms it cannot hold without; a leaf is its own.
+        if matches!(
+            held,
+            FormulaNode::All(_) | FormulaNode::Any(_) | FormulaNode::Site(_) | FormulaNode::TableNeed(_)
+        ) && !self.musts_held(node)
+        {
+            visit(self.0.state, 3);
+            return FreeValue::Empty;
+        }
+        let holds = |held: bool| {
+            if held {
+                FreeValue::Holds
+            } else {
+                FreeValue::Empty
+            }
+        };
+        match held {
+            FormulaNode::Always => FreeValue::Holds,
+            FormulaNode::Never => FreeValue::Empty,
+            FormulaNode::Free(bit) => holds(self.free_bit(bit)),
+            FormulaNode::Term(term) => match self.term_known(term) {
+                Some(verdict) => holds(verdict == NeedVerdict::Holds),
+                None => FreeValue::Open,
+            },
+            FormulaNode::Table(table) => match table_of(self.0.fill.store, table) {
+                Some(slot) => holds(slot.rows.count.0 > 0),
+                None => FreeValue::Open,
+            },
+            FormulaNode::TableNeed(table) => {
+                let code = self.0.fill.programs.code;
+                let Some(need) = code
+                    .tables
+                    .get(usize::try_from(table.0).unwrap_or(usize::MAX))
+                    .map(|held| held.need)
+                else {
+                    return FreeValue::Empty;
+                };
+                // As a reader of the table consults its need (`sources::service::table_needed`).
+                consulted(self.0, need);
+                self.site_free_named(need)
+            }
+            FormulaNode::Site(site) => self.site_free_named(site),
+            FormulaNode::AllBits(words) => holds(self.bits_held(words, true)),
+            FormulaNode::AnyBits(words) => holds(self.bits_held(words, false)),
+            FormulaNode::All(parts) => {
+                let mut value = FreeValue::Holds;
+                for at in parts.start.0..parts.start.0.saturating_add(parts.count.0) {
+                    match self.part_free(self.part(at)) {
+                        FreeValue::Empty => return FreeValue::Empty,
+                        FreeValue::Holds => {}
+                        FreeValue::Open | FreeValue::Unfound | FreeValue::Deciding => {
+                            value = FreeValue::Open;
+                        }
+                    }
                 }
-                return Some(clause);
+                value
+            }
+            FormulaNode::Any(parts) => {
+                let mut value = FreeValue::Empty;
+                for at in parts.start.0..parts.start.0.saturating_add(parts.count.0) {
+                    match self.part_free(self.part(at)) {
+                        FreeValue::Holds => return FreeValue::Holds,
+                        FreeValue::Empty => {}
+                        FreeValue::Open | FreeValue::Unfound | FreeValue::Deciding => {
+                            value = FreeValue::Open;
+                        }
+                    }
+                }
+                value
             }
         }
-        None
     }
 
-    /// SPIKE: the terms of a clause by name, for a measuring worker's trace.
-    fn clause_named(&self, clause: Stretch) -> String {
-        let masks = &self.0.state.need_masks;
-        let terms = masks
-            .clause_terms
-            .get(clause.start.0..clause.start.0.saturating_add(clause.count.0))
-            .unwrap_or_default();
-        let code = self.0.fill.programs.code;
-        let named: Vec<String> = terms
-            .iter()
-            .filter_map(|term| {
-                masks
-                    .terms
-                    .get(usize::try_from(term.0).unwrap_or(usize::MAX))
-            })
-            .map(|term| match *term {
-                NeedTerm::Kinds(list) => {
-                    let from = usize::try_from(list.0).unwrap_or(usize::MAX);
-                    let length = code
-                        .pool
-                        .get(from)
-                        .map_or(0, |held| usize::try_from(held.0).unwrap_or(0));
-                    let kinds = code
-                        .pool
-                        .get(from.saturating_add(1)..from.saturating_add(1).saturating_add(length))
-                        .unwrap_or_default();
-                    let each: Vec<String> = kinds
-                        .iter()
-                        .map(|kind| {
-                            kind_named(self.0, KindBits(u16::try_from(kind.0).unwrap_or(u16::MAX)))
-                        })
-                        .collect();
-                    each.join("|")
+    /// What a node says of the file, asking what it costs: its parts in the order compiled (what costs nothing first,
+    /// a filled relation's any-row term last), stopping at the first part that decides.
+    fn node_decided(&mut self, node: u32) -> NeedVerdict {
+        visit(self.0.state, 2);
+        let held = self.node(node);
+        if matches!(
+            held,
+            FormulaNode::All(_) | FormulaNode::Any(_) | FormulaNode::Site(_) | FormulaNode::TableNeed(_)
+        ) && !self.musts_held(node)
+        {
+            return NeedVerdict::Empty;
+        }
+        match held {
+            FormulaNode::Always => NeedVerdict::Holds,
+            FormulaNode::Never => NeedVerdict::Empty,
+            FormulaNode::Free(bit) => {
+                if self.free_bit(bit) {
+                    NeedVerdict::Holds
+                } else {
+                    NeedVerdict::Empty
                 }
-                NeedTerm::Row {
-                    relation,
-                    column,
-                    constant,
-                } => row_named(self.0, relation, column, constant),
-            })
-            .collect();
-        named.join(" ")
+            }
+            FormulaNode::Term(term) => {
+                let verdict = self.term_holds(term);
+                if self.0.state.measure.is_some() {
+                    // SPIKE: a measuring worker traces each term that costs, by its relation.
+                    let named = self.term_relation(term);
+                    need_leaf(self.0.state, || format!("term:{named}={verdict:?}"));
+                }
+                verdict
+            }
+            FormulaNode::Table(table) => self.table_row(table),
+            FormulaNode::TableNeed(table) => {
+                let ports = self.0.ports;
+                ports.table_need(self.0, table)
+            }
+            FormulaNode::AllBits(words) | FormulaNode::AnyBits(words) => {
+                let every = matches!(held, FormulaNode::AllBits(_));
+                if self.bits_held(words, every) {
+                    NeedVerdict::Holds
+                } else {
+                    NeedVerdict::Empty
+                }
+            }
+            FormulaNode::Site(site) => {
+                let code = self.0.fill.programs.code;
+                decided(self, code, site)
+            }
+            FormulaNode::All(parts) => {
+                for at in parts.start.0..parts.start.0.saturating_add(parts.count.0) {
+                    if self.node_decided(self.part(at)) == NeedVerdict::Empty {
+                        return NeedVerdict::Empty;
+                    }
+                }
+                NeedVerdict::Holds
+            }
+            FormulaNode::Any(parts) => {
+                for at in parts.start.0..parts.start.0.saturating_add(parts.count.0) {
+                    if self.node_decided(self.part(at)) == NeedVerdict::Holds {
+                        return NeedVerdict::Holds;
+                    }
+                }
+                NeedVerdict::Empty
+            }
+        }
     }
 
-    /// Whether a term of the rule set's needs holds in the file: asked the first time in a file (of the node table's
-    /// sets, or of a relation the language fills now), read after.
+    /// Whether the file's free bits hold every free term a node cannot hold without, and some term of its clause.
+    #[inline]
+    fn musts_held(&self, node: u32) -> bool {
+        let (musts, clause) = node_musts(&self.0.state.need_masks, node);
+        if musts.count.0 == 0 && clause.count.0 == 0 {
+            return true;
+        }
+        let answers = &self.0.state.need_terms.free;
+        let words = &self.0.state.need_masks.formulas.musts;
+        let within =
+            |stretch: Stretch| stretch.start.0..stretch.start.0.saturating_add(stretch.count.0);
+        let all = words.get(within(musts)).unwrap_or_default();
+        let every = all
+            .iter()
+            .all(|word| answers.get(word.word.0).copied().unwrap_or(0) & word.bits == word.bits);
+        if !every {
+            return false;
+        }
+        let some = words.get(within(clause)).unwrap_or_default();
+        some.is_empty()
+            || some
+                .iter()
+                .any(|word| answers.get(word.word.0).copied().unwrap_or(0) & word.bits != 0)
+    }
+
+    /// Whether the file's free bits hold every bit of the words (`every`), or some one of them.
+    fn bits_held(&self, words: Stretch, every: bool) -> bool {
+        let answers = &self.0.state.need_terms.free;
+        let held = self
+            .0
+            .state
+            .need_masks
+            .formulas
+            .bits
+            .get(words.start.0..words.start.0.saturating_add(words.count.0))
+            .unwrap_or_default();
+        if every {
+            held.iter().all(|word| {
+                answers.get(word.word.0).copied().unwrap_or(0) & word.bits == word.bits
+            })
+        } else {
+            held.iter()
+                .any(|word| answers.get(word.word.0).copied().unwrap_or(0) & word.bits != 0)
+        }
+    }
+
+    /// The file's answer to a term when it was asked in the file; none when it was not.
+    fn term_known(&self, term: TermNumber) -> Option<NeedVerdict> {
+        let place = usize::try_from(term.0).unwrap_or(usize::MAX);
+        let (word, bit) = (place / 64, 1_u64 << (place % 64));
+        let answers = &self.0.state.need_terms;
+        let asked = answers.asked.get(word).copied().unwrap_or(0);
+        if asked & bit == 0 {
+            return None;
+        }
+        let holds = answers.holds.get(word).copied().unwrap_or(0);
+        Some(if holds & bit != 0 {
+            NeedVerdict::Holds
+        } else {
+            NeedVerdict::Empty
+        })
+    }
+
+    /// Has the file's answer to every free term met so far in the file's free bits: the terms met since the bits
+    /// were last brought up are asked now (all of them at the file's first decision).
+    fn free_answered(&mut self) {
+        let known = self.0.state.need_terms.free_known.0;
+        let all = self.0.state.need_masks.free_terms.len();
+        if known == all {
+            return;
+        }
+        let words = all.div_ceil(64);
+        if self.0.state.need_terms.free.len() < words {
+            self.0.state.need_terms.free.resize(words, 0);
+        }
+        for index in known..all {
+            let Some(term) = self.0.state.need_masks.free_terms.get(index).copied() else {
+                continue;
+            };
+            if self.term_asked(term) == NeedVerdict::Holds
+                && let Some(word) = self.0.state.need_terms.free.get_mut(index / 64)
+            {
+                *word |= 1_u64 << (index % 64);
+            }
+        }
+        self.0.state.need_terms.free_known = Count(all);
+    }
+
+    /// Whether a term of the rule set's needs holds in the file: a free term's answer is read in the file's free
+    /// bits; any other is asked the first time in a file (of a relation the language fills now) and read after.
+    #[inline]
     fn term_holds(&mut self, term: TermNumber) -> NeedVerdict {
         let place = usize::try_from(term.0).unwrap_or(usize::MAX);
+        let free = self
+            .0
+            .state
+            .need_masks
+            .free_places
+            .get(place)
+            .copied()
+            .unwrap_or(0);
+        if let Some(index) = usize::try_from(free).unwrap_or(0).checked_sub(1)
+            && index < self.0.state.need_terms.free_known.0
+        {
+            let word = self
+                .0
+                .state
+                .need_terms
+                .free
+                .get(index / 64)
+                .copied()
+                .unwrap_or(0);
+            return if word & (1_u64 << (index % 64)) != 0 {
+                NeedVerdict::Holds
+            } else {
+                NeedVerdict::Empty
+            };
+        }
         let (word, bit) = (place / 64, 1_u64 << (place % 64));
         let answers = &mut self.0.state.need_terms;
         if answers.asked.len() <= word {
@@ -281,7 +629,25 @@ impl FileNeeds<'_, '_, '_> {
                 NeedVerdict::Empty
             };
         }
-        let verdict = match self.0.state.need_masks.terms.get(place).copied() {
+        let verdict = self.term_asked(term);
+        let answers = &mut self.0.state.need_terms;
+        if let (Some(asked), Some(holds)) =
+            (answers.asked.get_mut(word), answers.holds.get_mut(word))
+        {
+            *asked |= bit;
+            if verdict == NeedVerdict::Holds {
+                *holds |= bit;
+            } else {
+                *holds &= !bit;
+            }
+        }
+        verdict
+    }
+
+    /// A term's answer for the file, asked now: of the node table's sets, or of a relation the language fills.
+    fn term_asked(&mut self, term: TermNumber) -> NeedVerdict {
+        let place = usize::try_from(term.0).unwrap_or(usize::MAX);
+        match self.0.state.need_masks.terms.get(place).copied() {
             Some(NeedTerm::Kinds(list)) => {
                 let code = self.0.fill.programs.code;
                 let from = usize::try_from(list.0).unwrap_or(usize::MAX);
@@ -310,21 +676,115 @@ impl FileNeeds<'_, '_, '_> {
                 relation,
                 column,
                 constant,
-            }) => self.relation_decided(relation, column, constant),
+            }) => match self.text_spelled(term) {
+                Some(verdict) => verdict,
+                None => self.relation_decided(relation, column, constant),
+            },
+            Some(NeedTerm::Spelled { .. }) => self.text_spelled(term).unwrap_or(NeedVerdict::Holds),
             None => NeedVerdict::Holds,
+        }
+    }
+
+    /// The text a term asks the file to spell, and whether the file's own tree must spell it: a spelled term's, the
+    /// constant's text as its column spells it; a row of a node relation held to a constant text in its `Text` column,
+    /// that text (the column holds a token's exact text), in the relation's extent. None for any other term.
+    fn term_text(&self, term: TermNumber) -> Option<(String, bool)> {
+        let code = self.0.fill.programs.code;
+        let words = &*self.0.fill.words;
+        let cell = |constant: WordSlot| {
+            code.constants
+                .get(usize::try_from(constant.0).unwrap_or(usize::MAX))
+                .copied()
         };
-        let answers = &mut self.0.state.need_terms;
-        if let (Some(asked), Some(holds)) =
-            (answers.asked.get_mut(word), answers.holds.get_mut(word))
+        match self
+            .0
+            .state
+            .need_masks
+            .terms
+            .get(usize::try_from(term.0).unwrap_or(usize::MAX))
+            .copied()?
         {
-            *asked |= bit;
-            if verdict == NeedVerdict::Holds {
-                *holds |= bit;
-            } else {
-                *holds &= !bit;
+            NeedTerm::Spelled { constant, spelling } => {
+                let whole = text(words, cell(constant)?).0;
+                let spelled = match spelling {
+                    Spelling::Whole => whole,
+                    Spelling::LastSegment => whole.rsplit('.').next().unwrap_or(whole),
+                };
+                Some((spelled.to_owned(), false))
+            }
+            NeedTerm::Row {
+                relation,
+                column,
+                constant,
+            } if column != NO_SLOT && constant != NO_SLOT => {
+                let read = code
+                    .relations
+                    .get(usize::try_from(relation.0).unwrap_or(usize::MAX))
+                    .copied()?;
+                let extent = node_extent(read)?;
+                let named = relation_column(read, ColumnIndex(column.0)).and_then(node_column)?;
+                if named != NodeColumn::Text {
+                    return None;
+                }
+                let cell = cell(constant)?;
+                // A constant that is no text of the pack (a number) is held by no token.
+                if cell >= base_count(words) {
+                    return None;
+                }
+                Some((text(words, cell).0.to_owned(), extent == NodeExtent::Own))
+            }
+            NeedTerm::Row { .. } | NeedTerm::Kinds(_) => None,
+        }
+    }
+
+    /// Numbers the texts of the terms met since last time, so that one pass over the file's tokens answers them all.
+    fn texts_found(&mut self) {
+        let all = self.0.state.need_masks.terms.len();
+        let from = self.0.state.need_masks.texts_found;
+        if from >= all {
+            return;
+        }
+        for place in from..all {
+            let term = TermNumber(u32::try_from(place).unwrap_or(u32::MAX));
+            let number = self.term_text(term).map_or(0, |(found, own)| {
+                let number = text_number(&mut self.0.state.need_masks.spelled, &found);
+                // The low bit says the own tree must spell it.
+                (number.saturating_add(1) << 1) | u32::from(own)
+            });
+            let texts = &mut self.0.state.need_masks.term_texts;
+            if texts.len() <= place {
+                texts.resize(place.saturating_add(1), 0);
+            }
+            if let Some(held) = texts.get_mut(place) {
+                *held = number;
             }
         }
-        verdict
+        self.0.state.need_masks.texts_found = all;
+    }
+
+    /// Whether the file spells the text a term asks for, the file's tokens read on the first such ask; none for a term
+    /// that asks no text.
+    fn text_spelled(&mut self, term: TermNumber) -> Option<NeedVerdict> {
+        self.texts_found();
+        let held = self
+            .0
+            .state
+            .need_masks
+            .term_texts
+            .get(usize::try_from(term.0).unwrap_or(usize::MAX))
+            .copied()
+            .filter(|held| *held != 0)?;
+        let (number, own) = ((held >> 1).saturating_sub(1), held & 1 == 1);
+        let texts = &self.0.state.need_masks.spelled;
+        let file = &mut self.0.state.need_terms.spelled;
+        if file.known < texts.numbers.len() {
+            file_read(texts, self.0.fill.source, self.0.fill.nodes, file);
+        }
+        Some(if spelled(file, number, own) {
+            NeedVerdict::Holds
+        } else {
+            NeedVerdict::Empty
+        })
     }
 
     /// Whether the relation has a row in the file, with the constant in the column when both are given.
@@ -355,7 +815,7 @@ impl FileNeeds<'_, '_, '_> {
         let Ok(whole) = asked else {
             return NeedVerdict::Holds;
         };
-        let mut rows = whole.rows.start.0..whole.rows.end.0;
+        let rows = whole.rows.start.0..whole.rows.end.0;
         let holds = if column == NO_SLOT || value == NO_SLOT {
             !rows.is_empty()
         } else {
@@ -363,7 +823,7 @@ impl FileNeeds<'_, '_, '_> {
             let place = Short(u16::try_from(column.0).unwrap_or(u16::MAX));
             // The column is asked once for the need, and its cells are read where they lie.
             let held = view_of(frame.fill.store, source, place);
-            rows.any(|row| cell_at(held, Count(row)) == wanted)
+            rows.clone().any(|row| cell_at(held, Count(row)) == wanted)
         };
         if holds {
             NeedVerdict::Holds

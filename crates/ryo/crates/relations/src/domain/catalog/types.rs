@@ -42,6 +42,30 @@ pub enum RelationNotes {
     Unneeded,
 }
 
+/// How a column's text is spelled in a file that has a row holding it: a filled relation's item declares it for a column
+/// whose text the file must hold as a token's exact text (`spells [Column: Whole]`), or whose text after its last `.` it
+/// must (`spells [Column: LastSegment]`): every way the language writes such a row reads that token. The engine may then
+/// decide a row held to a constant there cannot exist in a file with no such token, with no fill.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_relations::domain::catalog::service::spelled;
+/// use ryo_relations::domain::catalog::types::Spelling;
+/// use ryo_relations::domain::relations::collections::relations::qualified_name::item::QualifiedNameColumn;
+/// use ryo_relations::domain::relations::types::{Column, Relation};
+///
+/// assert_eq!(spelled(Relation::QualifiedName), [(Column::QualifiedName(QualifiedNameColumn::Path), Spelling::LastSegment)]);
+/// assert!(spelled(Relation::Comment).is_empty());
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Spelling {
+    /// The whole text is a token's text.
+    Whole,
+    /// The text after its last `.` (the whole text when it holds none) is a token's text.
+    LastSegment,
+}
+
 /// The capability enum, generated from the relations the catalog declares `optional`.
 macro_rules! capability_enum {
     ( $( $group:ident { $( $variant:ident $module:ident $row:ident $column:ident ; )* } )* ) => {
@@ -80,6 +104,7 @@ crate::each_relation!(@declared crate::optional_relations, capability_enum);
 ///   its rows grow with the file (`size`: `PerFile`, `PerElement` or `PerPair`) and the columns every language that fills it
 ///   promises a fill by key for (`keys`, which may be empty).
 ///
+/// A filled relation may also say which columns' texts a file spells as tokens (`spells`, after `keys`; `Spelling`).
 /// `extent`, `size` and `keys` are required, as `form` is: an item without them matches no arm and does not compile. A column is
 /// its name, the name of its variant, the type a row holds, what the store holds for it (a `CellKind` and the `Value` of the same
 /// name) and, when the type is not that already, the function that turns it into that.
@@ -100,6 +125,7 @@ macro_rules! relation_row {
             extent { Some($crate::domain::relations::types::NodeExtent::$extent) },
             size { None },
             keys [],
+            spells [],
             columns $columns
         }
     };
@@ -107,6 +133,7 @@ macro_rules! relation_row {
         item $item:ident, row $row:tt, column { $( #[$column_doc:meta] )* $column:ident }, expected $expected:tt,
         class $class:ident, scope $scope:ident, notes $notes:ident,
         form Filled ( $( $key:tt )* ), size $size:ident, keys [ $( $key_column:ident ),* $(,)? ],
+        $( spells [ $( $spelled_column:ident : $spelling:ident ),* $(,)? ], )?
         columns $columns:tt
     ) => {
         $crate::relation_row! {
@@ -117,6 +144,7 @@ macro_rules! relation_row {
             extent { None },
             size { Some($crate::domain::relations::types::RelationSize::$size) },
             keys [ $( $crate::domain::relations::types::Column::$item($column::$key_column) ),* ],
+            spells [ $( $( ($crate::domain::relations::types::Column::$item($column::$spelled_column), $crate::domain::catalog::types::Spelling::$spelling) ),* )? ],
             columns $columns
         }
     };
@@ -126,6 +154,7 @@ macro_rules! relation_row {
         class $class:ident, scope $scope:ident, notes $notes:ident,
         form { $( $form:tt )* }, nodes [ $( $nodes:tt )* ], extent { $( $extent:tt )* }, size { $( $size:tt )* },
         keys [ $( $keys:tt )* ],
+        spells [ $( $spells:tt )* ],
         columns { $( $( #[$doc:meta] )* $field:ident $variant:ident : $ty:ty => $kind:ident $( ( $convert:path ) )? ; )* }
     ) => {
         $( #[$row_doc] )*
@@ -155,6 +184,7 @@ macro_rules! relation_row {
             const EXTENT: Option<$crate::domain::relations::types::NodeExtent> = $( $extent )*;
             const SIZE: Option<$crate::domain::relations::types::RelationSize> = $( $size )*;
             const KEYS: &'static [$crate::domain::relations::types::Column] = &[ $( $keys )* ];
+            const SPELLS: &'static [($crate::domain::relations::types::Column, $crate::domain::catalog::types::Spelling)] = &[ $( $spells )* ];
 
             fn relation() -> $crate::domain::relations::types::Relation {
                 $crate::domain::relations::types::Relation::$item

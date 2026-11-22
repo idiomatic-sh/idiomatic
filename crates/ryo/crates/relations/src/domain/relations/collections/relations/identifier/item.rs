@@ -26,6 +26,7 @@ macro_rules! identifier {
             form Filled(Many(Id)),
             size PerElement,
             keys [],
+            spells [Name: Whole],
             columns {
                 /// The syntax occurrence carrying the identifier, not its raw token.
                 id Id: NodeId => Node;

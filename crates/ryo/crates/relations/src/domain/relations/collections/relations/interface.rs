@@ -59,6 +59,10 @@ pub trait RelationsItem: sealed::Sealed + 'static {
     /// relation. A filled relation added to the catalog says them (an empty list promises none), or it does not compile.
     const KEYS: &'static [Column];
 
+    /// For a filled relation, the columns whose text a file that has a row holding it spells as a token, and how
+    /// (`catalog::types::Spelling`); none for a `NodeTable` relation, or a filled relation that declares none.
+    const SPELLS: &'static [(Column, crate::domain::catalog::types::Spelling)];
+
     /// Which relation this is.
     fn relation() -> Relation;
 

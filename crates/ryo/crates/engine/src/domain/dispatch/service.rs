@@ -33,15 +33,21 @@ pub(crate) fn dispatch(frame: &mut StepFrame<'_, '_>, rules: &Programs) -> ScanC
         used(frame.state, rule.unit);
         entered(frame.state, rule.unit);
         let mut rows = 0_u64;
+        let mut ran = false;
         for branch in &rule.branches {
             need_decision_begun(frame, branch.need, rule.rule);
             let needed = decided(&mut FileNeeds(frame), programs.code, branch.need);
             need_decision_ended(frame.state, needed);
             consulted(frame, branch.need);
             if needed == NeedVerdict::Holds {
+                ran = true;
                 let found = frame.ports.run(frame, branch.entry, RunMode::Rows);
                 rows = rows.saturating_add(found.0);
             }
+        }
+        // SPIKE: a measuring worker counts the rules that ran a branch in the file (`need-visits` rule-files).
+        if ran {
+            crate::domain::executing::sources::types::visit(frame.state, 4);
         }
         left(frame.state);
         let candidates = frame.state.budget.candidates.0;

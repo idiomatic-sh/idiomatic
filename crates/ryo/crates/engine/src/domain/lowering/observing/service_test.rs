@@ -445,7 +445,7 @@ const LOWERED: &[Case<Lowered, Value, Failure>] = &[
             fed: None,
             codes: 2,
         },
-        "definition 0: 2 columns, emptiness All([All([Unknown, Unknown]), All([])])\ntable 0: Group(Count), 3 columns, indexes []\ntable 1: Rows, 2 columns, indexes []\nrule 0: 1 branches\nencoded\nload: 1 accepted, refused []",
+        "definition 0: 2 columns, emptiness All([All([All([Unknown, Unknown]), All([])]), Any([All([Row(SyntaxTree, Some(RowValue { column: SyntaxTree(Text), value: CellWord(1) }))]), All([Row(SyntaxTree, Some(RowValue { column: SyntaxTree(Text), value: CellWord(2) }))]), All([Row(SyntaxTree, Some(RowValue { column: SyntaxTree(Text), value: CellWord(3) }))])])])\ntable 0: Group(Count), 3 columns, indexes []\ntable 1: Rows, 2 columns, indexes []\nrule 0: 1 branches\nencoded\nload: 1 accepted, refused []",
     ),
     lowered_said(
         "a_count_after_the_files_of_the_words_a_large_constant_table_names_lowers_and_encodes",
