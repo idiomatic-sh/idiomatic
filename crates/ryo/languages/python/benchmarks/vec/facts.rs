@@ -61,6 +61,18 @@ pub(super) struct Interner {
     pub(super) matches: Vec<u128>,
     pub(super) matched: Vec<bool>,
     pub(super) regexes: Vec<regex::bytes::Regex>,
+    /// The texts by id (cols prototype: regex bits are computed after a direct fill, from the id alone).
+    pub(super) arena: Vec<u8>,
+    pub(super) ends: Vec<u32>,
+    /// All the regexes as one set (cols prototype, `--regex-set`): one pass a text for every regex.
+    pub(super) set: Option<regex::bytes::RegexSet>,
+}
+
+impl ryo_python::fixtures::columns::TextIds for Interner {
+    #[inline]
+    fn id(&mut self, text: &[u8]) -> u32 {
+        Interner::id(self, text)
+    }
 }
 
 impl Interner {
@@ -73,7 +85,34 @@ impl Interner {
         self.matches.push(0);
         self.matched.push(false);
         self.ids.insert(text.to_vec(), i);
+        self.arena.extend_from_slice(text);
+        self.ends.push(self.arena.len() as u32);
         i
+    }
+
+    /// Computes the regex bits of `id` when not yet computed (cols prototype).
+    #[inline]
+    pub(super) fn ensure_matched(&mut self, id: u32) {
+        let i = id as usize;
+        if self.matched.get(i).copied().unwrap_or(true) {
+            return;
+        }
+        let start = if i == 0 { 0 } else { self.ends[i - 1] as usize };
+        let text = &self.arena[start..self.ends[i] as usize];
+        let mut bits = 0u128;
+        if let Some(set) = &self.set {
+            for r in set.matches(text).iter() {
+                bits |= 1 << r;
+            }
+        } else {
+            for (r, re) in self.regexes.iter().enumerate() {
+                if re.is_match(text) {
+                    bits |= 1 << r;
+                }
+            }
+        }
+        self.matches[i] = bits;
+        self.matched[i] = true;
     }
 
     /// The id of a text of a column some regex tests: its regex bits are computed once, the first time.
@@ -81,9 +120,15 @@ impl Interner {
         let i = self.id(text);
         if !self.matched[i as usize] {
             let mut bits = 0u128;
-            for (r, re) in self.regexes.iter().enumerate() {
-                if re.is_match(text) {
+            if let Some(set) = &self.set {
+                for r in set.matches(text).iter() {
                     bits |= 1 << r;
+                }
+            } else {
+                for (r, re) in self.regexes.iter().enumerate() {
+                    if re.is_match(text) {
+                        bits |= 1 << r;
+                    }
                 }
             }
             self.matches[i as usize] = bits;
@@ -144,6 +189,10 @@ pub(super) struct Catalog {
 }
 
 impl Catalog {
+    pub(super) fn column_name(&self, slot: usize, at: usize) -> String {
+        self.columns[slot][at].clone()
+    }
+
     pub(super) fn column(&self, slot: usize, name: &str) -> usize {
         self.columns[slot].iter().position(|c| c == name).expect("column")
     }
@@ -261,6 +310,17 @@ pub(super) struct Store {
     pub(super) cells: Vec<Vec<Vec<u64>>>,
     /// Per slot and key column: offsets by node, then the rows.
     pub(super) index: Vec<Vec<(usize, Vec<u32>, Vec<u32>)>>,
+    /// cols prototype: the provider's direct tables are read instead of `cells`/`index`.
+    pub(super) direct_on: bool,
+    pub(super) direct: ryo_python::fixtures::columns::FactColumns,
+    /// Per slot: (key column, table number in `direct`).
+    pub(super) direct_of: Vec<Vec<(usize, usize)>>,
+    /// Direct token order: next and previous token by node (u32::MAX: none), and the slot and next-token id.
+    pub(super) next_token: Vec<u32>,
+    pub(super) prev_token: Vec<u32>,
+    pub(super) token_slot: Option<(usize, usize, usize, u64)>,
+    /// Reads of a direct table whose column was not written (must stay 0) and of other link kinds.
+    pub(super) unwritten: std::cell::Cell<u64>,
 }
 
 impl Store {
@@ -272,6 +332,10 @@ impl Store {
         self.rows.resize(slots, 0);
         self.cells.resize_with(slots, Vec::new);
         self.index.resize_with(slots, Vec::new);
+        self.direct_of.resize_with(slots, Vec::new);
+        for d in &mut self.direct_of {
+            d.clear();
+        }
         for i in &mut self.index {
             for (_, o, r) in i.drain(..) {
                 self.spare.push((o, r));
@@ -429,10 +493,111 @@ impl Store {
         self.answered[slot] = true;
     }
 
+    /// Next and previous token straight from the node table's token order, as two per-node columns (cols prototype): the
+    /// provider's rule kept (an error token resets the chain).
+    pub(super) fn token_order(&mut self, table: &ryo::languages::NodeTable, tokens: &TokenKinds, elements: usize) {
+        use ryo::languages::{Position, node_table};
+        self.next_token.clear();
+        self.next_token.resize(elements, u32::MAX);
+        self.prev_token.clear();
+        self.prev_token.resize(elements, u32::MAX);
+        let start = node_table::node_count(table).0 as u32;
+        let end = node_table::own_end(table).0;
+        let mut previous: Option<u32> = None;
+        for at in start..end {
+            let k = node_table::kind_of(table, Position(at)).0;
+            if !tokens.is_token(k) {
+                continue;
+            }
+            if k == tokens.error {
+                previous = None;
+                continue;
+            }
+            if let Some(p) = previous.replace(at) {
+                self.next_token[p as usize] = at;
+                self.prev_token[at as usize] = p;
+            }
+        }
+    }
+
+    #[inline]
+    fn holds_direct(&self, op: &FactOp, regs: &[u32], matches: &[u128]) -> bool {
+        use ryo_python::fixtures::columns::Layout;
+        let (kc, reg) = op.keys[0];
+        let node = regs[reg] as usize;
+        if let Some((slot, src, dst, next_id)) = self.token_slot
+            && slot == op.slot
+        {
+            if !op.conds.iter().all(|c| matches!(c, Cond::In(_, v) if v.contains(&next_id))) {
+                self.unwritten.set(self.unwritten.get() + 1);
+                return true;
+            }
+            let (column, other) = if kc == src { (&self.next_token, dst) } else { (&self.prev_token, src) };
+            let Some(&t) = column.get(node) else { return false };
+            if t == u32::MAX {
+                return false;
+            }
+            return op.keys[1..].iter().all(|(c, g)| *c == other && t == regs[*g]);
+        }
+        let Some(&(_, at)) = self.direct_of[op.slot].iter().find(|(c, _)| *c == kc) else { return true };
+        let t = &self.direct.tables[at];
+        if !t.answered {
+            return true;
+        }
+        if !t.present.get(node / 64).is_some_and(|w| w >> (node % 64) & 1 == 1) {
+            return false;
+        }
+        if op.keys.len() == 1 && op.conds.is_empty() {
+            return true;
+        }
+        let rows = match t.layout {
+            Layout::PerNode => node..node + 1,
+            Layout::Keyed => t.offsets[node] as usize..t.offsets[node + 1] as usize,
+        };
+        let cell = |c: usize, r: usize| -> Option<u64> { t.columns.get(c).and_then(|col| col.get(r)).map(|v| u64::from(*v)) };
+        let keyed = t.layout == Layout::Keyed && !t.order.is_empty();
+        rows.into_iter().any(|r| {
+            let r = if keyed { t.order[r] as usize } else { r };
+            let mut missing = false;
+            let ok = op.keys[1..].iter().all(|(c, g)| match cell(*c, r) {
+                Some(v) => v == u64::from(regs[*g]),
+                None => {
+                    missing = true;
+                    true
+                }
+            }) && op.conds.iter().all(|cond| {
+                let c = match cond {
+                    Cond::In(c, _) | Cond::NotIn(c, _) | Cond::Re(c, _) | Cond::Cmp(c, ..) => *c,
+                };
+                let Some(v) = cell(c, r) else {
+                    missing = true;
+                    return true;
+                };
+                match cond {
+                    Cond::In(_, vals) => vals.contains(&v),
+                    Cond::NotIn(_, vals) => !vals.contains(&v),
+                    Cond::Re(_, bit) => matches.get(v as usize).is_some_and(|m| m >> bit & 1 == 1),
+                    Cond::Cmp(_, ord, or_equal, n) => {
+                        let x = i64::from(v as u32 as i32);
+                        let o = x.cmp(n);
+                        o == *ord || (*or_equal && o == std::cmp::Ordering::Equal)
+                    }
+                }
+            });
+            if missing {
+                self.unwritten.set(self.unwritten.get() + 1);
+            }
+            ok
+        })
+    }
+
     #[inline]
     pub(super) fn holds(&self, op: &FactOp, regs: &[u32], matches: &[u128]) -> bool {
         if !self.answered.get(op.slot).copied().unwrap_or(false) {
             return true;
+        }
+        if self.direct_on {
+            return self.holds_direct(op, regs, matches);
         }
         let (kc, reg) = op.keys[0];
         let node = regs[reg] as usize;

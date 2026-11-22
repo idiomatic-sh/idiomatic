@@ -1,0 +1,764 @@
+//! THROWAWAY PROTOTYPE (ryo-fmx3.1, `claude/engine-cols`): the provider's facts written DIRECTLY as per-node columns and keyed
+//! lists, beside the reader (never checked in; the reader's rows stay the reference). The engine asks, for one walked file, a
+//! list of facts, each by its key column and either whole or as a yes/no question; the provider answers each with one
+//! `FactTable`: a per-node table (one value per node, indexed by node id, with a presence bit a node) or a keyed list (all rows
+//! of a key contiguous, an offset a node). Texts are written as the engine's own text ids through `TextIds`, memoised per model
+//! name and per fixed text, so a row costs no per-file interning and no conversion after. Nothing here names a linter or a rule.
+
+use crate::domain::definitions::constants as refinements;
+use crate::domain::extras::types::Extra as TypedExtra;
+use crate::domain::file_view::types::{Analysed, PythonFile, PythonWalk};
+use crate::domain::language::service::reads;
+use crate::domain::lexical_facts::service::qualify;
+use crate::domain::lexical_facts::types::{NameProvenance, QualifiedPath};
+use crate::domain::literal_facts::service::{number, properties, specifier as loaded, string_value};
+use crate::domain::literal_facts::types::StringValue;
+use crate::domain::model::flow::types::FlowState;
+use crate::domain::model::lexical::service::entry;
+use crate::domain::model::lexical::types::{NameUse, NodeClass, TypedTree};
+use crate::domain::model::names::service::text_of;
+use crate::domain::model::names::types::NameCode;
+use crate::domain::model::view::service::built;
+use crate::domain::model::view::types::{Built, ModelPart, ModelView, PartState};
+use crate::domain::node::service::{nodes_of_kind, table_id};
+use crate::domain::node::types::{Numbered, SyntaxFile, Walked, WalkedTree};
+use crate::domain::nodes::types::{Category, Node};
+use crate::domain::qualification::constants::{AMBIGUOUS, BUILTIN, LOCAL, NOT_APPLICABLE, UNRESOLVED};
+use crate::domain::relations::collections::relations::expression_type::constants as type_labels;
+use crate::domain::expression_types::types::Resolution;
+use crate::domain::shape_facts::service::shapes;
+use crate::domain::shape_facts::types::ShapeBuild;
+use crate::domain::string_annotations::service::{form_imports, type_strings};
+use crate::domain::string_annotations::types::FormSource;
+use crate::domain::syntax::service::{category_of, kind_of};
+use crate::domain::syntax::types::Kind;
+use crate::domain::type_facts::service::resolutions;
+use crate::inbound::contracts::parse::service::source_kind;
+use crate::inbound::contracts::walk::contract::{PythonWalkScratch, WalkPorts};
+use crate::outbound::syntax::factory::ruff_python_parser;
+use crate::outbound::syntax::interface::SyntaxPort as _;
+use crate::outbound::syntax::types::{ReportedSyntax, SourceText};
+use crate::settings::PythonParserSettings;
+use ruff_python_ast::AnyNodeRef;
+use ryo::languages::{
+    self, CatalogRelation, Column, FactAnswer, FactSource as _, FileId, FileWords, FilledColumns, Flag,
+    NameText, NodeTable, Position, Relation, Wanted, WalkError, fillers, node_table,
+};
+use std::collections::HashMap;
+use std::sync::Arc;
+
+/// The engine's text ids: the provider writes every text cell as the id the engine gives the text.
+pub trait TextIds {
+    /// The id of `text`.
+    fn id(&mut self, text: &[u8]) -> u32;
+}
+
+/// How a fact is laid out.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Layout {
+    /// One row at most a node: a column's value at a node is the row's, and `present` says which nodes have one.
+    #[default]
+    PerNode,
+    /// Any number of rows a node: the rows of node `k` are `offsets[k]..offsets[k + 1]`.
+    Keyed,
+}
+
+/// One fact asked of a file: a relation, the column its rows are found by, and whether only "has this node a row" is wanted.
+#[derive(Clone, Copy, Debug)]
+pub struct Ask {
+    /// The relation.
+    pub relation: Relation,
+    /// The place, among the relation's catalog columns, of the node column its rows are found by.
+    pub key: usize,
+    /// Only the yes/no question: the presence bits, and no column.
+    pub exists: bool,
+}
+
+/// One fact of one file, as the provider wrote it.
+#[derive(Clone, Debug, Default)]
+pub struct FactTable {
+    /// The layout.
+    pub layout: Layout,
+    /// Whether the provider answered the fact whole for this file (false: the file was not read whole, a superset holds).
+    pub answered: bool,
+    /// Per node, one bit: the node has a row (both layouts, so the yes/no question is one bit read).
+    pub present: Vec<u64>,
+    /// `Keyed`: per node, where its rows start in `order`; one more entry at the end.
+    pub offsets: Vec<u32>,
+    /// `Keyed`: the rows by key, as row numbers into the columns (empty: the rows came in key order, row `i` is `order[i]`).
+    pub order: Vec<u32>,
+    /// By catalog place, the values: by node (`PerNode`) or by row (`Keyed`); empty for a column not written.
+    pub columns: Vec<Vec<u32>>,
+    /// How many rows.
+    pub rows: usize,
+    /// `Keyed`, while writing: each row's key node.
+    keys: Vec<u32>,
+}
+
+impl FactTable {
+    fn begin(&mut self, layout: Layout, width: usize, elements: usize, written: &[usize], exists: bool) {
+        self.layout = layout;
+        self.answered = true;
+        self.rows = 0;
+        self.present.clear();
+        self.present.resize(elements.div_ceil(64).max(1), 0);
+        self.offsets.clear();
+        self.order.clear();
+        self.keys.clear();
+        self.columns.resize_with(width.max(self.columns.len()), Vec::new);
+        for column in &mut self.columns {
+            column.clear();
+        }
+        if layout == Layout::PerNode && !exists {
+            for place in written {
+                if let Some(column) = self.columns.get_mut(*place) {
+                    column.resize(elements, 0);
+                }
+            }
+        }
+    }
+
+    #[inline]
+    fn mark(&mut self, node: u32) {
+        if let Some(word) = self.present.get_mut(node as usize / 64) {
+            *word |= 1 << (node % 64);
+        }
+    }
+
+    /// A per-node row: its values by catalog place.
+    #[inline]
+    fn put(&mut self, node: u32, values: &[(usize, u32)]) {
+        self.mark(node);
+        self.rows += 1;
+        for (place, value) in values {
+            if let Some(cell) = self.columns.get_mut(*place).and_then(|column| column.get_mut(node as usize)) {
+                *cell = *value;
+            }
+        }
+    }
+
+    /// A keyed row.
+    #[inline]
+    fn push(&mut self, node: u32, values: &[(usize, u32)]) {
+        self.mark(node);
+        self.keys.push(node);
+        self.rows += 1;
+        for (place, value) in values {
+            if let Some(column) = self.columns.get_mut(*place) {
+                column.push(*value);
+            }
+        }
+    }
+
+    /// Ends a keyed table: the offsets by a sweep when the rows came in key order, else a stable counting sort.
+    fn finish(&mut self, elements: usize) {
+        if self.layout != Layout::Keyed {
+            return;
+        }
+        self.offsets.resize(elements + 1, 0);
+        if self.keys.is_sorted() {
+            let mut next = 0usize;
+            for (row, key) in self.keys.iter().enumerate() {
+                let key = (*key as usize).min(elements);
+                while next <= key {
+                    self.offsets[next] = row as u32;
+                    next += 1;
+                }
+            }
+            while next <= elements {
+                self.offsets[next] = self.keys.len() as u32;
+                next += 1;
+            }
+            return;
+        }
+        for key in &self.keys {
+            if (*key as usize) < elements {
+                self.offsets[*key as usize + 1] += 1;
+            }
+        }
+        for at in 0..elements {
+            self.offsets[at + 1] += self.offsets[at];
+        }
+        // the rows stay where they were written; `order` lists them by key (one u32 a row, no column moved)
+        self.order.resize(self.keys.len(), 0);
+        let mut place = std::mem::take(&mut self.keys);
+        for (row, key) in place.iter_mut().enumerate() {
+            let at = (*key as usize).min(elements - 1);
+            let slot = self.offsets[at] as usize;
+            self.offsets[at] += 1;
+            self.order[slot] = row as u32;
+            *key = 0;
+        }
+        // the offsets were advanced to each key's end: shift them back by one key
+        for at in (1..=elements).rev() {
+            self.offsets[at] = self.offsets[at - 1];
+        }
+        self.offsets[0] = 0;
+        self.keys = place;
+    }
+}
+
+/// The answers to one file's asks, one table an ask in ask order; the buffers are kept from file to file.
+#[derive(Clone, Debug, Default)]
+pub struct FactColumns {
+    /// The tables.
+    pub tables: Vec<FactTable>,
+}
+
+/// The ids of the texts the provider writes the same in every file, by where the text is (memoised for the run), and of the
+/// file's model names (memoised for the file).
+#[derive(Debug, Default)]
+struct TextMemo {
+    fixed: HashMap<(usize, usize), u32, std::hash::BuildHasherDefault<crate::domain::model::names::types::KeyHasher>>,
+    names: Vec<u32>,
+}
+
+impl TextMemo {
+    fn fixed(&mut self, ids: &mut dyn TextIds, text: NameText<'static>) -> u32 {
+        *self.fixed.entry((text.0.as_ptr() as usize, text.0.len())).or_insert_with(|| ids.id(text.0.as_bytes()))
+    }
+    fn name(&mut self, ids: &mut dyn TextIds, names: &crate::domain::model::names::types::NameTable, code: NameCode) -> u32 {
+        let at = usize::from(code);
+        if let Some(found) = self.names.get(at)
+            && *found != u32::MAX
+        {
+            return *found;
+        }
+        let id = match text_of(names, code) {
+            Some(text) => ids.id(text.0.as_bytes()),
+            None => ids.id(b""),
+        };
+        if at < 1 << 24 {
+            if self.names.len() <= at {
+                self.names.resize(at + 1, u32::MAX);
+            }
+            self.names[at] = id;
+        }
+        id
+    }
+}
+
+/// The prototype walk: Python's walk, lending a file over both the reader (`fill`) and the direct columns (`columns`).
+pub struct ColumnWalk {
+    walk: PythonWalk<WalkPorts>,
+    scratch: PythonWalkScratch,
+    memo: TextMemo,
+    words: FileWords,
+}
+
+impl ColumnWalk {
+    /// A walk under the default settings; `words` are the walk's fixed words (`walking::walk_words`), kept for the shapes' keys.
+    #[must_use]
+    pub fn new(words: FileWords) -> Self {
+        let settings = PythonParserSettings::default();
+        Self {
+            walk: PythonWalk { ports: WalkPorts { settings, syntax: Arc::new(ruff_python_parser(settings)) } },
+            scratch: PythonWalkScratch::default(),
+            memo: TextMemo::default(),
+            words,
+        }
+    }
+
+    /// Walks one file into `table` and lends it to `visit`.
+    ///
+    /// # Errors
+    ///
+    /// When the file is not Python.
+    pub fn walked(&mut self, path: &str, bytes: &[u8], table: &mut NodeTable, visit: &mut dyn FnMut(&mut ColumnFile<'_, '_>)) -> Result<(), WalkError> {
+        let source_path = languages::SourcePath(path);
+        if reads(source_path) != languages::Recognition::Reads {
+            return Err(WalkError::Unsupported);
+        }
+        let mut builder = node_table::builder(table, <PythonWalk<WalkPorts> as languages::Walk>::KIND_COUNT);
+        let target = self.walk.ports.settings.target_version().components();
+        self.scratch.file.model.target = target;
+        self.memo.names.clear();
+        languages::facts::clear_words(&mut self.words);
+        let mut built_parts = Built::default();
+        let scratch = &mut self.scratch;
+        let memo = &mut self.memo;
+        let words = &mut self.words;
+        self.walk.ports.syntax.walk(SourceText(bytes), source_kind(source_path), ReportedSyntax::Refusals, &mut builder, &mut |walked| match walked {
+            Walked::Strings(tree) => {
+                built_parts = Built::default();
+                let mut hosts = Vec::new();
+                if tree.strings.is_empty() {
+                    return hosts;
+                }
+                let typed = TypedTree { segments: &tree.segments, parents: &tree.parents, ends: &tree.ends, nodes: &tree.nodes, annotations: tree.annotations };
+                form_imports(typed, &tree.imports, &mut scratch.forms);
+                type_strings(
+                    &mut FormSource { tree: typed, imports: &scratch.forms, model: &mut scratch.file.model, built: &mut built_parts, path: &mut scratch.path },
+                    &tree.strings,
+                    &mut hosts,
+                );
+                hosts
+            }
+            Walked::Whole(written, tree) => {
+                lend(written, &tree, target, scratch, built_parts, memo, words, visit);
+                Vec::new()
+            }
+        });
+        Ok(())
+    }
+}
+
+#[expect(clippy::too_many_arguments, reason = "throwaway prototype")]
+fn lend(
+    builder: &mut languages::NodeTableBuilder<'_>,
+    tree: &WalkedTree<'_>,
+    target: crate::domain::standard_library::types::TargetVersion,
+    scratch: &mut PythonWalkScratch,
+    built_parts: Built,
+    memo: &mut TextMemo,
+    words: &mut FileWords,
+    visit: &mut dyn FnMut(&mut ColumnFile<'_, '_>),
+) {
+    let table = node_table::finished(builder);
+    let own = tree.segments.first().map_or(tree.nodes.len(), |segment| usize::from(segment.first));
+    let mut file = PythonFile {
+        syntax: SyntaxFile {
+            table,
+            nodes: tree.nodes.get(..own).unwrap_or_default(),
+            tree: TypedTree { segments: &tree.segments, parents: &tree.parents, ends: &tree.ends, nodes: &tree.nodes, annotations: tree.annotations },
+            text: tree.text,
+            file: FileId(0),
+            completeness: tree.completeness,
+        },
+        target,
+        model: &mut scratch.file.model,
+        built: built_parts,
+        analysed: Analysed::default(),
+        buffers: &mut scratch.file.buffers,
+    };
+    visit(&mut ColumnFile { table, file: &mut file, memo, words });
+}
+
+/// One walked file, lent over the reader and over the direct columns.
+pub struct ColumnFile<'a, 'f> {
+    /// The node table.
+    pub table: &'a NodeTable,
+    file: &'a mut PythonFile<'f>,
+    memo: &'a mut TextMemo,
+    words: &'a mut FileWords,
+}
+
+/// The catalog place of a column of a relation.
+macro_rules! place {
+    ($relation:ident, $($column:tt)+) => {
+        <languages::$relation as CatalogRelation>::columns()
+            .iter()
+            .position(|c| Column::$relation(*c) == Column::$relation(languages::$($column)+))
+            .expect("catalog column")
+    };
+}
+
+fn flag(value: Flag) -> u32 {
+    u32::from(value == Flag::Raised)
+}
+
+impl ColumnFile<'_, '_> {
+    /// The reader: today's rows of `relation` (the reference).
+    pub fn fill(&mut self, relation: Relation, wanted: Wanted, words: &mut FileWords, out: &mut FilledColumns) -> FactAnswer {
+        let mut source = fillers::file_source::<PythonWalk<WalkPorts>>(self.file);
+        source.fill(relation, wanted, words, out)
+    }
+
+    /// Builds the parts of the semantic model the asks need, and no more (a file whose asks need none builds none): timed
+    /// apart by the caller, so the split shows the model's build beside the writing of the columns.
+    pub fn prepare(&mut self, asks: &[Ask]) {
+        let mut parts = [false; 3];
+        for ask in asks {
+            match ask.relation {
+                Relation::BindingEvent | Relation::BindingRead => parts[2] = true,
+                Relation::QualifiedName if !ask.exists => parts[1] = true,
+                Relation::QualifiedName => parts[0] = true,
+                Relation::StringLiteral if !ask.exists => parts[0] = true,
+                _ => {}
+            }
+        }
+        for (wanted, part) in parts.into_iter().zip([ModelPart::Lexical, ModelPart::Resolution, ModelPart::Flow]) {
+            if wanted {
+                let _read = self.file.semantics(part);
+            }
+        }
+    }
+
+    /// The direct path: one table an ask, written into `out.tables` in ask order. An ask of a fact the prototype does not
+    /// write leaves its table unanswered.
+    pub fn columns(&mut self, asks: &[Ask], ids: &mut dyn TextIds, out: &mut FactColumns) {
+        let elements = node_table::element_count(self.table).0 as usize;
+        out.tables.resize_with(asks.len().max(out.tables.len()), FactTable::default);
+        for (ask, table) in asks.iter().zip(&mut out.tables) {
+            match ask.relation {
+                Relation::QualifiedName => self.qualified_name(ask, ids, table, elements),
+                Relation::Identifier => self.identifier(ask, ids, table, elements),
+                Relation::LiteralProperties => self.literal_properties(ask, ids, table, elements),
+                Relation::NumericLiteral => self.numeric_literal(ask, ids, table, elements),
+                Relation::StringLiteral => self.string_literal(ask, ids, table, elements),
+                Relation::ExpressionShape => self.expression_shape(ask, table, elements),
+                Relation::ExpressionType => self.expression_type(ask, ids, table, elements),
+                Relation::BindingEvent => self.binding_event(ask, ids, table, elements),
+                Relation::BindingRead => self.binding_read(ask, ids, table, elements),
+                _ => {
+                    table.begin(Layout::PerNode, 0, elements, &[], false);
+                    table.answered = false;
+                }
+            }
+        }
+    }
+
+    fn qualified_name(&mut self, ask: &Ask, ids: &mut dyn TextIds, table: &mut FactTable, elements: usize) {
+        let width = <languages::QualifiedName as CatalogRelation>::columns().len();
+        let (path_at, provenance_at, major_at, minor_at) =
+            (place!(QualifiedName, QualifiedNameColumn::Path), place!(QualifiedName, QualifiedNameColumn::Provenance), place!(QualifiedName, QualifiedNameColumn::SinceMajor), place!(QualifiedName, QualifiedNameColumn::SinceMinor));
+                table.begin(Layout::PerNode, width, elements, &[path_at, provenance_at, major_at, minor_at], ask.exists);
+        let read = self.file.semantics(if ask.exists { ModelPart::Lexical } else { ModelPart::Resolution });
+        let memo = &mut *self.memo;
+        let labels = [refinements::IMPORT, BUILTIN, LOCAL, UNRESOLVED, AMBIGUOUS].map(|text| memo.fixed(ids, NameText(text)));
+        let empty = ids.id(b"");
+        let mut path = QualifiedPath::default();
+        let lexical = &read.model.lexical;
+        for at in 0..u32::try_from(lexical.class.len()).unwrap_or(u32::MAX) {
+            let at = Position(at);
+            if !matches!(entry(&lexical.class, at), NodeClass::Name | NodeClass::Attribute) || entry(&lexical.usage, at) != NameUse::Load {
+                continue;
+            }
+            let node = table_id(read.tree.segments, at).0;
+            if ask.exists {
+                table.mark(node);
+                table.rows += 1;
+                continue;
+            }
+            let provenance = qualify(read.model, at, &mut path);
+            let (label, since) = match provenance {
+                NameProvenance::Import => (labels[0], NOT_APPLICABLE),
+                NameProvenance::Builtin(since) => (labels[1], since),
+                NameProvenance::Local => (labels[2], NOT_APPLICABLE),
+                NameProvenance::Unresolved => (labels[3], NOT_APPLICABLE),
+                NameProvenance::Ambiguous => (labels[4], NOT_APPLICABLE),
+            };
+            let has_path = matches!(provenance, NameProvenance::Import | NameProvenance::Builtin(_));
+            let text = if has_path { ids.id(path.0.as_bytes()) } else { empty };
+            table.put(node, &[(path_at, text), (provenance_at, label), (major_at, since.major.0 as u32), (minor_at, since.minor.0 as u32)]);
+        }
+    }
+
+    fn identifier(&mut self, ask: &Ask, ids: &mut dyn TextIds, table: &mut FactTable, elements: usize) {
+        let width = <languages::Identifier as CatalogRelation>::columns().len();
+        let name_at = place!(Identifier, IdentifierColumn::Name);
+        table.begin(Layout::PerNode, width, elements, &[name_at], ask.exists);
+        let syntax = &self.file.syntax;
+        if syntax.completeness.syntax == languages::SyntaxCompleteness::Incomplete {
+            table.answered = false;
+            return;
+        }
+        fn name_of<'n>(node: AnyNodeRef<'n>) -> Option<&'n str> {
+            let name = match node {
+                AnyNodeRef::ExprName(name) => name.id.as_str(),
+                AnyNodeRef::Identifier(identifier) => identifier.id.as_str(),
+                _ => return None,
+            };
+            (!name.is_empty() && name != crate::domain::name_facts::constants::EVERYTHING).then_some(name)
+        }
+        for kind in [Kind::Node(Node::Name), Kind::Extra(TypedExtra::Identifier)] {
+            for Numbered { id, node } in nodes_of_kind(syntax, kind) {
+                let Some(name) = name_of(node) else { continue };
+                if ask.exists {
+                    table.mark(id.0);
+                    table.rows += 1;
+                } else {
+                    table.put(id.0, &[(name_at, ids.id(name.as_bytes()))]);
+                }
+            }
+        }
+        let tree = syntax.tree;
+        let first = tree.segments.first().map_or(tree.nodes.len(), |segment| usize::from(segment.first));
+        for (place, node) in tree.nodes.iter().enumerate().skip(first) {
+            let Some(name) = name_of(*node) else { continue };
+            let id = table_id(tree.segments, Position(u32::try_from(place).unwrap_or(u32::MAX))).0;
+            if ask.exists {
+                table.mark(id);
+                table.rows += 1;
+            } else {
+                table.put(id, &[(name_at, ids.id(name.as_bytes()))]);
+            }
+        }
+    }
+
+    fn literal_properties(&mut self, ask: &Ask, ids: &mut dyn TextIds, table: &mut FactTable, elements: usize) {
+        let width = <languages::LiteralProperties as CatalogRelation>::columns().len();
+        let (kind_at, zero_at, empty_at, boolean_at) = (
+            place!(LiteralProperties, LiteralPropertiesColumn::Kind),
+            place!(LiteralProperties, LiteralPropertiesColumn::Zero),
+            place!(LiteralProperties, LiteralPropertiesColumn::Empty),
+            place!(LiteralProperties, LiteralPropertiesColumn::Boolean),
+        );
+        table.begin(Layout::PerNode, width, elements, &[kind_at, zero_at, empty_at, boolean_at], ask.exists);
+        for Numbered { id, node } in nodes_of_kind(&self.file.syntax, Kind::Node(Node::Constant)) {
+            if let Some(found) = properties(node) {
+                if ask.exists {
+                    table.mark(id.0);
+                    table.rows += 1;
+                    continue;
+                }
+                let kind = self.memo.fixed(ids, found.kind);
+                table.put(id.0, &[(kind_at, kind), (zero_at, flag(found.zero)), (empty_at, flag(found.empty)), (boolean_at, flag(found.boolean))]);
+            }
+        }
+    }
+
+    fn numeric_literal(&mut self, ask: &Ask, ids: &mut dyn TextIds, table: &mut FactTable, elements: usize) {
+        let width = <languages::NumericLiteral as CatalogRelation>::columns().len();
+        let (kind_at, value_at, exact_at) =
+            (place!(NumericLiteral, NumericLiteralColumn::Kind), place!(NumericLiteral, NumericLiteralColumn::Value), place!(NumericLiteral, NumericLiteralColumn::ExactDigits));
+        table.begin(Layout::PerNode, width, elements, &[kind_at, value_at, exact_at], ask.exists);
+        let value = &mut self.file.buffers.text;
+        for Numbered { id, .. } in nodes_of_kind(&self.file.syntax, Kind::Node(Node::Constant)) {
+            if let Some(found) = number(&self.file.syntax, id, value) {
+                if ask.exists {
+                    table.mark(id.0);
+                    table.rows += 1;
+                    continue;
+                }
+                let kind = self.memo.fixed(ids, found.kind);
+                table.put(id.0, &[(kind_at, kind), (value_at, ids.id(value.0.as_bytes())), (exact_at, flag(found.exact))]);
+            }
+        }
+    }
+
+    fn string_literal(&mut self, ask: &Ask, ids: &mut dyn TextIds, table: &mut FactTable, elements: usize) {
+        let width = <languages::StringLiteral as CatalogRelation>::columns().len();
+        let (owner_at, value_at, import_at) =
+            (place!(StringLiteral, StringLiteralColumn::Owner), place!(StringLiteral, StringLiteralColumn::Value), place!(StringLiteral, StringLiteralColumn::Import));
+        table.begin(Layout::PerNode, width, elements, &[owner_at, value_at, import_at], ask.exists);
+        if !ask.exists {
+            built(self.file.model, &mut self.file.built, ModelPart::Lexical, self.file.syntax.tree);
+        }
+        let empty = ids.id(b"");
+        let owned = &self.file.model.lexical.scope_of;
+        let joined = &mut self.file.buffers.text;
+        for kind in [Node::Constant, Node::JoinedStr, Node::TemplateStr] {
+            for Numbered { id, node } in nodes_of_kind(&self.file.syntax, Kind::Node(kind)) {
+                let value = match string_value(node, joined) {
+                    Some(StringValue::Known(text)) => {
+                        if ask.exists {
+                            0
+                        } else {
+                            ids.id(text.0.as_bytes())
+                        }
+                    }
+                    Some(StringValue::Interpolated) => empty,
+                    None => continue,
+                };
+                if ask.exists {
+                    table.mark(id.0);
+                    table.rows += 1;
+                    continue;
+                }
+                let owner = owned.get(usize::from(id)).copied().unwrap_or(Position(0)).0;
+                table.put(id.0, &[(owner_at, owner), (value_at, value), (import_at, flag(loaded(&self.file.syntax, id)))]);
+            }
+        }
+    }
+
+    /// `expression-shape`: the yes/no question needs no shape at all, only whether every node below the expression has one,
+    /// which is one pass from the last node to the first with no key and no hash; whole, it is the reader's class index.
+    fn expression_shape(&mut self, ask: &Ask, table: &mut FactTable, elements: usize) {
+        let width = <languages::ExpressionShape as CatalogRelation>::columns().len();
+        let shape_at = place!(ExpressionShape, ExpressionShapeColumn::Shape);
+        table.begin(Layout::PerNode, width, elements, &[shape_at], ask.exists);
+        let syntax = &self.file.syntax;
+        if syntax.completeness.syntax == languages::SyntaxCompleteness::Incomplete {
+            table.answered = false;
+            return;
+        }
+        let nodes = node_table::node_count(syntax.table).0;
+        let count = syntax.nodes.len();
+        let is_expression = |id: Position| category_of(kind_of(node_table::kind_of(syntax.table, id))) == Category::Expression;
+        if ask.exists {
+            // whole[id]: the node and every node below it have a shape (a node child is after its parent in id order)
+            let mut whole = vec![false; count];
+            let ipy = crate::domain::syntax::service::kind_bits(Kind::Extra(TypedExtra::IpyEscapeCommand));
+            for id in (0..count).rev() {
+                let at = Position(id as u32);
+                let ok = node_table::kind_of(syntax.table, at) != ipy
+                    && node_table::children_of(syntax.table, at).iter().all(|child| usize::from(*child) >= nodes || whole.get(usize::from(*child)).copied().unwrap_or(false));
+                whole[id] = ok;
+                if ok && is_expression(at) {
+                    table.mark(at.0);
+                    table.rows += 1;
+                }
+            }
+            return;
+        }
+        if self.file.analysed.shapes == PartState::Pending {
+            shapes(&self.file.syntax, &mut ShapeBuild { index: &mut self.file.buffers.shapes, words: self.words, text: &mut self.file.buffers.text });
+            self.file.analysed.shapes = PartState::Ready;
+        }
+        let syntax = &self.file.syntax;
+        for (id, class) in self.file.buffers.shapes.classes.iter().enumerate().take(count) {
+            let at = Position(id as u32);
+            if let Some(class) = class
+                && category_of(kind_of(node_table::kind_of(syntax.table, at))) == Category::Expression
+            {
+                table.put(at.0, &[(shape_at, class.0)]);
+            }
+        }
+    }
+
+    fn expression_type(&mut self, ask: &Ask, ids: &mut dyn TextIds, table: &mut FactTable, elements: usize) {
+        let width = <languages::ExpressionType as CatalogRelation>::columns().len();
+        let (resolution_at, type_at) = (place!(ExpressionType, ExpressionTypeColumn::Resolution), place!(ExpressionType, ExpressionTypeColumn::Type));
+        table.begin(Layout::Keyed, width, elements, &[], false);
+        if self.file.analysed.types == PartState::Pending {
+            resolutions(&self.file.syntax, &mut self.file.buffers.types);
+            self.file.analysed.types = PartState::Ready;
+        }
+        let syntax = &self.file.syntax;
+        let complete = syntax.completeness.syntax != languages::SyntaxCompleteness::Incomplete;
+        let memo = &mut *self.memo;
+        let name = crate::domain::expression_types::constants::name;
+        let [atom, union, unknown, type_error, none] =
+            [type_labels::ATOM, type_labels::UNION, type_labels::UNKNOWN, type_labels::TYPE_ERROR, type_labels::NO_TYPE].map(|text| memo.fixed(ids, NameText(text)));
+        for (place, found) in self.file.buffers.types.iter().enumerate() {
+            let id = table_id(syntax.tree.segments, Position(u32::try_from(place).unwrap_or(u32::MAX)));
+            if category_of(kind_of(node_table::kind_of(syntax.table, id))) != Category::Expression {
+                continue;
+            }
+            let write = |table: &mut FactTable, resolution: u32, kind: u32| {
+                if ask.exists {
+                    table.mark(id.0);
+                    table.keys.push(id.0);
+                    table.rows += 1;
+                } else {
+                    table.push(id.0, &[(resolution_at, resolution), (type_at, kind)]);
+                }
+            };
+            match found {
+                Resolution::Atom(kind) => write(table, atom, memo.fixed(ids, name(*kind))),
+                Resolution::Union(kinds) => {
+                    for kind in kinds {
+                        write(table, union, memo.fixed(ids, name(*kind)));
+                    }
+                }
+                Resolution::Unknown => write(table, unknown, none),
+                Resolution::TypeError => write(table, type_error, none),
+            }
+        }
+        if ask.exists {
+            table.layout = Layout::PerNode;
+        }
+        table.finish(elements);
+        table.answered = complete;
+    }
+
+    fn binding_event(&mut self, ask: &Ask, ids: &mut dyn TextIds, table: &mut FactTable, elements: usize) {
+        use crate::domain::binding_facts::service::event_word;
+        let width = <languages::BindingEvent as CatalogRelation>::columns().len();
+        let cols = (
+            place!(BindingEvent, BindingEventColumn::Occurrence),
+            place!(BindingEvent, BindingEventColumn::Name),
+            place!(BindingEvent, BindingEventColumn::Scope),
+            place!(BindingEvent, BindingEventColumn::Phase),
+            place!(BindingEvent, BindingEventColumn::Kind),
+            place!(BindingEvent, BindingEventColumn::Ordinal),
+            place!(BindingEvent, BindingEventColumn::Lexical),
+        );
+        table.begin(Layout::Keyed, width, elements, &[], false);
+        let read = self.file.semantics(ModelPart::Flow);
+        if read.model.flow.state == FlowState::Incomplete {
+            table.answered = false;
+            table.finish(elements);
+            return;
+        }
+        let memo = &mut *self.memo;
+        let by_scope = ask.key == cols.2;
+        let segments = read.tree.segments;
+        for event in &read.model.flow.events {
+            let occurrence = table_id(segments, event.at).0;
+            let scope = table_id(segments, event.scope).0;
+            let key = if by_scope { scope } else { occurrence };
+            if ask.exists {
+                table.mark(key);
+                table.keys.push(key);
+                table.rows += 1;
+                continue;
+            }
+            let name = memo.name(ids, &read.model.names, event.name);
+            let kind = memo.fixed(ids, event_word(event.kind));
+            table.push(
+                key,
+                &[
+                    (cols.0, occurrence),
+                    (cols.1, name),
+                    (cols.2, scope),
+                    (cols.3, table_id(segments, event.phase).0),
+                    (cols.4, kind),
+                    (cols.5, event.ordinal.0 as u32),
+                    (cols.6, table_id(segments, event.lexical).0),
+                ],
+            );
+        }
+        if ask.exists {
+            table.layout = Layout::PerNode;
+        }
+        table.finish(elements);
+    }
+
+    fn binding_read(&mut self, ask: &Ask, ids: &mut dyn TextIds, table: &mut FactTable, elements: usize) {
+        use crate::domain::binding_facts::service::{context_word, state_word};
+        use crate::domain::model::reaching::types::FlowReadState;
+        let width = <languages::BindingRead as CatalogRelation>::columns().len();
+        let cols = (
+            place!(BindingRead, BindingReadColumn::Name),
+            place!(BindingRead, BindingReadColumn::Scope),
+            place!(BindingRead, BindingReadColumn::Phase),
+            place!(BindingRead, BindingReadColumn::Context),
+            place!(BindingRead, BindingReadColumn::State),
+            place!(BindingRead, BindingReadColumn::SinceMajor),
+            place!(BindingRead, BindingReadColumn::SinceMinor),
+        );
+        table.begin(Layout::Keyed, width, elements, &[], false);
+        let read = self.file.semantics(ModelPart::Flow);
+        if read.model.flow.state == FlowState::Incomplete {
+            table.answered = false;
+            table.finish(elements);
+            return;
+        }
+        let memo = &mut *self.memo;
+        let segments = read.tree.segments;
+        for each in &read.model.flow.reads {
+            let key = table_id(segments, each.at).0;
+            if ask.exists {
+                table.mark(key);
+                table.keys.push(key);
+                table.rows += 1;
+                continue;
+            }
+            let since = match each.state {
+                FlowReadState::Builtin(since) | FlowReadState::DeclarationOrBuiltin(since) => since,
+                FlowReadState::Unique | FlowReadState::Alternatives | FlowReadState::PossiblyUnbound | FlowReadState::Unbound | FlowReadState::Uncertain => NOT_APPLICABLE,
+            };
+            let name = memo.name(ids, &read.model.names, each.name);
+            let context = memo.fixed(ids, context_word(each.context));
+            let state = memo.fixed(ids, state_word(each.state));
+            table.push(
+                key,
+                &[
+                    (cols.0, name),
+                    (cols.1, table_id(segments, each.scope).0),
+                    (cols.2, table_id(segments, each.phase).0),
+                    (cols.3, context),
+                    (cols.4, state),
+                    (cols.5, since.major.0 as u32),
+                    (cols.6, since.minor.0 as u32),
+                ],
+            );
+        }
+        if ask.exists {
+            table.layout = Layout::PerNode;
+        }
+        table.finish(elements);
+    }
+}
