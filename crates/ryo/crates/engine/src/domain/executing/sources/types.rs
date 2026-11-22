@@ -309,6 +309,31 @@ impl FileNeeds<'_, '_, '_> {
             .is_some_and(|word| word & (1_u64 << (place % 64)) != 0)
     }
 
+    /// A part's value from the free terms, a leaf read in place: a part whose every leaf costs is open, a bit and bit
+    /// words are read, and only a part of parts or another site is valued by `node_free`.
+    #[inline]
+    fn part_free(&mut self, part: u32) -> FreeValue {
+        let place = usize::try_from(part).unwrap_or(usize::MAX);
+        let formulas = &self.0.state.need_masks.formulas;
+        if !formulas.informs.get(place).copied().unwrap_or(true) {
+            return FreeValue::Open;
+        }
+        let holds = |held: bool| {
+            if held {
+                FreeValue::Holds
+            } else {
+                FreeValue::Empty
+            }
+        };
+        match formulas.nodes.get(place).copied() {
+            Some(FormulaNode::AllBits(words)) => holds(self.bits_held(words, true)),
+            Some(FormulaNode::AnyBits(words)) => holds(self.bits_held(words, false)),
+            Some(FormulaNode::Always) => FreeValue::Holds,
+            Some(FormulaNode::Never) => FreeValue::Empty,
+            Some(_) | None => self.node_free(part),
+        }
+    }
+
     /// What a node says of the file from the free terms, the terms that cost that the file already answered, and the
     /// tables already made: `Open` when what is not known yet decides. Asks nothing that costs.
     fn node_free(&mut self, node: u32) -> FreeValue {
@@ -371,7 +396,7 @@ impl FileNeeds<'_, '_, '_> {
             FormulaNode::All(parts) => {
                 let mut value = FreeValue::Holds;
                 for at in parts.start.0..parts.start.0.saturating_add(parts.count.0) {
-                    match self.node_free(self.part(at)) {
+                    match self.part_free(self.part(at)) {
                         FreeValue::Empty => return FreeValue::Empty,
                         FreeValue::Holds => {}
                         FreeValue::Open | FreeValue::Unfound | FreeValue::Deciding => {
@@ -384,7 +409,7 @@ impl FileNeeds<'_, '_, '_> {
             FormulaNode::Any(parts) => {
                 let mut value = FreeValue::Empty;
                 for at in parts.start.0..parts.start.0.saturating_add(parts.count.0) {
-                    match self.node_free(self.part(at)) {
+                    match self.part_free(self.part(at)) {
                         FreeValue::Holds => return FreeValue::Holds,
                         FreeValue::Empty => {}
                         FreeValue::Open | FreeValue::Unfound | FreeValue::Deciding => {
