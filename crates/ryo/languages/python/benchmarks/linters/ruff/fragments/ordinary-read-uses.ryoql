@@ -122,9 +122,9 @@ let declaring_events = select e.id as id, e.name as name, e.lexical as scope, e.
 let declaring_unproven0 = antijoin(left=declaring_events, right=valid_event_ids, left-on=["id", "file"], right-on=["id", "file"]);
 let declaring_unproven = select id, name, scope, ordinal, kind, file from declaring_unproven0 where kind != "global" and kind != "nonlocal";
 let declaring_valid = antijoin(left=declaring_events, right=declaring_unproven, left-on=["id", "ordinal", "file"], right-on=["id", "ordinal", "file"]);
-let declaring_options = select l.reference as reference, l.depth as depth, l.scope as scope, l.name as name, r.id as event, r.ordinal as ordinal, r.kind as kind, l.file as file from declaration_points as l join declaring_valid as r on l.scope = r.scope and l.name = r.name and l.file = r.file where r.ordinal < l.point;
-let older_declaring_options = select l.reference as reference, l.depth as depth, l.ordinal as ordinal, l.file as file from declaring_options as l join declaring_options as r on l.reference = r.reference and l.depth = r.depth and l.file = r.file where l.ordinal < r.ordinal;
-let declaring_starts = antijoin(left=declaring_options, right=older_declaring_options, left-on=["reference", "depth", "ordinal", "file"], right-on=["reference", "depth", "ordinal", "file"]);
+let nearest_declaring_options = as-of(left=declaration_points, right=declaring_valid, left-on=[scope,name,file], right-on=[scope,name,file], left-order="point", right-order="ordinal", bound=before, output={reference:[left,reference], depth:[left,depth], scope:[left,scope], name:[left,name], event:[right,id], ordinal:[right,ordinal], kind:[right,kind], file:[left,file]});
+let older_declaring_options = select l.reference as reference, l.depth as depth, l.ordinal as ordinal, l.file as file from nearest_declaring_options as l join nearest_declaring_options as r on l.reference = r.reference and l.depth = r.depth and l.file = r.file where l.ordinal < r.ordinal;
+let declaring_starts = antijoin(left=nearest_declaring_options, right=older_declaring_options, left-on=["reference", "depth", "ordinal", "file"], right-on=["reference", "depth", "ordinal", "file"]);
 let declaring_plain = select reference, event, kind, depth, file from declaring_starts where kind = "bind" or kind = "annotation" or kind = "delete";
 let declaring_cleanups = select reference, depth, scope, name, ordinal, file from declaring_starts where kind = "cleanup";
 let declaring_stream = select scope, name, file, ordinal from declaring_events;
