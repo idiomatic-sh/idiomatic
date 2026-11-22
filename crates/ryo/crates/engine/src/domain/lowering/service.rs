@@ -112,12 +112,34 @@ fn patterns_placed(drafts: &mut Drafts, sample: LoadSample<'_>) -> Result<(), Re
                 None => {}
             }
         }
+        let (navigated, walked) = crate::domain::walk::rules_counted();
+        eprintln!("ryo walk: branch anchors kind,relation,definition-table,made-table,other = {:?}", crate::domain::walk::anchors());
         eprintln!(
-            "ryo walk: patterns call={calls} table={tables} call-asked-by-a-fill={fill_calls} late-fill-asks={}",
+            "ryo walk: patterns call={calls} table={tables} call-asked-by-a-fill={fill_calls} late-fill-asks={}; rules navigated from their own anchor={navigated}, walking a table of their rows={walked}",
             drafts.late_fill_asks
         );
     }
     Ok(())
+}
+
+/// SPIKE (the walk): what a rule's branch program starts from: 0 a kind bucket, 1 a relation's rows (whole or a bucket), 2
+/// a definition's rows made whole (its table), 3 a made table, 4 anything else.
+fn anchor_of(program: &StepProgram) -> usize {
+    use crate::domain::steps::types::{ProgramStep, StepRows};
+    let first = program.0.iter().find(|placed| {
+        !matches!(placed.step, ProgramStep::Test { .. } | ProgramStep::Let { .. })
+    });
+    let source = |rows: &StepRows| match rows {
+        StepRows::Node(_) | StepRows::Filled(_) | StepRows::Written(_) => 1,
+        StepRows::Definition(_) => 2,
+        StepRows::Made(_) => 3,
+    };
+    match first.map(|placed| &placed.step) {
+        Some(ProgramStep::EachKind { .. }) => 0,
+        Some(ProgramStep::EachRow { source: rows, .. } | ProgramStep::EachMatch { source: rows, .. }) => source(rows),
+        Some(ProgramStep::EachRange { source: rows, .. }) => source(rows),
+        _ => 4,
+    }
 }
 
 /// One rule's own program: a branch of its emitted rows each. When a branch has no program (an access of it has no key
@@ -138,7 +160,9 @@ fn rule_lowered(
     let node = digest_of(rule, emitted);
     let shape = rule.shapes.get(usize::from(emitted)).cloned().flatten();
     let shape = shape.ok_or(refused)?;
-    if plans.iter().any(Option::is_none) {
+    let walked = plans.iter().any(Option::is_none);
+    crate::domain::walk::counted(walked);
+    if walked {
         let home = NodeHome {
             rule: place,
             step: emitted,
@@ -156,6 +180,9 @@ fn rule_lowered(
     for (branch, plan) in flattened.branches.iter().zip(plans) {
         let program =
             plan.and_then(|plan| branch_program(drafts, sample.kinds, branch, &plan, target));
+        if let Some(program) = &program {
+            crate::domain::walk::anchored(anchor_of(program));
+        }
         // The rule's formula, and what this branch itself needs.
         let need = branch_need(drafts, branch);
         branches.push(Branch {

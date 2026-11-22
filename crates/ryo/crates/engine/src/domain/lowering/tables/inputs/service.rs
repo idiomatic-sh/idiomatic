@@ -212,6 +212,28 @@ pub(crate) fn input(
                     keyless: Vec::new(),
                 });
             }
+            // SPIKE (the walk): `RYO_WALK=inline=<n>`: a step read by at most n readers across the pack, within the
+            // bounds, not defined yet, is a fresh copy of its branches for each reader: the reader navigates it from
+            // its own anchor instead of reading a definition made whole.
+            let few = crate::domain::walk::number("inline")
+                .is_some_and(|most| u64::try_from(readers(state.store, digest).0).unwrap_or(u64::MAX) <= most);
+            if few
+                && shared
+                && want != InputWant::Defined
+                && own_want(state, step) != InputWant::Defined
+                && !drafts.defined.contains_key(&digest)
+                && let Some(flattened) = waiting.filter(|flattened| bounded(flattened) == InputWant::Inline)
+            {
+                let emptiness = copied(&flattened.emptiness);
+                let keyless = flattened.keyless.clone();
+                let read = flattened.branches.clone();
+                let branches = read.iter().map(|branch| branch_again(drafts, branch)).collect();
+                return Some(Flattened {
+                    branches,
+                    emptiness,
+                    keyless,
+                });
+            }
             let cut = want == InputWant::Defined
                 || shared
                 || own_want(state, step) == InputWant::Defined
