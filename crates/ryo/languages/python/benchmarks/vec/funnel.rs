@@ -137,6 +137,11 @@ pub(super) struct FRule {
     pub(super) cnfs: Vec<Vec<Vec<u16>>>,
     /// The fact relations its plans test.
     pub(super) slots: Vec<usize>,
+    /// The fact relations some test of its plans reads a value of (a condition or a second key): the others need only the
+    /// yes/no question (cols prototype).
+    pub(super) valued: Vec<usize>,
+    /// The (slot, key column) pairs its plans enter a fact by (cols prototype).
+    pub(super) keyed: Vec<(usize, usize)>,
 }
 
 impl FRule {
@@ -180,6 +185,12 @@ fn ops_of(v: &serde_json::Value, vocab: &Vocab, missing: &mut Vec<String>, fc: &
                 if let Some(f) = &op {
                     if !fc.slots.contains(&f.slot) {
                         fc.slots.push(f.slot);
+                    }
+                    if !fc.keyed.contains(&(f.slot, f.keys[0].0)) {
+                        fc.keyed.push((f.slot, f.keys[0].0));
+                    }
+                    if (!f.conds.is_empty() || f.keys.len() > 1) && !fc.valued.contains(&f.slot) {
+                        fc.valued.push(f.slot);
                     }
                 }
                 return op.map(Op::Fact);
@@ -253,10 +264,12 @@ pub(super) struct FactLoad<'l> {
     pub(super) catalog: &'l mut super::facts::Catalog,
     pub(super) interner: &'l mut super::facts::Interner,
     pub(super) slots: Vec<usize>,
+    pub(super) valued: Vec<usize>,
+    pub(super) keyed: Vec<(usize, usize)>,
 }
 
 pub(super) fn load(path: &str, vocab: &Vocab, catalog: &mut super::facts::Catalog, interner: &mut super::facts::Interner) -> (Vec<FRule>, Words) {
-    let mut fc = FactLoad { catalog, interner, slots: Vec::new() };
+    let mut fc = FactLoad { catalog, interner, slots: Vec::new(), valued: Vec::new(), keyed: Vec::new() };
     let mut missing = Vec::new();
     let mut rules = Vec::new();
     let mut words = Words::default();
@@ -293,7 +306,9 @@ pub(super) fn load(path: &str, vocab: &Vocab, catalog: &mut super::facts::Catalo
         }
         let cnfs: Vec<Vec<Vec<u16>>> = r["word_cnfs"].as_array().map(|a| a.iter().map(|c| words.cnf(c)).collect()).unwrap_or_default();
         let slots = std::mem::take(&mut fc.slots);
-        rules.push(FRule { name: r["rule"].as_str().expect("rule").to_owned(), plans, cnfs, slots });
+        let valued = std::mem::take(&mut fc.valued);
+        let keyed = std::mem::take(&mut fc.keyed);
+        rules.push(FRule { name: r["rule"].as_str().expect("rule").to_owned(), plans, cnfs, slots, valued, keyed });
     }
     missing.sort();
     missing.dedup();

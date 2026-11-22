@@ -25,7 +25,7 @@ use ryo::languages::{
 };
 
 /// The word of an event's kind.
-const fn event_word(kind: FlowEventKind) -> NameText<'static> {
+pub(crate) const fn event_word(kind: FlowEventKind) -> NameText<'static> {
     NameText(match kind {
         FlowEventKind::Wildcard => vocabulary::WILDCARD,
         FlowEventKind::Read => vocabulary::READ,
@@ -39,7 +39,7 @@ const fn event_word(kind: FlowEventKind) -> NameText<'static> {
 }
 
 /// The word of what a read is for.
-const fn context_word(context: FlowContext) -> NameText<'static> {
+pub(crate) const fn context_word(context: FlowContext) -> NameText<'static> {
     NameText(match context {
         FlowContext::Value => vocabulary::VALUE,
         FlowContext::Type => vocabulary::TYPE,
@@ -48,7 +48,7 @@ const fn context_word(context: FlowContext) -> NameText<'static> {
 }
 
 /// The word of what can reach a read.
-const fn state_word(state: FlowReadState) -> NameText<'static> {
+pub(crate) const fn state_word(state: FlowReadState) -> NameText<'static> {
     NameText(match state {
         FlowReadState::Unique => vocabulary::UNIQUE_DECLARATION,
         FlowReadState::Alternatives => vocabulary::ALTERNATIVE_DECLARATIONS,

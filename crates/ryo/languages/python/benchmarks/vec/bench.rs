@@ -954,6 +954,35 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     let (mut link_rows_provider, mut link_rows_mine, mut link_mismatch) = (0u64, 0u64, 0u64);
     let mut fwords = ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names");
     let mut filled = languages::FilledColumns::default();
+    // cols prototype: the provider writes the facts directly as per-node columns and keyed lists
+    let direct = args.contains(&"--direct");
+    let check_direct = args.contains(&"--check-direct");
+    // ablations: every fact asked whole (no yes/no form); every fact asked in every file (no per-file decision)
+    let no_yes_no = args.contains(&"--no-yes-no");
+    let ask_all = args.contains(&"--ask-all");
+    let no_project = args.contains(&"--no-project");
+    let plant = std::env::var("COLS_PLANT").is_ok_and(|v| v == "1");
+    let mut cwalk = ryo_python::fixtures::columns::ColumnWalk::new(ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names"));
+    store.direct_on = direct;
+    if args.contains(&"--regex-set") {
+        interner.set = Some(regex::bytes::RegexSet::new(interner.regexes.iter().map(|r| r.as_str())).expect("regex set"));
+    }
+    if let Some(t) = token_slot {
+        store.token_slot = Some((t, fact_catalog.column(t, "source"), fact_catalog.column(t, "target"), u64::from(interner.id(b"next-token"))));
+    }
+    let mut asks: Vec<ryo_python::fixtures::columns::Ask> = Vec::new();
+    let mut ask_of: Vec<(usize, usize)> = Vec::new();
+    let (mut direct_fill, mut direct_write, mut direct_files) = (0f64, 0f64, vec![0u64; slots_n]);
+    let mut model_time = 0f64;
+    let per_fact = args.contains(&"--per-fact");
+    let mut fact_time = vec![0f64; slots_n];
+    let (mut direct_rows, mut direct_exists_files) = (vec![0u64; slots_n], vec![0u64; slots_n]);
+    // the check: rows compared and differing, by slot; yes/no answers compared and differing; answers differing; reference
+    // cells that do not fit 32 bits
+    let (mut chk_rows, mut chk_diff, mut chk_yes, mut chk_yes_diff, mut chk_answer_diff, mut chk_wide) =
+        (vec![0u64; slots_n], vec![0u64; slots_n], vec![0u64; slots_n], vec![0u64; slots_n], vec![0u64; slots_n], vec![0u64; slots_n]);
+    let (mut chk_multi, mut chk_shown) = (vec![0u64; slots_n], 0usize);
+    let mut chk_cols: Vec<Vec<String>> = vec![Vec::new(); slots_n];
     let (mut fill_time, mut write_time) = (vec![0f64; slots_n], vec![0f64; slots_n]);
     let (mut fill_files, mut fill_rows, mut unanswered) = (vec![0u64; slots_n], vec![0u64; slots_n], vec![0u64; slots_n]);
     let mut model_files = 0u64;
@@ -1027,7 +1056,313 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
         let bytes = std::fs::read(path).expect("read");
         store.reset(slots_n);
         let mut visit_time = 0f64;
-        let ok = if use_facts {
+        let ok = if use_facts && direct {
+            cwalk
+                .walked(path, &bytes, &mut table, &mut |file| {
+                    let v0 = thread_cpu();
+                    let ft = file.table;
+                    let n = node_table::element_count(ft).0;
+                    let kinds: Vec<u64> = node_table::kinds_present(ft).0.iter().map(|w| w.0).collect();
+                    let mut fp = vec![0u64; words_of(fields_width)];
+                    for i in 0..n as u32 {
+                        let f = node_table::field_of(ft, Position(i)).0;
+                        if usize::from(f) < fields_width {
+                            fp[usize::from(f) / 64] |= 1 << (f % 64);
+                        }
+                    }
+                    let mut wp = vec![0u64; ww];
+                    for p in node_table::ids_of_kind(ft, KindBits(name_token)) {
+                        let sp = node_table::span_of(ft, *p);
+                        if let Some(w) = words.ids.get(&bytes[sp.start.0 as usize..sp.end.0 as usize]) {
+                            wp[usize::from(*w) / 64] |= 1 << (w % 64);
+                        }
+                    }
+                    let mut needed = vec![ask_all; slots_n];
+                    let mut valued = vec![ask_all; slots_n];
+                    let mut key_needed: Vec<(usize, usize)> = Vec::new();
+                    for (ri, r) in frules.iter().enumerate() {
+                        if r.slots.is_empty() || !skip_of[ri].is_none_or(|i| survives(&rules[i], &kinds, &fp)) || !r.words_alive(&wp) {
+                            continue;
+                        }
+                        for s in &r.slots {
+                            needed[*s] = true;
+                        }
+                        for s in &r.valued {
+                            valued[*s] = true;
+                        }
+                        for k in &r.keyed {
+                            if !key_needed.contains(k) {
+                                key_needed.push(*k);
+                            }
+                        }
+                    }
+                    let v1 = thread_cpu();
+                    decide_time += v1 - v0;
+                    let model_needed = needed.iter().enumerate().any(|(i, x)| *x && Some(i) != token_slot);
+                    let tokens_needed = token_slot.is_some_and(|t| needed[t]);
+                    if model_needed {
+                        model_files += 1;
+                    }
+                    if tokens_needed && !model_needed {
+                        token_only_files += 1;
+                    }
+                    if model_needed && !tokens_needed {
+                        model_only_files += 1;
+                    }
+                    if tokens_needed {
+                        token_files += 1;
+                    }
+                    let n = n as usize;
+                    asks.clear();
+                    ask_of.clear();
+                    for slot in 0..slots_n {
+                        if !needed[slot] || Some(slot) == token_slot {
+                            continue;
+                        }
+                        let exists = !valued[slot] && !check_direct && !no_yes_no;
+                        if exists {
+                            direct_exists_files[slot] += 1;
+                        }
+                        direct_files[slot] += 1;
+                        let full = check_direct || no_project || ask_all;
+                        let columns = if full { u64::MAX } else { fact_catalog.read_columns[slot] };
+                        for &kc in &fact_catalog.key_columns[slot] {
+                            if !full && !key_needed.contains(&(slot, kc)) {
+                                continue;
+                            }
+                            asks.push(ryo_python::fixtures::columns::Ask { relation: fact_catalog.relations[slot], key: kc, exists, columns });
+                            ask_of.push((slot, kc));
+                            if check_direct {
+                                asks.push(ryo_python::fixtures::columns::Ask { relation: fact_catalog.relations[slot], key: kc, exists: true, columns });
+                                ask_of.push((slot, kc));
+                            }
+                        }
+                    }
+                    let m = thread_cpu();
+                    file.prepare(&asks);
+                    let a = thread_cpu();
+                    model_time += a - m;
+                    if per_fact {
+                        store.direct.tables.resize_with(asks.len().max(store.direct.tables.len()), Default::default);
+                        for (i, ask) in asks.iter().enumerate() {
+                            let c = thread_cpu();
+                            file.column(ask, &mut interner, &mut store.direct.tables[i]);
+                            fact_time[ask_of[i].0] += thread_cpu() - c;
+                        }
+                    } else {
+                        file.columns(&asks, &mut interner, &mut store.direct);
+                    }
+                    let b = thread_cpu();
+                    direct_fill += b - a;
+                    for (i, (slot, kc)) in ask_of.iter().enumerate() {
+                        if check_direct && asks[i].exists {
+                            continue;
+                        }
+                        store.direct_of[*slot].push((*kc, i));
+                        store.answered[*slot] = true;
+                        let t = &store.direct.tables[i];
+                        direct_rows[*slot] += t.rows as u64;
+                        // the regex bits of the texts the plans test by regex, once a text
+                        for &c in &fact_catalog.re_columns[*slot] {
+                            let Some(col) = t.columns.get(c) else { continue };
+                            if col.is_empty() {
+                                continue;
+                            }
+                            match t.layout {
+                                ryo_python::fixtures::columns::Layout::Keyed => {
+                                    for v in col {
+                                        interner.ensure_matched(*v);
+                                    }
+                                }
+                                ryo_python::fixtures::columns::Layout::PerNode => {
+                                    for (wi, w) in t.present.iter().enumerate() {
+                                        let mut w = *w;
+                                        while w != 0 {
+                                            let k = wi * 64 + w.trailing_zeros() as usize;
+                                            w &= w - 1;
+                                            interner.ensure_matched(col[k]);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    direct_write += thread_cpu() - b;
+                    if let Some(t) = token_slot
+                        && tokens_needed
+                    {
+                        let a = thread_cpu();
+                        store.token_order(ft, &token_kinds, n);
+                        store.answered[t] = true;
+                        token_time += thread_cpu() - a;
+                    }
+                    if check_direct {
+                        languages::facts::clear_words(&mut fwords);
+                        let keyed_rows = |t: &ryo_python::fixtures::columns::FactTable, cols: &[usize]| -> Vec<Vec<u32>> {
+                            let mut out = Vec::new();
+                            for k in 0..n {
+                                if !t.present.get(k / 64).is_some_and(|w| w >> (k % 64) & 1 == 1) {
+                                    continue;
+                                }
+                                for r in t.rows_of(k) {
+                                    let r = t.row(r);
+                                    let mut row = vec![k as u32];
+                                    row.extend(cols.iter().map(|c| t.columns[*c][r]));
+                                    out.push(row);
+                                }
+                            }
+                            out
+                        };
+                        let mut kept = std::mem::take(&mut store.direct);
+                        // the plant (`COLS_PLANT=1`): one value of the first written column of each whole table is changed, and
+                        // one yes/no bit dropped; the check must count them
+                        if plant {
+                            for (i, t) in kept.tables.iter_mut().enumerate().take(asks.len()) {
+                                if asks[i].exists {
+                                    if let Some(w) = t.present.iter_mut().find(|w| **w != 0) {
+                                        *w &= *w - 1;
+                                    }
+                                    continue;
+                                }
+                                let first = t.present.iter().enumerate().find(|(_, w)| **w != 0).map(|(wi, w)| wi * 64 + w.trailing_zeros() as usize);
+                                if let Some(k) = first {
+                                    let r = t.rows_of(k).start;
+                                    let r = t.row(r);
+                                    if let Some(col) = t.columns.iter_mut().find(|c| c.len() > r) {
+                                        col[r] ^= 1;
+                                    }
+                                }
+                            }
+                        }
+                        let mut i = 0;
+                        while i < asks.len() {
+                            let (slot, kc) = ask_of[i];
+                            let (whole, yes) = (&kept.tables[i], &kept.tables[i + 1]);
+                            filled.0.clear();
+                            let answer = file.fill(fact_catalog.relations[slot], languages::Wanted::Whole, &mut fwords, &mut filled);
+                            let answered = matches!(answer, languages::FactAnswer::Answered(_));
+                            if answered != whole.answered || answered != yes.answered {
+                                chk_answer_diff[slot] += 1;
+                            }
+                            if answered && whole.answered {
+                                store.write(&fact_catalog, slot, &filled, &fwords, &mut interner, n);
+                                let cols: Vec<usize> = (0..whole.columns.len())
+                                    .filter(|c| match whole.layout {
+                                        ryo_python::fixtures::columns::Layout::PerNode => whole.columns[*c].len() == n && n > 0,
+                                        ryo_python::fixtures::columns::Layout::Keyed => !whole.columns[*c].is_empty(),
+                                    })
+                                    .collect();
+                                for c in &cols {
+                                    let name = fact_catalog.column_name(slot, *c);
+                                    if !chk_cols[slot].contains(&name) {
+                                        chk_cols[slot].push(name);
+                                    }
+                                }
+                                let mut mine = keyed_rows(whole, &cols);
+                                let cells = &store.cells[slot];
+                                let mut theirs: Vec<Vec<u32>> = (0..store.rows[slot])
+                                    .map(|r| {
+                                        let mut row = vec![cells[kc][r] as u32];
+                                        for c in &cols {
+                                            if cells[*c][r] >> 32 != 0 {
+                                                chk_wide[slot] += 1;
+                                            }
+                                            row.push(cells[*c][r] as u32);
+                                        }
+                                        row
+                                    })
+                                    .collect();
+                                mine.sort_unstable();
+                                theirs.sort_unstable();
+                                let mut keys: Vec<u32> = theirs.iter().map(|r| r[0]).collect();
+                                let all = keys.len();
+                                keys.dedup();
+                                chk_multi[slot] += (all - keys.len()) as u64;
+                                chk_rows[slot] += theirs.len() as u64;
+                                let (mut x, mut y, mut d) = (0, 0, 0u64);
+                                while x < mine.len() || y < theirs.len() {
+                                    match (mine.get(x), theirs.get(y)) {
+                                        (Some(a), Some(b)) if a == b => {
+                                            x += 1;
+                                            y += 1;
+                                        }
+                                        (Some(a), Some(b)) if a < b => {
+                                            if chk_shown < 20 {
+                                                chk_shown += 1;
+                                                eprintln!("check {} {}: only direct {a:?} (cols {cols:?})", fact_catalog.names[slot], path);
+                                            }
+                                            d += 1;
+                                            x += 1;
+                                        }
+                                        (Some(_), None) => {
+                                            d += 1;
+                                            x += 1;
+                                        }
+                                        (_, Some(b)) => {
+                                            if chk_shown < 20 {
+                                                chk_shown += 1;
+                                                eprintln!("check {} {}: only reader {b:?} (cols {cols:?})", fact_catalog.names[slot], path);
+                                            }
+                                            d += 1;
+                                            y += 1;
+                                        }
+                                        (None, None) => break,
+                                    }
+                                }
+                                chk_diff[slot] += d;
+                                // the yes/no answers: the nodes with a row
+                                let yes_nodes: Vec<u32> = (0..n as u32).filter(|k| yes.present.get(*k as usize / 64).is_some_and(|w| w >> (k % 64) & 1 == 1)).collect();
+                                chk_yes[slot] += keys.len() as u64;
+                                let (mut x, mut y) = (0, 0);
+                                while x < yes_nodes.len() || y < keys.len() {
+                                    match (yes_nodes.get(x), keys.get(y)) {
+                                        (Some(a), Some(b)) if a == b => {
+                                            x += 1;
+                                            y += 1;
+                                        }
+                                        (Some(a), Some(b)) if a < b => {
+                                            chk_yes_diff[slot] += 1;
+                                            x += 1;
+                                        }
+                                        (Some(_), None) => {
+                                            chk_yes_diff[slot] += 1;
+                                            x += 1;
+                                        }
+                                        (_, Some(_)) => {
+                                            chk_yes_diff[slot] += 1;
+                                            y += 1;
+                                        }
+                                        (None, None) => break,
+                                    }
+                                }
+                            }
+                            i += 2;
+                        }
+                        store.direct = kept;
+                        // the token order against the provider's next-token rows
+                        if let Some(t) = token_slot
+                            && tokens_needed
+                        {
+                            filled.0.clear();
+                            let _ = file.fill(fact_catalog.relations[t], languages::Wanted::Whole, &mut fwords, &mut filled);
+                            store.write(&fact_catalog, t, &filled, &fwords, &mut interner, n);
+                            let (sc, tc, kc) = (fact_catalog.column(t, "source"), fact_catalog.column(t, "target"), fact_catalog.column(t, "link-kind"));
+                            let next_id = u64::from(interner.id(b"next-token"));
+                            let cells = &store.cells[t];
+                            let mut theirs: Vec<(u32, u32)> = (0..store.rows[t]).filter(|r| cells[kc][*r] == next_id).map(|r| (cells[sc][r] as u32, cells[tc][r] as u32)).collect();
+                            let mut mine: Vec<(u32, u32)> = store.next_token.iter().enumerate().filter(|(_, v)| **v != u32::MAX).map(|(k, v)| (k as u32, *v)).collect();
+                            let mut back: Vec<(u32, u32)> = store.prev_token.iter().enumerate().filter(|(_, v)| **v != u32::MAX).map(|(k, v)| (*v, k as u32)).collect();
+                            theirs.sort_unstable();
+                            mine.sort_unstable();
+                            back.sort_unstable();
+                            chk_rows[t] += theirs.len() as u64;
+                            chk_diff[t] += u64::from(mine != theirs) * (mine.len().abs_diff(theirs.len()).max(1) as u64) + u64::from(back != theirs);
+                        }
+                    }
+                    visit_time += thread_cpu() - v0;
+                })
+                .is_ok()
+        } else if use_facts {
             // the provider's facts are lent only while the walk runs: decide here which files need them (some rule that
             // tests a fact survived the kinds-and-words skip), then fill those relations and write their columns
             ryo_python::fixtures::walking::walked(walk, path, &bytes, &[], &mut table, &mut scratch, &mut |file| {
@@ -1459,6 +1794,20 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
             interner.lookups
         );
         println!("facts total: provider fills {:.4} s column writes {:.4} s; interned texts {}", fill_time.iter().sum::<f64>(), write_time.iter().sum::<f64>(), interner.matches.len());
+        if direct {
+            for slot in 0..slots_n {
+                println!(
+                    "direct {}: files {} (yes/no only {}) rows {} time {:.4} s check: rows {} differing {} keys with more than one row {} yes/no keys {} differing {} answers differing {} wide cells {} columns compared beside the key {:?}",
+                    fact_catalog.names[slot], direct_files[slot], direct_exists_files[slot], direct_rows[slot], fact_time[slot], chk_rows[slot], chk_diff[slot], chk_multi[slot], chk_yes[slot], chk_yes_diff[slot], chk_answer_diff[slot], chk_wide[slot], chk_cols[slot]
+                );
+            }
+            println!(
+                "direct total: model build {model_time:.4} s provider columns {direct_fill:.4} s our writes (regex bits) {direct_write:.4} s token order {token_time:.4} s deciding {decide_time:.4} s; unwritten reads {}; check rows {} differing {}",
+                store.unwritten.get(),
+                chk_rows.iter().sum::<u64>(),
+                chk_diff.iter().sum::<u64>() + chk_yes_diff.iter().sum::<u64>() + chk_answer_diff.iter().sum::<u64>()
+            );
+        }
     }
     let knock_units = units.iter().filter(|u| u.knock).count();
     let steps: u64 = unit_steps.iter().sum();
