@@ -44,6 +44,31 @@ impl Hashed {
     }
 }
 
+/// The structure the checks read, one row an element: parent kind, child-kind set, child-field set (codes below 128) and
+/// whether it is a root; then the enclosing column of each kind set. The child-field set and the root flag are worked out
+/// here from the table's parent and field readers (the harness wrote neither before the table did).
+pub(super) fn structure(out: &mut String, file: usize, t: &NodeTable, pkind: &[u16], cmask: &[[u64; 4]], enc: &[Vec<u32>]) {
+    let n = node_table::element_count(t).0;
+    let mut cfmask = vec![[0u64; 2]; n];
+    for i in 0..n {
+        let p = node_table::parent_of(t, Position(i as u32)).0 as usize;
+        let f = node_table::field_of(t, Position(i as u32)).0;
+        if p != i && f < 128 {
+            cfmask[p][usize::from(f) / 64] |= 1 << (f % 64);
+        }
+    }
+    let mut h = Hashed::default();
+    h.rows(node_table::parent_ids(t));
+    for i in 0..n {
+        let root = node_table::parent_of(t, Position(i as u32)).0 as usize == i;
+        h.row(&(pkind.get(i), cmask.get(i), cfmask[i], root));
+    }
+    for col in enc {
+        h.rows(col);
+    }
+    h.line(out, file, "structure");
+}
+
 /// The node table, through its readers: per element, then per kind, then the file's own facts.
 pub(super) fn table(out: &mut String, file: usize, t: &NodeTable, kinds: usize) {
     let mut h = Hashed::default();

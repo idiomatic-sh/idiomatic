@@ -1793,16 +1793,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
         }
         if dump_out.is_some() {
             dump::table(&mut dumped, file_no, t, vocab.kind_names.len());
-            let mut h = dump::Hashed::default();
-            h.rows(node_table::parent_ids(t));
-            h.rows(&st.pkind);
-            h.rows(&st.cmask);
-            h.rows(&st.sibling);
-            h.rows(&st.enc_function);
-            h.rows(&st.enc_class);
-            h.rows(&st.enc_loop);
-            h.rows(&st.enc);
-            h.line(&mut dumped, file_no, "structure");
+            dump::structure(&mut dumped, file_no, t, &st.pkind, &st.cmask, &st.enc);
             let mut h = dump::Hashed::default();
             // the field buckets as the harness's counting sort laid them out: offsets, then the ids, then the present bits
             let mut offsets = vec![0u32];
