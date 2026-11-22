@@ -683,6 +683,20 @@ impl finish::Provider for Facts<'_, '_, '_> {
         e.2 += 1;
         Ok(t)
     }
+
+    fn render(&mut self, node: u32, context: &str) -> Result<Option<Vec<u8>>, String> {
+        let context = match context {
+            "assignment-target" => languages::RenderContext::AssignmentTarget,
+            "attribute-receiver" => languages::RenderContext::AttributeReceiver,
+            "positional-argument" => languages::RenderContext::PositionalArgument,
+            other => return Err(format!("render context {other}")),
+        };
+        match self.facts.facts.render(languages::RenderRequest { node: languages::NodeId(u64::from(node)), context }) {
+            languages::RenderOutcome::Known(t) => Ok(Some(t.0.as_bytes().to_vec())),
+            languages::RenderOutcome::NotApplicable => Ok(None),
+            languages::RenderOutcome::Unsupported(_) => Err("render unsupported".to_owned()),
+        }
+    }
 }
 
 /// `vec finish <plan.json> <files> <root> [--rules A,B] [--seed rule-file.tsv] [--out findings.jsonl] [--stats stats.tsv]
@@ -699,6 +713,9 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     let check = args.contains(&"--check-bases");
     let mut run = finish::Run::default();
     run.empty = run.sym(b"");
+    run.links();
+    run.root_dir = args[2].trim_end_matches('/').to_owned();
+    run.search_roots = vec![String::new(), "src".to_owned()];
     run.kind_sym = vocab.kind_names.clone().iter().map(|k| run.sym(k.as_bytes())).collect();
     run.field_sym = vocab.field_names.clone().iter().map(|k| run.sym(k.as_bytes())).collect();
     run.paths = list.iter().map(|p| p.strip_prefix(&root).unwrap_or(p).to_owned()).collect();
@@ -788,7 +805,7 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
         let mut lines = vec!["node\top\tcalls\trows\ttouched\tseconds".to_owned()];
         for (i, pn) in plan.nodes.iter().enumerate() {
             if exec.stats.calls[i] > 0 {
-                lines.push(format!("{i}\t{}\t{}\t{}\t{}\t{:.6}", pn.op, exec.stats.calls[i], exec.stats.rows[i], exec.stats.touched[i], exec.stats.time[i]));
+                lines.push(format!("{i}\t{}\t{}\t{}\t{}\t{:.6}\t{}", pn.op, exec.stats.calls[i], exec.stats.rows[i], exec.stats.touched[i], exec.stats.time[i], exec.stats.empty[i]));
             }
         }
         for (k, v) in &by_rel {

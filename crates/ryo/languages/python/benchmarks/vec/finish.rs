@@ -103,9 +103,17 @@ pub(super) struct Run {
     pub(super) token_error: u16,
     pub(super) pairs: [(u16, u16); 3],
     pub(super) rels: FxHashMap<String, (languages::Relation, Vec<String>, Vec<Ty>)>,
+    pub(super) link_sym: [u32; 3],
+    /// The project's root on disk and its search roots, for `project-namespace-membership`.
+    pub(super) root_dir: String,
+    pub(super) search_roots: Vec<String>,
+    pub(super) classified: FxHashMap<String, Vec<&'static str>>,
 }
 
 impl Run {
+    pub(super) fn links(&mut self) {
+        self.link_sym = [self.sym(b"next-token"), self.sym(b"matching-delimiter"), self.sym(b"enclosing-delimiter")];
+    }
     pub(super) fn sym(&mut self, t: &[u8]) -> u32 {
         if let Some(i) = self.ids.get(t) {
             return *i;
@@ -199,15 +207,17 @@ pub(super) fn load(path: &str) -> Plan {
     Plan { nodes, emits }
 }
 
-/// The relations of the tree read in place.
+/// The relations of the tree read in place, by position.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-enum Native {
+pub(super) enum Native {
     /// `syntax-tree` / `semantic-syntax`: a row an element.
     Tree,
     /// `semantic-child` / `syntax-child`: a row an element with a parent.
     Child,
     /// `source-location`: a row an element.
     Location,
+    /// `token-link`: a row a (source token, link kind), from the token order; row = source * 3 + kind.
+    Token,
 }
 
 const TREE_COLS: [(&str, Ty); 5] = [("id", Ty::Node), ("kind", Ty::Sym), ("text", Ty::Sym), ("file", Ty::File), ("span", Ty::Span)];
@@ -223,12 +233,14 @@ const LOC_COLS: [(&str, Ty); 9] = [
     ("start-column", Ty::Num),
     ("end-column", Ty::Num),
 ];
+const TOKEN_COLS: [(&str, Ty); 5] = [("source", Ty::Node), ("target", Ty::Node), ("link-kind", Ty::Sym), ("file", Ty::File), ("span", Ty::Span)];
 
 fn native_of(rel: &str) -> Option<Native> {
     match rel {
         "syntax-tree" | "semantic-syntax" => Some(Native::Tree),
         "semantic-child" | "syntax-child" => Some(Native::Child),
         "source-location" => Some(Native::Location),
+        "token-link" => Some(Native::Token),
         _ => None,
     }
 }
@@ -238,7 +250,22 @@ fn native_cols(n: Native) -> &'static [(&'static str, Ty)] {
         Native::Tree => &TREE_COLS,
         Native::Child => &CHILD_COLS,
         Native::Location => &LOC_COLS,
+        Native::Token => &TOKEN_COLS,
     }
+}
+
+const NONE: u32 = u32::MAX;
+
+/// The token order's links, one pass a file, made the first time a step reads `token-link` in that file: next token,
+/// matching delimiter (both ways) and enclosing delimiter by position, and the tokens each opener encloses.
+pub(super) struct Tokens {
+    next: Vec<u32>,
+    prev: Vec<u32>,
+    pair: Vec<u32>,
+    opener: Vec<bool>,
+    enc: Vec<u32>,
+    enclosed: FxHashMap<u32, Vec<u32>>,
+    order: Vec<u32>,
 }
 
 /// One file: the node table's columns, the source, the fills and the made tables.
@@ -252,17 +279,25 @@ pub(super) struct File<'a> {
     pub(super) end: Vec<u32>,
     pub(super) parent: Vec<u32>,
     pub(super) line_starts: Vec<u32>,
-    pub(super) text_memo: RefCell<Vec<u32>>,
-    pub(super) by_start: RefCell<Option<FxHashMap<u32, Vec<u32>>>>,
-    pub(super) by_end: RefCell<Option<FxHashMap<u32, Vec<u32>>>>,
-    pub(super) memo: Vec<Option<Rc<Table>>>,
-    pub(super) index: FxHashMap<(usize, Vec<usize>), Rc<FxHashMap<Vec<u64>, Vec<u32>>>>,
-    pub(super) fills: FxHashMap<String, Rc<Table>>,
+    text_memo: RefCell<Vec<u32>>,
+    by_start: RefCell<Option<FxHashMap<u32, Vec<u32>>>>,
+    by_end: RefCell<Option<FxHashMap<u32, Vec<u32>>>>,
+    tokens: RefCell<Option<Rc<Tokens>>>,
+    memo: Vec<Option<Res>>,
+    /// The nodes made, in order: a probe's override drops what was made under it.
+    log: Vec<usize>,
+    vrows: FxHashMap<usize, Rc<Vec<u32>>>,
+    vmat: FxHashMap<usize, Rc<Table>>,
+    index: FxHashMap<usize, Vec<(Vec<usize>, Rc<Index>)>>,
+    fills: FxHashMap<String, Rc<Table>>,
+    lazies: FxHashMap<usize, Rc<Lazy>>,
 }
 
 /// How a step asks the provider for a relation's rows: the visit's facts.
 pub(super) trait Provider {
     fn fill(&mut self, run: &mut Run, rel: &str) -> Result<Table, String>;
+    /// A node's text in a syntax role: `Ok(None)` where the role cannot hold it.
+    fn render(&mut self, node: u32, context: &str) -> Result<Option<Vec<u8>>, String>;
 }
 
 impl File<'_> {
@@ -281,9 +316,14 @@ impl File<'_> {
             text_memo: RefCell::new(vec![u32::MAX; n]),
             by_start: RefCell::new(None),
             by_end: RefCell::new(None),
+            tokens: RefCell::new(None),
             memo: vec![None; nodes],
+            log: Vec::new(),
+            vrows: FxHashMap::default(),
+            vmat: FxHashMap::default(),
             index: FxHashMap::default(),
             fills: FxHashMap::default(),
+            lazies: FxHashMap::default(),
         };
         for i in 0..n as u32 {
             let p = Position(i);
@@ -339,6 +379,57 @@ impl File<'_> {
     fn has_parent(&self, p: u32) -> bool {
         p != 0 && self.parent[p as usize] != p
     }
+    fn toks(&self, run: &Run) -> Rc<Tokens> {
+        if let Some(t) = &*self.tokens.borrow() {
+            return t.clone();
+        }
+        let n = self.n;
+        let mut t = Tokens { next: vec![NONE; n], prev: vec![NONE; n], pair: vec![NONE; n], opener: vec![false; n], enc: vec![NONE; n], enclosed: FxHashMap::default(), order: Vec::new() };
+        let start = node_table::node_count(self.table).0 as u32;
+        let end = node_table::own_end(self.table).0;
+        let mut stack: Vec<(u16, u32)> = Vec::new();
+        let mut previous: Option<u32> = None;
+        for at in start..end {
+            let k = self.kind[at as usize];
+            if !(k >= run.token_first && k <= run.token_last) {
+                continue;
+            }
+            if k == run.token_error {
+                previous = None;
+                stack.clear();
+                continue;
+            }
+            t.order.push(at);
+            let mut enclosing = stack.last().map(|o| o.1);
+            if let Some(close) = run.pairs.iter().find(|(o, _)| *o == k).map(|(_, c)| *c) {
+                stack.push((close, at));
+            } else if run.pairs.iter().any(|(_, c)| *c == k) {
+                match stack.pop() {
+                    Some((close, open)) if close == k => {
+                        t.pair[open as usize] = at;
+                        t.pair[at as usize] = open;
+                        t.opener[open as usize] = true;
+                        enclosing = stack.last().map(|o| o.1);
+                    }
+                    _ => {
+                        stack.clear();
+                        enclosing = None;
+                    }
+                }
+            }
+            if let Some(p) = previous.replace(at) {
+                t.next[p as usize] = at;
+                t.prev[at as usize] = p;
+            }
+            if let Some(e) = enclosing {
+                t.enc[at as usize] = e;
+                t.enclosed.entry(e).or_default().push(at);
+            }
+        }
+        let rc = Rc::new(t);
+        *self.tokens.borrow_mut() = Some(rc.clone());
+        rc
+    }
     /// A native relation's cell.
     fn native_get(&self, run: &mut Run, nat: Native, row: u32, col: usize) -> u64 {
         let r = row as usize;
@@ -346,7 +437,7 @@ impl File<'_> {
             (Native::Tree, 0) | (Native::Location, 0) => u64::from(row),
             (Native::Tree, 1) => u64::from(run.kind_sym[usize::from(self.kind[r])]),
             (Native::Tree, 2) => u64::from(self.elem_text(run, row)),
-            (Native::Tree, 3) | (Native::Location, 1) | (Native::Child, 4) => u64::from(self.file),
+            (Native::Tree, 3) | (Native::Location, 1) | (Native::Child, 4) | (Native::Token, 3) => u64::from(self.file),
             (Native::Tree, 4) | (Native::Location, 2) => (u64::from(self.start[r]) << 32) | u64::from(self.end[r]),
             (Native::Child, 0) => u64::from(self.parent[r]),
             (Native::Child, 1) => u64::from(row),
@@ -361,31 +452,72 @@ impl File<'_> {
             (Native::Location, 6) => u64::from(self.end[r]),
             (Native::Location, 7) => self.column(self.start[r]) as u64,
             (Native::Location, 8) => self.column(self.end[r]) as u64,
+            (Native::Token, _) => {
+                let (src, k) = (row / 3, row % 3);
+                match col {
+                    0 => u64::from(src),
+                    1 => {
+                        let t = self.toks(run);
+                        u64::from(match k {
+                            0 => t.next[src as usize],
+                            1 => t.pair[src as usize],
+                            _ => t.enc[src as usize],
+                        })
+                    }
+                    2 => u64::from(run.link_sym[k as usize]),
+                    4 => (u64::from(self.start[src as usize]) << 32) | u64::from(self.end[src as usize]),
+                    _ => NULL,
+                }
+            }
             _ => NULL,
         }
     }
-    fn native_rows(&self, nat: Native) -> Vec<u32> {
+    fn token_row(t: &Tokens, src: u32, k: u32) -> bool {
+        let s = src as usize;
+        match k {
+            0 => t.next[s] != NONE,
+            1 => t.opener[s],
+            _ => t.enc[s] != NONE,
+        }
+    }
+    fn native_rows(&self, run: &Run, nat: Native) -> Vec<u32> {
         match nat {
             Native::Tree | Native::Location => (0..self.n as u32).collect(),
             Native::Child => (0..self.n as u32).filter(|p| self.has_parent(*p)).collect(),
+            Native::Token => {
+                let t = self.toks(run);
+                let mut out = Vec::new();
+                for &p in &t.order {
+                    for k in 0..3 {
+                        if Self::token_row(&t, p, k) {
+                            out.push(p * 3 + k);
+                        }
+                    }
+                }
+                out
+            }
         }
     }
+    /// Whether a native relation is probed in place on a column.
+    fn probes(nat: Native, col: usize) -> bool {
+        matches!((nat, col), (Native::Tree | Native::Location, 0) | (Native::Child, 0 | 1) | (Native::Location, 5 | 6) | (Native::Token, 0 | 1))
+    }
     /// Rows of a native relation whose column holds `v`.
-    fn native_probe(&self, nat: Native, col: usize, v: u64, out: &mut Vec<u32>) -> bool {
-        let ok = |p: u64| p < self.n as u64;
+    fn native_probe(&self, run: &Run, nat: Native, col: usize, v: u64, out: &mut Vec<u32>) {
+        let ok = v < self.n as u64;
         match (nat, col) {
             (Native::Tree, 0) | (Native::Location, 0) => {
-                if ok(v) {
+                if ok {
                     out.push(v as u32);
                 }
             }
             (Native::Child, 1) => {
-                if ok(v) && self.has_parent(v as u32) {
+                if ok && self.has_parent(v as u32) {
                     out.push(v as u32);
                 }
             }
             (Native::Child, 0) => {
-                if ok(v) {
+                if ok {
                     for c in node_table::children_of(self.table, Position(v as u32)) {
                         if self.parent[c.0 as usize] == v as u32 && c.0 != 0 {
                             out.push(c.0);
@@ -408,25 +540,50 @@ impl File<'_> {
                     out.extend_from_slice(rows);
                 }
             }
-            _ => return false,
+            (Native::Token, 0) => {
+                if ok {
+                    let t = self.toks(run);
+                    for k in 0..3 {
+                        if Self::token_row(&t, v as u32, k) {
+                            out.push(v as u32 * 3 + k);
+                        }
+                    }
+                }
+            }
+            (Native::Token, 1) => {
+                if ok {
+                    let t = self.toks(run);
+                    let x = v as usize;
+                    if t.prev[x] != NONE {
+                        out.push(t.prev[x] * 3);
+                    }
+                    if t.pair[x] != NONE && !t.opener[x] {
+                        out.push(t.pair[x] * 3 + 1);
+                    }
+                    if let Some(es) = t.enclosed.get(&(v as u32)) {
+                        out.extend(es.iter().map(|e| e * 3 + 2));
+                    }
+                }
+            }
+            _ => {}
         }
-        true
     }
 }
 
-/// Counters a run keeps: per node, time and rows; per op kind.
+/// Counters a run keeps: per node, own time, calls, rows out and rows touched.
 #[derive(Default)]
 pub(super) struct Stats {
     pub(super) time: Vec<f64>,
     pub(super) rows: Vec<u64>,
     pub(super) calls: Vec<u64>,
     pub(super) touched: Vec<u64>,
+    pub(super) empty: Vec<u64>,
+    pub(super) probes: Vec<u64>,
 }
 
 // ------------------------------------------------------------------------------------------------ expressions
 
 #[derive(Clone, Debug)]
-#[expect(dead_code, reason = "a throwaway")]
 enum E {
     Col(usize, usize, Ty),
     Lit(V),
@@ -439,23 +596,51 @@ enum E {
     And(Box<E>, Box<E>),
     Or(Box<E>, Box<E>),
     Not(Box<E>),
-    True,
     /// A text tested against a constant regex (from `matches` or `glob_any`), compiled once.
     Re(Box<E>, Rc<regex::bytes::Regex>),
 }
 
-/// One source of a select: a table or a native relation of the tree, or a lazy closure.
-enum Src {
-    Tab(Rc<Table>, usize),
-    Nat(Native),
-    Lazy(Rc<Lazy>),
+/// A node's column names and types, known from the plan before any file.
+pub(super) struct Schema {
+    names: Vec<String>,
+    tys: Vec<Ty>,
 }
 
-/// A closure that is never made whole: it answers its sources' reach when probed by source.
+/// A select over one tree relation (or another such view) with only column picks and tests: never made whole; its rows are
+/// read in place by position, entered by a kind bucket or a keyed probe, and tested as they are read.
+pub(super) struct ViewSpec {
+    base: Native,
+    map: Vec<usize>,
+    filter: Vec<E>,
+}
+
+/// What a node answers in a file.
+#[derive(Clone)]
+pub(super) enum Res {
+    Tab(Rc<Table>),
+    View(Rc<ViewSpec>),
+}
+
+/// A select compiled once a run.
+struct SelPlan {
+    srcs: Vec<usize>,
+    conj: Vec<E>,
+    refs: Vec<u64>,
+    items: Vec<(String, E)>,
+}
+
+/// One source of a select in a file.
+enum Src {
+    Tab(Rc<Table>, usize),
+    View(Rc<ViewSpec>, usize),
+    Base(Native),
+    Lazy(Rc<Lazy>),
+    /// A step not made yet in this file: probed with the keys a join gives it, or made when it must start the join.
+    Pending(usize),
+}
+
+/// A closure that is never made whole: it answers its sources' reach when probed by either end.
 pub(super) struct Lazy {
-    edges: Rc<Table>,
-    s: usize,
-    d: usize,
     keys: Vec<usize>,
     adj: FxHashMap<Vec<u64>, Vec<u64>>,
     radj: FxHashMap<Vec<u64>, Vec<u64>>,
@@ -464,23 +649,6 @@ pub(super) struct Lazy {
     tys: Vec<Ty>,
     cache: RefCell<FxHashMap<Vec<u64>, Rc<Vec<u64>>>>,
     rcache: RefCell<FxHashMap<Vec<u64>, Rc<Vec<u64>>>>,
-}
-
-impl Src {
-    fn names(&self) -> Vec<String> {
-        match self {
-            Src::Tab(t, _) => t.names.clone(),
-            Src::Nat(n) => native_cols(*n).iter().map(|c| c.0.to_owned()).collect(),
-            Src::Lazy(l) => l.names.clone(),
-        }
-    }
-    fn tys(&self) -> Vec<Ty> {
-        match self {
-            Src::Tab(t, _) => t.tys.clone(),
-            Src::Nat(n) => native_cols(*n).iter().map(|c| c.1).collect(),
-            Src::Lazy(l) => l.tys.clone(),
-        }
-    }
 }
 
 fn truthy(v: V) -> bool {
@@ -492,7 +660,11 @@ fn truthy(v: V) -> bool {
 pub(super) struct Exec<'p> {
     pub(super) plan: &'p Plan,
     pub(super) stats: Stats,
-    pub(super) lazies: FxHashMap<usize, Rc<Lazy>>,
+    schemas: Vec<Option<Rc<Schema>>>,
+    views: Vec<Option<Option<Rc<ViewSpec>>>>,
+    sels: Vec<Option<Rc<SelPlan>>>,
+    inner: f64,
+    deps: FxHashMap<(usize, usize), bool>,
 }
 
 type R<T> = Result<T, String>;
@@ -509,54 +681,544 @@ fn strs(j: &J) -> R<Vec<String>> {
     }
 }
 
+fn pos(names: &[String], c: &str) -> R<usize> {
+    names.iter().position(|x| x == c).ok_or_else(|| format!("no column {c} in {names:?}"))
+}
+
 impl<'p> Exec<'p> {
     pub(super) fn new(plan: &'p Plan) -> Self {
         let k = plan.nodes.len();
-        Exec { plan, stats: Stats { time: vec![0.0; k], rows: vec![0; k], calls: vec![0; k], touched: vec![0; k] }, lazies: FxHashMap::default() }
+        Exec {
+            plan,
+            stats: Stats { time: vec![0.0; k], rows: vec![0; k], calls: vec![0; k], touched: vec![0; k], empty: vec![0; k], probes: vec![0; k] },
+            schemas: vec![None; k],
+            views: vec![None; k],
+            sels: vec![None; k],
+            inner: 0.0,
+            deps: FxHashMap::default(),
+        }
+    }
+
+    pub(super) fn reset_file(&mut self) {}
+
+    /// Whether `node` reads `input`, directly or through other steps.
+    fn depends(&mut self, node: usize, input: usize) -> bool {
+        if node == input {
+            return true;
+        }
+        if let Some(d) = self.deps.get(&(node, input)) {
+            return *d;
+        }
+        let ins = self.plan.nodes[node].inputs.clone();
+        let d = ins.iter().any(|i| self.depends(*i, input));
+        self.deps.insert((node, input), d);
+        d
     }
 
     fn arg_rel(&self, node: usize, name: &str) -> R<usize> {
         self.plan.nodes[node].j["args"][name]["rel"].as_u64().map(|x| x as usize).ok_or_else(|| format!("no relation argument {name}"))
     }
 
-    /// A node's rows, made once a file.
-    pub(super) fn eval(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Table>> {
-        if let Some(t) = &f.memo[node] {
-            return Ok(t.clone());
+    // -------------------------------------------------------------------------------------------- static: schemas, views
+
+    fn schema(&mut self, run: &mut Run, node: usize) -> R<Rc<Schema>> {
+        if let Some(sc) = &self.schemas[node] {
+            return Ok(sc.clone());
         }
         let pn = &self.plan.nodes[node];
-        // inputs first (a lazy closure's input too), so the time below is this step's own
-        for i in pn.inputs.clone() {
-            if self.plan.nodes[i].op == "base" && native_of(self.plan.nodes[i].j["rel"].as_str().unwrap_or("")).is_some() {
-                continue;
+        let j = pn.j.clone();
+        let a = &j["args"];
+        let op = pn.op.clone();
+        let from = |me: &mut Self, run: &mut Run, name: &str| -> R<Rc<Schema>> {
+            let n = me.arg_rel(node, name)?;
+            me.schema(run, n)
+        };
+        let mk = |names: Vec<String>, tys: Vec<Ty>| Rc::new(Schema { names, tys });
+        let sc = match op.as_str() {
+            "base" => {
+                let rel = s(&j["rel"])?;
+                if let Some(nat) = native_of(rel) {
+                    mk(native_cols(nat).iter().map(|c| c.0.to_owned()).collect(), native_cols(nat).iter().map(|c| c.1).collect())
+                } else if rel == "filesystem.file" {
+                    mk(vec!["path".into()], vec![Ty::File])
+                } else {
+                    let (_, names, tys) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
+                    mk(names, tys)
+                }
             }
-            if self.plan.nodes[i].op == "closure" && pn.op == "select" {
-                self.lazy(f, run, p, i)?;
-                continue;
+            "select" => {
+                let sp = self.sel(run, node)?;
+                mk(sp.items.iter().map(|i| i.0.clone()).collect(), sp.items.iter().map(|i| static_ty(&i.1)).collect())
             }
-            self.eval(f, run, p, i)?;
+            "union" | "antijoin" | "group-min" | "group-max" => from(self, run, if op == "union" || op == "antijoin" { "left" } else { "from" })?,
+            "extend" => {
+                let f = from(self, run, "from")?;
+                let (mut names, mut tys) = (f.names.clone(), f.tys.clone());
+                for (k, v) in a["values"].as_object().ok_or("extend values")? {
+                    names.push(k.clone());
+                    tys.push(match v {
+                        J::Number(_) => Ty::Num,
+                        J::String(t) if t == "true" || t == "false" => Ty::Flag,
+                        _ => Ty::Sym,
+                    });
+                }
+                mk(names, tys)
+            }
+            "project" => {
+                let f = from(self, run, "from")?;
+                let cols: Vec<usize> = strs(&a["columns"])?.iter().map(|c| pos(&f.names, c)).collect::<R<_>>()?;
+                mk(cols.iter().map(|c| f.names[*c].clone()).collect(), cols.iter().map(|c| f.tys[*c]).collect())
+            }
+            "axis" => {
+                let f = from(self, run, "from")?;
+                let (mut names, mut tys) = (f.names.clone(), f.tys.clone());
+                names.push("related".into());
+                tys.push(Ty::Node);
+                mk(names, tys)
+            }
+            "group-count" => {
+                let f = from(self, run, "from")?;
+                let keys: Vec<usize> = strs(&a["keys"])?.iter().map(|c| pos(&f.names, c)).collect::<R<_>>()?;
+                let mut names: Vec<String> = keys.iter().map(|c| f.names[*c].clone()).collect();
+                let mut tys: Vec<Ty> = keys.iter().map(|c| f.tys[*c]).collect();
+                names.push(s(&a["count"])?.to_owned());
+                tys.push(Ty::Num);
+                mk(names, tys)
+            }
+            "closure" | "follow" => {
+                let e = from(self, run, "edges")?;
+                let keys: Vec<usize> = strs(&a["keys"])?.iter().map(|c| pos(&e.names, c)).collect::<R<_>>()?;
+                let (si, di) = (pos(&e.names, s(&a["source"])?)?, pos(&e.names, s(&a["destination"])?)?);
+                let mut names: Vec<String> = keys.iter().map(|c| e.names[*c].clone()).collect();
+                let mut tys: Vec<Ty> = keys.iter().map(|c| e.tys[*c]).collect();
+                names.extend([e.names[si].clone(), e.names[di].clone()]);
+                tys.extend([e.tys[si], e.tys[di]]);
+                mk(names, tys)
+            }
+            "ordered-match" | "as-of" => {
+                let (l, r) = (from(self, run, "left")?, from(self, run, "right")?);
+                let mut names = Vec::new();
+                let mut tys = Vec::new();
+                for (name, v) in a["output"].as_object().ok_or("output")? {
+                    let side = if s(&v[0])? == "left" { &l } else { &r };
+                    names.push(name.clone());
+                    tys.push(side.tys[pos(&side.names, s(&v[1])?)?]);
+                }
+                mk(names, tys)
+            }
+            "span-between" | "replace" => {
+                let f = from(self, run, "from")?;
+                let (mut names, mut tys) = (f.names.clone(), f.tys.clone());
+                names.push(s(&a["output"])?.to_owned());
+                tys.push(if op == "replace" { Ty::Sym } else { Ty::Span });
+                mk(names, tys)
+            }
+            "span-bounds" => {
+                let f = from(self, run, "from")?;
+                let (mut names, mut tys) = (f.names.clone(), f.tys.clone());
+                names.extend([s(&a["start-output"])?.to_owned(), s(&a["end-output"])?.to_owned()]);
+                tys.extend([Ty::Num, Ty::Num]);
+                mk(names, tys)
+            }
+            "source-matches" => {
+                let f = from(self, run, "from")?;
+                let (mut names, mut tys) = (f.names.clone(), f.tys.clone());
+                names.push(s(&a["output"])?.to_owned());
+                tys.push(Ty::Span);
+                if let Some(lo) = a.get("line-output").and_then(J::as_str) {
+                    names.push(lo.to_owned());
+                    tys.push(Ty::Num);
+                }
+                if a.get("capture").and_then(J::as_str).is_some() {
+                    names.push(s(&a["capture-output"])?.to_owned());
+                    tys.push(Ty::Span);
+                    if let Some(ct) = a.get("capture-text-output").and_then(J::as_str) {
+                        names.push(ct.to_owned());
+                        tys.push(Ty::Sym);
+                    }
+                    if let Some(cl) = a.get("capture-line-output").and_then(J::as_str) {
+                        names.push(cl.to_owned());
+                        tys.push(Ty::Num);
+                    }
+                }
+                mk(names, tys)
+            }
+            "capture" => {
+                let f = from(self, run, "from")?;
+                let (mut names, mut tys) = (f.names.clone(), f.tys.clone());
+                for c in strs(&a["captures"])? {
+                    names.push(c);
+                    tys.push(Ty::Sym);
+                }
+                mk(names, tys)
+            }
+            "rows" => {
+                let names = strs(&a["columns"])?;
+                let k = names.len();
+                mk(names, vec![Ty::Sym; k])
+            }
+            "render-syntax" => {
+                let f = from(self, run, "from")?;
+                let (mut names, mut tys) = (f.names.clone(), f.tys.clone());
+                names.push(s(&a["output"])?.to_owned());
+                tys.push(Ty::Sym);
+                mk(names, tys)
+            }
+            "fits-rendered" => from(self, run, "from")?,
+            other => return Err(format!("operator {other} not in the step set")),
+        };
+        self.schemas[node] = Some(sc.clone());
+        Ok(sc)
+    }
+
+    fn expr(&self, run: &mut Run, j: &J, names: &[(Option<String>, Rc<Schema>)]) -> R<E> {
+        let a = j.as_array().ok_or("expr")?;
+        let tag = s(&a[0])?;
+        Ok(match tag {
+            "col" => {
+                let name = s(&a[1])?;
+                let alias = a[2].as_str();
+                let mut found = None;
+                for (i, (al, sc)) in names.iter().enumerate() {
+                    if alias.is_some() && al.as_deref() != alias {
+                        continue;
+                    }
+                    if let Some(c) = sc.names.iter().position(|x| x == name) {
+                        found = Some(E::Col(i, c, sc.tys[c]));
+                        break;
+                    }
+                }
+                match found {
+                    Some(e) => e,
+                    None if alias.is_none() => E::Text(run.sym(name.as_bytes())),
+                    None => return Err(format!("no column {alias:?}.{name}")),
+                }
+            }
+            "lit" => E::Text(run.sym(s(&a[1])?.as_bytes())),
+            "num" => E::Num(a[1].as_i64().ok_or("num")?),
+            "list" => E::List(a[1].as_array().ok_or("list")?.iter().map(|x| self.expr(run, x, names)).collect::<R<_>>()?),
+            "call" => {
+                let name = s(&a[1])?.to_owned();
+                let args: Vec<E> = a[2].as_array().ok_or("args")?.iter().map(|x| self.expr(run, x, names)).collect::<R<_>>()?;
+                match (name.as_str(), args.get(1)) {
+                    ("matches", Some(E::Text(t))) if args.len() == 2 => {
+                        let re = run.re(&String::from_utf8_lossy(run.text(*t)).into_owned())?;
+                        E::Re(Box::new(args[0].clone()), re)
+                    }
+                    ("glob_any", Some(E::Text(t))) if args.len() == 2 => {
+                        let re = run.re(&glob_pattern(&String::from_utf8_lossy(run.text(*t))))?;
+                        E::Re(Box::new(args[0].clone()), re)
+                    }
+                    _ => E::Call(name, args),
+                }
+            }
+            "cmp" => E::Cmp(s(&a[1])?.to_owned(), Box::new(self.expr(run, &a[2], names)?), Box::new(self.expr(run, &a[3], names)?)),
+            "in" | "notin" => E::In(Box::new(self.expr(run, &a[1], names)?), Box::new(self.expr(run, &a[2], names)?), tag == "notin"),
+            "and" => E::And(Box::new(self.expr(run, &a[1], names)?), Box::new(self.expr(run, &a[2], names)?)),
+            "or" => E::Or(Box::new(self.expr(run, &a[1], names)?), Box::new(self.expr(run, &a[2], names)?)),
+            "not" => E::Not(Box::new(self.expr(run, &a[1], names)?)),
+            other => return Err(format!("expression {other}")),
+        })
+    }
+
+    /// A select's compiled form, once a run.
+    fn sel(&mut self, run: &mut Run, node: usize) -> R<Rc<SelPlan>> {
+        if let Some(sp) = &self.sels[node] {
+            return Ok(sp.clone());
+        }
+        let j = self.plan.nodes[node].j.clone();
+        let mut srcs = Vec::new();
+        let mut names = Vec::new();
+        for sj in j["src"].as_array().ok_or("src")? {
+            let n = sj[0].as_u64().ok_or("src node")? as usize;
+            names.push((sj[1].as_str().map(str::to_owned), self.schema(run, n)?));
+            srcs.push(n);
+        }
+        let mut conj = Vec::new();
+        if !j["cond"].is_null() {
+            let e = self.expr(run, &j["cond"], &names)?;
+            flatten(e, &mut conj);
+        }
+        // a test of two file columns always holds: every relation here is the file's
+        conj.retain(|c| !matches!(c, E::Cmp(o, a, b) if o == "=" && matches!(**a, E::Col(_, _, Ty::File)) && matches!(**b, E::Col(_, _, Ty::File))));
+        let refs = conj.iter().map(refs_of).collect();
+        let items: Vec<(String, E)> = match &j["items"] {
+            J::Null => {
+                let mut v: Vec<(String, E)> = Vec::new();
+                for (i, (_, sc)) in names.iter().enumerate() {
+                    for (c, nm) in sc.names.iter().enumerate() {
+                        if !v.iter().any(|(x, _)| x == nm) {
+                            v.push((nm.clone(), E::Col(i, c, sc.tys[c])));
+                        }
+                    }
+                }
+                v
+            }
+            J::Array(a) => a.iter().map(|it| Ok((s(&it[0])?.to_owned(), self.expr(run, &it[1], &names)?))).collect::<R<_>>()?,
+            _ => return Err("items".to_owned()),
+        };
+        let sp = Rc::new(SelPlan { srcs, conj, refs, items });
+        self.sels[node] = Some(sp.clone());
+        Ok(sp)
+    }
+
+    /// The view a node is, when it is one: a tree relation, or a select of column picks and tests over one view.
+    fn view(&mut self, run: &mut Run, node: usize) -> R<Option<Rc<ViewSpec>>> {
+        if let Some(v) = &self.views[node] {
+            return Ok(v.clone());
+        }
+        let pn = &self.plan.nodes[node];
+        let v = match pn.op.as_str() {
+            "base" => native_of(pn.j["rel"].as_str().unwrap_or("")).map(|nat| Rc::new(ViewSpec { base: nat, map: (0..native_cols(nat).len()).collect(), filter: Vec::new() })),
+            "select" if pn.j["src"].as_array().is_some_and(|a| a.len() == 1) => {
+                let inner = pn.j["src"][0][0].as_u64().unwrap_or(0) as usize;
+                match self.view(run, inner)? {
+                    Some(iv) => {
+                        let sp = self.sel(run, node)?;
+                        let plain = sp.items.iter().all(|(_, e)| matches!(e, E::Col(0, _, _)));
+                        if plain {
+                            let map = sp.items.iter().map(|(_, e)| if let E::Col(_, c, _) = e { iv.map[*c] } else { 0 }).collect();
+                            let mut filter = iv.filter.clone();
+                            filter.extend(sp.conj.iter().map(|e| remap(e, &iv.map)));
+                            Some(Rc::new(ViewSpec { base: iv.base, map, filter }))
+                        } else {
+                            None
+                        }
+                    }
+                    None => None,
+                }
+            }
+            _ => None,
+        };
+        self.views[node] = Some(v.clone());
+        Ok(v)
+    }
+
+    // -------------------------------------------------------------------------------------------- per file
+
+    /// A node's answer in this file, made once; an input is asked only when the step needs it.
+    pub(super) fn res(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Res> {
+        if let Some(r) = &f.memo[node] {
+            return Ok(r.clone());
+        }
+        if let Some(v) = self.view(run, node)? {
+            let r = Res::View(v);
+            f.memo[node] = Some(r.clone());
+            return Ok(r);
         }
         let t0 = super::thread_cpu();
-        let out = self.body(f, run, p, node)?;
-        self.stats.time[node] += super::thread_cpu() - t0;
+        let saved = self.inner;
+        self.inner = 0.0;
+        let out = self.body(f, run, p, node);
+        let dt = super::thread_cpu() - t0;
+        self.stats.time[node] += dt - self.inner;
+        self.inner = saved + dt;
+        let out = out?;
         self.stats.calls[node] += 1;
         self.stats.rows[node] += out.n as u64;
-        let rc = Rc::new(out);
+        if out.n == 0 {
+            self.stats.empty[node] += 1;
+        }
+        let rc = Res::Tab(Rc::new(out));
         f.memo[node] = Some(rc.clone());
+        f.log.push(node);
         Ok(rc)
     }
 
+    /// The rows of a node whose column `col` holds one of `keys`, without making the node whole where its inputs can be
+    /// probed in turn (sideways key passing through the steps a query defines). What is made under a probe is dropped.
+    fn probe(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64]) -> R<Rc<Table>> {
+        let sc = self.schema(run, node)?;
+        if keys.is_empty() {
+            return Ok(Rc::new(Table::with(sc.names.clone(), sc.tys.clone())));
+        }
+        if let Some(Res::Tab(t)) = &f.memo[node] {
+            let t = t.clone();
+            return Ok(Rc::new(subset(f, node, &t, col, keys)));
+        }
+        if let Some(v) = self.view(run, node)? {
+            if File::probes(v.base, v.map[col]) {
+                let mut rows = Vec::new();
+                for k in keys {
+                    f.native_probe(run, v.base, v.map[col], *k, &mut rows);
+                }
+                rows.retain(|r| view_holds(f, run, &v, *r));
+                let mut out = Table::with(sc.names.clone(), sc.tys.clone());
+                for c in 0..v.map.len() {
+                    out.cols[c] = rows.iter().map(|r| f.native_get(run, v.base, *r, v.map[c])).collect();
+                }
+                out.n = rows.len();
+                self.stats.touched[node] += rows.len() as u64;
+                return Ok(Rc::new(out));
+            }
+            let t = self.eval(f, run, p, node)?;
+            return Ok(Rc::new(subset(f, node, &t, col, keys)));
+        }
+        let t0 = super::thread_cpu();
+        let saved = self.inner;
+        self.inner = 0.0;
+        let out = self.probe_body(f, run, p, node, col, keys, &sc);
+        let dt = super::thread_cpu() - t0;
+        self.stats.time[node] += dt - self.inner;
+        self.inner = saved + dt;
+        let out = out?;
+        self.stats.probes[node] += 1;
+        self.stats.rows[node] += out.n as u64;
+        Ok(out)
+    }
+
+    #[expect(clippy::too_many_arguments, reason = "a throwaway")]
+    fn probe_body(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64], sc: &Schema) -> R<Rc<Table>> {
+        let op = self.plan.nodes[node].op.clone();
+        let plan: &'p Plan = self.plan;
+        let a = &plan.nodes[node].j["args"];
+        let name = sc.names[col].clone();
+        // the input a unary step reads, when the probed column is one of its input's
+        let unary = |me: &mut Self, run: &mut Run, arg: &str| -> R<Option<(usize, usize)>> {
+            let n = me.arg_rel(node, arg)?;
+            let isc = me.schema(run, n)?;
+            Ok(isc.names.iter().position(|c| *c == name).map(|c| (n, c)))
+        };
+        let target = match op.as_str() {
+            "select" => {
+                let sp = self.sel(run, node)?;
+                match &sp.items[col].1 {
+                    E::Col(si, c, _) if sp.srcs.iter().filter(|x| **x == sp.srcs[*si]).count() == 1 => Some((sp.srcs[*si], *c)),
+                    _ => None,
+                }
+            }
+            "union" => {
+                let (ln, rn) = (self.arg_rel(node, "left")?, self.arg_rel(node, "right")?);
+                let rsc = self.schema(run, rn)?;
+                let rc = pos(&rsc.names, &name)?;
+                let l = self.probe(f, run, p, ln, col, keys)?;
+                let r = self.probe(f, run, p, rn, rc, keys)?;
+                let mut out = (*l).clone();
+                for (c, nm) in l.names.iter().enumerate() {
+                    out.cols[c].extend_from_slice(&r.cols[pos(&r.names, nm)?]);
+                }
+                out.n += r.n;
+                return Ok(Rc::new(out));
+            }
+            "antijoin" => unary(self, run, "left")?,
+            "extend" | "project" | "span-between" | "span-bounds" | "source-matches" | "replace" | "capture" => unary(self, run, "from")?,
+            "axis" if name != "related" => unary(self, run, "from")?,
+            "group-count" | "group-min" | "group-max" => {
+                let ks = strs(&a["keys"])?;
+                if ks.contains(&name) { unary(self, run, "from")? } else { None }
+            }
+            "closure" => {
+                let l = self.lazy(f, run, p, node)?;
+                let nk = l.keys.len();
+                if col >= nk && nk == 0 {
+                    let forward = col == 0;
+                    let mut out = Table::with(sc.names.clone(), sc.tys.clone());
+                    for k in keys {
+                        for d in reach_dir(&l, &[*k], forward).iter() {
+                            out.push_row(&if forward { [*k, *d] } else { [*d, *k] });
+                        }
+                    }
+                    return Ok(Rc::new(out));
+                }
+                if col >= nk && l.tys[..nk].iter().all(|t| *t == Ty::File) {
+                    let forward = col == nk;
+                    let mut out = Table::with(sc.names.clone(), sc.tys.clone());
+                    for k in keys {
+                        let mut key: Vec<u64> = vec![u64::from(f.file); nk];
+                        key.push(*k);
+                        for d in reach_dir(&l, &key, forward).iter() {
+                            let mut row = vec![u64::from(f.file); nk];
+                            row.extend(if forward { [*k, *d] } else { [*d, *k] });
+                            out.push_row(&row);
+                        }
+                    }
+                    return Ok(Rc::new(out));
+                }
+                None
+            }
+            _ => None,
+        };
+        // the input may be put in place only where no other input of the step reads it
+        let target = target.filter(|(input, _)| {
+            let others: Vec<usize> = self.plan.nodes[node].inputs.iter().copied().filter(|i| i != input).collect();
+            self.plan.nodes[node].inputs.iter().filter(|i| *i == input).count() == 1 && others.iter().all(|o| !self.depends(*o, *input))
+        });
+        let Some((input, icol)) = target else {
+            let t = self.eval(f, run, p, node)?;
+            return Ok(Rc::new(subset(f, node, &t, col, keys)));
+        };
+        // the input probed, put in its place while the step runs once over it; everything made meanwhile is dropped
+        let sub = self.probe(f, run, p, input, icol, keys)?;
+        let saved = f.memo[input].replace(Res::Tab(sub));
+        let mark = f.log.len();
+        let out = self.body(f, run, p, node);
+        f.memo[input] = saved;
+        let made: Vec<usize> = f.log.drain(mark..).collect();
+        let mut dropped: rustc_hash::FxHashSet<usize> = rustc_hash::FxHashSet::default();
+        dropped.insert(input);
+        for n in made {
+            if self.depends(n, input) {
+                dropped.insert(n);
+            } else {
+                f.log.push(n);
+            }
+        }
+        for n in &dropped {
+            if *n != input {
+                f.memo[*n] = None;
+            }
+            f.vmat.remove(n);
+            f.lazies.remove(n);
+        }
+        for n in &dropped {
+            f.index.remove(n);
+        }
+        Ok(Rc::new(out?))
+    }
+
+    /// A node's rows as a table (a view is made whole here, once a file).
+    pub(super) fn eval(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Table>> {
+        match self.res(f, run, p, node)? {
+            Res::Tab(t) => Ok(t),
+            Res::View(v) => {
+                if let Some(t) = f.vmat.get(&node) {
+                    return Ok(t.clone());
+                }
+                let t0 = super::thread_cpu();
+                let sc = self.schema(run, node)?;
+                let rows = view_rows(f, run, &v, node);
+                let mut out = Table::with(sc.names.clone(), sc.tys.clone());
+                for c in 0..v.map.len() {
+                    out.cols[c] = rows.iter().map(|r| f.native_get(run, v.base, *r, v.map[c])).collect();
+                }
+                out.n = rows.len();
+                let rc = Rc::new(out);
+                f.vmat.insert(node, rc.clone());
+                f.log.push(node);
+                let dt = super::thread_cpu() - t0;
+                self.stats.time[node] += dt;
+                self.inner += dt;
+                self.stats.calls[node] += 1;
+                self.stats.rows[node] += rc.n as u64;
+                Ok(rc)
+            }
+        }
+    }
+
+    fn empty(&mut self, run: &mut Run, node: usize) -> R<Table> {
+        let sc = self.schema(run, node)?;
+        Ok(Table::with(sc.names.clone(), sc.tys.clone()))
+    }
+
     fn lazy(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Lazy>> {
-        if let Some(l) = self.lazies.get(&node) {
+        if let Some(l) = f.lazies.get(&node) {
             return Ok(l.clone());
         }
-        let edges_node = self.arg_rel(node, "edges")?;
-        let edges = self.eval(f, run, p, edges_node)?;
+        let edges = self.eval(f, run, p, self.arg_rel(node, "edges")?)?;
         let t0 = super::thread_cpu();
         let a = &self.plan.nodes[node].j["args"];
-        let (sn, dn) = (s(&a["source"])?.to_owned(), s(&a["destination"])?.to_owned());
         let keys: Vec<usize> = strs(&a["keys"])?.iter().map(|k| edges.col(k)).collect::<R<_>>()?;
-        let (si, di) = (edges.col(&sn)?, edges.col(&dn)?);
+        let (si, di) = (edges.col(s(&a["source"])?)?, edges.col(s(&a["destination"])?)?);
         let mut adj: FxHashMap<Vec<u64>, Vec<u64>> = FxHashMap::default();
         let mut radj: FxHashMap<Vec<u64>, Vec<u64>> = FxHashMap::default();
         for r in 0..edges.n {
@@ -567,44 +1229,38 @@ impl<'p> Exec<'p> {
             k2.push(edges.cols[di][r]);
             radj.entry(k2).or_default().push(edges.cols[si][r]);
         }
-        let mut names: Vec<String> = keys.iter().map(|c| edges.names[*c].clone()).collect();
-        let mut tys: Vec<Ty> = keys.iter().map(|c| edges.tys[*c]).collect();
-        names.push(sn);
-        names.push(dn);
-        tys.push(edges.tys[si]);
-        tys.push(edges.tys[di]);
-        let l = Rc::new(Lazy { edges: edges.clone(), s: si, d: di, keys, adj, radj, node, names, tys, cache: RefCell::new(FxHashMap::default()), rcache: RefCell::new(FxHashMap::default()) });
-        self.stats.time[node] += super::thread_cpu() - t0;
-        self.stats.calls[node] += 1;
-        self.lazies.insert(node, l.clone());
+        let sc = self.schema(run, node)?;
+        let l = Rc::new(Lazy { keys, adj, radj, node, names: sc.names.clone(), tys: sc.tys.clone(), cache: RefCell::new(FxHashMap::default()), rcache: RefCell::new(FxHashMap::default()) });
+        let dt = super::thread_cpu() - t0;
+        self.stats.time[node] += dt;
+        self.inner += dt;
+        f.lazies.insert(node, l.clone());
+        f.log.push(node);
         Ok(l)
     }
 
-    pub(super) fn reset_file(&mut self) {
-        self.lazies.clear();
-    }
-
-    fn src_of(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Src> {
-        let pn = &self.plan.nodes[node];
-        if pn.op == "base"
-            && let Some(nat) = native_of(pn.j["rel"].as_str().unwrap_or(""))
-        {
-            return Ok(Src::Nat(nat));
-        }
-        if pn.op == "closure" {
-            return Ok(Src::Lazy(self.lazy(f, run, p, node)?));
-        }
-        Ok(Src::Tab(self.eval(f, run, p, node)?, node))
-    }
-
     fn body(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Table> {
-        let pn = &self.plan.nodes[node];
-        let op = pn.op.clone();
-        let j = pn.j.clone();
+        let plan: &'p Plan = self.plan;
+        let pn = &plan.nodes[node];
+        let op = pn.op.as_str();
+        let j = &pn.j;
         let a = &j["args"];
-        match op.as_str() {
+        // a step over an empty input answers nothing, and asks for nothing else
+        let first = match op {
+            "union" | "antijoin" | "ordered-match" | "as-of" => Some("left"),
+            "closure" | "follow" => Some("edges"),
+            "base" | "select" | "rows" => None,
+            _ => Some("from"),
+        };
+        if let Some(arg) = first {
+            let t = self.eval(f, run, p, self.arg_rel(node, arg)?)?;
+            if t.n == 0 && op != "union" {
+                return self.empty(run, node);
+            }
+        }
+        match op {
             "base" => self.base(f, run, p, s(&j["rel"])?),
-            "select" => self.select(f, run, p, node, &j),
+            "select" => self.select(f, run, p, node),
             "union" => {
                 let l = self.eval(f, run, p, self.arg_rel(node, "left")?)?;
                 let r = self.eval(f, run, p, self.arg_rel(node, "right")?)?;
@@ -616,25 +1272,7 @@ impl<'p> Exec<'p> {
                 out.n += r.n;
                 Ok(out)
             }
-            "antijoin" => {
-                let l = self.eval(f, run, p, self.arg_rel(node, "left")?)?;
-                let r = self.eval(f, run, p, self.arg_rel(node, "right")?)?;
-                let lk: Vec<usize> = strs(&a["left-on"])?.iter().map(|c| l.col(c)).collect::<R<_>>()?;
-                let rk: Vec<usize> = strs(&a["right-on"])?.iter().map(|c| r.col(c)).collect::<R<_>>()?;
-                let set: rustc_hash::FxHashSet<Vec<u64>> = (0..r.n).map(|i| rk.iter().map(|c| r.cols[*c][i]).collect()).collect();
-                let mut out = Table::with(l.names.clone(), l.tys.clone());
-                let mut row = Vec::new();
-                let mut key = Vec::new();
-                for i in 0..l.n {
-                    key.clear();
-                    key.extend(lk.iter().map(|c| l.cols[*c][i]));
-                    if !set.contains(&key) {
-                        l.row(i, &mut row);
-                        out.push_row(&row);
-                    }
-                }
-                Ok(out)
-            }
+            "antijoin" => self.antijoin(f, run, p, node, a),
             "extend" => {
                 let from = self.eval(f, run, p, self.arg_rel(node, "from")?)?;
                 let mut out = (*from).clone();
@@ -687,11 +1325,7 @@ impl<'p> Exec<'p> {
                         None => e.0 += 1,
                     }
                 }
-                let mut names: Vec<String> = keys.iter().map(|c| from.names[*c].clone()).collect();
-                let mut tys: Vec<Ty> = keys.iter().map(|c| from.tys[*c]).collect();
-                names.push(s(&a["count"])?.to_owned());
-                tys.push(Ty::Num);
-                let mut out = Table::with(names, tys);
+                let mut out = self.empty(run, node)?;
                 for k in order {
                     let g = &groups[&k];
                     let c = if distinct.is_some() { g.1.len() as u64 } else { g.0 };
@@ -731,7 +1365,7 @@ impl<'p> Exec<'p> {
                 let mut out = Table::with(l.names.clone(), l.tys.clone());
                 let starts: Vec<Vec<u64>> = l.adj.keys().cloned().collect();
                 for k in starts {
-                    let reach = reach_of(&l, &k);
+                    let reach = reach_dir(&l, &k, true);
                     for d in reach.iter() {
                         let mut row = k.clone();
                         row.push(*d);
@@ -755,11 +1389,7 @@ impl<'p> Exec<'p> {
                     }
                     adj.entry(k).or_default().push(edges.cols[di][r]);
                 }
-                let mut names: Vec<String> = keys.iter().map(|c| edges.names[*c].clone()).collect();
-                let mut tys: Vec<Ty> = keys.iter().map(|c| edges.tys[*c]).collect();
-                names.extend([sn.to_owned(), dn.to_owned()]);
-                tys.extend([edges.tys[si], edges.tys[di]]);
-                let mut out = Table::with(names, tys);
+                let mut out = self.empty(run, node)?;
                 let starts: Vec<Vec<u64>> = adj.keys().cloned().collect();
                 for k in starts {
                     let kp = &k[..k.len() - 1];
@@ -840,11 +1470,7 @@ impl<'p> Exec<'p> {
                 let pc = from.col(s(&a["path"])?)?;
                 let caps = strs(&a["captures"])?;
                 let re = run.re(&path_pattern(s(&a["pattern"])?))?;
-                let mut out = Table::with(from.names.clone(), from.tys.clone());
-                for c in &caps {
-                    out.names.push(c.clone());
-                    out.tys.push(Ty::Sym);
-                }
+                let mut out = self.empty(run, node)?;
                 let mut row = Vec::new();
                 for i in 0..from.n {
                     let v = from.cols[pc][i];
@@ -860,9 +1486,52 @@ impl<'p> Exec<'p> {
                 }
                 Ok(out)
             }
+            "render-syntax" => {
+                let from = self.eval(f, run, p, self.arg_rel(node, "from")?)?;
+                let nc = from.col(s(&a["node"])?)?;
+                let ctx = s(&a["context"])?;
+                let mut out = self.empty(run, node)?;
+                let mut row = Vec::new();
+                for i in 0..from.n {
+                    if let Some(t) = p.render(from.cols[nc][i] as u32, ctx)? {
+                        from.row(i, &mut row);
+                        row.push(u64::from(run.sym(&t)));
+                        out.push_row(&row);
+                    }
+                }
+                Ok(out)
+            }
+            "fits-rendered" => {
+                let from = self.eval(f, run, p, self.arg_rel(node, "from")?)?;
+                let texts: Vec<usize> = strs(&a["texts"])?.iter().map(|c| from.col(c)).collect::<R<_>>()?;
+                let lits = strs(&a["literals"])?;
+                let sc = from.col(s(&a["span"])?)?;
+                let max = a["max-line"].as_u64().ok_or("max-line")? as usize;
+                let tab = a["tab-width"].as_u64().ok_or("tab-width")? as usize;
+                let mut out = self.empty(run, node)?;
+                let mut row = Vec::new();
+                let src = std::str::from_utf8(f.src).map_err(|_| "a source that is no text")?;
+                for i in 0..from.n {
+                    let sp = from.cols[sc][i];
+                    let start = (sp >> 32) as usize;
+                    let line_start = src[..start].rfind(['\r', '\n']).map_or(0, |at| at + 1);
+                    let mut cand = String::new();
+                    for (l, c) in lits.iter().zip(&texts) {
+                        cand.push_str(l);
+                        cand.push_str(&String::from_utf8_lossy(run.text(from.cols[*c][i] as u32)));
+                    }
+                    if let Some(last) = lits.last() {
+                        cand.push_str(last);
+                    }
+                    if fits(&cand, &src[line_start..start], max, tab) {
+                        from.row(i, &mut row);
+                        out.push_row(&row);
+                    }
+                }
+                Ok(out)
+            }
             "rows" => {
-                let names = strs(&a["columns"])?;
-                let mut out = Table::with(names.clone(), vec![Ty::Sym; names.len()]);
+                let mut out = self.empty(run, node)?;
                 for r in a["from"].as_array().ok_or("rows from")? {
                     let row: Vec<u64> = r.as_array().ok_or("row")?.iter().map(|x| u64::from(run.sym(x.as_str().unwrap_or("").as_bytes()))).collect();
                     out.push_row(&row);
@@ -874,21 +1543,6 @@ impl<'p> Exec<'p> {
     }
 
     fn base(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, rel: &str) -> R<Table> {
-        if let Some(nat) = native_of(rel) {
-            let cols = native_cols(nat);
-            let mut out = Table::with(cols.iter().map(|c| c.0.to_owned()).collect(), cols.iter().map(|c| c.1).collect());
-            for r in f.native_rows(nat) {
-                for c in 0..cols.len() {
-                    let v = f.native_get(run, nat, r, c);
-                    out.cols[c].push(v);
-                }
-                out.n += 1;
-            }
-            return Ok(out);
-        }
-        if rel == "token-link" {
-            return Ok(token_links(f, run));
-        }
         if rel == "filesystem.file" {
             let mut out = Table::with(vec!["path".to_owned()], vec![Ty::File]);
             for i in 0..run.paths.len() {
@@ -899,109 +1553,165 @@ impl<'p> Exec<'p> {
         if let Some(t) = f.fills.get(rel) {
             return Ok((**t).clone());
         }
+        if rel == "project-namespace-membership" {
+            return namespace_membership(f, run);
+        }
+        if rel == "module-identity" {
+            return module_identity(f, run);
+        }
         let t = p.fill(run, rel)?;
         f.fills.insert(rel.to_owned(), Rc::new(t.clone()));
         Ok(t)
     }
 
-    fn expr(&self, run: &mut Run, j: &J, names: &[(Option<String>, Vec<String>, Vec<Ty>)]) -> R<E> {
-        let a = j.as_array().ok_or("expr")?;
-        let tag = s(&a[0])?;
-        Ok(match tag {
-            "col" => {
-                let name = s(&a[1])?;
-                let alias = a[2].as_str();
-                let mut found = None;
-                for (i, (al, ns, ts)) in names.iter().enumerate() {
-                    if alias.is_some() && al.as_deref() != alias {
-                        continue;
-                    }
-                    if let Some(c) = ns.iter().position(|x| x == name) {
-                        found = Some(E::Col(i, c, ts[c]));
-                        break;
-                    }
-                }
-                match found {
-                    Some(e) => e,
-                    // a bare word naming no column: a word, as `true`, or an identifier argument
-                    None if alias.is_none() => E::Text(run.sym(name.as_bytes())),
-                    None => return Err(format!("no column {alias:?}.{name}")),
-                }
-            }
-            "lit" => E::Text(run.sym(s(&a[1])?.as_bytes())),
-            "num" => E::Num(a[1].as_i64().ok_or("num")?),
-            "list" => E::List(a[1].as_array().ok_or("list")?.iter().map(|x| self.expr(run, x, names)).collect::<R<_>>()?),
-            "call" => {
-                let name = s(&a[1])?.to_owned();
-                let args: Vec<E> = a[2].as_array().ok_or("args")?.iter().map(|x| self.expr(run, x, names)).collect::<R<_>>()?;
-                match (name.as_str(), args.get(1)) {
-                    ("matches", Some(E::Text(t))) if args.len() == 2 => {
-                        let re = run.re(&String::from_utf8_lossy(run.text(*t)).into_owned())?;
-                        E::Re(Box::new(args[0].clone()), re)
-                    }
-                    ("glob_any", Some(E::Text(t))) if args.len() == 2 => {
-                        let re = run.re(&glob_pattern(&String::from_utf8_lossy(run.text(*t))))?;
-                        E::Re(Box::new(args[0].clone()), re)
-                    }
-                    _ => E::Call(name, args),
+    fn antijoin(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, a: &J) -> R<Table> {
+        let l = self.eval(f, run, p, self.arg_rel(node, "left")?)?;
+        let rn = self.arg_rel(node, "right")?;
+        let lk: Vec<usize> = strs(&a["left-on"])?.iter().map(|c| l.col(c)).collect::<R<_>>()?;
+        let rsc = self.schema(run, rn)?;
+        let rk: Vec<usize> = strs(&a["right-on"])?.iter().map(|c| pos(&rsc.names, c)).collect::<R<_>>()?;
+        let mut out = Table::with(l.names.clone(), l.tys.clone());
+        let mut row = Vec::new();
+        // a right side that is a view probed in place on a key: a knock-out per left row, nothing made
+        if let Res::View(v) = self.res(f, run, p, rn)?
+            && let Some(ki) = (0..rk.len()).find(|i| File::probes(v.base, v.map[rk[*i]]))
+        {
+            let mut hits = Vec::new();
+            for i in 0..l.n {
+                hits.clear();
+                f.native_probe(run, v.base, v.map[rk[ki]], l.cols[lk[ki]][i], &mut hits);
+                let knocked = hits.iter().any(|h| {
+                    view_holds(f, run, &v, *h) && (0..rk.len()).all(|k| f.native_get(run, v.base, *h, v.map[rk[k]]) == l.cols[lk[k]][i] || rsc.tys[rk[k]] == Ty::File)
+                });
+                self.stats.touched[node] += hits.len() as u64;
+                if !knocked {
+                    l.row(i, &mut row);
+                    out.push_row(&row);
                 }
             }
-            "cmp" => E::Cmp(s(&a[1])?.to_owned(), Box::new(self.expr(run, &a[2], names)?), Box::new(self.expr(run, &a[3], names)?)),
-            "in" | "notin" => E::In(Box::new(self.expr(run, &a[1], names)?), Box::new(self.expr(run, &a[2], names)?), tag == "notin"),
-            "and" => E::And(Box::new(self.expr(run, &a[1], names)?), Box::new(self.expr(run, &a[2], names)?)),
-            "or" => E::Or(Box::new(self.expr(run, &a[1], names)?), Box::new(self.expr(run, &a[2], names)?)),
-            "not" => E::Not(Box::new(self.expr(run, &a[1], names)?)),
-            other => return Err(format!("expression {other}")),
+            return Ok(out);
+        }
+        let r = if f.memo[rn].is_none() && self.view(run, rn)?.is_none() {
+            let ks: Vec<u64> = l.cols[lk[0]].iter().copied().collect::<rustc_hash::FxHashSet<u64>>().into_iter().collect();
+            self.probe(f, run, p, rn, rk[0], &ks)?
+        } else {
+            self.eval(f, run, p, rn)?
+        };
+        if r.n == 0 {
+            return Ok((*l).clone());
+        }
+        self.stats.touched[node] += r.n as u64;
+        if rk.len() == 1 {
+            let set: rustc_hash::FxHashSet<u64> = r.cols[rk[0]].iter().copied().collect();
+            for i in 0..l.n {
+                if !set.contains(&l.cols[lk[0]][i]) {
+                    l.row(i, &mut row);
+                    out.push_row(&row);
+                }
+            }
+            return Ok(out);
+        }
+        let set: rustc_hash::FxHashSet<Vec<u64>> = (0..r.n).map(|i| rk.iter().map(|c| r.cols[*c][i]).collect()).collect();
+        let mut key = Vec::new();
+        for i in 0..l.n {
+            key.clear();
+            key.extend(lk.iter().map(|c| l.cols[*c][i]));
+            if !set.contains(&key) {
+                l.row(i, &mut row);
+                out.push_row(&row);
+            }
+        }
+        Ok(out)
+    }
+
+    fn src_of(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Src> {
+        if self.plan.nodes[node].op == "closure" {
+            return Ok(Src::Lazy(self.lazy(f, run, p, node)?));
+        }
+        if f.memo[node].is_none() && self.view(run, node)?.is_none() {
+            return Ok(Src::Pending(node));
+        }
+        Ok(match self.res(f, run, p, node)? {
+            Res::Tab(t) => Src::Tab(t, node),
+            Res::View(v) => Src::View(v, node),
         })
     }
 
-    #[expect(clippy::needless_pass_by_ref_mut, reason = "a throwaway")]
-    fn select(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, j: &J) -> R<Table> {
-        let src_j = j["src"].as_array().ok_or("src")?;
-        let mut srcs = Vec::new();
-        let mut names = Vec::new();
-        for sj in src_j {
-            let n = sj[0].as_u64().ok_or("src node")? as usize;
-            let alias = sj[1].as_str().map(str::to_owned);
-            let src = self.src_of(f, run, p, n)?;
-            names.push((alias, src.names(), src.tys()));
+    fn select(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Table> {
+        let sp = self.sel(run, node)?;
+        let k = sp.srcs.len();
+        let conj = &sp.conj;
+        let refs = &sp.refs;
+        // the made inputs first, in order: an empty one ends the step
+        let mut srcs: Vec<Src> = Vec::with_capacity(k);
+        for (i, n) in sp.srcs.iter().enumerate() {
+            let src = self.src_of(f, run, p, *n)?;
+            if let Src::Tab(t, _) = &src
+                && t.n == 0
+            {
+                let _ = i;
+                return self.empty(run, node);
+            }
             srcs.push(src);
         }
-        let mut conj = Vec::new();
-        if !j["cond"].is_null() {
-            let e = self.expr(run, &j["cond"], &names)?;
-            flatten(e, &mut conj);
-        }
-        // a test of two file columns always holds: every relation here is the file's
-        conj.retain(|c| !matches!(c, E::Cmp(o, a, b) if o == "=" && matches!(**a, E::Col(_, _, Ty::File)) && matches!(**b, E::Col(_, _, Ty::File))));
-        let k = srcs.len();
-        let refs: Vec<u64> = conj.iter().map(refs_of).collect();
-        // the driver: the smallest made table, else a native relation (by its kind test, when it has one)
-        let mut driver = None;
+        // the driver: the smallest entry that is already a count, a made table's rows or a view's kind bucket
+        let mut driver: Option<usize> = None;
+        let mut best = usize::MAX;
         for (i, sr) in srcs.iter().enumerate() {
-            if let Src::Tab(t, _) = sr
-                && driver.is_none_or(|d: usize| matches!(&srcs[d], Src::Tab(u, _) if u.n > t.n))
+            let size = match sr {
+                Src::Tab(t, _) => Some(t.n),
+                Src::View(v, _) => kind_set(run, &v.filter, 0, v.base, &[]).or_else(|| kind_set(run, conj, i, v.base, &v.map)).map(|ks| bucket_len(f, run, &ks)),
+                _ => None,
+            };
+            if let Some(n) = size
+                && n < best
             {
+                best = n;
                 driver = Some(i);
             }
         }
-        let driver = driver.unwrap_or_else(|| srcs.iter().position(|s| matches!(s, Src::Nat(_))).unwrap_or(0));
+        let own_of = |d: usize| -> Vec<usize> { (0..conj.len()).filter(|c| refs[*c] & !(1u64 << d) == 0).collect() };
+        // the driver: a made table (the smallest), else a view entered by a kind bucket, else a step not made yet (made
+        // now: the first in order), else a view read whole
+        let driver = match driver {
+            Some(d) => d,
+            None => match (0..k).find(|i| match &srcs[*i] {
+                Src::View(v, _) => kind_set(run, &v.filter, 0, v.base, &[]).is_some() || kind_set(run, conj, *i, v.base, &v.map).is_some(),
+                _ => false,
+            }) {
+                Some(d) => d,
+                None => match (0..k).find(|i| matches!(srcs[*i], Src::Pending(_))) {
+                    Some(d) => {
+                        let Src::Pending(n) = srcs[d] else { unreachable!() };
+                        let t = self.eval(f, run, p, n)?;
+                        if t.n == 0 {
+                            return self.empty(run, node);
+                        }
+                        srcs[d] = Src::Tab(t, n);
+                        d
+                    }
+                    None => (0..k).find(|i| matches!(srcs[*i], Src::View(..))).ok_or("a select with no source to start from")?,
+                },
+            },
+        };
         let mut used = vec![false; conj.len()];
         let mut bound: u64 = 1 << driver;
         let mut tuples: Vec<Vec<u32>> = vec![Vec::new(); k];
-        // driver rows, with its own tests
-        let own: Vec<usize> = (0..conj.len()).filter(|c| refs[*c] & !(1u64 << driver) == 0).collect();
-        let first: Vec<u32> = match &srcs[driver] {
-            Src::Tab(t, _) => (0..t.n as u32).collect(),
-            Src::Nat(nat) => match kind_bucket(run, f, *nat, driver, &conj, &own) {
-                Some(rows) => rows,
-                None => f.native_rows(*nat),
-            },
-            Src::Lazy(_) => return Err("a closure as a select's first source".to_owned()),
+        let own = own_of(driver);
+        let first: Rc<Vec<u32>> = match &srcs[driver] {
+            Src::Tab(t, _) => Rc::new((0..t.n as u32).collect()),
+            Src::View(v, vn) => {
+                // the select's own kind tests narrow the view's entry too
+                match kind_set(run, conj, driver, v.base, &v.map) {
+                    Some(ks) if kind_set(run, &v.filter, 0, v.base, &[]).is_none() => Rc::new(bucket(f, run, &ks).into_iter().filter(|r| view_holds(f, run, v, *r)).collect()),
+                    _ => view_rows(f, run, v, *vn),
+                }
+            }
+            _ => return Err("a select starts from no table or view".to_owned()),
         };
         self.stats.touched[node] += first.len() as u64;
         let mut cur = vec![0u32; k];
-        for r in first {
+        for &r in first.iter() {
             cur[driver] = r;
             if own.iter().all(|c| truthy(eval(run, f, &srcs, &cur, &conj[*c]))) {
                 tuples[driver].push(r);
@@ -1012,7 +1722,10 @@ impl<'p> Exec<'p> {
         }
         let mut count = tuples[driver].len();
         while bound.count_ones() as usize != k {
-            // the next source: one an unused equality joins to the bound ones, a native probe first
+            if count == 0 {
+                return self.empty(run, node);
+            }
+            // the next source: one an unused equality joins to the bound ones, one probed in place first
             let mut pick: Option<(usize, usize, usize, bool)> = None;
             for (ci, c) in conj.iter().enumerate() {
                 if used[ci] {
@@ -1028,9 +1741,10 @@ impl<'p> Exec<'p> {
                             && refs_of(b) != 0
                         {
                             let native = match &srcs[si] {
-                                Src::Nat(n) => f.native_probe(*n, col, NULL, &mut Vec::new()),
+                                Src::View(v, _) => File::probes(v.base, v.map[col]),
                                 Src::Lazy(l) => col + 2 >= l.names.len(),
-                                Src::Tab(..) => false,
+                                Src::Pending(_) => true,
+                                _ => false,
                             };
                             if pick.is_none_or(|q| native && !q.3) {
                                 pick = Some((si, col, ci, native));
@@ -1040,23 +1754,44 @@ impl<'p> Exec<'p> {
                 }
             }
             let mut next: Vec<Vec<u32>> = vec![Vec::new(); k];
-            let si;
+            let fill_cur = |cur: &mut Vec<u32>, tuples: &Vec<Vec<u32>>, ti: usize, bound: u64| {
+                for (s2, cur_s) in cur.iter_mut().enumerate() {
+                    if bound & (1 << s2) != 0 {
+                        *cur_s = tuples[s2][ti];
+                    }
+                }
+            };
             match pick {
-                Some((s_i, col, ci, _)) => {
-                    si = s_i;
+                Some((si, col, ci, native)) => {
                     used[ci] = true;
                     let other = match &conj[ci] {
                         E::Cmp(_, x, y) => {
-                            if matches!(**x, E::Col(a, b, _) if a == s_i && b == col) { (**y).clone() } else { (**x).clone() }
+                            if matches!(**x, E::Col(a, b, _) if a == si && b == col) { (**y).clone() } else { (**x).clone() }
                         }
                         _ => unreachable!(),
                     };
-                    let nb = bound | (1 << si);
-                    let checks: Vec<usize> = (0..conj.len()).filter(|c| !used[*c] && refs[*c] & !nb == 0).collect();
-                    let mut hits = Vec::new();
-                    // a closure is made for the sources this join asks, and only those (its rows are then a table)
+                    // a step not made yet is probed with the keys the bound rows give it
+                    if let Src::Pending(pn) = srcs[si] {
+                        let mut ks = rustc_hash::FxHashSet::default();
+                        for ti in 0..count {
+                            fill_cur(&mut cur, &tuples, ti, bound);
+                            ks.insert(eval(run, f, &srcs, &cur, &other).1);
+                        }
+                        let ks: Vec<u64> = ks.into_iter().collect();
+                        let sub = self.probe(f, run, p, pn, col, &ks)?;
+                        self.stats.touched[node] += sub.n as u64;
+                        srcs[si] = Src::Tab(sub, usize::MAX - si);
+                    }
+                    // a view probed on a column it cannot be probed on in place is made whole, then indexed
+                    if let Src::View(_, vn) = &srcs[si]
+                        && !native
+                    {
+                        let vn = *vn;
+                        srcs[si] = Src::Tab(self.eval(f, run, p, vn)?, vn);
+                    }
+                    // a closure is made for the ends this join asks, and only those
                     if let Src::Lazy(l) = &srcs[si] {
-                        // the key columns' values come from the other equalities on them
+                        let l = l.clone();
                         let nk = l.keys.len();
                         let mut key_exprs: Vec<E> = Vec::new();
                         for kc in 0..nk {
@@ -1081,18 +1816,14 @@ impl<'p> Exec<'p> {
                         }
                         let mut t = Table::with(l.names.clone(), l.tys.clone());
                         let mut asked = rustc_hash::FxHashSet::default();
+                        let forward = col + 2 == l.names.len();
                         for ti in 0..count {
-                            for (s2, cur_s) in cur.iter_mut().enumerate() {
-                                if bound & (1 << s2) != 0 {
-                                    *cur_s = tuples[s2][ti];
-                                }
-                            }
+                            fill_cur(&mut cur, &tuples, ti, bound);
                             let mut key: Vec<u64> = key_exprs.iter().map(|e| eval(run, f, &srcs, &cur, e).1).collect();
-                            let forward = col + 2 == l.names.len();
                             let at = eval(run, f, &srcs, &cur, &other).1;
                             key.push(at);
                             if asked.insert(key.clone()) {
-                                for d in reach_dir(l, &key, forward).iter() {
+                                for d in reach_dir(&l, &key, forward).iter() {
                                     let mut row = key[..nk].to_vec();
                                     if forward {
                                         row.extend([at, *d]);
@@ -1106,7 +1837,7 @@ impl<'p> Exec<'p> {
                         self.stats.touched[node] += t.n as u64;
                         srcs[si] = Src::Tab(Rc::new(t), usize::MAX - si);
                     }
-                    // a made table's index on the probed column, made once a file
+                    let nb = bound | (1 << si);
                     // a made table is probed on every column an equality binds, at once
                     let mut tab_cols = vec![col];
                     let mut tab_exprs = vec![other.clone()];
@@ -1133,23 +1864,25 @@ impl<'p> Exec<'p> {
                             }
                         }
                     }
+                    if tab_cols.len() > 1 {
+                        used[ci] = false;
+                    }
+                    let checks: Vec<usize> = (0..conj.len()).filter(|c| !used[*c] && refs[*c] & !nb == 0).collect();
                     let index = if let Src::Tab(t, tn) = &srcs[si] {
                         Some(if *tn > usize::MAX - 64 { Rc::new(index_of(t, &tab_cols)) } else { table_index(f, *tn, t, &tab_cols) })
                     } else {
                         None
                     };
                     let mut probe_key: Vec<u64> = Vec::new();
+                    let mut hits = Vec::new();
                     for ti in 0..count {
-                        for (s2, cur_s) in cur.iter_mut().enumerate() {
-                            if bound & (1 << s2) != 0 {
-                                *cur_s = tuples[s2][ti];
-                            }
-                        }
+                        fill_cur(&mut cur, &tuples, ti, bound);
                         let v = eval(run, f, &srcs, &cur, &other);
                         hits.clear();
                         match &srcs[si] {
-                            Src::Nat(n) => {
-                                let _ = f.native_probe(*n, col, v.1, &mut hits);
+                            Src::View(vs, _) => {
+                                f.native_probe(run, vs.base, vs.map[col], v.1, &mut hits);
+                                hits.retain(|h| view_holds(f, run, vs, *h));
                             }
                             Src::Tab(..) => {
                                 probe_key.clear();
@@ -1157,11 +1890,11 @@ impl<'p> Exec<'p> {
                                 for e in &tab_exprs[1..] {
                                     probe_key.push(eval(run, f, &srcs, &cur, e).1);
                                 }
-                                if let Some(rows) = index.as_ref().and_then(|ix| ix.get(&probe_key)) {
+                                if let Some(rows) = index.as_ref().and_then(|ix| ix.get(&key_of(probe_key.iter().copied()))) {
                                     hits.extend_from_slice(rows);
                                 }
                             }
-                            Src::Lazy(_) => unreachable!(),
+                            _ => unreachable!(),
                         }
                         self.stats.touched[node] += hits.len() as u64;
                         for h in &hits {
@@ -1182,26 +1915,25 @@ impl<'p> Exec<'p> {
                 }
                 None => {
                     // no key joins the next source: every pair
-                    si = (0..k).find(|s2| bound & (1 << s2) == 0).expect("an unbound source");
+                    let si = (0..k).find(|s2| bound & (1 << s2) == 0).expect("an unbound source");
+                    if let Src::Lazy(l) = &srcs[si] {
+                        let ln = l.node;
+                        srcs[si] = Src::Tab(self.eval(f, run, p, ln)?, ln);
+                    }
+                    if let Src::Pending(pn) = srcs[si] {
+                        srcs[si] = Src::Tab(self.eval(f, run, p, pn)?, pn);
+                    }
                     let nb = bound | (1 << si);
                     let checks: Vec<usize> = (0..conj.len()).filter(|c| !used[*c] && refs[*c] & !nb == 0).collect();
-                    if let Src::Lazy(l) = &srcs[si] {
-                        let node = l.node;
-                        srcs[si] = Src::Tab(self.eval(f, run, p, node)?, node);
-                    }
-                    let rows: Vec<u32> = match &srcs[si] {
-                        Src::Tab(t, _) => (0..t.n as u32).collect(),
-                        Src::Nat(n) => f.native_rows(*n),
-                        Src::Lazy(_) => unreachable!(),
+                    let rows: Rc<Vec<u32>> = match &srcs[si] {
+                        Src::Tab(t, _) => Rc::new((0..t.n as u32).collect()),
+                        Src::View(v, vn) => view_rows(f, run, v, *vn),
+                        _ => unreachable!(),
                     };
                     for ti in 0..count {
-                        for (s2, cur_s) in cur.iter_mut().enumerate() {
-                            if bound & (1 << s2) != 0 {
-                                *cur_s = tuples[s2][ti];
-                            }
-                        }
+                        fill_cur(&mut cur, &tuples, ti, bound);
                         self.stats.touched[node] += rows.len() as u64;
-                        for r in &rows {
+                        for r in rows.iter() {
                             cur[si] = *r;
                             if checks.iter().all(|c| truthy(eval(run, f, &srcs, &cur, &conj[*c]))) {
                                 for s2 in 0..k {
@@ -1224,33 +1956,18 @@ impl<'p> Exec<'p> {
         if used.iter().any(|u| !u) {
             return Err("a test no source binds".to_owned());
         }
-        // the output
-        let items: Vec<(String, E)> = match &j["items"] {
-            J::Null => {
-                let mut v = Vec::new();
-                for (i, (_, ns, ts)) in names.iter().enumerate() {
-                    for (c, nm) in ns.iter().enumerate() {
-                        if !v.iter().any(|(x, _): &(String, E)| x == nm) {
-                            v.push((nm.clone(), E::Col(i, c, ts[c])));
-                        }
-                    }
+        let mut out = self.empty(run, node)?;
+        for (c, (_, e)) in sp.items.iter().enumerate() {
+            let mut col = Vec::with_capacity(count);
+            for ti in 0..count {
+                for (s2, cur_s) in cur.iter_mut().enumerate() {
+                    *cur_s = tuples[s2][ti];
                 }
-                v
+                col.push(eval(run, f, &srcs, &cur, e).1);
             }
-            J::Array(a) => a.iter().map(|it| Ok((s(&it[0])?.to_owned(), self.expr(run, &it[1], &names)?))).collect::<R<_>>()?,
-            _ => return Err("items".to_owned()),
-        };
-        let mut out = Table::with(items.iter().map(|i| i.0.clone()).collect(), items.iter().map(|i| static_ty(&i.1)).collect());
-        for ti in 0..count {
-            for (s2, cur_s) in cur.iter_mut().enumerate() {
-                *cur_s = tuples[s2][ti];
-            }
-            for (c, (_, e)) in items.iter().enumerate() {
-                let v = eval(run, f, &srcs, &cur, e).1;
-                out.cols[c].push(v);
-            }
-            out.n += 1;
+            out.cols[c] = col;
         }
+        out.n = count;
         Ok(out)
     }
 
@@ -1258,36 +1975,96 @@ impl<'p> Exec<'p> {
         let from = self.eval(f, run, p, self.arg_rel(node, "from")?)?;
         let rel = self.arg_rel(node, "relation")?;
         let dir = s(&a["direction"])?.to_owned();
-        let domain = match a.get("domain") {
-            Some(J::Object(_)) => {
-                let d = self.eval(f, run, p, self.arg_rel(node, "domain")?)?;
-                let c = d.col("id")?;
-                Some(d.cols[c].iter().copied().collect::<rustc_hash::FxHashSet<u64>>())
-            }
+        // the domain: a view is asked in place by id; a made table becomes a set
+        let dom_node = match a.get("domain") {
+            Some(J::Object(_)) => Some(self.arg_rel(node, "domain")?),
             _ => None,
         };
-        let admitted = |x: u64| domain.as_ref().is_none_or(|d| d.contains(&x));
+        enum Dom {
+            All,
+            Set(rustc_hash::FxHashSet<u64>),
+            View(Rc<ViewSpec>, usize),
+        }
+        let dom = match dom_node {
+            None => Dom::All,
+            Some(dn) => match self.res(f, run, p, dn)? {
+                Res::View(v) => {
+                    let sc = self.schema(run, dn)?;
+                    let c = pos(&sc.names, "id")?;
+                    if File::probes(v.base, v.map[c]) {
+                        Dom::View(v, c)
+                    } else {
+                        let d = self.eval(f, run, p, dn)?;
+                        Dom::Set(d.cols[d.col("id")?].iter().copied().collect())
+                    }
+                }
+                Res::Tab(d) => Dom::Set(d.cols[d.col("id")?].iter().copied().collect()),
+            },
+        };
+        let mut hits = Vec::new();
+        let mut admitted = |f: &File<'_>, run: &mut Run, x: u64| match &dom {
+            Dom::All => true,
+            Dom::Set(s) => s.contains(&x),
+            Dom::View(v, c) => {
+                hits.clear();
+                f.native_probe(run, v.base, v.map[*c], x, &mut hits);
+                hits.iter().any(|h| view_holds(f, run, v, *h))
+            }
+        };
         let ic = from.col("id")?;
-        let mut out = Table::with(from.names.clone(), from.tys.clone());
-        out.names.push("related".to_owned());
-        out.tys.push(Ty::Node);
+        let mut out = self.empty(run, node)?;
         let mut row = Vec::new();
         let tree = self.plan.nodes[rel].op == "base" && native_of(self.plan.nodes[rel].j["rel"].as_str().unwrap_or("")) == Some(Native::Child);
-        // a made hierarchy: its parent and child columns, keyed by the start side
-        let (up_map, down_map) = if tree {
-            (None, None)
+        // a hierarchy that is a view is walked by probes on its child and parent columns; a made one is indexed once
+        enum Hier {
+            Tree,
+            View(Rc<ViewSpec>, usize, usize),
+            Maps(FxHashMap<u64, Vec<u64>>, FxHashMap<u64, Vec<u64>>),
+        }
+        let hier = if tree {
+            Hier::Tree
         } else {
-            let t = self.eval(f, run, p, rel)?;
-            let (pc, cc) = (t.col("parent")?, t.col("child")?);
-            let mut up: FxHashMap<u64, Vec<u64>> = FxHashMap::default();
-            let mut down: FxHashMap<u64, Vec<u64>> = FxHashMap::default();
-            for r in 0..t.n {
-                up.entry(t.cols[cc][r]).or_default().push(t.cols[pc][r]);
-                down.entry(t.cols[pc][r]).or_default().push(t.cols[cc][r]);
+            let rsc = self.schema(run, rel)?;
+            let (pc, cc) = (pos(&rsc.names, "parent")?, pos(&rsc.names, "child")?);
+            match self.res(f, run, p, rel)? {
+                Res::View(v) if File::probes(v.base, v.map[pc]) && File::probes(v.base, v.map[cc]) => Hier::View(v, pc, cc),
+                _ => {
+                    let t = self.eval(f, run, p, rel)?;
+                    let mut up: FxHashMap<u64, Vec<u64>> = FxHashMap::default();
+                    let mut down: FxHashMap<u64, Vec<u64>> = FxHashMap::default();
+                    for r in 0..t.n {
+                        up.entry(t.cols[cc][r]).or_default().push(t.cols[pc][r]);
+                        down.entry(t.cols[pc][r]).or_default().push(t.cols[cc][r]);
+                    }
+                    Hier::Maps(up, down)
+                }
             }
-            (Some(up), Some(down))
+        };
+        let mut step_hits = Vec::new();
+        // the other end of each edge from `x`, upward (by child) or downward (by parent)
+        let mut step = |f: &File<'_>, run: &mut Run, x: u64, up: bool, out: &mut Vec<u64>| {
+            out.clear();
+            match &hier {
+                Hier::Tree => {}
+                Hier::View(v, pc, cc) => {
+                    step_hits.clear();
+                    let (by, to) = if up { (*cc, *pc) } else { (*pc, *cc) };
+                    f.native_probe(run, v.base, v.map[by], x, &mut step_hits);
+                    for h in &step_hits {
+                        if view_holds(f, run, v, *h) {
+                            out.push(f.native_get(run, v.base, *h, v.map[to]));
+                        }
+                    }
+                }
+                Hier::Maps(u, d) => {
+                    if let Some(xs) = if up { u.get(&x) } else { d.get(&x) } {
+                        out.extend_from_slice(xs);
+                    }
+                }
+            }
         };
         let mut found: Vec<u64> = Vec::new();
+        let mut nbrs: Vec<u64> = Vec::new();
         for i in 0..from.n {
             let x = from.cols[ic][i];
             found.clear();
@@ -1297,26 +2074,47 @@ impl<'p> Exec<'p> {
                         let mut at = x as u32;
                         while (at as usize) < f.n && f.has_parent(at) {
                             at = f.parent[at as usize];
-                            found.push(u64::from(at));
-                            if dir == "parent" || (dir == "nearest-ancestor" && admitted(u64::from(at))) {
+                            if dir != "nearest-ancestor" || admitted(f, run, u64::from(at)) {
+                                found.push(u64::from(at));
+                            }
+                            if dir == "parent" || (dir == "nearest-ancestor" && !found.is_empty()) {
                                 break;
                             }
                         }
                     } else {
-                        let up = up_map.as_ref().expect("up");
+                        let mut chained = false;
+                        if dir == "nearest-ancestor" {
+                            let mut at = x;
+                            for _ in 0..64 {
+                                step(f, run, at, true, &mut nbrs);
+                                if nbrs.len() != 1 {
+                                    chained = nbrs.is_empty();
+                                    break;
+                                }
+                                at = nbrs[0];
+                                if admitted(f, run, at) {
+                                    found.push(at);
+                                    chained = true;
+                                    break;
+                                }
+                            }
+                        }
                         let mut seen = rustc_hash::FxHashSet::default();
-                        let mut frontier = vec![x];
+                        let mut frontier = if chained { Vec::new() } else { vec![x] };
                         'walk: while let Some(at) = frontier.pop() {
-                            if let Some(ps) = up.get(&at) {
-                                for q in ps {
-                                    if seen.insert(*q) {
-                                        found.push(*q);
-                                        if dir == "nearest-ancestor" && admitted(*q) {
+                            step(f, run, at, true, &mut nbrs);
+                            for q in nbrs.clone() {
+                                if seen.insert(q) {
+                                    if dir == "nearest-ancestor" {
+                                        if admitted(f, run, q) {
+                                            found.push(q);
                                             break 'walk;
                                         }
-                                        if dir != "parent" {
-                                            frontier.push(*q);
-                                        }
+                                    } else {
+                                        found.push(q);
+                                    }
+                                    if dir != "parent" {
+                                        frontier.push(q);
                                     }
                                 }
                             }
@@ -1336,17 +2134,15 @@ impl<'p> Exec<'p> {
                             }
                         }
                     } else {
-                        let down = down_map.as_ref().expect("down");
                         let mut seen = rustc_hash::FxHashSet::default();
                         let mut stack = vec![x];
                         while let Some(at) = stack.pop() {
-                            if let Some(cs) = down.get(&at) {
-                                for c in cs {
-                                    if seen.insert(*c) {
-                                        found.push(*c);
-                                        if dir != "child" {
-                                            stack.push(*c);
-                                        }
+                            step(f, run, at, false, &mut nbrs);
+                            for c in nbrs.clone() {
+                                if seen.insert(c) {
+                                    found.push(c);
+                                    if dir != "child" {
+                                        stack.push(c);
                                     }
                                 }
                             }
@@ -1365,10 +2161,12 @@ impl<'p> Exec<'p> {
                 }
                 other => return Err(format!("axis direction {other}")),
             }
-            for q in &found {
-                if admitted(*q) {
+            self.stats.touched[node] += found.len() as u64;
+            for qi in 0..found.len() {
+                let q = found[qi];
+                if dir == "nearest-ancestor" || admitted(f, run, q) {
                     from.row(i, &mut row);
-                    row.push(*q);
+                    row.push(q);
                     out.push_row(&row);
                     if dir == "nearest-ancestor" {
                         break;
@@ -1382,22 +2180,19 @@ impl<'p> Exec<'p> {
     fn ordered(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, a: &J, as_of: bool) -> R<Table> {
         let l = self.eval(f, run, p, self.arg_rel(node, "left")?)?;
         let r = self.eval(f, run, p, self.arg_rel(node, "right")?)?;
+        if r.n == 0 {
+            return self.empty(run, node);
+        }
         let lk: Vec<usize> = strs(&a["left-on"])?.iter().map(|c| l.col(c)).collect::<R<_>>()?;
         let rk: Vec<usize> = strs(&a["right-on"])?.iter().map(|c| r.col(c)).collect::<R<_>>()?;
         let (lo, ro) = (l.col(s(&a["left-order"])?)?, r.col(s(&a["right-order"])?)?);
         let outm = a["output"].as_object().ok_or("output")?;
-        let mut names = Vec::new();
-        let mut tys = Vec::new();
         let mut picks = Vec::new();
-        for (name, v) in outm {
+        for (_, v) in outm {
             let side = s(&v[0])?;
-            let (t, c) = if side == "left" { (&l, l.col(s(&v[1])?)?) } else { (&r, r.col(s(&v[1])?)?) };
-            names.push(name.clone());
-            tys.push(t.tys[c]);
-            picks.push((side == "left", c));
+            picks.push((side == "left", if side == "left" { l.col(s(&v[1])?)? } else { r.col(s(&v[1])?)? }));
         }
-        let mut out = Table::with(names, tys);
-        // right rows by key, ordered
+        let mut out = self.empty(run, node)?;
         let mut groups: FxHashMap<Vec<u64>, Vec<(i64, u32)>> = FxHashMap::default();
         for i in 0..r.n {
             let k: Vec<u64> = rk.iter().map(|c| r.cols[*c][i]).collect();
@@ -1411,7 +2206,7 @@ impl<'p> Exec<'p> {
             let k: Vec<u64> = lk.iter().map(|c| l.cols[*c][i]).collect();
             lefts.entry(k).or_default().push((l.cols[lo][i] as i64, i as u32));
         }
-        let mut emit = |out: &mut Table, li: u32, ri: u32| {
+        let emit = |out: &mut Table, li: u32, ri: u32| {
             let row: Vec<u64> = picks.iter().map(|(left, c)| if *left { l.cols[*c][li as usize] } else { r.cols[*c][ri as usize] }).collect();
             out.push_row(&row);
         };
@@ -1440,7 +2235,7 @@ impl<'p> Exec<'p> {
                 }
             }
         } else {
-            for (k, ls) in lefts.iter_mut() {
+            for (k, ls) in &mut lefts {
                 let Some(g) = groups.get(k) else { continue };
                 ls.sort_unstable();
                 let mut at = 0;
@@ -1466,30 +2261,11 @@ impl<'p> Exec<'p> {
             Some(J::String(b)) => Some(from.col(b)?),
             _ => None,
         };
-        let line_out = a.get("line-output").and_then(J::as_str).map(str::to_owned);
+        let line_out = a.get("line-output").and_then(J::as_str).is_some();
         let cap = a.get("capture").and_then(J::as_str).map(str::to_owned);
-        let cap_out = a.get("capture-output").and_then(J::as_str).map(str::to_owned);
-        let cap_text = a.get("capture-text-output").and_then(J::as_str).map(str::to_owned);
-        let cap_line = a.get("capture-line-output").and_then(J::as_str).map(str::to_owned);
-        let mut out = Table::with(from.names.clone(), from.tys.clone());
-        out.names.push(s(&a["output"])?.to_owned());
-        out.tys.push(Ty::Span);
-        if let Some(lo) = &line_out {
-            out.names.push(lo.clone());
-            out.tys.push(Ty::Num);
-        }
-        if cap.is_some() {
-            out.names.push(cap_out.clone().ok_or("capture-output")?);
-            out.tys.push(Ty::Span);
-            if let Some(ct) = &cap_text {
-                out.names.push(ct.clone());
-                out.tys.push(Ty::Sym);
-            }
-            if let Some(cl) = &cap_line {
-                out.names.push(cl.clone());
-                out.tys.push(Ty::Num);
-            }
-        }
+        let cap_text = a.get("capture-text-output").and_then(J::as_str).is_some();
+        let cap_line = a.get("capture-line-output").and_then(J::as_str).is_some();
+        let mut out = self.empty(run, node)?;
         let mut row = Vec::new();
         for i in 0..from.n {
             let sp = from.cols[sc][i];
@@ -1511,15 +2287,15 @@ impl<'p> Exec<'p> {
                 };
                 from.row(i, &mut row);
                 row.push((((st + w.start()) as u64) << 32) | (st + w.end()) as u64);
-                if line_out.is_some() {
+                if line_out {
                     row.push(line_at(w.start()) as u64);
                 }
                 if let Some(g) = g {
                     row.push((((st + g.start()) as u64) << 32) | (st + g.end()) as u64);
-                    if cap_text.is_some() {
+                    if cap_text {
                         row.push(u64::from(run.sym(g.as_bytes())));
                     }
-                    if cap_line.is_some() {
+                    if cap_line {
                         row.push(line_at(g.start()) as u64);
                     }
                 }
@@ -1530,9 +2306,105 @@ impl<'p> Exec<'p> {
     }
 }
 
-fn reach_of(l: &Lazy, key: &[u64]) -> Rc<Vec<u64>> {
-    reach_dir(l, key, true)
+/// Whether a view's tests hold on one of its base rows.
+fn view_holds(f: &File<'_>, run: &mut Run, v: &ViewSpec, row: u32) -> bool {
+    if v.filter.is_empty() {
+        return true;
+    }
+    let srcs = [Src::Base(v.base)];
+    let cur = [row];
+    v.filter.iter().all(|e| truthy(eval(run, f, &srcs, &cur, e)))
 }
+
+/// A view's rows in this file: its kind bucket when its tests name kinds, else every base row; tested; made once a file.
+fn view_rows(f: &mut File<'_>, run: &mut Run, v: &ViewSpec, node: usize) -> Rc<Vec<u32>> {
+    if let Some(r) = f.vrows.get(&node) {
+        return r.clone();
+    }
+    let rows = match kind_set(run, &v.filter, 0, v.base, &[]) {
+        Some(ks) => bucket(f, run, &ks),
+        None => f.native_rows(run, v.base),
+    };
+    let kept: Vec<u32> = rows.into_iter().filter(|r| view_holds(f, run, v, *r)).collect();
+    let rc = Rc::new(kept);
+    f.vrows.insert(node, rc.clone());
+    rc
+}
+
+/// How many elements some kinds have.
+fn bucket_len(f: &File<'_>, run: &Run, ks: &[u32]) -> usize {
+    run.kind_sym.iter().enumerate().filter(|(_, s)| ks.contains(s)).map(|(c, _)| node_table::ids_of_kind(f.table, KindBits(c as u16)).len()).sum()
+}
+
+/// The elements of some kinds, in position order.
+fn bucket(f: &File<'_>, run: &Run, ks: &[u32]) -> Vec<u32> {
+    let mut rows = Vec::new();
+    for (code, sym) in run.kind_sym.iter().enumerate() {
+        if ks.contains(sym) {
+            rows.extend(node_table::ids_of_kind(f.table, KindBits(code as u16)).iter().map(|p| p.0));
+        }
+    }
+    rows.sort_unstable();
+    rows
+}
+
+/// The kinds a conjunction requires of a tree source's `kind` column (a literal or an or of literals), if any. `map` takes a
+/// view's column to its base column (empty: the columns are the base's).
+fn kind_set(_run: &Run, conj: &[E], si: usize, base: Native, map: &[usize]) -> Option<Vec<u32>> {
+    if base != Native::Tree {
+        return None;
+    }
+    let is_kind = |c: usize| if map.is_empty() { c == 1 } else { map.get(c) == Some(&1) };
+    fn kinds(e: &E, si: usize, is_kind: &dyn Fn(usize) -> bool, out: &mut Vec<u32>) -> bool {
+        match e {
+            E::Cmp(o, a, b) if o == "=" => match (&**a, &**b) {
+                (E::Col(s, c, _), E::Text(t)) | (E::Text(t), E::Col(s, c, _)) if *s == si && is_kind(*c) => {
+                    out.push(*t);
+                    true
+                }
+                _ => false,
+            },
+            E::Or(a, b) => kinds(a, si, is_kind, out) && kinds(b, si, is_kind, out),
+            E::In(a, b, false) => match (&**a, &**b) {
+                (E::Col(s, c, _), E::List(items)) if *s == si && is_kind(*c) => items.iter().all(|i| {
+                    if let E::Text(t) = i {
+                        out.push(*t);
+                        true
+                    } else {
+                        false
+                    }
+                }),
+                _ => false,
+            },
+            _ => false,
+        }
+    }
+    for c in conj {
+        let mut ks = Vec::new();
+        if kinds(c, si, &is_kind, &mut ks) {
+            return Some(ks);
+        }
+    }
+    None
+}
+
+/// An expression over a view's columns, rewritten over its base's.
+fn remap(e: &E, map: &[usize]) -> E {
+    let b = |x: &E| Box::new(remap(x, map));
+    match e {
+        E::Col(s, c, t) => E::Col(*s, map[*c], *t),
+        E::List(v) => E::List(v.iter().map(|x| remap(x, map)).collect()),
+        E::Call(n, v) => E::Call(n.clone(), v.iter().map(|x| remap(x, map)).collect()),
+        E::Cmp(o, x, y) => E::Cmp(o.clone(), b(x), b(y)),
+        E::In(x, y, n) => E::In(b(x), b(y), *n),
+        E::And(x, y) => E::And(b(x), b(y)),
+        E::Or(x, y) => E::Or(b(x), b(y)),
+        E::Not(x) => E::Not(b(x)),
+        E::Re(x, r) => E::Re(b(x), r.clone()),
+        other => other.clone(),
+    }
+}
+
 
 fn reach_dir(l: &Lazy, key: &[u64], forward: bool) -> Rc<Vec<u64>> {
     let (cache, adj) = if forward { (&l.cache, &l.adj) } else { (&l.rcache, &l.radj) };
@@ -1555,73 +2427,45 @@ fn reach_dir(l: &Lazy, key: &[u64], forward: bool) -> Rc<Vec<u64>> {
             }
         }
     }
-    let _ = (&l.edges, l.s, l.d);
     let rc = Rc::new(out);
     cache.borrow_mut().insert(key.to_vec(), rc.clone());
     rc
 }
 
-fn index_of(t: &Table, cols: &[usize]) -> FxHashMap<Vec<u64>, Vec<u32>> {
-    let mut m: FxHashMap<Vec<u64>, Vec<u32>> = FxHashMap::default();
+/// A made table's rows by the value of one column, or by a hash of several (a hash hit is tested again by the join).
+pub(super) type Index = FxHashMap<u64, Vec<u32>>;
+
+fn key_of(vals: impl Iterator<Item = u64>) -> u64 {
+    let mut h: u64 = 0;
+    let mut n = 0;
+    let mut first = 0;
+    for v in vals {
+        if n == 0 {
+            first = v;
+        }
+        h = (h.rotate_left(5) ^ v).wrapping_mul(0x517c_c1b7_2722_0a95);
+        n += 1;
+    }
+    if n == 1 { first } else { h }
+}
+
+fn index_of(t: &Table, cols: &[usize]) -> Index {
+    let mut m: Index = FxHashMap::default();
     for r in 0..t.n {
-        m.entry(cols.iter().map(|c| t.cols[*c][r]).collect()).or_default().push(r as u32);
+        m.entry(key_of(cols.iter().map(|c| t.cols[*c][r]))).or_default().push(r as u32);
     }
     m
 }
 
-fn table_index(f: &mut File<'_>, tn: usize, t: &Table, cols: &[usize]) -> Rc<FxHashMap<Vec<u64>, Vec<u32>>> {
-    let key = (tn, cols.to_vec());
-    if let Some(ix) = f.index.get(&key) {
+fn table_index(f: &mut File<'_>, tn: usize, t: &Table, cols: &[usize]) -> Rc<Index> {
+    if let Some(v) = f.index.get(&tn)
+        && let Some((_, ix)) = v.iter().find(|(c, _)| c == cols)
+    {
         return ix.clone();
     }
     let rc = Rc::new(index_of(t, cols));
-    f.index.insert(key, rc.clone());
+    f.index.entry(tn).or_default().push((cols.to_vec(), rc.clone()));
     rc
-}
-
-/// A native tree source's first rows from the kind buckets, when its own tests require a kind among literal words.
-fn kind_bucket(run: &mut Run, f: &File<'_>, nat: Native, si: usize, conj: &[E], own: &[usize]) -> Option<Vec<u32>> {
-    if nat != Native::Tree {
-        return None;
-    }
-    fn kinds(e: &E, si: usize, out: &mut Vec<u32>) -> bool {
-        match e {
-            E::Cmp(o, a, b) if o == "=" => match (&**a, &**b) {
-                (E::Col(s, 1, _), E::Text(t)) | (E::Text(t), E::Col(s, 1, _)) if *s == si => {
-                    out.push(*t);
-                    true
-                }
-                _ => false,
-            },
-            E::Or(a, b) => kinds(a, si, out) && kinds(b, si, out),
-            E::In(a, b, false) => match (&**a, &**b) {
-                (E::Col(s, 1, _), E::List(items)) if *s == si => items.iter().all(|i| {
-                    if let E::Text(t) = i {
-                        out.push(*t);
-                        true
-                    } else {
-                        false
-                    }
-                }),
-                _ => false,
-            },
-            _ => false,
-        }
-    }
-    for c in own {
-        let mut ks = Vec::new();
-        if kinds(&conj[*c], si, &mut ks) {
-            let mut rows = Vec::new();
-            for (code, sym) in run.kind_sym.iter().enumerate() {
-                if ks.contains(sym) {
-                    rows.extend(node_table::ids_of_kind(f.table, KindBits(code as u16)).iter().map(|p| p.0));
-                }
-            }
-            rows.sort_unstable();
-            return Some(rows);
-        }
-    }
-    None
 }
 
 fn flatten(e: E, out: &mut Vec<E>) {
@@ -1657,9 +2501,26 @@ fn static_ty(e: &E) -> Ty {
 fn get(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], si: usize, col: usize) -> u64 {
     match &srcs[si] {
         Src::Tab(t, _) => t.cols[col][cur[si] as usize],
-        Src::Nat(n) => f.native_get(run, *n, cur[si], col),
-        Src::Lazy(_) => NULL,
+        Src::View(v, _) => f.native_get(run, v.base, cur[si], v.map[col]),
+        Src::Base(n) => f.native_get(run, *n, cur[si], col),
+        Src::Lazy(_) | Src::Pending(_) => NULL,
     }
+}
+
+/// The rows of a made table whose column holds one of `keys`, through its index on that column (made once a file).
+fn subset(f: &mut File<'_>, node: usize, t: &Table, col: usize, keys: &[u64]) -> Table {
+    let ix = table_index(f, node, t, &[col]);
+    let mut out = Table::with(t.names.clone(), t.tys.clone());
+    let mut row = Vec::new();
+    for k in keys {
+        if let Some(rows) = ix.get(k) {
+            for r in rows {
+                t.row(*r as usize, &mut row);
+                out.push_row(&row);
+            }
+        }
+    }
+    out
 }
 
 fn text_of(run: &Run, v: V) -> Vec<u8> {
@@ -1698,7 +2559,6 @@ fn compare(run: &Run, a: V, b: V) -> Option<std::cmp::Ordering> {
 
 fn eval(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], e: &E) -> V {
     match e {
-        E::True => flag(true),
         E::Col(si, c, t) => V::new(*t, get(run, f, srcs, cur, *si, *c)),
         E::Lit(v) => *v,
         E::Text(t) => V::new(Ty::Sym, u64::from(*t)),
@@ -1707,6 +2567,26 @@ fn eval(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], e: &E) -> V {
         E::And(a, b) => flag(truthy(eval(run, f, srcs, cur, a)) && truthy(eval(run, f, srcs, cur, b))),
         E::Or(a, b) => flag(truthy(eval(run, f, srcs, cur, a)) || truthy(eval(run, f, srcs, cur, b))),
         E::Not(a) => flag(!truthy(eval(run, f, srcs, cur, a))),
+        E::Cmp(o, a, b) if o == "=" || o == "!=" => {
+            let eq = match (&**a, &**b) {
+                (E::Col(s1, c1, t1), E::Col(s2, c2, t2)) if t1 == t2 => {
+                    let (x, y) = (get(run, f, srcs, cur, *s1, *c1), get(run, f, srcs, cur, *s2, *c2));
+                    Some(x == y && x != NULL)
+                }
+                (E::Col(s1, c1, Ty::Sym), E::Text(t)) | (E::Text(t), E::Col(s1, c1, Ty::Sym)) => Some(get(run, f, srcs, cur, *s1, *c1) == u64::from(*t)),
+                _ => None,
+            };
+            match eq {
+                Some(e) => flag(e == (o == "=")),
+                None => {
+                    let (x, y) = (eval(run, f, srcs, cur, a), eval(run, f, srcs, cur, b));
+                    match compare(run, x, y) {
+                        Some(ord) => flag((ord == std::cmp::Ordering::Equal) == (o == "=")),
+                        None => flag(false),
+                    }
+                }
+            }
+        }
         E::Cmp(o, a, b) => {
             let (x, y) = (eval(run, f, srcs, cur, a), eval(run, f, srcs, cur, b));
             let Some(ord) = compare(run, x, y) else { return flag(false) };
@@ -1951,7 +2831,7 @@ pub(super) fn native_table(f: &mut File<'_>, run: &mut Run, rel: &str) -> Table 
     let nat = native_of(rel).expect("a native relation");
     let cols = native_cols(nat);
     let mut out = Table::with(cols.iter().map(|c| c.0.to_owned()).collect(), cols.iter().map(|c| c.1).collect());
-    for r in f.native_rows(nat) {
+    for r in f.native_rows(run, nat) {
         for c in 0..cols.len() {
             let v = f.native_get(run, nat, r, c);
             out.cols[c].push(v);
@@ -2010,4 +2890,201 @@ pub(super) fn diff(run: &Run, a: &Table, b: &Table) -> String {
         extra.first().map(|k| format!(" first-extra [{}]", show(k))).unwrap_or_default(),
         missing.first().map(|k| format!(" first-missing [{}]", show(k))).unwrap_or_default()
     )
+}
+
+/// Whether every line of `text`, after `prefix` on its first line, stays within `max` display columns (the operator's rule).
+fn fits(text: &str, prefix: &str, max: usize, tab: usize) -> bool {
+    use unicode_width::UnicodeWidthChar;
+    let adv = |col: usize, c: char| if c == '\t' { (col / tab + 1) * tab } else { col + UnicodeWidthChar::width(c).unwrap_or(0) };
+    let mut col = prefix.chars().fold(0, adv);
+    if col > max {
+        return false;
+    }
+    let mut cr = false;
+    for c in text.chars() {
+        if c == '\r' {
+            col = 0;
+            cr = true;
+            continue;
+        }
+        if c == '\n' {
+            if !cr {
+                col = 0;
+            }
+            cr = false;
+            continue;
+        }
+        cr = false;
+        col = adv(col, c);
+        if col > max {
+            return false;
+        }
+    }
+    true
+}
+
+/// `project-namespace-membership` for this file: each dotted prefix of each absolute import path it writes, classified by
+/// the entries under the project's search roots (module file, package directory with an initializer, namespace directory),
+/// with a present child of a parent not present made unknown; as the provider's project phase states it.
+fn namespace_membership(f: &File<'_>, run: &mut Run) -> R<Table> {
+    let (_, names, tys) = run.catalog("project-namespace-membership").ok_or("no project-namespace-membership")?;
+    let kind = |n: &str| run.kind_sym.iter().position(|s| run.text(*s) == n.as_bytes()).map(|c| c as u16);
+    let (alias, from_k, dot, ell, ident, name) = (kind("alias"), kind("import-from"), kind("dot"), kind("ellipsis"), kind("identifier"), kind("name-token"));
+    let names_of = |f: &File<'_>, at: u32, out: &mut Vec<String>| {
+        let mut stack = vec![at];
+        let mut toks = Vec::new();
+        while let Some(x) = stack.pop() {
+            for c in node_table::children_of(f.table, Position(x)).iter().rev() {
+                stack.push(c.0);
+            }
+            if Some(f.kind[x as usize]) == name {
+                toks.push(x);
+            }
+        }
+        toks.sort_unstable_by_key(|t| f.start[*t as usize]);
+        for t in toks {
+            out.push(String::from_utf8_lossy(&f.src[f.start[t as usize] as usize..f.end[t as usize] as usize]).into_owned());
+        }
+    };
+    let mut paths: std::collections::BTreeSet<(String, String)> = std::collections::BTreeSet::new();
+    for a in 0..f.n as u32 {
+        if Some(f.kind[a as usize]) != alias {
+            continue;
+        }
+        let imp = f.parent[a as usize];
+        let is_from = Some(f.kind[imp as usize]) == from_k;
+        let mut level = 0;
+        let mut parts: Vec<String> = Vec::new();
+        if is_from {
+            for c in node_table::children_of(f.table, Position(imp)) {
+                let k = Some(f.kind[c.0 as usize]);
+                if k == alias {
+                    break;
+                }
+                if k == dot {
+                    level += 1;
+                } else if k == ell {
+                    level += 3;
+                } else if k == ident {
+                    names_of(f, c.0, &mut parts);
+                }
+            }
+        }
+        let id = node_table::children_of(f.table, Position(a)).iter().find(|c| Some(f.kind[c.0 as usize]) == ident).map(|c| c.0);
+        match id {
+            Some(i) => names_of(f, i, &mut parts),
+            None => {
+                if !is_from {
+                    continue;
+                }
+            }
+        }
+        if level != 0 || parts.is_empty() || parts[0].is_empty() {
+            continue;
+        }
+        paths.insert((parts[0].clone(), parts.join(".")));
+    }
+    let mut out = Table::with(names.clone(), tys.clone());
+    let col = |n: &str| names.iter().position(|c| c == n).expect("a column of the relation");
+    let (fc, rc, pc, mc, kc) = (col("file"), col("root"), col("path"), col("membership"), col("kind"));
+    let mut rows: std::collections::BTreeSet<(String, String)> = std::collections::BTreeSet::new();
+    for (root, path) in &paths {
+        let comps: Vec<&str> = path.split('.').filter(|c| !c.is_empty()).collect();
+        for i in 1..=comps.len() {
+            rows.insert((root.clone(), comps[..i].join(".")));
+        }
+    }
+    for (root, path) in rows {
+        let kinds = classified(run, &path);
+        // a present child of a parent that is not present cannot prove a project path
+        let present = |ks: &[&str]| ks.iter().any(|k| matches!(*k, "module" | "package" | "namespace"));
+        let kinds = match path.rsplit_once('.') {
+            Some((parent, _)) if present(&kinds) && !present(&classified(run, parent)) => vec!["unknown"],
+            _ => kinds,
+        };
+        for k in kinds {
+            let state = match k {
+                "module" | "package" | "namespace" => "present",
+                "absent" => "absent",
+                _ => "unknown",
+            };
+            let mut row = vec![0u64; names.len()];
+            row[fc] = u64::from(f.file);
+            row[rc] = u64::from(run.sym(root.as_bytes()));
+            row[pc] = u64::from(run.sym(path.as_bytes()));
+            row[mc] = u64::from(run.sym(state.as_bytes()));
+            row[kc] = u64::from(run.sym(k.as_bytes()));
+            out.push_row(&row);
+        }
+    }
+    Ok(out)
+}
+
+fn classified(run: &mut Run, dotted: &str) -> Vec<&'static str> {
+    if let Some(k) = run.classified.get(dotted) {
+        return k.clone();
+    }
+    let fs = dotted.replace('.', "/");
+    let (mut module, mut package, mut namespace) = (false, false, false);
+    for search in run.search_roots.clone() {
+        let base = if search.is_empty() { format!("{}/{fs}", run.root_dir) } else { format!("{}/{search}/{fs}", run.root_dir) };
+        let file = |p: &str| std::path::Path::new(p).is_file();
+        module |= file(&format!("{base}.py")) || file(&format!("{base}.pyi"));
+        let dir = std::path::Path::new(&base).is_dir();
+        let init = file(&format!("{base}/__init__.py")) || file(&format!("{base}/__init__.pyi"));
+        package |= dir && init;
+        namespace |= dir && !init;
+    }
+    let mut kinds = Vec::new();
+    for (p, k) in [(module, "module"), (package, "package"), (namespace, "namespace")] {
+        if p {
+            kinds.push(k);
+        }
+    }
+    if kinds.is_empty() {
+        kinds.push("absent");
+    }
+    run.classified.insert(dotted.to_owned(), kinds.clone());
+    kinds
+}
+
+/// `module-identity` for this file: inside a package (its directory holds `__init__.py`), the dotted path from the topmost
+/// such directory's parent, the module and package directory names and the topmost package's name (the provider's rule).
+fn module_identity(f: &File<'_>, run: &mut Run) -> R<Table> {
+    let (_, names, tys) = run.catalog("module-identity").ok_or("no module-identity")?;
+    let mut out = Table::with(names.clone(), tys);
+    let rel = run.paths[f.file as usize].clone();
+    let file = std::path::Path::new(&rel);
+    let mut dir = file.parent();
+    let mut package: Option<&std::path::Path> = None;
+    while let Some(d) = dir {
+        let init = std::path::Path::new(&run.root_dir).join(d).join("__init__.py");
+        if d.as_os_str().is_empty() || !init.is_file() {
+            break;
+        }
+        package = Some(d);
+        dir = d.parent();
+    }
+    let Some(package) = package else { return Ok(out) };
+    let Some(stem) = file.file_name().and_then(|n| n.to_str()).and_then(|n| n.strip_suffix(".pyi").or_else(|| n.strip_suffix(".py"))) else {
+        return Ok(out);
+    };
+    let top = package.parent().unwrap_or(std::path::Path::new(""));
+    let mut parts: Vec<String> = file.strip_prefix(top).ok().and_then(|r| r.parent()).map(|r| r.components().map(|c| c.as_os_str().to_string_lossy().into_owned()).collect()).unwrap_or_default();
+    parts.push(stem.to_owned());
+    let pkg_dir = file.parent().and_then(|p| p.file_name()).map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+    let root_name = package.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+    let mut row = vec![0u64; names.len()];
+    for (c, n) in names.iter().enumerate() {
+        row[c] = match n.as_str() {
+            "file" => u64::from(f.file),
+            "path" => u64::from(run.sym(parts.join(".").as_bytes())),
+            "module-name" => u64::from(run.sym(stem.as_bytes())),
+            "package-name" => u64::from(run.sym(pkg_dir.as_bytes())),
+            "package-root-name" => u64::from(run.sym(root_name.as_bytes())),
+            _ => NULL,
+        };
+    }
+    out.push_row(&row);
+    Ok(out)
 }

@@ -51,6 +51,7 @@ rustc-hash = "2"
 foldhash = "0.2"
 ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../../crates/relations" }
 regex = "1"
+unicode-width = "=0.2.2"
 
 [[test]]
 name = "allocation"
