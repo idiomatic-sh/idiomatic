@@ -16,7 +16,11 @@ let function_scopes = select id, file from stub_nodes where kind = "function-def
 let class_function_ancestors = axis(from=class_scopes, relation="semantic-child", direction=ancestor, domain=function_scopes);
 let class_scopes_in_functions = select id, file from class_function_ancestors;
 let variables = select l.assignment as assignment, l.target as target, r.name as name, r.scope as scope, l.file as file from simple_targets as l join variable_definitions as r on l.target = r.target and l.file = r.file;
-let module_variables = select l.assignment as assignment, l.target as target, l.name as name, l.file as file from variables as l join module_scopes as r on l.scope = r.scope and l.file = r.file where l.name != "__all__";
+let module_variables0 = select l.assignment as assignment, l.target as target, l.name as name, l.file as file from variables as l join module_scopes as r on l.scope = r.scope and l.file = r.file where l.name != "__all__";
+let module_targets = select target as id, file from module_variables0;
+let function_targets = axis(from=module_targets, relation="semantic-child", direction=ancestor, domain=function_scopes);
+let function_target_rows = select id as target, file from function_targets;
+let module_variables = antijoin(left=module_variables0, right=function_target_rows, left-on=["target", "file"], right-on=["target", "file"]);
 let class_variables0 = select l.assignment as assignment, l.target as target, l.name as name, l.scope as scope, l.file as file from variables as l join class_scopes as r on l.scope = r.id and l.file = r.file where l.name != "__slots__" and l.name != "__match_args__";
 let class_variables = antijoin(left=class_variables0, right=class_scopes_in_functions, left-on=["scope", "file"], right-on=["id", "file"]);
 let target_bindings = select occurrence, ordinal, file from "binding-event" where kind = "bind";

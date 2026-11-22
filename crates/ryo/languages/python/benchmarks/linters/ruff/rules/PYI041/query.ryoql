@@ -19,7 +19,7 @@ let register_receivers = select l.function as function, r.child as receiver, l.f
 let register_context_scopes = select l.function as context, r.parent as initial_scope, l.file as file from register_receivers as l join "scope" as r on l.function = r.child and l.file = r.file;
 let bind_events = select occurrence, ordinal, file from "binding-event" where kind = "bind";
 let register_contexts = select l.context as context, l.initial_scope as initial_scope, r.ordinal as point, l.file as file from register_context_scopes as l join bind_events as r on l.context = r.occurrence and l.file = r.file;
-let receiver_expressions = select receiver as id, file from register_receivers;
+let receiver_expressions = select function as context, receiver as id, file from register_receivers;
 let receiver_definitions = lookup_attribute(ordered_contexts=register_contexts, expressions=receiver_expressions);
 let resolved_registers = select l.function as function, r.definition as interface, l.file as file from register_receivers as l join receiver_definitions as r on l.function = r.context and l.receiver = r.expression and l.file = r.file;
 let dispatch_implementations = select l.function as function, l.file as file from resolved_registers as l join dispatch_interfaces as r on l.interface = r.function and l.file = r.file;

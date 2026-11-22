@@ -142,3 +142,138 @@ expected = []
 name = "noqa-codes-trailing-reason-suppress-mutable_list_default"
 files = { "case.py" = "def f(value=[]):  # noqa: B006 # why\n    pass\n" }
 expected = []
+
+[[cases]]
+name = "stub_dict_default"
+files = { "case.pyi" = "from typing import Any\ndef f(kwargs: dict[str, Any] = {}) -> None: ...\n" }
+expected = []
+
+[[cases]]
+name = "stub_list_default"
+files = { "case.pyi" = "def f(x=[]) -> None: ...\n" }
+expected = []
+
+[[cases]]
+name = "stub_set_call_default"
+files = { "case.pyi" = "def f(x=set()) -> None: ...\n" }
+expected = []
+
+[[cases]]
+name = "typed_dict_annotation_dict_default"
+files = { "case.py" = "from typing import TypedDict\nclass Opts(TypedDict, total=False):\n    a: int\ndef f(o: Opts = {}) -> None: ...\n" }
+expected = [{ file = "case.py", start = 92, end = 94 }]
+
+[[cases]]
+name = "imported_typed_dict_annotation_dict_default"
+files = { "case.py" = "from ._types import RequestOptions\ndef f(options: RequestOptions = {}) -> None: ...\n", "_types.py" = "from typing import TypedDict\nclass RequestOptions(TypedDict, total=False):\n    a: int\n" }
+expected = [{ file = "case.py", start = 67, end = 69 }]
+
+[[cases]]
+name = "string_typed_dict_annotation_dict_default"
+files = { "case.py" = "from typing import TypedDict\nclass Opts(TypedDict, total=False):\n    a: int\ndef f(o: \"Opts\" = {}) -> None: ...\n" }
+expected = [{ file = "case.py", start = 94, end = 96 }]
+
+[[cases]]
+name = "keyword_only_list_default"
+files = { "case.py" = "def f(*, x=[]):\n    pass\n" }
+expected = [{ file = "case.py", start = 11, end = 13 }]
+
+[[cases]]
+name = "keyword_only_typed_dict_default"
+files = { "case.py" = "from typing import TypedDict\nclass Opts(TypedDict, total=False):\n    a: int\nclass C:\n    def get(self, path: str, *, options: Opts = {}, stream: bool = False) -> None: ...\n" }
+expected = [{ file = "case.py", start = 133, end = 135 }]
+
+[[cases]]
+name = "keyword_only_immutable_annotation_default"
+files = { "case.py" = "def f(*, x: tuple = []):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "collections_ordered_dict_call_default"
+files = { "case.py" = "import collections\ndef f(v=collections.OrderedDict()):\n    pass\n" }
+expected = [{ file = "case.py", start = 27, end = 52 }]
+
+[[cases]]
+name = "collections_defaultdict_call_default"
+files = { "case.py" = "import collections\ndef f(v=collections.defaultdict()):\n    pass\n" }
+expected = [{ file = "case.py", start = 27, end = 52 }]
+
+[[cases]]
+name = "collections_deque_call_default"
+files = { "case.py" = "import collections\ndef f(v=collections.deque()):\n    pass\n" }
+expected = [{ file = "case.py", start = 27, end = 46 }]
+
+[[cases]]
+name = "imported_counter_call_default"
+files = { "case.py" = "from collections import Counter\ndef f(v=Counter()):\n    pass\n" }
+expected = [{ file = "case.py", start = 40, end = 49 }]
+
+[[cases]]
+name = "imported_ordered_dict_call_default"
+files = { "case.py" = "from collections import OrderedDict\ndef f(v=OrderedDict()):\n    pass\n" }
+expected = [{ file = "case.py", start = 44, end = 57 }]
+
+[[cases]]
+name = "chain_map_call_default"
+files = { "case.py" = "from collections import ChainMap\ndef f(v=ChainMap()):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "user_dict_call_default"
+files = { "case.py" = "from collections import UserDict\ndef f(v=UserDict()):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "bytearray_call_default"
+files = { "case.py" = "def f(v=bytearray()):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "list_comprehension_default"
+files = { "case.py" = "def f(v=[i for i in range(3)]):\n    pass\n" }
+expected = [{ file = "case.py", start = 8, end = 29 }]
+
+[[cases]]
+name = "dict_comprehension_default"
+files = { "case.py" = "def f(v={i: i for i in range(3)}):\n    pass\n" }
+expected = [{ file = "case.py", start = 8, end = 32 }]
+
+[[cases]]
+name = "set_comprehension_default"
+files = { "case.py" = "def f(v={i for i in range(3)}):\n    pass\n" }
+expected = [{ file = "case.py", start = 8, end = 29 }]
+
+[[cases]]
+name = "generator_default"
+files = { "case.py" = "def f(v=(i for i in range(3))):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "lambda_list_default"
+files = { "case.py" = "f = lambda x=[]: x\n" }
+expected = []
+
+[[cases]]
+name = "lambda_dict_default_in_call"
+files = { "case.py" = "g(lambda l, spam={\"x\": 3}: spam.get(l))\n" }
+expected = []
+
+[[cases]]
+name = "nested_lambda_dict_default"
+files = { "case.py" = "lambda x=lambda y={1: 3}: y: x\n" }
+expected = []
+
+[[cases]]
+name = "typing_extensions_annotated_default"
+files = { "case.py" = "import typing_extensions\nfrom typing import Sequence\ndef f(v: typing_extensions.Annotated[Sequence[int], \"x\"] = []):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "typing_extensions_optional_default"
+files = { "case.py" = "import typing_extensions\nfrom typing import Sequence\ndef f(v: typing_extensions.Optional[Sequence[int]] = []):\n    pass\n" }
+expected = [{ file = "case.py", start = 106, end = 108 }]
+
+[[cases]]
+name = "typing_extensions_union_default"
+files = { "case.py" = "import typing_extensions\nfrom typing import Sequence\ndef f(v: typing_extensions.Union[Sequence[int], None] = []):\n    pass\n" }
+expected = [{ file = "case.py", start = 109, end = 111 }]

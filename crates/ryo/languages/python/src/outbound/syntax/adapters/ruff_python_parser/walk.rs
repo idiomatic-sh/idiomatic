@@ -7,7 +7,6 @@ use super::future::module_future_annotations;
 use super::lexical::{complete, offset, readable};
 use super::options::options;
 use super::types::{ByteIndex, Depth, FutureAnnotations, Readable, TokenIndex, Walker};
-use crate::domain::model::types::BindingAnnotationTiming;
 use crate::domain::node::types::Walked;
 use crate::domain::node::types::{WalkedTree, Wholeness};
 use crate::outbound::syntax::types::{PythonSourceKind, ReportedSyntax, SourceText};
@@ -120,6 +119,7 @@ pub(super) fn walked(
         parsed_tokens: parsed.tokens(),
         refused: Vec::new(),
         future_annotations,
+        annotation_timing: super::future::annotation_timing(future_annotations, source_kind),
         length: offset(ByteIndex(text.0.len())),
         nodes: Vec::new(),
         parents: Vec::new(),
@@ -192,6 +192,7 @@ pub(super) fn walked(
         let mut semantic = if parsed.errors().is_empty() {
             semantic_syntax_errors(
                 parsed.syntax(),
+                NameText(&source),
                 options(source_kind, settings).target_version(),
                 future_annotations,
             )
@@ -239,11 +240,7 @@ pub(super) fn walked(
         nodes,
         parents,
         ends: subtree_ends,
-        annotations: if future_annotations.0 {
-            BindingAnnotationTiming::Deferred
-        } else {
-            BindingAnnotationTiming::Immediate
-        },
+        annotations: super::future::annotation_timing(future_annotations, source_kind),
         strings: literals,
         imports,
         segments: Vec::new(),

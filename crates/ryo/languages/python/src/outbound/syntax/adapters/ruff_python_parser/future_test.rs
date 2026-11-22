@@ -247,6 +247,34 @@ fn separating_lazy_cause_preserves_placement_and_unknown_feature_causes() {
     }
 }
 
+/// The `binding-use` rows of `source` read under `path` at Python 3.10.
+fn uses_of(path: &str, source: &'static str) -> usize {
+    let report = languages::contract::reading::<
+        crate::domain::relations::collections::relations::binding_use::item::BindingUseItem,
+    >(
+        &crate::linked_with_settings(PythonParserSettings::new(PythonTargetVersion::Py310)),
+        languages::SourcePath(path),
+        languages::SampleText(source),
+    )
+    .expect("Python source is recognized");
+    assert!(report.causes.is_empty(), "{:?}", report.causes);
+    report.rows.len()
+}
+
+/// A stub is never run: its annotations are postponed, as under the future import, so an annotation reads the class
+/// defined after it (two uses of `Later`); a module's annotation evaluated where it stands reads nothing.
+fn stub_annotations_read_definitions_that_follow_them() {
+    const LATER: &str = "def f(value: Later) -> Later: ...\nclass Later: ...\n";
+    const FUTURE: &str =
+        "from __future__ import annotations\ndef f(value: Later) -> Later: ...\nclass Later: ...\n";
+    let counts = (
+        uses_of("case.py", LATER),
+        uses_of("case.pyi", LATER),
+        uses_of("case.py", FUTURE),
+    );
+    assert_eq!(counts, (0, 2, 2));
+}
+
 /// Which of the file's cases a row runs.
 #[derive(Clone, Copy, Debug)]
 enum Body {
@@ -258,6 +286,8 @@ enum Body {
     FutureAnnotationsUseOnlyValidCompilerDirectives,
     /// The case `malformed_future_import_never_enables_a_compiler_feature`.
     MalformedFutureImportNeverEnablesACompilerFeature,
+    /// The case `stub_annotations_read_definitions_that_follow_them`.
+    StubAnnotationsReadDefinitionsThatFollowThem,
 }
 
 /// The rows of the cases whose bodies assert for themselves.
@@ -288,6 +318,12 @@ const CASES: &[Case<Body, (), ()>] = &[
         input: || Body::MalformedFutureImportNeverEnablesACompilerFeature,
         expect: Expect::Value(()),
     },
+    Case {
+        name: CaseName("stub_annotations_read_definitions_that_follow_them"),
+        word: Word::Succeeds,
+        input: || Body::StubAnnotationsReadDefinitionsThatFollowThem,
+        expect: Expect::Value(()),
+    },
 ];
 
 /// Runs the body of one case.
@@ -304,6 +340,9 @@ fn body(given: Body) -> Result<(), ()> {
         }
         Body::MalformedFutureImportNeverEnablesACompilerFeature => {
             malformed_future_import_never_enables_a_compiler_feature()
+        }
+        Body::StubAnnotationsReadDefinitionsThatFollowThem => {
+            stub_annotations_read_definitions_that_follow_them()
         }
     }
     Ok(())

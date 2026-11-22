@@ -2,6 +2,7 @@
 
 pub(crate) mod adapter;
 mod annotation;
+mod compile_checks;
 mod constants;
 mod declaration;
 #[cfg(any(test, feature = "fixtures"))]
@@ -28,6 +29,9 @@ mod writer;
 
 #[cfg(test)]
 mod declaration_test;
+
+#[cfg(test)]
+mod compile_checks_test;
 
 #[cfg(test)]
 mod scopes_test;

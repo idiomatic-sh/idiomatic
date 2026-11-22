@@ -82,3 +82,28 @@ expected = [{ file = "case.pyi", start = 22, end = 35 }]
 name = "shared-file-ignore"
 files = { "case.pyi" = "# ruff: file-ignore[PYI017]\nobj.value = 1\n" }
 expected = []
+
+[[cases]]
+name = "stub_attribute_assignment_in_method"
+files = { "case.pyi" = "class T:\n    def __init__(self, name: str):\n        self.name = name\n" }
+expected = []
+
+[[cases]]
+name = "stub_assignments_in_function_branch"
+files = { "case.pyi" = "def f():\n    a.b = 1\n    if x:\n        c.d = 2\n" }
+expected = []
+
+[[cases]]
+name = "stub_multiple_targets_in_method"
+files = { "case.pyi" = "class T:\n    def m(self):\n        x, y = 1, 2\n" }
+expected = []
+
+[[cases]]
+name = "stub_class_attribute_assignment"
+files = { "case.pyi" = "class T:\n    a.b = 1\n" }
+expected = [{ file = "case.pyi", start = 13, end = 20 }]
+
+[[cases]]
+name = "stub_module_branch_attribute_assignment"
+files = { "case.pyi" = "import sys\nif sys.version_info > (3, 8):\n    e.f = 1\n" }
+expected = [{ file = "case.pyi", start = 45, end = 52 }]
