@@ -11,7 +11,7 @@
 //! interpreter's `select` too (`VEC_KSEL_LOG=<path>` lists each node's path once a run).
 
 use super::{E, Exec, File, Op, Provider, R, Run, Src, Table, Ty, V, NULL};
-use super::{bucket, bucket_len, compare, distinct, eval, get, index_of, key_of, kind_set, kinds_required, lit_rows, refs_of, table_index, text_of, truthy, view_rows};
+use super::{bucket, bucket_len, compare, distinct, eval, get, index_of, key_of, kind_set, kinds_required, lit_rows, refs_of, table_index, text_of, truthy, view_holds, view_rows};
 use rustc_hash::FxHashSet;
 use serde_json::Value as J;
 use std::cell::RefCell;
@@ -217,13 +217,16 @@ pub(super) fn lit_file(f: &mut File<'_>, key: usize, conj: &[E], si: usize, base
     if f.vrows.contains_key(&(key | ABSENT)) {
         return None;
     }
-    match lit_rows(f, conj, si, base, map) {
-        Some(r) => {
-            let rc = Rc::new(r);
+    // redo-alloc: the rows made into a kept list (recycle.rs)
+    let mut hit = false;
+    let rc = super::recycle::rows_with(|o| hit = super::lit_rows_into(f, conj, si, base, map, o));
+    match hit {
+        true => {
             f.vrows.insert(key, rc.clone());
             Some(rc)
         }
-        None => {
+        false => {
+            super::recycle::recycle_rows(rc);
             // redo-alloc: the run's one empty list marks it (no list made a mark)
             f.vrows.insert(key | ABSENT, super::recycle::no_rows());
             None
