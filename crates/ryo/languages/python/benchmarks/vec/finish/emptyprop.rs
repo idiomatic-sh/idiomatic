@@ -246,7 +246,12 @@ struct Leaf {
     own: bool,
     lit: bool,
     fields: Box<[u32]>,
+    /// cycle 4: the view's own rows decide it (its entry is a kind bucket or a literal's rows; read where small)
+    rows: bool,
 }
+
+/// cycle 4: a view's rows are read for its emptiness only where its entry has at most this many rows.
+const VIEW_ENTRY_CAP: usize = 64;
 
 const NO_FACT: u16 = u16::MAX;
 
@@ -354,8 +359,9 @@ impl Exec<'_> {
         if let Ok(Some(v)) = self.view(run, node) {
             let (lit, fields) = tests(&v.filter, 0, v.base, &[]);
             let fact = if let Native::Fact(i) = v.base { i } else { NO_FACT };
-            if fact != NO_FACT || !fields.is_empty() {
-                out.push(Leaf { src: 0, fact, own: fact != NO_FACT, lit, fields: fields.into() });
+            let rows = !sw!("VEC_EP_NO_VIEW") && !v.filter.is_empty() && (lit || super::kind_set(run, &v.filter, 0, v.base, &[]).is_some());
+            if fact != NO_FACT || !fields.is_empty() || rows {
+                out.push(Leaf { src: 0, fact, own: fact != NO_FACT, lit, fields: fields.into(), rows });
             }
         } else if self.plan.nodes[node].op == "select"
             && let Ok(sp) = self.sel(run, node)
@@ -365,7 +371,7 @@ impl Exec<'_> {
                     let (lit, fields) = tests(&sp.conj, i, v.base, &v.map);
                     let fact = if let Native::Fact(x) = v.base { x } else { NO_FACT };
                     if (fact != NO_FACT && lit) || !fields.is_empty() {
-                        out.push(Leaf { src: i as u8, fact, own: false, lit: lit && fact != NO_FACT, fields: fields.into() });
+                        out.push(Leaf { src: i as u8, fact, own: false, lit: lit && fact != NO_FACT, fields: fields.into(), rows: false });
                     }
                 }
             }
@@ -398,6 +404,9 @@ impl Exec<'_> {
             if !lf.fields.is_empty() && !self.ep_field_present(f, run, &lf.fields) {
                 return true;
             }
+            if lf.rows && self.ep_view_rows_empty(f, run, p, node) {
+                return true;
+            }
             if lf.fact == NO_FACT || (!lf.own && !lf.lit) {
                 continue;
             }
@@ -425,6 +434,22 @@ impl Exec<'_> {
             }
         }
         false
+    }
+
+    /// cycle 4: whether a view has no row in this file (its entry, then its tests), read only where its entry is small.
+    fn ep_view_rows_empty(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> bool {
+        let Ok(Some(v)) = self.view(run, node) else { return false };
+        if self.load_fact(f, run, p, v.base).is_err() || !self.ep_fact_ready(f, v.base) {
+            return false;
+        }
+        let entry = match super::kind_set(run, &v.filter, 0, v.base, &[]) {
+            Some(ks) => super::bucket_len(f, run, &ks),
+            None => match lit_rows(f, &v.filter, 0, v.base, &[]) {
+                Some(r) => r.len(),
+                None => return false,
+            },
+        };
+        entry <= VIEW_ENTRY_CAP && view_rows(f, run, &v, node).is_empty()
     }
 
     /// Whether the file has a child under one of these field names.
