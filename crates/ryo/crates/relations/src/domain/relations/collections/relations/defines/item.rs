@@ -38,6 +38,7 @@ macro_rules! defines {
             form Filled(Many(Id)),
             size PerElement,
             keys [],
+            spells [Name: Whole],
             columns {
                 /// The declaration: its file and where it starts.
                 id Id: NodeId => Node;

@@ -26,6 +26,7 @@ macro_rules! qualified_name {
             form Filled(Many(Id)),
             size PerElement,
             keys [],
+            spells [Path: LastSegment],
             columns {
                 /// The load expression, including nested attribute prefixes.
                 id Id: NodeId => Node;

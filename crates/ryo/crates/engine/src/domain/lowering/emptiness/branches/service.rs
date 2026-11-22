@@ -74,8 +74,10 @@ fn relation_need(
     let filled = matches!(fact_form(relation), FactForm::Filled(_));
     let mut valued = false;
     for (column, cell) in columns(relation).into_iter().zip(cells) {
+        // A node relation's row is asked by its kind, its field, or the token text it holds: each a set of the file's
+        // read once a file.
         let decided = match (filled, node_column(column)) {
-            (true, _) | (false, Some(NodeColumn::Kind | NodeColumn::Field)) => true,
+            (true, _) | (false, Some(NodeColumn::Kind | NodeColumn::Field | NodeColumn::Text)) => true,
             (false, _) => false,
         };
         let value = cell

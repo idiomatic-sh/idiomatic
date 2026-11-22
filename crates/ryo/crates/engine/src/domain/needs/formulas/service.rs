@@ -5,7 +5,11 @@
 use super::types::{AskRank, FormulaNode};
 use crate::domain::code::records::service::need_at;
 use crate::domain::code::records::types::NeedRecord;
-use crate::domain::code::types::{NeedSite, ProgramCode, WordSlot};
+use crate::domain::code::constants::NO_SLOT;
+use crate::domain::code::types::{NeedSite, ProgramCode, RelationNumber, WordSlot};
+use ryo_relations::domain::catalog::service::spelled;
+use ryo_relations::domain::catalog::types::Spelling;
+use ryo_relations::domain::relations::service::columns;
 use crate::domain::needs::masks::service::numbered;
 use crate::domain::needs::masks::types::{
     MustWord, NeedMasks, NeedTerm, RecordCost, Stretch, TermNumber,
@@ -294,9 +298,46 @@ fn term_node(code: &ProgramCode, masks: &mut NeedMasks, term: NeedTerm, at: Word
     if let Some(node) = masks.formulas.leaves.get(&(0, number.0)).copied() {
         return node;
     }
-    let node = term_pushed(masks, number);
+    let mut node = term_pushed(masks, number);
+    // A row of a filled relation held to a constant in a column its item declares spelled cannot exist in a file that
+    // spells no token so: the term that asks the file for that token, which costs nothing, goes before it.
+    if let NeedTerm::Row {
+        relation,
+        column,
+        constant,
+    } = term
+        && column != NO_SLOT
+        && constant != NO_SLOT
+        && let Some(spelling) = spelling_of(code, relation, column)
+        && !spelled_off()
+    {
+        let spelled = numbered(code, masks, NeedTerm::Spelled { constant, spelling }, NO_SLOT);
+        let bit = term_pushed(masks, spelled);
+        node = joined(masks, vec![bit, node], true);
+    }
     let _was = masks.formulas.leaves.insert((0, number.0), node);
     node
+}
+
+/// SPIKE: whether the spelled terms are left out (`RYO_X_NO_SPELLED`, read once), to count what they decide.
+fn spelled_off() -> bool {
+    static OFF: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *OFF.get_or_init(|| std::env::var_os("RYO_X_NO_SPELLED").is_some())
+}
+
+/// How the column at a place of a relation the code reads is spelled, when its item declares it.
+fn spelling_of(code: &ProgramCode, relation: RelationNumber, column: WordSlot) -> Option<Spelling> {
+    let read = code
+        .relations
+        .get(usize::try_from(relation.0).unwrap_or(usize::MAX))
+        .copied()?;
+    let named = columns(read)
+        .get(usize::try_from(column.0).unwrap_or(usize::MAX))
+        .copied()?;
+    spelled(read)
+        .iter()
+        .find(|(held, _)| *held == named)
+        .map(|(_, spelling)| *spelling)
 }
 
 /// The node of a term met the first time.

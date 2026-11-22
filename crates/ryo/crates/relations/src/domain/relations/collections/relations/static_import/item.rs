@@ -36,6 +36,7 @@ macro_rules! static_import {
             form Filled(Many(Occurrence)),
             size PerElement,
             keys [],
+            spells [Target: LastSegment],
             columns {
                 /// The import: its file and where it starts.
                 occurrence Occurrence: NodeId => Node;

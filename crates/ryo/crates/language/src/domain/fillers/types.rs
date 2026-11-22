@@ -185,7 +185,7 @@ macro_rules! filler_method {
     (
         $module:ident item $item:ident, row { $( #[$row_doc:meta] )* $row:ident }, column $column:tt, expected $expected:tt,
         class $class:ident, scope $scope:ident, notes $notes:ident, form Filled $key:tt, size $size:ident, keys $keys:tt,
-        columns $columns:tt
+        $( spells $spells:tt, )? columns $columns:tt
     ) => {
         /// Appends the wanted rows of the relation of its name for the file, and says which it wrote, or answers why the
         /// relation is absent.
@@ -226,7 +226,7 @@ macro_rules! no_filler {
     (
         $module:ident item $item:ident, row { $( #[$row_doc:meta] )* $row:ident }, column $column:tt, expected $expected:tt,
         class $class:ident, scope $scope:ident, notes $notes:ident, form Filled $key:tt, size $size:ident, keys $keys:tt,
-        columns $columns:tt
+        $( spells $spells:tt, )? columns $columns:tt
     ) => {
         fn $module(
             _file: &mut Self::File<'_>,
@@ -342,7 +342,7 @@ macro_rules! fill_arm {
     (
         $module:ident, $walk:ident, $file:ident, $relation:ident, $wanted:ident, $words:ident, $out:ident
         item $item:ident, row $row:tt, column $column:tt, expected $expected:tt, class $class:ident,
-        scope $scope:ident, notes $notes:ident, form Filled $key:tt, size $size:ident, keys $keys:tt, columns $columns:tt
+        scope $scope:ident, notes $notes:ident, form Filled $key:tt, size $size:ident, keys $keys:tt, $( spells $spells:tt, )? columns $columns:tt
     ) => {
         if $relation == ::ryo_relations::domain::relations::types::Relation::$item {
             type Item =

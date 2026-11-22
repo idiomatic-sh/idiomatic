@@ -2,6 +2,8 @@
 //! them.
 
 use crate::domain::needs::formulas::types::{FreeValue, NeedFormulas};
+use crate::domain::needs::spelled::types::{SpelledFile, SpelledTexts};
+use ryo_relations::domain::catalog::types::Spelling;
 use crate::domain::code::types::{PoolAt, RelationNumber, WordSlot};
 use ryo_relations::domain::relations::types::Count;
 
@@ -20,6 +22,14 @@ pub(crate) enum NeedTerm {
         column: WordSlot,
         /// The constant's number, or `NO_SLOT`.
         constant: WordSlot,
+    },
+    /// A token of the file spelling the constant's text, as a column the catalog declares spelled spells it: what a row
+    /// held to the constant there cannot exist without. It costs nothing: one pass over the file's tokens answers all.
+    Spelled {
+        /// The constant's number.
+        constant: WordSlot,
+        /// How the column spells it.
+        spelling: Spelling,
     },
 }
 
@@ -100,6 +110,12 @@ pub(crate) struct NeedMasks {
     pub(crate) node_asks: Vec<NodeAsk>,
     /// Each site's formula compiled, at the site's first decision.
     pub(crate) formulas: NeedFormulas,
+    /// The texts the terms ask a file to spell, numbered.
+    pub(crate) spelled: SpelledTexts,
+    /// For each term that asks a file to spell a text, the text's number and one more; nought: none, or not found yet.
+    pub(crate) term_texts: Vec<u32>,
+    /// How many terms `term_texts` has looked at.
+    pub(crate) texts_found: usize,
 }
 
 /// A file's answers to the terms, each asked at most once a file: a bit for "asked" and a bit for "holds".
@@ -117,4 +133,6 @@ pub(crate) struct TermAnswers {
     /// What each site's formula says of the file from the free terms alone, by the site's number: found at most once a
     /// file.
     pub(crate) sites: Vec<FreeValue>,
+    /// What the file spells of the texts the terms ask for: read on the first such ask of the file.
+    pub(crate) spelled: SpelledFile,
 }

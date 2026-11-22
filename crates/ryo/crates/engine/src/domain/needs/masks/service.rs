@@ -44,7 +44,7 @@ pub(crate) fn numbered(
         let number = TermNumber(u32::try_from(terms.len()).unwrap_or(u32::MAX));
         terms.push(term);
         let cost = match term {
-            NeedTerm::Kinds(_) => RecordCost::Free,
+            NeedTerm::Kinds(_) | NeedTerm::Spelled { .. } => RecordCost::Free,
             NeedTerm::Row { relation, .. } if node_relation(code, relation) => RecordCost::Free,
             NeedTerm::Row {
                 column, constant, ..
@@ -60,6 +60,10 @@ pub(crate) fn numbered(
         }
         number
     });
+    // A term made from another (no record of its own: `NO_SLOT`) is no leaf of the walk.
+    if at == NO_SLOT {
+        return number;
+    }
     let place = usize::try_from(at.0).unwrap_or(usize::MAX);
     if leaves.len() <= place {
         leaves.resize(place.saturating_add(1), 0);

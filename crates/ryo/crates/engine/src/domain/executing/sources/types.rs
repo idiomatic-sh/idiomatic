@@ -15,6 +15,13 @@ use crate::domain::made_tables::types::ReadSource;
 use crate::domain::needs::formulas::service::{node_musts, site_root};
 use crate::domain::needs::formulas::types::{FormulaNode, FreeValue};
 use crate::domain::needs::masks::types::{NeedTerm, RecordCost, Stretch, TermNumber};
+use crate::domain::needs::spelled::service::{file_read, spelled, text_number};
+use ryo_language::domain::facts::service::{base_count, text};
+use ryo_relations::domain::catalog::service::{node_column, node_extent};
+use ryo_relations::domain::catalog::types::Spelling;
+use ryo_relations::domain::relations::types::{NodeColumn, NodeExtent};
+use ryo_values::domain::plan_parts::service::relation_column;
+use ryo_values::domain::plan_parts::types::ColumnIndex;
 use crate::domain::needs::service::decided;
 use crate::domain::needs::types::{NeedFacts, NeedVerdict};
 use crate::domain::programs::frames::types::StepFrame;
@@ -25,10 +32,10 @@ use ryo_relations::domain::relations::types::{Count, KindBits};
 
 /// SPIKE: what a measuring worker's decisions visited, for the run: decisions, nodes valued from the free bits, nodes
 /// asked, nodes whose musts failed. Printed by `counting::service::counted`.
-pub(crate) static NEED_VISITS: [std::sync::atomic::AtomicU64; 4] = [const { std::sync::atomic::AtomicU64::new(0) }; 4];
+pub(crate) static NEED_VISITS: [std::sync::atomic::AtomicU64; 6] = [const { std::sync::atomic::AtomicU64::new(0) }; 6];
 
 /// SPIKE: counts one visit of kind `which` when the worker measures.
-fn visit(state: &crate::domain::scratch::types::LoopState, which: usize) {
+pub(crate) fn visit(state: &crate::domain::scratch::types::LoopState, which: usize) {
     if state.measure.is_some()
         && let Some(count) = NEED_VISITS.get(which)
     {
@@ -211,7 +218,7 @@ impl FileNeeds<'_, '_, '_> {
                     format!("{named}:value")
                 }
             }
-            Some(NeedTerm::Kinds(_)) | None => "?".to_owned(),
+            Some(NeedTerm::Kinds(_) | NeedTerm::Spelled { .. }) | None => "?".to_owned(),
         }
     }
 
@@ -669,9 +676,115 @@ impl FileNeeds<'_, '_, '_> {
                 relation,
                 column,
                 constant,
-            }) => self.relation_decided(relation, column, constant),
+            }) => match self.text_spelled(term) {
+                Some(verdict) => verdict,
+                None => self.relation_decided(relation, column, constant),
+            },
+            Some(NeedTerm::Spelled { .. }) => self.text_spelled(term).unwrap_or(NeedVerdict::Holds),
             None => NeedVerdict::Holds,
         }
+    }
+
+    /// The text a term asks the file to spell, and whether the file's own tree must spell it: a spelled term's, the
+    /// constant's text as its column spells it; a row of a node relation held to a constant text in its `Text` column,
+    /// that text (the column holds a token's exact text), in the relation's extent. None for any other term.
+    fn term_text(&self, term: TermNumber) -> Option<(String, bool)> {
+        let code = self.0.fill.programs.code;
+        let words = &*self.0.fill.words;
+        let cell = |constant: WordSlot| {
+            code.constants
+                .get(usize::try_from(constant.0).unwrap_or(usize::MAX))
+                .copied()
+        };
+        match self
+            .0
+            .state
+            .need_masks
+            .terms
+            .get(usize::try_from(term.0).unwrap_or(usize::MAX))
+            .copied()?
+        {
+            NeedTerm::Spelled { constant, spelling } => {
+                let whole = text(words, cell(constant)?).0;
+                let spelled = match spelling {
+                    Spelling::Whole => whole,
+                    Spelling::LastSegment => whole.rsplit('.').next().unwrap_or(whole),
+                };
+                Some((spelled.to_owned(), false))
+            }
+            NeedTerm::Row {
+                relation,
+                column,
+                constant,
+            } if column != NO_SLOT && constant != NO_SLOT => {
+                let read = code
+                    .relations
+                    .get(usize::try_from(relation.0).unwrap_or(usize::MAX))
+                    .copied()?;
+                let extent = node_extent(read)?;
+                let named = relation_column(read, ColumnIndex(column.0)).and_then(node_column)?;
+                if named != NodeColumn::Text {
+                    return None;
+                }
+                let cell = cell(constant)?;
+                // A constant that is no text of the pack (a number) is held by no token.
+                if cell >= base_count(words) {
+                    return None;
+                }
+                Some((text(words, cell).0.to_owned(), extent == NodeExtent::Own))
+            }
+            NeedTerm::Row { .. } | NeedTerm::Kinds(_) => None,
+        }
+    }
+
+    /// Numbers the texts of the terms met since last time, so that one pass over the file's tokens answers them all.
+    fn texts_found(&mut self) {
+        let all = self.0.state.need_masks.terms.len();
+        let from = self.0.state.need_masks.texts_found;
+        if from >= all {
+            return;
+        }
+        for place in from..all {
+            let term = TermNumber(u32::try_from(place).unwrap_or(u32::MAX));
+            let number = self.term_text(term).map_or(0, |(found, own)| {
+                let number = text_number(&mut self.0.state.need_masks.spelled, &found);
+                // The low bit says the own tree must spell it.
+                (number.saturating_add(1) << 1) | u32::from(own)
+            });
+            let texts = &mut self.0.state.need_masks.term_texts;
+            if texts.len() <= place {
+                texts.resize(place.saturating_add(1), 0);
+            }
+            if let Some(held) = texts.get_mut(place) {
+                *held = number;
+            }
+        }
+        self.0.state.need_masks.texts_found = all;
+    }
+
+    /// Whether the file spells the text a term asks for, the file's tokens read on the first such ask; none for a term
+    /// that asks no text.
+    fn text_spelled(&mut self, term: TermNumber) -> Option<NeedVerdict> {
+        self.texts_found();
+        let held = self
+            .0
+            .state
+            .need_masks
+            .term_texts
+            .get(usize::try_from(term.0).unwrap_or(usize::MAX))
+            .copied()
+            .filter(|held| *held != 0)?;
+        let (number, own) = ((held >> 1).saturating_sub(1), held & 1 == 1);
+        let texts = &self.0.state.need_masks.spelled;
+        let file = &mut self.0.state.need_terms.spelled;
+        if file.known < texts.numbers.len() {
+            file_read(texts, self.0.fill.source, self.0.fill.nodes, file);
+        }
+        Some(if spelled(file, number, own) {
+            NeedVerdict::Holds
+        } else {
+            NeedVerdict::Empty
+        })
     }
 
     /// Whether the relation has a row in the file, with the constant in the column when both are given.

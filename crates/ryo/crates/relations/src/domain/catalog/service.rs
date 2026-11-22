@@ -283,6 +283,26 @@ macro_rules! declared_lookups {
             }
         }
 
+        /// The columns of a filled relation whose text a file that has a row holding it spells as a token, and how, as its
+        /// item declares them (`spells`). None for a relation that declares none, and for a `NodeTable` relation.
+        ///
+        /// # Examples
+        ///
+        /// ```
+        /// use ryo_relations::domain::catalog::service::spelled;
+        /// use ryo_relations::domain::relations::types::Relation;
+        ///
+        /// assert!(spelled(Relation::TokenLink).is_empty());
+        /// ```
+        #[must_use]
+        pub fn spelled(
+            relation: crate::domain::relations::types::Relation,
+        ) -> &'static [(crate::domain::relations::types::Column, crate::domain::catalog::types::Spelling)] {
+            match relation {
+                $( $( crate::domain::relations::types::Relation::$variant => <crate::domain::relations::collections::relations::$module::item::$variant as crate::domain::relations::collections::relations::interface::RelationsItem>::SPELLS, )* )*
+            }
+        }
+
         /// The columns of a relation that every language that fills it promises a fill by key for, as its item declares them
         /// (`keys`): a fill asked by one of them never writes the relation whole. None for a relation that declares none, and
         /// for a `NodeTable` relation. It is not the key the engine indexes a whole fill by (`fact_form`): each says what the
