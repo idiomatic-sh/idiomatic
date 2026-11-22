@@ -926,6 +926,16 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     }
     let seed_set: HashMap<&str, usize> = plan.seeds.iter().enumerate().map(|(k, r)| (r.as_str(), k)).collect();
     let emit_seeded: Vec<bool> = emits.iter().map(|e| seed_set.contains_key(e.0.as_str())).collect();
+    // the not-seeded emits a seed names, by file, in emit order
+    let mut seed_idx: HashMap<&str, Vec<usize>> = HashMap::new();
+    {
+        let by_name: HashMap<&str, usize> = emits.iter().enumerate().map(|(i, e)| (e.0.as_str(), i)).collect();
+        for (path, rules) in &seed_by_path {
+            let mut v: Vec<usize> = rules.iter().filter_map(|r| by_name.get(r).copied()).filter(|i| !emit_seeded[*i]).collect();
+            v.sort_unstable();
+            seed_idx.insert(path, v);
+        }
+    }
     let mut run = finish::Run::default();
     run.empty = run.sym(b"");
     run.links();
@@ -952,6 +962,7 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     let mut scratch = Default::default();
     let mut findings: Vec<String> = Vec::new();
     let mut failed: HashMap<String, String> = HashMap::new();
+    let mut failed_idx = vec![false; emits.len()];
     let (mut provider_time, mut provider_rows, mut file_time, mut walk_time) = (0f64, 0u64, 0f64, 0f64);
     let mut by_rel: HashMap<String, (f64, u64, u64)> = HashMap::new();
     let mut check_lines: Vec<String> = Vec::new();
@@ -964,18 +975,23 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
         // 7: the (rule, file) seeds read by file once, not a key copied per rule
         let seed_here = seed_by_path.get(path.as_str());
         let surv_here = surv_by_path.get(path.as_str());
-        let wanted: Vec<&&(String, usize, String, Vec<String>)> = emits
-            .iter()
-            .zip(&emit_seeded)
-            .filter(|(e, seeded)| {
-                if **seeded {
-                    surv_here.is_some_and(|s| s.contains(e.0.as_str()))
-                } else {
-                    seed.is_none() || seed_here.is_some_and(|s| s.contains(e.0.as_str()))
-                }
-            })
-            .map(|(e, _)| e)
-            .collect();
+        // pass 2: the file's emits by index (the seed's rules of this file, by emit, made once), not a name hashed an emit
+        let wanted: Vec<(usize, &&(String, usize, String, Vec<String>))> = match (&seed, seed_idx.get(path.as_str())) {
+            (Some(_), Some(ix)) if surv_here.is_none() => ix.iter().map(|i| (*i, &emits[*i])).collect(),
+            _ => emits
+                .iter()
+                .enumerate()
+                .zip(&emit_seeded)
+                .filter(|((_, e), seeded)| {
+                    if **seeded {
+                        surv_here.is_some_and(|s| s.contains(e.0.as_str()))
+                    } else {
+                        seed.is_none() || seed_here.is_some_and(|s| s.contains(e.0.as_str()))
+                    }
+                })
+                .map(|(e, _)| e)
+                .collect(),
+        };
         // pass 2: no survivor lists given: every set empty, without a lookup a set a file
         let seeds_here: Vec<Vec<u32>> = if surv.is_empty() { vec![Vec::new(); plan.seeds.len()] } else { plan.seeds.iter().map(|r| surv.get(&(r.clone(), path.clone())).cloned().unwrap_or_default()).collect() };
         if wanted.is_empty() && !check {
@@ -997,8 +1013,8 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                     }
                 }
             }
-            for e in &wanted {
-                if failed.contains_key(&e.0) {
+            for (ei, e) in &wanted {
+                if failed_idx[*ei] {
                     continue;
                 }
                 run.missing.clear();
@@ -1018,6 +1034,7 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                     }
                     Err(err) => {
                         failed.insert(e.0.clone(), format!("{}: {err}", run.paths[file_no]));
+                        failed_idx[*ei] = true;
                     }
                 }
             }

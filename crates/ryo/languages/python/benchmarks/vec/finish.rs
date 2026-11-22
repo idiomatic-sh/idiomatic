@@ -150,6 +150,8 @@ pub(super) struct Run {
     pub(super) missing: std::collections::BTreeSet<String>,
     /// 6h: the provider relations read in place (`Native::Fact`), with their column counts.
     pub(super) fact_rels: Vec<(String, usize)>,
+    /// pass 2: the kind codes of each kind name's symbol (made at the first ask, after `kind_sym` is set).
+    pub(super) kind_codes: std::cell::OnceCell<FxHashMap<u32, Box<[u16]>>>,
 }
 
 impl Run {
@@ -3718,15 +3720,41 @@ fn view_rows(f: &mut File<'_>, run: &mut Run, v: &ViewSpec, node: usize) -> Rc<V
 
 /// How many elements some kinds have.
 fn bucket_len(f: &File<'_>, run: &Run, ks: &[u32]) -> usize {
-    run.kind_sym.iter().enumerate().filter(|(_, s)| ks.contains(s)).map(|(c, _)| node_table::ids_of_kind(f.table, KindBits(c as u16)).len()).sum()
+    // pass 2: by the kinds' codes (not a scan of every kind a call); each code once, as the scan counted it
+    let codes = kind_codes(run);
+    let mut n = 0;
+    for (i, s) in ks.iter().enumerate() {
+        if ks[..i].contains(s) {
+            continue;
+        }
+        for c in codes.get(s).map_or(&[][..], |b| &b[..]) {
+            n += node_table::ids_of_kind(f.table, KindBits(*c)).len();
+        }
+    }
+    n
+}
+
+/// The kind codes by kind-name symbol (once a run).
+fn kind_codes(run: &Run) -> &FxHashMap<u32, Box<[u16]>> {
+    run.kind_codes.get_or_init(|| {
+        let mut m: FxHashMap<u32, Vec<u16>> = FxHashMap::default();
+        for (c, s) in run.kind_sym.iter().enumerate() {
+            m.entry(*s).or_default().push(c as u16);
+        }
+        m.into_iter().map(|(k, v)| (k, v.into_boxed_slice())).collect()
+    })
 }
 
 /// The elements of some kinds, in position order.
 fn bucket(f: &File<'_>, run: &Run, ks: &[u32]) -> Vec<u32> {
+    let codes = kind_codes(run);
     let mut rows = Vec::new();
-    for (code, sym) in run.kind_sym.iter().enumerate() {
-        if ks.contains(sym) {
-            rows.extend(node_table::ids_of_kind(f.table, KindBits(code as u16)).iter().map(|p| p.0));
+    for (i, s) in ks.iter().enumerate() {
+        if ks[..i].contains(s) {
+            continue;
+        }
+        for c in codes.get(s).map_or(&[][..], |b| &b[..]) {
+            rows.extend(node_table::ids_of_kind(f.table, KindBits(*c)).iter().map(|p| p.0));
         }
     }
     rows.sort_unstable();
