@@ -36,6 +36,8 @@ pub(super) fn step_clock() -> f64 {
 mod drive;
 #[path = "finish/select_kernel.rs"]
 mod select_kernel;
+#[path = "finish/memo.rs"]
+mod memo;
 #[path = "finish/handover.rs"]
 pub(super) mod handover;
 #[path = "band.rs"]
@@ -1010,6 +1012,17 @@ pub(super) struct Lazy {
     rcache: RefCell<FxHashMap<Vec<u64>, Rc<Vec<u64>>>>,
 }
 
+fn ty_name(t: Ty) -> &'static str {
+    match t {
+        Ty::Node => "node",
+        Ty::Sym => "sym",
+        Ty::File => "file",
+        Ty::Span => "span",
+        Ty::Num => "num",
+        Ty::Flag => "flag",
+    }
+}
+
 fn truthy(v: V) -> bool {
     v.ty() == Ty::Flag && v.1 == 1
 }
@@ -1067,6 +1080,10 @@ pub(super) struct Exec<'p> {
     empties: Vec<Option<Rc<Table>>>,
     /// engine-vec 8: per step, the input whose emptiness empties it (resolved once a run).
     firsts: Vec<Option<Option<usize>>>,
+    /// 10: the memo's counter (`VEC_MEMO_COUNT`)
+    mcount: memo::Count,
+    /// 10: the per-key memo (finish/memo.rs; `VEC_OLD_MEMO=1`: step 7's, above)
+    memo: memo::Memo,
 }
 
 /// 7: a key's rows in a memo slot: one range of the slot's table (`start` PENDING while its batch runs).
@@ -1192,10 +1209,16 @@ impl<'p> Exec<'p> {
             flat: known::Flat::new(k),
             empties: vec![None; k],
             firsts: vec![None; k],
+            mcount: memo::Count::new(),
+            memo: memo::Memo::new(),
         }
     }
 
     pub(super) fn reset_file(&mut self, _nodes: usize) {
+        if self.mcount.on {
+            self.mcount.file();
+        }
+        self.memo.next_file();
         for i in std::mem::take(&mut self.pmemo_dirty) {
             let sl = &mut self.pmemo[i];
             sl.dirty = false;
@@ -1785,6 +1808,10 @@ impl<'p> Exec<'p> {
         // are one contiguous range of the slot's table (no list a key); a key asked is marked pending at once, so the
         // missing keys come out distinct without a set; a stamp a call dedupes the keys answered.
         let pm = !sw!("VEC_NO_PMEMO");
+        if pm && !sw!("VEC_OLD_MEMO") {
+            return self.probe_memo(f, run, p, node, col, keys, &sc);
+        }
+        let mt0 = self.memo.tick();
         let mut missing: Vec<u64> = std::mem::take(&mut self.scratch_keys);
         missing.clear();
         let mut list_hash = 0u64;
@@ -1806,7 +1833,11 @@ impl<'p> Exec<'p> {
                     self.pmemo[slot].asked += keys.len() as u64;
                     self.stats.memo_reused += 1;
                     self.stats.memo_reused_keys += keys.len() as u64;
+                    if self.mcount.on {
+                        self.mcount.ask(&self.plan.nodes[node].op, ty_name(sc.tys[col]), node, col, f.n, keys, true, 0, t.n, 0, 0);
+                    }
                     self.scratch_keys = missing;
+                    self.memo.tock(0, mt0);
                     return Ok(t);
                 }
             }
@@ -1833,9 +1864,15 @@ impl<'p> Exec<'p> {
                 self.scratch_keys = missing;
                 let t = self.memo_rows(node, slot, keys);
                 self.stats.memo_out += t.n as u64;
+                if self.mcount.on {
+                    let ix = &self.pmemo[slot].ix;
+                    let empty = keys.iter().filter(|k| ix.get(k).is_none_or(|e| e.len == 0)).count() as u64;
+                    self.mcount.ask(&self.plan.nodes[node].op, ty_name(sc.tys[col]), node, col, f.n, keys, false, 0, t.n, empty, 0);
+                }
                 if keys.len() >= LIST_MIN {
                     self.pmemo[slot].lists.insert(list_hash, (keys.to_vec(), t.clone()));
                 }
+                self.memo.tock(0, mt0);
                 return Ok(t);
             }
             Some(slot)
@@ -1843,16 +1880,9 @@ impl<'p> Exec<'p> {
             missing.extend_from_slice(keys);
             None
         };
-        let t0 = step_clock();
-        let saved = self.inner;
-        self.inner = 0.0;
-        self.stack.push(node);
-        let out = self.probe_body(f, run, p, node, col, &missing, &sc);
-        self.stack.pop();
-        let dt = step_clock() - t0;
-        let own = dt - self.inner;
-        self.stats.time[node] += own;
-        self.inner = saved + dt;
+        self.memo.tock(0, mt0);
+        let out = self.probe_run(f, run, p, node, col, &missing, &sc);
+        let mt1 = self.memo.tick();
         let out = match out {
             Ok(o) => o,
             Err(e) => {
@@ -1865,11 +1895,6 @@ impl<'p> Exec<'p> {
                 return Err(e);
             }
         };
-        static TRACE: std::sync::OnceLock<Option<usize>> = std::sync::OnceLock::new();
-        if *TRACE.get_or_init(|| std::env::var("VEC_TRACE_PROBE").ok().and_then(|x| x.parse::<usize>().ok())) == Some(node) {
-            eprintln!("probe {node} col {col} keys {} rows {} stack {:?}", missing.len(), out.n, &self.stack[self.stack.len().saturating_sub(6)..]);
-        }
-        self.count_probe(node, own, out.n);
         let Some(slot) = slot else {
             self.scratch_keys = missing;
             return Ok(out);
@@ -1879,6 +1904,7 @@ impl<'p> Exec<'p> {
                 e.start = 0;
             }
         }
+        let mut unasked = 0u64;
         // the batch's rows by key (in row order within a key), each key's run appended as one range
         let mut order = std::mem::take(&mut self.scratch_order);
         order.clear();
@@ -1893,8 +1919,12 @@ impl<'p> Exec<'p> {
                 j += 1;
             }
             let start = sl.t.n as u32;
+            if !sl.ix.contains_key(&k) {
+                unasked += 1;
+            }
             let e = sl.ix.entry(k).or_insert(MemoKey { start, len: 0, stamp: 0 });
             if e.len > 0 {
+                unasked += 1;
                 sl.lists.clear();
                 // rows for a key answered before (a step that returned rows not asked): its old range moves to the end first
                 let (os, ol) = (e.start as usize, e.len as usize);
@@ -1919,10 +1949,16 @@ impl<'p> Exec<'p> {
         self.stats.memo_in += out.n as u64;
         let t = self.memo_rows(node, slot, keys);
         self.stats.memo_out += t.n as u64;
+        if self.mcount.on {
+            let ix = &self.pmemo[slot].ix;
+            let empty = keys.iter().filter(|k| ix.get(k).is_none_or(|e| e.len == 0)).count() as u64;
+            self.mcount.ask(&self.plan.nodes[node].op, ty_name(sc.tys[col]), node, col, f.n, keys, false, missing.len(), t.n, empty, unasked);
+        }
         if keys.len() >= LIST_MIN {
             self.pmemo[slot].lists.insert(list_hash, (keys.to_vec(), t.clone()));
         }
         self.scratch_keys = missing;
+        self.memo.tock(1, mt1);
         Ok(t)
     }
 
@@ -2003,6 +2039,29 @@ impl<'p> Exec<'p> {
         };
         kernel_input::give_keys(ks);
         self.scratch_set = set;
+        Ok(out)
+    }
+
+    /// engine-vec 10: a probed step run for keys not in its memo (the step clock's bracket and the probe's stats), used by
+    /// both memos; redo-union pass 2: its own seconds and empty runs counted by `count_probe`.
+    #[expect(clippy::too_many_arguments, reason = "a throwaway")]
+    fn probe_run(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, missing: &[u64], sc: &Schema) -> R<Rc<Table>> {
+        let t0 = step_clock();
+        let saved = self.inner;
+        self.inner = 0.0;
+        self.stack.push(node);
+        let out = self.probe_body(f, run, p, node, col, missing, sc);
+        self.stack.pop();
+        let dt = step_clock() - t0;
+        let own = dt - self.inner;
+        self.stats.time[node] += own;
+        self.inner = saved + dt;
+        let out = out?;
+        static TRACE: std::sync::OnceLock<Option<usize>> = std::sync::OnceLock::new();
+        if *TRACE.get_or_init(|| std::env::var("VEC_TRACE_PROBE").ok().and_then(|x| x.parse::<usize>().ok())) == Some(node) {
+            eprintln!("probe {node} col {col} keys {} rows {} stack {:?}", missing.len(), out.n, &self.stack[self.stack.len().saturating_sub(6)..]);
+        }
+        self.count_probe(node, own, out.n);
         Ok(out)
     }
 
