@@ -5,11 +5,11 @@ use std::sync::{Arc, Mutex, PoisonError};
 use super::errors::CompileError;
 use super::interface::CompileUseCase;
 use super::service::{invalid, syntax_refused, unresolved};
-use super::types::CompileReport;
+use super::types::{CompileReport, CompiledModules};
 use crate::domain::assembling::service::lower_with_observations;
 use crate::domain::checking::service::fragments_checked;
-use crate::domain::checking::types::FragmentChecks;
 use crate::domain::linking::errors::LinkingError;
+use crate::domain::splicing::types::LoweredExpansions;
 use crate::domain::validation::service::validate_with_observations;
 use crate::outbound::catalog::interface::CatalogPort;
 use crate::outbound::syntax::interface::SyntaxPort;
@@ -22,9 +22,9 @@ pub struct CompileUseCaseImpl {
     syntax: Arc<dyn SyntaxPort>,
     /// Lists the relations a program may read.
     catalog: Arc<dyn CatalogPort>,
-    /// The checks of the modules last compiled over: a catalog's fragments are checked once, however many rules import
-    /// them. Held with the modules they are of, so they are never read for another catalog's.
-    checked: Mutex<Option<(ParsedModules, Arc<FragmentChecks>)>>,
+    /// What is kept of the modules last compiled over: a catalog's fragments are checked once, and an expansion of them
+    /// lowered once, however many rules import them.
+    checked: Mutex<Option<CompiledModules>>,
 }
 
 impl std::fmt::Debug for CompileUseCaseImpl {
@@ -48,24 +48,28 @@ impl CompileUseCaseImpl {
 }
 
 impl CompileUseCaseImpl {
-    /// The checks of `modules`, the fragments a request is compiled over: read when the last compile was over the same
-    /// parsed modules, made and kept otherwise.
+    /// The checks of `modules`, the fragments a request is compiled over, and the expansions of them lowered so far:
+    /// read when the last compile was over the same parsed modules, made and kept otherwise.
     fn checks_of(
         &self,
         bundle: &ryo_values::domain::query_tokens::types::QueryBundle,
         modules: &ParsedModules,
-    ) -> Arc<FragmentChecks> {
+    ) -> CompiledModules {
         let held = self.checked.lock().unwrap_or_else(PoisonError::into_inner);
-        if let Some((of, checks)) = held.as_ref()
-            && Arc::ptr_eq(&of.0, &modules.0)
+        if let Some(kept) = held.as_ref()
+            && Arc::ptr_eq(&kept.modules.0, &modules.0)
         {
-            return Arc::clone(checks);
+            return kept.clone();
         }
         drop(held);
-        let checks = Arc::new(fragments_checked(bundle, &modules.0));
+        let kept = CompiledModules {
+            modules: modules.clone(),
+            checks: Arc::new(fragments_checked(bundle, &modules.0)),
+            expansions: Arc::new(LoweredExpansions::default()),
+        };
         let mut held = self.checked.lock().unwrap_or_else(PoisonError::into_inner);
-        *held = Some((modules.clone(), Arc::clone(&checks)));
-        checks
+        *held = Some(kept.clone());
+        kept
     }
 }
 
@@ -89,13 +93,13 @@ impl CompileUseCase for CompileUseCaseImpl {
                 request.modules.clone(),
             )
         };
-        let checks = self.checks_of(&request.text, &modules);
+        let kept = self.checks_of(&request.text, &modules);
         let program = crate::domain::expanding::service::link_checked(
             &request.text,
             root,
             &modules.0,
             &request.observations,
-            &checks,
+            &kept.checks,
         )
         .map_err(|error| match error {
             LinkingError::Located { origin, message } => CompileError::Located {
@@ -132,6 +136,7 @@ impl CompileUseCase for CompileUseCaseImpl {
             &relations.0,
             &request.hosted,
             &request.observations,
+            &kept.expansions,
         )
         .map_err(unresolved)?;
         Ok(CompileReport { plan, modules })

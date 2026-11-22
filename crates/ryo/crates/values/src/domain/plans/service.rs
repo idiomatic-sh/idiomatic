@@ -202,3 +202,51 @@ pub fn comparisons_of(operation: &Operation) -> &[PlanComparison] {
         | Operation::Hosted { .. } => &[],
     }
 }
+
+/// The comparisons an operation makes, to be changed in place: the same comparisons [`comparisons_of`] reads.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_values::domain::plan_parts::types::{Input, StepId};
+/// use ryo_values::domain::plans::service::comparisons_mut;
+/// use ryo_values::domain::plans::types::Operation;
+///
+/// let mut union = Operation::Union { left: Input::Step(StepId(0)), right: Input::Step(StepId(1)) };
+/// assert!(comparisons_mut(&mut union).is_empty());
+/// ```
+pub fn comparisons_mut(operation: &mut Operation) -> &mut [PlanComparison] {
+    match operation {
+        Operation::Select { comparisons, .. } => comparisons,
+        Operation::Join { filter, .. } => filter,
+        Operation::Axis { domain_filter, .. } => domain_filter,
+        Operation::Project { .. }
+        | Operation::Extend { .. }
+        | Operation::Union { .. }
+        | Operation::Intersection { .. }
+        | Operation::Difference { .. }
+        | Operation::Antijoin { .. }
+        | Operation::GroupCount { .. }
+        | Operation::Replace { .. }
+        | Operation::SpanBetween { .. }
+        | Operation::SourceMatches { .. }
+        | Operation::RenderSyntax { .. }
+        | Operation::FitsRendered { .. }
+        | Operation::SpanBounds { .. }
+        | Operation::OrderedMatch { .. }
+        | Operation::AsOf { .. }
+        | Operation::GroupBound { .. }
+        | Operation::GroupOrdinal { .. }
+        | Operation::Follow { .. }
+        | Operation::OrderedDfs { .. }
+        | Operation::Worklist { .. }
+        | Operation::GroupDigest { .. }
+        | Operation::Capture { .. }
+        | Operation::Rank { .. }
+        | Operation::Words { .. }
+        | Operation::Closure { .. }
+        | Operation::Cycles { .. }
+        | Operation::Rows { .. }
+        | Operation::Hosted { .. } => &mut [],
+    }
+}

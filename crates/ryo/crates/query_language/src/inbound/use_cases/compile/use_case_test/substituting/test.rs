@@ -40,6 +40,7 @@ fn subject(text: Input) -> Result<Value, Failure> {
         &[Relation::Function, Relation::SourceLocation],
         &hosted,
         &[],
+        &crate::domain::splicing::types::LoweredExpansions::default(),
     )?;
     Ok(plan.steps.iter().any(|step| {
         matches!(

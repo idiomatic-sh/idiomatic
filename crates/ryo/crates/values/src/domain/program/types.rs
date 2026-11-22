@@ -50,6 +50,48 @@ pub struct FragmentContract {
     pub output_span: QuerySpan,
     /// Original fragment identity and import/call trace.
     pub origin: QueryOrigin,
+    /// How many definitions the expansion wrote, its nested expansions' among them: the linked steps from `first` on
+    /// that are this call's.
+    pub statements: ExpandedDefinitions,
+    /// The scalar values the call bound, by parameter name in name order: with the fragment and no relation input,
+    /// what its definitions are made of, up to their identities.
+    pub parameters: Vec<FragmentContractParameter>,
+}
+
+/// How many definitions one expansion of a fragment wrote.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_values::domain::program::types::ExpandedDefinitions;
+///
+/// let written = ExpandedDefinitions(3);
+/// assert!(written > ExpandedDefinitions(2));
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ExpandedDefinitions(pub usize);
+
+/// One scalar parameter of a fragment and the value its call bound to it.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_values::domain::program::types::FragmentContractParameter;
+/// use ryo_values::domain::query_syntax::types::ArgumentValue;
+/// use ryo_values::domain::query_tokens::types::{WrittenLiteral, WrittenParameter};
+///
+/// let bound = FragmentContractParameter {
+///     name: WrittenParameter("codes".into()),
+///     value: ArgumentValue::Text(WrittenLiteral("F401".into())),
+/// };
+/// assert_eq!(&*bound.name.0, "codes");
+/// ```
+#[derive(Clone, Debug, PartialEq)]
+pub struct FragmentContractParameter {
+    /// The fragment's parameter name.
+    pub name: WrittenParameter,
+    /// The value bound to it.
+    pub value: ArgumentValue,
 }
 
 /// One input relation and the source actual bound at its call site.

@@ -22,6 +22,7 @@ use crate::domain::rooting::service::attribute_root;
 use crate::domain::rooting::service::bind_declared_sources;
 use ryo_values::domain::program::types::FragmentContract;
 use ryo_values::domain::program::types::FragmentContractInput;
+use ryo_values::domain::program::types::FragmentContractParameter;
 use ryo_values::domain::program::types::FragmentProgram;
 use ryo_values::domain::program::types::LetStep;
 use ryo_values::domain::program::types::WrittenProgram;
@@ -355,6 +356,15 @@ pub(crate) fn expand(
             span: fragment.output_span,
             trace: Arc::clone(trace),
         },
+        statements: ryo_values::domain::program::types::ExpandedDefinitions(expanded.len()),
+        parameters: parameters
+            .0
+            .iter()
+            .map(|(name, value)| FragmentContractParameter {
+                name: ryo_values::domain::query_tokens::types::WrittenParameter(name.0.clone()),
+                value: value.clone(),
+            })
+            .collect(),
     });
     Ok(expanded)
 }

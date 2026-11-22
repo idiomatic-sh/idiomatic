@@ -317,3 +317,6 @@ mod fusing;
 
 #[cfg(test)]
 mod selection_pushing;
+
+#[cfg(test)]
+mod splicing;

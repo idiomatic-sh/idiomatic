@@ -36,6 +36,10 @@ The `query_language` domain's `comparing` concept: the sides of a comparison, re
 
 The `query_language` domain's `cutting` concept: the rows a file hands over, cut to the columns the steps after the files ask.
 
+### defining
+
+The `query_language` domain's `defining` concept: one definition of a linked program lowered into the plan under construction, with the fragment contracts it starts or returns checked, and a refusal placed in its document.
+
 ### distinctness
 
 The `query_language` domain's `distinctness` concept: whether the rows of a step hold each value of a set of its columns once, so a join keyed on them meets one row of that step at most.
@@ -139,6 +143,10 @@ The `query_language` domain's `selection_pushing` concept: the filters of a unio
 ### spanning
 
 The `query_language` domain's `spanning` concept: the calls that compose the byte spans of rows and project their start and end.
+
+### splicing
+
+The `query_language` domain's `splicing` concept: the definitions of a linked program lowered into its plan, each expansion of a fragment that binds no relation input lowered once over a catalog and spliced into every later plan with the same expansion.
 
 ### substituting
 

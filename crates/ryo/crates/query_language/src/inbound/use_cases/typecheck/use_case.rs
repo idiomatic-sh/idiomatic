@@ -101,6 +101,7 @@ impl TypecheckUseCase for TypecheckUseCaseImpl {
             &relations.0,
             &request.hosted,
             &request.observations,
+            &crate::domain::splicing::types::LoweredExpansions::default(),
         )
         .map_err(unresolved)?;
         Ok(ValidateReport {

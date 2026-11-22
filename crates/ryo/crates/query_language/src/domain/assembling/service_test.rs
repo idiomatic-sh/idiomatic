@@ -141,6 +141,8 @@ fn a_fragment_input_that_is_not_a_relation_is_refused() {
         },
         output_span: span,
         origin: origin_of(span),
+        statements: syntax::ExpandedDefinitions(1),
+        parameters: vec![],
     });
     assert!(matches!(
         super::service::lower(&program, &[Relation::Function], &[]),

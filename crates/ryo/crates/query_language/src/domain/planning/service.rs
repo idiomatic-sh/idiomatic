@@ -287,7 +287,19 @@ pub(crate) fn push(
         .map(|input| scoped(builder, *input))
         .collect();
     let scope = scope_of(&operation, &inputs, &fields);
-    builder.steps.push(plans::PlanStep { operation, scope });
+    appended(builder, name, plans::PlanStep { operation, scope }, fields);
+}
+
+/// Adds a step whose scope is decided to the plan, keeps its columns for the steps below, and keeps the first step each
+/// of its names names: every step of a plan is added here.
+pub(crate) fn appended(
+    builder: &mut Builder<'_>,
+    name: Option<&tokens::StepName>,
+    step: plans::PlanStep,
+    fields: Vec<PlannedColumn>,
+) {
+    let scope = step.scope;
+    builder.steps.push(step);
     if let Some(name) = name {
         let at = parts::StepId(u32::try_from(builder.lowered.len()).unwrap_or(u32::MAX));
         let names = &mut builder.names;
