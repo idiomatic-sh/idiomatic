@@ -86,6 +86,11 @@ impl Exec<'_> {
         let tq = super::step_clock();
         let mut out = Ok(());
         for &(i, n) in pending {
+            // redo-fills c5: a pick of bound 0 is never replaced (a later one must be smaller): the rest are not asked
+            // (their literal views not filled for a bound)
+            if pick.is_some_and(|q| q.2 == 0) {
+                break;
+            }
             match self.bound_in(&mut cx, f, run, p, n, 6) {
                 Ok(Some(bs)) if bs < best && pick.is_none_or(|q| bs < q.2) => pick = Some((i, n, bs)),
                 Ok(_) => {}
@@ -177,11 +182,21 @@ impl Exec<'_> {
         let b = match code {
             SELECT => {
                 let (a, n) = (cx.a[node] as usize, cx.b[node] as usize);
+                // redo-fills c5: the smallest input bound, the inputs whose bound needs no fill first; once 0 is found the
+                // rest cannot lower it and are not asked (the minimum is the same in any order)
                 let mut m: Option<usize> = None;
-                for j in a..a + n {
-                    let i = cx.ins[j] as usize;
-                    if let Some(b) = self.bound_in(cx, f, run, p, i, depth - 1)? {
-                        m = Some(m.map_or(b, |x| x.min(b)));
+                for pass in 0..2 {
+                    for j in a..a + n {
+                        let i = cx.ins[j] as usize;
+                        if m == Some(0) {
+                            break;
+                        }
+                        if self.bound_needs_fill(cx, f, run, i)? != (pass == 1) {
+                            continue;
+                        }
+                        if let Some(b) = self.bound_in(cx, f, run, p, i, depth - 1)? {
+                            m = Some(m.map_or(b, |x| x.min(b)));
+                        }
                     }
                 }
                 m
@@ -204,6 +219,28 @@ impl Exec<'_> {
         }
         cx.found[at] = (cx.set, b.map_or(0, |x| x as u32 + 1));
         Ok(b)
+    }
+
+    /// redo-fills c5: whether `bound_in` of `node` may ask the provider for a fill: a view with a literal test whose bound
+    /// is not yet known in this file and whose fill is not loaded, or any step below (not walked: assumed).
+    fn bound_needs_fill(&mut self, cx: &mut Ctx, f: &File<'_>, run: &mut Run, node: usize) -> R<bool> {
+        if let Some(Res::Tab(_)) = &f.memo[node] {
+            return Ok(false);
+        }
+        if cx.code.get(node).is_none_or(|c| *c == UNKNOWN) {
+            self.bound_prep(cx, run, node)?;
+        }
+        if cx.code[node] != VIEW {
+            return Ok(true);
+        }
+        if cx.vkinds[node] != u32::MAX || !cx.vlit[node] || cx.vb.get(node).is_some_and(|k| *k != 0) {
+            return Ok(false);
+        }
+        let Some(v) = self.view(run, node)? else { return Ok(true) };
+        Ok(match v.base {
+            Native::Fact(i) => f.facts.get(usize::from(i)).is_none_or(Option::is_none),
+            _ => false,
+        })
     }
 
     fn view_bound(&mut self, cx: &mut Ctx, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Option<usize>> {

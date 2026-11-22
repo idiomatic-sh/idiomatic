@@ -3057,7 +3057,7 @@ impl<'p> Exec<'p> {
             let was = fill_prof::site("bound");
             self.load_fact(f, run, p, v.base)?;
             fill_prof::site(was);
-            return Ok(kind_set(run, &v.filter, 0, v.base, &[]).map(|ks| bucket_len(f, run, &ks)).or_else(|| lit_rows(f, &v.filter, 0, v.base, &[]).map(|r| r.len())));
+            return Ok(kind_set(run, &v.filter, 0, v.base, &[]).map(|ks| bucket_len(f, run, &ks)).or_else(|| lit_len(f, &v.filter, 0, v.base, &[])));
         }
         if depth == 0 {
             return Ok(None);
@@ -3304,7 +3304,7 @@ impl<'p> Exec<'p> {
                 Src::View(v, _) => kind_set(run, &v.filter, 0, v.base, &[])
                     .or_else(|| kind_set(run, conj, i, v.base, &v.map))
                     .map(|ks| bucket_len(f, run, &ks))
-                    .or_else(|| lit_rows(f, &v.filter, 0, v.base, &[]).or_else(|| lit_rows(f, conj, i, v.base, &v.map)).map(|r| r.len())),
+                    .or_else(|| lit_len(f, &v.filter, 0, v.base, &[]).or_else(|| lit_len(f, conj, i, v.base, &v.map))),
                 _ => None,
             };
             if let Some(n) = size
@@ -3345,7 +3345,7 @@ impl<'p> Exec<'p> {
         let driver = match driver {
             Some(d) => d,
             None => match (0..k).find(|i| match &srcs[*i] {
-                Src::View(v, _) => kind_set(run, &v.filter, 0, v.base, &[]).is_some() || kind_set(run, conj, *i, v.base, &v.map).is_some() || lit_rows(f, &v.filter, 0, v.base, &[]).is_some() || lit_rows(f, conj, *i, v.base, &v.map).is_some(),
+                Src::View(v, _) => kind_set(run, &v.filter, 0, v.base, &[]).is_some() || kind_set(run, conj, *i, v.base, &v.map).is_some() || lit_applies(f, &v.filter, 0, v.base, &[]) || lit_applies(f, conj, *i, v.base, &v.map),
                 _ => false,
             }) {
                 Some(d) => d,
@@ -3418,7 +3418,7 @@ impl<'p> Exec<'p> {
                         Rc::new(rows)
                     },
                     _ => match lit_rows(f, conj, driver, v.base, &v.map) {
-                        Some(mut rows) if lit_rows(f, &v.filter, 0, v.base, &[]).is_none() => {
+                        Some(mut rows) if !lit_applies(f, &v.filter, 0, v.base, &[]) => {
                             view_cols::retain(f, run, v, &mut rows);
                             Rc::new(rows)
                         }
@@ -4331,6 +4331,31 @@ fn bucket(f: &File<'_>, run: &Run, ks: &[u32]) -> Vec<u32> {
 /// base's own).
 fn lit_rows(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize]) -> Option<Vec<u32>> {
     fill_prof::read(2);
+    let (i, bc, vals) = lit_pick(f, conj, si, base, map)?;
+    let ix = f.fact_list(i, bc);
+    let mut rows: Vec<u32> = vals.iter().filter_map(|v| ix.get(&u64::from(*v))).flatten().copied().collect();
+    rows.sort_unstable();
+    rows.dedup();
+    Some(rows)
+}
+
+/// redo-fills c5: whether `lit_rows` answers (a literal test on a symbol column of a fill), without making its rows.
+fn lit_applies(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize]) -> bool {
+    lit_pick(f, conj, si, base, map).is_some()
+}
+
+/// redo-fills c5: how many rows `lit_rows` answers, without making them (a row holds one value of the column, so the
+/// distinct literals' row lists are disjoint).
+fn lit_len(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize]) -> Option<usize> {
+    let (i, bc, mut vals) = lit_pick(f, conj, si, base, map)?;
+    vals.sort_unstable();
+    vals.dedup();
+    let ix = f.fact_list(i, bc);
+    Some(vals.iter().filter_map(|v| ix.get(&u64::from(*v))).map(|r| r.len()).sum())
+}
+
+/// The literal test `lit_rows` reads by: the fill, its base column and the literals.
+fn lit_pick(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize]) -> Option<(u16, usize, Vec<u32>)> {
     let Native::Fact(i) = base else { return None };
     fn cols(e: &E, si: usize, out: &mut Vec<usize>) {
         match e {
@@ -4352,11 +4377,7 @@ fn lit_rows(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize]) ->
                 if f.facts[usize::from(i)].as_ref().is_none_or(|t| t.tys[bc] != Ty::Sym) {
                     continue;
                 }
-                let ix = f.fact_list(i, bc);
-                let mut rows: Vec<u32> = vals.iter().filter_map(|v| ix.get(&u64::from(*v))).flatten().copied().collect();
-                rows.sort_unstable();
-                rows.dedup();
-                return Some(rows);
+                return Some((i, bc, vals));
             }
         }
     }
