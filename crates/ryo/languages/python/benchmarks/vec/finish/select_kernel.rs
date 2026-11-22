@@ -203,8 +203,8 @@ struct K {
 }
 
 /// Keys of the per-file row lists a kernel keeps in the file's `vrows` (above any node number).
-const LIT_FILTER: usize = 1 << 56;
-const LIT_CONJ: usize = 2 << 56;
+pub(super) const LIT_FILTER: usize = 1 << 56;
+pub(super) const LIT_CONJ: usize = 2 << 56;
 const ENTRY_KIND: usize = 3 << 56;
 const ENTRY_LIT: usize = 4 << 56;
 const ABSENT: usize = 1 << 60;

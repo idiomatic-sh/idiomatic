@@ -212,6 +212,7 @@ impl<'p> Finisher<'p> {
             let e = &plan.emits[*ei];
             run.missing.clear();
             let got = self.exec.eval(&mut f, run, pv, e.1);
+            finish::emptyprop::emit_done(&f, e.1);
             let got = if run.missing.is_empty() { got } else { Err(format!("functions {:?} not in the step set", run.missing)) };
             match got {
                 Ok(t) => {

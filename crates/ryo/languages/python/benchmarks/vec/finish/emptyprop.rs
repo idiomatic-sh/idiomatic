@@ -246,7 +246,8 @@ struct Leaf {
     own: bool,
     lit: bool,
     fields: Box<[u32]>,
-    /// cycle 4: the view's own rows decide it (its entry is a kind bucket or a literal's rows; read where small)
+    /// cycle 4 (`VEC_EP_VIEW=1` only: measured a loss, the reads cost more than the runs they save): the view's own rows
+    /// decide it (its entry is a kind bucket or a literal's rows; read where small)
     rows: bool,
 }
 
@@ -268,6 +269,10 @@ struct Leaves {
     skipped: Vec<u64>,
     /// selects answered empty by a bounded driver's zero bound
     bound_zero: u64,
+    /// emits asked in a file: decided empty by the old leaves, by the propagation's, or run
+    emits: [u64; 3],
+    /// `VEC_STEP_TIME`: seconds of the leaves' fills, literal reads, view reads
+    laps: [f64; 3],
 }
 
 thread_local! {
@@ -307,6 +312,17 @@ fn tests(conj: &[E], si: usize, base: Native, map: &[usize]) -> (bool, Vec<u32>)
     (lit, fields)
 }
 
+/// An emit asked in a file: answered before running anything (its step decided empty by the file's leaves: the old
+/// ones, or the propagation's), or run.
+pub(crate) fn emit_done(f: &File<'_>, node: usize) {
+    let k = match f.known[node] {
+        super::known::YES_EP => 1,
+        2 => 0,
+        _ => 2,
+    };
+    L.with(|l| l.borrow_mut().emits[k] += 1);
+}
+
 /// A select answered empty because its bounded driver's bound is zero (the driver not made).
 #[inline]
 pub(super) fn bound_zero() {
@@ -340,6 +356,8 @@ pub(crate) fn print_skipped(ops: &dyn Fn(usize) -> String) {
         let total: u64 = by.values().sum();
         println!("EPSKIP\tall\t{total}");
         println!("EPSKIP\tselect: bounded driver's bound zero\t{}", l.bound_zero);
+        println!("EPLAPS\tleaves (VEC_STEP_TIME): fills asked {:.3} s, literal reads {:.3} s, small views read {:.3} s", l.laps[0], l.laps[1], l.laps[2]);
+        println!("EPEMIT\temits asked in a file {}: decided empty before running by the old leaves {}, by the propagation's {}; run {}", l.emits.iter().sum::<u64>(), l.emits[0], l.emits[1], l.emits[2]);
         for (op, k) in by {
             println!("EPSKIP\t{op}\t{k}");
         }
@@ -359,7 +377,7 @@ impl Exec<'_> {
         if let Ok(Some(v)) = self.view(run, node) {
             let (lit, fields) = tests(&v.filter, 0, v.base, &[]);
             let fact = if let Native::Fact(i) = v.base { i } else { NO_FACT };
-            let rows = !sw!("VEC_EP_NO_VIEW") && !v.filter.is_empty() && (lit || super::kind_set(run, &v.filter, 0, v.base, &[]).is_some());
+            let rows = sw!("VEC_EP_VIEW") && !v.filter.is_empty() && (lit || super::kind_set(run, &v.filter, 0, v.base, &[]).is_some());
             if fact != NO_FACT || !fields.is_empty() || rows {
                 out.push(Leaf { src: 0, fact, own: fact != NO_FACT, lit, fields: fields.into(), rows });
             }
@@ -404,14 +422,23 @@ impl Exec<'_> {
             if !lf.fields.is_empty() && !self.ep_field_present(f, run, &lf.fields) {
                 return true;
             }
-            if lf.rows && self.ep_view_rows_empty(f, run, p, node) {
-                return true;
+            if lf.rows {
+                let t0 = step_clock();
+                let e = self.ep_view_rows_empty(f, run, p, node);
+                L.with(|l| l.borrow_mut().laps[2] += step_clock() - t0);
+                if e {
+                    return true;
+                }
             }
             if lf.fact == NO_FACT || (!lf.own && !lf.lit) {
                 continue;
             }
             let base = Native::Fact(lf.fact);
-            if self.load_fact(f, run, p, base).is_err() {
+            let t0 = step_clock();
+            let loaded = self.load_fact(f, run, p, base);
+            let t1 = step_clock();
+            L.with(|l| l.borrow_mut().laps[0] += t1 - t0);
+            if loaded.is_err() {
                 continue;
             }
             let Some(t) = f.facts.get(usize::from(lf.fact)).and_then(Option::as_ref) else { continue };
@@ -419,15 +446,19 @@ impl Exec<'_> {
                 return true;
             }
             if lf.lit {
+                // the kernels' per-file lists under their own keys (`lit_file`): a kernel that drives from them later reads
+                // them again for nothing
+                use super::select_kernel::{LIT_CONJ, LIT_FILTER, lit_file};
                 let empty = if lf.own {
                     let Ok(Some(v)) = self.view(run, node) else { continue };
-                    lit_rows(f, &v.filter, 0, base, &[]).is_some_and(|r| r.is_empty())
+                    lit_file(f, LIT_FILTER | node, &v.filter, 0, base, &[]).is_some_and(|r| r.is_empty())
                 } else {
                     let Ok(sp) = self.sel(run, node) else { continue };
-                    let s = sp.srcs[usize::from(lf.src)];
-                    let Ok(Some(v)) = self.view(run, s) else { continue };
-                    lit_rows(f, &sp.conj, usize::from(lf.src), base, &v.map).is_some_and(|r| r.is_empty())
+                    let i = usize::from(lf.src);
+                    let Ok(Some(v)) = self.view(run, sp.srcs[i]) else { continue };
+                    if i < 2 { lit_file(f, LIT_CONJ | (node << 1) | i, &sp.conj, i, base, &v.map).is_some_and(|r| r.is_empty()) } else { lit_rows(f, &sp.conj, i, base, &v.map).is_some_and(|r| r.is_empty()) }
                 };
+                L.with(|l| l.borrow_mut().laps[1] += step_clock() - t1);
                 if empty {
                     return true;
                 }
