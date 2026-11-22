@@ -33,7 +33,7 @@ let outer_first_args = select l.call as outer_call, l.file as file, l.argument a
 let inner_calls = select l.outer_call as outer_call, l.file as file, l.argument as inner_call, l.outer_name as outer_name from outer_first_args as l join calls as r on l.argument = r.id and l.file = r.file;
 let nested_function_names = select l.inner_call as inner_call, l.outer_call as outer_call, l.file as file, l.outer_name as outer_name, r.name as inner_name from inner_calls as l join recognized_call_functions as r on l.inner_call = r.call and l.file = r.file;
 let permitted_pairs_a = select outer_call as call, file from nested_function_names where (outer_name = "set" or outer_name = "sorted") and (inner_name = "list" or inner_name = "tuple" or inner_name = "reversed");
-let permitted_pairs_b = select outer_call as call, file from nested_function_names where outer_name = "set" and inner_name = "set";
+let permitted_pairs_b = select outer_call as call, file from nested_function_names where outer_name = "set" and (inner_name = "set" or inner_name = "sorted");
 let permitted_pairs_c = select outer_call as call, file from nested_function_names where (outer_name = "list" or outer_name = "tuple") and (inner_name = "list" or inner_name = "tuple");
 let sorted_sorted_pairs = select outer_call as call, inner_call as inner_call, file from nested_function_names where outer_name = "sorted" and inner_name = "sorted";
 let keyword_fields = select parent, child from "semantic-child" where field = "keywords";
