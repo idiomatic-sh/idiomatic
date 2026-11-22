@@ -9,8 +9,15 @@
 
 use super::{Exec, File, R, Res, Run, frame, view_holds};
 
-/// Steps followed at most.
+fn stop(why: &'static str, op: &str) {
+    if super::empty_sel::on() {
+        super::empty_sel::count(if op.is_empty() { why } else { Box::leak(format!("{why} at {op}").into_boxed_str()) }, 0.0);
+    }
+}
+
+/// Steps followed at most a chain, and chains at most a question.
 const DEPTH: usize = 12;
+const LEAVES: usize = 16;
 
 impl Exec<'_> {
     /// Whether a probe of `node` on `col` by `keys` is known to answer no row (false: not known).
@@ -18,9 +25,21 @@ impl Exec<'_> {
         if !self.static_keyed || sw!("VEC_PTARGET_OFF") || sw!("VEC_OLD_EMPTYSEL") || sw!("VEC_ESEL_NO_ABSENT") {
             return Ok(false);
         }
+        let mut budget = LEAVES;
+        self.absent(f, run, node, col, keys, &mut budget)
+    }
+
+    /// The chain from (`node`, `col`); a union's inputs each (all absent), an antijoin's left where its probe runs over
+    /// the probed left (`antijoin_kernel`'s `direct`), within `budget` chains.
+    fn absent(&mut self, f: &mut File<'_>, run: &mut Run, node: usize, col: usize, keys: &[u64], budget: &mut usize) -> R<bool> {
+        if *budget == 0 {
+            return Ok(false);
+        }
+        *budget -= 1;
         let (mut n, mut c) = (node, col);
         for _ in 0..DEPTH {
             if self.overridden(n).is_some() {
+                stop("overridden", "");
                 return Ok(false);
             }
             match &f.memo[n] {
@@ -30,30 +49,65 @@ impl Exec<'_> {
                         return Ok(true);
                     }
                     let col = &t.cols[c];
-                    if t.n <= 32 {
-                        return Ok(!keys.iter().any(|k| col.contains(k)));
-                    }
-                    let ix = super::table_index(f, n, &t, &[c]);
-                    return Ok(!keys.iter().any(|k| ix.get(k).is_some()));
+                    let a = if t.n <= 32 {
+                        !keys.iter().any(|k| col.contains(k))
+                    } else {
+                        let ix = super::table_index(f, n, &t, &[c]);
+                        !keys.iter().any(|k| ix.get(k).is_some())
+                    };
+                    stop(if a { "table: absent" } else { "table: present" }, "");
+                    return Ok(a);
                 }
                 Some(Res::View(v)) => {
                     let v = v.clone();
-                    return Ok(self.view_absent(f, run, &v, c, keys));
+                    let a = self.view_absent(f, run, &v, c, keys);
+                    stop(if a { "view: absent" } else { "view: present or unread" }, "");
+                    return Ok(a);
                 }
                 None => {}
             }
             if let Some(v) = self.view(run, n)? {
-                return Ok(self.view_absent(f, run, &v, c, keys));
+                let a = self.view_absent(f, run, &v, c, keys);
+                stop(if a { "view (not read yet): absent" } else { "view (not read yet): present or unread" }, "");
+                return Ok(a);
             }
             if self.known_empty(f, run, n) {
                 return Ok(true);
             }
             // a semi step may be made whole for a probe; a counted group count runs over an input that answered nothing
             if self.frames[n].semi || self.frames[n].counted {
+                stop("semi or counted", "");
                 return Ok(false);
             }
             let (input, icol) = self.ptarget(run, n, c)?;
+            if input == frame::GENERAL && !sw!("VEC_ESEL_ABSENT_CHAIN") {
+                let op = self.frames[n].op;
+                if op == frame::Op::Union && !sw!("VEC_OLD_UNION") {
+                    // the union's rows for the keys are its inputs' (each by the column of that name)
+                    let name = self.schema(run, n)?.names[c].clone();
+                    let ins = self.plan.nodes[n].inputs.clone();
+                    for i in ins {
+                        let Some(ic) = self.schema(run, i)?.names.iter().position(|x| *x == name) else { return Ok(false) };
+                        if !self.absent(f, run, i, ic, keys, budget)? {
+                            return Ok(false);
+                        }
+                    }
+                    return Ok(true);
+                }
+                if op == frame::Op::Antijoin && !sw!("VEC_OLD_ANTIJOIN") {
+                    let left = self.arg_rel(n, "left")?;
+                    let ins = &self.plan.nodes[n].inputs;
+                    let direct = ins.iter().filter(|i| **i == left).count() == 1 && ins.clone().iter().filter(|i| **i != left).all(|o| !self.depends(*o, left));
+                    if direct {
+                        let name = self.schema(run, n)?.names[c].clone();
+                        let Some(lc) = self.schema(run, left)?.names.iter().position(|x| *x == name) else { return Ok(false) };
+                        (n, c) = (left, lc);
+                        continue;
+                    }
+                }
+            }
             if input >= frame::GENERAL {
+                stop(if input == frame::GENERAL { "general" } else { "whole" }, &self.plan.nodes[n].op);
                 return Ok(false);
             }
             (n, c) = (input as usize, icol as usize);
