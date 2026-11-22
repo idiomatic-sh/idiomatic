@@ -110,8 +110,8 @@ fn with_tokens(nodes: &NodeTable, end: Position, at: Position, found: &mut Vec<P
 }
 
 /// `Walk` along an axis: for each row of the batch, from the cursor on, the parent of its start, each ancestor nearest
-/// first, each descendant node in pre-order, or the next or the previous sibling. Stops when the batch out is full;
-/// answers whether every row in was read.
+/// first, each descendant node in pre-order and then their tokens, or the next or the previous sibling. Stops when the
+/// batch out is full; answers whether every row in was read.
 pub(crate) fn along(
     nodes: &NodeTable,
     extent: NodeExtent,

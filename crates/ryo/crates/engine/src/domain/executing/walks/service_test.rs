@@ -75,11 +75,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         ])),
     },
     Case {
-        name: CaseName("the_descendant_axis_reaches_the_own_tree_in_pre_order"),
+        name: CaseName("the_descendant_axis_reaches_the_own_trees_nodes_in_pre_order_then_their_tokens"),
         word: Word::Succeeds,
         input: || (Scene::Along(AxisDirection::Descendant), &[3, 0]),
         expect: Expect::Value(Cow::Borrowed(&[
-            0, 1, 0, 2, 0, 3, 99, 3, 11, 5, 0, 0, 0, 0, 0,
+            3, 6, 0, 1, 0, 2, 0, 3, 0, 4, 0, 5, 0, 6, 99, 7, 19, 9, 0, 0, 0, 1, 1,
         ])),
     },
     Case {

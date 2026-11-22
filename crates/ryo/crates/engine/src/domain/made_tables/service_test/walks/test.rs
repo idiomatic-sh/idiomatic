@@ -74,11 +74,11 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value(Cow::Borrowed("30064771074 3 | read 27 given 19 made 1")),
     },
     Case {
-        name: CaseName("a_walk_down_gives_each_descendant_node_in_order"),
+        name: CaseName("a_walk_down_gives_each_descendant_node_in_order_then_their_tokens"),
         word: Word::Succeeds,
         input: || Staged::WalkDescendants,
         expect: Expect::Value(Cow::Borrowed(
-            "30064771073 12; 30064771074 12; 30064771075 12; 30064771079 12 | read 33 given 25 made 4",
+            "30064771073 12; 30064771074 12; 30064771075 12; 30064771079 12; 30064771076 13; 30064771077 13; 30064771078 13 | read 39 given 31 made 7",
         )),
     },
     Case {
