@@ -291,7 +291,7 @@ pub(crate) struct GivenTerms<'a> {
 }
 
 /// The state of one completion of a branch's order.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct OrderCompletion<'a> {
     /// The drafts the estimates read.
     pub(crate) drafts: &'a crate::domain::lowering::definitions::types::Drafts,
