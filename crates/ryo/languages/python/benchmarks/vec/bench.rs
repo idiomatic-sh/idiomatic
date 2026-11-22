@@ -652,11 +652,24 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     let list = files(args[1]);
     let rules = load_rules(args[2], vocab);
     let mut fact_catalog = facts::Catalog::default();
-    let mut interner = facts::Interner::default();
+    let mut interner = facts::Interner { ids: facts::Table::named(&flag(args, "--hasher").unwrap_or_else(|| "std".to_owned())), ..Default::default() };
     let (frules, words) = funnel::load(args[3], vocab, &mut fact_catalog, &mut interner);
     let use_facts = args.contains(&"--facts");
     let slots_n = fact_catalog.relations.len();
-    let mut store = facts::Store::default();
+    let mut store = facts::Store { remap_on: args.contains(&"--remap"), ..Default::default() };
+    let token_pass = args.contains(&"--token-pass");
+    let check_links = args.contains(&"--check-token-links");
+    let token_slot = fact_catalog.names.iter().position(|n| n == "token-link");
+    let kind_code = |n: &str| vocab.kinds.get(n).copied().expect("kind");
+    let token_kinds = facts::TokenKinds {
+        first: kind_code("name-token"),
+        last: kind_code("colonequal"),
+        error: kind_code("errortoken"),
+        pairs: [(kind_code("lpar"), kind_code("rpar")), (kind_code("lsqb"), kind_code("rsqb")), (kind_code("lbrace"), kind_code("rbrace"))],
+    };
+    let link_ids = [u64::from(interner.id(b"next-token")), u64::from(interner.id(b"matching-delimiter")), u64::from(interner.id(b"enclosing-delimiter"))];
+    let (mut token_time, mut token_files, mut model_only_files, mut token_only_files) = (0f64, 0u64, 0u64, 0u64);
+    let (mut link_rows_provider, mut link_rows_mine, mut link_mismatch) = (0u64, 0u64, 0u64);
     let mut fwords = ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names");
     let mut filled = languages::FilledColumns::default();
     let (mut fill_time, mut write_time) = (vec![0f64; slots_n], vec![0f64; slots_n]);
@@ -765,12 +778,41 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                 }
                 let v1 = thread_cpu();
                 decide_time += v1 - v0;
-                if needed.iter().any(|x| *x) {
+                let model_needed = needed.iter().enumerate().any(|(i, x)| *x && Some(i) != token_slot);
+                let tokens_needed = token_slot.is_some_and(|t| needed[t]);
+                if model_needed {
                     model_files += 1;
+                }
+                if tokens_needed && !model_needed {
+                    token_only_files += 1;
+                }
+                if model_needed && !tokens_needed {
+                    model_only_files += 1;
+                }
+                if tokens_needed {
+                    token_files += 1;
                 }
                 languages::facts::clear_words(&mut fwords);
                 for slot in 0..slots_n {
                     if !needed[slot] {
+                        continue;
+                    }
+                    if Some(slot) == token_slot && (token_pass || check_links) {
+                        let a = thread_cpu();
+                        store.token_links(&fact_catalog, slot, ft, &token_kinds, link_ids, n);
+                        token_time += thread_cpu() - a;
+                        if check_links {
+                            let col = |name: &str| fact_catalog.column(slot, name);
+                            let (sc, tc, kc) = (col("source"), col("target"), col("link-kind"));
+                            let mine: std::collections::BTreeSet<(u64, u64, u64)> = (0..store.rows[slot]).map(|r| (store.cells[slot][sc][r], store.cells[slot][tc][r], store.cells[slot][kc][r])).collect();
+                            link_rows_mine += store.rows[slot] as u64;
+                            filled.0.clear();
+                            let _ = file.facts.fill(fact_catalog.relations[slot], languages::Wanted::Whole, &mut fwords, &mut filled);
+                            store.write(&fact_catalog, slot, &filled, &fwords, &mut interner, n);
+                            let theirs: std::collections::BTreeSet<(u64, u64, u64)> = (0..store.rows[slot]).map(|r| (store.cells[slot][sc][r], store.cells[slot][tc][r], store.cells[slot][kc][r])).collect();
+                            link_rows_provider += store.rows[slot] as u64;
+                            link_mismatch += mine.symmetric_difference(&theirs).count() as u64;
+                        }
                         continue;
                     }
                     let a = thread_cpu();
@@ -820,6 +862,11 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                 funnel::structure(t, &cols, &mut st, &function, &class, &looping);
             }
             phases.add("structure pass", (thread_cpu() - c2) / repeat as f64);
+            if !fact_catalog.enc_sets.is_empty() {
+                let e0 = thread_cpu();
+                funnel::enclosing(&cols, &mut st, &fact_catalog.enc_sets);
+                phases.add("enclosing columns (one per kind set)", thread_cpu() - e0);
+            }
         }
         if way == "structure" {
             continue;
@@ -953,6 +1000,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
             pkind: if structured { &st.pkind } else { &[] },
             cmask: if structured { &st.cmask } else { &[] },
             facts: &store,
+            enc: &st.enc,
             matches: &interner.matches,
         };
         if marked.len() < cols.kind.len() {
@@ -1123,6 +1171,11 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                 fact_catalog.names[slot], fill_files[slot], fill_rows[slot], unanswered[slot], fill_time[slot], write_time[slot]
             );
         }
+        println!(
+            "files: needing the semantic model {model_files}, needing token links {token_files}, token links only {token_only_files}, model only {model_only_files}; token pass {token_time:.4} s; link check: mine {link_rows_mine} provider {link_rows_provider} differing {link_mismatch}; enclosing kind sets {}; text lookups {}",
+            fact_catalog.enc_sets.len(),
+            interner.lookups
+        );
         println!("facts total: provider fills {:.4} s column writes {:.4} s; interned texts {}", fill_time.iter().sum::<f64>(), write_time.iter().sum::<f64>(), interner.matches.len());
     }
     let knock_units = units.iter().filter(|u| u.knock).count();

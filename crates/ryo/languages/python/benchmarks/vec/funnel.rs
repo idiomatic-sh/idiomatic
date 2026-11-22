@@ -54,6 +54,10 @@ pub(super) enum Op {
     IsParent { child: usize, parent: usize },
     /// A test on the provider's facts, read from the file's fact columns.
     Fact(super::facts::FactOp),
+    /// `to` = the nearest strict ancestor of `from` whose kind is in enclosing set `set` (a structure column).
+    Enc { from: usize, to: usize, set: usize },
+    /// Some strict ancestor of `from`, held in `to`, matches the block.
+    AncX { from: usize, to: usize, plan: Vec<Op> },
 }
 
 /// One file's view: the table, the source and the columns, with the structure columns when computed.
@@ -68,6 +72,7 @@ pub(super) struct Ctx<'a> {
     pub(super) pkind: &'a [u16],
     pub(super) cmask: &'a [KSet],
     pub(super) facts: &'a super::facts::Store,
+    pub(super) enc: &'a [Vec<u32>],
     pub(super) matches: &'a [u128],
 }
 
@@ -194,6 +199,15 @@ fn ops_of(v: &serde_json::Value, vocab: &Vocab, missing: &mut Vec<String>, fc: &
             "not" => Op::Not(ops_of(&o["plan"], vocab, missing, fc)),
             "exists" => Op::Exists { from: u(o, "from"), to: u(o, "to"), plan: ops_of(&o["plan"], vocab, missing, fc) },
             "isparent" => Op::IsParent { child: u(o, "child"), parent: u(o, "parent") },
+            "enc" => {
+                let set = kset_of(&o["kinds"], vocab, missing);
+                let at = fc.catalog.enc_sets.iter().position(|x| *x == set).unwrap_or_else(|| {
+                    fc.catalog.enc_sets.push(set);
+                    fc.catalog.enc_sets.len() - 1
+                });
+                Op::Enc { from: u(o, "from"), to: u(o, "to"), set: at }
+            }
+            "ancx" => Op::AncX { from: u(o, "from"), to: u(o, "to"), plan: ops_of(&o["plan"], vocab, missing, fc) },
             other => panic!("op {other}"),
                 })
         })
@@ -332,6 +346,31 @@ pub(super) fn exec(ctx: &Ctx<'_>, ops: &[Op], pc: usize, regs: &mut [u32], steps
             ctx.parent[c as usize] == regs[*parent] && ctx.parent[c as usize] != c && exec(ctx, ops, pc + 1, regs, steps)
         }
         Op::Fact(f) => ctx.facts.holds(f, regs, ctx.matches) && exec(ctx, ops, pc + 1, regs, steps),
+        Op::Enc { from, to, set } => {
+            let e = ctx.enc[*set][regs[*from] as usize];
+            e != u32::MAX && {
+                regs[*to] = e;
+                exec(ctx, ops, pc + 1, regs, steps)
+            }
+        }
+        Op::AncX { from, to, plan } => {
+            let mut n = regs[*from];
+            let mut found = false;
+            loop {
+                let p = ctx.parent[n as usize];
+                if p == n {
+                    break;
+                }
+                *steps += 1;
+                regs[*to] = p;
+                if exec(ctx, plan, 0, regs, steps) {
+                    found = true;
+                    break;
+                }
+                n = p;
+            }
+            found && exec(ctx, ops, pc + 1, regs, steps)
+        }
     }
 }
 
@@ -509,6 +548,28 @@ pub(super) fn compile(ops: &[Op]) -> Vec<Stage> {
                 let f = f.clone();
                 out.push(filt(move |ctx, row| ctx.facts.holds(&f, row, ctx.matches)));
             }
+            Op::Enc { from, to, set } => {
+                let (from, to, set) = (*from, *to, *set);
+                out.push(Box::new(move |ctx, rows, steps| {
+                    *steps += rows.len() as u64;
+                    let r = rows.r;
+                    let mut w = 0;
+                    for j in 0..rows.tag.len() {
+                        let e = ctx.enc[set][rows.d[j * r + from] as usize];
+                        if e != u32::MAX {
+                            if w != j {
+                                rows.d.copy_within(j * r..j * r + r, w * r);
+                                rows.tag[w] = rows.tag[j];
+                            }
+                            rows.d[w * r + to] = e;
+                            w += 1;
+                        }
+                    }
+                    rows.d.truncate(w * r);
+                    rows.tag.truncate(w);
+                }));
+            }
+            Op::AncX { .. } => out.push(pred_stage(compile_pred(std::slice::from_ref(&ops[i])))),
             Op::IsParent { child, parent } => {
                 let (c, p) = (*child, *parent);
                 out.push(filt(move |ctx, row| {
@@ -678,6 +739,39 @@ pub(super) fn compile_pred(ops: &[Op]) -> Pred {
                 Box::new(move |ctx, r, s| {
                     *s += 1;
                     ctx.facts.holds(&f, r, ctx.matches) && next(ctx, r, s)
+                })
+            }
+            Op::Enc { from, to, set } => {
+                let (from, to, set) = (*from, *to, *set);
+                Box::new(move |ctx, r, s| {
+                    *s += 1;
+                    let e = ctx.enc[set][r[from] as usize];
+                    e != u32::MAX && {
+                        r[to] = e;
+                        next(ctx, r, s)
+                    }
+                })
+            }
+            Op::AncX { from, to, plan } => {
+                let (from, to) = (*from, *to);
+                let inner = compile_pred(plan);
+                Box::new(move |ctx, r, s| {
+                    *s += 1;
+                    let mut n = r[from];
+                    let mut found = false;
+                    loop {
+                        let p = ctx.parent[n as usize];
+                        if p == n {
+                            break;
+                        }
+                        r[to] = p;
+                        if inner(ctx, r, s) {
+                            found = true;
+                            break;
+                        }
+                        n = p;
+                    }
+                    found && next(ctx, r, s)
                 })
             }
             Op::IsParent { child, parent } => {
@@ -942,6 +1036,8 @@ pub(super) struct Structure {
     pub(super) enc_function: Vec<u32>,
     pub(super) enc_class: Vec<u32>,
     pub(super) enc_loop: Vec<u32>,
+    /// One column per enclosing kind set the plans ask: the nearest strict ancestor with a kind in the set.
+    pub(super) enc: Vec<Vec<u32>>,
 }
 
 pub(super) fn parents(table: &NodeTable, cols: &Columns, s: &mut Structure) {
@@ -985,5 +1081,27 @@ pub(super) fn structure(table: &NodeTable, cols: &Columns, s: &mut Structure, fu
         s.enc_function.push(f);
         s.enc_class.push(c);
         s.enc_loop.push(l);
+    }
+}
+
+/// The enclosing columns of the plans' kind sets, one forward pass each over the parent and kind columns.
+pub(super) fn enclosing(cols: &Columns, s: &mut Structure, sets: &[KSet]) {
+    let n = cols.kind.len();
+    s.enc.resize_with(sets.len(), Vec::new);
+    for (k, set) in sets.iter().enumerate() {
+        let col = &mut s.enc[k];
+        col.clear();
+        col.resize(n, u32::MAX);
+        for i in 0..n {
+            let p = s.parent[i] as usize;
+            if p == i || p >= i {
+                // a root, or a parent written after its child (an embedded segment's host comes first: never here)
+                if p != i && p < n && kbit(set, cols.kind[p]) {
+                    col[i] = p as u32;
+                }
+                continue;
+            }
+            col[i] = if kbit(set, cols.kind[p]) { p as u32 } else { col[p] };
+        }
     }
 }

@@ -9,29 +9,92 @@ use ryo_relations::domain::relations::service as catalog;
 use std::collections::HashMap;
 
 /// The run's interned texts: an id a text, and for each id the regexes of the pack it matches (one bit a regex).
+/// The run-wide text table, by the hash chosen on the command line.
+pub(super) enum Table {
+    Std(HashMap<Vec<u8>, u32>),
+    Fx(rustc_hash::FxHashMap<Vec<u8>, u32>),
+    Fold(HashMap<Vec<u8>, u32, foldhash::fast::RandomState>),
+}
+
+impl Default for Table {
+    fn default() -> Self {
+        Table::Std(HashMap::new())
+    }
+}
+
+impl Table {
+    pub(super) fn named(name: &str) -> Self {
+        match name {
+            "fx" => Table::Fx(rustc_hash::FxHashMap::default()),
+            "fold" => Table::Fold(HashMap::with_hasher(foldhash::fast::RandomState::default())),
+            _ => Table::Std(HashMap::new()),
+        }
+    }
+    fn get(&self, k: &[u8]) -> Option<u32> {
+        match self {
+            Table::Std(m) => m.get(k).copied(),
+            Table::Fx(m) => m.get(k).copied(),
+            Table::Fold(m) => m.get(k).copied(),
+        }
+    }
+    fn insert(&mut self, k: Vec<u8>, v: u32) {
+        let _ = match self {
+            Table::Std(m) => m.insert(k, v),
+            Table::Fx(m) => m.insert(k, v),
+            Table::Fold(m) => m.insert(k, v),
+        };
+    }
+    fn pairs(&self) -> Vec<(Vec<u8>, u32)> {
+        match self {
+            Table::Std(m) => m.iter().map(|(k, v)| (k.clone(), *v)).collect(),
+            Table::Fx(m) => m.iter().map(|(k, v)| (k.clone(), *v)).collect(),
+            Table::Fold(m) => m.iter().map(|(k, v)| (k.clone(), *v)).collect(),
+        }
+    }
+}
+
 #[derive(Default)]
 pub(super) struct Interner {
-    ids: HashMap<Vec<u8>, u32>,
+    pub(super) ids: Table,
+    /// Text lookups and inserts made (each a hash of the text).
+    pub(super) lookups: u64,
     pub(super) matches: Vec<u128>,
-    regexes: Vec<regex::bytes::Regex>,
+    pub(super) matched: Vec<bool>,
+    pub(super) regexes: Vec<regex::bytes::Regex>,
 }
 
 impl Interner {
     pub(super) fn id(&mut self, text: &[u8]) -> u32 {
+        self.lookups += 1;
         if let Some(i) = self.ids.get(text) {
-            return *i;
+            return i;
         }
         let i = self.matches.len() as u32;
-        let mut bits = 0u128;
-        for (r, re) in self.regexes.iter().enumerate() {
-            if re.is_match(text) {
-                bits |= 1 << r;
-            }
-        }
-        self.matches.push(bits);
+        self.matches.push(0);
+        self.matched.push(false);
         self.ids.insert(text.to_vec(), i);
         i
     }
+
+    /// The id of a text of a column some regex tests: its regex bits are computed once, the first time.
+    pub(super) fn id_matched(&mut self, text: &[u8]) -> u32 {
+        let i = self.id(text);
+        if !self.matched[i as usize] {
+            let mut bits = 0u128;
+            for (r, re) in self.regexes.iter().enumerate() {
+                if re.is_match(text) {
+                    bits |= 1 << r;
+                }
+            }
+            self.matches[i as usize] = bits;
+            self.matched[i as usize] = true;
+        }
+        i
+    }
+    pub(super) fn is_matched(&self, id: usize) -> bool {
+        self.matched.get(id).copied().unwrap_or(false)
+    }
+
     /// A regex of the pack, by its number: each text interned before and after is tested against it once.
     pub(super) fn regex(&mut self, pattern: &str) -> usize {
         if let Some(at) = self.regexes.iter().position(|r| r.as_str() == pattern) {
@@ -40,11 +103,9 @@ impl Interner {
         let re = regex::bytes::Regex::new(pattern).expect("regex");
         let at = self.regexes.len();
         assert!(at < 128, "at most 128 regexes");
-        let texts: Vec<(Vec<u8>, u32)> = self.ids.iter().map(|(k, v)| (k.clone(), *v)).collect();
-        for (t, i) in texts {
-            if re.is_match(&t) {
-                self.matches[i as usize] |= 1 << at;
-            }
+        let _ = self.ids.pairs().len();
+        for m in &mut self.matched {
+            *m = false;
         }
         self.regexes.push(re);
         at
@@ -76,9 +137,17 @@ pub(super) struct Catalog {
     columns: Vec<Vec<String>>,
     /// The key columns each slot is entered by.
     pub(super) key_columns: Vec<Vec<usize>>,
+    /// Per slot, the columns a regex tests: their texts get regex bits.
+    pub(super) re_columns: Vec<Vec<usize>>,
+    /// The enclosing kind sets the plans ask (step 5).
+    pub(super) enc_sets: Vec<[u64; 4]>,
 }
 
 impl Catalog {
+    pub(super) fn column(&self, slot: usize, name: &str) -> usize {
+        self.columns[slot].iter().position(|c| c == name).expect("column")
+    }
+
     pub(super) fn op(&mut self, v: &serde_json::Value, interner: &mut Interner) -> Option<FactOp> {
         let name = v["rel"].as_str().expect("rel");
         let slot = match self.names.iter().position(|n| n == name) {
@@ -90,6 +159,7 @@ impl Catalog {
                 self.kinds.push(catalog::kinds(relation));
                 self.columns.push(catalog::columns(relation).into_iter().map(|c| catalog::column_name(c).0.to_owned()).collect());
                 self.key_columns.push(Vec::new());
+                self.re_columns.push(Vec::new());
                 self.names.len() - 1
             }
         };
@@ -116,7 +186,12 @@ impl Catalog {
                         conds.push(if op == "eq" { Cond::In(at, p) } else { Cond::NotIn(at, p) });
                     }
                 }
-                "re" if kind == CellKind::Symbol => conds.push(Cond::Re(at, interner.regex(vals[0]))),
+                "re" if kind == CellKind::Symbol => {
+                    if !self.re_columns[slot].contains(&at) {
+                        self.re_columns[slot].push(at);
+                    }
+                    conds.push(Cond::Re(at, interner.regex(vals[0])));
+                }
                 "<" | "<=" | ">" | ">=" if kind == CellKind::Number => {
                     if let Ok(n) = vals[0].parse::<i64>() {
                         let (ord, or_equal) = match op {
@@ -152,9 +227,34 @@ fn literal(kind: CellKind, x: &str, interner: &mut Interner) -> Option<u64> {
     }
 }
 
+/// The token kinds of the node table and the three bracket pairs, by code.
+pub(super) struct TokenKinds {
+    pub(super) first: u16,
+    pub(super) last: u16,
+    pub(super) error: u16,
+    pub(super) pairs: [(u16, u16); 3],
+}
+
+impl TokenKinds {
+    fn is_token(&self, k: u16) -> bool {
+        k >= self.first && k <= self.last
+    }
+    fn closer(&self, k: u16) -> Option<u16> {
+        self.pairs.iter().find(|(o, _)| *o == k).map(|(_, c)| *c)
+    }
+    fn is_closer(&self, k: u16) -> bool {
+        self.pairs.iter().any(|(_, c)| *c == k)
+    }
+}
+
 /// One file's fact columns.
 #[derive(Default)]
 pub(super) struct Store {
+    /// Once-a-file remap of the file's word codes to run ids (u32::MAX: not seen yet); on with `remap_on`.
+    pub(super) remap: Vec<u32>,
+    pub(super) remap_on: bool,
+    /// Index buffers kept across files.
+    pub(super) spare: Vec<(Vec<u32>, Vec<u32>)>,
     /// Per slot: answered for this file (a test on an unanswered relation passes: a superset).
     pub(super) answered: Vec<bool>,
     pub(super) rows: Vec<usize>,
@@ -165,6 +265,7 @@ pub(super) struct Store {
 
 impl Store {
     pub(super) fn reset(&mut self, slots: usize) {
+        self.remap.clear();
         self.answered.clear();
         self.answered.resize(slots, false);
         self.rows.clear();
@@ -172,7 +273,9 @@ impl Store {
         self.cells.resize_with(slots, Vec::new);
         self.index.resize_with(slots, Vec::new);
         for i in &mut self.index {
-            i.clear();
+            for (_, o, r) in i.drain(..) {
+                self.spare.push((o, r));
+            }
         }
     }
 
@@ -184,6 +287,7 @@ impl Store {
         let cells = &mut self.cells[slot];
         cells.resize_with(kinds.len(), Vec::new);
         for (c, kind) in kinds.iter().enumerate() {
+            let matched = cat.re_columns[slot].contains(&c);
             let out = &mut cells[c];
             out.clear();
             let Some(column) = filled.0.get(c) else {
@@ -191,13 +295,53 @@ impl Store {
                 continue;
             };
             match kind {
-                CellKind::Symbol => out.extend(column.0.iter().map(|w| u64::from(interner.id(languages::facts::text(words, *w).0.as_bytes())))),
+                CellKind::Symbol if self.remap_on => {
+                    let remap = &mut self.remap;
+                    // the file's own codes are dense below `words_end`; reserved words (unknown values) above it are interned
+                    let end = languages::facts::words_end(words).0 as usize;
+                    if remap.len() < end {
+                        remap.resize(end, u32::MAX);
+                    }
+                    out.extend(column.0.iter().map(|w| {
+                        let code = w.0 as usize;
+                        if code >= remap.len() {
+                            let t = languages::facts::text(words, *w);
+                            return u64::from(if matched { interner.id_matched(t.0.as_bytes()) } else { interner.id(t.0.as_bytes()) });
+                        }
+                        if remap[code] == u32::MAX {
+                            let t = languages::facts::text(words, *w);
+                            remap[code] = if matched { interner.id_matched(t.0.as_bytes()) } else { interner.id(t.0.as_bytes()) };
+                        }
+                        if matched {
+                            let id = remap[code] as usize;
+                            if !interner.is_matched(id) {
+                                let t = languages::facts::text(words, *w);
+                                let _ = interner.id_matched(t.0.as_bytes());
+                            }
+                        }
+                        u64::from(remap[code])
+                    }));
+                }
+                CellKind::Symbol => out.extend(column.0.iter().map(|w| {
+                    let t = languages::facts::text(words, *w);
+                    u64::from(if matched { interner.id_matched(t.0.as_bytes()) } else { interner.id(t.0.as_bytes()) })
+                })),
                 CellKind::Node => out.extend(column.0.iter().map(|w| w.0 & 0xffff_ffff)),
                 _ => out.extend(column.0.iter().map(|w| w.0)),
             }
         }
+        self.index_slot(cat, slot, elements);
+        self.answered[slot] = true;
+    }
+
+    /// Indexes one written slot by each of its key columns.
+    pub(super) fn index_slot(&mut self, cat: &Catalog, slot: usize, elements: usize) {
+        let cells = &self.cells[slot];
+        let mut spare = std::mem::take(&mut self.spare);
         for &kc in &cat.key_columns[slot] {
-            let mut offsets = vec![0u32; elements + 1];
+            let (mut offsets, mut rows) = spare.pop().unwrap_or_default();
+            offsets.clear();
+            offsets.resize(elements + 1, 0);
             for &node in &cells[kc] {
                 if (node as usize) < elements {
                     offsets[node as usize + 1] += 1;
@@ -207,7 +351,8 @@ impl Store {
                 offsets[i + 1] += offsets[i];
             }
             let mut fill: Vec<u32> = offsets[..elements].to_vec();
-            let mut rows = vec![0u32; offsets[elements] as usize];
+            rows.clear();
+            rows.resize(offsets[elements] as usize, 0);
             for (r, &node) in cells[kc].iter().enumerate() {
                 if (node as usize) < elements {
                     rows[fill[node as usize] as usize] = r as u32;
@@ -216,6 +361,71 @@ impl Store {
             }
             self.index[slot].push((kc, offsets, rows));
         }
+        self.spare = spare;
+    }
+
+    /// Token links straight from the node table's token order (step 5): next token, matching and immediate enclosing
+    /// delimiter, with the provider's own rules (an error token or an unmatched closer stops the pairing).
+    pub(super) fn token_links(&mut self, cat: &Catalog, slot: usize, table: &ryo::languages::NodeTable, tokens: &TokenKinds, link_ids: [u64; 3], elements: usize) {
+        use ryo::languages::{KindBits, Position, node_table};
+        let width = cat.kinds[slot].len();
+        let cells = &mut self.cells[slot];
+        cells.resize_with(width, Vec::new);
+        for c in cells.iter_mut() {
+            c.clear();
+        }
+        let (src, dst, kind) = (cat.column(slot, "source"), cat.column(slot, "target"), cat.column(slot, "link-kind"));
+        let mut push = |cells: &mut Vec<Vec<u64>>, s: u32, t: u32, k: u64| {
+            for (c, col) in cells.iter_mut().enumerate() {
+                col.push(if c == src { u64::from(s) } else if c == dst { u64::from(t) } else if c == kind { k } else { 0 });
+            }
+        };
+        let start = node_table::node_count(table).0 as u32;
+        let end = node_table::own_end(table).0;
+        let mut stack: Vec<(u16, u32)> = Vec::new();
+        let mut previous: Option<u32> = None;
+        let mut lost = false;
+        for at in start..end {
+            let k = node_table::kind_of(table, Position(at)).0;
+            if !tokens.is_token(k) {
+                continue;
+            }
+            if k == tokens.error {
+                lost = true;
+                previous = None;
+                stack.clear();
+                continue;
+            }
+            let mut paired = None;
+            let mut enclosing = stack.last().map(|o| o.1);
+            if let Some(close) = tokens.closer(k) {
+                stack.push((close, at));
+            } else if tokens.is_closer(k) {
+                match stack.pop() {
+                    Some((close, open)) if close == k => {
+                        paired = Some((open, at));
+                        enclosing = stack.last().map(|o| o.1);
+                    }
+                    _ => {
+                        lost = true;
+                        stack.clear();
+                        enclosing = None;
+                    }
+                }
+            }
+            if let Some(p) = previous.replace(at) {
+                push(cells, p, at, link_ids[0]);
+            }
+            if let Some((o, c)) = paired {
+                push(cells, o, c, link_ids[1]);
+            }
+            if let Some(t) = enclosing {
+                push(cells, at, t, link_ids[2]);
+            }
+        }
+        let _ = (lost, KindBits(0));
+        self.rows[slot] = cells.first().map_or(0, Vec::len);
+        self.index_slot(cat, slot, elements);
         self.answered[slot] = true;
     }
 
