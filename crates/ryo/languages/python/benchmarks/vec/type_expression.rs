@@ -30,6 +30,10 @@ static GENERIC: LazyLock<regex::bytes::Regex> = LazyLock::new(|| {
     regex::bytes::Regex::new("^(?:builtins[.]dict|builtins[.]frozenset|builtins[.]list|builtins[.]set|builtins[.]tuple|builtins[.]type|collections[.]ChainMap|collections[.]Counter|collections[.]OrderedDict|collections[.]abc[.]AsyncGenerator|collections[.]abc[.]AsyncIterable|collections[.]abc[.]AsyncIterator|collections[.]abc[.]Awaitable|collections[.]abc[.]ByteString|collections[.]abc[.]Callable|collections[.]abc[.]Collection|collections[.]abc[.]Container|collections[.]abc[.]Coroutine|collections[.]abc[.]Generator|collections[.]abc[.]ItemsView|collections[.]abc[.]Iterable|collections[.]abc[.]Iterator|collections[.]abc[.]KeysView|collections[.]abc[.]Mapping|collections[.]abc[.]MappingView|collections[.]abc[.]MutableMapping|collections[.]abc[.]MutableSequence|collections[.]abc[.]MutableSet|collections[.]abc[.]Reversible|collections[.]abc[.]Sequence|collections[.]abc[.]Set|collections[.]abc[.]ValuesView|collections[.]defaultdict|collections[.]deque|contextlib[.]AbstractAsyncContextManager|contextlib[.]AbstractContextManager|re[.]Match|re[.]Pattern|typing[.]AbstractSet|typing[.]AsyncContextManager|typing[.]AsyncGenerator|typing[.]AsyncIterator|typing[.]Awaitable|typing[.]BinaryIO|typing[.]ByteString|typing[.]Callable|typing[.]ChainMap|typing[.]ClassVar|typing[.]Collection|typing[.]Concatenate|typing[.]Container|typing[.]ContextManager|typing[.]Coroutine|typing[.]Counter|typing[.]DefaultDict|typing[.]Deque|typing[.]Dict|typing[.]Final|typing[.]FrozenSet|typing[.]Generator|typing[.]Generic|typing[.]IO|typing[.]ItemsView|typing[.]Iterable|typing[.]Iterator|typing[.]KeysView|typing[.]List|typing[.]Mapping|typing[.]Match|typing[.]MutableMapping|typing[.]MutableSequence|typing[.]MutableSet|typing[.]Optional|typing[.]OrderedDict|typing[.]Pattern|typing[.]Reversible|typing[.]Sequence|typing[.]Set|typing[.]TextIO|typing[.]Tuple|typing[.]Type|typing[.]TypeGuard|typing[.]Union|typing[.]Unpack|typing[.]ValuesView|typing[.]io[.]BinaryIO|typing[.]io[.]IO|typing[.]io[.]TextIO|typing[.]re[.]Match|typing[.]re[.]Pattern|typing_extensions[.]AsyncContextManager|typing_extensions[.]AsyncGenerator|typing_extensions[.]AsyncIterable|typing_extensions[.]AsyncIterator|typing_extensions[.]Awaitable|typing_extensions[.]ChainMap|typing_extensions[.]ClassVar|typing_extensions[.]Concatenate|typing_extensions[.]ContextManager|typing_extensions[.]Coroutine|typing_extensions[.]Counter|typing_extensions[.]DefaultDict|typing_extensions[.]Deque|typing_extensions[.]Type|weakref[.]WeakKeyDictionary|weakref[.]WeakSet|weakref[.]WeakValueDictionary)$").expect("regex")
 });
 
+/// The modules every path the fact tests lies in (a prefix test before the patterns).
+const NAMED_MODULES: [&[u8]; 9] =
+    [b"typing", b"_typeshed.", b"mypy_extensions.", b"builtins.", b"collections.", b"contextlib.", b"re.", b"weakref.", b"typing_extensions."];
+
 /// The typing callable a path names.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Form {
@@ -129,6 +133,10 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
     for r in 0..inp.qualified.n {
         let x = inp.qualified.cols[q_id][r] as u32;
         let t: &[u8] = &run.texts[inp.qualified.cols[q_path][r] as usize];
+        // every name the tests below match starts with one of these modules
+        if !NAMED_MODULES.iter().any(|m| t.starts_with(m)) {
+            continue;
+        }
         let mut bits = 0;
         if t == b"typing.TypeAlias" || t == b"typing_extensions.TypeAlias" || t == b"_typeshed.TypeAlias" {
             bits |= ALIAS;
@@ -151,6 +159,14 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
                 e.push(fm);
             }
         }
+    }
+    // no root of any kind: no type expression in the file
+    if inp.embedded.n == 0
+        && names.is_empty()
+        && callee_forms.is_empty()
+        && !(0..n).any(|p| (parent[p] != u32::MAX && (field[p] == f_annotation || field[p] == f_returns)) || k_decl.contains(&kind[p]))
+    {
+        return Ok(Vec::new());
     }
     let names_of = |x: u32| names.get(&x).copied().unwrap_or(0);
     // the typing forms of each call (by its callee's paths)
