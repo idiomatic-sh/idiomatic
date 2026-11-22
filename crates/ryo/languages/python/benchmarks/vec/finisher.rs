@@ -24,6 +24,8 @@ pub(super) struct Finisher<'p> {
     fwords: languages::FileWords,
     findings: Vec<String>,
     failed: HashMap<String, String>,
+    /// redo-union pass 2 c16: a failed emit by its index (no name hashed an emit a file).
+    failed_idx: Vec<bool>,
     check_lines: Vec<String>,
     files_run: u64,
     provider_time: f64,
@@ -94,6 +96,7 @@ impl<'p> Finisher<'p> {
             fwords: ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names"),
             findings: Vec::new(),
             failed: HashMap::new(),
+            failed_idx: vec![false; plan.emits.len()],
             check_lines: Vec::new(),
             files_run: 0,
             provider_time: 0.0,
@@ -197,11 +200,11 @@ impl<'p> Finisher<'p> {
                 }
             }
         }
-        for e in wanted {
-            let e = &plan.emits[*e];
-            if self.failed.contains_key(&e.0) {
+        for ei in wanted {
+            if self.failed_idx[*ei] {
                 continue;
             }
+            let e = &plan.emits[*ei];
             run.missing.clear();
             let got = self.exec.eval(&mut f, run, pv, e.1);
             let got = if run.missing.is_empty() { got } else { Err(format!("functions {:?} not in the step set", run.missing)) };
@@ -219,6 +222,7 @@ impl<'p> Finisher<'p> {
                 }
                 Err(err) => {
                     self.failed.insert(e.0.clone(), format!("{}: {err}", run.paths[file_no]));
+                    self.failed_idx[*ei] = true;
                 }
             }
         }
@@ -305,5 +309,7 @@ impl<'p> Finisher<'p> {
         for (r, e) in f {
             println!("FAILED {r}: {e}");
         }
+        // redo-union pass 2 c18: the process ends here: the executor is not dropped one by one
+        std::mem::forget(self.exec);
     }
 }

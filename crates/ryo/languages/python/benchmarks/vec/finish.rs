@@ -205,8 +205,8 @@ pub(super) struct Run {
     pub(super) missing: std::collections::BTreeSet<String>,
     /// 6h: the provider relations read in place (`Native::Fact`), with their column counts.
     pub(super) fact_rels: Vec<(String, usize)>,
-    /// 8: kind symbol -> kind codes, made on first ask.
-    pub(super) kind_codes: std::cell::OnceCell<FxHashMap<u32, Vec<u16>>>,
+    /// pass 2: the kind codes of each kind name's symbol (made at the first ask, after `kind_sym` is set).
+    pub(super) kind_codes: std::cell::OnceCell<FxHashMap<u32, Box<[u16]>>>,
 }
 
 impl Run {
@@ -516,6 +516,28 @@ pub(super) struct File<'a> {
     known: Vec<u8>,
     /// The kinds the file has, one bit a kind code (made at the first ask).
     kind_bits: Vec<u64>,
+    /// pass 2: the steps whose memo entry `res` set: cleared at the file's end, and the memo (and `known`) kept for the
+    /// next file (no 30 k-entry table made and dropped a file).
+    touched: Vec<u32>,
+}
+
+thread_local! {
+    static SPARE: RefCell<(Vec<Option<Res>>, Vec<u8>, Vec<u32>)> = const { RefCell::new((Vec::new(), Vec::new(), Vec::new())) };
+}
+
+impl Drop for File<'_> {
+    fn drop(&mut self) {
+        let mut memo = std::mem::take(&mut self.memo);
+        let mut known = std::mem::take(&mut self.known);
+        let mut touched = std::mem::take(&mut self.touched);
+        for n in touched.drain(..) {
+            memo[n as usize] = None;
+        }
+        // a substitution's restore never leaves an entry `res` did not set (checked where it is cheap)
+        debug_assert!(memo.iter().all(Option::is_none));
+        known.fill(0);
+        SPARE.with(|s| *s.borrow_mut() = (memo, known, touched));
+    }
 }
 
 /// How a step asks the provider for a relation's rows: the visit's facts.
@@ -543,7 +565,7 @@ impl File<'_> {
             by_end: RefCell::new(None),
             by_line: [RefCell::new(None), RefCell::new(None)],
             tokens: RefCell::new(None),
-            memo: vec![None; nodes],
+            memo: Vec::new(),
             log: Vec::new(),
             vrows: FxHashMap::default(),
             vmat: FxHashMap::default(),
@@ -554,9 +576,14 @@ impl File<'_> {
             walks: FxHashMap::default(),
             facts: Vec::new(),
             fact_ix: RefCell::new(FxHashMap::default()),
-            known: vec![0; nodes],
+            known: Vec::new(),
             kind_bits: Vec::new(),
+            touched: Vec::new(),
         };
+        SPARE.with(|sp| {
+            let (memo, known, touched) = std::mem::take(&mut *sp.borrow_mut());
+            (f.memo, f.known, f.touched) = if memo.len() == nodes && known.len() == nodes { (memo, known, touched) } else { (vec![None; nodes], vec![0; nodes], Vec::new()) };
+        });
         for i in 0..n as u32 {
             let p = Position(i);
             f.kind.push(node_table::kind_of(table, p).0);
@@ -1627,11 +1654,13 @@ impl<'p> Exec<'p> {
         if let Some(v) = self.view(run, node)? {
             self.load_fact(f, run, p, v.base)?;
             let r = Res::View(v);
+            f.touched.push(node as u32);
             f.memo[node] = Some(r.clone());
             return Ok(r);
         }
         if let Some(t) = &self.run_memo[node] {
             let r = Res::Tab(t.clone());
+            f.touched.push(node as u32);
             f.memo[node] = Some(r.clone());
             return Ok(r);
         }
@@ -1639,6 +1668,7 @@ impl<'p> Exec<'p> {
         if !sw!("VEC_NO_KNOWN") && self.known_empty(f, run, node) {
             self.stats.known[node] += 1;
             let r = Res::Tab(self.empty_rc(run, node)?);
+            f.touched.push(node as u32);
             f.memo[node] = Some(r.clone());
             f.log.push(node);
             if sw!("VEC_STEP_TIME") && decided {
@@ -1699,6 +1729,7 @@ impl<'p> Exec<'p> {
             self.run_memo[node] = Some(t.clone());
         }
         let rc = Res::Tab(t);
+        f.touched.push(node as u32);
         f.memo[node] = Some(rc.clone());
         f.log.push(node);
         Ok(rc)
@@ -2424,8 +2455,9 @@ impl<'p> Exec<'p> {
                 return self.empty_rc(run, node);
             }
         }
-        // an empty answer is the step's shared one (the body's own table is dropped, nothing kept a run)
-        let t = self.step(f, run, p, node)?;
+        // an empty answer is the step's shared one (the body's own table is dropped, nothing kept a run); the select's
+        // dispatch point (by the frame's code)
+        let t = if fr.op == frame::Op::Select { self.select(f, run, p, node)? } else { self.step(f, run, p, node)? };
         if t.n == 0 { self.empty_rc(run, node) } else { Ok(Rc::new(t)) }
     }
 
@@ -3946,38 +3978,46 @@ fn view_rows(f: &mut File<'_>, run: &mut Run, v: &ViewSpec, node: usize) -> Rc<V
 }
 
 /// How many elements some kinds have.
-/// 8: a kind symbol's codes (a symbol may name several codes), from the run's kind table, made once a run.
-fn kind_codes(run: &Run, sym: u32) -> &[u16] {
-    let m = run.kind_codes.get_or_init(|| {
-        let mut m: FxHashMap<u32, Vec<u16>> = FxHashMap::default();
-        for (code, s) in run.kind_sym.iter().enumerate() {
-            m.entry(*s).or_default().push(code as u16);
-        }
-        m
-    });
-    m.get(&sym).map_or(&[], Vec::as_slice)
-}
-
 fn bucket_len(f: &File<'_>, run: &Run, ks: &[u32]) -> usize {
+    // engine-vec 8: many kinds by one scan of the kind table
     if ks.len() > 16 {
         return run.kind_sym.iter().enumerate().filter(|(_, s)| ks.contains(s)).map(|(c, _)| node_table::ids_of_kind(f.table, KindBits(c as u16)).len()).sum();
     }
+    // pass 2: by the kinds' codes (not a scan of every kind a call); each code once, as the scan counted it
+    let codes = kind_codes(run);
     let mut n = 0;
-    for (i, k) in ks.iter().enumerate() {
-        if ks[..i].contains(k) {
+    for (i, s) in ks.iter().enumerate() {
+        if ks[..i].contains(s) {
             continue;
         }
-        n += kind_codes(run, *k).iter().map(|c| node_table::ids_of_kind(f.table, KindBits(*c)).len()).sum::<usize>();
+        for c in codes.get(s).map_or(&[][..], |b| &b[..]) {
+            n += node_table::ids_of_kind(f.table, KindBits(*c)).len();
+        }
     }
     n
 }
 
+/// The kind codes by kind-name symbol (once a run).
+fn kind_codes(run: &Run) -> &FxHashMap<u32, Box<[u16]>> {
+    run.kind_codes.get_or_init(|| {
+        let mut m: FxHashMap<u32, Vec<u16>> = FxHashMap::default();
+        for (c, s) in run.kind_sym.iter().enumerate() {
+            m.entry(*s).or_default().push(c as u16);
+        }
+        m.into_iter().map(|(k, v)| (k, v.into_boxed_slice())).collect()
+    })
+}
+
 /// The elements of some kinds, in position order.
 fn bucket(f: &File<'_>, run: &Run, ks: &[u32]) -> Vec<u32> {
+    let codes = kind_codes(run);
     let mut rows = Vec::new();
-    for (code, sym) in run.kind_sym.iter().enumerate() {
-        if ks.contains(sym) {
-            rows.extend(node_table::ids_of_kind(f.table, KindBits(code as u16)).iter().map(|p| p.0));
+    for (i, s) in ks.iter().enumerate() {
+        if ks[..i].contains(s) {
+            continue;
+        }
+        for c in codes.get(s).map_or(&[][..], |b| &b[..]) {
+            rows.extend(node_table::ids_of_kind(f.table, KindBits(*c)).iter().map(|p| p.0));
         }
     }
     rows.sort_unstable();

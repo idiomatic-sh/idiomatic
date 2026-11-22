@@ -561,6 +561,8 @@ fn main() {
                 let mut fin = finisher::Finisher::new(&plan, &walk, &vocab, &finish_args);
                 run_funnel(&walk, &vocab, &args[2..], Some(&mut fin));
                 fin.end(0.0);
+                // redo-union pass 2 c18: the plan (30 k nodes of JSON) is not dropped one by one at exit
+                std::mem::forget(plan);
             } else {
                 run_funnel(&walk, &vocab, &args[2..], None);
             }
