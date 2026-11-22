@@ -23,7 +23,7 @@ use ryo_relations::domain::catalog::service::{fact_form, node_column};
 use ryo_relations::domain::relations::service::{columns, kind};
 use ryo_relations::domain::relations::types::Count;
 use ryo_relations::domain::relations::types::{CellKind, FactForm, NodeColumn, Relation};
-use std::collections::HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 /// How often each variable is written in a branch: in its atoms, and in the columns of its row its unit gives (every
 /// column, or the ones named). A variable written once is read by nothing: its cell is never read.
@@ -32,7 +32,7 @@ pub(crate) fn uses_of(
     branch: &FlatBranch,
     given: Option<&ColumnMask>,
 ) -> HashMap<FlatVariable, Count> {
-    let mut uses: HashMap<FlatVariable, Count> = HashMap::new();
+    let mut uses: HashMap<FlatVariable, Count> = HashMap::default();
     let wanted =
         |place| given.is_none_or(|mask| mask.0.iter().any(|column| usize::from(column.0) == place));
     let row = branch

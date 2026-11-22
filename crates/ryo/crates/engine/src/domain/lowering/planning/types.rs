@@ -10,7 +10,7 @@ use crate::domain::steps::types::{
 use ryo_language::domain::semantics::types::RenderContext;
 use ryo_relations::domain::relations::types::{Count, Relation};
 use ryo_values::domain::plan_orders::types::OrderBound;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 /// What a branch is planned and written for.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -216,7 +216,7 @@ pub(crate) struct Environment {
     pub(crate) keyed: HashMap<FlatVariable, Option<FileCell>>,
     /// The pinned variables a use of a definition was keyed by in a pipeline: the use leaves no row to read the cell
     /// from, so each is still its constant for the stages after it.
-    pub(crate) held: std::collections::HashSet<FlatVariable>,
+    pub(crate) held: rustc_hash::FxHashSet<FlatVariable>,
     /// A file column already at hand.
     pub(crate) file: Option<FileCell>,
     /// Whether rows were enumerated yet.
@@ -284,7 +284,7 @@ pub(crate) enum TermGiven {
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct GivenTerms<'a> {
     /// The variables some access gave.
-    pub(crate) variables: &'a std::collections::HashSet<FlatVariable>,
+    pub(crate) variables: &'a rustc_hash::FxHashSet<FlatVariable>,
     /// The constant each pinned variable is held to.
     pub(crate) pins:
         &'a HashMap<FlatVariable, crate::domain::lowering::flattening::types::FlatTerm>,
@@ -302,7 +302,7 @@ pub(crate) struct OrderCompletion<'a> {
     /// What the branch is planned for.
     pub(crate) role: UnitRole,
     /// The variables given so far.
-    pub(crate) given: std::collections::HashSet<FlatVariable>,
+    pub(crate) given: rustc_hash::FxHashSet<FlatVariable>,
     /// The constant each pinned variable of the branch is held to.
     pub(crate) pins: HashMap<FlatVariable, crate::domain::lowering::flattening::types::FlatTerm>,
     /// Which atoms are placed.
@@ -312,9 +312,9 @@ pub(crate) struct OrderCompletion<'a> {
     /// How many times the branch names each variable: one that only one atom names is read by nothing else.
     pub(crate) uses: HashMap<FlatVariable, Count>,
     /// The pinned variables an access placed so far was keyed by: the test that pins one holds already.
-    pub(crate) implied: std::collections::HashSet<FlatVariable>,
+    pub(crate) implied: rustc_hash::FxHashSet<FlatVariable>,
     /// The pinned variables a use of a definition was keyed by in a pipeline: the use leaves no row to read the cell from.
-    pub(crate) rowless: std::collections::HashSet<FlatVariable>,
+    pub(crate) rowless: rustc_hash::FxHashSet<FlatVariable>,
     /// The rows the unit holds at this point.
     pub(crate) rows: PlanEstimate,
     /// The steps taken so far.
@@ -338,7 +338,7 @@ pub(crate) struct KindAnchor {
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct UnitStart<'a> {
     /// The variables given.
-    pub(crate) given: &'a std::collections::HashSet<FlatVariable>,
+    pub(crate) given: &'a rustc_hash::FxHashSet<FlatVariable>,
     /// The rows one start holds: one, or less when a bound column of a pattern is a constant of the branch.
     pub(crate) rows: PlanEstimate,
 }

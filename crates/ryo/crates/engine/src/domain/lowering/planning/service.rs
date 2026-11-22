@@ -13,7 +13,7 @@ use crate::domain::lowering::flattening::types::{
 };
 use crate::domain::steps::calls::service::call_shape;
 use crate::domain::steps::calls::types::CallRows;
-use std::collections::HashSet;
+use rustc_hash::FxHashSet as HashSet;
 
 /// How a term stands for the variables given so far.
 #[must_use]

@@ -6,7 +6,7 @@ use crate::domain::statistics::types::Statistics;
 use crate::domain::steps::types::{ColumnMask, CostClass, DefinitionId};
 use ryo_values::domain::descriptions::types::KindVocabulary;
 use ryo_values::domain::query_plans::types::NodeDigest;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap as HashMap;
 use std::sync::Mutex;
 
 /// An estimate of the planner, in 1,024ths: rows in a file or for a candidate, or steps. A fraction says an access leaves

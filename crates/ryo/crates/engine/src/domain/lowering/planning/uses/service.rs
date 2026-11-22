@@ -24,7 +24,7 @@ use crate::domain::lowering::planning::completing::service::completed;
 use crate::domain::lowering::planning::service::planned_with;
 use crate::domain::lowering::planning::types::{PlanningWith, UnitRole, UnitStart};
 use crate::domain::steps::types::{ColumnMask, DefinitionId, MadeColumn, MadeTableId};
-use std::collections::HashSet;
+use rustc_hash::FxHashSet as HashSet;
 use std::sync::PoisonError;
 
 /// What a pattern's bound columns give a branch at its start: the variables of those columns, and the rows of one start,
@@ -279,7 +279,7 @@ pub(crate) fn with_pack<T>(drafts: &Drafts, planning: impl FnOnce(PlanningWith<'
 /// pipeline of the step's table. A branch with no plan counts one row.
 #[must_use]
 pub(crate) fn branches_estimated(drafts: &Drafts, branches: &[FlatBranch]) -> RowEstimate {
-    let nothing = HashSet::new();
+    let nothing = HashSet::default();
     let start = UnitStart {
         given: &nothing,
         rows: ONE,

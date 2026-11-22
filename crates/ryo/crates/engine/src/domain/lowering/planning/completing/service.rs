@@ -28,7 +28,7 @@ use crate::domain::steps::types::{AxisDirection, ColumnMask, CostClass, TestOper
 use ryo_relations::domain::catalog::service::{fact_form, node_column};
 use ryo_relations::domain::relations::service::columns;
 use ryo_relations::domain::relations::types::{Count, FactForm, NodeColumn};
-use std::collections::HashSet;
+use rustc_hash::FxHashSet as HashSet;
 
 /// Whether a term is given: a constant, the file, or a variable some access gave.
 fn ready(term: FlatTerm, given: &GivenTerms<'_>) -> TermGiven {
@@ -663,8 +663,8 @@ fn begun<'a>(
         placed: vec![AtomPlacing::Waiting; branch.atoms.len()],
         order: Vec::with_capacity(branch.atoms.len()),
         uses: uses_of(branch, None),
-        implied: HashSet::new(),
-        rowless: HashSet::new(),
+        implied: HashSet::default(),
+        rowless: HashSet::default(),
         rows: start.rows,
         cost: PlanEstimate(0),
         enumerated: Enumerated::NotYet,

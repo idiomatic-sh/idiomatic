@@ -12,7 +12,8 @@ use crate::domain::steps::types::{
 use ryo_relations::domain::relations::types::Relation;
 use ryo_values::domain::plan_parts::types::{LiteralText, StepId};
 use ryo_values::domain::query_plans::types::NodeDigest;
-use std::collections::{BTreeSet, HashMap};
+use rustc_hash::FxHashMap as HashMap;
+use std::collections::BTreeSet;
 use std::sync::OnceLock;
 
 /// How many rows a source is taken to hold in a file, by the fixed priors: an estimate that orders accesses, never a bound.

@@ -13,7 +13,8 @@ use ryo_values::domain::plans::service::{inputs_of, named};
 use ryo_values::domain::plans::types::Operation;
 use ryo_values::domain::query_plans::types::NodeDigests;
 use ryo_values::domain::query_plans::types::{NodeDigest, Plan};
-use std::collections::{BTreeSet, HashMap, HashSet};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use std::collections::BTreeSet;
 
 /// The steps of `plan` its emit reaches, by step: each step is visited once, whatever the number of paths to it. A step may
 /// read a step after it (the closure a reach join is unfolded into is appended after the plan's last step): the order the
@@ -130,7 +131,7 @@ pub(crate) fn stored(rules: &[AdmittedRule<'_>]) -> NodeStore {
                     rule: AcceptedPlace(place),
                     step,
                 },
-                readers: HashSet::new(),
+                readers: HashSet::default(),
                 read: ReadColumns::Kept(BTreeSet::new()),
             });
             let _new = node.readers.insert(reader);
@@ -145,7 +146,7 @@ pub(crate) fn stored(rules: &[AdmittedRule<'_>]) -> NodeStore {
             ReadColumns::Whole,
         );
         // The digests the rule holds at more than one shaped place.
-        let mut places: HashMap<NodeDigest, usize> = HashMap::new();
+        let mut places: HashMap<NodeDigest, usize> = HashMap::default();
         for (at, digest) in rule.digests.0.iter().enumerate() {
             if rule.shapes.get(at).is_some_and(Option::is_some) {
                 *places.entry(*digest).or_default() += 1;
@@ -183,7 +184,7 @@ pub(crate) fn stored(rules: &[AdmittedRule<'_>]) -> NodeStore {
                     rule: AcceptedPlace(place),
                     step: producer.step,
                 },
-                readers: HashSet::new(),
+                readers: HashSet::default(),
                 read: ReadColumns::Kept(BTreeSet::new()),
             });
             let _new = node.readers.insert(NodeReader::Emit(rule.rule.rule));
