@@ -170,12 +170,16 @@ impl Run {
         if let Some(r) = self.rels.get(name) {
             return Some(r.clone());
         }
-        if name == REGION_REL || name == RESOLUTION_REL {
+        if name == REGION_REL || name == RESOLUTION_REL || name == FINAL_REL {
             // 6f probe: the provider's per-node evaluation region (`ColumnFile::evaluation_region`); not a catalog relation,
             // so the placeholder relation is never filled (`Provider::fill` answers it by name). redo-binding: the same for
             // the provider's read resolution (`RESOLUTION_REL`).
             let relation = catalog::relation_named(NameRef("binding-read"))?;
-            let cols: &[(&str, Ty)] = if name == REGION_REL { &REGION_COLS } else { &RESOLUTION_COLS };
+            let cols: &[(&str, Ty)] = match name {
+                REGION_REL => &REGION_COLS,
+                RESOLUTION_REL => &RESOLUTION_COLS,
+                _ => &FINAL_COLS,
+            };
             let names: Names = Rc::new(cols.iter().map(|c| c.0.to_owned()).collect());
             let tys: Tys = Rc::new(cols.iter().map(|c| c.1).collect());
             self.rels.insert(name.to_owned(), (relation, names.clone(), tys.clone()));
@@ -198,6 +202,12 @@ pub(super) const REGION_COLS: [(&str, Ty); 6] =
 /// namespace of its lookup path that holds one (a deletion looks in its own namespace only), by name. `kind` is that event's
 /// kind (`none`: no namespace holds an event of the name), `namespace` says whether the event was made in that namespace
 /// itself (`own`) or routed into it by a `global` / `nonlocal` declaration elsewhere (`routed`).
+/// redo-binding pass 3: the event in effect for each name in each namespace once the schedule has run (the namespace's state
+/// after the module ran: what a postponed annotation sees, PEP 563), one row per (namespace, name) that holds an event.
+pub(super) const FINAL_REL: &str = "namespace-final";
+pub(super) const FINAL_COLS: [(&str, Ty); 6] =
+    [("namespace", Ty::Node), ("name", Ty::Sym), ("event", Ty::Node), ("kind", Ty::Sym), ("ordinal", Ty::Num), ("file", Ty::File)];
+
 pub(super) const RESOLUTION_REL: &str = "read-resolution";
 pub(super) const RESOLUTION_COLS: [(&str, Ty); 9] = [
     ("reference", Ty::Node),

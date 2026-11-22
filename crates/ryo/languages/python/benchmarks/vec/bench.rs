@@ -742,6 +742,43 @@ impl ColFacts<'_, '_, '_, '_> {
     }
 }
 
+impl ColFacts<'_, '_, '_, '_> {
+    /// redo-binding pass 3: `namespace-final` from the provider's events (`binding-event`) in schedule order, keeping the latest
+    /// event of each (namespace, name) as the provider's resolution does (`binding_resolution::resolve`): a bind, annotation,
+    /// cleanup, deletion, global or nonlocal is the name's state in its namespace; a global or nonlocal also holds in the
+    /// declaring namespace. Reads and wildcards change nothing.
+    fn namespace_final(&mut self, run: &mut finish::Run) -> Result<finish::Table, String> {
+        let ev = self.whole(run, "binding-event")?;
+        let col = |n: &str| ev.names.iter().position(|c| c == n).ok_or_else(|| format!("no column {n}"));
+        let (e_occ, e_name, e_scope, e_kind, e_ord, e_lex) =
+            (col("occurrence")?, col("name")?, col("scope")?, col("kind")?, col("ordinal")?, col("lexical")?);
+        let (read, wildcard) = (u64::from(run.sym(b"read")), u64::from(run.sym(b"wildcard")));
+        let (global, nonlocal) = (u64::from(run.sym(b"global")), u64::from(run.sym(b"nonlocal")));
+        let mut order: Vec<usize> = (0..ev.n).collect();
+        order.sort_by_key(|r| ev.cols[e_ord][*r]);
+        let mut latest: rustc_hash::FxHashMap<(u64, u64), usize> = rustc_hash::FxHashMap::default();
+        for r in order {
+            let kind = ev.cols[e_kind][r];
+            if kind == read || kind == wildcard {
+                continue;
+            }
+            let _ = latest.insert((ev.cols[e_scope][r], ev.cols[e_name][r]), r);
+            if (kind == global || kind == nonlocal) && ev.cols[e_lex][r] != ev.cols[e_scope][r] {
+                let _ = latest.insert((ev.cols[e_lex][r], ev.cols[e_name][r]), r);
+            }
+        }
+        let (_, names, tys) = run.catalog(finish::FINAL_REL).ok_or("no namespace-final")?;
+        let mut t = finish::Table { names, tys, cols: vec![Vec::with_capacity(latest.len()); 6], n: 0 };
+        for ((namespace, name), r) in latest {
+            for (c, v) in [namespace, name, ev.cols[e_occ][r], ev.cols[e_kind][r], ev.cols[e_ord][r], 0].into_iter().enumerate() {
+                t.cols[c].push(v);
+            }
+            t.n += 1;
+        }
+        Ok(t)
+    }
+}
+
 impl finish::Provider for ColFacts<'_, '_, '_, '_> {
     fn fill(&mut self, run: &mut finish::Run, rel: &str) -> Result<finish::Table, String> {
         let t0 = thread_cpu();
@@ -762,6 +799,8 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
             t
         } else if rel == finish::RESOLUTION_REL {
             self.read_resolution(run)?
+        } else if rel == finish::FINAL_REL {
+            self.namespace_final(run)?
         } else {
             let (relation, _, _) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
             self.filled.0.clear();
