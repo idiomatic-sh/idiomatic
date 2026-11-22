@@ -141,12 +141,12 @@ fn pushed(masks: &mut NeedMasks, node: FormulaNode, rank: AskRank, musts: &[Must
         FormulaNode::Always
         | FormulaNode::Never
         | FormulaNode::Free(_)
-        | FormulaNode::Term(_)
+        | FormulaNode::AllBits(_)
+        | FormulaNode::AnyBits(_) => (AskRank::Known, AskRank::Known),
+        FormulaNode::Term(_)
         | FormulaNode::Table(_)
         | FormulaNode::Site(_)
-        | FormulaNode::TableNeed(_)
-        | FormulaNode::AllBits(_)
-        | FormulaNode::AnyBits(_) => (rank, rank),
+        | FormulaNode::TableNeed(_) => (rank, rank),
     };
     formulas.deciding.push(deciding);
     formulas.nodes.push(node);
@@ -507,7 +507,7 @@ fn joined(masks: &mut NeedMasks, mut parts: Vec<u32>, every: bool) -> u32 {
         return pushed(masks, node, AskRank::Free, &[]);
     }
     // An All looks for a part that is empty, an Any for one that holds: each asks first the parts that may say so
-    // for least.
+    // for least once the free terms left them open (a part they answer is read by the free pass, and comes last).
     parts.sort_by_key(|part| {
         let (empty, holds) = deciding_of(masks, *part);
         if every { empty } else { holds }

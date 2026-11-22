@@ -18,6 +18,8 @@ pub(crate) enum AskRank {
     /// A relation the language fills, asked for any row at all: its whole fill, for the least a relation can say of a
     /// file. Asked last, when nothing else decided.
     Presence,
+    /// Nothing is left to ask: a leaf the free terms answer, which the pass over them has read.
+    Known,
 }
 
 /// One node of a compiled formula.
@@ -54,8 +56,9 @@ pub(crate) struct NeedFormulas {
     pub(crate) nodes: Vec<FormulaNode>,
     /// What asking each node may cost.
     pub(crate) ranks: Vec<AskRank>,
-    /// For each node, the least it may cost to find it empty, and to find it holds: an All may be found empty by its
-    /// cheapest part and holds only when its dearest does; an Any the other way round. An All's parts are asked by the
+    /// For each node, the least asking what costs may cost to find it empty, and to find it holds, once the free terms
+    /// left it open: an All may be found empty by its cheapest part and holds only when its dearest does; an Any the
+    /// other way round; a leaf the free terms answer has nothing left to ask (`Known`). An All's parts are asked by the
     /// first, an Any's by the second.
     pub(crate) deciding: Vec<(AskRank, AskRank)>,
     /// The parts of every `All` and `Any`, one node after the other, each a node's number.
