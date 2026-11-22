@@ -44,7 +44,9 @@ let decorators = select parent as function, child as list, file from "semantic-c
 let decorator_items = select l.function as function, r.child as decorator, l.file as file from decorators as l join "semantic-child" as r on l.list = r.parent and l.file = r.file;
 let staticmethod_names = select id, file from "qualified-name" where path = "builtins.staticmethod" or path = "abc.abstractstaticmethod";
 let staticmethod_functions = select l.function as function, l.file as file from decorator_items as l join staticmethod_names as r on l.decorator = r.id and l.file = r.file;
-let methods_to_skip = antijoin(left=class_methods, right=staticmethod_functions, left-on=["function", "file"], right-on=["function", "file"]);
+let new_functions = select id as function, file from "defines" where name = "__new__";
+let implicit_static_functions = union(left=staticmethod_functions, right=new_functions);
+let methods_to_skip = antijoin(left=class_methods, right=implicit_static_functions, left-on=["function", "file"], right-on=["function", "file"]);
 let first_candidates = select l.function as function, r.parameter as parameter, l.file as file from functions_without_posonly as l join first_parameters as r on l.arguments = r.arguments and l.file = r.file;
 let methods_first = select l.function as function, l.file as file from first_candidates as l join methods_to_skip as r on l.function = r.function and l.file = r.file;
 let second_candidates = select l.function as function, r.parameter as parameter, l.file as file from functions_without_posonly as l join second_parameters as r on l.arguments = r.arguments and l.file = r.file;
