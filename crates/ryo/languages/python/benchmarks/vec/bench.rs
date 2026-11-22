@@ -682,6 +682,66 @@ struct ColFacts<'v, 'a, 'f, 'w> {
     file_no: u32,
 }
 
+impl ColFacts<'_, '_, '_, '_> {
+    /// A catalog relation of this file, filled whole.
+    fn whole(&mut self, run: &mut finish::Run, rel: &str) -> Result<finish::Table, String> {
+        let (relation, _, _) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
+        self.filled.0.clear();
+        match self.file.fill(relation, languages::Wanted::Whole, self.words, &mut self.filled) {
+            languages::FactAnswer::Answered(_) => finish::filled_table(run, rel, &self.filled, self.words),
+            _ => Err(format!("{rel} not answered")),
+        }
+    }
+
+    /// redo-binding probe: `read-resolution` from the provider's own lookup (`binding-resolution`, whose rows come per read
+    /// nearest namespace first): the first row of each read, a deletion's only at depth 0 (its name is local), and a `none`
+    /// row for every read or deletion (`binding-read`) no namespace of whose path holds an event of the name.
+    fn read_resolution(&mut self, run: &mut finish::Run) -> Result<finish::Table, String> {
+        let res = self.whole(run, "binding-resolution")?;
+        let reads = self.whole(run, "binding-read")?;
+        let col = |t: &finish::Table, n: &str| t.names.iter().position(|c| c == n).ok_or_else(|| format!("no column {n}"));
+        let (r_ref, r_ev, r_kind, r_scope, r_lex, r_depth, r_ord, r_ctx) = (
+            col(&res, "reference")?,
+            col(&res, "event")?,
+            col(&res, "kind")?,
+            col(&res, "scope")?,
+            col(&res, "lexical")?,
+            col(&res, "depth")?,
+            col(&res, "ordinal")?,
+            col(&res, "context")?,
+        );
+        let (b_ref, b_scope, b_ctx) = (col(&reads, "reference")?, col(&reads, "scope")?, col(&reads, "context")?);
+        let (_, names, tys) = run.catalog(finish::RESOLUTION_REL).ok_or("no read-resolution")?;
+        let deletion = u64::from(run.sym(b"deletion"));
+        let (own, routed, none) = (u64::from(run.sym(b"own")), u64::from(run.sym(b"routed")), u64::from(run.sym(b"none")));
+        let mut t = finish::Table { names, tys, cols: vec![Vec::with_capacity(reads.n); 9], n: 0 };
+        let mut seen: rustc_hash::FxHashSet<u64> = rustc_hash::FxHashSet::with_capacity_and_hasher(reads.n, Default::default());
+        for r in 0..res.n {
+            let reference = res.cols[r_ref][r];
+            let depth = res.cols[r_depth][r];
+            if (res.cols[r_ctx][r] == deletion && depth != 0) || !seen.insert(reference) {
+                continue;
+            }
+            let ns = if res.cols[r_lex][r] == res.cols[r_scope][r] { own } else { routed };
+            for (c, v) in [reference, res.cols[r_ev][r], res.cols[r_kind][r], ns, res.cols[r_scope][r], depth, res.cols[r_ord][r], res.cols[r_ctx][r], 0].into_iter().enumerate() {
+                t.cols[c].push(v);
+            }
+            t.n += 1;
+        }
+        for r in 0..reads.n {
+            let reference = reads.cols[b_ref][r];
+            if !seen.insert(reference) {
+                continue;
+            }
+            for (c, v) in [reference, finish::NULL, none, none, reads.cols[b_scope][r], finish::NULL, finish::NULL, reads.cols[b_ctx][r], 0].into_iter().enumerate() {
+                t.cols[c].push(v);
+            }
+            t.n += 1;
+        }
+        Ok(t)
+    }
+}
+
 impl finish::Provider for ColFacts<'_, '_, '_, '_> {
     fn fill(&mut self, run: &mut finish::Run, rel: &str) -> Result<finish::Table, String> {
         let t0 = thread_cpu();
@@ -700,6 +760,8 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
                 t.cols[5].push(0);
             }
             t
+        } else if rel == finish::RESOLUTION_REL {
+            self.read_resolution(run)?
         } else {
             let (relation, _, _) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
             self.filled.0.clear();
