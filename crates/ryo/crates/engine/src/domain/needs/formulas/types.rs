@@ -1,7 +1,7 @@
 //! The types of the `formulas` part: a site's formula as nodes, each part ranked by what asking it may cost.
 
 use crate::domain::code::types::NeedSite;
-use crate::domain::needs::masks::types::{Stretch, TermNumber};
+use crate::domain::needs::masks::types::{MustWord, Stretch, TermNumber};
 use crate::domain::steps::types::MadeTableId;
 
 /// What asking a node may cost at most, in the order the parts of a node are asked: a part that costs less is asked
@@ -39,6 +39,10 @@ pub(crate) enum FormulaNode {
     All(Stretch),
     /// Some part holds: a stretch of the formulas' parts, cheapest first.
     Any(Stretch),
+    /// Every one of several free terms holds: a stretch of the formulas' bit words, each of whose bits must be set.
+    AllBits(Stretch),
+    /// Some one of several free terms holds: a stretch of the formulas' bit words, one of whose bits must be set.
+    AnyBits(Stretch),
 }
 
 /// The formulas of a rule set's needs, compiled once a worker, each site at its first decision.
@@ -50,6 +54,8 @@ pub(crate) struct NeedFormulas {
     pub(crate) ranks: Vec<AskRank>,
     /// The parts of every `All` and `Any`, one node after the other, each a node's number.
     pub(crate) parts: Vec<u32>,
+    /// The bit words of every `AllBits` and `AnyBits`, one node after the other.
+    pub(crate) bits: Vec<MustWord>,
     /// For each place among the needs, the number of the node compiled from the record there and one more; nought:
     /// none yet.
     pub(crate) at_place: Vec<u32>,

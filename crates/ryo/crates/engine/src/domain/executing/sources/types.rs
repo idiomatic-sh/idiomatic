@@ -9,13 +9,16 @@ use crate::domain::executing::measuring::sites::service::{kind_named, row_named}
 use crate::domain::executing::presence::service::node_row;
 use crate::domain::executing::types::Asker;
 use crate::domain::indexes::reading::service::cell_at;
+use crate::domain::indexes::types::FileStamp;
 use crate::domain::made_tables::reading::service::view_of;
 use crate::domain::made_tables::sources::service::{made, scanned, table_of};
 use crate::domain::made_tables::types::ReadSource;
 use crate::domain::needs::masks::service::site_masks;
 use crate::domain::needs::formulas::service::site_root;
 use crate::domain::needs::formulas::types::{FormulaNode, FreeValue};
-use crate::domain::needs::masks::types::{NeedTerm, RecordCost, Stretch, TermNumber};
+use crate::domain::needs::masks::types::{
+    ColumnValues, NeedTerm, RecordCost, Stretch, TermNumber,
+};
 use crate::domain::needs::service::decided;
 use crate::domain::needs::types::{NeedFacts, NeedVerdict};
 use crate::domain::programs::frames::types::StepFrame;
@@ -319,7 +322,10 @@ impl FileNeeds<'_, '_, '_> {
             },
             FormulaNode::Site(site) => {
                 let code = self.0.fill.programs.code;
-                match site_root(code, site, &mut self.0.state.need_masks) {
+                let root = site_root(code, site, &mut self.0.state.need_masks);
+                // A site compiled now may have met free terms the file's bits do not answer yet.
+                self.free_answered();
+                match root {
                     Some(root) => match self.site_free(site, root) {
                         FreeValue::Deciding | FreeValue::Unfound => FreeValue::Open,
                         value => value,
@@ -327,6 +333,8 @@ impl FileNeeds<'_, '_, '_> {
                     None => FreeValue::Open,
                 }
             }
+            FormulaNode::AllBits(words) => holds(self.bits_held(words, true)),
+            FormulaNode::AnyBits(words) => holds(self.bits_held(words, false)),
             FormulaNode::All(parts) => {
                 let mut value = FreeValue::Holds;
                 for at in parts.start.0..parts.start.0.saturating_add(parts.count.0) {
@@ -371,6 +379,14 @@ impl FileNeeds<'_, '_, '_> {
             }
             FormulaNode::Term(term) => self.term_holds(term),
             FormulaNode::Table(table) => self.table_row(table),
+            FormulaNode::AllBits(words) | FormulaNode::AnyBits(words) => {
+                let every = matches!(self.node(node), FormulaNode::AllBits(_));
+                if self.bits_held(words, every) {
+                    NeedVerdict::Holds
+                } else {
+                    NeedVerdict::Empty
+                }
+            }
             FormulaNode::Site(site) => {
                 let code = self.0.fill.programs.code;
                 decided(self, code, site)
@@ -391,6 +407,27 @@ impl FileNeeds<'_, '_, '_> {
                 }
                 NeedVerdict::Empty
             }
+        }
+    }
+
+    /// Whether the file's free bits hold every bit of the words (`every`), or some one of them.
+    fn bits_held(&self, words: Stretch, every: bool) -> bool {
+        let answers = &self.0.state.need_terms.free;
+        let held = self
+            .0
+            .state
+            .need_masks
+            .formulas
+            .bits
+            .get(words.start.0..words.start.0.saturating_add(words.count.0))
+            .unwrap_or_default();
+        if every {
+            held.iter().all(|word| {
+                answers.get(word.word.0).copied().unwrap_or(0) & word.bits == word.bits
+            })
+        } else {
+            held.iter()
+                .any(|word| answers.get(word.word.0).copied().unwrap_or(0) & word.bits != 0)
         }
     }
 
@@ -561,15 +598,46 @@ impl FileNeeds<'_, '_, '_> {
         let Ok(whole) = asked else {
             return NeedVerdict::Holds;
         };
-        let mut rows = whole.rows.start.0..whole.rows.end.0;
+        let rows = whole.rows.start.0..whole.rows.end.0;
         let holds = if column == NO_SLOT || value == NO_SLOT {
             !rows.is_empty()
         } else {
             let wanted = constant(frame, ConstantNumber(value.0));
-            let place = Short(u16::try_from(column.0).unwrap_or(u16::MAX));
-            // The column is asked once for the need, and its cells are read where they lie.
-            let held = view_of(frame.fill.store, source, place);
-            rows.any(|row| cell_at(held, Count(row)) == wanted)
+            let stamp = frame.fill.store.stamp;
+            let values = &mut frame.state.need_terms.values;
+            // The column's distinct values are found once a file, the first time a term asks it for a constant; every
+            // term after searches them.
+            let at = match values
+                .iter()
+                .position(|held| held.relation == relation && held.column == column)
+            {
+                Some(at) => at,
+                None => {
+                    values.push(ColumnValues {
+                        relation,
+                        column,
+                        stamp: FileStamp(0),
+                        cells: Vec::new(),
+                    });
+                    values.len().saturating_sub(1)
+                }
+            };
+            let store = &*frame.fill.store;
+            match values.get_mut(at) {
+                Some(held) => {
+                    if held.stamp != stamp {
+                        let place = Short(u16::try_from(column.0).unwrap_or(u16::MAX));
+                        let view = view_of(store, source, place);
+                        held.cells.clear();
+                        held.cells.extend(rows.map(|row| cell_at(view, Count(row))));
+                        held.cells.sort_unstable();
+                        held.cells.dedup();
+                        held.stamp = stamp;
+                    }
+                    held.cells.binary_search(&wanted).is_ok()
+                }
+                None => false,
+            }
         };
         if holds {
             NeedVerdict::Holds

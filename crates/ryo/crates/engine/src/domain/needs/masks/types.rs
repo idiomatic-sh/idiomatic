@@ -3,6 +3,8 @@
 
 use crate::domain::needs::formulas::types::{FreeValue, NeedFormulas};
 use crate::domain::code::types::{PoolAt, RelationNumber, WordSlot};
+use crate::domain::indexes::types::FileStamp;
+use ryo_language::domain::facts::types::CellWord;
 use crate::domain::steps::types::MadeTableId;
 use ryo_relations::domain::relations::types::Count;
 
@@ -173,4 +175,20 @@ pub(crate) struct TermAnswers {
     /// What each site's formula says of the file from the free terms alone, by the site's number: found at most once a
     /// file.
     pub(crate) sites: Vec<FreeValue>,
+    /// The values of the filled columns a term asked for a constant, each column's found once a file.
+    pub(crate) values: Vec<ColumnValues>,
+}
+
+/// The distinct values of one column of a filled relation in one file, ascending: what a term that asks the column for a
+/// constant searches.
+#[derive(Debug)]
+pub(crate) struct ColumnValues {
+    /// The relation.
+    pub(crate) relation: RelationNumber,
+    /// The column's place.
+    pub(crate) column: WordSlot,
+    /// The file the values are of.
+    pub(crate) stamp: FileStamp,
+    /// The values.
+    pub(crate) cells: Vec<CellWord>,
 }

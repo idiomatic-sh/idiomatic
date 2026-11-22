@@ -7,7 +7,7 @@ use crate::domain::code::records::service::need_at;
 use crate::domain::code::records::types::NeedRecord;
 use crate::domain::code::types::{NeedSite, ProgramCode, WordSlot};
 use crate::domain::needs::masks::service::numbered;
-use crate::domain::needs::masks::types::{NeedMasks, NeedTerm, RecordCost, Stretch};
+use crate::domain::needs::masks::types::{MustWord, NeedMasks, NeedTerm, RecordCost, Stretch};
 use ryo_relations::domain::relations::types::Count;
 
 /// A root being compiled.
@@ -71,6 +71,49 @@ fn parts_node(
             None if every => {}
             None => parts.push(pushed(masks, FormulaNode::Always, AskRank::Free)),
         }
+    }
+    // The parts that are free terms become one node of bit words: a word's and-compare in place of a node a term.
+    let mut words: Vec<MustWord> = Vec::new();
+    parts.retain(|part| {
+        let Some(FormulaNode::Free(bit)) = masks
+            .formulas
+            .nodes
+            .get(usize::try_from(*part).unwrap_or(usize::MAX))
+            .copied()
+        else {
+            return true;
+        };
+        let place = usize::try_from(bit).unwrap_or(usize::MAX);
+        let (word, held) = (Count(place / 64), 1_u64 << (place % 64));
+        match words.iter_mut().find(|each| each.word == word) {
+            Some(each) => each.bits |= held,
+            None => words.push(MustWord { word, bits: held }),
+        }
+        false
+    });
+    if words.len() == 1 && parts.is_empty() && words.iter().all(|each| each.bits.count_ones() == 1) {
+        // One free term alone is its own bit.
+        let bit = words
+            .first()
+            .map_or(0, |each| each.word.0 * 64 + usize::try_from(each.bits.trailing_zeros()).unwrap_or(0));
+        return pushed(masks, FormulaNode::Free(u32::try_from(bit).unwrap_or(u32::MAX)), AskRank::Free);
+    }
+    if !words.is_empty() {
+        let stretch = Stretch {
+            start: Count(masks.formulas.bits.len()),
+            count: Count(words.len()),
+        };
+        masks.formulas.bits.extend_from_slice(&words);
+        let node = if every {
+            FormulaNode::AllBits(stretch)
+        } else {
+            FormulaNode::AnyBits(stretch)
+        };
+        let bits = pushed(masks, node, AskRank::Free);
+        if parts.is_empty() {
+            return bits;
+        }
+        parts.insert(0, bits);
     }
     if parts.is_empty() {
         let node = if every {
