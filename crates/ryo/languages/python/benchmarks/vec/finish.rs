@@ -76,6 +76,8 @@ mod ordered_dfs;
 pub(super) mod host;
 #[path = "finish/capture.rs"]
 mod capture;
+#[path = "finish/fill_prof.rs"]
+pub(super) mod fill_prof;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum Ty {
@@ -221,6 +223,11 @@ pub(super) struct Run {
     pub(super) fact_rels: Vec<(String, usize)>,
     /// pass 2: the kind codes of each kind name's symbol (made at the first ask, after `kind_sym` is set).
     pub(super) kind_codes: std::cell::OnceCell<FxHashMap<u32, Box<[u16]>>>,
+    /// redo-fills c2: the run-wide symbol of each provider word: the run's base words (the same in every file) and this
+    /// file's own words (`own_words_cleared` at each file's start); `u32::MAX`: not seen yet. A fill's text cells become
+    /// symbols by one array read, not a text copy and a hash a cell.
+    pub(super) base_word_sym: Vec<u32>,
+    pub(super) own_word_sym: Vec<u32>,
 }
 
 impl Run {
@@ -566,6 +573,8 @@ pub(super) struct File<'a> {
     /// pass 2: the steps whose memo entry `res` set: cleared at the file's end, and the memo (and `known`) kept for the
     /// next file (no 30 k-entry table made and dropped a file).
     touched: Vec<u32>,
+    /// redo-fills (`VEC_FILL_COUNT`): per fact slot, whether a step read the fill's rows (not only its size).
+    fact_read: Vec<std::cell::Cell<bool>>,
 }
 
 thread_local! {
@@ -574,6 +583,13 @@ thread_local! {
 
 impl Drop for File<'_> {
     fn drop(&mut self) {
+        if fill_prof::counting() {
+            for (i, t) in self.facts.iter().enumerate() {
+                if t.is_some() {
+                    fill_prof::fact_filled(i, self.fact_read.get(i).is_some_and(std::cell::Cell::get));
+                }
+            }
+        }
         let mut memo = std::mem::take(&mut self.memo);
         let mut known = std::mem::take(&mut self.known);
         let mut touched = std::mem::take(&mut self.touched);
@@ -626,6 +642,7 @@ impl File<'_> {
             known: Vec::new(),
             kind_bits: Vec::new(),
             touched: Vec::new(),
+            fact_read: Vec::new(),
         };
         SPARE.with(|sp| {
             let (memo, known, touched) = std::mem::take(&mut *sp.borrow_mut());
@@ -738,6 +755,7 @@ impl File<'_> {
     }
     /// A native relation's cell.
     fn native_get(&self, run: &mut Run, nat: Native, row: u32, col: usize) -> u64 {
+        fill_prof::read(0);
         let r = row as usize;
         match (nat, col) {
             (Native::Tree, 0) | (Native::Location, 0) => u64::from(row),
@@ -758,7 +776,12 @@ impl File<'_> {
             (Native::Location, 6) => u64::from(self.end[r]),
             (Native::Location, 7) => self.column(self.start[r]) as u64,
             (Native::Location, 8) => self.column(self.end[r]) as u64,
-            (Native::Fact(i), c) => self.facts[usize::from(i)].as_ref().map_or(NULL, |t| t.cols[c][r]),
+            (Native::Fact(i), c) => {
+                if fill_prof::counting() {
+                    self.mark_read(i);
+                }
+                self.facts[usize::from(i)].as_ref().map_or(NULL, |t| t.cols[c][r])
+            }
             (Native::Token, _) => {
                 let (src, k) = (row / 3, row % 3);
                 match col {
@@ -788,6 +811,7 @@ impl File<'_> {
         }
     }
     fn native_rows(&self, run: &Run, nat: Native) -> Vec<u32> {
+        fill_prof::read(5);
         match nat {
             Native::Tree | Native::Location => (0..self.n as u32).collect(),
             Native::Child => (0..self.n as u32).filter(|p| self.has_parent(*p)).collect(),
@@ -803,7 +827,17 @@ impl File<'_> {
                 }
                 out
             }
-            Native::Fact(i) => (0..self.facts[usize::from(i)].as_ref().map_or(0, |t| t.n as u32)).collect(),
+            Native::Fact(i) => {
+                if fill_prof::counting() {
+                    self.mark_read(i);
+                }
+                (0..self.facts[usize::from(i)].as_ref().map_or(0, |t| t.n as u32)).collect()
+            }
+        }
+    }
+    fn mark_read(&self, i: u16) {
+        if let Some(c) = self.fact_read.get(usize::from(i)) {
+            c.set(true);
         }
     }
     /// 6h: a fill's keyed list on one column (made on the first ask in a file).
@@ -828,6 +862,7 @@ impl File<'_> {
     }
     /// Rows of a native relation whose column holds `v`.
     fn native_probe(&self, run: &Run, nat: Native, col: usize, v: u64, out: &mut Vec<u32>) {
+        fill_prof::read(4);
         let ok = v < self.n as u64;
         match (nat, col) {
             (Native::Tree, 0) | (Native::Location, 0) => {
@@ -881,6 +916,9 @@ impl File<'_> {
                 }
             }
             (Native::Fact(i), c) => {
+                if fill_prof::counting() {
+                    self.mark_read(i);
+                }
                 if let Some(rows) = self.fact_list(i, c).get(&v) {
                     out.extend_from_slice(rows);
                 }
@@ -1737,7 +1775,9 @@ impl<'p> Exec<'p> {
         }
         let tk = step_clock();
         if let Some(v) = self.view(run, node)? {
+            let was = fill_prof::site("view");
             self.load_fact(f, run, p, v.base)?;
+            fill_prof::site(was);
             let r = Res::View(v);
             f.touched.push(node as u32);
             f.memo[node] = Some(r.clone());
@@ -1848,7 +1888,9 @@ impl<'p> Exec<'p> {
         if let Some(v) = self.view(run, node)? {
             self.memo.n[10] += 1;
             self.memo.n[11] += keys.len() as u64;
+            let was = fill_prof::site("probe-view");
             self.load_fact(f, run, p, v.base)?;
+            fill_prof::site(was);
             if File::probes(v.base, v.map[col]) {
                 // 10: the row buffer reused across asks
                 let mut rows = std::mem::take(&mut self.memo.vrows);
@@ -2994,7 +3036,9 @@ impl<'p> Exec<'p> {
             return Ok(Some(t.n));
         }
         if let Some(v) = self.view(run, node)? {
+            let was = fill_prof::site("bound");
             self.load_fact(f, run, p, v.base)?;
+            fill_prof::site(was);
             return Ok(kind_set(run, &v.filter, 0, v.base, &[]).map(|ks| bucket_len(f, run, &ks)).or_else(|| lit_rows(f, &v.filter, 0, v.base, &[]).map(|r| r.len())));
         }
         if depth == 0 {
@@ -3040,6 +3084,9 @@ impl<'p> Exec<'p> {
         if f.facts.len() <= i {
             f.facts.resize(i + 1, None);
         }
+        if f.fact_read.len() <= i {
+            f.fact_read.resize_with(i + 1, Default::default);
+        }
         f.facts[i] = f.fills.get(&rel).cloned();
         Ok(())
     }
@@ -3061,7 +3108,10 @@ impl<'p> Exec<'p> {
         if rel == "module-identity" {
             return module_identity(f, run);
         }
-        let t = p.fill(run, rel)?;
+        let was = fill_prof::site("base");
+        let t = p.fill(run, rel);
+        fill_prof::site(was);
+        let t = t?;
         f.fills.insert(rel.to_owned(), Rc::new(t.clone()));
         Ok(t)
     }
@@ -4173,6 +4223,7 @@ fn hier_step(f: &File<'_>, run: &mut Run, h: &Hier, x: u64, up: bool, out: &mut 
 
 /// Whether a view's tests hold on one of its base rows.
 fn view_holds(f: &File<'_>, run: &mut Run, v: &ViewSpec, row: u32) -> bool {
+    fill_prof::read(1);
     if v.filter.is_empty() {
         return true;
     }
@@ -4183,6 +4234,7 @@ fn view_holds(f: &File<'_>, run: &mut Run, v: &ViewSpec, row: u32) -> bool {
 
 /// A view's rows in this file: its kind bucket when its tests name kinds, else every base row; tested; made once a file.
 fn view_rows(f: &mut File<'_>, run: &mut Run, v: &ViewSpec, node: usize) -> Rc<Vec<u32>> {
+    fill_prof::read(3);
     if let Some(r) = f.vrows.get(&node) {
         return r.clone();
     }
@@ -4252,6 +4304,7 @@ fn bucket(f: &File<'_>, run: &Run, ks: &[u32]) -> Vec<u32> {
 /// column's keyed list read at those values, a per-file bucket. `map` takes a view's column to its base column (empty: the
 /// base's own).
 fn lit_rows(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize]) -> Option<Vec<u32>> {
+    fill_prof::read(2);
     let Native::Fact(i) = base else { return None };
     fn cols(e: &E, si: usize, out: &mut Vec<usize>) {
         match e {
@@ -4890,13 +4943,41 @@ pub(super) fn filled_table(run: &mut Run, rel: &str, filled: &languages::FilledC
             continue;
         };
         out.cols[c] = match ty {
-            Ty::Sym => column.0.iter().map(|w| u64::from(run.sym(&cell_text(words, *w)))).collect(),
+            Ty::Sym => {
+                let base = languages::facts::base_count(words).0;
+                column.0.iter().map(|w| u64::from(word_sym(run, words, *w, base))).collect()
+            }
             Ty::Node => column.0.iter().map(|w| w.0 & 0xffff_ffff).collect(),
             _ => column.0.iter().map(|w| w.0).collect(),
         };
     }
     out.n = n;
     Ok(out)
+}
+
+/// redo-fills c2: a provider word's run-wide symbol, through the run's word caches (`Run::base_word_sym`).
+fn word_sym(run: &mut Run, words: &languages::FileWords, w: languages::CellWord, base: u64) -> u32 {
+    let (own, at) = if w.0 < base { (false, w.0 as usize) } else if w.0 < 0xFFFF_0000 { (true, (w.0 - base) as usize) } else { return run.sym(&cell_text(words, w)) };
+    let cache = if own { &run.own_word_sym } else { &run.base_word_sym };
+    if let Some(&s) = cache.get(at)
+        && s != u32::MAX
+    {
+        return s;
+    }
+    let s = run.sym(languages::facts::text(words, w).0.as_bytes());
+    let cache = if own { &mut run.own_word_sym } else { &mut run.base_word_sym };
+    if at < 1 << 22 {
+        if cache.len() <= at {
+            cache.resize(at + 1, u32::MAX);
+        }
+        cache[at] = s;
+    }
+    s
+}
+
+/// redo-fills c2: a new file's words start: the own-word symbols of the last file are forgotten.
+pub(super) fn own_words_cleared(run: &mut Run) {
+    run.own_word_sym.clear();
 }
 
 /// redo-binding: a cell's text, a word of a closed set (`defines.kind` and the other closed columns: the catalog's term blocks

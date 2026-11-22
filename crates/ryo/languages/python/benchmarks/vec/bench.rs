@@ -946,10 +946,27 @@ impl ColFacts<'_, '_, '_, '_> {
         }
         let (relation, _, _) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
         self.filled.0.clear();
-        match self.file.fill(relation, languages::Wanted::Whole, self.words, &mut self.filled) {
+        let timed = finish::fill_prof::timed();
+        let t0 = if timed { thread_cpu() } else { 0.0 };
+        let answer = self.file.fill(relation, languages::Wanted::Whole, self.words, &mut self.filled);
+        let t1 = if timed { thread_cpu() } else { 0.0 };
+        let t = match answer {
             languages::FactAnswer::Answered(_) => finish::filled_table(run, rel, &self.filled, self.words),
             _ => Err(format!("{rel} not answered")),
+        };
+        if timed {
+            let t2 = thread_cpu();
+            let n = t.as_ref().map_or(0, |t| t.n as u64);
+            let e = self.by_rel.entry(format!("reader:{rel}")).or_default();
+            e.0 += t1 - t0;
+            e.1 += n;
+            e.2 += 1;
+            let e = self.by_rel.entry(format!("convert:{rel}")).or_default();
+            e.0 += t2 - t1;
+            e.1 += n;
+            e.2 += 1;
         }
+        t
     }
 
     /// redo-binding probe: `read-resolution` from the provider's own lookup (`binding-resolution`, whose rows come per read
@@ -1086,6 +1103,8 @@ impl ColFacts<'_, '_, '_, '_> {
         if let Some(t) = self.kept.get(rel) {
             return Ok(t.clone());
         }
+        let timed = finish::fill_prof::timed();
+        let t0 = if timed { thread_cpu() } else { 0.0 };
         let t = match rel {
             finish::TYPE_EXPRESSION_REL => self.type_expression(run)?,
             finish::ANNOTATION_EVALUATION_REL => self.annotation_evaluation(run)?,
@@ -1093,6 +1112,12 @@ impl ColFacts<'_, '_, '_, '_> {
             finish::DEFERRED_RESOLUTION_REL => self.deferred_resolution(run)?,
             _ => self.deferred_visit(run)?,
         };
+        if timed {
+            let e = self.by_rel.entry(format!("fact:{rel}")).or_default();
+            e.0 += thread_cpu() - t0;
+            e.1 += t.n as u64;
+            e.2 += 1;
+        }
         let _ = self.kept.insert(rel.to_owned(), t.clone());
         Ok(t)
     }
@@ -1126,13 +1151,25 @@ impl ColFacts<'_, '_, '_, '_> {
     /// redo-binding pass 4: `deferred-visit` (deferred_visit.rs) from `type-expression`, `annotation-evaluation`, the node
     /// table, the file's embedded expressions, its name (a stub) and its annotations future.
     fn deferred_visit(&mut self, run: &mut finish::Run) -> Result<finish::Table, String> {
-        let types = self.fact(run, finish::TYPE_EXPRESSION_REL)?;
+        let stub = run.texts[run.path_sym[self.file_no as usize] as usize].ends_with(b".pyi");
         let evaluations = self.fact(run, finish::ANNOTATION_EVALUATION_REL)?;
         let embedded = self.whole(run, "embedded-expression")?;
         let features = self.whole(run, "compiler-feature")?;
         let targets = self.whole(run, "language-target")?;
         let future = annotation_evaluation::target(run, &features, &targets)?.enabled;
-        let stub = run.texts[run.path_sym[self.file_no as usize] as usize].ends_with(b".pyi");
+        // redo-fills c2: outside a stub no element is deferred without a lazy annotation, an embedded expression, a type
+        // parameter or a type alias (deferred_visit::rows' sources): such a file answers no row without the walk, and the
+        // type expressions (read in a stub only) are never made outside one
+        if !stub && embedded.n == 0 && !deferred_visit::lazy_any(run, &evaluations, future)? && !deferred_visit::has_type_parameters(run, self.file.table) {
+            let (_, names, tys) = run.catalog(finish::DEFERRED_VISIT_REL).ok_or("no deferred-visit")?;
+            return Ok(finish::Table { names, tys, cols: vec![Vec::new(); 3], n: 0 });
+        }
+        let types = if stub {
+            self.fact(run, finish::TYPE_EXPRESSION_REL)?
+        } else {
+            let (_, names, tys) = run.catalog(finish::TYPE_EXPRESSION_REL).ok_or("no type-expression")?;
+            finish::Table { names, tys, cols: vec![Vec::new(); 3], n: 0 }
+        };
         let inputs = deferred_visit::Inputs { types: &types, evaluations: &evaluations, embedded: &embedded, stub, future };
         let rows = deferred_visit::rows(run, self.file.table, &inputs)?;
         let (_, names, tys) = run.catalog(finish::DEFERRED_VISIT_REL).ok_or("no deferred-visit")?;
@@ -1149,7 +1186,8 @@ impl ColFacts<'_, '_, '_, '_> {
 
 impl finish::Provider for ColFacts<'_, '_, '_, '_> {
     fn fill(&mut self, run: &mut finish::Run, rel: &str) -> Result<finish::Table, String> {
-        let t0 = thread_cpu();
+        let timed = finish::fill_prof::timed();
+        let t0 = if timed { thread_cpu() } else { 0.0 };
         let mut t = if rel == finish::REGION_REL {
             let (deferred, rows) = self.file.evaluation_region().ok_or("evaluation-region: the model is incomplete")?;
             let (_, names, tys) = run.catalog(rel).ok_or("no evaluation-region")?;
@@ -1186,13 +1224,21 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
                 t.cols[c].iter_mut().for_each(|v| *v = u64::from(self.file_no));
             }
         }
-        let dt = thread_cpu() - t0;
+        let dt = if timed { thread_cpu() - t0 } else { 0.0 };
         self.time += dt;
         self.rows += t.n as u64;
         let e = self.by_rel.entry(rel.to_owned()).or_default();
         e.0 += dt;
         e.1 += t.n as u64;
         e.2 += 1;
+        if finish::fill_prof::counting() {
+            if t.n == 0 {
+                self.by_rel.entry(format!("zero:{rel}")).or_default().2 += 1;
+            }
+            let site = finish::fill_prof::SITE.with(std::cell::Cell::get);
+            self.by_rel.entry(format!("site:{site}:{rel}")).or_default().2 += 1;
+        }
+        finish::fill_prof::dump(run, self.file_no, rel, &t);
         Ok(t)
     }
 

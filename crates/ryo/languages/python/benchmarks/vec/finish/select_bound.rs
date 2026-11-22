@@ -218,7 +218,9 @@ impl Exec<'_> {
         }
         let Some(v) = self.view(run, node)? else { return Err("a view's bound with no view".to_owned()) };
         let t0 = super::step_clock();
+        let was = super::fill_prof::site("select-bound");
         self.load_fact(f, run, p, v.base)?;
+        super::fill_prof::site(was);
         if super::empty_sel::on() {
             super::empty_sel::count("bound: a literal view's fill read", super::step_clock() - t0);
         }

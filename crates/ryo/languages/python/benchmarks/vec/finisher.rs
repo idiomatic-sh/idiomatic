@@ -151,6 +151,7 @@ impl<'p> Finisher<'p> {
         let ft = file.table;
         let mut fwords = std::mem::take(&mut self.fwords);
         languages::facts::clear_words(&mut fwords);
+        finish::own_words_cleared(&mut self.run);
         let mut pv = ColFacts { file, words: &mut fwords, filled: languages::FilledColumns::default(), time: 0.0, rows: 0, by_rel: HashMap::new(), file_no: file_no as u32, kept: HashMap::new() };
         self.file(file_no, path, ft, bytes, &mut pv, wanted);
         self.provider_time += pv.time;
@@ -171,6 +172,7 @@ impl<'p> Finisher<'p> {
         let ft = file.table;
         let mut fwords = std::mem::take(&mut self.fwords);
         languages::facts::clear_words(&mut fwords);
+        finish::own_words_cleared(&mut self.run);
         let mut pv = super::Facts { facts: file, words: &mut fwords, filled: languages::FilledColumns::default(), time: 0.0, rows: 0, by_rel: HashMap::new(), file: file_no as u32 };
         self.file(file_no, path, ft, bytes, &mut pv, wanted);
         self.provider_time += pv.time;
@@ -288,6 +290,11 @@ impl<'p> Finisher<'p> {
             println!("known-empty whole runs (decided before): {} timed, {:.0} ns a run measured, clock pair {:.0} ns, {:.0} ns a run net; deciding the static part a file: {:.3} s over {} steps ({} per-file tests), of which preparing the needs once a run {:.3} s", exec.stats.known_timed, per * 1e9, pair * 1e9 / 2.0, (per - pair / 2.0) * 1e9, exec.stats.static_time, exec.stats.static_visits, exec.stats.static_file_tests, exec.stats.rec_time);
         }
         println!("fact keyed lists: fill rows listed {}", finish::FACT_IX_ROWS.load(std::sync::atomic::Ordering::Relaxed));
+        println!("{}", finish::fill_prof::reads_line());
+        finish::fill_prof::flush();
+        for l in finish::fill_prof::unread_lines(&self.run) {
+            println!("{l}");
+        }
         finish::empty_why::print();
         finish::empty_sel::print();
         if std::env::var_os("VEC_MEMO_DUMP").is_some() {
