@@ -23,8 +23,11 @@ pub(super) const PROJECT_DEPENDENCY_FINGERPRINT_DISAGREES: &str =
     "project dependency fingerprint disagrees";
 /// Refusal for a requested lint source that is a symbolic link.
 pub(super) const SEALED_SOURCE_IS_A_LINK: &str = "requested lint source is a symbolic link";
-/// Refusal for a link whose target is not a sealed file of the same snapshot.
+/// Refusal for a link whose target is neither a sealed file nor a directory holding one, of the same snapshot.
 pub(super) const CONTEXT_LINK_TARGET_UNSEALED: &str = "context link target is not a sealed file";
+/// Refusal for a link to a directory that holds the link itself: a cycle.
+pub(super) const CONTEXT_LINK_TARGET_HOLDS_THE_LINK: &str =
+    "context link target is a directory that holds the link";
 /// Refusal for link target text that is not canonical: empty, absolute, a repeated or trailing separator, `.`, or `..` after a name.
 pub(super) const CONTEXT_LINK_TARGET_NOT_CANONICAL: &str =
     "context link target is not canonical relative text";

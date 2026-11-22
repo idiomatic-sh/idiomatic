@@ -1,8 +1,8 @@
 //! Materialize and validate explicitly sealed project context at the filesystem boundary.
 use super::constants;
 use super::writer::{
-    PathScope, link_destination, link_text, no_file_ancestors, no_symlinked_parent, no_symlinks,
-    relative, resolve, walked_dependency,
+    PathScope, link_text, no_file_ancestors, no_symlinked_parent, no_symlinks, relative, resolve,
+    sealed_link_target, walked_dependency,
 };
 use crate::outbound::context::interface::ContextPort;
 use crate::outbound::context::types::CorpusFiles;
@@ -79,14 +79,7 @@ pub(crate) fn validate(manifest: &ContextManifest, actual_root: &Path) -> Result
                 constants::CONTEXT_PATH_HAS_CONFLICTING_ROLES.into(),
             ));
         }
-        let destination = link_destination(path, target)?;
-        if !manifest.source_files.contains_key(&destination)
-            && !manifest.auxiliary_files.contains_key(&destination)
-        {
-            return Err(Error::Invalid(
-                constants::CONTEXT_LINK_TARGET_UNSEALED.into(),
-            ));
-        }
+        sealed_link_target(manifest, path, target)?;
         no_symlinked_parent(&manifest.boundary, path)?;
         if link_text(&manifest.boundary.join(path))? != *target {
             return Err(Error::Invalid(format!(

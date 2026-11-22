@@ -112,13 +112,16 @@ pub(super) fn link_text(actual: &Path) -> Result<LinkTarget, Error> {
 
 /// The sealed path a link's target text names, read from the raw text and never from normalizing path components:
 /// the link's directory, one parent popped per leading `..` segment, then the names that follow.
-/// The grammar is slash-only: refuses empty text, a leading, repeated or trailing `/`, any `.` segment, `..` after a
-/// name, an escape, and a segment holding a backslash or any other separator the platform's paths know.
-pub(super) fn link_destination(link: &Path, target: &LinkTarget) -> Result<PathBuf, Error> {
+/// The grammar is slash-only: refuses empty text, a leading or repeated `/`, any `.` segment, `..` after a name, an
+/// escape, and a segment holding a backslash or any other separator the platform's paths know. One trailing `/` after a
+/// name is the text of a link to a directory (`ln -s docs/styles/ styles` is stored so); the caller decides whether the
+/// destination is one.
+fn link_destination(link: &Path, target: &LinkTarget) -> Result<PathBuf, Error> {
     let refuse = || Error::Invalid(constants::CONTEXT_LINK_TARGET_NOT_CANONICAL.into());
     let mut destination = link.parent().map(Path::to_path_buf).unwrap_or_default();
     let mut named = false;
-    for raw in target.0.split('/') {
+    let text = target.0.strip_suffix('/').unwrap_or(&target.0);
+    for raw in text.split('/') {
         if raw
             .chars()
             .any(|character| character == '\\' || std::path::is_separator(character))
@@ -140,6 +143,41 @@ pub(super) fn link_destination(link: &Path, target: &LinkTarget) -> Result<PathB
     }
     relative(&destination, PathScope::Member)?;
     Ok(destination)
+}
+
+/// Require the link at `link` to name, by its text `target`, a sealed file of the manifest's snapshot or a directory of it
+/// that holds one. A link to a directory is sealed by its exact text alone: nothing is read through it, since every sealed
+/// and missing path is refused a symlink on its way.
+pub(super) fn sealed_link_target(
+    manifest: &ContextManifest,
+    link: &Path,
+    target: &LinkTarget,
+) -> Result<(), Error> {
+    let destination = link_destination(link, target)?;
+    let sealed_file = manifest.source_files.contains_key(&destination)
+        || manifest.auxiliary_files.contains_key(&destination);
+    let sealed_directory = !sealed_file
+        && manifest
+            .source_files
+            .keys()
+            .chain(manifest.auxiliary_files.keys())
+            .any(|file| file.starts_with(&destination));
+    if target.0.ends_with('/') && sealed_file {
+        return Err(Error::Invalid(
+            constants::CONTEXT_LINK_TARGET_NOT_CANONICAL.into(),
+        ));
+    }
+    if sealed_directory && link.starts_with(&destination) {
+        return Err(Error::Invalid(
+            constants::CONTEXT_LINK_TARGET_HOLDS_THE_LINK.into(),
+        ));
+    }
+    if !sealed_file && !sealed_directory {
+        return Err(Error::Invalid(
+            constants::CONTEXT_LINK_TARGET_UNSEALED.into(),
+        ));
+    }
+    Ok(())
 }
 
 /// Reject symlinks on the way to a path, the path itself excepted: the walk a sealed link's own directory must pass.
