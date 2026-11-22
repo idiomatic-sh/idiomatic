@@ -446,12 +446,6 @@ impl Store {
         self.answered.get(slot).copied().unwrap_or(false)
     }
 
-    /// spec step: some row of the slot passes the tests (the per-file presence bit of a provider relation).
-    pub(super) fn any_row(&self, slot: usize, conds: &[Cond], matches: &[u128]) -> bool {
-        let cells = &self.cells[slot];
-        (0..self.rows[slot]).any(|r| conds.iter().all(|c| cond_holds(c, cells, r, matches)))
-    }
-
     /// spec step: the distinct key nodes of the rows passing the tests, in node order (an entry bucket from a fact).
     pub(super) fn key_nodes(&self, slot: usize, key: usize, conds: &[Cond], matches: &[u128], out: &mut Vec<u32>) {
         out.clear();
