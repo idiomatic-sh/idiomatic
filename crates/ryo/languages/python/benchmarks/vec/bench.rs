@@ -1207,15 +1207,17 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
         }
         s
     };
-    let function = set_of(&["function-def", "async-function-def", "lambda"]);
-    let class = set_of(&["class-def"]);
-    let looping = set_of(&["for", "async-for", "while"]);
     let mut units = funnel::units(&frules);
     if args.contains(&"--only-knock-units") {
         units.retain(|u| u.knock);
     }
     let group_list = funnel::groups(&frules, &units);
     let structured = matches!(way, "structure" | "spec" | "knock");
+    // the table writes the structure the checks read (element sets, the plans' enclosing columns) as ids are numbered
+    let enclosing: Vec<ryo::languages::KindSet> = fact_catalog.enc_sets.iter().map(|s| ryo::languages::KindSet(*s)).collect();
+    if structured {
+        cwalk.structured(enclosing.clone());
+    }
     let max_regs = frules.iter().flat_map(|r| r.plans.iter().map(|p| p.regs)).max().unwrap_or(1).max(1);
     let mut cands = vec![0u64; units.len()];
     let mut surv = vec![0u64; units.len()];
@@ -1229,7 +1231,6 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     let mut table = NodeTable::default();
     let mut scratch = Default::default();
     let mut cols = Columns::default();
-    let mut st = funnel::Structure::default();
     let mut regs = vec![0u32; max_regs + 1];
     let mut rows = funnel::Rows::default();
     let mut file_mask: Vec<u64> = Vec::new();
@@ -1570,7 +1571,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
         } else if use_facts {
             // the provider's facts are lent only while the walk runs: decide here which files need them (some rule that
             // tests a fact survived the kinds-and-words skip), then fill those relations and write their columns
-            ryo_python::fixtures::walking::walked(walk, path, &bytes, &[], &mut table, &mut scratch, &mut |file| {
+            ryo_python::fixtures::walking::walked_structured(walk, path, &bytes, &[], &mut table, &mut scratch, structured.then_some(enclosing.as_slice()), &mut |file| {
                 let v0 = thread_cpu();
                 let ft = file.table;
                 let n = node_table::element_count(ft).0;
@@ -1655,7 +1656,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
             })
             .is_ok()
         } else {
-            let mut builder = node_table::builder(&mut table, walk_kinds(walk));
+            let mut builder = if structured { node_table::structured(&mut table, walk_kinds(walk), &enclosing) } else { node_table::builder(&mut table, walk_kinds(walk)) };
             let ok = walk
                 .walk(
                     WalkRequest { path: languages::SourcePath(path), file: FileId(0), source: ByteSlice(&bytes) },
@@ -1677,19 +1678,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
         // one pass: the table's own columns and field lists are read in place; only the fields present are gathered (a step a
         // field code, not an element)
         fields_present(t, &mut cols, fields_width.max(1));
-        let c2 = thread_cpu();
-        phases.add("extract columns + parents + field buckets", c2 - c1);
-        if structured {
-            for _ in 0..repeat {
-                funnel::structure(t, &mut st, &function, &class, &looping);
-            }
-            phases.add("structure pass", (thread_cpu() - c2) / repeat as f64);
-            if !fact_catalog.enc_sets.is_empty() {
-                let e0 = thread_cpu();
-                funnel::enclosing(t, &mut st, &fact_catalog.enc_sets);
-                phases.add("enclosing columns (one per kind set)", thread_cpu() - e0);
-            }
-        }
+        phases.add("extract columns + parents + field buckets", thread_cpu() - c1);
         if way == "structure" {
             continue;
         }
@@ -1793,7 +1782,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
         }
         if dump_out.is_some() {
             dump::table(&mut dumped, file_no, t, vocab.kind_names.len());
-            dump::structure(&mut dumped, file_no, t, &st.pkind, &st.cmask, &st.enc);
+            dump::structure(&mut dumped, file_no, t);
             let mut h = dump::Hashed::default();
             // the field buckets as the harness's counting sort laid them out: offsets, then the ids, then the present bits
             let mut offsets = vec![0u32];
@@ -1848,10 +1837,9 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
             start: node_table::starts(t),
             end: node_table::ends(t),
             parent: node_table::parent_ids(t),
-            pkind: if structured { &st.pkind } else { &[] },
-            cmask: if structured { &st.cmask } else { &[] },
+            sets: node_table::element_sets(t),
             facts: &store,
-            enc: &st.enc,
+            enc: node_table::enclosing_ids(t),
             matches: &interner.matches,
         };
         if marked.len() < node_table::kind_codes(t).len() {

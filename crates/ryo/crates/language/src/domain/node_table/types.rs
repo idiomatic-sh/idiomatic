@@ -74,6 +74,49 @@ pub(crate) struct NodeTableEngine {
     pub(crate) embedded: Vec<EmbeddedSegment>,
     /// The nodes the parser implied, in id order.
     pub(crate) implied: Vec<Position>,
+    /// Per element, its neighbours' sets (written as each id is numbered, only when the builder was made `structured`).
+    pub(crate) sets: Vec<ElementSets>,
+    /// The kind sets a `structured` builder was given, one enclosing column each.
+    pub(crate) enclosing_sets: Vec<KindSet>,
+    /// Per kind set, per element: the nearest strict ancestor whose kind is in the set, `u32::MAX` for none.
+    pub(crate) enclosing: Vec<Vec<u32>>,
+}
+
+/// A set of kind codes below 256, one bit a code: the kinds an enclosing column looks for.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_language::domain::node_table::types::KindSet;
+///
+/// assert_eq!(KindSet([0b10, 0, 0, 0]).0[0] & 0b10, 0b10);
+/// ```
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct KindSet(pub [u64; 4]);
+
+/// What an engine's checks read of an element's neighbours, in one cache line: the kinds of its children (codes below 256),
+/// the fields its children fill (codes below 128), its parent's kind (its own for a root) and whether it is a root (its own
+/// parent). An embedded root is no root: its parent is its host, whose sets hold it.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_language::domain::node_table::types::ElementSets;
+///
+/// assert!(!ElementSets::default().root);
+/// assert_eq!(std::mem::size_of::<ElementSets>(), 64);
+/// ```
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(C, align(64))]
+pub struct ElementSets {
+    /// One bit for each kind among the element's children.
+    pub child_kinds: [u64; 4],
+    /// One bit for each field its children fill.
+    pub child_fields: [u64; 2],
+    /// The parent's kind.
+    pub parent_kind: u16,
+    /// Whether the element is its own parent.
+    pub root: bool,
 }
 
 /// Where one element's children are in the table's `children`: `from..to`.
@@ -267,6 +310,8 @@ pub(crate) struct BuilderState<'a> {
     pub(crate) implied: Vec<Position>,
     /// The logical text of the embedded segment being written.
     pub(crate) logical: LogicalText,
+    /// Whether each element's sets and enclosing ids are written as it is numbered.
+    pub(crate) structured: bool,
 }
 
 /// A token written before the nodes of its segment are all numbered.

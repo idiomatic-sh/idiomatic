@@ -30,7 +30,8 @@ pub use ryo_language::domain::fillers::types::{FieldNames, Fill, FillItem, Keyed
 pub use ryo_language::domain::facts::types::{CellWord, FactAnswer, FactSource, FileFacts, FileWords, FillExtent, FilledColumn, FilledColumns, FillerSentence, PartialRows, Wanted};
 pub use ryo_language::domain::fixed_names::{errors::FixedNamesError, types::{CheckedNames, FixedNames, FixedWord}};
 pub use ryo_language::domain::node_table::types::{
-    ByteSpan, EmbeddedRoot, EmbeddedSpan, EmbeddedText, FieldCode, KindsPresent, NodeTable, NodeTableBuilder, PresenceWord,
+    ByteSpan, ElementSets, EmbeddedRoot, EmbeddedSpan, EmbeddedText, FieldCode, KindSet, KindsPresent, NodeTable, NodeTableBuilder,
+    PresenceWord,
 };
 pub use ryo_relations::domain::relations::types::{NodeExtent, RelationSize};
 /// The node table's builder calls and readers, under their own names beside today's builder calls until the swap.

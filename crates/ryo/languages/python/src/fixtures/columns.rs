@@ -275,6 +275,8 @@ pub struct ColumnWalk {
     scratch: PythonWalkScratch,
     memo: TextMemo,
     words: FileWords,
+    /// When set, the table is written `structured` with these enclosing kind sets.
+    structure: Option<Vec<languages::KindSet>>,
 }
 
 impl ColumnWalk {
@@ -292,7 +294,14 @@ impl ColumnWalk {
             scratch: PythonWalkScratch::default(),
             memo: TextMemo::default(),
             words,
+            structure: None,
         }
+    }
+
+    /// Every table this walk writes from now on is written `structured` (`node_table::structured`) with the kind sets
+    /// `enclosing`: its element sets and enclosing columns are written as the ids are numbered.
+    pub fn structured(&mut self, enclosing: Vec<languages::KindSet>) {
+        self.structure = Some(enclosing);
     }
 
     /// Walks one file into `table` and lends it to `visit`.
@@ -305,7 +314,11 @@ impl ColumnWalk {
         if reads(source_path) != languages::Recognition::Reads {
             return Err(WalkError::Unsupported);
         }
-        let mut builder = node_table::builder(table, <PythonWalk<WalkPorts> as languages::Walk>::KIND_COUNT);
+        let kinds = <PythonWalk<WalkPorts> as languages::Walk>::KIND_COUNT;
+        let mut builder = match &self.structure {
+            Some(enclosing) => node_table::structured(table, kinds, enclosing),
+            None => node_table::builder(table, kinds),
+        };
         let target = self.walk.ports.settings.target_version().components();
         self.scratch.file.model.target = target;
         self.memo.names.clear();
