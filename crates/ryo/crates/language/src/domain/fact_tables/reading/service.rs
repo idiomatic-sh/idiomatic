@@ -6,7 +6,7 @@ use crate::domain::fact_tables::types::{
     FactCells, FactKey, FactRow, FactRowList, FactRowRun, FactTable, IndexOrder, KeyPresence,
     TableLayout,
 };
-use ryo_relations::domain::relations::types::Column;
+use ryo_relations::domain::relations::types::{Column, Count};
 
 /// Whether `key` has a row in `column`: one bit read, in either layout. A column the relation is not keyed by, or a key
 /// of another space, answers `Absent`.
@@ -119,7 +119,7 @@ pub fn every_row(table: &FactTable) -> FactRowRun {
 /// use ryo_language::domain::fact_tables::reading::service::cells_of;
 /// use ryo_language::domain::fact_tables::types::FactTable;
 /// use ryo_relations::domain::relations::collections::relations::comment::item::CommentColumn;
-/// use ryo_relations::domain::relations::types::Column;
+/// use ryo_relations::domain::relations::types::{Column, Count};
 ///
 /// assert!(cells_of(&FactTable::default(), Column::Comment(CommentColumn::File)).0.is_empty());
 /// ```
@@ -131,4 +131,44 @@ pub fn cells_of(table: &FactTable, column: Column) -> FactCells<'_> {
         .position(|each| *each == column)
         .and_then(|place| body.columns.get(place))
         .map_or(FactCells(&[]), |cells| FactCells(cells))
+}
+
+/// The cells of the column at `place` among the relation's columns in the catalog's order, one a row: none past the last
+/// column. The read of a column whose place the reader found once.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_language::domain::fact_tables::reading::service::cells_at;
+/// use ryo_language::domain::fact_tables::types::FactTable;
+/// use ryo_relations::domain::relations::types::Count;
+///
+/// assert!(cells_at(&FactTable::default(), Count(0)).0.is_empty());
+/// ```
+#[inline]
+#[must_use]
+pub fn cells_at(table: &FactTable, place: Count) -> FactCells<'_> {
+    table
+        .body
+        .columns
+        .get(place.0)
+        .map_or(FactCells(&[]), |cells| FactCells(cells))
+}
+
+/// Whether the table is indexed by `column`: the column it is filled by, or another its catalog item declares among its
+/// keys. `rows_of` and `presence` answer for such a column alone.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_language::domain::fact_tables::reading::service::indexed_by;
+/// use ryo_language::domain::fact_tables::types::FactTable;
+/// use ryo_relations::domain::relations::collections::relations::comment::item::CommentColumn;
+/// use ryo_relations::domain::relations::types::{Column, Count};
+///
+/// assert!(!indexed_by(&FactTable::default(), Column::Comment(CommentColumn::Id)));
+/// ```
+#[must_use]
+pub fn indexed_by(table: &FactTable, column: Column) -> bool {
+    table.body.indexes.iter().any(|index| index.column == column)
 }

@@ -1,20 +1,19 @@
 //! The test support of the `fillers` concept: a language over files of words, its per-file view (the finished table, the bytes,
 //! the file's number, how many fills it answered and how its fillers are weaker), and its fillers: `syntax-error` (only in part when the file holds a `?`),
-//! `token-link` with a body for each of its declared keys (a word's link to the next, the kind written by a fixed word),
-//! `language-target` (one row for a file), and every other relation said not read yet. The walk use case's fixture walks it.
-//! A file that holds one of four bytes makes a filler weaker than the catalog declares (`weakness`), which is what the growth
-//! harness (`growth`) rejects in its own cases: `%` (a link for every pair of words), `^` (`token-link` has no body for a key),
-//! `&` (its key body writes every row), `+` (two targets for the file).
+//! `token-link` (a word's link to the next, the kind written by a fixed word), `language-target` (one row for a file), and
+//! every other relation said not read yet. The walk use case's fixture walks it. A file that holds one of two bytes makes a
+//! filler weaker than the catalog declares (`weakness`), which is what the growth harness (`growth`) rejects in its own
+//! cases: `%` (a link for every pair of words), `+` (two targets for the file).
 
 /// The growth harness every language's contract test holds its fillers to.
 pub mod growth;
 
 use crate::domain::facts::service::{fixed, syntax_error_rows};
-use crate::domain::facts::types::{CellWord, FileWords, Wanted};
+use crate::domain::facts::types::FileWords;
 use crate::domain::fixed_names::types::{FixedNames, FixedWord};
-use crate::domain::fillers::service::{filled, filled_keyed};
+use crate::domain::fillers::service::filled;
 use crate::domain::fillers::types::{
-    FieldNames, Fill, FillItem, Fillers, KeyedFillItem, WalkKinds, WalkVocabulary,
+    FieldNames, Fill, FillItem, Fillers, WalkKinds, WalkVocabulary,
 };
 use crate::domain::node_table::service::{node_count, own_end, span_of};
 use crate::domain::node_table::types::NodeTable;
@@ -26,11 +25,11 @@ use ryo_relations::domain::relations::collections::relations::syntax_error::item
     SyntaxError, SyntaxErrorRow,
 };
 use ryo_relations::domain::relations::collections::relations::token_link::item::{
-    TokenLink, TokenLinkColumn, TokenLinkRow,
+    TokenLink, TokenLinkRow,
 };
-use ryo_relations::domain::relations::service::{node_id, node_position};
+use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::{
-    Column, Count, FileId, Integer, Missing, NodeId, Position, ReportText, Rows, Span,
+    Count, FileId, Integer, Missing, Position, ReportText, Rows, Span,
 };
 use ryo_relations::domain::terms::types::{NameText, Symbol};
 
@@ -60,21 +59,15 @@ pub enum Weakness {
     Sound,
     /// `token-link` writes a link for every pair of words: a row per pair, declared `PerElement`.
     Pairs,
-    /// `token-link` has no body for a key: asked for one, it writes every row and says so.
-    Unkeyed,
-    /// `token-link`'s key body writes every row, though it answers that it wrote the key's.
-    WholeByKey,
     /// `language-target` writes two rows: more than one for a file, declared `PerFile`.
     Twice,
 }
 
-/// How the fillers of a file of these bytes are weaker: by the first of the four bytes it holds, and sound with none.
+/// How the fillers of a file of these bytes are weaker: by the first of the two bytes it holds, and sound with none.
 #[must_use]
 pub fn weakness(source: &[u8]) -> Weakness {
     let asked = source.iter().find_map(|byte| match *byte {
         PAIRS => Some(Weakness::Pairs),
-        UNKEYED => Some(Weakness::Unkeyed),
-        WHOLE_BY_KEY => Some(Weakness::WholeByKey),
         TWICE => Some(Weakness::Twice),
         _ => None,
     });
@@ -86,12 +79,6 @@ pub const NEXT_TOKEN: FixedWord = FixedWord(0);
 
 /// The byte of a file whose `token-link` filler writes a link for every pair of words: a row per pair, declared `PerElement`.
 pub const PAIRS: u8 = b'%';
-
-/// The byte of a file whose `token-link` filler has no body for a key: asked for one, it writes every row and says so.
-pub const UNKEYED: u8 = b'^';
-
-/// The byte of a file whose `token-link` key body writes every row, though it answers that it wrote the key's.
-pub const WHOLE_BY_KEY: u8 = b'&';
 
 /// The byte of a file whose `language-target` filler writes two rows: more than one for a file, declared `PerFile`.
 pub const TWICE: u8 = b'+';
@@ -121,8 +108,7 @@ impl FillItem for SyntaxErrorFill {
     }
 }
 
-/// The fixture's `token-link` filler: each word of the file's own tree links to the word after it, and it has a body for both
-/// of the relation's declared keys.
+/// The fixture's `token-link` filler: each word of the file's own tree links to the word after it.
 #[derive(Clone, Copy, Debug)]
 pub struct TokenLinkFill;
 
@@ -180,36 +166,6 @@ impl FillItem for TokenLinkFill {
     }
 }
 
-impl KeyedFillItem for TokenLinkFill {
-    const KEYS: &'static [Column] = &[
-        Column::TokenLink(TokenLinkColumn::Source),
-        Column::TokenLink(TokenLinkColumn::Target),
-    ];
-
-    /// Writes the one link from the word `key` names, or the one link to it: nothing else of the file is read. In a file
-    /// whose key body is weak it writes every link.
-    fn fill_key(
-        file: &mut WalkingFile<'_>,
-        words: &mut FileWords,
-        column: Column,
-        key: CellWord,
-        rows: &mut dyn Rows<TokenLinkRow>,
-    ) {
-        if file.weakness == Weakness::WholeByKey {
-            return <Self as FillItem>::fill(file, words, rows);
-        }
-        let at = node_position(NodeId(key.0));
-        let source = if column == Column::TokenLink(TokenLinkColumn::Target) {
-            at.0.checked_sub(1).map(Position)
-        } else {
-            Some(at)
-        };
-        if let Some(row) = source.and_then(|source| link(file, words, source, after(source))) {
-            rows.write(row);
-        }
-    }
-}
-
 /// The fixture's `language-target` filler: one row for a file, whatever its size.
 #[derive(Clone, Copy, Debug)]
 pub struct LanguageTargetFill;
@@ -248,7 +204,6 @@ macro_rules! absent_filler {
         fn $module(
             _file: &mut WalkingFile<'_>,
             _words: &mut FileWords,
-            _wanted: Wanted,
             _rows: &mut dyn Rows<
                 ryo_relations::domain::relations::collections::relations::$module::item::$row,
             >,
@@ -273,31 +228,25 @@ impl Fillers for Walking {
     fn syntax_error(
         file: &mut WalkingFile<'_>,
         words: &mut FileWords,
-        wanted: Wanted,
         rows: &mut dyn Rows<SyntaxErrorRow>,
     ) -> Fill {
-        filled::<SyntaxErrorFill>(file, words, wanted, rows)
+        filled::<SyntaxErrorFill>(file, words, rows)
     }
 
     fn token_link(
         file: &mut WalkingFile<'_>,
         words: &mut FileWords,
-        wanted: Wanted,
         rows: &mut dyn Rows<TokenLinkRow>,
     ) -> Fill {
-        if file.weakness == Weakness::Unkeyed {
-            return filled::<TokenLinkFill>(file, words, wanted, rows);
-        }
-        filled_keyed::<TokenLinkFill>(file, words, wanted, rows)
+        filled::<TokenLinkFill>(file, words, rows)
     }
 
     fn language_target(
         file: &mut WalkingFile<'_>,
         words: &mut FileWords,
-        wanted: Wanted,
         rows: &mut dyn Rows<LanguageTargetRow>,
     ) -> Fill {
-        filled::<LanguageTargetFill>(file, words, wanted, rows)
+        filled::<LanguageTargetFill>(file, words, rows)
     }
 
     fn render(_file: &mut WalkingFile<'_>, _request: RenderRequest) -> RenderOutcome {

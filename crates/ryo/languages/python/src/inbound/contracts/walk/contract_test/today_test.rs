@@ -137,7 +137,7 @@ fn differences(path: &str, bytes: &[u8]) -> Result<String, WalkError> {
                     .iter()
                     .any(|(each, _, _)| each == relation);
                 let answered_alike = match answer {
-                    FactAnswer::Answered(_) => !partial_today,
+                    FactAnswer::Answered => !partial_today,
                     FactAnswer::Partial(_) => partial_today,
                     FactAnswer::Refused(_) => false,
                 };

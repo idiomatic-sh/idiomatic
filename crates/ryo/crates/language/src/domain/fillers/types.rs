@@ -1,18 +1,15 @@
 //! The types of the `fillers` concept: the bundle a language implements for the engine, one filler per `Filled` relation of the
-//! catalog, the `fills!` item that writes one (whole, and by key for the columns it has a body for), the names a language states
-//! for the whole run, and the fact source the engine reads the fillers through.
+//! catalog, the `fills!` item that writes one whole, the names a language states for the whole run, and the fact source the
+//! engine reads the fillers through: one request a file, each relation asked written into the file's fact set.
 
-use crate::domain::facts::types::{
-    CellWord, FactAnswer, FactSource, FileWords, FillExtent, FilledColumns, FillerSentence,
-    PartialRows, Wanted,
-};
+use crate::domain::fact_tables::service::{asked, partial, refused, row};
+use crate::domain::fact_tables::types::{FactCells, FactRequest, FactSet, FactWriter};
+use crate::domain::facts::types::{CellWord, FactSource, FileWords, FillerSentence, PartialRows};
 use crate::domain::fixed_names::types::FixedNames;
 use crate::domain::semantics::types::{RenderOutcome, RenderRequest};
 use ryo_relations::domain::answers::types::AbsenceCause;
 use ryo_relations::domain::relations::collections::relations::interface::RelationsItem;
-use ryo_relations::domain::relations::types::{
-    Column, FileId, Missing, Relation, ReportText, Rows,
-};
+use ryo_relations::domain::relations::types::{FileId, Missing, Relation, ReportText, Rows};
 use ryo_relations::domain::terms::types::NameText;
 
 /// What a language's filler of a relation did for a file.
@@ -20,17 +17,15 @@ use ryo_relations::domain::terms::types::NameText;
 /// # Examples
 ///
 /// ```
-/// use ryo_language::domain::facts::types::FillExtent;
 /// use ryo_language::domain::fillers::types::Fill;
 /// use ryo_relations::domain::answers::types::AbsenceCause;
 ///
-/// assert_ne!(Fill::Written(FillExtent::Asked), Fill::Absent(AbsenceCause::NotYetRead));
+/// assert_ne!(Fill::Written, Fill::Absent(AbsenceCause::NotYetRead));
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Fill {
-    /// It wrote every row it could of what it says it wrote: the rows asked for, or the whole relation where a key was asked and
-    /// it has no body for that key (a part it could not read it said through `Rows::partial`).
-    Written(FillExtent),
+    /// It wrote every row of the relation it could (a part it could not read it said through `Rows::partial`).
+    Written,
     /// The relation is not in the language, for this cause; it wrote nothing.
     Absent(AbsenceCause),
 }
@@ -55,34 +50,6 @@ pub trait FillItem {
     fn fill(
         file: &mut <Self::Walk as Fillers>::File<'_>,
         words: &mut FileWords,
-        rows: &mut dyn Rows<<Self::Relation as RelationsItem>::Row>,
-    );
-}
-
-/// One `fills!` item with a key clause: it also writes the rows of one key, for the columns it names. Only `ryo::fills!`
-/// implements it. A language that fills a relation has a body for every column the relation's catalog item declares among its
-/// `keys`.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_language::domain::fillers::fixtures::TokenLinkFill;
-/// use ryo_language::domain::fillers::types::KeyedFillItem;
-/// use ryo_relations::domain::catalog::service::key_columns;
-/// use ryo_relations::domain::relations::types::Relation;
-///
-/// assert_eq!(<TokenLinkFill as KeyedFillItem>::KEYS, key_columns(Relation::TokenLink));
-/// ```
-pub trait KeyedFillItem: FillItem {
-    /// The columns it has a body for.
-    const KEYS: &'static [Column];
-    /// Writes the rows of the relation whose `column` holds `key`, and no other row, from the language's view. `column` is one
-    /// of `KEYS`; a word key is read with `facts::service::text`.
-    fn fill_key(
-        file: &mut <Self::Walk as Fillers>::File<'_>,
-        words: &mut FileWords,
-        column: Column,
-        key: CellWord,
         rows: &mut dyn Rows<<Self::Relation as RelationsItem>::Row>,
     );
 }
@@ -187,12 +154,10 @@ macro_rules! filler_method {
         class $class:ident, scope $scope:ident, notes $notes:ident, form Filled $key:tt, size $size:ident, keys $keys:tt,
         $( spells $spells:tt, )? columns $columns:tt
     ) => {
-        /// Appends the wanted rows of the relation of its name for the file, and says which it wrote, or answers why the
-        /// relation is absent.
+        /// Writes every row of the relation of its name for the file, or answers why the relation is absent.
         fn $module(
             file: &mut Self::File<'_>,
             words: &mut $crate::domain::facts::types::FileWords,
-            wanted: $crate::domain::facts::types::Wanted,
             rows: &mut dyn ::ryo_relations::domain::relations::types::Rows<
                 ::ryo_relations::domain::relations::collections::relations::$module::item::$row,
             >,
@@ -231,7 +196,6 @@ macro_rules! no_filler {
         fn $module(
             _file: &mut Self::File<'_>,
             _words: &mut $crate::domain::facts::types::FileWords,
-            _wanted: $crate::domain::facts::types::Wanted,
             _rows: &mut dyn ::ryo_relations::domain::relations::types::Rows<
                 ::ryo_relations::domain::relations::collections::relations::$module::item::$row,
             >,
@@ -243,31 +207,34 @@ macro_rules! no_filler {
     };
 }
 
-/// The rows a filler writes, appended column by column as words, and the first part it said it could not read.
-pub(crate) struct ColumnsWriter<'o, R> {
-    /// Where the columns go.
-    pub(crate) out: &'o mut FilledColumns,
-    /// The first part the filler could not read.
-    pub(crate) partial: Option<PartialRows>,
+/// The rows a filler writes, each written into its relation's table of the file's set as cells, and the first part it said
+/// it could not read.
+pub(crate) struct TableRows<'w, 's, R> {
+    /// Where the rows go.
+    pub(crate) writer: &'w mut FactWriter<'s>,
+    /// One row's cells, kept from row to row.
+    pub(crate) cells: Vec<CellWord>,
     /// The relation written.
     pub(crate) relation: std::marker::PhantomData<R>,
 }
 
-impl<R: RelationsItem> Rows<R::Row> for ColumnsWriter<'_, R> {
-    fn write(&mut self, row: R::Row) {
-        let words = R::words(row);
-        for (column, number) in self.out.0.iter_mut().zip(words.as_ref()) {
-            column.0.push(CellWord(number.0));
-        }
+impl<R: RelationsItem> Rows<R::Row> for TableRows<'_, '_, R> {
+    fn write(&mut self, written: R::Row) {
+        let words = R::words(written);
+        self.cells.clear();
+        self.cells
+            .extend(words.as_ref().iter().map(|number| CellWord(number.0)));
+        row(self.writer, FactCells(&self.cells));
     }
 
     fn partial(&mut self, cause: ReportText<'_>, missing: Missing) {
-        if self.partial.is_none() {
-            self.partial = Some(PartialRows {
+        partial(
+            self.writer,
+            PartialRows {
                 cause: FillerSentence(cause.0.into()),
                 missing,
-            });
-        }
+            },
+        );
     }
 
     fn partial_at(&mut self, _file: FileId, cause: ReportText<'_>, missing: Missing) {
@@ -275,48 +242,42 @@ impl<R: RelationsItem> Rows<R::Row> for ColumnsWriter<'_, R> {
     }
 }
 
-/// The engine's view of one file of a language: its fillers over its per-file view.
+/// The fact source of one file over a language's fillers: what `fillers::service::file_source` lends the engine.
 pub(crate) struct FileSource<'a, 'f, W: Fillers> {
-    /// Its view of the file, lent for the visit.
+    /// The language's per-file view.
     pub(crate) file: &'a mut W::File<'f>,
 }
 
-/// The fact source of a language's file, generated from the catalog: each `Filled` relation answered by its `Fillers` function
-/// through `fill_arm`; a `NodeTable` relation has none and is refused.
+/// The fact source's answer: each relation asked, by its filler.
 macro_rules! file_source_answers {
     ( $( $group:ident { $( $variant:ident $module:ident $row:ident $column:ident ; )* } )* ) => {
         impl<W: Fillers> FileSource<'_, '_, W> {
-            /// The fill of a relation by the language's filler of it.
-            fn answered(
-                &mut self,
-                relation: Relation,
-                wanted: Wanted,
-                words: &mut FileWords,
-                out: &mut FilledColumns,
-            ) -> FactAnswer {
+            /// One relation of the request, by the language's filler of it: written, or refused for its cause.
+            fn answered(&mut self, relation: Relation, words: &mut FileWords, out: &mut FactSet) {
                 let file = &mut *self.file;
-                $( $( ::ryo_relations::$module!($crate::fill_arm, $module, W, file, relation, wanted, words, out); )* )*
-                FactAnswer::Refused(AbsenceCause::NoSuchConstruct)
+                $( $( ::ryo_relations::$module!($crate::fill_arm, $module, W, file, relation, words, out); )* )*
+                refused(out, relation, AbsenceCause::NoSuchConstruct);
             }
         }
 
         impl<W: Fillers> FactSource for FileSource<'_, '_, W> {
-            fn fill(
-                &mut self,
-                relation: Relation,
-                wanted: Wanted,
-                words: &mut FileWords,
-                out: &mut FilledColumns,
-            ) -> FactAnswer {
-                // SPIKE: under RYO_X_FILLS each fill is counted (`fillers::service::fill_counted`); else nothing is read.
-                let Some(begun) = $crate::domain::fillers::service::fill_begun() else {
-                    return self.answered(relation, wanted, words, out);
-                };
-                let held = out.0.first().map_or(0, |column| column.0.len());
-                let answer = self.answered(relation, wanted, words, out);
-                let rows = out.0.first().map_or(0, |column| column.0.len()).saturating_sub(held);
-                $crate::domain::fillers::service::fill_counted(relation, wanted, rows, begun);
-                answer
+            fn facts(&mut self, request: &FactRequest, words: &mut FileWords, out: &mut FactSet) {
+                for relation in asked(request) {
+                    // SPIKE: under RYO_X_FILLS each relation's fill is counted (`fillers::service::fill_counted`).
+                    let Some(begun) = $crate::domain::fillers::service::fill_begun() else {
+                        self.answered(relation, words, out);
+                        continue;
+                    };
+                    self.answered(relation, words, out);
+                    let rows = $crate::domain::fact_tables::reading::service::every_row(
+                        $crate::domain::fact_tables::service::table_of(out, relation),
+                    );
+                    $crate::domain::fillers::service::fill_counted(
+                        relation,
+                        usize::try_from(rows.end.0).unwrap_or(usize::MAX),
+                        begun,
+                    );
+                }
             }
 
             fn render(&mut self, request: RenderRequest) -> RenderOutcome {
@@ -328,50 +289,39 @@ macro_rules! file_source_answers {
 
 ryo_relations::each_relation!(file_source_answers);
 
-/// One arm of a file source's `fill`, from a relation's item declaration: a `Filled` relation is filled by the language's function
-/// of it, which appends the wanted rows to one column per column of the relation. A fill never clears what an earlier fill of the
-/// file wrote; a relation the language answers as absent leaves the columns as they were.
+/// One relation's arm of the fact source's answer: its filler run into a writer of its table, when it is the relation asked.
 #[doc(hidden)]
 #[macro_export]
 macro_rules! fill_arm {
     (
-        $module:ident, $walk:ident, $file:ident, $relation:ident, $wanted:ident, $words:ident, $out:ident
+        $module:ident, $walk:ident, $file:ident, $relation:ident, $words:ident, $out:ident
         item $item:ident, row $row:tt, column $column:tt, expected $expected:tt, class $class:ident,
         scope $scope:ident, notes $notes:ident, form NodeTable $nodes:tt, columns $columns:tt
     ) => {};
     (
-        $module:ident, $walk:ident, $file:ident, $relation:ident, $wanted:ident, $words:ident, $out:ident
+        $module:ident, $walk:ident, $file:ident, $relation:ident, $words:ident, $out:ident
         item $item:ident, row $row:tt, column $column:tt, expected $expected:tt, class $class:ident,
         scope $scope:ident, notes $notes:ident, form Filled $key:tt, size $size:ident, keys $keys:tt, $( spells $spells:tt, )? columns $columns:tt
     ) => {
         if $relation == ::ryo_relations::domain::relations::types::Relation::$item {
             type Item =
                 ::ryo_relations::domain::relations::collections::relations::$module::item::$item;
-            let width = <Item as ::ryo_relations::domain::relations::collections::relations::interface::RelationsItem>::kinds().len();
-            // What the columns held before this fill: an absent relation leaves them so.
-            let held_columns = $out.0.len();
-            let held_rows = $out.0.first().map_or(0, |column| column.0.len());
-            if held_columns < width {
-                $out.0.resize_with(width, $crate::domain::facts::types::FilledColumn::default);
-            }
-            let mut writer = $crate::domain::fillers::types::ColumnsWriter::<Item> {
-                out: $out,
-                partial: None,
+            let mut writing = $crate::domain::fact_tables::service::writer($out, $relation);
+            let mut rows = $crate::domain::fillers::types::TableRows::<Item> {
+                writer: &mut writing,
+                cells: ::std::vec::Vec::new(),
                 relation: ::std::marker::PhantomData,
             };
-            return match $walk::$module($file, $words, $wanted, &mut writer) {
-                $crate::domain::fillers::types::Fill::Absent(cause) => {
-                    for column in &mut writer.out.0 {
-                        column.0.truncate(held_rows);
-                    }
-                    writer.out.0.truncate(held_columns);
-                    $crate::domain::facts::types::FactAnswer::Refused(cause)
+            match $walk::$module($file, $words, &mut rows) {
+                $crate::domain::fillers::types::Fill::Written => {
+                    $crate::domain::fact_tables::service::finished(writing);
                 }
-                $crate::domain::fillers::types::Fill::Written(extent) => writer.partial.map_or(
-                    $crate::domain::facts::types::FactAnswer::Answered(extent),
-                    $crate::domain::facts::types::FactAnswer::Partial,
-                ),
-            };
+                $crate::domain::fillers::types::Fill::Absent(cause) => {
+                    drop(writing);
+                    $crate::domain::fact_tables::service::refused($out, $relation, cause);
+                }
+            }
+            return;
         }
     };
 }

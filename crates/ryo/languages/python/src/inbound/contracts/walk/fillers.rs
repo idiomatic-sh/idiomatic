@@ -1,5 +1,5 @@
 //! The fillers of the `walk` contract: for every relation of ryo's catalog the engine fills, how Python fills it from a walked
-//! file (its `fills!` item, whole or for one key), or that it is not in the language, with the cause; and the names
+//! file (its `fills!` item), or that it is not in the language, with the cause; and the names
 //! Python states for the whole run: its kinds, its fields and the fixed names its fillers write by handle.
 
 use crate::domain::file_view::types::{PythonFile, PythonWalk};
@@ -16,53 +16,32 @@ use crate::domain::syntax::service::{kind_name, kinds};
 use ryo::languages::{
     self, AbsenceCause, CatalogRelation, FieldNames, FileWords, Fill, Fillers, FixedNames, Flag,
     NameText, RenderContext, RenderOutcome, RenderRequest, RenderedNode, Rows, WalkKinds,
-    WalkVocabulary, Wanted, fillers,
+    WalkVocabulary, fillers,
 };
 use std::collections::HashSet;
 use std::sync::Arc;
 
-/// The filler of each relation whose `fills!` item writes it whole alone: the item's run. Asked for a key, it writes the whole
-/// relation and says so; `fillers::filled` is the one place that answer is written.
+/// The filler of each relation Python fills: its `fills!` item's run, which writes every row of the file.
 macro_rules! written {
     ($( $module:ident: $relation:ident => $item:path; )*) => {
         $(
             fn $module(
                 file: &mut PythonFile<'_>,
                 words: &mut FileWords,
-                wanted: Wanted,
                 rows: &mut dyn Rows<<languages::$relation as CatalogRelation>::Row>,
             ) -> Fill {
-                fillers::filled::<$item>(file, words, wanted, rows)
+                fillers::filled::<$item>(file, words, rows)
             }
         )*
     };
 }
 
-/// The filler of each relation whose `fills!` item has a key clause for every column the catalog declares among the relation's
-/// keys: the item's run, whole or for one key.
-macro_rules! keyed {
-    ($( $module:ident: $relation:ident => $item:path; )*) => {
-        $(
-            fn $module(
-                file: &mut PythonFile<'_>,
-                words: &mut FileWords,
-                wanted: Wanted,
-                rows: &mut dyn Rows<<languages::$relation as CatalogRelation>::Row>,
-            ) -> Fill {
-                fillers::filled_keyed::<$item>(file, words, wanted, rows)
-            }
-        )*
-    };
-}
-
-/// The filler of each relation Python does not fill, with the cause.
 macro_rules! absent {
     ($( $module:ident: $relation:ident => $cause:ident; )*) => {
         $(
             fn $module(
                 _file: &mut PythonFile<'_>,
                 _words: &mut FileWords,
-                _wanted: Wanted,
                 _rows: &mut dyn Rows<<languages::$relation as CatalogRelation>::Row>,
             ) -> Fill {
                 Fill::Absent(AbsenceCause::$cause)
@@ -79,7 +58,9 @@ impl<P: Send + Sync + 'static> Fillers for PythonWalk<P> {
 
     written! {
         binding_event: BindingEvent => crate::domain::relations::collections::relations::binding_event::item::BindingEventItem;
+        binding_read: BindingRead => crate::domain::relations::collections::relations::binding_read::item::BindingReadItem;
         binding_resolution: BindingResolution => crate::domain::relations::collections::relations::binding_resolution::item::BindingResolutionItem;
+        binding_shadow: BindingShadow => crate::domain::relations::collections::relations::binding_shadow::item::BindingShadowItem;
         binding_use: BindingUse => crate::domain::relations::collections::relations::binding_use::item::BindingUseItem;
         brace_format_field: BraceFormatField => crate::inbound::contracts::parse::readers::brace_format::composition::BraceFormatFieldItem;
         brace_format_parse: BraceFormatParse => crate::inbound::contracts::parse::readers::brace_format::composition::BraceFormatParseItem;
@@ -87,46 +68,42 @@ impl<P: Send + Sync + 'static> Fillers for PythonWalk<P> {
         call_argument: CallArgument => crate::domain::relations::collections::relations::call_argument::item::CallArgumentItem;
         comment: Comment => crate::domain::relations::collections::relations::comment::item::CommentItem;
         compiler_feature: CompilerFeature => crate::domain::relations::collections::relations::compiler_feature::item::CompilerFeatureItem;
+        constant_key: ConstantKey => crate::domain::relations::collections::relations::constant_key::item::ConstantKeyItem;
         decorates: Decorates => crate::domain::relations::collections::relations::decorates::item::DecoratesItem;
         defines: Defines => crate::domain::relations::collections::relations::defines::item::DefinesItem;
         embedded_expression: EmbeddedExpression => crate::domain::relations::collections::relations::embedded_expression::item::EmbeddedExpressionItem;
+        expression_shape: ExpressionShape => crate::domain::relations::collections::relations::expression_shape::item::ExpressionShapeItem;
+        expression_type: ExpressionType => crate::domain::relations::collections::relations::expression_type::item::ExpressionTypeItem;
         format_field: FormatField => crate::inbound::contracts::parse::readers::format::composition::FormatFieldItem;
         format_parse: FormatParse => crate::inbound::contracts::parse::readers::format::composition::FormatParseItem;
         format_specification: FormatSpecification => crate::inbound::contracts::parse::readers::format_specification::composition::FormatSpecificationItem;
+        function: Function => crate::domain::relations::collections::relations::function::item::FunctionItem;
         function_terminal: FunctionTerminal => crate::domain::relations::collections::relations::function_terminal::item::FunctionTerminalItem;
         identifier: Identifier => crate::domain::relations::collections::relations::identifier::item::IdentifierItem;
         implicit_symbol: ImplicitSymbol => crate::domain::relations::collections::relations::implicit_symbol::item::ImplicitSymbolItem;
         indent_region: IndentRegion => crate::domain::relations::collections::relations::indent_region::item::IndentRegionItem;
+        inherits: Inherits => crate::domain::relations::collections::relations::inherits::item::InheritsItem;
         interpolated_string_literal: InterpolatedStringLiteral => crate::domain::relations::collections::relations::interpolated_string_literal::item::InterpolatedStringLiteralItem;
         language_target: LanguageTarget => crate::domain::relations::collections::relations::language_target::item::LanguageTargetItem;
         literal_expression_parse: LiteralExpressionParse => crate::inbound::contracts::parse::readers::literal_expression::composition::LiteralExpressionParseItem;
         literal_properties: LiteralProperties => crate::domain::relations::collections::relations::literal_properties::item::LiteralPropertiesItem;
+        lookup_scope: LookupScope => crate::domain::relations::collections::relations::lookup_scope::item::LookupScopeItem;
         numeric_literal: NumericLiteral => crate::domain::relations::collections::relations::numeric_literal::item::NumericLiteralItem;
         parameter: Parameter => crate::domain::relations::collections::relations::parameter::item::ParameterItem;
         qualified_name: QualifiedName => crate::domain::relations::collections::relations::qualified_name::item::QualifiedNameItem;
         raw_format_field: RawFormatField => crate::inbound::contracts::parse::readers::raw_format::composition::RawFormatFieldItem;
+        raw_format_segment: RawFormatSegment => crate::inbound::contracts::parse::readers::raw_format::composition::RawFormatSegmentItem;
+        reference: Reference => crate::domain::relations::collections::relations::reference::item::ReferenceItem;
+        resolves: Resolves => crate::domain::relations::collections::relations::resolves::item::ResolvesItem;
+        scope: Scope => crate::domain::relations::collections::relations::scope::item::ScopeItem;
         source_location: SourceLocation => super::source_location::SourceLocationItem;
         standard_library_import: StandardLibraryImport => crate::domain::relations::collections::relations::standard_library_import::item::StandardLibraryImportItem;
         static_import: StaticImport => crate::domain::relations::collections::relations::static_import::item::StaticImportItem;
         string_literal: StringLiteral => crate::domain::relations::collections::relations::string_literal::item::StringLiteralItem;
         syntax_error: SyntaxError => crate::domain::relations::collections::relations::syntax_error::item::SyntaxErrorItem;
-    }
-
-    keyed! {
-        binding_read: BindingRead => crate::domain::relations::collections::relations::binding_read::item::BindingReadItem;
-        binding_shadow: BindingShadow => crate::domain::relations::collections::relations::binding_shadow::item::BindingShadowItem;
-        constant_key: ConstantKey => crate::domain::relations::collections::relations::constant_key::item::ConstantKeyItem;
-        expression_shape: ExpressionShape => crate::domain::relations::collections::relations::expression_shape::item::ExpressionShapeItem;
-        expression_type: ExpressionType => crate::domain::relations::collections::relations::expression_type::item::ExpressionTypeItem;
-        function: Function => crate::domain::relations::collections::relations::function::item::FunctionItem;
-        inherits: Inherits => crate::domain::relations::collections::relations::inherits::item::InheritsItem;
-        lookup_scope: LookupScope => crate::domain::relations::collections::relations::lookup_scope::item::LookupScopeItem;
-        raw_format_segment: RawFormatSegment => crate::inbound::contracts::parse::readers::raw_format::composition::RawFormatSegmentItem;
-        reference: Reference => crate::domain::relations::collections::relations::reference::item::ReferenceItem;
-        resolves: Resolves => crate::domain::relations::collections::relations::resolves::item::ResolvesItem;
-        scope: Scope => crate::domain::relations::collections::relations::scope::item::ScopeItem;
         token_link: TokenLink => crate::inbound::contracts::parse::readers::token_link::composition::TokenLinkItem;
     }
+
 
     absent! {
         analyzed_source: AnalyzedSource => NotYetRead;

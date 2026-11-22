@@ -90,18 +90,4 @@ ryo::fills! {
             }
         }
     }
-    key(languages::Column::Inherits(languages::InheritsColumn::Occurrence)) |file, words, key, rows| {
-        let Some(at) = keyed_node(&file.syntax, key) else {
-            return;
-        };
-        let Some(Numbered { id, node: AnyNodeRef::StmtClassDef(class) }) = bases_above(&file.syntax, at) else {
-            return;
-        };
-        let bases = class.arguments.iter().flat_map(|arguments| &arguments.args);
-        for expression in bases.filter(|expression| element_id(&file.syntax, *expression) == Some(at)) {
-            if let Some(row) = base_row(&file.syntax, words, &mut file.buffers.text, id, expression) {
-                rows.write(row);
-            }
-        }
-    }
 }

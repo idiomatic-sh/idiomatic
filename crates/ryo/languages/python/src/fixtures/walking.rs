@@ -5,7 +5,7 @@
 
 use ryo::languages::{
     self, ByteSlice, CatalogRelation, CellKind, CellWord, Column, FactAnswer, FileFacts, FileId,
-    FileVisit, FilledColumns, KindBits, NodeTable, Offset, Position, Relation, RelationNeeds, Walk,
+    FileVisit, KindBits, NodeTable, Offset, Position, Relation, RelationNeeds, Walk,
     WalkRequest, WalkSelection, facts, node_table,
 };
 use std::collections::HashMap;
@@ -307,6 +307,19 @@ pub(crate) fn special(word: u64) -> Option<Seen> {
         .map(|text| Seen::Text(text.0.to_owned()))
 }
 
+/// The lent file's facts of `relations`, asked in the file's one request.
+pub fn asked_set(
+    file: &mut FileFacts<'_>,
+    relations: &[Relation],
+    words: &mut languages::FileWords,
+) -> languages::FactSet {
+    let request = languages::fact_tables::request_of(relations);
+    let mut set = languages::FactSet::default();
+    languages::fact_tables::begun(&mut set, &request);
+    file.facts.facts(&request, words, &mut set);
+    set
+}
+
 /// The rows of `relation` the walk's fillers write for a lent file, sorted; and how the fill answered.
 pub fn walked_rows(
     file: &mut FileFacts<'_>,
@@ -314,18 +327,18 @@ pub fn walked_rows(
     relation: Relation,
     words: &mut languages::FileWords,
 ) -> (Vec<Vec<Seen>>, FactAnswer) {
-    let mut columns = FilledColumns::default();
-    let answer = file
-        .facts
-        .fill(relation, languages::Wanted::Whole, words, &mut columns);
+    let set = asked_set(file, &[relation], words);
+    let answer = languages::fact_tables::answer_of(&set, relation);
+    let table = languages::fact_tables::table_of(&set, relation);
     let kinds = column_kinds(relation);
-    let count = columns.0.first().map_or(0, |column| column.0.len());
+    let count = usize::try_from(languages::fact_reading::every_row(table).end.0).unwrap_or(usize::MAX);
     let mut rows: Vec<Vec<Seen>> = (0..count)
         .map(|row| {
             kinds
                 .iter()
-                .zip(&columns.0)
-                .map(|(kind, column)| {
+                .enumerate()
+                .map(|(place, kind)| {
+                    let column = languages::fact_reading::cells_at(table, languages::Count(place));
                     let word = column.0.get(row).copied().unwrap_or(CellWord(0)).0;
                     match kind {
                         CellKind::Node => element(keys, word),

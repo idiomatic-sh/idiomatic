@@ -26,8 +26,15 @@ pub use ryo_language::inbound::use_cases::walk::errors::WalkError;
 pub use ryo_language::inbound::use_cases::walk::types::{FileVisit, RelationNeeds, WalkRequest, WalkSelection};
 /// Open on purpose: a language implements it, through `ryo::fills!` items, and nothing else does.
 pub use ryo_language::domain::fillers::types::Fillers;
-pub use ryo_language::domain::fillers::types::{FieldNames, Fill, FillItem, KeyedFillItem, WalkKinds, WalkVocabulary};
-pub use ryo_language::domain::facts::types::{CellWord, FactAnswer, FactSource, FileFacts, FileWords, FillExtent, FilledColumn, FilledColumns, FillerSentence, PartialRows, Wanted};
+pub use ryo_language::domain::fillers::types::{FieldNames, Fill, FillItem, WalkKinds, WalkVocabulary};
+pub use ryo_language::domain::facts::types::{CellWord, FactAnswer, FactSource, FileFacts, FileWords, FillerSentence, PartialRows};
+pub use ryo_language::domain::fact_tables::types::{
+    FactCells, FactKey, FactRequest, FactRow, FactRowList, FactRowRun, FactSet, FactTable, FactWriter, KeyPresence,
+};
+/// The one request of a file, the writer a language answers it through, and the one lookup the engine reads the answer by.
+pub use ryo_language::domain::fact_tables::service as fact_tables;
+/// The one lookup of a file's fact set: whether a key has a row, a key's rows, every row, a column's cells.
+pub use ryo_language::domain::fact_tables::reading::service as fact_reading;
 pub use ryo_language::domain::fixed_names::{errors::FixedNamesError, types::{CheckedNames, FixedNames, FixedWord}};
 pub use ryo_language::domain::node_table::types::{
     ByteSpan, EmbeddedRoot, EmbeddedSpan, EmbeddedText, FieldCode, KindsPresent, NodeTable, NodeTableBuilder, PresenceWord,

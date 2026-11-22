@@ -9,9 +9,10 @@ use super::errors::WalkError;
 use super::interface::WalkUseCase;
 use super::types::{FileVisit, RelationNeeds, WalkRequest};
 use crate::domain::facts::service::{base_words, file_words, fixed, text};
-use crate::domain::facts::types::{
-    CellWord, FactAnswer, FileFacts, FileWords, FillExtent, FilledColumns, Wanted,
-};
+use crate::domain::fact_tables::reading::service::{cells_of, every_row, indexed_by, rows_of};
+use crate::domain::fact_tables::service::{answer_of, begun, request_of, table_of};
+use crate::domain::fact_tables::types::{FactKey, FactSet};
+use crate::domain::facts::types::{CellWord, FactAnswer, FileFacts, FileWords};
 use crate::domain::fillers::fixtures::growth::GrowthReport;
 use crate::domain::fillers::fixtures::{NEXT_TOKEN, Walking, WalkingFile, weakness};
 use crate::domain::fillers::service::file_source;
@@ -24,10 +25,9 @@ use crate::domain::node_table::service::{
 use crate::domain::node_table::types::{EmbeddedText, FieldCode, NodeTableBuilder};
 use ryo_relations::domain::elements::types::EmbeddedMapping;
 use ryo_relations::domain::labels::types::NameRef;
-use ryo_relations::domain::relations::service::{
-    column_name, column_named, columns, name, relation_named, relation_of,
-};
-use ryo_relations::domain::relations::types::Relation;
+use ryo_relations::domain::relations::collections::relations::token_link::item::TokenLinkColumn;
+use ryo_relations::domain::relations::service::{column_named, name, relation_named};
+use ryo_relations::domain::relations::types::{Column, Relation};
 use ryo_relations::domain::relations::types::{Count, KindBits, Offset, Position};
 use ryo_relations::domain::terms::types::NameText;
 
@@ -168,23 +168,28 @@ pub fn fixture_words() -> Result<FileWords, FixedNamesError> {
     Ok(file_words(&base_words(checked(&names.0)?, &[])))
 }
 
-/// What a fill answered, in words, with the rows the columns hold.
+/// The lent file's facts of the one relation, asked in one request.
+pub fn asked_one(file: &mut FileFacts<'_>, relation: Relation, words: &mut FileWords) -> FactSet {
+    let request = request_of(&[relation]);
+    let mut set = FactSet::default();
+    begun(&mut set, &request);
+    file.facts.facts(&request, words, &mut set);
+    set
+}
+
+/// What a relation's answer was, in words, with the rows read.
 #[must_use]
-pub fn said(answer: &FactAnswer, columns: &FilledColumns) -> String {
-    let rows = columns.0.first().map_or(0, |column| column.0.len());
+pub fn said(answer: &FactAnswer, rows: usize) -> String {
     match answer {
-        FactAnswer::Answered(FillExtent::Asked) => format!("the rows asked, {rows} rows"),
-        FactAnswer::Answered(FillExtent::Whole) => {
-            format!("every row though a key was asked, {rows} rows")
-        }
+        FactAnswer::Answered => format!("answered, {rows} rows"),
         FactAnswer::Partial(_) => format!("a part of the rows, {rows} rows"),
         FactAnswer::Refused(cause) => format!("refused: {cause:?}"),
     }
 }
 
-/// Fills what `asked` names of the lent file and says what the fill answered: `<relation> whole`, or `<relation> by <column>`
-/// with the key the whole fill's first row holds. Nothing when it names no relation or no column of it; why the fixture's fixed
-/// names were refused when they were.
+/// Asks what `asked` names of the lent file and says what was answered: `<relation> whole`, or `<relation> by <column>` with
+/// the key the first row holds, read by the table's index. Nothing when it names no relation or no column of it; why the
+/// fixture's fixed names were refused when they were.
 pub fn fill_named(file: &mut FileFacts<'_>, asked: &str) -> Option<String> {
     let (relation, by) = asked.split_once(' ')?;
     let relation = relation_named(NameRef(relation))?;
@@ -192,30 +197,31 @@ pub fn fill_named(file: &mut FileFacts<'_>, asked: &str) -> Option<String> {
         Ok(words) => words,
         Err(refused) => return Some(refused.to_string()),
     };
-    let mut whole = FilledColumns::default();
-    let answer = file
-        .facts
-        .fill(relation, Wanted::Whole, &mut words, &mut whole);
+    let set = asked_one(file, relation, &mut words);
+    let (answer, table) = (answer_of(&set, relation), table_of(&set, relation));
     if by == "whole" {
-        return Some(said(&answer, &whole));
+        return Some(said(
+            &answer,
+            usize::try_from(every_row(table).end.0).unwrap_or(usize::MAX),
+        ));
     }
-    let column = column_named(relation, NameRef(by.strip_prefix("by ")?))?;
-    let place = columns(relation).iter().position(|each| *each == column)?;
-    let key = whole.0.get(place)?.0.first().copied()?;
-    let mut by_key = FilledColumns::default();
-    let answer = file
-        .facts
-        .fill(relation, Wanted::Key(column, key), &mut words, &mut by_key);
-    Some(said(&answer, &by_key))
+    let named = by.strip_prefix("by ")?;
+    let column = column_named(relation, NameRef(named))?;
+    if !indexed_by(table, column) {
+        return Some(format!("not indexed by {named}"));
+    }
+    let key = cells_of(table, column).0.first().copied()?;
+    Some(said(&answer, rows_of(table, column, FactKey::Cell(key)).into_iter().count()))
 }
 
 /// The word of the kind of the first link of the lent file with its text, when it is the fixed word the fixture writes by handle.
 pub fn link_kind(file: &mut FileFacts<'_>, words: &mut FileWords) -> String {
-    let mut links = FilledColumns::default();
-    let _answer = file
-        .facts
-        .fill(Relation::TokenLink, Wanted::Whole, words, &mut links);
-    let cell: Option<CellWord> = links.0.get(2).and_then(|kinds| kinds.0.first().copied());
+    let set = asked_one(file, Relation::TokenLink, words);
+    let kinds = cells_of(
+        table_of(&set, Relation::TokenLink),
+        Column::TokenLink(TokenLinkColumn::LinkKind),
+    );
+    let cell: Option<CellWord> = kinds.0.first().copied();
     let handle = fixed(words, NEXT_TOKEN);
     cell.filter(|cell| *cell == handle).map_or_else(
         || "not the fixed word".to_owned(),
@@ -223,36 +229,20 @@ pub fn link_kind(file: &mut FileFacts<'_>, words: &mut FileWords) -> String {
     )
 }
 
-/// What a growth run held of the part asked for: the rows of each relation (`relations`), or of one key of each declared key
-/// column (`keys`), at the two sizes, and its faults.
+/// What a growth run held: the rows of each relation at the two sizes, and its faults.
 #[must_use]
-pub fn held(report: &GrowthReport, part: &str) -> String {
-    let rows: Vec<String> = if part == "keys" {
-        report
-            .keys
-            .iter()
-            .map(|each| {
-                let relation = name(relation_of(each.column)).0;
-                let column = column_name(each.column).0;
-                format!(
-                    "{relation} by {column} {} to {}",
-                    each.small.0, each.large.0
-                )
-            })
-            .collect()
-    } else {
-        report
-            .relations
-            .iter()
-            .map(|each| {
-                let relation = name(each.relation).0;
-                format!(
-                    "{relation} {:?} {} to {}",
-                    each.size, each.small.0, each.large.0
-                )
-            })
-            .collect()
-    };
+pub fn held(report: &GrowthReport) -> String {
+    let rows: Vec<String> = report
+        .relations
+        .iter()
+        .map(|each| {
+            let relation = name(each.relation).0;
+            format!(
+                "{relation} {:?} {} to {}",
+                each.size, each.small.0, each.large.0
+            )
+        })
+        .collect();
     let faults = if report.faults.is_empty() {
         "no fault".to_owned()
     } else {

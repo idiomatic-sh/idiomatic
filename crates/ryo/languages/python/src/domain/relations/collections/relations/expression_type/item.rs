@@ -157,15 +157,4 @@ ryo::fills! {
             type_rows(&file.syntax, words, memo, id, found, rows);
         }
     }
-    key(languages::Column::ExpressionType(languages::ExpressionTypeColumn::Id)) |file, words, key, rows| {
-        told_incomplete(file, rows);
-        typed(file);
-        let Some(place) = keyed_place(file.syntax.file, file.syntax.tree, key) else {
-            return;
-        };
-        if let Some(found) = file.buffers.types.get(usize::from(place)) {
-            let id = table_id(file.syntax.tree.segments, place);
-            type_rows(&file.syntax, words, &mut file.model.words.get_mut().fixed, id, found, rows);
-        }
-    }
 }

@@ -1,13 +1,14 @@
-//! The types of the `facts` concept, the fact contract: the engine asks a language for a relation's rows of one file, whole or
-//! the rows of one key, when an enabled program first reads them; a fill appends; the words those rows hold are the run's base
-//! words (the language's fixed names among them) or this file's.
+//! The types of the `facts` concept, the fact contract: the engine asks a language once per file for the relations the
+//! file's surviving rules read, and reads the answered set after (`fact_tables`); the words those rows hold are the run's
+//! base words (the language's fixed names among them) or this file's.
 
 use crate::domain::files::types::SourcePath;
 use crate::domain::node_table::types::NodeTable;
 use crate::domain::semantics::types::{RenderOutcome, RenderRequest};
 use crate::domain::symbols::types::ByteSlice;
 use ryo_relations::domain::answers::types::AbsenceCause;
-use ryo_relations::domain::relations::types::{Column, Count, FileId, Missing, Relation};
+use crate::domain::fact_tables::types::{FactRequest, FactSet};
+use ryo_relations::domain::relations::types::{Count, FileId, Missing};
 use std::sync::Arc;
 
 /// One file as the engine reads it: the node table, the bytes, the file's number in the run, and the language's per-file view
@@ -75,14 +76,17 @@ impl std::fmt::Debug for ProjectFacts<'_> {
     }
 }
 
-/// How the engine asks a language for a relation of one file. Built by `fillers::service::file_source` from the language's
-/// fillers; no language writes it by hand.
+/// How the engine asks a language for one file's facts: once, with the relations the file's surviving rules read, answered
+/// as one set of tables the engine then reads like a small database. Built by `fillers::service::file_source` from the
+/// language's fillers; no language writes it by hand.
 ///
 /// # Examples
 ///
 /// ```
+/// use ryo_language::domain::fact_tables::service::{answer_of, begun, request_of};
+/// use ryo_language::domain::fact_tables::types::{FactRequest, FactSet};
 /// use ryo_language::domain::facts::service::{base_words, file_words};
-/// use ryo_language::domain::facts::types::{FactAnswer, FactSource, FileWords, FilledColumns, Wanted};
+/// use ryo_language::domain::facts::types::{FactAnswer, FactSource, FileWords};
 /// use ryo_language::domain::fixed_names::types::CheckedNames;
 /// use ryo_language::domain::semantics::types::{RenderOutcome, RenderRequest};
 /// use ryo_relations::domain::answers::types::AbsenceCause;
@@ -90,28 +94,22 @@ impl std::fmt::Debug for ProjectFacts<'_> {
 ///
 /// struct Nothing;
 /// impl FactSource for Nothing {
-///     fn fill(&mut self, _: Relation, _: Wanted, _: &mut FileWords, _: &mut FilledColumns) -> FactAnswer {
-///         FactAnswer::Refused(AbsenceCause::NotYetRead)
-///     }
+///     fn facts(&mut self, _: &FactRequest, _: &mut FileWords, _: &mut FactSet) {}
 ///     fn render(&mut self, _: RenderRequest) -> RenderOutcome {
 ///         RenderOutcome::NotApplicable
 ///     }
 /// }
 /// let mut words = file_words(&base_words(CheckedNames::default(), &[]));
-/// let answer = Nothing.fill(Relation::Function, Wanted::Whole, &mut words, &mut FilledColumns::default());
-/// assert_eq!(answer, FactAnswer::Refused(AbsenceCause::NotYetRead));
+/// let (request, mut set) = (request_of(&[Relation::Function]), FactSet::default());
+/// begun(&mut set, &request);
+/// Nothing.facts(&request, &mut words, &mut set);
+/// assert_eq!(answer_of(&set, Relation::Function), FactAnswer::Refused(AbsenceCause::NotYetRead));
 /// ```
 pub trait FactSource {
-    /// APPENDS to `out` the wanted rows of `relation` for this file, interning the texts it builds into `words`; never clears
-    /// what earlier fills of the file wrote. Asked whole at most once per file and relation, and at most once for a key; a whole
-    /// fill asked after fills by key writes every row, those keys' rows again among them, after the rows already there.
-    fn fill(
-        &mut self,
-        relation: Relation,
-        wanted: Wanted,
-        words: &mut FileWords,
-        out: &mut FilledColumns,
-    ) -> FactAnswer;
+    /// Answers the file's one request into `out`, which the engine has `begun` with it: each relation asked is written
+    /// through a `fact_tables::service::writer` or refused, interning the texts it builds into `words`. A relation it
+    /// leaves alone answers `Refused(NotYetRead)`. Asked once per file; nothing is asked of the file after it.
+    fn facts(&mut self, request: &FactRequest, words: &mut FileWords, out: &mut FactSet);
     /// The source form of a node in a syntax role, for fixes (replaces `begin_semantics` and the retained parse).
     fn render(&mut self, request: RenderRequest) -> RenderOutcome;
 }
@@ -223,31 +221,6 @@ impl std::borrow::Borrow<str> for InternedText {
     }
 }
 
-/// One relation's rows of one file, column by column, as words.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_language::domain::facts::types::{CellWord, FilledColumn, FilledColumns};
-///
-/// let columns = FilledColumns(vec![FilledColumn(vec![CellWord(7)])]);
-/// assert_eq!(columns.0.len(), 1);
-/// ```
-#[derive(Debug, Default)]
-pub struct FilledColumns(pub Vec<FilledColumn>);
-
-/// One column of filled rows.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_language::domain::facts::types::{CellWord, FilledColumn};
-///
-/// assert_eq!(FilledColumn(vec![CellWord(1), CellWord(2)]).0.len(), 2);
-/// ```
-#[derive(Debug, Default)]
-pub struct FilledColumn(pub Vec<CellWord>);
-
 /// One cell as a word: a word's code for a text cell, the stored bits of any other cell.
 ///
 /// # Examples
@@ -265,14 +238,15 @@ pub struct CellWord(pub u64);
 /// # Examples
 ///
 /// ```
-/// use ryo_language::domain::facts::types::{FactAnswer, FillExtent};
+/// use ryo_language::domain::facts::types::FactAnswer;
+/// use ryo_relations::domain::answers::types::AbsenceCause;
 ///
-/// assert_ne!(FactAnswer::Answered(FillExtent::Asked), FactAnswer::Answered(FillExtent::Whole));
+/// assert_ne!(FactAnswer::Answered, FactAnswer::Refused(AbsenceCause::NotYetRead));
 /// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum FactAnswer {
-    /// The rows were written: the rows asked for, or every row of the file where a key was asked.
-    Answered(FillExtent),
+    /// Every row of the relation in the file was written.
+    Answered,
     /// Some rows may be missing: rules reading the relation fault in this file.
     Partial(PartialRows),
     /// The language refuses the relation for this file.
@@ -309,41 +283,3 @@ pub struct PartialRows {
 /// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FillerSentence(pub Box<str>);
-
-/// Which rows of a relation a fill is asked for.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_language::domain::facts::types::{CellWord, Wanted};
-/// use ryo_relations::domain::relations::collections::relations::token_link::item::TokenLinkColumn;
-/// use ryo_relations::domain::relations::types::Column;
-///
-/// let by_source = Wanted::Key(Column::TokenLink(TokenLinkColumn::Source), CellWord(7));
-/// assert_ne!(by_source, Wanted::Whole);
-/// ```
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Wanted {
-    /// Every row of the file.
-    Whole,
-    /// The rows whose column holds the cell: a node, a number or a word of the file.
-    Key(Column, CellWord),
-}
-
-/// Which rows a fill wrote.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_language::domain::facts::types::FillExtent;
-///
-/// assert_ne!(FillExtent::Asked, FillExtent::Whole);
-/// ```
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum FillExtent {
-    /// The rows it was asked for.
-    Asked,
-    /// Every row of the file, though a key was asked: the language has no body for that key. Legal only for a column the
-    /// relation's catalog item does not declare among its `keys`.
-    Whole,
-}

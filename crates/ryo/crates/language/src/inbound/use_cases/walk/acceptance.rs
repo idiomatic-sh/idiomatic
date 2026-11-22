@@ -2,7 +2,9 @@
 
 use cucumber::{given, then, when};
 use ryo_language::domain::facts::service::{clear_words, intern};
-use ryo_language::domain::facts::types::{FileFacts, FilledColumns, Wanted};
+use ryo_language::domain::fact_tables::reading::service::every_row;
+use ryo_language::domain::fact_tables::service::table_of;
+use ryo_language::domain::facts::types::FileFacts;
 use ryo_language::domain::files::types::SourcePath;
 use ryo_language::domain::fillers::fixtures::Walking;
 use ryo_language::domain::fillers::fixtures::growth::{GrowthReport, grown};
@@ -11,7 +13,7 @@ use ryo_language::domain::node_table::service::{builder, element_count, node_cou
 use ryo_language::domain::node_table::types::NodeTable;
 use ryo_language::domain::symbols::types::ByteSlice;
 use ryo_language::inbound::use_cases::walk::fixtures::{
-    fill_named, fixture_words, held, link_kind,
+    asked_one, fill_named, fixture_words, held, link_kind,
 };
 use ryo_language::inbound::use_cases::walk::interface::WalkUseCase as _;
 use ryo_language::inbound::use_cases::walk::types::{FileVisit, RelationNeeds, WalkRequest};
@@ -74,7 +76,7 @@ fn given_input(world: &mut Behavior, value: String) {
 fn runs(world: &mut Behavior) {
     let (path, text) = scene(&world.input);
     let mut seen = String::new();
-    let refused = walked(path, text, &mut |file| {
+    let refused = walked(path, text, &mut |mut file| {
         let mut words = match fixture_words() {
             Ok(words) => words,
             Err(refused) => {
@@ -82,14 +84,8 @@ fn runs(world: &mut Behavior) {
                 return;
             }
         };
-        let mut columns = FilledColumns::default();
-        let _answer = file.facts.fill(
-            Relation::SyntaxError,
-            Wanted::Whole,
-            &mut words,
-            &mut columns,
-        );
-        let errors = columns.0.first().map_or(0, |column| column.0.len());
+        let set = asked_one(&mut file, Relation::SyntaxError, &mut words);
+        let errors = every_row(table_of(&set, Relation::SyntaxError)).end.0;
         seen = format!(
             "walked {} nodes, {} elements, {errors} syntax errors",
             node_count(file.table).0,
@@ -137,12 +133,10 @@ fn fills_two(world: &mut Behavior, second: String) {
     world.answer = kinds.join(", then ");
 }
 
-/// Runs the growth harness over files of the fixture language that end as the scene's text, keeping the part asked for.
-#[when(
-    expr = "the growth harness holds the {string} of files of {int} elements and of four times as many"
-)]
-fn grows(world: &mut Behavior, part: String, elements: usize) {
-    world.answer = held(&grew(&world.input, elements), &part);
+/// Runs the growth harness over files of the fixture language that end as the scene's text.
+#[when(expr = "the growth harness holds the relations of files of {int} elements and of four times as many")]
+fn grows(world: &mut Behavior, elements: usize) {
+    world.answer = held(&grew(&world.input, elements));
 }
 
 /// Asserts what `walk` answered.

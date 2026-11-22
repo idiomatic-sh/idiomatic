@@ -125,7 +125,8 @@ pub(crate) fn key_code(space: KeySpace, key: FactKey) -> Option<KeyCode> {
             u32::try_from(word.0).map_or(None, |code| Some(KeyCode(code)))
         }
         (KeySpace::Entities, FactKey::Entity(id)) => Some(KeyCode(id.0)),
-        (KeySpace::Nodes | KeySpace::Words | KeySpace::Entities, _) => None,
+        (space, FactKey::Cell(cell)) => Some(cell_code(space, cell)),
+        (KeySpace::Nodes | KeySpace::Words | KeySpace::Entities, FactKey::Node(_) | FactKey::Word(_) | FactKey::Entity(_)) => None,
     }
 }
 

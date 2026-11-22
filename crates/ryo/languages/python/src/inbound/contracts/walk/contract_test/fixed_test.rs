@@ -6,13 +6,13 @@
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::file_view::types::PythonWalk;
 use crate::domain::token_links::constants::NEXT_TOKEN;
-use crate::fixtures::walking::{walk_words, walked};
+use crate::fixtures::walking::{asked_set, walk_words, walked};
 use crate::inbound::contracts::walk::contract::{PythonWalkScratch, WalkPorts};
 use crate::outbound::syntax::factory::ruff_python_parser;
 use crate::outbound::syntax::fixtures::library::fixture_sources;
 use crate::settings::PythonParserSettings;
 use ryo::languages::{
-    self, FactAnswer, FilledColumns, FixedWord, NodeTable, Walk, WalkError, Wanted, facts,
+    self, FactAnswer, FixedWord, NodeTable, Walk, WalkError, fact_reading, fact_tables, facts,
 };
 use std::sync::Arc;
 
@@ -106,17 +106,14 @@ fn same_cell<W: Walk>(walk: &W) -> Result<String, WalkError> {
             &[],
             &mut table,
             &mut scratch,
-            &mut |file| {
-                let mut links = FilledColumns::default();
-                let answer = file.facts.fill(
-                    languages::Relation::TokenLink,
-                    Wanted::Whole,
-                    &mut words,
-                    &mut links,
-                );
-                let kind = links.0.get(2).and_then(|cells| cells.0.first().copied());
+            &mut |mut file| {
+                let relation = languages::Relation::TokenLink;
+                let set = asked_set(&mut file, &[relation], &mut words);
+                let answer = fact_tables::answer_of(&set, relation);
+                let kinds = fact_reading::cells_at(fact_tables::table_of(&set, relation), languages::Count(2));
+                let kind = kinds.0.first().copied();
                 shown.push(match (answer, kind) {
-                    (FactAnswer::Answered(_), Some(cell)) => {
+                    (FactAnswer::Answered, Some(cell)) => {
                         format!("word {} `{}`", cell.0, facts::text(&words, cell).0)
                     }
                     (answer, _) => format!("no link: {answer:?}"),
@@ -158,15 +155,8 @@ fn declared() -> Result<String, WalkError> {
             languages::all(),
             &mut table,
             &mut scratch,
-            &mut |file| {
-                for relation in languages::all() {
-                    let _answer = file.facts.fill(
-                        *relation,
-                        Wanted::Whole,
-                        &mut words,
-                        &mut FilledColumns::default(),
-                    );
-                }
+            &mut |mut file| {
+                let _set = asked_set(&mut file, languages::all(), &mut words);
             },
         )?;
     }

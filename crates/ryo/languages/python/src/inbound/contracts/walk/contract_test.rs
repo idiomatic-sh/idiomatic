@@ -383,8 +383,6 @@ mod fixed_test;
 #[cfg(test)]
 mod growth_test;
 #[cfg(test)]
-mod keys_test;
-#[cfg(test)]
 mod rows_test;
 #[cfg(test)]
 mod today_test;

@@ -36,9 +36,6 @@ ryo::fills! {
     ScopeItem => languages::Scope, walk(PythonWalk) |file, words, rows| {
         scope_rows(file, words, rows);
     }
-    key(Column::Scope(ScopeColumn::Child)) |file, _words, key, rows| {
-        scope_rows_of(file, key, rows);
-    }
 }
 
 ryo::fills! {
@@ -51,17 +48,11 @@ ryo::fills! {
     ReferenceItem => languages::Reference, walk(PythonWalk) |file, words, rows| {
         reference_rows(file, words, rows);
     }
-    key(Column::Reference(ReferenceColumn::Occurrence)) |file, words, key, rows| {
-        reference_rows_of(file, words, key, rows);
-    }
 }
 
 ryo::fills! {
     ResolvesItem => languages::Resolves, walk(PythonWalk) |file, words, rows| {
         resolves_rows(file, words, rows);
-    }
-    key(Column::Resolves(ResolvesColumn::Occurrence)) |file, words, key, rows| {
-        resolves_rows_of(file, words, key, rows);
     }
 }
 
@@ -87,9 +78,6 @@ ryo::fills! {
     BindingReadItem => languages::BindingRead, walk(PythonWalk) |file, words, rows| {
         binding_read_rows(file, words, rows);
     }
-    key(Column::BindingRead(BindingReadColumn::Name)) |file, words, key, rows| {
-        binding_read_rows_of(file, words, key, rows);
-    }
 }
 
 ryo::fills! {
@@ -102,17 +90,11 @@ ryo::fills! {
     BindingShadowItem => languages::BindingShadow, walk(PythonWalk) |file, words, rows| {
         binding_shadow_rows(file, words, rows);
     }
-    key(Column::BindingShadow(BindingShadowColumn::Binding)) |file, words, key, rows| {
-        binding_shadow_rows_of(file, words, key, rows);
-    }
 }
 
 ryo::fills! {
     LookupScopeItem => languages::LookupScope, walk(PythonWalk) |file, words, rows| {
         lookup_scope_rows(file, words, rows);
-    }
-    key(Column::LookupScope(LookupScopeColumn::Reference)) |file, words, key, rows| {
-        lookup_scope_rows_of(file, words, key, rows);
     }
 }
 

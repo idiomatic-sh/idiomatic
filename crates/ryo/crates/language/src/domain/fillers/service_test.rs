@@ -1,21 +1,19 @@
-//! The `fillers` service's cases. The fact source answers a relation its language fills with one column per column and its rows,
-//! a relation the language has not read as refused for that reason, a node-table relation as refused (no language fills it), and
-//! a filler that read the file in part as partial. A filler with no body for a key writes every row and says so; a filler with a
-//! body for a declared key writes that key's rows alone; fills append, and an absent relation leaves the rows before it. The
-//! growth harness holds the fixture language's fillers to what the catalog declares of each relation, and rejects each weaker
-//! filler: a row per pair, more than one row for a file, a key with no body, a key body that writes every row, a relation with
-//! no row, a language that lends no file.
+//! The `fillers` service's cases. The fact source answers each relation of the file's one request: a relation its language
+//! fills with its rows, a relation the language has not read as refused for that reason, a node-table relation as refused (no
+//! language fills it), and a filler that read the file in part as partial; a declared key's rows are found by the table's
+//! index, and one relation refused leaves another of the same request written. The growth harness holds the fixture
+//! language's fillers to what the catalog declares of each relation, and rejects each weaker filler: a row per pair, more
+//! than one row for a file, a relation with no row, a language that lends no file.
 
 use super::service::file_source;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::facts::service::{base_words, file_words};
-use crate::domain::facts::types::{
-    CellWord, FactAnswer, FileFacts, FillExtent, FilledColumns, Wanted,
-};
+use crate::domain::fact_tables::reading::service::{every_row, rows_of};
+use crate::domain::fact_tables::service::{answer_of, begun, request_of, table_of};
+use crate::domain::fact_tables::types::{FactKey, FactSet};
+use crate::domain::facts::types::{CellWord, FactAnswer, FileFacts};
 use crate::domain::fillers::fixtures::growth::{GrowthFault, grown};
-use crate::domain::fillers::fixtures::{
-    PAIRS, TWICE, UNKEYED, WHOLE_BY_KEY, Walking, WalkingFile, weakness,
-};
+use crate::domain::fillers::fixtures::{PAIRS, TWICE, Walking, WalkingFile, weakness};
 use crate::domain::fillers::types::Fillers as _;
 use crate::domain::fixed_names::service::checked;
 use crate::domain::node_table::service::{
@@ -23,7 +21,6 @@ use crate::domain::node_table::service::{
 };
 use crate::domain::node_table::types::{FieldCode, NodeTable};
 use crate::domain::symbols::types::ByteSlice;
-use ryo_relations::domain::relations::collections::relations::syntax_error::item::SyntaxErrorColumn;
 use ryo_relations::domain::relations::collections::relations::token_link::item::TokenLinkColumn;
 use ryo_relations::domain::relations::service::node_id;
 use ryo_relations::domain::relations::types::{
@@ -32,28 +29,25 @@ use ryo_relations::domain::relations::types::{
 use ryo_relations::domain::terms::types::NameText;
 
 /// What one fill of a row asks for.
+/// Which rows of the relation a case reads.
 #[derive(Clone, Copy, Debug)]
 enum Ask {
     /// Every row.
     Whole,
-    /// The links from the word of this place among the file's words.
+    /// The links from the word at this place.
     Source(u32),
-    /// The links to the word of this place.
+    /// The links to the word at this place.
     Target(u32),
-    /// The links of one kind: a column `token-link` declares no key for.
-    LinkKind,
-    /// The report of one id: a column of `syntax-error`, which declares no key.
-    ErrorId,
 }
 
-/// What a row does.
+/// A case's file and what it asks.
 #[derive(Clone, Copy, Debug)]
 enum Scenario {
-    /// Fills a relation of a file of the text, once for each ask, into the same columns.
-    Fills(Relation, &'static str, &'static [Ask]),
-    /// Fills the first relation whole, then asks the second into the same columns.
+    /// The file of the text asked for one relation, read as the ask says.
+    Fills(Relation, &'static str, Ask),
+    /// The file asked for two relations in one request.
     Then(Relation, Relation, &'static str),
-    /// Runs the growth harness over what a language lends.
+    /// A growth run.
     Grows(Lends),
 }
 
@@ -73,12 +67,13 @@ enum Lends {
 /// What a row answers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Seen {
-    /// The last fill's answer (0 answered as asked, 1 partial, 2 refused, 3 answered with every row to a key), the columns
-    /// written and the rows of the first.
-    Filled([usize; 3]),
+    /// The relation's answer (0 answered, 1 partial, 2 refused) and the rows read.
+    Filled([usize; 2]),
+    /// Each of two relations' answer and rows.
+    Both([usize; 4]),
     /// A growth run with no fault: the elements of the two files, the rows of `syntax-error`, `language-target` and
-    /// `token-link` at each, and the rows of one key of `token-link`'s source and of its target at each.
-    Grown([usize; 2], [[usize; 2]; 3], [[usize; 2]; 2]),
+    /// `token-link` at each.
+    Grown([usize; 2], [[usize; 2]; 3]),
 }
 
 type Input = Scenario;
@@ -92,73 +87,49 @@ const ELEMENTS: Count = Count(64);
 /// The rows of this part's cases.
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("a_filled_relation_answers_its_rows_column_by_column"),
+        name: CaseName("a_filled_relation_answers_its_rows"),
         word: Word::Succeeds,
-        input: || Scenario::Fills(Relation::SyntaxError, "one!", &[Ask::Whole]),
-        expect: Expect::Value(Seen::Filled([0, 7, 1])),
+        input: || Scenario::Fills(Relation::SyntaxError, "one!", Ask::Whole),
+        expect: Expect::Value(Seen::Filled([0, 1])),
     },
     Case {
         name: CaseName("a_relation_the_language_has_not_read_is_refused"),
         word: Word::Succeeds,
-        input: || Scenario::Fills(Relation::Function, "one", &[Ask::Whole]),
-        expect: Expect::Value(Seen::Filled([2, 0, 0])),
+        input: || Scenario::Fills(Relation::Function, "one", Ask::Whole),
+        expect: Expect::Value(Seen::Filled([2, 0])),
     },
     Case {
         name: CaseName("a_node_table_relation_is_refused_no_language_fills_it"),
         word: Word::Succeeds,
-        input: || Scenario::Fills(Relation::SyntaxTree, "one", &[Ask::Whole]),
-        expect: Expect::Value(Seen::Filled([2, 0, 0])),
+        input: || Scenario::Fills(Relation::SyntaxTree, "one", Ask::Whole),
+        expect: Expect::Value(Seen::Filled([2, 0])),
     },
     Case {
         name: CaseName("a_filler_that_read_the_file_in_part_answers_partial"),
         word: Word::Succeeds,
-        input: || Scenario::Fills(Relation::SyntaxError, "one?", &[Ask::Whole]),
-        expect: Expect::Value(Seen::Filled([1, 7, 0])),
+        input: || Scenario::Fills(Relation::SyntaxError, "one?", Ask::Whole),
+        expect: Expect::Value(Seen::Filled([1, 0])),
     },
     Case {
-        name: CaseName("a_filler_with_no_body_for_a_key_writes_every_row_and_says_so"),
+        name: CaseName("a_declared_keys_rows_are_the_links_from_that_word_alone"),
         word: Word::Succeeds,
-        input: || Scenario::Fills(Relation::SyntaxError, "one! two!", &[Ask::ErrorId]),
-        expect: Expect::Value(Seen::Filled([3, 7, 2])),
+        input: || Scenario::Fills(Relation::TokenLink, "one two three four", Ask::Source(1)),
+        expect: Expect::Value(Seen::Filled([0, 1])),
     },
     Case {
-        name: CaseName("a_fill_of_a_declared_key_writes_the_links_from_that_word_alone"),
+        name: CaseName("a_second_declared_keys_rows_are_the_links_to_that_word_alone"),
         word: Word::Succeeds,
-        input: || Scenario::Fills(Relation::TokenLink, "one two three four", &[Ask::Source(1)]),
-        expect: Expect::Value(Seen::Filled([0, 5, 1])),
+        input: || Scenario::Fills(Relation::TokenLink, "one two three four", Ask::Target(1)),
+        expect: Expect::Value(Seen::Filled([0, 1])),
     },
     Case {
-        name: CaseName("a_fill_of_a_second_declared_key_writes_the_links_to_that_word_alone"),
+        name: CaseName("the_last_word_has_no_link_from_it"),
         word: Word::Succeeds,
-        input: || Scenario::Fills(Relation::TokenLink, "one two three four", &[Ask::Target(1)]),
-        expect: Expect::Value(Seen::Filled([0, 5, 1])),
+        input: || Scenario::Fills(Relation::TokenLink, "one two three four", Ask::Source(3)),
+        expect: Expect::Value(Seen::Filled([0, 0])),
     },
     Case {
-        name: CaseName("a_key_of_the_last_word_has_no_link_and_is_answered_as_asked"),
-        word: Word::Succeeds,
-        input: || Scenario::Fills(Relation::TokenLink, "one two three four", &[Ask::Source(3)]),
-        expect: Expect::Value(Seen::Filled([0, 5, 0])),
-    },
-    Case {
-        name: CaseName("a_key_on_a_column_with_no_body_writes_every_row_and_says_so"),
-        word: Word::Succeeds,
-        input: || Scenario::Fills(Relation::TokenLink, "one two three four", &[Ask::LinkKind]),
-        expect: Expect::Value(Seen::Filled([3, 5, 3])),
-    },
-    Case {
-        name: CaseName("fills_append_a_whole_fill_goes_after_the_rows_of_two_keys"),
-        word: Word::Succeeds,
-        input: || {
-            Scenario::Fills(
-                Relation::TokenLink,
-                "one two three four",
-                &[Ask::Source(0), Ask::Target(3), Ask::Whole],
-            )
-        },
-        expect: Expect::Value(Seen::Filled([0, 5, 5])),
-    },
-    Case {
-        name: CaseName("an_absent_relation_leaves_the_rows_written_before_it"),
+        name: CaseName("a_refused_relation_leaves_another_of_the_same_request_written"),
         word: Word::Succeeds,
         input: || {
             Scenario::Then(
@@ -167,17 +138,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 "one two three four",
             )
         },
-        expect: Expect::Value(Seen::Filled([2, 5, 3])),
+        expect: Expect::Value(Seen::Both([0, 3, 2, 0])),
     },
     Case {
         name: CaseName("a_relations_rows_grow_with_the_file_as_its_catalog_item_declares"),
         word: Word::Succeeds,
         input: || Scenario::Grows(Lends::Sound),
-        expect: Expect::Value(Seen::Grown(
-            [64, 256],
-            [[1, 1], [1, 1], [62, 254]],
-            [[1, 1], [1, 1]],
-        )),
+        expect: Expect::Value(Seen::Grown([64, 256], [[1, 1], [1, 1], [62, 254]])),
     },
     Case {
         name: CaseName("a_relation_that_writes_a_row_per_pair_declared_per_element_is_rejected"),
@@ -190,24 +157,6 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Rejects,
         input: || Scenario::Grows(Lends::Weak(TWICE)),
         expect: Expect::Error(GrowthFault::Grew(Relation::LanguageTarget)),
-    },
-    Case {
-        name: CaseName(
-            "a_fill_of_a_declared_key_that_writes_the_whole_relation_and_says_so_is_rejected",
-        ),
-        word: Word::Rejects,
-        input: || Scenario::Grows(Lends::Weak(UNKEYED)),
-        expect: Expect::Error(GrowthFault::KeyNotAsked(Column::TokenLink(
-            TokenLinkColumn::Source,
-        ))),
-    },
-    Case {
-        name: CaseName("a_fill_of_a_declared_key_that_writes_other_rows_than_the_keys_is_rejected"),
-        word: Word::Rejects,
-        input: || Scenario::Grows(Lends::Weak(WHOLE_BY_KEY)),
-        expect: Expect::Error(GrowthFault::KeyRows(Column::TokenLink(
-            TokenLinkColumn::Source,
-        ))),
     },
     Case {
         name: CaseName("a_relation_with_no_row_for_the_larger_file_is_rejected_as_unproven"),
@@ -280,34 +229,35 @@ fn text_of(elements: Count, last: &str) -> String {
     text
 }
 
-/// The cell a fill is asked by, in a file whose words start at the id `first`.
-fn wanted(ask: Ask, first: u32) -> Wanted {
-    let word = |place: u32| CellWord(node_id(FileId(1), Position(first.saturating_add(place))).0);
-    match ask {
-        Ask::Whole => Wanted::Whole,
-        Ask::Source(place) => Wanted::Key(Column::TokenLink(TokenLinkColumn::Source), word(place)),
-        Ask::Target(place) => Wanted::Key(Column::TokenLink(TokenLinkColumn::Target), word(place)),
-        Ask::LinkKind => Wanted::Key(Column::TokenLink(TokenLinkColumn::LinkKind), CellWord(1)),
-        Ask::ErrorId => Wanted::Key(Column::SyntaxError(SyntaxErrorColumn::Id), CellWord(0)),
+/// The kind of a relation's answer: 0 answered, 1 partial, 2 refused.
+fn kind_of(answer: &FactAnswer) -> usize {
+    match answer {
+        FactAnswer::Answered => 0,
+        FactAnswer::Partial(_) => 1,
+        FactAnswer::Refused(_) => 2,
     }
 }
 
-/// The answer's kind, the columns written and the rows of the first.
-fn filled(answer: &FactAnswer, columns: &FilledColumns) -> Seen {
-    let kind = match answer {
-        FactAnswer::Answered(FillExtent::Asked) => 0,
-        FactAnswer::Partial(_) => 1,
-        FactAnswer::Refused(_) => 2,
-        FactAnswer::Answered(FillExtent::Whole) => 3,
+/// The rows of a relation in the set, as `ask` reads them, in a file whose words start at the id `first`.
+fn read_rows(set: &FactSet, relation: Relation, ask: Ask, first: u32) -> usize {
+    let table = table_of(set, relation);
+    let word = |place: u32| {
+        FactKey::Cell(CellWord(
+            node_id(FileId(1), Position(first.saturating_add(place))).0,
+        ))
     };
-    Seen::Filled([
-        kind,
-        columns.0.len(),
-        columns.0.first().map_or(0, |column| column.0.len()),
-    ])
+    match ask {
+        Ask::Whole => usize::try_from(every_row(table).end.0).unwrap_or(usize::MAX),
+        Ask::Source(place) => rows_of(table, Column::TokenLink(TokenLinkColumn::Source), word(place))
+            .into_iter()
+            .count(),
+        Ask::Target(place) => rows_of(table, Column::TokenLink(TokenLinkColumn::Target), word(place))
+            .into_iter()
+            .count(),
+    }
 }
 
-/// The rows of a relation, or of a key column, at the two sizes of a growth run.
+/// The rows of a relation at the two sizes of a growth run.
 fn pair(small: Option<Count>, large: Option<Count>) -> [usize; 2] {
     [
         small.map_or(0, |rows| rows.0),
@@ -320,31 +270,28 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
     let fixed = checked(&names.0).expect("the fixture's fixed names");
     let mut seen = None;
     match scenario {
-        Scenario::Fills(relation, text, asks) => lent(text, &mut |file| {
+        Scenario::Fills(relation, text, ask) => lent(text, &mut |file| {
             let first = u32::try_from(node_count(file.table).0).unwrap_or(u32::MAX);
-            let (mut words, mut columns) = (
-                file_words(&base_words(fixed, &[])),
-                FilledColumns::default(),
-            );
-            for ask in asks {
-                let answer =
-                    file.facts
-                        .fill(relation, wanted(*ask, first), &mut words, &mut columns);
-                seen = Some(filled(&answer, &columns));
-            }
+            let (mut words, mut set) = (file_words(&base_words(fixed, &[])), FactSet::default());
+            let request = request_of(&[relation]);
+            begun(&mut set, &request);
+            file.facts.facts(&request, &mut words, &mut set);
+            seen = Some(Seen::Filled([
+                kind_of(&answer_of(&set, relation)),
+                read_rows(&set, relation, ask, first),
+            ]));
         }),
         Scenario::Then(first, second, text) => lent(text, &mut |file| {
-            let (mut words, mut columns) = (
-                file_words(&base_words(fixed, &[])),
-                FilledColumns::default(),
-            );
-            let _written = file
-                .facts
-                .fill(first, Wanted::Whole, &mut words, &mut columns);
-            let answer = file
-                .facts
-                .fill(second, Wanted::Whole, &mut words, &mut columns);
-            seen = Some(filled(&answer, &columns));
+            let (mut words, mut set) = (file_words(&base_words(fixed, &[])), FactSet::default());
+            let request = request_of(&[first, second]);
+            begun(&mut set, &request);
+            file.facts.facts(&request, &mut words, &mut set);
+            seen = Some(Seen::Both([
+                kind_of(&answer_of(&set, first)),
+                read_rows(&set, first, Ask::Whole, 0),
+                kind_of(&answer_of(&set, second)),
+                read_rows(&set, second, Ask::Whole, 0),
+            ]));
         }),
         Scenario::Grows(lends) => {
             let last = match lends {
@@ -368,13 +315,6 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                     .find(|each| each.relation == relation);
                 pair(found.map(|each| each.small), found.map(|each| each.large))
             };
-            let key = |column: TokenLinkColumn| {
-                let found = report
-                    .keys
-                    .iter()
-                    .find(|each| each.column == Column::TokenLink(column));
-                pair(found.map(|each| each.small), found.map(|each| each.large))
-            };
             seen = Some(Seen::Grown(
                 [report.small.0, report.large.0],
                 [
@@ -382,11 +322,10 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
                     rows(Relation::LanguageTarget),
                     rows(Relation::TokenLink),
                 ],
-                [key(TokenLinkColumn::Source), key(TokenLinkColumn::Target)],
             ));
         }
     }
-    Ok(seen.unwrap_or(Seen::Filled([usize::MAX; 3])))
+    Ok(seen.unwrap_or(Seen::Filled([usize::MAX; 2])))
 }
 
 #[test]

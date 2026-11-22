@@ -314,7 +314,7 @@ fn row_differences(relation: Relation, folder: &str) -> Result<String, WalkError
                 let keys = walked_keys(file.table);
                 let (written, answer) = walked_rows(&mut file, &keys, relation, &mut words);
                 let written: Vec<Vec<Seen>> = written.into_iter().map(as_stated).collect();
-                if !matches!(answer, languages::FactAnswer::Answered(_)) {
+                if !matches!(answer, languages::FactAnswer::Answered) {
                     found.push_str(&format!("{shown}: the fill answered {answer:?}\n"));
                 }
                 found.push_str(&lacking_rows("stated", &wanted, &written));

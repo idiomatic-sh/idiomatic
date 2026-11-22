@@ -98,17 +98,4 @@ ryo::fills! {
             }
         }
     }
-    key(languages::Column::ExpressionShape(languages::ExpressionShapeColumn::Id)) |file, words, key, rows| {
-        if told_whole(file, rows) == languages::SyntaxCompleteness::Incomplete {
-            return;
-        }
-        shaped(file, words);
-        let found = keyed_id(file.syntax.file, key).and_then(|id| {
-            let class = file.buffers.shapes.classes.get(usize::from(id)).copied().flatten()?;
-            shape_row(&file.syntax, id, class)
-        });
-        if let Some(row) = found {
-            rows.write(row);
-        }
-    }
 }

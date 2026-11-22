@@ -10,7 +10,10 @@ use super::types::{FileVisit, RelationNeeds, WalkEngine, WalkRequest};
 use super::use_case::WalkUseCaseImpl;
 use crate::cases::{Case, CaseName, Expect, Word, run};
 use crate::domain::facts::service::{base_words, file_words};
-use crate::domain::facts::types::{FactAnswer, FileFacts, FillExtent, FilledColumns, Wanted};
+use crate::domain::facts::types::{FactAnswer, FileFacts};
+use crate::inbound::use_cases::walk::fixtures::asked_one;
+use crate::domain::fact_tables::reading::service::every_row;
+use crate::domain::fact_tables::service::{answer_of, table_of};
 use crate::domain::files::types::SourcePath;
 use crate::domain::fillers::fixtures::Walking;
 use crate::domain::fixed_names::types::CheckedNames;
@@ -74,26 +77,21 @@ enum Answer {
     Embedded([usize; 3], [u32; 3]),
 }
 
-/// The visit of the cases: fills `syntax-error` once and keeps what it saw.
+/// The visit of the cases: asks `syntax-error` in the file's one request and keeps what it saw.
 #[derive(Default)]
 struct Seeing(Option<Seen>);
 
 impl FileVisit for Seeing {
-    fn visit(&mut self, file: FileFacts<'_>) {
+    fn visit(&mut self, mut file: FileFacts<'_>) {
         let mut words = file_words(&base_words(CheckedNames::default(), &[]));
-        let mut columns = FilledColumns::default();
-        let answer = file.facts.fill(
-            Relation::SyntaxError,
-            Wanted::Whole,
-            &mut words,
-            &mut columns,
-        );
+        let set = asked_one(&mut file, Relation::SyntaxError, &mut words);
+        let rows = every_row(table_of(&set, Relation::SyntaxError)).end.0;
         self.0 = Some(Seen {
             file: file.file,
             nodes: node_count(file.table),
             elements: element_count(file.table),
-            syntax_errors: Count(columns.0.first().map_or(0, |column| column.0.len())),
-            answer,
+            syntax_errors: Count(usize::try_from(rows).unwrap_or(usize::MAX)),
+            answer: answer_of(&set, Relation::SyntaxError),
         });
     }
 }
@@ -148,7 +146,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             nodes: Count(1),
             elements: Count(4),
             syntax_errors: Count(1),
-            answer: FactAnswer::Answered(FillExtent::Asked),
+            answer: FactAnswer::Answered,
         }))),
     },
     Case {
@@ -160,7 +158,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
             nodes: Count(1),
             elements: Count(4),
             syntax_errors: Count(1),
-            answer: FactAnswer::Answered(FillExtent::Asked),
+            answer: FactAnswer::Answered,
         }))),
     },
     Case {

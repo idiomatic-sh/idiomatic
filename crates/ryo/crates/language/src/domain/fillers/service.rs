@@ -1,8 +1,8 @@
-//! The `fillers` service: the fact source a walk lends the engine over its language's fillers, and the run of one `fills!` item,
-//! whole or by key.
+//! The `fillers` service: the fact source a walk lends the engine over its language's fillers, and the run of one `fills!`
+//! item.
 
-use super::types::{FileSource, Fill, FillItem, Fillers, KeyedFillItem};
-use crate::domain::facts::types::{FactSource, FileWords, FillExtent, Wanted};
+use super::types::{FileSource, Fill, FillItem, Fillers};
+use crate::domain::facts::types::{FactSource, FileWords};
 use ryo_relations::domain::relations::collections::relations::interface::RelationsItem;
 use ryo_relations::domain::relations::types::{Relation, Rows};
 
@@ -25,14 +25,13 @@ where
     FileSource::<W> { file }
 }
 
-/// Runs the `fills!` item `I` over the file: the body of a language's `Fillers` function for `I`'s relation, when the item has no
-/// key clause. It writes every row of the relation whatever is wanted, and says so: asked for a key it answers
-/// `Written(FillExtent::Whole)`.
+/// Runs the `fills!` item `I` over the file: the body of a language's `Fillers` function for `I`'s relation. It writes every
+/// row of the relation and answers `Written`.
 ///
 /// # Examples
 ///
 /// ```
-/// use ryo_language::domain::facts::types::{FileWords, Wanted};
+/// use ryo_language::domain::facts::types::FileWords;
 /// use ryo_language::domain::fillers::service::filled;
 /// use ryo_language::domain::fillers::types::{Fill, FillItem, Fillers};
 /// use ryo_relations::domain::relations::collections::relations::interface::RelationsItem;
@@ -41,70 +40,25 @@ where
 /// fn through<I: FillItem>(
 ///     file: &mut <I::Walk as Fillers>::File<'_>,
 ///     words: &mut FileWords,
-///     wanted: Wanted,
 ///     rows: &mut dyn Rows<<I::Relation as RelationsItem>::Row>,
 /// ) -> Fill {
-///     filled::<I>(file, words, wanted, rows)
+///     filled::<I>(file, words, rows)
 /// }
 /// ```
 pub fn filled<I: FillItem>(
     file: &mut <I::Walk as Fillers>::File<'_>,
     words: &mut FileWords,
-    wanted: Wanted,
     rows: &mut dyn Rows<<I::Relation as RelationsItem>::Row>,
 ) -> Fill {
     I::fill(file, words, rows);
-    Fill::Written(match wanted {
-        Wanted::Whole => FillExtent::Asked,
-        Wanted::Key(_, _) => FillExtent::Whole,
-    })
-}
-
-/// Runs the `fills!` item `I`, which has a key clause, over the file: the body of a language's `Fillers` function for `I`'s
-/// relation. Asked for a key on a column of `I::KEYS` it writes that key's rows alone (`fill_key`) and answers
-/// `Written(FillExtent::Asked)`; asked for a key on any other column it writes every row and answers
-/// `Written(FillExtent::Whole)`.
-///
-/// # Examples
-///
-/// ```
-/// use ryo_language::domain::facts::types::{FileWords, Wanted};
-/// use ryo_language::domain::fillers::service::filled_keyed;
-/// use ryo_language::domain::fillers::types::{Fill, Fillers, KeyedFillItem};
-/// use ryo_relations::domain::relations::collections::relations::interface::RelationsItem;
-/// use ryo_relations::domain::relations::types::Rows;
-///
-/// fn through<I: KeyedFillItem>(
-///     file: &mut <I::Walk as Fillers>::File<'_>,
-///     words: &mut FileWords,
-///     wanted: Wanted,
-///     rows: &mut dyn Rows<<I::Relation as RelationsItem>::Row>,
-/// ) -> Fill {
-///     filled_keyed::<I>(file, words, wanted, rows)
-/// }
-/// ```
-pub fn filled_keyed<I: KeyedFillItem>(
-    file: &mut <I::Walk as Fillers>::File<'_>,
-    words: &mut FileWords,
-    wanted: Wanted,
-    rows: &mut dyn Rows<<I::Relation as RelationsItem>::Row>,
-) -> Fill {
-    match wanted {
-        Wanted::Key(column, key) if I::KEYS.contains(&column) => {
-            I::fill_key(file, words, column, key, rows);
-            Fill::Written(FillExtent::Asked)
-        }
-        Wanted::Whole | Wanted::Key(_, _) => filled::<I>(file, words, wanted, rows),
-    }
+    Fill::Written
 }
 
 /// SPIKE (2026-11-21, never a contract): what the fills of one relation came to in a run counted under `RYO_X_FILLS`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct FillCounts {
-    /// The fills asked whole.
-    pub whole: u64,
-    /// The fills asked for one key.
-    pub keyed: u64,
+    /// The files whose one request asked the relation.
+    pub asked: u64,
     /// The rows written.
     pub rows: u64,
     /// The time inside the fills, in nanoseconds (the first fill of a file that needs the language's model pays its build).
@@ -212,18 +166,17 @@ pub fn fill_begun() -> Option<std::time::Instant> {
         .then(std::time::Instant::now)
 }
 
-/// SPIKE: counts one fill of a relation: whether it was asked whole or for a key, the rows it wrote and its time.
+/// SPIKE: counts one relation of a file's one request: the rows its filler wrote and its time.
 ///
 /// # Examples
 ///
 /// ```
-/// use ryo_language::domain::facts::types::Wanted;
 /// use ryo_language::domain::fillers::service::fill_counted;
 /// use ryo_relations::domain::relations::types::Relation;
 ///
-/// fill_counted(Relation::Comment, Wanted::Whole, 0, std::time::Instant::now());
+/// fill_counted(Relation::Comment, 0, std::time::Instant::now());
 /// ```
-pub fn fill_counted(relation: Relation, wanted: Wanted, rows: usize, begun: std::time::Instant) {
+pub fn fill_counted(relation: Relation, rows: usize, begun: std::time::Instant) {
     let nanos = u64::try_from(begun.elapsed().as_nanos()).unwrap_or(u64::MAX);
     FILE_FILLS.with(|fills| {
         fills.borrow_mut().push(FileFill {
@@ -234,10 +187,7 @@ pub fn fill_counted(relation: Relation, wanted: Wanted, rows: usize, begun: std:
     });
     if let Ok(mut counts) = FILL_COUNTS.lock() {
         let held = counts.entry(relation).or_default();
-        match wanted {
-            Wanted::Whole => held.whole = held.whole.saturating_add(1),
-            Wanted::Key(_, _) => held.keyed = held.keyed.saturating_add(1),
-        }
+        held.asked = held.asked.saturating_add(1);
         held.rows = held
             .rows
             .saturating_add(u64::try_from(rows).unwrap_or(u64::MAX));

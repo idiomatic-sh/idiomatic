@@ -5,7 +5,7 @@ use super::keying::service::{EMPTY, emptied, indexes_of, key_written, keyed, pla
 use super::types::{
     FactCells, FactRequest, FactSet, FactTable, FactWriter, PartialSaid, RelationBits,
 };
-use crate::domain::facts::types::{FactAnswer, FillExtent, PartialRows};
+use crate::domain::facts::types::{FactAnswer, PartialRows};
 use ryo_relations::domain::answers::types::AbsenceCause;
 use ryo_relations::domain::relations::service::{ALL, columns};
 use ryo_relations::domain::relations::types::{Count, Relation};
@@ -202,13 +202,13 @@ pub fn partial(writer: &mut FactWriter<'_>, rows: PartialRows) {
 /// ```
 /// use ryo_language::domain::fact_tables::service::{answer_of, begun, finished, request_of, writer};
 /// use ryo_language::domain::fact_tables::types::FactSet;
-/// use ryo_language::domain::facts::types::{FactAnswer, FillExtent};
+/// use ryo_language::domain::facts::types::FactAnswer;
 /// use ryo_relations::domain::relations::types::Relation;
 ///
 /// let mut set = FactSet::default();
 /// begun(&mut set, &request_of(&[Relation::Comment]));
 /// finished(writer(&mut set, Relation::Comment));
-/// assert_eq!(answer_of(&set, Relation::Comment), FactAnswer::Answered(FillExtent::Asked));
+/// assert_eq!(answer_of(&set, Relation::Comment), FactAnswer::Answered);
 /// ```
 pub fn finished(writer: FactWriter<'_>) {
     let FactWriter {
@@ -221,7 +221,7 @@ pub fn finished(writer: FactWriter<'_>) {
     }
     if let Some(answer) = set.body.answers.get_mut(place.0) {
         *answer = match partial {
-            PartialSaid::Whole => FactAnswer::Answered(FillExtent::Asked),
+            PartialSaid::Whole => FactAnswer::Answered,
             PartialSaid::Partial(rows) => FactAnswer::Partial(rows),
         };
     }

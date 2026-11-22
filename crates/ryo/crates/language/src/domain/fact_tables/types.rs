@@ -53,6 +53,8 @@ pub enum FactKey {
     Word(CellWord),
     /// An entity of the run.
     Entity(EntityId),
+    /// A cell as the key column holds it: a node's id, a word's code or an entity's id, read by the column's own space.
+    Cell(CellWord),
 }
 
 /// One row of a table, by its number: what `rows_of` and `every_row` hand out, and the place in `cells_of`'s cells.
@@ -359,13 +361,13 @@ pub(crate) enum TableLayout {
 /// ```
 /// use ryo_language::domain::fact_tables::service::{answer_of, begun, finished, request_of, writer};
 /// use ryo_language::domain::fact_tables::types::FactSet;
-/// use ryo_language::domain::facts::types::{FactAnswer, FillExtent};
+/// use ryo_language::domain::facts::types::FactAnswer;
 /// use ryo_relations::domain::relations::types::Relation;
 ///
 /// let mut set = FactSet::default();
 /// begun(&mut set, &request_of(&[Relation::Comment]));
 /// finished(writer(&mut set, Relation::Comment));
-/// assert_eq!(answer_of(&set, Relation::Comment), FactAnswer::Answered(FillExtent::Asked));
+/// assert_eq!(answer_of(&set, Relation::Comment), FactAnswer::Answered);
 /// ```
 #[derive(Debug)]
 pub struct FactWriter<'s> {

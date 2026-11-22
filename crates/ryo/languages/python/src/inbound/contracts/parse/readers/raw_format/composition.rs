@@ -209,24 +209,6 @@ ryo::fills! {
             rows.partial(languages::ReportText(INCOMPLETE), languages::Missing::Any);
         }
     }
-    key(languages::Column::RawFormatSegment(languages::RawFormatSegmentColumn::Id)) |file, words, key, rows| {
-        let syntax = file.syntax;
-        let mut whole = source_whole(&syntax);
-        let found = keyed_node(&syntax, key).and_then(|id| node_at(&syntax, id).map(|node| Numbered { id, node }));
-        if let Some(numbered) = found {
-            let mut read = SegmentRead {
-                memo: &mut file.model.words.get_mut().fixed,
-                tokens: Vec::new(),
-                parses: Vec::new(),
-            };
-            if segment_rows(&syntax, words, &mut read, numbered, rows) == languages::SyntaxCompleteness::Incomplete {
-                whole = languages::SyntaxCompleteness::Incomplete;
-            }
-        }
-        if whole == languages::SyntaxCompleteness::Incomplete {
-            rows.partial(languages::ReportText(INCOMPLETE), languages::Missing::Any);
-        }
-    }
 }
 
 // The engine fills `raw-format-field` from the walked file: every row of the file, once.

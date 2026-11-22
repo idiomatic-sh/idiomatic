@@ -51,12 +51,4 @@ ryo::fills! {
             }
         }
     }
-    key(languages::Column::Function(languages::FunctionColumn::Id)) |file, words, key, rows| {
-        let found = keyed_node(&file.syntax, key)
-            .and_then(|id| node_at(&file.syntax, id).map(|node| Numbered { id, node }))
-            .and_then(|numbered| function_row(&file.syntax, words, numbered));
-        if let Some(row) = found {
-            rows.write(row);
-        }
-    }
 }

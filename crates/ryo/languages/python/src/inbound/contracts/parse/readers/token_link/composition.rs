@@ -91,18 +91,4 @@ ryo::fills! {
             rows.partial(languages::ReportText(TOKEN_LINK_INCOMPLETE), languages::Missing::Any);
         }
     }
-    key(languages::Column::TokenLink(languages::TokenLinkColumn::Source)) |file, words, key, rows| {
-        let Some(id) = indexed(file, key, rows) else {
-            return;
-        };
-        let (syntax, memo) = (file.syntax, &mut file.model.words.get_mut().fixed);
-        links_from(&file.buffers.links, id, &mut |link| rows.write(link_row(&syntax, words, memo, link)));
-    }
-    key(languages::Column::TokenLink(languages::TokenLinkColumn::Target)) |file, words, key, rows| {
-        let Some(id) = indexed(file, key, rows) else {
-            return;
-        };
-        let (syntax, memo) = (file.syntax, &mut file.model.words.get_mut().fixed);
-        links_to(&file.buffers.links, id, &mut |link| rows.write(link_row(&syntax, words, memo, link)));
-    }
 }

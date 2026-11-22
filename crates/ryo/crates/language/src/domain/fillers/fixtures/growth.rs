@@ -1,18 +1,19 @@
 //! The growth harness of the `fillers` concept, which every language's contract test runs: it holds a language's fillers to what
-//! the catalog declares of each relation they fill. A whole fill's rows grow with the file as the relation's `size` says, and a
-//! fill by a declared key answers `Asked`, writes that key's rows alone, and writes no more for a larger file.
+//! the catalog declares of each relation they fill: a relation's rows grow with the file as its `size` says. Every relation
+//! is asked in the file's one request.
 
 use crate::domain::facts::service::{base_words, file_words};
-use crate::domain::facts::types::{
-    BaseWords, CellWord, FactAnswer, FileFacts, FillExtent, FilledColumns, Wanted,
-};
+use crate::domain::fact_tables::reading::service::every_row;
+use crate::domain::fact_tables::service::{answer_of, begun, request_of, table_of};
+use crate::domain::fact_tables::types::FactSet;
+use crate::domain::facts::types::{BaseWords, FactAnswer, FileFacts};
 use crate::domain::fixed_names::errors::FixedNamesError;
 use crate::domain::fixed_names::service::checked;
 use crate::domain::fixed_names::types::FixedNames;
 use crate::domain::node_table::service::element_count;
-use ryo_relations::domain::catalog::service::{fact_form, key_columns, relation_size};
-use ryo_relations::domain::relations::service::{all, columns};
-use ryo_relations::domain::relations::types::{Column, Count, FactForm, Relation, RelationSize};
+use ryo_relations::domain::catalog::service::{fact_form, relation_size};
+use ryo_relations::domain::relations::service::all;
+use ryo_relations::domain::relations::types::{Count, FactForm, Relation, RelationSize};
 
 /// One relation's rows at the two sizes of a growth run.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -27,16 +28,6 @@ pub struct Growth {
     pub large: Count,
 }
 
-/// One declared key's rows at the two sizes of a growth run: the rows a fill of the key with the fewest rows wrote.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct KeyGrowth {
-    /// The declared key column.
-    pub column: Column,
-    /// The rows a fill of one key wrote for the smaller file.
-    pub small: Count,
-    /// The rows a fill of one key wrote for the larger file.
-    pub large: Count,
-}
 
 /// What a growth run found that a relation's catalog item does not declare, or could not judge.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -54,12 +45,6 @@ pub enum GrowthFault {
     /// `PerElement` relation's rows grew by more than nine eighths of the file's own growth (4.5 times at four times the
     /// elements).
     Grew(Relation),
-    /// A fill of a declared key did not answer `Asked`: it wrote the relation whole, in part, or refused.
-    KeyNotAsked(Column),
-    /// A fill of a declared key wrote other rows than the rows of the whole fill that hold the key.
-    KeyRows(Column),
-    /// A fill of one key of a declared column wrote more rows for the larger file.
-    KeyGrew(Column),
 }
 
 /// What a growth run measured and what it found.
@@ -71,129 +56,50 @@ pub struct GrowthReport {
     pub large: Count,
     /// Each relation the language answered, in the catalog's order.
     pub relations: Vec<Growth>,
-    /// Each declared key of those relations.
-    pub keys: Vec<KeyGrowth>,
     /// What does not hold; empty when every filler is as its relation's catalog item declares.
     pub faults: Vec<GrowthFault>,
 }
 
-/// One relation of one lent file: the rows of its whole fill and, for each declared key, what a fill of one key did.
+/// One relation of one lent file: the rows its filler wrote.
 struct Measured {
     /// The relation.
     relation: Relation,
-    /// The rows the whole fill wrote; none when it was answered in part.
+    /// The rows written; none when it was answered in part.
     rows: Option<Count>,
-    /// What a fill of one key did, for each declared key column.
-    keys: Vec<MeasuredKey>,
 }
 
-/// What a fill of one key of a declared key column did for one lent file.
-struct MeasuredKey {
-    /// The column.
-    column: Column,
-    /// What the fill answered.
-    answer: FactAnswer,
-    /// Whether it wrote exactly the rows of the whole fill that hold the key.
-    wrote: KeyWrote,
-    /// How many rows it wrote.
-    rows: Count,
-}
-
-/// Whether a fill by key wrote exactly the rows of the whole fill that hold the key.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum KeyWrote {
-    /// The key's rows and no other.
-    Alone,
-    /// Other rows, more rows or fewer.
-    Other,
-}
-
-/// The rows of filled columns, row by row, sorted: what two fills are compared by.
-fn rows_of(columns: &FilledColumns, keep: impl Fn(&[CellWord]) -> bool) -> Vec<Vec<CellWord>> {
-    let count = columns.0.first().map_or(0, |column| column.0.len());
-    let mut rows: Vec<Vec<CellWord>> = (0..count)
-        .map(|row| {
-            columns
-                .0
-                .iter()
-                .filter_map(|column| column.0.get(row).copied())
-                .collect()
-        })
-        .filter(|row: &Vec<CellWord>| keep(row))
-        .collect();
-    rows.sort_unstable();
-    rows
-}
-
-/// The cell of the column that the fewest rows hold (the smallest such cell): the key a growth run asks.
-fn rarest(cells: &[CellWord]) -> Option<CellWord> {
-    let mut sorted = cells.to_vec();
-    sorted.sort_unstable();
-    sorted
-        .chunk_by(|left, right| left == right)
-        .min_by_key(|run| run.len())
-        .and_then(|run| run.first().copied())
-}
-
-/// Fills every filled relation of the catalog for the lent file, whole and then by one key of each declared key column.
+/// Asks every filled relation of the catalog for the lent file, in one request.
 fn measured(file: &mut FileFacts<'_>, base: &BaseWords) -> Vec<Measured> {
-    let mut found = Vec::new();
-    for relation in all().iter().copied() {
-        if fact_form(relation) == FactForm::NodeTable {
-            continue;
-        }
-        let mut words = file_words(base);
-        let mut whole = FilledColumns::default();
-        let rows = match file
-            .facts
-            .fill(relation, Wanted::Whole, &mut words, &mut whole)
-        {
-            FactAnswer::Refused(_) => continue,
-            FactAnswer::Partial(_) => None,
-            FactAnswer::Answered(_) => {
-                Some(Count(whole.0.first().map_or(0, |column| column.0.len())))
-            }
-        };
-        let mut keys = Vec::new();
-        for column in key_columns(relation) {
-            let place = columns(relation).iter().position(|each| each == column);
-            let cells = place.and_then(|place| whole.0.get(place));
-            let Some((place, key)) = place.zip(cells.and_then(|cells| rarest(&cells.0))) else {
-                continue;
+    let filled: Vec<Relation> = all()
+        .iter()
+        .copied()
+        .filter(|relation| fact_form(*relation) != FactForm::NodeTable)
+        .collect();
+    let request = request_of(&filled);
+    let mut words = file_words(base);
+    let mut set = FactSet::default();
+    begun(&mut set, &request);
+    file.facts.facts(&request, &mut words, &mut set);
+    filled
+        .into_iter()
+        .filter_map(|relation| {
+            let rows = match answer_of(&set, relation) {
+                FactAnswer::Refused(_) => return None,
+                FactAnswer::Partial(_) => None,
+                FactAnswer::Answered => Some(Count(
+                    usize::try_from(every_row(table_of(&set, relation)).end.0).unwrap_or(usize::MAX),
+                )),
             };
-            let mut by_key = FilledColumns::default();
-            let answer =
-                file.facts
-                    .fill(relation, Wanted::Key(*column, key), &mut words, &mut by_key);
-            let written = rows_of(&by_key, |_| true);
-            let wrote = if written == rows_of(&whole, |row| row.get(place) == Some(&key)) {
-                KeyWrote::Alone
-            } else {
-                KeyWrote::Other
-            };
-            keys.push(MeasuredKey {
-                column: *column,
-                answer,
-                wrote,
-                rows: Count(written.len()),
-            });
-        }
-        found.push(Measured {
-            relation,
-            rows,
-            keys,
-        });
-    }
-    found
+            Some(Measured { relation, rows })
+        })
+        .collect()
 }
 
 /// Holds a language's fillers to what the catalog declares of each relation they fill: the growth harness a language's contract
 /// test runs. `lend` walks the language's generated source of about the elements asked and hands the lent file to the visit; it
 /// is asked for `elements` and for four times as many. For each relation the language answers, the rows a whole fill writes
 /// must grow as the relation's `size` says (no more than one row for `PerFile`; no faster than nine eighths of the file's own
-/// growth for `PerElement`, which is 4.5 times at four times the elements; `PerPair` is not held), and for each of its declared
-/// `keys` a fill of one key must answer `Asked`, write exactly the rows of the whole fill that hold the key, and write no more
-/// for the larger file. `names` are the language's fixed names (`Fillers::vocabulary`): names that cannot be base words of a
+/// growth for `PerElement`, which is 4.5 times at four times the elements; `PerPair` is not held). `names` are the language's fixed names (`Fillers::vocabulary`): names that cannot be base words of a
 /// run are the one fault of the report, and no file is asked for. A relation with no row for the larger file is a fault too: a
 /// generator that makes no row of it proves nothing.
 ///
@@ -223,7 +129,6 @@ pub fn grown(
         small: Count(0),
         large: Count(0),
         relations: Vec::new(),
-        keys: Vec::new(),
         faults: Vec::new(),
     };
     let base = match checked(&names.0) {
@@ -279,29 +184,6 @@ pub fn grown(
         };
         if grew {
             report.faults.push(GrowthFault::Grew(relation));
-        }
-        for wide_key in &larger.keys {
-            let column = wide_key.column;
-            let narrow_key =
-                smaller.and_then(|each| each.keys.iter().find(|other| other.column == column));
-            let mut faults = Vec::new();
-            for each in std::iter::once(wide_key).chain(narrow_key) {
-                if each.answer != FactAnswer::Answered(FillExtent::Asked) {
-                    faults.push(GrowthFault::KeyNotAsked(column));
-                } else if each.wrote == KeyWrote::Other {
-                    faults.push(GrowthFault::KeyRows(column));
-                }
-            }
-            if narrow_key.is_some_and(|before| wide_key.rows.0 > before.rows.0) {
-                faults.push(GrowthFault::KeyGrew(column));
-            }
-            faults.dedup();
-            report.faults.extend(faults);
-            report.keys.push(KeyGrowth {
-                column,
-                small: narrow_key.map_or(Count(0), |before| before.rows),
-                large: wide_key.rows,
-            });
         }
     }
     let lost = before

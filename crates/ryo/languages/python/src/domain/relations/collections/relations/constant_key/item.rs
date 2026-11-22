@@ -98,13 +98,4 @@ ryo::fills! {
         }
         told_incomplete(file, rows);
     }
-    key(languages::Column::ConstantKey(languages::ConstantKeyColumn::Id)) |file, words, key, rows| {
-        keyed_constants(file, words);
-        let found = keyed_node(&file.syntax, key)
-            .and_then(|id| Some((id, file.buffers.keys.classes.get(usize::from(id)).copied().flatten()?)));
-        if let Some((id, class)) = found {
-            rows.write(key_row(&file.syntax, id, class));
-        }
-        told_incomplete(file, rows);
-    }
 }
