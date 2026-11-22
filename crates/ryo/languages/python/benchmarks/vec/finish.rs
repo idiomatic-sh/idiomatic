@@ -2752,19 +2752,25 @@ impl<'p> Exec<'p> {
                 let keys: Vec<usize> = strs(&a["keys"])?.iter().map(|c| from.col(c)).collect::<R<_>>()?;
                 let mut groups: FxHashMap<Vec<u64>, u64> = FxHashMap::default();
                 let mut order: Vec<Vec<u64>> = Vec::new();
+                // redo-alloc: a row's key read into one buffer; lists made only for a key not seen (same groups, same order)
+                let mut kb: Vec<u64> = Vec::with_capacity(keys.len() + 1);
                 for i in 0..from.n {
-                    let k: Vec<u64> = keys.iter().map(|c| from.cols[*c][i]).collect();
-                    let e = groups.entry(k.clone()).or_insert_with(|| {
-                        order.push(k);
-                        0
-                    });
-                    *e += counts[i];
+                    kb.clear();
+                    kb.extend(keys.iter().map(|c| from.cols[*c][i]));
+                    match groups.get_mut(&kb[..]) {
+                        Some(e) => *e += counts[i],
+                        None => {
+                            order.push(kb.clone());
+                            groups.insert(kb.clone(), counts[i]);
+                        }
+                    }
                 }
                 let mut out = self.empty(run, node)?;
                 for k in order {
-                    let mut row = k.clone();
-                    row.push(groups[&k]);
-                    out.push_row(&row);
+                    kb.clear();
+                    kb.extend_from_slice(&k);
+                    kb.push(groups[&k]);
+                    out.push_row(&kb);
                 }
                 return Ok(Some(out));
             }
@@ -2815,10 +2821,14 @@ impl<'p> Exec<'p> {
                 let cols: Vec<usize> = strs(&a["columns"])?.iter().map(|c| from.col(c)).collect::<R<_>>()?;
                 let osc = self.schema(run, node)?;
                 let mut out = Table::with(osc.names.clone(), osc.tys.clone());
-                let mut seen = rustc_hash::FxHashSet::default();
+                let mut seen: rustc_hash::FxHashSet<Vec<u64>> = rustc_hash::FxHashSet::default();
+                // redo-alloc: a row read into one buffer; a set entry made only for a row not seen
+                let mut row: Vec<u64> = Vec::with_capacity(cols.len());
                 for i in 0..from.n {
-                    let row: Vec<u64> = cols.iter().map(|c| from.cols[*c][i]).collect();
-                    if seen.insert(row.clone()) {
+                    row.clear();
+                    row.extend(cols.iter().map(|c| from.cols[*c][i]));
+                    if !seen.contains(&row[..]) {
+                        seen.insert(row.clone());
                         out.push_row(&row);
                     }
                 }
@@ -2834,12 +2844,16 @@ impl<'p> Exec<'p> {
                 };
                 let mut groups: FxHashMap<Vec<u64>, (u64, rustc_hash::FxHashSet<u64>)> = FxHashMap::default();
                 let mut order: Vec<Vec<u64>> = Vec::new();
+                // redo-alloc: a row's key read into one buffer; lists made only for a key not seen (same groups, same order)
+                let mut kb: Vec<u64> = Vec::with_capacity(keys.len() + 1);
                 for i in 0..from.n {
-                    let k: Vec<u64> = keys.iter().map(|c| from.cols[*c][i]).collect();
-                    let e = groups.entry(k.clone()).or_insert_with(|| {
-                        order.push(k);
-                        (0, rustc_hash::FxHashSet::default())
-                    });
+                    kb.clear();
+                    kb.extend(keys.iter().map(|c| from.cols[*c][i]));
+                    if !groups.contains_key(&kb[..]) {
+                        order.push(kb.clone());
+                        groups.insert(kb.clone(), (0, rustc_hash::FxHashSet::default()));
+                    }
+                    let e = groups.get_mut(&kb[..]).expect("the group just made");
                     match distinct {
                         Some(d) => {
                             e.1.insert(from.cols[d][i]);
@@ -2851,9 +2865,10 @@ impl<'p> Exec<'p> {
                 for k in order {
                     let g = &groups[&k];
                     let c = if distinct.is_some() { g.1.len() as u64 } else { g.0 };
-                    let mut row = k.clone();
-                    row.push(c);
-                    out.push_row(&row);
+                    kb.clear();
+                    kb.extend_from_slice(&k);
+                    kb.push(c);
+                    out.push_row(&kb);
                 }
                 Ok(out)
             }
@@ -2863,19 +2878,29 @@ impl<'p> Exec<'p> {
                 let oc = from.col(s(&a["order"])?)?;
                 let max = op == "group-max";
                 let mut best: FxHashMap<Vec<u64>, i64> = FxHashMap::default();
+                // redo-alloc: a row's key read into one buffer; a key list made only for a key not seen
+                let mut kb: Vec<u64> = Vec::with_capacity(keys.len());
                 for i in 0..from.n {
-                    let k: Vec<u64> = keys.iter().map(|c| from.cols[*c][i]).collect();
+                    kb.clear();
+                    kb.extend(keys.iter().map(|c| from.cols[*c][i]));
                     let v = from.cols[oc][i] as i64;
-                    let e = best.entry(k).or_insert(v);
-                    if (max && v > *e) || (!max && v < *e) {
-                        *e = v;
+                    match best.get_mut(&kb[..]) {
+                        Some(e) => {
+                            if (max && v > *e) || (!max && v < *e) {
+                                *e = v;
+                            }
+                        }
+                        None => {
+                            best.insert(kb.clone(), v);
+                        }
                     }
                 }
                 let mut out = Table::with(from.names.clone(), from.tys.clone());
                 let mut row = Vec::new();
                 for i in 0..from.n {
-                    let k: Vec<u64> = keys.iter().map(|c| from.cols[*c][i]).collect();
-                    if best[&k] == from.cols[oc][i] as i64 {
+                    kb.clear();
+                    kb.extend(keys.iter().map(|c| from.cols[*c][i]));
+                    if best[&kb[..]] == from.cols[oc][i] as i64 {
                         from.row(i, &mut row);
                         out.push_row(&row);
                     }
@@ -3970,15 +3995,20 @@ impl<'p> Exec<'p> {
             return Ok(out);
         }
         let mut all: Vec<(usize, u64)> = Vec::new();
+        // redo-alloc: one walk's set and frontier, emptied a start (not made a start); the neighbours read in place
+        let mut seen = rustc_hash::FxHashSet::default();
+        let mut frontier: Vec<u64> = Vec::new();
         for i in 0..from.n {
             let x = from.cols[ic][i];
             match dir.as_str() {
                 "parent" | "ancestor" => {
-                    let mut seen = rustc_hash::FxHashSet::default();
-                    let mut frontier = vec![x];
+                    seen.clear();
+                    frontier.clear();
+                    frontier.push(x);
                     while let Some(at) = frontier.pop() {
                         hier_step(f, run, &hier, at, true, &mut nbrs);
-                        for q in nbrs.clone() {
+                        for qi in 0..nbrs.len() {
+                            let q = nbrs[qi];
                             if seen.insert(q) {
                                 all.push((i, q));
                                 if dir != "parent" {
@@ -3999,15 +4029,17 @@ impl<'p> Exec<'p> {
                             all.extend((x as u32 + 1..end).map(|q| (i, u64::from(q))));
                         }
                     } else {
-                        let mut seen = rustc_hash::FxHashSet::default();
-                        let mut stack = vec![x];
-                        while let Some(at) = stack.pop() {
+                        seen.clear();
+                        frontier.clear();
+                        frontier.push(x);
+                        while let Some(at) = frontier.pop() {
                             hier_step(f, run, &hier, at, false, &mut nbrs);
-                            for c in nbrs.clone() {
+                            for ci in 0..nbrs.len() {
+                                let c = nbrs[ci];
                                 if seen.insert(c) {
                                     all.push((i, c));
                                     if dir != "child" {
-                                        stack.push(c);
+                                        frontier.push(c);
                                     }
                                 }
                             }
@@ -4612,27 +4644,39 @@ pub(super) struct Index {
 thread_local! {
     /// redo-alloc: an index's scratch (its keys, the fill cursor, the sorted pairs) and the kept buffers of dropped indexes.
     static IX_SCRATCH: RefCell<(Vec<u64>, Vec<u32>, Vec<(u64, u32)>)> = const { RefCell::new((Vec::new(), Vec::new(), Vec::new())) };
-    static IX_KEPT: RefCell<(Vec<Vec<u32>>, Vec<FxHashMap<u64, (u32, u32)>>)> = const { RefCell::new((Vec::new(), Vec::new())) };
+    static IX_KEPT: RefCell<(Vec<Vec<u32>>, Vec<FxHashMap<u64, (u32, u32)>>, usize)> = const { RefCell::new((Vec::new(), Vec::new(), 0)) };
 }
+
+/// redo-alloc: the kept index buffers' room, in all (cells): a worker keeps no more than this (4 MB).
+const IX_CELLS: usize = 1 << 20;
 
 /// redo-alloc: a kept row buffer (empty) or a new one.
 fn ix_u32() -> Vec<u32> {
-    IX_KEPT.with(|k| k.borrow_mut().0.pop()).unwrap_or_default()
+    IX_KEPT.with(|k| {
+        let k = &mut *k.borrow_mut();
+        let v = k.0.pop();
+        if let Some(v) = &v {
+            k.2 -= v.capacity();
+        }
+        v
+    })
+    .unwrap_or_default()
 }
 
 impl Drop for Index {
     fn drop(&mut self) {
         // redo-alloc: the buffers kept for the next index (a worker's working set; one far past it is freed)
         let _ = IX_KEPT.try_with(|k| {
-            let mut k = k.borrow_mut();
+            let k = &mut *k.borrow_mut();
             for mut v in [std::mem::take(&mut self.offs), std::mem::take(&mut self.rows)] {
-                if v.capacity() > 0 && v.capacity() <= 1 << 16 && k.0.len() < 1024 {
+                if v.capacity() > 0 && k.2 + v.capacity() <= IX_CELLS {
                     v.clear();
+                    k.2 += v.capacity();
                     k.0.push(v);
                 }
             }
             let mut m = std::mem::take(&mut self.at);
-            if m.capacity() > 0 && m.capacity() <= 1 << 14 && k.1.len() < 256 {
+            if m.capacity() > 0 && m.capacity() <= 1 << 12 && k.1.len() < 64 {
                 m.clear();
                 k.1.push(m);
             }
@@ -4923,32 +4967,32 @@ fn eval(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], e: &E) -> V {
 }
 
 fn call(run: &mut Run, name: &str, vs: &[V]) -> V {
-    let t = |run: &Run, i: usize| text_of(run, vs[i]).into_owned();
+    // redo-alloc: an argument's text read in place (`text_of`), copied only where a pattern is kept
     match name {
         "matches" => {
-            let p = String::from_utf8(t(run, 1)).unwrap_or_default();
+            let p = String::from_utf8(text_of(run, vs[1]).into_owned()).unwrap_or_default();
             let re = run.re(&p).expect("a regex");
-            flag(re.is_match(&t(run, 0)))
+            flag(re.is_match(&text_of(run, vs[0])))
         }
-        "starts_with" => flag(t(run, 0).starts_with(&t(run, 1))),
-        "ends_with" => flag(t(run, 0).ends_with(&t(run, 1))),
+        "starts_with" => flag(text_of(run, vs[0]).starts_with(&text_of(run, vs[1]))),
+        "ends_with" => flag(text_of(run, vs[0]).ends_with(&text_of(run, vs[1]))),
         "lower" => {
-            let s = String::from_utf8_lossy(&t(run, 0)).to_lowercase();
+            let s = String::from_utf8_lossy(&text_of(run, vs[0])).to_lowercase();
             V::new(Ty::Sym, u64::from(run.sym(s.as_bytes())))
         }
         "concat" => {
             let mut s = Vec::new();
             for i in 0..vs.len() {
-                s.extend(t(run, i));
+                s.extend_from_slice(&text_of(run, vs[i]));
             }
             V::new(Ty::Sym, u64::from(run.sym(&s)))
         }
         "glob_any" => {
-            let g = String::from_utf8(t(run, 1)).unwrap_or_default();
+            let g = String::from_utf8(text_of(run, vs[1]).into_owned()).unwrap_or_default();
             let re = run.re(&glob_pattern(&g)).expect("a glob");
-            flag(re.is_match(&t(run, 0)))
+            flag(re.is_match(&text_of(run, vs[0])))
         }
-        "natural_lt" => flag(natural_lt(&String::from_utf8_lossy(&t(run, 0)), &String::from_utf8_lossy(&t(run, 1)))),
+        "natural_lt" => flag(natural_lt(&String::from_utf8_lossy(&text_of(run, vs[0])), &String::from_utf8_lossy(&text_of(run, vs[1])))),
         // redo-honest: the shipping engine's meaning (operators numeric_values::integer_successor): whether the right is
         // exactly the left plus one, both integers (an integer cell, or normalized decimal text); a float never is. It was
         // a function answering left + 1, read as a test, so every comparison failed.

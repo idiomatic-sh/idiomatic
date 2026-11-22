@@ -911,7 +911,14 @@ impl Exec<'_> {
                     used &= !(1 << ci);
                 }
                 let nb = dmask | omask;
-                let checks: Vec<usize> = (0..conj.len()).filter(|c| used & (1 << c) == 0 && refs[*c] & !nb == 0).collect();
+                // redo-alloc: the tests left, on the stack (a select has fewer than 64: `used` is a word)
+                let mut ckb = [0usize; 64];
+                let mut nck = 0;
+                for c in (0..conj.len()).filter(|c| used & (1 << c) == 0 && refs[*c] & !nb == 0) {
+                    ckb[nck] = c;
+                    nck += 1;
+                }
+                let checks = &ckb[..nck];
                 let hits = &mut b.hits;
                 let mut touched = 0u64;
                 super::empty_sel::with(|m| {
@@ -1038,7 +1045,14 @@ impl Exec<'_> {
                     srcs[other] = Src::Tab(self.eval(f, run, p, pn)?, pn);
                 }
                 let nb = dmask | omask;
-                let checks: Vec<usize> = (0..conj.len()).filter(|c| used & (1 << c) == 0 && refs[*c] & !nb == 0).collect();
+                // redo-alloc: the tests left, on the stack (a select has fewer than 64: `used` is a word)
+                let mut ckb = [0usize; 64];
+                let mut nck = 0;
+                for c in (0..conj.len()).filter(|c| used & (1 << c) == 0 && refs[*c] & !nb == 0) {
+                    ckb[nck] = c;
+                    nck += 1;
+                }
+                let checks = &ckb[..nck];
                 let rows: Rc<Vec<u32>> = match &srcs[other] {
                     Src::Tab(t, _) => Rc::new((0..t.n as u32).collect()),
                     Src::View(v, vn) => view_rows(f, run, v, *vn),

@@ -39,6 +39,27 @@ pub(super) fn file_fails(run: &mut Run, f: &File<'_>, conj: &[E]) -> bool {
     if sw!("VEC_NO_FILECONST") {
         return false;
     }
+    // redo-alloc: decided once a file a test list (the plan's lists stay in place while it runs; a later ask in the same
+    // file reads the answer, no substituted copy of the test made again)
+    thread_local! {
+        static SEEN: std::cell::RefCell<(u32, rustc_hash::FxHashMap<(usize, usize), bool>)> = std::cell::RefCell::new((u32::MAX, rustc_hash::FxHashMap::default()));
+    }
+    let key = (conj.as_ptr() as usize, conj.len());
+    if let Some(v) = SEEN.with(|s| {
+        let s = s.borrow();
+        if s.0 == f.file { s.1.get(&key).copied() } else { None }
+    }) {
+        return v;
+    }
     let srcs: [Src; 0] = [];
-    conj.iter().filter(|c| file_const(c) && !matches!(c, E::Lit(_))).any(|c| !truthy(eval(run, f, &srcs, &[], &subst(c, u64::from(f.file)))))
+    let v = conj.iter().filter(|c| file_const(c) && !matches!(c, E::Lit(_))).any(|c| !truthy(eval(run, f, &srcs, &[], &subst(c, u64::from(f.file)))));
+    SEEN.with(|s| {
+        let mut s = s.borrow_mut();
+        if s.0 != f.file {
+            s.0 = f.file;
+            s.1.clear();
+        }
+        s.1.insert(key, v);
+    });
+    v
 }
