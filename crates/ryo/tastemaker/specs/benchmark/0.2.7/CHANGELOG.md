@@ -4,6 +4,8 @@
 
 Places `growth.toml`, the language's growth table the shared harness reads (PM ruling on ryo-b1gq.66: growth shapes are data). Nothing else changes.
 
+Edited in place, as this version is unreleased and the line moves together: a language's benchmark holds up to four pinned projects, so up to four `patches/{project}.patch` (was three). Python pins django, pandas, fastapi and dagster (owner, 2026-11-22: "i want us to also be linting dagster (python). that is a good test"). Nothing else changes.
+
 ## 0.2.6
 
 Places `benchmark-linter` 0.2.5, the Ruff harness move with a reason that names DEFERRED publication. Nothing else changes.

@@ -12,6 +12,6 @@ pub(super) const INTERIM: &str = "Interim";
 /// The fewest projects a language's corpus holds.
 pub(super) const FEWEST_PROJECTS: usize = 2;
 /// The most projects a language's corpus holds.
-pub(super) const MOST_PROJECTS: usize = 3;
+pub(super) const MOST_PROJECTS: usize = 4;
 /// Project names a language bench reserves for its own benchmarks: `<lang>/verify/<rule>` and `<lang>/growth/<shape>`.
 pub(super) const RESERVED_PROJECTS: [&str; 2] = ["verify", "growth"];

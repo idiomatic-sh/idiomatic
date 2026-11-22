@@ -1,0 +1,8 @@
+diff --git a/python_modules/dagster/dagster/_config/pythonic_config/typing_utils.py b/python_modules/dagster/dagster/_config/pythonic_config/typing_utils.py
+--- a/python_modules/dagster/dagster/_config/pythonic_config/typing_utils.py
++++ b/python_modules/dagster/dagster/_config/pythonic_config/typing_utils.py
+@@ -12,3 +12,3 @@
+     from pydantic._internal._model_construction import ModelMetaclass
+-except ImportError:
++except:
+     # Pydantic 2.x
