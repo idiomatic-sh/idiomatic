@@ -35,6 +35,8 @@ mod closure_walk;
 mod walk;
 #[path = "filter_order.rs"]
 mod filter_order;
+#[path = "tree_class.rs"]
+mod tree_class;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum Ty {
@@ -1262,6 +1264,13 @@ impl<'p> Exec<'p> {
                 mk(names, tys)
             }
             "fits-rendered" => from(self, run, "from")?,
+            "subtree-class" => {
+                let f = from(self, run, "from")?;
+                let (mut names, mut tys) = ((*f.names).clone(), (*f.tys).clone());
+                names.push(s(&a["output"])?.to_owned());
+                tys.push(Ty::Num);
+                mk(names, tys)
+            }
             "group-ordinal" => {
                 let f = from(self, run, "from")?;
                 let (mut names, mut tys) = ((*f.names).clone(), (*f.tys).clone());
@@ -2239,6 +2248,7 @@ impl<'p> Exec<'p> {
                 }
                 Ok(out)
             }
+            "subtree-class" => self.subtree_class(f, run, p, node),
             "fits-rendered" => {
                 let from = self.eval(f, run, p, self.arg_rel(node, "from")?)?;
                 let texts: Vec<usize> = strs(&a["texts"])?.iter().map(|c| from.col(c)).collect::<R<_>>()?;
