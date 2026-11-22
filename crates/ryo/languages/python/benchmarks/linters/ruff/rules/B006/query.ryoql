@@ -1,6 +1,11 @@
 import observation_matches from "python/ruff/suppress-matches";
 import call_syntax from "python/ruff/calls";
-let default_roots = select parent as function, child as value, file from "semantic-child" where field = "defaults";
+let default_roots0 = select parent as function, child as value, file from "semantic-child" where field = "defaults" or field = "kw-defaults";
+let callables = select id, kind, file from "semantic-syntax" where kind = "function-def" or kind = "async-function-def" or kind = "lambda";
+let default_values = select value as id, file from default_roots0;
+let default_owners = axis(from=default_values, relation="semantic-child", direction=nearest-ancestor, domain=callables);
+let lambda_defaults = select l.id as id, l.file as file from default_owners as l join callables as r on l.related = r.id and l.file = r.file where r.kind = "lambda";
+let default_roots = antijoin(left=default_roots0, right=lambda_defaults, left-on=["value", "file"], right-on=["id", "file"]);
 let default_wrappers = select id, file from "semantic-syntax" where kind = "parameter-with-default";
 let wrapper_defaults = select l.id as wrapper, l.file as file, r.child as value from default_wrappers as l join "semantic-child" as r on l.id = r.parent and l.file = r.file where r.field = "defaults" or r.field = "kw-defaults";
 let wrapper_parameters = select l.id as wrapper, l.file as file, r.child as parameter from default_wrappers as l join "semantic-child" as r on l.id = r.parent and l.file = r.file where r.field = "args" or r.field = "posonlyargs" or r.field = "kwonlyargs";
@@ -15,7 +20,7 @@ let generic_subscripts = select subscript as node, file from subscript_base_name
 let generic_direct_nodes = select id as node, file from "qualified-name" where path in ["builtins.frozenset", "builtins.tuple", "builtins.frozendict", "collections.abc.ByteString", "collections.abc.Collection", "collections.abc.Container", "collections.abc.Iterable", "collections.abc.Mapping", "collections.abc.Reversible", "collections.abc.Sequence", "collections.abc.Set", "typing.AbstractSet", "typing.ByteString", "typing.Callable", "typing.Collection", "typing.Container", "typing.FrozenSet", "typing.Iterable", "typing.Literal", "typing.Mapping", "typing.Never", "typing.NoReturn", "typing.Reversible", "typing.Sequence", "typing.Tuple"];
 let optional_subscripts = select subscript as node, file from subscript_base_names where path = "typing.Optional";
 let union_subscripts = select subscript as node, file from subscript_base_names where path = "typing.Union";
-let annotated_subscripts = select subscript as node, file from subscript_base_names where path = "typing.Annotated";
+let annotated_subscripts = select subscript as node, file from subscript_base_names where (path = "typing.Annotated" or path = "typing_extensions.Annotated");
 let none_nodes = select id as node, file from "literal-properties" where kind = "null";
 let binops = select id, file from "semantic-syntax" where kind = "bin-op";
 let left_fields = select parent, child from "semantic-child" where field = "left";
@@ -63,11 +68,11 @@ let mutable_annotation_wrappers = select wrapper, file from unrecognized_annotat
 let immutable_annotations = antijoin(left=parameter_annotations, right=mutable_annotation_wrappers, left-on=["wrapper", "file"], right-on=["wrapper", "file"]);
 let immutable_annotation_defaults = select l.value as id, l.file as file from wrapper_defaults as l join immutable_annotations as r on l.wrapper = r.wrapper and l.file = r.file;
 let default_nodes = select l.value as id, l.file as file, r.kind as kind, r.span as span from default_roots as l join "semantic-syntax" as r on l.value = r.id and l.file = r.file;
-let mutable_defaults = select id, file, span from default_nodes where kind = "list" or kind = "dict" or kind = "set";
+let mutable_defaults = select id, file, span from default_nodes where kind in ["list", "dict", "set", "list-comp", "dict-comp", "set-comp"];
 let calls = call_syntax();
 let function_fields = select parent, child from "semantic-child" where field = "func";
 let call_functions = select l.parent as call, l.child as function, r.file as file from function_fields as l join calls as r on l.parent = r.id;
-let constructors = select id, file from "qualified-name" where path = "builtins.list" or path = "builtins.set" or path = "builtins.dict";
+let constructors = select id, file from "qualified-name" where path in ["builtins.list", "builtins.set", "builtins.dict", "collections.Counter", "collections.OrderedDict", "collections.defaultdict", "collections.deque"];
 let named_constructor_calls = select l.call as call, l.file as file from call_functions as l join constructors as r on l.function = r.id and l.file = r.file;
 let mutable_constructor_calls = select l.call as id, l.file as file, r.span as span from named_constructor_calls as l join calls as r on l.call = r.id and l.file = r.file;
 let default_calls = select l.value as id, l.file as file, r.span as span from default_roots as l join mutable_constructor_calls as r on l.value = r.id and l.file = r.file;
