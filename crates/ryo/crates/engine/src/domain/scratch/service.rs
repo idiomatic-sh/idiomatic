@@ -26,6 +26,13 @@ pub(crate) fn next_file(scratch: &mut ScanScratch) {
     state.need_terms.free.fill(0);
     state.need_terms.free_known = Count(0);
     state.need_terms.sites.clear();
+    // A new number for the file: the node memos of the file before are not read. Past the memo's width they are emptied.
+    state.need_terms.epoch = state.need_terms.epoch.wrapping_add(1);
+    if state.need_terms.epoch >= 1 << 29 || state.need_terms.epoch == 0 {
+        state.need_terms.node_free.clear();
+        state.need_terms.node_asked.clear();
+        state.need_terms.epoch = 1;
+    }
     state.rows = SeamRows::default();
     state.answer = BodyAnswer::default();
     state.fault = None;
