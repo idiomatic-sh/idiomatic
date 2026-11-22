@@ -7,7 +7,7 @@
 //! body). So the probe is not made at all. Anything else on the way (a step put in place, a semi step, a general or
 //! whole target, a view whose fill is not read yet) leaves the question open and the probe is made as before.
 
-use super::{Exec, File, R, Res, Run, frame, view_holds};
+use super::{Exec, File, Provider, R, Res, Run, frame, view_holds};
 
 fn stop(why: &'static str, op: &str) {
     if super::empty_sel::on() {
@@ -21,17 +21,17 @@ const LEAVES: usize = 16;
 
 impl Exec<'_> {
     /// Whether a probe of `node` on `col` by `keys` is known to answer no row (false: not known).
-    pub(super) fn keys_absent(&mut self, f: &mut File<'_>, run: &mut Run, node: usize, col: usize, keys: &[u64]) -> R<bool> {
+    pub(super) fn keys_absent(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64]) -> R<bool> {
         if !self.static_keyed || sw!("VEC_PTARGET_OFF") || sw!("VEC_OLD_EMPTYSEL") || sw!("VEC_ESEL_NO_ABSENT") {
             return Ok(false);
         }
         let mut budget = LEAVES;
-        self.absent(f, run, node, col, keys, &mut budget)
+        self.absent(f, run, p, node, col, keys, &mut budget)
     }
 
     /// The chain from (`node`, `col`); a union's inputs each (all absent), an antijoin's left where its probe runs over
     /// the probed left (`antijoin_kernel`'s `direct`), within `budget` chains.
-    fn absent(&mut self, f: &mut File<'_>, run: &mut Run, node: usize, col: usize, keys: &[u64], budget: &mut usize) -> R<bool> {
+    fn absent(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64], budget: &mut usize) -> R<bool> {
         if *budget == 0 {
             return Ok(false);
         }
@@ -60,14 +60,14 @@ impl Exec<'_> {
                 }
                 Some(Res::View(v)) => {
                     let v = v.clone();
-                    let a = self.view_absent(f, run, &v, c, keys);
+                    let a = self.view_absent(f, run, p, &v, c, keys);
                     stop(if a { "view: absent" } else { "view: present or unread" }, "");
                     return Ok(a);
                 }
                 None => {}
             }
             if let Some(v) = self.view(run, n)? {
-                let a = self.view_absent(f, run, &v, c, keys);
+                let a = self.view_absent(f, run, p, &v, c, keys);
                 stop(if a { "view (not read yet): absent" } else { "view (not read yet): present or unread" }, "");
                 return Ok(a);
             }
@@ -88,7 +88,7 @@ impl Exec<'_> {
                     let ins = self.plan.nodes[n].inputs.clone();
                     for i in ins {
                         let Some(ic) = self.schema(run, i)?.names.iter().position(|x| *x == name) else { return Ok(false) };
-                        if !self.absent(f, run, i, ic, keys, budget)? {
+                        if !self.absent(f, run, p, i, ic, keys, budget)? {
                             return Ok(false);
                         }
                     }
@@ -117,13 +117,15 @@ impl Exec<'_> {
 
     /// A view's rows on `c` for none of `keys`, read in place (false where it cannot be read in place or its fill is
     /// not read yet).
-    fn view_absent(&mut self, f: &File<'_>, run: &mut Run, v: &super::ViewSpec, c: usize, keys: &[u64]) -> bool {
+    fn view_absent(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, v: &super::ViewSpec, c: usize, keys: &[u64]) -> bool {
         let bc = v.map[c];
         if !File::probes(v.base, bc) {
             return false;
         }
+        // redo-fills pass 2: a fill a lazy source left unasked is made here, where the eager front had made it
         if let super::Native::Fact(i) = v.base
             && f.facts.get(usize::from(i)).is_none_or(Option::is_none)
+            && !(super::lazy_view::owed(f, usize::from(i)) && self.load_fact(f, run, p, v.base).is_ok())
         {
             return false;
         }

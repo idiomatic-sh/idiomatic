@@ -10,7 +10,7 @@
 //! runs the interpreter's `select` instead (the oracle). A node with a form the kernels do not cover goes to the
 //! interpreter's `select` too (`VEC_KSEL_LOG=<path>` lists each node's path once a run).
 
-use super::{E, Exec, File, Op, Provider, R, Run, Src, Table, Ty, V, NULL};
+use super::{E, Exec, File, Native, Op, Provider, R, Run, Src, Table, Ty, V, NULL};
 use super::{bucket, bucket_len, compare, distinct, eval, get, index_of, key_of, kind_set, kinds_required, lit_rows, refs_of, table_index, text_of, truthy, view_rows};
 use rustc_hash::FxHashSet;
 use serde_json::Value as J;
@@ -461,7 +461,7 @@ impl Exec<'_> {
     /// whose run reads nothing else first (`K::zero`: not semi, no seed test, every source a view or a keyed step). The
     /// front would read the views, find that entry the smallest, drive from it and end. Only views
     /// whose fill is read already are measured (an unread fill is not read here; `lit_rows` would read it as absent).
-    fn ksel_zero(&mut self, f: &mut File<'_>, run: &mut Run, node: usize, kp: &K, sp: &super::SelPlan, put: Option<usize>) -> bool {
+    fn ksel_zero(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, kp: &K, sp: &super::SelPlan, put: Option<usize>) -> bool {
         for (i, s) in sp.srcs.iter().enumerate() {
             // a source put in place (the keyed entry's probed rows, a substitution's, a positional override) is a table
             if put == Some(i) || matches!(f.memo[*s], Some(super::Res::Tab(_))) || self.overridden(*s).is_some() {
@@ -470,6 +470,7 @@ impl Exec<'_> {
             let Ok(Some(v)) = self.view(run, *s) else { continue };
             if let super::Native::Fact(x) = v.base
                 && f.facts.get(usize::from(x)).is_none_or(Option::is_none)
+                && !(super::lazy_view::owed(f, usize::from(x)) && self.load_fact(f, run, p, v.base).is_ok())
             {
                 continue;
             }
@@ -549,7 +550,7 @@ impl Exec<'_> {
             super::empty_sel::at(super::empty_sel::stage::FILE_TEST);
             return self.empty_rc(run, node);
         }
-        if kp.zero && !sw!("VEC_ESEL_NO_ZERO") && !sw!("VEC_OLD_EMPTYSEL") && self.ksel_zero(f, run, node, kp, &sp, put.as_ref().map(|x| x.0)) {
+        if kp.zero && !sw!("VEC_ESEL_NO_ZERO") && !sw!("VEC_OLD_EMPTYSEL") && self.ksel_zero(f, run, p, node, kp, &sp, put.as_ref().map(|x| x.0)) {
             super::empty_sel::at(super::empty_sel::stage::ZERO_ENTRY);
             if super::empty_sel::on() && sw!("VEC_ESEL_NODES") {
                 super::empty_sel::count(Box::leak(format!("zero node {node} srcs {:?}", sp.srcs).into_boxed_str()), 0.0);
@@ -569,10 +570,18 @@ impl Exec<'_> {
         };
         super::empty_sel::lap(0, self.inner);
         let mut srcs: Vec<Src> = Vec::with_capacity(k);
+        // redo-fills pass 2: views the front reads no size of, filled only past the front's early ends (lazy_view.rs)
+        let mut late: [Option<Native>; 4] = [None; 4];
         for (i, n) in sp.srcs.iter().enumerate() {
             let src = match &ov {
                 Some((at, t)) if *at == i => Src::Tab(t.clone(), usize::MAX - 40),
-                _ => self.src_of(f, run, p, *n)?,
+                _ => match if i < 4 { self.lazy_view(f, run, *n, conj, i, kp.kinds[i].0.is_some() || kp.kinds[i].1.is_some())? } else { None } {
+                    Some(v) => {
+                        late[i] = Some(v.base);
+                        Src::View(v, *n)
+                    }
+                    None => self.src_of(f, run, p, *n)?,
+                },
             };
             if let Src::Tab(t, _) = &src
                 && t.n == 0
@@ -662,6 +671,9 @@ impl Exec<'_> {
                 srcs[i] = Src::Tab(t, n);
                 driver = Some(i);
             }
+        }
+        for b in late.into_iter().flatten() {
+            self.load_fact(f, run, p, b)?;
         }
         let driver = match driver {
             Some(d) => d,
@@ -846,7 +858,7 @@ impl Exec<'_> {
                         }
                     }
                     // redo-select2: the keys looked up where the probe would end (key_absent.rs): none present, nothing joins
-                    if self.keys_absent(f, run, pn, col, &b.keys)? {
+                    if self.keys_absent(f, run, p, pn, col, &b.keys)? {
                         super::empty_sel::at(super::empty_sel::stage::KEYS_ABSENT);
                         return self.empty_rc(run, node);
                     }
