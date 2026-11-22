@@ -83,6 +83,7 @@ impl Exec<'_> {
             cx.vb.clear();
         }
         cx.set = cx.set.wrapping_add(1);
+        let tq = super::step_clock();
         let mut out = Ok(());
         for &(i, n) in pending {
             match self.bound_in(&mut cx, f, run, p, n, 6) {
@@ -95,6 +96,9 @@ impl Exec<'_> {
             }
         }
         CTX.with(|c| *c.borrow_mut() = cx);
+        if super::empty_sel::on() {
+            super::empty_sel::count("bound: question set", super::step_clock() - tq);
+        }
         out.map(|()| pick)
     }
 
@@ -213,7 +217,11 @@ impl Exec<'_> {
             return Ok((k >= 2).then(|| (k - 2) as usize));
         }
         let Some(v) = self.view(run, node)? else { return Err("a view's bound with no view".to_owned()) };
+        let t0 = super::step_clock();
         self.load_fact(f, run, p, v.base)?;
+        if super::empty_sel::on() {
+            super::empty_sel::count("bound: a literal view's fill read", super::step_clock() - t0);
+        }
         let b = if ki != u32::MAX { Some(bucket_len(f, run, &cx.kinds[ki as usize])) } else { super::select_kernel::lit_file(f, LIT_FILTER | node, &v.filter, 0, v.base, &[]).map(|r| r.len()) };
         if cx.vb.len() <= node {
             cx.vb.resize(node + 1, 0);
