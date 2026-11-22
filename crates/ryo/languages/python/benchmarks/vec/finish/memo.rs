@@ -449,7 +449,11 @@ impl Exec<'_> {
     pub(super) fn probe_memo(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64], sc: &Schema) -> R<Rc<Table>> {
         let t0 = self.memo.tick();
         let m = &mut self.memo;
-        let prof = m.prof;
+        // the key loop's and the slot's own clocks only under VEC_MEMO_PROF=2 (they add two clock reads an ask)
+        let prof = m.prof && {
+            static P2: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+            *P2.get_or_init(|| std::env::var_os("VEC_MEMO_PROF").is_some_and(|v| v == "2"))
+        };
         let slot = m.slot(node, col, f.n, sc);
         if prof {
             m.t[3] += super::select_kernel::ticks() - t0;
