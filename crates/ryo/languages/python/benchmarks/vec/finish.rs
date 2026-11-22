@@ -2223,8 +2223,9 @@ impl<'p> Exec<'p> {
                 return self.empty_rc(run, node);
             }
         }
-        // an empty answer is the step's shared one (the body's own table is dropped, nothing kept a run)
-        let t = self.step(f, run, p, node)?;
+        // an empty answer is the step's shared one (the body's own table is dropped, nothing kept a run); the select's
+        // dispatch point (by the frame's code)
+        let t = if fr.op == frame::Op::Select { self.select(f, run, p, node)? } else { self.step(f, run, p, node)? };
         if t.n == 0 { self.empty_rc(run, node) } else { Ok(Rc::new(t)) }
     }
 
