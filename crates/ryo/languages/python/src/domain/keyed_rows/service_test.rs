@@ -121,7 +121,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         word: Word::Succeeds,
         input: || Keyed::Path,
         expect: Expect::Value(Held {
-            whole: 222,
+            whole: 221,
             keys: 109,
             empty: 350,
             differing: Vec::new(),

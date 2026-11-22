@@ -50,10 +50,11 @@ aho-corasick = "1"
 rustc-hash = "2"
 foldhash = "0.2"
 ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../../crates/relations" }
+# 8 (ryo-fmx3.1): the executor's kernels live in the engine crate; the bench calls them.
+ryo_engine = { package = "idiomatic-sh-ryo-engine", path = "../../crates/engine" }
 regex = "1"
 unicode-width = "=0.2.2"
-# THROWAWAY (ryo-fmx3.1 redo-lowering): the `vec lower` edge, the one parser and the engine's plan lowering.
-ryo_engine = { package = "idiomatic-sh-ryo-engine", path = "../../crates/engine" }
+# THROWAWAY (ryo-fmx3.1 redo-lowering): the `vec lower` edge, the one parser and the engine's plan lowering (engine above).
 ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../../crates/query_language" }
 ryo_values = { package = "idiomatic-sh-ryo-values", path = "../../crates/values" }
 

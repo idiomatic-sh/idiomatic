@@ -26,6 +26,7 @@ impl SyntaxPort for MissingPayload {
         _source_kind: PythonSourceKind,
         _reported: crate::outbound::syntax::types::ReportedSyntax,
         _builder: &mut languages::NodeTableBuilder<'_>,
+        _names: crate::domain::model::names::types::WalkNames,
         _read: &mut dyn FnMut(
             crate::domain::node::types::Walked<'_, '_, '_>,
         ) -> Vec<languages::Position>,

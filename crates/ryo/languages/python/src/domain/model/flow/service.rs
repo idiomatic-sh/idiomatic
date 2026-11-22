@@ -26,7 +26,7 @@ fn read_context(source: FlowSource<'_, '_, '_>, at: Position, phase: Position, f
     }
     let mut above = at;
     loop {
-        if entry(&source.lexical.annotation, above) == AnnotationMark::Annotation {
+        if entry(&source.lexical.annotation, above) != AnnotationMark::Plain {
             return FlowContext::Type;
         }
         if above == phase || above == MODULE {

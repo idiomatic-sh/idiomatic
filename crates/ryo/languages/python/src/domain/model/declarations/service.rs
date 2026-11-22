@@ -27,7 +27,8 @@ pub(crate) fn lexical_scope(model: &LexicalModel, tree: TypedTree<'_, '_>, at: P
 }
 
 /// The nearest function around the scope `scope`; the module when there is none.
-fn function_around(model: &LexicalModel, scope: Position) -> Position {
+#[must_use]
+pub(crate) fn function_around(model: &LexicalModel, scope: Position) -> Position {
     let mut around = scope_at(model, scope);
     while entry(&model.class, around) != NodeClass::FunctionDef && around != MODULE {
         around = scope_at(model, around);
@@ -49,7 +50,11 @@ pub(crate) fn redirect_of(model: &LexicalModel, scope: Position, name: NameCode)
 pub(crate) fn redirected(model: &LexicalModel, scope: Position, name: NameCode) -> Position {
     match redirect_of(model, scope, name) {
         Some(ScopeRedirect::Global) => MODULE,
-        Some(ScopeRedirect::Nonlocal) => function_around(model, scope),
+        Some(ScopeRedirect::Nonlocal) => model
+            .targets
+            .get(&NamespaceKey { scope, name })
+            .copied()
+            .unwrap_or_else(|| function_around(model, scope)),
         None => scope,
     }
 }

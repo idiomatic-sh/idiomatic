@@ -275,6 +275,8 @@ pub struct ColumnWalk {
     scratch: PythonWalkScratch,
     memo: TextMemo,
     words: FileWords,
+    /// When set, the table is written `structured` with these enclosing kind sets.
+    structure: Option<Vec<languages::KindSet>>,
 }
 
 impl ColumnWalk {
@@ -292,7 +294,14 @@ impl ColumnWalk {
             scratch: PythonWalkScratch::default(),
             memo: TextMemo::default(),
             words,
+            structure: None,
         }
+    }
+
+    /// Every table this walk writes from now on is written `structured` (`node_table::structured`) with the kind sets
+    /// `enclosing`: its element sets and enclosing columns are written as the ids are numbered.
+    pub fn structured(&mut self, enclosing: Vec<languages::KindSet>) {
+        self.structure = Some(enclosing);
     }
 
     /// Walks one file into `table` and lends it to `visit`.
@@ -305,7 +314,11 @@ impl ColumnWalk {
         if reads(source_path) != languages::Recognition::Reads {
             return Err(WalkError::Unsupported);
         }
-        let mut builder = node_table::builder(table, <PythonWalk<WalkPorts> as languages::Walk>::KIND_COUNT);
+        let kinds = <PythonWalk<WalkPorts> as languages::Walk>::KIND_COUNT;
+        let mut builder = match &self.structure {
+            Some(enclosing) => node_table::structured(table, kinds, enclosing),
+            None => node_table::builder(table, kinds),
+        };
         let target = self.walk.ports.settings.target_version().components();
         self.scratch.file.model.target = target;
         self.memo.names.clear();
@@ -314,14 +327,16 @@ impl ColumnWalk {
         let scratch = &mut self.scratch;
         let memo = &mut self.memo;
         let words = &mut self.words;
-        self.walk.ports.syntax.walk(SourceText(bytes), source_kind(source_path), ReportedSyntax::Refusals, &mut builder, &mut |walked| match walked {
+        let mut names = std::mem::take(&mut scratch.names);
+        crate::domain::model::names::service::cleared(&mut names);
+        self.walk.ports.syntax.walk(SourceText(bytes), source_kind(source_path), ReportedSyntax::Refusals, &mut builder, names, &mut |walked| match walked {
             Walked::Strings(tree) => {
                 built_parts = Built::default();
                 let mut hosts = Vec::new();
                 if tree.strings.is_empty() {
                     return hosts;
                 }
-                let typed = TypedTree { segments: &tree.segments, parents: &tree.parents, ends: &tree.ends, nodes: &tree.nodes, annotations: tree.annotations };
+                let typed = TypedTree { segments: &tree.segments, parents: &tree.parents, ends: &tree.ends, nodes: &tree.nodes, annotations: tree.annotations, named: &tree.names };
                 form_imports(typed, &tree.imports, &mut scratch.forms);
                 type_strings(
                     &mut FormSource { tree: typed, imports: &scratch.forms, model: &mut scratch.file.model, built: &mut built_parts, path: &mut scratch.path },
@@ -332,6 +347,8 @@ impl ColumnWalk {
             }
             Walked::Whole(written, tree) => {
                 lend(written, &tree, target, scratch, built_parts, memo, words, visit);
+                // the walk's buffers go back to the worker for the next file
+                scratch.names = tree.names;
                 Vec::new()
             }
         });
@@ -356,7 +373,7 @@ fn lend(
         syntax: SyntaxFile {
             table,
             nodes: tree.nodes.get(..own).unwrap_or_default(),
-            tree: TypedTree { segments: &tree.segments, parents: &tree.parents, ends: &tree.ends, nodes: &tree.nodes, annotations: tree.annotations },
+            tree: TypedTree { segments: &tree.segments, parents: &tree.parents, ends: &tree.ends, nodes: &tree.nodes, annotations: tree.annotations, named: &tree.names },
             text: tree.text,
             file: FileId(0),
             completeness: tree.completeness,
@@ -407,6 +424,14 @@ fn flag(value: Flag) -> u32 {
 }
 
 impl ColumnFile<'_, '_> {
+    /// The code the walk interned for each name token of the file's own tree, in id order, into `out` (cleared first): equal
+    /// codes are equal texts. A code with the high bit set (`FIXED_TEXT`) is a fixed text of the language, the same text in
+    /// every file of the run. Empty when the file's bytes were not text.
+    pub fn name_token_codes(&self, out: &mut Vec<u32>) {
+        out.clear();
+        out.extend(self.file.syntax.tree.named.of_token.iter().map(|code| code.0));
+    }
+
     /// The reader: today's rows of `relation` (the reference).
     pub fn fill(&mut self, relation: Relation, wanted: Wanted, words: &mut FileWords, out: &mut FilledColumns) -> FactAnswer {
         let mut source = fillers::file_source::<PythonWalk<WalkPorts>>(self.file);
@@ -512,6 +537,69 @@ impl ColumnFile<'_, '_> {
             }
         }
         Some((schedule.annotations == BindingAnnotationTiming::Deferred, out))
+    }
+
+    /// Spike (redo-binding pass 4): the elements evaluated in a deferred type phase (the model's schedule: a phase of kind
+    /// `Type`), as `evaluation_region` assigns regions, without the rest of its rows; tokens and identifiers the model does
+    /// not number are where their parent is. `None` where the model is incomplete.
+    pub fn type_regions(&mut self) -> Option<Vec<u32>> {
+        use crate::domain::model::lexical::service::parent_of;
+        use crate::domain::model::types::BindingPhaseKind;
+        let read = self.file.semantics(ModelPart::Flow);
+        if read.model.flow.state == FlowState::Incomplete {
+            return None;
+        }
+        let schedule = &read.model.schedule;
+        let segments = read.tree.segments;
+        let n = read.model.lexical.class.len();
+        let types: std::collections::HashSet<u32> =
+            schedule.phases.iter().filter(|phase| matches!(phase.kind, BindingPhaseKind::Type)).map(|phase| phase.root.0).collect();
+        if types.is_empty() {
+            return Some(Vec::new());
+        }
+        let mut region = vec![0u32; n];
+        let elements = node_table::element_count(self.table).0 as usize;
+        let mut typed = vec![false; elements];
+        let mut out = Vec::new();
+        for p in 0..n {
+            let r = schedule.region.get(p).copied().unwrap_or(ryo::languages::Position(u32::MAX));
+            region[p] = if r.0 != u32::MAX {
+                r.0
+            } else if p == 0 {
+                0
+            } else {
+                let parent = parent_of(read.tree, ryo::languages::Position(p as u32)).0 as usize;
+                if parent < p { region[parent] } else { 0 }
+            };
+            if types.contains(&region[p]) {
+                let id = table_id(segments, ryo::languages::Position(p as u32)).0;
+                if let Some(slot) = typed.get_mut(id as usize) {
+                    *slot = true;
+                }
+                out.push(id);
+            }
+        }
+        let mut numbered = vec![false; elements];
+        for p in 0..n {
+            let id = table_id(segments, ryo::languages::Position(p as u32)).0 as usize;
+            if let Some(slot) = numbered.get_mut(id) {
+                *slot = true;
+            }
+        }
+        for id in 0..elements {
+            if numbered[id] {
+                continue;
+            }
+            let parent = node_table::parent_of(self.table, ryo::languages::Position(id as u32)).0 as usize;
+            if parent < id && numbered[parent] && typed[parent] {
+                typed[id] = true;
+                numbered[id] = true;
+                out.push(id as u32);
+            } else if parent < id && numbered[parent] {
+                numbered[id] = true;
+            }
+        }
+        Some(out)
     }
 
     /// Builds the parts of the semantic model the asks need, and no more (a file whose asks need none builds none): timed

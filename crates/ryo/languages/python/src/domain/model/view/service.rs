@@ -3,6 +3,7 @@
 use super::types::{Built, ModelPart, PartState, SemanticModel};
 use crate::domain::model::declarations::service as declarations;
 use crate::domain::model::definitions::service as definitions;
+use crate::domain::model::definitions::types::Routing;
 use crate::domain::model::flow::service as flow;
 use crate::domain::model::lexical::service as lexical;
 use crate::domain::model::lexical::types::TypedTree;
@@ -20,11 +21,13 @@ use crate::domain::model::types::BindingAnnotationTiming;
 /// module postpones them. A list of the flow part by key is made by the first fill that asks for one key of it.
 pub(crate) fn built(model: &mut SemanticModel, built: &mut Built, part: ModelPart, tree: TypedTree<'_, '_>) {
     if part != ModelPart::Nothing && built.lexical == PartState::Pending {
-        names::clear(&mut model.names);
         names::clear_words(model.words.get_mut());
         lexical::build(&mut model.lexical, &mut model.names, tree);
         declarations::build(&mut model.lexical, tree);
         definitions::build(&mut model.definitions, &model.lexical, &model.names, tree);
+        if definitions::routed(&mut model.lexical, &model.definitions, tree) == Routing::Moved {
+            definitions::build(&mut model.definitions, &model.lexical, &model.names, tree);
+        }
         built.lexical = PartState::Ready;
     }
     if part == ModelPart::Resolution && built.resolution == PartState::Pending {

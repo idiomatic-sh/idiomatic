@@ -18,11 +18,19 @@ impl FileVisit for NoVisit {
     fn visit(&mut self, _file: FileFacts<'_>) {}
 }
 
+/// redo-union: the step clock. The thread's CPU time is a system call (157 ns a read here, two a timed step: about
+/// 2.3 s of django's 2.4 s system time); the monotonic clock is read in user space (19 ns). Runs are single thread pinned
+/// to one core under the timing lock, so the two agree; `VEC_THREAD_CLOCK` restores the CPU-time clock.
 fn thread_cpu() -> f64 {
     thread_local! {
         static ORIGIN: cpu_time::ThreadTime = cpu_time::ThreadTime::now();
+        static WALL: std::time::Instant = std::time::Instant::now();
     }
-    ORIGIN.with(|origin| origin.elapsed().as_secs_f64())
+    static CPU: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    if *CPU.get_or_init(|| std::env::var_os("VEC_THREAD_CLOCK").is_some()) {
+        return ORIGIN.with(|origin| origin.elapsed().as_secs_f64());
+    }
+    WALL.with(|origin| origin.elapsed().as_secs_f64())
 }
 
 #[derive(Default)]
@@ -228,6 +236,22 @@ fn field_index(cols: &mut Columns, fields: usize) {
     }
 }
 
+/// One pass: the fields present in a file, read off the table's field lists (a step a field code).
+fn fields_present(table: &NodeTable, cols: &mut Columns, fields: usize) {
+    cols.field_present.clear();
+    cols.field_present.resize(words(fields), 0);
+    for f in 0..fields {
+        if !node_table::ids_of_field(table, languages::FieldCode(f as u16)).is_empty() {
+            cols.field_present[f / 64] |= 1 << (f % 64);
+        }
+    }
+}
+
+/// An element's bytes, from the node table's own span column.
+fn span_bytes(table: &NodeTable, i: usize) -> std::ops::Range<usize> {
+    node_table::starts(table)[i] as usize..node_table::ends(table)[i] as usize
+}
+
 fn test_lit(lit: &Lit, text: &[u8]) -> bool {
     match lit {
         Lit::None => true,
@@ -287,6 +311,134 @@ fn first_condition(table: &NodeTable, cols: &Columns, source: &[u8], anchor: &An
         }
     }
     visited
+}
+
+/// The kinds-and-fields skip of a run's plan rules, flat: per rule whether it never matches and its clauses, a clause its
+/// kind words then its field words; a rule with no anchor line always passes.
+/// The file skip, flat: each rule's kinds-and-fields clauses and its word CNFs as numbers of distinct clauses, a clause
+/// stored once however many rules share it. A file's kinds-and-fields clauses are all tested once (`file`); a word clause
+/// is tested once a file, when a rule its kinds keep first asks it.
+struct Skip {
+    kw: usize,
+    fw: usize,
+    /// The distinct kinds-and-fields clauses, `kw + fw` words each: kind words then field words.
+    masks: Vec<u64>,
+    /// Per rule: never matches, and its clauses (a range of `of`).
+    rules: Vec<(bool, std::ops::Range<u32>)>,
+    of: Vec<u32>,
+    /// This file's answer of each distinct kinds-and-fields clause.
+    held: Vec<bool>,
+    /// Per rule its branches (a range of `branches`; none: unknown, alive), a branch its clauses (a range of `wof`), a
+    /// distinct word clause its words (a range of `wwords`).
+    wrules: Vec<std::ops::Range<u32>>,
+    branches: Vec<std::ops::Range<u32>>,
+    wof: Vec<u32>,
+    wclauses: Vec<std::ops::Range<u32>>,
+    wwords: Vec<u16>,
+    /// Per distinct word clause: `stamp << 1 | answer` once asked in the file of `stamp`.
+    wmemo: Vec<u32>,
+    stamp: u32,
+}
+
+impl Skip {
+    fn new(rules: &[Rule], skip_of: &[Option<usize>], frules: &[funnel::FRule], kw: usize, fw: usize) -> Self {
+        let mut masks: Vec<u64> = Vec::new();
+        let mut seen: HashMap<Vec<u64>, u32> = HashMap::new();
+        let mut of = Vec::new();
+        let rules: Vec<(bool, std::ops::Range<u32>)> = skip_of
+            .iter()
+            .map(|i| {
+                let a = of.len() as u32;
+                if let Some(i) = i {
+                    for (k, f) in &rules[*i].clauses {
+                        let c: Vec<u64> = k.iter().chain(f).copied().collect();
+                        assert_eq!(c.len(), kw + fw, "a clause is kw + fw words");
+                        let n = seen.len() as u32;
+                        let id = *seen.entry(c.clone()).or_insert_with(|| {
+                            masks.extend_from_slice(&c);
+                            n
+                        });
+                        of.push(id);
+                    }
+                }
+                (i.is_some_and(|i| rules[i].never), a..of.len() as u32)
+            })
+            .collect();
+        let mut wseen: HashMap<Vec<u16>, u32> = HashMap::new();
+        let (mut wrules, mut branches, mut wof, mut wclauses, mut wwords) = (Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new());
+        for r in frules {
+            let a = branches.len() as u32;
+            for cnf in &r.cnfs {
+                let b = wof.len() as u32;
+                for cl in cnf {
+                    let n = wseen.len() as u32;
+                    let id = *wseen.entry(cl.clone()).or_insert_with(|| {
+                        let w = wwords.len() as u32;
+                        wwords.extend_from_slice(cl);
+                        wclauses.push(w..wwords.len() as u32);
+                        n
+                    });
+                    wof.push(id);
+                }
+                branches.push(b..wof.len() as u32);
+            }
+            wrules.push(a..branches.len() as u32);
+        }
+        let n_masks = masks.len() / (kw + fw).max(1);
+        let n_w = wclauses.len();
+        Skip { kw, fw, masks, rules, of, held: vec![false; n_masks], wrules, branches, wof, wclauses, wwords, wmemo: vec![0; n_w], stamp: 0 }
+    }
+
+    /// A new file: every distinct kinds-and-fields clause tested once against its kinds and fields; the word answers of
+    /// the last file forgotten.
+    fn file(&mut self, kinds: &[u64], fields: &[u64]) {
+        let (kw, fw) = (self.kw, self.fw);
+        for (c, h) in self.masks.chunks_exact(kw + fw).zip(&mut self.held) {
+            *h = c[..kw].iter().zip(kinds).any(|(a, b)| a & b != 0) || c[kw..].iter().zip(fields).any(|(a, b)| a & b != 0);
+        }
+        self.stamp += 1;
+    }
+
+    /// Whether every clause of the rule meets a kind or a field the file has (`survives` over the distinct clauses).
+    #[inline]
+    fn alive(&self, rule: usize) -> bool {
+        let (never, range) = &self.rules[rule];
+        !never && self.of[range.start as usize..range.end as usize].iter().all(|c| self.held[*c as usize])
+    }
+
+    /// Whether some branch of the rule's word CNFs has every clause met by a word the file has (`FRule::words_alive`).
+    #[inline]
+    fn words_alive(&mut self, rule: usize, present: &[u64]) -> bool {
+        let r = self.wrules[rule].clone();
+        if r.is_empty() {
+            return true;
+        }
+        let stamp = self.stamp << 1;
+        for b in r {
+            let br = self.branches[b as usize].clone();
+            let mut all = true;
+            for k in br {
+                let c = self.wof[k as usize] as usize;
+                let m = self.wmemo[c];
+                let held = if m & !1 == stamp {
+                    m & 1 == 1
+                } else {
+                    let ws = self.wclauses[c].clone();
+                    let h = self.wwords[ws.start as usize..ws.end as usize].iter().any(|w| funnel::bit(present, *w));
+                    self.wmemo[c] = stamp | u32::from(h);
+                    h
+                };
+                if !held {
+                    all = false;
+                    break;
+                }
+            }
+            if all {
+                return true;
+            }
+        }
+        false
+    }
 }
 
 fn survives(rule: &Rule, kinds: &[u64], fields: &[u64]) -> bool {
@@ -397,7 +549,34 @@ fn main() {
     match args.get(1).copied() {
         Some("census") => census(&walk, &vocab, args[2], args[3], args[4]),
         Some("run") => run(&walk, &vocab, &args[2..]),
-        Some("funnel") => run_funnel(&walk, &vocab, &args[2..]),
+        Some("funnel") => {
+            // with `--finish <plan> <root> [--findings-out F]`, the second half runs in this process on the first half's
+            // survivors, file by file inside its walk (the seed of each file as `fileseed.py` makes it: `Survivors::seed_of_file`)
+            if let Some(at) = args.iter().position(|a| *a == "--finish") {
+                // pass 2: the second half runs file by file inside the first half's walk, on the same parsed file (one
+                // parse a file)
+                let mut finish_args = vec![args[at + 1], args[3], args[at + 2]];
+                if let Some(at) = args.iter().position(|a| *a == "--findings-out") {
+                    finish_args.extend(["--out", args[at + 1]]);
+                }
+                // redo-int: `--finish-stats F` writes the second half's per-step stats (its `--stats`)
+                if let Some(at) = args.iter().position(|a| *a == "--finish-stats") {
+                    finish_args.extend(["--stats", args[at + 1]]);
+                }
+                // redo-honest: `--applicability F` (the request's rule_applicability) to the second half
+                if let Some(at) = args.iter().position(|a| *a == "--applicability") {
+                    finish_args.extend(["--applicability", args[at + 1]]);
+                }
+                let plan = finish::load(finish_args[0]);
+                let mut fin = finisher::Finisher::new(&plan, &walk, &vocab, &finish_args);
+                run_funnel(&walk, &vocab, &args[2..], Some(&mut fin));
+                fin.end(0.0);
+                // redo-union pass 2 c18: the plan (30 k nodes of JSON) is not dropped one by one at exit
+                std::mem::forget(plan);
+            } else {
+                run_funnel(&walk, &vocab, &args[2..], None);
+            }
+        }
         Some("finish") => run_finish(&walk, &vocab, &args[2..]),
         Some("kfloor") => kernel_floor(&walk, args[2]),
         _ => eprintln!("usage: vec census <files> <literals> <out> | vec run <mode> <files> <anchors> [--batch N] [--repeat K] [--rules-out F]"),
@@ -662,10 +841,24 @@ fn run(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
 mod funnel;
 #[path = "facts.rs"]
 mod facts;
+#[path = "survivors.rs"]
+mod survivors;
 #[path = "finish.rs"]
 mod finish;
 #[path = "lower.rs"]
 mod lower;
+#[path = "finisher.rs"]
+mod finisher;
+#[path = "dump.rs"]
+mod dump;
+#[path = "type_expression.rs"]
+mod type_expression;
+#[path = "annotation_evaluation.rs"]
+mod annotation_evaluation;
+#[path = "deferred_visit.rs"]
+mod deferred_visit;
+#[path = "deferred_resolution.rs"]
+mod deferred_resolution;
 
 /// The visit's facts as the finish's provider.
 struct Facts<'v, 'f, 'w> {
@@ -688,6 +881,230 @@ struct ColFacts<'v, 'a, 'f, 'w> {
     rows: u64,
     by_rel: HashMap<String, (f64, u64, u64)>,
     file_no: u32,
+    /// redo-binding pass 3: the provider relations the harness facts are written from, kept for the file once filled, so
+    /// a fact and the steps that read the same relation share one fill.
+    kept: HashMap<String, finish::Table>,
+}
+
+impl ColFacts<'_, '_, '_, '_> {
+    /// A catalog relation of this file, filled whole (once a file for the relations the harness facts read).
+    fn whole(&mut self, run: &mut finish::Run, rel: &str) -> Result<finish::Table, String> {
+        if let Some(t) = self.kept.get(rel) {
+            return Ok(t.clone());
+        }
+        let t = self.whole_fill(run, rel)?;
+        if matches!(rel, "binding-event" | "binding-read" | "binding-resolution" | "qualified-name" | "call-argument" | "identifier" | "embedded-expression" | "compiler-feature" | "language-target" | "lookup-scope" | "implicit-symbol") {
+            let _ = self.kept.insert(rel.to_owned(), t.clone());
+        }
+        Ok(t)
+    }
+
+    fn whole_fill(&mut self, run: &mut finish::Run, rel: &str) -> Result<finish::Table, String> {
+        // redo-honest: the host's own rows (the file system's), not the language provider's
+        if let Some(t) = finish::host::host_fill(run, rel, self.file_no) {
+            return t;
+        }
+        let (relation, _, _) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
+        self.filled.0.clear();
+        match self.file.fill(relation, languages::Wanted::Whole, self.words, &mut self.filled) {
+            languages::FactAnswer::Answered(_) => finish::filled_table(run, rel, &self.filled, self.words),
+            _ => Err(format!("{rel} not answered")),
+        }
+    }
+
+    /// redo-binding probe: `read-resolution` from the provider's own lookup (`binding-resolution`, whose rows come per read
+    /// nearest namespace first): the first row of each read, a deletion's only at depth 0 (its name is local), and a `none`
+    /// row for every read or deletion (`binding-read`) no namespace of whose path holds an event of the name.
+    fn read_resolution(&mut self, run: &mut finish::Run) -> Result<finish::Table, String> {
+        let res = self.whole(run, "binding-resolution")?;
+        let reads = self.whole(run, "binding-read")?;
+        let col = |t: &finish::Table, n: &str| t.names.iter().position(|c| c == n).ok_or_else(|| format!("no column {n}"));
+        let (r_ref, r_ev, r_kind, r_scope, r_lex, r_depth, r_ord, r_ctx) = (
+            col(&res, "reference")?,
+            col(&res, "event")?,
+            col(&res, "kind")?,
+            col(&res, "scope")?,
+            col(&res, "lexical")?,
+            col(&res, "depth")?,
+            col(&res, "ordinal")?,
+            col(&res, "context")?,
+        );
+        let (b_ref, b_scope, b_ctx) = (col(&reads, "reference")?, col(&reads, "scope")?, col(&reads, "context")?);
+        let (_, names, tys) = run.catalog(finish::RESOLUTION_REL).ok_or("no read-resolution")?;
+        let deletion = u64::from(run.sym(b"deletion"));
+        let (own, routed, none) = (u64::from(run.sym(b"own")), u64::from(run.sym(b"routed")), u64::from(run.sym(b"none")));
+        let mut t = finish::Table { names, tys, cols: vec![Vec::with_capacity(reads.n); 9], n: 0 };
+        let mut seen: rustc_hash::FxHashSet<u64> = rustc_hash::FxHashSet::with_capacity_and_hasher(reads.n, Default::default());
+        for r in 0..res.n {
+            let reference = res.cols[r_ref][r];
+            let depth = res.cols[r_depth][r];
+            if (res.cols[r_ctx][r] == deletion && depth != 0) || !seen.insert(reference) {
+                continue;
+            }
+            let ns = if res.cols[r_lex][r] == res.cols[r_scope][r] { own } else { routed };
+            for (c, v) in [reference, res.cols[r_ev][r], res.cols[r_kind][r], ns, res.cols[r_scope][r], depth, res.cols[r_ord][r], res.cols[r_ctx][r], 0].into_iter().enumerate() {
+                t.cols[c].push(v);
+            }
+            t.n += 1;
+        }
+        for r in 0..reads.n {
+            let reference = reads.cols[b_ref][r];
+            if !seen.insert(reference) {
+                continue;
+            }
+            for (c, v) in [reference, finish::NULL, none, none, reads.cols[b_scope][r], finish::NULL, finish::NULL, reads.cols[b_ctx][r], 0].into_iter().enumerate() {
+                t.cols[c].push(v);
+            }
+            t.n += 1;
+        }
+        Ok(t)
+    }
+}
+
+impl ColFacts<'_, '_, '_, '_> {
+    /// redo-binding pass 3: `namespace-final` from the provider's events (`binding-event`) in schedule order, keeping the latest
+    /// event of each (namespace, name) as the provider's resolution does (`binding_resolution::resolve`): a bind, annotation,
+    /// cleanup, deletion, global or nonlocal is the name's state in its namespace; a global or nonlocal also holds in the
+    /// declaring namespace. Reads and wildcards change nothing.
+    fn namespace_final(&mut self, run: &mut finish::Run) -> Result<finish::Table, String> {
+        let ev = self.whole(run, "binding-event")?;
+        let col = |n: &str| ev.names.iter().position(|c| c == n).ok_or_else(|| format!("no column {n}"));
+        let (e_occ, e_name, e_scope, e_kind, e_ord, e_lex) =
+            (col("occurrence")?, col("name")?, col("scope")?, col("kind")?, col("ordinal")?, col("lexical")?);
+        let (read, wildcard) = (u64::from(run.sym(b"read")), u64::from(run.sym(b"wildcard")));
+        let (global, nonlocal) = (u64::from(run.sym(b"global")), u64::from(run.sym(b"nonlocal")));
+        let mut order: Vec<usize> = (0..ev.n).collect();
+        order.sort_by_key(|r| ev.cols[e_ord][*r]);
+        let mut latest: rustc_hash::FxHashMap<(u64, u64), usize> = rustc_hash::FxHashMap::default();
+        for r in order {
+            let kind = ev.cols[e_kind][r];
+            if kind == read || kind == wildcard {
+                continue;
+            }
+            let _ = latest.insert((ev.cols[e_scope][r], ev.cols[e_name][r]), r);
+            if (kind == global || kind == nonlocal) && ev.cols[e_lex][r] != ev.cols[e_scope][r] {
+                let _ = latest.insert((ev.cols[e_lex][r], ev.cols[e_name][r]), r);
+            }
+        }
+        let (_, names, tys) = run.catalog(finish::FINAL_REL).ok_or("no namespace-final")?;
+        let mut t = finish::Table { names, tys, cols: vec![Vec::with_capacity(latest.len()); 6], n: 0 };
+        for ((namespace, name), r) in latest {
+            for (c, v) in [namespace, name, ev.cols[e_occ][r], ev.cols[e_kind][r], ev.cols[e_ord][r], 0].into_iter().enumerate() {
+                t.cols[c].push(v);
+            }
+            t.n += 1;
+        }
+        Ok(t)
+    }
+}
+
+impl ColFacts<'_, '_, '_, '_> {
+    /// redo-binding pass 4: `type-expression` (type_expression.rs) from the node table and four provider relations.
+    fn type_expression(&mut self, run: &mut finish::Run) -> Result<finish::Table, String> {
+        let qualified = self.whole(run, "qualified-name")?;
+        let arguments = self.whole(run, "call-argument")?;
+        let identifiers = self.whole(run, "identifier")?;
+        let embedded = self.whole(run, "embedded-expression")?;
+        let inputs = type_expression::Inputs { qualified: &qualified, arguments: &arguments, identifiers: &identifiers, embedded: &embedded };
+        let rows = type_expression::rows(run, self.file.table, &inputs)?;
+        let (_, names, tys) = run.catalog(finish::TYPE_EXPRESSION_REL).ok_or("no type-expression")?;
+        let (ty, value) = (u64::from(run.sym(b"type")), u64::from(run.sym(b"value")));
+        let mut t = finish::Table { names, tys, cols: vec![Vec::with_capacity(rows.len()); 3], n: rows.len() };
+        for (id, typed) in rows {
+            t.cols[0].push(u64::from(id));
+            t.cols[1].push(if typed { ty } else { value });
+            t.cols[2].push(0);
+        }
+        Ok(t)
+    }
+}
+
+impl ColFacts<'_, '_, '_, '_> {
+    /// redo-binding pass 4: `annotation-evaluation` (annotation_evaluation.rs) from the node table, the file's compiler features
+    /// and target, and its embedded expressions.
+    fn annotation_evaluation(&mut self, run: &mut finish::Run) -> Result<finish::Table, String> {
+        let features = self.whole(run, "compiler-feature")?;
+        let targets = self.whole(run, "language-target")?;
+        let embedded = self.whole(run, "embedded-expression")?;
+        let target = annotation_evaluation::target(run, &features, &targets)?;
+        let rows = annotation_evaluation::rows(run, self.file.table, &target, &embedded)?;
+        let (_, names, tys) = run.catalog(finish::ANNOTATION_EVALUATION_REL).ok_or("no annotation-evaluation")?;
+        let mut t = finish::Table { names, tys, cols: vec![Vec::with_capacity(rows.len()); 5], n: rows.len() };
+        for (id, root, evaluation, mode) in rows {
+            let (e, m) = (u64::from(run.sym(evaluation)), u64::from(run.sym(mode)));
+            for (c, v) in [u64::from(id), u64::from(root), e, m, 0].into_iter().enumerate() {
+                t.cols[c].push(v);
+            }
+        }
+        Ok(t)
+    }
+}
+
+impl ColFacts<'_, '_, '_, '_> {
+    /// redo-binding pass 4: a harness fact, made once a file (the facts that compose others read it from here).
+    fn fact(&mut self, run: &mut finish::Run, rel: &str) -> Result<finish::Table, String> {
+        if let Some(t) = self.kept.get(rel) {
+            return Ok(t.clone());
+        }
+        let t = match rel {
+            finish::TYPE_EXPRESSION_REL => self.type_expression(run)?,
+            finish::ANNOTATION_EVALUATION_REL => self.annotation_evaluation(run)?,
+            finish::FINAL_REL => self.namespace_final(run)?,
+            finish::DEFERRED_RESOLUTION_REL => self.deferred_resolution(run)?,
+            _ => self.deferred_visit(run)?,
+        };
+        let _ = self.kept.insert(rel.to_owned(), t.clone());
+        Ok(t)
+    }
+
+    /// redo-binding pass 4: `deferred-resolution` (deferred_resolution.rs) from the provider's reads, events and lookup paths,
+    /// the implicit symbols, and the facts namespace-final and deferred-visit.
+    fn deferred_resolution(&mut self, run: &mut finish::Run) -> Result<finish::Table, String> {
+        let visits = self.fact(run, finish::DEFERRED_VISIT_REL)?;
+        let (_, names, tys) = run.catalog(finish::DEFERRED_RESOLUTION_REL).ok_or("no deferred-resolution")?;
+        if visits.n == 0 {
+            // no postponed or unvisited element: no row (and no fill of the inputs below)
+            return Ok(finish::Table { names, tys, cols: vec![Vec::new(); 5], n: 0 });
+        }
+        let reads = self.whole(run, "binding-read")?;
+        let events = self.whole(run, "binding-event")?;
+        let lookup = self.whole(run, "lookup-scope")?;
+        let implicit = self.whole(run, "implicit-symbol")?;
+        let finals = self.fact(run, finish::FINAL_REL)?;
+        let stub = run.texts[run.path_sym[self.file_no as usize] as usize].ends_with(b".pyi");
+        let inputs = deferred_resolution::Inputs { reads: &reads, events: &events, lookup: &lookup, implicit: &implicit, finals: &finals, visits: &visits, stub };
+        let rows = deferred_resolution::rows(run, self.file.table, &inputs)?;
+        let mut t = finish::Table { names, tys, cols: vec![Vec::with_capacity(rows.len()); 5], n: rows.len() };
+        for (reference, occurrence, kind, point) in rows {
+            for (c, v) in [reference, occurrence, kind, point, 0].into_iter().enumerate() {
+                t.cols[c].push(v);
+            }
+        }
+        Ok(t)
+    }
+
+    /// redo-binding pass 4: `deferred-visit` (deferred_visit.rs) from `type-expression`, `annotation-evaluation`, the node
+    /// table, the file's embedded expressions, its name (a stub) and its annotations future.
+    fn deferred_visit(&mut self, run: &mut finish::Run) -> Result<finish::Table, String> {
+        let types = self.fact(run, finish::TYPE_EXPRESSION_REL)?;
+        let evaluations = self.fact(run, finish::ANNOTATION_EVALUATION_REL)?;
+        let embedded = self.whole(run, "embedded-expression")?;
+        let features = self.whole(run, "compiler-feature")?;
+        let targets = self.whole(run, "language-target")?;
+        let future = annotation_evaluation::target(run, &features, &targets)?.enabled;
+        let stub = run.texts[run.path_sym[self.file_no as usize] as usize].ends_with(b".pyi");
+        let inputs = deferred_visit::Inputs { types: &types, evaluations: &evaluations, embedded: &embedded, stub, future };
+        let rows = deferred_visit::rows(run, self.file.table, &inputs)?;
+        let (_, names, tys) = run.catalog(finish::DEFERRED_VISIT_REL).ok_or("no deferred-visit")?;
+        let (deferred, unvisited) = (u64::from(run.sym(b"deferred")), u64::from(run.sym(b"unvisited")));
+        let mut t = finish::Table { names, tys, cols: vec![Vec::with_capacity(rows.len()); 3], n: rows.len() };
+        for (id, d) in rows {
+            t.cols[0].push(u64::from(id));
+            t.cols[1].push(if d { deferred } else { unvisited });
+            t.cols[2].push(0);
+        }
+        Ok(t)
+    }
 }
 
 impl finish::Provider for ColFacts<'_, '_, '_, '_> {
@@ -708,14 +1125,21 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
                 t.cols[5].push(0);
             }
             t
+        } else if rel == finish::RESOLUTION_REL {
+            self.read_resolution(run)?
+        } else if rel == finish::TYPE_REGION_REL {
+            let ids = self.file.type_regions().ok_or("type-region: the model is incomplete")?;
+            let (_, names, tys) = run.catalog(rel).ok_or("no type-region")?;
+            finish::Table { names, tys, n: ids.len(), cols: vec![ids.iter().map(|i| u64::from(*i)).collect(), vec![0; ids.len()]] }
+        } else if rel == finish::FINAL_REL
+            || rel == finish::TYPE_EXPRESSION_REL
+            || rel == finish::ANNOTATION_EVALUATION_REL
+            || rel == finish::DEFERRED_VISIT_REL
+            || rel == finish::DEFERRED_RESOLUTION_REL
+        {
+            self.fact(run, rel)?
         } else {
-            let (relation, _, _) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
-            self.filled.0.clear();
-            let answer = self.file.fill(relation, languages::Wanted::Whole, self.words, &mut self.filled);
-            match answer {
-                languages::FactAnswer::Answered(_) => finish::filled_table(run, rel, &self.filled, self.words),
-                _ => Err(format!("{rel} not answered")),
-            }?
+            self.whole(run, rel)?
         };
         for c in 0..t.tys.len() {
             if t.tys[c] == finish::Ty::File {
@@ -751,6 +1175,9 @@ impl finish::Provider for Facts<'_, '_, '_> {
     fn fill(&mut self, run: &mut finish::Run, rel: &str) -> Result<finish::Table, String> {
         if rel == finish::REGION_REL {
             return Err("evaluation-region needs VEC_COLWALK".to_owned());
+        }
+        if let Some(t) = finish::host::host_fill(run, rel, self.file) {
+            return t;
         }
         let t0 = thread_cpu();
         let (relation, _, _) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
@@ -895,166 +1322,37 @@ fn kernel_floor(walk: &impl Walk, list: &str) {
 fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     let plan = finish::load(args[0]);
     let list = files(args[1]);
-    let root = format!("{}/", args[2].trim_end_matches('/'));
-    let only: Option<std::collections::HashSet<String>> = flag(args, "--rules").map(|r| r.split(',').map(str::to_owned).collect());
-    let emits: Vec<&(String, usize, String, Vec<String>)> = plan.emits.iter().filter(|e| only.as_ref().is_none_or(|o| o.contains(&e.0))).collect();
-    let seed: Option<std::collections::HashSet<(String, String)>> = flag(args, "--seed").map(|p| {
-        std::fs::read_to_string(p).expect("seed").lines().filter_map(|l| l.split_once('\t')).map(|(a, b)| (a.to_owned(), b.to_owned())).collect()
-    });
-    let check = args.contains(&"--check-bases");
-    // the survivor handoff: per (rule, file) the prefix's root nodes (`vec funnel ... --surv-out`); a seeded rule runs
-    // only where it has survivors, from them
-    let mut surv: HashMap<(String, String), Vec<u32>> = HashMap::new();
-    if let Some(p) = flag(args, "--surv") {
-        for l in std::fs::read_to_string(p).expect("survivors").lines() {
-            let mut it = l.split('\t');
-            let (Some(r), Some(f), Some(ns)) = (it.next(), it.next(), it.next()) else { continue };
-            surv.entry((r.to_owned(), f.to_owned())).or_default().extend(ns.split(' ').filter_map(|x| x.parse::<u32>().ok()));
-        }
-        for v in surv.values_mut() {
-            v.sort_unstable();
-            v.dedup();
-        }
-    }
+    let mut fin = finisher::Finisher::new(&plan, walk, vocab, args);
+    let seed: Option<std::collections::HashSet<(String, String)>> =
+        flag(args, "--seed").map(|p| std::fs::read_to_string(p).expect("seed").lines().filter_map(|l| l.split_once('\t')).map(|(a, b)| (a.to_owned(), b.to_owned())).collect());
     let mut seed_by_path: HashMap<&str, std::collections::HashSet<&str>> = HashMap::new();
     for (r, f) in seed.iter().flatten() {
         seed_by_path.entry(f.as_str()).or_default().insert(r.as_str());
     }
-    let mut surv_by_path: HashMap<&str, std::collections::HashSet<&str>> = HashMap::new();
-    for (r, f) in surv.keys() {
-        surv_by_path.entry(f.as_str()).or_default().insert(r.as_str());
-    }
-    let seed_set: HashMap<&str, usize> = plan.seeds.iter().enumerate().map(|(k, r)| (r.as_str(), k)).collect();
-    let mut run = finish::Run::default();
-    run.empty = run.sym(b"");
-    run.links();
-    run.root_dir = args[2].trim_end_matches('/').to_owned();
-    run.search_roots = vec![String::new(), "src".to_owned()];
-    run.kind_sym = vocab.kind_names.clone().iter().map(|k| run.sym(k.as_bytes())).collect();
-    run.field_sym = vocab.field_names.clone().iter().map(|k| run.sym(k.as_bytes())).collect();
-    run.paths = list.iter().map(|p| p.strip_prefix(&root).unwrap_or(p).to_owned()).collect();
-    run.path_sym = run.paths.clone().iter().map(|p| run.sym(p.as_bytes())).collect();
-    let kind_code = |n: &str| vocab.kinds.get(n).copied().expect("kind");
-    run.token_first = kind_code("name-token");
-    run.token_last = kind_code("colonequal");
-    run.token_error = kind_code("errortoken");
-    run.pairs = [(kind_code("lpar"), kind_code("rpar")), (kind_code("lsqb"), kind_code("rsqb")), (kind_code("lbrace"), kind_code("rbrace"))];
-    let mut exec = finish::Exec::new(&plan);
-    let mut fwords = ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names");
     // 6f probe: `VEC_COLWALK` walks through the direct-columns walk (the provider's own model is reachable there, for the
     // evaluation region); `--dump F` writes every emit's rows instead of findings.
     let colwalk = std::env::var_os("VEC_COLWALK").is_some();
     let mut cwalk = ryo_python::fixtures::columns::ColumnWalk::new(ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names"));
-    let dump = flag(args, "--dump");
-    let mut dump_text = String::new();
     let mut table = NodeTable::default();
     let mut scratch = Default::default();
-    let mut findings: Vec<String> = Vec::new();
-    let mut failed: HashMap<String, String> = HashMap::new();
-    let (mut provider_time, mut provider_rows, mut file_time, mut walk_time) = (0f64, 0u64, 0f64, 0f64);
-    let mut by_rel: HashMap<String, (f64, u64, u64)> = HashMap::new();
-    let mut check_lines: Vec<String> = Vec::new();
-    let mut files_run = 0u64;
-    let started = thread_cpu();
+    let mut walk_time = 0f64;
     let mut rss_peak = 0u64;
     for (file_no, path) in list.iter().enumerate() {
         let w0 = thread_cpu();
+        let in_fin = fin.time;
         let bytes = std::fs::read(path).expect("read");
         // 7: the (rule, file) seeds read by file once, not a key copied per rule
         let seed_here = seed_by_path.get(path.as_str());
-        let surv_here = surv_by_path.get(path.as_str());
-        let wanted: Vec<&&(String, usize, String, Vec<String>)> = emits
-            .iter()
-            .filter(|e| {
-                if seed_set.contains_key(e.0.as_str()) {
-                    surv_here.is_some_and(|s| s.contains(e.0.as_str()))
-                } else {
-                    seed.is_none() || seed_here.is_some_and(|s| s.contains(e.0.as_str()))
-                }
-            })
-            .collect();
-        let seeds_here: Vec<Vec<u32>> = plan.seeds.iter().map(|r| surv.get(&(r.clone(), path.clone())).cloned().unwrap_or_default()).collect();
-        if wanted.is_empty() && !check {
+        let wanted = fin.wanted(path, &|e| seed.is_none() || seed_here.is_some_and(|s| s.contains(plan.emits[e].0.as_str())));
+        if !fin.visits(&wanted) {
             continue;
         }
-        let mut inner = 0f64;
-        let mut body = |ft: &NodeTable, pv: &mut dyn finish::Provider| {
-            files_run += 1;
-            let mut f = finish::File::new(ft, &bytes, file_no as u32, plan.nodes.len());
-            f.seeds = seeds_here.clone();
-            finish::handover::expand(&mut f, &plan.seed_paths);
-            exec.reset_file();
-            if check {
-                for rel in ["semantic-syntax", "syntax-tree", "semantic-child", "syntax-child", "source-location", "token-link"] {
-                    let mine = finish::native_table(&mut f, &mut run, rel);
-                    match pv.fill(&mut run, rel) {
-                        Ok(theirs) => check_lines.push(format!("{}\t{rel}\t{}", run.paths[file_no], finish::diff(&run, &mine, &theirs))),
-                        Err(e) => check_lines.push(format!("{}\t{rel}\tprovider: {e}", run.paths[file_no])),
-                    }
-                }
-            }
-            for e in &wanted {
-                if failed.contains_key(&e.0) {
-                    continue;
-                }
-                run.missing.clear();
-                let got = exec.eval(&mut f, &mut run, pv, e.1);
-                let got = if run.missing.is_empty() { got } else { Err(format!("functions {:?} not in the step set", run.missing)) };
-                match got {
-                    Ok(t) => {
-                        if dump.is_some() {
-                            finish::dump_rows(&f, &run, &t, &e.0, &run.paths[file_no], &mut dump_text);
-                            continue;
-                        }
-                        let sc = t.col("span").ok();
-                        for r in 0..t.n {
-                            let (st, en) = sc.map_or((0, 0), |c| (t.cols[c][r] >> 32, t.cols[c][r] & 0xffff_ffff));
-                            findings.push(format!("{{\"rule\":\"{}\",\"file\":\"{}\",\"start\":{st},\"end\":{en}}}", e.0, run.paths[file_no]));
-                        }
-                    }
-                    Err(err) => {
-                        failed.insert(e.0.clone(), format!("{}: {err}", run.paths[file_no]));
-                    }
-                }
-            }
-        };
         if colwalk {
-            let _ = cwalk.walked(path, &bytes, &mut table, &mut |file| {
-                let c0 = thread_cpu();
-                let ft = file.table;
-                languages::facts::clear_words(&mut fwords);
-                let mut pv = ColFacts { file, words: &mut fwords, filled: languages::FilledColumns::default(), time: 0.0, rows: 0, by_rel: HashMap::new(), file_no: file_no as u32 };
-                body(ft, &mut pv);
-                provider_time += pv.time;
-                provider_rows += pv.rows;
-                for (k, v) in pv.by_rel {
-                    let e = by_rel.entry(k).or_default();
-                    e.0 += v.0;
-                    e.1 += v.1;
-                    e.2 += v.2;
-                }
-                inner += thread_cpu() - c0;
-            });
+            let _ = cwalk.walked(path, &bytes, &mut table, &mut |file| fin.column_file(file_no, path, file, &bytes, &wanted));
         } else {
-            let _ = ryo_python::fixtures::walking::walked(walk, path, &bytes, &[], &mut table, &mut scratch, &mut |mut file| {
-                let c0 = thread_cpu();
-                let ft = file.table;
-                languages::facts::clear_words(&mut fwords);
-                let mut pv = Facts { facts: &mut file, words: &mut fwords, filled: languages::FilledColumns::default(), time: 0.0, rows: 0, by_rel: HashMap::new(), file: file_no as u32 };
-                body(ft, &mut pv);
-                provider_time += pv.time;
-                provider_rows += pv.rows;
-                for (k, v) in pv.by_rel {
-                    let e = by_rel.entry(k).or_default();
-                    e.0 += v.0;
-                    e.1 += v.1;
-                    e.2 += v.2;
-                }
-                inner += thread_cpu() - c0;
-            });
+            let _ = ryo_python::fixtures::walking::walked(walk, path, &bytes, &[], &mut table, &mut scratch, &mut |mut file| fin.reader_file(file_no, path, &mut file, &bytes, &wanted));
         }
-        file_time += inner;
-        walk_time += thread_cpu() - w0 - inner;
+        walk_time += thread_cpu() - w0 - (fin.time - in_fin);
         // 7: `VEC_RSS_TRACE`: the files after which the process's resident peak rose by 32 MiB or more
         if std::env::var_os("VEC_RSS_TRACE").is_some() {
             let hwm = std::fs::read_to_string("/proc/self/status").ok().and_then(|st| st.lines().find(|l| l.starts_with("VmHWM:")).and_then(|l| l.split_whitespace().nth(1)?.parse::<u64>().ok())).unwrap_or(0);
@@ -1064,52 +1362,12 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
             }
         }
     }
-    let total = thread_cpu() - started;
-    findings.sort();
-    findings.dedup();
-    if let Some(d) = &dump {
-        std::fs::write(d, &dump_text).expect("write dump");
-    }
-    if let Some(out) = flag(args, "--out") {
-        std::fs::write(out, findings.join("\n") + "\n").expect("write findings");
-    }
-    if check {
-        std::fs::write(flag(args, "--check-out").unwrap_or_else(|| "check-bases.tsv".to_owned()), check_lines.join("\n") + "\n").expect("write check");
-    }
-    if let Some(out) = flag(args, "--stats") {
-        let mut lines = vec!["node\top\tcalls\trows\ttouched\tseconds".to_owned()];
-        for (i, pn) in plan.nodes.iter().enumerate() {
-            if exec.stats.calls[i] > 0 || exec.stats.time[i] > 0.0 {
-                lines.push(format!("{i}\t{}\t{}\t{}\t{}\t{:.6}\t{}\t{}\t{}\t{}", pn.op, exec.stats.calls[i], exec.stats.rows[i], exec.stats.touched[i], exec.stats.time[i], exec.stats.empty[i], exec.stats.probes[i], exec.stats.made_by[i] as i64, exec.stats.why[i]));
-            }
-        }
-        for (k, v) in &by_rel {
-            lines.push(format!("fill:{k}\tfill\t{}\t{}\t0\t{:.6}", v.2, v.1, v.0));
-        }
-        std::fs::write(out, lines.join("\n") + "\n").expect("write stats");
-    }
-    let steps: f64 = exec.stats.time.iter().sum();
-    if let Some(out) = flag(args, "--tally") {
-        let mut lines: Vec<String> = exec.tally.ran.iter().map(|(n, c)| format!("{n}\tran\t{c}")).collect();
-        lines.extend(exec.tally.back.iter().map(|((n, why), c)| format!("{n}\tback\t{c}\t{why}")));
-        lines.sort();
-        std::fs::write(out, lines.join("\n") + "\n").expect("write tally");
-    }
-    println!("files run {files_run}; findings {}; rules {} ({} failed)", findings.len(), emits.len(), failed.len());
-    println!("thread CPU-s: total {total:.3}; walk+table {walk_time:.3}; in the visit {file_time:.3}: steps {steps:.3}, provider fills {provider_time:.3} ({provider_rows} rows)");
-    println!("per-key memo: rows in {} rows out {} keys asked {}", exec.stats.memo_in, exec.stats.memo_out, exec.stats.memo_keys);
-    println!("memo key lists answered whole: {} ({} keys)", exec.stats.memo_reused, exec.stats.memo_reused_keys);
-    println!("fact keyed lists: fill rows listed {}", finish::FACT_IX_ROWS.load(std::sync::atomic::Ordering::Relaxed));
-    let mut f: Vec<_> = failed.into_iter().collect();
-    f.sort();
-    for (r, e) in f {
-        println!("FAILED {r}: {e}");
-    }
+    fin.end(walk_time);
 }
 
 /// `vec funnel <way> <files> <anchors> <plans> [--repeat K] [--rules-out F] [--hits-out F]`: ways `cands`, `structure`,
 /// `interp`, `spec`, `knock`.
-fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
+fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&mut finisher::Finisher<'_>>) {
     let way = args[0];
     let list = files(args[1]);
     let rules = load_rules(args[2], vocab);
@@ -1185,46 +1443,41 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     let mut word_pairs: Vec<(u16, u32)> = Vec::new();
     let mut word_offsets: Vec<u32> = Vec::new();
     let mut word_pos: Vec<u32> = Vec::new();
+    // the walk's code of each name token, and the required word of each code met in the file
+    let mut name_codes: Vec<u32> = Vec::new();
+    let mut word_memo: Vec<u32> = Vec::new();
+    let mut fixed_memo: Vec<u32> = Vec::new();
     let (mut missing_in_src, mut extra_in_src, mut present_total, mut distinct_total) = (0u64, 0u64, 0u64, 0u64);
     let (mut alive_kinds, mut alive_both, mut rule_files) = (0u64, 0u64, 0u64);
     let mut word_entry_bound = 0u64;
-    let mut alive_pairs: Vec<(usize, usize)> = Vec::new();
     let repeat: usize = flag(args, "--repeat").map_or(1, |b| b.parse().expect("repeat"));
     let by_name: HashMap<&str, usize> = rules.iter().enumerate().map(|(i, r)| (r.name.as_str(), i)).collect();
     let skip_of: Vec<Option<usize>> = frules.iter().map(|r| by_name.get(r.name.as_str()).copied()).collect();
+    // the kinds-and-fields skip of each plan rule, flat: a clause is its kind words then its field words
+    let mut skip = Skip::new(&rules, &skip_of, &frules, words_of(vocab.kind_names.len()), words_of(vocab.field_names.len()));
+    let mut kinds: Vec<u64> = Vec::new();
     let fields_width = vocab.field_names.len();
-    let set_of = |names: &[&str]| {
-        let mut s = [0u64; 4];
-        for n in names {
-            if let Some(c) = vocab.kinds.get(*n) {
-                s[usize::from(*c) / 64] |= 1 << (c % 64);
-            }
-        }
-        s
-    };
-    let function = set_of(&["function-def", "async-function-def", "lambda"]);
-    let class = set_of(&["class-def"]);
-    let looping = set_of(&["for", "async-for", "while"]);
     let mut units = funnel::units(&frules);
     if args.contains(&"--only-knock-units") {
         units.retain(|u| u.knock);
     }
     let group_list = funnel::groups(&frules, &units);
     let structured = matches!(way, "structure" | "spec" | "knock");
+    // the table writes the structure the checks read (element sets, the plans' enclosing columns) as ids are numbered
+    let enclosing: Vec<ryo::languages::KindSet> = fact_catalog.enc_sets.iter().map(|s| ryo::languages::KindSet(*s)).collect();
+    if structured {
+        cwalk.structured(enclosing.clone());
+    }
     let max_regs = frules.iter().flat_map(|r| r.plans.iter().map(|p| p.regs)).max().unwrap_or(1).max(1);
     let mut cands = vec![0u64; units.len()];
     let mut surv = vec![0u64; units.len()];
     let mut unit_steps = vec![0u64; units.len()];
     let mut knock_steps = 0u64;
-    let mut hits: Vec<(usize, usize)> = Vec::new();
-    let surv_out = flag(args, "--surv-out");
-    let mut surv_lines = String::new();
-    let mut unit_nodes: Vec<u32> = Vec::new();
+    let mut sv = survivors::Survivors::default();
     let mut phases = Phases::default();
     let mut table = NodeTable::default();
     let mut scratch = Default::default();
     let mut cols = Columns::default();
-    let mut st = funnel::Structure::default();
     let mut regs = vec![0u32; max_regs + 1];
     let mut rows = funnel::Rows::default();
     let mut file_mask: Vec<u64> = Vec::new();
@@ -1233,38 +1486,389 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     let mut last = vec![0u32; units.len()];
     let mut buf: Vec<u32> = Vec::new();
     let mut remaining: Vec<u32> = Vec::new();
+    let (mut kinds_alive, mut words_alive, mut alive): (Vec<bool>, Vec<bool>, Vec<bool>) = (Vec::new(), Vec::new(), Vec::new());
+    // one pass: `--dump <file>` writes per file a hash of each part the first half reads (dump.rs)
+    let dump_out = flag(args, "--dump");
+    let mut dumped = String::new();
+    let mut reader_dump = String::new();
     let started = thread_cpu();
+    // the second half inside this walk (`--finish`): each plan emit's rules of this plan set by name (the seed's rule is a
+    // name), and the file's seed as a set over the rules
+    assert!(fin.is_none() || (use_facts && direct), "--finish in the first half's walk needs --facts --direct");
+    let emit_rules: Vec<Vec<usize>> = fin.as_ref().map(|f| f.emit_names().map(|(_, n)| frules.iter().enumerate().filter(|(_, r)| r.name == n).map(|(i, _)| i).collect()).collect()).unwrap_or_default();
+    let mut in_seed = vec![false; frules.len()];
+    let node_class: Vec<bool> = frules.iter().map(|r| r.node).collect();
+    let fin0 = fin.as_ref().map_or(0.0, |f| f.time);
     for (file_no, path) in list.iter().enumerate() {
         let c0 = thread_cpu();
         let bytes = std::fs::read(path).expect("read");
+        let (hits0, alive0) = (sv.hits.len(), sv.alive.len());
         store.reset(slots_n);
+        reader_dump.clear();
         let mut visit_time = 0f64;
+        // the file's skip, made once (inside the walk when the provider's facts are decided there, else after it): the
+        // columns read, the required words present, and which rules can match by kinds and fields and by words
+        let mut prepared = false;
+        let mut codes_taken = false;
+        macro_rules! prepare {
+            ($t:expr) => {{
+                let pt: &NodeTable = $t;
+                let c1 = thread_cpu();
+                fields_present(pt, &mut cols, fields_width.max(1));
+                // the structure (element sets, enclosing columns) is written by the table as ids are numbered (redo-onepass
+                // pass 2), so prefix cycle 3's structure pass here is gone
+                phases.add("field buckets + structure pass", thread_cpu() - c1);
+                if way != "structure" {
+                // the file's required words
+                let cw = thread_cpu();
+                if word_src != "none" {
+                    let is_word = |b: u8| b.is_ascii_alphanumeric() || b == b'_' || b >= 0x80;
+                    let from_table = |present: &mut Vec<u64>, pairs: &mut Vec<(u16, u32)>| {
+                        present.iter_mut().for_each(|w| *w = 0);
+                        pairs.clear();
+                        for p in node_table::ids_of_kind(pt, KindBits(name_token)) {
+                            let i = p.0 as usize;
+                            if let Some(w) = words.ids.get(&bytes[span_bytes(pt, i)]) {
+                                present[usize::from(*w) / 64] |= 1 << (w % 64);
+                                pairs.push((*w, p.0));
+                            }
+                        }
+                    };
+                    match word_src.as_str() {
+                        "table" => {
+                            // redo-onepass pass 2: the walk's name codes when the visit took them, else by bytes
+                            funnel::file_words(pt, &bytes, name_token, if codes_taken { &name_codes } else { &[] }, &words, &mut word_memo, &mut fixed_memo, &mut present, &mut word_pairs);
+                            // the index: name-token positions of each required word
+                            word_offsets.clear();
+                            word_offsets.resize(n_words + 1, 0);
+                            for (w, _) in &word_pairs {
+                                word_offsets[usize::from(*w) + 1] += 1;
+                            }
+                            for i in 0..n_words {
+                                word_offsets[i + 1] += word_offsets[i];
+                            }
+                            word_pos.clear();
+                            word_pos.resize(word_pairs.len(), 0);
+                            let mut fill: Vec<u32> = word_offsets[..n_words].to_vec();
+                            for (w, p) in &word_pairs {
+                                word_pos[fill[usize::from(*w)] as usize] = *p;
+                                fill[usize::from(*w)] += 1;
+                            }
+                        }
+                        "all" => {
+                            let mut set: std::collections::HashSet<&[u8]> = std::collections::HashSet::new();
+                            for p in node_table::ids_of_kind(pt, KindBits(name_token)) {
+                                let i = p.0 as usize;
+                                let _ = set.insert(&bytes[span_bytes(pt, i)]);
+                            }
+                            distinct_total += set.len() as u64;
+                            present.iter_mut().for_each(|w| *w = 0);
+                            for x in &set {
+                                if let Some(w) = words.ids.get(*x) {
+                                    present[usize::from(*w) / 64] |= 1 << (w % 64);
+                                }
+                            }
+                        }
+                        "bytes" => {
+                            present.iter_mut().for_each(|w| *w = 0);
+                            let mut i = 0;
+                            while i < bytes.len() {
+                                if is_word(bytes[i]) {
+                                    let a = i;
+                                    while i < bytes.len() && is_word(bytes[i]) {
+                                        i += 1;
+                                    }
+                                    if let Some(w) = words.ids.get(&bytes[a..i]) {
+                                        present[usize::from(*w) / 64] |= 1 << (w % 64);
+                                    }
+                                } else {
+                                    i += 1;
+                                }
+                            }
+                        }
+                        "ac" => {
+                            present.iter_mut().for_each(|w| *w = 0);
+                            for m in ac.find_iter(&bytes) {
+                                let (a, b) = (m.start(), m.end());
+                                if (a == 0 || !is_word(bytes[a - 1])) && (b == bytes.len() || !is_word(bytes[b])) {
+                                    let w = m.pattern().as_usize();
+                                    present[w / 64] |= 1 << (w % 64);
+                                }
+                            }
+                        }
+                        "bytes6" => {
+                            // the byte patterns the source-matches rules need (PLE2510..2515, W605): one multi-pattern scan
+                            let mut hit = 0u64;
+                            for m in bytes_ac.find_iter(&bytes) {
+                                hit |= 1 << m.pattern().as_usize();
+                            }
+                            present[0] = hit;
+                            byte_files[hit.count_ones() as usize] += 1;
+                            byte_hits |= hit;
+                        }
+                        other => panic!("--words {other}"),
+                    }
+                    phases.add(if word_src == "bytes6" { "byte-pattern pass (aho-corasick, 6 patterns)" } else if word_src == "table" { "word pass (name tokens -> required-word bitset + index)" } else if word_src == "all" { "word pass (distinct word set of all name tokens)" } else if word_src == "bytes" { "word pass (identifier runs of the source bytes)" } else { "word pass (aho-corasick over the source bytes)" }, thread_cpu() - cw);
+                    present_total += present.iter().map(|w| u64::from(w.count_ones())).sum::<u64>();
+                    if compare {
+                        from_table(&mut table_present, &mut word_pairs);
+                        for i in 0..ww {
+                            missing_in_src += u64::from((table_present[i] & !present[i]).count_ones());
+                            extra_in_src += u64::from((present[i] & !table_present[i]).count_ones());
+                        }
+                    }
+                }
+                let c3 = thread_cpu();
+                kinds.clear();
+                kinds.extend(node_table::kinds_present(pt).0.iter().map(|w| w.0));
+                kinds_alive.clear();
+                skip.file(&kinds, &cols.field_present);
+                kinds_alive.extend((0..frules.len()).map(|ri| skip.alive(ri)));
+                // the words only of a rule the kinds and fields keep
+                words_alive.clear();
+                words_alive.extend(kinds_alive.iter().enumerate().map(|(ri, k)| *k && skip.words_alive(ri, &present)));
+                alive.clear();
+                alive.extend(kinds_alive.iter().zip(&words_alive).map(|(k, w)| *k && (!word_skip || *w)));
+                // redo-honest: `VEC_NO_SKIP` keeps every rule alive in every file (a check of the skip: findings must not change)
+                if std::env::var_os("VEC_NO_SKIP").is_some() {
+                    alive.iter_mut().for_each(|a| *a = true);
+                }
+                rule_files += frules.len() as u64;
+                alive_kinds += kinds_alive.iter().filter(|a| **a).count() as u64;
+                alive_both += alive.iter().filter(|a| **a).count() as u64;
+                for (ri, a) in alive.iter().enumerate() {
+                    if *a {
+                        sv.alive.push((ri as u32, file_no as u32));
+                    }
+                }
+                phases.add("skip tests", thread_cpu() - c3);
+                }
+            }};
+        }
+        // the file's prefix: the structure pass, then each live unit's plans over its bucket (inside the fact visit when the
+        // walk lends the file there, so the second half can run on the same parsed file after it)
+        let mut prefixed = false;
+        macro_rules! prefix {
+            ($t:expr) => {{
+                let t: &NodeTable = $t;
+                if dump_out.is_some() {
+                    dump::table(&mut dumped, file_no, t, vocab.kind_names.len());
+                    dump::structure(&mut dumped, file_no, t);
+                    let mut h = dump::Hashed::default();
+                    // the field buckets as the harness's counting sort laid them out: offsets, then the ids, then the present bits
+                    let mut offsets = vec![0u32];
+                    let mut ids: Vec<u32> = Vec::new();
+                    for f in 0..fields_width.max(1) {
+                        ids.extend(node_table::ids_of_field(t, languages::FieldCode(f as u16)).iter().map(|p| p.0));
+                        offsets.push(ids.len() as u32);
+                    }
+                    h.rows(&offsets);
+                    h.rows(&ids);
+                    h.rows(&cols.field_present);
+                    h.line(&mut dumped, file_no, "fields");
+                    let mut h = dump::Hashed::default();
+                    h.rows(&present);
+                    h.rows(&word_pairs);
+                    h.rows(&word_offsets);
+                    h.rows(&word_pos);
+                    h.line(&mut dumped, file_no, "words");
+                    for (i, (slot, kc)) in ask_of.iter().enumerate() {
+                        let mut h = dump::Hashed::default();
+                        h.row(&asks[i]);
+                        h.row(&store.direct.tables[i]);
+                        h.line(&mut dumped, file_no, &format!("fact/{}/{kc}/{}", fact_catalog.names[*slot], asks[i].exists));
+                    }
+                    dumped.push_str(&reader_dump);
+                }
+                if way != "structure" && way != "words" {
+                    let ctx = funnel::Ctx {
+                        table: t,
+                        src: &bytes,
+                        sets: node_table::element_sets(t),
+                        facts: &store,
+                        enc: node_table::enclosing_ids(t),
+                        matches: &interner.matches,
+                    };
+                    let elements = node_table::element_count(t).0 as usize;
+                    if marked.len() < elements {
+                        marked.resize(elements, 0);
+                    }
+                    let fill = |key: &Key, buf: &mut Vec<u32>| {
+                        buf.clear();
+                        match *key {
+                            Key::Word(w) => buf.extend_from_slice(&word_pos[word_offsets[usize::from(w)] as usize..word_offsets[usize::from(w) + 1] as usize]),
+                            Key::Kind(k) => buf.extend(node_table::ids_of_kind(t, KindBits(k)).iter().map(|p| p.0)),
+                            Key::Field(f) => buf.extend(node_table::ids_of_field(t, languages::FieldCode(f)).iter().map(|p| p.0)),
+                        }
+                    };
+                    let c4 = thread_cpu();
+                    for r in 0..repeat {
+                        let first = r == 0;
+                        let mut file_surv = vec![0u64; units.len()];
+                        let k0 = thread_cpu();
+                        if way == "knock" {
+                            for u in &mut last {
+                                *u = 0;
+                            }
+                            for g in &group_list {
+                                file_mask.clear();
+                                file_mask.resize(g.words(), 0);
+                                let mut i = 0;
+                                for (slot, u) in g.slot_unit.iter().enumerate() {
+                                    if alive[units[*u].rule] {
+                                        file_mask[slot / 64] |= 1 << (slot % 64);
+                                    }
+                                    i += 1;
+                                }
+                                let _ = i;
+                                if file_mask.iter().all(|w| *w == 0) {
+                                    continue;
+                                }
+                                fill(&g.key, &mut buf);
+                                let s = funnel::knock(&ctx, g, &buf, &file_mask, &mut file_surv, &mut last);
+                                if first {
+                                    knock_steps += s;
+                                    for u in &g.units {
+                                        if alive[units[*u].rule] {
+                                            cands[*u] += buf.len() as u64;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        if way == "knock" {
+                            phases.add("prefixes: knock-out units", (thread_cpu() - k0) / repeat as f64);
+                        }
+                        for (ui, unit) in units.iter().enumerate() {
+                            if !alive[unit.rule] || (way == "knock" && unit.knock) {
+                                continue;
+                            }
+                            let rule = &frules[unit.rule];
+                            if word_skip && !unit.plans.iter().any(|p| funnel::cnf_holds(&rule.plans[*p].words, &present)) {
+                                continue;
+                            }
+                            fill(&unit.key, &mut buf);
+                            if first && word_src == "table" {
+                                // what entering from the rarest required word would start from: per plan the fewest name tokens of
+                                // a clause's words, never more than the bucket
+                                for p in &unit.plans {
+                                    let plan = &rule.plans[*p];
+                                    if word_skip && !funnel::cnf_holds(&plan.words, &present) {
+                                        continue;
+                                    }
+                                    let fewest = plan
+                                        .words
+                                        .iter()
+                                        .map(|cl| cl.iter().map(|w| u64::from(word_offsets[usize::from(*w) + 1] - word_offsets[usize::from(*w)])).sum::<u64>())
+                                        .min()
+                                        .unwrap_or(u64::MAX);
+                                    word_entry_bound += fewest.min(buf.len() as u64);
+                                }
+                            }
+                            let mut n_s = 0u64;
+                            let mut s = 0u64;
+                            match way {
+                                "cands" => {}
+                                "interp" => {
+                                    for &n in &buf {
+                                        for p in &unit.plans {
+                                            regs[0] = n;
+                                            if funnel::exec(&ctx, &rule.plans[*p].ops, 0, &mut regs, &mut s) {
+                                                n_s += 1;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                                _ => {
+                                    // each plan runs over the candidates no earlier plan of the unit kept: the first from the
+                                    // bucket itself, the next ones from what is left (made only when a later plan reads it)
+                                    stamp = stamp.wrapping_add(1);
+                                    let mut left = false;
+                                    for (pi, p) in unit.plans.iter().enumerate() {
+                                        let from: &[u32] = if left { &remaining } else { &buf };
+                                        if from.is_empty() {
+                                            break;
+                                        }
+                                        let plan = &rule.plans[*p];
+                                        if word_skip && !funnel::cnf_holds(&plan.words, &present) {
+                                            continue;
+                                        }
+                                        rows.enter(plan.regs.max(1), from);
+                                        for stage in &plan.stages {
+                                            if rows.len() == 0 {
+                                                break;
+                                            }
+                                            stage(&ctx, &mut rows, &mut s);
+                                        }
+                                        let mut kept = 0;
+                                        for j in 0..rows.len() {
+                                            let n = rows.d[j * rows.r] as usize;
+                                            if marked[n] != stamp {
+                                                marked[n] = stamp;
+                                                kept += 1;
+                                                if first {
+                                                    sv.nodes.push(n as u32);
+                                                }
+                                            }
+                                        }
+                                        n_s += kept;
+                                        if pi + 1 < unit.plans.len() && kept > 0 {
+                                            if left {
+                                                remaining.retain(|n| marked[*n as usize] != stamp);
+                                            } else {
+                                                remaining.clear();
+                                                remaining.extend(buf.iter().filter(|n| marked[**n as usize] != stamp));
+                                                left = true;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            if first {
+                                sv.close(unit.rule, file_no);
+                            }
+                            if first {
+                                cands[ui] += buf.len() as u64;
+                                file_surv[ui] += n_s;
+                                unit_steps[ui] += s;
+                            }
+                        }
+                        if first {
+                            let mut any = vec![false; frules.len()];
+                            for (ui, unit) in units.iter().enumerate() {
+                                surv[ui] += file_surv[ui];
+                                if file_surv[ui] > 0 {
+                                    any[unit.rule] = true;
+                                }
+                            }
+                            for (ri, a) in any.iter().enumerate() {
+                                if *a {
+                                    sv.hits.push((ri as u32, file_no as u32));
+                                }
+                            }
+                        }
+                    }
+                    phases.add("prefixes", (thread_cpu() - c4) / repeat as f64);
+                }
+            }};
+        }
         let ok = if use_facts && direct {
             cwalk
                 .walked(path, &bytes, &mut table, &mut |file| {
-                    let v0 = thread_cpu();
+                    let p0 = thread_cpu();
                     let ft = file.table;
                     let n = node_table::element_count(ft).0;
-                    let kinds: Vec<u64> = node_table::kinds_present(ft).0.iter().map(|w| w.0).collect();
-                    let mut fp = vec![0u64; words_of(fields_width)];
-                    for i in 0..n as u32 {
-                        let f = node_table::field_of(ft, Position(i)).0;
-                        if usize::from(f) < fields_width {
-                            fp[usize::from(f) / 64] |= 1 << (f % 64);
-                        }
-                    }
-                    let mut wp = vec![0u64; ww];
-                    for p in node_table::ids_of_kind(ft, KindBits(name_token)) {
-                        let sp = node_table::span_of(ft, *p);
-                        if let Some(w) = words.ids.get(&bytes[sp.start.0 as usize..sp.end.0 as usize]) {
-                            wp[usize::from(*w) / 64] |= 1 << (w % 64);
-                        }
-                    }
+                    file.name_token_codes(&mut name_codes);
+                    codes_taken = true;
+                    prepare!(ft);
+                    prepared = true;
+                    let v0 = thread_cpu();
                     let mut needed = vec![ask_all; slots_n];
                     let mut valued = vec![ask_all; slots_n];
                     let mut key_needed: Vec<(usize, usize)> = Vec::new();
                     for (ri, r) in frules.iter().enumerate() {
-                        if r.slots.is_empty() || !skip_of[ri].is_none_or(|i| survives(&rules[i], &kinds, &fp)) || !r.words_alive(&wp) {
+                        if r.slots.is_empty() || !kinds_alive[ri] || !words_alive[ri] {
                             continue;
                         }
                         for s in &r.slots {
@@ -1542,34 +2146,51 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                             chk_diff[t] += u64::from(mine != theirs) * (mine.len().abs_diff(theirs.len()).max(1) as u64) + u64::from(back != theirs);
                         }
                     }
-                    visit_time += thread_cpu() - v0;
+                    if dump_out.is_some() {
+                        // the reader's rows of every relation the plans ask, whole
+                        for slot in 0..slots_n {
+                            languages::facts::clear_words(&mut fwords);
+                            filled.0.clear();
+                            let answer = file.fill(fact_catalog.relations[slot], languages::Wanted::Whole, &mut fwords, &mut filled);
+                            let mut h = dump::Hashed::default();
+                            h.row(&answer);
+                            h.rows(&filled.0);
+                            h.line(&mut reader_dump, file_no, &format!("reader/{}", fact_catalog.names[slot]));
+                        }
+                    }
+                    // one parse a file: the prefix and then the second half on this walked file, before the walk drops it
+                    prefix!(ft);
+                    prefixed = true;
+                    if let Some(fin) = fin.as_deref_mut() {
+                        sv.seed_of_file(hits0, alive0, &node_class, &mut in_seed);
+                        // redo-honest: `VEC_NO_PREFIX` seeds every rule the skip kept, survivors or not (a check of the
+                        // prefix: a node-class rule's findings must not depend on its prefix plans finding survivors)
+                        if std::env::var_os("VEC_NO_PREFIX").is_some() {
+                            for (r, _) in &sv.alive[alive0..] {
+                                in_seed[*r as usize] = true;
+                            }
+                        }
+                        let wanted = fin.wanted(path, &|e| emit_rules[e].iter().any(|r| in_seed[*r]));
+                        if fin.visits(&wanted) {
+                            fin.column_file(file_no, path, file, &bytes, &wanted);
+                        }
+                    }
+                    visit_time += thread_cpu() - p0;
                 })
                 .is_ok()
         } else if use_facts {
             // the provider's facts are lent only while the walk runs: decide here which files need them (some rule that
             // tests a fact survived the kinds-and-words skip), then fill those relations and write their columns
-            ryo_python::fixtures::walking::walked(walk, path, &bytes, &[], &mut table, &mut scratch, &mut |file| {
-                let v0 = thread_cpu();
+            ryo_python::fixtures::walking::walked_structured(walk, path, &bytes, &[], &mut table, &mut scratch, structured.then_some(enclosing.as_slice()), &mut |file| {
+                let p0 = thread_cpu();
                 let ft = file.table;
                 let n = node_table::element_count(ft).0;
-                let kinds: Vec<u64> = node_table::kinds_present(ft).0.iter().map(|w| w.0).collect();
-                let mut fp = vec![0u64; words_of(fields_width)];
-                for i in 0..n as u32 {
-                    let f = node_table::field_of(ft, Position(i)).0;
-                    if usize::from(f) < fields_width {
-                        fp[usize::from(f) / 64] |= 1 << (f % 64);
-                    }
-                }
-                let mut wp = vec![0u64; ww];
-                for p in node_table::ids_of_kind(ft, KindBits(name_token)) {
-                    let sp = node_table::span_of(ft, *p);
-                    if let Some(w) = words.ids.get(&bytes[sp.start.0 as usize..sp.end.0 as usize]) {
-                        wp[usize::from(*w) / 64] |= 1 << (w % 64);
-                    }
-                }
+                prepare!(ft);
+                prepared = true;
+                let v0 = thread_cpu();
                 let mut needed = vec![false; slots_n];
                 for (ri, r) in frules.iter().enumerate() {
-                    if r.slots.is_empty() || !skip_of[ri].is_none_or(|i| survives(&rules[i], &kinds, &fp)) || !r.words_alive(&wp) {
+                    if r.slots.is_empty() || !kinds_alive[ri] || !words_alive[ri] {
                         continue;
                     }
                     for s in &r.slots {
@@ -1629,11 +2250,11 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
                     }
                     write_time[slot] += thread_cpu() - b;
                 }
-                visit_time += thread_cpu() - v0;
+                visit_time += thread_cpu() - p0;
             })
             .is_ok()
         } else {
-            let mut builder = node_table::builder(&mut table, walk_kinds(walk));
+            let mut builder = if structured { node_table::structured(&mut table, walk_kinds(walk), &enclosing) } else { node_table::builder(&mut table, walk_kinds(walk)) };
             let ok = walk
                 .walk(
                     WalkRequest { path: languages::SourcePath(path), file: FileId(0), source: ByteSlice(&bytes) },
@@ -1652,324 +2273,22 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
         if !ok {
             continue;
         }
-        extract(t, &mut cols, true, true);
-        funnel::parents(t, &cols, &mut st);
-        field_index(&mut cols, fields_width.max(1));
-        let c2 = thread_cpu();
-        phases.add("extract columns + parents + field buckets", c2 - c1);
-        if structured {
-            for _ in 0..repeat {
-                funnel::structure(t, &cols, &mut st, &function, &class, &looping);
-            }
-            phases.add("structure pass", (thread_cpu() - c2) / repeat as f64);
-            if !fact_catalog.enc_sets.is_empty() {
-                let e0 = thread_cpu();
-                funnel::enclosing(&cols, &mut st, &fact_catalog.enc_sets);
-                phases.add("enclosing columns (one per kind set)", thread_cpu() - e0);
-            }
+        if !prepared {
+            prepare!(t);
         }
-        if way == "structure" {
-            continue;
+        if !prefixed {
+            prefix!(t);
         }
-        // the file's required words
-        let cw = thread_cpu();
-        if word_src != "none" {
-            let is_word = |b: u8| b.is_ascii_alphanumeric() || b == b'_' || b >= 0x80;
-            let from_table = |present: &mut Vec<u64>, pairs: &mut Vec<(u16, u32)>| {
-                present.iter_mut().for_each(|w| *w = 0);
-                pairs.clear();
-                for p in node_table::ids_of_kind(t, KindBits(name_token)) {
-                    let i = p.0 as usize;
-                    if let Some(w) = words.ids.get(&bytes[cols.start[i] as usize..cols.end[i] as usize]) {
-                        present[usize::from(*w) / 64] |= 1 << (w % 64);
-                        pairs.push((*w, p.0));
-                    }
-                }
-            };
-            match word_src.as_str() {
-                "table" => {
-                    from_table(&mut present, &mut word_pairs);
-                    // the index: name-token positions of each required word
-                    word_offsets.clear();
-                    word_offsets.resize(n_words + 1, 0);
-                    for (w, _) in &word_pairs {
-                        word_offsets[usize::from(*w) + 1] += 1;
-                    }
-                    for i in 0..n_words {
-                        word_offsets[i + 1] += word_offsets[i];
-                    }
-                    word_pos.clear();
-                    word_pos.resize(word_pairs.len(), 0);
-                    let mut fill: Vec<u32> = word_offsets[..n_words].to_vec();
-                    for (w, p) in &word_pairs {
-                        word_pos[fill[usize::from(*w)] as usize] = *p;
-                        fill[usize::from(*w)] += 1;
-                    }
-                }
-                "all" => {
-                    let mut set: std::collections::HashSet<&[u8]> = std::collections::HashSet::new();
-                    for p in node_table::ids_of_kind(t, KindBits(name_token)) {
-                        let i = p.0 as usize;
-                        let _ = set.insert(&bytes[cols.start[i] as usize..cols.end[i] as usize]);
-                    }
-                    distinct_total += set.len() as u64;
-                    present.iter_mut().for_each(|w| *w = 0);
-                    for x in &set {
-                        if let Some(w) = words.ids.get(*x) {
-                            present[usize::from(*w) / 64] |= 1 << (w % 64);
-                        }
-                    }
-                }
-                "bytes" => {
-                    present.iter_mut().for_each(|w| *w = 0);
-                    let mut i = 0;
-                    while i < bytes.len() {
-                        if is_word(bytes[i]) {
-                            let a = i;
-                            while i < bytes.len() && is_word(bytes[i]) {
-                                i += 1;
-                            }
-                            if let Some(w) = words.ids.get(&bytes[a..i]) {
-                                present[usize::from(*w) / 64] |= 1 << (w % 64);
-                            }
-                        } else {
-                            i += 1;
-                        }
-                    }
-                }
-                "ac" => {
-                    present.iter_mut().for_each(|w| *w = 0);
-                    for m in ac.find_iter(&bytes) {
-                        let (a, b) = (m.start(), m.end());
-                        if (a == 0 || !is_word(bytes[a - 1])) && (b == bytes.len() || !is_word(bytes[b])) {
-                            let w = m.pattern().as_usize();
-                            present[w / 64] |= 1 << (w % 64);
-                        }
-                    }
-                }
-                "bytes6" => {
-                    // the byte patterns the source-matches rules need (PLE2510..2515, W605): one multi-pattern scan
-                    let mut hit = 0u64;
-                    for m in bytes_ac.find_iter(&bytes) {
-                        hit |= 1 << m.pattern().as_usize();
-                    }
-                    present[0] = hit;
-                    byte_files[hit.count_ones() as usize] += 1;
-                    byte_hits |= hit;
-                }
-                other => panic!("--words {other}"),
-            }
-            phases.add(if word_src == "bytes6" { "byte-pattern pass (aho-corasick, 6 patterns)" } else if word_src == "table" { "word pass (name tokens -> required-word bitset + index)" } else if word_src == "all" { "word pass (distinct word set of all name tokens)" } else if word_src == "bytes" { "word pass (identifier runs of the source bytes)" } else { "word pass (aho-corasick over the source bytes)" }, thread_cpu() - cw);
-            present_total += present.iter().map(|w| u64::from(w.count_ones())).sum::<u64>();
-            if compare {
-                from_table(&mut table_present, &mut word_pairs);
-                for i in 0..ww {
-                    missing_in_src += u64::from((table_present[i] & !present[i]).count_ones());
-                    extra_in_src += u64::from((present[i] & !table_present[i]).count_ones());
-                }
-            }
-        }
-        if way == "words" {
-            continue;
-        }
-        let c3 = thread_cpu();
-        let kinds: Vec<u64> = node_table::kinds_present(t).0.iter().map(|w| w.0).collect();
-        let kinds_alive: Vec<bool> = skip_of.iter().map(|i| i.is_none_or(|i| survives(&rules[i], &kinds, &cols.field_present))).collect();
-        let alive: Vec<bool> = if word_skip {
-            kinds_alive.iter().zip(&frules).map(|(a, r)| *a && r.words_alive(&present)).collect()
-        } else {
-            kinds_alive.clone()
-        };
-        rule_files += frules.len() as u64;
-        alive_kinds += kinds_alive.iter().filter(|a| **a).count() as u64;
-        alive_both += alive.iter().filter(|a| **a).count() as u64;
-        for (ri, a) in alive.iter().enumerate() {
-            if *a {
-                alive_pairs.push((ri, file_no));
-            }
-        }
-        phases.add("skip tests", thread_cpu() - c3);
-        let ctx = funnel::Ctx {
-            table: t,
-            src: &bytes,
-            kind: &cols.kind,
-            field: &cols.field,
-            start: &cols.start,
-            end: &cols.end,
-            parent: &st.parent,
-            pkind: if structured { &st.pkind } else { &[] },
-            cmask: if structured { &st.cmask } else { &[] },
-            facts: &store,
-            enc: &st.enc,
-            matches: &interner.matches,
-        };
-        if marked.len() < cols.kind.len() {
-            marked.resize(cols.kind.len(), 0);
-        }
-        let fill = |key: &Key, buf: &mut Vec<u32>| {
-            buf.clear();
-            match *key {
-                Key::Word(w) => buf.extend_from_slice(&word_pos[word_offsets[usize::from(w)] as usize..word_offsets[usize::from(w) + 1] as usize]),
-                Key::Kind(k) => buf.extend(node_table::ids_of_kind(t, KindBits(k)).iter().map(|p| p.0)),
-                Key::Field(f) => {
-                    let (a, b) = (cols.field_offsets[usize::from(f)] as usize, cols.field_offsets[usize::from(f) + 1] as usize);
-                    buf.extend_from_slice(&cols.by_field[a..b]);
-                }
-            }
-        };
-        let c4 = thread_cpu();
-        for r in 0..repeat {
-            let first = r == 0;
-            let mut file_surv = vec![0u64; units.len()];
-            let k0 = thread_cpu();
-            if way == "knock" {
-                for u in &mut last {
-                    *u = 0;
-                }
-                for g in &group_list {
-                    file_mask.clear();
-                    file_mask.resize(g.words(), 0);
-                    let mut i = 0;
-                    for (slot, u) in g.slot_unit.iter().enumerate() {
-                        if alive[units[*u].rule] {
-                            file_mask[slot / 64] |= 1 << (slot % 64);
-                        }
-                        i += 1;
-                    }
-                    let _ = i;
-                    if file_mask.iter().all(|w| *w == 0) {
-                        continue;
-                    }
-                    fill(&g.key, &mut buf);
-                    let s = funnel::knock(&ctx, g, &buf, &file_mask, &mut file_surv, &mut last);
-                    if first {
-                        knock_steps += s;
-                        for u in &g.units {
-                            if alive[units[*u].rule] {
-                                cands[*u] += buf.len() as u64;
-                            }
-                        }
-                    }
-                }
-            }
-            if way == "knock" {
-                phases.add("prefixes: knock-out units", (thread_cpu() - k0) / repeat as f64);
-            }
-            for (ui, unit) in units.iter().enumerate() {
-                if !alive[unit.rule] || (way == "knock" && unit.knock) {
-                    continue;
-                }
-                let rule = &frules[unit.rule];
-                if word_skip && !unit.plans.iter().any(|p| funnel::cnf_holds(&rule.plans[*p].words, &present)) {
-                    continue;
-                }
-                fill(&unit.key, &mut buf);
-                if first && word_src == "table" {
-                    // what entering from the rarest required word would start from: per plan the fewest name tokens of
-                    // a clause's words, never more than the bucket
-                    for p in &unit.plans {
-                        let plan = &rule.plans[*p];
-                        if word_skip && !funnel::cnf_holds(&plan.words, &present) {
-                            continue;
-                        }
-                        let fewest = plan
-                            .words
-                            .iter()
-                            .map(|cl| cl.iter().map(|w| u64::from(word_offsets[usize::from(*w) + 1] - word_offsets[usize::from(*w)])).sum::<u64>())
-                            .min()
-                            .unwrap_or(u64::MAX);
-                        word_entry_bound += fewest.min(buf.len() as u64);
-                    }
-                }
-                let mut n_s = 0u64;
-                let mut s = 0u64;
-                match way {
-                    "cands" => {}
-                    "interp" => {
-                        for &n in &buf {
-                            for p in &unit.plans {
-                                regs[0] = n;
-                                if funnel::exec(&ctx, &rule.plans[*p].ops, 0, &mut regs, &mut s) {
-                                    n_s += 1;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    _ => {
-                        // each plan runs over the candidates no earlier plan of the unit kept
-                        stamp = stamp.wrapping_add(1);
-                        remaining.clear();
-                        remaining.extend_from_slice(&buf);
-                        for p in &unit.plans {
-                            if remaining.is_empty() {
-                                break;
-                            }
-                            let plan = &rule.plans[*p];
-                            if word_skip && !funnel::cnf_holds(&plan.words, &present) {
-                                continue;
-                            }
-                            rows.r = plan.regs.max(1);
-                            rows.d.clear();
-                            rows.d.resize(remaining.len() * rows.r, 0);
-                            rows.tag.clear();
-                            for (j, n) in remaining.iter().enumerate() {
-                                rows.d[j * rows.r] = *n;
-                                rows.tag.push(j as u32);
-                            }
-                            for stage in &plan.stages {
-                                if rows.len() == 0 {
-                                    break;
-                                }
-                                stage(&ctx, &mut rows, &mut s);
-                            }
-                            for j in 0..rows.len() {
-                                let n = rows.d[j * rows.r] as usize;
-                                if marked[n] != stamp {
-                                    marked[n] = stamp;
-                                    n_s += 1;
-                                    if surv_out.is_some() && first {
-                                        unit_nodes.push(n as u32);
-                                    }
-                                }
-                            }
-                            remaining.retain(|n| marked[*n as usize] != stamp);
-                        }
-                    }
-                }
-                if surv_out.is_some() && first && !unit_nodes.is_empty() {
-                    use std::fmt::Write as _;
-                    let _ = write!(surv_lines, "{}\t{}\t", rule.name, list[file_no]);
-                    for (i, x) in unit_nodes.iter().enumerate() {
-                        let _ = write!(surv_lines, "{}{x}", if i == 0 { "" } else { " " });
-                    }
-                    surv_lines.push('\n');
-                    unit_nodes.clear();
-                }
-                if first {
-                    cands[ui] += buf.len() as u64;
-                    file_surv[ui] += n_s;
-                    unit_steps[ui] += s;
-                }
-            }
-            if first {
-                let mut any = vec![false; frules.len()];
-                for (ui, unit) in units.iter().enumerate() {
-                    surv[ui] += file_surv[ui];
-                    if file_surv[ui] > 0 {
-                        any[unit.rule] = true;
-                    }
-                }
-                for (ri, a) in any.iter().enumerate() {
-                    if *a {
-                        hits.push((ri, file_no));
-                    }
-                }
-            }
-        }
-        phases.add("prefixes", (thread_cpu() - c4) / repeat as f64);
     }
-    let total = thread_cpu() - started;
+    // the second half's time inside this walk is not the first half's
+    let fin_spent = fin.as_ref().map_or(0.0, |f| f.time) - fin0;
+    let total = thread_cpu() - started - fin_spent;
+    if let Some(path) = &dump_out {
+        std::fs::write(path, &dumped).expect("dump out");
+    }
+    if fin.is_some() {
+        println!("one walk: the second half inside the first half's visit {fin_spent:.4} s");
+    }
     println!(
         "words: {n_words} required words; word src {word_src}; present (file, word) {present_total}; distinct name-token words summed over files {distinct_total}; compare: in the table but not the source scan {missing_in_src}, in the source scan only {extra_in_src}"
     );
@@ -2026,7 +2345,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
         "candidates {} survivors {} steps {steps} knock-steps {knock_steps} (knock-out units: candidates {knock_c} survivors {knock_s}) rule-files-with-survivors {}",
         cands.iter().sum::<u64>(),
         surv.iter().sum::<u64>(),
-        hits.len()
+        sv.hits.len()
     );
     if let Some(path) = flag(args, "--rules-out") {
         let mut w = String::from("rule\tunits\tcandidates\tsurvivors\tsteps\n");
@@ -2039,22 +2358,17 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
         }
         std::fs::write(path, w).expect("rules out");
     }
+    // the dumps for comparing, after the timed part
+    let names: Vec<String> = frules.iter().map(|r| r.name.clone()).collect();
+    let name_refs: Vec<&str> = names.iter().map(String::as_str).collect();
     if let Some(path) = flag(args, "--alive-out") {
-        let mut w = String::new();
-        for (ri, f) in &alive_pairs {
-            w.push_str(&format!("{}\t{}\n", frules[*ri].name, list[*f]));
-        }
-        std::fs::write(path, w).expect("alive out");
+        std::fs::write(path, survivors::Survivors::pairs_text(&sv.alive, &name_refs, &list)).expect("alive out");
     }
-    if let Some(path) = &surv_out {
-        std::fs::write(path, &surv_lines).expect("survivors out");
+    if let Some(path) = flag(args, "--surv-out") {
+        std::fs::write(path, sv.surv_text(&name_refs, &list)).expect("survivors out");
     }
     if let Some(path) = flag(args, "--hits-out") {
-        let mut w = String::new();
-        for (ri, f) in &hits {
-            w.push_str(&format!("{}\t{}\n", frules[*ri].name, list[*f]));
-        }
-        std::fs::write(path, w).expect("hits out");
+        std::fs::write(path, survivors::Survivors::pairs_text(&sv.hits, &name_refs, &list)).expect("hits out");
     }
 }
 

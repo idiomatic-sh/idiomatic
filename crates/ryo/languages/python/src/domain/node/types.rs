@@ -38,6 +38,8 @@ pub(crate) struct WalkedTree<'t> {
     pub(crate) text: NameText<'t>,
     /// Whether the file was read whole.
     pub(crate) completeness: Wholeness,
+    /// The names the walk interned: of each node, and of each name token of the file's own tree.
+    pub(crate) names: crate::domain::model::names::types::WalkNames,
 }
 
 /// One walked file as a filler reads it: the engine's node table, the typed node of each syntax node and the text.
