@@ -16,7 +16,7 @@ use crate::domain::lowering::flattening::types::{
 };
 use crate::domain::lowering::nodes::types::StepShape;
 use crate::domain::lowering::placement::patterns::service::definition_table;
-use crate::domain::lowering::placement::types::LoadSample;
+use crate::domain::lowering::placement::types::{LoadSample, RefusedPlace};
 use crate::domain::lowering::planning::service::planned;
 use crate::domain::lowering::planning::types::UnitRole;
 use crate::domain::lowering::planning::writing::service::pipeline;
@@ -256,6 +256,7 @@ pub(crate) fn restricted(
     drafts: &mut Drafts,
     sample: LoadSample<'_>,
     margin: u64,
+    place_asked: &mut dyn FnMut(&mut Drafts) -> Result<(), RefusedPlace>,
 ) -> Vec<Restricted> {
     let mut done = Vec::new();
     let count = drafts.definitions.len();
@@ -362,6 +363,7 @@ pub(crate) fn restricted(
         {
             let _set = draft.rows.set(RowEstimate(asked.0.div_ceil(ONE.0).max(1)));
         }
+        let waiting = drafts.waiting.len();
         let _new = drafts.keys.insert(keyed);
         // The keys' table is made here: a prefix that only a program can run has no pipeline, and the table is not
         // restricted (made later, its failure would refuse the reader's rule).
@@ -399,7 +401,6 @@ pub(crate) fn restricted(
             skipped(definition, "a branch joined with its keys has no pipeline");
             continue;
         }
-        purged(drafts, definition, first_new);
         let Some(made) = drafts
             .tables
             .get_mut(usize::try_from(table.0).unwrap_or(usize::MAX))
@@ -410,6 +411,20 @@ pub(crate) fn restricted(
             &mut made.fill,
             MadeFill::Rows(pipelines.into(), RepeatedRows::Dropped),
         );
+        // What the new pipelines asked is placed now: a pattern that cannot be refuses no rule, the table gets its
+        // fill back.
+        if place_asked(drafts).is_err() {
+            drafts.waiting.truncate(waiting);
+            if let Some(made) = drafts
+                .tables
+                .get_mut(usize::try_from(table.0).unwrap_or(usize::MAX))
+            {
+                made.fill = original;
+            }
+            skipped(definition, "a pattern its pipelines ask cannot be placed");
+            continue;
+        }
+        purged(drafts, definition, first_new);
         if std::env::var_os("RYO_L1B_RESTRICT_TRACE").is_some() {
             eprintln!(
                 "ryo l1b: restricted definition={} table={} sites={} asked={} whole={} keys=definition {}",

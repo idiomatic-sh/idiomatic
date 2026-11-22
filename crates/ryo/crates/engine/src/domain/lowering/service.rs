@@ -272,8 +272,9 @@ fn built(
     // SPIKE (restricted tables): a table its readers reach by key from keys they hold before it is made for those keys.
     let margin = restrict_margin();
     if margin > 0 {
-        let done = restricted(&mut drafts, sample, margin);
-        patterns_placed(&mut drafts, sample)?;
+        let done = restricted(&mut drafts, sample, margin, &mut |drafts| {
+            patterns_placed(drafts, sample)
+        });
         let _kept = checked(&mut drafts, done);
     }
     let stated = |definition: &DefinitionDraft| {
