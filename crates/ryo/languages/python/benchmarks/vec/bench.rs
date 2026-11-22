@@ -567,7 +567,17 @@ fn main() {
                 if let Some(at) = args.iter().position(|a| *a == "--applicability") {
                     finish_args.extend(["--applicability", args[at + 1]]);
                 }
-                let plan = finish::load(finish_args[0]);
+                // redo-lowering: `--finish <pack dir>` prepares the plan in this process from the rule text (the one parser,
+                // the engine's lowering); `--finish <plan file>` reads a plan prepared beforehand (the oracle).
+                let t0 = thread_cpu();
+                let plan = if std::path::Path::new(finish_args[0]).is_dir() {
+                    let pack = lower::read_pack(std::path::Path::new(finish_args[0]));
+                    println!("start-up pack: read {:.4} parse {:.4} s", pack.read, pack.parse);
+                    lower::second_half_plan(&pack)
+                } else {
+                    finish::load(finish_args[0])
+                };
+                println!("start-up total {:.4} s", thread_cpu() - t0);
                 let mut fin = finisher::Finisher::new(&plan, &walk, &vocab, &finish_args);
                 run_funnel(&walk, &vocab, &args[2..], Some(&mut fin));
                 fin.end(0.0);

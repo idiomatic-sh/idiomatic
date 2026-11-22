@@ -401,6 +401,11 @@ fn inputs_of(j: &J, out: &mut Vec<usize>) {
 
 pub(super) fn load(path: &str) -> Plan {
     let j: J = serde_json::from_str(&std::fs::read_to_string(path).expect("plan")).expect("plan json");
+    from_value(&j)
+}
+
+/// redo-lowering: the plan from its JSON value (a plan file's, or the one prepared in this process from the pack).
+pub(super) fn from_value(j: &J) -> Plan {
     let nodes = j["nodes"]
         .as_array()
         .expect("nodes")

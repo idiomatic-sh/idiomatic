@@ -183,3 +183,53 @@ pub(crate) fn run_stage(args: &[&str]) {
     println!("marked {marked}");
     std::fs::write(args[2], codec.encoded(&plan)).expect("write");
 }
+
+/// The pack's rules and fragments read and parsed once at start, for both halves' plans (`vec funnel ... --finish <pack dir>`).
+pub(crate) struct ReadPack {
+    pub(crate) programs: PackPrograms,
+    /// Thread CPU of reading the texts and of parsing them.
+    pub(crate) read: f64,
+    pub(crate) parse: f64,
+}
+
+pub(crate) fn read_pack(pack: &Path) -> ReadPack {
+    let t0 = super::thread_cpu();
+    let texts = read_texts(pack);
+    let t1 = super::thread_cpu();
+    let programs = parsed(&texts);
+    let t2 = super::thread_cpu();
+    drop(texts);
+    ReadPack { programs, read: t1 - t0, parse: t2 - t1 }
+}
+
+/// The second half's plan, lowered in this process from the parsed pack: expansion, the three passes, then the typed plan
+/// handed to the executor as the JSON value it reads (the codec's bytes decoded in memory; no file). Prints its phases.
+pub(crate) fn second_half_plan(pack: &ReadPack) -> super::finish::Plan {
+    let t0 = super::thread_cpu();
+    let mut plan = lowered(&pack.programs, PlanningStage::Expanded);
+    let t1 = super::thread_cpu();
+    for stage in [PlanningStage::Semijoins, PlanningStage::Counts, PlanningStage::Axes] {
+        let _marked = passed(&mut plan, stage);
+    }
+    let t2 = super::thread_cpu();
+    let bytes = json().encoded(&plan);
+    let steps = plan.steps.len();
+    drop(plan);
+    let t3 = super::thread_cpu();
+    let value: serde_json::Value = serde_json::from_slice(&bytes).expect("the codec's own plan");
+    drop(bytes);
+    let t4 = super::thread_cpu();
+    let executor_plan = super::finish::from_value(&value);
+    drop(value);
+    let t5 = super::thread_cpu();
+    println!(
+        "start-up second half: steps {steps} expand {:.4} passes {:.4} encode {:.4} decode {:.4} executor-plan {:.4} total {:.4} s",
+        t1 - t0,
+        t2 - t1,
+        t3 - t2,
+        t4 - t3,
+        t5 - t4,
+        t5 - t0
+    );
+    executor_plan
+}
