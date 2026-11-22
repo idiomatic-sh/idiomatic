@@ -8,6 +8,7 @@ pub mod executing;
 pub mod filled;
 pub mod findings;
 pub mod indexes;
+pub mod keyed_ranges;
 pub mod lowered;
 pub mod lowering;
 pub mod memos;

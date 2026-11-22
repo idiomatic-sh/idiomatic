@@ -4,7 +4,7 @@
 //! finds its key's run by hash and the rows inside its band by binary search, and stops at the first that passes every
 //! other test. The pairs are never made. No rule id: the shape is read from the select's own tests.
 
-use super::{E, Exec, bucket_len, File, NULL, Provider, R, Run, Src, Table, Ty, V, bucket, eval, kind_set, key_of, refs_of, truthy, view_rows, view_holds};
+use super::{E, Exec, Op, bucket_len, File, NULL, Provider, R, Run, Src, Table, Ty, V, bucket, eval, kind_set, key_of, refs_of, truthy, view_rows, view_holds};
 use rustc_hash::FxHashMap;
 
 /// A select's tests, split for the semijoin.
@@ -46,14 +46,14 @@ pub(super) fn shape(conj: &[E], pb: usize, ty: &[Ty]) -> Shape {
             continue;
         }
         if let E::Cmp(o, x, y) = c {
-            let sides = [(&**x, &**y, o.as_str()), (&**y, &**x, flip(o))];
+            let sides = [(&**x, &**y, o.as_str()), (&**y, &**x, flip(o.as_str()))];
             let mut placed = false;
             for (a, b, op) in sides {
                 let E::Col(si, col, _) = *a else { continue };
                 if si != pb || refs_of(b) != kb {
                     continue;
                 }
-                if op == "=" && o == "=" {
+                if op == "=" && *o == Op::Eq {
                     s.eqs.push((col, b.clone()));
                     placed = true;
                     break;
@@ -219,7 +219,7 @@ impl Exec<'_> {
         }
         // multi-column keys are hashed: their equalities are tested again on each candidate
         let recheck: Vec<E> = if sh.eqs.len() > 1 {
-            sh.eqs.iter().map(|(c, e)| E::Cmp("=".to_owned(), Box::new(E::Col(pb, *c, bty[*c])), Box::new(e.clone()))).collect()
+            sh.eqs.iter().map(|(c, e)| E::Cmp(Op::Eq, Box::new(E::Col(pb, *c, bty[*c])), Box::new(e.clone()))).collect()
         } else {
             Vec::new()
         };
@@ -263,7 +263,7 @@ impl Exec<'_> {
             let band_terms: Vec<E> = if later.is_empty() {
                 Vec::new()
             } else {
-                sh.band.as_ref().map(|(c, bs)| bs.iter().map(|(op, e)| E::Cmp(op.clone(), Box::new(E::Col(pb, *c, Ty::Num)), Box::new(e.clone()))).collect()).unwrap_or_default()
+                sh.band.as_ref().map(|(c, bs)| bs.iter().map(|(op, e)| E::Cmp(Op::of(op), Box::new(E::Col(pb, *c, Ty::Num)), Box::new(e.clone()))).collect()).unwrap_or_default()
             };
             if count && recheck.is_empty() && band_terms.is_empty() && sh.rest.is_empty() {
                 if !run_rows.is_empty() {

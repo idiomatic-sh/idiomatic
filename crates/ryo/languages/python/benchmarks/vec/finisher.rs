@@ -184,7 +184,7 @@ impl<'p> Finisher<'p> {
         let mut f = finish::File::new(ft, bytes, file_no as u32, plan.nodes.len());
         f.seeds = plan.seeds.iter().map(|r| self.surv.get(&(r.clone(), path.to_owned())).cloned().unwrap_or_default()).collect();
         finish::handover::expand(&mut f, &plan.seed_paths);
-        self.exec.reset_file();
+        self.exec.reset_file(f.n);
         let run = &mut self.run;
         if self.check {
             for rel in ["semantic-syntax", "syntax-tree", "semantic-child", "syntax-child", "source-location", "token-link"] {
@@ -242,7 +242,7 @@ impl<'p> Finisher<'p> {
         if let Some(out) = &self.stats {
             let mut lines = vec!["node\top\tcalls\trows\ttouched\tseconds".to_owned()];
             for (i, pn) in self.plan.nodes.iter().enumerate() {
-                if exec.stats.calls[i] > 0 || exec.stats.time[i] > 0.0 {
+                if exec.stats.calls[i] > 0 || exec.stats.probes[i] > 0 || exec.stats.touched[i] > 0 || exec.stats.rows[i] > 0 || exec.stats.time[i] > 0.0 {
                     lines.push(format!("{i}\t{}\t{}\t{}\t{}\t{:.6}\t{}\t{}\t{}\t{}", pn.op, exec.stats.calls[i], exec.stats.rows[i], exec.stats.touched[i], exec.stats.time[i], exec.stats.empty[i], exec.stats.probes[i], exec.stats.made_by[i] as i64, exec.stats.why[i]));
                 }
             }
