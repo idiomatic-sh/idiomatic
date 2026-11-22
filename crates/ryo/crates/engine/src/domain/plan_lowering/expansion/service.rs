@@ -170,7 +170,9 @@ fn identity(step: &FinishStep) -> FinishStep {
         | FinishStep::Capture(_)
         | FinishStep::FitsRendered(_)
         | FinishStep::RenderSyntax(_)
-        | FinishStep::Rows(_) => {}
+        | FinishStep::Rows(_)
+        | FinishStep::Prefixes(_)
+        | FinishStep::SubtreeClass(_) => {}
     }
     identity
 }

@@ -3,10 +3,8 @@
 
 use super::super::fields::schemas::{
     all_rows, bound_in, bound_out, column_in, column_out, columns_in, columns_out, direction_in,
-    direction_out, distinct_in, distinct_out, every_row, keys_in, keys_out, no_column, no_keys,
-    optional_in, optional_out, output_in, output_out, rows_in, rows_out, step_in, step_out,
-    text_in, text_out, texts_in, texts_out, unkeyed, unwritten, values_in, values_out, whole_in,
-    whole_out,
+    direction_out, distinct_in, distinct_out, every_row, keys_in, keys_out, no_keys, output_in,
+    output_out, rows_in, rows_out, step_in, step_out, unkeyed, values_in, values_out,
 };
 use crate::domain::finish_plans::arguments::groups::types::{
     CountedRows, GroupCountArguments, GroupOrderArguments, GroupOrdinalArguments,
@@ -19,16 +17,12 @@ use crate::domain::finish_plans::arguments::joins::types::{
 use crate::domain::finish_plans::arguments::literals::types::{
     ConstantRow, ExtendArguments, ExtendedValue, RowsArguments,
 };
-use crate::domain::finish_plans::arguments::texts::types::{
-    CaptureArguments, FitsRenderedArguments, OptionalColumn, RenderSyntaxArguments,
-    ReplaceArguments, SourceMatchesArguments, SpanBetweenArguments, SpanBoundsArguments,
-};
 use crate::domain::finish_plans::arguments::types::StepNumber;
 use crate::domain::finish_plans::arguments::walks::types::{
-    AxisArguments, EdgeArguments, EdgeKeys, OrderedDfsArguments,
+    AxisArguments, EdgeArguments, EdgeKeys, OrderedDfsArguments, SubtreeClassArguments,
 };
 use ryo_values::domain::descriptions::types::ColumnName;
-use ryo_values::domain::plan_parts::types::{Direction, LiteralText, WholeNumber};
+use ryo_values::domain::plan_parts::types::Direction;
 use serde::{Deserialize, Serialize};
 
 /// `UnionArguments` as JSON.
@@ -187,6 +181,36 @@ pub(in crate::outbound::plan_codec::adapters::json) struct OrderedDfsSchema {
     output: ColumnName,
 }
 
+/// `SubtreeClassArguments` as JSON.
+#[derive(Serialize, Deserialize)]
+#[serde(remote = "SubtreeClassArguments", rename_all = "kebab-case")]
+pub(in crate::outbound::plan_codec::adapters::json) struct SubtreeClassSchema {
+    /// `from`.
+    #[serde(serialize_with = "step_out", deserialize_with = "step_in")]
+    from: StepNumber,
+    /// `relation`.
+    #[serde(serialize_with = "step_out", deserialize_with = "step_in")]
+    relation: StepNumber,
+    /// `labels`.
+    #[serde(serialize_with = "step_out", deserialize_with = "step_in")]
+    labels: StepNumber,
+    /// `leaves`.
+    #[serde(serialize_with = "step_out", deserialize_with = "step_in")]
+    leaves: StepNumber,
+    /// `label`.
+    #[serde(serialize_with = "columns_out", deserialize_with = "columns_in")]
+    label: Vec<ColumnName>,
+    /// `leaf-label`.
+    #[serde(serialize_with = "columns_out", deserialize_with = "columns_in")]
+    leaf_label: Vec<ColumnName>,
+    /// `step`.
+    #[serde(serialize_with = "columns_out", deserialize_with = "columns_in")]
+    step: Vec<ColumnName>,
+    /// `output`.
+    #[serde(serialize_with = "column_out", deserialize_with = "column_in")]
+    output: ColumnName,
+}
+
 /// `GroupCountArguments` as JSON.
 #[derive(Serialize, Deserialize)]
 #[serde(remote = "GroupCountArguments", rename_all = "kebab-case")]
@@ -260,159 +284,6 @@ pub(in crate::outbound::plan_codec::adapters::json) struct ExtendSchema {
     /// `values`.
     #[serde(serialize_with = "values_out", deserialize_with = "values_in")]
     values: Vec<ExtendedValue>,
-}
-
-/// `SpanBoundsArguments` as JSON.
-#[derive(Serialize, Deserialize)]
-#[serde(remote = "SpanBoundsArguments", rename_all = "kebab-case")]
-pub(in crate::outbound::plan_codec::adapters::json) struct SpanBoundsSchema {
-    /// `from`.
-    #[serde(serialize_with = "step_out", deserialize_with = "step_in")]
-    from: StepNumber,
-    /// `span`.
-    #[serde(serialize_with = "column_out", deserialize_with = "column_in")]
-    span: ColumnName,
-    /// `start-output`.
-    #[serde(serialize_with = "column_out", deserialize_with = "column_in")]
-    start_output: ColumnName,
-    /// `end-output`.
-    #[serde(serialize_with = "column_out", deserialize_with = "column_in")]
-    end_output: ColumnName,
-}
-
-/// `SpanBetweenArguments` as JSON.
-#[derive(Serialize, Deserialize)]
-#[serde(remote = "SpanBetweenArguments", rename_all = "kebab-case")]
-pub(in crate::outbound::plan_codec::adapters::json) struct SpanBetweenSchema {
-    /// `from`.
-    #[serde(serialize_with = "step_out", deserialize_with = "step_in")]
-    from: StepNumber,
-    /// `start`.
-    #[serde(serialize_with = "column_out", deserialize_with = "column_in")]
-    start: ColumnName,
-    /// `end`.
-    #[serde(serialize_with = "column_out", deserialize_with = "column_in")]
-    end: ColumnName,
-    /// `output`.
-    #[serde(serialize_with = "column_out", deserialize_with = "column_in")]
-    output: ColumnName,
-}
-
-/// `ReplaceArguments` as JSON.
-#[derive(Serialize, Deserialize)]
-#[serde(remote = "ReplaceArguments", rename_all = "kebab-case")]
-pub(in crate::outbound::plan_codec::adapters::json) struct ReplaceSchema {
-    /// `from`.
-    #[serde(serialize_with = "step_out", deserialize_with = "step_in")]
-    from: StepNumber,
-    /// `text`.
-    #[serde(serialize_with = "column_out", deserialize_with = "column_in")]
-    text: ColumnName,
-    /// `pattern`.
-    #[serde(serialize_with = "text_out", deserialize_with = "text_in")]
-    pattern: LiteralText,
-    /// `replacement`.
-    #[serde(serialize_with = "text_out", deserialize_with = "text_in")]
-    replacement: LiteralText,
-    /// `output`.
-    #[serde(serialize_with = "column_out", deserialize_with = "column_in")]
-    output: ColumnName,
-}
-
-/// `SourceMatchesArguments` as JSON.
-#[derive(Serialize, Deserialize)]
-#[serde(remote = "SourceMatchesArguments", rename_all = "kebab-case")]
-pub(in crate::outbound::plan_codec::adapters::json) struct SourceMatchesSchema {
-    /// `from`.
-    #[serde(serialize_with = "step_out", deserialize_with = "step_in")]
-    from: StepNumber,
-    /// `span`.
-    #[serde(serialize_with = "column_out", deserialize_with = "column_in")]
-    span: ColumnName,
-    /// `base-line`.
-    #[serde(serialize_with = "optional_out", deserialize_with = "optional_in", skip_serializing_if = "unwritten", default = "no_column")]
-    base_line: OptionalColumn,
-    /// `pattern`.
-    #[serde(serialize_with = "text_out", deserialize_with = "text_in")]
-    pattern: LiteralText,
-    /// `output`.
-    #[serde(serialize_with = "column_out", deserialize_with = "column_in")]
-    output: ColumnName,
-    /// `line-output`.
-    #[serde(serialize_with = "optional_out", deserialize_with = "optional_in", skip_serializing_if = "unwritten", default = "no_column")]
-    line_output: OptionalColumn,
-    /// `capture`.
-    #[serde(serialize_with = "optional_out", deserialize_with = "optional_in", skip_serializing_if = "unwritten", default = "no_column")]
-    capture: OptionalColumn,
-    /// `capture-output`.
-    #[serde(serialize_with = "optional_out", deserialize_with = "optional_in", skip_serializing_if = "unwritten", default = "no_column")]
-    capture_output: OptionalColumn,
-    /// `capture-text-output`.
-    #[serde(serialize_with = "optional_out", deserialize_with = "optional_in", skip_serializing_if = "unwritten", default = "no_column")]
-    capture_text_output: OptionalColumn,
-    /// `capture-line-output`.
-    #[serde(serialize_with = "optional_out", deserialize_with = "optional_in", skip_serializing_if = "unwritten", default = "no_column")]
-    capture_line_output: OptionalColumn,
-}
-
-/// `CaptureArguments` as JSON.
-#[derive(Serialize, Deserialize)]
-#[serde(remote = "CaptureArguments", rename_all = "kebab-case")]
-pub(in crate::outbound::plan_codec::adapters::json) struct CaptureSchema {
-    /// `from`.
-    #[serde(serialize_with = "step_out", deserialize_with = "step_in")]
-    from: StepNumber,
-    /// `path`.
-    #[serde(serialize_with = "column_out", deserialize_with = "column_in")]
-    path: ColumnName,
-    /// `pattern`.
-    #[serde(serialize_with = "text_out", deserialize_with = "text_in")]
-    pattern: LiteralText,
-    /// `captures`.
-    #[serde(serialize_with = "columns_out", deserialize_with = "columns_in")]
-    captures: Vec<ColumnName>,
-}
-
-/// `FitsRenderedArguments` as JSON.
-#[derive(Serialize, Deserialize)]
-#[serde(remote = "FitsRenderedArguments", rename_all = "kebab-case")]
-pub(in crate::outbound::plan_codec::adapters::json) struct FitsRenderedSchema {
-    /// `from`.
-    #[serde(serialize_with = "step_out", deserialize_with = "step_in")]
-    from: StepNumber,
-    /// `texts`.
-    #[serde(serialize_with = "columns_out", deserialize_with = "columns_in")]
-    texts: Vec<ColumnName>,
-    /// `literals`.
-    #[serde(serialize_with = "texts_out", deserialize_with = "texts_in")]
-    literals: Vec<LiteralText>,
-    /// `span`.
-    #[serde(serialize_with = "column_out", deserialize_with = "column_in")]
-    span: ColumnName,
-    /// `max-line`.
-    #[serde(serialize_with = "whole_out", deserialize_with = "whole_in")]
-    max_line: WholeNumber,
-    /// `tab-width`.
-    #[serde(serialize_with = "whole_out", deserialize_with = "whole_in")]
-    tab_width: WholeNumber,
-}
-
-/// `RenderSyntaxArguments` as JSON.
-#[derive(Serialize, Deserialize)]
-#[serde(remote = "RenderSyntaxArguments", rename_all = "kebab-case")]
-pub(in crate::outbound::plan_codec::adapters::json) struct RenderSyntaxSchema {
-    /// `from`.
-    #[serde(serialize_with = "step_out", deserialize_with = "step_in")]
-    from: StepNumber,
-    /// `node`.
-    #[serde(serialize_with = "column_out", deserialize_with = "column_in")]
-    node: ColumnName,
-    /// `context`.
-    #[serde(serialize_with = "text_out", deserialize_with = "text_in")]
-    context: LiteralText,
-    /// `output`.
-    #[serde(serialize_with = "column_out", deserialize_with = "column_in")]
-    output: ColumnName,
 }
 
 /// `RowsArguments` as JSON.

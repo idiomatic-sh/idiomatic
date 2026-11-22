@@ -1,4 +1,4 @@
-//! The types of the `operators` part: the arguments of one call, taken one by one as its step is built.
+//! The types of the `given` part: the arguments of one call, taken one by one as its step is built.
 
 use crate::domain::finish_plans::arguments::literals::types::UnlistedArgument;
 

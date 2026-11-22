@@ -51,6 +51,10 @@ pub fn inputs(step: &FinishStep) -> Vec<StepNumber> {
         FinishStep::Capture(capture) => vec![capture.from],
         FinishStep::FitsRendered(fits) => vec![fits.from],
         FinishStep::RenderSyntax(render) => vec![render.from],
+        FinishStep::Prefixes(prefixes) => vec![prefixes.from],
+        FinishStep::SubtreeClass(classes) => {
+            vec![classes.from, classes.relation, classes.labels, classes.leaves]
+        }
         FinishStep::Unlisted(unlisted) => unlisted
             .arguments
             .iter()

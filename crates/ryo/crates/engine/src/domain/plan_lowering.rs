@@ -8,6 +8,7 @@ pub(crate) mod counts;
 pub mod errors;
 pub(crate) mod expansion;
 pub(crate) mod filters;
+pub(crate) mod given;
 pub(crate) mod readers;
 pub(crate) mod operators;
 pub(crate) mod semijoins;

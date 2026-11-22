@@ -384,6 +384,12 @@ fn main() {
     let args: Vec<String> = std::env::args().collect();
     // `cargo bench` passes `--bench`; drop it.
     let args: Vec<&str> = args.iter().map(String::as_str).filter(|a| *a != "--bench").collect();
+    // ryo-fmx3.1 redo-lowering: the plan lowering in Rust, before any walk is made.
+    match args.get(1).copied() {
+        Some("lower") => return lower::run_lower(&args[2..]),
+        Some("stage") => return lower::run_stage(&args[2..]),
+        _ => {}
+    }
     // 6f: `VEC_PY310` walks at the pack's configured target (benchmark.toml `python-target=3.10`); without it the walk is at
     // the parser's default (Latest), as every run before 6f was.
     let walk = ryo_python::walk_with_settings(target_settings());
@@ -658,6 +664,8 @@ mod funnel;
 mod facts;
 #[path = "finish.rs"]
 mod finish;
+#[path = "lower.rs"]
+mod lower;
 
 /// The visit's facts as the finish's provider.
 struct Facts<'v, 'f, 'w> {

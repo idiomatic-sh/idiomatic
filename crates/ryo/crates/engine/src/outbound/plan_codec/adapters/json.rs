@@ -8,5 +8,6 @@ mod fields;
 mod formatter;
 mod nodes;
 mod ordered;
+mod texts;
 pub(super) mod schemas;
 

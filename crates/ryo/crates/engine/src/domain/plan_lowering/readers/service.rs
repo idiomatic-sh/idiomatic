@@ -10,7 +10,7 @@ use crate::domain::finish_plans::arguments::literals::types::ArgumentValue;
 use crate::domain::finish_plans::arguments::texts::types::OptionalColumn;
 use crate::domain::finish_plans::arguments::types::StepNumber;
 use crate::domain::finish_plans::constants::{
-    ARG_DOMAIN, ARG_EDGES, ARG_FROM, ARG_LEFT, ARG_RELATION, ARG_RIGHT,
+    ARG_DOMAIN, ARG_EDGES, ARG_FROM, ARG_LABELS, ARG_LEAVES, ARG_LEFT, ARG_RELATION, ARG_RIGHT,
 };
 use crate::domain::finish_plans::expressions::types::{PlanConstant, PlanExpression, SourceAlias};
 use crate::domain::finish_plans::service::{direction_name, inputs, readers};
@@ -65,6 +65,13 @@ fn roles<'s>(step: &'s FinishStep, input: StepNumber) -> Vec<&'s str> {
         ]),
         FinishStep::Closure(edges) | FinishStep::Follow(edges) => named(&[(ARG_EDGES, edges.edges)]),
         FinishStep::OrderedDfs(walk) => named(&[(ARG_FROM, walk.from), (ARG_EDGES, walk.edges)]),
+        FinishStep::Prefixes(prefixes) => named(&[(ARG_FROM, prefixes.from)]),
+        FinishStep::SubtreeClass(classes) => named(&[
+            (ARG_FROM, classes.from),
+            (ARG_RELATION, classes.relation),
+            (ARG_LABELS, classes.labels),
+            (ARG_LEAVES, classes.leaves),
+        ]),
         FinishStep::Unlisted(unlisted) => unlisted
             .arguments
             .iter()
@@ -394,6 +401,8 @@ fn mentions(step: &FinishStep, column: &str) -> bool {
         | FinishStep::GroupMax(_)
         | FinishStep::Project(_)
         | FinishStep::Rows(_)
+        | FinishStep::Prefixes(_)
+        | FinishStep::SubtreeClass(_)
         | FinishStep::Unlisted(_) => false,
     }
 }

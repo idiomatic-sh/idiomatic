@@ -1,48 +1,40 @@
 //! The `operators` service: a call's arguments as its operator's step.
 
-use super::types::GivenArguments;
-use crate::domain::finish_plans::arguments::literals::types::{
-    ArgumentValue, ConstantRow, ExtendArguments, ExtendedValue, RowsArguments, UnlistedArgument,
-    UnlistedArguments,
-};
 use crate::domain::finish_plans::arguments::groups::types::{
-    CountedRows, GroupCountArguments, GroupOrderArguments, GroupOrdinalArguments,
-    ProjectArguments,
+    CountedRows, GroupCountArguments, GroupOrdinalArguments, ProjectArguments,
 };
 use crate::domain::finish_plans::arguments::joins::types::{
-    AntijoinArguments, AsOfArguments, AsOfBound, OrderedMatchArguments, OutputColumn,
-    UnionArguments,
+    AntijoinArguments, AsOfArguments, OrderedMatchArguments, UnionArguments,
+};
+use crate::domain::finish_plans::arguments::literals::types::{
+    ExtendArguments, RowsArguments, UnlistedArgument, UnlistedArguments,
 };
 use crate::domain::finish_plans::arguments::texts::types::{
-    CaptureArguments, FitsRenderedArguments, OptionalColumn, RenderSyntaxArguments,
+    CaptureArguments, FitsRenderedArguments, OptionalColumn, PrefixesArguments, RenderSyntaxArguments,
     ReplaceArguments, SourceMatchesArguments, SpanBetweenArguments, SpanBoundsArguments,
 };
-use crate::domain::finish_plans::arguments::types::StepNumber;
 use crate::domain::finish_plans::arguments::walks::types::{
-    AxisArguments, EdgeArguments, EdgeKeys, OrderedDfsArguments,
+    AxisArguments, OrderedDfsArguments, SubtreeClassArguments,
 };
 use crate::domain::finish_plans::constants::{
-    ARG_BASE_LINE, ARG_BOUND, ARG_CAPTURE, ARG_CAPTURE_LINE_OUTPUT, ARG_CAPTURE_OUTPUT,
-    ARG_CAPTURE_TEXT_OUTPUT, ARG_CAPTURES, ARG_COLUMNS, ARG_CONTEXT, ARG_COUNT, ARG_DESTINATION,
-    ARG_DIRECTION, ARG_DISTINCT, ARG_DOMAIN, ARG_EDGE, ARG_EDGES, ARG_END, ARG_END_OUTPUT,
-    ARG_FROM, ARG_KEYS, ARG_LEFT, ARG_LEFT_ON, ARG_LEFT_ORDER, ARG_LINE_OUTPUT, ARG_LITERALS,
-    ARG_MAX_LINE, ARG_NODE, ARG_ORDER, ARG_OUTPUT, ARG_PATH, ARG_PATTERN, ARG_RELATION,
-    ARG_REPLACEMENT, ARG_RIGHT, ARG_RIGHT_ON, ARG_RIGHT_ORDER, ARG_ROOT, ARG_SOURCE, ARG_SPAN,
-    ARG_START, ARG_START_OUTPUT, ARG_TAB_WIDTH, ARG_TEXT, ARG_TEXTS, ARG_VALUES, BOUND_AFTER,
-    BOUND_AT_OR_AFTER, BOUND_AT_OR_BEFORE, BOUND_BEFORE, DIRECTION_ANCESTOR, DIRECTION_CHILD,
-    DIRECTION_DEEP, DIRECTION_DESCENDANT, DIRECTION_NEAREST_ANCESTOR, DIRECTION_NEXT_SIBLING,
-    DIRECTION_PARENT, DIRECTION_PREVIOUS_SIBLING, OP_ANTIJOIN, OP_AS_OF, OP_AXIS, OP_CAPTURE,
-    OP_CLOSURE, OP_EXTEND, OP_FITS_RENDERED, OP_FOLLOW, OP_GROUP_COUNT, OP_GROUP_MAX,
-    OP_GROUP_MIN, OP_GROUP_ORDINAL, OP_ORDERED_DFS, OP_ORDERED_MATCH, OP_PROJECT,
-    OP_RENDER_SYNTAX, OP_REPLACE, OP_ROWS, OP_SOURCE_MATCHES, OP_SPAN_BETWEEN, OP_SPAN_BOUNDS,
-    OP_UNION, SIDE_LEFT, SIDE_RIGHT,
+    ARG_BASE_LINE, ARG_CAPTURE, ARG_CAPTURE_LINE_OUTPUT, ARG_CAPTURE_OUTPUT, ARG_CAPTURE_TEXT_OUTPUT, ARG_CAPTURES,
+    ARG_COLUMNS, ARG_CONTEXT, ARG_COUNT, ARG_DESTINATION, ARG_DISTINCT, ARG_DOMAIN, ARG_EDGE, ARG_EDGES, ARG_END,
+    ARG_END_OUTPUT, ARG_FROM, ARG_KEYS, ARG_LABEL, ARG_LABELS, ARG_LEAF_LABEL, ARG_LEAVES, ARG_LEFT, ARG_LEFT_ON,
+    ARG_LEFT_ORDER, ARG_LINE_OUTPUT, ARG_LITERALS, ARG_MAX_LINE, ARG_NODE, ARG_ORDER, ARG_OUTPUT, ARG_PATH,
+    ARG_PATTERN, ARG_RELATION, ARG_REPLACEMENT, ARG_RIGHT, ARG_RIGHT_ON, ARG_RIGHT_ORDER, ARG_ROOT, ARG_SEPARATOR,
+    ARG_SOURCE, ARG_SPAN, ARG_START, ARG_START_OUTPUT, ARG_STEP, ARG_TAB_WIDTH, ARG_TEXT, ARG_TEXTS, OP_ANTIJOIN,
+    OP_AS_OF, OP_AXIS, OP_CAPTURE, OP_CLOSURE, OP_EXTEND, OP_FITS_RENDERED, OP_FOLLOW, OP_GROUP_COUNT, OP_GROUP_MAX,
+    OP_GROUP_MIN, OP_GROUP_ORDINAL, OP_ORDERED_DFS, OP_ORDERED_MATCH, OP_PREFIXES, OP_PROJECT, OP_RENDER_SYNTAX,
+    OP_REPLACE, OP_ROWS, OP_SOURCE_MATCHES, OP_SPAN_BETWEEN, OP_SPAN_BOUNDS, OP_SUBTREE_CLASS, OP_UNION,
 };
-use crate::domain::finish_plans::expressions::types::{PlanConstant, PlanNumber};
 use crate::domain::finish_plans::types::{AxisStep, ExistsMark, FinishStep};
 use crate::domain::plan_lowering::errors::PlanLoweringError;
-use crate::domain::plan_lowering::types::WrittenText;
-use ryo_values::domain::descriptions::types::{ColumnName, OperatorName};
-use ryo_values::domain::plan_parts::types::{Direction, LiteralText, Side, WholeNumber};
+use crate::domain::plan_lowering::given::service::{
+    bound, column, columns, constant_rows, direction, edges, extended_values, group_order, optional_column,
+    output_columns, refused, step, text, texts, whole,
+};
+use crate::domain::plan_lowering::given::types::GivenArguments;
+use ryo_values::domain::descriptions::types::OperatorName;
 
 /// The step of a call of `operator` with `arguments`, in the order written: the operator's typed step, or for an operator
 /// outside the step set the call as written.
@@ -148,7 +140,7 @@ pub(crate) fn operator_step(
     }
 }
 
-/// The steps of the operators over spans and text; an operator outside the step set as written.
+/// The steps of the operators over spans and text, and `prefixes` and `subtree-class`; an operator outside the step set as written.
 fn text_step(
     given: &mut GivenArguments<'_>,
     operator: &str,
@@ -205,6 +197,22 @@ fn text_step(
             context: text(given, ARG_CONTEXT)?,
             output: column(given, ARG_OUTPUT)?,
         }),
+        OP_PREFIXES => FinishStep::Prefixes(PrefixesArguments {
+            from: step(given, ARG_FROM)?,
+            text: column(given, ARG_TEXT)?,
+            separator: text(given, ARG_SEPARATOR)?,
+            output: column(given, ARG_OUTPUT)?,
+        }),
+        OP_SUBTREE_CLASS => FinishStep::SubtreeClass(SubtreeClassArguments {
+            from: step(given, ARG_FROM)?,
+            relation: step(given, ARG_RELATION)?,
+            labels: step(given, ARG_LABELS)?,
+            leaves: step(given, ARG_LEAVES)?,
+            label: columns(given, ARG_LABEL)?,
+            leaf_label: columns(given, ARG_LEAF_LABEL)?,
+            step: columns(given, ARG_STEP)?,
+            output: column(given, ARG_OUTPUT)?,
+        }),
         unlisted => FinishStep::Unlisted(UnlistedArguments {
             operator: OperatorName(unlisted.into()),
             arguments: std::mem::take(&mut given.arguments),
@@ -212,222 +220,3 @@ fn text_step(
     })
 }
 
-/// The refusal of an argument of the call.
-fn refused(given: &GivenArguments<'_>, argument: &str) -> PlanLoweringError {
-    PlanLoweringError::OperatorArgument {
-        operator: WrittenText(given.operator.into()),
-        argument: WrittenText(argument.into()),
-    }
-}
-
-/// Takes the argument `name` out of the call: none when it is not given.
-fn taken(given: &mut GivenArguments<'_>, name: &str) -> Option<ArgumentValue> {
-    let at = given
-        .arguments
-        .iter()
-        .position(|argument| &*argument.name.0 == name)?;
-    Some(given.arguments.remove(at).value)
-}
-
-/// The constant argument `name`, which the call must give.
-fn given_constant(
-    given: &mut GivenArguments<'_>,
-    name: &str,
-) -> Result<PlanConstant, PlanLoweringError> {
-    match taken(given, name) {
-        Some(ArgumentValue::Constant(constant)) => Ok(constant),
-        Some(ArgumentValue::Step(_)) | None => Err(refused(given, name)),
-    }
-}
-
-/// The relation argument `name`: its step.
-fn step(given: &mut GivenArguments<'_>, name: &str) -> Result<StepNumber, PlanLoweringError> {
-    match taken(given, name) {
-        Some(ArgumentValue::Step(step)) => Ok(step),
-        Some(ArgumentValue::Constant(_)) | None => Err(refused(given, name)),
-    }
-}
-
-/// A constant that is text.
-fn as_text(constant: PlanConstant) -> Option<Box<str>> {
-    match constant {
-        PlanConstant::Text(text) => Some(text.0),
-        PlanConstant::Number(_) | PlanConstant::List(_) | PlanConstant::Map(_) | PlanConstant::Absent => {
-            None
-        }
-    }
-}
-
-/// The text argument `name`.
-fn text(given: &mut GivenArguments<'_>, name: &str) -> Result<LiteralText, PlanLoweringError> {
-    let constant = given_constant(given, name)?;
-    as_text(constant)
-        .map(LiteralText)
-        .ok_or_else(|| refused(given, name))
-}
-
-/// The column argument `name`.
-fn column(given: &mut GivenArguments<'_>, name: &str) -> Result<ColumnName, PlanLoweringError> {
-    Ok(ColumnName(text(given, name)?.0))
-}
-
-/// The column argument `name`, when the call gives it.
-fn optional_column(
-    given: &mut GivenArguments<'_>,
-    name: &str,
-) -> Result<OptionalColumn, PlanLoweringError> {
-    if given
-        .arguments
-        .iter()
-        .any(|argument| &*argument.name.0 == name)
-    {
-        Ok(OptionalColumn::Written(column(given, name)?))
-    } else {
-        Ok(OptionalColumn::Unwritten)
-    }
-}
-
-/// A constant list of texts.
-fn text_list(constant: PlanConstant) -> Option<Vec<Box<str>>> {
-    match constant {
-        PlanConstant::List(items) => items.into_iter().map(as_text).collect(),
-        PlanConstant::Text(_) | PlanConstant::Number(_) | PlanConstant::Map(_) | PlanConstant::Absent => {
-            None
-        }
-    }
-}
-
-/// The text list argument `name`.
-fn texts(given: &mut GivenArguments<'_>, name: &str) -> Result<Vec<LiteralText>, PlanLoweringError> {
-    let constant = given_constant(given, name)?;
-    text_list(constant)
-        .map(|items| items.into_iter().map(LiteralText).collect())
-        .ok_or_else(|| refused(given, name))
-}
-
-/// The column list argument `name`.
-fn columns(given: &mut GivenArguments<'_>, name: &str) -> Result<Vec<ColumnName>, PlanLoweringError> {
-    Ok(texts(given, name)?
-        .into_iter()
-        .map(|text| ColumnName(text.0))
-        .collect())
-}
-
-/// The whole number argument `name`.
-fn whole(given: &mut GivenArguments<'_>, name: &str) -> Result<WholeNumber, PlanLoweringError> {
-    match given_constant(given, name)? {
-        PlanConstant::Number(PlanNumber::Whole(number)) => Ok(number),
-        PlanConstant::Number(PlanNumber::Fraction(_))
-        | PlanConstant::Text(_)
-        | PlanConstant::List(_)
-        | PlanConstant::Map(_)
-        | PlanConstant::Absent => Err(refused(given, name)),
-    }
-}
-
-/// An axis's `direction`.
-fn direction(given: &mut GivenArguments<'_>) -> Result<Direction, PlanLoweringError> {
-    let written = text(given, ARG_DIRECTION)?;
-    Ok(match &*written.0 {
-        DIRECTION_PARENT => Direction::Parent,
-        DIRECTION_CHILD => Direction::Child,
-        DIRECTION_ANCESTOR => Direction::Ancestor,
-        DIRECTION_DESCENDANT => Direction::Descendant,
-        DIRECTION_NEAREST_ANCESTOR => Direction::NearestAncestor,
-        DIRECTION_DEEP => Direction::Deep,
-        DIRECTION_PREVIOUS_SIBLING => Direction::PreviousSibling,
-        DIRECTION_NEXT_SIBLING => Direction::NextSibling,
-        _ => return Err(refused(given, ARG_DIRECTION)),
-    })
-}
-
-/// An `as-of`'s `bound`.
-fn bound(given: &mut GivenArguments<'_>) -> Result<AsOfBound, PlanLoweringError> {
-    let written = text(given, ARG_BOUND)?;
-    Ok(match &*written.0 {
-        BOUND_AT_OR_BEFORE => AsOfBound::AtOrBefore,
-        BOUND_BEFORE => AsOfBound::Before,
-        BOUND_AT_OR_AFTER => AsOfBound::AtOrAfter,
-        BOUND_AFTER => AsOfBound::After,
-        _ => return Err(refused(given, ARG_BOUND)),
-    })
-}
-
-/// An ordered step's `output`: a map from each column written to `[side, column]`.
-fn output_columns(given: &mut GivenArguments<'_>) -> Result<Vec<OutputColumn>, PlanLoweringError> {
-    let PlanConstant::Map(entries) = given_constant(given, ARG_OUTPUT)? else {
-        return Err(refused(given, ARG_OUTPUT));
-    };
-    let mut written = Vec::with_capacity(entries.len());
-    for entry in entries {
-        let read = text_list(entry.value).ok_or_else(|| refused(given, ARG_OUTPUT))?;
-        let [side, column] = <[Box<str>; 2]>::try_from(read).map_err(|_| refused(given, ARG_OUTPUT))?;
-        let side = match &*side {
-            SIDE_LEFT => Side::Left,
-            SIDE_RIGHT => Side::Right,
-            _ => return Err(refused(given, ARG_OUTPUT)),
-        };
-        written.push(OutputColumn {
-            name: ColumnName(entry.key.0),
-            side,
-            column: ColumnName(column),
-        });
-    }
-    Ok(written)
-}
-
-/// An `extend`'s `values`: a map from each column added to its constant.
-fn extended_values(given: &mut GivenArguments<'_>) -> Result<Vec<ExtendedValue>, PlanLoweringError> {
-    let PlanConstant::Map(entries) = given_constant(given, ARG_VALUES)? else {
-        return Err(refused(given, ARG_VALUES));
-    };
-    Ok(entries
-        .into_iter()
-        .map(|entry| ExtendedValue {
-            name: ColumnName(entry.key.0),
-            value: entry.value,
-        })
-        .collect())
-}
-
-/// A `rows`'s `from`: its constant table, each row a list of texts.
-fn constant_rows(given: &mut GivenArguments<'_>) -> Result<Vec<ConstantRow>, PlanLoweringError> {
-    let PlanConstant::List(rows) = given_constant(given, ARG_FROM)? else {
-        return Err(refused(given, ARG_FROM));
-    };
-    let mut table = Vec::with_capacity(rows.len());
-    for row in rows {
-        let cells = text_list(row).ok_or_else(|| refused(given, ARG_FROM))?;
-        table.push(ConstantRow {
-            cells: cells.into_iter().map(LiteralText).collect(),
-        });
-    }
-    Ok(table)
-}
-
-/// A `closure`'s or a `follow`'s arguments.
-fn edges(given: &mut GivenArguments<'_>) -> Result<EdgeArguments, PlanLoweringError> {
-    Ok(EdgeArguments {
-        edges: step(given, ARG_EDGES)?,
-        source: column(given, ARG_SOURCE)?,
-        destination: column(given, ARG_DESTINATION)?,
-        keys: if given
-            .arguments
-            .iter()
-            .any(|argument| &*argument.name.0 == ARG_KEYS)
-        {
-            EdgeKeys::Written(columns(given, ARG_KEYS)?)
-        } else {
-            EdgeKeys::Unwritten
-        },
-    })
-}
-
-/// A `group-min`'s or a `group-max`'s arguments.
-fn group_order(given: &mut GivenArguments<'_>) -> Result<GroupOrderArguments, PlanLoweringError> {
-    Ok(GroupOrderArguments {
-        from: step(given, ARG_FROM)?,
-        keys: columns(given, ARG_KEYS)?,
-        order: column(given, ARG_ORDER)?,
-    })
-}

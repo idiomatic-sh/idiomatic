@@ -24,6 +24,8 @@ pub(crate) const OP_CAPTURE: &str = "capture";
 pub(crate) const OP_FITS_RENDERED: &str = "fits-rendered";
 pub(crate) const OP_RENDER_SYNTAX: &str = "render-syntax";
 pub(crate) const OP_ROWS: &str = "rows";
+pub(crate) const OP_PREFIXES: &str = "prefixes";
+pub(crate) const OP_SUBTREE_CLASS: &str = "subtree-class";
 
 /// How the format writes each argument of an operator.
 pub(crate) const ARG_FROM: &str = "from";
@@ -71,10 +73,17 @@ pub(crate) const ARG_MAX_LINE: &str = "max-line";
 pub(crate) const ARG_TAB_WIDTH: &str = "tab-width";
 pub(crate) const ARG_NODE: &str = "node";
 pub(crate) const ARG_CONTEXT: &str = "context";
+pub(crate) const ARG_SEPARATOR: &str = "separator";
+pub(crate) const ARG_LABELS: &str = "labels";
+pub(crate) const ARG_LEAVES: &str = "leaves";
+pub(crate) const ARG_LABEL: &str = "label";
+pub(crate) const ARG_LEAF_LABEL: &str = "leaf-label";
+pub(crate) const ARG_STEP: &str = "step";
 
 /// The arguments that name a relation the operator reads (a step, or a relation of the catalog), but for `rows`, whose
 /// `from` is its constant table.
-pub(crate) const RELATION_ARGUMENTS: [&str; 6] = [ARG_FROM, ARG_LEFT, ARG_RIGHT, ARG_EDGES, ARG_DOMAIN, ARG_RELATION];
+pub(crate) const RELATION_ARGUMENTS: [&str; 8] =
+    [ARG_FROM, ARG_LEFT, ARG_RIGHT, ARG_EDGES, ARG_DOMAIN, ARG_RELATION, ARG_LABELS, ARG_LEAVES];
 
 /// How the format writes each axis direction.
 pub(crate) const DIRECTION_PARENT: &str = "parent";

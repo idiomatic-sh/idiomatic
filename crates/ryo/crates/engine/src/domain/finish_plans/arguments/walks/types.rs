@@ -1,4 +1,4 @@
-//! The types of the `walks` part: what the operators that walk a tree or an edge relation: `axis`, `closure`, `follow`, `ordered-dfs` are given. Plain data.
+//! The types of the `walks` part: what the operators that walk a tree or an edge relation: `axis`, `closure`, `follow`, `ordered-dfs`, `subtree-class` are given. Plain data.
 
 use crate::domain::finish_plans::arguments::types::StepNumber;
 use ryo_values::domain::descriptions::types::ColumnName;
@@ -106,5 +106,44 @@ pub struct OrderedDfsArguments {
     /// The key columns.
     pub keys: Vec<ColumnName>,
     /// The column the visit's place is written to.
+    pub output: ColumnName,
+}
+
+/// `subtree-class`: each root with the class of the subtree below it, two roots of one class exactly when their subtrees
+/// are equal: the same label at every node (a leaf's label read from the leaves), the same children, each reached by
+/// the same step of the edges.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_engine::domain::finish_plans::arguments::types::StepNumber;
+/// use ryo_engine::domain::finish_plans::arguments::walks::types::SubtreeClassArguments;
+/// use ryo_values::domain::descriptions::types::ColumnName;
+///
+/// let name = |text: &str| ColumnName(text.into());
+/// let classes = SubtreeClassArguments {
+///     from: StepNumber(3), relation: StepNumber(0), labels: StepNumber(1), leaves: StepNumber(2),
+///     label: vec![name("kind"), name("text")], leaf_label: vec![name("shape")],
+///     step: vec![name("field"), name("ordinal")], output: name("class"),
+/// };
+/// assert_eq!(classes.label.len(), 2);
+/// ```
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct SubtreeClassArguments {
+    /// The roots.
+    pub from: StepNumber,
+    /// The tree's edges.
+    pub relation: StepNumber,
+    /// The nodes and their labels.
+    pub labels: StepNumber,
+    /// The leaves and their labels.
+    pub leaves: StepNumber,
+    /// The label columns of a node.
+    pub label: Vec<ColumnName>,
+    /// The label columns of a leaf.
+    pub leaf_label: Vec<ColumnName>,
+    /// The columns of an edge that tell its step from a node to a child.
+    pub step: Vec<ColumnName>,
+    /// The column the class is written to.
     pub output: ColumnName,
 }

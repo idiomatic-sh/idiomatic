@@ -2,16 +2,17 @@
 //! with the planner's `semi` and `count`, `{"op": <operator>, "args": {..}}` (an axis with the planner's `exists`), and
 //! an operator outside the step set with its `args` as written.
 
-use super::super::arguments::schemas::{AntijoinSchema, AsOfSchema, CaptureSchema, EdgeSchema, ExtendSchema, FitsRenderedSchema, GroupCountSchema, GroupOrderSchema, GroupOrdinalSchema, OrderedDfsSchema, OrderedMatchSchema, ProjectSchema, RenderSyntaxSchema, ReplaceSchema, RowsSchema, SourceMatchesSchema, SpanBetweenSchema, SpanBoundsSchema, UnionSchema, AxisSchema};
+use super::super::arguments::schemas::{AntijoinSchema, AsOfSchema, AxisSchema, EdgeSchema, ExtendSchema, GroupCountSchema, GroupOrderSchema, GroupOrdinalSchema, OrderedDfsSchema, OrderedMatchSchema, ProjectSchema, RowsSchema, SubtreeClassSchema, UnionSchema};
+use super::super::texts::schemas::{CaptureSchema, FitsRenderedSchema, PrefixesSchema, RenderSyntaxSchema, ReplaceSchema, SourceMatchesSchema, SpanBetweenSchema, SpanBoundsSchema};
 use super::super::expressions::schemas::{ConstantSchema, ExpressionSchema};
 use super::super::fields::schemas::RelSchema;
 use super::super::ordered::schemas::OrderedMap;
 use crate::domain::finish_plans::arguments::groups::types::{GroupCountArguments, GroupOrderArguments, GroupOrdinalArguments, ProjectArguments};
 use crate::domain::finish_plans::arguments::joins::types::{AntijoinArguments, AsOfArguments, OrderedMatchArguments, UnionArguments};
 use crate::domain::finish_plans::arguments::literals::types::{ArgumentValue, ExtendArguments, RowsArguments, StepArgumentName, UnlistedArgument, UnlistedArguments};
-use crate::domain::finish_plans::arguments::texts::types::{CaptureArguments, FitsRenderedArguments, RenderSyntaxArguments, ReplaceArguments, SourceMatchesArguments, SpanBetweenArguments, SpanBoundsArguments};
+use crate::domain::finish_plans::arguments::texts::types::{CaptureArguments, FitsRenderedArguments, RenderSyntaxArguments, PrefixesArguments, ReplaceArguments, SourceMatchesArguments, SpanBetweenArguments, SpanBoundsArguments};
 use crate::domain::finish_plans::arguments::types::StepNumber;
-use crate::domain::finish_plans::arguments::walks::types::{AxisArguments, EdgeArguments, OrderedDfsArguments};
+use crate::domain::finish_plans::arguments::walks::types::{AxisArguments, EdgeArguments, OrderedDfsArguments, SubtreeClassArguments};
 use crate::domain::finish_plans::expressions::types::SourceAlias;
 use crate::domain::finish_plans::types::{
     AxisStep, CountMark, ExistsMark, FinishStep, ProbeMark, RowCondition, SelectItem, SelectSource,
@@ -214,6 +215,20 @@ pub(in crate::outbound::plan_codec::adapters::json) enum ListedNodeSchema {
         #[serde(with = "RowsSchema")]
         args: RowsArguments,
     },
+    /// `prefixes`.
+    #[serde(rename = "prefixes")]
+    Prefixes {
+        /// Its arguments.
+        #[serde(with = "PrefixesSchema")]
+        args: PrefixesArguments,
+    },
+    /// `subtree-class`.
+    #[serde(rename = "subtree-class")]
+    SubtreeClass {
+        /// Its arguments.
+        #[serde(with = "SubtreeClassSchema")]
+        args: SubtreeClassArguments,
+    },
 }
 
 /// A node whose operator is outside the step set: its arguments as written.
@@ -296,6 +311,8 @@ impl From<&FinishStep> for NodeSchema {
             FinishStep::FitsRendered(args) => ListedNodeSchema::FitsRendered { args: args.clone() },
             FinishStep::RenderSyntax(args) => ListedNodeSchema::RenderSyntax { args: args.clone() },
             FinishStep::Rows(args) => ListedNodeSchema::Rows { args: args.clone() },
+            FinishStep::Prefixes(args) => ListedNodeSchema::Prefixes { args: args.clone() },
+            FinishStep::SubtreeClass(args) => ListedNodeSchema::SubtreeClass { args: args.clone() },
             FinishStep::Unlisted(unlisted) => {
                 return Self::Unlisted(UnlistedNodeSchema {
                     op: unlisted.operator.0.to_string(),
@@ -387,6 +404,8 @@ impl From<NodeSchema> for FinishStep {
             ListedNodeSchema::FitsRendered { args } => Self::FitsRendered(args),
             ListedNodeSchema::RenderSyntax { args } => Self::RenderSyntax(args),
             ListedNodeSchema::Rows { args } => Self::Rows(args),
+            ListedNodeSchema::Prefixes { args } => Self::Prefixes(args),
+            ListedNodeSchema::SubtreeClass { args } => Self::SubtreeClass(args),
         }
     }
 }

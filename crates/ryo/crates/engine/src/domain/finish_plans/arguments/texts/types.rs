@@ -1,4 +1,4 @@
-//! The types of the `texts` part: what the operators over spans and text: `span-bounds`, `span-between`, `replace`, `source-matches`, `capture`, `fits-rendered`, `render-syntax` are given. Plain data.
+//! The types of the `texts` part: what the operators over spans and text: `span-bounds`, `span-between`, `replace`, `source-matches`, `capture`, `fits-rendered`, `render-syntax`, `prefixes` are given. Plain data.
 
 use crate::domain::finish_plans::arguments::types::StepNumber;
 use ryo_values::domain::descriptions::types::ColumnName;
@@ -228,5 +228,34 @@ pub struct RenderSyntaxArguments {
     /// The context it is rendered for.
     pub context: LiteralText,
     /// The column the text is written to.
+    pub output: ColumnName,
+}
+
+/// `prefixes`: each input row once for every dotted prefix of a text column: the text itself and each part of it that
+/// ends before a separator.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_engine::domain::finish_plans::arguments::types::StepNumber;
+/// use ryo_engine::domain::finish_plans::arguments::texts::types::PrefixesArguments;
+/// use ryo_values::domain::descriptions::types::ColumnName;
+/// use ryo_values::domain::plan_parts::types::LiteralText;
+///
+/// let prefixes = PrefixesArguments {
+///     from: StepNumber(0), text: ColumnName("target".into()), separator: LiteralText(".".into()),
+///     output: ColumnName("prefix".into()),
+/// };
+/// assert_eq!(&*prefixes.separator.0, ".");
+/// ```
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct PrefixesArguments {
+    /// The rows.
+    pub from: StepNumber,
+    /// The text column.
+    pub text: ColumnName,
+    /// The separator.
+    pub separator: LiteralText,
+    /// The column each prefix is written to.
     pub output: ColumnName,
 }

@@ -9,10 +9,12 @@ use super::arguments::joins::types::{
 };
 use super::arguments::texts::types::{
     CaptureArguments, FitsRenderedArguments, RenderSyntaxArguments, ReplaceArguments,
-    SourceMatchesArguments, SpanBetweenArguments, SpanBoundsArguments,
+    PrefixesArguments, SourceMatchesArguments, SpanBetweenArguments, SpanBoundsArguments,
 };
 use super::arguments::types::StepNumber;
-use super::arguments::walks::types::{AxisArguments, EdgeArguments, OrderedDfsArguments};
+use super::arguments::walks::types::{
+    AxisArguments, EdgeArguments, OrderedDfsArguments, SubtreeClassArguments,
+};
 use super::expressions::types::{PlanExpression, SourceAlias};
 use ryo_values::domain::descriptions::types::{ColumnName, RelationName};
 use ryo_values::domain::runs::types::RuleId;
@@ -202,6 +204,10 @@ pub enum FinishStep {
     RenderSyntax(RenderSyntaxArguments),
     /// `rows`.
     Rows(RowsArguments),
+    /// `prefixes`.
+    Prefixes(PrefixesArguments),
+    /// `subtree-class`.
+    SubtreeClass(SubtreeClassArguments),
     /// An operator outside the step set.
     Unlisted(UnlistedArguments),
 }

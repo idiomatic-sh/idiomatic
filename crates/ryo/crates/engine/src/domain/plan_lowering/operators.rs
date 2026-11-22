@@ -2,5 +2,3 @@
 //! constant), as the plan's typed step of that operator; an operator outside the step set is kept as written.
 
 pub(crate) mod service;
-pub(crate) mod types;
-
