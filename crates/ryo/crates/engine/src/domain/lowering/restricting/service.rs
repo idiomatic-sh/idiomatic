@@ -9,7 +9,7 @@ use crate::domain::lowering::costing::constants::ONE;
 use crate::domain::lowering::costing::service::{definition_rows, planned_rows, plus, times};
 use crate::domain::lowering::costing::types::PlanEstimate;
 use crate::domain::lowering::definitions::service::defined;
-use crate::domain::lowering::definitions::types::{AskSite, Drafts, Flattened};
+use crate::domain::lowering::definitions::types::{AskSite, Drafts, Flattened, RowEstimate};
 use crate::domain::lowering::flattening::service::variables;
 use crate::domain::lowering::flattening::types::{
     AtomRows, FlatAtom, FlatBranch, FlatTerm, RowsPerFile,
@@ -49,18 +49,50 @@ pub(crate) fn restrict_margin() -> u64 {
     })
 }
 
-/// Whether an atom reads only relations and definitions numbered below `below`: a prefix holding one is no cycle.
-fn before(atom: &FlatAtom, below: DefinitionId) -> bool {
-    let read = |rows: &AtomRows| match rows {
-        AtomRows::Relation(_) => true,
-        AtomRows::Definition(definition) => definition.0 < below.0,
-        AtomRows::Made(_) => false,
-    };
-    match atom {
-        FlatAtom::Rows { rows, .. } | FlatAtom::Decided { rows, .. } => read(rows),
-        FlatAtom::Test { .. } | FlatAtom::Called { .. } | FlatAtom::Walk { .. } => true,
-        FlatAtom::Latest { .. } | FlatAtom::Nearest { .. } | FlatAtom::Closure { .. } => false,
+/// The numbers that follow `word(` in a text: the definitions or made tables a value names.
+fn named(text: &str, word: &str) -> Vec<u32> {
+    let opened = format!("{word}(");
+    text.match_indices(&opened)
+        .filter_map(|(at, _)| {
+            let rest = text.get(at + opened.len()..)?;
+            let digits: String = rest.chars().take_while(char::is_ascii_digit).collect();
+            digits.parse().ok()
+        })
+        .collect()
+}
+
+/// Whether what a value reads, followed through the made tables it names, holds only definitions numbered below `below`:
+/// a prefix holding it is no cycle. SPIKE: read off the value's debug form (every `DefinitionId(n)` and `MadeTableId(n)`
+/// it names), so no kind of atom or stage is left out.
+fn before(drafts: &Drafts, text: &str, below: DefinitionId) -> bool {
+    let mut tables: Vec<u32> = named(text, "MadeTableId");
+    let mut seen: HashSet<u32> = HashSet::new();
+    if named(text, "DefinitionId")
+        .iter()
+        .any(|number| *number >= below.0)
+    {
+        return false;
     }
+    while let Some(table) = tables.pop() {
+        if !seen.insert(table) {
+            continue;
+        }
+        let Some(made) = drafts
+            .tables
+            .get(usize::try_from(table).unwrap_or(usize::MAX))
+        else {
+            return false;
+        };
+        let fill = format!("{:?}", made.fill);
+        if named(&fill, "DefinitionId")
+            .iter()
+            .any(|number| *number >= below.0)
+        {
+            return false;
+        }
+        tables.extend(named(&fill, "MadeTableId"));
+    }
+    true
 }
 
 /// The key cells an ask reads the definition by, in the mask's order: none when the asking atom does not read this
@@ -175,7 +207,13 @@ fn readers_said(drafts: &Drafts, definition: DefinitionId) -> String {
                     Some(PatternForm::Call(_)) => "call",
                     None => "none",
                 },
-                pattern.asked.bound.0.iter().map(|column| column.0).collect::<Vec<_>>(),
+                pattern
+                    .asked
+                    .bound
+                    .0
+                    .iter()
+                    .map(|column| column.0)
+                    .collect::<Vec<_>>(),
                 pattern.sites.len(),
                 pattern.opaque
             )
@@ -225,14 +263,19 @@ pub(crate) fn restricted(
         let Some((mask, sites)) = readers(drafts, definition) else {
             skipped(
                 definition,
-                &format!("table={} readers: {}", table.0, readers_said(drafts, definition)),
+                &format!(
+                    "table={} readers: {}",
+                    table.0,
+                    readers_said(drafts, definition)
+                ),
             );
             continue;
         };
-        if !sites
-            .iter()
-            .all(|site| site.prefix.iter().all(|atom| before(atom, definition)))
-        {
+        if !sites.iter().all(|site| {
+            site.prefix
+                .iter()
+                .all(|atom| before(drafts, &format!("{atom:?}"), definition))
+        }) {
             skipped(
                 definition,
                 "a reader's prefix reads a later definition, a made table or a walk of a definition",
@@ -302,6 +345,13 @@ pub(crate) fn restricted(
         );
         let serials: HashSet<u64> = sites.iter().map(|site| site.serial).collect();
         let first_new = drafts.asking.serial;
+        // The keys are the rows their readers hold when they ask: so many, not their branches' own estimate.
+        if let Some(draft) = drafts
+            .definitions
+            .get(usize::try_from(keyed.0).unwrap_or(usize::MAX))
+        {
+            let _set = draft.rows.set(RowEstimate(asked.0.div_ceil(ONE.0).max(1)));
+        }
         let mut pipelines = Vec::with_capacity(own.len());
         for branch in &own {
             let cells: Option<Vec<FlatTerm>> = mask
