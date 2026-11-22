@@ -48,3 +48,105 @@ expected = []
 name = "noqa-codes-trailing-reason-suppress-simple_self_assignment"
 files = { "case.py" = "x = x  # noqa: PLW0127 # why\n" }
 expected = []
+
+[[cases]]
+name = "nested-tuple-both-sides"
+comparison = "full"
+files = { "case.py" = "foo, (bar, baz) = foo, (bar, baz)\n" }
+expected = [{ rule = "PLW0127", file = "case.py", start = 0, end = 3 }, { rule = "PLW0127", file = "case.py", start = 6, end = 9 }, { rule = "PLW0127", file = "case.py", start = 11, end = 14 }]
+
+[[cases]]
+name = "nested-first-tuple"
+comparison = "full"
+files = { "case.py" = "(foo, bar), baz = (foo, bar), baz\n" }
+expected = [{ rule = "PLW0127", file = "case.py", start = 1, end = 4 }, { rule = "PLW0127", file = "case.py", start = 6, end = 9 }, { rule = "PLW0127", file = "case.py", start = 12, end = 15 }]
+
+[[cases]]
+name = "nested-partial-literal"
+comparison = "full"
+files = { "case.py" = "foo, (bar, baz) = foo, (bar, 1)\n" }
+expected = [{ rule = "PLW0127", file = "case.py", start = 0, end = 3 }, { rule = "PLW0127", file = "case.py", start = 6, end = 9 }]
+
+[[cases]]
+name = "chained-tuple-targets"
+comparison = "full"
+files = { "case.py" = "(foo, bar) = (foo, bar) = baz\n" }
+expected = [{ rule = "PLW0127", file = "case.py", start = 1, end = 4 }, { rule = "PLW0127", file = "case.py", start = 6, end = 9 }]
+
+[[cases]]
+name = "chained-three-targets"
+comparison = "full"
+files = { "case.py" = "(foo, bar) = baz = (foo, bar) = 1\n" }
+expected = [{ rule = "PLW0127", file = "case.py", start = 1, end = 4 }, { rule = "PLW0127", file = "case.py", start = 6, end = 9 }]
+
+[[cases]]
+name = "chained-names-call"
+comparison = "full"
+files = { "case.py" = "X, y = X, y = f()\n" }
+expected = [{ rule = "PLW0127", file = "case.py", start = 0, end = 1 }, { rule = "PLW0127", file = "case.py", start = 3, end = 4 }]
+
+[[cases]]
+name = "parenthesized-target-bare-value"
+comparison = "full"
+files = { "case.py" = "(foo, bar) = foo, bar\n" }
+expected = [{ rule = "PLW0127", file = "case.py", start = 1, end = 4 }, { rule = "PLW0127", file = "case.py", start = 6, end = 9 }]
+
+[[cases]]
+name = "list-target-tuple-value"
+comparison = "full"
+files = { "case.py" = "[foo, bar] = foo, bar\n" }
+expected = []
+
+[[cases]]
+name = "swapped-nested"
+comparison = "full"
+files = { "case.py" = "foo, (bar, baz) = foo, (baz, bar)\n" }
+expected = [{ rule = "PLW0127", file = "case.py", start = 0, end = 3 }]
+
+[[cases]]
+name = "shape-mismatch"
+comparison = "full"
+files = { "case.py" = "foo, (bar, baz) = foo, bar\n" }
+expected = [{ rule = "PLW0127", file = "case.py", start = 0, end = 3 }]
+
+[[cases]]
+name = "chained-different-names"
+comparison = "full"
+files = { "case.py" = "(foo, bar) = (bar, foo) = baz\n" }
+expected = []
+
+[[cases]]
+name = "in-class"
+comparison = "full"
+files = { "case.py" = "class C:\n    (foo, bar) = (foo, bar) = baz\n" }
+expected = []
+
+[[cases]]
+name = "starred-element"
+comparison = "full"
+files = { "case.py" = "foo, *bar = foo, *bar\n" }
+expected = [{ rule = "PLW0127", file = "case.py", start = 0, end = 3 }]
+
+[[cases]]
+name = "tuple-target-list-value"
+comparison = "full"
+files = { "case.py" = "(foo, bar) = [foo, bar]\n" }
+expected = []
+
+[[cases]]
+name = "list-both-sides"
+comparison = "full"
+files = { "case.py" = "[foo, bar] = [foo, bar]\n" }
+expected = []
+
+[[cases]]
+name = "nested-list-in-tuples"
+comparison = "full"
+files = { "case.py" = "foo, [bar, baz] = foo, [bar, baz]\n" }
+expected = [{ rule = "PLW0127", file = "case.py", start = 0, end = 3 }]
+
+[[cases]]
+name = "tuple-target-set-value"
+comparison = "full"
+files = { "case.py" = "foo, bar = {foo, bar}\n" }
+expected = []
