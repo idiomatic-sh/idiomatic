@@ -54,24 +54,35 @@ fn registers_of(text: &str) -> Vec<u32> {
     found
 }
 
-/// A stage as it prints itself, each register replaced by its place in `met` (added when it is new).
+/// A stage as it prints itself, each register replaced by its place in `met` (added when it is new). One pass over the
+/// text (prototype ryo-fmx3.1: a replace of the whole text for each register met): the same text.
 fn renamed(stage: &FillStage, met: &mut Vec<u32>) -> String {
-    let mut text = format!("{stage:?}");
-    for register in registers_of(&text) {
-        if !met.contains(&register) {
-            met.push(register);
+    let text = format!("{stage:?}");
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text.as_str();
+    while let Some(at) = rest.find("Register(") {
+        let (before, after) = rest.split_at(at.saturating_add(9));
+        out.push_str(before);
+        let digits = after.bytes().take_while(u8::is_ascii_digit).count();
+        let number = after
+            .get(..digits)
+            .filter(|_| digits > 0 && after.get(digits..).is_some_and(|tail| tail.starts_with(')')))
+            .and_then(|written| written.parse::<u32>().ok());
+        match number {
+            Some(register) => {
+                let place = met.iter().position(|each| *each == register).unwrap_or_else(|| {
+                    met.push(register);
+                    met.len().saturating_sub(1)
+                });
+                out.push('#');
+                out.push_str(&place.to_string());
+                rest = after.get(digits..).unwrap_or_default();
+            }
+            None => rest = after,
         }
     }
-    // Longest numbers first, so that a register's number is never read inside another's.
-    let mut order: Vec<(usize, u32)> = met.iter().copied().enumerate().collect();
-    order.sort_by_key(|(_, register)| std::cmp::Reverse(*register));
-    for (place, register) in order {
-        text = text.replace(
-            &format!("Register({register})"),
-            &format!("Register(#{place})"),
-        );
-    }
-    text
+    out.push_str(rest);
+    out
 }
 
 /// One pipeline's stages as they compare, and the registers it meets in each.
