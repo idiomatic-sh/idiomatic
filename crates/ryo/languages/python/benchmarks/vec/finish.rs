@@ -4029,13 +4029,27 @@ pub(super) fn filled_table(run: &mut Run, rel: &str, filled: &languages::FilledC
             continue;
         };
         out.cols[c] = match ty {
-            Ty::Sym => column.0.iter().map(|w| u64::from(run.sym(languages::facts::text(words, *w).0.as_bytes()))).collect(),
+            Ty::Sym => column.0.iter().map(|w| u64::from(run.sym(&cell_text(words, *w)))).collect(),
             Ty::Node => column.0.iter().map(|w| w.0 & 0xffff_ffff).collect(),
             _ => column.0.iter().map(|w| w.0).collect(),
         };
     }
     out.n = n;
     Ok(out)
+}
+
+/// redo-binding: a cell's text, a word of a closed set (`defines.kind` and the other closed columns: the catalog's term blocks
+/// from 0xFFFF_0000, 0x100 words a block, `ryo_relations::domain::terms`) read by its number, which the file's words do not hold.
+fn cell_text(words: &languages::FileWords, w: languages::CellWord) -> Vec<u8> {
+    use ryo_relations::domain::terms::{service::words_of, types::WordBlock};
+    if (0xFFFF_0000..0xFFFF_0700).contains(&w.0) {
+        let at = w.0 - 0xFFFF_0000;
+        let block = [WordBlock::Declaration, WordBlock::Parameter, WordBlock::Value, WordBlock::Mapping, WordBlock::Dependency, WordBlock::Unknown, WordBlock::Origin][(at / 0x100) as usize];
+        if let Some(t) = words_of(block).get((at % 0x100) as usize) {
+            return t.0.as_bytes().to_vec();
+        }
+    }
+    languages::facts::text(words, w).0.as_bytes().to_vec()
 }
 
 /// A tree relation as this file reads it in place, made whole (for `--check-bases`).
