@@ -54,6 +54,10 @@ pub(crate) struct NeedFormulas {
     pub(crate) nodes: Vec<FormulaNode>,
     /// What asking each node may cost.
     pub(crate) ranks: Vec<AskRank>,
+    /// For each node, the least it may cost to find it empty, and to find it holds: an All may be found empty by its
+    /// cheapest part and holds only when its dearest does; an Any the other way round. An All's parts are asked by the
+    /// first, an Any's by the second.
+    pub(crate) deciding: Vec<(AskRank, AskRank)>,
     /// The parts of every `All` and `Any`, one node after the other, each a node's number.
     pub(crate) parts: Vec<u32>,
     /// The bit words of every `AllBits` and `AnyBits`, one node after the other.

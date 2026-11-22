@@ -117,6 +117,38 @@ fn pushed(masks: &mut NeedMasks, node: FormulaNode, rank: AskRank, musts: &[Must
         | FormulaNode::AnyBits(_) => true,
     };
     formulas.informs.push(informs);
+    let of = |part: &u32| {
+        formulas
+            .deciding
+            .get(usize::try_from(*part).unwrap_or(usize::MAX))
+            .copied()
+            .unwrap_or((rank, rank))
+    };
+    let deciding = match node {
+        FormulaNode::All(parts) | FormulaNode::Any(parts) => {
+            let each = formulas
+                .parts
+                .get(parts.start.0..parts.start.0.saturating_add(parts.count.0))
+                .unwrap_or_default();
+            let empty = each.iter().map(of).map(|(empty, _)| empty);
+            let holds = each.iter().map(of).map(|(_, holds)| holds);
+            if matches!(node, FormulaNode::All(_)) {
+                (empty.min().unwrap_or(rank), holds.max().unwrap_or(rank))
+            } else {
+                (empty.max().unwrap_or(rank), holds.min().unwrap_or(rank))
+            }
+        }
+        FormulaNode::Always
+        | FormulaNode::Never
+        | FormulaNode::Free(_)
+        | FormulaNode::Term(_)
+        | FormulaNode::Table(_)
+        | FormulaNode::Site(_)
+        | FormulaNode::TableNeed(_)
+        | FormulaNode::AllBits(_)
+        | FormulaNode::AnyBits(_) => (rank, rank),
+    };
+    formulas.deciding.push(deciding);
     formulas.nodes.push(node);
     formulas.ranks.push(rank);
     u32::try_from(formulas.nodes.len().saturating_sub(1)).unwrap_or(u32::MAX)
@@ -219,6 +251,31 @@ pub(crate) fn node_musts(masks: &NeedMasks, node: u32) -> (Stretch, Stretch) {
         .copied()
         .unwrap_or_default();
     (musts, clause)
+}
+
+/// The least it may cost to find a node empty, and to find it holds.
+fn deciding_of(masks: &NeedMasks, node: u32) -> (AskRank, AskRank) {
+    masks
+        .formulas
+        .deciding
+        .get(usize::try_from(node).unwrap_or(usize::MAX))
+        .copied()
+        .unwrap_or((AskRank::Presence, AskRank::Presence))
+}
+
+/// Sets what it may cost to decide a node that stands for another formula: the formula's.
+fn deciding_set(masks: &mut NeedMasks, node: u32, root: Option<u32>) {
+    let Some(root) = root else {
+        return;
+    };
+    let held = deciding_of(masks, root);
+    if let Some(slot) = masks
+        .formulas
+        .deciding
+        .get_mut(usize::try_from(node).unwrap_or(usize::MAX))
+    {
+        *slot = held;
+    }
 }
 
 /// What asking a node may cost.
@@ -449,7 +506,12 @@ fn joined(masks: &mut NeedMasks, mut parts: Vec<u32>, every: bool) -> u32 {
         };
         return pushed(masks, node, AskRank::Free, &[]);
     }
-    parts.sort_by_key(|part| rank_of(masks, *part));
+    // An All looks for a part that is empty, an Any for one that holds: each asks first the parts that may say so
+    // for least.
+    parts.sort_by_key(|part| {
+        let (empty, holds) = deciding_of(masks, *part);
+        if every { empty } else { holds }
+    });
     let rank = parts
         .iter()
         .map(|part| rank_of(masks, *part))
@@ -488,6 +550,7 @@ fn table_node(code: &ProgramCode, masks: &mut NeedMasks, table: MadeTableId) -> 
     let clause = root.map_or_else(Vec::new, |root| clause_of(masks, root).to_vec());
     let own = pushed(masks, FormulaNode::TableNeed(table), rank, &musts);
     clause_set(masks, own, &clause);
+    deciding_set(masks, own, root);
     let stretch = Stretch {
         start: Count(masks.formulas.parts.len()),
         count: Count(2),
@@ -541,6 +604,7 @@ fn compiled(code: &ProgramCode, at: WordSlot, masks: &mut NeedMasks) -> u32 {
             let clause = root.map_or_else(Vec::new, |root| clause_of(masks, root).to_vec());
             let number = pushed(masks, FormulaNode::Site(site), rank, &musts);
             clause_set(masks, number, &clause);
+            deciding_set(masks, number, root);
             // Only a site whose formula was compiled is shared: one met inside itself is not.
             if root.is_some() {
                 let _was = masks.formulas.leaves.insert((1, site.0), number);
