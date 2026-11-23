@@ -48,7 +48,7 @@ thread_local! {
 const SCAN: usize = 16;
 const NONE: u32 = u32::MAX;
 
-fn prep(ex: &mut Exec<'_>, run: &mut Run, node: usize) -> R<Rc<Prep>> {
+pub(super) fn prep(ex: &mut Exec<'_>, run: &mut Run, node: usize) -> R<Rc<Prep>> {
     if let Some(pr) = &ex.union_preps[node] {
         return Ok(pr.clone());
     }
