@@ -2727,12 +2727,11 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
         } else if use_facts {
             // the provider's facts are lent only while the walk runs: decide here which files need them (some rule that
             // tests a fact survived the kinds-and-words skip), then fill those relations and write their columns
-            let reader_file = if fin.is_some() { FileId(file_no as u32) } else { FileId(0) };
-            ryo_python::fixtures::walking::walked_request(walk, WalkRequest { path: languages::SourcePath(path), file: reader_file, source: ByteSlice(&bytes) }, reader_needs, &mut table, &mut scratch, structured.then_some(enclosing.as_slice()), &mut |file| {
+            ryo_python::fixtures::walking::walked_structured(walk, path, &bytes, reader_needs, &mut table, &mut scratch, structured.then_some(enclosing.as_slice()), &mut |file| {
                 let p0 = thread_cpu();
                 let ft = file.table;
                 let n = node_table::element_count(ft).0;
-                prepare!(ft, reader_file, |rel,words,out| matches!(rel, pair_summary::Source::Catalog(r) if matches!(file.facts.fill(r,languages::Wanted::Whole,words,out),languages::FactAnswer::Answered(_))));
+                prepare!(ft, FileId(0), |rel,words,out| matches!(rel, pair_summary::Source::Catalog(r) if matches!(file.facts.fill(r,languages::Wanted::Whole,words,out),languages::FactAnswer::Answered(_))));
                 prepared = true;
                 let v0 = thread_cpu();
                 let mut needed = vec![false; slots_n];
