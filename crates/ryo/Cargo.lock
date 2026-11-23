@@ -1827,6 +1827,7 @@ dependencies = [
  "idiomatic-sh-ryo-sdk",
  "idiomatic-sh-ryo-values",
  "indexmap",
+ "memchr",
  "mimalloc",
  "pep508_rs",
  "postcard",
