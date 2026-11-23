@@ -3,8 +3,43 @@
 use super::{File, Native, Run, Src, ViewSpec, fill_prof, get, view_cols};
 use ryo::languages::{Position, node_table};
 
+#[derive(Clone, Copy)]
+pub(super) enum Ids<'a> {
+    Slice(&'a [u32]),
+    Range(u32),
+    View(&'a super::cold_bucket::Rows<'a>),
+}
+
+impl Ids<'_> {
+    pub(super) fn len(self) -> usize {
+        match self {
+            Self::Slice(ids) => ids.len(),
+            Self::Range(n) => n as usize,
+            Self::View(rows) => rows.len(),
+        }
+    }
+
+    #[inline]
+    fn visit(self, f: impl FnMut(u32)) {
+        match self {
+            Self::Slice(ids) => ids.iter().copied().for_each(f),
+            Self::Range(n) => (0..n).for_each(f),
+            Self::View(rows) => rows.iter().copied().for_each(f),
+        }
+    }
+}
+
+pub(super) fn supports(f: &File<'_>, v: &ViewSpec, col: usize) -> bool {
+    let singleton = matches!(
+        (v.base, col),
+        (Native::Tree | Native::Location, 0) | (Native::Child, 1)
+    );
+    (singleton || matches!((v.base, col), (Native::Child, 0) | (Native::Fact(_), _)))
+        && Filter::bind(f, v, singleton).is_some()
+}
+
 pub(super) struct Driver<'a> {
-    pub(super) rows: &'a [u32],
+    pub(super) rows: Ids<'a>,
     pub(super) source: usize,
     pub(super) column: usize,
 }
@@ -99,7 +134,7 @@ pub(super) fn pairs(
             })
         }),
         (Native::Fact(i), c) => {
-            if batch.driver.rows.is_empty() {
+            if batch.driver.rows.len() == 0 {
                 return Some(0);
             }
             if fill_prof::counting() {
@@ -131,7 +166,7 @@ impl<F: FnMut(&mut Run, u32, u32)> Batch<'_, '_, F> {
             Src::Tab(t, _) => Some(t.cols[self.driver.column].as_slice()),
             _ => None,
         };
-        for &left in self.driver.rows {
+        self.driver.rows.visit(|left| {
             let key = match table_keys {
                 Some(keys) => keys[left as usize],
                 None => get(
@@ -153,7 +188,7 @@ impl<F: FnMut(&mut Run, u32, u32)> Batch<'_, '_, F> {
                     (self.emit)(self.run, left, right);
                 }
             }
-        }
+        });
         touched
     }
 }

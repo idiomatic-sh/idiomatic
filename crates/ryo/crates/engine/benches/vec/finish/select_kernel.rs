@@ -196,6 +196,7 @@ struct K {
     /// By source, where it is a view: the kinds its own tests name, and the kinds the select's tests name of it (static).
     kinds: Vec<(Option<Vec<u32>>, Option<Vec<u32>>)>,
     entries: Vec<super::view_entry::Entry>,
+    view_key: Option<[usize; 2]>,
     /// A semi step's probed side: the band is tried first.
     semi: Option<usize>,
     /// redo-select2: a run is decided by a view source whose entry is empty before anything is read (`ksel_zero`).
@@ -426,7 +427,8 @@ impl Exec<'_> {
             }
             views
         };
-        Ok(Prep::K(K { preds, file_const, items, set, ident, kinds, entries, semi, zero }))
+        let view_key = (k == 2 && zero).then(|| super::view_pair::columns(&sp.conj)).flatten();
+        Ok(Prep::K(K { preds, file_const, items, set, ident, kinds, entries, view_key, semi, zero }))
     }
 
     /// The dispatch: the kernels, or the interpreter's `select` (`VEC_OLD_SELECT`, or a node they do not cover).
@@ -730,6 +732,14 @@ impl Exec<'_> {
             None => (0..k).find(|i| matches!(srcs[*i], Src::View(..))).ok_or("a select with no source to start from")?,
         };
         super::empty_sel::lap(5, self.inner);
+        if let Some(columns) = kp.view_key
+            && deferred.is_none()
+            && !super::empty_sel::on() && !sw!("VEC_KSEL_PROF")
+            && let Some(result) = super::view_pair::run(self, f, run, node, srcs, driver, columns,
+                super::view_pair::Projection { items: &kp.items, left: &mut b.left, right: &mut b.right })?
+        {
+            return Ok(result);
+        }
         let prof = sw!("VEC_KSEL_PROF");
         if prof {
             prof_add(1, t0.elapsed() - (self.inner - i0));
@@ -1012,7 +1022,7 @@ impl Exec<'_> {
                     }
                     Src::View(vs, _) => {
                         let (base, bcol) = (vs.base, vs.map[col]);
-                        let batch = super::view_probe::Driver { rows: sel, source: driver, column: dc };
+                        let batch = super::view_probe::Driver { rows: super::view_probe::Ids::Slice(sel), source: driver, column: dc };
                         let direct = super::view_probe::pairs(f, run, &srcs, batch, vs, bcol, |run, row, hit| {
                             cur[driver] = row;
                             cur[si] = hit;

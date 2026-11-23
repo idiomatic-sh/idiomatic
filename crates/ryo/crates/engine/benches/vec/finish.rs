@@ -93,8 +93,12 @@ mod leaf_scan;
 mod cold_bucket;
 #[path = "finish/view_join/probe.rs"]
 mod view_probe;
+#[path = "finish/view_join/pair.rs"]
+mod view_pair;
 #[path = "finish/view_join/entry.rs"]
 mod view_entry;
+#[path = "finish/view_join/input.rs"]
+mod view_input;
 #[path = "finish/cold_text.rs"]
 mod cold_text;
 #[path = "finish/cold_list.rs"]
@@ -651,6 +655,7 @@ pub(super) struct File<'a> {
     memo: Vec<Option<Res>>,
     vrows: cold_entries::Rows,
     vmat: FxHashMap<usize, Rc<Table>>,
+    cursor_views: rustc_hash::FxHashSet<usize>,
     index: FxHashMap<usize, inline_key::List<(inline_key::Key, Rc<Index>)>>,
     fills: FxHashMap<String, Rc<Table>>,
     lazies: FxHashMap<usize, Rc<Lazy>>,
@@ -828,6 +833,7 @@ impl File<'_> {
             cold_roots: Vec::new(),
             cold_text: cold_text::Dictionary::default(),
             vmat: b.vmat,
+            cursor_views: Default::default(),
             index: b.index,
             fills: b.fills,
             lazies: b.lazies,
@@ -1975,23 +1981,30 @@ impl<'p> Exec<'p> {
                     return Ok(t.clone());
                 }
                 let t0 = leaf_scan::table_clock();
-                let sc = self.schema(run, node)?;
                 let rows = view_rows_for(f, run, &v, node, true);
-                let mut out = Table::with_rows(sc.names.clone(), sc.tys.clone(), rows.len());
-                for c in 0..v.map.len() {
-                    view_cols::gather_ids(f, run, v.base, v.map[c], rows.iter().copied(), &mut out.cols[c]);
-                }
-                out.n = rows.len();
-                self.stats.built[node] += out.n as u64;
-                let rc = recycle::rc(out);
+                let rc = if rows.is_empty() {
+                    self.empty_rc(run, node)?
+                } else {
+                    let sc = self.schema(run, node)?;
+                    let mut out = Table::with_rows(sc.names.clone(), sc.tys.clone(), rows.len());
+                    for c in 0..v.map.len() {
+                        view_cols::gather_ids(f, run, v.base, v.map[c], rows.iter().copied(), &mut out.cols[c]);
+                    }
+                    out.n = rows.len();
+                    recycle::rc(out)
+                };
                 f.vmat.insert(node, rc.clone());
                 let dt = leaf_scan::table_clock() - t0;
                 self.stats.time[node] += dt;
                 if self.timing || !sw!("VEC_LEAF_CLOCK") {
                     self.inner += dt;
                 }
-                self.stats.ran(node);
-                self.stats.produced(node, rc.n);
+                // A row-stream reader may already have produced this logical result.
+                if !f.cursor_views.remove(&node) {
+                    self.stats.built[node] += rc.n as u64;
+                    self.stats.ran(node);
+                    self.stats.produced(node, rc.n);
+                }
                 Ok(rc)
             }
         }
@@ -2035,21 +2048,12 @@ impl<'p> Exec<'p> {
         if let Some(l) = f.lazies.get(&node) {
             return Ok(l.clone());
         }
-        let edges = self.eval(f, run, p, self.arg_rel(node, "edges")?)?;
+        let edges = self.edge_input(f, run, p, self.arg_rel(node, "edges")?)?;
         let t0 = step_clock();
         let a = &self.plan.nodes[node].j["args"];
         let keys: Vec<usize> = strs(&a["keys"])?.iter().map(|k| edges.col(k)).collect::<R<_>>()?;
         let (si, di) = (edges.col(s(&a["source"])?)?, edges.col(s(&a["destination"])?)?);
-        let mut adj: FxHashMap<Vec<u64>, Vec<u64>> = FxHashMap::default();
-        let mut radj: FxHashMap<Vec<u64>, Vec<u64>> = FxHashMap::default();
-        for r in 0..edges.n {
-            let mut k: Vec<u64> = keys.iter().map(|c| edges.cols[*c][r]).collect();
-            let mut k2 = k.clone();
-            k.push(edges.cols[si][r]);
-            adj.entry(k).or_default().push(edges.cols[di][r]);
-            k2.push(edges.cols[di][r]);
-            radj.entry(k2).or_default().push(edges.cols[si][r]);
-        }
+        let (adj, radj) = edges.adjacency(f, run, &keys, si, di);
         let sc = self.schema(run, node)?;
         let l = Rc::new(Lazy { keys, adj, radj, node, names: sc.names.clone(), tys: sc.tys.clone(), cache: RefCell::new(FxHashMap::default()), rcache: RefCell::new(FxHashMap::default()) });
         let dt = step_clock() - t0;
