@@ -112,7 +112,7 @@ impl<'p> Settings<'p> {
             check: self.check,
             query_rows: self.query_rows,
             dump: self.dump.clone(),
-            dump_text: String::new(),
+            dump_chunks: Vec::new(),
             run,
             exec: finish::Exec::with_layout(self.plan, self.layout.clone()),
             findings: Default::default(),
@@ -148,8 +148,8 @@ pub(crate) struct Report {
     findings: finish::json_output::Findings,
     failures: HashMap<String, (usize, String)>,
     rule_stats: Vec<[u64; 3]>,
-    checks: Vec<String>,
-    dump: String,
+    checks: Vec<(usize, String)>,
+    dump: Vec<(usize, usize, String)>,
     files: u64,
     seconds: f64,
     rows: u64,
@@ -176,7 +176,7 @@ impl Finisher<'_> {
             failures: self.failed,
             rule_stats: self.rule_stats,
             checks: self.check_lines,
-            dump: self.dump_text,
+            dump: self.dump_chunks,
             files: self.files_run,
             seconds: self.time,
             rows: self.provider_rows,
@@ -197,7 +197,7 @@ impl Finisher<'_> {
             }
         }
         self.check_lines.extend(r.checks);
-        self.dump_text.push_str(&r.dump);
+        self.dump_chunks.extend(r.dump);
         for (total, part) in self.rule_stats.iter_mut().zip(r.rule_stats) {
             sum(total, &part);
         }
