@@ -427,7 +427,11 @@ impl Exec<'_> {
             }
             views
         };
-        let view_key = (k == 2 && zero).then(|| super::view_pair::columns(&sp.conj)).flatten();
+        let view_key = if k == 2 && sp.srcs.iter().any(|s| self.views[*s].as_ref().is_some_and(Option::is_some)) {
+            super::view_pair::columns(&sp.conj)
+        } else {
+            None
+        };
         Ok(Prep::K(K { preds, file_const, items, set, ident, kinds, entries, view_key, semi, zero }))
     }
 

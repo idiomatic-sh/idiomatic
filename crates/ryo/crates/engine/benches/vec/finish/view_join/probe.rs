@@ -1,6 +1,6 @@
 //! A native equality probe reads the provider's ordered hits directly. The outer
 //! select retains its driver order, residual predicates, touched count and projection.
-use super::{File, Native, Run, Src, ViewSpec, fill_prof, get, view_cols};
+use super::{File, Native, Run, Src, ViewSpec, fill_prof, view_cols};
 use ryo::languages::{Position, node_table};
 
 #[derive(Clone, Copy)]
@@ -46,6 +46,7 @@ pub(super) struct Driver<'a> {
 
 enum Filter<'a> {
     All,
+    Code(&'a [u16], u16),
     Codes(&'a [u16], &'a [u16]),
     Tests,
 }
@@ -61,7 +62,10 @@ impl<'a> Filter<'a> {
             } else {
                 &f.kind
             };
-            return Some(Self::Codes(column, entry.codes()));
+            return Some(match entry.codes() {
+                [code] => Self::Code(column, *code),
+                codes => Self::Codes(column, codes),
+            });
         }
         // A generic expression can intern text. Preserve evaluation across rows
         // for those filters. A singleton has the original evaluation order.
@@ -75,6 +79,7 @@ impl<'a> Filter<'a> {
     fn accepts(&self, f: &File<'_>, run: &mut Run, v: &ViewSpec, row: u32) -> bool {
         match self {
             Self::All => true,
+            Self::Code(column, code) => column[row as usize] == *code,
             Self::Codes(column, codes) => codes.contains(&column[row as usize]),
             Self::Tests => view_cols::row_holds(f, run, v, row),
         }
@@ -140,8 +145,18 @@ pub(super) fn pairs(
             if fill_prof::counting() {
                 f.mark_read(i);
             }
-            let index = f.fact_list(i, c);
-            batch.drive(|key| index.get(&key).unwrap_or_default().iter().copied())
+            let table = f.facts[usize::from(i)].as_ref();
+            match table.map_or(0, |t| t.n) {
+                0 => batch.drive(|_| None),
+                1 => {
+                    let only = table.expect("one fact row").cols[c][0];
+                    batch.drive(|key| (key == only).then_some(0))
+                }
+                _ => {
+                    let index = f.fact_list(i, c);
+                    batch.drive(|key| index.get(&key).unwrap_or_default().iter().copied())
+                }
+            }
         }
         _ => return None,
     };
@@ -162,22 +177,10 @@ impl<F: FnMut(&mut Run, u32, u32)> Batch<'_, '_, F> {
     #[inline]
     fn drive<I: IntoIterator<Item = u32>>(&mut self, hits: impl Fn(u64) -> I) -> u64 {
         let mut touched = 0;
-        let table_keys = match &self.srcs[self.driver.source] {
-            Src::Tab(t, _) => Some(t.cols[self.driver.column].as_slice()),
-            _ => None,
-        };
+        let key_column =
+            super::view_key::Key::bind(self.f, &self.srcs[self.driver.source], self.driver.column);
         self.driver.rows.visit(|left| {
-            let key = match table_keys {
-                Some(keys) => keys[left as usize],
-                None => get(
-                    self.run,
-                    self.f,
-                    self.srcs,
-                    &[left; 2],
-                    self.driver.source,
-                    self.driver.column,
-                ),
-            };
+            let key = key_column.read(self.f, self.run, left);
             fill_prof::read(4);
             if sw!("VEC_COLD_COUNT") {
                 self.run.cold.probe(self.f, None);
