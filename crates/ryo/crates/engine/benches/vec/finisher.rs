@@ -206,7 +206,7 @@ impl<'p> Finisher<'p> {
             stats[0] += 1;
             stats[1] += self.exec.stats.total_runs - before.0;
             stats[2] += self.exec.stats.total_rows - before.1;
-            finish::emptyprop::emit_done(&f, e.1);
+            self.exec.emit_done(&f, e.1);
             let got = if run.missing.is_empty() { got } else { Err(format!("functions {:?} not in the step set", run.missing)) };
             let written = got.and_then(|t| {
                 if self.dump.is_some() {
@@ -318,7 +318,7 @@ impl<'p> Finisher<'p> {
         finish::empty_sel::print();
         finish::emptyprop::print();
         let plan = self.plan;
-        finish::emptyprop::print_skipped(&|n| plan.nodes[n].op.clone());
+        exec.print_skipped(&|n| plan.nodes[n].op.clone());
         {
             // redo-union pass 2: per step kind: runs (whole, by key, known empty), runs that returned nothing (known before
             // the bracket, bracketed whole, bracketed by key) and the seconds in the bracketed ones (`VEC_STEP_TIME`)

@@ -5,38 +5,7 @@
 //! literal test has no size (`lit_rows` answers none whatever its fill holds).
 
 use super::{E, Exec, File, Native, R, Run, ViewSpec, kinds_required};
-use std::cell::RefCell;
 use std::rc::Rc;
-
-thread_local! {
-    /// The fills a lazy source left unasked in this file (file, table address; fact slots): the eager front would have
-    /// made them, so a test that reads only made fills (`ksel_zero`) makes them when it meets them, as before.
-    static OWED: RefCell<((u32, usize), Vec<bool>)> = RefCell::new(((u32::MAX, 0), Vec::new()));
-}
-
-/// Whether fact slot `x`'s fill was left unasked by a lazy source in this file.
-pub(super) fn owed(f: &File<'_>, x: usize) -> bool {
-    let key = (f.file, std::ptr::from_ref(f.table) as usize);
-    OWED.with(|o| {
-        let o = o.borrow();
-        o.0 == key && o.1.get(x).copied().unwrap_or(false)
-    })
-}
-
-fn owe(f: &File<'_>, x: usize) {
-    let key = (f.file, std::ptr::from_ref(f.table) as usize);
-    OWED.with(|o| {
-        let mut o = o.borrow_mut();
-        if o.0 != key {
-            o.0 = key;
-            o.1.clear();
-        }
-        if o.1.len() <= x {
-            o.1.resize(x + 1, false);
-        }
-        o.1[x] = true;
-    });
-}
 
 fn literal_on(e: &E, si: usize, width: usize) -> bool {
     (0..width).any(|c| kinds_required(e, si, c).is_some())
@@ -65,7 +34,10 @@ impl Exec<'_> {
         if f.fact_read.len() <= x {
             f.fact_read.resize_with(x + 1, Default::default);
         }
-        owe(f, x);
+        if f.owed_fills.len() <= x {
+            f.owed_fills.resize(x + 1, false);
+        }
+        f.owed_fills[x] = true;
         // the step's answer is the view, as `res` keeps it (and lists it to be cleared at the file's end)
         if f.memo[node].is_none() {
             f.touched.push(node as u32);

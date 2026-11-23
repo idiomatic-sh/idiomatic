@@ -1473,8 +1473,8 @@ checksum = "ae293c039020f9ec10710af98d29ce6aa2051486638b49c9a6409f3b4a9e98ad"
 name = "idiomatic-sh-ryo"
 version = "0.2.0"
 dependencies = [
- "bumpalo",
  "anstream 1.0.0",
+ "bumpalo",
  "clap",
  "cpu-time",
  "idiomatic-sh-ryo",
