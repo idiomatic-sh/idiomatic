@@ -24,6 +24,7 @@ use ryo_values::domain::query_tokens::types::{QuerySourceId, QueryView};
 use ryo_values::domain::runs::types::RuleId;
 use std::collections::BTreeMap;
 use std::path::Path;
+use super::rule_context;
 use std::sync::Arc;
 
 fn peak_kb() -> u64 {
@@ -108,7 +109,7 @@ pub(crate) fn run_lower(args: &[&str]) {
         let t0 = super::thread_cpu();
         let texts = read_texts(pack);
         let t1 = super::thread_cpu();
-        let pack_programs = parsed(&texts, super::request::rule_context(request));
+        let pack_programs = parsed(&texts, rule_context(request));
         let t2 = super::thread_cpu();
         let hwm_parse = peak_kb();
         let mut plan = lowered(&pack_programs, PlanningStage::Expanded);

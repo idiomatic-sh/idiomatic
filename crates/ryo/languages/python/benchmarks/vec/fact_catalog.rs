@@ -13,6 +13,11 @@ pub(super) const ASSIGNMENT_SOURCE_REL: &str = "assignment-source";
 /// First declarations and first mutations of a name in a routed namespace.
 pub(super) const NAMESPACE_SITES_REL: &str = "namespace-sites";
 
+/// Reads before the first scheduled store or annotation of their name in the same namespace and phase.
+pub(super) const PRE_DECLARATION_READ_REL: &str = "pre-declaration-read";
+const PRE_DECLARATION_READ_COLS: [(&str, Ty); 5] = [("reference", Ty::Node), ("scope", Ty::Node), ("phase", Ty::Node), ("ordinal", Ty::Num), ("file", Ty::File)];
+
+
 /// Dotted name requested by a relative import when its containing package is known.
 pub(super) const RELATIVE_IMPORT_REL: &str = "relative-import-target";
 const RELATIVE_IMPORT_COLS: [(&str, Ty); 3] = [("occurrence", Ty::Node), ("path", Ty::Sym), ("file", Ty::File)];
@@ -67,8 +72,9 @@ pub(super) fn declare(run: &mut finish::Run) {
     let mut resolutions = columns(super::pair_provider::predecessor::COLUMNS);
     let assignments = columns(super::pair_provider::sites::ASSIGNMENT);
     let namespaces = columns(super::pair_provider::sites::NAMESPACE);
-    let facts: [(&str, &[(&str, Ty)]); 12] = [
+    let facts: &[(&str, &[(&str, Ty)])] = &[
         (ASSIGNMENT_SOURCE_REL, &assignments),
+        (PRE_DECLARATION_READ_REL, &PRE_DECLARATION_READ_COLS),
         (NAMESPACE_SITES_REL, &namespaces),
         (REGION_REL, &REGION_COLS),
         (BINDING_SITES_REL, &sites),
@@ -81,7 +87,7 @@ pub(super) fn declare(run: &mut finish::Run) {
         (DEFERRED_RESOLUTION_REL, &DEFERRED_RESOLUTION_COLS),
         (TYPE_REGION_REL, &TYPE_REGION_COLS),
     ];
-    for (name, cols) in facts {
+    for &(name, cols) in facts {
         run.declare(name, cols, Supplier::Provider);
     }
     resolutions.extend([("binding", Ty::Node), ("outcome", Ty::Sym), ("basis", Ty::Sym)]);

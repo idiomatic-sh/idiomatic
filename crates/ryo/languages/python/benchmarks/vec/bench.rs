@@ -83,12 +83,7 @@ struct Rule {
     whole: Option<String>,
 }
 
-struct Vocab {
-    kinds: HashMap<String, u16>,
-    kind_names: Vec<String>,
-    fields: HashMap<String, u16>,
-    field_names: Vec<String>,
-}
+use first::{Vocab, span_bytes};
 
 fn vocabulary<W: Walk>(_: &W) -> Vocab {
     let v = W::vocabulary();
@@ -289,9 +284,6 @@ fn fields_present(table: &NodeTable, cols: &mut Columns, fields: usize) {
 }
 
 /// An element's bytes, from the node table's own span column.
-fn span_bytes(table: &NodeTable, i: usize) -> std::ops::Range<usize> {
-    node_table::starts(table)[i] as usize..node_table::ends(table)[i] as usize
-}
 
 fn test_lit(lit: &Lit, text: &[u8]) -> bool {
     match lit {
@@ -356,131 +348,9 @@ fn first_condition(table: &NodeTable, cols: &Columns, source: &[u8], anchor: &An
 
 /// The kinds-and-fields skip of a run's plan rules, flat: per rule whether it never matches and its clauses, a clause its
 /// kind words then its field words; a rule with no anchor line always passes.
-/// The file skip, flat: each rule's kinds-and-fields clauses and its word CNFs as numbers of distinct clauses, a clause
-/// stored once however many rules share it. A file's kinds-and-fields clauses are all tested once (`file`); a word clause
-/// is tested once a file, when a rule its kinds keep first asks it.
-struct Skip {
-    kw: usize,
-    fw: usize,
-    /// The distinct kinds-and-fields clauses, `kw + fw` words each: kind words then field words.
-    masks: Vec<u64>,
-    /// Per rule: never matches, and its clauses (a range of `of`).
-    rules: Vec<(bool, std::ops::Range<u32>)>,
-    of: Vec<u32>,
-    /// This file's answer of each distinct kinds-and-fields clause.
-    held: Vec<bool>,
-    /// Per rule its branches (a range of `branches`; none: unknown, alive), a branch its clauses (a range of `wof`), a
-    /// distinct word clause its words (a range of `wwords`).
-    wrules: Vec<std::ops::Range<u32>>,
-    branches: Vec<std::ops::Range<u32>>,
-    wof: Vec<u32>,
-    wclauses: Vec<std::ops::Range<u32>>,
-    wwords: Vec<u16>,
-    /// Per distinct word clause: `stamp << 1 | answer` once asked in the file of `stamp`.
-    wmemo: Vec<u32>,
-    stamp: u32,
-}
-
-impl Skip {
-    fn new(rules: &[Rule], skip_of: &[Option<usize>], frules: &[funnel::FRule], kw: usize, fw: usize) -> Self {
-        let mut masks: Vec<u64> = Vec::new();
-        let mut seen: HashMap<Vec<u64>, u32> = HashMap::new();
-        let mut of = Vec::new();
-        let rules: Vec<(bool, std::ops::Range<u32>)> = skip_of
-            .iter()
-            .map(|i| {
-                let a = of.len() as u32;
-                if let Some(i) = i {
-                    for (k, f) in &rules[*i].clauses {
-                        let c: Vec<u64> = k.iter().chain(f).copied().collect();
-                        assert_eq!(c.len(), kw + fw, "a clause is kw + fw words");
-                        let n = seen.len() as u32;
-                        let id = *seen.entry(c.clone()).or_insert_with(|| {
-                            masks.extend_from_slice(&c);
-                            n
-                        });
-                        of.push(id);
-                    }
-                }
-                (i.is_some_and(|i| rules[i].never), a..of.len() as u32)
-            })
-            .collect();
-        let mut wseen: HashMap<Vec<u16>, u32> = HashMap::new();
-        let (mut wrules, mut branches, mut wof, mut wclauses, mut wwords) = (Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new());
-        for r in frules {
-            let a = branches.len() as u32;
-            for cnf in &r.cnfs {
-                let b = wof.len() as u32;
-                for cl in cnf {
-                    let n = wseen.len() as u32;
-                    let id = *wseen.entry(cl.clone()).or_insert_with(|| {
-                        let w = wwords.len() as u32;
-                        wwords.extend_from_slice(cl);
-                        wclauses.push(w..wwords.len() as u32);
-                        n
-                    });
-                    wof.push(id);
-                }
-                branches.push(b..wof.len() as u32);
-            }
-            wrules.push(a..branches.len() as u32);
-        }
-        let n_masks = masks.len() / (kw + fw).max(1);
-        let n_w = wclauses.len();
-        Skip { kw, fw, masks, rules, of, held: vec![false; n_masks], wrules, branches, wof, wclauses, wwords, wmemo: vec![0; n_w], stamp: 0 }
-    }
-
-    /// A new file: every distinct kinds-and-fields clause tested once against its kinds and fields; the word answers of
-    /// the last file forgotten.
-    fn file(&mut self, kinds: &[u64], fields: &[u64]) {
-        let (kw, fw) = (self.kw, self.fw);
-        for (c, h) in self.masks.chunks_exact(kw + fw).zip(&mut self.held) {
-            *h = c[..kw].iter().zip(kinds).any(|(a, b)| a & b != 0) || c[kw..].iter().zip(fields).any(|(a, b)| a & b != 0);
-        }
-        self.stamp += 1;
-    }
-
-    /// Whether every clause of the rule meets a kind or a field the file has (`survives` over the distinct clauses).
-    #[inline]
-    fn alive(&self, rule: usize) -> bool {
-        let (never, range) = &self.rules[rule];
-        !never && self.of[range.start as usize..range.end as usize].iter().all(|c| self.held[*c as usize])
-    }
-
-    /// Whether some branch of the rule's word CNFs has every clause met by a word the file has (`FRule::words_alive`).
-    #[inline]
-    fn words_alive(&mut self, rule: usize, present: &[u64]) -> bool {
-        let r = self.wrules[rule].clone();
-        if r.is_empty() {
-            return true;
-        }
-        let stamp = self.stamp << 1;
-        for b in r {
-            let br = self.branches[b as usize].clone();
-            let mut all = true;
-            for k in br {
-                let c = self.wof[k as usize] as usize;
-                let m = self.wmemo[c];
-                let held = if m & !1 == stamp {
-                    m & 1 == 1
-                } else {
-                    let ws = self.wclauses[c].clone();
-                    let h = self.wwords[ws.start as usize..ws.end as usize].iter().any(|w| funnel::bit(present, *w));
-                    self.wmemo[c] = stamp | u32::from(h);
-                    h
-                };
-                if !held {
-                    all = false;
-                    break;
-                }
-            }
-            if all {
-                return true;
-            }
-        }
-        false
-    }
-}
+#[path = "../../../../crates/engine/benches/vec/file_skip.rs"]
+mod file_skip;
+use file_skip::Skip;
 
 fn survives(rule: &Rule, kinds: &[u64], fields: &[u64]) -> bool {
     if rule.never {
@@ -584,7 +454,6 @@ fn main() {
     match args.get(1).copied() {
         Some("lower") => return lower::run_lower(&args[2..]),
         Some("stage") => return lower::run_stage(&args[2..]),
-        Some("first") => return first::run_first(&args[2..]),
         _ => {}
     }
     // 6f: `VEC_PY310` walks at the pack's configured target (benchmark.toml `python-target=3.10`); without it the walk is at
@@ -593,6 +462,7 @@ fn main() {
     let walk = ryo_python::walk_with_settings(settings);
     let vocab = vocabulary(&walk);
     match args.get(1).copied() {
+        Some("first") => first::run_first(&args[2..], &vocab, python_language),
         Some("census") => census(&walk, &vocab, args[2], args[3], args[4]),
         Some("run") => run(&walk, &vocab, &args[2..]),
         Some("funnel") => {
@@ -640,8 +510,8 @@ fn main() {
                     finish::load(finish_args[0])
                 };
                 println!("start-up total {:.4} s", thread_cpu() - t0);
-                let mut fin = finisher::Finisher::new(&plan, &walk, &vocab, &finish_args);
-                run_funnel(&walk, settings, &vocab, &args[2..], Some(&mut fin), pack.as_ref().map(|(d, r)| (*d, r)));
+                let mut fin = visit::Finisher::new(&plan, &walk, &vocab, &finish_args);
+                run_funnel(&walk, &vocab, &args[2..], Some(&mut fin), pack.as_ref().map(|(d, r)| (*d, r)));
                 fin.end(0.0);
                 // redo-union pass 2 c18: the plan (30 k nodes of JSON) is not dropped one by one at exit
                 std::mem::forget(plan);
@@ -938,33 +808,43 @@ fn run(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     }
 }
 
-#[path = "alloc_count.rs"]
+#[path = "../../../../crates/engine/benches/vec/alloc_count.rs"]
 mod alloc_count;
-#[path = "funnel.rs"]
+#[path = "../../../../crates/engine/benches/vec/funnel.rs"]
 mod funnel;
-#[path = "file_seeds.rs"]
+#[path = "../../../../crates/engine/benches/vec/spec.rs"]
+mod spec;
+
+#[path = "../../../../crates/engine/benches/vec/file_seeds.rs"]
 mod file_seeds;
-#[path = "facts.rs"]
+#[path = "../../../../crates/engine/benches/vec/facts.rs"]
 mod facts;
-#[path = "survivors.rs"]
+#[path = "../../../../crates/engine/benches/vec/survivors.rs"]
 mod survivors;
-#[path = "finish.rs"]
+#[path = "../../../../crates/engine/benches/vec/finish.rs"]
 mod finish;
-#[path = "lower.rs"]
+#[path = "../../../../crates/engine/benches/vec/lower.rs"]
 mod lower;
-#[path = "first.rs"]
+use request::rule_context;
+#[path = "../../../../crates/engine/benches/vec/first.rs"]
 mod first;
+#[path = "../../../../crates/engine/benches/vec/pair_summary.rs"]
 mod pair_summary;
+#[path = "../../../../crates/engine/benches/vec/glob_pattern.rs"]
 mod glob_pattern;
 use glob_pattern::glob_pattern;
+#[path = "../../../../crates/engine/benches/vec/pair_skip.rs"]
 mod pair_skip;
+#[path = "../../../../crates/engine/benches/vec/pair_checks.rs"]
 mod pair_checks;
 mod pair_provider;
+#[path = "../../../../crates/engine/benches/vec/host_columns.rs"]
 mod host_columns;
 mod request;
-#[path = "finisher.rs"]
+#[path = "../../../../crates/engine/benches/vec/finisher.rs"]
 mod finisher;
-#[path = "dump.rs"]
+mod visit;
+#[path = "../../../../crates/engine/benches/vec/dump.rs"]
 mod dump;
 #[path = "type_expression.rs"]
 mod type_expression;
@@ -1421,6 +1301,21 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
                 });
             if !complete { return Err(format!("{rel}: incomplete flow")); }
             rows
+        } else if rel == fact_catalog::PRE_DECLARATION_READ_REL {
+            let (_, names, tys) = run.catalog(rel).ok_or("no pre-declaration-read")?;
+            let mut rows = finish::Table::with_rows(names, tys, 0);
+            let complete = self.file.visit_pre_declaration_reads(|at, scope, phase, ordinal| {
+                rows.cols[0].push(u64::from(at));
+                rows.cols[1].push(u64::from(scope));
+                rows.cols[2].push(u64::from(phase));
+                rows.cols[3].push(ordinal);
+                rows.cols[4].push(u64::from(self.file_no));
+                rows.n += 1;
+            });
+            if !complete {
+                return Err("pre-declaration-read: incomplete flow".to_owned());
+            }
+            rows
         } else if rel == fact_catalog::BINDING_SITES_REL {
             let (_, names, tys) = run.catalog(rel).ok_or("no binding-sites")?;
             let mut rows = finish::Table::with_rows(names, tys, 0);
@@ -1647,7 +1542,7 @@ fn run_finish(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
     let plan = finish::load(args[0]);
     type_expression::load_lists(args[0]);
     let list = files(args[1]);
-    let mut fin = finisher::Finisher::new(&plan, walk, vocab, args);
+    let mut fin = visit::Finisher::new(&plan, walk, vocab, args);
     let seed: Option<std::collections::HashSet<(String, String)>> =
         flag(args, "--seed").map(|p| std::fs::read_to_string(p).expect("seed").lines().filter_map(|l| l.split_once('\t')).map(|(a, b)| (a.to_owned(), b.to_owned())).collect());
     let mut seed_by_path: HashMap<&str, std::collections::HashSet<&str>> = HashMap::new();
@@ -1720,7 +1615,7 @@ fn source_literals(plan: &finish::Plan) -> Vec<Vec<u8>> {
 /// `<anchors>` a directory: the pack; the first half's spec is prepared in this process from its parsed rules (`first.rs`), the
 /// parse shared with the second half's when `--finish` names the same pack (`pack`); `<anchors>` and `<plans>` files: the
 /// spec prepared beforehand (the oracle path).
-fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSettings, vocab: &Vocab, args: &[&str], mut fin: Option<&mut finisher::Finisher<'_>>, pack: Option<(&str, &lower::ReadPack)>) {
+fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&mut visit::Finisher<'_>>, pack: Option<(&str, &lower::ReadPack)>) {
     let way = args[0];
     let list = files(args[1]);
     let mut fact_catalog = facts::Catalog::default();
@@ -1852,7 +1747,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
     let by_name: HashMap<&str, usize> = rules.iter().enumerate().map(|(i, r)| (r.name.as_str(), i)).collect();
     let skip_of: Vec<Option<usize>> = frules.iter().map(|r| by_name.get(r.name.as_str()).copied()).collect();
     // the kinds-and-fields skip of each plan rule, flat: a clause is its kind words then its field words
-    let mut skip = Skip::new(&rules, &skip_of, &frules, words_of(vocab.kind_names.len()), words_of(vocab.field_names.len()));
+    let mut skip = Skip::new(skip_of.iter().map(|i| i.map_or((false, &[][..]), |i| (rules[i].never, rules[i].clauses.as_slice()))), frules.iter().map(|r| r.cnfs.as_slice()), words_of(vocab.kind_names.len()), words_of(vocab.field_names.len()));
     let mut kinds: Vec<u64> = Vec::new();
     let fields_width = vocab.field_names.len();
     let mut units = funnel::units(&frules);
@@ -1953,7 +1848,10 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
                     match word_src.as_str() {
                         "table" => {
                             // redo-onepass pass 2: the walk's name codes when the visit took them, else by bytes
-                            funnel::file_words(pt, &bytes, name_token, if codes_taken { &name_codes } else { &[] }, &words, &mut word_memo, &mut fixed_memo, &mut present, &mut word_pairs);
+                            let tokens = node_table::ids_of_kind(pt, KindBits(name_token)).iter().copied();
+                            let (starts, ends) = (node_table::starts(pt), node_table::ends(pt));
+                            let spelling = |i: usize| &bytes[starts[i] as usize..ends[i] as usize];
+                            funnel::file_words(tokens, spelling, if codes_taken { &name_codes } else { &[] }, &words, &mut word_memo, &mut fixed_memo, &mut present, &mut word_pairs);
                             // the index: name-token positions of each required word
                             word_offsets.clear();
                             word_offsets.resize(n_words + 1, 0);
@@ -2921,5 +2819,5 @@ mod kernels {
 }
 
 #[cfg(feature = "vec-arrow")]
-#[path = "kernels.rs"]
+#[path = "../../../../crates/engine/benches/vec/kernels.rs"]
 mod kernels;
