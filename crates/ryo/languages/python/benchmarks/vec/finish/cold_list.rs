@@ -292,7 +292,7 @@ impl Plan {
         leaf: bool,
         entered: usize,
         tests: u64,
-        rows: &Rc<Vec<u32>>,
+        rows: &super::cold_bucket::Rows<'_>,
         seconds: f64,
     ) {
         f.vrows.primary(node, entered, tests);
@@ -303,19 +303,19 @@ impl Plan {
             if let Some(first) = &seen.first {
                 assert_eq!(
                     first.as_slice(),
-                    rows.as_slice(),
+                    rows.shadow(),
                     "file {}, list {key}, node {node}",
                     f.file
                 );
             } else {
-                seen.first = Some(rows.clone());
+                seen.first = Some(Rc::new(rows.shadow()));
             }
         }
         seen.builders += 1;
         if sw!("VEC_COLD_HANDOFF")
             && let Some(h) = &self.handoffs[key]
         {
-            let how = h.check(f, rows);
+            let how = h.check(f, &rows.shadow());
             let n = self.by_handoff.entry(how).or_default();
             n.0 += 1;
             n.1 += rows.len() as u64;
@@ -433,6 +433,7 @@ impl Exec<'_> {
 impl Exec<'_> {
     pub(crate) fn cold_report(&self, run: &Run) {
         super::cold_test::report();
+        super::cold_bucket::report();
         run.cold.report();
         run.cold_entries.report();
     }
@@ -469,22 +470,8 @@ impl Handoff {
             .collect();
         Some(Self { fields, codes })
     }
-    /// Field membership fixes the entry. The child relation also excludes each root.
-    pub(super) fn child_rows(&self, f: &File<'_>, out: &mut Vec<u32>) -> usize {
-        let mut entered = 0;
-        let mut live = 0;
-        for &code in &self.codes {
-            let rows = super::node_table::ids_of_field(f.table, ryo::languages::FieldCode(code));
-            if !rows.is_empty() {
-                live += 1;
-                entered += rows.len();
-                out.extend(rows.iter().map(|p| p.0).filter(|p| f.has_parent(*p)));
-            }
-        }
-        if live > 1 {
-            out.sort_unstable();
-        }
-        entered
+    pub(super) fn select(&self, f: &File<'_>) -> super::cold_bucket::Slot {
+        super::cold_bucket::select(f, self.fields, &self.codes)
     }
 
     fn check(&self, f: &File<'_>, rows: &[u32]) -> &'static str {

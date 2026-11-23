@@ -152,6 +152,10 @@ pub(super) fn retain_original(f: &File<'_>, run: &mut Run, v: &ViewSpec, rows: &
 
 /// The view's column `col` (a view column) at `rows`, appended to `out`: a fill's column gathered from its slice.
 pub(super) fn gather(f: &File<'_>, run: &mut Run, base: Native, bc: usize, rows: &[u32], out: &mut Vec<u64>) {
+    gather_ids(f, run, base, bc, rows.iter().copied(), out);
+}
+
+pub(super) fn gather_ids(f: &File<'_>, run: &mut Run, base: Native, bc: usize, rows: impl Iterator<Item=u32>, out: &mut Vec<u64>) {
     match base {
         Native::Fact(i) => {
             if fill_counting() {
@@ -160,16 +164,16 @@ pub(super) fn gather(f: &File<'_>, run: &mut Run, base: Native, bc: usize, rows:
             match &f.facts[usize::from(i)] {
                 Some(t) => {
                     let col = &t.cols[bc];
-                    out.extend(rows.iter().map(|r| col[*r as usize]));
+                    out.extend(rows.map(|r| col[r as usize]));
                 }
-                None => out.extend(rows.iter().map(|_| NULL)),
+                None => out.extend(rows.map(|_| NULL)),
             }
         }
-        Native::Tree if bc == 1 => out.extend(rows.iter().map(|r| u64::from(run.kind_sym[usize::from(f.kind[*r as usize])]))),
+        Native::Tree if bc == 1 => out.extend(rows.map(|r| u64::from(run.kind_sym[usize::from(f.kind[r as usize])]))),
         Native::Tree | Native::Location | Native::Child if matches!((base, bc), (Native::Tree | Native::Location, 0) | (Native::Tree, 2 | 3) | (Native::Child, 0 | 1 | 3 | 4)) => {
-            out.extend(rows.iter().map(|r| cell(f, run, base, *r, bc)));
+            out.extend(rows.map(|r| cell(f, run, base, r, bc)));
         }
-        _ => out.extend(rows.iter().map(|r| f.native_get(run, base, *r, bc))),
+        _ => out.extend(rows.map(|r| f.native_get(run, base, r, bc))),
     }
 }
 

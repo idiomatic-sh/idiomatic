@@ -7,7 +7,8 @@ use std::cell::{Cell, RefCell};
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
-type Map = FxHashMap<usize, Rc<Vec<u32>>>;
+use super::cold_bucket::Slot;
+type Map = FxHashMap<usize, Slot>;
 pub(super) type Key = (String, Option<(usize, Vec<u32>)>, Vec<String>);
 const SHIFT: usize = 56;
 // Namespace tags of the two positive filtered driver-slot keys in select_kernel.
@@ -53,6 +54,9 @@ impl Rows {
     }
     #[inline]
     pub(super) fn get(&self, key: &usize) -> Option<&Rc<Vec<u32>>> {
+        self.slot(key).map(Slot::owned)
+    }
+    pub(super) fn slot(&self, key: &usize) -> Option<&Slot> {
         let rows = self.data.get(key);
         // Only the two cached driver-entry constructors next call view_cols::retain.
         // Transient per-key join hits use that function too, outside this scope.
@@ -71,7 +75,8 @@ impl Rows {
         rows
     }
     #[inline]
-    pub(super) fn insert(&mut self, key: usize, rows: Rc<Vec<u32>>) -> Option<Rc<Vec<u32>>> {
+    pub(super) fn insert(&mut self, key: usize, rows: impl Into<Slot>) -> Option<Slot> {
+        let rows = rows.into();
         if sw!("VEC_COLD_ENTRIES") && key >> SHIFT < 5 {
             let (k, start) = self.pending.get();
             assert_eq!(k, key, "nested cold list");
@@ -227,7 +232,7 @@ impl Audit {
                 bucket(f, run, &d.kinds)
             } else {
                 f.vrows.data[&((2 << SHIFT) | (key & MASK))]
-                    .as_ref()
+                    .owned().as_ref()
                     .clone()
             };
             m.entered = rows.len() as u64;
@@ -255,10 +260,10 @@ impl Audit {
             let _ = owners.insert(owner);
             if let Event::Build(_, _, mut m) = event {
                 if sw!("VEC_COLD_COUNT") {
-                    let actual = &f.vrows.data[&key];
-                    Self::count_entry(d, f, run, key, actual, &mut m);
+                    let actual = f.vrows.data[&key].resolve(f.table).shadow();
+                    Self::count_entry(d, f, run, key, &actual, &mut m);
                     assert_eq!(
-                        f.vrows.data[first].as_slice(),
+                        f.vrows.data[first].resolve(f.table).shadow(),
                         actual.as_slice(),
                         "cross-entry identity {key}"
                     );

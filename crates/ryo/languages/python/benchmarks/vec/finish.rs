@@ -87,6 +87,8 @@ pub(super) mod emptyprop;
 mod ordering;
 #[path = "finish/leaf_scan.rs"]
 mod leaf_scan;
+#[path = "finish/cold_bucket.rs"]
+mod cold_bucket;
 #[path = "finish/cold_list.rs"]
 mod cold_list;
 #[path = "finish/cold_entries.rs"]
@@ -618,6 +620,7 @@ pub(super) struct Tokens {
 /// One file: the node table's columns, the source, the fills and the made tables.
 pub(super) struct File<'a> {
     cold: cold_list::PerFile,
+    cold_roots: Vec<(u16, u32)>,
     pub(super) table: &'a NodeTable,
     pub(super) src: &'a [u8],
     pub(super) file: u32,
@@ -736,7 +739,7 @@ impl Drop for File<'_> {
         b.line_starts.clear();
         b.text_memo.clear();
         for (_, r) in b.vrows.drain() {
-            recycle::recycle_rows(r);
+            r.recycle();
         }
         give_tables(&mut b.vmat);
         // redo-alloc: the indexes given back (their own allocation and buffers kept)
@@ -809,6 +812,7 @@ impl File<'_> {
             memo: Vec::new(),
             vrows: b.vrows,
             cold: cold_list::PerFile::default(),
+            cold_roots: Vec::new(),
             vmat: b.vmat,
             index: b.index,
             fills: b.fills,
@@ -832,8 +836,13 @@ impl File<'_> {
             f.start.push(s.start.0);
             f.end.push(s.end.0);
             f.parent.push(node_table::parent_of(table, p).0);
-            f.field.push(node_table::field_of(table, p).0);
+            let field = node_table::field_of(table, p).0;
+            f.field.push(field);
+            if i != 0 && f.parent[i as usize] == i {
+                f.cold_roots.push((field, i));
+            }
         }
+        if sw!("VEC_COLD_COUNT") { cold_bucket::roots(f.cold_roots.len(), f.cold_roots.capacity()); }
         let mut i = 0;
         while i < src.len() {
             match src[i] {
@@ -1925,7 +1934,7 @@ impl<'p> Exec<'p> {
                 let rows = view_rows_for(f, run, &v, node, true);
                 let mut out = Table::with_rows(sc.names.clone(), sc.tys.clone(), rows.len());
                 for c in 0..v.map.len() {
-                    view_cols::gather(f, run, v.base, v.map[c], &rows, &mut out.cols[c]);
+                    view_cols::gather_ids(f, run, v.base, v.map[c], rows.iter().copied(), &mut out.cols[c]);
                 }
                 out.n = rows.len();
                 self.stats.built[node] += out.n as u64;
@@ -2668,7 +2677,7 @@ impl<'p> Exec<'p> {
         let mut tuples: Vec<Vec<u32>> = (0..k).map(|_| self.take_u32()).collect();
         let own = own_of(driver);
         let mut cur = vec![0u32; k];
-        let first: Rc<Vec<u32>> = match &srcs[driver] {
+        let first: cold_bucket::Rows = match &srcs[driver] {
             Src::Tab(t, _) => {
                 // 8: a made table drives by position: its own tests run over its columns, no row list made
                 let n = t.n;
@@ -2685,7 +2694,7 @@ impl<'p> Exec<'p> {
                     }
                 }
                 tuples[driver] = kept;
-                Rc::new(Vec::new())
+                Rc::new(Vec::new()).into()
             }
             Src::View(v, vn) => {
                 // the select's own kind tests narrow the view's entry too
@@ -2693,12 +2702,12 @@ impl<'p> Exec<'p> {
                     Some(ks) if kind_set(run, &v.filter, 0, v.base, &[]).is_none() => {
                         let mut rows = bucket(f, run, &ks);
                         view_cols::retain(f, run, v, &mut rows);
-                        Rc::new(rows)
+                        Rc::new(rows).into()
                     },
                     _ => match lit_rows(f, conj, driver, v.base, &v.map) {
                         Some(mut rows) if !lit_applies(f, &v.filter, 0, v.base, &[]) => {
                             view_cols::retain(f, run, v, &mut rows);
-                            Rc::new(rows)
+                            Rc::new(rows).into()
                         }
                         _ => view_rows(f, run, v, *vn),
                     },
@@ -2953,8 +2962,8 @@ impl<'p> Exec<'p> {
                     let nb = bound | (1 << si);
                     empty_sel::at(empty_sel::stage::CROSS);
                     let checks: Vec<usize> = (0..conj.len()).filter(|c| !used[*c] && refs[*c] & !nb == 0).collect();
-                    let rows: Rc<Vec<u32>> = match &srcs[si] {
-                        Src::Tab(t, _) => Rc::new((0..t.n as u32).collect()),
+                    let rows: cold_bucket::Rows = match &srcs[si] {
+                        Src::Tab(t, _) => Rc::new((0..t.n as u32).collect::<Vec<_>>()).into(),
                         Src::View(v, vn) => view_rows(f, run, v, *vn),
                         _ => unreachable!(),
                     };
@@ -3458,43 +3467,35 @@ fn view_holds(f: &File<'_>, run: &mut Run, v: &ViewSpec, row: u32) -> bool {
 }
 
 /// A view's rows in this file: its kind bucket when its tests name kinds, else every base row; tested; made once a file.
-fn view_rows(f: &mut File<'_>, run: &mut Run, v: &ViewSpec, node: usize) -> Rc<Vec<u32>> {
+fn view_rows<'a>(f: &mut File<'a>, run: &mut Run, v: &ViewSpec, node: usize) -> cold_bucket::Rows<'a> {
     view_rows_for(f, run, v, node, false)
 }
 
-fn view_rows_for(f: &mut File<'_>, run: &mut Run, v: &ViewSpec, node: usize, materialize: bool) -> Rc<Vec<u32>> {
+fn view_rows_for<'a>(f: &mut File<'a>, run: &mut Run, v: &ViewSpec, node: usize, materialize: bool) -> cold_bucket::Rows<'a> {
     fill_prof::read(3);
     if cold_list::auditing() { run.cold.ask(f, node); }
-    if let Some(r) = f.vrows.get(&node) {
-        return r.clone();
+    if let Some(r) = f.vrows.slot(&node) {
+        return r.resolve(f.table);
     }
     let cold_start = cold_list::clock();
     let start = if sw!("VEC_LEAF_PROFILE") { step_clock() } else { 0.0 };
-    if filter_order::file_fails(run, f, &v.filter) {
-        let rc = recycle::no_rows();
-        f.vrows.insert(node, rc.clone());
-        if cold_list::auditing() { run.cold.built(f, node, materialize, 0, 0, &rc, cold_list::clock() - cold_start); }
-        if sw!("VEC_LEAF_PROFILE") {
-            leaf_scan::row_list(node, materialize, 0, 0, start);
-        }
-        return rc;
-    }
-    // redo-alloc: the rows made into a kept list (recycle.rs), tested in place
     let mut entered = 0;
     let mut tests = 0;
-    let rc = recycle::rows_with(|out| {
-        let before = if sw!("VEC_COLD_PHASE") { cold_list::clock() } else { 0.0 };
-        if let Some(entry) = v.cold_bucket.get() {
-            entered = entry.child_rows(f, out);
-            if sw!("VEC_COLD_COUNT") {
-                let mut original = f.native_rows(run, v.base);
-                view_cols::retain_original(f, run, v, &mut original);
-                assert_eq!(*out, original, "field entry file {}, node {node}", f.file);
-                tests = entered as u64;
-            }
-            if sw!("VEC_COLD_PHASE") { run.cold.phase(node, cold_list::clock() - before, 0.0); }
-            return;
+    let slot = if filter_order::file_fails(run, f, &v.filter) {
+        cold_bucket::Slot::Empty
+    } else if let Some(bucket) = v.cold_bucket.get() {
+        let slot = bucket.select(f);
+        if sw!("VEC_COLD_COUNT") {
+            let mut original = match kind_set(run, &v.filter, 0, v.base, &[]) {
+                Some(ks) => self::bucket(f, run, &ks),
+                None => f.native_rows(run, v.base),
+            };
+            view_cols::retain_original(f, run, v, &mut original);
+            assert_eq!(slot.resolve(f.table).shadow(), original, "bucket entry file {}, node {node}", f.file);
         }
+        slot
+    } else { recycle::rows_with(|out| {
+        let before = if sw!("VEC_COLD_PHASE") { cold_list::clock() } else { 0.0 };
         match kind_set(run, &v.filter, 0, v.base, &[]) {
             Some(ks) => bucket_into(f, run, &ks, out),
             None => match lit_rows(f, &v.filter, 0, v.base, &[]) {
@@ -3507,13 +3508,14 @@ fn view_rows_for(f: &mut File<'_>, run: &mut Run, v: &ViewSpec, node: usize, mat
         entered = out.len();
         tests = cold_test::retain(f, run, v, node, materialize, out);
         if sw!("VEC_COLD_PHASE") { run.cold.phase(node, middle - before, cold_list::clock() - middle); }
-    });
+    }).into() };
+    let rows = slot.resolve(f.table);
     if sw!("VEC_LEAF_PROFILE") {
-        leaf_scan::row_list(node, materialize, entered, rc.len(), start);
+        leaf_scan::row_list(node, materialize, entered, rows.len(), start);
     }
-    f.vrows.insert(node, rc.clone());
-    if cold_list::auditing() { run.cold.built(f, node, materialize, entered, tests, &rc, cold_list::clock() - cold_start); }
-    rc
+    f.vrows.insert(node, slot);
+    if cold_list::auditing() { run.cold.built(f, node, materialize, entered, tests, &rows, cold_list::clock() - cold_start); }
+    rows
 }
 
 /// How many elements some kinds have.

@@ -193,7 +193,7 @@ impl Exec<'_> {
             }
             // its entry, never its rows read for a size: the kind bucket, the literal rows, its rows if read already,
             // else the relation's rows (an upper bound)
-            if let Some(r) = f.vrows.get(&node) {
+            if let Some(r) = f.vrows.slot(&node) {
                 return Ok(r.len());
             }
             return Ok(match super::kind_set(run, &v.filter, 0, v.base, &[]) {
