@@ -2093,7 +2093,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
                             ($fill)(rel, words, out)
                         }, &mut alive, $catalog_file, Some(completed), exact)
                     } else {
-                        program.file(pt, &bytes, None, &mut fwords, $fill, &mut alive, FileId(0), None, exact)
+                        program.file(pt, &bytes, None, &mut fwords, $fill, &mut alive, $catalog_file, None, exact)
                     };
                     pair_cpu += thread_cpu() - start;
                 }
@@ -2349,9 +2349,9 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
                     file.name_token_codes(&mut name_codes);
                     codes_taken = true;
                     // Whole rows kept for the provider are born with their real file identity.
-                    if fin.is_some() { file.set_file(FileId(file_no as u32)); }
+                    file.set_file(FileId(file_no as u32));
                     prepare!(ft, FileId(file_no as u32), |rel,words,out| pair_provider::read(file, file_no, rel, words, out));
-                    if fin.is_some() { file.set_file(FileId(0)); }
+                    file.set_file(FileId(0));
                     prepared = true;
                     let index = file_seeds::Index { table: ft, offsets: &word_offsets, words: &word_pos };
                     if let Some(seeds) = &mut file_seeds {

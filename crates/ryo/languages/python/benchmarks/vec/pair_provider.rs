@@ -65,6 +65,20 @@ pub(super) fn site_cells(site: BindingSite, file: usize) -> [u64; 8] {
         file as u64,
     ]
 }
+/// The walk-site iterators expose table positions. Encode their node
+/// columns at this boundary in the same file-qualified form as catalog rows.
+fn write_positions(out: &mut FilledColumns, schema: &[(&str, CellKind)], row: &[u64], file: ryo::languages::FileId) {
+    for ((column, (_, kind)), &cell) in out.0.iter_mut().zip(schema).zip(row) {
+        let word = if *kind == Node && cell != super::finish::NULL {
+            let at = ryo::languages::Position(u32::try_from(cell).expect("walk node position"));
+            ryo_relations::domain::relations::service::node_id(file, at).0
+        } else {
+            cell
+        };
+        column.0.push(CellWord(word));
+    }
+}
+
 pub(super) fn read(
     file: &mut ColumnFile<'_, '_>,
     number: usize,
@@ -88,11 +102,10 @@ pub(super) fn read(
     out.0 = (0..schema.columns.len())
         .map(|_| FilledColumn(Vec::new()))
         .collect();
+    let file_id = ryo::languages::FileId(number as u32);
     match name {
         fact_catalog::BINDING_SITES_REL => file.visit_binding_sites(|site| {
-            for (col, cell) in out.0.iter_mut().zip(site_cells(site, number)) {
-                col.0.push(CellWord(cell));
-            }
+            write_positions(out, schema.columns, &site_cells(site, number), file_id);
         }),
         fact_catalog::ASSIGNMENT_SOURCE_REL | fact_catalog::NAMESPACE_SITES_REL => sites::visit(
             name,
@@ -105,17 +118,12 @@ pub(super) fn read(
                 )
                 .0
             },
-            |row| {
-                for (col, &cell) in out.0.iter_mut().zip(row) {
-                    col.0.push(CellWord(cell));
-                }
-            },
+            |row| write_positions(out, schema.columns, row, file_id),
         ),
         fact_catalog::PREDECESSOR_REL => predecessor::read(file, number, words, out),
         fact_catalog::RELATIVE_IMPORT_REL => {
             for (node, _, _, _) in file.relative_imports() {
-                out.0[0].0.push(CellWord(u64::from(node)));
-                out.0[1].0.push(CellWord(number as u64));
+                write_positions(out, schema.columns, &[u64::from(node), number as u64], file_id);
             }
             true
         }
