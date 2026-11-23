@@ -105,6 +105,7 @@ impl<'p> Finisher<'p> {
         me.exec.cold_test_load(&mut me.run);
         me.exec.cold_load(&mut me.run);
         me.exec.col_load(&mut me.run);
+        me.exec.bind_proofs(&mut me.run, &me.emits);
         #[cfg(feature = "vec-ask-audit")]
         finish::ask_audit::begin();
         me.time += thread_cpu() - t0;

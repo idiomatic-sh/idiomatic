@@ -438,7 +438,7 @@ impl Exec<'_> {
         };
         if let Some(pb) = kp.semi {
             let sp = self.sel(run, node)?;
-            if super::filter_order::file_fails(run, f, &sp.conj) {
+            if super::filter_order::file_fails(run, f, &sp.paths) {
                 *self.tally.back.entry((node, "a per-file test fails")).or_default() += 1;
                 return self.empty(run, node);
             }
@@ -491,7 +491,7 @@ impl Exec<'_> {
         };
         if let Some(pb) = kp.semi {
             let sp = self.sel(run, node)?;
-            if super::filter_order::file_fails(run, f, &sp.conj) {
+            if super::filter_order::file_fails(run, f, &sp.paths) {
                 *self.tally.back.entry((node, "a per-file test fails")).or_default() += 1;
                 super::empty_sel::at(super::empty_sel::stage::FILE_TEST);
                 return self.empty_rc(run, node);
@@ -576,7 +576,7 @@ impl Exec<'_> {
         let (t0, i0) = (Clk::now(), self.inner);
         super::empty_sel::origin(self.inner);
         let sp = self.sel(run, node)?;
-        if kp.file_const && super::filter_order::file_fails(run, f, &sp.conj) {
+        if kp.file_const && super::filter_order::file_fails(run, f, &sp.paths) {
             *self.tally.back.entry((node, "a per-file test fails")).or_default() += 1;
             super::empty_sel::at(super::empty_sel::stage::FILE_TEST);
             return self.empty_rc(run, node);

@@ -233,42 +233,19 @@ impl Exec<'_> {
     }
 }
 
-// ------------------------------------------------------------------------------------------------ cycle 2: the leaves
-
-/// A leaf of the propagation on one step, prepared once a run from the plan's shape and the relations' declared columns:
-/// the step is certainly empty in a file when the leaf holds. `src`: the select's source the leaf tests (0 for a view's
-/// own filter); `fact`: the provider relation read (`NO_FACT`: none); `own`: the view's own relation (its fill with no
-/// rows empties it); `lit`: a test fixes one of its columns to literals (`lit_rows` decides it); `fields`: the child
-/// field names a test requires (none present in the file: empty).
-struct Leaf {
-    src: u8,
-    fact: u16,
-    own: bool,
-    lit: bool,
-    fields: Box<[u32]>,
-    /// cycle 4 (`VEC_EP_VIEW=1` only: measured a loss, the reads cost more than the runs they save): the view's own rows
-    /// decide it (its entry is a kind bucket or a literal's rows; read where small)
-    rows: bool,
-}
+// The normal executor binds the propagation leaves by catalog type. Multiple steps
+// may refer to the same premise in the file (static_tests.rs).
 
 /// cycle 4: a view's rows are read for its emptiness only where its entry has at most this many rows.
 const VIEW_ENTRY_CAP: usize = 64;
 
-const NO_FACT: u16 = u16::MAX;
 
 #[derive(Default)]
 struct Leaves {
-    plan: usize,
-    by: Vec<Option<std::rc::Rc<[Leaf]>>>,
-    /// Present field names resolved against the current file's codebook.
-    file: Option<(u32, usize)>,
-    fields: FxHashSet<u32>,
     /// runs not made because the propagation's leaves decided them, by step
     skipped: Vec<u64>,
     /// emits asked in a file: decided empty by the old leaves, by the propagation's, or run
     emits: [u64; 3],
-    /// `VEC_STEP_TIME`: seconds of the leaves' fills, literal reads, view reads
-    laps: [f64; 3],
 }
 
 thread_local! {
@@ -287,25 +264,46 @@ fn cols_of(e: &E, si: usize, out: &mut Vec<usize>) {
     }
 }
 
-/// Whether a conjunction fixes a column of source `si` to literals (`kinds_required`), and the child field names it
-/// requires where the base is the child relation (`map`: the source's columns over the base's; empty: the base's own).
-fn tests(conj: &[E], si: usize, base: Native, map: &[usize]) -> (bool, Vec<u32>) {
-    let mut lit = false;
+/// Resolve the same first literal column as lit_pick, from its catalog type.
+fn bind_source(tests: &super::static_tests::Tests, out: &mut Vec<super::static_tests::Test>, run: &mut Run, node: usize,
+               conj: &[E], si: usize, base: Native, map: &[usize], own: bool) {
+    use super::static_tests::Test::*;
+    let fact = if let Native::Fact(id) = base { Some(id) } else { None };
+    let tys = fact.and_then(|id| {
+        let name = run.fact_rels[usize::from(id)].0.clone();
+        run.catalog(&name).map(|(_, _, tys)| tys)
+    });
+    let mut has_literal = false;
+    let mut literal = None;
     let mut fields = Vec::new();
-    for e in conj {
-        let mut cs = Vec::new();
-        cols_of(e, si, &mut cs);
-        for c in cs {
-            let Some(vals) = kinds_required(e, si, c) else { continue };
-            let bc = if map.is_empty() { c } else { map.get(c).copied().unwrap_or(usize::MAX) };
-            match base {
-                Native::Fact(_) => lit = true,
-                Native::Child if bc == 3 && fields.is_empty() => fields = vals,
-                _ => {}
+    let mut columns = Vec::new();
+    for expr in conj {
+        columns.clear();
+        cols_of(expr, si, &mut columns);
+        for &c in &columns {
+            let Some(mut values) = kinds_required(expr, si, c) else { continue };
+            let bc = if map.is_empty() { c } else { map[c] };
+            values.sort_unstable();
+            values.dedup();
+            if fact.is_some() {
+                has_literal = true;
+                if literal.is_none() && tys.as_ref().and_then(|ts| ts.get(bc)) == Some(&super::Ty::Sym) {
+                    literal = Some((bc, tests.words(run, &values)));
+                }
+            } else if base == Native::Child && bc == 3 && fields.is_empty() {
+                fields = values;
             }
         }
     }
-    (lit, fields)
+    if !fields.is_empty() { out.push(Fields(tests.words(run, &fields))); }
+    if own && sw!("VEC_EP_VIEW") && (has_literal || super::kind_set(run, conj, si, base, map).is_some()) {
+        out.push(SmallView(node));
+    }
+    if let Some(id) = fact {
+        if own { out.push(EmptyFact(id)); }
+        if let Some((col, values)) = literal { out.push(Literal(id, col, values)); }
+        else if !own && has_literal { out.push(DemandFact(id)); }
+    }
 }
 
 /// An emit asked in a file: answered before running anything (its step decided empty by the file's leaves: the old
@@ -345,7 +343,6 @@ pub(crate) fn print_skipped(ops: &dyn Fn(usize) -> String) {
         }
         let total: u64 = by.values().sum();
         println!("EPSKIP\tall\t{total}");
-        println!("EPLAPS\tleaves (VEC_STEP_TIME): fills asked {:.3} s, literal reads {:.3} s, small views read {:.3} s", l.laps[0], l.laps[1], l.laps[2]);
         println!("EPEMIT\temits asked in a file {}: decided empty before running by the old leaves {}, by the propagation's {}; run {}", l.emits.iter().sum::<u64>(), l.emits[0], l.emits[1], l.emits[2]);
         for (op, k) in by {
             println!("EPSKIP\t{op}\t{k}");
@@ -354,110 +351,22 @@ pub(crate) fn print_skipped(ops: &dyn Fn(usize) -> String) {
 }
 
 impl Exec<'_> {
-    fn ep_leaves(&mut self, run: &mut Run, node: usize) -> std::rc::Rc<[Leaf]> {
-        let addr = std::ptr::from_ref(self.plan) as usize;
-        if let Some(x) = L.with(|l| {
-            let l = l.borrow();
-            if l.plan == addr { l.by.get(node).cloned().flatten() } else { None }
-        }) {
-            return x;
-        }
+    pub(super) fn bind_ep(&mut self, run: &mut Run, node: usize) -> super::static_tests::List {
         let mut out = Vec::new();
         if let Ok(Some(v)) = self.view(run, node) {
-            let (lit, fields) = tests(&v.filter, 0, v.base, &[]);
-            let fact = if let Native::Fact(i) = v.base { i } else { NO_FACT };
-            let rows = sw!("VEC_EP_VIEW") && !v.filter.is_empty() && (lit || super::kind_set(run, &v.filter, 0, v.base, &[]).is_some());
-            if fact != NO_FACT || !fields.is_empty() || rows {
-                out.push(Leaf { src: 0, fact, own: fact != NO_FACT, lit, fields: fields.into(), rows });
-            }
-        } else if self.plan.nodes[node].op == "select"
-            && let Ok(sp) = self.sel(run, node)
-        {
-            for (i, s) in sp.srcs.iter().enumerate() {
-                if let Ok(Some(v)) = self.view(run, *s) {
-                    let (lit, fields) = tests(&sp.conj, i, v.base, &v.map);
-                    let fact = if let Native::Fact(x) = v.base { x } else { NO_FACT };
-                    if (fact != NO_FACT && lit) || !fields.is_empty() {
-                        out.push(Leaf { src: i as u8, fact, own: false, lit: lit && fact != NO_FACT, fields: fields.into(), rows: false });
-                    }
+            bind_source(&self.tests, &mut out, run, node, &v.filter, 0, v.base, &[], true);
+        } else if self.plan.nodes[node].op == "select" && let Ok(sp) = self.sel(run, node) {
+            for (i, &source) in sp.srcs.iter().enumerate() {
+                if let Ok(Some(v)) = self.view(run, source) {
+                    bind_source(&self.tests, &mut out, run, node, &sp.conj, i, v.base, &v.map, false);
                 }
             }
         }
-        let rc: std::rc::Rc<[Leaf]> = out.into();
-        L.with(|l| {
-            let mut l = l.borrow_mut();
-            if l.plan != addr {
-                *l = Leaves { plan: addr, ..Leaves::default() };
-            }
-            if l.by.len() <= node {
-                l.by.resize(self.plan.nodes.len().max(node + 1), None);
-            }
-            l.by[node] = Some(rc.clone());
-        });
-        rc
-    }
-
-    /// Whether the step has a leaf of the propagation (prepared once a run).
-    pub(super) fn ep_has_leaf(&mut self, run: &mut Run, node: usize) -> bool {
-        !self.ep_leaves(run, node).is_empty()
-    }
-
-    /// Whether one of the step's leaves holds in this file: a provider relation it reads has no rows, or a literal test
-    /// on it no row of the file satisfies, or a child field it requires is absent. A fill a leaf reads is asked here
-    /// (once a file, the fill the step would read).
-    pub(super) fn ep_leaf_empty(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> bool {
-        let leaves = self.ep_leaves(run, node);
-        for lf in leaves.iter() {
-            if !lf.fields.is_empty() && !self.ep_field_present(f, run, &lf.fields) {
-                return true;
-            }
-            if lf.rows {
-                let t0 = step_clock();
-                let e = self.ep_view_rows_empty(f, run, p, node);
-                L.with(|l| l.borrow_mut().laps[2] += step_clock() - t0);
-                if e {
-                    return true;
-                }
-            }
-            if lf.fact == NO_FACT || (!lf.own && !lf.lit) {
-                continue;
-            }
-            let base = Native::Fact(lf.fact);
-            let t0 = step_clock();
-            let loaded = self.load_fact(f, run, p, base);
-            let t1 = step_clock();
-            L.with(|l| l.borrow_mut().laps[0] += t1 - t0);
-            if loaded.is_err() {
-                continue;
-            }
-            let Some(t) = f.facts.get(usize::from(lf.fact)).and_then(Option::as_ref) else { continue };
-            if lf.own && t.n == 0 {
-                return true;
-            }
-            if lf.lit {
-                // the kernels' per-file lists under their own keys (`lit_file`): a kernel that drives from them later reads
-                // them again for nothing
-                use super::select_kernel::{LIT_CONJ, LIT_FILTER, lit_file};
-                let empty = if lf.own {
-                    let Ok(Some(v)) = self.view(run, node) else { continue };
-                    lit_file(f, LIT_FILTER | node, &v.filter, 0, base, &[]).is_some_and(|r| r.is_empty())
-                } else {
-                    let Ok(sp) = self.sel(run, node) else { continue };
-                    let i = usize::from(lf.src);
-                    let Ok(Some(v)) = self.view(run, sp.srcs[i]) else { continue };
-                    if i < 2 { lit_file(f, LIT_CONJ | (node << 1) | i, &sp.conj, i, base, &v.map).is_some_and(|r| r.is_empty()) } else { lit_rows(f, &sp.conj, i, base, &v.map).is_some_and(|r| r.is_empty()) }
-                };
-                L.with(|l| l.borrow_mut().laps[1] += step_clock() - t1);
-                if empty {
-                    return true;
-                }
-            }
-        }
-        false
+        self.tests.bind(out)
     }
 
     /// cycle 4: whether a view has no row in this file (its entry, then its tests), read only where its entry is small.
-    fn ep_view_rows_empty(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> bool {
+    pub(super) fn ep_view_rows_empty(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> bool {
         let Ok(Some(v)) = self.view(run, node) else { return false };
         if self.load_fact(f, run, p, v.base).is_err() || !self.ep_fact_ready(f, v.base) {
             return false;
@@ -473,20 +382,10 @@ impl Exec<'_> {
     }
 
     /// Whether the file has a child under one of these field names.
-    fn ep_field_present(&mut self, f: &File<'_>, run: &Run, names: &[u32]) -> bool {
-        L.with(|l| {
-            let mut l = l.borrow_mut();
-            let key = (f.file, std::ptr::from_ref(f.table) as usize);
-            if l.file != Some(key) {
-                l.file = Some(key);
-                l.fields.clear();
-                for (code, &name) in run.field_sym.iter().enumerate() {
-                    if !super::node_table::ids_of_field(f.table, ryo::languages::FieldCode(code as u16)).is_empty() {
-                        l.fields.insert(name);
-                    }
-                }
-            }
-            names.iter().any(|name| l.fields.contains(name))
-        })
+    pub(super) fn ep_field_present(&self, f: &File<'_>, run: &Run, names: &[super::static_tests::Word]) -> bool {
+        let fields = f.present_fields.get_or_init(|| run.field_sym.iter().enumerate()
+            .filter(|(code, _)| !super::node_table::ids_of_field(f.table, ryo::languages::FieldCode(*code as u16)).is_empty())
+            .map(|(_, &name)| name).collect());
+        names.iter().filter_map(|word| word.id(run)).any(|name| fields.contains(&name))
     }
 }
