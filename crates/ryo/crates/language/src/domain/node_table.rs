@@ -2,7 +2,6 @@
 //! through and the readers of it.
 
 pub mod constants;
-mod native_spans;
 mod navigation;
 pub mod service;
 pub mod types;

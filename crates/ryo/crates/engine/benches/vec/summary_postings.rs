@@ -73,31 +73,24 @@ pub(super) struct Cache {
     loaded: Vec<Option<bool>>,
     positions: Vec<Vec<u32>>,
     masks: Vec<Option<Bits>>,
-    pub(super) columns: u64,
-    pub(super) rows: u64,
-    pub(super) kept: u64,
 }
 impl Cache {
-    pub(super) fn reset(&mut self, layout: Option<&Layout>) {
-        if let Some(plan) = layout {
-            self.loaded.clear();
-            self.loaded.resize(plan.columns.len(), None);
-            self.positions.resize_with(plan.count, Vec::new);
-            for positions in &mut self.positions {
-                positions.clear();
-            }
-            self.masks.clear();
-            self.masks.resize(plan.count, None);
+    pub(super) fn reset(&mut self, plan: &Layout) {
+        self.loaded.clear();
+        self.loaded.resize(plan.columns.len(), None);
+        self.positions.resize_with(plan.count, Vec::new);
+        for positions in &mut self.positions {
+            positions.clear();
         }
+        self.masks.clear();
+        self.masks.resize(plan.count, None);
     }
 }
 
 impl File<'_> {
-    // Outer None is an instruction outside this layout. The inner node set is
-    // unconstrained when the canonical relation could not be answered.
-    pub(super) fn posted(&mut self, id: Id, first: bool) -> Option<Nodes> {
-        let plan = self.order?.postings.as_ref()?;
-        let test = plan.tests[id].as_ref()?;
+    pub(super) fn posted(&mut self, id: Id, first: bool) -> Nodes {
+        let plan = &self.order.postings;
+        let test = plan.tests[id].as_ref().expect("compiled symbol predicate");
         let col = &plan.columns[test.column];
         let table = &mut self.facts[col.slot];
         let cache = &mut *self.postings;
@@ -113,9 +106,7 @@ impl File<'_> {
             if table.complete {
                 let keys = spec.key.and_then(|k| table.cells.0.get(k));
                 let end = languages::facts::words_end(self.words).0;
-                cache.columns += 1;
                 if let Some(values) = table.cells.0.get(col.col) {
-                    cache.rows += values.0.len() as u64;
                     for (row, cell) in values.0.iter().enumerate() {
                         // Tagged cells render as the dictionary's empty word.
                         // Dynamic text that was a query constant is interned
@@ -125,31 +116,30 @@ impl File<'_> {
                         if index != 0 {
                             cache.positions[index as usize - 1]
                                 .push(keys.map_or(0, |c| c.0[row].0 as u32));
-                            cache.kept += 1;
                         }
                     }
                 }
             }
         }
         if cache.loaded[test.column] != Some(true) {
-            return Some(None);
+            return None;
         }
         let lists = &plan.uses[test.lists.clone()];
         if first {
             let found = lists.iter().any(|&i| !cache.positions[i].is_empty());
-            return Some(if found { None } else { Some(Bits::default()) });
+            return if found { None } else { Some(Bits::default()) };
         }
         if let [index] = *lists {
             let bits = *cache.masks[index]
                 .get_or_insert_with(|| self.arena.bits(cache.positions[index].iter().copied()));
-            return Some(Some(bits));
+            return Some(bits);
         }
-        Some(Some(
+        Some(
             self.arena.bits(
                 lists
                     .iter()
                     .flat_map(|&i| cache.positions[i].iter().copied()),
             ),
-        ))
+        )
     }
 }

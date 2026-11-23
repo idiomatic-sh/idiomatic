@@ -87,23 +87,7 @@ impl Walker<'_, '_, '_> {
                 self.name_token(start, end);
             }
         }
-        if node_table::wants_token_source(self.builder)
-            && self.host.is_none()
-            && start.0 == token.start().to_u32()
-            && end.0 == token.end().to_u32()
-            && let Ok(key) = u32::try_from(self.next.0 - 1)
-        {
-            node_table::native_token(
-                self.builder,
-                kind_bits(kind),
-                field_code(field),
-                start,
-                end,
-                key,
-            );
-        } else {
-            node_table::token(self.builder, kind_bits(kind), field_code(field), start, end);
-        }
+        node_table::token(self.builder, kind_bits(kind), field_code(field), start, end);
         self.written = end;
     }
 

@@ -21,18 +21,18 @@ pub(super) fn vocabulary<W: Walk>(_: &W, p: &Program) -> (FileWords, Vec<Option<
 
 #[inline]
 pub(super) fn symbol(
-    o: Option<&super::summary_schedule::Schedule>,
-    p: &Program,
+    schedule: &super::summary_schedule::Schedule,
     w: &FileWords,
     c: CellWord,
 ) -> Option<Id> {
-    if let Some(v) = o.and_then(|o| o.symbols.as_deref()) {
-        if let Some(x) = usize::try_from(c.0).ok().and_then(|i| v.get(i)) {
-            return *x;
-        }
-        return (c.0 >= facts::words_end(w).0).then(|| v[0]).flatten();
+    let codes = &schedule.symbols;
+    if let Some(id) = usize::try_from(c.0).ok().and_then(|i| codes.get(i)) {
+        *id
+    } else if c.0 >= facts::words_end(w).0 {
+        codes[0]
+    } else {
+        None
     }
-    p.symbols.get(facts::text(w, c).0).copied()
 }
 
 #[derive(Default)]

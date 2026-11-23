@@ -3,39 +3,23 @@
 use super::pair_summary::{Domain, Id, Need, Program};
 use rustc_hash::FxHashSet;
 
-// Enabled physical operators can be ablated independently in the harness.
-pub(super) fn enabled(name: &str) -> bool {
-    std::env::var_os(name).is_none_or(|value| value != "0")
-}
-
 pub(super) struct Schedule {
-    pub(super) buckets: bool,
-    pub(super) direct_masks: bool,
-    pub(super) postings: Option<super::pair_checks::postings::Layout>,
-    pub(super) ready_guards: bool,
-    pub(super) literals: Option<super::summary_literals::Layout>,
-    pub(super) proof_order: bool,
+    pub(super) postings: super::pair_checks::postings::Layout,
+    pub(super) literals: super::summary_literals::Layout,
+    pub(super) rules: super::summary_rules::Rules,
+    pub(super) symbols: Vec<Option<Id>>,
     pub(super) price: Vec<u8>,
-    pub(super) rules: Option<super::summary_rules::Rules>,
-    pub(super) byte_regex: bool,
-    pub(super) groups: Option<super::summary_groups::Groups>,
-    pub(super) scan: Option<super::pair_checks::scan::Layout>,
-    pub(super) branches: Option<super::summary_branches::Branches>,
-    pub(super) windows: bool,
-    pub(super) classes: bool,
     pub(super) alias: Vec<Option<Id>>,
-    pub(super) select: bool,
-    pub(super) keys: Vec<Option<ryo::languages::Column>>,
-    pub(super) existential: bool,
-    pub(super) symbols: Option<Vec<Option<Id>>>,
-    pub(super) cache_regex: bool,
-    pub(super) paths: Vec<Option<super::summary_local::Path>>,
     pub(super) needs: Vec<Vec<Id>>,
     pub(super) cost: Vec<u8>,
 }
-
 impl Schedule {
-    pub(super) fn new(p: &Program) -> Self {
+    pub(super) fn new(
+        p: &Program,
+        words: &super::funnel::Words,
+        name_kind: u16,
+        symbols: Vec<Option<Id>>,
+    ) -> Self {
         let mut cost: Vec<u8> = Vec::with_capacity(p.domains.len());
         for d in &p.domains {
             let c = match d {
@@ -78,7 +62,7 @@ impl Schedule {
         }
         let mut done = vec![false; p.needs.len()];
         let mut needs = vec![Vec::new(); p.needs.len()];
-        let proofs = enabled("VEC_IMPLIED_TESTS").then(|| super::summary_proofs::compile(p));
+        let proofs = super::summary_proofs::compile(p);
         while let Some(id) = todo.pop() {
             if std::mem::replace(&mut done[id], true) {
                 continue;
@@ -100,7 +84,7 @@ impl Schedule {
                     _ => terms.push(x),
                 }
             }
-            if both && let Some(proofs) = &proofs {
+            if both {
                 let mut redundant = FxHashSet::default();
                 for n in &terms {
                     if let Need::Some(d) = p.needs[*n] {
@@ -113,50 +97,15 @@ impl Schedule {
             todo.extend(terms.iter().copied());
             needs[id] = terms;
         }
-        let select = std::env::var_os("VEC_SELECTED_NODES").is_some();
-        let paths = if select || std::env::var_os("VEC_LOCAL_PROGRAM").is_some() {
-            (0..p.domains.len())
-                .map(|id| super::summary_local::Path::new(&p.domains, id, select))
-                .collect()
-        } else {
-            Vec::new()
-        };
-        let branches = std::env::var_os("VEC_FILE_BRANCHES")
-            .is_some()
-            .then(|| super::summary_branches::Branches::new(p, &needs));
-        let rules = enabled("VEC_SHARED_RULES")
-            .then(|| super::summary_rules::Rules::new(p, &needs, &price));
-        let groups = std::env::var_os("VEC_MASK_GROUPS")
-            .is_some()
-            .then(|| super::summary_groups::Groups::new(p, &cost));
-        let scan = std::env::var_os("VEC_NODE_SCAN")
-            .or_else(|| std::env::var_os("VEC_BORROW_BUCKETS"))
-            .is_some()
-            .then(|| super::pair_checks::scan::Layout::new(p));
         Self {
-            buckets: std::env::var_os("VEC_BORROW_BUCKETS").is_some(),
-            rules,
-            byte_regex: enabled("VEC_BYTE_REGEX"),
-            groups,
-            scan,
-            branches,
-            windows: enabled("VEC_WORD_WINDOWS"),
-            classes: std::env::var_os("VEC_NODE_CLASSES").is_some(),
-            alias: proofs.map_or_else(Vec::new, |p| p.alias),
-            select,
-            keys: Vec::new(),
-            existential: enabled("VEC_WITNESS_PROGRAM"),
-            direct_masks: enabled("VEC_STREAM_MASKS"),
-            postings: None,
-            ready_guards: enabled("VEC_READY_GUARDS"),
-            literals: None,
+            postings: super::pair_checks::postings::Layout::new(p, &symbols),
+            literals: super::summary_literals::Layout::new(p, words, name_kind),
+            rules: super::summary_rules::Rules::new(p, &needs, &price),
+            symbols,
+            alias: proofs.alias,
+            needs,
             cost,
             price,
-            proof_order: enabled("VEC_PROOF_ORDER"),
-            needs,
-            paths,
-            symbols: None,
-            cache_regex: enabled("VEC_WORD_REGEX"),
         }
     }
 }

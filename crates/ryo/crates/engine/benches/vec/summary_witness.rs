@@ -11,24 +11,18 @@ impl File<'_> {
         if let Some(nodes) = self.sets.get(id) {
             return nodes.is_none_or(|s| !s.is_empty());
         }
-        *self.witness_calls += 1;
-        if let Some(value) = self.grouped(id, true) {
-            let yes = value.is_none_or(|s| !s.is_empty());
-            self.witnesses[id] = Some(yes);
-            return yes;
-        }
         let yes = match self.p.domains[id] {
             Domain::Any => true,
             Domain::Empty => false,
-            Domain::Text(_) if let Some(layout) = self.order.and_then(|o| o.literals.as_ref()) => {
-                !layout.nodes(id, self.t, self.src, self.literals).is_empty()
-            }
+            Domain::Text(_) => !self
+                .order
+                .literals
+                .nodes(id, self.t, self.src, self.literals)
+                .is_empty(),
             Domain::Kind(k) => !node_table::ids_of_kind(self.t, languages::KindBits(k)).is_empty(),
             Domain::Field(k) => node_table::field_count(self.t, languages::FieldCode(k)).0 != 0,
             Domain::Either(a, b)
-                if self.order.is_some_and(|o| o.ready_guards)
-                    && (self.known_witness(a) == Some(true)
-                        || self.known_witness(b) == Some(true)) =>
+                if (self.known_witness(a) == Some(true) || self.known_witness(b) == Some(true)) =>
             {
                 true
             }
@@ -36,42 +30,20 @@ impl File<'_> {
                 let (a, b) = self.first(a, b);
                 self.witness(a) || self.witness(b)
             }
-            Domain::When(n, x)
-                if self
-                    .order
-                    .is_some_and(|o| o.proof_order && o.cost[x] < o.price[n]) =>
-            {
+            Domain::When(n, x) if self.order.cost[x] < self.order.price[n] => {
                 self.witness(x) && self.pass(n)
             }
-            Domain::Except(a, b)
-                if self.order.is_some_and(|o| o.proof_order) && self.outside(a, b) =>
-            {
-                true
-            }
-            Domain::ProvenExcept(a, d, g, ref slots)
-                if self.order.is_some_and(|o| o.proof_order) =>
-            {
+            Domain::Except(a, b) if self.outside(a, b) => true,
+            Domain::ProvenExcept(a, d, g, ref slots) => {
                 self.witness(a) && (self.pass(g) || self.witness(d) || !self.complete(slots))
             }
             Domain::When(n, x) => self.pass(n) && self.witness(x),
-            Domain::ProvenExcept(a, d, g, ref slots) => {
-                self.witness(a) && (self.pass(g) || !self.complete(slots) || self.witness(d))
-            }
-            Domain::Both(a, b) if let Some(s) = self.native_join(a, b, true) => !s.is_empty(),
             Domain::Both(a, b) => {
-                if let Some(yes) = self.local_answer(id) {
-                    yes
-                } else {
-                    let (a, b) = self.first(a, b);
-                    match self.nodes(a) {
-                        Some(a) if a.is_empty() => false,
-                        Some(a) if let Some(v) = self.restricted(a, b, true) => !v.is_empty(),
-                        Some(a) => match self.nodes(b) {
-                            Some(b) => self.arena.intersects(a, b),
-                            None => true,
-                        },
-                        None => self.witness(b),
-                    }
+                let (a, b) = self.first(a, b);
+                match self.nodes(a) {
+                    Some(a) if a.is_empty() => false,
+                    Some(a) => self.nodes(b).is_none_or(|b| self.arena.intersects(a, b)),
+                    None => self.witness(b),
                 }
             }
             Domain::Parents(x)
@@ -118,9 +90,7 @@ impl File<'_> {
                     })
                 }
             }
-            Domain::Fact(_, Some(_)) if let Some(set) = self.posted(id, true) => {
-                set.is_none_or(|s| !s.is_empty())
-            }
+            Domain::Fact(_, Some(_)) => self.posted(id, true).is_none_or(|s| !s.is_empty()),
             Domain::Fact(slot, None) => {
                 let spec = &self.p.facts[slot];
                 let table = &mut self.facts[slot];

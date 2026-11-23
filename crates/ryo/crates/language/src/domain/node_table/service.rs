@@ -46,7 +46,6 @@ pub fn builder(table: &mut NodeTable, kinds: Count) -> NodeTableBuilder<'_> {
     columns.kind.clear();
     columns.parent.clear();
     columns.subtree_end.clear();
-    columns.native.reset();
     columns.navigation.reset();
     columns.start.clear();
     columns.end.clear();
@@ -210,7 +209,17 @@ fn mapped(state: &BuilderState<'_>, start: Offset, end: Offset) -> ByteSpan {
             end: Offset(end.0.saturating_add(content.0)),
         },
         BuilderSegment::Embedded(host, EmbeddedMapping::WholeHost) => {
-            super::native_spans::span_at(&state.table.0, usize::from(host))
+            let columns = &state.table.0;
+            match (
+                columns.start.get(usize::from(host)),
+                columns.end.get(usize::from(host)),
+            ) {
+                (Some(start), Some(end)) => ByteSpan {
+                    start: Offset(*start),
+                    end: Offset(*end),
+                },
+                (Some(_) | None, _) => ByteSpan::default(),
+            }
         }
     }
 }
@@ -425,10 +434,10 @@ fn leave_open(state: &mut BuilderState<'_>, end: Offset) {
         && let (Some(start), Some(stop)) = (
             columns
                 .start
-                .get(columns.native.stored(usize::from(open.position))),
+                .get(usize::from(open.position)),
             columns
                 .end
-                .get_mut(columns.native.stored(usize::from(open.position))),
+                .get_mut(usize::from(open.position)),
         )
     {
         *stop = span_end.0.max(*start);
@@ -453,11 +462,8 @@ fn close_segment(state: &mut BuilderState<'_>) {
     columns.kind.extend(tokens.iter().map(|t| t.kind.0));
     columns.field.extend(tokens.iter().map(|t| t.field.0));
     columns.parent.extend(tokens.iter().map(|t| t.parent.0));
-    let native = state.segment == BuilderSegment::File && columns.native.close(tokens_from, tokens);
-    if !native {
-        columns.start.extend(tokens.iter().map(|t| t.span.start.0));
-        columns.end.extend(tokens.iter().map(|t| t.span.end.0));
-    }
+    columns.start.extend(tokens.iter().map(|t| t.span.start.0));
+    columns.end.extend(tokens.iter().map(|t| t.span.end.0));
     columns.ordinal.extend(tokens.iter().map(|t| t.ordinal));
     columns.child_slots = state.child_count;
     let out = if columns.defer_children {
@@ -828,7 +834,6 @@ pub fn embed(
     source: EmbeddedText<'_>,
 ) -> EmbeddedRoot {
     let state = &mut builder.0;
-    state.table.0.native.invalidate();
     debug_assert!(
         state.open.is_empty(),
         "an embedded segment begins after the file's own tree has closed"
@@ -936,7 +941,17 @@ pub fn parent_of(table: &NodeTable, id: Position) -> Position {
 /// ```
 #[must_use]
 pub fn span_of(table: &NodeTable, id: Position) -> ByteSpan {
-    super::native_spans::span_at(&table.0, usize::from(id))
+    let columns = &table.0;
+    match (
+        columns.start.get(usize::from(id)),
+        columns.end.get(usize::from(id)),
+    ) {
+        (Some(start), Some(end)) => ByteSpan {
+            start: Offset(*start),
+            end: Offset(*end),
+        },
+        (Some(_) | None, _) => ByteSpan::default(),
+    }
 }
 
 /// The field an element fills in its parent; zero for none.
@@ -1233,16 +1248,7 @@ pub fn parent_ids(table: &NodeTable) -> &[u32] {
 /// ```
 #[must_use]
 pub fn starts(table: &NodeTable) -> &[u32] {
-    let c = &table.0;
-    if c.native.active() {
-        c.native.starts.get_or_init(|| {
-            (0..c.kind.len())
-                .map(|i| super::native_spans::span_at(c, i).start.0)
-                .collect()
-        })
-    } else {
-        &c.start
-    }
+    &table.0.start
 }
 
 /// The byte after the last of every element, by id: the column itself.
@@ -1262,16 +1268,7 @@ pub fn starts(table: &NodeTable) -> &[u32] {
 /// ```
 #[must_use]
 pub fn ends(table: &NodeTable) -> &[u32] {
-    let c = &table.0;
-    if c.native.active() {
-        c.native.ends.get_or_init(|| {
-            (0..c.kind.len())
-                .map(|i| super::native_spans::span_at(c, i).end.0)
-                .collect()
-        })
-    } else {
-        &c.end
-    }
+    &table.0.end
 }
 
 /// The sets of every element, by id, as a `structured` builder wrote them (empty for any other builder).
@@ -1603,47 +1600,12 @@ pub fn embedded_segments(table: &NodeTable) -> impl Iterator<Item = EmbeddedSpan
     })
 }
 
-pub use super::native_spans::TokenSpanSource;
-/// Let this builder accept a provider-owned primary token range source.
-pub fn request_token_source(builder: &mut NodeTableBuilder<'_>) {
-    builder.0.table.0.native.requested = true;
-}
-/// Whether this builder wants the provider's primary token range source.
-#[must_use]
-pub fn wants_token_source(builder: &NodeTableBuilder<'_>) -> bool {
-    builder.0.table.0.native.requested
-}
-/// Lend the owned source to the node table through the last read of its ranges.
-pub fn set_token_source(builder: &mut NodeTableBuilder<'_>, source: Box<dyn TokenSpanSource>) {
-    builder.0.table.0.native.source = Some(source);
-}
-/// Write an ordinary token with its provider range key when its native and mapped spans agree.
-pub fn native_token(
-    builder: &mut NodeTableBuilder<'_>,
-    kind: KindBits,
-    field: FieldCode,
-    start: Offset,
-    end: Offset,
-    key: u32,
-) {
-    let n = builder.0.pending.len();
-    token(builder, kind, field, start, end);
-    if builder.0.segment == BuilderSegment::File && builder.0.pending.len() > n {
-        builder.0.table.0.native.register(n, key);
-    }
-}
-
 /// Leave direct child slices unmaterialized until a reader requests a nonempty slice.
 pub fn defer_child_ids(builder: &mut NodeTableBuilder<'_>) {
     builder.0.table.0.defer_children = true;
 }
 /// Record the typed-node and token intervals used for direct navigation.
 pub fn record_token_ranges(builder:&mut NodeTableBuilder<'_>){builder.0.table.0.navigation.active=true;}
-/// Whether a reader has already demanded the deferred child slices.
-#[must_use]
-pub fn child_ids_requested(table: &NodeTable) -> bool {
-    table.0.lazy_children.get().is_some()
-}
 fn write_child_ids(
     parents: &[u32],
     ordinals: &[ChildOrdinal],

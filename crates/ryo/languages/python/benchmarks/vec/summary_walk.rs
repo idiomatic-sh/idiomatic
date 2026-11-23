@@ -2,9 +2,9 @@
 //! the provider still lends its parse, table and on-demand semantic state.
 use super::{
     Columns, Skip, fields_present, finisher::Finisher, funnel::Words, pair_summary::Program,
-    source_batch::SourceBatch, span_bytes, thread_cpu,
+    source_batch::SourceBatch, thread_cpu,
 };
-use ryo::languages::{self, FileWords, KindBits, NodeTable, node_table};
+use ryo::languages::{self, FileWords, NodeTable, node_table};
 use ryo_python::fixtures::columns::ColumnWalk;
 use std::fmt::Write;
 
@@ -13,17 +13,16 @@ pub(super) fn run(
     program: &Program,
     skip: &mut Skip,
     words: &Words,
-    word_kind: u16,
     fields: usize,
     fwords: &mut FileWords,
     first: &mut ColumnWalk,
     second: &mut ColumnWalk,
-    mut make_walk: impl FnMut() -> ColumnWalk,
     mut fin: Option<&mut Finisher<'_>>,
     root: Option<&str>,
     seed_out: Option<&str>,
     exact_out: Option<&str>,
-    codes: Option<Vec<Option<usize>>>,
+    order: &super::summary_schedule::Schedule,
+    scratch: &mut super::pair_checks::Scratch,
 ) {
     let root = root.map(|s| format!("{}/", s.trim_end_matches('/')));
     let emit_rules: Vec<Vec<usize>> = fin
@@ -42,79 +41,27 @@ pub(super) fn run(
                 .collect()
         })
         .unwrap_or_default();
-    let width = match std::env::var("VEC_LOAN_BATCH").as_deref() {
-        Err(_) | Ok("2") => 2,
-        Ok("1") => 1,
-        Ok("4") => 4,
-        Ok("8") => 8,
-        _ => panic!("expected 1, 2, 4, or 8 parse loans"),
-    };
-    let mut extra: Vec<_> = (2..width).map(|_| make_walk()).collect();
-    let mut walks = vec![first, second];
-    walks.extend(extra.iter_mut());
-    let verify = std::env::var_os("VEC_VERIFY_CHILDREN").is_some();
-    for walk in &mut walks {
+    for walk in [&mut *first, &mut *second] {
         walk.defer_lexical();
-        if std::env::var_os("VEC_NATIVE_SPANS").is_some() {
-            walk.use_native_spans();
-        }
-        if std::env::var_os("VEC_LAZY_CHILDREN").is_some() {
-            walk.defer_child_ids();
-        }
-        if verify || super::summary_schedule::enabled("VEC_TREE_RANGES") {
-            walk.use_native_navigation();
-        }
+        walk.use_native_navigation();
     }
-    let (mut first_children, mut second_children) = (0usize, 0usize);
-    let prep = thread_cpu();
-    let mut order = super::summary_schedule::Schedule::new(program);
-    if super::summary_schedule::enabled("VEC_SHARED_POSTINGS") {
-        order.postings = codes
-            .as_deref()
-            .map(|s| super::pair_checks::postings::Layout::new(program, s));
-    }
-    order.symbols = codes;
-    order.literals = super::summary_schedule::enabled("VEC_LITERAL_BUCKETS")
-        .then(|| super::summary_literals::Layout::new(program, words, word_kind));
-    order.keys = program
-        .facts
-        .iter()
-        .map(|s| match s.source {
-            super::pair_summary::Source::Catalog(r) => {
-                ryo_python::fixtures::walking::declared_keys(r)
-                    .into_iter()
-                    .find(|(_, i, k)| Some(*i) == s.key && *k == languages::CellKind::Node)
-                    .map(|v| v.0)
-            }
-            _ => None,
-        })
-        .collect();
-    println!(
-        "summary evaluation preparation {:.6} s",
-        thread_cpu() - prep
-    );
-    let wide_keys = std::env::var_os("VEC_NATIVE_KEYS").is_some();
-    let diagnostic = std::env::var_os("VEC_SUMMARY_METRICS").is_some();
-    let mut scratch = super::pair_checks::Scratch::default();
-    if std::env::var_os("VEC_MASK_CENSUS").is_some() {
-        scratch.measure_masks();
-    }
+
+    #[cfg(feature = "summary-diagnostics")]
     let mut metrics =
-        rustc_hash::FxHashMap::<String, (usize, usize, usize, usize, usize, f64, usize)>::default();
+        rustc_hash::FxHashMap::<String, (usize, usize, usize, usize, usize, f64)>::default();
     let certify = fin.as_ref().is_none_or(|f| f.can_finish_exact());
     let mut exact_counts = vec![(0u64, 0u64, 0u64); program.roots.len()];
     let mut exact_log =
         exact_out.map(|p| std::io::BufWriter::new(std::fs::File::create(p).expect("exact pairs")));
     let mut input = SourceBatch::default();
-    let mut tables: Vec<_> = (0..width).map(|_| NodeTable::default()).collect();
-    let mut alive = vec![(vec![false; program.roots.len()], Vec::new()); width];
+    let mut table = NodeTable::default();
+    let mut other_table = NodeTable::default();
+    let mut alive = std::array::from_fn(|_| (vec![false; program.roots.len()], Vec::new()));
     let mut present = vec![0u64; words.names.len().div_ceil(64)];
     let mut kinds = Vec::new();
     let mut fields_kinds = 0.;
     let mut cols = Columns::default();
     let mut dump = String::new();
-    let replay = fin.is_some() && std::env::var_os("VEC_REPLAY_ASKED").is_some();
-    let mut queued = Vec::new();
     let (mut elements, mut steps, mut candidates, mut survivors) = (0u64, 0, 0u64, 0u64);
     let (mut read, mut contents, mut skip_cpu, mut checks, mut visit, mut finish) =
         (0., 0., 0., 0., 0., 0.);
@@ -127,46 +74,29 @@ pub(super) fn run(
         let stop = input.load(list, i).expect("read sources");
         read += thread_cpu() - begin;
         while i < stop {
-            let count = (stop - i).min(width);
-            super::column_batch::walked(
-                &mut walks[..count],
-                &mut tables[..count],
-                &mut alive[..count],
-                &list[i..i + count],
-                &input,
-                i,
+            let count = (stop - i).min(2);
+            super::column_pair::walked_pair(
+                first,
+                &mut table,
+                second,
+                &mut other_table,
+                (&list[i], input.get(i)),
+                (count == 2).then(|| (list[i + 1].as_str(), input.get(i + 1))),
+                &mut alive,
                 &mut |slot, file, (alive, exact)| {
                     let begin = thread_cpu();
                     let id = i + slot;
                     let bytes = input.get(id);
                     let t = file.table;
-                    if verify {
-                        for id in 0..node_table::element_count(t).0 as u32 {
-                            let p = languages::Position(id);
-                            assert!(
-                                node_table::direct_children(t, p)
-                                    .unwrap()
-                                    .eq(node_table::children_of(t, p).iter().copied()),
-                                "children at {id} in {}",
-                                list[i + slot]
-                            );
-                        }
-                    }
                     elements += node_table::element_count(t).0 as u64;
                     fields_present(t, &mut cols, fields);
                     kinds.clear();
                     kinds.extend(node_table::kinds_present(t).0.iter().map(|w| w.0));
                     fields_kinds += thread_cpu() - begin;
                     present.fill(0);
-                    if let Some(layout) = &order.literals {
-                        layout.names(t, bytes, &mut present, &mut scratch.literals);
-                    } else {
-                        for p in node_table::ids_of_kind(t, KindBits(word_kind)) {
-                            if let Some(&w) = words.ids.get(&bytes[span_bytes(t, p.0 as usize)]) {
-                                present[usize::from(w) / 64] |= 1 << (w % 64);
-                            }
-                        }
-                    }
+                    order
+                        .literals
+                        .names(t, bytes, &mut present, &mut scratch.literals);
                     let c = thread_cpu();
                     contents += c - begin;
                     skip.file(&kinds, &cols.field_present);
@@ -181,18 +111,20 @@ pub(super) fn run(
                         .map(|r| list[id].strip_prefix(r).unwrap_or(&list[id]).as_bytes());
                     exact.clear();
                     steps += program.eval(
-                        &mut scratch,
-                        Some(&order),
+                        scratch,
+                        order,
                         t,
                         bytes,
                         path,
                         fwords,
                         |source, query, words, out| {
                             use super::{pair_checks::Query, pair_summary::Source};
-                            let now = diagnostic.then(thread_cpu);
+                            #[cfg(feature = "summary-diagnostics")]
+                            let now = thread_cpu();
+                            #[cfg(feature = "summary-diagnostics")]
                             let mut rows = 0;
+                            #[cfg(feature = "summary-diagnostics")]
                             let whole = matches!(query, Query::Rows);
-                            let keyed = matches!(query, Query::Node(..) | Query::HasAt(..));
                             let result = match query {
                                 Query::Rows => {
                                     let host = match source {
@@ -207,40 +139,15 @@ pub(super) fn run(
                                     let answered = host.unwrap_or_else(|| {
                                         super::pair_provider::read(file, id, source, words, out)
                                     });
-                                    rows = out.0.first().map_or(0, |c| c.0.len());
+                                    #[cfg(feature = "summary-diagnostics")]
+                                    {
+                                        rows = out.0.first().map_or(0, |c| c.0.len());
+                                    }
                                     Some(answered)
-                                }
-                                Query::HasAt(at) => {
-                                    if let Source::Catalog(r) = source {
-                                        file.projected_key_exists(r, Some(at))
-                                    } else {
-                                        None
-                                    }
-                                }
-                                Query::Node(key, at) => {
-                                    if let Source::Catalog(r) = source {
-                                        if file.can_select_summary_nodes(r, wide_keys) {
-                                            let yes = file.fill(
-                                                r,
-                                                languages::Wanted::Key(
-                                                    key,
-                                                    languages::CellWord(u64::from(at.0)),
-                                                ),
-                                                words,
-                                                out,
-                                            );
-                                            rows = out.0.first().map_or(0, |c| c.0.len());
-                                            Some(matches!(yes, languages::FactAnswer::Answered(_)))
-                                        } else {
-                                            None
-                                        }
-                                    } else {
-                                        None
-                                    }
                                 }
                                 Query::Exists => {
                                     if let Source::Catalog(r) = source {
-                                        file.summary_presence(r, None)
+                                        file.summary_presence(r)
                                     } else {
                                         None
                                     }
@@ -254,7 +161,10 @@ pub(super) fn run(
                                                     bits.resize(w + 1, 0);
                                                 }
                                                 bits[w] |= 1 << (k.0 % 64);
-                                                rows += 1;
+                                                #[cfg(feature = "summary-diagnostics")]
+                                                {
+                                                    rows += 1;
+                                                }
                                             }
                                             true
                                         })
@@ -263,10 +173,9 @@ pub(super) fn run(
                                     }
                                 }
                             };
-                            if let Some(begin) = now
-                                && result.is_some()
-                            {
-                                let elapsed = thread_cpu() - begin;
+                            #[cfg(feature = "summary-diagnostics")]
+                            if result.is_some() {
+                                let elapsed = thread_cpu() - now;
                                 let name = match source {
                                     Source::Catalog(r) => format!("{r:?}"),
                                     Source::Walk(n) => n.to_owned(),
@@ -278,8 +187,6 @@ pub(super) fn run(
                                 }
                                 if whole {
                                     m.2 += 1
-                                } else if keyed {
-                                    m.6 += 1;
                                 } else {
                                     m.3 += 1
                                 }
@@ -292,7 +199,6 @@ pub(super) fn run(
                         certify.then_some(exact),
                     );
                     checks += thread_cpu() - b;
-                    first_children += usize::from(node_table::child_ids_requested(t));
                     survivors += alive.iter().filter(|a| **a).count() as u64;
                     if seed_out.is_some() {
                         for (a, (rule, _)) in alive.iter().zip(&program.roots) {
@@ -335,33 +241,20 @@ pub(super) fn run(
                             });
                         }
                         if f.visits(&wanted) {
-                            if replay {
-                                queued.push((
-                                    id,
-                                    Box::<[u8]>::from(input.get(id)),
-                                    wanted.into_boxed_slice(),
-                                ));
-                            } else {
-                                f.column_file(id, &list[id], file, input.get(id), &wanted);
-                            }
+                            f.column_file(id, &list[id], file, input.get(id), &wanted);
                         }
                     }
-                    second_children += usize::from(node_table::child_ids_requested(file.table));
                     finish += thread_cpu() - begin;
                 },
             );
             i += count;
         }
     }
+    #[cfg(feature = "summary-diagnostics")]
     println!(
         "domain bitset words {} peak {}",
         scratch.words, scratch.peak
     );
-    println!(
-        "files with dense child slices after first {first_children} after executor {second_children}"
-    );
-    scratch.report_postings();
-    scratch.report_masks();
     for (ri, _) in &program.exact {
         let (pairs, rows, nonempty) = exact_counts[*ri];
         println!(
@@ -371,32 +264,10 @@ pub(super) fn run(
     }
     let elapsed = thread_cpu() - start;
     let second = fin.as_ref().map_or(0., |f| f.time) - fin0;
-    if replay {
-        let count = queued.len();
-        let source_bytes: usize = queued.iter().map(|(_, src, _)| src.len()).sum();
-        let emit_bytes: usize = queued
-            .iter()
-            .map(|(_, _, emits)| std::mem::size_of_val(emits.as_ref()))
-            .sum();
-        let f = fin.as_deref_mut().expect("replay executor");
-        let begin = thread_cpu();
-        let before = f.time;
-        for (id, src, wanted) in queued {
-            walks[0]
-                .walked(&list[id], &src, &mut tables[0], &mut |file| {
-                    f.column_file(id, &list[id], file, &src, &wanted);
-                })
-                .expect("the first pass accepted this source");
-        }
-        let duration = thread_cpu() - begin;
+    #[cfg(feature = "summary-diagnostics")]
+    for (relation, (_, files, whole, projected, rows, cpu)) in metrics {
         println!(
-            "replay files {count} retained source {source_bytes} emit bytes {emit_bytes} second pass CPU {duration:.4} reparse and walk {:.4}",
-            duration - (f.time - before)
-        );
-    }
-    for (relation, (_, files, whole, projected, rows, cpu, keyed)) in metrics {
-        println!(
-            "summary fill {relation} files {files} whole {whole} keyed {keyed} projected {projected} rows {rows} CPU {cpu:.6}"
+            "summary fill {relation} files {files} whole {whole} keyed 0 projected {projected} rows {rows} CPU {cpu:.6}"
         );
     }
     if let Some(path) = seed_out {
@@ -411,19 +282,6 @@ pub(super) fn run(
     println!(
         "contents kinds and fields {fields_kinds:.4} s words {:.4} s",
         contents - fields_kinds
-    );
-    println!(
-        "literal bucket visits names {} other {}",
-        scratch.literals.name_visits, scratch.literals.other_visits
-    );
-    println!("distinct existential tests {}", scratch.witness_calls);
-    println!(
-        "node-class files {} masks {} rejections {}",
-        scratch.classes.built, scratch.classes.tested, scratch.classes.ruled_out
-    );
-    println!(
-        "candidate nodes {} local tests {}",
-        scratch.visits, scratch.points
     );
     println!("pair summary checks {steps} CPU {checks:.4} s");
     println!("file seeds: {elements} elements");

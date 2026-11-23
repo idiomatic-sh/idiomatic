@@ -41,7 +41,6 @@ pub(crate) struct NodeTableEngine {
     pub(crate) subtree_end: Vec<Position>,
     /// First byte of each element, in the file's bytes.
     pub(crate) start: Vec<u32>,
-    pub(super) native: super::native_spans::NativeSpans,
     /// The byte after each element's last.
     pub(crate) end: Vec<u32>,
     /// The field code each element fills in its parent.

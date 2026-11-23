@@ -31,13 +31,9 @@ impl File<'_> {
         })
     }
     pub(super) fn cached_guard(&self, id: Id, decisive: bool) -> bool {
-        let Some(order) = self.order else {
-            return false;
-        };
-        order.ready_guards
-            && order.needs[id]
-                .iter()
-                .any(|&child| self.known_need(child) == Some(decisive))
+        self.order.needs[id]
+            .iter()
+            .any(|&child| self.known_need(child) == Some(decisive))
     }
     pub(super) fn ready_first(&self, id: Id) -> u8 {
         if self.known_witness(id) == Some(false) {

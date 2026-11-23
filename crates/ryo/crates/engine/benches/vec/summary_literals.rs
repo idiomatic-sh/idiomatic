@@ -25,8 +25,6 @@ pub(super) struct Layout {
 pub(super) struct Observed {
     nodes: Vec<Vec<u32>>,
     complete: bool,
-    pub(super) name_visits: u64,
-    pub(super) other_visits: u64,
 }
 impl Layout {
     pub(super) fn new(p: &Program, words: &Words, name_kind: u16) -> Self {
@@ -90,7 +88,6 @@ impl Layout {
         }
         state.complete = self.other.is_empty();
         let ids = node_table::ids_of_kind(t, KindBits(self.name_kind));
-        state.name_visits += ids.len() as u64;
         for &at in ids {
             let raw = &src[super::span_bytes(t, at.0 as usize)];
             let entry = self.lookup(raw);
@@ -118,7 +115,6 @@ impl Layout {
         if !state.complete {
             for &k in &self.other {
                 let ids = node_table::ids_of_kind(t, KindBits(k));
-                state.other_visits += ids.len() as u64;
                 for &at in ids {
                     let text = node_table::decoded_of(t, Position(at.0)).map_or_else(
                         || &src[super::span_bytes(t, at.0 as usize)],

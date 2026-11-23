@@ -290,8 +290,7 @@ fn fields_present(table: &NodeTable, cols: &mut Columns, fields: usize) {
 
 /// An element's bytes, from the node table's own span column.
 fn span_bytes(table: &NodeTable, i: usize) -> std::ops::Range<usize> {
-    let span=node_table::span_of(table,Position(i as u32));
-    span.start.0 as usize..span.end.0 as usize
+    node_table::starts(table)[i] as usize..node_table::ends(table)[i] as usize
 }
 
 fn test_lit(lit: &Lit, text: &[u8]) -> bool {
@@ -962,10 +961,6 @@ mod pair_skip;
 mod pair_checks;
 #[path = "../../../../crates/engine/benches/vec/summary_schedule.rs"]
 mod summary_schedule;
-#[path="../../../../crates/engine/benches/vec/summary_branches.rs"]
-mod summary_branches;
-#[path="../../../../crates/engine/benches/vec/summary_groups.rs"]
-mod summary_groups;
 #[path="../../../../crates/engine/benches/vec/summary_rules.rs"]
 mod summary_rules;
 #[path="../../../../crates/engine/benches/vec/summary_literals.rs"]
@@ -974,10 +969,8 @@ mod summary_literals;
 mod summary_proofs;
 #[path = "../../../../crates/engine/benches/vec/summary_values.rs"]
 mod summary_values;
-#[path = "../../../../crates/engine/benches/vec/summary_local.rs"]
-mod summary_local;
 mod summary_walk;
-mod column_batch;
+mod column_pair;
 mod source_batch;
 mod pair_provider;
 mod host_columns;
@@ -1916,17 +1909,21 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
         && !ask_all && !check_direct && !per_fact && !plant && dump_out.is_none()
         && !["--enumerate-nodes", "--rules-out", "--surv-out", "--hits-out", "--alive-out", "--only-knock-units"].iter().any(|flag| args.contains(flag))
         && std::env::var_os("VEC_NO_SKIP").is_none() && std::env::var_os("VEC_NO_PREFIX").is_none();
-    if seed_only && !token_pass && !compare && !check_links && let Some(program) = &pairs {
+    let prepare_summary = thread_cpu();
+    let mut query = pairs.as_ref().map(|program| {
+        let (file_words,codes) = summary_values::vocabulary(walk,program);
+        let schedule = summary_schedule::Schedule::new(program,&words,name_token,codes);
+        (program,schedule,file_words,pair_checks::Scratch::default())
+    });
+    if query.is_some() {println!("summary evaluation preparation {:.6} s",thread_cpu()-prepare_summary);}
+    if seed_only && !token_pass && !compare && !check_links && let Some((program,schedule,words_for_file,scratch))=&mut query {
         let root = fin.as_ref().map(|f| f.run.root_dir.clone()).or_else(|| flag(args, "--summary-root"));
         let mut other = ryo_python::fixtures::columns::ColumnWalk::with_settings(ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names"),settings);
-        cwalk.defer_lexical();
-        other.defer_lexical();
-        let numbers=summary_schedule::enabled("VEC_FACT_CODES").then(||summary_values::vocabulary(walk,program));
-        let codes=numbers.map(|(words,codes)|{fwords=words;codes});
-        summary_walk::run(&list, program, &mut skip, &words, name_token, fields_width, &mut fwords,
-            &mut cwalk, &mut other, ||ryo_python::fixtures::columns::ColumnWalk::with_settings(ryo_python::fixtures::walking::walk_words(walk).expect("declared fixed names"),settings),fin, root.as_deref(), flag(args, "--seed-out").as_deref(),flag(args,"--exact-out").as_deref(),codes);
+        summary_walk::run(&list, program,&mut skip,&words,fields_width,words_for_file,
+            &mut cwalk,&mut other,fin,root.as_deref(),flag(args,"--seed-out").as_deref(),flag(args,"--exact-out").as_deref(),schedule,scratch);
         return;
     }
+    let mut summary_names = vec![0u64;words.names.len().div_ceil(64)];
     if structured { cwalk.structured(enclosing.clone()); }
     let mut file_seeds = seed_only.then(|| file_seeds::FileSeeds::new(&frules));
     let seed_out = flag(args, "--seed-out");
@@ -2079,16 +2076,18 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
                     alive.iter_mut().for_each(|a| *a = true);
                 }
                 exact_rows.clear();
-                if !no_skip && let Some(program) = &pairs {
+                if !no_skip && let Some((program,schedule,words_for_file,scratch)) = &mut query {
                     let start = thread_cpu();
                     let relative_path = fin.as_deref().map(|f| f.run.paths[file_no].as_bytes());
                     let exact = fin.as_ref().filter(|f| f.can_finish_exact()).map(|_| &mut exact_rows);
-                    pair_steps += program.file(pt, &bytes, relative_path, &mut fwords, |rel, words, out| {
+                    schedule.literals.names(pt,&bytes,&mut summary_names,&mut scratch.literals);
+                    pair_steps += program.eval(scratch,schedule,pt, &bytes, relative_path, words_for_file, |rel, request, words, out| {
+                        if !matches!(request,pair_checks::Query::Rows){return None;}
                         if let pair_summary::Source::Catalog(catalog) = rel
                             && let Some(result) = host_columns::fill(catalog, fin.as_deref().map(|f| &f.run), file_no, out) {
-                            return result;
+                            return Some(result);
                         }
-                        ($fill)(rel, words, out)
+                        Some(($fill)(rel, words, out))
                     }, &mut alive, exact);
                     pair_cpu += thread_cpu() - start;
                 }

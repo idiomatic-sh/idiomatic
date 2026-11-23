@@ -295,9 +295,7 @@ pub struct ColumnWalk {
     words: FileWords,
     /// When set, the table is written `structured` with these enclosing kind sets.
     structure: Option<Vec<languages::KindSet>>,
-    defer_children: bool,
     native_navigation:bool,
-    native_spans: bool,
 }
 
 /// The relations this walk writes per node as fact columns (`ColumnWalk::column`), by catalog name: a consumer may test
@@ -360,9 +358,7 @@ impl ColumnWalk {
             memo: TextMemo::default(),
             words,
             structure: None,
-            defer_children:false,
             native_navigation:false,
-            native_spans: false,
         }
     }
 
@@ -378,16 +374,11 @@ impl ColumnWalk {
         self.scratch.names.deferred = true;
     }
 
-    /// Walks one file into `table` and lends it to `visit`.
-    ///
-    /// Serve primary token ranges from the retained parse.
-    pub fn use_native_spans(&mut self) {self.native_spans=true;}
+    /// Record typed-node and token intervals for the summary walk. Readers
+    /// materialize ordered child slices on their first ordinary slice request.
+    pub fn use_native_navigation(&mut self){self.native_navigation=true;}
 
-    /// Materialize child slices at the first navigation request.
-    pub fn use_native_navigation(&mut self){self.native_navigation=true;self.defer_children=true;}
-    /// Defer the adjacency column until it is read.
-    pub fn defer_child_ids(&mut self){self.defer_children=true;}
-
+    /// Walk one file into the table and lend it to the callback.
     /// # Errors
     ///
     /// When the file is not Python.
@@ -401,9 +392,10 @@ impl ColumnWalk {
             Some(enclosing) => node_table::structured(table, kinds, enclosing),
             None => node_table::builder(table, kinds),
         };
-        if self.native_spans {node_table::request_token_source(&mut builder);}
-        if self.defer_children {node_table::defer_child_ids(&mut builder);}
-        if self.native_navigation{node_table::record_token_ranges(&mut builder);}
+        if self.native_navigation {
+            node_table::record_token_ranges(&mut builder);
+            node_table::defer_child_ids(&mut builder);
+        }
         let target = self.walk.ports.settings.target_version().components();
         self.scratch.file.model.target = target;
         self.memo.names.clear();
@@ -766,45 +758,8 @@ impl ColumnFile<'_, '_> {
         }
     }
 
-    /// Catalog keys for the direct node-presence projection.
-    #[must_use]
-    pub fn projects_nodes(relation:Relation,key:usize)->bool{
-        let native=match relation {
-            Relation::BindingEvent=>place!(BindingEvent,BindingEventColumn::Occurrence),
-            Relation::BindingRead=>place!(BindingRead,BindingReadColumn::Reference),
-            Relation::QualifiedName=>place!(QualifiedName,QualifiedNameColumn::Id),
-            Relation::Identifier=>place!(Identifier,IdentifierColumn::Id),
-            Relation::StringLiteral=>place!(StringLiteral,StringLiteralColumn::Occurrence),
-            Relation::LiteralProperties=>place!(LiteralProperties,LiteralPropertiesColumn::Id),
-            Relation::NumericLiteral=>place!(NumericLiteral,NumericLiteralColumn::Id),
-            Relation::ExpressionType=>place!(ExpressionType,ExpressionTypeColumn::Id),
-            _=>return false
-        };
-        native==key
-    }
-    /// Whether the direct node column has the canonical key and supports symbol projection.
-    #[must_use]
-    pub fn projects_symbols(relation:Relation,key:usize,column:usize)->bool {
-        match relation {
-            Relation::Identifier=>key==place!(Identifier,IdentifierColumn::Id) && column==place!(Identifier,IdentifierColumn::Name),
-            Relation::QualifiedName=>key==place!(QualifiedName,QualifiedNameColumn::Id) && [place!(QualifiedName,QualifiedNameColumn::Path),place!(QualifiedName,QualifiedNameColumn::Provenance)].contains(&column),
-            Relation::BindingEvent=>key==place!(BindingEvent,BindingEventColumn::Occurrence) && [place!(BindingEvent,BindingEventColumn::Name),place!(BindingEvent,BindingEventColumn::Kind)].contains(&column),
-            Relation::BindingRead=>key==place!(BindingRead,BindingReadColumn::Reference) && [place!(BindingRead,BindingReadColumn::Name),place!(BindingRead,BindingReadColumn::Context),place!(BindingRead,BindingReadColumn::State)].contains(&column),
-            Relation::LiteralProperties=>key==place!(LiteralProperties,LiteralPropertiesColumn::Id) && column==place!(LiteralProperties,LiteralPropertiesColumn::Kind),
-            Relation::ExpressionType=>key==place!(ExpressionType,ExpressionTypeColumn::Id) && [place!(ExpressionType,ExpressionTypeColumn::Resolution),place!(ExpressionType,ExpressionTypeColumn::Type)].contains(&column),
-            _=>false,
-        }
-    }
-    /// A complete primary parse has table-native expression IDs. Both forms
-    /// of these existing keyed readers use the same whole-file analysis.
-    pub fn can_select_summary_nodes(&self,relation:Relation,wide:bool)->bool{
-        (matches!(relation,Relation::ExpressionType|Relation::ExpressionShape) || wide && matches!(relation,Relation::Identifier|Relation::LiteralProperties|Relation::StringLiteral|Relation::NumericLiteral|Relation::QualifiedName|Relation::BindingRead|Relation::BindingEvent))
-        && self.file.syntax.completeness.syntax!=languages::SyntaxCompleteness::Incomplete
-        && self.file.syntax.tree.segments.is_empty()
-    }
     /// Existence of a complete relation without writing other cells of its rows.
-    pub fn summary_presence(&mut self,relation:Relation,at:Option<Position>)->Option<bool> {
-        if at.is_some(){return self.projected_key_exists(relation,at);}
+    pub fn summary_presence(&mut self,relation:Relation)->Option<bool> {
         match relation {
             Relation::BindingEvent|Relation::BindingRead=>{
                 let read=self.file.semantics(ModelPart::Flow);
@@ -813,7 +768,7 @@ impl ColumnFile<'_, '_> {
                 }else{!read.model.flow.reads.is_empty()})
             }
             Relation::LiteralProperties=>Some(nodes_of_kind(&self.file.syntax,Kind::Node(Node::Constant)).any(|v|properties(v.node).is_some())),
-            _=>self.projected_key_exists(relation,None)
+            _=>self.projected_keys(relation).map(|mut keys|keys.next().is_some())
         }
     }
     /// Complete keys for the shape relation when every native node has a shape.
@@ -827,14 +782,6 @@ impl ColumnFile<'_, '_> {
             || !syntax.tree.segments.is_empty() || !node_table::ids_of_kind(syntax.table,escape).is_empty() { return None; }
         Some((0..syntax.nodes.len()).map(|i|Position(i as u32)).filter(|&p|
             category_of(kind_of(node_table::kind_of(syntax.table,p)))==Category::Expression))
-    }
-
-    /// Presence of one shape key under the same complete native-tree projection.
-    #[must_use]
-    pub fn projected_key_exists(&self, relation: Relation, at: Option<Position>) -> Option<bool> {
-        let mut keys=self.projected_keys(relation)?;
-        Some(at.map_or_else(||keys.next().is_some(), |p|usize::from(p)<self.file.syntax.nodes.len()
-            && category_of(kind_of(node_table::kind_of(self.table,p)))==Category::Expression))
     }
 
     /// `column` with the caller's own text memo (`ColumnMemo`): the ids are `ids`', never the walk's memo's.
