@@ -22,16 +22,7 @@ struct Request {
     selected_rules: Vec<String>,
     #[serde(default)]
     file_rules: HashMap<String, String>,
-    #[serde(default)]
-    rule_context: serde_json::Value,
-    #[serde(default)]
-    rule_observations: serde_json::Value,
-    #[serde(default)]
-    rule_applicability: serde_json::Value,
-    #[serde(default)]
-    hosted: serde_json::Value,
-    #[serde(default)]
-    parameters: serde_json::Value,
+
 }
 
 /// Dense local bit numbers only for names that occur in a necessary condition.
@@ -115,25 +106,11 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
     output: &str,
     paths: Option<Vec<String>>,
 ) -> bool {
-    let mut req: Request =
-        serde_json::from_slice(&std::fs::read(request).expect("read request")).expect("request");
+    let document = serde_json::from_slice(&std::fs::read(request).expect("read request")).expect("request");
+    let mut req = <Request as serde::Deserialize>::deserialize(&document).expect("file selection");
     if let Some(paths) = paths {
         req.files = paths;
     }
-    let mut metadata = serde_json::Map::new();
-    for (name, value) in [
-        ("rule_context", &mut req.rule_context), ("rule_observations", &mut req.rule_observations),
-        ("rule_applicability", &mut req.rule_applicability), ("hosted", &mut req.hosted),
-        ("parameters", &mut req.parameters),
-    ] {
-        if !value.is_null() {
-            metadata.insert(name.into(), value.take());
-        }
-    }
-    if metadata.get("parameters").and_then(serde_json::Value::as_object).is_some_and(|p| !p.is_empty()) {
-        metadata.insert("selected_rules".into(), serde_json::json!(req.selected_rules));
-    }
-    let document = serde_json::Value::Object(metadata);
     let read = lower::read_pack(Path::new(pack), super::context_from(&document));
     let parser = language.parse_engine();
     let plan = lower::second_half_plan(&read, true);
