@@ -20,9 +20,16 @@ pub(super) const MODULE_IDENTITY_REL: &str = "module-identity";
 pub(super) struct Project {
     root_dir: String,
     search_roots: Option<Vec<String>>,
-    classified: HashMap<String, Vec<&'static str>>,
+    classified: HashMap<String, PathObservation>,
+    pub(super) import_prefixes: HashMap<u32, super::import_syntax::ImportPrefix>,
     kinds: Kinds,
     packages: HashMap<std::path::PathBuf, Option<Package>>,
+}
+
+/// A child path can exist only at a root where its parent is a directory.
+struct PathObservation {
+    kinds: Vec<&'static str>,
+    directories: Vec<usize>,
 }
 
 /// Directory spellings from the project layout. A package component can itself contain a dot.
@@ -53,7 +60,7 @@ impl Project {
     /// code of a kind name.
     pub(super) fn new(root_dir: &str, search_roots: Option<Vec<String>>, kind: &dyn Fn(&str) -> Option<u16>) -> Self {
         let kinds = Kinds { alias: kind("alias"), from: kind("import-from"), dot: kind("dot"), ellipsis: kind("ellipsis"), ident: kind("identifier"), name: kind("name-token") };
-        Self { root_dir: root_dir.to_owned(), search_roots, classified: HashMap::new(), kinds, packages: HashMap::new() }
+        Self { root_dir: root_dir.to_owned(), search_roots, classified: HashMap::new(), import_prefixes: HashMap::new(), kinds, packages: HashMap::new() }
     }
 
     /// The host's search roots from a request file (`project_search_roots`); None without a request or without the key.
@@ -192,26 +199,28 @@ impl Project {
 
     /// The entries a dotted path names under the search roots (observed once a run each).
     fn classified(&mut self, dotted: &str) -> Vec<&'static str> {
-        if let Some(k) = self.classified.get(dotted) {
-            return k.clone();
-        }
-        // No child path exists on any configured root when its parent directory is absent on every root.
-        // Prefixes are visited from the root down, so repeated imports inherit that observation from the same project snapshot.
-        if let Some((parent, _)) = dotted.rsplit_once('.')
-            && self.classified.get(parent).is_some_and(|kinds| kinds.as_slice() == ["absent"])
-        {
-            let _ = self.classified.insert(dotted.to_owned(), vec!["absent"]);
-            return vec!["absent"];
+        if let Some(entry) = self.classified.get(dotted) {
+            return entry.kinds.clone();
         }
         let Some(search_roots) = &self.search_roots else { return vec!["unknown"] };
+        let candidates = dotted.rsplit_once('.').and_then(|(parent, _)| self.classified.get(parent));
+        if candidates.is_some_and(|entry| entry.directories.is_empty()) {
+            self.classified.insert(dotted.to_owned(), PathObservation { kinds: vec!["absent"], directories: Vec::new() });
+            return vec!["absent"];
+        }
+        let mut directories = Vec::new();
         let fs = dotted.replace('.', "/");
         let (mut module, mut package, mut namespace) = (false, false, false);
-        for search in search_roots {
+        for (root, search) in search_roots.iter().enumerate() {
+            if candidates.is_some_and(|entry| entry.directories.binary_search(&root).is_err()) { continue; }
             let base = if search.is_empty() { format!("{}/{fs}", self.root_dir) } else { format!("{}/{search}/{fs}", self.root_dir) };
             let file = |p: &str| std::path::Path::new(p).is_file();
             module |= file(&format!("{base}.py")) || file(&format!("{base}.pyi"));
             let dir = std::path::Path::new(&base).is_dir();
-            let init = file(&format!("{base}/__init__.py")) || file(&format!("{base}/__init__.pyi"));
+            if dir {
+                directories.push(root);
+            }
+            let init = dir && (file(&format!("{base}/__init__.py")) || file(&format!("{base}/__init__.pyi")));
             package |= dir && init;
             namespace |= dir && !init;
         }
@@ -224,7 +233,7 @@ impl Project {
         if kinds.is_empty() {
             kinds.push("absent");
         }
-        self.classified.insert(dotted.to_owned(), kinds.clone());
+        self.classified.insert(dotted.to_owned(), PathObservation { kinds: kinds.clone(), directories });
         kinds
     }
 
