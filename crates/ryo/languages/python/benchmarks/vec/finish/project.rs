@@ -16,7 +16,8 @@ pub(in super::super) enum ProjectAsk {
     EachFile,
 }
 
-/// A project relation's answers so far: the rows, by the file they name, and the files answered.
+/// A project relation's answers so far: the rows, by the file they name, and the files answered (an `EachFile` relation
+/// keeps the current file's rows only).
 #[derive(Default)]
 pub(in super::super) struct Answered {
     table: Option<Table>,
@@ -52,6 +53,11 @@ pub(super) fn rows(f: &File<'_>, run: &mut Run, p: &mut dyn Provider, rel: &str,
             }
         };
         let key = t.tys.iter().position(|ty| *ty == Ty::File).ok_or_else(|| format!("{rel}: a project relation names no file"))?;
+        // an answer for the file being run is read by that file's steps only: the last file's rows are not kept
+        if let ProjectAsk::EachFile = ask {
+            a.table = None;
+            a.by_file.clear();
+        }
         let base = a.table.as_ref().map_or(0, |x| x.n) as u32;
         for r in 0..t.n {
             a.by_file.entry(t.cols[key][r]).or_default().push(base + r as u32);

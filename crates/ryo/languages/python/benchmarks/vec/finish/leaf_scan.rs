@@ -1,8 +1,7 @@
-//! Attribute view materializations and fused body drivers to their source plan nodes.
-use super::{Exec, File, Native, Provider, R, Run, Table, ViewSpec, kinds_required, step_clock};
+//! Attribute view materializations to their source plan nodes.
+use super::{Exec, File, Native, Run, ViewSpec, kinds_required, step_clock};
 use std::cell::RefCell;
 use std::collections::BTreeMap;
-use std::rc::Rc;
 
 #[derive(Default)]
 struct Driver {
@@ -14,7 +13,6 @@ struct Driver {
 thread_local! {
     static TESTS: RefCell<BTreeMap<(usize, bool), u64>> = const { RefCell::new(BTreeMap::new()) };
     static LISTS: RefCell<BTreeMap<(usize, bool), (Driver, u64)>> = const { RefCell::new(BTreeMap::new()) };
-    static DRIVERS: RefCell<BTreeMap<(usize, usize), Driver>> = const { RefCell::new(BTreeMap::new()) };
 }
 
 /// A leaf-only CPU clock for the share of an otherwise unclocked second half.
@@ -62,33 +60,6 @@ pub(super) fn row_list(node: usize, materialize: bool, entered: usize, kept: usi
 }
 
 impl Exec<'_> {
-    /// A fused driver may run a join or demand an intermediate table. Attribute its
-    /// exclusive time separately so the entire enclosing group is never charged to a leaf.
-    #[inline]
-    pub(super) fn leaf_driver(
-        &mut self,
-        f: &mut File<'_>,
-        run: &mut Run,
-        p: &mut dyn Provider,
-        root: usize,
-        node: usize,
-    ) -> R<Rc<Table>> {
-        if !sw!("VEC_LEAF_PROFILE") {
-            return self.body(f, run, p, node);
-        }
-        let inner = self.inner;
-        let start = step_clock();
-        let out = self.body(f, run, p, node)?;
-        let seconds = (step_clock() - start) - (self.inner - inner);
-        DRIVERS.with_borrow_mut(|all| {
-            let d = all.entry((root, node)).or_default();
-            d.calls += 1;
-            d.rows += out.n as u64;
-            d.seconds += seconds;
-        });
-        Ok(out)
-    }
-
     pub(crate) fn leaf_report(&mut self, run: &mut Run) {
         if sw!("VEC_LEAF_CLOCK") {
             let mut brackets = [0.0; 1001];
@@ -120,14 +91,6 @@ impl Exec<'_> {
             for ((node, materialize), (d, scanned)) in std::mem::take(all) {
                 println!(
                     "LEAF_LIST\t{node}\t{materialize}\t{}\t{scanned}\t{}\t{:.9}",
-                    d.calls, d.rows, d.seconds
-                );
-            }
-        });
-        DRIVERS.with_borrow_mut(|all| {
-            for ((root, node), d) in std::mem::take(all) {
-                println!(
-                    "LEAF_DRIVER\t{root}\t{node}\t{}\t{}\t{:.9}",
                     d.calls, d.rows, d.seconds
                 );
             }

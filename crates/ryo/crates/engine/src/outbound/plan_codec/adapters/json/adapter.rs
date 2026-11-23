@@ -22,6 +22,11 @@ impl PlanCodecPort for PlanCodecJsonAdapter {
         bytes
     }
 
+    fn valued(&self, plan: &FinishPlan) -> serde_json::Value {
+        // the same schema, to a value: strings, numbers, lists and string-keyed maps cannot fail to convert
+        serde_json::to_value(PlanSchema::from(plan)).unwrap_or(serde_json::Value::Null)
+    }
+
     fn decoded(&self, bytes: &[u8]) -> Result<FinishPlan, PlanCodecError> {
         serde_json::from_slice::<PlanSchema>(bytes)
             .map(FinishPlan::from)
