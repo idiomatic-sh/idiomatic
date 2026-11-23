@@ -84,6 +84,18 @@ pub(super) fn whole(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut 
     over(ex, f, run, p, node, pr, &l)
 }
 
+/// redo-whole pass 2 (keyed.rs): the antijoin read by key: its left read by the same keys (its output columns are the
+/// left's), then knocked out as a whole run knocks out. None when the left holds no such row; else (left, answer).
+pub(super) fn keyed_left(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64]) -> R<Option<(Rc<Table>, Rc<Table>)>> {
+    let pr = prep(ex, run, node)?;
+    let l = ex.probe(f, run, p, pr.left, col, keys)?;
+    if l.n == 0 {
+        return Ok(None);
+    }
+    let out = over(ex, f, run, p, node, pr, &l)?;
+    Ok(Some((l, out)))
+}
+
 /// The left rows no right row matches on every key.
 fn over(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, pr: &Prep, l: &Rc<Table>) -> R<Rc<Table>> {
     if let Some(ki) = pr.view_key
@@ -110,7 +122,16 @@ fn over(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider
         ex.stats.touched[node] += touched;
         return Ok(out);
     }
-    let r = ex.eval(f, run, p, pr.right)?;
+    // redo-whole pass 2 (keyed.rs): a right side whose one consumer is this antijoin is read by the left's keys (a left
+    // row is knocked out only by a right row holding its keys)
+    let r = if ex.keyed_ok(f, run, pr.right, pr.rk[0])? {
+        let mut ks: Vec<u64> = l.cols[pr.lk[0]].clone();
+        ks.sort_unstable();
+        ks.dedup();
+        ex.probe(f, run, p, pr.right, pr.rk[0], &ks)?
+    } else {
+        ex.eval(f, run, p, pr.right)?
+    };
     if r.n == 0 {
         return Ok(l.clone());
     }

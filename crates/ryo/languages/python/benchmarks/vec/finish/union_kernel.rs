@@ -116,6 +116,23 @@ pub(super) fn whole(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut 
     Ok(out)
 }
 
+/// redo-whole pass 2 (keyed.rs): the union read by key: each leaf read by the same keys on its own column, combined as
+/// a whole run combines; (answer, whether it is a leaf's answer handed on).
+pub(super) fn keyed(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64]) -> R<(Rc<Table>, bool)> {
+    let pr = prep(ex, run, node)?;
+    let mut got = take_got();
+    for (i, lf) in pr.leaves.iter().enumerate() {
+        let t = ex.probe(f, run, p, lf.node, lf.map[col], keys)?;
+        if t.n > 0 {
+            got.push((t, i as u32));
+        }
+    }
+    let out = combine(pr, &got);
+    let handed = out.n == 0 || got.iter().any(|g| Rc::ptr_eq(&g.0, &out));
+    give_got(got);
+    Ok((out, handed))
+}
+
 fn take_got() -> Vec<(Rc<Table>, u32)> {
     GOT.with(|k| k.borrow_mut().pop()).unwrap_or_default()
 }
