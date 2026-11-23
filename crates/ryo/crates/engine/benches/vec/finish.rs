@@ -72,6 +72,8 @@ mod tree_class;
 mod frame;
 #[path = "finish/known.rs"]
 pub(crate) mod known;
+#[path = "finish/worker_schemas.rs"]
+pub(crate) mod worker_schemas;
 #[path = "finish/worker_patterns.rs"]
 pub(crate) mod worker_patterns;
 #[path = "finish/set_ops.rs"]
@@ -1336,6 +1338,7 @@ pub(super) struct Exec<'p> {
     pub(super) plan: &'p Plan,
     pub(super) stats: Stats,
     schemas: Vec<Option<Rc<Schema>>>,
+    pub(crate) worker_shapes: Option<worker_schemas::Local>,
     views: Vec<Option<Option<Rc<ViewSpec>>>>,
     sels: Vec<Option<Rc<SelPlan>>>,
     // Each reader group prepares its own column indices and interned names.
@@ -1425,6 +1428,7 @@ impl<'p> Exec<'p> {
             plan,
             stats: Stats { fact_index_rows: 0, total_runs: 0, total_rows: 0, time: vec![0.0; k], rows: vec![0; k], calls: vec![0; k], touched: vec![0; k], empty: vec![0; k], known: vec![0; k], empty_time: vec![0.0; k], static_time: 0.0, static_depth: 0, static_visits: 0, static_pass: 0, static_file_tests: 0, rec_time: 0.0, rec_busy: false, keyed: vec![0; k], keyed_empty: vec![0; k], built: vec![0; k] },
             schemas: vec![None; k],
+            worker_shapes: None,
             views: vec![None; k],
             sels: vec![None; k],
             select_preps: vec![None; k],
@@ -1499,6 +1503,10 @@ impl<'p> Exec<'p> {
     fn schema(&mut self, run: &mut Run, node: usize) -> R<Rc<Schema>> {
         if let Some(sc) = &self.schemas[node] {
             return Ok(sc.clone());
+        }
+        if let Some(sc) = self.worker_shapes.as_mut().and_then(|shapes| shapes.get(node)) {
+            self.schemas[node] = Some(sc.clone());
+            return Ok(sc);
         }
         let plan: &'p Plan = self.plan;
         let pn = &plan.nodes[node];

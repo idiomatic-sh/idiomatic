@@ -13,6 +13,7 @@ struct Slot {
 }
 pub(crate) struct Constants {
     slots: Vec<Option<Box<Slot>>>,
+    known: Box<[Option<bool>]>,
     prefix: usize,
 }
 pub(super) struct Stored {
@@ -105,9 +106,18 @@ impl Exec<'_> {
                 })
             })
             .collect();
-        let shared = Arc::new(Constants { slots, prefix });
+        let shared = Arc::new(Constants {
+            slots,
+            known: self.constant.clone().into_boxed_slice(),
+            prefix,
+        });
         self.shared_constants = Some(shared.clone());
         shared
+    }
+
+    pub(crate) fn use_constants(&mut self, shared: Arc<Constants>) {
+        self.constant.copy_from_slice(&shared.known);
+        self.shared_constants = Some(shared);
     }
 
     pub(super) fn shared_constant(
