@@ -40,6 +40,7 @@ arrow-select = { version = "=60.0.0", optional = true }
 mimalloc = { workspace = true, optional = true }
 
 [dev-dependencies]
+ryo_operators = { package = "idiomatic-sh-ryo-operators", path = "../../crates/operators" }
 bumpalo = "3"
 smallvec = "1"
 serde_json.workspace = true

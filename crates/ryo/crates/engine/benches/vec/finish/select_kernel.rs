@@ -184,7 +184,7 @@ fn filter(run: &mut Run, f: &File<'_>, srcs: &[Src], si: usize, p: &P, sel: &mut
 }
 
 /// A select node, prepared once a run.
-struct K {
+pub(super) struct K {
     preds: Vec<P>,
     /// Whether a conjunct is constant over the file (the per-file test runs only then).
     file_const: bool,
@@ -236,7 +236,7 @@ pub(super) fn lit_file(f: &mut File<'_>, key: usize, conj: &[E], si: usize, base
     }
 }
 
-enum Prep {
+pub(super) enum Prep {
     K(K),
     Old(&'static str),
 }
@@ -245,8 +245,6 @@ enum Prep {
 const KERNEL2: bool = true;
 
 thread_local! {
-    /// The prepared nodes (by the plan's address, then node), and the worker's buffers (a stack: executions nest).
-    static PREPS: RefCell<(usize, Vec<Option<Rc<Prep>>>)> = const { RefCell::new((0, Vec::new())) };
     static BUFS: RefCell<Vec<Bufs>> = const { RefCell::new(Vec::new()) };
 }
 
@@ -329,12 +327,8 @@ fn give_bufs(mut b: Bufs) {
 
 impl Exec<'_> {
     fn ksel_prep(&mut self, run: &mut Run, node: usize) -> R<Rc<Prep>> {
-        let addr = std::ptr::from_ref(self.plan) as usize;
-        if let Some(p) = PREPS.with(|c| {
-            let c = c.borrow();
-            if c.0 == addr { c.1.get(node).cloned().flatten() } else { None }
-        }) {
-            return Ok(p);
+        if let Some(prep) = &self.select_preps[node] {
+            return Ok(prep.clone());
         }
         let prep = Rc::new(self.ksel_make(run, node)?);
         if let Some(path) = std::env::var_os("VEC_KSEL_LOG") {
@@ -348,16 +342,7 @@ impl Exec<'_> {
                 let _ = writeln!(o, "{node}\t{why}");
             }
         }
-        PREPS.with(|c| {
-            let mut c = c.borrow_mut();
-            if c.0 != addr {
-                *c = (addr, Vec::new());
-            }
-            if c.1.len() <= node {
-                c.1.resize(node + 1, None);
-            }
-            c.1[node] = Some(prep.clone());
-        });
+        self.select_preps[node] = Some(prep.clone());
         Ok(prep)
     }
 
@@ -481,7 +466,7 @@ impl Exec<'_> {
             let Ok(Some(v)) = self.view(run, *s) else { continue };
             if let super::Native::Fact(x) = v.base
                 && f.facts.get(usize::from(x)).is_none_or(Option::is_none)
-                && !(super::lazy_view::owed(f, usize::from(x)) && self.load_fact(f, run, p, v.base).is_ok())
+                && !(f.owed_fills.get(usize::from(x)).copied().unwrap_or(false) && self.load_fact(f, run, p, v.base).is_ok())
             {
                 continue;
             }
