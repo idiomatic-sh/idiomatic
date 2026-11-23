@@ -624,6 +624,14 @@ fn main() {
                 } else {
                     finish::load(finish_args[0])
                 };
+                // redo-binding pass 6 (merged by redo-int): the pack's inputs to the facts, in this run too: `<pack>/inputs/`
+                // when the plan is prepared from the pack, else beside the plan file (`<plan>.inputs/`); no file, no list
+                let inputs_dir = if pack.is_some() { format!("{}/inputs", finish_args[0]) } else { format!("{}.inputs", finish_args[0].trim_end_matches(".json")) };
+                let lists = match std::fs::read_to_string(format!("{inputs_dir}/type-expression.tsv")) {
+                    Ok(t) => type_expression::Lists::parse(&t).expect("the type-expression input"),
+                    Err(_) => type_expression::Lists::default(),
+                };
+                let _ = type_expression::LISTS.set(lists);
                 println!("start-up total {:.4} s", thread_cpu() - t0);
                 let mut fin = finisher::Finisher::new(&plan, &walk, &vocab, &finish_args);
                 run_funnel(&walk, &vocab, &args[2..], Some(&mut fin), pack.as_ref().map(|(d, r)| (*d, r)));
@@ -1163,7 +1171,7 @@ impl ColFacts<'_, '_, '_, '_> {
         let qualified = self.whole(run, "qualified-name")?;
         let embedded = self.whole(run, "embedded-expression")?;
         // redo-fills pass 2: no root, no row, and the other two inputs are not filled
-        if !type_expression::any_root(run, self.file.table, &qualified, embedded.n)? {
+        if !type_expression::any_root(run, self.file.table, &qualified, embedded.n, type_expression::LISTS.get_or_init(type_expression::Lists::default))? {
             let (_, names, tys) = run.catalog(fact_catalog::TYPE_EXPRESSION_REL).ok_or("no type-expression")?;
             return Ok(finish::Table { names, tys, cols: vec![Vec::new(); 3], n: 0 });
         }

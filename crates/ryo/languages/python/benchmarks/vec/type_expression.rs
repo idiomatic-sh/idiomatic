@@ -111,7 +111,7 @@ pub(super) struct Inputs<'t> {
 /// redo-fills pass 2: whether the file has any root `rows` starts from (an embedded expression, a name the paths test
 /// names, an annotation or return annotation, a type declaration): `rows`' own "no root of any kind" test, asked before
 /// its other inputs are filled (call-argument and identifier are read only past it).
-pub(super) fn any_root(run: &mut finish::Run, table: &NodeTable, qualified: &finish::Table, embedded_rows: usize) -> Result<bool, String> {
+pub(super) fn any_root(run: &mut finish::Run, table: &NodeTable, qualified: &finish::Table, embedded_rows: usize, lists: &Lists) -> Result<bool, String> {
     if embedded_rows != 0 {
         return Ok(true);
     }
@@ -119,10 +119,11 @@ pub(super) fn any_root(run: &mut finish::Run, table: &NodeTable, qualified: &fin
     let _ = q_id;
     for r in 0..qualified.n {
         let t: &[u8] = &run.texts[qualified.cols[q_path][r] as usize];
-        if !NAMED_MODULES.iter().any(|m| t.starts_with(m)) {
+        // redo-int merge: `rows`' tests as redo-binding pass 6 states them (the pack's lists, not the writer's)
+        if !NAMED_MODULES.iter().any(|m| t.starts_with(m)) && !lists.modules.iter().any(|m| t.starts_with(m)) {
             continue;
         }
-        if t == b"typing.TypeAlias" || t == b"typing_extensions.TypeAlias" || t == b"_typeshed.TypeAlias" || GENERIC.is_match(t) || t == b"typing.Annotated" || t == b"typing_extensions.Annotated" || t == b"typing.TypedDict" || t == b"typing_extensions.TypedDict" || form_of(t).is_some() {
+        if t == b"typing.TypeAlias" || t == b"typing_extensions.TypeAlias" || t == b"_typeshed.TypeAlias" || lists.generic.contains(t) || t == b"typing.Annotated" || t == b"typing_extensions.Annotated" || t == b"typing.TypedDict" || t == b"typing_extensions.TypedDict" || form_of(t, lists).is_some() {
             return Ok(true);
         }
     }
