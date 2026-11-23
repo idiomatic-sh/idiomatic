@@ -1440,6 +1440,22 @@ impl<'p> Exec<'p> {
     }
 
 
+    /// Two snapshots in a profiled worker expose the first-use writes to its run caches.
+    pub(crate) fn cache_counts(&self, run: &Run, stage: &str) {
+        if !self.timing { return; }
+        fn present<T>(slots: &[Option<T>]) -> usize {
+            slots.iter().filter(|v| v.is_some()).count()
+        }
+        println!(
+            "WORKER_STATE {:?} {stage} symbols={} regexes={} relations={} declared={} schemas={} views={} selects={} select_kernels={} union_kernels={} antijoin_kernels={} keyed_forms={} needs={} constants={} run_tables={} project_relations={}",
+            std::thread::current().id(), run.ids.len(), run.regexes.len(), run.rels.len(),
+            run.declared.len(), present(&self.schemas), present(&self.views), present(&self.sels),
+            present(&self.select_preps), present(&self.union_preps), present(&self.antijoin_preps),
+            present(&self.keyed_forms), present(&self.needs), present(&self.constant),
+            present(&self.run_memo), run.project.len(),
+        );
+    }
+
     /// Whether a step's rows are the same in every file: it reads only run-wide relations, through steps that read no file.
     fn is_constant(&mut self, run: &Run, node: usize) -> bool {
         if let Some(c) = self.constant[node] {
