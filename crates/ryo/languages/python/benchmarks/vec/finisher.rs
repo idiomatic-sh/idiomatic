@@ -350,6 +350,11 @@ impl<'p> Finisher<'p> {
         println!("thread CPU-s: total {total:.3}; walk+table {walk_time:.3}; in the visit {file_time:.3}: steps {steps:.3}, provider fills {:.3} ({} rows)", self.provider_time, self.provider_rows);
         // the per-file emptiness decision's static part: steps visited and per-file tests decided (VEC_STEP_TIME: its seconds)
         println!("known-empty static part: {} steps visited, {} per-file tests; {:.3} s, of which preparing the needs once a run {:.3} s", exec.stats.static_visits, exec.stats.static_file_tests, exec.stats.static_time, exec.stats.rec_time);
+        if finish::fill_prof::counting() {
+            for (kind, counts) in ["dense", "sparse sorted", "sparse unsorted"].into_iter().zip(&finish::FACT_IX_SHAPES) {
+                println!("fact column index {kind}: {} builds, {} rows", counts[0].load(std::sync::atomic::Ordering::Relaxed), counts[1].load(std::sync::atomic::Ordering::Relaxed));
+            }
+        }
         println!("fact keyed lists: fill rows listed {}", finish::FACT_IX_ROWS.load(std::sync::atomic::Ordering::Relaxed));
         println!("{}", finish::fill_prof::reads_line());
         println!("{}", exec.request_line());

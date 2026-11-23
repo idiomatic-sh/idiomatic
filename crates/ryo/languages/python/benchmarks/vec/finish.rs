@@ -544,6 +544,17 @@ pub(super) enum Native {
 }
 
 /// 6h: the rows of the keyed lists made from provider fills (one entry a fill row a column asked), for the report.
+/// Number of keyed fact indexes and the rows indexed by each storage path in the count gate.
+pub(super) static FACT_IX_SHAPES: [[std::sync::atomic::AtomicU64; 2]; 3] =
+    [const { [const { std::sync::atomic::AtomicU64::new(0) }; 2] }; 3];
+
+fn count_fact_index(shape: usize, rows: usize) {
+    if fill_prof::counting() {
+        FACT_IX_SHAPES[shape][0].fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        FACT_IX_SHAPES[shape][1].fetch_add(rows as u64, std::sync::atomic::Ordering::Relaxed);
+    }
+}
+
 pub(super) static FACT_IX_ROWS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
 const TREE_COLS: [(&str, Ty); 5] = [("id", Ty::Node), ("kind", Ty::Sym), ("text", Ty::Sym), ("file", Ty::File), ("span", Ty::Span)];
@@ -1013,9 +1024,9 @@ impl File<'_> {
             let index = match &self.facts[relation] {
                 Some(t) => {
                     FACT_IX_ROWS.fetch_add(t.n as u64, std::sync::atomic::Ordering::Relaxed);
-                    Index::build(t.n, |r| t.cols[col][r])
+                    Index::from_column(&t.cols[col][..t.n])
                 }
-                None => Index::build(0, |_| 0),
+                None => Index::from_column(&[]),
             };
             index_rc(index)
         }).clone()
@@ -3802,27 +3813,8 @@ impl Index {
         let (mut keys, mut fill, mut order) = IX_SCRATCH.with(|b| std::mem::take(&mut *b.borrow_mut()));
         keys.clear();
         keys.extend((0..n).map(key));
-        let max = keys.iter().copied().max().unwrap_or(0);
-        let ix = if n > 0 && max < (4 * n as u64).max(1024) {
-            let m = max as usize + 1;
-            let mut offs = ix_u32();
-            offs.resize(m + 1, 0);
-            for k in &keys {
-                offs[*k as usize + 1] += 1;
-            }
-            for i in 0..m {
-                offs[i + 1] += offs[i];
-            }
-            fill.clear();
-            fill.extend_from_slice(&offs[..m]);
-            let mut rows = ix_u32();
-            rows.resize(n, 0);
-            for (r, k) in keys.iter().enumerate() {
-                let p = &mut fill[*k as usize];
-                rows[*p as usize] = r as u32;
-                *p += 1;
-            }
-            Index { dense: true, offs, at: FxHashMap::default(), rows }
+        let ix = if let Some(width) = Self::dense_width(&keys) {
+            Self::dense(&keys, width, &mut fill)
         } else {
             order.clear();
             order.extend(keys.iter().enumerate().map(|(r, k)| (*k, r as u32)));
@@ -3847,6 +3839,69 @@ impl Index {
         }
         ix
     }
+    fn dense_width(keys: &[u64]) -> Option<usize> {
+        let max = keys.iter().copied().max()?;
+        (max < (4 * keys.len() as u64).max(1024)).then(|| max as usize + 1)
+    }
+
+    fn dense(keys: &[u64], m: usize, fill: &mut Vec<u32>) -> Self {
+        let mut offs = ix_u32();
+        offs.resize(m + 1, 0);
+        for k in keys {
+            offs[*k as usize + 1] += 1;
+        }
+        for i in 0..m {
+            offs[i + 1] += offs[i];
+        }
+        fill.clear();
+        fill.extend_from_slice(&offs[..m]);
+        let mut rows = ix_u32();
+        rows.resize(keys.len(), 0);
+        for (r, k) in keys.iter().enumerate() {
+            let p = &mut fill[*k as usize];
+            rows[*p as usize] = r as u32;
+            *p += 1;
+        }
+        Index { dense: true, offs, at: FxHashMap::default(), rows }
+    }
+
+    /// Fact columns already hold their keys contiguously. For sparse keys each
+    /// hash entry counts a run of result rows; a reverse scatter preserves
+    /// ascending source row order within every run.
+    fn from_column(keys: &[u64]) -> Self {
+        if let Some(width) = Self::dense_width(keys) {
+            count_fact_index(0, keys.len());
+            return IX_SCRATCH.with(|scratch| Self::dense(keys, width, &mut scratch.borrow_mut().1));
+        }
+        let mut at = IX_KEPT.with(|kept| kept.borrow_mut().1.pop()).unwrap_or_default();
+        let mut rows = ix_u32();
+        if keys.is_sorted() {
+            count_fact_index(1, keys.len());
+            let mut start = 0;
+            for group in keys.chunk_by(|a, b| a == b) {
+                let count = group.len() as u32;
+                at.insert(group[0], (start, count));
+                start += count;
+            }
+            rows.extend(0..keys.len() as u32);
+        } else {
+            count_fact_index(2, keys.len());
+            for &key in keys { at.entry(key).or_default().1 += 1; }
+            let mut end = 0;
+            for (cursor, count) in at.values_mut() {
+                end += *count;
+                *cursor = end;
+            }
+            rows.resize(keys.len(), 0);
+            for (row, key) in keys.iter().enumerate().rev() {
+                let (cursor, _) = at.get_mut(key).expect("counted column key");
+                *cursor -= 1;
+                rows[*cursor as usize] = row as u32;
+            }
+        }
+        Self { dense: false, offs: Vec::new(), at, rows }
+    }
+
     pub(super) fn get(&self, k: &u64) -> Option<&[u32]> {
         if self.dense {
             let k = *k;
