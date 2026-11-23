@@ -78,6 +78,7 @@ pub(super) const RESOLUTION_COLS: [(&str, Ty); 9] = [
 /// Declares to `run` every relation this provider, the host and the executor's steps supply beyond the provider's relations
 /// catalog.
 pub(super) fn declare(run: &mut finish::Run) {
+    super::import_syntax::declare(run);
     let facts: &[(&str, &[(&str, Ty)])] = &[
         (REGION_REL, &REGION_COLS),
         (BINDING_SITES_REL, &BINDING_SITES_COLS),

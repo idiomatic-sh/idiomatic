@@ -22,6 +22,13 @@ pub(super) struct Project {
     search_roots: Option<Vec<String>>,
     classified: HashMap<String, Vec<&'static str>>,
     kinds: Kinds,
+    packages: HashMap<std::path::PathBuf, Option<Package>>,
+}
+
+/// Directory spellings from the project layout. A package component can itself contain a dot.
+pub(super) struct Package {
+    pub(super) dotted: String,
+    pub(super) root_name: String,
 }
 
 /// The node kinds of an import (`alias`, `import-from`, the relative-level tokens, the dotted name's parts).
@@ -40,7 +47,7 @@ impl Project {
     /// code of a kind name.
     pub(super) fn new(root_dir: &str, search_roots: Option<Vec<String>>, kind: &dyn Fn(&str) -> Option<u16>) -> Self {
         let kinds = Kinds { alias: kind("alias"), from: kind("import-from"), dot: kind("dot"), ellipsis: kind("ellipsis"), ident: kind("identifier"), name: kind("name-token") };
-        Self { root_dir: root_dir.to_owned(), search_roots, classified: HashMap::new(), kinds }
+        Self { root_dir: root_dir.to_owned(), search_roots, classified: HashMap::new(), kinds, packages: HashMap::new() }
     }
 
     /// The host's search roots from a request file (`project_search_roots`); None without a request or without the key.
@@ -145,13 +152,7 @@ impl Project {
         let mut cols: Vec<Vec<u64>> = vec![Vec::new(); names.len()];
         let mut count = 0;
         for (root, path) in rows {
-            let kinds = self.classified(&path);
-            // a present child of a parent that is not present cannot prove a project path
-            let present = |ks: &[&str]| ks.iter().any(|k| matches!(*k, "module" | "package" | "namespace"));
-            let kinds = match path.rsplit_once('.') {
-                Some((parent, _)) if present(&kinds) && !present(&self.classified(parent)) => vec!["unknown"],
-                _ => kinds,
-            };
+            let kinds = self.observed_path_kinds(&path);
             for kd in kinds {
                 let state = match kd {
                     "module" | "package" | "namespace" => "present",
@@ -171,6 +172,16 @@ impl Project {
             }
         }
         Ok(finish::Table { names, tys, cols, n: count })
+    }
+
+    /// A file-system observation of a dotted child requires an observed parent under the configured search roots.
+    pub(super) fn observed_path_kinds(&mut self, path: &str) -> Vec<&'static str> {
+        let kinds = self.classified(path);
+        let present = |ks: &[&str]| ks.iter().any(|k| matches!(*k, "module" | "package" | "namespace"));
+        match path.rsplit_once('.') {
+            Some((parent, _)) if present(&kinds) && !present(&self.classified(parent)) => vec!["unknown"],
+            _ => kinds,
+        }
     }
 
     /// The entries a dotted path names under the search roots (observed once a run each).
@@ -201,6 +212,29 @@ impl Project {
         }
         self.classified.insert(dotted.to_owned(), kinds.clone());
         kinds
+    }
+
+    /// A directory with an initializer extends its parent's package or starts a top-level package.
+    /// Both import facts share this observation for the lifetime of the project.
+    pub(super) fn package(&mut self, dir: &std::path::Path) -> Option<&Package> {
+        if dir.as_os_str().is_empty() {
+            return None;
+        }
+        if !self.packages.contains_key(dir) {
+            let package = if let Some(name) = dir.file_name()
+                && std::path::Path::new(&self.root_dir).join(dir).join("__init__.py").is_file()
+            {
+                let name = name.to_string_lossy();
+                Some(match dir.parent().and_then(|parent| self.package(parent)) {
+                    Some(parent) => Package { dotted: format!("{}.{name}", parent.dotted), root_name: parent.root_name.clone() },
+                    None => Package { dotted: name.to_string(), root_name: name.into_owned() },
+                })
+            } else {
+                None
+            };
+            self.packages.insert(dir.to_owned(), package);
+        }
+        self.packages.get(dir).and_then(Option::as_ref)
     }
 
     /// `module-identity` of each of `files`: inside a package (its directory holds `__init__.py`), the dotted path from the
