@@ -41,13 +41,6 @@ pub(crate) struct Requests {
     union: Vec<u64>,
     asked: Vec<u16>,
     answer: Vec<Result<Table, String>>,
-    /// Shape (b)'s per-file walk: steps seen and the static emptiness memo (`Exec::pre_empty`), by plan node.
-    seen: Vec<bool>,
-    pre: Vec<u8>,
-    /// `VEC_REQ_PRUNE=2` (a diagnosis): shape (b)'s set for the file while shape (a) is asked; a read outside it is
-    /// counted by (relation, reading step's op, site).
-    diag: Vec<u64>,
-    missed: std::collections::BTreeMap<(String, String, &'static str), u64>,
     pub(super) counts: Counts,
 }
 
@@ -123,7 +116,8 @@ impl Exec<'_> {
         bits
     }
 
-    /// Shape (a): exactly the union of what the alive rules' steps can read.
+    /// Exactly the union of what the alive rules' steps can read (request shape (a); shape (b), less the relations whose
+    /// every reader is known empty before any fill, was measured equal or unsound: NOTES.md, pass 3 cycle 1).
     fn union_of(&mut self, run: &Run, roots: &[usize], union: &mut Vec<u64>) {
         for r in roots {
             let bits = self.reach(run, *r);
@@ -136,56 +130,12 @@ impl Exec<'_> {
         }
     }
 
-    /// Shape (b): the union less the relations whose every reader is known empty in the file before any fill (its kinds,
-    /// survivor sets and per-file tests: `pre_empty`): the plan walked from each root, never into a step known empty.
-    fn pruned(&mut self, f: &mut File<'_>, run: &mut Run, roots: &[usize], union: &mut Vec<u64>) {
-        let plan = self.plan;
-        let mut seen = std::mem::take(&mut self.requests.seen);
-        let mut pre = std::mem::take(&mut self.requests.pre);
-        seen.clear();
-        seen.resize(plan.nodes.len(), false);
-        pre.clear();
-        pre.resize(plan.nodes.len(), 0);
-        let mut stack: Vec<usize> = roots.to_vec();
-        while let Some(n) = stack.pop() {
-            if std::mem::replace(&mut seen[n], true) || self.pre_empty(f, run, n, &mut pre) {
-                continue;
-            }
-            let pn = &plan.nodes[n];
-            if pn.op == "base"
-                && let Some(rel) = pn.j["rel"].as_str()
-                && native_of(rel).is_none()
-                && matches!(run.supplier(rel), Supplier::Provider | Supplier::Host)
-            {
-                let r = usize::from(self.requests.number(run, rel));
-                if union.len() <= r / 64 {
-                    union.resize(r / 64 + 1, 0);
-                }
-                union[r / 64] |= 1 << (r % 64);
-            }
-            stack.extend(pn.inputs.iter().copied().filter(|i| !seen[*i]));
-        }
-        self.requests.seen = seen;
-        self.requests.pre = pre;
-    }
-
     /// The file's one request: the union of what the steps under `roots` (the alive rules' emits) can read, asked of the
     /// provider in one call and of the host for its own; the answers kept in the file for `answered`.
     pub(crate) fn open_file(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, roots: &[usize]) -> R<()> {
         let mut union = std::mem::take(&mut self.requests.union);
         union.clear();
-        let prune = std::env::var("VEC_REQ_PRUNE").ok();
-        if prune.as_deref() == Some("1") {
-            self.pruned(f, run, roots, &mut union);
-        } else {
-            self.union_of(run, roots, &mut union);
-            if prune.as_deref() == Some("2") {
-                let mut d = std::mem::take(&mut self.requests.diag);
-                d.clear();
-                self.pruned(f, run, roots, &mut d);
-                self.requests.diag = d;
-            }
-        }
+        self.union_of(run, roots, &mut union);
         let rq = &mut self.requests;
         rq.counts.files += 1;
         let mut asked = std::mem::take(&mut rq.asked);
@@ -235,10 +185,6 @@ impl Exec<'_> {
     /// relation the request did not hold.
     pub(super) fn answered(&mut self, f: &mut File<'_>, rel: &str) -> R<Table> {
         let n = self.requests.by_name.get(rel).copied().ok_or_else(|| format!("{rel}: in no request of this run"))?;
-        if !self.requests.diag.is_empty() && self.requests.diag.get(usize::from(n) / 64).is_none_or(|w| w & (1 << (n % 64)) == 0) {
-            let by = self.stack.last().map_or_else(|| "-".to_owned(), |s| format!("{}#{s}", self.plan.nodes[*s].op));
-            *self.requests.missed.entry((rel.to_owned(), by, super::fill_prof::SITE.with(std::cell::Cell::get))).or_default() += 1;
-        }
         f.answer.get_mut(usize::from(n)).and_then(Option::take).ok_or_else(|| format!("{rel}: not in this file's request"))?
     }
 
@@ -252,10 +198,6 @@ impl Exec<'_> {
 
     /// The run's request counts.
     pub(crate) fn request_line(&self) -> String {
-        let mut l = self.requests.line();
-        for ((rel, by, site), c) in &self.requests.missed {
-            l.push_str(&format!("\nREQ-MISSED\t{rel}\t{by}\t{site}\t{c}"));
-        }
-        l
+        self.requests.line()
     }
 }

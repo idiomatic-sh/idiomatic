@@ -183,52 +183,6 @@ impl Exec<'_> {
         e
     }
 
-    /// redo-fills pass 3, request shape (b): whether the file's kinds, survivor sets or per-file tests alone leave `node`
-    /// empty (no fill read: `static_empty` without the propagation's fill leaves), memoised in `memo` (0 unknown, `NO`,
-    /// `YES`) for one file.
-    pub(super) fn pre_empty(&mut self, f: &mut File<'_>, run: &mut Run, node: usize, memo: &mut [u8]) -> bool {
-        match memo[node] {
-            NO | BUSY => return false,
-            YES => return true,
-            _ => {}
-        }
-        let r = self.rec(run, node);
-        if r.flags & CAN == 0 {
-            memo[node] = NO;
-            return false;
-        }
-        memo[node] = BUSY;
-        if r.n_kinds > 0 && f.kind_bits.is_empty() {
-            let mut bits = vec![0u64; run.kind_sym.len().div_ceil(64).max(1)];
-            for (c, w) in (0..run.kind_sym.len()).map(|c| (c, c / 64)) {
-                if !super::node_table::ids_of_kind(f.table, super::KindBits(c as u16)).is_empty() {
-                    bits[w] |= 1 << (c % 64);
-                }
-            }
-            f.kind_bits = bits;
-        }
-        let mut e = false;
-        let (mut at, end) = (r.kinds as usize, r.kinds as usize + usize::from(r.n_kinds));
-        while !e && at < end {
-            let n = usize::from(self.flat.kinds[at]);
-            e = self.flat.kinds[at + 1..at + 1 + n].iter().all(|c| f.kind_bits[usize::from(*c) / 64] & (1 << (c % 64)) == 0);
-            at += 1 + n;
-        }
-        if !e && r.n_seeds > 0 {
-            e = self.flat.seeds[r.seeds as usize..r.seeds as usize + usize::from(r.n_seeds)].iter().any(|k| f.seeds.get(usize::from(*k)).is_none_or(Vec::is_empty));
-        }
-        if !e && r.flags & FILE_TEST != 0 {
-            e = self.file_fails_of(f, run, node);
-        }
-        if !e && r.n_ins > 0 {
-            let (a, b) = (r.ins as usize, r.ins as usize + usize::from(r.n_ins));
-            let ins: Vec<usize> = (a..b).map(|i| self.flat.ins[i] as usize).collect();
-            e = if r.flags & ALL != 0 { ins.iter().all(|x| self.pre_empty(f, run, *x, memo)) } else { ins.iter().any(|x| self.pre_empty(f, run, *x, memo)) };
-        }
-        memo[node] = if e { YES } else { NO };
-        e
-    }
-
     /// The step's flat record (made at its first ask, its inputs' first).
     #[inline]
     fn rec(&mut self, run: &mut Run, node: usize) -> Rec {
