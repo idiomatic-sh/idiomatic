@@ -162,6 +162,7 @@ impl<'p> Finisher<'p> {
         let run = &mut self.run;
         if self.check {
             for rel in ["semantic-syntax", "syntax-tree", "semantic-child", "syntax-child", "source-location", "token-link"] {
+                if run.reader_tables.contains(rel) { continue; }
                 let mine = finish::native_table(&mut f, run, rel);
                 match pv.fill(run, rel, finish::Scope::File(file_no as u32)) {
                     Ok(theirs) => self.check_lines.push(format!("{}\t{rel}\t{}", run.paths[file_no], finish::diff(run, &mine, &theirs))),
@@ -193,11 +194,13 @@ impl<'p> Finisher<'p> {
                 let subject = t.col(&e.2)?;
                 let span = t.col("span").ok();
                 let rule = serde_json::to_string(&e.0).expect("rule string");
-                // An emit is insensitive to copies of an identical result row. Distinct
-                // bindings can still report the same location and must survive projection.
+                // The declared subject and key identify a finding. Independent keys
+                // may still project to the same diagnostic range.
+                let mut identity = vec![subject];
+                for name in &e.3 { identity.push(t.col(name)?); }
                 let mut seen = rustc_hash::FxHashSet::default();
                 for r in 0..t.n {
-                    if t.n > 1 && !seen.insert(t.cols.iter().map(|c| c[r]).collect::<Vec<_>>()) {
+                    if t.n > 1 && !seen.insert(identity.iter().map(|&c| t.cols[c][r]).collect::<Vec<_>>()) {
                         continue;
                     }
                     let target = if t.tys[subject] == finish::Ty::File {
