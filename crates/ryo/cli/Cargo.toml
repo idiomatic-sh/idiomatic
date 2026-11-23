@@ -53,10 +53,15 @@ tikv-jemallocator.workspace = true
 mimalloc.workspace = true
 
 [dev-dependencies]
+ryo_engine = { package = "idiomatic-sh-ryo-engine", path = "../crates/engine" }
+regex = "1"
+rustc-hash = "2"
+smallvec = "1"
+unicode-width = "=0.2.2"
 sha2.workspace = true
 ignore.workspace = true
 sysinfo.workspace = true
-ryo_sdk = { package = "idiomatic-sh-ryo-sdk", path = "../crates/sdk" }
+ryo_sdk = { package = "idiomatic-sh-ryo-sdk", path = "../crates/sdk", features = ["fixtures"] }
 # The crate itself with the language its tests and benches read, so the tests read that language whatever the defaults, and
 # with `fixtures`, so the replay links the languages the command links (`linked_connections`).
 idiomatic-sh-ryo = { path = ".", features = ["rust", "fixtures"] }
@@ -70,6 +75,12 @@ trycmd.workspace = true
 tempfile.workspace = true
 snapbox.workspace = true
 shlex = "=2.0.1"
+
+[[bench]]
+name = "vec-readers"
+path = "benches/readers/bench.rs"
+required-features = ["css", "go", "html", "json", "markdown", "python", "rust", "toml", "typescript"]
+harness = false
 
 [[bench]]
 name = "commands"

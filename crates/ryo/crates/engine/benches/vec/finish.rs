@@ -32,6 +32,8 @@ pub(super) fn step_clock() -> f64 {
     if sw!("VEC_STEP_TIME") { super::thread_cpu() } else { 0.0 }
 }
 
+#[path = "finish/answer.rs"]
+pub(super) mod answer;
 #[path = "finish/recycle.rs"]
 mod recycle;
 #[path = "finish/inline_key.rs"]
@@ -294,6 +296,8 @@ pub(super) struct Run {
     pub(super) paths: Vec<String>,
     pub(super) path_sym: Vec<u32>,
     pub(super) empty: u32,
+    /// The SDK symbol without a published value, distinct from an empty string.
+    pub(super) absent_word: Option<u32>,
     /// redo-general: the provider's token order (`token-link`, read in place) and, by kind code, whether an element of the
     /// kind carries its source text (`syntax-tree`'s `text`), both as the provider states them (`TokenOrder`).
     pub(super) tokens: Option<Rc<dyn TokenOrder>>,
@@ -1691,11 +1695,47 @@ impl<'p> Exec<'p> {
                         let re = run.re(&glob_pattern(&String::from_utf8_lossy(run.text(*t))))?;
                         E::Re(Box::new(args[0].clone()), re)
                     }
+                    ("glob_any", Some(E::List(items))) if args.len() == 2 => {
+                        let mut tests = items.iter().map(|item| {
+                            let E::Text(t) = item else { return Err("glob pattern must be text".to_owned()); };
+                            let re = run.re(&glob_pattern(&String::from_utf8_lossy(run.text(*t))))?;
+                            Ok(E::Re(Box::new(args[0].clone()), re))
+                        }).collect::<R<Vec<_>>>()?.into_iter();
+                        match tests.next() {
+                            Some(first) => tests.fold(first, |left, right| E::Or(Box::new(left), Box::new(right))),
+                            None => E::Cmp(Op::Eq, Box::new(E::Num(0)), Box::new(E::Num(1))),
+                        }
+                    }
                     _ => E::Call(name, args),
                 }
             }
-            "cmp" => E::Cmp(Op::of(s(&a[1])?), Box::new(self.expr(run, &a[2], names)?), Box::new(self.expr(run, &a[3], names)?)),
-            "in" | "notin" => E::In(Box::new(self.expr(run, &a[1], names)?), Box::new(self.expr(run, &a[2], names)?), tag == "notin"),
+            "cmp" => {
+                let op = Op::of(s(&a[1])?);
+                let left = self.expr(run, &a[2], names)?;
+                let right = self.expr(run, &a[3], names)?;
+                // The SDK tests the spelling of a literal. Both an unpublished
+                // symbol and an actual empty string match the empty spelling.
+                let column = match (&left, &right) {
+                    (col @ E::Col(_, _, Ty::Sym), E::Text(t)) |
+                    (E::Text(t), col @ E::Col(_, _, Ty::Sym)) if *t == run.empty => Some(col),
+                    _ => None,
+                };
+                if let (Some(absent), Some(col), Op::Eq | Op::Ne) = (run.absent_word, column, op) {
+                    E::In(Box::new(col.clone()), Box::new(E::List(vec![E::Text(run.empty), E::Text(absent)])), op == Op::Ne)
+                } else {
+                    E::Cmp(op, Box::new(left), Box::new(right))
+                }
+            }
+            "in" | "notin" => {
+                let value = self.expr(run, &a[1], names)?;
+                let mut list = self.expr(run, &a[2], names)?;
+                if let (Some(absent), E::Col(_, _, Ty::Sym), E::List(items)) = (run.absent_word, &value, &mut list)
+                    && items.iter().any(|e| matches!(e, E::Text(t) if *t == run.empty))
+                {
+                    items.push(E::Text(absent));
+                }
+                E::In(Box::new(value), Box::new(list), tag == "notin")
+            }
             "and" => E::And(Box::new(self.expr(run, &a[1], names)?), Box::new(self.expr(run, &a[2], names)?)),
             "or" => E::Or(Box::new(self.expr(run, &a[1], names)?), Box::new(self.expr(run, &a[2], names)?)),
             "not" => E::Not(Box::new(self.expr(run, &a[1], names)?)),
@@ -4295,6 +4335,20 @@ fn call(run: &mut Run, name: &str, vs: &[V]) -> V {
         }
         "starts_with" => flag(text_of(run, vs[0]).starts_with(&text_of(run, vs[1]))),
         "ends_with" => flag(text_of(run, vs[0]).ends_with(&text_of(run, vs[1]))),
+        "pascal" | "camel" | "snake" | "kebab" => {
+            use ryo_operators::domain::functions::{service::apply, types::MadeText};
+            use ryo_values::domain::plan_parts::types::Function;
+            let case = match name {
+                "pascal" => Function::Pascal,
+                "camel" => Function::Camel,
+                "snake" => Function::Snake,
+                _ => Function::Kebab,
+            };
+            let input = MadeText(String::from_utf8_lossy(&text_of(run, vs[0])).into_owned());
+            let mut output = MadeText::default();
+            apply(case, &[input], &mut output);
+            V::new(Ty::Sym, u64::from(run.sym(output.0.as_bytes())))
+        }
         "lower" => {
             let s = String::from_utf8_lossy(&text_of(run, vs[0])).to_lowercase();
             V::new(Ty::Sym, u64::from(run.sym(s.as_bytes())))
