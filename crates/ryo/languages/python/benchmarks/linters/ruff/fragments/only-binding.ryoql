@@ -11,7 +11,15 @@ let candidate_names = select l.reference as reference, l.file as file, r.scope a
 let reads = select occurrence as reference, ordinal as read_ordinal, file from "binding-event" where kind = "read";
 let probes = select l.reference as reference, l.file as file, l.scope as scope, l.name as name, r.read_ordinal as read_ordinal from candidate_names as l join reads as r on l.reference = r.reference and l.file = r.file;
 let prior_events = select l.reference as reference, l.file as file, r.binding as binding, r.ordinal as ordinal from probes as l join events as r on l.scope = r.scope and l.name = r.name and l.file = r.file where r.ordinal < l.read_ordinal;
-let latest_events = group-max(from=prior_events, keys=["reference", "file"], order="ordinal");
+let endings = select name, scope, ordinal as end_ordinal, kind as end_kind, file from "binding-event" where kind = "cleanup" or kind = "delete";
+let prior_endings = select l.reference as reference, l.file as file, r.end_ordinal as end_ordinal, r.end_kind as end_kind from probes as l join endings as r on l.scope = r.scope and l.name = r.name and l.file = r.file where r.end_ordinal < l.read_ordinal;
+let deleted_events = select l.reference as reference, l.file as file, l.binding as binding from prior_events as l join prior_endings as r on l.reference = r.reference and l.file = r.file where r.end_kind = "delete" and l.ordinal < r.end_ordinal;
+let cleanup_candidates = select l.reference as reference, l.file as file, l.binding as binding, l.ordinal as ordinal, r.end_ordinal as end_ordinal from prior_events as l join prior_endings as r on l.reference = r.reference and l.file = r.file where r.end_kind = "cleanup" and l.ordinal < r.end_ordinal;
+let cleaned_events0 = group-max(from=cleanup_candidates, keys=["reference", "file", "end_ordinal"], order="ordinal");
+let cleaned_events = select reference, file, binding from cleaned_events0;
+let gone_events = union(left=deleted_events, right=cleaned_events);
+let live_events = antijoin(left=prior_events, right=gone_events, left-on=["reference", "file", "binding"], right-on=["reference", "file", "binding"]);
+let latest_events = group-max(from=live_events, keys=["reference", "file"], order="ordinal");
 let uses = select reference, file, binding from latest_events;
 let only_uses = select l.reference as reference, l.file as file, l.binding as binding from uses as l join unique_bindings as r on l.binding = r.binding and l.file = r.file where $bindings = "only";
 let latest_uses = select reference, file, binding from uses where $bindings = "latest";

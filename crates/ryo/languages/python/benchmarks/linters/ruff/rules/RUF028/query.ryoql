@@ -88,8 +88,12 @@ let own_deeper_trailing = select l.id as id, l.previous as owner, l.file as file
 let inline_trailing0 = select l.id as id, r.previous as owner, l.file as file from unblocked_directives as l join gap_starts as r on l.first = r.first and l.file = r.file;
 let inline_trailing = select l.id as id, l.owner as owner, l.file as file from inline_trailing0 as l join inline_ids as r on l.id = r.id and l.file = r.file;
 let valid_nodes = select id, file from branches where kind in ["module", "expression", "function-def", "async-function-def", "class-def", "return", "delete", "type-alias", "assign", "aug-assign", "ann-assign", "for", "async-for", "while", "if", "with", "async-with", "match", "raise", "try", "try-star", "assert", "import", "import-from", "global", "nonlocal", "expr", "pass", "break", "continue", "ipy-escape-command", "except-handler", "match-case", "decorator", "elif-else-clause"];
-let trailing_owners0 = union(left=own_deeper_trailing, right=inline_trailing);
-let trailing_owners = select l.id as id, l.owner as owner, l.file as file from trailing_owners0 as l join valid_nodes as r on l.owner = r.id and l.file = r.file;
+let own_trailing_owners = select l.id as id, l.owner as owner, l.file as file from own_deeper_trailing as l join valid_nodes as r on l.owner = r.id and l.file = r.file;
+let physical_owner_spans = select l.id as id, l.file as file, r.span as owner_span from physical_owners as l join "semantic-syntax" as r on l.owner = r.id and l.file = r.file;
+let physical_owner_bounds = span-bounds(from=physical_owner_spans, span="owner_span", start-output="owner_start", end-output="owner_end");
+let after_owner_end = select l.id as id, l.file as file from physical_owner_bounds as l join directive_places as r on l.id = r.id and l.file = r.file where r.start >= l.owner_end;
+let inside_inline_trailing = antijoin(left=inline_trailing, right=after_owner_end, left-on=["id","file"], right-on=["id","file"]);
+let trailing_owners = union(left=own_trailing_owners, right=inside_inline_trailing);
 let unchanged_owners = antijoin(left=physical_owners, right=trailing_owners, left-on=["id","file"], right-on=["id","file"]);
 let effective_owners = union(left=unchanged_owners, right=trailing_owners);
 let valid_owners = select l.id as id, l.file as file from effective_owners as l join valid_nodes as r on l.owner = r.id and l.file = r.file;

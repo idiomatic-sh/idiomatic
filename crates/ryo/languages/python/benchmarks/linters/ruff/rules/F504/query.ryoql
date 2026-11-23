@@ -24,12 +24,10 @@ let value_edges = select parent as dict, child as value from "semantic-child" wh
 let dictionary_keys = select l.dict as dict, l.key as key, r.file as file from key_edges as l join dictionaries as r on l.dict = r.id;
 let dictionary_values = select l.dict as dict, l.value as value, r.file as file from value_edges as l join dictionaries as r on l.dict = r.id;
 let string_keys = select l.dict as dict, l.key as key, r.value as value, l.file as file from dictionary_keys as l join "string-literal" as r on l.key = r.occurrence and l.file = r.file;
-let dynamic_keys = antijoin(left=dictionary_keys, right="string-literal", left-on=["key", "file"], right-on=["occurrence", "file"]);
-let dynamic_key_dicts = select dict, file from dynamic_keys;
 let spread_tokens = select id, file from "syntax-tree" where text = "**";
 let spread_dict_owners = axis(from=spread_tokens, relation="semantic-child", direction=nearest-ancestor, domain=dictionaries);
 let spread_dicts = select l.related as dict, r.file as file from spread_dict_owners as l join dictionaries as r on l.related = r.id and l.file = r.file;
-let invalid_dictionary_a = union(left=dynamic_key_dicts, right=spread_dicts);
+let invalid_dictionary_a = select dict, file from spread_dicts;
 let valid_dictionaries = antijoin(left=dictionaries, right=invalid_dictionary_a, left-on=["id", "file"], right-on=["dict", "file"]);
 let mapping_contexts = select l.binop as binop, l.format_id as format_id, l.right as dict, l.file as file from parsed_formats as l where l.right_kind = "dict" and l.positional_consumption = 0;
 let valid_mapping_contexts = select l.binop as binop, l.format_id as format_id, l.dict as dict, l.file as file from mapping_contexts as l join valid_dictionaries as r on l.dict = r.id and l.file = r.file;

@@ -213,3 +213,33 @@ name = "multiline-noqa-alias-line"
 comparison = "full"
 files = { "case.py" = "from pdb import (\n    set_trace,  # noqa: F401, T100\n)\n" }
 expected = [{ rule = "T100", file = "case.py", start = 0, end = 54 }]
+
+[[cases]]
+name = "relative-no-module-breakpoint"
+comparison = "full"
+files = { "case.py" = "from . import breakpoint\n" }
+expected = []
+
+[[cases]]
+name = "relative-no-module-breakpoint-alias"
+comparison = "full"
+files = { "case.py" = "from . import (\n    breakpoint as breakpoint,\n)\n" }
+expected = []
+
+[[cases]]
+name = "relative-two-dots-breakpoint"
+comparison = "full"
+files = { "case.py" = "from .. import breakpoint\n" }
+expected = []
+
+[[cases]]
+name = "builtins-breakpoint-import"
+comparison = "full"
+files = { "case.py" = "from builtins import breakpoint\n" }
+expected = [{ rule = "T100", file = "case.py", start = 0, end = 31 }]
+
+[[cases]]
+name = "relative-sys-breakpointhook"
+comparison = "full"
+files = { "case.py" = "from .sys import breakpointhook\n" }
+expected = [{ rule = "T100", file = "case.py", start = 0, end = 31 }]

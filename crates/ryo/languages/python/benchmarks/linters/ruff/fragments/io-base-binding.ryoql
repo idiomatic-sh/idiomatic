@@ -1,6 +1,7 @@
 import assigned_values from "python/ruff/assigned-values";
 import io_base_initializer from "python/ruff/io-base-initializer";
 import io_base_annotation from "python/ruff/io-base-annotation";
+import only_binding from "python/ruff/only-binding";
 input references: relation<reference: node, file: file>;
 param factories: string;
 param paths: string;
@@ -8,8 +9,7 @@ param results: string;
 param classes: string;
 param forms: string;
 output relation<reference: node, file: file>;
-let candidate_uses = select l.reference as reference, r.binding as binding, l.file as file from references as l join "binding-use" as r on l.reference = r.reference and l.file = r.file;
-let uses = select reference, binding, file from candidate_uses;
+let uses = only_binding(references=references, bindings="latest");
 let ordinary_values = assigned_values();
 let synchronous_contexts = select id, file from "semantic-syntax" where kind = "with";
 let context_items = select r.child as id, l.file as file from synchronous_contexts as l join "semantic-child" as r on l.id = r.parent and l.file = r.file where r.field = "items";

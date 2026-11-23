@@ -727,3 +727,22 @@ name = "position-skip-in-call-args"
 comparison = "full"
 files = { "case.py" = "f(\n    a,  # fmt: skip\n)\n" }
 expected = [{ rule = "RUF028", file = "case.py", start = 11, end = 22 }]
+
+[[cases]]
+name = "position-trailing-skip-inside-if-parens"
+comparison = "full"
+files = { "case.py" = "if (\n    cond  # fmt: skip\n):\n    pass\n" }
+expected = [{ rule = "RUF028", file = "case.py", start = 15, end = 26 }]
+
+[[cases]]
+name = "position-trailing-skip-after-string-in-parens"
+comparison = "full"
+files = { "case.py" = "b = (\n    \"this is \"  # fmt: skip\n    \"not working\"  # fmt: skip\n)\n" }
+expected = [{ rule = "RUF028", file = "case.py", start = 22, end = 33 }, { rule = "RUF028", file = "case.py", start = 53, end = 64 }]
+
+[[cases]]
+name = "position-fixture-fmtskip-paired-header"
+comparison = "full"
+files = { "case.py" = "# Regression test for https://github.com/psf/black/issues/5397.\nif (  # fmt: skip\n    True\n):  # fmt: skip\n    pass\n\nif (\n    a in (  # fmt: skip\n        1,\n    )  # fmt: skip\n):  # fmt: skip\n    pass\n\nif (\n    a in (  # fmt: skip\n        1,\n    )  #  fmt:skip\n):  # fmt: skip\n    pass\n\nif (\n    a in (  # fmt: skip\n        1,\n    )  # foobar # fmt:skip\n):  # fmt: skip\n    pass\n\n# output\n\n# Regression test for https://github.com/psf/black/issues/5397.\nif (  # fmt: skip\n    True\n):  # fmt: skip\n    pass\n\nif (\n    a in (  # fmt: skip\n        1,\n    )  # fmt: skip\n):  # fmt: skip\n    pass\n\nif (\n    a in (  # fmt: skip\n        1,\n    )  #  fmt:skip\n):  # fmt: skip\n    pass\n\nif (\n    a in (  # fmt: skip\n        1,\n    )  # foobar # fmt:skip\n):  # fmt: skip\n    pass\n" }
+expected = [{ rule = "RUF028", file = "case.py", start = 134, end = 145 }, { rule = "RUF028", file = "case.py", start = 164, end = 175 }, { rule = "RUF028", file = "case.py", start = 219, end = 230 }, { rule = "RUF028", file = "case.py", start = 249, end = 260 }, { rule = "RUF028", file = "case.py", start = 304, end = 315 }, { rule = "RUF028", file = "case.py", start = 334, end = 353 }, { rule = "RUF028", file = "case.py", start = 524, end = 535 }, { rule = "RUF028", file = "case.py", start = 554, end = 565 }, { rule = "RUF028", file = "case.py", start = 609, end = 620 }, { rule = "RUF028", file = "case.py", start = 639, end = 650 }, { rule = "RUF028", file = "case.py", start = 694, end = 705 }, { rule = "RUF028", file = "case.py", start = 724, end = 743 }]
+

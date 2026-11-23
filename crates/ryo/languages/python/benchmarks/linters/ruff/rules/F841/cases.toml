@@ -2627,3 +2627,27 @@ name = "nonlocal-dunder-class-nested"
 comparison = "full"
 files = { "case.py" = "class C:\n    def foo(self):\n        def bar():\n            nonlocal __class__\n            __class__ = 1\n        return bar\n" }
 expected = []
+
+[[cases]]
+name = "type-alias-type-fixture"
+comparison = "full"
+files = { "case.py" = "\"\"\"Regression tests for https://github.com/astral-sh/ruff/issues/15812\"\"\"\n\n\ndef f():\n    from typing import Union\n\n    from typing_extensions import TypeAliasType\n\n    Json = TypeAliasType(\n        \"Json\",\n        \"Union[dict[str, Json], list[Json], str, int, float, bool, None]\",\n    )\n\n\ndef f():\n    from typing import Union\n\n    from typing_extensions import TypeAliasType, TypeVar\n\n    T = TypeVar(\"T\")\n    V = TypeVar(\"V\")\n    Json = TypeAliasType(\n        \"Json\",\n        \"Union[dict[str, Json], list[Json], str, int, float, bool, T, V, None]\",\n        type_params=(T, V),\n    )\n\n\ndef f():\n    from typing import Union\n\n    from typing_extensions import TypeAliasType\n\n    Json = TypeAliasType(\n        value=\"Union[dict[str, Json], list[Json], str, int, float, bool, None]\",\n        name=\"Json\",\n    )\n\n\n# strictly speaking it's a false positive to emit F401 for both of these, but\n# we can't really be expected to understand that the strings here are type\n# expressions (and type checkers probably wouldn't understand them as type\n# expressions either!)\ndef f():\n    from typing import Union\n\n    from typing_extensions import TypeAliasType\n\n    args = [\n        \"Json\",\n        \"Union[dict[str, Json], list[Json], str, int, float, bool, None]\",\n    ]\n\n    Json = TypeAliasType(*args)\n\n\ndef f():\n    from typing import Union\n\n    from typing_extensions import TypeAliasType\n\n    kwargs = {\n        \"name\": \"Json\",\n        \"value\": \"Union[dict[str, Json], list[Json], str, int, float, bool, None]\",\n    }\n\n    Json = TypeAliasType(**kwargs)\n" }
+expected = []
+
+[[cases]]
+name = "type-alias-type-positional"
+comparison = "full"
+files = { "case.py" = "def f():\n    from typing import Union\n    from typing_extensions import TypeAliasType\n    Json = TypeAliasType(\"Json\", \"Union[dict[str, Json], int]\")\n" }
+expected = []
+
+[[cases]]
+name = "type-alias-type-keyword"
+comparison = "full"
+files = { "case.py" = "def f():\n    from typing import Union\n    from typing_extensions import TypeAliasType\n    Json = TypeAliasType(value=\"Union[dict[str, Json], int]\", name=\"Json\")\n" }
+expected = []
+
+[[cases]]
+name = "type-alias-type-name-only-string"
+comparison = "full"
+files = { "case.py" = "def f():\n    from typing_extensions import TypeAliasType\n    Unused = TypeAliasType(\"Unused\", int)\n" }
+expected = []

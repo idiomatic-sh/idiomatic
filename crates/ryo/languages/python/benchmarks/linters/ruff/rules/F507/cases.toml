@@ -203,3 +203,33 @@ name = "multifile"
 comparison = "full"
 files = { "a.py" = "\"%s %s\" % (1,)\n", "b.py" = "\"%s\" % (1,)\n" }
 expected = [{ rule = "F507", file = "a.py", start = 0, end = 14 }]
+
+[[cases]]
+name = "format-fstring-no-placeholders"
+comparison = "full"
+files = { "case.py" = "f\"no placeholders\" % banana\n" }
+expected = []
+
+[[cases]]
+name = "format-fstring-placeholder-tuple"
+comparison = "full"
+files = { "case.py" = "f\"%s {x}\" % (1, 2)\n" }
+expected = []
+
+[[cases]]
+name = "format-plain-no-placeholders"
+comparison = "full"
+files = { "case.py" = "\"no placeholders\" % (1,)\n" }
+expected = [{ rule = "F507", file = "case.py", start = 0, end = 24 }]
+
+[[cases]]
+name = "format-plain-count-mismatch"
+comparison = "full"
+files = { "case.py" = "\"%s %s\" % (1,)\n" }
+expected = [{ rule = "F507", file = "case.py", start = 0, end = 14 }]
+
+[[cases]]
+name = "format-concat-fstring"
+comparison = "full"
+files = { "case.py" = "\"%s\" f\"{x}\" % (1, 2)\n" }
+expected = []

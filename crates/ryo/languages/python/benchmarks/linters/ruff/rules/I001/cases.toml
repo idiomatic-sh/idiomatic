@@ -2304,3 +2304,17 @@ comparison = "full"
 given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
 files = { "input.py" = "import a \r\nimport b\r\n" }
 expected = [{ rule = "I001", file = "input.py", start = 0, end = 19 }]
+
+[[cases]]
+name = "block-function-end-no-newline"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "def foobar(foor, bar={}):    \n    import os" }
+expected = []
+
+[[cases]]
+name = "block-function-end-no-newline-sorted-two"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "def f():\n    import os\n    import sys" }
+expected = []

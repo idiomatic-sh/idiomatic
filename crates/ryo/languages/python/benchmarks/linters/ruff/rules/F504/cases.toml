@@ -45,3 +45,39 @@ name = "dynamic-format"
 comparison = "full"
 files = { "case.py" = "format_value % {\"extra\": 1}\n" }
 expected = []
+
+[[cases]]
+name = "keys-name-key-and-unused"
+comparison = "full"
+files = { "case.py" = "\"%(a)s %(c)s\" % {a: \"?\", \"b\": \"!\"}\n" }
+expected = [{ rule = "F504", file = "case.py", start = 0, end = 34 }]
+
+[[cases]]
+name = "keys-all-literal-unused"
+comparison = "full"
+files = { "case.py" = "\"%(a)s\" % {\"a\": 1, \"b\": 2}\n" }
+expected = [{ rule = "F504", file = "case.py", start = 0, end = 26 }]
+
+[[cases]]
+name = "keys-starred-dict"
+comparison = "full"
+files = { "case.py" = "\"%(a)s\" % {\"a\": 1, \"b\": 2, **k}\n" }
+expected = []
+
+[[cases]]
+name = "keys-name-key-only"
+comparison = "full"
+files = { "case.py" = "\"%(a)s\" % {a: 1}\n" }
+expected = []
+
+[[cases]]
+name = "keys-call-key-and-unused"
+comparison = "full"
+files = { "case.py" = "\"%(a)s\" % {f(): 1, \"b\": 2}\n" }
+expected = [{ rule = "F504", file = "case.py", start = 0, end = 26 }]
+
+[[cases]]
+name = "keys-name-key-used-literal"
+comparison = "full"
+files = { "case.py" = "\"%(a)s %(b)s\" % {a: 1, \"b\": 2}\n" }
+expected = []

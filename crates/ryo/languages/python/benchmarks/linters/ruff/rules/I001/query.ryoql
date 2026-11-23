@@ -333,7 +333,7 @@ let statement_extents = select l.id as statement, l.file as file, l.span as stat
 let ending_here = select l.statement as statement, l.file as file, l.statement_span as statement_span, r.id as token from statement_extents as l join "source-location" as r on l.file = r.file and l.end_byte = r."end-byte";
 let after_statements = select l.statement as statement, l.file as file, l.statement_span as statement_span, r.target as next from ending_here as l join next_tokens as r on l.token = r.source and l.file = r.file;
 let after_tokens = select l.statement as statement, l.file as file, l.statement_span as statement_span, r.kind as next_kind, r.span as next_span from after_statements as l join "syntax-tree" as r on l.next = r.id and l.file = r.file;
-let trailing_content = select statement, file from after_tokens where next_kind != "newline" and next_kind != "nl" and next_kind != "comment" and next_kind != "endmarker";
+let trailing_content = select statement, file from after_tokens where next_kind != "newline" and next_kind != "nl" and next_kind != "comment" and next_kind != "endmarker" and next_kind != "dedent";
 let after_ends = source-matches(from=after_tokens, span="statement_span", pattern="$", output="statement_end");
 let after_gaps = span-between(from=after_ends, start="statement_end", end="next_span", output="gap");
 let continued_after = source-matches(from=after_gaps, span="gap", pattern="^[ \t\x0c]*\x5c", output="continuation");
