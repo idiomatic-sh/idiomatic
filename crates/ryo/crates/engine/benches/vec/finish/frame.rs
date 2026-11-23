@@ -56,7 +56,8 @@ pub(super) fn frames(plan: &Plan) -> Vec<Frame> {
             let first = match pn.op.as_str() {
                 "union" | "antijoin" | "ordered-match" | "as-of" => rel("left"),
                 "closure" | "follow" => rel("edges"),
-                "base" | "select" | "rows" => NONE,
+                // A worklist validates even the unused lattice and edges of an empty root set.
+                "base" | "select" | "rows" | "worklist" => NONE,
                 _ => rel("from"),
             };
             let counted = op == Op::GroupCount && pn.j["args"]["distinct"].is_null() && !no_semi && first != MISSING && plan.nodes[first as usize].j.get("count").is_some();

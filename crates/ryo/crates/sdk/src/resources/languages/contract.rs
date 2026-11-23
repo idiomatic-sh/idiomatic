@@ -262,3 +262,6 @@ where
         <Item::Relation as CatalogRelation>::relation(),
     )
 }
+
+/// Keyed and per-node columns for provider measurements.
+pub mod columns;

@@ -162,7 +162,8 @@ impl Exec<'_> {
         #[cfg(feature = "vec-ask-audit")]
         super::ask_audit::keyed_ran(f, node);
         self.stats.keyed[node] += 1;
-        self.stats.rows[node] += out.n as u64;
+        self.stats.total_runs += 1;
+        self.stats.produced(node, out.n);
         if out.n == 0 {
             self.stats.keyed_empty[node] += 1;
         } else if !handed {
