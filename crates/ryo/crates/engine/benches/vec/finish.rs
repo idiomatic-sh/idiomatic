@@ -710,7 +710,6 @@ pub(super) struct Tokens {
 pub(super) struct File<'a> {
     cold: cold_list::PerFile,
     keyed_sizes: FxHashMap<usize, usize>,
-    owed_fills: Vec<bool>,
     present_fields: std::cell::OnceCell<rustc_hash::FxHashSet<u32>>,
     cold_roots: std::cell::OnceCell<Vec<(u16, u32)>>,
     cold_text: cold_text::Dictionary,
@@ -891,7 +890,6 @@ impl File<'_> {
             vrows: b.vrows,
             cold: cold_list::PerFile::default(),
             keyed_sizes: FxHashMap::default(),
-            owed_fills: Vec::new(),
             present_fields: Default::default(),
             cold_roots: Default::default(),
             cold_text: cold_text::Dictionary::default(),

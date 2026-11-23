@@ -686,7 +686,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
             Domain::Member(slot, col, project, field) => {
                 let (slot, col, project, field) = (*slot, *col, *project, *field);
                 let available = &mut self.facts[project];
-                available.load(&self.p.facts[project], n, self.words, self.read);
+                available.load(&self.p.facts[project], n, self.file, self.words, self.read);
                 if !available.complete {
                     None
                 } else if available.cells.0.first().is_none_or(|c| c.0.is_empty()) {
@@ -695,7 +695,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                     let allowed: Vec<_> = available.cells.0[field].0.iter().map(|v| v.0).collect();
                     let t = &mut self.facts[slot];
                     let spec = &self.p.facts[slot];
-                    t.load(spec, n, self.words, self.read);
+                    t.load(spec, n, self.file, self.words, self.read);
                     if !t.complete {
                         None
                     } else {
