@@ -181,6 +181,11 @@ impl Exec<'_> {
             return Ok(t.n);
         }
         if let Some(v) = self.view(run, node)? {
+            // The packet decision also supplies the size of a proven empty view.
+            // A keyed planner can use that zero before opening any input slot.
+            if self.pruned(node) {
+                return Ok(0);
+            }
             // a view over a fill not read yet in this file: not read for a size
             if let super::Native::Fact(x) = v.base
                 && f.facts.get(usize::from(x)).is_none_or(Option::is_none)
