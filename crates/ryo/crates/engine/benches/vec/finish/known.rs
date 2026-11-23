@@ -315,7 +315,7 @@ impl Exec<'_> {
                 n.never = true;
                 return n;
             }
-            "antijoin" | "ordered-match" | "as-of" => "left",
+            "antijoin" | "intersection" | "difference" | "ordered-match" | "as-of" => "left",
             "closure" | "follow" => "edges",
             "base" | "rows" | "worklist" => {
                 n.never = true;
