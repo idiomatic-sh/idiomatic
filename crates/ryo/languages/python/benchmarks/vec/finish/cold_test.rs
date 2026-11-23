@@ -80,8 +80,7 @@ impl Exec<'_> {
             if v.filter.is_empty() {
                 continue;
             }
-            if let Some(entry) = super::cold_list::Handoff::compile(run, &v)
-            {
+            if let Some(entry) = super::cold_list::Handoff::compile(run, &v) {
                 assert!(v.cold_bucket.set(entry).is_ok());
             }
             let form = super::cold_list::form(&v);
@@ -177,6 +176,29 @@ pub(super) fn retain(
             0
         }
     }
+}
+
+/// Read a typed base column or its already indexed literal rows directly.
+pub(super) fn column_rows(
+    f: &File<'_>,
+    run: &mut Run,
+    v: &ViewSpec,
+    node: usize,
+) -> Option<(Rc<Vec<u32>>, usize, u64)> {
+    let Kernel::Columns(_, program) = &**v.cold_test.get()? else {
+        return None;
+    };
+    let (rows, entered, tests) = program.rows(f, run)?;
+    if sw!("VEC_COLD_COUNT") {
+        let mut original = match super::kind_set(run, &v.filter, 0, v.base, &[]) {
+            Some(ks) => super::bucket(f, run, &ks),
+            None => super::lit_rows(f, &v.filter, 0, v.base, &[])
+                .unwrap_or_else(|| f.native_rows(run, v.base)),
+        };
+        super::view_cols::retain_original(f, run, v, &mut original);
+        assert_eq!(*rows, original, "column entry file {}, node {node}", f.file);
+    }
+    Some((rows, entered, tests))
 }
 
 /// The select front can enter a narrower base bucket and apply the very same view filter.

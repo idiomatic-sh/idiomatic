@@ -89,6 +89,8 @@ mod ordering;
 mod leaf_scan;
 #[path = "finish/cold_bucket.rs"]
 mod cold_bucket;
+#[path = "finish/cold_text.rs"]
+mod cold_text;
 #[path = "finish/cold_list.rs"]
 mod cold_list;
 #[path = "finish/cold_entries.rs"]
@@ -275,6 +277,7 @@ impl Table {
 pub(super) struct Run {
     cold: cold_list::Plan,
     cold_entries: cold_entries::Audit,
+    cold_text: cold_text::Plan,
     pub(super) texts: Vec<Box<[u8]>>,
     pub(super) ids: FxHashMap<Box<[u8]>, u32>,
     pub(super) regexes: FxHashMap<String, Rc<regex::bytes::Regex>>,
@@ -621,6 +624,7 @@ pub(super) struct Tokens {
 pub(super) struct File<'a> {
     cold: cold_list::PerFile,
     cold_roots: Vec<(u16, u32)>,
+    cold_text: cold_text::Dictionary,
     pub(super) table: &'a NodeTable,
     pub(super) src: &'a [u8],
     pub(super) file: u32,
@@ -813,6 +817,7 @@ impl File<'_> {
             vrows: b.vrows,
             cold: cold_list::PerFile::default(),
             cold_roots: Vec::new(),
+            cold_text: cold_text::Dictionary::default(),
             vmat: b.vmat,
             index: b.index,
             fills: b.fills,
@@ -3494,21 +3499,27 @@ fn view_rows_for<'a>(f: &mut File<'a>, run: &mut Run, v: &ViewSpec, node: usize,
             assert_eq!(slot.resolve(f.table).shadow(), original, "bucket entry file {}, node {node}", f.file);
         }
         slot
-    } else { recycle::rows_with(|out| {
-        let before = if sw!("VEC_COLD_PHASE") { cold_list::clock() } else { 0.0 };
-        match kind_set(run, &v.filter, 0, v.base, &[]) {
-            Some(ks) => bucket_into(f, run, &ks, out),
-            None => match lit_rows(f, &v.filter, 0, v.base, &[]) {
-                Some(r) => out.extend_from_slice(&r),
-                None => f.native_rows_into(run, v.base, out),
-            },
-        }
-        // redo-fills: the view tests read as columns (view_cols)
-        let middle = if sw!("VEC_COLD_PHASE") { cold_list::clock() } else { 0.0 };
-        entered = out.len();
-        tests = cold_test::retain(f, run, v, node, materialize, out);
-        if sw!("VEC_COLD_PHASE") { run.cold.phase(node, middle - before, cold_list::clock() - middle); }
-    }).into() };
+    } else if let Some((rows, visits, attempts)) = cold_test::column_rows(f, run, v, node) {
+        entered = visits;
+        tests = attempts;
+        rows.into()
+    } else {
+        recycle::rows_with(|out| {
+            let before = if sw!("VEC_COLD_PHASE") { cold_list::clock() } else { 0.0 };
+            match kind_set(run, &v.filter, 0, v.base, &[]) {
+                Some(ks) => bucket_into(f, run, &ks, out),
+                None => match lit_rows(f, &v.filter, 0, v.base, &[]) {
+                    Some(r) => out.extend_from_slice(&r),
+                    None => f.native_rows_into(run, v.base, out),
+                },
+            }
+            // redo-fills: the view tests read as columns (view_cols)
+            let middle = if sw!("VEC_COLD_PHASE") { cold_list::clock() } else { 0.0 };
+            entered = out.len();
+            tests = cold_test::retain(f, run, v, node, materialize, out);
+            if sw!("VEC_COLD_PHASE") { run.cold.phase(node, middle - before, cold_list::clock() - middle); }
+        }).into()
+    };
     let rows = slot.resolve(f.table);
     if sw!("VEC_LEAF_PROFILE") {
         leaf_scan::row_list(node, materialize, entered, rows.len(), start);

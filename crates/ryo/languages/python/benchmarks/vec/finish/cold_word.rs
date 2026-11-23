@@ -9,11 +9,32 @@ pub(super) enum Word {
     Test(Test),
 }
 impl Word {
+    pub(super) fn accepts(&self, run: &Run, value: u64) -> bool {
+        match self {
+            Self::Eq(x) => value == *x,
+            Self::Ne(x) => value != *x,
+            Self::Test(test) => test(run, value),
+        }
+    }
     pub(super) fn bind(self) -> Test {
         match self {
             Self::Eq(x) => Box::new(move |_, w| w == x),
             Self::Ne(x) => Box::new(move |_, w| w != x),
             Self::Test(test) => test,
+        }
+    }
+    pub(super) fn scan(&self, run: &Run, column: &[u64], out: &mut Vec<u32>) {
+        fn emit(col: &[u64], out: &mut Vec<u32>, test: impl Fn(u64) -> bool) {
+            out.extend(
+                col.iter()
+                    .enumerate()
+                    .filter_map(|(i, &w)| test(w).then_some(i as u32)),
+            );
+        }
+        match self {
+            Self::Eq(x) => emit(column, out, |w| w == *x),
+            Self::Ne(x) => emit(column, out, |w| w != *x),
+            Self::Test(test) => emit(column, out, |w| test(run, w)),
         }
     }
     pub(super) fn retain(&self, run: &Run, column: &[u64], rows: &mut Vec<u32>) {

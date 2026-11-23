@@ -53,7 +53,7 @@ impl Merge {
             if let Some(next) = streams[i].next() {
                 *top = Reverse((next.0, i));
             } else {
-                std::collections::binary_heap::PeekMut::pop(top);
+                let _ = std::collections::binary_heap::PeekMut::pop(top);
             }
         }
     }
@@ -125,7 +125,7 @@ pub(super) enum Rows<'a> {
     Provider(&'a [Position]),
     Merge(&'a NodeTable, Rc<Merge>),
 }
-impl<'a> From<Rc<Vec<u32>>> for Rows<'a> {
+impl From<Rc<Vec<u32>>> for Rows<'_> {
     fn from(r: Rc<Vec<u32>>) -> Self {
         Self::Owned(r)
     }
@@ -263,7 +263,7 @@ pub(super) fn roots(extra: usize, capacity: usize) {
         state.set([
             files + 1,
             roots + extra as u64,
-            bytes + (capacity * std::mem::size_of::<(u16, u32)>()) as u64,
+            bytes + (capacity * size_of::<(u16, u32)>()) as u64,
         ]);
     });
 }
