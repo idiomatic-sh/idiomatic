@@ -63,14 +63,14 @@ def summary(runs):
     return {k: statistics.median(r[k] for r in runs) for k in ("cpu_s", "wall_s", "peak_mib")}
 
 
-def run_workspace(name, checkout, workers, tm, repeats, storage):
+def run_workspace(name, checkout, reader, observer_binary, tm, repeats, storage):
     with tempfile.TemporaryDirectory(dir=storage) as tmp:
         directory = Path(tmp)
         cwd = checkout if name == "root" else checkout / "crates" / name
         raw = directory / "trace"
         report = directory / "report.sarif"
         print(f"Capturing {name} SDK inputs", file=sys.stderr, flush=True)
-        observer = shipping(cwd, workers / "tm-observer", report, raw)
+        observer = shipping(cwd, observer_binary, report, raw)
         packets = Packets(directory)
         expected = prepare(packets, raw)
         raw.unlink()
@@ -85,7 +85,7 @@ def run_workspace(name, checkout, workers, tm, repeats, storage):
                     if run[engine]["report_sha256"] != observer["report_sha256"]:
                         raise ValueError(f"observer's complete SARIF differs from release on {name}")
                 else:
-                    run[engine], actual = candidate(workers / "tm-check-reader", packets)
+                    run[engine], actual = candidate(reader, packets)
                     for key, (status, receipt) in compare(expected, actual).items():
                         # Different refusal messages can describe the same unavailable
                         # operation. Completed rows must remain byte-equal on every run.
@@ -102,18 +102,17 @@ def run_workspace(name, checkout, workers, tm, repeats, storage):
                     candidate=summary([r["candidate"] for r in attempts]), capture=observer)
 
 
-def run(root, workers, tm, names, repeats, output):
+def run(root, reader, observer, tm, names, repeats, output):
     if repeats < 1:
         raise ValueError("at least one cold process per engine is required")
     revision = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip()
     pin = tomllib.loads((root / "tastemaker.toml").read_text())["tastemaker"]
-    for binary in (tm, workers / "tm-observer"):
-        version = subprocess.check_output([binary, "--version"], text=True).strip().split()[-1]
-        if version != pin:
-            raise ValueError(f"{binary} is {version}, workspace requires {pin}")
+    for binary in (tm, observer):
+        version = subprocess.check_output([binary, "--version"], text=True).strip()
+        if version.split()[:2] != ["tm", pin]:
+            raise ValueError(f"{binary} reports {version!r}, workspace requires tm {pin}")
     result = dict(commit=revision, version=pin, ryo_whole_check_target_cpu_s=5, workers=1,
-                  binaries={binary.name: file_sha(binary) for binary in
-                            (tm, workers / "tm-observer", workers / "tm-check-reader")}, workspaces=[])
+                  binaries={"release": file_sha(tm), "observer": file_sha(observer), "candidate": file_sha(reader)}, workspaces=[])
     with tempfile.TemporaryDirectory(prefix="tm-corpus-") as tmp:
         storage = Path(tmp)
         checkout = storage / "checkout"
@@ -122,7 +121,7 @@ def run(root, workers, tm, names, repeats, output):
         print(f"Tastemaker {revision}; one worker; whole Ryo check target <= 5 CPU-s", flush=True)
         print("workspace | exact/total | different | refused | partial | unstable | candidate CPU/wall/peak MiB | release CI CPU/wall/peak MiB", flush=True)
         for name in names:
-            record = run_workspace(name, checkout, workers, tm, repeats, storage)
+            record = run_workspace(name, checkout, reader, observer, tm, repeats, storage)
             result["workspaces"].append(record)
             counts = record["outcomes"]
             metrics = ["/".join(f'{record[e][k]:.3f}' for k in ("cpu_s", "wall_s", "peak_mib"))
