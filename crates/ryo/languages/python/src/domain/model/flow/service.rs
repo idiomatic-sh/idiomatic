@@ -16,7 +16,7 @@ use crate::domain::model::lexical::types::{AnnotationMark, NamespaceKey, NodeCla
 use crate::domain::model::names::constants::{NO_NAME, UNKNOWN_NAME};
 use crate::domain::model::reaching::service::{self as reaching, list_mutations, reach, refine};
 use crate::domain::model::reaching::types::{FlowReadState, FlowSource};
-use crate::domain::model::types::{BindingAction, BindingPhaseKind, BindingStep};
+use crate::domain::model::types::{AnnotatedDeclarations, BindingAction, BindingPhaseKind, BindingStep};
 use ryo::languages::{Count, Integer, Position};
 
 /// What the read at `at` is for: a type when it is inside an annotation of its phase.
@@ -36,14 +36,14 @@ fn read_context(source: FlowSource<'_, '_, '_>, at: Position, phase: Position, f
     }
 }
 
-/// Records the read of the step: its state, and every definition that can reach it.
+/// A read can use each initialized binding that reaches its lexical slot along a modeled execution path.
 fn read(model: &mut FlowModel, source: FlowSource<'_, '_, '_>, frame: FrameCode, step: BindingStep, fallback: FlowContext) {
     let name = name_of(source.lexical, step.occurrence);
     if name == NO_NAME {
         return;
     }
     let context = read_context(source, step.occurrence, step.phase, fallback);
-    let reached = reach(&mut model.reach, &model.frames, source, frame, step.occurrence, name);
+    let reached = reach(&mut model.reach, &model.frames, source, frame, step, name);
     let state = refine(&mut model.reach, source, step.occurrence, step.phase, name, reached);
     let form = if state == FlowReadState::Unique { UseForm::Unique } else { UseForm::Alternative };
     model.reads.push(FlowRead {
@@ -66,7 +66,7 @@ fn read(model: &mut FlowModel, source: FlowSource<'_, '_, '_>, frame: FrameCode,
     }
 }
 
-/// Records the binding of the step: what it shadows, then the name's new state in its namespace.
+/// Assigning a name replaces each reaching value in its namespace and can shadow a name in an outer scope.
 fn bind(model: &mut FlowModel, source: FlowSource<'_, '_, '_>, frame: FrameCode, step: BindingStep) {
     let Some(definition) = definition_of(source.definitions, step.occurrence).copied() else {
         return;
@@ -89,7 +89,7 @@ fn bind(model: &mut FlowModel, source: FlowSource<'_, '_, '_>, frame: FrameCode,
             }
         }
     }
-    let _: FlowReadState = reach(&mut model.reach, &model.frames, source, frame, step.occurrence, definition.name);
+    let _: FlowReadState = reach(&mut model.reach, &model.frames, source, frame, step, definition.name);
     for candidate in &model.reach.candidates {
         if candidate.scope != definition.owner {
             model.shadows.push(FlowShadow {
@@ -105,7 +105,12 @@ fn bind(model: &mut FlowModel, source: FlowSource<'_, '_, '_>, frame: FrameCode,
     if step.action == BindingAction::Bind {
         assign(&mut model.frames, frame, key, step.occurrence, NameAbsence::Present);
     } else if step.action == BindingAction::Annotation && prior.is_none() {
-        assign(&mut model.frames, frame, key, step.occurrence, NameAbsence::Absent);
+        // A stub's declaration declares the name; a module's gives it no value.
+        let absence = match source.tree.declarations {
+            AnnotatedDeclarations::Declared => NameAbsence::Present,
+            AnnotatedDeclarations::Unbound => NameAbsence::Absent,
+        };
+        assign(&mut model.frames, frame, key, step.occurrence, absence);
     } else {
         // An annotation of a name the namespace already holds changes nothing.
     }
