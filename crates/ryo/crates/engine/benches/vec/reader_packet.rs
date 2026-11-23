@@ -175,38 +175,29 @@ impl finish::Provider for View<'_, '_> {
             return Err(format!("no reader for {name}"));
         }
         let offsets = &self.packet.offsets[i];
-        let words = &self.packet.rows.words;
+        let width = self.packet.widths[i];
         let mut table = finish::Table::with_rows(names, tys, offsets.len());
-        let mut symbols = smallvec::SmallVec::<[(usize, &mut Vec<u64>); 4]>::new();
-        for (i, (column, ty)) in table.cols.iter_mut().zip(table.tys.iter()).enumerate() {
-            let cells = offsets.iter().map(|&at| words[at + i]);
-            match ty {
-                finish::Ty::Sym => symbols.push((i, column)),
-                finish::Ty::Node => column.extend(cells.map(|raw| {
-                    assert_eq!(raw >> 32, u64::from(self.parsed.file),
-                        "foreign node in file-scoped answer");
-                    u64::from(raw as u32)
-                })),
-                _ => column.extend(cells),
-            }
-        }
-        // First use assigns a run-wide symbol ID. Resolve multiple symbol
-        // columns in their original row and column order.
-        let mut resolve = |raw: u64| {
-            let id = raw as u32;
-            u64::from(*self.resolved.entry(id).or_insert_with(|| {
-                reader::symbol(run, self.parsed.unknown, self.symbols, self.bytes, l::Symbol(id))
-            }))
-        };
-        match symbols.as_mut_slice() {
-            [] => {}
-            [(i, column)] => column.extend(offsets.iter().map(|&at| resolve(words[at + *i]))),
-            columns => {
-                for &at in offsets {
-                    for (i, column) in &mut *columns {
-                        column.push(resolve(words[at + *i]));
+        for &at in offsets {
+            let row = &self.packet.rows.words[at..at + width];
+            for ((column, &raw), ty) in table.cols.iter_mut().zip(row).zip(table.tys.iter()) {
+                let value = match ty {
+                    finish::Ty::Sym => {
+                        let id = raw as u32;
+                        u64::from(*self.resolved.entry(id).or_insert_with(|| {
+                            reader::symbol(run, self.parsed.unknown, self.symbols, self.bytes, l::Symbol(id))
+                        }))
                     }
-                }
+                    finish::Ty::Node => {
+                        assert_eq!(
+                            raw >> 32,
+                            u64::from(self.parsed.file),
+                            "foreign node in file-scoped answer"
+                        );
+                        u64::from(raw as u32)
+                    }
+                    _ => raw,
+                };
+                column.push(value);
             }
         }
         table.n = offsets.len();
