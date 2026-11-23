@@ -58,6 +58,91 @@ files = { "case.py" = "from typing import Union\nText = str | None\ndef f(a: Uni
 expected = []
 
 [[cases]]
+name = "standard-class-keyword-only"
+files = { "case.py" = "from decimal import Decimal\ndef f(*, gt: Decimal = None): ...\n" }
+expected = [{ file = "case.py", start = 41, end = 48 }]
+
+[[cases]]
+name = "standard-class-positional"
+files = { "case.py" = "from decimal import Decimal\ndef f(gt: Decimal = None): ...\n" }
+expected = [{ file = "case.py", start = 38, end = 45 }]
+
+[[cases]]
+name = "standard-private-alias"
+files = { "case.py" = "from logging import _ExcInfoType\ndef f(exc_info: _ExcInfoType = None) -> None: ...\n" }
+expected = [{ file = "case.py", start = 49, end = 61 }]
+
+[[cases]]
+name = "standard-module-attribute"
+files = { "case.py" = "import sys\ndef f(code: sys._ExitCode = None) -> None: ...\n" }
+expected = [{ file = "case.py", start = 23, end = 36 }]
+
+[[cases]]
+name = "stub-standard-private-alias"
+files = { "case.pyi" = "from logging import _ExcInfoType\ndef f(exc_info: _ExcInfoType = None) -> None: ...\n" }
+expected = [{ file = "case.pyi", start = 49, end = 61 }]
+
+[[cases]]
+name = "stub-standard-module-attribute"
+files = { "case.pyi" = "import sys\nclass C:\n    def __call__(self, code: sys._ExitCode = None) -> None: ...\n" }
+expected = [{ file = "case.pyi", start = 49, end = 62 }]
+
+[[cases]]
+name = "stub-standard-module-attribute-subscript"
+files = { "case.pyi" = "import queue\ndef f(q: queue.Queue[int] = None) -> None: ...\n" }
+expected = [{ file = "case.pyi", start = 22, end = 38 }]
+
+[[cases]]
+name = "third-party-class"
+files = { "case.py" = "from pydantic import BaseModel\ndef f(model: BaseModel = None): ...\n" }
+expected = []
+
+[[cases]]
+name = "third-party-module-attribute"
+files = { "case.py" = "import requests\ndef f(session: requests.Session = None): ...\n" }
+expected = []
+
+[[cases]]
+name = "stub-third-party-module-attribute"
+files = { "case.pyi" = "import requests\ndef f(session: requests.Session = None) -> None: ...\n" }
+expected = []
+
+[[cases]]
+name = "standard-module-after-target"
+files = { "case.py" = "import tomllib\ndef f(error: tomllib.TOMLDecodeError = None): ...\n" }
+expected = []
+
+[[cases]]
+name = "standard-modules-before-target"
+files = { "case.py" = "import zoneinfo\nimport graphlib\ndef f(zone: zoneinfo.ZoneInfo = None, order: graphlib.TopologicalSorter = None): ...\n" }
+expected = [{ file = "case.py", start = 44, end = 61 }, { file = "case.py", start = 77, end = 103 }]
+
+[[cases]]
+name = "aliased-deep-standard-module"
+files = { "case.py" = "import xml.etree.ElementTree as ET\nimport decimal as d\ndef f(e: ET.Element = None, n: d.Decimal = None): ...\n" }
+expected = [{ file = "case.py", start = 64, end = 74 }, { file = "case.py", start = 86, end = 95 }]
+
+[[cases]]
+name = "standard-classes-of-two-modules"
+files = { "case.py" = "import collections\nfrom json import JSONDecoder\ndef f(d: collections.OrderedDict = None, j: JSONDecoder = None): ...\n" }
+expected = [{ file = "case.py", start = 57, end = 80 }, { file = "case.py", start = 92, end = 103 }]
+
+[[cases]]
+name = "standard-class-quoted-subscripted-and-united"
+files = { "case.py" = "from decimal import Decimal\nimport collections\ndef f(a: \"Decimal\" = None, b: list[Decimal] = None, c: Decimal | int = None, d: collections.deque[int] = None): ...\n" }
+expected = [{ file = "case.py", start = 57, end = 64 }, { file = "case.py", start = 77, end = 90 }, { file = "case.py", start = 102, end = 115 }, { file = "case.py", start = 127, end = 149 }]
+
+[[cases]]
+name = "first-party-module-named-like-a-standard-one"
+files = { "case.py" = "from mylib.decimal import Decimal\nfrom .json import Decoder\ndef f(a: Decimal = None, b: Decoder = None): ...\n" }
+expected = []
+
+[[cases]]
+name = "local-class-of-an-ordinary-module"
+files = { "case.py" = "class Local: ...\ndef f(a: Local = None): ...\n" }
+expected = []
+
+[[cases]]
 name = "kwonly-imported-class"
 files = { "case.py" = "from decimal import Decimal\ndef f(*, gt: Decimal = None):\n    pass\n" }
 expected = [{ file = "case.py", start = 41, end = 48 }]

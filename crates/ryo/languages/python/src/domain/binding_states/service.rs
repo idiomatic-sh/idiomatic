@@ -256,18 +256,22 @@ pub(crate) fn has_wildcard(
     }
 }
 
-/// Keep an annotation-only declaration in its namespace without initializing a value.
-/// A later annotation never replaces an already established value or deletion.
+/// Keep an annotation-only declaration in its namespace without initializing a value, or, in a stub, as the declaration of the
+/// name. A later annotation never replaces an already established value or deletion.
 pub(crate) fn annotate(
     state: &mut BindingEnvironments,
     frame: BindingFrameId,
     key: BindingKey,
     declaration: Position,
+    declarations: crate::domain::model::types::AnnotatedDeclarations,
 ) {
     if lookup(state, frame, key).is_some() {
         return;
     }
     assign(state, frame, key, declaration);
+    if declarations == crate::domain::model::types::AnnotatedDeclarations::Declared {
+        return;
+    }
     if let Some(value) = state.slots.get_mut(&BindingFrameKey { frame, key }) {
         value.absence = BindingAbsence::Possible;
     }

@@ -68,6 +68,7 @@ impl<'b, 'w, 't> Writer<'b, 'w, 't> {
         Self {
             future_annotations: FutureAnnotations(false),
             annotation_timing: crate::domain::model::types::BindingAnnotationTiming::Immediate,
+            declarations: crate::domain::model::types::AnnotatedDeclarations::Unbound,
             annotations: Vec::new(),
             annotation: context,
             start,
@@ -237,7 +238,7 @@ impl<'a> SourceOrderVisitor<'a> for Writer<'_, '_, 'a> {
         }
         if matches!(node, AnyNodeRef::ModModule(_)) {
             let (future, timing) = (self.future_annotations, self.annotation_timing);
-            super::future::module_properties(self.tree.builder, future, timing);
+            super::future::module_properties(self.tree.builder, future, timing, self.declarations);
         }
         scalar_properties(node, self.tree.builder, &mut self.scalar);
         let canonical = if let AnyNodeRef::Identifier(identifier) = node {

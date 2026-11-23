@@ -16,7 +16,7 @@ use crate::domain::model::lexical::types::{AnnotationMark, NamespaceKey, NodeCla
 use crate::domain::model::names::constants::{NO_NAME, UNKNOWN_NAME};
 use crate::domain::model::reaching::service::{self as reaching, list_mutations, reach, refine};
 use crate::domain::model::reaching::types::{FlowReadState, FlowSource};
-use crate::domain::model::types::{BindingAction, BindingPhaseKind, BindingStep};
+use crate::domain::model::types::{AnnotatedDeclarations, BindingAction, BindingPhaseKind, BindingStep};
 use ryo::languages::{Count, Integer, Position};
 
 /// What the read at `at` is for: a type when it is inside an annotation of its phase.
@@ -105,7 +105,12 @@ fn bind(model: &mut FlowModel, source: FlowSource<'_, '_, '_>, frame: FrameCode,
     if step.action == BindingAction::Bind {
         assign(&mut model.frames, frame, key, step.occurrence, NameAbsence::Present);
     } else if step.action == BindingAction::Annotation && prior.is_none() {
-        assign(&mut model.frames, frame, key, step.occurrence, NameAbsence::Absent);
+        // A stub's declaration declares the name; a module's gives it no value.
+        let absence = match source.tree.declarations {
+            AnnotatedDeclarations::Declared => NameAbsence::Present,
+            AnnotatedDeclarations::Unbound => NameAbsence::Absent,
+        };
+        assign(&mut model.frames, frame, key, step.occurrence, absence);
     } else {
         // An annotation of a name the namespace already holds changes nothing.
     }

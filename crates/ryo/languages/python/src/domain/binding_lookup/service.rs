@@ -18,10 +18,26 @@ use crate::domain::{
 };
 use ryo::languages::{Flag, Position, Symbol, Tree};
 
-/// Annotation declarations own a lexical name but do not supply an initialized value.
+/// Whether the module's declarations without a value bind their names, as its module property records: in a stub they do.
+pub(crate) fn declarations(tree: &Tree<'_>) -> crate::domain::model::types::AnnotatedDeclarations {
+    if ryo::languages::property_at(
+        tree.elements,
+        Position(0),
+        crate::domain::syntax::constants::MODULE_ANNOTATED_DECLARATIONS,
+    )
+    .is_some_and(|value| value.0 == crate::domain::syntax::constants::MODULE_DECLARATIONS_DECLARED)
+    {
+        crate::domain::model::types::AnnotatedDeclarations::Declared
+    } else {
+        crate::domain::model::types::AnnotatedDeclarations::Unbound
+    }
+}
+
+/// Annotation declarations own a lexical name but do not supply an initialized value, except in a stub, where they declare it.
 fn annotation_only(tree: &Tree<'_>, at: Position) -> Flag {
     let statement = parent(tree, at);
-    if kind(tree, statement) == Kind::Node(Node::AnnAssign)
+    if declarations(tree) == crate::domain::model::types::AnnotatedDeclarations::Unbound
+        && kind(tree, statement) == Kind::Node(Node::AnnAssign)
         && !nodes(tree, statement).any(|child| field_of(tree, child) == Field::Value)
     {
         Flag::Raised

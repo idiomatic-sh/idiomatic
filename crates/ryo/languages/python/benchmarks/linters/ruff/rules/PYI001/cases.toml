@@ -201,3 +201,28 @@ name = "function-scope-barrier-pyi-True"
 comparison = "full"
 files = { "case.pyi" = "from typing import TypeVar\nclass C:\n    async def f(self):\n        T=TypeVar(\"T\")\n" }
 expected = []
+
+[[cases]]
+name = "typing-module-own-type-variable"
+files = { "typing.pyi" = "import typing_extensions\nclass TypeVar:\n    def __init__(self, name: str) -> None: ...\nclass ParamSpec:\n    def __init__(self, name: str) -> None: ...\nAnyStr = TypeVar(\"AnyStr\")\nP = ParamSpec(\"P\")\n" }
+expected = [{ file = "typing.pyi", start = 160, end = 177 }, { file = "typing.pyi", start = 182, end = 196 }]
+
+[[cases]]
+name = "typing-module-own-type-variable-without-a-typing-import"
+files = { "typing.pyi" = "import sys\nclass TypeVar:\n    def __init__(self, name: str) -> None: ...\nclass ParamSpec:\n    def __init__(self, name: str) -> None: ...\nAnyStr = TypeVar(\"AnyStr\")\nP = ParamSpec(\"P\")\n" }
+expected = []
+
+[[cases]]
+name = "typing-module-own-type-variable-before-the-typing-import"
+files = { "typing.pyi" = "class TypeVar:\n    def __init__(self, name: str) -> None: ...\nclass ParamSpec:\n    def __init__(self, name: str) -> None: ...\nAnyStr = TypeVar(\"AnyStr\")\nP = ParamSpec(\"P\")\nimport typing_extensions\n" }
+expected = []
+
+[[cases]]
+name = "ordinary-module-own-type-variable"
+files = { "other.pyi" = "import typing_extensions\nclass TypeVar:\n    def __init__(self, name: str) -> None: ...\nclass ParamSpec:\n    def __init__(self, name: str) -> None: ...\nAnyStr = TypeVar(\"AnyStr\")\nP = ParamSpec(\"P\")\n" }
+expected = []
+
+[[cases]]
+name = "typing-module-assigned-type-variable"
+files = { "typing.pyi" = "import typing_extensions\nTypeVar = object\nAnyStr = TypeVar(\"AnyStr\")\n" }
+expected = []

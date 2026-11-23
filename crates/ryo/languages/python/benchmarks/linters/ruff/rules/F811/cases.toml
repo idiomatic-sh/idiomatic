@@ -2562,3 +2562,39 @@ name = "finally-def-then-module-def"
 comparison = "full"
 files = { "case.py" = "try:\n    pass\nfinally:\n    def fn(): ...\ndef fn(): ...\n" }
 expected = []
+
+[[cases]]
+name = "typing-module-own-overload"
+comparison = "full"
+files = { "typing.pyi" = "import typing_extensions\ndef overload(func): ...\n@overload\ndef g(x: int) -> int: ...\n@overload\ndef g(x: str) -> str: ...\nclass C:\n    @overload\n    def m(self) -> int: ...\n    @overload\n    def m(self, x: int) -> int: ...\n" }
+expected = []
+
+[[cases]]
+name = "typing-extensions-module-own-overload"
+comparison = "full"
+files = { "typing_extensions.py" = "import typing\ndef overload(func): ...\n@overload\ndef g(x: int) -> int: ...\n@overload\ndef g(x: str) -> str: ...\nclass C:\n    @overload\n    def m(self) -> int: ...\n    @overload\n    def m(self, x: int) -> int: ...\n" }
+expected = []
+
+[[cases]]
+name = "typing-module-own-overload-without-a-typing-import"
+comparison = "full"
+files = { "typing.pyi" = "import collections\ndef overload(func): ...\n@overload\ndef g(x: int) -> int: ...\n@overload\ndef g(x: str) -> str: ...\nclass C:\n    @overload\n    def m(self) -> int: ...\n    @overload\n    def m(self, x: int) -> int: ...\n" }
+expected = [{ rule = "F811", file = "typing.pyi", start = 93, end = 94 }, { rule = "F811", file = "typing.pyi", start = 188, end = 189 }]
+
+[[cases]]
+name = "typing-module-own-overload-after-a-late-typing-import"
+comparison = "full"
+files = { "typing.pyi" = "def overload(func): ...\n@overload\ndef g(x: int) -> int: ...\n@overload\ndef g(x: str) -> str: ...\nclass C:\n    @overload\n    def m(self) -> int: ...\n    @overload\n    def m(self, x: int) -> int: ...\nfrom typing import Any\n" }
+expected = []
+
+[[cases]]
+name = "ordinary-module-own-overload"
+comparison = "full"
+files = { "other.pyi" = "import typing_extensions\ndef overload(func): ...\n@overload\ndef g(x: int) -> int: ...\n@overload\ndef g(x: str) -> str: ...\nclass C:\n    @overload\n    def m(self) -> int: ...\n    @overload\n    def m(self, x: int) -> int: ...\n" }
+expected = [{ rule = "F811", file = "other.pyi", start = 99, end = 100 }, { rule = "F811", file = "other.pyi", start = 194, end = 195 }]
+
+[[cases]]
+name = "package-module-named-typing-own-overload"
+comparison = "full"
+files = { "pkg/__init__.py" = "", "pkg/typing.pyi" = "import typing_extensions\ndef overload(func): ...\n@overload\ndef g(x: int) -> int: ...\n@overload\ndef g(x: str) -> str: ...\nclass C:\n    @overload\n    def m(self) -> int: ...\n    @overload\n    def m(self, x: int) -> int: ...\n" }
+expected = [{ rule = "F811", file = "pkg/typing.pyi", start = 99, end = 100 }, { rule = "F811", file = "pkg/typing.pyi", start = 194, end = 195 }]

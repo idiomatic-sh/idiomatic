@@ -73,6 +73,8 @@ pub(super) struct Writer<'b, 'w, 't> {
     pub future_annotations: FutureAnnotations,
     /// When the module's annotations are evaluated (postponed under the future import, or in a stub).
     pub annotation_timing: crate::domain::model::types::BindingAnnotationTiming,
+    /// What a declaration without a value does to its name (binds it in a stub): a module property.
+    pub declarations: crate::domain::model::types::AnnotatedDeclarations,
     /// Annotation candidates are collected only in explicit annotation contexts.
     pub annotations: Vec<AnnotationCandidate<'t>>,
     /// Current syntactic context, refined by semantic binding before projection.
@@ -249,6 +251,8 @@ pub(super) struct Walker<'b, 'w, 't> {
     pub future_annotations: FutureAnnotations,
     /// When the module's annotations are evaluated (postponed under the future import, or in a stub): a module property.
     pub annotation_timing: crate::domain::model::types::BindingAnnotationTiming,
+    /// What a declaration without a value does to its name (binds it in a stub): a module property.
+    pub declarations: crate::domain::model::types::AnnotatedDeclarations,
     /// The typed node of each id written so far.
     pub nodes: Vec<ruff_python_ast::AnyNodeRef<'t>>,
     /// The parent of each id written so far; the root is its own.

@@ -1,6 +1,6 @@
 # Uses of ordinary reads
 
-`ordinary-read-uses(reads=<reference, file>)` gives the binding each given read or deletion uses. It is a projection of the Python provider's `binding-resolution` relation (the event in effect in each namespace on the reference's lookup path, in schedule order) plus Ruff's adjustments, which are linter policy and so stay here. A read that resolves to a deletion, a cleanup, an annotation or nothing uses no binding.
+`ordinary-read-uses(reads=<reference, file>)` gives the binding each given read or deletion uses. It is a projection of the Python provider's `binding-resolution` relation (the event in effect in each namespace on the reference's lookup path, in schedule order) plus Ruff's adjustments, which are linter policy and so stay here. A read that resolves to a deletion, a cleanup, an annotation of a module that runs, or nothing uses no binding; in a stub a read that resolves to an annotation uses it (the typing specification reads a stub's `x: T` as the declaration of `x`, the provider's `binding-use` row of the read).
 
 The provider owns Python's resolution: the lookup path (own namespace, enclosing functions skipping classes, type-parameter scopes, the module after `global`), the schedule order (a function or lambda body runs after its enclosing scope, so its reads see that scope's final bindings), lazy type-parameter bounds and defaults, and global/nonlocal routing (a routed store is an event of its home namespace, with `lexical` naming the declaring one). The fragment applies, in order:
 

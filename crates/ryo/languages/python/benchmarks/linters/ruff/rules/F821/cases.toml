@@ -6408,3 +6408,39 @@ name = "lambda-body-name-undefined-in-parameter-annotation"
 comparison = "full"
 files = { "case.py" = "from typing import Annotated\ndef test():\n    def g(num: Annotated[int, lambda v: w]): ...\n" }
 expected = [{ rule = "F821", file = "case.py", start = 81, end = 82 }]
+
+[[cases]]
+name = "stub-module-declaration-read-after"
+comparison = "full"
+files = { "case.pyi" = "from random import Random\ncodec: str\ncodec.encode\n_inst: Random\nseed = _inst.seed\n" }
+expected = []
+
+[[cases]]
+name = "stub-function-declaration-read-after"
+comparison = "full"
+files = { "case.pyi" = "def f() -> None:\n    local: int\n    local.bit_length\n" }
+expected = []
+
+[[cases]]
+name = "stub-class-declaration-read-after"
+comparison = "full"
+files = { "case.pyi" = "class C:\n    attr: int\n    x = attr\n" }
+expected = []
+
+[[cases]]
+name = "stub-declaration-read-before"
+comparison = "full"
+files = { "case.pyi" = "y = later\nlater: int\n" }
+expected = [{ rule = "F821", file = "case.pyi", start = 4, end = 9 }]
+
+[[cases]]
+name = "stub-declaration-deleted"
+comparison = "full"
+files = { "case.pyi" = "def g() -> None:\n    z: int\n    del z\n" }
+expected = [{ rule = "F821", file = "case.pyi", start = 36, end = 37 }]
+
+[[cases]]
+name = "module-declaration-read-after"
+comparison = "full"
+files = { "case.py" = "codec: str\ncodec.encode\ndef f() -> None:\n    local: int\n    local.bit_length\nclass C:\n    attr: int\n    x = attr\n" }
+expected = [{ rule = "F821", file = "case.py", start = 11, end = 16 }, { rule = "F821", file = "case.py", start = 60, end = 65 }, { rule = "F821", file = "case.py", start = 108, end = 112 }]

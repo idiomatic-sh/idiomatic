@@ -173,7 +173,13 @@ fn bind(
     );
     match step.action {
         BindingAction::Bind => assign(&mut index.environments, frame, key, step.occurrence),
-        BindingAction::Annotation => annotate(&mut index.environments, frame, key, step.occurrence),
+        BindingAction::Annotation => annotate(
+            &mut index.environments,
+            frame,
+            key,
+            step.occurrence,
+            crate::domain::binding_lookup::service::declarations(tree),
+        ),
         BindingAction::Read
         | BindingAction::Delete
         | BindingAction::Cleanup
