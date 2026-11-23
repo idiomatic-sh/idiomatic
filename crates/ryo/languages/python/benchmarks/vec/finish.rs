@@ -370,6 +370,7 @@ pub(super) enum Supplier {
     /// The host, for a file (the file system's facts: `host::host_fill`).
     Host,
     /// The host, for the run: the files of the run (one row a file, the same in every file).
+    #[allow(dead_code, reason = "redo-int round 33: no relation is declared RunFiles since filesystem.file is the file's row (redo-binding c32); kept as redo-fills' run-scoped supplier")]
     RunFiles,
     /// A step of the executor over the file (a seam: the provider's knowledge, to move behind a provider fact).
     Step(fn(&File<'_>, &mut Run) -> R<Table>),
