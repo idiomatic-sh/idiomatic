@@ -58,6 +58,7 @@ pub(super) struct Scratch {
     alive_words: Vec<u64>,
     witnesses: Vec<Option<bool>>,
     matches: super::summary_values::Matches,
+    syntax_matches: super::summary_values::SymbolMatches,
     facts: Vec<Table>,
     sets: memo::Memo<Nodes>,
     needs: Vec<Option<bool>>,
@@ -91,6 +92,7 @@ struct File<'a, const PROFILE: bool> {
     needs: &'a mut [Option<bool>],
     arena: &'a mut Arena,
     matches: &'a mut super::summary_values::Matches,
+    syntax_matches: &'a mut super::summary_values::SymbolMatches,
     order: &'a Schedule,
     witnesses: &'a mut [Option<bool>],
     steps: u64,
@@ -205,9 +207,18 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
             Need::Any => true,
             Need::Empty => false,
             Need::SourceContains(re) => self.p.regexes[re].is_match(self.src),
-            Need::PathMatches(re) => self
-                .path
-                .is_none_or(|path| self.p.regexes[re].is_match(path)),
+            Need::PathMatches(re, polarity) => self.path.is_none_or(|path| {
+                self.p.regexes[re].compiled().is_none_or(|regex| regex.is_match(path) == polarity)
+            }),
+            Need::SyntaxMatches(re, polarity) => self.syntax_text.is_none_or(|column| {
+                let Some(regex) = self.p.regexes[re].compiled() else { return true };
+                column.ids.iter().any(|&id| {
+                    let matches = self.syntax_matches.test(re, id, || {
+                        regex.is_match(&column.symbols[id as usize])
+                    });
+                    matches == polarity
+                })
+            }),
             Need::Terms(all, ref terms) => {
                 if all {
                     terms.iter().all(|i| self.pass(*i))
@@ -858,6 +869,7 @@ impl Program {
             byte_tests: Map::default(),
             witnesses: &mut scratch.witnesses,
             matches: &mut scratch.matches,
+            syntax_matches: &mut scratch.syntax_matches,
             p: self,
             t,
             src,

@@ -103,6 +103,10 @@ impl Packet {
             resolved: FxHashMap::default(),
         }
     }
+    pub(in super::super) fn complete_len(&self, rel: l::Relation) -> Option<usize> {
+        let i = catalog::number_of(rel).0;
+        (self.requested[i] && self.partial(rel).is_none()).then(|| self.offsets[i].len())
+    }
     fn partial(&self, rel: l::Relation) -> Option<&str> {
         self.rows
             .partials_at
@@ -146,9 +150,7 @@ impl finish::Provider for View<'_, '_> {
             return None;
         }
         let rel = run.catalog(name)?.0?;
-        let i = catalog::number_of(rel).0;
-        (self.packet.requested[i] && self.packet.partial(rel).is_none())
-            .then(|| self.packet.offsets[i].len())
+        self.packet.complete_len(rel)
     }
     fn fill(
         &mut self,

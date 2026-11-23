@@ -10,7 +10,7 @@ use std::path::Path;
 pub(super) mod packet;
 
 #[path = "reader_pairs.rs"]
-mod pairs;
+pub(super) mod pairs;
 
 #[path = "reader_coverage.rs"]
 pub(super) mod coverage;
@@ -90,7 +90,8 @@ pub(super) fn file_requirements(
     language: &first::Language,
 ) -> Vec<(String, (bool, Vec<Vec<String>>, Vec<Vec<String>>))> {
     use ryo_values::domain::finish_plans::types::RuleEmit;
-    let plan = read.typed.take().expect("executor must hand over the typed plan");
+    let borrowed = read.typed.borrow();
+    let plan = borrowed.as_ref().expect("executor must hand over the typed plan");
     assert!(plan.unplanned.is_empty(), "unplanned file queries");
     let mut skips = Vec::with_capacity(plan.steps.len());
     for step in &plan.steps {

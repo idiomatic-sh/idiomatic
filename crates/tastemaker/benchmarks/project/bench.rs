@@ -3,7 +3,8 @@
 use super::{bindings, finish, lower};
 use finish::{Plan, Provider, Run, Scope, Supplier, Table, Ty};
 use serde::Deserialize;
-use serde_json::{Value, json};
+use ryo_values::domain::finish_plans::expressions::types::PlanConstant;
+use serde_json::json;
 use sha2::{Digest as _, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::{self, BufRead as _, Write as _};
@@ -15,15 +16,39 @@ struct Request {
     files: Vec<String>,
     inventory: Option<Vec<String>>,
     hosted: Vec<Hosted>,
-    parameters: BTreeMap<String, Value>,
+    #[serde(deserialize_with = "read_parameters")]
+    parameters: Parameters,
 }
-#[derive(Clone, Deserialize, serde::Serialize)]
+type Parameters = BTreeMap<Box<str>, PlanConstant>;
+
+fn read_parameters<'de, D: serde::Deserializer<'de>>(input: D) -> Result<Parameters, D::Error> {
+    let fields = BTreeMap::<Box<str>, serde_json::Value>::deserialize(input)?;
+    Ok(fields
+        .into_iter()
+        .map(|(k, v)| (k, bindings::constant(&v)))
+        .collect())
+}
+
+#[derive(Clone, Deserialize, PartialEq, Eq, Hash)]
+#[serde(untagged)]
+enum HostCell {
+    File { file: String },
+    Number(i64),
+    Text(String),
+    Invalid(#[serde(deserialize_with = "unknown_cell")] ()),
+}
+
+#[derive(Clone, Deserialize, PartialEq, Eq, Hash)]
 struct Hosted {
     name: String,
     columns: Vec<(String, String)>,
-    rows: Vec<Vec<Value>>,
+    rows: Vec<Vec<HostCell>>,
     #[serde(default)]
     partial: Option<String>,
+}
+
+fn unknown_cell<'de, D: serde::Deserializer<'de>>(input: D) -> Result<(), D::Error> {
+    serde::de::IgnoredAny::deserialize(input).map(|_| ())
 }
 
 struct Snapshot {
@@ -111,7 +136,9 @@ fn bind_tables(
             for (cell, (_, ty)) in row.iter().zip(&columns) {
                 let word = match ty {
                     Ty::File => {
-                        let path = cell["file"].as_str().ok_or("expected file cell")?;
+                        let HostCell::File { file: path } = cell else {
+                            return Err("expected file cell".into());
+                        };
                         // table_of_query omits a row with no such file in the numbered request.
                         let Some(id) = file_id(path) else {
                             continue 'rows;
@@ -119,13 +146,20 @@ fn bind_tables(
                         u64::from(id)
                     }
                     Ty::Sym => {
-                        u64::from(run.sym(cell.as_str().ok_or("expected text cell")?.as_bytes()))
+                        let HostCell::Text(text) = cell else {
+                            return Err("expected text cell".into());
+                        };
+                        u64::from(run.sym(text.as_bytes()))
                     }
-                    Ty::Num => cell
-                        .as_i64()
-                        .filter(|n| *n != -1)
-                        .ok_or("number outside representable project range")?
-                        as u64,
+                    Ty::Num => {
+                        let HostCell::Number(n) = cell else {
+                            return Err("number outside representable project range".into());
+                        };
+                        if *n == -1 {
+                            return Err("number outside representable project range".into());
+                        }
+                        *n as u64
+                    }
                     _ => unreachable!(),
                 };
                 cells.push(word);
@@ -190,7 +224,7 @@ fn execute_bound(
 }
 
 pub(super) fn replay() {
-    let mut plans = BTreeMap::new();
+    let mut plans = std::collections::HashMap::new();
     let mut out = io::BufWriter::new(io::stdout().lock());
     for line in io::stdin().lock().lines() {
         let req: Request =
@@ -198,16 +232,13 @@ pub(super) fn replay() {
         let id = req.id.clone();
         let key = (
             req.query.clone(),
-            serde_json::to_string(&req.parameters).expect("parameters"),
+            req.parameters.clone(),
         );
         let plan = plans.entry(key).or_insert_with(|| {
             let mut ctx = ryo_engine::domain::plan_lowering::types::RuleContext::default();
             let _previous = ctx.parameters.insert(
                 "query".into(),
-                req.parameters
-                    .iter()
-                    .map(|(k, v)| (k.as_str().into(), bindings::constant(v)))
-                    .collect(),
+                req.parameters.clone(),
             );
             lower::query_plan("query", &req.query, ctx)
         });

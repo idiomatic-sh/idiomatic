@@ -224,3 +224,6 @@ pub(in super::super) fn pair<'tables>(
     }
     Ok(rows)
 }
+
+#[path = "session_certificate.rs"]
+pub(in super::super) mod certificate;
