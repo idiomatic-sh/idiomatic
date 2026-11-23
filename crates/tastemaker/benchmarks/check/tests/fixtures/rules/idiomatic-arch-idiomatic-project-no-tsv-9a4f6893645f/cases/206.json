@@ -1,0 +1,508 @@
+{
+  "stamp": 206,
+  "rule": "idiomatic.arch/idiomatic-project/no-tsv",
+  "dependency": "One file",
+  "admitted": [
+    "demo/Cargo.toml",
+    "demo/data/rows.tsv",
+    "demo/src/lib.rs"
+  ],
+  "given": {
+    "Cargo.toml": "6273654275af265fbb4a13068002f6389c91d856ef7070440565464263cd286c",
+    "demo/Cargo.toml": "7b0bc2933d740ab63868e8ec82495aa2c0bcb664f944b4e467f0f97f2ada6ad5",
+    "demo/data/rows.tsv": "5dd1197866f479824d9b483e1b7ae9ad3e518f3b4fd447c6b92d127dda6178c5",
+    "demo/src/lib.rs": "e768a5a9fc60f28420c16e273f146bab45c8dbd1abe6523b878250e20e71e5fc",
+    "tastemaker.toml": "951c70a2f36ec0a2133cc4c53f77de481e51dd204842bd3739ba25df85fad254"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/catch-all-names",
+      "include": [
+        "demo/**",
+        "demo/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-catch-all-names-239f121e607d"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**"
+      ],
+      "id": "idiomatic.arch/crate-dependency-cycles",
+      "include": [
+        "demo/**/Cargo.toml",
+        "demo/**/Cargo.toml/**"
+      ],
+      "parameters": {
+        "kinds": [
+          "normal",
+          "dev",
+          "build"
+        ]
+      },
+      "query": "idiomatic-arch-crate-dependency-cycles-7ca1a57cce67"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**"
+      ],
+      "id": "idiomatic.arch/crate-dependency-depth",
+      "include": [
+        "demo/**/Cargo.toml",
+        "demo/**/Cargo.toml/**"
+      ],
+      "parameters": {
+        "kinds": [
+          "normal",
+          "build"
+        ],
+        "max-reach": 14,
+        "optional": false
+      },
+      "query": "idiomatic-arch-crate-dependency-depth-e1a623c83144"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**"
+      ],
+      "id": "idiomatic.arch/dependency-feature-sprawl",
+      "include": [
+        "demo/**/Cargo.toml",
+        "demo/**/Cargo.toml/**"
+      ],
+      "parameters": {
+        "max-features": 4
+      },
+      "query": "idiomatic-arch-dependency-feature-sprawl-eac81405afde"
+    },
+    {
+      "exclude": [
+        "demo/**/.asymptote/**",
+        "demo/**/.asymptote/**/**",
+        "demo/**/Cargo.lock",
+        "demo/**/Cargo.lock/**",
+        "demo/**/api.txt",
+        "demo/**/api.txt/**",
+        "demo/**/benchmarks/linters/*/**/*.json",
+        "demo/**/benchmarks/linters/*/**/*.json/**",
+        "demo/**/benchmarks/linters/*/**/*.jsonl",
+        "demo/**/benchmarks/linters/*/**/*.jsonl/**",
+        "demo/**/benchmarks/linters/*/**/*.md",
+        "demo/**/benchmarks/linters/*/**/*.md/**",
+        "demo/**/benchmarks/linters/*/**/*.ryoql",
+        "demo/**/benchmarks/linters/*/**/*.ryoql/**",
+        "demo/**/benchmarks/linters/*/**/*.toml",
+        "demo/**/benchmarks/linters/*/**/*.toml/**",
+        "demo/**/benchmarks/linters/*/**/*.txt",
+        "demo/**/benchmarks/linters/*/**/*.txt/**",
+        "demo/**/benchmarks/linters/*/profiles/*/evidence/oracle.json",
+        "demo/**/benchmarks/linters/*/profiles/*/evidence/oracle.json/**",
+        "demo/**/benchmarks/linters/*/results/*/*/oracle.json",
+        "demo/**/benchmarks/linters/*/results/*/*/oracle.json/**",
+        "demo/**/benchmarks/linters/*/results/*/oracle.json",
+        "demo/**/benchmarks/linters/*/results/*/oracle.json/**",
+        "demo/**/benchmarks/linters/*/results/*/tool-contract-proof/*/source-manifest.json",
+        "demo/**/benchmarks/linters/*/results/*/tool-contract-proof/*/source-manifest.json/**",
+        "demo/**/tastemaker.lock",
+        "demo/**/tastemaker.lock/**",
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**"
+      ],
+      "id": "idiomatic.arch/file-length",
+      "include": [
+        "demo/**",
+        "demo/**/**"
+      ],
+      "parameters": {
+        "max-lines": 400
+      },
+      "query": "idiomatic-arch-file-length-5c63d287e6f0"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/idiomatic-project/no-tsv",
+      "include": [
+        "demo/**",
+        "demo/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-idiomatic-project-no-tsv-9a4f6893645f"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**",
+        "demo/examples/**",
+        "demo/examples/**/**"
+      ],
+      "id": "idiomatic.arch/manifest-excludes",
+      "include": [
+        "demo/**/tastemaker.toml",
+        "demo/**/tastemaker.toml/**"
+      ],
+      "parameters": {
+        "allowlist-keys": [
+          {
+            "definition": "idiomatic.arch/idiomatic-rust",
+            "key": "allowed-paths"
+          },
+          {
+            "definition": "idiomatic.arch/idiomatic-rust",
+            "key": "heap-accounting-owners"
+          },
+          {
+            "definition": "idiomatic.arch/idiomatic-rust",
+            "key": "test-contracts"
+          },
+          {
+            "definition": "idiomatic.ryo/derived-view-acquisition",
+            "key": "allowed"
+          },
+          {
+            "definition": "idiomatic.arch/collection-members",
+            "key": "except"
+          }
+        ],
+        "edge-composition-roles": [
+          {
+            "glob": "cli/Cargo.toml"
+          },
+          {
+            "glob": "cli/build.rs"
+          },
+          {
+            "glob": "cli/src/**"
+          },
+          {
+            "glob": "**/benchmarks/provider/**"
+          }
+        ],
+        "generated-roles": [
+          {
+            "glob": "**/src/languages.rs"
+          },
+          {
+            "glob": "**/src/tastemaker.toml"
+          }
+        ],
+        "input-roots": [
+          {
+            "glob": "**/tests/fixtures/**"
+          }
+        ],
+        "key-roles": [
+          {
+            "glob": "**/accounting/**",
+            "key": "heap-accounting-owners"
+          },
+          {
+            "glob": "**/constants.rs",
+            "key": "allowed-paths"
+          },
+          {
+            "glob": "**/errors.rs",
+            "key": "allowed-paths"
+          },
+          {
+            "glob": "**/schemas.rs",
+            "key": "allowed-paths"
+          }
+        ],
+        "public-roots": [
+          "ryo::",
+          "ryo_sdk::"
+        ],
+        "role-globs": [
+          {
+            "glob": "**/*_test.rs"
+          },
+          {
+            "glob": "**/*_test/**"
+          },
+          {
+            "glob": "**/test.rs"
+          },
+          {
+            "glob": "**/tests.rs"
+          },
+          {
+            "glob": "**/tests/**"
+          },
+          {
+            "glob": "**/tests/bdd.rs"
+          },
+          {
+            "glob": "**/tests/allocation.rs"
+          },
+          {
+            "glob": "**/acceptance.rs"
+          },
+          {
+            "glob": "**/fixtures/**"
+          },
+          {
+            "glob": "**/fixtures.rs"
+          },
+          {
+            "glob": "**/benches/**"
+          }
+        ]
+      },
+      "query": "idiomatic-arch-manifest-excludes-fc022bdeb63e"
+    },
+    {
+      "exclude": [
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**",
+        "demo/examples/**",
+        "demo/examples/**/**"
+      ],
+      "id": "idiomatic.arch/manifest-placements",
+      "include": [
+        "demo/**/tastemaker.toml",
+        "demo/**/tastemaker.toml/**"
+      ],
+      "parameters": {
+        "config-roles": [
+          "idiomatic.arch/asymptote-workspace",
+          "idiomatic.arch/asymptote-config",
+          "idiomatic.arch/asymptote-lock",
+          "idiomatic.arch/tastemaker-lock",
+          "idiomatic.arch/cargo-config",
+          "idiomatic.arch/cargo-workspace",
+          "idiomatic.arch/cargo-lock",
+          "idiomatic.arch/clippy-config",
+          "idiomatic.arch/deny-config",
+          "idiomatic.arch/mutants-config",
+          "idiomatic.arch/nextest-config",
+          "idiomatic.arch/product-readme",
+          "idiomatic.arch/public-api",
+          "idiomatic.arch/build-script",
+          "idiomatic.arch/compile-fail",
+          "idiomatic.arch/ui-case",
+          "idiomatic.arch/ui-stderr",
+          "idiomatic.arch/ui-pass",
+          "idiomatic.arch/doc-page",
+          "idiomatic.arch/allocation-test",
+          "idiomatic.arch/lint-allocation-test",
+          "idiomatic.arch/lint-call-count-test"
+        ],
+        "manifest-roles": [
+          "idiomatic.ryo/language-tastemaker"
+        ],
+        "open-manifest-roles": [
+          "idiomatic.ryo/language-tastemaker"
+        ],
+        "source-extensions": [
+          "rs",
+          "py",
+          "ts",
+          "js",
+          "go"
+        ]
+      },
+      "query": "idiomatic-arch-manifest-placements-01683212cb16"
+    },
+    {
+      "exclude": [
+        "demo/**/*_test.rs",
+        "demo/**/*_test.rs/**",
+        "demo/**/.asymptote/**",
+        "demo/**/.asymptote/**/**",
+        "demo/**/Cargo.lock",
+        "demo/**/Cargo.lock/**",
+        "demo/**/benches/**",
+        "demo/**/benches/**/**",
+        "demo/**/fixtures.rs",
+        "demo/**/fixtures.rs/**",
+        "demo/**/fixtures/**",
+        "demo/**/fixtures/**/**",
+        "demo/**/tastemaker.lock",
+        "demo/**/tastemaker.lock/**",
+        "demo/**/tests/**",
+        "demo/**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/no-machine-paths-shipped",
+      "include": [
+        "demo/**",
+        "demo/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-machine-paths-shipped-059c9d29c38a"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/no-registry-renames",
+      "include": [
+        "demo/Cargo.toml",
+        "demo/Cargo.toml/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-registry-renames-1c590307df05"
+    },
+    {
+      "exclude": [
+        "demo/**/.asymptote/**",
+        "demo/**/.asymptote/**/**",
+        "demo/**/benchmarks/linters/*/results/*/tool-contract-proof/*/stage-manifest.json",
+        "demo/**/benchmarks/linters/*/results/*/tool-contract-proof/*/stage-manifest.json/**",
+        "demo/**/tests/fixtures/**",
+        "demo/**/tests/fixtures/**/**"
+      ],
+      "id": "idiomatic.arch/no-tracker-text-shipped",
+      "include": [
+        "demo/**",
+        "demo/**/**"
+      ],
+      "parameters": {
+        "patterns": [
+          "*ryo-[a-z0-9][a-z0-9][a-z0-9].[0-9]*",
+          "*ryo-[a-z0-9][a-z0-9][a-z0-9][a-z0-9].[0-9]*",
+          "*ryo-[0-9][a-z0-9][a-z0-9][!a-z0-9]*",
+          "*ryo-[a-z][0-9][a-z0-9][!a-z0-9]*",
+          "*ryo-[a-z][a-z][0-9][!a-z0-9]*",
+          "*ryo-[0-9][a-z0-9][a-z0-9][a-z0-9][!a-z0-9]*",
+          "*ryo-[a-z][0-9][a-z0-9][a-z0-9][!a-z0-9]*",
+          "*ryo-[a-z][a-z][0-9][a-z0-9][!a-z0-9]*",
+          "*ryo-[a-z][a-z][a-z][0-9][!a-z0-9]*",
+          "*ryo-[0-9][a-z0-9][a-z0-9]",
+          "*ryo-[a-z][0-9][a-z0-9]",
+          "*ryo-[a-z][a-z][0-9]",
+          "*ryo-[0-9][a-z0-9][a-z0-9][a-z0-9]",
+          "*ryo-[a-z][0-9][a-z0-9][a-z0-9]",
+          "*ryo-[a-z][a-z][0-9][a-z0-9]",
+          "*ryo-[a-z][a-z][a-z][0-9]",
+          "*(ryo-[a-z][a-z][a-z][!a-z0-9-]*",
+          "*(ryo-[a-z][a-z][a-z][a-z][!a-z0-9-]*",
+          "*[Bb]ead[ _:-]ryo-[a-z]*",
+          "*[Bb]eads[ _:-]ryo-[a-z]*",
+          "*[Bb]ead: ryo-[a-z]*",
+          "*(owner 20*",
+          "*owner 20[0-9][0-9]-*",
+          "*[Tt]he owner's figure*",
+          "*[Tt]he owner's number*",
+          "*[Tt]he owner's call*",
+          "*[Tt]he owner's choice*",
+          "*[Tt]he owner's ruling*",
+          "*[Tt]he owner's word*",
+          "*[Tt]he owner's request*",
+          "*[Tt]he owner's budget*",
+          "*[Tt]he owner's target*",
+          "*[Tt]he owner's bar*",
+          "*[Oo]wner's decision*",
+          "*[Tt]he spike",
+          "*[Tt]he spike[!a-z]*",
+          "*[Tt]he devcontainer*",
+          "*[Aa]n agent*"
+        ]
+      },
+      "query": "idiomatic-arch-no-tracker-text-shipped-3d901acd0c2d"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/readme-blocks-executed",
+      "include": [
+        "demo/README.md",
+        "demo/README.md/**",
+        "demo/cli/tests/readme.rs",
+        "demo/cli/tests/readme.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-readme-blocks-executed-b94b33bee493"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/workspace-completeness",
+      "include": [
+        "demo/**",
+        "demo/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-workspace-completeness-f8e170daa031"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/workspace-membership",
+      "include": [
+        "demo/**",
+        "demo/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-workspace-membership-5bdb483e3014"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "demo/Cargo.toml",
+        "demo/data/rows.tsv",
+        "demo/src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "path",
+            {
+              "file": "demo/data/rows.tsv"
+            }
+          ]
+        ],
+        "key": [
+          {
+            "file": "demo/data/rows.tsv"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "demo/data/rows.tsv"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

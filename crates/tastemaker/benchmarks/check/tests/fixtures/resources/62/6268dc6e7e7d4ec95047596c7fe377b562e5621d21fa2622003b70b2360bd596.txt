@@ -1,0 +1,10 @@
+use crate::port::adapters::native::adapter::PortNativeAdapter;
+use crate::port::interface::Port;
+
+pub struct Answer(pub u8);
+
+impl Answer {
+    pub fn taken() -> Self {
+        Self(PortNativeAdapter.answer())
+    }
+}

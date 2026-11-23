@@ -1,0 +1,1 @@
+use crate::application::beta::service; pub fn run() -> u8 { service::run() }

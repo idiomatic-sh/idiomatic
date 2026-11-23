@@ -1,0 +1,2 @@
+#[path = "../src/inbound/contracts/greet/acceptance.rs"]
+mod greet;

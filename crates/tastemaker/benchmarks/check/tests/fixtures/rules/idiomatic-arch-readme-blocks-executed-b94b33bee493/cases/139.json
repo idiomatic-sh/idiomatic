@@ -1,0 +1,76 @@
+{
+  "stamp": 139,
+  "rule": "idiomatic.arch/readme-blocks-executed",
+  "dependency": "Several readers",
+  "admitted": [
+    "README.md",
+    "cli/tests/readme.rs"
+  ],
+  "given": {
+    "README.md": "ab9735262df49ea2867bd9e16ed9dca109791119ea94b754fc54fdcc919a5833",
+    "cli/tests/readme.rs": "9a102c37630b63088eab465b98d41c0915a49f3872ff6cb417461247dfdc3905",
+    "tastemaker.toml": "45730dab073750c44073fbad50d1a2d553d4380c6e7e625a494770b05bdade3f"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/readme-blocks-executed",
+      "include": [
+        "README.md",
+        "README.md/**",
+        "cli/tests/readme.rs",
+        "cli/tests/readme.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-readme-blocks-executed-b94b33bee493"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "README.md",
+        "cli/tests/readme.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [],
+    "unknowns": []
+  }
+}

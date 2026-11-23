@@ -1,0 +1,4 @@
+//! A name.
+
+/// A name.
+pub struct Name;

@@ -1,0 +1,4 @@
+pub(in crate::application::file_dag::program) struct KernelAdmission { execution: (), region: usize }
+pub(in crate::application::file_dag::program) struct RuntimeState { generation: (), slots: () }
+pub(in crate::application::file_dag::program) struct KernelPermit { region: usize }
+fn issue() -> KernelAdmission { KernelAdmission { execution: (), region: 0 } }

@@ -1,0 +1,2 @@
+workspace = { name = "provider-policy", members = ["demo", "demo/src"], dependencies = [{ package = "idiomatic.ryo", path = "/workspaces/idiomatic-target/ryo-tm-bench/trace-tree/crates/ryo/tastemaker" }, { package = "idiomatic.arch", path = "/workspaces/idiomatic-target/ryo-tm-bench/trace-tree/tastemaker" }] }
+specs = [{ spec = "idiomatic.ryo/provider-imports", include = ["demo/src/domain"], count = { min = 0 }, imports = { default = "deny", allow = ["crate::shared::*", "ryo_language::*"] } }]

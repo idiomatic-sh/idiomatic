@@ -1,0 +1,8 @@
+/// A reference into the table.
+pub struct TextRef(pub u32);
+
+/// The strings the stored rows refer to.
+pub struct Interner {
+    /// The table.
+    pub strings: Vec<Box<str>>,
+}

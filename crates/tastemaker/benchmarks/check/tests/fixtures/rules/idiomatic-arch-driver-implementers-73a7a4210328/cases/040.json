@@ -1,0 +1,146 @@
+{
+  "stamp": 40,
+  "rule": "idiomatic.arch/driver-implementers",
+  "dependency": "Host table / setting",
+  "admitted": [
+    "engine/Cargo.toml",
+    "engine/src/application.rs",
+    "engine/src/application/executor.rs",
+    "engine/src/domain.rs",
+    "engine/src/domain/operator.rs",
+    "engine/src/domain/operator/contract.rs",
+    "engine/src/lib.rs",
+    "operators/Cargo.toml",
+    "operators/src/lib.rs",
+    "operators/src/walk.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "engine/Cargo.toml": "7bfe6a4bd43d2cbb3624beeb1f04fbadffd21075b4790b02ad06426f0611fe65",
+    "engine/src/application.rs": "f5046caac11aa0f155458a52bac7d7df5ce2210822edd92602b993cc60856435",
+    "engine/src/application/executor.rs": "4dede8b869967e535c3e741080c1b202540d5ddd1a7719dfcb7bcc051ecd2526",
+    "engine/src/domain.rs": "1e12edba9cbea0d207a12f097bd377ba80d4f95cdef024d8804023c1f2417e84",
+    "engine/src/domain/operator.rs": "502b9c920caafb382010d7ab8ec652661fea407e758bf2ae17336acde3e8043f",
+    "engine/src/domain/operator/contract.rs": "f13537781c6ecb18c0afafc258458a367794fb520e3d81bdb5933b63541eefc3",
+    "engine/src/lib.rs": "6bce8f88a2552e89ce66eea45097e6da3d6787aa0a00a1480b9270e25945b525",
+    "operators/Cargo.toml": "598f1bb323545c62fd37502e3bdf66694884e1bb4290170b4b5c3e8682faaf04",
+    "operators/src/lib.rs": "a36e9a0eef955e95282d16f0963fe209a2635f643f8c05cbd3d363cb86e629f6",
+    "operators/src/walk.rs": "c68a735da3d4d82efd9342dc47f21e0e7cb5e999a188dca0621ad31282f8983b",
+    "tastemaker.toml": "3d4baf9ce53fcd3cdab4fa892cfa59a286468d0e6ab547c7df40d0267b869299"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/driver-implementers",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {
+        "implementers": [
+          "engine/src/domain/operator/contract.rs",
+          "engine/src/application/ordered_existence.rs"
+        ],
+        "ports": [
+          "operators/src/**"
+        ],
+        "traits": [
+          "*Driver"
+        ]
+      },
+      "query": "idiomatic-arch-driver-implementers-73a7a4210328"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "engine/Cargo.toml",
+        "engine/src/application.rs",
+        "engine/src/application/executor.rs",
+        "engine/src/domain.rs",
+        "engine/src/domain/operator.rs",
+        "engine/src/domain/operator/contract.rs",
+        "engine/src/lib.rs",
+        "operators/Cargo.toml",
+        "operators/src/lib.rs",
+        "operators/src/walk.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "engine/src/application/executor.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                109,
+                119
+              ]
+            }
+          ],
+          [
+            "name",
+            "WalkDriver"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              109,
+              119
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "engine/src/application/executor.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

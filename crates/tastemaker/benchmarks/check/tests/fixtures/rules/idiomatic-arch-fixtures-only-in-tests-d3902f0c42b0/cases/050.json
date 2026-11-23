@@ -1,0 +1,124 @@
+{
+  "stamp": 50,
+  "rule": "idiomatic.arch/fixtures-only-in-tests",
+  "dependency": "Project",
+  "admitted": [
+    "Cargo.toml",
+    "core/Cargo.toml",
+    "core/src/lib.rs",
+    "engine/Cargo.toml",
+    "engine/src/fixtures.rs",
+    "engine/src/lib.rs"
+  ],
+  "given": {
+    "Cargo.toml": "ca88511a3f61bddc8a323aecd1889f6c6eeaea717ef47962dbc6da2afc014b82",
+    "core/Cargo.toml": "6a252e696c419fb5157d09e9754f814d2e0137142585c1c79cdab1d3de4e9373",
+    "core/src/lib.rs": "3383a33198a975d32e21151c56a44606a9f5f496304484b8a2790fd4d82271f0",
+    "engine/Cargo.toml": "14de109daed43635acf577b6726ed9f6e5156b60f7e0fddbad94d7fd542a9991",
+    "engine/src/fixtures.rs": "408c30cf9ae54a857ec9ad981583f71bf44139fb249e37eee4cf4eaa4bae646f",
+    "engine/src/lib.rs": "e58def9f59b1381f5e127f3c8694082da4fbed3ca58a5ca7682081e55d77e25d",
+    "tastemaker.toml": "631f813cd510c151616e512dbaaec9779e0f57940579bf086d848ed36dee8700"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/fixtures-only-in-tests",
+      "include": [
+        "**/*.rs",
+        "**/*.rs/**",
+        "**/Cargo.toml",
+        "**/Cargo.toml/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-fixtures-only-in-tests-d3902f0c42b0"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "core/Cargo.toml",
+        "core/src/lib.rs",
+        "engine/Cargo.toml",
+        "engine/src/fixtures.rs",
+        "engine/src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "core/src/lib.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                131,
+                140
+              ]
+            }
+          ],
+          [
+            "text",
+            "open_file"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              131,
+              140
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "core/src/lib.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

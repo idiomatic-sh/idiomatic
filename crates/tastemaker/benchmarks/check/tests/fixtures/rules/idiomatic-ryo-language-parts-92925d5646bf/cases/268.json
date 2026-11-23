@@ -1,0 +1,208 @@
+{
+  "stamp": 268,
+  "rule": "idiomatic.ryo/language-parts",
+  "dependency": "Several readers",
+  "admitted": [
+    "demo/Cargo.toml",
+    "demo/benches/performance.rs",
+    "demo/src/domain/language/service.rs",
+    "demo/src/domain/language/service_test.rs",
+    "demo/src/domain/nodes/constants.rs",
+    "demo/src/domain/nodes/service.rs",
+    "demo/src/domain/nodes/service_test.rs",
+    "demo/src/domain/nodes/types.rs",
+    "demo/src/domain/relations/collections/relations/fixtures/contract.rs",
+    "demo/src/domain/relations/collections/relations/function/item.rs",
+    "demo/src/domain/syntax/service.rs",
+    "demo/src/domain/syntax/service_test.rs",
+    "demo/src/domain/syntax/types.rs",
+    "demo/src/domain/tokens/constants.rs",
+    "demo/src/domain/tokens/service.rs",
+    "demo/src/domain/tokens/service_test.rs",
+    "demo/src/domain/tokens/types.rs",
+    "demo/src/fixtures.rs",
+    "demo/src/fixtures/contracts.rs",
+    "demo/src/fixtures/kinds.rs",
+    "demo/src/fixtures/reading.rs",
+    "demo/src/fixtures/relations.rs",
+    "demo/src/inbound/contracts/parse/contract.rs",
+    "demo/src/inbound/contracts/project/contract.rs",
+    "demo/src/lib.rs",
+    "demo/src/outbound/manifest_reading/adapters/demo_tool/adapter.rs",
+    "demo/src/outbound/manifest_reading/adapters/demo_tool/adapter_test.rs",
+    "demo/src/outbound/syntax/adapters/demo_parser/adapter.rs",
+    "demo/src/outbound/syntax/adapters/demo_parser/constants.rs",
+    "demo/src/outbound/syntax/adapters/demo_parser/fixtures/oracle.rs",
+    "demo/src/outbound/syntax/adapters/demo_parser/fixtures/walk.rs",
+    "demo/src/outbound/syntax/adapters/demo_parser/schemas.rs",
+    "demo/src/outbound/syntax/adapters/demo_parser/schemas_test.rs",
+    "demo/src/outbound/syntax/adapters/demo_parser/types.rs",
+    "demo/src/outbound/syntax/factory.rs",
+    "demo/src/outbound/syntax/fixtures/library.rs",
+    "demo/tests/fixtures/manifests/one/demo.manifest",
+    "demo/tests/fixtures/relations/function/input.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "demo/Cargo.toml": "362dfd01e477b35778dbb98d79ea52acd9aa51f4205dc092e526ededa011e6e2",
+    "demo/benches/performance.rs": "94b674bc70ec9a50c0a74bccfe795cb99c86259071f6707e84e139b5a8b03985",
+    "demo/src/domain/language/service.rs": "f70f0ed6b084541dfbcedb226b3e363c567d6c76eeb2bdc46afe7539ccea7dfc",
+    "demo/src/domain/language/service_test.rs": "95c3e2a97e4ef66d6f843d627260b10f5d8d798c521f3eedac9052a11d3e932b",
+    "demo/src/domain/nodes/constants.rs": "a053c0316eb4c5eb6885ef585817274ef297f7352887e75e37b97c808ee03944",
+    "demo/src/domain/nodes/service.rs": "6a582ce0f0295b6202b90080137c9cd2c2a8e1c54e62dd6725573b4cbf8e11e7",
+    "demo/src/domain/nodes/service_test.rs": "94aa3fb43705283c3633705ccfa286eabe8f861003704254e1b4e99b56056b09",
+    "demo/src/domain/nodes/types.rs": "143b4a02bf822526997f3e05395cf0b36316e0411ee6b7ebd410f6f7aae6aab5",
+    "demo/src/domain/relations/collections/relations/fixtures/contract.rs": "3bf891ad0402f8a79b8875b9624fde46e6db4492e63f66609e16891763492925",
+    "demo/src/domain/relations/collections/relations/function/item.rs": "6bb7f01de666a2e5d04f86ea088f9f2fad2c32b8079d2556908de4796d0de584",
+    "demo/src/domain/syntax/service.rs": "24c0cc3f50f172d3f6dd4beabce84d7fbfb67bdeccedfef1b4f448edcab1602b",
+    "demo/src/domain/syntax/service_test.rs": "ad16c9e3c865d3f3ac435fedaaaf24adb33a575bee167e8d8f68be38b6a45455",
+    "demo/src/domain/syntax/types.rs": "5e11025f5ab21be3c12906af25b46344f0ff9ecddf8236e92f003aab3d7cfbf7",
+    "demo/src/domain/tokens/constants.rs": "a053c0316eb4c5eb6885ef585817274ef297f7352887e75e37b97c808ee03944",
+    "demo/src/domain/tokens/service.rs": "a43262607ec6c5f23a3d2fcea706f6c9f3261fc1102549ae3734567f7e33558a",
+    "demo/src/domain/tokens/service_test.rs": "e13f1df6e305d8d096b275826f6f30a6b0917c9963b56942d53222db6317be16",
+    "demo/src/domain/tokens/types.rs": "69d8e03404c9c3a9ef1c53acd38c5e4bd12cd9451dc36847c1fb3fbb6f3e30e8",
+    "demo/src/fixtures.rs": "204c1d61cd57076f59f3f6aaad60332ca8326ba08e8afb1f921a561175b53523",
+    "demo/src/fixtures/contracts.rs": "23966ceceb16a28d7d9f202e5b27e58db47ab359ed9c0df4e992b49d990fdc8e",
+    "demo/src/fixtures/kinds.rs": "2802fc78fe45eed88200018e908251b53be05f09d82edeabbd35c3f095dc8d56",
+    "demo/src/fixtures/reading.rs": "ede0d1f9c2d3f9e29c56934d474c963e5f2c3dcef8b96f720b8c6420a8e721f7",
+    "demo/src/fixtures/relations.rs": "9c5a2190349e9c8b810e28d1356c137c1ddfbcc453b4205c5f37c885e9393be4",
+    "demo/src/inbound/contracts/parse/contract.rs": "d8aae4cb7d80fa439a6b30367a9da65f9d3c0eeebbacfda1d8c30e5fb52011a6",
+    "demo/src/inbound/contracts/project/contract.rs": "06995a4a3ac48547efdec42b78387679db8baedfb65c4b69c68bc4dcfa47e740",
+    "demo/src/lib.rs": "a631b819a8632ca23ac68b811ee74dc99a1e9e117defc08aa58d6eb13c34988d",
+    "demo/src/outbound/manifest_reading/adapters/demo_tool/adapter.rs": "3a1e25c7cc6fa5d1404b7de853ba3bb838ff7a7962ddc780e620282b0b060491",
+    "demo/src/outbound/manifest_reading/adapters/demo_tool/adapter_test.rs": "7ed5feae02a2a06e1393ab297f4d1b5d5dccf8abcb8971bb296b2a40f7be345d",
+    "demo/src/outbound/syntax/adapters/demo_parser/adapter.rs": "5ce91325e1cf88584b4ccdbe7b644fabc61831508f8e5546ce9c5d6e7c582716",
+    "demo/src/outbound/syntax/adapters/demo_parser/constants.rs": "91c70df0ed41c7b3295669846d44201525b3ffb2a161bf259764eb24f8fcd5a5",
+    "demo/src/outbound/syntax/adapters/demo_parser/fixtures/oracle.rs": "5519ce65676021e2da5edd795d85000761d7584ad18f3c01fcb7308501345d17",
+    "demo/src/outbound/syntax/adapters/demo_parser/fixtures/walk.rs": "c0db8d9f1c2161e7f9270fa83cb352ae228e45a2c8074e88769dec48007f5304",
+    "demo/src/outbound/syntax/adapters/demo_parser/schemas.rs": "1c9f05ded8b46910743e135795ce0f81d97c10d81073b567534959e888b66f60",
+    "demo/src/outbound/syntax/adapters/demo_parser/schemas_test.rs": "5ddc91a39895fd6cc8a36198e92b1e8076bdef1622feb880ea836d7eff47e7a9",
+    "demo/src/outbound/syntax/adapters/demo_parser/types.rs": "8bdac1e1255c668b9985d950a72bfcd2740e720b542111ac5069b6cac1e22fda",
+    "demo/src/outbound/syntax/factory.rs": "fb2765a4d8c0ad6c662f9acd8371f0bfd703a2cdc8644ea1aafce2343fef8088",
+    "demo/src/outbound/syntax/fixtures/library.rs": "fc3ce520dc6ea0afc7ba9cb339f011122c27a66f2655bffcb9501746e22cd09d",
+    "demo/tests/fixtures/manifests/one/demo.manifest": "4b6737201ecf7d3a38673fe38fe6ed755854b0485c151d0a85835590e7a79d70",
+    "demo/tests/fixtures/relations/function/input.rs": "7ed4a69a138a907b2e98ccac2dc8b325fa193ec25819ba409c9ea38b4ee4c4ac",
+    "tastemaker.toml": "40b96df4a5fb1367530fa97ae92b8b861d16bba90d89709047318746fdf9c378"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.ryo/language-parts",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-ryo-language-parts-92925d5646bf"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "demo/Cargo.toml",
+        "demo/benches/performance.rs",
+        "demo/src/domain/language/service.rs",
+        "demo/src/domain/language/service_test.rs",
+        "demo/src/domain/nodes/constants.rs",
+        "demo/src/domain/nodes/service.rs",
+        "demo/src/domain/nodes/service_test.rs",
+        "demo/src/domain/nodes/types.rs",
+        "demo/src/domain/relations/collections/relations/fixtures/contract.rs",
+        "demo/src/domain/relations/collections/relations/function/item.rs",
+        "demo/src/domain/syntax/service.rs",
+        "demo/src/domain/syntax/service_test.rs",
+        "demo/src/domain/syntax/types.rs",
+        "demo/src/domain/tokens/constants.rs",
+        "demo/src/domain/tokens/service.rs",
+        "demo/src/domain/tokens/service_test.rs",
+        "demo/src/domain/tokens/types.rs",
+        "demo/src/fixtures.rs",
+        "demo/src/fixtures/contracts.rs",
+        "demo/src/fixtures/kinds.rs",
+        "demo/src/fixtures/reading.rs",
+        "demo/src/fixtures/relations.rs",
+        "demo/src/inbound/contracts/parse/contract.rs",
+        "demo/src/inbound/contracts/project/contract.rs",
+        "demo/src/lib.rs",
+        "demo/src/outbound/manifest_reading/adapters/demo_tool/adapter.rs",
+        "demo/src/outbound/manifest_reading/adapters/demo_tool/adapter_test.rs",
+        "demo/src/outbound/syntax/adapters/demo_parser/adapter.rs",
+        "demo/src/outbound/syntax/adapters/demo_parser/constants.rs",
+        "demo/src/outbound/syntax/adapters/demo_parser/fixtures/oracle.rs",
+        "demo/src/outbound/syntax/adapters/demo_parser/fixtures/walk.rs",
+        "demo/src/outbound/syntax/adapters/demo_parser/schemas.rs",
+        "demo/src/outbound/syntax/adapters/demo_parser/schemas_test.rs",
+        "demo/src/outbound/syntax/adapters/demo_parser/types.rs",
+        "demo/src/outbound/syntax/factory.rs",
+        "demo/src/outbound/syntax/fixtures/library.rs",
+        "demo/tests/fixtures/manifests/one/demo.manifest",
+        "demo/tests/fixtures/relations/function/input.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "demo/Cargo.toml"
+            }
+          ],
+          [
+            "part",
+            "the files the allocation test reads, tests/fixtures/allocation/"
+          ]
+        ],
+        "key": [
+          {
+            "file": "demo/Cargo.toml"
+          },
+          "the files the allocation test reads, tests/fixtures/allocation/"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "demo/Cargo.toml"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

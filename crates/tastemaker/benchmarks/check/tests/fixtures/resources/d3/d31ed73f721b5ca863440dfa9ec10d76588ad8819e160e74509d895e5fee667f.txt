@@ -1,0 +1,7 @@
+//! The `demo` domain's `greet` use case.
+
+pub mod use_case;
+pub mod types;
+
+#[cfg(test)]
+mod use_case_test;

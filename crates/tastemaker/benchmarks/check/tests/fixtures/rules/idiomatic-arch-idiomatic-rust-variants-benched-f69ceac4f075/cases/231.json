@@ -1,0 +1,115 @@
+{
+  "stamp": 231,
+  "rule": "idiomatic.arch/idiomatic-rust/variants-benched",
+  "dependency": "Several readers",
+  "admitted": [
+    "Cargo.toml",
+    "benches/performance/loading/bench.rs",
+    "src/lib.rs",
+    "src/storage/factory.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "benches/performance/loading/bench.rs": "166a695c25c53b70e15d52e4bfeebfd132662d4f6c5348dbe91755650b1c9a88",
+    "src/lib.rs": "e87344d8ae968f6d3a57341cbd67ed3cbdddc6a5b14f0dbcc2e76fc9a93add01",
+    "src/storage/factory.rs": "be3733bdad1e27de67087ba1e8ae413bee105618ef768d6a4c9540313f95e207",
+    "tastemaker.toml": "2ebd56c9d90393955c3fcbcbacc3ea2df80415e3ef8e0e00fae16a41317f04d8"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/idiomatic-rust/variants-benched",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-idiomatic-rust-variants-benched-f69ceac4f075"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "benches/performance/loading/bench.rs",
+        "src/lib.rs",
+        "src/storage/factory.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/storage/factory.rs"
+            }
+          ],
+          [
+            "hex",
+            "storage"
+          ],
+          [
+            "problem",
+            "builds several adapters, and its crate has no provider variant bench running them back to back"
+          ],
+          [
+            "name",
+            ""
+          ]
+        ],
+        "key": [
+          {
+            "file": "src/storage/factory.rs"
+          },
+          "storage",
+          ""
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/storage/factory.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

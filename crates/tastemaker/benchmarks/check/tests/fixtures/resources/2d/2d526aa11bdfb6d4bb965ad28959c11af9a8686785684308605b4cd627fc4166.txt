@@ -1,0 +1,8 @@
+//! The `greeting show` command.
+
+use super::schemas::ArgumentsSchemaError;
+
+/// Runs the command.
+pub fn run(error: Option<ArgumentsSchemaError>) -> bool {
+    error.is_none()
+}

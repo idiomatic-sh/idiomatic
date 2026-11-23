@@ -1,0 +1,105 @@
+{
+  "stamp": 179,
+  "rule": "idiomatic.arch/ci/step-adapter-present",
+  "dependency": "Several files",
+  "admitted": [
+    "ci/demo/notify/interface.py",
+    "ci/demo/run/adapters/local/adapter.py",
+    "ci/demo/run/interface.py"
+  ],
+  "given": {
+    "ci/demo/notify/interface.py": "5cf36140cfee415d8ae5c47bd5fff8f3998ecaab11eaec4b6fe256dd9a59ca3e",
+    "ci/demo/run/adapters/local/adapter.py": "644c24e8b36bf1a5b91a112e05f40114ed85bc05e9570314e3216a140153cb8d",
+    "ci/demo/run/interface.py": "c5cd8c3ab55168b9e3bad992a9e72e805cb982ac62547e4b4d30fdadba8941fb",
+    "tastemaker.toml": "e63ce6e83bfda5edac9e05b9cc4bccaa74be303ee31037963b008f306424acd7"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/ci/step-adapter-present",
+      "include": [
+        "ci/**",
+        "ci/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-ci-step-adapter-present-fa1c4c9670d4"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "ci/demo/notify/interface.py",
+        "ci/demo/run/adapters/local/adapter.py",
+        "ci/demo/run/interface.py",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "path",
+            {
+              "file": "ci/demo/notify/interface.py"
+            }
+          ],
+          [
+            "job",
+            "demo"
+          ],
+          [
+            "step",
+            "notify"
+          ]
+        ],
+        "key": [
+          {
+            "file": "ci/demo/notify/interface.py"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "ci/demo/notify/interface.py"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

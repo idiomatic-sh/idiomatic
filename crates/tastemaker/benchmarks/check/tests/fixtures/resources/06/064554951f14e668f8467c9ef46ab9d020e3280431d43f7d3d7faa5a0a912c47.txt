@@ -1,0 +1,3 @@
+//! greeting's workloads.
+
+fn main() {}

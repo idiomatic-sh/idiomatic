@@ -1,0 +1,4 @@
+// Written against /Users/someone/fixture.
+pub fn name() -> &'static str {
+    "paths"
+}

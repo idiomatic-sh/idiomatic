@@ -1,0 +1,4 @@
+let interfaces = capture(from="filesystem.file", path="path", pattern="ci/{job}/{step}/interface.py", captures=["job", "step"]);
+let adapters = capture(from="filesystem.file", path="path", pattern="ci/{job}/{step}/adapters/{adapter}/adapter.py", captures=["job", "step", "adapter"]);
+let bare = antijoin(left=interfaces, right=adapters, left-on=["job", "step"], right-on=["job", "step"]);
+emit bare subject "path" key("path");

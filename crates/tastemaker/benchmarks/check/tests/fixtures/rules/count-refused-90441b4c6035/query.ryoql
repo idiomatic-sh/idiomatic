@@ -1,0 +1,12 @@
+let entries = select * from "tastemaker.template-entry" where pair = 0;
+let answers = select * from "tastemaker.condition-answer";
+let plain = select e."entry" as "entry" from entries as e where e."condition" = "" and (e."found" < e."min" or e."found" > e."max");
+let own = extend(from=plain, values={"branch": 0});
+let asked = select e."entry" as "entry", e."found" as "found", e."then-min" as "then-min", e."then-max" as "then-max", e."else-min" as "else-min", e."else-max" as "else-max", a."holds" as "holds" from entries as e join answers as a on e."scope" = a."scope" and e."condition" = a."condition";
+let then-refused = select a."entry" as "entry" from asked as a where a."holds" = 1 and (a."found" < a."then-min" or a."found" > a."then-max");
+let then = extend(from=then-refused, values={"branch": 1});
+let else-refused = select a."entry" as "entry" from asked as a where a."holds" = 0 and (a."found" < a."else-min" or a."found" > a."else-max");
+let otherwise = extend(from=else-refused, values={"branch": 2});
+let branched = union(left=then, right=otherwise);
+let refused = union(left=own, right=branched);
+emit refused subject "entry" key("entry");

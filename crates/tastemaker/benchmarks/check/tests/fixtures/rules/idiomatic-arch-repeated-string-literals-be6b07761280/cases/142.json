@@ -1,0 +1,204 @@
+{
+  "stamp": 142,
+  "rule": "idiomatic.arch/repeated-string-literals",
+  "dependency": "Host table / setting",
+  "admitted": [
+    "Cargo.toml",
+    "src/lib.rs",
+    "src/load.rs",
+    "src/save.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/lib.rs": "ec6d4c71f3ce9363214ee92db4e12697185059a8aa0b14cc33d1c2f2d161f0e0",
+    "src/load.rs": "b63ff28b0f4a4f674cafb1929eb1c0ac0e731b1afdf2757e40ea5852671a9fc0",
+    "src/save.rs": "b63ff28b0f4a4f674cafb1929eb1c0ac0e731b1afdf2757e40ea5852671a9fc0",
+    "tastemaker.toml": "4db10580f9ead1b2c812bf6e6afd5fba182ef3bcfd666f1626f2fa5929104469"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/repeated-string-literals",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {
+        "allowed": [
+          "{} {}"
+        ],
+        "min-files": 3
+      },
+      "query": "idiomatic-arch-repeated-string-literals-be6b07761280"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/lib.rs",
+        "src/load.rs",
+        "src/save.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "files",
+            3
+          ],
+          [
+            "file",
+            {
+              "file": "src/lib.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                64,
+                87
+              ]
+            }
+          ],
+          [
+            "value",
+            "configuration missing"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              64,
+              87
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/lib.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "files",
+            3
+          ],
+          [
+            "file",
+            {
+              "file": "src/load.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                43,
+                66
+              ]
+            }
+          ],
+          [
+            "value",
+            "configuration missing"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              43,
+              66
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/load.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "files",
+            3
+          ],
+          [
+            "file",
+            {
+              "file": "src/save.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                43,
+                66
+              ]
+            }
+          ],
+          [
+            "value",
+            "configuration missing"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              43,
+              66
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/save.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

@@ -1,0 +1,3 @@
+//! The greeting resource.
+
+pub mod composition;

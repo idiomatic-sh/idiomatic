@@ -1,0 +1,115 @@
+{
+  "stamp": 71,
+  "rule": "idiomatic.arch/kind-suffix",
+  "dependency": "Host table / setting",
+  "admitted": [
+    "src/inbound/use_cases/greet/interface.rs"
+  ],
+  "given": {
+    "src/inbound/use_cases/greet/interface.rs": "224c4e606d7a68ce393bb5d4ef274098130c94e127d6bea2204541738a5f8135",
+    "tastemaker.toml": "51db610d7caf7f2bfc217ae2cdf9d10cee64f695f2a68ab901e9c71f7cf8ecdf"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/kind-suffix",
+      "include": [
+        "**/interface.rs",
+        "**/interface.rs/**"
+      ],
+      "parameters": {
+        "exposed": [],
+        "kind": "use-case"
+      },
+      "query": "idiomatic-arch-kind-suffix-6b576e02d2b0"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/inbound/use_cases/greet/interface.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/inbound/use_cases/greet/interface.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                28,
+                109
+              ]
+            }
+          ],
+          [
+            "name",
+            "GreetInterface"
+          ],
+          [
+            "problem",
+            "keeps the retired `Interface` suffix: the trait of a use case is named `<Dir>UseCase`"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              28,
+              109
+            ]
+          },
+          "keeps the retired `Interface` suffix: the trait of a use case is named `<Dir>UseCase`"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/inbound/use_cases/greet/interface.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

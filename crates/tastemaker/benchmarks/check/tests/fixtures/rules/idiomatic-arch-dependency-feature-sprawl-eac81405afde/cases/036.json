@@ -1,0 +1,113 @@
+{
+  "stamp": 36,
+  "rule": "idiomatic.arch/dependency-feature-sprawl",
+  "dependency": "Host table / setting",
+  "admitted": [
+    "Cargo.toml",
+    "src/lib.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "Cargo.toml": "54762c4725812a71cad8ca097ce76b61b9b0667fc56bb0235e39ef42593765d7",
+    "src/lib.rs": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "tastemaker.toml": "1dfdbe29ff28ff8828473b17960c1a17291af31b75be059bb8e499bfbec8dc46"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/dependency-feature-sprawl",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {
+        "max-features": 2
+      },
+      "query": "idiomatic-arch-dependency-feature-sprawl-eac81405afde"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "name",
+            "serde"
+          ],
+          [
+            "file",
+            {
+              "file": "Cargo.toml"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                78,
+                83
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              78,
+              83
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "Cargo.toml"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

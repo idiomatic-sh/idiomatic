@@ -1,0 +1,3 @@
+# demo-greeting
+
+What demo-greeting is for, in one line.

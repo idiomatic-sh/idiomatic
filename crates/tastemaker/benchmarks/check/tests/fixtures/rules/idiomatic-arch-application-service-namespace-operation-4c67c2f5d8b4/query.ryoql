@@ -1,0 +1,6 @@
+let files = project(from="filesystem.file", columns=["path"]);
+let modules = capture(from=files, path="path", pattern="{*dir}/{part}.rs", captures=["dir", "part"]);
+let parts = select path, dir from modules where not glob_any(part, "{service,service_test,types,errors,constants,interface,fixtures}");
+let roles = select dir from modules where glob_any(part, "{service,service_test,types,errors,constants,interface}");
+let namespaces = antijoin(left=parts, right=roles, left-on=["dir"], right-on=["dir"]);
+emit namespaces subject "path" key("path");

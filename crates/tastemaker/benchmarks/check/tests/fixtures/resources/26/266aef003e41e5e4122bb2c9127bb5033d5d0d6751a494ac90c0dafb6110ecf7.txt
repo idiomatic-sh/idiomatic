@@ -1,0 +1,7 @@
+//! The relation port.
+
+/// What every relation adapter implements.
+pub trait RelationPort {
+    /// Rows.
+    fn rows(&self) -> usize;
+}

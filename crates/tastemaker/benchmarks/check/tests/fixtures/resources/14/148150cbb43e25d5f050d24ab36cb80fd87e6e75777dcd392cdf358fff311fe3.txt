@@ -1,0 +1,6 @@
+//! The names a workspace is loaded by.
+
+/// A workspace's file.
+pub const WORKSPACE_FILE: &str = "tastemaker.toml";
+/// The store's directory beneath the project root.
+pub const STORE: &str = ".tastemaker_cache";

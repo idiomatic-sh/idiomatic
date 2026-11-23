@@ -1,0 +1,29 @@
+/// What a file says, owned.
+pub struct Facts {
+    /// The rule of the call.
+    pub rule: String,
+    /// The file, relative to the repository.
+    pub path: String,
+    /// What is partial and why.
+    pub message: String,
+}
+
+/// What a file says, borrowed from the encoded bytes.
+pub struct Note<'a> {
+    /// The rule of the call.
+    pub rule: &'a str,
+    /// The file, relative to the repository.
+    pub path: &'a str,
+    /// What is partial and why.
+    pub message: &'a str,
+}
+
+/// What a file says, owned again.
+pub struct Copy {
+    /// The rule of the call.
+    pub rule: String,
+    /// The file, relative to the repository.
+    pub path: String,
+    /// What is partial and why.
+    pub message: String,
+}

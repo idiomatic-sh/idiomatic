@@ -1,0 +1,147 @@
+{
+  "stamp": 32,
+  "rule": "idiomatic.arch/crate-dependency-cycles",
+  "dependency": "Project",
+  "admitted": [
+    "Cargo.toml",
+    "crates/alpha/Cargo.toml",
+    "crates/alpha/src/lib.rs",
+    "crates/beta/Cargo.toml",
+    "crates/beta/src/lib.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "Cargo.toml": "e8d6c11c04fee7803426b48b1764d404ea1e8776372d6dbdf352d74cdfff10ef",
+    "crates/alpha/Cargo.toml": "d72413031f3bdb0266e00055663941489b5ea0fb46ae7728ffb60c0239e39849",
+    "crates/alpha/src/lib.rs": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "crates/beta/Cargo.toml": "af9aa04ebf52996413379aa6afc59e1bc555af689c71ff59358f1c9c90756323",
+    "crates/beta/src/lib.rs": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "tastemaker.toml": "8d802a2a161109b4e74b5ad9ffd980ea0acc35c3ef88f95c0e6735aab4f955b9"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/crate-dependency-cycles",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {
+        "kinds": [
+          "normal",
+          "dev",
+          "build"
+        ]
+      },
+      "query": "idiomatic-arch-crate-dependency-cycles-7ca1a57cce67"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "crates/alpha/Cargo.toml",
+        "crates/alpha/src/lib.rs",
+        "crates/beta/Cargo.toml",
+        "crates/beta/src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "crates/alpha/Cargo.toml"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                0,
+                104
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "file": "crates/alpha/Cargo.toml"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "crates/alpha/Cargo.toml"
+        }
+      },
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "crates/beta/Cargo.toml"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                0,
+                109
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "file": "crates/beta/Cargo.toml"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "crates/beta/Cargo.toml"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

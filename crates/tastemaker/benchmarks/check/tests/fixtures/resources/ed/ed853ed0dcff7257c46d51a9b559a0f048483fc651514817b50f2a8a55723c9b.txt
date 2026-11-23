@@ -1,0 +1,4 @@
+//! Fakes.
+
+/// A fake.
+pub struct Fake;

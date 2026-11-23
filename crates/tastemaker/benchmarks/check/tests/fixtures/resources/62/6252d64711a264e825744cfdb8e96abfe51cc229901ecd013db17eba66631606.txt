@@ -1,0 +1,8 @@
+workspace = { name = "fixture", dependencies = [{ package = "idiomatic.arch", path = "/workspaces/idiomatic-target/ryo-tm-bench/trace-tree/tastemaker" }] }
+rules = [
+  { rule = "idiomatic.arch/workspace-membership", include = ["**"] },
+]
+# Every crate is a crate instance, which places its manifest; the spec's own findings are not this rule's subject.
+specs = [
+  { spec = "idiomatic.arch/crate", include = ["**"], exclude = ["**/src", "**/tests", "**/benches"] },
+]

@@ -1,0 +1,5 @@
+use super::super::interface::ShapesItem;
+
+struct CircleItem;
+
+impl ShapesItem for CircleItem {}

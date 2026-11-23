@@ -1,0 +1,2 @@
+let comments = select * from "comment";
+emit comments subject "file" key("span", "doc", "text");

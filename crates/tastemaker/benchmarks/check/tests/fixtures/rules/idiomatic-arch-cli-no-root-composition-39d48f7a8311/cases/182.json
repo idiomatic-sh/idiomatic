@@ -1,0 +1,91 @@
+{
+  "stamp": 182,
+  "rule": "idiomatic.arch/cli/no-root-composition",
+  "dependency": "One file",
+  "admitted": [
+    "cli/src/composition.rs"
+  ],
+  "given": {
+    "cli/src/composition.rs": "e69f9a48e9d13fc1529eb0850f9ee9a3c7257255dc228ec5d77ff4f0e19093b6",
+    "tastemaker.toml": "d02eb72046bbc34cfc923100f6736f9f2ae684ea7df1a226b8b1ee1bc7baf289"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/cli/no-root-composition",
+      "include": [
+        "cli/src/composition.rs",
+        "cli/src/composition.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-cli-no-root-composition-39d48f7a8311"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "cli/src/composition.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "path",
+            {
+              "file": "cli/src/composition.rs"
+            }
+          ]
+        ],
+        "key": [
+          {
+            "file": "cli/src/composition.rs"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "cli/src/composition.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

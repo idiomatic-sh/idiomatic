@@ -1,0 +1,10 @@
+[package]
+name = "proof"
+version = "0.1.0"
+[[test]]
+name = "distribution"
+path = "../distribution/smoke_test.rs"
+required-features = ["distribution"]
+test = false
+[features]
+distribution = []

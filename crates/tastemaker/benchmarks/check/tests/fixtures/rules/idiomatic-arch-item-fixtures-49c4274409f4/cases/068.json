@@ -1,0 +1,111 @@
+{
+  "stamp": 68,
+  "rule": "idiomatic.arch/item-fixtures",
+  "dependency": "Several readers",
+  "admitted": [
+    "crates/core/src/domain/operator/collections/operators/join/item.rs",
+    "crates/core/tests/fixtures/operators/join/input.ryoql",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "crates/core/src/domain/operator/collections/operators/join/item.rs": "a9430f6a8e206bbae74f873aff685f8c14c44e118246f5c9dfc9de75ddcbee00",
+    "crates/core/tests/fixtures/operators/join/input.ryoql": "87428fc522803d31065e7bce3cf03fe475096631e5e07bbd7a0fde60c4cf25c7",
+    "tastemaker.toml": "a5ba2121cc7f82795538a2f3a53385399f836c7e952edce989823996b394dabf"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/item-fixtures",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-item-fixtures-49c4274409f4"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "crates/core/src/domain/operator/collections/operators/join/item.rs",
+        "crates/core/tests/fixtures/operators/join/input.ryoql",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "path",
+            {
+              "file": "crates/core/src/domain/operator/collections/operators/join/item.rs"
+            }
+          ],
+          [
+            "crate",
+            "crates/core"
+          ],
+          [
+            "collection",
+            "operators"
+          ],
+          [
+            "item",
+            "join"
+          ],
+          [
+            "what",
+            "expected"
+          ]
+        ],
+        "key": [
+          "operators",
+          "join",
+          "expected"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "crates/core/src/domain/operator/collections/operators/join/item.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

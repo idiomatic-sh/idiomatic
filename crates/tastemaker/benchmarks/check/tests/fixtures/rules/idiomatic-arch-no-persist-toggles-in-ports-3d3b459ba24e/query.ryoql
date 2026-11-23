@@ -1,0 +1,3 @@
+param toggles: set<string>;
+let tokens = select l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."kind" = "ident" and l."text" in $toggles;
+emit tokens subject "file" key("span");

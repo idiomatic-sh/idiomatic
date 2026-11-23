@@ -1,0 +1,18 @@
+let tree-nodes = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from "syntax-tree" as l where l."text" = "";
+let tree-tokens = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span", l."text" as "text" from "syntax-tree" as l where l."text" != "";
+let struct-nodes = select * from tree-nodes where kind = "struct";
+let field-lists = select * from tree-nodes where glob_any(kind, "{record-field-list,tuple-field-list}");
+let struct-field-lists-edges = select r."child" as "child", r."ordinal" as "ordinal", l."id" as "parent" from struct-nodes as l join "syntax-child" as r on l."id" = r."parent";
+let struct-field-lists = select l."id" as "id", l."kind" as "kind", r."ordinal" as "ordinal", r."parent" as "parent", l."file" as "file", l."span" as "span" from field-lists as l join struct-field-lists-edges as r on l."id" = r."child";
+let field-nodes = select * from tree-nodes where glob_any(kind, "{record-field,tuple-field}");
+let struct-fields-edges = select r."child" as "child", r."ordinal" as "ordinal", l."id" as "parent" from struct-field-lists as l join "syntax-child" as r on l."id" = r."parent";
+let struct-fields = select l."id" as "id", l."kind" as "kind", r."ordinal" as "ordinal", r."parent" as "parent", l."file" as "file", l."span" as "span" from field-nodes as l join struct-fields-edges as r on l."id" = r."child";
+let filled-lists = select l."parent" as "parent" from struct-field-lists as l join struct-fields as r on l."id" = r."parent";
+let fieldless-structs = antijoin(left=struct-nodes, right=filled-lists, left-on=["id"], right-on=["parent"]);
+let names = select * from tree-nodes where kind = "name";
+let name-tokens = select l."id" as "id", r."child" as "token" from names as l join "syntax-child" as r on l."id" = r."parent";
+let name-words = select l."id" as "id", r."text" as "text" from name-tokens as l join tree-tokens as r on l."token" = r."id";
+let services-names = select * from name-words where text = "Services";
+let fieldless-struct-children = select r."child" as "child", l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from fieldless-structs as l join "syntax-child" as r on l."id" = r."parent";
+let hollow-services = select l."id" as "id", l."kind" as "kind", l."file" as "file", l."span" as "span" from fieldless-struct-children as l join services-names as r on l."child" = r."id";
+emit hollow-services subject "file" key("span");

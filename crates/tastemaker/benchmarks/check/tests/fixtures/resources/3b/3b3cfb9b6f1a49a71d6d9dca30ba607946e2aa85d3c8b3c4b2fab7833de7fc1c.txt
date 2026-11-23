@@ -1,0 +1,8 @@
+//! The names port, implemented with memory.
+
+pub(crate) mod adapter;
+
+#[cfg(test)]
+mod adapter_test;
+
+mod schemas;

@@ -1,0 +1,108 @@
+{
+  "stamp": 46,
+  "rule": "idiomatic.arch/factory-calls",
+  "dependency": "One file",
+  "admitted": [
+    "src/commands/cache/connections.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "src/commands/cache/connections.rs": "e5c301ab02c4d079eb50b7bc389be984c4fca7283e833adaa9f830fe498f904f",
+    "tastemaker.toml": "7e8f9c90c9f25befd72166e99c43a05c0e3f5a987fce7d71bffdd695a32d9c17"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/factory-calls",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-factory-calls-6bd421048346"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/commands/cache/connections.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/commands/cache/connections.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                47,
+                54
+              ]
+            }
+          ],
+          [
+            "text",
+            "factory"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              47,
+              54
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/commands/cache/connections.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

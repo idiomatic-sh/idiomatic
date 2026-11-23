@@ -1,0 +1,103 @@
+{
+  "stamp": 153,
+  "rule": "idiomatic.arch/test-shape",
+  "dependency": "One file",
+  "admitted": [
+    "src/greeting/domain/short/service_test.rs"
+  ],
+  "given": {
+    "src/greeting/domain/short/service_test.rs": "d765687ad8a1065ab66a16378abb5e4fd9bb396d9f5b23f3cb251b393674ccd2",
+    "tastemaker.toml": "a10ecdf18739850d9a403380247ac82877a7050af61ad598c0bfffccff0327ea"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/test-shape",
+      "include": [
+        "**/*_test.rs",
+        "**/*_test.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-test-shape-45f9971bbe85"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/greeting/domain/short/service_test.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/greeting/domain/short/service_test.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                593,
+                634
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              593,
+              634
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/greeting/domain/short/service_test.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

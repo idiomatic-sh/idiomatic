@@ -1,0 +1,114 @@
+{
+  "stamp": 245,
+  "rule": "idiomatic.arch/nu-hex/public-application-service",
+  "dependency": "Several files",
+  "admitted": [
+    "src/application/short.rs",
+    "src/application/short/service.rs"
+  ],
+  "given": {
+    "src/application/short.rs": "344bc039bc73fe391f09a165724dbbafec19cd4233f1503fb53ba048992d4090",
+    "src/application/short/service.rs": "f20dc6b094dbfa11312e0c95b1a94853cc62ed4e480b79df16f173ee125fd6a0",
+    "tastemaker.toml": "4315ec154c4be5baadd2f27ed6ea770e810d9cc57b6f327705715e4c01c69fe1"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/nu-hex/public-application-service",
+      "include": [
+        "src/application/*.rs",
+        "src/application/*.rs/**",
+        "src/application/*/service.rs",
+        "src/application/*/service.rs/**",
+        "src/application/*/service_test.rs",
+        "src/application/*/service_test.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-nu-hex-public-application-service-e43b40d4220f"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/application/short.rs",
+        "src/application/short/service.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/application/short.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                0,
+                83
+              ]
+            }
+          ],
+          [
+            "problem",
+            "has a service but does not declare it `pub mod service;`"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              0,
+              83
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/application/short.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

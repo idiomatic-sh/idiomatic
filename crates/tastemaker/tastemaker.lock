@@ -1,7 +1,7 @@
 # Written by Tastemaker: the packages this workspace resolved,
 # direct and transitive, and the definition releases it uses. Do not edit it by hand.
 version = 1
-dependencies = ["idiomatic.arch"]
+dependencies = ["idiomatic.arch", "idiomatic.tastemaker"]
 
 [packages."idiomatic.arch"]
 path = "../../tastemaker"
@@ -180,3 +180,10 @@ unit-test = "0.1.0"
 value = "0.1.0"
 value-module = "0.2.0"
 value-test = "0.1.0"
+
+[packages."idiomatic.tastemaker"]
+path = "tastemaker"
+dependencies = ["idiomatic.arch"]
+
+[packages."idiomatic.tastemaker".specs]
+query-benchmark = "0.1.0"

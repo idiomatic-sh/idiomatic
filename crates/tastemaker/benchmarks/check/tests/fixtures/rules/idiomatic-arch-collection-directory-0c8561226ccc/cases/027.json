@@ -1,0 +1,112 @@
+{
+  "stamp": 27,
+  "rule": "idiomatic.arch/collection-directory",
+  "dependency": "Project",
+  "admitted": [
+    "src/lib.rs",
+    "src/relations.rs"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/lib.rs": "7fd459f542d7a1fc4fdfb408738e40cca82d443cb19b47829957f30ad4688260",
+    "src/relations.rs": "73f1173b8fcc3bd2a69b93db66b0cacc5bec5217bcebadd68fafd7fe4f77c5e6",
+    "tastemaker.toml": "c215b1dbc5f8dab4397a8757a6c8aa80732877903545591a70630b588e7e5241"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/collection-directory",
+      "include": [
+        "src/**",
+        "src/**/**"
+      ],
+      "parameters": {
+        "max-items": 3
+      },
+      "query": "idiomatic-arch-collection-directory-0c8561226ccc"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/lib.rs",
+        "src/relations.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/relations.rs"
+            }
+          ],
+          [
+            "marker",
+            "RyoRelation"
+          ],
+          [
+            "shared",
+            "derive"
+          ],
+          [
+            "items",
+            4
+          ]
+        ],
+        "key": [
+          {
+            "file": "src/relations.rs"
+          },
+          "RyoRelation",
+          "derive"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/relations.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

@@ -1,0 +1,107 @@
+{
+  "stamp": 287,
+  "rule": "idiomatic.ryo/language/library-walk-is-its-own",
+  "dependency": "One file",
+  "admitted": [
+    "walk.rs"
+  ],
+  "given": {
+    "tastemaker.toml": "f1b777ecf0d4c29fa6843aa194a056a3ccf2d368f01bd70113b788084369f78f",
+    "walk.rs": "ee58644f64b30f2457d88cd6865cf88153ec82a9f895efb072857fa5dd8df0df"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.ryo/language/library-walk-is-its-own",
+      "include": [
+        "walk.rs",
+        "walk.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-ryo-language-library-walk-is-its-own-562b721ac009"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "tastemaker.toml",
+        "walk.rs"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "walk.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                4,
+                50
+              ]
+            }
+          ],
+          [
+            "target",
+            "super::super::adapter::SyntaxDemoParserAdapter"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              4,
+              50
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "walk.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

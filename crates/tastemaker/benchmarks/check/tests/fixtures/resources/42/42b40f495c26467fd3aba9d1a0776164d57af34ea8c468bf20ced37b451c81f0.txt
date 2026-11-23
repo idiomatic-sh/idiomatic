@@ -1,0 +1,8 @@
+//! The `greeting` domain's `polite` concept.
+mod service;
+mod types;
+mod errors;
+mod collections;
+
+#[cfg(test)]
+mod service_test;

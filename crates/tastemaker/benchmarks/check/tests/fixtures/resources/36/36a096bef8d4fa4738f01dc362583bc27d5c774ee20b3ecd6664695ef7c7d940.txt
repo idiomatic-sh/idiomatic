@@ -1,0 +1,5 @@
+#[test]
+fn arithmetic_succeeds() {
+    let value = 2 + 2;
+    let _ = value;
+}

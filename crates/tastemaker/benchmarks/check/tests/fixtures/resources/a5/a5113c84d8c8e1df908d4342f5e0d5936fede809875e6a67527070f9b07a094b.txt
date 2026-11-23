@@ -1,0 +1,1 @@
+//! The `a` service: free functions named by verb over the domain's types, with no IO and no ports.

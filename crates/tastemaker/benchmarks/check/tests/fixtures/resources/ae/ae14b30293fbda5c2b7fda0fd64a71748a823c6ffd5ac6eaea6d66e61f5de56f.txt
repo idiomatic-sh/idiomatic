@@ -1,0 +1,1 @@
+//! Proves how a command ended: each `Outcome` and its exit code, and each error's class.

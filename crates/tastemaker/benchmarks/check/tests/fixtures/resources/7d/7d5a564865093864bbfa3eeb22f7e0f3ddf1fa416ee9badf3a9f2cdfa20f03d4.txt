@@ -1,0 +1,7 @@
+//! The shape of the data this command does not control: each wire shape is a `<Name>Schema`, its conversion into the core's type is an `impl TryFrom<<Name>Schema>` (or an `impl From<<Name>Schema>` where it cannot fail), and each refusal of a conversion is a `<Name>SchemaError`.
+
+
+#[cfg(test)]
+#[path = "schemas_test.rs"]
+mod tests;
+

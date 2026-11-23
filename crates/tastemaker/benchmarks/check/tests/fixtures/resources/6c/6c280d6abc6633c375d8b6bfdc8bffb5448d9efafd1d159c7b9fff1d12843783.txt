@@ -1,0 +1,14 @@
+//! What the greeting domain's `greet` use case promises, in the core's own vocabulary.
+
+use super::errors::GreetError;
+use crate::outbound::names::types::Greeting;
+
+/// What `greet` offers its callers.
+pub trait GreetUseCase {
+    /// Greets the person named.
+    ///
+    /// # Errors
+    ///
+    /// `GreetError::Empty` for an empty name, and `GreetError::Names` when the names port refuses it.
+    fn greet(&self, name: &'static str) -> Result<Greeting, GreetError>;
+}

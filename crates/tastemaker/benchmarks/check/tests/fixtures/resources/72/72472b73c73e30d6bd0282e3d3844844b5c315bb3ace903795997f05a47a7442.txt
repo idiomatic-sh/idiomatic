@@ -1,0 +1,35 @@
+//! What every names adapter must pass.
+
+use super::super::errors::NamesError;
+use super::super::interface::NamesPort;
+use super::super::types::{Asked, Greeting};
+use crate::cases::{Case, Expect, Word, run};
+
+/// What a row of the contract is given.
+type Input = Asked;
+/// What a row of the contract expects when it succeeds.
+type Value = Greeting;
+/// What a row of the contract expects when it is refused.
+type Failure = NamesError;
+
+/// The contract's rows: a name, one case word, an input and the expected value or error variant. Every implementation runs them.
+pub const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "stores a greeting for a name",
+        word: Word::Succeeds,
+        input: || Asked("Ada"),
+        expect: Expect::Value(Greeting("hello, Ada")),
+    },
+    Case {
+        name: "refuses a name nobody stored",
+        word: Word::Refuses,
+        input: || Asked("nobody"),
+        expect: Expect::Error(NamesError::Missing),
+    },
+];
+
+/// Runs the contract's rows against one implementation: the fake, or an adapter of another crate.
+pub fn check(adapter: &impl NamesPort) {
+    run(CASES, Word::Succeeds, |asked| adapter.stored(&asked));
+    run(CASES, Word::Refuses, |asked| adapter.stored(&asked));
+}

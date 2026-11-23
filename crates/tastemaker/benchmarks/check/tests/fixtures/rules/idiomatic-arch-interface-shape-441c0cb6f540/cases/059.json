@@ -1,0 +1,108 @@
+{
+  "stamp": 59,
+  "rule": "idiomatic.arch/interface-shape",
+  "dependency": "One file",
+  "admitted": [
+    "src/greeting/interface.rs"
+  ],
+  "given": {
+    "src/greeting/interface.rs": "624acb41ef11c5602cd56eb19dba3a9246589536cc9a584183f4aef5da7021f4",
+    "tastemaker.toml": "131d3298d824f415fca0c8ea8f12bb14d33997fe5f898a14bd7db21e44930e3e"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/interface-shape",
+      "include": [
+        "**/interface.rs",
+        "**/interface.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-interface-shape-441c0cb6f540"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/greeting/interface.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/greeting/interface.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                0,
+                57
+              ]
+            }
+          ],
+          [
+            "problem",
+            "has no `self` method, so it is a value trait: it lives in types.rs, not in an interface.rs"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              0,
+              57
+            ]
+          },
+          "has no `self` method, so it is a value trait: it lives in types.rs, not in an interface.rs"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/greeting/interface.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

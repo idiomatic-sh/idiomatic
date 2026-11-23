@@ -1,0 +1,5 @@
+#[cfg(test)]
+pub(super) mod test;
+
+#[test]
+fn publishes() {}

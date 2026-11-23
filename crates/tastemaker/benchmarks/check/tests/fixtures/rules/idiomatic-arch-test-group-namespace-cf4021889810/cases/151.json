@@ -1,0 +1,114 @@
+{
+  "stamp": 151,
+  "rule": "idiomatic.arch/test-group-namespace",
+  "dependency": "Host table / setting",
+  "admitted": [
+    "src/owner/service_test/publication.rs"
+  ],
+  "given": {
+    "src/owner/service_test/publication.rs": "7222d0b7be4520a25738089bf81790639e57badc866d67b530ab64409a849225",
+    "tastemaker.toml": "fcf1ef0687bbfd4340fe454be3a60c0282951efa15337fccb8c2daf36140ec47"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/test-group-namespace",
+      "include": [
+        "**/service_test/*.rs",
+        "**/service_test/*.rs/**"
+      ],
+      "parameters": {
+        "case-table": "refused"
+      },
+      "query": "idiomatic-arch-test-group-namespace-cf4021889810"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/owner/service_test/publication.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "kind",
+            "fn"
+          ],
+          [
+            "file",
+            {
+              "file": "src/owner/service_test/publication.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                35,
+                60
+              ]
+            }
+          ],
+          [
+            "problem",
+            "in a module file that declares its directory's modules only (`mod x;`, never a module with a body)"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              35,
+              60
+            ]
+          },
+          "in a module file that declares its directory's modules only (`mod x;`, never a module with a body)"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/owner/service_test/publication.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

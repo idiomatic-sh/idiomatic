@@ -1,0 +1,4 @@
+//! Proves one pass.
+
+#[test]
+fn succeeds() {}

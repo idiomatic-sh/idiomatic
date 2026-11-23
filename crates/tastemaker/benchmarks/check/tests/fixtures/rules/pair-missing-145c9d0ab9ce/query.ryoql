@@ -1,0 +1,9 @@
+let pairs = select * from "tastemaker.template-entry" where pair = 1;
+let answers = select * from "tastemaker.condition-answer";
+let plain = select p."entry" as "entry" from pairs as p where p."condition" = "" and p."min" > 0;
+let asked = select p."entry" as "entry", p."then-min" as "then-min", p."else-min" as "else-min", a."holds" as "holds" from pairs as p join answers as a on p."scope" = a."scope" and p."condition" = a."condition";
+let then = select a."entry" as "entry" from asked as a where a."holds" = 1 and a."then-min" > 0;
+let otherwise = select a."entry" as "entry" from asked as a where a."holds" = 0 and a."else-min" > 0;
+let branched = union(left=then, right=otherwise);
+let required = union(left=plain, right=branched);
+emit required subject "entry" key("entry");

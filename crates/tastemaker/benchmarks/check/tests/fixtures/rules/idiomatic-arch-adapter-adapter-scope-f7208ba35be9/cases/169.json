@@ -1,0 +1,130 @@
+{
+  "stamp": 169,
+  "rule": "idiomatic.arch/adapter/adapter-scope",
+  "dependency": "Project",
+  "admitted": [
+    "src/names/adapters/memory/adapter.rs",
+    "src/names/adapters/memory/types.rs"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/clock.rs": "5c1c5066e083ee732a38b228c7b431db55d77709d26e9762d2de8d9485307dd1",
+    "src/clock/adapters.rs": "c0f79ae4ed819d9eb9dbdf40bc3a7c1526afbf6aeeaa0d9f237de94e83003e69",
+    "src/clock/adapters/system.rs": "d41b484977c59016ad0e4093c35c3baebdd95f98037cd01ad9d0b04d199e3127",
+    "src/clock/adapters/system/adapter.rs": "7525b21f93bc8be8b5c6962385695702c18cbb57d81668db6c2f4b97a17c094f",
+    "src/clock/domain.rs": "671c28a1d2781680dc4144079555e6b39c7d4806206a802da5c445b6382ca3b6",
+    "src/clock/domain/rounding.rs": "27695436ea6a4888f64f0064f916115d5af01edfcc027717abf015d7832d72bb",
+    "src/clock/domain/rounding/service.rs": "848230b53481613e78c9e65b1061401a9aca92fad4f4cb913e222ea6235d4b9d",
+    "src/lib.rs": "15fa9a01ea42962e48eb5e9ef1a5d75d84ea2d47b5703981ece43c16dc7d16ad",
+    "src/names.rs": "a13ab49159b99a8c7018a146a9bfa83b924f4a7092599bd99c11feef1f45d8ba",
+    "src/names/adapters.rs": "c93ba8d4090327cacf519f8f13303c4b2afeef8249ca7210d12bf0a34d5fcca4",
+    "src/names/adapters/memory.rs": "e408a8bda8be6e2b9582b0e3b7036207f91a72c6ea782d6655afd430b0d84a32",
+    "src/names/adapters/memory/adapter.rs": "8b916b4ae5364bb78ab851ab3344b620321705fc11c25b3a9cc943d674d7753c",
+    "src/names/adapters/memory/types.rs": "2e17859f40d2603ef1312ee61685246c57601b9cbecf9888a4fd710a88569c6d",
+    "tastemaker.toml": "812ee4982b7c824db48fc71543b59eb4716feadca8eb6ec5fec593122f71117c"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/adapter/adapter-scope",
+      "include": [
+        "src/names/adapters/memory/**/*.rs",
+        "src/names/adapters/memory/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-adapter-adapter-scope-f7208ba35be9"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/clock.rs",
+        "src/clock/adapters.rs",
+        "src/clock/adapters/system.rs",
+        "src/clock/adapters/system/adapter.rs",
+        "src/clock/domain.rs",
+        "src/clock/domain/rounding.rs",
+        "src/clock/domain/rounding/service.rs",
+        "src/lib.rs",
+        "src/names.rs",
+        "src/names/adapters.rs",
+        "src/names/adapters/memory.rs",
+        "src/names/adapters/memory/adapter.rs",
+        "src/names/adapters/memory/types.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "source",
+            {
+              "file": "src/names/adapters/memory/adapter.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                136,
+                195
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              136,
+              195
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/names/adapters/memory/adapter.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

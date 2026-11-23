@@ -1,0 +1,5 @@
+//! The `names` port's failures.
+
+/// Why an operation of `names` failed.
+#[derive(Debug, thiserror::Error)]
+pub enum NamesError {}

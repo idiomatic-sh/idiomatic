@@ -1,0 +1,9 @@
+//! Diagnostic-only outer command phase observation.
+#[cfg(test)]
+#[path = "phases_test.rs"]
+mod tests;
+
+pub(super) fn install()
+-> Result<Box<dyn std::any::Any + Send>, tracing::subscriber::SetGlobalDefaultError> {
+    todo!()
+}

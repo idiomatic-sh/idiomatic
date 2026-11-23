@@ -1,0 +1,14 @@
+param libraries: set<string>;
+let imports = project(from="static-import", columns=["occurrence", "file", "span", "target"]);
+let references = project(from="reference", columns=["occurrence", "file", "span", "target"]);
+let mentions = union(left=imports, right=references);
+let clients = select * from mentions where glob_any(target, $libraries);
+let governed-roles = select l."path" as "file" from "tastemaker.placed" as l where l."package" = "idiomatic.arch" and l."spec" = "adapter" and glob_any(l."template", "{adapter,adapter-connection,adapter-writer,settings,schemas}");
+let adapter-tree = select l."path" as "file" from "filesystem.file" as l where glob_any(l."path", "{**/outbound/*/adapters/**,**/outbound/*/factory.rs}");
+let composition-roles = select l."path" as "file" from "tastemaker.placed" as l where glob_any(l."template", "{composition,*-composition,workflow}");
+let linking-edges = select l."path" as "file" from "tastemaker.placed" as l where l."package" = "idiomatic.arch" and l."spec" = "cli" and l."template" = "languages";
+let placed-compositions = union(left=composition-roles, right=linking-edges);
+let adapter-roles = union(left=governed-roles, right=adapter-tree);
+let adapters = union(left=adapter-roles, right=placed-compositions);
+let outside = antijoin(left=clients, right=adapters, left-on=["file"], right-on=["file"]);
+emit outside subject "file" key("span");

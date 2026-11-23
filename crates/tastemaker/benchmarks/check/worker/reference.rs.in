@@ -1,0 +1,152 @@
+// One released SDK session and one worker. Input records describe original SDK calls
+// restricted to the selected rule IDs. Relative paths, ordinals and grouping are preserved.
+fn main() {
+    use sha2::{Digest, Sha256};
+    use std::io::{BufRead, Write};
+    let args: Vec<_> = std::env::args().collect();
+    let sdk = Linter::new(
+        Languages(vec![
+            ryo_css::linked(),
+            ryo_go::linked(),
+            ryo_html::linked(),
+            ryo_javascript::linked(),
+            ryo_json::linked(),
+            ryo_markdown::linked(),
+            ryo_python::linked(),
+            ryo_rust::linked(),
+            ryo_toml::linked(),
+            ryo_typescript::linked(),
+        ]),
+        WorkerPool::from(Workers(NonZeroUsize::MIN)),
+        MemoryBudget::Machine,
+        Cache::None,
+    );
+    let mut out = std::io::BufWriter::new(std::fs::File::create(&args[2]).unwrap());
+    let mut frozen = args
+        .get(3)
+        .map(|path| std::io::BufWriter::new(std::fs::File::create(path).unwrap()));
+    for line in std::io::BufReader::new(std::fs::File::open(&args[1]).unwrap()).lines() {
+        let v: Value = serde_json::from_str(&line.unwrap()).unwrap();
+        let stamp = v["stamp"].as_u64().unwrap() as usize;
+
+        let array = |v: &Value| -> Vec<String> {
+            v.as_array()
+                .unwrap()
+                .iter()
+                .map(|x| x.as_str().unwrap().to_owned())
+                .collect()
+        };
+        let sources = |items: &Value| {
+            items
+                .as_object()
+                .unwrap()
+                .iter()
+                .map(|(path, text)| CaseSource {
+                    text: SourceText(text.as_str().unwrap().into()),
+                    path: RelativePath(path.as_str().into()),
+                    executable: ExecutablePermission::Unknown,
+                })
+                .collect()
+        };
+        let globs = |paths: &Value| {
+            array(paths)
+                .iter()
+                .map(|s| Glob::try_from(s.as_str()).unwrap())
+                .collect()
+        };
+        let rules = v["rules"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|r| {
+                let text = std::fs::read_to_string(r["text"].as_str().unwrap()).unwrap();
+                (
+                    RuleId::try_from(r["id"].as_str().unwrap()).unwrap(),
+                    Rule {
+                        observations: Vec::new(),
+                        query: RyoQlQuery::try_from(text.as_str()).unwrap(),
+                        applicability: RuleApplicability::Always,
+                        include: globs(&r["include"]),
+                        exclude: globs(&r["exclude"]),
+                        parameters: r["parameters"]
+                            .as_object()
+                            .unwrap()
+                            .iter()
+                            .map(|(k, v)| (ParameterName(k.as_str().into()), parameter(v)))
+                            .collect(),
+                    },
+                )
+            })
+            .collect();
+        let corpus = if v["given"].is_object() {
+            Corpus::Given(sources(&v["given"]))
+        } else {
+            Corpus::Listed(
+                array(&v["listed"])
+                    .into_iter()
+                    .map(|s| RelativePath(s.into()))
+                    .collect(),
+            )
+        };
+        let request = LintRequest {
+            source_language: SourceLanguage::Recognized,
+            root: PathBuf::from(v["root"].as_str().unwrap()),
+            project_search_scope: ProjectSearchScope::Undeclared,
+            given_project_inventory: GivenProjectInventory {
+                entries: Vec::new(),
+                completeness: ProjectInventoryCompleteness::Partial,
+            },
+            corpus,
+            beside: sources(&v["beside"]),
+            rules,
+            files: Vec::new(),
+            hosted: serde_json::from_value::<Vec<Hosted>>(v["hosted"].clone())
+                .unwrap()
+                .into_iter()
+                .map(Hosted::into_relation)
+                .collect(),
+        };
+        let report = lint_with(&sdk, request).unwrap();
+        let mut groups = BTreeMap::<String, Vec<String>>::new();
+        for f in report.findings {
+            let cols: Vec<_> = f
+                .columns
+                .iter()
+                .map(|c| (&*c.name.0, value(&c.value)))
+                .collect();
+            let bytes=json!({"columns":cols,"key":f.key.0.iter().map(value).collect::<Vec<_>>(),"rule":"query","subject":value(&f.subject)}).to_string();
+            groups.entry(f.rule.to_string()).or_default().push(bytes);
+        }
+        for r in v["rules"].as_array().unwrap() {
+            let name = r["id"].as_str().unwrap();
+            let mut rows = groups.remove(name).unwrap_or_default();
+            rows.sort_unstable();
+            if let Some(frozen) = frozen.as_mut() {
+                let typed: Vec<Value> = rows
+                    .iter()
+                    .map(|r| serde_json::from_str(r).unwrap())
+                    .collect();
+                let unknowns: Vec<_> = report
+                    .unknowns
+                    .iter()
+                    .filter(|u| u.rule.as_ref() == name)
+                    .map(|u| json!([&*u.path.0, &*u.message.0]))
+                    .collect();
+                writeln!(
+                    frozen,
+                    "{}",
+                    json!({"stamp":stamp,"rule":name,"rows":typed,"unknowns":unknowns})
+                )
+                .unwrap();
+            }
+            let bytes = rows.join("\n") + "\n";
+            let hash = format!("{:x}", Sha256::digest(bytes.as_bytes()));
+            let unknown = report.unknowns.iter().any(|u| u.rule.as_ref() == name);
+            writeln!(out, "{}\t{}\t{}\t{}", stamp, name, hash, unknown).unwrap();
+        }
+    }
+    out.flush().unwrap();
+    if let Some(frozen) = frozen.as_mut() {
+        frozen.flush().unwrap();
+    }
+}

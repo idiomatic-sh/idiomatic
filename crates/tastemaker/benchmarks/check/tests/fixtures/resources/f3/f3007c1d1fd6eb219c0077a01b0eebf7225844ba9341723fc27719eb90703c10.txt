@@ -1,0 +1,34 @@
+//! What the `polite` service promises, on values alone.
+
+use super::service::is_polite;
+use crate::cases::{Case, Expect, Word, run};
+
+type Input = &'static str;
+type Value = bool;
+type Failure = std::convert::Infallible;
+
+/// The rows of this part's cases: a name, one case word, an input from the fixtures or a constructor, and the expected value or error variant.
+const CASES: &[Case<Input, Value, Failure>] = &[
+    Case {
+        name: "accepts a phrase that opens politely",
+        word: Word::Succeeds,
+        input: || "good day, Ada",
+        expect: Expect::Value(true),
+    },
+    Case {
+        name: "recognizes a phrase that does not",
+        word: Word::Succeeds,
+        input: || "hey Ada",
+        expect: Expect::Value(false),
+    },
+];
+
+/// Calls the part on one input; the author states it.
+fn subject(phrase: Input) -> Result<Value, Failure> {
+    Ok(is_polite(phrase))
+}
+
+#[test]
+fn succeeds() {
+    run(CASES, Word::Succeeds, subject);
+}

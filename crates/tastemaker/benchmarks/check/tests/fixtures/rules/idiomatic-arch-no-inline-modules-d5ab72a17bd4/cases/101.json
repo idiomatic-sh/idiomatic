@@ -1,0 +1,108 @@
+{
+  "stamp": 101,
+  "rule": "idiomatic.arch/no-inline-modules",
+  "dependency": "One file",
+  "admitted": [
+    "src/interface.rs",
+    "src/lib.rs"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/interface.rs": "3c62ab29495d7793ef6d6d7666a7eba456ec8ab45e2586e743c595b4852eb901",
+    "src/lib.rs": "a8c0f72f1d1608e635c1eae77bd2448e05a3f8b0af1af1f7325f2653e50e7667",
+    "tastemaker.toml": "6990a73ba84c6f4c8a527a7c585c1003a41f2fc7cfe5f59bb7285f45d316ca39"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/no-inline-modules",
+      "include": [
+        "src/**",
+        "src/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-inline-modules-d5ab72a17bd4"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/interface.rs",
+        "src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/interface.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                20,
+                118
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              20,
+              118
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/interface.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

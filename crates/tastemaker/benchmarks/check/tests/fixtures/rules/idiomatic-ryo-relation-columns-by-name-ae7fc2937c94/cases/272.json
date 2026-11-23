@@ -1,0 +1,107 @@
+{
+  "stamp": 272,
+  "rule": "idiomatic.ryo/relation-columns-by-name",
+  "dependency": "One file",
+  "admitted": [
+    "src/domain/walking/service.rs"
+  ],
+  "given": {
+    "src/domain/walking/service.rs": "7c8096192ad860b35fb60a28c81d2d9760791e2edf35b24d3ad0024a7a4b9220",
+    "tastemaker.toml": "88f6d3fe673997f3e677d3aa06a6d5d76007f783e4ba9669efa3c687d0a512d1"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.ryo/relation-columns-by-name",
+      "include": [
+        "**/*.rs",
+        "**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-ryo-relation-columns-by-name-ae7fc2937c94"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/domain/walking/service.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "id",
+            "src/domain/walking/service.rs#47"
+          ],
+          [
+            "file",
+            {
+              "file": "src/domain/walking/service.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                68,
+                86
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              68,
+              86
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/domain/walking/service.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

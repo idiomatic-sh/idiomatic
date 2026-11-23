@@ -1,0 +1,138 @@
+{
+  "stamp": 123,
+  "rule": "idiomatic.arch/no-unwrap-or-on-lookup",
+  "dependency": "One file",
+  "admitted": [
+    "Cargo.toml",
+    "src/walk.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/walk.rs": "60dad495a512ba21b4bdc915035edc51b6c40cef9fcd059f69fc949d9ed088e3",
+    "tastemaker.toml": "ae0266ada5c4c5ce619335bac19228559b8c6c9a6d92acd8e94e86f9d4ac3374"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/no-unwrap-or-on-lookup",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-unwrap-or-on-lookup-92da167255cf"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/walk.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/walk.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                280,
+                325
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              280,
+              325
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/walk.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/walk.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                85,
+                207
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              85,
+              207
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/walk.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

@@ -1,0 +1,7 @@
+//! The `polite` service: pure functions over the domain's types.
+
+/// Polite.
+#[must_use]
+pub(crate) fn polite(name: &str) -> String {
+    format!("hello, {name}")
+}

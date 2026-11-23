@@ -1,0 +1,1 @@
+fn connect() { let _ = crate::outbound::cache::factory::arrow(); }

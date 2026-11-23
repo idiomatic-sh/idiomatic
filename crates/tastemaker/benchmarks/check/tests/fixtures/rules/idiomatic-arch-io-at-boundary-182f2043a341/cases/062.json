@@ -1,0 +1,126 @@
+{
+  "stamp": 62,
+  "rule": "idiomatic.arch/io-at-boundary",
+  "dependency": "Host table / setting",
+  "admitted": [
+    "Cargo.toml",
+    "src/lib.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/lib.rs": "939d63760a6fdf5ea3021624ecd8149f2e633823d6929777c360d6f3ea15810e",
+    "tastemaker.toml": "2ace4ad55eeef1abf247db3e77f6fbce6f4718f46e68787071e1ce749ee8be20"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [
+        "**/*_test.rs",
+        "**/*_test.rs/**",
+        "**/adapters/**",
+        "**/adapters/**/**",
+        "**/benches/**",
+        "**/benches/**/**",
+        "**/composition.rs",
+        "**/composition.rs/**",
+        "**/fixtures.rs",
+        "**/fixtures.rs/**",
+        "**/main.rs",
+        "**/main.rs/**",
+        "**/tests/**",
+        "**/tests/**/**"
+      ],
+      "id": "idiomatic.arch/io-at-boundary",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-io-at-boundary-182f2043a341"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/lib.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                69,
+                92
+              ]
+            }
+          ],
+          [
+            "target",
+            "std::fs::read_to_string"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              69,
+              92
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/lib.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

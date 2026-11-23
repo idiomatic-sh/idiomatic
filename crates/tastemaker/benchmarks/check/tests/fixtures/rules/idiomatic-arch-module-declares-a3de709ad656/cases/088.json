@@ -1,0 +1,116 @@
+{
+  "stamp": 88,
+  "rule": "idiomatic.arch/module-declares",
+  "dependency": "Several files",
+  "admitted": [
+    "src/lib.rs",
+    "src/outcome.rs"
+  ],
+  "given": {
+    "src/lib.rs": "fa47c836b3963d5bf22dfbcb9f96bbceb21f9dcd32f59664467ee443a7692e81",
+    "src/outcome.rs": "f3c6ed3dae849e36a150d8e815729415bd4ed6be62b51740b2bf974d74d547d5",
+    "tastemaker.toml": "0eb1abd578dabd42c97d78b1388a34285022a319fb08c618b99bd64886baf0d4"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/module-declares",
+      "include": [
+        "src/**",
+        "src/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-module-declares-a3de709ad656"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/lib.rs",
+        "src/outcome.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/outcome.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                18,
+                69
+              ]
+            }
+          ],
+          [
+            "name",
+            "tests"
+          ],
+          [
+            "problem",
+            "carries a `#[path]` attribute that does not name this file's own test: only `<file>_test.rs` beside `<file>.rs`, declared as `mod tests;`, is declared by `#[path]`"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              18,
+              69
+            ]
+          },
+          "tests",
+          "carries a `#[path]` attribute that does not name this file's own test: only `<file>_test.rs` beside `<file>.rs`, declared as `mod tests;`, is declared by `#[path]`"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/outcome.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

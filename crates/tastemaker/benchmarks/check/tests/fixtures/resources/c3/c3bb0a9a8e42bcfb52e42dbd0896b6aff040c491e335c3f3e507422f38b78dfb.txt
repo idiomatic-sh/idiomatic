@@ -1,0 +1,15 @@
+//! The kinds, declared through one macro.
+
+macro_rules! operation_kinds {
+    ($( $variant:ident, )+) => {
+        #[derive(Clone, Copy, Debug)]
+        pub enum OperationKind { $( $variant, )+ }
+    };
+}
+
+operation_kinds! {
+    /// `union`.
+    Union,
+    /// `group-count`.
+    GroupCount,
+}

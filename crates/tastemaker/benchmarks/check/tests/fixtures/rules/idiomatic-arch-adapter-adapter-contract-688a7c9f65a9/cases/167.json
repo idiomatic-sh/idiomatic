@@ -1,0 +1,100 @@
+{
+  "stamp": 167,
+  "rule": "idiomatic.arch/adapter/adapter-contract",
+  "dependency": "One file",
+  "admitted": [
+    "adapter_test.rs"
+  ],
+  "given": {
+    "adapter_test.rs": "181d90e01247264341fce003456bfacc1f0700b1048585cb661f63ff3731066a",
+    "tastemaker.toml": "10ec4f815c5ee4806b3fd8f2f208fdc9745f83907def7cacca25792878b24791"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/adapter/adapter-contract",
+      "include": [
+        "adapter_test.rs",
+        "adapter_test.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-adapter-adapter-contract-688a7c9f65a9"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "adapter_test.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "adapter_test.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                0,
+                178
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "file": "adapter_test.rs"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "adapter_test.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

@@ -1,0 +1,7 @@
+# Fixture
+
+Run `cargo run` in /workspaces/fixture/crates.
+
+```console
+$ cat /tmp/fixture-run/report.json
+```

@@ -1,0 +1,3 @@
+workspace = { name = "scenario", dependencies = [{ package = "idiomatic.arch", path = "/workspaces/idiomatic-target/ryo-tm-bench/trace-tree/tastemaker" }] }
+closed = false
+rules = [{ rule = "idiomatic.arch/requests-carry-no-settings", description = "The definition under test, placed alone.", include = ["**"], params = { requests = ["*Request", "Session"], settings = ["workers", "memory", "memory_budget", "cache", "build", "logging"] } }]

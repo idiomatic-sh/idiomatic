@@ -1,0 +1,4 @@
+let proved = select * from "tastemaker.own";
+let ran = select * from "tastemaker.evaluated";
+let unran = antijoin(left=proved, right=ran, left-on=["scenario", "rule"], right-on=["scenario", "rule"]);
+emit unran subject "scenario" key("scenario", "rule");

@@ -1,0 +1,9 @@
+use std::io::Write as _;
+
+pub fn say(text: &str) {
+    let _ = writeln!(std::io::stdout(), "{text}");
+}
+
+pub fn panicked() {
+    let _ = writeln!(anstream::stderr().lock(), "error: internal error");
+}

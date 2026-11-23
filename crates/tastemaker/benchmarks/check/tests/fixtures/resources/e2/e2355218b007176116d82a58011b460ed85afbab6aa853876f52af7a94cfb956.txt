@@ -1,0 +1,2 @@
+//! Behavioral proof of `derived` through its injected ports.
+

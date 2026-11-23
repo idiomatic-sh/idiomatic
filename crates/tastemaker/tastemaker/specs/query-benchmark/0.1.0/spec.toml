@@ -1,0 +1,27 @@
+description = "The source and test artifacts of a Tastemaker query workload."
+why = "The product owns its corpus runner. A frozen regression has its own query, registered inputs and typed expected answer. Unrelated files have no place in this workload."
+templates = [
+  { alias = "registry", template = "idiomatic.arch/unchecked@0.1.0", file = "tests/fixtures/registry.json", count = { min = 0, max = 1 }, description = "The explicit ordered registration of the frozen cases." },
+  { alias = "documentation", template = "idiomatic.arch/unchecked@0.1.0", file = "README.md", count = { min = 0 }, description = "The workload’s documentation." },
+  { alias = "driver", template = "idiomatic.arch/unchecked@0.1.0", file = "{driver}.py", count = { min = 0 }, description = "The workload’s driver." },
+  { alias = "rust-entry", template = "idiomatic.arch/unchecked@0.1.0", file = "bench.rs", count = { min = 0 }, description = "The Rust entry compiled by the reader benchmark." },
+  { alias = "worker-source", template = "idiomatic.arch/unchecked@0.1.0", file = "worker/{source}.rs.in", count = { min = 0 }, description = "The workload’s worker source." },
+  { alias = "query", template = "idiomatic.arch/unchecked@0.1.0", file = "tests/fixtures/rules/{rule}/query.ryoql", count = { min = 0 }, description = "The workload’s query." },
+  { alias = "case", template = "idiomatic.arch/unchecked@0.1.0", file = "tests/fixtures/rules/{rule}/cases/{case}.json", count = { min = 0 }, description = "The workload’s case." },
+  { alias = "source-bytes", template = "idiomatic.arch/unchecked@0.1.0", file = "tests/fixtures/resources/{prefix}/{digest}.txt", count = { min = 0 }, description = "The workload’s source bytes." },
+]
+
+[[scenarios]]
+id = "registered-query-and-case"
+scenario = "A verbatim query, a registered case and its source bytes occupy their declared roles."
+given.files."tests/fixtures/rules/example/query.ryoql" = "emit"
+given.files."tests/fixtures/rules/example/cases/001.json" = "{}"
+given.files."tests/fixtures/resources/ab/content.txt" = "source"
+then.only = ["idiomatic.tastemaker/query-benchmark#closed"]
+
+[[scenarios]]
+id = "unregistered-input"
+scenario = "A file outside the declared case and workload roles remains unplaced."
+given.files."stray.rs" = "fn unregistered() {}"
+then.only = ["idiomatic.tastemaker/query-benchmark#closed"]
+then.findings = [{ rule = "query-benchmark#closed", path = "stray.rs" }]

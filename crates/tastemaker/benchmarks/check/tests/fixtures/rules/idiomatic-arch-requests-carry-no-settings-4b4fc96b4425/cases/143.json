@@ -1,0 +1,164 @@
+{
+  "stamp": 143,
+  "rule": "idiomatic.arch/requests-carry-no-settings",
+  "dependency": "Host table / setting",
+  "admitted": [
+    "src/inbound/use_cases/check/types.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "src/inbound/use_cases/check/types.rs": "0479fac0910ac46338f6f42475c6bd9e4451492792cab70f89baa63afd62b89f",
+    "tastemaker.toml": "001466fc205dc7b80e90969f5808d0283cc751dd13ca7733442deca9bbfa6efd"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/requests-carry-no-settings",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {
+        "requests": [
+          "*Request",
+          "Session"
+        ],
+        "settings": [
+          "workers",
+          "memory",
+          "memory_budget",
+          "cache",
+          "build",
+          "logging"
+        ]
+      },
+      "query": "idiomatic-arch-requests-carry-no-settings-4b4fc96b4425"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/inbound/use_cases/check/types.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "field",
+            "build"
+          ],
+          [
+            "file",
+            {
+              "file": "src/inbound/use_cases/check/types.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                243,
+                248
+              ]
+            }
+          ],
+          [
+            "request",
+            "CheckRequest"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              243,
+              248
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/inbound/use_cases/check/types.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "field",
+            "logging"
+          ],
+          [
+            "file",
+            {
+              "file": "src/inbound/use_cases/check/types.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                188,
+                195
+              ]
+            }
+          ],
+          [
+            "request",
+            "CheckRequest"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              188,
+              195
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/inbound/use_cases/check/types.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

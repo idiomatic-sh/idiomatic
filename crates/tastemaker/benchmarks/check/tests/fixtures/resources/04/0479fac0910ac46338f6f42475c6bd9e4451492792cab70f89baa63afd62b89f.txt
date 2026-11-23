@@ -1,0 +1,11 @@
+//! The types of `check`.
+
+/// What a caller asks `check` for.
+pub struct CheckRequest {
+    /// The repository.
+    pub root: MachinePath,
+    /// How the violations are written.
+    pub logging: Logging,
+    /// The build that runs.
+    pub build: Build,
+}

@@ -1,0 +1,8 @@
+/// Whether a violation is reported or suppressed in the source.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Standing {
+    /// Reported.
+    Reported,
+    /// Suppressed with a reason.
+    Suppressed,
+}

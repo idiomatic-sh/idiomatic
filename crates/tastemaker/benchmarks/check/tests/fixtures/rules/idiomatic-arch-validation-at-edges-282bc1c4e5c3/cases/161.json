@@ -1,0 +1,115 @@
+{
+  "stamp": 161,
+  "rule": "idiomatic.arch/validation-at-edges",
+  "dependency": "One file",
+  "admitted": [
+    "src/greeting/types.rs"
+  ],
+  "given": {
+    "src/greeting/types.rs": "20f90781d0080027284338d1562a4ef5380f2eb6b94665530a88fb8c7906e89b",
+    "tastemaker.toml": "8d4b42641d117b84727a14cfdd47875002a0821753e0c15b11651ce432d5cd00"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [
+        "**/schemas.rs",
+        "**/schemas.rs/**"
+      ],
+      "id": "idiomatic.arch/validation-at-edges",
+      "include": [
+        "src/**",
+        "src/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-validation-at-edges-282bc1c4e5c3"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/greeting/types.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "name",
+            "Name"
+          ],
+          [
+            "file",
+            {
+              "file": "src/greeting/types.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                78,
+                230
+              ]
+            }
+          ],
+          [
+            "problem",
+            "implements `TryFrom`, a validation that lives only in a schemas.rs"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              78,
+              230
+            ]
+          },
+          "implements `TryFrom`, a validation that lives only in a schemas.rs"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/greeting/types.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

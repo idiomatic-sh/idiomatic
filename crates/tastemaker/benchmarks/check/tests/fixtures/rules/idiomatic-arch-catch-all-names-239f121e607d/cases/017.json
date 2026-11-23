@@ -1,0 +1,104 @@
+{
+  "stamp": 17,
+  "rule": "idiomatic.arch/catch-all-names",
+  "dependency": "One file",
+  "admitted": [
+    "src/greeting/types.rs",
+    "src/utils/text.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "src/greeting/types.rs": "d71e409b0185b1f7bd4cae2df3893bdee34b15915efba193cf526bb590d2fa13",
+    "src/utils/text.rs": "be71ad0094a8a1b06cb1904ad98e0ef07b1caedec5a4bd6a20e2501441d7485a",
+    "tastemaker.toml": "a0f53459c5c0e25763411520e8354328b6c4f593169fe71d49621d229640e06f"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/catch-all-names",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-catch-all-names-239f121e607d"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/greeting/types.rs",
+        "src/utils/text.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "path",
+            {
+              "file": "src/utils/text.rs"
+            }
+          ],
+          [
+            "name",
+            "utils"
+          ],
+          [
+            "place",
+            "is in a directory named"
+          ]
+        ],
+        "key": [
+          {
+            "file": "src/utils/text.rs"
+          },
+          "utils"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/utils/text.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

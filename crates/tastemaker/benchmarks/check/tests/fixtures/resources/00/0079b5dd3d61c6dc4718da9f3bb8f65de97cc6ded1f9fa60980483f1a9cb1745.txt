@@ -1,0 +1,12 @@
+use std::io::Write as _;
+use std::io::stdout;
+
+pub fn run() {
+    let _ = writeln!(std::io::stderr(), "error: internal error");
+    let mut out = stdout();
+    let _ = writeln!(out, "done");
+    let _ = writeln!(anstream::stdout().lock(), "done");
+    install(std::io::stderr);
+}
+
+fn install<W>(_writer: fn() -> W) {}

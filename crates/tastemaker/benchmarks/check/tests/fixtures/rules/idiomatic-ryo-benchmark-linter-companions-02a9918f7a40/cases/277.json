@@ -1,0 +1,91 @@
+{
+  "stamp": 277,
+  "rule": "idiomatic.ryo/benchmark-linter/companions",
+  "dependency": "One file",
+  "admitted": [
+    "linters/tool/rules/F001/query.ryoql"
+  ],
+  "given": {
+    "linters/tool/rules/F001/query.ryoql": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "tastemaker.toml": "d3ad1265d12d1b93b6eeedb292fd2d49d9671d30cb94b1305d41cf7722ee9626"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.ryo/benchmark-linter/companions",
+      "include": [
+        "linters/**",
+        "linters/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-ryo-benchmark-linter-companions-02a9918f7a40"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "linters/tool/rules/F001/query.ryoql",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "path",
+            {
+              "file": "linters/tool/rules/F001/query.ryoql"
+            }
+          ]
+        ],
+        "key": [
+          {
+            "file": "linters/tool/rules/F001/query.ryoql"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "linters/tool/rules/F001/query.ryoql"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

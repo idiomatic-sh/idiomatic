@@ -1,0 +1,103 @@
+{
+  "stamp": 194,
+  "rule": "idiomatic.arch/crate/tested-by-cases",
+  "dependency": "One file",
+  "admitted": [
+    "app/src/inbound.rs"
+  ],
+  "given": {
+    "app/src/inbound.rs": "e1a3696e19bd53ca0dae29e2670fba299cfeb96088abbdc3e6813f6c5da28a52",
+    "tastemaker.toml": "760753f6601362c6aa58931556f90f9a5ec926853004698988e92cffe52f6da2"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/crate/tested-by-cases",
+      "include": [
+        "app/src/*/adapters.rs",
+        "app/src/*/adapters.rs/**",
+        "app/src/*/interface.rs",
+        "app/src/*/interface.rs/**",
+        "app/src/application.rs",
+        "app/src/application.rs/**",
+        "app/src/domain.rs",
+        "app/src/domain.rs/**",
+        "app/src/inbound.rs",
+        "app/src/inbound.rs/**",
+        "app/src/main.rs",
+        "app/src/main.rs/**",
+        "app/src/resources.rs",
+        "app/src/resources.rs/**"
+      ],
+      "parameters": {},
+      "query": "condition-cli-cases-3b0774d4ea81"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "app/src/inbound.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "path",
+            {
+              "file": "app/src/inbound.rs"
+            }
+          ]
+        ],
+        "key": [
+          {
+            "file": "app/src/inbound.rs"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "app/src/inbound.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

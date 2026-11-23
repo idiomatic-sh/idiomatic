@@ -1,0 +1,116 @@
+{
+  "stamp": 21,
+  "rule": "idiomatic.arch/client-at-adapter",
+  "dependency": "Host table / setting",
+  "admitted": [
+    "src/inbound/use_cases/greet/use_case.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "src/inbound/use_cases/greet/use_case.rs": "942196600dfbd108730b9cd648247684b8a373ccaebe45feb9866d912872a0d0",
+    "tastemaker.toml": "0cf2a46556ce30f818032885d54f33f31df170a4d893b06b592055fb0982c01e"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/client-at-adapter",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {
+        "libraries": [
+          "rusqlite::*"
+        ]
+      },
+      "query": "idiomatic-arch-client-at-adapter-517b4c08559c"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "src/inbound/use_cases/greet/use_case.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "occurrence",
+            "src/inbound/use_cases/greet/use_case.rs#4"
+          ],
+          [
+            "file",
+            {
+              "file": "src/inbound/use_cases/greet/use_case.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                4,
+                24
+              ]
+            }
+          ],
+          [
+            "target",
+            "rusqlite::Connection"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              4,
+              24
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/inbound/use_cases/greet/use_case.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

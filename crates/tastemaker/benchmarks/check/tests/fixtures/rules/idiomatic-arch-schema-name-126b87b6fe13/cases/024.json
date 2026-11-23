@@ -1,0 +1,650 @@
+{
+  "stamp": 24,
+  "rule": "idiomatic.arch/schema-name",
+  "dependency": "One file",
+  "admitted": [
+    "edge/schemas.rs"
+  ],
+  "given": {
+    "domain/adapter.rs": "8b427e6183a8030a238aa302fdb9176a2ce13d0211991586ea0f0ae7523dd8ae",
+    "domain/writer.rs": "8b427e6183a8030a238aa302fdb9176a2ce13d0211991586ea0f0ae7523dd8ae",
+    "edge/adapter.rs": "8b427e6183a8030a238aa302fdb9176a2ce13d0211991586ea0f0ae7523dd8ae",
+    "edge/schemas.rs": "8b427e6183a8030a238aa302fdb9176a2ce13d0211991586ea0f0ae7523dd8ae",
+    "edge/writer.rs": "8b427e6183a8030a238aa302fdb9176a2ce13d0211991586ea0f0ae7523dd8ae",
+    "tastemaker.toml": "877cac1085f339b5ff2f739eb3e278b7234364366c0ce8a768ded0536fd00188"
+  },
+  "beside": {
+    ".tastemaker-rendered/3140f12e29e13c26.schemas.rs": "734b20cb8a0ed929a6a711586e1cc80302410f34ed2efe00e079fdbce0f6b1fd",
+    ".tastemaker-rendered/3e0e8596e2ee6fb5.adapter.rs": "d078e55e1716fc2673f6b2b7a40c72d40dc596b2457588bf66f256ecd079d8c1",
+    ".tastemaker-rendered/7993a05e9d907e65.writer.rs": "5f33b29325b7f424a2f5391d31b6653c3db82c4a2e2a11e4e02629512d6671e0"
+  },
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": [
+        [
+          {
+            "file": "edge/adapter.rs"
+          },
+          "adapter",
+          "idiomatic.arch",
+          "adapter",
+          "0.4.0",
+          "adapter"
+        ],
+        [
+          {
+            "file": "edge/schemas.rs"
+          },
+          "schemas",
+          "idiomatic.arch",
+          "schemas",
+          "0.1.0",
+          "adapter"
+        ],
+        [
+          {
+            "file": "edge/writer.rs"
+          },
+          "writer",
+          "idiomatic.arch",
+          "adapter-writer",
+          "0.1.0",
+          "adapter"
+        ]
+      ]
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "declarations-annotates",
+      "include": [
+        "edge/adapter.rs",
+        ".tastemaker-rendered/3e0e8596e2ee6fb5.adapter.rs",
+        "edge/schemas.rs",
+        ".tastemaker-rendered/3140f12e29e13c26.schemas.rs",
+        "edge/writer.rs",
+        ".tastemaker-rendered/7993a05e9d907e65.writer.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-annotates-1a06ca9aa0cf"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-decorates",
+      "include": [
+        "edge/adapter.rs",
+        ".tastemaker-rendered/3e0e8596e2ee6fb5.adapter.rs",
+        "edge/schemas.rs",
+        ".tastemaker-rendered/3140f12e29e13c26.schemas.rs",
+        "edge/writer.rs",
+        ".tastemaker-rendered/7993a05e9d907e65.writer.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-decorates-0a713d949c68"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-defines",
+      "include": [
+        "edge/adapter.rs",
+        ".tastemaker-rendered/3e0e8596e2ee6fb5.adapter.rs",
+        "edge/schemas.rs",
+        ".tastemaker-rendered/3140f12e29e13c26.schemas.rs",
+        "edge/writer.rs",
+        ".tastemaker-rendered/7993a05e9d907e65.writer.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-defines-31611722a2f7"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-elements",
+      "include": [
+        "edge/adapter.rs",
+        ".tastemaker-rendered/3e0e8596e2ee6fb5.adapter.rs",
+        "edge/schemas.rs",
+        ".tastemaker-rendered/3140f12e29e13c26.schemas.rs",
+        "edge/writer.rs",
+        ".tastemaker-rendered/7993a05e9d907e65.writer.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-elements-611c435ae881"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-entries",
+      "include": [
+        "edge/adapter.rs",
+        ".tastemaker-rendered/3e0e8596e2ee6fb5.adapter.rs",
+        "edge/schemas.rs",
+        ".tastemaker-rendered/3140f12e29e13c26.schemas.rs",
+        "edge/writer.rs",
+        ".tastemaker-rendered/7993a05e9d907e65.writer.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-entries-914c8ccf5460"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-mappings",
+      "include": [
+        "edge/adapter.rs",
+        ".tastemaker-rendered/3e0e8596e2ee6fb5.adapter.rs",
+        "edge/schemas.rs",
+        ".tastemaker-rendered/3140f12e29e13c26.schemas.rs",
+        "edge/writer.rs",
+        ".tastemaker-rendered/7993a05e9d907e65.writer.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-mappings-73567c3d3d2d"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-scopes",
+      "include": [
+        "edge/adapter.rs",
+        ".tastemaker-rendered/3e0e8596e2ee6fb5.adapter.rs",
+        "edge/schemas.rs",
+        ".tastemaker-rendered/3140f12e29e13c26.schemas.rs",
+        "edge/writer.rs",
+        ".tastemaker-rendered/7993a05e9d907e65.writer.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-scopes-1fcb150bbcec"
+    },
+    {
+      "exclude": [],
+      "id": "declarations-visibility",
+      "include": [
+        "edge/adapter.rs",
+        ".tastemaker-rendered/3e0e8596e2ee6fb5.adapter.rs",
+        "edge/schemas.rs",
+        ".tastemaker-rendered/3140f12e29e13c26.schemas.rs",
+        "edge/writer.rs",
+        ".tastemaker-rendered/7993a05e9d907e65.writer.rs"
+      ],
+      "parameters": {},
+      "query": "declarations-visibility-6e7d5a086d40"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/adapter-writer-layering",
+      "include": [
+        "edge/*.rs",
+        "edge/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-adapter-writer-layering-fda916e46fae"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/adapter/adapter-binding",
+      "include": [
+        "edge/adapter.rs",
+        "edge/adapter.rs/**"
+      ],
+      "parameters": {
+        "core": "foreign_core",
+        "port": "names"
+      },
+      "query": "idiomatic-arch-adapter-adapter-binding-4ef2c09a575f"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/adapter/adapter-contract",
+      "include": [
+        "edge/adapter_test.rs",
+        "edge/adapter_test.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-adapter-adapter-contract-688a7c9f65a9"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/adapter/adapter-name",
+      "include": [
+        "edge/adapter.rs",
+        "edge/adapter.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-adapter-adapter-name-138d898d80e2"
+    },
+    {
+      "exclude": [
+        "edge/*_test.rs",
+        "edge/*_test.rs/**",
+        "edge/fixtures.rs",
+        "edge/fixtures.rs/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/adapter/adapter-owns-no-adapter",
+      "include": [
+        "edge/*.rs",
+        "edge/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-adapter-adapter-owns-no-adapter-3e2a0dd864cc"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/adapter/adapter-scope",
+      "include": [
+        "edge/*.rs",
+        "edge/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-adapter-adapter-scope-f7208ba35be9"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/adapter/hollow-settings",
+      "include": [
+        "edge/settings.rs",
+        "edge/settings.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-adapter-hollow-settings-a4d401f19f6d"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/adapter/no-wildcard-into-domain-enum",
+      "include": [
+        "edge/adapter.rs",
+        "edge/adapter.rs/**",
+        "edge/schemas.rs",
+        "edge/schemas.rs/**",
+        "edge/writer.rs",
+        "edge/writer.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-adapter-no-wildcard-into-domain-enum-29c478c576b3"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/adapter/schemas-members",
+      "include": [
+        "edge/*.rs",
+        "edge/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-adapter-schemas-members-b73652864b66"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/adapter/settings-name",
+      "include": [
+        "edge/settings.rs",
+        "edge/settings.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-adapter-settings-name-bc176d266d25"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/adapter/stateless-adapters",
+      "include": [
+        "edge/adapter.rs",
+        "edge/adapter.rs/**",
+        "edge/connection.rs",
+        "edge/connection.rs/**",
+        "edge/errors.rs",
+        "edge/errors.rs/**",
+        "edge/settings.rs",
+        "edge/settings.rs/**",
+        "edge/types.rs",
+        "edge/types.rs/**",
+        "edge/writer.rs",
+        "edge/writer.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-adapter-stateless-adapters-290675d4e374"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/case-expectation",
+      "include": [
+        "edge/*_test.rs",
+        "edge/*_test.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-case-expectation-d0aa767a915e"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/client-at-adapter",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {
+        "libraries": [
+          "rusqlite::*"
+        ]
+      },
+      "query": "idiomatic-arch-client-at-adapter-517b4c08559c"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/error-name",
+      "include": [
+        "edge/errors.rs",
+        "edge/errors.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-error-name-ee126fc64f46"
+    },
+    {
+      "exclude": [
+        "edge/*_test.rs",
+        "edge/*_test.rs/**",
+        "edge/composition.rs",
+        "edge/composition.rs/**",
+        "edge/fixtures.rs",
+        "edge/fixtures.rs/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/factory-calls",
+      "include": [
+        "edge/*.rs",
+        "edge/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-factory-calls-6bd421048346"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/hollow-artifacts",
+      "include": [
+        "edge/*.rs",
+        "edge/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-hollow-artifacts-759d6bcc4a88"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/hollow-types",
+      "include": [
+        "edge/types.rs",
+        "edge/types.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-hollow-types-ee060a3a9ae5"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/no-domain-aliases",
+      "include": [
+        "edge/errors.rs",
+        "edge/errors.rs/**",
+        "edge/types.rs",
+        "edge/types.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-domain-aliases-092adbcaed6b"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/no-inherent-impls",
+      "include": [
+        "edge/types.rs",
+        "edge/types.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-inherent-impls-7fae24f601c8"
+    },
+    {
+      "exclude": [
+        "edge/*_test.rs",
+        "edge/*_test.rs/**",
+        "edge/fixtures.rs",
+        "edge/fixtures.rs/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/no-runtime-fixtures",
+      "include": [
+        "edge/*.rs",
+        "edge/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-runtime-fixtures-3026c70f4acb"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/no-vacuous-tests",
+      "include": [
+        "edge/*_test.rs",
+        "edge/*_test.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-vacuous-tests-ce4ca1fdc7f5"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/proof-beside",
+      "include": [
+        "edge/*.rs",
+        "edge/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-proof-beside-60adcfa5cb16"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/public-fields",
+      "include": [
+        "edge/types.rs",
+        "edge/types.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-public-fields-26f8cb4c2d3d"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/schema-name",
+      "include": [
+        "edge/schemas.rs",
+        "edge/schemas.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-schema-name-126b87b6fe13"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/schema-visibility",
+      "include": [
+        "edge/schemas.rs",
+        "edge/writer.rs"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-schema-visibility-96fa3d7bb5a7"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/test-runners-match-rows",
+      "include": [
+        "edge/*_test.rs",
+        "edge/*_test.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-test-runners-match-rows-4e5621332882"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/test-shape",
+      "include": [
+        "edge/*_test.rs",
+        "edge/*_test.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-test-shape-45f9971bbe85"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/unit-cases",
+      "include": [
+        "edge/*.rs",
+        "edge/*.rs/**",
+        "edge/*_test/**/*.rs",
+        "edge/*_test/**/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-unit-cases-a9a46cde7eef"
+    },
+    {
+      "exclude": [
+        "edge/*_test.rs",
+        "edge/*_test.rs/**",
+        "edge/schemas.rs",
+        "edge/schemas.rs/**",
+        ".tastemaker-rendered/**"
+      ],
+      "id": "idiomatic.arch/validation-at-edges",
+      "include": [
+        "edge/*.rs",
+        "edge/*.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-validation-at-edges-282bc1c4e5c3"
+    },
+    {
+      "exclude": [
+        ".tastemaker-rendered/**"
+      ],
+      "id": "tastemaker-comments",
+      "include": [
+        "domain/adapter.rs",
+        "domain/writer.rs",
+        "edge/adapter.rs",
+        "edge/schemas.rs",
+        "edge/writer.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "edge/schemas.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                0,
+                25
+              ]
+            }
+          ],
+          [
+            "name",
+            "schemas.rs"
+          ],
+          [
+            "problem",
+            "has no `impl TryFrom<<Name>Schema>`, `impl From<<Name>Schema>` or `impl From<<CoreType>> for <Name>Schema` in this file: a schema is converted into the core's type, or built from it when the command takes no input"
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              0,
+              25
+            ]
+          },
+          "has no `impl TryFrom<<Name>Schema>`, `impl From<<Name>Schema>` or `impl From<<CoreType>> for <Name>Schema` in this file: a schema is converted into the core's type, or built from it when the command takes no input"
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "edge/schemas.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

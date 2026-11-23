@@ -1,0 +1,143 @@
+{
+  "stamp": 273,
+  "rule": "idiomatic.ryo/runtime-authority",
+  "dependency": "Host table / setting",
+  "admitted": [
+    "src/application.rs",
+    "src/application/file_dag.rs",
+    "src/application/file_dag/program.rs",
+    "src/application/file_dag/program/admission.rs",
+    "src/application/file_dag/program/admission/service.rs",
+    "src/application/file_dag/program/kernel_session.rs",
+    "src/application/file_dag/program/runtime.rs",
+    "src/application/file_dag/program/runtime/service.rs",
+    "src/application/file_dag/program/runtime/types.rs",
+    "src/lib.rs"
+  ],
+  "given": {
+    "Cargo.toml": "d6b0e3346d884a407c319c2c0e9a4bed667293c127f41fe649c8e2ac3765fd2d",
+    "src/application.rs": "49f70e7f73acd6705b48f4ea077b3f3ec326ed87c9e51930ce096cf3a3ab95ee",
+    "src/application/file_dag.rs": "ca771dfd2b1006d2c0585d8f5e15f3e6b07a708cd327c7d749e05c2404ec9d52",
+    "src/application/file_dag/program.rs": "940cb4feede26223b1bab2685ef2a57fcc4e16d7e2f0b23f2f3c7ffc8cc11bcd",
+    "src/application/file_dag/program/admission.rs": "387162e50ee041356e5100f6c2e354bfb641a0f8da119702fea655a4e17386bb",
+    "src/application/file_dag/program/admission/service.rs": "21d3ac3af6c570d4f5e5fb83f88c0a9296530b71466280229f9de5718cd42684",
+    "src/application/file_dag/program/kernel_session.rs": "622cfcf0ee4644688b68c351501be0b5b44f03c5fb54b0e5e4a9043de5e16eaa",
+    "src/application/file_dag/program/runtime.rs": "370d7473442825394da7884f629a74a348bc2acfd20bf8cf5dfe08ffb0384093",
+    "src/application/file_dag/program/runtime/service.rs": "487d1a63240c6dd0c8295c629e24f1823537fd249a1a454f80adcd1e63f3caec",
+    "src/application/file_dag/program/runtime/types.rs": "c7956564377110449aa13fef140727c984078fc794a793a87614b387ee035e69",
+    "src/lib.rs": "849f68c51f704a46513ac90908f736be59f799bcdb690599c6d4f339198d34ac",
+    "tastemaker.toml": "91a64e956c0061df2371af2c84bb29743cf77b9849562a36347b1c90bfcfc17c"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.ryo/runtime-authority",
+      "include": [
+        "src/**",
+        "src/**/**"
+      ],
+      "parameters": {
+        "owner-records": [
+          {
+            "record": "AdmittedViewInputs",
+            "visibility": "private"
+          },
+          {
+            "record": "CacheBackend",
+            "visibility": "pub(in crate::application::file_dag::derived::owner)"
+          }
+        ]
+      },
+      "query": "idiomatic-ryo-runtime-authority-fb167c7db0ff"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/application.rs",
+        "src/application/file_dag.rs",
+        "src/application/file_dag/program.rs",
+        "src/application/file_dag/program/admission.rs",
+        "src/application/file_dag/program/admission/service.rs",
+        "src/application/file_dag/program/kernel_session.rs",
+        "src/application/file_dag/program/runtime.rs",
+        "src/application/file_dag/program/runtime/service.rs",
+        "src/application/file_dag/program/runtime/types.rs",
+        "src/lib.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/application/file_dag/program/kernel_session.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                22,
+                91
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              22,
+              91
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/application/file_dag/program/kernel_session.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

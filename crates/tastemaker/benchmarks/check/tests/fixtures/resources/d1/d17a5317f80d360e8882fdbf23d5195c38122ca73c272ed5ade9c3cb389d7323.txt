@@ -1,0 +1,9 @@
+//! The types the names port speaks: plain data, public fields and derives, with no constructor and no inherent impl.
+
+/// A name asked for.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Asked(pub &'static str);
+
+/// A greeting for a name.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Greeting(pub &'static str);

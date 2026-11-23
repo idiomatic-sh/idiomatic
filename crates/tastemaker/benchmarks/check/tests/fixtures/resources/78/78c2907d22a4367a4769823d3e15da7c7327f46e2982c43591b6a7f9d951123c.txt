@@ -1,0 +1,30 @@
+//! The greeting domain's `greet` use case: the struct holding only the ports it calls.
+
+use std::sync::Arc;
+
+use super::errors::GreetError;
+use super::interface::GreetUseCase;
+use crate::outbound::names::interface::NamesPort;
+use crate::outbound::names::types::{Asked, Greeting};
+
+/// `greet`, over only the ports it calls, each an `Arc<dyn <Name>Port>` field the edge injects.
+pub struct GreetUseCaseImpl {
+    names: Arc<dyn NamesPort>,
+}
+
+impl GreetUseCaseImpl {
+    /// `greet` over `names`, which the edge injects.
+    #[must_use]
+    pub fn new(names: Arc<dyn NamesPort>) -> Self {
+        Self { names }
+    }
+}
+
+impl GreetUseCase for GreetUseCaseImpl {
+    fn greet(&self, name: &'static str) -> Result<Greeting, GreetError> {
+        if name.is_empty() {
+            return Err(GreetError::Empty);
+        }
+        Ok(self.names.stored(&Asked(name))?)
+    }
+}

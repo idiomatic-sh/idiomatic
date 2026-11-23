@@ -1,0 +1,2 @@
+let rows = select * from "visibility";
+emit rows subject "file" key("occurrence");

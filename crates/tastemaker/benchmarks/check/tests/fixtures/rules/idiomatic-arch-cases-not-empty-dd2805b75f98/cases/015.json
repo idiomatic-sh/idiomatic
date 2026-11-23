@@ -1,0 +1,169 @@
+{
+  "stamp": 15,
+  "rule": "idiomatic.arch/cases-not-empty",
+  "dependency": "One file",
+  "admitted": [
+    "Cargo.toml",
+    "src/adapter_test.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "src/adapter_test.rs": "c03b7f244798febad022d1dca73546b13020f1855384c4ac9a22b69a6d706fdf",
+    "tastemaker.toml": "fed7fccbffdb19344c55db8ada4add6a1913a0a9bd1652cc9d813a7cb61c5316"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/cases-not-empty",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-cases-not-empty-dd2805b75f98"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "src/adapter_test.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/adapter_test.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                124,
+                150
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              124,
+              150
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/adapter_test.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/adapter_test.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                366,
+                394
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              366,
+              394
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/adapter_test.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "src/adapter_test.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                614,
+                642
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              614,
+              642
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/adapter_test.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

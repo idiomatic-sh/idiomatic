@@ -1,0 +1,103 @@
+{
+  "stamp": 172,
+  "rule": "idiomatic.arch/adapter/stateless-adapters",
+  "dependency": "One file",
+  "admitted": [
+    "adapter.rs"
+  ],
+  "given": {
+    "adapter.rs": "6daa04ee7307dff37ed72208ff2d6865e99f039bbe0a04da3e2d84a53e3e0893",
+    "tastemaker.toml": "e587027387a4104b509f1ea2824d4920bc9b3a360e8645ef1ef67e52d0fd3bc5"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/adapter/stateless-adapters",
+      "include": [
+        "adapter.rs",
+        "adapter.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-adapter-stateless-adapters-290675d4e374"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "adapter.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "file",
+            {
+              "file": "adapter.rs"
+            }
+          ],
+          [
+            "span",
+            {
+              "span": [
+                25,
+                115
+              ]
+            }
+          ]
+        ],
+        "key": [
+          {
+            "span": [
+              25,
+              115
+            ]
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "adapter.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

@@ -1,0 +1,8 @@
+"""The `demo` job's command, whose entry runs the job itself."""
+
+import sys
+
+
+def main() -> int:
+    """The entry: the job with its real adapters."""
+    return len(sys.argv)

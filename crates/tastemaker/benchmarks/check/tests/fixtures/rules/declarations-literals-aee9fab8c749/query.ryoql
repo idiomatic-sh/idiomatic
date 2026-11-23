@@ -1,0 +1,2 @@
+let rows = select * from "string-literal";
+emit rows subject "file" key("occurrence");

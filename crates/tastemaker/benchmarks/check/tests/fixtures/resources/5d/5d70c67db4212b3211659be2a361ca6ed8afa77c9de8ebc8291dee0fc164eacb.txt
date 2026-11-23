@@ -1,0 +1,14 @@
+//! The `greet` use case's failures.
+
+use crate::outbound::names::errors::NamesError;
+
+/// Why `greet` failed.
+#[derive(Debug, thiserror::Error)]
+pub enum GreetError {
+    /// No name was given.
+    #[error("no name was given")]
+    Empty,
+    /// The names port refused the name.
+    #[error("the names port refused the name")]
+    Names(#[from] NamesError),
+}

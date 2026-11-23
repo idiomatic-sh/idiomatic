@@ -1,0 +1,25 @@
+use std::path::Path;
+use std::process::Command;
+fn fixed(tastemaker: &str, directory: &Path) -> serde_json::Value {
+    drop(
+        Command::new(tastemaker)
+            .args(["check", "--fix"])
+            .current_dir(directory)
+            .output()
+            .expect("tm check --fix ran"),
+    );
+    let checked = Command::new(tastemaker)
+        .args(["--json", "check", "--fix"])
+        .current_dir(directory)
+        .output()
+        .expect("check starts");
+    serde_json::from_slice(&checked.stdout).expect("check report")
+}
+pub(crate) fn repository_prefix(project: &Path) -> String {
+    Command::new("git")
+        .args(["rev-parse", "--show-prefix"])
+        .current_dir(project)
+        .output()
+        .map(|output| String::from_utf8_lossy(&output.stdout).trim().to_owned())
+        .unwrap_or_default()
+}

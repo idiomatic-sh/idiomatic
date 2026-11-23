@@ -1,0 +1,7 @@
+param forbidden: set<string>;
+let imports = project(from="static-import", columns=["file", "span", "target"]);
+let references = project(from="reference", columns=["file", "span", "target"]);
+let mentions = union(left=imports, right=references);
+let named = select * from mentions where glob_any(target, $forbidden);
+let found = project(from=named, columns=["file", "span"]);
+emit found subject "file" key("span");

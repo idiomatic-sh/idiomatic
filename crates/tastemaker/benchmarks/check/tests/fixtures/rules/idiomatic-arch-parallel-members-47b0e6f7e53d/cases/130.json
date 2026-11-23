@@ -1,0 +1,322 @@
+{
+  "stamp": 130,
+  "rule": "idiomatic.arch/parallel-members",
+  "dependency": "Host table / setting",
+  "admitted": [
+    "Cargo.toml",
+    "join.rs",
+    "join/operation.rs",
+    "src/evaluation/operations.rs",
+    "src/evaluation/operations/join.rs",
+    "src/evaluation/operations/join/operation.rs",
+    "src/evaluation/operations/union.rs",
+    "src/evaluation/operations/union/operation.rs",
+    "src/evaluation/operations/where.rs",
+    "src/evaluation/operations/where/operation.rs",
+    "src/lib.rs",
+    "tastemaker.toml",
+    "union.rs",
+    "union/operation.rs",
+    "where.rs",
+    "where/operation.rs"
+  ],
+  "given": {
+    "Cargo.toml": "d79797bf9210b7a965d09b430565e09a19a31a04b5ff4a509be83122cbee87e0",
+    "join.rs": "c9729c1d1cd46f601f380cd42abd0ac1ed33910e82a1ba77f7cad9e01f32acad",
+    "join/operation.rs": "73cd3cb8b8f556261195d0cf18c7bc4132155d47eb22d518a8f6008fd803b372",
+    "src/evaluation/operations.rs": "28564f7e2a65d5e42087011e931e1c6157dc34ff442d09a17b3b6e18a4d673b9",
+    "src/evaluation/operations/join.rs": "c9729c1d1cd46f601f380cd42abd0ac1ed33910e82a1ba77f7cad9e01f32acad",
+    "src/evaluation/operations/join/operation.rs": "73cd3cb8b8f556261195d0cf18c7bc4132155d47eb22d518a8f6008fd803b372",
+    "src/evaluation/operations/union.rs": "c9729c1d1cd46f601f380cd42abd0ac1ed33910e82a1ba77f7cad9e01f32acad",
+    "src/evaluation/operations/union/operation.rs": "73cd3cb8b8f556261195d0cf18c7bc4132155d47eb22d518a8f6008fd803b372",
+    "src/evaluation/operations/where.rs": "c9729c1d1cd46f601f380cd42abd0ac1ed33910e82a1ba77f7cad9e01f32acad",
+    "src/evaluation/operations/where/operation.rs": "73cd3cb8b8f556261195d0cf18c7bc4132155d47eb22d518a8f6008fd803b372",
+    "src/lib.rs": "08f1aa344fc59741bf76bfd044a18f427bc913d033f52dede99e95a21ea7165c",
+    "tastemaker.toml": "f2f3d77ad157efdcef024bc581e279a168e4cc5f2b6158213901715a98c48ad1",
+    "union.rs": "c9729c1d1cd46f601f380cd42abd0ac1ed33910e82a1ba77f7cad9e01f32acad",
+    "union/operation.rs": "73cd3cb8b8f556261195d0cf18c7bc4132155d47eb22d518a8f6008fd803b372",
+    "where.rs": "c9729c1d1cd46f601f380cd42abd0ac1ed33910e82a1ba77f7cad9e01f32acad",
+    "where/operation.rs": "73cd3cb8b8f556261195d0cf18c7bc4132155d47eb22d518a8f6008fd803b372"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/parallel-members",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {
+        "independent": [
+          "languages",
+          "relations"
+        ],
+        "roles": [
+          "adapters",
+          "methods",
+          "commands",
+          "macros",
+          "tests",
+          "benches",
+          "fixtures",
+          "src"
+        ]
+      },
+      "query": "idiomatic-arch-parallel-members-47b0e6f7e53d"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "Cargo.toml",
+        "join.rs",
+        "join/operation.rs",
+        "src/evaluation/operations.rs",
+        "src/evaluation/operations/join.rs",
+        "src/evaluation/operations/join/operation.rs",
+        "src/evaluation/operations/union.rs",
+        "src/evaluation/operations/union/operation.rs",
+        "src/evaluation/operations/where.rs",
+        "src/evaluation/operations/where/operation.rs",
+        "src/lib.rs",
+        "tastemaker.toml",
+        "union.rs",
+        "union/operation.rs",
+        "where.rs",
+        "where/operation.rs"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [
+      {
+        "columns": [
+          [
+            "name",
+            "join"
+          ],
+          [
+            "other",
+            {
+              "file": "join.rs"
+            }
+          ],
+          [
+            "path",
+            {
+              "file": "src/evaluation/operations/join.rs"
+            }
+          ]
+        ],
+        "key": [
+          {
+            "file": "src/evaluation/operations/join.rs"
+          },
+          {
+            "file": "join.rs"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/evaluation/operations/join.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "name",
+            "join"
+          ],
+          [
+            "other",
+            {
+              "file": "src/evaluation/operations/join.rs"
+            }
+          ],
+          [
+            "path",
+            {
+              "file": "join.rs"
+            }
+          ]
+        ],
+        "key": [
+          {
+            "file": "join.rs"
+          },
+          {
+            "file": "src/evaluation/operations/join.rs"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "join.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "name",
+            "union"
+          ],
+          [
+            "other",
+            {
+              "file": "src/evaluation/operations/union.rs"
+            }
+          ],
+          [
+            "path",
+            {
+              "file": "union.rs"
+            }
+          ]
+        ],
+        "key": [
+          {
+            "file": "union.rs"
+          },
+          {
+            "file": "src/evaluation/operations/union.rs"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "union.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "name",
+            "union"
+          ],
+          [
+            "other",
+            {
+              "file": "union.rs"
+            }
+          ],
+          [
+            "path",
+            {
+              "file": "src/evaluation/operations/union.rs"
+            }
+          ]
+        ],
+        "key": [
+          {
+            "file": "src/evaluation/operations/union.rs"
+          },
+          {
+            "file": "union.rs"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/evaluation/operations/union.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "name",
+            "where"
+          ],
+          [
+            "other",
+            {
+              "file": "src/evaluation/operations/where.rs"
+            }
+          ],
+          [
+            "path",
+            {
+              "file": "where.rs"
+            }
+          ]
+        ],
+        "key": [
+          {
+            "file": "where.rs"
+          },
+          {
+            "file": "src/evaluation/operations/where.rs"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "where.rs"
+        }
+      },
+      {
+        "columns": [
+          [
+            "name",
+            "where"
+          ],
+          [
+            "other",
+            {
+              "file": "where.rs"
+            }
+          ],
+          [
+            "path",
+            {
+              "file": "src/evaluation/operations/where.rs"
+            }
+          ]
+        ],
+        "key": [
+          {
+            "file": "src/evaluation/operations/where.rs"
+          },
+          {
+            "file": "where.rs"
+          }
+        ],
+        "rule": "query",
+        "subject": {
+          "file": "src/evaluation/operations/where.rs"
+        }
+      }
+    ],
+    "unknowns": []
+  }
+}

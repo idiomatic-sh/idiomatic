@@ -1,0 +1,4 @@
+pub fn value() -> u8 {
+    // FIXME: read it from the config
+    1
+}

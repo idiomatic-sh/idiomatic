@@ -1,0 +1,5 @@
+"""The repository's workflows, which this never reads."""
+
+
+def test_demo_runs_end_to_end() -> None:
+    """The command runs the job."""

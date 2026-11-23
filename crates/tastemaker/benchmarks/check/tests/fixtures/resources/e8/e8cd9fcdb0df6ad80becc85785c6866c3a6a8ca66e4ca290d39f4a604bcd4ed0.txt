@@ -1,0 +1,6 @@
+use crate::application::file_dag::fact_lookup::service::FactLookup;
+use ryo_relations::domain::relations::types::Relation;
+
+pub(crate) fn bindings(lookup: &FactLookup<'_, '_>) -> usize {
+    lookup.rows(Relation::BindingRead).len()
+}

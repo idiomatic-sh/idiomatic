@@ -1,0 +1,230 @@
+{
+  "stamp": 203,
+  "rule": "idiomatic.arch/extension-point-ports",
+  "dependency": "Host table / setting",
+  "admitted": [
+    "app/tests/test/order/mod.rs",
+    "tastemaker.toml"
+  ],
+  "given": {
+    "app/tests/test/order/mod.rs": "294662d23952fdb3b0a23e7174f59d715510979f91f8f9fd850e0bc14cee0009",
+    "tastemaker.toml": "cb3837438d5075722edbdbfd6d8c4ecf3b5f87fdcb580a009b0f280aeab6d1e2"
+  },
+  "beside": {},
+  "hosted": [
+    {
+      "columns": [
+        [
+          "path",
+          "File"
+        ],
+        [
+          "entry",
+          "Text"
+        ],
+        [
+          "package",
+          "Text"
+        ],
+        [
+          "template",
+          "Text"
+        ],
+        [
+          "version",
+          "Text"
+        ],
+        [
+          "spec",
+          "Text"
+        ]
+      ],
+      "name": "tastemaker.placed",
+      "rows": []
+    }
+  ],
+  "cohort": [
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/bdd-members",
+      "include": [
+        "src/inbound/contracts/*.rs",
+        "src/inbound/contracts/*.rs/**",
+        "src/inbound/contracts/*/acceptance.*",
+        "src/inbound/contracts/*/acceptance.*/**",
+        "src/inbound/use_cases/*.rs",
+        "src/inbound/use_cases/*.rs/**",
+        "src/inbound/use_cases/*/acceptance.*",
+        "src/inbound/use_cases/*/acceptance.*/**",
+        "tests/bdd.rs",
+        "tests/bdd.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-bdd-members-16101641f22e"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/collection-members",
+      "include": [
+        "src/**/collections.rs",
+        "src/**/collections.rs/**",
+        "src/**/collections/**",
+        "src/**/collections/**/**"
+      ],
+      "parameters": {
+        "item-trait": []
+      },
+      "query": "idiomatic-arch-collection-members-91da55cccd3f"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/crate/bdd-runner",
+      "include": [
+        "src/inbound/contracts/*/acceptance.rs",
+        "src/inbound/contracts/*/acceptance.rs/**",
+        "src/inbound/use_cases/*/acceptance.rs",
+        "src/inbound/use_cases/*/acceptance.rs/**",
+        "tests/bdd.rs",
+        "tests/bdd.rs/**"
+      ],
+      "parameters": {
+        "world": "Behavior"
+      },
+      "query": "idiomatic-arch-crate-bdd-runner-67e896de24e5"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/crate/captured-workload",
+      "include": [
+        "Cargo.toml",
+        "Cargo.toml/**",
+        "benches/performance/captured/bench.rs",
+        "benches/performance/captured/bench.rs/**",
+        "src/**/adapters/recorded/adapter.rs",
+        "src/**/adapters/recorded/adapter.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-crate-captured-workload-4ce858c6c633"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/crate/error-shape",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-crate-error-shape-505aa5cd3814"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/crate/fixtures-feature",
+      "include": [
+        "Cargo.toml",
+        "Cargo.toml/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-crate-fixtures-feature-30d24fb9b0ff"
+    },
+    {
+      "exclude": [
+        "**/errors.rs",
+        "**/errors.rs/**",
+        "**/schemas.rs",
+        "**/schemas.rs/**"
+      ],
+      "id": "idiomatic.arch/crate/thiserror-in-errors",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-crate-thiserror-in-errors-749b78e75367"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/extension-point-ports",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {
+        "exposed": []
+      },
+      "query": "idiomatic-arch-extension-point-ports-d6269e1f7c08"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/item-contract",
+      "include": [
+        "src/**/collections/**",
+        "src/**/collections/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-item-contract-9f28a4c166b5"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/no-vacuous-tests",
+      "include": [
+        "src/cases.rs",
+        "src/cases.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-no-vacuous-tests-ce4ca1fdc7f5"
+    },
+    {
+      "exclude": [
+        "**/tests/fixtures/**",
+        "**/tests/fixtures/**/**",
+        "**/tests/ui/**",
+        "**/tests/ui/**/**"
+      ],
+      "id": "idiomatic.arch/orphan-rust-files",
+      "include": [
+        "**",
+        "**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-orphan-rust-files-d1ff19eef5c2"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/thin-command",
+      "include": [
+        "**/interface.rs",
+        "**/interface.rs/**",
+        "src/resources/*/*/command.rs",
+        "src/resources/*/*/command.rs/**",
+        "src/resources/*/*/entry.rs",
+        "src/resources/*/*/entry.rs/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-thin-command-bc8edb1a20ee"
+    },
+    {
+      "exclude": [],
+      "id": "idiomatic.arch/use-case-module-beside",
+      "include": [
+        "src/inbound/use_cases/**",
+        "src/inbound/use_cases/**/**"
+      ],
+      "parameters": {},
+      "query": "idiomatic-arch-use-case-module-beside-b252b9858d7c"
+    },
+    {
+      "exclude": [],
+      "id": "tastemaker-comments",
+      "include": [
+        "app/tests/test/order/mod.rs",
+        "tastemaker.toml"
+      ],
+      "parameters": {},
+      "query": "tastemaker-comments-0d4e8a4b026a"
+    }
+  ],
+  "expected": {
+    "rows": [],
+    "unknowns": []
+  }
+}
