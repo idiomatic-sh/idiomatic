@@ -152,5 +152,6 @@ pub(super) fn rule_context(request: Option<&str>) -> RuleContext {
     RuleContext {
         tables,
         observations,
+        ..RuleContext::default()
     }
 }

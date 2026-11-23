@@ -19,6 +19,7 @@ pub(super) struct Finisher<'p> {
     surv: HashMap<(String, String), Vec<u32>>,
     surv_by_path: HashMap<String, HashSet<String>>,
     check: bool,
+    pub(super) query_rows: bool,
     dump: Option<String>,
     dump_text: String,
     pub(super) run: finish::Run,
@@ -81,6 +82,7 @@ impl<'p> Finisher<'p> {
             surv,
             surv_by_path,
             check: args.contains(&"--check-bases"),
+            query_rows: false,
             dump: flag(args, "--dump"),
             dump_text: String::new(),
             run,
@@ -144,7 +146,7 @@ impl<'p> Finisher<'p> {
     }
 
     pub(super) fn can_finish_exact(&self) -> bool {
-        self.dump.is_none() && self.surv.is_empty()
+        !self.query_rows && self.dump.is_none() && self.surv.is_empty()
     }
 
     pub(super) fn emit_exact(&mut self, file: usize, table: &NodeTable, emit: usize, nodes: &[u64]) -> Option<u64> {
@@ -204,7 +206,7 @@ impl<'p> Finisher<'p> {
             stats[0] += 1;
             stats[1] += self.exec.stats.total_runs - before.0;
             stats[2] += self.exec.stats.total_rows - before.1;
-            finish::emptyprop::emit_done(&f, e.1);
+            self.exec.emit_done(&f, e.1);
             let got = if run.missing.is_empty() { got } else { Err(format!("functions {:?} not in the step set", run.missing)) };
             let written = got.and_then(|t| {
                 if self.dump.is_some() {
@@ -222,6 +224,10 @@ impl<'p> Finisher<'p> {
                 let mut seen = rustc_hash::FxHashSet::default();
                 for r in 0..t.n {
                     if t.n > 1 && !seen.insert(identity.iter().map(|&c| t.cols[c][r]).collect::<Vec<_>>()) {
+                        continue;
+                    }
+                    if self.query_rows {
+                        self.findings.push(finish::answer::row(run, &t, r, &e.0, file_no, &identity)?);
                         continue;
                     }
                     let target = if t.tys[subject] == finish::Ty::File {
@@ -312,7 +318,7 @@ impl<'p> Finisher<'p> {
         finish::empty_sel::print();
         finish::emptyprop::print();
         let plan = self.plan;
-        finish::emptyprop::print_skipped(&|n| plan.nodes[n].op.clone());
+        exec.print_skipped(&|n| plan.nodes[n].op.clone());
         {
             // redo-union pass 2: per step kind: runs (whole, by key, known empty), runs that returned nothing (known before
             // the bracket, bracketed whole, bracketed by key) and the seconds in the bracketed ones (`VEC_STEP_TIME`)

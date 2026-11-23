@@ -41,8 +41,6 @@ struct Work {
 thread_local! {
     /// Lists of leaf answers, taken and given back around a call (a leaf may recurse into another union).
     static GOT: RefCell<Vec<Vec<(Rc<Table>, u32)>>> = const { RefCell::new(Vec::new()) };
-    /// Prepared once a run and kept for the process (one plan a process): read by a plain reference, no count.
-    static PREP: RefCell<Vec<Option<&'static Prep>>> = const { RefCell::new(Vec::new()) };
     static WORK: RefCell<Work> = RefCell::new(Work::default());
 }
 
@@ -50,9 +48,9 @@ thread_local! {
 const SCAN: usize = 16;
 const NONE: u32 = u32::MAX;
 
-fn prep(ex: &mut Exec<'_>, run: &mut Run, node: usize) -> R<&'static Prep> {
-    if let Some(Some(pr)) = PREP.with(|m| m.borrow().get(node).copied()) {
-        return Ok(pr);
+fn prep(ex: &mut Exec<'_>, run: &mut Run, node: usize) -> R<Rc<Prep>> {
+    if let Some(pr) = &ex.union_preps[node] {
+        return Ok(pr.clone());
     }
     // the tree: inner unions read by this tree alone (and not emitted) are flattened
     let plan = ex.plan;
@@ -78,14 +76,8 @@ fn prep(ex: &mut Exec<'_>, run: &mut Run, node: usize) -> R<&'static Prep> {
         let ident = map.len() == lsc.names.len() && map.iter().enumerate().all(|(i, c)| i == *c);
         ls.push(Leaf { node: x, map, ident });
     }
-    let pr: &'static Prep = Box::leak(Box::new(Prep { leaves: ls.into(), k: sc.names.len(), names: sc.names.clone(), tys: sc.tys.clone(), empty: Rc::new(Table::with(sc.names.clone(), sc.tys.clone())) }));
-    PREP.with(|m| {
-        let mut m = m.borrow_mut();
-        if m.len() <= node {
-            m.resize(ex.plan.nodes.len().max(node + 1), None);
-        }
-        m[node] = Some(pr);
-    });
+    let pr = Rc::new(Prep { leaves: ls.into(), k: sc.names.len(), names: sc.names.clone(), tys: sc.tys.clone(), empty: Rc::new(Table::with(sc.names.clone(), sc.tys.clone())) });
+    ex.union_preps[node] = Some(pr.clone());
     Ok(pr)
 }
 
@@ -111,7 +103,7 @@ pub(super) fn whole(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut 
             got.push((t, i as u32));
         }
     }
-    let out = combine(pr, &got);
+    let out = combine(&pr, &got);
     give_got(got);
     Ok(out)
 }
@@ -127,7 +119,7 @@ pub(super) fn keyed(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut 
             got.push((t, i as u32));
         }
     }
-    let out = combine(pr, &got);
+    let out = combine(&pr, &got);
     let handed = out.n == 0 || got.iter().any(|g| Rc::ptr_eq(&g.0, &out));
     give_got(got);
     Ok((out, handed))
