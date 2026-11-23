@@ -155,6 +155,8 @@ fn write_segment<'q>(
         annotating: Depth(1),
         literals: std::mem::take(&mut tree.strings),
         imports: std::mem::take(&mut tree.imports),
+        names: std::mem::take(&mut tree.names),
+        text: "",
     };
     walker.visit_expr(parsed.expr());
     tree.nodes = walker.nodes;
@@ -162,6 +164,7 @@ fn write_segment<'q>(
     tree.ends = walker.subtree_ends;
     tree.strings = walker.literals;
     tree.imports = walker.imports;
+    tree.names = walker.names;
     tree.segments.push(EmbeddedSite {
         host: string.host,
         first,

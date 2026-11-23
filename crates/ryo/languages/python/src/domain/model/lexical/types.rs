@@ -22,6 +22,8 @@ pub(crate) struct TypedTree<'t, 'a> {
     pub(crate) nodes: &'t [AnyNodeRef<'a>],
     /// Whether the module postpones the evaluation of its annotations (`from __future__ import annotations`).
     pub(crate) annotations: BindingAnnotationTiming,
+    /// The names the walk interned: the name of each place, and the table.
+    pub(crate) named: &'t crate::domain::model::names::types::WalkNames,
 }
 
 /// An embedded segment the walk wrote: the expression of a string the language reads as a type expression. The nodes of a

@@ -30,6 +30,21 @@ pub(super) struct Inputs<'t> {
     pub(super) future: bool,
 }
 
+/// redo-fills c2: whether an annotation of the file is stored unevaluated (the `lazy` test of `rows`).
+pub(super) fn lazy_any(run: &mut finish::Run, evaluations: &finish::Table, future: bool) -> Result<bool, String> {
+    let (s_postponed, s_deferred, s_unevaluated) = (u64::from(run.sym(b"postponed")), u64::from(run.sym(b"deferred")), u64::from(run.sym(b"unevaluated")));
+    let a_eval = col(evaluations, "evaluation")?;
+    Ok(evaluations.cols[a_eval][..evaluations.n].iter().any(|e| *e == s_postponed || *e == s_deferred || (*e == s_unevaluated && future)))
+}
+
+/// redo-fills c2: whether the file has an element of a kind whose children `rows` marks outside a stub (a type parameter or
+/// a type alias).
+pub(super) fn has_type_parameters(run: &mut finish::Run, table: &NodeTable) -> bool {
+    let names: [&[u8]; 4] = [b"type-var", b"type-var-tuple", b"param-spec", b"type-alias"];
+    let syms: Vec<u32> = names.iter().map(|k| run.sym(k)).collect();
+    run.kind_sym.iter().enumerate().any(|(c, s)| syms.contains(s) && !node_table::ids_of_kind(table, ryo::languages::KindBits(c as u16)).is_empty())
+}
+
 /// The fact's rows: (element, deferred = true).
 pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -> Result<Vec<u32>, String> {
     let n = node_table::element_count(table).0 as u32;

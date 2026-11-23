@@ -16,7 +16,12 @@ use crate::domain::syntax::constants::{
     MODULE_FUTURE_ANNOTATIONS_ENABLED,
 };
 use crate::domain::syntax::service::kind_bits;
+use crate::domain::model::lexical::service::opened;
+use crate::domain::model::names::constants::FIXED_TEXT;
+use crate::domain::model::names::service::{intern, text_of};
+use crate::domain::model::names::types::NameCode;
 use crate::domain::syntax::types::Kind;
+use crate::domain::tokens::types::Token;
 use ruff_python_ast::visitor::source_order::{
     SourceOrderVisitor, TraversalSignal, walk_annotation,
 };
@@ -71,8 +76,32 @@ impl Walker<'_, '_, '_> {
             (Some(open), Kind::Token(named)) => token_field(open.node, token.kind(), named),
             (Some(_) | None, Kind::Node(_) | Kind::Token(_) | Kind::Extra(_)) => Field::None,
         };
+        if matches!(kind, Kind::Token(Token::Name)) && !self.text.is_empty() {
+            if token.kind().is_non_soft_keyword() {
+                // A keyword is a fixed text of the language: its code is its kind's, the same in every file.
+                self.names.of_token.push(NameCode(FIXED_TEXT | token.kind() as u32));
+            } else {
+                self.name_token(start, end);
+            }
+        }
         node_table::token(self.builder, kind_bits(kind), field_code(field), start, end);
         self.written = end;
+    }
+
+    /// Interns the text of a name token of the file's own tree, from `start` to `end`: the name of the innermost open node when
+    /// it is that text (a name's token under its node), else the text itself.
+    fn name_token(&mut self, start: Offset, end: Offset) {
+        let text = self
+            .text
+            .get(usize::from(Position(start.0))..usize::from(Position(end.0)))
+            .unwrap_or_default();
+        let held = self
+            .open
+            .last()
+            .and_then(|open| self.names.lexical.name.get(usize::from(open.at)).copied())
+            .filter(|code| text_of(&self.names.names, *code) == Some(NameText(text)));
+        let code = held.unwrap_or_else(|| intern(&mut self.names.names, NameText(text)));
+        self.names.of_token.push(code);
     }
 
     /// Writes every token that ends at or before `at`: what comes before a node that starts there. A token of no length where the
@@ -191,6 +220,7 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
             // No other node is kept apart for the reader of the tree.
         }
         self.subtree_ends.push(Position(id.saturating_add(1)));
+        opened(&mut self.names.lexical, &mut self.names.names, &self.nodes, &self.parents, &self.subtree_ends, at);
         let from = FieldIndex(self.fields.len());
         child_fields(
             Placed {
@@ -234,7 +264,8 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
     }
 
     fn leave_node(&mut self, node: AnyNodeRef<'t>) {
-        let _: Option<Offset> = self.ends.pop();
+        // Where the node ends, as it was placed when it opened.
+        let placed_end = self.ends.pop();
         if opens(node.kind()).is_some() {
             let _: Option<Strings> = self.strings.pop();
         }
@@ -245,7 +276,7 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
             }
             self.length
         } else {
-            let end = placed(self.origin, node.end());
+            let end = placed_end.unwrap_or_else(|| placed(self.origin, node.end()));
             self.write_within(end);
             end
         };

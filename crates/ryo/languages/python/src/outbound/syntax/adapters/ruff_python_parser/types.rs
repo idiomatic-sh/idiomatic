@@ -270,6 +270,11 @@ pub(super) struct Walker<'b, 'w, 't> {
     pub imports: Vec<languages::Position>,
     /// The fields the open nodes hand their children, one run for each open node.
     pub fields: Vec<crate::domain::node::types::ChildField<'t>>,
+    /// The names interned so far: of each node, and of each name token of the file's own tree.
+    pub names: crate::domain::model::names::types::WalkNames,
+    /// The file's text, when its bytes are text and this is the file's own tree: a name token's code is of its text here.
+    /// Empty for an embedded segment and for a file that is no text: their name tokens get no code.
+    pub text: &'t str,
 }
 
 /// A string the language reads as a type expression, parsed: the library's parse of it, the text its offsets are of, and where

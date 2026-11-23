@@ -144,6 +144,7 @@ impl FactTable {
     #[inline]
     fn put(&mut self, node: u32, values: &[(usize, u32)]) {
         self.mark(node);
+        self.keys.push(node);
         self.rows += 1;
         for (place, value) in values {
             if let Some(cell) = self.columns.get_mut(*place).and_then(|column| column.get_mut(node as usize)) {
@@ -221,6 +222,12 @@ impl FactTable {
         self.offsets[at] as usize..self.offsets[at + 1] as usize
     }
 
+    /// redo-fills pass 2: each row's key node, in the order the rows were written (both layouts; empty for a yes/no ask).
+    #[must_use]
+    pub fn keys(&self) -> &[u32] {
+        &self.keys
+    }
+
     /// The row number in the columns of a place `rows_of` gave.
     #[inline]
     #[must_use]
@@ -242,6 +249,17 @@ pub struct FactColumns {
 struct TextMemo {
     fixed: HashMap<(usize, usize), u32, std::hash::BuildHasherDefault<crate::domain::model::names::types::KeyHasher>>,
     names: Vec<u32>,
+}
+
+/// redo-fills pass 2: a second text memo, for a caller whose text ids are not the walk's own caller's (the memo holds ids).
+#[derive(Debug, Default)]
+pub struct ColumnMemo(TextMemo);
+
+impl ColumnMemo {
+    /// A new file starts: its model names are forgotten (the fixed texts are kept for the run).
+    pub fn new_file(&mut self) {
+        self.0.names.clear();
+    }
 }
 
 impl TextMemo {
@@ -275,6 +293,40 @@ pub struct ColumnWalk {
     scratch: PythonWalkScratch,
     memo: TextMemo,
     words: FileWords,
+    /// When set, the table is written `structured` with these enclosing kind sets.
+    structure: Option<Vec<languages::KindSet>>,
+}
+
+/// The relations this walk writes per node as fact columns (`ColumnWalk::column`), by catalog name: a consumer may test
+/// them per node.
+pub const PER_NODE_FACTS: [&str; 9] =
+    ["qualified-name", "identifier", "literal-properties", "numeric-literal", "string-literal", "expression-shape", "expression-type", "binding-event", "binding-read"];
+
+/// How a column's literal is spelled in the source as a word: whole, or its last segment after a separator.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Spelling {
+    Whole,
+    LastSegment(char),
+}
+
+/// The (relation, column) pairs whose text is spelled in the file as a name: a reference to `a.b.c` spells `c` (or imports
+/// it under an alias by a statement that spells `c`); an identifier's and a definition's name are spelled whole.
+pub const SPELLED_COLUMNS: [(&str, &str, Spelling); 4] = [
+    ("qualified-name", "path", Spelling::LastSegment('.')),
+    ("static-import", "target", Spelling::LastSegment('.')),
+    ("identifier", "name", Spelling::Whole),
+    ("defines", "name", Spelling::Whole),
+];
+
+/// The kind of the tokens that spell names (the words the first half's word index reads).
+pub const NAME_KIND: &str = "name-token";
+
+/// Whether `text` is a name as this language spells one (a Python identifier: a letter or `_`, then letters, digits or
+/// `_`; Unicode letters and digits count).
+#[must_use]
+pub fn is_identifier(text: &str) -> bool {
+    let mut cs = text.chars();
+    cs.next().is_some_and(|c| c.is_alphabetic() || c == '_') && cs.all(|c| c.is_alphanumeric() || c == '_')
 }
 
 impl ColumnWalk {
@@ -292,7 +344,14 @@ impl ColumnWalk {
             scratch: PythonWalkScratch::default(),
             memo: TextMemo::default(),
             words,
+            structure: None,
         }
+    }
+
+    /// Every table this walk writes from now on is written `structured` (`node_table::structured`) with the kind sets
+    /// `enclosing`: its element sets and enclosing columns are written as the ids are numbered.
+    pub fn structured(&mut self, enclosing: Vec<languages::KindSet>) {
+        self.structure = Some(enclosing);
     }
 
     /// Walks one file into `table` and lends it to `visit`.
@@ -305,7 +364,11 @@ impl ColumnWalk {
         if reads(source_path) != languages::Recognition::Reads {
             return Err(WalkError::Unsupported);
         }
-        let mut builder = node_table::builder(table, <PythonWalk<WalkPorts> as languages::Walk>::KIND_COUNT);
+        let kinds = <PythonWalk<WalkPorts> as languages::Walk>::KIND_COUNT;
+        let mut builder = match &self.structure {
+            Some(enclosing) => node_table::structured(table, kinds, enclosing),
+            None => node_table::builder(table, kinds),
+        };
         let target = self.walk.ports.settings.target_version().components();
         self.scratch.file.model.target = target;
         self.memo.names.clear();
@@ -314,14 +377,16 @@ impl ColumnWalk {
         let scratch = &mut self.scratch;
         let memo = &mut self.memo;
         let words = &mut self.words;
-        self.walk.ports.syntax.walk(SourceText(bytes), source_kind(source_path), ReportedSyntax::Refusals, &mut builder, &mut |walked| match walked {
+        let mut names = std::mem::take(&mut scratch.names);
+        crate::domain::model::names::service::cleared(&mut names);
+        self.walk.ports.syntax.walk(SourceText(bytes), source_kind(source_path), ReportedSyntax::Refusals, &mut builder, names, &mut |walked| match walked {
             Walked::Strings(tree) => {
                 built_parts = Built::default();
                 let mut hosts = Vec::new();
                 if tree.strings.is_empty() {
                     return hosts;
                 }
-                let typed = TypedTree { segments: &tree.segments, parents: &tree.parents, ends: &tree.ends, nodes: &tree.nodes, annotations: tree.annotations };
+                let typed = TypedTree { segments: &tree.segments, parents: &tree.parents, ends: &tree.ends, nodes: &tree.nodes, annotations: tree.annotations, named: &tree.names };
                 form_imports(typed, &tree.imports, &mut scratch.forms);
                 type_strings(
                     &mut FormSource { tree: typed, imports: &scratch.forms, model: &mut scratch.file.model, built: &mut built_parts, path: &mut scratch.path },
@@ -332,6 +397,8 @@ impl ColumnWalk {
             }
             Walked::Whole(written, tree) => {
                 lend(written, &tree, target, scratch, built_parts, memo, words, visit);
+                // the walk's buffers go back to the worker for the next file
+                scratch.names = tree.names;
                 Vec::new()
             }
         });
@@ -356,7 +423,7 @@ fn lend(
         syntax: SyntaxFile {
             table,
             nodes: tree.nodes.get(..own).unwrap_or_default(),
-            tree: TypedTree { segments: &tree.segments, parents: &tree.parents, ends: &tree.ends, nodes: &tree.nodes, annotations: tree.annotations },
+            tree: TypedTree { segments: &tree.segments, parents: &tree.parents, ends: &tree.ends, nodes: &tree.nodes, annotations: tree.annotations, named: &tree.names },
             text: tree.text,
             file: FileId(0),
             completeness: tree.completeness,
@@ -407,6 +474,20 @@ fn flag(value: Flag) -> u32 {
 }
 
 impl ColumnFile<'_, '_> {
+    /// The code the walk interned for each name token of the file's own tree, in id order, into `out` (cleared first): equal
+    /// codes are equal texts. A code with the high bit set (`FIXED_TEXT`) is a fixed text of the language, the same text in
+    /// every file of the run. Empty when the file's bytes were not text.
+    pub fn name_token_codes(&self, out: &mut Vec<u32>) {
+        out.clear();
+        out.extend(self.file.syntax.tree.named.of_token.iter().map(|code| code.0));
+    }
+
+    /// redo-fills pass 2: the run's number of this file: the file every row of the file names (its file cells and the file
+    /// part of its node ids) is this one, not `FileId(0)`.
+    pub fn set_file(&mut self, file: FileId) {
+        self.file.syntax.file = file;
+    }
+
     /// The reader: today's rows of `relation` (the reference).
     pub fn fill(&mut self, relation: Relation, wanted: Wanted, words: &mut FileWords, out: &mut FilledColumns) -> FactAnswer {
         let mut source = fillers::file_source::<PythonWalk<WalkPorts>>(self.file);
@@ -604,6 +685,31 @@ impl ColumnFile<'_, '_> {
         for (ask, table) in asks.iter().zip(&mut out.tables) {
             self.column(ask, ids, table);
         }
+    }
+
+    /// redo-fills pass 2: how many rows the reader's fill of `relation` writes in this file, where the file's own contents
+    /// say it without the fill: a comment a comment token, an embedded expression a segment the walk wrote. None: not
+    /// known without the fill.
+    #[must_use]
+    pub fn row_count(&self, relation: Relation) -> Option<usize> {
+        match relation {
+            Relation::Comment => Some(
+                crate::domain::layout_facts::service::tokens(&self.file.syntax)
+                    .filter(|at| at.token == crate::domain::tokens::types::Token::Comment)
+                    .count(),
+            ),
+            Relation::EmbeddedExpression => Some(self.file.syntax.tree.segments.len()),
+            // a row an import alias: a file with no alias has none
+            Relation::StaticImport | Relation::StandardLibraryImport => nodes_of_kind(&self.file.syntax, Kind::Node(Node::Alias)).next().is_none().then_some(0),
+            _ => None,
+        }
+    }
+
+    /// `column` with the caller's own text memo (`ColumnMemo`): the ids are `ids`', never the walk's memo's.
+    pub fn column_with(&mut self, ask: &Ask, ids: &mut dyn TextIds, table: &mut FactTable, memo: &mut ColumnMemo) {
+        std::mem::swap(self.memo, &mut memo.0);
+        self.column(ask, ids, table);
+        std::mem::swap(self.memo, &mut memo.0);
     }
 
     /// One ask's table.

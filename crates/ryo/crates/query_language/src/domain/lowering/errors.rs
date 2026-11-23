@@ -121,6 +121,13 @@ pub(crate) enum LoweringError {
         /// Where the query names it.
         span: QuerySpan,
     },
+    /// A `select` keeps a column computed by a function (`concat(l.path, ".", l.name) as path`): the finish plan's
+    /// lowering reads it; this compile keeps only columns read.
+    #[error("a select here keeps only the columns it reads, not one computed by a function")]
+    ComputedColumn {
+        /// Where the select is written.
+        span: QuerySpan,
+    },
     /// A join's `on`, or a `where` after a join, names `alias.column` with an alias neither side of the join has.
     #[error("no side of the join is named `{alias}`; the join reads {sides}")]
     UnknownSide {

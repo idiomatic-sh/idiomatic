@@ -43,6 +43,8 @@ const UNCLOSED: &str = "let a = select * from \"syntax-tree\" where (kind = \"a\
 
 const LIST_AFTER_IN: &str = "let found = select * from \"function\" where name in [\"a\", \"b\"] and name not in [\"c\", \"d\"]; emit found subject \"file\" key(\"span\");";
 
+const COMPUTED_COLUMN: &str = "let paths = select check, concat(l.path, \".\", name) as path, file from \"attribute\" as l; emit paths subject \"file\" key(\"path\");";
+
 const DANGLING_OR: &str = "let a = select * from \"syntax-tree\" where kind = \"a\" or;\nemit a subject \"file\" key(\"span\");";
 
 /// What a row of the cases asks of the adapter.
@@ -74,6 +76,8 @@ enum Scenario {
     TwoEmits,
     /// Reads a list written after `in`.
     ListAfterIn,
+    /// Reads a select keeping a column computed by a function.
+    ComputedColumn,
     /// Checks the grammar table: how many of its entries break the check.
     Grammar(Coverage),
     /// A check that drives the adapter itself and asserts what it reads; it answers no steps.
@@ -111,6 +115,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::MisspelledKeyword | Scenario::Grammar(_) | Scenario::Check(_) => MISSPELLED,
         Scenario::TwoEmits => TWO_EMITS,
         Scenario::ListAfterIn => LIST_AFTER_IN,
+        Scenario::ComputedColumn => COMPUTED_COLUMN,
     };
     let program = SyntaxWinnowAdapter.read(QueryView(text))?;
     match scenario {
@@ -135,6 +140,7 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::OrPrecedence => or_precedence_read(&program),
         Scenario::Grouped => grouped_read(&program),
         Scenario::ListAfterIn => list_after_in_read(&program),
+        Scenario::ComputedColumn => computed_column_read(&program),
         Scenario::MisspelledKeyword
         | Scenario::TwoEmits
         | Scenario::Unclosed
@@ -203,6 +209,26 @@ fn list_after_in_read(program: &WrittenProgram) {
     assert_eq!(alternatives(&select.filters[0]), vec![1, 1]);
     let tests: Vec<_> = [1, 2].map(|place| test_at(select, place).test).into();
     assert_eq!(tests, [WrittenTest::NotEqual; 2]);
+}
+
+/// `check, concat(l.path, ".", name) as path, file` of `COMPUTED_COLUMN` keeps three columns, the second a `concat` of
+/// three operands renamed `path`.
+fn computed_column_read(program: &WrittenProgram) {
+    use ryo_values::domain::query_syntax::types::{Renaming, SelectedValue};
+    let Expression::Select(select) = &program.steps[0].expression else {
+        panic!("the step is a select");
+    };
+    let Columns::Listed(columns) = &select.columns else {
+        panic!("the select lists its columns");
+    };
+    assert_eq!(columns.len(), 3);
+    let SelectedValue::Applied(applied) = &columns[1].column else {
+        panic!("the second column is computed");
+    };
+    assert_eq!(applied.function, WrittenFunction::Concat);
+    assert_eq!(applied.arguments.len(), 3);
+    assert_eq!(columns[1].rename, Renaming::Renamed(ColumnName("path".into())));
+    assert!(matches!(columns[0].column, SelectedValue::Column(_)));
 }
 
 /// `(a or b) and c and (d and e)` of `GROUPED` is an `or` and three tests: the group with no `or` is read as its tests.
@@ -404,6 +430,12 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_list_after_in_is_an_alternative_for_each_value_written"),
         word: Word::Succeeds,
         input: || Scenario::ListAfterIn,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("a_select_keeps_a_column_computed_by_a_function_under_its_name"),
+        word: Word::Succeeds,
+        input: || Scenario::ComputedColumn,
         expect: Expect::Value(1),
     },
     Case {

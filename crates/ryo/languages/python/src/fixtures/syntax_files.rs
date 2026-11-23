@@ -51,6 +51,20 @@ pub(crate) fn outline(table: &NodeTable) -> (Vec<Position>, Vec<Position>) {
     )
 }
 
+/// What the walk writes of the model for `nodes` (with their `parents` and subtree `ends`), each read in id order as the walk
+/// reads it as it opens (`lexical::opened`); no name token codes.
+pub(crate) fn names_of(
+    nodes: &[AnyNodeRef<'_>],
+    parents: &[Position],
+    ends: &[Position],
+) -> crate::domain::model::names::types::WalkNames {
+    let mut names = crate::domain::model::names::types::WalkNames::default();
+    for at in 0..u32::try_from(nodes.len()).unwrap_or(u32::MAX) {
+        crate::domain::model::lexical::service::opened(&mut names.lexical, &mut names.names, nodes, parents, ends, Position(at));
+    }
+    names
+}
+
 /// Walks `source` and hands `read` the walked file.
 ///
 /// # Panics
@@ -78,6 +92,7 @@ pub(crate) fn with_file(source: &str, read: &mut dyn FnMut(&SyntaxFile<'_>)) {
     let mut numbering = Numbering(&mut nodes);
     numbering.visit_mod(parsed.syntax());
     let (parents, ends) = outline(&table);
+    let named = names_of(&nodes, &parents, &ends);
     read(&SyntaxFile {
         table: &table,
         nodes: &nodes,
@@ -87,6 +102,7 @@ pub(crate) fn with_file(source: &str, read: &mut dyn FnMut(&SyntaxFile<'_>)) {
             ends: &ends,
             nodes: &nodes,
             annotations: BindingAnnotationTiming::Immediate,
+            named: &named,
         },
         text: NameText(source),
         file: FileId(0),

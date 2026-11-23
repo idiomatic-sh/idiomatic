@@ -4,7 +4,7 @@
 //! finds its key's run by hash and the rows inside its band by binary search, and stops at the first that passes every
 //! other test. The pairs are never made. No rule id: the shape is read from the select's own tests.
 
-use super::{E, Exec, bucket_len, File, NULL, Provider, R, Run, Src, Table, Ty, V, bucket, eval, kind_set, key_of, refs_of, truthy, view_rows, view_holds};
+use super::{E, Exec, Op, bucket_len, File, NULL, Provider, R, Run, Src, Table, Ty, V, bucket, eval, kind_set, key_of, refs_of, truthy, view_rows, view_holds};
 use rustc_hash::FxHashMap;
 
 /// A select's tests, split for the semijoin.
@@ -46,14 +46,14 @@ pub(super) fn shape(conj: &[E], pb: usize, ty: &[Ty]) -> Shape {
             continue;
         }
         if let E::Cmp(o, x, y) = c {
-            let sides = [(&**x, &**y, o.as_str()), (&**y, &**x, flip(o))];
+            let sides = [(&**x, &**y, o.as_str()), (&**y, &**x, flip(o.as_str()))];
             let mut placed = false;
             for (a, b, op) in sides {
                 let E::Col(si, col, _) = *a else { continue };
                 if si != pb || refs_of(b) != kb {
                     continue;
                 }
-                if op == "=" && o == "=" {
+                if op == "=" && *o == Op::Eq {
                     s.eqs.push((col, b.clone()));
                     placed = true;
                     break;
@@ -108,7 +108,21 @@ impl Exec<'_> {
         let ka = 1 - pb;
         let (an, bn) = (sp.srcs[ka], sp.srcs[pb]);
         let bty = self.schema(run, bn)?.tys.clone();
-        let sh = shape(&sp.conj, pb, &bty);
+        // redo-alloc: the select's split of tests made once a run (it reads only the plan), not a call
+        let sh = {
+            thread_local! {
+                static SHAPES: std::cell::RefCell<FxHashMap<(usize, usize, usize), std::rc::Rc<Shape>>> = std::cell::RefCell::new(FxHashMap::default());
+            }
+            let key = (std::ptr::from_ref(self.plan) as usize, node, pb);
+            match SHAPES.with(|m| m.borrow().get(&key).cloned()) {
+                Some(sh) => sh,
+                None => {
+                    let sh = std::rc::Rc::new(shape(&sp.conj, pb, &bty));
+                    SHAPES.with(|m| m.borrow_mut().insert(key, sh.clone()));
+                    sh
+                }
+            }
+        };
         if !count && sh.band.is_none() && !sw!("VEC_SEMI_EQ") {
             *self.tally.back.entry((node, "no band")).or_default() += 1;
             return Ok(None);
@@ -219,7 +233,7 @@ impl Exec<'_> {
         }
         // multi-column keys are hashed: their equalities are tested again on each candidate
         let recheck: Vec<E> = if sh.eqs.len() > 1 {
-            sh.eqs.iter().map(|(c, e)| E::Cmp("=".to_owned(), Box::new(E::Col(pb, *c, bty[*c])), Box::new(e.clone()))).collect()
+            sh.eqs.iter().map(|(c, e)| E::Cmp(Op::Eq, Box::new(E::Col(pb, *c, bty[*c])), Box::new(e.clone()))).collect()
         } else {
             Vec::new()
         };
@@ -263,7 +277,7 @@ impl Exec<'_> {
             let band_terms: Vec<E> = if later.is_empty() {
                 Vec::new()
             } else {
-                sh.band.as_ref().map(|(c, bs)| bs.iter().map(|(op, e)| E::Cmp(op.clone(), Box::new(E::Col(pb, *c, Ty::Num)), Box::new(e.clone()))).collect()).unwrap_or_default()
+                sh.band.as_ref().map(|(c, bs)| bs.iter().map(|(op, e)| E::Cmp(Op::of(op), Box::new(E::Col(pb, *c, Ty::Num)), Box::new(e.clone()))).collect()).unwrap_or_default()
             };
             if count && recheck.is_empty() && band_terms.is_empty() && sh.rest.is_empty() {
                 if !run_rows.is_empty() {

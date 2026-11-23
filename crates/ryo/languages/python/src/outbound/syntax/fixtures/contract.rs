@@ -98,6 +98,7 @@ fn walked_well(adapter: &impl SyntaxPort, text: &str) -> bool {
         PythonSourceKind::Python,
         crate::outbound::syntax::types::ReportedSyntax::Every,
         &mut builder,
+        crate::domain::model::names::types::WalkNames::default(),
         &mut |walked| {
             // This reader reads no string as a type expression: the tree it is lent is the file's own.
             if let crate::domain::node::types::Walked::Whole(written, _tree) = walked {

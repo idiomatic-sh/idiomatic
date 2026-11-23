@@ -396,3 +396,8 @@ pub(crate) const PYTHON_THREE: Version = Version {
     major: Integer(3),
     minor: Integer(0),
 };
+/// How many places the builtin names are looked up among: a power of two over twice their number.
+pub(crate) const BUILTIN_PLACES: usize = 512;
+/// The builtin names by the hash of their text, built when the crate is compiled: at each place the place of a name in
+/// `BUILTIN_NAMES` plus one, or zero for none; a name is looked for from its hash's place on, as far as an empty place.
+pub(crate) const BUILTIN_SLOTS: [u16; BUILTIN_PLACES] = super::service::slotted(BUILTIN_NAMES);

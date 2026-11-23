@@ -23,7 +23,7 @@ fn subst(e: &E, file: u64) -> E {
         E::Col(_, _, Ty::File) => E::Lit(V::new(Ty::File, file)),
         E::List(xs) => E::List(xs.iter().map(|x| subst(x, file)).collect()),
         E::Call(n, xs) => E::Call(n.clone(), xs.iter().map(|x| subst(x, file)).collect()),
-        E::Cmp(o, x, y) => E::Cmp(o.clone(), b(x), b(y)),
+        E::Cmp(o, x, y) => E::Cmp(*o, b(x), b(y)),
         E::In(x, y, n) => E::In(b(x), b(y), *n),
         E::And(x, y) => E::And(b(x), b(y)),
         E::Or(x, y) => E::Or(b(x), b(y)),
@@ -39,6 +39,27 @@ pub(super) fn file_fails(run: &mut Run, f: &File<'_>, conj: &[E]) -> bool {
     if sw!("VEC_NO_FILECONST") {
         return false;
     }
+    // redo-alloc: decided once a file a test list (the plan's lists stay in place while it runs; a later ask in the same
+    // file reads the answer, no substituted copy of the test made again)
+    thread_local! {
+        static SEEN: std::cell::RefCell<(u32, rustc_hash::FxHashMap<(usize, usize), bool>)> = std::cell::RefCell::new((u32::MAX, rustc_hash::FxHashMap::default()));
+    }
+    let key = (conj.as_ptr() as usize, conj.len());
+    if let Some(v) = SEEN.with(|s| {
+        let s = s.borrow();
+        if s.0 == f.file { s.1.get(&key).copied() } else { None }
+    }) {
+        return v;
+    }
     let srcs: [Src; 0] = [];
-    conj.iter().filter(|c| file_const(c) && !matches!(c, E::Lit(_))).any(|c| !truthy(eval(run, f, &srcs, &[], &subst(c, u64::from(f.file)))))
+    let v = conj.iter().filter(|c| file_const(c) && !matches!(c, E::Lit(_))).any(|c| !truthy(eval(run, f, &srcs, &[], &subst(c, u64::from(f.file)))));
+    SEEN.with(|s| {
+        let mut s = s.borrow_mut();
+        if s.0 != f.file {
+            s.0 = f.file;
+            s.1.clear();
+        }
+        s.1.insert(key, v);
+    });
+    v
 }

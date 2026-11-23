@@ -3,6 +3,7 @@
 pub mod compact_table;
 pub mod descriptions;
 pub mod files;
+pub mod finish_plans;
 pub mod hosted;
 pub mod lineage;
 pub mod observations;
