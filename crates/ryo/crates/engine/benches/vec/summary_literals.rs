@@ -77,7 +77,7 @@ impl Layout {
         }
         self.map.get(text).copied().unwrap_or_default()
     }
-    #[allow(dead_code, reason = "only SDK readers supply per-node dictionary symbols")]
+    #[allow(dead_code, reason = "Only hosts exposing syntax-symbol columns use this entry point.")]
     pub(super) fn syntax(&self, ids: &[u32], symbols: &[Box<[u8]>], state: &mut Observed) {
         state.nodes.resize_with(self.count, Vec::new);
         for hits in &mut state.nodes { hits.clear(); }

@@ -28,14 +28,11 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                 .is_empty(),
             Domain::Kind(k) => !node_table::ids_of_kind(self.t, languages::KindBits(k)).is_empty(),
             Domain::Field(k) => node_table::field_count(self.t, languages::FieldCode(k)).0 != 0,
-            Domain::Either(a, b)
-                if (self.known_witness(a) == Some(true) || self.known_witness(b) == Some(true)) =>
-            {
-                true
-            }
+            // A bare file guard may conservatively admit an unopened keyed relation.
+            // The operands of a node union instead need their projected node sets.
             Domain::Either(a, b) => {
-                let (a, b) = self.first(a, b);
-                self.witness(a) || self.witness(b)
+                self.nodes(a).is_none_or(|nodes| !nodes.is_empty())
+                    || self.nodes(b).is_none_or(|nodes| !nodes.is_empty())
             }
             Domain::When(n, x) if self.order.cost[x] < self.order.price[n] => {
                 self.witness(x) && self.pass(n)

@@ -47,6 +47,16 @@ pub(super) fn run(
     }
 
     #[cfg(feature = "summary-diagnostics")]
+    struct ProviderClock<'a>(f64, &'a mut f64);
+    #[cfg(feature = "summary-diagnostics")]
+    impl Drop for ProviderClock<'_> {
+        fn drop(&mut self) {
+            *self.1 += thread_cpu() - self.0;
+        }
+    }
+    #[cfg(feature = "summary-diagnostics")]
+    let mut provider_cpu = 0.0;
+    #[cfg(feature = "summary-diagnostics")]
     let mut metrics =
         rustc_hash::FxHashMap::<String, (usize, usize, usize, usize, usize, f64)>::default();
     let certify = fin.as_ref().is_none_or(|f| f.can_finish_exact());
@@ -56,7 +66,7 @@ pub(super) fn run(
     let mut input = SourceBatch::default();
     let mut table = NodeTable::default();
     let mut other_table = NodeTable::default();
-    let mut alive = std::array::from_fn(|_| (vec![false; program.roots.len()], Vec::new()));
+    let mut alive = std::array::from_fn(|_| (vec![false; program.roots.len()], Vec::new(), std::collections::HashMap::new()));
     let mut present = vec![0u64; words.names.len().div_ceil(64)];
     let mut kinds = Vec::new();
     let mut fields_kinds = 0.;
@@ -84,7 +94,7 @@ pub(super) fn run(
                 (&list[i], input.get(i)),
                 (count == 2).then(|| (list[i + 1].as_str(), input.get(i + 1))),
                 &mut alive,
-                &mut |slot, file, (alive, exact)| {
+                &mut |slot, file, (alive, exact, kept)| {
                     let begin = thread_cpu();
                     let id = i + slot;
                     let bytes = input.get(id);
@@ -113,6 +123,7 @@ pub(super) fn run(
                         root.as_ref().map(|r| list[id].strip_prefix(r).unwrap_or(&list[id]).as_bytes())
                     });
                     exact.clear();
+                    kept.clear();
                     steps += program.eval(
                         scratch,
                         order,
@@ -122,6 +133,8 @@ pub(super) fn run(
                         None,
                         fwords,
                         |source, query, words, out| {
+                            #[cfg(feature = "summary-diagnostics")]
+                            let _provider_clock = ProviderClock(thread_cpu(), &mut provider_cpu);
                             use super::{pair_checks::Query, pair_summary::Source};
                             if matches!(source, Source::Catalog(languages::Relation::ModuleIdentity)) {
                                 return match query {
@@ -146,8 +159,11 @@ pub(super) fn run(
                                         ),
                                         _ => None,
                                     };
-                                    let answered = host.unwrap_or_else(|| {
-                                        super::pair_provider::read(file, id, source, words, out)
+                                    let answered = host.unwrap_or_else(|| match source {
+                                        Source::Walk(name) if super::pair_provider::visit_table(name) => fin
+                                            .as_deref_mut()
+                                            .is_some_and(|f| f.walk_table(id, file, bytes, name, words, out, kept)),
+                                        _ => super::pair_provider::read(file, id, source, words, out),
                                     });
                                     #[cfg(feature = "summary-diagnostics")]
                                     {
@@ -219,7 +235,7 @@ pub(super) fn run(
                     }
                     visit += thread_cpu() - begin;
                 },
-                &mut |slot, file, (alive, exact)| {
+                &mut |slot, file, (alive, exact, kept)| {
                     let begin = thread_cpu();
                     if let Some(f) = executor.borrow_mut().as_deref_mut() {
                         let id = i + slot;
@@ -251,7 +267,7 @@ pub(super) fn run(
                             });
                         }
                         if f.visits(&wanted) {
-                            f.column_file(id, &list[id], file, input.get(id), &wanted);
+                            f.column_file(id, &list[id], file, input.get(id), &wanted, std::mem::take(kept));
                         }
                     }
                     finish += thread_cpu() - begin;
@@ -272,6 +288,8 @@ pub(super) fn run(
             program.roots[*ri].0
         );
     }
+    #[cfg(feature = "summary-diagnostics")]
+    println!("SUMMARY_PROVIDER {provider_cpu:.9}");
     let elapsed = thread_cpu() - start;
     let mut fin = executor.into_inner();
     let second = fin.as_ref().map_or(0., |f| f.time) - fin0;
@@ -284,6 +302,7 @@ pub(super) fn run(
     if let Some(path) = seed_out {
         std::fs::write(path, dump).expect("write file seeds");
     }
+    println!("one walk: the second half inside the first half's visit {second:.4} s");
     println!("thread CPU total {:.4} s", elapsed - second);
     println!(
         "phase read: {read:.4} s\nphase walk+table: {:.4} s\nphase contents: {contents:.4} s\nphase skip tests: {skip_cpu:.4} s\nphase seed handoff: {:.4} s",

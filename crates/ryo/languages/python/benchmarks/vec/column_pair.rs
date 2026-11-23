@@ -14,7 +14,7 @@ pub(super) fn walked_pair<S>(
     second: Option<(&str, &[u8])>,
     state: &mut [S; 2],
     prepare: &mut impl FnMut(usize, &mut ColumnFile<'_, '_>, &mut S),
-    consume: &mut impl FnMut(usize, &mut ColumnFile<'_, '_>, &S),
+    consume: &mut impl FnMut(usize, &mut ColumnFile<'_, '_>, &mut S),
 ) {
     let [here, there] = state;
     let mut visited = false;
