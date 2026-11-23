@@ -2282,34 +2282,8 @@ impl<'p> Exec<'p> {
                     J::String(d) => Some(from.col(d)?),
                     _ => None,
                 };
-                let mut groups: FxHashMap<inline_key::Key, (u64, rustc_hash::FxHashSet<u64>)> = FxHashMap::default();
-                let mut order: Vec<inline_key::Key> = Vec::new();
-                // redo-alloc: a row's key read into one buffer; lists made only for a key not seen (same groups, same order)
-                let mut kb: Vec<u64> = Vec::with_capacity(keys.len() + 1);
-                for i in 0..from.n {
-                    kb.clear();
-                    kb.extend(keys.iter().map(|c| from.cols[*c][i]));
-                    if !groups.contains_key(&kb[..]) {
-                        order.push(inline_key::Key::of(&kb));
-                        groups.insert(inline_key::Key::of(&kb), (0, rustc_hash::FxHashSet::default()));
-                    }
-                    let e = groups.get_mut(&kb[..]).expect("the group just made");
-                    match distinct {
-                        Some(d) => {
-                            e.1.insert(from.cols[d][i]);
-                        }
-                        None => e.0 += 1,
-                    }
-                }
                 let mut out = self.empty(run, node)?;
-                for k in order {
-                    let g = &groups[&k];
-                    let c = if distinct.is_some() { g.1.len() as u64 } else { g.0 };
-                    kb.clear();
-                    kb.extend_from_slice(k.cells());
-                    kb.push(c);
-                    out.push_row(&kb);
-                }
+                group_count(&from, &keys, distinct, &mut out);
                 Ok(out)
             }
             "group-min" | "group-max" => {
@@ -3946,6 +3920,56 @@ fn distinct(t: Table) -> Table {
     }
     out.n = keep.len();
     out
+}
+
+/// An immutable input row supplies the group key for both lookup and insertion.
+#[derive(Clone, Copy)]
+struct GroupKey<'a> {
+    columns: &'a [&'a [u64]],
+    row: usize,
+}
+
+impl std::hash::Hash for GroupKey<'_> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        for column in self.columns { state.write_u64(column[self.row]); }
+    }
+}
+
+impl PartialEq for GroupKey<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.columns.iter().map(|c| c[self.row]).eq(other.columns.iter().map(|c| c[other.row]))
+    }
+}
+impl Eq for GroupKey<'_> {}
+
+fn group_count(input: &Table, keys: &[usize], distinct: Option<usize>, out: &mut Table) {
+    let columns: Vec<&[u64]> = keys.iter().map(|c| input.cols[*c].as_slice()).collect();
+    let dense = match &columns[..] {
+        [column] => column.iter().copied().max().filter(|max| *max < input.n as u64),
+        _ => None,
+    };
+    let mut slots = dense.map(|max| vec![usize::MAX; max as usize + 1]);
+    let mut index = FxHashMap::default();
+    let mut groups = Vec::new();
+    for row in 0..input.n {
+        let next = groups.len();
+        let slot = if let Some(slots) = &mut slots {
+            let slot = &mut slots[columns[0][row] as usize];
+            if *slot == usize::MAX { *slot = next; }
+            *slot
+        } else {
+            *index.entry(GroupKey { columns: &columns, row }).or_insert(next)
+        };
+        if slot == next { groups.push((row, 0u64, rustc_hash::FxHashSet::default())); }
+        let (_, count, values) = &mut groups[slot];
+        if let Some(col) = distinct { values.insert(input.cols[col][row]); }
+        else { *count += 1; }
+    }
+    for (first, count, values) in groups {
+        for (dst, src) in out.cols.iter_mut().zip(&columns) { dst.push(src[first]); }
+        out.cols[columns.len()].push(if distinct.is_some() { values.len() as u64 } else { count });
+        out.n += 1;
+    }
 }
 
 fn reach_dir(l: &Lazy, key: &[u64], forward: bool) -> Rc<Vec<u64>> {
