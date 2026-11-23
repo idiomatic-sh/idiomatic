@@ -8,6 +8,8 @@ use super::finish::{self, Supplier, Ty, project::ProjectAsk};
 /// Syntactic stores and unbindings for a single name in one namespace and evaluation phase.
 pub(super) const BINDING_SITES_REL: &str = "binding-sites";
 
+/// One row per binding reachable from a source read, with the first syntax node of each outcome basis.
+pub(super) const BINDING_READ_REL: &str = "binding-read-summary";
 /// Source assignment targets, their whole or statically unpacked RHS and assignment form.
 pub(super) const ASSIGNMENT_SOURCE_REL: &str = "assignment-source";
 /// First declarations and first mutations of a name in a routed namespace.
@@ -73,9 +75,11 @@ pub(super) fn declare(run: &mut finish::Run) {
     };
     let sites = columns(super::pair_provider::SITES);
     let mut resolutions = columns(super::pair_provider::predecessor::COLUMNS);
+    let witnesses = columns(super::pair_provider::sites::READ_WITNESS);
     let assignments = columns(super::pair_provider::sites::ASSIGNMENT);
     let namespaces = columns(super::pair_provider::sites::NAMESPACE);
     let facts: &[(&str, &[(&str, Ty)])] = &[
+        (BINDING_READ_REL, &witnesses),
         (ASSIGNMENT_SOURCE_REL, &assignments),
         (PRE_DECLARATION_READ_REL, &PRE_DECLARATION_READ_COLS),
         (NAMESPACE_SITES_REL, &namespaces),
