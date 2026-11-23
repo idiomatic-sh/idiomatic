@@ -48,3 +48,195 @@ name = "redirect-source-noqa-suppresses"
 comparison = "full"
 files = { "case.py" = "mapping = {0: value for value in values}  # noqa: RUF011\n" }
 expected = []
+
+[[cases]]
+name = "call-static"
+comparison = "full"
+files = { "case.py" = "{f(): v for v in d}\n" }
+expected = []
+
+[[cases]]
+name = "call-of-target"
+comparison = "full"
+files = { "case.py" = "{f(v): v for v in d}\n" }
+expected = []
+
+[[cases]]
+name = "binop-static"
+comparison = "full"
+files = { "case.py" = "{c + c: v for v in d}\n" }
+expected = [{ rule = "B035", file = "case.py", start = 1, end = 6 }]
+
+[[cases]]
+name = "subscript-static"
+comparison = "full"
+files = { "case.py" = "{c[0]: v for v in d}\n" }
+expected = [{ rule = "B035", file = "case.py", start = 1, end = 5 }]
+
+[[cases]]
+name = "attribute-static"
+comparison = "full"
+files = { "case.py" = "{c.a: v for v in d}\n" }
+expected = [{ rule = "B035", file = "case.py", start = 1, end = 4 }]
+
+[[cases]]
+name = "name-static"
+comparison = "full"
+files = { "case.py" = "{c: v for v in d}\n" }
+expected = [{ rule = "B035", file = "case.py", start = 1, end = 2 }]
+
+[[cases]]
+name = "walrus-in-condition"
+comparison = "full"
+files = { "case.py" = "{k: v for v in d if (k := g(v))}\n" }
+expected = []
+
+[[cases]]
+name = "walrus-in-key"
+comparison = "full"
+files = { "case.py" = "{(k := v): 1 for v in d}\n" }
+expected = []
+
+[[cases]]
+name = "lambda-key"
+comparison = "full"
+files = { "case.py" = "{(lambda: v): 1 for v in d}\n" }
+expected = []
+
+[[cases]]
+name = "fstring-of-target"
+comparison = "full"
+files = { "case.py" = "{f'{v}': 1 for v in d}\n" }
+expected = []
+
+[[cases]]
+name = "fstring-static"
+comparison = "full"
+files = { "case.py" = "{f'{c}': 1 for v in d}\n" }
+expected = []
+
+[[cases]]
+name = "name-bound-in-other-comprehension"
+comparison = "full"
+files = { "case.py" = "[c for c in d]\n{c: v for v in d}\n" }
+expected = [{ rule = "B035", file = "case.py", start = 16, end = 17 }]
+
+[[cases]]
+name = "nested-comprehension-target"
+comparison = "full"
+files = { "case.py" = "{c: v for v in d for c in e}\n" }
+expected = []
+
+[[cases]]
+name = "starred-target"
+comparison = "full"
+files = { "case.py" = "{a: v for *a, v in d}\n" }
+expected = []
+
+[[cases]]
+name = "tuple-target"
+comparison = "full"
+files = { "case.py" = "{a: b for a, b in d}\n" }
+expected = []
+
+[[cases]]
+name = "list-display-static"
+comparison = "full"
+files = { "case.py" = "{(1, [c]): v for v in d}\n" }
+expected = []
+
+[[cases]]
+name = "none-key"
+comparison = "full"
+files = { "case.py" = "{None: v for v in d}\n" }
+expected = [{ rule = "B035", file = "case.py", start = 1, end = 5 }]
+
+[[cases]]
+name = "ellipsis-key"
+comparison = "full"
+files = { "case.py" = "{...: v for v in d}\n" }
+expected = [{ rule = "B035", file = "case.py", start = 1, end = 4 }]
+
+[[cases]]
+name = "comprehension-in-key-static"
+comparison = "full"
+files = { "case.py" = "{tuple(x for x in c): v for v in d}\n" }
+expected = []
+
+[[cases]]
+name = "comprehension-in-key-target"
+comparison = "full"
+files = { "case.py" = "{tuple(x for x in v): v for v in d}\n" }
+expected = []
+
+[[cases]]
+name = "unary-static"
+comparison = "full"
+files = { "case.py" = "{-c: v for v in d}\n" }
+expected = [{ rule = "B035", file = "case.py", start = 1, end = 3 }]
+
+[[cases]]
+name = "compare-static"
+comparison = "full"
+files = { "case.py" = "{c < 1: v for v in d}\n" }
+expected = []
+
+[[cases]]
+name = "boolop-static"
+comparison = "full"
+files = { "case.py" = "{c or 1: v for v in d}\n" }
+expected = [{ rule = "B035", file = "case.py", start = 1, end = 7 }]
+
+[[cases]]
+name = "ifexp-static"
+comparison = "full"
+files = { "case.py" = "{c if e else 1: v for v in d}\n" }
+expected = []
+
+[[cases]]
+name = "slice-static"
+comparison = "full"
+files = { "case.py" = "{c[1:2]: v for v in d}\n" }
+expected = []
+
+[[cases]]
+name = "tuple-names-static"
+comparison = "full"
+files = { "case.py" = "{(c, e): v for v in d}\n" }
+expected = [{ rule = "B035", file = "case.py", start = 1, end = 7 }]
+
+[[cases]]
+name = "string-key"
+comparison = "full"
+files = { "case.py" = "{'a': v for v in d}\n" }
+expected = [{ rule = "B035", file = "case.py", start = 1, end = 4 }]
+
+[[cases]]
+name = "bytes-key"
+comparison = "full"
+files = { "case.py" = "{b'a': v for v in d}\n" }
+expected = [{ rule = "B035", file = "case.py", start = 1, end = 5 }]
+
+[[cases]]
+name = "set-key"
+comparison = "full"
+files = { "case.py" = "{frozenset(): v for v in d}\n" }
+expected = []
+
+[[cases]]
+name = "binop-with-target"
+comparison = "full"
+files = { "case.py" = "{c + v: v for v in d}\n" }
+expected = []
+
+[[cases]]
+name = "subscript-with-target"
+comparison = "full"
+files = { "case.py" = "{c[v]: v for v in d}\n" }
+expected = []
+
+[[cases]]
+name = "attribute-of-call"
+comparison = "full"
+files = { "case.py" = "{f().a: v for v in d}\n" }
+expected = []

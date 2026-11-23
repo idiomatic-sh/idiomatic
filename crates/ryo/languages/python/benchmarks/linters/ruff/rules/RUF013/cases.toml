@@ -141,3 +141,51 @@ expected = []
 name = "local-class-of-an-ordinary-module"
 files = { "case.py" = "class Local: ...\ndef f(a: Local = None): ...\n" }
 expected = []
+name = "kwonly-imported-class"
+files = { "case.py" = "from decimal import Decimal\ndef f(*, gt: Decimal = None):\n    pass\n" }
+expected = [{ file = "case.py", start = 41, end = 48 }]
+
+[[cases]]
+name = "positional-imported-class"
+files = { "case.py" = "from decimal import Decimal\ndef f(gt: Decimal = None):\n    pass\n" }
+expected = [{ file = "case.py", start = 38, end = 45 }]
+
+[[cases]]
+name = "kwonly-builtin"
+files = { "case.py" = "def f(*, gt: int = None):\n    pass\n" }
+expected = [{ file = "case.py", start = 13, end = 16 }]
+
+[[cases]]
+name = "imported-date"
+files = { "case.py" = "from datetime import date\ndef f(*, gt: date = None):\n    pass\n" }
+expected = [{ file = "case.py", start = 39, end = 43 }]
+
+[[cases]]
+name = "module-import-attribute"
+files = { "case.py" = "import decimal\ndef f(*, gt: decimal.Decimal = None):\n    pass\n" }
+expected = [{ file = "case.py", start = 28, end = 43 }]
+
+[[cases]]
+name = "unknown-import"
+files = { "case.py" = "from x import Thing\ndef f(*, gt: Thing = None):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "local-class"
+files = { "case.py" = "class Thing: ...\ndef f(*, gt: Thing = None):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "stdlib-subscript"
+files = { "case.py" = "import queue\ndef f(*, q: queue.Queue[int] = None):\n    pass\n" }
+expected = [{ file = "case.py", start = 25, end = 41 }]
+
+[[cases]]
+name = "stdlib-nested-attribute"
+files = { "case.py" = "import os.path\ndef f(*, p: os.PathLike = None):\n    pass\n" }
+expected = [{ file = "case.py", start = 27, end = 38 }]
+
+[[cases]]
+name = "stdlib-in-union"
+files = { "case.py" = "from decimal import Decimal\nfrom typing import Union\ndef f(gt: Union[Decimal, int] = None):\n    pass\n" }
+expected = [{ file = "case.py", start = 63, end = 82 }]

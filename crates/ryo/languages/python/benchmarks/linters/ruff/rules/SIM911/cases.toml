@@ -45,3 +45,87 @@ name = "noqa"
 comparison = "full"
 files = { "case.py" = "data = {}\nzip(data.keys(), data.values())  # noqa: SIM911\n" }
 expected = []
+
+[[cases]]
+name = "annotated-parameter"
+comparison = "full"
+files = { "case.py" = "def foo(d: dict[str, str]) -> None:\n    for k, v in zip(d.keys(), d.values()):\n        ...\n" }
+expected = [{ rule = "SIM911", file = "case.py", start = 52, end = 77 }]
+
+[[cases]]
+name = "annotated-parameter-strict"
+comparison = "full"
+files = { "case.py" = "def foo(d: dict[str, str]) -> None:\n    for k, v in zip(d.keys(), d.values(), strict=True):\n        ...\n" }
+expected = [{ rule = "SIM911", file = "case.py", start = 52, end = 90 }]
+
+[[cases]]
+name = "typing-dict-parameter"
+comparison = "full"
+files = { "case.py" = "from typing import Dict\ndef foo(d: Dict[str, str]) -> None:\n    for k, v in zip(d.keys(), d.values()):\n        ...\n" }
+expected = [{ rule = "SIM911", file = "case.py", start = 76, end = 101 }]
+
+[[cases]]
+name = "mapping-parameter"
+comparison = "full"
+files = { "case.py" = "from typing import Mapping\ndef foo(d: Mapping[str, str]) -> None:\n    for k, v in zip(d.keys(), d.values()):\n        ...\n" }
+expected = []
+
+[[cases]]
+name = "dict-call"
+comparison = "full"
+files = { "case.py" = "d = dict()\nfor k, v in zip(d.keys(), d.values()):\n    ...\n" }
+expected = [{ rule = "SIM911", file = "case.py", start = 23, end = 48 }]
+
+[[cases]]
+name = "dict-comprehension"
+comparison = "full"
+files = { "case.py" = "d = {a: b for a, b in x}\nfor k, v in zip(d.keys(), d.values()):\n    ...\n" }
+expected = [{ rule = "SIM911", file = "case.py", start = 37, end = 62 }]
+
+[[cases]]
+name = "annotated-assignment"
+comparison = "full"
+files = { "case.py" = "d: dict = f()\nfor k, v in zip(d.keys(), d.values()):\n    ...\n" }
+expected = [{ rule = "SIM911", file = "case.py", start = 26, end = 51 }]
+
+[[cases]]
+name = "chained-dict-literal"
+comparison = "full"
+files = { "case.py" = "d1 = d2 = {}\nfor k, v in zip(d2.keys(), d2.values()):\n    ...\n" }
+expected = [{ rule = "SIM911", file = "case.py", start = 25, end = 52 }]
+
+[[cases]]
+name = "rebound-dict"
+comparison = "full"
+files = { "case.py" = "d = {}\nd = {}\nfor k, v in zip(d.keys(), d.values()):\n    ...\n" }
+expected = [{ rule = "SIM911", file = "case.py", start = 26, end = 51 }]
+
+[[cases]]
+name = "unannotated-parameter"
+comparison = "full"
+files = { "case.py" = "def foo(d):\n    for k, v in zip(d.keys(), d.values()):\n        ...\n" }
+expected = []
+
+[[cases]]
+name = "shadowed-dict-name"
+comparison = "full"
+files = { "case.py" = "def foo():\n    dict = {}\n    for country, stars in zip(dict.keys(), dict.values()):\n        ...\n" }
+expected = [{ rule = "SIM911", file = "case.py", start = 51, end = 82 }]
+
+[[cases]]
+name = "rebound-list-then-dict"
+comparison = "full"
+files = { "case.py" = "d = []\nd = {}\nfor k, v in zip(d.keys(), d.values()):\n    ...\n" }
+expected = [{ rule = "SIM911", file = "case.py", start = 26, end = 51 }]
+
+[[cases]]
+name = "rebound-dict-then-list"
+comparison = "full"
+files = { "case.py" = "d = {}\nd = []\nfor k, v in zip(d.keys(), d.values()):\n    ...\n" }
+expected = []
+
+[[cases]]
+name = "dict-in-branches"
+comparison = "full"
+files = { "case.py" = "if x:\n    d = {}\nelse:\n    d = {}\nfor k, v in zip(d.keys(), d.values()):\n    ...\n" }
+expected = [{ rule = "SIM911", file = "case.py", start = 46, end = 71 }]

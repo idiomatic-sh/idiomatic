@@ -1,6 +1,7 @@
 import observation_matches from "python/ruff/suppress-matches";
 import call_syntax from "python/ruff/calls";
 import line_located from "python/ruff/candidate-locations";
+import interpolated_string_truth from "python/ruff/interpolated-string-truth";
 let calls = call_syntax();
 let function_fields = select parent, child from "semantic-child" where field = "func";
 let call_functions = select l.parent as call, l.child as function, r.file as file from function_fields as l join calls as r on l.parent = r.id;
@@ -16,7 +17,10 @@ let argument_owners = select l.parent as call, l.child as wrapper, l.file as fil
 let positional_fields = select parent, child from "semantic-child" where field = "args";
 let positional_arguments = select l.call as call, r.child as argument, l.file as file from argument_owners as l join positional_fields as r on l.wrapper = r.parent;
 let positional_counts = group-count(from=positional_arguments, keys=["call", "file"], count="count", distinct="argument");
-let empty_strings = select id, file from "literal-properties" where kind = "string" and empty = "true";
+let empty_literals = select id, file from "literal-properties" where kind = "string" and empty = "true";
+let interpolated_truth = interpolated_string_truth();
+let empty_interpolated = select id, file from interpolated_truth where truthy = "false";
+let empty_strings = union(left=empty_literals, right=empty_interpolated);
 let empty_arguments = select l.call as call, l.argument as argument, l.file as file from positional_arguments as l join empty_strings as r on l.argument = r.id and l.file = r.file;
 let empty_call_counts = group-count(from=empty_arguments, keys=["call", "file"], count="count", distinct="argument");
 let starred_nodes = select id from "semantic-syntax" where kind = "starred";
@@ -48,14 +52,14 @@ let small_print_calls_a = select l.call as call, l.file as file from zero_arg_ca
 let small_print_calls_b = select l.call as call, l.file as file from one_empty_arg_calls as l;
 let small_print_calls_c = select l.call as call, l.file as file from one_arg_calls as l join any_sep_calls as r on l.call = r.call and l.file = r.file;
 let small_print_calls_d = union(left=small_print_calls_a, right=small_print_calls_b);
-let small_print_calls = union(left=small_print_calls_d, right=small_print_calls_c);
+let small_print_calls_e = union(left=small_print_calls_d, right=small_print_calls_c);
+let small_print_calls = antijoin(left=small_print_calls_e, right=starred_arguments, left-on=["call", "file"], right-on=["call", "file"]);
 let large_print_calls_a = select l.call as call, l.file as file from positional_counts as l join empty_call_counts as r on l.call = r.call and l.file = r.file where l.count > 1;
 let large_print_calls_b = select l.call as call, l.file as file from large_print_calls_a as l join empty_sep_calls as r on l.call = r.call and l.file = r.file;
 let large_print_calls = antijoin(left=large_print_calls_b, right=keyword_spread_calls, left-on=["call", "file"], right-on=["call", "file"]);
 let candidate_calls = union(left=small_print_calls, right=large_print_calls);
 let printable_candidates = select l.call as call, l.file as file from candidate_calls as l join print_calls as r on l.call = r.call and l.file = r.file;
-let unstarred_candidates = antijoin(left=printable_candidates, right=starred_arguments, left-on=["call", "file"], right-on=["call", "file"]);
-let candidates = select l.call as id, l.file as file, r.span as span from unstarred_candidates as l join calls as r on l.call = r.id and l.file = r.file;
+let candidates = select l.call as id, l.file as file, r.span as span from printable_candidates as l join calls as r on l.call = r.id and l.file = r.file;
 let candidate_locations = line_located(candidates=candidates);
 let violations_matches = observation_matches(candidates=candidate_locations, codes="^(?:FURB105)$");
 let violations_rows = select id, file, span from candidate_locations;

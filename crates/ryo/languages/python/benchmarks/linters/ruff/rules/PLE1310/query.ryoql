@@ -14,8 +14,8 @@ let receivers0 = select l.call as call, r.child as receiver, l.file as file from
 let receivers = select l.call as call, r.receiver as receiver, l.file as file from strip_names as l join receivers0 as r on l.call = r.call and l.file = r.file;
 let reference_nodes = select id, file from "semantic-syntax" where kind = "name";
 let receiver_references = select r.id as reference, r.file as file from receivers as l join reference_nodes as r on l.receiver = r.id and l.file = r.file;
-let string_references = binding_type(references=receiver_references, builtin="builtins.str", typing="typing.Text", atom="string");
-let byte_references = binding_type(references=receiver_references, builtin="builtins.bytes", typing="__no_typing_bytes_alias__", atom="bytes");
+let string_references = binding_type(references=receiver_references, builtin="builtins.str", typing="typing.Text", atom="string", bindings="only");
+let byte_references = binding_type(references=receiver_references, builtin="builtins.bytes", typing="__no_typing_bytes_alias__", atom="bytes", bindings="only");
 let string_constants = select id, file from "literal-properties" where kind = "string";
 let literal_strings = select l.occurrence as reference, l.file as file from "string-literal" as l join string_constants as r on l.occurrence = r.id and l.file = r.file;
 let literal_bytes = select occurrence as reference, file from "bytes-literal";

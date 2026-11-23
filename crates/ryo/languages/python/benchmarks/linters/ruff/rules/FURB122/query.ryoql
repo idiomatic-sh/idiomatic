@@ -34,7 +34,7 @@ let receiver_values = select l.loop as loop, r.child as receiver, l.file as file
 let names = select id, file from nodes where kind = "name";
 let receiver_names = select l.loop as loop, l.receiver as receiver, l.file as file from receiver_values as l join names as r on l.receiver = r.id and l.file = r.file;
 let receiver_references = select receiver as reference, file from receiver_names;
-let io_receivers = io_base_binding(references=receiver_references);
+let io_receivers = io_base_binding(references=receiver_references, factories="{builtins.open,io.open,io.open_code,os.open}", paths="{pathlib.Path,pathlib.PurePath}", results="none", classes="{typing.IO,typing.BinaryIO,typing.TextIO,typing_extensions.IO,typing_extensions.BinaryIO,typing_extensions.TextIO,io.IOBase,io.RawIOBase,io.BufferedIOBase,io.TextIOBase,io.BytesIO,io.StringIO,io.BufferedReader,io.BufferedWriter,io.BufferedRandom,io.BufferedRWPair,io.TextIOWrapper,_typeshed.IO,_typeshed.BinaryIO,_typeshed.TextIO}", forms="direct");
 let shaped_loops = select l.loop as id, l.file as file from receiver_names as l join io_receivers as r on l.receiver = r.reference and l.file = r.file;
 let target_fields = select parent, child, file from "semantic-child" where field = "target";
 let targets = select l.id as loop, r.child as target, l.file as file from shaped_loops as l join target_fields as r on l.id = r.parent and l.file = r.file;

@@ -84,3 +84,105 @@ expected = [{ rule = "RUF059", file = "case.py", start = 36, end = 37 }]
 name = "unpacking-that-shadows-a-used-binding-inherits-its-uses"
 files = { "case.py" = "def g(r):\n    msgs = 1\n    print(msgs)\n    msgs, errors = r\n    print(errors)\n" }
 expected = []
+
+[[cases]]
+name = "chained-tuple-then-name"
+comparison = "full"
+files = { "case.py" = "def f():\n    (x, y) = coords = 1, 2\n" }
+expected = [{ rule = "RUF059", file = "case.py", start = 14, end = 15 }, { rule = "RUF059", file = "case.py", start = 17, end = 18 }]
+
+[[cases]]
+name = "chained-name-then-tuple"
+comparison = "full"
+files = { "case.py" = "def f():\n    coords = (x, y) = 1, 2\n" }
+expected = [{ rule = "RUF059", file = "case.py", start = 23, end = 24 }, { rule = "RUF059", file = "case.py", start = 26, end = 27 }]
+
+[[cases]]
+name = "chained-two-tuples"
+comparison = "full"
+files = { "case.py" = "def f():\n    (a, b) = (x, y) = 1, 2\n" }
+expected = []
+
+[[cases]]
+name = "chained-names-literal"
+comparison = "full"
+files = { "case.py" = "def f():\n    x = y = 1, 2\n" }
+expected = []
+
+[[cases]]
+name = "tuple-from-list-literal"
+comparison = "full"
+files = { "case.py" = "def f():\n    (a, b) = [1, 2]\n" }
+expected = []
+
+[[cases]]
+name = "list-from-set-literal"
+comparison = "full"
+files = { "case.py" = "def f():\n    [a, b] = {1, 2}\n" }
+expected = []
+
+[[cases]]
+name = "tuple-from-name"
+comparison = "full"
+files = { "case.py" = "def f(t):\n    a, b = t\n" }
+expected = [{ rule = "RUF059", file = "case.py", start = 14, end = 15 }, { rule = "RUF059", file = "case.py", start = 17, end = 18 }]
+
+[[cases]]
+name = "with-tuple"
+comparison = "full"
+files = { "case.py" = "def f():\n    with g() as (a, b):\n        pass\n" }
+expected = [{ rule = "RUF059", file = "case.py", start = 26, end = 27 }, { rule = "RUF059", file = "case.py", start = 29, end = 30 }]
+
+[[cases]]
+name = "with-nested-tuple"
+comparison = "full"
+files = { "case.py" = "def f():\n    with g() as ((a, b)):\n        pass\n" }
+expected = [{ rule = "RUF059", file = "case.py", start = 27, end = 28 }, { rule = "RUF059", file = "case.py", start = 30, end = 31 }]
+
+[[cases]]
+name = "with-list"
+comparison = "full"
+files = { "case.py" = "def f():\n    with g() as [a, b]:\n        pass\n" }
+expected = []
+
+[[cases]]
+name = "with-name"
+comparison = "full"
+files = { "case.py" = "def f():\n    with g() as a:\n        pass\n" }
+expected = []
+
+[[cases]]
+name = "async-with-tuple"
+comparison = "full"
+files = { "case.py" = "async def f():\n    async with g() as (a, b):\n        pass\n" }
+expected = [{ rule = "RUF059", file = "case.py", start = 38, end = 39 }, { rule = "RUF059", file = "case.py", start = 41, end = 42 }]
+
+[[cases]]
+name = "with-second-item-tuple"
+comparison = "full"
+files = { "case.py" = "def f():\n    with g() as h, k() as (a, b):\n        pass\n" }
+expected = [{ rule = "RUF059", file = "case.py", start = 36, end = 37 }, { rule = "RUF059", file = "case.py", start = 39, end = 40 }]
+
+[[cases]]
+name = "for-tuple"
+comparison = "full"
+files = { "case.py" = "def f():\n    for a, b in t:\n        pass\n" }
+expected = []
+
+[[cases]]
+name = "chained-tuple-one-used"
+comparison = "full"
+files = { "case.py" = "def f():\n    (x, y) = coords = 1, 2\n    return x, coords\n" }
+expected = [{ rule = "RUF059", file = "case.py", start = 17, end = 18 }]
+
+[[cases]]
+name = "starred-in-tuple"
+comparison = "full"
+files = { "case.py" = "def f(t):\n    a, *b = t\n" }
+expected = [{ rule = "RUF059", file = "case.py", start = 14, end = 15 }, { rule = "RUF059", file = "case.py", start = 18, end = 19 }]
+
+[[cases]]
+name = "walrus-chain-literal"
+comparison = "full"
+files = { "case.py" = "def f():\n    (a, b) = c = d = 1, 2\n" }
+expected = [{ rule = "RUF059", file = "case.py", start = 14, end = 15 }, { rule = "RUF059", file = "case.py", start = 17, end = 18 }]

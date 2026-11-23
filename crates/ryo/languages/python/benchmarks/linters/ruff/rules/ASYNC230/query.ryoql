@@ -1,5 +1,6 @@
 import observation_matches from "python/ruff/suppress-matches";
 import call_syntax from "python/ruff/calls";
+import assigned_values from "python/ruff/assigned-values";
 let call_syntax_rows = call_syntax();
 let calls = select id, file from call_syntax_rows;
 let function_fields = select parent as call, child as function, file from "semantic-child" where field = "func";
@@ -29,7 +30,10 @@ let assignment_values = select parent as assignment, child as value, file from "
 let defined_assignment_targets = select l.id as binding, t.assignment as assignment, l.file as file from "defines" as l join assignment_targets as t on l.id = t.target and l.file = t.file;
 let assigned_targets = select l.binding as binding, l.assignment as assignment, l.file as file from defined_assignment_targets as l join assignment_nodes as a on l.assignment = a.id and l.file = a.file;
 let receiver_assignments = select u.function as function, u.file as file, t.assignment as assignment from receiver_uses as u join assigned_targets as t on u.binding = t.binding and u.file = t.file;
-let path_call_assignments = select u.function as function, u.file as file, a.value as value from receiver_assignments as u join assignment_values as a on u.assignment = a.assignment and u.file = a.file;
+let statement_values = select u.function as function, u.file as file, a.value as value from receiver_assignments as u join assignment_values as a on u.assignment = a.assignment and u.file = a.file;
+let initializers = assigned_values();
+let initialized_values = select u.function as function, u.file as file, a.value as value from receiver_uses as u join initializers as a on u.binding = a.binding and u.file = a.file;
+let path_call_assignments = union(left=statement_values, right=initialized_values);
 let assigned_path_calls = select l.function as function, l.file as file, c.id as call from path_call_assignments as l join calls as c on l.value = c.id and l.file = c.file;
 let qualified_path_calls = select l.function as function, l.file as file, q.function as constructor from assigned_path_calls as l join call_qnames as q on l.call = q.call and l.file = q.file;
 let variable_path_receivers = select l.function as function, l.file as file from qualified_path_calls as l join pathlib_calls as p on l.constructor = p.function and l.file = p.file;

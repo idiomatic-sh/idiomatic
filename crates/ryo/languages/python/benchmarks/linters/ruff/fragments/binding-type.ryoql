@@ -4,6 +4,7 @@ input references: relation<reference: node, file: file>;
 param builtin: string;
 param typing: string;
 param atom: string;
+param bindings: string;
 output relation<reference: node, file: file>;
 let nodes = select id, kind, file from "semantic-syntax";
 let events = select occurrence as binding, name, scope, ordinal, kind, file from "binding-event" where kind = "bind" or kind = "annotation";
@@ -15,7 +16,9 @@ let uses0 = select l.reference as reference, l.file as file, r.binding as bindin
 let ordered_uses = select l.reference as reference, l.binding as binding, r.scope as scope, r.ordinal as ordinal, l.file as file from uses0 as l join events as r on l.binding = r.binding and l.file = r.file;
 let earlier_uses = select l.reference as reference, l.binding as binding, l.file as file from ordered_uses as l join ordered_uses as r on l.reference = r.reference and l.scope = r.scope and l.file = r.file where l.ordinal < r.ordinal;
 let uses = antijoin(left=uses0, right=earlier_uses, left-on=["reference","binding","file"], right-on=["reference","binding","file"]);
-let single_uses = select l.reference as reference, l.file as file, l.binding as binding from uses as l join unique_bindings as r on l.binding = r.binding and l.file = r.file;
+let only_uses = select l.reference as reference, l.file as file, l.binding as binding from uses as l join unique_bindings as r on l.binding = r.binding and l.file = r.file where $bindings = "only";
+let latest_uses = select reference, file, binding from uses where $bindings = "latest";
+let single_uses = union(left=only_uses, right=latest_uses);
 let values = select parent, child, file from "semantic-child" where field = "value";
 let target_fields = select parent, child, file from "semantic-child" where field = "target" or field = "targets";
 let initializers = assigned_values();
