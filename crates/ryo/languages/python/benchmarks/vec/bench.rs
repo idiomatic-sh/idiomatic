@@ -1099,11 +1099,44 @@ impl ColFacts<'_, '_, '_, '_> {
         t
     }
 
+    /// The flow outcome is independent of the syntactic predecessor. Each possible binding or absence has its own row.
+    fn read_resolution(&mut self, run: &mut finish::Run) -> Result<finish::Table, String> {
+        let snapshot = self.scheduled_read_predecessor(run)?;
+        let (_, names, tys) = run.catalog(fact_catalog::RESOLUTION_REL).ok_or("no read-resolution")?;
+        let mut rows = finish::Table::with_rows(names, tys, snapshot.n);
+        let mut by_reference = vec![usize::MAX; node_table::element_count(self.file.table).0 as usize];
+        for (index, &node) in snapshot.cols[0].iter().enumerate() {
+            by_reference[node as usize] = index;
+        }
+        let mut missing = None;
+        let complete = self.file.visit_read_outcomes(|reference, binding, outcome, basis| {
+            let index = by_reference[reference as usize];
+            if index != usize::MAX {
+                for (col, value) in rows.cols.iter_mut().zip(&snapshot.cols) {
+                    col.push(value[index]);
+                }
+                rows.cols[9].push(binding.map_or(finish::NULL, u64::from));
+                rows.cols[10].push(u64::from(run.sym(outcome.as_bytes())));
+                rows.cols[11].push(u64::from(run.sym(basis.as_bytes())));
+                rows.n += 1;
+            } else {
+                missing = Some(reference);
+            }
+        });
+        if let Some(reference) = missing {
+            return Err(format!("read-resolution: missing scheduled read {reference}"));
+        }
+        if !complete {
+            return Err("read-resolution: incomplete flow".to_owned());
+        }
+        Ok(rows)
+    }
+
     /// A scheduled lookup can have one predecessor where control flow permits several reaching definitions.
     /// redo-binding probe: `read-resolution` from the provider's own lookup (`binding-resolution`, whose rows come per read
     /// nearest namespace first): the first row of each read, a deletion's only at depth 0 (its name is local), and a `none`
     /// row for every read or deletion (`binding-read`) no namespace of whose path holds an event of the name.
-    fn read_resolution(&mut self, run: &mut finish::Run) -> Result<finish::Table, String> {
+    fn scheduled_read_predecessor(&mut self, run: &mut finish::Run) -> Result<finish::Table, String> {
         let res = self.whole(run, "binding-resolution")?;
         let reads = self.whole(run, "binding-read")?;
         let col = |t: &finish::Table, n: &str| t.names.iter().position(|c| c == n).ok_or_else(|| format!("no column {n}"));
@@ -1118,7 +1151,7 @@ impl ColFacts<'_, '_, '_, '_> {
             col(&res, "context")?,
         );
         let (b_ref, b_scope, b_ctx) = (col(&reads, "reference")?, col(&reads, "scope")?, col(&reads, "context")?);
-        let (_, names, tys) = run.catalog(fact_catalog::RESOLUTION_REL).ok_or("no read-resolution")?;
+        let (_, names, tys) = run.catalog(fact_catalog::PREDECESSOR_REL).ok_or("no scheduled-read-predecessor")?;
         let deletion = u64::from(run.sym(b"deletion"));
         let (own, routed, none) = (u64::from(run.sym(b"own")), u64::from(run.sym(b"routed")), u64::from(run.sym(b"none")));
         let mut t = finish::Table { names, tys, cols: vec![Vec::with_capacity(reads.n); 9], n: 0 };
@@ -1364,6 +1397,19 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
 impl ColFacts<'_, '_, '_, '_> {
     /// One asked relation of this file: none made where the file's own contents say it has no row (`row_count`).
     fn one(&mut self, run: &mut finish::Run, rel: &str) -> Result<finish::Table, String> {
+        // The syntax walk indexed every relative form. Report the fixed cost of a proven empty answer separately.
+        if rel == fact_catalog::RELATIVE_IMPORT_REL && !self.file.has_relative_imports() {
+            let timed = finish::fill_prof::timed();
+            let start = if timed { thread_cpu() } else { 0.0 };
+            let (_, names, tys) = run.catalog(rel).ok_or("no relative-import-target")?;
+            let table = finish::Table::with_rows(names, tys, 0);
+            if timed {
+                let e = self.by_rel.entry("empty-proof:relative-import-target".to_owned()).or_default();
+                e.0 += thread_cpu() - start;
+                e.2 += 1;
+            }
+            return Ok(table);
+        }
         if !self.kept.contains_key(rel)
             && let Some((Some(relation), names, tys)) = run.catalog(rel)
             && self.file.row_count(relation) == Some(0)
@@ -1388,10 +1434,27 @@ impl ColFacts<'_, '_, '_, '_> {
             }
             t
         } else if rel == fact_catalog::RELATIVE_IMPORT_REL {
-            let imports = self.whole(run, "static-import")?;
-            relative_import::targets(run, &imports, self.file_no, |run| {
-                self.project.fill(run, provider_packaging::MODULE_IDENTITY_REL, &[self.file_no], self.file_no, self.file.table, self.src)
-            })?
+            relative_import::walked(run, self.project, self.file, self.file_no)?
+        } else if rel == fact_catalog::BINDING_SITES_REL {
+            let (_, names, tys) = run.catalog(rel).ok_or("no binding-sites")?;
+            let mut rows = finish::Table::with_rows(names, tys, 0);
+            let complete = self.file.visit_binding_sites(|site| {
+                rows.cols[0].push(u64::from(site.binding));
+                rows.cols[1].push(site.stores as u64);
+                rows.cols[2].push(site.removals as u64);
+                rows.cols[3].push(site.later as u64);
+                rows.cols[4].push(site.statement.map_or(finish::NULL, u64::from));
+                rows.cols[5].push(u64::from(site.series_end));
+                rows.cols[6].push(site.next.map_or(finish::NULL, u64::from));
+                rows.cols[7].push(u64::from(self.file_no));
+                rows.n += 1;
+            });
+            if !complete {
+                return Err("binding-sites: incomplete flow".to_owned());
+            }
+            rows
+        } else if rel == fact_catalog::PREDECESSOR_REL {
+            self.scheduled_read_predecessor(run)?
         } else if rel == fact_catalog::RESOLUTION_REL {
             self.read_resolution(run)?
         } else if rel == fact_catalog::TYPE_REGION_REL {

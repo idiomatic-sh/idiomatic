@@ -75,6 +75,7 @@ impl SyntaxPort for SyntaxFake {
                 nodes: Vec::new(),
                 strings: Vec::new(),
                 imports: Vec::new(),
+                relative_froms: Vec::new(),
                 segments: Vec::new(),
                 parents: Vec::new(),
                 ends: Vec::new(),

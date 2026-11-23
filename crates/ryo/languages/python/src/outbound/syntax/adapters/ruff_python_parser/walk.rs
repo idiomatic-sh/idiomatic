@@ -134,6 +134,7 @@ pub(super) fn walked(
         annotating: Depth(0),
         literals: Vec::new(),
         imports: Vec::new(),
+        relative_froms: Vec::new(),
         names,
         text: if utf8 { &source } else { "" },
     };
@@ -146,6 +147,7 @@ pub(super) fn walked(
         refused,
         literals,
         imports,
+        relative_froms,
         names,
         ..
     } = walker;
@@ -253,6 +255,7 @@ pub(super) fn walked(
         declarations: super::future::annotated_declarations(source_kind),
         strings: literals,
         imports,
+        relative_froms,
         segments: Vec::new(),
         text: NameText(&source),
         completeness: Wholeness { syntax, lexical },

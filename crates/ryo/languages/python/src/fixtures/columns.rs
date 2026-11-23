@@ -440,7 +440,7 @@ fn lend(
         analysed: Analysed::default(),
         buffers: &mut scratch.file.buffers,
     };
-    visit(&mut ColumnFile { table, file: &mut file, memo, words });
+    visit(&mut ColumnFile { table, file: &mut file, relative_froms: &tree.relative_froms, memo, words });
 }
 
 /// Spike (6f probe): one node's evaluation region (`ColumnFile::evaluation_region`).
@@ -461,6 +461,7 @@ pub struct ColumnFile<'a, 'f> {
     /// The node table.
     pub table: &'a NodeTable,
     file: &'a mut PythonFile<'f>,
+    relative_froms: &'a [Position],
     memo: &'a mut TextMemo,
     words: &'a mut FileWords,
 }
@@ -479,7 +480,31 @@ fn flag(value: Flag) -> u32 {
     u32::from(value == Flag::Raised)
 }
 
+mod resolution;
+pub use resolution::BindingSite;
+
 impl ColumnFile<'_, '_> {
+    /// A source file without a relative from-import requests no package-relative alias.
+    pub fn has_relative_imports(&self) -> bool {
+        !self.relative_froms.is_empty()
+    }
+
+    /// Each relative import alias names a member (or, for a wildcard, just its source module).
+    pub fn relative_imports(&self) -> impl Iterator<Item = (u32, u32, Option<&str>, Option<&str>)> {
+        self.relative_froms.iter()
+            .filter_map(|index| match self.file.syntax.nodes.get(usize::from(*index)) {
+                Some(AnyNodeRef::StmtImportFrom(statement)) => Some(*statement),
+                _ => None,
+            })
+            .flat_map(|statement| {
+                statement.names.iter().filter_map(move |alias| {
+                    let id = crate::domain::node::service::id_of(alias)?;
+                    let name = alias.name.as_str();
+                    Some((id.0, statement.level, statement.module.as_ref().map(|m| m.as_str()), (name != "*").then_some(name)))
+                })
+            })
+    }
+
     /// The code the walk interned for each name token of the file's own tree, in id order, into `out` (cleared first): equal
     /// codes are equal texts. A code with the high bit set (`FIXED_TEXT`) is a fixed text of the language, the same text in
     /// every file of the run. Empty when the file's bytes were not text.

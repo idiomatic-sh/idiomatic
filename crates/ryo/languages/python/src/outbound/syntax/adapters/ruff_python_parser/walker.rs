@@ -219,6 +219,8 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
                     AnnotationSeed::Candidate
                 },
             });
+        } else if matches!(node, AnyNodeRef::StmtImportFrom(stmt) if stmt.level != 0) {
+            self.relative_froms.push(at);
         } else if matches!(node, AnyNodeRef::Alias(_)) {
             self.imports.push(at);
         } else {
