@@ -62,11 +62,10 @@ pub(super) struct Mark {
     pub(super) c0: f64,
     pub(super) i0: f64,
     pub(super) laps: [f32; 10],
-    pub(super) node: u32,
 }
 
 thread_local! {
-    static CUR: Cell<Mark> = const { Cell::new(Mark { stage: 0, built: 0, d0: u32::MAX, d1: u32::MAX, o: u32::MAX, src: 0, srcn: 0, c0: 0.0, i0: 0.0, laps: [0.0; 10], node: 0 }) };
+    static CUR: Cell<Mark> = const { Cell::new(Mark { stage: 0, built: 0, d0: u32::MAX, d1: u32::MAX, o: u32::MAX, src: 0, srcn: 0, c0: 0.0, i0: 0.0, laps: [0.0; 10] }) };
     static TALLY: RefCell<BTreeMap<(u8, u8, &'static str, &'static str, &'static str, String), (u64, f64)>> = const { RefCell::new(BTreeMap::new()) };
     /// By stage: the runs that reached each lap, and their own seconds at it.
     static COUNTS: RefCell<BTreeMap<&'static str, (u64, f64)>> = const { RefCell::new(BTreeMap::new()) };
@@ -137,9 +136,6 @@ fn bucket(n: u32) -> &'static str {
 /// The run ended; tallied when it returned nothing (`secs`: its own seconds, timing on). The enclosing mark restored.
 pub(super) fn end(saved: Mark, empty: bool, secs: f64, op_of: impl Fn(u32) -> String) {
     let m = CUR.with(|c| c.replace(saved));
-    if sw!("VEC_ESEL_NODES") && (m.node == 7070 || m.node == 7078) {
-        count(Box::leak(format!("node {} empty {empty} stage {}", m.node, stage::NAMES[m.stage as usize]).into_boxed_str()), 0.0);
-    }
     if !empty {
         return;
     }
@@ -215,7 +211,6 @@ impl super::Exec<'_> {
             return self.select_entry_(f, run, p, node);
         }
         let saved = begin();
-        with(|m| m.node = node as u32);
         let (t0, i0) = (super::step_clock(), self.inner);
         let out = self.select_entry_(f, run, p, node);
         let secs = super::step_clock() - t0 - (self.inner - i0);

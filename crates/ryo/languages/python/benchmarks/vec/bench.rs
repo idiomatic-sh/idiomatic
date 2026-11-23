@@ -83,12 +83,7 @@ struct Rule {
     whole: Option<String>,
 }
 
-struct Vocab {
-    kinds: HashMap<String, u16>,
-    kind_names: Vec<String>,
-    fields: HashMap<String, u16>,
-    field_names: Vec<String>,
-}
+use first::Vocab;
 
 fn vocabulary<W: Walk>(_: &W) -> Vocab {
     let v = W::vocabulary();
@@ -356,131 +351,9 @@ fn first_condition(table: &NodeTable, cols: &Columns, source: &[u8], anchor: &An
 
 /// The kinds-and-fields skip of a run's plan rules, flat: per rule whether it never matches and its clauses, a clause its
 /// kind words then its field words; a rule with no anchor line always passes.
-/// The file skip, flat: each rule's kinds-and-fields clauses and its word CNFs as numbers of distinct clauses, a clause
-/// stored once however many rules share it. A file's kinds-and-fields clauses are all tested once (`file`); a word clause
-/// is tested once a file, when a rule its kinds keep first asks it.
-struct Skip {
-    kw: usize,
-    fw: usize,
-    /// The distinct kinds-and-fields clauses, `kw + fw` words each: kind words then field words.
-    masks: Vec<u64>,
-    /// Per rule: never matches, and its clauses (a range of `of`).
-    rules: Vec<(bool, std::ops::Range<u32>)>,
-    of: Vec<u32>,
-    /// This file's answer of each distinct kinds-and-fields clause.
-    held: Vec<bool>,
-    /// Per rule its branches (a range of `branches`; none: unknown, alive), a branch its clauses (a range of `wof`), a
-    /// distinct word clause its words (a range of `wwords`).
-    wrules: Vec<std::ops::Range<u32>>,
-    branches: Vec<std::ops::Range<u32>>,
-    wof: Vec<u32>,
-    wclauses: Vec<std::ops::Range<u32>>,
-    wwords: Vec<u16>,
-    /// Per distinct word clause: `stamp << 1 | answer` once asked in the file of `stamp`.
-    wmemo: Vec<u32>,
-    stamp: u32,
-}
-
-impl Skip {
-    fn new(rules: &[Rule], skip_of: &[Option<usize>], frules: &[funnel::FRule], kw: usize, fw: usize) -> Self {
-        let mut masks: Vec<u64> = Vec::new();
-        let mut seen: HashMap<Vec<u64>, u32> = HashMap::new();
-        let mut of = Vec::new();
-        let rules: Vec<(bool, std::ops::Range<u32>)> = skip_of
-            .iter()
-            .map(|i| {
-                let a = of.len() as u32;
-                if let Some(i) = i {
-                    for (k, f) in &rules[*i].clauses {
-                        let c: Vec<u64> = k.iter().chain(f).copied().collect();
-                        assert_eq!(c.len(), kw + fw, "a clause is kw + fw words");
-                        let n = seen.len() as u32;
-                        let id = *seen.entry(c.clone()).or_insert_with(|| {
-                            masks.extend_from_slice(&c);
-                            n
-                        });
-                        of.push(id);
-                    }
-                }
-                (i.is_some_and(|i| rules[i].never), a..of.len() as u32)
-            })
-            .collect();
-        let mut wseen: HashMap<Vec<u16>, u32> = HashMap::new();
-        let (mut wrules, mut branches, mut wof, mut wclauses, mut wwords) = (Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new());
-        for r in frules {
-            let a = branches.len() as u32;
-            for cnf in &r.cnfs {
-                let b = wof.len() as u32;
-                for cl in cnf {
-                    let n = wseen.len() as u32;
-                    let id = *wseen.entry(cl.clone()).or_insert_with(|| {
-                        let w = wwords.len() as u32;
-                        wwords.extend_from_slice(cl);
-                        wclauses.push(w..wwords.len() as u32);
-                        n
-                    });
-                    wof.push(id);
-                }
-                branches.push(b..wof.len() as u32);
-            }
-            wrules.push(a..branches.len() as u32);
-        }
-        let n_masks = masks.len() / (kw + fw).max(1);
-        let n_w = wclauses.len();
-        Skip { kw, fw, masks, rules, of, held: vec![false; n_masks], wrules, branches, wof, wclauses, wwords, wmemo: vec![0; n_w], stamp: 0 }
-    }
-
-    /// A new file: every distinct kinds-and-fields clause tested once against its kinds and fields; the word answers of
-    /// the last file forgotten.
-    fn file(&mut self, kinds: &[u64], fields: &[u64]) {
-        let (kw, fw) = (self.kw, self.fw);
-        for (c, h) in self.masks.chunks_exact(kw + fw).zip(&mut self.held) {
-            *h = c[..kw].iter().zip(kinds).any(|(a, b)| a & b != 0) || c[kw..].iter().zip(fields).any(|(a, b)| a & b != 0);
-        }
-        self.stamp += 1;
-    }
-
-    /// Whether every clause of the rule meets a kind or a field the file has (`survives` over the distinct clauses).
-    #[inline]
-    fn alive(&self, rule: usize) -> bool {
-        let (never, range) = &self.rules[rule];
-        !never && self.of[range.start as usize..range.end as usize].iter().all(|c| self.held[*c as usize])
-    }
-
-    /// Whether some branch of the rule's word CNFs has every clause met by a word the file has (`FRule::words_alive`).
-    #[inline]
-    fn words_alive(&mut self, rule: usize, present: &[u64]) -> bool {
-        let r = self.wrules[rule].clone();
-        if r.is_empty() {
-            return true;
-        }
-        let stamp = self.stamp << 1;
-        for b in r {
-            let br = self.branches[b as usize].clone();
-            let mut all = true;
-            for k in br {
-                let c = self.wof[k as usize] as usize;
-                let m = self.wmemo[c];
-                let held = if m & !1 == stamp {
-                    m & 1 == 1
-                } else {
-                    let ws = self.wclauses[c].clone();
-                    let h = self.wwords[ws.start as usize..ws.end as usize].iter().any(|w| funnel::bit(present, *w));
-                    self.wmemo[c] = stamp | u32::from(h);
-                    h
-                };
-                if !held {
-                    all = false;
-                    break;
-                }
-            }
-            if all {
-                return true;
-            }
-        }
-        false
-    }
-}
+#[path = "../../../../crates/engine/benches/vec/file_skip.rs"]
+mod file_skip;
+use file_skip::Skip;
 
 fn survives(rule: &Rule, kinds: &[u64], fields: &[u64]) -> bool {
     if rule.never {
@@ -584,7 +457,6 @@ fn main() {
     match args.get(1).copied() {
         Some("lower") => return lower::run_lower(&args[2..]),
         Some("stage") => return lower::run_stage(&args[2..]),
-        Some("first") => return first::run_first(&args[2..]),
         _ => {}
     }
     // 6f: `VEC_PY310` walks at the pack's configured target (benchmark.toml `python-target=3.10`); without it the walk is at
@@ -592,6 +464,7 @@ fn main() {
     let walk = ryo_python::walk_with_settings(target_settings());
     let vocab = vocabulary(&walk);
     match args.get(1).copied() {
+        Some("first") => first::run_first(&args[2..], &vocab, python_language),
         Some("census") => census(&walk, &vocab, args[2], args[3], args[4]),
         Some("run") => run(&walk, &vocab, &args[2..]),
         Some("funnel") => {
@@ -639,7 +512,7 @@ fn main() {
                     finish::load(finish_args[0])
                 };
                 println!("start-up total {:.4} s", thread_cpu() - t0);
-                let mut fin = finisher::Finisher::new(&plan, &walk, &vocab, &finish_args);
+                let mut fin = visit::Finisher::new(&plan, &walk, &vocab, &finish_args);
                 run_funnel(&walk, &vocab, &args[2..], Some(&mut fin), pack.as_ref().map(|(d, r)| (*d, r)));
                 fin.end(0.0);
                 // redo-union pass 2 c18: the plan (30 k nodes of JSON) is not dropped one by one at exit
@@ -934,29 +807,37 @@ fn run(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     }
 }
 
-#[path = "alloc_count.rs"]
+#[path = "../../../../crates/engine/benches/vec/alloc_count.rs"]
 mod alloc_count;
-#[path = "funnel.rs"]
+#[path = "../../../../crates/engine/benches/vec/funnel.rs"]
 mod funnel;
-#[path = "file_seeds.rs"]
+#[path = "../../../../crates/engine/benches/vec/spec.rs"]
+mod spec;
+
+#[path = "../../../../crates/engine/benches/vec/file_seeds.rs"]
 mod file_seeds;
-#[path = "facts.rs"]
+#[path = "../../../../crates/engine/benches/vec/facts.rs"]
 mod facts;
-#[path = "survivors.rs"]
+#[path = "../../../../crates/engine/benches/vec/survivors.rs"]
 mod survivors;
-#[path = "finish.rs"]
+#[path = "../../../../crates/engine/benches/vec/finish.rs"]
 mod finish;
-#[path = "lower.rs"]
+#[path = "../../../../crates/engine/benches/vec/lower.rs"]
 mod lower;
-#[path = "first.rs"]
+use request::rule_context;
+#[path = "../../../../crates/engine/benches/vec/first.rs"]
 mod first;
+#[path = "../../../../crates/engine/benches/vec/pair_summary.rs"]
 mod pair_summary;
+#[path = "../../../../crates/engine/benches/vec/pair_skip.rs"]
 mod pair_skip;
+#[path = "../../../../crates/engine/benches/vec/pair_checks.rs"]
 mod pair_checks;
 mod request;
-#[path = "finisher.rs"]
+#[path = "../../../../crates/engine/benches/vec/finisher.rs"]
 mod finisher;
-#[path = "dump.rs"]
+mod visit;
+#[path = "../../../../crates/engine/benches/vec/dump.rs"]
 mod dump;
 #[path = "type_expression.rs"]
 mod type_expression;
@@ -970,6 +851,8 @@ mod deferred_resolution;
 mod direct_fill;
 #[path = "fact_catalog.rs"]
 mod fact_catalog;
+#[path = "relative_import.rs"]
+mod relative_import;
 #[path = "provider_packaging.rs"]
 mod provider_packaging;
 #[path = "provider_tokens.rs"]
@@ -1103,10 +986,43 @@ impl ColFacts<'_, '_, '_, '_> {
         t
     }
 
+    /// The flow outcome is independent of the syntactic predecessor. Each possible binding or absence has its own row.
+    fn read_resolution(&mut self, run: &mut finish::Run) -> Result<finish::Table, String> {
+        let snapshot = self.scheduled_read_predecessor(run)?;
+        let (_, names, tys) = run.catalog(fact_catalog::RESOLUTION_REL).ok_or("no read-resolution")?;
+        let mut rows = finish::Table::with_rows(names, tys, snapshot.n);
+        let mut by_reference = vec![usize::MAX; node_table::element_count(self.file.table).0 as usize];
+        for (index, &node) in snapshot.cols[0].iter().enumerate() {
+            by_reference[node as usize] = index;
+        }
+        let mut missing = None;
+        let complete = self.file.visit_read_outcomes(|reference, binding, outcome, basis| {
+            let index = by_reference[reference as usize];
+            if index != usize::MAX {
+                for (col, value) in rows.cols.iter_mut().zip(&snapshot.cols) {
+                    col.push(value[index]);
+                }
+                rows.cols[9].push(binding.map_or(finish::NULL, u64::from));
+                rows.cols[10].push(u64::from(run.sym(outcome.as_bytes())));
+                rows.cols[11].push(u64::from(run.sym(basis.as_bytes())));
+                rows.n += 1;
+            } else {
+                missing = Some(reference);
+            }
+        });
+        if let Some(reference) = missing {
+            return Err(format!("read-resolution: missing scheduled read {reference}"));
+        }
+        if !complete {
+            return Err("read-resolution: incomplete flow".to_owned());
+        }
+        Ok(rows)
+    }
+
     /// redo-binding probe: `read-resolution` from the provider's own lookup (`binding-resolution`, whose rows come per read
     /// nearest namespace first): the first row of each read, a deletion's only at depth 0 (its name is local), and a `none`
     /// row for every read or deletion (`binding-read`) no namespace of whose path holds an event of the name.
-    fn read_resolution(&mut self, run: &mut finish::Run) -> Result<finish::Table, String> {
+    fn scheduled_read_predecessor(&mut self, run: &mut finish::Run) -> Result<finish::Table, String> {
         let res = self.whole(run, "binding-resolution")?;
         let reads = self.whole(run, "binding-read")?;
         let col = |t: &finish::Table, n: &str| t.names.iter().position(|c| c == n).ok_or_else(|| format!("no column {n}"));
@@ -1121,7 +1037,7 @@ impl ColFacts<'_, '_, '_, '_> {
             col(&res, "context")?,
         );
         let (b_ref, b_scope, b_ctx) = (col(&reads, "reference")?, col(&reads, "scope")?, col(&reads, "context")?);
-        let (_, names, tys) = run.catalog(fact_catalog::RESOLUTION_REL).ok_or("no read-resolution")?;
+        let (_, names, tys) = run.catalog(fact_catalog::PREDECESSOR_REL).ok_or("no scheduled-read-predecessor")?;
         let deletion = u64::from(run.sym(b"deletion"));
         let (own, routed, none) = (u64::from(run.sym(b"own")), u64::from(run.sym(b"routed")), u64::from(run.sym(b"none")));
         let mut t = finish::Table { names, tys, cols: vec![Vec::with_capacity(reads.n); 9], n: 0 };
@@ -1362,6 +1278,74 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
                 t.cols[5].push(u64::from(self.file_no));
             }
             t
+        } else if rel == fact_catalog::RELATIVE_IMPORT_REL {
+            let imports = self.whole(run, "static-import")?;
+            relative_import::targets(run, &imports, self.file_no, |run| {
+                self.project.fill(run, provider_packaging::MODULE_IDENTITY_REL, &[self.file_no], self.file_no, self.file.table, self.src)
+            })?
+        } else if rel == fact_catalog::ASSIGNMENT_SOURCE_REL {
+            let (_, names, tys) = run.catalog(rel).ok_or("no assignment-source")?;
+            let mut rows = finish::Table::with_rows(names, tys, 0);
+            self.file.visit_assignment_sources(|target, value, operation, association| {
+                rows.cols[0].push(u64::from(target));
+                rows.cols[1].push(u64::from(value));
+                rows.cols[2].push(u64::from(run.sym(operation.as_bytes())));
+                rows.cols[3].push(u64::from(run.sym(association.as_bytes())));
+                rows.cols[4].push(u64::from(self.file_no));
+                rows.n += 1;
+            });
+            rows
+        } else if rel == fact_catalog::PRE_DECLARATION_READ_REL {
+            let (_, names, tys) = run.catalog(rel).ok_or("no pre-declaration-read")?;
+            let mut rows = finish::Table::with_rows(names, tys, 0);
+            let complete = self.file.visit_pre_declaration_reads(|at, scope, phase, ordinal| {
+                rows.cols[0].push(u64::from(at));
+                rows.cols[1].push(u64::from(scope));
+                rows.cols[2].push(u64::from(phase));
+                rows.cols[3].push(ordinal);
+                rows.cols[4].push(u64::from(self.file_no));
+                rows.n += 1;
+            });
+            if !complete {
+                return Err("pre-declaration-read: incomplete flow".to_owned());
+            }
+            rows
+        } else if rel == fact_catalog::NAMESPACE_SITES_REL {
+            let (_, names, tys) = run.catalog(rel).ok_or("no namespace-sites")?;
+            let mut rows = finish::Table::with_rows(names, tys, 0);
+            let complete = self.file.visit_namespace_sites(|scope, name, first, mutation, written| {
+                rows.cols[0].push(u64::from(scope));
+                rows.cols[1].push(u64::from(run.sym(name.as_bytes())));
+                rows.cols[2].push(first);
+                rows.cols[3].push(mutation.unwrap_or(finish::NULL));
+                rows.cols[4].push(written.map_or(finish::NULL, u64::from));
+                rows.cols[5].push(u64::from(self.file_no));
+                rows.n += 1;
+            });
+            if !complete {
+                return Err("namespace-sites: incomplete flow".to_owned());
+            }
+            rows
+        } else if rel == fact_catalog::BINDING_SITES_REL {
+            let (_, names, tys) = run.catalog(rel).ok_or("no binding-sites")?;
+            let mut rows = finish::Table::with_rows(names, tys, 0);
+            let complete = self.file.visit_binding_sites(|site| {
+                rows.cols[0].push(u64::from(site.binding));
+                rows.cols[1].push(site.stores as u64);
+                rows.cols[2].push(site.removals as u64);
+                rows.cols[3].push(site.later as u64);
+                rows.cols[4].push(site.statement.map_or(finish::NULL, u64::from));
+                rows.cols[5].push(u64::from(site.series_end));
+                rows.cols[6].push(site.next.map_or(finish::NULL, u64::from));
+                rows.cols[7].push(u64::from(self.file_no));
+                rows.n += 1;
+            });
+            if !complete {
+                return Err("binding-sites: incomplete flow".to_owned());
+            }
+            rows
+        } else if rel == fact_catalog::PREDECESSOR_REL {
+            self.scheduled_read_predecessor(run)?
         } else if rel == fact_catalog::RESOLUTION_REL {
             self.read_resolution(run)?
         } else if rel == fact_catalog::TYPE_REGION_REL {
@@ -1420,6 +1404,12 @@ impl finish::Provider for Facts<'_, '_, '_> {
         };
         if file != self.file {
             return Err(format!("{rel}: asked for file {file}, this provider holds file {}", self.file));
+        }
+        if rel == fact_catalog::RELATIVE_IMPORT_REL {
+            let imports = self.fill(run, "static-import", finish::Scope::File(file))?;
+            return relative_import::targets(run, &imports, self.file, |run| {
+                self.project.fill(run, provider_packaging::MODULE_IDENTITY_REL, &[self.file], self.file, self.facts.table, self.src)
+            });
         }
         let t0 = thread_cpu();
         let (relation, _, _) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
@@ -1567,7 +1557,7 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     let plan = finish::load(args[0]);
     type_expression::load_lists(args[0]);
     let list = files(args[1]);
-    let mut fin = finisher::Finisher::new(&plan, walk, vocab, args);
+    let mut fin = visit::Finisher::new(&plan, walk, vocab, args);
     let seed: Option<std::collections::HashSet<(String, String)>> =
         flag(args, "--seed").map(|p| std::fs::read_to_string(p).expect("seed").lines().filter_map(|l| l.split_once('\t')).map(|(a, b)| (a.to_owned(), b.to_owned())).collect());
     let mut seed_by_path: HashMap<&str, std::collections::HashSet<&str>> = HashMap::new();
@@ -1637,7 +1627,7 @@ fn source_literals(plan: &finish::Plan) -> Vec<Vec<u8>> {
 /// `<anchors>` a directory: the pack; the first half's spec is prepared in this process from its parsed rules (`first.rs`), the
 /// parse shared with the second half's when `--finish` names the same pack (`pack`); `<anchors>` and `<plans>` files: the
 /// spec prepared beforehand (the oracle path).
-fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&mut finisher::Finisher<'_>>, pack: Option<(&str, &lower::ReadPack)>) {
+fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&mut visit::Finisher<'_>>, pack: Option<(&str, &lower::ReadPack)>) {
     let way = args[0];
     let list = files(args[1]);
     let mut fact_catalog = facts::Catalog::default();
@@ -1759,7 +1749,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
     let by_name: HashMap<&str, usize> = rules.iter().enumerate().map(|(i, r)| (r.name.as_str(), i)).collect();
     let skip_of: Vec<Option<usize>> = frules.iter().map(|r| by_name.get(r.name.as_str()).copied()).collect();
     // the kinds-and-fields skip of each plan rule, flat: a clause is its kind words then its field words
-    let mut skip = Skip::new(&rules, &skip_of, &frules, words_of(vocab.kind_names.len()), words_of(vocab.field_names.len()));
+    let mut skip = Skip::new(skip_of.iter().map(|i| i.map_or((false, &[][..]), |i| (rules[i].never, rules[i].clauses.as_slice()))), frules.iter().map(|r| r.cnfs.as_slice()), words_of(vocab.kind_names.len()), words_of(vocab.field_names.len()));
     let mut kinds: Vec<u64> = Vec::new();
     let fields_width = vocab.field_names.len();
     let mut units = funnel::units(&frules);
@@ -1858,7 +1848,10 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                     match word_src.as_str() {
                         "table" => {
                             // redo-onepass pass 2: the walk's name codes when the visit took them, else by bytes
-                            funnel::file_words(pt, &bytes, name_token, if codes_taken { &name_codes } else { &[] }, &words, &mut word_memo, &mut fixed_memo, &mut present, &mut word_pairs);
+                            let tokens = node_table::ids_of_kind(pt, KindBits(name_token)).iter().copied();
+                            let (starts, ends) = (node_table::starts(pt), node_table::ends(pt));
+                            let spelling = |i: usize| &bytes[starts[i] as usize..ends[i] as usize];
+                            funnel::file_words(tokens, spelling, if codes_taken { &name_codes } else { &[] }, &words, &mut word_memo, &mut fixed_memo, &mut present, &mut word_pairs);
                             // the index: name-token positions of each required word
                             word_offsets.clear();
                             word_offsets.resize(n_words + 1, 0);
@@ -2797,5 +2790,5 @@ mod kernels {
 }
 
 #[cfg(feature = "vec-arrow")]
-#[path = "kernels.rs"]
+#[path = "../../../../crates/engine/benches/vec/kernels.rs"]
 mod kernels;

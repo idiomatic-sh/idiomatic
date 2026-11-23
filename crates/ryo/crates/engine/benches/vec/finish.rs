@@ -66,6 +66,8 @@ pub(super) mod empty_sel;
 mod prefixes;
 #[path = "finish/ordered_dfs.rs"]
 mod ordered_dfs;
+#[path = "finish/worklist.rs"]
+mod worklist;
 #[path = "finish/lazy_view.rs"]
 mod lazy_view;
 #[path = "finish/fill_len.rs"]
@@ -776,6 +778,9 @@ pub(super) enum Scope<'s> {
 
 /// How a step asks the provider for a relation's rows: the visit's facts.
 pub(super) trait Provider {
+    /// Parser-supplied text symbols in node-position order, when the parse carries them directly.
+    fn syntax_text(&self) -> Option<&[u32]> { None }
+
     /// Every row of `rel` in `scope`, each cell as the run names it (a file cell is the run's number of the file it names).
     fn fill(&mut self, run: &mut Run, rel: &str, scope: Scope<'_>) -> Result<Table, String>;
     /// redo-fills pass 2: how many rows `fill(rel, scope)` answers, where known without making them; None: not known.
@@ -864,6 +869,10 @@ impl File<'_> {
         }
         f
     }
+    pub(super) fn set_text(&mut self, symbols: &[u32]) {
+        self.text_memo.get_mut().copy_from_slice(symbols);
+    }
+
     fn line(&self, off: u32) -> i64 {
         self.line_starts.partition_point(|s| *s <= off) as i64
     }
@@ -1139,6 +1148,8 @@ impl File<'_> {
 /// Counters a run keeps: per node, own time, calls, rows out and rows touched.
 #[derive(Default)]
 pub(super) struct Stats {
+    pub(super) total_runs: u64,
+    pub(super) total_rows: u64,
     pub(super) time: Vec<f64>,
     pub(super) rows: Vec<u64>,
     pub(super) calls: Vec<u64>,
@@ -1162,6 +1173,18 @@ pub(super) struct Stats {
     pub(super) keyed: Vec<u64>,
     pub(super) keyed_empty: Vec<u64>,
     pub(super) built: Vec<u64>,
+}
+
+impl Stats {
+    fn ran(&mut self, node: usize) {
+        self.calls[node] += 1;
+        self.total_runs += 1;
+    }
+
+    fn produced(&mut self, node: usize, rows: usize) {
+        self.rows[node] += rows as u64;
+        self.total_rows += rows as u64;
+    }
 }
 
 // ------------------------------------------------------------------------------------------------ expressions
@@ -1356,7 +1379,7 @@ impl<'p> Exec<'p> {
         let k = plan.nodes.len();
         Exec {
             plan,
-            stats: Stats { time: vec![0.0; k], rows: vec![0; k], calls: vec![0; k], touched: vec![0; k], empty: vec![0; k], known: vec![0; k], empty_time: vec![0.0; k], static_time: 0.0, static_depth: 0, static_visits: 0, static_pass: 0, static_file_tests: 0, rec_time: 0.0, rec_busy: false, keyed: vec![0; k], keyed_empty: vec![0; k], built: vec![0; k] },
+            stats: Stats { total_runs: 0, total_rows: 0, time: vec![0.0; k], rows: vec![0; k], calls: vec![0; k], touched: vec![0; k], empty: vec![0; k], known: vec![0; k], empty_time: vec![0.0; k], static_time: 0.0, static_depth: 0, static_visits: 0, static_pass: 0, static_file_tests: 0, rec_time: 0.0, rec_busy: false, keyed: vec![0; k], keyed_empty: vec![0; k], built: vec![0; k] },
             schemas: vec![None; k],
             views: vec![None; k],
             sels: vec![None; k],
@@ -1480,6 +1503,13 @@ impl<'p> Exec<'p> {
                 names.push(s(&a["count"])?.to_owned());
                 tys.push(Ty::Num);
                 mk(names, tys)
+            }
+            "worklist" => {
+                let roots = from(self, run, "from")?;
+                let edges = from(self, run, "edges")?;
+                let lattice = from(self, run, "lattice")?;
+                let (names, types) = worklist::schema(a, &roots, &edges, &lattice)?;
+                mk(names, types)
             }
             "closure" | "follow" => {
                 let e = from(self, run, "edges")?;
@@ -1809,7 +1839,7 @@ impl<'p> Exec<'p> {
         // 8: a step over an empty input answers its shared empty table before any set-up
         let gate = self.frames[node].gate;
         if gate < frame::MISSING && self.eval(f, run, p, gate as usize)?.n == 0 {
-            self.stats.calls[node] += 1;
+            self.stats.ran(node);
             self.stats.empty[node] += 1;
             let e = self.empty_rc(run, node)?;
             if self.is_constant(run, node) {
@@ -1819,8 +1849,8 @@ impl<'p> Exec<'p> {
         }
         let out = if self.timing { self.timed_body(f, run, p, node)? } else { self.body(f, run, p, node)? };
         emptyprop::ran();
-        self.stats.calls[node] += 1;
-        self.stats.rows[node] += out.n as u64;
+        self.stats.ran(node);
+        self.stats.produced(node, out.n);
         keyed::built(self, f, node, &out);
         if out.n == 0 {
             self.stats.empty[node] += 1;
@@ -1956,8 +1986,8 @@ impl<'p> Exec<'p> {
                 if self.timing || !sw!("VEC_LEAF_CLOCK") {
                     self.inner += dt;
                 }
-                self.stats.calls[node] += 1;
-                self.stats.rows[node] += rc.n as u64;
+                self.stats.ran(node);
+                self.stats.produced(node, rc.n);
                 Ok(rc)
             }
         }
@@ -2063,7 +2093,7 @@ impl<'p> Exec<'p> {
             let fnode = self.arg_rel(node, "from")?;
             let pb = plan.nodes[fnode].j["semi"].as_u64().ok_or("count without semi")? as usize;
             if let Some((from, counts)) = self.band_rows(f, run, p, fnode, pb, true)? {
-                self.stats.rows[fnode] += from.n as u64;
+                self.stats.produced(fnode, from.n);
                 let keys: Vec<usize> = strs(&a["keys"])?.iter().map(|c| from.col(c)).collect::<R<_>>()?;
                 let mut groups: FxHashMap<inline_key::Key, u64> = FxHashMap::default();
                 let mut order: Vec<inline_key::Key> = Vec::new();
@@ -2440,6 +2470,14 @@ impl<'p> Exec<'p> {
                     let row: Vec<u64> = r.as_array().ok_or("row")?.iter().map(|x| u64::from(run.sym(x.as_str().unwrap_or("").as_bytes()))).collect();
                     out.push_row(&row);
                 }
+                Ok(out)
+            }
+            "worklist" => {
+                let edges = self.eval(f, run, p, self.arg_rel(node, "edges")?)?;
+                let lattice = self.eval(f, run, p, self.arg_rel(node, "lattice")?)?;
+                let roots = self.eval(f, run, p, self.arg_rel(node, "from")?)?;
+                let mut out = self.empty(run, node)?;
+                worklist::trace(a, &roots, &edges, &lattice, &mut out)?;
                 Ok(out)
             }
             "ordered-dfs" => {
@@ -4267,6 +4305,14 @@ fn call(run: &mut Run, name: &str, vs: &[V]) -> V {
                 }
             };
             flag(matches!((int(run, vs[0]), int(run, vs[1])), (Some(a), Some(b)) if a.checked_add(1) == Some(b)))
+        }
+        "float_text_gte" => {
+            let finite = |v: V| -> Option<f64> {
+                if v.ty() != Ty::Sym || v.1 == NULL { return None; }
+                let n = std::str::from_utf8(run.text(v.1 as u32)).ok()?.trim().parse::<f64>().ok()?;
+                n.is_finite().then_some(n)
+            };
+            flag(matches!((finite(vs[0]), finite(vs[1])), (Some(a),Some(b)) if a >= b))
         }
         "numeric_gte" => {
             let num = |run: &Run, v: V| -> Option<f64> {
