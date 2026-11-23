@@ -272,6 +272,8 @@ pub(super) struct Walker<'b, 'w, 't> {
     pub literals: Vec<crate::domain::node::types::StringSite>,
     /// The imported names met: the places of the aliases.
     pub imports: Vec<languages::Position>,
+    /// Relative from-import statements seen in the source walk.
+    pub relative_froms: Vec<languages::Position>,
     /// The fields the open nodes hand their children, one run for each open node.
     pub fields: Vec<crate::domain::node::types::ChildField<'t>>,
     /// The names interned so far: of each node, and of each name token of the file's own tree.
