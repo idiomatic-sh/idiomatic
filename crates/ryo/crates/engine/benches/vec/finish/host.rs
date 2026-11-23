@@ -3,6 +3,7 @@
 //! three execute bits, as core's corpus adapter reads it), and `filesystem.read-failure`, a failed read of the file (none:
 //! a file the harness lints was read). Not the language provider's: it says what the file system says.
 
+use crate::finish::TableAccess as _;
 use super::{R, Run, Table};
 use super::super::host_columns;
 
@@ -23,7 +24,7 @@ pub(in super::super) fn host_fill(run: &mut Run, rel: &str, file_no: u32) -> Opt
         return None;
     }
     let (_, names, tys) = run.catalog(rel)?;
-    let mut t = Table::with(names, tys);
+    let mut t = run.storage.empty(names, tys);
     if rel == "filesystem.file" {
         // redo-binding c32 (merged by redo-int): the current file's row
         t.push_row(&[u64::from(file_no)]);

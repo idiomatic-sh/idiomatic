@@ -7,7 +7,7 @@
 //! node table, by position (a join on their key is a position read; a scan with a kind test reads the kind buckets).
 //! `token-link` comes from the provider's token order (`TokenOrder`). Every other relation is the provider's fill, read once a file when a step asks.
 
-use ryo::languages::{self, CellKind, KindBits, NodeTable, Position, node_table};
+use ryo::languages::{self, KindBits, NodeTable, Position, node_table};
 use ryo_relations::domain::labels::types::NameRef;
 use ryo_relations::domain::relations::service as catalog;
 use rustc_hash::FxHashMap;
@@ -34,10 +34,9 @@ pub(super) fn step_clock() -> f64 {
 
 #[path = "finish/answer.rs"]
 pub(super) mod answer;
-#[path = "finish/recycle.rs"]
-mod recycle;
-#[path = "finish/inline_key.rs"]
-mod inline_key;
+#[path = "finish/storage.rs"]
+mod storage;
+
 #[path = "finish/col/mod.rs"]
 mod col;
 #[path = "finish/select_kernel.rs"]
@@ -126,177 +125,27 @@ mod keyed;
 #[path = "finish/session.rs"]
 pub(super) mod session;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub(super) enum Ty {
-    Node,
-    Sym,
-    File,
-    Span,
-    Num,
-    Flag,
-}
+pub(crate) use ryo::languages::CellKind as Ty;
+pub(crate) use ryo_engine::domain::made_tables::scalars::{self, types::PackedScalar as V};
+use scalars::types::CollationText;
+use ryo_relations::domain::relations::types::Flag;
+use ryo_values::domain::table_words::types::PackedSlice;
 
-pub(super) fn ty_of(k: CellKind) -> Ty {
-    match k {
-        CellKind::Node => Ty::Node,
-        CellKind::Symbol => Ty::Sym,
-        CellKind::File => Ty::File,
-        CellKind::Span => Ty::Span,
-        CellKind::Number => Ty::Num,
-        CellKind::Flag => Ty::Flag,
-    }
-}
-
-/// A value: a typed cell.
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
-pub(super) struct V(Ty2, u64);
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
-enum Ty2 {
-    T(u8),
-}
-impl V {
-    fn new(t: Ty, v: u64) -> Self {
-        V(Ty2::T(t as u8), v)
-    }
-    fn ty(self) -> Ty {
-        let Ty2::T(t) = self.0;
-        [Ty::Node, Ty::Sym, Ty::File, Ty::Span, Ty::Num, Ty::Flag][t as usize]
-    }
-}
-
-pub(super) const NULL: u64 = u64::MAX;
-/// redo-alloc: a placeholder cell for an argument array's unused places (never read).
-const NULL_V: V = V(Ty2::T(5), NULL);
-
-/// 7: a table's column names and types, shared with its step's schema (never copied per table).
-pub(super) type Names = Rc<Vec<String>>;
-pub(super) type Tys = Rc<Vec<Ty>>;
-
-/// A column table.
-#[derive(Default, Clone, Debug)]
-pub(super) struct Table {
-    pub(super) names: Names,
-    pub(super) tys: Tys,
-    pub(super) cols: Vec<Vec<u64>>,
-    pub(super) n: usize,
-}
-
-thread_local! {
-    /// 8: the worker's column buffers: a dropped table's columns come back here (cleared, capacity kept) and the next
-    /// table takes them, so a file's executions reuse the same memory instead of allocating and freeing per execution.
-    /// redo-alloc: by size class (a column of room 2^c..2^(c+1) in class c), so a small table never holds a large column.
-    static POOL: RefCell<([Vec<Vec<u64>>; CLASSES], usize)> = const { RefCell::new(([const { Vec::new() }; CLASSES], 0)) };
-}
-/// 8: the pool keeps at most this many cells in all (32 MB), and no single column above a sixteenth of it (redo-alloc c8
-/// tried 64 MB: no fewer misses, 37 MB more live).
-const POOL_CELLS: usize = 1 << 22;
-/// redo-alloc: size classes of the pool (2^0 .. 2^19 cells: the largest pooled column is POOL_CELLS / 16 = 2^18).
-const CLASSES: usize = 20;
-
-/// redo-alloc: a pooled column with room for `n` cells (no more than 32 times that), or a new one with room for the next
-/// power of two (so it is found again by its class); for an unknown size (`n` 0) one of the small classes (up to 512
-/// cells) or an empty one.
-#[inline]
-fn take_col(p: &mut ([Vec<Vec<u64>>; CLASSES], usize), n: usize) -> Vec<u64> {
-    let (lo, hi) = if n == 0 { (0, 8) } else { let c = (usize::BITS - (n - 1).leading_zeros()) as usize; (c.saturating_sub(1), (c + 4).min(CLASSES - 1)) };
-    for c in lo..=hi.min(CLASSES - 1) {
-        if let Some(v) = p.0[c].pop() {
-            p.1 -= v.capacity();
-            if v.capacity() >= n {
-                return v;
-            }
-            // a column just below the room asked: grown once here
-            let mut v = v;
-            v.reserve(n);
-            return v;
-        }
-    }
-    Vec::with_capacity(if n >= 16 { n.next_power_of_two() } else { n })
-}
-
-impl Drop for Table {
-    fn drop(&mut self) {
-        self.release();
-        // redo-alloc: the emptied list of columns kept too (recycle.rs)
-        recycle::give_cols(std::mem::take(&mut self.cols));
-    }
-}
-
-impl Table {
-    fn with(names: impl Into<Names>, tys: impl Into<Tys>) -> Self {
-        Self::with_rows(names, tys, 0)
-    }
-    /// redo-alloc: `with` for a table about to hold `n` rows (its columns taken with that room; 0: unknown).
-    pub(super) fn with_rows(names: impl Into<Names>, tys: impl Into<Tys>, n: usize) -> Self {
-        let (names, tys) = (names.into(), tys.into());
-        let k = names.len();
-        // redo-alloc: the list of columns from the kept ones (recycle.rs), each column from the pool
-        let mut cols = recycle::take_cols(k);
-        POOL.with(|p| {
-            let p = &mut *p.borrow_mut();
-            cols.extend((0..k).map(|_| take_col(p, n)));
-        });
-        Table { names, tys, cols, n: 0 }
-    }
-    /// redo-alloc: a copy of the table in the worker's pooled list and columns (`clone` makes both new).
-    pub(super) fn copy(&self) -> Table {
-        let mut cols = recycle::take_cols(self.cols.len());
-        POOL.with(|p| {
-            let p = &mut *p.borrow_mut();
-            for c in &self.cols {
-                let mut v = take_col(p, c.len());
-                v.extend_from_slice(c);
-                cols.push(v);
-            }
-        });
-        Table { names: self.names.clone(), tys: self.tys.clone(), cols, n: self.n }
-    }
-    /// redo-alloc: a column of `n` cells `x` appended, its room from the pool.
-    pub(super) fn push_const_col(&mut self, x: u64, n: usize) {
-        let mut v = POOL.with(|p| take_col(&mut p.borrow_mut(), n));
-        v.resize(n, x);
-        self.cols.push(v);
-    }
-    /// 8: the table's columns back in the pool (cleared, capacity kept); the table is left with no rows and no columns.
-    pub(super) fn release(&mut self) {
-        self.n = 0;
-        if self.cols.is_empty() {
-            return;
-        }
-        let _ = POOL.try_with(|p| {
-            let (p, cells) = &mut *p.borrow_mut();
-            for mut c in self.cols.drain(..) {
-                let cap = c.capacity();
-                if cap == 0 || cap > POOL_CELLS / 16 || *cells + cap > POOL_CELLS {
-                    continue;
-                }
-                c.clear();
-                *cells += cap;
-                p[(usize::BITS - 1 - cap.leading_zeros()) as usize].push(c);
-            }
-        });
-    }
-    pub(super) fn col(&self, name: &str) -> Result<usize, String> {
-        self.names.iter().position(|c| c == name).ok_or_else(|| format!("no column {name} in {:?}", self.names))
-    }
-    fn push_row(&mut self, row: &[u64]) {
-        if self.cols.len() < self.names.len() {
-            self.cols.resize(self.names.len(), Vec::new());
-        }
-        for (c, v) in row.iter().enumerate() {
-            self.cols[c].push(*v);
-        }
-        self.n += 1;
-    }
-    fn row(&self, r: usize, out: &mut Vec<u64>) {
-        out.clear();
-        out.extend(self.cols.iter().map(|c| c[r]));
-    }
-}
+fn flag(v:bool) -> V { scalars::service::flag(if v {Flag::Raised} else {Flag::Lowered}) }
+fn truthy(v:V) -> bool { scalars::service::truth(v) == Flag::Raised }
+fn natural_lt(a:&str,b:&str)->bool { scalars::service::natural_order(CollationText(a), CollationText(b)).is_lt() }
+use ryo_engine::domain::indexes::postings::types::{KeyGroup, PartitionKey};
+pub(crate) use storage::{Storage, Table, TableAccess, PostingAccess, Index, key_of};
+pub(crate) const NULL: u64 = scalars::constants::MISSING_CELL.0;
+const NULL_V: V = V { kind: Ty::Flag, word: scalars::constants::MISSING_CELL };
+fn scalar(kind: Ty, value: u64) -> V { V { kind, word: languages::CellWord(value) } }
+pub(crate) type Names = Rc<Vec<String>>;
+pub(crate) type Tys = Rc<Vec<Ty>>;
 
 /// The run: texts, regexes, kind and field names, file paths.
 #[derive(Default)]
 pub(super) struct Run {
+    pub(crate) storage: Rc<Storage>,
     /// Relations whose provider exposes a population other than this native file table.
     pub(super) reader_tables: rustc_hash::FxHashSet<String>,
     cold: cold_list::Plan,
@@ -378,7 +227,7 @@ impl Run {
         }
         let relation = catalog::relation_named(NameRef(name))?;
         let names: Names = Rc::new(catalog::columns(relation).into_iter().map(|c| catalog::column_name(c).0.to_owned()).collect());
-        let tys: Tys = Rc::new(catalog::kinds(relation).iter().map(|k| ty_of(*k)).collect());
+        let tys: Tys = Rc::new(catalog::kinds(relation).to_vec());
         self.rels.insert(name.to_owned(), (Some(relation), names.clone(), tys.clone()));
         Some((Some(relation), names, tys))
     }
@@ -454,7 +303,7 @@ pub(super) struct Declared {
 /// 6f probe: a made table's rows as text lines (`label`, path, then `column=value` cells; a node as `id:line`).
 pub(super) fn dump_rows(f: &File<'_>, run: &Run, t: &Table, label: &str, path: &str, out: &mut String) {
     use std::fmt::Write as _;
-    for r in 0..t.n {
+    for r in 0..t.rows.0 {
         let _ = write!(out, "{label}\t{path}");
         for c in 0..t.names.len() {
             let v = t.cols[c][r];
@@ -471,7 +320,7 @@ pub(super) fn dump_rows(f: &File<'_>, run: &Run, t: &Table, label: &str, path: &
                     let line = if (v as usize) < f.n { f.line(f.start[v as usize]) } else { 0 };
                     let _ = write!(out, "{v}:{line}");
                 }
-                Ty::Sym => out.push_str(&String::from_utf8_lossy(run.text(v as u32)).replace(['\t', '\n'], " ")),
+                Ty::Symbol => out.push_str(&String::from_utf8_lossy(run.text(v as u32)).replace(['\t', '\n'], " ")),
                 Ty::Span => {
                     let _ = write!(out, "{}-{}", v >> 32, v & 0xffff_ffff);
                 }
@@ -582,20 +431,20 @@ pub(super) enum Native {
 /// 6h: the rows of the keyed lists made from provider fills (one entry a fill row a column asked), for the report.
 pub(super) static FACT_IX_ROWS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
-const TREE_COLS: [(&str, Ty); 5] = [("id", Ty::Node), ("kind", Ty::Sym), ("text", Ty::Sym), ("file", Ty::File), ("span", Ty::Span)];
-const CHILD_COLS: [(&str, Ty); 5] = [("parent", Ty::Node), ("child", Ty::Node), ("ordinal", Ty::Num), ("field", Ty::Sym), ("file", Ty::File)];
+const TREE_COLS: [(&str, Ty); 5] = [("id", Ty::Node), ("kind", Ty::Symbol), ("text", Ty::Symbol), ("file", Ty::File), ("span", Ty::Span)];
+const CHILD_COLS: [(&str, Ty); 5] = [("parent", Ty::Node), ("child", Ty::Node), ("ordinal", Ty::Number), ("field", Ty::Symbol), ("file", Ty::File)];
 const LOC_COLS: [(&str, Ty); 9] = [
     ("id", Ty::Node),
     ("file", Ty::File),
     ("span", Ty::Span),
-    ("start-line", Ty::Num),
-    ("end-line", Ty::Num),
-    ("start-byte", Ty::Num),
-    ("end-byte", Ty::Num),
-    ("start-column", Ty::Num),
-    ("end-column", Ty::Num),
+    ("start-line", Ty::Number),
+    ("end-line", Ty::Number),
+    ("start-byte", Ty::Number),
+    ("end-byte", Ty::Number),
+    ("start-column", Ty::Number),
+    ("end-column", Ty::Number),
 ];
-const TOKEN_COLS: [(&str, Ty); 5] = [("source", Ty::Node), ("target", Ty::Node), ("link-kind", Ty::Sym), ("file", Ty::File), ("span", Ty::Span)];
+const TOKEN_COLS: [(&str, Ty); 5] = [("source", Ty::Node), ("target", Ty::Node), ("link-kind", Ty::Symbol), ("file", Ty::File), ("span", Ty::Span)];
 
 fn native_of(run: &Run, rel: &str) -> Option<Native> {
     if run.reader_tables.contains(rel) { return None; }
@@ -645,12 +494,13 @@ pub(super) struct Tokens {
     pair: Vec<u32>,
     opener: Vec<bool>,
     enc: Vec<u32>,
-    enclosed: FxHashMap<u32, inline_key::List<u32>>,
+    enclosed: FxHashMap<u32, KeyGroup<u32>>,
     order: Vec<u32>,
 }
 
 /// One file: the node table's columns, the source, the fills and the made tables.
 pub(super) struct File<'a> {
+    storage: Rc<Storage>,
     cold: cold_list::PerFile,
     keyed_sizes: FxHashMap<usize, usize>,
     owed_fills: Vec<bool>,
@@ -679,7 +529,7 @@ pub(super) struct File<'a> {
     vrows: cold_entries::Rows,
     vmat: FxHashMap<usize, Rc<Table>>,
     cursor_views: rustc_hash::FxHashSet<usize>,
-    index: FxHashMap<usize, inline_key::List<(inline_key::Key, Rc<Index>)>>,
+    index: FxHashMap<usize, KeyGroup<(PartitionKey<usize>, Rc<Index>)>>,
     fills: FxHashMap<String, Rc<Table>>,
     lazies: FxHashMap<usize, Rc<Lazy>>,
     /// The survivor sets of this file (sorted node ids), by set: the prefix's roots for each seeded rule.
@@ -716,7 +566,7 @@ struct FileBufs {
     text_memo: Vec<u32>,
     vrows: cold_entries::Rows,
     vmat: FxHashMap<usize, Rc<Table>>,
-    index: FxHashMap<usize, inline_key::List<(inline_key::Key, Rc<Index>)>>,
+    index: FxHashMap<usize, KeyGroup<(PartitionKey<usize>, Rc<Index>)>>,
     fills: FxHashMap<String, Rc<Table>>,
     lazies: FxHashMap<usize, Rc<Lazy>>,
     facts: Vec<Option<Rc<Table>>>,
@@ -725,9 +575,9 @@ struct FileBufs {
 }
 
 /// A map's tables given back (recycle.rs) and the map emptied, its room kept.
-fn give_tables<K>(m: &mut FxHashMap<K, Rc<Table>>) {
+fn give_tables<K>(storage: &Storage, m: &mut FxHashMap<K, Rc<Table>>) {
     for (_, t) in m.drain() {
-        recycle::recycle(t);
+        storage.recycle(t);
     }
 }
 
@@ -746,7 +596,7 @@ impl Drop for File<'_> {
         for n in touched.drain(..) {
             // redo-alloc: the answer given back for the next (recycle.rs), not freed
             if let Some(Res::Tab(t)) = memo[n as usize].take() {
-                recycle::recycle(t);
+                self.storage.recycle(t);
             }
         }
         // a substitution's restore never leaves an entry `res` did not set (checked where it is cheap)
@@ -777,19 +627,22 @@ impl Drop for File<'_> {
         b.line_starts.clear();
         b.text_memo.clear();
         for (_, r) in b.vrows.drain() {
-            r.recycle();
+            r.recycle(&self.storage);
         }
-        give_tables(&mut b.vmat);
+        give_tables(&self.storage, &mut b.vmat);
         // redo-alloc: the indexes given back (their own allocation and buffers kept)
         for (_, mut v) in b.index.drain() {
-            v.drain_each(|(_, ix)| recycle_index(ix));
+            for (_, ix) in v.drain(..) { self.storage.recycle_index(ix); }
         }
-        give_tables(&mut b.fills);
+        give_tables(&self.storage, &mut b.fills);
         b.lazies.clear();
         for t in b.facts.drain(..).flatten() {
-            recycle::recycle(t);
+            self.storage.recycle(t);
         }
-        b.fact_ix.clear();
+        for index in [self.by_start.get_mut().take(), self.by_end.get_mut().take()].into_iter().flatten() {
+            self.storage.return_index(index);
+        }
+        for (_, ix) in b.fact_ix.drain() { self.storage.recycle_index(ix); }
         b.kind_bits.clear();
         // a map grown far past a usual file is not kept (its room would stay with the worker)
         if b.vrows.capacity() > 1 << 12 || b.index.capacity() > 1 << 12 || b.fact_ix.capacity() > 1 << 12 {
@@ -824,7 +677,7 @@ pub(super) trait Provider {
 }
 
 impl File<'_> {
-    pub(super) fn new<'a>(table: &'a NodeTable, src: &'a [u8], file: u32, nodes: usize) -> File<'a> {
+    pub(super) fn new<'a>(storage: Rc<Storage>, table: &'a NodeTable, src: &'a [u8], file: u32, nodes: usize) -> File<'a> {
         let n = node_table::element_count(table).0;
         // redo-alloc: the last file's emptied buffers and maps (none at the first file)
         let mut b = SPARE_BUFS.with(|s| s.borrow_mut().take()).unwrap_or_default();
@@ -835,6 +688,7 @@ impl File<'_> {
         b.line_starts.push(0);
         b.text_memo.resize(n, u32::MAX);
         let mut f = File {
+            storage,
             table,
             src,
             file,
@@ -1045,7 +899,7 @@ impl File<'_> {
                     }
                 }
             }
-            Native::Fact(i) => out.extend(0..self.facts[usize::from(i)].as_ref().map_or(0, |t| t.n as u32)),
+            Native::Fact(i) => out.extend(0..self.facts[usize::from(i)].as_ref().map_or(0, |t| t.rows.0 as u32)),
         }
     }
     fn native_rows(&self, run: &Run, nat: Native) -> Vec<u32> {
@@ -1069,7 +923,7 @@ impl File<'_> {
                 if fill_prof::counting() {
                     self.mark_read(i);
                 }
-                (0..self.facts[usize::from(i)].as_ref().map_or(0, |t| t.n as u32)).collect()
+                (0..self.facts[usize::from(i)].as_ref().map_or(0, |t| t.rows.0 as u32)).collect()
             }
         }
     }
@@ -1085,12 +939,12 @@ impl File<'_> {
         }
         let m = match &self.facts[usize::from(i)] {
             Some(t) => {
-                FACT_IX_ROWS.fetch_add(t.n as u64, std::sync::atomic::Ordering::Relaxed);
-                Index::build(t.n, |r| t.cols[col][r])
+                FACT_IX_ROWS.fetch_add(t.rows.0 as u64, std::sync::atomic::Ordering::Relaxed);
+                self.storage.index(t.rows.0, |r| t.cols[col][r])
             }
-            None => Index::build(0, |_| 0),
+            None => self.storage.index(0, |_| 0),
         };
-        let rc = Rc::new(m);
+        let rc = self.storage.index_rc(m);
         self.fact_ix.borrow_mut().insert((i, col), rc.clone());
         rc
     }
@@ -1128,7 +982,7 @@ impl File<'_> {
                 let mut b = cell.borrow_mut();
                 let idx = b.get_or_insert_with(|| {
                     let src = if col == 5 { &self.start } else { &self.end };
-                    Index::build(src.len(), |p| u64::from(src[p]))
+                    self.storage.index(src.len(), |p| u64::from(src[p]))
                 });
                 if let Some(rows) = idx.get(&v) {
                     out.extend_from_slice(rows);
@@ -1138,7 +992,7 @@ impl File<'_> {
                 let mut b = self.by_line[col - 3].borrow_mut();
                 let idx = b.get_or_insert_with(|| {
                     let src = if col == 3 { &self.start } else { &self.end };
-                    Index::build(src.len(), |p| u64::from(self.line(src[p]) as u32))
+                    self.storage.index(src.len(), |p| u64::from(self.line(src[p]) as u32))
                 });
                 if let Some(rows) = idx.get(&(u64::from(v as u32))) {
                     out.extend_from_slice(rows);
@@ -1345,9 +1199,7 @@ pub(super) struct Lazy {
     rcache: RefCell<FxHashMap<Vec<u64>, Rc<Vec<u64>>>>,
 }
 
-fn truthy(v: V) -> bool {
-    v.ty() == Ty::Flag && v.1 == 1
-}
+
 
 // ------------------------------------------------------------------------------------------------ the executor
 
@@ -1520,9 +1372,9 @@ impl<'p> Exec<'p> {
                 for (k, v) in a["values"].as_object().ok_or("extend values")? {
                     names.push(k.clone());
                     tys.push(match v {
-                        J::Number(_) => Ty::Num,
+                        J::Number(_) => Ty::Number,
                         J::String(t) if t == "true" || t == "false" => Ty::Flag,
-                        _ => Ty::Sym,
+                        _ => Ty::Symbol,
                     });
                 }
                 mk(names, tys)
@@ -1547,10 +1399,10 @@ impl<'p> Exec<'p> {
                 if op == "group-digest" {
                     pos(&f.names, s(&a["distinct"])?)?;
                     names.push(s(&a["digest"])?.to_owned());
-                    tys.push(Ty::Num);
+                    tys.push(Ty::Number);
                 }
                 names.push(s(&a["count"])?.to_owned());
-                tys.push(Ty::Num);
+                tys.push(Ty::Number);
                 mk(names, tys)
             }
             "worklist" => {
@@ -1585,14 +1437,14 @@ impl<'p> Exec<'p> {
                 let f = from(self, run, "from")?;
                 let (mut names, mut tys) = ((*f.names).clone(), (*f.tys).clone());
                 names.push(s(&a["output"])?.to_owned());
-                tys.push(if op == "replace" { Ty::Sym } else { Ty::Span });
+                tys.push(if op == "replace" { Ty::Symbol } else { Ty::Span });
                 mk(names, tys)
             }
             "span-bounds" => {
                 let f = from(self, run, "from")?;
                 let (mut names, mut tys) = ((*f.names).clone(), (*f.tys).clone());
                 names.extend([s(&a["start-output"])?.to_owned(), s(&a["end-output"])?.to_owned()]);
-                tys.extend([Ty::Num, Ty::Num]);
+                tys.extend([Ty::Number, Ty::Number]);
                 mk(names, tys)
             }
             "source-matches" => {
@@ -1602,18 +1454,18 @@ impl<'p> Exec<'p> {
                 tys.push(Ty::Span);
                 if let Some(lo) = a.get("line-output").and_then(J::as_str) {
                     names.push(lo.to_owned());
-                    tys.push(Ty::Num);
+                    tys.push(Ty::Number);
                 }
                 if a.get("capture").and_then(J::as_str).is_some() {
                     names.push(s(&a["capture-output"])?.to_owned());
                     tys.push(Ty::Span);
                     if let Some(ct) = a.get("capture-text-output").and_then(J::as_str) {
                         names.push(ct.to_owned());
-                        tys.push(Ty::Sym);
+                        tys.push(Ty::Symbol);
                     }
                     if let Some(cl) = a.get("capture-line-output").and_then(J::as_str) {
                         names.push(cl.to_owned());
-                        tys.push(Ty::Num);
+                        tys.push(Ty::Number);
                     }
                 }
                 // redo-binding pass 6: `capture-texts={group: column, ...}`, the text of each named group ("" when it did
@@ -1621,7 +1473,7 @@ impl<'p> Exec<'p> {
                 if let Some(ct) = a.get("capture-texts").and_then(J::as_object) {
                     for v in ct.values() {
                         names.push(s(v)?.to_owned());
-                        tys.push(Ty::Sym);
+                        tys.push(Ty::Symbol);
                     }
                 }
                 mk(names, tys)
@@ -1631,20 +1483,20 @@ impl<'p> Exec<'p> {
                 let (mut names, mut tys) = ((*f.names).clone(), (*f.tys).clone());
                 for c in strs(&a["captures"])? {
                     names.push(c.to_owned());
-                    tys.push(Ty::Sym);
+                    tys.push(Ty::Symbol);
                 }
                 mk(names, tys)
             }
             "rows" => {
                 let names: Vec<_> = strs(&a["columns"])?.map(str::to_owned).collect();
                 let k = names.len();
-                mk(names, vec![Ty::Sym; k])
+                mk(names, vec![Ty::Symbol; k])
             }
             "render-syntax" => {
                 let f = from(self, run, "from")?;
                 let (mut names, mut tys) = ((*f.names).clone(), (*f.tys).clone());
                 names.push(s(&a["output"])?.to_owned());
-                tys.push(Ty::Sym);
+                tys.push(Ty::Symbol);
                 mk(names, tys)
             }
             "fits-rendered" => from(self, run, "from")?,
@@ -1652,21 +1504,21 @@ impl<'p> Exec<'p> {
                 let f = from(self, run, "from")?;
                 let (mut names, mut tys) = ((*f.names).clone(), (*f.tys).clone());
                 names.push(s(&a["output"])?.to_owned());
-                tys.push(Ty::Sym);
+                tys.push(Ty::Symbol);
                 mk(names, tys)
             }
             "subtree-class" => {
                 let f = from(self, run, "from")?;
                 let (mut names, mut tys) = ((*f.names).clone(), (*f.tys).clone());
                 names.push(s(&a["output"])?.to_owned());
-                tys.push(Ty::Num);
+                tys.push(Ty::Number);
                 mk(names, tys)
             }
             "group-ordinal" => {
                 let f = from(self, run, "from")?;
                 let (mut names, mut tys) = ((*f.names).clone(), (*f.tys).clone());
                 names.push(s(&a["output"])?.to_owned());
-                tys.push(Ty::Num);
+                tys.push(Ty::Number);
                 mk(names, tys)
             }
             "ordered-dfs" => {
@@ -1678,7 +1530,7 @@ impl<'p> Exec<'p> {
                 let f = from(self, run, "from")?;
                 let (mut names, mut tys) = ((*f.names).clone(), (*f.tys).clone());
                 names.extend([s(&a["rank"])?.to_owned(), s(&a["step"])?.to_owned()]);
-                tys.extend([Ty::Num, Ty::Num]);
+                tys.extend([Ty::Number, Ty::Number]);
                 mk(names, tys)
             }
             other => return Err(format!("operator {other} not in the step set")),
@@ -1748,8 +1600,8 @@ impl<'p> Exec<'p> {
                 // The SDK tests the spelling of a literal. Both an unpublished
                 // symbol and an actual empty string match the empty spelling.
                 let column = match (&left, &right) {
-                    (col @ E::Col(_, _, Ty::Sym), E::Text(t)) |
-                    (E::Text(t), col @ E::Col(_, _, Ty::Sym)) if *t == run.empty => Some(col),
+                    (col @ E::Col(_, _, Ty::Symbol), E::Text(t)) |
+                    (E::Text(t), col @ E::Col(_, _, Ty::Symbol)) if *t == run.empty => Some(col),
                     _ => None,
                 };
                 if let (Some(absent), Some(col), Op::Eq | Op::Ne) = (run.absent_word, column, op) {
@@ -1761,7 +1613,7 @@ impl<'p> Exec<'p> {
             "in" | "notin" => {
                 let value = self.expr(run, &a[1], names)?;
                 let mut list = self.expr(run, &a[2], names)?;
-                if let (Some(absent), E::Col(_, _, Ty::Sym), E::List(items)) = (run.absent_word, &value, &mut list)
+                if let (Some(absent), E::Col(_, _, Ty::Symbol), E::List(items)) = (run.absent_word, &value, &mut list)
                     && items.iter().any(|e| matches!(e, E::Text(t) if *t == run.empty))
                 {
                     items.push(E::Text(absent));
@@ -1935,9 +1787,9 @@ impl<'p> Exec<'p> {
         let out = if self.timing { self.timed_body(f, run, p, node)? } else { self.body(f, run, p, node)? };
         emptyprop::ran();
         self.stats.ran(node);
-        self.stats.produced(node, out.n);
+        self.stats.produced(node, out.rows.0);
         keyed::built(self, f, node, &out);
-        if out.n == 0 {
+        if out.rows.0 == 0 {
             self.stats.empty[node] += 1;
         }
         if self.is_constant(run, node) {
@@ -1960,12 +1812,12 @@ impl<'p> Exec<'p> {
         self.stats.time[node] += own;
         self.inner = saved + dt;
         let out = out?;
-        if out.n == 0 {
+        if out.rows.0 == 0 {
             self.stats.empty_time[node] += own;
             emptyprop::empty_run(node, false, own);
         }
         if let Some(c) = ew {
-            empty_why::tally(self, f, node, c, out.n == 0);
+            empty_why::tally(self, f, node, c, out.rows.0 == 0);
         }
         Ok(out)
     }
@@ -2004,25 +1856,25 @@ impl<'p> Exec<'p> {
                 self.scratch_rows = rows;
                 return self.empty_rc(run, node);
             }
-            let mut out = Table::with_rows(sc.names.clone(), sc.tys.clone(), rows.len());
+            let mut out = run.storage.table(sc.names.clone(), sc.tys.clone(), rows.len());
             for c in 0..v.map.len() {
                 view_cols::gather(f, run, v.base, v.map[c], &rows, &mut out.cols[c]);
             }
-            out.n = rows.len();
+            out.rows.0 = rows.len();
             self.stats.touched[node] += rows.len() as u64;
             self.scratch_rows = rows;
-            return Ok(recycle::rc(out));
+            return Ok(run.storage.rc(out));
         }
         if self.frames[node].op == frame::Op::Closure
             && let Some(t) = self.closure_at(f, run, p, node, col, keys)?
         {
-            return Ok(recycle::rc(t));
+            return Ok(run.storage.rc(t));
         }
         let t = self.eval(f, run, p, node)?;
-        if t.n == 0 {
+        if t.rows.0 == 0 {
             return Ok(t);
         }
-        Ok(recycle::rc(subset(f, node, &t, col, keys)))
+        Ok({ let result = subset(f, node, &t, col, keys); f.storage.rc(result) })
     }
 
     /// A closure's rows whose source (`col` the first after its keys) or destination holds one of `keys`, read through
@@ -2034,7 +1886,7 @@ impl<'p> Exec<'p> {
             return Ok(None);
         }
         let forward = col == nk;
-        let mut out = Table::with(l.names.clone(), l.tys.clone());
+        let mut out = run.storage.empty(l.names.clone(), l.tys.clone());
         let mut key: Vec<u64> = vec![u64::from(f.file); nk + 1];
         let mut row: Vec<u64> = vec![u64::from(f.file); nk + 2];
         for k in keys {
@@ -2061,12 +1913,12 @@ impl<'p> Exec<'p> {
                     self.empty_rc(run, node)?
                 } else {
                     let sc = self.schema(run, node)?;
-                    let mut out = Table::with_rows(sc.names.clone(), sc.tys.clone(), rows.len());
+                    let mut out = run.storage.table(sc.names.clone(), sc.tys.clone(), rows.len());
                     for c in 0..v.map.len() {
                         view_cols::gather_ids(f, run, v.base, v.map[c], rows.iter().copied(), &mut out.cols[c]);
                     }
-                    out.n = rows.len();
-                    recycle::rc(out)
+                    out.rows.0 = rows.len();
+                    run.storage.rc(out)
                 };
                 f.vmat.insert(node, rc.clone());
                 let dt = leaf_scan::table_clock() - t0;
@@ -2076,9 +1928,9 @@ impl<'p> Exec<'p> {
                 }
                 // A row-stream reader may already have produced this logical result.
                 if !f.cursor_views.remove(&node) {
-                    self.stats.built[node] += rc.n as u64;
+                    self.stats.built[node] += rc.rows.0 as u64;
                     self.stats.ran(node);
-                    self.stats.produced(node, rc.n);
+                    self.stats.produced(node, rc.rows.0);
                 }
                 Ok(rc)
             }
@@ -2104,7 +1956,7 @@ impl<'p> Exec<'p> {
             return Ok(t.clone());
         }
         let sc = self.schema(run, node)?;
-        let t = Rc::new(Table::with(sc.names.clone(), sc.tys.clone()));
+        let t = Rc::new(run.storage.empty(sc.names.clone(), sc.tys.clone()));
         self.empties[node] = Some(t.clone());
         Ok(t)
     }
@@ -2116,7 +1968,7 @@ impl<'p> Exec<'p> {
     /// redo-alloc: `empty` for a table about to hold `n` rows.
     pub(super) fn empty_rows(&mut self, run: &mut Run, node: usize, n: usize) -> R<Table> {
         let sc = self.schema(run, node)?;
-        Ok(Table::with_rows(sc.names.clone(), sc.tys.clone(), n))
+        Ok(run.storage.table(sc.names.clone(), sc.tys.clone(), n))
     }
 
     fn lazy(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Lazy>> {
@@ -2151,7 +2003,7 @@ impl<'p> Exec<'p> {
         if fr.counted
             && let Some(t) = self.counted(f, run, p, node)?
         {
-            return Ok(recycle::rc(t));
+            return Ok(run.storage.rc(t));
         }
         if fr.first == frame::MISSING {
             return Err(format!("no relation argument of {}", self.plan.nodes[node].op));
@@ -2164,8 +2016,20 @@ impl<'p> Exec<'p> {
             }
             return self.select_entry(f, run, p, node);
         }
-        let t = self.step(f, run, p, node)?;
-        if t.n == 0 { self.empty_rc(run, node) } else { Ok(recycle::rc(t)) }
+        if fr.op == frame::Op::Base {
+            let answer = self.base(f, run, p, s(&self.plan.nodes[node].j["rel"])?)?;
+            return if answer.rows.0 == 0 { self.empty_rc(run, node) } else { Ok(answer) };
+        }
+        let answer = self.step(f, run, p, node)?;
+        self.publish(run, node, answer)
+    }
+
+    fn publish(&mut self, run: &mut Run, node: usize, mut table: Table) -> R<Rc<Table>> {
+        if table.rows.0 == 0 {
+            run.storage.release(&mut table);
+            return self.empty_rc(run, node);
+        }
+        Ok(run.storage.rc(table))
     }
 
     /// A group count over a counted select: its kept rows and their counts, grouped (None: the band does not apply).
@@ -2176,27 +2040,27 @@ impl<'p> Exec<'p> {
             let fnode = self.arg_rel(node, "from")?;
             let pb = plan.nodes[fnode].j["semi"].as_u64().ok_or("count without semi")? as usize;
             if let Some((from, counts)) = self.band_rows(f, run, p, fnode, pb, true)? {
-                self.stats.produced(fnode, from.n);
+                self.stats.produced(fnode, from.rows.0);
                 let keys: Vec<usize> = strs(&a["keys"])?.map(|c| from.col(c)).collect::<R<_>>()?;
-                let mut groups: FxHashMap<inline_key::Key, u64> = FxHashMap::default();
-                let mut order: Vec<inline_key::Key> = Vec::new();
+                let mut groups: FxHashMap<PartitionKey<u64>, u64> = FxHashMap::default();
+                let mut order: Vec<PartitionKey<u64>> = Vec::new();
                 // redo-alloc: a row's key read into one buffer; lists made only for a key not seen (same groups, same order)
                 let mut kb: Vec<u64> = Vec::with_capacity(keys.len() + 1);
-                for i in 0..from.n {
+                for i in 0..from.rows.0 {
                     kb.clear();
                     kb.extend(keys.iter().map(|c| from.cols[*c][i]));
                     match groups.get_mut(&kb[..]) {
                         Some(e) => *e += counts[i],
                         None => {
-                            order.push(inline_key::Key::of(&kb));
-                            groups.insert(inline_key::Key::of(&kb), counts[i]);
+                            order.push(PartitionKey::from_slice(&kb));
+                            groups.insert(PartitionKey::from_slice(&kb), counts[i]);
                         }
                     }
                 }
-                let mut out = self.empty(run, node)?;
+                let mut out = self.empty_rows(run, node, order.len())?;
                 for k in order {
                     kb.clear();
-                    kb.extend_from_slice(k.cells());
+                    kb.extend_from_slice(k.as_slice());
                     kb.push(groups[&k]);
                     out.push_row(&kb);
                 }
@@ -2214,23 +2078,22 @@ impl<'p> Exec<'p> {
         let j = &pn.j;
         let a = self.args[node];
         match op {
-            "base" => self.base(f, run, p, s(&j["rel"])?),
             "select" => self.select_k(f, run, p, node),
             "union" => {
                 let l = self.eval(f, run, p, self.arg_rel(node, "left")?)?;
                 let r = self.eval(f, run, p, self.arg_rel(node, "right")?)?;
-                let mut out = l.copy();
+                let mut out = run.storage.copy(&l);
                 let map: Vec<usize> = l.names.iter().map(|c| r.col(c)).collect::<R<_>>()?;
                 for (c, m) in map.iter().enumerate() {
                     out.cols[c].extend_from_slice(&r.cols[*m]);
                 }
-                out.n += r.n;
-                Ok(distinct(out))
+                out.rows.0 += r.rows.0;
+                Ok(distinct(run, out))
             }
             "intersection" | "difference" => {
                 let left = self.eval(f, run, p, self.arg_rel(node, "left")?)?;
                 let right = self.eval(f, run, p, self.arg_rel(node, "right")?)?;
-                set_ops::select_rows(&left, &right, op == "intersection")
+                set_ops::select_rows(run, &left, &right, op == "intersection")
             }
             "group-digest" => {
                 let input = self.eval(f, run, p, self.arg_rel(node, "from")?)?;
@@ -2241,16 +2104,16 @@ impl<'p> Exec<'p> {
             "antijoin" => self.antijoin(f, run, p, node, a),
             "extend" => {
                 let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
-                let mut out = from.copy();
+                let mut out = run.storage.copy(&from);
                 for (k, v) in a["values"].as_object().ok_or("extend values")? {
                     let (t, x) = match v {
-                        J::Number(n) => (Ty::Num, n.as_i64().ok_or("extend number")? as u64),
+                        J::Number(n) => (Ty::Number, n.as_i64().ok_or("extend number")? as u64),
                         J::String(t) if t == "true" || t == "false" => (Ty::Flag, u64::from(t == "true")),
-                        J::String(t) => (Ty::Sym, u64::from(run.sym(t.as_bytes()))),
+                        J::String(t) => (Ty::Symbol, u64::from(run.sym(t.as_bytes()))),
                         _ => return Err(format!("extend value {v}")),
                     };
                     // redo-alloc: the constant column from the pool
-                    out.push_const_col(x, from.n);
+                    run.storage.extend(&mut out, x, from.rows.0);
                 }
                 let sc = self.schema(run, node)?;
                 (out.names, out.tys) = (sc.names.clone(), sc.tys.clone());
@@ -2260,15 +2123,15 @@ impl<'p> Exec<'p> {
                 let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
                 let cols: Vec<usize> = strs(&a["columns"])?.map(|c| from.col(c)).collect::<R<_>>()?;
                 let osc = self.schema(run, node)?;
-                let mut out = Table::with(osc.names.clone(), osc.tys.clone());
-                let mut seen: rustc_hash::FxHashSet<inline_key::Key> = rustc_hash::FxHashSet::default();
+                let mut out = run.storage.empty(osc.names.clone(), osc.tys.clone());
+                let mut seen: rustc_hash::FxHashSet<PartitionKey<u64>> = rustc_hash::FxHashSet::default();
                 // redo-alloc: a row read into one buffer; a set entry made only for a row not seen
                 let mut row: Vec<u64> = Vec::with_capacity(cols.len());
-                for i in 0..from.n {
+                for i in 0..from.rows.0 {
                     row.clear();
                     row.extend(cols.iter().map(|c| from.cols[*c][i]));
                     if !seen.contains(&row[..]) {
-                        seen.insert(inline_key::Key::of(&row));
+                        seen.insert(PartitionKey::from_slice(&row));
                         out.push_row(&row);
                     }
                 }
@@ -2282,16 +2145,16 @@ impl<'p> Exec<'p> {
                     J::String(d) => Some(from.col(d)?),
                     _ => None,
                 };
-                let mut groups: FxHashMap<inline_key::Key, (u64, rustc_hash::FxHashSet<u64>)> = FxHashMap::default();
-                let mut order: Vec<inline_key::Key> = Vec::new();
+                let mut groups: FxHashMap<PartitionKey<u64>, (u64, rustc_hash::FxHashSet<u64>)> = FxHashMap::default();
+                let mut order: Vec<PartitionKey<u64>> = Vec::new();
                 // redo-alloc: a row's key read into one buffer; lists made only for a key not seen (same groups, same order)
                 let mut kb: Vec<u64> = Vec::with_capacity(keys.len() + 1);
-                for i in 0..from.n {
+                for i in 0..from.rows.0 {
                     kb.clear();
                     kb.extend(keys.iter().map(|c| from.cols[*c][i]));
                     if !groups.contains_key(&kb[..]) {
-                        order.push(inline_key::Key::of(&kb));
-                        groups.insert(inline_key::Key::of(&kb), (0, rustc_hash::FxHashSet::default()));
+                        order.push(PartitionKey::from_slice(&kb));
+                        groups.insert(PartitionKey::from_slice(&kb), (0, rustc_hash::FxHashSet::default()));
                     }
                     let e = groups.get_mut(&kb[..]).expect("the group just made");
                     match distinct {
@@ -2301,12 +2164,12 @@ impl<'p> Exec<'p> {
                         None => e.0 += 1,
                     }
                 }
-                let mut out = self.empty(run, node)?;
+                let mut out = self.empty_rows(run, node, order.len())?;
                 for k in order {
                     let g = &groups[&k];
                     let c = if distinct.is_some() { g.1.len() as u64 } else { g.0 };
                     kb.clear();
-                    kb.extend_from_slice(k.cells());
+                    kb.extend_from_slice(k.as_slice());
                     kb.push(c);
                     out.push_row(&kb);
                 }
@@ -2317,10 +2180,10 @@ impl<'p> Exec<'p> {
                 let keys: Vec<usize> = strs(&a["keys"])?.map(|c| from.col(c)).collect::<R<_>>()?;
                 let oc = from.col(s(&a["order"])?)?;
                 let max = op == "group-max";
-                let mut best: FxHashMap<inline_key::Key, i64> = FxHashMap::default();
+                let mut best: FxHashMap<PartitionKey<u64>, i64> = FxHashMap::default();
                 // redo-alloc: a row's key read into one buffer; a key list made only for a key not seen
                 let mut kb: Vec<u64> = Vec::with_capacity(keys.len());
-                for i in 0..from.n {
+                for i in 0..from.rows.0 {
                     kb.clear();
                     kb.extend(keys.iter().map(|c| from.cols[*c][i]));
                     let v = from.cols[oc][i] as i64;
@@ -2331,13 +2194,13 @@ impl<'p> Exec<'p> {
                             }
                         }
                         None => {
-                            best.insert(inline_key::Key::of(&kb), v);
+                            best.insert(PartitionKey::from_slice(&kb), v);
                         }
                     }
                 }
-                let mut out = Table::with(from.names.clone(), from.tys.clone());
+                let mut out = run.storage.empty(from.names.clone(), from.tys.clone());
                 let mut row = Vec::new();
-                for i in 0..from.n {
+                for i in 0..from.rows.0 {
                     kb.clear();
                     kb.extend(keys.iter().map(|c| from.cols[*c][i]));
                     if best[&kb[..]] == from.cols[oc][i] as i64 {
@@ -2349,7 +2212,7 @@ impl<'p> Exec<'p> {
             }
             "closure" => {
                 let l = self.lazy(f, run, p, node)?;
-                let mut out = Table::with(l.names.clone(), l.tys.clone());
+                let mut out = run.storage.empty(l.names.clone(), l.tys.clone());
                 let starts: Vec<Vec<u64>> = l.adj.keys().cloned().collect();
                 for k in starts {
                     let reach = reach_dir(&l, &k, true);
@@ -2368,7 +2231,7 @@ impl<'p> Exec<'p> {
                 let (si, di) = (edges.col(sn)?, edges.col(dn)?);
                 let mut adj: FxHashMap<Vec<u64>, Vec<u64>> = FxHashMap::default();
                 let mut fixed: rustc_hash::FxHashSet<Vec<u64>> = rustc_hash::FxHashSet::default();
-                for r in 0..edges.n {
+                for r in 0..edges.rows.0 {
                     let mut k: Vec<u64> = keys.iter().map(|c| edges.cols[*c][r]).collect();
                     k.push(edges.cols[si][r]);
                     if edges.cols[si][r] == edges.cols[di][r] {
@@ -2410,8 +2273,8 @@ impl<'p> Exec<'p> {
             "span-between" => {
                 let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
                 let (sc, ec) = (from.col(s(&a["start"])?)?, from.col(s(&a["end"])?)?);
-                let mut out = from.copy();
-                let col: Vec<u64> = (0..from.n)
+                let mut out = run.storage.copy(&from);
+                let col: Vec<u64> = (0..from.rows.0)
                     .map(|i| {
                         let (x, y) = (from.cols[sc][i], from.cols[ec][i]);
                         if x == NULL || y == NULL { NULL } else { (x & 0xffff_ffff_0000_0000) | (y & 0xffff_ffff) }
@@ -2425,7 +2288,7 @@ impl<'p> Exec<'p> {
             "span-bounds" => {
                 let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
                 let sc = from.col(s(&a["span"])?)?;
-                let mut out = from.copy();
+                let mut out = run.storage.copy(&from);
                 out.cols.push(from.cols[sc].iter().map(|x| x >> 32).collect());
                 out.cols.push(from.cols[sc].iter().map(|x| x & 0xffff_ffff).collect());
                 let osc = self.schema(run, node)?;
@@ -2438,8 +2301,8 @@ impl<'p> Exec<'p> {
                 let tc = from.col(s(&a["text"])?)?;
                 let re = run.re(s(&a["pattern"])?)?;
                 let rep = s(&a["replacement"])?.as_bytes().to_vec();
-                let mut out = from.copy();
-                let col: Vec<u64> = (0..from.n)
+                let mut out = run.storage.copy(&from);
+                let col: Vec<u64> = (0..from.rows.0)
                     .map(|i| {
                         let t = run.text(from.cols[tc][i] as u32).to_vec();
                         let r = re.replace_all(&t, regex::bytes::NoExpand(&rep)).into_owned();
@@ -2463,7 +2326,7 @@ impl<'p> Exec<'p> {
                 let mut out = self.empty(run, node)?;
                 let mut row = Vec::new();
                 let mut found: Vec<Vec<std::ops::Range<usize>>> = Vec::new();
-                for i in 0..from.n {
+                for i in 0..from.rows.0 {
                     let v = from.cols[pc][i];
                     let text = if from.tys[pc] == Ty::File { run.text(run.path_sym[v as usize]).to_vec() } else { run.text(v as u32).to_vec() };
                     let Ok(text) = String::from_utf8(text) else { continue };
@@ -2488,7 +2351,7 @@ impl<'p> Exec<'p> {
                 let mut seen = rustc_hash::FxHashSet::default();
                 let mut distinct = Vec::new();
                 let mut row = Vec::new();
-                for i in 0..from.n {
+                for i in 0..from.rows.0 {
                     from.row(i, &mut row);
                     if seen.insert(row.clone()) {
                         distinct.push(i);
@@ -2517,7 +2380,7 @@ impl<'p> Exec<'p> {
                 let ctx = s(&a["context"])?;
                 let mut out = self.empty(run, node)?;
                 let mut row = Vec::new();
-                for i in 0..from.n {
+                for i in 0..from.rows.0 {
                     if let Some(t) = p.render(from.cols[nc][i] as u32, ctx)? {
                         from.row(i, &mut row);
                         row.push(u64::from(run.sym(&t)));
@@ -2539,7 +2402,7 @@ impl<'p> Exec<'p> {
                 let mut out = self.empty(run, node)?;
                 let mut row = Vec::new();
                 let src = std::str::from_utf8(f.src).map_err(|_| "a source that is no text")?;
-                for i in 0..from.n {
+                for i in 0..from.rows.0 {
                     let sp = from.cols[sc][i];
                     let start = (sp >> 32) as usize;
                     let line_start = src[..start].rfind(['\r', '\n']).map_or(0, |at| at + 1);
@@ -2606,7 +2469,7 @@ impl<'p> Exec<'p> {
         }
         if !f.fills.contains_key(&rel) {
             let t = fill_len::fill_or_empty(run, p, &rel, f.file)?;
-            f.fills.insert(rel.clone(), recycle::rc(t));
+            f.fills.insert(rel.clone(), run.storage.rc(t));
         }
         if f.facts.len() <= i {
             f.facts.resize(i + 1, None);
@@ -2618,28 +2481,28 @@ impl<'p> Exec<'p> {
         Ok(())
     }
 
-    fn base(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, rel: &str) -> R<Table> {
+    fn base(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, rel: &str) -> R<Rc<Table>> {
         // redo-fills pass 2: by who supplies the relation, as the run's catalog declares it
         match run.supplier(rel) {
             Supplier::RunFiles => {
                 let (_, names, tys) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
-                let mut out = Table::with(names, tys);
+                let mut out = run.storage.table(names, tys, run.paths.len());
                 for i in 0..run.paths.len() {
                     out.push_row(&[i as u64]);
                 }
-                return Ok(out);
+                return Ok(run.storage.rc(out));
             }
-            Supplier::Project(ask) => return project::rows(f, run, p, rel, ask),
+            Supplier::Project(ask) => return project::rows(f, run, p, rel, ask).map(|answer| run.storage.rc(answer)),
             Supplier::Provider | Supplier::Host => {}
         }
         if let Some(t) = f.fills.get(rel) {
-            return Ok(t.copy());
+            return Ok(Rc::clone(t));
         }
         let was = fill_prof::site("base");
         let t = fill_len::fill_or_empty(run, p, rel, f.file);
         fill_prof::site(was);
-        let t = t?;
-        f.fills.insert(rel.to_owned(), recycle::rc(t.clone()));
+        let t = run.storage.rc(t?);
+        f.fills.insert(rel.to_owned(), t.clone());
         Ok(t)
     }
 
@@ -2649,7 +2512,7 @@ impl<'p> Exec<'p> {
         let lk: Vec<usize> = strs(&a["left-on"])?.map(|c| l.col(c)).collect::<R<_>>()?;
         let rsc = self.schema(run, rn)?;
         let rk: Vec<usize> = strs(&a["right-on"])?.map(|c| pos(&rsc.names, c)).collect::<R<_>>()?;
-        let mut out = Table::with(l.names.clone(), l.tys.clone());
+        let mut out = run.storage.empty(l.names.clone(), l.tys.clone());
         let mut row = Vec::new();
         // a right side that is a view probed in place on a key: a knock-out per left row, nothing made
         if self.view(run, rn)?.is_some()
@@ -2657,7 +2520,7 @@ impl<'p> Exec<'p> {
             && let Some(ki) = (0..rk.len()).find(|i| File::probes(v.base, v.map[rk[*i]]))
         {
             let mut hits = Vec::new();
-            for i in 0..l.n {
+            for i in 0..l.rows.0 {
                 hits.clear();
                 f.native_probe(run, v.base, v.map[rk[ki]], l.cols[lk[ki]][i], &mut hits);
                 let knocked = hits.iter().any(|h| {
@@ -2672,13 +2535,13 @@ impl<'p> Exec<'p> {
             return Ok(out);
         }
         let r = self.eval(f, run, p, rn)?;
-        if r.n == 0 {
-            return Ok(l.copy());
+        if r.rows.0 == 0 {
+            return Ok(run.storage.copy(&l));
         }
-        self.stats.touched[node] += r.n as u64;
+        self.stats.touched[node] += r.rows.0 as u64;
         if rk.len() == 1 {
             let set: rustc_hash::FxHashSet<u64> = r.cols[rk[0]].iter().copied().collect();
-            for i in 0..l.n {
+            for i in 0..l.rows.0 {
                 if !set.contains(&l.cols[lk[0]][i]) {
                     l.row(i, &mut row);
                     out.push_row(&row);
@@ -2686,9 +2549,9 @@ impl<'p> Exec<'p> {
             }
             return Ok(out);
         }
-        let set: rustc_hash::FxHashSet<Vec<u64>> = (0..r.n).map(|i| rk.iter().map(|c| r.cols[*c][i]).collect()).collect();
+        let set: rustc_hash::FxHashSet<Vec<u64>> = (0..r.rows.0).map(|i| rk.iter().map(|c| r.cols[*c][i]).collect()).collect();
         let mut key = Vec::new();
-        for i in 0..l.n {
+        for i in 0..l.rows.0 {
             key.clear();
             key.extend(lk.iter().map(|c| l.cols[*c][i]));
             if !set.contains(&key) {
@@ -2739,7 +2602,7 @@ impl<'p> Exec<'p> {
         for (i, n) in sp.srcs.iter().enumerate() {
             let src = self.src_of(f, run, p, *n)?;
             if let Src::Tab(t, _) = &src
-                && t.n == 0
+                && t.rows.0 == 0
             {
                 empty_sel::with(|m| {
                     m.stage = empty_sel::stage::SOURCE_EMPTY;
@@ -2762,7 +2625,7 @@ impl<'p> Exec<'p> {
             let ids: Vec<u64> = f.seeds.get(k).map(|s| s.iter().map(|x| u64::from(*x)).collect()).unwrap_or_default();
             let t = self.probe(f, run, p, sp.srcs[si], c, &ids)?;
             self.stats.touched[node] += ids.len() as u64;
-            if t.n == 0 {
+            if t.rows.0 == 0 {
                 empty_sel::at(empty_sel::stage::SEED_EMPTY);
                 return self.empty(run, node);
             }
@@ -2773,7 +2636,7 @@ impl<'p> Exec<'p> {
         let mut best = if driver.is_some() { 0 } else { usize::MAX };
         for (i, sr) in srcs.iter().enumerate() {
             let size = match sr {
-                Src::Tab(t, _) => Some(t.n),
+                Src::Tab(t, _) => Some(t.rows.0),
                 Src::View(v, _) => kind_set(run, &v.filter, 0, v.base, &[])
                     .or_else(|| kind_set(run, conj, i, v.base, &v.map))
                     .map(|ks| bucket_len(f, run, &ks))
@@ -2804,7 +2667,7 @@ impl<'p> Exec<'p> {
                     Some((d, n)) => {
                         // a closure that no made or bucketed source drives is made whole and drives
                         let t = self.eval(f, run, p, n)?;
-                        if t.n == 0 {
+                        if t.rows.0 == 0 {
                             empty_sel::at(empty_sel::stage::PENDING_EMPTY);
                             return self.empty(run, node);
                         }
@@ -2823,7 +2686,7 @@ impl<'p> Exec<'p> {
         let first: cold_bucket::Rows = match &srcs[driver] {
             Src::Tab(t, _) => {
                 // 8: a made table drives by position: its own tests run over its columns, no row list made
-                let n = t.n;
+                let n = t.rows.0;
                 self.stats.touched[node] += n as u64;
                 let mut kept = self.take_u32();
                 if own.is_empty() {
@@ -2871,7 +2734,7 @@ impl<'p> Exec<'p> {
         let mut count = tuples[driver].len();
         empty_sel::with(|m| {
             m.d0 = match &srcs[driver] {
-                Src::Tab(t, _) => t.n as u32,
+                Src::Tab(t, _) => t.rows.0 as u32,
                 _ => first.len() as u32,
             };
             m.d1 = count as u32;
@@ -2958,7 +2821,7 @@ impl<'p> Exec<'p> {
                             });
                             match found {
                                 Some(e) => key_exprs.push(e),
-                                None if l.tys[kc] == Ty::File => key_exprs.push(E::Lit(V::new(Ty::File, u64::from(f.file)))),
+                                None if l.tys[kc] == Ty::File => key_exprs.push(E::Lit(scalar(Ty::File, u64::from(f.file)))),
                                 None => {
                                     unkeyed = true;
                                     break;
@@ -2968,13 +2831,13 @@ impl<'p> Exec<'p> {
                         if unkeyed {
                             srcs[si] = Src::Tab(self.eval(f, run, p, l.node)?, l.node);
                         } else {
-                        let mut t = Table::with(l.names.clone(), l.tys.clone());
+                        let mut t = run.storage.empty(l.names.clone(), l.tys.clone());
                         let mut asked = rustc_hash::FxHashSet::default();
                         let forward = col + 2 == l.names.len();
                         for ti in 0..count {
                             fill_cur(&mut cur, &tuples, ti, bound);
-                            let mut key: Vec<u64> = key_exprs.iter().map(|e| eval(run, f, &srcs, &cur, e).1).collect();
-                            let at = eval(run, f, &srcs, &cur, other).1;
+                            let mut key: Vec<u64> = key_exprs.iter().map(|e| eval(run, f, &srcs, &cur, e).word.0).collect();
+                            let at = eval(run, f, &srcs, &cur, other).word.0;
                             key.push(at);
                             if asked.insert(key.clone()) {
                                 for d in reach_dir(&l, &key, forward).iter() {
@@ -2988,8 +2851,8 @@ impl<'p> Exec<'p> {
                                 }
                             }
                         }
-                        self.stats.touched[node] += t.n as u64;
-                        srcs[si] = Src::Tab(recycle::rc(t), usize::MAX - si);
+                        self.stats.touched[node] += t.rows.0 as u64;
+                        srcs[si] = Src::Tab(run.storage.rc(t), usize::MAX - si);
                         }
                     }
                     let nb = bound | (1 << si);
@@ -3024,7 +2887,7 @@ impl<'p> Exec<'p> {
                     let checks: Vec<usize> = (0..conj.len()).filter(|c| !used[*c] && refs[*c] & !nb == 0).collect();
                     empty_sel::with(|m| {
                         m.o = match &srcs[si] {
-                            Src::Tab(t, _) => t.n as u32,
+                            Src::Tab(t, _) => t.rows.0 as u32,
                             _ => u32::MAX,
                         };
                         m.built |= match &srcs[si] {
@@ -3035,7 +2898,7 @@ impl<'p> Exec<'p> {
                     });
                     let mut any_hit = false;
                     let index = if let Src::Tab(t, tn) = &srcs[si] {
-                        Some(if *tn > usize::MAX - 64 { Rc::new(index_of(t, &tab_cols)) } else { table_index(f, *tn, t, &tab_cols) })
+                        Some(if *tn > usize::MAX - 64 { f.storage.index_rc(f.storage.index_for(t, &tab_cols)) } else { table_index(f, *tn, t, &tab_cols) })
                     } else {
                         None
                     };
@@ -3054,21 +2917,21 @@ impl<'p> Exec<'p> {
                         let v = match direct {
                             Some((col_v, s2)) => {
                                 let x = col_v[tuples[s2][ti] as usize];
-                                V::new(Ty::Node, x)
+                                scalar(Ty::Node, x)
                             }
                             None => eval(run, f, &srcs, &cur, other),
                         };
                         hits.clear();
                         match &srcs[si] {
                             Src::View(vs, _) => {
-                                f.native_probe(run, vs.base, vs.map[col], v.1, &mut hits);
+                                f.native_probe(run, vs.base, vs.map[col], v.word.0, &mut hits);
                                 view_cols::retain(f, run, vs, &mut hits);
                             }
                             Src::Tab(..) => {
                                 probe_key.clear();
-                                probe_key.push(v.1);
+                                probe_key.push(v.word.0);
                                 for e in tab_exprs[1..].iter().copied() {
-                                    probe_key.push(eval(run, f, &srcs, &cur, e).1);
+                                    probe_key.push(eval(run, f, &srcs, &cur, e).word.0);
                                 }
                                 if let Some(rows) = index.as_ref().and_then(|ix| ix.get(&key_of(probe_key.iter().copied()))) {
                                     hits.extend_from_slice(rows);
@@ -3106,7 +2969,7 @@ impl<'p> Exec<'p> {
                     empty_sel::at(empty_sel::stage::CROSS);
                     let checks: Vec<usize> = (0..conj.len()).filter(|c| !used[*c] && refs[*c] & !nb == 0).collect();
                     let rows: cold_bucket::Rows = match &srcs[si] {
-                        Src::Tab(t, _) => Rc::new((0..t.n as u32).collect::<Vec<_>>()).into(),
+                        Src::Tab(t, _) => Rc::new((0..t.rows.0 as u32).collect::<Vec<_>>()).into(),
                         Src::View(v, vn) => view_rows(f, run, v, *vn),
                         _ => unreachable!(),
                     };
@@ -3162,10 +3025,10 @@ impl<'p> Exec<'p> {
                 for (s2, cur_s) in cur.iter_mut().enumerate() {
                     *cur_s = tuples[s2][ti];
                 }
-                col.push(eval(run, f, &srcs, &cur, e).1);
+                col.push(eval(run, f, &srcs, &cur, e).word.0);
             }
         }
-        out.n = count;
+        out.rows.0 = count;
         for t in tuples {
             self.give_u32(t);
         }
@@ -3179,7 +3042,7 @@ impl<'p> Exec<'p> {
                 _ => false,
             }
         {
-            return Ok(distinct(out));
+            return Ok(distinct(run, out));
         }
         Ok(out)
     }
@@ -3202,7 +3065,7 @@ impl<'p> Exec<'p> {
                 let t = self.eval(f, run, p, rel)?;
                 let mut up: FxHashMap<u64, Vec<u64>> = FxHashMap::default();
                 let mut down: FxHashMap<u64, Vec<u64>> = FxHashMap::default();
-                for r in 0..t.n {
+                for r in 0..t.rows.0 {
                     up.entry(t.cols[cc][r]).or_default().push(t.cols[pc][r]);
                     down.entry(t.cols[pc][r]).or_default().push(t.cols[cc][r]);
                 }
@@ -3252,7 +3115,7 @@ impl<'p> Exec<'p> {
         let rel = self.arg_rel(node, "relation")?;
         let dir = s(&a["direction"])?.to_owned();
         let mut out = self.empty(run, node)?;
-        if from.n == 0 {
+        if from.rows.0 == 0 {
             return Ok(out);
         }
         if let Some(t) = self.walk_axis(f, run, p, node, a, from)? {
@@ -3265,8 +3128,8 @@ impl<'p> Exec<'p> {
         let mut nbrs = Vec::new();
         // nearest ancestor: walked level by level for all starts at once, the domain asked once a level
         if dir == "nearest-ancestor" {
-            let mut found: Vec<u64> = vec![NULL; from.n];
-            let mut frontier: Vec<(usize, u64)> = (0..from.n).map(|i| (i, from.cols[ic][i])).collect();
+            let mut found: Vec<u64> = vec![NULL; from.rows.0];
+            let mut frontier: Vec<(usize, u64)> = (0..from.rows.0).map(|i| (i, from.cols[ic][i])).collect();
             for _ in 0..4096 {
                 if frontier.is_empty() {
                     break;
@@ -3307,7 +3170,7 @@ impl<'p> Exec<'p> {
         // redo-alloc: one walk's set and frontier, emptied a start (not made a start); the neighbours read in place
         let mut seen = rustc_hash::FxHashSet::default();
         let mut frontier: Vec<u64> = Vec::new();
-        for i in 0..from.n {
+        for i in 0..from.rows.0 {
             let x = from.cols[ic][i];
             match dir.as_str() {
                 "parent" | "ancestor" => {
@@ -3392,7 +3255,7 @@ impl<'p> Exec<'p> {
         let rsc = self.schema(run, rn)?;
         let rk0: Vec<usize> = strs(&a["right-on"])?.map(|c| pos(&rsc.names, c)).collect::<R<_>>()?;
         let r = self.eval(f, run, p, rn)?;
-        if r.n == 0 {
+        if r.rows.0 == 0 {
             return self.empty(run, node);
         }
         let rk: Vec<usize> = strs(&a["right-on"])?.map(|c| r.col(c)).collect::<R<_>>()?;
@@ -3407,30 +3270,30 @@ impl<'p> Exec<'p> {
         // redo-alloc: a row's key read into one buffer; a key list made only for a key not seen (same keys, same order)
         let mut kb: Vec<u64> = Vec::with_capacity(rk.len().max(lk.len()));
         // redo-alloc: keys inline (inline_key.rs: hashed as the Vec was, so the same order), a group's first row inline
-        let mut groups: FxHashMap<inline_key::Key, inline_key::List<(i64, u32)>> = FxHashMap::default();
-        for i in 0..r.n {
+        let mut groups: FxHashMap<PartitionKey<u64>, KeyGroup<(i64, u32)>> = FxHashMap::default();
+        for i in 0..r.rows.0 {
             kb.clear();
             kb.extend(rk.iter().map(|c| r.cols[*c][i]));
             let v = (r.cols[ro][i] as i64, i as u32);
             match groups.get_mut(&kb[..]) {
                 Some(g) => g.push(v),
                 None => {
-                    groups.insert(inline_key::Key::of(&kb), inline_key::List::One([v]));
+                    groups.insert(PartitionKey::from_slice(&kb), KeyGroup::from_buf([v]));
                 }
             }
         }
         for g in groups.values_mut() {
             g.sort_unstable();
         }
-        let mut lefts: FxHashMap<inline_key::Key, inline_key::List<(i64, u32)>> = FxHashMap::default();
-        for i in 0..l.n {
+        let mut lefts: FxHashMap<PartitionKey<u64>, KeyGroup<(i64, u32)>> = FxHashMap::default();
+        for i in 0..l.rows.0 {
             kb.clear();
             kb.extend(lk.iter().map(|c| l.cols[*c][i]));
             let v = (l.cols[lo][i] as i64, i as u32);
             match lefts.get_mut(&kb[..]) {
                 Some(g) => g.push(v),
                 None => {
-                    lefts.insert(inline_key::Key::of(&kb), inline_key::List::One([v]));
+                    lefts.insert(PartitionKey::from_slice(&kb), KeyGroup::from_buf([v]));
                 }
             }
         }
@@ -3499,7 +3362,7 @@ impl<'p> Exec<'p> {
         let groups: Vec<String> = a.get("capture-texts").and_then(J::as_object).map(|o| o.keys().cloned().collect()).unwrap_or_default();
         let mut out = self.empty(run, node)?;
         let mut row = Vec::new();
-        for i in 0..from.n {
+        for i in 0..from.rows.0 {
             let sp = from.cols[sc][i];
             if sp == NULL {
                 continue;
@@ -3646,7 +3509,7 @@ fn view_rows_for<'a>(f: &mut File<'a>, run: &mut Run, v: &ViewSpec, node: usize,
         tests = attempts;
         rows.into()
     } else {
-        recycle::rows_with(|out| {
+        Rc::clone(&f.storage).rows_with(|out| {
             let before = if sw!("VEC_COLD_PHASE") { cold_list::clock() } else { 0.0 };
             match kind_set(run, &v.filter, 0, v.base, &[]) {
                 Some(ks) => bucket_into(f, run, &ks, out),
@@ -3764,7 +3627,7 @@ fn lit_rows_into(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize
 /// The literal test `lit_rows` reads by: the fill, its base column and the literals.
 fn lit_pick(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize]) -> Option<(u16, usize, Vec<u32>)> {
     let Native::Fact(i) = base else { return None };
-    lit_pick_for(conj, si, map, |bc| f.facts[usize::from(i)].as_ref().is_some_and(|t| t.tys[bc] == Ty::Sym))
+    lit_pick_for(conj, si, map, |bc| f.facts[usize::from(i)].as_ref().is_some_and(|t| t.tys[bc] == Ty::Symbol))
         .map(|(column, values)| (i, column, values))
 }
 
@@ -3908,44 +3771,41 @@ fn remap(e: &E, map: &[usize]) -> E {
 
 
 /// A union's rows as a set, as the language's `union` is (`set_rows`): the first of equal rows kept, in order.
-fn distinct(t: Table) -> Table {
+fn distinct(run: &Run, mut t: Table) -> Table {
     if sw!("VEC_UNION_ALL") {
         return t;
     }
-    let mut keep = Vec::with_capacity(t.n);
+    let mut keep = Vec::with_capacity(t.rows.0);
     // 7: one or two columns are hashed as words, not as a list a row
     match t.cols.len() {
         1 => {
             let mut seen: rustc_hash::FxHashSet<u64> = rustc_hash::FxHashSet::default();
-            keep.extend((0..t.n).filter(|r| seen.insert(t.cols[0][*r])));
+            keep.extend((0..t.rows.0).filter(|r| seen.insert(t.cols[0][*r])));
         }
         2 => {
             let mut seen: rustc_hash::FxHashSet<(u64, u64)> = rustc_hash::FxHashSet::default();
-            keep.extend((0..t.n).filter(|r| seen.insert((t.cols[0][*r], t.cols[1][*r]))));
+            keep.extend((0..t.rows.0).filter(|r| seen.insert((t.cols[0][*r], t.cols[1][*r]))));
         }
         _ => {
             // redo-alloc: a row read into one buffer, its key inline (inline_key.rs)
-            let mut seen: rustc_hash::FxHashSet<inline_key::Key> = rustc_hash::FxHashSet::default();
+            let mut seen: rustc_hash::FxHashSet<PartitionKey<u64>> = rustc_hash::FxHashSet::default();
             let mut row: Vec<u64> = Vec::with_capacity(t.cols.len());
-            for r in 0..t.n {
+            for r in 0..t.rows.0 {
                 row.clear();
                 row.extend(t.cols.iter().map(|c| c[r]));
                 if !seen.contains(&row[..]) {
-                    seen.insert(inline_key::Key::of(&row));
+                    seen.insert(PartitionKey::from_slice(&row));
                     keep.push(r);
                 }
             }
         }
     }
-    if keep.len() == t.n {
+    if keep.len() == t.rows.0 {
         return t;
     }
-    let mut out = Table::with_rows(t.names.clone(), t.tys.clone(), keep.len());
-    for (c, col) in t.cols.iter().enumerate() {
-        out.cols[c].extend(keep.iter().map(|r| col[*r]));
-    }
-    out.n = keep.len();
-    out
+    let output = run.storage.gather(&t, keep.iter().copied());
+    run.storage.release(&mut t);
+    output
 }
 
 fn reach_dir(l: &Lazy, key: &[u64], forward: bool) -> Rc<Vec<u64>> {
@@ -3974,199 +3834,21 @@ fn reach_dir(l: &Lazy, key: &[u64], forward: bool) -> Rc<Vec<u64>> {
     rc
 }
 
-/// A made table's rows by the value of one column, or by a hash of several (a hash hit is tested again by the join).
-/// 7: rows by key, compressed: one row array, each key's rows one range of it (ascending), found through an offset array
-/// when the keys are small and dense (node ids, offsets), else through a flat hash of (start, length).
-pub(super) struct Index {
-    dense: bool,
-    offs: Vec<u32>,
-    at: FxHashMap<u64, (u32, u32)>,
-    rows: Vec<u32>,
-}
 
-thread_local! {
-    /// redo-alloc: an index's scratch (its keys, the fill cursor, the sorted pairs) and the kept buffers of dropped indexes.
-    static IX_SCRATCH: RefCell<(Vec<u64>, Vec<u32>, Vec<(u64, u32)>)> = const { RefCell::new((Vec::new(), Vec::new(), Vec::new())) };
-    static IX_KEPT: RefCell<(Vec<Vec<u32>>, Vec<FxHashMap<u64, (u32, u32)>>, usize)> = const { RefCell::new((Vec::new(), Vec::new(), 0)) };
-}
-
-/// redo-alloc: the kept index buffers' room, in all (cells): a worker keeps no more than this (4 MB).
-const IX_CELLS: usize = 1 << 20;
-
-/// redo-alloc: a kept row buffer (empty) or a new one.
-fn ix_u32() -> Vec<u32> {
-    IX_KEPT.with(|k| {
-        let k = &mut *k.borrow_mut();
-        let v = k.0.pop();
-        if let Some(v) = &v {
-            k.2 -= v.capacity();
-        }
-        v
-    })
-    .unwrap_or_default()
-}
-
-impl Drop for Index {
-    fn drop(&mut self) {
-        // redo-alloc: the buffers kept for the next index (a worker's working set; one far past it is freed)
-        let _ = IX_KEPT.try_with(|k| {
-            let k = &mut *k.borrow_mut();
-            for mut v in [std::mem::take(&mut self.offs), std::mem::take(&mut self.rows)] {
-                if v.capacity() > 0 && k.2 + v.capacity() <= IX_CELLS {
-                    v.clear();
-                    k.2 += v.capacity();
-                    k.0.push(v);
-                }
-            }
-            let mut m = std::mem::take(&mut self.at);
-            if m.capacity() > 0 && m.capacity() <= 1 << 12 && k.1.len() < 64 {
-                m.clear();
-                k.1.push(m);
-            }
-        });
-    }
-}
-
-impl Index {
-    pub(super) fn build(n: usize, key: impl Fn(usize) -> u64) -> Index {
-        // redo-alloc: the scratch and the index's own buffers from the worker's kept ones (same rows, same order)
-        let (mut keys, mut fill, mut order) = IX_SCRATCH.with(|b| std::mem::take(&mut *b.borrow_mut()));
-        keys.clear();
-        keys.extend((0..n).map(key));
-        let max = keys.iter().copied().max().unwrap_or(0);
-        let ix = if n > 0 && max < (4 * n as u64).max(1024) {
-            let m = max as usize + 1;
-            let mut offs = ix_u32();
-            offs.resize(m + 1, 0);
-            for k in &keys {
-                offs[*k as usize + 1] += 1;
-            }
-            for i in 0..m {
-                offs[i + 1] += offs[i];
-            }
-            fill.clear();
-            fill.extend_from_slice(&offs[..m]);
-            let mut rows = ix_u32();
-            rows.resize(n, 0);
-            for (r, k) in keys.iter().enumerate() {
-                let p = &mut fill[*k as usize];
-                rows[*p as usize] = r as u32;
-                *p += 1;
-            }
-            Index { dense: true, offs, at: FxHashMap::default(), rows }
-        } else {
-            order.clear();
-            order.extend(keys.iter().enumerate().map(|(r, k)| (*k, r as u32)));
-            order.sort_unstable();
-            let mut at: FxHashMap<u64, (u32, u32)> = IX_KEPT.with(|k| k.borrow_mut().1.pop()).unwrap_or_default();
-            at.reserve(n.min(1 << 16));
-            let mut i = 0;
-            while i < order.len() {
-                let mut j = i;
-                while j < order.len() && order[j].0 == order[i].0 {
-                    j += 1;
-                }
-                at.insert(order[i].0, (i as u32, (j - i) as u32));
-                i = j;
-            }
-            let mut rows = ix_u32();
-            rows.extend(order.iter().map(|x| x.1));
-            Index { dense: false, offs: Vec::new(), at, rows }
-        };
-        if keys.capacity() <= 1 << 16 && order.capacity() <= 1 << 16 {
-            IX_SCRATCH.with(|b| *b.borrow_mut() = (keys, fill, order));
-        }
-        ix
-    }
-    pub(super) fn get(&self, k: &u64) -> Option<&[u32]> {
-        if self.dense {
-            let k = *k;
-            if k.saturating_add(1) >= self.offs.len() as u64 {
-                return None;
-            }
-            let (a, b) = (self.offs[k as usize] as usize, self.offs[k as usize + 1] as usize);
-            return if a == b { None } else { Some(&self.rows[a..b]) };
-        }
-        self.at.get(k).map(|(a, l)| &self.rows[*a as usize..(*a + *l) as usize])
-    }
-}
-
-fn key_of(vals: impl Iterator<Item = u64>) -> u64 {
-    let mut h: u64 = 0;
-    let mut n = 0;
-    let mut first = 0;
-    for v in vals {
-        if n == 0 {
-            first = v;
-        }
-        h = (h.rotate_left(5) ^ v).wrapping_mul(0x517c_c1b7_2722_0a95);
-        n += 1;
-    }
-    if n == 1 { first } else { h }
-}
-
-fn index_of(t: &Table, cols: &[usize]) -> Index {
-    if cols.len() == 1 {
-        let c = &t.cols[cols[0]];
-        return Index::build(t.n, |r| c[r]);
-    }
-    Index::build(t.n, |r| key_of(cols.iter().map(|c| t.cols[*c][r])))
-}
 
 fn table_index(f: &mut File<'_>, tn: usize, t: &Table, cols: &[usize]) -> Rc<Index> {
     // redo-alloc: the index's columns as an inline key, the index in a kept allocation (`index_rc`)
-    let same = |c: &inline_key::Key| c.cells().len() == cols.len() && c.cells().iter().zip(cols).all(|(a, b)| *a == *b as u64);
     if let Some(v) = f.index.get(&tn)
-        && let Some((_, ix)) = v.iter().find(|(c, _)| same(c))
+        && let Some((_, ix)) = v.iter().find(|(c, _)| c.as_slice() == cols)
     {
         return ix.clone();
     }
-    let rc = index_rc(index_of(t, cols));
-    let mut kb = [0u64; 8];
-    let k = if cols.len() <= kb.len() {
-        for (i, c) in cols.iter().enumerate() {
-            kb[i] = *c as u64;
-        }
-        inline_key::Key::of(&kb[..cols.len()])
-    } else {
-        inline_key::Key::of(&cols.iter().map(|c| *c as u64).collect::<Vec<u64>>())
-    };
-    f.index.entry(tn).or_default().push((k, rc.clone()));
+    let rc = f.storage.index_rc(f.storage.index_for(t, cols));
+    f.index.entry(tn).or_default().push((PartitionKey::from_slice(cols), rc.clone()));
     rc
 }
 
-thread_local! {
-    /// redo-alloc: emptied indexes' own allocations, for the next index made in a file.
-    static IX_RCS: RefCell<Vec<Rc<Index>>> = const { RefCell::new(Vec::new()) };
-}
 
-/// redo-alloc: `ix` shared, in a kept allocation when there is one.
-fn index_rc(ix: Index) -> Rc<Index> {
-    match IX_RCS.with(|r| r.borrow_mut().pop()) {
-        Some(mut r) => match Rc::get_mut(&mut r) {
-            Some(slot) => {
-                *slot = ix;
-                r
-            }
-            None => Rc::new(ix),
-        },
-        None => Rc::new(ix),
-    }
-}
-
-/// redo-alloc: an index given back: emptied (its buffers kept, `Index`'s drop) and its allocation kept when no one else
-/// holds it.
-fn recycle_index(mut r: Rc<Index>) {
-    if let Some(slot) = Rc::get_mut(&mut r) {
-        *slot = Index { dense: true, offs: Vec::new(), at: FxHashMap::default(), rows: Vec::new() };
-        let _ = IX_RCS.try_with(|p| {
-            let mut p = p.borrow_mut();
-            if p.len() < 4096 {
-                p.push(r);
-            }
-        });
-    }
-}
 
 fn flatten(e: E, out: &mut Vec<E>) {
     match e {
@@ -4191,10 +3873,10 @@ fn refs_of(e: &E) -> u64 {
 fn static_ty(e: &E) -> Ty {
     match e {
         E::Col(_, _, t) => *t,
-        E::Num(_) => Ty::Num,
+        E::Num(_) => Ty::Number,
         // redo-honest: `integer_successor(a, b)` is a test (the shipping engine's `Test::IntegerSuccessor`)
         E::Call(n, _) if n == "integer_successor" => Ty::Flag,
-        E::Text(_) | E::Call(..) => Ty::Sym,
+        E::Text(_) | E::Call(..) => Ty::Symbol,
         _ => Ty::Flag,
     }
 }
@@ -4217,77 +3899,29 @@ fn get(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], si: usize, col: u
 /// The rows of a made table whose column holds one of `keys`, through its index on that column (made once a file).
 fn subset(f: &mut File<'_>, node: usize, t: &Table, col: usize, keys: &[u64]) -> Table {
     let ix = table_index(f, node, t, &[col]);
-    // 10: the rows found first, then each column gathered (the same rows in the same order as row by row)
-    thread_local! {
-        static ROWS: RefCell<Vec<u32>> = const { RefCell::new(Vec::new()) };
-    }
-    ROWS.with(|b| {
-        let mut rs = b.borrow_mut();
-        rs.clear();
-        for k in keys {
-            if let Some(rows) = ix.get(k) {
-                rs.extend_from_slice(rows);
-            }
-        }
-        // redo-alloc: the columns taken with the rows' room now that their count is known
-        let mut out = Table::with_rows(t.names.clone(), t.tys.clone(), rs.len());
-        for (c, src) in t.cols.iter().enumerate() {
-            let mut v = std::mem::take(&mut out.cols[c]);
-            v.extend(rs.iter().map(|r| src[*r as usize]));
-            out.cols[c] = v;
-        }
-        out.n = rs.len();
-        out
-    })
+    f.storage.subset(t, &ix, keys)
 }
 
 /// redo-alloc: an interned text is read where it lies (no copy); a number's text is made.
 fn text_of(run: &Run, v: V) -> std::borrow::Cow<'_, [u8]> {
-    use std::borrow::Cow;
-    match v.ty() {
-        Ty::Sym => Cow::Borrowed(run.text(v.1 as u32)),
-        Ty::File => Cow::Borrowed(run.text(run.path_sym[v.1 as usize])),
-        Ty::Num => Cow::Owned((v.1 as i64).to_string().into_bytes()),
-        Ty::Flag => Cow::Borrowed(if v.1 == 1 { b"true".as_slice() } else { b"false".as_slice() }),
-        _ => Cow::Borrowed(&[]),
-    }
+    scalars::service::spelling(v, |id| PackedSlice(run.text(id.0 as u32)), |id| PackedSlice(run.text(run.path_sym[id.0 as usize]))).0
 }
 
-fn flag(b: bool) -> V {
-    V::new(Ty::Flag, u64::from(b))
-}
-
-/// The ordering of two values, with a text compared to a number or a flag read as one.
 fn compare(run: &Run, a: V, b: V) -> Option<std::cmp::Ordering> {
-    use Ty::*;
-    if a.1 == NULL || b.1 == NULL {
-        return None;
-    }
-    match (a.ty(), b.ty()) {
-        (Num, Num) => Some((a.1 as i64).cmp(&(b.1 as i64))),
-        (Sym, Sym) => {
-            if a.1 == b.1 {
-                Some(std::cmp::Ordering::Equal)
-            } else {
-                Some(run.text(a.1 as u32).cmp(run.text(b.1 as u32)))
-            }
-        }
-        (Num, Sym) | (Sym, Num) | (Flag, Sym) | (Sym, Flag) | (File, Sym) | (Sym, File) => Some(text_of(run, a).cmp(&text_of(run, b))),
-        _ => Some(a.1.cmp(&b.1)),
-    }
+    scalars::service::compare(a, b, |id| PackedSlice(run.text(id.0 as u32)), |id| PackedSlice(run.text(run.path_sym[id.0 as usize])))
 }
 
 fn eval(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], e: &E) -> V {
     match e {
-        E::Col(si, c, t) => V::new(*t, get(run, f, srcs, cur, *si, *c)),
+        E::Col(si, c, t) => scalar(*t, get(run, f, srcs, cur, *si, *c)),
         E::Lit(v) => *v,
-        E::Text(t) => V::new(Ty::Sym, u64::from(*t)),
-        E::Num(n) => V::new(Ty::Num, *n as u64),
+        E::Text(t) => scalar(Ty::Symbol, u64::from(*t)),
+        E::Num(n) => scalar(Ty::Number, *n as u64),
         E::List(_) => flag(false),
         E::And(a, b) => flag(truthy(eval(run, f, srcs, cur, a)) && truthy(eval(run, f, srcs, cur, b))),
         E::Or(a, b) => flag(truthy(eval(run, f, srcs, cur, a)) || truthy(eval(run, f, srcs, cur, b))),
         E::Not(a) => flag(!truthy(eval(run, f, srcs, cur, a))),
-        E::Null(a, not) => flag((eval(run, f, srcs, cur, a).1 == NULL) != *not),
+        E::Null(a, not) => flag((eval(run, f, srcs, cur, a).word.0 == NULL) != *not),
         E::Cmp(o @ (Op::Eq | Op::Ne), a, b) => {
             let want = *o == Op::Eq;
             let eq = match (&**a, &**b) {
@@ -4295,7 +3929,7 @@ fn eval(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], e: &E) -> V {
                     let (x, y) = (get(run, f, srcs, cur, *s1, *c1), get(run, f, srcs, cur, *s2, *c2));
                     Some(x == y && x != NULL)
                 }
-                (E::Col(s1, c1, Ty::Sym), E::Text(t)) | (E::Text(t), E::Col(s1, c1, Ty::Sym)) => Some(get(run, f, srcs, cur, *s1, *c1) == u64::from(*t)),
+                (E::Col(s1, c1, Ty::Symbol), E::Text(t)) | (E::Text(t), E::Col(s1, c1, Ty::Symbol)) => Some(get(run, f, srcs, cur, *s1, *c1) == u64::from(*t)),
                 _ => None,
             };
             match eq {
@@ -4336,8 +3970,8 @@ fn eval(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], e: &E) -> V {
         }
         E::Re(a, re) => {
             let x = eval(run, f, srcs, cur, a);
-            flag(match x.ty() {
-                Ty::Sym => re.is_match(run.text(x.1 as u32)),
+            flag(match x.kind {
+                Ty::Symbol => re.is_match(run.text(x.word.0 as u32)),
                 _ => re.is_match(&text_of(run, x)),
             })
         }
@@ -4355,7 +3989,7 @@ fn eval(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], e: &E) -> V {
         }
         E::Seed(a, k) => {
             let x = eval(run, f, srcs, cur, a);
-            flag(f.seeds.get(*k).is_some_and(|s| s.binary_search(&(x.1 as u32)).is_ok()))
+            flag(f.seeds.get(*k).is_some_and(|s| s.binary_search(&(x.word.0 as u32)).is_ok()))
         }
     }
 }
@@ -4382,11 +4016,11 @@ fn call(run: &mut Run, name: &str, vs: &[V]) -> V {
             let input = MadeText(String::from_utf8_lossy(&text_of(run, vs[0])).into_owned());
             let mut output = MadeText::default();
             apply(case, &[input], &mut output);
-            V::new(Ty::Sym, u64::from(run.sym(output.0.as_bytes())))
+            scalar(Ty::Symbol, u64::from(run.sym(output.0.as_bytes())))
         }
         "lower" => {
             let s = String::from_utf8_lossy(&text_of(run, vs[0])).to_lowercase();
-            V::new(Ty::Sym, u64::from(run.sym(s.as_bytes())))
+            scalar(Ty::Symbol, u64::from(run.sym(s.as_bytes())))
         }
         "concat" => {
             // redo-alloc: the worker's one buffer for the text before it is interned
@@ -4398,7 +4032,7 @@ fn call(run: &mut Run, name: &str, vs: &[V]) -> V {
             for i in 0..vs.len() {
                 s.extend_from_slice(&text_of(run, vs[i]));
             }
-            let v = V::new(Ty::Sym, u64::from(run.sym(&s)));
+            let v = scalar(Ty::Symbol, u64::from(run.sym(&s)));
             BUF.with(|b| *b.borrow_mut() = s);
             v
         }
@@ -4413,8 +4047,8 @@ fn call(run: &mut Run, name: &str, vs: &[V]) -> V {
         // a function answering left + 1, read as a test, so every comparison failed.
         "integer_successor" => {
             let int = |run: &Run, v: V| -> Option<i128> {
-                match v.ty() {
-                    Ty::Num => Some(i128::from(v.1 as i64)),
+                match v.kind {
+                    Ty::Number => Some(i128::from(v.word.0 as i64)),
                     _ => {
                         let s = String::from_utf8_lossy(&text_of(run, v)).replace('_', "");
                         if s.contains(['.', 'e', 'E']) { None } else { s.parse::<i128>().ok() }
@@ -4425,16 +4059,16 @@ fn call(run: &mut Run, name: &str, vs: &[V]) -> V {
         }
         "float_text_gte" => {
             let finite = |v: V| -> Option<f64> {
-                if v.ty() != Ty::Sym || v.1 == NULL { return None; }
-                let n = std::str::from_utf8(run.text(v.1 as u32)).ok()?.trim().parse::<f64>().ok()?;
+                if v.kind != Ty::Symbol || v.word.0 == NULL { return None; }
+                let n = std::str::from_utf8(run.text(v.word.0 as u32)).ok()?.trim().parse::<f64>().ok()?;
                 n.is_finite().then_some(n)
             };
             flag(matches!((finite(vs[0]), finite(vs[1])), (Some(a),Some(b)) if a >= b))
         }
         "numeric_gte" => {
             let num = |run: &Run, v: V| -> Option<f64> {
-                match v.ty() {
-                    Ty::Num => Some(v.1 as i64 as f64),
+                match v.kind {
+                    Ty::Number => Some(v.word.0 as i64 as f64),
                     _ => String::from_utf8_lossy(&text_of(run, v)).replace('_', "").parse::<f64>().ok(),
                 }
             };
@@ -4449,66 +4083,12 @@ fn call(run: &mut Run, name: &str, vs: &[V]) -> V {
 
 use super::glob_pattern;
 
-/// Natural order, as the language reference states it.
-fn natural_lt(a: &str, b: &str) -> bool {
-    // redo-alloc: the units as ranges of the text (a digit run, or one other character; whitespace splits) in the worker's
-    // two buffers, not a string a unit
-    fn units(s: &str, out: &mut Vec<(bool, usize, usize)>) {
-        out.clear();
-        let mut run: Option<usize> = None;
-        for (at, ch) in s.char_indices() {
-            if ch.is_ascii_digit() {
-                run.get_or_insert(at);
-                continue;
-            }
-            if let Some(st) = run.take() {
-                out.push((true, st, at));
-            }
-            if !ch.is_whitespace() {
-                out.push((false, at, at + ch.len_utf8()));
-            }
-        }
-        if let Some(st) = run {
-            out.push((true, st, s.len()));
-        }
-    }
-    thread_local! {
-        static UNITS: RefCell<(Vec<(bool, usize, usize)>, Vec<(bool, usize, usize)>)> = const { RefCell::new((Vec::new(), Vec::new())) };
-    }
-    let (mut xr, mut yr) = UNITS.with(|u| std::mem::take(&mut *u.borrow_mut()));
-    units(a, &mut xr);
-    units(b, &mut yr);
-    let lt = natural_lt_of(xr.iter().map(|(d, s, e)| (*d, &a[*s..*e])), yr.iter().map(|(d, s, e)| (*d, &b[*s..*e])), xr.len() < yr.len());
-    UNITS.with(|u| *u.borrow_mut() = (xr, yr));
-    lt
-}
-
-/// redo-alloc: `natural_lt`'s comparison of two unit lists (`shorter`: the first has fewer units).
-fn natural_lt_of<'a>(x: impl Iterator<Item = (bool, &'a str)>, y: impl Iterator<Item = (bool, &'a str)>, shorter: bool) -> bool {
-    for (p, q) in x.zip(y) {
-        let ord = match (p.0, q.0) {
-            (true, true) => {
-                if p.1.starts_with('0') || q.1.starts_with('0') {
-                    p.1.cmp(&q.1)
-                } else {
-                    p.1.len().cmp(&q.1.len()).then_with(|| p.1.cmp(&q.1))
-                }
-            }
-            _ => p.1.cmp(&q.1),
-        };
-        if ord != std::cmp::Ordering::Equal {
-            return ord == std::cmp::Ordering::Less;
-        }
-    }
-    shorter
-}
-
 /// `token-link` from the token order (step 5's pass): next token, matching and enclosing delimiter.
 fn token_links(f: &File<'_>, run: &mut Run) -> Table {
     let (nt, md, ed) = (run.sym(b"next-token"), run.sym(b"matching-delimiter"), run.sym(b"enclosing-delimiter"));
-    let mut out = Table::with(
+    let mut out = run.storage.empty(
         vec!["source".into(), "target".into(), "link-kind".into(), "file".into(), "span".into()],
-        vec![Ty::Node, Ty::Node, Ty::Sym, Ty::File, Ty::Span],
+        vec![Ty::Node, Ty::Node, Ty::Symbol, Ty::File, Ty::Span],
     );
     let mut rows: Vec<[u64; 5]> = Vec::new();
     let sp = |p: u32| (u64::from(f.start[p as usize]) << 32) | u64::from(f.end[p as usize]);
@@ -4531,7 +4111,7 @@ fn token_links(f: &File<'_>, run: &mut Run) -> Table {
 pub(super) fn filled_table(run: &mut Run, rel: &str, filled: &languages::FilledColumns, words: &languages::FileWords) -> R<Table> {
     let (_, names, tys) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
     let n = filled.0.first().map_or(0, |c| c.0.len());
-    let mut out = Table::with_rows(names, tys.clone(), n);
+    let mut out = run.storage.table(names, tys.clone(), n);
     for (c, ty) in tys.iter().enumerate() {
         let Some(column) = filled.0.get(c) else {
             out.cols[c] = vec![NULL; n];
@@ -4540,7 +4120,7 @@ pub(super) fn filled_table(run: &mut Run, rel: &str, filled: &languages::FilledC
         // redo-alloc: into the pooled column; redo-fills c2: texts through the run's word caches (`word_sym`)
         let v = &mut out.cols[c];
         match ty {
-            Ty::Sym => {
+            Ty::Symbol => {
                 let base = languages::facts::base_count(words).0;
                 v.extend(column.0.iter().map(|w| u64::from(word_sym(run, words, *w, base))))
             }
@@ -4548,7 +4128,7 @@ pub(super) fn filled_table(run: &mut Run, rel: &str, filled: &languages::FilledC
             _ => v.extend(column.0.iter().map(|w| w.0)),
         }
     }
-    out.n = n;
+    out.rows.0 = n;
     Ok(out)
 }
 
@@ -4627,13 +4207,13 @@ pub(super) fn native_table(f: &mut File<'_>, run: &mut Run, rel: &str) -> Table 
     }
     let nat = native_of(run, rel).expect("a native relation");
     let cols = native_cols(nat);
-    let mut out = Table::with(cols.iter().map(|c| c.0.to_owned()).collect::<Vec<_>>(), cols.iter().map(|c| c.1).collect::<Vec<_>>());
+    let mut out = run.storage.empty(cols.iter().map(|c| c.0.to_owned()).collect::<Vec<_>>(), cols.iter().map(|c| c.1).collect::<Vec<_>>());
     for r in f.native_rows(run, nat) {
         for c in 0..cols.len() {
             let v = f.native_get(run, nat, r, c);
             out.cols[c].push(v);
         }
-        out.n += 1;
+        out.rows.0 += 1;
     }
     out
 }
@@ -4645,7 +4225,7 @@ pub(super) fn diff(run: &Run, a: &Table, b: &Table) -> String {
     let only_b: Vec<&String> = b.names.iter().filter(|n| !a.names.contains(n)).collect();
     let rows = |t: &Table, side: usize| {
         let mut m: std::collections::BTreeMap<Vec<u64>, i64> = std::collections::BTreeMap::new();
-        for r in 0..t.n {
+        for r in 0..t.rows.0 {
             let k: Vec<u64> = common.iter().map(|(i, j)| t.cols[if side == 0 { *i } else { *j }][r]).collect();
             *m.entry(k).or_default() += 1;
         }
@@ -4670,7 +4250,7 @@ pub(super) fn diff(run: &Run, a: &Table, b: &Table) -> String {
         k.iter()
             .zip(&common)
             .map(|(v, (i, _))| match a.tys[*i] {
-                Ty::Sym => format!("{}={:?}", a.names[*i], String::from_utf8_lossy(run.text(*v as u32))),
+                Ty::Symbol => format!("{}={:?}", a.names[*i], String::from_utf8_lossy(run.text(*v as u32))),
                 _ => format!("{}={v}", a.names[*i]),
             })
             .collect::<Vec<_>>()
@@ -4678,8 +4258,8 @@ pub(super) fn diff(run: &Run, a: &Table, b: &Table) -> String {
     };
     format!(
         "mine {} theirs {} extra {} missing {} only-mine-cols {:?} only-theirs-cols {:?}{}{}",
-        a.n,
-        b.n,
+        a.rows.0,
+        b.rows.0,
         extra.len(),
         missing.len(),
         only_a,

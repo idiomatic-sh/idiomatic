@@ -4,6 +4,7 @@ use super::{
     Exec, File, Native, Provider, R, Run, Schema, Table, ViewSpec, cold_bucket::Rows, leaf_scan,
     pos, view_cols, view_rows_for,
 };
+use crate::finish::TableAccess as _;
 use rustc_hash::FxHashMap;
 use std::rc::Rc;
 
@@ -100,7 +101,7 @@ impl Exec<'_> {
         }
         let mut keep = self.take_u32();
         keep.extend(
-            (0..left.n as u32).filter(|i| left.cols[*lc][*i as usize] != u64::from(f.file)),
+            (0..left.rows.0 as u32).filter(|i| left.cols[*lc][*i as usize] != u64::from(f.file)),
         );
         let result = gather(&keep);
         self.give_u32(keep);
@@ -125,7 +126,7 @@ impl Edges<'_> {
         dst: usize,
     ) -> (Adjacency, Adjacency) {
         match self {
-            Self::Table(t) => maps(0..t.n, |r, c| t.cols[c][r], keys, src, dst),
+            Self::Table(t) => maps(0..t.rows.0, |r, c| t.cols[c][r], keys, src, dst),
             Self::Cursor(c) => maps(
                 c.rows.iter().copied(),
                 |r, col| view_cols::cell(f, run, c.view.base, r, c.view.map[col]),

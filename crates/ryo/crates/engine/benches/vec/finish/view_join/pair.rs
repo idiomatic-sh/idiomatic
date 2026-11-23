@@ -1,8 +1,8 @@
 //! A single equality against an indexed base view has a known key on each side.
 //! Read the already chosen driver in its original order and gather only the result.
 use super::{
-    E, Exec, File, Native, Op, R, Run, Src, Table, cold_bucket::Rows, recycle, view_cols,
-    view_probe, view_rows,
+    E, Exec, File, Native, Op, R, Run, Src, Table, cold_bucket::Rows, view_cols, view_probe,
+    view_rows,
 };
 use std::rc::Rc;
 
@@ -42,7 +42,7 @@ pub(super) fn run(
     }
     let retained: Rows<'_>;
     let rows = match &sources[driver] {
-        Src::Tab(t, _) => view_probe::Ids::Range(t.n as u32),
+        Src::Tab(t, _) => view_probe::Ids::Range(t.rows.0 as u32),
         Src::View(v, _)
             if v.filter.is_empty() && matches!(v.base, Native::Tree | Native::Location) =>
         {
@@ -97,6 +97,6 @@ pub(super) fn run(
             _ => unreachable!("both sources resolved"),
         }
     }
-    table.n = out.left.len();
-    Ok(Some(recycle::rc(table)))
+    table.rows.0 = out.left.len();
+    Ok(Some(run.storage.rc(table)))
 }

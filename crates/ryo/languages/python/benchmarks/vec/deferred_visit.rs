@@ -34,7 +34,7 @@ pub(super) struct Inputs<'t> {
 pub(super) fn lazy_any(run: &mut finish::Run, evaluations: &finish::Table, future: bool) -> Result<bool, String> {
     let (s_postponed, s_deferred, s_unevaluated) = (u64::from(run.sym(b"postponed")), u64::from(run.sym(b"deferred")), u64::from(run.sym(b"unevaluated")));
     let a_eval = col(evaluations, "evaluation")?;
-    Ok(evaluations.cols[a_eval][..evaluations.n].iter().any(|e| *e == s_postponed || *e == s_deferred || (*e == s_unevaluated && future)))
+    Ok(evaluations.cols[a_eval][..evaluations.rows.0].iter().any(|e| *e == s_postponed || *e == s_deferred || (*e == s_unevaluated && future)))
 }
 
 /// redo-fills c2: whether the file has an element of a kind whose children `rows` marks outside a stub (a type parameter or
@@ -65,7 +65,7 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
     let subtree = |x: u32| x..node_table::subtree_end_of(table, Position(x)).0.max(x + 1);
     let mut typed = vec![false; n as usize];
     let (t_id, t_kind) = (col(inp.types, "id")?, col(inp.types, "kind")?);
-    for r in 0..inp.types.n {
+    for r in 0..inp.types.rows.0 {
         let x = inp.types.cols[t_id][r] as usize;
         if x < n as usize {
             if inp.types.cols[t_kind][r] == s_type {
@@ -75,7 +75,7 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
     }
     let mut lazy = vec![false; n as usize];
     let (a_id, a_eval) = (col(inp.evaluations, "id")?, col(inp.evaluations, "evaluation")?);
-    for r in 0..inp.evaluations.n {
+    for r in 0..inp.evaluations.rows.0 {
         let (x, e) = (inp.evaluations.cols[a_id][r] as usize, inp.evaluations.cols[a_eval][r]);
         if x < n as usize && (e == s_postponed || e == s_deferred || (e == s_unevaluated && inp.future)) {
             lazy[x] = true;
@@ -115,7 +115,7 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
         }
     }
     let e_root = col(inp.embedded, "root")?;
-    for r in 0..inp.embedded.n {
+    for r in 0..inp.embedded.rows.0 {
         mark(&mut deferred, inp.embedded.cols[e_root][r] as u32);
     }
     // annotation members: an element in an annotation root's subtree; deferred in a stub, or where Python stores it unevaluated

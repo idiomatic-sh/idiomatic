@@ -1,6 +1,7 @@
 //! A native equality probe reads the provider's ordered hits directly. The outer
 //! select retains its driver order, residual predicates, touched count and projection.
 use super::{File, Native, Run, Src, ViewSpec, fill_prof, view_cols};
+use crate::finish::PostingAccess as _;
 use ryo::languages::{Position, node_table};
 
 #[derive(Clone, Copy)]
@@ -146,7 +147,7 @@ pub(super) fn pairs(
                 f.mark_read(i);
             }
             let table = f.facts[usize::from(i)].as_ref();
-            match table.map_or(0, |t| t.n) {
+            match table.map_or(0, |t| t.rows.0) {
                 0 => batch.drive(|_| None),
                 1 => {
                     let only = table.expect("one fact row").cols[c][0];

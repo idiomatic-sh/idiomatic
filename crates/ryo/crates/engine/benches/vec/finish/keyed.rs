@@ -120,11 +120,11 @@ impl Exec<'_> {
         super::emptyprop::ran();
         self.stats.keyed[node] += 1;
         self.stats.total_runs += 1;
-        self.stats.produced(node, out.n);
-        if out.n == 0 {
+        self.stats.produced(node, out.rows.0);
+        if out.rows.0 == 0 {
             self.stats.keyed_empty[node] += 1;
         } else if !handed {
-            self.stats.built[node] += out.n as u64;
+            self.stats.built[node] += out.rows.0 as u64;
         }
         Ok(Some(out))
     }
@@ -138,7 +138,7 @@ impl Exec<'_> {
     /// unknown (`usize::MAX`). 0 only when the step is empty.
     pub(super) fn keyed_size(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, make: bool) -> R<usize> {
         if let Some(Res::Tab(t)) = &f.memo[node] {
-            return Ok(t.n);
+            return Ok(t.rows.0);
         }
         if let Some(v) = self.view(run, node)? {
             // a view over a fill not read yet in this file: not read for a size
@@ -149,7 +149,7 @@ impl Exec<'_> {
                 return Ok(usize::MAX);
             }
             if let Res::Tab(t) = self.res(f, run, p, node)? {
-                return Ok(t.n);
+                return Ok(t.rows.0);
             }
             // its entry, never its rows read for a size: the kind bucket, the literal rows, its rows if read already,
             // else the relation's rows (an upper bound)
@@ -163,7 +163,7 @@ impl Exec<'_> {
                     None => match v.base {
                         super::Native::Tree | super::Native::Location | super::Native::Child => f.n,
                         super::Native::Token => 3 * f.n,
-                        super::Native::Fact(i) => f.facts[usize::from(i)].as_ref().map_or(0, |t| t.n),
+                        super::Native::Fact(i) => f.facts[usize::from(i)].as_ref().map_or(0, |t| t.rows.0),
                     },
                 },
             });
@@ -214,11 +214,11 @@ impl Exec<'_> {
 
 /// The rows a whole run of `node` built: its answer's, unless that is an input's answer handed on (or the empty one).
 pub(super) fn built(ex: &mut Exec<'_>, f: &File<'_>, node: usize, out: &Rc<Table>) {
-    if out.n == 0 {
+    if out.rows.0 == 0 {
         return;
     }
     let handed = ex.plan.nodes[node].inputs.iter().any(|i| matches!(&f.memo[*i], Some(Res::Tab(t)) if Rc::ptr_eq(t, out)) || f.vmat.get(i).is_some_and(|t| Rc::ptr_eq(t, out)));
     if !handed {
-        ex.stats.built[node] += out.n as u64;
+        ex.stats.built[node] += out.rows.0 as u64;
     }
 }

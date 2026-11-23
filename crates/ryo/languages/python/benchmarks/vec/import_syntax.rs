@@ -183,7 +183,7 @@ fn push<const N: usize>(t: &mut Table, row: [u64; N]) {
     for (c, v) in t.cols.iter_mut().zip(row) {
         c.push(v);
     }
-    t.n += 1;
+    t.rows.0 += 1;
 }
 
 fn bounds(table: &NodeTable, id: Position) -> (u32, u32) {
@@ -362,15 +362,9 @@ pub(super) fn fill(
         _ => None,
     };
     if estimated == Some(0) {
-        let cols = vec![Vec::new(); names.len()];
-        return Ok(Table {
-            names,
-            tys,
-            cols,
-            n: 0,
-        });
+        return Ok(run.storage.empty(names, tys));
     }
-    let mut t = Table::with_rows(names, tys, estimated.unwrap_or(0));
+    let mut t = run.storage.table(names, tys, estimated.unwrap_or(0));
     let f = u64::from(number);
     let table = file.table;
     const NEIGHBOR_COLUMNS: usize = 18;
@@ -457,7 +451,7 @@ pub(super) fn fill(
                 start = end;
             }
         });
-        if rel == HEADS && t.n != 0 {
+        if rel == HEADS && t.rows.0 != 0 {
             let (layout, extras) = t.cols.split_at_mut(LAYOUT_COLUMNS);
             let (counts, alias_columns) = extras
                 .split_last_mut()
@@ -531,11 +525,11 @@ pub(super) fn fill(
                 },
             );
             for col in alias_columns {
-                col.resize(t.n, finish::NULL);
+                col.resize(t.rows.0, finish::NULL);
             }
 
             if links.is_empty() {
-                counts.resize(t.n, 0);
+                counts.resize(t.rows.0, 0);
             } else {
                 for &id in &layout[0] {
                     let lo = links.partition_point(|link| u64::from(link.0.0) < id);

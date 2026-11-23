@@ -2,7 +2,7 @@
 //! column at all) is decided once a file before any row is read: false ends the step and asks for none of its inputs.
 //! The remaining tests keep their order (kind buckets enter first already; row tests short-circuit as written).
 
-use super::{E, File, Run, Src, Ty, V, eval, truthy};
+use super::{E, File, Run, Src, Ty, eval, truthy};
 
 /// Whether a test reads no column but file columns: one value for the whole file.
 pub(super) fn file_const(e: &E) -> bool {
@@ -20,7 +20,7 @@ pub(super) fn file_const(e: &E) -> bool {
 fn subst(e: &E, file: u64) -> E {
     let b = |x: &E| Box::new(subst(x, file));
     match e {
-        E::Col(_, _, Ty::File) => E::Lit(V::new(Ty::File, file)),
+        E::Col(_, _, Ty::File) => E::Lit(super::scalar(Ty::File, file)),
         E::List(xs) => E::List(xs.iter().map(|x| subst(x, file)).collect()),
         E::Call(n, xs) => E::Call(n.clone(), xs.iter().map(|x| subst(x, file)).collect()),
         E::Cmp(o, x, y) => E::Cmp(*o, b(x), b(y)),

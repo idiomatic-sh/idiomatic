@@ -186,7 +186,7 @@ impl Project {
                 count += 1;
             }
         }
-        Ok(finish::Table { names, tys, cols, n: count })
+        Ok(finish::Table { names, tys, cols, rows: ryo_relations::domain::relations::types::Count(count) })
     }
 
     /// A file-system observation of a dotted child requires an observed parent under the configured search roots.
@@ -292,6 +292,6 @@ impl Project {
             }
             count += 1;
         }
-        Ok(finish::Table { names, tys, cols, n: count })
+        Ok(finish::Table { names, tys, cols, rows: ryo_relations::domain::relations::types::Count(count) })
     }
 }

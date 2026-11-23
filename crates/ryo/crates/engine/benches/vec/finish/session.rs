@@ -1,5 +1,6 @@
 //! Evaluate a closed set of typed populations once, after the final file.
 use super::{E, Exec, File, NodeTable, Op, Plan, Provider, R, Run, Scope, Table, Ty, answer};
+use crate::finish::TableAccess as _;
 use std::{collections::BTreeMap, rc::Rc};
 
 // Check the scalar subset before visiting any rows. Unimplemented functions on
@@ -56,7 +57,7 @@ pub(in super::super) fn evaluate(
                         if t.names != names
                             || t.tys != tys
                             || t.cols.len() != names.len()
-                            || t.cols.iter().any(|col| col.len() != t.n)
+                            || t.cols.iter().any(|col| col.len() != t.rows.0)
                         {
                             return Err(format!(
                                 "project population disagrees with catalog for {rel}"
@@ -68,7 +69,7 @@ pub(in super::super) fn evaluate(
                         for (ty, column) in tys.iter().zip(&t.cols) {
                             let limit = match ty {
                                 Ty::File => run.paths.len() as u64,
-                                Ty::Sym => run.texts.len() as u64,
+                                Ty::Symbol => run.texts.len() as u64,
                                 Ty::Flag => 2,
                                 _ => super::NULL,
                             };
@@ -126,7 +127,13 @@ pub(in super::super) fn evaluate(
         }
     }
     let scratch = NodeTable::default();
-    let mut frame = File::new(&scratch, &[], u32::MAX, plan.nodes.len());
+    let mut frame = File::new(
+        run.storage.clone(),
+        &scratch,
+        &[],
+        u32::MAX,
+        plan.nodes.len(),
+    );
     frame.after_last_file = true;
     let mut rows = Vec::new();
     for (rule, node, subject, keys) in &plan.emits {
@@ -139,7 +146,7 @@ pub(in super::super) fn evaluate(
             .map(|name| t.col(name))
             .collect::<R<Vec<_>>>()?;
         let mut seen = BTreeMap::new();
-        for i in 0..t.n {
+        for i in 0..t.rows.0 {
             let subject = identity[0];
             if t.tys[subject] == Ty::File {
                 let file = u32::try_from(t.cols[subject][i]).map_err(|e| e.to_string())?;

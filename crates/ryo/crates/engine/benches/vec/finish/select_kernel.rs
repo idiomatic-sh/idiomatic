@@ -10,8 +10,8 @@
 //! runs the interpreter's `select` instead (the oracle). A node with a form the kernels do not cover goes to the
 //! interpreter's `select` too (`VEC_KSEL_LOG=<path>` lists each node's path once a run).
 
-use super::{E, Exec, File, Native, Op, Provider, R, Run, Src, Table, Ty, V, NULL};
-use super::{bucket, bucket_len, compare, distinct, eval, get, index_of, key_of, kind_set, kinds_required, lit_rows, refs_of, table_index, text_of, truthy, view_holds, view_rows};
+use super::{E, Exec, File, Native, Op, scalar, PostingAccess, Provider, R, Run, Src, Table, Ty, V, NULL};
+use super::{bucket, bucket_len, compare, distinct, eval, get, key_of, kind_set, kinds_required, lit_rows, refs_of, table_index, text_of, truthy, view_holds, view_rows};
 use rustc_hash::FxHashSet;
 use serde_json::Value as J;
 use std::cell::RefCell;
@@ -48,8 +48,8 @@ fn opd(e: &E) -> Option<Opd> {
     Some(match e {
         E::Col(s, c, t) => Opd::Col(*s, *c, *t),
         E::Lit(v) => Opd::K(*v),
-        E::Text(t) => Opd::K(V::new(Ty::Sym, u64::from(*t))),
-        E::Num(n) => Opd::K(V::new(Ty::Num, *n as u64)),
+        E::Text(t) => Opd::K(scalar(Ty::Symbol, u64::from(*t))),
+        E::Num(n) => Opd::K(scalar(Ty::Number, *n as u64)),
         _ => return None,
     })
 }
@@ -65,7 +65,7 @@ fn compile(e: &E) -> P {
             let want = *o == Op::Eq;
             match (&**a, &**b) {
                 (E::Col(s1, c1, t1), E::Col(s2, c2, t2)) if t1 == t2 => P::EqCC(*s1, *c1, *s2, *c2, want),
-                (E::Col(s1, c1, Ty::Sym), E::Text(t)) | (E::Text(t), E::Col(s1, c1, Ty::Sym)) => P::EqCK(*s1, *c1, u64::from(*t), want),
+                (E::Col(s1, c1, Ty::Symbol), E::Text(t)) | (E::Text(t), E::Col(s1, c1, Ty::Symbol)) => P::EqCK(*s1, *c1, u64::from(*t), want),
                 _ => match (opd(a), opd(b)) {
                     (Some(x), Some(y)) => P::Cmp(*o, x, y),
                     _ => P::Old(e.clone()),
@@ -104,7 +104,7 @@ fn compile(e: &E) -> P {
 #[inline]
 fn val(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], o: &Opd) -> V {
     match o {
-        Opd::Col(s, c, t) => V::new(*t, get(run, f, srcs, cur, *s, *c)),
+        Opd::Col(s, c, t) => scalar(*t, get(run, f, srcs, cur, *s, *c)),
         Opd::K(v) => *v,
     }
 }
@@ -136,14 +136,14 @@ fn holds(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], p: &P) -> bool 
         }
         P::Re(a, re) => {
             let x = val(run, f, srcs, cur, a);
-            match x.ty() {
-                Ty::Sym => re.is_match(run.text(x.1 as u32)),
+            match x.kind {
+                Ty::Symbol => re.is_match(run.text(x.word.0 as u32)),
                 _ => re.is_match(&text_of(run, x)),
             }
         }
         P::Seed(a, k) => {
             let x = val(run, f, srcs, cur, a);
-            f.seeds.get(*k).is_some_and(|s| s.binary_search(&(x.1 as u32)).is_ok())
+            f.seeds.get(*k).is_some_and(|s| s.binary_search(&(x.word.0 as u32)).is_ok())
         }
         P::And(a, b) => holds(run, f, srcs, cur, a) && holds(run, f, srcs, cur, b),
         P::Or(a, b) => holds(run, f, srcs, cur, a) || holds(run, f, srcs, cur, b),
@@ -221,16 +221,18 @@ pub(super) fn lit_file(f: &mut File<'_>, key: usize, conj: &[E], si: usize, base
     }
     // redo-alloc: the rows made into a kept list (recycle.rs)
     let mut hit = false;
-    let rc = super::recycle::rows_with(|o| hit = super::lit_rows_into(f, conj, si, base, map, o));
+    let rc = f
+        .storage
+        .rows_with(|o| hit = super::lit_rows_into(f, conj, si, base, map, o));
     match hit {
         true => {
             f.vrows.insert(key, rc.clone());
             Some(rc)
         }
         false => {
-            super::recycle::recycle_rows(rc);
+            f.storage.recycle_rows(rc);
             // redo-alloc: the run's one empty list marks it (no list made a mark)
-            f.vrows.insert(key | ABSENT, super::recycle::no_rows());
+            f.vrows.insert(key | ABSENT, f.storage.no_rows());
             None
         }
     }
@@ -451,7 +453,7 @@ impl Exec<'_> {
         if prof {
             prof_add(0, t0.elapsed() - (self.inner - i0));
         }
-        out.map(|t| Rc::try_unwrap(t).unwrap_or_else(|t| (*t).clone()))
+        out.map(|t| Rc::try_unwrap(t).unwrap_or_else(|t| run.storage.copy(&t)))
     }
 
     /// redo-select2: whether a view source's entry (the size the front measures it by) is empty in this file, for a node
@@ -486,7 +488,7 @@ impl Exec<'_> {
         let prep = self.ksel_prep(run, node)?;
         let Prep::K(kp) = &*prep else {
             let t = self.select(f, run, p, node)?;
-            return if t.n == 0 { self.empty_rc(run, node) } else { Ok(super::recycle::rc(t)) };
+            return self.publish(run, node, t);
         };
         if let Some(pb) = kp.semi {
             let sp = self.sel(run, node)?;
@@ -497,7 +499,7 @@ impl Exec<'_> {
             }
             if let Some(t) = self.semi(f, run, p, node, pb)? {
                 super::empty_sel::at(super::empty_sel::stage::SEMI);
-                return if t.n == 0 { self.empty_rc(run, node) } else { Ok(super::recycle::rc(t)) };
+                return self.publish(run, node, t);
             }
         }
         let mut b = take_bufs();
@@ -549,7 +551,7 @@ impl Exec<'_> {
         let out = self.ksel_run(f, run, p, node, kp, &mut b, Some((si, c, keys)));
         give_bufs(b);
         let out = out?;
-        let handed = out.n == 0 || kp.ident;
+        let handed = out.rows.0 == 0 || kp.ident;
         Ok(Some((out, handed)))
     }
 
@@ -562,7 +564,7 @@ impl Exec<'_> {
         let out = self.ksel_run_(f, run, p, node, kp, b, &mut srcs, &mut jc, keyed);
         for s in srcs.drain(..) {
             if let Src::Tab(t, _) = s {
-                super::recycle::recycle(t);
+                run.storage.recycle(t);
             }
         }
         b.srcs = srcs;
@@ -623,7 +625,7 @@ impl Exec<'_> {
                 && si == i
             {
                 let t = self.probe(f, run, p, *n, c, keys)?;
-                if t.n == 0 {
+                if t.rows.0 == 0 {
                     return self.empty_rc(run, node);
                 }
                 srcs.push(Src::Tab(t, usize::MAX - i));
@@ -641,7 +643,7 @@ impl Exec<'_> {
                 None => self.src_of(f, run, p, *n)?,
             };
             if let Src::Tab(t, _) = &src
-                && t.n == 0
+                && t.rows.0 == 0
             {
                 super::empty_sel::with(|m| {
                     m.stage = super::empty_sel::stage::SOURCE_EMPTY;
@@ -659,7 +661,7 @@ impl Exec<'_> {
             // the other side is made and not empty: the deferred source is read either way, so its inputs are made for its size
             let dsize = self.keyed_size(f, run, p, sp.srcs[i], true)?;
             let osize = match &srcs[o] {
-                Src::Tab(t, _) => Some(t.n),
+                Src::Tab(t, _) => Some(t.rows.0),
                 Src::View(..) => kp.entries[o].len(f),
                 _ => None,
             };
@@ -667,7 +669,7 @@ impl Exec<'_> {
                 deferred = None;
                 let src = self.src_of(f, run, p, sp.srcs[i])?;
                 if let Src::Tab(t, _) = &src
-                    && t.n == 0
+                    && t.rows.0 == 0
                 {
                     return self.empty_rc(run, node);
                 }
@@ -690,7 +692,7 @@ impl Exec<'_> {
             let ids: Vec<u64> = f.seeds.get(sk).map(|s| s.iter().map(|x| u64::from(*x)).collect()).unwrap_or_default();
             let t = self.probe(f, run, p, sp.srcs[si], c, &ids)?;
             self.stats.touched[node] += ids.len() as u64;
-            if t.n == 0 {
+            if t.rows.0 == 0 {
                 super::empty_sel::at(super::empty_sel::stage::SEED_EMPTY);
                 return self.empty_rc(run, node);
             }
@@ -701,7 +703,7 @@ impl Exec<'_> {
         let mut best = if driver.is_some() { 0 } else { usize::MAX };
         for (i, sr) in srcs.iter().enumerate() {
             let size = match sr {
-                Src::Tab(t, _) => Some(t.n),
+                Src::Tab(t, _) => Some(t.rows.0),
                 Src::View(..) => kp.entries[i].len(f),
                 _ => None,
             };
@@ -741,9 +743,9 @@ impl Exec<'_> {
         sel.clear();
         match &srcs[driver] {
             Src::Tab(t, _) => {
-                self.stats.touched[node] += t.n as u64;
-                super::empty_sel::with(|m| m.d0 = t.n as u32);
-                sel.extend(0..t.n as u32);
+                self.stats.touched[node] += t.rows.0 as u64;
+                super::empty_sel::with(|m| m.d0 = t.rows.0 as u32);
+                sel.extend(0..t.rows.0 as u32);
             }
             Src::View(v, vn) => {
                 // the entry rows, once a file a (step, driver): the select's kind bucket or literal rows of the view, tested
@@ -807,7 +809,7 @@ impl Exec<'_> {
             if prof {
                 prof_add(6, t6.elapsed());
             }
-            return if out.n == 0 { self.empty_rc(run, node) } else { Ok(super::recycle::rc(out)) };
+            return self.publish(run, node, out);
         }
         // ---- kernel 2: the other source, joined on the columns the conjuncts equate
         if sel.is_empty() {
@@ -828,7 +830,7 @@ impl Exec<'_> {
             let t = self.probe(f, run, p, sp.srcs[i], c, &keys);
             b.keys = keys;
             let t = t?;
-            if t.n == 0 {
+            if t.rows.0 == 0 {
                 return self.empty_rc(run, node);
             }
             srcs[i] = Src::Tab(t, usize::MAX - i);
@@ -926,7 +928,7 @@ impl Exec<'_> {
                 let mut touched = 0u64;
                 super::empty_sel::with(|m| {
                     m.o = match &srcs[si] {
-                        Src::Tab(t, _) => t.n as u32,
+                        Src::Tab(t, _) => t.rows.0 as u32,
                         _ => u32::MAX,
                     };
                     m.built |= match &srcs[si] {
@@ -945,14 +947,14 @@ impl Exec<'_> {
                             pairs.clear();
                             if tab_cols.len() == 1 {
                                 let c = &t.cols[tab_cols[0]];
-                                pairs.extend((0..t.n).map(|r| (c[r], r as u32)));
+                                pairs.extend((0..t.rows.0).map(|r| (c[r], r as u32)));
                             } else {
-                                pairs.extend((0..t.n).map(|r| (key_of(tab_cols.iter().map(|c| t.cols[*c][r])), r as u32)));
+                                pairs.extend((0..t.rows.0).map(|r| (key_of(tab_cols.iter().map(|c| t.cols[*c][r])), r as u32)));
                             }
                             pairs.sort_unstable();
                             None
                         } else if fresh {
-                            Some(Rc::new(index_of(t, &tab_cols)))
+                            Some(f.storage.index_rc(f.storage.index_for(t, &tab_cols)))
                         } else {
                             Some(table_index(f, *tn, t, &tab_cols))
                         };
@@ -1062,7 +1064,7 @@ impl Exec<'_> {
                 }
                 let checks = &ckb[..nck];
                 let rows: super::cold_bucket::Rows = match &srcs[other] {
-                    Src::Tab(t, _) => Rc::new((0..t.n as u32).collect::<Vec<_>>()).into(),
+                    Src::Tab(t, _) => Rc::new((0..t.rows.0 as u32).collect::<Vec<_>>()).into(),
                     Src::View(v, vn) => view_rows(f, run, v, *vn),
                     _ => return Err("a join side that is no table or view".to_owned()),
                 };
@@ -1109,14 +1111,14 @@ impl Exec<'_> {
                 _ => return Err("a select reads no table or view".to_owned()),
             }
         }
-        out.n = n;
+        out.rows.0 = n;
         if prof {
             prof_add(4, t3.elapsed());
         }
         if n == 0 {
             return self.empty_rc(run, node);
         }
-        Ok(super::recycle::rc(out))
+        Ok(run.storage.rc(out))
     }
 
     /// Kernel 1's tail: the kept rows projected by position; a projection that drops columns kept as a set (first
@@ -1143,7 +1145,7 @@ impl Exec<'_> {
                 _ => return Err("a select reads no table or view".to_owned()),
             }
         }
-        out.n = n;
+        out.rows.0 = n;
         let set = kp.set
             && !sw!("VEC_SELECT_BAG")
             && match &srcs[0] {
@@ -1155,7 +1157,7 @@ impl Exec<'_> {
             return Ok(out);
         }
         if sw!("VEC_KSEL_DISTINCT") {
-            return Ok(distinct(out));
+            return Ok(distinct(run, out));
         }
         kept.clear();
         if out.cols.len() == 1 {
@@ -1190,7 +1192,7 @@ impl Exec<'_> {
         for (c, col) in out.cols.iter().enumerate() {
             d.cols[c].extend(kept.iter().map(|r| col[*r as usize]));
         }
-        d.n = kept.len();
+        d.rows.0 = kept.len();
         Ok(d)
     }
 }

@@ -63,13 +63,13 @@ pub(in super::super) fn for_file(file: u32, run: &mut Run, rel: &str, ask: Proje
             a.table = None;
             a.by_file.clear();
         }
-        let base = a.table.as_ref().map_or(0, |x| x.n) as u32;
-        for r in 0..t.n {
+        let base = a.table.as_ref().map_or(0, |x| x.rows.0) as u32;
+        for r in 0..t.rows.0 {
             a.by_file.entry(t.cols[key][r]).or_default().push(base + r as u32);
         }
         a.asks[0] += 1;
         a.asks[1] += scope.len() as u64;
-        a.asks[2] += t.n as u64;
+        a.asks[2] += t.rows.0 as u64;
         for s in scope {
             a.asked[s as usize] = true;
         }
@@ -78,18 +78,18 @@ pub(in super::super) fn for_file(file: u32, run: &mut Run, rel: &str, ask: Proje
                 for (c, col) in t.cols.iter().enumerate() {
                     all.cols[c].extend_from_slice(col);
                 }
-                all.n += t.n;
+                all.rows.0 += t.rows.0;
             }
             None => a.table = Some(t),
         }
     }
     let all = a.table.as_ref().ok_or_else(|| format!("{rel}: no answer"))?;
     let mine = a.by_file.get(&u64::from(file)).map_or(&[][..], Vec::as_slice);
-    let mut out = Table::with_rows(all.names.clone(), all.tys.clone(), mine.len());
+    let mut out = run.storage.table(all.names.clone(), all.tys.clone(), mine.len());
     for (c, col) in out.cols.iter_mut().enumerate() {
         col.extend(mine.iter().map(|r| all.cols[c][*r as usize]));
     }
-    out.n = mine.len();
+    out.rows.0 = mine.len();
     run.project.insert(rel.to_owned(), a);
     Ok(out)
 }

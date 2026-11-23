@@ -76,12 +76,12 @@ pub(super) fn relation(op: Op, reverse: bool) -> Option<fn(Ordering) -> bool> {
 fn compare(run: &Run, ty: Ty, op: Op, literal: &E, reverse: bool) -> Option<Word> {
     let accept = relation(op, reverse)?;
     let (right, value) = match literal {
-        E::Text(s) => (Ty::Sym, u64::from(*s)),
-        E::Num(n) => (Ty::Num, *n as u64),
-        E::Lit(v) => (v.ty(), v.1),
+        E::Text(s) => (Ty::Symbol, u64::from(*s)),
+        E::Num(n) => (Ty::Number, *n as u64),
+        E::Lit(v) => (v.kind, v.word.0),
         _ => return None,
     };
-    if ty == Ty::Sym && right == Ty::Sym && matches!(op, Op::Eq | Op::Ne) {
+    if ty == Ty::Symbol && right == Ty::Symbol && matches!(op, Op::Eq | Op::Ne) {
         return Some(if op == Op::Eq {
             Word::Eq(value)
         } else {
@@ -92,14 +92,14 @@ fn compare(run: &Run, ty: Ty, op: Op, literal: &E, reverse: bool) -> Option<Word
         return Some(Word::Test(Box::new(|_, _| false)));
     }
     let pred: Test = match (ty, right) {
-        (Ty::Num, Ty::Num) => {
+        (Ty::Number, Ty::Number) => {
             Box::new(move |_, w| w != NULL && accept((w as i64).cmp(&(value as i64))))
         }
-        (Ty::Sym, Ty::Sym | Ty::Num | Ty::Flag | Ty::File)
-        | (Ty::File | Ty::Num | Ty::Flag, Ty::Sym) => {
-            let rhs = super::text_of(run, super::V::new(right, value)).into_owned();
+        (Ty::Symbol, Ty::Symbol | Ty::Number | Ty::Flag | Ty::File)
+        | (Ty::File | Ty::Number | Ty::Flag, Ty::Symbol) => {
+            let rhs = super::text_of(run, super::scalar(right, value)).into_owned();
             match ty {
-                Ty::Sym => Box::new(move |r, w| w != NULL && accept(r.text(w as u32).cmp(&rhs))),
+                Ty::Symbol => Box::new(move |r, w| w != NULL && accept(r.text(w as u32).cmp(&rhs))),
                 Ty::File => Box::new(move |r, w| {
                     w != NULL && accept(r.text(r.path_sym[w as usize]).cmp(&rhs))
                 }),
@@ -108,7 +108,7 @@ fn compare(run: &Run, ty: Ty, op: Op, literal: &E, reverse: bool) -> Option<Word
                     let no = accept(b"false".as_slice().cmp(&rhs));
                     Box::new(move |_, w| w != NULL && if w == 1 { yes } else { no })
                 }
-                Ty::Num => Box::new(move |_, w| {
+                Ty::Number => Box::new(move |_, w| {
                     w != NULL && accept((w as i64).to_string().as_bytes().cmp(&rhs))
                 }),
                 _ => unreachable!(),
@@ -123,16 +123,16 @@ fn compare(run: &Run, ty: Ty, op: Op, literal: &E, reverse: bool) -> Option<Word
 pub(super) fn as_bytes(ty: Ty) -> for<'a> fn(&'a Run, u64) -> std::borrow::Cow<'a, [u8]> {
     use std::borrow::Cow;
     match ty {
-        Ty::Sym => |r, w| Cow::Borrowed(r.text(w as u32)),
+        Ty::Symbol => |r, w| Cow::Borrowed(r.text(w as u32)),
         Ty::File => |r, w| Cow::Borrowed(r.text(r.path_sym[w as usize])),
-        Ty::Num => |_, w| Cow::Owned((w as i64).to_string().into_bytes()),
+        Ty::Number => |_, w| Cow::Owned((w as i64).to_string().into_bytes()),
         Ty::Flag => |_, w| Cow::Borrowed(if w == 1 { b"true" } else { b"false" }),
         _ => |_, _| Cow::Borrowed(&[]),
     }
 }
 fn text_predicate(ty: Ty, test: impl Fn(&[u8]) -> bool + 'static) -> Test {
     match ty {
-        Ty::Sym => Box::new(move |r, w| test(r.text(w as u32))),
+        Ty::Symbol => Box::new(move |r, w| test(r.text(w as u32))),
         Ty::File => Box::new(move |r, w| test(r.text(r.path_sym[w as usize]))),
         _ => {
             let read = as_bytes(ty);
@@ -143,7 +143,7 @@ fn text_predicate(ty: Ty, test: impl Fn(&[u8]) -> bool + 'static) -> Test {
 
 /// Compiles only when the whole expression reads this single column.
 pub(super) fn compile(run: &Run, e: &E, c: usize, ty: Ty) -> Option<Word> {
-    if ty == Ty::Sym
+    if ty == Ty::Symbol
         && let Some(mut ids) = super::cold_list::members(e, c)
     {
         ids.sort_unstable();
@@ -176,7 +176,7 @@ pub(super) fn compile(run: &Run, e: &E, c: usize, ty: Ty) -> Option<Word> {
             let n = *neg;
             Box::new(move |_, w| (w == NULL) != n)
         }
-        E::In(x, items, true) if ty == Ty::Sym && is_col(x, c) => {
+        E::In(x, items, true) if ty == Ty::Symbol && is_col(x, c) => {
             let E::List(items) = &**items else {
                 return None;
             };
@@ -214,8 +214,8 @@ pub(super) fn compile(run: &Run, e: &E, c: usize, ty: Ty) -> Option<Word> {
                 };
                 let accepts = move |x: f64| if reverse { limit >= x } else { x >= limit };
                 match ty {
-                    Ty::Num => Box::new(move |_, w| accepts(w as i64 as f64)),
-                    Ty::Sym => Box::new(move |r, w| {
+                    Ty::Number => Box::new(move |_, w| accepts(w as i64 as f64)),
+                    Ty::Symbol => Box::new(move |r, w| {
                         String::from_utf8_lossy(r.text(w as u32))
                             .replace('_', "")
                             .parse::<f64>()

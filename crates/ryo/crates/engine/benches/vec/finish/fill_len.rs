@@ -8,7 +8,7 @@ use super::{Exec, File, Provider, R, Run, Scope, Supplier, Table};
 pub(super) fn empty_fill(run: &mut Run, rel: &str) -> R<Table> {
     let (_, names, tys) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
     // redo-alloc: through the pool's constructor (its columns kept and given back)
-    Ok(Table::with(names, tys))
+    Ok(run.storage.empty(names, tys))
 }
 
 /// The fill of `rel` in file `file` by its supplier (the host's or the provider's), or its empty table where the supplier
@@ -36,7 +36,7 @@ impl Exec<'_> {
     #[expect(dead_code, reason = "the emptiness leaves' entry (claude/redo-empty), joined by the merge builder")]
     pub(super) fn fill_len(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, rel: &str) -> R<usize> {
         if let Some(t) = f.fills.get(rel) {
-            return Ok(t.n);
+            return Ok(t.rows.0);
         }
         if let Supplier::Host = run.supplier(rel)
             && let Some(n) = super::host::host_len(rel)
@@ -47,8 +47,8 @@ impl Exec<'_> {
             return Ok(n);
         }
         let t = fill_or_empty(run, p, rel, f.file)?;
-        let n = t.n;
-        f.fills.insert(rel.to_owned(), super::recycle::rc(t)); // redo-alloc: kept answers
+        let n = t.rows.0;
+        f.fills.insert(rel.to_owned(), run.storage.rc(t)); // redo-alloc: kept answers
         Ok(n)
     }
 }

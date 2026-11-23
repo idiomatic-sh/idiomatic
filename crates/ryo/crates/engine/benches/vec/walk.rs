@@ -9,6 +9,7 @@
 //!
 //! No rule id: the shape is the axis's own arguments.
 
+use crate::finish::TableAccess as _;
 use super::{Dom, Exec, File, Hier, NULL, Provider, R, Run, Table, bucket, bucket_len, hier_step, kind_set, node_table, s, view_holds};
 use ryo::languages::Position;
 use serde_json::Value as J;
@@ -40,7 +41,7 @@ impl Exec<'_> {
         let ic = from.col("id")?;
         let mut out = self.empty(run, node)?;
         let mut row = Vec::new();
-        if tree && size.is_some_and(|n| n < from.n) {
+        if tree && size.is_some_and(|n| n < from.rows.0) {
             // the domain's nodes, sorted (preorder), with their subtree ends
             let mut d: Vec<u32> = match &dom {
                 Dom::Set(x) => x.iter().filter(|v| (**v as usize) < f.n).map(|v| *v as u32).collect(),
@@ -67,7 +68,7 @@ impl Exec<'_> {
                 stack.push(i as u32);
             }
             self.stats.touched[node] += d.len() as u64;
-            for r in 0..from.n {
+            for r in 0..from.rows.0 {
                 let x = from.cols[ic][r];
                 if x == NULL || x as usize >= f.n {
                     continue;
@@ -115,8 +116,8 @@ impl Exec<'_> {
         }
         if dir == "ancestor" {
             // the first admitted ancestor: level by level for all starts at once, the domain asked once a level
-            let mut found: Vec<u64> = vec![NULL; from.n];
-            let mut frontier: Vec<(usize, u64)> = (0..from.n).map(|i| (i, from.cols[ic][i])).collect();
+            let mut found: Vec<u64> = vec![NULL; from.rows.0];
+            let mut frontier: Vec<(usize, u64)> = (0..from.rows.0).map(|i| (i, from.cols[ic][i])).collect();
             let mut nbrs = Vec::new();
             for _ in 0..4096 {
                 if frontier.is_empty() {
@@ -157,7 +158,7 @@ impl Exec<'_> {
         if !tree {
             return Ok(None);
         }
-        for r in 0..from.n {
+        for r in 0..from.rows.0 {
             let x = from.cols[ic][r];
             if x == NULL || x as usize >= f.n {
                 continue;

@@ -6,6 +6,7 @@
 //! `l.c = r.p or starts_with(l.c, concat(r.p, "."))` had to meet every row of `r`. A row whose text is null makes no row.
 //! No rule id: the text column and the separator are the arguments.
 
+use crate::finish::TableAccess as _;
 use super::{Exec, File, NULL, Provider, R, Run, Table, s};
 
 impl Exec<'_> {
@@ -20,7 +21,7 @@ impl Exec<'_> {
         }
         let mut out = self.empty(run, node)?;
         let mut row = Vec::with_capacity(from.cols.len() + 1);
-        for i in 0..from.n {
+        for i in 0..from.rows.0 {
             let v = from.cols[tc][i];
             if v == NULL {
                 continue;
@@ -36,7 +37,7 @@ impl Exec<'_> {
                 out.push_row(&row);
             }
         }
-        self.stats.touched[node] += from.n as u64;
+        self.stats.touched[node] += from.rows.0 as u64;
         Ok(out)
     }
 }

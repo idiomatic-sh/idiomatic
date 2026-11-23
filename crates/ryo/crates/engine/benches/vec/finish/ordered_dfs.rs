@@ -5,6 +5,7 @@
 //! the edge's source, destination and edge columns, then the ordinal. Two edges of one source with one order are refused,
 //! as the shipping engine refuses them (`DuplicateOrder`).
 
+use crate::finish::TableAccess as _;
 use super::{J, NULL, R, Table, Ty, s, strs};
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -25,7 +26,7 @@ pub(super) fn schema(a: &J, from: (&[String], &[Ty]), edges: (&[String], &[Ty]))
         tys.push(edges.1[col(edges.0, c)?]);
     }
     names.push(s(&a["output"])?.to_owned());
-    tys.push(Ty::Num);
+    tys.push(Ty::Number);
     Ok((names, tys))
 }
 
@@ -39,7 +40,7 @@ pub(super) fn walked(a: &J, from: &Table, edges: &Table, out: &mut Table) -> R<(
         (edges.col(s(&a["source"])?)?, edges.col(s(&a["destination"])?)?, edges.col(s(&a["order"])?)?, edges.col(s(&a["edge"])?)?);
     // each (keys, source)'s edges, ascending by order (a number cell: its bits as a signed integer)
     let mut runs: FxHashMap<Vec<u64>, Vec<usize>> = FxHashMap::default();
-    for r in 0..edges.n {
+    for r in 0..edges.rows.0 {
         if edges.cols[ord][r] == NULL {
             return Err("ordered-dfs: an edge with no order".to_owned());
         }
@@ -55,7 +56,7 @@ pub(super) fn walked(a: &J, from: &Table, edges: &Table, out: &mut Table) -> R<(
     }
     let mut done: FxHashSet<Vec<u64>> = FxHashSet::default();
     let mut row = Vec::with_capacity(out.names.len());
-    for r in 0..from.n {
+    for r in 0..from.rows.0 {
         let mut k: Vec<u64> = fk.iter().map(|c| from.cols[*c][r]).collect();
         let start = from.cols[root][r];
         k.push(start);

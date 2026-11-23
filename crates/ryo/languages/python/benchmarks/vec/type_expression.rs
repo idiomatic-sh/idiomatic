@@ -133,7 +133,7 @@ pub(super) fn any_root(run: &mut finish::Run, table: &NodeTable, qualified: &fin
     }
     let (q_id, q_path) = (col(qualified, "id")?, col(qualified, "path")?);
     let _ = q_id;
-    for r in 0..qualified.n {
+    for r in 0..qualified.rows.0 {
         let t: &[u8] = &run.texts[qualified.cols[q_path][r] as usize];
         // redo-int merge: `rows`' tests as redo-binding pass 6 states them (the pack's lists `LISTS`, passed in as `rows`
         // reads them; redo-binding pass 7's own read of `LISTS` here is the same value, so not kept)
@@ -202,7 +202,7 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
     let (q_id, q_path) = (col(inp.qualified, "id")?, col(inp.qualified, "path")?);
     let mut names: FxHashMap<u32, u8> = FxHashMap::default();
     let mut callee_forms: FxHashMap<u32, Vec<Form>> = FxHashMap::default();
-    for r in 0..inp.qualified.n {
+    for r in 0..inp.qualified.rows.0 {
         let x = inp.qualified.cols[q_id][r] as u32;
         let t: &[u8] = &run.texts[inp.qualified.cols[q_path][r] as usize];
         // every name the tests below match starts with one of these modules
@@ -233,7 +233,7 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
         }
     }
     // no root of any kind: no type expression in the file
-    if inp.embedded.n == 0
+    if inp.embedded.rows.0 == 0
         && names.is_empty()
         && callee_forms.is_empty()
         && !(0..n).any(|p| (parent[p] != u32::MAX && (field[p] == f_annotation || field[p] == f_returns)) || k_decl.contains(&kind[p]))
@@ -262,7 +262,7 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
     // keywords: value, name, owner (nearest call above)
     let (i_id, i_name) = (col(inp.identifiers, "id")?, col(inp.identifiers, "name")?);
     let mut ident: FxHashMap<u32, u32> = FxHashMap::default();
-    for r in 0..inp.identifiers.n {
+    for r in 0..inp.identifiers.rows.0 {
         let _ = ident.insert(inp.identifiers.cols[i_id][r] as u32, inp.identifiers.cols[i_name][r] as u32);
     }
     let mut keyword_values: FxHashSet<u32> = FxHashSet::default();
@@ -296,7 +296,7 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
     let mut types = vec![false; n];
     let mut values = vec![false; n];
     let mut positional: FxHashMap<u32, Vec<(i64, u32)>> = FxHashMap::default();
-    for r in 0..inp.arguments.n {
+    for r in 0..inp.arguments.rows.0 {
         let (call, value, position) = (inp.arguments.cols[a_call][r] as u32, inp.arguments.cols[a_expr][r] as u32, inp.arguments.cols[a_pos][r] as i64);
         if (value as usize) >= n {
             continue;
@@ -397,7 +397,7 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
     }
     // the syntactic roots
     let (e_root,) = (col(inp.embedded, "root")?,);
-    for r in 0..inp.embedded.n {
+    for r in 0..inp.embedded.rows.0 {
         let x = inp.embedded.cols[e_root][r] as usize;
         if x < n {
             types[x] = true;

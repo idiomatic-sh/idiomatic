@@ -89,7 +89,7 @@ impl Exec<'_> {
             return false;
         }
         // made empty already (read live): any source of a select, every input of a union, the first input of the rest
-        let made = |i: usize| matches!(&f.memo[i], Some(Res::Tab(t)) if t.n == 0);
+        let made = |i: usize| matches!(&f.memo[i], Some(Res::Tab(t)) if t.rows.0 == 0);
         match self.frames[node].op {
             super::frame::Op::Select => self.plan.nodes[node].inputs.iter().any(|i| made(*i)),
             super::frame::Op::Union => {

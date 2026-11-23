@@ -1,6 +1,6 @@
 //! A cache slot can name an ordered slice in this file's provider table. Multiple
 //! disjoint slices keep their lengths and are merged only on the first ordered read.
-use super::{File, KindBits, NodeTable, Position, node_table, recycle};
+use super::{File, KindBits, NodeTable, Position, Storage, node_table};
 use ryo::languages::FieldCode;
 use std::cell::{OnceCell, RefCell};
 use std::cmp::Reverse;
@@ -33,6 +33,7 @@ impl Part {
 }
 
 pub(super) struct Merge {
+    storage: Rc<Storage>,
     parts: Vec<Part>,
     len: usize,
     form: &'static str,
@@ -60,7 +61,7 @@ impl Merge {
     fn read(&self, table: &NodeTable) -> &[u32] {
         self.ordered.get_or_init(|| {
             let start = super::cold_list::clock();
-            let rows = recycle::rows_with(|out| self.write(table, out));
+            let rows = self.storage.rows_with(|out| self.write(table, out));
             if super::cold_list::auditing() {
                 let seconds = super::cold_list::clock() - start;
                 record(self.form, "merge read", self.len, seconds);
@@ -105,14 +106,14 @@ impl Slot {
             Self::Merge(m) => Rows::Merge(table, m.clone()),
         }
     }
-    pub(super) fn recycle(self) {
+    pub(super) fn recycle(self, storage: &Storage) {
         match self {
-            Self::Owned(r) => recycle::recycle_rows(r),
+            Self::Owned(r) => storage.recycle_rows(r),
             Self::Merge(m) => {
                 if let Ok(m) = Rc::try_unwrap(m)
                     && let Some(r) = m.ordered.into_inner()
                 {
-                    recycle::recycle_rows(r);
+                    storage.recycle_rows(r);
                 }
             }
             _ => {}
@@ -236,6 +237,7 @@ pub(super) fn select(f: &File<'_>, fields: bool, codes: &[u16]) -> Slot {
         record(form, "multi", len, 0.0);
     }
     Slot::Merge(Rc::new(Merge {
+        storage: f.storage.clone(),
         parts: more,
         len,
         form,

@@ -199,13 +199,13 @@ pub(super) fn fill(
     let (_, names, types) = run
         .catalog(relation)
         .ok_or_else(|| format!("missing {relation}"))?;
-    let mut table = Table::with_rows(names, types, 0);
+    let mut table = run.storage.table(names, types, 0);
     let file_id = u64::from(number);
     let mut write = |row: &[u64]| {
         for (column, value) in table.cols.iter_mut().zip(row) {
             column.push(*value);
         }
-        table.n += 1;
+        table.rows.0 += 1;
     };
     if relation == CALL_SITE {
         let optional = |node: Option<Position>| node.map_or(finish::NULL, |id| u64::from(id.0));

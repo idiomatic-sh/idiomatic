@@ -17,41 +17,41 @@ pub(super) const NAMESPACE_SITES_REL: &str = "namespace-sites";
 
 /// Reads before the first scheduled store or annotation of their name in the same namespace and phase.
 pub(super) const PRE_DECLARATION_READ_REL: &str = "pre-declaration-read";
-const PRE_DECLARATION_READ_COLS: [(&str, Ty); 5] = [("reference", Ty::Node), ("scope", Ty::Node), ("phase", Ty::Node), ("ordinal", Ty::Num), ("file", Ty::File)];
+const PRE_DECLARATION_READ_COLS: [(&str, Ty); 5] = [("reference", Ty::Node), ("scope", Ty::Node), ("phase", Ty::Node), ("ordinal", Ty::Number), ("file", Ty::File)];
 
 
 /// Dotted name requested by a relative import when its containing package is known.
 pub(super) const RELATIVE_IMPORT_REL: &str = "relative-import-target";
-const RELATIVE_IMPORT_COLS: [(&str, Ty); 3] = [("occurrence", Ty::Node), ("path", Ty::Sym), ("file", Ty::File)];
+const RELATIVE_IMPORT_COLS: [(&str, Ty); 3] = [("occurrence", Ty::Node), ("path", Ty::Symbol), ("file", Ty::File)];
 
 /// 6f probe: the provider's evaluation region of every node, by name.
 pub(super) const REGION_REL: &str = "evaluation-region";
 pub(super) const REGION_COLS: [(&str, Ty); 6] =
-    [("id", Ty::Node), ("region", Ty::Node), ("region-kind", Ty::Sym), ("annotation", Ty::Node), ("timing", Ty::Sym), ("file", Ty::File)];
+    [("id", Ty::Node), ("region", Ty::Node), ("region-kind", Ty::Symbol), ("annotation", Ty::Node), ("timing", Ty::Symbol), ("file", Ty::File)];
 
 /// Last scheduled namespace change per name, including declarations that redirect subsequent writes.
 pub(super) const FINAL_REL: &str = "namespace-final";
 pub(super) const FINAL_COLS: [(&str, Ty); 6] =
-    [("namespace", Ty::Node), ("name", Ty::Sym), ("event", Ty::Node), ("kind", Ty::Sym), ("ordinal", Ty::Num), ("file", Ty::File)];
+    [("namespace", Ty::Node), ("name", Ty::Symbol), ("event", Ty::Node), ("kind", Ty::Symbol), ("ordinal", Ty::Number), ("file", Ty::File)];
 
 /// redo-binding pass 4: every element of a file in a type expression (`type`), or the root of a value expression nested in
 /// one (`value`); no row: a value expression (`type_expression.rs`).
 pub(super) const TYPE_EXPRESSION_REL: &str = "type-expression";
-pub(super) const TYPE_EXPRESSION_COLS: [(&str, Ty); 3] = [("id", Ty::Node), ("kind", Ty::Sym), ("file", Ty::File)];
+pub(super) const TYPE_EXPRESSION_COLS: [(&str, Ty); 3] = [("id", Ty::Node), ("kind", Ty::Symbol), ("file", Ty::File)];
 
 /// redo-binding pass 4: every element inside an annotation, when Python evaluates it (`annotation_evaluation.rs`).
 pub(super) const ANNOTATION_EVALUATION_REL: &str = "annotation-evaluation";
 pub(super) const ANNOTATION_EVALUATION_COLS: [(&str, Ty); 5] =
-    [("id", Ty::Node), ("root", Ty::Node), ("evaluation", Ty::Sym), ("mode", Ty::Sym), ("file", Ty::File)];
+    [("id", Ty::Node), ("root", Ty::Node), ("evaluation", Ty::Symbol), ("mode", Ty::Symbol), ("file", Ty::File)];
 
 /// redo-binding pass 4: every element whose evaluation is postponed past its statement (`deferred`) (`deferred_visit.rs`).
 pub(super) const DEFERRED_VISIT_REL: &str = "deferred-visit";
-pub(super) const DEFERRED_VISIT_COLS: [(&str, Ty); 3] = [("id", Ty::Node), ("visit", Ty::Sym), ("file", Ty::File)];
+pub(super) const DEFERRED_VISIT_COLS: [(&str, Ty); 3] = [("id", Ty::Node), ("visit", Ty::Symbol), ("file", Ty::File)];
 
 /// The module lookup for each postponed read at the end of the static schedule.
 pub(super) const DEFERRED_RESOLUTION_REL: &str = "deferred-resolution";
 pub(super) const DEFERRED_RESOLUTION_COLS: [(&str, Ty); 5] =
-    [("reference", Ty::Node), ("occurrence", Ty::Node), ("kind", Ty::Sym), ("point", Ty::Num), ("file", Ty::File)];
+    [("reference", Ty::Node), ("occurrence", Ty::Node), ("kind", Ty::Symbol), ("point", Ty::Number), ("file", Ty::File)];
 
 /// redo-binding pass 4: the elements evaluation-region places in a deferred type phase, alone (`ColumnFile::type_regions`).
 pub(super) const TYPE_REGION_REL: &str = "type-region";
@@ -71,7 +71,7 @@ pub(super) fn declare(run: &mut finish::Run) {
     super::expression_parts::declare(run);
     super::lexical_lines::declare(run);
     let columns = |fields: &[(&'static str, ryo::languages::CellKind)]| -> Vec<_> {
-        fields.iter().map(|&(n, k)| (n, finish::ty_of(k))).collect()
+        fields.to_vec()
     };
     let sites = columns(super::pair_provider::SITES);
     let mut resolutions = columns(super::pair_provider::predecessor::COLUMNS);
@@ -97,7 +97,7 @@ pub(super) fn declare(run: &mut finish::Run) {
     for &(name, cols) in facts {
         run.declare(name, cols, Supplier::Provider);
     }
-    resolutions.extend([("binding", Ty::Node), ("outcome", Ty::Sym), ("basis", Ty::Sym)]);
+    resolutions.extend([("binding", Ty::Node), ("outcome", Ty::Symbol), ("basis", Ty::Symbol)]);
     run.declare(RESOLUTION_REL, &resolutions, Supplier::Provider);
     // the host's: the run's files, and the file system's facts of a file (their columns: the relations catalog's)
     // redo-binding c32: `filesystem.file` is the current file's row (a host relation of the file), not the run's files

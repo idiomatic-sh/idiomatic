@@ -37,7 +37,7 @@ impl Entry {
         let Some((_, _, types)) = run.catalog(&name) else {
             return Self::Unknown;
         };
-        let symbol = |column: usize| types.get(column) == Some(&Ty::Sym);
+        let symbol = |column: usize| types.get(column) == Some(&Ty::Symbol);
         let pick = lit_pick_for(&view.filter, 0, &[], symbol)
             .or_else(|| lit_pick_for(conjuncts, side, &view.map, symbol));
         if let Some((column, mut words)) = pick {

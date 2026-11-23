@@ -3,6 +3,7 @@
 pub mod constants;
 pub(crate) mod counting;
 pub(crate) mod hashing;
+pub mod postings;
 pub mod reading;
 pub mod service;
 pub(crate) mod slots;

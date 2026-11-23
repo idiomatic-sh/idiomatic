@@ -61,12 +61,12 @@ pub(super) fn fill(
     let (_, names, types) = run
         .catalog(relation)
         .ok_or_else(|| format!("missing {relation}"))?;
-    let mut rows = Table::with_rows(names, types, 0);
+    let mut rows = run.storage.table(names, types, 0);
     let mut write = |row: &[u64]| {
         for (col, value) in rows.cols.iter_mut().zip(row) {
             col.push(*value);
         }
-        rows.n += 1;
+        rows.rows.0 += 1;
     };
     let lines = std::cell::OnceCell::new();
     let starts = || lines.get_or_init(|| line_starts(src));

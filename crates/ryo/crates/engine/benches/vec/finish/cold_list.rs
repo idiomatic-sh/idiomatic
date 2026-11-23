@@ -98,8 +98,8 @@ pub(super) fn members(e: &E, col: usize) -> Option<Vec<u32>> {
 
 fn normalized(e: &E) -> Value {
     if let E::Cmp(Op::Eq, a, b) = e {
-        if let (E::Col(0, c, super::Ty::Sym), E::Text(t))
-        | (E::Text(t), E::Col(0, c, super::Ty::Sym)) = (&**a, &**b)
+        if let (E::Col(0, c, super::Ty::Symbol), E::Text(t))
+        | (E::Text(t), E::Col(0, c, super::Ty::Symbol)) = (&**a, &**b)
         {
             return json!(["member", c, [t]]);
         }
@@ -107,7 +107,7 @@ fn normalized(e: &E) -> Value {
     if matches!(e, E::Or(..) | E::In(..)) {
         fn column(e: &E) -> Option<usize> {
             match e {
-                E::Col(0, c, super::Ty::Sym) => Some(*c),
+                E::Col(0, c, super::Ty::Symbol) => Some(*c),
                 E::Cmp(_, a, b) | E::Or(a, b) | E::In(a, b, _) => column(a).or_else(|| column(b)),
                 _ => None,
             }

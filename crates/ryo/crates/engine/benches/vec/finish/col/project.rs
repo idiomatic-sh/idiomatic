@@ -22,9 +22,14 @@ impl Projection {
         }
     }
 
-    pub(super) fn gather(&self, input: &Table, selection: Option<&[usize]>) -> Table {
-        let n = selection.map_or(input.n, <[_]>::len);
-        let mut out = Table::with_rows(self.schema.names.clone(), self.schema.tys.clone(), n);
+    pub(super) fn gather(
+        &self,
+        storage: &super::super::Storage,
+        input: &Table,
+        selection: Option<&[usize]>,
+    ) -> Table {
+        let n = selection.map_or(input.rows.0, <[_]>::len);
+        let mut out = storage.table(self.schema.names.clone(), self.schema.tys.clone(), n);
         for (&pick, dest) in self.picks.iter().zip(&mut out.cols) {
             let col = &input.cols[pick];
             match selection {
@@ -32,7 +37,7 @@ impl Projection {
                 Some(rows) => dest.extend(rows.iter().map(|&r| col[r])),
             }
         }
-        out.n = n;
+        out.rows.0 = n;
         out
     }
 }
@@ -48,7 +53,7 @@ pub(super) struct Work {
 impl Work {
     /// Return true if a selection is needed. Kept rows are always in first-occurrence order.
     pub(super) fn distinct(&mut self, input: &Table, picks: &[usize]) -> bool {
-        let n = input.n;
+        let n = input.rows.0;
         let Some((&first, rest)) = picks.split_first() else {
             self.kept.clear();
             self.kept.push(0);

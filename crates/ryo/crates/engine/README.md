@@ -36,6 +36,8 @@ The rows a scan hands over, the work notices beside them, the frontier rows the 
 
 A worker's per-file indexes: the rows of a source grouped by every bound column as one key, built on first read and read by a key's cells.
 
+A posting returns matching candidate ordinals in original input order, including duplicates. The empty tuple covers every input row. An empty table and a missing key have no candidates. After a composite hash hit the consumer checks all original key cells under the operator's equality rules. Indexes belong to their file and source table. Worker storage can be reused across files once every reader releases it. Posting positions and their exclusive end offsets fit in 32 bits.
+
 ### lowered
 
 A rule set as the lowering writes it: the pack's definitions and made tables once each, then each rule's own program, with the cost class of each fill.
@@ -47,6 +49,8 @@ Turns the selected rules' plans into one lowered pack, and names each rule it re
 ### made_tables
 
 The rows of the tables the engine makes for a file, the write that appends a batch to one, and the fills that group their gathered input.
+
+A made table has one logical kind per column and an independent row count, including at zero width. Its row identity is its zero-based ordinal until its last reader releases the result. A gather preserves the requested order and repetitions. A complete copy owns its columns. A passthrough shares the immutable result. Columns hold packed 64-bit words. All ones is the missing-cell sentinel. Provider availability remains a separate answer. Node ordinals and span offsets belong to a file. The high 32 bits of a span hold the start and the low 32 bits hold the end. Symbol and file numbers index the run’s dictionaries. Flags use zero and one. Numbers retain their signed bit pattern. A provider slice can be borrowed until its file borrow ends.
 
 ### memos
 

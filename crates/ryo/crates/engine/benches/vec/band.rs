@@ -58,7 +58,7 @@ pub(super) fn shape(conj: &[E], pb: usize, ty: &[Ty]) -> Shape {
                     placed = true;
                     break;
                 }
-                if matches!(op, "<" | "<=" | ">" | ">=") && ty[col] == Ty::Num {
+                if matches!(op, "<" | "<=" | ">" | ">=") && ty[col] == Ty::Number {
                     match &mut s.band {
                         None => {
                             s.band = Some((col, vec![(op.to_owned(), b.clone())]));
@@ -117,7 +117,7 @@ impl Exec<'_> {
         let mut srcs: Vec<Src> = vec![Src::Base(super::Native::Tree), Src::Base(super::Native::Tree)];
         let sa = self.src_of(f, run, p, an)?;
         match &sa {
-            Src::Tab(t, _) if t.n == 0 => return Ok(Some((self.empty(run, node)?, Vec::new()))),
+            Src::Tab(t, _) if t.rows.0 == 0 => return Ok(Some((self.empty(run, node)?, Vec::new()))),
             Src::Tab(..) | Src::View(..) => {}
             _ => {
                 *self.tally.back.entry((node, "kept side keyed or a closure")).or_default() += 1;
@@ -126,7 +126,7 @@ impl Exec<'_> {
         }
         // the kept rows: a table's, or a view's (entered by the select's kind tests when the view names none)
         let arows: Vec<u32> = match &sa {
-            Src::Tab(t, _) => (0..t.n as u32).collect(),
+            Src::Tab(t, _) => (0..t.rows.0 as u32).collect(),
             Src::View(v, vn) => match kind_set(run, &sp.conj, ka, v.base, &v.map) {
                 Some(ks) if kind_set(run, &v.filter, 0, v.base, &[]).is_none() => bucket(f, run, &ks).into_iter().filter(|r| view_holds(f, run, v, *r)).collect(),
                 _ => view_rows(f, run, v, *vn).to_vec(),
@@ -181,11 +181,11 @@ impl Exec<'_> {
                 Some(ks) if kind_set(run, &v.filter, 0, v.base, &[]).is_none() => {
                     let rows: Vec<u32> = bucket(f, run, &ks).into_iter().filter(|r| view_holds(f, run, &v, *r)).collect();
                     let sc = self.schema(run, bn)?;
-                    let mut t = Table::with(sc.names.clone(), sc.tys.clone());
+                    let mut t = run.storage.empty(sc.names.clone(), sc.tys.clone());
                     for c in 0..v.map.len() {
                         t.cols[c] = rows.iter().map(|r| f.native_get(run, v.base, *r, v.map[c])).collect();
                     }
-                    t.n = rows.len();
+                    t.rows.0 = rows.len();
                     Src::Tab(std::rc::Rc::new(t), usize::MAX - pb)
                 }
                 _ => Src::View(v, vn),
@@ -196,7 +196,7 @@ impl Exec<'_> {
             }
         };
         let brows: Vec<u32> = match &sb {
-            Src::Tab(t, _) => (0..t.n as u32).collect(),
+            Src::Tab(t, _) => (0..t.rows.0 as u32).collect(),
             Src::View(v, vn) => view_rows(f, run, v, *vn).to_vec(),
             _ => unreachable!(),
         };
@@ -258,7 +258,7 @@ impl Exec<'_> {
                         none = true;
                         break;
                     }
-                    if v.ty() != Ty::Num {
+                    if v.ty() != Ty::Number {
                         later.push(e);
                         continue;
                     }
@@ -280,7 +280,7 @@ impl Exec<'_> {
             let band_terms: Vec<E> = if later.is_empty() {
                 Vec::new()
             } else {
-                sh.band.as_ref().map(|(c, bs)| bs.iter().map(|(op, e)| E::Cmp(Op::of(op), Box::new(E::Col(pb, *c, Ty::Num)), Box::new(e.clone()))).collect()).unwrap_or_default()
+                sh.band.as_ref().map(|(c, bs)| bs.iter().map(|(op, e)| E::Cmp(Op::of(op), Box::new(E::Col(pb, *c, Ty::Number)), Box::new(e.clone()))).collect()).unwrap_or_default()
             };
             if count && recheck.is_empty() && band_terms.is_empty() && sh.rest.is_empty() {
                 if !run_rows.is_empty() {
@@ -317,7 +317,7 @@ impl Exec<'_> {
                 })
                 .collect();
         }
-        out.n = keep.len();
+        out.rows.0 = keep.len();
         *self.tally.ran.entry(node).or_default() += 1;
         let _ = V::new;
         Ok(Some((out, counts)))

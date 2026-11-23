@@ -1,9 +1,10 @@
 //! Whole-row set operations and grouped distinct-value digests.
 use super::{J, R, Run, Table, Ty, s, strs};
+use crate::finish::TableAccess as _;
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 use std::hash::Hasher;
 
-pub(super) fn select_rows(left: &Table, right: &Table, intersection: bool) -> R<Table> {
+pub(super) fn select_rows(run: &Run, left: &Table, right: &Table, intersection: bool) -> R<Table> {
     let order = left
         .names
         .iter()
@@ -17,13 +18,13 @@ pub(super) fn select_rows(left: &Table, right: &Table, intersection: bool) -> R<
     {
         return Err("set operands have different column shapes".into());
     }
-    let members: FxHashSet<Vec<u64>> = (0..right.n)
+    let members: FxHashSet<Vec<u64>> = (0..right.rows.0)
         .map(|r| order.iter().map(|&c| right.cols[c][r]).collect())
         .collect();
-    let mut out = Table::with(left.names.clone(), left.tys.clone());
+    let mut out = run.storage.empty(left.names.clone(), left.tys.clone());
     let mut seen = FxHashSet::default();
     let mut row = Vec::new();
-    for i in 0..left.n {
+    for i in 0..left.rows.0 {
         left.row(i, &mut row);
         if members.contains(&row) == intersection && seen.insert(row.clone()) {
             out.push_row(&row);
@@ -40,12 +41,12 @@ pub(super) fn digest(run: &Run, file: u32, args: &J, input: &Table, output: &mut
         .collect::<R<Vec<_>>>()?;
     let distinct = input.col(s(&args["distinct"])?)?;
     let mut groups: FxHashMap<Vec<u64>, Vec<u64>> = FxHashMap::default();
-    for row in 0..input.n {
+    for row in 0..input.rows.0 {
         let key = keys.iter().map(|&c| input.cols[c][row]).collect();
         let value = input.cols[distinct][row];
         let mut hash = FxHasher::default();
         match input.tys[distinct] {
-            Ty::Sym => hash.write(run.text(value as u32)),
+            Ty::Symbol => hash.write(run.text(value as u32)),
             Ty::File => hash.write(
                 run.paths
                     .get(value as usize)
@@ -53,7 +54,7 @@ pub(super) fn digest(run: &Run, file: u32, args: &J, input: &Table, output: &mut
                     .as_bytes(),
             ),
             Ty::Flag => hash.write_u8(u8::from(value == 1)),
-            Ty::Num => hash.write_i64(value as i64),
+            Ty::Number => hash.write_i64(value as i64),
             Ty::Node => hash.write_u64(u64::from(file) << 32 | value),
             Ty::Span if value == super::NULL => {
                 hash.write(ryo_relations::domain::relations::constants::UNLOCATED.as_bytes())

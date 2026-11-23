@@ -41,7 +41,7 @@ pub(super) fn target(run: &mut finish::Run, features: &finish::Table, targets: &
     let truth = u64::from(run.sym(b"true"));
     let flag = features.tys[f_enabled] == finish::Ty::Flag;
     let mut t = Target { known: false, enabled: false, disabled: false, native: false, immediate: false };
-    for r in 0..features.n {
+    for r in 0..features.rows.0 {
         if features.cols[f_feature][r] != future {
             continue;
         }
@@ -54,7 +54,7 @@ pub(super) fn target(run: &mut finish::Run, features: &finish::Table, targets: &
         }
     }
     let (t_major, t_minor) = (col(targets, "major")?, col(targets, "minor")?);
-    for r in 0..targets.n {
+    for r in 0..targets.rows.0 {
         let (major, minor) = (targets.cols[t_major][r] as i64, targets.cols[t_minor][r] as i64);
         if major == 3 && minor >= 14 {
             t.native = true;
@@ -194,7 +194,7 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, target: &Target, em
         }
     }
     let e_root = col(embedded, "root")?;
-    bodies.extend((0..embedded.n).map(|r| embedded.cols[e_root][r] as u32));
+    bodies.extend((0..embedded.rows.0).map(|r| embedded.cols[e_root][r] as u32));
     if class.values().all(|b| *b == 0) {
         return Ok(out);
     }

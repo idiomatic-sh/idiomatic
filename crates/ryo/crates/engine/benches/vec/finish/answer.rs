@@ -25,8 +25,8 @@ pub(in super::super) fn row(
                     json!({"file": run.paths.get(usize::try_from(word).map_err(|e| e.to_string())?)
                     .ok_or_else(|| format!("file outside the run: {word}"))?})
                 }
-                Ty::Sym if run.absent_word == Some(word as u32) => Value::Null,
-                Ty::Sym => {
+                Ty::Symbol if run.absent_word == Some(word as u32) => Value::Null,
+                Ty::Symbol => {
                     json!(std::str::from_utf8(run.text(word as u32)).map_err(|e| e.to_string())?)
                 }
                 Ty::Span => {
@@ -34,7 +34,7 @@ pub(in super::super) fn row(
                     let end = word as u32;
                     json!({"span": [start, end]})
                 }
-                Ty::Num => json!(word as i64),
+                Ty::Number => json!(word as i64),
                 Ty::Flag => json!(if word == 0 { "false" } else { "true" }),
             }
         };

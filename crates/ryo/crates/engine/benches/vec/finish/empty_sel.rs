@@ -214,7 +214,7 @@ impl super::Exec<'_> {
         let (t0, i0) = (super::step_clock(), self.inner);
         let out = self.select_entry_(f, run, p, node);
         let secs = super::step_clock() - t0 - (self.inner - i0);
-        let empty = matches!(&out, Ok(t) if t.n == 0);
+        let empty = matches!(&out, Ok(t) if t.rows.0 == 0);
         let plan = self.plan;
         end(saved, empty, secs, |n| plan.nodes[n as usize].op.clone());
         out
@@ -224,7 +224,7 @@ impl super::Exec<'_> {
     fn select_entry_(&mut self, f: &mut super::File<'_>, run: &mut super::Run, p: &mut dyn super::Provider, node: usize) -> super::R<Rc<super::Table>> {
         if sw!("VEC_OLD_EMPTYSEL") || sw!("VEC_OLD_SELECT") {
             let t = self.select(f, run, p, node)?;
-            return if t.n == 0 { self.empty_rc(run, node) } else { Ok(super::recycle::rc(t)) };
+            return self.publish(run, node, t);
         }
         self.select_kr(f, run, p, node)
     }

@@ -154,7 +154,7 @@ pub(super) fn fact_entry(
         cols.clear();
         columns(e, &mut cols);
         for &c in &cols {
-            if types[c] == Ty::Sym
+            if types[c] == Ty::Symbol
                 && let Some(xs) = kinds_required(e, 0, c)
             {
                 return Some((c, names[c].clone(), xs));

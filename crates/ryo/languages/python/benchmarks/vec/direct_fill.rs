@@ -59,7 +59,7 @@ pub(super) fn fill(file: &mut ColumnFile<'_, '_>, run: &mut finish::Run, rel: &s
         let n = keys.len();
         // redo-alloc (merged by redo-int): the table through the pool's constructor, each column written in place
         let tys2 = tys.clone();
-        let mut out = Table::with_rows(names, tys, n);
+        let mut out = run.storage.table(names, tys, n);
         for (c, ty) in tys2.iter().enumerate() {
             let written = ft.columns.get(c).filter(|col| !col.is_empty());
             let col = &mut out.cols[c];
@@ -75,7 +75,7 @@ pub(super) fn fill(file: &mut ColumnFile<'_, '_>, run: &mut finish::Run, rel: &s
                 (None, _) => return None,
             }
         }
-        out.n = n;
+        out.rows.0 = n;
         let t2 = if timed { super::thread_cpu() } else { 0.0 };
         Some((Ok(out), t1 - t0, t2 - t1))
     })
@@ -109,17 +109,20 @@ pub(super) fn check(run: &finish::Run, rel: &str, file: u32, reader: &Table, dir
             }
         });
     };
-    if reader.n != direct.n {
-        say(format!("rows reader {} direct {}", reader.n, direct.n));
+    if reader.rows.0 != direct.rows.0 {
+        say(format!(
+            "rows reader {} direct {}",
+            reader.rows.0, direct.rows.0
+        ));
     }
     for c in 0..reader.cols.len() {
         if reader.tys[c] == Ty::File {
             continue;
         }
-        for r in 0..reader.n.min(direct.n) {
+        for r in 0..reader.rows.0.min(direct.rows.0) {
             let (a, b) = (reader.cols[c][r], direct.cols[c][r]);
             if a != b {
-                let txt = |v: u64| if reader.tys[c] == Ty::Sym && v != NULL { String::from_utf8_lossy(&run.texts[v as usize]).into_owned() } else { String::new() };
+                let txt = |v: u64| if reader.tys[c] == Ty::Symbol && v != NULL { String::from_utf8_lossy(&run.texts[v as usize]).into_owned() } else { String::new() };
                 say(format!("{} row {r} reader {a:#x} {} direct {b:#x} {}", reader.names[c], txt(a), txt(b)));
                 break;
             }

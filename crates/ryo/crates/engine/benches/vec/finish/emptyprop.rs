@@ -184,7 +184,7 @@ impl Exec<'_> {
         if let Native::Fact(i) = base {
             let rel = &run.fact_rels[usize::from(i)].0;
             let filled = f.facts.get(usize::from(i)).and_then(Option::as_ref).or_else(|| f.fills.get(rel));
-            if filled.is_some_and(|t| t.n == 0) {
+            if filled.is_some_and(|t| t.rows.0 == 0) {
                 if sw!("VEC_EP_COUNT") {
                     C.with(|c| *c.borrow_mut().no_rows.entry(rel.clone()).or_default() += 1);
                 }
@@ -409,7 +409,7 @@ impl Exec<'_> {
                 continue;
             }
             let Some(t) = f.facts.get(usize::from(lf.fact)).and_then(Option::as_ref) else { continue };
-            if lf.own && t.n == 0 {
+            if lf.own && t.rows.0 == 0 {
                 return true;
             }
             if lf.lit {

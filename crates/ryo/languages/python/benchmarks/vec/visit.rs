@@ -99,7 +99,7 @@ impl<'p> Finisher<'p> {
         for (kind, cells) in rows.tys.iter().zip(&rows.cols) {
             let mut col = Vec::with_capacity(cells.len());
             for &cell in cells {
-                let value = if matches!(kind, finish::Ty::Sym) && cell != finish::NULL {
+                let value = if matches!(kind, finish::Ty::Symbol) && cell != finish::NULL {
                     let Some(text) = self
                         .inner
                         .run

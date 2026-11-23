@@ -1,5 +1,6 @@
 //! FIFO fixpoint over a finite join-semilattice supplied in the query.
 use super::{J, R, Schema, Table, Ty, pos, s, strs};
+use crate::finish::TableAccess as _;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 pub(super) fn schema(
@@ -24,7 +25,7 @@ pub(super) fn schema(
     for (input, col, expected) in [
         (edges, "source", root),
         (edges, "destination", root),
-        (edges, "order", Ty::Num),
+        (edges, "order", Ty::Number),
         (edges, "before", state),
         (edges, "after", state),
         (lattice, "lower", state),
@@ -37,7 +38,7 @@ pub(super) fn schema(
     for col in ["root", "source", "destination", "order", "before", "output"] {
         names.push(s(&a[col])?.to_owned());
     }
-    types.extend([root, root, root, Ty::Num, state, state]);
+    types.extend([root, root, root, Ty::Number, state, state]);
     Ok((names, types))
 }
 
@@ -104,7 +105,7 @@ pub(super) fn trace(
         order.col(s(&a["upper"])?)?,
     )?
     else {
-        return if roots.n == 0 && edges.n == 0 {
+        return if roots.rows.0 == 0 && edges.rows.0 == 0 {
             Ok(())
         } else {
             Err("worklist states in empty lattice".into())
@@ -127,7 +128,7 @@ pub(super) fn trace(
         col("order")?,
     );
     let mut moves = BTreeMap::new();
-    for i in 0..edges.n {
+    for i in 0..edges.rows.0 {
         let a = edges.cols[after][i];
         let b = edges.cols[before][i];
         lattice.join(a, b)?;
@@ -142,7 +143,7 @@ pub(super) fn trace(
         }
     }
     let mut starts = BTreeMap::new();
-    for i in 0..roots.n {
+    for i in 0..roots.rows.0 {
         let held = starts
             .entry((partition(roots, &rk, i), roots.cols[entity][i]))
             .or_insert(lattice.bottom);

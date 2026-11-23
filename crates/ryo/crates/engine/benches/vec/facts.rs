@@ -3,6 +3,7 @@
 //! columns (texts interned into one run-wide id space, nodes as positions) with an index from a key node to its rows, so a
 //! plan's test "this node has a row of R whose columns hold these values" is an index read and a few compares.
 
+use crate::finish::TableAccess as _;
 use ryo::languages::{self, CellKind, FilledColumns, Relation};
 use ryo_relations::domain::labels::types::NameRef;
 use ryo_relations::domain::relations::service as catalog;

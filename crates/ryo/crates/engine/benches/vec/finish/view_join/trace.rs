@@ -244,7 +244,7 @@ pub(super) fn ordered(file: u32, node: usize, mode: u8, table: &super::Table) {
             file as u64,
             node as u64,
             mode as u64,
-            table.n as u64,
+            table.rows.0 as u64,
             table.cols.len() as u64,
         ] {
             out.write_all(&x.to_le_bytes()).unwrap();

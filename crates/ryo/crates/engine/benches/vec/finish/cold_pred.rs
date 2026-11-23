@@ -137,12 +137,12 @@ fn action(run: &mut Run, base: Native, e: &E) -> Option<Action> {
             let accept = cold_word::relation(*op, false)?;
             let (a, b) = (*a, *b);
             let test: Row = match (*ta, *tb) {
-                (Ty::Num, Ty::Num) => Box::new(move |_, _, cols, r| {
+                (Ty::Number, Ty::Number) => Box::new(move |_, _, cols, r| {
                     let (x, y) = (cols[a][r as usize], cols[b][r as usize]);
                     x != NULL && y != NULL && accept((x as i64).cmp(&(y as i64)))
                 }),
-                (Ty::Sym, Ty::Sym | Ty::Num | Ty::Flag | Ty::File)
-                | (Ty::Num | Ty::Flag | Ty::File, Ty::Sym) => {
+                (Ty::Symbol, Ty::Symbol | Ty::Number | Ty::Flag | Ty::File)
+                | (Ty::Number | Ty::Flag | Ty::File, Ty::Symbol) => {
                     let (left, right) = (cold_word::as_bytes(*ta), cold_word::as_bytes(*tb));
                     Box::new(move |_, run, cols, r| {
                         let (x, y) = (cols[a][r as usize], cols[b][r as usize]);
@@ -276,7 +276,7 @@ impl Program {
         }
         let mut entered = 0;
         let mut attempts = 0;
-        let rows = super::recycle::rows_with(|out| {
+        let rows = Rc::clone(&f.storage).rows_with(|out| {
             let (cols, skip): (&[Vec<u64>], _) = match &self.entry {
                 Entry::Text { slots, captured } => {
                     let start = phase_clock();
@@ -298,9 +298,9 @@ impl Program {
                     };
                     let cols = &table.cols[..];
                     if let Some(key) = literal
-                        && table.tys[key.column] == Ty::Sym
+                        && table.tys[key.column] == Ty::Symbol
                     {
-                        if key.words.is_empty() || table.n == 0 {
+                        if key.words.is_empty() || table.rows.0 == 0 {
                             return;
                         }
                         if sw!("VEC_COLD_COUNT") {
@@ -308,7 +308,7 @@ impl Program {
                             fact_counts(|n| {
                                 n[0] += 1;
                                 if fresh {
-                                    n[1] += table.n as u64;
+                                    n[1] += table.rows.0 as u64;
                                 }
                             });
                         }
@@ -336,7 +336,7 @@ impl Program {
                         }
                         (cols, key.captured)
                     } else {
-                        entered = table.n;
+                        entered = table.rows.0;
                         if let Some((c, word)) = scalar {
                             let start = phase_clock();
                             word.scan(run, &cols[*c], out);
@@ -344,10 +344,10 @@ impl Program {
                             if sw!("VEC_COLD_COUNT") {
                                 fact_counts(|n| {
                                     n[3] += 1;
-                                    n[4] += table.n as u64;
+                                    n[4] += table.rows.0 as u64;
                                 });
                             }
-                            attempts = table.n as u64;
+                            attempts = table.rows.0 as u64;
                             return;
                         }
                         if let Some(Action::Fact(c, test)) = self.actions.first() {
@@ -357,13 +357,13 @@ impl Program {
                             if sw!("VEC_COLD_COUNT") {
                                 fact_counts(|n| {
                                     n[3] += 1;
-                                    n[4] += table.n as u64;
+                                    n[4] += table.rows.0 as u64;
                                 });
                             }
-                            attempts = table.n as u64;
+                            attempts = table.rows.0 as u64;
                             (cols, Some(0))
                         } else {
-                            out.extend(0..table.n as u32);
+                            out.extend(0..table.rows.0 as u32);
                             (cols, None)
                         }
                     }

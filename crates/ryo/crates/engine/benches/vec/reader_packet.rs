@@ -176,12 +176,12 @@ impl finish::Provider for View<'_, '_> {
         }
         let offsets = &self.packet.offsets[i];
         let width = self.packet.widths[i];
-        let mut table = finish::Table::with_rows(names, tys, offsets.len());
+        let mut table = run.storage.table(names, tys, offsets.len());
         for &at in offsets {
             let row = &self.packet.rows.words[at..at + width];
             for ((column, &raw), ty) in table.cols.iter_mut().zip(row).zip(table.tys.iter()) {
                 let value = match ty {
-                    finish::Ty::Sym => {
+                    finish::Ty::Symbol => {
                         let id = raw as u32;
                         u64::from(*self.resolved.entry(id).or_insert_with(|| {
                             reader::symbol(run, self.parsed.unknown, self.symbols, self.bytes, l::Symbol(id))
@@ -200,7 +200,7 @@ impl finish::Provider for View<'_, '_> {
                 column.push(value);
             }
         }
-        table.n = offsets.len();
+        table.rows.0 = offsets.len();
         self.parsed.fills_made += 1;
         Ok(table)
     }

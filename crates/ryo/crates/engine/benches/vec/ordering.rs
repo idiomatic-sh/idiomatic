@@ -14,6 +14,7 @@
 //! MERGE NOTE: the table built here is the input's columns plus two pushed number columns (`out.push_row`), the same shape
 //! as `prefixes` / `group-ordinal`, so it re-points at the pooled tables as they do.
 
+use crate::finish::TableAccess as _;
 use std::cmp::Ordering;
 
 use super::{Exec, File, NULL, Provider, R, Run, Table, Ty, s, strs};
@@ -89,9 +90,9 @@ fn prepare(run: &Run, ty: Ty, cmp: Cmp, v: u64) -> Key {
     }
     let text = || -> Vec<u8> {
         match ty {
-            Ty::Sym => run.text(v as u32).to_vec(),
+            Ty::Symbol => run.text(v as u32).to_vec(),
             Ty::File => run.text(run.path_sym[v as usize]).to_vec(),
-            Ty::Num => (v as i64).to_string().into_bytes(),
+            Ty::Number => (v as i64).to_string().into_bytes(),
             _ => v.to_string().into_bytes(),
         }
     };
@@ -151,12 +152,12 @@ impl Exec<'_> {
             by.push((c, cmp, desc));
         }
         let mut groups: FxHashMap<Vec<u64>, Vec<usize>> = FxHashMap::default();
-        for i in 0..from.n {
+        for i in 0..from.rows.0 {
             groups.entry(keys.iter().map(|c| from.cols[*c][i]).collect()).or_default().push(i);
         }
         // each key cell is prepared the first time a comparison needs it (most pairs are told apart by an early key,
         // or hold the same value, which orders equal without preparing anything)
-        let prepared: Vec<Vec<std::cell::OnceCell<Key>>> = by.iter().map(|_| (0..from.n).map(|_| std::cell::OnceCell::new()).collect()).collect();
+        let prepared: Vec<Vec<std::cell::OnceCell<Key>>> = by.iter().map(|_| (0..from.rows.0).map(|_| std::cell::OnceCell::new()).collect()).collect();
         let cmp_rows = |i: usize, j: usize| -> Ordering {
             for (k, &(c, cmp, desc)) in by.iter().enumerate() {
                 let (x, y) = (from.cols[c][i], from.cols[c][j]);
@@ -172,8 +173,8 @@ impl Exec<'_> {
             }
             Ordering::Equal
         };
-        let mut rank = vec![0u64; from.n];
-        let mut step = vec![2u64; from.n];
+        let mut rank = vec![0u64; from.rows.0];
+        let mut step = vec![2u64; from.rows.0];
         for rows in groups.values_mut() {
             rows.sort_by_key(|i| from.cols[pc][*i] as i64);
             for w in 1..rows.len() {
@@ -189,16 +190,13 @@ impl Exec<'_> {
                 rank[*i] = k as u64;
             }
         }
-        let mut out = self.empty(run, node)?;
-        let mut row = Vec::with_capacity(from.cols.len() + 2);
-        for i in 0..from.n {
-            row.clear();
-            row.extend(from.cols.iter().map(|c| c[i]));
-            row.push(rank[i]);
-            row.push(step[i]);
-            out.push_row(&row);
-        }
-        self.stats.touched[node] += from.n as u64;
+        let schema = self.schema(run, node)?;
+        let mut out = run.storage.copy(&from);
+        out.names = schema.names.clone();
+        out.tys = schema.tys.clone();
+        out.cols.push(rank);
+        out.cols.push(step);
+        self.stats.touched[node] += from.rows.0 as u64;
         Ok(out)
     }
 }

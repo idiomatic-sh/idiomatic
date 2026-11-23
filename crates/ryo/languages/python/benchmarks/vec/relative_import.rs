@@ -34,12 +34,7 @@ pub(super) fn targets(
     let (_, names, tys) = run
         .catalog(RELATIVE_IMPORT_REL)
         .ok_or("no relative-import-target")?;
-    let mut result = Table {
-        names,
-        tys,
-        cols: vec![Vec::new(); 3],
-        n: 0,
-    };
+    let mut result = run.storage.table(names, tys, imports.rows.0);
     let target = imports
         .names
         .iter()
@@ -50,7 +45,7 @@ pub(super) fn targets(
         .iter()
         .position(|name| name == "occurrence")
         .ok_or("static-import lacks occurrence")?;
-    let mut relative = (0..imports.n)
+    let mut relative = (0..imports.rows.0)
         .filter(|&i| run.texts[imports.cols[target][i] as usize].starts_with(b"."))
         .peekable();
     if relative.peek().is_none() {
@@ -72,7 +67,7 @@ pub(super) fn targets(
                 result.cols[0].push(imports.cols[occurrence][i]);
                 result.cols[1].push(u64::from(run.sym(&absolute)));
                 result.cols[2].push(u64::from(file));
-                result.n += 1;
+                result.rows.0 += 1;
             }
         }
     }
@@ -87,7 +82,7 @@ pub(super) fn walked(
     file: u32,
 ) -> Result<Table, String> {
     let (_, names, tys) = run.catalog(RELATIVE_IMPORT_REL).ok_or("no relative-import-target")?;
-    let mut result = Table::with_rows(names, tys, 0);
+    let mut result = run.storage.table(names, tys, 0);
     let mut imports = source.relative_imports().peekable();
     if imports.peek().is_none() {
         return Ok(result);
@@ -112,7 +107,7 @@ pub(super) fn walked(
         result.cols[0].push(u64::from(node));
         result.cols[1].push(u64::from(run.sym(&path)));
         result.cols[2].push(u64::from(file));
-        result.n += 1;
+        result.rows.0 += 1;
     }
     Ok(result)
 }

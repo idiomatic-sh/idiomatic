@@ -6,6 +6,7 @@
 
 #![expect(clippy::expect_used, clippy::print_stdout, clippy::print_stderr, clippy::indexing_slicing, clippy::cast_possible_truncation, clippy::too_many_lines, clippy::unwrap_used, reason = "a throwaway measurement")]
 
+use crate::finish::TableAccess as _;
 use ryo::languages::{
     self, ByteSlice, FileFacts, FileId, FileVisit, Fillers as _, KindBits, NodeTable, Position, RelationNeeds, Walk, WalkRequest,
     node_table,
@@ -955,7 +956,7 @@ impl ColFacts<'_, '_, '_, '_> {
             && let Some((t, write, make)) = direct_fill::fill(self.file, run, rel, self.file_no, timed)
         {
             if timed {
-                let n = t.as_ref().map_or(0, |t| t.n as u64);
+                let n = t.as_ref().map_or(0, |t| t.rows.0 as u64);
                 for (k, s) in [("reader", write), ("convert", make)] {
                     let e = self.by_rel.entry(format!("{k}:{rel}")).or_default();
                     e.0 += s;
@@ -985,7 +986,7 @@ impl ColFacts<'_, '_, '_, '_> {
         };
         if timed {
             let t2 = thread_cpu();
-            let n = t.as_ref().map_or(0, |t| t.n as u64);
+            let n = t.as_ref().map_or(0, |t| t.rows.0 as u64);
             let e = self.by_rel.entry(format!("reader:{rel}")).or_default();
             e.0 += t1 - t0;
             e.1 += n;
@@ -1002,7 +1003,7 @@ impl ColFacts<'_, '_, '_, '_> {
     fn read_resolution(&mut self, run: &mut finish::Run) -> Result<finish::Table, String> {
         let snapshot = self.scheduled_read_predecessor(run)?;
         let (_, names, tys) = run.catalog(fact_catalog::RESOLUTION_REL).ok_or("no read-resolution")?;
-        let mut rows = finish::Table::with_rows(names, tys, snapshot.n);
+        let mut rows = run.storage.table(names, tys, snapshot.rows.0);
         let mut by_reference = vec![usize::MAX; node_table::element_count(self.file.table).0 as usize];
         for (index, &node) in snapshot.cols[0].iter().enumerate() {
             by_reference[node as usize] = index;
@@ -1017,7 +1018,7 @@ impl ColFacts<'_, '_, '_, '_> {
                 rows.cols[9].push(binding.map_or(finish::NULL, u64::from));
                 rows.cols[10].push(u64::from(run.sym(outcome.as_bytes())));
                 rows.cols[11].push(u64::from(run.sym(basis.as_bytes())));
-                rows.n += 1;
+                rows.rows.0 += 1;
             } else {
                 missing = Some(reference);
             }
@@ -1044,11 +1045,11 @@ impl ColFacts<'_, '_, '_, '_> {
         let read = positions(READ, |name| col(&reads, name))?;
         let (_, names, tys) = run.catalog(fact_catalog::PREDECESSOR_REL).ok_or("no scheduled-read-predecessor")?;
         let symbols = WORDS.map(|text| u64::from(run.sym(text.as_bytes())));
-        let mut t = finish::Table::with_rows(names, tys, reads.n);
-        project((0..res.n).map(|r| lookup.map(|c| res.cols[c][r])), (0..reads.n).map(|r| read.map(|c| reads.cols[c][r])),
+        let mut t = run.storage.table(names, tys, reads.rows.0);
+        project((0..res.rows.0).map(|r| lookup.map(|c| res.cols[c][r])), (0..reads.rows.0).map(|r| read.map(|c| reads.cols[c][r])),
             symbols, u64::from(self.file_no), |values| {
                 for (col, value) in t.cols.iter_mut().zip(values) { col.push(value); }
-                t.n += 1;
+                t.rows.0 += 1;
             });
         Ok(t)
     }
@@ -1066,7 +1067,7 @@ impl ColFacts<'_, '_, '_, '_> {
             (col("occurrence")?, col("name")?, col("scope")?, col("kind")?, col("ordinal")?, col("lexical")?);
         let (read, wildcard) = (u64::from(run.sym(b"read")), u64::from(run.sym(b"wildcard")));
         let (global, nonlocal) = (u64::from(run.sym(b"global")), u64::from(run.sym(b"nonlocal")));
-        let mut order: Vec<usize> = (0..ev.n).collect();
+        let mut order: Vec<usize> = (0..ev.rows.0).collect();
         order.sort_by_key(|r| ev.cols[e_ord][*r]);
         let mut latest: rustc_hash::FxHashMap<(u64, u64), usize> = rustc_hash::FxHashMap::default();
         for r in order {
@@ -1080,12 +1081,12 @@ impl ColFacts<'_, '_, '_, '_> {
             }
         }
         let (_, names, tys) = run.catalog(fact_catalog::FINAL_REL).ok_or("no namespace-final")?;
-        let mut t = finish::Table { names, tys, cols: vec![Vec::with_capacity(latest.len()); 6], n: 0 };
+        let mut t = run.storage.table(names, tys, latest.len());
         for ((namespace, name), r) in latest {
             for (c, v) in [namespace, name, ev.cols[e_occ][r], ev.cols[e_kind][r], ev.cols[e_ord][r], u64::from(self.file_no)].into_iter().enumerate() {
                 t.cols[c].push(v);
             }
-            t.n += 1;
+            t.rows.0 += 1;
         }
         Ok(t)
     }
@@ -1097,9 +1098,9 @@ impl ColFacts<'_, '_, '_, '_> {
         let qualified = self.whole(run, "qualified-name")?;
         let embedded = self.whole(run, "embedded-expression")?;
         // redo-fills pass 2: no root, no row, and the other two inputs are not filled
-        if !type_expression::any_root(run, self.file.table, &qualified, embedded.n, type_expression::LISTS.get_or_init(type_expression::Lists::default))? {
+        if !type_expression::any_root(run, self.file.table, &qualified, embedded.rows.0, type_expression::LISTS.get_or_init(type_expression::Lists::default))? {
             let (_, names, tys) = run.catalog(fact_catalog::TYPE_EXPRESSION_REL).ok_or("no type-expression")?;
-            return Ok(finish::Table { names, tys, cols: vec![Vec::new(); 3], n: 0 });
+            return Ok(run.storage.empty(names, tys));
         }
         let arguments = self.whole(run, "call-argument")?;
         let identifiers = self.whole(run, "identifier")?;
@@ -1107,7 +1108,8 @@ impl ColFacts<'_, '_, '_, '_> {
         let rows = type_expression::rows(run, self.file.table, &inputs)?;
         let (_, names, tys) = run.catalog(fact_catalog::TYPE_EXPRESSION_REL).ok_or("no type-expression")?;
         let (ty, value) = (u64::from(run.sym(b"type")), u64::from(run.sym(b"value")));
-        let mut t = finish::Table { names, tys, cols: vec![Vec::with_capacity(rows.len()); 3], n: rows.len() };
+        let mut t = run.storage.table(names, tys, rows.len());
+        t.rows.0 = rows.len();
         for (id, typed) in rows {
             t.cols[0].push(u64::from(id));
             t.cols[1].push(if typed { ty } else { value });
@@ -1124,7 +1126,7 @@ impl ColFacts<'_, '_, '_, '_> {
         // redo-fills pass 2: no annotation, no row (and no input filled)
         if !annotation_evaluation::has_annotation(run, self.file.table) {
             let (_, names, tys) = run.catalog(fact_catalog::ANNOTATION_EVALUATION_REL).ok_or("no annotation-evaluation")?;
-            return Ok(finish::Table { names, tys, cols: vec![Vec::new(); 5], n: 0 });
+            return Ok(run.storage.empty(names, tys));
         }
         let features = self.whole(run, "compiler-feature")?;
         let targets = self.whole(run, "language-target")?;
@@ -1132,7 +1134,8 @@ impl ColFacts<'_, '_, '_, '_> {
         let target = annotation_evaluation::target(run, &features, &targets)?;
         let rows = annotation_evaluation::rows(run, self.file.table, &target, &embedded)?;
         let (_, names, tys) = run.catalog(fact_catalog::ANNOTATION_EVALUATION_REL).ok_or("no annotation-evaluation")?;
-        let mut t = finish::Table { names, tys, cols: vec![Vec::with_capacity(rows.len()); 5], n: rows.len() };
+        let mut t = run.storage.table(names, tys, rows.len());
+        t.rows.0 = rows.len();
         for (id, root, evaluation, mode) in rows {
             let (e, m) = (u64::from(run.sym(evaluation)), u64::from(run.sym(mode)));
             for (c, v) in [u64::from(id), u64::from(root), e, m, u64::from(self.file_no)].into_iter().enumerate() {
@@ -1161,7 +1164,7 @@ impl ColFacts<'_, '_, '_, '_> {
         if timed {
             let e = self.by_rel.entry(format!("fact:{rel}")).or_default();
             e.0 += thread_cpu() - t0;
-            e.1 += t.n as u64;
+            e.1 += t.rows.0 as u64;
             e.2 += 1;
         }
         let _ = self.kept.insert(rel.to_owned(), t.clone());
@@ -1173,9 +1176,9 @@ impl ColFacts<'_, '_, '_, '_> {
     fn deferred_resolution(&mut self, run: &mut finish::Run) -> Result<finish::Table, String> {
         let visits = self.fact(run, fact_catalog::DEFERRED_VISIT_REL)?;
         let (_, names, tys) = run.catalog(fact_catalog::DEFERRED_RESOLUTION_REL).ok_or("no deferred-resolution")?;
-        if visits.n == 0 {
+        if visits.rows.0 == 0 {
             // no postponed element: no row (and no fill of the inputs below)
-            return Ok(finish::Table { names, tys, cols: vec![Vec::new(); 5], n: 0 });
+            return Ok(run.storage.empty(names, tys));
         }
         let reads = self.whole(run, "binding-read")?;
         let events = self.whole(run, "binding-event")?;
@@ -1184,7 +1187,8 @@ impl ColFacts<'_, '_, '_, '_> {
         let finals = self.fact(run, fact_catalog::FINAL_REL)?;
         let inputs = deferred_resolution::Inputs { reads: &reads, events: &events, implicit: &implicit, targets: &targets, finals: &finals, visits: &visits };
         let rows = deferred_resolution::rows(run, self.file.table, &inputs)?;
-        let mut t = finish::Table { names, tys, cols: vec![Vec::with_capacity(rows.len()); 5], n: rows.len() };
+        let mut t = run.storage.table(names, tys, rows.len());
+        t.rows.0 = rows.len();
         for (reference, occurrence, kind, point) in rows {
             for (c, v) in [reference, occurrence, kind, point, u64::from(self.file_no)].into_iter().enumerate() {
                 t.cols[c].push(v);
@@ -1205,21 +1209,22 @@ impl ColFacts<'_, '_, '_, '_> {
         // redo-fills c2: outside a stub no element is deferred without a lazy annotation, an embedded expression, a type
         // parameter or a type alias (deferred_visit::rows' sources): such a file answers no row without the walk, and the
         // type expressions (read in a stub only) are never made outside one
-        if !stub && embedded.n == 0 && !deferred_visit::lazy_any(run, &evaluations, future)? && !deferred_visit::has_type_parameters(run, self.file.table) {
+        if !stub && embedded.rows.0 == 0 && !deferred_visit::lazy_any(run, &evaluations, future)? && !deferred_visit::has_type_parameters(run, self.file.table) {
             let (_, names, tys) = run.catalog(fact_catalog::DEFERRED_VISIT_REL).ok_or("no deferred-visit")?;
-            return Ok(finish::Table { names, tys, cols: vec![Vec::new(); 3], n: 0 });
+            return Ok(run.storage.empty(names, tys));
         }
         let types = if stub {
             self.fact(run, fact_catalog::TYPE_EXPRESSION_REL)?
         } else {
             let (_, names, tys) = run.catalog(fact_catalog::TYPE_EXPRESSION_REL).ok_or("no type-expression")?;
-            finish::Table { names, tys, cols: vec![Vec::new(); 3], n: 0 }
+            run.storage.empty(names, tys)
         };
         let inputs = deferred_visit::Inputs { types: &types, evaluations: &evaluations, embedded: &embedded, stub, future };
         let rows = deferred_visit::rows(run, self.file.table, &inputs)?;
         let (_, names, tys) = run.catalog(fact_catalog::DEFERRED_VISIT_REL).ok_or("no deferred-visit")?;
         let deferred = u64::from(run.sym(b"deferred"));
-        let mut t = finish::Table { names, tys, cols: vec![Vec::with_capacity(rows.len()); 3], n: rows.len() };
+        let mut t = run.storage.table(names, tys, rows.len());
+        t.rows.0 = rows.len();
         for id in rows {
             t.cols[0].push(u64::from(id));
             t.cols[1].push(deferred);
@@ -1265,7 +1270,7 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
                 if let (Some(start), Ok(table)) = (start, &result) {
                     let stat = self.by_rel.entry(rel.to_owned()).or_default();
                     stat.0 += thread_cpu() - start;
-                    stat.1 += table.n as u64;
+                    stat.1 += table.rows.0 as u64;
                     stat.2 += 1;
                 }
                 return result;
@@ -1279,7 +1284,7 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
             let timed = finish::fill_prof::timed();
             let start = if timed { thread_cpu() } else { 0.0 };
             let (_, names, tys) = run.catalog(rel).ok_or("no relative-import-target")?;
-            let table = finish::Table::with_rows(names, tys, 0);
+            let table = run.storage.table(names, tys, 0);
             if timed {
                 let e = self.by_rel.entry("empty-proof:relative-import-target".to_owned()).or_default();
                 e.0 += thread_cpu() - start;
@@ -1292,7 +1297,8 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
         let mut t = if rel == fact_catalog::REGION_REL {
             let (deferred, rows) = self.file.evaluation_region().ok_or("evaluation-region: the model is incomplete")?;
             let (_, names, tys) = run.catalog(rel).ok_or("no evaluation-region")?;
-            let mut t = finish::Table { names, tys, cols: vec![Vec::with_capacity(rows.len()); 6], n: rows.len() };
+            let mut t = run.storage.table(names, tys, rows.len());
+        t.rows.0 = rows.len();
             let timing = u64::from(run.sym(if deferred { b"deferred" } else { b"immediate" }));
             for r in &rows {
                 let kind = u64::from(run.sym(r.kind.as_bytes()));
@@ -1332,14 +1338,14 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
             import_syntax::fill(run, self.file, self.src, self.project, self.file_no, rel, &mut self.import_comments)?
         } else if rel == fact_catalog::PRE_DECLARATION_READ_REL {
             let (_, names, tys) = run.catalog(rel).ok_or("no pre-declaration-read")?;
-            let mut rows = finish::Table::with_rows(names, tys, 0);
+            let mut rows = run.storage.table(names, tys, 0);
             let complete = self.file.visit_pre_declaration_reads(|at, scope, phase, ordinal| {
                 rows.cols[0].push(u64::from(at));
                 rows.cols[1].push(u64::from(scope));
                 rows.cols[2].push(u64::from(phase));
                 rows.cols[3].push(ordinal);
                 rows.cols[4].push(u64::from(self.file_no));
-                rows.n += 1;
+                rows.rows.0 += 1;
             });
             if !complete {
                 return Err("pre-declaration-read: incomplete flow".to_owned());
@@ -1347,22 +1353,22 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
             rows
         } else if matches!(rel, fact_catalog::ASSIGNMENT_SOURCE_REL | fact_catalog::NAMESPACE_SITES_REL | fact_catalog::BINDING_READ_REL) {
             let (_, names, tys) = run.catalog(rel).ok_or_else(|| format!("no {rel}"))?;
-            let mut rows = finish::Table::with_rows(names, tys, 0);
+            let mut rows = run.storage.table(names, tys, 0);
             let complete = pair_provider::sites::visit(rel, self.file, u64::from(self.file_no),
                 |word| u64::from(run.sym(word.as_bytes())), |values| {
                     for (col, &value) in rows.cols.iter_mut().zip(values) { col.push(value); }
-                    rows.n += 1;
+                    rows.rows.0 += 1;
                 });
             if !complete { return Err(format!("{rel}: incomplete flow")); }
             rows
         } else if rel == fact_catalog::BINDING_SITES_REL {
             let (_, names, tys) = run.catalog(rel).ok_or("no binding-sites")?;
-            let mut rows = finish::Table::with_rows(names, tys, 0);
+            let mut rows = run.storage.table(names, tys, 0);
             let complete = self.file.visit_binding_sites(|site| {
                 for (column, value) in rows.cols.iter_mut().zip(pair_provider::site_cells(site, self.file_no as usize)) {
                     column.push(value);
                 }
-                rows.n += 1;
+                rows.rows.0 += 1;
             });
             if !complete {
                 return Err("binding-sites: incomplete flow".to_owned());
@@ -1375,7 +1381,7 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
         } else if rel == fact_catalog::TYPE_REGION_REL {
             let ids = self.file.type_regions().ok_or("type-region: the model is incomplete")?;
             let (_, names, tys) = run.catalog(rel).ok_or("no type-region")?;
-            finish::Table { names, tys, n: ids.len(), cols: vec![ids.iter().map(|i| u64::from(*i)).collect(), vec![u64::from(self.file_no); ids.len()]] }
+            finish::Table { names, tys, rows: ryo_relations::domain::relations::types::Count(ids.len()), cols: vec![ids.iter().map(|i| u64::from(*i)).collect(), vec![u64::from(self.file_no); ids.len()]] }
         } else if rel == fact_catalog::FINAL_REL
             || rel == fact_catalog::TYPE_EXPRESSION_REL
             || rel == fact_catalog::ANNOTATION_EVALUATION_REL
@@ -1388,13 +1394,13 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
         };
         let dt = if timed { thread_cpu() - t0 } else { 0.0 };
         self.time += dt;
-        self.rows += t.n as u64;
+        self.rows += t.rows.0 as u64;
         let e = self.by_rel.entry(rel.to_owned()).or_default();
         e.0 += dt;
-        e.1 += t.n as u64;
+        e.1 += t.rows.0 as u64;
         e.2 += 1;
         if finish::fill_prof::counting() {
-            if t.n == 0 {
+            if t.rows.0 == 0 {
                 self.by_rel.entry(format!("zero:{rel}")).or_default().2 += 1;
             }
             let site = finish::fill_prof::SITE.with(std::cell::Cell::get);
@@ -1452,10 +1458,10 @@ impl finish::Provider for Facts<'_, '_, '_> {
         }
         let dt = thread_cpu() - t0;
         self.time += dt;
-        self.rows += t.n as u64;
+        self.rows += t.rows.0 as u64;
         let e = self.by_rel.entry(rel.to_owned()).or_default();
         e.0 += dt;
-        e.1 += t.n as u64;
+        e.1 += t.rows.0 as u64;
         e.2 += 1;
         Ok(t)
     }

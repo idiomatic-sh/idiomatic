@@ -4,6 +4,7 @@
 //! or count changes it. Parts: the node table through every reader of its seam, per element and per kind; the structure
 //! columns; the word index; each direct fact table the harness holds; the reader's fill of every relation it asks.
 
+use crate::finish::TableAccess as _;
 use ryo::languages::{KindBits, NodeTable, Position, node_table};
 use std::fmt::Write as _;
 use std::hash::Hasher as _;

@@ -40,18 +40,18 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
     let ev = inp.events;
     let (e_occ, e_ord, e_kind) = (col(ev, "occurrence")?, col(ev, "ordinal")?, col(ev, "kind")?);
     // the file's final point: its events' largest point, once
-    let Some(final_point) = (0..ev.n).map(|r| ev.cols[e_ord][r] as i64).max() else { return Ok(out) };
+    let Some(final_point) = (0..ev.rows.0).map(|r| ev.cols[e_ord][r] as i64).max() else { return Ok(out) };
     // deferred references
     let (v_id, v_visit) = (col(inp.visits, "id")?, col(inp.visits, "visit")?);
     let mut visit: FxHashSet<u64> = FxHashSet::default();
-    for r in 0..inp.visits.n {
+    for r in 0..inp.visits.rows.0 {
         if inp.visits.cols[v_visit][r] == s_deferred {
             visit.insert(inp.visits.cols[v_id][r]);
         }
     }
     let (b_ref, b_name, b_scope) = (col(inp.reads, "reference")?, col(inp.reads, "name")?, col(inp.reads, "scope")?);
     let mut read_points: FxHashMap<u64, Vec<usize>> = FxHashMap::default();
-    for r in 0..ev.n {
+    for r in 0..ev.rows.0 {
         if ev.cols[e_kind][r] == s_read {
             read_points.entry(ev.cols[e_occ][r]).or_default().push(r);
         }
@@ -62,7 +62,7 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
     {
         let mut seen: FxHashSet<(u64, u64, u64)> = FxHashSet::default();
         let mut seen_ids: FxHashSet<u64> = FxHashSet::default();
-        for r in 0..inp.reads.n {
+        for r in 0..inp.reads.rows.0 {
             let id = inp.reads.cols[b_ref][r];
             if !visit.contains(&id) {
                 continue;
@@ -88,15 +88,15 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
     let fin = inp.finals;
     let (f_ns, f_name, f_event, f_kind) = (col(fin, "namespace")?, col(fin, "name")?, col(fin, "event")?, col(fin, "kind")?);
     let mut final_of: FxHashMap<(u64, u64), (u64, u64)> = FxHashMap::default();
-    for r in 0..fin.n {
+    for r in 0..fin.rows.0 {
         let _ = final_of.insert((fin.cols[f_ns][r], fin.cols[f_name][r]), (fin.cols[f_event][r], fin.cols[f_kind][r]));
     }
     // the file's target (no target row: no builtin is known to be there)
     let (t_major, t_minor) = (col(inp.targets, "major")?, col(inp.targets, "minor")?);
-    let target: Option<(i64, i64)> = (0..inp.targets.n).map(|r| (inp.targets.cols[t_major][r] as i64, inp.targets.cols[t_minor][r] as i64)).min();
+    let target: Option<(i64, i64)> = (0..inp.targets.rows.0).map(|r| (inp.targets.cols[t_major][r] as i64, inp.targets.cols[t_minor][r] as i64)).min();
     let (i_name, i_kind, i_major, i_minor) = (col(inp.implicit, "name")?, col(inp.implicit, "kind")?, col(inp.implicit, "since-major")?, col(inp.implicit, "since-minor")?);
     let mut builtins: FxHashSet<u64> = FxHashSet::default();
-    for r in 0..inp.implicit.n {
+    for r in 0..inp.implicit.rows.0 {
         let since = (inp.implicit.cols[i_major][r] as i64, inp.implicit.cols[i_minor][r] as i64);
         if inp.implicit.cols[i_kind][r] == s_builtin && target.is_some_and(|t| since <= t) {
             builtins.insert(inp.implicit.cols[i_name][r]);

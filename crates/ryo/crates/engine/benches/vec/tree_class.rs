@@ -10,6 +10,7 @@
 //! (hash-consing, never a hash compare): equal numbers are equal trees, with no collision. No rule id: the shape is the
 //! arguments. Each subtree node is visited once a call, its edges and labels asked a level at a time by key.
 
+use crate::finish::TableAccess as _;
 use super::{Exec, File, Provider, R, Run, Table, s, strs};
 use rustc_hash::FxHashMap;
 
@@ -18,7 +19,7 @@ impl Exec<'_> {
         let a = &self.plan.nodes[node].j["args"];
         let from = self.eval(f, run, p, self.arg_rel(node, "from")?)?;
         let mut out = self.empty(run, node)?;
-        if from.n == 0 {
+        if from.rows.0 == 0 {
             return Ok(out);
         }
         let ic = from.col(s(&a["id"])?)?;
@@ -60,20 +61,20 @@ impl Exec<'_> {
             let mut leaf_rows: FxHashMap<u64, Vec<u64>> = FxHashMap::default();
             if let Some(sn) = sn {
                 let t = self.probe(f, run, p, sn, sic, &frontier)?;
-                for r in 0..t.n {
+                for r in 0..t.rows.0 {
                     leaf_rows.entry(t.cols[sic][r]).or_insert_with(|| scols.iter().map(|c| t.cols[*c][r]).collect());
                 }
             }
             let inner: Vec<u64> = frontier.iter().copied().filter(|x| !leaf_rows.contains_key(x)).collect();
             let lt = self.probe(f, run, p, ln, lic, &inner)?;
             let mut labels: FxHashMap<u64, Vec<u64>> = FxHashMap::default();
-            for r in 0..lt.n {
+            for r in 0..lt.rows.0 {
                 labels.entry(lt.cols[lic][r]).or_insert_with(|| lcols.iter().map(|c| lt.cols[*c][r]).collect());
             }
             let has_label: Vec<u64> = inner.iter().copied().filter(|x| labels.contains_key(x)).collect();
             let et = self.probe(f, run, p, en, epc, &has_label)?;
             let mut kids: FxHashMap<u64, Vec<(Vec<u64>, u64)>> = FxHashMap::default();
-            for r in 0..et.n {
+            for r in 0..et.rows.0 {
                 kids.entry(et.cols[epc][r]).or_default().push((esteps.iter().map(|c| et.cols[*c][r]).collect(), et.cols[ecc][r]));
             }
             let mut next = Vec::new();
@@ -141,7 +142,7 @@ impl Exec<'_> {
             }
         }
         let mut row = Vec::new();
-        for r in 0..from.n {
+        for r in 0..from.rows.0 {
             if let Some(Some(c)) = class.get(&from.cols[ic][r]) {
                 from.row(r, &mut row);
                 row.push(*c);

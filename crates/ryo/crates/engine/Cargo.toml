@@ -13,6 +13,7 @@ autobenches = false
 name = "ryo_engine"
 
 [dependencies]
+smallvec = "1"
 ryo_language = { package = "idiomatic-sh-ryo-language", path = "../language", version = "0.2.0" }
 ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../relations", version = "0.2.0" }
 ryo_values = { package = "idiomatic-sh-ryo-values", path = "../values", version = "0.2.0" }
@@ -23,6 +24,7 @@ thiserror.workspace = true
 # The thread's own clock, read by a measuring scratch alone (the work ledger's nanoseconds).
 cpu-time.workspace = true
 hashbrown.workspace = true
+rustc-hash.workspace = true
 # The run's worker pool: the load plans independent branches on it before the first file is scanned.
 rayon.workspace = true
 # The finish plan's encoding (outbound plan_codec, the JSON adapter's schemas): the plan crosses to the executor as JSON.

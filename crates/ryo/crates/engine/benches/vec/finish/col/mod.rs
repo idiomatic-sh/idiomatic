@@ -1,5 +1,5 @@
 //! Whole-table select kernels. Bind the single source, output schema and column positions at plan load.
-use super::{E, Exec, File, Provider, R, Run, Table, recycle};
+use super::{E, Exec, File, Provider, R, Run, Table};
 use std::rc::Rc;
 
 mod project;
@@ -140,7 +140,7 @@ impl Exec<'_> {
         let input = self.eval(f, run, p, self.col.projections[index].source)?;
         let read = mark();
         let projection = &self.col.projections[index];
-        let count = input.n;
+        let count = input.rows.0;
         let work = &mut self.col.work;
         let selected = projection.distinct && count > 1 && work.distinct(&input, &projection.picks);
         let keyed = mark();
@@ -150,13 +150,17 @@ impl Exec<'_> {
             input
         } else {
             self.stats.touched[node] += count as u64;
-            recycle::rc(projection.gather(&input, selected.then_some(work.kept.as_slice())))
+            run.storage.rc(projection.gather(
+                &run.storage,
+                &input,
+                selected.then_some(work.kept.as_slice()),
+            ))
         };
         if let Some(a) = &mut self.col.audit {
             let row = &mut a.rows[index];
             row.calls += 1;
             row.input += count as u64;
-            row.output += output.n as u64;
+            row.output += output.rows.0 as u64;
             if profile {
                 let phases = [
                     read - start - (self.inner - nested),
@@ -174,7 +178,7 @@ impl Exec<'_> {
                 let old = self.select_entry(f, run, p, node)?;
                 self.stats.touched[node] = touched;
                 assert!(
-                    old.n == output.n
+                    old.rows.0 == output.rows.0
                         && old.names == output.names
                         && old.tys == output.tys
                         && old.cols == output.cols,

@@ -2,6 +2,7 @@
 //! the second half runs either on its own walk (`vec finish`) or inside the first half's visit on the same parsed file
 //! (`vec funnel ... --finish`): one parse and one file view a file for both halves.
 
+use crate::finish::TableAccess as _;
 use super::{finish, flag, thread_cpu};
 use std::collections::HashMap;
 use ryo::languages::NodeTable;
@@ -177,7 +178,7 @@ impl<'p> Finisher<'p> {
     fn file_inner(&mut self, file_no: usize, path: &str, ft: &NodeTable, bytes: &[u8], pv: &mut dyn finish::Provider, wanted: &[usize]) {
         self.files_run += 1;
         let plan = self.plan;
-        let mut f = finish::File::new(ft, bytes, file_no as u32, plan.nodes.len());
+        let mut f = finish::File::new(self.run.storage.clone(), ft, bytes, file_no as u32, plan.nodes.len());
         if let Some(text) = pv.syntax_text() { f.set_text(text); }
         // redo-union pass 2 c12: no survivor lists given: every set empty, without a lookup a set a file
         f.seeds = if self.surv.is_empty() { vec![Vec::new(); plan.seeds.len()] } else { plan.seeds.iter().map(|r| self.surv.get(&(r.clone(), path.to_owned())).cloned().unwrap_or_default()).collect() };
@@ -213,7 +214,7 @@ impl<'p> Finisher<'p> {
                     finish::dump_rows(&f, run, &t, &e.0, &run.paths[file_no], &mut self.dump_text);
                     return Ok(());
                 }
-                if t.n == 0 { return Ok(()); }
+                if t.rows.0 == 0 { return Ok(()); }
                 let subject = t.col(&e.2)?;
                 let span = t.col("span").ok();
                 let rule = serde_json::to_string(&e.0).expect("rule string");
@@ -222,8 +223,8 @@ impl<'p> Finisher<'p> {
                 let mut identity = vec![subject];
                 for name in &e.3 { identity.push(t.col(name)?); }
                 let mut seen = rustc_hash::FxHashSet::default();
-                for r in 0..t.n {
-                    if t.n > 1 && !seen.insert(identity.iter().map(|&c| t.cols[c][r]).collect::<Vec<_>>()) {
+                for r in 0..t.rows.0 {
+                    if t.rows.0 > 1 && !seen.insert(identity.iter().map(|&c| t.cols[c][r]).collect::<Vec<_>>()) {
                         continue;
                     }
                     if self.query_rows {

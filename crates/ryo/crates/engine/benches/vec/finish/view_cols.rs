@@ -32,14 +32,14 @@ pub(super) fn compile(filter: &[E]) -> Vec<Test> {
 fn one(e: &E) -> Test {
     match e {
         E::Cmp(o @ (Op::Eq | Op::Ne), a, b) => match (&**a, &**b) {
-            (E::Col(0, c, super::Ty::Sym), E::Text(t)) | (E::Text(t), E::Col(0, c, super::Ty::Sym)) => {
+            (E::Col(0, c, super::Ty::Symbol), E::Text(t)) | (E::Text(t), E::Col(0, c, super::Ty::Symbol)) => {
                 if *o == Op::Eq { Test::Eq(*c, u64::from(*t)) } else { Test::Ne(*c, u64::from(*t)) }
             }
             (E::Col(0, c1, t1), E::Col(0, c2, t2)) if t1 == t2 => Test::Cols(*c1, *c2, *o == Op::Eq),
             _ => Test::Eval(e.clone()),
         },
         E::In(a, b, neg) => match (&**a, &**b) {
-            (E::Col(0, c, super::Ty::Sym), E::List(items)) if items.iter().all(|i| matches!(i, E::Text(_))) => {
+            (E::Col(0, c, super::Ty::Symbol), E::List(items)) if items.iter().all(|i| matches!(i, E::Text(_))) => {
                 Test::In(*c, items.iter().map(|i| if let E::Text(t) = i { u64::from(*t) } else { NULL }).collect(), *neg)
             }
             _ => Test::Eval(e.clone()),

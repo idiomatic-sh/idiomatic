@@ -60,7 +60,7 @@ pub(super) fn prep(ex: &mut Exec<'_>, run: &mut Run, node: usize) -> R<Rc<Prep>>
         rk,
         rfile,
         view_key,
-        empty: Rc::new(Table::with(sc.names.clone(), sc.tys.clone())),
+        empty: Rc::new(run.storage.empty(sc.names.clone(), sc.tys.clone())),
     });
     ex.antijoin_preps[node] = Some(pr.clone());
     Ok(pr)
@@ -70,7 +70,7 @@ pub(super) fn prep(ex: &mut Exec<'_>, run: &mut Run, node: usize) -> R<Rc<Prep>>
 pub(super) fn whole(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Table>> {
     let pr = prep(ex, run, node)?;
     let l = ex.eval(f, run, p, pr.left)?;
-    if l.n == 0 {
+    if l.rows.0 == 0 {
         return Ok(pr.empty.clone());
     }
     over(ex, f, run, p, node, &pr, &l)
@@ -81,7 +81,7 @@ pub(super) fn whole(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut 
 pub(super) fn keyed_left(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64]) -> R<Option<(Rc<Table>, Rc<Table>)>> {
     let pr = prep(ex, run, node)?;
     let l = ex.probe(f, run, p, pr.left, col, keys)?;
-    if l.n == 0 {
+    if l.rows.0 == 0 {
         return Ok(None);
     }
     let out = over(ex, f, run, p, node, &pr, &l)?;
@@ -90,6 +90,7 @@ pub(super) fn keyed_left(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: 
 
 /// The left rows no right row matches on every key.
 fn over(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, pr: &Prep, l: &Rc<Table>) -> R<Rc<Table>> {
+    let storage = Rc::clone(&run.storage);
     if let Some(ki) = pr.view_key
         && let Res::View(v) = ex.res(f, run, p, pr.right)?
     {
@@ -100,7 +101,7 @@ fn over(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider
             w.keep.clear();
             let probe_col = v.map[rk[ki]];
             let lcol = &l.cols[lk[ki]];
-            for i in 0..l.n {
+            for i in 0..l.rows.0 {
                 w.hits.clear();
                 f.native_probe(run, v.base, probe_col, lcol[i], &mut w.hits);
                 touched += w.hits.len() as u64;
@@ -109,7 +110,7 @@ fn over(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider
                     w.keep.push(i as u32);
                 }
             }
-            gather(pr, l, &w.keep)
+            gather(&storage, pr, l, &w.keep)
         });
         ex.stats.touched[node] += touched;
         return Ok(out);
@@ -122,19 +123,19 @@ fn over(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider
         ks.dedup();
         ex.probe(f, run, p, pr.right, pr.rk[0], &ks)?
     } else {
-        if pr.rk.len() == 1 && pr.rfile[0] && let Some(out) = ex.file_exclusion(f, run, p, node, pr.right, (&pr.lk, &pr.rk), l, |keep| gather(pr, l, keep))? {
+        if pr.rk.len() == 1 && pr.rfile[0] && let Some(out) = ex.file_exclusion(f, run, p, node, pr.right, (&pr.lk, &pr.rk), l, |keep| gather(&storage, pr, l, keep))? {
             return Ok(out);
         }
         ex.eval(f, run, p, pr.right)?
     };
-    if r.n == 0 {
+    if r.rows.0 == 0 {
         return Ok(l.clone());
     }
-    ex.stats.touched[node] += r.n as u64;
+    ex.stats.touched[node] += r.rows.0 as u64;
     Ok(WORK.with(|w| {
         let w = &mut *w.borrow_mut();
         knock(pr, l, &r, w);
-        gather(pr, l, &w.keep)
+        gather(&storage, pr, l, &w.keep)
     }))
 }
 
@@ -144,23 +145,23 @@ fn knock(pr: &Prep, l: &Table, r: &Table, w: &mut Work) {
     let (lk, rk) = (&pr.lk, &pr.rk);
     if lk.len() == 1 {
         let (lc, rc) = (&l.cols[lk[0]], &r.cols[rk[0]]);
-        if r.n <= SCAN {
-            w.keep.extend((0..l.n as u32).filter(|i| !rc.contains(&lc[*i as usize])));
+        if r.rows.0 <= SCAN {
+            w.keep.extend((0..l.rows.0 as u32).filter(|i| !rc.contains(&lc[*i as usize])));
         } else {
-            if w.set.capacity() > 8 * r.n && w.set.capacity() > 4096 {
+            if w.set.capacity() > 8 * r.rows.0 && w.set.capacity() > 4096 {
                 w.set = FxHashSet::default();
             }
             w.set.clear();
             w.set.extend(rc.iter().copied());
-            w.keep.extend((0..l.n as u32).filter(|i| !w.set.contains(&lc[*i as usize])));
+            w.keep.extend((0..l.rows.0 as u32).filter(|i| !w.set.contains(&lc[*i as usize])));
         }
         return;
     }
     let lrow = |i: usize, k: usize| l.cols[lk[k]][i];
     let rrow = |j: usize, k: usize| r.cols[rk[k]][j];
     let n = lk.len();
-    if r.n <= SCAN {
-        w.keep.extend((0..l.n as u32).filter(|i| !(0..r.n).any(|j| (0..n).all(|k| rrow(j, k) == lrow(*i as usize, k)))));
+    if r.rows.0 <= SCAN {
+        w.keep.extend((0..l.rows.0 as u32).filter(|i| !(0..r.rows.0).any(|j| (0..n).all(|k| rrow(j, k) == lrow(*i as usize, k)))));
         return;
     }
     let hash = |get: &dyn Fn(usize) -> u64| -> u64 {
@@ -170,13 +171,13 @@ fn knock(pr: &Prep, l: &Table, r: &Table, w: &mut Work) {
         }
         h
     };
-    if w.head.capacity() > 8 * r.n && w.head.capacity() > 4096 {
+    if w.head.capacity() > 8 * r.rows.0 && w.head.capacity() > 4096 {
         w.head = FxHashMap::default();
     }
     w.head.clear();
     w.next.clear();
-    w.next.resize(r.n, NONE);
-    for j in 0..r.n {
+    w.next.resize(r.rows.0, NONE);
+    for j in 0..r.rows.0 {
         let h = hash(&|k| rrow(j, k));
         if let Some(first) = w.head.get_mut(&h) {
             w.next[j] = *first;
@@ -185,12 +186,15 @@ fn knock(pr: &Prep, l: &Table, r: &Table, w: &mut Work) {
             w.head.insert(h, j as u32);
         }
     }
-    for i in 0..l.n {
+    for i in 0..l.rows.0 {
         let h = hash(&|k| lrow(i, k));
         let mut x = w.head.get(&h).copied().unwrap_or(NONE);
         let mut hit = false;
         while x != NONE {
-            if (0..n).all(|k| rrow(x as usize, k) == lrow(i, k)) {
+            if ryo_engine::domain::indexes::postings::service::equal(
+                (0..n).map(|k| rrow(x as usize, k)),
+                (0..n).map(|k| lrow(i, k)),
+            ) {
                 hit = true;
                 break;
             }
@@ -203,20 +207,13 @@ fn knock(pr: &Prep, l: &Table, r: &Table, w: &mut Work) {
 }
 
 /// The left's kept rows: the left itself when all are kept, the prepared empty table when none.
-fn gather(pr: &Prep, l: &Rc<Table>, keep: &[u32]) -> Rc<Table> {
-    if keep.len() == l.n {
+fn gather(storage: &super::Storage, pr: &Prep, l: &Rc<Table>, keep: &[u32]) -> Rc<Table> {
+    if keep.len() == l.rows.0 {
         return l.clone();
     }
     if keep.is_empty() {
         return pr.empty.clone();
     }
-    // redo-alloc: the table and its columns from the worker's pools (recycle.rs)
-    let mut out = Table::with_rows(l.names.clone(), l.tys.clone(), keep.len());
-    for (c, src) in l.cols.iter().enumerate() {
-        let mut v = std::mem::take(&mut out.cols[c]);
-        v.extend(keep.iter().map(|i| src[*i as usize]));
-        out.cols[c] = v;
-    }
-    out.n = keep.len();
-    super::recycle::rc(out)
+    let output = storage.gather(l, keep.iter().map(|&row| row as usize));
+    storage.rc(output)
 }

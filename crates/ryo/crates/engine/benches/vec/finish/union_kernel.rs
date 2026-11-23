@@ -76,7 +76,7 @@ pub(super) fn prep(ex: &mut Exec<'_>, run: &mut Run, node: usize) -> R<Rc<Prep>>
         let ident = map.len() == lsc.names.len() && map.iter().enumerate().all(|(i, c)| i == *c);
         ls.push(Leaf { node: x, map, ident });
     }
-    let pr = Rc::new(Prep { leaves: ls.into(), k: sc.names.len(), names: sc.names.clone(), tys: sc.tys.clone(), empty: Rc::new(Table::with(sc.names.clone(), sc.tys.clone())) });
+    let pr = Rc::new(Prep { leaves: ls.into(), k: sc.names.len(), names: sc.names.clone(), tys: sc.tys.clone(), empty: Rc::new(run.storage.empty(sc.names.clone(), sc.tys.clone())) });
     ex.union_preps[node] = Some(pr.clone());
     Ok(pr)
 }
@@ -99,12 +99,12 @@ pub(super) fn whole(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut 
     let mut got = take_got();
     for (i, lf) in pr.leaves.iter().enumerate() {
         let t = ex.eval(f, run, p, lf.node)?;
-        if t.n > 0 {
+        if t.rows.0 > 0 {
             got.push((t, i as u32));
         }
     }
-    let out = combine(&pr, &got);
-    give_got(got);
+    let out = combine(&run.storage, &pr, &got);
+    give_got(&run.storage, got);
     Ok(out)
 }
 
@@ -115,13 +115,13 @@ pub(super) fn keyed(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut 
     let mut got = take_got();
     for (i, lf) in pr.leaves.iter().enumerate() {
         let t = ex.probe(f, run, p, lf.node, lf.map[col], keys)?;
-        if t.n > 0 {
+        if t.rows.0 > 0 {
             got.push((t, i as u32));
         }
     }
-    let out = combine(&pr, &got);
-    let handed = out.n == 0 || got.iter().any(|g| Rc::ptr_eq(&g.0, &out));
-    give_got(got);
+    let out = combine(&run.storage, &pr, &got);
+    let handed = out.rows.0 == 0 || got.iter().any(|g| Rc::ptr_eq(&g.0, &out));
+    give_got(&run.storage, got);
     Ok((out, handed))
 }
 
@@ -129,15 +129,15 @@ fn take_got() -> Vec<(Rc<Table>, u32)> {
     GOT.with(|k| k.borrow_mut().pop()).unwrap_or_default()
 }
 
-fn give_got(mut v: Vec<(Rc<Table>, u32)>) {
+fn give_got(storage: &super::Storage, mut v: Vec<(Rc<Table>, u32)>) {
     // redo-alloc: the leaves' answers given back (recycle.rs)
     for (t, _) in v.drain(..) {
-        super::recycle::recycle(t);
+        storage.recycle(t);
     }
     GOT.with(|k| k.borrow_mut().push(v));
 }
 
-fn combine(pr: &Prep, got: &[(Rc<Table>, u32)]) -> Rc<Table> {
+fn combine(storage: &super::Storage, pr: &Prep, got: &[(Rc<Table>, u32)]) -> Rc<Table> {
     if got.is_empty() {
         return pr.empty.clone();
     }
@@ -146,7 +146,7 @@ fn combine(pr: &Prep, got: &[(Rc<Table>, u32)]) -> Rc<Table> {
         let (t, li) = &got[i];
         &t.cols[pr.leaves[*li as usize].map[c]]
     };
-    let total: usize = got.iter().map(|g| g.0.n).sum();
+    let total: usize = got.iter().map(|g| g.0.rows.0).sum();
     WORK.with(|w| {
         let w = &mut *w.borrow_mut();
         w.kept.clear();
@@ -164,7 +164,7 @@ fn combine(pr: &Prep, got: &[(Rc<Table>, u32)]) -> Rc<Table> {
         if total <= SCAN {
             w.hs.clear();
             for (i, g) in got.iter().enumerate() {
-                for r in 0..g.0.n {
+                for r in 0..g.0.rows.0 {
                     let h = rh(i, r);
                     let dup = w.hs.iter().zip(&w.kept).any(|(hh, a)| *hh == h && same(*a, i, r));
                     if !dup {
@@ -181,7 +181,7 @@ fn combine(pr: &Prep, got: &[(Rc<Table>, u32)]) -> Rc<Table> {
             w.head.reserve(total);
             w.next.clear();
             for (i, g) in got.iter().enumerate() {
-                for r in 0..g.0.n {
+                for r in 0..g.0.rows.0 {
                     let h = rh(i, r);
                     let at = w.kept.len() as u32;
                     let first = *w.head.entry(h).or_insert(at);
@@ -214,7 +214,7 @@ fn combine(pr: &Prep, got: &[(Rc<Table>, u32)]) -> Rc<Table> {
             return got[0].0.clone();
         }
         // redo-alloc: the answer's table and columns from the worker's pools (recycle.rs), not made new
-        let mut out = Table::with_rows(pr.names.clone(), pr.tys.clone(), n);
+        let mut out = storage.table(pr.names.clone(), pr.tys.clone(), n);
         for c in 0..k {
             let mut v = std::mem::take(&mut out.cols[c]);
             v.reserve(n);
@@ -227,7 +227,7 @@ fn combine(pr: &Prep, got: &[(Rc<Table>, u32)]) -> Rc<Table> {
             }
             out.cols[c] = v;
         }
-        out.n = n;
-        super::recycle::rc(out)
+        out.rows.0 = n;
+        storage.rc(out)
     })
 }
