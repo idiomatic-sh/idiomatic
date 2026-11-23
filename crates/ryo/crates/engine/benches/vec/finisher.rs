@@ -13,7 +13,7 @@ pub(super) struct Finisher<'p> {
     check: bool,
     pub(super) query_rows: bool,
     dump: Option<String>,
-    dump_text: String,
+    dump_chunks: Vec<(usize, usize, String)>,
     pub(super) run: finish::Run,
     exec: finish::Exec<'p>,
     findings: finish::json_output::Findings,
@@ -24,7 +24,7 @@ pub(super) struct Finisher<'p> {
     /// redo-union pass 2 c16: a failed emit by its index (no name hashed an emit a file).
     failed_idx: Vec<bool>,
     rule_stats: Vec<[u64; 3]>,
-    check_lines: Vec<String>,
+    check_lines: Vec<(usize, String)>,
     files_run: u64,
     pub(super) provider_time: f64,
     pub(super) provider_rows: u64,
@@ -59,7 +59,7 @@ impl<'p> Finisher<'p> {
             check: args.contains(&"--check-bases"),
             query_rows: false,
             dump: flag(args, "--dump"),
-            dump_text: String::new(),
+            dump_chunks: Vec::new(),
             run,
             exec: finish::Exec::new(plan),
             findings: Default::default(),
@@ -148,8 +148,8 @@ impl<'p> Finisher<'p> {
                 if run.reader_tables.contains(rel) { continue; }
                 let mine = finish::native_table(&mut f, run, rel);
                 match pv.fill(run, rel, finish::Scope::File(file_no as u32)) {
-                    Ok(theirs) => self.check_lines.push(format!("{}\t{rel}\t{}", run.paths[file_no], finish::diff(run, &mine, &theirs))),
-                    Err(e) => self.check_lines.push(format!("{}\t{rel}\tprovider: {e}", run.paths[file_no])),
+                    Ok(theirs) => self.check_lines.push((file_no, format!("{}\t{rel}\t{}", run.paths[file_no], finish::diff(run, &mine, &theirs)))),
+                    Err(e) => self.check_lines.push((file_no, format!("{}\t{rel}\tprovider: {e}", run.paths[file_no]))),
                 }
             }
         }
@@ -170,7 +170,11 @@ impl<'p> Finisher<'p> {
             let got = if run.missing.is_empty() { got } else { Err(format!("functions {:?} not in the step set", run.missing)) };
             let written = got.and_then(|t| {
                 if self.dump.is_some() {
-                    finish::dump_rows(&f, run, &t, &e.0, &run.paths[file_no], &mut self.dump_text);
+                    let mut chunk = String::new();
+                    finish::dump_rows(&f, run, &t, &e.0, &run.paths[file_no], &mut chunk);
+                    if !chunk.is_empty() {
+                        self.dump_chunks.push((file_no, *ei, chunk));
+                    }
                     return Ok(());
                 }
                 if t.n == 0 { return Ok(()); }
@@ -221,10 +225,28 @@ impl<'p> Finisher<'p> {
         let count = self.findings.finish(self.plan, &self.run, self.out.as_deref(), projection, &cutoff);
         println!("ordered findings and write CPU {:.6} s", thread_cpu() - start);
         if let Some(d) = &self.dump {
-            std::fs::write(d, &self.dump_text).expect("write dump");
+            use std::io::Write;
+            self.dump_chunks.sort_by_key(|(file, _, _)| *file);
+            let mut out = std::io::BufWriter::new(std::fs::File::create(d).expect("open dump"));
+            for (file, emit, text) in self.dump_chunks {
+                if file <= cutoff[emit] {
+                    out.write_all(text.as_bytes()).expect("write dump");
+                }
+            }
+            out.flush().expect("close dump");
         }
         if self.check {
-            std::fs::write(self.check_out.clone().unwrap_or_else(|| "check-bases.tsv".to_owned()), self.check_lines.join("\n") + "\n").expect("write check");
+            use std::io::Write;
+            self.check_lines.sort_by_key(|(file, _)| *file);
+            let path = self.check_out.as_deref().unwrap_or("check-bases.tsv");
+            let mut out = std::io::BufWriter::new(std::fs::File::create(path).expect("open checks"));
+            if self.check_lines.is_empty() {
+                writeln!(out).expect("write empty check");
+            }
+            for (_, line) in self.check_lines {
+                writeln!(out, "{line}").expect("write check");
+            }
+            out.flush().expect("close checks");
         }
         if let Ok(path) = std::env::var("VEC_RULE_STATS") {
             use std::fmt::Write as _;
