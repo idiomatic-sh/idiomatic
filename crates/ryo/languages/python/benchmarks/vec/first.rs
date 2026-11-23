@@ -716,6 +716,10 @@ struct Analyzer<'p> {
     /// Step identities by key (`[tag, shape or text, read identities...]`) and the relation of each.
     ids: HashMap<Vec<u32>, Id>,
     rels: Vec<Option<Rc<Rel>>>,
+    /// Per identity, how many steps (in the whole pack) still take it: counted by a first pass over identities only
+    /// (`dry`: no relation is formed, only fragment calls are entered), so a relation is kept until its last use.
+    uses: Vec<u32>,
+    dry: bool,
     /// The rule each identity was first analysed in (for the counts), and the rule being analysed.
     first_rule: Vec<u32>,
     rule: u32,
@@ -763,6 +767,7 @@ impl<'p> Analyzer<'p> {
         let id = *self.ids.entry(key).or_insert(n);
         if id == n {
             self.rels.push(None);
+            self.uses.push(0);
             self.first_rule.push(self.rule);
         }
         id
@@ -809,12 +814,36 @@ impl<'p> Analyzer<'p> {
             key.push(self.peek(*r, env));
         }
         let id = self.intern(key);
-        if let Some(r) = &self.rels[id as usize] {
+        let i = id as usize;
+        if self.dry {
+            self.uses[i] += 1;
+            if self.uses[i] == 1
+                && let Expression::Call(c) = expr
+                && let Some(module) = env.imports.get(&*c.name.0)
+            {
+                let mut params: HashMap<String, Entry<'p>> = HashMap::new();
+                for a in &c.arguments {
+                    if matches!(a.value, ArgumentValue::Text(_) | ArgumentValue::Step(_) | ArgumentValue::Word(_)) {
+                        let id = self.peek(Read::Arg(&a.value), env);
+                        params.insert(a.name.0.to_string(), Entry::ready(self.rels[0].clone().unwrap_or_else(|| Rc::new(opaque())), id));
+                    }
+                }
+                let _ = self.fragment(module, params);
+            }
+            let got = (Rc::new(opaque()), id);
+            let _set = e.rel.set(got.clone());
+            return got;
+        }
+        self.uses[i] -= 1;
+        if let Some(r) = &self.rels[i] {
             count(7, 1);
-            if self.first_rule[id as usize] != self.rule {
+            if self.first_rule[i] != self.rule {
                 count(5, 1);
             }
             let got = (r.clone(), id);
+            if self.uses[i] == 0 {
+                self.rels[i] = None;
+            }
             let _set = e.rel.set(got.clone());
             return got;
         }
@@ -822,7 +851,10 @@ impl<'p> Analyzer<'p> {
             Expression::Select(s) => self.select(s, env),
             Expression::Call(c) => self.call(c, env),
         });
-        self.rels[id as usize] = Some(r.clone());
+        self.first_rule[i] = self.rule;
+        if self.uses[i] > 0 {
+            self.rels[i] = Some(r.clone());
+        }
         let got = (r, id);
         let _set = e.rel.set(got.clone());
         got
@@ -2119,10 +2151,19 @@ pub(super) fn prepare(programs: &PackPrograms, lang: Language) -> Prepared {
     let word_kind = word_kind.as_str();
     LANGUAGE.with(|l| *l.borrow_mut() = Some(Rc::new(lang)));
     let skip = SkipAnalyzer { frags: &programs.fragments };
-    let mut an = Analyzer { frags: &programs.fragments, ids: HashMap::new(), rels: vec![Some(Rc::new(opaque()))], first_rule: vec![0], rule: 0, shapes: HashMap::new(), texts: HashMap::new() };
+    let mut an = Analyzer { frags: &programs.fragments, ids: HashMap::new(), rels: vec![Some(Rc::new(opaque()))], uses: vec![0], dry: true, first_rule: vec![0], rule: 0, shapes: HashMap::new(), texts: HashMap::new() };
     let mut skips = Vec::new();
     let mut rules = Vec::new();
     let trace = std::env::var_os("VEC_FIRST_TRACE").is_some();
+    // the identities first (how many steps take each), then the relations
+    let td = super::thread_cpu();
+    for rule in &programs.rules {
+        if let RuleProgram::Parsed(p) = &rule.program {
+            let _ = an.program(&p.steps, HashMap::new(), imports_of(&p.imports), &p.emit.step.0);
+        }
+    }
+    an.dry = false;
+    PHASES.with(|p| p.borrow_mut()[3] += super::thread_cpu() - td);
     for rule in &programs.rules {
         let name = rule.rule.0.to_string();
         let tr0 = super::thread_cpu();
@@ -2202,7 +2243,7 @@ pub(super) fn run_first(args: &[&str]) {
     let read = super::lower::read_pack(std::path::Path::new(args[0]), request);
     for round in 0..repeat {
         COUNTS.with(|c| *c.borrow_mut() = [0; 8]);
-        PHASES.with(|c| *c.borrow_mut() = [0.0; 3]);
+        PHASES.with(|c| *c.borrow_mut() = [0.0; 4]);
         let a0 = super::alloc_counts();
         let t0 = super::thread_cpu();
         let p = prepare(&read.programs, super::python_language());
@@ -2210,7 +2251,7 @@ pub(super) fn run_first(args: &[&str]) {
         let a1 = super::alloc_counts();
         let plans: usize = p.rules.iter().map(|r| r.plans.len()).sum();
         println!("counts (combos, selects, atoms numbered when planned, -, fragment calls, step memo hits across rules, products past the CAP, step memo hits) {:?}", counts());
-        println!("phases (skip, relations, planning) {:.4?}", PHASES.with(|p| *p.borrow()));
+        println!("phases (skip, relations, planning, identities) {:.4?}", PHASES.with(|p| *p.borrow()));
         println!("allocations {} bytes {} live after {} (peak so far {})", a1[0] - a0[0], a1[1] - a0[1], a1[2], a1[3]);
         println!("round {round} parse {:.4} analysis {:.4} s rules {} node {} plans {plans}", read.parse, t1 - t0, p.rules.len(), p.rules.iter().filter(|r| r.node).count());
         if round == 0
@@ -2240,8 +2281,8 @@ pub(super) fn run_first(args: &[&str]) {
 
 thread_local! {
     static COUNTS: std::cell::RefCell<[u64; 8]> = const { std::cell::RefCell::new([0; 8]) };
-    /// CPU seconds by phase: skip analysis, relation analysis, planning.
-    static PHASES: std::cell::RefCell<[f64; 3]> = const { std::cell::RefCell::new([0.0; 3]) };
+    /// CPU seconds by phase: skip analysis, relation analysis, planning, the identities' pass.
+    static PHASES: std::cell::RefCell<[f64; 4]> = const { std::cell::RefCell::new([0.0; 4]) };
 }
 fn count(i: usize, n: u64) {
     COUNTS.with(|c| c.borrow_mut()[i] += n);
