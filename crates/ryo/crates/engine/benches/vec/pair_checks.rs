@@ -223,7 +223,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                 }
                 Domain::Fact(slot, None) => {
                     let table = &mut self.facts[*slot];
-                    if self.p.lazy_presence && !table.read && self.p.facts[*slot].key.is_some() {
+                    if !table.read && self.p.facts[*slot].key.is_some() {
                         // A bare file-level existence guard alone cannot justify building
                         // a keyed table. A subsequent constrained check can still request it.
                         self.needs[id] = Some(true);
@@ -798,11 +798,11 @@ impl Program {
         alive: &mut [bool],
         exact: Option<&mut Vec<(usize, Bits)>>,
     ) -> u64 {
+        #[cfg(feature = "pair-diagnostics")]
         if self.meter.is_some() {
-            self.evaluate::<true>(t, src, path, syntax_text, words, read, alive, exact)
-        } else {
-            self.evaluate::<false>(t, src, path, syntax_text, words, read, alive, exact)
+            return self.evaluate::<true>(t, src, path, syntax_text, words, read, alive, exact);
         }
+        self.evaluate::<false>(t, src, path, syntax_text, words, read, alive, exact)
     }
     fn evaluate<const PROFILE: bool>(
         &self,

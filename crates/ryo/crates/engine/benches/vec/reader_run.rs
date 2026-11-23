@@ -6,6 +6,9 @@ use ryo_relations::domain::relations::service as catalog;
 use std::collections::{BTreeSet, HashMap};
 use std::path::Path;
 
+#[path = "reader_packet.rs"]
+mod packet;
+
 #[path = "reader_pairs.rs"]
 mod pairs;
 
@@ -100,8 +103,11 @@ pub(super) fn run(
             "no lowered emit for {selected}"
         );
     }
-    // A reader's keyed facts use the same relation catalog that describes its rows.
-    // Advertising a node key here requires the catalog to declare exactly one row per key.
+    // The parser declares population coverage. The catalog supplies column types.
+    use ryo_relations::domain::catalog::{
+        service::{fact_form, scope_of},
+        types::RowScope,
+    };
     use ryo_relations::domain::relations::types::FactForm;
     let bases: BTreeSet<_> = plan
         .nodes
@@ -118,14 +124,12 @@ pub(super) fn run(
             run.reader_tables.insert(name.to_owned());
             // A provider may append semantic positions under a native holder. Only
             // the row supplier describes that relation on this host.
-            if ryo_relations::domain::catalog::service::fact_form(relation) == FactForm::NodeTable {
+            if fact_form(relation) == FactForm::NodeTable {
                 reader_rows.push(name.to_owned());
-                if std::env::var_os("VEC_READER_PAIR_EXPANDED_ROWS").is_some() {
-                    declaration.facts.push(name.to_owned());
-                }
             }
         }
-        if matches!(ryo_relations::domain::catalog::service::fact_form(relation), FactForm::Filled(_))
+        if matches!(fact_form(relation), FactForm::Filled(_))
+            && scope_of(relation) == RowScope::File
             && parser.absence_of(relation).is_none()
         {
             reader_rows.push(name.to_owned());
@@ -136,16 +140,28 @@ pub(super) fn run(
     let kind_names = parser.kind_names();
     let vocab = pairs::vocabulary(&kind_names.0, parser.stable_fields());
     // The SDK gives an actual text cell even when kinds mix tokens and non-tokens.
-    declaration.text_kinds = (0..kind_names.0.len()).map(|k| u16::try_from(k).expect("kind code")).collect();
-    let typed = read.typed.take().expect("executor must hand over the typed plan");
+    declaration.text_kinds = (0..kind_names.0.len())
+        .map(|k| u16::try_from(k).expect("kind code"))
+        .collect();
+    let typed = read
+        .typed
+        .take()
+        .expect("executor must hand over the typed plan");
     assert!(typed.unplanned.is_empty());
-    let mut program = super::pair_summary::prepare_with_reader_rows(&typed, &vocab, &declaration, &reader_rows);
-    let prepared: Vec<_> = program.roots.iter().map(|r| r.0.clone()).zip(std::mem::take(&mut program.skips)).collect();
+    let mut program =
+        super::pair_summary::prepare_with_reader_rows(&typed, &vocab, &declaration, &reader_rows);
+    let prepared: Vec<_> = program
+        .roots
+        .iter()
+        .map(|r| r.0.clone())
+        .zip(std::mem::take(&mut program.skips))
+        .collect();
     drop(typed);
     let summaries_cpu = thread_cpu() - summaries_start;
     run.empty = run.sym(b"");
     run.links();
-    run.kind_sym = kind_names.0
+    run.kind_sym = kind_names
+        .0
         .iter()
         .map(|k| run.sym(k.0.as_bytes()))
         .collect();
@@ -188,9 +204,15 @@ pub(super) fn run(
             masks.push((mask("k:", &kinds), mask("f:", &fields)));
         }
         syntax.push((*never, masks));
-        let branch = word_clauses.iter().map(|clause| {
-            clause.iter().map(|term| words.code(run.sym(term.as_bytes()))).collect()
-        }).collect();
+        let branch = word_clauses
+            .iter()
+            .map(|clause| {
+                clause
+                    .iter()
+                    .map(|term| words.code(run.sym(term.as_bytes())))
+                    .collect()
+            })
+            .collect();
         spellings.push(vec![branch]);
     }
     let mut skip = super::file_skip::Skip::new(
@@ -224,7 +246,6 @@ pub(super) fn run(
         dependencies.push(reads);
     }
     let mut decisions = pairs::Decisions::new(program, &plan);
-    let static_only = std::env::var_os("VEC_READER_PAIR_STATIC").is_some();
     let selected = req.selected_rules.join(",");
     let mut fin = finisher::Finisher::new(
         &plan,
@@ -239,7 +260,10 @@ pub(super) fn run(
         ],
     );
     let startup = thread_cpu() - start;
-    println!("startup preparation: pack-read {:.6} parse {:.6} file-summaries {:.6}", read.read, read.parse, summaries_cpu);
+    println!(
+        "startup preparation: pack-read {:.6} parse {:.6} file-summaries {:.6}",
+        read.read, read.parse, summaries_cpu
+    );
     let mut memory = Memory {
         enabled: std::env::var_os("VEC_PHASE_RSS").is_some(),
         ..Default::default()
@@ -255,7 +279,7 @@ pub(super) fn run(
     let mut active = vec![0u64; plan.emits.len()];
     let mut elements = l::Elements::default();
     let mut table = l::NodeTable::default();
-    let mut packet = pairs::Packet::new(&decisions.program);
+    let mut packet = packet::Packet::new();
     let mut coverage = coverage::Coverage::default();
     let mut symbols = l::Symbols::default();
     let all: Vec<_> = dependencies
@@ -330,39 +354,78 @@ pub(super) fn run(
             .collect();
         let mut wanted = fin.wanted(path, &|i| alive[i]);
         let relations_for = |w: &[usize]| {
-            w.iter().flat_map(|&i| dependencies[plan.emits[i].1].iter().copied())
-                .collect::<BTreeSet<_>>().into_iter().collect::<Vec<_>>()
+            w.iter()
+                .flat_map(|&i| dependencies[plan.emits[i].1].iter().copied())
+                .collect::<BTreeSet<_>>()
+                .into_iter()
+                .collect::<Vec<_>>()
         };
         packet.clear();
         let mut facts = relations_for(&wanted);
-        if !wanted.is_empty() && !check_without_skip && !static_only {
-            decisions.filter(&mut wanted, &table, super::pair_checks::SyntaxText {
-                ids: &provider.text, symbols: &fin.run.texts,
-            }, &bytes, path, &mut elements, &mut symbols, id, &facts, &mut packet, |elements, symbols, rows| {
-                parser.walk_file(elements, symbols, ByteSlice(&bytes), id, &facts, rows);
-            });
-            if !packet.ready { facts = relations_for(&wanted); }
+        if !wanted.is_empty() && !check_without_skip {
+            decisions.filter(
+                &mut wanted,
+                &table,
+                super::pair_checks::SyntaxText {
+                    ids: &provider.text,
+                    symbols: &fin.run.texts,
+                },
+                &bytes,
+                path,
+                &mut elements,
+                &mut symbols,
+                id,
+                &facts,
+                &mut packet,
+                |elements, symbols, rows| {
+                    parser.walk_file(elements, symbols, ByteSlice(&bytes), id, &facts, rows);
+                },
+            );
+            if !packet.ready {
+                facts = relations_for(&wanted);
+            }
         }
         let t1 = thread_cpu();
         first_cpu += t1 - t0;
         memory.sample(1);
-        if !fin.visits(&wanted) { continue; }
-        if !packet.ready {
-            parser.walk_file(&mut elements, &mut symbols, ByteSlice(&bytes), id, &facts, &mut packet.rows);
+        if !fin.visits(&wanted) {
+            continue;
         }
-        packet.rows.partials.retain(|(rel, _, missing)| coverage.needed(&plan, *rel, *missing));
-        provider.receive(&mut fin.run, &facts, &packet.rows, &symbols, &bytes);
+        if !packet.ready {
+            parser.walk_file(
+                &mut elements,
+                &mut symbols,
+                ByteSlice(&bytes),
+                id,
+                &facts,
+                &mut packet.rows,
+            );
+            packet.index(&facts);
+        }
+        packet
+            .rows
+            .partials
+            .retain(|(rel, _, missing)| coverage.needed(&plan, *rel, *missing));
         for &i in &wanted {
             active[i] += 1;
         }
-        fin.file(index, path, &table, &bytes, &mut provider, &wanted);
+        fin.file(
+            index,
+            path,
+            &table,
+            &bytes,
+            &mut packet.view(&mut provider, &symbols, &bytes),
+            &wanted,
+        );
         fills_made += provider.fills_made;
         drop((facts, wanted, alive, provider, bytes));
         second_cpu += thread_cpu() - t1;
         memory.sample(2);
     }
     println!("pair checks {}", decisions.steps);
-    if let Some(meter) = &decisions.program.meter { meter.report(&decisions.program); }
+    if let Some(meter) = &decisions.program.meter {
+        meter.report(&decisions.program);
+    }
     println!("reader fills made {fills_made}");
     for (emit, files) in plan.emits.iter().zip(active) {
         println!("HANDOFF\t{}\t{files}", emit.0);
