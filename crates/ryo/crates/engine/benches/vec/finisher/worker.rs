@@ -136,7 +136,7 @@ impl<'p> Settings<'p> {
             alloc: [0; 2],
         };
         worker.exec.worker_shapes = Some(finish::worker_schemas::Local::new(self.shapes.clone()));
-        worker.exec.shared_constants = Some(self.constants.clone());
+        worker.exec.use_constants(self.constants.clone());
         worker.exec.shared_static = Some(self.static_tests.clone());
         worker.exec.cold_test_load(&mut worker.run);
         worker.exec.cold_load(&mut worker.run);
