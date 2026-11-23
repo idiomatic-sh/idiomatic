@@ -219,7 +219,7 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
                     clause
                         .iter()
                         .filter_map(|term| term.strip_prefix(prefix))
-                        .map(|term| run.ids[term.as_bytes()]),
+                        .map(|term| run.lookup_word(term.as_bytes()).expect("declared vocabulary")),
                 )
             };
             masks.push((mask("k:", &kinds), mask("f:", &fields)));
