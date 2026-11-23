@@ -119,15 +119,13 @@ impl Exec<'_> {
 
     /// A view's rows on `c` for none of `keys`, read in place (false where it cannot be read in place or its fill is
     /// not read yet).
-    fn view_absent(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, v: &super::ViewSpec, c: usize, keys: &[u64]) -> bool {
+    fn view_absent(&mut self, f: &mut File<'_>, run: &mut Run, _p: &mut dyn Provider, v: &super::ViewSpec, c: usize, keys: &[u64]) -> bool {
         let bc = v.map[c];
         if !File::probes(v.base, bc) {
             return false;
         }
-        // redo-fills pass 2: a fill a lazy source left unasked is made here, where the eager front had made it
         if let super::Native::Fact(i) = v.base
             && f.facts.get(usize::from(i)).is_none_or(Option::is_none)
-            && !(super::lazy_view::owed(f, usize::from(i)) && self.load_fact(f, run, p, v.base).is_ok())
         {
             return false;
         }

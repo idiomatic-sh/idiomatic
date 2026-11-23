@@ -1297,18 +1297,32 @@ impl ColFacts<'_, '_, '_, '_> {
 }
 
 impl finish::Provider for ColFacts<'_, '_, '_, '_> {
-    fn fill_len(&mut self, run: &mut finish::Run, rel: &str, scope: finish::Scope<'_>) -> Option<usize> {
-        if !matches!(scope, finish::Scope::File(f) if f == self.file_no) || self.kept.contains_key(rel) {
-            return None;
+    /// redo-fills pass 3: the file's one request answered in one call: each asked relation written once, in the request's
+    /// order; the model parts are built at the first family that reads each (and never again in the file).
+    fn answer(&mut self, run: &mut finish::Run, request: &finish::request::Request<'_>, out: &mut Vec<Result<finish::Table, String>>) -> Result<(), String> {
+        let finish::Scope::File(file) = request.scope else { return Err("this provider answers one file at a time".to_owned()) };
+        if file != self.file_no {
+            return Err(format!("asked for file {file}, this provider holds file {}", self.file_no));
         }
-        let (relation, _, _) = run.catalog(rel)?;
-        self.file.row_count(relation?)
+        for asked in request.relations {
+            out.push(self.one(run, asked.rel));
+        }
+        Ok(())
     }
 
-    fn fill(&mut self, run: &mut finish::Run, rel: &str, scope: finish::Scope<'_>) -> Result<finish::Table, String> {
-        let finish::Scope::File(file) = scope else { return Err(format!("{rel}: this provider answers one file at a time")) };
-        if file != self.file_no {
-            return Err(format!("{rel}: asked for file {file}, this provider holds file {}", self.file_no));
+    fn render(&mut self, node: u32, context: &str) -> Result<Option<Vec<u8>>, String> {
+        self.render_node(node, context)
+    }
+}
+
+impl ColFacts<'_, '_, '_, '_> {
+    /// One asked relation of this file: none made where the file's own contents say it has no row (`row_count`).
+    fn one(&mut self, run: &mut finish::Run, rel: &str) -> Result<finish::Table, String> {
+        if !self.kept.contains_key(rel)
+            && let Some((Some(relation), names, tys)) = run.catalog(rel)
+            && self.file.row_count(relation) == Some(0)
+        {
+            return Ok(finish::Table::with_rows(names, tys, 0));
         }
         let timed = finish::fill_prof::timed();
         let t0 = if timed { thread_cpu() } else { 0.0 };
@@ -1361,7 +1375,7 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
         Ok(t)
     }
 
-    fn render(&mut self, node: u32, context: &str) -> Result<Option<Vec<u8>>, String> {
+    fn render_node(&mut self, node: u32, context: &str) -> Result<Option<Vec<u8>>, String> {
         let context = match context {
             "assignment-target" => languages::RenderContext::AssignmentTarget,
             "attribute-receiver" => languages::RenderContext::AttributeReceiver,
@@ -1377,11 +1391,25 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
 }
 
 impl finish::Provider for Facts<'_, '_, '_> {
-    fn fill(&mut self, run: &mut finish::Run, rel: &str, scope: finish::Scope<'_>) -> Result<finish::Table, String> {
-        let finish::Scope::File(file) = scope else { return Err(format!("{rel}: this provider answers one file at a time")) };
+    /// redo-fills pass 3: the reader's facts answer the file's one request relation by relation.
+    fn answer(&mut self, run: &mut finish::Run, request: &finish::request::Request<'_>, out: &mut Vec<Result<finish::Table, String>>) -> Result<(), String> {
+        let finish::Scope::File(file) = request.scope else { return Err("this provider answers one file at a time".to_owned()) };
         if file != self.file {
-            return Err(format!("{rel}: asked for file {file}, this provider holds file {}", self.file));
+            return Err(format!("asked for file {file}, this provider holds file {}", self.file));
         }
+        for asked in request.relations {
+            out.push(self.one(run, asked.rel));
+        }
+        Ok(())
+    }
+
+    fn render(&mut self, node: u32, context: &str) -> Result<Option<Vec<u8>>, String> {
+        self.render_node(node, context)
+    }
+}
+
+impl Facts<'_, '_, '_> {
+    fn one(&mut self, run: &mut finish::Run, rel: &str) -> Result<finish::Table, String> {
         let t0 = thread_cpu();
         let (relation, _, _) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
         let relation = relation.ok_or_else(|| format!("{rel} needs VEC_COLWALK"))?;
@@ -1407,7 +1435,7 @@ impl finish::Provider for Facts<'_, '_, '_> {
         Ok(t)
     }
 
-    fn render(&mut self, node: u32, context: &str) -> Result<Option<Vec<u8>>, String> {
+    fn render_node(&mut self, node: u32, context: &str) -> Result<Option<Vec<u8>>, String> {
         let context = match context {
             "assignment-target" => languages::RenderContext::AssignmentTarget,
             "attribute-receiver" => languages::RenderContext::AttributeReceiver,

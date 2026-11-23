@@ -468,7 +468,7 @@ impl Exec<'_> {
     /// whose run reads nothing else first (`K::zero`: not semi, no seed test, every source a view or a keyed step). The
     /// front would read the views, find that entry the smallest, drive from it and end. Only views
     /// whose fill is read already are measured (an unread fill is not read here; `lit_rows` would read it as absent).
-    fn ksel_zero(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, kp: &K, sp: &super::SelPlan, put: Option<usize>) -> bool {
+    fn ksel_zero(&mut self, f: &mut File<'_>, run: &mut Run, _p: &mut dyn Provider, node: usize, kp: &K, sp: &super::SelPlan, put: Option<usize>) -> bool {
         for (i, s) in sp.srcs.iter().enumerate() {
             // a source put in place (the keyed entry's probed rows, a substitution's, a positional override) is a table
             if put == Some(i) || matches!(f.memo[*s], Some(super::Res::Tab(_))) || self.overridden(*s).is_some() {
@@ -477,7 +477,6 @@ impl Exec<'_> {
             let Ok(Some(v)) = self.view(run, *s) else { continue };
             if let super::Native::Fact(x) = v.base
                 && f.facts.get(usize::from(x)).is_none_or(Option::is_none)
-                && !(super::lazy_view::owed(f, usize::from(x)) && self.load_fact(f, run, p, v.base).is_ok())
             {
                 continue;
             }
@@ -593,19 +592,11 @@ impl Exec<'_> {
             None => self.take_positional(&sp.srcs),
         };
         super::empty_sel::lap(0, self.inner);
-        // redo-fills pass 2: views the front reads no size of, filled only past the front's early ends (lazy_view.rs);
         // `srcs` is redo-alloc's kept list (the wrapper's)
-        let mut late: [Option<Native>; 4] = [None; 4];
         for (i, n) in sp.srcs.iter().enumerate() {
             let src = match &ov {
                 Some((at, t)) if *at == i => Src::Tab(t.clone(), usize::MAX - 40),
-                _ => match if i < 4 { self.lazy_view(f, run, *n, conj, i, kp.kinds[i].0.is_some() || kp.kinds[i].1.is_some())? } else { None } {
-                    Some(v) => {
-                        late[i] = Some(v.base);
-                        Src::View(v, *n)
-                    }
-                    None => self.src_of(f, run, p, *n)?,
-                },
+                _ => self.src_of(f, run, p, *n)?,
             };
             if let Src::Tab(t, _) = &src
                 && t.n == 0
@@ -702,9 +693,6 @@ impl Exec<'_> {
                 srcs[i] = Src::Tab(t, n);
                 driver = Some(i);
             }
-        }
-        for b in late.into_iter().flatten() {
-            self.load_fact(f, run, p, b)?;
         }
         let driver = match driver {
             Some(d) => d,
