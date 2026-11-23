@@ -9,17 +9,18 @@ use std::fmt::Write as _;
 pub(super) const SYNTAX: [&str; 2] = ["semantic-syntax", "syntax-tree"];
 pub(super) const CHILD: [&str; 2] = ["semantic-child", "syntax-child"];
 
-/// Columns made available by the provider in addition to its relations catalog.
-pub(super) struct WalkFact {
-    pub name: &'static str,
-    pub columns: &'static [(&'static str, ryo::languages::CellKind)],
-    pub exact: bool,
-}
 pub(super) struct Vocab {
     pub(super) kinds: HashMap<String, u16>,
     pub(super) kind_names: Vec<String>,
     pub(super) fields: HashMap<String, u16>,
     pub(super) field_names: Vec<String>,
+}
+
+/// Columns made available by the provider in addition to its relations catalog.
+pub(super) struct WalkFact {
+    pub name: &'static str,
+    pub columns: &'static [(&'static str, ryo::languages::CellKind)],
+    pub exact: bool,
 }
 
 /// Fact availability, spelling and lexical text are supplied by the language provider.

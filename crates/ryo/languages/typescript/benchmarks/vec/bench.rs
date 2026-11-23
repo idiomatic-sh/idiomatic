@@ -34,46 +34,13 @@ mod reader_run;
 #[path = "../../../../crates/engine/benches/vec/spec.rs"]
 mod spec;
 
-fn thread_cpu() -> f64 {
-    thread_local! { static START: cpu_time::ThreadTime = cpu_time::ThreadTime::now(); }
-    START.with(|start| start.elapsed().as_secs_f64())
-}
+#[path = "../../../../crates/engine/benches/vec/reader_cli.rs"]
+mod reader_cli;
+use reader_cli::{alloc_counts, flag, rule_context, thread_cpu};
 
-fn flag(args: &[&str], name: &str) -> Option<String> {
-    args.iter()
-        .position(|&a| a == name)
-        .map(|at| args[at + 1].to_owned())
-}
-
-fn alloc_counts() -> [usize; 4] {
-    let [blocks, bytes, peak] = alloc_count::counts();
-    [blocks as usize, bytes as usize, 0, peak as usize]
-}
-
-fn rule_context(request: Option<&str>) -> ryo_engine::domain::plan_lowering::types::RuleContext {
-    if let Some(path) = request {
-        let context: serde_json::Value =
-            serde_json::from_slice(&std::fs::read(path).expect("request")).expect("JSON request");
-        assert!(
-            context["rule_context"].is_null() && context["rule_observations"].is_null(),
-            "this host provides no named context tables"
-        );
-    }
-    Default::default()
-}
-
-fn main() {
-    let start = thread_cpu();
-    let _allocator = alloc_count::start();
-    let args: Vec<_> = std::env::args()
-        .skip(1)
-        .filter(|arg| arg != "--bench")
-        .collect();
-    let [pack, request, findings] = args.as_slice() else {
-        panic!("usage: vec-ts PACK REQUEST FINDINGS");
-    };
+fn declaration() -> first::Language {
     // Resolved names can be escaped or implicit. Only actual syntax text entails a written word.
-    let language = first::Language {
+    first::Language {
         fact_family: |_| pair_summary::cost::Family::Fact,
         walk_facts: &[],
         host_len: finish::host::host_len,
@@ -82,15 +49,9 @@ fn main() {
         text_kinds: Vec::new(),
         file_sets: Vec::new(),
         is_identifier: oxc_syntax::identifier::is_identifier_name,
-    };
-    if !reader_run::run(
-        start,
-        ryo_typescript::linked(),
-        language,
-        pack,
-        request,
-        findings,
-    ) {
-        std::process::exit(1);
     }
+}
+
+fn main() {
+    reader_cli::main(ryo_typescript::linked, declaration);
 }

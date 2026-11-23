@@ -6,6 +6,9 @@ use ryo_relations::domain::relations::service as catalog;
 use std::collections::{BTreeSet, HashMap};
 use std::path::Path;
 
+#[path = "reader_coverage.rs"]
+mod coverage;
+
 #[derive(serde::Deserialize)]
 struct Request {
     root: String,
@@ -27,12 +30,15 @@ impl Names {
     fn width(&self) -> usize {
         self.0.len().div_ceil(64).max(1)
     }
+    fn mark(&self, value: u32, bits: &mut [u64]) {
+        if let Some(code) = self.0.get(&value) {
+            bits[usize::from(*code) / 64] |= 1 << (code % 64);
+        }
+    }
     fn present(&self, values: impl Iterator<Item = u32>) -> Vec<u64> {
         let mut bits = vec![0; self.width()];
         for value in values {
-            if let Some(code) = self.0.get(&value) {
-                bits[usize::from(*code) / 64] |= 1 << (code % 64);
-            }
+            self.mark(value, &mut bits);
         }
         bits
     }
@@ -117,8 +123,13 @@ pub(super) fn run(
         .filter(|n| n.op == "base")
         .map(|n| n.j["rel"].as_str().expect("base name"))
         .collect();
+    let mut run = finish::Run::default();
+    run.file_field_codes = true;
     for name in bases {
         let relation = catalog::relation_named(NameRef(name)).expect("reader catalog");
+        if parser.includes_expansions(relation) {
+            run.reader_tables.insert(name.to_owned());
+        }
         if let FactForm::Filled(FilledKey::Unique(key)) =
             ryo_relations::domain::catalog::service::fact_form(relation)
             && catalog::kind(key) == CellKind::Node
@@ -130,7 +141,6 @@ pub(super) fn run(
     let summaries_start = thread_cpu();
     let prepared = file_requirements(&read, &declaration);
     let summaries_cpu = thread_cpu() - summaries_start;
-    let mut run = finish::Run::default();
     run.empty = run.sym(b"");
     run.links();
     run.kind_sym = parser
@@ -202,6 +212,7 @@ pub(super) fn run(
             let rel = catalog::relation_named(NameRef(name)).expect("reader catalog");
             if ryo_relations::domain::catalog::service::fact_form(rel)
                 != ryo_relations::domain::relations::types::FactForm::NodeTable
+                || run.reader_tables.contains(name)
             {
                 assert!(
                     parser.absence_of(rel).is_none(),
@@ -243,6 +254,7 @@ pub(super) fn run(
     let mut elements = l::Elements::default();
     let mut table = l::NodeTable::default();
     let mut rows = l::contract::Collect::default();
+    let mut coverage = coverage::Coverage::default();
     let mut symbols = l::Symbols::default();
     let all: Vec<_> = dependencies
         .iter()
@@ -273,17 +285,38 @@ pub(super) fn run(
             &mut table,
             &mut provider,
         );
-        let visible_kinds = kinds.present(
+        let mut visible_kinds = kinds.present(
             node_table::kind_codes(&table)
                 .iter()
                 .map(|&k| fin.run.kind_sym[usize::from(k)]),
         );
-        let visible_fields = fields.present(
+        let mut visible_fields = fields.present(
             node_table::field_codes(&table)
                 .iter()
                 .map(|&f| fin.run.field_sym[usize::from(f)]),
         );
-        let visible_words = words.present(provider.text.iter().copied());
+        let mut visible_words = words.present(provider.text.iter().copied());
+        // The necessary-condition scan may see a superset: include vocabulary of
+        // every additional position without treating it as a concrete tree node.
+        for pos in provider.text.len() as u32..l::end_of(&elements).0 {
+            let pos = l::Position(pos);
+            kinds.mark(
+                fin.run.kind_sym[usize::from(l::kind_at(&elements, pos).0)],
+                &mut visible_kinds,
+            );
+            let field = reader::symbol(
+                &mut fin.run,
+                &symbols,
+                &bytes,
+                l::field_name_at(&elements, pos),
+            );
+            fields.mark(field, &mut visible_fields);
+            if l::flags_at(&elements, pos).0 & l::TOKEN.0 != 0 {
+                let word =
+                    reader::symbol(&mut fin.run, &symbols, &bytes, l::text_at(&elements, pos));
+                words.mark(word, &mut visible_words);
+            }
+        }
         skip.file(&visible_kinds, &visible_fields);
         let only = req.file_rules.get(path);
         let alive: Vec<bool> = (0..plan.emits.len())
@@ -315,6 +348,8 @@ pub(super) fn run(
             &facts,
             &mut rows,
         );
+        rows.partials
+            .retain(|(rel, _, missing)| coverage.needed(&plan, *rel, *missing));
         provider.receive(&mut fin.run, &facts, &rows, &symbols, &bytes);
         for &i in &wanted {
             active[i] += 1;

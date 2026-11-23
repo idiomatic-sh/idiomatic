@@ -1243,14 +1243,14 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
             finish::Scope::File(file) => file,
             finish::Scope::Files(files) => {
                 let start = finish::fill_prof::timed().then(thread_cpu);
-                let table = self.project.fill(run, rel, files, self.file_no, self.file.table, self.src);
-                if let (Some(start), Ok(table)) = (start, &table) {
+                let result = self.project.fill(run, rel, files, self.file_no, self.file.table, self.src);
+                if let (Some(start), Ok(table)) = (start, &result) {
                     let stat = self.by_rel.entry(rel.to_owned()).or_default();
                     stat.0 += thread_cpu() - start;
                     stat.1 += table.n as u64;
                     stat.2 += 1;
                 }
-                return table;
+                return result;
             }
         };
         if file != self.file_no {
@@ -1268,13 +1268,6 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
                 e.2 += 1;
             }
             return Ok(table);
-        }
-        if !self.kept.contains_key(rel)
-            && let Some((Some(relation), names, tys)) = run.catalog(rel)
-            && self.file.row_count(relation) == Some(0)
-        {
-            return Ok(finish::Table::with_rows(names, tys, 0));
-
         }
         let timed = finish::fill_prof::timed();
         let t0 = if timed { thread_cpu() } else { 0.0 };
@@ -1299,16 +1292,6 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
             expression_parts::fill(run, self.file, self.file_no, rel)?
         } else if matches!(rel, import_syntax::NEIGHBORS | import_syntax::HEADS | import_syntax::STATEMENTS | import_syntax::ALIASES | import_syntax::CONTEXTUAL_ALIASES | import_syntax::LINE_COMMENTS | import_syntax::ENTRIES) {
             import_syntax::fill(run, self.file, self.src, self.project, self.file_no, rel, &mut self.import_comments)?
-        } else if matches!(rel, fact_catalog::ASSIGNMENT_SOURCE_REL | fact_catalog::NAMESPACE_SITES_REL) {
-            let (_, names, tys) = run.catalog(rel).ok_or_else(|| format!("no {rel}"))?;
-            let mut rows = finish::Table::with_rows(names, tys, 0);
-            let complete = pair_provider::sites::visit(rel, self.file, u64::from(self.file_no),
-                |word| u64::from(run.sym(word.as_bytes())), |values| {
-                    for (col, &value) in rows.cols.iter_mut().zip(values) { col.push(value); }
-                    rows.n += 1;
-                });
-            if !complete { return Err(format!("{rel}: incomplete flow")); }
-            rows
         } else if rel == fact_catalog::PRE_DECLARATION_READ_REL {
             let (_, names, tys) = run.catalog(rel).ok_or("no pre-declaration-read")?;
             let mut rows = finish::Table::with_rows(names, tys, 0);
@@ -1323,6 +1306,16 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
             if !complete {
                 return Err("pre-declaration-read: incomplete flow".to_owned());
             }
+            rows
+        } else if matches!(rel, fact_catalog::ASSIGNMENT_SOURCE_REL | fact_catalog::NAMESPACE_SITES_REL) {
+            let (_, names, tys) = run.catalog(rel).ok_or_else(|| format!("no {rel}"))?;
+            let mut rows = finish::Table::with_rows(names, tys, 0);
+            let complete = pair_provider::sites::visit(rel, self.file, u64::from(self.file_no),
+                |word| u64::from(run.sym(word.as_bytes())), |values| {
+                    for (col, &value) in rows.cols.iter_mut().zip(values) { col.push(value); }
+                    rows.n += 1;
+                });
+            if !complete { return Err(format!("{rel}: incomplete flow")); }
             rows
         } else if rel == fact_catalog::BINDING_SITES_REL {
             let (_, names, tys) = run.catalog(rel).ok_or("no binding-sites")?;
@@ -1400,8 +1393,8 @@ impl finish::Provider for Facts<'_, '_, '_> {
         }
         if rel == fact_catalog::RELATIVE_IMPORT_REL {
             let imports = self.fill(run, "static-import", finish::Scope::File(file))?;
-            return relative_import::targets(run, &imports, file, |run| {
-                self.project.fill(run, provider_packaging::MODULE_IDENTITY_REL, &[file], file, self.facts.table, self.src)
+            return relative_import::targets(run, &imports, self.file, |run| {
+                self.project.fill(run, provider_packaging::MODULE_IDENTITY_REL, &[self.file], self.file, self.facts.table, self.src)
             });
         }
         let t0 = thread_cpu();
