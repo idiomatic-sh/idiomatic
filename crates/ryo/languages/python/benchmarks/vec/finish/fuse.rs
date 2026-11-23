@@ -739,7 +739,7 @@ impl Exec<'_> {
                         stop!(1);
                         continue;
                     }
-                    (self.body(f, run, p, n)?, usize::MAX - 41)
+                    (self.leaf_driver(f, run, p, root, n)?, usize::MAX - 41)
                 }
             };
             if dt.n == 0 {

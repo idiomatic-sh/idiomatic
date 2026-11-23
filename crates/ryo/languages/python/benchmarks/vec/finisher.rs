@@ -269,6 +269,7 @@ impl<'p> Finisher<'p> {
     /// Writes the findings, dumps and stats, and prints the second half's lines; `walk_time` is the walk's own time when
     /// the second half walked the files itself (0 inside the first half's walk).
     pub(super) fn end(mut self, walk_time: f64) {
+        self.exec.leaf_report(&mut self.run);
         let total = self.time + walk_time;
         let file_time = self.time;
         // redo-fuse: the fused runs' counters

@@ -83,6 +83,8 @@ mod view_cols;
 pub(super) mod emptyprop;
 #[path = "ordering.rs"]
 mod ordering;
+#[path = "finish/leaf_scan.rs"]
+mod leaf_scan;
 /// redo-fuse: a group of one-consumer steps run as one fused pass (the cut at plan load, the hook in `res`).
 #[path = "finish/fuse.rs"]
 pub(super) mod fuse;
@@ -1896,9 +1898,9 @@ impl<'p> Exec<'p> {
                 if let Some(t) = f.vmat.get(&node) {
                     return Ok(t.clone());
                 }
-                let t0 = step_clock();
+                let t0 = leaf_scan::table_clock();
                 let sc = self.schema(run, node)?;
-                let rows = view_rows(f, run, &v, node);
+                let rows = view_rows_for(f, run, &v, node, true);
                 let mut out = Table::with_rows(sc.names.clone(), sc.tys.clone(), rows.len());
                 for c in 0..v.map.len() {
                     view_cols::gather(f, run, v.base, v.map[c], &rows, &mut out.cols[c]);
@@ -1906,9 +1908,11 @@ impl<'p> Exec<'p> {
                 out.n = rows.len();
                 let rc = recycle::rc(out);
                 f.vmat.insert(node, rc.clone());
-                let dt = step_clock() - t0;
+                let dt = leaf_scan::table_clock() - t0;
                 self.stats.time[node] += dt;
-                self.inner += dt;
+                if self.timing || !sw!("VEC_LEAF_CLOCK") {
+                    self.inner += dt;
+                }
                 self.stats.calls[node] += 1;
                 self.stats.rows[node] += rc.n as u64;
                 Ok(rc)
@@ -3429,16 +3433,25 @@ fn view_holds(f: &File<'_>, run: &mut Run, v: &ViewSpec, row: u32) -> bool {
 
 /// A view's rows in this file: its kind bucket when its tests name kinds, else every base row; tested; made once a file.
 fn view_rows(f: &mut File<'_>, run: &mut Run, v: &ViewSpec, node: usize) -> Rc<Vec<u32>> {
+    view_rows_for(f, run, v, node, false)
+}
+
+fn view_rows_for(f: &mut File<'_>, run: &mut Run, v: &ViewSpec, node: usize, materialize: bool) -> Rc<Vec<u32>> {
     fill_prof::read(3);
     if let Some(r) = f.vrows.get(&node) {
         return r.clone();
     }
+    let start = if sw!("VEC_LEAF_PROFILE") { step_clock() } else { 0.0 };
     if filter_order::file_fails(run, f, &v.filter) {
         let rc = recycle::no_rows();
         f.vrows.insert(node, rc.clone());
+        if sw!("VEC_LEAF_PROFILE") {
+            leaf_scan::row_list(node, materialize, 0, 0, start);
+        }
         return rc;
     }
     // redo-alloc: the rows made into a kept list (recycle.rs), tested in place
+    let mut entered = 0;
     let rc = recycle::rows_with(|out| {
         match kind_set(run, &v.filter, 0, v.base, &[]) {
             Some(ks) => bucket_into(f, run, &ks, out),
@@ -3448,10 +3461,16 @@ fn view_rows(f: &mut File<'_>, run: &mut Run, v: &ViewSpec, node: usize) -> Rc<V
             },
         }
         // redo-fills: the view tests read as columns (view_cols)
-        if !v.filter.is_empty() {
+        entered = out.len();
+        if sw!("VEC_LEAF_TESTS") {
+            leaf_scan::count_tests(f, run, v, node, materialize, out);
+        } else if !v.filter.is_empty() {
             view_cols::retain(f, run, v, out);
         }
     });
+    if sw!("VEC_LEAF_PROFILE") {
+        leaf_scan::row_list(node, materialize, entered, rc.len(), start);
+    }
     f.vrows.insert(node, rc.clone());
     rc
 }
