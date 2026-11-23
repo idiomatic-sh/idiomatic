@@ -24,6 +24,8 @@ pub(super) struct Finisher<'p> {
     pub(super) run: finish::Run,
     exec: finish::Exec<'p>,
     findings: Vec<String>,
+    quoted_rules: Vec<std::cell::OnceCell<String>>,
+    quoted_paths: Vec<std::cell::OnceCell<String>>,
     failed: HashMap<String, String>,
     /// redo-honest: per plan emit, whether its rule runs only on a file whose syntax the parser accepted (the request's
     /// `rule_applicability`, `--applicability F`: "accepted-syntax"); without the flag every rule runs on every file.
@@ -74,7 +76,10 @@ impl<'p> Finisher<'p> {
         for (r, f) in surv.keys() {
             surv_by_path.entry(f.clone()).or_default().insert(r.clone());
         }
+        let quoted_paths = vec![std::cell::OnceCell::new(); run.paths.len()];
         let mut me = Self {
+            quoted_paths,
+            quoted_rules: vec![std::cell::OnceCell::new(); plan.emits.len()],
             plan,
             emits,
             emit_seeded: plan.emits.iter().map(|e| plan.seeds.contains(&e.0)).collect(),
@@ -113,19 +118,27 @@ impl<'p> Finisher<'p> {
     /// the first half kept it (`seeded` gets the emit's index into the plan's emits). Empty and no base check: the file
     /// need not be walked for the second half.
     pub(super) fn wanted(&mut self, path: &str, seeded: &dyn Fn(usize) -> bool) -> Vec<usize> {
+        let mut out = Vec::new();
+        self.wanted_into(path, seeded, &mut out);
+        out
+    }
+
+    pub(super) fn wanted_into(&mut self, path: &str, mut seeded: impl FnMut(usize) -> bool, out: &mut Vec<usize>) {
         let t0 = thread_cpu();
-        let surv_here = self.surv_by_path.get(path);
-        let w: Vec<usize> = self
-            .emits
-            .iter()
-            .copied()
-            .filter(|e| {
-                let name = &self.plan.emits[*e].0;
-                if self.emit_seeded[*e] { surv_here.is_some_and(|s| s.contains(name)) } else { seeded(*e) }
-            })
-            .collect();
+        out.clear();
+        if self.plan.seeds.is_empty() {
+            out.extend(self.emits.iter().copied().filter(|&emit| seeded(emit)));
+        } else {
+            let surv_here = self.surv_by_path.get(path);
+            out.extend(self.emits.iter().copied().filter(|&emit| {
+                if self.emit_seeded[emit] {
+                    surv_here.is_some_and(|s| s.contains(&self.plan.emits[emit].0))
+                } else {
+                    seeded(emit)
+                }
+            }));
+        }
         self.time += thread_cpu() - t0;
-        w
     }
 
     /// redo-general: the plan the second half runs (for a driver that derives its own inputs from it).
@@ -151,10 +164,10 @@ impl<'p> Finisher<'p> {
         if self.failed_idx[emit] || (self.accepted_only[emit] && languages::node_table::acceptance_of(table) == languages::SyntaxAcceptance::Rejected) {
             return None;
         }
-        let rule = serde_json::to_string(&self.plan.emits[emit].0).expect("rule string");
-        let path = serde_json::to_string(&self.run.paths[file]).expect("path string");
         let mut count = 0;
         super::pair_checks::each(nodes, |i| {
+            let rule = self.quoted_rules[emit].get_or_init(|| serde_json::to_string(&self.plan.emits[emit].0).expect("rule string"));
+            let path = self.quoted_paths[file].get_or_init(|| serde_json::to_string(&self.run.paths[file]).expect("path string"));
             let span = super::span_bytes(table, i as usize);
             self.findings.push(format!(r#"{{"rule":{rule},"file":{path},"start":{},"end":{}}}"#, span.start, span.end));
             count += 1;
@@ -214,7 +227,7 @@ impl<'p> Finisher<'p> {
                 if t.n == 0 { return Ok(()); }
                 let subject = t.col(&e.2)?;
                 let span = t.col("span").ok();
-                let rule = serde_json::to_string(&e.0).expect("rule string");
+                let rule = self.quoted_rules[*ei].get_or_init(|| serde_json::to_string(&e.0).expect("rule string"));
                 // The declared subject and key identify a finding. Independent keys
                 // may still project to the same diagnostic range.
                 let mut identity = vec![subject];
@@ -225,11 +238,11 @@ impl<'p> Finisher<'p> {
                         continue;
                     }
                     let target = if t.tys[subject] == finish::Ty::File {
-                        usize::try_from(t.cols[subject][r]).ok().and_then(|id| run.paths.get(id))
+                        usize::try_from(t.cols[subject][r]).ok().filter(|&id| id < run.paths.len())
                             .ok_or_else(|| format!("file subject outside the run: {}", t.cols[subject][r]))?
-                    } else { &run.paths[file_no] };
+                    } else { file_no };
                     let (st, en) = span.map_or((0, 0), |c| (t.cols[c][r] >> 32, t.cols[c][r] & 0xffff_ffff));
-                    let file = serde_json::to_string(target).expect("path string");
+                    let file = self.quoted_paths[target].get_or_init(|| serde_json::to_string(&run.paths[target]).expect("path string"));
                     self.findings.push(format!("{{\"rule\":{rule},\"file\":{file},\"start\":{st},\"end\":{en}}}"));
                 }
                 Ok(())
