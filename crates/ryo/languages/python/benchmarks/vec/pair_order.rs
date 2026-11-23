@@ -7,8 +7,18 @@ use rustc_hash::{FxHashMap as Map, FxHashSet as Set};
 pub(super) enum Bucket {
     Kind(u16),
     Field(u16),
+    Text(Id),
 }
 pub(super) struct Order {
+    pub inputs: Option<super::pair_checks::inputs::Inputs>,
+    pub presence: Option<super::pair_checks::presence::Presence>,
+    pub edges: Option<super::pair_checks::edge::Groups>,
+    pub regex: Option<super::pair_checks::regex_group::Groups>,
+    pub limits: Vec<(Id, Id)>,
+    pub codes: bool,
+    pub sparse: bool,
+    pub concrete: Vec<bool>,
+    pub shared: Vec<bool>,
     pub measure: bool,
     pub masks: Vec<super::pair_checks::mask::Conjuncts>,
     pub buckets: Vec<Vec<Bucket>>,
@@ -19,7 +29,11 @@ pub(super) struct Order {
 }
 
 impl Order {
-    pub fn new(p: &Program, keys: Vec<Option<ryo::languages::Column>>) -> Self {
+    pub fn new(
+        p: &Program,
+        keys: Vec<Option<ryo::languages::Column>>,
+        limits: Vec<(Id, Id)>,
+    ) -> Self {
         let mut costs: Vec<u8> = Vec::with_capacity(p.domains.len());
         let mut implies: Vec<Vec<Id>> = Vec::with_capacity(p.domains.len());
         let mut whole = Map::default();
@@ -80,6 +94,9 @@ impl Order {
         let mut done = vec![false; p.needs.len()];
         let mut price = vec![0; p.needs.len()];
         let mut open: Vec<_> = p.roots.iter().map(|r| r.1).collect();
+        for &(lo, hi) in &limits {
+            open.extend([lo, hi]);
+        }
         while let Some(root) = open.pop() {
             if std::mem::replace(&mut done[root], true) {
                 continue;
@@ -132,6 +149,7 @@ impl Order {
             let list = match *d {
                 Domain::Kind(k) | Domain::TextMatching(k, _) => vec![Bucket::Kind(k)],
                 Domain::Field(f) => vec![Bucket::Field(f)],
+                Domain::Text(_) => vec![Bucket::Text(buckets.len())],
                 Domain::Both(a, b) => {
                     let mut v = buckets[a].clone();
                     v.extend_from_slice(&buckets[b]);
@@ -143,7 +161,68 @@ impl Order {
             };
             buckets.push(list);
         }
+        let mut concrete: Vec<bool> = Vec::with_capacity(p.domains.len());
+        let mut uses = vec![0usize; p.domains.len()];
+        for d in &p.domains {
+            let bounded = match *d {
+                Domain::Any | Domain::Fact(..) | Domain::Matching(..) => false,
+                Domain::Both(a, b) | Domain::Either(a, b) => {
+                    uses[a] += 1;
+                    uses[b] += 1;
+                    if matches!(d, Domain::Both(..)) {
+                        concrete[a] || concrete[b]
+                    } else {
+                        concrete[a] && concrete[b]
+                    }
+                }
+                Domain::Parents(x) | Domain::Children(x) | Domain::Ancestors(x) => {
+                    uses[x] += 1;
+                    concrete[x]
+                }
+                _ => true,
+            };
+            concrete.push(bounded);
+        }
+        for n in &p.needs {
+            if let Need::Some(x) = n {
+                uses[*x] += 1;
+            }
+        }
+        let shared = uses
+            .iter()
+            .zip(&p.domains)
+            .map(|(&n, d)| {
+                n > 1
+                    && matches!(
+                        d,
+                        Domain::Parents(..)
+                            | Domain::Children(..)
+                            | Domain::TextMatching(..)
+                            | Domain::Both(..)
+                            | Domain::Either(..)
+                            | Domain::Fact(..)
+                            | Domain::Matching(..)
+                    )
+            })
+            .collect();
         Self {
+            codes: std::env::var_os("VEC_SYMBOL_CODES").is_some(),
+            sparse: std::env::var_os("VEC_SPARSE_FORMULA").is_some(),
+            inputs: std::env::var_os("VEC_INPUT_COLUMNS")
+                .is_some()
+                .then(|| super::pair_checks::inputs::prepare(p)),
+            presence: std::env::var_os("VEC_PRESENCE_GUARDS")
+                .is_some()
+                .then(|| super::pair_checks::presence::compile(p)),
+            edges: std::env::var_os("VEC_EDGE_WITNESSES")
+                .is_some()
+                .then(|| super::pair_checks::edge::compile(p)),
+            regex: std::env::var_os("VEC_GROUP_REGEX")
+                .is_some()
+                .then(|| super::pair_checks::regex_group::compile(p)),
+            limits,
+            concrete,
+            shared,
             masks: super::pair_checks::mask::compile(p),
             measure: std::env::var_os("VEC_SUMMARY_METRICS").is_some(),
             groups,

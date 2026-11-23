@@ -726,6 +726,49 @@ impl ColumnFile<'_, '_> {
         }
     }
 
+    /// Catalog keys for the direct node-presence projection.
+    #[must_use]
+    pub fn projects_nodes(relation:Relation,key:usize)->bool{
+        let native=match relation {
+            Relation::BindingEvent=>place!(BindingEvent,BindingEventColumn::Occurrence),
+            Relation::BindingRead=>place!(BindingRead,BindingReadColumn::Reference),
+            Relation::QualifiedName=>place!(QualifiedName,QualifiedNameColumn::Id),
+            Relation::Identifier=>place!(Identifier,IdentifierColumn::Id),
+            Relation::StringLiteral=>place!(StringLiteral,StringLiteralColumn::Occurrence),
+            Relation::LiteralProperties=>place!(LiteralProperties,LiteralPropertiesColumn::Id),
+            Relation::NumericLiteral=>place!(NumericLiteral,NumericLiteralColumn::Id),
+            Relation::ExpressionType=>place!(ExpressionType,ExpressionTypeColumn::Id),
+            _=>return false
+        };
+        native==key
+    }
+    /// Whether the direct node column has the canonical key and supports symbol projection.
+    #[must_use]
+    pub fn projects_symbols(relation:Relation,key:usize,column:usize)->bool {
+        match relation {
+            Relation::Identifier=>key==place!(Identifier,IdentifierColumn::Id) && column==place!(Identifier,IdentifierColumn::Name),
+            Relation::QualifiedName=>key==place!(QualifiedName,QualifiedNameColumn::Id) && [place!(QualifiedName,QualifiedNameColumn::Path),place!(QualifiedName,QualifiedNameColumn::Provenance)].contains(&column),
+            Relation::BindingEvent=>key==place!(BindingEvent,BindingEventColumn::Occurrence) && [place!(BindingEvent,BindingEventColumn::Name),place!(BindingEvent,BindingEventColumn::Kind)].contains(&column),
+            Relation::BindingRead=>key==place!(BindingRead,BindingReadColumn::Reference) && [place!(BindingRead,BindingReadColumn::Name),place!(BindingRead,BindingReadColumn::Context),place!(BindingRead,BindingReadColumn::State)].contains(&column),
+            Relation::LiteralProperties=>key==place!(LiteralProperties,LiteralPropertiesColumn::Id) && column==place!(LiteralProperties,LiteralPropertiesColumn::Kind),
+            Relation::ExpressionType=>key==place!(ExpressionType,ExpressionTypeColumn::Id) && [place!(ExpressionType,ExpressionTypeColumn::Resolution),place!(ExpressionType,ExpressionTypeColumn::Type)].contains(&column),
+            _=>false,
+        }
+    }
+    /// Existence of a complete relation without writing other cells of its rows.
+    pub fn summary_presence(&mut self,relation:Relation,at:Option<Position>)->Option<bool> {
+        if at.is_some(){return self.projected_key_exists(relation,at);}
+        match relation {
+            Relation::BindingEvent|Relation::BindingRead=>{
+                let read=self.file.semantics(ModelPart::Flow);
+                Some(read.model.flow.state==FlowState::Incomplete || if relation==Relation::BindingEvent {
+                    !read.model.flow.events.is_empty()
+                }else{!read.model.flow.reads.is_empty()})
+            }
+            Relation::LiteralProperties=>Some(nodes_of_kind(&self.file.syntax,Kind::Node(Node::Constant)).any(|v|properties(v.node).is_some())),
+            _=>self.projected_key_exists(relation,None)
+        }
+    }
     /// Complete keys for the shape relation when every native node has a shape.
     /// Escape commands and their ancestors can lack a class, so a file containing
     /// one uses the ordinary shape reader. Embedded segments have separate ids.

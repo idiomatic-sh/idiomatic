@@ -956,6 +956,8 @@ mod pair_skip;
 mod pair_checks;
 mod pair_order;
 mod summary_walk;
+mod summary_symbols;
+mod summary_physical;
 mod column_pair;
 mod source_batch;
 mod request;

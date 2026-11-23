@@ -3,9 +3,29 @@
 use super::*;
 impl File<'_> {
     pub(super) fn contains(&mut self, id: Id, at: Position) -> bool {
+        let shared = self.order.expect("ordered evaluator").shared[id];
+        let key = (id, at.0 / 64);
+        let bit = 1u64 << (at.0 % 64);
+        if shared
+            && let Some(&(seen, pass)) = self.local.get(&key)
+            && seen & bit != 0
+        {
+            return pass & bit != 0;
+        }
+        let yes = self.test_at(id, at);
+        if shared {
+            let (seen, pass) = self.local.entry(key).or_default();
+            *seen |= bit;
+            if yes {
+                *pass |= bit;
+            }
+        }
+        yes
+    }
+    fn test_at(&mut self, id: Id, at: Position) -> bool {
         self.node_tests += 1;
         if let Some(s) = &self.sets[id] {
-            return holds(s, at);
+            return holds(self.arena, s, at);
         }
         let order = self.order.expect("ordered evaluator");
         match self.p.domains[id] {
@@ -32,12 +52,31 @@ impl File<'_> {
                     self.contains(a, at) || self.contains(b, at)
                 }
             }
+            Domain::Children(x) if order.concrete[x] => {
+                let t = self.t;
+                let parent = node_table::parent_of(t, at);
+                parent != at
+                    && !node_table::embedded_segments(t).any(|s| s.root == at)
+                    && self.contains(x, parent)
+            }
+            Domain::Parents(x) if order.concrete[x] => {
+                let t = self.t;
+                node_table::children_of(t, at)
+                    .iter()
+                    .copied()
+                    .any(|c| self.contains(x, c))
+                    || node_table::embedded_segments(t)
+                        .any(|s| s.host == at && self.contains(x, s.root))
+            }
             Domain::Fact(slot, _) | Domain::Matching(slot, _, _)
                 if !self.facts[slot].read && order.keys[slot].is_some() =>
             {
                 self.at_fact(id, slot, at)
             }
-            _ => holds(&self.nodes(id), at),
+            _ => {
+                let s = self.nodes(id);
+                holds(self.arena, &s, at)
+            }
         }
     }
     fn text(&self, at: Position) -> &[u8] {
@@ -97,20 +136,60 @@ impl File<'_> {
         }
     }
 
-    pub(super) fn native_witness(&mut self, id: Id) -> Option<bool> {
-        // The node table is borrowed independently of the mutable per-file memo.
+    // Below one candidate per machine word, testing the candidates is cheaper
+    // in iterations than touching every word of even one file-wide bitset.
+    pub(super) fn sparse_witness(&mut self, id: Id) -> Option<bool> {
         let t = self.t;
-        let key = self.order?.buckets[id].iter().min_by_key(|b| match b {
-            Bucket::Kind(k) => node_table::ids_of_kind(t, languages::KindBits(*k)).len(),
-            Bucket::Field(f) => node_table::field_count(t, languages::FieldCode(*f)).0,
-        })?;
+        let order = self.order?;
+        let mut limit = node_table::element_count(t).0.div_ceil(u64::BITS as usize);
+        let mut best = None;
+        for &key in &order.buckets[id] {
+            let n = match key {
+                Bucket::Kind(k) => node_table::ids_of_kind(t, languages::KindBits(k)).len(),
+                Bucket::Field(f) => node_table::field_count(t, languages::FieldCode(f)).0,
+                Bucket::Text(d) => {
+                    self.index_texts();
+                    let Domain::Text(ref text) = self.p.domains[d] else {
+                        unreachable!()
+                    };
+                    self.texts
+                        .as_ref()
+                        .unwrap()
+                        .get(text.as_bytes())
+                        .map_or(0, Vec::len)
+                }
+            };
+            if n == 0 {
+                return Some(false);
+            }
+            if n <= limit {
+                best = Some(key);
+                limit = n;
+            }
+        }
+        let key = best?;
         self.bucket_requests += 1;
-        if self.order.unwrap().measure {
-            self.visited_buckets.insert(*key);
+        if order.measure {
+            self.visited_buckets.insert(key);
         }
         let ids = match key {
-            Bucket::Kind(k) => node_table::ids_of_kind(t, languages::KindBits(*k)),
-            Bucket::Field(f) => node_table::ids_of_field(t, languages::FieldCode(*f)),
+            Bucket::Kind(k) => node_table::ids_of_kind(t, languages::KindBits(k)),
+            Bucket::Field(f) => node_table::ids_of_field(t, languages::FieldCode(f)),
+            Bucket::Text(d) => {
+                let set = self.nodes(d).expect("finite literal domain");
+                return Some((0..set.len()).any(|w| {
+                    let mut bits = self.arena.word(set, w);
+                    while bits != 0 {
+                        let at = Position(w as u32 * 64 + bits.trailing_zeros());
+                        self.candidates += 1;
+                        if self.contains(id, at) {
+                            return true;
+                        }
+                        bits &= bits - 1;
+                    }
+                    false
+                }));
+            }
         };
         Some(ids.iter().copied().any(|at| {
             self.candidates += 1;
@@ -118,9 +197,9 @@ impl File<'_> {
         }))
     }
 }
-fn holds(s: &Nodes, at: Position) -> bool {
-    s.as_ref().is_none_or(|bits| {
-        bits.get((at.0 / 64) as usize)
-            .is_some_and(|w| w & (1 << (at.0 % 64)) != 0)
+fn holds(arena: &Arena, s: &Nodes, at: Position) -> bool {
+    s.is_none_or(|b| {
+        let i = (at.0 / 64) as usize;
+        i < b.len() && arena.word(b, i) & (1 << (at.0 % 64)) != 0
     })
 }

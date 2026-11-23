@@ -45,25 +45,12 @@ fn nonempty(set: &Nodes) -> bool {
     set.as_ref().is_none_or(|b| !b.is_empty())
 }
 
-fn intersect(left: Nodes, right: Nodes) -> Nodes {
+fn intersect(arena: &mut Arena, left: Nodes, right: Nodes) -> Nodes {
     match (left, right) {
-        (Some(l), Some(r)) => {
-            if l.is_empty() {
-                return Some(l);
-            }
-            if r.is_empty() {
-                return Some(r);
-            }
-            let mut v: Vec<_> = l.iter().zip(r.iter()).map(|(a, b)| a & b).collect();
-            while v.last() == Some(&0) {
-                v.pop();
-            }
-            Some(Rc::new(v))
-        }
-        (l, r) => l.or(r),
+        (Some(a), Some(b)) => Some(arena.intersect(a, b)),
+        (a, b) => a.or(b),
     }
 }
-
 impl File<'_> {
     pub(super) fn masked_witness(&mut self, id: Id) -> Option<bool> {
         let order = self.order?;
@@ -74,7 +61,7 @@ impl File<'_> {
         let mut allowed = None;
         for &term in &plan.syntax {
             let nodes = self.nodes(term);
-            allowed = intersect(allowed, nodes);
+            allowed = intersect(self.arena, allowed, nodes);
             if !nonempty(&allowed) {
                 return Some(false);
             }
@@ -99,11 +86,11 @@ impl File<'_> {
             let nodes = self.nodes(term);
             if !keyed && i + 1 == plan.facts.len() {
                 return Some(match (&allowed, &nodes) {
-                    (Some(a), Some(b)) => a.iter().zip(b.iter()).any(|(x, y)| x & y != 0),
+                    (Some(a), Some(b)) => self.arena.intersects(*a, *b),
                     (a, b) => nonempty(a) && nonempty(b),
                 });
             }
-            allowed = intersect(allowed, nodes);
+            allowed = intersect(self.arena, allowed, nodes);
             if !nonempty(&allowed) {
                 return Some(false);
             }
@@ -112,8 +99,8 @@ impl File<'_> {
             return Some(true);
         }
         let mask = allowed.expect("bounded syntax");
-        for (w, &word) in mask.iter().enumerate() {
-            let mut live = word;
+        for w in 0..mask.len() {
+            let mut live = self.arena.word(mask, w);
             while live != 0 {
                 let node = Position(w as u32 * 64 + live.trailing_zeros());
                 self.candidates += 1;

@@ -3,19 +3,35 @@ use super::pair_order::{Bucket, Order};
 use super::pair_summary::{Domain, Id, Need, Program};
 use rustc_hash::FxHashMap as Map;
 use ryo::languages::{self, FileWords, FilledColumns, NodeTable, Position, Relation, node_table};
-use std::rc::Rc;
+#[path = "pair_arena.rs"]
+mod arena;
+use arena::{Arena, Bits};
+#[path = "pair_edge.rs"]
+pub(super) mod edge;
+#[path = "pair_inputs.rs"]
+pub(super) mod inputs;
 #[path = "pair_mask.rs"]
 pub(super) mod mask;
+#[path = "pair_presence.rs"]
+pub(super) mod presence;
 #[path = "pair_probe.rs"]
 mod probe;
+#[path = "pair_regex.rs"]
+pub(super) mod regex_group;
+#[path = "pair_symbols.rs"]
+mod symbol_codes;
 
-type Bits = Rc<Vec<u64>>;
 // None is the unconstrained node set. An empty vector is the empty set.
 type Nodes = Option<Bits>;
 pub(super) enum Request<'a> {
     Rows(languages::Wanted),
     Has(Option<Position>),
-    Keys(&'a mut Vec<u64>),
+    Keys(usize, &'a mut Vec<u64>),
+    Symbols {
+        key: usize,
+        column: usize,
+        index: &'a mut Map<Id, Vec<u32>>,
+    },
 }
 type Reader<'a> =
     dyn FnMut(Relation, Request<'_>, &mut FileWords, &mut FilledColumns) -> Option<bool> + 'a;
@@ -36,6 +52,17 @@ pub(super) struct Work {
     pub bucket_requests: u64,
     pub distinct_buckets: usize,
 }
+#[derive(Default)]
+pub(super) struct Scratch {
+    codes: symbol_codes::Codes,
+    pub counts: Vec<u64>,
+    pub peak_words: usize,
+    pub total_words: u64,
+    arena: Arena,
+    facts: Vec<Table>,
+    sets: Vec<Option<Nodes>>,
+    needs: Vec<Option<bool>>,
+}
 struct File<'a> {
     p: &'a Program,
     order: Option<&'a Order>,
@@ -44,13 +71,20 @@ struct File<'a> {
     path: Option<&'a [u8]>,
     read: &'a mut Reader<'a>,
     words: &'a mut FileWords,
-    facts: Vec<Table>,
-    sets: Vec<Option<Nodes>>,
-    needs: Vec<Option<bool>>,
+    arena: &'a mut Arena,
+    codes: &'a mut symbol_codes::Codes,
+    counts: &'a mut [u64],
+    facts: &'a mut [Table],
+    sets: &'a mut [Option<Nodes>],
+    needs: &'a mut [Option<bool>],
     texts: Option<Map<&'a [u8], Vec<u32>>>,
     steps: u64,
     candidates: u64,
     node_tests: u64,
+    local: Map<(Id, u32), (u64, u64)>,
+    edges: edge::Answers,
+    bucket_texts: Map<u16, inputs::BucketText<'a>>,
+    absent: Vec<u64>,
     bucket_requests: u64,
     visited_buckets: rustc_hash::FxHashSet<Bucket>,
 }
@@ -61,13 +95,6 @@ fn insert(bits: &mut Vec<u64>, n: u32) {
         bits.resize(w + 1, 0)
     }
     bits[w] |= 1 << (n % 64);
-}
-fn bits(ids: impl IntoIterator<Item = u32>) -> Bits {
-    let mut b = Vec::new();
-    for n in ids {
-        insert(&mut b, n)
-    }
-    Rc::new(b)
 }
 fn each(b: &[u64], mut visit: impl FnMut(u32)) {
     for (i, &word) in b.iter().enumerate() {
@@ -125,6 +152,10 @@ impl File<'_> {
             return x;
         }
         self.steps += 1;
+        if self.missing(id, false) {
+            self.needs[id] = Some(false);
+            return false;
+        }
         let yes = match self.p.needs[id] {
             Need::Any => true,
             Need::Empty => false,
@@ -148,16 +179,21 @@ impl File<'_> {
                     .unwrap()
                     .as_ref()
                     .is_none_or(|b| !b.is_empty()),
+                _ if self.order.is_some()
+                    && let Some(value) = self.edge_witness(x) =>
+                {
+                    value
+                }
+                Domain::Both(..) | Domain::TextMatching(..)
+                    if self.order.is_some_and(|o| o.sparse)
+                        && let Some(value) = self.sparse_witness(x) =>
+                {
+                    value
+                }
                 _ if self.order.is_some_and(|o| !o.masks.is_empty())
                     && let Some(yes) = self.masked_witness(x) =>
                 {
                     yes
-                }
-                Domain::Both(..) | Domain::TextMatching(..)
-                    if self.order.is_some_and(|o| o.masks.is_empty())
-                        && !self.order.unwrap().buckets[x].is_empty() =>
-                {
-                    self.native_witness(x).unwrap()
                 }
                 Domain::Both(a, b) => {
                     let (a, b) = self.first(*a, *b);
@@ -166,7 +202,7 @@ impl File<'_> {
                         false
                     } else {
                         match (l, self.nodes(b)) {
-                            (Some(l), Some(r)) => l.iter().zip(r.iter()).any(|(a, b)| a & b != 0),
+                            (Some(l), Some(r)) => self.arena.intersects(l, r),
                             (l, r) => l.or(r).is_none_or(|v| !v.is_empty()),
                         }
                     }
@@ -210,61 +246,93 @@ impl File<'_> {
         self.needs[id] = Some(yes);
         yes
     }
+    fn index_texts(&mut self) {
+        if self.literal_postings() {
+            return;
+        }
+        self.texts.get_or_insert_with(|| {
+            let mut m = Map::<&[u8], Vec<u32>>::default();
+            for i in self.p.text_kinds.iter().flat_map(|k| {
+                node_table::ids_of_kind(self.t, languages::KindBits(*k))
+                    .iter()
+                    .map(|p| p.0)
+            }) {
+                let value = node_table::decoded_of(self.t, Position(i)).map_or_else(
+                    || &self.src[super::span_bytes(self.t, i as usize)],
+                    |t| t.0.as_bytes(),
+                );
+                if value.len() <= self.p.max_text && self.p.texts.contains(value) {
+                    m.entry(value).or_default().push(i);
+                }
+            }
+            m
+        });
+    }
     fn nodes(&mut self, id: Id) -> Nodes {
         if let Some(s) = &self.sets[id] {
             return s.clone();
         }
+        if !self.counts.is_empty() {
+            self.counts[id] += 1;
+        }
         self.steps += 1;
+        if self.missing(id, true) {
+            let empty = Some(Bits::default());
+            self.sets[id] = Some(empty);
+            return empty;
+        }
         let n =
             u32::try_from(node_table::element_count(self.t).0).expect("table positions fit u32");
+        if let Some(mask) = self.input_mask(id) {
+            return mask;
+        }
+        if matches!(
+            self.p.domains[id],
+            Domain::TextMatching(..) | Domain::Matching(..)
+        ) && let Some(set) = self.grouped_matches(id)
+        {
+            return set;
+        }
         let nodes = match &self.p.domains[id] {
             Domain::Any => None,
-            Domain::Empty => Some(Rc::default()),
-            Domain::Kind(k) => Some(bits(
-                node_table::ids_of_kind(self.t, languages::KindBits(*k))
-                    .iter()
-                    .map(|p| p.0),
-            )),
-            Domain::Field(k) => Some(bits(
-                node_table::ids_of_field(self.t, languages::FieldCode(*k))
-                    .iter()
-                    .map(|p| p.0),
-            )),
-            Domain::TextMatching(k, re) => {
-                let regex = &self.p.regexes[*re];
-                Some(bits(
+            Domain::Empty => Some(Bits::default()),
+            Domain::Kind(k) => Some(
+                self.arena.bits(
                     node_table::ids_of_kind(self.t, languages::KindBits(*k))
                         .iter()
-                        .filter_map(|p| {
-                            let text = node_table::decoded_of(self.t, *p).map_or_else(
-                                || &self.src[super::span_bytes(self.t, p.0 as usize)],
-                                |t| t.0.as_bytes(),
-                            );
-                            regex.is_match(text).then_some(p.0)
-                        }),
-                ))
-            }
-            Domain::Text(t) => {
-                let by_text = self.texts.get_or_insert_with(|| {
-                    let mut m = Map::<&[u8], Vec<u32>>::default();
-                    for i in self.p.text_kinds.iter().flat_map(|k| {
+                        .map(|p| p.0),
+                ),
+            ),
+            Domain::Field(k) => Some(
+                self.arena.bits(
+                    node_table::ids_of_field(self.t, languages::FieldCode(*k))
+                        .iter()
+                        .map(|p| p.0),
+                ),
+            ),
+            Domain::TextMatching(k, re) => {
+                let regex = &self.p.regexes[*re];
+                Some(
+                    self.arena.bits(
                         node_table::ids_of_kind(self.t, languages::KindBits(*k))
                             .iter()
-                            .map(|p| p.0)
-                    }) {
-                        let value = node_table::decoded_of(self.t, Position(i)).map_or_else(
-                            || &self.src[super::span_bytes(self.t, i as usize)],
-                            |t| t.0.as_bytes(),
-                        );
-                        if value.len() <= self.p.max_text && self.p.texts.contains(value) {
-                            m.entry(value).or_default().push(i);
-                        }
-                    }
-                    m
-                });
-                Some(bits(
-                    by_text.get(t.as_bytes()).into_iter().flatten().copied(),
-                ))
+                            .filter_map(|p| {
+                                let text = node_table::decoded_of(self.t, *p).map_or_else(
+                                    || &self.src[super::span_bytes(self.t, p.0 as usize)],
+                                    |t| t.0.as_bytes(),
+                                );
+                                regex.is_match(text).then_some(p.0)
+                            }),
+                    ),
+                )
+            }
+            Domain::Text(t) => {
+                self.index_texts();
+                let by_text = self.texts.as_ref().unwrap();
+                Some(
+                    self.arena
+                        .bits(by_text.get(t.as_bytes()).into_iter().flatten().copied()),
+                )
             }
             Domain::Both(a, b) => {
                 let (a, b) = self.first(*a, *b);
@@ -273,38 +341,24 @@ impl File<'_> {
                     l
                 } else {
                     match (l, self.nodes(b)) {
-                        (Some(a), Some(b)) => {
-                            let mut v: Vec<_> =
-                                a.iter().zip(b.iter()).map(|(x, y)| x & y).collect();
-                            while v.last() == Some(&0) {
-                                v.pop();
-                            }
-                            Some(Rc::new(v))
-                        }
+                        (Some(a), Some(b)) => Some(self.arena.intersect(a, b)),
                         (a, b) => a.or(b),
                     }
                 }
             }
             Domain::Either(a, b) => match (self.nodes(*a), self.nodes(*b)) {
-                (Some(a), Some(b)) => {
-                    let (a, b) = if a.len() >= b.len() { (a, b) } else { (b, a) };
-                    let mut v = (*a).clone();
-                    for (x, y) in v.iter_mut().zip(b.iter()) {
-                        *x |= *y
-                    }
-                    Some(Rc::new(v))
-                }
+                (Some(a), Some(b)) => Some(self.arena.union(a, b)),
                 _ => None,
             },
             Domain::Parents(x) | Domain::Children(x) | Domain::Ancestors(x) => {
                 let children = matches!(self.p.domains[id], Domain::Children(_));
                 let ancestors = matches!(self.p.domains[id], Domain::Ancestors(_));
                 self.nodes(*x).map(|b| {
-                    let mut out = Vec::new();
-                    each(&b, |i| {
+                    let out = &mut self.arena.work;
+                    each(&self.arena.words[b.range()], |i| {
                         if children {
                             for c in node_table::children_of(self.t, Position(i)) {
-                                insert(&mut out, c.0)
+                                insert(out, c.0)
                             }
                         } else {
                             let mut child = i;
@@ -320,7 +374,7 @@ impl File<'_> {
                                 {
                                     break;
                                 }
-                                insert(&mut out, p);
+                                insert(out, p);
                                 if !ancestors {
                                     break;
                                 }
@@ -328,7 +382,7 @@ impl File<'_> {
                             }
                         }
                     });
-                    Rc::new(out)
+                    self.arena.finish()
                 })
             }
             Domain::Matching(slot, col, re) => {
@@ -340,47 +394,98 @@ impl File<'_> {
                 } else {
                     let key = spec.key.and_then(|k| table.cells.0.get(k));
                     let regex = &self.p.regexes[*re];
-                    Some(bits(
-                        table
-                            .cells
-                            .0
-                            .get(*col)
-                            .into_iter()
-                            .flat_map(|c| c.0.iter())
-                            .enumerate()
-                            .filter_map(|(r, cell)| {
-                                let yes = if spec.kinds[*col] == languages::CellKind::Span {
-                                    let span = (cell.0 >> 32) as usize..(cell.0 as u32) as usize;
-                                    self.src.get(span).is_some_and(|text| regex.is_match(text))
-                                } else {
-                                    regex.is_match(
-                                        languages::facts::text(self.words, *cell).0.as_bytes(),
-                                    )
-                                };
-                                yes.then(|| key.map_or(0, |c| c.0[r].0 as u32))
-                                    .filter(|x| spec.key.is_none() || *x < n)
-                            }),
-                    ))
+                    Some(
+                        self.arena.bits(
+                            table
+                                .cells
+                                .0
+                                .get(*col)
+                                .into_iter()
+                                .flat_map(|c| c.0.iter())
+                                .enumerate()
+                                .filter_map(|(r, cell)| {
+                                    let yes = if spec.kinds[*col] == languages::CellKind::Span {
+                                        let span =
+                                            (cell.0 >> 32) as usize..(cell.0 as u32) as usize;
+                                        self.src.get(span).is_some_and(|text| regex.is_match(text))
+                                    } else {
+                                        regex.is_match(
+                                            languages::facts::text(self.words, *cell).0.as_bytes(),
+                                        )
+                                    };
+                                    yes.then(|| key.map_or(0, |c| c.0[r].0 as u32))
+                                        .filter(|x| spec.key.is_none() || *x < n)
+                                }),
+                        ),
+                    )
                 }
             }
             Domain::Fact(slot, test) => {
                 let spec = &self.p.facts[*slot];
-                if self.order.is_some() && test.is_none() && !self.facts[*slot].read {
+                if self.order.is_some()
+                    && test.is_none()
+                    && !self.facts[*slot].read
+                    && let Some(key) = spec.key
+                {
                     let mut keys = Vec::new();
-                    if (self.read)(
+                    if let Some(complete) = (self.read)(
                         spec.relation,
-                        Request::Keys(&mut keys),
+                        Request::Keys(key, &mut keys),
                         self.words,
                         &mut FilledColumns::default(),
-                    )
-                    .is_some()
-                    {
+                    ) {
+                        if !complete {
+                            self.sets[id] = Some(None);
+                            return None;
+                        }
                         while keys.last() == Some(&0) {
                             keys.pop();
                         }
-                        let out = Some(Rc::new(keys));
+                        let out = Some(self.arena.commit(&keys));
                         self.sets[id] = Some(out.clone());
                         return out;
+                    }
+                }
+                if self.order.is_some()
+                    && let (Some(key), Some((col, values))) = (spec.key, test)
+                    && !self.facts[*slot].read
+                {
+                    let table = &mut self.facts[*slot];
+                    if !table.index.contains_key(col) {
+                        let mut index = Map::default();
+                        let answer = (self.read)(
+                            spec.relation,
+                            Request::Symbols {
+                                key,
+                                column: *col,
+                                index: &mut index,
+                            },
+                            self.words,
+                            &mut FilledColumns::default(),
+                        );
+                        match answer {
+                            Some(true) => {
+                                table.index.insert(*col, index);
+                            }
+                            Some(false) => {
+                                self.sets[id] = Some(None);
+                                return None;
+                            }
+                            None => {}
+                        }
+                    }
+                    if let Some(index) = table.index.get(col) {
+                        let set = Some(
+                            self.arena.bits(
+                                values
+                                    .iter()
+                                    .filter_map(|v| index.get(v))
+                                    .flatten()
+                                    .copied(),
+                            ),
+                        );
+                        self.sets[id] = Some(set.clone());
+                        return set;
                     }
                 }
                 let table = &mut self.facts[*slot];
@@ -391,27 +496,41 @@ impl File<'_> {
                     let key = spec.key.and_then(|k| table.cells.0.get(k));
                     let node = |r: usize| key.map_or(0, |c| c.0[r].0 as u32);
                     if let Some((col, values)) = test {
+                        let integer = self.order.is_some_and(|o| o.codes);
+                        if integer {
+                            self.codes.extend(self.words, &self.p.symbols);
+                        }
                         let idx = table.index.entry(*col).or_insert_with(|| {
                             let mut m = Map::<Id, Vec<u32>>::default();
                             if let Some(column) = table.cells.0.get(*col) {
                                 for (r, &cell) in column.0.iter().enumerate() {
-                                    let text = languages::facts::text(self.words, cell);
-                                    if let Some(&id) = self.p.symbols.get(text.0) {
+                                    let symbol = if integer {
+                                        self.codes.symbol(cell)
+                                    } else {
+                                        self.p
+                                            .symbols
+                                            .get(languages::facts::text(self.words, cell).0)
+                                            .copied()
+                                    };
+                                    if let Some(id) = symbol {
                                         m.entry(id).or_default().push(node(r));
                                     }
                                 }
                             }
                             m
                         });
-                        Some(bits(
-                            values.iter().filter_map(|v| idx.get(v)).flatten().copied(),
-                        ))
+                        Some(
+                            self.arena
+                                .bits(values.iter().filter_map(|v| idx.get(v)).flatten().copied()),
+                        )
                     } else {
-                        Some(bits(
-                            (0..table.cells.0.first().map_or(0, |c| c.0.len()))
-                                .map(node)
-                                .filter(|x| spec.key.is_none() || *x < n),
-                        ))
+                        Some(
+                            self.arena.bits(
+                                (0..table.cells.0.first().map_or(0, |c| c.0.len()))
+                                    .map(node)
+                                    .filter(|x| spec.key.is_none() || *x < n),
+                            ),
+                        )
                     }
                 }
             }
@@ -432,6 +551,7 @@ impl Program {
         alive: &mut [bool],
     ) -> u64 {
         self.ordered_file(
+            &mut Scratch::default(),
             None,
             t,
             src,
@@ -444,6 +564,7 @@ impl Program {
     }
     pub(super) fn ordered_file(
         &self,
+        scratch: &mut Scratch,
         order: Option<&Order>,
         t: &NodeTable,
         src: &[u8],
@@ -453,6 +574,22 @@ impl Program {
         alive: &mut [bool],
     ) -> Work {
         languages::facts::clear_words(words);
+        scratch.codes.next_file(words);
+        scratch.arena.words.clear();
+        scratch.sets.clear();
+        scratch.sets.resize(self.domains.len(), None);
+        scratch.needs.clear();
+        scratch.needs.resize(self.needs.len(), None);
+        scratch.facts.resize_with(self.facts.len(), Table::default);
+        for table in &mut scratch.facts {
+            table.read = false;
+            table.complete = false;
+            table.index.clear();
+            table.by_node.clear();
+            for col in &mut table.cells.0 {
+                col.0.clear();
+            }
+        }
         let mut f = File {
             p: self,
             order,
@@ -461,21 +598,40 @@ impl Program {
             path,
             read: &mut read,
             words,
-            facts: (0..self.facts.len()).map(|_| Table::default()).collect(),
-            sets: vec![None; self.domains.len()],
-            needs: vec![None; self.needs.len()],
+            arena: &mut scratch.arena,
+            codes: &mut scratch.codes,
+            counts: &mut scratch.counts,
+            facts: &mut scratch.facts,
+            sets: &mut scratch.sets,
+            needs: &mut scratch.needs,
             texts: None,
             steps: 0,
             candidates: 0,
             node_tests: 0,
+            local: Map::default(),
+            edges: edge::Answers::default(),
+            bucket_texts: Map::default(),
+            absent: Vec::new(),
             bucket_requests: 0,
             visited_buckets: Default::default(),
         };
-        for (a, (_, root)) in alive.iter_mut().zip(&self.roots) {
+        f.collect_absent();
+        for (r, (a, (_, root))) in alive.iter_mut().zip(&self.roots).enumerate() {
             if *a {
+                if let Some(&(lo, hi)) = order.and_then(|o| o.limits.get(r)) {
+                    if hi != 0 && hi != *root && !f.pass(hi) {
+                        *a = false;
+                        continue;
+                    }
+                    if lo != 1 && lo != *root && f.pass(lo) {
+                        continue;
+                    }
+                }
                 *a = f.pass(*root)
             }
         }
+        scratch.peak_words = scratch.peak_words.max(f.arena.words.len());
+        scratch.total_words += f.arena.words.len() as u64;
         Work {
             steps: f.steps,
             candidates: f.candidates,

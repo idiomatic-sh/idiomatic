@@ -49,6 +49,13 @@ pub(super) fn run(
     }
     let (mut first_children, mut second_children) = (0usize, 0usize);
     let prep = thread_cpu();
+    let physical = std::env::var_os("VEC_CANONICAL").is_some()
+        || std::env::var_os("VEC_SYNTAX_BOUNDS").is_some();
+    let compiled = physical.then(|| {
+        super::summary_physical::compile(program, std::env::var_os("VEC_SYNTAX_BOUNDS").is_some())
+    });
+    let program = compiled.as_ref().map_or(program, |c| &c.0);
+    let limits = compiled.as_ref().map_or_else(Vec::new, |c| c.1.clone());
     let keys = program
         .facts
         .iter()
@@ -60,12 +67,24 @@ pub(super) fn run(
         })
         .collect();
     let order = (std::env::var_os("VEC_REFERENCE_CHECKS").is_none())
-        .then(|| super::pair_order::Order::new(program, keys));
+        .then(|| super::pair_order::Order::new(program, keys, limits));
     println!(
         "summary evaluation preparation {:.6} s",
         thread_cpu() - prep
     );
+    if let Some(group) = order.as_ref().and_then(|o| o.regex.as_ref()) {
+        println!(
+            "regex expressions beyond combined automaton capacity {}",
+            group.ungrouped
+        );
+    }
     let diagnostic = std::env::var_os("VEC_SUMMARY_METRICS").is_some();
+    let mut scratch = super::pair_checks::Scratch::default();
+    if std::env::var_os("VEC_DOMAIN_COUNTS").is_some() {
+        scratch.counts.resize(program.domains.len(), 0);
+    }
+    let mut symbol_columns = super::summary_symbols::Columns::default();
+    symbol_columns.project_keys = std::env::var_os("VEC_PROJECT_KEYS").is_some();
     let mut metrics = rustc_hash::FxHashMap::<
         languages::Relation,
         (usize, usize, usize, usize, usize, usize, f64),
@@ -135,7 +154,9 @@ pub(super) fn run(
                     let path = root
                         .as_ref()
                         .map(|r| list[id].strip_prefix(r).unwrap_or(&list[id]).as_bytes());
+                    symbol_columns.memo.new_file();
                     let work = program.ordered_file(
+                        &mut scratch,
                         order.as_ref(),
                         t,
                         bytes,
@@ -156,18 +177,39 @@ pub(super) fn run(
                                     row_count = out.0.first().map_or(0, |c| c.0.len());
                                     Some(matches!(result, languages::FactAnswer::Answered(_)))
                                 }
-                                Request::Has(at) => file.projected_key_exists(rel, at),
-                                Request::Keys(bits) => file.projected_keys(rel).map(|keys| {
-                                    for p in keys {
-                                        let word = (p.0 / 64) as usize;
-                                        if bits.len() <= word {
-                                            bits.resize(word + 1, 0);
+                                Request::Symbols { key, column, index } => symbol_columns.read(
+                                    file,
+                                    rel,
+                                    key,
+                                    column,
+                                    &program.symbols,
+                                    index,
+                                    &mut row_count,
+                                ),
+                                Request::Has(at) => file.summary_presence(rel, at),
+                                Request::Keys(key, bits) => file
+                                    .projected_keys(rel)
+                                    .map(|keys| {
+                                        for p in keys {
+                                            let word = (p.0 / 64) as usize;
+                                            if bits.len() <= word {
+                                                bits.resize(word + 1, 0);
+                                            }
+                                            bits[word] |= 1 << (p.0 % 64);
+                                            row_count += 1;
                                         }
-                                        bits[word] |= 1 << (p.0 % 64);
-                                        row_count += 1;
-                                    }
-                                    true
-                                }),
+                                        true
+                                    })
+                                    .or_else(|| {
+                                        symbol_columns.keys(
+                                            file,
+                                            rel,
+                                            key,
+                                            &program.symbols,
+                                            bits,
+                                            &mut row_count,
+                                        )
+                                    }),
                             };
                             if let Some(now) = now
                                 && result.is_some()
@@ -229,6 +271,17 @@ pub(super) fn run(
                 },
             );
             i += if next.is_some() { 2 } else { 1 };
+        }
+    }
+    println!(
+        "domain bitset words {} peak {}",
+        scratch.total_words, scratch.peak_words
+    );
+    if !scratch.counts.is_empty() {
+        for (id, &n) in scratch.counts.iter().enumerate() {
+            if n != 0 {
+                println!("domain {id} calls {n} {:?}", program.domains[id]);
+            }
         }
     }
     let elapsed = thread_cpu() - start;
