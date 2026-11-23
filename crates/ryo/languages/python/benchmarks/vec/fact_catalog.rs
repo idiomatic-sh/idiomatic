@@ -153,7 +153,7 @@ pub(super) fn walk_needs(plan: Option<&finish::Plan>, prefix: &[ryo::languages::
     use ryo::languages::Relation;
     let name = ryo_relations::domain::relations::service::name(Relation::ExpressionShape).0;
     if prefix.contains(&Relation::ExpressionShape)
-        || plan.is_some_and(|p| p.nodes.iter().any(|step| step.op == "base" && step.j["rel"].as_str() == Some(name)))
+        || plan.is_some_and(|p| p.nodes.iter().any(|step| step.op == "base" && step.base() == Some(name)))
     {
         &[Relation::ExpressionShape]
     } else {
