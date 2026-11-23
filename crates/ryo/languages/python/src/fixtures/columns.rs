@@ -292,6 +292,8 @@ fn flag(value: Flag) -> u32 {
 }
 
 mod forward_reads;
+mod expression_parts;
+pub use expression_parts::CallSite;
 mod assignment;
 mod imports;
 pub use imports::ImportAlias;
