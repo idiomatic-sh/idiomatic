@@ -748,7 +748,6 @@ impl Exec<'_> {
                     && !native
                 {
                     let vn = *vn;
-                    self.reason = "view probed on a column it has no keyed read for";
                     srcs[si] = Src::Tab(self.eval(f, run, p, vn)?, vn);
                 }
                 // a made table is probed on every column an equality binds, at once

@@ -28,6 +28,9 @@ pub(super) struct Frame {
     pub(super) first: u32,
     /// A group count over a counted select (`band_rows` with counts) is tried before the first input.
     pub(super) counted: bool,
+    /// The input whose empty answer empties the step, tested before its body (`Exec::make_`): `first`, but `NONE` for a
+    /// union and a counted group count.
+    pub(super) gate: u32,
 }
 
 pub(super) const MISSING: u32 = u32::MAX - 1;
@@ -57,7 +60,9 @@ pub(super) fn frames(plan: &Plan) -> Vec<Frame> {
                 _ => rel("from"),
             };
             let counted = op == Op::GroupCount && pn.j["args"]["distinct"].is_null() && !no_semi && first != MISSING && plan.nodes[first as usize].j.get("count").is_some();
-            Frame { op, first, counted }
+            // a union is empty only when every input is; a counted group count reads its select's sources, not the input
+            let gate = if op == Op::Union || counted { NONE } else { first };
+            Frame { op, first, counted, gate }
         })
         .collect()
 }

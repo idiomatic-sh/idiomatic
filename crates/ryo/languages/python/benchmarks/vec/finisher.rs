@@ -207,7 +207,6 @@ impl<'p> Finisher<'p> {
         // redo-union pass 2 c12: no survivor lists given: every set empty, without a lookup a set a file
         f.seeds = if self.surv.is_empty() { vec![Vec::new(); plan.seeds.len()] } else { plan.seeds.iter().map(|r| self.surv.get(&(r.clone(), path.to_owned())).cloned().unwrap_or_default()).collect() };
         finish::handover::expand(&mut f, &plan.seed_paths);
-        self.exec.reset_file(f.n);
         let run = &mut self.run;
         if self.check {
             for rel in ["semantic-syntax", "syntax-tree", "semantic-child", "syntax-child", "source-location", "token-link"] {
@@ -267,11 +266,12 @@ impl<'p> Finisher<'p> {
         }
         let exec = &self.exec;
         if let Some(out) = &self.stats {
-            // columns 8 and 13 (runs by key, runs by key that returned nothing) are 0: every step is made whole
+            // columns 8 and 13 (runs by key, runs by key that returned nothing) are 0, 9 and 10 (made by, why) -1 and empty:
+            // every step is made whole once a file
             let mut lines = vec!["node\top\tcalls\trows\ttouched\tseconds".to_owned()];
             for (i, pn) in self.plan.nodes.iter().enumerate() {
                 if exec.stats.calls[i] > 0 || exec.stats.touched[i] > 0 || exec.stats.rows[i] > 0 || exec.stats.time[i] > 0.0 || exec.stats.known[i] > 0 {
-                    lines.push(format!("{i}\t{}\t{}\t{}\t{}\t{:.6}\t{}\t{}\t{}\t{}\t{}\t{:.6}\t{}", pn.op, exec.stats.calls[i], exec.stats.rows[i], exec.stats.touched[i], exec.stats.time[i], exec.stats.empty[i], 0, exec.stats.made_by[i] as i64, exec.stats.why[i], exec.stats.known[i], exec.stats.empty_time[i], 0));
+                    lines.push(format!("{i}\t{}\t{}\t{}\t{}\t{:.6}\t{}\t{}\t{}\t{}\t{}\t{:.6}\t{}", pn.op, exec.stats.calls[i], exec.stats.rows[i], exec.stats.touched[i], exec.stats.time[i], exec.stats.empty[i], 0, -1, "", exec.stats.known[i], exec.stats.empty_time[i], 0));
                 }
             }
             for (k, v) in &self.by_rel {
