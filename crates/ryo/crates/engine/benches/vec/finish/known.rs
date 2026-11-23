@@ -64,6 +64,55 @@ impl Flat {
     }
 }
 
+/// A bound static test uses provider kind *codes* and plan slot numbers only.
+struct Prepared {
+    flags: u8,
+    inputs: Box<[u32]>,
+    kinds: Box<[u16]>,
+}
+pub(crate) struct Shared(Vec<std::sync::OnceLock<Prepared>>);
+
+impl Flat {
+    fn export(&self, r: Rec) -> Prepared {
+        let inputs = r.ins as usize;
+        let kinds = r.kinds as usize;
+        Prepared {
+            flags: r.flags,
+            inputs: self.ins[inputs..inputs + usize::from(r.n_ins)].into(),
+            kinds: self.kinds[kinds..kinds + usize::from(r.n_kinds)].into(),
+        }
+    }
+
+    fn install(&mut self, node: usize, p: &Prepared) -> Rec {
+        let rec = Rec {
+            flags: p.flags,
+            ins: self.ins.len() as u32,
+            n_ins: p.inputs.len() as u16,
+            kinds: self.kinds.len() as u32,
+            n_kinds: p.kinds.len() as u16,
+        };
+        self.ins.extend_from_slice(&p.inputs);
+        self.kinds.extend_from_slice(&p.kinds);
+        self.recs[node] = rec;
+        rec
+    }
+}
+
+impl Exec<'_> {
+    pub(crate) fn share_static_tests(&mut self) -> std::sync::Arc<Shared> {
+        let slots = self.flat.recs.iter().map(|&rec| {
+            let slot = std::sync::OnceLock::new();
+            if rec.flags & READY != 0 {
+                let _ = slot.set(self.flat.export(rec));
+            }
+            slot
+        }).collect();
+        let shared = std::sync::Arc::new(Shared(slots));
+        self.shared_static = Some(shared.clone());
+        shared
+    }
+}
+
 impl Exec<'_> {
     /// Whether a run of `node` in this file returns nothing, known without running it.
     #[inline(always)]
@@ -186,7 +235,22 @@ impl Exec<'_> {
         if r.flags & READY != 0 {
             return r;
         }
-        self.rec_of(run, node)
+        self.bind_rec(run, node)
+    }
+
+    #[inline(never)]
+    fn bind_rec(&mut self, run: &mut Run, node: usize) -> Rec {
+        let Some(shared) = self.shared_static.clone() else {
+            return self.rec_of(run, node);
+        };
+        // Recursive bindings only follow edges towards inputs in the plan DAG.
+        let prepared = shared.0[node].get_or_init(|| {
+            let r = self.rec_of(run, node);
+            self.flat.export(r)
+        });
+        let own = self.flat.recs[node];
+        if own.flags & READY != 0 { return own; }
+        self.flat.install(node, prepared)
     }
 
     #[inline(never)]

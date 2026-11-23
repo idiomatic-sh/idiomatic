@@ -71,7 +71,8 @@ mod tree_class;
 #[path = "finish/frame.rs"]
 mod frame;
 #[path = "finish/known.rs"]
-mod known;
+pub(crate) mod known;
+pub(crate) mod worker_patterns;
 #[path = "finish/set_ops.rs"]
 mod set_ops;
 #[path = "finish/empty_why.rs"]
@@ -345,6 +346,7 @@ pub(super) struct Run {
     cold_text: cold_text::Plan,
     pub(super) texts: Vec<Box<[u8]>>,
     pub(super) ids: FxHashMap<Box<[u8]>, u32>,
+    pub(crate) worker_patterns: Option<std::sync::Arc<worker_patterns::Patterns>>,
     pub(super) regexes: FxHashMap<String, Rc<regex::bytes::Regex>>,
     pub(super) kind_sym: Vec<u32>,
     pub(super) field_sym: Vec<u32>,
@@ -403,7 +405,8 @@ impl Run {
         if let Some(r) = self.regexes.get(p) {
             return Ok(r.clone());
         }
-        let r = Rc::new(regex::bytes::Regex::new(p).map_err(|e| format!("regex {p}: {e}"))?);
+        let compiled = self.worker_patterns.as_ref().and_then(|patterns| patterns.get(p));
+        let r = Rc::new(compiled.unwrap_or_else(|| worker_patterns::compile(p))?);
         self.regexes.insert(p.to_owned(), r.clone());
         Ok(r)
     }
@@ -1334,6 +1337,7 @@ pub(super) struct Exec<'p> {
     /// redo-union pass 2: what each step needs to return anything (`known`), and its shared empty answer.
     needs: Vec<Option<Rc<known::Need>>>,
     flat: known::Flat,
+    pub(crate) shared_static: Option<std::sync::Arc<known::Shared>>,
     empties: Vec<Option<Rc<Table>>>,
     /// The view rows a keyed read of a view finds (reused).
     scratch_rows: Vec<u32>,
@@ -1409,6 +1413,7 @@ impl<'p> Exec<'p> {
             u32_pool: Vec::new(),
             needs: vec![None; k],
             flat: known::Flat::new(k),
+            shared_static: None,
             empties: vec![None; k],
             scratch_rows: Vec::new(),
             timing: sw!("VEC_STEP_TIME"),
