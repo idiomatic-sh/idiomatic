@@ -42,6 +42,7 @@ pub(crate) struct Certificate {
 }
 
 fn base<'a>(b: &mut Builder<'_>, name: &str) -> Option<Row<'a>> {
+    if !b.native(name) { return None; }
     let (nodes, fields): (_, &[&str]) = match name {
         "syntax-tree" | "semantic-syntax" => (ANY, &["id", "file", "kind", "text", "span"]),
         "source-location" => (

@@ -242,6 +242,7 @@ impl<'a> Summary<'a> {
 struct Builder<'a> {
     vocab: &'a Vocab,
     language: &'a Language,
+    reader_rows: &'a [String],
     positive: bool,
     regex_slots: Map<String, Id>,
     proof_validation: Option<Id>,
@@ -527,6 +528,9 @@ impl Builder<'_> {
         };
         r.need = self.and(r.need, n);
     }
+    fn native(&self, name: &str) -> bool {
+        !self.reader_rows.iter().any(|external| external == name)
+    }
     fn base<'a>(&mut self, name: &str) -> Summary<'a> {
         let mut r = Summary::default();
         if (self.language.host_len)(name) == Some(0) {
@@ -535,7 +539,7 @@ impl Builder<'_> {
         }
         use Attribute::*;
         match name {
-            "syntax-tree" | "semantic-syntax" => {
+            "syntax-tree" | "semantic-syntax" if self.native(name) => {
                 r.var(ANY);
                 r.add("id", 0, Id);
                 r.add("span", 0, Span);
@@ -543,7 +547,7 @@ impl Builder<'_> {
                 r.add("kind", 0, Kind);
                 r.add("text", 0, Text);
             }
-            "syntax-child" | "semantic-child" => {
+            "syntax-child" | "semantic-child" if self.native(name) => {
                 r.var(ANY);
                 r.var(ANY);
                 r.add("child", 0, Id);
@@ -552,7 +556,7 @@ impl Builder<'_> {
                 r.add("parent", 1, Id);
                 r.edges.push((0, 1, 1));
             }
-            "source-location" => {
+            "source-location" if self.native(name) => {
                 r.var(ANY);
                 r.add("id", 0, Id);
                 r.add("span", 0, Span);
@@ -1456,7 +1460,7 @@ impl Builder<'_> {
                 };
                 let (mut id, mut related) = (node(from), node(dom));
                 if self.neighbors
-                    && matches!(&steps[a.relation.0],Base(n) if super::first::CHILD.contains(&&*n.0))
+                    && matches!(&steps[a.relation.0],Base(n) if self.native(&n.0) && super::first::CHILD.contains(&&*n.0))
                 {
                     let (origin, target) = (id, related);
                     let (down, up): (fn(Id) -> Domain, fn(Id) -> Domain) = match a.direction {
@@ -1650,6 +1654,11 @@ fn terms<'a>(e: &'a PlanExpression, out: &mut Conjuncts<'a>) {
 }
 
 pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> Program {
+    prepare_with_reader_rows(plan, vocab, language, &[])
+}
+
+/// Relations supplied as rows may have a different population from the tree.
+pub(super) fn prepare_with_reader_rows(plan: &FinishPlan, vocab: &Vocab, language: &Language, reader_rows: &[String]) -> Program {
     let clock = std::env::var_os("VEC_PAY_PREP").is_some();
     let mut t = super::thread_cpu();
     let mut phase = |name| {
@@ -1662,6 +1671,7 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
     let mut b = Builder {
         vocab,
         language,
+        reader_rows,
         positive: false,
         regex_slots: Map::default(),
         proof_validation: None,

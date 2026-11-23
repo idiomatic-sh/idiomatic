@@ -96,6 +96,11 @@ impl Parse for ParseContract {
         languages::Count(kinds().count())
     }
 
+    fn stable_fields(&self) -> languages::FieldNames {
+        use crate::domain::fields::service::{field_name, fields};
+        languages::FieldNames(fields().map(field_name).collect())
+    }
+
     fn kind_names(&self) -> languages::KindNames {
         languages::KindNames(kinds().map(kind_name).collect())
     }
