@@ -3,7 +3,7 @@
 //! take stays the generic `eval` of the row. The answers are `eval`'s: the same fast-path meanings (`Col = 'text'` is an
 //! id compare, `!=` holds on the absent cell, `in` never holds on it, `is null`, a column against a column of its type).
 
-use super::{E, File, NULL, Native, Op, Run, Src, ViewSpec, eval, truthy};
+use super::{E, File, NULL, Native, Op, Run, ViewSpec, eval_cell, truthy};
 
 /// One compiled test on the view's base columns.
 pub(super) enum Test {
@@ -93,7 +93,11 @@ fn holds(f: &File<'_>, run: &mut Run, base: Native, t: &Test, row: u32) -> bool 
         Test::Not(a) => !holds(f, run, base, a, row),
         Test::And(a, b) => holds(f, run, base, a, row) && holds(f, run, base, b, row),
         Test::Or(a, b) => holds(f, run, base, a, row) || holds(f, run, base, b, row),
-        Test::Eval(e) => truthy(eval(run, f, &[Src::Base(base)], &[row], e)),
+        Test::Eval(e) => truthy(eval_cell(run, f, &|run, source, column| {
+            assert_eq!(source, 0, "view predicate reads another source");
+            super::fill_prof::read(7);
+            cell(f, run, base, row, column)
+        }, e)),
     }
 }
 
