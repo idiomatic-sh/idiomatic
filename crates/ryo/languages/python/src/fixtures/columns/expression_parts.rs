@@ -291,6 +291,7 @@ impl ColumnFile<'_, '_> {
     /// A later explicit constant key replaces the earlier equal key in the same dictionary display.
     pub fn visit_repeated_constant_keys(
         &mut self,
+        words: &mut ryo::languages::FileWords,
         mut visit: impl FnMut(Position, Position, Position),
     ) {
         use crate::domain::relations::collections::relations::constant_key::item::keyed_constants;
@@ -307,7 +308,7 @@ impl ColumnFile<'_, '_> {
         if !has_multiple_keys {
             return;
         }
-        keyed_constants(self.file, self.words);
+        keyed_constants(self.file, words);
         let classes = &self.file.buffers.keys.classes;
         let segments = self.file.syntax.tree.segments;
         let mut previous = std::collections::HashMap::new();

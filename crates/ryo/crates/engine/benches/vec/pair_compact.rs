@@ -170,7 +170,8 @@ pub(super) fn compact(p: &mut Program) -> Vec<Id> {
     // A driver is only evidence when the rule program already retained its
     // prerequisite. Translate it to the same index used by the file scan.
     p.drivers.retain_mut(|(_, need)| {
-        if let Some(id) = reachable.files.ids[*need] {
+        let id = reachable.files.ids[*need];
+        if id != UNSEEN {
             *need = id;
             true
         } else {
