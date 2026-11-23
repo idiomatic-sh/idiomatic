@@ -345,6 +345,12 @@ impl ColumnWalk {
         } else {
             PythonParserSettings::default()
         };
+        Self::with_settings(words, settings)
+    }
+
+    /// Writes facts for the same Python target that governs the source's syntax and annotation evaluation.
+    #[must_use]
+    pub fn with_settings(words: FileWords, settings: PythonParserSettings) -> Self {
         Self {
             walk: PythonWalk { ports: WalkPorts { settings, syntax: Arc::new(ruff_python_parser(settings)) } },
             scratch: PythonWalkScratch::default(),
@@ -392,7 +398,7 @@ impl ColumnWalk {
                 if tree.strings.is_empty() {
                     return hosts;
                 }
-                let typed = TypedTree { segments: &tree.segments, parents: &tree.parents, ends: &tree.ends, nodes: &tree.nodes, annotations: tree.annotations, named: &tree.names };
+                let typed = TypedTree { segments: &tree.segments, parents: &tree.parents, ends: &tree.ends, nodes: &tree.nodes, annotations: tree.annotations, declarations: tree.declarations, named: &tree.names };
                 form_imports(typed, &tree.imports, &mut scratch.forms);
                 type_strings(
                     &mut FormSource { tree: typed, imports: &scratch.forms, model: &mut scratch.file.model, built: &mut built_parts, path: &mut scratch.path },
@@ -429,7 +435,7 @@ fn lend(
         syntax: SyntaxFile {
             table,
             nodes: tree.nodes.get(..own).unwrap_or_default(),
-            tree: TypedTree { segments: &tree.segments, parents: &tree.parents, ends: &tree.ends, nodes: &tree.nodes, annotations: tree.annotations, named: &tree.names },
+            tree: TypedTree { segments: &tree.segments, parents: &tree.parents, ends: &tree.ends, nodes: &tree.nodes, annotations: tree.annotations, declarations: tree.declarations, named: &tree.names },
             text: tree.text,
             file: FileId(0),
             completeness: tree.completeness,

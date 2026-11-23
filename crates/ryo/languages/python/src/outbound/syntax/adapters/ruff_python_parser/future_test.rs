@@ -247,9 +247,75 @@ fn separating_lazy_cause_preserves_placement_and_unknown_feature_causes() {
     }
 }
 
+/// The `binding-use` rows of `source` read under `path` at Python 3.10.
+fn uses_of(path: &str, source: &'static str) -> usize {
+    let report = languages::contract::reading::<
+        crate::domain::relations::collections::relations::binding_use::item::BindingUseItem,
+    >(
+        &crate::linked_with_settings(PythonParserSettings::new(PythonTargetVersion::Py310)),
+        languages::SourcePath(path),
+        languages::SampleText(source),
+    )
+    .expect("Python source is recognized");
+    assert!(report.causes.is_empty(), "{:?}", report.causes);
+    report.rows.len()
+}
+
+/// The `binding-use` rows the walk writes of `source` under `path`.
+fn walked_uses_of(path: &str, source: &'static str) -> usize {
+    use crate::fixtures::walking::{walk_words, walked, walked_keys, walked_rows};
+    let (mut table, mut scratch, mut count) = (languages::NodeTable::default(), Default::default(), None);
+    walked(
+        &crate::walk(),
+        path,
+        source.as_bytes(),
+        &[languages::Relation::BindingUse],
+        &mut table,
+        &mut scratch,
+        &mut |mut file| {
+            let mut words = walk_words(&crate::walk()).expect("each fixed name of the walk is stated once");
+            let keys = walked_keys(file.table);
+            let (rows, answer) = walked_rows(&mut file, &keys, languages::Relation::BindingUse, &mut words);
+            assert!(matches!(answer, languages::FactAnswer::Answered(_)), "{answer:?}");
+            count = Some(rows.len());
+        },
+    )
+    .expect("Python source is walked");
+    count.expect("the walk lends the file")
+}
+
+/// A stub is never run, and the typing specification reads its `x: T` as the declaration of `x`: a read after an annotated
+/// declaration without a value uses it, at module, function and class level (three uses), by today's reading and the walk
+/// alike; in a module that runs the declaration gives the name no value, and the reads use nothing.
+fn stub_declarations_bind_the_names_they_declare() {
+    const DECLARED: &str = "codec: str\ncodec.encode\ndef f() -> None:\n    local: int\n    local.bit_length\nclass C:\n    attr: int\n    x = attr\n";
+    let counts = (
+        uses_of("case.py", DECLARED),
+        uses_of("case.pyi", DECLARED),
+        walked_uses_of("case.py", DECLARED),
+        walked_uses_of("case.pyi", DECLARED),
+    );
+    assert_eq!(counts, (0, 3, 0, 3));
+}
+
+/// A compile-time function local masks its outer homonym before a store or deletion.
+#[test]
+fn uninitialized_locals_have_no_outer_use() {
+    for source in [
+        "x = 1\ndef f():\n    print(x)\n    x = 2\n",
+        "x = 1\ndef f():\n    print(x)\n    del x\n",
+        "x = 1\ndef f():\n    print(x)\n    x: int\n",
+    ] {
+        assert_eq!(uses_of("case.py", source), 0);
+        assert_eq!(walked_uses_of("case.py", source), 0);
+    }
+}
+
 /// Which of the file's cases a row runs.
 #[derive(Clone, Copy, Debug)]
 enum Body {
+    /// Stub declarations are readable through both provider entry points.
+    StubDeclarationsBindTheNamesTheyDeclare,
     /// The case `separating_lazy_cause_preserves_placement_and_unknown_feature_causes`.
     SeparatingLazyCausePreservesPlacementAndUnknownFeatureCauses,
     /// The case `future_lazy_prohibition_has_its_own_preserved_cause_at_old_and_supported_targets`.
@@ -262,6 +328,12 @@ enum Body {
 
 /// The rows of the cases whose bodies assert for themselves.
 const CASES: &[Case<Body, (), ()>] = &[
+    Case {
+        name: CaseName("stub_declarations_bind_the_names_they_declare"),
+        word: Word::Succeeds,
+        input: || Body::StubDeclarationsBindTheNamesTheyDeclare,
+        expect: Expect::Value(()),
+    },
     Case {
         name: CaseName("separating_lazy_cause_preserves_placement_and_unknown_feature_causes"),
         word: Word::Succeeds,
@@ -293,6 +365,7 @@ const CASES: &[Case<Body, (), ()>] = &[
 /// Runs the body of one case.
 fn body(given: Body) -> Result<(), ()> {
     match given {
+        Body::StubDeclarationsBindTheNamesTheyDeclare => stub_declarations_bind_the_names_they_declare(),
         Body::SeparatingLazyCausePreservesPlacementAndUnknownFeatureCauses => {
             separating_lazy_cause_preserves_placement_and_unknown_feature_causes()
         }

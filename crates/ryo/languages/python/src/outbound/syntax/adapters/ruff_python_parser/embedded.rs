@@ -143,6 +143,7 @@ fn write_segment<'q>(
         refused: Vec::new(),
         future_annotations: FutureAnnotations(false),
         annotations_deferred: false,
+        declarations: crate::domain::model::types::AnnotatedDeclarations::Unbound,
         length: Offset(string.end.0.saturating_sub(string.start.0)),
         nodes: std::mem::take(&mut tree.nodes),
         parents: std::mem::take(&mut tree.parents),

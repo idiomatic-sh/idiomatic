@@ -28,6 +28,8 @@ pub(crate) struct WalkedTree<'t> {
     pub(crate) ends: Vec<Position>,
     /// Whether the module postpones the evaluation of its annotations.
     pub(crate) annotations: BindingAnnotationTiming,
+    /// What a declaration without a value does to its name: binds it in a stub.
+    pub(crate) declarations: crate::domain::model::types::AnnotatedDeclarations,
     /// The string literals the walk met since it last asked which of them are type expressions.
     pub(crate) strings: Vec<StringSite>,
     /// The imported names the walk met: the places of the aliases of the file's import statements.
