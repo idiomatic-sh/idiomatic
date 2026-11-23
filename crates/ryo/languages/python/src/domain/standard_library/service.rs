@@ -1,6 +1,7 @@
 //! Pure membership against the selected language release, not the host interpreter.
 use super::constants;
 use super::types::{ModulePath, StandardLibraryMembership, TargetVersion};
+use std::{collections::HashSet, sync::OnceLock};
 
 /// Whether the first component of an absolute module path is in the selected
 /// Python release's standard library. Platform-specific modules remain members
@@ -28,10 +29,16 @@ pub(crate) fn contains(
         },
         _ => return StandardLibraryMembership::UnverifiedRelease,
     };
-    if constants::COMMON
-        .split_terminator('|')
-        .any(|name| name == root)
-        || versioned.split_terminator('|').any(|name| name == root)
+    // The catalogues are immutable for each supported Python release.
+    static COMMON: OnceLock<HashSet<&'static str>> = OnceLock::new();
+    static RELEASE: [OnceLock<HashSet<&'static str>>; 6] = [const { OnceLock::new() }; 6];
+    let extra = &RELEASE[(target.minor.0 - 10) as usize];
+    if COMMON
+        .get_or_init(|| constants::COMMON.split_terminator('|').collect())
+        .contains(root)
+        || extra
+            .get_or_init(|| versioned.split_terminator('|').collect())
+            .contains(root)
     {
         StandardLibraryMembership::Standard
     } else {

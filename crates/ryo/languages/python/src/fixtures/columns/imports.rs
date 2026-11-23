@@ -42,6 +42,15 @@ pub struct ImportAlias<'a> {
 }
 
 impl ColumnFile<'_, '_> {
+    /// Each import or from-import statement supplies one statement-layout row.
+    pub fn import_statement_count(&self) -> usize {
+        use crate::domain::syntax::service::kind_bits;
+        [Node::Import, Node::ImportFrom]
+            .into_iter()
+            .map(|k| node_table::ids_of_kind(self.table, kind_bits(Kind::Node(k))).len())
+            .sum()
+    }
+
     fn import_statements(&self) -> impl Iterator<Item = Numbered<'_>> {
         [Node::Import, Node::ImportFrom]
             .into_iter()
@@ -66,11 +75,11 @@ impl ColumnFile<'_, '_> {
             let statement = node_table::span_of(self.table, id);
             let first = comments
                 .partition_point(|p| node_table::span_of(self.table, *p).start < statement.start);
-            let end = line_end(statement.end.0 as usize);
+            let end = statement.end.0 as usize;
             let mut first_line_end = None;
             for &comment in &comments[first..] {
                 let at = node_table::span_of(self.table, comment).start.0 as usize;
-                if at >= end {
+                if at >= end && src[end..at].iter().any(|b| matches!(b, b'\r' | b'\n')) {
                     break;
                 }
                 let first_end =
@@ -143,24 +152,52 @@ impl ColumnFile<'_, '_> {
     }
 
     /// An import requests a dotted path; the from-clause's leading dots select its relative level and the alias's as-name gives its binding spelling.
-    pub fn visit_import_aliases(&self, visit: impl FnMut(ImportAlias<'_>)) {
-        self.visit_import_names(false, visit);
+    pub fn visit_import_aliases(&self, mut visit: impl FnMut(ImportAlias<'_>)) {
+        self.visit_import_names(self.import_statements().enumerate(), false, |_, alias| {
+            visit(alias)
+        });
     }
 
     /// The grammar fixes the first alias of each import statement.
-    pub fn visit_import_heads(&self, visit: impl FnMut(ImportAlias<'_>)) {
-        self.visit_import_names(true, visit);
+    pub fn visit_import_heads(&self, mut visit: impl FnMut(ImportAlias<'_>)) {
+        self.visit_import_names(self.import_statements().enumerate(), true, |_, alias| {
+            visit(alias)
+        });
     }
 
-    fn visit_import_names(&self, first_only: bool, mut visit: impl FnMut(ImportAlias<'_>)) {
+    /// Read heads in the given suite order. An invalid import can lack its first alias.
+    pub fn visit_ordered_import_heads(
+        &self,
+        statements: impl Iterator<Item = Position>,
+        visit: impl FnMut(usize, ImportAlias<'_>),
+    ) {
+        let nodes = statements.enumerate().filter_map(|(row, id)| {
+            self.file
+                .syntax
+                .nodes
+                .get(usize::from(id))
+                .map(|node| (row, Numbered { id, node: *node }))
+        });
+        self.visit_import_names(nodes, true, visit);
+    }
+
+    fn visit_import_names<'n>(
+        &self,
+        statements: impl Iterator<Item = (usize, Numbered<'n>)>,
+        first_only: bool,
+        mut visit: impl FnMut(usize, ImportAlias<'_>),
+    ) {
         let text = self.file.syntax.text.0;
         let mut source_module = String::new();
         let mut target = String::new();
         let mut written_module = String::new();
-        for Numbered {
-            id: statement,
-            node,
-        } in self.import_statements()
+        for (
+            row,
+            Numbered {
+                id: statement,
+                node,
+            },
+        ) in statements
         {
             let (form, level, module, aliases) = match node {
                 AnyNodeRef::StmtImport(s) => ("import", 0, None, &s.names),
@@ -203,31 +240,34 @@ impl ColumnFile<'_, '_> {
                     }
                     target.push_str(name);
                 }
-                visit(ImportAlias {
-                    id: id.0,
-                    statement: statement.0,
-                    index,
-                    previous_start: index.checked_sub(1).map(|i| u32::from(aliases[i].start())),
-                    count: aliases.len(),
-                    renames,
-                    form,
-                    module: if form == "import" {
-                        name
-                    } else {
-                        &source_module
+                visit(
+                    row,
+                    ImportAlias {
+                        id: id.0,
+                        statement: statement.0,
+                        index,
+                        previous_start: index.checked_sub(1).map(|i| u32::from(aliases[i].start())),
+                        count: aliases.len(),
+                        renames,
+                        form,
+                        module: if form == "import" {
+                            name
+                        } else {
+                            &source_module
+                        },
+                        dots: &source_module[..level as usize],
+                        written_module: if form == "import" {
+                            written(&alias.name)
+                        } else {
+                            &written_module
+                        },
+                        name,
+                        rename: alias.asname.as_ref().map_or("", |n| n.as_str()),
+                        written_name: written(&alias.name),
+                        written_rename: alias.asname.as_ref().map_or("", written),
+                        target: &target,
                     },
-                    dots: &source_module[..level as usize],
-                    written_module: if form == "import" {
-                        written(&alias.name)
-                    } else {
-                        &written_module
-                    },
-                    name,
-                    rename: alias.asname.as_ref().map_or("", |n| n.as_str()),
-                    written_name: written(&alias.name),
-                    written_rename: alias.asname.as_ref().map_or("", written),
-                    target: &target,
-                });
+                );
             }
         }
     }
