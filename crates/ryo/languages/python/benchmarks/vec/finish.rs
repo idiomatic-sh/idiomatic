@@ -1109,10 +1109,6 @@ pub(super) struct Stats {
     /// bracketed runs that returned nothing.
     pub(super) known: Vec<u64>,
     pub(super) empty_time: Vec<f64>,
-    /// The step that first asked a node whole in a file (diagnostic).
-    pub(super) made_by: Vec<usize>,
-    /// Why a node was first made whole in a file, where the asking step says (empty: read whole by `made_by`).
-    pub(super) why: Vec<&'static str>,
     /// pass 2 (`VEC_STEP_TIME`): seconds of the whole runs answered known empty, from the memo miss to the answer, and
     /// how many (the clock's own pair cost is taken off in the report).
     pub(super) known_time: f64,
@@ -1256,7 +1252,6 @@ pub(super) struct Exec<'p> {
     views: Vec<Option<Option<Rc<ViewSpec>>>>,
     sels: Vec<Option<Rc<SelPlan>>>,
     inner: f64,
-    stack: Vec<usize>,
     /// Steps whose inputs are all run-wide (the file list, written rows): made once a run.
     constant: Vec<Option<bool>>,
     run_memo: Vec<Option<Rc<Table>>>,
@@ -1267,8 +1262,6 @@ pub(super) struct Exec<'p> {
     /// The steps that read each node.
     pub(super) consumers: Vec<Vec<usize>>,
     emitted: rustc_hash::FxHashSet<usize>,
-    /// The reason the next whole make is asked for (taken by `res`).
-    reason: &'static str,
     pub(super) tally: band::Tally,
     /// 8: row-number buffers of the join (tuples a source), reused across executions; the join's key set, reused.
     u32_pool: Vec<Vec<u32>>,
@@ -1276,10 +1269,10 @@ pub(super) struct Exec<'p> {
     needs: Vec<Option<&'static known::Need>>,
     flat: known::Flat,
     empties: Vec<Option<Rc<Table>>>,
-    /// engine-vec 8: per step, the input whose emptiness empties it (resolved once a run).
-    firsts: Vec<Option<Option<usize>>>,
     /// The view rows a keyed read of a view finds (reused).
     scratch_rows: Vec<u32>,
+    /// `VEC_STEP_TIME`: each step run under the step clock (`timed_body`).
+    timing: bool,
 }
 
 type R<T> = Result<T, String>;
@@ -1316,12 +1309,11 @@ impl<'p> Exec<'p> {
         let k = plan.nodes.len();
         Exec {
             plan,
-            stats: Stats { time: vec![0.0; k], rows: vec![0; k], calls: vec![0; k], touched: vec![0; k], empty: vec![0; k], known: vec![0; k], empty_time: vec![0.0; k], made_by: vec![usize::MAX; k], why: vec![""; k], known_time: 0.0, known_timed: 0, static_time: 0.0, static_depth: 0, static_visits: 0, static_file_tests: 0, rec_time: 0.0, rec_busy: false },
+            stats: Stats { time: vec![0.0; k], rows: vec![0; k], calls: vec![0; k], touched: vec![0; k], empty: vec![0; k], known: vec![0; k], empty_time: vec![0.0; k], known_time: 0.0, known_timed: 0, static_time: 0.0, static_depth: 0, static_visits: 0, static_file_tests: 0, rec_time: 0.0, rec_busy: false },
             schemas: vec![None; k],
             views: vec![None; k],
             sels: vec![None; k],
             inner: 0.0,
-            stack: Vec::new(),
             constant: vec![None; k],
             run_memo: vec![None; k],
             frames: frame::frames(plan),
@@ -1338,18 +1330,16 @@ impl<'p> Exec<'p> {
                 c
             },
             emitted: plan.emits.iter().map(|e| e.1).collect(),
-            reason: "",
             tally: band::Tally::default(),
             u32_pool: Vec::new(),
             needs: vec![None; k],
             flat: known::Flat::new(k),
             empties: vec![None; k],
-            firsts: vec![None; k],
             scratch_rows: Vec::new(),
+            timing: sw!("VEC_STEP_TIME"),
         }
     }
 
-    pub(super) fn reset_file(&mut self, _nodes: usize) {}
 
     /// Whether a step's rows are the same in every file: it reads only run-wide relations, through steps that read no file.
     fn is_constant(&mut self, run: &Run, node: usize) -> bool {
@@ -1721,84 +1711,86 @@ impl<'p> Exec<'p> {
 
     // -------------------------------------------------------------------------------------------- per file
 
-    /// A node's answer in this file, made once; an input is asked only when the step needs it.
+    /// A node's answer in this file: its slot, else made once (`make`).
+    #[inline]
     pub(super) fn res(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Res> {
-        let why = std::mem::take(&mut self.reason);
-        if let Some(r) = &f.memo[node] {
-            // redo-fills pass 2: a view a lazy select source left unfilled is filled at its first read (lazy_view.rs)
-            if let Res::View(v) = r
-                && let Native::Fact(x) = v.base
-                && f.facts.get(usize::from(x)).is_none_or(Option::is_none)
-            {
-                let (r, base) = (r.clone(), v.base);
-                let was = fill_prof::site("view");
-                self.load_fact(f, run, p, base)?;
-                fill_prof::site(was);
-                return Ok(r);
+        match &f.memo[node] {
+            Some(Res::Tab(t)) => Ok(Res::Tab(t.clone())),
+            Some(Res::View(v)) => {
+                // redo-fills pass 2: a view a lazy select source left unfilled is filled at its first read (lazy_view.rs)
+                if let Native::Fact(x) = v.base
+                    && f.facts.get(usize::from(x)).is_none_or(Option::is_none)
+                {
+                    let v = v.clone();
+                    let was = fill_prof::site("view");
+                    self.load_fact(f, run, p, v.base)?;
+                    fill_prof::site(was);
+                    return Ok(Res::View(v));
+                }
+                Ok(Res::View(v.clone()))
             }
-            return Ok(r.clone());
+            None => self.make(f, run, p, node),
         }
-        let tk = step_clock();
+    }
+
+    /// A node made in this file and put in its slot (listed in `touched`, cleared at the file's end).
+    #[inline(never)]
+    fn make(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Res> {
+        let r = self.make_(f, run, p, node)?;
+        f.touched.push(node as u32);
+        f.memo[node] = Some(r.clone());
+        Ok(r)
+    }
+
+    #[inline]
+    fn make_(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Res> {
         if let Some(v) = self.view(run, node)? {
             let was = fill_prof::site("view");
             self.load_fact(f, run, p, v.base)?;
             fill_prof::site(was);
-            let r = Res::View(v);
-            f.touched.push(node as u32);
-            f.memo[node] = Some(r.clone());
-            return Ok(r);
+            return Ok(Res::View(v));
         }
         if let Some(t) = &self.run_memo[node] {
-            let r = Res::Tab(t.clone());
-            f.touched.push(node as u32);
-            f.memo[node] = Some(r.clone());
-            return Ok(r);
+            return Ok(Res::Tab(t.clone()));
         }
-        let decided = f.known[node] != 0;
         if !sw!("VEC_NO_KNOWN") && self.known_empty(f, run, p, node) {
             self.stats.known[node] += 1;
             emptyprop::skipped(f, node);
-            let r = Res::Tab(self.empty_rc(run, node)?);
-            f.touched.push(node as u32);
-            f.memo[node] = Some(r.clone());
-            if sw!("VEC_STEP_TIME") && decided {
-                self.stats.known_time += step_clock() - tk;
-                self.stats.known_timed += 1;
-            }
-            return Ok(r);
+            return Ok(Res::Tab(self.empty_rc(run, node)?));
         }
-        // 8: an execution over an empty input answers the step's shared empty table before any set-up
-        if let Some(inp) = self.first_input(node)? {
-            let t = self.eval(f, run, p, inp)?;
-            if t.n == 0 {
-                if self.stats.made_by[node] == usize::MAX {
-                    self.stats.made_by[node] = self.stack.last().copied().unwrap_or(usize::MAX - 1);
-                    self.stats.why[node] = why;
-                }
-                self.stats.calls[node] += 1;
-                self.stats.empty[node] += 1;
-                let e = self.empty_rc(run, node)?;
-                if self.is_constant(run, node) {
-                    self.run_memo[node] = Some(e.clone());
-                }
-                let rc = Res::Tab(e);
-                // redo-int: union pass 2 c14 clears at the file's end only the memo entries listed in `touched`
-                f.touched.push(node as u32);
-                f.memo[node] = Some(rc.clone());
-                return Ok(rc);
+        // 8: a step over an empty input answers its shared empty table before any set-up
+        let gate = self.frames[node].gate;
+        if gate < frame::MISSING && self.eval(f, run, p, gate as usize)?.n == 0 {
+            self.stats.calls[node] += 1;
+            self.stats.empty[node] += 1;
+            let e = self.empty_rc(run, node)?;
+            if self.is_constant(run, node) {
+                self.run_memo[node] = Some(e.clone());
             }
+            return Ok(Res::Tab(e));
         }
+        let out = if self.timing { self.timed_body(f, run, p, node)? } else { self.body(f, run, p, node)? };
+        emptyprop::ran();
+        self.stats.calls[node] += 1;
+        self.stats.rows[node] += out.n as u64;
+        if out.n == 0 {
+            self.stats.empty[node] += 1;
+        }
+        if self.is_constant(run, node) {
+            self.run_memo[node] = Some(out.clone());
+        }
+        Ok(Res::Tab(out))
+    }
+
+    /// `body` under the step clock (`VEC_STEP_TIME`): the step's own seconds (its inputs' taken off), and the empty
+    /// runs' classes (`VEC_EMPTY_WHY`).
+    #[inline(never)]
+    fn timed_body(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Table>> {
         let ew = if sw!("VEC_EMPTY_WHY") { Some(empty_why::class(self, f, run, node)) } else { None };
         let t0 = step_clock();
         let saved = self.inner;
         self.inner = 0.0;
-        if self.stats.made_by[node] == usize::MAX {
-            self.stats.made_by[node] = self.stack.last().copied().unwrap_or(usize::MAX - 1);
-            self.stats.why[node] = why;
-        }
-        self.stack.push(node);
         let out = self.body(f, run, p, node);
-        self.stack.pop();
         let dt = step_clock() - t0;
         let own = dt - self.inner;
         self.stats.time[node] += own;
@@ -1808,23 +1800,10 @@ impl<'p> Exec<'p> {
             self.stats.empty_time[node] += own;
             emptyprop::empty_run(node, false, own);
         }
-        emptyprop::ran();
         if let Some(c) = ew {
             empty_why::tally(self, f, node, c, out.n == 0);
         }
-        self.stats.calls[node] += 1;
-        self.stats.rows[node] += out.n as u64;
-        if out.n == 0 {
-            self.stats.empty[node] += 1;
-        }
-        let t = out;
-        if self.is_constant(run, node) {
-            self.run_memo[node] = Some(t.clone());
-        }
-        let rc = Res::Tab(t);
-        f.touched.push(node as u32);
-        f.memo[node] = Some(rc.clone());
-        Ok(rc)
+        Ok(out)
     }
 
     /// The rows of `node` whose column `col` holds one of `keys`. Every step is made whole once a file (`res`); this
@@ -1899,7 +1878,6 @@ impl<'p> Exec<'p> {
 
     /// A node's rows as a table (a view is made whole here, once a file).
     pub(super) fn eval(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Rc<Table>> {
-        let why = self.reason;
         match self.res(f, run, p, node)? {
             Res::Tab(t) => Ok(t),
             Res::View(v) => {
@@ -1915,10 +1893,6 @@ impl<'p> Exec<'p> {
                 }
                 out.n = rows.len();
                 let rc = recycle::rc(out);
-                if self.stats.made_by[node] == usize::MAX {
-                    self.stats.made_by[node] = self.stack.last().copied().unwrap_or(usize::MAX - 1);
-                    self.stats.why[node] = if why.is_empty() { "a view read whole" } else { why };
-                }
                 f.vmat.insert(node, rc.clone());
                 let dt = step_clock() - t0;
                 self.stats.time[node] += dt;
@@ -1928,28 +1902,6 @@ impl<'p> Exec<'p> {
                 Ok(rc)
             }
         }
-    }
-
-    /// 8: the input whose empty answer empties this step (the one `body` tests first), resolved once a run; none for the
-    /// steps that test no input first and for a counted group (which may not make its input).
-    fn first_input(&mut self, node: usize) -> R<Option<usize>> {
-        if let Some(x) = self.firsts[node] {
-            return Ok(x);
-        }
-        let plan: &'p Plan = self.plan;
-        let pn = &plan.nodes[node];
-        let arg = match pn.op.as_str() {
-            "antijoin" | "ordered-match" | "as-of" => Some("left"),
-            "closure" | "follow" => Some("edges"),
-            "base" | "select" | "rows" | "union" | "group-count" => None,
-            _ => Some("from"),
-        };
-        let x = match arg {
-            Some(a) => Some(self.arg_rel(node, a)?),
-            None => None,
-        };
-        self.firsts[node] = Some(x);
-        Ok(x)
     }
 
     /// 8: a cleared row-number buffer from the worker's pool.
@@ -1990,7 +1942,6 @@ impl<'p> Exec<'p> {
         if let Some(l) = f.lazies.get(&node) {
             return Ok(l.clone());
         }
-        self.reason = "closure edges";
         let edges = self.eval(f, run, p, self.arg_rel(node, "edges")?)?;
         let t0 = step_clock();
         let a = &self.plan.nodes[node].j["args"];
@@ -2030,15 +1981,8 @@ impl<'p> Exec<'p> {
         {
             return Ok(recycle::rc(t));
         }
-        // a step over an empty input answers nothing, and asks for nothing else
         if fr.first == frame::MISSING {
             return Err(format!("no relation argument of {}", self.plan.nodes[node].op));
-        }
-        if fr.first != NONE {
-            let t = self.eval(f, run, p, fr.first as usize)?;
-            if t.n == 0 && fr.op != frame::Op::Union {
-                return self.empty_rc(run, node);
-            }
         }
         // an empty answer is the step's shared one (the body's own table is dropped, nothing kept a run); the select's
         // dispatch point (by the frame's code)
@@ -2664,7 +2608,6 @@ impl<'p> Exec<'p> {
                 }) {
                     Some((d, n)) => {
                         // a closure that no made or bucketed source drives is made whole and drives
-                        self.reason = "join driver: no source bound";
                         let t = self.eval(f, run, p, n)?;
                         if t.n == 0 {
                             empty_sel::at(empty_sel::stage::PENDING_EMPTY);
@@ -2794,7 +2737,6 @@ impl<'p> Exec<'p> {
                         && !native
                     {
                         let vn = *vn;
-                        self.reason = "view probed on a column it has no keyed read for";
                         srcs[si] = Src::Tab(self.eval(f, run, p, vn)?, vn);
                     }
                     // a closure is made for the ends this join asks, and only those
@@ -2829,7 +2771,6 @@ impl<'p> Exec<'p> {
                             }
                         }
                         if unkeyed {
-                            self.reason = "closure probed without its keys (made whole)";
                             srcs[si] = Src::Tab(self.eval(f, run, p, l.node)?, l.node);
                         } else {
                         let mut t = Table::with(l.names.clone(), l.tys.clone());
@@ -2964,7 +2905,6 @@ impl<'p> Exec<'p> {
                     let si = (0..k).find(|s2| bound & (1 << s2) == 0).expect("an unbound source");
                     if let Src::Lazy(l) = &srcs[si] {
                         let ln = l.node;
-                        self.reason = "closure crossed (no key joins it)";
                         srcs[si] = Src::Tab(self.eval(f, run, p, ln)?, ln);
                     }
                     let nb = bound | (1 << si);
@@ -3064,7 +3004,6 @@ impl<'p> Exec<'p> {
         Ok(match self.res(f, run, p, rel)? {
             Res::View(v) if File::probes(v.base, v.map[pc]) && File::probes(v.base, v.map[cc]) => Hier::View(v, pc, cc),
             _ => {
-                self.reason = "axis hierarchy";
                 let t = self.eval(f, run, p, rel)?;
                 let mut up: FxHashMap<u64, Vec<u64>> = FxHashMap::default();
                 let mut down: FxHashMap<u64, Vec<u64>> = FxHashMap::default();
@@ -3084,7 +3023,6 @@ impl<'p> Exec<'p> {
         let dn = self.arg_rel(node, "domain")?;
         let sc = self.schema(run, dn)?;
         let c = pos(&sc.names, "id")?;
-        self.reason = "axis domain";
         Ok(match self.res(f, run, p, dn)? {
             Res::View(v) if File::probes(v.base, v.map[c]) => Dom::View(v, c),
             _ => {
