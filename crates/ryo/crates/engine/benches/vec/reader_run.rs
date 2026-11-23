@@ -217,11 +217,6 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
         .collect();
     run.root_dir = req.root.clone();
     run.paths = req.files.clone().into();
-    run.path_sym = req
-        .files
-        .iter()
-        .map(|path| run.sym(path.as_bytes()))
-        .collect();
     let mut kinds = Names::default();
     let mut fields = Names::default();
     let mut words = Names::default();

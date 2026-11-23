@@ -52,12 +52,6 @@ impl<'p> Finisher<'p> {
             .iter()
             .map(|p| p.strip_prefix(&root).unwrap_or(p).to_owned())
             .collect();
-        run.path_sym = run
-            .paths
-            .clone()
-            .iter()
-            .map(|p| run.sym(p.as_bytes()))
-            .collect();
         // redo-general: the provider's token order (its lexical model, `provider_tokens.rs`)
         run.set_tokens(
             std::rc::Rc::new(super::provider_tokens::Lexicon::new(&|n| {

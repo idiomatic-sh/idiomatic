@@ -18,7 +18,6 @@ pub(crate) struct Settings<'p> {
     root: String,
     paths: std::sync::Arc<[String]>,
     text: Vec<Box<[u8]>>,
-    path_sym: std::sync::Arc<[u32]>,
     kind_sym: Vec<u32>,
     field_sym: Vec<u32>,
     link_sym: [u32; 3],
@@ -62,7 +61,6 @@ impl<'p> Finisher<'p> {
             root: r.root_dir.clone(),
             paths: r.paths.clone(),
             text: r.texts.clone(),
-            path_sym: r.path_sym.clone(),
             kind_sym: r.kind_sym.clone(),
             field_sym: r.field_sym.clone(),
             link_sym: r.link_sym,
@@ -94,7 +92,6 @@ impl<'p> Settings<'p> {
         run.absent_word = self.absent;
         run.file_field_codes = self.file_fields;
         run.link_sym = self.link_sym;
-        run.path_sym.clone_from(&self.path_sym);
         run.kind_sym.clone_from(&self.kind_sym);
         run.field_sym.clone_from(&self.field_sym);
         run.reader_tables.clone_from(&self.reader_tables);

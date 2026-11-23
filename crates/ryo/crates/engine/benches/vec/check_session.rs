@@ -327,7 +327,6 @@ fn visit_groups(
     }
     // A local path may have many source versions. The IDs here identify the version.
     run.paths = paths.clone();
-    run.path_sym = paths.iter().map(|p| run.sym(p.as_bytes())).collect();
     let mut bound = HashMap::new();
     let mut elements = l::Elements::default();
     let mut symbols = l::Symbols::default();
