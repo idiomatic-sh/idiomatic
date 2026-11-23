@@ -47,6 +47,7 @@ pub(super) struct Finisher<'p> {
     project: super::provider_packaging::Project,
     type_paths: super::type_expression::Paths,
     input_layout: super::composition_inputs::Layout,
+    prefix_symbols: Vec<u32>,
 }
 
 use ryo::languages;
@@ -120,6 +121,7 @@ impl<'p> Finisher<'p> {
             alloc: [0; 2],
             type_paths: Default::default(),
             input_layout,
+            prefix_symbols: Vec::new(),
             project: super::provider_packaging::Project::new(
                 args[2].trim_end_matches('/'),
                 super::provider_packaging::Project::search_roots_of(flag(args, "--request").as_deref()),
@@ -170,7 +172,7 @@ impl<'p> Finisher<'p> {
     }
 
     /// The second half on one walked file of the direct-columns walk (its own model by parts, built on demand).
-    pub(super) fn column_file(&mut self, file_no: usize, path: &str, file: &mut ryo_python::fixtures::columns::ColumnFile<'_, '_>, bytes: &[u8], wanted: &[usize]) {
+    pub(super) fn column_file(&mut self, file_no: usize, path: &str, file: &mut ryo_python::fixtures::columns::ColumnFile<'_, '_>, bytes: &[u8], wanted: &[usize], prefix: Option<super::direct_fill::Prefix<'_>>) {
         let t0 = thread_cpu();
         file.set_file(languages::FileId(file_no as u32));
         for &rel in &file.empty { self.exec.walk_empty(&self.run, rel); }
@@ -181,13 +183,15 @@ impl<'p> Finisher<'p> {
         finish::own_words_cleared(&mut self.run);
         let mut project = std::mem::take(&mut self.project);
         let mut type_paths = std::mem::take(&mut self.type_paths);
-        let mut pv = ColFacts { file, words: &mut fwords, filled: languages::FilledColumns::default(), time: 0.0, rows: 0, by_rel: std::mem::take(&mut self.by_rel), file_no: file_no as u32, kept: HashMap::new(), type_paths: &mut type_paths, input_layout: self.input_layout, input_columns: Default::default(), project: &mut project, src: bytes };
+        let mut prefix_symbols = std::mem::take(&mut self.prefix_symbols);
+        let mut pv = ColFacts { file, words: &mut fwords, filled: languages::FilledColumns::default(), time: 0.0, rows: 0, by_rel: std::mem::take(&mut self.by_rel), file_no: file_no as u32, kept: HashMap::new(), type_paths: &mut type_paths, input_layout: self.input_layout, input_columns: Default::default(), prefix, prefix_symbols: &mut prefix_symbols, project: &mut project, src: bytes };
         self.file(file_no, path, ft, bytes, &mut pv, wanted);
         self.provider_time += pv.time;
         self.provider_rows += pv.rows;
         self.by_rel = pv.by_rel;
         self.fwords = fwords;
         self.type_paths = type_paths;
+        self.prefix_symbols = prefix_symbols;
         self.project = project;
         self.time += thread_cpu() - t0;
     }

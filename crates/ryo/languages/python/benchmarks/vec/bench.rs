@@ -1006,6 +1006,8 @@ struct ColFacts<'v, 'a, 'f, 'w> {
     type_paths: &'w mut type_expression::Paths,
     input_layout: composition_inputs::Layout,
     input_columns: composition_inputs::Columns,
+    prefix: Option<direct_fill::Prefix<'w>>,
+    prefix_symbols: &'w mut Vec<u32>,
     /// redo-general: the provider's project (its packaging knowledge, run-wide) and this file's bytes, for the relations it
     /// answers for a project.
     project: &'w mut provider_packaging::Project,
@@ -1073,10 +1075,15 @@ impl ColFacts<'_, '_, '_, '_> {
         let timed = finish::fill_prof::timed();
         // redo-fills pass 2: the provider's direct columns, no reader rows and no conversion (direct_fill.rs)
         if direct_fill::direct(rel)
-            && let Some((t, write, make)) = direct_fill::fill(self.file, run, rel, self.file_no, timed, columns)
+            && let Some((t, write, make, reused)) = direct_fill::fill(self.file, run, rel, self.file_no, timed, columns, self.prefix, self.prefix_symbols)
         {
             if timed {
                 let n = t.as_ref().map_or(0, |t| t.n as u64);
+                if reused {
+                    let e = self.by_rel.entry(format!("prefix:{rel}")).or_default();
+                    e.1 += n;
+                    e.2 += 1;
+                }
                 for (k, s) in [("reader", write), ("convert", make)] {
                     let e = self.by_rel.entry(format!("{k}:{rel}")).or_default();
                     e.0 += s;
@@ -1701,7 +1708,7 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
             continue;
         }
         if colwalk {
-            let _ = cwalk.walked(path, &bytes, &mut table, &mut |file| fin.column_file(file_no, path, file, &bytes, &wanted));
+            let _ = cwalk.walked(path, &bytes, &mut table, &mut |file| fin.column_file(file_no, path, file, &bytes, &wanted, None));
         } else {
             let _ = ryo_python::fixtures::walking::walked(walk, path, &bytes, &[], &mut table, &mut scratch, &mut |mut file| fin.reader_file(file_no, path, &mut file, &bytes, &wanted));
         }
@@ -2620,7 +2627,8 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                                 let t = &store.direct.tables[i];
                                 if !asks[i].exists && t.answered && t.rows == 0 { fin.prefix_empty(&fact_catalog.names[*slot]); }
                             }
-                            fin.column_file(file_no, path, file, &bytes, &wanted);
+                            let prefix = direct_fill::Prefix { asks: &asks, tables: &store.direct.tables, words: &interner };
+                            fin.column_file(file_no, path, file, &bytes, &wanted, Some(prefix));
                         }
                     }
                     visit_time += thread_cpu() - p0;
