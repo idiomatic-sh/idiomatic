@@ -89,12 +89,12 @@ impl Packet {
         }
         true
     }
-    pub(super) fn view<'a>(
+    pub(super) fn view<'a, 'words>(
         &'a self,
-        parsed: &'a mut reader::ReaderFacts,
+        parsed: &'a mut reader::ReaderFacts<'words>,
         symbols: &'a l::Symbols,
         bytes: &'a [u8],
-    ) -> View<'a> {
+    ) -> View<'a, 'words> {
         View {
             packet: self,
             parsed,
@@ -120,14 +120,14 @@ impl Packet {
             })
     }
 }
-pub(super) struct View<'a> {
+pub(super) struct View<'a, 'words> {
     packet: &'a Packet,
-    parsed: &'a mut reader::ReaderFacts,
+    parsed: &'a mut reader::ReaderFacts<'words>,
     symbols: &'a l::Symbols,
     bytes: &'a [u8],
     resolved: FxHashMap<u32, u32>,
 }
-impl finish::Provider for View<'_> {
+impl finish::Provider for View<'_, '_> {
     fn syntax_text(&self) -> Option<&[u32]> {
         Some(&self.parsed.text)
     }
@@ -184,7 +184,7 @@ impl finish::Provider for View<'_> {
                     finish::Ty::Sym => {
                         let id = raw as u32;
                         u64::from(*self.resolved.entry(id).or_insert_with(|| {
-                            reader::symbol(run, self.symbols, self.bytes, l::Symbol(id))
+                            reader::symbol(run, self.parsed.unknown, self.symbols, self.bytes, l::Symbol(id))
                         }))
                     }
                     finish::Ty::Node => {

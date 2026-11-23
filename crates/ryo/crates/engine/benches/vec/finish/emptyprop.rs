@@ -257,22 +257,14 @@ const VIEW_ENTRY_CAP: usize = 64;
 const NO_FACT: u16 = u16::MAX;
 
 #[derive(Default)]
-struct Leaves {
-    plan: usize,
+pub(super) struct Leaves {
     by: Vec<Option<std::rc::Rc<[Leaf]>>>,
-    /// Present field names resolved against the current file's codebook.
-    file: Option<(u32, usize)>,
-    fields: FxHashSet<u32>,
     /// runs not made because the propagation's leaves decided them, by step
     skipped: Vec<u64>,
     /// emits asked in a file: decided empty by the old leaves, by the propagation's, or run
     emits: [u64; 3],
     /// `VEC_STEP_TIME`: seconds of the leaves' fills, literal reads, view reads
     laps: [f64; 3],
-}
-
-thread_local! {
-    static L: RefCell<Leaves> = RefCell::new(Leaves::default());
 }
 
 /// The columns of source `si` an expression names.
@@ -308,35 +300,33 @@ fn tests(conj: &[E], si: usize, base: Native, map: &[usize]) -> (bool, Vec<u32>)
     (lit, fields)
 }
 
-/// An emit asked in a file: answered before running anything (its step decided empty by the file's leaves: the old
-/// ones, or the propagation's), or run.
-pub(crate) fn emit_done(f: &File<'_>, node: usize) {
-    let k = match f.known[node] {
-        super::known::YES_EP => 1,
-        2 => 0,
-        _ => 2,
-    };
-    L.with(|l| l.borrow_mut().emits[k] += 1);
-}
+impl Exec<'_> {
+    /// An emit asked in a file: answered before running anything (its step decided empty by the file's leaves: the old
+    /// ones, or the propagation's), or run.
+    pub(crate) fn emit_done(&mut self, f: &File<'_>, node: usize) {
+        let k = match f.known[node] {
+            super::known::YES_EP => 1,
+            2 => 0,
+            _ => 2,
+        };
+        self.leaves.emits[k] += 1;
+    }
 
-/// A step skipped (answered empty before the bracket) because the propagation's leaves decided it.
-#[inline]
-pub(super) fn skipped(f: &File<'_>, node: usize) {
-    if f.known[node] == super::known::YES_EP {
-        L.with(|l| {
-            let mut l = l.borrow_mut();
+    /// A step skipped (answered empty before the bracket) because the propagation's leaves decided it.
+    #[inline]
+    pub(super) fn skipped(&mut self, f: &File<'_>, node: usize) {
+        if f.known[node] == super::known::YES_EP {
+            let l = &mut self.leaves;
             if l.skipped.len() <= node {
                 l.skipped.resize(node + 1, 0);
             }
             l.skipped[node] += 1;
-        });
+        }
     }
-}
 
-/// The skipped runs by step kind (report lines `EPSKIP`).
-pub(crate) fn print_skipped(ops: &dyn Fn(usize) -> String) {
-    L.with(|l| {
-        let l = l.borrow();
+    /// The skipped runs by step kind (report lines `EPSKIP`).
+    pub(crate) fn print_skipped(&self, ops: &dyn Fn(usize) -> String) {
+        let l = &self.leaves;
         let mut by: std::collections::BTreeMap<String, u64> = std::collections::BTreeMap::new();
         for (n, k) in l.skipped.iter().enumerate() {
             if *k > 0 {
@@ -350,17 +340,11 @@ pub(crate) fn print_skipped(ops: &dyn Fn(usize) -> String) {
         for (op, k) in by {
             println!("EPSKIP\t{op}\t{k}");
         }
-    });
-}
+    }
 
-impl Exec<'_> {
     fn ep_leaves(&mut self, run: &mut Run, node: usize) -> std::rc::Rc<[Leaf]> {
-        let addr = std::ptr::from_ref(self.plan) as usize;
-        if let Some(x) = L.with(|l| {
-            let l = l.borrow();
-            if l.plan == addr { l.by.get(node).cloned().flatten() } else { None }
-        }) {
-            return x;
+        if let Some(Some(leaves)) = self.leaves.by.get(node) {
+            return leaves.clone();
         }
         let mut out = Vec::new();
         if let Ok(Some(v)) = self.view(run, node) {
@@ -384,16 +368,10 @@ impl Exec<'_> {
             }
         }
         let rc: std::rc::Rc<[Leaf]> = out.into();
-        L.with(|l| {
-            let mut l = l.borrow_mut();
-            if l.plan != addr {
-                *l = Leaves { plan: addr, ..Leaves::default() };
-            }
-            if l.by.len() <= node {
-                l.by.resize(self.plan.nodes.len().max(node + 1), None);
-            }
-            l.by[node] = Some(rc.clone());
-        });
+        if self.leaves.by.is_empty() {
+            self.leaves.by.resize(self.plan.nodes.len(), None);
+        }
+        self.leaves.by[node] = Some(rc.clone());
         rc
     }
 
@@ -414,7 +392,7 @@ impl Exec<'_> {
             if lf.rows {
                 let t0 = step_clock();
                 let e = self.ep_view_rows_empty(f, run, p, node);
-                L.with(|l| l.borrow_mut().laps[2] += step_clock() - t0);
+                self.leaves.laps[2] += step_clock() - t0;
                 if e {
                     return true;
                 }
@@ -426,7 +404,7 @@ impl Exec<'_> {
             let t0 = step_clock();
             let loaded = self.load_fact(f, run, p, base);
             let t1 = step_clock();
-            L.with(|l| l.borrow_mut().laps[0] += t1 - t0);
+            self.leaves.laps[0] += t1 - t0;
             if loaded.is_err() {
                 continue;
             }
@@ -447,7 +425,7 @@ impl Exec<'_> {
                     let Ok(Some(v)) = self.view(run, sp.srcs[i]) else { continue };
                     if i < 2 { lit_file(f, LIT_CONJ | (node << 1) | i, &sp.conj, i, base, &v.map).is_some_and(|r| r.is_empty()) } else { lit_rows(f, &sp.conj, i, base, &v.map).is_some_and(|r| r.is_empty()) }
                 };
-                L.with(|l| l.borrow_mut().laps[1] += step_clock() - t1);
+                self.leaves.laps[1] += step_clock() - t1;
                 if empty {
                     return true;
                 }
@@ -474,19 +452,12 @@ impl Exec<'_> {
 
     /// Whether the file has a child under one of these field names.
     fn ep_field_present(&mut self, f: &File<'_>, run: &Run, names: &[u32]) -> bool {
-        L.with(|l| {
-            let mut l = l.borrow_mut();
-            let key = (f.file, std::ptr::from_ref(f.table) as usize);
-            if l.file != Some(key) {
-                l.file = Some(key);
-                l.fields.clear();
-                for (code, &name) in run.field_sym.iter().enumerate() {
-                    if !super::node_table::ids_of_field(f.table, ryo::languages::FieldCode(code as u16)).is_empty() {
-                        l.fields.insert(name);
-                    }
-                }
-            }
-            names.iter().any(|name| l.fields.contains(name))
-        })
+        let fields = f.present_fields.get_or_init(|| {
+            run.field_sym.iter().enumerate().filter_map(|(code, &name)| {
+                let ids = super::node_table::ids_of_field(f.table, ryo::languages::FieldCode(code as u16));
+                (!ids.is_empty()).then_some(name)
+            }).collect()
+        });
+        names.iter().any(|name| fields.contains(name))
     }
 }

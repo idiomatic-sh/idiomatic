@@ -249,14 +249,14 @@ impl Exec<'_> {
         r
     }
 
-    /// The step's needs, prepared at its first ask and kept for the process (one plan a process).
+    /// The step's needs, prepared on its first use in this execution.
     #[inline]
-    pub(super) fn need(&mut self, run: &mut Run, node: usize) -> &'static Need {
-        if let Some(n) = self.needs[node] {
-            return n;
+    pub(super) fn need(&mut self, run: &mut Run, node: usize) -> std::rc::Rc<Need> {
+        if let Some(n) = &self.needs[node] {
+            return n.clone();
         }
-        let n: &'static Need = Box::leak(Box::new(self.need_of(run, node)));
-        self.needs[node] = Some(n);
+        let n = std::rc::Rc::new(self.need_of(run, node));
+        self.needs[node] = Some(n.clone());
         n
     }
 

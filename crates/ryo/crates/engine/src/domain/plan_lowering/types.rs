@@ -1,6 +1,8 @@
 //! The types of the `plan_lowering` concept: the texts of a pack, and the stages a lowering runs to.
 
 use ryo_values::domain::descriptions::types::{ColumnName, RelationName};
+use ryo_values::domain::finish_plans::expressions::types::PlanConstant;
+use std::collections::BTreeMap;
 use ryo_values::domain::observations::types::ObservationName;
 use ryo_values::domain::program::types::{ParsedModules, WrittenProgram};
 use ryo_values::domain::runs::types::RuleId;
@@ -27,8 +29,8 @@ pub struct PackPrograms {
     pub context: RuleContext,
 }
 
-/// What a run gives its rules beside the catalog, as the host hands it to the compiler: tables of constant rows that a
-/// rule reads by relation name, and the outputs one rule observes for others to read by name.
+/// What a run gives its rules beside the catalog, as the host hands it to the compiler: parameter bindings, tables of constant rows a
+/// rule reads by relation name, and outputs one rule observes for others to read by name.
 ///
 /// # Examples
 ///
@@ -39,6 +41,8 @@ pub struct PackPrograms {
 /// ```
 #[derive(Clone, Debug, Default)]
 pub struct RuleContext {
+    /// Values supplied by each rule's caller, keyed by rule id and declared parameter name.
+    pub parameters: BTreeMap<Box<str>, BTreeMap<Box<str>, PlanConstant>>,
     /// The context tables.
     pub tables: Vec<ContextTable>,
     /// The rule observations.
