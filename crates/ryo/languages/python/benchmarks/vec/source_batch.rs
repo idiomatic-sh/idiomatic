@@ -39,9 +39,4 @@ impl SourceBatch {
         let at = index - self.first;
         &self.bytes[self.ends[at]..self.ends[at + 1]]
     }
-
-    pub(super) fn file(&mut self, files: &[String], index: usize) -> Result<&[u8]> {
-        self.load(files, index)?;
-        Ok(self.get(index))
-    }
 }

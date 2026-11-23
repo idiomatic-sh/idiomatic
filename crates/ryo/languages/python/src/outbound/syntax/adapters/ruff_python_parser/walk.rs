@@ -94,6 +94,14 @@ pub(super) fn walked(
 ) {
     let Readable(source) = readable(text);
     let parsed = parse_unchecked(&source, options(source_kind, settings));
+    let shared;
+    let parsed = if node_table::wants_token_source(builder) {
+        shared = std::sync::Arc::new(parsed);
+        node_table::set_token_source(builder, Box::new(ParserRanges(shared.clone())));
+        shared.as_ref()
+    } else {
+        &parsed
+    };
     let utf8 = matches!(&source, Cow::Borrowed(_));
     node_table::set_syntax_acceptance(
         builder,
@@ -256,4 +264,17 @@ pub(super) fn walked(
         names,
     };
     embedded(builder, tree, Vec::new(), read);
+}
+
+#[derive(Debug)]
+struct ParserRanges(std::sync::Arc<ruff_python_parser::Parsed<Mod>>);
+impl node_table::TokenSpanSource for ParserRanges {
+    fn token_span(&self, key: u32) -> languages::ByteSpan {
+        use ruff_text_size::Ranged as _;
+        let token = &self.0.tokens()[key as usize];
+        languages::ByteSpan {
+            start: Offset(token.start().to_u32()),
+            end: Offset(token.end().to_u32()),
+        }
+    }
 }

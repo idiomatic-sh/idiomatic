@@ -128,6 +128,13 @@ pub(crate) enum LoweringError {
         /// Where the select is written.
         span: QuerySpan,
     },
+    /// A `where` negates a condition (`not matches(name, "^x")`): the finish plan's lowering reads it; this compile has
+    /// no negated test.
+    #[error("a where here tests conditions as written, not a negated one")]
+    NegatedCondition {
+        /// Where the select is written.
+        span: QuerySpan,
+    },
     /// A join's `on`, or a `where` after a join, names `alias.column` with an alias neither side of the join has.
     #[error("no side of the join is named `{alias}`; the join reads {sides}")]
     UnknownSide {

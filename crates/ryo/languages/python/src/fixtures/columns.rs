@@ -295,12 +295,17 @@ pub struct ColumnWalk {
     words: FileWords,
     /// When set, the table is written `structured` with these enclosing kind sets.
     structure: Option<Vec<languages::KindSet>>,
+    defer_children: bool,
+    native_spans: bool,
 }
 
 /// The relations this walk writes per node as fact columns (`ColumnWalk::column`), by catalog name: a consumer may test
 /// them per node.
 pub const PER_NODE_FACTS: [&str; 9] =
     ["qualified-name", "identifier", "literal-properties", "numeric-literal", "string-literal", "expression-shape", "expression-type", "binding-event", "binding-read"];
+
+/// File-local relations available through the walked file's complete fill.
+pub const FILE_SET_FACTS: &[&str] = &["static-import", "comment", "indent-region"];
 
 /// How a column's literal is spelled in the source as a word: whole, or its last segment after a separator.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -345,6 +350,8 @@ impl ColumnWalk {
             memo: TextMemo::default(),
             words,
             structure: None,
+            defer_children:false,
+            native_spans: false,
         }
     }
 
@@ -362,6 +369,12 @@ impl ColumnWalk {
 
     /// Walks one file into `table` and lends it to `visit`.
     ///
+    /// Serve primary token ranges from the retained parse.
+    pub fn use_native_spans(&mut self) {self.native_spans=true;}
+
+    /// Materialize child slices at the first navigation request.
+    pub fn defer_child_ids(&mut self){self.defer_children=true;}
+
     /// # Errors
     ///
     /// When the file is not Python.
@@ -375,6 +388,8 @@ impl ColumnWalk {
             Some(enclosing) => node_table::structured(table, kinds, enclosing),
             None => node_table::builder(table, kinds),
         };
+        if self.native_spans {node_table::request_token_source(&mut builder);}
+        if self.defer_children {node_table::defer_child_ids(&mut builder);}
         let target = self.walk.ports.settings.target_version().components();
         self.scratch.file.model.target = target;
         self.memo.names.clear();
@@ -709,6 +724,27 @@ impl ColumnFile<'_, '_> {
             Relation::StaticImport | Relation::StandardLibraryImport => nodes_of_kind(&self.file.syntax, Kind::Node(Node::Alias)).next().is_none().then_some(0),
             _ => None,
         }
+    }
+
+    /// Complete keys for the shape relation when every native node has a shape.
+    /// Escape commands and their ancestors can lack a class, so a file containing
+    /// one uses the ordinary shape reader. Embedded segments have separate ids.
+    #[must_use]
+    pub fn projected_keys(&self, relation: Relation) -> Option<impl Iterator<Item = Position> + '_> {
+        let syntax=&self.file.syntax;
+        let escape=crate::domain::syntax::service::kind_bits(Kind::Extra(TypedExtra::IpyEscapeCommand));
+        if relation!=Relation::ExpressionShape || syntax.completeness.syntax==languages::SyntaxCompleteness::Incomplete
+            || !syntax.tree.segments.is_empty() || !node_table::ids_of_kind(syntax.table,escape).is_empty() { return None; }
+        Some((0..syntax.nodes.len()).map(|i|Position(i as u32)).filter(|&p|
+            category_of(kind_of(node_table::kind_of(syntax.table,p)))==Category::Expression))
+    }
+
+    /// Presence of one shape key under the same complete native-tree projection.
+    #[must_use]
+    pub fn projected_key_exists(&self, relation: Relation, at: Option<Position>) -> Option<bool> {
+        let mut keys=self.projected_keys(relation)?;
+        Some(at.map_or_else(||keys.next().is_some(), |p|usize::from(p)<self.file.syntax.nodes.len()
+            && category_of(kind_of(node_table::kind_of(self.table,p)))==Category::Expression))
     }
 
     /// `column` with the caller's own text memo (`ColumnMemo`): the ids are `ids`', never the walk's memo's.

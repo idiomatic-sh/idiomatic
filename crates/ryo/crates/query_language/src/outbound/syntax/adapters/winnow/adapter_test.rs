@@ -45,6 +45,10 @@ const LIST_AFTER_IN: &str = "let found = select * from \"function\" where name i
 
 const COMPUTED_COLUMN: &str = "let paths = select check, concat(l.path, \".\", name) as path, file from \"attribute\" as l; emit paths subject \"file\" key(\"path\");";
 
+const CONSTANT_COLUMN: &str = "let ranks = select alias, 0 as priority, file from \"import\"; emit ranks subject \"file\" key(\"alias\");";
+
+const NEGATED: &str = "let caps = select * from \"name\" where form = \"a\" and not matches(name, \"^x\"); emit caps subject \"file\" key(\"id\");";
+
 const DANGLING_OR: &str = "let a = select * from \"syntax-tree\" where kind = \"a\" or;\nemit a subject \"file\" key(\"span\");";
 
 /// What a row of the cases asks of the adapter.
@@ -78,6 +82,10 @@ enum Scenario {
     ListAfterIn,
     /// Reads a select keeping a column computed by a function.
     ComputedColumn,
+    /// Reads `0 as priority` as a number column named `priority` (not a column named `0`).
+    ConstantColumn,
+    /// Reads `not matches(name, "^x")` as the negation of that one test, beside the conjunction's other test.
+    Negated,
     /// Checks the grammar table: how many of its entries break the check.
     Grammar(Coverage),
     /// A check that drives the adapter itself and asserts what it reads; it answers no steps.
@@ -116,6 +124,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::TwoEmits => TWO_EMITS,
         Scenario::ListAfterIn => LIST_AFTER_IN,
         Scenario::ComputedColumn => COMPUTED_COLUMN,
+        Scenario::ConstantColumn => CONSTANT_COLUMN,
+        Scenario::Negated => NEGATED,
     };
     let program = SyntaxWinnowAdapter.read(QueryView(text))?;
     match scenario {
@@ -141,6 +151,8 @@ fn subject(scenario: Input) -> Result<Value, Failure> {
         Scenario::Grouped => grouped_read(&program),
         Scenario::ListAfterIn => list_after_in_read(&program),
         Scenario::ComputedColumn => computed_column_read(&program),
+        Scenario::ConstantColumn => constant_column_read(&program),
+        Scenario::Negated => negated_read(&program),
         Scenario::MisspelledKeyword
         | Scenario::TwoEmits
         | Scenario::Unclosed
@@ -213,6 +225,39 @@ fn list_after_in_read(program: &WrittenProgram) {
 
 /// `check, concat(l.path, ".", name) as path, file` of `COMPUTED_COLUMN` keeps three columns, the second a `concat` of
 /// three operands renamed `path`.
+/// `alias, 0 as priority, file` of `CONSTANT_COLUMN`: the second column is the number 0 renamed `priority`.
+fn constant_column_read(program: &WrittenProgram) {
+    use ryo_values::domain::query_syntax::types::{Renaming, SelectedValue, WrittenOperand};
+    let Expression::Select(select) = &program.steps[0].expression else {
+        panic!("the step is a select");
+    };
+    let Columns::Listed(columns) = &select.columns else {
+        panic!("the select lists its columns");
+    };
+    assert_eq!(columns.len(), 3);
+    let SelectedValue::Constant(WrittenOperand::Number(number)) = &columns[1].column else {
+        panic!("the second column is a number, got {:?}", columns[1].column);
+    };
+    assert_eq!(number.0, 0);
+    assert_eq!(columns[1].rename, Renaming::Renamed(ryo_values::domain::descriptions::types::ColumnName("priority".into())));
+}
+
+/// `form = "a" and not matches(name, "^x")` of `NEGATED`: two conditions, the second the negation of one `matches`.
+fn negated_read(program: &WrittenProgram) {
+    use ryo_values::domain::query_syntax::types::{Condition, WrittenTest};
+    let Expression::Select(select) = &program.steps[0].expression else {
+        panic!("the step is a select");
+    };
+    assert_eq!(select.filters.len(), 2);
+    let Condition::Not(negated) = &select.filters[1] else {
+        panic!("the second condition is negated, got {:?}", select.filters[1]);
+    };
+    let [Condition::Test(test)] = negated.as_slice() else {
+        panic!("one test is negated, got {negated:?}");
+    };
+    assert_eq!(test.test, WrittenTest::Matches);
+}
+
 fn computed_column_read(program: &WrittenProgram) {
     use ryo_values::domain::query_syntax::types::{Renaming, SelectedValue};
     let Expression::Select(select) = &program.steps[0].expression else {
@@ -436,6 +481,18 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         name: CaseName("a_select_keeps_a_column_computed_by_a_function_under_its_name"),
         word: Word::Succeeds,
         input: || Scenario::ComputedColumn,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("a_select_keeps_a_number_column_under_its_name"),
+        word: Word::Succeeds,
+        input: || Scenario::ConstantColumn,
+        expect: Expect::Value(1),
+    },
+    Case {
+        name: CaseName("a_where_negates_one_test_with_not"),
+        word: Word::Succeeds,
+        input: || Scenario::Negated,
         expect: Expect::Value(1),
     },
     Case {

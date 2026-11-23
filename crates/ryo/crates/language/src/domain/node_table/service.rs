@@ -5,15 +5,15 @@
 
 use super::constants::PRESENCE_BITS;
 use super::types::{
-    BuilderSegment, BuilderState, ByteSpan, ChildPlace, ChildRange, EmbeddedRoot, OpenChildren,
-    EmbeddedSegment, EmbeddedSpan, EmbeddedText, FieldCode, Finish, Implied, KindSet, KindsPresent,
-    LogicalText, NodeTable, NodeTableBuilder, PendingToken, PresenceWord,
+    BuilderSegment, BuilderState, ByteSpan, ChildPlace, ChildRange, EmbeddedRoot, EmbeddedSegment,
+    EmbeddedSpan, EmbeddedText, FieldCode, Finish, Implied, KindSet, KindsPresent, LogicalText,
+    NodeTable, NodeTableBuilder, OpenChildren, PendingToken, PresenceWord,
 };
 use crate::domain::diagnostics::constants::UNSPECIFIED_CODE;
 use crate::domain::diagnostics::service::{clear, record};
 use crate::domain::diagnostics::types::{DiagnosticMetadata, DiagnosticPhase, TreeImpact};
-use crate::domain::elements::types::SyntaxAcceptance;
 use crate::domain::elements::types::DecodedProperty;
+use crate::domain::elements::types::SyntaxAcceptance;
 use ryo_relations::domain::elements::types::EmbeddedMapping;
 use ryo_relations::domain::relations::types::{
     Count, KindBits, Offset, Position, PropertyId, ReportText, Span,
@@ -45,6 +45,7 @@ pub fn builder(table: &mut NodeTable, kinds: Count) -> NodeTableBuilder<'_> {
     columns.kind.clear();
     columns.parent.clear();
     columns.subtree_end.clear();
+    columns.native.reset();
     columns.start.clear();
     columns.end.clear();
     columns.field.clear();
@@ -53,6 +54,14 @@ pub fn builder(table: &mut NodeTable, kinds: Count) -> NodeTableBuilder<'_> {
     columns.without_field_count = 0;
     columns.child_range.clear();
     columns.children.clear();
+    columns.defer_children = false;
+    columns.child_slots = 0;
+    if let Some(done) = columns.lazy_children.take() {
+        *columns
+            .spare_children
+            .get_mut()
+            .unwrap_or_else(|e| e.into_inner()) = done;
+    }
     for ids in &mut columns.by_kind {
         ids.clear();
     }
@@ -116,7 +125,11 @@ pub fn builder(table: &mut NodeTable, kinds: Count) -> NodeTableBuilder<'_> {
 /// assert_eq!(element_sets(read)[1].parent_kind, 1);
 /// assert_eq!(enclosing_ids(read)[0], [u32::MAX, 0]);
 /// ```
-pub fn structured<'t>(table: &'t mut NodeTable, kinds: Count, enclosing: &[KindSet]) -> NodeTableBuilder<'t> {
+pub fn structured<'t>(
+    table: &'t mut NodeTable,
+    kinds: Count,
+    enclosing: &[KindSet],
+) -> NodeTableBuilder<'t> {
     let mut made = builder(table, kinds);
     let columns = &mut made.0.table.0;
     columns.enclosing_sets.extend_from_slice(enclosing);
@@ -135,10 +148,17 @@ fn in_set(set: &KindSet, kind: u16) -> bool {
 }
 
 /// Record one edge while its parent is open. Tokens need no mask row of their own.
-fn add_child(columns: &mut super::types::NodeTableEngine, parent: Position, kind: KindBits, field: FieldCode) {
+fn add_child(
+    columns: &mut super::types::NodeTableEngine,
+    parent: Position,
+    kind: KindBits,
+    field: FieldCode,
+) {
     let p = usize::from(parent);
     if p >= columns.child_sets.len() {
-        columns.child_sets.resize(p + 1, super::types::ChildSets::default());
+        columns
+            .child_sets
+            .resize(p + 1, super::types::ChildSets::default());
     }
     let masks = &mut columns.child_sets[p];
     if let Some(word) = masks.child_kinds.get_mut(usize::from(kind.0) / 64) {
@@ -150,11 +170,24 @@ fn add_child(columns: &mut super::types::NodeTableEngine, parent: Position, kind
 }
 
 /// Enclosing columns follow final id order. A root encloses nothing.
-fn enclose(columns: &mut super::types::NodeTableEngine, id: Position, parent: Position, kind: KindBits) {
+fn enclose(
+    columns: &mut super::types::NodeTableEngine,
+    id: Position,
+    parent: Position,
+    kind: KindBits,
+) {
     let p = usize::from(parent);
     let root = id == parent;
-    let parent_kind = if root { kind.0 } else { columns.kind.get(p).copied().unwrap_or(0) };
-    for (set, ids) in columns.enclosing_sets.iter().zip(columns.enclosing.iter_mut()) {
+    let parent_kind = if root {
+        kind.0
+    } else {
+        columns.kind.get(p).copied().unwrap_or(0)
+    };
+    for (set, ids) in columns
+        .enclosing_sets
+        .iter()
+        .zip(columns.enclosing.iter_mut())
+    {
         let up = if root {
             u32::MAX
         } else if in_set(set, parent_kind) {
@@ -175,17 +208,7 @@ fn mapped(state: &BuilderState<'_>, start: Offset, end: Offset) -> ByteSpan {
             end: Offset(end.0.saturating_add(content.0)),
         },
         BuilderSegment::Embedded(host, EmbeddedMapping::WholeHost) => {
-            let columns = &state.table.0;
-            match (
-                columns.start.get(usize::from(host)),
-                columns.end.get(usize::from(host)),
-            ) {
-                (Some(start), Some(end)) => ByteSpan {
-                    start: Offset(*start),
-                    end: Offset(*end),
-                },
-                (Some(_) | None, _) => ByteSpan::default(),
-            }
+            super::native_spans::span_at(&state.table.0, usize::from(host))
         }
     }
 }
@@ -300,8 +323,12 @@ pub fn enter_node(
     // An additional tree may follow a token run. Its holes have the same leaf
     // defaults as tokens past the end of these node-only columns.
     if columns.child_range.len() < usize::from(id) {
-        columns.child_range.resize(usize::from(id), ChildRange::default());
-        columns.subtree_end.extend((columns.subtree_end.len()..usize::from(id)).map(|i| Position(i as u32 + 1)));
+        columns
+            .child_range
+            .resize(usize::from(id), ChildRange::default());
+        columns
+            .subtree_end
+            .extend((columns.subtree_end.len()..usize::from(id)).map(|i| Position(i as u32 + 1)));
     }
     columns.subtree_end.push(Position(id.0.saturating_add(1)));
     columns.start.push(span.start.0);
@@ -392,8 +419,12 @@ fn leave_open(state: &mut BuilderState<'_>, end: Offset) {
     }
     if !implied
         && let (Some(start), Some(stop)) = (
-            columns.start.get(usize::from(open.position)),
-            columns.end.get_mut(usize::from(open.position)),
+            columns
+                .start
+                .get(columns.native.stored(usize::from(open.position))),
+            columns
+                .end
+                .get_mut(columns.native.stored(usize::from(open.position))),
         )
     {
         *stop = span_end.0.max(*start);
@@ -417,18 +448,27 @@ fn close_segment(state: &mut BuilderState<'_>) {
     columns.kind.extend(tokens.iter().map(|t| t.kind.0));
     columns.field.extend(tokens.iter().map(|t| t.field.0));
     columns.parent.extend(tokens.iter().map(|t| t.parent.0));
-    columns.start.extend(tokens.iter().map(|t| t.span.start.0));
-    columns.end.extend(tokens.iter().map(|t| t.span.end.0));
+    let native = state.segment == BuilderSegment::File && columns.native.close(tokens_from, tokens);
+    if !native {
+        columns.start.extend(tokens.iter().map(|t| t.span.start.0));
+        columns.end.extend(tokens.iter().map(|t| t.span.end.0));
+    }
     columns.ordinal.extend(tokens.iter().map(|t| t.ordinal));
-    columns.children.resize(state.child_count, Position(0));
-    // Every element except the segment root belongs in a direct child list.
-    // An embedded root has a host parent but is a separate traversal segment.
-    let first_child = usize::from(state.segment_start) + 1;
-    for (offset, (&parent, ordinal)) in columns.parent[first_child..].iter()
-        .zip(&columns.ordinal[first_child..]).enumerate()
-    {
-        let slot = usize::from(columns.child_range[parent as usize].from) + ordinal.0 as usize;
-        columns.children[slot] = id_after(Count(first_child + offset));
+    columns.child_slots = state.child_count;
+    let out = if columns.defer_children {
+        columns.lazy_children.get_mut()
+    } else {
+        Some(&mut columns.children)
+    };
+    if let Some(out) = out {
+        out.resize(state.child_count, Position(0));
+        write_child_ids(
+            &columns.parent,
+            &columns.ordinal,
+            &columns.child_range,
+            out,
+            usize::from(state.segment_start) + 1..columns.kind.len(),
+        );
     }
     for (offset, token) in state.pending.drain(..).enumerate() {
         let id = id_after(Count(tokens_from + offset));
@@ -783,6 +823,7 @@ pub fn embed(
     source: EmbeddedText<'_>,
 ) -> EmbeddedRoot {
     let state = &mut builder.0;
+    state.table.0.native.invalidate();
     debug_assert!(
         state.open.is_empty(),
         "an embedded segment begins after the file's own tree has closed"
@@ -890,17 +931,7 @@ pub fn parent_of(table: &NodeTable, id: Position) -> Position {
 /// ```
 #[must_use]
 pub fn span_of(table: &NodeTable, id: Position) -> ByteSpan {
-    let columns = &table.0;
-    match (
-        columns.start.get(usize::from(id)),
-        columns.end.get(usize::from(id)),
-    ) {
-        (Some(start), Some(end)) => ByteSpan {
-            start: Offset(*start),
-            end: Offset(*end),
-        },
-        (Some(_) | None, _) => ByteSpan::default(),
-    }
+    super::native_spans::span_at(&table.0, usize::from(id))
 }
 
 /// The field an element fills in its parent; zero for none.
@@ -1002,9 +1033,39 @@ pub fn children_of(table: &NodeTable, id: Position) -> &[Position] {
         .get(usize::from(id))
         .copied()
         .unwrap_or_default();
-    table
-        .0
-        .children
+    if range.from == range.to {
+        return &[];
+    }
+    let c = &table.0;
+    let children = if c.defer_children {
+        c.lazy_children.get_or_init(|| {
+            let mut out =
+                std::mem::take(&mut *c.spare_children.lock().unwrap_or_else(|e| e.into_inner()));
+            out.resize(c.child_slots, Position(0));
+            let mut start = 1;
+            for segment in &c.embedded {
+                write_child_ids(
+                    &c.parent,
+                    &c.ordinal,
+                    &c.child_range,
+                    &mut out,
+                    start..usize::from(segment.root),
+                );
+                start = usize::from(segment.root) + 1;
+            }
+            write_child_ids(
+                &c.parent,
+                &c.ordinal,
+                &c.child_range,
+                &mut out,
+                start..c.kind.len(),
+            );
+            out
+        })
+    } else {
+        &c.children
+    };
+    children
         .get(usize::from(range.from)..usize::from(range.to))
         .unwrap_or_default()
 }
@@ -1040,7 +1101,11 @@ pub fn field_count(table: &NodeTable, field: FieldCode) -> Count {
     Count(if field.0 == 0 {
         table.0.without_field_count
     } else {
-        table.0.by_field.get(usize::from(field.0)).map_or(0, Vec::len)
+        table
+            .0
+            .by_field
+            .get(usize::from(field.0))
+            .map_or(0, Vec::len)
     })
 }
 
@@ -1066,9 +1131,14 @@ pub fn ids_of_field(table: &NodeTable, field: FieldCode) -> &[Position] {
     if field.0 == 0 {
         return table.0.without_field.get_or_init(|| {
             let mut ids = Vec::with_capacity(table.0.without_field_count);
-            ids.extend(table.0.field.iter().enumerate().filter_map(|(i, &code)| {
-                (code == 0).then(|| id_after(Count(i)))
-            }));
+            ids.extend(
+                table
+                    .0
+                    .field
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(i, &code)| (code == 0).then(|| id_after(Count(i)))),
+            );
             ids
         });
     }
@@ -1158,7 +1228,16 @@ pub fn parent_ids(table: &NodeTable) -> &[u32] {
 /// ```
 #[must_use]
 pub fn starts(table: &NodeTable) -> &[u32] {
-    &table.0.start
+    let c = &table.0;
+    if c.native.active() {
+        c.native.starts.get_or_init(|| {
+            (0..c.kind.len())
+                .map(|i| super::native_spans::span_at(c, i).start.0)
+                .collect()
+        })
+    } else {
+        &c.start
+    }
 }
 
 /// The byte after the last of every element, by id: the column itself.
@@ -1178,7 +1257,16 @@ pub fn starts(table: &NodeTable) -> &[u32] {
 /// ```
 #[must_use]
 pub fn ends(table: &NodeTable) -> &[u32] {
-    &table.0.end
+    let c = &table.0;
+    if c.native.active() {
+        c.native.ends.get_or_init(|| {
+            (0..c.kind.len())
+                .map(|i| super::native_spans::span_at(c, i).end.0)
+                .collect()
+        })
+    } else {
+        &c.end
+    }
 }
 
 /// The sets of every element, by id, as a `structured` builder wrote them (empty for any other builder).
@@ -1198,17 +1286,29 @@ pub fn ends(table: &NodeTable) -> &[u32] {
 /// ```
 #[must_use]
 pub fn element_sets(table: &NodeTable) -> &[super::types::ElementSets] {
-    if !table.0.structured { return &[]; }
+    if !table.0.structured {
+        return &[];
+    }
     table.0.sets.get_or_init(|| {
-        table.0.parent.iter().enumerate().map(|(id, &p)| {
-            let children = child_sets_of(table, Position(id as u32));
-            super::types::ElementSets {
-                child_kinds: children.child_kinds,
-                child_fields: children.child_fields,
-                parent_kind: if p as usize <= id { table.0.kind.get(p as usize).copied().unwrap_or(0) } else { 0 },
-                root: p as usize == id,
-            }
-        }).collect()
+        table
+            .0
+            .parent
+            .iter()
+            .enumerate()
+            .map(|(id, &p)| {
+                let children = child_sets_of(table, Position(id as u32));
+                super::types::ElementSets {
+                    child_kinds: children.child_kinds,
+                    child_fields: children.child_fields,
+                    parent_kind: if p as usize <= id {
+                        table.0.kind.get(p as usize).copied().unwrap_or(0)
+                    } else {
+                        0
+                    },
+                    root: p as usize == id,
+                }
+            })
+            .collect()
     })
 }
 
@@ -1216,7 +1316,10 @@ pub fn element_sets(table: &NodeTable) -> &[super::types::ElementSets] {
 #[must_use]
 #[inline]
 pub fn child_sets_of(table: &NodeTable, id: Position) -> &super::types::ChildSets {
-    const EMPTY: super::types::ChildSets = super::types::ChildSets { child_kinds: [0; 4], child_fields: [0; 2] };
+    const EMPTY: super::types::ChildSets = super::types::ChildSets {
+        child_kinds: [0; 4],
+        child_fields: [0; 2],
+    };
     table.0.child_sets.get(usize::from(id)).unwrap_or(&EMPTY)
 }
 
@@ -1238,7 +1341,11 @@ pub fn child_sets_of(table: &NodeTable, id: Position) -> &super::types::ChildSet
 /// ```
 #[must_use]
 pub fn enclosing_ids(table: &NodeTable) -> &[Vec<u32>] {
-    table.0.enclosing.get(..table.0.enclosing_sets.len()).unwrap_or_default()
+    table
+        .0
+        .enclosing
+        .get(..table.0.enclosing_sets.len())
+        .unwrap_or_default()
 }
 
 /// The kinds that occur in the file.
@@ -1489,4 +1596,56 @@ pub fn embedded_segments(table: &NodeTable) -> impl Iterator<Item = EmbeddedSpan
         root: each.root,
         end: each.end,
     })
+}
+
+pub use super::native_spans::TokenSpanSource;
+/// Let this builder accept a provider-owned primary token range source.
+pub fn request_token_source(builder: &mut NodeTableBuilder<'_>) {
+    builder.0.table.0.native.requested = true;
+}
+/// Whether this builder wants the provider's primary token range source.
+#[must_use]
+pub fn wants_token_source(builder: &NodeTableBuilder<'_>) -> bool {
+    builder.0.table.0.native.requested
+}
+/// Lend the owned source to the node table through the last read of its ranges.
+pub fn set_token_source(builder: &mut NodeTableBuilder<'_>, source: Box<dyn TokenSpanSource>) {
+    builder.0.table.0.native.source = Some(source);
+}
+/// Write an ordinary token with its provider range key when its native and mapped spans agree.
+pub fn native_token(
+    builder: &mut NodeTableBuilder<'_>,
+    kind: KindBits,
+    field: FieldCode,
+    start: Offset,
+    end: Offset,
+    key: u32,
+) {
+    let n = builder.0.pending.len();
+    token(builder, kind, field, start, end);
+    if builder.0.segment == BuilderSegment::File && builder.0.pending.len() > n {
+        builder.0.table.0.native.register(n, key);
+    }
+}
+
+/// Leave direct child slices unmaterialized until a reader requests a nonempty slice.
+pub fn defer_child_ids(builder: &mut NodeTableBuilder<'_>) {
+    builder.0.table.0.defer_children = true;
+}
+/// Whether a reader has already demanded the deferred child slices.
+#[must_use]
+pub fn child_ids_requested(table: &NodeTable) -> bool {
+    table.0.lazy_children.get().is_some()
+}
+fn write_child_ids(
+    parents: &[u32],
+    ordinals: &[ChildOrdinal],
+    ranges: &[ChildRange],
+    out: &mut [Position],
+    ids: std::ops::Range<usize>,
+) {
+    for id in ids {
+        let slot = usize::from(ranges[parents[id] as usize].from) + ordinals[id].0 as usize;
+        out[slot] = id_after(Count(id));
+    }
 }

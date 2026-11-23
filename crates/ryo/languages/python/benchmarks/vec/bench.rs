@@ -13,6 +13,13 @@ use ryo::languages::{
 use std::collections::HashMap;
 use std::hint::black_box;
 
+/// (allocation calls, bytes allocated, -, live peak) so far, from the run's counter (`alloc_count`, a `vec-dhat` build);
+/// zeros in any other.
+fn alloc_counts() -> [usize; 4] {
+    let c = alloc_count::counts();
+    [c[0] as usize, c[1] as usize, 0, c[2] as usize]
+}
+
 struct NoVisit;
 impl FileVisit for NoVisit {
     fn visit(&mut self, _file: FileFacts<'_>) {}
@@ -283,7 +290,8 @@ fn fields_present(table: &NodeTable, cols: &mut Columns, fields: usize) {
 
 /// An element's bytes, from the node table's own span column.
 fn span_bytes(table: &NodeTable, i: usize) -> std::ops::Range<usize> {
-    node_table::starts(table)[i] as usize..node_table::ends(table)[i] as usize
+    let span=node_table::span_of(table,Position(i as u32));
+    span.start.0 as usize..span.end.0 as usize
 }
 
 fn test_lit(lit: &Lit, text: &[u8]) -> bool {
@@ -567,6 +575,7 @@ fn walk_kinds<W: Walk>(_: &W) -> languages::Count {
 }
 
 fn main() {
+    let _ = thread_cpu(); // Start the process-thread clock before reading the request.
     // redo-alloc: the allocation counter of a `vec-dhat` build (nothing in any other)
     let _counter = alloc_count::start();
     let args: Vec<String> = std::env::args().collect();
@@ -621,9 +630,10 @@ fn main() {
                 let plan = if std::path::Path::new(finish_args[0]).is_dir() {
                     // `--request F`: the run's request, for the rule context the lowering reads
                     let request = args.iter().position(|a| *a == "--request").map(|i| args[i + 1]);
-                    let read = lower::read_pack(std::path::Path::new(finish_args[0]), request);
+                    let read = lower::read_pack(std::path::Path::new(finish_args[0]), request::rule_context(request));
                     println!("start-up pack: read {:.4} parse {:.4} s", read.read, read.parse);
-                    let plan = lower::second_half_plan(&read);
+                    let same_pack = std::fs::canonicalize(args[4]).ok() == std::fs::canonicalize(finish_args[0]).ok();
+                    let plan = lower::second_half_plan(&read, same_pack);
                     pack = Some((finish_args[0], read));
                     plan
                 } else {
@@ -647,16 +657,16 @@ fn main() {
 
 /// The first half's language knowledge, as the provider declares it (the column walk's per-node facts and the token order
 /// this harness writes, the spelled columns, the identifier rule, the name-token kind).
-fn python_language() -> first::Language {
-    use ryo_python::fixtures::columns::{NAME_KIND, PER_NODE_FACTS, SPELLED_COLUMNS, Spelling, is_identifier};
-    let mut facts: Vec<String> = PER_NODE_FACTS.iter().map(|s| (*s).to_owned()).collect();
-    // the harness writes the token order itself (`Store::token_order`)
-    facts.push("token-link".to_owned());
+fn python_language(vocab: &Vocab) -> first::Language {
+    use finish::TokenOrder as _;
+    let tokens=provider_tokens::Lexicon::new(&|n| vocab.kinds.get(n).copied());
+    use ryo_python::fixtures::columns::{PER_NODE_FACTS, SPELLED_COLUMNS, Spelling, is_identifier};
     first::Language {
-        facts,
+        text_kinds: vocab.kinds.values().copied().filter(|k|tokens.has_text(*k)).collect(),
+        file_sets: ryo_python::fixtures::columns::FILE_SET_FACTS.iter().map(|s|(*s).to_string()).collect(),
+        facts: PER_NODE_FACTS.iter().map(|s| (*s).to_owned()).collect(),
         spelled: SPELLED_COLUMNS.iter().map(|(r, c, how)| ((*r).to_owned(), (*c).to_owned(), match how { Spelling::Whole => None, Spelling::LastSegment(c) => Some(*c) })).collect(),
         is_identifier,
-        word_kind: NAME_KIND.to_owned(),
     }
 }
 
@@ -931,8 +941,6 @@ mod alloc_count;
 mod funnel;
 #[path = "file_seeds.rs"]
 mod file_seeds;
-mod source_batch;
-mod column_pair;
 #[path = "facts.rs"]
 mod facts;
 #[path = "survivors.rs"]
@@ -943,6 +951,14 @@ mod finish;
 mod lower;
 #[path = "first.rs"]
 mod first;
+mod pair_summary;
+mod pair_skip;
+mod pair_checks;
+mod pair_order;
+mod summary_walk;
+mod column_pair;
+mod source_batch;
+mod request;
 #[path = "finisher.rs"]
 mod finisher;
 #[path = "dump.rs"]
@@ -1632,34 +1648,31 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
     let mut fact_catalog = facts::Catalog::default();
     let mut interner = facts::Interner { ids: facts::Table::named(&flag(args, "--hasher").unwrap_or_else(|| "std".to_owned())), ..Default::default() };
     let f0 = thread_cpu();
+    let no_skip = std::env::var_os("VEC_NO_SKIP").is_some();
+    let mut pairs = None;
+    let mut pair_steps = 0;
+    let mut pair_cpu = 0.0;
     let (rules, frules, words) = if std::path::Path::new(args[2]).is_dir() {
         let owned;
         let read = match pack {
             Some((dir, read)) if std::fs::canonicalize(dir).ok() == std::fs::canonicalize(args[2]).ok() => read,
             _ => {
                 let request = flag(args, "--request");
-                owned = lower::read_pack(std::path::Path::new(args[2]), request.as_deref());
+                owned = lower::read_pack(std::path::Path::new(args[2]), request::rule_context(request.as_deref()));
                 println!("start-up first half pack: read {:.4} parse {:.4} s", owned.read, owned.parse);
                 &owned
             }
         };
         let f1 = thread_cpu();
-        let prepared = first::prepare(&read.programs, python_language());
-        println!("start-up first half: products past the CAP {}", first::counts()[6]);
+        let prepared = first::prepare(read, python_language(vocab), vocab);
         let f2 = thread_cpu();
         let rules = rules_of_skips(&prepared.skips, vocab);
         let (frules, words) = funnel::build(&prepared.rules, vocab, &mut fact_catalog, &mut interner);
+        pairs = Some(prepared.pairs);
         let f3 = thread_cpu();
         println!(
-            "start-up first half: from the pack: analysis {:.4} load {:.4} total {:.4} s; rules {} node {} plans {} disjuncts with alternatives {} (plans in them {})",
-            f2 - f1,
-            f3 - f2,
-            f3 - f0,
-            frules.len(),
-            frules.iter().filter(|r| r.node).count(),
-            frules.iter().map(|r| r.plans.len()).sum::<usize>(),
-            frules.iter().map(|r| r.alts.len()).sum::<usize>(),
-            frules.iter().flat_map(|r| r.alts.iter().map(Vec::len)).sum::<usize>()
+            "start-up first half: from the pack: analysis {:.4} load {:.4} total {:.4} s; rules {}",
+            f2 - f1, f3 - f2, f3 - f0, frules.len()
         );
         (rules, frules, words)
     } else {
@@ -1689,8 +1702,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
     let ask_all = args.contains(&"--ask-all");
     let no_project = args.contains(&"--no-project");
     let plant = std::env::var("COLS_PLANT").is_ok_and(|v| v == "1");
-    let make_walk = || ryo_python::fixtures::columns::ColumnWalk::new(ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names"));
-    let mut cwalk = make_walk();
+    let mut cwalk = ryo_python::fixtures::columns::ColumnWalk::new(ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names"));
     store.direct_on = direct;
     if args.contains(&"--regex-set") {
         interner.set = Some(regex::bytes::RegexSet::new(interner.regexes.iter().map(|r| r.as_str())).expect("regex set"));
@@ -1741,7 +1753,6 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
     let mut word_pairs: Vec<(u16, u32)> = Vec::new();
     let mut word_offsets: Vec<u32> = Vec::new();
     let mut word_pos: Vec<u32> = Vec::new();
-    let mut word_fill: Vec<u32> = Vec::new();
     // the walk's code of each name token, and the required word of each code met in the file
     let mut name_codes: Vec<u32> = Vec::new();
     let mut word_memo: Vec<u32> = Vec::new();
@@ -1756,15 +1767,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
     let mut skip = Skip::new(&rules, &skip_of, &frules, words_of(vocab.kind_names.len()), words_of(vocab.field_names.len()));
     let mut kinds: Vec<u64> = Vec::new();
     let fields_width = vocab.field_names.len();
-    // Only a rule/file bit crosses this seam. Explicit enumeration or diagnostic
-    // outputs retain the exhaustive evaluator and its per-unit accounting.
-    let seed_only = (fin.is_some() || args.contains(&"--file-seeds")) && way == "spec" && direct && use_facts
-        && word_src == "table" && word_skip && repeat == 1
-        && !ask_all && !check_direct && !per_fact && !plant && flag(args, "--dump").is_none()
-        && !["--enumerate-nodes", "--rules-out", "--surv-out", "--hits-out", "--alive-out", "--only-knock-units", "--check-token-links", "--token-pass", "--compare"].iter().any(|flag| args.contains(flag))
-        && std::env::var_os("VEC_NO_SKIP").is_none() && std::env::var_os("VEC_NO_PREFIX").is_none();
-    let syntax_only = seed_only && !args.contains(&"--exact-file-seeds");
-    let mut units = if seed_only { Vec::new() } else { funnel::units(&frules) };
+    let mut units = funnel::units(&frules);
     if args.contains(&"--only-knock-units") {
         units.retain(|u| u.knock);
     }
@@ -1772,10 +1775,6 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
     let structured = matches!(way, "structure" | "spec" | "knock");
     // the table writes the structure the checks read (element sets, the plans' enclosing columns) as ids are numbered
     let enclosing: Vec<ryo::languages::KindSet> = fact_catalog.enc_sets.iter().map(|s| ryo::languages::KindSet(*s)).collect();
-    let scan_children = syntax_only && enclosing.is_empty();
-    if structured && !scan_children {
-        cwalk.structured(enclosing.clone());
-    }
     let max_regs = frules.iter().flat_map(|r| r.plans.iter().map(|p| p.regs)).max().unwrap_or(1).max(1);
     // each plan's place in `plan_on`: whether this file enters its disjunct at it (always, for a disjunct of one plan)
     let plan_base: Vec<usize> = frules.iter().scan(0, |a, r| { let b = *a; *a += r.plans.len(); Some(b) }).collect();
@@ -1802,8 +1801,24 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
     let dump_out = flag(args, "--dump");
     let mut dumped = String::new();
     let mut reader_dump = String::new();
-    let mut file_seeds = seed_only.then(|| file_seeds::FileSeeds::new(&frules, syntax_only));
-    if syntax_only || args.contains(&"--defer-lexical") { cwalk.defer_lexical(); }
+    // Only a rule/file bit crosses this seam. Explicit enumeration or diagnostic
+    // outputs retain the exhaustive evaluator and its per-unit accounting.
+    let seed_only = (fin.is_some() || args.contains(&"--file-seeds")) && way == "spec" && direct && use_facts
+        && word_src == "table" && word_skip && repeat == 1
+        && !ask_all && !check_direct && !per_fact && !plant && dump_out.is_none()
+        && !["--enumerate-nodes", "--rules-out", "--surv-out", "--hits-out", "--alive-out", "--only-knock-units"].iter().any(|flag| args.contains(flag))
+        && std::env::var_os("VEC_NO_SKIP").is_none() && std::env::var_os("VEC_NO_PREFIX").is_none();
+    if seed_only && !token_pass && !compare && !check_links && let Some(program) = &pairs {
+        let root = fin.as_ref().map(|f| f.run.root_dir.clone()).or_else(|| flag(args, "--summary-root"));
+        let mut other = ryo_python::fixtures::columns::ColumnWalk::new(ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names"));
+        cwalk.defer_lexical();
+        other.defer_lexical();
+        summary_walk::run(&list, program, &mut skip, &words, name_token, fields_width, &mut fwords,
+            &mut cwalk, &mut other, fin, root.as_deref(), flag(args, "--seed-out").as_deref());
+        return;
+    }
+    if structured { cwalk.structured(enclosing.clone()); }
+    let mut file_seeds = seed_only.then(|| file_seeds::FileSeeds::new(&frules));
     let seed_out = flag(args, "--seed-out");
     let mut seed_dump = String::new();
     let started = thread_cpu();
@@ -1814,11 +1829,20 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
     let mut in_seed = vec![false; frules.len()];
     let node_class: Vec<bool> = frules.iter().map(|r| r.node).collect();
     let fin0 = fin.as_ref().map_or(0.0, |f| f.time);
+    println!("start-up to first file {:.4} s", thread_cpu());
+    for (file_no, path) in list.iter().enumerate() {
+        let c0 = thread_cpu();
+        let bytes = std::fs::read(path).expect("read");
+        let (hits0, alive0) = (sv.hits.len(), sv.alive.len());
+        store.reset(slots_n);
+        reader_dump.clear();
+        let mut visit_time = 0f64;
+        // the file's skip, made once (inside the walk when the provider's facts are decided there, else after it): the
+        // columns read, the required words present, and which rules can match by kinds and fields and by words
+        let mut prepared = false;
+        let mut codes_taken = false;
         macro_rules! prepare {
-            ($t:expr, $source:expr, $file_no:expr, $codes:expr) => {{
-                let bytes: &[u8] = $source;
-                let file_no: usize = $file_no;
-                let codes_taken: bool = $codes;
+            ($t:expr,$fill:expr) => {{
                 let pt: &NodeTable = $t;
                 let c1 = thread_cpu();
                 fields_present(pt, &mut cols, fields_width.max(1));
@@ -1846,7 +1870,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                     match word_src.as_str() {
                         "table" => {
                             // redo-onepass pass 2: the walk's name codes when the visit took them, else by bytes
-                            funnel::file_words(pt, bytes, name_token, if codes_taken { &name_codes } else { &[] }, &words, &mut word_memo, &mut fixed_memo, &mut present, &mut word_pairs);
+                            funnel::file_words(pt, &bytes, name_token, if codes_taken { &name_codes } else { &[] }, &words, &mut word_memo, &mut fixed_memo, &mut present, &mut word_pairs);
                             // the index: name-token positions of each required word
                             word_offsets.clear();
                             word_offsets.resize(n_words + 1, 0);
@@ -1858,11 +1882,10 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                             }
                             word_pos.clear();
                             word_pos.resize(word_pairs.len(), 0);
-                            word_fill.clear();
-                            word_fill.extend_from_slice(&word_offsets[..n_words]);
+                            let mut fill: Vec<u32> = word_offsets[..n_words].to_vec();
                             for (w, p) in &word_pairs {
-                                word_pos[word_fill[usize::from(*w)] as usize] = *p;
-                                word_fill[usize::from(*w)] += 1;
+                                word_pos[fill[usize::from(*w)] as usize] = *p;
+                                fill[usize::from(*w)] += 1;
                             }
                         }
                         "all" => {
@@ -1898,7 +1921,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                         }
                         "ac" => {
                             present.iter_mut().for_each(|w| *w = 0);
-                            for m in ac.find_iter(bytes) {
+                            for m in ac.find_iter(&bytes) {
                                 let (a, b) = (m.start(), m.end());
                                 if (a == 0 || !is_word(bytes[a - 1])) && (b == bytes.len() || !is_word(bytes[b])) {
                                     let w = m.pattern().as_usize();
@@ -1909,7 +1932,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                         "bytes6" => {
                             // the byte patterns of the plan's text patterns (`byte_patterns`): one multi-pattern scan
                             let mut hit = 0u64;
-                            for m in bytes_ac.find_iter(bytes) {
+                            for m in bytes_ac.find_iter(&bytes) {
                                 hit |= 1 << m.pattern().as_usize();
                             }
                             present[0] = hit;
@@ -1940,8 +1963,14 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                 alive.clear();
                 alive.extend(kinds_alive.iter().zip(&words_alive).map(|(k, w)| *k && (!word_skip || *w)));
                 // redo-honest: `VEC_NO_SKIP` keeps every rule alive in every file (a check of the skip: findings must not change)
-                if std::env::var_os("VEC_NO_SKIP").is_some() {
+                if no_skip {
                     alive.iter_mut().for_each(|a| *a = true);
+                }
+                if !no_skip && let Some(program) = &pairs {
+                    let start = thread_cpu();
+                    let relative_path = fin.as_deref().map(|f| f.run.paths[file_no].as_bytes());
+                    pair_steps += program.file(pt, &bytes, relative_path, &mut fwords, $fill, &mut alive);
+                    pair_cpu += thread_cpu() - start;
                 }
                 rule_files += frules.len() as u64;
                 alive_kinds += kinds_alive.iter().filter(|a| **a).count() as u64;
@@ -1955,78 +1984,6 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                 }
             }};
         }
-    let mut input = source_batch::SourceBatch::default();
-    if syntax_only && !args.contains(&"--one-file") && let Some(executor) = fin.as_deref_mut() {
-        let mut next_walk = make_walk();
-        next_walk.defer_lexical();
-        if !scan_children { next_walk.structured(enclosing.clone()); }
-        let mut next_table = NodeTable::default();
-        let mut bits = [vec![false; frules.len()], vec![false; frules.len()]];
-        let seeds = file_seeds.as_mut().expect("file prefix");
-        let mut prefix_cpu = 0.0;
-        let mut consumer_cpu = 0.0;
-        let mut handoff_cpu = 0.0;
-        let batch_start = thread_cpu();
-        let mut first = 0;
-        while first < list.len() {
-            let stop = input.load(&list, first).expect("read");
-            while first < stop {
-                let second = (first + 1 < stop).then_some(first + 1);
-                let paths = (&list[first][..], input.get(first));
-                let next = second.map(|n| (&list[n][..], input.get(n)));
-                column_pair::walked_pair(&mut cwalk, &mut table, &mut next_walk, &mut next_table, paths, next, &mut bits,
-                    &mut |slot, file, result| {
-                        let start = thread_cpu();
-                        let file_no = first + slot;
-                        let bytes = input.get(file_no);
-                        let ft = file.table;
-                        prepare!(ft, bytes, file_no, false);
-                        let index = file_seeds::Index { table: ft, offsets: &word_offsets, words: &word_pos };
-                        let now = thread_cpu();
-                        seeds.choose(&index);
-                        phases.add("seed candidates", thread_cpu() - now);
-                        let now = thread_cpu();
-                        let ctx = funnel::Ctx { table: ft, src: bytes, scan_children, enc: node_table::enclosing_ids(ft), facts: &store, matches: &interner.matches };
-                        seeds.probe(&frules, &index, &ctx, &alive, &present, result);
-                        phases.add("seed checks", thread_cpu() - now);
-                        let now = thread_cpu();
-                        if seed_out.is_some() {
-                            use std::fmt::Write as _;
-                            for (r, &set) in result.iter().enumerate() {
-                                if set { writeln!(seed_dump, "{file_no}\t{}", frules[r].name).expect("write file seed"); }
-                            }
-                        }
-                        phases.add("seed handoff", thread_cpu() - now);
-                        prefix_cpu += thread_cpu() - start;
-                    },
-                    &mut |slot, file, result| {
-                        let start = thread_cpu();
-                        let id = first + slot;
-                        let before = executor.time;
-                        let wanted = executor.wanted(&list[id], &|e| emit_rules[e].iter().any(|&r| result[r]));
-                        handoff_cpu += (thread_cpu() - start - (executor.time - before)).max(0.0);
-                        if executor.visits(&wanted) {
-                            executor.column_file(id, &list[id], file, input.get(id), &wanted);
-                        }
-                        consumer_cpu += thread_cpu() - start;
-                    });
-                first += if second.is_some() { 2 } else { 1 };
-            }
-        }
-        phases.add("seed handoff", handoff_cpu);
-        phases.add("walk+table", thread_cpu() - batch_start - prefix_cpu - consumer_cpu);
-    } else {
-    for (file_no, path) in list.iter().enumerate() {
-        let c0 = thread_cpu();
-        let bytes = input.file(&list, file_no).expect("read");
-        let (hits0, alive0) = (sv.hits.len(), sv.alive.len());
-        store.reset(slots_n);
-        reader_dump.clear();
-        let mut visit_time = 0f64;
-        // the file's skip, made once (inside the walk when the provider's facts are decided there, else after it): the
-        // columns read, the required words present, and which rules can match by kinds and fields and by words
-        let mut prepared = false;
-        let mut codes_taken = false;
         // the file's prefix: the structure pass, then each live unit's plans over its bucket (inside the fact visit when the
         // walk lends the file there, so the second half can run on the same parsed file after it)
         let mut prefixed = false;
@@ -2065,9 +2022,9 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                 if way != "structure" && way != "words" {
                     let ctx = funnel::Ctx {
                         table: t,
-                        src: bytes,
+                        src: &bytes,
+                        sets: node_table::element_sets(t),
                         facts: &store,
-                        scan_children: false,
                         enc: node_table::enclosing_ids(t),
                         matches: &interner.matches,
                     };
@@ -2260,25 +2217,23 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
         }
         let ok = if use_facts && direct {
             cwalk
-                .walked(path, bytes, &mut table, &mut |file| {
+                .walked(path, &bytes, &mut table, &mut |file| {
                     let p0 = thread_cpu();
                     let ft = file.table;
                     let n = node_table::element_count(ft).0;
-                    if !syntax_only {
-                        file.name_token_codes(&mut name_codes);
-                        codes_taken = true;
-                    }
-                    prepare!(ft, bytes, file_no, codes_taken);
+                    file.name_token_codes(&mut name_codes);
+                    codes_taken = true;
+                    prepare!(ft, |rel,words,out| matches!(file.fill(rel,languages::Wanted::Whole,words,out),languages::FactAnswer::Answered(_)));
                     prepared = true;
                     let index = file_seeds::Index { table: ft, offsets: &word_offsets, words: &word_pos };
                     if let Some(seeds) = &mut file_seeds {
                         let now = thread_cpu();
-                        seeds.choose(&index);
+                        seeds.choose(&frules, &index, &alive, &present, &mut in_seed);
                         phases.add("seed candidates", thread_cpu() - now);
                         let now = thread_cpu();
-                        let ctx = funnel::Ctx { table: ft, src: bytes,
-                            scan_children, enc: node_table::enclosing_ids(ft), facts: &store, matches: &interner.matches };
-                        seeds.probe(&frules, &index, &ctx, &alive, &present, &mut in_seed);
+                        let ctx = funnel::Ctx { table: ft, src: &bytes, sets: node_table::element_sets(ft),
+                            enc: node_table::enclosing_ids(ft), facts: &store, matches: &interner.matches };
+                        seeds.probe(&frules, &index, &ctx, &mut in_seed);
                         phases.add("seed checks", thread_cpu() - now);
                     }
                     let v0 = thread_cpu();
@@ -2583,8 +2538,8 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                     // one parse a file: the prefix and then the second half on this walked file, before the walk drops it
                     if let Some(seeds) = &mut file_seeds {
                         let now = thread_cpu();
-                        let ctx = funnel::Ctx { table: ft, src: bytes,
-                            scan_children, enc: node_table::enclosing_ids(ft), facts: &store, matches: &interner.matches };
+                        let ctx = funnel::Ctx { table: ft, src: &bytes, sets: node_table::element_sets(ft),
+                            enc: node_table::enclosing_ids(ft), facts: &store, matches: &interner.matches };
                         seeds.resolve(&frules, &index, &ctx, &mut in_seed);
                         phases.add("seed checks", thread_cpu() - now);
                     } else {
@@ -2614,7 +2569,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                         // wanted() already charges its own time to the second half.
                         if seed_only { phases.add("seed handoff", (thread_cpu() - handoff - (fin.time - before_wanted)).max(0.0)); }
                         if fin.visits(&wanted) {
-                            fin.column_file(file_no, path, file, bytes, &wanted);
+                            fin.column_file(file_no, path, file, &bytes, &wanted);
                         }
                     } else if seed_only {
                         phases.add("seed handoff", thread_cpu() - handoff);
@@ -2625,11 +2580,11 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
         } else if use_facts {
             // the provider's facts are lent only while the walk runs: decide here which files need them (some rule that
             // tests a fact survived the kinds-and-words skip), then fill those relations and write their columns
-            ryo_python::fixtures::walking::walked_structured(walk, path, bytes, &[], &mut table, &mut scratch, structured.then_some(enclosing.as_slice()), &mut |file| {
+            ryo_python::fixtures::walking::walked_structured(walk, path, &bytes, &[], &mut table, &mut scratch, structured.then_some(enclosing.as_slice()), &mut |file| {
                 let p0 = thread_cpu();
                 let ft = file.table;
                 let n = node_table::element_count(ft).0;
-                prepare!(ft, bytes, file_no, codes_taken);
+                prepare!(ft, |rel,words,out| matches!(file.facts.fill(rel,languages::Wanted::Whole,words,out),languages::FactAnswer::Answered(_)));
                 prepared = true;
                 let v0 = thread_cpu();
                 let mut needed = vec![false; slots_n];
@@ -2701,7 +2656,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
             let mut builder = if structured { node_table::structured(&mut table, walk_kinds(walk), &enclosing) } else { node_table::builder(&mut table, walk_kinds(walk)) };
             let ok = walk
                 .walk(
-                    WalkRequest { path: languages::SourcePath(path), file: FileId(0), source: ByteSlice(bytes) },
+                    WalkRequest { path: languages::SourcePath(path), file: FileId(0), source: ByteSlice(&bytes) },
                     RelationNeeds(&[]),
                     &mut builder,
                     &mut scratch,
@@ -2718,12 +2673,11 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
             continue;
         }
         if !prepared {
-            prepare!(t, bytes, file_no, codes_taken);
+            prepare!(t, |_,_,_| false);
         }
         if !prefixed {
             prefix!(t);
         }
-    }
     }
     // the second half's time inside this walk is not the first half's
     let fin_spent = fin.as_ref().map_or(0.0, |f| f.time) - fin0;
@@ -2768,6 +2722,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
             );
         }
     }
+    println!("pair summary checks {pair_steps} CPU {pair_cpu:.4} s");
     let knock_units = units.iter().filter(|u| u.knock).count();
     let steps: u64 = unit_steps.iter().sum();
     println!(
@@ -2787,7 +2742,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
     if let Some(path) = seed_out { std::fs::write(path, seed_dump).expect("write file seeds"); }
     if let Some(seeds) = file_seeds {
         let c = seeds.counts;
-        println!("file seeds: {} elements, {} disjuncts deferred to facts; survivors count one witness per node rule and file; syntax upper bound {syntax_only}", c.elements, c.deferred);
+        println!("file seeds: {} elements, {} disjuncts deferred to facts; survivors count one witness per node rule and file", c.elements, c.deferred);
         println!("candidates {} survivors {} steps {} knock-steps 0 rule-files-with-survivors {}", c.candidates, c.witnesses, c.steps, c.witnesses);
     } else {
         let knock_c: u64 = units.iter().enumerate().filter(|(_, u)| u.knock).map(|(i, _)| cands[i]).sum();

@@ -41,6 +41,7 @@ pub(crate) struct NodeTableEngine {
     pub(crate) subtree_end: Vec<Position>,
     /// First byte of each element, in the file's bytes.
     pub(crate) start: Vec<u32>,
+    pub(super) native: super::native_spans::NativeSpans,
     /// The byte after each element's last.
     pub(crate) end: Vec<u32>,
     /// The field code each element fills in its parent.
@@ -51,6 +52,10 @@ pub(crate) struct NodeTableEngine {
     pub(crate) child_range: Vec<ChildRange>,
     /// The children of every node, nodes and tokens merged in source order, one block a node in the order the nodes close.
     pub(crate) children: Vec<Position>,
+    pub(crate) defer_children: bool,
+    pub(crate) child_slots: usize,
+    pub(crate) lazy_children: std::sync::OnceLock<Vec<Position>>,
+    pub(crate) spare_children: std::sync::Mutex<Vec<Position>>,
     /// Ids of each kind, in id order, one list a kind code: each id is added as it is numbered. Lists are cleared between
     /// files, never dropped.
     pub(crate) by_kind: Vec<Vec<Position>>,

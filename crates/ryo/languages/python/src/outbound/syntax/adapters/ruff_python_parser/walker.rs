@@ -8,6 +8,10 @@ use super::types::{FieldIndex, OpenWalked, ParserRefusal, Said, Strings, Walker}
 use super::writer::visit_element;
 use crate::domain::extras::types::Extra;
 use crate::domain::labels::types::Field;
+use crate::domain::model::lexical::service::opened;
+use crate::domain::model::names::constants::FIXED_TEXT;
+use crate::domain::model::names::service::{intern, text_of};
+use crate::domain::model::names::types::NameCode;
 use crate::domain::node::service::{field_code, token_field};
 use crate::domain::node::types::{AnnotationSeed, Placed, StringSite};
 use crate::domain::node_fields::service::child_fields;
@@ -16,10 +20,6 @@ use crate::domain::syntax::constants::{
     MODULE_FUTURE_ANNOTATIONS_ENABLED,
 };
 use crate::domain::syntax::service::kind_bits;
-use crate::domain::model::lexical::service::opened;
-use crate::domain::model::names::constants::FIXED_TEXT;
-use crate::domain::model::names::service::{intern, text_of};
-use crate::domain::model::names::types::NameCode;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
 use ruff_python_ast::visitor::source_order::{
@@ -76,15 +76,34 @@ impl Walker<'_, '_, '_> {
             (Some(open), Kind::Token(named)) => token_field(open.node, token.kind(), named),
             (Some(_) | None, Kind::Node(_) | Kind::Token(_) | Kind::Extra(_)) => Field::None,
         };
-        if !self.names.deferred && matches!(kind, Kind::Token(Token::Name)) && !self.text.is_empty() {
+        if !self.names.deferred && matches!(kind, Kind::Token(Token::Name)) && !self.text.is_empty()
+        {
             if token.kind().is_non_soft_keyword() {
                 // A keyword is a fixed text of the language: its code is its kind's, the same in every file.
-                self.names.of_token.push(NameCode(FIXED_TEXT | token.kind() as u32));
+                self.names
+                    .of_token
+                    .push(NameCode(FIXED_TEXT | token.kind() as u32));
             } else {
                 self.name_token(start, end);
             }
         }
-        node_table::token(self.builder, kind_bits(kind), field_code(field), start, end);
+        if node_table::wants_token_source(self.builder)
+            && self.host.is_none()
+            && start.0 == token.start().to_u32()
+            && end.0 == token.end().to_u32()
+            && let Ok(key) = u32::try_from(self.next.0 - 1)
+        {
+            node_table::native_token(
+                self.builder,
+                kind_bits(kind),
+                field_code(field),
+                start,
+                end,
+                key,
+            );
+        } else {
+            node_table::token(self.builder, kind_bits(kind), field_code(field), start, end);
+        }
         self.written = end;
     }
 
@@ -166,7 +185,10 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
             (Offset(0), self.length)
         } else {
             let span = node.range();
-            (placed(self.origin, span.start()), placed(self.origin, span.end()))
+            (
+                placed(self.origin, span.start()),
+                placed(self.origin, span.end()),
+            )
         };
         self.write_before(start);
         self.fill(start);
@@ -222,7 +244,14 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
         }
         self.subtree_ends.push(Position(id.saturating_add(1)));
         if !self.names.deferred {
-            opened(&mut self.names.lexical, &mut self.names.names, &self.nodes, &self.parents, &self.subtree_ends, at);
+            opened(
+                &mut self.names.lexical,
+                &mut self.names.names,
+                &self.nodes,
+                &self.parents,
+                &self.subtree_ends,
+                at,
+            );
         }
         let from = FieldIndex(self.fields.len());
         child_fields(

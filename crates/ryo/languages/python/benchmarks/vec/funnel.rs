@@ -4,7 +4,7 @@
 //! knock-out (per node a few tests ANDed into a mask of the plans of its bucket).
 
 use super::{Key, Vocab};
-use ryo::languages::{NodeTable, Position, node_table};
+use ryo::languages::{ElementSets, NodeTable, Position, node_table};
 use std::collections::HashMap;
 
 pub(super) type KSet = [u64; 4];
@@ -64,8 +64,9 @@ pub(super) enum Op {
 pub(super) struct Ctx<'a> {
     pub(super) table: &'a NodeTable,
     pub(super) src: &'a [u8],
+    /// Per node, its child sets and parent kind in one cache line (the structure pass).
+    pub(super) sets: &'a [ElementSets],
     pub(super) facts: &'a super::facts::Store,
-    pub(super) scan_children: bool,
     pub(super) enc: &'a [Vec<u32>],
     pub(super) matches: &'a [u128],
 }
@@ -74,27 +75,6 @@ impl Ctx<'_> {
     #[inline]
     fn children(&self, n: u32) -> &[Position] {
         node_table::children_of(self.table, Position(n))
-    }
-    #[inline(always)]
-    fn parent_matches(&self, n: u32, kinds: &KSet) -> bool {
-        let parent = self.parent(n);
-        parent != n && kbit(kinds, self.kind(parent))
-    }
-    /// A mask reader also counts an embedded root attached to its host. Those
-    /// roots are recorded separately from a segment's immediate children.
-    #[inline]
-    fn child_kind(&self, n: u32, kinds: &KSet) -> bool {
-        if self.scan_children {
-            let matches = |p: Position| {
-                let k = self.kind(p.0);
-                usize::from(k) < kinds.len() * 64 && kbit(kinds, k)
-            };
-            self.children(n).iter().copied().any(matches) ||
-                node_table::embedded_segments(self.table).any(|seg| seg.host.0 == n && matches(seg.root))
-        } else {
-            let m = &node_table::child_sets_of(self.table, Position(n)).child_kinds;
-            (m[0] & kinds[0]) | (m[1] & kinds[1]) | (m[2] & kinds[2]) | (m[3] & kinds[3]) != 0
-        }
     }
     // the node table's own columns, read in place (no copy a file)
     #[inline(always)]
@@ -126,6 +106,8 @@ struct Own {
     re: Option<regex::bytes::Regex>,
 }
 
+const REGISTER_CAPACITY: usize = 256;
+
 const ALL_KINDS: KSet = [u64::MAX; 4];
 
 impl Own {
@@ -152,12 +134,12 @@ impl Own {
     /// structure's child-kind and child-field sets), so its children need not be read.
     #[inline]
     fn some_child_can(&self, ctx: &Ctx<'_>, n: u32) -> bool {
-        if ctx.scan_children { return true; }
+        let i = n as usize;
         (self.kinds == ALL_KINDS || {
-            let m = &node_table::child_sets_of(ctx.table, Position(n)).child_kinds;
+            let m = &ctx.sets[i].child_kinds;
             (m[0] & self.kinds[0]) | (m[1] & self.kinds[1]) | (m[2] & self.kinds[2]) | (m[3] & self.kinds[3]) != 0
         }) && self.fields.as_ref().is_none_or(|s| {
-            let m = &node_table::child_sets_of(ctx.table, Position(n)).child_fields;
+            let m = &ctx.sets[i].child_fields;
             (m[0] & s[0]) | (m[1] & s[1]) != 0
         })
     }
@@ -278,12 +260,6 @@ pub(super) struct SpecPlan {
     pub(super) ops: Vec<SpecOp>,
     pub(super) regs: usize,
     pub(super) words: Vec<Vec<String>>,
-}
-
-impl SpecPlan {
-    pub(super) fn same(&self, o: &SpecPlan) -> bool {
-        self.bucket == o.bucket && self.keys == o.keys && self.ops == o.ops && self.words == o.words
-    }
 }
 
 #[derive(Clone, Debug)]
@@ -436,7 +412,7 @@ fn ops_of(v: &[SpecOp], vocab: &Vocab, missing: &mut Vec<String>, fc: &mut FactL
 /// The required words of the pack, numbered.
 #[derive(Default)]
 pub(super) struct Words {
-    pub(super) ids: rustc_hash::FxHashMap<Vec<u8>, u16>,
+    pub(super) ids: HashMap<Vec<u8>, u16>,
     pub(super) names: Vec<String>,
 }
 
@@ -493,6 +469,7 @@ pub(super) fn build(specs: &[SpecRule], vocab: &Vocab, catalog: &mut super::fact
         let mut disjuncts: Vec<(usize, Vec<usize>)> = Vec::new();
         let mut enterable = true;
         for p in &r.plans {
+            assert!(p.regs <= REGISTER_CAPACITY, "rule {} requires {} registers, predicate stage capacity is {REGISTER_CAPACITY}", r.name, p.regs);
             let keys: Vec<Key> = p
                 .keys
                 .iter()
@@ -704,7 +681,7 @@ where
 /// check as a child-kind-bitset test; any other leaf `down` + check, and an `exists` of one check, as one scan of the
 /// children, skipped when the child-kind and child-field sets rule it out; a `down` + check of the child as one expansion
 /// to the children that pass.
-pub(super) fn compile(ops: &[Op]) -> (Vec<Stage>, usize) {
+fn compile(ops: &[Op]) -> (Vec<Stage>, usize) {
     let mut first_fact = None;
     let mut out: Vec<Stage> = Vec::new();
     let mut i = 0;
@@ -728,7 +705,7 @@ pub(super) fn compile(ops: &[Op]) -> (Vec<Stage>, usize) {
                         let s = c.kind_set();
                         out.push(filt(move |ctx, row| {
                             let n = row[from] as usize;
-                            ctx.parent_matches(n as u32, &s)
+                            !ctx.sets[n].root && kbit(&s, ctx.sets[n].parent_kind)
                         }));
                         i += 1;
                     }
@@ -745,7 +722,8 @@ pub(super) fn compile(ops: &[Op]) -> (Vec<Stage>, usize) {
                     Some(c) if *leaf && c.kinds_only() => {
                         let s = c.kind_set();
                         out.push(filt(move |ctx, row| {
-                            ctx.child_kind(row[from], &s)
+                            let m = &ctx.sets[row[from] as usize].child_kinds;
+                            (m[0] & s[0]) | (m[1] & s[1]) | (m[2] & s[2]) | (m[3] & s[3]) != 0
                         }));
                         i += 1;
                     }
@@ -769,7 +747,8 @@ pub(super) fn compile(ops: &[Op]) -> (Vec<Stage>, usize) {
                     [Op::Check(c)] if c.v == to && c.kinds_only() => {
                         let s = c.kind_set();
                         out.push(filt(move |ctx, row| {
-                            ctx.child_kind(row[from], &s)
+                            let m = &ctx.sets[row[from] as usize].child_kinds;
+                            (m[0] & s[0]) | (m[1] & s[1]) | (m[2] & s[2]) | (m[3] & s[3]) != 0
                         }));
                     }
                     [Op::Check(c)] if c.v == to => out.push(any_child(from, Own::of(c))),
@@ -859,12 +838,13 @@ pub(super) fn compile_pred(ops: &[Op]) -> Pred {
                         Box::new(move |ctx, r, s| {
                             *s += 1;
                             let n = r[from] as usize;
-                            ctx.parent_matches(n as u32, &set) && next(ctx, r, s)
+                            !ctx.sets[n].root && kbit(&set, ctx.sets[n].parent_kind) && next(ctx, r, s)
                         })
                     } else {
                         Box::new(move |ctx, r, s| {
                             *s += 1;
-                            ctx.child_kind(r[from], &set) && next(ctx, r, s)
+                            let m = &ctx.sets[r[from] as usize].child_kinds;
+                            ((m[0] & set[0]) | (m[1] & set[1]) | (m[2] & set[2]) | (m[3] & set[3]) != 0) && next(ctx, r, s)
                         })
                     };
                     i -= 1;
@@ -915,7 +895,8 @@ pub(super) fn compile_pred(ops: &[Op]) -> Pred {
                         let set = c.kind_set();
                         Box::new(move |ctx, r, s| {
                             *s += 1;
-                            ctx.child_kind(r[from], &set) && next(ctx, r, s)
+                            let m = &ctx.sets[r[from] as usize].child_kinds;
+                            ((m[0] & set[0]) | (m[1] & set[1]) | (m[2] & set[2]) | (m[3] & set[3]) != 0) && next(ctx, r, s)
                         })
                     }
                     // the block's first test is a check of the child: one kernel a child, the rest of the block only on
@@ -1024,7 +1005,7 @@ pub(super) fn compile_pred(ops: &[Op]) -> Pred {
 fn pred_stage(pred: Pred) -> Stage {
     Box::new(move |ctx, rows, steps| {
         let r = rows.r;
-        let mut regs = [0u32; 256];
+        let mut regs = [0u32; REGISTER_CAPACITY];
         let mut w = 0;
         for j in 0..rows.len() {
             regs[..r].copy_from_slice(&rows.d[j * r..j * r + r]);
@@ -1084,8 +1065,11 @@ impl Test {
     fn eval(&self, ctx: &Ctx<'_>, n: u32) -> bool {
         match self {
             Test::Own(c) => passes(ctx, c, n),
-            Test::ParentKind(s) => ctx.parent_matches(n, s),
-            Test::ChildKind(s) => ctx.child_kind(n, s),
+            Test::ParentKind(s) => !ctx.sets[n as usize].root && kbit(s, ctx.sets[n as usize].parent_kind),
+            Test::ChildKind(s) => {
+                let m = &ctx.sets[n as usize].child_kinds;
+                (m[0] & s[0]) | (m[1] & s[1]) | (m[2] & s[2]) | (m[3] & s[3]) != 0
+            }
         }
     }
 }

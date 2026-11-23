@@ -18,7 +18,7 @@ use crate::domain::plan_lowering::errors::PlanLoweringError;
 use crate::domain::plan_lowering::joins::constants::JOIN;
 use crate::domain::plan_lowering::joins::service::{JoinCall, joined};
 use crate::domain::plan_lowering::numbering::service::numbered;
-use crate::domain::plan_lowering::filters::service::{alias, column, constant, function, select_condition};
+use crate::domain::plan_lowering::filters::service::{alias, column, constant, function, operand, select_condition};
 use crate::domain::plan_lowering::operators::service::operator_step;
 use crate::domain::plan_lowering::types::{PackPrograms, PackRule, RuleProgram, WrittenText};
 use ryo_values::domain::descriptions::types::RelationName;
@@ -255,7 +255,11 @@ fn selected(
                         name: name.clone(),
                         value: function(applied, &scope.parameters)?,
                     },
-                    (SelectedValue::Applied(_), Renaming::Unchanged) => {
+                    (SelectedValue::Constant(constant), Renaming::Renamed(name)) => SelectItem {
+                        name: name.clone(),
+                        value: operand(constant, &scope.parameters)?,
+                    },
+                    (SelectedValue::Applied(_) | SelectedValue::Constant(_), Renaming::Unchanged) => {
                         return Err(PlanLoweringError::UnnamedColumn);
                     }
                 });

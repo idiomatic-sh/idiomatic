@@ -3,7 +3,7 @@
 //! columns, and one witness decides all disjuncts of a rule for this file.
 use super::Key;
 use super::facts::FactOp;
-use super::funnel::{Ctx, FRule, Op, Plan, Rows, Stage, cnf_holds};
+use super::funnel::{Ctx, FRule, Op, Plan, Rows, cnf_holds};
 use ryo::languages::{FieldCode, KindBits, NodeTable, Position, node_table};
 use std::collections::HashMap;
 
@@ -78,20 +78,12 @@ struct Request {
 }
 
 struct Entry {
-    syntax: std::cell::OnceCell<Vec<Stage>>,
     buckets: usize,
     reads: Vec<Request>,
 }
 
-struct Disjunct {
-    /// The alternatives of disjuncts sharing this sequence of bucket sets all
-    /// choose the same offset. Plan numbers and predicates remain rule-local.
-    choice: usize,
-    plans: Vec<usize>,
-}
-
 struct Rule {
-    disjuncts: Vec<Disjunct>,
+    disjuncts: Vec<Vec<usize>>,
     entries: Vec<Entry>,
 }
 
@@ -119,27 +111,23 @@ pub(super) struct Counts {
 }
 
 pub(super) struct FileSeeds {
-    syntax_only: bool,
     rules: Vec<Rule>,
     sets: Vec<Vec<Key>>,
     sizes: Vec<usize>,
-    alternatives: Vec<Vec<usize>>,
-    choices: Vec<Option<usize>>,
+    chosen: Vec<(usize, usize)>,
     pending: Vec<Pending>,
     rows: Rows,
     pub(super) counts: Counts,
 }
 
 impl FileSeeds {
-    pub(super) fn new(rules: &[FRule], syntax_only: bool) -> Self {
+    pub(super) fn new(rules: &[FRule]) -> Self {
         let mut sets = Vec::new();
         let mut by_set = HashMap::new();
-        let mut alternatives = Vec::new();
-        let mut by_alternatives = HashMap::new();
         let rules = rules
             .iter()
             .map(|rule| {
-                let entries: Vec<Entry> = rule
+                let entries = rule
                     .plans
                     .iter()
                     .map(|plan| {
@@ -166,11 +154,7 @@ impl FileSeeds {
                                 }
                             });
                         }
-                        Entry {
-                            buckets,
-                            reads,
-                            syntax: std::cell::OnceCell::new(),
-                        }
+                        Entry { buckets, reads }
                     })
                     .collect();
                 let mut disjuncts = rule.alts.clone();
@@ -185,32 +169,15 @@ impl FileSeeds {
                         disjuncts.push(vec![p]);
                     }
                 }
-                let disjuncts = disjuncts
-                    .into_iter()
-                    .map(|plans| {
-                        let buckets = plans
-                            .iter()
-                            .map(|&p| entries[p].buckets)
-                            .collect::<Vec<_>>();
-                        let choice = *by_alternatives.entry(buckets.clone()).or_insert_with(|| {
-                            let index = alternatives.len();
-                            alternatives.push(buckets);
-                            index
-                        });
-                        Disjunct { choice, plans }
-                    })
-                    .collect();
                 Rule { disjuncts, entries }
             })
             .collect();
         let sizes = vec![0; sets.len()];
         Self {
-            syntax_only,
             rules,
             sets,
             sizes,
-            choices: vec![None; alternatives.len()],
-            alternatives,
+            chosen: Vec::new(),
             pending: Vec::new(),
             rows: Rows::default(),
             counts: Counts::default(),
@@ -219,23 +186,32 @@ impl FileSeeds {
 
     /// Use precisely the exhaustive evaluator's tie order. The cardinality of
     /// a given set of entry buckets is the same for every occurrence in a file.
-    pub(super) fn choose(&mut self, index: &Index<'_>) {
+    pub(super) fn choose(
+        &mut self,
+        rules: &[FRule],
+        index: &Index<'_>,
+        alive: &[bool],
+        words: &[u64],
+        seeded: &mut [bool],
+    ) {
         self.counts.elements += node_table::element_count(index.table).0 as u64;
+        self.chosen.clear();
         for (size, set) in self.sizes.iter_mut().zip(&self.sets) {
             *size = set.iter().map(|k| index.get(*k).len()).sum();
         }
-        for (winner, options) in self.choices.iter_mut().zip(&self.alternatives) {
-            let mut smallest = usize::MAX;
-            *winner = None;
-            for (offset, &set) in options.iter().enumerate() {
-                let n = self.sizes[set];
-                if n == 0 {
-                    *winner = None;
-                    break;
-                }
-                if n < smallest {
-                    smallest = n;
-                    *winner = Some(offset);
+        for (ri, info) in self.rules.iter().enumerate() {
+            let rule = &rules[ri];
+            seeded[ri] = alive[ri] && !rule.node;
+            if !alive[ri] || !rule.node {
+                continue;
+            }
+            for alts in &info.disjuncts {
+                let size = |p: usize| self.sizes[info.entries[p].buckets];
+                let Some(&p) = alts.iter().min_by_key(|&&p| size(p)) else {
+                    continue;
+                };
+                if size(p) > 0 && cnf_holds(&rule.plans[p].words, words) {
+                    self.chosen.push((ri, p));
                 }
             }
         }
@@ -246,51 +222,32 @@ impl FileSeeds {
         rules: &[FRule],
         index: &Index<'_>,
         ctx: &Ctx<'_>,
-        alive: &[bool],
-        words: &[u64],
         seeded: &mut [bool],
     ) {
         self.pending.clear();
-        for (ri, rule) in rules.iter().enumerate() {
-            seeded[ri] = alive[ri] && !rule.node;
-            if !alive[ri] || !rule.node {
+        for &(ri, pi) in &self.chosen {
+            if seeded[ri] {
                 continue;
             }
-            for d in &self.rules[ri].disjuncts {
-                let Some(offset) = self.choices[d.choice] else {
-                    continue;
-                };
-                let pi = d.plans[offset];
-                if !cnf_holds(&rule.plans[pi].words, words) {
-                    continue;
-                }
-                let p = &rules[ri].plans[pi];
-                let entry = &self.rules[ri].entries[pi];
-                let stages = if self.syntax_only && !entry.reads.is_empty() {
-                    entry.syntax.get_or_init(|| syntax_stages(p)).as_slice()
+            let p = &rules[ri].plans[pi];
+            if let Some(cursor) = witness(
+                p,
+                index,
+                ctx,
+                p.before_facts,
+                Cursor::default(),
+                &mut self.rows,
+                &mut self.counts,
+            ) {
+                if p.before_facts == p.stages.len() {
+                    seeded[ri] = true;
+                    self.counts.witnesses += 1;
                 } else {
-                    &p.stages[..p.before_facts]
-                };
-                if let Some(cursor) = witness(
-                    p,
-                    index,
-                    ctx,
-                    stages,
-                    Cursor::default(),
-                    &mut self.rows,
-                    &mut self.counts,
-                ) {
-                    if self.syntax_only || p.before_facts == p.stages.len() {
-                        seeded[ri] = true;
-                        self.counts.witnesses += 1;
-                        break;
-                    } else {
-                        self.pending.push(Pending {
-                            rule: ri,
-                            plan: pi,
-                            cursor,
-                        });
-                    }
+                    self.pending.push(Pending {
+                        rule: ri,
+                        plan: pi,
+                        cursor,
+                    });
                 }
             }
         }
@@ -331,7 +288,7 @@ impl FileSeeds {
                 plan,
                 index,
                 ctx,
-                &plan.stages,
+                plan.stages.len(),
                 p.cursor,
                 &mut self.rows,
                 &mut self.counts,
@@ -353,7 +310,7 @@ fn witness(
     plan: &Plan,
     index: &Index<'_>,
     ctx: &Ctx<'_>,
-    stages: &[Stage],
+    depth: usize,
     from: Cursor,
     rows: &mut Rows,
     counts: &mut Counts,
@@ -367,14 +324,14 @@ fn witness(
                 bucket: k,
                 start: at,
             };
-            if stages.is_empty() {
+            if depth == 0 {
                 counts.candidates += 1;
                 return Some(cursor);
             }
             let len = batch.min(ids.len() - at);
             ids.enter(rows, plan.regs.max(1), at, len);
             counts.candidates += len as u64;
-            for stage in stages {
+            for stage in &plan.stages[..depth] {
                 stage(ctx, rows, &mut counts.steps);
                 if rows.d.is_empty() {
                     break;
@@ -388,29 +345,4 @@ fn witness(
         }
     }
     None
-}
-
-/// Necessary conditions of a program over syntax alone. A top-level fact is a
-/// predicate with no register writes, so removing it keeps every successful
-/// binding. Stop before a fact-dependent block: negation reverses inclusion,
-/// and a nested search can bind registers used by the continuation.
-fn syntax_stages(plan: &Plan) -> Vec<Stage> {
-    let mut stages = Vec::new();
-    let mut begin = 0;
-    for (i, op) in plan.ops.iter().enumerate() {
-        let mut depends = false;
-        visits_facts(op, &mut |_| depends = true);
-        if !depends {
-            continue;
-        }
-        // Preserve the original stage boundaries. In particular, never fuse
-        // a register move with a predicate across an omitted fact.
-        stages.extend(super::funnel::compile(&plan.ops[begin..i]).0);
-        if !matches!(op, Op::Fact(_)) {
-            return stages;
-        }
-        begin = i + 1;
-    }
-    stages.extend(super::funnel::compile(&plan.ops[begin..]).0);
-    stages
 }
