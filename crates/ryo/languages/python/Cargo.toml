@@ -88,6 +88,8 @@ harness = false
 [features]
 # Instruments and widens the benchmark pair program for cost measurements.
 pair-diagnostics = []
+# Per-family query CPU attribution for the benchmark.
+summary-diagnostics = []
 # THROWAWAY (ryo-fmx3.1): the `vec` bench's Arrow kernels.
 vec-arrow = ["dep:arrow-array", "dep:arrow-buffer", "dep:arrow-select"]
 # THROWAWAY (ryo-fmx3.1 redo-alloc): the `vec` bench's global allocator, jemalloc with none of them (one at a time):

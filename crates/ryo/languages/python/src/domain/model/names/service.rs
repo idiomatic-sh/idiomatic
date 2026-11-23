@@ -13,10 +13,15 @@ use ryo::languages::{CellWord, FileWords, FixedWord, NameText, Offset, Symbol, f
 /// Forgets every name the walk interned and the lexical part it wrote, keeping the buffers: what a walk of the next file starts
 /// from.
 pub(crate) fn cleared(walked: &mut WalkNames) {
-    walked.names.texts.0.clear();
-    walked.names.entries.clear();
-    walked.names.slots.fill(NameSlot(0));
-    let lexical = &mut walked.lexical;
+    reset(&mut walked.names, &mut walked.lexical);
+    walked.of_token.clear();
+}
+
+/// Reuse the previous model's storage when starting another lexical pass.
+pub(crate) fn reset(names: &mut NameTable, lexical: &mut crate::domain::model::lexical::types::LexicalModel) {
+    names.texts.0.clear();
+    names.entries.clear();
+    names.slots.fill(NameSlot(0));
     lexical.nodes = ryo::languages::Count(0);
     lexical.class.clear();
     lexical.scope_of.clear();
@@ -24,11 +29,11 @@ pub(crate) fn cleared(walked: &mut WalkNames) {
     lexical.usage.clear();
     lexical.annotation.clear();
     lexical.declared.clear();
+    lexical.targets.clear();
     lexical.binders.clear();
     lexical.deleted.clear();
     lexical.hazards.clear();
     lexical.imports.clear();
-    walked.of_token.clear();
 }
 
 /// Makes `into` a copy of `from`, keeping `into`'s buffers.
