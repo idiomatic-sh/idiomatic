@@ -1,6 +1,4 @@
-//! THROWAWAY (ryo-fmx3.1, redo-prefix pass 2): the second half's driver, made once a run and fed one file at a time, so
-//! the second half runs either on its own walk (`vec finish`) or inside the first half's visit on the same parsed file
-//! (`vec funnel ... --finish`): one parse and one file view a file for both halves.
+//! File-local execution over the first walk's node table. One driver serves the run.
 
 use super::{finish, flag, thread_cpu};
 use std::collections::HashMap;
@@ -12,22 +10,14 @@ pub(super) struct Finisher<'p> {
     plan: &'p finish::Plan,
     /// The plan's emits the run asks for (`--rules`), by index into `plan.emits`.
     emits: Vec<usize>,
-    /// The plan's seed rules (their rows start from the first half's survivors by node), by name.
-    /// redo-union pass 2 c12: per plan emit, whether its rule is a seed rule (decided once a run, not looked up a file).
-    emit_seeded: Vec<bool>,
-    /// The survivors by node of each (rule, path) (`--surv`), and their rules by path.
-    surv: HashMap<(String, String), Vec<u32>>,
-    surv_by_path: HashMap<String, HashSet<String>>,
     check: bool,
     pub(super) query_rows: bool,
     dump: Option<String>,
     dump_text: String,
     pub(super) run: finish::Run,
     exec: finish::Exec<'p>,
-    findings: Vec<(usize, usize, String)>,
+    findings: finish::json_output::Findings,
     failed: HashMap<String, (usize, String)>,
-    quoted_rules: Vec<std::cell::OnceCell<String>>,
-    quoted_paths: Vec<std::cell::OnceCell<String>>,
     /// redo-honest: per plan emit, whether its rule runs only on a file whose syntax the parser accepted (the request's
     /// `rule_applicability`, `--applicability F`: "accepted-syntax"); without the flag every rule runs on every file.
     accepted_only: Vec<bool>,
@@ -50,54 +40,29 @@ pub(super) struct Finisher<'p> {
 
 }
 
-use ryo::languages;
-
 #[path = "finisher/worker.rs"]
 pub(crate) mod worker;
 #[path = "workers.rs"]
 pub(crate) mod workers;
 
+use ryo::languages;
+
 impl<'p> Finisher<'p> {
-    /// `args` as `vec finish` takes them: `<plan> <files> <root> [--rules A,B] [--surv F] [--check-bases] [--dump F]
-    /// [--out F] [--stats F] [--tally F] [--check-out F]`; `plan` is `args[0]` loaded.
-    pub(super) fn new(plan: &'p finish::Plan, run: finish::Run, args: &[&str], request: Option<(&str, &serde_json::Value)>) -> Self {
+    /// Bind selected emits, applicability and reporting options once for this typed plan.
+    pub(super) fn new(plan: &'p finish::Plan, run: finish::Run, args: &[&str], request: Option<(&str, &finish::json_input::Accepted)>) -> Self {
         let t0 = thread_cpu();
         let only: Option<HashSet<String>> = flag(args, "--rules").map(|r| r.split(',').map(str::to_owned).collect());
         let emits: Vec<usize> = (0..plan.emits.len()).filter(|e| only.as_ref().is_none_or(|o| o.contains(&plan.emits[*e].0))).collect();
-        // the survivor handoff: per (rule, file) the prefix's root nodes (`vec funnel ... --surv-out`); a seeded rule runs
-        // only where it has survivors, from them
-        let mut surv: HashMap<(String, String), Vec<u32>> = HashMap::new();
-        if let Some(p) = flag(args, "--surv") {
-            for l in std::fs::read_to_string(p).expect("survivors").lines() {
-                let mut it = l.split('\t');
-                let (Some(r), Some(f), Some(ns)) = (it.next(), it.next(), it.next()) else { continue };
-                surv.entry((r.to_owned(), f.to_owned())).or_default().extend(ns.split(' ').filter_map(|x| x.parse::<u32>().ok()));
-            }
-            for v in surv.values_mut() {
-                v.sort_unstable();
-                v.dedup();
-            }
-        }
-        let mut surv_by_path: HashMap<String, HashSet<String>> = HashMap::new();
-        for (r, f) in surv.keys() {
-            surv_by_path.entry(f.clone()).or_default().insert(r.clone());
-        }
-        let quoted_paths = vec![std::cell::OnceCell::new(); run.paths.len()];
         let mut me = Self {
-            quoted_paths,
-            quoted_rules: vec![std::cell::OnceCell::new(); plan.emits.len()],
             plan,
             emits,
-            emit_seeded: plan.emits.iter().map(|e| plan.seeds.contains(&e.0)).collect(),
-            surv,
-            surv_by_path,
             check: args.contains(&"--check-bases"),
             query_rows: false,
             dump: flag(args, "--dump"),
             dump_text: String::new(),
             run,
             exec: finish::Exec::new(plan),
-            findings: Vec::new(),
+            findings: Default::default(),
             failed: HashMap::new(),
             failed_idx: vec![false; plan.emits.len()],
             accepted_only: applicability(plan, flag(args, "--applicability").as_deref(), request),
@@ -121,30 +86,11 @@ impl<'p> Finisher<'p> {
         me
     }
 
-    /// The emits to run on the file at `path`: a seed rule where it has survivors by node; any other where `seeded` says
-    /// the first half kept it (`seeded` gets the emit's index into the plan's emits). Empty and no base check: the file
-    /// need not be walked for the second half.
-    pub(super) fn wanted(&mut self, path: &str, seeded: &dyn Fn(usize) -> bool) -> Vec<usize> {
-        let mut out = Vec::new();
-        self.wanted_into(path, seeded, &mut out);
-        out
-    }
-
-    pub(super) fn wanted_into(&mut self, path: &str, mut seeded: impl FnMut(usize) -> bool, out: &mut Vec<usize>) {
+    /// The emits retained by the first half for this file.
+    pub(super) fn wanted_into(&mut self, mut seeded: impl FnMut(usize) -> bool, out: &mut Vec<usize>) {
         let t0 = thread_cpu();
         out.clear();
-        if self.plan.seeds.is_empty() {
-            out.extend(self.emits.iter().copied().filter(|&emit| seeded(emit)));
-        } else {
-            let surv_here = self.surv_by_path.get(path);
-            out.extend(self.emits.iter().copied().filter(|&emit| {
-                if self.emit_seeded[emit] {
-                    surv_here.is_some_and(|s| s.contains(&self.plan.emits[emit].0))
-                } else {
-                    seeded(emit)
-                }
-            }));
-        }
+        out.extend(self.emits.iter().copied().filter(|&emit| seeded(emit)));
         self.time += thread_cpu() - t0;
     }
 
@@ -164,7 +110,7 @@ impl<'p> Finisher<'p> {
     }
 
     pub(super) fn can_finish_exact(&self) -> bool {
-        !self.query_rows && self.dump.is_none() && self.surv.is_empty()
+        !self.query_rows && self.dump.is_none()
     }
 
     pub(super) fn emit_exact(&mut self, file: usize, table: &NodeTable, emit: usize, nodes: &[u64]) -> Option<u64> {
@@ -173,33 +119,28 @@ impl<'p> Finisher<'p> {
         }
         let mut count = 0;
         super::pair_checks::each(nodes, |i| {
-            let rule = self.quoted_rules[emit].get_or_init(|| serde_json::to_string(&self.plan.emits[emit].0).expect("rule string"));
-            let path = self.quoted_paths[file].get_or_init(|| serde_json::to_string(&self.run.paths[file]).expect("path string"));
             let span = super::span_bytes(table, i as usize);
-            self.findings.push((file, emit, format!(r#"{{"rule":{rule},"file":{path},"start":{},"end":{}}}"#, span.start, span.end)));
+            self.findings.location(file, emit, file, span.start as u64, span.end as u64);
             count += 1;
         });
         Some(count)
     }
 
     /// One file's emits run on its node table and source through the provider `pv`.
-    pub(super) fn file(&mut self, file_no: usize, path: &str, ft: &NodeTable, bytes: &[u8], pv: &mut dyn finish::Provider, wanted: &[usize]) {
+    pub(super) fn file(&mut self, file_no: usize, ft: &NodeTable, bytes: &[u8], pv: &mut dyn finish::Provider, wanted: &[usize]) {
         let a0 = super::alloc_count::counts();
-        self.file_inner(file_no, path, ft, bytes, pv, wanted);
+        self.file_inner(file_no, ft, bytes, pv, wanted);
         let a1 = super::alloc_count::counts();
         for i in 0..2 {
             self.alloc[i] += a1[i] - a0[i];
         }
     }
 
-    fn file_inner(&mut self, file_no: usize, path: &str, ft: &NodeTable, bytes: &[u8], pv: &mut dyn finish::Provider, wanted: &[usize]) {
+    fn file_inner(&mut self, file_no: usize, ft: &NodeTable, bytes: &[u8], pv: &mut dyn finish::Provider, wanted: &[usize]) {
         self.files_run += 1;
         let plan = self.plan;
         let mut f = finish::File::new(ft, bytes, file_no as u32, plan.nodes.len());
         if let Some(text) = pv.syntax_text() { f.set_text(text); }
-        // redo-union pass 2 c12: no survivor lists given: every set empty, without a lookup a set a file
-        f.seeds = if self.surv.is_empty() { vec![Vec::new(); plan.seeds.len()] } else { plan.seeds.iter().map(|r| self.surv.get(&(r.clone(), path.to_owned())).cloned().unwrap_or_default()).collect() };
-        finish::handover::expand(&mut f, &plan.seed_paths);
         let run = &mut self.run;
         if self.check {
             for rel in ["semantic-syntax", "syntax-tree", "semantic-child", "syntax-child", "source-location", "token-link"] {
@@ -234,7 +175,6 @@ impl<'p> Finisher<'p> {
                 if t.n == 0 { return Ok(()); }
                 let subject = t.col(&e.2)?;
                 let span = t.col("span").ok();
-                let rule = self.quoted_rules[*ei].get_or_init(|| serde_json::to_string(&e.0).expect("rule string"));
                 // The declared subject and key identify a finding. Independent keys
                 // may still project to the same diagnostic range.
                 let mut identity = vec![subject];
@@ -245,7 +185,7 @@ impl<'p> Finisher<'p> {
                         continue;
                     }
                     if self.query_rows {
-                        self.findings.push((file_no,*ei,finish::answer::row(run, &t, r, &e.0, Some(file_no), &identity)?));
+                        self.findings.query(run, &t, r, *ei, &e.0, file_no, &identity)?;
                         continue;
                     }
                     let target = if t.tys[subject] == finish::Ty::File {
@@ -253,8 +193,7 @@ impl<'p> Finisher<'p> {
                             .ok_or_else(|| format!("file subject outside the run: {}", t.cols[subject][r]))?
                     } else { file_no };
                     let (st, en) = span.map_or((0, 0), |c| (t.cols[c][r] >> 32, t.cols[c][r] & 0xffff_ffff));
-                    let file = self.quoted_paths[target].get_or_init(|| serde_json::to_string(&run.paths[target]).expect("path string"));
-                    self.findings.push((file_no,*ei,format!("{{\"rule\":{rule},\"file\":{file},\"start\":{st},\"end\":{en}}}")));
+                    self.findings.location(file_no, *ei, target, st, en);
                 }
                 Ok(())
             });
@@ -268,29 +207,20 @@ impl<'p> Finisher<'p> {
         self.exec.stats.fact_index_rows += f.fact_index_rows.get();
     }
 
-    /// Writes the findings, dumps and stats, and prints the second half's lines; `walk_time` is the walk's own time when
-    /// the second half walked the files itself (0 inside the first half's walk).
-    pub(super) fn end(mut self, walk_time: f64, project_findings: impl FnOnce(&mut Vec<String>)) -> bool {
+    /// Write final findings, dumps and statistics after the last file.
+    pub(super) fn end(mut self, projection: finish::json_output::Projection<'_>) -> bool {
         let ok = self.failed.is_empty();
         self.exec.leaf_report(&mut self.run);
         self.exec.cold_report(&self.run);
-        let total = self.time + walk_time;
+        let total = self.time;
         let file_time = self.time;
-        // A refusal ends this emit in inventory order, including when another
-        // shard has already evaluated a later file.
-        let merge_start = thread_cpu();
+        let start = thread_cpu();
         let cutoff: Vec<_> = self.plan.emits.iter().map(|e| self.failed.get(&e.0).map_or(usize::MAX, |r| r.0)).collect();
-        let mut findings: Vec<_> = self.findings.into_iter().filter_map(|(ordinal,emit,wire)|
-            (ordinal <= cutoff[emit]).then_some(wire)).collect();
-        findings.sort();
-        project_findings(&mut findings);
+        let count = self.findings.finish(self.plan, &self.run, self.out.as_deref(), projection, &cutoff);
+        println!("ordered findings and write CPU {:.6} s", thread_cpu() - start);
         if let Some(d) = &self.dump {
             std::fs::write(d, &self.dump_text).expect("write dump");
         }
-        if let Some(out) = &self.out {
-            std::fs::write(out, findings.join("\n") + "\n").expect("write findings");
-        }
-        println!("ordered findings and write CPU {:.6} s",thread_cpu()-merge_start);
         if self.check {
             std::fs::write(self.check_out.clone().unwrap_or_else(|| "check-bases.tsv".to_owned()), self.check_lines.join("\n") + "\n").expect("write check");
         }
@@ -327,8 +257,8 @@ impl<'p> Finisher<'p> {
         }
         let a = super::alloc_count::counts();
         println!("ALLOC {} process: blocks {} bytes {} peak-live {}; second half (inside the file calls): blocks {} bytes {}", super::alloc_count::NAME, a[0], a[1], a[2], self.alloc[0], self.alloc[1]);
-        println!("files run {}; findings {}; rules {} ({} failed)", self.files_run, findings.len(), self.emits.len(), self.failed.len());
-        println!("thread CPU-s: total {total:.3}; walk+table {walk_time:.3}; in the visit {file_time:.3}: steps {steps:.3}, provider fills {:.3} ({} rows)", self.provider_time, self.provider_rows);
+        println!("files run {}; findings {}; rules {} ({} failed)", self.files_run, count, self.emits.len(), self.failed.len());
+        println!("thread CPU-s: total {total:.3}; walk+table 0.000; in the visit {file_time:.3}: steps {steps:.3}, provider fills {:.3} ({} rows)", self.provider_time, self.provider_rows);
         // the per-file emptiness decision's static part: steps visited and per-file tests decided (VEC_STEP_TIME: its seconds)
         println!("known-empty static part: {} steps visited ({} with no leaf of their own), {} per-file tests; {:.3} s, of which preparing the needs once a run {:.3} s", exec.stats.static_visits, exec.stats.static_pass, exec.stats.static_file_tests, exec.stats.static_time, exec.stats.rec_time);
         println!("fact keyed lists: fill rows listed {}", self.exec.stats.fact_index_rows);
@@ -367,7 +297,7 @@ impl<'p> Finisher<'p> {
         }
         let mut f: Vec<_> = self.failed.into_iter().collect();
         f.sort();
-        for (r, (_,e)) in f {
+        for (r, (_, e)) in f {
             println!("FAILED {r}: {e}");
         }
         // redo-union pass 2 c18: the process ends here: the executor is not dropped one by one
@@ -378,16 +308,12 @@ impl<'p> Finisher<'p> {
 
 /// redo-honest: per plan emit, whether its rule's applicability is "accepted-syntax" in `path` (a request's
 /// `rule_applicability`, or that map alone); none given: false for every emit (every rule runs on every file).
-fn applicability(plan: &finish::Plan, path: Option<&str>, request: Option<(&str, &serde_json::Value)>) -> Vec<bool> {
+fn applicability(plan: &finish::Plan, path: Option<&str>, request: Option<(&str, &finish::json_input::Accepted)>) -> Vec<bool> {
     let Some(path) = path else { return vec![false; plan.emits.len()] };
     let owned;
-    let j = match request {
-        Some((same, value)) if same == path && value.get("rule_applicability").is_some() => value,
-        _ => {
-            owned = serde_json::from_slice(&std::fs::read(path).expect("applicability file")).expect("applicability json");
-            &owned
-        }
+    let accepted = match request {
+        Some((same, accepted)) if same == path => accepted,
+        _ => { owned = finish::json_input::applicability(path); &owned }
     };
-    let map = j.get("rule_applicability").unwrap_or(j);
-    plan.emits.iter().map(|e| map.get(&e.0).and_then(serde_json::Value::as_str) == Some("accepted-syntax")).collect()
+    plan.emits.iter().map(|e| accepted.contains(&e.0)).collect()
 }

@@ -2,7 +2,7 @@
 
 use super::formatter::PythonFormatter;
 use super::schemas::PlanSchema;
-use ryo_values::domain::finish_plans::types::FinishPlan;
+use ryo_values::domain::finish_plans::types::{FinishPlan, FinishStep};
 use crate::outbound::plan_codec::errors::PlanCodecError;
 use crate::outbound::plan_codec::interface::PlanCodecPort;
 use serde::Serialize;
@@ -22,9 +22,8 @@ impl PlanCodecPort for PlanCodecJsonAdapter {
         bytes
     }
 
-    fn valued(&self, plan: &FinishPlan) -> serde_json::Value {
-        // the same schema, to a value: strings, numbers, lists and string-keyed maps cannot fail to convert
-        serde_json::to_value(PlanSchema::from(plan)).unwrap_or(serde_json::Value::Null)
+    fn write_step(&self, step: &FinishStep, writer: &mut dyn std::io::Write) -> std::io::Result<()> {
+        serde_json::to_writer(writer, &super::nodes::schemas::NodeSchema::from(step)).map_err(std::io::Error::other)
     }
 
     fn decoded(&self, bytes: &[u8]) -> Result<FinishPlan, PlanCodecError> {

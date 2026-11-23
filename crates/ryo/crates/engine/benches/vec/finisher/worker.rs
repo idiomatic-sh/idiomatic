@@ -1,13 +1,10 @@
 //! Values that may cross a file-worker boundary. Tables, providers and executors stay local.
-use super::{Finisher, HashMap, HashSet, finish};
+use super::{Finisher, HashMap, finish};
 
 pub(crate) struct Settings<'p> {
     plan: &'p finish::Plan,
     layout: std::sync::Arc<finish::Layout>,
     emits: Vec<usize>,
-    seeded: Vec<bool>,
-    survivors: HashMap<(String, String), Vec<u32>>,
-    by_path: HashMap<String, HashSet<String>>,
     accepted_only: Vec<bool>,
     disabled: Vec<bool>,
     check: bool,
@@ -51,13 +48,14 @@ impl<'p> Finisher<'p> {
             project: finish::project::share(r),
             constants: self.exec.share_constants(r),
             ids: r.ids.clone(),
-            regexes: r.regexes.iter().map(|(pattern, compiled)| (pattern.clone(), compiled.as_ref().clone())).collect(),
+            regexes: r
+                .regexes
+                .iter()
+                .map(|(pattern, compiled)| (pattern.clone(), compiled.as_ref().clone()))
+                .collect(),
             plan: self.plan,
             layout: self.exec.layout.clone(),
             emits: self.emits.clone(),
-            seeded: self.emit_seeded.clone(),
-            survivors: self.surv.clone(),
-            by_path: self.surv_by_path.clone(),
             accepted_only: self.accepted_only.clone(),
             disabled: self.failed_idx.clone(),
             check: self.check,
@@ -94,7 +92,11 @@ impl<'p> Settings<'p> {
         run.texts.clone_from(&self.text);
         run.ids.clone_from(&self.ids);
         // Compiled automata are immutable. Each worker gets its own search cache.
-        run.regexes.extend(self.regexes.iter().map(|(pattern, compiled)| (pattern.clone(), std::rc::Rc::new(compiled.clone()))));
+        run.regexes.extend(
+            self.regexes
+                .iter()
+                .map(|(pattern, compiled)| (pattern.clone(), std::rc::Rc::new(compiled.clone()))),
+        );
         run.empty = self.empty;
         run.absent_word = self.absent;
         run.file_field_codes = self.file_fields;
@@ -116,19 +118,14 @@ impl<'p> Settings<'p> {
         }
         let mut worker = Finisher {
             plan: self.plan,
-            quoted_paths: vec![Default::default(); self.paths.len()],
-            quoted_rules: vec![Default::default(); self.plan.emits.len()],
             emits: self.emits.clone(),
-            emit_seeded: self.seeded.clone(),
-            surv: self.survivors.clone(),
-            surv_by_path: self.by_path.clone(),
             check: self.check,
             query_rows: self.query_rows,
             dump: self.dump.clone(),
             dump_text: String::new(),
             run,
             exec: finish::Exec::with_layout(self.plan, self.layout.clone()),
-            findings: Vec::new(),
+            findings: Default::default(),
             failed: Default::default(),
             accepted_only: self.accepted_only.clone(),
             failed_idx: self.disabled.clone(),
@@ -156,7 +153,7 @@ impl<'p> Settings<'p> {
 }
 
 pub(crate) struct Report {
-    findings: Vec<(usize, usize, String)>,
+    findings: finish::json_output::Findings,
     failures: HashMap<String, (usize, String)>,
     rule_stats: Vec<[u64; 3]>,
     checks: Vec<String>,
@@ -192,7 +189,7 @@ impl Finisher<'_> {
         }
     }
     pub(crate) fn merge(&mut self, r: Report) {
-        self.findings.extend(r.findings);
+        self.findings.merge(r.findings);
         for (rule, failure) in r.failures {
             let slot = self.failed.entry(rule).or_insert_with(|| failure.clone());
             if failure.0 < slot.0 {

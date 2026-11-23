@@ -186,15 +186,20 @@ fn unavailable_source_accepts_only_declared_file_origin_without_a_fix() -> usize
         state: root.join("cache"),
     };
     let defaults = [RuleId::try_from("E902").unwrap()].into();
-    let mut finding = serde_json::json!({"code":"E902", "filename":root.join("missing.py"), "location":{"row":1,"column":1}, "end_location":{"row":1,"column":1}, "cell":null, "fix":null});
-    let decode = |request: &RunRequest, finding| {
+    // Supply independent Ruff stdout bytes to the decoder, including its failure cases.
+    let wire = |end_column, fix| {
+        format!(
+            r#"[{{"code":"E902","filename":"/snapshot/project/missing.py","location":{{"row":1,"column":1}},"end_location":{{"row":1,"column":{end_column}}},"cell":null,"fix":{fix}}}]"#
+        ).into_bytes()
+    };
+    let decode = |request: &RunRequest, stdout| {
         super::schemas::decode(
             request,
             &ProcessOutput {
                 signal:
                     ryo_benchmark_contracts::domain::measurements::types::TerminationSignal::Exited,
                 status: ProcessExitCode(1),
-                stdout: CapturedBytes(serde_json::to_vec(&vec![finding]).unwrap()),
+                stdout: CapturedBytes(stdout),
                 stderr: CapturedBytes(Vec::new()),
                 wall: Default::default(),
                 resources: ResourceObservation::WallOnly,
@@ -203,7 +208,7 @@ fn unavailable_source_accepts_only_declared_file_origin_without_a_fix() -> usize
             &Default::default(),
         )
     };
-    let report = decode(&request, finding.clone()).unwrap();
+    let report = decode(&request, wire(1, "null")).unwrap();
     assert_eq!(report.diagnostics[0].start.0, 0);
     assert_eq!(report.diagnostics[0].end.0, 0);
     let diagnostics = report.diagnostics.len();
@@ -211,17 +216,14 @@ fn unavailable_source_accepts_only_declared_file_origin_without_a_fix() -> usize
     undeclared.context_manifest =
         ryo_benchmark_contracts::domain::requests::types::ContextSeal::Unsealed;
     assert!(matches!(
-        decode(&undeclared, finding.clone()),
+        decode(&undeclared, wire(1, "null")),
         Err(Error::Invalid(_))
     ));
-    finding["end_location"]["column"] = serde_json::json!(2);
     assert!(matches!(
-        decode(&request, finding.clone()),
+        decode(&request, wire(2, "null")),
         Err(Error::Invalid(_))
     ));
-    finding["end_location"]["column"] = serde_json::json!(1);
-    finding["fix"] = serde_json::json!({"edits":[]});
-    assert!(matches!(decode(&request, finding), Err(Error::Invalid(_))));
+    assert!(matches!(decode(&request, wire(1, r#"{"edits":[]}"#)), Err(Error::Invalid(_))));
     diagnostics
 }
 
@@ -297,7 +299,7 @@ fn alternation<'a>(codes: impl IntoIterator<Item = &'a str>) -> String {
 /// balanced union tree.
 fn catalog_lookup(
     registered: &[&str],
-    redirects: &serde_json::Map<String, serde_json::Value>,
+    redirects: &std::collections::BTreeMap<String, String>,
 ) -> String {
     let plain = registered
         .iter()
@@ -309,7 +311,7 @@ fn catalog_lookup(
     )];
     let mut groups = std::collections::BTreeMap::<&str, Vec<&str>>::new();
     for (before, after) in redirects {
-        let after = after.as_str().unwrap();
+        let after = after.as_str();
         if registered.contains(&after) && coded(before) {
             groups.entry(after).or_default().push(before);
         }
@@ -349,15 +351,11 @@ fn catalog_lookup(
 fn suppression_codes_match_the_pinned_catalog() -> usize {
     let bench = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let read = |relative: &str| std::fs::read_to_string(bench.join(relative)).unwrap();
-    let policy: serde_json::Value =
-        serde_json::from_str(&read("profiles/pinned-noqa-code-policy.json")).unwrap();
-    let redirects = policy["redirects"].as_object().unwrap();
-    let registered = policy["registered_codes"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|code| code.as_str().unwrap())
-        .collect::<Vec<_>>();
+    #[derive(serde::Deserialize)]
+    struct Policy { redirects: std::collections::BTreeMap<String, String>, registered_codes: Vec<String> }
+    let policy: Policy = crate::json_input::decode(read("profiles/pinned-noqa-code-policy.json").as_bytes()).unwrap();
+    let redirects = &policy.redirects;
+    let registered = policy.registered_codes.iter().map(String::as_str).collect::<Vec<_>>();
     let mut differing = Vec::new();
     let ruf100 = read("rules/RUF100/query.ryoql");
     let start = ruf100.find("let catalog_plain =").unwrap();
@@ -374,12 +372,13 @@ fn suppression_codes_match_the_pinned_catalog() -> usize {
     if !read("rules/RUF101/query.ryoql").contains(&format!("matches(code, \"{redirected}\");")) {
         differing.push("RUF101".to_owned());
     }
-    let suppression: serde_json::Value =
-        serde_json::from_str(&read("profiles/pinned-suppression-policy.json")).unwrap();
-    for rule in suppression["rules"].as_object().unwrap().keys() {
+    #[derive(serde::Deserialize)]
+    struct Suppression { rules: std::collections::BTreeMap<String, serde::de::IgnoredAny> }
+    let suppression: Suppression = crate::json_input::decode(read("profiles/pinned-suppression-policy.json").as_bytes()).unwrap();
+    for rule in suppression.rules.keys() {
         let spellings = redirects
             .iter()
-            .filter(|(before, after)| after.as_str() == Some(rule.as_str()) && coded(before))
+            .filter(|(before, after)| after.as_str() == rule && coded(before))
             .map(|(before, _)| before.as_str())
             .chain([rule.as_str()]);
         let query = read(&format!("rules/{rule}/query.ryoql"));

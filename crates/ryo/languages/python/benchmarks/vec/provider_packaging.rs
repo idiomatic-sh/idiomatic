@@ -67,17 +67,6 @@ impl Project {
         Self { root_dir: root_dir.to_owned(), search_roots, classified: HashMap::new(), import_prefixes: Default::default(), import_catalog: Default::default(), head_modules: Default::default(), kinds, packages: HashMap::new() }
     }
 
-    /// The host's search roots from a request file (`project_search_roots`); None without a request or without the key.
-    pub(super) fn search_roots_of(request: Option<&str>) -> Option<Vec<String>> {
-        let text = std::fs::read_to_string(request?).ok()?;
-        let j: serde_json::Value = serde_json::from_str(&text).ok()?;
-        Self::search_roots(&j)
-    }
-
-    pub(super) fn search_roots(j: &serde_json::Value) -> Option<Vec<String>> {
-        Some(j.get("project_search_roots")?.as_array()?.iter().filter_map(|v| v.as_str().map(str::to_owned)).collect())
-    }
-
     /// A project-scope answer: `rel`'s rows for the run's files `files`. `holds` is the file whose content this provider has
     /// read (`table`, `src`): a relation whose rows depend on a file's own content is answered for that file only.
     pub(super) fn fill(&mut self, run: &mut finish::Run, rel: &str, files: &[u32], holds: u32, table: &NodeTable, src: &[u8]) -> Result<finish::Table, String> {

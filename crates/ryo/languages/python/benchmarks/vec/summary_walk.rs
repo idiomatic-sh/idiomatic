@@ -270,6 +270,7 @@ fn visit_files(
     let mut kinds = Vec::new();
     let mut fields_kinds = 0.;
     let mut cols = Columns::default();
+    let mut wanted = Vec::new();
     let mut dump = Vec::new();
     let (mut elements, mut steps, mut candidates, mut survivors) = (0u64, 0, 0u64, 0u64);
     let (mut read, mut contents, mut skip_cpu, mut checks, mut visit, mut finish) =
@@ -452,8 +453,7 @@ fn visit_files(
                     let begin = thread_cpu();
                     if let Some(f) = executor.borrow_mut().as_deref_mut() {
                         let id = ids[i + slot];
-                        let mut wanted =
-                            f.wanted(&list[id], &|e| emit_rules[e].iter().any(|&r| alive[r]));
+                        f.wanted_into(|e| emit_rules[e].iter().any(|&r| alive[r]), &mut wanted);
                         if !exact.is_empty() {
                             wanted.retain(|&e| {
                                 let [ri] = emit_rules[e].as_slice() else {
@@ -480,14 +480,7 @@ fn visit_files(
                             });
                         }
                         if f.visits(&wanted) {
-                            f.column_file(
-                                id,
-                                &list[id],
-                                file,
-                                input.get(i + slot),
-                                &wanted,
-                                std::mem::take(kept),
-                            );
+                            f.column_file(id, file, input.get(i + slot), &wanted, std::mem::take(kept));
                         }
                     }
                     finish += thread_cpu() - begin;

@@ -1,30 +1,13 @@
 //! Replay complete SDK inputs, one JSON record per line, in one process.
 //! Only the caller owns admission, supplied tables, parameters and the comparison oracle.
-use super::{bindings, finish, lower};
+use super::{
+    finish,
+    json_input::{self, Project, ProjectCell},
+    json_output, lower,
+};
 use finish::{Plan, Provider, Run, Scope, Supplier, Table, Ty};
-use serde::Deserialize;
-use serde_json::{Value, json};
-use sha2::{Digest as _, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::{self, BufRead as _, Write as _};
-
-#[derive(Deserialize)]
-struct Request {
-    id: String,
-    query: String,
-    files: Vec<String>,
-    inventory: Option<Vec<String>>,
-    hosted: Vec<Hosted>,
-    parameters: BTreeMap<String, Value>,
-}
-#[derive(Deserialize)]
-struct Hosted {
-    name: String,
-    columns: Vec<(String, String)>,
-    rows: Vec<Vec<Value>>,
-    #[serde(default)]
-    partial: Option<String>,
-}
 
 struct Snapshot {
     tables: BTreeMap<String, Table>,
@@ -66,7 +49,7 @@ fn path_id(run: &Run, path: &str) -> Result<u32, String> {
     u32::try_from(at).map_err(|e| e.to_string())
 }
 
-fn execute(req: Request, plan: &Plan) -> Result<Vec<String>, String> {
+fn execute(req: Project, plan: &Plan) -> Result<finish::json_output::Records, String> {
     let mut run = Run::default();
     run.empty = run.sym(b"");
     // The release binds host File cells in the whole request's numbered paths.
@@ -120,23 +103,19 @@ fn execute(req: Request, plan: &Plan) -> Result<Vec<String>, String> {
             }
             cells.clear();
             for (cell, (_, ty)) in row.into_iter().zip(&columns) {
-                let word = match ty {
-                    Ty::File => {
-                        let path = cell["file"].as_str().ok_or("expected file cell")?;
+                let word = match (ty, cell) {
+                    (Ty::File, ProjectCell::File { file: path }) => {
                         // table_of_query omits a row with no such file in the numbered request.
-                        let Ok(id) = run.paths.binary_search_by(|p| p.as_str().cmp(path)) else {
+                        let Ok(id) = run.paths.binary_search_by(|p| p.as_str().cmp(&path)) else {
                             continue 'rows;
                         };
                         u64::try_from(id).map_err(|e| e.to_string())?
                     }
-                    Ty::Sym => {
-                        u64::from(run.sym(cell.as_str().ok_or("expected text cell")?.as_bytes()))
-                    }
-                    Ty::Num => cell
-                        .as_i64()
-                        .filter(|n| *n != -1)
-                        .ok_or("number outside representable project range")?
-                        as u64,
+                    (Ty::Sym, ProjectCell::Text(text)) => u64::from(run.sym(text.as_bytes())),
+                    (Ty::Num, ProjectCell::Number(n)) if n != -1 => n as u64,
+                    (Ty::File, _) => return Err("expected file cell".into()),
+                    (Ty::Sym, _) => return Err("expected text cell".into()),
+                    (Ty::Num, _) => return Err("number outside representable project range".into()),
                     _ => unreachable!(),
                 };
                 cells.push(word);
@@ -155,23 +134,19 @@ fn execute(req: Request, plan: &Plan) -> Result<Vec<String>, String> {
 }
 
 pub(super) fn replay() {
-    let mut plans = BTreeMap::new();
+    let mut plans = std::collections::HashMap::new();
     let mut out = io::BufWriter::new(io::stdout().lock());
     for line in io::stdin().lock().lines() {
-        let req: Request =
-            serde_json::from_str(&line.expect("read request")).expect("project request");
+        let req = json_input::project(&line.expect("read request"));
         let id = req.id.clone();
-        let key = (
-            req.query.clone(),
-            serde_json::to_string(&req.parameters).expect("parameters"),
-        );
+        let key = (req.query.clone(), req.parameters.clone());
         let plan = plans.entry(key).or_insert_with(|| {
             let mut ctx = ryo_engine::domain::plan_lowering::types::RuleContext::default();
             let _previous = ctx.parameters.insert(
                 "query".into(),
                 req.parameters
                     .iter()
-                    .map(|(k, v)| (k.as_str().into(), bindings::constant(v)))
+                    .map(|(k, v)| (k.as_str().into(), v.clone()))
                     .collect(),
             );
             lower::query_plan("query", &req.query, ctx)
@@ -180,13 +155,7 @@ pub(super) fn replay() {
             Ok(plan) => execute(req, plan),
             Err(reason) => Err(reason.clone()),
         };
-        let receipt = match result {
-            Ok(rows) => {
-                let digest = Sha256::digest(format!("{}\n", rows.join("\n")));
-                json!({"id":id, "rows":rows.len(), "sha256":format!("{digest:x}")})
-            }
-            Err(reason) => json!({"id":id, "refused":reason}),
-        };
+        let receipt = json_output::receipt(&id, result);
         writeln!(out, "{receipt}").expect("write receipt");
     }
 }

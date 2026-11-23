@@ -11,7 +11,7 @@ use ryo::languages::{self, CellKind, KindBits, NodeTable, Position, node_table};
 use ryo_relations::domain::labels::types::NameRef;
 use ryo_relations::domain::relations::service as catalog;
 use rustc_hash::FxHashMap;
-use serde_json::Value as J;
+
 #[path = "finish/plan_load.rs"]
 mod plan_load;
 #[path = "finish/plan_args.rs"]
@@ -40,8 +40,12 @@ pub(super) fn step_clock() -> f64 {
     if sw!("VEC_STEP_TIME") { super::thread_cpu() } else { 0.0 }
 }
 
-#[path = "finish/answer.rs"]
-pub(super) mod answer;
+#[allow(dead_code, reason = "file, native-reference and project hosts read different request fields")]
+#[path = "json_input.rs"]
+pub(crate) mod json_input;
+#[allow(dead_code, reason = "benchmark hosts select lint locations or full query output")]
+#[path = "json_output.rs"]
+pub(crate) mod json_output;
 #[path = "finish/constants.rs"]
 pub(crate) mod constants;
 #[path = "finish/recycle.rs"]
@@ -52,8 +56,6 @@ mod inline_key;
 mod col;
 #[path = "finish/select_kernel.rs"]
 mod select_kernel;
-#[path = "finish/handover.rs"]
-pub(super) mod handover;
 #[path = "band.rs"]
 pub(super) mod band;
 #[path = "walk.rs"]
@@ -136,7 +138,7 @@ mod keyed;
 #[path = "finish/session.rs"]
 pub(super) mod session;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub(super) enum Ty {
     Node,
     Sym,
@@ -158,9 +160,9 @@ pub(super) fn ty_of(k: CellKind) -> Ty {
 }
 
 /// A value: a typed cell.
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub(super) struct V(Ty2, u64);
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 enum Ty2 {
     T(u8),
 }
@@ -527,7 +529,8 @@ pub(super) fn dump_rows(f: &File<'_>, run: &Run, t: &Table, label: &str, path: &
 /// A plan node, as lowered.
 pub(super) struct PNode {
     pub(super) op: String,
-    source: plan_load::Source,
+    source: std::sync::Arc<ryo_values::domain::finish_plans::types::FinishPlan>,
+    slot: usize,
     args: std::sync::OnceLock<Args>,
     pub(super) inputs: Vec<usize>,
     /// 7: the relation arguments (`args.<name>.rel`), by name.
@@ -537,70 +540,7 @@ pub(super) struct PNode {
 pub(super) struct Plan {
     pub(super) nodes: Vec<PNode>,
     pub(super) emits: Vec<(String, usize, String, Vec<String>)>,
-    /// The survivor sets the plan's seed tests name, by set: the label of the prefix rule whose roots fill it.
-    pub(super) seeds: Vec<String>,
-    /// 6e item 2: per set, the move paths from the prefix's roots to the other variables the set also holds.
-    pub(super) seed_paths: Vec<Vec<Vec<String>>>,
-}
 
-fn inputs_of(j: &J, out: &mut Vec<usize>) {
-    match j {
-        J::Object(m) => {
-            if let Some(J::Number(n)) = m.get("rel")
-                && m.len() == 1
-            {
-                out.push(n.as_u64().expect("rel") as usize);
-                return;
-            }
-            for v in m.values() {
-                inputs_of(v, out);
-            }
-        }
-        J::Array(a) => a.iter().for_each(|v| inputs_of(v, out)),
-        _ => {}
-    }
-}
-
-pub(super) fn load(path: &str) -> Plan {
-    let j: J = serde_json::from_str(&std::fs::read_to_string(path).expect("plan")).expect("plan json");
-    from_value(&j)
-}
-
-/// Read an explicitly supplied plan, including external seed sets and seed move paths.
-fn from_value(j: &J) -> Plan {
-    let nodes = j["nodes"]
-        .as_array()
-        .expect("nodes")
-        .iter()
-        .map(|n| {
-            let op = n["op"].as_str().expect("op").to_owned();
-            let mut inputs = Vec::new();
-            if op == "select" {
-                for s in n["src"].as_array().expect("src") {
-                    inputs.push(s[0].as_u64().expect("src node") as usize);
-                }
-            } else if op != "base" {
-                inputs_of(&n["args"], &mut inputs);
-            }
-            let rels = n["args"].as_object().map(|m| m.iter().filter_map(|(k, v)| v.get("rel").and_then(J::as_u64).map(|r| (k.clone(), r as usize))).collect()).unwrap_or_default();
-            PNode { op, source: plan_load::Source::External(n.clone()), args: Default::default(), inputs, rels }
-        })
-        .collect();
-    let mut emits = Vec::new();
-    for (rule, e) in j["emits"].as_object().expect("emits") {
-        emits.push((
-            rule.clone(),
-            e["node"].as_u64().expect("emit node") as usize,
-            e["subject"].as_str().unwrap_or("file").to_owned(),
-            e["key"].as_array().map(|a| a.iter().map(|x| x.as_str().unwrap_or("").to_owned()).collect()).unwrap_or_default(),
-        ));
-    }
-    let seeds = j["seeds"].as_array().map(|a| a.iter().map(|x| x.as_str().unwrap_or("").to_owned()).collect()).unwrap_or_default();
-    let seed_paths = j["seed_paths"]
-        .as_array()
-        .map(|a| a.iter().map(|ps| ps.as_array().map(|ps| ps.iter().map(|p| p.as_array().map(|p| p.iter().map(|m| m.as_str().unwrap_or("").to_owned()).collect()).unwrap_or_default()).collect()).unwrap_or_default()).collect())
-        .unwrap_or_default();
-    Plan { nodes, emits, seeds, seed_paths }
 }
 
 /// The relations of the tree read in place, by position.
@@ -720,12 +660,10 @@ pub(super) struct File<'a> {
     index: FxHashMap<usize, inline_key::List<(inline_key::Key, Rc<Index>)>>,
     fills: FxHashMap<String, Rc<Table>>,
     lazies: FxHashMap<usize, Rc<Lazy>>,
-    /// The survivor sets of this file (sorted node ids), by set: the prefix's roots for each seeded rule.
-    pub(super) seeds: Vec<Vec<u32>>,
     /// 6h: the fills read in place, by `Native::Fact` place, and their keyed lists by (place, column).
     facts: Vec<Option<Rc<Table>>>,
     fact_ix: RefCell<FxHashMap<(u16, usize), Rc<Index>>>,
-    /// redo-union pass 2: whether a step is known empty in this file from its kinds, seeds and per-file tests (`known`).
+    /// redo-union pass 2: whether a step is known empty in this file from its kinds and per-file tests (`known`).
     known: Vec<u8>,
     /// The kinds the file has, one bit a kind code (made at the first ask).
     kind_bits: Vec<u64>,
@@ -882,7 +820,6 @@ impl File<'_> {
             index: b.index,
             fills: b.fills,
             lazies: b.lazies,
-            seeds: Vec::new(),
             facts: b.facts,
             fact_ix: RefCell::new(b.fact_ix),
             known: Vec::new(),
@@ -1263,16 +1200,13 @@ enum E {
     And(Box<E>, Box<E>),
     Or(Box<E>, Box<E>),
     Not(Box<E>),
-    /// redo-binding: the null test (`x is null`, `x is not null` when the flag is set): whether a value is the absent cell.
-    Null(Box<E>, bool),
     /// A text tested against a constant regex (from `matches` or `glob_any`), compiled once.
     Re(Box<E>, Rc<regex::bytes::Regex>),
-    /// The survivor handoff: whether a node id is in survivor set `k` of this file (the prefix's roots for a rule).
-    Seed(Box<E>, usize),
+
 }
 
 /// 8: a comparison operator, resolved once a run when the plan's expression is compiled (never compared as text per row).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub(super) enum Op {
     Eq,
     Ne,
@@ -1422,9 +1356,6 @@ impl std::ops::Deref for Exec<'_> {
 
 type R<T> = Result<T, String>;
 
-fn external_text(j: &J) -> R<&str> {
-    j.as_str().ok_or_else(|| format!("not a text: {j}"))
-}
 /// Borrow names from this plan argument in their declared order.
 fn strs(j: &Param) -> R<impl DoubleEndedIterator<Item = &str> + Clone> {
     let values = match j {
@@ -1717,38 +1648,6 @@ impl<'p> Exec<'p> {
         Ok(sc)
     }
 
-    fn expr(&self, run: &mut Run, j: &J, names: &[(Option<String>, Rc<Schema>)]) -> R<E> {
-        let a = j.as_array().ok_or("expr")?;
-        let tag = external_text(&a[0])?;
-        Ok(match tag {
-            "col" => Self::column_expr(run, external_text(&a[1])?, a[2].as_str(), names)?,
-            "lit" => E::Text(run.sym(external_text(&a[1])?.as_bytes())),
-            "num" => E::Num(a[1].as_i64().ok_or("num")?),
-            "list" => E::List(a[1].as_array().ok_or("list")?.iter().map(|x| self.expr(run, x, names)).collect::<R<_>>()?),
-            "call" => {
-                let name = external_text(&a[1])?.to_owned();
-                let args: Vec<E> = a[2].as_array().ok_or("args")?.iter().map(|x| self.expr(run, x, names)).collect::<R<_>>()?;
-                Self::call_expr(run, &name, args)?
-            }
-            "cmp" => {
-                let left = self.expr(run, &a[2], names)?;
-                let right = self.expr(run, &a[3], names)?;
-                Self::compare_expr(run, Op::of(external_text(&a[1])?), left, right)
-            }
-            "in" | "notin" => {
-                let value = self.expr(run, &a[1], names)?;
-                let list = self.expr(run, &a[2], names)?;
-                Self::membership_expr(run, value, list, tag == "notin")
-            }
-            "and" => E::And(Box::new(self.expr(run, &a[1], names)?), Box::new(self.expr(run, &a[2], names)?)),
-            "or" => E::Or(Box::new(self.expr(run, &a[1], names)?), Box::new(self.expr(run, &a[2], names)?)),
-            "not" => E::Not(Box::new(self.expr(run, &a[1], names)?)),
-            "null" => E::Null(Box::new(self.expr(run, &a[1], names)?), a[2].as_bool().ok_or("null test")?),
-            "seed" => E::Seed(Box::new(self.expr(run, &a[1], names)?), a[2].as_u64().ok_or("seed set")? as usize),
-            other => return Err(format!("expression {other}")),
-        })
-    }
-
     /// A select's compiled form, once a run.
     fn sel(&mut self, run: &mut Run, node: usize) -> R<Rc<SelPlan>> {
         if let Some(sp) = &self.sels[node] {
@@ -1822,8 +1721,7 @@ impl<'p> Exec<'p> {
                 match self.view(run, inner)? {
                     Some(iv) => {
                         let sp = self.sel(run, node)?;
-                        // 6e: `VEC_SEED_NOT_VIEW`: a seed test is never a view's filter (measured a loss: j13 239.6 M against j12 212.0 M)
-                        let plain = sp.items.iter().all(|(_, e)| matches!(e, E::Col(0, _, _))) && (!sw!("VEC_SEED_NOT_VIEW") || !sp.conj.iter().any(|e| matches!(e, E::Seed(..))));
+                        let plain = sp.items.iter().all(|(_, e)| matches!(e, E::Col(0, _, _)));
                         if plain {
                             let map = sp.items.iter().map(|(_, e)| if let E::Col(_, c, _) = e { iv.map[*c] } else { 0 }).collect();
                             let mut filter = iv.filter.clone();
@@ -2580,8 +2478,8 @@ impl<'p> Exec<'p> {
             if sw!("VEC_ASKER_PLAN") && by != u32::MAX && fill_prof::first_asker(by) {
                 eprintln!("ASKER-SITE {by} {} {}", fill_prof::SITE.with(std::cell::Cell::get), std::backtrace::Backtrace::force_capture().to_string().lines().filter(|l| l.contains("Exec") || l.contains("kernel") || l.contains("finish")).take(12).map(str::trim).collect::<Vec<_>>().join(" < "));
                 let pn = &self.plan.nodes[by as usize];
-                let ins: Vec<String> = pn.inputs.iter().map(|x| format!("{x}:{}:{}", self.plan.nodes[*x].op, self.plan.nodes[*x].diagnostic().to_string().chars().take(160).collect::<String>())).collect();
-                eprintln!("ASKER-PLAN {by} {} {} INPUTS {}", pn.op, pn.diagnostic().to_string().chars().take(900).collect::<String>(), ins.join(" | "));
+                let ins: Vec<String> = pn.inputs.iter().map(|x| format!("{x}:{}:{}", self.plan.nodes[*x].op, self.plan.nodes[*x].summary_text().chars().take(160).collect::<String>())).collect();
+                eprintln!("ASKER-PLAN {by} {} {} INPUTS {}", pn.op, pn.summary_text().chars().take(900).collect::<String>(), ins.join(" | "));
             }
         }
         if !f.fills.contains_key(&rel) {
@@ -2730,27 +2628,9 @@ impl<'p> Exec<'p> {
             }
             srcs.push(src);
         }
-        // the survivor handoff: a source with a seed test starts the step from the rule's survivors, read by key
-        let mut driver: Option<usize> = None;
-        if let Some((si, c, k)) = conj.iter().find_map(|e| match e {
-            E::Seed(x, k) => match **x {
-                E::Col(si, c, _) => Some((si, c, *k)),
-                _ => None,
-            },
-            _ => None,
-        }) {
-            let ids: Vec<u64> = f.seeds.get(k).map(|s| s.iter().map(|x| u64::from(*x)).collect()).unwrap_or_default();
-            let t = self.probe(f, run, p, sp.srcs[si], c, &ids)?;
-            self.stats.touched[node] += ids.len() as u64;
-            if t.n == 0 {
-                empty_sel::at(empty_sel::stage::SEED_EMPTY);
-                return self.empty(run, node);
-            }
-            srcs[si] = Src::Tab(t, usize::MAX - si);
-            driver = Some(si);
-        }
+        let mut driver = None;
         // the driver: the smallest entry that is already a count, a made table's rows or a view's kind bucket
-        let mut best = if driver.is_some() { 0 } else { usize::MAX };
+        let mut best = usize::MAX;
         for (i, sr) in srcs.iter().enumerate() {
             let size = match sr {
                 Src::Tab(t, _) => Some(t.n),
@@ -3878,9 +3758,7 @@ fn remap(e: &E, map: &[usize]) -> E {
         E::And(x, y) => E::And(b(x), b(y)),
         E::Or(x, y) => E::Or(b(x), b(y)),
         E::Not(x) => E::Not(b(x)),
-        E::Null(x, n) => E::Null(b(x), *n),
         E::Re(x, r) => E::Re(b(x), r.clone()),
-        E::Seed(x, k) => E::Seed(b(x), *k),
         other => other.clone(),
     }
 }
@@ -4162,7 +4040,7 @@ fn refs_of(e: &E) -> u64 {
         E::Col(s, _, _) => 1 << s,
         E::List(v) | E::Call(_, v) => v.iter().map(refs_of).fold(0, |a, b| a | b),
         E::Cmp(_, a, b) | E::In(a, b, _) | E::And(a, b) | E::Or(a, b) => refs_of(a) | refs_of(b),
-        E::Not(a) | E::Null(a, _) | E::Re(a, _) | E::Seed(a, _) => refs_of(a),
+        E::Not(a) | E::Re(a, _) => refs_of(a),
         _ => 0,
     }
 }
@@ -4266,7 +4144,6 @@ fn eval(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], e: &E) -> V {
         E::And(a, b) => flag(truthy(eval(run, f, srcs, cur, a)) && truthy(eval(run, f, srcs, cur, b))),
         E::Or(a, b) => flag(truthy(eval(run, f, srcs, cur, a)) || truthy(eval(run, f, srcs, cur, b))),
         E::Not(a) => flag(!truthy(eval(run, f, srcs, cur, a))),
-        E::Null(a, not) => flag((eval(run, f, srcs, cur, a).1 == NULL) != *not),
         E::Cmp(o @ (Op::Eq | Op::Ne), a, b) => {
             let want = *o == Op::Eq;
             let eq = match (&**a, &**b) {
@@ -4331,10 +4208,6 @@ fn eval(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], e: &E) -> V {
             }
             let vs: Vec<V> = args.iter().map(|x| eval(run, f, srcs, cur, x)).collect();
             call(run, name, &vs)
-        }
-        E::Seed(a, k) => {
-            let x = eval(run, f, srcs, cur, a);
-            flag(f.seeds.get(*k).is_some_and(|s| s.binary_search(&(x.1 as u32)).is_ok()))
         }
     }
 }

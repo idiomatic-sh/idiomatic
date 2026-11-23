@@ -1,7 +1,7 @@
 //! Demand and CPU of ordered base-view row lists. View projections do not change row IDs.
 use super::{E, Exec, File, Native, Op, Run, ViewSpec};
+use super::{Ty, V};
 use rustc_hash::{FxHashMap, FxHashSet};
-use serde_json::{Value, json};
 use std::rc::Rc;
 
 #[derive(Default)]
@@ -96,12 +96,31 @@ pub(super) fn members(e: &E, col: usize) -> Option<Vec<u32>> {
     }
 }
 
-fn normalized(e: &E) -> Value {
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(super) enum FilterKey {
+    Member(usize, Vec<u32>),
+    Col(usize, usize, Ty),
+    Lit(V),
+    Text(u32),
+    Num(i64),
+    And(Vec<Self>),
+    Or(Vec<Self>),
+    Cmp(Op, Box<Self>, Box<Self>),
+    Not(Box<Self>),
+    In(bool, Box<Self>, Vec<Self>),
+    InExpr(bool, Box<Self>, Box<Self>),
+    Call(String, Vec<Self>),
+    Re(Box<Self>, String),
+    List(Vec<Self>),
+}
+
+fn normalized(e: &E) -> FilterKey {
+    use FilterKey as K;
     if let E::Cmp(Op::Eq, a, b) = e {
         if let (E::Col(0, c, super::Ty::Sym), E::Text(t))
         | (E::Text(t), E::Col(0, c, super::Ty::Sym)) = (&**a, &**b)
         {
-            return json!(["member", c, [t]]);
+            return K::Member(*c, vec![*t]);
         }
     }
     if matches!(e, E::Or(..) | E::In(..)) {
@@ -117,10 +136,10 @@ fn normalized(e: &E) -> Value {
         {
             vs.sort_unstable();
             vs.dedup();
-            return json!(["member", c, vs]);
+            return K::Member(c, vs);
         }
     }
-    fn terms(e: &E, and: bool, out: &mut Vec<String>) {
+    fn terms(e: &E, and: bool, out: &mut Vec<FilterKey>) {
         match e {
             E::And(a, b) if and => {
                 terms(a, and, out);
@@ -130,7 +149,7 @@ fn normalized(e: &E) -> Value {
                 terms(a, and, out);
                 terms(b, and, out);
             }
-            _ => out.push(normalized(e).to_string()),
+            _ => out.push(normalized(e)),
         }
     }
     match e {
@@ -140,44 +159,43 @@ fn normalized(e: &E) -> Value {
             terms(e, and, &mut xs);
             xs.sort_unstable();
             xs.dedup();
-            json!([if and { "and" } else { "or" }, xs])
+            if and { K::And(xs) } else { K::Or(xs) }
         }
         E::Cmp(op, a, b) => {
-            let (mut a, mut b) = (normalized(a).to_string(), normalized(b).to_string());
+            let (mut a, mut b) = (normalized(a), normalized(b));
             if matches!(op, Op::Eq | Op::Ne) && a > b {
                 std::mem::swap(&mut a, &mut b);
             }
-            json!(["cmp", op.as_str(), a, b])
+            K::Cmp(*op, Box::new(a), Box::new(b))
         }
-        E::Not(a) => json!(["not", normalized(a)]),
-        E::Null(a, neg) => json!(["null", neg, normalized(a)]),
+        E::Not(a) => K::Not(Box::new(normalized(a))),
         E::In(a, b, neg) => {
             let mut items = if let E::List(xs) = &**b {
-                xs.iter()
-                    .map(|x| normalized(x).to_string())
-                    .collect::<Vec<_>>()
+                xs.iter().map(normalized).collect::<Vec<_>>()
             } else {
-                return json!(["in-expr", neg, normalized(a), normalized(b)]);
+                return K::InExpr(*neg, Box::new(normalized(a)), Box::new(normalized(b)));
             };
             items.sort_unstable();
             items.dedup();
-            json!(["in", neg, normalized(a), items])
+            K::In(*neg, Box::new(normalized(a)), items)
         }
-        E::Call(name, xs) => json!(["call", name, xs.iter().map(normalized).collect::<Vec<_>>()]),
-        E::Re(a, re) => json!(["re", normalized(a), re.as_str()]),
-        E::Seed(a, k) => json!(["seed", normalized(a), k]),
-        E::List(xs) => json!(["list", xs.iter().map(normalized).collect::<Vec<_>>()]),
-        _ => json!(format!("{e:?}")),
+        E::Call(name, xs) => K::Call(name.clone(), xs.iter().map(normalized).collect()),
+        E::Re(a, re) => K::Re(Box::new(normalized(a)), re.as_str().into()),
+        E::List(xs) => K::List(xs.iter().map(normalized).collect()),
+        E::Col(s, c, ty) => K::Col(*s, *c, *ty),
+        E::Lit(v) => K::Lit(*v),
+        E::Text(t) => K::Text(*t),
+        E::Num(n) => K::Num(*n),
     }
 }
 
-pub(super) fn conjuncts(es: &[E]) -> Vec<String> {
-    fn append(e: &E, out: &mut Vec<String>) {
+pub(super) fn conjuncts(es: &[E]) -> Vec<FilterKey> {
+    fn append(e: &E, out: &mut Vec<FilterKey>) {
         if let E::And(a, b) = e {
             append(a, out);
             append(b, out);
         } else {
-            out.push(normalized(e).to_string());
+            out.push(normalized(e));
         }
     }
     let mut xs = Vec::new();
@@ -194,7 +212,7 @@ fn uses(e: &E, col: usize) -> bool {
         E::Cmp(_, a, b) | E::And(a, b) | E::Or(a, b) | E::In(a, b, _) => {
             uses(a, col) || uses(b, col)
         }
-        E::Not(a) | E::Null(a, _) | E::Seed(a, _) | E::Re(a, _) => uses(a, col),
+        E::Not(a) | E::Re(a, _) => uses(a, col),
         E::Call(_, xs) | E::List(xs) => xs.iter().any(|e| uses(e, col)),
         _ => false,
     }
@@ -243,7 +261,7 @@ impl Exec<'_> {
                         "COLD_DEF\t{id}\t{node}\t{}\t{:?}\t{}",
                         form(&v),
                         v.base,
-                        self.plan.nodes[node].diagnostic()
+                        self.plan.nodes[node].summary_text()
                     );
                 }
                 id
