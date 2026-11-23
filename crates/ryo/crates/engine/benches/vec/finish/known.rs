@@ -314,7 +314,7 @@ impl Exec<'_> {
                 return n;
             }
             // the counted group-count reads its select's kept side with zero counts: never known from its input
-            "group-count" if pn.j["args"]["distinct"].is_null() && !sw!("VEC_NO_SEMI") && self.arg_rel(node, "from").is_ok_and(|x| plan.nodes[x].j.get("count").is_some()) => {
+            "group-count" if !pn.distinct_count() && !sw!("VEC_NO_SEMI") && self.arg_rel(node, "from").is_ok_and(|x| plan.nodes[x].counted()) => {
                 n.never = true;
                 return n;
             }

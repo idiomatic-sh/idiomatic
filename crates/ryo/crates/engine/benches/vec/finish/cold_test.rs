@@ -39,7 +39,11 @@ impl Kernel {
         match self {
             Self::Columns(_, program) => program.retain(f, run, rows),
             Self::FieldWords(words) => rows.retain(|r| {
-                let word = run.field_sym.get(usize::from(field[*r as usize])).copied().unwrap_or(run.empty);
+                let word = run
+                    .field_sym
+                    .get(usize::from(field[*r as usize]))
+                    .copied()
+                    .unwrap_or(run.empty);
                 words.binary_search(&word).is_ok()
             }),
             Self::One(code) => rows.retain(|r| field[*r as usize] == *code),
@@ -70,65 +74,72 @@ fn field_members(v: &ViewSpec) -> Option<Vec<u32>> {
     Some(allowed)
 }
 
-impl Exec<'_> {
-    pub(crate) fn cold_test_load(&mut self, run: &mut Run) {
-        if sw!("VEC_NO_COLD_TYPED") {
+/// Filters shared by views first reached during this run. SDK field codes are resolved per file.
+#[derive(Default)]
+pub(super) struct Compiler {
+    fields: FxHashMap<Vec<u32>, Rc<Kernel>>,
+    programs: FxHashMap<(Native, Vec<String>), Option<Rc<Kernel>>>,
+    inventory: BTreeMap<(&'static str, bool), (usize, usize)>,
+}
+
+impl Compiler {
+    pub(super) fn bind(&mut self, run: &mut Run, node: usize, v: &ViewSpec) {
+        if v.filter.is_empty() {
             return;
         }
-        let mut fields = FxHashMap::<Vec<u32>, Rc<Kernel>>::default();
-        let mut programs = FxHashMap::default();
-        let mut inventory = BTreeMap::<(&str, bool), (usize, usize)>::new();
-        for (node, pn) in self.plan.nodes.iter().enumerate() {
-            if pn.op != "select" || !pn.j["src"].as_array().is_some_and(|a| a.len() == 1) {
-                continue;
-            }
-            let Ok(Some(v)) = self.view(run, node) else {
-                continue;
-            };
-            if v.filter.is_empty() {
-                continue;
-            }
-            if let Some(entry) = super::cold_list::Handoff::compile(run, &v) {
-                assert!(v.cold_bucket.set(entry).is_ok());
-            }
-            let form = super::cold_list::form(&v);
-            let mut first = false;
-            let kernel = if let Some(words) = field_members(&v) {
-                Some(
-                    fields
-                        .entry(words)
-                        .or_insert_with_key(|words| {
-                            first = true;
-                            Rc::new(Kernel::fields(run, words))
-                        })
-                        .clone(),
-                )
-            } else {
-                let key = (v.base, super::cold_list::conjuncts(&v.filter));
-                programs
-                    .entry(key)
-                    .or_insert_with(|| {
+        if let Some(entry) = super::cold_list::Handoff::compile(run, v) {
+            assert!(v.cold_bucket.set(entry).is_ok());
+        }
+        let form = super::cold_list::form(v);
+        let mut first = false;
+        let kernel = if let Some(words) = field_members(v) {
+            Some(
+                self.fields
+                    .entry(words)
+                    .or_insert_with_key(|words| {
                         first = true;
-                        super::cold_pred::Program::compile(run, &v)
-                            .map(|p| Rc::new(Kernel::Columns(form, p)))
+                        Rc::new(Kernel::fields(run, words))
                     })
-                    .clone()
-            };
-            if sw!("VEC_COLD_COUNT") {
-                let n = inventory.entry((form, kernel.is_some())).or_default();
-                n.0 += 1;
-                n.1 += usize::from(first);
-            }
-            if kernel.is_none() && sw!("VEC_COLD_KEYS") {
-                println!("COLD_UNCOMPILED\t{node}\t{form}\t{:?}", v.filter);
-            }
-            if let Some(k) = kernel {
-                v.cold_test
-                    .set(k)
-                    .unwrap_or_else(|_| panic!("cold test set twice"));
+                    .clone(),
+            )
+        } else {
+            let key = (v.base, super::cold_list::conjuncts(&v.filter));
+            self.programs
+                .entry(key)
+                .or_insert_with(|| {
+                    first = true;
+                    super::cold_pred::Program::compile(run, v)
+                        .map(|p| Rc::new(Kernel::Columns(form, p)))
+                })
+                .clone()
+        };
+        if sw!("VEC_COLD_COUNT") {
+            let n = self.inventory.entry((form, kernel.is_some())).or_default();
+            n.0 += 1;
+            n.1 += usize::from(first);
+        }
+        if kernel.is_none() && sw!("VEC_COLD_KEYS") {
+            println!("COLD_UNCOMPILED\t{node}\t{form}\t{:?}", v.filter);
+        }
+        if let Some(k) = kernel {
+            v.cold_test
+                .set(k)
+                .unwrap_or_else(|_| panic!("cold test set twice"));
+        }
+    }
+}
+impl Exec<'_> {
+    // The optional audit reports inventory for the entire plan, including unreachable views.
+    pub(crate) fn cold_test_load(&mut self, run: &mut Run) {
+        if !(sw!("VEC_COLD_COUNT") || sw!("VEC_COLD_KEYS")) {
+            return;
+        }
+        for (node, pn) in self.plan.nodes.iter().enumerate() {
+            if pn.op == "select" && pn.inputs.len() == 1 {
+                let _ = self.view(run, node);
             }
         }
-        for ((form, compiled), (views, distinct)) in inventory {
+        for ((form, compiled), (views, distinct)) in &self.cold_compiler.inventory {
             println!("COLD_COMPILED\t{form}\t{views}\t{distinct}\t{compiled}");
         }
     }

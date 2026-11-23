@@ -67,6 +67,10 @@ impl Project {
     pub(super) fn search_roots_of(request: Option<&str>) -> Option<Vec<String>> {
         let text = std::fs::read_to_string(request?).ok()?;
         let j: serde_json::Value = serde_json::from_str(&text).ok()?;
+        Self::search_roots(&j)
+    }
+
+    pub(super) fn search_roots(j: &serde_json::Value) -> Option<Vec<String>> {
         Some(j.get("project_search_roots")?.as_array()?.iter().filter_map(|v| v.as_str().map(str::to_owned)).collect())
     }
 

@@ -16,6 +16,12 @@ struct Request {
     selected_rules: Vec<String>,
     #[serde(default)]
     file_rules: HashMap<String, String>,
+    #[serde(default)]
+    rule_context: serde_json::Value,
+    #[serde(default)]
+    rule_observations: serde_json::Value,
+    #[serde(default)]
+    rule_applicability: serde_json::Value,
 }
 
 /// Dense local bit numbers only for names that occur in a necessary condition.
@@ -101,9 +107,15 @@ pub(super) fn run(
     request: &str,
     output: &str,
 ) -> bool {
-    let req: Request =
+    let mut req: Request =
         serde_json::from_slice(&std::fs::read(request).expect("read request")).expect("request");
-    let read = lower::read_pack(Path::new(pack), super::rule_context(Some(request)));
+    assert!(req.rule_context.is_null() && req.rule_observations.is_null(), "this host provides no named context tables");
+    let mut metadata = serde_json::Map::new();
+    if !req.rule_applicability.is_null() {
+        metadata.insert("rule_applicability".into(), req.rule_applicability.take());
+    }
+    let document = serde_json::Value::Object(metadata);
+    let read = lower::read_pack(Path::new(pack), Default::default());
     let parser = language.parse_engine();
     let plan = lower::second_half_plan(&read, true);
     let emits: BTreeSet<_> = plan.emits.iter().map(|emit| emit.0.as_str()).collect();
@@ -120,7 +132,7 @@ pub(super) fn run(
         .nodes
         .iter()
         .filter(|n| n.op == "base")
-        .map(|n| n.j["rel"].as_str().expect("base name"))
+        .map(|n| n.base().expect("base name"))
         .collect();
     let mut run = finish::Run::default();
     run.file_field_codes = true;
@@ -207,7 +219,7 @@ pub(super) fn run(
             reads.extend(&dependencies[i]);
         }
         if n.op == "base" {
-            let name = n.j["rel"].as_str().expect("relation name");
+            let name = n.base().expect("relation name");
             let rel = catalog::relation_named(NameRef(name)).expect("reader catalog");
             if ryo_relations::domain::catalog::service::fact_form(rel)
                 != ryo_relations::domain::relations::types::FactForm::NodeTable
@@ -234,7 +246,9 @@ pub(super) fn run(
             "--applicability",
             request,
         ],
+        Some((request, &document)),
     );
+    drop(document);
     let startup = thread_cpu() - start;
     println!("startup preparation: pack-read {:.6} parse {:.6} file-summaries {:.6}", read.read, read.parse, summaries_cpu);
     let mut memory = Memory {

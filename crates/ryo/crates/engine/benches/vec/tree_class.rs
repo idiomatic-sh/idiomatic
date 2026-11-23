@@ -15,7 +15,7 @@ use rustc_hash::FxHashMap;
 
 impl Exec<'_> {
     pub(super) fn subtree_class(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Table> {
-        let a = &self.plan.nodes[node].j["args"];
+        let a = self.plan.nodes[node].args();
         let from = self.eval(f, run, p, self.arg_rel(node, "from")?)?;
         let mut out = self.empty(run, node)?;
         if from.n == 0 {

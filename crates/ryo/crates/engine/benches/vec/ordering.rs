@@ -128,7 +128,7 @@ fn compare(x: &Key, y: &Key) -> Ordering {
 
 impl Exec<'_> {
     pub(super) fn order(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Table> {
-        let a = &self.plan.nodes[node].j["args"];
+        let a = self.plan.nodes[node].args();
         let from = self.eval(f, run, p, self.arg_rel(node, "from")?)?;
         let keys: Vec<usize> = strs(&a["keys"])?.iter().map(|c| from.col(c)).collect::<R<_>>()?;
         let pc = from.col(s(&a["position"])?)?;

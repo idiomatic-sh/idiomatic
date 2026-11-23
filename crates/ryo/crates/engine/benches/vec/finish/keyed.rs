@@ -88,7 +88,7 @@ impl Exec<'_> {
         Ok(match self.frames[node].op {
             super::frame::Op::Antijoin => Form::Antijoin,
             super::frame::Op::Union => Form::Union,
-            super::frame::Op::Select if pn.j.get("count").is_none() => {
+            super::frame::Op::Select if !pn.counted() => {
                 let sp = self.sel(run, node)?;
                 let closure = sp.srcs.iter().any(|s| self.plan.nodes[*s].op == "closure");
                 let seed = sp.conj.iter().any(|e| matches!(e, E::Seed(..)));

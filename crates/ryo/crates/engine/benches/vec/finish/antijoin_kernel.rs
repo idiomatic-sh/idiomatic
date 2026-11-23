@@ -44,7 +44,7 @@ fn prep(ex: &mut Exec<'_>, run: &mut Run, node: usize) -> R<&'static Prep> {
         return Ok(pr);
     }
     let plan = ex.plan;
-    let a = &plan.nodes[node].j["args"];
+    let a = plan.nodes[node].args();
     let (left, right) = (ex.arg_rel(node, "left")?, ex.arg_rel(node, "right")?);
     let (lsc, rsc) = (ex.schema(run, left)?, ex.schema(run, right)?);
     let lk: Box<[usize]> = super::strs(&a["left-on"])?.iter().map(|c| super::pos(&lsc.names, c)).collect::<R<_>>()?;

@@ -5,11 +5,11 @@
 //! the edge's source, destination and edge columns, then the ordinal. Two edges of one source with one order are refused,
 //! as the shipping engine refuses them (`DuplicateOrder`).
 
-use super::{J, NULL, R, Table, Ty, s, strs};
+use super::{Args, NULL, R, Table, Ty, s, strs};
 use rustc_hash::{FxHashMap, FxHashSet};
 
 /// The output's column names and types from the two inputs' schemas.
-pub(super) fn schema(a: &J, from: (&[String], &[Ty]), edges: (&[String], &[Ty])) -> R<(Vec<String>, Vec<Ty>)> {
+pub(super) fn schema(a: &Args, from: (&[String], &[Ty]), edges: (&[String], &[Ty])) -> R<(Vec<String>, Vec<Ty>)> {
     let col = |names: &[String], c: &str| names.iter().position(|n| n == c).ok_or_else(|| format!("ordered-dfs: no column {c}"));
     let mut names = Vec::new();
     let mut tys = Vec::new();
@@ -30,7 +30,7 @@ pub(super) fn schema(a: &J, from: (&[String], &[Ty]), edges: (&[String], &[Ty]))
 }
 
 /// The visit rows into `out` (made with `schema`'s columns).
-pub(super) fn walked(a: &J, from: &Table, edges: &Table, out: &mut Table) -> R<()> {
+pub(super) fn walked(a: &Args, from: &Table, edges: &Table, out: &mut Table) -> R<()> {
     let keys = strs(&a["keys"])?;
     let fk: Vec<usize> = keys.iter().map(|k| from.col(k)).collect::<R<_>>()?;
     let ek: Vec<usize> = keys.iter().map(|k| edges.col(k)).collect::<R<_>>()?;

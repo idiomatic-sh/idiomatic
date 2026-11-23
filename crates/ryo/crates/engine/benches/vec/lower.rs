@@ -182,7 +182,7 @@ pub(crate) fn run_stage(args: &[&str]) {
 
 /// The pack's rules and fragments read and parsed once at start, for both halves' plans (`vec funnel ... --finish <pack dir>`).
 pub(crate) struct ReadPack {
-    pub(crate) typed: std::cell::RefCell<Option<FinishPlan>>,
+    pub(crate) typed: std::cell::RefCell<Option<std::rc::Rc<FinishPlan>>>,
     pub(crate) programs: PackPrograms,
     /// Thread CPU of reading the texts (and the request's rule context) and of parsing them.
     pub(crate) read: f64,
@@ -190,8 +190,8 @@ pub(crate) struct ReadPack {
 }
 
 impl ReadPack {
-    pub(super) fn lower_axes(&self) -> FinishPlan {
-        lowered(&self.programs, PlanningStage::Axes)
+    pub(super) fn lower_axes(&self) -> std::rc::Rc<FinishPlan> {
+        std::rc::Rc::new(lowered(&self.programs, PlanningStage::Axes))
     }
 }
 
@@ -206,7 +206,7 @@ pub(crate) fn read_pack(pack: &Path, context: RuleContext) -> ReadPack {
 }
 
 /// The second half's plan, lowered in this process from the parsed pack: expansion, the three passes, then the typed plan
-/// handed to the executor as the JSON value it reads (the codec's bytes decoded in memory; no file). Prints its phases.
+/// shared with the executor and the first-half analysis.
 pub(crate) fn second_half_plan(pack: &ReadPack, keep_for_first: bool) -> super::finish::Plan {
     let t0 = super::thread_cpu();
     let mut plan = lowered(&pack.programs, PlanningStage::Expanded);
@@ -222,34 +222,17 @@ pub(crate) fn second_half_plan(pack: &ReadPack, keep_for_first: bool) -> super::
     mark_through(&mut plan, PlanningStage::Axes);
     let t2 = super::thread_cpu();
     let steps = plan.steps.len();
-    // the hand-over in memory: the typed plan to the executor's value, no text written or parsed (`VEC_PLAN_TEXT`: the
-    // text round trip, to compare)
-    let (value, t3) = if std::env::var_os("VEC_PLAN_TEXT").is_some() {
-        let bytes = json().encoded(&plan);
-
-        let t3 = super::thread_cpu();
-        (serde_json::from_slice::<serde_json::Value>(&bytes).expect("the codec's own plan"), t3)
-    } else {
-        let v = json().valued(&plan);
-
-        (v, super::thread_cpu())
-    };
+    let plan = std::rc::Rc::new(plan);
+    let executor_plan = super::finish::from_typed(plan.clone());
     if keep_for_first {
         pack.typed.replace(Some(plan));
-    } else {
-        drop(plan);
     }
-    let t4 = super::thread_cpu();
-    let executor_plan = super::finish::from_value(&value);
-    drop(value);
     let t5 = super::thread_cpu();
     println!(
-        "start-up second half: steps {steps} expand {:.4} passes {:.4} to-value {:.4} decode {:.4} executor-plan {:.4} total {:.4} s",
+        "start-up second half: steps {steps} expand {:.4} passes {:.4} to-value 0.0000 decode 0.0000 executor-plan {:.4} total {:.4} s",
         t1 - t0,
         t2 - t1,
-        t3 - t2,
-        t4 - t3,
-        t5 - t4,
+        t5 - t2,
         t5 - t0
     );
     executor_plan
