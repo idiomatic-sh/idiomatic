@@ -110,3 +110,6 @@ workspace = true
 schema = "divan-timing/v1"
 workloads = { generated_every_relation = [2500, 10000], fillers_whole_and_by_key = [2000, 8000] }
 metrics = ["median-ns"]
+
+[target.'cfg(target_os = "linux")'.dev-dependencies]
+rustix = { version = "1", features = ["thread"] }

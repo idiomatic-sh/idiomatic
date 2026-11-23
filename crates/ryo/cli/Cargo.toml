@@ -136,3 +136,6 @@ pkg-fmt = "zip"
 
 [package.metadata.binstall.overrides.aarch64-pc-windows-msvc]
 pkg-fmt = "zip"
+
+[target.'cfg(target_os = "linux")'.dev-dependencies]
+rustix = { version = "1", features = ["thread"] }

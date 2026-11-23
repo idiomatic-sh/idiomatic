@@ -112,9 +112,7 @@ pub(super) fn rule_context(request: Option<&str>) -> RuleContext {
     let Some(path) = request else {
         return RuleContext::default();
     };
-    let r: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(path).expect("request"))
-            .expect("request json");
+    let r = document(path);
     let tables = match r.get("named_tables") {
         Some(tables) => named_tables(tables),
         None => recorded_tables(&r),
@@ -154,4 +152,16 @@ pub(super) fn rule_context(request: Option<&str>) -> RuleContext {
         observations,
         ..RuleContext::default()
     }
+}
+
+fn document(path: &str) -> Value {
+    serde_json::from_slice(&std::fs::read(path).expect("read request")).expect("request JSON")
+}
+
+pub(super) fn workers(path: Option<&str>) -> Option<std::num::NonZeroUsize> {
+    let doc = document(path?);
+    let value = doc.get("workers")?;
+    let count = value.as_u64().and_then(|n| usize::try_from(n).ok())
+        .and_then(std::num::NonZeroUsize::new).expect("workers must be a positive integer");
+    Some(count)
 }

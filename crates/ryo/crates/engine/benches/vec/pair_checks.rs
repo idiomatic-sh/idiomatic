@@ -53,6 +53,7 @@ struct Table {
 }
 #[derive(Default)]
 pub(super) struct Scratch {
+    pub(super) meter: Option<cost::Meter>,
     postings: postings::Cache,
     pub(super) literals: super::summary_literals::Observed,
     alive_words: Vec<u64>,
@@ -775,7 +776,8 @@ impl Program {
         exact: Option<&mut Vec<(usize, Vec<u64>)>>,
     ) -> u64 {
         #[cfg(feature = "pair-diagnostics")]
-        if self.meter.is_some() {
+        if self.metered {
+            scratch.meter.get_or_insert_with(|| cost::Meter::new(self.facts.len()));
             return self.evaluate::<true>(scratch, order, t, src, path, syntax_text, words, read, alive, exact);
         }
         self.evaluate::<false>(scratch, order, t, src, path, syntax_text, words, read, alive, exact)
@@ -828,7 +830,7 @@ impl Program {
                 .iter()
                 .position(|f| f.source == source)
                 .expect("declared source");
-            let meter = self.meter.as_ref().unwrap();
+            let meter = scratch.meter.as_ref().unwrap();
             let mut fills = meter.fills.borrow_mut();
             let entry = &mut fills[slot][reader_class.get()];
             entry.0 += 1;
@@ -852,7 +854,7 @@ impl Program {
             plain_tree: !self.paths.is_empty() && node_table::embedded_segments(t).next().is_none(),
             charged: 0.,
             stats: Default::default(),
-            overhead: self.meter.as_ref().map_or(0., |m| m.overhead),
+            overhead: scratch.meter.as_ref().map_or(0., |m| m.overhead),
             postings: &mut scratch.postings,
             literals: &mut scratch.literals,
             byte_tests: Map::default(),
@@ -897,7 +899,7 @@ impl Program {
             }
         }
         if PROFILE {
-            let meter = self.meter.as_ref().unwrap();
+            let meter = scratch.meter.as_ref().unwrap();
             for (a, b) in meter.rows.borrow_mut().iter_mut().zip(f.stats) {
                 a.calls += b.calls;
                 a.hits += b.hits;

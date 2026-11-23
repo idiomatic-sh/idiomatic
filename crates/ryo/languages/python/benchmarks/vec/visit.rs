@@ -79,6 +79,16 @@ impl<'p> Finisher<'p> {
         me.time = thread_cpu() - t0;
         me
     }
+    pub(super) fn worker_roots(&self) -> Option<Vec<String>> { self.project.worker_roots() }
+
+    pub(super) fn worker(settings: &finisher::worker::Settings<'p>, words: languages::FileWords, vocab: &Vocab, roots: Option<Vec<String>>) -> Self {
+        let kind = |name: &str| vocab.kinds.get(name).copied();
+        let inner = settings.open(Some(std::rc::Rc::new(super::provider_tokens::Lexicon::new(&kind))));
+        let project = super::provider_packaging::Project::new(&inner.run.root_dir, roots, &kind);
+        Self { inner, fwords: words, project }
+    }
+
+    pub(super) fn into_report(self) -> finisher::worker::Report { self.inner.report() }
     /// Use the same project answer that is indexed by file for the executor.
     pub(super) fn identity(
         &mut self,

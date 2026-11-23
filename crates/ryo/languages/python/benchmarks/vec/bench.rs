@@ -1881,7 +1881,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
     if seed_only && !token_pass && !compare && !check_links && let Some((program,schedule,words_for_file,scratch))=&mut query {
         let root = fin.as_ref().map(|f| f.run.root_dir.clone()).or_else(|| flag(args, "--summary-root"));
         let mut other = ryo_python::fixtures::columns::ColumnWalk::with_settings(ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names"),settings);
-        summary_walk::run(&list, program,&mut skip,&words,fields_width,words_for_file,
+        summary_walk::run(&list, settings, vocab, request::workers(flag(args,"--request").as_deref()), program,&mut skip,&words,fields_width,words_for_file,
             &mut cwalk,&mut other,fin,root.as_deref(),flag(args,"--seed-out").as_deref(),flag(args,"--exact-out").as_deref(),schedule,scratch);
         return;
     }
@@ -2838,7 +2838,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
             println!("EXACT\t{}\t{}\t{}\t{}", frules[*ri].name, exact_counts[*ri].0, exact_counts[*ri].1, exact_counts[*ri].2);
         }
     }
-    if let Some(p) = &pairs && let Some(meter) = &p.meter {
+    if let Some((p, _, _, scratch)) = &query && let Some(meter) = &scratch.meter {
         meter.report(p);
     }
     println!("pair summary checks {pair_steps} CPU {pair_cpu:.4} s");

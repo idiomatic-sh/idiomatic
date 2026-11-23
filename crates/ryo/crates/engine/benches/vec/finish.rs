@@ -34,6 +34,8 @@ pub(super) fn step_clock() -> f64 {
 
 #[path = "finish/answer.rs"]
 pub(super) mod answer;
+#[path = "finish/constants.rs"]
+pub(crate) mod constants;
 #[path = "finish/recycle.rs"]
 mod recycle;
 #[path = "finish/inline_key.rs"]
@@ -309,8 +311,8 @@ pub(super) struct Run {
     pub(super) field_sym: Vec<u32>,
     /// The provider updates its field-code dictionary when reading each file.
     pub(super) file_field_codes: bool,
-    pub(super) paths: Vec<String>,
-    pub(super) path_sym: Vec<u32>,
+    pub(super) paths: std::sync::Arc<[String]>,
+    pub(super) path_sym: std::sync::Arc<[u32]>,
     pub(super) empty: u32,
     /// The SDK symbol without a published value, distinct from an empty string.
     pub(super) absent_word: Option<u32>,
@@ -326,6 +328,7 @@ pub(super) struct Run {
     pub(super) root_dir: String,
     /// redo-general: the answers of the relations the provider answers for a project (`project.rs`), kept for the run.
     pub(super) project: FxHashMap<String, project::Answered>,
+    pub(crate) shared_projects: Option<std::sync::Arc<project::Shared>>,
     /// Functions a step asked that are not in the step set (the rule is refused).
     pub(super) missing: std::collections::BTreeSet<String>,
     /// 6h: the provider relations read in place (`Native::Fact`), with their column counts.
@@ -579,9 +582,6 @@ pub(super) enum Native {
     Fact(u16),
 }
 
-/// 6h: the rows of the keyed lists made from provider fills (one entry a fill row a column asked), for the report.
-pub(super) static FACT_IX_ROWS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-
 const TREE_COLS: [(&str, Ty); 5] = [("id", Ty::Node), ("kind", Ty::Sym), ("text", Ty::Sym), ("file", Ty::File), ("span", Ty::Span)];
 const CHILD_COLS: [(&str, Ty); 5] = [("parent", Ty::Node), ("child", Ty::Node), ("ordinal", Ty::Num), ("field", Ty::Sym), ("file", Ty::File)];
 const LOC_COLS: [(&str, Ty); 9] = [
@@ -696,6 +696,7 @@ pub(super) struct File<'a> {
     touched: Vec<u32>,
     /// redo-fills (`VEC_FILL_COUNT`): per fact slot, whether a step read the fill's rows (not only its size).
     fact_read: Vec<std::cell::Cell<bool>>,
+    pub(super) fact_index_rows: std::cell::Cell<u64>,
 }
 
 thread_local! {
@@ -871,6 +872,7 @@ impl File<'_> {
             kind_bits: b.kind_bits,
             touched: Vec::new(),
             fact_read: Vec::new(),
+            fact_index_rows: Default::default(),
         };
         SPARE.with(|sp| {
             let (memo, known, touched) = std::mem::take(&mut *sp.borrow_mut());
@@ -1085,7 +1087,7 @@ impl File<'_> {
         }
         let m = match &self.facts[usize::from(i)] {
             Some(t) => {
-                FACT_IX_ROWS.fetch_add(t.n as u64, std::sync::atomic::Ordering::Relaxed);
+                self.fact_index_rows.set(self.fact_index_rows.get() + t.n as u64);
                 Index::build(t.n, |r| t.cols[col][r])
             }
             None => Index::build(0, |_| 0),
@@ -1185,6 +1187,7 @@ impl File<'_> {
 /// Counters a run keeps: per node, own time, calls, rows out and rows touched.
 #[derive(Default)]
 pub(super) struct Stats {
+    pub(super) fact_index_rows: u64,
     pub(super) total_runs: u64,
     pub(super) total_rows: u64,
     pub(super) time: Vec<f64>,
@@ -1367,14 +1370,10 @@ pub(super) struct Exec<'p> {
     inner: f64,
     /// Steps whose inputs are all run-wide (the file list, written rows): made once a run.
     constant: Vec<Option<bool>>,
+    pub(crate) shared_constants: Option<std::sync::Arc<constants::Constants>>,
     run_memo: Vec<Option<Rc<Table>>>,
-    /// redo-union pass 2: per node, what the step bracket reads on every run (`frame`).
-    frames: Vec<frame::Frame>,
-    /// each step's `args` in the plan (read once).
+    pub(crate) layout: std::sync::Arc<Layout>,
     args: Vec<&'p J>,
-    /// The steps that read each node.
-    pub(super) consumers: Vec<Vec<usize>>,
-    emitted: rustc_hash::FxHashSet<usize>,
     pub(super) tally: band::Tally,
     /// 8: row-number buffers of the join (tuples a source), reused across executions; the join's key set, reused.
     u32_pool: Vec<Vec<u32>>,
@@ -1387,6 +1386,17 @@ pub(super) struct Exec<'p> {
     /// `VEC_STEP_TIME`: each step run under the step clock (`timed_body`).
     timing: bool,
     col: col::Kernels,
+}
+
+/// File-independent execution graph built once for the request.
+pub(crate) struct Layout {
+    frames: Vec<frame::Frame>,
+    pub(super) consumers: Vec<Vec<usize>>,
+    emitted: rustc_hash::FxHashSet<usize>,
+}
+impl std::ops::Deref for Exec<'_> {
+    type Target = Layout;
+    fn deref(&self) -> &Layout { &self.layout }
 }
 
 type R<T> = Result<T, String>;
@@ -1414,10 +1424,21 @@ fn pos(names: &[String], c: &str) -> R<usize> {
 
 impl<'p> Exec<'p> {
     pub(super) fn new(plan: &'p Plan) -> Self {
+        let mut consumers = vec![Vec::new(); plan.nodes.len()];
+        for (i,node) in plan.nodes.iter().enumerate() {
+            for &input in &node.inputs {
+                if consumers[input].last() != Some(&i) { consumers[input].push(i); }
+            }
+        }
+        let layout = std::sync::Arc::new(Layout { frames: frame::frames(plan), consumers, emitted: plan.emits.iter().map(|e|e.1).collect() });
+        Self::with_layout(plan, layout)
+    }
+
+    pub(crate) fn with_layout(plan: &'p Plan, layout: std::sync::Arc<Layout>) -> Self {
         let k = plan.nodes.len();
         Exec {
             plan,
-            stats: Stats { total_runs: 0, total_rows: 0, time: vec![0.0; k], rows: vec![0; k], calls: vec![0; k], touched: vec![0; k], empty: vec![0; k], known: vec![0; k], empty_time: vec![0.0; k], static_time: 0.0, static_depth: 0, static_visits: 0, static_pass: 0, static_file_tests: 0, rec_time: 0.0, rec_busy: false, keyed: vec![0; k], keyed_empty: vec![0; k], built: vec![0; k] },
+            stats: Stats { fact_index_rows: 0, total_runs: 0, total_rows: 0, time: vec![0.0; k], rows: vec![0; k], calls: vec![0; k], touched: vec![0; k], empty: vec![0; k], known: vec![0; k], empty_time: vec![0.0; k], static_time: 0.0, static_depth: 0, static_visits: 0, static_pass: 0, static_file_tests: 0, rec_time: 0.0, rec_busy: false, keyed: vec![0; k], keyed_empty: vec![0; k], built: vec![0; k] },
             schemas: vec![None; k],
             views: vec![None; k],
             sels: vec![None; k],
@@ -1429,21 +1450,10 @@ impl<'p> Exec<'p> {
             leaves: emptyprop::Leaves::default(),
             inner: 0.0,
             constant: vec![None; k],
+            shared_constants: None,
             run_memo: vec![None; k],
-            frames: frame::frames(plan),
+            layout,
             args: plan.nodes.iter().map(|n| &n.j["args"]).collect(),
-            consumers: {
-                let mut c = vec![Vec::new(); k];
-                for (i, n) in plan.nodes.iter().enumerate() {
-                    for x in &n.inputs {
-                        if !c[*x].contains(&i) {
-                            c[*x].push(i);
-                        }
-                    }
-                }
-                c
-            },
-            emitted: plan.emits.iter().map(|e| e.1).collect(),
             tally: band::Tally::default(),
             u32_pool: Vec::new(),
             needs: vec![None; k],
@@ -1916,11 +1926,19 @@ impl<'p> Exec<'p> {
         if let Some(t) = &self.run_memo[node] {
             return Ok(Res::Tab(t.clone()));
         }
+        if self.shared_constants.as_ref().is_some_and(|cache| cache.contains(node)) {
+            return self.shared_constant(f,run,p,node);
+        }
         if !sw!("VEC_NO_KNOWN") && self.known_empty(f, run, p, node) {
             self.stats.known[node] += 1;
             self.skipped(f, node);
             return Ok(Res::Tab(self.empty_rc(run, node)?));
         }
+        self.materialize(f,run,p,node)
+    }
+
+    #[inline]
+    fn materialize(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Res> {
         // 8: a step over an empty input answers its shared empty table before any set-up
         let gate = self.frames[node].gate;
         if gate < frame::MISSING && self.eval(f, run, p, gate as usize)?.n == 0 {

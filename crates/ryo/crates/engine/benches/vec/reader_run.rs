@@ -17,6 +17,8 @@ mod coverage;
 
 #[derive(serde::Deserialize)]
 struct Request {
+    workers: Option<std::num::NonZeroUsize>,
+    step_stats: Option<String>,
     root: String,
     files: Vec<String>,
     selected_rules: Vec<String>,
@@ -126,12 +128,13 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
         types::RowScope,
     };
     use ryo_relations::domain::relations::types::FactForm;
-    let bases: BTreeSet<_> = plan
-        .nodes
-        .iter()
-        .filter(|n| n.op == "base")
-        .map(|n| n.j["rel"].as_str().expect("base name"))
-        .collect();
+    use ryo_values::domain::finish_plans::types::FinishStep;
+    let typed = read.typed.take().expect("executor must hand over the typed plan");
+    let base_name = |index: usize| match &typed.steps[index] {
+        FinishStep::Base(rel) => Some(rel.0.as_ref()),
+        _ => None,
+    };
+    let bases: BTreeSet<_> = (0..typed.steps.len()).filter_map(base_name).collect();
     let mut run = finish::Run::default();
     run.file_field_codes = true;
     let mut reader_rows = Vec::new();
@@ -176,10 +179,6 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
     declaration.text_kinds = (0..kind_names.0.len())
         .map(|k| u16::try_from(k).expect("kind code"))
         .collect();
-    let typed = read
-        .typed
-        .take()
-        .expect("executor must hand over the typed plan");
     assert!(typed.unplanned.is_empty());
     let mut program =
         super::pair_summary::prepare_with_reader_rows(&typed, &vocab, &declaration, &reader_rows);
@@ -189,7 +188,7 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
         .map(|r| r.0.clone())
         .zip(std::mem::take(&mut program.skips))
         .collect();
-    drop(typed);
+
     let summaries_cpu = thread_cpu() - summaries_start;
     run.empty = run.sym(b"");
     let unknown_words = reader::public_words(&mut run, parser.unknown_reasons());
@@ -200,7 +199,7 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
         .map(|k| run.sym(k.0.as_bytes()))
         .collect();
     run.root_dir = req.root.clone();
-    run.paths = req.files.clone();
+    run.paths = req.files.clone().into();
     run.path_sym = req
         .files
         .iter()
@@ -258,13 +257,12 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
         fields.width(),
     );
     let mut dependencies: Vec<BTreeSet<l::Relation>> = Vec::new();
-    for n in &plan.nodes {
+    for (index,n) in plan.nodes.iter().enumerate() {
         let mut reads = BTreeSet::new();
         for &i in &n.inputs {
             reads.extend(&dependencies[i]);
         }
-        if n.op == "base" {
-            let name = n.j["rel"].as_str().expect("relation name");
+        if let Some(name) = base_name(index) {
             let rel = catalog::relation_named(NameRef(name)).expect("reader catalog");
             if !matches!(run.supplier(name), finish::Supplier::Host) && (ryo_relations::domain::catalog::service::fact_form(rel)
                 != ryo_relations::domain::relations::types::FactForm::NodeTable
@@ -281,20 +279,12 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
         }
         dependencies.push(reads);
     }
-    let mut decisions = pairs::Decisions::new(program, &plan);
+    drop(typed);
+    let decisions = pairs::Decisions::new(program, &plan);
     let selected = req.selected_rules.join(",");
-    let mut fin = finisher::Finisher::new(
-        &plan,
-        run,
-        &[
-            "--rules",
-            &selected,
-            "--out",
-            output,
-            "--applicability",
-            request,
-        ],
-    );
+    let mut options = vec!["--rules", &selected, "--out", output, "--applicability", request];
+    if let Some(path) = req.step_stats.as_deref() { options.extend(["--stats", path]); }
+    let mut fin = finisher::Finisher::new(&plan, run, &options);
     fin.query_rows = QUERY_ROWS;
     let startup = thread_cpu() - start;
     println!(
@@ -306,26 +296,35 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
         ..Default::default()
     };
     memory.sample(0);
-    let mut first_cpu = 0.;
-    let mut second_cpu = 0.;
-    let mut fills_made = 0u64;
     let check_without_skip = std::env::var_os("VEC_NO_SKIP").is_some();
     if check_without_skip {
         println!("VEC_NO_SKIP: checking every selected file/emit pair");
     }
-    let mut active = vec![0u64; plan.emits.len()];
-    let mut elements = l::Elements::default();
-    let mut table = l::NodeTable::default();
-    let mut packet = packet::Packet::new();
-    let mut coverage = coverage::Coverage::default();
-    let mut symbols = l::Symbols::default();
     let all: Vec<_> = dependencies
         .iter()
         .flat_map(|d| d.iter().copied())
         .collect::<BTreeSet<_>>()
         .into_iter()
         .collect();
-    for (index, path) in req.files.iter().enumerate() {
+    use finisher::workers;
+    let workers = workers::count(req.workers, req.files.len());
+    let shards = workers::divide(0..req.files.len(), workers, |i| {
+        std::fs::metadata(Path::new(&req.root).join(&req.files[i])).map(|m| m.len())
+    }).expect("size inventory");
+    let settings = (shards.len() > 1).then(|| fin.worker_settings());
+    let process = |ids: &[usize], fin: &mut finisher::Finisher<'_>, skip: &mut super::file_skip::Skip, memory: &mut Memory| {
+    let mut state = decisions.state();
+    let mut first_cpu = 0.;
+    let mut second_cpu = 0.;
+    let mut fills_made = 0u64;
+    let mut active = vec![0u64; plan.emits.len()];
+    let mut elements = l::Elements::default();
+    let mut table = l::NodeTable::default();
+    let mut packet = packet::Packet::new();
+    let mut coverage = coverage::Coverage::default();
+    let mut symbols = l::Symbols::default();
+    for &index in ids {
+        let path = &req.files[index];
         let t0 = thread_cpu();
         let bytes = std::fs::read(Path::new(&req.root).join(path)).expect("read source");
         let id = FileId(index.try_into().expect("file id"));
@@ -402,6 +401,7 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
         let mut facts = relations_for(&wanted);
         if !wanted.is_empty() && !check_without_skip {
             decisions.filter(
+                &mut state,
                 &mut wanted,
                 &table,
                 super::pair_checks::SyntaxText {
@@ -460,10 +460,25 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
         second_cpu += thread_cpu() - t1;
         memory.sample(2);
     }
-    println!("pair checks {}", decisions.steps);
-    if let Some(meter) = &decisions.program.meter {
-        meter.report(&decisions.program);
+    if let Some(meter) = &state.scratch.meter { meter.report(&decisions.program); }
+    (first_cpu, second_cpu, fills_made, active, state.steps)
+    };
+    let skips = skip.clone();
+    let result = workers::run(&shards, |ids| (process(ids, &mut fin, &mut skip, &mut memory), None),
+        |ids| {
+            let mut local = settings.as_ref().expect("worker settings").open(None);
+            let mut filter = skips.clone();
+            let totals = process(ids, &mut local, &mut filter, &mut Memory::default());
+            (totals, Some(local.report()))
+        });
+    let (mut first_cpu, mut second_cpu, mut fills_made, mut checks) = (0., 0., 0, 0);
+    let mut active = vec![0; plan.emits.len()];
+    for ((first,second,fills,counts,steps),report) in result {
+        first_cpu += first; second_cpu += second; fills_made += fills; checks += steps;
+        for (a,b) in active.iter_mut().zip(counts) { *a += b; }
+        if let Some(report) = report { fin.merge(report); }
     }
+    println!("pair checks {checks}");
     println!("reader fills made {fills_made}");
     for (emit, files) in plan.emits.iter().zip(active) {
         println!("HANDOFF\t{}\t{files}", emit.0);

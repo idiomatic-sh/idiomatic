@@ -24,8 +24,8 @@ pub(super) struct Finisher<'p> {
     dump_text: String,
     pub(super) run: finish::Run,
     exec: finish::Exec<'p>,
-    findings: Vec<String>,
-    failed: HashMap<String, String>,
+    findings: Vec<(usize, usize, String)>,
+    failed: HashMap<String, (usize, String)>,
     /// redo-honest: per plan emit, whether its rule runs only on a file whose syntax the parser accepted (the request's
     /// `rule_applicability`, `--applicability F`: "accepted-syntax"); without the flag every rule runs on every file.
     accepted_only: Vec<bool>,
@@ -49,6 +49,11 @@ pub(super) struct Finisher<'p> {
 }
 
 use ryo::languages;
+
+#[path = "finisher/worker.rs"]
+pub(crate) mod worker;
+#[path = "workers.rs"]
+pub(crate) mod workers;
 
 impl<'p> Finisher<'p> {
     /// `args` as `vec finish` takes them: `<plan> <files> <root> [--rules A,B] [--surv F] [--check-bases] [--dump F]
@@ -158,7 +163,7 @@ impl<'p> Finisher<'p> {
         let mut count = 0;
         super::pair_checks::each(nodes, |i| {
             let span = super::span_bytes(table, i as usize);
-            self.findings.push(format!(r#"{{"rule":{rule},"file":{path},"start":{},"end":{}}}"#, span.start, span.end));
+            self.findings.push((file, emit, format!(r#"{{"rule":{rule},"file":{path},"start":{},"end":{}}}"#, span.start, span.end)));
             count += 1;
         });
         Some(count)
@@ -227,7 +232,7 @@ impl<'p> Finisher<'p> {
                         continue;
                     }
                     if self.query_rows {
-                        self.findings.push(finish::answer::row(run, &t, r, &e.0, Some(file_no), &identity)?);
+                        self.findings.push((file_no,*ei,finish::answer::row(run, &t, r, &e.0, Some(file_no), &identity)?));
                         continue;
                     }
                     let target = if t.tys[subject] == finish::Ty::File {
@@ -236,17 +241,18 @@ impl<'p> Finisher<'p> {
                     } else { &run.paths[file_no] };
                     let (st, en) = span.map_or((0, 0), |c| (t.cols[c][r] >> 32, t.cols[c][r] & 0xffff_ffff));
                     let file = serde_json::to_string(target).expect("path string");
-                    self.findings.push(format!("{{\"rule\":{rule},\"file\":{file},\"start\":{st},\"end\":{en}}}"));
+                    self.findings.push((file_no,*ei,format!("{{\"rule\":{rule},\"file\":{file},\"start\":{st},\"end\":{en}}}")));
                 }
                 Ok(())
             });
             if let Err(err) = written {
-                self.failed.insert(e.0.clone(), format!("{}: {err}", run.paths[file_no]));
+                self.failed.insert(e.0.clone(), (file_no, format!("{}: {err}", run.paths[file_no])));
                 self.failed_idx[*ei] = true;
             }
         }
         finish::emptyprop::file_end(&mut self.exec, &mut f, run, pv);
         self.exec.cold_end(&mut f, run);
+        self.exec.stats.fact_index_rows += f.fact_index_rows.get();
     }
 
     /// Writes the findings, dumps and stats, and prints the second half's lines; `walk_time` is the walk's own time when
@@ -257,14 +263,21 @@ impl<'p> Finisher<'p> {
         self.exec.cold_report(&self.run);
         let total = self.time + walk_time;
         let file_time = self.time;
-        self.findings.sort();
-        project_findings(&mut self.findings);
+        // A refusal ends this emit in inventory order, including when another
+        // shard has already evaluated a later file.
+        let merge_start = thread_cpu();
+        let cutoff: Vec<_> = self.plan.emits.iter().map(|e| self.failed.get(&e.0).map_or(usize::MAX, |r| r.0)).collect();
+        let mut findings: Vec<_> = self.findings.into_iter().filter_map(|(ordinal,emit,wire)|
+            (ordinal <= cutoff[emit]).then_some(wire)).collect();
+        findings.sort();
+        project_findings(&mut findings);
         if let Some(d) = &self.dump {
             std::fs::write(d, &self.dump_text).expect("write dump");
         }
         if let Some(out) = &self.out {
-            std::fs::write(out, self.findings.join("\n") + "\n").expect("write findings");
+            std::fs::write(out, findings.join("\n") + "\n").expect("write findings");
         }
+        println!("ordered findings and write CPU {:.6} s",thread_cpu()-merge_start);
         if self.check {
             std::fs::write(self.check_out.clone().unwrap_or_else(|| "check-bases.tsv".to_owned()), self.check_lines.join("\n") + "\n").expect("write check");
         }
@@ -301,11 +314,11 @@ impl<'p> Finisher<'p> {
         }
         let a = super::alloc_count::counts();
         println!("ALLOC {} process: blocks {} bytes {} peak-live {}; second half (inside the file calls): blocks {} bytes {}", super::alloc_count::NAME, a[0], a[1], a[2], self.alloc[0], self.alloc[1]);
-        println!("files run {}; findings {}; rules {} ({} failed)", self.files_run, self.findings.len(), self.emits.len(), self.failed.len());
+        println!("files run {}; findings {}; rules {} ({} failed)", self.files_run, findings.len(), self.emits.len(), self.failed.len());
         println!("thread CPU-s: total {total:.3}; walk+table {walk_time:.3}; in the visit {file_time:.3}: steps {steps:.3}, provider fills {:.3} ({} rows)", self.provider_time, self.provider_rows);
         // the per-file emptiness decision's static part: steps visited and per-file tests decided (VEC_STEP_TIME: its seconds)
         println!("known-empty static part: {} steps visited ({} with no leaf of their own), {} per-file tests; {:.3} s, of which preparing the needs once a run {:.3} s", exec.stats.static_visits, exec.stats.static_pass, exec.stats.static_file_tests, exec.stats.static_time, exec.stats.rec_time);
-        println!("fact keyed lists: fill rows listed {}", finish::FACT_IX_ROWS.load(std::sync::atomic::Ordering::Relaxed));
+        println!("fact keyed lists: fill rows listed {}", self.exec.stats.fact_index_rows);
         println!("{}", finish::fill_prof::reads_line());
         finish::fill_prof::flush();
         for l in finish::fill_prof::unread_lines(&self.run) {
@@ -341,7 +354,7 @@ impl<'p> Finisher<'p> {
         }
         let mut f: Vec<_> = self.failed.into_iter().collect();
         f.sort();
-        for (r, e) in f {
+        for (r, (_,e)) in f {
             println!("FAILED {r}: {e}");
         }
         // redo-union pass 2 c18: the process ends here: the executor is not dropped one by one

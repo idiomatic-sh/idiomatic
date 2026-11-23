@@ -39,7 +39,11 @@ pub(super) struct Decisions {
     roots: Vec<usize>,
     words: FileWords,
     order: super::super::summary_schedule::Schedule,
-    scratch: super::super::pair_checks::Scratch,
+}
+
+pub(super) struct State {
+    words: FileWords,
+    pub(super) scratch: super::super::pair_checks::Scratch,
     pub(super) steps: u64,
 }
 impl Decisions {
@@ -62,12 +66,15 @@ impl Decisions {
             roots,
             words,
             order,
-            scratch: Default::default(),
-            steps: 0,
+
         }
     }
+    pub(super) fn state(&self) -> State {
+        State { words: self.words.fresh(), scratch: Default::default(), steps: 0 }
+    }
     pub(super) fn filter(
-        &mut self,
+        &self,
+        state: &mut State,
         wanted: &mut Vec<usize>,
         table: &l::NodeTable,
         text: SyntaxText<'_>,
@@ -85,15 +92,15 @@ impl Decisions {
         for &i in wanted.iter() {
             live[self.roots[i]] = true;
         }
-        self.order.literals.syntax(text.ids, text.symbols, &mut self.scratch.literals);
-        self.steps += self.program.eval(
-            &mut self.scratch,
+        self.order.literals.syntax(text.ids, text.symbols, &mut state.scratch.literals);
+        state.steps += self.program.eval(
+            &mut state.scratch,
             &self.order,
             table,
             bytes,
             Some(path.as_bytes()),
             Some(text),
-            &mut self.words,
+            &mut state.words,
             |source, query, words, out| {
                 if !matches!(query, super::super::pair_checks::Query::Rows) { return None; }
                 let Source::Catalog(relation) = source else {

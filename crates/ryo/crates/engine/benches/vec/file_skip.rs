@@ -3,6 +3,7 @@ use std::collections::HashMap;
 /// The file skip, flat: each rule's kinds-and-fields clauses and its word CNFs as numbers of distinct clauses, a clause
 /// stored once however many rules share it. A file's kinds-and-fields clauses are all tested once (`file`); a word clause
 /// is tested once a file, when a rule its kinds keep first asks it.
+#[derive(Clone)]
 pub(super) struct Skip {
     kw: usize,
     fw: usize,

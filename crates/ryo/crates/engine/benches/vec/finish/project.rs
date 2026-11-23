@@ -27,6 +27,46 @@ pub(in super::super) struct Answered {
     asks: [u64; 3],
 }
 
+/// A complete project answer has stable file ordinals. Only symbol cells
+/// created after the common dictionary prefix need translation on another worker.
+struct Closed {
+    table: super::constants::Stored,
+    by_file: Vec<Vec<u32>>,
+}
+
+impl Closed {
+    fn capture(t: &Table, run: &Run, rel: &str, prefix: usize) -> R<Self> {
+        let key = t.tys.iter().position(|ty| *ty == Ty::File).ok_or_else(|| format!("{rel}: a project relation names no file"))?;
+        let mut by_file = vec![Vec::new();run.paths.len()];
+        for (i,&file) in t.cols[key].iter().enumerate() {
+            if let Some(rows) = by_file.get_mut(file as usize) { rows.push(i as u32); }
+        }
+        Ok(Self { table: super::constants::Stored::capture(t,run,prefix), by_file })
+    }
+}
+
+pub(crate) struct Shared {
+    prefix: usize,
+    answers: FxHashMap<String,std::sync::OnceLock<R<Closed>>>,
+}
+
+pub(crate) fn share(run: &mut Run) -> std::sync::Arc<Shared> {
+    let prefix = run.texts.len();
+    let mut answers = FxHashMap::default();
+    for (name,decl) in &run.declared {
+        if matches!(decl.supplier,super::Supplier::Project(ProjectAsk::Run)) {
+            let slot = std::sync::OnceLock::new();
+            if let Some(t) = run.project.get(name).and_then(|a| a.table.as_ref()) {
+                let _ = slot.set(Closed::capture(t,run,name,prefix));
+            }
+            answers.insert(name.clone(),slot);
+        }
+    }
+    let shared = std::sync::Arc::new(Shared { prefix,answers });
+    run.shared_projects = Some(shared.clone());
+    shared
+}
+
 /// One line a project relation: the provider's asks, the files their scopes named, the rows answered.
 pub(in super::super) fn report(run: &Run) -> Vec<String> {
     let mut v: Vec<String> = run.project.iter().map(|(rel, a)| format!("PROJECT {rel}: asks {} scope files {} rows {}", a.asks[0], a.asks[1], a.asks[2])).collect();
@@ -42,6 +82,16 @@ pub(super) fn rows(f: &File<'_>, run: &mut Run, p: &mut dyn Provider, rel: &str,
 /// The current file's slice of the shared project answer, for either phase.
 pub(in super::super) fn for_file(file: u32, run: &mut Run, rel: &str, ask: ProjectAsk, fill: impl FnOnce(&mut Run, &[u32]) -> R<Table>) -> R<Table> {
     let files = run.paths.len();
+    if matches!(ask,ProjectAsk::Run) && let Some(shared) = run.shared_projects.clone()
+        && let Some(slot) = shared.answers.get(rel) {
+        let answer = slot.get_or_init(|| {
+            let scope: Vec<_> = (0..files as u32).collect();
+            let table = fill(run, &scope)?;
+            Closed::capture(&table,run,rel,shared.prefix)
+        }).as_ref().map_err(Clone::clone)?;
+        let (_,names,types) = run.catalog(rel).ok_or_else(|| format!("no schema for {rel}"))?;
+        return Ok(answer.table.slice(run,&answer.by_file[file as usize],names,types));
+    }
     let mut a = run.project.remove(rel).unwrap_or_default();
     a.asked.resize(files, false);
     if !a.asked[file as usize] {

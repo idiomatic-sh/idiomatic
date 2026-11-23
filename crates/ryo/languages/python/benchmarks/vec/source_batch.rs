@@ -12,14 +12,15 @@ pub(super) struct SourceBatch {
 }
 
 impl SourceBatch {
-    pub(super) fn load(&mut self, files: &[String], index: usize) -> Result<usize> {
+    pub(super) fn load(&mut self, files: &[String], ids: &[usize], index: usize) -> Result<usize> {
         if self.ends.is_empty() || index >= self.first + self.ends.len() - 1 {
             self.bytes.clear();
             self.ends.clear();
             self.ends.push(0);
             self.first = index;
-            let directory = Path::new(&files[index]).parent();
-            for name in &files[index..] {
+            let directory = Path::new(&files[ids[index]]).parent();
+            for &id in &ids[index..] {
+                let name = &files[id];
                 if Path::new(name).parent() != directory {
                     break;
                 }

@@ -60,6 +60,8 @@ struct Kinds {
 impl Project {
     /// The project at `root_dir` with the host's search roots (None: the host declared none); `kind` gives the provider's
     /// code of a kind name.
+    pub(super) fn worker_roots(&self) -> Option<Vec<String>> { self.search_roots.clone() }
+
     pub(super) fn new(root_dir: &str, search_roots: Option<Vec<String>>, kind: &dyn Fn(&str) -> Option<u16>) -> Self {
         let kinds = Kinds { alias: kind("alias"), from: kind("import-from"), dot: kind("dot"), ellipsis: kind("ellipsis"), ident: kind("identifier"), name: kind("name-token") };
         Self { root_dir: root_dir.to_owned(), search_roots, classified: HashMap::new(), import_prefixes: Default::default(), import_catalog: Default::default(), head_modules: Default::default(), kinds, packages: HashMap::new() }
