@@ -38,6 +38,21 @@ pub(super) fn symbol(
     }
 }
 
+/// A regex clone shares the compiled automaton while owning its search cache.
+#[derive(Default)]
+pub(super) struct Searches(Vec<std::cell::OnceCell<Option<regex::bytes::Regex>>>);
+impl Searches {
+    pub(super) fn prepare(&mut self, count: usize) {
+        self.0.resize_with(count, Default::default);
+    }
+    pub(super) fn get(&self, p: &Program, id: usize) -> Option<&regex::bytes::Regex> {
+        self.0[id].get_or_init(|| p.regexes[id].compiled().cloned()).as_ref()
+    }
+    pub(super) fn accepts(&self, p: &Program, id: usize, text: &[u8]) -> bool {
+        self.get(p, id).is_none_or(|regex| regex.is_match(text))
+    }
+}
+
 #[derive(Default)]
 pub(super) struct Matches {
     codes: Vec<Vec<u8>>,
@@ -49,7 +64,7 @@ impl Matches {
             row.truncate(stable);
         }
     }
-    pub(super) fn test(&mut self, p: &Program, id: usize, c: CellWord, w: &FileWords) -> bool {
+    pub(super) fn test(&mut self, regex: &regex::bytes::Regex, id: usize, c: CellWord, w: &FileWords) -> bool {
         let at = if c.0 < facts::words_end(w).0 {
             c.0 as usize
         } else {
@@ -60,7 +75,7 @@ impl Matches {
             row.resize(at + 1, 0);
         }
         if row[at] == 0 {
-            row[at] = 1 + u8::from(p.regexes[id].is_match(facts::text(w, c).0.as_bytes()));
+            row[at] = 1 + u8::from(regex.is_match(facts::text(w, c).0.as_bytes()));
         }
         row[at] == 2
     }
