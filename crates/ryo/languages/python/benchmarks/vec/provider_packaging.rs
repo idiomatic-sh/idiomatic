@@ -31,6 +31,12 @@ pub(super) struct Package {
     pub(super) root_name: String,
 }
 
+/// The filename component used in this project's dotted module identity.
+pub(super) fn module_stem(path: &std::path::Path) -> Option<&str> {
+    let name = path.file_name()?.to_str()?;
+    name.strip_suffix(".pyi").or_else(|| name.strip_suffix(".py"))
+}
+
 /// The node kinds of an import (`alias`, `import-from`, the relative-level tokens, the dotted name's parts).
 #[derive(Default, Clone, Copy)]
 struct Kinds {
