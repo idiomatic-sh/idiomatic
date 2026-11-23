@@ -16,6 +16,7 @@ pub(crate) struct Settings<'p> {
     project: std::sync::Arc<finish::project::Shared>,
     constants: std::sync::Arc<finish::constants::Constants>,
     ids: rustc_hash::FxHashMap<Box<[u8]>, u32>,
+    regexes: Vec<(String, regex::bytes::Regex)>,
     root: String,
     paths: std::sync::Arc<[String]>,
     text: Vec<Box<[u8]>>,
@@ -50,6 +51,7 @@ impl<'p> Finisher<'p> {
             project: finish::project::share(r),
             constants: self.exec.share_constants(r),
             ids: r.ids.clone(),
+            regexes: r.regexes.iter().map(|(pattern, compiled)| (pattern.clone(), compiled.as_ref().clone())).collect(),
             plan: self.plan,
             layout: self.exec.layout.clone(),
             emits: self.emits.clone(),
@@ -91,6 +93,8 @@ impl<'p> Settings<'p> {
         run.paths.clone_from(&self.paths);
         run.texts.clone_from(&self.text);
         run.ids.clone_from(&self.ids);
+        // Compiled automata are immutable. Each worker gets its own search cache.
+        run.regexes.extend(self.regexes.iter().map(|(pattern, compiled)| (pattern.clone(), std::rc::Rc::new(compiled.clone()))));
         run.empty = self.empty;
         run.absent_word = self.absent;
         run.file_field_codes = self.file_fields;
