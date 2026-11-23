@@ -439,12 +439,12 @@ impl Exec<'_> {
 }
 
 /// Whether the file's existing, ordered provider buckets already contain the result.
-struct Handoff {
+pub(super) struct Handoff {
     fields: bool,
     codes: Vec<u16>,
 }
 impl Handoff {
-    fn compile(run: &Run, v: &ViewSpec) -> Option<Self> {
+    pub(super) fn compile(run: &Run, v: &ViewSpec) -> Option<Self> {
         let (col, fields, vocab) = match v.base {
             Native::Tree => (1, false, &run.kind_sym),
             Native::Child => (3, true, &run.field_sym),
@@ -469,6 +469,24 @@ impl Handoff {
             .collect();
         Some(Self { fields, codes })
     }
+    /// Field membership fixes the entry. The child relation also excludes each root.
+    pub(super) fn child_rows(&self, f: &File<'_>, out: &mut Vec<u32>) -> usize {
+        let mut entered = 0;
+        let mut live = 0;
+        for &code in &self.codes {
+            let rows = super::node_table::ids_of_field(f.table, ryo::languages::FieldCode(code));
+            if !rows.is_empty() {
+                live += 1;
+                entered += rows.len();
+                out.extend(rows.iter().map(|p| p.0).filter(|p| f.has_parent(*p)));
+            }
+        }
+        if live > 1 {
+            out.sort_unstable();
+        }
+        entered
+    }
+
     fn check(&self, f: &File<'_>, rows: &[u32]) -> &'static str {
         use ryo::languages::{FieldCode, KindBits, node_table};
         let mut live = self

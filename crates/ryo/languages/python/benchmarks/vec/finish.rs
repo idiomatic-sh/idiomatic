@@ -1220,12 +1220,13 @@ pub(super) struct ViewSpec {
     /// redo-fills c4: `filter` compiled once (when the view is made), read as columns (`view_cols`).
     tests: Vec<view_cols::Test>,
     cold_test: std::cell::OnceCell<Rc<cold_test::Kernel>>,
+    cold_bucket: std::cell::OnceCell<cold_list::Handoff>,
 }
 
 impl ViewSpec {
     fn new(base: Native, map: Vec<usize>, filter: Vec<E>) -> Self {
         let tests = view_cols::compile(&filter);
-        ViewSpec { base, map, filter, tests, cold_test: std::cell::OnceCell::new() }
+        ViewSpec { base, map, filter, tests, cold_test: std::cell::OnceCell::new(), cold_bucket: std::cell::OnceCell::new() }
     }
 }
 
@@ -3483,6 +3484,17 @@ fn view_rows_for(f: &mut File<'_>, run: &mut Run, v: &ViewSpec, node: usize, mat
     let mut tests = 0;
     let rc = recycle::rows_with(|out| {
         let before = if sw!("VEC_COLD_PHASE") { cold_list::clock() } else { 0.0 };
+        if let Some(entry) = v.cold_bucket.get() {
+            entered = entry.child_rows(f, out);
+            if sw!("VEC_COLD_COUNT") {
+                let mut original = f.native_rows(run, v.base);
+                view_cols::retain_original(f, run, v, &mut original);
+                assert_eq!(*out, original, "field entry file {}, node {node}", f.file);
+                tests = entered as u64;
+            }
+            if sw!("VEC_COLD_PHASE") { run.cold.phase(node, cold_list::clock() - before, 0.0); }
+            return;
+        }
         match kind_set(run, &v.filter, 0, v.base, &[]) {
             Some(ks) => bucket_into(f, run, &ks, out),
             None => match lit_rows(f, &v.filter, 0, v.base, &[]) {

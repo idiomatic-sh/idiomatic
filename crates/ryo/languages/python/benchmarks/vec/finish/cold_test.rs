@@ -80,6 +80,11 @@ impl Exec<'_> {
             if v.filter.is_empty() {
                 continue;
             }
+            if v.base == Native::Child
+                && let Some(entry) = super::cold_list::Handoff::compile(run, &v)
+            {
+                assert!(v.cold_bucket.set(entry).is_ok());
+            }
             let form = super::cold_list::form(&v);
             let mut first = false;
             let kernel = if let Some(words) = field_members(&v) {
