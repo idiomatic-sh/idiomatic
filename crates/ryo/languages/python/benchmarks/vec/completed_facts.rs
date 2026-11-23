@@ -8,11 +8,13 @@ pub(super) struct Completed {
     pub(super) file: Option<FileId>,
     tables: Vec<Option<FilledColumns>>,
     pub(super) empty: Vec<Relation>,
+    pub(super) empty_drivers: Vec<usize>,
 }
 
 impl Completed {
     pub(super) fn begin(&mut self, file: FileId) {
         self.tables.clear();
+        self.empty_drivers.clear();
         self.empty.clear();
         self.file = Some(file);
     }
@@ -34,6 +36,7 @@ impl Completed {
 
     pub(super) fn clear(&mut self) {
         self.tables.clear();
+        self.empty_drivers.clear();
         self.empty.clear();
         self.file = None;
     }

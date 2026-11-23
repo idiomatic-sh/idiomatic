@@ -50,6 +50,8 @@ pub(super) struct Program {
     pub domains: Vec<Domain>,
     pub needs: Vec<Need>,
     pub roots: Vec<(String, Id)>,
+    /// A left input whose complete absence prevents its operator from consulting the right.
+    pub drivers: Vec<(usize, Id)>,
     pub skips: Vec<(bool, Vec<Vec<String>>, Vec<Vec<String>>)>,
     pub regexes: Vec<regex::bytes::Regex>,
     pub text_kinds: Vec<u16>,
@@ -727,6 +729,7 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
             needs: vec![],
             facts: vec![],
             roots: vec![],
+            drivers: vec![],
             skips: vec![],
             capped: 0,
         },
@@ -769,6 +772,18 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
         rows.push(row);
         skips.push(skip);
     }
+    for step in &plan.steps {
+        let driver = match step {
+            FinishStep::Antijoin(join) => join.left,
+            FinishStep::AsOf(join) => join.left,
+            FinishStep::OrderedMatch(join) => join.left,
+            _ => continue,
+        };
+        let need = rows[driver.0].need;
+        if need != ANY { b.out.drivers.push((driver.0, need)); }
+    }
+    b.out.drivers.sort_unstable();
+    b.out.drivers.dedup();
     for r in &plan.rules {
         let (need, skip) = match &r.emit {
             RuleEmit::Written(e) => (rows[e.step.0].need, skips[e.step.0].root()),

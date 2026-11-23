@@ -373,6 +373,13 @@ impl Program {
             }
         }
         if let Some(completed) = completed {
+            // Only publish a prerequisite the prefix already evaluated. Leave
+            // the work and the invocation counts of the driving step intact.
+            for &(step, need) in &self.drivers {
+                if f.needs[need] == Some(false) {
+                    completed.empty_drivers.push(step);
+                }
+            }
             for (fact, table) in self.facts.iter().zip(f.facts) {
                 if table.answered {
                     completed.insert(fact.relation, table.cells);

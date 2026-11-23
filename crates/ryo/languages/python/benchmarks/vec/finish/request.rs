@@ -336,8 +336,19 @@ impl Exec<'_> {
                     inputs.push(self.demand_input(run, *src, mask));
                 }
             } else {
+                // The whole forms check the left before opening the right.
+                // Keyed antijoins also size and probe the left first. Evidence
+                // applies only to the conditional read, never to the left work.
+                let driven = matches!(pn.op.as_str(), "antijoin" | "ordered-match" | "as-of");
+                let first = self.frames[n].first as usize;
                 for &src in &pn.inputs {
-                    inputs.push(self.demand_input(run, src, Columns::All));
+                    let input = self.demand_input(run, src, Columns::All);
+                    if driven && src != first && first < self.plan.nodes.len() {
+                        let guard = self.requests.guards.driver(first);
+                        inputs.push(self.branch(guard, vec![input]));
+                    } else {
+                        inputs.push(input);
+                    }
                 }
                 if self.frames[n].counted {
                     // A counted select may emit a kept row with zero partners.

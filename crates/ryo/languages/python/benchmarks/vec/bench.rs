@@ -1822,7 +1822,11 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
             }
         };
         let f1 = thread_cpu();
-        let prepared = first::prepare(read, python_language(vocab), vocab);
+        // Only the very same lowered plan can share step-numbered witnesses.
+        let shared = pack.is_some_and(|(_, combined)| std::ptr::eq(read, combined))
+            && read.typed.borrow().is_some();
+        let mut prepared = first::prepare(read, python_language(vocab), vocab);
+        if !shared { prepared.pairs.drivers.clear(); }
         let f2 = thread_cpu();
         let rules = rules_of_skips(&prepared.skips, vocab);
         let (frules, words) = funnel::build(&prepared.rules, vocab, &mut fact_catalog, &mut interner);
