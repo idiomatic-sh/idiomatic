@@ -65,6 +65,15 @@ pub(super) fn each(b: &[u64], mut visit: impl FnMut(u32)) {
         }
     }
 }
+/// Node words include their owning file. A foreign or absent endpoint
+/// cannot establish a necessary node-domain restriction for this file.
+fn position_in_file(word: languages::CellWord, file: languages::FileId, n: u32) -> Option<u32> {
+    use ryo_relations::domain::relations::service::{node_file, node_position};
+    let node = languages::NodeId(word.0);
+    let position = node_position(node).0;
+    (node_file(node) == file && position < n).then_some(position)
+}
+
 impl Table {
     fn load(
         &mut self,
@@ -96,9 +105,7 @@ impl Table {
                     .cells
                     .0
                     .get(key)
-                    .is_some_and(|c| c.0.iter().all(|x| {
-                        x.0 >> 32 == (match spec.source { super::pair_summary::Source::Catalog(_) => u64::from(file.0), super::pair_summary::Source::Walk(_) => 0 }) && (x.0 as u32) < n
-                    }));
+                    .is_some_and(|c| c.0.iter().all(|&word| position_in_file(word, file, n).is_some()));
         }
     }
 }
@@ -417,11 +424,10 @@ impl File<'_> {
                                     .get(text)
                                     .is_some_and(|id| ids.binary_search(id).is_ok())
                             });
-                            if keep && k.0 >= u64::from(n) {
-                                valid = false;
-                                return None;
-                            }
-                            keep.then_some(k.0 as u32)
+                            if !keep { return None; }
+                            let position = position_in_file(*k, self.file, n);
+                            valid &= position.is_some();
+                            position
                         }));
                         valid.then_some(nodes)
                     }
