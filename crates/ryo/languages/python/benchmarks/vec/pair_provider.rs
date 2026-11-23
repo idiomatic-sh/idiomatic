@@ -7,6 +7,11 @@ use ryo_python::fixtures::columns::{BindingSite, ColumnFile};
 
 use CellKind::{File, Node, Number};
 
+#[path = "pair_predecessor.rs"]
+pub(super) mod predecessor;
+#[path = "pair_sites.rs"]
+pub(super) mod sites;
+
 // Columns of the actual binding-site answer are shared with the second-half adapter.
 pub(super) const SITES: &[(&str, CellKind)] = &[
     ("binding", Node),
@@ -20,8 +25,23 @@ pub(super) const SITES: &[(&str, CellKind)] = &[
 ];
 pub(super) const FACTS: &[WalkFact] = &[
     WalkFact {
+        name: fact_catalog::ASSIGNMENT_SOURCE_REL,
+        columns: sites::ASSIGNMENT,
+        exact: true,
+    },
+    WalkFact {
+        name: fact_catalog::NAMESPACE_SITES_REL,
+        columns: sites::NAMESPACE,
+        exact: true,
+    },
+    WalkFact {
         name: fact_catalog::BINDING_SITES_REL,
         columns: SITES,
+        exact: true,
+    },
+    WalkFact {
+        name: fact_catalog::PREDECESSOR_REL,
+        columns: predecessor::COLUMNS,
         exact: true,
     },
     // Package identity can remove a relative import. Its indexed occurrence
@@ -74,6 +94,24 @@ pub(super) fn read(
                 col.0.push(CellWord(cell));
             }
         }),
+        fact_catalog::ASSIGNMENT_SOURCE_REL | fact_catalog::NAMESPACE_SITES_REL => sites::visit(
+            name,
+            file,
+            number as u64,
+            |s| {
+                ryo::languages::facts::intern(
+                    words,
+                    ryo_relations::domain::terms::types::NameText(s),
+                )
+                .0
+            },
+            |row| {
+                for (col, &cell) in out.0.iter_mut().zip(row) {
+                    col.0.push(CellWord(cell));
+                }
+            },
+        ),
+        fact_catalog::PREDECESSOR_REL => predecessor::read(file, number, words, out),
         fact_catalog::RELATIVE_IMPORT_REL => {
             for (node, _, _, _) in file.relative_imports() {
                 out.0[0].0.push(CellWord(u64::from(node)));

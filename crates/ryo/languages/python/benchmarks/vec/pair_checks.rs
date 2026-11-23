@@ -4,6 +4,9 @@ use rustc_hash::FxHashMap as Map;
 use ryo::languages::{self, FileWords, FilledColumns, NodeTable, Position, node_table};
 use std::rc::Rc;
 
+#[path = "pair_counts.rs"]
+mod counts;
+
 type Bits = Rc<Vec<u64>>;
 // None is the unconstrained node set. An empty vector is the empty set.
 type Nodes = Option<Bits>;
@@ -66,7 +69,13 @@ impl Table {
             return;
         }
         self.read = true;
-        self.answered = read(spec.source, words, &mut self.cells);
+        let answered = read(spec.source, words, &mut self.cells);
+        let columns = &self.cells.0;
+        self.answered = answered
+            && columns.first().is_none_or(|first| {
+                columns.len() == spec.columns.len()
+                    && columns.iter().all(|c| c.0.len() == first.0.len())
+            });
         self.complete = self.answered;
         if self.complete
             && let Some(key) = spec.key
@@ -161,6 +170,18 @@ impl File<'_> {
             u32::try_from(node_table::element_count(self.t).0).expect("table positions fit u32");
         let nodes = match &self.p.domains[id] {
             Domain::Any => None,
+            Domain::CountUnder(rows, depth, op, value) => {
+                let (rows, depth, op, value) = (*rows, *depth, *op, *value);
+                let children = self.nodes(rows);
+                counts::under(
+                    self.t,
+                    children,
+                    matches!(self.p.domains[rows], Domain::Any),
+                    depth,
+                    op,
+                    value,
+                )
+            }
             Domain::HasParent => {
                 Some(bits((1..n).filter(|&i| {
                     node_table::parent_of(self.t, Position(i)).0 != i
@@ -402,20 +423,54 @@ impl File<'_> {
                 table.load(spec, n, self.words, self.read);
                 if table.complete {
                     let key = spec.key.and_then(|k| table.cells.0.get(k));
-                    Some(bits(table.cells.0.get(*col).into_iter().flat_map(|c| &c.0).enumerate()
-                        .filter(|(_, cell)| match self.p.domains[id] {
-                            Domain::Flag(_,_,v) => cell.0 == u64::from(v),
-                            Domain::Number(_,_,op,v) if cell.0 != super::finish::NULL && v as u64 != super::finish::NULL => {
-                                use ryo_values::domain::finish_plans::expressions::types::Comparator::*;
-                                let x = cell.0 as i64;
-                                match op { Equal => x == v, NotEqual => x != v, Less => x < v, Greater => x > v,
-                                LessOrEqual => x <= v, GreaterOrEqual => x >= v }
-                            }
-                            _ => false,
-                        })
-                        .map(|(i, _)| key.map_or(0, |ids| ids.0[i].0 as u32))))
+                    Some(bits(
+                        table
+                            .cells
+                            .0
+                            .get(*col)
+                            .into_iter()
+                            .flat_map(|c| &c.0)
+                            .enumerate()
+                            .filter(|(_, cell)| match self.p.domains[id] {
+                                Domain::Flag(_, _, v) => cell.0 == u64::from(v),
+                                Domain::Number(_, _, op, v) => {
+                                    counts::compare(cell.0 as i64, op, v)
+                                }
+                                _ => false,
+                            })
+                            .map(|(i, _)| key.map_or(0, |ids| ids.0[i].0 as u32)),
+                    ))
                 } else {
                     None
+                }
+            }
+            Domain::SameRow(slot, tests) => {
+                use super::pair_summary::CellTest;
+                let spec = &self.p.facts[*slot];
+                let table = &mut self.facts[*slot];
+                table.load(spec, n, self.words, self.read);
+                if !table.complete {
+                    None
+                } else {
+                    let key = spec.key.and_then(|k| table.cells.0.get(k));
+                    let len = table.cells.0.first().map_or(0, |c| c.0.len());
+                    Some(bits((0..len).filter_map(|row| {
+                        let matched = tests.iter().all(|test| match test {
+                            CellTest::Symbols(c, values) => {
+                                let cell = table.cells.0[*c].0[row];
+                                cell.0 != super::finish::NULL
+                                    && self
+                                        .p
+                                        .symbols
+                                        .get(languages::facts::text(self.words, cell).0)
+                                        .is_some_and(|id| values.binary_search(id).is_ok())
+                            }
+                            CellTest::Numeric(c, op, literal) => {
+                                counts::compare(table.cells.0[*c].0[row].0 as i64, *op, *literal)
+                            }
+                        });
+                        matched.then(|| key.map_or(0, |keys| keys.0[row].0 as u32))
+                    })))
                 }
             }
             Domain::OtherValues(slot, col, excluded) => {

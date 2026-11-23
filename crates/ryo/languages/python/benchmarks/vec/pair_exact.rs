@@ -84,8 +84,7 @@ fn base<'a>(b: &mut Builder<'_>, name: &str) -> Option<Row<'a>> {
 }
 
 // A provider fact may contain many rows for one id. Filter its rows before
-// projecting the node key. Two tests on different fact columns could have
-// different row witnesses, so this transfer accepts just one indexed test.
+// projecting the node key, keeping conjuncts on the same provider row.
 fn fact_projection<'a>(
     b: &mut Builder<'_>,
     s: &'a SelectStep,
@@ -115,7 +114,17 @@ fn fact_projection<'a>(
     let d = match &s.condition {
         RowCondition::Every => b.domain(Domain::Fact(slot, None)),
         RowCondition::Tested(e) => {
-            if let Some((c, cmp, value)) = numeric_comparison(e) {
+            let mut conjuncts = Vec::new();
+            terms(e, &mut conjuncts);
+            let correlated = b.same_row(slot, &conjuncts, &|c| {
+                Some(Column {
+                    var: 0,
+                    attr: Attribute::Cell(slot, column(c)?),
+                })
+            });
+            if let Some((_, d)) = correlated {
+                d
+            } else if let Some((c, cmp, value)) = numeric_comparison(e) {
                 b.number(Attribute::Cell(slot, column(c)?), cmp, value)?
             } else if let PlanExpression::Call(f) = e {
                 let [
@@ -170,6 +179,79 @@ fn fact_projection<'a>(
     })
 }
 
+pub(super) struct Grouped {
+    pub key: usize,
+    pub depth: u8,
+    pub rows: Id,
+    pub guard: Id,
+    pub facts: Vec<usize>,
+}
+
+// In a keyed group each distinct child id counts once, even when a join or
+// union produced duplicate rows. File and one fixed ancestor identify its group.
+fn group<'a>(
+    b: &mut Builder<'_>,
+    step: usize,
+    g: &'a ryo_values::domain::finish_plans::arguments::groups::types::GroupCountArguments,
+    row: &Row<'a>,
+) -> Option<Row<'a>> {
+    use ryo_values::domain::finish_plans::arguments::groups::types::CountedRows;
+    let CountedRows::Distinct(distinct) = &g.distinct else {
+        return None;
+    };
+    if row.column(&distinct.0)?
+        != (Value {
+            depth: 0,
+            field: "id",
+        })
+    {
+        return None;
+    }
+    let mut cols = Vec::new();
+    let mut parent = None;
+    for (index, k) in g.keys.iter().enumerate() {
+        if k == &g.count {
+            return None;
+        }
+        let value = row.column(&k.0)?;
+        if value.field == "id" {
+            let (_, depth) = parent.get_or_insert((index, value.depth));
+            if *depth != value.depth {
+                return None;
+            }
+        } else if value.field != "file" {
+            return None;
+        }
+        cols.push((
+            &*k.0,
+            Value {
+                depth: 0,
+                field: value.field,
+            },
+        ));
+    }
+    let (key, depth) = parent?;
+    let nodes = above(b, row.nodes, depth);
+    let mut facts = Vec::new();
+    required_facts(&b.out.domains, row.nodes, &mut facts);
+    let _ = b.counts.insert(
+        step,
+        Grouped {
+            key,
+            depth,
+            rows: row.nodes,
+            guard: row.guard,
+            facts,
+        },
+    );
+    Some(Row {
+        nodes,
+        guard: row.guard,
+        cols,
+        derived: true,
+    })
+}
+
 fn required_facts(domains: &[Domain], id: Id, slots: &mut Vec<usize>) {
     let mut pending = vec![id];
     let mut seen = Vec::new();
@@ -180,6 +262,7 @@ fn required_facts(domains: &[Domain], id: Id, slots: &mut Vec<usize>) {
         seen.push(id);
         match domains[id] {
             Domain::Fact(slot, _)
+            | Domain::SameRow(slot, _)
             | Domain::OtherValues(slot, _, _)
             | Domain::Flag(slot, ..)
             | Domain::Number(slot, ..)
@@ -191,7 +274,8 @@ fn required_facts(domains: &[Domain], id: Id, slots: &mut Vec<usize>) {
             Domain::Both(a, b) | Domain::Either(a, b) | Domain::Except(a, b) => {
                 pending.extend([a, b])
             }
-            Domain::Parents(a)
+            Domain::CountUnder(a, ..)
+            | Domain::Parents(a)
             | Domain::Children(a)
             | Domain::Ancestors(a)
             | Domain::Descendants(a) => pending.push(a),
@@ -322,7 +406,12 @@ fn above(b: &mut Builder<'_>, mut set: Id, depth: u8) -> Id {
     set
 }
 
-fn select<'a>(b: &mut Builder<'_>, s: &'a SelectStep, rows: &[Option<Row<'a>>]) -> Option<Row<'a>> {
+fn select<'a>(
+    b: &mut Builder<'_>,
+    s: &'a SelectStep,
+    rows: &[Option<Row<'a>>],
+    plan: &FinishPlan,
+) -> Option<Row<'a>> {
     if !(1..=2).contains(&s.sources.len()) || s.count != CountMark::Unmarked {
         return None;
     }
@@ -381,7 +470,27 @@ fn select<'a>(b: &mut Builder<'_>, s: &'a SelectStep, rows: &[Option<Row<'a>>]) 
     // Bucket restrictions first, so a text test can use the declared text model.
     filters.sort_by_key(|e| matches!(e, PlanExpression::Call(_)));
     for e in filters {
-        let d = predicate(b, e, &get, nodes)?;
+        let d = if let Some((col, cmp, literal)) = numeric_comparison(e) {
+            let i = if col.alias == SourceAlias::Unwritten && s.sources.len() == 1 {
+                0
+            } else {
+                s.sources
+                    .iter()
+                    .position(|src| src.alias == col.alias && col.alias != SourceAlias::Unwritten)?
+            };
+            let step = s.sources[i].step.0;
+            let FinishStep::GroupCount(g) = &plan.steps[step] else {
+                return None;
+            };
+            if col.column != g.count {
+                return None;
+            }
+            let proof = b.counts.get(&step)?;
+            let d = b.domain(Domain::CountUnder(proof.rows, proof.depth, cmp, literal));
+            below(b, d, shifts[i])
+        } else {
+            predicate(b, e, &get, nodes)?
+        };
         nodes = b.both(nodes, d);
     }
     let cols = match &s.columns {
@@ -557,6 +666,8 @@ pub(super) fn prepare<'a>(
             | FinishStep::Union(_)
             | FinishStep::Extend(_)
             | FinishStep::SpanBounds(_)
+            | FinishStep::GroupCount(_)
+            | FinishStep::GroupOrdinal(_)
             | FinishStep::GroupMin(_)
             | FinishStep::GroupMax(_) => {
                 for input in inputs(s) {
@@ -574,7 +685,7 @@ pub(super) fn prepare<'a>(
                 use FinishStep::*;
                 match s {
                     Base(n) => base(b, &n.0),
-                    Select(s) => select(b, s, &rows).or_else(|| fact_projection(b, s, plan)),
+                    Select(s) => select(b, s, &rows, plan).or_else(|| fact_projection(b, s, plan)),
                     Antijoin(j) => {
                         let mut row = rows[j.left.0].clone()?;
                         if let Some(right) = &rows[j.right.0] {
@@ -621,6 +732,17 @@ pub(super) fn prepare<'a>(
                         row.derived = true;
                         Some(row)
                     }
+                    GroupCount(g) => group(b, i, g, rows[g.from.0].as_ref()?),
+                    GroupOrdinal(g) => {
+                        let mut row = rows[g.from.0].clone()?;
+                        row.column(&g.order.0)?;
+                        for key in &g.keys {
+                            row.column(&key.0)?;
+                        }
+                        row.cols.retain(|(n, _)| *n != &*g.output.0);
+                        row.derived = true;
+                        Some(row)
+                    }
                     GroupMin(g) | GroupMax(g) => {
                         let row = rows[g.from.0].clone()?;
                         row.column(&g.order.0)?;
@@ -660,6 +782,9 @@ pub(super) fn prepare<'a>(
             })
             .flatten()
             .filter(|_| b.out.capped == capped);
+        if row.is_none() && matches!(s, FinishStep::GroupCount(_)) {
+            let _ = b.counts.remove(&i);
+        }
         rows.push(row);
     }
     if std::env::var_os("VEC_PAIR_TRACE").is_some() {

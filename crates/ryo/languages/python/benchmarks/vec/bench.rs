@@ -1154,44 +1154,17 @@ impl ColFacts<'_, '_, '_, '_> {
         let res = self.whole(run, "binding-resolution")?;
         let reads = self.whole(run, "binding-read")?;
         let col = |t: &finish::Table, n: &str| t.names.iter().position(|c| c == n).ok_or_else(|| format!("no column {n}"));
-        let (r_ref, r_ev, r_kind, r_scope, r_lex, r_depth, r_ord, r_ctx) = (
-            col(&res, "reference")?,
-            col(&res, "event")?,
-            col(&res, "kind")?,
-            col(&res, "scope")?,
-            col(&res, "lexical")?,
-            col(&res, "depth")?,
-            col(&res, "ordinal")?,
-            col(&res, "context")?,
-        );
-        let (b_ref, b_scope, b_ctx) = (col(&reads, "reference")?, col(&reads, "scope")?, col(&reads, "context")?);
+        use pair_provider::predecessor::{LOOKUP, READ, WORDS, positions, project};
+        let lookup = positions(LOOKUP, |name| col(&res, name))?;
+        let read = positions(READ, |name| col(&reads, name))?;
         let (_, names, tys) = run.catalog(fact_catalog::PREDECESSOR_REL).ok_or("no scheduled-read-predecessor")?;
-        let deletion = u64::from(run.sym(b"deletion"));
-        let (own, routed, none) = (u64::from(run.sym(b"own")), u64::from(run.sym(b"routed")), u64::from(run.sym(b"none")));
-        let mut t = finish::Table { names, tys, cols: vec![Vec::with_capacity(reads.n); 9], n: 0 };
-        let mut seen: rustc_hash::FxHashSet<u64> = rustc_hash::FxHashSet::with_capacity_and_hasher(reads.n, Default::default());
-        for r in 0..res.n {
-            let reference = res.cols[r_ref][r];
-            let depth = res.cols[r_depth][r];
-            if (res.cols[r_ctx][r] == deletion && depth != 0) || !seen.insert(reference) {
-                continue;
-            }
-            let ns = if res.cols[r_lex][r] == res.cols[r_scope][r] { own } else { routed };
-            for (c, v) in [reference, res.cols[r_ev][r], res.cols[r_kind][r], ns, res.cols[r_scope][r], depth, res.cols[r_ord][r], res.cols[r_ctx][r], u64::from(self.file_no)].into_iter().enumerate() {
-                t.cols[c].push(v);
-            }
-            t.n += 1;
-        }
-        for r in 0..reads.n {
-            let reference = reads.cols[b_ref][r];
-            if !seen.insert(reference) {
-                continue;
-            }
-            for (c, v) in [reference, finish::NULL, none, none, reads.cols[b_scope][r], finish::NULL, finish::NULL, reads.cols[b_ctx][r], u64::from(self.file_no)].into_iter().enumerate() {
-                t.cols[c].push(v);
-            }
-            t.n += 1;
-        }
+        let symbols = WORDS.map(|text| u64::from(run.sym(text.as_bytes())));
+        let mut t = finish::Table::with_rows(names, tys, reads.n);
+        project((0..res.n).map(|r| lookup.map(|c| res.cols[c][r])), (0..reads.n).map(|r| read.map(|c| reads.cols[c][r])),
+            symbols, u64::from(self.file_no), |values| {
+                for (col, value) in t.cols.iter_mut().zip(values) { col.push(value); }
+                t.n += 1;
+            });
         Ok(t)
     }
 }
@@ -1438,6 +1411,16 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
             t
         } else if rel == fact_catalog::RELATIVE_IMPORT_REL {
             relative_import::walked(run, self.project, self.file, self.file_no)?
+        } else if matches!(rel, fact_catalog::ASSIGNMENT_SOURCE_REL | fact_catalog::NAMESPACE_SITES_REL) {
+            let (_, names, tys) = run.catalog(rel).ok_or_else(|| format!("no {rel}"))?;
+            let mut rows = finish::Table::with_rows(names, tys, 0);
+            let complete = pair_provider::sites::visit(rel, self.file, u64::from(self.file_no),
+                |word| u64::from(run.sym(word.as_bytes())), |values| {
+                    for (col, &value) in rows.cols.iter_mut().zip(values) { col.push(value); }
+                    rows.n += 1;
+                });
+            if !complete { return Err(format!("{rel}: incomplete flow")); }
+            rows
         } else if rel == fact_catalog::BINDING_SITES_REL {
             let (_, names, tys) = run.catalog(rel).ok_or("no binding-sites")?;
             let mut rows = finish::Table::with_rows(names, tys, 0);

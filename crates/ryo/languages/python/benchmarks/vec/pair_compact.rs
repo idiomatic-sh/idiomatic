@@ -60,7 +60,8 @@ impl Reachable {
                 *diff = self.node(*diff);
                 *g = self.file(*g);
             }
-            Domain::Parents(d)
+            Domain::CountUnder(d, ..)
+            | Domain::Parents(d)
             | Domain::Children(d)
             | Domain::Ancestors(d)
             | Domain::Descendants(d) => *d = self.node(*d),
@@ -72,6 +73,7 @@ impl Reachable {
             | Domain::Text(_)
             | Domain::TextMatching(..)
             | Domain::SpanMatching(..)
+            | Domain::SameRow(..)
             | Domain::Fact(..)
             | Domain::Flag(..)
             | Domain::Number(..)

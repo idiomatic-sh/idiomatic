@@ -122,6 +122,17 @@ pub(super) fn run_first(args: &[&str]) {
             for (r, s) in p.rules.iter().zip(&p.skips) {
                 writeln!(w, "{s:?}\n{r:?}").unwrap();
             }
+            for (slot, fact) in p.pairs.facts.iter().enumerate() {
+                writeln!(w, "fact {slot} {} {:?} {:?}", fact.name, fact.key, fact.columns).unwrap();
+            }
+            let mut symbols: Vec<_> = p.pairs.symbols.iter().collect();
+            symbols.sort_by_key(|(_, id)| **id);
+            for (word, id) in symbols {
+                writeln!(w, "symbol {id} {word:?}").unwrap();
+            }
+            for (i, re) in p.pairs.regexes.iter().enumerate() {
+                writeln!(w, "regex {i} {:?}", re.as_str()).unwrap();
+            }
             for (i, d) in p.pairs.domains.iter().enumerate() {
                 writeln!(w, "nodes {i} {d:?}").unwrap();
             }

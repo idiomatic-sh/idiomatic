@@ -24,12 +24,14 @@ pub(super) enum Domain {
     Any,
     Empty,
     HasParent,
+    CountUnder(Id, u8, Comparator, i64),
     Kind(u16),
     Field(u16),
     Text(String),
     TextMatching(u16, usize),
     SpanMatching(u16, usize),
     Fact(usize, Option<(usize, Vec<Id>)>),
+    SameRow(usize, Vec<CellTest>),
     OtherValues(usize, usize, Vec<Id>),
     Flag(usize, usize, bool),
     Number(usize, usize, Comparator, i64),
@@ -55,6 +57,12 @@ pub(super) enum Need {
     Some(Id),
     Both(Id, Id),
     Either(Id, Id),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+pub(super) enum CellTest {
+    Symbols(usize, Vec<Id>),
+    Numeric(usize, Comparator, i64),
 }
 
 #[derive(Clone, Copy)]
@@ -96,6 +104,7 @@ enum Attribute {
     Field,
     Text,
     Cell(usize, usize),
+    Count(usize),
 }
 #[derive(Clone, Copy)]
 struct Column {
@@ -108,7 +117,7 @@ struct Summary<'a> {
     native_row: Option<usize>,
     domains: Vec<Id>,
     columns: Vec<(&'a str, Column)>,
-    edges: Vec<(usize, usize)>, // child, parent, when both are projected
+    edges: Vec<(usize, usize, u8)>, // descendant, ancestor, fixed number of parent edges
 }
 impl<'a> Summary<'a> {
     fn column(&self, name: &str) -> Option<Column> {
@@ -135,11 +144,29 @@ impl<'a> Summary<'a> {
             });
         }
         self.domains = vars;
-        self.edges = self
-            .edges
-            .iter()
-            .filter_map(|(c, p)| Some((map[*c]?, map[*p]?)))
-            .collect();
+        // A projection may discard the intermediate node while retaining both
+        // ends of a path. Parent is functional. Following one known path per
+        // edge suffices even with several equivalent names for a parent.
+        let old = std::mem::take(&mut self.edges);
+        for &(child, mut parent, mut depth) in &old {
+            let Some(from) = map[child] else { continue };
+            loop {
+                if let Some(to) = map[parent] {
+                    if from != to {
+                        self.edges.push((from, to, depth));
+                    }
+                    break;
+                }
+                let Some(&(_, next, extra)) = old.iter().find(|(c, _, _)| *c == parent) else {
+                    break;
+                };
+                depth += extra;
+                if usize::from(depth) > CAP {
+                    break;
+                }
+                parent = next;
+            }
+        }
         self.edges.sort_unstable();
         self.edges.dedup();
     }
@@ -155,12 +182,14 @@ struct Builder<'a> {
     ns: Map<Need, Id>,
     sizes: Vec<usize>,
     file_guards: Map<Id, Id>,
+    counts: Map<usize, exact::Grouped>,
 }
 
 impl Builder<'_> {
     fn dependencies(d: &Domain) -> &[Id] {
         match d {
-            Domain::Parents(x)
+            Domain::CountUnder(x, ..)
+            | Domain::Parents(x)
             | Domain::Children(x)
             | Domain::Ancestors(x)
             | Domain::Descendants(x)
@@ -200,7 +229,8 @@ impl Builder<'_> {
             Domain::Except(a, b) | Domain::Both(a, b) | Domain::Either(a, b) => {
                 1 + self.sizes[a] + self.sizes[b]
             }
-            Domain::Parents(x)
+            Domain::CountUnder(x, ..)
+            | Domain::Parents(x)
             | Domain::Children(x)
             | Domain::Ancestors(x)
             | Domain::Descendants(x) => 1 + self.sizes[x],
@@ -365,7 +395,7 @@ impl Builder<'_> {
                 r.add("file", 0, FilePath);
                 r.add("field", 0, Field);
                 r.add("parent", 1, Id);
-                r.edges.push((0, 1));
+                r.edges.push((0, 1, 1));
             }
             "source-location" => {
                 r.var(ANY);
@@ -508,12 +538,75 @@ impl Builder<'_> {
         }
     }
     fn number(&mut self, attr: Attribute, cmp: Comparator, value: i64) -> Option<Id> {
+        if let Attribute::Count(step) = attr {
+            let g = self.counts.get(&step)?;
+            let (nodes, hops, guard, facts) = (g.rows, g.depth, g.guard, g.facts.clone());
+            let d = self.domain(Domain::CountUnder(nodes, hops, cmp, value));
+            return Some(if d == ANY || (guard == EMPTY && facts.is_empty()) {
+                d
+            } else {
+                self.domain(Domain::ProvenExcept(ANY, d, guard, facts))
+            });
+        }
         let Attribute::Cell(slot, col) = attr else {
             return None;
         };
         (self.out.facts[slot].kinds[col] == CellKind::Number)
             .then(|| self.domain(Domain::Number(slot, col, cmp, value)))
     }
+    // Intersect cells in the input row before projecting the node key. One
+    // node can have several rows, each satisfying a different conjunct.
+    fn same_row(
+        &mut self,
+        slot: usize,
+        terms: &[&PlanExpression],
+        lookup: &impl Fn(&ColumnRead) -> Option<Column>,
+    ) -> Option<(usize, Id)> {
+        if !(2..=CAP).contains(&terms.len()) {
+            return None;
+        }
+        let mut tests = Vec::new();
+        let mut anchor = None;
+        let mut size = terms.len();
+        for term in terms {
+            let test = if let Some((c, cmp, literal)) = numeric_comparison(term) {
+                let col = lookup(c)?;
+                let Attribute::Cell(source, index) = col.attr else {
+                    return None;
+                };
+                if source != slot
+                    || self.out.facts[slot].kinds[index] != CellKind::Number
+                    || *anchor.get_or_insert(col.var) != col.var
+                {
+                    return None;
+                }
+                CellTest::Numeric(index, cmp, literal)
+            } else {
+                let mut values = Vec::new();
+                let col = lookup(choices(term, &mut values)?)?;
+                let Attribute::Cell(source, index) = col.attr else {
+                    return None;
+                };
+                if source != slot
+                    || self.out.facts[slot].kinds[index] != CellKind::Symbol
+                    || *anchor.get_or_insert(col.var) != col.var
+                {
+                    return None;
+                }
+                size += values.len();
+                if size > CAP {
+                    return None;
+                }
+                let mut values: Vec<_> = values.into_iter().map(|v| self.symbol(v)).collect();
+                values.sort_unstable();
+                values.dedup();
+                CellTest::Symbols(index, values)
+            };
+            tests.push(test);
+        }
+        Some((anchor?, self.domain(Domain::SameRow(slot, tests))))
+    }
+
     fn filter(
         &mut self,
         e: &PlanExpression,
@@ -742,8 +835,11 @@ impl Builder<'_> {
             offsets.push(offset);
             out.domains.extend(&r.domains);
             out.need = self.and(out.need, r.need);
-            out.edges
-                .extend(r.edges.iter().map(|(c, p)| (c + offset, p + offset)));
+            out.edges.extend(
+                r.edges
+                    .iter()
+                    .map(|(c, p, depth)| (c + offset, p + offset, *depth)),
+            );
         }
         let lookup = |c: &ColumnRead| {
             if c.alias == SourceAlias::Unwritten && s.sources.len() != 1 {
@@ -789,15 +885,28 @@ impl Builder<'_> {
                 }
             }
         }
-        for e in &conjuncts {
-            if let Some((var, d)) = self.filter(e, &lookup) {
-                let v = map[var];
-                changed[v] |= d != ANY && d != out.domains[v];
-                out.domains[v] = self.both(out.domains[v], d);
-                self.require(&mut out, d);
-            } else if matches!(e, PlanExpression::Or(_) | PlanExpression::Call(_)) {
-                let n = self.file_test(e, &lookup);
-                out.need = self.and(out.need, n);
+        let correlated = match s.sources.as_slice() {
+            [src] => rows[src.step.0]
+                .native_row
+                .and_then(|slot| self.same_row(slot, &conjuncts, &lookup)),
+            _ => None,
+        };
+        if let Some((var, d)) = correlated {
+            let v = map[var];
+            changed[v] = true;
+            out.domains[v] = self.both(out.domains[v], d);
+            self.require(&mut out, d);
+        } else {
+            for e in &conjuncts {
+                if let Some((var, d)) = self.filter(e, &lookup) {
+                    let v = map[var];
+                    changed[v] |= d != ANY && d != out.domains[v];
+                    out.domains[v] = self.both(out.domains[v], d);
+                    self.require(&mut out, d);
+                } else if matches!(e, PlanExpression::Or(_) | PlanExpression::Call(_)) {
+                    let n = self.file_test(e, &lookup);
+                    out.need = self.and(out.need, n);
+                }
             }
         }
         // Restrict text regexes to a known entry bucket. The kind constraint
@@ -829,19 +938,19 @@ impl Builder<'_> {
                 }
             }
         }
-        for (c, p) in &mut out.edges {
+        for (c, p, _) in &mut out.edges {
             *c = map[*c];
             *p = map[*p];
         }
         if self.neighbors {
-            for &(c, p) in &out.edges {
+            for &(c, p, depth) in &out.edges {
                 let (child, parent) = (out.domains[c], out.domains[p]);
                 if changed[p] && parent > EMPTY {
-                    let d = self.domain(Domain::Children(parent));
+                    let d = self.at_distance(parent, depth, Domain::Children);
                     out.domains[c] = self.both(child, d);
                 }
                 if changed[c] && child > EMPTY {
-                    let d = self.domain(Domain::Parents(child));
+                    let d = self.at_distance(child, depth, Domain::Parents);
                     out.domains[p] = self.both(parent, d);
                 }
             }
@@ -871,6 +980,16 @@ impl Builder<'_> {
         out
     }
 
+    fn at_distance(&mut self, mut nodes: Id, depth: u8, step: fn(Id) -> Domain) -> Id {
+        for _ in 0..depth {
+            nodes = self.domain(step(nodes));
+            if nodes == ANY {
+                break;
+            }
+        }
+        nodes
+    }
+
     fn ordered<'a>(
         &mut self,
         left: &Summary<'a>,
@@ -886,8 +1005,12 @@ impl Builder<'_> {
         out.domains.extend(&left.domains);
         out.domains.extend(&right.domains);
         out.edges.extend(&left.edges);
-        out.edges
-            .extend(right.edges.iter().map(|(c, p)| (c + offset, p + offset)));
+        out.edges.extend(
+            right
+                .edges
+                .iter()
+                .map(|(c, p, depth)| (c + offset, p + offset, *depth)),
+        );
         for o in outputs {
             let (input, base) = match o.side {
                 Side::Left => (left, 0),
@@ -969,6 +1092,20 @@ impl Builder<'_> {
                         out.add(n, var, a.attr);
                     }
                 }
+                // Parent is functional. One common lineage per projected
+                // child is sufficient; never combine alternative witnesses.
+                for (&(lc, rc), &child) in &vars {
+                    if let Some(&(_, lp, depth)) = l.edges.iter().find(|(c, _, _)| *c == lc)
+                        && let Some(&(_, rp, _)) =
+                            r.edges.iter().find(|(c, _, d)| *c == rc && *d == depth)
+                        && let Some(&parent) = vars.get(&(lp, rp))
+                        && parent != child
+                    {
+                        out.edges.push((child, parent, depth));
+                    }
+                }
+                out.edges.sort_unstable();
+                out.edges.dedup();
             }
             Antijoin(j) => return rows[j.left.0].clone(),
             GroupMin(g) | GroupMax(g) => return rows[g.from.0].clone(),
@@ -1037,11 +1174,11 @@ impl Builder<'_> {
                     let (origin, target) = (id, related);
                     let (down, up): (fn(Id) -> Domain, fn(Id) -> Domain) = match a.direction {
                         Direction::Parent => {
-                            out.edges.push((0, 1));
+                            out.edges.push((0, 1, 1));
                             (Domain::Children, Domain::Parents)
                         }
                         Direction::Child => {
-                            out.edges.push((1, 0));
+                            out.edges.push((1, 0, 1));
                             (Domain::Parents, Domain::Children)
                         }
                         Direction::Ancestor | Direction::NearestAncestor => {
@@ -1240,6 +1377,7 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
         ns: Map::default(),
         sizes: vec![],
         file_guards: Map::default(),
+        counts: Map::default(),
     };
     b.domain(Domain::Any);
     b.domain(Domain::Empty);
@@ -1291,6 +1429,13 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
             && let Some(exclusion) = &exclusions[i]
         {
             exclusion.apply(&mut b, &mut row);
+        }
+        if let FinishStep::GroupCount(g) = s
+            && let Some(proof) = b.counts.get(&i)
+            && let Some(c) = row.column(&g.keys[proof.key].0)
+            && c.attr == Attribute::Id
+        {
+            row.add(&g.count.0, c.var, Attribute::Count(i));
         }
         rows.push(row);
         skips.push(skip);
