@@ -38,8 +38,8 @@ impl ReaderFacts {
             let (_, names, types) = run
                 .catalog(catalog::name(relation).0)
                 .expect("a catalog relation");
-            self.tables
-                .insert(relation, Table::with_rows(names, types, 0));
+            let projection = &projections[&relation];
+            self.tables.insert(relation, Table::projected_where(names, types, 0, |column| projection.contains(column)));
         }
         for (rel, cause, _) in &rows.partials {
             self.partial.insert(*rel, cause.clone());
@@ -48,28 +48,30 @@ impl ReaderFacts {
             self.partial.insert(*rel, cause.clone());
         }
         let mut words = rows.words.as_slice();
-        for rel in &rows.relations {
-            let table = self.tables.get_mut(rel).expect("requested relation");
-            let (row, rest) = words.split_at(table.cols.len());
+        // Writers may interleave relations. Within each consecutive set of
+        // rows the schema and selected columns are constant.
+        for group in rows.relations.chunk_by(|left, right| left == right) {
+            let relation = &group[0];
+            let table = self.tables.get_mut(relation).expect("requested relation");
+            let projection = &projections[relation];
+            let width = table.cols.len();
+            let (cells, rest) = words.split_at(group.len() * width);
             words = rest;
-            for (index, ((column, &word), ty)) in table.cols.iter_mut().zip(row).zip(table.tys.iter()).enumerate() {
-                if !projections[rel].contains(index) { continue; }
-                column.push(match ty {
-                    finish::Ty::Sym => {
+            for (index, (column, ty)) in table.cols.iter_mut().zip(table.tys.iter()).enumerate() {
+                if !projection.contains(index) { continue; }
+                let values = cells.chunks_exact(width).map(|row| row[index]);
+                match ty {
+                    finish::Ty::Sym => column.extend(values.map(|word| {
                         u64::from(symbol(run, symbols, bytes, l::Symbol(word as u32)))
-                    }
-                    finish::Ty::Node => {
-                        assert_eq!(
-                            word >> 32,
-                            u64::from(self.file),
-                            "foreign node in file-scoped answer"
-                        );
+                    })),
+                    finish::Ty::Node => column.extend(values.map(|word| {
+                        assert_eq!(word >> 32, u64::from(self.file), "foreign node in file-scoped answer");
                         word & 0xffff_ffff
-                    }
-                    _ => word,
-                });
+                    })),
+                    _ => column.extend(values),
+                }
             }
-            table.n += 1;
+            table.n += group.len();
         }
         assert!(words.is_empty());
     }

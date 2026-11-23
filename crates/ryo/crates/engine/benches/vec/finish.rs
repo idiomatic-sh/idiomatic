@@ -203,7 +203,7 @@ impl Table {
         Self::projected_where(names, tys, n, |c| request::wants(mask, c))
     }
 
-    fn projected_where(names: Names, tys: Tys, n: usize, selected: impl Fn(usize) -> bool) -> Self {
+    pub(super) fn projected_where(names: Names, tys: Tys, n: usize, selected: impl Fn(usize) -> bool) -> Self {
         let k = names.len();
         // redo-alloc: the list of columns from the kept ones (recycle.rs), each column from the pool
         let mut cols = recycle::take_cols(k);
