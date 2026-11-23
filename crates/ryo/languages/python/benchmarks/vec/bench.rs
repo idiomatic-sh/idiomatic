@@ -1013,14 +1013,6 @@ impl ColFacts<'_, '_, '_, '_> {
                     e.2 += 1;
                 }
             }
-            if direct_fill::checking() {
-                let (relation, _, _) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
-                let relation = relation.ok_or_else(|| format!("{rel}: no reader relation"))?;
-                self.filled.0.clear();
-                let _ = self.file.fill(relation, languages::Wanted::Whole, self.words, &mut self.filled);
-                let r = finish::filled_table(run, rel, &self.filled, self.words)?;
-                direct_fill::check(run, rel, self.file_no, &r, t.as_ref().map_err(String::clone)?, columns.word(0));
-            }
             return t;
         }
         let (relation, _, _) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;

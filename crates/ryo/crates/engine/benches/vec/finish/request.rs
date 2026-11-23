@@ -45,8 +45,8 @@ pub(crate) struct Requests {
     nodes: Vec<Option<u32>>,
     graph: Vec<Entry>,
     shared: FxHashMap<Entry, u32>,
-    root_numbers: Vec<usize>,
-    projections: Vec<Projection>,
+    visited: Vec<bool>,
+    pending: Vec<u32>,
     masks: Vec<Option<Columns>>,
     asked: Vec<u16>,
     answer: Vec<Result<Table, String>>,
@@ -174,13 +174,6 @@ struct Entry {
     action: Action,
 }
 
-/// A projected read and the circuit output that permits it in this file.
-struct Projection {
-    slot: u16,
-    columns: Columns,
-    guard: u32,
-}
-
 // A native input contributes no provider request.
 const NONE: u32 = u32::MAX;
 
@@ -194,49 +187,15 @@ impl Requests {
         })
     }
 
-    /// Propagate demand from the live emits towards their inputs. A shared
-    /// entry is reachable when any parent reaches it and its own guard holds.
-    /// Children precede every parent in the graph, so one reverse pass builds
-    /// a single reachability predicate per entry, shared across all columns.
-    fn compile_projections(&mut self, roots: impl Iterator<Item = usize>) {
-        self.root_numbers.resize(self.nodes.len(), usize::MAX);
-        let mut incoming = vec![Vec::new(); self.graph.len()];
-        for node in roots {
-            if self.root_numbers[node] != usize::MAX { continue; }
-            let root = self.guards.live.len();
-            self.root_numbers[node] = root;
-            self.guards.live.push(false);
-            if let Some(id) = self.nodes[node].filter(|id| *id != NONE) {
-                incoming[id as usize].push(self.guards.emit(root));
-            }
+    /// The file's active roots are already known. Keep their shared input graph
+    /// and compile only the predicates that test actual file evidence.
+    fn compile_guards(&mut self) {
+        let literals = self.guards.compile(self.graph.iter().map(|entry| entry.guard));
+        for entry in &mut self.graph {
+            entry.guard = literals[entry.guard as usize];
         }
-        let mut reads = std::collections::BTreeMap::<(u16, Columns), Vec<u32>>::new();
-        for (id, entry) in self.graph.iter().enumerate().rev() {
-            let paths = std::mem::take(&mut incoming[id]);
-            if paths.is_empty() { continue; }
-            let reachable = self.guards.combine(false, paths);
-            let guarded = self.guards.combine(true, vec![reachable, entry.guard]);
-            match &entry.action {
-                Action::Read(slot, columns) => {
-                    reads.entry((*slot, columns.clone())).or_default().push(guarded);
-                }
-                Action::Inputs(children) => {
-                    for &child in children { incoming[child as usize].push(guarded); }
-                }
-            }
-        }
-        for ((slot, columns), paths) in reads {
-            let guard = self.guards.combine(false, paths);
-            self.projections.push(Projection { slot, columns, guard });
-        }
-        let literals = self.guards.compile(self.projections.iter().map(|p| p.guard));
-        for projection in &mut self.projections {
-            projection.guard = literals[projection.guard as usize];
-        }
-        self.projections.sort_unstable_by_key(|p| (p.slot, std::cmp::Reverse(p.columns.count())));
-        self.graph = Vec::new();
+        self.visited.resize(self.graph.len(), false);
         self.shared = FxHashMap::default();
-        self.nodes = Vec::new();
     }
 
     fn branch(&mut self, guard: u32, mut inputs: Vec<u32>) -> u32 {
@@ -323,7 +282,7 @@ impl Exec<'_> {
                 self.requests.run_columns[usize::from(*slot)].extend(mask);
             }
         }
-        self.requests.compile_projections(emits.iter().map(|&i| self.plan.emits[i].1));
+        self.requests.compile_guards();
 
     }
 
@@ -425,17 +384,24 @@ impl Exec<'_> {
             self.requests.counts.idle_files += 1;
             return masks;
         }
-        self.requests.guards.live.fill(false);
-        for &node in roots {
-            self.requests.guards.live[self.requests.root_numbers[node]] = true;
-        }
         self.decide_file(run, f);
-        for projection in &self.requests.projections {
-            let i = usize::from(projection.slot);
-            if !self.requests.guards.circuit.permits(projection.guard)
-                || self.requests.proven_empty.get(i).copied().unwrap_or(false)
-                || masks[i].as_ref().is_some_and(|m| m.covers(&projection.columns)) { continue; }
-            masks[i].get_or_insert_with(Columns::default).extend(&projection.columns);
+        let rq = &mut self.requests;
+        rq.visited.fill(false);
+        rq.pending.extend(roots.iter().filter_map(|&node| rq.nodes[node]).filter(|&id| id != NONE));
+        while let Some(id) = rq.pending.pop() {
+            let i = id as usize;
+            if std::mem::replace(&mut rq.visited[i], true) { continue; }
+            let entry = &rq.graph[i];
+            if !rq.guards.circuit.permits(entry.guard) { continue; }
+            match &entry.action {
+                Action::Inputs(children) => rq.pending.extend_from_slice(children),
+                Action::Read(slot, columns) => {
+                    let slot = usize::from(*slot);
+                    if !rq.proven_empty.get(slot).copied().unwrap_or(false) {
+                        masks[slot].get_or_insert_with(Columns::default).extend(columns);
+                    }
+                }
+            }
         }
         masks
     }

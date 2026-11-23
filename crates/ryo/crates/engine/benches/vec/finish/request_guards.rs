@@ -12,7 +12,6 @@ enum Test {
     Kind(u16),
     Field(u32),
     Seed(usize),
-    Emit(usize),
     HasRows(u16),
     Driver(usize),
     Symbols(u16, usize, Vec<u32>),
@@ -22,7 +21,6 @@ enum Test {
 
 pub(super) struct Guards {
     by_node: Vec<Option<u32>>,
-    pub(super) live: Vec<bool>,
     late: Vec<bool>,
     columns: FxHashMap<u16, Vec<(usize, u32)>>,
     absent: Vec<bool>,
@@ -46,7 +44,6 @@ impl Default for Guards {
     fn default() -> Self {
         Self {
             by_node: vec![],
-            live: vec![],
             late: vec![],
             columns: Default::default(), absent: vec![], empty_drivers: vec![], driver_representatives: Default::default(), marks: vec![], generation: 0,
             by_test: FxHashMap::default(),
@@ -71,8 +68,6 @@ impl Guards {
         if !by.contains(&(col, id)) { by.push((col, id)); }
         id
     }
-
-    pub(super) fn emit(&mut self, index: usize) -> u32 { self.intern(Test::Emit(index)) }
 
     pub(super) fn register_drivers(&mut self, drivers: &[(usize, usize)]) {
         let mut representative = FxHashMap::default();
@@ -314,7 +309,6 @@ impl Exec<'_> {
                 Test::Symbols(..) => !self.requests.guards.absent.get(at).copied().unwrap_or(false),
                 Test::HasRows(slot) => !self.requests.proven_empty.get(usize::from(*slot)).copied().unwrap_or(false),
                 Test::Driver(n) => !self.requests.guards.empty_drivers.get(*n).copied().unwrap_or(false),
-                Test::Emit(i) => self.requests.guards.live[*i],
                 Test::Seed(s) => f.seeds.get(*s).is_some_and(|rows| !rows.is_empty()),
                 Test::File(n) => { let n = *n; !self.file_fails_of(f, run, n) }
                 _ => unreachable!("only input leaves are scheduled here"),

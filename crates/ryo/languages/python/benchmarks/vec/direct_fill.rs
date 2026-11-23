@@ -3,7 +3,6 @@
 //! reader rows and no word conversion: the rows in the order the provider wrote them (the reader's order: proved by the
 //! fill dump's ordered digest), the key column from the rows' keys, a span from the node table, the file column the
 //! caller's. A relation the prototype does not write, or a file it does not answer whole, goes to the reader.
-//! `VEC_NO_DIRECT` turns the path off (every relation through the reader).
 
 use super::finish::{self, NULL, Table, Ty};
 use ryo::languages::{NodeTable, Position, node_table};
@@ -27,9 +26,7 @@ impl TextIds for RunIds<'_> {
 
 /// Whether `rel` is answered by the direct path.
 pub(super) fn direct(rel: &str) -> bool {
-    static OFF: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    !*OFF.get_or_init(|| std::env::var_os("VEC_NO_DIRECT").is_some())
-        && matches!(rel, "qualified-name" | "identifier" | "literal-properties" | "numeric-literal" | "string-literal" | "literal-expression-parse" | "expression-shape" | "expression-type" | "binding-event" | "binding-read")
+    matches!(rel, "qualified-name" | "identifier" | "literal-properties" | "numeric-literal" | "string-literal" | "literal-expression-parse" | "expression-shape" | "expression-type" | "binding-event" | "binding-read")
 }
 
 /// Completed column buffers from this same file's prefix. A yes/no table
@@ -122,44 +119,4 @@ pub(super) fn fill(file: &mut ColumnFile<'_, '_>, run: &mut finish::Run, rel: &s
 #[inline]
 fn widen(_ty: Ty, v: u32) -> u64 {
     if v == u32::MAX { NULL } else { u64::from(v) }
-}
-
-/// `VEC_DIRECT_CHECK`: every direct fill is checked against the reader's, cell by cell in row order.
-pub(super) fn checking() -> bool {
-    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    *ON.get_or_init(|| std::env::var_os("VEC_DIRECT_CHECK").is_some())
-}
-
-thread_local! {
-    static SEEN: RefCell<std::collections::HashMap<String, u32>> = RefCell::new(std::collections::HashMap::new());
-}
-
-/// Prints the first differences of a direct fill from the reader's (at most 5 a relation and column).
-pub(super) fn check(run: &finish::Run, rel: &str, file: u32, reader: &Table, direct: &Table, columns: u64) {
-    let mut say = |what: String| {
-        SEEN.with(|s| {
-            let mut s = s.borrow_mut();
-            let e = s.entry(format!("{rel}:{}", what.split(' ').next().unwrap_or(""))).or_default();
-            *e += 1;
-            if *e <= 5 {
-                eprintln!("DIRECT-DIFF {rel} {} {what}", run.paths[file as usize]);
-            }
-        });
-    };
-    if reader.n != direct.n {
-        say(format!("rows reader {} direct {}", reader.n, direct.n));
-    }
-    for c in 0..reader.cols.len() {
-        if !finish::request::wants(columns, c) {
-            continue;
-        }
-        for r in 0..reader.n.min(direct.n) {
-            let (a, b) = (reader.cols[c][r], direct.cols[c][r]);
-            if a != b {
-                let txt = |v: u64| if reader.tys[c] == Ty::Sym && v != NULL { String::from_utf8_lossy(&run.texts[v as usize]).into_owned() } else { String::new() };
-                say(format!("{} row {r} reader {a:#x} {} direct {b:#x} {}", reader.names[c], txt(a), txt(b)));
-                break;
-            }
-        }
-    }
 }
