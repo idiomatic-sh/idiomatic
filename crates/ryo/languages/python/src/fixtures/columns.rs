@@ -354,6 +354,12 @@ impl ColumnWalk {
         self.structure = Some(enclosing);
     }
 
+    /// Select the file walk for consumers reading token text from source spans.
+    /// Semantic answers are built from the retained typed tree on first demand.
+    pub fn defer_lexical(&mut self) {
+        self.scratch.names.deferred = true;
+    }
+
     /// Walks one file into `table` and lends it to `visit`.
     ///
     /// # Errors
@@ -476,7 +482,7 @@ fn flag(value: Flag) -> u32 {
 impl ColumnFile<'_, '_> {
     /// The code the walk interned for each name token of the file's own tree, in id order, into `out` (cleared first): equal
     /// codes are equal texts. A code with the high bit set (`FIXED_TEXT`) is a fixed text of the language, the same text in
-    /// every file of the run. Empty when the file's bytes were not text.
+    /// every file of the run. Empty when the file's bytes were not text or the caller deferred lexical collection.
     pub fn name_token_codes(&self, out: &mut Vec<u32>) {
         out.clear();
         out.extend(self.file.syntax.tree.named.of_token.iter().map(|code| code.0));

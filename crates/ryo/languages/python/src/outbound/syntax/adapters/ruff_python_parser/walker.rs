@@ -76,7 +76,7 @@ impl Walker<'_, '_, '_> {
             (Some(open), Kind::Token(named)) => token_field(open.node, token.kind(), named),
             (Some(_) | None, Kind::Node(_) | Kind::Token(_) | Kind::Extra(_)) => Field::None,
         };
-        if matches!(kind, Kind::Token(Token::Name)) && !self.text.is_empty() {
+        if !self.names.deferred && matches!(kind, Kind::Token(Token::Name)) && !self.text.is_empty() {
             if token.kind().is_non_soft_keyword() {
                 // A keyword is a fixed text of the language: its code is its kind's, the same in every file.
                 self.names.of_token.push(NameCode(FIXED_TEXT | token.kind() as u32));
@@ -220,7 +220,9 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
             // No other node is kept apart for the reader of the tree.
         }
         self.subtree_ends.push(Position(id.saturating_add(1)));
-        opened(&mut self.names.lexical, &mut self.names.names, &self.nodes, &self.parents, &self.subtree_ends, at);
+        if !self.names.deferred {
+            opened(&mut self.names.lexical, &mut self.names.names, &self.nodes, &self.parents, &self.subtree_ends, at);
+        }
         let from = FieldIndex(self.fields.len());
         child_fields(
             Placed {

@@ -686,7 +686,7 @@ where
 /// check as a child-kind-bitset test; any other leaf `down` + check, and an `exists` of one check, as one scan of the
 /// children, skipped when the child-kind and child-field sets rule it out; a `down` + check of the child as one expansion
 /// to the children that pass.
-fn compile(ops: &[Op]) -> (Vec<Stage>, usize) {
+pub(super) fn compile(ops: &[Op]) -> (Vec<Stage>, usize) {
     let mut first_fact = None;
     let mut out: Vec<Stage> = Vec::new();
     let mut i = 0;

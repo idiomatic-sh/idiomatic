@@ -3,7 +3,7 @@
 //! columns, and one witness decides all disjuncts of a rule for this file.
 use super::Key;
 use super::facts::FactOp;
-use super::funnel::{Ctx, FRule, Op, Plan, Rows, cnf_holds};
+use super::funnel::{Ctx, FRule, Op, Plan, Rows, Stage, cnf_holds};
 use ryo::languages::{FieldCode, KindBits, NodeTable, Position, node_table};
 use std::collections::HashMap;
 
@@ -78,6 +78,7 @@ struct Request {
 }
 
 struct Entry {
+    syntax: std::cell::OnceCell<Vec<Stage>>,
     buckets: usize,
     reads: Vec<Request>,
 }
@@ -111,6 +112,7 @@ pub(super) struct Counts {
 }
 
 pub(super) struct FileSeeds {
+    syntax_only: bool,
     rules: Vec<Rule>,
     sets: Vec<Vec<Key>>,
     sizes: Vec<usize>,
@@ -121,7 +123,7 @@ pub(super) struct FileSeeds {
 }
 
 impl FileSeeds {
-    pub(super) fn new(rules: &[FRule]) -> Self {
+    pub(super) fn new(rules: &[FRule], syntax_only: bool) -> Self {
         let mut sets = Vec::new();
         let mut by_set = HashMap::new();
         let rules = rules
@@ -154,7 +156,11 @@ impl FileSeeds {
                                 }
                             });
                         }
-                        Entry { buckets, reads }
+                        Entry {
+                            buckets,
+                            reads,
+                            syntax: std::cell::OnceCell::new(),
+                        }
                     })
                     .collect();
                 let mut disjuncts = rule.alts.clone();
@@ -174,6 +180,7 @@ impl FileSeeds {
             .collect();
         let sizes = vec![0; sets.len()];
         Self {
+            syntax_only,
             rules,
             sets,
             sizes,
@@ -230,16 +237,22 @@ impl FileSeeds {
                 continue;
             }
             let p = &rules[ri].plans[pi];
+            let entry = &self.rules[ri].entries[pi];
+            let stages = if self.syntax_only && !entry.reads.is_empty() {
+                entry.syntax.get_or_init(|| syntax_stages(p)).as_slice()
+            } else {
+                &p.stages[..p.before_facts]
+            };
             if let Some(cursor) = witness(
                 p,
                 index,
                 ctx,
-                p.before_facts,
+                stages,
                 Cursor::default(),
                 &mut self.rows,
                 &mut self.counts,
             ) {
-                if p.before_facts == p.stages.len() {
+                if self.syntax_only || p.before_facts == p.stages.len() {
                     seeded[ri] = true;
                     self.counts.witnesses += 1;
                 } else {
@@ -288,7 +301,7 @@ impl FileSeeds {
                 plan,
                 index,
                 ctx,
-                plan.stages.len(),
+                &plan.stages,
                 p.cursor,
                 &mut self.rows,
                 &mut self.counts,
@@ -310,7 +323,7 @@ fn witness(
     plan: &Plan,
     index: &Index<'_>,
     ctx: &Ctx<'_>,
-    depth: usize,
+    stages: &[Stage],
     from: Cursor,
     rows: &mut Rows,
     counts: &mut Counts,
@@ -324,14 +337,14 @@ fn witness(
                 bucket: k,
                 start: at,
             };
-            if depth == 0 {
+            if stages.is_empty() {
                 counts.candidates += 1;
                 return Some(cursor);
             }
             let len = batch.min(ids.len() - at);
             ids.enter(rows, plan.regs.max(1), at, len);
             counts.candidates += len as u64;
-            for stage in &plan.stages[..depth] {
+            for stage in stages {
                 stage(ctx, rows, &mut counts.steps);
                 if rows.d.is_empty() {
                     break;
@@ -345,4 +358,29 @@ fn witness(
         }
     }
     None
+}
+
+/// Necessary conditions of a program over syntax alone. A top-level fact is a
+/// predicate with no register writes, so removing it keeps every successful
+/// binding. Stop before a fact-dependent block: negation reverses inclusion,
+/// and a nested search can bind registers used by the continuation.
+fn syntax_stages(plan: &Plan) -> Vec<Stage> {
+    let mut stages = Vec::new();
+    let mut begin = 0;
+    for (i, op) in plan.ops.iter().enumerate() {
+        let mut depends = false;
+        visits_facts(op, &mut |_| depends = true);
+        if !depends {
+            continue;
+        }
+        // Preserve the original stage boundaries. In particular, never fuse
+        // a register move with a predicate across an omitted fact.
+        stages.extend(super::funnel::compile(&plan.ops[begin..i]).0);
+        if !matches!(op, Op::Fact(_)) {
+            return stages;
+        }
+        begin = i + 1;
+    }
+    stages.extend(super::funnel::compile(&plan.ops[begin..]).0);
+    stages
 }

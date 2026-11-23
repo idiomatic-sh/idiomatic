@@ -1796,7 +1796,9 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
         && !ask_all && !check_direct && !per_fact && !plant && dump_out.is_none()
         && !["--enumerate-nodes", "--rules-out", "--surv-out", "--hits-out", "--alive-out", "--only-knock-units"].iter().any(|flag| args.contains(flag))
         && std::env::var_os("VEC_NO_SKIP").is_none() && std::env::var_os("VEC_NO_PREFIX").is_none();
-    let mut file_seeds = seed_only.then(|| file_seeds::FileSeeds::new(&frules));
+    let syntax_only = seed_only && !args.contains(&"--exact-file-seeds");
+    let mut file_seeds = seed_only.then(|| file_seeds::FileSeeds::new(&frules, syntax_only));
+    if syntax_only { cwalk.defer_lexical(); }
     let seed_out = flag(args, "--seed-out");
     let mut seed_dump = String::new();
     let started = thread_cpu();
@@ -1807,9 +1809,12 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
     let mut in_seed = vec![false; frules.len()];
     let node_class: Vec<bool> = frules.iter().map(|r| r.node).collect();
     let fin0 = fin.as_ref().map_or(0.0, |f| f.time);
+    let mut bytes = Vec::new();
     for (file_no, path) in list.iter().enumerate() {
         let c0 = thread_cpu();
-        let bytes = std::fs::read(path).expect("read");
+        use std::io::Read as _;
+        bytes.clear();
+        std::fs::File::open(path).and_then(|mut file| file.read_to_end(&mut bytes)).expect("read");
         let (hits0, alive0) = (sv.hits.len(), sv.alive.len());
         store.reset(slots_n);
         reader_dump.clear();
@@ -2191,8 +2196,10 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                     let p0 = thread_cpu();
                     let ft = file.table;
                     let n = node_table::element_count(ft).0;
-                    file.name_token_codes(&mut name_codes);
-                    codes_taken = true;
+                    if !syntax_only {
+                        file.name_token_codes(&mut name_codes);
+                        codes_taken = true;
+                    }
                     prepare!(ft);
                     prepared = true;
                     let index = file_seeds::Index { table: ft, offsets: &word_offsets, words: &word_pos };
@@ -2711,7 +2718,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
     if let Some(path) = seed_out { std::fs::write(path, seed_dump).expect("write file seeds"); }
     if let Some(seeds) = file_seeds {
         let c = seeds.counts;
-        println!("file seeds: {} elements, {} disjuncts deferred to facts; survivors count one witness per node rule and file", c.elements, c.deferred);
+        println!("file seeds: {} elements, {} disjuncts deferred to facts; survivors count one witness per node rule and file; syntax upper bound {syntax_only}", c.elements, c.deferred);
         println!("candidates {} survivors {} steps {} knock-steps 0 rule-files-with-survivors {}", c.candidates, c.witnesses, c.steps, c.witnesses);
     } else {
         let knock_c: u64 = units.iter().enumerate().filter(|(_, u)| u.knock).map(|(i, _)| cands[i]).sum();
