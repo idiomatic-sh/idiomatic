@@ -13,6 +13,7 @@ pub(crate) struct Settings<'p> {
     project: std::sync::Arc<finish::project::Shared>,
     constants: std::sync::Arc<finish::constants::Constants>,
     static_tests: std::sync::Arc<finish::known::Shared>,
+    shapes: std::sync::Arc<finish::worker_schemas::Shapes>,
     ids: hashbrown::HashTable<u32>,
     patterns: std::sync::Arc<finish::worker_patterns::Patterns>,
     root: String,
@@ -44,7 +45,9 @@ impl<'p> Finisher<'p> {
                 (name, (*cols).clone(), (*types).clone(), supplier)
             })
             .collect();
+        let shapes = self.exec.freeze_shapes(r, &self.emits);
         let settings = Settings {
+            shapes,
             project: finish::project::share(r),
             constants: self.exec.share_constants(r),
             static_tests: self.exec.share_static_tests(),
@@ -132,6 +135,7 @@ impl<'p> Settings<'p> {
             check_out: None,
             alloc: [0; 2],
         };
+        worker.exec.worker_shapes = Some(finish::worker_schemas::Local::new(self.shapes.clone()));
         worker.exec.shared_constants = Some(self.constants.clone());
         worker.exec.shared_static = Some(self.static_tests.clone());
         worker.exec.cold_test_load(&mut worker.run);
