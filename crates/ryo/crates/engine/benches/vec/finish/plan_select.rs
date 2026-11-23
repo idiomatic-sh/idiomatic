@@ -98,25 +98,6 @@ impl Exec<'_> {
                 }
                 Ok(combined.unwrap_or_else(|| E::Cmp(Op::Eq, Box::new(E::Num(0)), Box::new(E::Num(1)))))
             }
-            ("glob_any", Some(E::List(items))) if args.len() == 2 => {
-                let mut tests = items
-                    .iter()
-                    .map(|item| {
-                        let E::Text(t) = item else {
-                            return Err("glob pattern must be text".to_owned());
-                        };
-                        let re = run.re(&glob_pattern(&String::from_utf8_lossy(run.text(*t))))?;
-                        Ok(E::Re(Box::new(args[0].clone()), re))
-                    })
-                    .collect::<R<Vec<_>>>()?
-                    .into_iter();
-                Ok(match tests.next() {
-                    Some(first) => {
-                        tests.fold(first, |left, right| E::Or(Box::new(left), Box::new(right)))
-                    }
-                    None => E::Cmp(Op::Eq, Box::new(E::Num(0)), Box::new(E::Num(1))),
-                })
-            }
             _ => Ok(E::Call(name.to_owned(), args)),
         }
     }
