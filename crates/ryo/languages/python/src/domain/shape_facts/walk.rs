@@ -8,7 +8,7 @@ use crate::domain::labels::{service::field_bits, types::Field};
 use crate::domain::literal_facts::types::TextBuffer;
 use crate::domain::model::names::types::NameCode;
 use crate::domain::node::service::word;
-use crate::domain::nodes::types::Category;
+use crate::domain::nodes::types::{Category, Node};
 use crate::domain::syntax::{service::{category_of, kind_bits}, types::Kind};
 use ruff_python_ast::AnyNodeRef;
 use ryo::languages::{FieldId, FileWords, KindBits, NameText, Position, RetainedKeyIndex, ShapeWord};
@@ -48,6 +48,57 @@ struct Open {
     start: usize,
 }
 
+/// Most composite keys are the only key ending in a particular child class.
+/// Keep those keys consecutively in one arena. A collision compares the full
+/// sequence and promotes that bucket to an ordered dictionary when needed.
+#[derive(Default, Debug)]
+enum Bucket {
+    #[default]
+    Empty,
+    Single { start: usize, end: usize, class: Position },
+    Shared(Box<BTreeMap<Box<[u64]>, Position>>),
+}
+
+#[derive(Default, Debug)]
+struct Dictionary {
+    child: Vec<Bucket>,
+    kind: Vec<Bucket>,
+    words: Vec<u64>,
+}
+
+impl Dictionary {
+    fn class(&mut self, kind: KindBits, child: Option<Position>, key: &[u64], next: Position) -> Position {
+        let (buckets, index) = match child {
+            Some(child) => (&mut self.child, usize::from(child)),
+            None => (&mut self.kind, usize::from(kind.0)),
+        };
+        if index >= buckets.len() { buckets.resize_with(index + 1, Default::default); }
+        let bucket = &mut buckets[index];
+        match bucket {
+            Bucket::Empty => {
+                let start = self.words.len();
+                self.words.extend_from_slice(key);
+                *bucket = Bucket::Single { start, end: self.words.len(), class: next };
+                next
+            }
+            Bucket::Single { start, end, class } => {
+                let first = &self.words[*start..*end];
+                if first == key { return *class; }
+                let mut map = BTreeMap::new();
+                map.insert(first.into(), *class);
+                map.insert(key.into(), next);
+                *bucket = Bucket::Shared(Box::new(map));
+                next
+            }
+            Bucket::Shared(map) => {
+                if let Some(&id) = map.get(key) { return id; }
+                map.insert(key.into(), next);
+                next
+            }
+        }
+    }
+}
+
 #[derive(Default, Debug)]
 pub(crate) struct WalkShapes {
     stack: Vec<Open>,
@@ -55,7 +106,7 @@ pub(crate) struct WalkShapes {
     // Name and Identifier are disjoint structural kinds. Their one payload
     // already has a canonical code assigned by the lexical walk.
     names: Vec<[Option<Position>; 2]>,
-    other: BTreeMap<Box<[u64]>, Position>,
+    other: Dictionary,
     key: Vec<u64>,
     words: FileWords,
     index: RetainedKeyIndex<Position, ShapeWord>,
@@ -78,7 +129,8 @@ impl WalkShapes {
     }
 
     pub(crate) fn token(&mut self, bits: KindBits, text: &str) {
-        if self.stack.last().is_some_and(|p| p.active) {
+        if self.stack.last().is_some_and(|p| p.active
+            && !matches!(p.kind, Kind::Node(Node::Name) | Kind::Extra(Extra::Identifier))) {
             self.children.push(ShapeWord::Token(bits, word(&mut self.words, NameText(text))));
         }
     }
@@ -126,15 +178,15 @@ impl WalkShapes {
                 }
             }
             self.key.clear();
-            self.key.extend(build.index.scratch.iter().copied().map(encoded));
-            if let Some(&id) = self.other.get(self.key.as_slice()) {
-                id
-            } else {
-                let id = Position(self.last.len() as u32);
-                self.other.insert(self.key.clone().into_boxed_slice(), id);
-                self.last.push(at);
-                id
+            let mut child = None;
+            for &word in &build.index.scratch {
+                if let ShapeWord::Child(_, id) = word { child = Some(id); }
+                self.key.push(encoded(word));
             }
+            let next = Position(self.last.len() as u32);
+            let class = self.other.class(kind_bits(open.kind), child, &self.key, next);
+            if class == next { self.last.push(at); }
+            class
         };
         self.children.truncate(open.start);
         self.index.classes[usize::from(at)] = Some(handle);

@@ -12,6 +12,7 @@ enum Test {
     Kinds(Vec<u16>),
     Fields(Vec<u16>),
     Seed(usize),
+    HasRows(u16),
     File(usize),
     Combine { all: bool, terms: Vec<u32> },
 }
@@ -83,6 +84,10 @@ impl Exec<'_> {
         let need = self.need(run, n);
         let mut parts = Vec::new();
         if !need.never {
+            if !sw!("VEC_NO_EMPTYPROP") && let Ok(Some(view)) = self.view(run, n)
+                && let super::Native::Fact(slot) = view.base {
+                parts.push(self.requests.guards.intern(Test::HasRows(slot)));
+            }
             for ks in &need.kinds {
                 parts.push(self.requests.guards.intern(Test::Kinds(ks.to_vec())));
             }
@@ -126,6 +131,7 @@ impl Exec<'_> {
             Test::Fields(fs) => fs
                 .iter()
                 .any(|c| !super::node_table::ids_of_field(f.table, ryo::languages::FieldCode(*c)).is_empty()),
+            Test::HasRows(slot) => !self.requests.proven_empty.get(usize::from(*slot)).copied().unwrap_or(false),
             Test::Seed(s) => f.seeds.get(*s).is_some_and(|rows| !rows.is_empty()),
             Test::File(n) => {
                 let n = *n;
