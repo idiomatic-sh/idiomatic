@@ -239,6 +239,9 @@ fn name_differences<W: Walk>(_walk: &W) -> String {
             ));
         }
     }
+    if crate::linked().parse_engine().stable_fields() != names.fields {
+        found.push_str("the linked parser states other field names\n");
+    }
     if crate::linked().walk_engine().vocabulary() != names {
         found.push_str("the linked walk states other names\n");
     }

@@ -3,6 +3,7 @@
 
 use super::constants::CAPABILITIES;
 use super::service::{begin_file, complete_file, prepare_model, read_file};
+use crate::domain::labels::service::{field_name, fields};
 use crate::domain::language::constants::UNKNOWN_REASONS;
 use crate::domain::language::service::reads;
 use crate::domain::model::types::Declarations;
@@ -114,6 +115,10 @@ impl Parse for ParseContract {
 
     fn kind_count(&self) -> languages::Count {
         languages::Count(kinds().count())
+    }
+
+    fn stable_fields(&self) -> languages::FieldNames {
+        languages::FieldNames(fields().map(field_name).collect())
     }
 
     fn kind_names(&self) -> languages::KindNames {
