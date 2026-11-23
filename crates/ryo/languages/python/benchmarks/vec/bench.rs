@@ -1295,6 +1295,21 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
                 rows.n += 1;
             });
             rows
+        } else if rel == fact_catalog::PRE_DECLARATION_READ_REL {
+            let (_, names, tys) = run.catalog(rel).ok_or("no pre-declaration-read")?;
+            let mut rows = finish::Table::with_rows(names, tys, 0);
+            let complete = self.file.visit_pre_declaration_reads(|at, scope, phase, ordinal| {
+                rows.cols[0].push(u64::from(at));
+                rows.cols[1].push(u64::from(scope));
+                rows.cols[2].push(u64::from(phase));
+                rows.cols[3].push(ordinal);
+                rows.cols[4].push(u64::from(self.file_no));
+                rows.n += 1;
+            });
+            if !complete {
+                return Err("pre-declaration-read: incomplete flow".to_owned());
+            }
+            rows
         } else if rel == fact_catalog::NAMESPACE_SITES_REL {
             let (_, names, tys) = run.catalog(rel).ok_or("no namespace-sites")?;
             let mut rows = finish::Table::with_rows(names, tys, 0);
