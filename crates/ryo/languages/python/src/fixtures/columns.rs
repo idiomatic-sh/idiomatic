@@ -488,6 +488,18 @@ impl ColumnFile<'_, '_> {
         self.file.syntax.file = file;
     }
 
+    /// redo-fills pass 3: builds the model's part for the asked families once, before any family reads it: `flow` (the
+    /// lexical part and the schedule interpreted), else `resolution` (the lexical part and the static definitions). A
+    /// part already built is not built again.
+    pub fn build_model(&mut self, flow: bool, resolution: bool) {
+        if flow {
+            let _read = self.file.semantics(ModelPart::Flow);
+        }
+        if resolution {
+            let _read = self.file.semantics(ModelPart::Resolution);
+        }
+    }
+
     /// The reader: today's rows of `relation` (the reference).
     pub fn fill(&mut self, relation: Relation, wanted: Wanted, words: &mut FileWords, out: &mut FilledColumns) -> FactAnswer {
         let mut source = fillers::file_source::<PythonWalk<WalkPorts>>(self.file);
