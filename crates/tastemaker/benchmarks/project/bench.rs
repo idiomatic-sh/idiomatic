@@ -64,7 +64,7 @@ fn execute(req: Project, plan: &Plan) -> Result<finish::json_output::Records, St
         .iter()
         .map(|path| run.sym(path.as_bytes()))
         .collect();
-    run.paths = inventory;
+    run.paths = inventory.into();
     let admitted = req
         .files
         .iter()
