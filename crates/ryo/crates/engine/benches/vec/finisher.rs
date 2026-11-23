@@ -87,6 +87,8 @@ impl<'p> Finisher<'p> {
         me
     }
 
+    pub(super) fn selected_emits(&self) -> &[usize] { &self.emits }
+
     /// The emits retained by the first half for this file.
     pub(super) fn wanted_into(&mut self, mut seeded: impl FnMut(usize) -> bool, out: &mut Vec<usize>) {
         let t0 = thread_cpu();
