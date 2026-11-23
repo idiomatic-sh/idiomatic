@@ -177,27 +177,36 @@ impl Batch {
             .map(|_| Err(String::new()))
             .collect();
         let linked: Vec<_> = languages.into_iter().map(|l| Languages(vec![l])).collect();
-        let mut groups = vec![Vec::new(); linked.len()];
+        let unclaimed = linked.len();
+        let mut groups = vec![Vec::new(); linked.len() + 1];
         for (i, src) in self.schedule.sources.iter().enumerate() {
             let path = RelativePath(src.path.as_str().into());
             let mut found = linked
                 .iter()
                 .enumerate()
                 .filter(|(_, l)| l.reads(&path) == Recognition::Reads);
-            if let Some((index, _)) = found.next()
-                && found.next().is_none()
-            {
-                groups[index].push(i);
+            match (found.next(), found.next()) {
+                (Some((index, _)), None) => groups[index].push(i),
+                (None, None) => groups[unclaimed].push(i),
+                _ => {
+                    for &slot in src.bindings.values() {
+                        answers[slot] = Err(format!("multiple source readers for {}", src.path));
+                    }
+                }
             }
         }
         let rules: Vec<_> = self.bindings.iter().map(|(r, _)| *r).collect();
         self.clocks.pairs = self.schedule.pairs;
-        for (linked, files) in linked.into_iter().zip(groups) {
+        let readers = linked
+            .into_iter()
+            .map(|l| l.0.into_iter().next())
+            .chain([None]);
+        for (language, files) in readers.zip(groups) {
             if files.is_empty() {
                 continue;
             }
             session::visit(
-                linked.0.into_iter().next().unwrap(),
+                language,
                 &self.schedule.programs,
                 &rules,
                 &self.schedule.sources,
