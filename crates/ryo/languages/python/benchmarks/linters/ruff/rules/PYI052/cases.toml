@@ -510,3 +510,18 @@ expected = []
 name = "stub_module_assignment"
 files = { "case.pyi" = "Set = 1\n" }
 expected = [{ file = "case.pyi", start = 6, end = 7 }]
+
+[[cases]]
+name = "enum-module-own-enum-bases"
+files = { "enum.pyi" = "class Enum: ...\nclass ReprEnum(Enum): ...\nclass StrEnum(str, ReprEnum): ...\nclass EnumCheck(StrEnum):\n    CONTINUOUS = \"no skipped integer values\"\nclass Plain:\n    X = 1\n" }
+expected = [{ file = "enum.pyi", start = 168, end = 169 }]
+
+[[cases]]
+name = "ordinary-module-own-enum-bases"
+files = { "other.pyi" = "class Enum: ...\nclass ReprEnum(Enum): ...\nclass StrEnum(str, ReprEnum): ...\nclass EnumCheck(StrEnum):\n    CONTINUOUS = \"no skipped integer values\"\nclass Plain:\n    X = 1\n" }
+expected = [{ file = "other.pyi", start = 119, end = 146 }, { file = "other.pyi", start = 168, end = 169 }]
+
+[[cases]]
+name = "package-module-named-enum-own-enum-bases"
+files = { "pkg/__init__.py" = "", "pkg/enum.pyi" = "class Enum: ...\nclass ReprEnum(Enum): ...\nclass StrEnum(str, ReprEnum): ...\nclass EnumCheck(StrEnum):\n    CONTINUOUS = \"no skipped integer values\"\nclass Plain:\n    X = 1\n" }
+expected = [{ file = "pkg/enum.pyi", start = 119, end = 146 }, { file = "pkg/enum.pyi", start = 168, end = 169 }]
