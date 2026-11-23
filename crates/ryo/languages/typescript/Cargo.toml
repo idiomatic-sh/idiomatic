@@ -77,6 +77,7 @@ harness = false
 [features]
 # Instruments and widens the benchmark pair program for cost measurements.
 pair-diagnostics = []
+summary-diagnostics = []
 # Test support, not a public API: it may change without notice. Only a dev-dependency or this crate's own `fixtures` switches it on (`fixtures-feature`).
 fixtures = ["ryo/fixtures"]
 

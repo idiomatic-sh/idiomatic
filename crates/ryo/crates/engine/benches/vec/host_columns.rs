@@ -20,7 +20,19 @@ pub(super) fn fill(
     }
     let Some(run) = run else { return Some(false) };
     let path = format!("{}/{}", run.root_dir, run.paths[file]);
-    let Ok(value) = executable(Path::new(&path)) else {
+    fill_path(rel, Path::new(&path), file, out)
+}
+
+pub(super) fn fill_path(
+    rel: Relation,
+    path: &Path,
+    file: usize,
+    out: &mut FilledColumns,
+) -> Option<bool> {
+    if rel != Relation::FilesystemExecutable {
+        return None;
+    }
+    let Ok(value) = executable(path) else {
         return Some(false);
     };
     out.0 = vec![

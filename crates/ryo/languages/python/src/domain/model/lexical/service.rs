@@ -381,9 +381,16 @@ fn read(model: &mut LexicalModel, names: &mut NameTable, nodes: &[AnyNodeRef<'_>
     }
 }
 
-/// Builds the lexical part of the model for one file: the walk wrote it as each node opened (`opened`); it is copied, with
-/// the names the walk interned.
+/// Build the lexical model in the destination buffers when the walk deferred it.
+/// An eager walk supplies the same lexical rows and its interned names.
 pub(crate) fn build(model: &mut LexicalModel, names: &mut NameTable, tree: TypedTree<'_, '_>) {
-    copy(names, &tree.named.names);
-    copy_walked(model, &tree.named.lexical);
+    if tree.named.deferred {
+        crate::domain::model::names::service::reset(names, model);
+        for at in 0..tree.nodes.len() {
+            opened(model, names, tree.nodes, tree.parents, tree.ends, Position(at as u32));
+        }
+    } else {
+        copy(names, &tree.named.names);
+        copy_walked(model, &tree.named.lexical);
+    }
 }
