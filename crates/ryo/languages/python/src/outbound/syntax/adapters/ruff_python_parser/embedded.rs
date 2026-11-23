@@ -157,6 +157,8 @@ fn write_segment<'q>(
         annotating: Depth(1),
         literals: std::mem::take(&mut tree.strings),
         imports: std::mem::take(&mut tree.imports),
+        import_presence: Default::default(),
+        last_import_end: None,
         relative_froms: std::mem::take(&mut tree.relative_froms),
         names: std::mem::take(&mut tree.names),
         text: "",

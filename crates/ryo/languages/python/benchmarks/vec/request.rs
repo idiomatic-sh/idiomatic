@@ -10,6 +10,42 @@ use ryo_values::domain::observations::types::ObservationName;
 use ryo_values::domain::runs::types::RuleId;
 use serde_json::Value;
 
+/// Read the parts used by the planner and file frame. A request may carry a large
+/// project manifest and file list for the host; serde validates and skips those values.
+pub(super) fn metadata(path: &str) -> Value {
+    use serde::de::{IgnoredAny, MapAccess, Visitor};
+    struct Metadata;
+    impl<'de> Visitor<'de> for Metadata {
+        type Value = Value;
+
+        fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.write_str("a host request")
+        }
+
+        fn visit_map<M: MapAccess<'de>>(self, mut entries: M) -> Result<Value, M::Error> {
+            let mut fields = serde_json::Map::new();
+            while let Some(name) = entries.next_key::<String>()? {
+                match name.as_str() {
+                    "named_tables" | "rule_context" | "rule_observations" | "selected_rules"
+                    | "project_search_roots" | "rule_applicability" => {
+                        fields.insert(name, entries.next_value()?);
+                    }
+                    _ => { entries.next_value::<IgnoredAny>()?; }
+                }
+            }
+            Ok(Value::Object(fields))
+        }
+    }
+    let input = std::fs::read(path).expect("request");
+    if input.iter().find(|b| !b.is_ascii_whitespace()) != Some(&b'{') {
+        return serde_json::from_slice(&input).expect("request json");
+    }
+    let mut parser = serde_json::Deserializer::from_slice(&input);
+    let value = serde::Deserializer::deserialize_map(&mut parser, Metadata).expect("request json");
+    parser.end().expect("end of request");
+    value
+}
+
 fn named_tables(value: &Value) -> Vec<ContextTable> {
     value
         .as_object()
@@ -115,9 +151,13 @@ pub(super) fn rule_context(request: Option<&str>) -> RuleContext {
     let r: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(path).expect("request"))
             .expect("request json");
+    context_from(&r)
+}
+
+pub(super) fn context_from(r: &Value) -> RuleContext {
     let tables = match r.get("named_tables") {
         Some(tables) => named_tables(tables),
-        None => recorded_tables(&r),
+        None => recorded_tables(r),
     };
     let mut observations = Vec::new();
     for specs in r["rule_observations"]
@@ -152,5 +192,6 @@ pub(super) fn rule_context(request: Option<&str>) -> RuleContext {
     RuleContext {
         tables,
         observations,
+        ..RuleContext::default()
     }
 }

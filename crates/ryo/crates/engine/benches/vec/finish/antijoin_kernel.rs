@@ -30,8 +30,6 @@ struct Work {
 }
 
 thread_local! {
-    /// Prepared once a run and kept for the process (one plan a process): read by a plain reference, no count.
-    static PREP: RefCell<Vec<Option<&'static Prep>>> = const { RefCell::new(Vec::new()) };
     static WORK: RefCell<Work> = RefCell::new(Work::default());
 }
 
@@ -39,23 +37,23 @@ thread_local! {
 const SCAN: usize = 8;
 const NONE: u32 = u32::MAX;
 
-fn prep(ex: &mut Exec<'_>, run: &mut Run, node: usize) -> R<&'static Prep> {
-    if let Some(Some(pr)) = PREP.with(|m| m.borrow().get(node).copied()) {
-        return Ok(pr);
+pub(super) fn prep(ex: &mut Exec<'_>, run: &mut Run, node: usize) -> R<Rc<Prep>> {
+    if let Some(pr) = &ex.antijoin_preps[node] {
+        return Ok(pr.clone());
     }
     let plan = ex.plan;
-    let a = &plan.nodes[node].j["args"];
+    let a = plan.nodes[node].args();
     let (left, right) = (ex.arg_rel(node, "left")?, ex.arg_rel(node, "right")?);
     let (lsc, rsc) = (ex.schema(run, left)?, ex.schema(run, right)?);
-    let lk: Box<[usize]> = super::strs(&a["left-on"])?.iter().map(|c| super::pos(&lsc.names, c)).collect::<R<_>>()?;
-    let rk: Box<[usize]> = super::strs(&a["right-on"])?.iter().map(|c| super::pos(&rsc.names, c)).collect::<R<_>>()?;
+    let lk: Box<[usize]> = super::strs(&a["left-on"])?.map(|c| super::pos(&lsc.names, c)).collect::<R<_>>()?;
+    let rk: Box<[usize]> = super::strs(&a["right-on"])?.map(|c| super::pos(&rsc.names, c)).collect::<R<_>>()?;
     let rfile = rk.iter().map(|c| rsc.tys[*c] == Ty::File).collect();
     let view_key = match ex.view(run, right)? {
         Some(v) => (0..rk.len()).find(|i| File::probes(v.base, v.map[rk[*i]])),
         None => None,
     };
     let sc = ex.schema(run, node)?;
-    let pr: &'static Prep = Box::leak(Box::new(Prep {
+    let pr = Rc::new(Prep {
         left,
         right,
         lk,
@@ -63,14 +61,8 @@ fn prep(ex: &mut Exec<'_>, run: &mut Run, node: usize) -> R<&'static Prep> {
         rfile,
         view_key,
         empty: Rc::new(Table::with(sc.names.clone(), sc.tys.clone())),
-    }));
-    PREP.with(|m| {
-        let mut m = m.borrow_mut();
-        if m.len() <= node {
-            m.resize(ex.plan.nodes.len().max(node + 1), None);
-        }
-        m[node] = Some(pr);
     });
+    ex.antijoin_preps[node] = Some(pr.clone());
     Ok(pr)
 }
 
@@ -81,7 +73,7 @@ pub(super) fn whole(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut 
     if l.n == 0 {
         return Ok(pr.empty.clone());
     }
-    over(ex, f, run, p, node, pr, &l)
+    over(ex, f, run, p, node, &pr, &l)
 }
 
 /// redo-whole pass 2 (keyed.rs): the antijoin read by key: its left read by the same keys (its output columns are the
@@ -92,7 +84,7 @@ pub(super) fn keyed_left(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: 
     if l.n == 0 {
         return Ok(None);
     }
-    let out = over(ex, f, run, p, node, pr, &l)?;
+    let out = over(ex, f, run, p, node, &pr, &l)?;
     Ok(Some((l, out)))
 }
 
@@ -130,6 +122,9 @@ fn over(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider
         ks.dedup();
         ex.probe(f, run, p, pr.right, pr.rk[0], &ks)?
     } else {
+        if pr.rk.len() == 1 && pr.rfile[0] && let Some(out) = ex.file_exclusion(f, run, p, node, pr.right, (&pr.lk, &pr.rk), l, |keep| gather(pr, l, keep))? {
+            return Ok(out);
+        }
         ex.eval(f, run, p, pr.right)?
     };
     if r.n == 0 {

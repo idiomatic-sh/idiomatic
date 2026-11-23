@@ -72,6 +72,17 @@ impl Walker<'_, '_, '_> {
         let start = placed(self.origin, token.start()).max(self.written);
         let end = placed(self.origin, token.end()).max(start);
         let kind = token_kind(token.kind());
+        if matches!(kind, Kind::Token(Token::Comment))
+            && let Some(last) = self.last_import_end.take()
+        {
+            // A comment belongs to an import's physical lines through the first newline after its end.
+            self.import_presence.line_comment = start <= last
+                || self
+                    .text
+                    .as_bytes()
+                    .get(last.0 as usize..start.0 as usize)
+                    .is_some_and(|gap| !gap.iter().any(|b| matches!(b, b'\n' | b'\r')));
+        }
         let field = match (self.open.last(), kind) {
             (Some(open), Kind::Token(named)) => token_field(open.node, token.kind(), named),
             (Some(_) | None, Kind::Node(_) | Kind::Token(_) | Kind::Extra(_)) => Field::None,
@@ -229,8 +240,17 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
                     AnnotationSeed::Candidate
                 },
             });
-        } else if matches!(node, AnyNodeRef::StmtImportFrom(stmt) if stmt.level != 0) {
-            self.relative_froms.push(at);
+        } else if matches!(
+            node,
+            AnyNodeRef::StmtImport(_) | AnyNodeRef::StmtImportFrom(_)
+        ) {
+            self.import_presence.statements += 1;
+            if !self.import_presence.line_comment {
+                self.last_import_end = Some(placed(self.origin, node.end()));
+            }
+            if matches!(node, AnyNodeRef::StmtImportFrom(stmt) if stmt.level != 0) {
+                self.relative_froms.push(at);
+            }
         } else if matches!(node, AnyNodeRef::Alias(_)) {
             self.imports.push(at);
         } else {

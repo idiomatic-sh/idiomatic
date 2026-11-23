@@ -1,18 +1,18 @@
 //! FIFO fixpoint over a finite join-semilattice supplied in the query.
-use super::{J, R, Schema, Table, Ty, pos, s, strs};
+use super::{Args, R, Schema, Table, Ty, pos, s, strs};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 pub(super) fn schema(
-    a: &J,
+    a: &Args,
     roots: &Schema,
     edges: &Schema,
     lattice: &Schema,
 ) -> R<(Vec<String>, Vec<Ty>)> {
     let keys = strs(&a["keys"])?;
     let ty = |schema: &Schema, name: &str| -> R<Ty> { Ok(schema.tys[pos(&schema.names, name)?]) };
-    let mut names = keys.to_vec();
+    let mut names: Vec<_> = keys.clone().map(str::to_owned).collect();
     let mut types = Vec::new();
-    for k in keys.iter() {
+    for k in keys {
         let t = ty(roots, k)?;
         if t != ty(edges, k)? {
             return Err(format!("worklist partition type of {k}"));
@@ -92,7 +92,7 @@ impl Lattice {
 }
 
 pub(super) fn trace(
-    a: &J,
+    a: &Args,
     roots: &Table,
     edges: &Table,
     order: &Table,
@@ -111,7 +111,7 @@ pub(super) fn trace(
         };
     };
     let keys = strs(&a["keys"])?;
-    let indices = |t: &Table| keys.iter().map(|k| t.col(k)).collect::<R<Vec<_>>>();
+    let indices = |t: &Table| keys.clone().map(|k| t.col(k)).collect::<R<Vec<_>>>();
     let rk = indices(roots)?;
     let ek = indices(edges)?;
     let partition = |t: &Table, cols: &[usize], row: usize| {

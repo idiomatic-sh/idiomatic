@@ -40,6 +40,7 @@ impl FileTests {
 }
 
 pub(super) fn file_fails(run: &mut Run, f: &File<'_>, conj: &[E], tests: &Option<Box<FileTests>>) -> bool {
+    if f.after_last_file { return false; }
     let Some(tests) = tests else { return false; };
     if let Some((file, failed)) = tests.last.get() && file == f.file { return failed; }
     let failed = tests.indexes.iter().any(|&i| !truthy(eval_with::<true>(run, f, &[], &[], &conj[i])));

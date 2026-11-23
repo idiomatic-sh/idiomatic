@@ -25,6 +25,11 @@ pub(super) const SITES: &[(&str, CellKind)] = &[
 ];
 pub(super) const FACTS: &[WalkFact] = &[
     WalkFact {
+        name: fact_catalog::BINDING_READ_REL,
+        columns: sites::READ_WITNESS,
+        exact: true,
+    },
+    WalkFact {
         name: fact_catalog::ASSIGNMENT_SOURCE_REL,
         columns: sites::ASSIGNMENT,
         exact: true,
@@ -107,7 +112,7 @@ pub(super) fn read(
         fact_catalog::BINDING_SITES_REL => file.visit_binding_sites(|site| {
             write_positions(out, schema.columns, &site_cells(site, number), file_id);
         }),
-        fact_catalog::ASSIGNMENT_SOURCE_REL | fact_catalog::NAMESPACE_SITES_REL => sites::visit(
+        fact_catalog::ASSIGNMENT_SOURCE_REL | fact_catalog::NAMESPACE_SITES_REL | fact_catalog::BINDING_READ_REL => sites::visit(
             name,
             file,
             number as u64,
@@ -128,5 +133,17 @@ pub(super) fn read(
             true
         }
         _ => unreachable!("declared walk fact has a reader"),
+    }
+}
+
+/// The walk declares the cost of accessing a family. Import and directive rows
+/// are file sets; ordered predecessor selection also needs the resolution input.
+pub(super) fn family(name: &str) -> super::pair_summary::cost::Family {
+    use super::pair_summary::cost::Family::*;
+    match name {
+        fact_catalog::PREDECESSOR_REL => Schedule,
+        "static-import" | "comment" | "filesystem.executable" => Sets,
+        super::provider_packaging::MODULE_IDENTITY_REL => Project,
+        _ => Fact,
     }
 }

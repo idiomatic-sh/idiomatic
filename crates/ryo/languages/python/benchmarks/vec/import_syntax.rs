@@ -7,11 +7,32 @@ use ryo::languages::{NodeTable, Position, node_table};
 use ryo_python::fixtures::columns::ColumnFile;
 
 pub(super) const NEIGHBORS: &str = "statement-neighbors";
+pub(super) const HEADS: &str = "import-head";
 pub(super) const STATEMENTS: &str = "import-statement";
 pub(super) const ALIASES: &str = "import-alias-parts";
 pub(super) const CONTEXTUAL_ALIASES: &str = "import-alias-context";
 pub(super) const LINE_COMMENTS: &str = "import-line-comment";
 pub(super) const ENTRIES: &str = "import-module-context";
+
+#[derive(Default)]
+pub(super) struct LineComments(Option<Vec<(Position, Position, bool)>>);
+
+impl LineComments {
+    pub(super) fn known_count(&self) -> Option<usize> {
+        self.0.as_ref().map(Vec::len)
+    }
+
+    fn rows(&mut self, file: &ColumnFile<'_, '_>) -> &[(Position, Position, bool)] {
+        self.0.get_or_insert_with(|| {
+            let mut rows = Vec::new();
+            file.visit_import_line_comments(|statement, comment, first| {
+                rows.push((statement, comment, first))
+            });
+            rows.sort_unstable_by_key(|row| (row.0.0, row.1.0));
+            rows
+        })
+    }
+}
 
 pub(super) fn declare(run: &mut Run) {
     use Ty::{File, Node, Num, Span, Sym};
@@ -70,6 +91,37 @@ pub(super) fn declare(run: &mut Run) {
         ("end-line", Num),
         ("file", File),
     ];
+    let mut parts = aliases.to_vec();
+    parts.extend([
+        ("statement-start-line", Num),
+        ("statement-end-line", Num),
+        ("statement-text", Sym),
+        ("previous-start-line", Num),
+    ]);
+    let mut heads = statements.clone();
+    heads.extend([
+        ("head-alias", Node),
+        ("head-at", Num),
+        ("count", Num),
+        ("renames", Num),
+        ("module", Sym),
+        ("written-module", Sym),
+        ("written-name", Sym),
+        ("written-rename", Sym),
+        ("dots", Sym),
+        ("level", Num),
+        ("root", Sym),
+        ("written-root", Sym),
+        ("catalog", Sym),
+        ("source-module-prefix", Sym),
+        ("source-package-prefix", Sym),
+        ("module-namespace", Num),
+        ("package-root", Sym),
+        ("statement-at", Num),
+        ("statement-end", Num),
+        ("statement-start-line", Num),
+        ("statement-end-line", Num),
+    ]);
     let mut contextual = aliases.to_vec();
     contextual.extend([
         ("written-root", Sym),
@@ -85,10 +137,12 @@ pub(super) fn declare(run: &mut Run) {
         ("statement-end-line", Num),
         ("statement-text", Sym),
     ]);
+    heads.push(("line-comment-count", Num));
     for (rel, columns) in [
         (NEIGHBORS, &neighbors[..]),
         (STATEMENTS, &statements[..]),
-        (ALIASES, &aliases[..]),
+        (ALIASES, &parts[..]),
+        (HEADS, &heads[..]),
         (
             LINE_COMMENTS,
             &[
@@ -150,12 +204,39 @@ fn package_root(run: &mut Run, project: &mut Project, number: u32) -> u64 {
     u64::from(run.sym(package.map_or("", |p| p.root_name.as_str()).as_bytes()))
 }
 
-struct ModuleContext {
+#[derive(Clone, Copy)]
+pub(super) struct ModuleContext {
     written_root: u64,
     catalog: u64,
     module_prefix: u64,
     package_prefix: u64,
     namespace: bool,
+}
+
+// A canonical absolute module has the same project and release context at every import head.
+fn head_context(
+    run: &mut Run,
+    project: &mut Project,
+    file: &ColumnFile<'_, '_>,
+    a: &ryo_python::fixtures::columns::ImportAlias<'_>,
+) -> (u64, u64, ModuleContext) {
+    let module = run.sym(a.module.as_bytes());
+    let canonical = a.dots.is_empty() && a.written_module == a.module;
+    let key = (file.import_release(), module);
+    if canonical && let Some(&(root, context)) = project.head_modules.get(&key) {
+        return (u64::from(module), root, context);
+    }
+    let root = a.module.split('.').next().unwrap_or_default();
+    let root_id = u64::from(if root == a.module {
+        module
+    } else {
+        run.sym(root.as_bytes())
+    });
+    let context = module_context(run, project, file, a, a.module, (root, root_id));
+    if canonical {
+        project.head_modules.insert(key, (root_id, context));
+    }
+    (u64::from(module), root_id, context)
 }
 
 /// A Python path may pass through a regular package or a namespace before it reaches the named member.
@@ -165,35 +246,32 @@ fn module_context(
     project: &mut Project,
     file: &ColumnFile<'_, '_>,
     a: &ryo_python::fixtures::columns::ImportAlias<'_>,
+    target: &str,
     root: (&str, u64),
-    catalog: &mut std::collections::HashMap<u64, u64>,
 ) -> ModuleContext {
     let empty = u64::from(run.empty);
     let (root, root_id) = root;
-    let catalog_id = *catalog
-        .entry(root_id)
+    let catalog_id = *project
+        .import_catalog
+        .entry((file.import_release(), root_id))
         .or_insert_with(|| u64::from(run.sym(file.import_catalog(root).as_bytes())));
-    let mut module = empty;
-    let mut package = empty;
-    let mut namespace = false;
-    if a.dots.is_empty() && !a.target.is_empty() {
-        for end in a
-            .target
-            .match_indices('.')
-            .map(|(i, _)| i)
-            .chain(std::iter::once(a.target.len()))
+    let (module, package, namespace) = if a.dots.is_empty() && !target.is_empty() {
+        let prefix = path_context(run, project, target);
+        let namespace = if target == a.module {
+            prefix.namespace
+        } else if !a.module.is_empty()
+            && target
+                .strip_prefix(a.module)
+                .is_some_and(|s| s.starts_with('.'))
         {
-            let path = &a.target[..end];
-            for kind in project.observed_path_kinds(path) {
-                match kind {
-                    "module" => module = u64::from(run.sym(path.as_bytes())),
-                    "package" => package = u64::from(run.sym(path.as_bytes())),
-                    "namespace" if path == a.module => namespace = true,
-                    _ => {}
-                }
-            }
-        }
-    }
+            path_context(run, project, a.module).namespace
+        } else {
+            false
+        };
+        (prefix.module, prefix.package, namespace)
+    } else {
+        (empty, empty, false)
+    };
     let written_root = run.sym(
         a.written_module
             .split('.')
@@ -210,6 +288,64 @@ fn module_context(
     }
 }
 
+#[derive(Clone, Copy)]
+pub(super) struct ImportPrefix {
+    module: u64,
+    package: u64,
+    namespace: bool,
+}
+
+// Import entries are immutable for this request. Prefixes and interned names share the project's lifetime.
+fn path_context(run: &mut Run, project: &mut Project, target: &str) -> ImportPrefix {
+    let target_id = run.sym(target.as_bytes());
+    if let Some(&answer) = project.import_prefixes.get(&target_id) {
+        return answer;
+    }
+    let empty = u64::from(run.empty);
+    let mut answer = ImportPrefix {
+        module: empty,
+        package: empty,
+        namespace: false,
+    };
+    for end in target
+        .match_indices('.')
+        .map(|(i, _)| i)
+        .chain(std::iter::once(target.len()))
+    {
+        let prefix = &target[..end];
+        let id = if end == target.len() {
+            target_id
+        } else {
+            run.sym(prefix.as_bytes())
+        };
+        if let Some(&seen) = project.import_prefixes.get(&id) {
+            answer = seen;
+            continue;
+        }
+        answer.namespace = false;
+        for kind in project.observed_path_kinds(prefix) {
+            match kind {
+                "module" => answer.module = id.into(),
+                "package" => answer.package = id.into(),
+                "namespace" => answer.namespace = true,
+                _ => {}
+            }
+        }
+        project.import_prefixes.insert(id, answer);
+    }
+    answer
+}
+
+pub(super) fn line_starts(src: &[u8]) -> Vec<u32> {
+    let mut starts = vec![0];
+    for i in memchr::memchr2_iter(b'\r', b'\n', src) {
+        if src[i] == b'\n' || src.get(i + 1) != Some(&b'\n') {
+            starts.push(i as u32 + 1);
+        }
+    }
+    starts
+}
+
 pub(super) fn fill(
     run: &mut Run,
     file: &ColumnFile<'_, '_>,
@@ -217,24 +353,34 @@ pub(super) fn fill(
     project: &mut Project,
     number: u32,
     rel: &str,
+    comments: &mut LineComments,
 ) -> Result<Table, String> {
     let (_, names, tys) = run.catalog(rel).ok_or_else(|| format!("missing {rel}"))?;
-    let mut t = Table::with_rows(names, tys, 0);
+    let estimated = match rel {
+        HEADS | STATEMENTS => Some(file.import_statement_count()),
+        LINE_COMMENTS => Some(comments.rows(file).len()),
+        _ => None,
+    };
+    if estimated == Some(0) {
+        let cols = vec![Vec::new(); names.len()];
+        return Ok(Table {
+            names,
+            tys,
+            cols,
+            n: 0,
+        });
+    }
+    let mut t = Table::with_rows(names, tys, estimated.unwrap_or(0));
     let f = u64::from(number);
     let table = file.table;
-    if matches!(rel, NEIGHBORS | STATEMENTS) {
-        let plain = run.sym(b"import");
-        let from = run.sym(b"import-from");
-        let plain_code = run.kind_sym.iter().position(|k| *k == plain);
-        let from_code = run.kind_sym.iter().position(|k| *k == from);
+    const NEIGHBOR_COLUMNS: usize = 18;
+    const LAYOUT_COLUMNS: usize = NEIGHBOR_COLUMNS + 6;
+    if matches!(rel, NEIGHBORS | STATEMENTS | HEADS) {
         let kind =
             |run: &Run, id: Position| run.kind_sym[usize::from(node_table::kind_of(table, id).0)];
-        let import = |id| {
-            let code = Some(usize::from(node_table::kind_of(table, id).0));
-            code == plain_code || code == from_code
-        };
+        let import = |id| file.is_import_statement(id);
         // Source order in each suite fixes both neighbors. A run contains consecutive import statements regardless of intervening trivia.
-        file.visit_statement_suites(rel == STATEMENTS, |suite| {
+        file.visit_statement_suites(rel != NEIGHBORS, |suite| {
             let first = suite[0];
             let last = suite[suite.len() - 1];
             let suite_span = span(bounds(table, first).0, bounds(table, last).1);
@@ -243,7 +389,12 @@ pub(super) fn fill(
             let mut start = 0;
             while start < suite.len() {
                 let mut end = start + 1;
-                if import(suite[start]) {
+                let starts_import = import(suite[start]);
+                if rel != NEIGHBORS && !starts_import {
+                    start = end;
+                    continue;
+                }
+                if starts_import {
                     while end < suite.len() && import(suite[end]) {
                         end += 1;
                     }
@@ -253,9 +404,6 @@ pub(super) fn fill(
                 let run_span = span(bounds(table, head).0, bounds(table, tail).1);
                 for i in start..end {
                     let id = suite[i];
-                    if rel == STATEMENTS && !import(id) {
-                        continue;
-                    }
                     let (begin, finish) = bounds(table, id);
                     let previous = i.checked_sub(1).map(|p| suite[p]);
                     let next = suite.get(i + 1).copied();
@@ -282,7 +430,7 @@ pub(super) fn fill(
                             f,
                         ],
                     );
-                    if rel == STATEMENTS {
+                    if rel != NEIGHBORS {
                         let mut spelling = |lo: u32, hi: u32| {
                             u64::from(
                                 run.sym(src.get(lo as usize..hi as usize).unwrap_or_default()),
@@ -293,11 +441,15 @@ pub(super) fn fill(
                         let before =
                             previous.map_or(finish::NULL, |p| spelling(bounds(table, p).1, begin));
                         let text = spelling(begin, finish);
-                        for (c, v) in t.cols.iter_mut().rev().zip(
-                            [gap, before, text, head.0.into(), tail.0.into(), run_span]
-                                .into_iter()
-                                .rev(),
-                        ) {
+                        for (c, v) in t.cols[NEIGHBOR_COLUMNS..LAYOUT_COLUMNS]
+                            .iter_mut()
+                            .rev()
+                            .zip(
+                                [gap, before, text, head.0.into(), tail.0.into(), run_span]
+                                    .into_iter()
+                                    .rev(),
+                            )
+                        {
                             c.push(v);
                         }
                     }
@@ -305,9 +457,96 @@ pub(super) fn fill(
                 start = end;
             }
         });
+        if rel == HEADS && t.n != 0 {
+            let (layout, extras) = t.cols.split_at_mut(LAYOUT_COLUMNS);
+            let (counts, alias_columns) = extras
+                .split_last_mut()
+                .expect("import head includes comment count");
+            let upto = layout[4]
+                .iter()
+                .map(|s| (*s as u32) as usize)
+                .max()
+                .unwrap_or(0)
+                .min(src.len());
+            // Only offsets up to the final import are queried. Read one further byte for a CRLF at the boundary.
+            let starts = line_starts(&src[..upto.saturating_add(1).min(src.len())]);
+            let links = comments.rows(file);
+            let containing_package = package_root(run, project, number);
+            file.visit_ordered_import_heads(
+                layout[0].iter().map(|id| Position(*id as u32)),
+                |row, a| {
+                    let (begin, end) = bounds(table, Position(a.statement));
+                    let (module, root_id, observed) = head_context(run, project, file, &a);
+                    // The parser's spelling and the source spelling usually share one symbol.
+                    let empty = u64::from(run.empty);
+                    let mut sym = |s: &str| {
+                        if s.is_empty() {
+                            empty
+                        } else {
+                            u64::from(run.sym(s.as_bytes()))
+                        }
+                    };
+                    let written_module = if a.written_module == a.module {
+                        module
+                    } else {
+                        sym(a.written_module)
+                    };
+                    let written_name = if a.written_name == a.written_module {
+                        written_module
+                    } else {
+                        sym(a.written_name)
+                    };
+                    let values = [
+                        a.id.into(),
+                        bounds(table, Position(a.id)).0.into(),
+                        a.count as u64,
+                        a.renames as u64,
+                        module,
+                        written_module,
+                        written_name,
+                        sym(a.written_rename),
+                        sym(a.dots),
+                        a.dots.len() as u64,
+                        root_id,
+                        observed.written_root,
+                        observed.catalog,
+                        observed.module_prefix,
+                        observed.package_prefix,
+                        observed.namespace.into(),
+                        containing_package,
+                        begin.into(),
+                        end.into(),
+                        starts.partition_point(|s| *s <= begin) as u64,
+                        starts.partition_point(|s| *s <= end) as u64,
+                    ];
+                    // Parser recovery can omit the first alias. Only its skipped row needs padding.
+                    if alias_columns[0].len() != row {
+                        for c in alias_columns.iter_mut() {
+                            c.resize(row, finish::NULL);
+                        }
+                    }
+                    for (column, v) in alias_columns.iter_mut().zip(values) {
+                        column.push(v);
+                    }
+                },
+            );
+            for col in alias_columns {
+                col.resize(t.n, finish::NULL);
+            }
+
+            if links.is_empty() {
+                counts.resize(t.n, 0);
+            } else {
+                for &id in &layout[0] {
+                    let lo = links.partition_point(|link| u64::from(link.0.0) < id);
+                    let hi = links[lo..].partition_point(|link| u64::from(link.0.0) == id);
+                    counts.push(hi as u64);
+                }
+            }
+        }
     } else if rel == LINE_COMMENTS {
         // A comment beginning on a line touched by the import has a source prefix and, when it follows the statement, an intervening gap.
-        file.visit_import_line_comments(|statement, comment, first_line| {
+        for &(statement, comment, first_line) in comments.rows(file) {
             let (start, end) = bounds(table, statement);
             let (at, until) = bounds(table, comment);
             let following = end <= at;
@@ -329,14 +568,13 @@ pub(super) fn fill(
                     f,
                 ],
             );
-        });
+        }
     } else if rel == ENTRIES {
         let package_root = package_root(run, project, number);
-        let mut catalog = std::collections::HashMap::new();
         file.visit_import_aliases(|a| {
             let root = a.module.split('.').next().unwrap_or_default();
             let root_id = u64::from(run.sym(root.as_bytes()));
-            let context = module_context(run, project, file, &a, (root, root_id), &mut catalog);
+            let context = module_context(run, project, file, &a, a.target, (root, root_id));
             push(
                 &mut t,
                 [
@@ -357,15 +595,11 @@ pub(super) fn fill(
         });
     } else {
         let contextual = rel == CONTEXTUAL_ALIASES;
-        let mut catalog = std::collections::HashMap::new();
         let mut containing_package = None;
         let mut statement_text = 0;
-        let mut starts = vec![0];
-        for (i, &byte) in src.iter().enumerate() {
-            if byte == b'\n' || (byte == b'\r' && src.get(i + 1) != Some(&b'\n')) {
-                starts.push(i as u32 + 1);
-            }
-        }
+        let starts = line_starts(src);
+        let mut previous_statement = None;
+        let mut statement_lines = [0; 2];
         let line = |byte| starts.partition_point(|&s| s <= byte) as u64;
         // An alias has a parser name and an optional as-name, each with its own original source spelling.
         file.visit_import_aliases(|a| {
@@ -414,12 +648,14 @@ pub(super) fn fill(
                     f,
                 ],
             );
+            // Every alias shares its enclosing statement's extent; its preceding name is fixed by the ordered alias list.
+            if previous_statement != Some(a.statement) {
+                previous_statement = Some(a.statement);
+                statement_text = u64::from(run.sym(&src[st as usize..en as usize]));
+                statement_lines = [line(st), line(en)];
+            }
             if contextual {
-                // Every name in an import shares the source extent of its enclosing statement.
-                if a.index == 0 {
-                    statement_text = u64::from(run.sym(&src[st as usize..en as usize]));
-                }
-                let context = module_context(run, project, file, &a, (root, root_id), &mut catalog);
+                let context = module_context(run, project, file, &a, a.target, (root, root_id));
                 let package_root =
                     *containing_package.get_or_insert_with(|| package_root(run, project, number));
                 let extra = [
@@ -432,9 +668,19 @@ pub(super) fn fill(
                     package_root,
                     st.into(),
                     en.into(),
-                    line(st),
-                    line(en),
+                    statement_lines[0],
+                    statement_lines[1],
                     statement_text,
+                ];
+                for (col, v) in t.cols.iter_mut().rev().zip(extra.into_iter().rev()) {
+                    col.push(v);
+                }
+            } else {
+                let extra = [
+                    statement_lines[0],
+                    statement_lines[1],
+                    statement_text,
+                    a.previous_start.map_or(finish::NULL, line),
                 ];
                 for (col, v) in t.cols.iter_mut().rev().zip(extra.into_iter().rev()) {
                     col.push(v);

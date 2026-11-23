@@ -32,6 +32,7 @@ impl<'p> Finisher<'p> {
         walk: &impl languages::Walk,
         vocab: &Vocab,
         args: &[&str],
+        request: Option<(&str, &serde_json::Value)>,
     ) -> Self {
         let t0 = thread_cpu();
         let list = files(args[1]);
@@ -80,14 +81,15 @@ impl<'p> Finisher<'p> {
             implicit: None,
             filled: Default::default(),
             direct_memo: Default::default(),
-            inner: finisher::Finisher::new(plan, run, args),
+            inner: finisher::Finisher::new(plan, run, args, request),
             fwords: ryo_python::fixtures::walking::walk_words(walk)
                 .expect("the walk's fixed names"),
             project: super::provider_packaging::Project::new(
                 args[2].trim_end_matches('/'),
-                super::provider_packaging::Project::search_roots_of(
-                    flag(args, "--request").as_deref(),
-                ),
+                match request {
+                    Some((_, doc)) => super::provider_packaging::Project::search_roots(doc),
+                    None => super::provider_packaging::Project::search_roots_of(flag(args, "--request").as_deref()),
+                },
                 &|n| vocab.kinds.get(n).copied(),
             ),
         };
@@ -105,11 +107,11 @@ impl<'p> Finisher<'p> {
     pub(super) fn end(self, walk_time: f64) {
         self.inner.end(walk_time, |locations| locations.dedup());
     }
-    pub(super) fn prefix_storage(&mut self, file: usize) -> (&finish::Run, &mut languages::FileWords, super::completed_facts::FileWitness<'_, 'p>) {
+    pub(super) fn prefix_storage(&mut self, file: usize) -> (&finish::Run, &mut super::provider_packaging::Project, &mut languages::FileWords, super::completed_facts::FileWitness<'_, 'p>) {
         self.completed.begin(languages::FileId(file as u32));
         let run = &self.inner.run;
         let witness = super::completed_facts::FileWitness { completed: &mut self.completed, exec: &mut self.inner.exec, run };
-        (run, &mut self.fwords, witness)
+        (run, &mut self.project, &mut self.fwords, witness)
     }
 
     pub(super) fn prefix_table(&mut self, name: &str, t: &ryo_python::fixtures::columns::FactTable, words: &super::facts::Interner) {
@@ -144,7 +146,7 @@ impl<'p> Finisher<'p> {
         let mut direct_memo = std::mem::take(&mut self.direct_memo);
         let mut implicit = self.implicit.take();
         direct_memo.new_file();
-        let mut pv = ColFacts { file, completed: &mut completed, words: &mut fwords, filled: std::mem::take(&mut self.filled), time: 0.0, rows: 0, by_rel: std::mem::take(&mut self.inner.by_rel), file_no: file_no as u32, kept: Default::default(), implicit: &mut implicit, type_paths: &mut type_paths, input_layout: self.input_layout, input_columns: Default::default(), prefix, prefix_symbols: &mut prefix_symbols, direct_memo: &mut direct_memo, project: &mut project, src: bytes };
+        let mut pv = ColFacts { import_comments: Default::default(), file, completed: &mut completed, words: &mut fwords, filled: std::mem::take(&mut self.filled), time: 0.0, rows: 0, by_rel: std::mem::take(&mut self.inner.by_rel), file_no: file_no as u32, kept: Default::default(), implicit: &mut implicit, type_paths: &mut type_paths, input_layout: self.input_layout, input_columns: Default::default(), prefix, prefix_symbols: &mut prefix_symbols, direct_memo: &mut direct_memo, project: &mut project, src: bytes };
         self.inner.file(file_no, path, ft, bytes, &mut pv, wanted);
         self.inner.provider_time += pv.time;
         self.inner.provider_rows += pv.rows;

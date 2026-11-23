@@ -13,7 +13,6 @@
 //! is named: the plan's shape alone decides it.
 
 use super::{E, Exec, File, Provider, R, Res, Run, Table};
-use std::cell::RefCell;
 use std::rc::Rc;
 
 /// A step's keyed form, prepared once a run.
@@ -29,54 +28,14 @@ pub(super) enum Form {
     Union,
 }
 
-thread_local! {
-    static FORMS: RefCell<Vec<Option<Form>>> = const { RefCell::new(Vec::new()) };
-    /// A keyed step's size in this file (made for it), kept a file: (the file, its element count) and the sizes + 1 by step.
-    static SIZES: RefCell<((u32, usize), Vec<usize>, Vec<u32>)> = const { RefCell::new(((u32::MAX, 0), Vec::new(), Vec::new())) };
-}
-
-fn size_kept(f: &File<'_>, node: usize) -> Option<usize> {
-    SIZES.with(|s| {
-        let s = s.borrow();
-        if s.0 != (f.file, f.n) {
-            return None;
-        }
-        s.1.get(node).copied().filter(|x| *x > 0).map(|x| x - 1)
-    })
-}
-
-fn size_keep(f: &File<'_>, nodes: usize, node: usize, n: usize) {
-    SIZES.with(|s| {
-        let mut s = s.borrow_mut();
-        let s = &mut *s;
-        if s.0 != (f.file, f.n) {
-            s.0 = (f.file, f.n);
-            for x in s.2.drain(..) {
-                s.1[x as usize] = 0;
-            }
-        }
-        if s.1.len() < nodes {
-            s.1.resize(nodes, 0);
-        }
-        s.1[node] = n.saturating_add(1);
-        s.2.push(node as u32);
-    });
-}
-
 impl Exec<'_> {
     /// The keyed form of `node` (prepared once a run).
     pub(super) fn keyed_form(&mut self, run: &mut Run, node: usize) -> R<Form> {
-        if let Some(Some(fm)) = FORMS.with(|m| m.borrow().get(node).cloned()) {
-            return Ok(fm);
+        if let Some(form) = &self.keyed_forms[node] {
+            return Ok(form.clone());
         }
         let fm = self.keyed_form_(run, node)?;
-        FORMS.with(|m| {
-            let mut m = m.borrow_mut();
-            if m.len() <= node {
-                m.resize(self.plan.nodes.len().max(node + 1), None);
-            }
-            m[node] = Some(fm.clone());
-        });
+        self.keyed_forms[node] = Some(fm.clone());
         Ok(fm)
     }
 
@@ -88,7 +47,7 @@ impl Exec<'_> {
         Ok(match self.frames[node].op {
             super::frame::Op::Antijoin => Form::Antijoin,
             super::frame::Op::Union => Form::Union,
-            super::frame::Op::Select if pn.j.get("count").is_none() => {
+            super::frame::Op::Select if !pn.counted() => {
                 let sp = self.sel(run, node)?;
                 let closure = sp.srcs.iter().any(|s| self.plan.nodes[*s].op == "closure");
                 let seed = sp.conj.iter().any(|e| matches!(e, E::Seed(..)));
@@ -134,7 +93,7 @@ impl Exec<'_> {
         }
         if !sw!("VEC_NO_KNOWN") && self.known_empty(f, run, p, node) {
             self.stats.known[node] += 1;
-            super::emptyprop::skipped(f, node);
+            self.skipped(f, node);
             return Ok(Some(self.empty_rc(run, node)?));
         }
         let (out, handed) = match self.keyed_form(run, node)? {
@@ -203,7 +162,7 @@ impl Exec<'_> {
             };
             // its entry, never its rows read for a size: the kind bucket, the literal rows, its rows if read already,
             // else the relation's rows (an upper bound)
-            if let Some(r) = f.vrows.get(&node) {
+            if let Some(r) = f.vrows.slot(&node) {
                 return Ok(r.len());
             }
             return Ok(match super::kind_set(run, &v.filter, 0, v.base, &[]) {
@@ -227,7 +186,7 @@ impl Exec<'_> {
             // not made yet and not to be made for a size (its consumer may end before it reads it)
             return Ok(if !sw!("VEC_NO_KNOWN") && self.known_empty(f, run, p, node) { 0 } else { usize::MAX });
         }
-        if let Some(n) = size_kept(f, node) {
+        if let Some(&n) = f.keyed_sizes.get(&node) {
             return Ok(n);
         }
         if !sw!("VEC_NO_KNOWN") && self.known_empty(f, run, p, node) {
@@ -257,7 +216,7 @@ impl Exec<'_> {
             }
         };
         if make {
-            size_keep(f, self.plan.nodes.len(), node, n);
+            f.keyed_sizes.insert(node, n);
         }
         Ok(n)
     }

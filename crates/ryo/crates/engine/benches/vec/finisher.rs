@@ -19,11 +19,14 @@ pub(super) struct Finisher<'p> {
     surv: HashMap<(String, String), Vec<u32>>,
     surv_by_path: HashMap<String, HashSet<String>>,
     check: bool,
+    pub(super) query_rows: bool,
     dump: Option<String>,
     dump_text: String,
     pub(super) run: finish::Run,
     pub(super) exec: finish::Exec<'p>,
     findings: Vec<String>,
+    quoted_rules: Vec<std::cell::OnceCell<String>>,
+    quoted_paths: Vec<std::cell::OnceCell<String>>,
     failed: HashMap<String, String>,
     /// redo-honest: per plan emit, whether its rule runs only on a file whose syntax the parser accepted (the request's
     /// `rule_applicability`, `--applicability F`: "accepted-syntax"); without the flag every rule runs on every file.
@@ -52,7 +55,7 @@ use ryo::languages;
 impl<'p> Finisher<'p> {
     /// `args` as `vec finish` takes them: `<plan> <files> <root> [--rules A,B] [--surv F] [--check-bases] [--dump F]
     /// [--out F] [--stats F] [--tally F] [--check-out F]`; `plan` is `args[0]` loaded.
-    pub(super) fn new(plan: &'p finish::Plan, run: finish::Run, args: &[&str]) -> Self {
+    pub(super) fn new(plan: &'p finish::Plan, run: finish::Run, args: &[&str], request: Option<(&str, &serde_json::Value)>) -> Self {
         let t0 = thread_cpu();
         let only: Option<HashSet<String>> = flag(args, "--rules").map(|r| r.split(',').map(str::to_owned).collect());
         let emits: Vec<usize> = (0..plan.emits.len()).filter(|e| only.as_ref().is_none_or(|o| o.contains(&plan.emits[*e].0))).collect();
@@ -74,13 +77,17 @@ impl<'p> Finisher<'p> {
         for (r, f) in surv.keys() {
             surv_by_path.entry(f.clone()).or_default().insert(r.clone());
         }
+        let quoted_paths = vec![std::cell::OnceCell::new(); run.paths.len()];
         let mut me = Self {
+            quoted_paths,
+            quoted_rules: vec![std::cell::OnceCell::new(); plan.emits.len()],
             plan,
             emits,
             emit_seeded: plan.emits.iter().map(|e| plan.seeds.contains(&e.0)).collect(),
             surv,
             surv_by_path,
             check: args.contains(&"--check-bases"),
+            query_rows: false,
             dump: flag(args, "--dump"),
             dump_text: String::new(),
             run,
@@ -88,7 +95,7 @@ impl<'p> Finisher<'p> {
             findings: Vec::new(),
             failed: HashMap::new(),
             failed_idx: vec![false; plan.emits.len()],
-            accepted_only: applicability(plan, flag(args, "--applicability").as_deref()),
+            accepted_only: applicability(plan, flag(args, "--applicability").as_deref(), request),
             rule_stats: vec![[0; 3]; plan.emits.len()],
             check_lines: Vec::new(),
             files_run: 0,
@@ -111,6 +118,8 @@ impl<'p> Finisher<'p> {
     pub(super) fn prepare_requests(&mut self, drivers: &[(usize, usize)]) {
         let start = thread_cpu();
         self.exec.prepare_slots(&mut self.run, &self.emits, drivers);
+        self.exec.cold_test_load(&mut self.run);
+        self.exec.cold_load(&mut self.run);
         self.exec.col_load(&mut self.run);
         self.time += thread_cpu() - start;
     }
@@ -119,19 +128,27 @@ impl<'p> Finisher<'p> {
     /// the first half kept it (`seeded` gets the emit's index into the plan's emits). Empty and no base check: the file
     /// need not be walked for the second half.
     pub(super) fn wanted(&mut self, path: &str, seeded: &dyn Fn(usize) -> bool) -> Vec<usize> {
+        let mut out = Vec::new();
+        self.wanted_into(path, seeded, &mut out);
+        out
+    }
+
+    pub(super) fn wanted_into(&mut self, path: &str, mut seeded: impl FnMut(usize) -> bool, out: &mut Vec<usize>) {
         let t0 = thread_cpu();
-        let surv_here = self.surv_by_path.get(path);
-        let w: Vec<usize> = self
-            .emits
-            .iter()
-            .copied()
-            .filter(|e| {
-                let name = &self.plan.emits[*e].0;
-                if self.emit_seeded[*e] { surv_here.is_some_and(|s| s.contains(name)) } else { seeded(*e) }
-            })
-            .collect();
+        out.clear();
+        if self.plan.seeds.is_empty() {
+            out.extend(self.emits.iter().copied().filter(|&emit| seeded(emit)));
+        } else {
+            let surv_here = self.surv_by_path.get(path);
+            out.extend(self.emits.iter().copied().filter(|&emit| {
+                if self.emit_seeded[emit] {
+                    surv_here.is_some_and(|s| s.contains(&self.plan.emits[emit].0))
+                } else {
+                    seeded(emit)
+                }
+            }));
+        }
         self.time += thread_cpu() - t0;
-        w
     }
 
     /// redo-general: the plan the second half runs (for a driver that derives its own inputs from it).
@@ -145,17 +162,17 @@ impl<'p> Finisher<'p> {
     }
 
     pub(super) fn can_finish_exact(&self) -> bool {
-        self.dump.is_none() && self.surv.is_empty()
+        !self.query_rows && self.dump.is_none() && self.surv.is_empty()
     }
 
     pub(super) fn emit_exact(&mut self, file: usize, table: &NodeTable, emit: usize, nodes: &[u64]) -> Option<u64> {
         if self.failed_idx[emit] || (self.accepted_only[emit] && languages::node_table::acceptance_of(table) == languages::SyntaxAcceptance::Rejected) {
             return None;
         }
-        let rule = serde_json::to_string(&self.plan.emits[emit].0).expect("rule string");
-        let path = serde_json::to_string(&self.run.paths[file]).expect("path string");
         let mut count = 0;
         super::pair_checks::each(nodes, |i| {
+            let rule = self.quoted_rules[emit].get_or_init(|| serde_json::to_string(&self.plan.emits[emit].0).expect("rule string"));
+            let path = self.quoted_paths[file].get_or_init(|| serde_json::to_string(&self.run.paths[file]).expect("path string"));
             let span = super::span_bytes(table, i as usize);
             self.findings.push(format!(r#"{{"rule":{rule},"file":{path},"start":{},"end":{}}}"#, span.start, span.end));
             count += 1;
@@ -219,7 +236,7 @@ impl<'p> Finisher<'p> {
             stats[0] += 1;
             stats[1] += self.exec.stats.total_runs - before.0;
             stats[2] += self.exec.stats.total_rows - before.1;
-            finish::emptyprop::emit_done(&f, e.1);
+            self.exec.emit_done(&f, e.1);
             let got = if run.missing.is_empty() { got } else { Err(format!("functions {:?} not in the step set", run.missing)) };
             let written = got.and_then(|t| {
                 if self.dump.is_some() {
@@ -229,7 +246,7 @@ impl<'p> Finisher<'p> {
                 if t.n == 0 { return Ok(()); }
                 let subject = t.col(&e.2)?;
                 let span = t.col("span").ok();
-                let rule = serde_json::to_string(&e.0).expect("rule string");
+                let rule = self.quoted_rules[*ei].get_or_init(|| serde_json::to_string(&e.0).expect("rule string"));
                 // The declared subject and key identify a finding. Independent keys
                 // may still project to the same diagnostic range.
                 let mut identity = vec![subject];
@@ -239,12 +256,16 @@ impl<'p> Finisher<'p> {
                     if t.n > 1 && !seen.insert(identity.iter().map(|&c| t.cols[c][r]).collect::<Vec<_>>()) {
                         continue;
                     }
+                    if self.query_rows {
+                        self.findings.push(finish::answer::row(run, &t, r, &e.0, Some(file_no), &identity)?);
+                        continue;
+                    }
                     let target = if t.tys[subject] == finish::Ty::File {
-                        usize::try_from(t.cols[subject][r]).ok().and_then(|id| run.paths.get(id))
+                        usize::try_from(t.cols[subject][r]).ok().filter(|&id| id < run.paths.len())
                             .ok_or_else(|| format!("file subject outside the run: {}", t.cols[subject][r]))?
-                    } else { &run.paths[file_no] };
+                    } else { file_no };
                     let (st, en) = span.map_or((0, 0), |c| (t.cols[c][r] >> 32, t.cols[c][r] & 0xffff_ffff));
-                    let file = serde_json::to_string(target).expect("path string");
+                    let file = self.quoted_paths[target].get_or_init(|| serde_json::to_string(&run.paths[target]).expect("path string"));
                     self.findings.push(format!("{{\"rule\":{rule},\"file\":{file},\"start\":{st},\"end\":{en}}}"));
                 }
                 Ok(())
@@ -255,6 +276,7 @@ impl<'p> Finisher<'p> {
             }
         }
         finish::emptyprop::file_end(&mut self.exec, &mut f, run, pv);
+        self.exec.cold_end(&mut f, run);
         self.exec.close_file(&mut f);
     }
 
@@ -262,6 +284,8 @@ impl<'p> Finisher<'p> {
     /// the second half walked the files itself (0 inside the first half's walk).
     pub(super) fn end(mut self, walk_time: f64, project_findings: impl FnOnce(&mut Vec<String>)) -> bool {
         let ok = self.failed.is_empty();
+        self.exec.leaf_report(&mut self.run);
+        self.exec.cold_report(&self.run);
         let total = self.time + walk_time;
         let file_time = self.time;
         self.findings.sort();
@@ -331,7 +355,7 @@ impl<'p> Finisher<'p> {
         finish::empty_sel::print();
         finish::emptyprop::print();
         let plan = self.plan;
-        finish::emptyprop::print_skipped(&|n| plan.nodes[n].op.clone());
+        exec.print_skipped(&|n| plan.nodes[n].op.clone());
         {
             // redo-union pass 2: per step kind: runs (whole, by key, known empty), runs that returned nothing (known before
             // the bracket, bracketed whole, bracketed by key) and the seconds in the bracketed ones (`VEC_STEP_TIME`)
@@ -365,9 +389,16 @@ impl<'p> Finisher<'p> {
 
 /// redo-honest: per plan emit, whether its rule's applicability is "accepted-syntax" in `path` (a request's
 /// `rule_applicability`, or that map alone); none given: false for every emit (every rule runs on every file).
-fn applicability(plan: &finish::Plan, path: Option<&str>) -> Vec<bool> {
+fn applicability(plan: &finish::Plan, path: Option<&str>, request: Option<(&str, &serde_json::Value)>) -> Vec<bool> {
     let Some(path) = path else { return vec![false; plan.emits.len()] };
-    let j: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(path).expect("applicability file")).expect("applicability json");
-    let map = j.get("rule_applicability").unwrap_or(&j);
+    let owned;
+    let j = match request {
+        Some((same, value)) if same == path && value.get("rule_applicability").is_some() => value,
+        _ => {
+            owned = serde_json::from_slice(&std::fs::read(path).expect("applicability file")).expect("applicability json");
+            &owned
+        }
+    };
+    let map = j.get("rule_applicability").unwrap_or(j);
     plan.emits.iter().map(|e| map.get(&e.0).and_then(serde_json::Value::as_str) == Some("accepted-syntax")).collect()
 }

@@ -158,6 +158,29 @@ impl Requests {
         self.read_ids = FxHashMap::default();
     }
 
+    pub(crate) fn provider_names(&self) -> impl Iterator<Item = &str> {
+        self.names.iter().zip(&self.host).filter_map(|(name, host)| (!*host).then_some(name.as_str()))
+    }
+
+    /// Before prefix decisions exist, the parser may need any read below an
+    /// admitted emit. Use the file request graph with its guards open.
+    pub(crate) fn possible_provider_reads(&mut self, node: usize, mut visit: impl FnMut(&str)) {
+        let Some(root) = self.nodes[node].filter(|&id| id != NONE) else { return };
+        self.visited.fill(false);
+        self.pending.push(root);
+        while let Some(id) = self.pending.pop() {
+            let i = id as usize;
+            if std::mem::replace(&mut self.visited[i], true) { continue; }
+            match self.graph[i].action {
+                Action::Inputs(children) => self.pending.extend_from_slice(&children),
+                Action::Read(read) => {
+                    let slot = usize::from(self.reads[read as usize].0);
+                    if !self.host[slot] { visit(&self.names[slot]); }
+                }
+            }
+        }
+    }
+
     fn read(&mut self, guard: u32, slot: u16, columns: Columns) -> u32 {
         let next = self.reads.len() as u32;
         let read = *self.read_ids.entry((slot, columns)).or_insert_with_key(|key| {
@@ -226,7 +249,7 @@ impl Exec<'_> {
         self.requests.base_slots.resize(self.plan.nodes.len(), None);
         for (i, node) in self.plan.nodes.iter().enumerate() {
             if node.op != "base" { continue; }
-            let Some(rel) = node.j["rel"].as_str() else { continue };
+            let Some(rel) = node.base() else { continue };
             if native_of(run, rel).is_some() || matches!(run.supplier(rel), Supplier::RunFiles) { continue; }
             let slot = self.requests.number(run, rel);
             self.requests.base_slots[i] = Some(slot);

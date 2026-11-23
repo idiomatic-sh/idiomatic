@@ -74,6 +74,7 @@ impl Exec<'_> {
     /// Whether a run of `node` in this file returns nothing, known without running it.
     #[inline(always)]
     pub(super) fn known_empty(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> bool {
+        if f.after_last_file { return false; }
         match f.known[node] {
             YES | YES_EP => return true,
             NO | BUSY => {}
@@ -105,6 +106,7 @@ impl Exec<'_> {
     /// Whether the file's kinds, survivor sets or per-file tests leave `node` empty (kept a file).
     #[inline]
     pub(super) fn static_empty(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> bool {
+        if f.after_last_file { return false; }
         match f.known[node] {
             NO | BUSY => false,
             YES | YES_EP => true,
@@ -242,14 +244,14 @@ impl Exec<'_> {
         r
     }
 
-    /// The step's needs, prepared at its first ask and kept for the process (one plan a process).
+    /// The step's needs, prepared on its first use in this execution.
     #[inline]
-    pub(super) fn need(&mut self, run: &mut Run, node: usize) -> &'static Need {
-        if let Some(n) = self.needs[node] {
-            return n;
+    pub(super) fn need(&mut self, run: &mut Run, node: usize) -> std::rc::Rc<Need> {
+        if let Some(n) = &self.needs[node] {
+            return n.clone();
         }
-        let n: &'static Need = Box::leak(Box::new(self.need_of(run, node)));
-        self.needs[node] = Some(n);
+        let n = std::rc::Rc::new(self.need_of(run, node));
+        self.needs[node] = Some(n.clone());
         n
     }
 
@@ -305,7 +307,7 @@ impl Exec<'_> {
                 return n;
             }
             // the counted group-count reads its select's kept side with zero counts: never known from its input
-            "group-count" if pn.j["args"]["distinct"].is_null() && !sw!("VEC_NO_SEMI") && self.arg_rel(node, "from").is_ok_and(|x| plan.nodes[x].j.get("count").is_some()) => {
+            "group-count" if !pn.distinct_count() && !sw!("VEC_NO_SEMI") && self.arg_rel(node, "from").is_ok_and(|x| plan.nodes[x].counted()) => {
                 n.never = true;
                 return n;
             }

@@ -300,7 +300,7 @@ fn lend(
     if node_table::syntax_error_count(table).0 == 0 { empty.push("syntax-error"); }
     let immediate_annotations = target < crate::domain::binding_schedule::constants::LAZY_ANNOTATIONS_FROM
         && tree.annotations == crate::domain::model::types::BindingAnnotationTiming::Immediate;
-    visit(&mut ColumnFile { table, empty, immediate_annotations, shapes, file: &mut file, relative_froms: &tree.relative_froms, memo });
+    visit(&mut ColumnFile { table, empty, immediate_annotations, shapes, import_presence: tree.import_presence, file: &mut file, relative_froms: &tree.relative_froms, memo });
 }
 
 /// Spike (6f probe): one node's evaluation region (`ColumnFile::evaluation_region`).
@@ -327,6 +327,7 @@ pub struct ColumnFile<'a, 'f> {
     pub table: &'a NodeTable,
     file: &'a mut PythonFile<'f>,
     relative_froms: &'a [Position],
+    import_presence: crate::domain::node::types::ImportPresence,
     memo: &'a mut TextMemo,
 }
 
@@ -345,8 +346,11 @@ fn flag(value: Flag) -> u32 {
 }
 
 mod forward_reads;
+mod expression_parts;
+pub use expression_parts::CallSite;
 mod assignment;
 mod imports;
+mod lexical_lines;
 pub use imports::ImportAlias;
 mod resolution;
 pub use resolution::BindingSite;

@@ -332,6 +332,17 @@ pub fn enter_implied_node(builder: &mut NodeTableBuilder<'_>, kind: KindBits, fi
     builder.0.table.0.implied.push(id);
 }
 
+/// Opens a parser-created position whose public source location is explicitly absent.
+pub fn enter_unlocated_node(builder: &mut NodeTableBuilder<'_>, kind: KindBits, field: FieldCode) {
+    use ryo_relations::domain::relations::constants::NO_SPAN;
+    enter_implied_node(builder, kind, field);
+    let columns = &mut builder.0.table.0;
+    if let (Some(start), Some(end)) = (columns.start.last_mut(), columns.end.last_mut()) {
+        *start = NO_SPAN.start.0;
+        *end = NO_SPAN.end.0;
+    }
+}
+
 /// Closes the innermost open node, which ends at `end`, and records where its subtree ends. A segment's root closing ends the
 /// segment: its tokens are numbered after its nodes.
 ///

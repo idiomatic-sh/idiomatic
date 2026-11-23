@@ -6,13 +6,37 @@ use rustc_hash::FxHashMap as Map;
 use rustc_hash::FxHashSet;
 use ryo::languages::{CellKind, Relation};
 use ryo_relations::domain::{labels::types::NameRef, relations::service as catalog};
-use ryo_values::domain::finish_plans::{expressions::types::*, service::inputs, types::*};
+use ryo_values::domain::finish_plans::{
+    arguments::types::StepNumber, expressions::types::*, service::extend_inputs, types::*,
+};
 use ryo_values::domain::plan_parts::types::Direction;
+use std::borrow::Cow;
 
 #[path = "pair_compact.rs"]
 mod compact;
+#[path = "pair_cost.rs"]
+pub(super) mod cost;
 #[path = "pair_exact.rs"]
 mod exact;
+#[path = "pair_groups.rs"]
+mod groups;
+#[path = "pair_paths.rs"]
+pub(super) mod paths;
+#[path = "pair_precheck.rs"]
+mod precheck;
+#[path = "pair_project.rs"]
+mod project;
+#[path = "pair_regexes.rs"]
+mod regexes;
+
+pub(super) fn inputs(s: &FinishStep) -> smallvec::SmallVec<[StepNumber; 4]> {
+    let mut result = smallvec::SmallVec::new();
+    extend_inputs(s, &mut result);
+    result
+}
+
+type Literals<'a> = smallvec::SmallVec<[&'a str; 4]>;
+pub(super) type Conjuncts<'a> = smallvec::SmallVec<[&'a PlanExpression; 4]>;
 
 pub(super) type Id = usize;
 const ANY: Id = 0;
@@ -37,6 +61,8 @@ pub(super) enum Domain {
     Number(usize, usize, Comparator, i64),
     RelatedIds(usize, usize, Option<(usize, Vec<Id>)>),
     Matching(usize, usize, usize),
+    Unmatched(usize, usize, usize),
+    Member(usize, usize, usize, usize),
     CapturedSuffix(usize, usize, Vec<u8>, usize),
     When(Id, Id), // file prerequisite, admitted nodes
     Except(Id, Id),
@@ -50,8 +76,10 @@ pub(super) enum Domain {
 }
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub(super) enum Need {
+    Terms(bool, Box<[Id]>),
     Any,
     PathMatches(usize),
+    InvalidPattern(usize), // proof prerequisite, resolved during plan compaction
     SourceContains(usize),
     Empty,
     Some(Id),
@@ -65,29 +93,33 @@ pub(super) enum CellTest {
     Numeric(usize, Comparator, i64),
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum Source {
     Catalog(Relation),
     Walk(&'static str),
 }
 
 pub(super) struct Fact {
+    pub family: cost::Family,
     pub source: Source,
     pub name: &'static str,
     pub key: Option<usize>,
-    pub columns: Vec<&'static str>,
-    pub kinds: Vec<CellKind>,
+    pub columns: std::rc::Rc<[&'static str]>,
+    pub kinds: std::rc::Rc<[CellKind]>,
     pub exact: bool,
 }
 
 pub(super) struct Program {
+    pub meter: Option<cost::Meter>,
+    pub paths: Vec<Option<paths::Edge>>,
+    pub file_only: Vec<bool>,
     pub domains: Vec<Domain>,
     pub needs: Vec<Need>,
     pub exact: Vec<(usize, exact::Certificate)>,
     pub roots: Vec<(String, Id)>,
     pub drivers: Vec<(usize, Id)>,
     pub skips: Vec<(bool, Vec<Vec<String>>, Vec<Vec<String>>)>,
-    pub regexes: Vec<regex::bytes::Regex>,
+    pub regexes: Vec<regexes::Pattern>,
     pub text_kinds: Vec<u16>,
     pub symbols: Map<String, Id>,
     pub max_text: usize,
@@ -105,6 +137,7 @@ enum Attribute {
     Field,
     Text,
     Cell(usize, usize),
+    ProjectChoices(usize, u64),
     Count(usize),
 }
 #[derive(Clone, Copy)]
@@ -116,11 +149,37 @@ struct Column {
 struct Summary<'a> {
     need: Id,
     native_row: Option<usize>,
-    domains: Vec<Id>,
-    columns: Vec<(&'a str, Column)>,
-    edges: Vec<(usize, usize, u8)>, // descendant, ancestor, fixed number of parent edges
+    domains: smallvec::SmallVec<[Id; 2]>,
+    columns: Cow<'a, [(&'a str, Column)]>,
+    edges: smallvec::SmallVec<[(usize, usize, u8); 1]>, // descendant, ancestor, fixed number of parent edges
 }
 impl<'a> Summary<'a> {
+    fn writing(scratch: &mut Vec<(&'a str, Column)>) -> Self {
+        Self {
+            columns: Cow::Owned(std::mem::take(scratch)),
+            ..Self::default()
+        }
+    }
+    // Stored columns are immutable throughout the bottom-up pass. Passthrough
+    // steps borrow that slice. A new projection writes into reusable storage.
+    fn freeze(&mut self, arena: &'a bumpalo::Bump, scratch: &mut Vec<(&'a str, Column)>) {
+        if let Cow::Owned(buf) = &mut self.columns {
+            let stored = arena.alloc_slice_copy(buf);
+            if buf.capacity() > scratch.capacity() {
+                buf.clear();
+                std::mem::swap(buf, scratch);
+            }
+            self.columns = Cow::Borrowed(stored);
+        }
+    }
+    fn retain_columns(&mut self, keep: impl Fn(&(&str, Column)) -> bool) {
+        if let Cow::Borrowed(cols) = &self.columns
+            && cols.iter().all(&keep)
+        {
+            return;
+        }
+        self.columns.to_mut().retain(keep);
+    }
     fn column(&self, name: &str) -> Option<Column> {
         self.columns
             .iter()
@@ -133,12 +192,19 @@ impl<'a> Summary<'a> {
         i
     }
     fn add(&mut self, name: &'a str, var: usize, attr: Attribute) {
-        self.columns.push((name, Column { var, attr }));
+        self.columns.to_mut().push((name, Column { var, attr }));
     }
     fn compact(&mut self) {
-        let mut vars = Vec::new();
-        let mut map = vec![None; self.domains.len()];
-        for (_, c) in &mut self.columns {
+        if self.domains.len() <= 1 {
+            if self.columns.is_empty() {
+                self.domains.clear();
+            }
+            self.edges.clear();
+            return;
+        }
+        let mut vars = smallvec::SmallVec::new();
+        let mut map = smallvec::SmallVec::<[Option<usize>; 8]>::from_elem(None, self.domains.len());
+        for (_, c) in self.columns.to_mut() {
             c.var = *map[c.var].get_or_insert_with(|| {
                 vars.push(self.domains[c.var]);
                 vars.len() - 1
@@ -176,13 +242,20 @@ impl<'a> Summary<'a> {
 struct Builder<'a> {
     vocab: &'a Vocab,
     language: &'a Language,
-    neighbors: bool,
-    file_sets: bool,
+    reader_rows: &'a [String],
+    positive: bool,
+    regex_slots: Map<String, Id>,
+    proof_validation: Option<Id>,
+    early_omit: u16,
+    signatures: Vec<u64>,
     out: Program,
     ds: Map<Domain, Id>,
     ns: Map<Need, Id>,
     sizes: Vec<usize>,
-    file_guards: Map<Id, Id>,
+    visited: Vec<usize>,
+    generation: usize,
+    file_guards: Vec<Option<Id>>,
+    exists: Vec<Option<Id>>,
     counts: Map<usize, exact::Grouped>,
 }
 
@@ -199,33 +272,47 @@ impl Builder<'_> {
             _ => &[],
         }
     }
-    fn distinct_size(&self, root: &Domain) -> usize {
-        let mut seen = Vec::with_capacity(CAP);
-        let mut pending = Vec::new();
+    fn distinct_size(&mut self, root: &Domain) -> usize {
+        // Only visits to this domain contribute to its distinct-instruction cap.
+        self.generation += 1;
+        let stamp = self.generation;
+        let mut used = 0;
+        let mut pending = smallvec::SmallVec::<[Id; 32]>::new();
         let mut current = root;
         loop {
             match current {
                 Domain::Both(a, b) | Domain::Either(a, b) | Domain::Except(a, b) => {
                     pending.extend([*a, *b])
                 }
-                _ => pending.extend(Self::dependencies(current)),
+                _ => pending.extend_from_slice(Self::dependencies(current)),
             }
-            let Some(next) = std::iter::from_fn(|| pending.pop()).find(|v| !seen.contains(v))
+            let Some(next) =
+                std::iter::from_fn(|| pending.pop()).find(|&v| self.visited[v] != stamp)
             else {
                 break;
             };
-            seen.push(next);
-            if seen.len() == CAP {
+            self.visited[next] = stamp;
+            used += 1;
+            if used == CAP {
                 break;
             }
             current = &self.out.domains[next];
         }
-        1 + seen.len()
+        1 + used
     }
     fn domain(&mut self, d: Domain) -> Id {
+        if self.early_omit != 0 && cost::omit_positive(&d, &self.out.facts, self.early_omit) {
+            return ANY;
+        }
         if let Some(&i) = self.ds.get(&d) {
+            if i == ANY && !matches!(d, Domain::Any) {
+                self.out.capped += 1;
+            }
             return i;
         }
+        self.insert_domain(d)
+    }
+    fn insert_domain(&mut self, d: Domain) -> Id {
         let size = match d {
             Domain::Except(a, b) | Domain::Both(a, b) | Domain::Either(a, b) => {
                 1 + self.sizes[a] + self.sizes[b]
@@ -246,19 +333,40 @@ impl Builder<'_> {
         };
         if size > CAP {
             self.out.capped += 1;
+            self.ds.insert(d, ANY);
             return ANY;
         }
         let i = self.out.domains.len();
         self.ds.insert(d.clone(), i);
         self.out.domains.push(d);
         self.sizes.push(size);
+        self.visited.push(0);
         i
     }
     fn need(&mut self, n: Need) -> Id {
+        if let Need::Some(node) = n {
+            if self.exists.len() <= node {
+                self.exists.resize(node + 1, None);
+            }
+            return *self.exists[node].get_or_insert_with(|| {
+                let id = self.out.needs.len();
+                self.out.needs.push(n);
+                self.signatures.push(1 << (id % 64));
+                id
+            });
+        }
         if let Some(&i) = self.ns.get(&n) {
             return i;
         }
+        self.insert_need(n)
+    }
+    fn insert_need(&mut self, n: Need) -> Id {
         let i = self.out.needs.len();
+        let mut signature = 1 << (i % 64);
+        if let Need::Both(a, b) = n {
+            signature |= self.signatures[a] | self.signatures[b];
+        }
+        self.signatures.push(signature);
         self.ns.insert(n.clone(), i);
         self.out.needs.push(n);
         i
@@ -301,13 +409,22 @@ impl Builder<'_> {
         if b == ANY {
             return a;
         }
+        let key = Domain::Both(a.min(b), a.max(b));
+        if let Some(&id) = self.ds.get(&key) {
+            if id == ANY {
+                self.out.capped += 1;
+            }
+            return if id == ANY { a } else { id };
+        }
         if self.subset(a, b) {
+            self.ds.insert(key, a);
             return a;
         }
         if self.subset(b, a) {
+            self.ds.insert(key, b);
             return b;
         }
-        let combined = self.domain(Domain::Both(a.min(b), a.max(b)));
+        let combined = self.insert_domain(key);
         // The additional conjunct is unrepresentable at the cap. The
         // previous witness is still necessary; exact issuance sees the cap.
         if combined == ANY { a } else { combined }
@@ -322,13 +439,38 @@ impl Builder<'_> {
         if b == EMPTY {
             return a;
         }
+        let key = Domain::Either(a.min(b), a.max(b));
+        if let Some(&id) = self.ds.get(&key) {
+            if id == ANY {
+                self.out.capped += 1;
+            }
+            return id;
+        }
         if self.subset(a, b) {
+            self.ds.insert(key, b);
             return b;
         }
         if self.subset(b, a) {
+            self.ds.insert(key, a);
             return a;
         }
-        self.domain(Domain::Either(a.min(b), a.max(b)))
+        self.insert_domain(key)
+    }
+    // A conjunction entails every conjunct reachable solely through AND.
+    // The signature only disproves membership. Elimination requires an actual
+    // instruction id found by the bounded search, independent of file data.
+    fn entails(&self, root: Id, target: Id, remaining: &mut usize) -> bool {
+        if root == target {
+            return true;
+        }
+        if root < target || self.signatures[root] & (1 << (target % 64)) == 0 || *remaining == 0 {
+            return false;
+        }
+        let Need::Both(a, b) = self.out.needs[root] else {
+            return false;
+        };
+        *remaining -= 1;
+        self.entails(a, target, remaining) || self.entails(b, target, remaining)
     }
     fn and(&mut self, a: Id, b: Id) -> Id {
         if a == EMPTY || b == EMPTY {
@@ -346,7 +488,17 @@ impl Builder<'_> {
         if matches!(self.out.needs[b],Need::Both(x,y) if x==a||y==a) {
             return b;
         }
-        self.need(Need::Both(a.min(b), a.max(b)))
+        let (lo, hi) = (a.min(b), a.max(b));
+        let both = Need::Both(lo, hi);
+        if let Some(&id) = self.ns.get(&both) {
+            return id;
+        }
+        let mut remaining = CAP;
+        if self.entails(hi, lo, &mut remaining) {
+            self.ns.insert(both, hi);
+            return hi;
+        }
+        self.insert_need(both)
     }
     fn or(&mut self, a: Id, b: Id) -> Id {
         if a == ANY || b == ANY {
@@ -373,6 +525,9 @@ impl Builder<'_> {
         };
         r.need = self.and(r.need, n);
     }
+    fn native(&self, name: &str) -> bool {
+        !self.reader_rows.iter().any(|external| external == name)
+    }
     fn base<'a>(&mut self, name: &str) -> Summary<'a> {
         let mut r = Summary::default();
         if (self.language.host_len)(name) == Some(0) {
@@ -381,7 +536,7 @@ impl Builder<'_> {
         }
         use Attribute::*;
         match name {
-            "syntax-tree" | "semantic-syntax" => {
+            "syntax-tree" | "semantic-syntax" if self.native(name) => {
                 r.var(ANY);
                 r.add("id", 0, Id);
                 r.add("span", 0, Span);
@@ -389,7 +544,7 @@ impl Builder<'_> {
                 r.add("kind", 0, Kind);
                 r.add("text", 0, Text);
             }
-            "syntax-child" | "semantic-child" => {
+            "syntax-child" | "semantic-child" if self.native(name) => {
                 r.var(ANY);
                 r.var(ANY);
                 r.add("child", 0, Id);
@@ -398,7 +553,7 @@ impl Builder<'_> {
                 r.add("parent", 1, Id);
                 r.edges.push((0, 1, 1));
             }
-            "source-location" => {
+            "source-location" if self.native(name) => {
                 r.var(ANY);
                 r.add("id", 0, Id);
                 r.add("span", 0, Span);
@@ -414,7 +569,7 @@ impl Builder<'_> {
                                 .language
                                 .walk_facts
                                 .iter()
-                                .find(|f| self.file_sets && f.name == name)
+                                .find(|f| f.name == name)
                             {
                                 let (columns, kinds) = view.columns.iter().copied().unzip();
                                 (
@@ -426,8 +581,7 @@ impl Builder<'_> {
                                 )
                             } else {
                                 if !self.language.facts.iter().any(|n| n == name)
-                                    && !(self.file_sets
-                                        && self.language.file_sets.iter().any(|n| n == name))
+                                    && !self.language.file_sets.iter().any(|n| n == name)
                                 {
                                     return r;
                                 }
@@ -448,11 +602,12 @@ impl Builder<'_> {
                             };
                         let key = kinds.iter().position(|k| *k == CellKind::Node);
                         self.out.facts.push(Fact {
+                            family: (self.language.fact_family)(name),
                             name,
                             source,
                             key,
-                            columns,
-                            kinds,
+                            columns: columns.into(),
+                            kinds: kinds.into(),
                             exact,
                         });
                         self.out.facts.len() - 1
@@ -480,8 +635,12 @@ impl Builder<'_> {
     }
 
     fn symbol(&mut self, text: &str) -> Id {
+        if let Some(&n) = self.out.symbols.get(text) {
+            return n;
+        }
         let n = self.out.symbols.len();
-        *self.out.symbols.entry(text.to_owned()).or_insert(n)
+        self.out.symbols.insert(text.to_owned(), n);
+        n
     }
 
     fn literal(&mut self, attr: Attribute, text: &str) -> Id {
@@ -511,6 +670,14 @@ impl Builder<'_> {
     }
 
     fn matching(&mut self, attr: Attribute, pattern: &str, kind: CellKind) -> Option<Id> {
+        if let Attribute::ProjectChoices(slot, cols) = attr {
+            let mut domain = EMPTY;
+            for col in project::columns(cols) {
+                let next = self.matching(Attribute::Cell(slot, col), pattern, kind)?;
+                domain = self.either(domain, next);
+            }
+            return Some(domain);
+        }
         let Attribute::Cell(slot, col) = attr else {
             return None;
         };
@@ -521,14 +688,26 @@ impl Builder<'_> {
         Some(self.domain(Domain::Matching(slot, col, regex)))
     }
 
+    fn take_validation(&mut self) -> Id {
+        self.proof_validation
+            .as_mut()
+            .map_or(EMPTY, |v| std::mem::replace(v, EMPTY))
+    }
     fn regex(&mut self, pattern: &str) -> Option<usize> {
-        if let Some(i) = self.out.regexes.iter().position(|r| r.as_str() == pattern) {
-            return Some(i);
+        let slot = if let Some(&slot) = self.regex_slots.get(pattern) {
+            slot
+        } else {
+            let slot = self.out.regexes.len();
+            self.out.regexes.push(regexes::Pattern::new(pattern));
+            self.regex_slots.insert(pattern.to_owned(), slot);
+            slot
+        };
+        if let Some(guard) = self.proof_validation {
+            let invalid = self.need(Need::InvalidPattern(slot));
+            self.proof_validation = Some(self.or(guard, invalid));
+            return Some(slot);
         }
-        self.out
-            .regexes
-            .push(regex::bytes::Regex::new(pattern).ok()?);
-        Some(self.out.regexes.len() - 1)
+        (self.positive || self.out.regexes[slot].compiled().is_some()).then_some(slot)
     }
 
     fn required_kind(&self, domain: Id) -> Option<u16> {
@@ -583,7 +762,7 @@ impl Builder<'_> {
                 }
                 CellTest::Numeric(index, cmp, literal)
             } else {
-                let mut values = Vec::new();
+                let mut values = Literals::new();
                 let col = lookup(choices(term, &mut values)?)?;
                 let Attribute::Cell(source, index) = col.attr else {
                     return None;
@@ -621,7 +800,7 @@ impl Builder<'_> {
         // A written membership list is one local test. Keep its literals together,
         // including when the parser represents the list as an OR of equalities.
         if matches!(e, Or(_) | In(_)) {
-            let mut values = Vec::new();
+            let mut values = Literals::new();
             if let Some(read) = choices(e, &mut values)
                 && let Some(c) = lookup(read)
                 && let Attribute::Cell(slot, col) = c.attr
@@ -636,7 +815,7 @@ impl Builder<'_> {
         // Complements are safe only for total, single-valued native columns.
         // Complementing a projected provider key would also remove nodes with
         // another fact row whose column does satisfy the predicate.
-        let mut values = Vec::new();
+        let mut values = Literals::new();
         let comparison = match e {
             Compare(c) if c.comparator == Comparator::NotEqual => match (&*c.left, &*c.right) {
                 (Column(col), Literal(PlanConstant::Text(v)))
@@ -786,7 +965,7 @@ impl Builder<'_> {
     // A branch-specific file guard pays for itself before materializing its
     // nodes. Node witnesses are already retained in their input domains.
     fn file_guard(&mut self, need: Id) -> Id {
-        if let Some(&guard) = self.file_guards.get(&need) {
+        if let Some(&Some(guard)) = self.file_guards.get(need) {
             return guard;
         }
         let guard = match self.out.needs[need] {
@@ -812,7 +991,10 @@ impl Builder<'_> {
             },
             _ => need,
         };
-        self.file_guards.insert(need, guard);
+        if self.file_guards.len() <= need {
+            self.file_guards.resize(need + 1, None);
+        }
+        self.file_guards[need] = Some(guard);
         guard
     }
     fn in_branch(&mut self, need: Id, nodes: Id) -> Id {
@@ -827,14 +1009,69 @@ impl Builder<'_> {
         let guarded = self.domain(Domain::When(need, nodes));
         if guarded == ANY { nodes } else { guarded }
     }
-    fn select<'a>(&mut self, s: &'a SelectStep, rows: &[Summary<'a>]) -> Summary<'a> {
-        let mut out = Summary::default();
-        let mut offsets = Vec::new();
+    fn select<'a>(
+        &mut self,
+        s: &'a SelectStep,
+        rows: &[Summary<'a>],
+        conjuncts: &[&PlanExpression],
+        scratch: &mut Vec<(&'a str, Column)>,
+    ) -> Summary<'a> {
+        // Without an input column, no row predicate or output expression
+        // can carry a tracked node. Keep the independent file prerequisites.
+        if s.sources
+            .iter()
+            .all(|src| rows[src.step.0].domains.is_empty())
+        {
+            let need = s
+                .sources
+                .iter()
+                .fold(ANY, |n, src| self.and(n, rows[src.step.0].need));
+            return Summary {
+                need,
+                ..Summary::default()
+            };
+        }
+        if let [src] = s.sources.as_slice()
+            && !matches!(s.condition, RowCondition::Tested(_))
+        {
+            let input = &rows[src.step.0];
+            if matches!(s.columns, SelectedColumns::All) {
+                let mut out = input.clone();
+                for &d in &input.domains {
+                    self.require(&mut out, d);
+                }
+                out.compact();
+                return out;
+            }
+            let mut out = Summary {
+                need: input.need,
+                domains: input.domains.clone(),
+                edges: input.edges.clone(),
+                ..Summary::writing(scratch)
+            };
+            for &d in &input.domains {
+                self.require(&mut out, d);
+            }
+            if let SelectedColumns::Items(items) = &s.columns {
+                for item in items {
+                    if let PlanExpression::Column(c) = &item.value
+                        && (c.alias == SourceAlias::Unwritten || c.alias == src.alias)
+                        && let Some(col) = input.column(&c.column.0)
+                    {
+                        out.add(&item.name.0, col.var, col.attr);
+                    }
+                }
+            }
+            out.compact();
+            return out;
+        }
+        let mut out = Summary::writing(scratch);
+        let mut offsets = smallvec::SmallVec::<[usize; 4]>::new();
         for source in &s.sources {
             let r = &rows[source.step.0];
             let offset = out.domains.len();
             offsets.push(offset);
-            out.domains.extend(&r.domains);
+            out.domains.extend_from_slice(&r.domains);
             out.need = self.and(out.need, r.need);
             out.edges.extend(
                 r.edges
@@ -843,7 +1080,25 @@ impl Builder<'_> {
             );
         }
         let lookup = |c: &ColumnRead| {
+            if let [src] = s.sources.as_slice() {
+                return (c.alias == SourceAlias::Unwritten || c.alias == src.alias)
+                    .then(|| rows[src.step.0].column(&c.column.0))
+                    .flatten();
+            }
             if c.alias == SourceAlias::Unwritten && s.sources.len() != 1 {
+                return None;
+            }
+            if let [left, right] = s.sources.as_slice()
+                && left.alias != right.alias
+            {
+                if c.alias == left.alias {
+                    return rows[left.step.0].column(&c.column.0);
+                }
+                if c.alias == right.alias {
+                    let mut col = rows[right.step.0].column(&c.column.0)?;
+                    col.var += offsets[1];
+                    return Some(col);
+                }
                 return None;
             }
             let mut cols = s
@@ -859,21 +1114,24 @@ impl Builder<'_> {
             let col = cols.next()?;
             cols.next().is_none().then_some(col)
         };
-        let mut map: Vec<_> = (0..out.domains.len()).collect();
-        let mut changed = vec![false; map.len()];
-        let mut conjuncts = Vec::new();
-        if let RowCondition::Tested(e) = &s.condition {
-            terms(e, &mut conjuncts)
-        }
-        for e in &conjuncts {
+        let mut map: smallvec::SmallVec<[usize; 8]> = (0..out.domains.len()).collect();
+        let mut changed = smallvec::SmallVec::<[bool; 8]>::from_elem(false, map.len());
+        // Resolve each equality's columns once. Apply projected membership after
+        // all equal node variables have been unified.
+        let mut project_pairs = smallvec::SmallVec::<[(Column, Column); 1]>::new();
+        for e in conjuncts {
             if let PlanExpression::Compare(c) = e
                 && c.comparator == Comparator::Equal
                 && let (PlanExpression::Column(a), PlanExpression::Column(b)) =
                     (&*c.left, &*c.right)
                 && let (Some(a), Some(b)) = (lookup(a), lookup(b))
-                && a.attr == Attribute::Id
-                && b.attr == Attribute::Id
             {
+                if a.attr != Attribute::Id || b.attr != Attribute::Id {
+                    if matches!((a.attr, b.attr), (Attribute::Cell(..), Attribute::Cell(..))) {
+                        project_pairs.push((a, b));
+                    }
+                    continue;
+                }
                 let (a, b) = (map[a.var], map[b.var]);
                 if a != b {
                     changed[a] |= changed[b] || out.domains[a] != out.domains[b];
@@ -886,10 +1144,18 @@ impl Builder<'_> {
                 }
             }
         }
+        for (a, b) in project_pairs {
+            if let Some((var, d)) = self.project_membership(a, b) {
+                let v = map[var];
+                changed[v] = true;
+                out.domains[v] = self.both(out.domains[v], d);
+                self.require(&mut out, d);
+            }
+        }
         let correlated = match s.sources.as_slice() {
             [src] => rows[src.step.0]
                 .native_row
-                .and_then(|slot| self.same_row(slot, &conjuncts, &lookup)),
+                .and_then(|slot| self.same_row(slot, conjuncts, &lookup)),
             _ => None,
         };
         if let Some((var, d)) = correlated {
@@ -898,7 +1164,7 @@ impl Builder<'_> {
             out.domains[v] = self.both(out.domains[v], d);
             self.require(&mut out, d);
         } else {
-            for e in &conjuncts {
+            for e in conjuncts {
                 if let Some((var, d)) = self.filter(e, &lookup) {
                     let v = map[var];
                     changed[v] |= d != ANY && d != out.domains[v];
@@ -943,17 +1209,15 @@ impl Builder<'_> {
             *c = map[*c];
             *p = map[*p];
         }
-        if self.neighbors {
-            for &(c, p, depth) in &out.edges {
-                let (child, parent) = (out.domains[c], out.domains[p]);
-                if changed[p] && parent > EMPTY {
-                    let d = self.at_distance(parent, depth, Domain::Children);
-                    out.domains[c] = self.both(child, d);
-                }
-                if changed[c] && child > EMPTY {
-                    let d = self.at_distance(child, depth, Domain::Parents);
-                    out.domains[p] = self.both(parent, d);
-                }
+        for &(c, p, depth) in &out.edges {
+            let (child, parent) = (out.domains[c], out.domains[p]);
+            if changed[p] && parent > EMPTY {
+                let d = self.at_distance(parent, depth, Domain::Children);
+                out.domains[c] = self.both(child, d);
+            }
+            if changed[c] && child > EMPTY {
+                let d = self.at_distance(child, depth, Domain::Parents);
+                out.domains[p] = self.both(parent, d);
             }
         }
         for v in 0..out.domains.len() {
@@ -971,7 +1235,7 @@ impl Builder<'_> {
                 }
             }
             SelectedColumns::All if s.sources.len() == 1 => {
-                for (n, c) in &rows[s.sources[0].step.0].columns {
+                for (n, c) in rows[s.sources[0].step.0].columns.iter() {
                     out.add(n, map[c.var], c.attr);
                 }
             }
@@ -1003,9 +1267,9 @@ impl Builder<'_> {
             ..Summary::default()
         };
         let offset = left.domains.len();
-        out.domains.extend(&left.domains);
-        out.domains.extend(&right.domains);
-        out.edges.extend(&left.edges);
+        out.domains.extend_from_slice(&left.domains);
+        out.domains.extend_from_slice(&right.domains);
+        out.edges.extend_from_slice(&left.edges);
         out.edges.extend(
             right
                 .edges
@@ -1029,13 +1293,15 @@ impl Builder<'_> {
         s: &'a FinishStep,
         rows: &[Summary<'a>],
         steps: &[FinishStep],
+        conjuncts: &[&PlanExpression],
+        scratch: &mut Vec<(&'a str, Column)>,
     ) -> Summary<'a> {
         use FinishStep::*;
         let mut out = Summary::default();
         match s {
             Base(n) => return self.base(&n.0),
             Select(s) => {
-                out = self.select(s, rows);
+                out = self.select(s, rows, conjuncts, scratch);
                 if let [source] = s.sources.as_slice() {
                     out.native_row = rows[source.step.0].native_row;
                 }
@@ -1045,7 +1311,7 @@ impl Builder<'_> {
                     && let Some(origin) = out.native_row
                     && let RowCondition::Tested(e) = &s.condition
                 {
-                    let mut values = Vec::new();
+                    let mut values = Literals::new();
                     if let Some(read) = choices(e, &mut values)
                         && (read.alias == SourceAlias::Unwritten || read.alias == source.alias)
                         && let Some(Column {
@@ -1077,20 +1343,36 @@ impl Builder<'_> {
                 }
             }
             Union(u) => {
+                out = Summary::writing(scratch);
                 let (l, r) = (&rows[u.left.0], &rows[u.right.0]);
                 out.need = self.or(l.need, r.need);
                 // Only columns whose origin agrees in both arms keep that origin.
+                if l.domains.len() == 1 && r.domains.len() == 1 {
+                    for (name, a) in l.columns.iter() {
+                        if let Some(b) = r.column(name)
+                            && let Some(attr) = project::common(a.attr, b.attr, &self.out.facts)
+                        {
+                            out.add(name, 0, attr);
+                        }
+                    }
+                    if !out.columns.is_empty() {
+                        let left = self.in_branch(l.need, l.domains[0]);
+                        let right = self.in_branch(r.need, r.domains[0]);
+                        out.var(self.either(left, right));
+                    }
+                    return out;
+                }
                 let mut vars = Map::default();
-                for (n, a) in &l.columns {
+                for (n, a) in l.columns.iter() {
                     if let Some(b) = r.column(n)
-                        && a.attr == b.attr
+                        && let Some(origin) = project::common(a.attr, b.attr, &self.out.facts)
                     {
                         let var = *vars.entry((a.var, b.var)).or_insert_with(|| {
                             let left = self.in_branch(l.need, l.domains[a.var]);
                             let right = self.in_branch(r.need, r.domains[b.var]);
                             out.var(self.either(left, right))
                         });
-                        out.add(n, var, a.attr);
+                        out.add(n, var, origin);
                     }
                 }
                 // Parent is functional. One common lineage per projected
@@ -1108,49 +1390,51 @@ impl Builder<'_> {
                 out.edges.sort_unstable();
                 out.edges.dedup();
             }
-            Antijoin(j) => return rows[j.left.0].clone(),
+            Antijoin(j) => {
+                out = rows[j.left.0].clone();
+                if let Some(need) = self.rejected_filter(j, steps, &out) {
+                    out.need = self.and(out.need, need);
+                }
+            }
             GroupMin(g) | GroupMax(g) => return rows[g.from.0].clone(),
             Project(p) => {
                 out = rows[p.from.0].clone();
-                out.columns
-                    .retain(|(n, _)| p.columns.iter().any(|c| *n == &*c.0));
+                out.retain_columns(|(n, _)| p.columns.iter().any(|c| *n == &*c.0));
                 out.compact();
             }
             Extend(x) => {
                 out = rows[x.from.0].clone();
-                out.columns
-                    .retain(|(n, _)| !x.values.iter().any(|c| *n == &*c.name.0));
+                out.retain_columns(|(n, _)| !x.values.iter().any(|c| *n == &*c.name.0));
             }
             GroupOrdinal(g) => {
                 out = rows[g.from.0].clone();
-                out.columns.retain(|(n, _)| *n != &*g.output.0);
+                out.retain_columns(|(n, _)| *n != &*g.output.0);
             }
             FitsRendered(x) => return rows[x.from.0].clone(),
             Replace(x) => {
                 out = rows[x.from.0].clone();
-                out.columns.retain(|(n, _)| *n != &*x.output.0);
+                out.retain_columns(|(n, _)| *n != &*x.output.0);
             }
             SpanBetween(x) => {
                 out = rows[x.from.0].clone();
-                out.columns.retain(|(n, _)| *n != &*x.output.0);
+                out.retain_columns(|(n, _)| *n != &*x.output.0);
             }
             SpanBounds(x) => {
                 out = rows[x.from.0].clone();
-                out.columns
-                    .retain(|(n, _)| *n != &*x.start_output.0 && *n != &*x.end_output.0);
+                out.retain_columns(|(n, _)| *n != &*x.start_output.0 && *n != &*x.end_output.0);
             }
             Capture(x) => {
                 out = rows[x.from.0].clone();
-                out.columns
-                    .retain(|(n, _)| !x.captures.iter().any(|col| *n == &*col.0));
+                out.retain_columns(|(n, _)| !x.captures.iter().any(|col| *n == &*col.0));
             }
             AsOf(x) => return self.ordered(&rows[x.left.0], &rows[x.right.0], &x.output),
             OrderedMatch(x) => return self.ordered(&rows[x.left.0], &rows[x.right.0], &x.output),
             GroupCount(g) => {
                 if !g.keys.is_empty() {
                     out = rows[g.from.0].clone();
-                    out.columns
-                        .retain(|(n, _)| g.keys.iter().any(|c| *n == &*c.0) && *n != &*g.count.0);
+                    out.retain_columns(|(n, _)| {
+                        g.keys.iter().any(|c| *n == &*c.0) && *n != &*g.count.0
+                    });
                     out.compact();
                 }
             }
@@ -1169,8 +1453,7 @@ impl Builder<'_> {
                         .map_or(ANY, |c| r.domains[c.var])
                 };
                 let (mut id, mut related) = (node(from), node(dom));
-                if self.neighbors
-                    && matches!(&steps[a.relation.0],Base(n) if super::first::CHILD.contains(&&*n.0))
+                if matches!(&steps[a.relation.0],Base(n) if self.native(&n.0) && super::first::CHILD.contains(&&*n.0))
                 {
                     let (origin, target) = (id, related);
                     let (down, up): (fn(Id) -> Domain, fn(Id) -> Domain) = match a.direction {
@@ -1218,7 +1501,7 @@ impl Builder<'_> {
                 let from = &rows[x.from.0];
                 use ryo_values::domain::finish_plans::arguments::texts::types::OptionalColumn;
                 out = from.clone();
-                out.columns.retain(|(name, _)| {
+                out.retain_columns(|(name, _)| {
                     *name != &*x.output.0
                         && ![
                             &x.line_output,
@@ -1253,8 +1536,7 @@ impl Builder<'_> {
                     let d = self.both(raw, from.domains[col.var]);
                     self.require(&mut out, d);
                 }
-                if self.file_sets
-                    && let Some(col) = from.column(&x.span.0)
+                if let Some(col) = from.column(&x.span.0)
                     && let Some(d) = self.matching(col.attr, &x.pattern.0, CellKind::Span)
                 {
                     let d = self.both(from.domains[col.var], d);
@@ -1285,7 +1567,7 @@ impl Builder<'_> {
     }
 }
 
-fn choices<'a>(e: &'a PlanExpression, values: &mut Vec<&'a str>) -> Option<&'a ColumnRead> {
+fn choices<'a>(e: &'a PlanExpression, values: &mut Literals<'a>) -> Option<&'a ColumnRead> {
     use PlanExpression::*;
     match e {
         Compare(c) if c.comparator == Comparator::Equal => {
@@ -1344,7 +1626,17 @@ fn numeric_comparison(e: &PlanExpression) -> Option<(&ColumnRead, Comparator, i6
     }
 }
 
-pub(super) fn terms<'a>(e: &'a PlanExpression, out: &mut Vec<&'a PlanExpression>) {
+pub(super) fn conjuncts(step: &FinishStep) -> Conjuncts<'_> {
+    let mut result = Conjuncts::new();
+    if let FinishStep::Select(q) = step
+        && let RowCondition::Tested(e) = &q.condition
+    {
+        terms(e, &mut result);
+    }
+    result
+}
+
+fn terms<'a>(e: &'a PlanExpression, out: &mut Conjuncts<'a>) {
     if let PlanExpression::And(p) = e {
         terms(&p.left, out);
         terms(&p.right, out)
@@ -1354,13 +1646,33 @@ pub(super) fn terms<'a>(e: &'a PlanExpression, out: &mut Vec<&'a PlanExpression>
 }
 
 pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> Program {
+    prepare_with_reader_rows(plan, vocab, language, &[])
+}
+
+/// Relations supplied as rows may have a different population from the tree.
+pub(super) fn prepare_with_reader_rows(plan: &FinishPlan, vocab: &Vocab, language: &Language, reader_rows: &[String]) -> Program {
+    let clock = cfg!(feature = "pair-diagnostics") && std::env::var_os("VEC_PAY_PREP").is_some();
+    let mut t = super::thread_cpu();
+    let mut phase = |name| {
+        if clock {
+            let now = super::thread_cpu();
+            println!("PAYPREP {name} {:.6}", now - t);
+            t = now;
+        }
+    };
     let mut b = Builder {
         vocab,
         language,
-        neighbors: std::env::var_os("VEC_PAIR_LOCAL").is_none(),
-        file_sets: std::env::var_os("VEC_PAIR_LOCAL").is_none()
-            && std::env::var_os("VEC_PAIR_TREE").is_none(),
+        reader_rows,
+        positive: false,
+        regex_slots: Map::default(),
+        proof_validation: None,
+        early_omit: 0,
+        signatures: Vec::with_capacity(plan.steps.len()),
         out: Program {
+            meter: None,
+            paths: Vec::new(),
+            file_only: Vec::new(),
             regexes: Vec::new(),
             text_kinds: language.text_kinds.clone(),
             symbols: Map::default(),
@@ -1375,10 +1687,13 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
             skips: vec![],
             capped: 0,
         },
-        ds: Map::default(),
-        ns: Map::default(),
+        ds: Map::with_capacity_and_hasher(plan.steps.len() / 2, Default::default()),
+        ns: Map::with_capacity_and_hasher(plan.steps.len(), Default::default()),
         sizes: vec![],
-        file_guards: Map::default(),
+        visited: vec![],
+        generation: 0,
+        file_guards: vec![],
+        exists: vec![],
         counts: Map::default(),
     };
     b.domain(Domain::Any);
@@ -1393,11 +1708,17 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
     }
     for (i, s) in plan.steps.iter().enumerate().rev() {
         if live[i] {
-            if let FinishStep::Antijoin(j) = s {
-                live[j.left.0] = true;
-            } else {
-                for p in inputs(s) {
-                    live[p.0] = true;
+            use FinishStep::*;
+            match s {
+                Antijoin(j) => live[j.left.0] = true,
+                SubtreeClass(x) => live[x.from.0] = true,
+                OrderedDfs(x) => live[x.from.0] = true,
+                GroupCount(g) if g.keys.is_empty() => {}
+                Unlisted(x) if &*x.operator.0 != "order" => {}
+                _ => {
+                    for p in inputs(s) {
+                        live[p.0] = true;
+                    }
                 }
             }
         }
@@ -1412,24 +1733,28 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
             b.base(&name.0);
         }
     }
-    let exclusions = exact::prepare(&mut b, plan, &live);
-    if std::env::var_os("VEC_NO_EXACT").is_some() {
-        b.out.exact.clear();
-    }
+    phase("live");
+    let mut exclusions = exact::prepare(&mut b, plan, &live).into_iter().peekable();
+    b.positive = true;
+    let omit = cost::omitted();
+    // Proofs are complete before this point. Widen only positive witnesses.
+    b.early_omit = omit;
+    phase("proof");
+    let columns = bumpalo::Bump::new();
+    let mut scratch = Vec::new();
     let mut rows = Vec::with_capacity(plan.steps.len());
     let mut skips = Vec::with_capacity(plan.steps.len());
     for (i, s) in plan.steps.iter().enumerate() {
         let (mut row, skip) = if live[i] {
+            let conjuncts = conjuncts(s);
             (
-                b.step(s, &rows, &plan.steps),
-                super::pair_skip::Skip::step(s, &skips, language),
+                b.step(s, &rows, &plan.steps, &conjuncts, &mut scratch),
+                super::pair_skip::Skip::with_terms(s, &skips, language, &conjuncts),
             )
         } else {
             (Summary::default(), super::pair_skip::Skip::default())
         };
-        if live[i]
-            && let Some(exclusion) = &exclusions[i]
-        {
+        if let Some((_, exclusion)) = exclusions.next_if(|(step, _)| *step == i) {
             exclusion.apply(&mut b, &mut row);
         }
         if let FinishStep::GroupCount(g) = s
@@ -1439,6 +1764,7 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
         {
             row.add(&g.count.0, c.var, Attribute::Count(i));
         }
+        row.freeze(&columns, &mut scratch);
         rows.push(row);
         skips.push(skip);
     }
@@ -1454,6 +1780,8 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
     }
     b.out.drivers.sort_unstable();
     b.out.drivers.dedup();
+    phase("rows-and-skips");
+    #[cfg(feature = "pair-diagnostics")]
     if std::env::var_os("VEC_PAIR_TRACE").is_some() {
         for (step, row) in rows.iter().enumerate() {
             println!("WITNESS\t{step}\t{}\t{:?}", row.need, row.domains);
@@ -1478,7 +1806,22 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
     // a raw spelling (for example, a normalized or resolved identifier).
     // Certify the whole first half only when that independent skip is vacuous.
     b.out.exact.retain(|(ri, _)| b.out.skips[*ri].2.is_empty());
-    compact::compact(&mut b.out);
+    precheck::schedule(&mut b);
+    phase("roots");
+    cost::arrange(&mut b.out, omit);
+    #[cfg(feature = "pair-diagnostics")]
+    if std::env::var_os("VEC_PAIR_METER").is_some() {
+        b.out.meter = Some(cost::Meter::new(b.out.facts.len()));
+    }
+    (b.out.paths, b.out.file_only) = paths::compile(&b.out);
+    phase("arrange");
+    if clock || b.out.meter.is_some() {
+        println!(
+            "PAYREGEX prepare {} {}",
+            b.out.regexes.iter().filter(|r| r.initialized()).count(),
+            b.out.regexes.len()
+        );
+    }
     for d in &b.out.domains {
         if let Domain::Text(t) = d {
             b.out.max_text = b.out.max_text.max(t.len());

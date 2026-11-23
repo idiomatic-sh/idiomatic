@@ -15,7 +15,7 @@ use rustc_hash::FxHashMap;
 
 impl Exec<'_> {
     pub(super) fn subtree_class(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Table> {
-        let a = &self.plan.nodes[node].j["args"];
+        let a = self.plan.nodes[node].args();
         let from = self.eval(f, run, p, self.arg_rel(node, "from")?)?;
         let mut out = self.empty(run, node)?;
         if from.n == 0 {
@@ -24,9 +24,9 @@ impl Exec<'_> {
         let ic = from.col(s(&a["id"])?)?;
         let (en, ln) = (self.arg_rel(node, "relation")?, self.arg_rel(node, "labels")?);
         let sn = self.arg_rel(node, "leaves").ok();
-        let label: Vec<String> = (*strs(&a["label"])?).clone();
-        let leaf_label: Vec<String> = if sn.is_some() { (*strs(&a["leaf-label"])?).clone() } else { Vec::new() };
-        let step: Vec<String> = (*strs(&a["step"])?).clone();
+        let label: Vec<String> = strs(&a["label"])?.map(str::to_owned).collect();
+        let leaf_label: Vec<String> = if sn.is_some() { strs(&a["leaf-label"])?.map(str::to_owned).collect() } else { Vec::new() };
+        let step: Vec<String> = strs(&a["step"])?.map(str::to_owned).collect();
         let _ = s(&a["output"])?;
         let (esc, lsc) = (self.schema(run, en)?, self.schema(run, ln)?);
         let pos = |names: &[String], c: &str| names.iter().position(|x| x == c).ok_or_else(|| format!("subtree-class: no column {c}"));

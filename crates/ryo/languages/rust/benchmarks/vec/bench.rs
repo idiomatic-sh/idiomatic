@@ -36,10 +36,11 @@ mod spec;
 
 #[path = "../../../../crates/engine/benches/vec/reader_cli.rs"]
 mod reader_cli;
-use reader_cli::{alloc_counts, flag, rule_context, thread_cpu};
+use reader_cli::{alloc_counts, context_from, flag, rule_context, thread_cpu};
 
 fn declaration() -> first::Language {
     first::Language {
+        fact_family: reader_run::fact_family,
         walk_facts: &[],
         host_len: finish::host::host_len,
         facts: Vec::new(),

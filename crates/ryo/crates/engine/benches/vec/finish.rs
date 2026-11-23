@@ -12,6 +12,14 @@ use ryo_relations::domain::labels::types::NameRef;
 use ryo_relations::domain::relations::service as catalog;
 use rustc_hash::FxHashMap;
 use serde_json::Value as J;
+#[path = "finish/plan_load.rs"]
+mod plan_load;
+#[path = "finish/plan_args.rs"]
+mod plan_args;
+#[path = "finish/plan_select.rs"]
+mod plan_select;
+pub(crate) use plan_load::from_typed;
+use plan_args::{Args, Param, s};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -32,6 +40,8 @@ pub(super) fn step_clock() -> f64 {
     if sw!("VEC_STEP_TIME") { super::thread_cpu() } else { 0.0 }
 }
 
+#[path = "finish/answer.rs"]
+pub(super) mod answer;
 #[path = "finish/recycle.rs"]
 mod recycle;
 #[path = "finish/inline_key.rs"]
@@ -91,8 +101,40 @@ mod view_cols;
 pub(super) mod emptyprop;
 #[path = "ordering.rs"]
 mod ordering;
+#[path = "finish/leaf_scan.rs"]
+mod leaf_scan;
+#[path = "finish/cold_bucket.rs"]
+mod cold_bucket;
+#[path = "finish/view_join/probe.rs"]
+mod view_probe;
+#[path = "finish/view_join/choice.rs"]
+mod view_choice;
+#[path = "finish/view_join/key.rs"]
+mod view_key;
+#[path = "finish/view_join/pair.rs"]
+mod view_pair;
+#[path = "finish/view_join/entry.rs"]
+mod view_entry;
+#[path = "finish/view_join/input.rs"]
+mod view_input;
+#[path = "finish/cold_text.rs"]
+mod cold_text;
+#[path = "finish/cold_list.rs"]
+mod cold_list;
+#[path = "finish/cold_entries.rs"]
+mod cold_entries;
+#[path = "finish/cold_test.rs"]
+mod cold_test;
+#[path = "finish/cold_pred.rs"]
+mod cold_pred;
+#[path = "finish/cold_word.rs"]
+mod cold_word;
 #[path = "finish/keyed.rs"]
 mod keyed;
+
+#[allow(dead_code, reason = "file-only benchmark binaries share the executor modules")]
+#[path = "finish/session.rs"]
+pub(super) mod session;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum Ty {
@@ -149,11 +191,23 @@ pub(super) struct Table {
     pub(super) n: usize,
 }
 
+// Small results commonly repeat a schema width in the next file. Keep their column
+// list intact so retiring one answer does not dismantle and pool each buffer.
+const BUNDLE_WIDTH: usize = 12;
+const BUNDLE_ROWS: usize = 64;
+
+struct ColumnPool {
+    by_capacity: [Vec<Vec<u64>>; CLASSES],
+    by_width: [Vec<Vec<Vec<u64>>>; BUNDLE_WIDTH + 1],
+    cells: usize,
+}
+
 thread_local! {
-    /// 8: the worker's column buffers: a dropped table's columns come back here (cleared, capacity kept) and the next
-    /// table takes them, so a file's executions reuse the same memory instead of allocating and freeing per execution.
-    /// redo-alloc: by size class (a column of room 2^c..2^(c+1) in class c), so a small table never holds a large column.
-    static POOL: RefCell<([Vec<Vec<u64>>; CLASSES], usize)> = const { RefCell::new(([const { Vec::new() }; CLASSES], 0)) };
+    static POOL: RefCell<ColumnPool> = const { RefCell::new(ColumnPool {
+        by_capacity: [const { Vec::new() }; CLASSES],
+        by_width: [const { Vec::new() }; BUNDLE_WIDTH + 1],
+        cells: 0,
+    }) };
 }
 /// 8: the pool keeps at most this many cells in all (32 MB), and no single column above a sixteenth of it (redo-alloc c8
 /// tried 64 MB: no fewer misses, 37 MB more live).
@@ -165,11 +219,11 @@ const CLASSES: usize = 20;
 /// power of two (so it is found again by its class); for an unknown size (`n` 0) one of the small classes (up to 512
 /// cells) or an empty one.
 #[inline]
-fn take_col(p: &mut ([Vec<Vec<u64>>; CLASSES], usize), n: usize) -> Vec<u64> {
+fn take_col(p: &mut ColumnPool, n: usize) -> Vec<u64> {
     let (lo, hi) = if n == 0 { (0, 8) } else { let c = (usize::BITS - (n - 1).leading_zeros()) as usize; (c.saturating_sub(1), (c + 4).min(CLASSES - 1)) };
     for c in lo..=hi.min(CLASSES - 1) {
-        if let Some(v) = p.0[c].pop() {
-            p.1 -= v.capacity();
+        if let Some(v) = p.by_capacity[c].pop() {
+            p.cells -= v.capacity();
             if v.capacity() >= n {
                 return v;
             }
@@ -206,10 +260,18 @@ impl Table {
     pub(super) fn projected_where(names: Names, tys: Tys, n: usize, selected: impl Fn(usize) -> bool) -> Self {
         let k = names.len();
         // redo-alloc: the list of columns from the kept ones (recycle.rs), each column from the pool
-        let mut cols = recycle::take_cols(k);
-        POOL.with(|p| {
-            let p = &mut *p.borrow_mut();
+        let cols = POOL.with_borrow_mut(|p| {
+            if n <= BUNDLE_ROWS && k <= BUNDLE_WIDTH && let Some(mut cols) = p.by_width[k].pop() {
+                for (c, col) in cols.iter_mut().enumerate() {
+                    p.cells -= col.capacity();
+                    col.clear();
+                    if selected(c) { col.reserve(n); }
+                }
+                return cols;
+            }
+            let mut cols = recycle::take_cols(k);
             cols.extend((0..k).map(|c| if selected(c) { take_col(p, n) } else { Vec::new() }));
+            cols
         });
         Table { names, tys, cols, n: 0 }
     }
@@ -239,15 +301,24 @@ impl Table {
             return;
         }
         let _ = POOL.try_with(|p| {
-            let (p, cells) = &mut *p.borrow_mut();
+            let p = &mut *p.borrow_mut();
+            let k = self.cols.len();
+            if k <= BUNDLE_WIDTH && p.by_width[k].len() < 128 && self.cols.iter().all(|c| c.capacity() <= BUNDLE_ROWS) {
+                let cells = self.cols.iter().map(Vec::capacity).sum::<usize>();
+                if p.cells + cells <= POOL_CELLS {
+                    p.cells += cells;
+                    p.by_width[k].push(std::mem::take(&mut self.cols));
+                    return;
+                }
+            }
             for mut c in self.cols.drain(..) {
                 let cap = c.capacity();
-                if cap == 0 || cap > POOL_CELLS / 16 || *cells + cap > POOL_CELLS {
+                if cap == 0 || cap > POOL_CELLS / 16 || p.cells + cap > POOL_CELLS {
                     continue;
                 }
                 c.clear();
-                *cells += cap;
-                p[(usize::BITS - 1 - cap.leading_zeros()) as usize].push(c);
+                p.cells += cap;
+                p.by_capacity[(usize::BITS - 1 - cap.leading_zeros()) as usize].push(c);
             }
         });
     }
@@ -274,14 +345,21 @@ impl Table {
 pub(super) struct Run {
     /// Relations whose provider exposes a population other than this native file table.
     pub(super) reader_tables: rustc_hash::FxHashSet<String>,
+    cold: cold_list::Plan,
+    cold_entries: cold_entries::Audit,
+    cold_text: cold_text::Plan,
     pub(super) texts: Vec<Box<[u8]>>,
     pub(super) ids: FxHashMap<Box<[u8]>, u32>,
     pub(super) regexes: FxHashMap<String, Rc<regex::bytes::Regex>>,
     pub(super) kind_sym: Vec<u32>,
     pub(super) field_sym: Vec<u32>,
+    /// The provider updates its field-code dictionary when reading each file.
+    pub(super) file_field_codes: bool,
     pub(super) paths: Vec<String>,
     pub(super) path_sym: Vec<u32>,
     pub(super) empty: u32,
+    /// The SDK symbol without a published value, distinct from an empty string.
+    pub(super) absent_word: Option<u32>,
     /// redo-general: the provider's token order (`token-link`, read in place) and, by kind code, whether an element of the
     /// kind carries its source text (`syntax-tree`'s `text`), both as the provider states them (`TokenOrder`).
     pub(super) tokens: Option<Rc<dyn TokenOrder>>,
@@ -458,7 +536,8 @@ pub(super) fn dump_rows(f: &File<'_>, run: &Run, t: &Table, label: &str, path: &
 /// A plan node, as lowered.
 pub(super) struct PNode {
     pub(super) op: String,
-    pub(super) j: J,
+    source: plan_load::Source,
+    args: std::cell::OnceCell<Args>,
     pub(super) inputs: Vec<usize>,
     /// 7: the relation arguments (`args.<name>.rel`), by name.
     pub(super) rels: Vec<(String, usize)>,
@@ -496,8 +575,8 @@ pub(super) fn load(path: &str) -> Plan {
     from_value(&j)
 }
 
-/// redo-lowering: the plan from its JSON value (a plan file's, or the one prepared in this process from the pack).
-pub(super) fn from_value(j: &J) -> Plan {
+/// Read an explicitly supplied plan, including external seed sets and seed move paths.
+fn from_value(j: &J) -> Plan {
     let nodes = j["nodes"]
         .as_array()
         .expect("nodes")
@@ -513,7 +592,7 @@ pub(super) fn from_value(j: &J) -> Plan {
                 inputs_of(&n["args"], &mut inputs);
             }
             let rels = n["args"].as_object().map(|m| m.iter().filter_map(|(k, v)| v.get("rel").and_then(J::as_u64).map(|r| (k.clone(), r as usize))).collect()).unwrap_or_default();
-            PNode { op, j: n.clone(), inputs, rels }
+            PNode { op, source: plan_load::Source::External(n.clone()), args: Default::default(), inputs, rels }
         })
         .collect();
     let mut emits = Vec::new();
@@ -534,7 +613,7 @@ pub(super) fn from_value(j: &J) -> Plan {
 }
 
 /// The relations of the tree read in place, by position.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub(super) enum Native {
     /// `syntax-tree` / `semantic-syntax`: a row an element.
     Tree,
@@ -629,17 +708,24 @@ pub(super) struct Tokens {
 
 /// One file: the node table's columns, the source, the fills and the made tables.
 pub(super) struct File<'a> {
+    cold: cold_list::PerFile,
+    keyed_sizes: FxHashMap<usize, usize>,
+    owed_fills: Vec<bool>,
+    present_fields: std::cell::OnceCell<rustc_hash::FxHashSet<u32>>,
+    cold_roots: std::cell::OnceCell<Vec<(u16, u32)>>,
+    cold_text: cold_text::Dictionary,
     pub(super) table: &'a NodeTable,
     pub(super) src: &'a [u8],
     pub(super) file: u32,
+    after_last_file: bool,
     pub(super) n: usize,
-    pub(super) kind: Vec<u16>,
-    pub(super) start: Vec<u32>,
-    pub(super) end: Vec<u32>,
-    pub(super) parent: Vec<u32>,
+    pub(super) kind: &'a [u16],
+    pub(super) start: &'a [u32],
+    pub(super) end: &'a [u32],
+    pub(super) parent: &'a [u32],
     /// redo-fills c4: each element's field code (`node_table::field_of`), read as a column.
-    field: Vec<u16>,
-    pub(super) line_starts: Vec<u32>,
+    field: &'a [u16],
+    line_starts: std::cell::OnceCell<Vec<u32>>,
     text_memo: RefCell<Vec<u32>>,
     by_start: RefCell<Option<Index>>,
     by_end: RefCell<Option<Index>>,
@@ -647,8 +733,9 @@ pub(super) struct File<'a> {
     by_line: [RefCell<Option<Index>>; 2],
     tokens: RefCell<Option<Rc<Tokens>>>,
     memo: Vec<Option<Res>>,
-    vrows: FxHashMap<usize, Rc<Vec<u32>>>,
+    vrows: cold_entries::Rows,
     vmat: FxHashMap<usize, Rc<Table>>,
+    cursor_views: rustc_hash::FxHashSet<usize>,
     index: FxHashMap<usize, inline_key::List<(inline_key::Key, Rc<Index>)>>,
     lazies: FxHashMap<usize, Rc<Lazy>>,
     /// The survivor sets of this file (sorted node ids), by set: the prefix's roots for each seeded rule.
@@ -678,13 +765,8 @@ thread_local! {
 /// and free of each; their answers given back to the pools, recycle.rs).
 #[derive(Default)]
 struct FileBufs {
-    kind: Vec<u16>,
-    start: Vec<u32>,
-    end: Vec<u32>,
-    parent: Vec<u32>,
-    line_starts: Vec<u32>,
     text_memo: Vec<u32>,
-    vrows: FxHashMap<usize, Rc<Vec<u32>>>,
+    vrows: cold_entries::Rows,
     vmat: FxHashMap<usize, Rc<Table>>,
     index: FxHashMap<usize, inline_key::List<(inline_key::Key, Rc<Index>)>>,
     lazies: FxHashMap<usize, Rc<Lazy>>,
@@ -725,11 +807,6 @@ impl Drop for File<'_> {
         SPARE.with(|s| *s.borrow_mut() = (memo, known, touched));
         // redo-alloc: the file's buffers and maps emptied and kept for the next file
         let mut b = FileBufs {
-            kind: std::mem::take(&mut self.kind),
-            start: std::mem::take(&mut self.start),
-            end: std::mem::take(&mut self.end),
-            parent: std::mem::take(&mut self.parent),
-            line_starts: std::mem::take(&mut self.line_starts),
             text_memo: std::mem::take(self.text_memo.get_mut()),
             vrows: std::mem::take(&mut self.vrows),
             vmat: std::mem::take(&mut self.vmat),
@@ -740,14 +817,9 @@ impl Drop for File<'_> {
             facts: std::mem::take(&mut self.facts),
             fact_ix: std::mem::take(self.fact_ix.get_mut()),
         };
-        b.kind.clear();
-        b.start.clear();
-        b.end.clear();
-        b.parent.clear();
-        b.line_starts.clear();
         b.text_memo.clear();
         for (_, r) in b.vrows.drain() {
-            recycle::recycle_rows(r);
+            r.recycle();
         }
         give_tables(&mut b.vmat);
         // redo-alloc: the indexes given back (their own allocation and buffers kept)
@@ -798,23 +870,18 @@ impl File<'_> {
         // redo-alloc: the last file's emptied buffers and maps (none at the first file)
         let mut b = SPARE_BUFS.with(|s| s.borrow_mut().take()).unwrap_or_default();
         b.fact_ix.resize_with(fact_offsets.last().copied().unwrap_or(0), || None);
-        b.kind.reserve(n);
-        b.start.reserve(n);
-        b.end.reserve(n);
-        b.parent.reserve(n);
-        b.line_starts.push(0);
-        b.text_memo.resize(n, u32::MAX);
         let mut f = File {
             table,
             src,
             file,
+            after_last_file: false,
             n,
-            kind: b.kind,
-            start: b.start,
-            end: b.end,
-            parent: b.parent,
-            field: Vec::with_capacity(n),
-            line_starts: b.line_starts,
+            kind: node_table::kind_codes(table),
+            start: node_table::starts(table),
+            end: node_table::ends(table),
+            parent: node_table::parent_ids(table),
+            field: node_table::field_codes(table),
+            line_starts: Default::default(),
             text_memo: RefCell::new(b.text_memo),
             by_start: RefCell::new(None),
             by_end: RefCell::new(None),
@@ -822,7 +889,14 @@ impl File<'_> {
             tokens: RefCell::new(None),
             memo: Vec::new(),
             vrows: b.vrows,
+            cold: cold_list::PerFile::default(),
+            keyed_sizes: FxHashMap::default(),
+            owed_fills: Vec::new(),
+            present_fields: Default::default(),
+            cold_roots: Default::default(),
+            cold_text: cold_text::Dictionary::default(),
             vmat: b.vmat,
+            cursor_views: Default::default(),
             index: b.index,
             lazies: b.lazies,
             seeds: Vec::new(),
@@ -838,60 +912,73 @@ impl File<'_> {
             let (memo, known, touched) = std::mem::take(&mut *sp.borrow_mut());
             (f.memo, f.known, f.touched) = if memo.len() == nodes && known.len() == nodes { (memo, known, touched) } else { (vec![None; nodes], vec![0; nodes], Vec::new()) };
         });
-        for i in 0..n as u32 {
-            let p = Position(i);
-            f.kind.push(node_table::kind_of(table, p).0);
-            let s = node_table::span_of(table, p);
-            f.start.push(s.start.0);
-            f.end.push(s.end.0);
-            f.parent.push(node_table::parent_of(table, p).0);
-            f.field.push(node_table::field_of(table, p).0);
-        }
-        let mut i = 0;
-        while i < src.len() {
-            match src[i] {
-                b'\n' => f.line_starts.push(i as u32 + 1),
-                b'\r' => {
-                    if i + 1 < src.len() && src[i + 1] == b'\n' {
-                        i += 1;
-                    }
-                    f.line_starts.push(i as u32 + 1);
-                }
-                _ => {}
-            }
-            i += 1;
+        if sw!("VEC_COLD_COUNT") {
+            let roots = f.extra_roots();
+            cold_bucket::roots(roots.len(), roots.capacity());
         }
         f
     }
+
+    // A forest can have additional self-parent nodes. Most files never request their field bucket.
+    fn extra_roots(&self) -> &Vec<(u16, u32)> {
+        self.cold_roots.get_or_init(|| {
+            self.parent.iter().enumerate().skip(1)
+                .filter(|(node, parent)| *node == **parent as usize)
+                .map(|(node, _)| (self.field[node], node as u32))
+                .collect()
+        })
+    }
+
+    fn line_offsets(&self) -> &[u32] {
+        self.line_starts.get_or_init(|| {
+            let mut starts = vec![0];
+            for (i, &byte) in self.src.iter().enumerate() {
+                if byte == b'\n' || (byte == b'\r' && self.src.get(i + 1) != Some(&b'\n')) {
+                    starts.push(i as u32 + 1);
+                }
+            }
+            starts
+        })
+    }
     pub(super) fn set_text(&mut self, symbols: &[u32]) {
-        self.text_memo.get_mut().copy_from_slice(symbols);
+        assert_eq!(symbols.len(), self.n);
+        let memo = self.text_memo.get_mut();
+        memo.clear();
+        memo.extend_from_slice(symbols);
     }
 
     fn line(&self, off: u32) -> i64 {
-        self.line_starts.partition_point(|s| *s <= off) as i64
+        self.line_offsets().partition_point(|s| *s <= off) as i64
     }
     fn column(&self, off: u32) -> i64 {
-        let l = self.line_starts.partition_point(|s| *s <= off) - 1;
-        i64::from(off - self.line_starts[l])
+        let starts = self.line_offsets();
+        let l = starts.partition_point(|s| *s <= off) - 1;
+        i64::from(off - starts[l])
     }
     fn has_text(run: &Run, k: u16) -> bool {
         run.text_kind.get(usize::from(k)).copied().unwrap_or(false)
     }
+    /// The provider-decoded bytes, or the source spelling of a text-bearing element.
+    fn text_bytes(&self, p: u32) -> &[u8] {
+        match node_table::decoded_of(self.table, Position(p)) {
+            Some(text) => text.0.as_bytes(),
+            None => &self.src[self.start[p as usize] as usize..self.end[p as usize] as usize],
+        }
+    }
     fn elem_text(&self, run: &mut Run, p: u32) -> u32 {
-        let m = self.text_memo.borrow()[p as usize];
-        if m != u32::MAX {
-            return m;
+        let mut memo = self.text_memo.borrow_mut();
+        if let Some(&symbol) = memo.get(p as usize) {
+            if symbol != u32::MAX { return symbol; }
+        } else {
+            memo.resize(self.n, u32::MAX);
         }
         let k = self.kind[p as usize];
         let s = if Self::has_text(run, k) {
-            match node_table::decoded_of(self.table, Position(p)) {
-                Some(t) => run.sym(t.0.as_bytes()),
-                None => run.sym(&self.src[self.start[p as usize] as usize..self.end[p as usize] as usize]),
-            }
+            run.sym(self.text_bytes(p))
         } else {
             run.empty
         };
-        self.text_memo.borrow_mut()[p as usize] = s;
+        memo[p as usize] = s;
         s
     }
     fn has_parent(&self, p: u32) -> bool {
@@ -1056,6 +1143,7 @@ impl File<'_> {
     /// Rows of a native relation whose column holds `v`.
     fn native_probe(&self, run: &Run, nat: Native, col: usize, v: u64, out: &mut Vec<u32>) {
         fill_prof::read(4);
+        if sw!("VEC_COLD_COUNT") { run.cold.probe(self, None); }
         let ok = v < self.n as u64;
         match (nat, col) {
             (Native::Tree, 0) | (Native::Location, 0) => {
@@ -1252,13 +1340,15 @@ pub(super) struct ViewSpec {
     file_tests: Option<Box<filter_order::FileTests>>,
     /// redo-fills c4: `filter` compiled once (when the view is made), read as columns (`view_cols`).
     tests: Vec<view_cols::Test>,
+    cold_test: std::cell::OnceCell<Rc<cold_test::Kernel>>,
+    cold_bucket: std::cell::OnceCell<cold_list::Handoff>,
 }
 
 impl ViewSpec {
     fn new(base: Native, map: Vec<usize>, filter: Vec<E>) -> Self {
         let tests = view_cols::compile(&filter);
         let file_tests = filter_order::FileTests::prepare(&filter);
-        ViewSpec { base, map, filter, tests, file_tests }
+        ViewSpec { base, map, filter, tests, file_tests, cold_test: Default::default(), cold_bucket: Default::default() }
     }
 }
 
@@ -1310,6 +1400,13 @@ pub(super) struct Exec<'p> {
     schemas: Vec<Option<Rc<Schema>>>,
     views: Vec<Option<Option<Rc<ViewSpec>>>>,
     sels: Vec<Option<Rc<SelPlan>>>,
+    // Each reader group prepares its own column indices and interned names.
+    select_preps: Vec<Option<Rc<select_kernel::Prep>>>,
+    union_preps: Vec<Option<Rc<union_kernel::Prep>>>,
+    antijoin_preps: Vec<Option<Rc<antijoin_kernel::Prep>>>,
+    keyed_forms: Vec<Option<keyed::Form>>,
+    band_shapes: FxHashMap<(usize, usize), Rc<band::Shape>>,
+    leaves: emptyprop::Leaves,
     inner: f64,
     /// Steps whose inputs are all run-wide (the file list, written rows): made once a run.
     constant: Vec<Option<bool>>,
@@ -1318,8 +1415,6 @@ pub(super) struct Exec<'p> {
     pub(super) requests: request::Requests,
     /// redo-union pass 2: per node, what the step bracket reads on every run (`frame`).
     frames: Vec<frame::Frame>,
-    /// each step's `args` in the plan (read once).
-    args: Vec<&'p J>,
     /// The steps that read each node.
     pub(super) consumers: Vec<Vec<usize>>,
     emitted: rustc_hash::FxHashSet<usize>,
@@ -1327,7 +1422,7 @@ pub(super) struct Exec<'p> {
     /// 8: row-number buffers of the join (tuples a source), reused across executions; the join's key set, reused.
     u32_pool: Vec<Vec<u32>>,
     /// redo-union pass 2: what each step needs to return anything (`known`), and its shared empty answer.
-    needs: Vec<Option<&'static known::Need>>,
+    needs: Vec<Option<Rc<known::Need>>>,
     flat: known::Flat,
     empties: Vec<Option<Rc<Table>>>,
     /// The view rows a keyed read of a view finds (reused).
@@ -1335,31 +1430,26 @@ pub(super) struct Exec<'p> {
     /// `VEC_STEP_TIME`: each step run under the step clock (`timed_body`).
     timing: bool,
     col: col::Kernels,
+    cold_compiler: cold_test::Compiler,
 }
 
 type R<T> = Result<T, String>;
 
-fn s(j: &J) -> R<&str> {
+fn external_text(j: &J) -> R<&str> {
     j.as_str().ok_or_else(|| format!("not a text: {j}"))
 }
-/// A plan argument's names. 7: read once a run (the plan is not changed while it runs: a value is known by its address).
-fn strs(j: &J) -> R<Rc<Vec<String>>> {
-    thread_local! {
-        static SEEN: RefCell<FxHashMap<usize, Rc<Vec<String>>>> = RefCell::new(FxHashMap::default());
-    }
-    let at = std::ptr::from_ref(j) as usize;
-    if let Some(v) = SEEN.with(|m| m.borrow().get(&at).cloned()) {
-        return Ok(v);
-    }
-    let v: Vec<String> = match j {
-        J::Array(a) => a.iter().map(|x| s(x).map(str::to_owned)).collect::<R<_>>()?,
-        J::String(x) => vec![x.clone()],
-        J::Null => Vec::new(),
-        _ => return Err(format!("not a list: {j}")),
+/// Borrow names from this plan argument in their declared order.
+fn strs(j: &Param) -> R<impl DoubleEndedIterator<Item = &str> + Clone> {
+    let values = match j {
+        Param::List(items) => items.as_slice(),
+        Param::Text(_) => std::slice::from_ref(j),
+        Param::Missing => &[],
+        _ => return Err(format!("not a list: {j:?}")),
     };
-    let v = Rc::new(v);
-    SEEN.with(|m| m.borrow_mut().insert(at, v.clone()));
-    Ok(v)
+    if let Some(invalid) = values.iter().find(|item| item.as_str().is_none()) {
+        return Err(format!("not a text: {invalid:?}"));
+    }
+    Ok(values.iter().filter_map(Param::as_str))
 }
 
 fn pos(names: &[String], c: &str) -> R<usize> {
@@ -1375,17 +1465,22 @@ impl<'p> Exec<'p> {
             schemas: vec![None; k],
             views: vec![None; k],
             sels: vec![None; k],
+            select_preps: vec![None; k],
+            union_preps: vec![None; k],
+            antijoin_preps: vec![None; k],
+            keyed_forms: vec![None; k],
+            band_shapes: FxHashMap::default(),
+            leaves: emptyprop::Leaves::default(),
             inner: 0.0,
             constant: vec![None; k],
             run_memo: vec![None; k],
             requests: request::Requests::default(),
             frames: frame::frames(plan),
-            args: plan.nodes.iter().map(|n| &n.j["args"]).collect(),
             consumers: {
                 let mut c = vec![Vec::new(); k];
                 for (i, n) in plan.nodes.iter().enumerate() {
                     for x in &n.inputs {
-                        if !c[*x].contains(&i) {
+                        if c[*x].last() != Some(&i) {
                             c[*x].push(i);
                         }
                     }
@@ -1401,6 +1496,7 @@ impl<'p> Exec<'p> {
             scratch_rows: Vec::new(),
             timing: sw!("VEC_STEP_TIME"),
             col: col::Kernels::default(),
+            cold_compiler: Default::default(),
         }
     }
 
@@ -1414,7 +1510,7 @@ impl<'p> Exec<'p> {
         let c = match pn.op.as_str() {
             // redo-binding c32 (filesystem.file per file) through redo-fills' catalog: it is declared a host relation of the
             // file (fact_catalog.rs), so only a RunFiles relation is constant, and none is declared now
-            "base" => pn.j["rel"].as_str().is_some_and(|r| matches!(run.supplier(r), Supplier::RunFiles)),
+            "base" => pn.base().is_some_and(|r| matches!(run.supplier(r), Supplier::RunFiles)),
             "rows" => true,
             "select" | "union" | "antijoin" | "extend" | "project" | "group-count" | "group-min" | "group-max" | "capture" | "replace" => {
                 let ins = pn.inputs.clone();
@@ -1437,11 +1533,9 @@ impl<'p> Exec<'p> {
         if let Some(sc) = &self.schemas[node] {
             return Ok(sc.clone());
         }
-        // 7: the plan's own JSON (never a copy: `strs` knows a plan value by its address)
         let plan: &'p Plan = self.plan;
         let pn = &plan.nodes[node];
-        let j = &pn.j;
-        let a = &j["args"];
+        let a = pn.args();
         let op = pn.op.clone();
         let from = |me: &mut Self, run: &mut Run, name: &str| -> R<Rc<Schema>> {
             let n = me.arg_rel(node, name)?;
@@ -1450,7 +1544,7 @@ impl<'p> Exec<'p> {
         let mk = |names: Vec<String>, tys: Vec<Ty>| Rc::new(Schema { names: Rc::new(names), tys: Rc::new(tys) });
         let sc = match op.as_str() {
             "base" => {
-                let rel = s(&j["rel"])?;
+                let rel = pn.base().ok_or("base relation")?;
                 if let Some(nat) = native_of(run, rel) {
                     mk(native_cols(nat).iter().map(|c| c.0.to_owned()).collect(), native_cols(nat).iter().map(|c| c.1).collect())
                 } else {
@@ -1470,8 +1564,8 @@ impl<'p> Exec<'p> {
                 for (k, v) in a["values"].as_object().ok_or("extend values")? {
                     names.push(k.clone());
                     tys.push(match v {
-                        J::Number(_) => Ty::Num,
-                        J::String(t) if t == "true" || t == "false" => Ty::Flag,
+                        Param::Number(_) => Ty::Num,
+                        Param::Text(t) if t == "true" || t == "false" => Ty::Flag,
                         _ => Ty::Sym,
                     });
                 }
@@ -1479,7 +1573,7 @@ impl<'p> Exec<'p> {
             }
             "project" => {
                 let f = from(self, run, "from")?;
-                let cols: Vec<usize> = strs(&a["columns"])?.iter().map(|c| pos(&f.names, c)).collect::<R<_>>()?;
+                let cols: Vec<usize> = strs(&a["columns"])?.map(|c| pos(&f.names, c)).collect::<R<_>>()?;
                 mk(cols.iter().map(|c| f.names[*c].clone()).collect(), cols.iter().map(|c| f.tys[*c]).collect())
             }
             "axis" => {
@@ -1491,7 +1585,7 @@ impl<'p> Exec<'p> {
             }
             "group-count" | "group-digest" => {
                 let f = from(self, run, "from")?;
-                let keys: Vec<usize> = strs(&a["keys"])?.iter().map(|c| pos(&f.names, c)).collect::<R<_>>()?;
+                let keys: Vec<usize> = strs(&a["keys"])?.map(|c| pos(&f.names, c)).collect::<R<_>>()?;
                 let mut names: Vec<String> = keys.iter().map(|c| f.names[*c].clone()).collect();
                 let mut tys: Vec<Ty> = keys.iter().map(|c| f.tys[*c]).collect();
                 if op == "group-digest" {
@@ -1512,7 +1606,7 @@ impl<'p> Exec<'p> {
             }
             "closure" | "follow" => {
                 let e = from(self, run, "edges")?;
-                let keys: Vec<usize> = strs(&a["keys"])?.iter().map(|c| pos(&e.names, c)).collect::<R<_>>()?;
+                let keys: Vec<usize> = strs(&a["keys"])?.map(|c| pos(&e.names, c)).collect::<R<_>>()?;
                 let (si, di) = (pos(&e.names, s(&a["source"])?)?, pos(&e.names, s(&a["destination"])?)?);
                 let mut names: Vec<String> = keys.iter().map(|c| e.names[*c].clone()).collect();
                 let mut tys: Vec<Ty> = keys.iter().map(|c| e.tys[*c]).collect();
@@ -1550,25 +1644,25 @@ impl<'p> Exec<'p> {
                 let (mut names, mut tys) = ((*f.names).clone(), (*f.tys).clone());
                 names.push(s(&a["output"])?.to_owned());
                 tys.push(Ty::Span);
-                if let Some(lo) = a.get("line-output").and_then(J::as_str) {
+                if let Some(lo) = a.get("line-output").and_then(Param::as_str) {
                     names.push(lo.to_owned());
                     tys.push(Ty::Num);
                 }
-                if a.get("capture").and_then(J::as_str).is_some() {
+                if a.get("capture").and_then(Param::as_str).is_some() {
                     names.push(s(&a["capture-output"])?.to_owned());
                     tys.push(Ty::Span);
-                    if let Some(ct) = a.get("capture-text-output").and_then(J::as_str) {
+                    if let Some(ct) = a.get("capture-text-output").and_then(Param::as_str) {
                         names.push(ct.to_owned());
                         tys.push(Ty::Sym);
                     }
-                    if let Some(cl) = a.get("capture-line-output").and_then(J::as_str) {
+                    if let Some(cl) = a.get("capture-line-output").and_then(Param::as_str) {
                         names.push(cl.to_owned());
                         tys.push(Ty::Num);
                     }
                 }
                 // redo-binding pass 6: `capture-texts={group: column, ...}`, the text of each named group ("" when it did
                 // not take part), so one scan answers several spellings of a span
-                if let Some(ct) = a.get("capture-texts").and_then(J::as_object) {
+                if let Some(ct) = a.get("capture-texts").and_then(Param::as_object) {
                     for v in ct.values() {
                         names.push(s(v)?.to_owned());
                         tys.push(Ty::Sym);
@@ -1579,16 +1673,16 @@ impl<'p> Exec<'p> {
             "capture" => {
                 let f = from(self, run, "from")?;
                 let (mut names, mut tys) = ((*f.names).clone(), (*f.tys).clone());
-                for c in strs(&a["captures"])?.iter().cloned() {
-                    names.push(c);
+                for c in strs(&a["captures"])? {
+                    names.push(c.to_owned());
                     tys.push(Ty::Sym);
                 }
                 mk(names, tys)
             }
             "rows" => {
-                let names = strs(&a["columns"])?;
+                let names: Vec<_> = strs(&a["columns"])?.map(str::to_owned).collect();
                 let k = names.len();
-                mk((*names).clone(), vec![Ty::Sym; k])
+                mk(names, vec![Ty::Sym; k])
             }
             "render-syntax" => {
                 let f = from(self, run, "from")?;
@@ -1639,49 +1733,27 @@ impl<'p> Exec<'p> {
 
     fn expr(&self, run: &mut Run, j: &J, names: &[(Option<String>, Rc<Schema>)]) -> R<E> {
         let a = j.as_array().ok_or("expr")?;
-        let tag = s(&a[0])?;
+        let tag = external_text(&a[0])?;
         Ok(match tag {
-            "col" => {
-                let name = s(&a[1])?;
-                let alias = a[2].as_str();
-                let mut found = None;
-                for (i, (al, sc)) in names.iter().enumerate() {
-                    // redo-honest: a qualifier over a lone unaliased source names that source (the shipping compiler
-                    // accepts `select l.a from t`, and so runs a rule the harness refused)
-                    if alias.is_some() && al.as_deref() != alias && !(names.len() == 1 && al.is_none()) {
-                        continue;
-                    }
-                    if let Some(c) = sc.names.iter().position(|x| x == name) {
-                        found = Some(E::Col(i, c, sc.tys[c]));
-                        break;
-                    }
-                }
-                match found {
-                    Some(e) => e,
-                    None if alias.is_none() => E::Text(run.sym(name.as_bytes())),
-                    None => return Err(format!("no column {alias:?}.{name}")),
-                }
-            }
-            "lit" => E::Text(run.sym(s(&a[1])?.as_bytes())),
+            "col" => Self::column_expr(run, external_text(&a[1])?, a[2].as_str(), names)?,
+            "lit" => E::Text(run.sym(external_text(&a[1])?.as_bytes())),
             "num" => E::Num(a[1].as_i64().ok_or("num")?),
             "list" => E::List(a[1].as_array().ok_or("list")?.iter().map(|x| self.expr(run, x, names)).collect::<R<_>>()?),
             "call" => {
-                let name = s(&a[1])?.to_owned();
+                let name = external_text(&a[1])?.to_owned();
                 let args: Vec<E> = a[2].as_array().ok_or("args")?.iter().map(|x| self.expr(run, x, names)).collect::<R<_>>()?;
-                match (name.as_str(), args.get(1)) {
-                    ("matches", Some(E::Text(t))) if args.len() == 2 => {
-                        let re = run.re(&String::from_utf8_lossy(run.text(*t)).into_owned())?;
-                        E::Re(Box::new(args[0].clone()), re)
-                    }
-                    ("glob_any", Some(E::Text(t))) if args.len() == 2 => {
-                        let re = run.re(&glob_pattern(&String::from_utf8_lossy(run.text(*t))))?;
-                        E::Re(Box::new(args[0].clone()), re)
-                    }
-                    _ => E::Call(name, args),
-                }
+                Self::call_expr(run, &name, args)?
             }
-            "cmp" => E::Cmp(Op::of(s(&a[1])?), Box::new(self.expr(run, &a[2], names)?), Box::new(self.expr(run, &a[3], names)?)),
-            "in" | "notin" => E::In(Box::new(self.expr(run, &a[1], names)?), Box::new(self.expr(run, &a[2], names)?), tag == "notin"),
+            "cmp" => {
+                let left = self.expr(run, &a[2], names)?;
+                let right = self.expr(run, &a[3], names)?;
+                Self::compare_expr(run, Op::of(external_text(&a[1])?), left, right)
+            }
+            "in" | "notin" => {
+                let value = self.expr(run, &a[1], names)?;
+                let list = self.expr(run, &a[2], names)?;
+                Self::membership_expr(run, value, list, tag == "notin")
+            }
             "and" => E::And(Box::new(self.expr(run, &a[1], names)?), Box::new(self.expr(run, &a[2], names)?)),
             "or" => E::Or(Box::new(self.expr(run, &a[1], names)?), Box::new(self.expr(run, &a[2], names)?)),
             "not" => E::Not(Box::new(self.expr(run, &a[1], names)?)),
@@ -1697,18 +1769,15 @@ impl<'p> Exec<'p> {
             return Ok(sp.clone());
         }
         let plan: &'p Plan = self.plan;
-        let j = &plan.nodes[node].j;
-        let mut srcs = Vec::new();
-        let mut names = Vec::new();
-        for sj in j["src"].as_array().ok_or("src")? {
-            let n = sj[0].as_u64().ok_or("src node")? as usize;
-            names.push((sj[1].as_str().map(str::to_owned), self.schema(run, n)?));
-            srcs.push(n);
-        }
+        let pn = &plan.nodes[node];
+        let srcs = pn.inputs.clone();
+        let names = srcs.iter().enumerate().map(|(i, &source)| {
+            Ok((pn.alias(i).map(str::to_owned), self.schema(run, source)?))
+        }).collect::<R<Vec<_>>>()?;
         let mut conj = Vec::new();
-        if !j["cond"].is_null() {
-            // redo-honest: a refusal names the step and its sources
-            let e = self.expr(run, &j["cond"], &names).map_err(|e| format!("{e} in step {node} over {srcs:?}"))?;
+        if let Some(e) = self.select_condition(run, pn, &names)
+            .map_err(|e| format!("{e} in step {node} over {srcs:?}"))?
+        {
             flatten(e, &mut conj);
         }
         // a test of two file columns always holds: every relation here is the file's
@@ -1717,8 +1786,10 @@ impl<'p> Exec<'p> {
         let wide: Vec<bool> = srcs.iter().map(|n| self.is_constant(run, *n)).collect();
         conj.retain(|c| !matches!(c, E::Cmp(Op::Eq, a, b) if matches!(**a, E::Col(sa, _, Ty::File) if !wide[sa]) && matches!(**b, E::Col(sb, _, Ty::File) if !wide[sb])));
         let refs = conj.iter().map(refs_of).collect();
-        let items: Vec<(String, E)> = match &j["items"] {
-            J::Null => {
+        let items: Vec<(String, E)> = match self.select_items(run, pn, &names)
+            .map_err(|e| format!("{e} in step {node} over {srcs:?}"))?
+        {
+            None => {
                 let mut v: Vec<(String, E)> = Vec::new();
                 for (i, (_, sc)) in names.iter().enumerate() {
                     for (c, nm) in sc.names.iter().enumerate() {
@@ -1729,8 +1800,7 @@ impl<'p> Exec<'p> {
                 }
                 v
             }
-            J::Array(a) => a.iter().map(|it| Ok((s(&it[0])?.to_owned(), self.expr(run, &it[1], &names)?))).collect::<R<_>>().map_err(|e| format!("{e} in step {node} over {srcs:?}"))?,
-            _ => return Err("items".to_owned()),
+            Some(items) => items,
         };
         let file_tests = filter_order::FileTests::prepare(&conj);
         let sp = Rc::new(SelPlan { srcs, conj, refs, items, file_tests });
@@ -1753,7 +1823,7 @@ impl<'p> Exec<'p> {
         let pn = &self.plan.nodes[node];
         let v = match pn.op.as_str() {
             "base" => {
-                let rel = pn.j["rel"].as_str().unwrap_or("").to_owned();
+                let rel = pn.base().unwrap_or("").to_owned();
                 match native_of(run, &rel) {
                     Some(nat) => Some(Rc::new(ViewSpec::new(nat, (0..native_cols(nat).len()).collect(), Vec::new()))),
                     None => fact_of(run, &rel).map(|nat| {
@@ -1762,8 +1832,8 @@ impl<'p> Exec<'p> {
                     }),
                 }
             }
-            "select" if pn.j["src"].as_array().is_some_and(|a| a.len() == 1) => {
-                let inner = pn.j["src"][0][0].as_u64().unwrap_or(0) as usize;
+            "select" if pn.inputs.len() == 1 => {
+                let inner = pn.inputs[0];
                 match self.view(run, inner)? {
                     Some(iv) => {
                         let sp = self.sel(run, node)?;
@@ -1783,6 +1853,9 @@ impl<'p> Exec<'p> {
             }
             _ => None,
         };
+        if let Some(view) = &v {
+            self.cold_compiler.bind(run, node, view);
+        }
         self.views[node] = Some(v.clone());
         Ok(v)
     }
@@ -1803,7 +1876,7 @@ impl<'p> Exec<'p> {
     /// A node made in this file and put in its slot (listed in `touched`, cleared at the file's end).
     #[inline(never)]
     fn make(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Res> {
-        let r = self.make_(f, run, p, node)?;
+        let r = if cold_list::auditing() { self.cold_make(f, run, p, node)? } else { self.make_(f, run, p, node)? };
         f.touched.push(node as u32);
         f.memo[node] = Some(r.clone());
         Ok(r)
@@ -1834,7 +1907,7 @@ impl<'p> Exec<'p> {
         }
         if !sw!("VEC_NO_KNOWN") && self.known_empty(f, run, p, node) {
             self.stats.known[node] += 1;
-            emptyprop::skipped(f, node);
+            self.skipped(f, node);
             return Ok(Res::Tab(self.empty_rc(run, node)?));
         }
         // 8: a step over an empty input answers its shared empty table before any set-up
@@ -1890,6 +1963,7 @@ impl<'p> Exec<'p> {
     /// reads that table through its index on `col` (made once a file). A view is read in place where its base has a
     /// keyed read for the column; a closure is read through its adjacency (`lazy`), not made whole.
     fn probe(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64]) -> R<Rc<Table>> {
+        if sw!("VEC_COLD_COUNT") { run.cold.probe(f, Some(keys.len())); }
         if keys.is_empty() {
             return self.empty_rc(run, node);
         }
@@ -1971,22 +2045,31 @@ impl<'p> Exec<'p> {
                 if let Some(t) = f.vmat.get(&node) {
                     return Ok(t.clone());
                 }
-                let t0 = step_clock();
-                let sc = self.schema(run, node)?;
-                let rows = view_rows(f, run, &v, node);
-                let mut out = Table::with_rows(sc.names.clone(), sc.tys.clone(), rows.len());
-                for c in 0..v.map.len() {
-                    view_cols::gather(f, run, v.base, v.map[c], &rows, &mut out.cols[c]);
-                }
-                out.n = rows.len();
-                self.stats.built[node] += out.n as u64;
-                let rc = recycle::rc(out);
+                let t0 = leaf_scan::table_clock();
+                let rows = view_rows_for(f, run, &v, node, true);
+                let rc = if rows.is_empty() {
+                    self.empty_rc(run, node)?
+                } else {
+                    let sc = self.schema(run, node)?;
+                    let mut out = Table::with_rows(sc.names.clone(), sc.tys.clone(), rows.len());
+                    for c in 0..v.map.len() {
+                        view_cols::gather_ids(f, run, v.base, v.map[c], rows.iter().copied(), &mut out.cols[c]);
+                    }
+                    out.n = rows.len();
+                    recycle::rc(out)
+                };
                 f.vmat.insert(node, rc.clone());
-                let dt = step_clock() - t0;
+                let dt = leaf_scan::table_clock() - t0;
                 self.stats.time[node] += dt;
-                self.inner += dt;
-                self.stats.ran(node);
-                self.stats.produced(node, rc.n);
+                if self.timing || !sw!("VEC_LEAF_CLOCK") {
+                    self.inner += dt;
+                }
+                // A row-stream reader may already have produced this logical result.
+                if !f.cursor_views.remove(&node) {
+                    self.stats.built[node] += rc.n as u64;
+                    self.stats.ran(node);
+                    self.stats.produced(node, rc.n);
+                }
                 Ok(rc)
             }
         }
@@ -2030,21 +2113,12 @@ impl<'p> Exec<'p> {
         if let Some(l) = f.lazies.get(&node) {
             return Ok(l.clone());
         }
-        let edges = self.eval(f, run, p, self.arg_rel(node, "edges")?)?;
+        let edges = self.edge_input(f, run, p, self.arg_rel(node, "edges")?)?;
         let t0 = step_clock();
-        let a = &self.plan.nodes[node].j["args"];
-        let keys: Vec<usize> = strs(&a["keys"])?.iter().map(|k| edges.col(k)).collect::<R<_>>()?;
+        let a = self.plan.nodes[node].args();
+        let keys: Vec<usize> = strs(&a["keys"])?.map(|k| edges.col(k)).collect::<R<_>>()?;
         let (si, di) = (edges.col(s(&a["source"])?)?, edges.col(s(&a["destination"])?)?);
-        let mut adj: FxHashMap<Vec<u64>, Vec<u64>> = FxHashMap::default();
-        let mut radj: FxHashMap<Vec<u64>, Vec<u64>> = FxHashMap::default();
-        for r in 0..edges.n {
-            let mut k: Vec<u64> = keys.iter().map(|c| edges.cols[*c][r]).collect();
-            let mut k2 = k.clone();
-            k.push(edges.cols[si][r]);
-            adj.entry(k).or_default().push(edges.cols[di][r]);
-            k2.push(edges.cols[di][r]);
-            radj.entry(k2).or_default().push(edges.cols[si][r]);
-        }
+        let (adj, radj) = edges.adjacency(f, run, &keys, si, di);
         let sc = self.schema(run, node)?;
         let l = Rc::new(Lazy { keys, adj, radj, node, names: sc.names.clone(), tys: sc.tys.clone(), cache: RefCell::new(FxHashMap::default()), rcache: RefCell::new(FxHashMap::default()) });
         let dt = step_clock() - t0;
@@ -2075,7 +2149,7 @@ impl<'p> Exec<'p> {
         // an empty answer is the step's shared one (the body's own table is dropped, nothing kept a run); the select's
         // dispatch point (by the frame's code)
         if fr.op == frame::Op::Select {
-            if let Some(index) = self.col.projection(node) {
+            if let Some(index) = self.projection(run, node) {
                 return self.col_select(f, run, p, node, index);
             }
             return self.select_entry(f, run, p, node);
@@ -2087,13 +2161,13 @@ impl<'p> Exec<'p> {
     /// A group count over a counted select: its kept rows and their counts, grouped (None: the band does not apply).
     fn counted(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Option<Table>> {
         let plan: &'p Plan = self.plan;
-        let a = &plan.nodes[node].j["args"];
+        let a = plan.nodes[node].args();
         {
             let fnode = self.arg_rel(node, "from")?;
-            let pb = plan.nodes[fnode].j["semi"].as_u64().ok_or("count without semi")? as usize;
+            let pb = plan.nodes[fnode].semi().ok_or("count without semi")?;
             if let Some((from, counts)) = self.band_rows(f, run, p, fnode, pb, true)? {
                 self.stats.produced(fnode, from.n);
-                let keys: Vec<usize> = strs(&a["keys"])?.iter().map(|c| from.col(c)).collect::<R<_>>()?;
+                let keys: Vec<usize> = strs(&a["keys"])?.map(|c| from.col(c)).collect::<R<_>>()?;
                 let mut groups: FxHashMap<inline_key::Key, u64> = FxHashMap::default();
                 let mut order: Vec<inline_key::Key> = Vec::new();
                 // redo-alloc: a row's key read into one buffer; lists made only for a key not seen (same groups, same order)
@@ -2127,10 +2201,9 @@ impl<'p> Exec<'p> {
         let plan: &'p Plan = self.plan;
         let pn = &plan.nodes[node];
         let op = pn.op.as_str();
-        let j = &pn.j;
-        let a = self.args[node];
+        let a = pn.args();
         match op {
-            "base" => self.base(f, run, node, s(&j["rel"])?),
+            "base" => self.base(f, run, node, pn.base().ok_or("base relation")?),
             "select" => self.select_k(f, run, p, node),
             "union" => {
                 let l = self.eval(f, run, p, self.arg_rel(node, "left")?)?;
@@ -2160,10 +2233,10 @@ impl<'p> Exec<'p> {
                 let mut out = from.copy();
                 for (k, v) in a["values"].as_object().ok_or("extend values")? {
                     let (t, x) = match v {
-                        J::Number(n) => (Ty::Num, n.as_i64().ok_or("extend number")? as u64),
-                        J::String(t) if t == "true" || t == "false" => (Ty::Flag, u64::from(t == "true")),
-                        J::String(t) => (Ty::Sym, u64::from(run.sym(t.as_bytes()))),
-                        _ => return Err(format!("extend value {v}")),
+                        Param::Number(_) => (Ty::Num, v.as_i64().ok_or("extend number")? as u64),
+                        Param::Text(t) if t == "true" || t == "false" => (Ty::Flag, u64::from(t == "true")),
+                        Param::Text(t) => (Ty::Sym, u64::from(run.sym(t.as_bytes()))),
+                        _ => return Err(format!("extend value {v:?}")),
                     };
                     // redo-alloc: the constant column from the pool
                     out.push_const_col(x, from.n);
@@ -2174,7 +2247,7 @@ impl<'p> Exec<'p> {
             }
             "project" => {
                 let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
-                let cols: Vec<usize> = strs(&a["columns"])?.iter().map(|c| from.col(c)).collect::<R<_>>()?;
+                let cols: Vec<usize> = strs(&a["columns"])?.map(|c| from.col(c)).collect::<R<_>>()?;
                 let osc = self.schema(run, node)?;
                 let mut out = Table::with(osc.names.clone(), osc.tys.clone());
                 let mut seen: rustc_hash::FxHashSet<inline_key::Key> = rustc_hash::FxHashSet::default();
@@ -2193,9 +2266,9 @@ impl<'p> Exec<'p> {
             "axis" => self.axis(f, run, p, node, a),
             "group-count" => {
                 let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
-                let keys: Vec<usize> = strs(&a["keys"])?.iter().map(|c| from.col(c)).collect::<R<_>>()?;
+                let keys: Vec<usize> = strs(&a["keys"])?.map(|c| from.col(c)).collect::<R<_>>()?;
                 let distinct = match &a["distinct"] {
-                    J::String(d) => Some(from.col(d)?),
+                    Param::Text(d) => Some(from.col(d)?),
                     _ => None,
                 };
                 let mut groups: FxHashMap<inline_key::Key, (u64, rustc_hash::FxHashSet<u64>)> = FxHashMap::default();
@@ -2230,7 +2303,7 @@ impl<'p> Exec<'p> {
             }
             "group-min" | "group-max" => {
                 let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
-                let keys: Vec<usize> = strs(&a["keys"])?.iter().map(|c| from.col(c)).collect::<R<_>>()?;
+                let keys: Vec<usize> = strs(&a["keys"])?.map(|c| from.col(c)).collect::<R<_>>()?;
                 let oc = from.col(s(&a["order"])?)?;
                 let max = op == "group-max";
                 let mut best: FxHashMap<inline_key::Key, i64> = FxHashMap::default();
@@ -2280,7 +2353,7 @@ impl<'p> Exec<'p> {
             "follow" => {
                 let edges = self.eval(f, run, p, self.arg_rel(node, "edges")?)?;
                 let (sn, dn) = (s(&a["source"])?, s(&a["destination"])?);
-                let keys: Vec<usize> = strs(&a["keys"])?.iter().map(|k| edges.col(k)).collect::<R<_>>()?;
+                let keys: Vec<usize> = strs(&a["keys"])?.map(|k| edges.col(k)).collect::<R<_>>()?;
                 let (si, di) = (edges.col(sn)?, edges.col(dn)?);
                 let mut adj: FxHashMap<Vec<u64>, Vec<u64>> = FxHashMap::default();
                 let mut fixed: rustc_hash::FxHashSet<Vec<u64>> = rustc_hash::FxHashSet::default();
@@ -2374,8 +2447,8 @@ impl<'p> Exec<'p> {
                 // redo-honest: every split of the text into the slots (capture.rs), not the first regex match
                 let pattern = s(&a["pattern"])?;
                 let slot_names = capture::names(pattern);
-                let at: Vec<Option<usize>> = caps.iter().map(|c| slot_names.iter().position(|n| n == c)).collect();
-                let separator = a.get("separator").and_then(J::as_str);
+                let at: Vec<Option<usize>> = caps.map(|c| slot_names.iter().position(|n| n == c)).collect();
+                let separator = a.get("separator").and_then(Param::as_str);
                 let mut out = self.empty(run, node)?;
                 let mut row = Vec::new();
                 let mut found: Vec<Vec<std::ops::Range<usize>>> = Vec::new();
@@ -2399,7 +2472,7 @@ impl<'p> Exec<'p> {
             "group-ordinal" => {
                 // the distinct rows, each with how many distinct rows of its group have a strictly smaller order
                 let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
-                let keys: Vec<usize> = strs(&a["keys"])?.iter().map(|c| from.col(c)).collect::<R<_>>()?;
+                let keys: Vec<usize> = strs(&a["keys"])?.map(|c| from.col(c)).collect::<R<_>>()?;
                 let oc = from.col(s(&a["order"])?)?;
                 let mut seen = rustc_hash::FxHashSet::default();
                 let mut distinct = Vec::new();
@@ -2447,7 +2520,7 @@ impl<'p> Exec<'p> {
             "order" => self.order(f, run, p, node),
             "fits-rendered" => {
                 let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
-                let texts: Vec<usize> = strs(&a["texts"])?.iter().map(|c| from.col(c)).collect::<R<_>>()?;
+                let texts: Vec<usize> = strs(&a["texts"])?.map(|c| from.col(c)).collect::<R<_>>()?;
                 let lits = strs(&a["literals"])?;
                 let sc = from.col(s(&a["span"])?)?;
                 let max = a["max-line"].as_u64().ok_or("max-line")? as usize;
@@ -2460,11 +2533,11 @@ impl<'p> Exec<'p> {
                     let start = (sp >> 32) as usize;
                     let line_start = src[..start].rfind(['\r', '\n']).map_or(0, |at| at + 1);
                     let mut cand = String::new();
-                    for (l, c) in lits.iter().zip(&texts) {
+                    for (l, c) in lits.clone().zip(&texts) {
                         cand.push_str(l);
                         cand.push_str(&String::from_utf8_lossy(run.text(from.cols[*c][i] as u32)));
                     }
-                    if let Some(last) = lits.last() {
+                    if let Some(last) = lits.clone().next_back() {
                         cand.push_str(last);
                     }
                     if fits(&cand, &src[line_start..start], max, tab) {
@@ -2528,12 +2601,12 @@ impl<'p> Exec<'p> {
         Ok(out)
     }
 
-    fn antijoin(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, a: &J) -> R<Table> {
+    fn antijoin(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, a: &Args) -> R<Table> {
         let l = self.eval(f, run, p, self.arg_rel(node, "left")?)?;
         let rn = self.arg_rel(node, "right")?;
-        let lk: Vec<usize> = strs(&a["left-on"])?.iter().map(|c| l.col(c)).collect::<R<_>>()?;
+        let lk: Vec<usize> = strs(&a["left-on"])?.map(|c| l.col(c)).collect::<R<_>>()?;
         let rsc = self.schema(run, rn)?;
-        let rk: Vec<usize> = strs(&a["right-on"])?.iter().map(|c| pos(&rsc.names, c)).collect::<R<_>>()?;
+        let rk: Vec<usize> = strs(&a["right-on"])?.map(|c| pos(&rsc.names, c)).collect::<R<_>>()?;
         let mut out = Table::with(l.names.clone(), l.tys.clone());
         let mut row = Vec::new();
         // a right side that is a view probed in place on a key: a knock-out per left row, nothing made
@@ -2607,8 +2680,8 @@ impl<'p> Exec<'p> {
                 return self.empty(run, node);
             }
         }
-        if let Some(pb) = self.plan.nodes[node].j.get("semi").and_then(J::as_u64)
-            && self.plan.nodes[node].j.get("count").is_none()
+        if let Some(pb) = self.plan.nodes[node].semi()
+            && !self.plan.nodes[node].counted()
             && !sw!("VEC_NO_SEMI")
             && let Some(t) = self.semi(f, run, p, node, pb as usize)?
         {
@@ -2705,7 +2778,7 @@ impl<'p> Exec<'p> {
         let mut tuples: Vec<Vec<u32>> = (0..k).map(|_| self.take_u32()).collect();
         let own = own_of(driver);
         let mut cur = vec![0u32; k];
-        let first: Rc<Vec<u32>> = match &srcs[driver] {
+        let first: cold_bucket::Rows = match &srcs[driver] {
             Src::Tab(t, _) => {
                 // 8: a made table drives by position: its own tests run over its columns, no row list made
                 let n = t.n;
@@ -2722,7 +2795,7 @@ impl<'p> Exec<'p> {
                     }
                 }
                 tuples[driver] = kept;
-                Rc::new(Vec::new())
+                Rc::new(Vec::new()).into()
             }
             Src::View(v, vn) => {
                 // the select's own kind tests narrow the view's entry too
@@ -2730,12 +2803,12 @@ impl<'p> Exec<'p> {
                     Some(ks) if kind_set(run, &v.filter, 0, v.base, &[]).is_none() => {
                         let mut rows = bucket(f, run, &ks);
                         view_cols::retain(f, run, v, &mut rows);
-                        Rc::new(rows)
+                        Rc::new(rows).into()
                     },
                     _ => match lit_rows(f, conj, driver, v.base, &v.map) {
                         Some(mut rows) if !lit_applies(f, &v.filter, 0, v.base, &[]) => {
                             view_cols::retain(f, run, v, &mut rows);
-                            Rc::new(rows)
+                            Rc::new(rows).into()
                         }
                         _ => view_rows(f, run, v, *vn),
                     },
@@ -2990,8 +3063,8 @@ impl<'p> Exec<'p> {
                     let nb = bound | (1 << si);
                     empty_sel::at(empty_sel::stage::CROSS);
                     let checks: Vec<usize> = (0..conj.len()).filter(|c| !used[*c] && refs[*c] & !nb == 0).collect();
-                    let rows: Rc<Vec<u32>> = match &srcs[si] {
-                        Src::Tab(t, _) => Rc::new((0..t.n as u32).collect()),
+                    let rows: cold_bucket::Rows = match &srcs[si] {
+                        Src::Tab(t, _) => Rc::new((0..t.n as u32).collect::<Vec<_>>()).into(),
                         Src::View(v, vn) => view_rows(f, run, v, *vn),
                         _ => unreachable!(),
                     };
@@ -3069,14 +3142,14 @@ impl<'p> Exec<'p> {
         Ok(out)
     }
 
-    fn axis(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, a: &J) -> R<Table> {
+    fn axis(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, a: &Args) -> R<Table> {
         let from = self.eval(f, run, p, self.arg_rel(node, "from")?)?;
         self.axis_over(f, run, p, node, a, &from)
     }
 
     /// The hierarchy an axis walks: the tree, a view probed by its child and parent columns, or a made table indexed once.
     fn hier(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, rel: usize) -> R<Hier> {
-        if self.plan.nodes[rel].op == "base" && native_of(run, self.plan.nodes[rel].j["rel"].as_str().unwrap_or("")) == Some(Native::Child) {
+        if self.plan.nodes[rel].op == "base" && native_of(run, self.plan.nodes[rel].base().unwrap_or("")) == Some(Native::Child) {
             return Ok(Hier::Tree);
         }
         let rsc = self.schema(run, rel)?;
@@ -3099,8 +3172,7 @@ impl<'p> Exec<'p> {
     /// The domain an axis admits by: everything, a set, or a view probed by id.
     fn dom(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Dom> {
         let plan: &'p Plan = self.plan;
-        let Some(J::Object(_)) = plan.nodes[node].j["args"].get("domain") else { return Ok(Dom::All) };
-        let dn = self.arg_rel(node, "domain")?;
+        let Ok(dn) = self.arg_rel(node, "domain") else { return Ok(Dom::All) };
         let sc = self.schema(run, dn)?;
         let c = pos(&sc.names, "id")?;
         Ok(match self.res(f, run, p, dn)? {
@@ -3133,7 +3205,7 @@ impl<'p> Exec<'p> {
     }
 
     /// The axis over given start rows (made, or a probed subset).
-    fn axis_over(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, a: &J, from: &Table) -> R<Table> {
+    fn axis_over(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, a: &Args, from: &Table) -> R<Table> {
         let rel = self.arg_rel(node, "relation")?;
         let dir = s(&a["direction"])?.to_owned();
         let mut out = self.empty(run, node)?;
@@ -3270,17 +3342,17 @@ impl<'p> Exec<'p> {
         Ok(out)
     }
 
-    fn ordered(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, a: &J, as_of: bool) -> R<Table> {
+    fn ordered(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, a: &Args, as_of: bool) -> R<Table> {
         let l = self.eval(f, run, p, self.arg_rel(node, "left")?)?;
         let rn = self.arg_rel(node, "right")?;
-        let lk: Vec<usize> = strs(&a["left-on"])?.iter().map(|c| l.col(c)).collect::<R<_>>()?;
+        let lk: Vec<usize> = strs(&a["left-on"])?.map(|c| l.col(c)).collect::<R<_>>()?;
         let rsc = self.schema(run, rn)?;
-        let rk0: Vec<usize> = strs(&a["right-on"])?.iter().map(|c| pos(&rsc.names, c)).collect::<R<_>>()?;
+        let rk0: Vec<usize> = strs(&a["right-on"])?.map(|c| pos(&rsc.names, c)).collect::<R<_>>()?;
         let r = self.eval(f, run, p, rn)?;
         if r.n == 0 {
             return self.empty(run, node);
         }
-        let rk: Vec<usize> = strs(&a["right-on"])?.iter().map(|c| r.col(c)).collect::<R<_>>()?;
+        let rk: Vec<usize> = strs(&a["right-on"])?.map(|c| r.col(c)).collect::<R<_>>()?;
         let (lo, ro) = (l.col(s(&a["left-order"])?)?, r.col(s(&a["right-order"])?)?);
         let outm = a["output"].as_object().ok_or("output")?;
         let mut picks = Vec::new();
@@ -3369,19 +3441,19 @@ impl<'p> Exec<'p> {
         Ok(out)
     }
 
-    fn source_matches(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, a: &J) -> R<Table> {
+    fn source_matches(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, a: &Args) -> R<Table> {
         let from = self.eval(f, run, p, self.arg_rel(node, "from")?)?;
         let sc = from.col(s(&a["span"])?)?;
         let re = run.re(s(&a["pattern"])?)?;
         let base_line = match a.get("base-line") {
-            Some(J::String(b)) => Some(from.col(b)?),
+            Some(Param::Text(b)) => Some(from.col(b)?),
             _ => None,
         };
-        let line_out = a.get("line-output").and_then(J::as_str).is_some();
-        let cap = a.get("capture").and_then(J::as_str).map(str::to_owned);
-        let cap_text = a.get("capture-text-output").and_then(J::as_str).is_some();
-        let cap_line = a.get("capture-line-output").and_then(J::as_str).is_some();
-        let groups: Vec<String> = a.get("capture-texts").and_then(J::as_object).map(|o| o.keys().cloned().collect()).unwrap_or_default();
+        let line_out = a.get("line-output").and_then(Param::as_str).is_some();
+        let cap = a.get("capture").and_then(Param::as_str).map(str::to_owned);
+        let cap_text = a.get("capture-text-output").and_then(Param::as_str).is_some();
+        let cap_line = a.get("capture-line-output").and_then(Param::as_str).is_some();
+        let groups: Vec<String> = a.get("capture-texts").and_then(Param::as_object).map(|o| o.keys().cloned().collect()).unwrap_or_default();
         let mut out = self.empty(run, node)?;
         let mut row = Vec::new();
         for i in 0..from.n {
@@ -3499,32 +3571,61 @@ fn view_holds(f: &File<'_>, run: &mut Run, v: &ViewSpec, row: u32) -> bool {
 }
 
 /// A view's rows in this file: its kind bucket when its tests name kinds, else every base row; tested; made once a file.
-fn view_rows(f: &mut File<'_>, run: &mut Run, v: &ViewSpec, node: usize) -> Rc<Vec<u32>> {
+fn view_rows<'a>(f: &mut File<'a>, run: &mut Run, v: &ViewSpec, node: usize) -> cold_bucket::Rows<'a> {
+    view_rows_for(f, run, v, node, false)
+}
+
+fn view_rows_for<'a>(f: &mut File<'a>, run: &mut Run, v: &ViewSpec, node: usize, materialize: bool) -> cold_bucket::Rows<'a> {
     fill_prof::read(3);
-    if let Some(r) = f.vrows.get(&node) {
-        return r.clone();
+    if cold_list::auditing() { run.cold.ask(f, node); }
+    if let Some(r) = f.vrows.slot(&node) {
+        return r.resolve(f.table);
     }
-    if filter_order::file_fails(run, f, &v.filter, &v.file_tests) {
-        let rc = recycle::no_rows();
-        f.vrows.insert(node, rc.clone());
-        return rc;
+    let cold_start = cold_list::clock();
+    let start = if sw!("VEC_LEAF_PROFILE") { step_clock() } else { 0.0 };
+    let mut entered = 0;
+    let mut tests = 0;
+    let slot = if filter_order::file_fails(run, f, &v.filter, &v.file_tests) {
+        cold_bucket::Slot::Empty
+    } else if let Some(bucket) = v.cold_bucket.get() {
+        let slot = bucket.select(f);
+        if sw!("VEC_COLD_COUNT") {
+            let mut original = match kind_set(run, &v.filter, 0, v.base, &[]) {
+                Some(ks) => self::bucket(f, run, &ks),
+                None => f.native_rows(run, v.base),
+            };
+            view_cols::retain_original(f, run, v, &mut original);
+            assert_eq!(slot.resolve(f.table).shadow(), original, "bucket entry file {}, node {node}", f.file);
+        }
+        slot
+    } else if let Some((rows, visits, attempts)) = cold_test::column_rows(f, run, v, node) {
+        entered = visits;
+        tests = attempts;
+        rows.into()
+    } else {
+        recycle::rows_with(|out| {
+            let before = if sw!("VEC_COLD_PHASE") { cold_list::clock() } else { 0.0 };
+            match kind_set(run, &v.filter, 0, v.base, &[]) {
+                Some(ks) => bucket_into(f, run, &ks, out),
+                None => match lit_rows(f, &v.filter, 0, v.base, &[]) {
+                    Some(r) => out.extend_from_slice(&r),
+                    None => f.native_rows_into(run, v.base, out),
+                },
+            }
+            // redo-fills: the view tests read as columns (view_cols)
+            let middle = if sw!("VEC_COLD_PHASE") { cold_list::clock() } else { 0.0 };
+            entered = out.len();
+            tests = cold_test::retain(f, run, v, node, materialize, out);
+            if sw!("VEC_COLD_PHASE") { run.cold.phase(node, middle - before, cold_list::clock() - middle); }
+        }).into()
+    };
+    let rows = slot.resolve(f.table);
+    if sw!("VEC_LEAF_PROFILE") {
+        leaf_scan::row_list(node, materialize, entered, rows.len(), start);
     }
-    // redo-alloc: the rows made into a kept list (recycle.rs), tested in place
-    let rc = recycle::rows_with(|out| {
-        match kind_set(run, &v.filter, 0, v.base, &[]) {
-            Some(ks) => bucket_into(f, run, &ks, out),
-            None => match lit_rows(f, &v.filter, 0, v.base, &[]) {
-                Some(r) => out.extend_from_slice(&r),
-                None => f.native_rows_into(run, v.base, out),
-            },
-        }
-        // redo-fills: the view tests read as columns (view_cols)
-        if !v.filter.is_empty() {
-            view_cols::retain(f, run, v, out);
-        }
-    });
-    f.vrows.insert(node, rc.clone());
-    rc
+    f.vrows.insert(node, slot);
+    if cold_list::auditing() { run.cold.built(f, node, materialize, entered, tests, &rows, cold_list::clock() - cold_start); }
+    rows
 }
 
 /// How many elements some kinds have.
@@ -3620,14 +3721,11 @@ fn lit_rows_into(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize
 /// The literal test `lit_rows` reads by: the fill, its base column and the literals.
 fn lit_pick(f: &File<'_>, conj: &[E], si: usize, base: Native, map: &[usize]) -> Option<(u16, usize, Vec<u32>)> {
     let Native::Fact(i) = base else { return None };
-    let table = f.facts.get(usize::from(i))?.as_ref()?;
-    let (bc, values) = literal_column(&table.tys, conj, si, map)?;
-    Some((i, bc, values))
+    lit_pick_for(conj, si, map, |bc| f.facts[usize::from(i)].as_ref().is_some_and(|t| t.tys[bc] == Ty::Sym))
+        .map(|(column, values)| (i, column, values))
 }
 
-/// Pick the same typed predicate when using a completed prefix column or an
-/// executor table. Both have the provider's declared column order and types.
-fn literal_column(tys: &[Ty], conj: &[E], si: usize, map: &[usize]) -> Option<(usize, Vec<u32>)> {
+fn lit_pick_for(conj: &[E], si: usize, map: &[usize], symbol_column: impl Fn(usize) -> bool) -> Option<(usize, Vec<u32>)> {
     fn cols(e: &E, si: usize, out: &mut Vec<usize>) {
         match e {
             E::Col(s, c, _) if *s == si => out.push(*c),
@@ -3652,7 +3750,7 @@ fn literal_column(tys: &[Ty], conj: &[E], si: usize, map: &[usize]) -> Option<(u
             if kinds_required_into(e, si, c, &mut vals) {
                 let bc = if map.is_empty() { c } else { map[c] };
                 // a text literal names a symbol cell only; a flag or number column is tested row by row
-                if tys[bc] != Ty::Sym {
+                if !symbol_column(bc) {
                     continue;
                 }
                 // redo-fills c5 (the pick without its rows) in redo-alloc's buffers: the literals copied out, the buffers kept
@@ -4281,6 +4379,20 @@ fn call(run: &mut Run, name: &str, vs: &[V]) -> V {
         }
         "starts_with" => flag(text_of(run, vs[0]).starts_with(&text_of(run, vs[1]))),
         "ends_with" => flag(text_of(run, vs[0]).ends_with(&text_of(run, vs[1]))),
+        "pascal" | "camel" | "snake" | "kebab" => {
+            use ryo_operators::domain::functions::{service::apply, types::MadeText};
+            use ryo_values::domain::plan_parts::types::Function;
+            let case = match name {
+                "pascal" => Function::Pascal,
+                "camel" => Function::Camel,
+                "snake" => Function::Snake,
+                _ => Function::Kebab,
+            };
+            let input = MadeText(String::from_utf8_lossy(&text_of(run, vs[0])).into_owned());
+            let mut output = MadeText::default();
+            apply(case, &[input], &mut output);
+            V::new(Ty::Sym, u64::from(run.sym(output.0.as_bytes())))
+        }
         "lower" => {
             let s = String::from_utf8_lossy(&text_of(run, vs[0])).to_lowercase();
             V::new(Ty::Sym, u64::from(run.sym(s.as_bytes())))

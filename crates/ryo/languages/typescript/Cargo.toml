@@ -36,6 +36,9 @@ oxc_regular_expression = "=0.142.0"
 ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", version = "0.2.0" }
 
 [dev-dependencies]
+ryo_operators = { package = "idiomatic-sh-ryo-operators", path = "../../crates/operators" }
+bumpalo = "3"
+smallvec = "1"
 # Shared vector executor and in-process query compiler, only for the benchmark.
 ryo_engine = { package = "idiomatic-sh-ryo-engine", path = "../../crates/engine" }
 ryo_values = { package = "idiomatic-sh-ryo-values", path = "../../crates/values" }
@@ -73,6 +76,8 @@ path = "benchmarks/vec/bench.rs"
 harness = false
 
 [features]
+# Instruments and widens the benchmark pair program for cost measurements.
+pair-diagnostics = []
 # Test support, not a public API: it may change without notice. Only a dev-dependency or this crate's own `fixtures` switches it on (`fixtures-feature`).
 fixtures = ["ryo/fixtures"]
 

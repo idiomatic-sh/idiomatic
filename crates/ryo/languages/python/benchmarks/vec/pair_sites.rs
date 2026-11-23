@@ -9,6 +9,12 @@ pub(crate) const ASSIGNMENT: &[(&str, CellKind)] = &[
     ("association", Symbol),
     ("file", File),
 ];
+pub(crate) const READ_WITNESS: &[(&str, CellKind)] = &[
+    ("binding", Node),
+    ("flow-read", Node),
+    ("namespace-read", Node),
+    ("file", File),
+];
 pub(crate) const NAMESPACE: &[(&str, CellKind)] = &[
     ("scope", Node),
     ("name", Symbol),
@@ -26,6 +32,17 @@ pub(crate) fn visit(
     mut row: impl FnMut(&[u64]),
 ) -> bool {
     match name {
+        fact_catalog::BINDING_READ_REL => {
+            let null = super::super::finish::NULL;
+            source.visit_binding_read_witnesses(|binding, flow, namespace| {
+                row(&[
+                    u64::from(binding),
+                    flow.map_or(null, u64::from),
+                    namespace.map_or(null, u64::from),
+                    file,
+                ]);
+            })
+        }
         fact_catalog::ASSIGNMENT_SOURCE_REL => {
             source.visit_assignment_sources(|target, value, operation, association| {
                 row(&[
