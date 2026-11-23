@@ -35,7 +35,6 @@ struct Count {
     /// level memo of the file: 0 unknown, else 1 + the class (5: never)
     lvl: Vec<u8>,
     words: Option<FxHashSet<u32>>,
-    fields: Option<FxHashSet<u32>>,
     time: f64,
     /// leaf decisions 'no rows', by relation (a node a file)
     no_rows: std::collections::BTreeMap<String, u64>,
@@ -83,7 +82,6 @@ pub(crate) fn file_end(ex: &mut Exec<'_>, f: &mut File<'_>, run: &mut Run, p: &m
         c.lvl.clear();
         c.lvl.resize(ex.plan.nodes.len(), 0);
         c.words = None;
-        c.fields = None;
     });
     for &(node, probe, own) in &runs {
         let k = ex.ep_level(f, run, p, node as usize).min(DATA);
@@ -205,8 +203,13 @@ impl Exec<'_> {
                     _ => continue,
                 };
                 let Some(vals) = kinds_required(e, si, c) else { continue };
-                let present = if want == 2 { self.ep_words(f, run) } else { self.ep_fields(f, run) };
-                if vals.iter().all(|v| !present.contains(v)) {
+                let present = if want == 2 {
+                    let words = self.ep_words(f, run);
+                    vals.iter().any(|v| words.contains(v))
+                } else {
+                    self.ep_field_present(f, run, &vals)
+                };
+                if !present {
                     return if want == 2 { 4 } else { 3 };
                 }
             }
@@ -223,14 +226,6 @@ impl Exec<'_> {
         w
     }
 
-    fn ep_fields(&mut self, f: &File<'_>, run: &Run) -> FxHashSet<u32> {
-        if let Some(w) = C.with(|c| c.borrow().fields.clone()) {
-            return w;
-        }
-        let w: FxHashSet<u32> = (0..run.field_sym.len()).filter(|c| !super::node_table::ids_of_field(f.table, ryo::languages::FieldCode(*c as u16)).is_empty()).map(|c| run.field_sym[c]).collect();
-        C.with(|c| c.borrow_mut().fields = Some(w.clone()));
-        w
-    }
 }
 
 // ------------------------------------------------------------------------------------------------ cycle 2: the leaves
@@ -488,8 +483,8 @@ impl Exec<'_> {
     pub(super) fn ep_field_present(&self, f: &File<'_>, run: &Run, names: &[u32]) -> bool {
         let fields = f.present_fields.get_or_init(|| {
             run.field_sym.iter().enumerate().filter_map(|(code, &name)| {
-                let ids = super::node_table::ids_of_field(f.table, ryo::languages::FieldCode(code as u16));
-                (!ids.is_empty()).then_some(name)
+                let count = super::node_table::field_count(f.table, ryo::languages::FieldCode(code as u16));
+                (count.0 != 0).then_some(name)
             }).collect()
         });
         names.iter().any(|name| fields.contains(name))

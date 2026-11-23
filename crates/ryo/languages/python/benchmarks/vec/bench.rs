@@ -1972,7 +1972,8 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
         && std::env::var_os("VEC_NO_SKIP").is_none() && std::env::var_os("VEC_NO_PREFIX").is_none();
     let prepare_summary = thread_cpu();
     let mut query = pairs.as_ref().map(|program| {
-        let (file_words,codes) = summary_values::vocabulary(walk,program);
+        let (base,codes) = summary_values::vocabulary(walk,program);
+        let file_words = std::array::from_fn(|_| languages::facts::file_words(&base));
         let schedule = summary_schedule::Schedule::new(program,Some((&words.ids,name_token)),codes);
         (program,schedule,file_words,pair_checks::Scratch::default())
     });
@@ -1980,7 +1981,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
     if seed_only && !token_pass && !compare && !check_links && let Some((program,schedule,words_for_file,scratch))=&mut query {
         let root = fin.as_ref().map(|f| f.run.root_dir.clone()).or_else(|| flag(args, "--summary-root"));
         let mut other = ryo_python::fixtures::columns::ColumnWalk::with_settings(ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names"),settings);
-        summary_walk::run(&list, program,&mut skip,&words,fields_width,[std::mem::take(words_for_file), summary_values::vocabulary(walk, program).0],
+        summary_walk::run(&list, program,&mut skip,&words,fields_width,std::mem::take(words_for_file),
             &mut cwalk,&mut other,fin,root.as_deref(),flag(args,"--seed-out").as_deref(),flag(args,"--exact-out").as_deref(),schedule,scratch);
         return;
     }
@@ -2152,7 +2153,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
                     let exact = fin.as_ref().filter(|f| f.can_finish_exact()).map(|_| &mut exact_rows);
                     let relative_path = fin.as_ref().map(|f| f.run.paths[file_no].clone());
                     schedule.literals.names(pt,&bytes,&mut summary_names,&mut scratch.literals);
-                    pair_steps += program.eval(scratch,schedule,pt, &bytes, relative_path.as_deref().map(str::as_bytes), None, words_for_file, |rel, request, words, out| {
+                    pair_steps += program.eval(scratch,schedule,pt, &bytes, relative_path.as_deref().map(str::as_bytes), None, &mut words_for_file[0], |rel, request, words, out| {
                         if !matches!(request,pair_checks::Query::Rows){return None;}
                         if matches!(rel, pair_summary::Source::Catalog(languages::Relation::ModuleIdentity)) {
                             return Some(fin.as_deref_mut().is_some_and(|f| f.identity(file_no, words, out)));
