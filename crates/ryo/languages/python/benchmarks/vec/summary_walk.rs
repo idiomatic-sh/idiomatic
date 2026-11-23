@@ -131,12 +131,14 @@ pub(super) fn run(
             (totals, f.map(Finisher::into_report))
         },
     );
+    let merge = thread_cpu();
     for (part, result) in results {
         totals.add(part);
         if let Some(r) = result {
             fin.as_deref_mut().expect("finisher").merge(r);
         }
     }
+    println!("worker ordered reduction CPU {:.6} s", thread_cpu() - merge);
     totals.write(program, seed_out, exact_out);
 }
 

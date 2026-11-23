@@ -483,11 +483,13 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
         });
     let (mut first_cpu, mut second_cpu, mut fills_made, mut checks) = (0., 0., 0, 0);
     let mut active = vec![0; plan.emits.len()];
+    let merge = thread_cpu();
     for ((first,second,fills,counts,steps),report) in result {
         first_cpu += first; second_cpu += second; fills_made += fills; checks += steps;
         for (a,b) in active.iter_mut().zip(counts) { *a += b; }
         if let Some(report) = report { fin.merge(report); }
     }
+    println!("worker ordered reduction CPU {:.6} s", thread_cpu() - merge);
     println!("pair checks {checks}");
     println!("reader fills made {fills_made}");
     for (emit, files) in plan.emits.iter().zip(active) {

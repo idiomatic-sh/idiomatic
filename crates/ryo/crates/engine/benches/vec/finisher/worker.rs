@@ -165,6 +165,13 @@ pub(crate) struct Report {
 
 impl Finisher<'_> {
     pub(crate) fn report(self) -> Report {
+        let start = super::thread_cpu();
+        let report = self.into_report();
+        println!("worker executor release CPU {:.6} s", super::thread_cpu() - start);
+        report
+    }
+
+    fn into_report(self) -> Report {
         Report {
             findings: self.findings,
             failures: self.failed,
