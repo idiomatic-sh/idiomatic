@@ -49,7 +49,7 @@ impl Layout {
             active |= match ask.rel {
                 facts::TYPE_EXPRESSION_REL => TYPE,
                 facts::ANNOTATION_EVALUATION_REL => ANNOTATIONS,
-                facts::RESOLUTION_REL => RESOLUTION,
+                facts::RESOLUTION_REL | facts::PREDECESSOR_REL => RESOLUTION,
                 facts::FINAL_REL => FINAL,
                 facts::DEFERRED_VISIT_REL => ANNOTATIONS | VISITS | if stub { TYPE | STUB_TYPES } else { 0 },
                 facts::DEFERRED_RESOLUTION_REL => DEFERRED | FINAL | ANNOTATIONS | VISITS | if stub { TYPE | STUB_TYPES } else { 0 },

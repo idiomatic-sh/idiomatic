@@ -1350,7 +1350,7 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
 }
 
 /// redo-fills pass 3: the provider's facts composed of its other relations (made after them in an answer).
-const COMPOSED: [&str; 8] = [fact_catalog::REGION_REL, fact_catalog::RESOLUTION_REL, fact_catalog::TYPE_REGION_REL, fact_catalog::FINAL_REL, fact_catalog::TYPE_EXPRESSION_REL, fact_catalog::ANNOTATION_EVALUATION_REL, fact_catalog::DEFERRED_VISIT_REL, fact_catalog::DEFERRED_RESOLUTION_REL];
+const COMPOSED: [&str; 9] = [fact_catalog::PREDECESSOR_REL, fact_catalog::REGION_REL, fact_catalog::RESOLUTION_REL, fact_catalog::TYPE_REGION_REL, fact_catalog::FINAL_REL, fact_catalog::TYPE_EXPRESSION_REL, fact_catalog::ANNOTATION_EVALUATION_REL, fact_catalog::DEFERRED_VISIT_REL, fact_catalog::DEFERRED_RESOLUTION_REL];
 
 /// redo-fills pass 3: the provider's families that read the model's flow part (the binding facts, the evaluation regions,
 /// and the facts composed of them), and those that read its resolution part.
