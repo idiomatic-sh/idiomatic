@@ -9,6 +9,8 @@ use ryo_relations::domain::{labels::types::NameRef, relations::service as catalo
 use ryo_values::domain::finish_plans::{expressions::types::*, service::inputs, types::*};
 use ryo_values::domain::plan_parts::types::Direction;
 
+#[path = "pair_columns.rs"]
+mod columns;
 #[path = "pair_compact.rs"]
 mod compact;
 #[path = "pair_cost.rs"]
@@ -17,6 +19,10 @@ pub(super) mod cost;
 mod exact;
 #[path = "pair_groups.rs"]
 mod groups;
+#[path = "pair_paths.rs"]
+pub(super) mod paths;
+#[path = "pair_precheck.rs"]
+mod precheck;
 #[path = "pair_project.rs"]
 mod project;
 
@@ -74,14 +80,16 @@ pub(super) enum CellTest {
     Numeric(usize, Comparator, i64),
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum Source {
     Catalog(Relation),
+    Columns(Relation, usize, u64),
     Walk(&'static str),
 }
 
 pub(super) struct Fact {
     pub family: cost::Family,
+    pub unavailable: bool,
     pub source: Source,
     pub name: &'static str,
     pub key: Option<usize>,
@@ -92,6 +100,8 @@ pub(super) struct Fact {
 
 pub(super) struct Program {
     pub meter: Option<cost::Meter>,
+    pub lazy_presence: bool,
+    pub paths: Vec<Option<paths::Edge>>,
     pub domains: Vec<Domain>,
     pub needs: Vec<Need>,
     pub exact: Vec<(usize, exact::Certificate)>,
@@ -148,7 +158,10 @@ impl<'a> Summary<'a> {
     }
     fn compact(&mut self) {
         let mut vars = Vec::new();
-        let mut map = vec![None; self.domains.len()];
+        if self.domains.is_empty() {
+            return;
+        }
+        let mut map = smallvec::SmallVec::<[Option<usize>; 8]>::from_elem(None, self.domains.len());
         for (_, c) in &mut self.columns {
             c.var = *map[c.var].get_or_insert_with(|| {
                 vars.push(self.domains[c.var]);
@@ -184,16 +197,35 @@ impl<'a> Summary<'a> {
     }
 }
 
+fn common_factor(a: Id, b: Id, c: Id, d: Id) -> Option<(Id, Id, Id)> {
+    if a == c {
+        Some((a, b, d))
+    } else if a == d {
+        Some((a, b, c))
+    } else if b == c {
+        Some((b, a, d))
+    } else if b == d {
+        Some((b, a, c))
+    } else {
+        None
+    }
+}
+
 struct Builder<'a> {
     vocab: &'a Vocab,
     language: &'a Language,
+    omit_answers: Vec<String>,
+    factor: bool,
+    dominance: bool,
+    signatures: Vec<u64>,
     neighbors: bool,
     file_sets: bool,
     out: Program,
     ds: Map<Domain, Id>,
     ns: Map<Need, Id>,
     sizes: Vec<usize>,
-    file_guards: Map<Id, Id>,
+    file_guards: Vec<Option<Id>>,
+    exists: Vec<Option<Id>>,
     counts: Map<usize, exact::Grouped>,
 }
 
@@ -211,30 +243,36 @@ impl Builder<'_> {
         }
     }
     fn distinct_size(&self, root: &Domain) -> usize {
-        let mut seen = Vec::with_capacity(CAP);
-        let mut pending = Vec::new();
+        let mut seen = [0; CAP];
+        let mut used = 0;
+        let mut pending = smallvec::SmallVec::<[Id; 32]>::new();
         let mut current = root;
         loop {
             match current {
                 Domain::Both(a, b) | Domain::Either(a, b) | Domain::Except(a, b) => {
                     pending.extend([*a, *b])
                 }
-                _ => pending.extend(Self::dependencies(current)),
+                _ => pending.extend_from_slice(Self::dependencies(current)),
             }
-            let Some(next) = std::iter::from_fn(|| pending.pop()).find(|v| !seen.contains(v))
+            let Some(next) =
+                std::iter::from_fn(|| pending.pop()).find(|v| !seen[..used].contains(v))
             else {
                 break;
             };
-            seen.push(next);
-            if seen.len() == CAP {
+            seen[used] = next;
+            used += 1;
+            if used == CAP {
                 break;
             }
             current = &self.out.domains[next];
         }
-        1 + seen.len()
+        1 + used
     }
     fn domain(&mut self, d: Domain) -> Id {
         if let Some(&i) = self.ds.get(&d) {
+            if i == ANY && !matches!(d, Domain::Any) {
+                self.out.capped += 1;
+            }
             return i;
         }
         let size = match d {
@@ -257,6 +295,7 @@ impl Builder<'_> {
         };
         if size > CAP {
             self.out.capped += 1;
+            self.ds.insert(d, ANY);
             return ANY;
         }
         let i = self.out.domains.len();
@@ -266,10 +305,26 @@ impl Builder<'_> {
         i
     }
     fn need(&mut self, n: Need) -> Id {
+        if let Need::Some(node) = n {
+            if self.exists.len() <= node {
+                self.exists.resize(node + 1, None);
+            }
+            return *self.exists[node].get_or_insert_with(|| {
+                let id = self.out.needs.len();
+                self.out.needs.push(n);
+                self.signatures.push(1 << (id % 64));
+                id
+            });
+        }
         if let Some(&i) = self.ns.get(&n) {
             return i;
         }
         let i = self.out.needs.len();
+        let mut signature = 1 << (i % 64);
+        if let Need::Both(a, b) = n {
+            signature |= self.signatures[a] | self.signatures[b];
+        }
+        self.signatures.push(signature);
         self.ns.insert(n.clone(), i);
         self.out.needs.push(n);
         i
@@ -312,13 +367,22 @@ impl Builder<'_> {
         if b == ANY {
             return a;
         }
+        let key = Domain::Both(a.min(b), a.max(b));
+        if let Some(&id) = self.ds.get(&key) {
+            if id == ANY {
+                self.out.capped += 1;
+            }
+            return if id == ANY { a } else { id };
+        }
         if self.subset(a, b) {
+            self.ds.insert(key, a);
             return a;
         }
         if self.subset(b, a) {
+            self.ds.insert(key, b);
             return b;
         }
-        let combined = self.domain(Domain::Both(a.min(b), a.max(b)));
+        let combined = self.domain(key);
         // The additional conjunct is unrepresentable at the cap. The
         // previous witness is still necessary; exact issuance sees the cap.
         if combined == ANY { a } else { combined }
@@ -333,13 +397,53 @@ impl Builder<'_> {
         if b == EMPTY {
             return a;
         }
+        let key = Domain::Either(a.min(b), a.max(b));
+        if let Some(&id) = self.ds.get(&key) {
+            if id == ANY {
+                self.out.capped += 1;
+            }
+            return id;
+        }
+        if self.factor {
+            let capped = self.out.capped;
+            let common = match (&self.out.domains[a], &self.out.domains[b]) {
+                (Domain::Both(x, y), Domain::Both(v, w)) => common_factor(*x, *y, *v, *w),
+                _ => None,
+            };
+            if let Some((c, x, y)) = common {
+                let rest = self.either(x, y);
+                let result = self.both(c, rest);
+                if self.out.capped == capped {
+                    self.ds.insert(key, result);
+                }
+                return result;
+            }
+        }
         if self.subset(a, b) {
+            self.ds.insert(key, b);
             return b;
         }
         if self.subset(b, a) {
+            self.ds.insert(key, a);
             return a;
         }
-        self.domain(Domain::Either(a.min(b), a.max(b)))
+        self.domain(key)
+    }
+    // A conjunction entails every conjunct reachable solely through AND.
+    // The signature only disproves membership. Elimination requires an actual
+    // instruction id found by the bounded search, independent of file data.
+    fn entails(&self, root: Id, target: Id, remaining: &mut usize) -> bool {
+        if root == target {
+            return true;
+        }
+        if root < target || self.signatures[root] & (1 << (target % 64)) == 0 || *remaining == 0 {
+            return false;
+        }
+        let Need::Both(a, b) = self.out.needs[root] else {
+            return false;
+        };
+        *remaining -= 1;
+        self.entails(a, target, remaining) || self.entails(b, target, remaining)
     }
     fn and(&mut self, a: Id, b: Id) -> Id {
         if a == EMPTY || b == EMPTY {
@@ -357,7 +461,12 @@ impl Builder<'_> {
         if matches!(self.out.needs[b],Need::Both(x,y) if x==a||y==a) {
             return b;
         }
-        self.need(Need::Both(a.min(b), a.max(b)))
+        let (lo, hi) = (a.min(b), a.max(b));
+        let mut remaining = CAP;
+        if self.dominance && self.entails(hi, lo, &mut remaining) {
+            return hi;
+        }
+        self.need(Need::Both(lo, hi))
     }
     fn or(&mut self, a: Id, b: Id) -> Id {
         if a == ANY || b == ANY {
@@ -368,6 +477,13 @@ impl Builder<'_> {
         }
         if b == EMPTY {
             return a;
+        }
+        if self.factor
+            && let (Need::Both(x, y), Need::Both(v, w)) = (&self.out.needs[a], &self.out.needs[b])
+            && let Some((c, x, y)) = common_factor(*x, *y, *v, *w)
+        {
+            let rest = self.or(x, y);
+            return self.and(c, rest);
         }
         self.need(Need::Either(a.min(b), a.max(b)))
     }
@@ -460,6 +576,7 @@ impl Builder<'_> {
                         let key = kinds.iter().position(|k| *k == CellKind::Node);
                         self.out.facts.push(Fact {
                             family: (self.language.fact_family)(name),
+                            unavailable: self.omit_answers.iter().any(|r| r == name),
                             name,
                             source,
                             key,
@@ -806,7 +923,7 @@ impl Builder<'_> {
     // A branch-specific file guard pays for itself before materializing its
     // nodes. Node witnesses are already retained in their input domains.
     fn file_guard(&mut self, need: Id) -> Id {
-        if let Some(&guard) = self.file_guards.get(&need) {
+        if let Some(&Some(guard)) = self.file_guards.get(need) {
             return guard;
         }
         let guard = match self.out.needs[need] {
@@ -832,7 +949,10 @@ impl Builder<'_> {
             },
             _ => need,
         };
-        self.file_guards.insert(need, guard);
+        if self.file_guards.len() <= need {
+            self.file_guards.resize(need + 1, None);
+        }
+        self.file_guards[need] = Some(guard);
         guard
     }
     fn in_branch(&mut self, need: Id, nodes: Id) -> Id {
@@ -848,8 +968,42 @@ impl Builder<'_> {
         if guarded == ANY { nodes } else { guarded }
     }
     fn select<'a>(&mut self, s: &'a SelectStep, rows: &[Summary<'a>]) -> Summary<'a> {
+        if let [src] = s.sources.as_slice()
+            && !matches!(s.condition, RowCondition::Tested(_))
+        {
+            let input = &rows[src.step.0];
+            if matches!(s.columns, SelectedColumns::All) {
+                let mut out = input.clone();
+                for &d in &input.domains {
+                    self.require(&mut out, d);
+                }
+                out.compact();
+                return out;
+            }
+            let mut out = Summary {
+                need: input.need,
+                domains: input.domains.clone(),
+                edges: input.edges.clone(),
+                ..Summary::default()
+            };
+            for &d in &input.domains {
+                self.require(&mut out, d);
+            }
+            if let SelectedColumns::Items(items) = &s.columns {
+                for item in items {
+                    if let PlanExpression::Column(c) = &item.value
+                        && (c.alias == SourceAlias::Unwritten || c.alias == src.alias)
+                        && let Some(col) = input.column(&c.column.0)
+                    {
+                        out.add(&item.name.0, col.var, col.attr);
+                    }
+                }
+            }
+            out.compact();
+            return out;
+        }
         let mut out = Summary::default();
-        let mut offsets = Vec::new();
+        let mut offsets = smallvec::SmallVec::<[usize; 4]>::new();
         for source in &s.sources {
             let r = &rows[source.step.0];
             let offset = out.domains.len();
@@ -863,6 +1017,11 @@ impl Builder<'_> {
             );
         }
         let lookup = |c: &ColumnRead| {
+            if let [src] = s.sources.as_slice() {
+                return (c.alias == SourceAlias::Unwritten || c.alias == src.alias)
+                    .then(|| rows[src.step.0].column(&c.column.0))
+                    .flatten();
+            }
             if c.alias == SourceAlias::Unwritten && s.sources.len() != 1 {
                 return None;
             }
@@ -879,8 +1038,8 @@ impl Builder<'_> {
             let col = cols.next()?;
             cols.next().is_none().then_some(col)
         };
-        let mut map: Vec<_> = (0..out.domains.len()).collect();
-        let mut changed = vec![false; map.len()];
+        let mut map: smallvec::SmallVec<[usize; 8]> = (0..out.domains.len()).collect();
+        let mut changed = smallvec::SmallVec::<[bool; 8]>::from_elem(false, map.len());
         let mut conjuncts = Vec::new();
         if let RowCondition::Tested(e) = &s.condition {
             terms(e, &mut conjuncts)
@@ -1399,11 +1558,18 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
     let mut b = Builder {
         vocab,
         language,
+        omit_answers: std::env::var("VEC_PAIR_UNAVAILABLE")
+            .map_or_else(|_| vec![], |s| s.split(',').map(str::to_string).collect()),
+        dominance: std::env::var_os("VEC_PAIR_NO_DOMINANCE").is_none(),
+        signatures: Vec::with_capacity(plan.steps.len()),
+        factor: std::env::var_os("VEC_PAIR_FACTOR").is_some(),
         neighbors: std::env::var_os("VEC_PAIR_LOCAL").is_none(),
         file_sets: std::env::var_os("VEC_PAIR_LOCAL").is_none()
             && std::env::var_os("VEC_PAIR_TREE").is_none(),
         out: Program {
             meter: None,
+            paths: Vec::new(),
+            lazy_presence: std::env::var_os("VEC_PAIR_PRESENCE").is_some(),
             regexes: Vec::new(),
             text_kinds: language.text_kinds.clone(),
             symbols: Map::default(),
@@ -1417,10 +1583,11 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
             skips: vec![],
             capped: 0,
         },
-        ds: Map::default(),
-        ns: Map::default(),
+        ds: Map::with_capacity_and_hasher(plan.steps.len() / 2, Default::default()),
+        ns: Map::with_capacity_and_hasher(plan.steps.len(), Default::default()),
         sizes: vec![],
-        file_guards: Map::default(),
+        file_guards: vec![],
+        exists: vec![],
         counts: Map::default(),
     };
     b.domain(Domain::Any);
@@ -1435,11 +1602,17 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
     }
     for (i, s) in plan.steps.iter().enumerate().rev() {
         if live[i] {
-            if let FinishStep::Antijoin(j) = s {
-                live[j.left.0] = true;
-            } else {
-                for p in inputs(s) {
-                    live[p.0] = true;
+            use FinishStep::*;
+            match s {
+                Antijoin(j) => live[j.left.0] = true,
+                SubtreeClass(x) => live[x.from.0] = true,
+                OrderedDfs(x) => live[x.from.0] = true,
+                GroupCount(g) if g.keys.is_empty() => {}
+                Unlisted(x) if &*x.operator.0 != "order" => {}
+                _ => {
+                    for p in inputs(s) {
+                        live[p.0] = true;
+                    }
                 }
             }
         }
@@ -1466,7 +1639,7 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
         let (mut row, skip) = if live[i] {
             (
                 b.step(s, &rows, &plan.steps),
-                super::pair_skip::Skip::step(s, &skips, language),
+                super::pair_skip::Skip::step(s, &skips, language, b.factor),
             )
         } else {
             (Summary::default(), super::pair_skip::Skip::default())
@@ -1511,6 +1684,9 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
     // a raw spelling (for example, a normalized or resolved identifier).
     // Certify the whole first half only when that independent skip is vacuous.
     b.out.exact.retain(|(ri, _)| b.out.skips[*ri].2.is_empty());
+    if std::env::var_os("VEC_PAIR_PREFLIGHT").is_some() {
+        precheck::schedule(&mut b);
+    }
     phase("roots");
     compact::compact(&mut b.out);
     phase("compact");
@@ -1521,6 +1697,12 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
     );
     if std::env::var_os("VEC_PAIR_METER").is_some() {
         b.out.meter = Some(cost::Meter::new(b.out.facts.len()));
+    }
+    if std::env::var_os("VEC_PAIR_SPARSE").is_some() {
+        b.out.paths = paths::compile(&b.out);
+    }
+    if std::env::var_os("VEC_PAIR_COLUMNS").is_some() {
+        columns::compile(&mut b.out, language);
     }
     phase("arrange");
     for d in &b.out.domains {

@@ -4,13 +4,48 @@ use ryo_values::domain::finish_plans::{expressions::types::*, service::inputs, t
 use std::{collections::BTreeSet, rc::Rc};
 
 type Clause = Rc<BTreeSet<String>>;
+
+/// Passthrough steps share the already ordered prerequisite list. A union or
+/// an additional restriction builds a new list only when it changes the set.
+#[derive(Clone, Default)]
+struct Clauses(Option<Rc<Vec<Clause>>>);
+impl std::ops::Deref for Clauses {
+    type Target = [Clause];
+    fn deref(&self) -> &[Clause] {
+        self.0.as_deref().map_or(&[], Vec::as_slice)
+    }
+}
+impl Clauses {
+    fn singleton(c: Clause) -> Self {
+        Self(Some(Rc::new(vec![c])))
+    }
+    fn include(&mut self, r: &Self) {
+        let Some(right) = &r.0 else { return };
+        let Some(left) = &mut self.0 else {
+            self.0 = r.0.clone();
+            return;
+        };
+        if Rc::ptr_eq(left, right) {
+            return;
+        }
+        let output = Rc::make_mut(left);
+        output.extend(right.iter().cloned());
+        ordered(output);
+    }
+    fn push(&mut self, c: Clause) {
+        let list = self.0.get_or_insert_with(|| Rc::new(Vec::new()));
+        let list = Rc::make_mut(list);
+        list.push(c);
+        ordered(list);
+    }
+}
 const CAP: usize = 32;
 
 #[derive(Clone, Default)]
 pub(super) struct Skip<'a> {
     scan: Option<&'a str>,
-    shape: Vec<Clause>,
-    words: Vec<Clause>,
+    shape: Clauses,
+    words: Clauses,
 }
 
 fn ordered(v: &mut Vec<Clause>) {
@@ -18,10 +53,27 @@ fn ordered(v: &mut Vec<Clause>) {
     v.dedup();
     v.truncate(CAP);
 }
-fn either(a: &[Clause], b: &[Clause]) -> Vec<Clause> {
+fn aligned(a: &[Clause], b: &[Clause]) -> Clauses {
+    if a.is_empty() || b.is_empty() {
+        return Clauses::default();
+    }
+    let mut result = Vec::with_capacity(a.len().max(b.len()));
+    for i in 0..a.len().max(b.len()) {
+        let (l, r) = (&a[i.min(a.len() - 1)], &b[i.min(b.len() - 1)]);
+        result.push(if Rc::ptr_eq(l, r) || l == r {
+            l.clone()
+        } else {
+            Rc::new(l.union(r).cloned().collect())
+        });
+    }
+    ordered(&mut result);
+    Clauses(Some(Rc::new(result)))
+}
+fn either(a: &[Clause], b: &[Clause]) -> Clauses {
     match (a.first(), b.first()) {
-        (Some(l), Some(r)) => vec![Rc::new(l.union(r).cloned().collect())],
-        _ => vec![],
+        (Some(l), Some(r)) if Rc::ptr_eq(l, r) || l == r => Clauses::singleton(l.clone()),
+        (Some(l), Some(r)) => Clauses::singleton(Rc::new(l.union(r).cloned().collect())),
+        _ => Clauses::default(),
     }
 }
 
@@ -99,7 +151,7 @@ impl<'a> Skip<'a> {
             if let Some(earlier) = self.shape.first() {
                 set.retain(|x| earlier.contains(x))
             }
-            self.shape = vec![Rc::new(set)];
+            self.shape = Clauses::singleton(Rc::new(set));
         }
         let mut add = |name: &str, sep: Option<char>| {
             if let Some(v) = values(term, name, alias, single) {
@@ -127,17 +179,26 @@ impl<'a> Skip<'a> {
         }
     }
     fn take(&mut self, r: &Self) {
-        self.shape.extend(r.shape.iter().cloned());
-        self.words.extend(r.words.iter().cloned());
+        self.shape.include(&r.shape);
+        self.words.include(&r.words);
     }
-    pub(super) fn step(s: &'a FinishStep, previous: &[Self], lang: &Language) -> Self {
+    pub(super) fn step(
+        s: &'a FinishStep,
+        previous: &[Self],
+        lang: &Language,
+        factor: bool,
+    ) -> Self {
         use FinishStep::*;
         let mut out = Self::default();
         match s {
             Base(n) => out.scan = Some(&*n.0),
             Union(u) => {
                 let (l, r) = (&previous[u.left.0], &previous[u.right.0]);
-                out.shape = either(&l.shape, &r.shape);
+                out.shape = if factor {
+                    aligned(&l.shape, &r.shape)
+                } else {
+                    either(&l.shape, &r.shape)
+                };
                 out.words = either(&l.words, &r.words);
             }
             Antijoin(j) => out.take(&previous[j.left.0]),
@@ -181,8 +242,6 @@ impl<'a> Skip<'a> {
                 }
             }
         }
-        ordered(&mut out.shape);
-        ordered(&mut out.words);
         out
     }
 

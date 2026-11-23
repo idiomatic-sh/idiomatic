@@ -207,19 +207,31 @@ pub(super) fn arrange(p: &mut Program, order: bool, omit: u16) {
         order,
         omit,
     };
+    let keep_exact = std::env::var_os("VEC_PAIR_KEEP_EXACT").is_some();
+    let mut certs = std::mem::take(&mut walk.p.exact);
+    if keep_exact {
+        // Visit exact outputs first to preserve their shared subprograms. Only
+        // the remaining necessary conditions are eligible for omission.
+        walk.omit = 0;
+        for (_, c) in &certs {
+            walk.file(c.guard);
+            walk.node(c.nodes);
+        }
+        walk.omit = omit;
+    }
     for i in 0..walk.p.roots.len() {
         let id = walk.p.roots[i].1;
         walk.file(id);
     }
-    let mut certs = std::mem::take(&mut walk.p.exact);
     certs.retain(|(_, c)| {
-        (walk.node(c.nodes).mask
-            | walk.file(c.guard).mask
-            | c.facts
-                .iter()
-                .fold(0, |m, &s| m | walk.p.facts[s].family.bit()))
-            & omit
-            == 0
+        keep_exact
+            || (walk.node(c.nodes).mask
+                | walk.file(c.guard).mask
+                | c.facts
+                    .iter()
+                    .fold(0, |m, &s| m | walk.p.facts[s].family.bit()))
+                & omit
+                == 0
     });
     walk.p.exact = certs;
     if order {
@@ -243,12 +255,14 @@ pub(super) fn omitted() -> u16 {
 pub(crate) struct Sample {
     pub calls: u64,
     pub hits: u64,
+    pub cross: u64,
     pub ns: f64,
 }
 pub(crate) struct Meter {
     pub rows: RefCell<[Sample; 13]>,
     pub loads: RefCell<Vec<u64>>,
     pub overhead: f64,
+    pub fills: RefCell<Vec<(u64, u64, f64)>>,
 }
 impl Meter {
     pub(super) fn new(slots: usize) -> Self {
@@ -261,13 +275,24 @@ impl Meter {
         Self {
             rows: Default::default(),
             loads: RefCell::new(vec![0; slots]),
+            fills: RefCell::new(vec![(0, 0, 0.); slots]),
             overhead: total / 1000.,
         }
     }
     pub(crate) fn report(&self, p: &Program) {
         for f in FAMILIES {
             let s = self.rows.borrow()[f as usize];
+            println!("PAYSHARE\t{}\t{}", f.name(), s.cross);
             println!("PAY\t{}\t{}\t{}\t{:.0}", f.name(), s.calls, s.hits, s.ns);
+        }
+        for (fact, (calls, rows, seconds)) in p.facts.iter().zip(self.fills.borrow().iter()) {
+            if *calls > 0 {
+                println!(
+                    "PAYFILL\t{}\t{}\t{calls}\t{rows}\t{seconds:.6}",
+                    fact.family.name(),
+                    fact.name
+                );
+            }
         }
         for (fact, n) in p.facts.iter().zip(self.loads.borrow().iter()) {
             if *n > 0 {

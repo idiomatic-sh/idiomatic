@@ -7,6 +7,8 @@ use std::rc::Rc;
 
 #[path = "pair_counts.rs"]
 mod counts;
+#[path = "pair_witness.rs"]
+mod witness;
 
 type Bits = Rc<Vec<u64>>;
 // None is the unconstrained node set. An empty vector is the empty set.
@@ -22,6 +24,10 @@ struct Table {
     index: Map<usize, Map<Id, Vec<u32>>>,
 }
 struct File<'a, const PROFILE: bool> {
+    owner: usize,
+    file_owner: Vec<usize>,
+    node_owner: Vec<usize>,
+    plain_tree: bool,
     stats: [Sample; 13],
     charged: f64,
     overhead: f64,
@@ -73,12 +79,18 @@ impl Table {
             return;
         }
         self.read = true;
+        if spec.unavailable {
+            return;
+        }
         let answered = read(spec.source, words, &mut self.cells);
         let columns = &self.cells.0;
         self.answered = answered
             && columns.first().is_none_or(|first| {
                 columns.len() == spec.columns.len()
-                    && columns.iter().all(|c| c.0.len() == first.0.len())
+                    && columns.iter().enumerate().all(|(i, c)| {
+                        matches!(spec.source,Source::Columns(_,_,mask) if mask&(1<<i)==0)
+                            || c.0.len() == first.0.len()
+                    })
             });
         self.complete = self.answered;
         if self.complete
@@ -117,12 +129,14 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
         if let Some(result) = &self.needs[id] {
             if PROFILE {
                 self.stats[class].hits += 1;
+                self.stats[class].cross += u64::from(self.file_owner[id] != self.owner);
             }
             return *result;
         }
         if !PROFILE {
             return self.pass_miss(id);
         }
+        self.file_owner[id] = self.owner;
         let prior = self.charged;
         let start = super::thread_cpu();
         let out = self.pass_miss(id);
@@ -158,6 +172,20 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                     .unwrap()
                     .as_ref()
                     .is_none_or(|b| !b.is_empty()),
+                _ if self.plain_tree && self.p.paths[x].is_some_and(|e| e.existence_only) => {
+                    let edge = self.p.paths[x].unwrap();
+                    self.edge(edge, None)
+                        .unwrap_or_else(|| self.nodes(x).is_none_or(|b| !b.is_empty()))
+                }
+                _ if self.plain_tree && self.p.paths[x].is_some() => {
+                    self.nodes(x).is_none_or(|b| !b.is_empty())
+                }
+                Domain::Parents(a) | Domain::Ancestors(a) if self.plain_tree => {
+                    self.path_exists(*a, false)
+                }
+                Domain::Children(a) | Domain::Descendants(a) if self.plain_tree => {
+                    self.path_exists(*a, true)
+                }
                 Domain::Both(a, b) => {
                     let l = self.nodes(*a);
                     if l.as_ref().is_some_and(|v| v.is_empty()) {
@@ -181,6 +209,12 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                 }
                 Domain::Fact(slot, None) => {
                     let table = &mut self.facts[*slot];
+                    if self.p.lazy_presence && !table.read && self.p.facts[*slot].key.is_some() {
+                        // A bare file-level existence guard alone cannot justify building
+                        // a keyed table. A subsequent constrained check can still request it.
+                        self.needs[id] = Some(true);
+                        return true;
+                    }
                     table.load(
                         &self.p.facts[*slot],
                         node_table::element_count(self.t).0 as u32,
@@ -207,12 +241,14 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
         if let Some(result) = &self.sets[id] {
             if PROFILE {
                 self.stats[class].hits += 1;
+                self.stats[class].cross += u64::from(self.node_owner[id] != self.owner);
             }
             return result.clone();
         }
         if !PROFILE {
             return self.nodes_miss(id);
         }
+        self.node_owner[id] = self.owner;
         let prior = self.charged;
         let start = super::thread_cpu();
         let out = self.nodes_miss(id);
@@ -225,6 +261,16 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
         self.steps += 1;
         let n =
             u32::try_from(node_table::element_count(self.t).0).expect("table positions fit u32");
+        if self.plain_tree
+            && let Some(edge) = self.p.paths[id]
+        {
+            let mut output = Vec::new();
+            if self.edge(edge, Some(&mut output)).is_some() {
+                let nodes = Some(Rc::new(output));
+                self.sets[id] = Some(nodes.clone());
+                return nodes;
+            }
+        }
         let nodes = match &self.p.domains[id] {
             Domain::Any => None,
             Domain::CountUnder(rows, depth, op, value) => {
@@ -596,12 +642,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                 } else if available.cells.0.first().is_none_or(|c| c.0.is_empty()) {
                     Some(Rc::default())
                 } else {
-                    let allowed: Vec<_> = available.cells.0[field]
-                        .0
-                        .iter()
-                        .filter(|v| v.0 != super::finish::NULL)
-                        .map(|v| v.0)
-                        .collect();
+                    let allowed: Vec<_> = available.cells.0[field].0.iter().map(|v| v.0).collect();
                     let t = &mut self.facts[slot];
                     let spec = &self.p.facts[slot];
                     t.load(spec, n, self.words, self.read);
@@ -641,7 +682,9 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                             .flat_map(|c| c.0.iter())
                             .enumerate()
                             .filter_map(|(r, cell)| {
-                                let yes = if spec.kinds[*col] == languages::CellKind::Span {
+                                let yes = if negative && cell.0 == super::finish::NULL {
+                                    false
+                                } else if spec.kinds[*col] == languages::CellKind::Span {
                                     let span = (cell.0 >> 32) as usize..(cell.0 as u32) as usize;
                                     self.src.get(span).is_some_and(|text| regex.is_match(text))
                                 } else {
@@ -649,7 +692,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                                         languages::facts::text(self.words, *cell).0.as_bytes(),
                                     )
                                 };
-                                ((yes != negative) || (negative && cell.0 == super::finish::NULL))
+                                (yes != negative)
                                     .then(|| key.map_or(0, |c| c.0[r].0 as u32))
                                     .filter(|x| spec.key.is_none() || *x < n)
                             }),
@@ -724,7 +767,39 @@ impl Program {
         mut exact: Option<&mut Vec<(usize, Bits)>>,
     ) -> u64 {
         languages::facts::clear_words(words);
+        let mut observe = |source, words: &mut FileWords, cells: &mut FilledColumns| {
+            if !PROFILE {
+                return read(source, words, cells);
+            }
+            let start = super::thread_cpu();
+            let ok = read(source, words, cells);
+            let elapsed = super::thread_cpu() - start;
+            let slot = self
+                .facts
+                .iter()
+                .position(|f| f.source == source)
+                .expect("declared source");
+            let meter = self.meter.as_ref().unwrap();
+            let mut fills = meter.fills.borrow_mut();
+            let entry = &mut fills[slot];
+            entry.0 += 1;
+            entry.1 += cells.0.first().map_or(0, |c| c.0.len() as u64);
+            entry.2 += elapsed - meter.overhead;
+            ok
+        };
         let mut f = File::<PROFILE> {
+            owner: 0,
+            file_owner: if PROFILE {
+                vec![usize::MAX; self.needs.len()]
+            } else {
+                vec![]
+            },
+            node_owner: if PROFILE {
+                vec![usize::MAX; self.domains.len()]
+            } else {
+                vec![]
+            },
+            plain_tree: !self.paths.is_empty() && node_table::embedded_segments(t).next().is_none(),
             charged: 0.,
             stats: Default::default(),
             overhead: self.meter.as_ref().map_or(0., |m| m.overhead),
@@ -732,7 +807,7 @@ impl Program {
             t,
             src,
             path,
-            read: &mut read,
+            read: &mut observe,
             words,
             facts: (0..self.facts.len()).map(|_| Table::default()).collect(),
             sets: vec![None; self.domains.len()],
@@ -740,7 +815,10 @@ impl Program {
             texts: None,
             steps: 0,
         };
-        for (a, (_, root)) in alive.iter_mut().zip(&self.roots) {
+        for (rule, (a, (_, root))) in alive.iter_mut().zip(&self.roots).enumerate() {
+            if PROFILE {
+                f.owner = rule;
+            }
             if *a {
                 *a = f.pass(*root)
             }
@@ -748,6 +826,9 @@ impl Program {
         if let Some(out) = exact.as_mut() {
             for (rule, cert) in &self.exact {
                 let rule = *rule;
+                if PROFILE {
+                    f.owner = rule;
+                }
                 if alive[rule] && !f.pass(cert.guard) && f.complete(&cert.facts) {
                     let nodes = f
                         .nodes(cert.nodes)
@@ -761,6 +842,7 @@ impl Program {
             for (a, b) in meter.rows.borrow_mut().iter_mut().zip(f.stats) {
                 a.calls += b.calls;
                 a.hits += b.hits;
+                a.cross += b.cross;
                 a.ns += b.ns;
             }
             for (n, t) in meter.loads.borrow_mut().iter_mut().zip(&f.facts) {

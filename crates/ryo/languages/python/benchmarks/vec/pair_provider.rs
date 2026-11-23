@@ -71,8 +71,12 @@ pub(super) fn read(
     source: Source,
     words: &mut FileWords,
     out: &mut FilledColumns,
+    projection: &mut super::pair_projection::Projection,
 ) -> bool {
     let name = match source {
+        Source::Columns(rel, key, mask) => {
+            return projection.fill(file, number, rel, key, mask, words, out);
+        }
         Source::Catalog(rel) => {
             return matches!(
                 file.fill(rel, Wanted::Whole, words, out),
@@ -125,12 +129,12 @@ pub(super) fn read(
 
 /// The walk declares the cost of accessing a family. Import and directive rows
 /// are file sets; ordered predecessor selection also needs the resolution input.
-pub(super) fn family(name:&str) -> super::pair_summary::cost::Family {
+pub(super) fn family(name: &str) -> super::pair_summary::cost::Family {
     use super::pair_summary::cost::Family::*;
     match name {
-        fact_catalog::PREDECESSOR_REL=>Schedule,
-        "static-import"|"comment"|"filesystem.executable"=>Sets,
-        super::provider_packaging::MODULE_IDENTITY_REL=>Project,
-        _=>Fact
+        fact_catalog::PREDECESSOR_REL => Schedule,
+        "static-import" | "comment" | "filesystem.executable" => Sets,
+        super::provider_packaging::MODULE_IDENTITY_REL => Project,
+        _ => Fact,
     }
 }

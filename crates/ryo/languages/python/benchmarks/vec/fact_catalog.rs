@@ -65,6 +65,7 @@ pub(super) const RESOLUTION_REL: &str = "read-resolution";
 /// Declares to `run` every relation this provider, the host and the executor's steps supply beyond the provider's relations
 /// catalog.
 pub(super) fn declare(run: &mut finish::Run) {
+    super::import_syntax::declare(run);
     let columns = |fields: &[(&'static str, ryo::languages::CellKind)]| -> Vec<_> {
         fields.iter().map(|&(n, k)| (n, finish::ty_of(k))).collect()
     };

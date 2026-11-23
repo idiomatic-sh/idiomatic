@@ -532,6 +532,7 @@ fn python_language(vocab: &Vocab) -> first::Language {
     let tokens=provider_tokens::Lexicon::new(&|n| vocab.kinds.get(n).copied());
     use ryo_python::fixtures::columns::{PER_NODE_FACTS, SPELLED_COLUMNS, Spelling, is_identifier};
     first::Language {
+        projection: |name| PER_NODE_FACTS.contains(&name),
         fact_family: pair_provider::family,
         host_len: finish::host::host_len,
         walk_facts: pair_provider::FACTS,
@@ -839,6 +840,7 @@ mod pair_skip;
 #[path = "../../../../crates/engine/benches/vec/pair_checks.rs"]
 mod pair_checks;
 mod pair_provider;
+mod pair_projection;
 #[path = "../../../../crates/engine/benches/vec/host_columns.rs"]
 mod host_columns;
 mod request;
@@ -861,6 +863,7 @@ mod direct_fill;
 mod fact_catalog;
 #[path = "relative_import.rs"]
 mod relative_import;
+mod import_syntax;
 #[path = "provider_packaging.rs"]
 mod provider_packaging;
 #[path = "provider_tokens.rs"]
@@ -1292,6 +1295,8 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
             t
         } else if rel == fact_catalog::RELATIVE_IMPORT_REL {
             relative_import::walked(run, self.project, self.file, self.file_no)?
+        } else if matches!(rel, import_syntax::NEIGHBORS | import_syntax::STATEMENTS | import_syntax::ALIASES | import_syntax::ENTRIES) {
+            import_syntax::fill(run, self.file, self.src, self.project, self.file_no, rel)?
         } else if matches!(rel, fact_catalog::ASSIGNMENT_SOURCE_REL | fact_catalog::NAMESPACE_SITES_REL) {
             let (_, names, tys) = run.catalog(rel).ok_or_else(|| format!("no {rel}"))?;
             let mut rows = finish::Table::with_rows(names, tys, 0);
@@ -2216,7 +2221,8 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
                     let n = node_table::element_count(ft).0;
                     file.name_token_codes(&mut name_codes);
                     codes_taken = true;
-                    prepare!(ft, |rel,words,out| pair_provider::read(file, file_no, rel, words, out));
+                    let mut projection=pair_projection::Projection::default();
+                    prepare!(ft, |rel,words,out| pair_provider::read(file, file_no, rel, words, out,&mut projection));
                     prepared = true;
                     let index = file_seeds::Index { table: ft, offsets: &word_offsets, words: &word_pos };
                     if let Some(seeds) = &mut file_seeds {
