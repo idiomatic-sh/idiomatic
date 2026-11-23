@@ -5,7 +5,7 @@ use finish::{Plan, Provider, Run, Scope, Supplier, Table, Ty};
 use serde::Deserialize;
 use serde_json::{Value, json};
 use sha2::{Digest as _, Sha256};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::io::{self, BufRead as _, Write as _};
 
 #[derive(Deserialize)]
@@ -163,26 +163,20 @@ fn execute(req: Request, plan: &Plan) -> Result<Vec<String>, String> {
 }
 
 pub(super) fn replay() {
-    let mut plans = BTreeMap::new();
+    let mut plans = HashMap::new();
     let mut out = io::BufWriter::new(io::stdout().lock());
     for line in io::stdin().lock().lines() {
-        let req: Request =
+        let mut req: Request =
             serde_json::from_str(&line.expect("read request")).expect("project request");
         let id = req.id.clone();
-        let key = (
-            req.query.clone(),
-            serde_json::to_string(&req.parameters).expect("parameters"),
-        );
-        let plan = plans.entry(key).or_insert_with(|| {
+        let parameters: BTreeMap<Box<str>, _> = req.parameters.iter()
+            .map(|(name, value)| (name.as_str().into(), bindings::constant(value)))
+            .collect();
+        let key = (std::mem::take(&mut req.query), parameters);
+        let plan = plans.entry(key).or_insert_with_key(|(query, parameters)| {
             let mut ctx = ryo_engine::domain::plan_lowering::types::RuleContext::default();
-            let _previous = ctx.parameters.insert(
-                "query".into(),
-                req.parameters
-                    .iter()
-                    .map(|(k, v)| (k.as_str().into(), bindings::constant(v)))
-                    .collect(),
-            );
-            lower::query_plan("query", &req.query, ctx)
+            let _previous = ctx.parameters.insert("query".into(), parameters.clone());
+            lower::query_plan("query", query, ctx)
         });
         let result = match plan {
             Ok(plan) => execute(req, plan),
