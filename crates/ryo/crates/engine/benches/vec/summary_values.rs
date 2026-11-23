@@ -4,11 +4,11 @@
 use super::pair_summary::{Id, Program};
 use ryo::languages::{self, CellWord, FileWords, NameText, Walk, facts};
 
-pub(super) fn vocabulary<W: Walk>(_: &W, p: &Program) -> (languages::BaseWords, Vec<Option<Id>>) {
+pub(super) fn vocabulary<W: Walk>(_: &W, p: &Program) -> ([FileWords; 2], Vec<Option<Id>>) {
     register_symbols(p, &W::vocabulary().fixed.0)
 }
 
-pub(super) fn register_symbols(p: &Program, names: &[NameText<'_>]) -> (languages::BaseWords, Vec<Option<Id>>) {
+pub(super) fn register_symbols<const N: usize>(p: &Program, names: &[NameText<'_>]) -> ([FileWords; N], Vec<Option<Id>>) {
     let mut text: Vec<_> = p.symbols.iter().map(|(k, &id)| (id, NameText(k))).collect();
     text.sort_unstable_by_key(|x| x.0);
     let selected: Vec<_> = text.iter().map(|x| x.1).collect();
@@ -20,7 +20,7 @@ pub(super) fn register_symbols(p: &Program, names: &[NameText<'_>]) -> (language
         let n = facts::intern(&mut words, s);
         codes[n.0 as usize] = Some(id);
     }
-    (base, codes)
+    (std::array::from_fn(|_| facts::file_words(&base)), codes)
 }
 
 #[inline]

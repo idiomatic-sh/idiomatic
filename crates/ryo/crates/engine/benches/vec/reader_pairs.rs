@@ -55,12 +55,12 @@ impl Decisions {
             .iter()
             .map(|emit| index[emit.0.as_str()])
             .collect();
-        let (base, codes) = super::super::summary_values::register_symbols(&program, &[]);
+        let ([words], codes) = super::super::summary_values::register_symbols(&program, &[]);
         let order = super::super::summary_schedule::Schedule::new(&program, None, codes);
         Self {
             program,
             roots,
-            words: l::facts::file_words(&base),
+            words,
             order,
             scratch: Default::default(),
             steps: 0,

@@ -1972,8 +1972,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
         && std::env::var_os("VEC_NO_SKIP").is_none() && std::env::var_os("VEC_NO_PREFIX").is_none();
     let prepare_summary = thread_cpu();
     let mut query = pairs.as_ref().map(|program| {
-        let (base,codes) = summary_values::vocabulary(walk,program);
-        let file_words = std::array::from_fn(|_| languages::facts::file_words(&base));
+        let (file_words,codes) = summary_values::vocabulary(walk,program);
         let schedule = summary_schedule::Schedule::new(program,Some((&words.ids,name_token)),codes);
         (program,schedule,file_words,pair_checks::Scratch::default())
     });
