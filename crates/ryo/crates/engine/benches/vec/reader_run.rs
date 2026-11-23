@@ -15,21 +15,6 @@ mod pairs;
 #[path = "reader_coverage.rs"]
 mod coverage;
 
-#[derive(serde::Deserialize)]
-struct Request {
-    root: String,
-    files: Vec<String>,
-    selected_rules: Vec<String>,
-    #[serde(default)]
-    file_rules: HashMap<String, String>,
-    #[serde(default)]
-    rule_context: serde_json::Value,
-    #[serde(default)]
-    rule_observations: serde_json::Value,
-    #[serde(default)]
-    rule_applicability: serde_json::Value,
-}
-
 /// Dense local bit numbers only for names that occur in a necessary condition.
 #[derive(Default)]
 struct Names(HashMap<u32, u16>);
@@ -97,7 +82,12 @@ pub(super) fn run(
     request: &str,
     output: &str,
 ) -> bool {
-    run_files::<false>(start, language, declaration, pack, request, output, None)
+    run_files::<false>(start, language, declaration, pack, request, Output::Path(output), None)
+}
+
+pub(crate) enum Output<'a> {
+    Path(&'a str),
+    Rows(&'a mut finish::json_output::Records),
 }
 
 /// Evaluate one reader's files of a multi-reader request. The caller collects
@@ -108,18 +98,18 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
     mut declaration: first::Language,
     pack: &str,
     request: &str,
-    output: &str,
+    output: Output<'_>,
     paths: Option<Vec<String>>,
 ) -> bool {
-    let mut req: Request =
-        serde_json::from_slice(&std::fs::read(request).expect("read request")).expect("request");
+    let mut req = finish::json_input::request(request);
     if let Some(paths) = paths { req.files = paths; }
-    let mut metadata = serde_json::Map::new();
-    if !req.rule_applicability.is_null() {
-        metadata.insert("rule_applicability".into(), req.rule_applicability.take());
-    }
-    let document = serde_json::Value::Object(metadata);
-    let read = lower::read_pack(Path::new(pack), super::rule_context(Some(request)));
+    let context = if QUERY_ROWS {
+        super::rule_context(Some(request))
+    } else {
+        req.check_file_context();
+        Default::default()
+    };
+    let read = lower::read_pack(Path::new(pack), context);
     let parser = language.parse_engine();
     let plan = lower::second_half_plan(&read, true);
     let emits: BTreeSet<_> = plan.emits.iter().map(|emit| emit.0.as_str()).collect();
@@ -323,20 +313,14 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
         }
     };
     let selected = req.selected_rules.join(",");
+    let mut args = vec!["--rules", &selected, "--applicability", request];
+    if let Output::Path(path) = &output { args.extend(["--out", *path]); }
     let mut fin = finisher::Finisher::new(
         &plan,
         run,
-        &[
-            "--rules",
-            &selected,
-            "--out",
-            output,
-            "--applicability",
-            request,
-        ],
-        Some((request, &document)),
+        &args,
+        req.rule_applicability.as_ref().map(|accepted| (request, accepted)),
     );
-    drop(document);
     fin.query_rows = QUERY_ROWS;
     let startup = thread_cpu() - start;
     println!(
@@ -420,7 +404,7 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
         words.mark(fin.run.empty, &mut visible_words);
         skip.file(&visible_kinds, &visible_fields);
         let only = req.file_rules.get(path);
-        fin.wanted_into(path, |i| {
+        fin.wanted_into( |i| {
             only.is_none_or(|rule| rule == &plan.emits[i].0)
                 && (check_without_skip || (skip.alive(i) && skip.words_alive(i, &visible_words)))
         }, &mut wanted);
@@ -475,7 +459,6 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
         }
         fin.file(
             index,
-            path,
             &table,
             &bytes,
             &mut packet.view(&mut provider, &symbols, &bytes),
@@ -496,7 +479,10 @@ pub(super) fn run_files<const QUERY_ROWS: bool>(
     }
     fin.time = second_cpu;
     let reporting = thread_cpu();
-    let ok = fin.end(0., |_| {});
+    let ok = fin.end(match output {
+        Output::Rows(rows) => finish::json_output::Projection::Collect(rows),
+        Output::Path(_) => finish::json_output::Projection::All,
+    });
     second_cpu += thread_cpu() - reporting;
     memory.sample(2);
     if memory.enabled {

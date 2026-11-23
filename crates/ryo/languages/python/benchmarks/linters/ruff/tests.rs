@@ -5,9 +5,14 @@ mod adapter_test;
 mod constants;
 #[cfg(test)]
 mod engine_test;
+#[allow(dead_code, reason = "shared reader also serves the vector host")]
+#[path = "../../../../../crates/engine/benches/vec/json_input.rs"]
+mod json_input;
 mod schemas;
 #[path = "schemas_test.rs"]
 mod schemas_test;
+#[path = "../../json_output.rs"]
+mod json_output;
 mod settings;
 
 mod frontend_projection;

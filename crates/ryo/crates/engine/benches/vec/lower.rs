@@ -5,7 +5,7 @@
 //! `vec lower <pack> <out prefix> [--repeat K]`: writes `<out prefix>-u.json` (expanded), `-b1.json` (semijoins), `-b2.json`
 //! (counts) and `.json` (axes), the names the Python chain (`scripts6h/plan.sh`) writes; prints each phase's thread CPU
 //! (user + system) and the peak resident set after it. With `--repeat K` the phases run K times in one process, and each
-//! repeat's CPU is printed. With `--measure` nothing is written but the final plan's encoding, after the peak is read.
+//! repeat's CPU is printed. With `--measure` no snapshot is encoded or written.
 //! `--request F`: the run's request, whose rule context (context tables, rule observations) the lowering reads.
 //! `vec stage <in.json> <stage> <out.json>`: decodes a plan, runs the one pass `stage` (`semijoins`, `counts`, `axes`) adds,
 //! writes it; `stage` `none` writes the decoded plan back (a round trip).
@@ -103,7 +103,6 @@ pub(crate) fn run_lower(args: &[&str]) {
     // `--measure`: no stage is written, so the peak after the passes is preparation's own.
     let measure = args.contains(&"--measure");
     let request = args.iter().position(|a| *a == "--request").map(|i| args[i + 1]);
-    let codec = json();
     for round in 0..repeat {
         let write = round == 0 && !measure;
         let t0 = super::thread_cpu();
@@ -114,23 +113,23 @@ pub(crate) fn run_lower(args: &[&str]) {
         let hwm_parse = peak_kb();
         let mut plan = lowered(&pack_programs, PlanningStage::Expanded);
         let t3 = super::thread_cpu();
-        let expanded_bytes = write.then(|| codec.encoded(&plan));
+        let expanded_bytes = write.then(|| super::finish::json_output::snapshot(&plan));
         let t4 = super::thread_cpu();
         let mut stages = Vec::new();
         let mut pass_cpu = 0.0;
+        let mut encode_cpu = t4 - t3;
         for (stage, suffix) in [(PlanningStage::Semijoins, "-b1"), (PlanningStage::Counts, "-b2"), (PlanningStage::Axes, "")] {
             let a = super::thread_cpu();
             let marked = passed(&mut plan, stage);
             pass_cpu += super::thread_cpu() - a;
             if write {
-                stages.push((suffix, marked, codec.encoded(&plan)));
+                let start = super::thread_cpu();
+                stages.push((suffix, marked, super::finish::json_output::snapshot(&plan)));
+                encode_cpu += super::thread_cpu() - start;
             }
         }
-        let t5 = super::thread_cpu();
         let hwm_passes = peak_kb();
-        let final_bytes = codec.encoded(&plan);
-        let t6 = super::thread_cpu();
-        let hwm = peak_kb();
+        let hwm = hwm_passes;
         let unread = pack_programs.rules.iter().filter(|r| matches!(r.program, RuleProgram::Unread(_))).count();
         println!(
             "round {round} rules {} unread {unread} fragments {} steps {} planned {} unplanned {}",
@@ -146,10 +145,9 @@ pub(crate) fn run_lower(args: &[&str]) {
             t2 - t1,
             t3 - t2,
             pass_cpu,
-            t6 - t5,
+            encode_cpu,
             (t3 - t1) + pass_cpu,
         );
-        let _encode_expanded = t4 - t3;
         if let Some(bytes) = expanded_bytes {
             std::fs::write(format!("{out}-u.json"), bytes).expect("write");
             for (suffix, marked, bytes) in stages {
@@ -160,15 +158,12 @@ pub(crate) fn run_lower(args: &[&str]) {
                 println!("unplanned {} {}", u.rule.0, u.reason.0);
             }
         }
-        drop(final_bytes);
         assert!(plan.unplanned.is_empty(), "{} unplanned rules", plan.unplanned.len());
     }
 }
 
 pub(crate) fn run_stage(args: &[&str]) {
-    let codec = json();
-    let bytes = std::fs::read(args[0]).expect("read plan");
-    let mut plan = codec.decoded(&bytes).unwrap_or_else(|e| panic!("{e}"));
+    let mut plan = super::finish::json_input::snapshot(args[0], |bytes| json().decoded(bytes));
     let marked = match args[1] {
         "none" => 0,
         "semijoins" => passed(&mut plan, PlanningStage::Semijoins),
@@ -177,7 +172,7 @@ pub(crate) fn run_stage(args: &[&str]) {
         other => panic!("stage {other}"),
     };
     println!("marked {marked}");
-    std::fs::write(args[2], codec.encoded(&plan)).expect("write");
+    std::fs::write(args[2], super::finish::json_output::snapshot(&plan)).expect("write");
 }
 
 /// The pack's rules and fragments read and parsed once at start, for both halves' plans (`vec funnel ... --finish <pack dir>`).

@@ -1,15 +1,19 @@
 //! What the `plan_codec` port asks of the outside: a plan's bytes, and the plan bytes hold.
 
 use super::errors::PlanCodecError;
-use ryo_values::domain::finish_plans::types::FinishPlan;
+use ryo_values::domain::finish_plans::types::{FinishPlan, FinishStep};
 
 /// What every `plan_codec` adapter implements.
 pub trait PlanCodecPort: Send + Sync {
     /// The plan's bytes.
     fn encoded(&self, plan: &FinishPlan) -> Vec<u8>;
 
-    /// The plan as the JSON value its bytes would read back as, made in memory (no text written or parsed).
-    fn valued(&self, plan: &FinishPlan) -> serde_json::Value;
+    /// Write a single plan node to a diagnostic stream.
+    ///
+    /// # Errors
+    ///
+    /// Returns the output error if the writer cannot accept the record.
+    fn write_step(&self, step: &FinishStep, writer: &mut dyn std::io::Write) -> std::io::Result<()>;
 
     /// The plan the bytes hold.
     ///

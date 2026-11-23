@@ -166,13 +166,19 @@ fn by_key<W: Walk>(
 }
 
 /// One benchmark of the document: its name and its three measures.
-fn benchmark(name: String, unit: &str, small: f64, large: f64) -> (String, serde_json::Value) {
-    let value = |number: f64| serde_json::json!({ "value": (number * 1000.0).round() / 1000.0 });
-    let mut measures = serde_json::Map::new();
+#[path = "../../../json_output.rs"]
+mod json_output;
+
+#[derive(serde::Serialize)]
+struct Measure { value: f64 }
+
+fn benchmark(name: String, unit: &str, small: f64, large: f64) -> (String, std::collections::BTreeMap<String, Measure>) {
+    let value = |number: f64| Measure { value: (number * 1000.0).round() / 1000.0 };
+    let mut measures = std::collections::BTreeMap::new();
     drop(measures.insert(format!("ns-per-{unit}"), value(small)));
     drop(measures.insert(format!("ns-per-{unit}-4n"), value(large)));
     drop(measures.insert("growth-percent".to_owned(), value(100.0 * large / small)));
-    (name, serde_json::Value::Object(measures))
+    (name, measures)
 }
 
 /// The nanoseconds a cost is for each of `count` things.
@@ -202,7 +208,7 @@ fn on_a_shape(measure: &dyn Fn(&str) -> Option<Cost>) -> Option<(GrownShape, Cos
 pub(crate) fn measured() {
     let walk = ryo_python::walk();
     let probe = grown_source(GrownShape::Statements, Count(SIZE));
-    let mut document = serde_json::Map::new();
+    let mut document = std::collections::BTreeMap::new();
     for relation in languages::all() {
         let mut refused = false;
         let (mut table, mut scratch) = (NodeTable::default(), Default::default());
@@ -255,7 +261,7 @@ pub(crate) fn measured() {
         !document.is_empty(),
         "the walk fills no relation: there is nothing to measure"
     );
-    println!("{}", serde_json::Value::Object(document));
+    println!("{}", String::from_utf8(json_output::bytes(&document).expect("measurements")).expect("UTF-8"));
 }
 
 /// Walks a generated source of `elements` elements and fills every relation the walk answers, whole, then every declared key

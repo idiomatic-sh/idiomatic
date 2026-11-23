@@ -38,8 +38,9 @@ mod spec;
 #[path = "../../../crates/engine/benches/vec/reader_cli.rs"]
 mod reader_cli;
 use reader_cli::{alloc_counts, flag, thread_cpu};
-mod bindings;
-use bindings::rule_context;
+mod json_input;
+mod json_output;
+use json_input::rule_context;
 
 /// These readers declare no necessary identifier spelling and no extra walk columns.
 /// Their kind names, field names and filled relations come from the linked parser.
@@ -112,7 +113,7 @@ fn main() {
         .map(|link| link())
         .find(|r| &*r.name().0 == name)
         .expect("requested reader must be linked");
-    if !reader_run::run_files::<true>(start, reader, declaration(), pack, request, output, None) {
+    if !reader_run::run_files::<true>(start, reader, declaration(), pack, request, reader_run::Output::Path(output), None) {
         std::process::exit(1);
     }
 }

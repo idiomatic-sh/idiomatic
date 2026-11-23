@@ -2,7 +2,7 @@
 //! reads, so two binaries are compared row for row (`build/redo-onepass/scripts/equal.sh`). Each line is
 //! `<file number>\t<part>\t<rows>\t<hash>`; a part's hash is over the `Debug` text of every row, so any changed cell, order
 //! or count changes it. Parts: the node table through every reader of its seam, per element and per kind; the structure
-//! columns; the word index; each direct fact table the harness holds; the reader's fill of every relation it asks.
+//! columns; and the word index.
 
 use ryo::languages::{KindBits, NodeTable, Position, node_table};
 use std::fmt::Write as _;
