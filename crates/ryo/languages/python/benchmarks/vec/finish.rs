@@ -81,9 +81,6 @@ mod view_cols;
 pub(super) mod emptyprop;
 #[path = "ordering.rs"]
 mod ordering;
-/// redo-fuse: a group of one-consumer steps run as one fused pass (the cut at plan load, the hook in `res`).
-#[path = "finish/fuse.rs"]
-pub(super) mod fuse;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum Ty {
@@ -1274,8 +1271,6 @@ pub(super) struct Exec<'p> {
     scratch_rows: Vec<u32>,
     /// `VEC_STEP_TIME`: each step run under the step clock (`timed_body`).
     timing: bool,
-    /// redo-fuse: the cut and the fused groups (finish/fuse.rs)
-    pub(super) fuse: fuse::Fuse,
 }
 
 type R<T> = Result<T, String>;
@@ -1341,7 +1336,6 @@ impl<'p> Exec<'p> {
             empties: vec![None; k],
             scratch_rows: Vec::new(),
             timing: sw!("VEC_STEP_TIME"),
-            fuse: fuse::Fuse::default(),
         }
     }
 
@@ -1751,16 +1745,6 @@ impl<'p> Exec<'p> {
             self.stats.known[node] += 1;
             emptyprop::skipped(f, node);
             return Ok(Res::Tab(self.empty_rc(run, node)?));
-        }
-        // redo-fuse: THE HOOK: a fused group's root runs its group as one pass (finish/fuse.rs); before the gate below,
-        // which would make the group's inner input whole step by step (redo-int: whole's `make_`, `make` keeps the slot)
-        if self.fused_root(node)
-            && let Some(t) = self.fused_res(f, run, p, node)?
-        {
-            if self.is_constant(run, node) {
-                self.run_memo[node] = Some(t.clone());
-            }
-            return Ok(Res::Tab(t));
         }
         // 8: a step over an empty input answers its shared empty table before any set-up
         let gate = self.frames[node].gate;
