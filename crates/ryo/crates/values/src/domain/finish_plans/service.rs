@@ -25,44 +25,52 @@ use crate::domain::plan_parts::types::Direction;
 /// ```
 #[must_use]
 pub fn inputs(step: &FinishStep) -> Vec<StepNumber> {
+    let mut result = Vec::new();
+    extend_inputs(step, &mut result);
+    result
+}
+
+/// Append inputs in written order, including repeated reads, to the caller's storage.
+pub fn extend_inputs(step: &FinishStep, out: &mut impl Extend<StepNumber>) {
     match step {
-        FinishStep::Base(_) | FinishStep::Rows(_) => Vec::new(),
-        FinishStep::Select(select) => select.sources.iter().map(|source| source.step).collect(),
-        FinishStep::Union(union) => vec![union.left, union.right],
-        FinishStep::Antijoin(antijoin) => vec![antijoin.left, antijoin.right],
-        FinishStep::AsOf(as_of) => vec![as_of.left, as_of.right],
-        FinishStep::OrderedMatch(matched) => vec![matched.left, matched.right],
-        FinishStep::Axis(axis) => vec![
+        FinishStep::Base(_) | FinishStep::Rows(_) => {}
+        FinishStep::Select(select) => out.extend(select.sources.iter().map(|source| source.step)),
+        FinishStep::Union(union) => out.extend([union.left, union.right]),
+        FinishStep::Antijoin(antijoin) => out.extend([antijoin.left, antijoin.right]),
+        FinishStep::AsOf(as_of) => out.extend([as_of.left, as_of.right]),
+        FinishStep::OrderedMatch(matched) => out.extend([matched.left, matched.right]),
+        FinishStep::Axis(axis) => out.extend([
             axis.arguments.from,
             axis.arguments.relation,
             axis.arguments.domain,
-        ],
-        FinishStep::Closure(edges) | FinishStep::Follow(edges) => vec![edges.edges],
-        FinishStep::OrderedDfs(walk) => vec![walk.from, walk.edges],
-        FinishStep::GroupCount(count) => vec![count.from],
-        FinishStep::GroupMin(order) | FinishStep::GroupMax(order) => vec![order.from],
-        FinishStep::GroupOrdinal(ordinal) => vec![ordinal.from],
-        FinishStep::Project(project) => vec![project.from],
-        FinishStep::Extend(extend) => vec![extend.from],
-        FinishStep::SpanBounds(bounds) => vec![bounds.from],
-        FinishStep::SpanBetween(between) => vec![between.from],
-        FinishStep::Replace(replace) => vec![replace.from],
-        FinishStep::SourceMatches(matches) => vec![matches.from],
-        FinishStep::Capture(capture) => vec![capture.from],
-        FinishStep::FitsRendered(fits) => vec![fits.from],
-        FinishStep::RenderSyntax(render) => vec![render.from],
-        FinishStep::Prefixes(prefixes) => vec![prefixes.from],
-        FinishStep::SubtreeClass(classes) => {
-            vec![classes.from, classes.relation, classes.labels, classes.leaves]
-        }
-        FinishStep::Unlisted(unlisted) => unlisted
-            .arguments
-            .iter()
-            .filter_map(|argument: &UnlistedArgument| match argument.value {
+        ]),
+        FinishStep::Closure(edges) | FinishStep::Follow(edges) => out.extend([edges.edges]),
+        FinishStep::OrderedDfs(walk) => out.extend([walk.from, walk.edges]),
+        FinishStep::GroupCount(count) => out.extend([count.from]),
+        FinishStep::GroupMin(order) | FinishStep::GroupMax(order) => out.extend([order.from]),
+        FinishStep::GroupOrdinal(ordinal) => out.extend([ordinal.from]),
+        FinishStep::Project(project) => out.extend([project.from]),
+        FinishStep::Extend(extend) => out.extend([extend.from]),
+        FinishStep::SpanBounds(bounds) => out.extend([bounds.from]),
+        FinishStep::SpanBetween(between) => out.extend([between.from]),
+        FinishStep::Replace(replace) => out.extend([replace.from]),
+        FinishStep::SourceMatches(matches) => out.extend([matches.from]),
+        FinishStep::Capture(capture) => out.extend([capture.from]),
+        FinishStep::FitsRendered(fits) => out.extend([fits.from]),
+        FinishStep::RenderSyntax(render) => out.extend([render.from]),
+        FinishStep::Prefixes(prefixes) => out.extend([prefixes.from]),
+        FinishStep::SubtreeClass(classes) => out.extend([
+            classes.from,
+            classes.relation,
+            classes.labels,
+            classes.leaves,
+        ]),
+        FinishStep::Unlisted(unlisted) => out.extend(unlisted.arguments.iter().filter_map(
+            |argument: &UnlistedArgument| match argument.value {
                 ArgumentValue::Step(step) => Some(step),
                 ArgumentValue::Constant(_) => None,
-            })
-            .collect(),
+            },
+        )),
     }
 }
 

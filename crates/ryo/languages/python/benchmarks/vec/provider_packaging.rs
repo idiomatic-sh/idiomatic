@@ -200,7 +200,7 @@ impl Project {
         if let Some((parent, _)) = dotted.rsplit_once('.')
             && self.classified.get(parent).is_some_and(|kinds| kinds.as_slice() == ["absent"])
         {
-            self.classified.insert(dotted.to_owned(), vec!["absent"]);
+            let _ = self.classified.insert(dotted.to_owned(), vec!["absent"]);
             return vec!["absent"];
         }
         let Some(search_roots) = &self.search_roots else { return vec!["unknown"] };
