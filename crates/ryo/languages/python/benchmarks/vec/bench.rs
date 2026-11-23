@@ -1921,7 +1921,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
         let mut other = ryo_python::fixtures::columns::ColumnWalk::with_settings(ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names"),settings);
         cwalk.defer_lexical();
         other.defer_lexical();
-        let numbers=std::env::var_os("VEC_FACT_CODES").is_some().then(||summary_values::vocabulary(walk,program));
+        let numbers=summary_schedule::enabled("VEC_FACT_CODES").then(||summary_values::vocabulary(walk,program));
         let codes=numbers.map(|(words,codes)|{fwords=words;codes});
         summary_walk::run(&list, program, &mut skip, &words, name_token, fields_width, &mut fwords,
             &mut cwalk, &mut other, ||ryo_python::fixtures::columns::ColumnWalk::with_settings(ryo_python::fixtures::walking::walk_words(walk).expect("declared fixed names"),settings),fin, root.as_deref(), flag(args, "--seed-out").as_deref(),flag(args,"--exact-out").as_deref(),codes);

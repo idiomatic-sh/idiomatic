@@ -24,6 +24,8 @@ impl Bits {
 pub(super) struct Arena {
     pub(super) census: Option<Census>,
     pub(super) window: bool,
+    pub(super) direct: bool,
+    pub(super) shared_words: u64,
     pub(super) words: Vec<u64>,
     pub(super) work: Vec<u64>,
 }
@@ -44,16 +46,7 @@ impl Arena {
         };
         let hi = data.iter().rposition(|&x| x != 0).unwrap() + 1;
         if let Some(m) = &mut self.census {
-            let trimmed = &data[lo..hi];
-            m.values += 1;
-            m.one_word += u64::from(trimmed.len() == 1);
-            let mut hits = 0;
-            for &w in trimmed {
-                m.nonzero_words += u64::from(w != 0);
-                hits += u64::from(w.count_ones());
-            }
-            m.nodes += hits;
-            m.singletons += u64::from(hits == 1);
+            m.record(&data[lo..hi]);
         }
         let lo = if self.window { lo } else { 0 };
         let b = Bits {
@@ -83,6 +76,47 @@ impl Arena {
             return Bits::default();
         };
         let mut offset = if self.window { id / 64 } else { 0 };
+        if self.direct {
+            let start = self.words.len();
+            self.words
+                .resize(start + 1 + (id / 64 - offset) as usize, 0);
+            self.words[start + (id / 64 - offset) as usize] = 1u64 << (id % 64);
+            let mut lowest = id / 64;
+            for id in iter {
+                let word = id / 64;
+                if word < offset {
+                    let end = self.words.len();
+                    self.words.resize(end + offset as usize, 0);
+                    self.words.copy_within(start..end, start + offset as usize);
+                    self.words[start..start + offset as usize].fill(0);
+                    offset = 0;
+                }
+                lowest = lowest.min(word);
+                let i = start + (word - offset) as usize;
+                if i >= self.words.len() {
+                    self.words.resize(i + 1, 0);
+                }
+                self.words[i] |= 1u64 << (id % 64);
+            }
+            let gap = if self.window {
+                (lowest - offset) as usize
+            } else {
+                0
+            };
+            if gap != 0 {
+                self.words.copy_within(start + gap.., start);
+                self.words.truncate(self.words.len() - gap);
+                offset = lowest;
+            }
+            if let Some(c) = &mut self.census {
+                c.record(&self.words[start + (lowest - offset) as usize..]);
+            }
+            return Bits {
+                start,
+                first: offset as usize,
+                len: self.words.len() - start,
+            };
+        }
         super::insert(&mut self.work, id - offset * 64);
         for id in iter {
             if id / 64 < offset {
@@ -126,6 +160,40 @@ impl Arena {
         let Some((first, l, r)) = Self::overlap(a, b) else {
             return Bits::default();
         };
+        if self.direct {
+            let len = l.len();
+            let start = self.words.len();
+            self.words.resize(start + len, 0);
+            let (inputs, output) = self.words.split_at_mut(start);
+            for ((w, x), y) in output.iter_mut().zip(&inputs[l]).zip(&inputs[r]) {
+                *w = x & y;
+            }
+            for mask in [a, b] {
+                if mask.first == first && mask.len == len && output == &inputs[mask.range()] {
+                    self.words.truncate(start);
+                    self.shared_words += len as u64;
+                    return mask;
+                }
+            }
+            let Some(lo) = output.iter().position(|&w| w != 0) else {
+                self.words.truncate(start);
+                return Bits::default();
+            };
+            let hi = output.iter().rposition(|&w| w != 0).unwrap() + 1;
+            if let Some(c) = &mut self.census {
+                c.record(&output[lo..hi]);
+            }
+            let lo = if self.window { lo } else { 0 };
+            if lo != 0 {
+                output.copy_within(lo..hi, 0);
+            }
+            self.words.truncate(start + hi - lo);
+            return Bits {
+                start,
+                first: first + lo,
+                len: hi - lo,
+            };
+        }
         self.work
             .extend(self.words[l].iter().zip(&self.words[r]).map(|(l, r)| l & r));
         self.flush(first)
@@ -246,6 +314,17 @@ pub(super) struct Census {
     nodes: u64,
 }
 impl Census {
+    fn record(&mut self, trimmed: &[u64]) {
+        self.values += 1;
+        self.one_word += u64::from(trimmed.len() == 1);
+        let mut hits = 0;
+        for &w in trimmed {
+            self.nonzero_words += u64::from(w != 0);
+            hits += u64::from(w.count_ones());
+        }
+        self.nodes += hits;
+        self.singletons += u64::from(hits == 1);
+    }
     pub(super) fn report(&self) {
         println!(
             "materialised masks {} one-word {} singleton {} nonzero words {} selected node occurrences {}",

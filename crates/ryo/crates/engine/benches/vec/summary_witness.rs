@@ -25,6 +25,13 @@ impl File<'_> {
             }
             Domain::Kind(k) => !node_table::ids_of_kind(self.t, languages::KindBits(k)).is_empty(),
             Domain::Field(k) => node_table::field_count(self.t, languages::FieldCode(k)).0 != 0,
+            Domain::Either(a, b)
+                if self.order.is_some_and(|o| o.ready_guards)
+                    && (self.known_witness(a) == Some(true)
+                        || self.known_witness(b) == Some(true)) =>
+            {
+                true
+            }
             Domain::Either(a, b) => {
                 let (a, b) = self.first(a, b);
                 self.witness(a) || self.witness(b)
@@ -79,7 +86,10 @@ impl File<'_> {
                 let qualifies = |n: u32| {
                     let n = Position(n);
                     if down {
-                        !node_table::children_of(t, n).is_empty()
+                        node_table::direct_children(t, n).map_or_else(
+                            || !node_table::children_of(t, n).is_empty(),
+                            |mut it| it.next().is_some(),
+                        )
                     } else {
                         let p = node_table::parent_of(t, n);
                         p != n && (p.0 as usize) < node_table::element_count(t).0
@@ -107,6 +117,9 @@ impl File<'_> {
                             })
                     })
                 }
+            }
+            Domain::Fact(_, Some(_)) if let Some(set) = self.posted(id, true) => {
+                set.is_none_or(|s| !s.is_empty())
             }
             Domain::Fact(slot, None) => {
                 let spec = &self.p.facts[slot];

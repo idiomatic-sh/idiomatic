@@ -11,6 +11,10 @@ mod classes;
 mod memo;
 #[path = "../../../../crates/engine/benches/vec/summary_points.rs"]
 mod points;
+#[path = "../../../../crates/engine/benches/vec/summary_postings.rs"]
+pub(super) mod postings;
+#[path = "../../../../crates/engine/benches/vec/summary_ready.rs"]
+mod ready;
 #[path = "../../../../crates/engine/benches/vec/summary_scan.rs"]
 pub(super) mod scan;
 #[path = "../../../../crates/engine/benches/vec/summary_witness.rs"]
@@ -43,6 +47,7 @@ struct Table {
 }
 #[derive(Default)]
 pub(super) struct Scratch {
+    postings: postings::Cache,
     pub(super) literals: super::summary_literals::Observed,
     alive_words: Vec<u64>,
     pub(super) points: u64,
@@ -59,6 +64,7 @@ pub(super) struct Scratch {
     pub(super) peak: usize,
 }
 struct File<'a> {
+    postings: &'a mut postings::Cache,
     byte_tests: Map<(usize, &'a [u8]), bool>,
     literals: &'a mut super::summary_literals::Observed,
     p: &'a Program,
@@ -136,6 +142,12 @@ impl Table {
 
 impl File<'_> {
     fn first(&self, a: Id, b: Id) -> (Id, Id) {
+        if self.order.is_some_and(|s| s.ready_guards) {
+            let (l, r) = (self.ready_first(a), self.ready_first(b));
+            if l != r {
+                return if l < r { (a, b) } else { (b, a) };
+            }
+        }
         if self.order.is_some_and(|o| o.cost[b] < o.cost[a]) {
             (b, a)
         } else {
@@ -162,9 +174,11 @@ impl File<'_> {
             Need::PathMatches(re) => self
                 .path
                 .is_none_or(|path| self.p.regexes[re].is_match(path)),
+            Need::Both(..) if self.cached_guard(id, false) => false,
             Need::Both(..) if self.order.is_some() => {
                 self.order.unwrap().needs[id].iter().all(|&n| self.pass(n))
             }
+            Need::Either(..) if self.cached_guard(id, true) => true,
             Need::Either(..) if self.order.is_some() => {
                 self.order.unwrap().needs[id].iter().any(|&n| self.pass(n))
             }
@@ -256,6 +270,13 @@ impl File<'_> {
     fn nodes(&mut self, id: Id) -> Nodes {
         if let Some(s) = self.sets.get(id) {
             return s;
+        }
+        if self.order.is_some_and(|o| o.ready_guards)
+            && self.witnesses.get(id) == Some(&Some(false))
+        {
+            let empty = Some(Bits::default());
+            self.sets.set(id, empty);
+            return empty;
         }
         if let Some(set) = self.grouped(id, false) {
             self.sets.set(id, set);
@@ -759,6 +780,7 @@ impl File<'_> {
                     )
                 }
             }
+            Domain::Fact(_, Some(_)) if let Some(set) = self.posted(id, false) => set,
             Domain::Fact(slot, test) => {
                 let spec = &self.p.facts[*slot];
                 if self.order.is_some()
@@ -861,6 +883,7 @@ impl Program {
         languages::facts::clear_words(words);
         scratch.arena.words.clear();
         scratch.sets.reset(self.domains.len());
+        scratch.arena.direct = order.is_some_and(|s| s.direct_masks);
         scratch.arena.window = order.is_some_and(|s| s.windows);
         scratch.needs.clear();
         scratch.needs.resize(self.needs.len(), None);
@@ -886,7 +909,11 @@ impl Program {
             scratch.witnesses.resize(self.domains.len(), None);
         }
         scratch.classes.reset();
+        scratch
+            .postings
+            .reset(order.and_then(|s| s.postings.as_ref()));
         let mut f = File {
+            postings: &mut scratch.postings,
             literals: &mut scratch.literals,
             byte_tests: Map::default(),
             classes: &mut scratch.classes,
@@ -945,6 +972,12 @@ impl Program {
 }
 
 impl Scratch {
+    pub(super) fn report_postings(&self) {
+        println!(
+            "shared symbol postings columns {} rows visited {} retained {}",
+            self.postings.columns, self.postings.rows, self.postings.kept
+        );
+    }
     pub(super) fn measure_masks(&mut self) {
         self.arena.census = Some(Default::default());
     }

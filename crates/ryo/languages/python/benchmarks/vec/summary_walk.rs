@@ -61,16 +61,20 @@ pub(super) fn run(
         if std::env::var_os("VEC_LAZY_CHILDREN").is_some() {
             walk.defer_child_ids();
         }
-        if verify || std::env::var_os("VEC_TREE_RANGES").is_some() {
+        if verify || super::summary_schedule::enabled("VEC_TREE_RANGES") {
             walk.use_native_navigation();
         }
     }
     let (mut first_children, mut second_children) = (0usize, 0usize);
     let prep = thread_cpu();
     let mut order = super::summary_schedule::Schedule::new(program);
+    if super::summary_schedule::enabled("VEC_SHARED_POSTINGS") {
+        order.postings = codes
+            .as_deref()
+            .map(|s| super::pair_checks::postings::Layout::new(program, s));
+    }
     order.symbols = codes;
-    order.literals = std::env::var_os("VEC_LITERAL_BUCKETS")
-        .is_some()
+    order.literals = super::summary_schedule::enabled("VEC_LITERAL_BUCKETS")
         .then(|| super::summary_literals::Layout::new(program, words, word_kind));
     order.keys = program
         .facts
@@ -353,6 +357,10 @@ pub(super) fn run(
         "domain bitset words {} peak {}",
         scratch.words, scratch.peak
     );
+    println!(
+        "files with dense child slices after first {first_children} after executor {second_children}"
+    );
+    scratch.report_postings();
     scratch.report_masks();
     for (ri, _) in &program.exact {
         let (pairs, rows, nonempty) = exact_counts[*ri];
