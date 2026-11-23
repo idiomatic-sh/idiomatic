@@ -89,6 +89,8 @@ mod leaf_scan;
 mod cold_list;
 #[path = "finish/cold_entries.rs"]
 mod cold_entries;
+#[path = "finish/cold_test.rs"]
+mod cold_test;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum Ty {
@@ -1202,12 +1204,13 @@ pub(super) struct ViewSpec {
     filter: Vec<E>,
     /// redo-fills c4: `filter` compiled once (when the view is made), read as columns (`view_cols`).
     tests: Vec<view_cols::Test>,
+    cold_test: std::cell::OnceCell<Rc<cold_test::Kernel>>,
 }
 
 impl ViewSpec {
     fn new(base: Native, map: Vec<usize>, filter: Vec<E>) -> Self {
         let tests = view_cols::compile(&filter);
-        ViewSpec { base, map, filter, tests }
+        ViewSpec { base, map, filter, tests, cold_test: std::cell::OnceCell::new() }
     }
 }
 
@@ -3462,11 +3465,7 @@ fn view_rows_for(f: &mut File<'_>, run: &mut Run, v: &ViewSpec, node: usize, mat
         // redo-fills: the view tests read as columns (view_cols)
         let middle = if sw!("VEC_COLD_PHASE") { cold_list::clock() } else { 0.0 };
         entered = out.len();
-        if sw!("VEC_LEAF_TESTS") || sw!("VEC_COLD_COUNT") {
-            tests = leaf_scan::count_tests(f, run, v, node, materialize, out);
-        } else if !v.filter.is_empty() {
-            view_cols::retain(f, run, v, out);
-        }
+        tests = cold_test::retain(f, run, v, node, materialize, out);
         if sw!("VEC_COLD_PHASE") { run.cold.phase(node, middle - before, cold_list::clock() - middle); }
     });
     if sw!("VEC_LEAF_PROFILE") {

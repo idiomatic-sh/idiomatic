@@ -432,6 +432,7 @@ impl Exec<'_> {
 
 impl Exec<'_> {
     pub(crate) fn cold_report(&self, run: &Run) {
+        super::cold_test::report();
         run.cold.report();
         run.cold_entries.report();
     }

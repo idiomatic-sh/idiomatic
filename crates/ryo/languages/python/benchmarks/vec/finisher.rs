@@ -121,6 +121,7 @@ impl<'p> Finisher<'p> {
                 &|n| vocab.kinds.get(n).copied(),
             ),
         };
+        me.exec.cold_test_load(&mut me.run);
         me.exec.cold_load(&mut me.run);
         me.time += thread_cpu() - t0;
         me
