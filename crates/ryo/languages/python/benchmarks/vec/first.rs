@@ -231,7 +231,7 @@ fn or(mut xs: Vec<R>) -> R {
 }
 
 /// A relation: a pure scan (its conditions can still grow) or a formula.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 enum SRel {
     Scan(String, Vec<Cond>),
     Formula(R),
@@ -722,6 +722,11 @@ struct Analyzer<'p> {
     /// (`dry`: no relation is formed, only fragment calls are entered), so a relation is kept until its last use.
     uses: Vec<u32>,
     dry: bool,
+    /// Summaries only (`prepare`'s default): each identity's skip summary, no relation formed.
+    simple: bool,
+    srels: Vec<Option<SRel>>,
+    /// The base relation each base identity names.
+    base_names: HashMap<Id, String>,
     /// The rule each identity was first analysed in (for the counts), and the rule being analysed.
     first_rule: Vec<u32>,
     rule: u32,
@@ -777,7 +782,121 @@ impl<'p> Analyzer<'p> {
 
     fn base_id(&mut self, name: &str) -> Id {
         let t = self.text(name.to_owned());
-        self.intern(vec![1, t])
+        let id = self.intern(vec![1, t]);
+        self.base_names.entry(id).or_insert_with(|| name.to_owned());
+        id
+    }
+
+    /// The skip summary of an identity: a step's, a base relation's scan, or none (a missing step, a word).
+    fn srel_of_id(&self, id: Id) -> SRel {
+        if let Some(Some(r)) = self.srels.get(id as usize) {
+            return r.clone();
+        }
+        match self.base_names.get(&id) {
+            Some(n) => SRel::Scan(n.clone(), Vec::new()),
+            None => truth(),
+        }
+    }
+
+    fn srel_of(&mut self, v: Option<&'p ArgumentValue>, env: &Env<'p>) -> Option<SRel> {
+        let v = v?;
+        if !matches!(v, ArgumentValue::Text(_) | ArgumentValue::Step(_) | ArgumentValue::Word(_)) {
+            return None;
+        }
+        let id = self.peek(Read::Arg(v), env);
+        Some(self.srel_of_id(id))
+    }
+
+    fn srel_source(&mut self, r: &'p SourceReference, env: &Env<'p>) -> SRel {
+        let id = self.peek(Read::Source(r), env);
+        self.srel_of_id(id)
+    }
+
+    /// A select's skip summary (anchors.py's, as `SkipAnalyzer::select`).
+    fn skip_select(&mut self, s: &'p Select, env: &Env<'p>) -> SRel {
+        let w = conds(&s.filters);
+        let mut sources = vec![&s.from];
+        if let Joining::Joined(j) = &s.join {
+            sources.push(&j.source);
+        }
+        if sources.len() == 1 {
+            let alias = alias_of(&s.from.alias);
+            let base = self.srel_source(&s.from.reference, env);
+            let mut cs = split_alias(&w, alias.as_deref());
+            if alias.is_some() {
+                cs.extend(split_alias(&w, None));
+            }
+            return match base {
+                SRel::Scan(b, mut c) => {
+                    c.extend(cs);
+                    SRel::Scan(b, c)
+                }
+                f @ SRel::Formula(_) => f,
+            };
+        }
+        let mut parts = Vec::new();
+        for src in &sources {
+            let alias = alias_of(&src.alias);
+            parts.push(match self.srel_source(&src.reference, env) {
+                SRel::Scan(b, mut c) => {
+                    c.extend(split_alias(&w, alias.as_deref()));
+                    Rc::new(Req::Scan(b, c))
+                }
+                SRel::Formula(f) => f,
+            });
+        }
+        SRel::Formula(and(parts))
+    }
+
+    /// A call's skip summary (as `SkipAnalyzer::call`); a fragment's is its result's, analysed once per identity.
+    fn skip_call(&mut self, c: &'p Call, env: &Env<'p>) -> SRel {
+        let name = &*c.name.0;
+        if let Some(module) = env.imports.get(name) {
+            let mut params: HashMap<String, Entry<'p>> = HashMap::new();
+            for a in &c.arguments {
+                if matches!(a.value, ArgumentValue::Text(_) | ArgumentValue::Step(_) | ArgumentValue::Word(_)) {
+                    let id = self.peek(Read::Arg(&a.value), env);
+                    params.insert(a.name.0.to_string(), Entry::ready(Rc::new(opaque()), id));
+                }
+            }
+            let frags = self.frags;
+            let Some(f): Option<&'p FragmentProgram> = frags.0.get(&QuerySourceId(module.as_str().into())) else { return truth() };
+            let id = self.program_id(&f.steps, params, imports_of(&f.imports), &f.result.step.0);
+            return self.srel_of_id(id);
+        }
+        if name == "union" {
+            let mut reqs = Vec::new();
+            for k in ["left", "right"] {
+                if let Some(r) = self.srel_of(arg(&c.arguments, k), env) {
+                    reqs.push(r.req());
+                }
+            }
+            return SRel::Formula(or(reqs));
+        }
+        if name == "antijoin" {
+            return SRel::Formula(self.srel_of(arg(&c.arguments, "left"), env).map_or_else(|| Rc::new(Req::True), |r| r.req()));
+        }
+        let mut reqs = Vec::new();
+        for a in &c.arguments {
+            if matches!(a.value, ArgumentValue::Step(_) | ArgumentValue::Word(_))
+                && let Some(r) = self.srel_of(Some(&a.value), env)
+            {
+                reqs.push(r.req());
+            }
+        }
+        SRel::Formula(and(reqs))
+    }
+
+    /// The identity of a program's result step.
+    fn program_id(&mut self, steps: &'p [LetStep], mut map: HashMap<String, Entry<'p>>, imports: Imports, result: &str) -> Id {
+        for st in steps {
+            map.insert(st.name.0.to_string(), Entry::lazy(&st.expression));
+        }
+        let env = Env { map, imports };
+        match env.map.get(result) {
+            Some(e) => self.force(e, &env).1,
+            None => OPAQUE,
+        }
     }
 
     /// The identity of what a read names, its step forced (not used).
@@ -817,6 +936,23 @@ impl<'p> Analyzer<'p> {
         }
         let id = self.intern(key);
         let i = id as usize;
+        if self.simple {
+            if self.srels.len() <= i {
+                self.srels.resize(i + 1, None);
+            }
+            if self.srels[i].is_none() {
+                let r = match expr {
+                    Expression::Select(s) => self.skip_select(s, env),
+                    Expression::Call(c) => self.skip_call(c, env),
+                };
+                self.srels[i] = Some(r);
+            } else {
+                count(7, 1);
+            }
+            let got = (self.rels[0].clone().unwrap_or_else(|| Rc::new(opaque())), id);
+            let _set = e.rel.set(got.clone());
+            return got;
+        }
         if self.dry {
             self.uses[i] += 1;
             if self.uses[i] == 1
@@ -944,7 +1080,7 @@ impl<'p> Analyzer<'p> {
                 // the arguments the analysis reads as relations (`call`): every relation argument of a fragment; union's
                 // and antijoin's sides; a literal table none; a traversal its first step argument; else `from` or `left`
                 let args = &c.arguments;
-                let read: Vec<usize> = if module.is_some() {
+                let read: Vec<usize> = if module.is_some() || self.simple {
                     (0..args.len()).filter(|i| matches!(args[*i].value, ArgumentValue::Text(_) | ArgumentValue::Step(_) | ArgumentValue::Word(_))).collect()
                 } else if name == "union" || name == "antijoin" {
                     ["left", "right"].iter().filter_map(|k| args.iter().position(|a| &*a.name.0 == *k)).collect()
@@ -2153,15 +2289,44 @@ pub(super) struct Prepared {
 }
 
 /// Both analyses over every rule of the parsed pack. `word_kind`: the kind of a name token (the walk's vocabulary).
+/// The skip clauses a rule keeps at most (its smallest).
+const CLAUSE_CAP: usize = 32;
+
+/// `VEC_FIRST_PLANS`: the elaborate per-rule prefix plans (every disjunct rooted at every bucket); else the summaries only.
 pub(super) fn prepare(programs: &PackPrograms, lang: Language) -> Prepared {
+    let simple = std::env::var_os("VEC_FIRST_PLANS").is_none();
     let word_kind = lang.word_kind.clone();
     let word_kind = word_kind.as_str();
     LANGUAGE.with(|l| *l.borrow_mut() = Some(Rc::new(lang)));
     let skip = SkipAnalyzer { frags: &programs.fragments };
-    let mut an = Analyzer { frags: &programs.fragments, ids: HashMap::new(), rels: vec![Some(Rc::new(opaque()))], uses: vec![0], dry: true, first_rule: vec![0], rule: 0, shapes: HashMap::new(), texts: HashMap::new() };
+    let mut an = Analyzer { frags: &programs.fragments, ids: HashMap::new(), rels: vec![Some(Rc::new(opaque()))], uses: vec![0], dry: true, simple, srels: Vec::new(), base_names: HashMap::new(), first_rule: vec![0], rule: 0, shapes: HashMap::new(), texts: HashMap::new() };
     let mut skips = Vec::new();
     let mut rules = Vec::new();
     let trace = std::env::var_os("VEC_FIRST_TRACE").is_some();
+    if simple {
+        // the summaries: one per distinct step; a rule's skip is its result's
+        let mut memo: HashMap<*const Req, Rc<Vec<Set>>> = HashMap::new();
+        let mut pins: Vec<R> = Vec::new();
+        for rule in &programs.rules {
+            let name = rule.rule.0.to_string();
+            let RuleProgram::Parsed(p) = &rule.program else {
+                skips.push((name.clone(), false, Vec::new()));
+                rules.push(SpecRule { name, node: false, plans: Vec::new(), word_cnfs: vec![Vec::new()] });
+                continue;
+            };
+            let id = an.program_id(&p.steps, HashMap::new(), imports_of(&p.imports), &p.emit.step.0);
+            let req = an.srel_of_id(id).req();
+            let mut cs: Vec<Set> = clauses(&req, &mut memo).to_vec();
+            pins.push(req);
+            let never = cs.iter().any(BTreeSet::is_empty);
+            // a hard cap on the clauses kept (the smallest first): fewer clauses only skip less, never wrongly
+            cs.truncate(CLAUSE_CAP);
+            skips.push((name.clone(), never, cs.into_iter().filter(|c| !c.is_empty()).map(|c| c.into_iter().collect()).collect()));
+            rules.push(SpecRule { name, node: false, plans: Vec::new(), word_cnfs: vec![Vec::new()] });
+        }
+        drop(pins);
+        return Prepared { skips, rules };
+    }
     // the identities first (how many steps take each), then the relations
     let td = super::thread_cpu();
     for rule in &programs.rules {
