@@ -262,7 +262,7 @@ pub(super) struct Project {
     #[serde(deserialize_with = "constants")]
     pub parameters: BTreeMap<String, PlanConstant>,
 }
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, Debug, PartialEq, Eq, Hash)]
 pub(super) struct Hosted {
     pub name: String,
     pub columns: Vec<(String, String)>,
@@ -271,15 +271,19 @@ pub(super) struct Hosted {
     pub partial: Option<String>,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, Debug, PartialEq, Eq, Hash)]
 #[serde(untagged)]
 pub(super) enum ProjectCell {
     File { file: String },
     Text(String),
     Number(i64),
-    Unsupported(serde::de::IgnoredAny),
+    Unsupported(#[serde(deserialize_with = "ignore_cell")] ()),
 }
-fn constants<'de, D: serde::Deserializer<'de>>(
+fn ignore_cell<'de, D: serde::Deserializer<'de>>(d: D) -> Result<(), D::Error> {
+    use serde::Deserialize as _;
+    serde::de::IgnoredAny::deserialize(d).map(|_| ())
+}
+pub(super) fn constants<'de, D: serde::Deserializer<'de>>(
     d: D,
 ) -> Result<BTreeMap<String, PlanConstant>, D::Error> {
     use serde::Deserialize as _;

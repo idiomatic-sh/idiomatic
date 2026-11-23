@@ -35,7 +35,7 @@ pub(crate) fn query_row(
     .map_err(|e| e.to_string())
 }
 
-fn row(
+pub(super) fn row(
     run: &Run,
     table: &Table,
     row: usize,
@@ -98,6 +98,8 @@ pub(crate) struct Records {
 }
 
 impl Records {
+    pub(crate) fn into_lines(self) -> Vec<String> { self.lines }
+
     pub(crate) fn query(
         &mut self,
         run: &Run,

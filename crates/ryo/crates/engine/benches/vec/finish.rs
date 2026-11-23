@@ -543,6 +543,14 @@ pub(super) struct Plan {
 
 }
 
+fn ordered_extend(args: &Param) -> R<impl Iterator<Item = (&str, &Param)>> {
+    let values = args["values"].as_object().ok_or("extend values")?;
+    Ok(args["value-order"].as_array().ok_or("extend order")?.iter().map(|item| {
+        let name = item.as_str().expect("lowered extend name");
+        (name, &values[name])
+    }))
+}
+
 /// The relations of the tree read in place, by position.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub(super) enum Native {
@@ -1478,8 +1486,8 @@ impl<'p> Exec<'p> {
             "extend" => {
                 let f = from(self, run, "from")?;
                 let (mut names, mut tys) = ((*f.names).clone(), (*f.tys).clone());
-                for (k, v) in a["values"].as_object().ok_or("extend values")? {
-                    names.push(k.clone());
+                for (k, v) in ordered_extend(a)? {
+                    names.push(k.to_owned());
                     tys.push(match v {
                         Param::Number(_) => Ty::Num,
                         Param::Text(t) if t == "true" || t == "false" => Ty::Flag,
@@ -2120,7 +2128,7 @@ impl<'p> Exec<'p> {
             "extend" => {
                 let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
                 let mut out = from.copy();
-                for (k, v) in a["values"].as_object().ok_or("extend values")? {
+                for (k, v) in ordered_extend(a)? {
                     let (t, x) = match v {
                         Param::Number(_) => (Ty::Num, v.as_i64().ok_or("extend number")? as u64),
                         Param::Text(t) if t == "true" || t == "false" => (Ty::Flag, u64::from(t == "true")),

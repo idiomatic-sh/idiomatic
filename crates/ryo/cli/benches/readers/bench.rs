@@ -42,6 +42,8 @@ mod pair_summary;
 mod reader;
 #[path = "../../../crates/engine/benches/vec/reader_run.rs"]
 mod reader_run;
+#[path = "../../../crates/engine/benches/vec/check_session.rs"]
+mod check_session;
 #[path = "../../../crates/engine/benches/vec/spec.rs"]
 mod spec;
 
@@ -92,17 +94,48 @@ fn main() {
         project_bench::replay();
         return;
     }
+    let languages = || {
+        let mut langs: Vec<_> = readers.iter().map(|link| link()).collect();
+        langs.extend([ryo_python::linked(), ryo_rust::linked(), ryo_typescript::linked()]);
+        langs
+    };
+    if args.first().is_some_and(|mode| mode == "--tm-batch") {
+        let (manifest, output, workers) = match args.as_slice() {
+            [_, manifest, output] => (manifest, output, None),
+            [_, manifest, output, flag, count] if flag == "--workers" => (
+                manifest, output, Some(count.parse().expect("workers must be a positive integer"))
+            ),
+            _ => panic!("expected --tm-batch MANIFEST OUTPUT [--workers COUNT]"),
+        };
+        project_bench::batch(languages(), manifest, output, workers);
+        return;
+    }
+    if let [manifest, _, output] = args.as_slice() {
+        if let Err(reason) = project_bench::packets(languages(), manifest, output) {
+            eprintln!("{reason}");
+            std::process::exit(1);
+        }
+        return;
+    }
     if let [mode, pack, request, output] = args.as_slice()
         && (mode == "--shipping" || mode == "--mixed")
     {
-        let mut langs: Vec<_> = readers.iter().map(|link| link()).collect();
-        langs.extend([
-            ryo_python::linked(),
-            ryo_rust::linked(),
-            ryo_typescript::linked(),
-        ]);
+        let langs = languages();
         if mode == "--mixed" {
-            if !mixed::run(langs, pack, request, output) {
+            // Scenario inputs carry their numbered inventory and one standalone query.
+            // A pack request keeps its original multi-rule and fragment semantics.
+            let input: serde_json::Value = serde_json::from_slice(
+                &std::fs::read(request).expect("request"),
+            ).expect("request");
+            if input["inventory"].is_array()
+                && input["selected_rules"] == serde_json::json!(["query"])
+                && !std::path::Path::new(pack).join("fragments").exists()
+            {
+                if let Err(reason) = project_bench::one(langs, pack, input, output) {
+                    eprintln!("{reason}");
+                    std::process::exit(1);
+                }
+            } else if !mixed::run(langs, pack, request, output) {
                 std::process::exit(1);
             }
             return;

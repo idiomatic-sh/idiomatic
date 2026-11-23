@@ -335,6 +335,7 @@ fn parameters(step: &FinishStep) -> Args {
             );
         }
         Extend(a) => {
+            set("value-order", Param::strings(a.values.iter().map(|v| v.name.0.as_ref())));
             set(
                 "values",
                 Param::Named(
@@ -396,6 +397,7 @@ fn parameters(step: &FinishStep) -> Args {
             }
         }
         Capture(a) => {
+            if let Some(separator) = &a.separator { set("separator", Param::text(&separator.0)); }
             set("path", Param::text(&a.path.0));
             set("pattern", Param::text(&a.pattern.0));
             set(
