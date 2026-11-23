@@ -52,6 +52,8 @@ pub(crate) struct Requests {
     answer: Vec<Result<Table, String>>,
     // A run-scoped answer counts once; any file can consume it.
     run_unused: Vec<Option<(u64, u64)>>,
+    /// Actual unopened provider slots by relation, only collected for the count report.
+    unread_by_relation: Vec<(u64, u64, u64)>,
     pub(super) counts: Counts,
 }
 
@@ -120,7 +122,7 @@ impl Requests {
             let unused = c.unused_cells + self.run_unused.iter().flatten().map(|entry| entry.1).sum::<u64>();
             format!("; catalog cells {} returned {} in unread relations {unused}", c.possible_cells, c.returned_cells)
         } else { String::new() };
-        format!(
+        let mut line = format!(
             "REQUEST files {} provider-calls {} provider-relations {} host-relations {} rows {} refused {} never-asked {} ({} rows); relations nameable {}; missing {} first reads {}; request {:.6} answer {:.6} read {:.6} s; selecting columns {:.6} s; file predicates {} leaves {} gates; prefix indexes {} columns {} excluded groups; files without active emits {idle}{cells}",
             c.files,
             c.provider_calls,
@@ -137,7 +139,23 @@ impl Requests {
             c.answer_cpu,
             c.read_cpu, c.mask_cpu, self.guards.circuit.counts().0, self.guards.circuit.counts().1, self.guards.indexed_columns, self.guards.indexed_absences,
             idle = c.idle_files
-        )
+        );
+        if super::fill_prof::counting() {
+            use std::fmt::Write;
+            for (slot, name) in self.names.iter().enumerate() {
+                let (mut packets, mut rows, mut cells) = self.unread_by_relation[slot];
+                if let Some((count, width)) = self.run_unused[slot] {
+                    packets += 1;
+                    rows += count;
+                    cells += width;
+                }
+                if packets != 0 {
+                    writeln!(&mut line).unwrap();
+                    write!(&mut line, "PACKET-UNREAD\t{name}\t{packets}\t{rows}\t{cells}").unwrap();
+                }
+            }
+        }
+        line
     }
 }
 
@@ -288,6 +306,9 @@ impl Exec<'_> {
         run.fact_offsets = offsets.into();
         run.project.resize_with(self.requests.names.len(), || None);
         self.requests.run_unused.resize(self.requests.names.len(), None);
+        if super::fill_prof::counting() {
+            self.requests.unread_by_relation.resize(self.requests.names.len(), (0, 0, 0));
+        }
         // A run-scoped answer serves files whose live rules can ask for
         // different columns. Include the file partition key and every column
         // the plan may read from that answer over its whole lifetime.
@@ -569,7 +590,14 @@ impl Exec<'_> {
             if let Some(Ok(table)) = &f.answer[i] {
                 self.requests.counts.never_asked += 1;
                 self.requests.counts.never_asked_rows += table.n as u64;
-                if super::fill_prof::counting() { self.requests.counts.unused_cells += returned_cells(table); }
+                if super::fill_prof::counting() {
+                    let cells = returned_cells(table);
+                    self.requests.counts.unused_cells += cells;
+                    let unread = &mut self.requests.unread_by_relation[i];
+                    unread.0 += 1;
+                    unread.1 += table.n as u64;
+                    unread.2 += cells;
+                }
             }
         }
         f.answer.clear();
