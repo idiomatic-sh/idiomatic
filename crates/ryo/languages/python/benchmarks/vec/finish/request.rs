@@ -316,8 +316,16 @@ impl Exec<'_> {
             if pn.op == "select"
                 && let Ok(sp) = self.sel(run, n)
             {
+                // A keyed select passes its caller's keys to a projected source.
+                // A native probe gathers every mapped view column before selecting.
+                let keyed = match self.keyed_form(run, n) {
+                    Ok(super::keyed::Form::Select(cols)) => Some(cols),
+                    _ => None,
+                };
                 for (i, src) in sp.srcs.iter().enumerate() {
-                    let probed = sp.conj.iter().any(|e| matches!(e, E::Seed(x, _) if matches!(**x, E::Col(s, _, _) if s == i)));
+                    let probed = keyed.as_ref().is_some_and(|cols| {
+                        cols.iter().flatten().any(|(source, _)| *source == i)
+                    }) || sp.conj.iter().any(|e| matches!(e, E::Seed(x, _) if matches!(**x, E::Col(s, _, _) if s == i)));
                     let mask = if probed {
                         Columns::All
                     } else {
