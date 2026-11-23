@@ -65,6 +65,7 @@ impl FactTable {
     #[must_use]
     pub fn ordered() -> Self { Self { ordered_rows: true, ..Self::default() } }
 
+    /// Starts a fresh answer with the declared layout and projected columns.
     pub fn begin(&mut self, layout: Layout, width: usize, elements: usize, written: &[usize], exists: bool, wanted: u64) {
         self.wanted = wanted;
         self.layout = layout;
@@ -96,6 +97,7 @@ impl FactTable {
         self.wanted >> place & 1 == 1
     }
 
+    /// Records the presence of a row for this node.
     #[inline]
     pub fn mark(&mut self, node: u32) {
         if let Some(word) = self.present.get_mut(node as usize / 64) {

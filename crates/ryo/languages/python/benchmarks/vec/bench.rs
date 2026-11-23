@@ -1956,7 +1956,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
         let mut prepared = false;
         let mut codes_taken = false;
         macro_rules! prepare {
-            ($t:expr,$fill:expr) => {{
+            ($t:expr,$catalog_file:expr,$fill:expr) => {{
                 let pt: &NodeTable = $t;
                 let c1 = thread_cpu();
                 fields_present(pt, &mut cols, fields_width.max(1));
@@ -2093,7 +2093,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
                             if let pair_summary::Source::Catalog(catalog) = rel
                                 && let Some(answer) = host_columns::fill(catalog, Some(run), file_no, out) { return answer; }
                             ($fill)(rel, words, out)
-                        }, &mut alive, FileId(file_no as u32), Some(&mut |rel, cells| completed.insert(rel, cells)), exact)
+                        }, &mut alive, $catalog_file, Some(&mut |rel, cells| completed.insert(rel, cells)), exact)
                     } else {
                         program.file(pt, &bytes, None, &mut fwords, $fill, &mut alive, FileId(0), None, exact)
                     };
@@ -2352,7 +2352,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
                     codes_taken = true;
                     // Whole rows kept for the provider are born with their real file identity.
                     if fin.is_some() { file.set_file(FileId(file_no as u32)); }
-                    prepare!(ft, |rel,words,out| pair_provider::read(file, file_no, rel, words, out));
+                    prepare!(ft, FileId(file_no as u32), |rel,words,out| pair_provider::read(file, file_no, rel, words, out));
                     if fin.is_some() { file.set_file(FileId(0)); }
                     prepared = true;
                     let index = file_seeds::Index { table: ft, offsets: &word_offsets, words: &word_pos };
@@ -2733,7 +2733,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
                 let p0 = thread_cpu();
                 let ft = file.table;
                 let n = node_table::element_count(ft).0;
-                prepare!(ft, |rel,words,out| matches!(rel, pair_summary::Source::Catalog(r) if matches!(file.facts.fill(r,languages::Wanted::Whole,words,out),languages::FactAnswer::Answered(_))));
+                prepare!(ft, FileId(0), |rel,words,out| matches!(rel, pair_summary::Source::Catalog(r) if matches!(file.facts.fill(r,languages::Wanted::Whole,words,out),languages::FactAnswer::Answered(_))));
                 prepared = true;
                 let v0 = thread_cpu();
                 let mut needed = vec![false; slots_n];
@@ -2822,7 +2822,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
             continue;
         }
         if !prepared {
-            prepare!(t, |_,_,_| false);
+            prepare!(t, FileId(0), |_,_,_| false);
         }
         if !prefixed {
             prefix!(t);
