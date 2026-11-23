@@ -255,10 +255,10 @@ impl Exec<'_> {
 
     pub(super) fn file_fails_of(&mut self, f: &File<'_>, run: &mut Run, node: usize) -> bool {
         if let Ok(Some(v)) = self.view(run, node) {
-            return filter_order::file_fails(run, f, &v.filter);
+            return filter_order::file_fails(run, f, &v.filter, &v.file_tests);
         }
         match self.sel(run, node) {
-            Ok(sp) => filter_order::file_fails(run, f, &sp.conj),
+            Ok(sp) => filter_order::file_fails(run, f, &sp.conj, &sp.file_tests),
             Err(_) => false,
         }
     }
@@ -270,18 +270,11 @@ impl Exec<'_> {
             return n;
         }
         let codes = |run: &Run, syms: &[u32]| -> Box<[u16]> { run.kind_sym.iter().enumerate().filter(|(_, s)| syms.contains(s)).map(|(c, _)| c as u16).collect() };
-        let file_test = |conj: &[E]| conj.iter().any(|c| {
-            // file_fails substitutes this file's same id for each file column.
-            // Equality of two such columns always succeeds for this decision.
-            let same_file = matches!(c, E::Cmp(super::Op::Eq, a, b)
-                if matches!((&**a, &**b), (E::Col(_, _, super::Ty::File), E::Col(_, _, super::Ty::File))));
-            filter_order::file_const(c) && !matches!(c, E::Lit(_)) && !same_file
-        });
         if let Ok(Some(v)) = self.view(run, node) {
             if v.base == Native::Tree {
                 n.kinds = v.filter.iter().filter_map(|c| super::kind_set(run, std::slice::from_ref(c), 0, v.base, &[])).map(|ks| codes(run, &ks)).collect();
             }
-            n.file_test = file_test(&v.filter);
+            n.file_test = v.file_tests.is_some();
             n.seeds = v.filter.iter().filter_map(|e| if let E::Seed(_, k) = e { Some(*k) } else { None }).collect();
             return n;
         }
@@ -303,7 +296,7 @@ impl Exec<'_> {
                 }
                 n.kinds = kinds.into();
                 n.seeds = sp.conj.iter().filter_map(|e| if let E::Seed(_, k) = e { Some(*k) } else { None }).collect();
-                n.file_test = file_test(&sp.conj);
+                n.file_test = sp.file_tests.is_some();
                 n.inputs = sp.srcs.clone().into();
                 return n;
             }

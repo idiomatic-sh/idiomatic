@@ -1249,6 +1249,7 @@ pub(super) struct ViewSpec {
     base: Native,
     map: Vec<usize>,
     filter: Vec<E>,
+    file_tests: Option<Box<filter_order::FileTests>>,
     /// redo-fills c4: `filter` compiled once (when the view is made), read as columns (`view_cols`).
     tests: Vec<view_cols::Test>,
 }
@@ -1256,7 +1257,8 @@ pub(super) struct ViewSpec {
 impl ViewSpec {
     fn new(base: Native, map: Vec<usize>, filter: Vec<E>) -> Self {
         let tests = view_cols::compile(&filter);
-        ViewSpec { base, map, filter, tests }
+        let file_tests = filter_order::FileTests::prepare(&filter);
+        ViewSpec { base, map, filter, tests, file_tests }
     }
 }
 
@@ -1269,6 +1271,7 @@ pub(super) enum Res {
 
 /// A select compiled once a run.
 struct SelPlan {
+    file_tests: Option<Box<filter_order::FileTests>>,
     srcs: Vec<usize>,
     conj: Vec<E>,
     refs: Vec<u64>,
@@ -1729,7 +1732,8 @@ impl<'p> Exec<'p> {
             J::Array(a) => a.iter().map(|it| Ok((s(&it[0])?.to_owned(), self.expr(run, &it[1], &names)?))).collect::<R<_>>().map_err(|e| format!("{e} in step {node} over {srcs:?}"))?,
             _ => return Err("items".to_owned()),
         };
-        let sp = Rc::new(SelPlan { srcs, conj, refs, items });
+        let file_tests = filter_order::FileTests::prepare(&conj);
+        let sp = Rc::new(SelPlan { srcs, conj, refs, items, file_tests });
         self.sels[node] = Some(sp.clone());
         Ok(sp)
     }
@@ -2598,7 +2602,7 @@ impl<'p> Exec<'p> {
     fn select(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Table> {
         {
             let sp = self.sel(run, node)?;
-            if filter_order::file_fails(run, f, &sp.conj) {
+            if filter_order::file_fails(run, f, &sp.conj, &sp.file_tests) {
                 *self.tally.back.entry((node, "a per-file test fails")).or_default() += 1;
                 empty_sel::at(empty_sel::stage::FILE_TEST);
                 return self.empty(run, node);
@@ -3501,7 +3505,7 @@ fn view_rows(f: &mut File<'_>, run: &mut Run, v: &ViewSpec, node: usize) -> Rc<V
     if let Some(r) = f.vrows.get(&node) {
         return r.clone();
     }
-    if filter_order::file_fails(run, f, &v.filter) {
+    if filter_order::file_fails(run, f, &v.filter, &v.file_tests) {
         let rc = recycle::no_rows();
         f.vrows.insert(node, rc.clone());
         return rc;
@@ -4178,30 +4182,38 @@ fn compare(run: &Run, a: V, b: V) -> Option<std::cmp::Ordering> {
 }
 
 fn eval(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], e: &E) -> V {
+    eval_with::<false>(run, f, srcs, cur, e)
+}
+
+fn eval_with<const FILE_ONLY: bool>(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], e: &E) -> V {
     match e {
+        E::Col(_, _, t) if FILE_ONLY => {
+            debug_assert_eq!(*t, Ty::File);
+            V::new(Ty::File, u64::from(f.file))
+        }
         E::Col(si, c, t) => V::new(*t, get(run, f, srcs, cur, *si, *c)),
         E::Lit(v) => *v,
         E::Text(t) => V::new(Ty::Sym, u64::from(*t)),
         E::Num(n) => V::new(Ty::Num, *n as u64),
         E::List(_) => flag(false),
-        E::And(a, b) => flag(truthy(eval(run, f, srcs, cur, a)) && truthy(eval(run, f, srcs, cur, b))),
-        E::Or(a, b) => flag(truthy(eval(run, f, srcs, cur, a)) || truthy(eval(run, f, srcs, cur, b))),
-        E::Not(a) => flag(!truthy(eval(run, f, srcs, cur, a))),
-        E::Null(a, not) => flag((eval(run, f, srcs, cur, a).1 == NULL) != *not),
+        E::And(a, b) => flag(truthy(eval_with::<FILE_ONLY>(run, f, srcs, cur, a)) && truthy(eval_with::<FILE_ONLY>(run, f, srcs, cur, b))),
+        E::Or(a, b) => flag(truthy(eval_with::<FILE_ONLY>(run, f, srcs, cur, a)) || truthy(eval_with::<FILE_ONLY>(run, f, srcs, cur, b))),
+        E::Not(a) => flag(!truthy(eval_with::<FILE_ONLY>(run, f, srcs, cur, a))),
+        E::Null(a, not) => flag((eval_with::<FILE_ONLY>(run, f, srcs, cur, a).1 == NULL) != *not),
         E::Cmp(o @ (Op::Eq | Op::Ne), a, b) => {
             let want = *o == Op::Eq;
             let eq = match (&**a, &**b) {
-                (E::Col(s1, c1, t1), E::Col(s2, c2, t2)) if t1 == t2 => {
+                (E::Col(s1, c1, t1), E::Col(s2, c2, t2)) if !FILE_ONLY && t1 == t2 => {
                     let (x, y) = (get(run, f, srcs, cur, *s1, *c1), get(run, f, srcs, cur, *s2, *c2));
                     Some(x == y && x != NULL)
                 }
-                (E::Col(s1, c1, Ty::Sym), E::Text(t)) | (E::Text(t), E::Col(s1, c1, Ty::Sym)) => Some(get(run, f, srcs, cur, *s1, *c1) == u64::from(*t)),
+                (E::Col(s1, c1, Ty::Sym), E::Text(t)) | (E::Text(t), E::Col(s1, c1, Ty::Sym)) if !FILE_ONLY => Some(get(run, f, srcs, cur, *s1, *c1) == u64::from(*t)),
                 _ => None,
             };
             match eq {
                 Some(e) => flag(e == want),
                 None => {
-                    let (x, y) = (eval(run, f, srcs, cur, a), eval(run, f, srcs, cur, b));
+                    let (x, y) = (eval_with::<FILE_ONLY>(run, f, srcs, cur, a), eval_with::<FILE_ONLY>(run, f, srcs, cur, b));
                     match compare(run, x, y) {
                         Some(ord) => flag((ord == std::cmp::Ordering::Equal) == want),
                         None => flag(false),
@@ -4210,7 +4222,7 @@ fn eval(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], e: &E) -> V {
             }
         }
         E::Cmp(o, a, b) => {
-            let (x, y) = (eval(run, f, srcs, cur, a), eval(run, f, srcs, cur, b));
+            let (x, y) = (eval_with::<FILE_ONLY>(run, f, srcs, cur, a), eval_with::<FILE_ONLY>(run, f, srcs, cur, b));
             let Some(ord) = compare(run, x, y) else { return flag(false) };
             use std::cmp::Ordering::*;
             flag(match o {
@@ -4224,10 +4236,10 @@ fn eval(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], e: &E) -> V {
             })
         }
         E::In(a, b, neg) => {
-            let x = eval(run, f, srcs, cur, a);
+            let x = eval_with::<FILE_ONLY>(run, f, srcs, cur, a);
             let hit = match &**b {
                 E::List(items) => items.iter().any(|i| {
-                    let y = eval(run, f, srcs, cur, i);
+                    let y = eval_with::<FILE_ONLY>(run, f, srcs, cur, i);
                     compare(run, x, y) == Some(std::cmp::Ordering::Equal)
                 }),
                 _ => false,
@@ -4235,7 +4247,7 @@ fn eval(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], e: &E) -> V {
             flag(hit != *neg)
         }
         E::Re(a, re) => {
-            let x = eval(run, f, srcs, cur, a);
+            let x = eval_with::<FILE_ONLY>(run, f, srcs, cur, a);
             flag(match x.ty() {
                 Ty::Sym => re.is_match(run.text(x.1 as u32)),
                 _ => re.is_match(&text_of(run, x)),
@@ -4246,15 +4258,15 @@ fn eval(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], e: &E) -> V {
             if args.len() <= 4 {
                 let mut vs = [NULL_V; 4];
                 for (i, x) in args.iter().enumerate() {
-                    vs[i] = eval(run, f, srcs, cur, x);
+                    vs[i] = eval_with::<FILE_ONLY>(run, f, srcs, cur, x);
                 }
                 return call(run, name, &vs[..args.len()]);
             }
-            let vs: Vec<V> = args.iter().map(|x| eval(run, f, srcs, cur, x)).collect();
+            let vs: Vec<V> = args.iter().map(|x| eval_with::<FILE_ONLY>(run, f, srcs, cur, x)).collect();
             call(run, name, &vs)
         }
         E::Seed(a, k) => {
-            let x = eval(run, f, srcs, cur, a);
+            let x = eval_with::<FILE_ONLY>(run, f, srcs, cur, a);
             flag(f.seeds.get(*k).is_some_and(|s| s.binary_search(&(x.1 as u32)).is_ok()))
         }
     }

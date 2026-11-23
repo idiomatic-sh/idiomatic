@@ -397,7 +397,7 @@ impl Exec<'_> {
             }
         }
         let preds = sp.conj.iter().map(compile).collect();
-        let file_const = sp.conj.iter().any(|c| super::filter_order::file_const(c) && !matches!(c, E::Lit(_)));
+        let file_const = sp.file_tests.is_some();
         let set = k == 1 && items.iter().all(|(s, _)| *s == 0);
         let ident = k == 1 && sp.conj.is_empty() && {
             let ssc = self.schema(run, sp.srcs[0])?;
@@ -438,7 +438,7 @@ impl Exec<'_> {
         };
         if let Some(pb) = kp.semi {
             let sp = self.sel(run, node)?;
-            if super::filter_order::file_fails(run, f, &sp.conj) {
+            if super::filter_order::file_fails(run, f, &sp.conj, &sp.file_tests) {
                 *self.tally.back.entry((node, "a per-file test fails")).or_default() += 1;
                 return self.empty(run, node);
             }
@@ -490,7 +490,7 @@ impl Exec<'_> {
         };
         if let Some(pb) = kp.semi {
             let sp = self.sel(run, node)?;
-            if super::filter_order::file_fails(run, f, &sp.conj) {
+            if super::filter_order::file_fails(run, f, &sp.conj, &sp.file_tests) {
                 *self.tally.back.entry((node, "a per-file test fails")).or_default() += 1;
                 super::empty_sel::at(super::empty_sel::stage::FILE_TEST);
                 return self.empty_rc(run, node);
@@ -575,7 +575,7 @@ impl Exec<'_> {
         let (t0, i0) = (Clk::now(), self.inner);
         super::empty_sel::origin(self.inner);
         let sp = self.sel(run, node)?;
-        if kp.file_const && super::filter_order::file_fails(run, f, &sp.conj) {
+        if kp.file_const && super::filter_order::file_fails(run, f, &sp.conj, &sp.file_tests) {
             *self.tally.back.entry((node, "a per-file test fails")).or_default() += 1;
             super::empty_sel::at(super::empty_sel::stage::FILE_TEST);
             return self.empty_rc(run, node);
