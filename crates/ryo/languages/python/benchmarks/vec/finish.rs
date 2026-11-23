@@ -93,6 +93,9 @@ mod view_cols;
 pub(super) mod emptyprop;
 #[path = "ordering.rs"]
 mod ordering;
+/// redo-fuse: a group of one-consumer steps run as one fused pass (the cut at plan load, the hook in `res`).
+#[path = "finish/fuse.rs"]
+pub(super) mod fuse;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum Ty {
@@ -1358,6 +1361,8 @@ pub(super) struct Exec<'p> {
     mcount: memo::Count,
     /// 10: the per-key memo (finish/memo.rs; `VEC_OLD_MEMO=1`: step 7's, above)
     memo: memo::Memo,
+    /// redo-fuse: the cut and the fused groups (finish/fuse.rs)
+    pub(super) fuse: fuse::Fuse,
 }
 
 /// 7: a key's rows in a memo slot: one range of the slot's table (`start` PENDING while its batch runs).
@@ -1485,6 +1490,7 @@ impl<'p> Exec<'p> {
             firsts: vec![None; k],
             mcount: memo::Count::new(),
             memo: memo::Memo::new(),
+            fuse: fuse::Fuse::default(),
         }
     }
 
@@ -2022,6 +2028,12 @@ impl<'p> Exec<'p> {
                 self.stats.known_time += step_clock() - tk;
                 self.stats.known_timed += 1;
             }
+            return Ok(r);
+        }
+        // redo-fuse: THE HOOK: a fused group's root runs its group as one pass (finish/fuse.rs)
+        if self.fused_root(node)
+            && let Some(r) = self.fused_res(f, run, p, node, why)?
+        {
             return Ok(r);
         }
         // 8: an execution over an empty input answers the step's shared empty table before any set-up

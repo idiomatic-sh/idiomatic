@@ -19,14 +19,14 @@ use std::rc::Rc;
 
 /// An operand of a predicate: a source's column, or a constant.
 #[derive(Clone, Debug)]
-enum Opd {
+pub(super) enum Opd {
     Col(usize, usize, Ty),
     K(V),
 }
 
 /// A conjunct compiled once a node: comparisons over column positions, the interpreter's semantics exactly.
 #[derive(Clone, Debug)]
-enum P {
+pub(super) enum P {
     /// Two columns of one type equal (neither null), or not (`want` false).
     EqCC(usize, usize, usize, usize, bool),
     /// A symbol column equal to an interned text, or not.
@@ -54,7 +54,7 @@ fn opd(e: &E) -> Option<Opd> {
     })
 }
 
-fn compile(e: &E) -> P {
+pub(super) fn compile(e: &E) -> P {
     match e {
         E::Lit(v) => P::Const(truthy(*v)),
         E::List(_) => P::Const(false),
@@ -109,7 +109,7 @@ fn val(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], o: &Opd) -> V {
     }
 }
 
-fn holds(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], p: &P) -> bool {
+pub(super) fn holds(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], p: &P) -> bool {
     match p {
         P::EqCC(s1, c1, s2, c2, want) => {
             let (x, y) = (get(run, f, srcs, cur, *s1, *c1), get(run, f, srcs, cur, *s2, *c2));
@@ -155,7 +155,7 @@ fn holds(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], p: &P) -> bool 
 
 /// Keeps the rows `sel` of source `si` that hold `p`: a column against a constant or two columns of one made table in a
 /// tight loop over the column, else the predicate a row.
-fn filter(run: &mut Run, f: &File<'_>, srcs: &[Src], si: usize, p: &P, sel: &mut Vec<u32>) {
+pub(super) fn filter(run: &mut Run, f: &File<'_>, srcs: &[Src], si: usize, p: &P, sel: &mut Vec<u32>) {
     if let Src::Tab(t, _) = &srcs[si] {
         match p {
             P::EqCK(s, c, k, want) if *s == si => {

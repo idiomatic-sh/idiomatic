@@ -115,6 +115,8 @@ impl<'p> Finisher<'p> {
             check_out: flag(args, "--check-out"),
             alloc: [0; 2],
         };
+        // redo-fuse: the cut, once a run, when the plan is loaded
+        me.exec.fuse_load(&mut me.run);
         me.time += thread_cpu() - t0;
         me
     }
@@ -254,6 +256,21 @@ impl<'p> Finisher<'p> {
     pub(super) fn end(mut self, walk_time: f64) {
         let total = self.time + walk_time;
         let file_time = self.time;
+        // redo-fuse: the fused runs' counters
+        {
+            let c = &self.exec.fuse.c;
+            println!("FUSE runs: group runs {} empty {} paths {} stopped {} body drivers {} passed through {} refused {} driver rows {} rows into operators {} rows out {} seconds (step clock) {:.6}", c.group_runs, c.empty_runs, c.paths, c.paths_stopped, c.body_drivers, c.passed, c.refused, c.driver_rows, c.op_rows, c.out_rows, c.time);
+            if c.prof.iter().any(|x| x.0 > 0) {
+                let names = ["a per-file test", "leaf known empty", "driver empty", "leaf body empty", "rows ran out", "rows made"];
+                println!("FUSE seconds in drivers {:.3} operators {:.3} sinks {:.3}", c.sect[0], c.sect[1], c.sect[2]);
+                let mut top: Vec<(&usize, &[f64; 5])> = c.by_root.iter().collect();
+                top.sort_by(|a, b| (b.1[0] + b.1[1] + b.1[2]).total_cmp(&(a.1[0] + a.1[1] + a.1[2])));
+                for (r, v) in top.iter().take(25) {
+                    println!("FUSE top root {r}: driver {:.4} operators {:.4} sink {:.4} s; paths with rows out {} rows into operators {}", v[0], v[1], v[2], v[3], v[4]);
+                }
+                println!("FUSE paths by end (count, ns a path): {}", names.iter().zip(&c.prof).map(|(n, (k, t))| format!("{n} {k} {:.0}", if *k > 0 { 1e9 * t / *k as f64 } else { 0.0 })).collect::<Vec<_>>().join("; "));
+            }
+        }
         self.findings.sort();
         self.findings.dedup();
         if let Some(d) = &self.dump {
