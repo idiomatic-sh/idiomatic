@@ -31,7 +31,7 @@ pub(super) struct Inputs<'t> {
 }
 
 /// The fact's rows: (element, deferred = true).
-pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -> Result<Vec<(u32, bool)>, String> {
+pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -> Result<Vec<u32>, String> {
     let n = node_table::element_count(table).0 as u32;
     let expression: Vec<u32> = EXPRESSION_KINDS.iter().map(|k| run.sym(k)).collect();
     let (k_arg, k_ann_assign, k_class, k_arguments, k_alias) = (run.sym(b"arg"), run.sym(b"ann-assign"), run.sym(b"class-def"), run.sym(b"call-arguments"), run.sym(b"type-alias"));
@@ -92,6 +92,8 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
                 mark(&mut deferred, c);
             }
         } else if k == k_class && inp.stub {
+            // a stub is never executed: its class bases are read as types, in any order (pass 6, GENERALITY: kept in the
+            // fact; moving it to rule text would leave these reads without the postponed lookup this fact answers)
             for c in children(p).filter(|c| kind(*c) == k_arguments) {
                 mark(&mut deferred, c);
             }
@@ -141,7 +143,7 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
     let mut out = Vec::new();
     for x in 0..n as usize {
         if deferred[x] {
-            out.push((x as u32, true));
+            out.push(x as u32);
         }
     }
     Ok(out)

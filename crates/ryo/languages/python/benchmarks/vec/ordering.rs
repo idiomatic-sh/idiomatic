@@ -154,10 +154,18 @@ impl Exec<'_> {
         for i in 0..from.n {
             groups.entry(keys.iter().map(|c| from.cols[*c][i]).collect()).or_default().push(i);
         }
-        let prepared: Vec<Vec<Key>> = by.iter().map(|&(c, cmp, _)| (0..from.n).map(|i| prepare(run, from.tys[c], cmp, from.cols[c][i])).collect()).collect();
+        // each key cell is prepared the first time a comparison needs it (most pairs are told apart by an early key,
+        // or hold the same value, which orders equal without preparing anything)
+        let prepared: Vec<Vec<std::cell::OnceCell<Key>>> = by.iter().map(|_| (0..from.n).map(|_| std::cell::OnceCell::new()).collect()).collect();
         let cmp_rows = |i: usize, j: usize| -> Ordering {
-            for (k, &(_, _, desc)) in by.iter().enumerate() {
-                let o = compare(&prepared[k][i], &prepared[k][j]);
+            for (k, &(c, cmp, desc)) in by.iter().enumerate() {
+                let (x, y) = (from.cols[c][i], from.cols[c][j]);
+                if x == y {
+                    continue;
+                }
+                let a = prepared[k][i].get_or_init(|| prepare(run, from.tys[c], cmp, x));
+                let b = prepared[k][j].get_or_init(|| prepare(run, from.tys[c], cmp, y));
+                let o = compare(a, b);
                 if o != Ordering::Equal {
                     return if desc { o.reverse() } else { o };
                 }

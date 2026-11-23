@@ -2252,7 +2252,7 @@ impl<'p> Exec<'p> {
                 let from = self.eval(f, run, p, self.arg_rel(node, "from")?)?;
                 let pc = from.col(s(&a["path"])?)?;
                 let caps = strs(&a["captures"])?;
-                let re = run.re(&path_pattern(s(&a["pattern"])?))?;
+                let re = run.re(&path_pattern(s(&a["pattern"])?, a.get("separator").and_then(J::as_str)))?;
                 let mut out = self.empty(run, node)?;
                 let mut row = Vec::new();
                 for i in 0..from.n {
@@ -3975,7 +3975,9 @@ fn glob_pattern(g: &str) -> String {
     s
 }
 
-fn path_pattern(p: &str) -> String {
+/// `capture`'s pattern: `{name}` takes a run of characters other than `separator` (when one is given; any run when
+/// not), `{*name}` any run; the rest is literal. (redo-binding pass 6: the separator is the step's argument, it was `/`.)
+fn path_pattern(p: &str, separator: Option<&str>) -> String {
     let mut s = String::from("^");
     let mut rest = p;
     while let Some(o) = rest.find('{') {
@@ -3985,7 +3987,13 @@ fn path_pattern(p: &str) -> String {
         if let Some(n) = name.strip_prefix('*') {
             s.push_str(&format!("(?P<{n}>.*)"));
         } else {
-            s.push_str(&format!("(?P<{name}>[^/]*)"));
+            match separator {
+                Some(sep) if !sep.is_empty() => {
+                    let class: String = sep.chars().map(|c| regex::escape(&c.to_string())).collect();
+                    s.push_str(&format!("(?P<{name}>[^{class}]*)"));
+                }
+                _ => s.push_str(&format!("(?P<{name}>.*)")),
+            }
         }
         rest = &rest[c + 1..];
     }

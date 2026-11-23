@@ -1,7 +1,7 @@
 //! redo-binding pass 4 (THROWAWAY, bead ryo-fmx3.1): the `type-expression` fact. For every element of a file, whether the
 //! typing rules make it part of a type expression: the roots (annotations, `TypeAlias` values, type parameter payloads,
-//! string annotations, the slices of the generic forms, the type arguments of the typing calls: cast, NewType, TypeVar,
-//! TypeAliasType, NamedTuple, TypedDict, the mypy_extensions forms, the first argument of `Annotated`, the field types of a
+//! string annotations, the slices of the generic heads the pack lists, the type arguments of the typing calls: cast, NewType,
+//! TypeVar, TypeAliasType, NamedTuple, TypedDict, and of the argument forms the pack lists, the first argument of `Annotated`, the field types of a
 //! TypedDict form) make their subtree a type expression down to the nearest value root (every call's arguments, `Annotated`
 //! metadata, the TypedDict form's keys). `type` for an element of a type expression; `value` for a value root nested in a
 //! type expression (the start of a value expression some enclosing expression's type expression holds); every other
@@ -21,18 +21,49 @@ use std::sync::LazyLock;
 
 static TYPED: LazyLock<regex::bytes::Regex> = LazyLock::new(|| {
     regex::bytes::Regex::new(
-        "^(?:(?:typing|typing_extensions|_typeshed)[.](?:cast|NewType|TypeVar|TypeAliasType|NamedTuple|TypedDict)|mypy_extensions[.](?:Arg|DefaultArg|NamedArg|DefaultNamedArg|VarArg|KwArg))$",
+        "^(?:typing|typing_extensions|_typeshed)[.](?:cast|NewType|TypeVar|TypeAliasType|NamedTuple|TypedDict)$",
     )
     .expect("regex")
 });
 
-static GENERIC: LazyLock<regex::bytes::Regex> = LazyLock::new(|| {
-    regex::bytes::Regex::new("^(?:builtins[.]dict|builtins[.]frozenset|builtins[.]list|builtins[.]set|builtins[.]tuple|builtins[.]type|collections[.]ChainMap|collections[.]Counter|collections[.]OrderedDict|collections[.]abc[.]AsyncGenerator|collections[.]abc[.]AsyncIterable|collections[.]abc[.]AsyncIterator|collections[.]abc[.]Awaitable|collections[.]abc[.]ByteString|collections[.]abc[.]Callable|collections[.]abc[.]Collection|collections[.]abc[.]Container|collections[.]abc[.]Coroutine|collections[.]abc[.]Generator|collections[.]abc[.]ItemsView|collections[.]abc[.]Iterable|collections[.]abc[.]Iterator|collections[.]abc[.]KeysView|collections[.]abc[.]Mapping|collections[.]abc[.]MappingView|collections[.]abc[.]MutableMapping|collections[.]abc[.]MutableSequence|collections[.]abc[.]MutableSet|collections[.]abc[.]Reversible|collections[.]abc[.]Sequence|collections[.]abc[.]Set|collections[.]abc[.]ValuesView|collections[.]defaultdict|collections[.]deque|contextlib[.]AbstractAsyncContextManager|contextlib[.]AbstractContextManager|re[.]Match|re[.]Pattern|typing[.]AbstractSet|typing[.]AsyncContextManager|typing[.]AsyncGenerator|typing[.]AsyncIterator|typing[.]Awaitable|typing[.]BinaryIO|typing[.]ByteString|typing[.]Callable|typing[.]ChainMap|typing[.]ClassVar|typing[.]Collection|typing[.]Concatenate|typing[.]Container|typing[.]ContextManager|typing[.]Coroutine|typing[.]Counter|typing[.]DefaultDict|typing[.]Deque|typing[.]Dict|typing[.]Final|typing[.]FrozenSet|typing[.]Generator|typing[.]Generic|typing[.]IO|typing[.]ItemsView|typing[.]Iterable|typing[.]Iterator|typing[.]KeysView|typing[.]List|typing[.]Mapping|typing[.]Match|typing[.]MutableMapping|typing[.]MutableSequence|typing[.]MutableSet|typing[.]Optional|typing[.]OrderedDict|typing[.]Pattern|typing[.]Reversible|typing[.]Sequence|typing[.]Set|typing[.]TextIO|typing[.]Tuple|typing[.]Type|typing[.]TypeGuard|typing[.]Union|typing[.]Unpack|typing[.]ValuesView|typing[.]io[.]BinaryIO|typing[.]io[.]IO|typing[.]io[.]TextIO|typing[.]re[.]Match|typing[.]re[.]Pattern|typing_extensions[.]AsyncContextManager|typing_extensions[.]AsyncGenerator|typing_extensions[.]AsyncIterable|typing_extensions[.]AsyncIterator|typing_extensions[.]Awaitable|typing_extensions[.]ChainMap|typing_extensions[.]ClassVar|typing_extensions[.]Concatenate|typing_extensions[.]ContextManager|typing_extensions[.]Coroutine|typing_extensions[.]Counter|typing_extensions[.]DefaultDict|typing_extensions[.]Deque|typing_extensions[.]Type|weakref[.]WeakKeyDictionary|weakref[.]WeakSet|weakref[.]WeakValueDictionary)$").expect("regex")
-});
 
-/// The modules every path the fact tests lies in (a prefix test before the patterns).
-const NAMED_MODULES: [&[u8]; 9] =
-    [b"typing", b"_typeshed.", b"mypy_extensions.", b"builtins.", b"collections.", b"contextlib.", b"re.", b"weakref.", b"typing_extensions."];
+/// The modules every typing-specification path the fact tests lies in (a prefix test before the patterns); the pack's
+/// lists add the first component of each of their paths.
+const NAMED_MODULES: [&[u8]; 3] = [b"typing", b"_typeshed.", b"typing_extensions."];
+
+/// Pack data the rules pass in (redo-binding pass 6, GENERALITY): the fact writer knows no such list. `generic`: the
+/// heads whose subscript's slice is a type root outside a target, in value context too (a checker's choice of generic
+/// names, Ruff's table); `argument_forms`: callables whose first positional argument and `type=` keyword are type
+/// expressions (mypy_extensions' Arg family is mypy's convention). Read from the plan's `type-expression` input.
+/// The lists of the run's plan (set once, before the first file).
+pub(super) static LISTS: std::sync::OnceLock<Lists> = std::sync::OnceLock::new();
+
+#[derive(Default)]
+pub(super) struct Lists {
+    pub(super) generic: FxHashSet<Vec<u8>>,
+    pub(super) argument_forms: FxHashSet<Vec<u8>>,
+    pub(super) modules: Vec<Vec<u8>>,
+}
+
+impl Lists {
+    /// `<kind>\t<path>` lines, kind `generic` or `argument-form`; `#` starts a comment line.
+    pub(super) fn parse(text: &str) -> Result<Lists, String> {
+        let mut l = Lists::default();
+        for line in text.lines().map(str::trim).filter(|x| !x.is_empty() && !x.starts_with('#')) {
+            let (kind, path) = line.split_once('\t').ok_or_else(|| format!("type-expression input: {line}"))?;
+            match kind {
+                "generic" => l.generic.insert(path.as_bytes().to_vec()),
+                "argument-form" => l.argument_forms.insert(path.as_bytes().to_vec()),
+                other => return Err(format!("type-expression input kind {other}")),
+            };
+            let first = format!("{}.", path.split('.').next().unwrap_or(path));
+            if !l.modules.iter().any(|m| m == first.as_bytes()) {
+                l.modules.push(first.into_bytes());
+            }
+        }
+        Ok(l)
+    }
+}
 
 /// The typing callable a path names.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -43,10 +74,13 @@ enum Form {
     TypeAliasType,
     NamedTuple,
     TypedDict,
-    Mypy,
+    ArgumentForm,
 }
 
-fn form_of(path: &[u8]) -> Option<Form> {
+fn form_of(path: &[u8], lists: &Lists) -> Option<Form> {
+    if lists.argument_forms.contains(path) {
+        return Some(Form::ArgumentForm);
+    }
     if !TYPED.is_match(path) {
         return None;
     }
@@ -60,10 +94,8 @@ fn form_of(path: &[u8]) -> Option<Form> {
         Form::TypeAliasType
     } else if path.ends_with(b".NamedTuple") {
         Form::NamedTuple
-    } else if path.ends_with(b".TypedDict") {
-        Form::TypedDict
     } else {
-        Form::Mypy
+        Form::TypedDict
     })
 }
 
@@ -73,6 +105,7 @@ pub(super) struct Inputs<'t> {
     pub(super) arguments: &'t finish::Table,
     pub(super) identifiers: &'t finish::Table,
     pub(super) embedded: &'t finish::Table,
+    pub(super) lists: &'t Lists,
 }
 
 fn col(t: &finish::Table, n: &str) -> Result<usize, String> {
@@ -134,14 +167,14 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
         let x = inp.qualified.cols[q_id][r] as u32;
         let t: &[u8] = &run.texts[inp.qualified.cols[q_path][r] as usize];
         // every name the tests below match starts with one of these modules
-        if !NAMED_MODULES.iter().any(|m| t.starts_with(m)) {
+        if !NAMED_MODULES.iter().any(|m| t.starts_with(m)) && !inp.lists.modules.iter().any(|m| t.starts_with(m)) {
             continue;
         }
         let mut bits = 0;
         if t == b"typing.TypeAlias" || t == b"typing_extensions.TypeAlias" || t == b"_typeshed.TypeAlias" {
             bits |= ALIAS;
         }
-        if GENERIC.is_match(t) {
+        if inp.lists.generic.contains(t) {
             bits |= GENERIC_NAME;
         }
         if t == b"typing.Annotated" || t == b"typing_extensions.Annotated" {
@@ -153,7 +186,7 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
         if bits != 0 {
             *names.entry(x).or_default() |= bits;
         }
-        if let Some(fm) = form_of(t) {
+        if let Some(fm) = form_of(t, inp.lists) {
             let e = callee_forms.entry(x).or_default();
             if !e.contains(&fm) {
                 e.push(fm);
@@ -271,7 +304,7 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
             if has_form(*call, Form::TypeVar) && rank > 0 {
                 types[v as usize] = true;
             }
-            if has_form(*call, Form::Mypy) && rank == 0 {
+            if has_form(*call, Form::ArgumentForm) && rank == 0 {
                 types[v as usize] = true;
             }
             if has_form(*call, Form::NamedTuple) && rank > 0 && (kind[v as usize] == k_tuple || kind[v as usize] == k_list) {
@@ -312,7 +345,7 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
         {
             types[value as usize] = true;
         }
-        if has_form(call, Form::Mypy) && named(b"type") && positional.get(&call).is_none_or(Vec::is_empty) {
+        if has_form(call, Form::ArgumentForm) && named(b"type") && positional.get(&call).is_none_or(Vec::is_empty) {
             types[value as usize] = true;
         }
     }
