@@ -12,12 +12,14 @@ type Reader<'a> = dyn FnMut(Relation, &mut FileWords, &mut FilledColumns) -> boo
 #[derive(Default)]
 struct Table {
     read: bool,
+    answered: bool,
     complete: bool,
     cells: FilledColumns,
     index: Map<usize, Map<Id, Vec<u32>>>,
 }
 struct File<'a> {
     p: &'a Program,
+    file: languages::FileId,
     t: &'a NodeTable,
     src: &'a [u8],
     path: Option<&'a [u8]>,
@@ -58,6 +60,7 @@ impl Table {
         &mut self,
         spec: &super::pair_summary::Fact,
         n: u32,
+        file: languages::FileId,
         words: &mut FileWords,
         read: &mut Reader<'_>,
     ) {
@@ -65,7 +68,8 @@ impl Table {
             return;
         }
         self.read = true;
-        self.complete = read(spec.relation, words, &mut self.cells);
+        self.answered = read(spec.relation, words, &mut self.cells);
+        self.complete = self.answered;
         if self.complete
             && let Some(key) = spec.key
         {
@@ -76,7 +80,9 @@ impl Table {
                     .cells
                     .0
                     .get(key)
-                    .is_some_and(|c| c.0.iter().all(|x| x.0 < u64::from(n)));
+                    .is_some_and(|c| c.0.iter().all(|x| {
+                        x.0 >> 32 == u64::from(file.0) && (x.0 as u32) < n
+                    }));
         }
     }
 }
@@ -130,6 +136,7 @@ impl File<'_> {
                     table.load(
                         &self.p.facts[*slot],
                         node_table::element_count(self.t).0 as u32,
+                        self.file,
                         self.words,
                         self.read,
                     );
@@ -264,7 +271,7 @@ impl File<'_> {
             Domain::Matching(slot, col, re) => {
                 let spec = &self.p.facts[*slot];
                 let table = &mut self.facts[*slot];
-                table.load(spec, n, self.words, self.read);
+                table.load(spec, n, self.file, self.words, self.read);
                 if !table.complete {
                     None
                 } else {
@@ -296,7 +303,7 @@ impl File<'_> {
             Domain::Fact(slot, test) => {
                 let spec = &self.p.facts[*slot];
                 let table = &mut self.facts[*slot];
-                table.load(spec, n, self.words, self.read);
+                table.load(spec, n, self.file, self.words, self.read);
                 if !table.complete {
                     None
                 } else {
@@ -342,10 +349,13 @@ impl Program {
         words: &mut FileWords,
         mut read: impl FnMut(Relation, &mut FileWords, &mut FilledColumns) -> bool,
         alive: &mut [bool],
+        file: languages::FileId,
+        completed: Option<&mut super::completed_facts::Completed>,
     ) -> u64 {
         languages::facts::clear_words(words);
         let mut f = File {
             p: self,
+            file,
             t,
             src,
             path,
@@ -360,6 +370,13 @@ impl Program {
         for (a, (_, root)) in alive.iter_mut().zip(&self.roots) {
             if *a {
                 *a = f.pass(*root)
+            }
+        }
+        if let Some(completed) = completed {
+            for (fact, table) in self.facts.iter().zip(f.facts) {
+                if table.answered {
+                    completed.insert(fact.relation, table.cells);
+                }
             }
         }
         f.steps

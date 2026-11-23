@@ -22,6 +22,7 @@ pub(super) struct Finisher<'p> {
     pub(super) run: finish::Run,
     exec: finish::Exec<'p>,
     fwords: languages::FileWords,
+    completed: super::completed_facts::Completed,
     findings: Vec<String>,
     failed: HashMap<String, String>,
     /// redo-honest: per plan emit, whether its rule runs only on a file whose syntax the parser accepted (the request's
@@ -106,6 +107,7 @@ impl<'p> Finisher<'p> {
             dump_text: String::new(),
             run,
             exec: finish::Exec::new(plan),
+            completed: Default::default(),
             fwords: ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names"),
             findings: Vec::new(),
             failed: HashMap::new(),
@@ -171,6 +173,11 @@ impl<'p> Finisher<'p> {
         self.plan.emits.iter().enumerate().map(|(e, x)| (e, x.0.as_str()))
     }
 
+    pub(super) fn prefix_storage(&mut self, file: usize) -> (&[u8], &mut languages::FileWords, &mut super::completed_facts::Completed) {
+        self.completed.begin(languages::FileId(file as u32));
+        (self.run.paths[file].as_bytes(), &mut self.fwords, &mut self.completed)
+    }
+
     pub(super) fn prefix_table(&mut self, name: &str, t: &ryo_python::fixtures::columns::FactTable, words: &super::facts::Interner) {
         if t.rows == 0 { self.exec.walk_empty(&self.run, name); return; }
         let keys = (t.layout == ryo_python::fixtures::columns::Layout::PerNode).then(|| t.keys());
@@ -186,7 +193,11 @@ impl<'p> Finisher<'p> {
         super::fact_catalog::composed_empty(&mut self.run, file, path, |rel, run| self.exec.walk_empty(run, rel));
         let ft = file.table;
         let mut fwords = std::mem::take(&mut self.fwords);
-        languages::facts::clear_words(&mut fwords);
+        let mut completed = std::mem::take(&mut self.completed);
+        if completed.file != Some(languages::FileId(file_no as u32)) {
+            completed.clear();
+            languages::facts::clear_words(&mut fwords);
+        }
         finish::own_words_cleared(&mut self.run);
         let mut project = std::mem::take(&mut self.project);
         let mut type_paths = std::mem::take(&mut self.type_paths);
@@ -194,13 +205,15 @@ impl<'p> Finisher<'p> {
         let mut direct_memo = std::mem::take(&mut self.direct_memo);
         let mut implicit = self.implicit.take();
         direct_memo.new_file();
-        let mut pv = ColFacts { file, words: &mut fwords, filled: std::mem::take(&mut self.filled), time: 0.0, rows: 0, by_rel: std::mem::take(&mut self.by_rel), file_no: file_no as u32, kept: Default::default(), implicit: &mut implicit, type_paths: &mut type_paths, input_layout: self.input_layout, input_columns: Default::default(), prefix, prefix_symbols: &mut prefix_symbols, direct_memo: &mut direct_memo, project: &mut project, src: bytes };
+        let mut pv = ColFacts { file, completed: &completed, words: &mut fwords, filled: std::mem::take(&mut self.filled), time: 0.0, rows: 0, by_rel: std::mem::take(&mut self.by_rel), file_no: file_no as u32, kept: Default::default(), implicit: &mut implicit, type_paths: &mut type_paths, input_layout: self.input_layout, input_columns: Default::default(), prefix, prefix_symbols: &mut prefix_symbols, direct_memo: &mut direct_memo, project: &mut project, src: bytes };
         self.file(file_no, path, ft, bytes, &mut pv, wanted);
         self.provider_time += pv.time;
         self.provider_rows += pv.rows;
         self.by_rel = pv.by_rel;
         self.filled = pv.filled;
         self.fwords = fwords;
+        completed.clear();
+        self.completed = completed;
         self.type_paths = type_paths;
         self.prefix_symbols = prefix_symbols;
         self.direct_memo = direct_memo;

@@ -955,6 +955,7 @@ mod pair_summary;
 mod pair_skip;
 mod pair_checks;
 mod request;
+mod completed_facts;
 #[path = "finisher.rs"]
 mod finisher;
 #[path = "dump.rs"]
@@ -997,6 +998,7 @@ struct Facts<'v, 'f, 'w> {
 /// evaluation region (`ColumnFile::evaluation_region`).
 struct ColFacts<'v, 'a, 'f, 'w> {
     file: &'v mut ryo_python::fixtures::columns::ColumnFile<'a, 'f>,
+    completed: &'w completed_facts::Completed,
     words: &'w mut languages::FileWords,
     filled: languages::FilledColumns,
     time: f64,
@@ -1072,6 +1074,35 @@ impl ColFacts<'_, '_, '_, '_> {
     }
 
     fn whole_fill(&mut self, run: &mut finish::Run, rel: &str, columns: &languages::ColumnProjection) -> Result<finish::Table, String> {
+        if let Some((Some(relation), _, _)) = run.catalog(rel)
+            && let Some(rows) = self.completed.get(relation)
+        {
+            let timed = finish::fill_prof::timed();
+            let start = if timed { thread_cpu() } else { 0.0 };
+            let count = rows.0.first().map_or(0, |column| column.0.len());
+            let answer = finish::filled_columns(run, rel, rows, self.words, columns, count)?;
+            if timed {
+                let cost = thread_cpu() - start;
+                for label in ["convert", "completed"] {
+                    let e = self.by_rel.entry(format!("{label}:{rel}")).or_default();
+                    e.0 += cost;
+                    e.1 += count as u64;
+                    e.2 += 1;
+                }
+            }
+            if finish::fill_prof::dumping() {
+                let reference = self.fresh_fill(run, rel, columns)?;
+                assert_eq!(answer.n, reference.n, "{rel} retained row count");
+                for (c, words) in answer.cols.iter().enumerate() {
+                    if columns.contains(c) { assert_eq!(*words, reference.cols[c], "{rel} retained column {c}"); }
+                }
+            }
+            return Ok(answer);
+        }
+        self.fresh_fill(run, rel, columns)
+    }
+
+    fn fresh_fill(&mut self, run: &mut finish::Run, rel: &str, columns: &languages::ColumnProjection) -> Result<finish::Table, String> {
         let timed = finish::fill_prof::timed();
         // redo-fills pass 2: the provider's direct columns, no reader rows and no conversion (direct_fill.rs)
         if direct_fill::direct(rel)
@@ -2088,8 +2119,12 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                 }
                 if !no_skip && let Some(program) = &pairs {
                     let start = thread_cpu();
-                    let relative_path = fin.as_deref().map(|f| f.run.paths[file_no].as_bytes());
-                    pair_steps += program.file(pt, &bytes, relative_path, &mut fwords, $fill, &mut alive);
+                    pair_steps += if let Some(fin) = fin.as_deref_mut() {
+                        let (path, words, completed) = fin.prefix_storage(file_no);
+                        program.file(pt, &bytes, Some(path), words, $fill, &mut alive, FileId(file_no as u32), Some(completed))
+                    } else {
+                        program.file(pt, &bytes, None, &mut fwords, $fill, &mut alive, FileId(0), None)
+                    };
                     pair_cpu += thread_cpu() - start;
                 }
                 rule_files += frules.len() as u64;
@@ -2343,7 +2378,10 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                     let n = node_table::element_count(ft).0;
                     file.name_token_codes(&mut name_codes);
                     codes_taken = true;
+                    // Whole rows kept for the provider are born with their real file identity.
+                    if fin.is_some() { file.set_file(FileId(file_no as u32)); }
                     prepare!(ft, |rel,words,out| matches!(file.fill(rel,languages::Wanted::Whole,words,out),languages::FactAnswer::Answered(_)));
+                    if fin.is_some() { file.set_file(FileId(0)); }
                     prepared = true;
                     let index = file_seeds::Index { table: ft, offsets: &word_offsets, words: &word_pos };
                     if let Some(seeds) = &mut file_seeds {
