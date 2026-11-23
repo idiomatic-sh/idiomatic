@@ -1113,10 +1113,6 @@ pub(super) struct Stats {
     /// bracketed runs that returned nothing.
     pub(super) known: Vec<u64>,
     pub(super) empty_time: Vec<f64>,
-    /// pass 2 (`VEC_STEP_TIME`): seconds of the whole runs answered known empty, from the memo miss to the answer, and
-    /// how many (the clock's own pair cost is taken off in the report).
-    pub(super) known_time: f64,
-    pub(super) known_timed: u64,
     /// pass 2 (`VEC_STEP_TIME`): seconds deciding the per-file static part (`known::static_empty_`, outermost calls).
     pub(super) static_time: f64,
     pub(super) static_depth: u32,
@@ -1313,7 +1309,7 @@ impl<'p> Exec<'p> {
         let k = plan.nodes.len();
         Exec {
             plan,
-            stats: Stats { time: vec![0.0; k], rows: vec![0; k], calls: vec![0; k], touched: vec![0; k], empty: vec![0; k], known: vec![0; k], empty_time: vec![0.0; k], known_time: 0.0, known_timed: 0, static_time: 0.0, static_depth: 0, static_visits: 0, static_file_tests: 0, rec_time: 0.0, rec_busy: false },
+            stats: Stats { time: vec![0.0; k], rows: vec![0; k], calls: vec![0; k], touched: vec![0; k], empty: vec![0; k], known: vec![0; k], empty_time: vec![0.0; k], static_time: 0.0, static_depth: 0, static_visits: 0, static_file_tests: 0, rec_time: 0.0, rec_busy: false },
             schemas: vec![None; k],
             views: vec![None; k],
             sels: vec![None; k],
