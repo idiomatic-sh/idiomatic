@@ -405,6 +405,10 @@ impl Exec<'_> {
     }
 
     /// The native field predicates that can be decided before a provider answer.
+    pub(super) fn ep_data_leaf(&mut self, run: &mut Run, node: usize) -> bool {
+        self.ep_leaves(run, node).iter().any(|leaf| leaf.fact != NO_FACT || leaf.rows)
+    }
+
     pub(super) fn ep_field_codes(&mut self, run: &mut Run, node: usize) -> Vec<Vec<u16>> {
         self.ep_leaves(run, node).iter().filter(|l| !l.fields.is_empty()).map(|l| {
             run.field_sym.iter().enumerate().filter(|(_, s)| l.fields.contains(s)).map(|(i, _)| i as u16).collect()

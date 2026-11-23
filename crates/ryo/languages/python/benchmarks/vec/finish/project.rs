@@ -22,6 +22,7 @@ pub(in super::super) struct Answered {
     table: Option<Table>,
     by_file: FxHashMap<u64, Vec<u32>>,
     asked: Vec<bool>,
+    resident: Vec<u32>,
     /// The provider's answers: asks, the files their scopes named, rows.
     asks: [u64; 3],
 }
@@ -42,7 +43,16 @@ pub(super) fn covers(run: &Run, rel: &str, file: u32) -> bool {
 /// stays here so subsequent files can read their share without another call.
 pub(super) fn remember(run: &mut Run, rel: &str, files: &[u32], t: Table) -> R<()> {
     let key = t.tys.iter().position(|ty| *ty == Ty::File).ok_or_else(|| format!("{rel}: a project relation names no file"))?;
+    let each = matches!(run.supplier(rel), super::Supplier::Project(ProjectAsk::EachFile));
     let a = run.project.entry(rel.to_owned()).or_default();
+    if each {
+        // Only the latest file group is resident for a supplier that reads each file.
+        for &file in &a.resident { a.asked[file as usize] = false; }
+        a.resident.clear();
+        a.resident.extend_from_slice(files);
+        a.by_file.clear();
+        a.table = None;
+    }
     let base = a.table.as_ref().map_or(0, |x| x.n) as u32;
     for (row, file) in t.cols[key].iter().enumerate() {
         a.by_file.entry(*file).or_default().push(base + row as u32);
@@ -72,7 +82,7 @@ pub(super) fn rows(f: &File<'_>, run: &Run, rel: &str) -> R<Table> {
     let mine = a.by_file.get(&u64::from(f.file)).map_or(&[][..], Vec::as_slice);
     let mut out = Table::with_rows(all.names.clone(), all.tys.clone(), mine.len());
     for (c, col) in out.cols.iter_mut().enumerate() {
-        col.extend(mine.iter().map(|r| all.cols[c][*r as usize]));
+        if !all.cols[c].is_empty() { col.extend(mine.iter().map(|r| all.cols[c][*r as usize])); }
     }
     out.n = mine.len();
     Ok(out)

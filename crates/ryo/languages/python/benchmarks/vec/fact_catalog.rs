@@ -95,3 +95,17 @@ pub(super) fn declare(run: &mut finish::Run) {
         }
     }
 }
+
+/// Emptiness of composed catalog relations certified by their inputs on the
+/// initial syntax walk. The same roots and timing supply their rows.
+pub(super) fn composed_empty(run: &mut finish::Run, file: &ryo_python::fixtures::columns::ColumnFile<'_, '_>, path: &str, mut report: impl FnMut(&str, &finish::Run)) {
+    let annotations = super::annotation_evaluation::has_annotation(run, file.table);
+    if !annotations { report(ANNOTATION_EVALUATION_REL, run); }
+    if file.empty.contains(&"embedded-expression") && !path.ends_with(".pyi")
+        && (file.immediate_annotations || !annotations)
+        && !super::deferred_visit::has_type_parameters(run, file.table)
+    {
+        report(DEFERRED_VISIT_REL, run);
+        report(DEFERRED_RESOLUTION_REL, run);
+    }
+}

@@ -1007,6 +1007,17 @@ struct ColFacts<'v, 'a, 'f, 'w> {
     src: &'w [u8],
 }
 
+enum Made {
+    Owned(finish::Table),
+    Shared(Rc<finish::Table>),
+}
+
+impl Made {
+    fn table(&self) -> &finish::Table {
+        match self { Self::Owned(t) => t, Self::Shared(t) => t }
+    }
+}
+
 fn keeps_input(rel: &str) -> bool {
     matches!(rel, "binding-event" | "binding-read" | "binding-resolution" | "qualified-name" | "call-argument" | "identifier" | "embedded-expression" | "compiler-feature" | "language-target" | "lookup-scope" | "implicit-symbol")
 }
@@ -1359,8 +1370,8 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
                     out[base + i] = match asked.scope {
                         finish::Scope::Files(files) => self.project.fill(run, asked.rel, files, self.file_no, self.file.table, self.src),
                         finish::Scope::File(f) if f == self.file_no => match self.one(run, asked.rel, asked.columns, composed_inputs) {
-                            Ok(Some(t)) => Ok(t),
-                            Ok(None) => { pending.push(i); continue; }
+                            Ok(Made::Owned(t)) => Ok(t),
+                            Ok(Made::Shared(t)) => { pending.push((i, t)); continue; }
                             Err(e) => Err(e),
                         },
                         finish::Scope::File(f) => Err(format!("asked for file {f}, this provider holds file {}", self.file_no)),
@@ -1370,13 +1381,10 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
         }
         // Composed writers have finished reading their inputs. Hand the requested
         // tables to the executor in request order, moving their column buffers.
-        for i in pending {
-            let entry = &request.relations[i];
-            let t = self.kept.get(entry.rel).ok_or("missing completed family")?;
-            // The request may name the same relation more than once.
-            out[base + i] = Ok(if Rc::strong_count(t) == 1 && !request.relations[i + 1..].iter().any(|r| r.rel == entry.rel) {
-                Rc::try_unwrap(self.kept.remove(entry.rel).unwrap()).unwrap_or_else(|t| t.copy())
-            } else { t.copy() });
+        self.kept.clear();
+        for (i, t) in pending {
+            // Repeated asks share the completed table until the last one takes ownership.
+            out[base + i] = Ok(Rc::try_unwrap(t).unwrap_or_else(|t| t.copy()));
         }
         for (entry, table) in request.relations.iter().zip(&mut out[base..]) {
             if let Ok(t) = table {
@@ -1403,18 +1411,16 @@ const RESOLUTION_READERS: [&str; 1] = ["qualified-name"];
 
 impl ColFacts<'_, '_, '_, '_> {
     /// One asked relation of this file: none made where the file's own contents say it has no row (`row_count`).
-    fn one(&mut self, run: &mut finish::Run, rel: &str, columns: u64, composed_inputs: bool) -> Result<Option<finish::Table>, String> {
+    fn one(&mut self, run: &mut finish::Run, rel: &str, columns: u64, composed_inputs: bool) -> Result<Made, String> {
         if !self.kept.contains_key(rel)
             && let Some((Some(relation), names, tys)) = run.catalog(rel)
             && self.file.row_count(relation) == Some(0)
         {
-            return Ok(Some(finish::Table::with_rows(names, tys, 0)));
+            return Ok(Made::Owned(finish::Table::with_rows(names, tys, 0)));
         }
         let timed = finish::fill_prof::timed();
         let t0 = if timed { thread_cpu() } else { 0.0 };
-        let shared;
-        let owned;
-        let t = if rel == fact_catalog::REGION_REL {
+        let made = if rel == fact_catalog::REGION_REL {
             let (deferred, rows) = self.file.evaluation_region().ok_or("evaluation-region: the model is incomplete")?;
             let (_, names, tys) = run.catalog(rel).ok_or("no evaluation-region")?;
             let mut t = finish::Table { names, tys, cols: vec![Vec::with_capacity(rows.len()); 6], n: rows.len() };
@@ -1428,33 +1434,26 @@ impl ColFacts<'_, '_, '_, '_> {
                 t.cols[4].push(timing);
                 t.cols[5].push(u64::from(self.file_no));
             }
-            owned = Some(t);
-            owned.as_ref().unwrap()
+            Made::Owned(t)
         } else if rel == fact_catalog::RESOLUTION_REL {
-            owned = Some(self.read_resolution(run)?);
-            owned.as_ref().unwrap()
+            Made::Owned(self.read_resolution(run)?)
         } else if rel == fact_catalog::TYPE_REGION_REL {
             let ids = self.file.type_regions().ok_or("type-region: the model is incomplete")?;
             let (_, names, tys) = run.catalog(rel).ok_or("no type-region")?;
-            owned = Some(finish::Table { names, tys, n: ids.len(), cols: vec![ids.iter().map(|i| u64::from(*i)).collect(), vec![u64::from(self.file_no); ids.len()]] });
-            owned.as_ref().unwrap()
+            Made::Owned(finish::Table { names, tys, n: ids.len(), cols: vec![ids.iter().map(|i| u64::from(*i)).collect(), vec![u64::from(self.file_no); ids.len()]] })
         } else if rel == fact_catalog::FINAL_REL
             || rel == fact_catalog::TYPE_EXPRESSION_REL
             || rel == fact_catalog::ANNOTATION_EVALUATION_REL
             || rel == fact_catalog::DEFERRED_VISIT_REL
             || rel == fact_catalog::DEFERRED_RESOLUTION_REL
         {
-            owned = None;
-            shared = self.fact(run, rel)?;
-            shared.as_ref()
+            Made::Shared(self.fact(run, rel)?)
         } else if composed_inputs && keeps_input(rel) {
-            owned = None;
-            shared = self.whole(run, rel)?;
-            shared.as_ref()
+            Made::Shared(self.whole(run, rel)?)
         } else {
-            owned = Some(self.whole_fill(run, rel, columns)?);
-            owned.as_ref().unwrap()
+            Made::Owned(self.whole_fill(run, rel, columns)?)
         };
+        let t = made.table();
         let dt = if timed { thread_cpu() - t0 } else { 0.0 };
         self.time += dt;
         self.rows += t.n as u64;
@@ -1485,7 +1484,7 @@ impl ColFacts<'_, '_, '_, '_> {
                 finish::fill_prof::dump(run, self.file_no, rel, &t);
             }
         }
-        Ok(owned)
+        Ok(made)
     }
 
     fn render_node(&mut self, node: u32, context: &str) -> Result<Option<Vec<u8>>, String> {

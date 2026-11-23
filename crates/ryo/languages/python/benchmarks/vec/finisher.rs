@@ -169,6 +169,7 @@ impl<'p> Finisher<'p> {
         let t0 = thread_cpu();
         file.set_file(languages::FileId(file_no as u32));
         for &rel in &file.empty { self.exec.walk_empty(&self.run, rel); }
+        super::fact_catalog::composed_empty(&mut self.run, file, path, |rel, run| self.exec.walk_empty(run, rel));
         let ft = file.table;
         let mut fwords = std::mem::take(&mut self.fwords);
         languages::facts::clear_words(&mut fwords);

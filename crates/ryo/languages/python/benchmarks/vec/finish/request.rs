@@ -34,6 +34,8 @@ pub(crate) struct Requests {
     by_name: FxHashMap<String, u16>,
     /// Who supplies each (the host or the provider), by number.
     host: Vec<bool>,
+    schemas: Vec<Option<(super::Names, super::Tys)>>,
+    run_columns: Vec<u64>,
     suppliers: Vec<Supplier>,
     pub(super) base_slots: Vec<Option<u16>>,
     pub(super) proven_empty: Vec<bool>,
@@ -41,11 +43,13 @@ pub(crate) struct Requests {
     nodes: Vec<Option<u32>>,
     graph: Vec<Entry>,
     shared: FxHashMap<Entry, u32>,
-    visit: Vec<bool>,
+    summaries: Vec<Vec<Read>>,
     work: Vec<u32>,
     masks: Vec<Option<u64>>,
     asked: Vec<u16>,
     answer: Vec<Result<Table, String>>,
+    // A run-scoped answer counts once; any file can consume it.
+    run_unused: FxHashMap<u16, u64>,
     pub(super) counts: Counts,
 }
 
@@ -94,8 +98,8 @@ impl Requests {
             c.host_relations,
             c.rows,
             c.refused,
-            c.never_asked,
-            c.never_asked_rows,
+            c.never_asked + self.run_unused.len() as u64,
+            c.never_asked_rows + self.run_unused.values().sum::<u64>(),
             self.names.len(),
             c.misses,
             c.reads,
@@ -120,6 +124,10 @@ struct Entry {
     action: Action,
 }
 
+/// One way a live emit can demand columns, compiled once for all its files.
+#[derive(Clone, Copy)]
+struct Read { slot: u16, columns: u64, guard: u32 }
+
 // A native input contributes no provider request.
 const NONE: u32 = u32::MAX;
 
@@ -131,6 +139,31 @@ impl Requests {
             self.graph.push(entry);
             id
         })
+    }
+
+    /// Children precede their parent in the interned graph. Combine all paths
+    /// giving the same projection, so a file visits reads instead of operators.
+    fn compile_summaries(&mut self) {
+        for id in self.summaries.len()..self.graph.len() {
+            let entry = &self.graph[id];
+            let reads = match &entry.action {
+                Action::Read(slot, columns) => vec![Read { slot: *slot, columns: *columns, guard: entry.guard }],
+                Action::Inputs(children) => {
+                    let mut paths = std::collections::BTreeMap::<(u16, u64),Vec<u32>>::new();
+                    for &child in children {
+                        for read in &self.summaries[child as usize] {
+                            paths.entry((read.slot, read.columns)).or_default().push(read.guard);
+                        }
+                    }
+                    paths.into_iter().map(|((slot, columns), alternatives)| {
+                        let either = self.guards.combine(false, alternatives);
+                        let guard = self.guards.combine(true, vec![entry.guard, either]);
+                        Read { slot, columns, guard }
+                    }).collect()
+                }
+            };
+            self.summaries.push(reads);
+        }
     }
 
     fn branch(&mut self, guard: u32, mut inputs: Vec<u32>) -> u32 {
@@ -183,11 +216,26 @@ impl Exec<'_> {
             let slot = self.requests.number(run, rel);
             self.requests.base_slots[i] = Some(slot);
             if usize::from(slot) == run.fact_rels.len() {
-                let width = run.catalog(rel).map(|(_, names, _)| names.len());
+                let schema = run.catalog(rel).map(|(_, names, tys)| (names, tys));
+                let width = schema.as_ref().map(|(names, _)| names.len());
+                self.requests.schemas.push(schema);
                 run.fact_rels.push((rel.to_owned(), width.unwrap_or(0)));
                 if width.is_some() { run.fact_slots.insert(rel.to_owned(), slot); }
             }
         }
+        // A run-scoped answer serves files whose live rules can ask for
+        // different columns. Include the file partition key and every column
+        // the plan may read from that answer over its whole lifetime.
+        self.requests.nodes.resize(self.plan.nodes.len(), None);
+        self.requests.guards.begin(self.plan.nodes.len());
+        for entry in &self.plan.emits { self.demand(run, entry.1); }
+        self.requests.run_columns.resize(self.requests.names.len(), 0);
+        for e in &self.requests.graph {
+            if let Action::Read(slot, mask) = e.action {
+                self.requests.run_columns[usize::from(slot)] |= mask;
+            }
+        }
+
     }
 
     /// A completed part of the walk can already know a catalog relation is empty.
@@ -269,21 +317,18 @@ impl Exec<'_> {
         let mut masks = std::mem::take(&mut self.requests.masks);
         masks.resize(self.requests.names.len(), None);
         masks.fill(None);
-        let mut seen = std::mem::take(&mut self.requests.visit);
-        seen.resize(self.requests.graph.len(), false);
-        seen.fill(false);
-        while let Some(id) = work.pop() {
+        self.requests.compile_summaries();
+        for id in work.drain(..) {
             let at = id as usize;
-            if std::mem::replace(&mut seen[at], true) || !self.permits(run, f, self.requests.graph[at].guard) {
-                continue;
-            }
-            match &self.requests.graph[at].action {
-                Action::Read(slot, cols) => *masks[usize::from(*slot)].get_or_insert(0) |= cols,
-                Action::Inputs(children) => work.extend_from_slice(children),
+            if !self.permits(run, f, self.requests.graph[at].guard) { continue; }
+            for i in 0..self.requests.summaries[at].len() {
+                let read = self.requests.summaries[at][i];
+                let mask = &mut masks[usize::from(read.slot)];
+                if mask.is_some_and(|value| value & read.columns == read.columns) { continue; }
+                if self.permits(run, f, read.guard) { *mask.get_or_insert(0) |= read.columns; }
             }
         }
         self.requests.work = work;
-        self.requests.visit = seen;
         masks
     }
 
@@ -303,7 +348,7 @@ impl Exec<'_> {
         f.answer.resize_with(rq.names.len(), || None);
         let mut scopes = FxHashMap::default();
         for (n, mask) in masks.iter().enumerate() {
-            if mask.is_some() {
+            if mask.is_some() && !rq.proven_empty.get(n).copied().unwrap_or(false) {
                 let n = n as u16;
                 if rq.host[usize::from(n)] {
                     let rel = &rq.names[usize::from(n)];
@@ -340,7 +385,15 @@ impl Exec<'_> {
                     Asked {
                         rel,
                         scope,
-                        columns: masks[usize::from(*n)].unwrap(),
+                        columns: {
+                            let slot = usize::from(*n);
+                            let mask = masks[slot].unwrap();
+                            if let Supplier::Project(ask) = rq.suppliers[slot] {
+                                let key = rq.schemas[slot].as_ref().and_then(|(_, tys)| tys.iter().position(|ty| *ty == super::Ty::File));
+                                let requested = if matches!(ask, super::project::ProjectAsk::Run) { rq.run_columns[slot] } else { mask };
+                                key.map_or(requested, |k| requested | bit(k))
+                            } else { mask }
+                        },
                     }
                 })
                 .collect();
@@ -361,6 +414,10 @@ impl Exec<'_> {
                 match &t {
                     Ok(t) => rq.counts.rows += t.n as u64,
                     Err(_) => rq.counts.refused += 1,
+                }
+                if matches!(rq.suppliers[usize::from(*n)], Supplier::Project(super::project::ProjectAsk::Run))
+                    && let Ok(table) = &t {
+                    rq.run_unused.insert(*n, table.n as u64);
                 }
                 let result = match entry.scope {
                     Scope::File(_) => t,
@@ -383,9 +440,18 @@ impl Exec<'_> {
     pub(super) fn answered(&mut self, f: &mut File<'_>, i: usize) -> R<Table> {
         let timed = super::fill_prof::timed();
         let t0 = if timed { super::super::thread_cpu() } else { 0.0 };
+        if self.requests.proven_empty.get(i).copied().unwrap_or(false) {
+            let (names, tys) = self.requests.schemas[i].as_ref().ok_or("unknown relation declared empty")?;
+            return Ok(Table::projected(names.clone(), tys.clone(), 0, 0));
+        }
         let slot = f.answer.get_mut(i);
         let result = match slot {
-            Some(slot @ Some(Ok(_))) => slot.take().unwrap(),
+            Some(slot @ Some(Ok(_))) => {
+                if matches!(self.requests.suppliers[i], Supplier::Project(super::project::ProjectAsk::Run)) {
+                    self.requests.run_unused.remove(&(i as u16));
+                }
+                slot.take().unwrap()
+            }
             Some(Some(Err(err))) => Err(err.clone()),
             _ => {
                 let rel = &self.requests.names[i];
@@ -406,14 +472,15 @@ impl Exec<'_> {
     /// The file's end: the answered relations no step asked, counted.
     pub(crate) fn close_file(&mut self, f: &mut File<'_>) {
         self.requests.proven_empty.fill(false);
-        for (i, answer) in f.answer.drain(..).enumerate() {
-            if self.requests.host[i] {
-                continue;
+        for &slot in &self.requests.asked {
+            let i = usize::from(slot);
+            if matches!(self.requests.suppliers[i], Supplier::Project(super::project::ProjectAsk::Run)) { continue; }
+            if let Some(Ok(table)) = &f.answer[i] {
+                self.requests.counts.never_asked += 1;
+                self.requests.counts.never_asked_rows += table.n as u64;
             }
-            let Some(Ok(t)) = answer else { continue };
-            self.requests.counts.never_asked += 1;
-            self.requests.counts.never_asked_rows += t.n as u64;
         }
+        f.answer.clear();
     }
 
     /// The run's request counts.

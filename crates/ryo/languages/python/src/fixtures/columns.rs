@@ -246,6 +246,7 @@ pub struct FactColumns {
 #[derive(Debug, Default)]
 struct TextMemo {
     fixed: HashMap<(usize, usize), u32, std::hash::BuildHasherDefault<crate::domain::model::names::types::KeyHasher>>,
+    literals: Vec<Option<(String, crate::domain::literal_expression_parsing::types::LiteralParseOutcome)>>,
     names: Vec<u32>,
 }
 
@@ -261,6 +262,24 @@ impl ColumnMemo {
 }
 
 impl TextMemo {
+    /// This grammar reads only the literal's original spelling. A collision
+    /// evicts an entry after an exact byte comparison; no source id is retained.
+    fn literal_outcome(&mut self, spelling: &str, parse: impl FnOnce() -> crate::domain::literal_expression_parsing::types::LiteralParseOutcome) -> crate::domain::literal_expression_parsing::types::LiteralParseOutcome {
+        use crate::domain::grammar_cache::constants::{KEY_CAPACITY, MEMO_ENTRIES};
+        use std::hash::{Hash as _, Hasher as _};
+        if spelling.len() > KEY_CAPACITY { return parse(); }
+        self.literals.resize_with(MEMO_ENTRIES, || None);
+        let mut hash = std::collections::hash_map::DefaultHasher::new();
+        spelling.hash(&mut hash);
+        let slot = &mut self.literals[(hash.finish() as usize) % MEMO_ENTRIES];
+        if let Some((text, result)) = slot && text == spelling { return *result; }
+        let result = parse();
+        let (text, outcome) = slot.get_or_insert_with(|| (String::new(), result));
+        text.clear();
+        text.push_str(spelling);
+        *outcome = result;
+        result
+    }
     fn fixed(&mut self, ids: &mut dyn TextIds, text: NameText<'static>) -> u32 {
         *self.fixed.entry((text.0.as_ptr() as usize, text.0.len())).or_insert_with(|| ids.id(text.0.as_bytes()))
     }
@@ -455,7 +474,9 @@ fn lend(
         if tree.segments.is_empty() { empty.push("embedded-expression"); }
     }
     if node_table::syntax_error_count(table).0 == 0 { empty.push("syntax-error"); }
-    visit(&mut ColumnFile { table, empty, shapes, file: &mut file, memo, words });
+    let immediate_annotations = target < crate::domain::binding_schedule::constants::LAZY_ANNOTATIONS_FROM
+        && tree.annotations == crate::domain::model::types::BindingAnnotationTiming::Immediate;
+    visit(&mut ColumnFile { table, empty, immediate_annotations, shapes, file: &mut file, memo, words });
 }
 
 /// Spike (6f probe): one node's evaluation region (`ColumnFile::evaluation_region`).
@@ -475,6 +496,8 @@ pub struct Region {
 pub struct ColumnFile<'a, 'f> {
     /// Catalog relations the completed parser walk certifies to have zero rows.
     pub empty: Vec<&'static str>,
+    /// The walk's compiler features and target give annotations immediate evaluation.
+    pub immediate_annotations: bool,
     shapes: &'a crate::domain::shape_facts::walk::Classes,
     /// The node table.
     pub table: &'a NodeTable,
@@ -850,8 +873,8 @@ impl ColumnFile<'_, '_> {
     }
 
     fn literal_parse(&mut self, ask: &Ask, ids: &mut dyn TextIds, table: &mut FactTable, elements: usize) {
-        use crate::domain::literal_expression_parsing::{service::outcome_name, types::LiteralParseOutcome};
-        use crate::inbound::contracts::parse::readers::literal_expression::{composition::{available, parsed_as_annotation}, constants::PYTHON_STRING_ANNOTATION};
+        use crate::domain::literal_expression_parsing::service::outcome_name;
+        use crate::inbound::contracts::parse::readers::literal_expression::{composition::available, constants::PYTHON_STRING_ANNOTATION};
         use ruff_text_size::Ranged as _;
 
         let dialect = place!(LiteralExpressionParse, LiteralExpressionParseColumn::Dialect);
@@ -867,17 +890,13 @@ impl ColumnFile<'_, '_> {
         let mut tokens = Vec::new();
         for Numbered { id, node } in nodes_of_kind(syntax, Kind::Node(Node::Constant)) {
             let AnyNodeRef::ExprStringLiteral(literal) = node else { continue };
+            let spelling = syntax.text.0.get(literal.range().start().to_usize()..literal.range().end().to_usize());
+            let Some(spelling) = spelling else { table.answered = false; return; };
+            if !available(syntax, node, &mut tokens) { table.answered = false; return; }
             let outcome_id = if table.wants(outcome) {
-                let parsed = parsed_as_annotation(syntax, node, &mut tokens, &mut self.file.buffers.text);
-                if parsed == LiteralParseOutcome::Unavailable { table.answered = false; return; }
+                let parsed = self.memo.literal_outcome(spelling, || crate::outbound::literal_expression::adapters::ruff_string_annotation::grammar::parsed_in_place(literal, syntax.text.0));
                 self.memo.fixed(ids, outcome_name(parsed))
-            } else {
-                if syntax.text.0.get(literal.range().start().to_usize()..literal.range().end().to_usize()).is_none() || !available(syntax, node, &mut tokens) {
-                    table.answered = false;
-                    return;
-                }
-                0
-            };
+            } else { 0 };
             table.put(id.0, &[(dialect, dialect_id), (outcome, outcome_id)]);
         }
     }

@@ -122,29 +122,28 @@ impl Exec<'_> {
             self.stats.static_depth = 0;
             return e;
         }
+        let decision = self.file_decision(run, f, node);
+        match decision {
+            Some((false, _)) => { f.known[node] = YES; return true; }
+            Some((true, false)) => { f.known[node] = NO; return false; }
+            _ => {}
+        }
         let r = self.rec(run, node);
-        if r.flags & CAN == 0 {
-            f.known[node] = NO;
-            return false;
-        }
-        if self.pruned(run, f, node) {
-            f.known[node] = YES;
-            return true;
-        }
+        if r.flags & CAN == 0 { f.known[node] = NO; return false; }
         f.known[node] = BUSY;
         self.stats.static_visits += 1;
         let mut e = false;
         // a kind set none of whose kinds the file has
         let (mut at, end) = (r.kinds as usize, r.kinds as usize + usize::from(r.n_kinds));
-        while !e && at < end {
+        while decision.is_none() && !e && at < end {
             let n = usize::from(self.flat.kinds[at]);
             e = self.flat.kinds[at + 1..at + 1 + n].iter().all(|c| super::node_table::kinds_present(f.table).0.get(usize::from(*c) / 64).is_none_or(|word| word.0 & (1 << (c % 64)) == 0));
             at += 1 + n;
         }
-        if !e && r.n_seeds > 0 {
+        if decision.is_none() && !e && r.n_seeds > 0 {
             e = self.flat.seeds[r.seeds as usize..r.seeds as usize + usize::from(r.n_seeds)].iter().any(|k| f.seeds.get(usize::from(*k)).is_none_or(Vec::is_empty));
         }
-        if !e && r.flags & FILE_TEST != 0 {
+        if decision.is_none() && !e && r.flags & FILE_TEST != 0 {
             self.stats.static_file_tests += 1;
             e = self.file_fails_of(f, run, node);
         }

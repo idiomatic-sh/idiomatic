@@ -12,13 +12,13 @@ enum Test {
     Kinds(Vec<u16>),
     Fields(Vec<u16>),
     Seed(usize),
-    HasRows(u16),
     File(usize),
     Combine { all: bool, terms: Vec<u32> },
 }
 
 pub(super) struct Guards {
     by_node: Vec<Option<u32>>,
+    late: Vec<bool>,
     by_test: FxHashMap<Test, u32>,
     tests: Vec<Test>,
     values: Vec<Option<bool>>,
@@ -28,6 +28,7 @@ impl Default for Guards {
     fn default() -> Self {
         Self {
             by_node: vec![],
+            late: vec![],
             by_test: FxHashMap::default(),
             tests: vec![Test::Constant(true), Test::Constant(false)],
             values: vec![],
@@ -62,6 +63,7 @@ impl Guards {
 
     pub(super) fn begin(&mut self, nodes: usize) {
         self.by_node.resize(nodes, None);
+        self.late.resize(nodes, false);
         self.values.resize(self.tests.len(), None);
         self.values.fill(None);
     }
@@ -81,12 +83,6 @@ impl Exec<'_> {
         let need = self.need(run, n);
         let mut parts = Vec::new();
         if !need.never {
-            if !sw!("VEC_NO_EMPTYPROP")
-                && let Ok(Some(view)) = self.view(run, n)
-                && let super::Native::Fact(slot) = view.base
-            {
-                parts.push(self.requests.guards.intern(Test::HasRows(slot)));
-            }
             for ks in &need.kinds {
                 parts.push(self.requests.guards.intern(Test::Kinds(ks.to_vec())));
             }
@@ -107,6 +103,8 @@ impl Exec<'_> {
             }
         }
         let id = self.requests.guards.combine(true, parts);
+        self.requests.guards.late[n] = !need.never && !sw!("VEC_NO_EMPTYPROP") &&
+            (self.ep_data_leaf(run, n) || need.inputs.iter().any(|i| self.requests.guards.late[*i]));
         self.requests.guards.by_node[n] = Some(id);
         id
     }
@@ -128,7 +126,6 @@ impl Exec<'_> {
             Test::Fields(fs) => fs
                 .iter()
                 .any(|c| !super::node_table::ids_of_field(f.table, ryo::languages::FieldCode(*c)).is_empty()),
-            Test::HasRows(slot) => !self.requests.proven_empty.get(usize::from(*slot)).copied().unwrap_or(false),
             Test::Seed(s) => f.seeds.get(*s).is_some_and(|rows| !rows.is_empty()),
             Test::File(n) => {
                 let n = *n;
@@ -152,6 +149,13 @@ impl Exec<'_> {
         };
         self.requests.guards.values[at] = Some(value);
         value
+    }
+
+    /// A positive file-only predicate settles the static decision completely
+    /// when neither this operator nor its inputs need an answered fact.
+    pub(super) fn file_decision(&mut self, run: &mut Run, f: &File<'_>, n: usize) -> Option<(bool, bool)> {
+        let guard = self.requests.guards.by_node.get(n).copied().flatten()?;
+        Some((self.permits(run, f, guard), self.requests.guards.late[n]))
     }
 
     pub(super) fn pruned(&mut self, run: &mut Run, f: &File<'_>, n: usize) -> bool {

@@ -1727,16 +1727,8 @@ impl<'p> Exec<'p> {
     #[inline]
     fn make_(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Res> {
         if let Some(v) = self.view(run, node)? {
-            if let Native::Fact(i) = v.base && self.pruned(run, f, node) {
-                // Preserve a requested view's materialization and keyed-read
-                // behavior. A certified empty source already has an exact table.
-                let empty_source = self.requests.proven_empty.get(usize::from(i)).copied().unwrap_or(false);
-                let need = self.need(run, node);
-                if !empty_source || need.seeds.iter().any(|s| f.seeds.get(*s).is_none_or(Vec::is_empty))
-                    || (need.file_test && self.file_fails_of(f, run, node))
-                {
-                    return Ok(Res::Tab(self.empty_rc(run, node)?));
-                }
+            if matches!(v.base, Native::Fact(_)) && self.pruned(run, f, node) {
+                return Ok(Res::Tab(self.empty_rc(run, node)?));
             }
             let was = fill_prof::site("view");
             self.load_fact(f, run, p, v.base)?;
@@ -2402,10 +2394,7 @@ impl<'p> Exec<'p> {
                 eprintln!("ASKER-PLAN {by} {} {} INPUTS {}", pn.op, pn.j.to_string().chars().take(900).collect::<String>(), ins.join(" | "));
             }
         }
-        let t = if self.requests.proven_empty.get(i).copied().unwrap_or(false) {
-            let (_, names, tys) = run.catalog(&run.fact_rels[i].0.clone()).ok_or("unknown walk relation")?;
-            Table::with_rows(names, tys, 0)
-        } else { self.answered(f, i)? };
+        let t = self.answered(f, i)?;
         f.facts[i] = Some(recycle::rc(t));
         Ok(())
     }
