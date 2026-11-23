@@ -41,7 +41,7 @@ use reader_cli::{alloc_counts, flag, rule_context, thread_cpu};
 fn declaration() -> first::Language {
     // Resolved names can be escaped or implicit. Only actual syntax text entails a written word.
     first::Language {
-        fact_family: |_| pair_summary::cost::Family::Fact,
+        fact_family: reader_run::fact_family,
         walk_facts: &[],
         host_len: finish::host::host_len,
         facts: Vec::new(),

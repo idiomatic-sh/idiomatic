@@ -165,6 +165,12 @@ pub trait ParseEngine: Send + Sync {
     /// The names of the kinds the language's trees have.
     fn kind_names(&self) -> KindNames;
 
+    /// Field codes whose meaning stays fixed across files. Providers with file-local
+    /// dictionaries leave this empty. File vocabulary checks can still use their names.
+    fn stable_fields(&self) -> crate::domain::fillers::types::FieldNames {
+        Default::default()
+    }
+
     /// The reasons the language declares for a value it cannot resolve statically.
     fn unknown_reasons(&self) -> &'static [UnknownName];
 
