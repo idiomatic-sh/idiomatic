@@ -266,9 +266,17 @@ fn required_facts(domains: &[Domain], id: Id, slots: &mut Vec<usize>) {
             | Domain::OtherValues(slot, _, _)
             | Domain::Flag(slot, ..)
             | Domain::Number(slot, ..)
+            | Domain::Unmatched(slot, _, _)
             | Domain::Matching(slot, _, _) => {
                 if !slots.contains(&slot) {
                     slots.push(slot);
+                }
+            }
+            Domain::Member(a, _, b, _) => {
+                for slot in [a, b] {
+                    if !slots.contains(&slot) {
+                        slots.push(slot);
+                    }
                 }
             }
             Domain::Both(a, b) | Domain::Either(a, b) | Domain::Except(a, b) => {
@@ -425,13 +433,13 @@ fn select<'a>(
         };
         Some((i, rows[s.sources[i].step.0].as_ref()?.column(&c.column.0)?))
     };
+    let mut nodes = rows[s.sources[0].step.0].as_ref()?.nodes;
+    let mut guard = rows[s.sources[0].step.0].as_ref()?.guard;
     let mut filters = Vec::new();
     if let RowCondition::Tested(e) = &s.condition {
         terms(e, &mut filters)
     }
     let mut shifts = [0, 0];
-    let mut nodes = rows[s.sources[0].step.0].as_ref()?.nodes;
-    let mut guard = rows[s.sources[0].step.0].as_ref()?.guard;
     if s.sources.len() == 2 {
         let right = rows[s.sources[1].step.0].as_ref()?;
         // Equality of the two source identities binds a unique row. The same
@@ -649,7 +657,27 @@ pub(super) fn prepare<'a>(
     let guards = guards(b, plan);
     // Follow the right side for exact keyed differences. File guards already
     // describe suppression inputs whose rows need richer relational operators.
-    let mut live = live.to_vec();
+    let positive = live;
+    let mut live = vec![false; plan.steps.len()];
+    for rule in &plan.rules {
+        if let RuleEmit::Written(e) = &rule.emit
+            && &*e.subject.0 == "file"
+        {
+            live[e.step.0] = true;
+        }
+    }
+    for (i, step) in plan.steps.iter().enumerate() {
+        if !positive[i] {
+            continue;
+        }
+        match step {
+            FinishStep::GroupCount(g) if !g.keys.is_empty() => live[i] = true,
+            FinishStep::Antijoin(j) if guards[j.right.0] == ANY || positive[j.right.0] => {
+                live[j.right.0] = true
+            }
+            _ => {}
+        }
+    }
     for (i, s) in plan.steps.iter().enumerate().rev() {
         if !live[i] {
             continue;
@@ -657,7 +685,7 @@ pub(super) fn prepare<'a>(
         match s {
             FinishStep::Antijoin(j) => {
                 live[j.left.0] = true;
-                if guards[j.right.0] == ANY {
+                if guards[j.right.0] == ANY || positive[j.right.0] {
                     live[j.right.0] = true;
                 }
             }

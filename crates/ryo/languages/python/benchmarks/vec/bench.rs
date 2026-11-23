@@ -532,10 +532,11 @@ fn python_language(vocab: &Vocab) -> first::Language {
     let tokens=provider_tokens::Lexicon::new(&|n| vocab.kinds.get(n).copied());
     use ryo_python::fixtures::columns::{PER_NODE_FACTS, SPELLED_COLUMNS, Spelling, is_identifier};
     first::Language {
+        fact_family: pair_provider::family,
         host_len: finish::host::host_len,
         walk_facts: pair_provider::FACTS,
         text_kinds: vocab.kinds.values().copied().filter(|k|tokens.has_text(*k)).collect(),
-        file_sets: ryo_python::fixtures::columns::FILE_SET_FACTS.iter().chain(host_columns::FILE_SETS.iter()).map(|s|(*s).to_string()).collect(),
+        file_sets: ryo_python::fixtures::columns::FILE_SET_FACTS.iter().chain(std::env::var_os("VEC_PAIR_NO_PROJECT").is_none().then_some(&provider_packaging::MODULE_IDENTITY_REL)).chain(host_columns::FILE_SETS.iter()).map(|s|(*s).to_string()).collect(),
         facts: PER_NODE_FACTS.iter().map(|s| (*s).to_owned()).collect(),
         spelled: SPELLED_COLUMNS.iter().map(|(r, c, how)| ((*r).to_owned(), (*c).to_owned(), match how { Spelling::Whole => None, Spelling::LastSegment(c) => Some(*c) })).collect(),
         is_identifier,
@@ -1946,9 +1947,12 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
                 exact_rows.clear();
                 if !no_skip && let Some(program) = &pairs {
                     let start = thread_cpu();
-                    let relative_path = fin.as_deref().map(|f| f.run.paths[file_no].as_bytes());
+                    let relative_path = fin.as_deref().map(|f| f.run.paths[file_no].clone());
                     let exact = fin.as_ref().filter(|f| f.can_finish_exact()).map(|_| &mut exact_rows);
-                    pair_steps += program.file(pt, &bytes, relative_path, &mut fwords, |rel, words, out| {
+                    pair_steps += program.file(pt, &bytes, relative_path.as_deref().map(str::as_bytes), &mut fwords, |rel, words, out| {
+                        if matches!(rel, pair_summary::Source::Catalog(languages::Relation::ModuleIdentity)) {
+                            return fin.as_deref_mut().is_some_and(|f| f.identity(file_no, words, out));
+                        }
                         if let pair_summary::Source::Catalog(catalog) = rel
                             && let Some(result) = host_columns::fill(catalog, fin.as_deref().map(|f| &f.run), file_no, out) {
                             return result;
@@ -2727,6 +2731,9 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
         for (ri, _) in &program.exact {
             println!("EXACT\t{}\t{}\t{}\t{}", frules[*ri].name, exact_counts[*ri].0, exact_counts[*ri].1, exact_counts[*ri].2);
         }
+    }
+    if let Some(p) = &pairs && let Some(meter) = &p.meter {
+        meter.report(p);
     }
     println!("pair summary checks {pair_steps} CPU {pair_cpu:.4} s");
     let knock_units = units.iter().filter(|u| u.knock).count();

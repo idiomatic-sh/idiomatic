@@ -36,15 +36,20 @@ pub(in super::super) fn report(run: &Run) -> Vec<String> {
 
 /// The rows of project relation `rel` that name file `f`, asked of the provider when `f` is not answered yet.
 pub(super) fn rows(f: &File<'_>, run: &mut Run, p: &mut dyn Provider, rel: &str, ask: ProjectAsk) -> R<Table> {
+    for_file(f.file, run, rel, ask, |run, files| p.fill(run, rel, Scope::Files(files)))
+}
+
+/// The current file's slice of the shared project answer, for either phase.
+pub(in super::super) fn for_file(file: u32, run: &mut Run, rel: &str, ask: ProjectAsk, fill: impl FnOnce(&mut Run, &[u32]) -> R<Table>) -> R<Table> {
     let files = run.paths.len();
     let mut a = run.project.remove(rel).unwrap_or_default();
     a.asked.resize(files, false);
-    if !a.asked[f.file as usize] {
+    if !a.asked[file as usize] {
         let scope: Vec<u32> = match ask {
             ProjectAsk::Run => (0..files as u32).collect(),
-            ProjectAsk::EachFile => vec![f.file],
+            ProjectAsk::EachFile => vec![file],
         };
-        let t = p.fill(run, rel, Scope::Files(&scope));
+        let t = fill(run, &scope);
         let t = match t {
             Ok(t) => t,
             Err(e) => {
@@ -79,7 +84,7 @@ pub(super) fn rows(f: &File<'_>, run: &mut Run, p: &mut dyn Provider, rel: &str,
         }
     }
     let all = a.table.as_ref().ok_or_else(|| format!("{rel}: no answer"))?;
-    let mine = a.by_file.get(&u64::from(f.file)).map_or(&[][..], Vec::as_slice);
+    let mine = a.by_file.get(&u64::from(file)).map_or(&[][..], Vec::as_slice);
     let mut out = Table::with_rows(all.names.clone(), all.tys.clone(), mine.len());
     for (c, col) in out.cols.iter_mut().enumerate() {
         col.extend(mine.iter().map(|r| all.cols[c][*r as usize]));

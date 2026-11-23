@@ -254,7 +254,7 @@ impl Project {
     /// `module-identity` of each of `files`: inside a package (its directory holds `__init__.py`), the dotted path from the
     /// topmost such directory's parent, the module and package directory names and the topmost package's name. A file's row
     /// depends on the project's layout only (the initializers of its directories), never on any file's content.
-    fn module_identity(&mut self, run: &mut finish::Run, files: &[u32]) -> Result<finish::Table, String> {
+    pub(super) fn module_identity(&mut self, run: &mut finish::Run, files: &[u32]) -> Result<finish::Table, String> {
         let (_, names, tys) = run.catalog(MODULE_IDENTITY_REL).ok_or("no module-identity")?;
         let mut cols: Vec<Vec<u64>> = vec![Vec::new(); names.len()];
         let mut count = 0;
