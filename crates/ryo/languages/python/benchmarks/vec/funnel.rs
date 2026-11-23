@@ -4,7 +4,7 @@
 //! knock-out (per node a few tests ANDed into a mask of the plans of its bucket).
 
 use super::{Key, Vocab};
-use ryo::languages::{ElementSets, NodeTable, Position, node_table};
+use ryo::languages::{NodeTable, Position, node_table};
 use std::collections::HashMap;
 
 pub(super) type KSet = [u64; 4];
@@ -64,8 +64,6 @@ pub(super) enum Op {
 pub(super) struct Ctx<'a> {
     pub(super) table: &'a NodeTable,
     pub(super) src: &'a [u8],
-    /// Per node, its child sets and parent kind in one cache line (the structure pass).
-    pub(super) sets: &'a [ElementSets],
     pub(super) facts: &'a super::facts::Store,
     pub(super) enc: &'a [Vec<u32>],
     pub(super) matches: &'a [u128],
@@ -75,6 +73,11 @@ impl Ctx<'_> {
     #[inline]
     fn children(&self, n: u32) -> &[Position] {
         node_table::children_of(self.table, Position(n))
+    }
+    #[inline(always)]
+    fn parent_matches(&self, n: u32, kinds: &KSet) -> bool {
+        let parent = self.parent(n);
+        parent != n && kbit(kinds, self.kind(parent))
     }
     // the node table's own columns, read in place (no copy a file)
     #[inline(always)]
@@ -132,12 +135,11 @@ impl Own {
     /// structure's child-kind and child-field sets), so its children need not be read.
     #[inline]
     fn some_child_can(&self, ctx: &Ctx<'_>, n: u32) -> bool {
-        let i = n as usize;
         (self.kinds == ALL_KINDS || {
-            let m = &ctx.sets[i].child_kinds;
+            let m = &node_table::child_sets_of(ctx.table, Position(n)).child_kinds;
             (m[0] & self.kinds[0]) | (m[1] & self.kinds[1]) | (m[2] & self.kinds[2]) | (m[3] & self.kinds[3]) != 0
         }) && self.fields.as_ref().is_none_or(|s| {
-            let m = &ctx.sets[i].child_fields;
+            let m = &node_table::child_sets_of(ctx.table, Position(n)).child_fields;
             (m[0] & s[0]) | (m[1] & s[1]) != 0
         })
     }
@@ -708,7 +710,7 @@ fn compile(ops: &[Op]) -> (Vec<Stage>, usize) {
                         let s = c.kind_set();
                         out.push(filt(move |ctx, row| {
                             let n = row[from] as usize;
-                            !ctx.sets[n].root && kbit(&s, ctx.sets[n].parent_kind)
+                            ctx.parent_matches(n as u32, &s)
                         }));
                         i += 1;
                     }
@@ -725,7 +727,7 @@ fn compile(ops: &[Op]) -> (Vec<Stage>, usize) {
                     Some(c) if *leaf && c.kinds_only() => {
                         let s = c.kind_set();
                         out.push(filt(move |ctx, row| {
-                            let m = &ctx.sets[row[from] as usize].child_kinds;
+                            let m = &node_table::child_sets_of(ctx.table, Position(row[from])).child_kinds;
                             (m[0] & s[0]) | (m[1] & s[1]) | (m[2] & s[2]) | (m[3] & s[3]) != 0
                         }));
                         i += 1;
@@ -750,7 +752,7 @@ fn compile(ops: &[Op]) -> (Vec<Stage>, usize) {
                     [Op::Check(c)] if c.v == to && c.kinds_only() => {
                         let s = c.kind_set();
                         out.push(filt(move |ctx, row| {
-                            let m = &ctx.sets[row[from] as usize].child_kinds;
+                            let m = &node_table::child_sets_of(ctx.table, Position(row[from])).child_kinds;
                             (m[0] & s[0]) | (m[1] & s[1]) | (m[2] & s[2]) | (m[3] & s[3]) != 0
                         }));
                     }
@@ -841,12 +843,12 @@ pub(super) fn compile_pred(ops: &[Op]) -> Pred {
                         Box::new(move |ctx, r, s| {
                             *s += 1;
                             let n = r[from] as usize;
-                            !ctx.sets[n].root && kbit(&set, ctx.sets[n].parent_kind) && next(ctx, r, s)
+                            ctx.parent_matches(n as u32, &set) && next(ctx, r, s)
                         })
                     } else {
                         Box::new(move |ctx, r, s| {
                             *s += 1;
-                            let m = &ctx.sets[r[from] as usize].child_kinds;
+                            let m = &node_table::child_sets_of(ctx.table, Position(r[from])).child_kinds;
                             ((m[0] & set[0]) | (m[1] & set[1]) | (m[2] & set[2]) | (m[3] & set[3]) != 0) && next(ctx, r, s)
                         })
                     };
@@ -898,7 +900,7 @@ pub(super) fn compile_pred(ops: &[Op]) -> Pred {
                         let set = c.kind_set();
                         Box::new(move |ctx, r, s| {
                             *s += 1;
-                            let m = &ctx.sets[r[from] as usize].child_kinds;
+                            let m = &node_table::child_sets_of(ctx.table, Position(r[from])).child_kinds;
                             ((m[0] & set[0]) | (m[1] & set[1]) | (m[2] & set[2]) | (m[3] & set[3]) != 0) && next(ctx, r, s)
                         })
                     }
@@ -1068,9 +1070,9 @@ impl Test {
     fn eval(&self, ctx: &Ctx<'_>, n: u32) -> bool {
         match self {
             Test::Own(c) => passes(ctx, c, n),
-            Test::ParentKind(s) => !ctx.sets[n as usize].root && kbit(s, ctx.sets[n as usize].parent_kind),
+            Test::ParentKind(s) => ctx.parent_matches(n, s),
             Test::ChildKind(s) => {
-                let m = &ctx.sets[n as usize].child_kinds;
+                let m = &node_table::child_sets_of(ctx.table, Position(n)).child_kinds;
                 (m[0] & s[0]) | (m[1] & s[1]) | (m[2] & s[2]) | (m[3] & s[3]) != 0
             }
         }

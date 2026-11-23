@@ -75,7 +75,14 @@ pub(crate) struct NodeTableEngine {
     /// The nodes the parser implied, in id order.
     pub(crate) implied: Vec<Position>,
     /// Per element, its neighbours' sets (written as each id is numbered, only when the builder was made `structured`).
-    pub(crate) sets: Vec<ElementSets>,
+    pub(crate) sets: std::sync::OnceLock<Vec<ElementSets>>,
+    /// Child masks need storage only through the last parent that received a child.
+    pub(crate) child_sets: Vec<ChildSets>,
+    /// Whether this table records structural masks.
+    pub(crate) structured: bool,
+    /// Worker buffers reused while numbering the next file.
+    pub(crate) pending: Vec<PendingToken>,
+    pub(crate) written: Vec<Position>,
     /// The kind sets a `structured` builder was given, one enclosing column each.
     pub(crate) enclosing_sets: Vec<KindSet>,
     /// Per kind set, per element: the nearest strict ancestor whose kind is in the set, `u32::MAX` for none.
@@ -93,6 +100,16 @@ pub(crate) struct NodeTableEngine {
 /// ```
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct KindSet(pub [u64; 4]);
+
+/// Kinds and fields present among one element's children, including embedded roots
+/// attached to the host. A leaf has the empty sets.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct ChildSets {
+    /// Child kinds below 256.
+    pub child_kinds: [u64; 4],
+    /// Child fields below 128.
+    pub child_fields: [u64; 2],
+}
 
 /// What an engine's checks read of an element's neighbours, in one cache line: the kinds of its children (codes below 256),
 /// the fields its children fill (codes below 128), its parent's kind (its own for a root) and whether it is a root (its own
@@ -310,8 +327,8 @@ pub(crate) struct BuilderState<'a> {
     pub(crate) implied: Vec<Position>,
     /// The logical text of the embedded segment being written.
     pub(crate) logical: LogicalText,
-    /// Whether each element's sets and enclosing ids are written as it is numbered.
-    pub(crate) structured: bool,
+    /// Start of the current segment in the flat children column.
+    pub(crate) children_start: usize,
 }
 
 /// A token written before the nodes of its segment are all numbered.
@@ -329,8 +346,6 @@ pub(crate) struct PendingToken {
     pub(crate) span: ByteSpan,
     /// Where its decoded text is in the table's `texts`, when it has one.
     pub(crate) decoded: Option<Span>,
-    /// Its place in the table's `children`, once its parent has closed.
-    pub(crate) slot: Position,
 }
 
 /// Which segment the builder is writing.

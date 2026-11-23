@@ -1994,7 +1994,6 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                     let ctx = funnel::Ctx {
                         table: t,
                         src: &bytes,
-                        sets: node_table::element_sets(t),
                         facts: &store,
                         enc: node_table::enclosing_ids(t),
                         matches: &interner.matches,
@@ -2202,7 +2201,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                         seeds.choose(&frules, &index, &alive, &present, &mut in_seed);
                         phases.add("seed candidates", thread_cpu() - now);
                         let now = thread_cpu();
-                        let ctx = funnel::Ctx { table: ft, src: &bytes, sets: node_table::element_sets(ft),
+                        let ctx = funnel::Ctx { table: ft, src: &bytes,
                             enc: node_table::enclosing_ids(ft), facts: &store, matches: &interner.matches };
                         seeds.probe(&frules, &index, &ctx, &mut in_seed);
                         phases.add("seed checks", thread_cpu() - now);
@@ -2509,7 +2508,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                     // one parse a file: the prefix and then the second half on this walked file, before the walk drops it
                     if let Some(seeds) = &mut file_seeds {
                         let now = thread_cpu();
-                        let ctx = funnel::Ctx { table: ft, src: &bytes, sets: node_table::element_sets(ft),
+                        let ctx = funnel::Ctx { table: ft, src: &bytes,
                             enc: node_table::enclosing_ids(ft), facts: &store, matches: &interner.matches };
                         seeds.resolve(&frules, &index, &ctx, &mut in_seed);
                         phases.add("seed checks", thread_cpu() - now);
