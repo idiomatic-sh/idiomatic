@@ -228,8 +228,8 @@ impl<'p> Finisher<'p> {
             for rel in ["semantic-syntax", "syntax-tree", "semantic-child", "syntax-child", "source-location", "token-link"] {
                 let mine = finish::native_table(&mut f, run, rel);
                 let mut answer = Vec::new();
-                let asked = [finish::request::Asked { rel, columns: u64::MAX }];
-                match pv.answer(run, &finish::request::Request { scope: finish::Scope::File(file_no as u32), relations: &asked }, &mut answer).and_then(|()| answer.pop().unwrap_or_else(|| Err("no answer".to_owned()))) {
+                let asked = [finish::request::Asked { rel, columns: u64::MAX, scope: finish::Scope::File(file_no as u32) }];
+                match pv.answer(run, &finish::request::Request { relations: &asked }, &mut answer).and_then(|()| answer.pop().unwrap_or_else(|| Err("no answer".to_owned()))) {
                     Ok(theirs) => self.check_lines.push(format!("{}\t{rel}\t{}", run.paths[file_no], finish::diff(run, &mine, &theirs))),
                     Err(e) => self.check_lines.push(format!("{}\t{rel}\tprovider: {e}", run.paths[file_no])),
                 }

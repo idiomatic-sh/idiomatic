@@ -1327,20 +1327,6 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
     /// redo-fills pass 3: the file's one request answered in one call: each asked relation written once, in the request's
     /// order; the model parts are built at the first family that reads each (and never again in the file).
     fn answer(&mut self, run: &mut finish::Run, request: &finish::request::Request<'_>, out: &mut Vec<Result<finish::Table, String>>) -> Result<(), String> {
-        // redo-general through redo-fills pass 3 (redo-int merge): a project's relations (`Scope::Files`) from the
-        // provider's project (its packaging knowledge), relation by relation
-        let file = match request.scope {
-            finish::Scope::File(file) => file,
-            finish::Scope::Files(files) => {
-                for asked in request.relations {
-                    out.push(self.project.fill(run, asked.rel, files, self.file_no, self.file.table, self.src));
-                }
-                return Ok(());
-            }
-        };
-        if file != self.file_no {
-            return Err(format!("asked for file {file}, this provider holds file {}", self.file_no));
-        }
         // the model's parts the asked families read, built once before the first of them (timed apart as `model:`)
         let flow = request.relations.iter().any(|a| FLOW_READERS.contains(&a.rel));
         let resolution = request.relations.iter().any(|a| RESOLUTION_READERS.contains(&a.rel));
@@ -1364,7 +1350,11 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
         for composed in [false, true] {
             for (i, asked) in request.relations.iter().enumerate() {
                 if COMPOSED.contains(&asked.rel) == composed {
-                    out[base + i] = self.one(run, asked.rel, asked.columns, composed_inputs);
+                    out[base + i] = match asked.scope {
+                        finish::Scope::Files(files) => self.project.fill(run, asked.rel, files, self.file_no, self.file.table, self.src),
+                        finish::Scope::File(f) if f == self.file_no => self.one(run, asked.rel, asked.columns, composed_inputs),
+                        finish::Scope::File(f) => Err(format!("asked for file {f}, this provider holds file {}", self.file_no)),
+                    };
                 }
             }
         }
@@ -1482,22 +1472,12 @@ impl ColFacts<'_, '_, '_, '_> {
 impl finish::Provider for Facts<'_, '_, '_> {
     /// redo-fills pass 3: the reader's facts answer the file's one request relation by relation.
     fn answer(&mut self, run: &mut finish::Run, request: &finish::request::Request<'_>, out: &mut Vec<Result<finish::Table, String>>) -> Result<(), String> {
-        // redo-general through redo-fills pass 3 (redo-int merge): a project's relations (`Scope::Files`) from the
-        // provider's project (its packaging knowledge), relation by relation
-        let file = match request.scope {
-            finish::Scope::File(file) => file,
-            finish::Scope::Files(files) => {
-                for asked in request.relations {
-                    out.push(self.project.fill(run, asked.rel, files, self.file, self.facts.table, self.src));
-                }
-                return Ok(());
-            }
-        };
-        if file != self.file {
-            return Err(format!("asked for file {file}, this provider holds file {}", self.file));
-        }
         for asked in request.relations {
-            out.push(self.one(run, asked.rel, asked.columns));
+            out.push(match asked.scope {
+                finish::Scope::Files(files) => self.project.fill(run, asked.rel, files, self.file, self.facts.table, self.src),
+                finish::Scope::File(f) if f == self.file => self.one(run, asked.rel, asked.columns),
+                finish::Scope::File(f) => Err(format!("asked for file {f}, this provider holds file {}", self.file)),
+            });
         }
         Ok(())
     }

@@ -31,12 +31,6 @@ pub(super) struct Need {
 const NO: u8 = 1;
 const YES: u8 = 2;
 const BUSY: u8 = 3;
-const PRE_NO: u8 = 5;
-const PRE_YES: u8 = 6;
-
-pub(super) fn before_empty(f: &File<'_>, node: usize) -> bool {
-    f.known[node] == PRE_YES
-}
 /// redo-empty: known empty by the propagation's own leaves (directly or through an input): counted apart.
 pub(super) const YES_EP: u8 = 4;
 
@@ -60,8 +54,6 @@ const FILE_TEST: u8 = 8;
 const CAN: u8 = 16;
 /// redo-empty: the step has a leaf of the propagation (`emptyprop`).
 const EP_LEAF: u8 = 32;
-/// A decision here or below can change after the provider's answer.
-const AFTER_ANSWER: u8 = 64;
 
 #[derive(Default)]
 pub(super) struct Flat {
@@ -83,7 +75,7 @@ impl Exec<'_> {
     #[inline(always)]
     pub(super) fn known_empty(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> bool {
         match f.known[node] {
-            YES | YES_EP | PRE_YES => return true,
+            YES | YES_EP => return true,
             NO | BUSY => {}
             _ => {
                 if self.static_empty_(f, run, p, node) {
@@ -115,8 +107,7 @@ impl Exec<'_> {
     pub(super) fn static_empty(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> bool {
         match f.known[node] {
             NO | BUSY => false,
-            PRE_NO if f.before_answer => false,
-            YES | YES_EP | PRE_YES => true,
+            YES | YES_EP => true,
             _ => self.static_empty_(f, run, p, node),
         }
     }
@@ -136,21 +127,24 @@ impl Exec<'_> {
             f.known[node] = NO;
             return false;
         }
-        let static_checked = f.known[node] == PRE_NO;
+        if self.pruned(run, f, node) {
+            f.known[node] = YES;
+            return true;
+        }
         f.known[node] = BUSY;
         self.stats.static_visits += 1;
         let mut e = false;
         // a kind set none of whose kinds the file has
         let (mut at, end) = (r.kinds as usize, r.kinds as usize + usize::from(r.n_kinds));
-        while !static_checked && !e && at < end {
+        while !e && at < end {
             let n = usize::from(self.flat.kinds[at]);
             e = self.flat.kinds[at + 1..at + 1 + n].iter().all(|c| super::node_table::kinds_present(f.table).0.get(usize::from(*c) / 64).is_none_or(|word| word.0 & (1 << (c % 64)) == 0));
             at += 1 + n;
         }
-        if !static_checked && !e && r.n_seeds > 0 {
+        if !e && r.n_seeds > 0 {
             e = self.flat.seeds[r.seeds as usize..r.seeds as usize + usize::from(r.n_seeds)].iter().any(|k| f.seeds.get(usize::from(*k)).is_none_or(Vec::is_empty));
         }
-        if !static_checked && !e && r.flags & FILE_TEST != 0 {
+        if !e && r.flags & FILE_TEST != 0 {
             self.stats.static_file_tests += 1;
             e = self.file_fails_of(f, run, node);
         }
@@ -175,11 +169,11 @@ impl Exec<'_> {
         }
         // redo-empty: the leaves the propagation adds (a fill with no rows, a literal no row of the file holds), after the
         // inputs: a fill is not asked where an input decides already
-        if !e && !f.before_answer && r.flags & EP_LEAF != 0 {
+        if !e && r.flags & EP_LEAF != 0 {
             e = self.ep_leaf_empty(f, run, p, node);
             ep = e;
         }
-        f.known[node] = if f.before_answer { if e { PRE_YES } else if r.flags & AFTER_ANSWER != 0 { PRE_NO } else { NO } } else if e && ep { YES_EP } else if e { YES } else { NO };
+        f.known[node] = if e && ep { YES_EP } else if e { YES } else { NO };
         e
     }
 
@@ -220,9 +214,6 @@ impl Exec<'_> {
         };
         r.ins = self.flat.ins.len() as u32;
         r.n_ins = kept.len() as u16;
-        if kept.iter().any(|i| self.flat.recs[*i as usize].flags & AFTER_ANSWER != 0) {
-            r.flags |= AFTER_ANSWER;
-        }
         self.flat.ins.extend(kept);
         r.kinds = self.flat.kinds.len() as u32;
         for ks in need.kinds.iter() {
@@ -240,7 +231,7 @@ impl Exec<'_> {
             r.flags |= FILE_TEST;
         }
         if !sw!("VEC_NO_EMPTYPROP") && self.ep_has_leaf(run, node) {
-            r.flags |= EP_LEAF | AFTER_ANSWER;
+            r.flags |= EP_LEAF;
         }
         if r.n_ins > 0 || r.n_kinds > 0 || r.n_seeds > 0 || need.file_test || r.flags & EP_LEAF != 0 {
             r.flags |= CAN;
@@ -260,7 +251,7 @@ impl Exec<'_> {
         n
     }
 
-    fn file_fails_of(&mut self, f: &File<'_>, run: &mut Run, node: usize) -> bool {
+    pub(super) fn file_fails_of(&mut self, f: &File<'_>, run: &mut Run, node: usize) -> bool {
         if let Ok(Some(v)) = self.view(run, node) {
             return filter_order::file_fails(run, f, &v.filter);
         }

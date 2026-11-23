@@ -66,6 +66,8 @@ mod prefixes;
 mod ordered_dfs;
 #[path = "finish/request.rs"]
 pub(super) mod request;
+#[path = "finish/request_guards.rs"]
+mod request_guards;
 #[path = "finish/host.rs"]
 pub(super) mod host;
 #[path = "finish/project.rs"]
@@ -634,7 +636,6 @@ pub(super) struct File<'a> {
     fact_read: Vec<std::cell::Cell<bool>>,
     /// redo-fills pass 3: the file's one answer by request number (request.rs), each taken at its first ask into `fills`.
     answer: Vec<Option<Result<Table, String>>>,
-    before_answer: bool,
 }
 
 thread_local! {
@@ -746,7 +747,7 @@ pub(super) enum Scope<'s> {
 
 /// How a step asks the provider for a relation's rows: the visit's facts.
 pub(super) trait Provider {
-    /// redo-fills pass 3: the one answer to a scope's request: every asked relation's rows in `request.scope`, one table a
+    /// redo-fills pass 3: the one answer to a scope's request: every asked relation's rows in its requested scope, one table a
     /// relation pushed onto `out` in the request's order, each cell as the run names it (a file cell is the run's number of
     /// the file it names), or the language's refusal of that relation for the scope (a step that reads it faults). The
     /// provider builds what the set needs once and nothing no asked relation reads; `Err`: no answer at all.
@@ -794,7 +795,6 @@ impl File<'_> {
             known: Vec::new(),
             touched: Vec::new(),
             fact_read: Vec::new(),
-            before_answer: false,
             answer: Vec::new(),
         };
         SPARE.with(|sp| {
@@ -1728,10 +1728,10 @@ impl<'p> Exec<'p> {
 
     #[inline]
     fn make_(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Res> {
-        if known::before_empty(f, node) && self.view(run, node)?.is_some_and(|v| matches!(v.base, Native::Fact(_))) {
-            return Ok(Res::Tab(self.empty_rc(run, node)?));
-        }
         if let Some(v) = self.view(run, node)? {
+            if matches!(v.base, Native::Fact(_)) && self.pruned(run, f, node) {
+                return Ok(Res::Tab(self.empty_rc(run, node)?));
+            }
             let was = fill_prof::site("view");
             self.load_fact(f, run, p, v.base)?;
             fill_prof::site(was);
@@ -2425,8 +2425,7 @@ impl<'p> Exec<'p> {
                 }
                 return Ok(out);
             }
-            Supplier::Project(ask) => return project::rows(f, run, p, rel, ask),
-            Supplier::Provider | Supplier::Host => {}
+            Supplier::Provider | Supplier::Host | Supplier::Project(_) => {}
         }
         if let Some(t) = f.fills.get(rel) {
             return Ok(t.copy());

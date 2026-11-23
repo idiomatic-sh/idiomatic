@@ -5,9 +5,9 @@
 //! The host's relations of the same set are the host's answer at the same point. The form is the language's and the
 //! scope's: nothing here names a relation, a language or a file beyond the request's scope.
 
-use super::{Exec, File, Provider, R, Run, Scope, Supplier, Table, host, native_of, Native, E};
+use super::request_guards::{ALWAYS, Guards};
+use super::{E, Exec, File, Native, Provider, R, Run, Scope, Supplier, Table, host, native_of};
 use rustc_hash::FxHashMap;
-use std::rc::Rc;
 
 /// One relation of a request: its name and the columns its readers can read (bit `c`: the catalog's column `c`; every bit:
 /// every column).
@@ -15,13 +15,13 @@ use std::rc::Rc;
 pub(crate) struct Asked<'r> {
     pub(crate) rel: &'r str,
     pub(crate) columns: u64,
+    pub(crate) scope: Scope<'r>,
 }
 
 /// What the executor asks a provider once for a scope: every relation the scope's alive rules can read. The answer is one
 /// table a relation, in the request's order.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Request<'r> {
-    pub(crate) scope: Scope<'r>,
     pub(crate) relations: &'r [Asked<'r>],
 }
 
@@ -34,9 +34,12 @@ pub(crate) struct Requests {
     by_name: FxHashMap<String, u16>,
     /// Who supplies each (the host or the provider), by number.
     host: Vec<bool>,
-    nodes: Vec<Option<Rc<Demand>>>,
+    pub(super) guards: Guards,
+    nodes: Vec<Option<u32>>,
+    graph: Vec<Entry>,
+    shared: FxHashMap<Entry, u32>,
     visit: Vec<bool>,
-    work: Vec<usize>,
+    work: Vec<u32>,
     masks: Vec<Option<u64>>,
     asked: Vec<u16>,
     answer: Vec<Result<Table, String>>,
@@ -56,6 +59,11 @@ pub(crate) struct Counts {
     /// Relations answered that no step of the file asked (rows and size never consulted).
     pub(super) never_asked: u64,
     pub(super) never_asked_rows: u64,
+    misses: u64,
+    reads: u64,
+    request_cpu: f64,
+    answer_cpu: f64,
+    read_cpu: f64,
 }
 
 impl Requests {
@@ -74,18 +82,70 @@ impl Requests {
     pub(super) fn line(&self) -> String {
         let c = &self.counts;
         format!(
-            "REQUEST files {} provider-calls {} provider-relations {} host-relations {} rows {} refused {} never-asked {} ({} rows); relations nameable {}",
-            c.files, c.provider_calls, c.provider_relations, c.host_relations, c.rows, c.refused, c.never_asked, c.never_asked_rows, self.names.len()
+            "REQUEST files {} provider-calls {} provider-relations {} host-relations {} rows {} refused {} never-asked {} ({} rows); relations nameable {}; missing {} first reads {}; request {:.6} answer {:.6} read {:.6} s",
+            c.files,
+            c.provider_calls,
+            c.provider_relations,
+            c.host_relations,
+            c.rows,
+            c.refused,
+            c.never_asked,
+            c.never_asked_rows,
+            self.names.len(),
+            c.misses,
+            c.reads,
+            c.request_cpu,
+            c.answer_cpu,
+            c.read_cpu
         )
     }
 }
 
 /// A materialized operator reads its inputs whole. A select reads its view sources
 /// in place, through their predicates and the columns of its expressions.
-#[derive(Default)]
-struct Demand {
-    inputs: Vec<usize>,
-    facts: Vec<(usize, u16, u64)>,
+#[derive(Clone, Hash, PartialEq, Eq)]
+enum Action {
+    Read(u16, u64),
+    Inputs(Vec<u32>),
+}
+
+#[derive(Clone, Hash, PartialEq, Eq)]
+struct Entry {
+    guard: u32,
+    action: Action,
+}
+
+// A native input contributes no provider request.
+const NONE: u32 = u32::MAX;
+
+impl Requests {
+    fn add(&mut self, guard: u32, action: Action) -> u32 {
+        let entry = Entry { guard, action };
+        *self.shared.entry(entry.clone()).or_insert_with(|| {
+            let id = self.graph.len() as u32;
+            self.graph.push(entry);
+            id
+        })
+    }
+
+    fn branch(&mut self, guard: u32, mut inputs: Vec<u32>) -> u32 {
+        inputs.retain(|i| *i != NONE);
+        inputs.sort_unstable();
+        inputs.dedup();
+        match inputs.as_slice() {
+            [] => NONE,
+            [one] => {
+                let child = &self.graph[*one as usize];
+                if guard == ALWAYS || guard == child.guard {
+                    return *one;
+                }
+                let action = child.action.clone();
+                let both = self.guards.combine(true, vec![guard, child.guard]);
+                self.add(both, action)
+            }
+            _ => self.add(guard, Action::Inputs(inputs)),
+        }
+    }
 }
 
 fn bit(c: usize) -> u64 {
@@ -107,91 +167,96 @@ fn columns(e: &E, source: usize) -> u64 {
 }
 
 impl Exec<'_> {
-    fn demand_input(&mut self, run: &mut Run, d: &mut Demand, n: usize, mask: u64) {
-        match self.view(run, n) {
-            Ok(Some(v)) => {
-                if let Native::Fact(i) = v.base {
-                    let rel = &run.fact_rels[usize::from(i)].0;
-                    let slot = self.requests.number(run, rel);
-                    let mut cols = v.filter.iter().fold(0, |m, e| m | columns(e, 0));
-                    for (c, base) in v.map.iter().enumerate() {
-                        if mask & bit(c) != 0 {
-                            cols |= bit(*base);
-                        }
-                    }
-                    d.facts.push((n, slot, cols));
-                }
+    fn demand_input(&mut self, run: &mut Run, n: usize, mask: u64) -> u32 {
+        let Ok(Some(v)) = self.view(run, n) else { return self.demand(run, n) };
+        let Native::Fact(i) = v.base else { return NONE };
+        let slot = self.requests.number(run, &run.fact_rels[usize::from(i)].0);
+        let mut cols = v.filter.iter().fold(0, |m, e| m | columns(e, 0));
+        for (c, base) in v.map.iter().enumerate() {
+            if wants(mask, c) {
+                cols |= bit(*base);
             }
-            _ => d.inputs.push(n),
         }
+        let guard = self.guard(run, n);
+        self.requests.add(guard, Action::Read(slot, cols))
     }
 
-    fn demand(&mut self, run: &mut Run, n: usize) -> Rc<Demand> {
-        if let Some(d) = &self.requests.nodes[n] {
-            return d.clone();
+    fn demand(&mut self, run: &mut Run, n: usize) -> u32 {
+        if let Some(d) = self.requests.nodes[n] {
+            return d;
         }
         let pn = &self.plan.nodes[n];
-        let mut d = Demand::default();
-        if self.view(run, n).ok().flatten().is_some() {
-            self.demand_input(run, &mut d, n, u64::MAX);
+        let guard = self.guard(run, n);
+        let d = if self.view(run, n).ok().flatten().is_some() {
+            self.demand_input(run, n, u64::MAX)
         } else if pn.op == "base" {
             if let Some(rel) = pn.j["rel"].as_str()
                 && native_of(rel).is_none()
-                && matches!(run.supplier(rel), Supplier::Provider | Supplier::Host)
+                && !matches!(run.supplier(rel), Supplier::RunFiles)
             {
-                d.facts.push((n, self.requests.number(run, rel), u64::MAX));
-            }
-        } else if pn.op == "select" && let Ok(sp) = self.sel(run, n) {
-            for (i, src) in sp.srcs.iter().enumerate() {
-                let probed = sp.conj.iter().any(|e| matches!(e, E::Seed(x, _) if matches!(**x, E::Col(s, _, _) if s == i)));
-                let mask = if probed { u64::MAX } else {
-                    sp.conj.iter().chain(sp.items.iter().map(|(_, e)| e)).fold(0, |m, e| m | columns(e, i))
-                };
-                self.demand_input(run, &mut d, *src, mask);
+                let slot = self.requests.number(run, rel);
+                self.requests.add(guard, Action::Read(slot, u64::MAX))
+            } else {
+                NONE
             }
         } else {
-            for &src in &pn.inputs {
-                self.demand_input(run, &mut d, src, u64::MAX);
-            }
-            // A counted select can emit a kept row with zero partners. Its
-            // group reads both sources directly even when the select is empty.
-            if self.frames[n].counted {
-                let sel = self.frames[n].first as usize;
-                for &src in &self.plan.nodes[sel].inputs {
-                    self.demand_input(run, &mut d, src, u64::MAX);
+            let mut inputs = Vec::new();
+            if pn.op == "select"
+                && let Ok(sp) = self.sel(run, n)
+            {
+                for (i, src) in sp.srcs.iter().enumerate() {
+                    let probed = sp.conj.iter().any(|e| matches!(e, E::Seed(x, _) if matches!(**x, E::Col(s, _, _) if s == i)));
+                    let mask = if probed {
+                        u64::MAX
+                    } else {
+                        sp.conj.iter().chain(sp.items.iter().map(|(_, e)| e)).fold(0, |m, e| m | columns(e, i))
+                    };
+                    inputs.push(self.demand_input(run, *src, mask));
+                }
+            } else {
+                for &src in &pn.inputs {
+                    inputs.push(self.demand_input(run, src, u64::MAX));
+                }
+                if self.frames[n].counted {
+                    // A counted select may emit a kept row with zero partners.
+                    let sel = self.frames[n].first as usize;
+                    for &src in &self.plan.nodes[sel].inputs {
+                        inputs.push(self.demand_input(run, src, u64::MAX));
+                    }
                 }
             }
-        }
-        let d = Rc::new(d);
-        self.requests.nodes[n] = Some(d.clone());
+            self.requests.branch(guard, inputs)
+        };
+        self.requests.nodes[n] = Some(d);
         d
     }
 
-    fn request_masks(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, roots: &[usize]) -> Vec<Option<u64>> {
-        self.requests.nodes.resize_with(self.plan.nodes.len(), || None);
-        let mut masks = std::mem::take(&mut self.requests.masks);
-        masks.fill(None);
+    fn request_masks(&mut self, f: &File<'_>, run: &mut Run, roots: &[usize]) -> Vec<Option<u64>> {
+        self.requests.nodes.resize(self.plan.nodes.len(), None);
+        self.requests.guards.begin(self.plan.nodes.len());
         let mut work = std::mem::take(&mut self.requests.work);
-        let mut seen = std::mem::take(&mut self.requests.visit);
-        seen.resize(self.plan.nodes.len(), false);
-        seen.fill(false);
-        work.extend_from_slice(roots);
-        f.before_answer = true;
-        while let Some(n) = work.pop() {
-            if std::mem::replace(&mut seen[n], true) || (!sw!("VEC_NO_KNOWN") && self.static_empty(f, run, p, n)) {
-                continue;
-            }
-            let d = self.demand(run, n);
-            work.extend_from_slice(&d.inputs);
-            for &(src, slot, cols) in &d.facts {
-                if src != n && !sw!("VEC_NO_KNOWN") && self.static_empty(f, run, p, src) {
-                    continue;
-                }
-                masks.resize(self.requests.names.len(), None);
-                *masks[usize::from(slot)].get_or_insert(0) |= cols;
+        for &root in roots {
+            let id = self.demand(run, root);
+            if id != NONE {
+                work.push(id);
             }
         }
-        f.before_answer = false;
+        let mut masks = std::mem::take(&mut self.requests.masks);
+        masks.resize(self.requests.names.len(), None);
+        masks.fill(None);
+        let mut seen = std::mem::take(&mut self.requests.visit);
+        seen.resize(self.requests.graph.len(), false);
+        seen.fill(false);
+        while let Some(id) = work.pop() {
+            let at = id as usize;
+            if std::mem::replace(&mut seen[at], true) || !self.permits(run, f, self.requests.graph[at].guard) {
+                continue;
+            }
+            match &self.requests.graph[at].action {
+                Action::Read(slot, cols) => *masks[usize::from(*slot)].get_or_insert(0) |= cols,
+                Action::Inputs(children) => work.extend_from_slice(children),
+            }
+        }
         self.requests.work = work;
         self.requests.visit = seen;
         masks
@@ -200,13 +265,16 @@ impl Exec<'_> {
     /// The file's one request: the union of what the steps under `roots` (the alive rules' emits) can read, asked of the
     /// provider in one call and of the host for its own; the answers kept in the file for `answered`.
     pub(crate) fn open_file(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, roots: &[usize]) -> R<()> {
-        let masks = self.request_masks(f, run, p, roots);
+        let timed = super::fill_prof::timed();
+        let start = if timed { super::super::thread_cpu() } else { 0.0 };
+        let masks = self.request_masks(f, run, roots);
         let rq = &mut self.requests;
         rq.counts.files += 1;
         let mut asked = std::mem::take(&mut rq.asked);
         asked.clear();
         f.answer.clear();
         f.answer.resize_with(rq.names.len(), || None);
+        let mut scopes = FxHashMap::default();
         for (n, mask) in masks.iter().enumerate() {
             if mask.is_some() {
                 let n = n as u16;
@@ -216,26 +284,65 @@ impl Exec<'_> {
                     rq.counts.host_relations += 1;
                     f.answer[usize::from(n)] = Some(Ok(t));
                 } else {
+                    let rel = &rq.names[usize::from(n)];
+                    if let Supplier::Project(ask) = run.supplier(rel) {
+                        if super::project::covers(run, rel, f.file) {
+                            f.answer[usize::from(n)] = Some(super::project::rows(f, run, rel));
+                            continue;
+                        }
+                        if matches!(ask, super::project::ProjectAsk::Run) {
+                            let pending: Vec<u32> = (0..run.paths.len() as u32).filter(|file| !super::project::covers(run, rel, *file)).collect();
+                            scopes.insert(n, pending);
+                        }
+                    }
                     asked.push(n);
                 }
             }
         }
         if !asked.is_empty() {
-            let list: Vec<Asked<'_>> = asked.iter().map(|n| Asked { rel: rq.names[usize::from(*n)].as_str(), columns: masks[usize::from(*n)].unwrap() }).collect();
+            let singleton = [f.file];
+            let list: Vec<Asked<'_>> = asked
+                .iter()
+                .map(|n| {
+                    let rel = rq.names[usize::from(*n)].as_str();
+                    let scope = match run.supplier(rel) {
+                        Supplier::Project(super::project::ProjectAsk::Run) => Scope::Files(&scopes[n]),
+                        Supplier::Project(super::project::ProjectAsk::EachFile) => Scope::Files(&singleton),
+                        _ => Scope::File(f.file),
+                    };
+                    Asked {
+                        rel,
+                        scope,
+                        columns: masks[usize::from(*n)].unwrap(),
+                    }
+                })
+                .collect();
             let mut answer = std::mem::take(&mut rq.answer);
             answer.clear();
-            p.answer(run, &Request { scope: Scope::File(f.file), relations: &list }, &mut answer)?;
+            let before = if timed { super::super::thread_cpu() } else { 0.0 };
+            p.answer(run, &Request { relations: &list }, &mut answer)?;
+            if timed {
+                rq.counts.answer_cpu += super::super::thread_cpu() - before;
+                rq.counts.request_cpu += before - start;
+            }
             if answer.len() != list.len() {
                 return Err(format!("the provider answered {} relations of {}", answer.len(), list.len()));
             }
             rq.counts.provider_calls += 1;
             rq.counts.provider_relations += list.len() as u64;
-            for (n, t) in asked.iter().zip(answer.drain(..)) {
+            for ((n, entry), t) in asked.iter().zip(&list).zip(answer.drain(..)) {
                 match &t {
                     Ok(t) => rq.counts.rows += t.n as u64,
                     Err(_) => rq.counts.refused += 1,
                 }
-                f.answer[usize::from(*n)] = Some(t);
+                let result = match entry.scope {
+                    Scope::File(_) => t,
+                    Scope::Files(files) => t.and_then(|t| {
+                        super::project::remember(run, entry.rel, files, t)?;
+                        super::project::rows(f, run, entry.rel)
+                    }),
+                };
+                f.answer[usize::from(*n)] = Some(result);
             }
             rq.answer = answer;
         }
@@ -247,14 +354,34 @@ impl Exec<'_> {
     /// A relation's table from the file's answer (moved out: the caller keeps it as the file's fill), or an error naming a
     /// relation the request did not hold.
     pub(super) fn answered(&mut self, f: &mut File<'_>, rel: &str) -> R<Table> {
-        let n = self.requests.by_name.get(rel).copied().ok_or_else(|| format!("{rel}: in no request of this run"))?;
-        f.answer.get_mut(usize::from(n)).and_then(Option::take).ok_or_else(|| format!("{rel}: not in this file's request"))?
+        let timed = super::fill_prof::timed();
+        let t0 = if timed { super::super::thread_cpu() } else { 0.0 };
+        let n = self.requests.by_name.get(rel).copied();
+        let slot = n.and_then(|n| f.answer.get_mut(usize::from(n)));
+        let result = match slot {
+            Some(slot @ Some(Ok(_))) => slot.take().unwrap(),
+            Some(Some(Err(err))) => Err(err.clone()),
+            _ => {
+                self.requests.counts.misses += 1;
+                if super::fill_prof::counting() && self.requests.counts.misses <= 4 {
+                    eprintln!("REQUEST-MISS file {} relation {rel}", f.file);
+                }
+                Err(format!("{rel}: not in this file's request"))
+            }
+        };
+        self.requests.counts.reads += 1;
+        if timed {
+            self.requests.counts.read_cpu += super::super::thread_cpu() - t0;
+        }
+        result
     }
 
     /// The file's end: the answered relations no step asked, counted.
     pub(crate) fn close_file(&mut self, f: &mut File<'_>) {
         for (i, answer) in f.answer.drain(..).enumerate() {
-            if self.requests.host[i] { continue; }
+            if self.requests.host[i] {
+                continue;
+            }
             let Some(Ok(t)) = answer else { continue };
             self.requests.counts.never_asked += 1;
             self.requests.counts.never_asked_rows += t.n as u64;

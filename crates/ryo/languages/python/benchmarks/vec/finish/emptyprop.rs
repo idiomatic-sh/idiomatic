@@ -404,6 +404,13 @@ impl Exec<'_> {
         !self.ep_leaves(run, node).is_empty()
     }
 
+    /// The native field predicates that can be decided before a provider answer.
+    pub(super) fn ep_field_codes(&mut self, run: &mut Run, node: usize) -> Vec<Vec<u16>> {
+        self.ep_leaves(run, node).iter().filter(|l| !l.fields.is_empty()).map(|l| {
+            run.field_sym.iter().enumerate().filter(|(_, s)| l.fields.contains(s)).map(|(i, _)| i as u16).collect()
+        }).collect()
+    }
+
     /// Whether one of the step's leaves holds in this file: a provider relation it reads has no rows, or a literal test
     /// on it no row of the file satisfies, or a child field it requires is absent. A fill a leaf reads is asked here
     /// (once a file, the fill the step would read).
