@@ -1,4 +1,5 @@
 //! Evaluate each requested witness once per file. Unknown or partial provider answers admit the file.
+#[path="rebalance_meter.rs"] pub(crate) mod meter;
 use super::pair_summary::cost::{self, Sample};
 use super::pair_summary::{Domain, Id, Need, Program, Source};
 use rustc_hash::FxHashMap as Map;
@@ -28,6 +29,8 @@ type Reader<'a> = dyn FnMut(Source, &mut FileWords, &mut FilledColumns) -> bool 
 
 #[derive(Default)]
 struct Table {
+    event:usize,
+    slot:usize,
     read: bool,
     answered: bool,
     complete: bool,
@@ -89,10 +92,14 @@ impl Table {
         read: &mut Reader<'_>,
     ) {
         if self.read {
+            meter::link(self.event);
             return;
         }
         self.read = true;
+        meter::enter(self.event);
+        let start=super::thread_cpu();
         let answered = read(spec.source, words, &mut self.cells);
+        meter::fill(self.slot,super::thread_cpu()-start);meter::leave();
         let columns = &self.cells.0;
         self.answered = answered
             && columns.first().is_none_or(|first| {
@@ -124,7 +131,8 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
             table.complete
         })
     }
-    fn pass(&mut self, id: Id) -> bool {
+    fn pass(&mut self,id: Id)->bool {meter::enter(id);let r=self.actual_pass(id);meter::leave();r}
+    fn actual_pass(&mut self, id: Id) -> bool {
         let class = if PROFILE {
             cost::file_family(self.p, id) as usize
         } else {
@@ -177,11 +185,11 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                 // All stored bitsets end at their last nonzero word. A file
                 // prerequisite can stop at its first witness without allocating
                 // the intersection or union of every matching node.
-                _ if self.sets[x].is_some() => self.sets[x]
+                _ if self.sets[x].is_some() => {meter::link(self.p.needs.len()+x);self.sets[x]
                     .as_ref()
                     .unwrap()
                     .as_ref()
-                    .is_none_or(|b| !b.is_empty()),
+                    .is_none_or(|b| !b.is_empty())},
                 _ if self.plain_tree && self.p.paths[x].is_some_and(|e| e.existence_only) => {
                     let edge = self.p.paths[x].unwrap();
                     self.edge(edge, None)
@@ -243,7 +251,8 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
         self.needs[id] = Some(yes);
         yes
     }
-    fn nodes(&mut self, id: Id) -> Nodes {
+    fn nodes(&mut self,id: Id)->Nodes {meter::enter(self.p.needs.len()+id);let r=self.actual_nodes(id);meter::leave();r}
+    fn actual_nodes(&mut self, id: Id) -> Nodes {
         let class = if PROFILE {
             cost::family(&self.p.domains[id], &self.p.facts) as usize
         } else {
@@ -815,6 +824,7 @@ impl Program {
         alive: &mut [bool],
         mut exact: Option<&mut Vec<(usize, Bits)>>,
     ) -> u64 {
+        meter::start(self);let initial=alive.to_vec();
         languages::facts::clear_words(words);
         let reader_class = std::cell::Cell::new(cost::Family::Logic as usize);
         let mut observe = |source, words: &mut FileWords, cells: &mut FilledColumns| {
@@ -861,12 +871,13 @@ impl Program {
             path,
             read: &mut observe,
             words,
-            facts: (0..self.facts.len()).map(|_| Table::default()).collect(),
+            facts: (0..self.facts.len()).map(|i| Table{slot:i,event:self.needs.len()+self.domains.len()+i,..Default::default()}).collect(),
             sets: vec![None; self.domains.len()],
             needs: vec![None; self.needs.len()],
             texts: None,
             steps: 0,
         };
+        let root_start=super::thread_cpu();
         for (rule, (a, (_, root))) in alive.iter_mut().zip(&self.roots).enumerate() {
             if PROFILE {
                 f.owner = rule;
@@ -881,12 +892,14 @@ impl Program {
                 if PROFILE {
                     f.owner = rule;
                 }
-                if alive[rule] && !f.pass(cert.guard) && f.complete(&cert.facts) {
+                if !alive[rule]{continue} meter::enter(self.needs.len()+self.domains.len()+self.facts.len()+rule);
+                if !f.pass(cert.guard) && f.complete(&cert.facts) {
                     let nodes = f
                         .nodes(cert.nodes)
                         .expect("certified domains contain only total node tests");
                     out.push((rule, nodes));
                 }
+                meter::leave();
             }
         }
         if PROFILE {
@@ -901,6 +914,8 @@ impl Program {
                 *n += u64::from(t.read);
             }
         }
+        meter::coarse(super::thread_cpu()-root_start);
+        meter::finish(self,&initial,alive,&f.needs,std::env::var_os("P8_BYPASS").is_some());
         f.steps
     }
 }

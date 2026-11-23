@@ -36,6 +36,7 @@ pub(in super::super) fn report(run: &Run) -> Vec<String> {
 
 /// The rows of project relation `rel` that name file `f`, asked of the provider when `f` is not answered yet.
 pub(super) fn rows(f: &File<'_>, run: &mut Run, p: &mut dyn Provider, rel: &str, ask: ProjectAsk) -> R<Table> {
+    super::super::pair_checks::meter::second_read(rel);
     for_file(f.file, run, rel, ask, |run, files| p.fill(run, rel, Scope::Files(files)))
 }
 

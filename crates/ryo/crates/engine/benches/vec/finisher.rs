@@ -194,14 +194,21 @@ impl<'p> Finisher<'p> {
             }
         }
         let rejected = languages::node_table::acceptance_of(ft) == languages::SyntaxAcceptance::Rejected;
+        let mut reordered;
+        let wanted=if super::pair_checks::meter::bypass(){
+            reordered=wanted.to_vec();reordered.sort_by_key(|i|super::pair_checks::meter::rejected(&plan.emits[*i].0));
+            reordered.as_slice()
+        }else{wanted};
         for ei in wanted {
             if self.failed_idx[*ei] || (rejected && self.accepted_only[*ei]) {
                 continue;
             }
+            let watch=thread_cpu();
             let e = &plan.emits[*ei];
             run.missing.clear();
             let before = (self.exec.stats.total_runs, self.exec.stats.total_rows);
             let got = self.exec.eval(&mut f, run, pv, e.1);
+            let empty=got.as_ref().ok().map(|table|table.n==0);
             let stats = &mut self.rule_stats[*ei];
             stats[0] += 1;
             stats[1] += self.exec.stats.total_runs - before.0;
@@ -243,6 +250,8 @@ impl<'p> Finisher<'p> {
             if let Err(err) = written {
                 self.failed.insert(e.0.clone(), format!("{}: {err}", run.paths[file_no]));
                 self.failed_idx[*ei] = true;
+            } else if let Some(empty)=empty {
+                super::pair_checks::meter::ask(&e.0,empty,thread_cpu()-watch,self.exec.stats.total_runs-before.0,self.exec.stats.total_rows-before.1);
             }
         }
         finish::emptyprop::file_end(&mut self.exec, &mut f, run, pv);
@@ -252,6 +261,7 @@ impl<'p> Finisher<'p> {
     /// Writes the findings, dumps and stats, and prints the second half's lines; `walk_time` is the walk's own time when
     /// the second half walked the files itself (0 inside the first half's walk).
     pub(super) fn end(mut self, walk_time: f64, project_findings: impl FnOnce(&mut Vec<String>)) -> bool {
+        super::pair_checks::meter::report();
         let ok = self.failed.is_empty();
         self.exec.leaf_report(&mut self.run);
         self.exec.cold_report(&self.run);

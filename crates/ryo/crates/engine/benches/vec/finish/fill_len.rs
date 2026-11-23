@@ -14,6 +14,7 @@ pub(super) fn empty_fill(run: &mut Run, rel: &str) -> R<Table> {
 /// The fill of `rel` in file `file` by its supplier (the host's or the provider's), or its empty table where the supplier
 /// says the file has no row of it.
 pub(super) fn fill_or_empty(run: &mut Run, p: &mut dyn Provider, rel: &str, file: u32) -> R<Table> {
+    super::super::pair_checks::meter::second_read(rel);
     if let Supplier::Host = run.supplier(rel) {
         if !sw!("VEC_NO_FILL_LEN") && super::host::host_len(rel) == Some(0) {
             return empty_fill(run, rel);
@@ -35,6 +36,7 @@ impl Exec<'_> {
     /// rows, else the fill made (and kept, as `load_fact`/`base` keep it).
     #[expect(dead_code, reason = "the emptiness leaves' entry (claude/redo-empty), joined by the merge builder")]
     pub(super) fn fill_len(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, rel: &str) -> R<usize> {
+        super::super::pair_checks::meter::second_read(rel);
         if let Some(t) = f.fills.get(rel) {
             return Ok(t.n);
         }
