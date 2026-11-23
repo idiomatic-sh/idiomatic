@@ -13,6 +13,32 @@ use ryo::languages::{
 use std::collections::HashMap;
 use std::hint::black_box;
 
+/// Allocation counts (feature `vec-dhat`, dhat's counting allocator; untimed runs only), read by `vec first`.
+#[cfg(feature = "vec-dhat")]
+#[global_allocator]
+static ALLOC: dhat::Alloc = dhat::Alloc;
+
+/// (allocation calls, bytes allocated, live bytes, live peak) so far; zeros without `vec-dhat` (dhat needs its profiler
+/// running: `alloc_profiler`, under `VEC_DHAT`).
+fn alloc_counts() -> [usize; 4] {
+    #[cfg(feature = "vec-dhat")]
+    if std::env::var_os("VEC_DHAT").is_some() {
+        let s = dhat::HeapStats::get();
+        return [s.total_blocks as usize, s.total_bytes as usize, s.curr_bytes, s.max_bytes];
+    }
+    [0; 4]
+}
+
+#[cfg(feature = "vec-dhat")]
+fn alloc_profiler() -> Option<dhat::Profiler> {
+    // counted only under `VEC_DHAT` (the allocator passes through otherwise)
+    std::env::var_os("VEC_DHAT").map(|_| dhat::Profiler::builder().testing().trim_backtraces(Some(1)).build())
+}
+#[cfg(not(feature = "vec-dhat"))]
+fn alloc_profiler() -> Option<()> {
+    None
+}
+
 struct NoVisit;
 impl FileVisit for NoVisit {
     fn visit(&mut self, _file: FileFacts<'_>) {}
