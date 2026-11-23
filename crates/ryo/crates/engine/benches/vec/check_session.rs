@@ -18,7 +18,7 @@ pub(crate) type Tables = Vec<(String, Rc<Table>)>;
 
 pub(crate) struct Program {
     pub plan: Plan,
-    layout: std::sync::OnceLock<Arc<finish::Layout>>,
+    layout: Arc<finish::Layout>,
     pub bases: Vec<String>,
     requirements: (bool, Vec<Vec<String>>, Vec<Vec<String>>),
 }
@@ -41,9 +41,10 @@ impl Program {
             .iter()
             .filter_map(|n| n.base().map(str::to_owned))
             .collect();
+        let layout = finish::Layout::prepare(&plan);
         Ok(Self {
             plan,
-            layout: Default::default(),
+            layout,
             requirements,
             bases,
         })
@@ -208,8 +209,7 @@ fn bind<'p>(
         .iter()
         .map(|clause| clause.iter().map(|w| run.sym(w.as_bytes())).collect())
         .collect();
-    let layout = program.layout.get_or_init(|| finish::Layout::prepare(&program.plan));
-    let exec = Exec::with_layout(&program.plan, layout.clone());
+    let exec = Exec::with_layout(&program.plan, program.layout.clone());
     Ok(Bound {
         exec,
         facts,
