@@ -467,6 +467,7 @@ impl Exec<'_> {
             let Ok(Some(v)) = self.view(run, *s) else { continue };
             if let super::Native::Fact(x) = v.base
                 && f.facts.get(usize::from(x)).is_none_or(Option::is_none)
+                && !(super::lazy_view::owed(f, usize::from(x)) && self.load_fact(f, run, p, v.base).is_ok())
             {
                 continue;
             }
@@ -547,9 +548,17 @@ impl Exec<'_> {
             prof_add(7, t0.elapsed());
         }
         super::empty_sel::lap(0, self.inner);
+        // redo-fills pass 2: views the front reads no size of, filled only past the front's early ends (lazy_view.rs);
         // `srcs` is redo-alloc's kept list (the wrapper's)
+        let mut late: [Option<Native>; 4] = [None; 4];
         for (i, n) in sp.srcs.iter().enumerate() {
-            let src = self.src_of(f, run, p, *n)?;
+            let src = match if i < 4 { self.lazy_view(f, run, *n, conj, i, kp.kinds[i].0.is_some() || kp.kinds[i].1.is_some())? } else { None } {
+                Some(v) => {
+                    late[i] = Some(v.base);
+                    Src::View(v, *n)
+                }
+                None => self.src_of(f, run, p, *n)?,
+            };
             if let Src::Tab(t, _) = &src
                 && t.n == 0
             {
@@ -605,6 +614,9 @@ impl Exec<'_> {
             }
         }
         super::empty_sel::lap(3, self.inner);
+        for b in late.into_iter().flatten() {
+            self.load_fact(f, run, p, b)?;
+        }
         let driver = match driver {
             Some(d) => d,
             None => match (0..k).find(|i| match &srcs[*i] {
