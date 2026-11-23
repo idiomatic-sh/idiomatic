@@ -5,7 +5,7 @@
 //! parent the host node.
 
 use crate::domain::diagnostics::types::Diagnostics;
-use crate::domain::elements::types::{DecodedProperty, OpenNode, SyntaxAcceptance};
+use crate::domain::elements::types::{DecodedProperty, SyntaxAcceptance};
 use ryo_relations::domain::elements::types::EmbeddedMapping;
 use ryo_relations::domain::relations::types::{Bytes, Count, KindBits, Offset, Position, Span};
 use ryo_relations::domain::terms::types::{ChildOrdinal, NameText};
@@ -51,11 +51,20 @@ pub(crate) struct NodeTableEngine {
     pub(crate) child_range: Vec<ChildRange>,
     /// The children of every node, nodes and tokens merged in source order, one block a node in the order the nodes close.
     pub(crate) children: Vec<Position>,
+    pub(crate) defer_children: bool,
+    pub(super) navigation:super::navigation::TokenRanges,
+    pub(crate) child_slots: usize,
+    pub(crate) lazy_children: std::sync::OnceLock<Vec<Position>>,
+    pub(crate) spare_children: std::sync::Mutex<Vec<Position>>,
     /// Ids of each kind, in id order, one list a kind code: each id is added as it is numbered. Lists are cleared between
     /// files, never dropped.
     pub(crate) by_kind: Vec<Vec<Position>>,
-    /// Ids of each field, in id order, one list a field code (zero: no field), added as each id is numbered.
+    /// IDs of each nonzero field in numbering order.
     pub(crate) by_field: Vec<Vec<Position>>,
+    /// The elements filling no field, collected only when a reader asks for their IDs.
+    pub(crate) without_field: std::sync::OnceLock<Vec<Position>>,
+    /// Count of elements filling no field.
+    pub(crate) without_field_count: usize,
     /// The kinds present, read off the kind lists when the table is finished.
     pub(crate) present: KindsPresent,
     /// How many syntax nodes the file's own tree has: its tokens start here.
@@ -75,7 +84,15 @@ pub(crate) struct NodeTableEngine {
     /// The nodes the parser implied, in id order.
     pub(crate) implied: Vec<Position>,
     /// Per element, its neighbours' sets (written as each id is numbered, only when the builder was made `structured`).
-    pub(crate) sets: Vec<ElementSets>,
+    pub(crate) sets: std::sync::OnceLock<Vec<ElementSets>>,
+    /// Child masks need storage only through the last parent that received a child.
+    pub(crate) child_sets: Vec<ChildSets>,
+    /// Whether this table records structural masks.
+    pub(crate) structured: bool,
+    /// Token storage returned by the previous builder.
+    pub(crate) pending: Vec<PendingToken>,
+    /// Open-node stack returned by the previous builder.
+    pub(crate) open: Vec<OpenChildren>,
     /// The kind sets a `structured` builder was given, one enclosing column each.
     pub(crate) enclosing_sets: Vec<KindSet>,
     /// Per kind set, per element: the nearest strict ancestor whose kind is in the set, `u32::MAX` for none.
@@ -93,6 +110,16 @@ pub(crate) struct NodeTableEngine {
 /// ```
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct KindSet(pub [u64; 4]);
+
+/// Kinds and fields present among one element's children, including embedded roots
+/// attached to the host. A leaf has the empty sets.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct ChildSets {
+    /// Child kinds below 256.
+    pub child_kinds: [u64; 4],
+    /// Child fields below 128.
+    pub child_fields: [u64; 2],
+}
 
 /// What an engine's checks read of an element's neighbours, in one cache line: the kinds of its children (codes below 256),
 /// the fields its children fill (codes below 128), its parent's kind (its own for a root) and whether it is a root (its own
@@ -290,12 +317,7 @@ pub(crate) struct BuilderState<'a> {
     /// How many kinds the language has: the kinds present have a bit for each.
     pub(crate) kinds: Count,
     /// The open nodes, innermost last, each with the ordinal its next child takes.
-    pub(crate) open: Vec<OpenNode>,
-    /// The children of the open nodes written so far, each open node's after the place `opened` holds for it: a node by
-    /// its id, a token by `PENDING` with its place among `pending`.
-    pub(crate) written: Vec<Position>,
-    /// For each open node, innermost last, where its children start in `written`.
-    pub(crate) opened: Vec<Position>,
+    pub(crate) open: Vec<OpenChildren>,
     /// The tokens of the segment being written, kept until its nodes are numbered.
     pub(crate) pending: Vec<PendingToken>,
     /// The id the segment's first token takes once its nodes are numbered: the file's tree starts at zero.
@@ -310,8 +332,17 @@ pub(crate) struct BuilderState<'a> {
     pub(crate) implied: Vec<Position>,
     /// The logical text of the embedded segment being written.
     pub(crate) logical: LogicalText,
-    /// Whether each element's sets and enclosing ids are written as it is numbered.
-    pub(crate) structured: bool,
+    /// Number of child slots reserved by parents closed so far.
+    pub(crate) child_count: usize,
+}
+
+/// An open node and the number of its immediate children.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct OpenChildren {
+    /// The open node.
+    pub(crate) position: Position,
+    /// The ordinal of its next child.
+    pub(crate) next: ChildOrdinal,
 }
 
 /// A token written before the nodes of its segment are all numbered.
@@ -329,8 +360,6 @@ pub(crate) struct PendingToken {
     pub(crate) span: ByteSpan,
     /// Where its decoded text is in the table's `texts`, when it has one.
     pub(crate) decoded: Option<Span>,
-    /// Its place in the table's `children`, once its parent has closed.
-    pub(crate) slot: Position,
 }
 
 /// Which segment the builder is writing.

@@ -8,6 +8,10 @@ use super::types::{FieldIndex, OpenWalked, ParserRefusal, Said, Strings, Walker}
 use super::writer::visit_element;
 use crate::domain::extras::types::Extra;
 use crate::domain::labels::types::Field;
+use crate::domain::model::lexical::service::opened;
+use crate::domain::model::names::constants::FIXED_TEXT;
+use crate::domain::model::names::service::{intern, text_of};
+use crate::domain::model::names::types::NameCode;
 use crate::domain::node::service::{field_code, token_field};
 use crate::domain::node::types::{AnnotationSeed, Placed, StringSite};
 use crate::domain::node_fields::service::child_fields;
@@ -16,10 +20,6 @@ use crate::domain::syntax::constants::{
     MODULE_FUTURE_ANNOTATIONS_ENABLED,
 };
 use crate::domain::syntax::service::kind_bits;
-use crate::domain::model::lexical::service::opened;
-use crate::domain::model::names::constants::FIXED_TEXT;
-use crate::domain::model::names::service::{intern, text_of};
-use crate::domain::model::names::types::NameCode;
 use crate::domain::syntax::types::Kind;
 use crate::domain::tokens::types::Token;
 use ruff_python_ast::visitor::source_order::{
@@ -72,14 +72,28 @@ impl Walker<'_, '_, '_> {
         let start = placed(self.origin, token.start()).max(self.written);
         let end = placed(self.origin, token.end()).max(start);
         let kind = token_kind(token.kind());
+        if matches!(kind, Kind::Token(Token::Comment))
+            && let Some(last) = self.last_import_end.take()
+        {
+            // A comment belongs to an import's physical lines through the first newline after its end.
+            self.import_presence.line_comment = start <= last
+                || self
+                    .text
+                    .as_bytes()
+                    .get(last.0 as usize..start.0 as usize)
+                    .is_some_and(|gap| !gap.iter().any(|b| matches!(b, b'\n' | b'\r')));
+        }
         let field = match (self.open.last(), kind) {
             (Some(open), Kind::Token(named)) => token_field(open.node, token.kind(), named),
             (Some(_) | None, Kind::Node(_) | Kind::Token(_) | Kind::Extra(_)) => Field::None,
         };
-        if matches!(kind, Kind::Token(Token::Name)) && !self.text.is_empty() {
+        if !self.names.deferred && matches!(kind, Kind::Token(Token::Name)) && !self.text.is_empty()
+        {
             if token.kind().is_non_soft_keyword() {
                 // A keyword is a fixed text of the language: its code is its kind's, the same in every file.
-                self.names.of_token.push(NameCode(FIXED_TEXT | token.kind() as u32));
+                self.names
+                    .of_token
+                    .push(NameCode(FIXED_TEXT | token.kind() as u32));
             } else {
                 self.name_token(start, end);
             }
@@ -107,7 +121,7 @@ impl Walker<'_, '_, '_> {
     /// Writes every token that ends at or before `at`: what comes before a node that starts there. A token of no length where the
     /// innermost open node ends is outside that node, so it waits until the node is closed.
     fn write_before(&mut self, at: Offset) {
-        let edge = self.ends.last().copied();
+        let edge = self.open.last().map(|open| open.end);
         let origin = self.origin;
         while self.tokens.get(self.next.0).is_some_and(|token| {
             placed(origin, token.end()) <= at
@@ -162,10 +176,14 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
 
     fn enter_node(&mut self, node: AnyNodeRef<'t>) -> TraversalSignal {
         let root = self.open.is_empty();
-        let start = if root {
-            Offset(0)
+        let (start, end) = if root {
+            (Offset(0), self.length)
         } else {
-            placed(self.origin, node.start())
+            let span = node.range();
+            (
+                placed(self.origin, span.start()),
+                placed(self.origin, span.end()),
+            )
         };
         self.write_before(start);
         self.fill(start);
@@ -219,15 +237,33 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
                     AnnotationSeed::Candidate
                 },
             });
-        } else if matches!(node, AnyNodeRef::StmtImportFrom(stmt) if stmt.level != 0) {
-            self.relative_froms.push(at);
+        } else if matches!(
+            node,
+            AnyNodeRef::StmtImport(_) | AnyNodeRef::StmtImportFrom(_)
+        ) {
+            self.import_presence.statements += 1;
+            if !self.import_presence.line_comment {
+                self.last_import_end = Some(placed(self.origin, node.end()));
+            }
+            if matches!(node, AnyNodeRef::StmtImportFrom(stmt) if stmt.level != 0) {
+                self.relative_froms.push(at);
+            }
         } else if matches!(node, AnyNodeRef::Alias(_)) {
             self.imports.push(at);
         } else {
             // No other node is kept apart for the reader of the tree.
         }
         self.subtree_ends.push(Position(id.saturating_add(1)));
-        opened(&mut self.names.lexical, &mut self.names.names, &self.nodes, &self.parents, &self.subtree_ends, at);
+        if !self.names.deferred {
+            opened(
+                &mut self.names.lexical,
+                &mut self.names.names,
+                &self.nodes,
+                &self.parents,
+                &self.subtree_ends,
+                at,
+            );
+        }
         let from = FieldIndex(self.fields.len());
         child_fields(
             Placed {
@@ -242,6 +278,7 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
             at,
             from,
             next: from,
+            end,
         });
         if let Some(opened) = opens(node.kind()) {
             self.strings.push(opened);
@@ -262,17 +299,12 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
         if let AnyNodeRef::StmtImportFrom(statement) = node {
             self.refused.extend(unknown_futures(statement));
         }
-        self.ends.push(if root {
-            self.length
-        } else {
-            placed(self.origin, node.end())
-        });
         TraversalSignal::Traverse
     }
 
     fn leave_node(&mut self, node: AnyNodeRef<'t>) {
         // Where the node ends, as it was placed when it opened.
-        let placed_end = self.ends.pop();
+        let placed_end = self.open.last().map(|open| open.end);
         if opens(node.kind()).is_some() {
             let _: Option<Strings> = self.strings.pop();
         }

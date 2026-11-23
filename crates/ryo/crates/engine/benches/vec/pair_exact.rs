@@ -42,6 +42,7 @@ pub(crate) struct Certificate {
 }
 
 fn base<'a>(b: &mut Builder<'_>, name: &str) -> Option<Row<'a>> {
+    if !b.native(name) { return None; }
     let (nodes, fields): (_, &[&str]) = match name {
         "syntax-tree" | "semantic-syntax" => (ANY, &["id", "file", "kind", "text", "span"]),
         "source-location" => (
@@ -572,7 +573,7 @@ fn guards(b: &mut Builder<'_>, plan: &FinishPlan) -> Vec<Id> {
     let mut suffixes = Map::default();
     for (i, s) in plan.steps.iter().enumerate() {
         let value = match s {
-            Base(n) if b.file_sets && b.language.file_sets.iter().any(|r| r == &*n.0) => {
+            Base(n) if b.language.file_sets.iter().any(|r| r == &*n.0) => {
                 let row = b.base(&n.0);
                 let need = row.need;
                 bases.insert(i, row);
@@ -696,8 +697,7 @@ pub(super) fn prepare<'a>(
 ) -> Vec<(usize, Exclusion<'a>)> {
     // Only a retained proof needs its matcher validated. Carry this obligation
     // even when the row's node expression folds away the matching instruction.
-    let defer = std::env::var_os("VEC_PAIR_EAGER_REGEX").is_none();
-    b.proof_validation = defer.then_some(EMPTY);
+    b.proof_validation = Some(EMPTY);
     let guards = guards(b, plan);
     // Follow the right side for exact keyed differences. File guards already
     // describe suppression inputs whose rows need richer relational operators.
@@ -751,6 +751,7 @@ pub(super) fn prepare<'a>(
             _ => {}
         }
     }
+    #[cfg(feature = "pair-diagnostics")]
     if std::env::var_os("VEC_PAY_PREP").is_some() {
         println!(
             "PAYPROOF steps {} possible {} demanded {}",
@@ -874,6 +875,7 @@ pub(super) fn prepare<'a>(
         rows.push(row);
     }
     b.proof_validation = None;
+    #[cfg(feature = "pair-diagnostics")]
     if std::env::var_os("VEC_PAIR_TRACE").is_some() {
         for (i, row) in rows.iter().enumerate() {
             if row.is_some() {
@@ -881,6 +883,7 @@ pub(super) fn prepare<'a>(
             }
         }
     }
+    #[cfg(feature = "pair-diagnostics")]
     if std::env::var_os("VEC_EXACT_DIAG").is_some() {
         for r in &plan.rules {
             if let RuleEmit::Written(e) = &r.emit
