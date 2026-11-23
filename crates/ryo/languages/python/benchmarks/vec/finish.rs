@@ -874,6 +874,13 @@ impl File<'_> {
     fn has_text(run: &Run, k: u16) -> bool {
         run.text_kind.get(usize::from(k)).copied().unwrap_or(false)
     }
+    /// The provider-decoded bytes, or the source spelling of a text-bearing element.
+    fn text_bytes(&self, p: u32) -> &[u8] {
+        match node_table::decoded_of(self.table, Position(p)) {
+            Some(text) => text.0.as_bytes(),
+            None => &self.src[self.start[p as usize] as usize..self.end[p as usize] as usize],
+        }
+    }
     fn elem_text(&self, run: &mut Run, p: u32) -> u32 {
         let m = self.text_memo.borrow()[p as usize];
         if m != u32::MAX {
@@ -881,10 +888,7 @@ impl File<'_> {
         }
         let k = self.kind[p as usize];
         let s = if Self::has_text(run, k) {
-            match node_table::decoded_of(self.table, Position(p)) {
-                Some(t) => run.sym(t.0.as_bytes()),
-                None => run.sym(&self.src[self.start[p as usize] as usize..self.end[p as usize] as usize]),
-            }
+            run.sym(self.text_bytes(p))
         } else {
             run.empty
         };
@@ -1235,12 +1239,14 @@ pub(super) struct ViewSpec {
     tests: Vec<view_cols::Test>,
     cold_test: std::cell::OnceCell<Rc<cold_test::Kernel>>,
     cold_bucket: std::cell::OnceCell<cold_list::Handoff>,
+    cold_file_test: bool,
 }
 
 impl ViewSpec {
     fn new(base: Native, map: Vec<usize>, filter: Vec<E>) -> Self {
         let tests = view_cols::compile(&filter);
-        ViewSpec { base, map, filter, tests, cold_test: std::cell::OnceCell::new(), cold_bucket: std::cell::OnceCell::new() }
+        let cold_file_test = filter.iter().any(|e| filter_order::file_const(e) && !matches!(e, E::Lit(_)));
+        ViewSpec { base, map, filter, tests, cold_file_test, cold_test: std::cell::OnceCell::new(), cold_bucket: std::cell::OnceCell::new() }
     }
 }
 
@@ -3486,7 +3492,7 @@ fn view_rows_for<'a>(f: &mut File<'a>, run: &mut Run, v: &ViewSpec, node: usize,
     let start = if sw!("VEC_LEAF_PROFILE") { step_clock() } else { 0.0 };
     let mut entered = 0;
     let mut tests = 0;
-    let slot = if filter_order::file_fails(run, f, &v.filter) {
+    let slot = if v.cold_file_test && filter_order::file_fails(run, f, &v.filter) {
         cold_bucket::Slot::Empty
     } else if let Some(bucket) = v.cold_bucket.get() {
         let slot = bucket.select(f);

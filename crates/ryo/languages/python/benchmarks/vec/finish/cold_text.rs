@@ -9,6 +9,9 @@ use std::rc::Rc;
 pub(super) struct Plan {
     by_symbol: Vec<u32>,
     slots: usize,
+    by_bytes: FxHashMap<Box<[u8]>, u32>,
+    one_byte: Vec<u32>,
+    longest: usize,
     tests: FxHashMap<Vec<String>, Rc<Predicate>>,
 }
 pub(super) fn slots(run: &mut Run, words: &[u32]) -> Vec<usize> {
@@ -21,12 +24,44 @@ pub(super) fn slots(run: &mut Run, words: &[u32]) -> Vec<usize> {
                 plan.by_symbol.resize(sym + 1, u32::MAX);
             }
             if plan.by_symbol[sym] == u32::MAX {
-                plan.by_symbol[sym] = plan.slots as u32;
+                let slot = plan.slots as u32;
+                let text = &run.texts[sym];
+                if let [byte] = &text[..] {
+                    if plan.one_byte.is_empty() {
+                        plan.one_byte.resize(256, u32::MAX);
+                    }
+                    plan.one_byte[usize::from(*byte)] = slot;
+                } else {
+                    plan.longest = plan.longest.max(text.len());
+                    plan.by_bytes.insert(text.clone(), slot);
+                }
+                plan.by_symbol[sym] = slot;
                 plan.slots += 1;
             }
             plan.by_symbol[sym] as usize
         })
         .collect()
+}
+
+impl Plan {
+    fn symbol_slot(&self, symbol: u32) -> u32 {
+        self.by_symbol
+            .get(symbol as usize)
+            .copied()
+            .unwrap_or(u32::MAX)
+    }
+
+    fn spelling_slot(&self, text: &[u8]) -> u32 {
+        match text {
+            [byte] => self
+                .one_byte
+                .get(usize::from(*byte))
+                .copied()
+                .unwrap_or(u32::MAX),
+            _ if text.len() <= self.longest => self.by_bytes.get(text).copied().unwrap_or(u32::MAX),
+            _ => u32::MAX,
+        }
+    }
 }
 
 #[derive(Default)]
@@ -78,15 +113,17 @@ pub(super) fn candidates(
         let start = super::cold_pred::phase_clock();
         let mut lists = vec![Vec::new(); run.cold_text.slots];
         indexed = f.n;
-        for (i, &kind) in f.kind.iter().enumerate() {
-            let symbol = if File::has_text(run, kind) {
-                f.elem_text(run, i as u32)
+        let empty = run.cold_text.symbol_slot(run.empty);
+        let memo = f.text_memo.borrow();
+        for (i, (&kind, &symbol)) in f.kind.iter().zip(memo.iter()).enumerate() {
+            let slot = if symbol != u32::MAX {
+                run.cold_text.symbol_slot(symbol)
+            } else if File::has_text(run, kind) {
+                run.cold_text.spelling_slot(f.text_bytes(i as u32))
             } else {
-                run.empty
+                empty
             };
-            if let Some(&slot) = run.cold_text.by_symbol.get(symbol as usize)
-                && slot != u32::MAX
-            {
+            if slot != u32::MAX {
                 lists[slot as usize].push(i as u32);
             }
         }
