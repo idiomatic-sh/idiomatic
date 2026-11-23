@@ -141,6 +141,25 @@ impl<'p> Finisher<'p> {
         self.plan.emits.iter().enumerate().map(|(e, x)| (e, x.0.as_str()))
     }
 
+    pub(super) fn can_finish_exact(&self) -> bool {
+        self.dump.is_none() && self.surv.is_empty()
+    }
+
+    pub(super) fn emit_exact(&mut self, file: usize, table: &NodeTable, emit: usize, nodes: &[u64]) -> Option<u64> {
+        if self.failed_idx[emit] || (self.accepted_only[emit] && languages::node_table::acceptance_of(table) == languages::SyntaxAcceptance::Rejected) {
+            return None;
+        }
+        let rule = serde_json::to_string(&self.plan.emits[emit].0).expect("rule string");
+        let path = serde_json::to_string(&self.run.paths[file]).expect("path string");
+        let mut count = 0;
+        super::pair_checks::each(nodes, |i| {
+            let span = super::span_bytes(table, i as usize);
+            self.findings.push(format!(r#"{{"rule":{rule},"file":{path},"start":{},"end":{}}}"#, span.start, span.end));
+            count += 1;
+        });
+        Some(count)
+    }
+
     /// One file's emits run on its node table and source through the provider `pv`.
     pub(super) fn file(&mut self, file_no: usize, path: &str, ft: &NodeTable, bytes: &[u8], pv: &mut dyn finish::Provider, wanted: &[usize]) {
         let a0 = super::alloc_count::counts();

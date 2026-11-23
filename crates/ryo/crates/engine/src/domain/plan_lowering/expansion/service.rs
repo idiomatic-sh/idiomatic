@@ -81,7 +81,7 @@ fn rule_lowered<'p>(expansion: &mut Expansion<'p>, rule: &'p PackRule) -> Result
 /// The steps made from `made` on taken back, with every number and fragment instance that names one of them.
 fn taken_back(expansion: &mut Expansion<'_>, made: usize) {
     expansion.steps.truncate(made);
-    expansion.numbers.retain(|number| number.0 < made);
+    expansion.numbers.retain(|(_, number)| number.0 < made);
     expansion.instances.retain(|_, step| step.0 < made);
     expansion.observed.retain(|_, step| step.0 < made);
 }

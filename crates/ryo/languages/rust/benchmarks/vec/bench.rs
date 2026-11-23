@@ -13,7 +13,14 @@ mod finish;
 mod finisher;
 #[path = "../../../../crates/engine/benches/vec/first.rs"]
 mod first;
-use first::Vocab;
+use first::{Vocab, span_bytes};
+#[path = "../../../../crates/engine/benches/vec/pair_checks.rs"]
+mod pair_checks;
+#[path = "../../../../crates/engine/benches/vec/host_columns.rs"]
+mod host_columns;
+#[path = "../../../../crates/engine/benches/vec/glob_pattern.rs"]
+mod glob_pattern;
+use glob_pattern::glob_pattern;
 #[path = "../../../../crates/engine/benches/vec/pair_summary.rs"]
 mod pair_summary;
 #[path = "../../../../crates/engine/benches/vec/pair_skip.rs"]
@@ -33,6 +40,8 @@ use reader_cli::{alloc_counts, flag, rule_context, thread_cpu};
 
 fn declaration() -> first::Language {
     first::Language {
+        walk_facts: &[],
+        host_len: finish::host::host_len,
         facts: Vec::new(),
         spelled: Vec::new(),
         text_kinds: Vec::new(),

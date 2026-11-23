@@ -1,17 +1,21 @@
 //! Evaluate each requested witness once per file. Unknown or partial provider answers admit the file.
-use super::pair_summary::{Domain, Id, Need, Program};
+use super::pair_summary::{Domain, Id, Need, Program, Source};
 use rustc_hash::FxHashMap as Map;
-use ryo::languages::{self, FileWords, FilledColumns, NodeTable, Position, Relation, node_table};
+use ryo::languages::{self, FileWords, FilledColumns, NodeTable, Position, node_table};
 use std::rc::Rc;
+
+#[path = "pair_counts.rs"]
+mod counts;
 
 type Bits = Rc<Vec<u64>>;
 // None is the unconstrained node set. An empty vector is the empty set.
 type Nodes = Option<Bits>;
-type Reader<'a> = dyn FnMut(Relation, &mut FileWords, &mut FilledColumns) -> bool + 'a;
+type Reader<'a> = dyn FnMut(Source, &mut FileWords, &mut FilledColumns) -> bool + 'a;
 
 #[derive(Default)]
 struct Table {
     read: bool,
+    answered: bool,
     complete: bool,
     cells: FilledColumns,
     index: Map<usize, Map<Id, Vec<u32>>>,
@@ -44,7 +48,7 @@ fn bits(ids: impl IntoIterator<Item = u32>) -> Bits {
     }
     Rc::new(b)
 }
-fn each(b: &[u64], mut visit: impl FnMut(u32)) {
+pub(super) fn each(b: &[u64], mut visit: impl FnMut(u32)) {
     for (i, &word) in b.iter().enumerate() {
         let mut w = word;
         while w != 0 {
@@ -65,7 +69,14 @@ impl Table {
             return;
         }
         self.read = true;
-        self.complete = read(spec.relation, words, &mut self.cells);
+        let answered = read(spec.source, words, &mut self.cells);
+        let columns = &self.cells.0;
+        self.answered = answered
+            && columns.first().is_none_or(|first| {
+                columns.len() == spec.columns.len()
+                    && columns.iter().all(|c| c.0.len() == first.0.len())
+            });
+        self.complete = self.answered;
         if self.complete
             && let Some(key) = spec.key
         {
@@ -82,6 +93,14 @@ impl Table {
 }
 
 impl File<'_> {
+    fn complete(&mut self, slots: &[usize]) -> bool {
+        let n = node_table::element_count(self.t).0 as u32;
+        slots.iter().all(|&slot| {
+            let table = &mut self.facts[slot];
+            table.load(&self.p.facts[slot], n, self.words, self.read);
+            table.complete
+        })
+    }
     fn pass(&mut self, id: Id) -> bool {
         if let Some(x) = self.needs[id] {
             return x;
@@ -90,6 +109,7 @@ impl File<'_> {
         let yes = match self.p.needs[id] {
             Need::Any => true,
             Need::Empty => false,
+            Need::SourceContains(re) => self.p.regexes[re].is_match(self.src),
             Need::PathMatches(re) => self
                 .path
                 .is_none_or(|path| self.p.regexes[re].is_match(path)),
@@ -150,6 +170,23 @@ impl File<'_> {
             u32::try_from(node_table::element_count(self.t).0).expect("table positions fit u32");
         let nodes = match &self.p.domains[id] {
             Domain::Any => None,
+            Domain::CountUnder(rows, depth, op, value) => {
+                let (rows, depth, op, value) = (*rows, *depth, *op, *value);
+                let children = self.nodes(rows);
+                counts::under(
+                    self.t,
+                    children,
+                    matches!(self.p.domains[rows], Domain::Any),
+                    depth,
+                    op,
+                    value,
+                )
+            }
+            Domain::HasParent => {
+                Some(bits((1..n).filter(|&i| {
+                    node_table::parent_of(self.t, Position(i)).0 != i
+                })))
+            }
             Domain::Empty => Some(Rc::default()),
             Domain::Kind(k) => Some(bits(
                 node_table::ids_of_kind(self.t, languages::KindBits(*k))
@@ -160,6 +197,16 @@ impl File<'_> {
                 node_table::ids_of_field(self.t, languages::FieldCode(*k))
                     .iter()
                     .map(|p| p.0),
+            )),
+            Domain::SpanMatching(k, re) => Some(bits(
+                node_table::ids_of_kind(self.t, languages::KindBits(*k))
+                    .iter()
+                    .filter_map(|pos| {
+                        let span = super::span_bytes(self.t, pos.0 as usize);
+                        self.p.regexes[*re]
+                            .is_match(&self.src[span])
+                            .then_some(pos.0)
+                    }),
             )),
             Domain::TextMatching(k, re) => {
                 let regex = &self.p.regexes[*re];
@@ -215,6 +262,59 @@ impl File<'_> {
                     }
                 }
             }
+            Domain::When(need, nodes) => {
+                if self.pass(*need) {
+                    self.nodes(*nodes)
+                } else {
+                    Some(Rc::default())
+                }
+            }
+            // The excluded side must be exact in this particular file.
+            Domain::ProvenExcept(left, difference, guard, slots) => {
+                let admitted = self.nodes(*left);
+                if admitted.as_ref().is_some_and(|v| v.is_empty())
+                    || self.pass(*guard)
+                    || !self.complete(slots)
+                {
+                    admitted
+                } else {
+                    self.nodes(*difference)
+                }
+            }
+            Domain::Except(a, b) => {
+                let left = self.nodes(*a);
+                if left.as_ref().is_some_and(|v| v.is_empty()) {
+                    self.sets[id] = Some(left.clone());
+                    return left;
+                }
+                let Some(right) = self.nodes(*b) else {
+                    // A missing provider answer cannot prove an exclusion.
+                    let out = if matches!(self.p.domains[*b], Domain::Any) {
+                        Some(Rc::default())
+                    } else {
+                        left
+                    };
+                    self.sets[id] = Some(out.clone());
+                    return out;
+                };
+                let mut out = left.map_or_else(
+                    || {
+                        let mut all = vec![u64::MAX; (n as usize).div_ceil(64)];
+                        if n % 64 != 0 {
+                            *all.last_mut().unwrap() = (1u64 << (n % 64)) - 1;
+                        }
+                        all
+                    },
+                    |v| (*v).clone(),
+                );
+                for (w, r) in out.iter_mut().zip(right.iter()) {
+                    *w &= !*r
+                }
+                while out.last() == Some(&0) {
+                    out.pop();
+                }
+                Some(Rc::new(out))
+            }
             Domain::Either(a, b) => match (self.nodes(*a), self.nodes(*b)) {
                 (Some(a), Some(b)) => {
                     let (a, b) = if a.len() >= b.len() { (a, b) } else { (b, a) };
@@ -226,10 +326,33 @@ impl File<'_> {
                 }
                 _ => None,
             },
+            Domain::Descendants(root) => self.nodes(*root).map(|ancestors| {
+                let mut pending = Vec::new();
+                each(&ancestors, |n| pending.push(n));
+                let mut seen = Vec::new();
+                while let Some(parent) = pending.pop() {
+                    for child in node_table::children_of(self.t, Position(parent)) {
+                        let pos = child.0;
+                        if !seen
+                            .get((pos / 64) as usize)
+                            .is_some_and(|w| (*w >> (pos % 64)) & 1 != 0)
+                        {
+                            insert(&mut seen, pos);
+                            pending.push(pos);
+                        }
+                    }
+                }
+                Rc::new(seen)
+            }),
             Domain::Parents(x) | Domain::Children(x) | Domain::Ancestors(x) => {
                 let children = matches!(self.p.domains[id], Domain::Children(_));
                 let ancestors = matches!(self.p.domains[id], Domain::Ancestors(_));
-                self.nodes(*x).map(|b| {
+                let input = if matches!(self.p.domains[*x], Domain::Any) {
+                    Some(bits(0..n))
+                } else {
+                    self.nodes(*x)
+                };
+                input.map(|b| {
                     let mut out = Vec::new();
                     each(&b, |i| {
                         if children {
@@ -260,6 +383,152 @@ impl File<'_> {
                     });
                     Rc::new(out)
                 })
+            }
+            Domain::RelatedIds(slot, endpoint, filter) => {
+                let table = &mut self.facts[*slot];
+                table.load(&self.p.facts[*slot], n, self.words, self.read);
+                if !table.answered {
+                    None
+                } else if let Some(keys) = table.cells.0.get(*endpoint) {
+                    let values = filter
+                        .as_ref()
+                        .and_then(|(col, ids)| Some((table.cells.0.get(*col)?, ids)));
+                    if filter.is_some() && values.is_none_or(|(c, _)| c.0.len() != keys.0.len()) {
+                        None
+                    } else {
+                        let mut valid = true;
+                        let nodes = bits(keys.0.iter().enumerate().filter_map(|(i, k)| {
+                            let keep = values.is_none_or(|(c, ids)| {
+                                let text = languages::facts::text(self.words, c.0[i]).0;
+                                self.p
+                                    .symbols
+                                    .get(text)
+                                    .is_some_and(|id| ids.binary_search(id).is_ok())
+                            });
+                            if keep && k.0 >= u64::from(n) {
+                                valid = false;
+                                return None;
+                            }
+                            keep.then_some(k.0 as u32)
+                        }));
+                        valid.then_some(nodes)
+                    }
+                } else {
+                    None
+                }
+            }
+            Domain::Flag(slot, col, _) | Domain::Number(slot, col, _, _) => {
+                let spec = &self.p.facts[*slot];
+                let table = &mut self.facts[*slot];
+                table.load(spec, n, self.words, self.read);
+                if table.complete {
+                    let key = spec.key.and_then(|k| table.cells.0.get(k));
+                    Some(bits(
+                        table
+                            .cells
+                            .0
+                            .get(*col)
+                            .into_iter()
+                            .flat_map(|c| &c.0)
+                            .enumerate()
+                            .filter(|(_, cell)| match self.p.domains[id] {
+                                Domain::Flag(_, _, v) => cell.0 == u64::from(v),
+                                Domain::Number(_, _, op, v) => {
+                                    counts::compare(cell.0 as i64, op, v)
+                                }
+                                _ => false,
+                            })
+                            .map(|(i, _)| key.map_or(0, |ids| ids.0[i].0 as u32)),
+                    ))
+                } else {
+                    None
+                }
+            }
+            Domain::SameRow(slot, tests) => {
+                use super::pair_summary::CellTest;
+                let spec = &self.p.facts[*slot];
+                let table = &mut self.facts[*slot];
+                table.load(spec, n, self.words, self.read);
+                if !table.complete {
+                    None
+                } else {
+                    let key = spec.key.and_then(|k| table.cells.0.get(k));
+                    let len = table.cells.0.first().map_or(0, |c| c.0.len());
+                    Some(bits((0..len).filter_map(|row| {
+                        let matched = tests.iter().all(|test| match test {
+                            CellTest::Symbols(c, values) => {
+                                let cell = table.cells.0[*c].0[row];
+                                cell.0 != super::finish::NULL
+                                    && self
+                                        .p
+                                        .symbols
+                                        .get(languages::facts::text(self.words, cell).0)
+                                        .is_some_and(|id| values.binary_search(id).is_ok())
+                            }
+                            CellTest::Numeric(c, op, literal) => {
+                                counts::compare(table.cells.0[*c].0[row].0 as i64, *op, *literal)
+                            }
+                        });
+                        matched.then(|| key.map_or(0, |keys| keys.0[row].0 as u32))
+                    })))
+                }
+            }
+            Domain::OtherValues(slot, col, excluded) => {
+                let spec = &self.p.facts[*slot];
+                let table = &mut self.facts[*slot];
+                table.load(spec, n, self.words, self.read);
+                if !table.complete {
+                    None
+                } else {
+                    let key = spec.key.and_then(|k| table.cells.0.get(k));
+                    Some(bits(
+                        table
+                            .cells
+                            .0
+                            .get(*col)
+                            .into_iter()
+                            .flat_map(|c| c.0.iter())
+                            .enumerate()
+                            .filter_map(|(i, cell)| {
+                                let text = languages::facts::text(self.words, *cell).0;
+                                self.p
+                                    .symbols
+                                    .get(text)
+                                    .is_none_or(|id| excluded.binary_search(id).is_err())
+                                    .then(|| key.map_or(0, |ids| ids.0[i].0 as u32))
+                            }),
+                    ))
+                }
+            }
+            Domain::CapturedSuffix(slot, col, delimiter, re) => {
+                let spec = &self.p.facts[*slot];
+                let table = &mut self.facts[*slot];
+                table.load(spec, n, self.words, self.read);
+                if !table.complete {
+                    None
+                } else {
+                    let key = spec.key.and_then(|k| table.cells.0.get(k));
+                    let regex = &self.p.regexes[*re];
+                    Some(bits(
+                        table
+                            .cells
+                            .0
+                            .get(*col)
+                            .into_iter()
+                            .flat_map(|c| c.0.iter())
+                            .enumerate()
+                            .filter_map(|(i, cell)| {
+                                let text = languages::facts::text(self.words, *cell).0.as_bytes();
+                                text.windows(delimiter.len())
+                                    .enumerate()
+                                    .any(|(p, w)| {
+                                        w == delimiter
+                                            && regex.is_match(&text[p + delimiter.len()..])
+                                    })
+                                    .then(|| key.map_or(0, |ids| ids.0[i].0 as u32))
+                            }),
+                    ))
+                }
             }
             Domain::Matching(slot, col, re) => {
                 let spec = &self.p.facts[*slot];
@@ -340,8 +609,9 @@ impl Program {
         src: &[u8],
         path: Option<&[u8]>,
         words: &mut FileWords,
-        mut read: impl FnMut(Relation, &mut FileWords, &mut FilledColumns) -> bool,
+        mut read: impl FnMut(Source, &mut FileWords, &mut FilledColumns) -> bool,
         alive: &mut [bool],
+        mut exact: Option<&mut Vec<(usize, Bits)>>,
     ) -> u64 {
         languages::facts::clear_words(words);
         let mut f = File {
@@ -360,6 +630,17 @@ impl Program {
         for (a, (_, root)) in alive.iter_mut().zip(&self.roots) {
             if *a {
                 *a = f.pass(*root)
+            }
+        }
+        if let Some(out) = exact.as_mut() {
+            for (rule, cert) in &self.exact {
+                let rule = *rule;
+                if alive[rule] && !f.pass(cert.guard) && f.complete(&cert.facts) {
+                    let nodes = f
+                        .nodes(cert.nodes)
+                        .expect("certified domains contain only total node tests");
+                    out.push((rule, nodes));
+                }
             }
         }
         f.steps

@@ -83,7 +83,7 @@ struct Rule {
     whole: Option<String>,
 }
 
-use first::Vocab;
+use first::{Vocab, span_bytes};
 
 fn vocabulary<W: Walk>(_: &W) -> Vocab {
     let v = W::vocabulary();
@@ -284,9 +284,6 @@ fn fields_present(table: &NodeTable, cols: &mut Columns, fields: usize) {
 }
 
 /// An element's bytes, from the node table's own span column.
-fn span_bytes(table: &NodeTable, i: usize) -> std::ops::Range<usize> {
-    node_table::starts(table)[i] as usize..node_table::ends(table)[i] as usize
-}
 
 fn test_lit(lit: &Lit, text: &[u8]) -> bool {
     match lit {
@@ -535,8 +532,10 @@ fn python_language(vocab: &Vocab) -> first::Language {
     let tokens=provider_tokens::Lexicon::new(&|n| vocab.kinds.get(n).copied());
     use ryo_python::fixtures::columns::{PER_NODE_FACTS, SPELLED_COLUMNS, Spelling, is_identifier};
     first::Language {
+        host_len: finish::host::host_len,
+        walk_facts: pair_provider::FACTS,
         text_kinds: vocab.kinds.values().copied().filter(|k|tokens.has_text(*k)).collect(),
-        file_sets: ryo_python::fixtures::columns::FILE_SET_FACTS.iter().map(|s|(*s).to_string()).collect(),
+        file_sets: ryo_python::fixtures::columns::FILE_SET_FACTS.iter().chain(host_columns::FILE_SETS.iter()).map(|s|(*s).to_string()).collect(),
         facts: PER_NODE_FACTS.iter().map(|s| (*s).to_owned()).collect(),
         spelled: SPELLED_COLUMNS.iter().map(|(r, c, how)| ((*r).to_owned(), (*c).to_owned(), match how { Spelling::Whole => None, Spelling::LastSegment(c) => Some(*c) })).collect(),
         is_identifier,
@@ -831,10 +830,16 @@ use request::rule_context;
 mod first;
 #[path = "../../../../crates/engine/benches/vec/pair_summary.rs"]
 mod pair_summary;
+#[path = "../../../../crates/engine/benches/vec/glob_pattern.rs"]
+mod glob_pattern;
+use glob_pattern::glob_pattern;
 #[path = "../../../../crates/engine/benches/vec/pair_skip.rs"]
 mod pair_skip;
 #[path = "../../../../crates/engine/benches/vec/pair_checks.rs"]
 mod pair_checks;
+mod pair_provider;
+#[path = "../../../../crates/engine/benches/vec/host_columns.rs"]
+mod host_columns;
 mod request;
 #[path = "../../../../crates/engine/benches/vec/finisher.rs"]
 mod finisher;
@@ -1030,44 +1035,17 @@ impl ColFacts<'_, '_, '_, '_> {
         let res = self.whole(run, "binding-resolution")?;
         let reads = self.whole(run, "binding-read")?;
         let col = |t: &finish::Table, n: &str| t.names.iter().position(|c| c == n).ok_or_else(|| format!("no column {n}"));
-        let (r_ref, r_ev, r_kind, r_scope, r_lex, r_depth, r_ord, r_ctx) = (
-            col(&res, "reference")?,
-            col(&res, "event")?,
-            col(&res, "kind")?,
-            col(&res, "scope")?,
-            col(&res, "lexical")?,
-            col(&res, "depth")?,
-            col(&res, "ordinal")?,
-            col(&res, "context")?,
-        );
-        let (b_ref, b_scope, b_ctx) = (col(&reads, "reference")?, col(&reads, "scope")?, col(&reads, "context")?);
+        use pair_provider::predecessor::{LOOKUP, READ, WORDS, positions, project};
+        let lookup = positions(LOOKUP, |name| col(&res, name))?;
+        let read = positions(READ, |name| col(&reads, name))?;
         let (_, names, tys) = run.catalog(fact_catalog::PREDECESSOR_REL).ok_or("no scheduled-read-predecessor")?;
-        let deletion = u64::from(run.sym(b"deletion"));
-        let (own, routed, none) = (u64::from(run.sym(b"own")), u64::from(run.sym(b"routed")), u64::from(run.sym(b"none")));
-        let mut t = finish::Table { names, tys, cols: vec![Vec::with_capacity(reads.n); 9], n: 0 };
-        let mut seen: rustc_hash::FxHashSet<u64> = rustc_hash::FxHashSet::with_capacity_and_hasher(reads.n, Default::default());
-        for r in 0..res.n {
-            let reference = res.cols[r_ref][r];
-            let depth = res.cols[r_depth][r];
-            if (res.cols[r_ctx][r] == deletion && depth != 0) || !seen.insert(reference) {
-                continue;
-            }
-            let ns = if res.cols[r_lex][r] == res.cols[r_scope][r] { own } else { routed };
-            for (c, v) in [reference, res.cols[r_ev][r], res.cols[r_kind][r], ns, res.cols[r_scope][r], depth, res.cols[r_ord][r], res.cols[r_ctx][r], u64::from(self.file_no)].into_iter().enumerate() {
-                t.cols[c].push(v);
-            }
-            t.n += 1;
-        }
-        for r in 0..reads.n {
-            let reference = reads.cols[b_ref][r];
-            if !seen.insert(reference) {
-                continue;
-            }
-            for (c, v) in [reference, finish::NULL, none, none, reads.cols[b_scope][r], finish::NULL, finish::NULL, reads.cols[b_ctx][r], u64::from(self.file_no)].into_iter().enumerate() {
-                t.cols[c].push(v);
-            }
-            t.n += 1;
-        }
+        let symbols = WORDS.map(|text| u64::from(run.sym(text.as_bytes())));
+        let mut t = finish::Table::with_rows(names, tys, reads.n);
+        project((0..res.n).map(|r| lookup.map(|c| res.cols[c][r])), (0..reads.n).map(|r| read.map(|c| reads.cols[c][r])),
+            symbols, u64::from(self.file_no), |values| {
+                for (col, value) in t.cols.iter_mut().zip(values) { col.push(value); }
+                t.n += 1;
+            });
         Ok(t)
     }
 }
@@ -1309,18 +1287,6 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
             relative_import::walked(run, self.project, self.file, self.file_no)?
         } else if matches!(rel, import_syntax::NEIGHBORS | import_syntax::STATEMENTS | import_syntax::ALIASES | import_syntax::ENTRIES) {
             import_syntax::fill(run, self.file, self.src, self.project, self.file_no, rel)?
-        } else if rel == fact_catalog::ASSIGNMENT_SOURCE_REL {
-            let (_, names, tys) = run.catalog(rel).ok_or("no assignment-source")?;
-            let mut rows = finish::Table::with_rows(names, tys, 0);
-            self.file.visit_assignment_sources(|target, value, operation, association| {
-                rows.cols[0].push(u64::from(target));
-                rows.cols[1].push(u64::from(value));
-                rows.cols[2].push(u64::from(run.sym(operation.as_bytes())));
-                rows.cols[3].push(u64::from(run.sym(association.as_bytes())));
-                rows.cols[4].push(u64::from(self.file_no));
-                rows.n += 1;
-            });
-            rows
         } else if rel == fact_catalog::PRE_DECLARATION_READ_REL {
             let (_, names, tys) = run.catalog(rel).ok_or("no pre-declaration-read")?;
             let mut rows = finish::Table::with_rows(names, tys, 0);
@@ -1336,34 +1302,23 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
                 return Err("pre-declaration-read: incomplete flow".to_owned());
             }
             rows
-        } else if rel == fact_catalog::NAMESPACE_SITES_REL {
-            let (_, names, tys) = run.catalog(rel).ok_or("no namespace-sites")?;
+        } else if matches!(rel, fact_catalog::ASSIGNMENT_SOURCE_REL | fact_catalog::NAMESPACE_SITES_REL) {
+            let (_, names, tys) = run.catalog(rel).ok_or_else(|| format!("no {rel}"))?;
             let mut rows = finish::Table::with_rows(names, tys, 0);
-            let complete = self.file.visit_namespace_sites(|scope, name, first, mutation, written| {
-                rows.cols[0].push(u64::from(scope));
-                rows.cols[1].push(u64::from(run.sym(name.as_bytes())));
-                rows.cols[2].push(first);
-                rows.cols[3].push(mutation.unwrap_or(finish::NULL));
-                rows.cols[4].push(written.map_or(finish::NULL, u64::from));
-                rows.cols[5].push(u64::from(self.file_no));
-                rows.n += 1;
-            });
-            if !complete {
-                return Err("namespace-sites: incomplete flow".to_owned());
-            }
+            let complete = pair_provider::sites::visit(rel, self.file, u64::from(self.file_no),
+                |word| u64::from(run.sym(word.as_bytes())), |values| {
+                    for (col, &value) in rows.cols.iter_mut().zip(values) { col.push(value); }
+                    rows.n += 1;
+                });
+            if !complete { return Err(format!("{rel}: incomplete flow")); }
             rows
         } else if rel == fact_catalog::BINDING_SITES_REL {
             let (_, names, tys) = run.catalog(rel).ok_or("no binding-sites")?;
             let mut rows = finish::Table::with_rows(names, tys, 0);
             let complete = self.file.visit_binding_sites(|site| {
-                rows.cols[0].push(u64::from(site.binding));
-                rows.cols[1].push(site.stores as u64);
-                rows.cols[2].push(site.removals as u64);
-                rows.cols[3].push(site.later as u64);
-                rows.cols[4].push(site.statement.map_or(finish::NULL, u64::from));
-                rows.cols[5].push(u64::from(site.series_end));
-                rows.cols[6].push(site.next.map_or(finish::NULL, u64::from));
-                rows.cols[7].push(u64::from(self.file_no));
+                for (column, value) in rows.cols.iter_mut().zip(pair_provider::site_cells(site, self.file_no as usize)) {
+                    column.push(value);
+                }
                 rows.n += 1;
             });
             if !complete {
@@ -1666,6 +1621,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
     let mut pairs = None;
     let mut pair_steps = 0;
     let mut pair_cpu = 0.0;
+    let mut exact_rows = Vec::new();
     let (rules, frules, words) = if std::path::Path::new(args[2]).is_dir() {
         let owned;
         let read = match pack {
@@ -1678,7 +1634,13 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
             }
         };
         let f1 = thread_cpu();
-        let prepared = first::prepare(read, python_language(vocab), vocab);
+        // A separately loaded finish plan may use the same rule names for
+        // different emits. Only the shared typed plan certifies its output.
+        let shared_plan = read.typed.borrow().is_some();
+        let mut prepared = first::prepare(read, python_language(vocab), vocab);
+        if !shared_plan {
+            prepared.pairs.exact.clear();
+        }
         let f2 = thread_cpu();
         let rules = rules_of_skips(&prepared.skips, vocab);
         let (frules, words) = funnel::build(&prepared.rules, vocab, &mut fact_catalog, &mut interner);
@@ -1838,6 +1800,8 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
     let emit_rules: Vec<Vec<usize>> = fin.as_ref().map(|f| f.emit_names().map(|(_, n)| frules.iter().enumerate().filter(|(_, r)| r.name == n).map(|(i, _)| i).collect()).collect()).unwrap_or_default();
     let mut in_seed = vec![false; frules.len()];
     let node_class: Vec<bool> = frules.iter().map(|r| r.node).collect();
+    let mut exact_counts = vec![(0u64, 0u64, 0u64); frules.len()];
+    let mut exact_log = flag(args, "--exact-out").map(|p| std::io::BufWriter::new(std::fs::File::create(p).expect("exact pairs")));
     let fin0 = fin.as_ref().map_or(0.0, |f| f.time);
     println!("start-up to first file {:.4} s", thread_cpu());
     for (file_no, path) in list.iter().enumerate() {
@@ -1979,10 +1943,18 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
                 if no_skip {
                     alive.iter_mut().for_each(|a| *a = true);
                 }
+                exact_rows.clear();
                 if !no_skip && let Some(program) = &pairs {
                     let start = thread_cpu();
                     let relative_path = fin.as_deref().map(|f| f.run.paths[file_no].as_bytes());
-                    pair_steps += program.file(pt, &bytes, relative_path, &mut fwords, $fill, &mut alive);
+                    let exact = fin.as_ref().filter(|f| f.can_finish_exact()).map(|_| &mut exact_rows);
+                    pair_steps += program.file(pt, &bytes, relative_path, &mut fwords, |rel, words, out| {
+                        if let pair_summary::Source::Catalog(catalog) = rel
+                            && let Some(result) = host_columns::fill(catalog, fin.as_deref().map(|f| &f.run), file_no, out) {
+                            return result;
+                        }
+                        ($fill)(rel, words, out)
+                    }, &mut alive, exact);
                     pair_cpu += thread_cpu() - start;
                 }
                 rule_files += frules.len() as u64;
@@ -2236,7 +2208,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
                     let n = node_table::element_count(ft).0;
                     file.name_token_codes(&mut name_codes);
                     codes_taken = true;
-                    prepare!(ft, |rel,words,out| matches!(file.fill(rel,languages::Wanted::Whole,words,out),languages::FactAnswer::Answered(_)));
+                    prepare!(ft, |rel,words,out| pair_provider::read(file, file_no, rel, words, out));
                     prepared = true;
                     let index = file_seeds::Index { table: ft, offsets: &word_offsets, words: &word_pos };
                     if let Some(seeds) = &mut file_seeds {
@@ -2578,7 +2550,23 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
                             }
                         }
                         let before_wanted = fin.time;
-                        let wanted = fin.wanted(path, &|e| emit_rules[e].iter().any(|r| in_seed[*r]));
+                        let mut wanted = fin.wanted(path, &|e| emit_rules[e].iter().any(|r| in_seed[*r]));
+                        if !exact_rows.is_empty() {
+                            wanted.retain(|&e| {
+                                let [ri] = emit_rules[e].as_slice() else { return true };
+                                let Ok(at) = exact_rows.binary_search_by_key(ri, |(r, _)| *r) else { return true };
+                                if let Some(n) = fin.emit_exact(file_no, ft, e, &exact_rows[at].1) {
+                                    if let Some(log) = &mut exact_log {
+                                        use std::io::Write as _;
+                                        writeln!(log, "{}\t{}\t{n}", frules[*ri].name, fin.run.paths[file_no]).expect("write exact pair");
+                                    }
+                                    exact_counts[*ri].0 += 1;
+                                    exact_counts[*ri].1 += n;
+                                    exact_counts[*ri].2 += u64::from(n > 0);
+                                }
+                                false
+                            });
+                        }
                         // wanted() already charges its own time to the second half.
                         if seed_only { phases.add("seed handoff", (thread_cpu() - handoff - (fin.time - before_wanted)).max(0.0)); }
                         if fin.visits(&wanted) {
@@ -2597,7 +2585,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
                 let p0 = thread_cpu();
                 let ft = file.table;
                 let n = node_table::element_count(ft).0;
-                prepare!(ft, |rel,words,out| matches!(file.facts.fill(rel,languages::Wanted::Whole,words,out),languages::FactAnswer::Answered(_)));
+                prepare!(ft, |rel,words,out| matches!(rel, pair_summary::Source::Catalog(r) if matches!(file.facts.fill(r,languages::Wanted::Whole,words,out),languages::FactAnswer::Answered(_))));
                 prepared = true;
                 let v0 = thread_cpu();
                 let mut needed = vec![false; slots_n];
@@ -2733,6 +2721,11 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
                 chk_rows.iter().sum::<u64>(),
                 chk_diff.iter().sum::<u64>() + chk_yes_diff.iter().sum::<u64>() + chk_answer_diff.iter().sum::<u64>()
             );
+        }
+    }
+    if let Some(program) = &pairs {
+        for (ri, _) in &program.exact {
+            println!("EXACT\t{}\t{}\t{}\t{}", frules[*ri].name, exact_counts[*ri].0, exact_counts[*ri].1, exact_counts[*ri].2);
         }
     }
     println!("pair summary checks {pair_steps} CPU {pair_cpu:.4} s");

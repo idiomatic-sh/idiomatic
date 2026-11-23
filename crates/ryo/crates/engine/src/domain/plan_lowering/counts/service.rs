@@ -1,24 +1,17 @@
 //! The `counts` service.
 
+use crate::domain::plan_lowering::readers::types::{Emitted, Uses};
 use ryo_values::domain::finish_plans::arguments::groups::types::CountedRows;
 use ryo_values::domain::finish_plans::types::{
-    CountMark, FinishPlan, FinishStep, ProbeMark, RuleEmit, SourceOrdinal,
+    CountMark, FinishPlan, FinishStep, ProbeMark, SourceOrdinal,
 };
-use ryo_values::domain::finish_plans::service::readers;
 use crate::domain::plan_lowering::semijoins::service::kept_source;
-use hashbrown::HashSet;
 
 /// The plan with every select the pass admits marked to be counted; answers how many it marked.
-pub(crate) fn counted(plan: &mut FinishPlan) -> usize {
-    let read_by = readers(&plan.steps);
-    let emitted: HashSet<usize> = plan
-        .rules
-        .iter()
-        .filter_map(|rule| match &rule.emit {
-            RuleEmit::Written(emit) => Some(emit.step.0),
-            RuleEmit::Unwritten => None,
-        })
-        .collect();
+pub(crate) fn counted(
+    plan: &mut FinishPlan,
+    uses: &Uses,
+) -> usize {
     let marks: Vec<(usize, SourceOrdinal)> = plan
         .steps
         .iter()
@@ -27,11 +20,10 @@ pub(crate) fn counted(plan: &mut FinishPlan) -> usize {
             let FinishStep::Select(select) = step else {
                 return None;
             };
-            if emitted.contains(&place) {
+            if uses.emitted[place] == Emitted::Yes {
                 return None;
             }
-            let kept = kept_source(select, false)?;
-            let [reader] = read_by.get(place)?.as_slice() else {
+            let [reader] = uses.readers.get(place)?.as_slice() else {
                 return None;
             };
             match plan.steps.get(reader.0)? {
@@ -39,7 +31,7 @@ pub(crate) fn counted(plan: &mut FinishPlan) -> usize {
                     if count.from.0 == place
                         && !matches!(&count.distinct, CountedRows::Distinct(column) if !column.0.is_empty()) =>
                 {
-                    Some((place, SourceOrdinal(1 - kept)))
+                    Some((place, SourceOrdinal(1 - kept_source(select,false)?)))
                 }
                 _ => None,
             }
