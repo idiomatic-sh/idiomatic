@@ -22,7 +22,7 @@ use crate::domain::{
     syntax::{service::kind_bits, types::Kind},
 };
 use crate::outbound::literal_expression::adapters::ruff_string_annotation::grammar::{
-    RuffStringAnnotation, parsed_in_place,
+    RuffStringAnnotation, parsed_in_place, string_carrier,
 };
 use crate::outbound::literal_expression::interface::LiteralExpressionSyntaxPort as _;
 use ruff_python_ast::AnyNodeRef;
@@ -63,14 +63,15 @@ pub(crate) fn available(file: &SyntaxFile<'_>, node: AnyNodeRef<'_>, tokens: &mu
 /// Whether the string `node` reads as an expression the way a string annotation is read: its string tokens as they are written,
 /// one on each line between parentheses, parsed by the string-annotation grammar. Unavailable for a string with no token or
 /// with a token whose body is not told from its quotes.
-pub(crate) fn parsed_as_annotation(
+fn parsed_as_annotation(
     file: &SyntaxFile<'_>,
     node: AnyNodeRef<'_>,
     tokens: &mut Vec<languages::Position>,
     carrier: &mut crate::domain::literal_facts::types::TextBuffer,
-) -> LiteralParseOutcome {
+    wants_outcome: bool,
+) -> Option<LiteralParseOutcome> {
     if !available(file, node, tokens) {
-        return LiteralParseOutcome::Unavailable;
+        return Some(LiteralParseOutcome::Unavailable);
     }
     // SPIKE (track X): the string is a node of the file's own tree, so the annotation grammar reads it where it is
     // written: no carrier is assembled and the string is not parsed a second time to get the node the tree holds
@@ -83,7 +84,7 @@ pub(crate) fn parsed_as_annotation(
             .get(literal.range().start().to_usize()..literal.range().end().to_usize())
             .is_some()
     {
-        return parsed_in_place(literal, file.text.0);
+        return wants_outcome.then(|| parsed_in_place(literal, file.text.0));
     }
     carrier.0.clear();
     carrier.0.push_str(CARRIER_OPEN);
@@ -92,10 +93,13 @@ pub(crate) fn parsed_as_annotation(
         carrier.0.push('\n');
     }
     carrier.0.push(')');
-    RuffStringAnnotation.parse(
+    if !wants_outcome {
+        return (!string_carrier(&carrier.0)).then_some(LiteralParseOutcome::Unavailable);
+    }
+    Some(RuffStringAnnotation.parse(
         CarrierInput(&carrier.0),
         LiteralDialect::PythonStringAnnotation,
-    )
+    ))
 }
 
 // The engine fills `literal-expression-parse` from the walked file: every row of the file, once.
@@ -105,6 +109,11 @@ ryo::fills! {
         type Row = <languages::LiteralExpressionParse as languages::CatalogRelation>::Row;
         let syntax = file.syntax;
         let memo = &mut file.model.words.get_mut().fixed;
+        let columns = <languages::LiteralExpressionParse as languages::CatalogRelation>::columns();
+        let selected = |column| rows.wants_column(columns.iter().position(|c| *c == column).expect("catalog column"));
+        let wants_outcome = selected(languages::LiteralExpressionParseColumn::Outcome);
+        let wants_dialect = selected(languages::LiteralExpressionParseColumn::Dialect);
+        let mut dialect = None;
         let carrier = &mut file.buffers.text;
         let mut tokens = Vec::new();
         let mut whole = if syntax.completeness.syntax == languages::SyntaxCompleteness::Incomplete {
@@ -116,14 +125,18 @@ ryo::fills! {
             if !matches!(node, AnyNodeRef::ExprStringLiteral(_)) {
                 continue;
             }
-            let outcome = parsed_as_annotation(&syntax, node, &mut tokens, carrier);
-            if outcome == LiteralParseOutcome::Unavailable {
+            let outcome = parsed_as_annotation(&syntax, node, &mut tokens, carrier, wants_outcome);
+            if outcome == Some(LiteralParseOutcome::Unavailable) {
                 whole = languages::SyntaxCompleteness::Incomplete;
             }
             rows.write(Row {
                 id: node_cell(&syntax, id),
-                dialect: fixed_word(words, memo, languages::NameText(PYTHON_STRING_ANNOTATION)),
-                outcome: fixed_word(words, memo, outcome_name(outcome)),
+                dialect: if wants_dialect {
+                    *dialect.get_or_insert_with(|| fixed_word(words, memo, languages::NameText(PYTHON_STRING_ANNOTATION)))
+                } else {
+                    languages::Symbol(0)
+                },
+                outcome: outcome.filter(|_| wants_outcome).map_or(languages::Symbol(0), |o| fixed_word(words, memo, outcome_name(o))),
                 file: syntax.file,
                 span: span_at(&syntax, id),
             });

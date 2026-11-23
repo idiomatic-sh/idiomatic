@@ -275,6 +275,9 @@ crate::each_relation!(catalog_types);
 /// Where the rows of one relation are written, a typed row at a time. A reader of the relation is given
 /// this and nothing more: it cannot write a row of another relation.
 pub trait Rows<Row> {
+    /// Whether the reader needs the value at this catalog position. A whole-row sink needs every value.
+    fn wants_column(&self, _position: usize) -> bool { true }
+
     /// Writes one row.
     fn write(&mut self, row: Row);
 

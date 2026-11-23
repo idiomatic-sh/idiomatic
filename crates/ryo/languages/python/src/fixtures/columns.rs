@@ -915,13 +915,18 @@ impl ColumnFile<'_, '_> {
             table.answered = false;
             return;
         }
-        let dialect_id = if table.wants(dialect) { self.memo.fixed(ids, NameText(PYTHON_STRING_ANNOTATION)) } else { 0 };
+        let dialect_id = if !ask.exists && table.wants(dialect) { self.memo.fixed(ids, NameText(PYTHON_STRING_ANNOTATION)) } else { 0 };
         let mut tokens = Vec::new();
         for Numbered { id, node } in nodes_of_kind(syntax, Kind::Node(Node::Constant)) {
             let AnyNodeRef::ExprStringLiteral(literal) = node else { continue };
             let spelling = syntax.text.0.get(literal.range().start().to_usize()..literal.range().end().to_usize());
             let Some(spelling) = spelling else { table.answered = false; return; };
             if !available(syntax, node, &mut tokens) { table.answered = false; return; }
+            if ask.exists {
+                table.mark(id.0);
+                table.rows += 1;
+                continue;
+            }
             let outcome_id = if table.wants(outcome) {
                 let parsed = self.memo.literal_outcome(spelling, || crate::outbound::literal_expression::adapters::ruff_string_annotation::grammar::parsed_in_place(literal, syntax.text.0));
                 self.memo.fixed(ids, outcome_name(parsed))

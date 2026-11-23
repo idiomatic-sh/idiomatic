@@ -242,7 +242,7 @@ impl<'p> Finisher<'p> {
     fn file_inner(&mut self, file_no: usize, path: &str, ft: &NodeTable, bytes: &[u8], pv: &mut dyn finish::Provider, wanted: &[usize]) {
         self.files_run += 1;
         let plan = self.plan;
-        let mut f = finish::File::new(ft, bytes, file_no as u32, plan.nodes.len());
+        let mut f = finish::File::new(ft, bytes, file_no as u32, plan.nodes.len(), self.run.fact_offsets.clone());
         // redo-union pass 2 c12: no survivor lists given: every set empty, without a lookup a set a file
         f.seeds = if self.surv.is_empty() { vec![Vec::new(); plan.seeds.len()] } else { plan.seeds.iter().map(|r| self.surv.get(&(r.clone(), path.to_owned())).cloned().unwrap_or_default()).collect() };
         finish::handover::expand(&mut f, &plan.seed_paths);

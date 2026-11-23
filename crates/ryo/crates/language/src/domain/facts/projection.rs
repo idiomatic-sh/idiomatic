@@ -1,4 +1,6 @@
 //! Catalog columns requested by a consumer. Empty projections retain row counts.
+
+/// The catalog positions a consumer reads from a relation. Row count is independent of this selection.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ColumnProjection {
     /// Every column, including columns beyond the first machine word.

@@ -288,6 +288,8 @@ pub(super) struct Run {
     pub(super) missing: std::collections::BTreeSet<String>,
     /// 6h: the provider relations read in place (`Native::Fact`), with their column counts.
     pub(super) fact_rels: Vec<(String, usize)>,
+    /// Offsets into a file's keyed-column indexes, assigned from catalog widths at plan load.
+    pub(super) fact_offsets: Rc<[usize]>,
     fact_slots: FxHashMap<String, u16>,
     /// pass 2: the kind codes of each kind name's symbol (made at the first ask, after `kind_sym` is set).
     pub(super) kind_codes: std::cell::OnceCell<FxHashMap<u32, Box<[u16]>>>,
@@ -631,7 +633,8 @@ pub(super) struct File<'a> {
     pub(super) seeds: Vec<Vec<u32>>,
     /// 6h: the fills read in place, by `Native::Fact` place, and their keyed lists by (place, column).
     facts: Vec<Option<Rc<Table>>>,
-    fact_ix: RefCell<FxHashMap<(u16, usize), Rc<Index>>>,
+    fact_ix: RefCell<Vec<Option<Rc<Index>>>>,
+    fact_offsets: Rc<[usize]>,
     /// redo-union pass 2: whether a step is known empty in this file from its kinds, seeds and per-file tests (`known`).
     known: Vec<u8>,
     /// pass 2: the steps whose memo entry `res` set: cleared at the file's end, and the memo (and `known`) kept for the
@@ -664,7 +667,7 @@ struct FileBufs {
     index: FxHashMap<usize, inline_key::List<(inline_key::Key, Rc<Index>)>>,
     lazies: FxHashMap<usize, Rc<Lazy>>,
     facts: Vec<Option<Rc<Table>>>,
-    fact_ix: FxHashMap<(u16, usize), Rc<Index>>,
+    fact_ix: Vec<Option<Rc<Index>>>,
     answer: Vec<Option<Result<Table, String>>>,
     fact_read: Vec<std::cell::Cell<bool>>,
 }
@@ -735,9 +738,9 @@ impl Drop for File<'_> {
         for t in b.facts.drain(..).flatten() {
             recycle::recycle(t);
         }
-        b.fact_ix.clear();
+        for ix in b.fact_ix.drain(..).flatten() { recycle_index(ix); }
         // a map grown far past a usual file is not kept (its room would stay with the worker)
-        if b.vrows.capacity() > 1 << 12 || b.index.capacity() > 1 << 12 || b.fact_ix.capacity() > 1 << 12 {
+        if b.vrows.capacity() > 1 << 12 || b.index.capacity() > 1 << 12 {
             return;
         }
         SPARE_BUFS.with(|s| *s.borrow_mut() = Some(b));
@@ -765,10 +768,11 @@ pub(super) trait Provider {
 }
 
 impl File<'_> {
-    pub(super) fn new<'a>(table: &'a NodeTable, src: &'a [u8], file: u32, nodes: usize) -> File<'a> {
+    pub(super) fn new<'a>(table: &'a NodeTable, src: &'a [u8], file: u32, nodes: usize, fact_offsets: Rc<[usize]>) -> File<'a> {
         let n = node_table::element_count(table).0;
         // redo-alloc: the last file's emptied buffers and maps (none at the first file)
         let mut b = SPARE_BUFS.with(|s| s.borrow_mut().take()).unwrap_or_default();
+        b.fact_ix.resize_with(fact_offsets.last().copied().unwrap_or(0), || None);
         b.kind.reserve(n);
         b.start.reserve(n);
         b.end.reserve(n);
@@ -799,6 +803,7 @@ impl File<'_> {
             seeds: Vec::new(),
             facts: b.facts,
             fact_ix: RefCell::new(b.fact_ix),
+            fact_offsets,
             known: Vec::new(),
             touched: Vec::new(),
             fact_read: b.fact_read,
@@ -1001,19 +1006,19 @@ impl File<'_> {
     }
     /// 6h: a fill's keyed list on one column (made on the first ask in a file).
     fn fact_list(&self, i: u16, col: usize) -> Rc<Index> {
-        if let Some(ix) = self.fact_ix.borrow().get(&(i, col)) {
-            return ix.clone();
-        }
-        let m = match &self.facts[usize::from(i)] {
-            Some(t) => {
-                FACT_IX_ROWS.fetch_add(t.n as u64, std::sync::atomic::Ordering::Relaxed);
-                Index::build(t.n, |r| t.cols[col][r])
-            }
-            None => Index::build(0, |_| 0),
-        };
-        let rc = Rc::new(m);
-        self.fact_ix.borrow_mut().insert((i, col), rc.clone());
-        rc
+        let relation = usize::from(i);
+        let slot = self.fact_offsets[relation] + col;
+        debug_assert!(slot < self.fact_offsets[relation + 1]);
+        self.fact_ix.borrow_mut()[slot].get_or_insert_with(|| {
+            let index = match &self.facts[relation] {
+                Some(t) => {
+                    FACT_IX_ROWS.fetch_add(t.n as u64, std::sync::atomic::Ordering::Relaxed);
+                    Index::build(t.n, |r| t.cols[col][r])
+                }
+                None => Index::build(0, |_| 0),
+            };
+            index_rc(index)
+        }).clone()
     }
     /// Whether a native relation is probed in place on a column.
     fn probes(nat: Native, col: usize) -> bool {

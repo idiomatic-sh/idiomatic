@@ -257,6 +257,8 @@ pub(crate) struct ColumnsWriter<'o, R> {
 }
 
 impl<R: RelationsItem> Rows<R::Row> for ColumnsWriter<'_, R> {
+    fn wants_column(&self, position: usize) -> bool { self.mask.contains(position) }
+
     fn write(&mut self, row: R::Row) {
         let words = R::words(row);
         self.written += 1;
