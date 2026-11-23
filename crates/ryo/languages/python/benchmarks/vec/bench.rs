@@ -1453,12 +1453,8 @@ impl ColFacts<'_, '_, '_, '_> {
         e.0 += dt;
         e.1 += t.n as u64;
         e.2 += 1;
-        if finish::fill_prof::counting() {
-            if t.n == 0 {
-                self.by_rel.entry(format!("zero:{rel}")).or_default().2 += 1;
-            }
-            let site = finish::fill_prof::SITE.with(std::cell::Cell::get);
-            self.by_rel.entry(format!("site:{site}:{rel}")).or_default().2 += 1;
+        if t.n == 0 && finish::fill_prof::counting() {
+            self.by_rel.entry(format!("zero:{rel}")).or_default().2 += 1;
         }
         if finish::fill_prof::dumping() {
             if t.cols.iter().any(|c| c.len() < t.n) {
