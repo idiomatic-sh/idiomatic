@@ -2,7 +2,9 @@
 //! the second half runs either on its own walk (`vec finish`) or inside the first half's visit on the same parsed file
 //! (`vec funnel ... --finish`): one parse and one file view a file for both halves.
 
-use super::{ColFacts, HashMap, NodeTable, Vocab, files, finish, flag, thread_cpu};
+use super::{finish, flag, thread_cpu};
+use std::collections::HashMap;
+use ryo::languages::NodeTable;
 use std::collections::HashSet;
 
 /// The second half of a run: the plan's emits to run, the run's symbols, the executor, and what it found.
@@ -20,9 +22,7 @@ pub(super) struct Finisher<'p> {
     dump: Option<String>,
     dump_text: String,
     pub(super) run: finish::Run,
-    exec: finish::Exec<'p>,
-    fwords: languages::FileWords,
-    completed: super::completed_facts::Completed,
+    pub(super) exec: finish::Exec<'p>,
     findings: Vec<String>,
     failed: HashMap<String, String>,
     /// redo-honest: per plan emit, whether its rule runs only on a file whose syntax the parser accepted (the request's
@@ -30,11 +30,12 @@ pub(super) struct Finisher<'p> {
     accepted_only: Vec<bool>,
     /// redo-union pass 2 c16: a failed emit by its index (no name hashed an emit a file).
     failed_idx: Vec<bool>,
+    rule_stats: Vec<[u64; 3]>,
     check_lines: Vec<String>,
     files_run: u64,
-    provider_time: f64,
-    provider_rows: u64,
-    by_rel: HashMap<String, (f64, u64, u64)>,
+    pub(super) provider_time: f64,
+    pub(super) provider_rows: u64,
+    pub(super) by_rel: HashMap<String, (f64, u64, u64)>,
     /// Thread CPU of everything the finisher did (the second half's own time when it runs inside another walk).
     pub(super) time: f64,
     out: Option<String>,
@@ -43,15 +44,7 @@ pub(super) struct Finisher<'p> {
     check_out: Option<String>,
     /// redo-alloc: blocks and bytes allocated inside `file` (the second half's own), summed.
     alloc: [u64; 2],
-    /// redo-general: the provider's project (its packaging knowledge), for the relations it answers for a project; the
-    /// search roots are the host's (the request's), never a default of this driver.
-    project: super::provider_packaging::Project,
-    type_paths: super::type_expression::Paths,
-    input_layout: super::composition_inputs::Layout,
-    prefix_symbols: Vec<u32>,
-    implicit: Option<(u32, finish::Table)>,
-    filled: languages::FilledColumns,
-    direct_memo: ryo_python::fixtures::columns::ColumnMemo,
+
 }
 
 use ryo::languages;
@@ -59,10 +52,8 @@ use ryo::languages;
 impl<'p> Finisher<'p> {
     /// `args` as `vec finish` takes them: `<plan> <files> <root> [--rules A,B] [--surv F] [--check-bases] [--dump F]
     /// [--out F] [--stats F] [--tally F] [--check-out F]`; `plan` is `args[0]` loaded.
-    pub(super) fn new(plan: &'p finish::Plan, walk: &impl languages::Walk, vocab: &Vocab, args: &[&str]) -> Self {
+    pub(super) fn new(plan: &'p finish::Plan, run: finish::Run, args: &[&str]) -> Self {
         let t0 = thread_cpu();
-        let list = files(args[1]);
-        let root = format!("{}/", args[2].trim_end_matches('/'));
         let only: Option<HashSet<String>> = flag(args, "--rules").map(|r| r.split(',').map(str::to_owned).collect());
         let emits: Vec<usize> = (0..plan.emits.len()).filter(|e| only.as_ref().is_none_or(|o| o.contains(&plan.emits[*e].0))).collect();
         // the survivor handoff: per (rule, file) the prefix's root nodes (`vec funnel ... --surv-out`); a seeded rule runs
@@ -83,19 +74,6 @@ impl<'p> Finisher<'p> {
         for (r, f) in surv.keys() {
             surv_by_path.entry(f.clone()).or_default().insert(r.clone());
         }
-        let mut run = finish::Run::default();
-        run.empty = run.sym(b"");
-        // redo-fills pass 2: the suppliers declare their relations beyond the provider's relations catalog
-        super::fact_catalog::declare(&mut run);
-        run.links();
-        run.root_dir = args[2].trim_end_matches('/').to_owned();
-        run.kind_sym = vocab.kind_names.clone().iter().map(|k| run.sym(k.as_bytes())).collect();
-        run.field_sym = vocab.field_names.clone().iter().map(|k| run.sym(k.as_bytes())).collect();
-        run.paths = list.iter().map(|p| p.strip_prefix(&root).unwrap_or(p).to_owned()).collect();
-        run.path_sym = run.paths.clone().iter().map(|p| run.sym(p.as_bytes())).collect();
-        // redo-general: the provider's token order (its lexical model, `provider_tokens.rs`)
-        run.set_tokens(std::rc::Rc::new(super::provider_tokens::Lexicon::new(&|n| vocab.kinds.get(n).copied())), vocab.kind_names.len());
-        let input_layout = super::composition_inputs::Layout::from_catalog(&mut run);
         let mut me = Self {
             plan,
             emits,
@@ -107,12 +85,11 @@ impl<'p> Finisher<'p> {
             dump_text: String::new(),
             run,
             exec: finish::Exec::new(plan),
-            completed: Default::default(),
-            fwords: ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names"),
             findings: Vec::new(),
             failed: HashMap::new(),
             failed_idx: vec![false; plan.emits.len()],
             accepted_only: applicability(plan, flag(args, "--applicability").as_deref()),
+            rule_stats: vec![[0; 3]; plan.emits.len()],
             check_lines: Vec::new(),
             files_run: 0,
             provider_time: 0.0,
@@ -124,21 +101,8 @@ impl<'p> Finisher<'p> {
             tally: flag(args, "--tally"),
             check_out: flag(args, "--check-out"),
             alloc: [0; 2],
-            type_paths: Default::default(),
-            input_layout,
-            prefix_symbols: Vec::new(),
-            implicit: None,
-            filled: Default::default(),
-            direct_memo: Default::default(),
-            project: super::provider_packaging::Project::new(
-                args[2].trim_end_matches('/'),
-                super::provider_packaging::Project::search_roots_of(flag(args, "--request").as_deref()),
-                &|n| vocab.kinds.get(n).copied(),
-            ),
         };
         me.exec.prepare_slots(&mut me.run, &me.emits);
-        let language = super::python_language(vocab);
-        me.exec.prepare_spellings(&me.run, &language.spelled, language.is_identifier);
         me.exec.col_load(&mut me.run);
         me.time += thread_cpu() - t0;
         me
@@ -173,76 +137,27 @@ impl<'p> Finisher<'p> {
         self.plan.emits.iter().enumerate().map(|(e, x)| (e, x.0.as_str()))
     }
 
-    pub(super) fn prefix_storage(&mut self, file: usize) -> (&[u8], &mut languages::FileWords, &mut super::completed_facts::Completed) {
-        self.completed.begin(languages::FileId(file as u32));
-        (self.run.paths[file].as_bytes(), &mut self.fwords, &mut self.completed)
+    pub(super) fn can_finish_exact(&self) -> bool {
+        self.dump.is_none() && self.surv.is_empty()
     }
 
-    pub(super) fn prefix_table(&mut self, name: &str, t: &ryo_python::fixtures::columns::FactTable, words: &super::facts::Interner) {
-        if t.rows == 0 { self.exec.walk_empty(&self.run, name); return; }
-        let keys = (t.layout == ryo_python::fixtures::columns::Layout::PerNode).then(|| t.keys());
-        self.exec.prefix_symbols(&self.run, name, &t.columns, keys, words.matches.len(), |text| words.ids.get(text));
-    }
-
-    /// The second half on one walked file of the direct-columns walk (its own model by parts, built on demand).
-    pub(super) fn column_file(&mut self, file_no: usize, path: &str, file: &mut ryo_python::fixtures::columns::ColumnFile<'_, '_>, bytes: &[u8], wanted: &[usize], prefix: Option<super::direct_fill::Prefix<'_>>) {
-        let t0 = thread_cpu();
-        file.set_file(languages::FileId(file_no as u32));
-        if file.plain_spellings() { self.exec.source_spellings(bytes); }
-        for &rel in &file.empty { self.exec.walk_empty(&self.run, rel); }
-        super::fact_catalog::composed_empty(&mut self.run, file, path, |rel, run| self.exec.walk_empty(run, rel));
-        let ft = file.table;
-        let mut fwords = std::mem::take(&mut self.fwords);
-        let mut completed = std::mem::take(&mut self.completed);
-        if completed.file != Some(languages::FileId(file_no as u32)) {
-            completed.clear();
-            languages::facts::clear_words(&mut fwords);
+    pub(super) fn emit_exact(&mut self, file: usize, table: &NodeTable, emit: usize, nodes: &[u64]) -> Option<u64> {
+        if self.failed_idx[emit] || (self.accepted_only[emit] && languages::node_table::acceptance_of(table) == languages::SyntaxAcceptance::Rejected) {
+            return None;
         }
-        finish::own_words_cleared(&mut self.run);
-        let mut project = std::mem::take(&mut self.project);
-        let mut type_paths = std::mem::take(&mut self.type_paths);
-        let mut prefix_symbols = std::mem::take(&mut self.prefix_symbols);
-        let mut direct_memo = std::mem::take(&mut self.direct_memo);
-        let mut implicit = self.implicit.take();
-        direct_memo.new_file();
-        let mut pv = ColFacts { file, completed: &completed, words: &mut fwords, filled: std::mem::take(&mut self.filled), time: 0.0, rows: 0, by_rel: std::mem::take(&mut self.by_rel), file_no: file_no as u32, kept: Default::default(), implicit: &mut implicit, type_paths: &mut type_paths, input_layout: self.input_layout, input_columns: Default::default(), prefix, prefix_symbols: &mut prefix_symbols, direct_memo: &mut direct_memo, project: &mut project, src: bytes };
-        self.file(file_no, path, ft, bytes, &mut pv, wanted);
-        self.provider_time += pv.time;
-        self.provider_rows += pv.rows;
-        self.by_rel = pv.by_rel;
-        self.filled = pv.filled;
-        self.fwords = fwords;
-        completed.clear();
-        self.completed = completed;
-        self.type_paths = type_paths;
-        self.prefix_symbols = prefix_symbols;
-        self.direct_memo = direct_memo;
-        self.implicit = implicit;
-        self.project = project;
-        self.time += thread_cpu() - t0;
-    }
-
-    /// The second half on one file through the reader's facts (`vec finish` without `VEC_COLWALK`).
-    pub(super) fn reader_file(&mut self, file_no: usize, path: &str, file: &mut languages::FileFacts<'_>, bytes: &[u8], wanted: &[usize]) {
-        let t0 = thread_cpu();
-        let ft = file.table;
-        let mut fwords = std::mem::take(&mut self.fwords);
-        languages::facts::clear_words(&mut fwords);
-        finish::own_words_cleared(&mut self.run);
-        let mut project = std::mem::take(&mut self.project);
-        let mut pv = super::Facts { facts: file, words: &mut fwords, filled: std::mem::take(&mut self.filled), time: 0.0, rows: 0, by_rel: std::mem::take(&mut self.by_rel), file: file_no as u32, project: &mut project, src: bytes };
-        self.file(file_no, path, ft, bytes, &mut pv, wanted);
-        self.provider_time += pv.time;
-        self.provider_rows += pv.rows;
-        self.by_rel = pv.by_rel;
-        self.filled = pv.filled;
-        self.fwords = fwords;
-        self.project = project;
-        self.time += thread_cpu() - t0;
+        let rule = serde_json::to_string(&self.plan.emits[emit].0).expect("rule string");
+        let path = serde_json::to_string(&self.run.paths[file]).expect("path string");
+        let mut count = 0;
+        super::pair_checks::each(nodes, |i| {
+            let span = super::span_bytes(table, i as usize);
+            self.findings.push(format!(r#"{{"rule":{rule},"file":{path},"start":{},"end":{}}}"#, span.start, span.end));
+            count += 1;
+        });
+        Some(count)
     }
 
     /// One file's emits run on its node table and source through the provider `pv`.
-    fn file(&mut self, file_no: usize, path: &str, ft: &NodeTable, bytes: &[u8], pv: &mut dyn finish::Provider, wanted: &[usize]) {
+    pub(super) fn file(&mut self, file_no: usize, path: &str, ft: &NodeTable, bytes: &[u8], pv: &mut dyn finish::Provider, wanted: &[usize]) {
         let a0 = super::alloc_count::counts();
         self.file_inner(file_no, path, ft, bytes, pv, wanted);
         let a1 = super::alloc_count::counts();
@@ -255,17 +170,18 @@ impl<'p> Finisher<'p> {
         self.files_run += 1;
         let plan = self.plan;
         let mut f = finish::File::new(ft, bytes, file_no as u32, plan.nodes.len(), self.run.fact_offsets.clone());
+        if let Some(text) = pv.syntax_text() { f.set_text(text); }
         // redo-union pass 2 c12: no survivor lists given: every set empty, without a lookup a set a file
         f.seeds = if self.surv.is_empty() { vec![Vec::new(); plan.seeds.len()] } else { plan.seeds.iter().map(|r| self.surv.get(&(r.clone(), path.to_owned())).cloned().unwrap_or_default()).collect() };
         finish::handover::expand(&mut f, &plan.seed_paths);
         let run = &mut self.run;
-        let checks: &[&str] = if self.check {
-            &["semantic-syntax", "syntax-tree", "semantic-child", "syntax-child", "source-location", "token-link"]
-        } else { &[] };
+        let checks: Vec<&str> = if self.check {
+            ["semantic-syntax", "syntax-tree", "semantic-child", "syntax-child", "source-location", "token-link"].into_iter().filter(|rel| !run.reader_tables.contains(*rel)).collect()
+        } else { Vec::new() };
         let rejected = languages::node_table::acceptance_of(ft) == languages::SyntaxAcceptance::Rejected;
         // redo-fills pass 3: the file's one request, for what the alive rules' steps can read (request.rs)
         let roots: Vec<usize> = wanted.iter().filter(|ei| !(self.failed_idx[**ei] || (rejected && self.accepted_only[**ei]))).map(|ei| plan.emits[*ei].1).collect();
-        match self.exec.open_file(&mut f, run, pv, &roots, checks) {
+        match self.exec.open_file(&mut f, run, pv, &roots, &checks) {
             Ok(checked) => {
                 for (&rel, theirs) in checks.iter().zip(checked) {
                     let mine = finish::native_table(&mut f, run, rel);
@@ -290,25 +206,45 @@ impl<'p> Finisher<'p> {
             }
             let e = &plan.emits[*ei];
             run.missing.clear();
+            let before = (self.exec.stats.total_runs, self.exec.stats.total_rows);
             let got = self.exec.eval(&mut f, run, pv, e.1);
+            let stats = &mut self.rule_stats[*ei];
+            stats[0] += 1;
+            stats[1] += self.exec.stats.total_runs - before.0;
+            stats[2] += self.exec.stats.total_rows - before.1;
             finish::emptyprop::emit_done(&f, e.1);
             let got = if run.missing.is_empty() { got } else { Err(format!("functions {:?} not in the step set", run.missing)) };
-            match got {
-                Ok(t) => {
-                    if self.dump.is_some() {
-                        finish::dump_rows(&f, run, &t, &e.0, &run.paths[file_no], &mut self.dump_text);
+            let written = got.and_then(|t| {
+                if self.dump.is_some() {
+                    finish::dump_rows(&f, run, &t, &e.0, &run.paths[file_no], &mut self.dump_text);
+                    return Ok(());
+                }
+                if t.n == 0 { return Ok(()); }
+                let subject = t.col(&e.2)?;
+                let span = t.col("span").ok();
+                let rule = serde_json::to_string(&e.0).expect("rule string");
+                // The declared subject and key identify a finding. Independent keys
+                // may still project to the same diagnostic range.
+                let mut identity = vec![subject];
+                for name in &e.3 { identity.push(t.col(name)?); }
+                let mut seen = rustc_hash::FxHashSet::default();
+                for r in 0..t.n {
+                    if t.n > 1 && !seen.insert(identity.iter().map(|&c| t.cols[c][r]).collect::<Vec<_>>()) {
                         continue;
                     }
-                    let sc = t.col("span").ok();
-                    for r in 0..t.n {
-                        let (st, en) = sc.map_or((0, 0), |c| (t.cols[c][r] >> 32, t.cols[c][r] & 0xffff_ffff));
-                        self.findings.push(format!("{{\"rule\":\"{}\",\"file\":\"{}\",\"start\":{st},\"end\":{en}}}", e.0, run.paths[file_no]));
-                    }
+                    let target = if t.tys[subject] == finish::Ty::File {
+                        usize::try_from(t.cols[subject][r]).ok().and_then(|id| run.paths.get(id))
+                            .ok_or_else(|| format!("file subject outside the run: {}", t.cols[subject][r]))?
+                    } else { &run.paths[file_no] };
+                    let (st, en) = span.map_or((0, 0), |c| (t.cols[c][r] >> 32, t.cols[c][r] & 0xffff_ffff));
+                    let file = serde_json::to_string(target).expect("path string");
+                    self.findings.push(format!("{{\"rule\":{rule},\"file\":{file},\"start\":{st},\"end\":{en}}}"));
                 }
-                Err(err) => {
-                    self.failed.insert(e.0.clone(), format!("{}: {err}", run.paths[file_no]));
-                    self.failed_idx[*ei] = true;
-                }
+                Ok(())
+            });
+            if let Err(err) = written {
+                self.failed.insert(e.0.clone(), format!("{}: {err}", run.paths[file_no]));
+                self.failed_idx[*ei] = true;
             }
         }
         finish::emptyprop::file_end(&mut self.exec, &mut f, run, pv);
@@ -317,11 +253,12 @@ impl<'p> Finisher<'p> {
 
     /// Writes the findings, dumps and stats, and prints the second half's lines; `walk_time` is the walk's own time when
     /// the second half walked the files itself (0 inside the first half's walk).
-    pub(super) fn end(mut self, walk_time: f64) {
+    pub(super) fn end(mut self, walk_time: f64, project_findings: impl FnOnce(&mut Vec<String>)) -> bool {
+        let ok = self.failed.is_empty();
         let total = self.time + walk_time;
         let file_time = self.time;
         self.findings.sort();
-        self.findings.dedup();
+        project_findings(&mut self.findings);
         if let Some(d) = &self.dump {
             std::fs::write(d, &self.dump_text).expect("write dump");
         }
@@ -330,6 +267,14 @@ impl<'p> Finisher<'p> {
         }
         if self.check {
             std::fs::write(self.check_out.clone().unwrap_or_else(|| "check-bases.tsv".to_owned()), self.check_lines.join("\n") + "\n").expect("write check");
+        }
+        if let Ok(path) = std::env::var("VEC_RULE_STATS") {
+            use std::fmt::Write as _;
+            let mut data = String::from("rule\tfiles\tstep_runs\trows\n");
+            for (emit, [files, runs, rows]) in self.plan.emits.iter().zip(&self.rule_stats) {
+                writeln!(data, "{}\t{files}\t{runs}\t{rows}", emit.0).unwrap();
+            }
+            std::fs::write(path, data).expect("write rule counters");
         }
         let exec = &self.exec;
         exec.col_report();
@@ -407,6 +352,7 @@ impl<'p> Finisher<'p> {
         }
         // redo-union pass 2 c18: the process ends here: the executor is not dropped one by one
         std::mem::forget(self.exec);
+        ok
     }
 }
 

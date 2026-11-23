@@ -4,7 +4,7 @@
 //! a function and the first item of a list (it walks `e[1:]` of the argument list), so a column read only there is not
 //! seen. That is a defect of the prototype's passes, kept here until both are fixed together.
 
-use super::types::{Emitted, PlanReaders, ReadAlias, Worked};
+use super::types::{Emitted, PlanReaders, ReadAlias, Uses, Worked};
 use ryo_values::domain::finish_plans::arguments::groups::types::CountedRows;
 use ryo_values::domain::finish_plans::arguments::literals::types::ArgumentValue;
 use ryo_values::domain::finish_plans::arguments::texts::types::OptionalColumn;
@@ -18,7 +18,7 @@ use ryo_values::domain::finish_plans::types::{FinishPlan, FinishStep, RuleEmit, 
 use hashbrown::HashSet;
 
 /// The plan with who reads each step and which are emitted.
-pub(crate) fn plan_readers(plan: &FinishPlan) -> PlanReaders<'_> {
+pub(crate) fn step_uses(plan: &FinishPlan) -> Uses {
     let mut emitted = vec![Emitted::No; plan.steps.len()];
     for rule in &plan.rules {
         if let RuleEmit::Written(emit) = &rule.emit
@@ -27,10 +27,17 @@ pub(crate) fn plan_readers(plan: &FinishPlan) -> PlanReaders<'_> {
             *flag = Emitted::Yes;
         }
     }
-    PlanReaders {
-        steps: &plan.steps,
+    Uses {
         readers: readers(&plan.steps),
         emitted,
+    }
+}
+
+pub(crate) fn plan_readers<'a>(plan: &'a FinishPlan, uses: &'a Uses) -> PlanReaders<'a> {
+    PlanReaders {
+        steps: &plan.steps,
+        readers: &uses.readers,
+        emitted: &uses.emitted,
     }
 }
 

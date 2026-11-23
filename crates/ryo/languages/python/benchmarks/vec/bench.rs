@@ -84,12 +84,7 @@ struct Rule {
     whole: Option<String>,
 }
 
-struct Vocab {
-    kinds: HashMap<String, u16>,
-    kind_names: Vec<String>,
-    fields: HashMap<String, u16>,
-    field_names: Vec<String>,
-}
+use first::{Vocab, span_bytes};
 
 fn vocabulary<W: Walk>(_: &W) -> Vocab {
     let v = W::vocabulary();
@@ -290,9 +285,6 @@ fn fields_present(table: &NodeTable, cols: &mut Columns, fields: usize) {
 }
 
 /// An element's bytes, from the node table's own span column.
-fn span_bytes(table: &NodeTable, i: usize) -> std::ops::Range<usize> {
-    node_table::starts(table)[i] as usize..node_table::ends(table)[i] as usize
-}
 
 fn test_lit(lit: &Lit, text: &[u8]) -> bool {
     match lit {
@@ -357,131 +349,9 @@ fn first_condition(table: &NodeTable, cols: &Columns, source: &[u8], anchor: &An
 
 /// The kinds-and-fields skip of a run's plan rules, flat: per rule whether it never matches and its clauses, a clause its
 /// kind words then its field words; a rule with no anchor line always passes.
-/// The file skip, flat: each rule's kinds-and-fields clauses and its word CNFs as numbers of distinct clauses, a clause
-/// stored once however many rules share it. A file's kinds-and-fields clauses are all tested once (`file`); a word clause
-/// is tested once a file, when a rule its kinds keep first asks it.
-struct Skip {
-    kw: usize,
-    fw: usize,
-    /// The distinct kinds-and-fields clauses, `kw + fw` words each: kind words then field words.
-    masks: Vec<u64>,
-    /// Per rule: never matches, and its clauses (a range of `of`).
-    rules: Vec<(bool, std::ops::Range<u32>)>,
-    of: Vec<u32>,
-    /// This file's answer of each distinct kinds-and-fields clause.
-    held: Vec<bool>,
-    /// Per rule its branches (a range of `branches`; none: unknown, alive), a branch its clauses (a range of `wof`), a
-    /// distinct word clause its words (a range of `wwords`).
-    wrules: Vec<std::ops::Range<u32>>,
-    branches: Vec<std::ops::Range<u32>>,
-    wof: Vec<u32>,
-    wclauses: Vec<std::ops::Range<u32>>,
-    wwords: Vec<u16>,
-    /// Per distinct word clause: `stamp << 1 | answer` once asked in the file of `stamp`.
-    wmemo: Vec<u32>,
-    stamp: u32,
-}
-
-impl Skip {
-    fn new(rules: &[Rule], skip_of: &[Option<usize>], frules: &[funnel::FRule], kw: usize, fw: usize) -> Self {
-        let mut masks: Vec<u64> = Vec::new();
-        let mut seen: HashMap<Vec<u64>, u32> = HashMap::new();
-        let mut of = Vec::new();
-        let rules: Vec<(bool, std::ops::Range<u32>)> = skip_of
-            .iter()
-            .map(|i| {
-                let a = of.len() as u32;
-                if let Some(i) = i {
-                    for (k, f) in &rules[*i].clauses {
-                        let c: Vec<u64> = k.iter().chain(f).copied().collect();
-                        assert_eq!(c.len(), kw + fw, "a clause is kw + fw words");
-                        let n = seen.len() as u32;
-                        let id = *seen.entry(c.clone()).or_insert_with(|| {
-                            masks.extend_from_slice(&c);
-                            n
-                        });
-                        of.push(id);
-                    }
-                }
-                (i.is_some_and(|i| rules[i].never), a..of.len() as u32)
-            })
-            .collect();
-        let mut wseen: HashMap<Vec<u16>, u32> = HashMap::new();
-        let (mut wrules, mut branches, mut wof, mut wclauses, mut wwords) = (Vec::new(), Vec::new(), Vec::new(), Vec::new(), Vec::new());
-        for r in frules {
-            let a = branches.len() as u32;
-            for cnf in &r.cnfs {
-                let b = wof.len() as u32;
-                for cl in cnf {
-                    let n = wseen.len() as u32;
-                    let id = *wseen.entry(cl.clone()).or_insert_with(|| {
-                        let w = wwords.len() as u32;
-                        wwords.extend_from_slice(cl);
-                        wclauses.push(w..wwords.len() as u32);
-                        n
-                    });
-                    wof.push(id);
-                }
-                branches.push(b..wof.len() as u32);
-            }
-            wrules.push(a..branches.len() as u32);
-        }
-        let n_masks = masks.len() / (kw + fw).max(1);
-        let n_w = wclauses.len();
-        Skip { kw, fw, masks, rules, of, held: vec![false; n_masks], wrules, branches, wof, wclauses, wwords, wmemo: vec![0; n_w], stamp: 0 }
-    }
-
-    /// A new file: every distinct kinds-and-fields clause tested once against its kinds and fields; the word answers of
-    /// the last file forgotten.
-    fn file(&mut self, kinds: &[u64], fields: &[u64]) {
-        let (kw, fw) = (self.kw, self.fw);
-        for (c, h) in self.masks.chunks_exact(kw + fw).zip(&mut self.held) {
-            *h = c[..kw].iter().zip(kinds).any(|(a, b)| a & b != 0) || c[kw..].iter().zip(fields).any(|(a, b)| a & b != 0);
-        }
-        self.stamp += 1;
-    }
-
-    /// Whether every clause of the rule meets a kind or a field the file has (`survives` over the distinct clauses).
-    #[inline]
-    fn alive(&self, rule: usize) -> bool {
-        let (never, range) = &self.rules[rule];
-        !never && self.of[range.start as usize..range.end as usize].iter().all(|c| self.held[*c as usize])
-    }
-
-    /// Whether some branch of the rule's word CNFs has every clause met by a word the file has (`FRule::words_alive`).
-    #[inline]
-    fn words_alive(&mut self, rule: usize, present: &[u64]) -> bool {
-        let r = self.wrules[rule].clone();
-        if r.is_empty() {
-            return true;
-        }
-        let stamp = self.stamp << 1;
-        for b in r {
-            let br = self.branches[b as usize].clone();
-            let mut all = true;
-            for k in br {
-                let c = self.wof[k as usize] as usize;
-                let m = self.wmemo[c];
-                let held = if m & !1 == stamp {
-                    m & 1 == 1
-                } else {
-                    let ws = self.wclauses[c].clone();
-                    let h = self.wwords[ws.start as usize..ws.end as usize].iter().any(|w| funnel::bit(present, *w));
-                    self.wmemo[c] = stamp | u32::from(h);
-                    h
-                };
-                if !held {
-                    all = false;
-                    break;
-                }
-            }
-            if all {
-                return true;
-            }
-        }
-        false
-    }
-}
+#[path = "../../../../crates/engine/benches/vec/file_skip.rs"]
+mod file_skip;
+use file_skip::Skip;
 
 fn survives(rule: &Rule, kinds: &[u64], fields: &[u64]) -> bool {
     if rule.never {
@@ -585,14 +455,15 @@ fn main() {
     match args.get(1).copied() {
         Some("lower") => return lower::run_lower(&args[2..]),
         Some("stage") => return lower::run_stage(&args[2..]),
-        Some("first") => return first::run_first(&args[2..]),
         _ => {}
     }
     // 6f: `VEC_PY310` walks at the pack's configured target (benchmark.toml `python-target=3.10`); without it the walk is at
     // the parser's default (Latest), as every run before 6f was.
-    let walk = ryo_python::walk_with_settings(target_settings());
+    let settings = target_settings();
+    let walk = ryo_python::walk_with_settings(settings);
     let vocab = vocabulary(&walk);
     match args.get(1).copied() {
+        Some("first") => first::run_first(&args[2..], &vocab, python_language),
         Some("census") => census(&walk, &vocab, args[2], args[3], args[4]),
         Some("run") => run(&walk, &vocab, &args[2..]),
         Some("funnel") => {
@@ -640,16 +511,16 @@ fn main() {
                     finish::load(finish_args[0])
                 };
                 println!("start-up total {:.4} s", thread_cpu() - t0);
-                let mut fin = finisher::Finisher::new(&plan, &walk, &vocab, &finish_args);
-                run_funnel(&walk, &vocab, &args[2..], Some(&mut fin), pack.as_ref().map(|(d, r)| (*d, r)));
+                let mut fin = visit::Finisher::new(&plan, &walk, &vocab, &finish_args);
+                run_funnel(&walk, settings, &vocab, &args[2..], Some(&mut fin), pack.as_ref().map(|(d, r)| (*d, r)));
                 fin.end(0.0);
                 // redo-union pass 2 c18: the plan (30 k nodes of JSON) is not dropped one by one at exit
                 std::mem::forget(plan);
             } else {
-                run_funnel(&walk, &vocab, &args[2..], None, None);
+                run_funnel(&walk, settings, &vocab, &args[2..], None, None);
             }
         }
-        Some("finish") => run_finish(&walk, &vocab, &args[2..]),
+        Some("finish") => run_finish(&walk, settings, &vocab, &args[2..]),
         Some("kfloor") => kernel_floor(&walk, args[2]),
         _ => eprintln!("usage: vec census <files> <literals> <out> | vec run <mode> <files> <anchors> [--batch N] [--repeat K] [--rules-out F]"),
     }
@@ -662,8 +533,10 @@ fn python_language(vocab: &Vocab) -> first::Language {
     let tokens=provider_tokens::Lexicon::new(&|n| vocab.kinds.get(n).copied());
     use ryo_python::fixtures::columns::{PER_NODE_FACTS, SPELLED_COLUMNS, Spelling, is_identifier};
     first::Language {
+        host_len: finish::host::host_len,
+        walk_facts: pair_provider::FACTS,
         text_kinds: vocab.kinds.values().copied().filter(|k|tokens.has_text(*k)).collect(),
-        file_sets: ryo_python::fixtures::columns::FILE_SET_FACTS.iter().map(|s|(*s).to_string()).collect(),
+        file_sets: ryo_python::fixtures::columns::FILE_SET_FACTS.iter().chain(host_columns::FILE_SETS.iter()).map(|s|(*s).to_string()).collect(),
         facts: PER_NODE_FACTS.iter().map(|s| (*s).to_owned()).collect(),
         spelled: SPELLED_COLUMNS.iter().map(|(r, c, how)| ((*r).to_owned(), (*c).to_owned(), match how { Spelling::Whole => None, Spelling::LastSegment(c) => Some(*c) })).collect(),
         is_identifier,
@@ -674,13 +547,14 @@ fn python_language(vocab: &Vocab) -> first::Language {
 /// provider's identity); with no request, `VEC_PY310` as before.
 fn target_settings() -> ryo_python::settings::PythonParserSettings {
     let args: Vec<String> = std::env::args().collect();
-    let req = args.iter().position(|a| a == "--request" || a == "--applicability").and_then(|i| args.get(i + 1));
-    if let Some(path) = req
-        && let Ok(text) = std::fs::read_to_string(path)
-        && let Ok(r) = serde_json::from_str::<serde_json::Value>(&text)
-        && let Some(id) = r["parser_configuration"].as_str()
-    {
-        return ryo_python::settings::PythonParserSettings::from_identity(id).unwrap_or_else(|| panic!("parser configuration {id}"));
+    for option in ["--request", "--applicability"] {
+        if let Some(path) = args.windows(2).find(|pair| pair[0] == option).map(|pair| &pair[1])
+            && let Ok(text) = std::fs::read_to_string(path)
+            && let Ok(request) = serde_json::from_str::<serde_json::Value>(&text)
+            && let Some(identity) = request["parser_configuration"].as_str()
+        {
+            return ryo_python::settings::PythonParserSettings::from_identity(identity).unwrap_or_else(|| panic!("parser configuration {identity}"));
+        }
     }
     if std::env::var_os("VEC_PY310").is_some() {
         ryo_python::settings::PythonParserSettings::new(ryo_python::settings::PythonTargetVersion::Py310)
@@ -935,30 +809,44 @@ fn run(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     }
 }
 
-#[path = "alloc_count.rs"]
+#[path = "../../../../crates/engine/benches/vec/alloc_count.rs"]
 mod alloc_count;
-#[path = "funnel.rs"]
+#[path = "../../../../crates/engine/benches/vec/funnel.rs"]
 mod funnel;
-#[path = "file_seeds.rs"]
+#[path = "../../../../crates/engine/benches/vec/spec.rs"]
+mod spec;
+
+#[path = "../../../../crates/engine/benches/vec/file_seeds.rs"]
 mod file_seeds;
-#[path = "facts.rs"]
+#[path = "../../../../crates/engine/benches/vec/facts.rs"]
 mod facts;
-#[path = "survivors.rs"]
+#[path = "../../../../crates/engine/benches/vec/survivors.rs"]
 mod survivors;
-#[path = "finish.rs"]
+#[path = "../../../../crates/engine/benches/vec/finish.rs"]
 mod finish;
-#[path = "lower.rs"]
+#[path = "../../../../crates/engine/benches/vec/lower.rs"]
 mod lower;
-#[path = "first.rs"]
+use request::rule_context;
+#[path = "../../../../crates/engine/benches/vec/first.rs"]
 mod first;
+#[path = "../../../../crates/engine/benches/vec/pair_summary.rs"]
 mod pair_summary;
+#[path = "../../../../crates/engine/benches/vec/glob_pattern.rs"]
+mod glob_pattern;
+use glob_pattern::glob_pattern;
+#[path = "../../../../crates/engine/benches/vec/pair_skip.rs"]
 mod pair_skip;
+#[path = "../../../../crates/engine/benches/vec/pair_checks.rs"]
 mod pair_checks;
+mod pair_provider;
+#[path = "../../../../crates/engine/benches/vec/host_columns.rs"]
+mod host_columns;
 mod request;
 mod completed_facts;
-#[path = "finisher.rs"]
+#[path = "../../../../crates/engine/benches/vec/finisher.rs"]
 mod finisher;
-#[path = "dump.rs"]
+mod visit;
+#[path = "../../../../crates/engine/benches/vec/dump.rs"]
 mod dump;
 #[path = "type_expression.rs"]
 mod type_expression;
@@ -974,6 +862,9 @@ mod direct_fill;
 mod fact_catalog;
 #[path = "composition_inputs.rs"]
 mod composition_inputs;
+#[path = "relative_import.rs"]
+mod relative_import;
+mod import_syntax;
 #[path = "provider_packaging.rs"]
 mod provider_packaging;
 #[path = "provider_tokens.rs"]
@@ -1156,51 +1047,58 @@ impl ColFacts<'_, '_, '_, '_> {
         t
     }
 
+    /// The flow outcome is independent of the syntactic predecessor. Each possible binding or absence has its own row.
+    fn read_resolution(&mut self, run: &mut finish::Run) -> Result<finish::Table, String> {
+        let snapshot = self.scheduled_read_predecessor(run)?;
+        let (_, names, tys) = run.catalog(fact_catalog::RESOLUTION_REL).ok_or("no read-resolution")?;
+        let mut rows = finish::Table::with_rows(names, tys, snapshot.n);
+        let mut by_reference = vec![usize::MAX; node_table::element_count(self.file.table).0 as usize];
+        for (index, &node) in snapshot.cols[0].iter().enumerate() {
+            by_reference[node as usize] = index;
+        }
+        let mut missing = None;
+        let complete = self.file.visit_read_outcomes(|reference, binding, outcome, basis| {
+            let index = by_reference[reference as usize];
+            if index != usize::MAX {
+                for (col, value) in rows.cols.iter_mut().zip(&snapshot.cols) {
+                    col.push(value[index]);
+                }
+                rows.cols[9].push(binding.map_or(finish::NULL, u64::from));
+                rows.cols[10].push(u64::from(run.sym(outcome.as_bytes())));
+                rows.cols[11].push(u64::from(run.sym(basis.as_bytes())));
+                rows.n += 1;
+            } else {
+                missing = Some(reference);
+            }
+        });
+        if let Some(reference) = missing {
+            return Err(format!("read-resolution: missing scheduled read {reference}"));
+        }
+        if !complete {
+            return Err("read-resolution: incomplete flow".to_owned());
+        }
+        Ok(rows)
+    }
+
+    /// A scheduled lookup can have one predecessor where control flow permits several reaching definitions.
     /// redo-binding probe: `read-resolution` from the provider's own lookup (`binding-resolution`, whose rows come per read
     /// nearest namespace first): the first row of each read, a deletion's only at depth 0 (its name is local), and a `none`
     /// row for every read or deletion (`binding-read`) no namespace of whose path holds an event of the name.
-    fn read_resolution(&mut self, run: &mut finish::Run) -> Result<finish::Table, String> {
+    fn scheduled_read_predecessor(&mut self, run: &mut finish::Run) -> Result<finish::Table, String> {
         let res = self.whole(run, "binding-resolution")?;
         let reads = self.whole(run, "binding-read")?;
         let col = |t: &finish::Table, n: &str| t.names.iter().position(|c| c == n).ok_or_else(|| format!("no column {n}"));
-        let (r_ref, r_ev, r_kind, r_scope, r_lex, r_depth, r_ord, r_ctx) = (
-            col(&res, "reference")?,
-            col(&res, "event")?,
-            col(&res, "kind")?,
-            col(&res, "scope")?,
-            col(&res, "lexical")?,
-            col(&res, "depth")?,
-            col(&res, "ordinal")?,
-            col(&res, "context")?,
-        );
-        let (b_ref, b_scope, b_ctx) = (col(&reads, "reference")?, col(&reads, "scope")?, col(&reads, "context")?);
-        let (_, names, tys) = run.catalog(fact_catalog::RESOLUTION_REL).ok_or("no read-resolution")?;
-        let deletion = u64::from(run.sym(b"deletion"));
-        let (own, routed, none) = (u64::from(run.sym(b"own")), u64::from(run.sym(b"routed")), u64::from(run.sym(b"none")));
-        let mut t = finish::Table { names, tys, cols: vec![Vec::with_capacity(reads.n); 9], n: 0 };
-        let mut seen: rustc_hash::FxHashSet<u64> = rustc_hash::FxHashSet::with_capacity_and_hasher(reads.n, Default::default());
-        for r in 0..res.n {
-            let reference = res.cols[r_ref][r];
-            let depth = res.cols[r_depth][r];
-            if (res.cols[r_ctx][r] == deletion && depth != 0) || !seen.insert(reference) {
-                continue;
-            }
-            let ns = if res.cols[r_lex][r] == res.cols[r_scope][r] { own } else { routed };
-            for (c, v) in [reference, res.cols[r_ev][r], res.cols[r_kind][r], ns, res.cols[r_scope][r], depth, res.cols[r_ord][r], res.cols[r_ctx][r], u64::from(self.file_no)].into_iter().enumerate() {
-                t.cols[c].push(v);
-            }
-            t.n += 1;
-        }
-        for r in 0..reads.n {
-            let reference = reads.cols[b_ref][r];
-            if !seen.insert(reference) {
-                continue;
-            }
-            for (c, v) in [reference, finish::NULL, none, none, reads.cols[b_scope][r], finish::NULL, finish::NULL, reads.cols[b_ctx][r], u64::from(self.file_no)].into_iter().enumerate() {
-                t.cols[c].push(v);
-            }
-            t.n += 1;
-        }
+        use pair_provider::predecessor::{LOOKUP, READ, WORDS, positions, project};
+        let lookup = positions(LOOKUP, |name| col(&res, name))?;
+        let read = positions(READ, |name| col(&reads, name))?;
+        let (_, names, tys) = run.catalog(fact_catalog::PREDECESSOR_REL).ok_or("no scheduled-read-predecessor")?;
+        let symbols = WORDS.map(|text| u64::from(run.sym(text.as_bytes())));
+        let mut t = finish::Table::with_rows(names, tys, reads.n);
+        project((0..res.n).map(|r| lookup.map(|c| res.cols[c][r])), (0..reads.n).map(|r| read.map(|c| reads.cols[c][r])),
+            symbols, u64::from(self.file_no), |values| {
+                for (col, value) in t.cols.iter_mut().zip(values) { col.push(value); }
+                t.n += 1;
+            });
         Ok(t)
     }
 }
@@ -1476,6 +1374,50 @@ impl ColFacts<'_, '_, '_, '_> {
             if finish::request::wants(columns, 4) { t.cols[4].resize(t.n, u64::from(run.sym(if deferred { b"deferred" } else { b"immediate" }))); }
             if finish::request::wants(columns, 5) { t.cols[5].resize(t.n, u64::from(self.file_no)); }
             Made::Owned(t)
+        } else if rel == fact_catalog::RELATIVE_IMPORT_REL {
+            Made::Owned(relative_import::walked(run, self.project, self.file, self.file_no)?)
+        } else if matches!(rel, import_syntax::NEIGHBORS | import_syntax::STATEMENTS | import_syntax::ALIASES | import_syntax::CONTEXTUAL_ALIASES | import_syntax::LINE_COMMENTS | import_syntax::ENTRIES) {
+            Made::Owned(import_syntax::fill(run, self.file, self.src, self.project, self.file_no, rel)?)
+        } else if rel == fact_catalog::PRE_DECLARATION_READ_REL {
+            let (_, names, tys) = run.catalog(rel).ok_or("no pre-declaration-read")?;
+            let mut rows = finish::Table::with_rows(names, tys, 0);
+            let complete = self.file.visit_pre_declaration_reads(|at, scope, phase, ordinal| {
+                rows.cols[0].push(u64::from(at));
+                rows.cols[1].push(u64::from(scope));
+                rows.cols[2].push(u64::from(phase));
+                rows.cols[3].push(ordinal);
+                rows.cols[4].push(u64::from(self.file_no));
+                rows.n += 1;
+            });
+            if !complete {
+                return Err("pre-declaration-read: incomplete flow".to_owned());
+            }
+            Made::Owned(rows)
+        } else if matches!(rel, fact_catalog::ASSIGNMENT_SOURCE_REL | fact_catalog::NAMESPACE_SITES_REL) {
+            let (_, names, tys) = run.catalog(rel).ok_or_else(|| format!("no {rel}"))?;
+            let mut rows = finish::Table::with_rows(names, tys, 0);
+            let complete = pair_provider::sites::visit(rel, self.file, u64::from(self.file_no),
+                |word| u64::from(run.sym(word.as_bytes())), |values| {
+                    for (col, &value) in rows.cols.iter_mut().zip(values) { col.push(value); }
+                    rows.n += 1;
+                });
+            if !complete { return Err(format!("{rel}: incomplete flow")); }
+            Made::Owned(rows)
+        } else if rel == fact_catalog::BINDING_SITES_REL {
+            let (_, names, tys) = run.catalog(rel).ok_or("no binding-sites")?;
+            let mut rows = finish::Table::with_rows(names, tys, 0);
+            let complete = self.file.visit_binding_sites(|site| {
+                for (column, value) in rows.cols.iter_mut().zip(pair_provider::site_cells(site, self.file_no as usize)) {
+                    column.push(value);
+                }
+                rows.n += 1;
+            });
+            if !complete {
+                return Err("binding-sites: incomplete flow".to_owned());
+            }
+            Made::Owned(rows)
+        } else if rel == fact_catalog::PREDECESSOR_REL {
+            Made::Owned(self.scheduled_read_predecessor(run)?)
         } else if rel == fact_catalog::RESOLUTION_REL {
             Made::Owned(self.read_resolution(run)?)
         } else if rel == fact_catalog::TYPE_REGION_REL {
@@ -1588,6 +1530,12 @@ impl finish::Provider for Facts<'_, '_, '_> {
 
 impl Facts<'_, '_, '_> {
     fn one(&mut self, run: &mut finish::Run, rel: &str, columns: &languages::ColumnProjection) -> Result<finish::Table, String> {
+        if rel == fact_catalog::RELATIVE_IMPORT_REL {
+            let imports = self.one(run, "static-import", &languages::ColumnProjection::All)?;
+            return relative_import::targets(run, &imports, self.file, |run| {
+                self.project.fill(run, provider_packaging::MODULE_IDENTITY_REL, u64::MAX, &[self.file], self.file, self.facts.table, self.src)
+            });
+        }
         let t0 = thread_cpu();
         let (relation, _, _) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
         let relation = relation.ok_or_else(|| format!("{rel} needs VEC_COLWALK"))?;
@@ -1729,11 +1677,11 @@ fn kernel_floor(walk: &impl Walk, list: &str) {
 
 /// `vec finish <plan.json> <files> <root> [--rules A,B] [--seed rule-file.tsv] [--out findings.jsonl] [--stats stats.tsv]
 /// [--check-bases]`: each rule's whole lowered query run per file (`finish.rs`); findings as the reference writes them.
-fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
+fn run_finish(walk: &impl Walk, settings: ryo_python::settings::PythonParserSettings, vocab: &Vocab, args: &[&str]) {
     let plan = finish::load(args[0]);
     type_expression::load_lists(args[0]);
     let list = files(args[1]);
-    let mut fin = finisher::Finisher::new(&plan, walk, vocab, args);
+    let mut fin = visit::Finisher::new(&plan, walk, vocab, args);
     let seed: Option<std::collections::HashSet<(String, String)>> =
         flag(args, "--seed").map(|p| std::fs::read_to_string(p).expect("seed").lines().filter_map(|l| l.split_once('\t')).map(|(a, b)| (a.to_owned(), b.to_owned())).collect());
     let mut seed_by_path: HashMap<&str, std::collections::HashSet<&str>> = HashMap::new();
@@ -1743,7 +1691,10 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     // 6f probe: `VEC_COLWALK` walks through the direct-columns walk (the provider's own model is reachable there, for the
     // evaluation region); `--dump F` writes every emit's rows instead of findings.
     let colwalk = std::env::var_os("VEC_COLWALK").is_some();
-    let mut cwalk = ryo_python::fixtures::columns::ColumnWalk::new(ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names"));
+    let mut cwalk = ryo_python::fixtures::columns::ColumnWalk::with_settings(
+        ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names"),
+        settings,
+    );
     let mut table = NodeTable::default();
     let mut scratch = Default::default();
     let mut walk_time = 0f64;
@@ -1800,7 +1751,7 @@ fn source_literals(plan: &finish::Plan) -> Vec<Vec<u8>> {
 /// `<anchors>` a directory: the pack; the first half's spec is prepared in this process from its parsed rules (`first.rs`), the
 /// parse shared with the second half's when `--finish` names the same pack (`pack`); `<anchors>` and `<plans>` files: the
 /// spec prepared beforehand (the oracle path).
-fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&mut finisher::Finisher<'_>>, pack: Option<(&str, &lower::ReadPack)>) {
+fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSettings, vocab: &Vocab, args: &[&str], mut fin: Option<&mut visit::Finisher<'_>>, pack: Option<(&str, &lower::ReadPack)>) {
     let way = args[0];
     let list = files(args[1]);
     let mut fact_catalog = facts::Catalog::default();
@@ -1810,6 +1761,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
     let mut pairs = None;
     let mut pair_steps = 0;
     let mut pair_cpu = 0.0;
+    let mut exact_rows = Vec::new();
     let (rules, frules, words) = if std::path::Path::new(args[2]).is_dir() {
         let owned;
         let read = match pack {
@@ -1822,7 +1774,13 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
             }
         };
         let f1 = thread_cpu();
-        let prepared = first::prepare(read, python_language(vocab), vocab);
+        // A separately loaded finish plan may use the same rule names for
+        // different emits. Only the shared typed plan certifies its output.
+        let shared_plan = read.typed.borrow().is_some();
+        let mut prepared = first::prepare(read, python_language(vocab), vocab);
+        if !shared_plan {
+            prepared.pairs.exact.clear();
+        }
         let f2 = thread_cpu();
         let rules = rules_of_skips(&prepared.skips, vocab);
         let (frules, words) = funnel::build(&prepared.rules, vocab, &mut fact_catalog, &mut interner);
@@ -1860,7 +1818,10 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
     let ask_all = args.contains(&"--ask-all");
     let no_project = args.contains(&"--no-project");
     let plant = std::env::var("COLS_PLANT").is_ok_and(|v| v == "1");
-    let mut cwalk = ryo_python::fixtures::columns::ColumnWalk::new(ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names"));
+    let mut cwalk = ryo_python::fixtures::columns::ColumnWalk::with_settings(
+        ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names"),
+        settings,
+    );
     store.direct_on = direct;
     if args.contains(&"--regex-set") {
         interner.set = Some(regex::bytes::RegexSet::new(interner.regexes.iter().map(|r| r.as_str())).expect("regex set"));
@@ -1922,7 +1883,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
     let by_name: HashMap<&str, usize> = rules.iter().enumerate().map(|(i, r)| (r.name.as_str(), i)).collect();
     let skip_of: Vec<Option<usize>> = frules.iter().map(|r| by_name.get(r.name.as_str()).copied()).collect();
     // the kinds-and-fields skip of each plan rule, flat: a clause is its kind words then its field words
-    let mut skip = Skip::new(&rules, &skip_of, &frules, words_of(vocab.kind_names.len()), words_of(vocab.field_names.len()));
+    let mut skip = Skip::new(skip_of.iter().map(|i| i.map_or((false, &[][..]), |i| (rules[i].never, rules[i].clauses.as_slice()))), frules.iter().map(|r| r.cnfs.as_slice()), words_of(vocab.kind_names.len()), words_of(vocab.field_names.len()));
     let mut kinds: Vec<u64> = Vec::new();
     let fields_width = vocab.field_names.len();
     let mut units = funnel::units(&frules);
@@ -1979,6 +1940,8 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
     let emit_rules: Vec<Vec<usize>> = fin.as_ref().map(|f| f.emit_names().map(|(_, n)| frules.iter().enumerate().filter(|(_, r)| r.name == n).map(|(i, _)| i).collect()).collect()).unwrap_or_default();
     let mut in_seed = vec![false; frules.len()];
     let node_class: Vec<bool> = frules.iter().map(|r| r.node).collect();
+    let mut exact_counts = vec![(0u64, 0u64, 0u64); frules.len()];
+    let mut exact_log = flag(args, "--exact-out").map(|p| std::io::BufWriter::new(std::fs::File::create(p).expect("exact pairs")));
     let fin0 = fin.as_ref().map_or(0.0, |f| f.time);
     println!("start-up to first file {:.4} s", thread_cpu());
     for (file_no, path) in list.iter().enumerate() {
@@ -2021,7 +1984,10 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                     match word_src.as_str() {
                         "table" => {
                             // redo-onepass pass 2: the walk's name codes when the visit took them, else by bytes
-                            funnel::file_words(pt, &bytes, name_token, if codes_taken { &name_codes } else { &[] }, &words, &mut word_memo, &mut fixed_memo, &mut present, &mut word_pairs);
+                            let tokens = node_table::ids_of_kind(pt, KindBits(name_token)).iter().copied();
+                            let (starts, ends) = (node_table::starts(pt), node_table::ends(pt));
+                            let spelling = |i: usize| &bytes[starts[i] as usize..ends[i] as usize];
+                            funnel::file_words(tokens, spelling, if codes_taken { &name_codes } else { &[] }, &words, &mut word_memo, &mut fixed_memo, &mut present, &mut word_pairs);
                             // the index: name-token positions of each required word
                             word_offsets.clear();
                             word_offsets.resize(n_words + 1, 0);
@@ -2117,13 +2083,19 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                 if no_skip {
                     alive.iter_mut().for_each(|a| *a = true);
                 }
+                exact_rows.clear();
                 if !no_skip && let Some(program) = &pairs {
                     let start = thread_cpu();
+                    let exact = fin.as_ref().filter(|f| f.can_finish_exact()).map(|_| &mut exact_rows);
                     pair_steps += if let Some(fin) = fin.as_deref_mut() {
-                        let (path, words, completed) = fin.prefix_storage(file_no);
-                        program.file(pt, &bytes, Some(path), words, $fill, &mut alive, FileId(file_no as u32), Some(completed))
+                        let (run, words, completed) = fin.prefix_storage(file_no);
+                        program.file(pt, &bytes, Some(run.paths[file_no].as_bytes()), words, |rel, words, out| {
+                            if let pair_summary::Source::Catalog(catalog) = rel
+                                && let Some(answer) = host_columns::fill(catalog, Some(run), file_no, out) { return answer; }
+                            ($fill)(rel, words, out)
+                        }, &mut alive, FileId(file_no as u32), Some(&mut |rel, cells| completed.insert(rel, cells)), exact)
                     } else {
-                        program.file(pt, &bytes, None, &mut fwords, $fill, &mut alive, FileId(0), None)
+                        program.file(pt, &bytes, None, &mut fwords, $fill, &mut alive, FileId(0), None, exact)
                     };
                     pair_cpu += thread_cpu() - start;
                 }
@@ -2380,7 +2352,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                     codes_taken = true;
                     // Whole rows kept for the provider are born with their real file identity.
                     if fin.is_some() { file.set_file(FileId(file_no as u32)); }
-                    prepare!(ft, |rel,words,out| matches!(file.fill(rel,languages::Wanted::Whole,words,out),languages::FactAnswer::Answered(_)));
+                    prepare!(ft, |rel,words,out| pair_provider::read(file, file_no, rel, words, out));
                     if fin.is_some() { file.set_file(FileId(0)); }
                     prepared = true;
                     let index = file_seeds::Index { table: ft, offsets: &word_offsets, words: &word_pos };
@@ -2723,7 +2695,23 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                             }
                         }
                         let before_wanted = fin.time;
-                        let wanted = fin.wanted(path, &|e| emit_rules[e].iter().any(|r| in_seed[*r]));
+                        let mut wanted = fin.wanted(path, &|e| emit_rules[e].iter().any(|r| in_seed[*r]));
+                        if !exact_rows.is_empty() {
+                            wanted.retain(|&e| {
+                                let [ri] = emit_rules[e].as_slice() else { return true };
+                                let Ok(at) = exact_rows.binary_search_by_key(ri, |(r, _)| *r) else { return true };
+                                if let Some(n) = fin.emit_exact(file_no, ft, e, &exact_rows[at].1) {
+                                    if let Some(log) = &mut exact_log {
+                                        use std::io::Write as _;
+                                        writeln!(log, "{}\t{}\t{n}", frules[*ri].name, fin.run.paths[file_no]).expect("write exact pair");
+                                    }
+                                    exact_counts[*ri].0 += 1;
+                                    exact_counts[*ri].1 += n;
+                                    exact_counts[*ri].2 += u64::from(n > 0);
+                                }
+                                false
+                            });
+                        }
                         // wanted() already charges its own time to the second half.
                         if seed_only { phases.add("seed handoff", (thread_cpu() - handoff - (fin.time - before_wanted)).max(0.0)); }
                         for (i, (slot, _)) in ask_of.iter().enumerate() {
@@ -2745,7 +2733,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                 let p0 = thread_cpu();
                 let ft = file.table;
                 let n = node_table::element_count(ft).0;
-                prepare!(ft, |rel,words,out| matches!(file.facts.fill(rel,languages::Wanted::Whole,words,out),languages::FactAnswer::Answered(_)));
+                prepare!(ft, |rel,words,out| matches!(rel, pair_summary::Source::Catalog(r) if matches!(file.facts.fill(r,languages::Wanted::Whole,words,out),languages::FactAnswer::Answered(_))));
                 prepared = true;
                 let v0 = thread_cpu();
                 let mut needed = vec![false; slots_n];
@@ -2883,6 +2871,11 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
             );
         }
     }
+    if let Some(program) = &pairs {
+        for (ri, _) in &program.exact {
+            println!("EXACT\t{}\t{}\t{}\t{}", frules[*ri].name, exact_counts[*ri].0, exact_counts[*ri].1, exact_counts[*ri].2);
+        }
+    }
     println!("pair summary checks {pair_steps} CPU {pair_cpu:.4} s");
     let knock_units = units.iter().filter(|u| u.knock).count();
     let steps: u64 = unit_steps.iter().sum();
@@ -2970,5 +2963,5 @@ mod kernels {
 }
 
 #[cfg(feature = "vec-arrow")]
-#[path = "kernels.rs"]
+#[path = "../../../../crates/engine/benches/vec/kernels.rs"]
 mod kernels;

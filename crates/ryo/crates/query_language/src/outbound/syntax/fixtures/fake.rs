@@ -82,6 +82,24 @@ impl SyntaxPort for SyntaxFake {
         })
     }
 
+    fn read_fragment(
+        &self,
+        id: &ryo_values::domain::query_tokens::types::QuerySourceId,
+        _text: QueryView<'_>,
+    ) -> Result<ryo_values::domain::program::types::FragmentProgram, SyntaxError> {
+        Err(SyntaxError::Located {
+            origin: QueryOrigin {
+                source_id: id.clone(),
+                span: QuerySpan {
+                    start: ByteOffset(0),
+                    end: ByteOffset(0),
+                },
+                trace: [].into(),
+            },
+            message: "the fake syntax port does not parse query modules".to_owned(),
+        })
+    }
+
     fn read_bundle(&self, bundle: &QueryBundle) -> Result<ParsedQueryBundle, SyntaxError> {
         if !bundle.modules.is_empty() {
             return Err(SyntaxError::Located {

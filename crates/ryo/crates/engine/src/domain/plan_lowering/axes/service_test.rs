@@ -15,8 +15,10 @@ type Failure = ();
 
 fn counted_plan() -> FinishPlan {
     let mut plan = small_plan();
-    let _semijoins = semijoined(&mut plan);
-    let _counts = counted(&mut plan);
+    let uses = crate::domain::plan_lowering::readers::service::step_uses(&plan);
+    let _semijoins = semijoined(&mut plan, &uses);
+    let uses = crate::domain::plan_lowering::readers::service::step_uses(&plan);
+    let _counts = counted(&mut plan, &uses);
     plan
 }
 
@@ -28,7 +30,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
 }];
 
 fn subject(mut plan: Input) -> Result<Value, Failure> {
-    let marked = existence_marked(&mut plan);
+    let uses = crate::domain::plan_lowering::readers::service::step_uses(&plan);
+    let marked = existence_marked(&mut plan, &uses);
     Ok((marked, existence_marks(&plan).try_into().map_err(|_| ())?))
 }
 

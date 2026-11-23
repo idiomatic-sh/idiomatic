@@ -22,6 +22,19 @@ pub(super) struct Project {
     search_roots: Option<Vec<String>>,
     classified: HashMap<String, Vec<&'static str>>,
     kinds: Kinds,
+    packages: HashMap<std::path::PathBuf, Option<Package>>,
+}
+
+/// Directory spellings from the project layout. A package component can itself contain a dot.
+pub(super) struct Package {
+    pub(super) dotted: String,
+    pub(super) root_name: String,
+}
+
+/// The filename component used in this project's dotted module identity.
+pub(super) fn module_stem(path: &std::path::Path) -> Option<&str> {
+    let name = path.file_name()?.to_str()?;
+    name.strip_suffix(".pyi").or_else(|| name.strip_suffix(".py"))
 }
 
 /// The node kinds of an import (`alias`, `import-from`, the relative-level tokens, the dotted name's parts).
@@ -40,7 +53,7 @@ impl Project {
     /// code of a kind name.
     pub(super) fn new(root_dir: &str, search_roots: Option<Vec<String>>, kind: &dyn Fn(&str) -> Option<u16>) -> Self {
         let kinds = Kinds { alias: kind("alias"), from: kind("import-from"), dot: kind("dot"), ellipsis: kind("ellipsis"), ident: kind("identifier"), name: kind("name-token") };
-        Self { root_dir: root_dir.to_owned(), search_roots, classified: HashMap::new(), kinds }
+        Self { root_dir: root_dir.to_owned(), search_roots, classified: HashMap::new(), kinds, packages: HashMap::new() }
     }
 
     /// The host's search roots from a request file (`project_search_roots`); None without a request or without the key.
@@ -154,13 +167,7 @@ impl Project {
         let mut cols: Vec<Vec<u64>> = vec![Vec::new(); names.len()];
         let mut count = 0;
         for (root, path) in rows {
-            let kinds = self.classified(&path);
-            // a present child of a parent that is not present cannot prove a project path
-            let present = |ks: &[&str]| ks.iter().any(|k| matches!(*k, "module" | "package" | "namespace"));
-            let kinds = match path.rsplit_once('.') {
-                Some((parent, _)) if present(&kinds) && !present(&self.classified(parent)) => vec!["unknown"],
-                _ => kinds,
-            };
+            let kinds = self.observed_path_kinds(&path);
             for kd in kinds {
                 let state = match kd {
                     "module" | "package" | "namespace" => "present",
@@ -177,10 +184,28 @@ impl Project {
         Ok(finish::Table { names, tys, cols, n: count })
     }
 
+    /// A file-system observation of a dotted child requires an observed parent under the configured search roots.
+    pub(super) fn observed_path_kinds(&mut self, path: &str) -> Vec<&'static str> {
+        let kinds = self.classified(path);
+        let present = |ks: &[&str]| ks.iter().any(|k| matches!(*k, "module" | "package" | "namespace"));
+        match path.rsplit_once('.') {
+            Some((parent, _)) if present(&kinds) && !present(&self.classified(parent)) => vec!["unknown"],
+            _ => kinds,
+        }
+    }
+
     /// The entries a dotted path names under the search roots (observed once a run each).
     fn classified(&mut self, dotted: &str) -> Vec<&'static str> {
         if let Some(k) = self.classified.get(dotted) {
             return k.clone();
+        }
+        // No child path exists on any configured root when its parent directory is absent on every root.
+        // Prefixes are visited from the root down, so repeated imports inherit that observation from the same project snapshot.
+        if let Some((parent, _)) = dotted.rsplit_once('.')
+            && self.classified.get(parent).is_some_and(|kinds| kinds.as_slice() == ["absent"])
+        {
+            self.classified.insert(dotted.to_owned(), vec!["absent"]);
+            return vec!["absent"];
         }
         let Some(search_roots) = &self.search_roots else { return vec!["unknown"] };
         let fs = dotted.replace('.', "/");
@@ -207,48 +232,55 @@ impl Project {
         kinds
     }
 
+    /// A directory with an initializer extends its parent's package or starts a top-level package.
+    /// Both import facts share this observation for the lifetime of the project.
+    pub(super) fn package(&mut self, dir: &std::path::Path) -> Option<&Package> {
+        if dir.as_os_str().is_empty() {
+            return None;
+        }
+        if !self.packages.contains_key(dir) {
+            let package = if let Some(name) = dir.file_name()
+                && std::path::Path::new(&self.root_dir).join(dir).join("__init__.py").is_file()
+            {
+                let name = name.to_string_lossy();
+                Some(match dir.parent().and_then(|parent| self.package(parent)) {
+                    Some(parent) => Package { dotted: format!("{}.{name}", parent.dotted), root_name: parent.root_name.clone() },
+                    None => Package { dotted: name.to_string(), root_name: name.into_owned() },
+                })
+            } else {
+                None
+            };
+            self.packages.insert(dir.to_owned(), package);
+        }
+        self.packages.get(dir).and_then(Option::as_ref)
+    }
+
     /// `module-identity` of each of `files`: inside a package (its directory holds `__init__.py`), the dotted path from the
     /// topmost such directory's parent, the module and package directory names and the topmost package's name. A file's row
     /// depends on the project's layout only (the initializers of its directories), never on any file's content.
-    fn module_identity(&self, run: &mut finish::Run, mask: u64, files: &[u32]) -> Result<finish::Table, String> {
+    fn module_identity(&mut self, run: &mut finish::Run, mask: u64, files: &[u32]) -> Result<finish::Table, String> {
         let (_, names, tys) = run.catalog(MODULE_IDENTITY_REL).ok_or("no module-identity")?;
         let mut cols: Vec<Vec<u64>> = vec![Vec::new(); names.len()];
         let mut count = 0;
-        // a directory's initializer, observed once a run
-        let mut init_of: HashMap<std::path::PathBuf, bool> = HashMap::new();
         for &f in files {
-            let rel = run.paths[f as usize].clone();
-            let file = std::path::Path::new(&rel);
-            let mut dir = file.parent();
-            let mut package: Option<&std::path::Path> = None;
-            while let Some(d) = dir {
-                if d.as_os_str().is_empty() {
-                    break;
-                }
-                let init = *init_of.entry(d.to_path_buf()).or_insert_with(|| std::path::Path::new(&self.root_dir).join(d).join("__init__.py").is_file());
-                if !init {
-                    break;
-                }
-                package = Some(d);
-                dir = d.parent();
-            }
-            let Some(package) = package else { continue };
-            let Some(stem) = file.file_name().and_then(|n| n.to_str()).and_then(|n| n.strip_suffix(".pyi").or_else(|| n.strip_suffix(".py"))) else {
+            let file = std::path::Path::new(&run.paths[f as usize]);
+            let Some(dir) = file.parent() else { continue };
+            let Some(package) = self.package(dir) else { continue };
+            let Some(stem) = module_stem(file) else {
                 continue;
             };
-            let top = package.parent().unwrap_or(std::path::Path::new(""));
-            let mut parts: Vec<String> = file.strip_prefix(top).ok().and_then(|r| r.parent()).map(|r| r.components().map(|c| c.as_os_str().to_string_lossy().into_owned()).collect()).unwrap_or_default();
-            parts.push(stem.to_owned());
-            let pkg_dir = file.parent().and_then(|p| p.file_name()).map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-            let root_name = package.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+            let dotted = format!("{}.{stem}", package.dotted);
+            let filename = stem.to_owned();
+            let pkg_dir = dir.file_name().unwrap_or_default().to_string_lossy().into_owned();
+            let root_name = run.sym(package.root_name.as_bytes());
             for (c, n) in names.iter().enumerate() {
                 if !finish::request::wants(mask, c) { continue; }
                 cols[c].push(match n.as_str() {
                     "file" => u64::from(f),
-                    "path" => u64::from(run.sym(parts.join(".").as_bytes())),
-                    "module-name" => u64::from(run.sym(stem.as_bytes())),
+                    "path" => u64::from(run.sym(dotted.as_bytes())),
+                    "module-name" => u64::from(run.sym(filename.as_bytes())),
                     "package-name" => u64::from(run.sym(pkg_dir.as_bytes())),
-                    "package-root-name" => u64::from(run.sym(root_name.as_bytes())),
+                    "package-root-name" => u64::from(root_name),
                     _ => finish::NULL,
                 });
             }

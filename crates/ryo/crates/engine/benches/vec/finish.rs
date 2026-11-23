@@ -58,6 +58,8 @@ mod tree_class;
 mod frame;
 #[path = "finish/known.rs"]
 mod known;
+#[path = "finish/set_ops.rs"]
+mod set_ops;
 #[path = "finish/empty_why.rs"]
 pub(super) mod empty_why;
 #[path = "finish/empty_sel.rs"]
@@ -72,6 +74,8 @@ pub(super) mod request;
 mod request_guards;
 #[path = "finish/request_circuit.rs"]
 mod request_circuit;
+#[path = "finish/worklist.rs"]
+mod worklist;
 #[path = "finish/host.rs"]
 pub(super) mod host;
 #[path = "finish/project.rs"]
@@ -100,7 +104,7 @@ pub(super) enum Ty {
     Flag,
 }
 
-fn ty_of(k: CellKind) -> Ty {
+pub(super) fn ty_of(k: CellKind) -> Ty {
     match k {
         CellKind::Node => Ty::Node,
         CellKind::Symbol => Ty::Sym,
@@ -268,6 +272,8 @@ impl Table {
 /// The run: texts, regexes, kind and field names, file paths.
 #[derive(Default)]
 pub(super) struct Run {
+    /// Relations whose provider exposes a population other than this native file table.
+    pub(super) reader_tables: rustc_hash::FxHashSet<String>,
     pub(super) texts: Vec<Box<[u8]>>,
     pub(super) ids: FxHashMap<Box<[u8]>, u32>,
     pub(super) regexes: FxHashMap<String, Rc<regex::bytes::Regex>>,
@@ -576,7 +582,8 @@ const LOC_COLS: [(&str, Ty); 9] = [
 ];
 const TOKEN_COLS: [(&str, Ty); 5] = [("source", Ty::Node), ("target", Ty::Node), ("link-kind", Ty::Sym), ("file", Ty::File), ("span", Ty::Span)];
 
-fn native_of(rel: &str) -> Option<Native> {
+fn native_of(run: &Run, rel: &str) -> Option<Native> {
+    if run.reader_tables.contains(rel) { return None; }
     match rel {
         "syntax-tree" | "semantic-syntax" => Some(Native::Tree),
         "semantic-child" | "syntax-child" => Some(Native::Child),
@@ -599,7 +606,7 @@ fn native_cols(n: Native) -> &'static [(&'static str, Ty)] {
 /// 6h: a provider relation's place among the facts read in place (`VEC_NO_FACTVIEW` turns this off): every catalog
 /// relation the provider or the host fills per file; never the run's file list or a relation a step makes.
 fn fact_of(run: &mut Run, rel: &str) -> Option<Native> {
-    if sw!("VEC_NO_FACTVIEW") || native_of(rel).is_some() || matches!(run.supplier(rel), Supplier::RunFiles | Supplier::Project(_)) {
+    if sw!("VEC_NO_FACTVIEW") || native_of(run, rel).is_some() || matches!(run.supplier(rel), Supplier::RunFiles | Supplier::Project(_)) {
         return None;
     }
     let &slot = run.fact_slots.get(rel)?;
@@ -773,6 +780,9 @@ pub(super) enum Scope<'s> {
 
 /// How a step asks the provider for a relation's rows: the visit's facts.
 pub(super) trait Provider {
+    /// Parser-supplied text symbols in node-position order, when the parse carries them directly.
+    fn syntax_text(&self) -> Option<&[u32]> { None }
+
     /// redo-fills pass 3: the one answer to a scope's request: every asked relation's rows in its requested scope, one table a
     /// relation pushed onto `out` in the request's order, each cell as the run names it (a file cell is the run's number of
     /// the file it names), or the language's refusal of that relation for the scope (a step that reads it faults). The
@@ -853,6 +863,10 @@ impl File<'_> {
         }
         f
     }
+    pub(super) fn set_text(&mut self, symbols: &[u32]) {
+        self.text_memo.get_mut().copy_from_slice(symbols);
+    }
+
     fn line(&self, off: u32) -> i64 {
         self.line_starts.partition_point(|s| *s <= off) as i64
     }
@@ -1125,6 +1139,8 @@ impl File<'_> {
 /// Counters a run keeps: per node, own time, calls, rows out and rows touched.
 #[derive(Default)]
 pub(super) struct Stats {
+    pub(super) total_runs: u64,
+    pub(super) total_rows: u64,
     pub(super) time: Vec<f64>,
     pub(super) rows: Vec<u64>,
     pub(super) calls: Vec<u64>,
@@ -1148,6 +1164,18 @@ pub(super) struct Stats {
     pub(super) keyed: Vec<u64>,
     pub(super) keyed_empty: Vec<u64>,
     pub(super) built: Vec<u64>,
+}
+
+impl Stats {
+    fn ran(&mut self, node: usize) {
+        self.calls[node] += 1;
+        self.total_runs += 1;
+    }
+
+    fn produced(&mut self, node: usize, rows: usize) {
+        self.rows[node] += rows as u64;
+        self.total_rows += rows as u64;
+    }
 }
 
 // ------------------------------------------------------------------------------------------------ expressions
@@ -1340,7 +1368,7 @@ impl<'p> Exec<'p> {
         let k = plan.nodes.len();
         Exec {
             plan,
-            stats: Stats { time: vec![0.0; k], rows: vec![0; k], calls: vec![0; k], touched: vec![0; k], empty: vec![0; k], known: vec![0; k], empty_time: vec![0.0; k], static_time: 0.0, static_depth: 0, static_visits: 0, static_pass: 0, static_file_tests: 0, rec_time: 0.0, rec_busy: false, keyed: vec![0; k], keyed_empty: vec![0; k], built: vec![0; k] },
+            stats: Stats { total_runs: 0, total_rows: 0, time: vec![0.0; k], rows: vec![0; k], calls: vec![0; k], touched: vec![0; k], empty: vec![0; k], known: vec![0; k], empty_time: vec![0.0; k], static_time: 0.0, static_depth: 0, static_visits: 0, static_pass: 0, static_file_tests: 0, rec_time: 0.0, rec_busy: false, keyed: vec![0; k], keyed_empty: vec![0; k], built: vec![0; k] },
             schemas: vec![None; k],
             views: vec![None; k],
             sels: vec![None; k],
@@ -1420,7 +1448,7 @@ impl<'p> Exec<'p> {
         let sc = match op.as_str() {
             "base" => {
                 let rel = s(&j["rel"])?;
-                if let Some(nat) = native_of(rel) {
+                if let Some(nat) = native_of(run, rel) {
                     mk(native_cols(nat).iter().map(|c| c.0.to_owned()).collect(), native_cols(nat).iter().map(|c| c.1).collect())
                 } else {
                     let (_, names, tys) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
@@ -1431,6 +1459,7 @@ impl<'p> Exec<'p> {
                 let sp = self.sel(run, node)?;
                 mk(sp.items.iter().map(|i| i.0.clone()).collect(), sp.items.iter().map(|i| static_ty(&i.1)).collect())
             }
+            "intersection" | "difference" => from(self, run, "left")?,
             "union" | "antijoin" | "group-min" | "group-max" => from(self, run, if op == "union" || op == "antijoin" { "left" } else { "from" })?,
             "extend" => {
                 let f = from(self, run, "from")?;
@@ -1457,14 +1486,26 @@ impl<'p> Exec<'p> {
                 tys.push(Ty::Node);
                 mk(names, tys)
             }
-            "group-count" => {
+            "group-count" | "group-digest" => {
                 let f = from(self, run, "from")?;
                 let keys: Vec<usize> = strs(&a["keys"])?.iter().map(|c| pos(&f.names, c)).collect::<R<_>>()?;
                 let mut names: Vec<String> = keys.iter().map(|c| f.names[*c].clone()).collect();
                 let mut tys: Vec<Ty> = keys.iter().map(|c| f.tys[*c]).collect();
+                if op == "group-digest" {
+                    pos(&f.names, s(&a["distinct"])?)?;
+                    names.push(s(&a["digest"])?.to_owned());
+                    tys.push(Ty::Num);
+                }
                 names.push(s(&a["count"])?.to_owned());
                 tys.push(Ty::Num);
                 mk(names, tys)
+            }
+            "worklist" => {
+                let roots = from(self, run, "from")?;
+                let edges = from(self, run, "edges")?;
+                let lattice = from(self, run, "lattice")?;
+                let (names, types) = worklist::schema(a, &roots, &edges, &lattice)?;
+                mk(names, types)
             }
             "closure" | "follow" => {
                 let e = from(self, run, "edges")?;
@@ -1709,7 +1750,7 @@ impl<'p> Exec<'p> {
         let v = match pn.op.as_str() {
             "base" => {
                 let rel = pn.j["rel"].as_str().unwrap_or("").to_owned();
-                match native_of(&rel) {
+                match native_of(run, &rel) {
                     Some(nat) => Some(Rc::new(ViewSpec::new(nat, (0..native_cols(nat).len()).collect(), Vec::new()))),
                     None => fact_of(run, &rel).map(|nat| {
                         let Native::Fact(i) = nat else { unreachable!() };
@@ -1797,7 +1838,7 @@ impl<'p> Exec<'p> {
         // 8: a step over an empty input answers its shared empty table before any set-up
         let gate = self.frames[node].gate;
         if gate < frame::MISSING && self.eval(f, run, p, gate as usize)?.n == 0 {
-            self.stats.calls[node] += 1;
+            self.stats.ran(node);
             self.stats.empty[node] += 1;
             let e = self.empty_rc(run, node)?;
             if self.is_constant(run, node) {
@@ -1807,8 +1848,8 @@ impl<'p> Exec<'p> {
         }
         let out = if self.timing { self.timed_body(f, run, p, node)? } else { self.body(f, run, p, node)? };
         emptyprop::ran();
-        self.stats.calls[node] += 1;
-        self.stats.rows[node] += out.n as u64;
+        self.stats.ran(node);
+        self.stats.produced(node, out.n);
         keyed::built(self, f, node, &out);
         if out.n == 0 {
             self.stats.empty[node] += 1;
@@ -1942,8 +1983,8 @@ impl<'p> Exec<'p> {
                 let dt = step_clock() - t0;
                 self.stats.time[node] += dt;
                 self.inner += dt;
-                self.stats.calls[node] += 1;
-                self.stats.rows[node] += rc.n as u64;
+                self.stats.ran(node);
+                self.stats.produced(node, rc.n);
                 Ok(rc)
             }
         }
@@ -2049,7 +2090,7 @@ impl<'p> Exec<'p> {
             let fnode = self.arg_rel(node, "from")?;
             let pb = plan.nodes[fnode].j["semi"].as_u64().ok_or("count without semi")? as usize;
             if let Some((from, counts)) = self.band_rows(f, run, p, fnode, pb, true)? {
-                self.stats.rows[fnode] += from.n as u64;
+                self.stats.produced(fnode, from.n);
                 let keys: Vec<usize> = strs(&a["keys"])?.iter().map(|c| from.col(c)).collect::<R<_>>()?;
                 let mut groups: FxHashMap<inline_key::Key, u64> = FxHashMap::default();
                 let mut order: Vec<inline_key::Key> = Vec::new();
@@ -2099,6 +2140,17 @@ impl<'p> Exec<'p> {
                 }
                 out.n += r.n;
                 Ok(distinct(out))
+            }
+            "intersection" | "difference" => {
+                let left = self.eval(f, run, p, self.arg_rel(node, "left")?)?;
+                let right = self.eval(f, run, p, self.arg_rel(node, "right")?)?;
+                set_ops::select_rows(&left, &right, op == "intersection")
+            }
+            "group-digest" => {
+                let input = self.eval(f, run, p, self.arg_rel(node, "from")?)?;
+                let mut out = self.empty(run, node)?;
+                set_ops::digest(run, f.file, a, &input, &mut out)?;
+                Ok(out)
             }
             "antijoin" => self.antijoin(f, run, p, node, a),
             "extend" => {
@@ -2426,6 +2478,14 @@ impl<'p> Exec<'p> {
                     let row: Vec<u64> = r.as_array().ok_or("row")?.iter().map(|x| u64::from(run.sym(x.as_str().unwrap_or("").as_bytes()))).collect();
                     out.push_row(&row);
                 }
+                Ok(out)
+            }
+            "worklist" => {
+                let edges = self.eval(f, run, p, self.arg_rel(node, "edges")?)?;
+                let lattice = self.eval(f, run, p, self.arg_rel(node, "lattice")?)?;
+                let roots = self.eval(f, run, p, self.arg_rel(node, "from")?)?;
+                let mut out = self.empty(run, node)?;
+                worklist::trace(a, &roots, &edges, &lattice, &mut out)?;
                 Ok(out)
             }
             "ordered-dfs" => {
@@ -3026,7 +3086,7 @@ impl<'p> Exec<'p> {
 
     /// The hierarchy an axis walks: the tree, a view probed by its child and parent columns, or a made table indexed once.
     fn hier(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, rel: usize) -> R<Hier> {
-        if self.plan.nodes[rel].op == "base" && native_of(self.plan.nodes[rel].j["rel"].as_str().unwrap_or("")) == Some(Native::Child) {
+        if self.plan.nodes[rel].op == "base" && native_of(run, self.plan.nodes[rel].j["rel"].as_str().unwrap_or("")) == Some(Native::Child) {
             return Ok(Hier::Tree);
         }
         let rsc = self.schema(run, rel)?;
@@ -3190,13 +3250,17 @@ impl<'p> Exec<'p> {
                         }
                     }
                 }
-                "next-sibling" => {
+                "next-sibling" | "previous-sibling" => {
+                    if !matches!(hier, Hier::Tree) {
+                        return Err("sibling axis requires the concrete ordered children".into());
+                    }
                     if (x as usize) < f.n && f.has_parent(x as u32) {
                         let sibs = node_table::children_of(f.table, Position(f.parent[x as usize]));
-                        if let Some(at) = sibs.iter().position(|c| u64::from(c.0) == x)
-                            && let Some(nx) = sibs.get(at + 1)
-                        {
-                            all.push((i, u64::from(nx.0)));
+                        if let Some(at) = sibs.iter().position(|c| u64::from(c.0) == x) {
+                            let offset = if dir == "next-sibling" { 1 } else { -1 };
+                            if let Some(sibling) = at.checked_add_signed(offset).and_then(|j| sibs.get(j)) {
+                                all.push((i, u64::from(sibling.0)));
+                            }
                         }
                     }
                 }
@@ -4258,6 +4322,14 @@ fn call(run: &mut Run, name: &str, vs: &[V]) -> V {
             };
             flag(matches!((int(run, vs[0]), int(run, vs[1])), (Some(a), Some(b)) if a.checked_add(1) == Some(b)))
         }
+        "float_text_gte" => {
+            let finite = |v: V| -> Option<f64> {
+                if v.ty() != Ty::Sym || v.1 == NULL { return None; }
+                let n = std::str::from_utf8(run.text(v.1 as u32)).ok()?.trim().parse::<f64>().ok()?;
+                n.is_finite().then_some(n)
+            };
+            flag(matches!((finite(vs[0]), finite(vs[1])), (Some(a),Some(b)) if a >= b))
+        }
         "numeric_gte" => {
             let num = |run: &Run, v: V| -> Option<f64> {
                 match v.ty() {
@@ -4274,21 +4346,7 @@ fn call(run: &mut Run, name: &str, vs: &[V]) -> V {
     }
 }
 
-fn glob_pattern(g: &str) -> String {
-    let mut s = String::from("^");
-    for c in g.chars() {
-        match c {
-            '*' => s.push_str(".*"),
-            '?' => s.push('.'),
-            '{' => s.push_str("(?:"),
-            '}' => s.push(')'),
-            ',' => s.push('|'),
-            c => s.push_str(&regex::escape(&c.to_string())),
-        }
-    }
-    s.push('$');
-    s
-}
+use super::glob_pattern;
 
 /// Natural order, as the language reference states it.
 fn natural_lt(a: &str, b: &str) -> bool {
@@ -4462,7 +4520,7 @@ pub(super) fn native_table(f: &mut File<'_>, run: &mut Run, rel: &str) -> Table 
     if rel == "token-link" {
         return token_links(f, run);
     }
-    let nat = native_of(rel).expect("a native relation");
+    let nat = native_of(run, rel).expect("a native relation");
     let cols = native_cols(nat);
     let mut out = Table::with(cols.iter().map(|c| c.0.to_owned()).collect::<Vec<_>>(), cols.iter().map(|c| c.1).collect::<Vec<_>>());
     for r in f.native_rows(run, nat) {

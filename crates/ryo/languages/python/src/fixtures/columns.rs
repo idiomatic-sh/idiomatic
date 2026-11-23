@@ -45,214 +45,7 @@ use ryo::languages::{
 };
 use std::collections::HashMap;
 use std::sync::Arc;
-
-/// The engine's text ids: the provider writes every text cell as the id the engine gives the text.
-pub trait TextIds {
-    /// The id of `text`.
-    fn id(&mut self, text: &[u8]) -> u32;
-}
-
-/// How a fact is laid out.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum Layout {
-    /// One row at most a node: a column's value at a node is the row's, and `present` says which nodes have one.
-    #[default]
-    PerNode,
-    /// Any number of rows a node: the rows of node `k` are `offsets[k]..offsets[k + 1]`.
-    Keyed,
-}
-
-/// One fact asked of a file: a relation, the column its rows are found by, and whether only "has this node a row" is wanted.
-#[derive(Clone, Copy, Debug)]
-pub struct Ask {
-    /// The relation.
-    pub relation: Relation,
-    /// The place, among the relation's catalog columns, of the node column its rows are found by.
-    pub key: usize,
-    /// Only the yes/no question: the presence bits, and no column.
-    pub exists: bool,
-    /// The catalog places of the columns wanted, one bit a place (`u64::MAX`: all): a column no test reads is not written.
-    pub columns: u64,
-}
-
-/// One fact of one file, as the provider wrote it.
-#[derive(Clone, Debug, Default)]
-pub struct FactTable {
-    // The answer writer consumes rows in insertion order. Its buffer needs
-    // neither a node index nor space for values at nodes with no row.
-    ordered_rows: bool,
-    /// The layout.
-    pub layout: Layout,
-    /// Whether the provider answered the fact whole for this file (false: the file was not read whole, a superset holds).
-    pub answered: bool,
-    /// Per node, one bit: the node has a row (both layouts, so the yes/no question is one bit read).
-    pub present: Vec<u64>,
-    /// `Keyed`: per node that has rows (in node order), where its rows start in `order`; one more entry at the end.
-    pub offsets: Vec<u32>,
-    /// `Keyed`: per word of `present`, how many nodes before it have rows.
-    pub rank: Vec<u32>,
-    /// `Keyed`: the rows by key, as row numbers into the columns (empty: the rows came in key order, row `i` is `order[i]`).
-    pub order: Vec<u32>,
-    /// By catalog place, the values: by node (`PerNode`) or by row (`Keyed`); empty for a column not written.
-    pub columns: Vec<Vec<u32>>,
-    /// How many rows.
-    pub rows: usize,
-    /// `Keyed`, while writing: each row's key node.
-    keys: Vec<u32>,
-    /// The columns wanted, one bit a catalog place.
-    wanted: u64,
-}
-
-impl FactTable {
-    /// A buffer for sequential column consumption in provider row order.
-    /// Indexed first-half reads use the default buffer.
-    #[must_use]
-    pub fn ordered() -> Self { Self { ordered_rows: true, ..Self::default() } }
-
-    fn begin(&mut self, layout: Layout, width: usize, elements: usize, written: &[usize], exists: bool, wanted: u64) {
-        self.wanted = wanted;
-        self.layout = layout;
-        self.answered = true;
-        self.rows = 0;
-        self.present.clear();
-        if !self.ordered_rows { self.present.resize(elements.div_ceil(64).max(1), 0); }
-        self.offsets.clear();
-        self.order.clear();
-        self.keys.clear();
-        self.columns.resize_with(width.max(self.columns.len()), Vec::new);
-        for column in &mut self.columns {
-            column.clear();
-        }
-        if !self.ordered_rows && layout == Layout::PerNode && !exists {
-            for place in written {
-                if wanted >> place & 1 == 0 {
-                    continue;
-                }
-                if let Some(column) = self.columns.get_mut(*place) {
-                    column.resize(elements, 0);
-                }
-            }
-        }
-    }
-
-    #[inline]
-    fn wants(&self, place: usize) -> bool {
-        self.wanted >> place & 1 == 1
-    }
-
-    #[inline]
-    fn mark(&mut self, node: u32) {
-        if let Some(word) = self.present.get_mut(node as usize / 64) {
-            *word |= 1 << (node % 64);
-        }
-    }
-
-    /// A per-node row: its values by catalog place.
-    #[inline]
-    fn put(&mut self, node: u32, values: &[(usize, u32)]) {
-        if self.ordered_rows {
-            self.push(node, values);
-            return;
-        }
-        if !self.ordered_rows { self.mark(node); }
-        self.keys.push(node);
-        self.rows += 1;
-        for (place, value) in values {
-            if let Some(cell) = self.columns.get_mut(*place).and_then(|column| column.get_mut(node as usize)) {
-                *cell = *value;
-            }
-        }
-    }
-
-    /// A keyed row.
-    #[inline]
-    fn push(&mut self, node: u32, values: &[(usize, u32)]) {
-        if !self.ordered_rows { self.mark(node); }
-        self.keys.push(node);
-        self.rows += 1;
-        for (place, value) in values {
-            if self.wanted >> place & 1 == 1
-                && let Some(column) = self.columns.get_mut(*place)
-            {
-                column.push(*value);
-            }
-        }
-    }
-
-    /// Ends a keyed table: the rows are put in key order by a sort of (key, row) pairs, O(rows log rows), and indexed by
-    /// key through the presence bits and a rank a word, O(elements / 64): no pass over the file's elements.
-    fn finish(&mut self, _elements: usize) {
-        if self.ordered_rows || self.layout != Layout::Keyed {
-            return;
-        }
-        self.rank.clear();
-        let mut before = 0u32;
-        for word in &self.present {
-            self.rank.push(before);
-            before += word.count_ones();
-        }
-        self.offsets.clear();
-        self.order.clear();
-        if self.keys.is_sorted() {
-            let mut last = u32::MAX;
-            for (row, key) in self.keys.iter().enumerate() {
-                if *key != last {
-                    self.offsets.push(row as u32);
-                    last = *key;
-                }
-            }
-        } else {
-            let mut pairs: Vec<u64> = self.keys.iter().enumerate().map(|(row, key)| u64::from(*key) << 32 | row as u64).collect();
-            pairs.sort_unstable();
-            let mut last = u32::MAX;
-            for (at, pair) in pairs.iter().enumerate() {
-                let key = (pair >> 32) as u32;
-                if key != last {
-                    self.offsets.push(at as u32);
-                    last = key;
-                }
-                self.order.push(*pair as u32);
-            }
-        }
-        self.offsets.push(self.keys.len() as u32);
-    }
-
-    /// The rows of `node`, as places into `order` (or into the columns when `order` is empty); none when it has no row.
-    #[inline]
-    #[must_use]
-    pub fn rows_of(&self, node: usize) -> std::ops::Range<usize> {
-        let Some(word) = self.present.get(node / 64) else { return 0..0 };
-        let bit = 1u64 << (node % 64);
-        if word & bit == 0 {
-            return 0..0;
-        }
-        if self.layout == Layout::PerNode {
-            return node..node + 1;
-        }
-        let at = (self.rank[node / 64] + (word & (bit - 1)).count_ones()) as usize;
-        self.offsets[at] as usize..self.offsets[at + 1] as usize
-    }
-
-    /// redo-fills pass 2: each row's key node, in the order the rows were written (both layouts; empty for a yes/no ask).
-    #[must_use]
-    pub fn keys(&self) -> &[u32] {
-        &self.keys
-    }
-
-    /// The row number in the columns of a place `rows_of` gave.
-    #[inline]
-    #[must_use]
-    pub fn row(&self, place: usize) -> usize {
-        if self.layout == Layout::Keyed && !self.order.is_empty() { self.order[place] as usize } else { place }
-    }
-}
-
-/// The answers to one file's asks, one table an ask in ask order; the buffers are kept from file to file.
-#[derive(Clone, Debug, Default)]
-pub struct FactColumns {
-    /// The tables.
-    pub tables: Vec<FactTable>,
-}
+pub use ryo::languages::contract::columns::{Ask, FactColumns, FactTable, Layout, TextIds};
 
 /// The ids of the texts the provider writes the same in every file, by where the text is (memoised for the run), and of the
 /// file's model names (memoised for the file).
@@ -328,7 +121,10 @@ pub const PER_NODE_FACTS: [&str; 9] =
     ["qualified-name", "identifier", "literal-properties", "numeric-literal", "string-literal", "expression-shape", "expression-type", "binding-event", "binding-read"];
 
 /// File-local relations available through the walked file's complete fill.
-pub const FILE_SET_FACTS: &[&str] = &["static-import", "comment", "indent-region"];
+pub const FILE_SET_FACTS: &[&str] = &[
+    "static-import", "comment", "indent-region", "call-argument",
+    "binding-use", "binding-shadow", "binding-resolution",
+];
 
 /// How a column's literal is spelled in the source as a word: whole, or its last segment after a separator.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -367,6 +163,12 @@ impl ColumnWalk {
         } else {
             PythonParserSettings::default()
         };
+        Self::with_settings(words, settings)
+    }
+
+    /// Writes facts for the same Python target that governs the source's syntax and annotation evaluation.
+    #[must_use]
+    pub fn with_settings(words: FileWords, settings: PythonParserSettings) -> Self {
         let mut scratch = PythonWalkScratch::default();
         scratch.names.shapes = Some(Box::new(crate::domain::shape_facts::walk::WalkShapes::new(words)));
         Self {
@@ -414,7 +216,7 @@ impl ColumnWalk {
                 if tree.strings.is_empty() {
                     return hosts;
                 }
-                let typed = TypedTree { segments: &tree.segments, parents: &tree.parents, ends: &tree.ends, nodes: &tree.nodes, annotations: tree.annotations, named: &tree.names };
+                let typed = TypedTree { segments: &tree.segments, parents: &tree.parents, ends: &tree.ends, nodes: &tree.nodes, annotations: tree.annotations, declarations: tree.declarations, named: &tree.names };
                 form_imports(typed, &tree.imports, &mut scratch.forms);
                 type_strings(
                     &mut FormSource { tree: typed, imports: &scratch.forms, model: &mut scratch.file.model, built: &mut built_parts, path: &mut scratch.path },
@@ -450,7 +252,7 @@ fn lend(
         syntax: SyntaxFile {
             table,
             nodes: tree.nodes.get(..own).unwrap_or_default(),
-            tree: TypedTree { segments: &tree.segments, parents: &tree.parents, ends: &tree.ends, nodes: &tree.nodes, annotations: tree.annotations, named: &tree.names },
+            tree: TypedTree { segments: &tree.segments, parents: &tree.parents, ends: &tree.ends, nodes: &tree.nodes, annotations: tree.annotations, declarations: tree.declarations, named: &tree.names },
             text: tree.text,
             file: FileId(0),
             completeness: tree.completeness,
@@ -498,7 +300,7 @@ fn lend(
     if node_table::syntax_error_count(table).0 == 0 { empty.push("syntax-error"); }
     let immediate_annotations = target < crate::domain::binding_schedule::constants::LAZY_ANNOTATIONS_FROM
         && tree.annotations == crate::domain::model::types::BindingAnnotationTiming::Immediate;
-    visit(&mut ColumnFile { table, empty, immediate_annotations, shapes, file: &mut file, memo });
+    visit(&mut ColumnFile { table, empty, immediate_annotations, shapes, file: &mut file, relative_froms: &tree.relative_froms, memo });
 }
 
 /// Spike (6f probe): one node's evaluation region (`ColumnFile::evaluation_region`).
@@ -524,6 +326,7 @@ pub struct ColumnFile<'a, 'f> {
     /// The node table.
     pub table: &'a NodeTable,
     file: &'a mut PythonFile<'f>,
+    relative_froms: &'a [Position],
     memo: &'a mut TextMemo,
 }
 
@@ -541,7 +344,35 @@ fn flag(value: Flag) -> u32 {
     u32::from(value == Flag::Raised)
 }
 
+mod forward_reads;
+mod assignment;
+mod imports;
+pub use imports::ImportAlias;
+mod resolution;
+pub use resolution::BindingSite;
+
 impl ColumnFile<'_, '_> {
+    /// A source file without a relative from-import requests no package-relative alias.
+    pub fn has_relative_imports(&self) -> bool {
+        !self.relative_froms.is_empty()
+    }
+
+    /// Each relative import alias names a member (or, for a wildcard, just its source module).
+    pub fn relative_imports(&self) -> impl Iterator<Item = (u32, u32, Option<&str>, Option<&str>)> {
+        self.relative_froms.iter()
+            .filter_map(|index| match self.file.syntax.nodes.get(usize::from(*index)) {
+                Some(AnyNodeRef::StmtImportFrom(statement)) => Some(*statement),
+                _ => None,
+            })
+            .flat_map(|statement| {
+                statement.names.iter().filter_map(move |alias| {
+                    let id = crate::domain::node::service::id_of(alias)?;
+                    let name = alias.name.as_str();
+                    Some((id.0, statement.level, statement.module.as_ref().map(|m| m.as_str()), (name != "*").then_some(name)))
+                })
+            })
+    }
+
     /// The code the walk interned for each name token of the file's own tree, in id order, into `out` (cleared first): equal
     /// codes are equal texts. A code with the high bit set (`FIXED_TEXT`) is a fixed text of the language, the same text in
     /// every file of the run. Empty when the file's bytes were not text.

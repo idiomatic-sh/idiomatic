@@ -241,7 +241,7 @@ impl Exec<'_> {
         for (i, node) in self.plan.nodes.iter().enumerate() {
             if node.op != "base" { continue; }
             let Some(rel) = node.j["rel"].as_str() else { continue };
-            if native_of(rel).is_some() || matches!(run.supplier(rel), Supplier::RunFiles) { continue; }
+            if native_of(run, rel).is_some() || matches!(run.supplier(rel), Supplier::RunFiles) { continue; }
             let slot = self.requests.number(run, rel);
             self.requests.base_slots[i] = Some(slot);
             if usize::from(slot) == run.fact_rels.len() {

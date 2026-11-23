@@ -36,6 +36,18 @@ oxc_regular_expression = "=0.142.0"
 ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", version = "0.2.0" }
 
 [dev-dependencies]
+# Shared vector executor and in-process query compiler, only for the benchmark.
+ryo_engine = { package = "idiomatic-sh-ryo-engine", path = "../../crates/engine" }
+ryo_values = { package = "idiomatic-sh-ryo-values", path = "../../crates/values" }
+ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../../crates/query_language" }
+ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../../crates/relations" }
+aho-corasick = "1"
+rustc-hash = "2"
+regex = "1"
+cpu-time = "1"
+unicode-width = "=0.2.2"
+oxc_syntax = "=0.142.0"
+tikv-jemallocator.workspace = true
 ryo = { package = "idiomatic-sh-ryo-sdk", path = "../../crates/sdk", features = ["fixtures"] }
 dhat.workspace = true
 # The crate itself, with its fixtures: its tests need them, and no test is run with a flag.
@@ -53,6 +65,11 @@ harness = false
 [[bench]]
 name = "provider"
 path = "benchmarks/provider/bench.rs"
+harness = false
+
+[[bench]]
+name = "vec-ts"
+path = "benchmarks/vec/bench.rs"
 harness = false
 
 [features]

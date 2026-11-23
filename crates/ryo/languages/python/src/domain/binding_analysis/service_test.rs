@@ -150,13 +150,13 @@ const CASES: &[Case<Input, Value, Failure>] = &[
         expect: Expect::Value("unique:1"),
     },
     Case {
-        name: CaseName("local bare annotation blocks outer value only after its declaration"),
+        name: CaseName("local bare annotation makes the outer value inaccessible throughout the function"),
         word: Word::Succeeds,
         input: || ("x = 1\ndef f():\n    use(x)\n    x: int\n    use(x)\n", "x"),
-        expect: Expect::Value("unique:1|unbound:0"),
+        expect: Expect::Value("unbound:0|unbound:0"),
     },
     Case {
-        name: CaseName("local bare annotation blocks builtin fallback after declaration"),
+        name: CaseName("local bare annotation masks the builtin throughout the function"),
         word: Word::Succeeds,
         input: || {
             (
@@ -164,7 +164,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 "len",
             )
         },
-        expect: Expect::Value("builtin:3.0:0|unbound:0"),
+        expect: Expect::Value("unbound:0|unbound:0"),
     },
     Case {
         name: CaseName("module bare annotation preserves builtin fallback"),

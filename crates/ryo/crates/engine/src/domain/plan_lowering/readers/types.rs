@@ -9,8 +9,14 @@ pub(crate) struct PlanReaders<'s> {
     /// The steps.
     pub(crate) steps: &'s [FinishStep],
     /// For each step, the steps that read it, each once, in plan order.
-    pub(crate) readers: Vec<Vec<StepNumber>>,
+    pub(crate) readers: &'s [Vec<StepNumber>],
     /// For each step, whether a rule emits it.
+    pub(crate) emitted: &'s [Emitted],
+}
+
+/// Dependencies and emitted steps are unchanged by all three marking passes.
+pub(crate) struct Uses {
+    pub(crate) readers: Vec<Vec<StepNumber>>,
     pub(crate) emitted: Vec<Emitted>,
 }
 

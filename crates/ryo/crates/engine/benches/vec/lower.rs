@@ -10,7 +10,7 @@
 //! `vec stage <in.json> <stage> <out.json>`: decodes a plan, runs the one pass `stage` (`semijoins`, `counts`, `axes`) adds,
 //! writes it; `stage` `none` writes the decoded plan back (a round trip).
 
-use ryo_engine::domain::plan_lowering::service::{lowered, passed};
+use ryo_engine::domain::plan_lowering::service::{lowered, mark_through, passed};
 use ryo_engine::domain::plan_lowering::types::{
     PackPrograms, PackRule, PlanningStage, RuleContext, RuleProgram, UnreadQuery,
 };
@@ -20,14 +20,12 @@ use ryo_query_language::outbound::syntax::factory::winnow;
 use ryo_query_language::outbound::syntax::interface::SyntaxPort as _;
 use ryo_values::domain::finish_plans::types::FinishPlan;
 use ryo_values::domain::program::types::ParsedModules;
-use ryo_values::domain::query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId, QueryView};
+use ryo_values::domain::query_tokens::types::{QuerySourceId, QueryView};
 use ryo_values::domain::runs::types::RuleId;
 use std::collections::BTreeMap;
 use std::path::Path;
+use super::rule_context;
 use std::sync::Arc;
-
-/// The root a fragment bundle is read under: the parser reads a bundle's root first, and fragments are read without one.
-const BUNDLE_ROOT: &str = "let rows = select file from \"syntax-tree\";\nemit rows subject file key(file);\n";
 
 fn peak_kb() -> u64 {
     std::fs::read_to_string("/proc/self/status")
@@ -71,20 +69,12 @@ fn read_texts(pack: &Path) -> PackTexts {
 
 fn parsed(texts: &PackTexts, context: RuleContext) -> PackPrograms {
     let syntax = winnow();
-    // One bundle a fragment, so that a fragment the parser refuses refuses only the rules that import it.
     let mut fragments = BTreeMap::new();
     for (stem, text) in &texts.fragments {
         let id = QuerySourceId(stem.as_str().into());
-        let modules = BTreeMap::from([(id.clone(), QueryDocumentSource { id: id.clone(), text: text.as_str().into() })]);
-        let bundle = QueryBundle {
-            root: QueryDocumentSource { id: QuerySourceId("root".into()), text: BUNDLE_ROOT.into() },
-            modules: Arc::new(modules),
-        };
-        match syntax.read_bundle(&bundle) {
-            Ok(mut b) => {
-                if let Some(fragment) = b.fragments.remove(&id) {
-                    let _earlier = fragments.insert(id, fragment);
-                }
+        match syntax.read_fragment(&id, QueryView(text)) {
+            Ok(fragment) => {
+                let _previous = fragments.insert(id, fragment);
             }
             Err(e) => println!("unread fragment {stem}: {e}"),
         }
@@ -119,7 +109,7 @@ pub(crate) fn run_lower(args: &[&str]) {
         let t0 = super::thread_cpu();
         let texts = read_texts(pack);
         let t1 = super::thread_cpu();
-        let pack_programs = parsed(&texts, super::request::rule_context(request));
+        let pack_programs = parsed(&texts, rule_context(request));
         let t2 = super::thread_cpu();
         let hwm_parse = peak_kb();
         let mut plan = lowered(&pack_programs, PlanningStage::Expanded);
@@ -229,9 +219,7 @@ pub(crate) fn second_half_plan(pack: &ReadPack, keep_for_first: bool) -> super::
         }
         panic!("the in-process lowering cannot plan {} rule(s) of the pack (listed above): the run stops", plan.unplanned.len());
     }
-    for stage in [PlanningStage::Semijoins, PlanningStage::Counts, PlanningStage::Axes] {
-        let _marked = passed(&mut plan, stage);
-    }
+    mark_through(&mut plan, PlanningStage::Axes);
     let t2 = super::thread_cpu();
     let steps = plan.steps.len();
     // the hand-over in memory: the typed plan to the executor's value, no text written or parsed (`VEC_PLAN_TEXT`: the

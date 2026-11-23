@@ -260,11 +260,9 @@ const NO_FACT: u16 = u16::MAX;
 struct Leaves {
     plan: usize,
     by: Vec<Option<std::rc::Rc<[Leaf]>>>,
-    /// The file's child fields present, by field code (made at the first ask in a file); the file it is for.
-    file: (u32, usize),
-    fields: Vec<bool>,
-    /// field name symbol -> field codes (once a run)
-    codes: rustc_hash::FxHashMap<u32, Vec<u16>>,
+    /// Present field names resolved against the current file's codebook.
+    file: Option<(u32, usize)>,
+    fields: FxHashSet<u32>,
     /// runs not made because the propagation's leaves decided them, by step
     skipped: Vec<u64>,
     /// emits asked in a file: decided empty by the old leaves, by the propagation's, or run
@@ -511,19 +509,17 @@ impl Exec<'_> {
     fn ep_field_present(&mut self, f: &File<'_>, run: &Run, names: &[u32]) -> bool {
         L.with(|l| {
             let mut l = l.borrow_mut();
-            if l.codes.is_empty() {
-                for (c, s) in run.field_sym.iter().enumerate() {
-                    l.codes.entry(*s).or_default().push(c as u16);
+            let key = (f.file, std::ptr::from_ref(f.table) as usize);
+            if l.file != Some(key) {
+                l.file = Some(key);
+                l.fields.clear();
+                for (code, &name) in run.field_sym.iter().enumerate() {
+                    if !super::node_table::ids_of_field(f.table, ryo::languages::FieldCode(code as u16)).is_empty() {
+                        l.fields.insert(name);
+                    }
                 }
             }
-            let key = (f.file, std::ptr::from_ref(f.table) as usize);
-            if l.file != key {
-                l.file = key;
-                let n = run.field_sym.len();
-                l.fields.clear();
-                l.fields.extend((0..n).map(|c| !super::node_table::ids_of_field(f.table, ryo::languages::FieldCode(c as u16)).is_empty()));
-            }
-            names.iter().any(|s| l.codes.get(s).is_some_and(|cs| cs.iter().any(|c| l.fields[usize::from(*c)])))
+            names.iter().any(|name| l.fields.contains(name))
         })
     }
 }

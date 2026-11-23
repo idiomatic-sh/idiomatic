@@ -123,6 +123,7 @@ pub(super) fn walked(
         refused: Vec::new(),
         future_annotations,
         annotations_deferred: super::future::annotations_deferred(future_annotations, source_kind),
+        declarations: super::future::annotated_declarations(source_kind),
         length: offset(ByteIndex(text.0.len())),
         nodes: Vec::new(),
         parents: Vec::new(),
@@ -134,6 +135,7 @@ pub(super) fn walked(
         annotating: Depth(0),
         literals: Vec::new(),
         imports: Vec::new(),
+        relative_froms: Vec::new(),
         names,
         text: if utf8 { &source } else { "" },
     };
@@ -147,6 +149,7 @@ pub(super) fn walked(
         refused,
         literals,
         imports,
+        relative_froms,
         mut names,
         ..
     } = walker;
@@ -252,8 +255,10 @@ pub(super) fn walked(
         } else {
             BindingAnnotationTiming::Immediate
         },
+        declarations: super::future::annotated_declarations(source_kind),
         strings: literals,
         imports,
+        relative_froms,
         segments: Vec::new(),
         text: NameText(&source),
         completeness: Wholeness { syntax, lexical },

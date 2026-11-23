@@ -69,7 +69,7 @@ pub(super) struct Interner {
     pub(super) set: Option<regex::bytes::RegexSet>,
 }
 
-impl ryo_python::fixtures::columns::TextIds for Interner {
+impl ryo::languages::contract::columns::TextIds for Interner {
     #[inline]
     fn id(&mut self, text: &[u8]) -> u32 {
         Interner::id(self, text)
@@ -303,7 +303,7 @@ pub(super) struct Store {
     pub(super) index: Vec<Vec<(usize, Vec<u32>, Vec<u32>)>>,
     /// cols prototype: the provider's direct tables are read instead of `cells`/`index`.
     pub(super) direct_on: bool,
-    pub(super) direct: ryo_python::fixtures::columns::FactColumns,
+    pub(super) direct: ryo::languages::contract::columns::FactColumns,
     /// Per slot: (key column, table number in `direct`).
     pub(super) direct_of: Vec<Vec<(usize, usize)>>,
     /// Direct token order: next and previous token by node (u32::MAX: none), and the slot and next-token id.
