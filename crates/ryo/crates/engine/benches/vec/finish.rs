@@ -401,10 +401,10 @@ impl Run {
     }
 
     pub(super) fn sym(&mut self, text: &[u8]) -> u32 {
-        let hash = Self::word_hash(text);
-        if let Some(&id) = self.ids.find(hash, |&id| &*self.texts[id as usize] == text) {
+        if let Some(id) = self.lookup_word(text) {
             return id;
         }
+        let hash = Self::word_hash(text);
         let id = u32::try_from(self.texts.len()).expect("word ID");
         self.texts.push(text.into());
         let _ = self.ids.insert_unique(hash, id, |&key| Self::word_hash(&self.texts[key as usize]));
