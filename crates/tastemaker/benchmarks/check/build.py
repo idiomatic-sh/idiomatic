@@ -96,7 +96,8 @@ def reference(stage, target, dest, tag):
 def candidate(stage, target, dest):
     archive("HEAD", stage, ["crates/ryo", "crates/tastemaker/benchmarks/project"])
     build(stage / "crates/ryo/Cargo.toml", target, dest,
-          ["bench", "--no-run", "--locked", "-p", "idiomatic-sh-ryo", "--bench", "vec-readers"],
+          ["bench", "--no-run", "--locked", "-p", "idiomatic-sh-ryo", "-p", "idiomatic-sh-ryo-python",
+           "--features", "idiomatic-sh-ryo-python/fixtures", "--bench", "vec-readers"],
           {"vec-readers": "tm-check-reader"})
 
 

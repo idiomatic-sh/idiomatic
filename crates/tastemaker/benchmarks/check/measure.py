@@ -2,9 +2,17 @@
 import hashlib
 import json
 import os
+from pathlib import Path
 import subprocess
 import tempfile
 import time
+
+
+def retained_files(directory, exclude=None):
+    """Logical file bytes and count in a newly created store or workspace."""
+    sizes = [path.lstat().st_size for path in directory.rglob("*")
+             if path != exclude and (path.is_symlink() or path.is_file())]
+    return sum(sizes), len(sizes)
 
 
 def file_sha(path):
@@ -34,15 +42,56 @@ def process(command, *, stdout, stderr, cwd=None, stdin=None, env=None, allowed=
                 workers=1, load=[start_load, os.getloadavg()[0]])
 
 
+# Keys match the native worker's CHECK_SESSION record. All clocks use seconds.
+SESSION_PARTS = {
+    "prep": "Query preparation",
+    "admission": "File admission",
+    "read_parse": "Read, parse, tree projection and reader facts",
+    "first": "First half",
+    "second": "Second half",
+    "project": "Project phase",
+    "assembly": "Answer assembly and receipt output",
+}
+
+
+READER_PARTS = {
+    "read_versions": "Read and identify file versions",
+    "reader_build": "Parser and provider build",
+    "reader_projection_facts": "Tree projection and reader facts",
+}
+
+
+def session_times(lines, cpu):
+    for raw in lines:
+        if raw.startswith(b"CHECK_SESSION "):
+            fields = dict(field.split("=", 1) for field in raw.decode().split()[1:] if "=" in field)
+            if not SESSION_PARTS.keys() <= fields.keys():
+                return None
+            parts = {key: float(fields[key]) for key in SESSION_PARTS}
+            parts["other"] = cpu - sum(parts.values())
+            if all(key in fields for key in READER_PARTS):
+                del parts["read_parse"]
+                parts.update((key, float(fields[key])) for key in READER_PARTS)
+            return parts
+    return None
+
+
 def candidate(worker, packets, *, timed=True):
     results = packets.directory / "receipts"
-    command = [worker, "--tm-batch", packets.manifest, results]
-    with (packets.directory / "reader.log").open("w+b") as log:
+    with tempfile.TemporaryDirectory(dir=packets.directory) as directory, (packets.directory / "reader.log").open("w+b") as log:
+        fresh = Path(directory).resolve()
+        output = fresh / "receipts"
+        command = [Path(worker).resolve(), "--tm-batch", packets.manifest.resolve(), output]
         if timed:
-            metrics = process(command, stdout=log, stderr=log)
+            metrics = process(command, cwd=fresh, stdout=log, stderr=log)
+            log.seek(0)
+            metrics["parts_cpu_s"] = session_times(log, metrics["cpu_s"])
+            metrics["output_bytes"] = output.stat().st_size
+            metrics["store_bytes"], metrics["store_files"] = retained_files(fresh, exclude=output)
         else:
-            subprocess.run(command, stdout=log, stderr=log, check=True)
+            subprocess.run(command, cwd=fresh, stdout=log, stderr=log, check=True)
             metrics = None
+        output.replace(results)
     return metrics, results
 
 

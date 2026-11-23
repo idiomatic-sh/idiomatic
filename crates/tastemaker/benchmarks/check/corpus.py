@@ -10,7 +10,7 @@ import sys
 import tempfile
 import tomllib
 
-from measure import candidate, compare, file_sha, process
+from measure import READER_PARTS, SESSION_PARTS, candidate, compare, file_sha, process, retained_files
 from packets import Packets, capture_pairs, row_digest
 
 WORKSPACES = ("ryo", "tastemaker", "asymptote", "root")
@@ -35,8 +35,10 @@ def shipping(cwd, binary, output, trace=None):
         document = json.loads(output.read_bytes())
         results = [r for run in document["runs"] for r in run["results"]]
         suppressed = sum(bool(r.get("suppressions")) for r in results)
-        return dict(metrics, findings=len(results) - suppressed, suppressed=suppressed,
-                    report_sha256=file_sha(output))
+        output_bytes = output.stat().st_size
+        store_bytes, store_files = retained_files(store)
+        return dict(metrics, output_bytes=output_bytes, store_bytes=store_bytes, store_files=store_files,
+                    findings=len(results) - suppressed, suppressed=suppressed, report_sha256=file_sha(output))
     finally:
         if store.is_dir():
             shutil.rmtree(store)
@@ -62,7 +64,9 @@ def prepare(packets, trace):
 
 
 def summary(runs):
-    return {k: statistics.median(r[k] for r in runs) for k in ("cpu_s", "wall_s", "peak_mib")}
+    result = {k: statistics.median(r[k] for r in runs) for k in ("cpu_s", "wall_s", "peak_mib")}
+    middle = sorted(runs, key=lambda r: r["cpu_s"])[(len(runs) - 1) // 2]
+    return dict(result, **{k: middle[k] for k in ("output_bytes", "store_bytes", "store_files")})
 
 
 def run_workspace(name, checkout, reader, observer_binary, tm, repeats, storage):
@@ -113,23 +117,42 @@ def run(root, reader, observer, tm, names, repeats, output):
         version = subprocess.check_output([binary, "--version"], text=True).strip()
         if version.split()[:2] != ["tm", pin]:
             raise ValueError(f"{binary} reports {version!r}, workspace requires tm {pin}")
-    result = dict(commit=revision, version=pin, ryo_whole_check_target_cpu_s=5, workers=1,
+    result = dict(commit=revision, version=pin, ryo_query_session_target_cpu_s=5, workers=1,
                   binaries={"release": file_sha(tm), "observer": file_sha(observer), "candidate": file_sha(reader)}, workspaces=[])
     with tempfile.TemporaryDirectory(prefix="tm-corpus-") as tmp:
         storage = Path(tmp)
         checkout = storage / "checkout"
         subprocess.run(["git", "clone", "--quiet", "--local", "--shared", "--no-checkout", root, checkout], check=True)
         subprocess.run(["git", "-C", checkout, "checkout", "--quiet", "--detach", revision], check=True)
-        print(f"Tastemaker {revision}; one worker; whole Ryo check target <= 5 CPU-s", flush=True)
-        print("workspace | exact/total | different | refused | partial | unstable | candidate CPU/wall/peak MiB | release CI CPU/wall/peak MiB", flush=True)
+        print(f"Tastemaker {revision}; one worker; complete, equal Ryo query session target <= 5 CPU-s", flush=True)
+        print("workspace | exact/total | different | refused | partial | unstable | candidate CPU/wall/peak MiB | release CI CPU/wall/peak MiB | candidate receipt bytes | candidate store bytes/files | release SARIF bytes | release store bytes/files", flush=True)
         for name in names:
             record = run_workspace(name, checkout, reader, observer, tm, repeats, storage)
             result["workspaces"].append(record)
             counts = record["outcomes"]
             metrics = ["/".join(f'{record[e][k]:.3f}' for k in ("cpu_s", "wall_s", "peak_mib"))
                        for e in ("candidate", "shipping")]
+            disk = []
+            for engine in ("candidate", "shipping"):
+                measured = record[engine]
+                disk.extend((str(measured["output_bytes"]), f'{measured["store_bytes"]}/{measured["store_files"]}'))
             print(" | ".join([name, f'{counts["exact"]}/{record["requests"]}',
-                  *[str(counts[k]) for k in ("different", "refused", "partial", "unstable")], *metrics]), flush=True)
+                  *[str(counts[k]) for k in ("different", "refused", "partial", "unstable")],
+                  *metrics, *disk]), flush=True)
+            ordered = sorted((r["candidate"] for r in record["repeats"]), key=lambda run: run["cpu_s"])
+            measured = ordered[(len(ordered) - 1) // 2]
+            parts = measured["parts_cpu_s"]
+            if parts is None:
+                print("Session component CPU unavailable from this worker", flush=True)
+            else:
+                print("Session part | CPU-s (one measured process)", flush=True)
+                for key, label in {**SESSION_PARTS, "other": "Startup, scheduling and teardown"}.items():
+                    if key == "read_parse" and all(k in parts for k in READER_PARTS):
+                        for subkey, detail in READER_PARTS.items():
+                            print(f'{detail} | {parts[subkey]:.3f}', flush=True)
+                    else:
+                        print(f'{label} | {parts[key]:.3f}', flush=True)
+                print(f'Session total | {measured["cpu_s"]:.3f}', flush=True)
             if output:
                 output.write_text(json.dumps(result, indent=2) + "\n")
     return result
