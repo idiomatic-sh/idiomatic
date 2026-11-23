@@ -963,6 +963,8 @@ mod deferred_resolution;
 mod direct_fill;
 #[path = "fact_catalog.rs"]
 mod fact_catalog;
+#[path = "composition_inputs.rs"]
+mod composition_inputs;
 #[path = "provider_packaging.rs"]
 mod provider_packaging;
 #[path = "provider_tokens.rs"]
@@ -1001,6 +1003,9 @@ struct ColFacts<'v, 'a, 'f, 'w> {
     /// redo-binding pass 3: the provider relations the harness facts are written from, kept for the file once filled, so
     /// a fact and the steps that read the same relation share one fill.
     kept: HashMap<String, Rc<finish::Table>>,
+    type_paths: &'w mut type_expression::Paths,
+    input_layout: composition_inputs::Layout,
+    input_columns: composition_inputs::Columns,
     /// redo-general: the provider's project (its packaging knowledge, run-wide) and this file's bytes, for the relations it
     /// answers for a project.
     project: &'w mut provider_packaging::Project,
@@ -1046,7 +1051,8 @@ impl ColFacts<'_, '_, '_, '_> {
             let _ = self.kept.insert(rel.to_owned(), t.clone());
             return Ok(t);
         }
-        let t = self.whole_fill(run, rel, u64::MAX)?;
+        let mask = self.input_columns.get(rel).unwrap_or(u64::MAX);
+        let t = self.whole_fill(run, rel, mask)?;
         if let Some(m) = module {
             IMPLICIT_CATALOG.with(|c| *c.borrow_mut() = Some((m, t.clone())));
         }
@@ -1205,14 +1211,14 @@ impl ColFacts<'_, '_, '_, '_> {
         let qualified = self.whole(run, "qualified-name")?;
         let embedded = self.whole(run, "embedded-expression")?;
         // redo-fills pass 2: no root, no row, and the other two inputs are not filled
-        if !type_expression::any_root(run, self.file.table, &qualified, embedded.n, type_expression::LISTS.get_or_init(type_expression::Lists::default))? {
+        if !type_expression::any_root(run, self.file.table, &qualified, embedded.n, type_expression::LISTS.get_or_init(type_expression::Lists::default), self.type_paths)? {
             let (_, names, tys) = run.catalog(fact_catalog::TYPE_EXPRESSION_REL).ok_or("no type-expression")?;
             return Ok(finish::Table { names, tys, cols: vec![Vec::new(); 3], n: 0 });
         }
         let arguments = self.whole(run, "call-argument")?;
         let identifiers = self.whole(run, "identifier")?;
         let inputs = type_expression::Inputs { qualified: &qualified, arguments: &arguments, identifiers: &identifiers, embedded: &embedded, lists: type_expression::LISTS.get_or_init(type_expression::Lists::default) };
-        let rows = type_expression::rows(run, self.file.table, &inputs)?;
+        let rows = type_expression::rows(run, self.file.table, &inputs, self.type_paths)?;
         let (_, names, tys) = run.catalog(fact_catalog::TYPE_EXPRESSION_REL).ok_or("no type-expression")?;
         let (ty, value) = (u64::from(run.sym(b"type")), u64::from(run.sym(b"value")));
         let mut t = finish::Table { names, tys, cols: vec![Vec::with_capacity(rows.len()); 3], n: rows.len() };
@@ -1360,7 +1366,8 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
         }
         // the families first, the facts composed of them after (each input is made once and kept; the clock then gives
         // each its own work), the answer in the request's order
-        let composed_inputs = request.relations.iter().any(|a| COMPOSED.contains(&a.rel));
+        let stub = run.paths[self.file_no as usize].ends_with(".pyi");
+        self.input_columns = self.input_layout.for_file(request.relations, stub);
         let base = out.len();
         out.resize_with(base + request.relations.len(), || Err(String::new()));
         let mut pending = Vec::new();
@@ -1369,7 +1376,7 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
                 if COMPOSED.contains(&asked.rel) == composed {
                     out[base + i] = match asked.scope {
                         finish::Scope::Files(files) => self.project.fill(run, asked.rel, files, self.file_no, self.file.table, self.src),
-                        finish::Scope::File(f) if f == self.file_no => match self.one(run, asked.rel, asked.columns, composed_inputs) {
+                        finish::Scope::File(f) if f == self.file_no => match self.one(run, asked.rel, asked.columns) {
                             Ok(Made::Owned(t)) => Ok(t),
                             Ok(Made::Shared(t)) => { pending.push((i, t)); continue; }
                             Err(e) => Err(e),
@@ -1411,7 +1418,7 @@ const RESOLUTION_READERS: [&str; 1] = ["qualified-name"];
 
 impl ColFacts<'_, '_, '_, '_> {
     /// One asked relation of this file: none made where the file's own contents say it has no row (`row_count`).
-    fn one(&mut self, run: &mut finish::Run, rel: &str, columns: u64, composed_inputs: bool) -> Result<Made, String> {
+    fn one(&mut self, run: &mut finish::Run, rel: &str, columns: u64) -> Result<Made, String> {
         if !self.kept.contains_key(rel)
             && let Some((Some(relation), names, tys)) = run.catalog(rel)
             && self.file.row_count(relation) == Some(0)
@@ -1448,7 +1455,7 @@ impl ColFacts<'_, '_, '_, '_> {
             || rel == fact_catalog::DEFERRED_RESOLUTION_REL
         {
             Made::Shared(self.fact(run, rel)?)
-        } else if composed_inputs && keeps_input(rel) {
+        } else if self.input_columns.get(rel).is_some() {
             Made::Shared(self.whole(run, rel)?)
         } else {
             Made::Owned(self.whole_fill(run, rel, columns)?)

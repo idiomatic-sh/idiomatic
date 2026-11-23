@@ -115,6 +115,48 @@ fn form_of(path: &[u8], lists: &Lists) -> Option<Form> {
     })
 }
 
+const ALIAS: u8 = 1;
+const GENERIC_NAME: u8 = 2;
+const ANNOTATED: u8 = 4;
+const TYPED_DICT: u8 = 8;
+
+#[derive(Default, Clone, Copy)]
+struct PathClass {
+    bits: u8,
+    form: Option<Form>,
+}
+
+/// The classification belongs to a run's symbol dictionary and its typing
+/// inputs. Each qualified spelling is classified at its first use.
+#[derive(Default)]
+pub(super) struct Paths(Vec<Option<PathClass>>);
+
+impl Paths {
+    fn class(&mut self, run: &finish::Run, symbol: usize, lists: &Lists) -> PathClass {
+        if symbol >= self.0.len() { self.0.resize(symbol + 1, None); }
+        *self.0[symbol].get_or_insert_with(|| {
+            let t: &[u8] = &run.texts[symbol];
+            if !NAMED_MODULES.iter().any(|m| t.starts_with(m)) && !lists.modules.iter().any(|m| t.starts_with(m)) {
+                return PathClass::default();
+            }
+        let mut bits = 0;
+        if t == b"typing.TypeAlias" || t == b"typing_extensions.TypeAlias" || t == b"_typeshed.TypeAlias" {
+            bits |= ALIAS;
+        }
+        if lists.generic.contains(t) {
+            bits |= GENERIC_NAME;
+        }
+        if t == b"typing.Annotated" || t == b"typing_extensions.Annotated" {
+            bits |= ANNOTATED;
+        }
+        if t == b"typing.TypedDict" || t == b"typing_extensions.TypedDict" {
+            bits |= TYPED_DICT;
+        }
+            PathClass { bits, form: form_of(t, lists) }
+        })
+    }
+}
+
 /// The provider tables the fact reads.
 pub(super) struct Inputs<'t> {
     pub(super) qualified: &'t finish::Table,
@@ -127,7 +169,7 @@ pub(super) struct Inputs<'t> {
 /// redo-fills pass 2: whether the file has any root `rows` starts from (an embedded expression, a name the paths test
 /// names, an annotation or return annotation, a type declaration): `rows`' own "no root of any kind" test, asked before
 /// its other inputs are filled (call-argument and identifier are read only past it).
-pub(super) fn any_root(run: &mut finish::Run, table: &NodeTable, qualified: &finish::Table, embedded_rows: usize, lists: &Lists) -> Result<bool, String> {
+pub(super) fn any_root(run: &mut finish::Run, table: &NodeTable, qualified: &finish::Table, embedded_rows: usize, lists: &Lists, paths: &mut Paths) -> Result<bool, String> {
     if embedded_rows != 0 || super::annotation_evaluation::has_annotation(run, table) || super::deferred_visit::has_type_parameters(run, table) {
         return Ok(true);
     }
@@ -137,6 +179,9 @@ pub(super) fn any_root(run: &mut finish::Run, table: &NodeTable, qualified: &fin
     let value = run.sym(b"value");
     let (id, path) = (col(qualified, "id")?, col(qualified, "path")?);
     for r in 0..qualified.n {
+        let class = paths.class(run, qualified.cols[path][r] as usize, lists);
+        let slice = class.bits & (GENERIC_NAME | ANNOTATED | TYPED_DICT) != 0;
+        if !slice && class.form.is_none() { continue; }
         let at = Position(qualified.cols[id][r] as u32);
         let field = run.field_sym.get(usize::from(node_table::field_of(table, at).0)).copied();
         let parent = node_table::parent_of(table, at);
@@ -144,10 +189,7 @@ pub(super) fn any_root(run: &mut finish::Run, table: &NodeTable, qualified: &fin
         let callee = kind == call && field == Some(func);
         let head = kind == subscript && field == Some(value);
         if !callee && !head { continue; }
-        let t: &[u8] = &run.texts[qualified.cols[path][r] as usize];
-        if !NAMED_MODULES.iter().any(|m| t.starts_with(m)) && !lists.modules.iter().any(|m| t.starts_with(m)) { continue; }
-        if (callee && form_of(t, lists).is_some()) || (head && (lists.generic.contains(t)
-            || matches!(t, b"typing.Annotated" | b"typing_extensions.Annotated" | b"typing.TypedDict" | b"typing_extensions.TypedDict"))) {
+        if (callee && class.form.is_some()) || (head && slice) {
             return Ok(true);
         }
     }
@@ -159,7 +201,7 @@ fn col(t: &finish::Table, n: &str) -> Result<usize, String> {
 }
 
 /// The fact's rows: (element, `type` | `value`): `value` for the root of a value expression nested in a type expression.
-pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -> Result<Vec<(u32, bool)>, String> {
+pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>, paths: &mut Paths) -> Result<Vec<(u32, bool)>, String> {
     let n = node_table::element_count(table).0;
     let sym = |run: &mut finish::Run, t: &[u8]| run.sym(t);
     let k_call = sym(run, b"call");
@@ -195,37 +237,16 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
         x..end.max(x + 1)
     };
     // what each node's qualified paths name
-    const ALIAS: u8 = 1;
-    const GENERIC_NAME: u8 = 2;
-    const ANNOTATED: u8 = 4;
-    const TYPED_DICT: u8 = 8;
     let (q_id, q_path) = (col(inp.qualified, "id")?, col(inp.qualified, "path")?);
     let mut names: FxHashMap<u32, u8> = FxHashMap::default();
     let mut callee_forms: FxHashMap<u32, Vec<Form>> = FxHashMap::default();
     for r in 0..inp.qualified.n {
         let x = inp.qualified.cols[q_id][r] as u32;
-        let t: &[u8] = &run.texts[inp.qualified.cols[q_path][r] as usize];
-        // every name the tests below match starts with one of these modules
-        if !NAMED_MODULES.iter().any(|m| t.starts_with(m)) && !inp.lists.modules.iter().any(|m| t.starts_with(m)) {
-            continue;
-        }
-        let mut bits = 0;
-        if t == b"typing.TypeAlias" || t == b"typing_extensions.TypeAlias" || t == b"_typeshed.TypeAlias" {
-            bits |= ALIAS;
-        }
-        if inp.lists.generic.contains(t) {
-            bits |= GENERIC_NAME;
-        }
-        if t == b"typing.Annotated" || t == b"typing_extensions.Annotated" {
-            bits |= ANNOTATED;
-        }
-        if t == b"typing.TypedDict" || t == b"typing_extensions.TypedDict" {
-            bits |= TYPED_DICT;
-        }
+        let PathClass { bits, form } = paths.class(run, inp.qualified.cols[q_path][r] as usize, inp.lists);
         if bits != 0 {
             *names.entry(x).or_default() |= bits;
         }
-        if let Some(fm) = form_of(t, inp.lists) {
+        if let Some(fm) = form {
             let e = callee_forms.entry(x).or_default();
             if !e.contains(&fm) {
                 e.push(fm);
