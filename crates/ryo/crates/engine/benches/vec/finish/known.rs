@@ -68,7 +68,8 @@ impl<'p> Exec<'p> {
     /// Kind codes, input indices and file-test flags are closed over the plan and provider.
     /// Bind every slot on the primary before lending the three flat arrays to a worker.
     pub(crate) fn freeze_static_tests(&mut self, run: &mut Run) -> Flat {
-        for node in 0..self.plan.nodes.len() {
+        for (node, step) in self.plan.nodes.iter().enumerate() {
+            let _ = step.args();
             self.rec(run, node);
         }
         self.flat.as_ref().clone()
