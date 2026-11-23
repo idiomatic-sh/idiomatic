@@ -630,7 +630,8 @@ fn main() {
                     let request = args.iter().position(|a| *a == "--request").map(|i| args[i + 1]);
                     let read = lower::read_pack(std::path::Path::new(finish_args[0]), request::rule_context(request));
                     println!("start-up pack: read {:.4} parse {:.4} s", read.read, read.parse);
-                    let plan = lower::second_half_plan(&read);
+                    let same_pack = std::fs::canonicalize(args[4]).ok() == std::fs::canonicalize(finish_args[0]).ok();
+                    let plan = lower::second_half_plan(&read, same_pack);
                     pack = Some((finish_args[0], read));
                     plan
                 } else {
@@ -657,17 +658,13 @@ fn main() {
 fn python_language(vocab: &Vocab) -> first::Language {
     use finish::TokenOrder as _;
     let tokens=provider_tokens::Lexicon::new(&|n| vocab.kinds.get(n).copied());
-    use ryo_python::fixtures::columns::{NAME_KIND, PER_NODE_FACTS, SPELLED_COLUMNS, Spelling, is_identifier};
-    let mut facts: Vec<String> = PER_NODE_FACTS.iter().map(|s| (*s).to_owned()).collect();
-    // the harness writes the token order itself (`Store::token_order`)
-    if !first::uses_pairs() { facts.push("token-link".to_owned()); }
+    use ryo_python::fixtures::columns::{PER_NODE_FACTS, SPELLED_COLUMNS, Spelling, is_identifier};
     first::Language {
         text_kinds: vocab.kinds.values().copied().filter(|k|tokens.has_text(*k)).collect(),
         file_sets: ryo_python::fixtures::columns::FILE_SET_FACTS.iter().map(|s|(*s).to_string()).collect(),
-        facts,
+        facts: PER_NODE_FACTS.iter().map(|s| (*s).to_owned()).collect(),
         spelled: SPELLED_COLUMNS.iter().map(|(r, c, how)| ((*r).to_owned(), (*c).to_owned(), match how { Spelling::Whole => None, Spelling::LastSegment(c) => Some(*c) })).collect(),
         is_identifier,
-        word_kind: NAME_KIND.to_owned(),
     }
 }
 
@@ -1659,22 +1656,14 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
         };
         let f1 = thread_cpu();
         let prepared = first::prepare(read, python_language(vocab), vocab);
-        println!("start-up first half: products past the CAP {}", first::counts()[6]);
         let f2 = thread_cpu();
         let rules = rules_of_skips(&prepared.skips, vocab);
         let (frules, words) = funnel::build(&prepared.rules, vocab, &mut fact_catalog, &mut interner);
-        pairs=prepared.pairs;
+        pairs = Some(prepared.pairs);
         let f3 = thread_cpu();
         println!(
-            "start-up first half: from the pack: analysis {:.4} load {:.4} total {:.4} s; rules {} node {} plans {} disjuncts with alternatives {} (plans in them {})",
-            f2 - f1,
-            f3 - f2,
-            f3 - f0,
-            frules.len(),
-            frules.iter().filter(|r| r.node).count(),
-            frules.iter().map(|r| r.plans.len()).sum::<usize>(),
-            frules.iter().map(|r| r.alts.len()).sum::<usize>(),
-            frules.iter().flat_map(|r| r.alts.iter().map(Vec::len)).sum::<usize>()
+            "start-up first half: from the pack: analysis {:.4} load {:.4} total {:.4} s; rules {}",
+            f2 - f1, f3 - f2, f3 - f0, frules.len()
         );
         (rules, frules, words)
     } else {

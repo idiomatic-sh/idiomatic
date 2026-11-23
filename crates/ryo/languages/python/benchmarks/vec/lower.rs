@@ -18,6 +18,7 @@ use ryo_engine::outbound::plan_codec::factory::json;
 use ryo_engine::outbound::plan_codec::interface::PlanCodecPort as _;
 use ryo_query_language::outbound::syntax::factory::winnow;
 use ryo_query_language::outbound::syntax::interface::SyntaxPort as _;
+use ryo_values::domain::finish_plans::types::FinishPlan;
 use ryo_values::domain::program::types::ParsedModules;
 use ryo_values::domain::query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId, QueryView};
 use ryo_values::domain::runs::types::RuleId;
@@ -191,11 +192,17 @@ pub(crate) fn run_stage(args: &[&str]) {
 
 /// The pack's rules and fragments read and parsed once at start, for both halves' plans (`vec funnel ... --finish <pack dir>`).
 pub(crate) struct ReadPack {
-    pub(crate) typed: std::cell::RefCell<Option<ryo_values::domain::finish_plans::types::FinishPlan>>,
+    pub(crate) typed: std::cell::RefCell<Option<FinishPlan>>,
     pub(crate) programs: PackPrograms,
     /// Thread CPU of reading the texts (and the request's rule context) and of parsing them.
     pub(crate) read: f64,
     pub(crate) parse: f64,
+}
+
+impl ReadPack {
+    pub(super) fn lower_axes(&self) -> FinishPlan {
+        lowered(&self.programs, PlanningStage::Axes)
+    }
 }
 
 pub(crate) fn read_pack(pack: &Path, context: RuleContext) -> ReadPack {
@@ -210,7 +217,7 @@ pub(crate) fn read_pack(pack: &Path, context: RuleContext) -> ReadPack {
 
 /// The second half's plan, lowered in this process from the parsed pack: expansion, the three passes, then the typed plan
 /// handed to the executor as the JSON value it reads (the codec's bytes decoded in memory; no file). Prints its phases.
-pub(crate) fn second_half_plan(pack: &ReadPack) -> super::finish::Plan {
+pub(crate) fn second_half_plan(pack: &ReadPack, keep_for_first: bool) -> super::finish::Plan {
     let t0 = super::thread_cpu();
     let mut plan = lowered(&pack.programs, PlanningStage::Expanded);
     let t1 = super::thread_cpu();
@@ -239,7 +246,11 @@ pub(crate) fn second_half_plan(pack: &ReadPack) -> super::finish::Plan {
 
         (v, super::thread_cpu())
     };
-    if super::first::uses_pairs() { pack.typed.replace(Some(plan)); } else { drop(plan); }
+    if keep_for_first {
+        pack.typed.replace(Some(plan));
+    } else {
+        drop(plan);
+    }
     let t4 = super::thread_cpu();
     let executor_plan = super::finish::from_value(&value);
     drop(value);

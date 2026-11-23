@@ -106,6 +106,8 @@ struct Own {
     re: Option<regex::bytes::Regex>,
 }
 
+const REGISTER_CAPACITY: usize = 256;
+
 const ALL_KINDS: KSet = [u64::MAX; 4];
 
 impl Own {
@@ -256,12 +258,6 @@ pub(super) struct SpecPlan {
     pub(super) ops: Vec<SpecOp>,
     pub(super) regs: usize,
     pub(super) words: Vec<Vec<String>>,
-}
-
-impl SpecPlan {
-    pub(super) fn same(&self, o: &SpecPlan) -> bool {
-        self.bucket == o.bucket && self.keys == o.keys && self.ops == o.ops && self.words == o.words
-    }
 }
 
 #[derive(Clone, Debug)]
@@ -471,7 +467,7 @@ pub(super) fn build(specs: &[SpecRule], vocab: &Vocab, catalog: &mut super::fact
         let mut disjuncts: Vec<(usize, Vec<usize>)> = Vec::new();
         let mut enterable = true;
         for p in &r.plans {
-            assert!(p.regs <= 256, "rule {} requires {} registers, predicate stage capacity is 256", r.name, p.regs);
+            assert!(p.regs <= REGISTER_CAPACITY, "rule {} requires {} registers, predicate stage capacity is {REGISTER_CAPACITY}", r.name, p.regs);
             let keys: Vec<Key> = p
                 .keys
                 .iter()
@@ -1002,7 +998,7 @@ pub(super) fn compile_pred(ops: &[Op]) -> Pred {
 fn pred_stage(pred: Pred) -> Stage {
     Box::new(move |ctx, rows, steps| {
         let r = rows.r;
-        let mut regs = [0u32; 256];
+        let mut regs = [0u32; REGISTER_CAPACITY];
         let mut w = 0;
         for j in 0..rows.len() {
             regs[..r].copy_from_slice(&rows.d[j * r..j * r + r]);
