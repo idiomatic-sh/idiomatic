@@ -551,6 +551,17 @@ impl ColumnFile<'_, '_> {
         out.extend(self.file.syntax.tree.named.of_token.iter().map(|code| code.0));
     }
 
+    /// Literal identifier spellings in the declared columns occur in these source bytes.
+    /// Decoded embedded trees and Unicode identifier normalization may spell a word differently.
+    #[must_use]
+    pub fn plain_spellings(&self) -> bool {
+        let syntax = &self.file.syntax;
+        syntax.completeness.syntax == languages::SyntaxCompleteness::Complete
+            && syntax.completeness.lexical == languages::SyntaxCompleteness::Complete
+            && syntax.tree.segments.is_empty()
+            && syntax.text.0.is_ascii()
+    }
+
     /// redo-fills pass 2: the run's number of this file: the file every row of the file names (its file cells and the file
     /// part of its node ids) is this one, not `FileId(0)`.
     pub fn set_file(&mut self, file: FileId) {

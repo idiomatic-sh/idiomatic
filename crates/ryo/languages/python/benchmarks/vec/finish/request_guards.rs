@@ -31,6 +31,7 @@ pub(super) struct Guards {
     by_test: FxHashMap<Test, u32>,
     tests: Vec<Test>,
     pub(super) circuit: super::request_circuit::Circuit,
+    spellings: Option<Spellings>,
 }
 
 impl Default for Guards {
@@ -42,7 +43,7 @@ impl Default for Guards {
             columns: Default::default(), absent: vec![], marks: vec![], generation: 0,
             by_test: FxHashMap::default(),
             tests: vec![Test::Constant(true), Test::Constant(false)],
-            circuit: Default::default(),
+            circuit: Default::default(), spellings: None,
         }
     }
 }
@@ -121,7 +122,59 @@ impl Guards {
     }
 }
 
+/// Each listed symbol test can succeed only if at least one of its words occurs.
+/// Overlapping substring matches keep both a word and its longer spellings.
+struct Spellings {
+    matcher: aho_corasick::AhoCorasick,
+    groups: Vec<(usize, Vec<usize>)>,
+    present: Vec<bool>,
+}
+
 impl Exec<'_> {
+    pub(crate) fn prepare_spellings(&mut self, run: &Run, columns: &[(String, String, Option<char>)], identifier: fn(&str) -> bool) {
+        let guards = &mut self.requests.guards;
+        let mut words = Vec::new();
+        let mut ids = FxHashMap::default();
+        let mut groups = Vec::new();
+        for (leaf, test) in guards.tests.iter().enumerate() {
+            let Test::Symbols(slot, column, values) = test else { continue };
+            let rel = &run.fact_rels[usize::from(*slot)].0;
+            let Some((_, names, _)) = run.rels.get(rel) else { continue };
+            let Some((_, _, separator)) = columns.iter().find(|(r, col, _)| r == rel && col == &names[*column]) else { continue };
+            let spellings: Option<Vec<_>> = values.iter().map(|value| {
+                let text = std::str::from_utf8(&run.texts[*value as usize]).ok()?;
+                let word = separator.and_then(|ch| text.rsplit_once(ch)).map_or(text, |(_, last)| last);
+                (word.is_ascii() && identifier(word)).then_some(word)
+            }).collect();
+            if let Some(spellings) = spellings.filter(|v| !v.is_empty()) {
+                let tests = spellings.into_iter().map(|word| *ids.entry(word).or_insert_with(|| {
+                    let id = words.len();
+                    words.push(word);
+                    id
+                })).collect();
+                groups.push((leaf, tests));
+            }
+        }
+        if !words.is_empty() {
+            let matcher = aho_corasick::AhoCorasick::new(&words).expect("literal source spellings");
+            guards.spellings = Some(Spellings { matcher, groups, present: vec![false; words.len()] });
+        }
+    }
+
+    /// The provider certifies the supplied bytes cover the declared spellings.
+    pub(crate) fn source_spellings(&mut self, source: &[u8]) {
+        let g = &mut self.requests.guards;
+        let Some(s) = &mut g.spellings else { return };
+        s.present.fill(false);
+        for found in s.matcher.find_overlapping_iter(source) {
+            s.present[found.pattern().as_usize()] = true;
+        }
+        g.absent.resize(g.tests.len(), false);
+        for (leaf, words) in &s.groups {
+            g.absent[*leaf] |= !words.iter().any(|&word| s.present[word]);
+        }
+    }
+
     pub(crate) fn prefix_symbols(&mut self, run: &Run, rel: &str, data: &[Vec<u32>], keys: Option<&[u32]>, symbols: usize, lookup: impl Fn(&[u8]) -> Option<u32>) {
         let Some(&slot) = run.fact_slots.get(rel) else { return };
         let g = &mut self.requests.guards;
