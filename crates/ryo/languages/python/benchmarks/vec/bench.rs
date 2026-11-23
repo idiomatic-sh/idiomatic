@@ -495,11 +495,14 @@ fn main() {
                 // the engine's lowering); `--finish <plan file>` reads a plan prepared beforehand (the oracle).
                 let t0 = thread_cpu();
                 type_expression::load_lists(finish_args[0]);
+                let request_path = args.iter().position(|a| *a == "--request").map(|i| args[i + 1]);
+                let pack_dir = std::path::Path::new(finish_args[0]).is_dir();
+                let document = request_path.map(request::metadata);
                 let mut pack = None;
-                let plan = if std::path::Path::new(finish_args[0]).is_dir() {
+                let plan = if pack_dir {
                     // `--request F`: the run's request, for the rule context the lowering reads
-                    let request = args.iter().position(|a| *a == "--request").map(|i| args[i + 1]);
-                    let read = lower::read_pack(std::path::Path::new(finish_args[0]), request::rule_context(request));
+                    let context = document.as_ref().map(request::context_from).unwrap_or_default();
+                    let read = lower::read_pack(std::path::Path::new(finish_args[0]), context);
                     println!("start-up pack: read {:.4} parse {:.4} s", read.read, read.parse);
                     let same_pack = std::fs::canonicalize(args[4]).ok() == std::fs::canonicalize(finish_args[0]).ok();
                     let plan = lower::second_half_plan(&read, same_pack);
@@ -509,13 +512,16 @@ fn main() {
                     finish::load(finish_args[0])
                 };
                 println!("start-up total {:.4} s", thread_cpu() - t0);
-                let mut fin = visit::Finisher::new(&plan, &walk, &vocab, &finish_args);
-                run_funnel(&walk, settings, &vocab, &args[2..], Some(&mut fin), pack.as_ref().map(|(d, r)| (*d, r)));
+                let mut fin = visit::Finisher::new(&plan, &walk, &vocab, &finish_args, request_path.zip(document.as_ref()));
+                let workers = document.as_ref().and_then(request::workers);
+                drop(document);
+                run_funnel(&walk, settings, &vocab, &args[2..], Some(&mut fin), pack.as_ref().map(|(d, r)| (*d, r)), workers);
                 fin.end(0.0);
                 // redo-union pass 2 c18: the plan (30 k nodes of JSON) is not dropped one by one at exit
                 std::mem::forget(plan);
             } else {
-                run_funnel(&walk, settings, &vocab, &args[2..], None, None);
+                let workers = flag(&args, "--request").map(|p| request::metadata(&p)).as_ref().and_then(request::workers);
+                run_funnel(&walk, settings, &vocab, &args[2..], None, None, workers);
             }
         }
         Some("finish") => run_finish(&walk, settings, &vocab, &args[2..]),
@@ -1622,7 +1628,7 @@ fn run_finish(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
     let plan = finish::load(args[0]);
     type_expression::load_lists(args[0]);
     let list = files(args[1]);
-    let mut fin = visit::Finisher::new(&plan, walk, vocab, args);
+    let mut fin = visit::Finisher::new(&plan, walk, vocab, args, None);
     let seed: Option<std::collections::HashSet<(String, String)>> =
         flag(args, "--seed").map(|p| std::fs::read_to_string(p).expect("seed").lines().filter_map(|l| l.split_once('\t')).map(|(a, b)| (a.to_owned(), b.to_owned())).collect());
     let mut seed_by_path: HashMap<&str, std::collections::HashSet<&str>> = HashMap::new();
@@ -1674,7 +1680,7 @@ fn run_finish(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
 fn source_literals(plan: &finish::Plan) -> Vec<Vec<u8>> {
     let mut out: Vec<Vec<u8>> = Vec::new();
     for n in plan.nodes.iter().filter(|n| n.op == "source-matches") {
-        let Some(p) = n.j["args"]["pattern"].as_str() else { continue };
+        let Some(p) = n.args()["pattern"].as_str() else { continue };
         let Ok(hir) = regex_syntax::ParserBuilder::new().utf8(false).build().parse(p) else { continue };
         let seq = regex_syntax::hir::literal::Extractor::new().extract(&hir);
         let Some(lits) = seq.literals() else { continue };
@@ -1695,7 +1701,7 @@ fn source_literals(plan: &finish::Plan) -> Vec<Vec<u8>> {
 /// `<anchors>` a directory: the pack; the first half's spec is prepared in this process from its parsed rules (`first.rs`), the
 /// parse shared with the second half's when `--finish` names the same pack (`pack`); `<anchors>` and `<plans>` files: the
 /// spec prepared beforehand (the oracle path).
-fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSettings, vocab: &Vocab, args: &[&str], mut fin: Option<&mut visit::Finisher<'_>>, pack: Option<(&str, &lower::ReadPack)>) {
+fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSettings, vocab: &Vocab, args: &[&str], mut fin: Option<&mut visit::Finisher<'_>>, pack: Option<(&str, &lower::ReadPack)>, workers: Option<std::num::NonZeroUsize>) {
     let way = args[0];
     let list = files(args[1]);
     let mut fact_catalog = facts::Catalog::default();
@@ -1804,7 +1810,11 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
         .expect("aho-corasick");
     // redo-general: the byte patterns of the `bytes6` probe from the plan's own text patterns (`source_literals`), not a list
     // of particular rules' bytes; at most 64 (one bit each)
-    let byte_patterns: Vec<Vec<u8>> = fin.as_deref().map(|f| source_literals(f.plan())).unwrap_or_default().into_iter().take(64).collect();
+    let byte_patterns: Vec<Vec<u8>> = if word_src == "bytes6" {
+        fin.as_deref().map(|f| source_literals(f.plan())).unwrap_or_default().into_iter().take(64).collect()
+    } else {
+        Vec::new()
+    };
     let bytes_ac = aho_corasick::AhoCorasick::new(&byte_patterns).expect("byte patterns");
     if flag(args, "--words").as_deref() == Some("bytes6") {
         println!("byte patterns from the plan: {} {:?}", byte_patterns.len(), byte_patterns.iter().map(|p| String::from_utf8_lossy(p).into_owned()).collect::<Vec<_>>());
@@ -1881,7 +1891,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
     if seed_only && !token_pass && !compare && !check_links && let Some((program,schedule,words_for_file,scratch))=&mut query {
         let root = fin.as_ref().map(|f| f.run.root_dir.clone()).or_else(|| flag(args, "--summary-root"));
         let mut other = ryo_python::fixtures::columns::ColumnWalk::with_settings(ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names"),settings);
-        summary_walk::run(&list, settings, vocab, request::workers(flag(args,"--request").as_deref()), program,&mut skip,&words,fields_width,words_for_file,
+        summary_walk::run(&list, settings, vocab, workers, program,&mut skip,&words,fields_width,words_for_file,
             &mut cwalk,&mut other,fin,root.as_deref(),flag(args,"--seed-out").as_deref(),flag(args,"--exact-out").as_deref(),schedule,scratch);
         return;
     }
@@ -1894,7 +1904,14 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
     // the second half inside this walk (`--finish`): each plan emit's rules of this plan set by name (the seed's rule is a
     // name), and the file's seed as a set over the rules
     assert!(fin.is_none() || (use_facts && direct), "--finish in the first half's walk needs --facts --direct");
-    let emit_rules: Vec<Vec<usize>> = fin.as_ref().map(|f| f.emit_names().map(|(_, n)| frules.iter().enumerate().filter(|(_, r)| r.name == n).map(|(i, _)| i).collect()).collect()).unwrap_or_default();
+    let emit_rules: Vec<Vec<usize>> = fin.as_ref().map(|f| {
+        let mut by_name: HashMap<&str, Vec<usize>> = HashMap::new();
+        for (i, rule) in frules.iter().enumerate() {
+            by_name.entry(&rule.name).or_default().push(i);
+        }
+        f.emit_names().map(|(_, name)| by_name.get(name).cloned().unwrap_or_default()).collect()
+    }).unwrap_or_default();
+    let mut wanted = Vec::new();
     let mut in_seed = vec![false; frules.len()];
     let node_class: Vec<bool> = frules.iter().map(|r| r.node).collect();
     let mut exact_counts = vec![(0u64, 0u64, 0u64); frules.len()];
@@ -2660,7 +2677,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
                             }
                         }
                         let before_wanted = fin.time;
-                        let mut wanted = fin.wanted(path, &|e| emit_rules[e].iter().any(|r| in_seed[*r]));
+                        fin.wanted_into(path, |e| emit_rules[e].iter().any(|r| in_seed[*r]), &mut wanted);
                         if !exact_rows.is_empty() {
                             wanted.retain(|&e| {
                                 let [ri] = emit_rules[e].as_slice() else { return true };

@@ -13,7 +13,7 @@
 use super::{E, Exec, File, Native, Op, Provider, R, Run, Src, Table, Ty, V, NULL};
 use super::{bucket, bucket_len, compare, distinct, eval, get, index_of, key_of, kind_set, kinds_required, lit_rows, refs_of, table_index, text_of, truthy, view_holds, view_rows};
 use rustc_hash::FxHashSet;
-use serde_json::Value as J;
+
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -348,9 +348,9 @@ impl Exec<'_> {
 
     fn ksel_make(&mut self, run: &mut Run, node: usize) -> R<Prep> {
         let plan = self.plan;
-        let j = &plan.nodes[node].j;
+        let pn = &plan.nodes[node];
         // a semi step tries the band first (band.rs); where it declines, the kernels run it (`VEC_KSEL_NO_SEMI`: the old path)
-        let semi = j.get("semi").and_then(J::as_u64).filter(|_| j.get("count").is_none() && !sw!("VEC_NO_SEMI")).map(|x| x as usize);
+        let semi = pn.semi().filter(|_| !pn.counted() && !sw!("VEC_NO_SEMI"));
         if semi.is_some() && sw!("VEC_KSEL_NO_SEMI") {
             return Ok(Prep::Old("semi"));
         }

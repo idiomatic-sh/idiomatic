@@ -11,11 +11,11 @@
 
 use super::{Dom, Exec, File, Hier, NULL, Provider, R, Run, Table, bucket, bucket_len, hier_step, kind_set, node_table, s, view_holds};
 use ryo::languages::Position;
-use serde_json::Value as J;
+use super::Args;
 
 impl Exec<'_> {
     /// The axis `node` over `from` in one of the forms above, or None (the axis runs as before).
-    pub(super) fn walk_axis(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, a: &J, from: &Table) -> R<Option<Table>> {
+    pub(super) fn walk_axis(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, a: &Args, from: &Table) -> R<Option<Table>> {
         if sw!("VEC_NO_AXISWALK") {
             return Ok(None);
         }
@@ -23,7 +23,7 @@ impl Exec<'_> {
         if !matches!(dir.as_str(), "ancestor" | "descendant" | "nearest-ancestor") {
             return Ok(None);
         }
-        let exists = self.plan.nodes[node].j.get("exists").is_some();
+        let exists = self.plan.nodes[node].exists();
         let dom = self.dom(f, run, p, node)?;
         let size = match &dom {
             Dom::Set(x) => Some(x.len()),

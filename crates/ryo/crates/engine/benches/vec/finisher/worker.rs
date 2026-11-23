@@ -112,6 +112,8 @@ impl<'p> Settings<'p> {
         }
         let mut worker = Finisher {
             plan: self.plan,
+            quoted_paths: vec![Default::default(); self.paths.len()],
+            quoted_rules: vec![Default::default(); self.plan.emits.len()],
             emits: self.emits.clone(),
             emit_seeded: self.seeded.clone(),
             surv: self.survivors.clone(),
