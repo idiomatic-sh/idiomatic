@@ -3,7 +3,7 @@
 use super::{E, Exec, J, Op, Param, R, Rc, Run, Schema};
 
 #[derive(Debug)]
-pub(crate) struct ExternalStep {
+pub(super) struct ExternalStep {
     pub(super) base: Option<String>,
     pub(super) aliases: Vec<Option<String>>,
     pub(super) probe: Option<usize>,
@@ -50,7 +50,7 @@ fn text(value: &J) -> R<&str> {
 }
 
 #[derive(Debug)]
-pub(crate) enum Expr {
+pub(super) enum Expr {
     Column(String, Option<String>),
     Text(String),
     Number(i64),
@@ -124,7 +124,7 @@ impl Expr {
             Self::Invalid(reason) => return Err(reason.clone()),
         })
     }
-    pub(crate) fn excludes(&self, column: &str, missing: &str) -> bool {
+    pub(super) fn excludes(&self, column: &str, missing: &str) -> bool {
         let different = |a: &Self, b: &Self| matches!((a,b),(Self::Column(c,_),Self::Text(t)) if c==column && t!=missing);
         match self {
             Self::Compare(Op::Eq, a, b) => different(a, b) || different(b, a),
