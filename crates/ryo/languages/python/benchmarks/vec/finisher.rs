@@ -121,6 +121,7 @@ impl<'p> Finisher<'p> {
                 &|n| vocab.kinds.get(n).copied(),
             ),
         };
+        me.exec.cold_load(&mut me.run);
         me.time += thread_cpu() - t0;
         me
     }
@@ -262,12 +263,14 @@ impl<'p> Finisher<'p> {
             }
         }
         finish::emptyprop::file_end(&mut self.exec, &mut f, run, pv);
+        self.exec.cold_end(&mut f, run);
     }
 
     /// Writes the findings, dumps and stats, and prints the second half's lines; `walk_time` is the walk's own time when
     /// the second half walked the files itself (0 inside the first half's walk).
     pub(super) fn end(mut self, walk_time: f64) {
         self.exec.leaf_report(&mut self.run);
+        self.exec.cold_report(&self.run);
         let total = self.time + walk_time;
         let file_time = self.time;
         self.findings.sort();

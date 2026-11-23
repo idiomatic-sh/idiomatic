@@ -85,6 +85,10 @@ pub(super) mod emptyprop;
 mod ordering;
 #[path = "finish/leaf_scan.rs"]
 mod leaf_scan;
+#[path = "finish/cold_list.rs"]
+mod cold_list;
+#[path = "finish/cold_entries.rs"]
+mod cold_entries;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum Ty {
@@ -257,6 +261,8 @@ impl Table {
 /// The run: texts, regexes, kind and field names, file paths.
 #[derive(Default)]
 pub(super) struct Run {
+    cold: cold_list::Plan,
+    cold_entries: cold_entries::Audit,
     pub(super) texts: Vec<Box<[u8]>>,
     pub(super) ids: FxHashMap<Box<[u8]>, u32>,
     pub(super) regexes: FxHashMap<String, Rc<regex::bytes::Regex>>,
@@ -601,6 +607,7 @@ pub(super) struct Tokens {
 
 /// One file: the node table's columns, the source, the fills and the made tables.
 pub(super) struct File<'a> {
+    cold: cold_list::PerFile,
     pub(super) table: &'a NodeTable,
     pub(super) src: &'a [u8],
     pub(super) file: u32,
@@ -619,7 +626,7 @@ pub(super) struct File<'a> {
     by_line: [RefCell<Option<Index>>; 2],
     tokens: RefCell<Option<Rc<Tokens>>>,
     memo: Vec<Option<Res>>,
-    vrows: FxHashMap<usize, Rc<Vec<u32>>>,
+    vrows: cold_entries::Rows,
     vmat: FxHashMap<usize, Rc<Table>>,
     index: FxHashMap<usize, inline_key::List<(inline_key::Key, Rc<Index>)>>,
     fills: FxHashMap<String, Rc<Table>>,
@@ -656,7 +663,7 @@ struct FileBufs {
     parent: Vec<u32>,
     line_starts: Vec<u32>,
     text_memo: Vec<u32>,
-    vrows: FxHashMap<usize, Rc<Vec<u32>>>,
+    vrows: cold_entries::Rows,
     vmat: FxHashMap<usize, Rc<Table>>,
     index: FxHashMap<usize, inline_key::List<(inline_key::Key, Rc<Index>)>>,
     fills: FxHashMap<String, Rc<Table>>,
@@ -791,6 +798,7 @@ impl File<'_> {
             tokens: RefCell::new(None),
             memo: Vec::new(),
             vrows: b.vrows,
+            cold: cold_list::PerFile::default(),
             vmat: b.vmat,
             index: b.index,
             fills: b.fills,
@@ -1019,6 +1027,7 @@ impl File<'_> {
     /// Rows of a native relation whose column holds `v`.
     fn native_probe(&self, run: &Run, nat: Native, col: usize, v: u64, out: &mut Vec<u32>) {
         fill_prof::read(4);
+        if sw!("VEC_COLD_COUNT") { run.cold.probe(self, None); }
         let ok = v < self.n as u64;
         match (nat, col) {
             (Native::Tree, 0) | (Native::Location, 0) => {
@@ -1734,7 +1743,7 @@ impl<'p> Exec<'p> {
     /// A node made in this file and put in its slot (listed in `touched`, cleared at the file's end).
     #[inline(never)]
     fn make(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Res> {
-        let r = self.make_(f, run, p, node)?;
+        let r = if cold_list::auditing() { self.cold_make(f, run, p, node)? } else { self.make_(f, run, p, node)? };
         f.touched.push(node as u32);
         f.memo[node] = Some(r.clone());
         Ok(r)
@@ -1808,6 +1817,7 @@ impl<'p> Exec<'p> {
     /// reads that table through its index on `col` (made once a file). A view is read in place where its base has a
     /// keyed read for the column; a closure is read through its adjacency (`lazy`), not made whole.
     fn probe(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64]) -> R<Rc<Table>> {
+        if sw!("VEC_COLD_COUNT") { run.cold.probe(f, Some(keys.len())); }
         if keys.is_empty() {
             return self.empty_rc(run, node);
         }
@@ -3422,13 +3432,16 @@ fn view_rows(f: &mut File<'_>, run: &mut Run, v: &ViewSpec, node: usize) -> Rc<V
 
 fn view_rows_for(f: &mut File<'_>, run: &mut Run, v: &ViewSpec, node: usize, materialize: bool) -> Rc<Vec<u32>> {
     fill_prof::read(3);
+    if cold_list::auditing() { run.cold.ask(f, node); }
     if let Some(r) = f.vrows.get(&node) {
         return r.clone();
     }
+    let cold_start = cold_list::clock();
     let start = if sw!("VEC_LEAF_PROFILE") { step_clock() } else { 0.0 };
     if filter_order::file_fails(run, f, &v.filter) {
         let rc = recycle::no_rows();
         f.vrows.insert(node, rc.clone());
+        if cold_list::auditing() { run.cold.built(f, node, materialize, 0, 0, &rc, cold_list::clock() - cold_start); }
         if sw!("VEC_LEAF_PROFILE") {
             leaf_scan::row_list(node, materialize, 0, 0, start);
         }
@@ -3436,7 +3449,9 @@ fn view_rows_for(f: &mut File<'_>, run: &mut Run, v: &ViewSpec, node: usize, mat
     }
     // redo-alloc: the rows made into a kept list (recycle.rs), tested in place
     let mut entered = 0;
+    let mut tests = 0;
     let rc = recycle::rows_with(|out| {
+        let before = if sw!("VEC_COLD_PHASE") { cold_list::clock() } else { 0.0 };
         match kind_set(run, &v.filter, 0, v.base, &[]) {
             Some(ks) => bucket_into(f, run, &ks, out),
             None => match lit_rows(f, &v.filter, 0, v.base, &[]) {
@@ -3445,17 +3460,20 @@ fn view_rows_for(f: &mut File<'_>, run: &mut Run, v: &ViewSpec, node: usize, mat
             },
         }
         // redo-fills: the view tests read as columns (view_cols)
+        let middle = if sw!("VEC_COLD_PHASE") { cold_list::clock() } else { 0.0 };
         entered = out.len();
-        if sw!("VEC_LEAF_TESTS") {
-            leaf_scan::count_tests(f, run, v, node, materialize, out);
+        if sw!("VEC_LEAF_TESTS") || sw!("VEC_COLD_COUNT") {
+            tests = leaf_scan::count_tests(f, run, v, node, materialize, out);
         } else if !v.filter.is_empty() {
             view_cols::retain(f, run, v, out);
         }
+        if sw!("VEC_COLD_PHASE") { run.cold.phase(node, middle - before, cold_list::clock() - middle); }
     });
     if sw!("VEC_LEAF_PROFILE") {
         leaf_scan::row_list(node, materialize, entered, rc.len(), start);
     }
     f.vrows.insert(node, rc.clone());
+    if cold_list::auditing() { run.cold.built(f, node, materialize, entered, tests, &rc, cold_list::clock() - cold_start); }
     rc
 }
 

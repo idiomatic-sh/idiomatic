@@ -34,7 +34,7 @@ pub(super) fn count_tests(
     node: usize,
     materialize: bool,
     rows: &mut Vec<u32>,
-) {
+) -> u64 {
     let mut n = 0;
     for test in &v.filter {
         if rows.is_empty() {
@@ -44,7 +44,10 @@ pub(super) fn count_tests(
         let one = ViewSpec::new(v.base, Vec::new(), vec![test.clone()]);
         super::view_cols::retain(f, run, &one, rows);
     }
-    TESTS.with_borrow_mut(|all| *all.entry((node, materialize)).or_default() += n);
+    if sw!("VEC_LEAF_TESTS") {
+        TESTS.with_borrow_mut(|all| *all.entry((node, materialize)).or_default() += n);
+    }
+    n
 }
 
 /// A cold row-list read outside materialization is timed in its consumer's step.
@@ -128,7 +131,11 @@ fn buckets(run: &Run, v: &ViewSpec) -> serde_json::Value {
 
 /// Current view_rows entries. Fact column/value lookup follows the conjunct and
 /// column order of lit_pick. The child relation presently reads every child.
-fn current_entries(run: &mut Run, v: &ViewSpec) -> serde_json::Value {
+pub(super) fn fact_entry(
+    run: &mut Run,
+    i: u16,
+    filter: &[super::E],
+) -> Option<(usize, String, Vec<u32>)> {
     use super::{E, Ty};
     fn columns(e: &E, out: &mut Vec<usize>) {
         match e {
@@ -140,6 +147,24 @@ fn current_entries(run: &mut Run, v: &ViewSpec) -> serde_json::Value {
             _ => {}
         }
     }
+    let rel = run.fact_rels[usize::from(i)].0.clone();
+    let (_, names, types) = run.catalog(&rel).expect("loaded fact");
+    let mut cols = Vec::new();
+    for e in filter {
+        cols.clear();
+        columns(e, &mut cols);
+        for &c in &cols {
+            if types[c] == Ty::Sym
+                && let Some(xs) = kinds_required(e, 0, c)
+            {
+                return Some((c, names[c].clone(), xs));
+            }
+        }
+    }
+    None
+}
+
+fn current_entries(run: &mut Run, v: &ViewSpec) -> serde_json::Value {
     let (prefix, values) = match v.base {
         Native::Tree => (
             vec!["tree".to_owned()],
@@ -147,25 +172,12 @@ fn current_entries(run: &mut Run, v: &ViewSpec) -> serde_json::Value {
         ),
         Native::Child => return serde_json::json!([["child"]]),
         Native::Fact(i) => {
-            let name = run.fact_rels[usize::from(i)].0.clone();
-            let (_, names, types) = run.catalog(&name).expect("loaded fact");
-            let mut cols = Vec::new();
-            let mut prefix = vec!["fact".to_owned(), name];
-            let mut found = None;
-            'conjuncts: for e in &v.filter {
-                cols.clear();
-                columns(e, &mut cols);
-                for &c in &cols {
-                    if types[c] == Ty::Sym
-                        && let Some(vals) = kinds_required(e, 0, c)
-                    {
-                        prefix.push(names[c].clone());
-                        found = Some(vals);
-                        break 'conjuncts;
-                    }
-                }
-            }
-            (prefix, found)
+            let mut prefix = vec!["fact".to_owned(), run.fact_rels[usize::from(i)].0.clone()];
+            let values = fact_entry(run, i, &v.filter).map(|(_, name, xs)| {
+                prefix.push(name);
+                xs
+            });
+            (prefix, values)
         }
         _ => return buckets(run, v),
     };
