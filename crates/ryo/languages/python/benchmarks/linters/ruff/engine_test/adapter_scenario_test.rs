@@ -147,21 +147,18 @@ pub(super) fn finding_bytes(
     } else {
         1_usize
     };
-    let mut findings = vec![serde_json::json!({
-        "code": code,
-        "filename": filename,
-        "cell": null,
-        "location": {"row": 3_usize, "column": start},
-        "end_location": {"row": 3_usize, "column": end}
-    })];
+    // Only the temporary path is supplied by the environment. Quote that field
+    // as a native process would. Keep the captured record independent of the decoder.
+    let filename = crate::json_output::bytes(&filename).map_err(|e| Error::Json(Box::new(e)))?;
+    let filename = std::str::from_utf8(&filename).expect("UTF-8 encoded fixture path");
+    let record = |code, start, end| format!(
+        r#"{{"code":"{code}","filename":{filename},"cell":null,"location":{{"row":3,"column":{start}}},"end_location":{{"row":3,"column":{end}}}}}"#
+    );
+    let mut stdout = format!("[{}", record(code, start, end));
     if matches!(scenario, AdapterScenario::FrontendFinding) {
-        findings.push(serde_json::json!({
-            "code": "invalid-syntax",
-            "filename": filename,
-            "cell": null,
-            "location": {"row": 3_usize, "column": 7_usize},
-            "end_location": {"row": 3_usize, "column": 8_usize}
-        }));
+        stdout.push(',');
+        stdout.push_str(&record("invalid-syntax", 7, 8));
     }
-    serde_json::to_vec(&findings).map_err(|error| Error::Json(Box::new(error)))
+    stdout.push(']');
+    Ok(stdout.into_bytes())
 }

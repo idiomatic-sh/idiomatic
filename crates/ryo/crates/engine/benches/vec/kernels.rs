@@ -75,7 +75,6 @@ impl State {
                 let (column, code) = match key {
                     Key::Kind(k) => (kinds.values(), *k),
                     Key::Field(f) => (fields.values(), *f),
-                    Key::Word(_) => continue,
                 };
                 let m = BooleanBuffer::collect_bool(column.len(), |i| column[i] == code);
                 counts.calls += 1;
@@ -112,7 +111,6 @@ impl State {
                 let (offsets, sorted, code) = match key {
                     Key::Kind(k) => (&self.kind_offsets, &self.by_kind, usize::from(*k)),
                     Key::Field(f) => (&self.field_offsets, &self.by_field, usize::from(*f)),
-                    Key::Word(_) => continue,
                 };
                 ids.extend_from_slice(&sorted[offsets[code] as usize..offsets[code + 1] as usize]);
             }

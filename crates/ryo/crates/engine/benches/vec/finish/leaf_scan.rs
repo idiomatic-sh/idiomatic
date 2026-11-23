@@ -80,8 +80,8 @@ impl Exec<'_> {
             if let Ok(Some(v)) = self.view(run, node) {
                 println!(
                     "LEAF_VIEW\t{node}\t{}\t{}",
-                    buckets(run, &v),
-                    current_entries(run, &v)
+                    super::json_output::buckets(&buckets(run, &v)),
+                    super::json_output::buckets(&current_entries(run, &v))
                 );
             }
         }
@@ -103,13 +103,15 @@ impl Exec<'_> {
 
 /// Physical buckets for a shared scan. A multi-value filter can subscribe to
 /// several buckets. Fact entries group by family so other filters share its scan.
-fn buckets(run: &Run, v: &ViewSpec) -> serde_json::Value {
+fn buckets(run: &Run, v: &ViewSpec) -> Vec<Vec<String>> {
     let (base, column) = match v.base {
         Native::Tree => ("tree", Some(1)),
         Native::Child => ("child", Some(3)),
         Native::Location => ("location", None),
         Native::Token => ("token", None),
-        Native::Fact(i) => return serde_json::json!([["fact", run.fact_rels[usize::from(i)].0]]),
+        Native::Fact(i) => {
+            return vec![vec!["fact".into(), run.fact_rels[usize::from(i)].0.clone()]];
+        }
     };
     if let Some(column) = column {
         for test in &v.filter {
@@ -120,13 +122,14 @@ fn buckets(run: &Run, v: &ViewSpec) -> serde_json::Value {
                     .collect();
                 names.sort_unstable();
                 names.dedup();
-                return serde_json::json!(
-                    names.iter().map(|n| [base, n.as_ref()]).collect::<Vec<_>>()
-                );
+                return names
+                    .into_iter()
+                    .map(|n| vec![base.into(), n.into_owned()])
+                    .collect();
             }
         }
     }
-    serde_json::json!([[base]])
+    vec![vec![base.into()]]
 }
 
 /// Current view_rows entries. Fact column/value lookup follows the conjunct and
@@ -164,13 +167,13 @@ pub(super) fn fact_entry(
     None
 }
 
-fn current_entries(run: &mut Run, v: &ViewSpec) -> serde_json::Value {
+fn current_entries(run: &mut Run, v: &ViewSpec) -> Vec<Vec<String>> {
     let (prefix, values) = match v.base {
         Native::Tree => (
             vec!["tree".to_owned()],
             super::kind_set(run, &v.filter, 0, v.base, &[]),
         ),
-        Native::Child => return serde_json::json!([["child"]]),
+        Native::Child => return vec![vec!["child".into()]],
         Native::Fact(i) => {
             let mut prefix = vec!["fact".to_owned(), run.fact_rels[usize::from(i)].0.clone()];
             let values = fact_entry(run, i, &v.filter).map(|(_, name, xs)| {
@@ -182,18 +185,16 @@ fn current_entries(run: &mut Run, v: &ViewSpec) -> serde_json::Value {
         _ => return buckets(run, v),
     };
     let Some(mut values) = values else {
-        return serde_json::json!([prefix]);
+        return vec![prefix];
     };
     values.sort_unstable();
     values.dedup();
-    serde_json::json!(
-        values
-            .into_iter()
-            .map(|sym| {
-                let mut key = prefix.clone();
-                key.push(String::from_utf8_lossy(run.text(sym)).into_owned());
-                key
-            })
-            .collect::<Vec<_>>()
-    )
+    values
+        .into_iter()
+        .map(|sym| {
+            let mut key = prefix.clone();
+            key.push(String::from_utf8_lossy(run.text(sym)).into_owned());
+            key
+        })
+        .collect()
 }

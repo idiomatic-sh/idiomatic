@@ -1,7 +1,7 @@
 //! Direct handoff from the lowered slot graph. The first walk and executor share the same
-//! immutable steps. External, explicitly supplied plan files retain the older file format.
+//! immutable steps.
 use super::plan_args::Param;
-use super::{Args, J, PNode, Plan, Rc};
+use super::{Args, PNode, Plan, Rc};
 use ryo_values::domain::finish_plans::{
     arguments::{
         groups::types::CountedRows, joins::types::AsOfBound, literals::types::ArgumentValue,
@@ -12,11 +12,6 @@ use ryo_values::domain::finish_plans::{
 };
 use ryo_values::domain::plan_parts::types::Side;
 use std::collections::BTreeMap;
-#[derive(Debug)]
-pub(super) enum Source {
-    Lowered(Rc<FinishPlan>, usize),
-    External(J),
-}
 pub(crate) fn from_typed(plan: Rc<FinishPlan>) -> Plan {
     let nodes = plan
         .steps
@@ -35,7 +30,8 @@ pub(crate) fn from_typed(plan: Rc<FinishPlan>) -> Plan {
                 op: op.to_owned(),
                 inputs,
                 rels,
-                source: Source::Lowered(plan.clone(), id),
+                source: plan.clone(),
+                slot: id,
                 args: Default::default(),
             }
         })
@@ -59,8 +55,6 @@ pub(crate) fn from_typed(plan: Rc<FinishPlan>) -> Plan {
     Plan {
         nodes,
         emits,
-        seeds: Vec::new(),
-        seed_paths: Vec::new(),
     }
 }
 fn slots(step: &FinishStep) -> (&str, Vec<(String, usize)>) {
@@ -135,75 +129,53 @@ fn slots(step: &FinishStep) -> (&str, Vec<(String, usize)>) {
     }
 }
 impl PNode {
-    pub(super) fn diagnostic(&self) -> J {
-        use ryo_engine::outbound::plan_codec::{factory::json, interface::PlanCodecPort};
-        match &self.source {
-            Source::External(j) => j.clone(),
-            Source::Lowered(p, i) => json().valued(&FinishPlan {
-                steps: vec![p.steps[*i].clone()],
-                rules: vec![],
-                unplanned: vec![],
-            })["nodes"][0]
-                .take(),
-        }
+    pub(super) fn summary_text(&self) -> String {
+        super::json_output::step(self.step())
     }
-
-    pub(crate) fn step(&self) -> Option<&FinishStep> {
-        match &self.source {
-            Source::Lowered(p, i) => Some(&p.steps[*i]),
-            Source::External(_) => None,
-        }
-    }
-    pub(crate) fn external(&self) -> Option<&J> {
-        match &self.source {
-            Source::External(n) => Some(n),
-            _ => None,
-        }
+    pub(crate) fn step(&self) -> &FinishStep {
+        &self.source.steps[self.slot]
     }
     pub(crate) fn base(&self) -> Option<&str> {
         match self.step() {
-            Some(FinishStep::Base(r)) => Some(&r.0),
-            _ => self.external()?.get("rel")?.as_str(),
+            FinishStep::Base(r) => Some(&r.0),
+            _ => None,
         }
     }
     pub(crate) fn semi(&self) -> Option<usize> {
         match self.step() {
-            Some(FinishStep::Select(s)) => match s.probe {
+            FinishStep::Select(s) => match s.probe {
                 ProbeMark::Probed(n) => Some(n.0),
                 _ => None,
             },
-            _ => self.external()?.get("semi")?.as_u64().map(|n| n as usize),
+            _ => None,
         }
     }
     pub(super) fn distinct_count(&self) -> bool {
         match self.step() {
-            Some(FinishStep::GroupCount(g)) => matches!(g.distinct, CountedRows::Distinct(_)),
-            _ => self.external().is_some_and(|n| !n["args"]["distinct"].is_null()),
+            FinishStep::GroupCount(g) => matches!(g.distinct, CountedRows::Distinct(_)),
+            _ => false,
         }
     }
     pub(crate) fn counted(&self) -> bool {
         match self.step() {
-            Some(FinishStep::Select(s)) => s.count == CountMark::Counted,
-            _ => self.external().is_some_and(|n| n.get("count").is_some()),
+            FinishStep::Select(s) => s.count == CountMark::Counted,
+            _ => false,
         }
     }
     pub(crate) fn tested(&self) -> bool {
         match self.step() {
-            Some(FinishStep::Select(s)) => s.condition != RowCondition::Every,
-            _ => self.external().is_some_and(|n| !n["cond"].is_null()),
+            FinishStep::Select(s) => s.condition != RowCondition::Every,
+            _ => false,
         }
     }
     pub(crate) fn exists(&self) -> bool {
         match self.step() {
-            Some(FinishStep::Axis(s)) => s.exists == ExistsMark::Marked,
-            _ => self.external().is_some_and(|n| n.get("exists").is_some()),
+            FinishStep::Axis(s) => s.exists == ExistsMark::Marked,
+            _ => false,
         }
     }
     pub(crate) fn args(&self) -> &Args {
-        self.args.get_or_init(|| match &self.source {
-            Source::Lowered(p, i) => parameters(&p.steps[*i]),
-            Source::External(n) => Param::external(&n["args"]),
-        })
+        self.args.get_or_init(|| parameters(self.step()))
     }
 }
 fn parameters(step: &FinishStep) -> Args {

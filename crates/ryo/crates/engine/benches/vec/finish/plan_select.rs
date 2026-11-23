@@ -1,5 +1,5 @@
 //! Resolve expressions in the lowering's typed select directly against source schemas.
-use super::{E, Exec, J, Op, PNode, R, Rc, Run, Schema, Ty, glob_pattern};
+use super::{E, Exec, Op, PNode, R, Rc, Run, Schema, Ty, glob_pattern};
 use ryo_values::domain::finish_plans::{expressions::types::*, types::*};
 type Sources = [(Option<String>, Rc<Schema>)];
 
@@ -11,10 +11,10 @@ fn alias(a: &SourceAlias) -> Option<&str> {
 }
 impl PNode {
     pub(super) fn alias(&self, i: usize) -> Option<&str> {
-        if let Some(FinishStep::Select(s)) = self.step() {
+        if let FinishStep::Select(s) = self.step() {
             alias(&s.sources[i].alias)
         } else {
-            self.external()?["src"][i][1].as_str()
+            None
         }
     }
 }
@@ -25,18 +25,13 @@ impl Exec<'_> {
         n: &PNode,
         sources: &Sources,
     ) -> R<Option<E>> {
-        if let Some(FinishStep::Select(s)) = n.step() {
+        if let FinishStep::Select(s) = n.step() {
             return match &s.condition {
                 RowCondition::Every => Ok(None),
                 RowCondition::Tested(e) => self.typed_expr(run, e, sources).map(Some),
             };
         }
-        let c = &n.external().ok_or("select")?["cond"];
-        if c.is_null() {
-            Ok(None)
-        } else {
-            self.expr(run, c, sources).map(Some)
-        }
+        Err("not a select".into())
     }
     pub(super) fn select_items(
         &self,
@@ -44,7 +39,7 @@ impl Exec<'_> {
         n: &PNode,
         sources: &Sources,
     ) -> R<Option<Vec<(String, E)>>> {
-        if let Some(FinishStep::Select(s)) = n.step() {
+        if let FinishStep::Select(s) = n.step() {
             return match &s.columns {
                 SelectedColumns::All => Ok(None),
                 SelectedColumns::Items(items) => items
@@ -59,20 +54,7 @@ impl Exec<'_> {
                     .map(Some),
             };
         }
-        match &n.external().ok_or("select")?["items"] {
-            J::Null => Ok(None),
-            J::Array(items) => items
-                .iter()
-                .map(|i| {
-                    Ok((
-                        super::external_text(&i[0])?.to_owned(),
-                        self.expr(run, &i[1], sources)?,
-                    ))
-                })
-                .collect::<R<_>>()
-                .map(Some),
-            _ => Err("items".into()),
-        }
+        Err("not a select".into())
     }
     pub(super) fn column_expr(
         run: &mut Run,
@@ -108,40 +90,26 @@ impl Exec<'_> {
                 Ok(E::Re(Box::new(args.into_iter().next().unwrap()), re))
             }
             ("glob_any", Some(E::List(items))) if args.len() == 2 => {
-                let mut combined = None;
-                for item in items {
-                    let E::Text(t) = item else { return Err("glob pattern must be text".into()) };
-                    let re = run.re(&glob_pattern(&String::from_utf8_lossy(run.text(*t))))?;
-                    let test = E::Re(Box::new(args[0].clone()), re);
-                    combined = Some(match combined {
-                        Some(left) => E::Or(Box::new(left), Box::new(test)),
-                        None => test,
-                    });
-                }
-                Ok(combined.unwrap_or_else(|| E::Cmp(Op::Eq, Box::new(E::Num(0)), Box::new(E::Num(1)))))
+                let mut tests = items
+                    .iter()
+                    .map(|item| {
+                        let E::Text(t) = item else {
+                            return Err("glob pattern must be text".to_owned());
+                        };
+                        let re = run.re(&glob_pattern(&String::from_utf8_lossy(run.text(*t))))?;
+                        Ok(E::Re(Box::new(args[0].clone()), re))
+                    })
+                    .collect::<R<Vec<_>>>()?
+                    .into_iter();
+                Ok(match tests.next() {
+                    Some(first) => {
+                        tests.fold(first, |left, right| E::Or(Box::new(left), Box::new(right)))
+                    }
+                    None => E::Cmp(Op::Eq, Box::new(E::Num(0)), Box::new(E::Num(1))),
+                })
             }
             _ => Ok(E::Call(name.to_owned(), args)),
         }
-    }
-    // The SDK exposes the empty spelling for absent symbols as well as actual empty text.
-    pub(super) fn compare_expr(run: &Run, op: Op, left: E, right: E) -> E {
-        let column = match (&left, &right) {
-            (col @ E::Col(_, _, Ty::Sym), E::Text(t)) |
-            (E::Text(t), col @ E::Col(_, _, Ty::Sym)) if *t == run.empty => Some(col),
-            _ => None,
-        };
-        if let (Some(absent), Some(col), Op::Eq | Op::Ne) = (run.absent_word, column, op) {
-            return E::In(Box::new(col.clone()), Box::new(E::List(vec![E::Text(run.empty), E::Text(absent)])), op == Op::Ne);
-        }
-        E::Cmp(op, Box::new(left), Box::new(right))
-    }
-    pub(super) fn membership_expr(run: &Run, value: E, mut list: E, negated: bool) -> E {
-        if let (Some(absent), E::Col(_, _, Ty::Sym), E::List(items)) = (run.absent_word, &value, &mut list)
-            && items.iter().any(|e| matches!(e, E::Text(t) if *t == run.empty))
-        {
-            items.push(E::Text(absent));
-        }
-        E::In(Box::new(value), Box::new(list), negated)
     }
     fn typed_expr(&self, run: &mut Run, e: &PlanExpression, sources: &Sources) -> R<E> {
         use PlanExpression::*;
@@ -158,8 +126,6 @@ impl Exec<'_> {
                 Self::call_expr(run, &c.function.0, args)?
             }
             Compare(c) => {
-                let left = bind(&c.left)?;
-                let right = bind(&c.right)?;
                 let op = match c.comparator {
                     Comparator::Equal => Op::Eq,
                     Comparator::NotEqual => Op::Ne,
@@ -168,12 +134,42 @@ impl Exec<'_> {
                     Comparator::Greater => Op::Gt,
                     Comparator::GreaterOrEqual => Op::Ge,
                 };
-                Self::compare_expr(run, op, left, right)
+                let left = bind(&c.left)?;
+                let right = bind(&c.right)?;
+                // SDK literal comparisons use the spelling. Both an unpublished
+                // symbol and a published empty string have the empty spelling.
+                let column = match (&left, &right) {
+                    (column @ E::Col(_, _, Ty::Sym), E::Text(t))
+                    | (E::Text(t), column @ E::Col(_, _, Ty::Sym))
+                        if *t == run.empty =>
+                    {
+                        Some(column)
+                    }
+                    _ => None,
+                };
+                if let (Some(absent), Some(column), Op::Eq | Op::Ne) = (run.absent_word, column, op)
+                {
+                    E::In(
+                        Box::new(column.clone()),
+                        Box::new(E::List(vec![E::Text(run.empty), E::Text(absent)])),
+                        op == Op::Ne,
+                    )
+                } else {
+                    E::Cmp(op, Box::new(left), Box::new(right))
+                }
             }
             In(p) | NotIn(p) => {
                 let value = bind(&p.left)?;
-                let list = bind(&p.right)?;
-                Self::membership_expr(run, value, list, matches!(e, NotIn(_)))
+                let mut list = bind(&p.right)?;
+                if let (Some(absent), E::Col(_, _, Ty::Sym), E::List(items)) =
+                    (run.absent_word, &value, &mut list)
+                    && items
+                        .iter()
+                        .any(|item| matches!(item, E::Text(t) if *t == run.empty))
+                {
+                    items.push(E::Text(absent));
+                }
+                E::In(Box::new(value), Box::new(list), matches!(e, NotIn(_)))
             }
             And(p) => E::And(Box::new(bind(&p.left)?), Box::new(bind(&p.right)?)),
             Or(p) => E::Or(Box::new(bind(&p.left)?), Box::new(bind(&p.right)?)),

@@ -1,12 +1,11 @@
 //! Evaluate a closed set of typed populations once, after the final file.
-use super::{E, Exec, File, NodeTable, Op, Plan, Provider, R, Run, Scope, Table, Ty, answer};
+use super::{E, Exec, File, NodeTable, Op, Plan, Provider, R, Run, Scope, Table, Ty, json_output};
 use std::{collections::BTreeMap, rc::Rc};
 
 // Check the scalar subset before visiting any rows. Unimplemented functions on
 // an empty input would otherwise escape the executor's runtime missing-function check.
 fn scalar(expr: &E) -> R<()> {
     match expr {
-        E::Seed(..) => Err("project predicate requires file-local seeds".into()),
         E::Cmp(Op::Other, ..) => Err("unsupported project comparison".into()),
         E::Call(name, args) => match name.as_str() {
             "starts_with" | "ends_with" | "concat" | "matches" | "glob_any" | "lower" => {
@@ -18,7 +17,7 @@ fn scalar(expr: &E) -> R<()> {
             scalar(a)?;
             scalar(b)
         }
-        E::Null(a, _) | E::Not(a) | E::Re(a, _) => scalar(a),
+        E::Not(a) | E::Re(a, _) => scalar(a),
         E::List(items) => items.iter().try_for_each(scalar),
         E::Col(..) | E::Lit(_) | E::Text(_) | E::Num(_) => Ok(()),
     }
@@ -32,10 +31,7 @@ pub(in super::super) fn evaluate(
     provider: &mut dyn Provider,
     admitted: &[u32],
     admit_file_subject: impl Fn(u32) -> bool,
-) -> R<Vec<String>> {
-    if !plan.seeds.is_empty() {
-        return Err("project scope requires complete populations for survivor seeds".into());
-    }
+) -> R<json_output::Records> {
     let mut exec = Exec::new(plan);
     // Each input spans the session. File-local views and implicit file equality
     // are inapplicable even when this particular request admits just one file.
@@ -128,7 +124,7 @@ pub(in super::super) fn evaluate(
     let scratch = NodeTable::default();
     let mut frame = File::new(&scratch, &[], u32::MAX, plan.nodes.len());
     frame.after_last_file = true;
-    let mut rows = Vec::new();
+    let mut rows = json_output::Records::default();
     for (rule, node, subject, keys) in &plan.emits {
         let t = exec.eval(&mut frame, run, provider, *node)?;
         if !run.missing.is_empty() {
@@ -148,15 +144,22 @@ pub(in super::super) fn evaluate(
                 }
             }
             let key: Vec<_> = identity.iter().map(|c| t.cols[*c][i]).collect();
-            let row = answer::row(run, &t, i, rule, None, &identity)?;
-            if let Some(previous) = seen.insert(key, row.clone())
-                && previous != row
-            {
-                return Err("conflicting emitted values for one subject and key".into());
+            if let Some(previous) = seen.insert(key, i) {
+                for (ty, column) in t.tys.iter().zip(&t.cols) {
+                    let normalized = |word: u64| match ty {
+                        Ty::Sym if run.absent_word == Some(word as u32) => super::NULL,
+                        Ty::Flag if word != super::NULL => u64::from(word != 0),
+                        _ => word,
+                    };
+                    if normalized(column[previous]) != normalized(column[i]) {
+                        return Err("conflicting emitted values for one subject and key".into());
+                    }
+                }
             }
         }
-        rows.extend(seen.into_values());
+        for row in seen.into_values() {
+            rows.query(run, &t, row, rule, None, &identity)?;
+        }
     }
-    rows.sort_unstable();
     Ok(rows)
 }

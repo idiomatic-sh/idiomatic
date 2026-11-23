@@ -12,7 +12,7 @@ pub(super) struct Plan {
     by_bytes: FxHashMap<Box<[u8]>, u32>,
     one_byte: Vec<u32>,
     longest: usize,
-    tests: FxHashMap<Vec<String>, Rc<Predicate>>,
+    tests: FxHashMap<Vec<super::cold_list::FilterKey>, Rc<Predicate>>,
 }
 pub(super) fn slots(run: &mut Run, words: &[u32]) -> Vec<usize> {
     words
