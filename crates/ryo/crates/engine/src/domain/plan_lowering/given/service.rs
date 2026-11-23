@@ -94,6 +94,38 @@ pub(crate) fn optional_column(
     }
 }
 
+/// The text argument `name`, when the call gives it.
+pub(crate) fn optional_text(
+    given: &mut GivenArguments<'_>,
+    name: &str,
+) -> Result<Option<LiteralText>, PlanLoweringError> {
+    if given.arguments.iter().any(|argument| &*argument.name.0 == name) {
+        Ok(Some(text(given, name)?))
+    } else {
+        Ok(None)
+    }
+}
+
+/// The map argument `name` whose values are texts (`{key: "text", ...}`), its entries in the order written; none when
+/// the call does not give it.
+pub(crate) fn text_map(
+    given: &mut GivenArguments<'_>,
+    name: &str,
+) -> Result<Vec<(Box<str>, Box<str>)>, PlanLoweringError> {
+    if !given.arguments.iter().any(|argument| &*argument.name.0 == name) {
+        return Ok(Vec::new());
+    }
+    let PlanConstant::Map(entries) = given_constant(given, name)? else {
+        return Err(refused(given, name));
+    };
+    let mut out = Vec::with_capacity(entries.len());
+    for entry in entries {
+        let value = as_text(entry.value).ok_or_else(|| refused(given, name))?;
+        out.push((entry.key.0, value));
+    }
+    Ok(out)
+}
+
 /// A constant list of texts.
 pub(crate) fn text_list(constant: PlanConstant) -> Option<Vec<Box<str>>> {
     match constant {

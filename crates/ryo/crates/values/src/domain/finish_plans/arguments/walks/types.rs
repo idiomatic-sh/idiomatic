@@ -125,6 +125,7 @@ pub struct OrderedDfsArguments {
 ///     from: StepNumber(3), relation: StepNumber(0), labels: StepNumber(1), leaves: StepNumber(2),
 ///     label: vec![name("kind"), name("text")], leaf_label: vec![name("shape")],
 ///     step: vec![name("field"), name("ordinal")], output: name("class"),
+///     id: name("id"), parent: name("parent"), child: name("child"),
 /// };
 /// assert_eq!(classes.label.len(), 2);
 /// ```
@@ -146,4 +147,10 @@ pub struct SubtreeClassArguments {
     pub step: Vec<ColumnName>,
     /// The column the class is written to.
     pub output: ColumnName,
+    /// The node column of the labels and the leaves.
+    pub id: ColumnName,
+    /// The parent column of an edge.
+    pub parent: ColumnName,
+    /// The child column of an edge.
+    pub child: ColumnName,
 }

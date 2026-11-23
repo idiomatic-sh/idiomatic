@@ -142,6 +142,14 @@ pub const ARG_NODE: &str = "node";
 pub const ARG_CONTEXT: &str = "context";
 /// `separator`.
 pub const ARG_SEPARATOR: &str = "separator";
+/// `capture-texts`.
+pub const ARG_CAPTURE_TEXTS: &str = "capture-texts";
+/// `id`.
+pub const ARG_ID: &str = "id";
+/// `parent`.
+pub const ARG_PARENT: &str = "parent";
+/// `child`.
+pub const ARG_CHILD: &str = "child";
 /// `labels`.
 pub const ARG_LABELS: &str = "labels";
 /// `leaves`.
