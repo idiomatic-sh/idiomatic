@@ -1,14 +1,27 @@
-//! Whole-table select kernels. Bind the single source, output schema and column positions at plan load.
+//! Whole-table select kernels with sources, output schemas and column positions bound at plan load.
 use super::{E, Exec, File, Provider, R, Run, Table, recycle};
 use std::rc::Rc;
 
+mod join;
+mod join_audit;
 mod project;
 use project::{Projection, Work};
 
+#[derive(Clone, Copy, Default)]
+pub(super) enum Operator {
+    #[default]
+    Ordinary,
+    Projection(u32),
+    Join(u32),
+}
+
 #[derive(Default)]
 pub(super) struct Kernels {
-    // Zero is the ordinary select entry. Dense indices keep the dispatch table small.
+    // One word per plan node: ordinary (zero), then projections, then joins.
     by_node: Vec<u32>,
+    joins: Vec<join::Join>,
+    join_work: join::Work,
+    join_audit: Option<join_audit::Audit>,
     projections: Vec<Projection>,
     work: Work,
     audit: Option<Audit>,
@@ -16,13 +29,23 @@ pub(super) struct Kernels {
 
 impl Kernels {
     #[inline]
-    pub(super) fn projection(&self, node: usize) -> Option<usize> {
-        self.by_node.get(node)?.checked_sub(1).map(|i| i as usize)
+    pub(super) fn operator(&self, node: usize) -> Operator {
+        let slot = self.by_node.get(node).copied().unwrap_or(0);
+        if slot == 0 {
+            Operator::Ordinary
+        } else if slot <= self.projections.len() as u32 {
+            Operator::Projection(slot - 1)
+        } else {
+            Operator::Join(slot - self.projections.len() as u32 - 1)
+        }
     }
 }
 
 impl Exec<'_> {
-    pub(crate) fn col_report(&self) {
+    pub(crate) fn col_report(&mut self) {
+        if let Some(audit) = &mut self.col.join_audit {
+            audit.report();
+        }
         if let Some(audit) = &self.col.audit {
             audit.print();
         }
@@ -116,6 +139,7 @@ impl Exec<'_> {
             kernels.projections.push(projection);
             kernels.by_node[node] = kernels.projections.len() as u32;
         }
+        join::load(self, run, &mut kernels);
         self.col = kernels;
     }
 

@@ -2004,10 +2004,11 @@ impl<'p> Exec<'p> {
         // an empty answer is the step's shared one (the body's own table is dropped, nothing kept a run); the select's
         // dispatch point (by the frame's code)
         if fr.op == frame::Op::Select {
-            if let Some(index) = self.col.projection(node) {
-                return self.col_select(f, run, p, node, index);
-            }
-            return self.select_entry(f, run, p, node);
+            return match self.col.operator(node) {
+                col::Operator::Projection(i) => self.col_select(f, run, p, node, i as usize),
+                col::Operator::Join(i) => self.whole_join(f, run, p, i as usize),
+                col::Operator::Ordinary => self.select_entry(f, run, p, node),
+            };
         }
         let t = self.step(f, run, p, node)?;
         if t.n == 0 { self.empty_rc(run, node) } else { Ok(recycle::rc(t)) }
@@ -3902,6 +3903,9 @@ fn index_of(t: &Table, cols: &[usize]) -> Index {
 }
 
 fn table_index(f: &mut File<'_>, tn: usize, t: &Table, cols: &[usize]) -> Rc<Index> {
+    // Named tables live in the file memo or its view materializations until teardown.
+    // A forwarded table can have several producer slots; index its immutable allocation once.
+    let tn = if sw!("VEC_NO_COL_JOIN") || sw!("VEC_COL_JOIN_ORACLE") { tn } else { std::ptr::from_ref(t) as usize };
     // redo-alloc: the index's columns as an inline key, the index in a kept allocation (`index_rc`)
     let same = |c: &inline_key::Key| c.cells().len() == cols.len() && c.cells().iter().zip(cols).all(|(a, b)| *a == *b as u64);
     if let Some(v) = f.index.get(&tn)
