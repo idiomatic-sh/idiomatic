@@ -207,6 +207,7 @@ impl<'p> Finisher<'p> {
         let mut fwords = std::mem::take(&mut self.fwords);
         let mut completed = std::mem::take(&mut self.completed);
         if completed.file == Some(languages::FileId(file_no as u32)) {
+            self.inner.exec.absent_symbols(&completed.absent_symbols);
             std::mem::swap(self.inner.exec.prefix_decisions(file_no as u32), &mut completed.decisions);
             for &relation in &completed.empty {
                 let name = ryo_relations::domain::relations::service::name(relation).0;

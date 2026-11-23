@@ -20,6 +20,34 @@ pub(crate) struct Layout {
     uses: Vec<usize>,
     count: usize,
 }
+/// Request predicates refer to the lists already maintained for the pair checks.
+#[derive(Default)]
+pub(crate) struct RequestUses(Vec<(u32, usize, Box<[usize]>)>);
+
+impl RequestUses {
+    pub(crate) fn bind(&mut self, layout: &Layout, p: &Program, guard: u32,
+        name: &str, col: usize, words: impl Iterator<Item = u64>) {
+        let Some((i, indexed)) = layout.columns.iter().enumerate()
+            .find(|(_, c)| c.col == col && p.facts[c.slot].name == name && matches!(p.facts[c.slot].source, Source::Catalog(_)))
+        else { return };
+        let lists: Option<Box<[usize]>> = words.map(|w| {
+            let list = indexed.by_word.get(usize::try_from(w).ok()?)?.checked_sub(1)?;
+            Some(list as usize)
+        }).collect();
+        if let Some(lists) = lists { self.0.push((guard, i, lists)); }
+    }
+
+    pub(crate) fn absent(&self, scratch: &Scratch, out: &mut Vec<u32>) {
+        for (guard, col, lists) in &self.0 {
+            if scratch.postings.loaded[*col] == Some(true)
+                && lists.iter().all(|&p| scratch.postings.positions[p].is_empty())
+            {
+                out.push(*guard);
+            }
+        }
+    }
+}
+
 impl Layout {
     pub(crate) fn new(p: &Program, codes: &[Option<Id>]) -> Self {
         let mut columns = Vec::<Column>::new();

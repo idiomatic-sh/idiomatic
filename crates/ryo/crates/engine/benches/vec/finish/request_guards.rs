@@ -196,6 +196,21 @@ impl Exec<'_> {
         }
     }
 
+    pub(crate) fn symbol_guards(&self, run: &Run, mut visit: impl FnMut(u32, &str, usize, &[u32])) {
+        for (id, test) in self.requests.guards.tests.iter().enumerate() {
+            if let Test::Symbols(slot, column, choices) = test {
+                visit(id as u32, &run.fact_rels[usize::from(*slot)].0, *column, choices);
+            }
+        }
+    }
+
+    pub(crate) fn absent_symbols(&mut self, ids: &[u32]) {
+        if ids.is_empty() { return; }
+        let guards = &mut self.requests.guards;
+        guards.absent.resize(guards.tests.len(), false);
+        for &id in ids { guards.absent[id as usize] = true; }
+    }
+
     pub(crate) fn prefix_symbols(&mut self, run: &Run, rel: &str, data: &[Vec<u32>], keys: Option<&[u32]>, symbols: usize, lookup: impl Fn(&[u8]) -> Option<u32>) {
         let Some(&slot) = run.fact_slots.get(rel) else { return };
         let g = &mut self.requests.guards;

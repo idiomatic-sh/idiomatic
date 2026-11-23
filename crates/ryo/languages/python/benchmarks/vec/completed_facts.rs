@@ -8,11 +8,13 @@ pub(super) struct Completed {
     pub(super) file: Option<FileId>,
     tables: Vec<Option<FilledColumns>>,
     pub(super) empty: Vec<Relation>,
+    pub(super) absent_symbols: Vec<u32>,
     pub(super) decisions: Vec<Option<bool>>,
 }
 
 impl Completed {
     pub(super) fn begin(&mut self, file: FileId) {
+        self.absent_symbols.clear();
         self.decisions.clear();
         self.tables.clear();
         self.empty.clear();
@@ -24,6 +26,7 @@ impl Completed {
     }
 
     pub(super) fn clear(&mut self) {
+        self.absent_symbols.clear();
         self.decisions.clear();
         self.tables.clear();
         self.empty.clear();

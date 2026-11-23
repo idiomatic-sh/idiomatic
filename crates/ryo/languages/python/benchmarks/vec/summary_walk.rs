@@ -14,7 +14,7 @@ pub(super) fn run(
     skip: &mut Skip,
     words: &Words,
     fields: usize,
-    file_words: [FileWords; 2],
+    mut file_words: [FileWords; 2],
     first: &mut ColumnWalk,
     second: &mut ColumnWalk,
     mut fin: Option<&mut Finisher<'_>>,
@@ -41,6 +41,16 @@ pub(super) fn run(
                 .collect()
         })
         .unwrap_or_default();
+    let mut request_uses = super::pair_checks::postings::RequestUses::default();
+    if let Some(f) = fin.as_deref() {
+        f.exec.symbol_guards(&f.run, |guard, name, col, values| {
+            let words = values.iter().map(|&sym| {
+                std::str::from_utf8(&f.run.texts[sym as usize]).map_or(u64::MAX, |s|
+                    languages::facts::intern(&mut file_words[0], languages::NameText(s)).0)
+            });
+            request_uses.bind(&order.postings, program, guard, name, col, words);
+        });
+    }
     for walk in [&mut *first, &mut *second] {
         walk.defer_lexical();
         walk.use_native_navigation();
@@ -229,6 +239,7 @@ pub(super) fn run(
                         certify.then_some(exact),
                     );
                     if fin.is_some() {
+                        request_uses.absent(scratch, &mut completed.absent_symbols);
                         let mut decisions = std::mem::take(&mut completed.decisions);
                         scratch.handoff(program, &mut decisions, |relation, cells| completed.table(relation, cells));
                         completed.decisions = decisions;
