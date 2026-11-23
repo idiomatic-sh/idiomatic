@@ -243,7 +243,7 @@ impl Exec<'_> {
                         "COLD_DEF\t{id}\t{node}\t{}\t{:?}\t{}",
                         form(&v),
                         v.base,
-                        self.plan.nodes[node].j
+                        self.plan.nodes[node].diagnostic()
                     );
                 }
                 id

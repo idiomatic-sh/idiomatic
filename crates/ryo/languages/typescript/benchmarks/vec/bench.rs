@@ -46,7 +46,7 @@ mod spec;
 
 #[path = "../../../../crates/engine/benches/vec/reader_cli.rs"]
 mod reader_cli;
-use reader_cli::{alloc_counts, flag, rule_context, thread_cpu};
+use reader_cli::{alloc_counts, context_from, flag, rule_context, thread_cpu};
 
 fn declaration() -> first::Language {
     // Resolved names can be escaped or implicit. Only actual syntax text entails a written word.

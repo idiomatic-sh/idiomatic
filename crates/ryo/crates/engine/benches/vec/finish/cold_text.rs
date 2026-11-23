@@ -2,7 +2,7 @@
 //! spelling and absent text as File::elem_text. A symbol maps directly to its plan-bound slot.
 use super::{E, File, Run, cold_word::Test};
 use rustc_hash::FxHashMap;
-use std::cell::{OnceCell, RefCell};
+use std::cell::RefCell;
 use std::rc::Rc;
 
 #[derive(Default)]
@@ -66,7 +66,7 @@ impl Plan {
 
 #[derive(Default)]
 pub(super) struct Dictionary {
-    postings: OnceCell<Vec<Vec<u32>>>,
+    postings: RefCell<Vec<Vec<u32>>>,
     answers: RefCell<FxHashMap<(usize, u32), bool>>,
 }
 
@@ -109,13 +109,18 @@ pub(super) fn candidates(
     out: &mut Vec<u32>,
 ) -> usize {
     let mut indexed = 0;
-    let postings = f.cold_text.postings.get_or_init(|| {
+    let mut postings = f.cold_text.postings.borrow_mut();
+    let previous = postings.len();
+    // The run can bind another literal after this file first built its dictionary.
+    // Extend only missing lists; their ids and all existing node orders remain stable.
+    if previous < run.cold_text.slots && slots.iter().any(|&slot| slot >= previous) {
         let start = super::cold_pred::phase_clock();
-        let mut lists = vec![Vec::new(); run.cold_text.slots];
+        postings.resize_with(run.cold_text.slots, Vec::new);
         indexed = f.n;
         let empty = run.cold_text.symbol_slot(run.empty);
         let memo = f.text_memo.borrow();
-        for (i, (&kind, &symbol)) in f.kind.iter().zip(memo.iter()).enumerate() {
+        let symbols = memo.iter().copied().chain(std::iter::repeat(u32::MAX));
+        for (i, (&kind, symbol)) in f.kind.iter().zip(symbols).enumerate() {
             let slot = if symbol != u32::MAX {
                 run.cold_text.symbol_slot(symbol)
             } else if File::has_text(run, kind) {
@@ -123,20 +128,19 @@ pub(super) fn candidates(
             } else {
                 empty
             };
-            if slot != u32::MAX {
-                lists[slot as usize].push(i as u32);
+            if slot != u32::MAX && slot as usize >= previous {
+                postings[slot as usize].push(i as u32);
             }
         }
         if sw!("VEC_COLD_COUNT") {
             counts(|n| {
-                n[0] += 1;
+                n[0] += u64::from(previous == 0);
                 n[1] += f.n as u64;
-                n[2] += lists.iter().map(|s| s.len() as u64).sum::<u64>();
+                n[2] += postings[previous..].iter().map(|s| s.len() as u64).sum::<u64>();
             });
         }
         super::cold_pred::phase("text postings", start);
-        lists
-    });
+    }
     let mut streams = 0;
     for &slot in slots {
         let rows = &postings[slot];

@@ -182,7 +182,7 @@ pub(crate) fn run_stage(args: &[&str]) {
 
 /// The pack's rules and fragments read and parsed once at start, for both halves' plans (`vec funnel ... --finish <pack dir>`).
 pub(crate) struct ReadPack {
-    pub(crate) typed: std::cell::RefCell<Option<FinishPlan>>,
+    pub(crate) typed: std::cell::RefCell<Option<std::rc::Rc<FinishPlan>>>,
     pub(crate) programs: PackPrograms,
     /// Thread CPU of reading the texts (and the request's rule context) and of parsing them.
     pub(crate) read: f64,
@@ -190,8 +190,8 @@ pub(crate) struct ReadPack {
 }
 
 impl ReadPack {
-    pub(super) fn lower_axes(&self) -> FinishPlan {
-        lowered(&self.programs, PlanningStage::Axes)
+    pub(super) fn lower_axes(&self) -> std::rc::Rc<FinishPlan> {
+        std::rc::Rc::new(lowered(&self.programs, PlanningStage::Axes))
     }
 }
 
@@ -206,25 +206,25 @@ pub(crate) fn read_pack(pack: &Path, context: RuleContext) -> ReadPack {
 }
 
 /// The second half's plan, lowered in this process from the parsed pack: expansion, the three passes, then the typed plan
-/// handed to the executor as the JSON value it reads (the codec's bytes decoded in memory; no file). Prints its phases.
+/// shared with the executor and the first-half analysis.
 pub(crate) fn second_half_plan(pack: &ReadPack, keep_for_first: bool) -> super::finish::Plan {
-    finish_plan(pack, keep_for_first, true).unwrap_or_else(|reason| panic!("{reason}"))
+    finish_plan(pack, keep_for_first, true, None).unwrap_or_else(|reason| panic!("{reason}"))
 }
 
 /// Prepare the caller's query directly from its text. Bind typed host tables at execution.
 #[allow(dead_code, reason = "file-only benchmark binaries prepare rule packs")]
 pub(crate) fn query_plan(rule: &str, text: &str, context: RuleContext) -> Result<super::finish::Plan, String> {
-    query_parts(rule, text, context, false).map(|(plan, _)| plan)
+    query_parts(rule, text, context, false, None).map(|(plan, _)| plan)
 }
 
-pub(crate) fn query_parts(rule: &str, text: &str, context: RuleContext, keep: bool) -> Result<(super::finish::Plan, ReadPack), String> {
+pub(crate) fn query_parts(rule: &str, text: &str, context: RuleContext, keep: bool, separator: Option<&str>) -> Result<(super::finish::Plan, ReadPack), String> {
     let texts = PackTexts { rules: vec![(rule.into(), Some(text.into()))], fragments: Vec::new() };
     let pack = ReadPack { typed: Default::default(), programs: parsed(&texts, context), read: 0.0, parse: 0.0 };
-    let plan = finish_plan(&pack, keep, false)?;
+    let plan = finish_plan(&pack, keep, false, separator)?;
     Ok((plan, pack))
 }
 
-fn finish_plan(pack: &ReadPack, keep_for_first: bool, log: bool) -> Result<super::finish::Plan, String> {
+fn finish_plan(pack: &ReadPack, keep_for_first: bool, log: bool, separator: Option<&str>) -> Result<super::finish::Plan, String> {
     let t0 = super::thread_cpu();
     let mut plan = lowered(&pack.programs, PlanningStage::Expanded);
     let t1 = super::thread_cpu();
@@ -237,35 +237,26 @@ fn finish_plan(pack: &ReadPack, keep_for_first: bool, log: bool) -> Result<super
     mark_through(&mut plan, PlanningStage::Axes);
     let t2 = super::thread_cpu();
     let steps = plan.steps.len();
-    // the hand-over in memory: the typed plan to the executor's value, no text written or parsed (`VEC_PLAN_TEXT`: the
-    // text round trip, to compare)
-    let (value, t3) = if std::env::var_os("VEC_PLAN_TEXT").is_some() {
-        let bytes = json().encoded(&plan);
-
-        let t3 = super::thread_cpu();
-        (serde_json::from_slice::<serde_json::Value>(&bytes).expect("the codec's own plan"), t3)
-    } else {
-        let v = json().valued(&plan);
-
-        (v, super::thread_cpu())
-    };
+    if let Some(separator) = separator {
+        use ryo_values::domain::{finish_plans::types::FinishStep, plan_parts::types::LiteralText};
+        for step in &mut plan.steps {
+            if let FinishStep::Capture(capture) = step {
+                capture.separator.get_or_insert_with(|| LiteralText(separator.into()));
+            }
+        }
+    }
+    let plan = std::rc::Rc::new(plan);
+    let executor_plan = super::finish::from_typed(plan.clone());
     if keep_for_first {
         pack.typed.replace(Some(plan));
-    } else {
-        drop(plan);
     }
-    let t4 = super::thread_cpu();
-    let executor_plan = super::finish::from_value(&value);
-    drop(value);
     let t5 = super::thread_cpu();
     if log {
         println!(
-            "start-up second half: steps {steps} expand {:.4} passes {:.4} to-value {:.4} decode {:.4} executor-plan {:.4} total {:.4} s",
+            "start-up second half: steps {steps} expand {:.4} passes {:.4} to-value 0.0000 decode 0.0000 executor-plan {:.4} total {:.4} s",
             t1 - t0,
             t2 - t1,
-            t3 - t2,
-            t4 - t3,
-            t5 - t4,
+            t5 - t2,
             t5 - t0
         );
     }

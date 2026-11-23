@@ -5,15 +5,15 @@ use rustc_hash::FxHashMap;
 use ryo::languages::{self as l, ByteSlice, CellKind, CellWord, FileWords, FilledColumns};
 use ryo_relations::domain::relations::service as catalog;
 
-pub(super) struct Packet {
-    pub(super) rows: l::contract::Collect,
+pub(in super::super) struct Packet {
+    pub(in super::super) rows: l::contract::Collect,
     widths: Vec<usize>,
     offsets: Vec<Vec<usize>>,
     requested: Vec<bool>,
-    pub(super) ready: bool,
+    pub(in super::super) ready: bool,
 }
 impl Packet {
-    pub(super) fn new() -> Self {
+    pub(in super::super) fn new() -> Self {
         let count = catalog::ALL.len();
         let mut widths = vec![0; count];
         for &rel in catalog::ALL {
@@ -27,13 +27,13 @@ impl Packet {
             ready: false,
         }
     }
-    pub(super) fn clear(&mut self) {
+    pub(in super::super) fn clear(&mut self) {
         self.rows.clear();
         self.offsets.iter_mut().for_each(Vec::clear);
         self.requested.fill(false);
         self.ready = false;
     }
-    pub(super) fn index(&mut self, wanted: &[l::Relation]) {
+    pub(in super::super) fn index(&mut self, wanted: &[l::Relation]) {
         for &rel in wanted {
             self.requested[catalog::number_of(rel).0] = true;
         }
@@ -47,7 +47,7 @@ impl Packet {
         debug_assert_eq!(at, self.rows.words.len());
         self.ready = true;
     }
-    pub(super) fn columns(
+    pub(in super::super) fn columns(
         &self,
         relation: l::Relation,
         symbols: &l::Symbols,
@@ -89,7 +89,7 @@ impl Packet {
         }
         true
     }
-    pub(super) fn view<'a, 'words>(
+    pub(in super::super) fn view<'a, 'words>(
         &'a self,
         parsed: &'a mut reader::ReaderFacts<'words>,
         symbols: &'a l::Symbols,
@@ -120,7 +120,7 @@ impl Packet {
             })
     }
 }
-pub(super) struct View<'a, 'words> {
+pub(in super::super) struct View<'a, 'words> {
     packet: &'a Packet,
     parsed: &'a mut reader::ReaderFacts<'words>,
     symbols: &'a l::Symbols,

@@ -28,24 +28,7 @@ impl Program {
         declaration: &first::Language,
         capture_separator: Option<&str>,
     ) -> Result<Self> {
-        let (mut plan, pack) = lower::query_parts(alias, text, context, true)?;
-        {
-            use ryo_values::domain::finish_plans::types::FinishStep;
-            let typed = pack.typed.borrow();
-            for (node, step) in plan.nodes.iter_mut().zip(&typed.as_ref().unwrap().steps) {
-                if let FinishStep::Extend(args) = step {
-                    node.j["args"]["value-order"] = serde_json::json!(
-                        args.values.iter().map(|v| &v.name.0).collect::<Vec<_>>()
-                    );
-                }
-                if node.op == "capture"
-                    && node.j["args"]["separator"].is_null()
-                    && let Some(separator) = capture_separator
-                {
-                    node.j["args"]["separator"] = separator.into();
-                }
-            }
-        }
+        let (plan, pack) = lower::query_parts(alias, text, context, true, capture_separator)?;
         let requirements = reader_run::file_requirements(&pack, declaration)
             .pop()
             .ok_or("missing query emit")?
@@ -53,8 +36,7 @@ impl Program {
         let bases = plan
             .nodes
             .iter()
-            .filter(|n| n.op == "base")
-            .map(|n| n.j["rel"].as_str().unwrap().to_owned())
+            .filter_map(|n| n.base().map(str::to_owned))
             .collect();
         Ok(Self {
             plan,
@@ -347,7 +329,7 @@ pub(crate) fn visit(
     let mut elements = l::Elements::default();
     let mut symbols = l::Symbols::default();
     let mut tree = l::NodeTable::default();
-    let mut rows = l::contract::Collect::default();
+    let mut packet = reader_run::packet::Packet::new();
     let mut by_path = BTreeMap::<&str, Vec<usize>>::new();
     for &index in selected {
         by_path.entry(&sources[index].path).or_default().push(index);
@@ -518,7 +500,7 @@ pub(crate) fn visit(
                 .flat_map(|(b, _)| bound[b].as_ref().unwrap().facts.iter().copied())
                 .collect();
             let facts: Vec<_> = wanted.into_iter().collect();
-            rows.clear();
+            packet.clear();
             if let Some(parser) = &parser
                 && !facts.is_empty()
             {
@@ -528,11 +510,12 @@ pub(crate) fn visit(
                     ByteSlice(&bytes),
                     id,
                     &facts,
-                    &mut rows,
+                    &mut packet.rows,
                 );
             }
-            let partials = std::mem::take(&mut rows.partials);
-            provider.receive(&mut run, &facts, &rows, &symbols, &bytes);
+            let partials = std::mem::take(&mut packet.rows.partials);
+            packet.index(&facts);
+            let mut view = packet.view(&mut provider, &symbols, &bytes);
             clocks.read_parse += thread_cpu() - t;
             let t = thread_cpu();
             let lines = active
@@ -568,7 +551,7 @@ pub(crate) fn visit(
                     id.0,
                     &tree,
                     &bytes,
-                    &mut provider,
+                    &mut view,
                     b.hosted.iter().chain(lines.iter().filter(|_| b.lines)),
                 );
             }
