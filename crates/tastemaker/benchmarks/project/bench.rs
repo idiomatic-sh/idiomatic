@@ -60,10 +60,6 @@ fn execute(req: Project, plan: &Plan) -> Result<finish::json_output::Records, St
     if req.files.iter().collect::<BTreeSet<_>>().len() != req.files.len() {
         return Err("duplicate admitted path".into());
     }
-    run.path_sym = inventory
-        .iter()
-        .map(|path| run.sym(path.as_bytes()))
-        .collect();
     run.paths = inventory.into();
     let admitted = req
         .files

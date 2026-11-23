@@ -354,7 +354,6 @@ pub(super) struct Run {
     /// The provider updates its field-code dictionary when reading each file.
     pub(super) file_field_codes: bool,
     pub(super) paths: std::sync::Arc<[String]>,
-    pub(super) path_sym: std::sync::Arc<[u32]>,
     pub(super) empty: u32,
     /// The SDK symbol without a published value, distinct from an empty string.
     pub(super) absent_word: Option<u32>,
@@ -2349,7 +2348,7 @@ impl<'p> Exec<'p> {
                 let mut found: Vec<Vec<std::ops::Range<usize>>> = Vec::new();
                 for i in 0..from.n {
                     let v = from.cols[pc][i];
-                    let text = if from.tys[pc] == Ty::File { run.text(run.path_sym[v as usize]).to_vec() } else { run.text(v as u32).to_vec() };
+                    let text = if from.tys[pc] == Ty::File { run.paths[v as usize].as_bytes().to_vec() } else { run.text(v as u32).to_vec() };
                     let Ok(text) = String::from_utf8(text) else { continue };
                     found.clear();
                     capture::matches(pattern, separator, &text, &mut |sl| found.push(sl.to_vec()));
@@ -4109,7 +4108,7 @@ fn text_of(run: &Run, v: V) -> std::borrow::Cow<'_, [u8]> {
     use std::borrow::Cow;
     match v.ty() {
         Ty::Sym => Cow::Borrowed(run.text(v.1 as u32)),
-        Ty::File => Cow::Borrowed(run.text(run.path_sym[v.1 as usize])),
+        Ty::File => Cow::Borrowed(run.paths[v.1 as usize].as_bytes()),
         Ty::Num => Cow::Owned((v.1 as i64).to_string().into_bytes()),
         Ty::Flag => Cow::Borrowed(if v.1 == 1 { b"true".as_slice() } else { b"false".as_slice() }),
         _ => Cow::Borrowed(&[]),
