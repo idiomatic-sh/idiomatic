@@ -114,21 +114,22 @@ pub trait FactSource {
     ) -> FactAnswer;
     /// Replaces the output with the selected catalog columns and returns the row count,
     /// including for an empty projection. Generated file sources write these columns directly.
-    /// Custom sources implementing only the whole-row interface use their existing writer.
+    /// A source implementing only whole rows can answer a request for its complete schema.
+    /// It refuses a partial projection until its projected writer is implemented.
     fn fill_columns(
         &mut self,
         relation: Relation,
         wanted: Wanted,
-        mask: u64,
+        mask: &super::projection::ColumnProjection,
         words: &mut FileWords,
         out: &mut FilledColumns,
     ) -> (FactAnswer, usize) {
         out.0.clear();
-        let answer = self.fill(relation, wanted, words, out);
-        let rows = out.0.first().map_or(0, |col| col.0.len());
-        for (i, col) in out.0.iter_mut().enumerate() {
-            if mask & 1u64.checked_shl(i as u32).unwrap_or(u64::MAX) == 0 { col.0.clear(); }
+        if !(0..ryo_relations::domain::relations::service::kinds(relation).len()).all(|i| mask.contains(i)) {
+            return (FactAnswer::Refused(AbsenceCause::NotYetRead), 0);
         }
+        let answer = self.fill(relation, wanted, words, out);
+        let rows = out.0.first().map_or(0, |column| column.0.len());
         (answer, rows)
     }
     /// The source form of a node in a syntax role, for fixes (replaces `begin_semantics` and the retained parse).
@@ -225,6 +226,14 @@ impl std::borrow::Borrow<str> for InternedText {
 /// ```
 #[derive(Debug, Default)]
 pub struct FilledColumns(pub Vec<FilledColumn>);
+
+impl FilledColumns {
+    /// Prepare the column buffers for a replacement answer in this schema.
+    pub fn clear_for(&mut self, relation: Relation) {
+        self.0.truncate(ryo_relations::domain::relations::service::kinds(relation).len());
+        for column in &mut self.0 { column.0.clear(); }
+    }
+}
 
 /// One column of filled rows.
 ///

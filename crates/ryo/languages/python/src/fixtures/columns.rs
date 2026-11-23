@@ -13,6 +13,7 @@ use crate::domain::lexical_facts::service::qualify;
 use crate::domain::lexical_facts::types::{NameProvenance, QualifiedPath};
 use crate::domain::literal_facts::service::{number, properties, specifier as loaded, string_value};
 use crate::domain::literal_facts::types::StringValue;
+use crate::domain::literal_expression_parsing::types::LiteralParseOutcome;
 use crate::domain::model::flow::types::FlowState;
 use crate::domain::model::lexical::service::entry;
 use crate::domain::model::lexical::types::{NameUse, NodeClass, TypedTree};
@@ -258,7 +259,7 @@ pub struct FactColumns {
 #[derive(Debug, Default)]
 struct TextMemo {
     fixed: HashMap<(usize, usize), u32, std::hash::BuildHasherDefault<crate::domain::model::names::types::KeyHasher>>,
-    literals: Vec<Option<(String, crate::domain::literal_expression_parsing::types::LiteralParseOutcome)>>,
+    literals: HashMap<Box<str>, LiteralParseOutcome>,
     names: Vec<u32>,
 }
 
@@ -274,24 +275,20 @@ impl ColumnMemo {
 }
 
 impl TextMemo {
-    /// This grammar reads only the literal's original spelling. A collision
-    /// evicts an entry after an exact byte comparison; no source id is retained.
-    fn literal_outcome(&mut self, spelling: &str, parse: impl FnOnce() -> crate::domain::literal_expression_parsing::types::LiteralParseOutcome) -> crate::domain::literal_expression_parsing::types::LiteralParseOutcome {
-        use crate::domain::grammar_cache::constants::{KEY_CAPACITY, MEMO_ENTRIES};
-        use std::hash::{Hash as _, Hasher as _};
-        if spelling.len() > KEY_CAPACITY { return parse(); }
-        self.literals.resize_with(MEMO_ENTRIES, || None);
-        let mut hash = std::collections::hash_map::DefaultHasher::new();
-        spelling.hash(&mut hash);
-        let slot = &mut self.literals[(hash.finish() as usize) % MEMO_ENTRIES];
-        if let Some((text, result)) = slot && text == spelling { return *result; }
-        let result = parse();
-        let (text, outcome) = slot.get_or_insert_with(|| (String::new(), result));
-        text.clear();
-        text.push_str(spelling);
-        *outcome = result;
-        result
+    /// The grammar result depends on the exact source spelling. Keep short
+    /// spellings for this run. Each occurrence still checks its source tokens.
+    fn literal_outcome(&mut self, spelling: &str, parse: impl FnOnce() -> LiteralParseOutcome) -> LiteralParseOutcome {
+        if spelling.len() > crate::domain::grammar_cache::constants::KEY_CAPACITY {
+            return parse();
+        }
+        if let Some(&outcome) = self.literals.get(spelling) {
+            return outcome;
+        }
+        let outcome = parse();
+        self.literals.insert(spelling.into(), outcome);
+        outcome
     }
+
     fn fixed(&mut self, ids: &mut dyn TextIds, text: NameText<'static>) -> u32 {
         *self.fixed.entry((text.0.as_ptr() as usize, text.0.len())).or_insert_with(|| ids.id(text.0.as_bytes()))
     }
@@ -579,7 +576,7 @@ impl ColumnFile<'_, '_> {
     }
 
     /// Write only the requested columns, retaining cardinality for presence-only readers.
-    pub fn fill_columns(&mut self, relation: Relation, mask: u64, words: &mut FileWords, out: &mut FilledColumns) -> (FactAnswer, usize) {
+    pub fn fill_columns(&mut self, relation: Relation, mask: &languages::ColumnProjection, words: &mut FileWords, out: &mut FilledColumns) -> (FactAnswer, usize) {
         fillers::file_source::<PythonWalk<WalkPorts>>(self.file).fill_columns(relation, Wanted::Whole, mask, words, out)
     }
 

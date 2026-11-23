@@ -246,7 +246,7 @@ macro_rules! no_filler {
 /// The rows a filler writes, appended column by column as words, and the first part it said it could not read.
 pub(crate) struct ColumnsWriter<'o, R> {
     /// Selected catalog places; an empty set still counts rows.
-    pub(crate) mask: u64,
+    pub(crate) mask: &'o crate::domain::facts::projection::ColumnProjection,
     pub(crate) written: usize,
     /// Where the columns go.
     pub(crate) out: &'o mut FilledColumns,
@@ -260,22 +260,19 @@ impl<R: RelationsItem> Rows<R::Row> for ColumnsWriter<'_, R> {
     fn write(&mut self, row: R::Row) {
         let words = R::words(row);
         self.written += 1;
-        if self.mask == u64::MAX {
+        if matches!(self.mask, crate::domain::facts::projection::ColumnProjection::All) {
             for (column, number) in self.out.0.iter_mut().zip(words.as_ref()) {
                 column.0.push(CellWord(number.0));
             }
         } else {
             let words = words.as_ref();
-            let mut selected = self.mask;
-            while selected != 0 {
-                let i = selected.trailing_zeros() as usize;
-                if i >= words.len() { break; }
-                self.out.0[i].0.push(CellWord(words[i].0));
-                selected &= selected - 1;
-            }
-            if self.mask != 0 {
-                for (column, word) in self.out.0.iter_mut().zip(words).skip(64) {
-                    column.0.push(CellWord(word.0));
+            for (part, chunk) in words.chunks(64).enumerate() {
+                let mut selected = self.mask.word(part);
+                while selected != 0 {
+                    let i = selected.trailing_zeros() as usize;
+                    if i >= chunk.len() { break; }
+                    self.out.0[part * 64 + i].0.push(CellWord(chunk[i].0));
+                    selected &= selected - 1;
                 }
             }
         }
@@ -309,7 +306,7 @@ macro_rules! file_source_answers {
             /// The fill of a relation by the language's filler of it.
             fn answered(
                 &mut self,
-                mask: u64,
+                mask: &$crate::domain::facts::projection::ColumnProjection,
                 written: &mut usize,
                 relation: Relation,
                 wanted: Wanted,
@@ -332,20 +329,20 @@ macro_rules! file_source_answers {
             ) -> FactAnswer {
                 // SPIKE: under RYO_X_FILLS each fill is counted (`fillers::service::fill_counted`); else nothing is read.
                 let Some(begun) = $crate::domain::fillers::service::fill_begun() else {
-                    return self.answered(u64::MAX, &mut 0, relation, wanted, words, out);
+                    return self.answered(&$crate::domain::facts::projection::ColumnProjection::All, &mut 0, relation, wanted, words, out);
                 };
                 let held = out.0.first().map_or(0, |column| column.0.len());
-                let answer = self.answered(u64::MAX, &mut 0, relation, wanted, words, out);
+                let answer = self.answered(&$crate::domain::facts::projection::ColumnProjection::All, &mut 0, relation, wanted, words, out);
                 let rows = out.0.first().map_or(0, |column| column.0.len()).saturating_sub(held);
                 $crate::domain::fillers::service::fill_counted(relation, wanted, rows, begun);
                 answer
             }
 
             fn fill_columns(
-                &mut self, relation: Relation, wanted: Wanted, mask: u64,
+                &mut self, relation: Relation, wanted: Wanted, mask: &$crate::domain::facts::projection::ColumnProjection,
                 words: &mut FileWords, out: &mut FilledColumns,
             ) -> (FactAnswer, usize) {
-                for column in &mut out.0 { column.0.clear(); }
+                out.clear_for(relation);
                 let begun = $crate::domain::fillers::service::fill_begun();
                 let mut rows = 0;
                 let answer = self.answered(mask, &mut rows, relation, wanted, words, out);
@@ -402,7 +399,7 @@ macro_rules! fill_arm {
                 $crate::domain::fillers::types::Fill::Absent(cause) => {
                     *$written = 0;
                     for (i, column) in writer.out.0.iter_mut().take(width).enumerate() {
-                        if $mask & 1u64.checked_shl(i as u32).unwrap_or(u64::MAX) != 0 {
+                        if $mask.contains(i) {
                             column.0.truncate(column.0.len() - writer.written);
                         }
                     }

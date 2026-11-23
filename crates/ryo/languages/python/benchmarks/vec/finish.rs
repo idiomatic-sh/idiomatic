@@ -192,12 +192,16 @@ impl Table {
     }
 
     pub(super) fn projected(names: Names, tys: Tys, n: usize, mask: u64) -> Self {
+        Self::projected_where(names, tys, n, |c| request::wants(mask, c))
+    }
+
+    fn projected_where(names: Names, tys: Tys, n: usize, selected: impl Fn(usize) -> bool) -> Self {
         let k = names.len();
         // redo-alloc: the list of columns from the kept ones (recycle.rs), each column from the pool
         let mut cols = recycle::take_cols(k);
         POOL.with(|p| {
             let p = &mut *p.borrow_mut();
-            cols.extend((0..k).map(|c| if request::wants(mask, c) { take_col(p, n) } else { Vec::new() }));
+            cols.extend((0..k).map(|c| if selected(c) { take_col(p, n) } else { Vec::new() }));
         });
         Table { names, tys, cols, n: 0 }
     }
@@ -279,7 +283,7 @@ pub(super) struct Run {
     /// The project's root on disk (the host's, for its file facts).
     pub(super) root_dir: String,
     /// redo-general: the answers of the relations the provider answers for a project (`project.rs`), kept for the run.
-    pub(super) project: FxHashMap<String, project::Answered>,
+    pub(super) project: Vec<Option<Box<project::Answered>>>,
     /// Functions a step asked that are not in the step set (the rule is refused).
     pub(super) missing: std::collections::BTreeSet<String>,
     /// 6h: the provider relations read in place (`Native::Fact`), with their column counts.
@@ -4281,14 +4285,14 @@ fn token_links(f: &File<'_>, run: &mut Run) -> Table {
 
 /// The provider's rows of a relation as a table: texts interned run-wide, nodes as positions.
 pub(super) fn filled_table(run: &mut Run, rel: &str, filled: &languages::FilledColumns, words: &languages::FileWords) -> R<Table> {
-    filled_columns(run, rel, filled, words, u64::MAX, filled.0.first().map_or(0, |c| c.0.len()))
+    filled_columns(run, rel, filled, words, &languages::ColumnProjection::All, filled.0.first().map_or(0, |c| c.0.len()))
 }
 
-pub(super) fn filled_columns(run: &mut Run, rel: &str, filled: &languages::FilledColumns, words: &languages::FileWords, mask: u64, n: usize) -> R<Table> {
+pub(super) fn filled_columns(run: &mut Run, rel: &str, filled: &languages::FilledColumns, words: &languages::FileWords, mask: &languages::ColumnProjection, n: usize) -> R<Table> {
     let (_, names, tys) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
-    let mut out = Table::projected(names, tys.clone(), n, mask);
+    let mut out = Table::projected_where(names, tys.clone(), n, |c| mask.contains(c));
     for (c, ty) in tys.iter().enumerate() {
-        if !request::wants(mask, c) { continue; }
+        if !mask.contains(c) { continue; }
         let Some(column) = filled.0.get(c) else {
             out.cols[c] = vec![NULL; n];
             continue;
@@ -4322,14 +4326,15 @@ fn word_sym(run: &mut Run, words: &languages::FileWords, w: languages::CellWord,
         {
             return s;
         }
-        let s = cell_sym(run, words, w);
+        let t = closed_text(w).unwrap_or_else(|| languages::facts::text(words, w).0.as_bytes());
+        let s = run.sym(t);
         if run.closed_word_sym.len() <= at {
             run.closed_word_sym.resize(at + 1, u32::MAX);
         }
         run.closed_word_sym[at] = s;
         return s;
     } else {
-        return cell_sym(run, words, w);
+        return run.sym(languages::facts::text(words, w).0.as_bytes());
     };
     let cache = if own { &run.own_word_sym } else { &run.base_word_sym };
     if let Some(&s) = cache.get(at)
@@ -4353,44 +4358,15 @@ pub(super) fn own_words_cleared(run: &mut Run) {
     run.own_word_sym.clear();
 }
 
-/// redo-alloc: a cell's text interned (a closed set's word by `closed_text`, else the file's word read in place).
-fn cell_sym(run: &mut Run, words: &languages::FileWords, w: languages::CellWord) -> u32 {
-    if (0xFFFF_0000..0xFFFF_0700).contains(&w.0) {
-        // a closed set's word: its symbol once a run (the closed set's word list is made a call)
-        thread_local! {
-            static CLOSED: RefCell<(usize, FxHashMap<u64, u32>)> = RefCell::new((0, FxHashMap::default()));
-        }
-        let at = std::ptr::from_ref(&*run) as usize;
-        if let Some(x) = CLOSED.with(|c| {
-            let c = c.borrow();
-            if c.0 == at { c.1.get(&w.0).copied() } else { None }
-        }) {
-            return x;
-        }
-        let Some(t) = closed_text(w) else { return run.sym(languages::facts::text(words, w).0.as_bytes()) };
-        let x = run.sym(&t);
-        CLOSED.with(|c| {
-            let mut c = c.borrow_mut();
-            if c.0 != at {
-                *c = (at, FxHashMap::default());
-            }
-            c.1.insert(w.0, x);
-        });
-        return x;
-    }
-    run.sym(languages::facts::text(words, w).0.as_bytes())
-}
-
 /// redo-binding: a cell's text, a word of a closed set (`defines.kind` and the other closed columns: the catalog's term blocks
 /// from 0xFFFF_0000, 0x100 words a block, `ryo_relations::domain::terms`) read by its number, which the file's words do not hold.
-/// redo-alloc: its closed-set part only (the file's words are read in place by `cell_sym`).
-fn closed_text(w: languages::CellWord) -> Option<Vec<u8>> {
+fn closed_text(w: languages::CellWord) -> Option<&'static [u8]> {
     use ryo_relations::domain::terms::{service::words_of, types::WordBlock};
     if (0xFFFF_0000..0xFFFF_0700).contains(&w.0) {
         let at = w.0 - 0xFFFF_0000;
         let block = [WordBlock::Declaration, WordBlock::Parameter, WordBlock::Value, WordBlock::Mapping, WordBlock::Dependency, WordBlock::Unknown, WordBlock::Origin][(at / 0x100) as usize];
         if let Some(t) = words_of(block).get((at % 0x100) as usize) {
-            return Some(t.0.as_bytes().to_vec());
+            return Some(t.0.as_bytes());
         }
     }
     None

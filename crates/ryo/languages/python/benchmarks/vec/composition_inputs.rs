@@ -63,9 +63,9 @@ impl Layout {
         for ask in entries {
             if let Some(index) = input(ask.rel) {
                 if matches!(ask.rel, facts::TYPE_EXPRESSION_REL | facts::ANNOTATION_EVALUATION_REL | facts::DEFERRED_VISIT_REL) {
-                    *result.0[index].get_or_insert(0) |= ask.columns;
+                    *result.0[index].get_or_insert(0) |= ask.columns.word(0);
                 } else if let Some(mask) = &mut result.0[index] {
-                    *mask |= ask.columns;
+                    *mask |= ask.columns.word(0);
                 }
             }
         }

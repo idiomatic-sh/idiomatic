@@ -53,6 +53,18 @@ impl Project {
     /// A project-scope answer: `rel`'s rows for the run's files `files`. `holds` is the file whose content this provider has
     /// read (`table`, `src`): a relation whose rows depend on a file's own content is answered for that file only.
     pub(super) fn fill(&mut self, run: &mut finish::Run, rel: &str, mask: u64, files: &[u32], holds: u32, table: &NodeTable, src: &[u8]) -> Result<finish::Table, String> {
+        let result = self.rows(run, rel, mask, files, holds, table, src)?;
+        if finish::fill_prof::dumping() && result.cols.iter().any(|c| c.len() < result.n) {
+            let reference = self.rows(run, rel, u64::MAX, files, holds, table, src)?;
+            assert_eq!(result.n, reference.n, "{rel} project rows");
+            for (i, column) in result.cols.iter().enumerate() {
+                if finish::request::wants(mask, i) { assert_eq!(column, &reference.cols[i], "{rel} project column {i}"); }
+            }
+        }
+        Ok(result)
+    }
+
+    fn rows(&mut self, run: &mut finish::Run, rel: &str, mask: u64, files: &[u32], holds: u32, table: &NodeTable, src: &[u8]) -> Result<finish::Table, String> {
         match rel {
             MODULE_IDENTITY_REL => self.module_identity(run, mask, files),
             MEMBERSHIP_REL => {

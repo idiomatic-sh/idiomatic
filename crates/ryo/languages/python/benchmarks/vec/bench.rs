@@ -1047,7 +1047,8 @@ impl ColFacts<'_, '_, '_, '_> {
             return Ok(t);
         }
         let mask = self.input_columns.get(rel).unwrap_or(u64::MAX);
-        let t = self.whole_fill(run, rel, mask)?;
+        let selected = if mask == u64::MAX { languages::ColumnProjection::All } else { languages::ColumnProjection::First(mask) };
+        let t = self.whole_fill(run, rel, &selected)?;
         if let Some(m) = module {
             *self.implicit = Some((m, t.copy()));
         }
@@ -1062,11 +1063,11 @@ impl ColFacts<'_, '_, '_, '_> {
         (0..n).find(|p| &*run.texts[run.kind_sym[usize::from(node_table::kind_of(self.file.table, Position(*p)).0)] as usize] == b"module")
     }
 
-    fn whole_fill(&mut self, run: &mut finish::Run, rel: &str, columns: u64) -> Result<finish::Table, String> {
+    fn whole_fill(&mut self, run: &mut finish::Run, rel: &str, columns: &languages::ColumnProjection) -> Result<finish::Table, String> {
         let timed = finish::fill_prof::timed();
         // redo-fills pass 2: the provider's direct columns, no reader rows and no conversion (direct_fill.rs)
         if direct_fill::direct(rel)
-            && let Some((t, write, make, reused)) = direct_fill::fill(self.file, run, rel, self.file_no, timed, columns, self.prefix, self.prefix_symbols, self.direct_memo)
+            && let Some((t, write, make, reused)) = direct_fill::fill(self.file, run, rel, self.file_no, timed, columns.word(0), self.prefix, self.prefix_symbols, self.direct_memo)
         {
             if timed {
                 let n = t.as_ref().map_or(0, |t| t.n as u64);
@@ -1088,7 +1089,7 @@ impl ColFacts<'_, '_, '_, '_> {
                 self.filled.0.clear();
                 let _ = self.file.fill(relation, languages::Wanted::Whole, self.words, &mut self.filled);
                 let r = finish::filled_table(run, rel, &self.filled, self.words)?;
-                direct_fill::check(run, rel, self.file_no, &r, t.as_ref().map_err(String::clone)?, columns);
+                direct_fill::check(run, rel, self.file_no, &r, t.as_ref().map_err(String::clone)?, columns.word(0));
             }
             return t;
         }
@@ -1378,7 +1379,7 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
             for (i, asked) in request.relations.iter().enumerate() {
                 if COMPOSED.contains(&asked.rel) == composed {
                     out[base + i] = match asked.scope {
-                        finish::Scope::Files(files) => self.project.fill(run, asked.rel, asked.columns, files, self.file_no, self.file.table, self.src),
+                        finish::Scope::Files(files) => self.project.fill(run, asked.rel, asked.columns.word(0), files, self.file_no, self.file.table, self.src),
                         finish::Scope::File(f) if f == self.file_no => match self.one(run, asked.rel, asked.columns) {
                             Ok(Made::Owned(t)) => Ok(t),
                             Ok(Made::Shared(t)) => { pending.push((i, t)); continue; }
@@ -1399,7 +1400,7 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
         for (entry, table) in request.relations.iter().zip(&mut out[base..]) {
             if let Ok(t) = table {
                 for (c, col) in t.cols.iter_mut().enumerate() {
-                    if !finish::request::wants(entry.columns, c) { col.clear(); }
+                    if !entry.columns.contains(c) { col.clear(); }
                 }
             }
         }
@@ -1420,7 +1421,8 @@ const FLOW_READERS: [&str; 10] = ["binding-event", "binding-read", "binding-use"
 const RESOLUTION_READERS: [&str; 1] = ["qualified-name"];
 
 impl ColFacts<'_, '_, '_, '_> {
-    fn make(&mut self, run: &mut finish::Run, rel: &str, columns: u64) -> Result<Made, String> {
+    fn make(&mut self, run: &mut finish::Run, rel: &str, selection: &languages::ColumnProjection) -> Result<Made, String> {
+        let columns = selection.word(0);
         Ok(if rel == fact_catalog::REGION_REL {
             let (deferred, rows) = self.file.evaluation_region().ok_or("evaluation-region: the model is incomplete")?;
             let (_, names, tys) = run.catalog(rel).ok_or("no evaluation-region")?;
@@ -1455,12 +1457,12 @@ impl ColFacts<'_, '_, '_, '_> {
         } else if self.input_columns.get(rel).is_some() {
             Made::Shared(self.whole(run, rel)?)
         } else {
-            Made::Owned(self.whole_fill(run, rel, columns)?)
+            Made::Owned(self.whole_fill(run, rel, selection)?)
         })
     }
 
     /// One asked relation of this file: none made where the file's own contents say it has no row (`row_count`).
-    fn one(&mut self, run: &mut finish::Run, rel: &str, columns: u64) -> Result<Made, String> {
+    fn one(&mut self, run: &mut finish::Run, rel: &str, columns: &languages::ColumnProjection) -> Result<Made, String> {
         if self.kept.get(rel).is_none()
             && let Some((Some(relation), names, tys)) = run.catalog(rel)
             && self.file.row_count(relation) == Some(0)
@@ -1493,14 +1495,14 @@ impl ColFacts<'_, '_, '_, '_> {
                     fact_catalog::TYPE_EXPRESSION_REL => self.type_expression(run, u64::MAX)?,
                     fact_catalog::ANNOTATION_EVALUATION_REL => self.annotation_evaluation(run, u64::MAX)?,
                     fact_catalog::DEFERRED_VISIT_REL => self.deferred_visit(run, u64::MAX)?,
-                    fact_catalog::REGION_REL | fact_catalog::TYPE_REGION_REL => match self.make(run, rel, u64::MAX)? {
+                    fact_catalog::REGION_REL | fact_catalog::TYPE_REGION_REL => match self.make(run, rel, &languages::ColumnProjection::All)? {
                         Made::Owned(t) => t, Made::Shared(_) => unreachable!(),
                     },
-                    _ => self.whole_fill(run, rel, u64::MAX)?,
+                    _ => self.whole_fill(run, rel, &languages::ColumnProjection::All)?,
                 };
                 assert_eq!(t.n, reference.n, "{rel} rows");
                 for c in 0..t.cols.len() {
-                    if finish::request::wants(columns, c) {
+                    if columns.contains(c) {
                         assert_eq!(t.cols[c], reference.cols[c], "{rel} column {}", t.names[c]);
                     }
                 }
@@ -1532,7 +1534,7 @@ impl finish::Provider for Facts<'_, '_, '_> {
     fn answer(&mut self, run: &mut finish::Run, request: &finish::request::Request<'_>, out: &mut Vec<Result<finish::Table, String>>) -> Result<(), String> {
         for asked in request.relations {
             out.push(match asked.scope {
-                finish::Scope::Files(files) => self.project.fill(run, asked.rel, asked.columns, files, self.file, self.facts.table, self.src),
+                finish::Scope::Files(files) => self.project.fill(run, asked.rel, asked.columns.word(0), files, self.file, self.facts.table, self.src),
                 finish::Scope::File(f) if f == self.file => self.one(run, asked.rel, asked.columns),
                 finish::Scope::File(f) => Err(format!("asked for file {f}, this provider holds file {}", self.file)),
             });
@@ -1546,7 +1548,7 @@ impl finish::Provider for Facts<'_, '_, '_> {
 }
 
 impl Facts<'_, '_, '_> {
-    fn one(&mut self, run: &mut finish::Run, rel: &str, columns: u64) -> Result<finish::Table, String> {
+    fn one(&mut self, run: &mut finish::Run, rel: &str, columns: &languages::ColumnProjection) -> Result<finish::Table, String> {
         let t0 = thread_cpu();
         let (relation, _, _) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
         let relation = relation.ok_or_else(|| format!("{rel} needs VEC_COLWALK"))?;

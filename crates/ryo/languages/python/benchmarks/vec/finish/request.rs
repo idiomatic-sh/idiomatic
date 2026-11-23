@@ -8,13 +8,14 @@
 use super::request_guards::{ALWAYS, Guards};
 use super::{E, Exec, File, Native, Provider, R, Run, Scope, Supplier, Table, host, native_of};
 use rustc_hash::FxHashMap;
+use ryo::languages::ColumnProjection as Columns;
 
 /// One relation of a request: its name and the columns its readers can read (bit `c`: the catalog's column `c`; every bit:
 /// every column).
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Asked<'r> {
     pub(crate) rel: &'r str,
-    pub(crate) columns: u64,
+    pub(crate) columns: &'r Columns,
     pub(crate) scope: Scope<'r>,
 }
 
@@ -35,7 +36,7 @@ pub(crate) struct Requests {
     /// Who supplies each (the host or the provider), by number.
     host: Vec<bool>,
     schemas: Vec<Option<(super::Names, super::Tys)>>,
-    run_columns: Vec<u64>,
+    run_columns: Vec<Columns>,
     suppliers: Vec<Supplier>,
     pub(super) base_slots: Vec<Option<u16>>,
     pub(super) proven_empty: Vec<bool>,
@@ -48,11 +49,11 @@ pub(crate) struct Requests {
     root_numbers: Vec<usize>,
     live: Vec<u64>,
     projections: Vec<Projection>,
-    masks: Vec<Option<u64>>,
+    masks: Vec<Option<Columns>>,
     asked: Vec<u16>,
     answer: Vec<Result<Table, String>>,
     // A run-scoped answer counts once; any file can consume it.
-    run_unused: FxHashMap<u16, u64>,
+    run_unused: Vec<Option<u64>>,
     pub(super) counts: Counts,
 }
 
@@ -102,8 +103,8 @@ impl Requests {
             c.host_relations,
             c.rows,
             c.refused,
-            c.never_asked + self.run_unused.len() as u64,
-            c.never_asked_rows + self.run_unused.values().sum::<u64>(),
+            c.never_asked + self.run_unused.iter().flatten().count() as u64,
+            c.never_asked_rows + self.run_unused.iter().flatten().sum::<u64>(),
             self.names.len(),
             c.misses,
             c.reads,
@@ -118,7 +119,7 @@ impl Requests {
 /// in place, through their predicates and the columns of its expressions.
 #[derive(Clone, Hash, PartialEq, Eq)]
 enum Action {
-    Read(u16, u64),
+    Read(u16, Columns),
     Inputs(Vec<u32>),
 }
 
@@ -129,12 +130,12 @@ struct Entry {
 }
 
 /// One way a live emit can demand columns, compiled once for all its files.
-#[derive(Clone, Copy)]
-struct Read { slot: u16, columns: u64, guard: u32 }
+#[derive(Clone)]
+struct Read { slot: u16, columns: Columns, guard: u32 }
 
 struct Projection {
     slot: u16,
-    columns: u64,
+    columns: Columns,
     alternatives: Vec<Alternative>,
 }
 
@@ -163,12 +164,12 @@ impl Requests {
         for id in self.summaries.len()..self.graph.len() {
             let entry = &self.graph[id];
             let reads = match &entry.action {
-                Action::Read(slot, columns) => vec![Read { slot: *slot, columns: *columns, guard: entry.guard }],
+                Action::Read(slot, columns) => vec![Read { slot: *slot, columns: columns.clone(), guard: entry.guard }],
                 Action::Inputs(children) => {
-                    let mut paths = std::collections::BTreeMap::<(u16, u64),Vec<u32>>::new();
+                    let mut paths = std::collections::BTreeMap::<(u16, Columns),Vec<u32>>::new();
                     for &child in children {
                         for read in &self.summaries[child as usize] {
-                            paths.entry((read.slot, read.columns)).or_default().push(read.guard);
+                            paths.entry((read.slot, read.columns.clone())).or_default().push(read.guard);
                         }
                     }
                     paths.into_iter().map(|((slot, columns), alternatives)| {
@@ -189,7 +190,7 @@ impl Requests {
         use std::collections::BTreeMap;
         self.compile_summaries();
         self.root_numbers.resize(self.nodes.len(), usize::MAX);
-        let mut alternatives = BTreeMap::<(u16, u64), BTreeMap<u32, Vec<usize>>>::new();
+        let mut alternatives = BTreeMap::<(u16, Columns), BTreeMap<u32, Vec<usize>>>::new();
         let mut count = 0;
         for node in roots {
             if self.root_numbers[node] != usize::MAX { continue; }
@@ -198,7 +199,7 @@ impl Requests {
             count += 1;
             let Some(id) = self.nodes[node].filter(|id| *id != NONE) else { continue };
             for read in &self.summaries[id as usize] {
-                alternatives.entry((read.slot, read.columns)).or_default()
+                alternatives.entry((read.slot, read.columns.clone())).or_default()
                     .entry(read.guard).or_default().push(root);
             }
         }
@@ -216,14 +217,15 @@ impl Requests {
             }
             self.projections.push(Projection { slot, columns, alternatives });
         }
-        let literals = self.guards.compile();
+        let outputs = self.projections.iter().flat_map(|p| p.alternatives.iter().map(|a| a.guard));
+        let literals = self.guards.compile(outputs);
         for projection in &mut self.projections {
             for alternative in &mut projection.alternatives {
                 alternative.guard = literals[alternative.guard as usize];
             }
         }
         // Once a file satisfies a wider projection its subsets are free.
-        self.projections.sort_unstable_by_key(|r| (r.slot, std::cmp::Reverse(r.columns.count_ones())));
+        self.projections.sort_unstable_by_key(|r| (r.slot, std::cmp::Reverse(r.columns.count())));
         self.summaries = Vec::new();
         self.graph = Vec::new();
         self.shared = FxHashMap::default();
@@ -258,20 +260,23 @@ pub(crate) fn wants(mask: u64, column: usize) -> bool {
     mask & bit(column) != 0
 }
 
-fn columns(e: &E, source: usize) -> u64 {
+fn select_columns(e: &E, source: usize, columns: &mut Columns) {
     match e {
-        E::Col(s, c, _) if *s == source => bit(*c),
-        E::List(es) | E::Call(_, es) => es.iter().fold(0, |m, e| m | columns(e, source)),
-        E::Cmp(_, a, b) | E::In(a, b, _) | E::And(a, b) | E::Or(a, b) => columns(a, source) | columns(b, source),
-        E::Not(x) | E::Null(x, _) | E::Re(x, _) | E::Seed(x, _) => columns(x, source),
-        _ => 0,
+        E::Col(s, c, _) if *s == source => columns.insert(*c),
+        E::List(es) | E::Call(_, es) => { for e in es { select_columns(e, source, columns); } }
+        E::Cmp(_, a, b) | E::In(a, b, _) | E::And(a, b) | E::Or(a, b) => {
+            select_columns(a, source, columns);
+            select_columns(b, source, columns);
+        }
+        E::Not(x) | E::Null(x, _) | E::Re(x, _) | E::Seed(x, _) => select_columns(x, source, columns),
+        _ => {}
     }
 }
 
 impl Exec<'_> {
     /// Fix one slot for each catalog relation in this plan before the first file.
     /// A base and a view of that base address the same read-only answer.
-    pub(crate) fn prepare_slots(&mut self, run: &mut Run) {
+    pub(crate) fn prepare_slots(&mut self, run: &mut Run, emits: &[usize]) {
         self.requests.base_slots.resize(self.plan.nodes.len(), None);
         for (i, node) in self.plan.nodes.iter().enumerate() {
             if node.op != "base" { continue; }
@@ -287,19 +292,21 @@ impl Exec<'_> {
                 if width.is_some() { run.fact_slots.insert(rel.to_owned(), slot); }
             }
         }
+        run.project.resize_with(self.requests.names.len(), || None);
+        self.requests.run_unused.resize(self.requests.names.len(), None);
         // A run-scoped answer serves files whose live rules can ask for
         // different columns. Include the file partition key and every column
         // the plan may read from that answer over its whole lifetime.
         self.requests.nodes.resize(self.plan.nodes.len(), None);
         self.requests.guards.begin(self.plan.nodes.len());
-        for entry in &self.plan.emits { self.demand(run, entry.1); }
-        self.requests.run_columns.resize(self.requests.names.len(), 0);
+        for &emit in emits { self.demand(run, self.plan.emits[emit].1); }
+        self.requests.run_columns.resize_with(self.requests.names.len(), Columns::default);
         for e in &self.requests.graph {
-            if let Action::Read(slot, mask) = e.action {
-                self.requests.run_columns[usize::from(slot)] |= mask;
+            if let Action::Read(slot, mask) = &e.action {
+                self.requests.run_columns[usize::from(*slot)].extend(mask);
             }
         }
-        self.requests.compile_projections(self.plan.emits.iter().map(|e| e.1));
+        self.requests.compile_projections(emits.iter().map(|&i| self.plan.emits[i].1));
 
     }
 
@@ -309,14 +316,15 @@ impl Exec<'_> {
         if let Some(&slot) = run.fact_slots.get(rel) { self.requests.proven_empty[usize::from(slot)] = true; }
     }
 
-    fn demand_input(&mut self, run: &mut Run, n: usize, mask: u64) -> u32 {
+    fn demand_input(&mut self, run: &mut Run, n: usize, mask: Columns) -> u32 {
         let Ok(Some(v)) = self.view(run, n) else { return self.demand(run, n) };
         let Native::Fact(i) = v.base else { return NONE };
         let slot = i;
-        let mut cols = v.filter.iter().fold(0, |m, e| m | columns(e, 0));
+        let mut cols = Columns::default();
+        for e in &v.filter { select_columns(e, 0, &mut cols); }
         for (c, base) in v.map.iter().enumerate() {
-            if wants(mask, c) {
-                cols |= bit(*base);
+            if mask.contains(c) {
+                cols.insert(*base);
             }
         }
         let guard = self.guard(run, n);
@@ -330,10 +338,10 @@ impl Exec<'_> {
         let pn = &self.plan.nodes[n];
         let guard = self.guard(run, n);
         let d = if self.view(run, n).ok().flatten().is_some() {
-            self.demand_input(run, n, u64::MAX)
+            self.demand_input(run, n, Columns::All)
         } else if pn.op == "base" {
             if let Some(slot) = self.requests.base_slots[n] {
-                self.requests.add(guard, Action::Read(slot, u64::MAX))
+                self.requests.add(guard, Action::Read(slot, Columns::All))
             } else {
                 NONE
             }
@@ -345,21 +353,23 @@ impl Exec<'_> {
                 for (i, src) in sp.srcs.iter().enumerate() {
                     let probed = sp.conj.iter().any(|e| matches!(e, E::Seed(x, _) if matches!(**x, E::Col(s, _, _) if s == i)));
                     let mask = if probed {
-                        u64::MAX
+                        Columns::All
                     } else {
-                        sp.conj.iter().chain(sp.items.iter().map(|(_, e)| e)).fold(0, |m, e| m | columns(e, i))
+                        let mut mask = Columns::default();
+                        for e in sp.conj.iter().chain(sp.items.iter().map(|(_, e)| e)) { select_columns(e, i, &mut mask); }
+                        mask
                     };
                     inputs.push(self.demand_input(run, *src, mask));
                 }
             } else {
                 for &src in &pn.inputs {
-                    inputs.push(self.demand_input(run, src, u64::MAX));
+                    inputs.push(self.demand_input(run, src, Columns::All));
                 }
                 if self.frames[n].counted {
                     // A counted select may emit a kept row with zero partners.
                     let sel = self.frames[n].first as usize;
                     for &src in &self.plan.nodes[sel].inputs {
-                        inputs.push(self.demand_input(run, src, u64::MAX));
+                        inputs.push(self.demand_input(run, src, Columns::All));
                     }
                 }
             }
@@ -369,7 +379,7 @@ impl Exec<'_> {
         d
     }
 
-    fn request_masks(&mut self, f: &File<'_>, run: &mut Run, roots: &[usize]) -> Vec<Option<u64>> {
+    fn request_masks(&mut self, f: &File<'_>, run: &mut Run, roots: &[usize]) -> Vec<Option<Columns>> {
         self.decide_file(run, f);
         self.requests.live.fill(0);
         for &node in roots {
@@ -383,12 +393,12 @@ impl Exec<'_> {
         for projection in &projections {
             let i = usize::from(projection.slot);
             if self.requests.proven_empty.get(i).copied().unwrap_or(false)
-                || masks[i].is_some_and(|m| m & projection.columns == projection.columns) { continue; }
+                || masks[i].as_ref().is_some_and(|m| m.covers(&projection.columns)) { continue; }
             let readable = projection.alternatives.iter().any(|path| {
                 path.roots.iter().any(|(i, set)| self.requests.live[*i] & set != 0)
                     && self.requests.guards.circuit.permits(path.guard)
             });
-            if readable { *masks[i].get_or_insert(0) |= projection.columns; }
+            if readable { masks[i].get_or_insert_with(Columns::default).extend(&projection.columns); }
         }
         self.requests.projections = projections;
         masks
@@ -399,7 +409,7 @@ impl Exec<'_> {
     pub(crate) fn open_file(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, roots: &[usize], checks: &[&str]) -> R<Vec<R<Table>>> {
         let timed = super::fill_prof::timed();
         let start = if timed { super::super::thread_cpu() } else { 0.0 };
-        let masks = self.request_masks(f, run, roots);
+        let mut masks = self.request_masks(f, run, roots);
         if timed { self.requests.counts.mask_cpu += super::super::thread_cpu() - start; }
         let rq = &mut self.requests;
         rq.counts.files += 1;
@@ -419,14 +429,13 @@ impl Exec<'_> {
                     rq.counts.host_relations += 1;
                     f.answer[usize::from(n)] = Some(Ok(t));
                 } else {
-                    let rel = &rq.names[usize::from(n)];
                     if let Supplier::Project(ask) = rq.suppliers[usize::from(n)] {
-                        if super::project::covers(run, rel, f.file) {
-                            f.answer[usize::from(n)] = Some(super::project::rows(f, run, rel));
+                        if super::project::covers(run, n, f.file) {
+                            f.answer[usize::from(n)] = Some(super::project::rows(f, run, n));
                             continue;
                         }
                         if matches!(ask, super::project::ProjectAsk::Run) {
-                            let pending: Vec<u32> = (0..run.paths.len() as u32).filter(|file| !super::project::covers(run, rel, *file)).collect();
+                            let pending: Vec<u32> = (0..run.paths.len() as u32).filter(|file| !super::project::covers(run, n, *file)).collect();
                             scopes.insert(n, pending);
                         }
                     }
@@ -436,6 +445,14 @@ impl Exec<'_> {
         }
         let checked = {
             let singleton = [f.file];
+            for &n in &asked {
+                let i = usize::from(n);
+                if let Supplier::Project(ask) = rq.suppliers[i] {
+                    let mask = masks[i].as_mut().unwrap();
+                    if matches!(ask, super::project::ProjectAsk::Run) { mask.clone_from(&rq.run_columns[i]); }
+                    if let Some(k) = rq.schemas[i].as_ref().and_then(|(_, tys)| tys.iter().position(|ty| *ty == super::Ty::File)) { mask.insert(k); }
+                }
+            }
             let mut list: Vec<Asked<'_>> = asked
                 .iter()
                 .map(|n| {
@@ -448,19 +465,11 @@ impl Exec<'_> {
                     Asked {
                         rel,
                         scope,
-                        columns: {
-                            let slot = usize::from(*n);
-                            let mask = masks[slot].unwrap();
-                            if let Supplier::Project(ask) = rq.suppliers[slot] {
-                                let key = rq.schemas[slot].as_ref().and_then(|(_, tys)| tys.iter().position(|ty| *ty == super::Ty::File));
-                                let requested = if matches!(ask, super::project::ProjectAsk::Run) { rq.run_columns[slot] } else { mask };
-                                key.map_or(requested, |k| requested | bit(k))
-                            } else { mask }
-                        },
+                        columns: masks[usize::from(*n)].as_ref().unwrap(),
                     }
                 })
                 .collect();
-            list.extend(checks.iter().map(|rel| Asked { rel, scope: Scope::File(f.file), columns: u64::MAX }));
+            list.extend(checks.iter().map(|rel| Asked { rel, scope: Scope::File(f.file), columns: &Columns::All }));
             let mut answer = std::mem::take(&mut rq.answer);
             answer.clear();
             let before = if timed { super::super::thread_cpu() } else { 0.0 };
@@ -488,13 +497,14 @@ impl Exec<'_> {
                 }
                 if matches!(rq.suppliers[usize::from(*n)], Supplier::Project(super::project::ProjectAsk::Run))
                     && let Ok(table) = &t {
-                    rq.run_unused.insert(*n, table.n as u64);
+                    rq.run_unused[usize::from(*n)] = Some(table.n as u64);
                 }
                 let result = match entry.scope {
                     Scope::File(_) => t,
                     Scope::Files(files) => t.and_then(|t| {
-                        super::project::remember(run, entry.rel, files, t)?;
-                        super::project::rows(f, run, entry.rel)
+                        let each = matches!(rq.suppliers[usize::from(*n)], Supplier::Project(super::project::ProjectAsk::EachFile));
+                        super::project::remember(run, *n, each, files, t)?;
+                        super::project::rows(f, run, *n)
                     }),
                 };
                 f.answer[usize::from(*n)] = Some(result);
@@ -520,7 +530,7 @@ impl Exec<'_> {
         let result = match slot {
             Some(slot @ Some(Ok(_))) => {
                 if matches!(self.requests.suppliers[i], Supplier::Project(super::project::ProjectAsk::Run)) {
-                    self.requests.run_unused.remove(&(i as u16));
+                    self.requests.run_unused[i] = None;
                 }
                 slot.take().unwrap()
             }

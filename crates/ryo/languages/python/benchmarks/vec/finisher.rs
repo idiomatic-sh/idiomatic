@@ -134,7 +134,7 @@ impl<'p> Finisher<'p> {
                 &|n| vocab.kinds.get(n).copied(),
             ),
         };
-        me.exec.prepare_slots(&mut me.run);
+        me.exec.prepare_slots(&mut me.run, &me.emits);
         me.time += thread_cpu() - t0;
         me
     }

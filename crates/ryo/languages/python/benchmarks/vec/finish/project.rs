@@ -29,22 +29,27 @@ pub(in super::super) struct Answered {
 
 /// One line a project relation: the provider's asks, the files their scopes named, the rows answered.
 pub(in super::super) fn report(run: &Run) -> Vec<String> {
-    let mut v: Vec<String> = run.project.iter().map(|(rel, a)| format!("PROJECT {rel}: asks {} scope files {} rows {}", a.asks[0], a.asks[1], a.asks[2])).collect();
+    let mut v: Vec<String> = run.project.iter().enumerate().filter_map(|(slot, answer)| {
+        let a = answer.as_ref()?;
+        let rel = &run.fact_rels[slot].0;
+        Some(format!("PROJECT {rel}: asks {} scope files {} rows {}", a.asks[0], a.asks[1], a.asks[2]))
+    }).collect();
     v.sort();
     v
 }
 
 /// Whether the cached project answer covers this file.
-pub(super) fn covers(run: &Run, rel: &str, file: u32) -> bool {
-    run.project.get(rel).and_then(|a| a.asked.get(file as usize)).copied().unwrap_or(false)
+pub(super) fn covers(run: &Run, slot: u16, file: u32) -> bool {
+    run.project[usize::from(slot)].as_ref().and_then(|a| a.asked.get(file as usize)).copied().unwrap_or(false)
 }
 
 /// Index a project answer by its declared file column. The whole-run table
 /// stays here so subsequent files can read their share without another call.
-pub(super) fn remember(run: &mut Run, rel: &str, files: &[u32], t: Table) -> R<()> {
+pub(super) fn remember(run: &mut Run, slot: u16, each: bool, files: &[u32], t: Table) -> R<()> {
+    let i = usize::from(slot);
+    let rel = &run.fact_rels[i].0;
     let key = t.tys.iter().position(|ty| *ty == Ty::File).ok_or_else(|| format!("{rel}: a project relation names no file"))?;
-    let each = matches!(run.supplier(rel), super::Supplier::Project(ProjectAsk::EachFile));
-    let a = run.project.entry(rel.to_owned()).or_default();
+    let a = run.project[i].get_or_insert_with(Default::default);
     if each {
         // Only the latest file group is resident for a supplier that reads each file.
         for &file in &a.resident { a.asked[file as usize] = false; }
@@ -76,11 +81,13 @@ pub(super) fn remember(run: &mut Run, rel: &str, files: &[u32], t: Table) -> R<(
     Ok(())
 }
 
-pub(super) fn rows(f: &File<'_>, run: &Run, rel: &str) -> R<Table> {
-    let a = run.project.get(rel).ok_or_else(|| format!("{rel}: no project answer"))?;
+pub(super) fn rows(f: &File<'_>, run: &Run, slot: u16) -> R<Table> {
+    let i = usize::from(slot);
+    let rel = &run.fact_rels[i].0;
+    let a = run.project[i].as_ref().ok_or_else(|| format!("{rel}: no project answer"))?;
     let all = a.table.as_ref().ok_or_else(|| format!("{rel}: no answer"))?;
     let mine = a.by_file.get(&u64::from(f.file)).map_or(&[][..], Vec::as_slice);
-    let mut out = Table::with_rows(all.names.clone(), all.tys.clone(), mine.len());
+    let mut out = Table::projected_where(all.names.clone(), all.tys.clone(), mine.len(), |c| !all.cols[c].is_empty());
     for (c, col) in out.cols.iter_mut().enumerate() {
         if !all.cols[c].is_empty() { col.extend(mine.iter().map(|r| all.cols[c][*r as usize])); }
     }

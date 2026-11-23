@@ -1,5 +1,5 @@
 //! File predicates shared by the demand graph. Equal subexpressions have one
-//! plan slot, evaluated on first use in a file, before any provider facts exist.
+//! plan slot. Its per-file truth is shared by the request and execution.
 use super::{Exec, File, Run};
 use rustc_hash::FxHashMap;
 
@@ -9,8 +9,8 @@ const NEVER: u32 = 1;
 #[derive(Clone, PartialEq, Eq, Hash)]
 enum Test {
     Constant(bool),
-    Kinds(Vec<u16>),
-    Fields(Vec<u16>),
+    Kind(u16),
+    Field(u16),
     Seed(usize),
     HasRows(u16),
     Symbols(u16, usize, Vec<u32>),
@@ -77,14 +77,14 @@ impl Guards {
         }
     }
 
-    pub(super) fn compile(&mut self) -> Vec<u32> {
+    pub(super) fn compile(&mut self, projections: impl Iterator<Item = u32>) -> Vec<u32> {
         let mut literal = vec![0; self.tests.len()];
         literal[NEVER as usize] = 1;
-        let mut leaves = Vec::new();
+        let mut leaves = 0;
         for (i, test) in self.tests.iter().enumerate() {
             if !matches!(test, Test::Constant(_) | Test::Combine { .. }) {
-                leaves.push(i as u32);
-                literal[i] = 2 * leaves.len() as u32;
+                leaves += 1;
+                literal[i] = 2 * leaves as u32;
             }
         }
         let mut compiled = super::request_circuit::Compiler::new(leaves);
@@ -94,7 +94,17 @@ impl Guards {
             let result = terms.iter().fold(0, |acc, term| compiled.and(acc, literal[*term as usize] ^ inverse));
             literal[i] = result ^ inverse;
         }
+        let outputs = self.by_node.iter().flatten().copied().chain(projections);
+        let map = compiled.circuit.retain_outputs(outputs.map(|guard| literal[guard as usize]));
+        for value in &mut literal { *value = super::request_circuit::Circuit::remap(&map, *value); }
         for node in self.by_node.iter_mut().flatten() { *node = literal[*node as usize]; }
+        // Evidence producers address only independent leaves after plan load.
+        // Drop the allocated term vectors and keep the per-file inputs contiguous.
+        for entries in self.columns.values_mut() {
+            for (_, id) in entries { *id = (literal[*id as usize] / 2) - 1; }
+        }
+        self.tests.retain(|t| !matches!(t, Test::Constant(_) | Test::Combine { .. }));
+        self.tests.shrink_to_fit();
         self.circuit = compiled.circuit;
         self.by_test = FxHashMap::default();
         literal
@@ -147,7 +157,8 @@ impl Exec<'_> {
                 parts.push(self.requests.guards.intern(Test::HasRows(slot)));
             }
             for ks in &need.kinds {
-                parts.push(self.requests.guards.intern(Test::Kinds(ks.to_vec())));
+                let codes = ks.iter().map(|k| self.requests.guards.intern(Test::Kind(*k))).collect();
+                parts.push(self.requests.guards.combine(false, codes));
             }
             for &s in &need.seeds {
                 parts.push(self.requests.guards.intern(Test::Seed(s)));
@@ -160,7 +171,8 @@ impl Exec<'_> {
                     parts.push(self.requests.guards.symbols(slot, col, values));
                 }
                 for fields in self.ep_field_codes(run, n) {
-                    parts.push(self.requests.guards.intern(Test::Fields(fields)));
+                    let codes = fields.into_iter().map(|c| self.requests.guards.intern(Test::Field(c))).collect();
+                    parts.push(self.requests.guards.combine(false, codes));
                 }
             }
             if !need.inputs.is_empty() {
@@ -179,18 +191,17 @@ impl Exec<'_> {
         let mut circuit = std::mem::take(&mut self.requests.guards.circuit);
         let kinds = &super::node_table::kinds_present(f.table).0;
         let mut changed = false;
-        for i in 0..circuit.leaves.len() {
-            let at = circuit.leaves[i] as usize;
+        for at in 0..circuit.leaves {
             let value = match &self.requests.guards.tests[at] {
-                Test::Kinds(ks) => ks.iter().any(|k| kinds.get(usize::from(*k) / 64).is_some_and(|w| w.0 & (1 << (k % 64)) != 0)),
-                Test::Fields(fs) => fs.iter().any(|c| !super::node_table::ids_of_field(f.table, ryo::languages::FieldCode(*c)).is_empty()),
+                Test::Kind(k) => kinds.get(usize::from(*k) / 64).is_some_and(|w| w.0 & (1 << (k % 64)) != 0),
+                Test::Field(c) => !super::node_table::ids_of_field(f.table, ryo::languages::FieldCode(*c)).is_empty(),
                 Test::Symbols(..) => !self.requests.guards.absent.get(at).copied().unwrap_or(false),
                 Test::HasRows(slot) => !self.requests.proven_empty.get(usize::from(*slot)).copied().unwrap_or(false),
                 Test::Seed(s) => f.seeds.get(*s).is_some_and(|rows| !rows.is_empty()),
                 Test::File(n) => { let n = *n; !self.file_fails_of(f, run, n) }
                 _ => unreachable!("only input leaves are scheduled here"),
             };
-            changed |= circuit.set(i, value);
+            changed |= circuit.set(at, value);
         }
         circuit.evaluate(changed);
         self.requests.guards.circuit = circuit;
