@@ -227,6 +227,8 @@ pub(super) struct OpenWalked<'t> {
 /// The walker of the node table: it walks the library's tree in the order of the file, writes each node with the field it fills
 /// and the tokens between the nodes, and keeps the typed node of each id.
 pub(super) struct Walker<'b, 'w, 't> {
+    /// Structural classes being collected on this traversal.
+    pub shapes: Option<crate::domain::shape_facts::walk::WalkShapes>,
     /// The table's builder.
     pub builder: &'b mut languages::NodeTableBuilder<'w>,
     /// The library's tokens, in the order of the file.

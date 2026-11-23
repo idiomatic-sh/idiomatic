@@ -56,6 +56,8 @@ pub(crate) struct NameTable {
 /// were not text). The model copies the table and the lexical part; the engine reads the token codes.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct WalkNames {
+    /// Collect expression classes while the parser visits the source tree.
+    pub shape_classes: bool,
     /// The table the walk interned into.
     pub names: NameTable,
     /// The lexical part, by place: the name each node carries among it.

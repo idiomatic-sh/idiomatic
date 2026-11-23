@@ -72,6 +72,7 @@ impl SyntaxPort for SyntaxFake {
         let _nothing = read(crate::domain::node::types::Walked::Whole(
             builder,
             WalkedTree {
+                shapes: None,
                 nodes: Vec::new(),
                 strings: Vec::new(),
                 imports: Vec::new(),

@@ -20,6 +20,8 @@ pub(crate) struct Wholeness {
 /// What the syntax adapter lends once it has walked a file into the node table, while its parse lives.
 #[derive(Debug)]
 pub(crate) struct WalkedTree<'t> {
+    /// The expression classes when requested by the column walk.
+    pub(crate) shapes: Option<crate::domain::shape_facts::walk::Classes>,
     /// The typed node of each syntax node, by its id.
     pub(crate) nodes: Vec<AnyNodeRef<'t>>,
     /// The parent of each syntax node, by its id; the root is its own.

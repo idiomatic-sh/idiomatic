@@ -112,6 +112,7 @@ pub(super) fn walked(
         FutureAnnotations(false)
     };
     let mut walker = Walker {
+        shapes: names.shape_classes.then(Default::default),
         builder,
         tokens: parsed.tokens(),
         next: TokenIndex(0),
@@ -138,6 +139,7 @@ pub(super) fn walked(
     };
     walker.visit_mod(parsed.syntax());
     let Walker {
+        shapes,
         builder,
         nodes,
         parents,
@@ -241,6 +243,7 @@ pub(super) fn walked(
         SyntaxCompleteness::Incomplete
     };
     let tree = WalkedTree {
+        shapes: shapes.map(crate::domain::shape_facts::walk::WalkShapes::finish),
         nodes,
         parents,
         ends: subtree_ends,

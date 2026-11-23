@@ -128,23 +128,30 @@ pub(super) struct Inputs<'t> {
 /// names, an annotation or return annotation, a type declaration): `rows`' own "no root of any kind" test, asked before
 /// its other inputs are filled (call-argument and identifier are read only past it).
 pub(super) fn any_root(run: &mut finish::Run, table: &NodeTable, qualified: &finish::Table, embedded_rows: usize, lists: &Lists) -> Result<bool, String> {
-    if embedded_rows != 0 {
+    if embedded_rows != 0 || super::annotation_evaluation::has_annotation(run, table) || super::deferred_visit::has_type_parameters(run, table) {
         return Ok(true);
     }
-    let (q_id, q_path) = (col(qualified, "id")?, col(qualified, "path")?);
-    let _ = q_id;
+    let call = run.sym(b"call");
+    let subscript = run.sym(b"subscript");
+    let func = run.sym(b"func");
+    let value = run.sym(b"value");
+    let (id, path) = (col(qualified, "id")?, col(qualified, "path")?);
     for r in 0..qualified.n {
-        let t: &[u8] = &run.texts[qualified.cols[q_path][r] as usize];
-        // redo-int merge: `rows`' tests as redo-binding pass 6 states them (the pack's lists `LISTS`, passed in as `rows`
-        // reads them; redo-binding pass 7's own read of `LISTS` here is the same value, so not kept)
-        if !NAMED_MODULES.iter().any(|m| t.starts_with(m)) && !lists.modules.iter().any(|m| t.starts_with(m)) {
-            continue;
-        }
-        if t == b"typing.TypeAlias" || t == b"typing_extensions.TypeAlias" || t == b"_typeshed.TypeAlias" || lists.generic.contains(t) || t == b"typing.Annotated" || t == b"typing_extensions.Annotated" || t == b"typing.TypedDict" || t == b"typing_extensions.TypedDict" || form_of(t, lists).is_some() {
+        let at = Position(qualified.cols[id][r] as u32);
+        let field = run.field_sym.get(usize::from(node_table::field_of(table, at).0)).copied();
+        let parent = node_table::parent_of(table, at);
+        let kind = run.kind_sym[usize::from(node_table::kind_of(table, parent).0)];
+        let callee = kind == call && field == Some(func);
+        let head = kind == subscript && field == Some(value);
+        if !callee && !head { continue; }
+        let t: &[u8] = &run.texts[qualified.cols[path][r] as usize];
+        if !NAMED_MODULES.iter().any(|m| t.starts_with(m)) && !lists.modules.iter().any(|m| t.starts_with(m)) { continue; }
+        if (callee && form_of(t, lists).is_some()) || (head && (lists.generic.contains(t)
+            || matches!(t, b"typing.Annotated" | b"typing_extensions.Annotated" | b"typing.TypedDict" | b"typing_extensions.TypedDict"))) {
             return Ok(true);
         }
     }
-    Ok(super::annotation_evaluation::has_annotation(run, table) || super::deferred_visit::has_type_parameters(run, table))
+    Ok(false)
 }
 
 fn col(t: &finish::Table, n: &str) -> Result<usize, String> {
@@ -174,21 +181,14 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
     let f_elts = sym(run, b"elts");
     let f_keys = sym(run, b"keys");
     let f_values = sym(run, b"values");
-    let mut kind = vec![0u32; n];
-    let mut field = vec![0u32; n];
-    let mut parent = vec![u32::MAX; n];
-    for p in 0..n {
-        let at = Position(p as u32);
-        kind[p] = run.kind_sym[usize::from(node_table::kind_of(table, at).0)];
-        field[p] = run.field_sym.get(usize::from(node_table::field_of(table, at).0)).copied().unwrap_or(run.empty);
-        let q = node_table::parent_of(table, at).0;
-        if p != 0 && q != p as u32 {
-            parent[p] = q;
-        }
-    }
-    let fields: &[u32] = &field;
+    let kinds = node_table::kind_codes(table);
+    let fields = node_table::field_codes(table);
+    let parents = node_table::parent_ids(table);
+    let kind = |p: usize| run.kind_sym[usize::from(kinds[p])];
+    let field = |p: usize| run.field_sym.get(usize::from(fields[p])).copied().unwrap_or(run.empty);
+    let parent = |p: usize| if parents[p] as usize == p { u32::MAX } else { parents[p] };
     let children = move |x: u32| node_table::children_of(table, Position(x)).iter().map(|c| c.0).filter(move |c| (*c as usize) < n);
-    let child_by = move |x: u32, f: u32| children(x).filter(move |c| fields[*c as usize] == f);
+    let child_by = move |x: u32, f: u32| children(x).filter(move |c| field(*c as usize) == f);
     let ordinal = |x: u32| node_table::ordinal_of(table, Position(x)).0;
     let subtree = |x: u32| {
         let end = node_table::subtree_end_of(table, Position(x)).0;
@@ -232,19 +232,11 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
             }
         }
     }
-    // no root of any kind: no type expression in the file
-    if inp.embedded.n == 0
-        && names.is_empty()
-        && callee_forms.is_empty()
-        && !(0..n).any(|p| (parent[p] != u32::MAX && (field[p] == f_annotation || field[p] == f_returns)) || k_decl.contains(&kind[p]))
-    {
-        return Ok(Vec::new());
-    }
     let names_of = |x: u32| names.get(&x).copied().unwrap_or(0);
     // the typing forms of each call (by its callee's paths)
     let mut forms: FxHashMap<u32, Vec<Form>> = FxHashMap::default();
     for c in 0..n as u32 {
-        if kind[c as usize] != k_call {
+        if kind(c as usize) != k_call {
             continue;
         }
         for callee in child_by(c, f_func) {
@@ -269,14 +261,14 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
     // (owner call, Some(name) | None (unpacked), value)
     let mut keywords: Vec<(u32, Option<u32>, u32)> = Vec::new();
     for kw in 0..n as u32 {
-        if kind[kw as usize] != k_keyword {
+        if kind(kw as usize) != k_keyword {
             continue;
         }
         let values: Vec<u32> = child_by(kw, f_value).collect();
         keyword_values.extend(values.iter().copied());
-        let mut owner = parent[kw as usize];
-        while owner != u32::MAX && kind[owner as usize] != k_call {
-            owner = parent[owner as usize];
+        let mut owner = parent(kw as usize);
+        while owner != u32::MAX && kind(owner as usize) != k_call {
+            owner = parent(owner as usize);
         }
         if owner == u32::MAX || !forms.contains_key(&owner) {
             continue;
@@ -314,7 +306,7 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
     let name_is = |run: &finish::Run, s: u32, t: &[u8]| &*run.texts[s as usize] == t;
     // keyed values of a dictionary: each key paired with the first unpaired value after it
     let keyed_values = |d: u32| -> Vec<u32> {
-        if kind[d as usize] != k_dict {
+        if kind(d as usize) != k_dict {
             return Vec::new();
         }
         let mut ks: Vec<u32> = child_by(d, f_keys).map(ordinal).collect();
@@ -346,9 +338,9 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
             if has_form(*call, Form::ArgumentForm) && rank == 0 {
                 types[v as usize] = true;
             }
-            if has_form(*call, Form::NamedTuple) && rank > 0 && (kind[v as usize] == k_tuple || kind[v as usize] == k_list) {
+            if has_form(*call, Form::NamedTuple) && rank > 0 && (kind(v as usize) == k_tuple || kind(v as usize) == k_list) {
                 for pair in child_by(v, f_elts) {
-                    if kind[pair as usize] != k_tuple && kind[pair as usize] != k_list {
+                    if kind(pair as usize) != k_tuple && kind(pair as usize) != k_list {
                         continue;
                     }
                     let mut elements: Vec<(u32, u32)> = child_by(pair, f_elts).map(|e| (ordinal(e), e)).collect();
@@ -405,15 +397,15 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
     }
     let mut in_target = vec![false; n];
     for p in 0..n {
-        if parent[p] == u32::MAX {
+        if parent(p) == u32::MAX {
             continue;
         }
-        let f = field[p];
+        let f = field(p);
         if f == f_annotation || f == f_returns {
             types[p] = true;
         }
         if f == f_annotation && names_of(p as u32) & ALIAS != 0 {
-            for v in child_by(parent[p], f_value) {
+            for v in child_by(parent(p), f_value) {
                 types[v as usize] = true;
             }
         }
@@ -426,10 +418,10 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
         }
     }
     for p in 0..n as u32 {
-        let k = kind[p as usize];
+        let k = kind(p as usize);
         if k_decl.contains(&k) {
             for c in children(p) {
-                let f = field[c as usize];
+                let f = field(c as usize);
                 if f == f_value || f == f_bound || f == f_default {
                     types[c as usize] = true;
                 }
@@ -463,7 +455,7 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
             for s in child_by(p, f_slice) {
                 values[s as usize] = true;
                 for c in children(s) {
-                    if field[c as usize] == f_keys || field[c as usize] == f_values {
+                    if field(c as usize) == f_keys || field(c as usize) == f_values {
                         values[c as usize] = true;
                     }
                 }
@@ -473,55 +465,21 @@ pub(super) fn rows(run: &mut finish::Run, table: &NodeTable, inp: &Inputs<'_>) -
             }
         }
     }
-    // each element: its own root, else the nearest root above it
-    const UNKNOWN: u8 = 0;
+    // The table numbers a parent before its children (also for tokens and
+    // embedded segments). Carry the nearest class and any enclosing type in
+    // one byte rather than walking ancestor chains for each element.
     const TYPE: u8 = 1;
-    const VALUE: u8 = 2;
-    let mut class = vec![UNKNOWN; n];
+    const ENCLOSED: u8 = 2;
+    let mut class = vec![0u8; n];
     let mut out = Vec::new();
-    let mut chain: Vec<usize> = Vec::new();
-    // a type element strictly above (elements come in preorder: a parent before its children)
-    let mut type_above = vec![false; n];
     for p in 0..n {
-        let mut at = p;
-        chain.clear();
-        let found = loop {
-            if class[at] != UNKNOWN {
-                break class[at];
-            }
-            if types[at] {
-                break TYPE;
-            }
-            if values[at] {
-                break VALUE;
-            }
-            chain.push(at);
-            let up = parent[at];
-            if up == u32::MAX || chain.len() > n {
-                break VALUE;
-            }
-            at = up as usize;
-        };
-        // an element's class is its own root's, else its nearest root's above
-        let own = if types[p] {
-            TYPE
-        } else if values[p] {
-            VALUE
-        } else {
-            found
-        };
-        class[p] = own;
-        for c in &chain {
-            class[*c] = found;
-        }
-        let up = parent[p];
-        if up != u32::MAX && (up as usize) < p {
-            type_above[p] = class[up as usize] == TYPE || type_above[up as usize];
-        }
-        if own == TYPE {
-            out.push((p as u32, true));
-        } else if values[p] && type_above[p] {
-            out.push((p as u32, false));
+        let up = parent(p);
+        let inherited = if up == u32::MAX { 0 } else { class[up as usize] };
+        let typed = types[p] || (!values[p] && inherited & TYPE != 0);
+        let enclosed = inherited != 0;
+        class[p] = u8::from(typed) | if enclosed { ENCLOSED } else { 0 };
+        if typed || (values[p] && enclosed) {
+            out.push((p as u32, typed));
         }
     }
     Ok(out)

@@ -1227,8 +1227,9 @@ impl ColFacts<'_, '_, '_, '_> {
         let rows = annotation_evaluation::rows(run, self.file.table, &target, &embedded)?;
         let (_, names, tys) = run.catalog(fact_catalog::ANNOTATION_EVALUATION_REL).ok_or("no annotation-evaluation")?;
         let mut t = finish::Table { names, tys, cols: vec![Vec::with_capacity(rows.len()); 5], n: rows.len() };
-        for (id, root, evaluation, mode) in rows {
-            let (e, m) = (u64::from(run.sym(evaluation)), u64::from(run.sym(mode)));
+        let classes = annotation_evaluation::NAMES.map(|(e, m)| (u64::from(run.sym(e)), u64::from(run.sym(m))));
+        for (id, root, class) in rows {
+            let (e, m) = classes[class];
             for (c, v) in [u64::from(id), u64::from(root), e, m, u64::from(self.file_no)].into_iter().enumerate() {
                 t.cols[c].push(v);
             }

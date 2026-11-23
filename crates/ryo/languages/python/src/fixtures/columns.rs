@@ -26,8 +26,6 @@ use crate::domain::nodes::types::{Category, Node};
 use crate::domain::qualification::constants::{AMBIGUOUS, BUILTIN, LOCAL, NOT_APPLICABLE, UNRESOLVED};
 use crate::domain::relations::collections::relations::expression_type::constants as type_labels;
 use crate::domain::expression_types::types::Resolution;
-use crate::domain::shape_facts::service::shapes;
-use crate::domain::shape_facts::types::ShapeBuild;
 use crate::domain::string_annotations::service::{form_imports, type_strings};
 use crate::domain::string_annotations::types::FormSource;
 use crate::domain::syntax::service::{category_of, kind_of};
@@ -378,6 +376,7 @@ impl ColumnWalk {
         let memo = &mut self.memo;
         let words = &mut self.words;
         let mut names = std::mem::take(&mut scratch.names);
+        names.shape_classes = true;
         crate::domain::model::names::service::cleared(&mut names);
         self.walk.ports.syntax.walk(SourceText(bytes), source_kind(source_path), ReportedSyntax::Refusals, &mut builder, names, &mut |walked| match walked {
             Walked::Strings(tree) => {
@@ -434,7 +433,7 @@ fn lend(
         analysed: Analysed::default(),
         buffers: &mut scratch.file.buffers,
     };
-    visit(&mut ColumnFile { table, file: &mut file, memo, words });
+    visit(&mut ColumnFile { table, shapes: tree.shapes.as_ref().expect("the column walk requests expression classes"), file: &mut file, memo, words });
 }
 
 /// Spike (6f probe): one node's evaluation region (`ColumnFile::evaluation_region`).
@@ -452,6 +451,7 @@ pub struct Region {
 
 /// One walked file, lent over the reader and over the direct columns.
 pub struct ColumnFile<'a, 'f> {
+    shapes: &'a crate::domain::shape_facts::walk::Classes,
     /// The node table.
     pub table: &'a NodeTable,
     file: &'a mut PythonFile<'f>,
@@ -800,12 +800,12 @@ impl ColumnFile<'_, '_> {
         }
         for kind in [Kind::Node(Node::Name), Kind::Extra(TypedExtra::Identifier)] {
             for Numbered { id, node } in nodes_of_kind(syntax, kind) {
-                let Some(name) = name_of(node) else { continue };
+                if name_of(node).is_none() { continue; }
                 if ask.exists {
                     table.mark(id.0);
                     table.rows += 1;
                 } else {
-                    let name = if table.wants(name_at) { ids.id(name.as_bytes()) } else { 0 };
+                    let name = if table.wants(name_at) { self.memo.name(ids, &syntax.tree.named.names, syntax.tree.named.lexical.name[usize::from(id)]) } else { 0 };
                     table.put(id.0, &[(name_at, name)]);
                 }
             }
@@ -813,13 +813,13 @@ impl ColumnFile<'_, '_> {
         let tree = syntax.tree;
         let first = tree.segments.first().map_or(tree.nodes.len(), |segment| usize::from(segment.first));
         for (place, node) in tree.nodes.iter().enumerate().skip(first) {
-            let Some(name) = name_of(*node) else { continue };
+            if name_of(*node).is_none() { continue; }
             let id = table_id(tree.segments, Position(u32::try_from(place).unwrap_or(u32::MAX))).0;
             if ask.exists {
                 table.mark(id);
                 table.rows += 1;
             } else {
-                let name = if table.wants(name_at) { ids.id(name.as_bytes()) } else { 0 };
+                let name = if table.wants(name_at) { self.memo.name(ids, &tree.named.names, tree.named.lexical.name[place]) } else { 0 };
                 table.put(id, &[(name_at, name)]);
             }
         }
@@ -946,41 +946,11 @@ impl ColumnFile<'_, '_> {
             table.answered = false;
             return;
         }
-        let nodes = node_table::node_count(syntax.table).0;
-        let count = syntax.nodes.len();
-        let is_expression = |id: Position| category_of(kind_of(node_table::kind_of(syntax.table, id))) == Category::Expression;
-        if ask.exists || !table.wants(shape_at) {
-            // whole[id]: the node and every node below it have a shape (a node child is after its parent in id order)
-            let mut whole = vec![false; count];
-            let ipy = crate::domain::syntax::service::kind_bits(Kind::Extra(TypedExtra::IpyEscapeCommand));
-            for id in (0..count).rev() {
-                let at = Position(id as u32);
-                let ok = node_table::kind_of(syntax.table, at) != ipy
-                    && node_table::children_of(syntax.table, at).iter().all(|child| usize::from(*child) >= nodes || whole.get(usize::from(*child)).copied().unwrap_or(false));
-                whole[id] = ok;
-                if ask.exists && ok && is_expression(at) {
-                    table.mark(at.0);
-                    table.rows += 1;
-                }
-            }
-            if !ask.exists {
-                for (i, ok) in whole.into_iter().enumerate() {
-                    let at = Position(i as u32);
-                    if ok && is_expression(at) { table.put(at.0, &[]); }
-                }
-            }
-            return;
-        }
-        if self.file.analysed.shapes == PartState::Pending {
-            shapes(&self.file.syntax, &mut ShapeBuild { index: &mut self.file.buffers.shapes, words: self.words, text: &mut self.file.buffers.text });
-            self.file.analysed.shapes = PartState::Ready;
-        }
-        let syntax = &self.file.syntax;
-        for (id, class) in self.file.buffers.shapes.classes.iter().enumerate().take(count) {
-            let at = Position(id as u32);
-            if let Some(class) = class
-                && category_of(kind_of(node_table::kind_of(syntax.table, at))) == Category::Expression
-            {
+        for (at, class) in self.shapes.rows() {
+            if ask.exists {
+                table.mark(at.0);
+                table.rows += 1;
+            } else {
                 table.put(at.0, &[(shape_at, class.0)]);
             }
         }

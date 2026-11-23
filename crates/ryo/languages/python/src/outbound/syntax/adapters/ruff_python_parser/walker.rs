@@ -84,6 +84,12 @@ impl Walker<'_, '_, '_> {
                 self.name_token(start, end);
             }
         }
+        if let Some(shapes) = &mut self.shapes
+            && let Kind::Token(token) = kind
+            && crate::domain::expression_shapes::service::significant(token).is_some()
+        {
+            shapes.token(kind_bits(kind), self.text.get(start.0 as usize..end.0 as usize).unwrap_or_default());
+        }
         node_table::token(self.builder, kind_bits(kind), field_code(field), start, end);
         self.written = end;
     }
@@ -175,9 +181,13 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
         // The id the table gives the node as it opens: the walk keeps it in the library's own node index.
         let id = u32::try_from(self.nodes.len()).unwrap_or(u32::MAX);
         node.node_index().set(NodeIndex::from(id));
+        let kind = concrete_node_kind(node, strings);
+        if let Some(shapes) = &mut self.shapes {
+            shapes.enter(Position(id), kind, field);
+        }
         node_table::enter_node(
             self.builder,
-            kind_bits(concrete_node_kind(node, strings)),
+            kind_bits(kind),
             field_code(field),
             start,
         );
@@ -282,6 +292,9 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
         };
         self.fill(end);
         if let Some(open) = self.open.pop() {
+            if let Some(shapes) = &mut self.shapes {
+                shapes.leave(open.at, node, self.names.lexical.name[usize::from(open.at)]);
+            }
             self.fields.truncate(open.from.0);
             let after = Position(u32::try_from(self.nodes.len()).unwrap_or(u32::MAX));
             if let Some(subtree_end) = self.subtree_ends.get_mut(usize::from(open.at)) {
