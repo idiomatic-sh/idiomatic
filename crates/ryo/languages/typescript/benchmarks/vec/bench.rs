@@ -16,6 +16,16 @@ mod first;
 use first::{Vocab, span_bytes};
 #[path = "../../../../crates/engine/benches/vec/pair_checks.rs"]
 mod pair_checks;
+#[path = "../../../../crates/engine/benches/vec/summary_schedule.rs"]
+mod summary_schedule;
+#[path = "../../../../crates/engine/benches/vec/summary_values.rs"]
+mod summary_values;
+#[path = "../../../../crates/engine/benches/vec/summary_proofs.rs"]
+mod summary_proofs;
+#[path = "../../../../crates/engine/benches/vec/summary_rules.rs"]
+mod summary_rules;
+#[path = "../../../../crates/engine/benches/vec/summary_literals.rs"]
+mod summary_literals;
 #[path = "../../../../crates/engine/benches/vec/host_columns.rs"]
 mod host_columns;
 #[path = "../../../../crates/engine/benches/vec/glob_pattern.rs"]
@@ -41,7 +51,7 @@ use reader_cli::{alloc_counts, flag, rule_context, thread_cpu};
 fn declaration() -> first::Language {
     // Resolved names can be escaped or implicit. Only actual syntax text entails a written word.
     first::Language {
-        fact_family: |_| pair_summary::cost::Family::Fact,
+        fact_family: reader_run::fact_family,
         walk_facts: &[],
         host_len: finish::host::host_len,
         facts: Vec::new(),

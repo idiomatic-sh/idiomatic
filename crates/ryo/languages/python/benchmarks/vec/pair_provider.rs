@@ -25,6 +25,26 @@ pub(super) const SITES: &[(&str, CellKind)] = &[
 ];
 pub(super) const FACTS: &[WalkFact] = &[
     WalkFact {
+        name: fact_catalog::DEFERRED_RESOLUTION_REL,
+        columns: fact_catalog::DEFERRED_RESOLUTION_COLS,
+        exact: true,
+    },
+    WalkFact {
+        name: fact_catalog::ANNOTATION_EVALUATION_REL,
+        columns: fact_catalog::ANNOTATION_EVALUATION_COLS,
+        exact: true,
+    },
+    WalkFact {
+        name: super::expression_parts::NESTED_DELIMITERS,
+        columns: super::expression_parts::DELIMITER_COLUMNS,
+        exact: true,
+    },
+    WalkFact {
+        name: fact_catalog::BINDING_READ_REL,
+        columns: sites::READ_WITNESS,
+        exact: true,
+    },
+    WalkFact {
         name: fact_catalog::ASSIGNMENT_SOURCE_REL,
         columns: sites::ASSIGNMENT,
         exact: true,
@@ -65,6 +85,16 @@ pub(super) fn site_cells(site: BindingSite, file: usize) -> [u64; 8] {
         file as u64,
     ]
 }
+/// The file visit supplies these complete tables from the same provider instance as the executor.
+pub(super) fn visit_table(name: &str) -> bool {
+    matches!(
+        name,
+        fact_catalog::DEFERRED_RESOLUTION_REL
+            | fact_catalog::ANNOTATION_EVALUATION_REL
+            | super::expression_parts::NESTED_DELIMITERS
+    )
+}
+
 pub(super) fn read(
     file: &mut ColumnFile<'_, '_>,
     number: usize,
@@ -94,7 +124,9 @@ pub(super) fn read(
                 col.0.push(CellWord(cell));
             }
         }),
-        fact_catalog::ASSIGNMENT_SOURCE_REL | fact_catalog::NAMESPACE_SITES_REL => sites::visit(
+        fact_catalog::ASSIGNMENT_SOURCE_REL
+        | fact_catalog::NAMESPACE_SITES_REL
+        | fact_catalog::BINDING_READ_REL => sites::visit(
             name,
             file,
             number as u64,
@@ -128,7 +160,9 @@ pub(super) fn read(
 pub(super) fn family(name: &str) -> super::pair_summary::cost::Family {
     use super::pair_summary::cost::Family::*;
     match name {
-        fact_catalog::PREDECESSOR_REL => Schedule,
+        fact_catalog::PREDECESSOR_REL
+        | fact_catalog::DEFERRED_RESOLUTION_REL
+        | fact_catalog::ANNOTATION_EVALUATION_REL => Schedule,
         "static-import" | "comment" | "filesystem.executable" => Sets,
         super::provider_packaging::MODULE_IDENTITY_REL => Project,
         _ => Fact,

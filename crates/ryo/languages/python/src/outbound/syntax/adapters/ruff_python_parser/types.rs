@@ -220,6 +220,8 @@ pub(super) struct OpenWalked<'t> {
     pub node: ruff_python_ast::AnyNodeRef<'t>,
     /// The id the walk gave it.
     pub at: languages::Position,
+    /// End of this node in the walked source.
+    pub end: Offset,
     /// Where the fields of its children start among the walk's fields.
     pub from: FieldIndex,
     /// The field of its next child, when its children open in the order the fields were read.
@@ -237,8 +239,6 @@ pub(super) struct Walker<'b, 'w, 't> {
     pub next: TokenIndex,
     /// Where the last token written ends: the gap up to the next token is white space.
     pub written: Offset,
-    /// Where each open node ends, the innermost last.
-    pub ends: Vec<Offset>,
     /// The strings open, the innermost last: what an interpolation is named by.
     pub strings: Vec<Strings>,
     /// The library's tokens, to find a keyword in.
@@ -272,6 +272,10 @@ pub(super) struct Walker<'b, 'w, 't> {
     pub literals: Vec<crate::domain::node::types::StringSite>,
     /// The imported names met: the places of the aliases.
     pub imports: Vec<languages::Position>,
+    /// The physical file's import statement count and line-comment presence.
+    pub import_presence: crate::domain::node::types::ImportPresence,
+    /// End of the most recently opened import, until a comment settles whether its line was occupied.
+    pub last_import_end: Option<Offset>,
     /// Relative from-import statements seen in the source walk.
     pub relative_froms: Vec<languages::Position>,
     /// The fields the open nodes hand their children, one run for each open node.

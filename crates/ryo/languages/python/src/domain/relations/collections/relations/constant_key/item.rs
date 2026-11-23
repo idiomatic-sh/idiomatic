@@ -70,7 +70,7 @@ fn key_row(
 
 /// Keys the constants of the file, when no fill of the file has yet: a value's class is named by a member of it, so the
 /// constants are keyed whole, once, by the first fill that asks, whole or by key.
-fn keyed_constants(file: &mut PythonFile<'_>, words: &mut languages::FileWords) {
+pub(crate) fn keyed_constants(file: &mut PythonFile<'_>, words: &mut languages::FileWords) {
     if file.analysed.keys == PartState::Pending {
         let index = &mut file.buffers.keys;
         keyed(
