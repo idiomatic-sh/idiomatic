@@ -450,7 +450,7 @@ impl Handoff {
     pub(super) fn compile(run: &Run, v: &ViewSpec) -> Option<Self> {
         let (col, fields, vocab) = match v.base {
             Native::Tree => (1, false, &run.kind_sym),
-            Native::Child => (3, true, &run.field_sym),
+            Native::Child if !run.file_field_codes => (3, true, &run.field_sym),
             _ => return None,
         };
         if v.filter.is_empty() {

@@ -12,7 +12,7 @@ use crate::domain::model::lexical::types::{NameUse, NamespaceKey, NodeClass, Sco
 use crate::domain::model::names::constants::NO_NAME;
 use crate::domain::model::names::service::builtin_of;
 use crate::domain::model::names::types::NameCode;
-use crate::domain::model::types::BindingAction;
+use crate::domain::model::types::{AnnotatedDeclarations, BindingAction, BindingStep};
 use ruff_python_ast::AnyNodeRef;
 use ryo::languages::{Count, Position};
 
@@ -23,9 +23,10 @@ pub(crate) fn clear(model: &mut ReachModel) {
     model.mutation_count = Count(0);
 }
 
-/// Whether the binding step at `at` gives its name a value: the target of an annotation without a value does not.
+/// A bare annotation declares a name in a stub. In an executable module it leaves the value uninitialized.
 fn binds(source: FlowSource<'_, '_, '_>, at: Position) -> Binds {
-    if let Some(AnyNodeRef::StmtAnnAssign(statement)) = node_at(source.tree, parent_of(source.tree, at))
+    if source.tree.declarations == AnnotatedDeclarations::Unbound
+        && let Some(AnyNodeRef::StmtAnnAssign(statement)) = node_at(source.tree, parent_of(source.tree, at))
         && statement.value.is_none()
     {
         Binds::Nothing
@@ -42,9 +43,10 @@ pub(crate) fn reach(
     frames: &FrameModel,
     source: FlowSource<'_, '_, '_>,
     frame: FrameCode,
-    reference: Position,
+    step: BindingStep,
     name: NameCode,
 ) -> FlowReadState {
+    let reference = step.occurrence;
     model.candidates.clear();
     let classified = |count, absent, open| {
         if open {
@@ -86,6 +88,15 @@ pub(crate) fn reach(
                 form,
                 Some(ScopeForm::Function | ScopeForm::Lambda | ScopeForm::Generator | ScopeForm::Comprehension)
             ) {
+                return classified(model.candidates.len(), true, uncertain);
+            }
+        }
+        // A function-local slot masks outer bindings and builtins even before its first assignment or deletion.
+        if matches!(step.action, BindingAction::Read | BindingAction::Delete)
+            && matches!(form, Some(ScopeForm::Function | ScopeForm::Lambda | ScopeForm::Generator | ScopeForm::Comprehension))
+        {
+            let key = NamespaceKey { scope, name };
+            if source.definitions.index.contains_key(&key) || model.mutations.contains_key(&key) {
                 return classified(model.candidates.len(), true, uncertain);
             }
         }

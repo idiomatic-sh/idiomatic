@@ -190,6 +190,12 @@ impl<P: ParseUseCase> ParseEngine for P {
         walk_in(self, elements, symbols, source, file, wanted, out);
     }
 
+    fn includes_expansions(&self, relation: Relation) -> bool {
+        super::types::slot_of(self, relation).is_some_and(|slot| {
+            super::types::expands(&slot) == crate::domain::answers::types::Expansions::Included
+        })
+    }
+
     fn absence_of(&self, relation: Relation) -> Option<AbsenceCause> {
         absence_in(self, relation)
     }

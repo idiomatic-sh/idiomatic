@@ -245,6 +245,12 @@ pub trait ParseEngine: Send + Sync {
     );
 
     /// Why the language does not read `relation` from a tree, or nothing when it does or when the relation is not one of the trees'.
+    /// Whether this reader visits additional elements supplied by the parser after the native tree.
+    /// Erased readers without an extent declaration must be read through their row interface.
+    fn includes_expansions(&self, _relation: Relation) -> bool {
+        true
+    }
+
     fn absence_of(&self, relation: Relation) -> Option<AbsenceCause>;
 }
 

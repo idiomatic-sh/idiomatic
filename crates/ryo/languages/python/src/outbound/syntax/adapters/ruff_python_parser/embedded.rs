@@ -143,6 +143,7 @@ fn write_segment<'q>(
         refused: Vec::new(),
         future_annotations: FutureAnnotations(false),
         annotations_deferred: false,
+        declarations: crate::domain::model::types::AnnotatedDeclarations::Unbound,
         length: Offset(string.end.0.saturating_sub(string.start.0)),
         nodes: std::mem::take(&mut tree.nodes),
         parents: std::mem::take(&mut tree.parents),
@@ -155,6 +156,7 @@ fn write_segment<'q>(
         annotating: Depth(1),
         literals: std::mem::take(&mut tree.strings),
         imports: std::mem::take(&mut tree.imports),
+        relative_froms: std::mem::take(&mut tree.relative_froms),
         names: std::mem::take(&mut tree.names),
         text: "",
     };
@@ -164,6 +166,7 @@ fn write_segment<'q>(
     tree.ends = walker.subtree_ends;
     tree.strings = walker.literals;
     tree.imports = walker.imports;
+    tree.relative_froms = walker.relative_froms;
     tree.names = walker.names;
     tree.segments.push(EmbeddedSite {
         host: string.host,

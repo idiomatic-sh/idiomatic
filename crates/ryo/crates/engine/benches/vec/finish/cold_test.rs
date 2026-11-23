@@ -8,11 +8,15 @@ use std::rc::Rc;
 pub(super) enum Kernel {
     Columns(&'static str, super::cold_pred::Program),
     One(u16),
+    FieldWords(Box<[u32]>),
     Set { allowed: Box<[bool]>, unknown: bool },
 }
 
 impl Kernel {
     fn fields(run: &Run, members: &[u32]) -> Self {
+        if run.file_field_codes {
+            return Self::FieldWords(members.into());
+        }
         let unknown = members.binary_search(&run.empty).is_ok();
         let allowed: Box<[bool]> = run
             .field_sym
@@ -34,6 +38,10 @@ impl Kernel {
         let field = &f.field;
         match self {
             Self::Columns(_, program) => program.retain(f, run, rows),
+            Self::FieldWords(words) => rows.retain(|r| {
+                let word = run.field_sym.get(usize::from(field[*r as usize])).copied().unwrap_or(run.empty);
+                words.binary_search(&word).is_ok()
+            }),
             Self::One(code) => rows.retain(|r| field[*r as usize] == *code),
             Self::Set { allowed, unknown } => rows.retain(|r| {
                 allowed

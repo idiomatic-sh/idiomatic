@@ -7,19 +7,16 @@ use super::finish::{self, Supplier, Ty, project::ProjectAsk};
 
 /// Syntactic stores and unbindings for a single name in one namespace and evaluation phase.
 pub(super) const BINDING_SITES_REL: &str = "binding-sites";
-const BINDING_SITES_COLS: [(&str, Ty); 8] = [("binding", Ty::Node), ("stores", Ty::Num), ("removals", Ty::Num), ("later", Ty::Num), ("statement", Ty::Node), ("series-end", Ty::Node), ("next", Ty::Node), ("file", Ty::File)];
 
-/// Source assignment targets, their whole or positionally unpacked RHS and assignment form.
+/// Source assignment targets, their whole or statically unpacked RHS and assignment form.
 pub(super) const ASSIGNMENT_SOURCE_REL: &str = "assignment-source";
-const ASSIGNMENT_SOURCE_COLS: [(&str, Ty); 5] = [("target", Ty::Node), ("value", Ty::Node), ("operation", Ty::Sym), ("association", Ty::Sym), ("file", Ty::File)];
+/// First declarations and first mutations of a name in a routed namespace.
+pub(super) const NAMESPACE_SITES_REL: &str = "namespace-sites";
 
 /// Reads before the first scheduled store or annotation of their name in the same namespace and phase.
 pub(super) const PRE_DECLARATION_READ_REL: &str = "pre-declaration-read";
 const PRE_DECLARATION_READ_COLS: [(&str, Ty); 5] = [("reference", Ty::Node), ("scope", Ty::Node), ("phase", Ty::Node), ("ordinal", Ty::Num), ("file", Ty::File)];
 
-/// Scheduled first declaration and scheduled/source-order first mutation for a routed name.
-pub(super) const NAMESPACE_SITES_REL: &str = "namespace-sites";
-const NAMESPACE_SITES_COLS: [(&str, Ty); 6] = [("scope", Ty::Node), ("name", Ty::Sym), ("first", Ty::Num), ("first-mutation", Ty::Num), ("first-written", Ty::Num), ("file", Ty::File)];
 
 /// Dotted name requested by a relative import when its containing package is known.
 pub(super) const RELATIVE_IMPORT_REL: &str = "relative-import-target";
@@ -62,30 +59,28 @@ pub(super) const TYPE_REGION_COLS: [(&str, Ty); 2] = [("id", Ty::Node), ("file",
 pub(super) const PREDECESSOR_REL: &str = "scheduled-read-predecessor";
 /// One row per possible flow outcome at a read, with the scheduled predecessor recorded separately.
 pub(super) const RESOLUTION_REL: &str = "read-resolution";
-pub(super) const RESOLUTION_COLS: [(&str, Ty); 9] = [
-    ("reference", Ty::Node),
-    ("event", Ty::Node),
-    ("kind", Ty::Sym),
-    ("namespace", Ty::Sym),
-    ("scope", Ty::Node),
-    ("depth", Ty::Num),
-    ("ordinal", Ty::Num),
-    ("context", Ty::Sym),
-    ("file", Ty::File),
-];
+
 
 
 /// Declares to `run` every relation this provider, the host and the executor's steps supply beyond the provider's relations
 /// catalog.
 pub(super) fn declare(run: &mut finish::Run) {
+    super::import_syntax::declare(run);
+    let columns = |fields: &[(&'static str, ryo::languages::CellKind)]| -> Vec<_> {
+        fields.iter().map(|&(n, k)| (n, finish::ty_of(k))).collect()
+    };
+    let sites = columns(super::pair_provider::SITES);
+    let mut resolutions = columns(super::pair_provider::predecessor::COLUMNS);
+    let assignments = columns(super::pair_provider::sites::ASSIGNMENT);
+    let namespaces = columns(super::pair_provider::sites::NAMESPACE);
     let facts: &[(&str, &[(&str, Ty)])] = &[
-        (REGION_REL, &REGION_COLS),
-        (BINDING_SITES_REL, &BINDING_SITES_COLS),
-        (ASSIGNMENT_SOURCE_REL, &ASSIGNMENT_SOURCE_COLS),
+        (ASSIGNMENT_SOURCE_REL, &assignments),
         (PRE_DECLARATION_READ_REL, &PRE_DECLARATION_READ_COLS),
-        (NAMESPACE_SITES_REL, &NAMESPACE_SITES_COLS),
+        (NAMESPACE_SITES_REL, &namespaces),
+        (REGION_REL, &REGION_COLS),
+        (BINDING_SITES_REL, &sites),
         (RELATIVE_IMPORT_REL, &RELATIVE_IMPORT_COLS),
-        (PREDECESSOR_REL, &RESOLUTION_COLS),
+        (PREDECESSOR_REL, &resolutions),
         (FINAL_REL, &FINAL_COLS),
         (TYPE_EXPRESSION_REL, &TYPE_EXPRESSION_COLS),
         (ANNOTATION_EVALUATION_REL, &ANNOTATION_EVALUATION_COLS),
@@ -96,7 +91,6 @@ pub(super) fn declare(run: &mut finish::Run) {
     for &(name, cols) in facts {
         run.declare(name, cols, Supplier::Provider);
     }
-    let mut resolutions = RESOLUTION_COLS.to_vec();
     resolutions.extend([("binding", Ty::Node), ("outcome", Ty::Sym), ("basis", Ty::Sym)]);
     run.declare(RESOLUTION_REL, &resolutions, Supplier::Provider);
     // the host's: the run's files, and the file system's facts of a file (their columns: the relations catalog's)

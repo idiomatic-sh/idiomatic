@@ -73,7 +73,7 @@ impl ReaderFacts {
     }
 }
 
-fn symbol(run: &mut Run, symbols: &l::Symbols, bytes: &[u8], word: l::Symbol) -> u32 {
+pub(super) fn symbol(run: &mut Run, symbols: &l::Symbols, bytes: &[u8], word: l::Symbol) -> u32 {
     let text = l::text_of(symbols, ByteSlice(bytes), word);
     run.sym(text.map_or(b"", |t| t.0.as_bytes()))
 }

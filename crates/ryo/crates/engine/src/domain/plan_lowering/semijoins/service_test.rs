@@ -31,7 +31,8 @@ const CASES: &[Case<Input, Value, Failure>] = &[Case {
 }];
 
 fn subject(mut plan: Input) -> Result<Value, Failure> {
-    let marked = semijoined(&mut plan);
+    let uses = crate::domain::plan_lowering::readers::service::step_uses(&plan);
+    let marked = semijoined(&mut plan, &uses);
     Ok((marked, select_marks(&plan).try_into().map_err(|_| ())?))
 }
 
