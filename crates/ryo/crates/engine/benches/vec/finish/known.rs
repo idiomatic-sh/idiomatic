@@ -320,7 +320,7 @@ impl Exec<'_> {
             }
             "antijoin" | "ordered-match" | "as-of" => "left",
             "closure" | "follow" => "edges",
-            "base" | "rows" => {
+            "base" | "rows" | "worklist" => {
                 n.never = true;
                 return n;
             }
