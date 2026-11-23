@@ -83,6 +83,8 @@ mod view_cols;
 pub(super) mod emptyprop;
 #[path = "ordering.rs"]
 mod ordering;
+#[path = "finish/keyed.rs"]
+mod keyed;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum Ty {
@@ -1113,9 +1115,16 @@ pub(super) struct Stats {
     pub(super) static_time: f64,
     pub(super) static_depth: u32,
     pub(super) static_visits: u64,
+    /// redo-whole pass 2: visits of steps with no leaf of their own (decided by their inputs alone).
+    pub(super) static_pass: u64,
     pub(super) static_file_tests: u64,
     pub(super) rec_time: f64,
     pub(super) rec_busy: bool,
+    /// redo-whole pass 2 (keyed.rs): runs by key of a step read in place of made whole, those that returned nothing, and
+    /// the rows of tables a step builds (a table handed on from an input counts 0).
+    pub(super) keyed: Vec<u64>,
+    pub(super) keyed_empty: Vec<u64>,
+    pub(super) built: Vec<u64>,
 }
 
 // ------------------------------------------------------------------------------------------------ expressions
@@ -1305,7 +1314,7 @@ impl<'p> Exec<'p> {
         let k = plan.nodes.len();
         Exec {
             plan,
-            stats: Stats { time: vec![0.0; k], rows: vec![0; k], calls: vec![0; k], touched: vec![0; k], empty: vec![0; k], known: vec![0; k], empty_time: vec![0.0; k], static_time: 0.0, static_depth: 0, static_visits: 0, static_file_tests: 0, rec_time: 0.0, rec_busy: false },
+            stats: Stats { time: vec![0.0; k], rows: vec![0; k], calls: vec![0; k], touched: vec![0; k], empty: vec![0; k], known: vec![0; k], empty_time: vec![0.0; k], static_time: 0.0, static_depth: 0, static_visits: 0, static_pass: 0, static_file_tests: 0, rec_time: 0.0, rec_busy: false, keyed: vec![0; k], keyed_empty: vec![0; k], built: vec![0; k] },
             schemas: vec![None; k],
             views: vec![None; k],
             sels: vec![None; k],
@@ -1769,6 +1778,7 @@ impl<'p> Exec<'p> {
         emptyprop::ran();
         self.stats.calls[node] += 1;
         self.stats.rows[node] += out.n as u64;
+        keyed::built(self, f, node, &out);
         if out.n == 0 {
             self.stats.empty[node] += 1;
         }
@@ -1808,6 +1818,12 @@ impl<'p> Exec<'p> {
     fn probe(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64]) -> R<Rc<Table>> {
         if keys.is_empty() {
             return self.empty_rc(run, node);
+        }
+        // redo-whole pass 2: a step not made in this file whose one consumer reads it by key is read by key (keyed.rs)
+        if f.memo[node].is_none()
+            && let Some(t) = self.keyed(f, run, p, node, col, keys, false)?
+        {
+            return Ok(t);
         }
         if let Some(v) = self.view(run, node)?
             && File::probes(v.base, v.map[col])
@@ -1888,6 +1904,7 @@ impl<'p> Exec<'p> {
                     view_cols::gather(f, run, v.base, v.map[c], &rows, &mut out.cols[c]);
                 }
                 out.n = rows.len();
+                self.stats.built[node] += out.n as u64;
                 let rc = recycle::rc(out);
                 f.vmat.insert(node, rc.clone());
                 let dt = step_clock() - t0;
