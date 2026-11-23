@@ -92,12 +92,16 @@ impl Circuit {
 
     pub(super) fn evaluate(&mut self, changed: bool) {
         if self.valid && !changed { return; }
-        let mut dest = 2 * (1 + self.leaves);
-        for &[a, b] in &self.gates {
-            let value = self.values[a as usize] & self.values[b as usize];
-            self.values[dest] = value;
-            self.values[dest + 1] = value ^ 1;
-            dest += 2;
+        // Gates and their two-byte destinations are parallel arrays. Reads
+        // refer to earlier literals, including gates written in this pass.
+        let values = std::cell::Cell::from_mut(self.values.as_mut_slice()).as_slice_of_cells();
+        let (outputs, rest) = values[2 * (1 + self.leaves)..].as_chunks::<2>();
+        debug_assert!(rest.is_empty());
+        debug_assert_eq!(outputs.len(), self.gates.len());
+        for (&[a, b], [yes, no]) in self.gates.iter().zip(outputs) {
+            let value = values[a as usize].get() & values[b as usize].get();
+            yes.set(value);
+            no.set(value ^ 1);
         }
         self.valid = true;
     }
