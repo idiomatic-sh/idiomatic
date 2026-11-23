@@ -332,7 +332,7 @@ fn visit_groups(
     let mut elements = l::Elements::default();
     let mut symbols = l::Symbols::default();
     let mut tree = l::NodeTable::default();
-    let mut rows = l::contract::Collect::default();
+    let mut packet = reader_run::packet::Packet::new();
     for &group in ids {
         let t = thread_cpu();
         let versions = versions(&groups[group], sources, &mut output, &mut clocks.reads);
@@ -499,7 +499,7 @@ fn visit_groups(
                 .flat_map(|(b, _)| bound[b].as_ref().unwrap().facts.iter().copied())
                 .collect();
             let facts: Vec<_> = wanted.into_iter().collect();
-            rows.clear();
+            packet.clear();
             if let Some(parser) = &parser
                 && !facts.is_empty()
             {
@@ -509,11 +509,12 @@ fn visit_groups(
                     ByteSlice(&bytes),
                     id,
                     &facts,
-                    &mut rows,
+                    &mut packet.rows,
                 );
             }
-            let partials = std::mem::take(&mut rows.partials);
-            provider.receive(&mut run, &facts, &rows, &symbols, &bytes);
+            let partials = std::mem::take(&mut packet.rows.partials);
+            packet.index(&facts);
+            let mut provider = packet.view(&mut provider, &symbols, &bytes);
             clocks.read_parse += thread_cpu() - t;
             let t = thread_cpu();
             let lines = active
