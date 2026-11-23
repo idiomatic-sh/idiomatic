@@ -8,6 +8,7 @@
 use super::request_guards::{ALWAYS, Guards};
 use super::{E, Exec, File, Native, Provider, R, Run, Scope, Supplier, Table, host, native_of};
 use rustc_hash::FxHashMap;
+use std::rc::Rc;
 use ryo::languages::ColumnProjection as Columns;
 
 /// One relation of a request: its name and the columns its readers can read (bit `c`: the catalog's column `c`; every bit:
@@ -35,7 +36,8 @@ pub(crate) struct Requests {
     by_name: FxHashMap<String, u16>,
     /// Who supplies each (the host or the provider), by number.
     host: Vec<bool>,
-    schemas: Vec<Option<(super::Names, super::Tys)>>,
+    /// One immutable empty table per declared schema, shared by certified absences.
+    empty: Vec<Option<Rc<Table>>>,
     run_columns: Vec<Columns>,
     suppliers: Vec<Supplier>,
     pub(super) base_slots: Vec<Option<u16>>,
@@ -207,9 +209,9 @@ impl Exec<'_> {
             let slot = self.requests.number(run, rel);
             self.requests.base_slots[i] = Some(slot);
             if usize::from(slot) == run.fact_rels.len() {
-                let schema = run.catalog(rel).map(|(_, names, tys)| (names, tys));
-                let width = schema.as_ref().map(|(names, _)| names.len());
-                self.requests.schemas.push(schema);
+                let empty = run.catalog(rel).map(|(_, names, tys)| Rc::new(Table::projected(names, tys, 0, 0)));
+                let width = empty.as_ref().map(|table| table.names.len());
+                self.requests.empty.push(empty);
                 run.fact_rels.push((rel.to_owned(), width.unwrap_or(0)));
                 if width.is_some() { run.fact_slots.insert(rel.to_owned(), slot); }
             }
@@ -404,7 +406,7 @@ impl Exec<'_> {
                 if let Supplier::Project(ask) = rq.suppliers[i] {
                     let mask = masks[i].as_mut().unwrap();
                     if matches!(ask, super::project::ProjectAsk::Run) { mask.clone_from(&rq.run_columns[i]); }
-                    if let Some(k) = rq.schemas[i].as_ref().and_then(|(_, tys)| tys.iter().position(|ty| *ty == super::Ty::File)) { mask.insert(k); }
+                    if let Some(k) = rq.empty[i].as_ref().and_then(|table| table.tys.iter().position(|ty| *ty == super::Ty::File)) { mask.insert(k); }
                 }
             }
             let mut list: Vec<Asked<'_>> = asked
@@ -473,12 +475,11 @@ impl Exec<'_> {
 
     /// A relation's table from the file's answer (moved out: the caller keeps it as the file's fill), or an error naming a
     /// relation the request did not hold.
-    pub(super) fn answered(&mut self, f: &mut File<'_>, i: usize) -> R<Table> {
+    pub(super) fn answered(&mut self, f: &mut File<'_>, i: usize) -> R<Rc<Table>> {
         let timed = super::fill_prof::timed();
         let t0 = if timed { super::super::thread_cpu() } else { 0.0 };
         if self.requests.proven_empty.get(i).copied().unwrap_or(false) {
-            let (names, tys) = self.requests.schemas[i].as_ref().ok_or("unknown relation declared empty")?;
-            return Ok(Table::projected(names.clone(), tys.clone(), 0, 0));
+            return self.requests.empty[i].clone().ok_or_else(|| "unknown relation declared empty".to_owned());
         }
         let slot = f.answer.get_mut(i);
         let result = match slot {
@@ -486,7 +487,7 @@ impl Exec<'_> {
                 if matches!(self.requests.suppliers[i], Supplier::Project(super::project::ProjectAsk::Run)) {
                     self.requests.run_unused[i] = None;
                 }
-                slot.take().unwrap()
+                slot.take().unwrap().map(super::recycle::rc)
             }
             Some(Some(Err(err))) => Err(err.clone()),
             _ => {

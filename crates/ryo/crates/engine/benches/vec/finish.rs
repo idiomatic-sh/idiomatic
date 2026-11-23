@@ -2508,8 +2508,7 @@ impl<'p> Exec<'p> {
         if f.facts.get(i).is_some_and(Option::is_some) {
             return Ok(());
         }
-        let t = self.answered(f, i)?;
-        f.facts[i] = Some(recycle::rc(t));
+        f.facts[i] = Some(self.answered(f, i)?);
         Ok(())
     }
 
@@ -2517,7 +2516,7 @@ impl<'p> Exec<'p> {
         if let Some(i) = self.requests.base_slots[node] {
             let i = usize::from(i);
             if f.facts[i].is_none() {
-                f.facts[i] = Some(recycle::rc(self.answered(f, i)?));
+                f.facts[i] = Some(self.answered(f, i)?);
             }
             return Ok(f.facts[i].as_ref().unwrap().copy());
         }

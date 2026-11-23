@@ -133,6 +133,24 @@ mod tests {
     use super::Compiler;
 
     #[test]
+    fn deep_decisions_share_a_file_and_reset_between_files() {
+        let count = 4096;
+        let mut compiler = Compiler::new(count);
+        let gate = (1..=count as u32).fold(0, |root, i| compiler.and(root, 2 * i));
+        let mut circuit = compiler.circuit;
+        let map = circuit.retain_outputs([gate].into_iter());
+        let gate = super::Circuit::remap(&map, gate);
+        for i in 0..count { circuit.set(i, true); }
+        circuit.evaluate(true);
+        assert!(circuit.permits(gate));
+        assert!(!circuit.permits(gate ^ 1));
+        assert!(circuit.set(0, false));
+        circuit.evaluate(true);
+        assert!(!circuit.permits(gate));
+        assert!(circuit.permits(gate ^ 1));
+    }
+
+    #[test]
     fn shared_gates_keep_their_truth_across_files() {
         let mut compiler = Compiler::new(3);
         let (a, b, c) = (2, 4, 6);
