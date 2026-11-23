@@ -43,12 +43,19 @@ ryo::fills! {
             rows.partial(languages::ReportText(INCOMPLETE), languages::Missing::Any);
             return;
         }
+        let text_column = <languages::IndentRegion as languages::CatalogRelation>::columns().iter()
+            .position(|column| *column == languages::IndentRegionColumn::Indentation).expect("catalog column");
+        let wants_text = rows.wants_column(text_column);
         for region in regions.iter() {
-            let indentation = text_between(&file.syntax, region.span.start, region.indentation_end);
+            let indentation = if wants_text {
+                word(words, text_between(&file.syntax, region.span.start, region.indentation_end))
+            } else {
+                languages::Symbol(0)
+            };
             rows.write(Row {
                 id: node_cell(&file.syntax, region.id),
                 parent: node_cell(&file.syntax, region.parent),
-                indentation: word(words, indentation),
+                indentation,
                 start_byte: languages::Integer(i64::from(region.span.start.0)),
                 end_byte: languages::Integer(i64::from(region.span.end.0)),
                 file: file.syntax.file,

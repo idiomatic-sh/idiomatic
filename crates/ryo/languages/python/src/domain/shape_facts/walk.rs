@@ -24,23 +24,6 @@ pub(crate) struct Carriers {
     pub(crate) brace: bool,
 }
 
-#[derive(Debug, Default)]
-pub(crate) struct Classes {
-    pub(crate) carriers: Carriers,
-    expressions: Vec<Position>,
-    handles: Vec<Option<Position>>,
-    last: Vec<Position>,
-}
-
-impl Classes {
-    pub(crate) fn rows(&self) -> impl Iterator<Item = (Position, Position)> + '_ {
-        self.expressions.iter().filter_map(|&at| {
-            let handle = self.handles[usize::from(at)]?;
-            Some((at, self.last[usize::from(handle)]))
-        })
-    }
-}
-
 #[derive(Debug)]
 struct Open {
     active: bool,
@@ -177,21 +160,25 @@ impl WalkShapes {
             let mut build = ShapeBuild { index: &mut self.index, words: &mut self.words, text: &mut self.text };
             build.index.scratch.push(ShapeWord::Kind(kind_bits(open.kind)));
             payload(&mut build, node);
-            if valued(&mut build, node) == ShapeReading::ByChildren {
-                let children = &self.children[open.start..];
-                if open.kind == Kind::Extra(Extra::CallArguments) {
-                    for f in [Field::Args, Field::Keywords] {
-                        build.index.scratch.extend(children.iter().filter(|w| matches!(w, ShapeWord::Child(c, _) if *c == field_bits(f))));
-                    }
-                } else {
-                    build.index.scratch.extend_from_slice(children);
-                }
-            }
+            let by_children = valued(&mut build, node) == ShapeReading::ByChildren;
             self.key.clear();
             let mut child = None;
-            for &word in &build.index.scratch {
+            let mut append = |word| {
                 if let ShapeWord::Child(_, id) = word { child = Some(id); }
                 self.key.push(encoded(word));
+            };
+            for &word in &build.index.scratch { append(word); }
+            if by_children {
+                let children = &self.children[open.start..];
+                if open.kind == Kind::Extra(Extra::CallArguments) {
+                    for field in [field_bits(Field::Args), field_bits(Field::Keywords)] {
+                        for &word in children {
+                            if matches!(word, ShapeWord::Child(f, _) if f == field) { append(word); }
+                        }
+                    }
+                } else {
+                    for &word in children { append(word); }
+                }
             }
             let next = Position(self.last.len() as u32);
             let class = self.other.class(kind_bits(open.kind), child, &self.key, next);
@@ -206,8 +193,32 @@ impl WalkShapes {
         }
     }
 
-    pub(crate) fn finish(self) -> Classes {
-        Classes { carriers: self.carriers, expressions: self.expressions, handles: self.index.classes, last: self.last }
+    pub(crate) fn new(words: FileWords) -> Self {
+        Self { words, ..Self::default() }
+    }
+
+    /// Retain worker buffers; every class and word belongs to the current file.
+    pub(crate) fn clear(&mut self) {
+        self.stack.clear();
+        self.children.clear();
+        self.names.clear();
+        self.other.child.clear();
+        self.other.kind.clear();
+        self.other.words.clear();
+        self.key.clear();
+        ryo::languages::facts::clear_words(&mut self.words);
+        ryo::languages::clear_keys(&mut self.index);
+        self.text.0.clear();
+        self.carriers = Carriers::default();
+        self.expressions.clear();
+        self.last.clear();
+    }
+
+    pub(crate) fn rows(&self) -> impl Iterator<Item = (Position, Position)> + '_ {
+        self.expressions.iter().filter_map(|&at| {
+            let handle = self.index.classes[usize::from(at)]?;
+            Some((at, self.last[usize::from(handle)]))
+        })
     }
 }
 

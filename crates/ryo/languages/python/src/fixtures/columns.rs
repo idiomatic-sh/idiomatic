@@ -318,7 +318,6 @@ pub struct ColumnWalk {
     walk: PythonWalk<WalkPorts>,
     scratch: PythonWalkScratch,
     memo: TextMemo,
-    words: FileWords,
     /// When set, the table is written `structured` with these enclosing kind sets.
     structure: Option<Vec<languages::KindSet>>,
 }
@@ -365,11 +364,12 @@ impl ColumnWalk {
         } else {
             PythonParserSettings::default()
         };
+        let mut scratch = PythonWalkScratch::default();
+        scratch.names.shapes = Some(Box::new(crate::domain::shape_facts::walk::WalkShapes::new(words)));
         Self {
             walk: PythonWalk { ports: WalkPorts { settings, syntax: Arc::new(ruff_python_parser(settings)) } },
-            scratch: PythonWalkScratch::default(),
+            scratch,
             memo: TextMemo::default(),
-            words,
             structure: None,
         }
     }
@@ -398,13 +398,11 @@ impl ColumnWalk {
         let target = self.walk.ports.settings.target_version().components();
         self.scratch.file.model.target = target;
         self.memo.names.clear();
-        languages::facts::clear_words(&mut self.words);
         let mut built_parts = Built::default();
         let scratch = &mut self.scratch;
         let memo = &mut self.memo;
-        let words = &mut self.words;
         let mut names = std::mem::take(&mut scratch.names);
-        names.shape_classes = true;
+        if let Some(shapes) = &mut names.shapes { shapes.clear(); }
         crate::domain::model::names::service::cleared(&mut names);
         self.walk.ports.syntax.walk(SourceText(bytes), source_kind(source_path), ReportedSyntax::Refusals, &mut builder, names, &mut |walked| match walked {
             Walked::Strings(tree) => {
@@ -423,7 +421,7 @@ impl ColumnWalk {
                 hosts
             }
             Walked::Whole(written, tree) => {
-                lend(written, &tree, target, scratch, built_parts, memo, words, visit);
+                lend(written, &tree, target, scratch, built_parts, memo, visit);
                 // the walk's buffers go back to the worker for the next file
                 scratch.names = tree.names;
                 Vec::new()
@@ -441,7 +439,6 @@ fn lend(
     scratch: &mut PythonWalkScratch,
     built_parts: Built,
     memo: &mut TextMemo,
-    words: &mut FileWords,
     visit: &mut dyn FnMut(&mut ColumnFile<'_, '_>),
 ) {
     let table = node_table::finished(builder);
@@ -461,7 +458,7 @@ fn lend(
         analysed: Analysed::default(),
         buffers: &mut scratch.file.buffers,
     };
-    let shapes = tree.shapes.as_ref().expect("the column walk requests expression classes");
+    let shapes = tree.names.shapes.as_deref().expect("the column walk requests expression classes");
     let mut empty = Vec::new();
     if tree.completeness.syntax == languages::SyntaxCompleteness::Complete && tree.completeness.lexical == languages::SyntaxCompleteness::Complete {
         let absent = |kind| node_table::ids_of_kind(table, crate::domain::syntax::service::kind_bits(kind)).is_empty();
@@ -498,7 +495,7 @@ fn lend(
     if node_table::syntax_error_count(table).0 == 0 { empty.push("syntax-error"); }
     let immediate_annotations = target < crate::domain::binding_schedule::constants::LAZY_ANNOTATIONS_FROM
         && tree.annotations == crate::domain::model::types::BindingAnnotationTiming::Immediate;
-    visit(&mut ColumnFile { table, empty, immediate_annotations, shapes, file: &mut file, memo, words });
+    visit(&mut ColumnFile { table, empty, immediate_annotations, shapes, file: &mut file, memo });
 }
 
 /// Spike (6f probe): one node's evaluation region (`ColumnFile::evaluation_region`).
@@ -520,12 +517,11 @@ pub struct ColumnFile<'a, 'f> {
     pub empty: Vec<&'static str>,
     /// The walk's compiler features and target give annotations immediate evaluation.
     pub immediate_annotations: bool,
-    shapes: &'a crate::domain::shape_facts::walk::Classes,
+    shapes: &'a crate::domain::shape_facts::walk::WalkShapes,
     /// The node table.
     pub table: &'a NodeTable,
     file: &'a mut PythonFile<'f>,
     memo: &'a mut TextMemo,
-    words: &'a mut FileWords,
 }
 
 /// The catalog place of a column of a relation.
@@ -790,11 +786,7 @@ impl ColumnFile<'_, '_> {
     #[must_use]
     pub fn row_count(&self, relation: Relation) -> Option<usize> {
         match relation {
-            Relation::Comment => Some(
-                crate::domain::layout_facts::service::tokens(&self.file.syntax)
-                    .filter(|at| at.token == crate::domain::tokens::types::Token::Comment)
-                    .count(),
-            ),
+            Relation::Comment => Some(crate::domain::layout_facts::service::token_ids(&self.file.syntax, crate::domain::tokens::types::Token::Comment).len()),
             Relation::EmbeddedExpression => Some(self.file.syntax.tree.segments.len()),
             // a row an import alias: a file with no alias has none
             Relation::StaticImport | Relation::StandardLibraryImport => nodes_of_kind(&self.file.syntax, Kind::Node(Node::Alias)).next().is_none().then_some(0),
@@ -877,37 +869,33 @@ impl ColumnFile<'_, '_> {
             table.answered = false;
             return;
         }
-        fn name_of<'n>(node: AnyNodeRef<'n>) -> Option<&'n str> {
-            let name = match node {
-                AnyNodeRef::ExprName(name) => name.id.as_str(),
-                AnyNodeRef::Identifier(identifier) => identifier.id.as_str(),
-                _ => return None,
-            };
-            (!name.is_empty() && name != crate::domain::name_facts::constants::EVERYTHING).then_some(name)
-        }
-        for kind in [Kind::Node(Node::Name), Kind::Extra(TypedExtra::Identifier)] {
-            for Numbered { id, node } in nodes_of_kind(syntax, kind) {
-                if name_of(node).is_none() { continue; }
-                if ask.exists {
-                    table.mark(id.0);
-                    table.rows += 1;
-                } else {
-                    let name = if table.wants(name_at) { self.memo.name(ids, &syntax.tree.named.names, syntax.tree.named.lexical.name[usize::from(id)]) } else { 0 };
-                    table.put(id.0, &[(name_at, name)]);
-                }
-            }
-        }
         let tree = syntax.tree;
-        let first = tree.segments.first().map_or(tree.nodes.len(), |segment| usize::from(segment.first));
-        for (place, node) in tree.nodes.iter().enumerate().skip(first) {
-            if name_of(*node).is_none() { continue; }
-            let id = table_id(tree.segments, Position(u32::try_from(place).unwrap_or(u32::MAX))).0;
+        let names = &tree.named.names;
+        let empty = crate::domain::model::names::service::find(names, NameText(""));
+        let wildcard = crate::domain::model::names::service::find(names, NameText(crate::domain::name_facts::constants::EVERYTHING));
+        let wanted = !ask.exists && table.wants(name_at);
+        let mut emit = |id: Position, at: usize| {
+            let code = tree.named.lexical.name[at];
+            if Some(code) == empty || Some(code) == wildcard { return; }
             if ask.exists {
-                table.mark(id);
+                table.mark(id.0);
                 table.rows += 1;
             } else {
-                let name = if table.wants(name_at) { self.memo.name(ids, &tree.named.names, tree.named.lexical.name[place]) } else { 0 };
-                table.put(id, &[(name_at, name)]);
+                let name = if wanted { self.memo.name(ids, names, code) } else { 0 };
+                table.put(id.0, &[(name_at, name)]);
+            }
+        };
+        for kind in [Kind::Node(Node::Name), Kind::Extra(TypedExtra::Identifier)] {
+            let ids = node_table::ids_of_kind(syntax.table, crate::domain::syntax::service::kind_bits(kind));
+            for &id in ids.iter().take_while(|id| usize::from(**id) < syntax.nodes.len()) {
+                emit(id, usize::from(id));
+            }
+        }
+        // Embedded rows follow all own rows, in parser order across kinds.
+        let first = syntax.nodes.len();
+        for (place, class) in tree.named.lexical.class.iter().enumerate().skip(first) {
+            if matches!(class, NodeClass::Name | NodeClass::Identifier) {
+                emit(table_id(tree.segments, Position(place as u32)), place);
             }
         }
     }
