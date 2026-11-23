@@ -36,6 +36,8 @@ pub(super) fn step_clock() -> f64 {
 mod recycle;
 #[path = "finish/inline_key.rs"]
 mod inline_key;
+#[path = "finish/col/mod.rs"]
+mod col;
 #[path = "finish/select_kernel.rs"]
 mod select_kernel;
 #[path = "finish/handover.rs"]
@@ -64,8 +66,10 @@ pub(super) mod empty_sel;
 mod prefixes;
 #[path = "finish/ordered_dfs.rs"]
 mod ordered_dfs;
-#[path = "finish/request.rs"]
-pub(super) mod request;
+#[path = "finish/lazy_view.rs"]
+mod lazy_view;
+#[path = "finish/fill_len.rs"]
+pub(super) mod fill_len;
 #[path = "finish/host.rs"]
 pub(super) mod host;
 #[path = "finish/project.rs"]
@@ -81,6 +85,8 @@ mod view_cols;
 pub(super) mod emptyprop;
 #[path = "ordering.rs"]
 mod ordering;
+#[path = "finish/keyed.rs"]
+mod keyed;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum Ty {
@@ -634,8 +640,6 @@ pub(super) struct File<'a> {
     touched: Vec<u32>,
     /// redo-fills (`VEC_FILL_COUNT`): per fact slot, whether a step read the fill's rows (not only its size).
     fact_read: Vec<std::cell::Cell<bool>>,
-    /// redo-fills pass 3: the file's one answer by request number (request.rs), each taken at its first ask into `fills`.
-    answer: Vec<Option<Result<Table, String>>>,
 }
 
 thread_local! {
@@ -750,11 +754,12 @@ pub(super) enum Scope<'s> {
 
 /// How a step asks the provider for a relation's rows: the visit's facts.
 pub(super) trait Provider {
-    /// redo-fills pass 3: the one answer to a scope's request: every asked relation's rows in `request.scope`, one table a
-    /// relation pushed onto `out` in the request's order, each cell as the run names it (a file cell is the run's number of
-    /// the file it names), or the language's refusal of that relation for the scope (a step that reads it faults). The
-    /// provider builds what the set needs once and nothing no asked relation reads; `Err`: no answer at all.
-    fn answer(&mut self, run: &mut Run, request: &request::Request<'_>, out: &mut Vec<Result<Table, String>>) -> Result<(), String>;
+    /// Every row of `rel` in `scope`, each cell as the run names it (a file cell is the run's number of the file it names).
+    fn fill(&mut self, run: &mut Run, rel: &str, scope: Scope<'_>) -> Result<Table, String>;
+    /// redo-fills pass 2: how many rows `fill(rel, scope)` answers, where known without making them; None: not known.
+    fn fill_len(&mut self, _run: &mut Run, _rel: &str, _scope: Scope<'_>) -> Option<usize> {
+        None
+    }
     /// A node's text in a syntax role: `Ok(None)` where the role cannot hold it.
     fn render(&mut self, node: u32, context: &str) -> Result<Option<Vec<u8>>, String>;
 }
@@ -799,7 +804,6 @@ impl File<'_> {
             kind_bits: b.kind_bits,
             touched: Vec::new(),
             fact_read: Vec::new(),
-            answer: Vec::new(),
         };
         SPARE.with(|sp| {
             let (memo, known, touched) = std::mem::take(&mut *sp.borrow_mut());
@@ -1113,9 +1117,16 @@ pub(super) struct Stats {
     pub(super) static_time: f64,
     pub(super) static_depth: u32,
     pub(super) static_visits: u64,
+    /// redo-whole pass 2: visits of steps with no leaf of their own (decided by their inputs alone).
+    pub(super) static_pass: u64,
     pub(super) static_file_tests: u64,
     pub(super) rec_time: f64,
     pub(super) rec_busy: bool,
+    /// redo-whole pass 2 (keyed.rs): runs by key of a step read in place of made whole, those that returned nothing, and
+    /// the rows of tables a step builds (a table handed on from an input counts 0).
+    pub(super) keyed: Vec<u64>,
+    pub(super) keyed_empty: Vec<u64>,
+    pub(super) built: Vec<u64>,
 }
 
 // ------------------------------------------------------------------------------------------------ expressions
@@ -1251,8 +1262,6 @@ pub(super) struct Exec<'p> {
     /// Steps whose inputs are all run-wide (the file list, written rows): made once a run.
     constant: Vec<Option<bool>>,
     run_memo: Vec<Option<Rc<Table>>>,
-    /// redo-fills pass 3: the run's requests (request.rs).
-    pub(super) requests: request::Requests,
     /// redo-union pass 2: per node, what the step bracket reads on every run (`frame`).
     frames: Vec<frame::Frame>,
     /// each step's `args` in the plan (read once).
@@ -1271,6 +1280,7 @@ pub(super) struct Exec<'p> {
     scratch_rows: Vec<u32>,
     /// `VEC_STEP_TIME`: each step run under the step clock (`timed_body`).
     timing: bool,
+    col: col::Kernels,
 }
 
 type R<T> = Result<T, String>;
@@ -1307,14 +1317,13 @@ impl<'p> Exec<'p> {
         let k = plan.nodes.len();
         Exec {
             plan,
-            stats: Stats { time: vec![0.0; k], rows: vec![0; k], calls: vec![0; k], touched: vec![0; k], empty: vec![0; k], known: vec![0; k], empty_time: vec![0.0; k], static_time: 0.0, static_depth: 0, static_visits: 0, static_file_tests: 0, rec_time: 0.0, rec_busy: false },
+            stats: Stats { time: vec![0.0; k], rows: vec![0; k], calls: vec![0; k], touched: vec![0; k], empty: vec![0; k], known: vec![0; k], empty_time: vec![0.0; k], static_time: 0.0, static_depth: 0, static_visits: 0, static_pass: 0, static_file_tests: 0, rec_time: 0.0, rec_busy: false, keyed: vec![0; k], keyed_empty: vec![0; k], built: vec![0; k] },
             schemas: vec![None; k],
             views: vec![None; k],
             sels: vec![None; k],
             inner: 0.0,
             constant: vec![None; k],
             run_memo: vec![None; k],
-            requests: request::Requests::default(),
             frames: frame::frames(plan),
             args: plan.nodes.iter().map(|n| &n.j["args"]).collect(),
             consumers: {
@@ -1336,6 +1345,7 @@ impl<'p> Exec<'p> {
             empties: vec![None; k],
             scratch_rows: Vec::new(),
             timing: sw!("VEC_STEP_TIME"),
+            col: col::Kernels::default(),
         }
     }
 
@@ -1713,10 +1723,21 @@ impl<'p> Exec<'p> {
     /// A node's answer in this file: its slot, else made once (`make`).
     #[inline]
     pub(super) fn res(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Res> {
-        // redo-fills pass 3: the file's one request answered every relation at its start, so a view's fill is read
-        // already (the lazy-view arm of pass 2 is deleted with lazy_view.rs)
         match &f.memo[node] {
-            Some(r) => Ok(r.clone()),
+            Some(Res::Tab(t)) => Ok(Res::Tab(t.clone())),
+            Some(Res::View(v)) => {
+                // redo-fills pass 2: a view a lazy select source left unfilled is filled at its first read (lazy_view.rs)
+                if let Native::Fact(x) = v.base
+                    && f.facts.get(usize::from(x)).is_none_or(Option::is_none)
+                {
+                    let v = v.clone();
+                    let was = fill_prof::site("view");
+                    self.load_fact(f, run, p, v.base)?;
+                    fill_prof::site(was);
+                    return Ok(Res::View(v));
+                }
+                Ok(Res::View(v.clone()))
+            }
             None => self.make(f, run, p, node),
         }
     }
@@ -1761,6 +1782,7 @@ impl<'p> Exec<'p> {
         emptyprop::ran();
         self.stats.calls[node] += 1;
         self.stats.rows[node] += out.n as u64;
+        keyed::built(self, f, node, &out);
         if out.n == 0 {
             self.stats.empty[node] += 1;
         }
@@ -1800,6 +1822,12 @@ impl<'p> Exec<'p> {
     fn probe(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, col: usize, keys: &[u64]) -> R<Rc<Table>> {
         if keys.is_empty() {
             return self.empty_rc(run, node);
+        }
+        // redo-whole pass 2: a step not made in this file whose one consumer reads it by key is read by key (keyed.rs)
+        if f.memo[node].is_none()
+            && let Some(t) = self.keyed(f, run, p, node, col, keys, false)?
+        {
+            return Ok(t);
         }
         if let Some(v) = self.view(run, node)?
             && File::probes(v.base, v.map[col])
@@ -1880,6 +1908,7 @@ impl<'p> Exec<'p> {
                     view_cols::gather(f, run, v.base, v.map[c], &rows, &mut out.cols[c]);
                 }
                 out.n = rows.len();
+                self.stats.built[node] += out.n as u64;
                 let rc = recycle::rc(out);
                 f.vmat.insert(node, rc.clone());
                 let dt = step_clock() - t0;
@@ -1975,6 +2004,9 @@ impl<'p> Exec<'p> {
         // an empty answer is the step's shared one (the body's own table is dropped, nothing kept a run); the select's
         // dispatch point (by the frame's code)
         if fr.op == frame::Op::Select {
+            if let Some(index) = self.col.projection(node) {
+                return self.col_select(f, run, p, node, index);
+            }
             return self.select_entry(f, run, p, node);
         }
         let t = self.step(f, run, p, node)?;
@@ -2380,7 +2412,7 @@ impl<'p> Exec<'p> {
     }
 
     /// 6h: a fact view's fill, asked once a file (the same fill a whole `base` step reads).
-    fn load_fact(&mut self, f: &mut File<'_>, run: &mut Run, _p: &mut dyn Provider, nat: Native) -> R<()> {
+    fn load_fact(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, nat: Native) -> R<()> {
         let Native::Fact(i) = nat else { return Ok(()) };
         let i = usize::from(i);
         if f.facts.get(i).is_some_and(Option::is_some) {
@@ -2399,8 +2431,7 @@ impl<'p> Exec<'p> {
             }
         }
         if !f.fills.contains_key(&rel) {
-            // redo-fills pass 3: a slot read of the file's one answer (request.rs)
-            let t = self.answered(f, &rel)?;
+            let t = fill_len::fill_or_empty(run, p, &rel, f.file)?;
             f.fills.insert(rel.clone(), recycle::rc(t));
         }
         if f.facts.len() <= i {
@@ -2414,8 +2445,6 @@ impl<'p> Exec<'p> {
     }
 
     fn base(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, rel: &str) -> R<Table> {
-        // redo-int merge: `p` is read by redo-general's project relations (asked as a request of `Scope::Files`); the
-        // provider and host relations are the file's one answer (redo-fills pass 3)
         // redo-fills pass 2: by who supplies the relation, as the run's catalog declares it
         match run.supplier(rel) {
             Supplier::RunFiles => {
@@ -2432,8 +2461,10 @@ impl<'p> Exec<'p> {
         if let Some(t) = f.fills.get(rel) {
             return Ok(t.copy());
         }
-        // redo-fills pass 3: a slot read of the file's one answer (request.rs)
-        let t = self.answered(f, rel)?;
+        let was = fill_prof::site("base");
+        let t = fill_len::fill_or_empty(run, p, rel, f.file);
+        fill_prof::site(was);
+        let t = t?;
         f.fills.insert(rel.to_owned(), recycle::rc(t.clone()));
         Ok(t)
     }

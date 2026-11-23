@@ -160,7 +160,21 @@ impl Exec<'_> {
             return Ok(Some((self.empty(run, node)?, Vec::new())));
         }
         // the probed rows: a table's or a view's whole, or (a step not made yet) probed by the kept rows' first key
-        let sb = self.src_of(f, run, p, bn)?;
+        // redo-whole pass 2 (finish/keyed.rs): a probed step whose one consumer is this select is read by the kept rows'
+        // first key in place of made whole
+        let sb = match sh.eqs.first() {
+            Some((c0, e0)) if self.keyed_ok(f, run, bn, *c0)? => {
+                let mut ks = rustc_hash::FxHashSet::default();
+                for r in &arows {
+                    cur[ka] = *r;
+                    ks.insert(eval(run, f, &srcs, &cur, e0).1);
+                }
+                let mut ks: Vec<u64> = ks.into_iter().collect();
+                ks.sort_unstable();
+                Src::Tab(self.probe(f, run, p, bn, *c0, &ks)?, usize::MAX - pb)
+            }
+            _ => self.src_of(f, run, p, bn)?,
+        };
         let sb = match sb {
             // a closure: read through its adjacency by the kept rows' first key, else made whole
             Src::Lazy(l) if !sh.eqs.is_empty() => {
