@@ -1169,7 +1169,7 @@ impl ColFacts<'_, '_, '_, '_> {
         }
         let arguments = self.whole(run, "call-argument")?;
         let identifiers = self.whole(run, "identifier")?;
-        let inputs = type_expression::Inputs { qualified: &qualified, arguments: &arguments, identifiers: &identifiers, embedded: &embedded };
+        let inputs = type_expression::Inputs { qualified: &qualified, arguments: &arguments, identifiers: &identifiers, embedded: &embedded, lists: type_expression::LISTS.get_or_init(type_expression::Lists::default) };
         let rows = type_expression::rows(run, self.file.table, &inputs)?;
         let (_, names, tys) = run.catalog(fact_catalog::TYPE_EXPRESSION_REL).ok_or("no type-expression")?;
         let (ty, value) = (u64::from(run.sym(b"type")), u64::from(run.sym(b"value")));
@@ -1240,16 +1240,15 @@ impl ColFacts<'_, '_, '_, '_> {
         let visits = self.fact(run, fact_catalog::DEFERRED_VISIT_REL)?;
         let (_, names, tys) = run.catalog(fact_catalog::DEFERRED_RESOLUTION_REL).ok_or("no deferred-resolution")?;
         if visits.n == 0 {
-            // no postponed or unvisited element: no row (and no fill of the inputs below)
+            // no postponed element: no row (and no fill of the inputs below)
             return Ok(finish::Table { names, tys, cols: vec![Vec::new(); 5], n: 0 });
         }
         let reads = self.whole(run, "binding-read")?;
         let events = self.whole(run, "binding-event")?;
-        let lookup = self.whole(run, "lookup-scope")?;
         let implicit = self.whole(run, "implicit-symbol")?;
+        let targets = self.whole(run, "language-target")?;
         let finals = self.fact(run, fact_catalog::FINAL_REL)?;
-        let stub = run.texts[run.path_sym[self.file_no as usize] as usize].ends_with(b".pyi");
-        let inputs = deferred_resolution::Inputs { reads: &reads, events: &events, lookup: &lookup, implicit: &implicit, finals: &finals, visits: &visits, stub };
+        let inputs = deferred_resolution::Inputs { reads: &reads, events: &events, implicit: &implicit, targets: &targets, finals: &finals, visits: &visits };
         let rows = deferred_resolution::rows(run, self.file.table, &inputs)?;
         let mut t = finish::Table { names, tys, cols: vec![Vec::with_capacity(rows.len()); 5], n: rows.len() };
         for (reference, occurrence, kind, point) in rows {
@@ -1285,12 +1284,12 @@ impl ColFacts<'_, '_, '_, '_> {
         let inputs = deferred_visit::Inputs { types: &types, evaluations: &evaluations, embedded: &embedded, stub, future };
         let rows = deferred_visit::rows(run, self.file.table, &inputs)?;
         let (_, names, tys) = run.catalog(fact_catalog::DEFERRED_VISIT_REL).ok_or("no deferred-visit")?;
-        let (deferred, unvisited) = (u64::from(run.sym(b"deferred")), u64::from(run.sym(b"unvisited")));
+        let deferred = u64::from(run.sym(b"deferred"));
         let mut t = finish::Table { names, tys, cols: vec![Vec::with_capacity(rows.len()); 3], n: rows.len() };
-        for (id, d) in rows {
+        for id in rows {
             t.cols[0].push(u64::from(id));
-            t.cols[1].push(if d { deferred } else { unvisited });
-            t.cols[2].push(u64::from(self.file_no));
+            t.cols[1].push(deferred);
+            t.cols[2].push(u64::from(self.file_no)); // redo-fills pass 2: the supplier writes the file its rows name
         }
         Ok(t)
     }
@@ -1526,6 +1525,14 @@ fn kernel_floor(walk: &impl Walk, list: &str) {
 /// [--check-bases]`: each rule's whole lowered query run per file (`finish.rs`); findings as the reference writes them.
 fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     let plan = finish::load(args[0]);
+    // redo-binding pass 6: the pack's inputs to the facts, beside the plan (`<plan>.inputs/<fact>.tsv`, made by the plan
+    // script from the pack's `inputs/`); no file, no list
+    let inputs_dir = format!("{}.inputs", args[0].trim_end_matches(".json"));
+    let lists = match std::fs::read_to_string(format!("{inputs_dir}/type-expression.tsv")) {
+        Ok(t) => type_expression::Lists::parse(&t).expect("the type-expression input"),
+        Err(_) => type_expression::Lists::default(),
+    };
+    let _ = type_expression::LISTS.set(lists);
     let list = files(args[1]);
     let mut fin = finisher::Finisher::new(&plan, walk, vocab, args);
     let seed: Option<std::collections::HashSet<(String, String)>> =

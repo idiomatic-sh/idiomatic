@@ -3169,6 +3169,7 @@ impl<'p> Exec<'p> {
                 let pattern = s(&a["pattern"])?;
                 let slot_names = capture::names(pattern);
                 let at: Vec<Option<usize>> = caps.iter().map(|c| slot_names.iter().position(|n| n == c)).collect();
+                let separator = a.get("separator").and_then(J::as_str);
                 let mut out = self.empty(run, node)?;
                 let mut row = Vec::new();
                 let mut found: Vec<Vec<std::ops::Range<usize>>> = Vec::new();
@@ -3177,7 +3178,7 @@ impl<'p> Exec<'p> {
                     let text = if from.tys[pc] == Ty::File { run.text(run.path_sym[v as usize]).to_vec() } else { run.text(v as u32).to_vec() };
                     let Ok(text) = String::from_utf8(text) else { continue };
                     found.clear();
-                    capture::matches(pattern, &text, &mut |sl| found.push(sl.to_vec()));
+                    capture::matches(pattern, separator, &text, &mut |sl| found.push(sl.to_vec()));
                     for sl in &found {
                         from.row(i, &mut row);
                         for k in &at {

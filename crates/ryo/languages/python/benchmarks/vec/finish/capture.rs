@@ -1,15 +1,18 @@
 //! THROWAWAY (redo-honest): the `capture` operation's meaning as the shipping engine has it (operators `capture::matches`):
 //! EVERY way the text splits into the pattern's slots, one output row each; a slot holds at least one character; `{name}`
-//! holds no `/`, `{*name}` may; the text between slots is literal. (The harness took one regex match, the first, so a rule
+//! holds no separator character, `{*name}` may; the text between slots is literal. (The harness took one regex match, the first, so a rule
 //! that needs each split saw one.)
 
-/// Calls `each` with the byte ranges of the slots, once per way `text` matches `pattern`.
-pub(super) fn matches(pattern: &str, text: &str, each: &mut dyn FnMut(&[std::ops::Range<usize>])) {
+/// Calls `each` with the byte ranges of the slots, once per way `text` matches `pattern`. `separator` (redo-binding pass 6,
+/// merged by redo-int: the step's argument, it was `/`): the characters a `{name}` slot may not hold; none given: any.
+pub(super) fn matches(pattern: &str, separator: Option<&str>, text: &str, each: &mut dyn FnMut(&[std::ops::Range<usize>])) {
     let mut slots = Vec::new();
-    walk(pattern, text, text, &mut slots, each);
+    let sep = separator.unwrap_or("");
+    walk(pattern, sep, text, text, &mut slots, each);
 }
 
-fn walk(pattern: &str, whole: &str, tail: &str, slots: &mut Vec<std::ops::Range<usize>>, each: &mut dyn FnMut(&[std::ops::Range<usize>])) {
+fn walk(pattern: &str, sep: &str, whole: &str, tail: &str, slots: &mut Vec<std::ops::Range<usize>>, each: &mut dyn FnMut(&[std::ops::Range<usize>])) {
+    let blocked = |slot: &str| slot.chars().any(|c| sep.contains(c));
     let Some(open) = pattern.find('{') else {
         if pattern == tail {
             each(slots);
@@ -26,7 +29,7 @@ fn walk(pattern: &str, whole: &str, tail: &str, slots: &mut Vec<std::ops::Range<
         if end >= 1
             && let (Some(slot), Some(after)) = (from.get(..end), from.get(end..))
             && after == rest
-            && (crosses || !slot.contains('/'))
+            && (crosses || !blocked(slot))
         {
             slots.push(start..start + end);
             each(slots);
@@ -36,11 +39,11 @@ fn walk(pattern: &str, whole: &str, tail: &str, slots: &mut Vec<std::ops::Range<
     }
     for end in 1..=from.len() {
         let (Some(slot), Some(after)) = (from.get(..end), from.get(end..)) else { continue };
-        if !crosses && slot.contains('/') {
+        if !crosses && blocked(slot) {
             continue;
         }
         slots.push(start..start + end);
-        walk(rest, whole, after, slots, each);
+        walk(rest, sep, whole, after, slots, each);
         slots.pop();
     }
 }
