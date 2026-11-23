@@ -109,7 +109,9 @@ fn buckets(run: &Run, v: &ViewSpec) -> Vec<Vec<String>> {
         Native::Child => ("child", Some(3)),
         Native::Location => ("location", None),
         Native::Token => ("token", None),
-        Native::Fact(i) => return vec![vec!["fact".into(), run.fact_rels[usize::from(i)].0.clone()]],
+        Native::Fact(i) => {
+            return vec![vec!["fact".into(), run.fact_rels[usize::from(i)].0.clone()]];
+        }
         Native::Empty => return Vec::new(),
     };
     if let Some(column) = column {
@@ -121,7 +123,10 @@ fn buckets(run: &Run, v: &ViewSpec) -> Vec<Vec<String>> {
                     .collect();
                 names.sort_unstable();
                 names.dedup();
-                return names.into_iter().map(|name| vec![base.into(), name.into_owned()]).collect();
+                return names
+                    .into_iter()
+                    .map(|name| vec![base.into(), name.into_owned()])
+                    .collect();
             }
         }
     }
@@ -186,11 +191,11 @@ fn current_entries(run: &mut Run, v: &ViewSpec) -> Vec<Vec<String>> {
     values.sort_unstable();
     values.dedup();
     values
-            .into_iter()
-            .map(|sym| {
-                let mut key = prefix.clone();
-                key.push(String::from_utf8_lossy(run.text(sym)).into_owned());
-                key
-            })
-            .collect()
+        .into_iter()
+        .map(|sym| {
+            let mut key = prefix.clone();
+            key.push(String::from_utf8_lossy(run.text(sym)).into_owned());
+            key
+        })
+        .collect()
 }
