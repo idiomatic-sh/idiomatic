@@ -168,20 +168,31 @@ fn fact_projection<'a>(
 }
 
 fn required_facts(domains: &[Domain], id: Id, slots: &mut Vec<usize>) {
-    match domains[id] {
-        Domain::Fact(slot, _) | Domain::OtherValues(slot, _, _) | Domain::Matching(slot, _, _) => {
-            if !slots.contains(&slot) {
-                slots.push(slot);
+    let mut pending = vec![id];
+    let mut seen = Vec::new();
+    while let Some(id) = pending.pop() {
+        if seen.contains(&id) {
+            continue;
+        }
+        seen.push(id);
+        match domains[id] {
+            Domain::Fact(slot, _)
+            | Domain::OtherValues(slot, _, _)
+            | Domain::Flag(slot, ..)
+            | Domain::Matching(slot, _, _) => {
+                if !slots.contains(&slot) {
+                    slots.push(slot);
+                }
             }
+            Domain::Both(a, b) | Domain::Either(a, b) | Domain::Except(a, b) => {
+                pending.extend([a, b])
+            }
+            Domain::Parents(a)
+            | Domain::Children(a)
+            | Domain::Ancestors(a)
+            | Domain::Descendants(a) => pending.push(a),
+            _ => {}
         }
-        Domain::Both(a, b) | Domain::Either(a, b) | Domain::Except(a, b) => {
-            required_facts(domains, a, slots);
-            required_facts(domains, b, slots);
-        }
-        Domain::Parents(a) | Domain::Children(a) | Domain::Ancestors(a) => {
-            required_facts(domains, a, slots)
-        }
-        _ => {}
     }
 }
 
@@ -288,11 +299,23 @@ fn predicate<'a>(
         }
         _ => return None,
     };
-    match value.depth {
-        0 => Some(test),
-        1 => Some(b.domain(Domain::Children(test))),
-        _ => None,
+    Some(below(b, test, value.depth))
+}
+
+// Keep the witness at the deepest row. A named ancestor is functional in
+// that row, however many other rows share that ancestor.
+fn below(b: &mut Builder<'_>, mut set: Id, depth: u8) -> Id {
+    for _ in 0..depth {
+        set = b.domain(Domain::Children(set));
     }
+    set
+}
+
+fn above(b: &mut Builder<'_>, mut set: Id, depth: u8) -> Id {
+    for _ in 0..depth {
+        set = b.domain(Domain::Parents(set));
+    }
+    set
 }
 
 fn select<'a>(b: &mut Builder<'_>, s: &'a SelectStep, rows: &[Option<Row<'a>>]) -> Option<Row<'a>> {
@@ -342,15 +365,8 @@ fn select<'a>(b: &mut Builder<'_>, s: &'a SelectStep, rows: &[Option<Row<'a>>]) 
             })
         })?;
         shifts = [c, a];
-        let under = |b: &mut Builder<'_>, d, depth| {
-            if depth == 0 || d == ANY {
-                d
-            } else {
-                b.domain(Domain::Children(d))
-            }
-        };
-        let left = under(b, nodes, c);
-        let right_set = under(b, right.nodes, a);
+        let left = below(b, nodes, c);
+        let right_set = below(b, right.nodes, a);
         nodes = b.both(left, right_set);
         guard = b.or(guard, right.guard);
     }
@@ -387,7 +403,7 @@ fn select<'a>(b: &mut Builder<'_>, s: &'a SelectStep, rows: &[Option<Row<'a>>]) 
         cols,
         derived,
     };
-    if row.cols.iter().any(|(_, v)| v.depth > 0)
+    while row.cols.iter().any(|(_, v)| v.depth > 0)
         && !row.derived
         && row
             .cols
@@ -399,7 +415,10 @@ fn select<'a>(b: &mut Builder<'_>, s: &'a SelectStep, rows: &[Option<Row<'a>>]) 
             v.depth = v.depth.saturating_sub(1)
         }
     }
-    row.cols.iter().all(|(_, v)| v.depth <= 1).then_some(row)
+    row.cols
+        .iter()
+        .all(|(_, v)| usize::from(v.depth) <= CAP)
+        .then_some(row)
 }
 
 /// The final slot of a two-slot template, and the literal immediately before it.
@@ -718,12 +737,10 @@ pub(super) fn prepare<'a>(
             let mut slots = Vec::new();
             required_facts(&b.out.domains, right.nodes, &mut slots);
             let mut id = None;
+            let mut depth = None;
             let mut keys = Vec::new();
             for (left, r) in j.left_on.iter().zip(&j.right_on) {
                 let v = right.column(&r.0)?;
-                if v.depth != 0 {
-                    return None;
-                }
                 let attr = match v.field {
                     "id" => {
                         id = Some(&*left.0);
@@ -733,12 +750,20 @@ pub(super) fn prepare<'a>(
                     "span" => Attribute::Span,
                     _ => return None,
                 };
+                if attr != Attribute::FilePath && *depth.get_or_insert(v.depth) != v.depth {
+                    return None;
+                }
                 keys.push((&*left.0, attr));
+            }
+            let capped = b.out.capped;
+            let domain = above(b, right.nodes, depth?);
+            if b.out.capped != capped {
+                return None;
             }
             Some(Exclusion {
                 id: id?,
                 keys,
-                domain: right.nodes,
+                domain,
                 guard: right.guard,
                 slots,
             })

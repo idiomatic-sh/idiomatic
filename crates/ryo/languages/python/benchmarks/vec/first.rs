@@ -9,8 +9,19 @@ use std::fmt::Write as _;
 pub(super) const SYNTAX: [&str; 2] = ["semantic-syntax", "syntax-tree"];
 pub(super) const CHILD: [&str; 2] = ["semantic-child", "syntax-child"];
 
+/// A derived fact projects the node key from a row of a declared native
+/// file relation. The native row must pass the indicated symbol predicate.
+#[derive(Clone, Copy)]
+pub(super) struct RowWitness {
+    pub relation: &'static str,
+    pub projected_key: &'static str,
+    pub source: &'static str,
+    pub symbol_column: &'static str,
+    pub prefix: &'static str,
+}
 /// Fact availability, spelling and lexical text are supplied by the language provider.
 pub(super) struct Language {
+    pub(super) witnesses: &'static [RowWitness],
     pub(super) facts: Vec<String>,
     pub(super) text_kinds: Vec<u16>,
     pub(super) host_len: fn(&str) -> Option<usize>,

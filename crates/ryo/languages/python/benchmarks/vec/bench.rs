@@ -662,8 +662,9 @@ fn python_language(vocab: &Vocab) -> first::Language {
     use ryo_python::fixtures::columns::{PER_NODE_FACTS, SPELLED_COLUMNS, Spelling, is_identifier};
     first::Language {
         host_len: finish::host::host_len,
+        witnesses: &[relative_import::WITNESS],
         text_kinds: vocab.kinds.values().copied().filter(|k|tokens.has_text(*k)).collect(),
-        file_sets: ryo_python::fixtures::columns::FILE_SET_FACTS.iter().map(|s|(*s).to_string()).collect(),
+        file_sets: ryo_python::fixtures::columns::FILE_SET_FACTS.iter().chain(host_columns::FILE_SETS.iter()).map(|s|(*s).to_string()).collect(),
         facts: PER_NODE_FACTS.iter().map(|s| (*s).to_owned()).collect(),
         spelled: SPELLED_COLUMNS.iter().map(|(r, c, how)| ((*r).to_owned(), (*c).to_owned(), match how { Spelling::Whole => None, Spelling::LastSegment(c) => Some(*c) })).collect(),
         is_identifier,
@@ -956,6 +957,7 @@ mod glob_pattern;
 use glob_pattern::glob_pattern;
 mod pair_skip;
 mod pair_checks;
+mod host_columns;
 mod request;
 #[path = "finisher.rs"]
 mod finisher;
@@ -1984,7 +1986,10 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                     let start = thread_cpu();
                     let relative_path = fin.as_deref().map(|f| f.run.paths[file_no].as_bytes());
                     let exact = fin.as_ref().filter(|f| f.can_finish_exact()).map(|_| &mut exact_rows);
-                    pair_steps += program.file(pt, &bytes, relative_path, &mut fwords, $fill, &mut alive, exact);
+                    pair_steps += program.file(pt, &bytes, relative_path, &mut fwords, |rel, words, out| {
+                        host_columns::fill(rel, fin.as_deref().map(|f| &f.run), file_no, out)
+                            .unwrap_or_else(|| ($fill)(rel, words, out))
+                    }, &mut alive, exact);
                     pair_cpu += thread_cpu() - start;
                 }
                 rule_files += frules.len() as u64;

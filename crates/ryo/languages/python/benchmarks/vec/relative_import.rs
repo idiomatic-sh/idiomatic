@@ -5,6 +5,15 @@ use super::{
     finish::{Run, Table},
 };
 
+/// Every target takes its occurrence from a relative static-import row.
+pub(super) const WITNESS: super::first::RowWitness = super::first::RowWitness {
+    relation: RELATIVE_IMPORT_REL,
+    projected_key: "occurrence",
+    source: "static-import",
+    symbol_column: "target",
+    prefix: ".",
+};
+
 /// One leading dot selects the containing package, and each further dot selects its parent.
 fn absolute(module: &[u8], spelling: &[u8]) -> Option<Vec<u8>> {
     let level = spelling.iter().take_while(|&&byte| byte == b'.').count();

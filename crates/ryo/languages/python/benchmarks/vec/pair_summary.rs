@@ -9,6 +9,8 @@ use ryo_relations::domain::{labels::types::NameRef, relations::service as catalo
 use ryo_values::domain::finish_plans::{expressions::types::*, service::inputs, types::*};
 use ryo_values::domain::plan_parts::types::Direction;
 
+#[path = "pair_compact.rs"]
+mod compact;
 #[path = "pair_exact.rs"]
 mod exact;
 
@@ -29,6 +31,7 @@ pub(super) enum Domain {
     SpanMatching(u16, usize),
     Fact(usize, Option<(usize, Vec<Id>)>),
     OtherValues(usize, usize, Vec<Id>),
+    Flag(usize, usize, bool),
     RelatedIds(usize, usize, Option<(usize, Vec<Id>)>),
     Matching(usize, usize, usize),
     CapturedSuffix(usize, usize, Vec<u8>, usize),
@@ -92,6 +95,7 @@ struct Column {
 #[derive(Clone, Default)]
 struct Summary<'a> {
     need: Id,
+    native_row: Option<usize>,
     domains: Vec<Id>,
     columns: Vec<(&'a str, Column)>,
     edges: Vec<(usize, usize)>, // child, parent, when both are projected
@@ -140,9 +144,44 @@ struct Builder<'a> {
     ds: Map<Domain, Id>,
     ns: Map<Need, Id>,
     sizes: Vec<usize>,
+    file_guards: Map<Id, Id>,
 }
 
 impl Builder<'_> {
+    fn dependencies(d: &Domain) -> &[Id] {
+        match d {
+            Domain::Parents(x)
+            | Domain::Children(x)
+            | Domain::Ancestors(x)
+            | Domain::Descendants(x)
+            | Domain::When(_, x)
+            | Domain::ProvenExcept(_, x, _, _) => std::slice::from_ref(x),
+            _ => &[],
+        }
+    }
+    fn distinct_size(&self, root: &Domain) -> usize {
+        let mut seen = Vec::with_capacity(CAP);
+        let mut pending = Vec::new();
+        let mut current = root;
+        loop {
+            match current {
+                Domain::Both(a, b) | Domain::Either(a, b) | Domain::Except(a, b) => {
+                    pending.extend([*a, *b])
+                }
+                _ => pending.extend(Self::dependencies(current)),
+            }
+            let Some(next) = std::iter::from_fn(|| pending.pop()).find(|v| !seen.contains(v))
+            else {
+                break;
+            };
+            seen.push(next);
+            if seen.len() == CAP {
+                break;
+            }
+            current = &self.out.domains[next];
+        }
+        1 + seen.len()
+    }
     fn domain(&mut self, d: Domain) -> Id {
         if let Some(&i) = self.ds.get(&d) {
             return i;
@@ -158,6 +197,11 @@ impl Builder<'_> {
             Domain::ProvenExcept(_, difference, _, _) => 1 + self.sizes[difference],
             Domain::When(_, x) => 1 + self.sizes[x],
             _ => 1,
+        };
+        let size = if size > CAP {
+            self.distinct_size(&d)
+        } else {
+            size
         };
         if size > CAP {
             self.out.capped += 1;
@@ -181,18 +225,28 @@ impl Builder<'_> {
     // Keep repeated constraints once before charging the formula cap. Only
     // positive, monotone implications are used here. No alternatives expand.
     fn subset(&self, small: Id, large: Id) -> bool {
+        let mut budget = CAP;
+        self.implies(small, large, &mut budget)
+    }
+    fn implies(&self, small: Id, large: Id, budget: &mut usize) -> bool {
         if small == large || small == EMPTY || large == ANY {
             return true;
         }
+        if *budget == 0 {
+            return false;
+        }
+        *budget -= 1;
         if let Domain::Both(a, b) = self.out.domains[large] {
-            return self.subset(small, a) && self.subset(small, b);
+            return self.implies(small, a, budget) && self.implies(small, b, budget);
         }
         match (&self.out.domains[small], &self.out.domains[large]) {
-            (Domain::Both(a, b), _) => self.subset(*a, large) || self.subset(*b, large),
-            (Domain::Except(a, _), _) => self.subset(*a, large),
+            (Domain::Both(a, b), _) => {
+                self.implies(*a, large, budget) || self.implies(*b, large, budget)
+            }
+            (Domain::Except(a, _), _) => self.implies(*a, large, budget),
             (Domain::TextMatching(k, _), Domain::Kind(t)) => k == t,
             (Domain::Children(a), Domain::Children(b))
-            | (Domain::Parents(a), Domain::Parents(b)) => self.subset(*a, *b),
+            | (Domain::Parents(a), Domain::Parents(b)) => self.implies(*a, *b, budget),
             _ => false,
         }
     }
@@ -279,6 +333,34 @@ impl Builder<'_> {
         r.need = self.and(r.need, n);
     }
     fn base<'a>(&mut self, name: &str) -> Summary<'a> {
+        if let Some(witness) = self
+            .language
+            .witnesses
+            .iter()
+            .find(|w| w.relation == name)
+            .copied()
+        {
+            let source = self.native_base(witness.source);
+            let mut rows = Summary {
+                need: source.need,
+                ..Summary::default()
+            };
+            if let Some(column) = source.column(witness.symbol_column)
+                && let Some(d) = self.matching(
+                    column.attr,
+                    &format!(r"\A{}", regex::escape(witness.prefix)),
+                    CellKind::Symbol,
+                )
+            {
+                let var = rows.var(d);
+                rows.add(witness.projected_key, var, Attribute::Id);
+                self.require(&mut rows, d);
+            }
+            return rows;
+        }
+        self.native_base(name)
+    }
+    fn native_base<'a>(&mut self, name: &str) -> Summary<'a> {
         let mut r = Summary::default();
         if (self.language.host_len)(name) == Some(0) {
             r.need = EMPTY;
@@ -334,6 +416,7 @@ impl Builder<'_> {
                         self.out.facts.len() - 1
                     });
                 let d = self.domain(Domain::Fact(slot, None));
+                r.native_row = Some(slot);
                 r.var(d);
                 self.require(&mut r, d);
                 for (i, col) in catalog::columns(relation).into_iter().enumerate() {
@@ -363,6 +446,17 @@ impl Builder<'_> {
             Attribute::Field => self.vocab.fields.get(text).map(|k| Domain::Field(*k)),
             // Empty text can also be the provider's value for a node without text.
             Attribute::Text if !text.is_empty() => Some(Domain::Text(text.to_owned())),
+            Attribute::Cell(slot, c) if self.out.facts[slot].kinds[c] == CellKind::Flag => {
+                Some(Domain::Flag(
+                    slot,
+                    c,
+                    match text {
+                        "true" => true,
+                        "false" => false,
+                        _ => return ANY,
+                    },
+                ))
+            }
             Attribute::Cell(slot, c) if self.out.facts[slot].kinds[c] == CellKind::Symbol => {
                 Some(Domain::Fact(slot, Some((c, vec![self.symbol(text)]))))
             }
@@ -571,7 +665,40 @@ impl Builder<'_> {
             },
         }
     }
+    // A branch-specific file guard pays for itself before materializing its
+    // nodes. Node witnesses are already retained in their input domains.
+    fn file_guard(&mut self, need: Id) -> Id {
+        if let Some(&guard) = self.file_guards.get(&need) {
+            return guard;
+        }
+        let guard = match self.out.needs[need] {
+            Need::Both(a, b) | Need::Either(a, b) => {
+                let left = self.file_guard(a);
+                let right = self.file_guard(b);
+                if matches!(self.out.needs[need], Need::Both(..)) {
+                    self.and(left, right)
+                } else {
+                    self.or(left, right)
+                }
+            }
+            Need::Some(d) => match self.out.domains[d] {
+                Domain::Fact(slot, _)
+                | Domain::Flag(slot, ..)
+                | Domain::Matching(slot, ..)
+                | Domain::CapturedSuffix(slot, ..)
+                    if self.out.facts[slot].key.is_none() =>
+                {
+                    need
+                }
+                _ => ANY,
+            },
+            _ => need,
+        };
+        self.file_guards.insert(need, guard);
+        guard
+    }
     fn in_branch(&mut self, need: Id, nodes: Id) -> Id {
+        let need = self.file_guard(need);
         if need == ANY || nodes == EMPTY || matches!(self.out.needs[need],Need::Some(d) if d==nodes)
         {
             return nodes;
@@ -761,10 +888,13 @@ impl Builder<'_> {
             Base(n) => return self.base(&n.0),
             Select(s) => {
                 out = self.select(s, rows);
+                if let [source] = s.sources.as_slice() {
+                    out.native_row = rows[source.step.0].native_row;
+                }
                 // A base fact can have several node columns. Filter its rows
                 // before projecting the chosen endpoint, keeping the same row.
                 if let [source] = s.sources.as_slice()
-                    && matches!(steps[source.step.0], Base(_))
+                    && let Some(origin) = out.native_row
                     && let RowCondition::Tested(e) = &s.condition
                 {
                     let mut values = Vec::new();
@@ -774,6 +904,7 @@ impl Builder<'_> {
                             attr: Attribute::Cell(slot, col),
                             ..
                         }) = rows[source.step.0].column(&read.column.0)
+                        && origin == slot
                         && self.out.facts[slot].kinds[col] == CellKind::Symbol
                     {
                         for i in 0..out.domains.len() {
@@ -1058,6 +1189,7 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
         ds: Map::default(),
         ns: Map::default(),
         sizes: vec![],
+        file_guards: Map::default(),
     };
     b.domain(Domain::Any);
     b.domain(Domain::Empty);
@@ -1122,7 +1254,13 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
             RuleEmit::Written(e) => (rows[e.step.0].need, skips[e.step.0].root()),
             RuleEmit::Unwritten => (ANY, Default::default()),
         };
-        b.out.roots.push((r.rule.0.to_string(), need));
+        let early = b.file_guard(need);
+        let root = if early == ANY || early == need {
+            need
+        } else {
+            b.need(Need::Both(early, need))
+        };
+        b.out.roots.push((r.rule.0.to_string(), root));
         b.out.skips.push(skip);
     }
 
@@ -1130,6 +1268,7 @@ pub(super) fn prepare(plan: &FinishPlan, vocab: &Vocab, language: &Language) -> 
     // a raw spelling (for example, a normalized or resolved identifier).
     // Certify the whole first half only when that independent skip is vacuous.
     b.out.exact.retain(|(ri, _)| b.out.skips[*ri].2.is_empty());
+    compact::compact(&mut b.out);
     for d in &b.out.domains {
         if let Domain::Text(t) = d {
             b.out.max_text = b.out.max_text.max(t.len());

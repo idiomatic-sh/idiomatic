@@ -12,6 +12,7 @@ type Reader<'a> = dyn FnMut(Relation, &mut FileWords, &mut FilledColumns) -> boo
 #[derive(Default)]
 struct Table {
     read: bool,
+    answered: bool,
     complete: bool,
     cells: FilledColumns,
     index: Map<usize, Map<Id, Vec<u32>>>,
@@ -65,7 +66,8 @@ impl Table {
             return;
         }
         self.read = true;
-        self.complete = read(spec.relation, words, &mut self.cells);
+        self.answered = read(spec.relation, words, &mut self.cells);
+        self.complete = self.answered;
         if self.complete
             && let Some(key) = spec.key
         {
@@ -248,15 +250,23 @@ impl File<'_> {
             }
             // The excluded side must be exact in this particular file.
             Domain::ProvenExcept(left, difference, guard, slots) => {
-                if !self.pass(*guard) && self.complete(slots) {
-                    self.nodes(*difference)
+                let admitted = self.nodes(*left);
+                if admitted.as_ref().is_some_and(|v| v.is_empty())
+                    || self.pass(*guard)
+                    || !self.complete(slots)
+                {
+                    admitted
                 } else {
-                    self.nodes(*left)
+                    self.nodes(*difference)
                 }
             }
             Domain::Except(a, b) => {
-                let (left, right) = (self.nodes(*a), self.nodes(*b));
-                let Some(right) = right else {
+                let left = self.nodes(*a);
+                if left.as_ref().is_some_and(|v| v.is_empty()) {
+                    self.sets[id] = Some(left.clone());
+                    return left;
+                }
+                let Some(right) = self.nodes(*b) else {
                     // A missing provider answer cannot prove an exclusion.
                     let out = if matches!(self.p.domains[*b], Domain::Any) {
                         Some(Rc::default())
@@ -356,20 +366,17 @@ impl File<'_> {
             Domain::RelatedIds(slot, endpoint, filter) => {
                 let table = &mut self.facts[*slot];
                 table.load(&self.p.facts[*slot], n, self.words, self.read);
-                if !table.complete {
+                if !table.answered {
                     None
                 } else if let Some(keys) = table.cells.0.get(*endpoint) {
-                    let valid = keys.0.iter().all(|c| c.0 < u64::from(n));
                     let values = filter
                         .as_ref()
                         .and_then(|(col, ids)| Some((table.cells.0.get(*col)?, ids)));
-                    if !valid
-                        || (filter.is_some()
-                            && values.is_none_or(|(c, _)| c.0.len() != keys.0.len()))
-                    {
+                    if filter.is_some() && values.is_none_or(|(c, _)| c.0.len() != keys.0.len()) {
                         None
                     } else {
-                        Some(bits(keys.0.iter().enumerate().filter_map(|(i, k)| {
+                        let mut valid = true;
+                        let nodes = bits(keys.0.iter().enumerate().filter_map(|(i, k)| {
                             let keep = values.is_none_or(|(c, ids)| {
                                 let text = languages::facts::text(self.words, c.0[i]).0;
                                 self.p
@@ -377,9 +384,35 @@ impl File<'_> {
                                     .get(text)
                                     .is_some_and(|id| ids.binary_search(id).is_ok())
                             });
+                            if keep && k.0 >= u64::from(n) {
+                                valid = false;
+                                return None;
+                            }
                             keep.then_some(k.0 as u32)
-                        })))
+                        }));
+                        valid.then_some(nodes)
                     }
+                } else {
+                    None
+                }
+            }
+            Domain::Flag(slot, col, value) => {
+                let spec = &self.p.facts[*slot];
+                let table = &mut self.facts[*slot];
+                table.load(spec, n, self.words, self.read);
+                if table.complete {
+                    let key = spec.key.and_then(|k| table.cells.0.get(k));
+                    Some(bits(
+                        table
+                            .cells
+                            .0
+                            .get(*col)
+                            .into_iter()
+                            .flat_map(|c| &c.0)
+                            .enumerate()
+                            .filter(|(_, cell)| cell.0 == u64::from(*value))
+                            .map(|(i, _)| key.map_or(0, |ids| ids.0[i].0 as u32)),
+                    ))
                 } else {
                     None
                 }
