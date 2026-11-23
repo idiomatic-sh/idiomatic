@@ -72,6 +72,7 @@ mod tree_class;
 mod frame;
 #[path = "finish/known.rs"]
 pub(crate) mod known;
+#[path = "finish/worker_patterns.rs"]
 pub(crate) mod worker_patterns;
 #[path = "finish/set_ops.rs"]
 mod set_ops;
