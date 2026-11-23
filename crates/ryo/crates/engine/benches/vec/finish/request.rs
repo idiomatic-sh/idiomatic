@@ -59,6 +59,7 @@ pub(crate) struct Requests {
 #[derive(Default, Debug)]
 pub(crate) struct Counts {
     pub(super) files: u64,
+    idle_files: u64,
     pub(super) provider_calls: u64,
     pub(super) provider_relations: u64,
     pub(super) host_relations: u64,
@@ -94,7 +95,7 @@ impl Requests {
     pub(super) fn line(&self) -> String {
         let c = &self.counts;
         format!(
-            "REQUEST files {} provider-calls {} provider-relations {} host-relations {} rows {} refused {} never-asked {} ({} rows); relations nameable {}; missing {} first reads {}; request {:.6} answer {:.6} read {:.6} s; selecting columns {:.6} s; file predicates {} leaves {} gates",
+            "REQUEST files {} provider-calls {} provider-relations {} host-relations {} rows {} refused {} never-asked {} ({} rows); relations nameable {}; missing {} first reads {}; request {:.6} answer {:.6} read {:.6} s; selecting columns {:.6} s; file predicates {} leaves {} gates; files without active emits {idle}",
             c.files,
             c.provider_calls,
             c.provider_relations,
@@ -108,7 +109,8 @@ impl Requests {
             c.reads,
             c.request_cpu,
             c.answer_cpu,
-            c.read_cpu, c.mask_cpu, self.guards.circuit.counts().0, self.guards.circuit.counts().1
+            c.read_cpu, c.mask_cpu, self.guards.circuit.counts().0, self.guards.circuit.counts().1,
+            idle = c.idle_files
         )
     }
 }
@@ -365,14 +367,20 @@ impl Exec<'_> {
     }
 
     fn request_masks(&mut self, f: &File<'_>, run: &mut Run, roots: &[usize]) -> Vec<Option<Columns>> {
+        let mut masks = std::mem::take(&mut self.requests.masks);
+        masks.resize(self.requests.names.len(), None);
+        masks.fill(None);
+        // A file with no running emit still receives a packet. Independent
+        // diagnostic asks are appended later with their own column demand.
+        if roots.is_empty() {
+            self.requests.counts.idle_files += 1;
+            return masks;
+        }
         self.requests.guards.live.fill(false);
         for &node in roots {
             self.requests.guards.live[self.requests.root_numbers[node]] = true;
         }
         self.decide_file(run, f);
-        let mut masks = std::mem::take(&mut self.requests.masks);
-        masks.resize(self.requests.names.len(), None);
-        masks.fill(None);
         for projection in &self.requests.projections {
             let i = usize::from(projection.slot);
             if !self.requests.guards.circuit.permits(projection.guard)

@@ -114,7 +114,7 @@ impl<'p> Finisher<'p> {
     pub(super) fn column_file(&mut self, file_no: usize, path: &str, file: &mut ryo_python::fixtures::columns::ColumnFile<'_, '_>, bytes: &[u8], wanted: &[usize], prefix: Option<super::direct_fill::Prefix<'_>>) {
         let t0 = thread_cpu();
         file.set_file(languages::FileId(file_no as u32));
-        if file.plain_spellings() { self.inner.exec.source_spellings(bytes); }
+        if !wanted.is_empty() && file.plain_spellings() { self.inner.exec.source_spellings(bytes); }
         for &rel in &file.empty { self.inner.exec.walk_empty(&self.inner.run, rel); }
         super::fact_catalog::composed_empty(&mut self.inner.run, file, path, |rel, run| self.inner.exec.walk_empty(run, rel));
         let ft = file.table;
