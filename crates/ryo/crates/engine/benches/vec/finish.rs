@@ -32,6 +32,10 @@ pub(super) fn step_clock() -> f64 {
     if sw!("VEC_STEP_TIME") { super::thread_cpu() } else { 0.0 }
 }
 
+#[path = "finish/symbol_predicate.rs"]
+mod symbol_predicate;
+use symbol_predicate::{Bound, TextTest};
+
 #[path = "finish/file_version.rs"]
 mod file_version;
 pub(super) use file_version::FileVersion;
@@ -308,7 +312,9 @@ pub(super) struct Run {
     cold_text: cold_text::Plan,
     pub(super) texts: Vec<Box<[u8]>>,
     pub(super) ids: FxHashMap<Box<[u8]>, u32>,
-    pub(super) regexes: FxHashMap<String, Rc<regex::bytes::Regex>>,
+    regexes: FxHashMap<String, Rc<Bound<regex::bytes::Regex>>>,
+    lower_symbols: FxHashMap<u32, u32>,
+    folded_literals: FxHashMap<u32, Rc<Bound<Box<[u8]>>>>,
     pub(super) kind_sym: Vec<u32>,
     pub(super) field_sym: Vec<u32>,
     /// The provider updates its field-code dictionary when reading each file.
@@ -358,14 +364,23 @@ impl Run {
         self.ids.insert(t.into(), i);
         i
     }
+    fn lower_symbol(&mut self, symbol: u32) -> u32 {
+        if let Some(&lower) = self.lower_symbols.get(&symbol) {
+            return lower;
+        }
+        let text = String::from_utf8_lossy(self.text(symbol)).to_lowercase();
+        let lower = self.sym(text.as_bytes());
+        self.lower_symbols.insert(symbol, lower);
+        lower
+    }
     fn text(&self, s: u32) -> &[u8] {
         &self.texts[s as usize]
     }
-    fn re(&mut self, p: &str) -> Result<Rc<regex::bytes::Regex>, String> {
+    fn re(&mut self, p: &str) -> Result<Rc<Bound<regex::bytes::Regex>>, String> {
         if let Some(r) = self.regexes.get(p) {
             return Ok(r.clone());
         }
-        let r = Rc::new(regex::bytes::Regex::new(p).map_err(|e| format!("regex {p}: {e}"))?);
+        let r = Rc::new(Bound::new(regex::bytes::Regex::new(p).map_err(|e| format!("regex {p}: {e}"))?));
         self.regexes.insert(p.to_owned(), r.clone());
         Ok(r)
     }
@@ -1172,7 +1187,7 @@ enum E {
     /// redo-binding: the null test (`x is null`, `x is not null` when the flag is set): whether a value is the absent cell.
     Null(Box<E>, bool),
     /// A text tested against a constant regex (from `matches` or `glob_any`), compiled once.
-    Re(Box<E>, Rc<regex::bytes::Regex>),
+    TextTest(Box<E>, TextTest),
     /// The survivor handoff: whether a node id is in survivor set `k` of this file (the prefix's roots for a rule).
     Seed(Box<E>, usize),
 }
@@ -1649,20 +1664,23 @@ impl<'p> Exec<'p> {
             "call" => {
                 let name = s(&a[1])?.to_owned();
                 let args: Vec<E> = a[2].as_array().ok_or("args")?.iter().map(|x| self.expr(run, x, names)).collect::<R<_>>()?;
+                if name == "lower" && let [E::Text(symbol)] = args.as_slice() {
+                    return Ok(E::Text(run.lower_symbol(*symbol)));
+                }
                 match (name.as_str(), args.get(1)) {
                     ("matches", Some(E::Text(t))) if args.len() == 2 => {
                         let re = run.re(&String::from_utf8_lossy(run.text(*t)).into_owned())?;
-                        E::Re(Box::new(args[0].clone()), re)
+                        E::TextTest(Box::new(args[0].clone()), TextTest::Regex(re))
                     }
                     ("glob_any", Some(E::Text(t))) if args.len() == 2 => {
                         let re = run.re(&glob_pattern(&String::from_utf8_lossy(run.text(*t))))?;
-                        E::Re(Box::new(args[0].clone()), re)
+                        E::TextTest(Box::new(args[0].clone()), TextTest::Regex(re))
                     }
                     ("glob_any", Some(E::List(items))) if args.len() == 2 => {
                         let mut tests = items.iter().map(|item| {
                             let E::Text(t) = item else { return Err("glob pattern must be text".to_owned()); };
                             let re = run.re(&glob_pattern(&String::from_utf8_lossy(run.text(*t))))?;
-                            Ok(E::Re(Box::new(args[0].clone()), re))
+                            Ok(E::TextTest(Box::new(args[0].clone()), TextTest::Regex(re)))
                         }).collect::<R<Vec<_>>>()?.into_iter();
                         match tests.next() {
                             Some(first) => tests.fold(first, |left, right| E::Or(Box::new(left), Box::new(right))),
@@ -1676,6 +1694,12 @@ impl<'p> Exec<'p> {
                 let op = Op::of(s(&a[1])?);
                 let left = self.expr(run, &a[2], names)?;
                 let right = self.expr(run, &a[3], names)?;
+                if matches!(op, Op::Eq | Op::Ne)
+                    && let Some(test) = symbol_predicate::folded_literal(run, &left, &right)
+                        .or_else(|| symbol_predicate::folded_literal(run, &right, &left))
+                {
+                    return Ok(if op == Op::Eq { test } else { E::Not(Box::new(test)) });
+                }
                 // The SDK tests the spelling of a literal. Both an unpublished
                 // symbol and an actual empty string match the empty spelling.
                 let column = match (&left, &right) {
@@ -2374,7 +2398,7 @@ impl<'p> Exec<'p> {
                 let col: Vec<u64> = (0..from.n)
                     .map(|i| {
                         let t = run.text(from.cols[tc][i] as u32).to_vec();
-                        let r = re.replace_all(&t, regex::bytes::NoExpand(&rep)).into_owned();
+                        let r = re.pattern.replace_all(&t, regex::bytes::NoExpand(&rep)).into_owned();
                         u64::from(run.sym(&r))
                     })
                     .collect();
@@ -3450,7 +3474,7 @@ impl<'p> Exec<'p> {
                 counted.set((off, lines));
                 line0.unwrap_or(0) + lines
             };
-            for m in re.captures_iter(text) {
+            for m in re.pattern.captures_iter(text) {
                 let w = m.get(0).expect("whole");
                 let g = match &cap {
                     Some(c) => match m.name(c) {
@@ -3832,7 +3856,7 @@ fn remap(e: &E, map: &[usize]) -> E {
         E::Or(x, y) => E::Or(b(x), b(y)),
         E::Not(x) => E::Not(b(x)),
         E::Null(x, n) => E::Null(b(x), *n),
-        E::Re(x, r) => E::Re(b(x), r.clone()),
+        E::TextTest(x, r) => E::TextTest(b(x), r.clone()),
         E::Seed(x, k) => E::Seed(b(x), *k),
         other => other.clone(),
     }
@@ -4115,7 +4139,7 @@ fn refs_of(e: &E) -> u64 {
         E::Col(s, _, _) => 1 << s,
         E::List(v) | E::Call(_, v) => v.iter().map(refs_of).fold(0, |a, b| a | b),
         E::Cmp(_, a, b) | E::In(a, b, _) | E::And(a, b) | E::Or(a, b) => refs_of(a) | refs_of(b),
-        E::Not(a) | E::Null(a, _) | E::Re(a, _) | E::Seed(a, _) => refs_of(a),
+        E::Not(a) | E::Null(a, _) | E::TextTest(a, _) | E::Seed(a, _) => refs_of(a),
         _ => 0,
     }
 }
@@ -4266,12 +4290,9 @@ fn eval(run: &mut Run, f: &File<'_>, srcs: &[Src], cur: &[u32], e: &E) -> V {
             };
             flag(hit != *neg)
         }
-        E::Re(a, re) => {
+        E::TextTest(a, re) => {
             let x = eval(run, f, srcs, cur, a);
-            flag(match x.ty() {
-                Ty::Sym => re.is_match(run.text(x.1 as u32)),
-                _ => re.is_match(&text_of(run, x)),
-            })
+            flag(re.value(run, x))
         }
         E::Call(name, args) => {
             // redo-alloc: up to four arguments on the stack (the common sizes), more in a list
@@ -4298,7 +4319,7 @@ fn call(run: &mut Run, name: &str, vs: &[V]) -> V {
         "matches" => {
             let p = String::from_utf8(text_of(run, vs[1]).into_owned()).unwrap_or_default();
             let re = run.re(&p).expect("a regex");
-            flag(re.is_match(&text_of(run, vs[0])))
+            flag(TextTest::Regex(re).value(run, vs[0]))
         }
         "starts_with" => flag(text_of(run, vs[0]).starts_with(&text_of(run, vs[1]))),
         "ends_with" => flag(text_of(run, vs[0]).ends_with(&text_of(run, vs[1]))),
@@ -4316,6 +4337,7 @@ fn call(run: &mut Run, name: &str, vs: &[V]) -> V {
             apply(case, &[input], &mut output);
             V::new(Ty::Sym, u64::from(run.sym(output.0.as_bytes())))
         }
+        "lower" if vs[0].ty() == Ty::Sym => V::new(Ty::Sym, u64::from(run.lower_symbol(vs[0].1 as u32))),
         "lower" => {
             let s = String::from_utf8_lossy(&text_of(run, vs[0])).to_lowercase();
             V::new(Ty::Sym, u64::from(run.sym(s.as_bytes())))
@@ -4337,7 +4359,7 @@ fn call(run: &mut Run, name: &str, vs: &[V]) -> V {
         "glob_any" => {
             let g = String::from_utf8(text_of(run, vs[1]).into_owned()).unwrap_or_default();
             let re = run.re(&glob_pattern(&g)).expect("a glob");
-            flag(re.is_match(&text_of(run, vs[0])))
+            flag(TextTest::Regex(re).value(run, vs[0]))
         }
         "natural_lt" => flag(natural_lt(&String::from_utf8_lossy(&text_of(run, vs[0])), &String::from_utf8_lossy(&text_of(run, vs[1])))),
         // redo-honest: the shipping engine's meaning (operators numeric_values::integer_successor): whether the right is
