@@ -95,6 +95,8 @@ mod leaf_scan;
 mod cold_bucket;
 #[path = "finish/view_join/probe.rs"]
 mod view_probe;
+#[path = "finish/view_join/choice.rs"]
+mod view_choice;
 #[path = "finish/view_join/key.rs"]
 mod view_key;
 #[path = "finish/view_join/pair.rs"]

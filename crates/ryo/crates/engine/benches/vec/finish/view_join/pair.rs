@@ -55,23 +55,29 @@ pub(super) fn run(
         _ => return Ok(None),
     };
     let n = rows.len();
-    ex.stats.touched[node] += n as u64;
     if n == 0 {
         return ex.empty_rc(run, node).map(Some);
     }
     out.left.clear();
     out.right.clear();
-    let batch = view_probe::Driver {
-        rows,
-        source: driver,
-        column: columns[driver],
+    let (driven, hits) = if let Some(counts) =
+        super::view_choice::reverse(f, run, sources, driver, columns, rows, out.left, out.right)
+    {
+        counts
+    } else {
+        let batch = view_probe::Driver {
+            rows,
+            source: driver,
+            column: columns[driver],
+        };
+        let hits = view_probe::pairs(f, run, sources, batch, target, key, |_, left, right| {
+            out.left.push(left);
+            out.right.push(right);
+        })
+        .expect("validated native view key");
+        (n, hits)
     };
-    let hits = view_probe::pairs(f, run, sources, batch, target, key, |_, left, right| {
-        out.left.push(left);
-        out.right.push(right);
-    })
-    .expect("validated native view key");
-    ex.stats.touched[node] += hits;
+    ex.stats.touched[node] += driven as u64 + hits;
     if out.left.is_empty() {
         return ex.empty_rc(run, node).map(Some);
     }
