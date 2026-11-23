@@ -12,14 +12,13 @@
 
 use ryo_engine::domain::plan_lowering::service::{lowered, passed};
 use ryo_engine::domain::plan_lowering::types::{
-    ContextObservation, ContextTable, ObservationProducer, PackPrograms, PackRule, PlanningStage, RuleContext, RuleProgram, UnreadQuery,
+    PackPrograms, PackRule, PlanningStage, RuleContext, RuleProgram, UnreadQuery,
 };
-use ryo_values::domain::descriptions::types::{ColumnName, RelationName};
-use ryo_values::domain::observations::types::ObservationName;
 use ryo_engine::outbound::plan_codec::factory::json;
 use ryo_engine::outbound::plan_codec::interface::PlanCodecPort as _;
 use ryo_query_language::outbound::syntax::factory::winnow;
 use ryo_query_language::outbound::syntax::interface::SyntaxPort as _;
+use ryo_values::domain::finish_plans::types::FinishPlan;
 use ryo_values::domain::program::types::ParsedModules;
 use ryo_values::domain::query_tokens::types::{QueryBundle, QueryDocumentSource, QuerySourceId, QueryView};
 use ryo_values::domain::runs::types::RuleId;
@@ -68,50 +67,6 @@ fn read_texts(pack: &Path) -> PackTexts {
         .unwrap_or_default();
     fragments.sort();
     PackTexts { rules, fragments }
-}
-
-/// The run's rule context from its request (the bench's `request.json`), as the shipping host gives it to the compiler:
-/// each `rule_context.tables` entry's rows (`selected`: the selected rules' codes; `disabled`: the configuration's (file,
-/// code) pairs; `external`: its external prefixes), and each `rule_observations` spec. No request: none.
-fn rule_context(request: Option<&str>) -> RuleContext {
-    let Some(path) = request else { return RuleContext::default() };
-    let r: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(path).expect("request")).expect("request json");
-    let texts = |v: &serde_json::Value| v.as_array().map(|a| a.iter().filter_map(|x| x.as_str().map(Box::<str>::from)).collect::<Vec<_>>()).unwrap_or_default();
-    let names = |cols: &[&str]| cols.iter().map(|c| ColumnName((*c).into())).collect::<Vec<_>>();
-    let conf = &r["rule_context"]["configuration"];
-    let mut tables = Vec::new();
-    for (which, relation) in r["rule_context"]["tables"].as_object().into_iter().flatten() {
-        let relation = RelationName(relation.as_str().expect("table name").into());
-        let (columns, rows) = match which.as_str() {
-            "selected" => (names(&["code"]), texts(&r["selected_rules"]).into_iter().map(|c| vec![c]).collect()),
-            "disabled" => (
-                names(&["file", "code"]),
-                conf["disabled-rules"].as_object().into_iter().flatten().flat_map(|(f, cs)| texts(cs).into_iter().map(move |c| vec![Box::<str>::from(f.as_str()), c])).collect(),
-            ),
-            "external" => (names(&["prefix"]), texts(&conf["external-prefixes"]).into_iter().map(|p| vec![p]).collect()),
-            other => panic!("rule-context table {other}"),
-        };
-        tables.push(ContextTable { relation, columns, rows });
-    }
-    let mut observations = Vec::new();
-    for specs in r["rule_observations"].as_object().into_iter().flatten().map(|(_, v)| v) {
-        for spec in specs.as_array().into_iter().flatten() {
-            observations.push(ContextObservation {
-                name: ObservationName(spec["name"].as_str().expect("observation name").into()),
-                columns: spec["columns"].as_array().into_iter().flatten().map(|c| ColumnName(c["name"].as_str().expect("column").into())).collect(),
-                producers: spec["producers"]
-                    .as_array()
-                    .into_iter()
-                    .flatten()
-                    .map(|p| ObservationProducer {
-                        rule: RuleId(p["rule"].as_str().expect("producer rule").into()),
-                        output: ObservationName(p["output"].as_str().expect("producer output").into()),
-                    })
-                    .collect(),
-            });
-        }
-    }
-    RuleContext { tables, observations }
 }
 
 fn parsed(texts: &PackTexts, context: RuleContext) -> PackPrograms {
@@ -164,7 +119,7 @@ pub(crate) fn run_lower(args: &[&str]) {
         let t0 = super::thread_cpu();
         let texts = read_texts(pack);
         let t1 = super::thread_cpu();
-        let pack_programs = parsed(&texts, rule_context(request));
+        let pack_programs = parsed(&texts, super::request::rule_context(request));
         let t2 = super::thread_cpu();
         let hwm_parse = peak_kb();
         let mut plan = lowered(&pack_programs, PlanningStage::Expanded);
@@ -216,6 +171,7 @@ pub(crate) fn run_lower(args: &[&str]) {
             }
         }
         drop(final_bytes);
+        assert!(plan.unplanned.is_empty(), "{} unplanned rules", plan.unplanned.len());
     }
 }
 
@@ -236,26 +192,32 @@ pub(crate) fn run_stage(args: &[&str]) {
 
 /// The pack's rules and fragments read and parsed once at start, for both halves' plans (`vec funnel ... --finish <pack dir>`).
 pub(crate) struct ReadPack {
+    pub(crate) typed: std::cell::RefCell<Option<FinishPlan>>,
     pub(crate) programs: PackPrograms,
     /// Thread CPU of reading the texts (and the request's rule context) and of parsing them.
     pub(crate) read: f64,
     pub(crate) parse: f64,
 }
 
-pub(crate) fn read_pack(pack: &Path, request: Option<&str>) -> ReadPack {
+impl ReadPack {
+    pub(super) fn lower_axes(&self) -> FinishPlan {
+        lowered(&self.programs, PlanningStage::Axes)
+    }
+}
+
+pub(crate) fn read_pack(pack: &Path, context: RuleContext) -> ReadPack {
     let t0 = super::thread_cpu();
     let texts = read_texts(pack);
-    let context = rule_context(request);
     let t1 = super::thread_cpu();
     let programs = parsed(&texts, context);
     let t2 = super::thread_cpu();
     drop(texts);
-    ReadPack { programs, read: t1 - t0, parse: t2 - t1 }
+    ReadPack { typed: Default::default(), programs, read: t1 - t0, parse: t2 - t1 }
 }
 
 /// The second half's plan, lowered in this process from the parsed pack: expansion, the three passes, then the typed plan
 /// handed to the executor as the JSON value it reads (the codec's bytes decoded in memory; no file). Prints its phases.
-pub(crate) fn second_half_plan(pack: &ReadPack) -> super::finish::Plan {
+pub(crate) fn second_half_plan(pack: &ReadPack, keep_for_first: bool) -> super::finish::Plan {
     let t0 = super::thread_cpu();
     let mut plan = lowered(&pack.programs, PlanningStage::Expanded);
     let t1 = super::thread_cpu();
@@ -276,14 +238,19 @@ pub(crate) fn second_half_plan(pack: &ReadPack) -> super::finish::Plan {
     // text round trip, to compare)
     let (value, t3) = if std::env::var_os("VEC_PLAN_TEXT").is_some() {
         let bytes = json().encoded(&plan);
-        drop(plan);
+
         let t3 = super::thread_cpu();
         (serde_json::from_slice::<serde_json::Value>(&bytes).expect("the codec's own plan"), t3)
     } else {
         let v = json().valued(&plan);
-        drop(plan);
+
         (v, super::thread_cpu())
     };
+    if keep_for_first {
+        pack.typed.replace(Some(plan));
+    } else {
+        drop(plan);
+    }
     let t4 = super::thread_cpu();
     let executor_plan = super::finish::from_value(&value);
     drop(value);
