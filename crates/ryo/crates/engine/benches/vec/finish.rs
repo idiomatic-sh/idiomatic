@@ -346,7 +346,7 @@ pub(super) struct Run {
     cold_entries: cold_entries::Audit,
     cold_text: cold_text::Plan,
     pub(super) texts: Vec<Box<[u8]>>,
-    pub(super) ids: FxHashMap<Box<[u8]>, u32>,
+    pub(super) ids: hashbrown::HashTable<u32>,
     pub(crate) worker_patterns: Option<std::sync::Arc<worker_patterns::Patterns>>,
     pub(super) regexes: FxHashMap<String, Rc<regex::bytes::Regex>>,
     pub(super) kind_sym: Vec<u32>,
@@ -389,14 +389,26 @@ impl Run {
     pub(super) fn links(&mut self) {
         self.link_sym = [self.sym(b"next-token"), self.sym(b"matching-delimiter"), self.sym(b"enclosing-delimiter")];
     }
-    pub(super) fn sym(&mut self, t: &[u8]) -> u32 {
-        if let Some(i) = self.ids.get(t) {
-            return *i;
+    /// Only the text vector owns the bytes. The lookup index holds their numbers.
+    /// The reader may reserve a number without interning its spelling.
+    fn word_hash(text: &[u8]) -> u64 {
+        use std::hash::BuildHasher;
+        rustc_hash::FxBuildHasher.hash_one(text)
+    }
+
+    pub(super) fn lookup_word(&self, text: &[u8]) -> Option<u32> {
+        self.ids.find(Self::word_hash(text), |&id| &*self.texts[id as usize] == text).copied()
+    }
+
+    pub(super) fn sym(&mut self, text: &[u8]) -> u32 {
+        let hash = Self::word_hash(text);
+        if let Some(&id) = self.ids.find(hash, |&id| &*self.texts[id as usize] == text) {
+            return id;
         }
-        let i = self.texts.len() as u32;
-        self.texts.push(t.into());
-        self.ids.insert(t.into(), i);
-        i
+        let id = u32::try_from(self.texts.len()).expect("word ID");
+        self.texts.push(text.into());
+        let _ = self.ids.insert_unique(hash, id, |&key| Self::word_hash(&self.texts[key as usize]));
+        id
     }
     fn text(&self, s: u32) -> &[u8] {
         &self.texts[s as usize]

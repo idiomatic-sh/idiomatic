@@ -13,7 +13,7 @@ pub(crate) struct Settings<'p> {
     project: std::sync::Arc<finish::project::Shared>,
     constants: std::sync::Arc<finish::constants::Constants>,
     static_tests: std::sync::Arc<finish::known::Shared>,
-    ids: rustc_hash::FxHashMap<Box<[u8]>, u32>,
+    ids: hashbrown::HashTable<u32>,
     patterns: std::sync::Arc<finish::worker_patterns::Patterns>,
     root: String,
     paths: std::sync::Arc<[String]>,
