@@ -36,6 +36,8 @@ pub enum Condition {
     Test(Filter),
     /// `a or b and c`: at least one alternative holds, each a list of conditions that all hold. There are two or more.
     Any(Vec<Vec<Condition>>),
+    /// `not matches(name, "^x")`: the conditions (all of them) do not hold.
+    Not(Vec<Condition>),
 }
 
 /// The columns a `select` keeps.
@@ -90,6 +92,8 @@ pub enum SelectedValue {
     Column(ColumnReference),
     /// `concat(l.path, ".", l.name)`: computed from each row; the query names it with `as`.
     Applied(WrittenApplied),
+    /// `1 as rank`: a number, the same in every row; the query names it with `as` (a quoted name is a column).
+    Constant(WrittenOperand),
 }
 
 /// A column, with the alias of the source it belongs to when the query writes one.

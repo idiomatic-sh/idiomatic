@@ -72,6 +72,9 @@ fn conjunction(
         .iter()
         .map(|condition| match condition {
             Condition::Test(filter) => test(filter, parameters),
+            Condition::Not(negated) => conjunction(negated, parameters)?
+                .map(|holds| PlanExpression::Not(Box::new(holds)))
+                .ok_or_else(|| PlanLoweringError::NotGiven(WrittenText("a negated condition".into()))),
             Condition::Any(alternatives) => {
                 let each = alternatives
                     .iter()
@@ -130,7 +133,7 @@ fn test(filter: &Filter, parameters: &Parameters) -> Result<PlanExpression, Plan
 
 /// One side of a filter: a column (`true` and `false` written bare are constants), a parameter's value, text, a number,
 /// or a function of operands.
-fn operand(
+pub(crate) fn operand(
     written: &WrittenOperand,
     parameters: &Parameters,
 ) -> Result<PlanExpression, PlanLoweringError> {

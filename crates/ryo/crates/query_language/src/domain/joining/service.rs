@@ -246,6 +246,7 @@ fn aliased(
                     found.extend(aliased(alternative));
                 }
             }
+            ryo_values::domain::query_syntax::types::Condition::Not(negated) => found.extend(aliased(negated)),
         }
     }
     found

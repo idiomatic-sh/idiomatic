@@ -13,6 +13,13 @@ use ryo::languages::{
 use std::collections::HashMap;
 use std::hint::black_box;
 
+/// (allocation calls, bytes allocated, -, live peak) so far, from the run's counter (`alloc_count`, a `vec-dhat` build);
+/// zeros in any other.
+fn alloc_counts() -> [usize; 4] {
+    let c = alloc_count::counts();
+    [c[0] as usize, c[1] as usize, 0, c[2] as usize]
+}
+
 struct NoVisit;
 impl FileVisit for NoVisit {
     fn visit(&mut self, _file: FileFacts<'_>) {}
