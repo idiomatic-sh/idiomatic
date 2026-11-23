@@ -67,6 +67,7 @@ pub(super) const RESOLUTION_REL: &str = "read-resolution";
 pub(super) fn declare(run: &mut finish::Run) {
     super::import_syntax::declare(run);
     super::expression_parts::declare(run);
+    super::lexical_lines::declare(run);
     let columns = |fields: &[(&'static str, ryo::languages::CellKind)]| -> Vec<_> {
         fields.iter().map(|&(n, k)| (n, finish::ty_of(k))).collect()
     };

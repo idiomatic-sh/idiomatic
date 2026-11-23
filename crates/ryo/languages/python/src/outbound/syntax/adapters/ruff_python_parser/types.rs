@@ -272,6 +272,10 @@ pub(super) struct Walker<'b, 'w, 't> {
     pub literals: Vec<crate::domain::node::types::StringSite>,
     /// The imported names met: the places of the aliases.
     pub imports: Vec<languages::Position>,
+    /// The physical file's import statement count and line-comment presence.
+    pub import_presence: crate::domain::node::types::ImportPresence,
+    /// End of the most recently opened import, until a comment settles whether its line was occupied.
+    pub last_import_end: Option<Offset>,
     /// Relative from-import statements seen in the source walk.
     pub relative_froms: Vec<languages::Position>,
     /// The fields the open nodes hand their children, one run for each open node.

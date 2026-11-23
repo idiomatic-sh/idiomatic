@@ -875,6 +875,7 @@ mod fact_catalog;
 mod relative_import;
 mod import_syntax;
 mod expression_parts;
+mod lexical_lines;
 #[path = "provider_packaging.rs"]
 mod provider_packaging;
 #[path = "provider_tokens.rs"]
@@ -1317,7 +1318,9 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
             t
         } else if rel == fact_catalog::RELATIVE_IMPORT_REL {
             relative_import::walked(run, self.project, self.file, self.file_no)?
-        } else if matches!(rel, expression_parts::CALL_SITE | expression_parts::BINARY_OPERANDS) {
+        } else if matches!(rel, lexical_lines::COMMENT | lexical_lines::MULTILINE | lexical_lines::BREAKS) {
+            lexical_lines::fill(run, self.file, self.src, self.file_no, rel)?
+        } else if matches!(rel, expression_parts::CALL_SITE | expression_parts::BINARY_OPERANDS | expression_parts::COMPARISONS | expression_parts::DICT_KEYS | expression_parts::ASSIGN_NAMES | expression_parts::NESTED_DELIMITERS | expression_parts::EXPR_STATEMENTS) {
             expression_parts::fill(run, self.file, self.file_no, rel)?
         } else if matches!(rel, import_syntax::NEIGHBORS | import_syntax::HEADS | import_syntax::STATEMENTS | import_syntax::ALIASES | import_syntax::CONTEXTUAL_ALIASES | import_syntax::LINE_COMMENTS | import_syntax::ENTRIES) {
             import_syntax::fill(run, self.file, self.src, self.project, self.file_no, rel, &mut self.import_comments)?
