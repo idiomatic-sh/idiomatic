@@ -125,8 +125,28 @@ pub struct SourceMatchesArguments {
     pub capture_text_output: OptionalColumn,
     /// The column the capture's line is written to.
     pub capture_line_output: OptionalColumn,
-    /// Capture groups read by name, each with the column its text is written to, in the order written.
-    pub capture_texts: Vec<(ColumnName, ColumnName)>,
+    /// `capture-texts`: further capture groups, each group's text written to its column ("" when the group took no part
+    /// in the match), in the order written.
+    pub capture_texts: Vec<CapturedText>,
+}
+
+/// A capture group of `source-matches`' `capture-texts` and the column its text is written to.
+///
+/// # Examples
+///
+/// ```
+/// use ryo_values::domain::finish_plans::arguments::texts::types::CapturedText;
+/// use ryo_values::domain::descriptions::types::ColumnName;
+///
+/// let name = CapturedText { group: ColumnName("name".into()), output: ColumnName("name_text".into()) };
+/// assert_eq!(&*name.group.0, "name");
+/// ```
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct CapturedText {
+    /// The capture group's name in the pattern.
+    pub group: ColumnName,
+    /// The column its text is written to.
+    pub output: ColumnName,
 }
 
 /// A name an operator may be given or not: a column, or a capture group.
@@ -159,7 +179,7 @@ pub enum OptionalColumn {
 ///
 /// let capture = CaptureArguments {
 ///     from: StepNumber(0), path: ColumnName("path".into()), pattern: LiteralText("{name}".into()), captures: Vec::new(),
-///     separator: None,
+///     separator: Some(LiteralText("/".into())),
 /// };
 /// assert!(capture.captures.is_empty());
 /// ```
@@ -173,7 +193,7 @@ pub struct CaptureArguments {
     pub pattern: LiteralText,
     /// The captures kept as columns.
     pub captures: Vec<ColumnName>,
-    /// The path separator the pattern's segments are split at, when the query gives one.
+    /// `separator`: the characters a `{name}` slot may not hold (a `{*name}` slot may); none given: any.
     pub separator: Option<LiteralText>,
 }
 

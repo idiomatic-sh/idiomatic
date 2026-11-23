@@ -118,7 +118,6 @@ pub struct OrderedDfsArguments {
 /// ```
 /// use ryo_values::domain::finish_plans::arguments::types::StepNumber;
 /// use ryo_values::domain::finish_plans::arguments::walks::types::SubtreeClassArguments;
-/// use ryo_values::domain::finish_plans::arguments::texts::types::OptionalColumn;
 /// use ryo_values::domain::descriptions::types::ColumnName;
 ///
 /// let name = |text: &str| ColumnName(text.into());
@@ -126,7 +125,7 @@ pub struct OrderedDfsArguments {
 ///     from: StepNumber(3), relation: StepNumber(0), labels: StepNumber(1), leaves: StepNumber(2),
 ///     label: vec![name("kind"), name("text")], leaf_label: vec![name("shape")],
 ///     step: vec![name("field"), name("ordinal")], output: name("class"),
-///     id: OptionalColumn::Unwritten, parent: OptionalColumn::Unwritten, child: OptionalColumn::Unwritten,
+///     id: name("id"), parent: name("parent"), child: name("child"),
 /// };
 /// assert_eq!(classes.label.len(), 2);
 /// ```
@@ -148,10 +147,10 @@ pub struct SubtreeClassArguments {
     pub step: Vec<ColumnName>,
     /// The column the class is written to.
     pub output: ColumnName,
-    /// The node column of the roots and labels, when the query names it.
-    pub id: crate::domain::finish_plans::arguments::texts::types::OptionalColumn,
-    /// The parent column of the edges, when the query names it.
-    pub parent: crate::domain::finish_plans::arguments::texts::types::OptionalColumn,
-    /// The child column of the edges, when the query names it.
-    pub child: crate::domain::finish_plans::arguments::texts::types::OptionalColumn,
+    /// The node column of the labels and the leaves.
+    pub id: ColumnName,
+    /// The parent column of an edge.
+    pub parent: ColumnName,
+    /// The child column of an edge.
+    pub child: ColumnName,
 }

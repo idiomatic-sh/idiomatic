@@ -366,15 +366,13 @@ fn mentions(step: &FinishStep, column: &str) -> bool {
                 ]
                 .into_iter()
                 .any(optional)
-                || matches.capture_texts.iter().any(|(_, output)| is(&output.0))
+                || matches.capture_texts.iter().any(|text| is(&text.output.0))
         }
         FinishStep::Replace(replace) => {
             is(&replace.text.0) || is(&replace.pattern.0) || is(&replace.replacement.0) || is(&replace.output.0)
         }
         FinishStep::Capture(capture) => {
-            is(&capture.path.0)
-                || is(&capture.pattern.0)
-                || capture.captures.iter().any(|name| is(&name.0))
+            is(&capture.path.0) || is(&capture.pattern.0) || capture.captures.iter().any(|name| is(&name.0))
                 || capture.separator.as_ref().is_some_and(|text| is(&text.0))
         }
         FinishStep::RenderSyntax(render) => is(&render.node.0) || is(&render.context.0) || is(&render.output.0),

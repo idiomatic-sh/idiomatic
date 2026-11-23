@@ -94,26 +94,36 @@ pub(crate) fn optional_column(
     }
 }
 
-/// An optional text argument.
-pub(crate) fn optional_text(given: &mut GivenArguments<'_>, name: &str) -> Result<Option<LiteralText>, PlanLoweringError> {
-    if given.arguments.iter().any(|argument| &*argument.name.0 == name) { Ok(Some(text(given, name)?)) } else { Ok(None) }
+/// The text argument `name`, when the call gives it.
+pub(crate) fn optional_text(
+    given: &mut GivenArguments<'_>,
+    name: &str,
+) -> Result<Option<LiteralText>, PlanLoweringError> {
+    if given.arguments.iter().any(|argument| &*argument.name.0 == name) {
+        Ok(Some(text(given, name)?))
+    } else {
+        Ok(None)
+    }
 }
 
-/// An optional map of names to names (`{group: column, ...}`), in the order written; none when not given.
-pub(crate) fn column_pairs(given: &mut GivenArguments<'_>, name: &str) -> Result<Vec<(ColumnName, ColumnName)>, PlanLoweringError> {
+/// The map argument `name` whose values are texts (`{key: "text", ...}`), its entries in the order written; none when
+/// the call does not give it.
+pub(crate) fn text_map(
+    given: &mut GivenArguments<'_>,
+    name: &str,
+) -> Result<Vec<(Box<str>, Box<str>)>, PlanLoweringError> {
     if !given.arguments.iter().any(|argument| &*argument.name.0 == name) {
         return Ok(Vec::new());
     }
     let PlanConstant::Map(entries) = given_constant(given, name)? else {
         return Err(refused(given, name));
     };
-    entries
-        .into_iter()
-        .map(|entry| match as_text(entry.value) {
-            Some(value) => Ok((ColumnName(entry.key.0), ColumnName(value))),
-            None => Err(refused(given, name)),
-        })
-        .collect()
+    let mut out = Vec::with_capacity(entries.len());
+    for entry in entries {
+        let value = as_text(entry.value).ok_or_else(|| refused(given, name))?;
+        out.push((entry.key.0, value));
+    }
+    Ok(out)
 }
 
 /// A constant list of texts.

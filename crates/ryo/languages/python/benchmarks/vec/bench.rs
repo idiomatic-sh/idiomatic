@@ -623,6 +623,7 @@ fn main() {
                 // redo-lowering: `--finish <pack dir>` prepares the plan in this process from the rule text (the one parser,
                 // the engine's lowering); `--finish <plan file>` reads a plan prepared beforehand (the oracle).
                 let t0 = thread_cpu();
+                type_expression::load_lists(finish_args[0]);
                 let mut pack = None;
                 let plan = if std::path::Path::new(finish_args[0]).is_dir() {
                     // `--request F`: the run's request, for the rule context the lowering reads
@@ -1564,14 +1565,7 @@ fn kernel_floor(walk: &impl Walk, list: &str) {
 /// [--check-bases]`: each rule's whole lowered query run per file (`finish.rs`); findings as the reference writes them.
 fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     let plan = finish::load(args[0]);
-    // redo-binding pass 6: the pack's inputs to the facts, beside the plan (`<plan>.inputs/<fact>.tsv`, made by the plan
-    // script from the pack's `inputs/`); no file, no list
-    let inputs_dir = format!("{}.inputs", args[0].trim_end_matches(".json"));
-    let lists = match std::fs::read_to_string(format!("{inputs_dir}/type-expression.tsv")) {
-        Ok(t) => type_expression::Lists::parse(&t).expect("the type-expression input"),
-        Err(_) => type_expression::Lists::default(),
-    };
-    let _ = type_expression::LISTS.set(lists);
+    type_expression::load_lists(args[0]);
     let list = files(args[1]);
     let mut fin = finisher::Finisher::new(&plan, walk, vocab, args);
     let seed: Option<std::collections::HashSet<(String, String)>> =
