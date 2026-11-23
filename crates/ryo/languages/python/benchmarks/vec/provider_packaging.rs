@@ -195,6 +195,14 @@ impl Project {
         if let Some(k) = self.classified.get(dotted) {
             return k.clone();
         }
+        // No child path exists on any configured root when its parent directory is absent on every root.
+        // Prefixes are visited from the root down, so repeated imports inherit that observation from the same project snapshot.
+        if let Some((parent, _)) = dotted.rsplit_once('.')
+            && self.classified.get(parent).is_some_and(|kinds| kinds.as_slice() == ["absent"])
+        {
+            self.classified.insert(dotted.to_owned(), vec!["absent"]);
+            return vec!["absent"];
+        }
         let Some(search_roots) = &self.search_roots else { return vec!["unknown"] };
         let fs = dotted.replace('.', "/");
         let (mut module, mut package, mut namespace) = (false, false, false);
@@ -246,44 +254,28 @@ impl Project {
     /// `module-identity` of each of `files`: inside a package (its directory holds `__init__.py`), the dotted path from the
     /// topmost such directory's parent, the module and package directory names and the topmost package's name. A file's row
     /// depends on the project's layout only (the initializers of its directories), never on any file's content.
-    fn module_identity(&self, run: &mut finish::Run, files: &[u32]) -> Result<finish::Table, String> {
+    fn module_identity(&mut self, run: &mut finish::Run, files: &[u32]) -> Result<finish::Table, String> {
         let (_, names, tys) = run.catalog(MODULE_IDENTITY_REL).ok_or("no module-identity")?;
         let mut cols: Vec<Vec<u64>> = vec![Vec::new(); names.len()];
         let mut count = 0;
-        // a directory's initializer, observed once a run
-        let mut init_of: HashMap<std::path::PathBuf, bool> = HashMap::new();
         for &f in files {
-            let rel = run.paths[f as usize].clone();
-            let file = std::path::Path::new(&rel);
-            let mut dir = file.parent();
-            let mut package: Option<&std::path::Path> = None;
-            while let Some(d) = dir {
-                if d.as_os_str().is_empty() {
-                    break;
-                }
-                let init = *init_of.entry(d.to_path_buf()).or_insert_with(|| std::path::Path::new(&self.root_dir).join(d).join("__init__.py").is_file());
-                if !init {
-                    break;
-                }
-                package = Some(d);
-                dir = d.parent();
-            }
-            let Some(package) = package else { continue };
-            let Some(stem) = file.file_name().and_then(|n| n.to_str()).and_then(|n| n.strip_suffix(".pyi").or_else(|| n.strip_suffix(".py"))) else {
+            let file = std::path::Path::new(&run.paths[f as usize]);
+            let Some(dir) = file.parent() else { continue };
+            let Some(package) = self.package(dir) else { continue };
+            let Some(stem) = module_stem(file) else {
                 continue;
             };
-            let top = package.parent().unwrap_or(std::path::Path::new(""));
-            let mut parts: Vec<String> = file.strip_prefix(top).ok().and_then(|r| r.parent()).map(|r| r.components().map(|c| c.as_os_str().to_string_lossy().into_owned()).collect()).unwrap_or_default();
-            parts.push(stem.to_owned());
-            let pkg_dir = file.parent().and_then(|p| p.file_name()).map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-            let root_name = package.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+            let dotted = format!("{}.{stem}", package.dotted);
+            let filename = stem.to_owned();
+            let pkg_dir = dir.file_name().unwrap_or_default().to_string_lossy().into_owned();
+            let root_name = run.sym(package.root_name.as_bytes());
             for (c, n) in names.iter().enumerate() {
                 cols[c].push(match n.as_str() {
                     "file" => u64::from(f),
-                    "path" => u64::from(run.sym(parts.join(".").as_bytes())),
-                    "module-name" => u64::from(run.sym(stem.as_bytes())),
+                    "path" => u64::from(run.sym(dotted.as_bytes())),
+                    "module-name" => u64::from(run.sym(filename.as_bytes())),
                     "package-name" => u64::from(run.sym(pkg_dir.as_bytes())),
-                    "package-root-name" => u64::from(run.sym(root_name.as_bytes())),
+                    "package-root-name" => u64::from(root_name),
                     _ => finish::NULL,
                 });
             }

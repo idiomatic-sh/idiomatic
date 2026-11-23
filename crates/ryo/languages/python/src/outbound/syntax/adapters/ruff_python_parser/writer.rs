@@ -69,6 +69,7 @@ impl<'b, 'w, 't> Writer<'b, 'w, 't> {
         Self {
             future_annotations: FutureAnnotations(false),
             annotations_deferred: false,
+            declarations: crate::domain::model::types::AnnotatedDeclarations::Unbound,
             annotations: Vec::new(),
             annotation: context,
             start,
@@ -250,6 +251,11 @@ impl<'a> SourceOrderVisitor<'a> for Writer<'_, '_, 'a> {
                 self.tree.builder,
                 crate::domain::syntax::constants::MODULE_ANNOTATION_TIMING,
                 super::future::annotation_timing(self.annotations_deferred),
+            );
+            languages::node_property(
+                self.tree.builder,
+                crate::domain::syntax::constants::MODULE_ANNOTATED_DECLARATIONS,
+                super::future::declarations_text(self.declarations),
             );
         }
         scalar_properties(node, self.tree.builder, &mut self.scalar);

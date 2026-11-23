@@ -1,5 +1,6 @@
 //! The `semijoins` service.
 
+use crate::domain::plan_lowering::readers::types::Uses;
 use ryo_values::domain::finish_plans::arguments::types::StepNumber;
 use ryo_values::domain::finish_plans::types::{
     FinishPlan, FinishStep, ProbeMark, RowCondition, SelectStep, SelectedColumns, SourceOrdinal,
@@ -11,9 +12,12 @@ use crate::domain::plan_lowering::readers::types::{ReadAlias, Worked};
 use hashbrown::HashSet;
 
 /// The plan with every select the pass admits marked a semijoin; answers how many it marked.
-pub(crate) fn semijoined(plan: &mut FinishPlan) -> usize {
+pub(crate) fn semijoined(
+    plan: &mut FinishPlan,
+    uses: &Uses,
+) -> usize {
     let marks: Vec<(usize, SourceOrdinal)> = {
-        let readers = plan_readers(plan);
+        let readers = plan_readers(plan, uses);
         let mut memo = vec![Worked::Open; plan.steps.len()];
         plan.steps
             .iter()

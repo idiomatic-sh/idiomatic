@@ -15,18 +15,21 @@ pub(crate) fn numbered(expansion: &mut Expansion<'_>, step: FinishStep) -> StepN
     let identity_form = mapped.then(|| identity(&step));
     let key = identity_form.as_ref().unwrap_or(&step);
     let hash = hasher.hash_one(key);
-    let found = numbers.find(hash, |number| {
-        steps.get(number.0).is_some_and(|made| if mapped { identity(made) == *key } else { made == key })
+    let found = numbers.find(hash, |(_, number)| {
+        steps.get(number.0).is_some_and(|made| {
+            if mapped {
+                identity(made) == *key
+            } else {
+                made == key
+            }
+        })
     });
-    if let Some(number) = found {
+    if let Some((_, number)) = found {
         return *number;
     }
     let number = StepNumber(steps.len());
-    let _slot = numbers.insert_unique(hash, number, |earlier| {
-        steps.get(earlier.0).map_or(0, |made| {
-            if holds_map(made) { hasher.hash_one(identity(made)) } else { hasher.hash_one(made) }
-        })
-    });
+    // Growing the index must not re-hash every earlier plan expression.
+    let _slot = numbers.insert_unique(hash, (hash, number), |(hash, _)| *hash);
     steps.push(step);
     number
 }

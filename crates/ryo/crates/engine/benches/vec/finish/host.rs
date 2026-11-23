@@ -4,7 +4,7 @@
 //! a file the harness lints was read). Not the language provider's: it says what the file system says.
 
 use super::{R, Run, Table};
-use std::os::unix::fs::PermissionsExt as _;
+use super::super::host_columns;
 
 /// redo-fills pass 2: how many rows the host has of `rel` in a file without reading it: a file the harness lints was read,
 /// so it has no read failure. None: not known (or not the host's).
@@ -31,8 +31,8 @@ pub(in super::super) fn host_fill(run: &mut Run, rel: &str, file_no: u32) -> Opt
     }
     if rel == "filesystem.executable" {
         let path = format!("{}/{}", run.root_dir, run.paths[file_no as usize]);
-        match std::fs::metadata(&path) {
-            Ok(m) => t.push_row(&[u64::from(file_no), u64::from(m.permissions().mode() & 0o111 != 0)]),
+        match host_columns::executable(std::path::Path::new(&path)) {
+            Ok(value) => t.push_row(&[u64::from(file_no), u64::from(value)]),
             Err(e) => return Some(Err(format!("filesystem.executable: {path}: {e}"))),
         }
     }

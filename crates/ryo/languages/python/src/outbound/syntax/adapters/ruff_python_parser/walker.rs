@@ -196,6 +196,11 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
                 crate::domain::syntax::constants::MODULE_ANNOTATION_TIMING,
                 super::future::annotation_timing(self.annotations_deferred),
             );
+            node_table::node_property(
+                self.builder,
+                crate::domain::syntax::constants::MODULE_ANNOTATED_DECLARATIONS,
+                super::future::declarations_text(self.declarations),
+            );
         }
         self.nodes.push(node);
         let at = Position(id);
@@ -214,6 +219,8 @@ impl<'t> SourceOrderVisitor<'t> for Walker<'_, '_, 't> {
                     AnnotationSeed::Candidate
                 },
             });
+        } else if matches!(node, AnyNodeRef::StmtImportFrom(stmt) if stmt.level != 0) {
+            self.relative_froms.push(at);
         } else if matches!(node, AnyNodeRef::Alias(_)) {
             self.imports.push(at);
         } else {

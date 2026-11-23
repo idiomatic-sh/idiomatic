@@ -83,6 +83,23 @@ pub(super) fn annotations_deferred(future: FutureAnnotations, kind: PythonSource
     future.0 || kind == PythonSourceKind::Stub
 }
 
+/// What a declaration `x: T` without a value does to `x` in a source of this kind: a stub, which is never run, declares `x` by
+/// the typing specification; a module that runs gives it no value.
+pub(super) const fn annotated_declarations(kind: PythonSourceKind) -> crate::domain::model::types::AnnotatedDeclarations {
+    match kind {
+        PythonSourceKind::Stub => crate::domain::model::types::AnnotatedDeclarations::Declared,
+        PythonSourceKind::Python => crate::domain::model::types::AnnotatedDeclarations::Unbound,
+    }
+}
+
+/// The text of the module property that records [`annotated_declarations`].
+pub(super) const fn declarations_text(declarations: crate::domain::model::types::AnnotatedDeclarations) -> ryo::languages::NameText<'static> {
+    ryo::languages::NameText(match declarations {
+        crate::domain::model::types::AnnotatedDeclarations::Declared => crate::domain::syntax::constants::MODULE_DECLARATIONS_DECLARED,
+        crate::domain::model::types::AnnotatedDeclarations::Unbound => crate::domain::syntax::constants::MODULE_DECLARATIONS_UNBOUND,
+    })
+}
+
 /// The text of the module property that records [`annotations_deferred`].
 pub(super) const fn annotation_timing(deferred: bool) -> ryo::languages::NameText<'static> {
     ryo::languages::NameText(if deferred {

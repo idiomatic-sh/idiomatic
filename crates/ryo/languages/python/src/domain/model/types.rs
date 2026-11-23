@@ -300,6 +300,16 @@ pub(crate) enum BindingAnnotationTiming {
     /// Future annotations defer native annotation name lookup.
     Deferred,
 }
+/// What a declaration `x: T` without a value does to the name `x`, by the kind of the source.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum AnnotatedDeclarations {
+    /// A module that runs: the declaration gives the name no value, so a read of the name that reaches only it reads nothing.
+    #[default]
+    Unbound,
+    /// A stub, which is never run: the typing specification reads its `x: T` as the declaration of `x` with the type `T`, so a
+    /// read of `x` that reaches it uses it.
+    Declared,
+}
 /// Reusable event and deferred-region buffers; constructed only on demand.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct BindingSchedule {

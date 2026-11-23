@@ -87,33 +87,41 @@ impl SyntaxPort for SyntaxWinnowAdapter {
         bundle: &ryo_values::domain::query_tokens::types::QueryBundle,
     ) -> Result<ryo_values::domain::program::types::ParsedQueryBundle, SyntaxError> {
         use ryo_values::domain::program::types::ParsedQueryBundle;
-        use ryo_values::domain::query_tokens::types::QueryOrigin;
         let root = self.read_root(bundle)?;
         let mut fragments = std::collections::BTreeMap::new();
         for (source_id, source) in bundle.modules.iter() {
-            let fragment = fragment_program
-                .parse(LocatingSlice::new(&*source.text))
-                .map_err(|error| {
-                    let said = error.inner().to_string();
-                    SyntaxError::Located {
-                        origin: QueryOrigin {
-                            source_id: source_id.clone(),
-                            span: QuerySpan {
-                                start: ByteOffset(error.offset()),
-                                end: ByteOffset(error.offset()),
-                            },
-                            trace: [].into(),
-                        },
-                        message: if said.is_empty() {
-                            expectation().to_owned()
-                        } else {
-                            said
-                        },
-                    }
-                })?;
+            let fragment = self.read_fragment(source_id, QueryView(&source.text))?;
             let _previous_fragment = fragments.insert(source_id.clone(), fragment);
         }
         Ok(ParsedQueryBundle { root, fragments })
+    }
+
+    fn read_fragment(
+        &self,
+        source_id: &ryo_values::domain::query_tokens::types::QuerySourceId,
+        text: QueryView<'_>,
+    ) -> Result<FragmentProgram, SyntaxError> {
+        use ryo_values::domain::query_tokens::types::QueryOrigin;
+        fragment_program
+            .parse(LocatingSlice::new(text.0))
+            .map_err(|error| {
+                let said = error.inner().to_string();
+                SyntaxError::Located {
+                    origin: QueryOrigin {
+                        source_id: source_id.clone(),
+                        span: QuerySpan {
+                            start: ByteOffset(error.offset()),
+                            end: ByteOffset(error.offset()),
+                        },
+                        trace: [].into(),
+                    },
+                    message: if said.is_empty() {
+                        expectation().to_owned()
+                    } else {
+                        said
+                    },
+                }
+            })
     }
 
     fn read_root(

@@ -30,7 +30,7 @@ type Value = (ReadState, usize, &'static str);
 type Failure = ();
 const CASES: &[Case<Input, Value, Failure>] = &[
     Case {
-        name: CaseName("builtin association before local store differs from lexical ownership"),
+        name: CaseName("an uninitialized function local masks its builtin homonym"),
         word: Word::Succeeds,
         input: || {
             (
@@ -39,14 +39,7 @@ const CASES: &[Case<Input, Value, Failure>] = &[
                 Environment::BeforeStore,
             )
         },
-        expect: Expect::Value((
-            ReadState::Builtin {
-                since_major: Integer(3),
-                since_minor: Integer(0),
-            },
-            0,
-            "local",
-        )),
+        expect: Expect::Value((ReadState::Unbound, 0, "local")),
     },
     Case {
         name: CaseName("module conditional store retains builtin fallback on absent arm"),
@@ -214,6 +207,7 @@ fn subject((source, wanted, environment): Input) -> Result<Value, Failure> {
         frame,
         reference,
         name,
+        Some(&[]),
         &mut candidates,
     );
     let index = prepare(&tree, &model);

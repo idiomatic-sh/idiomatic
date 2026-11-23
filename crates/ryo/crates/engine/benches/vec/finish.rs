@@ -105,7 +105,7 @@ pub(super) enum Ty {
     Flag,
 }
 
-fn ty_of(k: CellKind) -> Ty {
+pub(super) fn ty_of(k: CellKind) -> Ty {
     match k {
         CellKind::Node => Ty::Node,
         CellKind::Symbol => Ty::Sym,
@@ -4294,21 +4294,7 @@ fn call(run: &mut Run, name: &str, vs: &[V]) -> V {
     }
 }
 
-fn glob_pattern(g: &str) -> String {
-    let mut s = String::from("^");
-    for c in g.chars() {
-        match c {
-            '*' => s.push_str(".*"),
-            '?' => s.push('.'),
-            '{' => s.push_str("(?:"),
-            '}' => s.push(')'),
-            ',' => s.push('|'),
-            c => s.push_str(&regex::escape(&c.to_string())),
-        }
-    }
-    s.push('$');
-    s
-}
+use super::glob_pattern;
 
 /// Natural order, as the language reference states it.
 fn natural_lt(a: &str, b: &str) -> bool {

@@ -125,6 +125,15 @@ pub(crate) const MODULE_ANNOTATIONS_DEFERRED: &str = "deferred";
 /// The module's annotations are evaluated where they stand.
 pub(crate) const MODULE_ANNOTATIONS_IMMEDIATE: &str = "immediate";
 
+/// What a declaration `x: T` without a value does to `x` in the module: binds it in a stub (the typing specification reads it as
+/// the declaration of `x`), gives it no value in a module that runs.
+pub(crate) const MODULE_ANNOTATED_DECLARATIONS: ryo::languages::PropertyId =
+    ryo::languages::PropertyId(10);
+/// A declaration without a value binds the name it declares.
+pub(crate) const MODULE_DECLARATIONS_DECLARED: &str = "declared";
+/// A declaration without a value gives the name no value.
+pub(crate) const MODULE_DECLARATIONS_UNBOUND: &str = "unbound";
+
 /// The keyword of a coroutine definition or comprehension, as its `NAME` token writes it.
 pub(crate) const ASYNC: &str = "async";
 
