@@ -293,8 +293,8 @@ fn alternation<'a>(codes: impl IntoIterator<Item = &'a str>) -> String {
     format!("^(?:{})$", sorted.into_iter().collect::<Vec<_>>().join("|"))
 }
 
-/// The RUF100 catalog lookup the pinned catalog renders: plain codes, then each redirect target's aliases, joined by a
-/// balanced union tree.
+/// The RUF100 catalog lookup the pinned catalog renders: plain codes, then a written table of each redirect target's
+/// aliases (targets in order, each target's aliases in order) and one join.
 fn catalog_lookup(
     registered: &[&str],
     redirects: &serde_json::Map<String, serde_json::Value>,
@@ -303,10 +303,6 @@ fn catalog_lookup(
         .iter()
         .copied()
         .filter(|code| !redirects.contains_key(*code));
-    let mut lines = vec![format!(
-        "let catalog_plain = select id, file, code, code as canonical, token_span from tokens where matches(code, \"{}\");",
-        alternation(plain)
-    )];
     let mut groups = std::collections::BTreeMap::<&str, Vec<&str>>::new();
     for (before, after) in redirects {
         let after = after.as_str().unwrap();
@@ -314,33 +310,25 @@ fn catalog_lookup(
             groups.entry(after).or_default().push(before);
         }
     }
-    let mut names = vec!["catalog_plain".to_owned()];
-    for (index, (target, aliases)) in groups.into_iter().enumerate() {
-        lines.push(format!("let catalog_alias_{index} = select id, file, code, token_span from tokens where matches(code, \"{}\");", alternation(aliases)));
-        lines.push(format!("let catalog_target_{index} = extend(from=catalog_alias_{index}, values={{canonical: \"{target}\"}});"));
-        lines.push(format!("let catalog_branch_{index} = select id, file, code, canonical, token_span from catalog_target_{index};"));
-        names.push(format!("catalog_branch_{index}"));
-    }
-    let mut index = 0;
-    while names.len() > 1 {
-        let mut next = Vec::new();
-        for pair in names.chunks(2) {
-            if let [left, right] = pair {
-                lines.push(format!(
-                    "let catalog_union_{index} = union(left={left}, right={right});"
-                ));
-                next.push(format!("catalog_union_{index}"));
-                index += 1;
-            } else {
-                next.push(pair[0].clone());
-            }
-        }
-        names = next;
-    }
-    lines.push(format!(
-        "let known_tokens = select id, file, code, canonical, token_span from {};",
-        names[0]
-    ));
+    let rows = groups
+        .into_iter()
+        .flat_map(|(target, aliases)| {
+            aliases
+                .into_iter()
+                .map(move |alias| format!("[\"{alias}\", \"{target}\"]"))
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
+    let lines = [
+        format!(
+            "let catalog_plain = select id, file, code, code as canonical, token_span from tokens where matches(code, \"{}\");",
+            alternation(plain)
+        ),
+        format!("let catalog_aliases = rows(from=[{rows}], columns=[\"code\", \"canonical\"]);"),
+        "let catalog_renamed = select l.id as id, l.file as file, l.code as code, r.canonical as canonical, l.token_span as token_span from tokens as l join catalog_aliases as r on l.code = r.code;".to_owned(),
+        "let catalog_known = union(left=catalog_plain, right=catalog_renamed);".to_owned(),
+        "let known_tokens = select id, file, code, canonical, token_span from catalog_known;".to_owned(),
+    ];
     lines.join("\n") + "\n"
 }
 

@@ -1,0 +1,10 @@
+input bindings: relation<binding: node, name: symbol, scope: node, phase: node, ordinal: number, file: file>;
+output relation<earlier: node, later: node, ordinal: number>;
+let binding_stream0 = select name, scope, phase, ordinal, file, binding as occurrence from bindings;
+let binding_stream = extend(from=binding_stream0, values={tag: "bind"});
+let ending_stream0 = select name, scope, phase, ordinal, file, occurrence from "binding-event" where kind = "delete" or kind = "cleanup";
+let ending_stream = extend(from=ending_stream0, values={tag: "end"});
+let replacement_timeline = union(left=binding_stream, right=ending_stream);
+let timeline_pairs = ordered-match(left=replacement_timeline, right=replacement_timeline, left-on=[scope,phase,name,file], right-on=[scope,phase,name,file], left-order="ordinal", right-order="ordinal", output={earlier:[left,occurrence], later:[right,occurrence], before:[left,tag], after:[right,tag], ordinal:[right,ordinal]});
+let local_replacements = select earlier, later, ordinal from timeline_pairs where before = "bind" and after = "bind";
+return local_replacements;

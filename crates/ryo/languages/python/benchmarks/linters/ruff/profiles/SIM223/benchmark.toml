@@ -36,6 +36,11 @@ parser-configuration = "python-target=3.10"
 "python/ruff/noqa-blankets" = "fragments/noqa-blankets.ryoql"
 "python/ruff/noqa-ranges" = "fragments/noqa-ranges.ryoql"
 "python/ruff/noqa-heads" = "fragments/noqa-heads.ryoql"
+"python/ruff/boolean-test-context" = "fragments/boolean-test-context.ryoql"
+"python/ruff/evaluated-targets" = "fragments/evaluated-targets.ryoql"
+"python/ruff/interpolated-string-truth" = "fragments/interpolated-string-truth.ryoql"
+"python/ruff/short-circuit" = "fragments/short-circuit.ryoql"
+"python/ruff/without-effect" = "fragments/without-effect.ryoql"
 
 [rule-applicability]
 SIM223 = "accepted-syntax"

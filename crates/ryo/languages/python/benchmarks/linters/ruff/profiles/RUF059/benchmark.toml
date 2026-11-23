@@ -38,3 +38,5 @@ defaults = ["RUF059"]
 "python/ruff/noqa-heads" = "fragments/noqa-heads.ryoql"
 "python/ruff/calls" = "fragments/calls.ryoql"
 "python/ruff/candidate-locations" = "fragments/candidate-locations.ryoql"
+"python/ruff/binding-replacements" = "fragments/binding-replacements.ryoql"
+"python/ruff/unpacking-targets" = "fragments/unpacking-targets.ryoql"

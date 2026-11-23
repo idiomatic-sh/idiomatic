@@ -46,7 +46,7 @@ let suppression_candidates = select l.id as id, l.file as file, r.span as span, 
 let suppression_found = observation_matches(candidates=suppression_candidates, codes="^(?:PLR1701|SIM101)$");
 let candidate_rows = select id, file, span from candidate_locations;
 let violations = antijoin(left=candidate_rows, right=suppression_found, left-on=[id], right-on=[id]);
-let ruf100_directives = select directive, file from suppression_found where scope < 2;
+let ruf100_directives = select directive, file from suppression_found;
 let ruf100_used = extend(from=ruf100_directives, values={code: "SIM101"});
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

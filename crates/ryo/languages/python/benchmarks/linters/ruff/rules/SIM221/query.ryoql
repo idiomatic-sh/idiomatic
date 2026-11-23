@@ -94,7 +94,7 @@ let visible_candidates = antijoin(left=visible_candidates_rows, right=visible_ca
 let hidden_candidates = antijoin(left=suppression_candidates, right=visible_candidates, left-on=["id"], right-on=["id"]);
 let kept_candidates = antijoin(left=candidate_locations, right=hidden_candidates, left-on=["id"], right-on=["id"]);
 let violations = select id, file, span, unary, negated_name, positive_name from kept_candidates;
-let ruf100_directives = select directive, file from visible_candidates_matches where scope < 2;
+let ruf100_directives = select directive, file from visible_candidates_matches;
 let ruf100_used = extend(from=ruf100_directives, values={code: "SIM221"});
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id, unary, negated_name, positive_name);

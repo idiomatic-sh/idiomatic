@@ -17,7 +17,9 @@ let parent_match_ids = select l.id as id, l.file as file, r.directive as directi
 let parent_matches = select l.id as id, l.file as file, l.span as span, r.directive as directive from candidates as l join parent_match_ids as r on l.id = r.id and l.file = r.file;
 let file_edges = select id, file, span, directive from base where scope = 1;
 let parent_without_file = antijoin(left=parent_matches, right=file_edges, left-on=[id, span], right-on=[id, span]);
-let parent_edges = extend(from=parent_without_file, values={scope: 0});
+let range_edges = select id, file, span, directive from base where scope = 2;
+let parent_without_range = antijoin(left=parent_without_file, right=range_edges, left-on=[id, span], right-on=[id, span]);
+let parent_edges = extend(from=parent_without_range, values={scope: 0});
 let line_edges = select * from base where scope = 0;
 let line_without_parent = antijoin(left=line_edges, right=parent_matches, left-on=[id, span], right-on=[id, span]);
 let other_edges = select * from base where scope != 0;

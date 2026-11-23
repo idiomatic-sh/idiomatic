@@ -1,0 +1,7 @@
+output relation<id: node, file: file>;
+let children = select parent, child, field, file from "semantic-child";
+let alias_names = select id, file from "qualified-name" where path = "typing.TypeAlias" or path = "typing_extensions.TypeAlias" or path = "_typeshed.TypeAlias";
+let alias_owners = select l.parent as owner, l.file as file from children as l join alias_names as r on l.child = r.id and l.file = r.file where l.field = "annotation";
+let alias_values = select r.child as id, l.file as file from alias_owners as l join children as r on l.owner = r.parent and l.file = r.file where r.field = "value";
+let values = select id, file from alias_values;
+return values;

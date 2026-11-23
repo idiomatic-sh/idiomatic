@@ -331,3 +331,309 @@ name = "fstring-newline-text"
 comparison = "full"
 files = { "case.py" = "x or f\"\"\"\n\"\"\" or z\n" }
 expected = [{ rule = "SIM222", file = "case.py", start = 5, end = 18 }]
+
+[[cases]]
+name = "sc-paren-operand"
+comparison = "full"
+files = { "case.py" = "x = (True) or y\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 4, end = 15 }]
+
+[[cases]]
+name = "sc-paren-group"
+comparison = "full"
+files = { "case.py" = "x = (True or y)\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 5, end = 14 }]
+
+[[cases]]
+name = "sc-call-paren"
+comparison = "full"
+files = { "case.py" = "int(1 and 0)\n" }
+expected = []
+
+[[cases]]
+name = "sc-call-paren-sim222"
+comparison = "full"
+files = { "case.py" = "int(1 or 0)\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 4, end = 10 }]
+
+[[cases]]
+name = "sc-double-paren-operand"
+comparison = "full"
+files = { "case.py" = "x = ((True)) or y\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 4, end = 17 }]
+
+[[cases]]
+name = "sc-paren-operand-later"
+comparison = "full"
+files = { "case.py" = "x = y or (True) or z\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 9, end = 20 }]
+
+[[cases]]
+name = "sc-effect-before-false"
+comparison = "full"
+files = { "case.py" = "if f(x) and False:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "sc-name-before-false"
+comparison = "full"
+files = { "case.py" = "if x and False:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "sc-false-before-effect"
+comparison = "full"
+files = { "case.py" = "if False and f(x):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "sc-attr-before-false"
+comparison = "full"
+files = { "case.py" = "if x.y and False:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "sc-effect-before-true"
+comparison = "full"
+files = { "case.py" = "if f(x) or True:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "sc-subscript-before-true"
+comparison = "full"
+files = { "case.py" = "if x[0] or True:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "sc-compare-before-true"
+comparison = "full"
+files = { "case.py" = "if x == 1 or True:\n    pass\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 3, end = 17 }]
+
+[[cases]]
+name = "sc-assert-string-and-in"
+comparison = "full"
+files = { "case.py" = "assert \"A\" and \"B\" in out\n" }
+expected = []
+
+[[cases]]
+name = "sc-tuple-or-none"
+comparison = "full"
+files = { "case.py" = "({'a': 'b'}, 1) or None\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 0, end = 23 }]
+
+[[cases]]
+name = "sc-list-or"
+comparison = "full"
+files = { "case.py" = "[1] or x\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 0, end = 8 }]
+
+[[cases]]
+name = "sc-starred-or"
+comparison = "full"
+files = { "case.py" = "print(*[] or [1])\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 7, end = 16 }]
+
+[[cases]]
+name = "sc-effect-then-name-before-false"
+comparison = "full"
+files = { "case.py" = "if f(x) and y and False:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "sc-empty-list-and"
+comparison = "full"
+files = { "case.py" = "x = [] and y\n" }
+expected = []
+
+[[cases]]
+name = "sc-list-or-assign"
+comparison = "full"
+files = { "case.py" = "x = [1] or y\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 4, end = 12 }]
+
+[[cases]]
+name = "sc-starred-list-or"
+comparison = "full"
+files = { "case.py" = "x = [*a] or y\n" }
+expected = []
+
+[[cases]]
+name = "sc-dict-or"
+comparison = "full"
+files = { "case.py" = "x = {1: 2} or y\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 4, end = 15 }]
+
+[[cases]]
+name = "sc-dict-unpack-or"
+comparison = "full"
+files = { "case.py" = "x = {**a} or y\n" }
+expected = []
+
+[[cases]]
+name = "sc-empty-tuple-and"
+comparison = "full"
+files = { "case.py" = "x = () and y\n" }
+expected = []
+
+[[cases]]
+name = "sc-list-call-and"
+comparison = "full"
+files = { "case.py" = "x = list() and y\n" }
+expected = []
+
+[[cases]]
+name = "sc-list-call-arg-or"
+comparison = "full"
+files = { "case.py" = "x = list([1]) or y\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 4, end = 18 }]
+
+[[cases]]
+name = "sc-str-call-and"
+comparison = "full"
+files = { "case.py" = "x = str() and y\n" }
+expected = []
+
+[[cases]]
+name = "sc-bool-call-and"
+comparison = "full"
+files = { "case.py" = "x = bool() and y\n" }
+expected = []
+
+[[cases]]
+name = "sc-set-display-or"
+comparison = "full"
+files = { "case.py" = "x = {1} or y\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 4, end = 12 }]
+
+[[cases]]
+name = "sc-nested-in-test"
+comparison = "full"
+files = { "case.py" = "if (a or True) and b:\n    pass\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 4, end = 13 }]
+
+[[cases]]
+name = "sc-not-in-test"
+comparison = "full"
+files = { "case.py" = "if not (a or True):\n    pass\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 8, end = 17 }]
+
+[[cases]]
+name = "sc-call-arg-in-test"
+comparison = "full"
+files = { "case.py" = "if f(a or True):\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "sc-paren-after-blocker"
+comparison = "full"
+files = { "case.py" = "if f(x) and (y) and False:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "sc-while-test"
+comparison = "full"
+files = { "case.py" = "while a or True:\n    pass\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 6, end = 15 }]
+
+[[cases]]
+name = "sc-ifexp-test"
+comparison = "full"
+files = { "case.py" = "z = 1 if a or True else 2\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 9, end = 18 }]
+
+[[cases]]
+name = "sc-comprehension-if"
+comparison = "full"
+files = { "case.py" = "z = [i for i in x if a or True]\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 21, end = 30 }]
+
+[[cases]]
+name = "sc-generator-before"
+comparison = "full"
+files = { "case.py" = "if (i for i in x) and False:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "sc-await-before"
+comparison = "full"
+files = { "case.py" = "async def g():\n    if await h() and False:\n        pass\n" }
+expected = []
+
+[[cases]]
+name = "sc-subscript-literal"
+comparison = "full"
+files = { "case.py" = "if [1][0] or True:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "sc-binop-names-before"
+comparison = "full"
+files = { "case.py" = "if a + b or True:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "sc-binop-numbers-before"
+comparison = "full"
+files = { "case.py" = "if 1 + 2 or True:\n    pass\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 3, end = 16 }]
+
+[[cases]]
+name = "sc-lambda-before"
+comparison = "full"
+files = { "case.py" = "if (lambda: 1) or True:\n    pass\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 3, end = 22 }]
+
+[[cases]]
+name = "sc-walrus-before"
+comparison = "full"
+files = { "case.py" = "if (n := 1) and False:\n    pass\n" }
+expected = []
+
+[[cases]]
+name = "sc-assert-and-in"
+comparison = "full"
+files = { "case.py" = "assert \"A\" and \"B\" in out\n" }
+expected = []
+
+[[cases]]
+name = "sc-paren-after-blocker-or"
+comparison = "full"
+files = { "case.py" = "if f(x) or (y) or True:\n    pass\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 11, end = 22 }]
+
+[[cases]]
+name = "sc-paren-not-closing"
+comparison = "full"
+files = { "case.py" = "if f(x) or (y or True):\n    pass\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 12, end = 21 }]
+
+[[cases]]
+name = "sc-assign-unknown-then-true"
+comparison = "full"
+files = { "case.py" = "x = y or True or z\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 9, end = 18 }]
+
+[[cases]]
+name = "sc-lambda-or-assign"
+comparison = "full"
+files = { "case.py" = "x = (lambda: 1) or y\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 4, end = 20 }]
+
+[[cases]]
+name = "sc-generator-or-assign"
+comparison = "full"
+files = { "case.py" = "x = (i for i in z) or y\n" }
+expected = [{ rule = "SIM222", file = "case.py", start = 4, end = 23 }]
+
+[[cases]]
+name = "sc-listcomp-or-assign"
+comparison = "full"
+files = { "case.py" = "x = [i for i in z] or y\n" }
+expected = []
+
+[[cases]]
+name = "sc-lambda-and-false-assign"
+comparison = "full"
+files = { "case.py" = "x = y and (lambda: 1) and False\n" }
+expected = []

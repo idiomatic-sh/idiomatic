@@ -43,7 +43,7 @@ let candidates = select l.id as id, l.file as file, r.span as span, r."start-lin
 let violations_matches = observation_matches(candidates=candidates, codes="^(?:PLW0406)$");
 let violations_rows = select id, file, span from candidates;
 let violations = antijoin(left=violations_rows, right=violations_matches, left-on=[id, span], right-on=[id, span]);
-let ruf100_directives = select directive, file from violations_matches where scope < 2;
+let ruf100_directives = select directive, file from violations_matches;
 let ruf100_used = extend(from=ruf100_directives, values={code: "PLW0406"});
 observe ruf100_used as noqa_matches;
 emit violations subject file key(id);

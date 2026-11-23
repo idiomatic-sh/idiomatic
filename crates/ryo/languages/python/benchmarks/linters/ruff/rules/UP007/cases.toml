@@ -189,10 +189,148 @@ name = "independent-callable-lexical-ownership-0"
 comparison = "full"
 files = { "case.py" = "import typing\ndef f():\n    value = typing.Union[int,str]\n    typing = object\n" }
 expected = []
-reference-discrepancy = { "expected" = [{ "end" = 56, "file" = "case.py", "rule" = "UP007", "start" = 35 }], "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "f60cb16810f78943a490f69ad2b5ee53c75838869ab630a9fa9aa576c4a5d2e6", "settings-sha256" = "4e51ad1d0cb31dfe6504b29f0771c575b00f0baf548b50a3c3f1aecac5577384", "source-sha256" = "5814279a5094ae7c4f5ee849a14244c0bbcdd0bfa570658c3aa16c7ad43dc8ca", "reference-output-sha256" = "aea122b7648cc33b199b4e939b91a0908a891bac3e91f0de23b96752271bde11", "intended-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a" }, "evidence" = [{ "path" = "evidence/lexical-ownership-cpython310.json", "sha256" = "4e5d7ea99c191d77e9fdc259181351605c916b3efb1d8d3ec1bb6bfec6e103e7", "kind" = "independent-language-run", "language-version" = "CPython3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact target3.10 interpreter is authoritative for this profile;3.13 corroborates. Full fixture source is compiled with dont_inherit=True and its original function f is invoked unchanged. These are ordinary body RHS/if/metaclass evaluations, not rewritten return probes, annotations, or local-variable annotation evaluation." }, { "path" = "evidence/lexical-ownership-cpython313.json", "sha256" = "4d9eeec555151780c45231a89079b71796c59beab8226796cd3caedd5e678463", "kind" = "independent-language-run", "language-version" = "CPython3.13.5", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact target3.10 interpreter is authoritative for this profile;3.13 corroborates. Full fixture source is compiled with dont_inherit=True and its original function f is invoked unchanged. These are ordinary body RHS/if/metaclass evaluations, not rewritten return probes, annotations, or local-variable annotation evaluation." }, { "path" = "evidence/lexical-ownership-probe.py", "sha256" = "364a8266ae8bd7388eed10b5997901cdd5ae141d343c097d3c9ae099c4ec8791", "kind" = "independent-language-run", "language-version" = "CPython3.10.19 and3.13.5", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact probe source and complete fixture input payload; no source rewriting, no annotation substitution, no inherited compiler flags." }, { "path" = "evidence/lexical-ownership-probe-inputs.json", "sha256" = "0bc0fe2f4df94677e011220aa804266bc70f338312358059529d996503c41082", "kind" = "independent-language-run", "language-version" = "CPython3.10.19 and3.13.5", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact probe source and complete fixture input payload; no source rewriting, no annotation substitution, no inherited compiler flags." }], "reason" = "Python compiler-local ownership makes this earlier read unbound; it does not load the outer typing import or builtin. The intended origin-dependent modernization/type-checking policy declines the suggestion without an established read-time origin. Exact unmodified fixture execution raises UnboundLocalError in3.10 and3.13. This is not a claim about eager/deferred annotation evaluation or spelling-only style rules." }
+reference-discrepancy = { "expected" = [{ "end" = 56, "file" = "case.py", "rule" = "UP007", "start" = 35 }], "identity" = { "tool" = "ruff", "version" = "0.16.5", "observed-executable-sha256" = "52469aac0ad5cd499c3cd1f72993a9f3eb237fd975f53d6873b4245190e7d0e8", "profile-sha256" = "ff440b057d2df86bff958670baf938eb1b6d65db7f3e8e12b50fb21e4787164d", "settings-sha256" = "4e51ad1d0cb31dfe6504b29f0771c575b00f0baf548b50a3c3f1aecac5577384", "source-sha256" = "5814279a5094ae7c4f5ee849a14244c0bbcdd0bfa570658c3aa16c7ad43dc8ca", "reference-output-sha256" = "aea122b7648cc33b199b4e939b91a0908a891bac3e91f0de23b96752271bde11", "intended-output-sha256" = "fe95995b682b3d5703c003a04cf4b5f5b0c3f89c764485cc18476c5c1cf2bd7a" }, "evidence" = [{ "path" = "evidence/lexical-ownership-cpython310.json", "sha256" = "4e5d7ea99c191d77e9fdc259181351605c916b3efb1d8d3ec1bb6bfec6e103e7", "kind" = "independent-language-run", "language-version" = "CPython3.10.19", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact target3.10 interpreter is authoritative for this profile;3.13 corroborates. Full fixture source is compiled with dont_inherit=True and its original function f is invoked unchanged. These are ordinary body RHS/if/metaclass evaluations, not rewritten return probes, annotations, or local-variable annotation evaluation." }, { "path" = "evidence/lexical-ownership-cpython313.json", "sha256" = "4d9eeec555151780c45231a89079b71796c59beab8226796cd3caedd5e678463", "kind" = "independent-language-run", "language-version" = "CPython3.13.5", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact target3.10 interpreter is authoritative for this profile;3.13 corroborates. Full fixture source is compiled with dont_inherit=True and its original function f is invoked unchanged. These are ordinary body RHS/if/metaclass evaluations, not rewritten return probes, annotations, or local-variable annotation evaluation." }, { "path" = "evidence/lexical-ownership-probe.py", "sha256" = "364a8266ae8bd7388eed10b5997901cdd5ae141d343c097d3c9ae099c4ec8791", "kind" = "independent-language-run", "language-version" = "CPython3.10.19 and3.13.5", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact probe source and complete fixture input payload; no source rewriting, no annotation substitution, no inherited compiler flags." }, { "path" = "evidence/lexical-ownership-probe-inputs.json", "sha256" = "0bc0fe2f4df94677e011220aa804266bc70f338312358059529d996503c41082", "kind" = "independent-language-run", "language-version" = "CPython3.10.19 and3.13.5", "target-configuration" = "python-target=3.10", "version-rationale" = "Exact probe source and complete fixture input payload; no source rewriting, no annotation substitution, no inherited compiler flags." }], "reason" = "Python compiler-local ownership makes this earlier read unbound; it does not load the outer typing import or builtin. The intended origin-dependent modernization/type-checking policy declines the suggestion without an established read-time origin. Exact unmodified fixture execution raises UnboundLocalError in3.10 and3.13. This is not a claim about eager/deferred annotation evaluation or spelling-only style rules." }
 
 [[cases]]
 name = "independent-callable-lexical-ownership-1"
 comparison = "full"
 files = { "case.py" = "def f():\n    import typing\n    value = typing.Union[int,str]\n" }
 expected = [{ "rule" = "UP007", "file" = "case.py", "start" = 39, "end" = 60 }]
+
+[[cases]]
+name = "pep604-concat-annotation"
+comparison = "full"
+files = { "case.py" = "from typing import Union\ndef f(a: \"Union[int, \" \"str]\") -> None: ...\n" }
+expected = []
+
+[[cases]]
+name = "pep604-concat-whole-names"
+comparison = "full"
+files = { "case.py" = "from typing import Optional\nx: \"Optional\" \"[int]\" = None\n" }
+expected = []
+
+[[cases]]
+name = "pep604-single-string-annotation"
+comparison = "full"
+files = { "case.py" = "from typing import Union\ndef f(a: \"Union[int, str]\") -> None: ...\n" }
+expected = [{ rule = "UP007", file = "case.py", start = 35, end = 50 }]
+
+[[cases]]
+name = "pep604-alias-quoted-member"
+comparison = "full"
+files = { "case.py" = "from typing import Union, TypeAlias\nCStr2: TypeAlias = Union[\"C\", str]\n" }
+expected = []
+
+[[cases]]
+name = "pep604-alias-quoted-member-optional"
+comparison = "full"
+files = { "case.py" = "from typing import Optional, TypeAlias\nM: TypeAlias = Optional[\"C\"]\n" }
+expected = []
+
+[[cases]]
+name = "pep604-annotation-quoted-member"
+comparison = "full"
+files = { "case.py" = "from typing import Union\ndef f(a: Union[\"C\", str]) -> None: ...\n" }
+expected = []
+
+[[cases]]
+name = "pep604-alias-unquoted"
+comparison = "full"
+files = { "case.py" = "from typing import Union, TypeAlias\nA: TypeAlias = Union[int, str]\n" }
+expected = [{ rule = "UP007", file = "case.py", start = 51, end = 66 }]
+
+[[cases]]
+name = "pep604-implicit-alias-quoted"
+comparison = "full"
+files = { "case.py" = "from typing import Union\nA = Union[\"C\", str]\n" }
+expected = []
+
+[[cases]]
+name = "pep604-future-annotation-quoted-member"
+comparison = "full"
+files = { "case.py" = "from __future__ import annotations\nfrom typing import Union\ndef f(a: Union[\"C\", str]) -> None: ...\n" }
+expected = [{ rule = "UP007", file = "case.py", start = 69, end = 84 }]
+
+[[cases]]
+name = "pep604-future-alias-quoted-member"
+comparison = "full"
+files = { "case.py" = "from __future__ import annotations\nfrom typing import Union, TypeAlias\nA: TypeAlias = Union[\"C\", str]\n" }
+expected = []
+
+[[cases]]
+name = "pep604-future-variable-annotation-quoted"
+comparison = "full"
+files = { "case.py" = "from __future__ import annotations\nfrom typing import Optional\nx: Optional[\"C\"] = None\n" }
+expected = []
+
+[[cases]]
+name = "pep604-variable-annotation-quoted"
+comparison = "full"
+files = { "case.py" = "from typing import Optional\nx: Optional[\"C\"] = None\n" }
+expected = []
+
+[[cases]]
+name = "pep604-local-variable-annotation-quoted"
+comparison = "full"
+files = { "case.py" = "from typing import Optional\ndef g():\n    x: Optional[\"C\"] = None\n" }
+expected = []
+
+[[cases]]
+name = "pep604-nested-quoted"
+comparison = "full"
+files = { "case.py" = "from typing import Optional\ndef f(a: Optional[list[\"C\"]]) -> None: ...\n" }
+expected = []
+
+[[cases]]
+name = "pep604-stub-concat-annotation"
+comparison = "full"
+files = { "case.pyi" = "from typing import Union\ndef f(a: \"Union[int, \" \"str]\") -> None: ...\n" }
+expected = []
+
+[[cases]]
+name = "pep604-stub-alias-quoted-member"
+comparison = "full"
+files = { "case.pyi" = "from typing import Union, TypeAlias\nCStr2: TypeAlias = Union[\"C\", str]\n" }
+expected = []
+
+[[cases]]
+name = "pep604-stub-alias-quoted-member-optional"
+comparison = "full"
+files = { "case.pyi" = "from typing import Optional, TypeAlias\nM: TypeAlias = Optional[\"C\"]\n" }
+expected = []
+
+[[cases]]
+name = "pep604-stub-annotation-quoted-member"
+comparison = "full"
+files = { "case.pyi" = "from typing import Union\ndef f(a: Union[\"C\", str]) -> None: ...\n" }
+expected = [{ rule = "UP007", file = "case.pyi", start = 34, end = 49 }]
+
+[[cases]]
+name = "pep604-stub-alias-unquoted"
+comparison = "full"
+files = { "case.pyi" = "from typing import Union, TypeAlias\nA: TypeAlias = Union[int, str]\n" }
+expected = [{ rule = "UP007", file = "case.pyi", start = 51, end = 66 }]
+
+[[cases]]
+name = "pep604-stub-implicit-alias-quoted"
+comparison = "full"
+files = { "case.pyi" = "from typing import Union\nA = Union[\"C\", str]\n" }
+expected = []
+
+[[cases]]
+name = "pep604-stub-plain-assignment"
+comparison = "full"
+files = { "case.pyi" = "from typing import Union\nA = Union[int, str]\n" }
+expected = [{ rule = "UP007", file = "case.pyi", start = 29, end = 44 }]
+
+[[cases]]
+name = "pep604-stub-nested-quoted-assignment"
+comparison = "full"
+files = { "case.pyi" = "from typing import Union\nB = list[Union[\"C\", str]]\n" }
+expected = []
+
+[[cases]]
+name = "pep604-stub-class-quoted"
+comparison = "full"
+files = { "case.pyi" = "from typing import Union\nclass K:\n    a = Union[\"C\", str]\n    b: Union[\"C\", str]\n" }
+expected = [{ rule = "UP007", file = "case.pyi", start = 65, end = 80 }]

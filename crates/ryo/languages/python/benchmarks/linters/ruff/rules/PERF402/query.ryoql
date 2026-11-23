@@ -39,7 +39,7 @@ let only_one_arg_calls = select l.call as call, l.file as file, l.target_binding
 let argument_reads = select l.call as call, l.file as file, l.target_binding as target_binding, l.receiver as receiver, r.binding as binding from only_one_arg_calls as l join "binding-use" as r on l.argument = r.reference and l.file = r.file;
 let matching_loop_target = select l.call as call, l.file as file, l.receiver as receiver from argument_reads as l join loop_bindings as r on l.file = r.file and l.target_binding = r.binding where l.binding = r.binding;
 let receiver_reads = select l.call as call, l.file as file, l.receiver as receiver, r.binding as binding from append_calls as l join "binding-use" as r on l.receiver = r.reference and l.file = r.file;
-let same_receiver = select l.call as call, l.file as file, l.receiver as receiver, l.binding as receiver_binding from receiver_reads as l join argument_reads as r on l.call = r.call and l.file = r.file;
+let same_receiver = select l.call as call, l.file as file, l.receiver as receiver, l.binding as receiver_binding from receiver_reads as l join matching_loop_target as r on l.call = r.call and l.file = r.file;
 let receiver_references = select receiver as reference, file from same_receiver;
 let typed_receivers = binding_type(references=receiver_references, builtin="builtins.list", typing="List", atom="list", bindings="only");
 let initialized_receivers = select l.call as call, l.file as file, l.receiver as receiver from same_receiver as l join typed_receivers as r on l.receiver = r.reference and l.file = r.file;
@@ -50,7 +50,7 @@ let candidate_locations = select l.id as id, l.file as file, l.span as span, r."
 let located_matches = observation_matches(candidates=candidate_locations, codes="^(?:PERF402)$");
 let located_rows = select id, file, span from candidate_locations;
 let located = antijoin(left=located_rows, right=located_matches, left-on=[id, span], right-on=[id, span]);
-let ruf100_directives = select directive, file from located_matches where scope < 2;
+let ruf100_directives = select directive, file from located_matches;
 let ruf100_used = extend(from=ruf100_directives, values={code: "PERF402"});
 observe ruf100_used as noqa_matches;
 emit located subject file key(id);

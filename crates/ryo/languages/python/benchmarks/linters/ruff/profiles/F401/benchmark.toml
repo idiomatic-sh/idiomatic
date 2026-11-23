@@ -47,3 +47,5 @@ defaults = ["F401"]
 "python/ruff/noqa-heads" = "fragments/noqa-heads.ryoql"
 "python/ruff/noqa-ranges" = "fragments/noqa-ranges.ryoql"
 "python/ruff/candidate-locations" = "fragments/candidate-locations.ryoql"
+"python/ruff/import-owners" = "fragments/import-owners.ryoql"
+"python/ruff/type-alias-values" = "fragments/type-alias-values.ryoql"

@@ -188,27 +188,30 @@ pub(super) fn plr1708_rooted_equivalence_reports_nothing_across_unrelated_growth
     Ok(())
 }
 
-/// The actual PIE794, PLR1708, B023 and C419 queries keep the rooted axis the equivalences prove, and never the global
-/// closure it replaced.
+/// The actual PIE794, PLR1708, B023 and C419 queries keep a rooted axis, and never a closure. PIE794 and C419 walk
+/// down from their candidates; PLR1708 and B023 start from their rare side (#64) and walk up: PLR1708 from each
+/// `StopIteration` raise to its nearest member mark, B023 from each function, and each used binding, to its loops.
 pub(super) fn actual_rooted_queries_keep_their_sparse_axis() -> Result<(), Error> {
     assert!(PIE794_QUERY.contains(
         r#"axis(from=candidate_values, relation="semantic-child", direction=descendant, domain=names)"#
     ));
     assert!(!PIE794_QUERY.contains(r#"let expression_paths = closure(edges="semantic-child""#));
     assert!(PLR1708_QUERY.contains(
-        "axis(from=body_roots, relation=walk_edges, direction=descendant, domain=member_domain)"
+        r#"axis(from=stop_raises, relation="semantic-child", direction=nearest-ancestor, domain=member_marks)"#
     ));
-    assert!(!PLR1708_QUERY.contains("closure(edges=walk_edges"));
+    assert!(!PLR1708_QUERY.contains("closure("));
     assert!(C419_QUERY.contains(
         r#"axis(from=candidate_elements, relation="semantic-child", direction=descendant, domain=awaits)"#
     ));
-    for roots in ["loop_target_roots", "loop_body_roots", "loop_iter_roots"] {
+    for (from, domain) in [
+        ("functions", "loops"),
+        ("used_binding_ids", "target_root_ids"),
+        ("used_binding_ids", "body_root_ids"),
+    ] {
         assert!(B023_QUERY.contains(&format!(
-            r#"axis(from={roots}, relation="semantic-child", direction=descendant, domain=descendant_nodes)"#
+            r#"axis(from={from}, relation="semantic-child", direction=ancestor, domain={domain})"#
         )));
     }
-    assert!(
-        B023_QUERY.contains(r#"let descendant_nodes = select child as id from "semantic-child";"#)
-    );
+    assert!(!B023_QUERY.contains("closure("));
     Ok(())
 }

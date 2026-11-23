@@ -44,3 +44,4 @@ defaults = ["B008"]
 "python/ruff/calls" = "fragments/calls.ryoql"
 
 "python/ruff/annotation-evaluation-context" = "fragments/annotation-evaluation-context.ryoql"
+"python/ruff/type-alias-values" = "fragments/type-alias-values.ryoql"

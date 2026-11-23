@@ -2059,3 +2059,248 @@ project-search-roots = ["", "src"]
 given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
 files = { "input.py" = "from a import b  # xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n" }
 expected = [{ rule = "I001", file = "input.py", start = 0, end = 15 }]
+
+[[cases]]
+name = "block-pytest-shape"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from __future__ import annotations\n\nfrom unittest import TestCase  # noqa: F401\n\n\nfor i in range(15000):\n    pass\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 65 }]
+
+[[cases]]
+name = "block-two-blank-for"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import os\n\n\nfor i in range(3):\n    pass\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 9 }]
+
+[[cases]]
+name = "block-two-blank-for-comment"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import os  # c\n\n\nfor i in range(3):\n    pass\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 9 }]
+
+[[cases]]
+name = "block-future-two-blank-for"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from __future__ import annotations\n\nimport os\n\n\nfor i in range(3):\n    pass\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 45 }]
+
+[[cases]]
+name = "block-trailing-space"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import os \nimport sys\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 21 }]
+
+[[cases]]
+name = "block-trailing-space-last"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import os\nimport sys \n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 20 }]
+
+[[cases]]
+name = "block-trailing-space-eof"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "def f():\n    import os    " }
+expected = [{ rule = "I001", file = "input.py", start = 13, end = 22 }]
+
+[[cases]]
+name = "block-no-newline-eof"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import os" }
+expected = []
+
+[[cases]]
+name = "block-blank-with-spaces"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import os\n   \nimport requests\n" }
+expected = []
+
+[[cases]]
+name = "block-else-block"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "try:\n    import a\nexcept ImportError:\n    pass\nelse:\n    import c\n    import b\n" }
+expected = [{ rule = "I001", file = "input.py", start = 57, end = 78 }]
+
+[[cases]]
+name = "block-else-block-sorted"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "try:\n    import a\nexcept ImportError:\n    pass\nelse:\n    import b\n    import c\n\n    x = 1\n" }
+expected = []
+
+[[cases]]
+name = "block-if-else-block"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "if x:\n    import a\nelse:\n    import c\n    import b\n" }
+expected = [{ rule = "I001", file = "input.py", start = 29, end = 50 }]
+
+[[cases]]
+name = "block-finally-block"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "try:\n    pass\nfinally:\n    import c\n    import b\n" }
+expected = [{ rule = "I001", file = "input.py", start = 27, end = 48 }]
+
+[[cases]]
+name = "block-dup-in-parens"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from typing import (\n    List,\n    List,\n)\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 42 }]
+
+[[cases]]
+name = "block-dup-inline"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from typing import List, List\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 29 }]
+
+[[cases]]
+name = "block-spaced-second"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import os\nimport   sys\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 22 }]
+
+[[cases]]
+name = "block-spaced-in-three"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import a\nfrom  b import c\nimport d\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 34 }]
+
+[[cases]]
+name = "block-backslash-then-blank"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import os \\\n\nexit(0)\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 9 }]
+
+[[cases]]
+name = "block-formfeed-backslash"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from typing import TYPE_CHECKING\f\\\n\nx = 1\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 32 }]
+
+[[cases]]
+name = "block-leading-content"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "x = 1; import foo5\n" }
+expected = [{ rule = "I001", file = "input.py", start = 7, end = 18 }]
+
+[[cases]]
+name = "block-trailing-semicolon-two"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import a\nimport b; x = 1\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 17 }]
+
+[[cases]]
+name = "block-leading-two"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "x = 1; import a\nimport b\n" }
+expected = [{ rule = "I001", file = "input.py", start = 7, end = 24 }]
+
+[[cases]]
+name = "block-def-two"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "def f(): import a; import b\n" }
+expected = [{ rule = "I001", file = "input.py", start = 9, end = 27 }]
+
+[[cases]]
+name = "block-guard-comment-with-backslash"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import os  # a \\ b\nimport sys\n" }
+expected = []
+
+[[cases]]
+name = "block-guard-comment-trailing-spaces"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import os  # c  \nimport sys\n" }
+expected = []
+
+[[cases]]
+name = "block-guard-try-body-and-else"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "try:\n    import b\nexcept ImportError:\n    pass\nelse:\n    import a\n" }
+expected = []
+
+[[cases]]
+name = "block-guard-for-else"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "for x in y:\n    import b\nelse:\n    import a\n    import c\n" }
+expected = []
+
+[[cases]]
+name = "block-guard-while-else-unsorted"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "while x:\n    pass\nelse:\n    import c\n    import a\n" }
+expected = [{ rule = "I001", file = "input.py", start = 28, end = 49 }]
+
+[[cases]]
+name = "block-guard-after-dedent"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "if x:\n    import a\nimport b\n" }
+expected = []
+
+[[cases]]
+name = "block-guard-after-statement-line"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "x = 1\nimport a\n" }
+expected = []
+
+[[cases]]
+name = "block-guard-semicolon-in-string-after"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import a\nx = 'import b; y'\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 8 }]
+
+[[cases]]
+name = "block-guard-backslash-inside-parens"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "from a import (\n    b,\n    c,\n)\n" }
+expected = []
+
+[[cases]]
+name = "block-guard-tab-indented"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "if x:\n\timport a\n\timport b\n" }
+expected = []
+
+[[cases]]
+name = "block-guard-crlf"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import a\r\nimport b\r\n" }
+expected = []
+
+[[cases]]
+name = "block-guard-crlf-trailing-space"
+comparison = "full"
+given-project-inventory = { completeness = "complete-within-declared-scope", entries = [{ path = "input.py", state = "file" }] }
+files = { "input.py" = "import a \r\nimport b\r\n" }
+expected = [{ rule = "I001", file = "input.py", start = 0, end = 19 }]

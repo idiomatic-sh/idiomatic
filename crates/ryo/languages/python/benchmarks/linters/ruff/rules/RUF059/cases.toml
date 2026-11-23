@@ -186,3 +186,33 @@ name = "walrus-chain-literal"
 comparison = "full"
 files = { "case.py" = "def f():\n    (a, b) = c = d = 1, 2\n" }
 expected = [{ rule = "RUF059", file = "case.py", start = 14, end = 15 }, { rule = "RUF059", file = "case.py", start = 17, end = 18 }]
+
+[[cases]]
+name = "rebinding-two-loops-each-uses-one"
+comparison = "full"
+files = { "case.py" = "def f(a, b):\n    for c in a:\n        x, y = c\n        x()\n    for c in b:\n        x, y = c\n        y()\n" }
+expected = []
+
+[[cases]]
+name = "rebinding-two-branches-one-uses"
+comparison = "full"
+files = { "case.py" = "def f(p, d):\n    if p:\n        m, t = d()\n        print(t)\n    elif d:\n        e, t = d()\n        print(e)\n" }
+expected = [{ rule = "RUF059", file = "case.py", start = 31, end = 32 }]
+
+[[cases]]
+name = "rebinding-single-unused"
+comparison = "full"
+files = { "case.py" = "def f(d):\n    e, t = d()\n    print(e)\n" }
+expected = [{ rule = "RUF059", file = "case.py", start = 17, end = 18 }]
+
+[[cases]]
+name = "rebinding-rebound-later-used"
+comparison = "full"
+files = { "case.py" = "def f(d):\n    e, t = d()\n    print(e)\n    t = 1\n    print(t)\n" }
+expected = []
+
+[[cases]]
+name = "rebinding-used-before-rebind"
+comparison = "full"
+files = { "case.py" = "def f(d):\n    t = 0\n    print(t)\n    e, t = d()\n    print(e)\n" }
+expected = []

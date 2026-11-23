@@ -1,5 +1,6 @@
 import ordinary_uses_of from "python/ruff/ordinary-read-uses";
 import latest_before from "python/ruff/latest-before";
+import binding_replacements from "python/ruff/binding-replacements";
 import noqa_line_map from "python/ruff/noqa-line-map";
 import noqa_locations from "python/ruff/noqa-locations";
 import suppression_edges from "python/ruff/noqa-suppressions-with-additional-lines";
@@ -66,13 +67,8 @@ let eligible_nonparameter_assignments = antijoin(left=eligible_assignments, righ
 let eligible_locals = select l.binding as binding, l.scope as scope, l.phase as phase, l.id as id, l.name as name, l.file as file, l.span as span from local_bindings as l join eligible_nonparameter_assignments as r on l.binding = r.binding;
 let handlers = select id from nodes where kind = "except-handler";
 let exception_bindings = select l.binding as binding, l.scope as scope, l.phase as phase, l.id as id, l.name as name, l.file as file, l.span as span from named_bindings as l join handlers as r on l.binding = r.id;
-let binding_stream0 = select name, scope, phase, ordinal, file, binding as occurrence from bindings;
-let binding_stream = extend(from=binding_stream0, values={tag: "bind"});
 let ending_stream0 = select name, scope, phase, ordinal, file, occurrence from "binding-event" where kind = "delete" or kind = "cleanup";
-let ending_stream = extend(from=ending_stream0, values={tag: "end"});
-let replacement_timeline = union(left=binding_stream, right=ending_stream);
-let timeline_pairs = ordered-match(left=replacement_timeline, right=replacement_timeline, left-on=[scope,phase,name,file], right-on=[scope,phase,name,file], left-order="ordinal", right-order="ordinal", output={earlier:[left,occurrence], later:[right,occurrence], before:[left,tag], after:[right,tag], ordinal:[right,ordinal]});
-let local_replacements = select earlier, later, ordinal from timeline_pairs where before = "bind" and after = "bind";
+let local_replacements = binding_replacements(bindings=bindings);
 let replacement_edges = select earlier, later from local_replacements;
 let read_events = select occurrence as reference, ordinal from "binding-event" where kind = "read" or kind = "delete";
 let all_read_contexts = select reference as id, name, scope, phase, file from "binding-read";
@@ -133,7 +129,7 @@ let suppression_parents = select id, file, line from candidate_locations where i
 let suppression_matches = suppression_edges(candidates=candidate_locations, locations=suppression_locations, additional_locations=suppression_parents, codes="^(?:F841)$");
 let suppression_candidates = select id, file, span from suppression_locations;
 let violations = antijoin(left=suppression_candidates, right=suppression_matches, left-on=[id, span], right-on=[id, span]);
-let matched_directives = select directive, file from suppression_matches where scope < 2;
+let matched_directives = select directive, file from suppression_matches;
 let noqa_matches = extend(from=matched_directives, values={code: "F841"});
 observe noqa_matches as noqa_matches;
 emit violations subject file key(id);

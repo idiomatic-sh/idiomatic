@@ -8,6 +8,7 @@ import noqa_locations from "python/ruff/noqa-locations";
 import noqa_additional_locations from "python/ruff/noqa-additional-locations";
 import suppression_edges from "python/ruff/noqa-suppressions-with-additional-lines";
 import line_located from "python/ruff/candidate-locations";
+import owners_of_imports from "python/ruff/import-owners";
 let nodes = select id, kind, file, span from "semantic-syntax";
 let modules = select id, file from nodes where kind = "module";
 let scopes = select id from nodes where kind in ["module", "class-def", "function-def", "async-function-def", "lambda"];
@@ -138,8 +139,8 @@ let ordinary_uses = select reference, binding, file from ordinary_lookups where 
 let ordinary_direct_uses = select binding from ordinary_uses;
 let deferred_points = select occurrence as binding, point from deferred_resolutions where kind = "bind";
 let deferred_binding_uses = select binding from deferred_points;
-let plain_import_statements = select id from nodes where kind = "import";
-let plain_import_owners = axis(from=aliases,relation="semantic-child",direction=nearest-ancestor,domain=plain_import_statements);
+let import_owners = owners_of_imports(aliases=aliases);
+let plain_import_owners = select l.id as id from import_owners as l join nodes as r on l.related = r.id where r.kind = "import";
 let plain_aliases = select id as binding from plain_import_owners;
 let import_targets = select occurrence as binding, binding as name, target, file from "static-import";
 let plain_targets = select l.binding as binding, l.name as name, l.target as target, l.file as file from import_targets as l join plain_aliases as r on l.binding = r.binding;
@@ -196,8 +197,6 @@ let report_candidates_without_identifier = antijoin(left=unexported_imports,righ
 let dotted_report_candidates = select binding, binding as id, file, alias_span as span from report_candidates_without_identifier;
 let report_candidates = union(left=report_candidates_with_identifier,right=dotted_report_candidates);
 let reportable = select id, file, span from report_candidates;
-let import_statements = select id from nodes where kind = "import" or kind = "import-from";
-let import_owners = axis(from=aliases,relation="semantic-child",direction=nearest-ancestor,domain=import_statements);
 let report_parents = select l.id as id, l.file as file, r.related as parent from report_candidates as l join import_owners as r on l.binding = r.id;
 let export_parent_lines = select l.id as id, l.file as file, r."start-line" as line from report_parents as l join "source-location" as r on l.parent = r.id;
 let candidate_locations = line_located(candidates=reportable);
@@ -207,7 +206,7 @@ let suppression_parents = noqa_additional_locations(additional_locations=export_
 let suppression_matches = suppression_edges(candidates=candidate_locations, locations=suppression_locations, additional_locations=suppression_parents, codes="^(?:F401)$");
 let suppression_candidates = select id, file, span from suppression_locations;
 let violations = antijoin(left=suppression_candidates, right=suppression_matches, left-on=[id, span], right-on=[id, span]);
-let matched_directives = select directive, file from suppression_matches where scope < 2;
+let matched_directives = select directive, file from suppression_matches;
 let noqa_matches = extend(from=matched_directives, values={code: "F401"});
 observe noqa_matches as noqa_matches;
 emit violations subject file key(id);

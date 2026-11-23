@@ -1,0 +1,6 @@
+input aliases: relation<id: node>;
+output relation<id: node, related: node>;
+let import_statements = select id from "semantic-syntax" where kind = "import" or kind = "import-from";
+let owners = axis(from=aliases, relation="semantic-child", direction=nearest-ancestor, domain=import_statements);
+let owner_rows = select id, related from owners;
+return owner_rows;

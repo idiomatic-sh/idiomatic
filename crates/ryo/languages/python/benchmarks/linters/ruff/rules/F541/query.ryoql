@@ -17,7 +17,7 @@ let suppression_parents = select id, file, line from candidate_locations where i
 let suppression_matches = suppression_edges(candidates=candidate_locations, locations=suppression_locations, additional_locations=suppression_parents, codes="^(?:F541)$");
 let suppression_candidates = select id, file, span from suppression_locations;
 let violations = antijoin(left=suppression_candidates, right=suppression_matches, left-on=[id, span], right-on=[id, span]);
-let matched_directives = select directive, file from suppression_matches where scope < 2;
+let matched_directives = select directive, file from suppression_matches;
 let noqa_matches = extend(from=matched_directives, values={code: "F541"});
 observe noqa_matches as noqa_matches;
 emit violations subject file key(id);
