@@ -16,25 +16,38 @@ pub(crate) fn contains(
     if root.is_empty() {
         return StandardLibraryMembership::Other;
     }
-    let versioned = match (target.major.0, target.minor.0) {
+    let (versioned, at) = match (target.major.0, target.minor.0) {
         (3, minor) => match minor {
-            10 => constants::PY3_10,
-            11 => constants::PY3_11,
-            12 => constants::PY3_12,
-            13 => constants::PY3_13,
-            14 => constants::PY3_14,
-            15 => constants::PY3_15,
+            10 => (constants::PY3_10, 1),
+            11 => (constants::PY3_11, 2),
+            12 => (constants::PY3_12, 3),
+            13 => (constants::PY3_13, 4),
+            14 => (constants::PY3_14, 5),
+            15 => (constants::PY3_15, 6),
             _ => return StandardLibraryMembership::UnverifiedRelease,
         },
         _ => return StandardLibraryMembership::UnverifiedRelease,
     };
-    if constants::COMMON
-        .split_terminator('|')
-        .any(|name| name == root)
-        || versioned.split_terminator('|').any(|name| name == root)
-    {
+    if member(constants::COMMON, 0, root) || member(versioned, at, root) {
         StandardLibraryMembership::Standard
     } else {
         StandardLibraryMembership::Other
     }
+}
+
+/// The module names of one `|`-separated list, sorted once a process (the lists are the catalog's constants).
+static NAME_SETS: [std::sync::OnceLock<Vec<&'static str>>; 7] = [const { std::sync::OnceLock::new() }; 7];
+
+/// Whether `root` is one of the names of `list` (the sorted names at `at` of [`NAME_SETS`], one a list).
+fn member(list: &'static str, at: usize, root: &str) -> bool {
+    NAME_SETS.get(at).is_some_and(|names| {
+        names
+            .get_or_init(|| {
+                let mut sorted: Vec<&'static str> = list.split_terminator('|').collect();
+                sorted.sort_unstable();
+                sorted
+            })
+            .binary_search(&root)
+            .is_ok()
+    })
 }
