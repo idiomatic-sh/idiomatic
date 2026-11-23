@@ -56,6 +56,8 @@ fn declaration() -> first::Language {
     }
 }
 
+#[path = "../../../../tastemaker/benchmarks/project/bench.rs"]
+mod project_bench;
 mod mixed;
 mod shipping;
 
@@ -75,6 +77,10 @@ fn main() {
         .skip(1)
         .filter(|arg| arg != "--bench")
         .collect();
+    if args.as_slice() == ["--project"] {
+        project_bench::replay();
+        return;
+    }
     if let [mode, pack, request, output] = args.as_slice()
         && (mode == "--shipping" || mode == "--mixed")
     {

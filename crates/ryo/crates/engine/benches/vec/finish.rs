@@ -122,6 +122,10 @@ mod cold_word;
 #[path = "finish/keyed.rs"]
 mod keyed;
 
+#[allow(dead_code, reason = "file-only benchmark binaries share the executor modules")]
+#[path = "finish/session.rs"]
+pub(super) mod session;
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum Ty {
     Node,
@@ -656,6 +660,7 @@ pub(super) struct File<'a> {
     pub(super) table: &'a NodeTable,
     pub(super) src: &'a [u8],
     pub(super) file: u32,
+    after_last_file: bool,
     pub(super) n: usize,
     pub(super) kind: Vec<u16>,
     pub(super) start: Vec<u32>,
@@ -833,6 +838,7 @@ impl File<'_> {
             table,
             src,
             file,
+            after_last_file: false,
             n,
             kind: b.kind,
             start: b.start,

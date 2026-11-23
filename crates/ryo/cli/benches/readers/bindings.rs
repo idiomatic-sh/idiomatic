@@ -6,7 +6,7 @@ use ryo_values::domain::finish_plans::expressions::types::{
 use ryo_values::domain::plan_parts::types::{LiteralText, WholeNumber};
 use serde_json::Value;
 
-fn constant(value: &Value) -> PlanConstant {
+pub(super) fn constant(value: &Value) -> PlanConstant {
     match value {
         Value::Bool(v) => PlanConstant::Text(LiteralText(v.to_string().into())),
         Value::String(v) => PlanConstant::Text(LiteralText(v.as_str().into())),

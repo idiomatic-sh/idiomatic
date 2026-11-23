@@ -227,7 +227,7 @@ impl<'p> Finisher<'p> {
                         continue;
                     }
                     if self.query_rows {
-                        self.findings.push(finish::answer::row(run, &t, r, &e.0, file_no, &identity)?);
+                        self.findings.push(finish::answer::row(run, &t, r, &e.0, Some(file_no), &identity)?);
                         continue;
                     }
                     let target = if t.tys[subject] == finish::Ty::File {

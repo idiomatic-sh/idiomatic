@@ -74,6 +74,7 @@ impl Exec<'_> {
     /// Whether a run of `node` in this file returns nothing, known without running it.
     #[inline(always)]
     pub(super) fn known_empty(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> bool {
+        if f.after_last_file { return false; }
         match f.known[node] {
             YES | YES_EP => return true,
             NO | BUSY => {}
@@ -105,6 +106,7 @@ impl Exec<'_> {
     /// Whether the file's kinds, survivor sets or per-file tests leave `node` empty (kept a file).
     #[inline]
     pub(super) fn static_empty(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> bool {
+        if f.after_last_file { return false; }
         match f.known[node] {
             NO | BUSY => false,
             YES | YES_EP => true,
