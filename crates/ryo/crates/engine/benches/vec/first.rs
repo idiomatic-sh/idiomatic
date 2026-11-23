@@ -72,25 +72,6 @@ pub(super) fn prepare(read: &ReadPack, lang: Language, vocab: &Vocab) -> Prepare
     }
 }
 
-/// File readers resolve field names against each file's codebook. Compile their
-/// name-based clauses from the same lowered steps the executor already owns.
-pub(super) fn file_requirements(read: &ReadPack, language: &Language) -> Vec<(String, (bool, Vec<Vec<String>>, Vec<Vec<String>>))> {
-    use ryo_values::domain::finish_plans::types::RuleEmit;
-    let plan = read.typed.take().expect("executor must hand over the typed plan");
-    assert!(plan.unplanned.is_empty(), "unplanned file queries");
-    let mut skips = Vec::with_capacity(plan.steps.len());
-    for step in &plan.steps {
-        skips.push(super::pair_skip::Skip::step(step, &skips, language));
-    }
-    plan.rules.iter().map(|rule| {
-        let requirements = match &rule.emit {
-            RuleEmit::Written(emit) => skips[emit.step.0].root(),
-            RuleEmit::Unwritten => Default::default(),
-        };
-        (rule.rule.0.to_string(), requirements)
-    }).collect()
-}
-
 /// Standalone phase measurement starts with lowered steps, as in a combined run.
 pub(super) fn run_first(args: &[&str], vocab: &Vocab, language: fn(&Vocab) -> Language) {
     let option = |name: &str| args.iter().position(|a| *a == name).map(|i| args[i + 1]);

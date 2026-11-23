@@ -62,6 +62,31 @@ impl Memory {
         std::fs::write("/proc/self/clear_refs", b"5").expect("reset process high-water RSS");
     }
 }
+/// These readers resolve field names for each file. Compile name-based file
+/// requirements from the lowered steps already prepared by the executor.
+fn file_requirements(
+    read: &lower::ReadPack,
+    language: &first::Language,
+) -> Vec<(String, (bool, Vec<Vec<String>>, Vec<Vec<String>>))> {
+    use ryo_values::domain::finish_plans::types::RuleEmit;
+    let plan = read.typed.take().expect("executor must hand over the typed plan");
+    assert!(plan.unplanned.is_empty(), "unplanned file queries");
+    let mut skips = Vec::with_capacity(plan.steps.len());
+    for step in &plan.steps {
+        skips.push(super::pair_skip::Skip::step(step, &skips, language));
+    }
+    plan.rules
+        .iter()
+        .map(|rule| {
+            let requirements = match &rule.emit {
+                RuleEmit::Written(emit) => skips[emit.step.0].root(),
+                RuleEmit::Unwritten => Default::default(),
+            };
+            (rule.rule.0.to_string(), requirements)
+        })
+        .collect()
+}
+
 pub(super) fn run(
     start: f64,
     language: l::Language,
@@ -102,7 +127,7 @@ pub(super) fn run(
         }
     }
     let summaries_start = thread_cpu();
-    let prepared = first::file_requirements(&read, &declaration);
+    let prepared = file_requirements(&read, &declaration);
     let summaries_cpu = thread_cpu() - summaries_start;
     let mut run = finish::Run::default();
     run.empty = run.sym(b"");
