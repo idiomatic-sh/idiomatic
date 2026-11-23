@@ -12,6 +12,7 @@ use ryo::languages::{
 };
 use std::collections::HashMap;
 use std::hint::black_box;
+use std::rc::Rc;
 
 /// (allocation calls, bytes allocated, -, live peak) so far, from the run's counter (`alloc_count`, a `vec-dhat` build);
 /// zeros in any other.
@@ -999,7 +1000,7 @@ struct ColFacts<'v, 'a, 'f, 'w> {
     file_no: u32,
     /// redo-binding pass 3: the provider relations the harness facts are written from, kept for the file once filled, so
     /// a fact and the steps that read the same relation share one fill.
-    kept: HashMap<String, finish::Table>,
+    kept: HashMap<String, Rc<finish::Table>>,
     /// redo-general: the provider's project (its packaging knowledge, run-wide) and this file's bytes, for the relations it
     /// answers for a project.
     project: &'w mut provider_packaging::Project,
@@ -1012,7 +1013,7 @@ fn keeps_input(rel: &str) -> bool {
 
 impl ColFacts<'_, '_, '_, '_> {
     /// A catalog relation of this file, filled whole (once a file for the relations the harness facts read).
-    fn whole(&mut self, run: &mut finish::Run, rel: &str) -> Result<finish::Table, String> {
+    fn whole(&mut self, run: &mut finish::Run, rel: &str) -> Result<Rc<finish::Table>, String> {
         if let Some(t) = self.kept.get(rel) {
             return Ok(t.clone());
         }
@@ -1030,6 +1031,7 @@ impl ColFacts<'_, '_, '_, '_> {
                     t.cols[c].iter_mut().for_each(|v| *v = f);
                 }
             }
+            let t = Rc::new(t);
             let _ = self.kept.insert(rel.to_owned(), t.clone());
             return Ok(t);
         }
@@ -1037,6 +1039,7 @@ impl ColFacts<'_, '_, '_, '_> {
         if let Some(m) = module {
             IMPLICIT_CATALOG.with(|c| *c.borrow_mut() = Some((m, t.clone())));
         }
+        let t = Rc::new(t);
         if keeps_input(rel) {
             let _ = self.kept.insert(rel.to_owned(), t.clone());
         }
@@ -1240,7 +1243,7 @@ impl ColFacts<'_, '_, '_, '_> {
 
 impl ColFacts<'_, '_, '_, '_> {
     /// redo-binding pass 4: a harness fact, made once a file (the facts that compose others read it from here).
-    fn fact(&mut self, run: &mut finish::Run, rel: &str) -> Result<finish::Table, String> {
+    fn fact(&mut self, run: &mut finish::Run, rel: &str) -> Result<Rc<finish::Table>, String> {
         if let Some(t) = self.kept.get(rel) {
             return Ok(t.clone());
         }
@@ -1259,6 +1262,7 @@ impl ColFacts<'_, '_, '_, '_> {
             e.1 += t.n as u64;
             e.2 += 1;
         }
+        let t = Rc::new(t);
         let _ = self.kept.insert(rel.to_owned(), t.clone());
         Ok(t)
     }
@@ -1308,7 +1312,7 @@ impl ColFacts<'_, '_, '_, '_> {
             self.fact(run, fact_catalog::TYPE_EXPRESSION_REL)?
         } else {
             let (_, names, tys) = run.catalog(fact_catalog::TYPE_EXPRESSION_REL).ok_or("no type-expression")?;
-            finish::Table { names, tys, cols: vec![Vec::new(); 3], n: 0 }
+            Rc::new(finish::Table { names, tys, cols: vec![Vec::new(); 3], n: 0 })
         };
         let inputs = deferred_visit::Inputs { types: &types, evaluations: &evaluations, embedded: &embedded, stub, future };
         let rows = deferred_visit::rows(run, self.file.table, &inputs)?;
@@ -1348,14 +1352,36 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
         let composed_inputs = request.relations.iter().any(|a| COMPOSED.contains(&a.rel));
         let base = out.len();
         out.resize_with(base + request.relations.len(), || Err(String::new()));
+        let mut pending = Vec::new();
         for composed in [false, true] {
             for (i, asked) in request.relations.iter().enumerate() {
                 if COMPOSED.contains(&asked.rel) == composed {
                     out[base + i] = match asked.scope {
                         finish::Scope::Files(files) => self.project.fill(run, asked.rel, files, self.file_no, self.file.table, self.src),
-                        finish::Scope::File(f) if f == self.file_no => self.one(run, asked.rel, asked.columns, composed_inputs),
+                        finish::Scope::File(f) if f == self.file_no => match self.one(run, asked.rel, asked.columns, composed_inputs) {
+                            Ok(Some(t)) => Ok(t),
+                            Ok(None) => { pending.push(i); continue; }
+                            Err(e) => Err(e),
+                        },
                         finish::Scope::File(f) => Err(format!("asked for file {f}, this provider holds file {}", self.file_no)),
                     };
+                }
+            }
+        }
+        // Composed writers have finished reading their inputs. Hand the requested
+        // tables to the executor in request order, moving their column buffers.
+        for i in pending {
+            let entry = &request.relations[i];
+            let t = self.kept.get(entry.rel).ok_or("missing completed family")?;
+            // The request may name the same relation more than once.
+            out[base + i] = Ok(if Rc::strong_count(t) == 1 && !request.relations[i + 1..].iter().any(|r| r.rel == entry.rel) {
+                Rc::try_unwrap(self.kept.remove(entry.rel).unwrap()).unwrap_or_else(|t| t.copy())
+            } else { t.copy() });
+        }
+        for (entry, table) in request.relations.iter().zip(&mut out[base..]) {
+            if let Ok(t) = table {
+                for (c, col) in t.cols.iter_mut().enumerate() {
+                    if !finish::request::wants(entry.columns, c) { col.clear(); }
                 }
             }
         }
@@ -1377,16 +1403,18 @@ const RESOLUTION_READERS: [&str; 1] = ["qualified-name"];
 
 impl ColFacts<'_, '_, '_, '_> {
     /// One asked relation of this file: none made where the file's own contents say it has no row (`row_count`).
-    fn one(&mut self, run: &mut finish::Run, rel: &str, columns: u64, composed_inputs: bool) -> Result<finish::Table, String> {
+    fn one(&mut self, run: &mut finish::Run, rel: &str, columns: u64, composed_inputs: bool) -> Result<Option<finish::Table>, String> {
         if !self.kept.contains_key(rel)
             && let Some((Some(relation), names, tys)) = run.catalog(rel)
             && self.file.row_count(relation) == Some(0)
         {
-            return Ok(finish::Table::with_rows(names, tys, 0));
+            return Ok(Some(finish::Table::with_rows(names, tys, 0)));
         }
         let timed = finish::fill_prof::timed();
         let t0 = if timed { thread_cpu() } else { 0.0 };
-        let mut t = if rel == fact_catalog::REGION_REL {
+        let shared;
+        let owned;
+        let t = if rel == fact_catalog::REGION_REL {
             let (deferred, rows) = self.file.evaluation_region().ok_or("evaluation-region: the model is incomplete")?;
             let (_, names, tys) = run.catalog(rel).ok_or("no evaluation-region")?;
             let mut t = finish::Table { names, tys, cols: vec![Vec::with_capacity(rows.len()); 6], n: rows.len() };
@@ -1400,24 +1428,32 @@ impl ColFacts<'_, '_, '_, '_> {
                 t.cols[4].push(timing);
                 t.cols[5].push(u64::from(self.file_no));
             }
-            t
+            owned = Some(t);
+            owned.as_ref().unwrap()
         } else if rel == fact_catalog::RESOLUTION_REL {
-            self.read_resolution(run)?
+            owned = Some(self.read_resolution(run)?);
+            owned.as_ref().unwrap()
         } else if rel == fact_catalog::TYPE_REGION_REL {
             let ids = self.file.type_regions().ok_or("type-region: the model is incomplete")?;
             let (_, names, tys) = run.catalog(rel).ok_or("no type-region")?;
-            finish::Table { names, tys, n: ids.len(), cols: vec![ids.iter().map(|i| u64::from(*i)).collect(), vec![u64::from(self.file_no); ids.len()]] }
+            owned = Some(finish::Table { names, tys, n: ids.len(), cols: vec![ids.iter().map(|i| u64::from(*i)).collect(), vec![u64::from(self.file_no); ids.len()]] });
+            owned.as_ref().unwrap()
         } else if rel == fact_catalog::FINAL_REL
             || rel == fact_catalog::TYPE_EXPRESSION_REL
             || rel == fact_catalog::ANNOTATION_EVALUATION_REL
             || rel == fact_catalog::DEFERRED_VISIT_REL
             || rel == fact_catalog::DEFERRED_RESOLUTION_REL
         {
-            self.fact(run, rel)?
+            owned = None;
+            shared = self.fact(run, rel)?;
+            shared.as_ref()
         } else if composed_inputs && keeps_input(rel) {
-            self.whole(run, rel)?
+            owned = None;
+            shared = self.whole(run, rel)?;
+            shared.as_ref()
         } else {
-            self.whole_fill(run, rel, columns)?
+            owned = Some(self.whole_fill(run, rel, columns)?);
+            owned.as_ref().unwrap()
         };
         let dt = if timed { thread_cpu() - t0 } else { 0.0 };
         self.time += dt;
@@ -1449,10 +1485,7 @@ impl ColFacts<'_, '_, '_, '_> {
                 finish::fill_prof::dump(run, self.file_no, rel, &t);
             }
         }
-        for (c, col) in t.cols.iter_mut().enumerate() {
-            if !finish::request::wants(columns, c) { col.clear(); }
-        }
-        Ok(t)
+        Ok(owned)
     }
 
     fn render_node(&mut self, node: u32, context: &str) -> Result<Option<Vec<u8>>, String> {
