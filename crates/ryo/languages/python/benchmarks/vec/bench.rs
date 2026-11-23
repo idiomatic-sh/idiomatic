@@ -974,6 +974,7 @@ mod direct_fill;
 mod fact_catalog;
 #[path = "relative_import.rs"]
 mod relative_import;
+mod import_syntax;
 #[path = "provider_packaging.rs"]
 mod provider_packaging;
 #[path = "provider_tokens.rs"]
@@ -1431,6 +1432,8 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
             t
         } else if rel == fact_catalog::RELATIVE_IMPORT_REL {
             relative_import::walked(run, self.project, self.file, self.file_no)?
+        } else if matches!(rel, import_syntax::NEIGHBORS | import_syntax::STATEMENTS | import_syntax::ALIASES | import_syntax::ENTRIES) {
+            import_syntax::fill(run, self.file, self.src, self.project, self.file_no, rel)?
         } else if rel == fact_catalog::ASSIGNMENT_SOURCE_REL {
             let (_, names, tys) = run.catalog(rel).ok_or("no assignment-source")?;
             let mut rows = finish::Table::with_rows(names, tys, 0);

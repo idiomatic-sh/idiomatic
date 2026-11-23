@@ -485,6 +485,8 @@ fn flag(value: Flag) -> u32 {
 
 mod forward_reads;
 mod assignment;
+mod imports;
+pub use imports::ImportAlias;
 mod resolution;
 pub use resolution::BindingSite;
 

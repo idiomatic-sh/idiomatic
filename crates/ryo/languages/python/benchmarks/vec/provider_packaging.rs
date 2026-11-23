@@ -28,7 +28,7 @@ pub(super) struct Project {
 /// Directory spellings from the project layout. A package component can itself contain a dot.
 pub(super) struct Package {
     pub(super) dotted: String,
-    root_name: String,
+    pub(super) root_name: String,
 }
 
 /// The filename component used in this project's dotted module identity.
@@ -158,13 +158,7 @@ impl Project {
         let mut cols: Vec<Vec<u64>> = vec![Vec::new(); names.len()];
         let mut count = 0;
         for (root, path) in rows {
-            let kinds = self.classified(&path);
-            // a present child of a parent that is not present cannot prove a project path
-            let present = |ks: &[&str]| ks.iter().any(|k| matches!(*k, "module" | "package" | "namespace"));
-            let kinds = match path.rsplit_once('.') {
-                Some((parent, _)) if present(&kinds) && !present(&self.classified(parent)) => vec!["unknown"],
-                _ => kinds,
-            };
+            let kinds = self.observed_path_kinds(&path);
             for kd in kinds {
                 let state = match kd {
                     "module" | "package" | "namespace" => "present",
@@ -184,6 +178,16 @@ impl Project {
             }
         }
         Ok(finish::Table { names, tys, cols, n: count })
+    }
+
+    /// A file-system observation of a dotted child requires an observed parent under the configured search roots.
+    pub(super) fn observed_path_kinds(&mut self, path: &str) -> Vec<&'static str> {
+        let kinds = self.classified(path);
+        let present = |ks: &[&str]| ks.iter().any(|k| matches!(*k, "module" | "package" | "namespace"));
+        match path.rsplit_once('.') {
+            Some((parent, _)) if present(&kinds) && !present(&self.classified(parent)) => vec!["unknown"],
+            _ => kinds,
+        }
     }
 
     /// The entries a dotted path names under the search roots (observed once a run each).
