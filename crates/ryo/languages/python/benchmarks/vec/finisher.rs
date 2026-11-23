@@ -121,6 +121,7 @@ impl<'p> Finisher<'p> {
                 &|n| vocab.kinds.get(n).copied(),
             ),
         };
+        me.exec.col_load(&mut me.run);
         me.time += thread_cpu() - t0;
         me
     }
@@ -281,6 +282,7 @@ impl<'p> Finisher<'p> {
             std::fs::write(self.check_out.clone().unwrap_or_else(|| "check-bases.tsv".to_owned()), self.check_lines.join("\n") + "\n").expect("write check");
         }
         let exec = &self.exec;
+        exec.col_report();
         if let Some(out) = &self.stats {
             // columns 8 and 13: runs by key, runs by key that returned nothing (finish/keyed.rs); 9 and 10 (made by, why)
             // -1 and empty; 14: rows of tables the step built (a table handed on from an input counts 0)
