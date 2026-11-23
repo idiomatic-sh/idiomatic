@@ -5,7 +5,7 @@
 //! The host's relations of the same set are the host's answer at the same point. The form is the language's and the
 //! scope's: nothing here names a relation, a language or a file beyond the request's scope.
 
-use super::{Exec, File, Provider, R, Run, Scope, Supplier, Table, host, native_of};
+use super::{Exec, File, Provider, R, Run, Scope, Supplier, Table, host, native_of, Native, E};
 use rustc_hash::FxHashMap;
 use std::rc::Rc;
 
@@ -14,7 +14,6 @@ use std::rc::Rc;
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Asked<'r> {
     pub(crate) rel: &'r str,
-    #[expect(dead_code, reason = "the request's column set is sent (every column: no reader's column use is derived yet) and no provider prunes by it yet")]
     pub(crate) columns: u64,
 }
 
@@ -35,10 +34,10 @@ pub(crate) struct Requests {
     by_name: FxHashMap<String, u16>,
     /// Who supplies each (the host or the provider), by number.
     host: Vec<bool>,
-    /// Per plan node used as an emit's root: the relations its steps can read, one bit a number.
-    reach: FxHashMap<usize, Rc<[u64]>>,
-    /// This file's union and the asked list (kept for the next file).
-    union: Vec<u64>,
+    nodes: Vec<Option<Rc<Demand>>>,
+    visit: Vec<bool>,
+    work: Vec<usize>,
+    masks: Vec<Option<u64>>,
     asked: Vec<u16>,
     answer: Vec<Result<Table, String>>,
     pub(super) counts: Counts,
@@ -81,72 +80,136 @@ impl Requests {
     }
 }
 
+/// A materialized operator reads its inputs whole. A select reads its view sources
+/// in place, through their predicates and the columns of its expressions.
+#[derive(Default)]
+struct Demand {
+    inputs: Vec<usize>,
+    facts: Vec<(usize, u16, u64)>,
+}
+
+fn bit(c: usize) -> u64 {
+    1u64.checked_shl(c as u32).unwrap_or(u64::MAX)
+}
+
+pub(crate) fn wants(mask: u64, column: usize) -> bool {
+    mask & bit(column) != 0
+}
+
+fn columns(e: &E, source: usize) -> u64 {
+    match e {
+        E::Col(s, c, _) if *s == source => bit(*c),
+        E::List(es) | E::Call(_, es) => es.iter().fold(0, |m, e| m | columns(e, source)),
+        E::Cmp(_, a, b) | E::In(a, b, _) | E::And(a, b) | E::Or(a, b) => columns(a, source) | columns(b, source),
+        E::Not(x) | E::Null(x, _) | E::Re(x, _) | E::Seed(x, _) => columns(x, source),
+        _ => 0,
+    }
+}
+
 impl Exec<'_> {
-    /// The relations the steps under `root` can read (provider and host relations; never the node table's own, the run's
-    /// files, or a relation an executor step makes): every base step reachable through the plan's inputs.
-    fn reach(&mut self, run: &Run, root: usize) -> Rc<[u64]> {
-        if let Some(r) = self.requests.reach.get(&root) {
-            return r.clone();
-        }
-        let plan = self.plan;
-        let mut seen = vec![false; plan.nodes.len()];
-        let mut stack = vec![root];
-        let mut rels: Vec<u16> = Vec::new();
-        while let Some(n) = stack.pop() {
-            if std::mem::replace(&mut seen[n], true) {
-                continue;
+    fn demand_input(&mut self, run: &mut Run, d: &mut Demand, n: usize, mask: u64) {
+        match self.view(run, n) {
+            Ok(Some(v)) => {
+                if let Native::Fact(i) = v.base {
+                    let rel = &run.fact_rels[usize::from(i)].0;
+                    let slot = self.requests.number(run, rel);
+                    let mut cols = v.filter.iter().fold(0, |m, e| m | columns(e, 0));
+                    for (c, base) in v.map.iter().enumerate() {
+                        if mask & bit(c) != 0 {
+                            cols |= bit(*base);
+                        }
+                    }
+                    d.facts.push((n, slot, cols));
+                }
             }
-            let pn = &plan.nodes[n];
-            if pn.op == "base"
-                && let Some(rel) = pn.j["rel"].as_str()
+            _ => d.inputs.push(n),
+        }
+    }
+
+    fn demand(&mut self, run: &mut Run, n: usize) -> Rc<Demand> {
+        if let Some(d) = &self.requests.nodes[n] {
+            return d.clone();
+        }
+        let pn = &self.plan.nodes[n];
+        let mut d = Demand::default();
+        if self.view(run, n).ok().flatten().is_some() {
+            self.demand_input(run, &mut d, n, u64::MAX);
+        } else if pn.op == "base" {
+            if let Some(rel) = pn.j["rel"].as_str()
                 && native_of(rel).is_none()
                 && matches!(run.supplier(rel), Supplier::Provider | Supplier::Host)
             {
-                rels.push(self.requests.number(run, rel));
+                d.facts.push((n, self.requests.number(run, rel), u64::MAX));
             }
-            stack.extend(pn.inputs.iter().copied().filter(|i| !seen[*i]));
+        } else if pn.op == "select" && let Ok(sp) = self.sel(run, n) {
+            for (i, src) in sp.srcs.iter().enumerate() {
+                let probed = sp.conj.iter().any(|e| matches!(e, E::Seed(x, _) if matches!(**x, E::Col(s, _, _) if s == i)));
+                let mask = if probed { u64::MAX } else {
+                    sp.conj.iter().chain(sp.items.iter().map(|(_, e)| e)).fold(0, |m, e| m | columns(e, i))
+                };
+                self.demand_input(run, &mut d, *src, mask);
+            }
+        } else {
+            for &src in &pn.inputs {
+                self.demand_input(run, &mut d, src, u64::MAX);
+            }
+            // A counted select can emit a kept row with zero partners. Its
+            // group reads both sources directly even when the select is empty.
+            if self.frames[n].counted {
+                let sel = self.frames[n].first as usize;
+                for &src in &self.plan.nodes[sel].inputs {
+                    self.demand_input(run, &mut d, src, u64::MAX);
+                }
+            }
         }
-        let words = (self.requests.names.len().max(1)).div_ceil(64) + 1;
-        let mut bits = vec![0u64; words];
-        for r in rels {
-            bits[usize::from(r) / 64] |= 1 << (r % 64);
-        }
-        let bits: Rc<[u64]> = bits.into();
-        self.requests.reach.insert(root, bits.clone());
-        bits
+        let d = Rc::new(d);
+        self.requests.nodes[n] = Some(d.clone());
+        d
     }
 
-    /// Exactly the union of what the alive rules' steps can read (request shape (a); shape (b), less the relations whose
-    /// every reader is known empty before any fill, was measured equal or unsound: NOTES.md, pass 3 cycle 1).
-    fn union_of(&mut self, run: &Run, roots: &[usize], union: &mut Vec<u64>) {
-        for r in roots {
-            let bits = self.reach(run, *r);
-            if union.len() < bits.len() {
-                union.resize(bits.len(), 0);
+    fn request_masks(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, roots: &[usize]) -> Vec<Option<u64>> {
+        self.requests.nodes.resize_with(self.plan.nodes.len(), || None);
+        let mut masks = std::mem::take(&mut self.requests.masks);
+        masks.fill(None);
+        let mut work = std::mem::take(&mut self.requests.work);
+        let mut seen = std::mem::take(&mut self.requests.visit);
+        seen.resize(self.plan.nodes.len(), false);
+        seen.fill(false);
+        work.extend_from_slice(roots);
+        f.before_answer = true;
+        while let Some(n) = work.pop() {
+            if std::mem::replace(&mut seen[n], true) || (!sw!("VEC_NO_KNOWN") && self.static_empty(f, run, p, n)) {
+                continue;
             }
-            for (u, b) in union.iter_mut().zip(bits.iter()) {
-                *u |= *b;
+            let d = self.demand(run, n);
+            work.extend_from_slice(&d.inputs);
+            for &(src, slot, cols) in &d.facts {
+                if src != n && !sw!("VEC_NO_KNOWN") && self.static_empty(f, run, p, src) {
+                    continue;
+                }
+                masks.resize(self.requests.names.len(), None);
+                *masks[usize::from(slot)].get_or_insert(0) |= cols;
             }
         }
+        f.before_answer = false;
+        self.requests.work = work;
+        self.requests.visit = seen;
+        masks
     }
 
     /// The file's one request: the union of what the steps under `roots` (the alive rules' emits) can read, asked of the
     /// provider in one call and of the host for its own; the answers kept in the file for `answered`.
     pub(crate) fn open_file(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, roots: &[usize]) -> R<()> {
-        let mut union = std::mem::take(&mut self.requests.union);
-        union.clear();
-        self.union_of(run, roots, &mut union);
+        let masks = self.request_masks(f, run, p, roots);
         let rq = &mut self.requests;
         rq.counts.files += 1;
         let mut asked = std::mem::take(&mut rq.asked);
         asked.clear();
         f.answer.clear();
         f.answer.resize_with(rq.names.len(), || None);
-        for (w, word) in union.iter().enumerate() {
-            let mut b = *word;
-            while b != 0 {
-                let n = (w * 64 + b.trailing_zeros() as usize) as u16;
-                b &= b - 1;
+        for (n, mask) in masks.iter().enumerate() {
+            if mask.is_some() {
+                let n = n as u16;
                 if rq.host[usize::from(n)] {
                     let rel = &rq.names[usize::from(n)];
                     let t = host::host_fill(run, rel, f.file).unwrap_or_else(|| Err(format!("the host supplies no {rel}")))?;
@@ -158,7 +221,7 @@ impl Exec<'_> {
             }
         }
         if !asked.is_empty() {
-            let list: Vec<Asked<'_>> = asked.iter().map(|n| Asked { rel: rq.names[usize::from(*n)].as_str(), columns: u64::MAX }).collect();
+            let list: Vec<Asked<'_>> = asked.iter().map(|n| Asked { rel: rq.names[usize::from(*n)].as_str(), columns: masks[usize::from(*n)].unwrap() }).collect();
             let mut answer = std::mem::take(&mut rq.answer);
             answer.clear();
             p.answer(run, &Request { scope: Scope::File(f.file), relations: &list }, &mut answer)?;
@@ -177,7 +240,7 @@ impl Exec<'_> {
             rq.answer = answer;
         }
         rq.asked = asked;
-        rq.union = union;
+        rq.masks = masks;
         Ok(())
     }
 
@@ -190,7 +253,9 @@ impl Exec<'_> {
 
     /// The file's end: the answered relations no step asked, counted.
     pub(crate) fn close_file(&mut self, f: &mut File<'_>) {
-        for t in f.answer.drain(..).flatten().flatten() {
+        for (i, answer) in f.answer.drain(..).enumerate() {
+            if self.requests.host[i] { continue; }
+            let Some(Ok(t)) = answer else { continue };
             self.requests.counts.never_asked += 1;
             self.requests.counts.never_asked_rows += t.n as u64;
         }

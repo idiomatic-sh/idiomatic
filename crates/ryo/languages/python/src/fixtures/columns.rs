@@ -733,6 +733,7 @@ impl ColumnFile<'_, '_> {
             Relation::LiteralProperties => self.literal_properties(ask, ids, table, elements),
             Relation::NumericLiteral => self.numeric_literal(ask, ids, table, elements),
             Relation::StringLiteral => self.string_literal(ask, ids, table, elements),
+            Relation::LiteralExpressionParse => self.literal_parse(ask, ids, table, elements),
             Relation::ExpressionShape => self.expression_shape(ask, table, elements),
             Relation::ExpressionType => self.expression_type(ask, ids, table, elements),
             Relation::BindingEvent => self.binding_event(ask, ids, table, elements),
@@ -804,7 +805,8 @@ impl ColumnFile<'_, '_> {
                     table.mark(id.0);
                     table.rows += 1;
                 } else {
-                    table.put(id.0, &[(name_at, ids.id(name.as_bytes()))]);
+                    let name = if table.wants(name_at) { ids.id(name.as_bytes()) } else { 0 };
+                    table.put(id.0, &[(name_at, name)]);
                 }
             }
         }
@@ -817,8 +819,42 @@ impl ColumnFile<'_, '_> {
                 table.mark(id);
                 table.rows += 1;
             } else {
-                table.put(id, &[(name_at, ids.id(name.as_bytes()))]);
+                let name = if table.wants(name_at) { ids.id(name.as_bytes()) } else { 0 };
+                table.put(id, &[(name_at, name)]);
             }
+        }
+    }
+
+    fn literal_parse(&mut self, ask: &Ask, ids: &mut dyn TextIds, table: &mut FactTable, elements: usize) {
+        use crate::domain::literal_expression_parsing::{service::outcome_name, types::LiteralParseOutcome};
+        use crate::inbound::contracts::parse::readers::literal_expression::{composition::{available, parsed_as_annotation}, constants::PYTHON_STRING_ANNOTATION};
+        use ruff_text_size::Ranged as _;
+
+        let dialect = place!(LiteralExpressionParse, LiteralExpressionParseColumn::Dialect);
+        let outcome = place!(LiteralExpressionParse, LiteralExpressionParseColumn::Outcome);
+        let width = languages::LiteralExpressionParse::columns().len();
+        table.begin(Layout::PerNode, width, elements, &[dialect, outcome], ask.exists, ask.columns);
+        let syntax = &self.file.syntax;
+        if [syntax.completeness.syntax, syntax.completeness.lexical].contains(&languages::SyntaxCompleteness::Incomplete) {
+            table.answered = false;
+            return;
+        }
+        let dialect_id = if table.wants(dialect) { self.memo.fixed(ids, NameText(PYTHON_STRING_ANNOTATION)) } else { 0 };
+        let mut tokens = Vec::new();
+        for Numbered { id, node } in nodes_of_kind(syntax, Kind::Node(Node::Constant)) {
+            let AnyNodeRef::ExprStringLiteral(literal) = node else { continue };
+            let outcome_id = if table.wants(outcome) {
+                let parsed = parsed_as_annotation(syntax, node, &mut tokens, &mut self.file.buffers.text);
+                if parsed == LiteralParseOutcome::Unavailable { table.answered = false; return; }
+                self.memo.fixed(ids, outcome_name(parsed))
+            } else {
+                if syntax.text.0.get(literal.range().start().to_usize()..literal.range().end().to_usize()).is_none() || !available(syntax, node, &mut tokens) {
+                    table.answered = false;
+                    return;
+                }
+                0
+            };
+            table.put(id.0, &[(dialect, dialect_id), (outcome, outcome_id)]);
         }
     }
 
@@ -913,7 +949,7 @@ impl ColumnFile<'_, '_> {
         let nodes = node_table::node_count(syntax.table).0;
         let count = syntax.nodes.len();
         let is_expression = |id: Position| category_of(kind_of(node_table::kind_of(syntax.table, id))) == Category::Expression;
-        if ask.exists {
+        if ask.exists || !table.wants(shape_at) {
             // whole[id]: the node and every node below it have a shape (a node child is after its parent in id order)
             let mut whole = vec![false; count];
             let ipy = crate::domain::syntax::service::kind_bits(Kind::Extra(TypedExtra::IpyEscapeCommand));
@@ -922,9 +958,15 @@ impl ColumnFile<'_, '_> {
                 let ok = node_table::kind_of(syntax.table, at) != ipy
                     && node_table::children_of(syntax.table, at).iter().all(|child| usize::from(*child) >= nodes || whole.get(usize::from(*child)).copied().unwrap_or(false));
                 whole[id] = ok;
-                if ok && is_expression(at) {
+                if ask.exists && ok && is_expression(at) {
                     table.mark(at.0);
                     table.rows += 1;
+                }
+            }
+            if !ask.exists {
+                for (i, ok) in whole.into_iter().enumerate() {
+                    let at = Position(i as u32);
+                    if ok && is_expression(at) { table.put(at.0, &[]); }
                 }
             }
             return;

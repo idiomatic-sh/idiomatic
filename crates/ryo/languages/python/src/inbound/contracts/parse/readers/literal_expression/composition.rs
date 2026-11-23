@@ -50,20 +50,26 @@ ryo::reads! {
     }
 }
 
+/// Whether the literal has the source tokens required by the annotation grammar.
+pub(crate) fn available(file: &SyntaxFile<'_>, node: AnyNodeRef<'_>, tokens: &mut Vec<languages::Position>) -> bool {
+    string_tokens(file, node, tokens);
+    let untold = tokens
+        .iter()
+        .any(|token| body(RawFormatToken(written(file, *token).0)).is_none());
+    !untold && !tokens.is_empty()
+}
+
+
 /// Whether the string `node` reads as an expression the way a string annotation is read: its string tokens as they are written,
 /// one on each line between parentheses, parsed by the string-annotation grammar. Unavailable for a string with no token or
 /// with a token whose body is not told from its quotes.
-fn parsed_as_annotation(
+pub(crate) fn parsed_as_annotation(
     file: &SyntaxFile<'_>,
     node: AnyNodeRef<'_>,
     tokens: &mut Vec<languages::Position>,
     carrier: &mut crate::domain::literal_facts::types::TextBuffer,
 ) -> LiteralParseOutcome {
-    string_tokens(file, node, tokens);
-    let untold = tokens
-        .iter()
-        .any(|token| body(RawFormatToken(written(file, *token).0)).is_none());
-    if untold || tokens.is_empty() {
+    if !available(file, node, tokens) {
         return LiteralParseOutcome::Unavailable;
     }
     // SPIKE (track X): the string is a node of the file's own tree, so the annotation grammar reads it where it is

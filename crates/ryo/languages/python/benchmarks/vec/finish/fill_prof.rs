@@ -63,6 +63,10 @@ pub(in super::super) fn reads_line() -> String {
     format!("native_get by relation.column: {}\nnative reads: native_get {} view_holds {} lit_rows {} view_rows {} native_probe {} native_rows {} (cells read by a step's expression: of a view {}, of a base {})", by.join(" "), r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7])
 }
 
+pub(in super::super) fn dumping() -> bool {
+    sw!("VEC_FILL_DUMP")
+}
+
 /// One fill's line in the dump (under `VEC_FILL_DUMP`).
 pub(in super::super) fn dump(run: &Run, file: u32, rel: &str, t: &Table) {
     static PATH: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();

@@ -30,12 +30,12 @@ impl TextIds for RunIds<'_> {
 pub(super) fn direct(rel: &str) -> bool {
     static OFF: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     !*OFF.get_or_init(|| std::env::var_os("VEC_NO_DIRECT").is_some())
-        && matches!(rel, "qualified-name" | "identifier" | "literal-properties" | "numeric-literal" | "string-literal" | "expression-shape" | "expression-type" | "binding-event" | "binding-read")
+        && matches!(rel, "qualified-name" | "identifier" | "literal-properties" | "numeric-literal" | "string-literal" | "literal-expression-parse" | "expression-shape" | "expression-type" | "binding-event" | "binding-read")
 }
 
 /// The direct fill of `rel` (see the module); `None` where the reader must answer. The seconds of the provider's write and
 /// of the table's making come back for the fills' clock.
-pub(super) fn fill(file: &mut ColumnFile<'_, '_>, run: &mut finish::Run, rel: &str, file_no: u32, timed: bool) -> Option<(Result<Table, String>, f64, f64)> {
+pub(super) fn fill(file: &mut ColumnFile<'_, '_>, run: &mut finish::Run, rel: &str, file_no: u32, timed: bool, columns: u64) -> Option<(Result<Table, String>, f64, f64)> {
     let (relation, names, tys) = run.catalog(rel)?;
     let relation = relation?;
     let key = tys.iter().position(|t| *t == Ty::Node)?;
@@ -49,7 +49,7 @@ pub(super) fn fill(file: &mut ColumnFile<'_, '_>, run: &mut finish::Run, rel: &s
                 memo.new_file();
                 *at = file_no;
             }
-            file.column_with(&Ask { relation, key, exists: false, columns: u64::MAX }, &mut RunIds(run), &mut ft, memo);
+            file.column_with(&Ask { relation, key, exists: false, columns }, &mut RunIds(run), &mut ft, memo);
         });
         let t1 = if timed { super::thread_cpu() } else { 0.0 };
         if !ft.answered {
@@ -61,6 +61,7 @@ pub(super) fn fill(file: &mut ColumnFile<'_, '_>, run: &mut finish::Run, rel: &s
         let tys2 = tys.clone();
         let mut out = Table::with_rows(names, tys, n);
         for (c, ty) in tys2.iter().enumerate() {
+            if !finish::request::wants(columns, c) { continue; }
             let written = ft.columns.get(c).filter(|col| !col.is_empty());
             let col = &mut out.cols[c];
             match (written, ty) {
@@ -72,6 +73,7 @@ pub(super) fn fill(file: &mut ColumnFile<'_, '_>, run: &mut finish::Run, rel: &s
                     let s = node_table::span_of(table, Position(*k));
                     (u64::from(s.start.0) << 32) | u64::from(s.end.0)
                 })),
+                (None, _) if n == 0 => {}
                 (None, _) => return None,
             }
         }
@@ -98,7 +100,7 @@ thread_local! {
 }
 
 /// Prints the first differences of a direct fill from the reader's (at most 5 a relation and column).
-pub(super) fn check(run: &finish::Run, rel: &str, file: u32, reader: &Table, direct: &Table) {
+pub(super) fn check(run: &finish::Run, rel: &str, file: u32, reader: &Table, direct: &Table, columns: u64) {
     let mut say = |what: String| {
         SEEN.with(|s| {
             let mut s = s.borrow_mut();
@@ -113,7 +115,7 @@ pub(super) fn check(run: &finish::Run, rel: &str, file: u32, reader: &Table, dir
         say(format!("rows reader {} direct {}", reader.n, direct.n));
     }
     for c in 0..reader.cols.len() {
-        if reader.tys[c] == Ty::File {
+        if !finish::request::wants(columns, c) {
             continue;
         }
         for r in 0..reader.n.min(direct.n) {

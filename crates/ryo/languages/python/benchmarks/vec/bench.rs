@@ -1006,6 +1006,10 @@ struct ColFacts<'v, 'a, 'f, 'w> {
     src: &'w [u8],
 }
 
+fn keeps_input(rel: &str) -> bool {
+    matches!(rel, "binding-event" | "binding-read" | "binding-resolution" | "qualified-name" | "call-argument" | "identifier" | "embedded-expression" | "compiler-feature" | "language-target" | "lookup-scope" | "implicit-symbol")
+}
+
 impl ColFacts<'_, '_, '_, '_> {
     /// A catalog relation of this file, filled whole (once a file for the relations the harness facts read).
     fn whole(&mut self, run: &mut finish::Run, rel: &str) -> Result<finish::Table, String> {
@@ -1029,11 +1033,11 @@ impl ColFacts<'_, '_, '_, '_> {
             let _ = self.kept.insert(rel.to_owned(), t.clone());
             return Ok(t);
         }
-        let t = self.whole_fill(run, rel)?;
+        let t = self.whole_fill(run, rel, u64::MAX)?;
         if let Some(m) = module {
             IMPLICIT_CATALOG.with(|c| *c.borrow_mut() = Some((m, t.clone())));
         }
-        if matches!(rel, "binding-event" | "binding-read" | "binding-resolution" | "qualified-name" | "call-argument" | "identifier" | "embedded-expression" | "compiler-feature" | "language-target" | "lookup-scope" | "implicit-symbol") {
+        if keeps_input(rel) {
             let _ = self.kept.insert(rel.to_owned(), t.clone());
         }
         Ok(t)
@@ -1045,11 +1049,11 @@ impl ColFacts<'_, '_, '_, '_> {
         (0..n).find(|p| &*run.texts[run.kind_sym[usize::from(node_table::kind_of(self.file.table, Position(*p)).0)] as usize] == b"module")
     }
 
-    fn whole_fill(&mut self, run: &mut finish::Run, rel: &str) -> Result<finish::Table, String> {
+    fn whole_fill(&mut self, run: &mut finish::Run, rel: &str, columns: u64) -> Result<finish::Table, String> {
         let timed = finish::fill_prof::timed();
         // redo-fills pass 2: the provider's direct columns, no reader rows and no conversion (direct_fill.rs)
         if direct_fill::direct(rel)
-            && let Some((t, write, make)) = direct_fill::fill(self.file, run, rel, self.file_no, timed)
+            && let Some((t, write, make)) = direct_fill::fill(self.file, run, rel, self.file_no, timed, columns)
         {
             if timed {
                 let n = t.as_ref().map_or(0, |t| t.n as u64);
@@ -1066,7 +1070,7 @@ impl ColFacts<'_, '_, '_, '_> {
                 self.filled.0.clear();
                 let _ = self.file.fill(relation, languages::Wanted::Whole, self.words, &mut self.filled);
                 let r = finish::filled_table(run, rel, &self.filled, self.words)?;
-                direct_fill::check(run, rel, self.file_no, &r, t.as_ref().map_err(String::clone)?);
+                direct_fill::check(run, rel, self.file_no, &r, t.as_ref().map_err(String::clone)?, columns);
             }
             return t;
         }
@@ -1077,7 +1081,7 @@ impl ColFacts<'_, '_, '_, '_> {
         let answer = self.file.fill(relation, languages::Wanted::Whole, self.words, &mut self.filled);
         let t1 = if timed { thread_cpu() } else { 0.0 };
         let t = match answer {
-            languages::FactAnswer::Answered(_) => finish::filled_table(run, rel, &self.filled, self.words),
+            languages::FactAnswer::Answered(_) => finish::filled_columns(run, rel, &self.filled, self.words, columns),
             _ => Err(format!("{rel} not answered")),
         };
         if timed {
@@ -1354,12 +1358,13 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
         }
         // the families first, the facts composed of them after (each input is made once and kept; the clock then gives
         // each its own work), the answer in the request's order
+        let composed_inputs = request.relations.iter().any(|a| COMPOSED.contains(&a.rel));
         let base = out.len();
         out.resize_with(base + request.relations.len(), || Err(String::new()));
         for composed in [false, true] {
             for (i, asked) in request.relations.iter().enumerate() {
                 if COMPOSED.contains(&asked.rel) == composed {
-                    out[base + i] = self.one(run, asked.rel);
+                    out[base + i] = self.one(run, asked.rel, asked.columns, composed_inputs);
                 }
             }
         }
@@ -1381,7 +1386,7 @@ const RESOLUTION_READERS: [&str; 1] = ["qualified-name"];
 
 impl ColFacts<'_, '_, '_, '_> {
     /// One asked relation of this file: none made where the file's own contents say it has no row (`row_count`).
-    fn one(&mut self, run: &mut finish::Run, rel: &str) -> Result<finish::Table, String> {
+    fn one(&mut self, run: &mut finish::Run, rel: &str, columns: u64, composed_inputs: bool) -> Result<finish::Table, String> {
         if !self.kept.contains_key(rel)
             && let Some((Some(relation), names, tys)) = run.catalog(rel)
             && self.file.row_count(relation) == Some(0)
@@ -1418,8 +1423,10 @@ impl ColFacts<'_, '_, '_, '_> {
             || rel == fact_catalog::DEFERRED_RESOLUTION_REL
         {
             self.fact(run, rel)?
-        } else {
+        } else if composed_inputs && keeps_input(rel) {
             self.whole(run, rel)?
+        } else {
+            self.whole_fill(run, rel, columns)?
         };
         let dt = if timed { thread_cpu() - t0 } else { 0.0 };
         self.time += dt;
@@ -1435,7 +1442,25 @@ impl ColFacts<'_, '_, '_, '_> {
             let site = finish::fill_prof::SITE.with(std::cell::Cell::get);
             self.by_rel.entry(format!("site:{site}:{rel}")).or_default().2 += 1;
         }
-        finish::fill_prof::dump(run, self.file_no, rel, &t);
+        if finish::fill_prof::dumping() {
+            if t.cols.iter().any(|c| c.len() < t.n) {
+                // The gate compares full-row digests across versions. Check every
+                // delivered cell in order against the full writer before hashing it.
+                let reference = self.whole_fill(run, rel, u64::MAX)?;
+                assert_eq!(t.n, reference.n, "{rel} rows");
+                for c in 0..t.cols.len() {
+                    if finish::request::wants(columns, c) {
+                        assert_eq!(t.cols[c], reference.cols[c], "{rel} column {}", t.names[c]);
+                    }
+                }
+                finish::fill_prof::dump(run, self.file_no, rel, &reference);
+            } else {
+                finish::fill_prof::dump(run, self.file_no, rel, &t);
+            }
+        }
+        for (c, col) in t.cols.iter_mut().enumerate() {
+            if !finish::request::wants(columns, c) { col.clear(); }
+        }
         Ok(t)
     }
 
@@ -1472,7 +1497,7 @@ impl finish::Provider for Facts<'_, '_, '_> {
             return Err(format!("asked for file {file}, this provider holds file {}", self.file));
         }
         for asked in request.relations {
-            out.push(self.one(run, asked.rel));
+            out.push(self.one(run, asked.rel, asked.columns));
         }
         Ok(())
     }
@@ -1483,14 +1508,14 @@ impl finish::Provider for Facts<'_, '_, '_> {
 }
 
 impl Facts<'_, '_, '_> {
-    fn one(&mut self, run: &mut finish::Run, rel: &str) -> Result<finish::Table, String> {
+    fn one(&mut self, run: &mut finish::Run, rel: &str, columns: u64) -> Result<finish::Table, String> {
         let t0 = thread_cpu();
         let (relation, _, _) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
         let relation = relation.ok_or_else(|| format!("{rel} needs VEC_COLWALK"))?;
         self.filled.0.clear();
         let answer = self.facts.facts.fill(relation, languages::Wanted::Whole, self.words, &mut self.filled);
         let mut t = match answer {
-            languages::FactAnswer::Answered(_) => finish::filled_table(run, rel, &self.filled, self.words),
+            languages::FactAnswer::Answered(_) => finish::filled_columns(run, rel, &self.filled, self.words, columns),
             _ => Err(format!("{rel} not answered")),
         }?;
         // the walk names its file FileId(0): that cell is this provider's file (a cell naming another file is kept)

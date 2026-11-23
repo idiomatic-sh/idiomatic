@@ -627,8 +627,6 @@ pub(super) struct File<'a> {
     fact_ix: RefCell<FxHashMap<(u16, usize), Rc<Index>>>,
     /// redo-union pass 2: whether a step is known empty in this file from its kinds, seeds and per-file tests (`known`).
     known: Vec<u8>,
-    /// The kinds the file has, one bit a kind code (made at the first ask).
-    kind_bits: Vec<u64>,
     /// pass 2: the steps whose memo entry `res` set: cleared at the file's end, and the memo (and `known`) kept for the
     /// next file (no 30 k-entry table made and dropped a file).
     touched: Vec<u32>,
@@ -636,6 +634,7 @@ pub(super) struct File<'a> {
     fact_read: Vec<std::cell::Cell<bool>>,
     /// redo-fills pass 3: the file's one answer by request number (request.rs), each taken at its first ask into `fills`.
     answer: Vec<Option<Result<Table, String>>>,
+    before_answer: bool,
 }
 
 thread_local! {
@@ -661,7 +660,6 @@ struct FileBufs {
     lazies: FxHashMap<usize, Rc<Lazy>>,
     facts: Vec<Option<Rc<Table>>>,
     fact_ix: FxHashMap<(u16, usize), Rc<Index>>,
-    kind_bits: Vec<u64>,
 }
 
 /// A map's tables given back (recycle.rs) and the map emptied, its room kept.
@@ -708,7 +706,6 @@ impl Drop for File<'_> {
             lazies: std::mem::take(&mut self.lazies),
             facts: std::mem::take(&mut self.facts),
             fact_ix: std::mem::take(self.fact_ix.get_mut()),
-            kind_bits: std::mem::take(&mut self.kind_bits),
         };
         b.kind.clear();
         b.start.clear();
@@ -730,7 +727,6 @@ impl Drop for File<'_> {
             recycle::recycle(t);
         }
         b.fact_ix.clear();
-        b.kind_bits.clear();
         // a map grown far past a usual file is not kept (its room would stay with the worker)
         if b.vrows.capacity() > 1 << 12 || b.index.capacity() > 1 << 12 || b.fact_ix.capacity() > 1 << 12 {
             return;
@@ -796,9 +792,9 @@ impl File<'_> {
             facts: b.facts,
             fact_ix: RefCell::new(b.fact_ix),
             known: Vec::new(),
-            kind_bits: b.kind_bits,
             touched: Vec::new(),
             fact_read: Vec::new(),
+            before_answer: false,
             answer: Vec::new(),
         };
         SPARE.with(|sp| {
@@ -1732,6 +1728,9 @@ impl<'p> Exec<'p> {
 
     #[inline]
     fn make_(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> R<Res> {
+        if known::before_empty(f, node) && self.view(run, node)?.is_some_and(|v| matches!(v.base, Native::Fact(_))) {
+            return Ok(Res::Tab(self.empty_rc(run, node)?));
+        }
         if let Some(v) = self.view(run, node)? {
             let was = fill_prof::site("view");
             self.load_fact(f, run, p, v.base)?;
@@ -4278,10 +4277,15 @@ fn token_links(f: &File<'_>, run: &mut Run) -> Table {
 
 /// The provider's rows of a relation as a table: texts interned run-wide, nodes as positions.
 pub(super) fn filled_table(run: &mut Run, rel: &str, filled: &languages::FilledColumns, words: &languages::FileWords) -> R<Table> {
+    filled_columns(run, rel, filled, words, u64::MAX)
+}
+
+pub(super) fn filled_columns(run: &mut Run, rel: &str, filled: &languages::FilledColumns, words: &languages::FileWords, mask: u64) -> R<Table> {
     let (_, names, tys) = run.catalog(rel).ok_or_else(|| format!("no relation {rel}"))?;
     let n = filled.0.first().map_or(0, |c| c.0.len());
     let mut out = Table::with_rows(names, tys.clone(), n);
     for (c, ty) in tys.iter().enumerate() {
+        if !request::wants(mask, c) { continue; }
         let Some(column) = filled.0.get(c) else {
             out.cols[c] = vec![NULL; n];
             continue;
