@@ -12,8 +12,9 @@ pub(crate) struct Settings<'p> {
     dump: Option<String>,
     project: std::sync::Arc<finish::project::Shared>,
     constants: std::sync::Arc<finish::constants::Constants>,
+    static_tests: std::sync::Arc<finish::known::Shared>,
     ids: rustc_hash::FxHashMap<Box<[u8]>, u32>,
-    regexes: Vec<(String, regex::bytes::Regex)>,
+    patterns: std::sync::Arc<finish::worker_patterns::Patterns>,
     root: String,
     paths: std::sync::Arc<[String]>,
     text: Vec<Box<[u8]>>,
@@ -47,12 +48,9 @@ impl<'p> Finisher<'p> {
         let settings = Settings {
             project: finish::project::share(r),
             constants: self.exec.share_constants(r),
+            static_tests: self.exec.share_static_tests(),
             ids: r.ids.clone(),
-            regexes: r
-                .regexes
-                .iter()
-                .map(|(pattern, compiled)| (pattern.clone(), compiled.as_ref().clone()))
-                .collect(),
+            patterns: finish::worker_patterns::Patterns::for_workers(self.plan, r),
             plan: self.plan,
             layout: self.exec.layout.clone(),
             emits: self.emits.clone(),
@@ -91,12 +89,7 @@ impl<'p> Settings<'p> {
         run.paths.clone_from(&self.paths);
         run.texts.clone_from(&self.text);
         run.ids.clone_from(&self.ids);
-        // Compiled automata are immutable. Each worker gets its own search cache.
-        run.regexes.extend(
-            self.regexes
-                .iter()
-                .map(|(pattern, compiled)| (pattern.clone(), std::rc::Rc::new(compiled.clone()))),
-        );
+        run.worker_patterns = Some(self.patterns.clone());
         run.empty = self.empty;
         run.absent_word = self.absent;
         run.file_field_codes = self.file_fields;
@@ -143,6 +136,7 @@ impl<'p> Settings<'p> {
             alloc: [0; 2],
         };
         worker.exec.shared_constants = Some(self.constants.clone());
+        worker.exec.shared_static = Some(self.static_tests.clone());
         worker.exec.cold_test_load(&mut worker.run);
         worker.exec.cold_load(&mut worker.run);
         worker.exec.col_load(&mut worker.run);
