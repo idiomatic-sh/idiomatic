@@ -10,14 +10,14 @@ use ryo_values::domain::finish_plans::arguments::literals::types::{
     ExtendArguments, RowsArguments, UnlistedArgument, UnlistedArguments,
 };
 use ryo_values::domain::finish_plans::arguments::texts::types::{
-    CaptureArguments, FitsRenderedArguments, OptionalColumn, PrefixesArguments, RenderSyntaxArguments,
+    CaptureArguments, CapturedText, FitsRenderedArguments, OptionalColumn, PrefixesArguments, RenderSyntaxArguments,
     ReplaceArguments, SourceMatchesArguments, SpanBetweenArguments, SpanBoundsArguments,
 };
 use ryo_values::domain::finish_plans::arguments::walks::types::{
     AxisArguments, OrderedDfsArguments, SubtreeClassArguments,
 };
 use ryo_values::domain::finish_plans::constants::{
-    ARG_BASE_LINE, ARG_CAPTURE, ARG_CAPTURE_LINE_OUTPUT, ARG_CAPTURE_OUTPUT, ARG_CAPTURE_TEXT_OUTPUT, ARG_CAPTURES,
+    ARG_BASE_LINE, ARG_CAPTURE, ARG_CAPTURE_LINE_OUTPUT, ARG_CAPTURE_OUTPUT, ARG_CAPTURE_TEXT_OUTPUT, ARG_CAPTURE_TEXTS, ARG_CAPTURES, ARG_CHILD, ARG_ID, ARG_PARENT,
     ARG_COLUMNS, ARG_CONTEXT, ARG_COUNT, ARG_DESTINATION, ARG_DISTINCT, ARG_DOMAIN, ARG_EDGE, ARG_EDGES, ARG_END,
     ARG_END_OUTPUT, ARG_FROM, ARG_KEYS, ARG_LABEL, ARG_LABELS, ARG_LEAF_LABEL, ARG_LEAVES, ARG_LEFT, ARG_LEFT_ON,
     ARG_LEFT_ORDER, ARG_LINE_OUTPUT, ARG_LITERALS, ARG_MAX_LINE, ARG_NODE, ARG_ORDER, ARG_OUTPUT, ARG_PATH,
@@ -31,10 +31,10 @@ use ryo_values::domain::finish_plans::types::{AxisStep, ExistsMark, FinishStep};
 use crate::domain::plan_lowering::errors::PlanLoweringError;
 use crate::domain::plan_lowering::given::service::{
     bound, column, columns, constant_rows, direction, edges, extended_values, group_order, optional_column,
-    output_columns, refused, step, text, texts, whole,
+    optional_text, output_columns, refused, step, text, text_map, texts, whole,
 };
 use crate::domain::plan_lowering::given::types::GivenArguments;
-use ryo_values::domain::descriptions::types::OperatorName;
+use ryo_values::domain::descriptions::types::{ColumnName, OperatorName};
 
 /// The step of a call of `operator` with `arguments`, in the order written: the operator's typed step, or for an operator
 /// outside the step set the call as written.
@@ -176,12 +176,17 @@ fn text_step(
             capture_output: optional_column(given, ARG_CAPTURE_OUTPUT)?,
             capture_text_output: optional_column(given, ARG_CAPTURE_TEXT_OUTPUT)?,
             capture_line_output: optional_column(given, ARG_CAPTURE_LINE_OUTPUT)?,
+            capture_texts: text_map(given, ARG_CAPTURE_TEXTS)?
+                .into_iter()
+                .map(|(group, output)| CapturedText { group: ColumnName(group), output: ColumnName(output) })
+                .collect(),
         }),
         OP_CAPTURE => FinishStep::Capture(CaptureArguments {
             from: step(given, ARG_FROM)?,
             path: column(given, ARG_PATH)?,
             pattern: text(given, ARG_PATTERN)?,
             captures: columns(given, ARG_CAPTURES)?,
+            separator: optional_text(given, ARG_SEPARATOR)?,
         }),
         OP_FITS_RENDERED => FinishStep::FitsRendered(FitsRenderedArguments {
             from: step(given, ARG_FROM)?,
@@ -212,6 +217,9 @@ fn text_step(
             leaf_label: columns(given, ARG_LEAF_LABEL)?,
             step: columns(given, ARG_STEP)?,
             output: column(given, ARG_OUTPUT)?,
+            id: column(given, ARG_ID)?,
+            parent: column(given, ARG_PARENT)?,
+            child: column(given, ARG_CHILD)?,
         }),
         unlisted => FinishStep::Unlisted(UnlistedArguments {
             operator: OperatorName(unlisted.into()),

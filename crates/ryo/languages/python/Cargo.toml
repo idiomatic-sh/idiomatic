@@ -55,6 +55,8 @@ ryo_relations = { package = "idiomatic-sh-ryo-relations", path = "../../crates/r
 # 8 (ryo-fmx3.1): the executor's kernels live in the engine crate; the bench calls them.
 ryo_engine = { package = "idiomatic-sh-ryo-engine", path = "../../crates/engine" }
 regex = "1"
+# THROWAWAY (ryo-fmx3.1 redo-general): the `vec` probe's byte patterns from the plan's regexes (literal extraction).
+regex-syntax = "0.8"
 unicode-width = "=0.2.2"
 # THROWAWAY (ryo-fmx3.1 redo-lowering): the `vec lower` edge, the one parser and the engine's plan lowering (engine above).
 ryo_query_language = { package = "idiomatic-sh-ryo-query_language", path = "../../crates/query_language" }

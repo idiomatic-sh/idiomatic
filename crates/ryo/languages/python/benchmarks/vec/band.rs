@@ -127,7 +127,7 @@ impl Exec<'_> {
             *self.tally.back.entry((node, "no band")).or_default() += 1;
             return Ok(None);
         }
-        let mut srcs: Vec<Src> = vec![Src::Pending(usize::MAX), Src::Pending(usize::MAX)];
+        let mut srcs: Vec<Src> = vec![Src::Base(super::Native::Tree), Src::Base(super::Native::Tree)];
         let sa = self.src_of(f, run, p, an)?;
         match &sa {
             Src::Tab(t, _) if t.n == 0 => return Ok(Some((self.empty(run, node)?, Vec::new()))),
@@ -162,7 +162,9 @@ impl Exec<'_> {
         // the probed rows: a table's or a view's whole, or (a step not made yet) probed by the kept rows' first key
         let sb = self.src_of(f, run, p, bn)?;
         let sb = match sb {
-            Src::Pending(n) if !sh.eqs.is_empty() => {
+            // a closure: read through its adjacency by the kept rows' first key, else made whole
+            Src::Lazy(l) if !sh.eqs.is_empty() => {
+                let n = l.node;
                 let (c0, e0) = &sh.eqs[0];
                 let mut ks = rustc_hash::FxHashSet::default();
                 for r in &arows {
@@ -172,7 +174,7 @@ impl Exec<'_> {
                 let ks: Vec<u64> = ks.into_iter().collect();
                 Src::Tab(self.probe(f, run, p, n, *c0, &ks)?, usize::MAX - pb)
             }
-            Src::Pending(n) => Src::Tab(self.eval(f, run, p, n)?, n),
+            Src::Lazy(l) => Src::Tab(self.eval(f, run, p, l.node)?, l.node),
             Src::Tab(..) => sb,
             Src::View(v, vn) => match kind_set(run, &sp.conj, pb, v.base, &v.map) {
                 Some(ks) if kind_set(run, &v.filter, 0, v.base, &[]).is_none() => {
@@ -187,7 +189,7 @@ impl Exec<'_> {
                 }
                 _ => Src::View(v, vn),
             },
-            Src::Lazy(_) | Src::Base(_) => {
+            Src::Base(_) => {
                 *self.tally.back.entry((node, "probed side a closure")).or_default() += 1;
                 return Ok(None);
             }
@@ -318,28 +320,5 @@ impl Exec<'_> {
         *self.tally.ran.entry(node).or_default() += 1;
         let _ = V::new;
         Ok(Some((out, counts)))
-    }
-
-    /// Whether a select marked `semi`, asked by `asked` keys of its kept rows, is cheaper made whole: its probed source's
-    /// entry (a made table's rows or a kind bucket, exact counts) is smaller than the keys asked, so the whole select
-    /// drives from it and asks the kept rows by its own keys.
-    pub(super) fn semi_drives_whole(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, asked: usize) -> R<bool> {
-        let j = &self.plan.nodes[node].j;
-        let Some(pb) = j.get("semi").and_then(serde_json::Value::as_u64) else { return Ok(false) };
-        if j.get("count").is_some() || sw!("VEC_NO_SEMI") {
-            return Ok(false);
-        }
-        let sp = self.sel(run, node)?;
-        let pb = pb as usize;
-        let size = match self.src_of(f, run, p, sp.srcs[pb])? {
-            Src::Tab(t, _) => Some(t.n),
-            Src::View(v, _) => kind_set(run, &v.filter, 0, v.base, &[]).or_else(|| kind_set(run, &sp.conj, pb, v.base, &v.map)).map(|ks| bucket_len(f, run, &ks)),
-            _ => None,
-        };
-        let whole = size.is_some_and(|n| n < asked);
-        if whole {
-            *self.tally.back.entry((node, "probed by more keys than its probed side: made whole")).or_default() += 1;
-        }
-        Ok(whole)
     }
 }

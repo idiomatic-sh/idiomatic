@@ -130,6 +130,12 @@ pub(crate) fn remap_condition(
             }
             Ok(())
         }
+        Condition::Not(negated) => {
+            for nested_condition in negated {
+                remap_condition(nested_condition, parameters, source, trace)?;
+            }
+            Ok(())
+        }
     }
 }
 

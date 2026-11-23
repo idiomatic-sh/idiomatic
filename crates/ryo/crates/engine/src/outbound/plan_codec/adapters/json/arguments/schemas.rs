@@ -209,6 +209,15 @@ pub(in crate::outbound::plan_codec::adapters::json) struct SubtreeClassSchema {
     /// `output`.
     #[serde(serialize_with = "column_out", deserialize_with = "column_in")]
     output: ColumnName,
+    /// `id`.
+    #[serde(serialize_with = "column_out", deserialize_with = "column_in")]
+    id: ColumnName,
+    /// `parent`.
+    #[serde(serialize_with = "column_out", deserialize_with = "column_in")]
+    parent: ColumnName,
+    /// `child`.
+    #[serde(serialize_with = "column_out", deserialize_with = "column_in")]
+    child: ColumnName,
 }
 
 /// `GroupCountArguments` as JSON.
