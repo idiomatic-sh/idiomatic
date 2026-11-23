@@ -1,5 +1,5 @@
 //! Evaluate a closed set of typed populations once, after the final file.
-use super::{E, Exec, File, NodeTable, Op, Plan, Provider, R, Run, Scope, Table, Ty, answer};
+use super::{E, Exec, File, NodeTable, Op, Provider, R, Run, Scope, Table, Ty, answer};
 use std::{collections::BTreeMap, rc::Rc};
 
 // Check the scalar subset before visiting any rows. Unimplemented functions on
@@ -27,16 +27,18 @@ fn scalar(expr: &E) -> R<()> {
 /// Complete even for an empty admission. Resolve every base before evaluating an
 /// emit, so a short-circuit or an antijoin cannot turn an unavailable input into evidence.
 pub(in super::super) fn evaluate(
-    plan: &Plan,
+    exec: &mut Exec<'_>,
     run: &mut Run,
     provider: &mut dyn Provider,
     admitted: &[u32],
     admit_file_subject: impl Fn(u32) -> bool,
 ) -> R<Vec<String>> {
+    let plan = exec.plan;
     if !plan.seeds.is_empty() {
         return Err("project scope requires complete populations for survivor seeds".into());
     }
-    let mut exec = Exec::new(plan);
+    exec.run_memo.fill(None);
+    run.missing.clear();
     // Each input spans the session. File-local views and implicit file equality
     // are inapplicable even when this particular request admits just one file.
     exec.views.fill(Some(None));
@@ -87,10 +89,12 @@ pub(in super::super) fn evaluate(
             "extend"
                 if step.j["args"]["values"]
                     .as_object()
-                    .is_some_and(|m| m.len() <= 1) => {}
+                    .is_some_and(|m| m.len() <= 1)
+                    || step.j["args"]["value-order"].is_array() => {}
             "extend" => {
                 return Err("project emit needs declaration order for multi-column extend".into());
             }
+            "capture" if step.j["args"]["separator"].is_string() => {}
             "capture" => return Err("project capture needs a verified separator contract".into()),
             op => return Err(format!("project scope is unverified for {op}")),
         }
@@ -110,10 +114,10 @@ pub(in super::super) fn evaluate(
                 }
             }
             "antijoin" => {
-                let _prepared = super::antijoin_kernel::prep(&mut exec, run, i)?;
+                let _prepared = super::antijoin_kernel::prep(exec, run, i)?;
             }
             "union" => {
-                let _prepared = super::union_kernel::prep(&mut exec, run, i)?;
+                let _prepared = super::union_kernel::prep(exec, run, i)?;
             }
             "group-count" => {
                 if let Some(name) = step.j["args"]["distinct"].as_str() {
@@ -158,5 +162,65 @@ pub(in super::super) fn evaluate(
         rows.extend(seen.into_values());
     }
     rows.sort_unstable();
+    Ok(rows)
+}
+
+/// Run one already prepared file program and deliver its complete typed rows. Caller
+/// tables have already been numbered in this request and belong to this binding.
+pub(in super::super) fn pair(
+    exec: &mut Exec<'_>,
+    run: &mut Run,
+    path: u32,
+    tree: &NodeTable,
+    bytes: &[u8],
+    facts: &mut dyn Provider,
+    supplied: &[(String, Rc<Table>)],
+) -> R<Vec<String>> {
+    let plan = exec.plan;
+    let mut frame = File::new(tree, bytes, path, plan.nodes.len());
+    if let Some(text) = facts.syntax_text() {
+        frame.set_text(text);
+    }
+    for (name, table) in supplied {
+        if run
+            .catalog(name)
+            .is_none_or(|(_, names, tys)| names != table.names || tys != table.tys)
+        {
+            let fields: Vec<_> = table
+                .names
+                .iter()
+                .zip(table.tys.iter())
+                .map(|(n, t)| (n.as_str(), *t))
+                .collect();
+            run.declare(name, &fields, super::Supplier::Host);
+        }
+        frame.fills.insert(name.clone(), table.clone());
+    }
+    let mut rows = Vec::new();
+    for (rule, node, subject, keys) in &plan.emits {
+        run.missing.clear();
+        let t = exec.eval(&mut frame, run, facts, *node)?;
+        if !run.missing.is_empty() {
+            return Err(format!("unimplemented functions {:?}", run.missing));
+        }
+        let identity = std::iter::once(subject)
+            .chain(keys)
+            .map(|name| t.col(name))
+            .collect::<R<Vec<_>>>()?;
+        let mut seen = std::collections::BTreeSet::new();
+        for r in 0..t.n {
+            let key: Vec<_> = identity.iter().map(|c| t.cols[*c][r]).collect();
+            if seen.insert(key) {
+                rows.push(answer::row(
+                    run,
+                    &t,
+                    r,
+                    rule,
+                    Some(path as usize),
+                    &identity,
+                )?);
+            }
+        }
+    }
     Ok(rows)
 }

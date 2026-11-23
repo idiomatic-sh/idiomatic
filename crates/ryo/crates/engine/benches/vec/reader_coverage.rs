@@ -7,10 +7,10 @@ use serde_json::Value;
 use std::collections::HashMap;
 
 #[derive(Default)]
-pub(super) struct Coverage(HashMap<(Relation, RowKind), bool>);
+pub(crate) struct Coverage(HashMap<(Relation, RowKind), bool>);
 
 impl Coverage {
-    pub(super) fn needed(&mut self, plan: &Plan, relation: Relation, missing: Missing) -> bool {
+    pub(crate) fn needed(&mut self, plan: &Plan, relation: Relation, missing: Missing) -> bool {
         let Missing::Kind(kind) = missing else {
             return true;
         };

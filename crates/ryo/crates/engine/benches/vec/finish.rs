@@ -502,6 +502,25 @@ pub(super) struct Plan {
     pub(super) seed_paths: Vec<Vec<Vec<String>>>,
 }
 
+/// The executor also accepts older encoded plans whose value map has no separate ordering.
+fn extend_values(args: &J, mut visit: impl FnMut(&str, &J) -> R<()>) -> R<()> {
+    let values = args["values"].as_object().ok_or("extend values")?;
+    if let Some(order) = args["value-order"].as_array() {
+        if order.len() != values.len() {
+            return Err("invalid extend column order".into());
+        }
+        for key in order {
+            let name = key.as_str().ok_or("invalid extend column")?;
+            visit(name, values.get(name).ok_or("undeclared extend column")?)?;
+        }
+    } else {
+        for (name, value) in values {
+            visit(name, value)?;
+        }
+    }
+    Ok(())
+}
+
 fn inputs_of(j: &J, out: &mut Vec<usize>) {
     match j {
         J::Object(m) => {
@@ -1517,14 +1536,15 @@ impl<'p> Exec<'p> {
             "extend" => {
                 let f = from(self, run, "from")?;
                 let (mut names, mut tys) = ((*f.names).clone(), (*f.tys).clone());
-                for (k, v) in a["values"].as_object().ok_or("extend values")? {
-                    names.push(k.clone());
+                extend_values(a, |k, v| {
+                    names.push(k.to_owned());
                     tys.push(match v {
                         J::Number(_) => Ty::Num,
                         J::String(t) if t == "true" || t == "false" => Ty::Flag,
                         _ => Ty::Sym,
                     });
-                }
+                    Ok(())
+                })?;
                 mk(names, tys)
             }
             "project" => {
@@ -2242,16 +2262,17 @@ impl<'p> Exec<'p> {
             "extend" => {
                 let from = self.eval(f, run, p, (self.frames[node].first as usize))?;
                 let mut out = from.copy();
-                for (k, v) in a["values"].as_object().ok_or("extend values")? {
-                    let (t, x) = match v {
-                        J::Number(n) => (Ty::Num, n.as_i64().ok_or("extend number")? as u64),
-                        J::String(t) if t == "true" || t == "false" => (Ty::Flag, u64::from(t == "true")),
-                        J::String(t) => (Ty::Sym, u64::from(run.sym(t.as_bytes()))),
+                extend_values(a, |_, v| {
+                    let x = match v {
+                        J::Number(n) => n.as_i64().ok_or("extend number")? as u64,
+                        J::String(t) if t == "true" || t == "false" => u64::from(t == "true"),
+                        J::String(t) => u64::from(run.sym(t.as_bytes())),
                         _ => return Err(format!("extend value {v}")),
                     };
                     // redo-alloc: the constant column from the pool
                     out.push_const_col(x, from.n);
-                }
+                    Ok(())
+                })?;
                 let sc = self.schema(run, node)?;
                 (out.names, out.tys) = (sc.names.clone(), sc.tys.clone());
                 Ok(out)
