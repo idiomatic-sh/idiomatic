@@ -281,6 +281,9 @@ fn flag(value: Flag) -> u32 {
     u32::from(value == Flag::Raised)
 }
 
+mod resolution;
+pub use resolution::BindingSite;
+
 impl ColumnFile<'_, '_> {
     /// The code the walk interned for each name token of the file's own tree, in id order, into `out` (cleared first): equal
     /// codes are equal texts. A code with the high bit set (`FIXED_TEXT`) is a fixed text of the language, the same text in

@@ -5,6 +5,10 @@
 
 use super::finish::{self, Supplier, Ty, project::ProjectAsk};
 
+/// Syntactic stores and unbindings for a single name in one namespace and evaluation phase.
+pub(super) const BINDING_SITES_REL: &str = "binding-sites";
+const BINDING_SITES_COLS: [(&str, Ty); 8] = [("binding", Ty::Node), ("stores", Ty::Num), ("removals", Ty::Num), ("later", Ty::Num), ("statement", Ty::Node), ("series-end", Ty::Node), ("next", Ty::Node), ("file", Ty::File)];
+
 /// Dotted name requested by a relative import when its containing package is known.
 pub(super) const RELATIVE_IMPORT_REL: &str = "relative-import-target";
 const RELATIVE_IMPORT_COLS: [(&str, Ty); 3] = [("occurrence", Ty::Node), ("path", Ty::Sym), ("file", Ty::File)];
@@ -43,6 +47,8 @@ pub(super) const TYPE_REGION_REL: &str = "type-region";
 pub(super) const TYPE_REGION_COLS: [(&str, Ty); 2] = [("id", Ty::Node), ("file", Ty::File)];
 
 /// Nearest event on the provider's scheduled lookup path, including a marker for an empty path.
+pub(super) const PREDECESSOR_REL: &str = "scheduled-read-predecessor";
+/// One row per possible flow outcome at a read, with the scheduled predecessor recorded separately.
 pub(super) const RESOLUTION_REL: &str = "read-resolution";
 pub(super) const RESOLUTION_COLS: [(&str, Ty); 9] = [
     ("reference", Ty::Node),
@@ -60,10 +66,11 @@ pub(super) const RESOLUTION_COLS: [(&str, Ty); 9] = [
 /// Declares to `run` every relation this provider, the host and the executor's steps supply beyond the provider's relations
 /// catalog.
 pub(super) fn declare(run: &mut finish::Run) {
-    let facts: [(&str, &[(&str, Ty)]); 9] = [
+    let facts: [(&str, &[(&str, Ty)]); 10] = [
         (REGION_REL, &REGION_COLS),
+        (BINDING_SITES_REL, &BINDING_SITES_COLS),
         (RELATIVE_IMPORT_REL, &RELATIVE_IMPORT_COLS),
-        (RESOLUTION_REL, &RESOLUTION_COLS),
+        (PREDECESSOR_REL, &RESOLUTION_COLS),
         (FINAL_REL, &FINAL_COLS),
         (TYPE_EXPRESSION_REL, &TYPE_EXPRESSION_COLS),
         (ANNOTATION_EVALUATION_REL, &ANNOTATION_EVALUATION_COLS),
@@ -74,6 +81,9 @@ pub(super) fn declare(run: &mut finish::Run) {
     for (name, cols) in facts {
         run.declare(name, cols, Supplier::Provider);
     }
+    let mut resolutions = RESOLUTION_COLS.to_vec();
+    resolutions.extend([("binding", Ty::Node), ("outcome", Ty::Sym), ("basis", Ty::Sym)]);
+    run.declare(RESOLUTION_REL, &resolutions, Supplier::Provider);
     // the host's: the run's files, and the file system's facts of a file (their columns: the relations catalog's)
     // redo-binding c32: `filesystem.file` is the current file's row (a host relation of the file), not the run's files
     run.declare("filesystem.file", &[("path", Ty::File)], Supplier::Host);
