@@ -91,6 +91,10 @@ mod cold_list;
 mod cold_entries;
 #[path = "finish/cold_test.rs"]
 mod cold_test;
+#[path = "finish/cold_pred.rs"]
+mod cold_pred;
+#[path = "finish/cold_word.rs"]
+mod cold_word;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum Ty {
@@ -522,7 +526,7 @@ pub(super) fn from_value(j: &J) -> Plan {
 }
 
 /// The relations of the tree read in place, by position.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub(super) enum Native {
     /// `syntax-tree` / `semantic-syntax`: a row an element.
     Tree,

@@ -199,7 +199,7 @@ fn uses(e: &E, col: usize) -> bool {
         _ => false,
     }
 }
-fn form(v: &ViewSpec) -> &'static str {
+pub(super) fn form(v: &ViewSpec) -> &'static str {
     if v.filter.is_empty() {
         return "unfiltered";
     }

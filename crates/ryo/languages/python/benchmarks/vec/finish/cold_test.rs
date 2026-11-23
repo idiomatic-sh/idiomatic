@@ -1,10 +1,12 @@
 //! Compile a base-view field test once for the run's provider vocabulary.
 use super::{Exec, File, Native, Run, ViewSpec};
 use rustc_hash::FxHashMap;
-use std::cell::Cell;
+use std::cell::RefCell;
+use std::collections::BTreeMap;
 use std::rc::Rc;
 
 pub(super) enum Kernel {
+    Columns(&'static str, super::cold_pred::Program),
     One(u16),
     Set { allowed: Box<[bool]>, unknown: bool },
 }
@@ -28,9 +30,10 @@ impl Kernel {
         Self::Set { allowed, unknown }
     }
 
-    fn retain(&self, f: &File<'_>, rows: &mut Vec<u32>) {
+    fn retain(&self, f: &File<'_>, run: &mut Run, rows: &mut Vec<u32>) {
         let field = &f.field;
         match self {
+            Self::Columns(_, program) => program.retain(f, run, rows),
             Self::One(code) => rows.retain(|r| field[*r as usize] == *code),
             Self::Set { allowed, unknown } => rows.retain(|r| {
                 allowed
@@ -64,51 +67,75 @@ impl Exec<'_> {
         if sw!("VEC_NO_COLD_TYPED") {
             return;
         }
-        // Only unary projections descending from the child base can carry a field filter.
-        let mut child = vec![false; self.plan.nodes.len()];
-        let mut kernels = FxHashMap::<Vec<u32>, Rc<Kernel>>::default();
-        let mut slots = 0;
+        let mut fields = FxHashMap::<Vec<u32>, Rc<Kernel>>::default();
+        let mut programs = FxHashMap::default();
+        let mut inventory = BTreeMap::<(&str, bool), (usize, usize)>::new();
         for (node, pn) in self.plan.nodes.iter().enumerate() {
-            if pn.op == "base" {
-                child[node] =
-                    pn.j["rel"].as_str().and_then(super::native_of) == Some(Native::Child);
-                continue;
-            }
-            let Some(src) = pn.j.get("src").and_then(|s| s.as_array()) else {
-                continue;
-            };
-            if pn.op != "select"
-                || src.len() != 1
-                || !src[0][0]
-                    .as_u64()
-                    .and_then(|n| child.get(n as usize))
-                    .copied()
-                    .unwrap_or(false)
-            {
+            if pn.op != "select" || !pn.j["src"].as_array().is_some_and(|a| a.len() == 1) {
                 continue;
             }
             let Ok(Some(v)) = self.view(run, node) else {
                 continue;
             };
-            child[node] = true;
-            let Some(members) = field_members(&v) else {
+            if v.filter.is_empty() {
                 continue;
+            }
+            let form = super::cold_list::form(&v);
+            let mut first = false;
+            let kernel = if let Some(words) = field_members(&v) {
+                Some(
+                    fields
+                        .entry(words)
+                        .or_insert_with_key(|words| {
+                            first = true;
+                            Rc::new(Kernel::fields(run, words))
+                        })
+                        .clone(),
+                )
+            } else {
+                let key = (v.base, super::cold_list::conjuncts(&v.filter));
+                programs
+                    .entry(key)
+                    .or_insert_with(|| {
+                        first = true;
+                        super::cold_pred::Program::compile(run, &v)
+                            .map(|p| Rc::new(Kernel::Columns(form, p)))
+                    })
+                    .clone()
             };
-            let kernel = kernels
-                .entry(members)
-                .or_insert_with_key(|words| Rc::new(Kernel::fields(run, words)));
-            v.cold_test
-                .set(kernel.clone())
-                .unwrap_or_else(|_| panic!("cold test set twice"));
-            slots += 1;
+            if sw!("VEC_COLD_COUNT") {
+                let n = inventory.entry((form, kernel.is_some())).or_default();
+                n.0 += 1;
+                n.1 += usize::from(first);
+            }
+            if kernel.is_none() && sw!("VEC_COLD_KEYS") {
+                println!("COLD_UNCOMPILED\t{node}\t{form}\t{:?}", v.filter);
+            }
+            if let Some(k) = kernel {
+                v.cold_test
+                    .set(k)
+                    .unwrap_or_else(|_| panic!("cold test set twice"));
+            }
         }
-        if sw!("VEC_COLD_COUNT") {
-            println!("COLD_COMPILED\tchild-field\t{slots}\t{}", kernels.len());
+        for ((form, compiled), (views, distinct)) in inventory {
+            println!("COLD_COMPILED\t{form}\t{views}\t{distinct}\t{compiled}");
         }
     }
 }
 
-thread_local! { static COUNTS: Cell<(u64,u64,u64)> = const { Cell::new((0,0,0)) }; }
+thread_local! { static COUNTS: RefCell<BTreeMap<(bool,&'static str),[u64;3]>> = const { RefCell::new(BTreeMap::new()) }; }
+fn count(kernel: &Kernel, entry: bool, entered: usize, kept: usize) {
+    let form = match kernel {
+        Kernel::Columns(form, _) => *form,
+        _ => "child-field",
+    };
+    COUNTS.with_borrow_mut(|m| {
+        let n = m.entry((entry, form)).or_default();
+        n[0] += 1;
+        n[1] += entered as u64;
+        n[2] += kept as u64;
+    });
+}
 
 /// Gate runs apply the original filter to a copy and compare all row IDs, in order.
 pub(super) fn retain(
@@ -124,21 +151,18 @@ pub(super) fn retain(
         Some(kernel) if counting => {
             let mut original = rows.clone();
             let tests = super::leaf_scan::count_tests(f, run, v, node, leaf, &mut original);
-            let entered = rows.len() as u64;
-            kernel.retain(f, rows);
+            let entered = rows.len();
+            kernel.retain(f, run, rows);
             assert_eq!(
                 *rows, original,
-                "typed field rows at file {}, node {node}",
+                "typed rows at file {}, node {node}",
                 f.file
             );
-            COUNTS.with(|s| {
-                let (calls, ins, outs) = s.get();
-                s.set((calls + 1, ins + entered, outs + rows.len() as u64));
-            });
+            count(kernel, false, entered, rows.len());
             tests
         }
         Some(kernel) => {
-            kernel.retain(f, rows);
+            kernel.retain(f, run, rows);
             0
         }
         None if counting => super::leaf_scan::count_tests(f, run, v, node, leaf, rows),
@@ -151,9 +175,35 @@ pub(super) fn retain(
     }
 }
 
+/// The select front can enter a narrower base bucket and apply the very same view filter.
+pub(super) fn entry(f: &File<'_>, run: &mut Run, v: &ViewSpec, rows: &mut Vec<u32>) -> bool {
+    let Some(kernel) = v.cold_test.get() else {
+        return false;
+    };
+    if sw!("VEC_COLD_COUNT") {
+        let entered = rows.len();
+        let mut original = rows.clone();
+        super::view_cols::retain_original(f, run, v, &mut original);
+        kernel.retain(f, run, rows);
+        assert_eq!(*rows, original, "typed entry rows at file {}", f.file);
+        count(kernel, true, entered, rows.len());
+    } else {
+        kernel.retain(f, run, rows);
+    }
+    true
+}
+
 pub(super) fn report() {
     if sw!("VEC_COLD_COUNT") {
-        let (builds, rows, kept) = COUNTS.with(|s| s.replace((0, 0, 0)));
-        println!("COLD_TYPED\tchild-field\t{builds}\t{rows}\t{kept}");
+        COUNTS.with_borrow(|all| {
+            for ((entry, form), [calls, rows, kept]) in all {
+                let label = if *entry {
+                    "COLD_TYPED_ENTRY"
+                } else {
+                    "COLD_TYPED"
+                };
+                println!("{label}\t{form}\t{calls}\t{rows}\t{kept}");
+            }
+        });
     }
 }

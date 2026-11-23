@@ -105,6 +105,10 @@ pub(super) fn row_holds(f: &File<'_>, run: &mut Run, v: &ViewSpec, row: u32) -> 
 
 /// Keeps the rows on which the view's tests hold: each test over the rows still kept, a fill's column read as a slice.
 pub(super) fn retain(f: &File<'_>, run: &mut Run, v: &ViewSpec, rows: &mut Vec<u32>) {
+    if !f.vrows.take_filtering_entry() || !super::cold_test::entry(f, run, v, rows) { retain_original(f, run, v, rows); }
+}
+
+pub(super) fn retain_original(f: &File<'_>, run: &mut Run, v: &ViewSpec, rows: &mut Vec<u32>) {
     if fill_counting() {
         mark(f, v.base);
     }

@@ -10,11 +10,15 @@ use std::rc::Rc;
 type Map = FxHashMap<usize, Rc<Vec<u32>>>;
 pub(super) type Key = (String, Option<(usize, Vec<u32>)>, Vec<String>);
 const SHIFT: usize = 56;
+// Namespace tags of the two positive filtered driver-slot keys in select_kernel.
+const KIND_ENTRY: usize = 3;
+const LITERAL_ENTRY: usize = 4;
 const MASK: usize = (1 << SHIFT) - 1;
 #[derive(Default)]
 pub(super) struct Rows {
     data: Map,
     owner: Option<usize>,
+    filtering_entry: Cell<bool>,
     pending: Cell<(usize, f64)>,
     events: RefCell<Vec<Event>>,
 }
@@ -35,12 +39,26 @@ impl DerefMut for Rows {
     }
 }
 impl Rows {
+    #[inline]
+    pub(super) fn take_filtering_entry(&self) -> bool {
+        if self.filtering_entry.get() {
+            self.filtering_entry.set(false);
+            true
+        } else {
+            false
+        }
+    }
     pub(super) fn owner(&mut self, owner: Option<usize>) {
         self.owner = owner;
     }
     #[inline]
     pub(super) fn get(&self, key: &usize) -> Option<&Rc<Vec<u32>>> {
         let rows = self.data.get(key);
+        // Only the two cached driver-entry constructors next call view_cols::retain.
+        // Transient per-key join hits use that function too, outside this scope.
+        if matches!(*key >> SHIFT, KIND_ENTRY | LITERAL_ENTRY) && rows.is_none() {
+            self.filtering_entry.set(true);
+        }
         if sw!("VEC_COLD_ENTRIES") {
             if rows.is_some() {
                 self.events
@@ -151,14 +169,14 @@ impl Audit {
                     .view(run, sp.srcs[side])
                     .expect("source")
                     .expect("view");
-                if ns == 3 {
+                if ns == KIND_ENTRY {
                     kinds = kind_set(run, &sp.conj, side, v.base, &v.map).expect("kind entry");
                 } else {
                     literal = lit_pick(f, &sp.conj, side, v.base, &v.map);
                 }
-                (v, ns >= 3)
+                (v, ns >= KIND_ENTRY)
             };
-            let entry = if ns == 3 {
+            let entry = if ns == KIND_ENTRY {
                 Some((1, kinds.clone()))
             } else {
                 literal.as_ref().map(|(_, c, xs)| (*c, xs.clone()))
@@ -205,7 +223,7 @@ impl Audit {
                 .map(|r| r.len() as u64)
                 .sum();
         } else {
-            let mut rows = if ns == 3 {
+            let mut rows = if ns == KIND_ENTRY {
                 bucket(f, run, &d.kinds)
             } else {
                 f.vrows.data[&((2 << SHIFT) | (key & MASK))]
