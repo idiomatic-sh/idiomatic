@@ -16,6 +16,7 @@ type Reader<'a> = dyn FnMut(Source, &mut FileWords, &mut FilledColumns) -> bool 
 struct SymbolRows {
     rows: Map<Id, Vec<u32>>,
     all_words_resolved: bool,
+    all_values_indexed: bool,
 }
 
 #[derive(Default)]
@@ -588,6 +589,7 @@ impl File<'_> {
                             if let Some(column) = table.cells.0.get(*col) {
                                 let end = languages::facts::words_end(self.words).0;
                                 index.all_words_resolved = true;
+                                index.all_values_indexed = true;
                                 for (r, &cell) in column.0.iter().enumerate() {
                                     // Out-of-dictionary cells may have a different
                                     // catalog encoding. Their spelling is unknown here.
@@ -595,6 +597,8 @@ impl File<'_> {
                                     let text = languages::facts::text(self.words, cell);
                                     if let Some(&id) = self.p.symbols.get(text.0) {
                                         index.rows.entry(id).or_default().push(node(r));
+                                    } else {
+                                        index.all_values_indexed = false;
                                     }
                                 }
                             }
@@ -682,7 +686,11 @@ impl Program {
                     for (column, index) in table.index {
                         if index.all_words_resolved {
                             completed.indexed_symbols(fact.name, column, &|text| {
-                                self.symbols.get(text).map(|id| index.rows.contains_key(id))
+                                match self.symbols.get(text) {
+                                    Some(id) => Some(index.rows.contains_key(id)),
+                                    None if index.all_values_indexed => Some(false),
+                                    None => None,
+                                }
                             });
                         }
                     }

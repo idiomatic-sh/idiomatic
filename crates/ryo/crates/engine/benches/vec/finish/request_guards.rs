@@ -192,7 +192,7 @@ impl Exec<'_> {
     }
 
     /// Reuse an exact symbol index already built by the file witness pass.
-    /// Words outside the witness vocabulary have no membership result.
+    /// A partial vocabulary can certify absence only for the words it covers.
     pub(crate) fn indexed_symbols(&mut self, run: &Run, rel: &str, column: usize, present: &dyn Fn(&str) -> Option<bool>) {
         let Some(&slot) = run.fact_slots.get(rel) else { return };
         let g = &mut self.requests.guards;
