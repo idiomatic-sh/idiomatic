@@ -21,6 +21,16 @@ mod glob_pattern;
 mod host_columns;
 #[path = "../../../crates/engine/benches/vec/pair_checks.rs"]
 mod pair_checks;
+#[path = "../../../crates/engine/benches/vec/summary_schedule.rs"]
+mod summary_schedule;
+#[path = "../../../crates/engine/benches/vec/summary_values.rs"]
+mod summary_values;
+#[path = "../../../crates/engine/benches/vec/summary_proofs.rs"]
+mod summary_proofs;
+#[path = "../../../crates/engine/benches/vec/summary_rules.rs"]
+mod summary_rules;
+#[path = "../../../crates/engine/benches/vec/summary_literals.rs"]
+mod summary_literals;
 use glob_pattern::glob_pattern;
 #[path = "../../../crates/engine/benches/vec/lower.rs"]
 mod lower;

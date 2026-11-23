@@ -277,13 +277,12 @@ fn fields_present(table: &NodeTable, cols: &mut Columns, fields: usize) {
     cols.field_present.clear();
     cols.field_present.resize(words(fields), 0);
     for f in 0..fields {
-        if !node_table::ids_of_field(table, languages::FieldCode(f as u16)).is_empty() {
+        if node_table::field_count(table, languages::FieldCode(f as u16)).0 != 0 {
             cols.field_present[f / 64] |= 1 << (f % 64);
         }
     }
 }
 
-/// An element's bytes, from the node table's own span column.
 
 fn test_lit(lit: &Lit, text: &[u8]) -> bool {
     match lit {
@@ -838,6 +837,19 @@ use glob_pattern::glob_pattern;
 mod pair_skip;
 #[path = "../../../../crates/engine/benches/vec/pair_checks.rs"]
 mod pair_checks;
+#[path = "../../../../crates/engine/benches/vec/summary_schedule.rs"]
+mod summary_schedule;
+#[path="../../../../crates/engine/benches/vec/summary_rules.rs"]
+mod summary_rules;
+#[path="../../../../crates/engine/benches/vec/summary_literals.rs"]
+mod summary_literals;
+#[path = "../../../../crates/engine/benches/vec/summary_proofs.rs"]
+mod summary_proofs;
+#[path = "../../../../crates/engine/benches/vec/summary_values.rs"]
+mod summary_values;
+mod summary_walk;
+mod column_pair;
+mod source_batch;
 mod pair_provider;
 #[path = "../../../../crates/engine/benches/vec/host_columns.rs"]
 mod host_columns;
@@ -907,6 +919,31 @@ struct ColFacts<'v, 'a, 'f, 'w> {
     /// answers for a project.
     project: &'w mut provider_packaging::Project,
     src: &'w [u8],
+}
+
+impl<'v, 'a, 'f, 'w> ColFacts<'v, 'a, 'f, 'w> {
+    fn for_visit(
+        file: &'v mut ryo_python::fixtures::columns::ColumnFile<'a, 'f>,
+        file_no: usize,
+        src: &'w [u8],
+        words: &'w mut languages::FileWords,
+        project: &'w mut provider_packaging::Project,
+        kept: HashMap<String, finish::Table>,
+    ) -> Self {
+        Self {
+            file,
+            file_no: file_no as u32,
+            src,
+            words,
+            project,
+            kept,
+            import_comments: Default::default(),
+            filled: Default::default(),
+            time: 0.0,
+            rows: 0,
+            by_rel: HashMap::new(),
+        }
+    }
 }
 
 impl ColFacts<'_, '_, '_, '_> {
@@ -1327,7 +1364,11 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
                 | expression_parts::ATTRIBUTE_PREFIX
                 | expression_parts::DISPLAY_ELEMENT
         ) {
-            expression_parts::fill(run, self.file, self.src, self.file_no, rel)?
+            if rel == expression_parts::NESTED_DELIMITERS && let Some(rows) = self.kept.remove(rel) {
+                rows
+            } else {
+                expression_parts::fill(run, self.file, self.src, self.file_no, rel)?
+            }
         } else if matches!(rel, import_syntax::NEIGHBORS | import_syntax::HEADS | import_syntax::STATEMENTS | import_syntax::ALIASES | import_syntax::CONTEXTUAL_ALIASES | import_syntax::LINE_COMMENTS | import_syntax::ENTRIES) {
             import_syntax::fill(run, self.file, self.src, self.project, self.file_no, rel, &mut self.import_comments)?
         } else if rel == fact_catalog::PRE_DECLARATION_READ_REL {
@@ -1610,7 +1651,7 @@ fn run_finish(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
             continue;
         }
         if colwalk {
-            let _ = cwalk.walked(path, &bytes, &mut table, &mut |file| fin.column_file(file_no, path, file, &bytes, &wanted));
+            let _ = cwalk.walked(path, &bytes, &mut table, &mut |file| fin.column_file(file_no, path, file, &bytes, &wanted, HashMap::new()));
         } else {
             let _ = ryo_python::fixtures::walking::walked(walk, path, &bytes, &[], &mut table, &mut scratch, &mut |mut file| fin.reader_file(file_no, path, &mut file, &bytes, &wanted));
         }
@@ -1797,9 +1838,6 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
     let structured = matches!(way, "structure" | "spec" | "knock");
     // the table writes the structure the checks read (element sets, the plans' enclosing columns) as ids are numbered
     let enclosing: Vec<ryo::languages::KindSet> = fact_catalog.enc_sets.iter().map(|s| ryo::languages::KindSet(*s)).collect();
-    if structured {
-        cwalk.structured(enclosing.clone());
-    }
     let max_regs = frules.iter().flat_map(|r| r.plans.iter().map(|p| p.regs)).max().unwrap_or(1).max(1);
     // each plan's place in `plan_on`: whether this file enters its disjunct at it (always, for a disjunct of one plan)
     let plan_base: Vec<usize> = frules.iter().scan(0, |a, r| { let b = *a; *a += r.plans.len(); Some(b) }).collect();
@@ -1833,6 +1871,22 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
         && !ask_all && !check_direct && !per_fact && !plant && dump_out.is_none()
         && !["--enumerate-nodes", "--rules-out", "--surv-out", "--hits-out", "--alive-out", "--only-knock-units"].iter().any(|flag| args.contains(flag))
         && std::env::var_os("VEC_NO_SKIP").is_none() && std::env::var_os("VEC_NO_PREFIX").is_none();
+    let prepare_summary = thread_cpu();
+    let mut query = pairs.as_ref().map(|program| {
+        let (file_words,codes) = summary_values::vocabulary(walk,program);
+        let schedule = summary_schedule::Schedule::new(program,Some((&words.ids,name_token)),codes);
+        (program,schedule,file_words,pair_checks::Scratch::default())
+    });
+    if query.is_some() {println!("summary evaluation preparation {:.6} s",thread_cpu()-prepare_summary);}
+    if seed_only && !token_pass && !compare && !check_links && let Some((program,schedule,words_for_file,scratch))=&mut query {
+        let root = fin.as_ref().map(|f| f.run.root_dir.clone()).or_else(|| flag(args, "--summary-root"));
+        let mut other = ryo_python::fixtures::columns::ColumnWalk::with_settings(ryo_python::fixtures::walking::walk_words(walk).expect("the walk's fixed names"),settings);
+        summary_walk::run(&list, program,&mut skip,&words,fields_width,words_for_file,
+            &mut cwalk,&mut other,fin,root.as_deref(),flag(args,"--seed-out").as_deref(),flag(args,"--exact-out").as_deref(),schedule,scratch);
+        return;
+    }
+    let mut summary_names = vec![0u64;words.names.len().div_ceil(64)];
+    if structured { cwalk.structured(enclosing.clone()); }
     let mut file_seeds = seed_only.then(|| file_seeds::FileSeeds::new(&frules));
     let seed_out = flag(args, "--seed-out");
     let mut seed_dump = String::new();
@@ -1987,19 +2041,21 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
                     alive.iter_mut().for_each(|a| *a = true);
                 }
                 exact_rows.clear();
-                if !no_skip && let Some(program) = &pairs {
+                if !no_skip && let Some((program,schedule,words_for_file,scratch)) = &mut query {
                     let start = thread_cpu();
                     let relative_path = fin.as_deref().map(|f| f.run.paths[file_no].clone());
                     let exact = fin.as_ref().filter(|f| f.can_finish_exact()).map(|_| &mut exact_rows);
-                    pair_steps += program.file(pt, &bytes, relative_path.as_deref().map(str::as_bytes), &mut fwords, |rel, words, out| {
+                    schedule.literals.names(pt,&bytes,&mut summary_names,&mut scratch.literals);
+                    pair_steps += program.eval(scratch,schedule,pt, &bytes, relative_path.as_deref().map(str::as_bytes), None, words_for_file, |rel, request, words, out| {
+                        if !matches!(request,pair_checks::Query::Rows){return None;}
                         if matches!(rel, pair_summary::Source::Catalog(languages::Relation::ModuleIdentity)) {
-                            return fin.as_deref_mut().is_some_and(|f| f.identity(file_no, words, out));
+                            return Some(fin.as_deref_mut().is_some_and(|f| f.identity(file_no, words, out)));
                         }
                         if let pair_summary::Source::Catalog(catalog) = rel
                             && let Some(result) = host_columns::fill(catalog, fin.as_deref().map(|f| &f.run), file_no, out) {
-                            return result;
+                            return Some(result);
                         }
-                        ($fill)(rel, words, out)
+                        Some(($fill)(rel, words, out))
                     }, &mut alive, exact);
                     pair_cpu += thread_cpu() - start;
                 }
@@ -2254,7 +2310,15 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
                     let n = node_table::element_count(ft).0;
                     file.name_token_codes(&mut name_codes);
                     codes_taken = true;
-                    prepare!(ft, |rel,words,out| pair_provider::read(file, file_no, rel, words, out));
+                    let mut walk_tables = HashMap::new();
+                    prepare!(ft, |rel,words,out| {
+                        if let pair_summary::Source::Walk(name) = rel
+                            && pair_provider::visit_table(name) {
+                            fin.as_deref_mut().is_some_and(|f| f.walk_table(file_no, file, &bytes, name, words, out, &mut walk_tables))
+                        } else {
+                            pair_provider::read(file, file_no, rel, words, out)
+                        }
+                    });
                     prepared = true;
                     let index = file_seeds::Index { table: ft, offsets: &word_offsets, words: &word_pos };
                     if let Some(seeds) = &mut file_seeds {
@@ -2616,7 +2680,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
                         // wanted() already charges its own time to the second half.
                         if seed_only { phases.add("seed handoff", (thread_cpu() - handoff - (fin.time - before_wanted)).max(0.0)); }
                         if fin.visits(&wanted) {
-                            fin.column_file(file_no, path, file, &bytes, &wanted);
+                            fin.column_file(file_no, path, file, &bytes, &wanted, walk_tables);
                         }
                     } else if seed_only {
                         phases.add("seed handoff", thread_cpu() - handoff);
