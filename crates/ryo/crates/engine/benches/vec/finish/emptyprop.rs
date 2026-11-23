@@ -458,7 +458,7 @@ impl Exec<'_> {
             }
             let base = Native::Fact(lf.fact);
             let t0 = step_clock();
-            let loaded = self.load_fact(f, run, p, base);
+            let loaded = self.load_fact(f, base);
             let t1 = step_clock();
             L.with(|l| l.borrow_mut().laps[0] += t1 - t0);
             if loaded.is_err() {
@@ -493,7 +493,7 @@ impl Exec<'_> {
     /// cycle 4: whether a view has no row in this file (its entry, then its tests), read only where its entry is small.
     fn ep_view_rows_empty(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> bool {
         let Ok(Some(v)) = self.view(run, node) else { return false };
-        if self.load_fact(f, run, p, v.base).is_err() || !self.ep_fact_ready(f, v.base) {
+        if self.load_fact(f, v.base).is_err() || !self.ep_fact_ready(f, v.base) {
             return false;
         }
         let entry = match super::kind_set(run, &v.filter, 0, v.base, &[]) {

@@ -1822,9 +1822,7 @@ impl<'p> Exec<'p> {
                     Rc::new(ViewSpec::new(Native::Empty, v.map.clone(), Vec::new())));
                 return Ok(Res::View(empty.clone()));
             }
-            let was = fill_prof::site("view");
-            self.load_fact(f, run, p, v.base)?;
-            fill_prof::site(was);
+            self.load_fact(f, v.base)?;
             return Ok(Res::View(v));
         }
         if let Some(t) = &self.run_memo[node] {
@@ -2500,22 +2498,11 @@ impl<'p> Exec<'p> {
     }
 
     /// 6h: a fact view's fill, asked once a file (the same fill a whole `base` step reads).
-    fn load_fact(&mut self, f: &mut File<'_>, run: &mut Run, _p: &mut dyn Provider, nat: Native) -> R<()> {
+    fn load_fact(&mut self, f: &mut File<'_>, nat: Native) -> R<()> {
         let Native::Fact(i) = nat else { return Ok(()) };
         let i = usize::from(i);
         if f.facts.get(i).is_some_and(Option::is_some) {
             return Ok(());
-        }
-        if fill_prof::counting() {
-            // redo-int round 37: redo-whole deleted the run stack this diagnostic read; the asker is not known now
-            let by = u32::MAX;
-            fill_prof::asked(i, by);
-            if sw!("VEC_ASKER_PLAN") && by != u32::MAX && fill_prof::first_asker(by) {
-                eprintln!("ASKER-SITE {by} {} {}", fill_prof::SITE.with(std::cell::Cell::get), std::backtrace::Backtrace::force_capture().to_string().lines().filter(|l| l.contains("Exec") || l.contains("kernel") || l.contains("finish")).take(12).map(str::trim).collect::<Vec<_>>().join(" < "));
-                let pn = &self.plan.nodes[by as usize];
-                let ins: Vec<String> = pn.inputs.iter().map(|x| format!("{x}:{}:{}", self.plan.nodes[*x].op, self.plan.nodes[*x].j.to_string().chars().take(160).collect::<String>())).collect();
-                eprintln!("ASKER-PLAN {by} {} {} INPUTS {}", pn.op, pn.j.to_string().chars().take(900).collect::<String>(), ins.join(" | "));
-            }
         }
         let t = self.answered(f, i)?;
         f.facts[i] = Some(recycle::rc(t));

@@ -51,9 +51,7 @@ pub(crate) struct Requests {
     asked: Vec<u16>,
     answer: Vec<Result<Table, String>>,
     // A run-scoped answer counts once; any file can consume it.
-    run_unused: Vec<Option<(u64, u64)>>,
-    /// Actual unopened provider slots by relation, only collected for the count report.
-    unread_by_relation: Vec<(u64, u64, u64)>,
+    run_unused: Vec<Option<u64>>,
     pub(super) counts: Counts,
 }
 
@@ -71,34 +69,12 @@ pub(crate) struct Counts {
     /// Relations answered that no step of the file asked (rows and size never consulted).
     pub(super) never_asked: u64,
     pub(super) never_asked_rows: u64,
-    possible_cells: u64,
-    returned_cells: u64,
-    unused_cells: u64,
     misses: u64,
     reads: u64,
     request_cpu: f64,
     mask_cpu: f64,
     answer_cpu: f64,
     read_cpu: f64,
-}
-
-fn returned_cells(table: &Table) -> u64 {
-    table.cols.iter().map(|column| column.len() as u64).sum()
-}
-
-impl Counts {
-    fn received(&mut self, result: &R<Table>) {
-        match result {
-            Ok(table) => {
-                self.rows += table.n as u64;
-                if super::fill_prof::counting() {
-                    self.possible_cells += table.n as u64 * table.names.len() as u64;
-                    self.returned_cells += returned_cells(table);
-                }
-            }
-            Err(_) => self.refused += 1,
-        }
-    }
 }
 
 impl Requests {
@@ -118,12 +94,8 @@ impl Requests {
     /// The counts' line (printed at the run's end).
     pub(super) fn line(&self) -> String {
         let c = &self.counts;
-        let cells = if super::fill_prof::counting() {
-            let unused = c.unused_cells + self.run_unused.iter().flatten().map(|entry| entry.1).sum::<u64>();
-            format!("; catalog cells {} returned {} in unread relations {unused}", c.possible_cells, c.returned_cells)
-        } else { String::new() };
-        let mut line = format!(
-            "REQUEST files {} provider-calls {} provider-relations {} host-relations {} rows {} refused {} never-asked {} ({} rows); relations nameable {}; missing {} first reads {}; request {:.6} answer {:.6} read {:.6} s; selecting columns {:.6} s; file predicates {} leaves {} gates; prefix indexes {} columns {} excluded groups; files without active emits {idle}; conditional drivers {} distinct predicates {}{cells}",
+        format!(
+            "REQUEST files {} provider-calls {} provider-relations {} host-relations {} rows {} refused {} never-asked {} ({} rows); relations nameable {}; missing {} first reads {}; request {:.6} answer {:.6} read {:.6} s; selecting columns {:.6} s; file predicates {} leaves {} gates; files without active emits {idle}",
             c.files,
             c.provider_calls,
             c.provider_relations,
@@ -131,32 +103,15 @@ impl Requests {
             c.rows,
             c.refused,
             c.never_asked + self.run_unused.iter().flatten().count() as u64,
-            c.never_asked_rows + self.run_unused.iter().flatten().map(|entry| entry.0).sum::<u64>(),
+            c.never_asked_rows + self.run_unused.iter().flatten().sum::<u64>(),
             self.names.len(),
             c.misses,
             c.reads,
             c.request_cpu,
             c.answer_cpu,
-            c.read_cpu, c.mask_cpu, self.guards.circuit.counts().0, self.guards.circuit.counts().1, self.guards.indexed_columns, self.guards.indexed_absences,
-            self.guards.registered_drivers, self.guards.driver_predicates,
+            c.read_cpu, c.mask_cpu, self.guards.circuit.counts().0, self.guards.circuit.counts().1,
             idle = c.idle_files
-        );
-        if super::fill_prof::counting() {
-            use std::fmt::Write;
-            for (slot, name) in self.names.iter().enumerate() {
-                let (mut packets, mut rows, mut cells) = self.unread_by_relation[slot];
-                if let Some((count, width)) = self.run_unused[slot] {
-                    packets += 1;
-                    rows += count;
-                    cells += width;
-                }
-                if packets != 0 {
-                    writeln!(&mut line).unwrap();
-                    write!(&mut line, "PACKET-UNREAD\t{name}\t{packets}\t{rows}\t{cells}").unwrap();
-                }
-            }
-        }
-        line
+        )
     }
 }
 
@@ -267,9 +222,6 @@ impl Exec<'_> {
         run.fact_offsets = offsets.into();
         run.project.resize_with(self.requests.names.len(), || None);
         self.requests.run_unused.resize(self.requests.names.len(), None);
-        if super::fill_prof::counting() {
-            self.requests.unread_by_relation.resize(self.requests.names.len(), (0, 0, 0));
-        }
         // A run-scoped answer serves files whose live rules can ask for
         // different columns. Include the file partition key and every column
         // the plan may read from that answer over its whole lifetime.
@@ -487,14 +439,19 @@ impl Exec<'_> {
             rq.counts.provider_relations += list.len() as u64;
             let checked = answer.split_off(asked.len());
             for t in &checked {
-                rq.counts.received(t);
+                match t {
+                    Ok(t) => rq.counts.rows += t.n as u64,
+                    Err(_) => rq.counts.refused += 1,
+                }
             }
             for ((n, entry), t) in asked.iter().zip(&list).zip(answer.drain(..)) {
-                rq.counts.received(&t);
+                match &t {
+                    Ok(t) => rq.counts.rows += t.n as u64,
+                    Err(_) => rq.counts.refused += 1,
+                }
                 if matches!(rq.suppliers[usize::from(*n)], Supplier::Project(super::project::ProjectAsk::Run))
                     && let Ok(table) = &t {
-                    let cells = if super::fill_prof::counting() { returned_cells(table) } else { 0 };
-                    rq.run_unused[usize::from(*n)] = Some((table.n as u64, cells));
+                    rq.run_unused[usize::from(*n)] = Some(table.n as u64);
                 }
                 let result = match entry.scope {
                     Scope::File(_) => t,
@@ -558,14 +515,6 @@ impl Exec<'_> {
             if let Some(Ok(table)) = &f.answer[i] {
                 self.requests.counts.never_asked += 1;
                 self.requests.counts.never_asked_rows += table.n as u64;
-                if super::fill_prof::counting() {
-                    let cells = returned_cells(table);
-                    self.requests.counts.unused_cells += cells;
-                    let unread = &mut self.requests.unread_by_relation[i];
-                    unread.0 += 1;
-                    unread.1 += table.n as u64;
-                    unread.2 += cells;
-                }
             }
         }
         f.answer.clear();
