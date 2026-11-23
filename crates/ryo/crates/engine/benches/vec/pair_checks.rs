@@ -13,6 +13,17 @@ mod witness;
 type Bits = Rc<Vec<u64>>;
 // None is the unconstrained node set. An empty vector is the empty set.
 type Nodes = Option<Bits>;
+/// The exact syntax text column supplied by a host with per-position symbol IDs.
+#[derive(Clone, Copy)]
+pub(super) struct SyntaxText<'a> {
+    pub ids: &'a [u32],
+    pub symbols: &'a [Box<[u8]>],
+}
+impl<'a> SyntaxText<'a> {
+    fn at(self, index: usize) -> &'a [u8] {
+        &self.symbols[self.ids[index] as usize]
+    }
+}
 type Reader<'a> = dyn FnMut(Source, &mut FileWords, &mut FilledColumns) -> bool + 'a;
 
 #[derive(Default)]
@@ -35,6 +46,7 @@ struct File<'a, const PROFILE: bool> {
     p: &'a Program,
     t: &'a NodeTable,
     src: &'a [u8],
+    syntax_text: Option<SyntaxText<'a>>,
     path: Option<&'a [u8]>,
     read: &'a mut Reader<'a>,
     words: &'a mut FileWords,
@@ -211,7 +223,7 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                 }
                 Domain::Fact(slot, None) => {
                     let table = &mut self.facts[*slot];
-                    if self.p.lazy_presence && !table.read && self.p.facts[*slot].key.is_some() {
+                    if !table.read && self.p.facts[*slot].key.is_some() {
                         // A bare file-level existence guard alone cannot justify building
                         // a keyed table. A subsequent constrained check can still request it.
                         self.needs[id] = Some(true);
@@ -321,9 +333,12 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
                     node_table::ids_of_kind(self.t, languages::KindBits(*k))
                         .iter()
                         .filter_map(|p| {
-                            let text = node_table::decoded_of(self.t, *p).map_or_else(
-                                || &self.src[super::span_bytes(self.t, p.0 as usize)],
-                                |t| t.0.as_bytes(),
+                            let text = self.syntax_text.map_or_else(
+                                || node_table::decoded_of(self.t, *p).map_or_else(
+                                    || &self.src[super::span_bytes(self.t, p.0 as usize)],
+                                    |t| t.0.as_bytes(),
+                                ),
+                                |column| column.at(p.0 as usize),
                             );
                             regex.is_match(text).then_some(p.0)
                         }),
@@ -332,6 +347,15 @@ impl<const PROFILE: bool> File<'_, PROFILE> {
             Domain::Text(t) => {
                 let by_text = self.texts.get_or_insert_with(|| {
                     let mut m = Map::<&[u8], Vec<u32>>::default();
+                    if let Some(column) = self.syntax_text {
+                        for (i, &id) in column.ids.iter().enumerate() {
+                            let value = &*column.symbols[id as usize];
+                            if !value.is_empty() && value.len() <= self.p.max_text && self.p.texts.contains(value) {
+                                m.entry(value).or_default().push(i as u32);
+                            }
+                        }
+                        return m;
+                    }
                     for i in self.p.text_kinds.iter().flat_map(|k| {
                         node_table::ids_of_kind(self.t, languages::KindBits(*k))
                             .iter()
@@ -761,17 +785,31 @@ impl Program {
         alive: &mut [bool],
         exact: Option<&mut Vec<(usize, Bits)>>,
     ) -> u64 {
+        self.file_columns(t, src, path, None, words, read, alive, exact)
+    }
+    pub(super) fn file_columns(
+        &self,
+        t: &NodeTable,
+        src: &[u8],
+        path: Option<&[u8]>,
+        syntax_text: Option<SyntaxText<'_>>,
+        words: &mut FileWords,
+        read: impl FnMut(Source, &mut FileWords, &mut FilledColumns) -> bool,
+        alive: &mut [bool],
+        exact: Option<&mut Vec<(usize, Bits)>>,
+    ) -> u64 {
+        #[cfg(feature = "pair-diagnostics")]
         if self.meter.is_some() {
-            self.evaluate::<true>(t, src, path, words, read, alive, exact)
-        } else {
-            self.evaluate::<false>(t, src, path, words, read, alive, exact)
+            return self.evaluate::<true>(t, src, path, syntax_text, words, read, alive, exact);
         }
+        self.evaluate::<false>(t, src, path, syntax_text, words, read, alive, exact)
     }
     fn evaluate<const PROFILE: bool>(
         &self,
         t: &NodeTable,
         src: &[u8],
         path: Option<&[u8]>,
+        syntax_text: Option<SyntaxText<'_>>,
         words: &mut FileWords,
         mut read: impl FnMut(Source, &mut FileWords, &mut FilledColumns) -> bool,
         alive: &mut [bool],
@@ -819,6 +857,7 @@ impl Program {
             p: self,
             t,
             src,
+            syntax_text,
             path,
             read: &mut observe,
             words,

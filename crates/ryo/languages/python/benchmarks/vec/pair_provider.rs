@@ -25,6 +25,11 @@ pub(super) const SITES: &[(&str, CellKind)] = &[
 ];
 pub(super) const FACTS: &[WalkFact] = &[
     WalkFact {
+        name: fact_catalog::BINDING_READ_REL,
+        columns: sites::READ_WITNESS,
+        exact: true,
+    },
+    WalkFact {
         name: fact_catalog::ASSIGNMENT_SOURCE_REL,
         columns: sites::ASSIGNMENT,
         exact: true,
@@ -94,7 +99,7 @@ pub(super) fn read(
                 col.0.push(CellWord(cell));
             }
         }),
-        fact_catalog::ASSIGNMENT_SOURCE_REL | fact_catalog::NAMESPACE_SITES_REL => sites::visit(
+        fact_catalog::ASSIGNMENT_SOURCE_REL | fact_catalog::NAMESPACE_SITES_REL | fact_catalog::BINDING_READ_REL => sites::visit(
             name,
             file,
             number as u64,

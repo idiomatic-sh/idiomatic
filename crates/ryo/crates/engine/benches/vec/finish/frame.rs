@@ -55,12 +55,12 @@ pub(super) fn frames(plan: &Plan) -> Vec<Frame> {
             let rel = |name: &str| pn.rels.iter().find(|(n, _)| n == name).map_or(MISSING, |x| x.1 as u32);
             let first = match pn.op.as_str() {
                 "union" | "antijoin" | "intersection" | "difference" | "ordered-match" | "as-of" => rel("left"),
-                "closure" | "follow" => rel("edges"),
+                "cycles" | "closure" | "follow" => rel("edges"),
                 // A worklist validates even the unused lattice and edges of an empty root set.
                 "base" | "select" | "rows" | "worklist" => NONE,
                 _ => rel("from"),
             };
-            let counted = op == Op::GroupCount && pn.j["args"]["distinct"].is_null() && !no_semi && first != MISSING && plan.nodes[first as usize].j.get("count").is_some();
+            let counted = op == Op::GroupCount && !pn.distinct_count() && !no_semi && first != MISSING && plan.nodes[first as usize].counted();
             // a union is empty only when every input is; a counted group count reads its select's sources, not the input
             let gate = if op == Op::Union || counted { NONE } else { first };
             Frame { op, first, counted, gate }

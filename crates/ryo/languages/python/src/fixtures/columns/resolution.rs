@@ -233,6 +233,35 @@ impl ColumnFile<'_, '_> {
         edges.next().is_none()
     }
 
+    /// Each reachable binding has its lowest syntax-node read for flow and for additional open-namespace outcomes.
+    pub fn visit_binding_read_witnesses(
+        &mut self,
+        mut visit: impl FnMut(u32, Option<u32>, Option<u32>),
+    ) -> bool {
+        let mut reads = std::collections::BTreeMap::<u32, [Option<u32>; 2]>::new();
+        let complete = self.visit_read_outcomes(|reference, binding, _, basis| {
+            if let Some(binding) = binding {
+                let slot = &mut reads.entry(binding).or_default()[usize::from(basis == "namespace")];
+                *slot = Some(slot.map_or(reference, |old| old.min(reference)));
+            }
+        });
+        if complete {
+            for (binding, [flow, namespace]) in reads {
+                visit(binding, flow, namespace);
+            }
+        }
+        complete
+    }
+
+    /// The last event in the static evaluation schedule is the largest ordinal of a binding event.
+    pub fn binding_schedule_end(&mut self) -> Result<Option<u64>, &'static str> {
+        let view = self.file.semantics(ModelPart::Flow);
+        if view.model.flow.state == FlowState::Incomplete {
+            return Err("incomplete binding schedule");
+        }
+        Ok(view.model.flow.events.iter().map(|event| event.ordinal.0 as u64).max())
+    }
+
     /// Count the store and unbinding sites of a name in its routed namespace and evaluation phase.
     /// Later sites count mutations after this binding in schedule order, including the cleanup of the same handler target.
     pub fn visit_binding_sites(&mut self, mut visit: impl FnMut(BindingSite)) -> bool {

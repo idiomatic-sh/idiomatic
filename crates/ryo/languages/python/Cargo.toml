@@ -40,6 +40,7 @@ arrow-select = { version = "=60.0.0", optional = true }
 mimalloc = { workspace = true, optional = true }
 
 [dev-dependencies]
+ryo_matching = { package = "idiomatic-sh-ryo-matching", path = "../../crates/matching" }
 ryo_operators = { package = "idiomatic-sh-ryo-operators", path = "../../crates/operators" }
 bumpalo = "3"
 smallvec = "1"
@@ -87,6 +88,8 @@ path = "benchmarks/vec/bench.rs"
 harness = false
 
 [features]
+# Instruments and widens the benchmark pair program for cost measurements.
+pair-diagnostics = []
 # THROWAWAY (ryo-fmx3.1): the `vec` bench's Arrow kernels.
 vec-arrow = ["dep:arrow-array", "dep:arrow-buffer", "dep:arrow-select"]
 # THROWAWAY (ryo-fmx3.1 redo-alloc): the `vec` bench's global allocator, jemalloc with none of them (one at a time):

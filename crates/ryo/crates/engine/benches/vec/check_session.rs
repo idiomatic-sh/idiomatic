@@ -10,12 +10,51 @@ use std::{
     rc::Rc,
 };
 
+#[path = "check_session/completeness.rs"]
+pub(crate) mod completeness;
+#[path = "check_session/project.rs"]
+pub(crate) mod project;
+
+#[path = "check_session/source.rs"]
+pub(crate) mod source;
+use source::Source as FileSource;
+
+type Parameters =
+    BTreeMap<Box<str>, ryo_values::domain::finish_plans::expressions::types::PlanConstant>;
+
 type Result<T> = std::result::Result<T, String>;
-pub(crate) type Answer = Result<Vec<String>>;
+pub(crate) type Answer = Result<Reported>;
+
+#[derive(Default)]
+pub(crate) struct Reported {
+    pub rows: Vec<finish::answer::Row>,
+    pub unknowns: Vec<(String, String)>,
+}
+impl Reported {
+    pub(crate) fn skipped(paths: &[String]) -> Self {
+        let error = ryo_execution_domain::domain::operating::errors::OperatingError::ObservationIncomplete {
+            reason: "every source partition was explicitly skipped".into(),
+        };
+        let reason = format!("project phase diagnostic emit: {error}");
+        Self {
+            rows: Vec::new(),
+            unknowns: paths.iter().map(|p| (p.clone(), reason.clone())).collect(),
+        }
+    }
+}
+impl From<Vec<finish::answer::Row>> for Reported {
+    fn from(rows: Vec<finish::answer::Row>) -> Self {
+        Self {
+            rows,
+            ..Default::default()
+        }
+    }
+}
 pub(crate) type Tables = Vec<(String, Rc<Table>)>;
 
 pub(crate) struct Program {
     pub plan: Plan,
+    pub syntax: Box<ryo_values::domain::program::types::WrittenProgram>,
     pub bases: Vec<String>,
     requirements: (bool, Vec<Vec<String>>, Vec<Vec<String>>),
 }
@@ -28,24 +67,7 @@ impl Program {
         declaration: &first::Language,
         capture_separator: Option<&str>,
     ) -> Result<Self> {
-        let (mut plan, pack) = lower::query_parts(alias, text, context, true)?;
-        {
-            use ryo_values::domain::finish_plans::types::FinishStep;
-            let typed = pack.typed.borrow();
-            for (node, step) in plan.nodes.iter_mut().zip(&typed.as_ref().unwrap().steps) {
-                if let FinishStep::Extend(args) = step {
-                    node.j["args"]["value-order"] = serde_json::json!(
-                        args.values.iter().map(|v| &v.name.0).collect::<Vec<_>>()
-                    );
-                }
-                if node.op == "capture"
-                    && node.j["args"]["separator"].is_null()
-                    && let Some(separator) = capture_separator
-                {
-                    node.j["args"]["separator"] = separator.into();
-                }
-            }
-        }
+        let (plan, pack) = lower::query_parts(alias, text, context, true, capture_separator)?;
         let requirements = reader_run::file_requirements(&pack, declaration)
             .pop()
             .ok_or("missing query emit")?
@@ -53,11 +75,22 @@ impl Program {
         let bases = plan
             .nodes
             .iter()
-            .filter(|n| n.op == "base")
-            .map(|n| n.j["rel"].as_str().unwrap().to_owned())
+            .filter_map(|n| n.base().map(str::to_owned))
             .collect();
+        let syntax = match pack
+            .programs
+            .rules
+            .into_iter()
+            .next()
+            .ok_or("missing parsed query")?
+            .program
+        {
+            ryo_engine::domain::plan_lowering::types::RuleProgram::Parsed(root) => root,
+            _ => return Err("unread query".into()),
+        };
         Ok(Self {
             plan,
+            syntax,
             requirements,
             bases,
         })
@@ -86,6 +119,9 @@ pub(crate) struct Source {
     pub root: Rc<str>,
     pub path: String,
     pub bindings: BTreeMap<usize, usize>,
+    known: BTreeMap<usize, usize>,
+    project: bool,
+    provided: Option<Rc<[u8]>>,
 }
 
 /// Per-check program identities and the inverse admission index. The caller binds
@@ -94,12 +130,20 @@ pub(crate) struct Source {
 pub(crate) struct Schedule {
     pub sources: Vec<Source>,
     source_ids: HashMap<(Rc<str>, Rc<str>), usize>,
+    supplied_ids: HashMap<(Rc<str>, Rc<[u8]>), usize>,
+    pub pending: BTreeSet<usize>,
     pub programs: Vec<Result<Program>>,
-    prepared: HashMap<(Rc<str>, String), usize>,
+    prepared: HashMap<(Rc<str>, Parameters), usize>,
     pub pairs: usize,
 }
 
 impl Schedule {
+    pub(crate) fn delivered(&mut self, ids: &[usize]) {
+        for &i in ids {
+            self.sources[i].bindings.clear();
+            self.sources[i].project = false;
+        }
+    }
     pub(crate) fn close(&mut self) {
         self.prepared = HashMap::new();
         self.source_ids = HashMap::new();
@@ -107,13 +151,80 @@ impl Schedule {
     pub(crate) fn prepare(
         &mut self,
         text: Rc<str>,
-        parameters: String,
+        parameters: Parameters,
         make: impl FnOnce() -> Result<Program>,
     ) -> usize {
         *self.prepared.entry((text, parameters)).or_insert_with(|| {
             self.programs.push(make());
             self.programs.len() - 1
         })
+    }
+    fn source(&mut self, root: &Rc<str>, path: String) -> Result<usize> {
+        let rel = Path::new(&path);
+        if rel
+            .components()
+            .any(|c| !matches!(c, std::path::Component::Normal(_)))
+        {
+            return Err(format!("invalid relative source path {path}"));
+        }
+        Ok(*self
+            .source_ids
+            .entry((root.clone(), Rc::from(path.as_str())))
+            .or_insert_with(|| {
+                self.sources.push(Source {
+                    root: root.clone(),
+                    path,
+                    bindings: BTreeMap::new(),
+                    known: BTreeMap::new(),
+                    project: false,
+                    provided: None,
+                });
+                self.sources.len() - 1
+            }))
+    }
+
+    /// Attach immutable caller bytes before admitting any consumer of this source root.
+    pub(crate) fn provide(&mut self, root: &Rc<str>, path: String, bytes: Rc<[u8]>) -> Result<()> {
+        let key = (Rc::from(path.as_str()), bytes.clone());
+        let id = match self.supplied_ids.get(&key) {
+            Some(&id) => id,
+            None => {
+                let id = self.source(root, path.clone())?;
+                self.sources[id].provided = Some(bytes);
+                self.supplied_ids.insert(key, id);
+                id
+            }
+        };
+        self.alias_source(root, &path, id)
+    }
+
+    pub(crate) fn listed(&mut self, root: &Rc<str>, directory: &Rc<str>, path: &str) -> Result<()> {
+        let id = self.source(directory, path.to_owned())?;
+        self.alias_source(root, path, id)
+    }
+
+    fn alias_source(&mut self, root: &Rc<str>, path: &str, id: usize) -> Result<()> {
+        if self
+            .source_ids
+            .insert((root.clone(), Rc::from(path)), id)
+            .is_some_and(|p| p != id)
+        {
+            return Err("immutable source version changed".into());
+        }
+        Ok(())
+    }
+
+    pub(crate) fn project_inputs(&mut self, root: &str, paths: &[String]) -> Result<Vec<usize>> {
+        let root: Rc<str> = Rc::from(root);
+        paths
+            .iter()
+            .map(|p| {
+                let index = self.source(&root, p.clone())?;
+                self.sources[index].project = true;
+                self.pending.insert(index);
+                Ok(index)
+            })
+            .collect()
     }
     pub(crate) fn admit(
         &mut self,
@@ -124,32 +235,15 @@ impl Schedule {
         let root: Rc<str> = root.into();
         let mut pairs = Vec::with_capacity(files.len());
         for path in files {
-            let rel = Path::new(&path);
-            if rel
-                .components()
-                .any(|c| !matches!(c, std::path::Component::Normal(_)))
-            {
-                return Err(format!("invalid relative source path {path}"));
-            }
-            let src = *self
-                .source_ids
-                .entry((root.clone(), Rc::from(path.as_str())))
-                .or_insert_with(|| {
-                    self.sources.push(Source {
-                        root: root.clone(),
-                        path,
-                        bindings: BTreeMap::new(),
-                    });
-                    self.sources.len() - 1
-                });
-            let slot = *self.sources[src]
-                .bindings
-                .entry(binding)
-                .or_insert_with(|| {
-                    let slot = self.pairs;
-                    self.pairs += 1;
-                    slot
-                });
+            let src = self.source(&root, path)?;
+            let source = &mut self.sources[src];
+            let slot = *source.known.entry(binding).or_insert_with(|| {
+                let slot = self.pairs;
+                self.pairs += 1;
+                source.bindings.insert(binding, slot);
+                self.pending.insert(src);
+                slot
+            });
             pairs.push(slot);
         }
         Ok(pairs)
@@ -167,14 +261,19 @@ struct Bound<'p> {
     coverage: reader_run::coverage::Coverage,
 }
 
-fn bind<'p>(
+fn bind<'p, L: FileSource>(
     program: &'p Program,
-    parser: Option<&dyn l::contract::ParseEngine>,
+    parser: Option<&L>,
     run: &mut Run,
     hosted: Tables,
+    cut: Option<&finish::partition::Partition>,
 ) -> Result<Bound<'p>> {
     let mut facts = Vec::new();
-    for name in &program.bases {
+    for (at, step) in program.plan.nodes.iter().enumerate() {
+        if step.op != "base" || cut.is_some_and(|c| !c.file_steps[at]) {
+            continue;
+        }
+        let name = step.base().ok_or("base relation")?;
         if hosted.iter().any(|(n, _)| n == name) {
             continue;
         }
@@ -193,13 +292,13 @@ fn bind<'p>(
         if catalog::service::scope_of(rel) == catalog::types::RowScope::Project {
             return Err(format!("{name} needs closed project facts"));
         }
-        if parser.is_some_and(|p| p.includes_expansions(rel)) {
-            run.reader_tables.insert(name.clone());
+        if parser.is_some_and(|p| p.expands(rel)) {
+            run.reader_tables.insert(name.to_owned());
         }
         if catalog::service::fact_form(rel) != relations::types::FactForm::NodeTable
             || run.reader_tables.contains(name)
         {
-            if parser.and_then(|p| p.absence_of(rel)) == Some(l::AbsenceCause::NotYetRead) {
+            if parser.is_some_and(|p| !p.available(rel)) {
                 return Err(format!("provider does not read {name}"));
             }
             facts.push(rel);
@@ -240,7 +339,8 @@ fn bind<'p>(
 
 struct Version {
     origin: usize,
-    data: Vec<u8>,
+    project_slots: Vec<usize>,
+    data: Rc<[u8]>,
     jobs: BTreeMap<usize, usize>,
 }
 
@@ -253,33 +353,50 @@ fn versions(
     answers: &mut [Answer],
     aliases: &mut [usize],
     reads: &mut usize,
+    retained: &mut HashMap<usize, (Rc<[u8]>, u32)>,
+    keep: bool,
 ) -> Vec<Version> {
     use std::hash::{Hash, Hasher};
     use std::os::unix::fs::MetadataExt;
     let mut files = Vec::<Version>::new();
     let mut inodes = HashMap::new();
-    let mut hashes = HashMap::<(u64, u32), Vec<usize>>::new();
+    let mut hashes = HashMap::<(u64, Option<u32>), Vec<usize>>::new();
     for &idx in group {
         let src = &sources[idx];
         let path = Path::new(&*src.root).join(&src.path);
         let found = (|| -> std::io::Result<usize> {
-            let meta = std::fs::metadata(&path)?;
-            if let Some(&i) = inodes.get(&(meta.dev(), meta.ino())) {
-                return Ok(i);
+            let (data, inode, perm) = if let Some(bytes) = src.provided.as_ref() {
+                (Rc::clone(bytes), None, None)
+            } else if let Some((bytes, mode)) = retained.get(&idx) {
+                (Rc::clone(bytes), None, Some(*mode))
+            } else {
+                let meta = std::fs::metadata(&path)?;
+                let inode = (meta.dev(), meta.ino());
+                if let Some(&i) = inodes.get(&inode) {
+                    return Ok(i);
+                }
+                *reads += 1;
+                (
+                    Rc::from(std::fs::read(path)?),
+                    Some(inode),
+                    Some(meta.mode() & 0o111),
+                )
+            };
+            if let Some(mode) = perm.filter(|_| keep) {
+                retained
+                    .entry(idx)
+                    .or_insert_with(|| (Rc::clone(&data), mode));
             }
-            let data = std::fs::read(path)?;
-            *reads += 1;
             let mut hasher = std::collections::hash_map::DefaultHasher::new();
             data.hash(&mut hasher);
-            let equal = hashes
-                .entry((hasher.finish(), meta.mode() & 0o111))
-                .or_default();
+            let equal = hashes.entry((hasher.finish(), perm)).or_default();
             let i = match equal.iter().copied().find(|&i| files[i].data == data) {
                 Some(i) => i,
                 None => {
                     let i = files.len();
                     files.push(Version {
                         origin: idx,
+                        project_slots: Vec::new(),
                         data,
                         jobs: BTreeMap::new(),
                     });
@@ -287,11 +404,16 @@ fn versions(
                     i
                 }
             };
-            inodes.insert((meta.dev(), meta.ino()), i);
+            if let Some(key) = inode {
+                inodes.insert(key, i);
+            }
             Ok(i)
         })();
         match found {
             Ok(i) => {
+                if src.project {
+                    files[i].project_slots.push(idx);
+                }
                 for (&binding, &slot) in &src.bindings {
                     aliases[slot] = *files[i].jobs.entry(binding).or_insert(slot);
                 }
@@ -306,13 +428,51 @@ fn versions(
     files
 }
 
+/// The host may add requests after consuming the previous answers. Source and symbol
+/// identities then live across admissions. A closed batch can recycle one parser scratch.
+#[derive(Default)]
+pub(crate) struct ReaderState<F: Default, D: Default> {
+    run: Run,
+    unknown: Option<HashMap<u32, u32>>,
+    files: HashMap<usize, HeldFile<F, D>>,
+    bytes: HashMap<usize, (Rc<[u8]>, u32)>,
+}
+
+#[derive(Default)]
+struct Contents {
+    kinds: rustc_hash::FxHashSet<u32>,
+    fields: rustc_hash::FxHashSet<u32>,
+    words: rustc_hash::FxHashSet<u32>,
+}
+
+#[derive(Default)]
+struct HeldFile<F: Default, D: Default> {
+    symbols: D,
+    native: F,
+    tree: l::NodeTable,
+    fields: Vec<u32>,
+    text: Vec<u32>,
+    read: bool,
+    contents: Contents,
+    known: BTreeSet<l::Relation>,
+    facts: l::contract::Collect,
+}
+
 /// Each binding gets its own prepared column positions for this reader and host
 /// schema. Symbols and file IDs live in the reader session. Source trees never
 /// escape the visit. Every request for the same pair refers to its answer slot.
-pub(crate) fn visit(
-    language: Option<l::Language>,
+pub(crate) fn visit<L: FileSource>(
+    state: &mut ReaderState<L::File, L::Dictionary>,
+    keep: bool,
+    parser: Option<&L>,
+    reader_id: Option<usize>,
+    manifests: &BTreeSet<&str>,
+    contributions: &mut [Option<Rc<project::Contribution>>],
     programs: &[Result<Program>],
     program_of: &[usize],
+    contracts: &HashMap<usize, Rc<completeness::Contract>>,
+    cut_of: &[Option<Rc<finish::partition::Partition>>],
+    world: &mut World,
     sources: &[Source],
     selected: &[usize],
     aliases: &mut [usize],
@@ -320,44 +480,46 @@ pub(crate) fn visit(
     mut host: impl FnMut(usize, &mut Run) -> Result<Tables>,
     clocks: &mut Clock,
 ) {
-    let parser = language.map(|lang| lang.parse_engine());
-    let mut run = Run::default();
-    run.file_field_codes = true;
-    run.empty = run.sym(b"");
-    run.links();
-    let unknown = reader::public_words(
-        &mut run,
-        parser.as_ref().map_or(&[], |p| p.unknown_reasons()),
-    );
-    if let Some(p) = &parser {
-        run.kind_sym = p
-            .kind_names()
-            .0
-            .iter()
-            .map(|k| run.sym(k.0.as_bytes()))
-            .collect();
-    }
-    // A local path may have many source versions. The IDs here identify the version.
-    for src in sources {
+    let mut run = std::mem::take(&mut state.run);
+    let unknown = state.unknown.get_or_insert_with(|| {
+        run.file_field_codes = true;
+        run.empty = run.sym(b"");
+        run.links();
+        let public =
+            reader::public_words(&mut run, &parser.map_or_else(Vec::new, FileSource::words));
+        if let Some(p) = &parser {
+            run.kind_sym = p.kinds().iter().map(|k| run.sym(k.as_bytes())).collect();
+        }
+        public
+    });
+    for src in &sources[run.paths.len()..] {
         run.paths.push(src.path.clone());
         let word = run.sym(src.path.as_bytes());
         run.path_sym.push(word);
     }
     let mut bound = HashMap::new();
-    let mut elements = l::Elements::default();
-    let mut symbols = l::Symbols::default();
-    let mut tree = l::NodeTable::default();
-    let mut rows = l::contract::Collect::default();
+    let mut scratch = HeldFile::default();
+    let mut packet = reader_run::packet::Packet::new();
     let mut by_path = BTreeMap::<&str, Vec<usize>>::new();
     for &index in selected {
         by_path.entry(&sources[index].path).or_default().push(index);
     }
+    let mut carried_symbols = HashMap::new();
     for group in by_path.values() {
         let t = thread_cpu();
-        let versions = versions(group, sources, answers, aliases, &mut clocks.reads);
+        let versions = versions(
+            group,
+            sources,
+            answers,
+            aliases,
+            &mut clocks.reads,
+            &mut state.bytes,
+            keep,
+        );
         clocks.read_parse += thread_cpu() - t;
         for Version {
             origin: index,
+            project_slots,
             data: bytes,
             jobs,
         } in versions
@@ -371,7 +533,7 @@ pub(crate) fn visit(
                 let entry = bound.entry(binding).or_insert_with(|| {
                     let p = program.as_ref().map_err(Clone::clone)?;
                     let tables = host(binding, &mut run)?;
-                    bind(p, parser.as_deref(), &mut run, tables)
+                    bind(p, parser, &mut run, tables, cut_of[binding].as_deref())
                 });
                 if let Err(reason) = entry {
                     answers[slot] = Err(reason.clone());
@@ -383,29 +545,47 @@ pub(crate) fn visit(
                 .filter_map(|b| bound[b].as_ref().ok())
                 .flat_map(|b| b.facts.iter().copied())
                 .collect();
-            if jobs.keys().all(|b| bound[b].is_err()) {
+            if project_slots.is_empty() && jobs.keys().all(|b| bound[b].is_err()) {
                 continue;
             }
             let t = thread_cpu();
             run.root_dir.clear();
             run.root_dir.push_str(&source.root);
-            let result = if let Some(parser) = &parser {
+            let held = if keep {
+                state.files.entry(index).or_default()
+            } else {
+                &mut scratch
+            };
+            let mut symbols = &mut held.symbols;
+            let reused = keep && held.read;
+            let mut elements = &mut held.native;
+            let mut tree = &mut held.tree;
+            let result = if reused {
+                Ok(())
+            } else if let Some(parser) = &parser {
                 clocks.files += 1;
                 let request = l::ParseRequest {
                     file: id,
                     path: SourcePath(&source.path),
                     bytes: ByteSlice(&bytes),
                     fields: l::FieldRequest::Wanted,
-                    notes: l::NoteRequest::Unwanted,
+                    notes: if project_slots.is_empty() && !keep {
+                        l::NoteRequest::Unwanted
+                    } else {
+                        l::NoteRequest::Wanted
+                    },
                 };
-                parser
-                    .build_file(
-                        request,
-                        &mut elements,
-                        &mut symbols,
-                        &wanted.into_iter().collect::<Vec<_>>(),
-                    )
-                    .map_err(|e| format!("{e:?}"))
+                let requested: Vec<_> = wanted.into_iter().collect();
+                parser.build(
+                    request,
+                    &mut elements,
+                    &mut symbols,
+                    if keep {
+                        relations::service::ALL
+                    } else {
+                        &requested
+                    },
+                )
             } else {
                 // Every registered reader declined this path. Its host populations
                 // still exist and no source reader contributes syntax or semantic rows.
@@ -418,126 +598,161 @@ pub(crate) fn visit(
                 clocks.read_parse += thread_cpu() - t;
                 continue;
             }
+            if !project_slots.is_empty() || (keep && !reused) {
+                let manifest = manifests
+                    .contains(source.path.rsplit('/').next().unwrap())
+                    .then(|| l::ManifestText(String::from_utf8_lossy(&bytes).into_owned().into()));
+                let c = Rc::new(project::Contribution {
+                    reader: reader_id,
+                    notes: L::notes(&elements),
+                    manifest,
+                });
+                if keep {
+                    contributions[index] = Some(c.clone());
+                }
+                for slot in project_slots {
+                    contributions[slot] = Some(c.clone());
+                }
+                if !keep && jobs.keys().all(|b| bound[b].is_err()) {
+                    clocks.read_parse += thread_cpu() - t;
+                    continue;
+                }
+            }
             let mut provider = reader::ReaderFacts::new(id.0, &unknown);
-            reader::project_tree(
-                &elements,
-                &symbols,
-                &bytes,
-                &mut run,
-                &mut tree,
-                &mut provider,
-            );
+            if reused {
+                run.field_sym.clone_from(&held.fields);
+                provider.text = std::mem::take(&mut held.text);
+            } else {
+                L::tree(
+                    &elements,
+                    &symbols,
+                    &bytes,
+                    &mut run,
+                    &mut tree,
+                    &mut provider,
+                );
+                if keep {
+                    held.fields.clone_from(&run.field_sym);
+                }
+            }
             clocks.read_parse += thread_cpu() - t;
             let t = thread_cpu();
-            use rustc_hash::FxHashSet;
-            let mut kinds: FxHashSet<_> = l::node_table::kind_codes(&tree)
-                .iter()
-                .map(|&k| run.kind_sym[usize::from(k)])
-                .collect();
-            let mut fields: FxHashSet<_> = l::node_table::field_codes(&tree)
-                .iter()
-                .map(|&f| run.field_sym[usize::from(f)])
-                .collect();
-            let mut words: FxHashSet<_> = provider.text.iter().copied().collect();
-            words.insert(run.empty);
-            // Expanded semantic elements can extend beyond the concrete node table.
-            for i in provider.text.len() as u32..l::end_of(&elements).0 {
-                let at = l::Position(i);
-                kinds.insert(run.kind_sym[usize::from(l::kind_at(&elements, at).0)]);
-                fields.insert(reader::symbol(
-                    &mut run,
-                    &unknown,
-                    &symbols,
-                    &bytes,
-                    l::field_name_at(&elements, at),
-                ));
-                words.insert(reader::symbol(
-                    &mut run,
-                    &unknown,
-                    &symbols,
-                    &bytes,
-                    l::text_at(&elements, at),
-                ));
+            let contents = &mut held.contents;
+            if !reused {
+                contents.kinds.clear();
+                contents.fields.clear();
+                contents.words.clear();
+                contents.kinds.extend(l::node_table::kind_codes(tree).iter()
+                    .map(|&k| run.kind_sym[usize::from(k)]));
+                contents.fields.extend(l::node_table::field_codes(tree).iter()
+                    .map(|&f| run.field_sym[usize::from(f)]));
+                contents.words.extend(provider.text.iter().copied());
+                contents.words.insert(run.empty);
+                L::expanded_summary(elements, symbols, &bytes, &mut run, unknown,
+                    provider.text.len(), &mut contents.kinds, &mut contents.fields, &mut contents.words);
             }
-            use ryo_execution_domain::domain::coverage::{service::partial_of, types::Recovery};
-            use ryo_language::domain::{
-                diagnostics::types::SyntaxCompleteness,
-                elements::service::{has_incomplete_lexical_stream, has_incomplete_syntax},
-            };
-            let recovery = if has_incomplete_syntax(&elements) == SyntaxCompleteness::Incomplete {
-                if has_incomplete_lexical_stream(&elements) == SyntaxCompleteness::Incomplete {
-                    Recovery::SyntaxErrors
-                } else {
-                    Recovery::LexicallyCompleteSyntaxErrors
-                }
-            } else {
-                Recovery::Whole
-            };
+            let Contents { kinds, fields, words } = &*contents;
+            use ryo_execution_domain::domain::coverage::service::partial_of;
+            let recovery = L::recovery(&elements);
             let mut active = Vec::new();
             for (&binding, &slot) in &jobs {
                 let Ok(b) = &bound[&binding] else { continue };
                 let p = programs[program_of[binding]].as_ref().unwrap();
-                if recovery != Recovery::Whole {
-                    let rels: Vec<_> = p
-                        .bases
-                        .iter()
-                        .filter_map(|n| relations::service::relation_named(NameRef(n)))
-                        .collect();
-                    if let Some(partial) = partial_of(&[], recovery, &rels).first() {
-                        answers[slot] = Err(format!(
-                            "{} is read only in part in {}: {}",
-                            relations::service::name(partial.relation).0,
-                            source.path,
-                            partial.cause.0
-                        ));
-                        continue;
-                    }
-                }
-                if b.never
-                    || !b.shape.iter().all(|c| {
-                        c.iter().any(|(k, v)| {
-                            if *k {
-                                kinds.contains(v)
-                            } else {
-                                fields.contains(v)
-                            }
+                let c = &contracts[&binding];
+                let rels: Vec<_> = c.needs.reads.iter().map(|r| r.relation()).collect();
+                let partials = partial_of(&[], recovery, &rels);
+                let unknowns = c.report(&partials, &source.path);
+                let excluded = cut_of[binding].is_none()
+                    && (b.never
+                        || !b.shape.iter().all(|c| {
+                            c.iter().any(|(k, v)| {
+                                if *k {
+                                    kinds.contains(v)
+                                } else {
+                                    fields.contains(v)
+                                }
+                            })
                         })
-                    })
-                    || !b.words.iter().all(|c| c.iter().any(|v| words.contains(v)))
-                {
-                    answers[slot] = Ok(Vec::new());
+                        || !b.words.iter().all(|c| c.iter().any(|v| words.contains(v))));
+                if excluded && partials.is_empty() && b.facts.is_empty() {
+                    answers[slot] = Ok(Reported {
+                        rows: Vec::new(),
+                        unknowns,
+                    });
                     clocks.skipped += 1;
                     continue;
                 }
-                active.push((binding, slot));
+                active.push((binding, slot, excluded));
             }
             clocks.screen += thread_cpu() - t;
             let t = thread_cpu();
             let wanted: BTreeSet<_> = active
                 .iter()
-                .flat_map(|(b, _)| bound[b].as_ref().unwrap().facts.iter().copied())
+                .flat_map(|(b, _, _)| bound[b].as_ref().unwrap().facts.iter().copied())
                 .collect();
             let facts: Vec<_> = wanted.into_iter().collect();
-            rows.clear();
+            packet.clear();
+            if keep {
+                std::mem::swap(&mut held.facts, &mut packet.rows);
+            }
+            let missing: Vec<_> = facts
+                .iter()
+                .filter(|rel| !keep || !held.known.contains(rel))
+                .copied()
+                .collect();
             if let Some(parser) = &parser
-                && !facts.is_empty()
+                && !missing.is_empty()
             {
-                parser.walk_file(
+                if let Err(reason) = parser.fill(
                     &mut elements,
                     &mut symbols,
-                    ByteSlice(&bytes),
+                    &bytes,
                     id,
-                    &facts,
-                    &mut rows,
-                );
+                    &missing,
+                    &mut packet.rows,
+                ) {
+                    for &slot in jobs.values() {
+                        answers[slot] = Err(reason.clone());
+                    }
+                    if keep {
+                        held.known.clear();
+                        held.facts.clear();
+                    }
+                    continue;
+                }
             }
-            let partials = std::mem::take(&mut rows.partials);
-            provider.receive(&mut run, &facts, &rows, &symbols, &bytes);
+            let partials = std::mem::take(&mut packet.rows.partials);
+            let partials_at = std::mem::take(&mut packet.rows.partials_at);
+            use ryo_values::domain::stored_facts::types::{
+                PartialAt, PartialCause, PartialScope, ReadInPart,
+            };
+            let said: Vec<_> = partials
+                .iter()
+                .map(|(relation, why, lacking)| ReadInPart {
+                    relation: *relation,
+                    cause: PartialCause(why.as_str().into()),
+                    lacking: *lacking,
+                    at: PartialScope::OneFile(PartialAt(id.0)),
+                })
+                .chain(partials_at.iter().map(|(relation, file, why)| ReadInPart {
+                    relation: *relation,
+                    cause: PartialCause(why.as_str().into()),
+                    lacking: ryo_relations::domain::relations::types::Missing::Any,
+                    at: PartialScope::OneFile(PartialAt(file.0)),
+                }))
+                .collect();
+            if keep {
+                held.known.extend(facts.iter().copied());
+                packet.index(&held.known.iter().copied().collect::<Vec<_>>());
+            } else {
+                packet.index(&facts);
+            }
+            let mut facts_view = packet.view(&mut provider, L::symbols(&symbols), &bytes);
             clocks.read_parse += thread_cpu() - t;
             let t = thread_cpu();
             let lines = active
                 .iter()
-                .any(|(b, _)| bound[b].as_ref().unwrap().lines)
+                .any(|(b, _, _)| bound[b].as_ref().unwrap().lines)
                 .then(|| {
                     let name = relations::service::name(l::Relation::FilesystemLineCount).0;
                     let (_, columns, types) =
@@ -551,28 +766,220 @@ pub(crate) fn visit(
                     table.n = 1;
                     (name.to_owned(), Rc::new(table))
                 });
-            for (binding, slot) in active {
-                let p = programs[program_of[binding]].as_ref().unwrap();
+            for (binding, slot, excluded) in active {
+                use ryo_execution_domain::domain::trust::{service::matters, types::Bearing};
+                let contract = &contracts[&binding];
                 let b = bound.get_mut(&binding).unwrap().as_mut().unwrap();
-                if let Some((_, reason, _)) = partials
-                    .iter()
-                    .find(|(r, _, m)| b.facts.contains(r) && b.coverage.needed(&p.plan, *r, *m))
+                let mut local_coverage = BTreeMap::new();
+                let unknowns = if said.is_empty()
+                    && recovery == ryo_execution_domain::domain::coverage::types::Recovery::Whole
                 {
-                    answers[slot] = Err(reason.clone());
+                    Vec::new()
+                } else {
+                    let rels: Vec<_> = contract.needs.reads.iter().map(|r| r.relation()).collect();
+                    let partial = partial_of(&said, recovery, &rels);
+                    for each in &partial {
+                        let name = relations::service::name(each.relation).0;
+                        if contract
+                            .needs
+                            .per_file
+                            .iter()
+                            .any(|r| matters(r, each) == Bearing::Matters)
+                        {
+                            local_coverage
+                                .entry(name.to_owned())
+                                .or_insert_with(|| vec![Some(id.0)]);
+                        }
+                        if contract
+                            .needs
+                            .cross
+                            .iter()
+                            .any(|r| matters(r, each) == Bearing::Matters)
+                        {
+                            let file = world.file(&source.path);
+                            world
+                                .unavailable
+                                .entry(slot)
+                                .or_default()
+                                .insert((name.to_owned(), file));
+                        }
+                    }
+                    contract.report(&partial, &source.path)
+                };
+                if excluded && unknowns.is_empty() {
+                    answers[slot] = Ok(Reported::default());
+                    clocks.skipped += 1;
                     continue;
                 }
                 clocks.evaluated += 1;
+                if let Some(cut) = &cut_of[binding] {
+                    let local: Vec<_> = lines.iter().filter(|_| b.lines).cloned().collect();
+                    let contribution = finish::session::gather(
+                        &mut b.exec,
+                        &mut run,
+                        id.0,
+                        &tree,
+                        &bytes,
+                        &mut facts_view,
+                        &local,
+                        &cut.inputs,
+                        &local_coverage,
+                    )
+                    .and_then(|tables| {
+                        tables
+                            .into_iter()
+                            .map(|(n, t)| {
+                                Ok((n, world.carry(&run, id.0, &t, &mut carried_symbols)?))
+                            })
+                            .collect()
+                    });
+                    answers[slot] = contribution.map(|tables| {
+                        world.frontiers.insert(slot, tables);
+                        Reported {
+                            rows: Vec::new(),
+                            unknowns,
+                        }
+                    });
+                    continue;
+                }
                 answers[slot] = finish::session::pair(
                     &mut b.exec,
                     &mut run,
                     id.0,
                     &tree,
                     &bytes,
-                    &mut provider,
+                    &mut facts_view,
                     b.hosted.iter().chain(lines.iter().filter(|_| b.lines)),
-                );
+                    &local_coverage,
+                )
+                .map(|rows| Reported { rows, unknowns });
+            }
+            if keep {
+                held.read = true;
+                held.text = provider.text;
+                packet.rows.partials = partials;
+                packet.rows.partials_at = partials_at;
+                std::mem::swap(&mut held.facts, &mut packet.rows);
             }
             clocks.evaluate += thread_cpu() - t;
         }
+    }
+    state.run = run;
+}
+
+/// A frontier's words cross the reader's symbol pool and its local node number
+/// space once. The destination run owns stable file and symbol identities for
+/// every request. Positions inside a file remain byte-range pairs.
+#[derive(Default)]
+pub(crate) struct World {
+    pub run: Run,
+    pub files: HashMap<String, u32>,
+    pub frontiers: HashMap<usize, Vec<(usize, Rc<Table>)>>,
+    pub unavailable: HashMap<usize, BTreeSet<(String, u32)>>,
+}
+
+impl World {
+    pub fn file(&mut self, path: &str) -> u32 {
+        if let Some(&i) = self.files.get(path) {
+            return i;
+        }
+        let i = u32::try_from(self.run.paths.len()).expect("file number");
+        self.run.paths.push(path.to_owned());
+        let sym = self.run.sym(path.as_bytes());
+        self.run.path_sym.push(sym);
+        self.files.insert(path.to_owned(), i);
+        i
+    }
+
+    fn carry(
+        &mut self,
+        source: &Run,
+        home: u32,
+        t: &Table,
+        syms: &mut HashMap<u32, u32>,
+    ) -> Result<Rc<Table>> {
+        let mut out = Table::with_rows(t.names.clone(), t.tys.clone(), t.n);
+        let origin = self.file(&source.paths[home as usize]);
+        for ((dst, src), ty) in out.cols.iter_mut().zip(&t.cols).zip(t.tys.iter()) {
+            match ty {
+                finish::Ty::File => {
+                    for &v in src {
+                        if v == u64::MAX {
+                            dst.push(v);
+                            continue;
+                        }
+                        let path = source
+                            .paths
+                            .get(v as usize)
+                            .ok_or("unbound file on handoff")?;
+                        dst.push(u64::from(self.file(path)));
+                    }
+                }
+                finish::Ty::Node => {
+                    for &v in src {
+                        if v == u64::MAX {
+                            dst.push(v);
+                            continue;
+                        }
+                        let at =
+                            u32::try_from(v).map_err(|_| "unbound node origin on file handoff")?;
+                        dst.push((u64::from(origin) << 32) | u64::from(at));
+                    }
+                }
+                finish::Ty::Sym => {
+                    for &v in src {
+                        if v == u64::MAX {
+                            dst.push(v);
+                            continue;
+                        }
+                        let v = u32::try_from(v).map_err(|_| "unbound symbol on handoff")?;
+                        let sym = if source.absent_word == Some(v) {
+                            self.run.absent_word.ok_or("missing public null symbol")?
+                        } else if let Some(&s) = syms.get(&v) {
+                            s
+                        } else {
+                            let s = self.run.sym(
+                                source
+                                    .texts
+                                    .get(v as usize)
+                                    .ok_or("unbound symbol on handoff")?,
+                            );
+                            syms.insert(v, s);
+                            s
+                        };
+                        dst.push(u64::from(sym));
+                    }
+                }
+                _ => dst.extend_from_slice(src),
+            }
+        }
+        out.n = t.n;
+        Ok(Rc::new(out))
+    }
+
+    pub fn joined(&self, slots: &[usize], cut: &[usize]) -> Result<BTreeMap<usize, Rc<Table>>> {
+        let mut combined: BTreeMap<usize, Table> = BTreeMap::new();
+        for slot in slots {
+            let contribution = self.frontiers.get(slot).ok_or("missing file frontier")?;
+            if contribution.len() != cut.len() {
+                return Err("incomplete file frontier".into());
+            }
+            for (&id, (n, table)) in cut.iter().zip(contribution) {
+                if id != *n {
+                    return Err("unbound column frontier".into());
+                }
+                let out = combined.entry(id).or_insert_with(|| {
+                    Table::with_rows(table.names.clone(), table.tys.clone(), table.n)
+                });
+                if out.names != table.names || out.tys != table.tys {
+                    return Err("file frontier schema differs between providers".into());
+                }
+                for (col, add) in out.cols.iter_mut().zip(&table.cols) {
+                    col.extend_from_slice(add);
+                }
+                out.n += table.n;
+            }
+        }
+        Ok(combined.into_iter().map(|(n, t)| (n, Rc::new(t))).collect())
     }
 }

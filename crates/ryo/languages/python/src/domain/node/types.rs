@@ -17,6 +17,13 @@ pub(crate) struct Wholeness {
     pub(crate) lexical: SyntaxCompleteness,
 }
 
+/// Import-statement count and physical-line comment presence accumulated in source order.
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct ImportPresence {
+    pub(crate) statements: usize,
+    pub(crate) line_comment: bool,
+}
+
 /// What the syntax adapter lends once it has walked a file into the node table, while its parse lives.
 #[derive(Debug)]
 pub(crate) struct WalkedTree<'t> {
@@ -32,6 +39,8 @@ pub(crate) struct WalkedTree<'t> {
     pub(crate) declarations: crate::domain::model::types::AnnotatedDeclarations,
     /// The string literals the walk met since it last asked which of them are type expressions.
     pub(crate) strings: Vec<StringSite>,
+    /// Import presence for the file's own physical source.
+    pub(crate) import_presence: ImportPresence,
     /// The imported names the walk met: the places of the aliases of the file's import statements.
     pub(crate) imports: Vec<Position>,
     /// From-imports with at least one leading dot, in source order.
