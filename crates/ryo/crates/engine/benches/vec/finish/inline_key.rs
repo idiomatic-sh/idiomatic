@@ -25,6 +25,12 @@ impl Key {
             Key::Heap(cells.to_vec())
         }
     }
+    pub(super) fn cells_mut(&mut self) -> &mut [u64] {
+        match self {
+            Key::Inline(n, v) => &mut v[..usize::from(*n)],
+            Key::Heap(v) => v,
+        }
+    }
     pub(super) fn cells(&self) -> &[u64] {
         match self {
             Key::Inline(n, v) => &v[..usize::from(*n)],

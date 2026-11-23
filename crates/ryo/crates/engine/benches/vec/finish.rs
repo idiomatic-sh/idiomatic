@@ -1336,13 +1336,13 @@ enum Src {
 /// A closure that is never made whole: it answers its sources' reach when probed by either end.
 pub(super) struct Lazy {
     keys: Vec<usize>,
-    adj: FxHashMap<Vec<u64>, Vec<u64>>,
-    radj: FxHashMap<Vec<u64>, Vec<u64>>,
+    adj: FxHashMap<inline_key::Key, Vec<u64>>,
+    radj: FxHashMap<inline_key::Key, Vec<u64>>,
     node: usize,
     names: Names,
     tys: Tys,
-    cache: RefCell<FxHashMap<Vec<u64>, Rc<Vec<u64>>>>,
-    rcache: RefCell<FxHashMap<Vec<u64>, Rc<Vec<u64>>>>,
+    cache: RefCell<FxHashMap<inline_key::Key, Rc<Vec<u64>>>>,
+    rcache: RefCell<FxHashMap<inline_key::Key, Rc<Vec<u64>>>>,
 }
 
 fn truthy(v: V) -> bool {
@@ -2324,13 +2324,15 @@ impl<'p> Exec<'p> {
             "closure" => {
                 let l = self.lazy(f, run, p, node)?;
                 let mut out = Table::with(l.names.clone(), l.tys.clone());
-                let starts: Vec<Vec<u64>> = l.adj.keys().cloned().collect();
-                for k in starts {
-                    let reach = reach_dir(&l, &k, true);
+                let mut row = Vec::with_capacity(l.keys.len() + 2);
+                for key in l.adj.keys() {
+                    let reach = reach_dir(&l, key.cells(), true);
+                    row.clear();
+                    row.extend_from_slice(key.cells());
                     for d in reach.iter() {
-                        let mut row = k.clone();
                         row.push(*d);
                         out.push_row(&row);
+                        row.pop();
                     }
                 }
                 Ok(out)
@@ -2340,31 +2342,33 @@ impl<'p> Exec<'p> {
                 let (sn, dn) = (s(&a["source"])?, s(&a["destination"])?);
                 let keys: Vec<usize> = strs(&a["keys"])?.map(|k| edges.col(k)).collect::<R<_>>()?;
                 let (si, di) = (edges.col(sn)?, edges.col(dn)?);
-                let mut adj: FxHashMap<Vec<u64>, Vec<u64>> = FxHashMap::default();
-                let mut fixed: rustc_hash::FxHashSet<Vec<u64>> = rustc_hash::FxHashSet::default();
+                let mut adj: FxHashMap<inline_key::Key, Vec<u64>> = FxHashMap::default();
+                let mut fixed = rustc_hash::FxHashSet::default();
+                let mut k = Vec::with_capacity(keys.len() + 1);
                 for r in 0..edges.n {
-                    let mut k: Vec<u64> = keys.iter().map(|c| edges.cols[*c][r]).collect();
+                    k.clear();
+                    k.extend(keys.iter().map(|c| edges.cols[*c][r]));
                     k.push(edges.cols[si][r]);
                     if edges.cols[si][r] == edges.cols[di][r] {
-                        fixed.insert(k.clone());
+                        fixed.insert(inline_key::Key::of(&k));
                     }
-                    adj.entry(k).or_default().push(edges.cols[di][r]);
+                    adj.entry(inline_key::Key::of(&k)).or_default().push(edges.cols[di][r]);
                 }
                 let mut out = self.empty(run, node)?;
-                let starts: Vec<Vec<u64>> = adj.keys().cloned().collect();
-                for k in starts {
-                    let kp = &k[..k.len() - 1];
+                let mut probe = Vec::with_capacity(keys.len() + 1);
+                for k in adj.keys().map(inline_key::Key::cells) {
+                    probe.clear();
+                    probe.extend_from_slice(k);
                     let mut seen = rustc_hash::FxHashSet::default();
                     let mut stack = vec![k[k.len() - 1]];
                     let mut found = std::collections::BTreeSet::new();
                     seen.insert(k[k.len() - 1]);
                     while let Some(x) = stack.pop() {
-                        let mut kx = kp.to_vec();
-                        kx.push(x);
-                        if fixed.contains(&kx) {
+                        probe[keys.len()] = x;
+                        if fixed.contains(&probe[..]) {
                             found.insert(x);
                         }
-                        if let Some(ns) = adj.get(&kx) {
+                        if let Some(ns) = adj.get(&probe[..]) {
                             for y in ns {
                                 if seen.insert(*y) {
                                     stack.push(*y);
@@ -2373,9 +2377,10 @@ impl<'p> Exec<'p> {
                         }
                     }
                     for x in found {
-                        let mut row = k.clone();
-                        row.push(x);
-                        out.push_row(&row);
+                        probe[keys.len()] = k[keys.len()];
+                        probe.push(x);
+                        out.push_row(&probe);
+                        probe.pop();
                     }
                 }
                 Ok(out)
@@ -2944,15 +2949,19 @@ impl<'p> Exec<'p> {
                         } else {
                         let mut t = Table::with(l.names.clone(), l.tys.clone());
                         let mut asked = rustc_hash::FxHashSet::default();
+                        let mut key = Vec::with_capacity(nk + 1);
+                        let mut row = Vec::with_capacity(nk + 2);
                         let forward = col + 2 == l.names.len();
                         for ti in 0..count {
                             fill_cur(&mut cur, &tuples, ti, bound);
-                            let mut key: Vec<u64> = key_exprs.iter().map(|e| eval(run, f, &srcs, &cur, e).1).collect();
+                            key.clear();
+                            key.extend(key_exprs.iter().map(|e| eval(run, f, &srcs, &cur, e).1));
                             let at = eval(run, f, &srcs, &cur, other).1;
                             key.push(at);
-                            if asked.insert(key.clone()) {
+                            if asked.insert(inline_key::Key::of(&key)) {
                                 for d in reach_dir(&l, &key, forward).iter() {
-                                    let mut row = key[..nk].to_vec();
+                                    row.clear();
+                                    row.extend_from_slice(&key[..nk]);
                                     if forward {
                                         row.extend([at, *d]);
                                     } else {
@@ -3977,14 +3986,13 @@ fn reach_dir(l: &Lazy, key: &[u64], forward: bool) -> Rc<Vec<u64>> {
     if let Some(r) = cache.borrow().get(key) {
         return r.clone();
     }
-    let kp = &key[..key.len() - 1];
+    let mut probe = inline_key::Key::of(key);
     let mut seen = rustc_hash::FxHashSet::default();
     let mut out = Vec::new();
     let mut stack = vec![key[key.len() - 1]];
     while let Some(x) = stack.pop() {
-        let mut kx = kp.to_vec();
-        kx.push(x);
-        if let Some(ns) = adj.get(&kx) {
+        probe.cells_mut()[key.len() - 1] = x;
+        if let Some(ns) = adj.get(probe.cells()) {
             for y in ns {
                 if seen.insert(*y) {
                     out.push(*y);
@@ -3994,7 +4002,8 @@ fn reach_dir(l: &Lazy, key: &[u64], forward: bool) -> Rc<Vec<u64>> {
         }
     }
     let rc = Rc::new(out);
-    cache.borrow_mut().insert(key.to_vec(), rc.clone());
+    probe.cells_mut()[key.len() - 1] = key[key.len() - 1];
+    cache.borrow_mut().insert(probe, rc.clone());
     rc
 }
 
