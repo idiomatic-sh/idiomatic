@@ -1,4 +1,5 @@
 //! Evaluate each requested witness once per file. Unknown or partial provider answers admit the file.
+use super::pair_summary::cost::{self, Sample};
 use super::pair_summary::{Domain, Id, Need, Program, Source};
 use rustc_hash::FxHashMap as Map;
 use ryo::languages::{self, FileWords, FilledColumns, NodeTable, Position, node_table};
@@ -6,6 +7,8 @@ use std::rc::Rc;
 
 #[path = "pair_counts.rs"]
 mod counts;
+#[path = "pair_witness.rs"]
+mod witness;
 
 type Bits = Rc<Vec<u64>>;
 // None is the unconstrained node set. An empty vector is the empty set.
@@ -20,7 +23,15 @@ struct Table {
     cells: FilledColumns,
     index: Map<usize, Map<Id, Vec<u32>>>,
 }
-struct File<'a> {
+struct File<'a, const PROFILE: bool> {
+    owner: usize,
+    reader_class: &'a std::cell::Cell<usize>,
+    file_owner: Vec<usize>,
+    node_owner: Vec<usize>,
+    plain_tree: bool,
+    stats: [Sample; 13],
+    charged: f64,
+    overhead: f64,
     p: &'a Program,
     t: &'a NodeTable,
     src: &'a [u8],
@@ -92,7 +103,7 @@ impl Table {
     }
 }
 
-impl File<'_> {
+impl<const PROFILE: bool> File<'_, PROFILE> {
     fn complete(&mut self, slots: &[usize]) -> bool {
         let n = node_table::element_count(self.t).0 as u32;
         slots.iter().all(|&slot| {
@@ -102,9 +113,36 @@ impl File<'_> {
         })
     }
     fn pass(&mut self, id: Id) -> bool {
-        if let Some(x) = self.needs[id] {
-            return x;
+        let class = if PROFILE {
+            cost::file_family(self.p, id) as usize
+        } else {
+            0
+        };
+        if PROFILE {
+            self.stats[class].calls += 1;
         }
+        if let Some(result) = &self.needs[id] {
+            if PROFILE {
+                self.stats[class].hits += 1;
+                self.stats[class].cross += u64::from(self.file_owner[id] != self.owner);
+            }
+            return *result;
+        }
+        if !PROFILE {
+            return self.pass_miss(id);
+        }
+        self.file_owner[id] = self.owner;
+        let prior = self.charged;
+        let start = super::thread_cpu();
+        let caller = self.reader_class.replace(class);
+        let out = self.pass_miss(id);
+        self.reader_class.set(caller);
+        let elapsed = super::thread_cpu() - start;
+        self.stats[class].ns += (elapsed - (self.charged - prior) - self.overhead) * 1e9;
+        self.charged = prior + elapsed + self.overhead;
+        out
+    }
+    fn pass_miss(&mut self, id: Id) -> bool {
         self.steps += 1;
         let yes = match self.p.needs[id] {
             Need::Any => true,
@@ -113,6 +151,13 @@ impl File<'_> {
             Need::PathMatches(re) => self
                 .path
                 .is_none_or(|path| self.p.regexes[re].is_match(path)),
+            Need::Terms(all, ref terms) => {
+                if all {
+                    terms.iter().all(|i| self.pass(*i))
+                } else {
+                    terms.iter().any(|i| self.pass(*i))
+                }
+            }
             Need::Both(a, b) => self.pass(a) && self.pass(b),
             Need::Either(a, b) => self.pass(a) || self.pass(b),
             Need::Some(x) => match &self.p.domains[x] {
@@ -124,6 +169,24 @@ impl File<'_> {
                     .unwrap()
                     .as_ref()
                     .is_none_or(|b| !b.is_empty()),
+                _ if self.plain_tree && self.p.paths[x].is_some_and(|e| e.existence_only) => {
+                    let edge = self.p.paths[x].unwrap();
+                    self.edge(edge, None)
+                        .unwrap_or_else(|| self.nodes(x).is_none_or(|b| !b.is_empty()))
+                }
+                _ if self.plain_tree && self.p.paths[x].is_some() => {
+                    self.nodes(x).is_none_or(|b| !b.is_empty())
+                }
+                Domain::Parents(a) | Domain::Ancestors(a)
+                    if self.plain_tree && self.p.file_only[x] =>
+                {
+                    self.path_exists(*a, false)
+                }
+                Domain::Children(a) | Domain::Descendants(a)
+                    if self.plain_tree && self.p.file_only[x] =>
+                {
+                    self.path_exists(*a, true)
+                }
                 Domain::Both(a, b) => {
                     let l = self.nodes(*a);
                     if l.as_ref().is_some_and(|v| v.is_empty()) {
@@ -147,6 +210,12 @@ impl File<'_> {
                 }
                 Domain::Fact(slot, None) => {
                     let table = &mut self.facts[*slot];
+                    if self.p.lazy_presence && !table.read && self.p.facts[*slot].key.is_some() {
+                        // A bare file-level existence guard alone cannot justify building
+                        // a keyed table. A subsequent constrained check can still request it.
+                        self.needs[id] = Some(true);
+                        return true;
+                    }
                     table.load(
                         &self.p.facts[*slot],
                         node_table::element_count(self.t).0 as u32,
@@ -162,12 +231,49 @@ impl File<'_> {
         yes
     }
     fn nodes(&mut self, id: Id) -> Nodes {
-        if let Some(s) = &self.sets[id] {
-            return s.clone();
+        let class = if PROFILE {
+            cost::family(&self.p.domains[id], &self.p.facts) as usize
+        } else {
+            0
+        };
+        if PROFILE {
+            self.stats[class].calls += 1;
         }
+        if let Some(result) = &self.sets[id] {
+            if PROFILE {
+                self.stats[class].hits += 1;
+                self.stats[class].cross += u64::from(self.node_owner[id] != self.owner);
+            }
+            return result.clone();
+        }
+        if !PROFILE {
+            return self.nodes_miss(id);
+        }
+        self.node_owner[id] = self.owner;
+        let prior = self.charged;
+        let start = super::thread_cpu();
+        let caller = self.reader_class.replace(class);
+        let out = self.nodes_miss(id);
+        self.reader_class.set(caller);
+        let elapsed = super::thread_cpu() - start;
+        self.stats[class].ns += (elapsed - (self.charged - prior) - self.overhead) * 1e9;
+        self.charged = prior + elapsed + self.overhead;
+        out
+    }
+    fn nodes_miss(&mut self, id: Id) -> Nodes {
         self.steps += 1;
         let n =
             u32::try_from(node_table::element_count(self.t).0).expect("table positions fit u32");
+        if self.plain_tree
+            && let Some(edge) = self.p.paths[id]
+        {
+            let mut output = Vec::new();
+            if self.edge(edge, Some(&mut output)).is_some() {
+                let nodes = Some(Rc::new(output));
+                self.sets[id] = Some(nodes.clone());
+                return nodes;
+            }
+        }
         let nodes = match &self.p.domains[id] {
             Domain::Any => None,
             Domain::CountUnder(rows, depth, op, value) => {
@@ -530,7 +636,38 @@ impl File<'_> {
                     ))
                 }
             }
-            Domain::Matching(slot, col, re) => {
+            Domain::Member(slot, col, project, field) => {
+                let (slot, col, project, field) = (*slot, *col, *project, *field);
+                let available = &mut self.facts[project];
+                available.load(&self.p.facts[project], n, self.words, self.read);
+                if !available.complete {
+                    None
+                } else if available.cells.0.first().is_none_or(|c| c.0.is_empty()) {
+                    Some(Rc::default())
+                } else {
+                    let allowed: Vec<_> = available.cells.0[field].0.iter().map(|v| v.0).collect();
+                    let t = &mut self.facts[slot];
+                    let spec = &self.p.facts[slot];
+                    t.load(spec, n, self.words, self.read);
+                    if !t.complete {
+                        None
+                    } else {
+                        let key = spec.key.and_then(|k| t.cells.0.get(k));
+                        Some(bits(
+                            t.cells
+                                .0
+                                .get(col)
+                                .into_iter()
+                                .flat_map(|c| &c.0)
+                                .enumerate()
+                                .filter(|(_, c)| allowed.contains(&c.0))
+                                .map(|(i, _)| key.map_or(0, |k| k.0[i].0 as u32)),
+                        ))
+                    }
+                }
+            }
+            Domain::Matching(slot, col, re) | Domain::Unmatched(slot, col, re) => {
+                let negative = matches!(self.p.domains[id], Domain::Unmatched(..));
                 let spec = &self.p.facts[*slot];
                 let table = &mut self.facts[*slot];
                 table.load(spec, n, self.words, self.read);
@@ -538,7 +675,10 @@ impl File<'_> {
                     None
                 } else {
                     let key = spec.key.and_then(|k| table.cells.0.get(k));
-                    let regex = &self.p.regexes[*re];
+                    let Some(regex) = self.p.regexes[*re].compiled() else {
+                        self.sets[id] = Some(None);
+                        return None;
+                    };
                     Some(bits(
                         table
                             .cells
@@ -548,7 +688,9 @@ impl File<'_> {
                             .flat_map(|c| c.0.iter())
                             .enumerate()
                             .filter_map(|(r, cell)| {
-                                let yes = if spec.kinds[*col] == languages::CellKind::Span {
+                                let yes = if negative && cell.0 == super::finish::NULL {
+                                    false
+                                } else if spec.kinds[*col] == languages::CellKind::Span {
                                     let span = (cell.0 >> 32) as usize..(cell.0 as u32) as usize;
                                     self.src.get(span).is_some_and(|text| regex.is_match(text))
                                 } else {
@@ -556,7 +698,8 @@ impl File<'_> {
                                         languages::facts::text(self.words, *cell).0.as_bytes(),
                                     )
                                 };
-                                yes.then(|| key.map_or(0, |c| c.0[r].0 as u32))
+                                (yes != negative)
+                                    .then(|| key.map_or(0, |c| c.0[r].0 as u32))
                                     .filter(|x| spec.key.is_none() || *x < n)
                             }),
                     ))
@@ -609,17 +752,70 @@ impl Program {
         src: &[u8],
         path: Option<&[u8]>,
         words: &mut FileWords,
+        read: impl FnMut(Source, &mut FileWords, &mut FilledColumns) -> bool,
+        alive: &mut [bool],
+        exact: Option<&mut Vec<(usize, Bits)>>,
+    ) -> u64 {
+        if self.meter.is_some() {
+            self.evaluate::<true>(t, src, path, words, read, alive, exact)
+        } else {
+            self.evaluate::<false>(t, src, path, words, read, alive, exact)
+        }
+    }
+    fn evaluate<const PROFILE: bool>(
+        &self,
+        t: &NodeTable,
+        src: &[u8],
+        path: Option<&[u8]>,
+        words: &mut FileWords,
         mut read: impl FnMut(Source, &mut FileWords, &mut FilledColumns) -> bool,
         alive: &mut [bool],
         mut exact: Option<&mut Vec<(usize, Bits)>>,
     ) -> u64 {
         languages::facts::clear_words(words);
-        let mut f = File {
+        let reader_class = std::cell::Cell::new(cost::Family::Logic as usize);
+        let mut observe = |source, words: &mut FileWords, cells: &mut FilledColumns| {
+            if !PROFILE {
+                return read(source, words, cells);
+            }
+            let start = super::thread_cpu();
+            let ok = read(source, words, cells);
+            let elapsed = super::thread_cpu() - start;
+            let slot = self
+                .facts
+                .iter()
+                .position(|f| f.source == source)
+                .expect("declared source");
+            let meter = self.meter.as_ref().unwrap();
+            let mut fills = meter.fills.borrow_mut();
+            let entry = &mut fills[slot][reader_class.get()];
+            entry.0 += 1;
+            entry.1 += cells.0.first().map_or(0, |c| c.0.len() as u64);
+            entry.2 += elapsed - meter.overhead;
+            ok
+        };
+        let mut f = File::<PROFILE> {
+            reader_class: &reader_class,
+            owner: 0,
+            file_owner: if PROFILE {
+                vec![usize::MAX; self.needs.len()]
+            } else {
+                vec![]
+            },
+            node_owner: if PROFILE {
+                vec![usize::MAX; self.domains.len()]
+            } else {
+                vec![]
+            },
+            plain_tree: !self.paths.is_empty() && node_table::embedded_segments(t).next().is_none(),
+            charged: 0.,
+            stats: Default::default(),
+            overhead: self.meter.as_ref().map_or(0., |m| m.overhead),
             p: self,
             t,
             src,
             path,
-            read: &mut read,
+            read: &mut observe,
             words,
             facts: (0..self.facts.len()).map(|_| Table::default()).collect(),
             sets: vec![None; self.domains.len()],
@@ -627,7 +823,10 @@ impl Program {
             texts: None,
             steps: 0,
         };
-        for (a, (_, root)) in alive.iter_mut().zip(&self.roots) {
+        for (rule, (a, (_, root))) in alive.iter_mut().zip(&self.roots).enumerate() {
+            if PROFILE {
+                f.owner = rule;
+            }
             if *a {
                 *a = f.pass(*root)
             }
@@ -635,12 +834,27 @@ impl Program {
         if let Some(out) = exact.as_mut() {
             for (rule, cert) in &self.exact {
                 let rule = *rule;
+                if PROFILE {
+                    f.owner = rule;
+                }
                 if alive[rule] && !f.pass(cert.guard) && f.complete(&cert.facts) {
                     let nodes = f
                         .nodes(cert.nodes)
                         .expect("certified domains contain only total node tests");
                     out.push((rule, nodes));
                 }
+            }
+        }
+        if PROFILE {
+            let meter = self.meter.as_ref().unwrap();
+            for (a, b) in meter.rows.borrow_mut().iter_mut().zip(f.stats) {
+                a.calls += b.calls;
+                a.hits += b.hits;
+                a.cross += b.cross;
+                a.ns += b.ns;
+            }
+            for (n, t) in meter.loads.borrow_mut().iter_mut().zip(&f.facts) {
+                *n += u64::from(t.read);
             }
         }
         f.steps

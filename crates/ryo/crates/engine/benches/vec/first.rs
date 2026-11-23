@@ -25,6 +25,7 @@ pub(super) struct WalkFact {
 
 /// Fact availability, spelling and lexical text are supplied by the language provider.
 pub(super) struct Language {
+    pub(super) fact_family: fn(&str) -> super::pair_summary::cost::Family,
     pub(super) walk_facts: &'static [WalkFact],
     pub(super) facts: Vec<String>,
     pub(super) text_kinds: Vec<u16>,
