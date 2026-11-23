@@ -251,7 +251,7 @@ fn lend(
         analysed: Analysed::default(),
         buffers: &mut scratch.file.buffers,
     };
-    visit(&mut ColumnFile { table, file: &mut file, relative_froms: &tree.relative_froms, memo, words });
+    visit(&mut ColumnFile { table, file: &mut file, relative_froms: &tree.relative_froms, import_presence: tree.import_presence, memo, words });
 }
 
 /// Spike (6f probe): one node's evaluation region (`ColumnFile::evaluation_region`).
@@ -273,6 +273,7 @@ pub struct ColumnFile<'a, 'f> {
     pub table: &'a NodeTable,
     file: &'a mut PythonFile<'f>,
     relative_froms: &'a [Position],
+    import_presence: crate::domain::node::types::ImportPresence,
     memo: &'a mut TextMemo,
     words: &'a mut FileWords,
 }
@@ -296,6 +297,7 @@ mod expression_parts;
 pub use expression_parts::CallSite;
 mod assignment;
 mod imports;
+mod lexical_lines;
 pub use imports::ImportAlias;
 mod resolution;
 pub use resolution::BindingSite;
