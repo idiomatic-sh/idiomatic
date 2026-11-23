@@ -43,7 +43,13 @@ pub(super) fn rows(f: &File<'_>, run: &mut Run, p: &mut dyn Provider, rel: &str,
             ProjectAsk::Run => (0..files as u32).collect(),
             ProjectAsk::EachFile => vec![f.file],
         };
-        let t = p.fill(run, rel, Scope::Files(&scope));
+        // redo-int merge (fills pass 3: the provider's one entry is `answer`): the project relation as a request of one
+        // relation for the files of the scope
+        let asked = [super::request::Asked { rel, columns: u64::MAX }];
+        let mut out = Vec::with_capacity(1);
+        let t = p
+            .answer(run, &super::request::Request { scope: Scope::Files(&scope), relations: &asked }, &mut out)
+            .and_then(|()| out.pop().ok_or_else(|| format!("{rel}: no answer")).and_then(|t| t));
         let t = match t {
             Ok(t) => t,
             Err(e) => {

@@ -229,13 +229,24 @@ impl<'p> Finisher<'p> {
         if self.check {
             for rel in ["semantic-syntax", "syntax-tree", "semantic-child", "syntax-child", "source-location", "token-link"] {
                 let mine = finish::native_table(&mut f, run, rel);
-                match pv.fill(run, rel, finish::Scope::File(file_no as u32)) {
+                let mut answer = Vec::new();
+                let asked = [finish::request::Asked { rel, columns: u64::MAX }];
+                match pv.answer(run, &finish::request::Request { scope: finish::Scope::File(file_no as u32), relations: &asked }, &mut answer).and_then(|()| answer.pop().unwrap_or_else(|| Err("no answer".to_owned()))) {
                     Ok(theirs) => self.check_lines.push(format!("{}\t{rel}\t{}", run.paths[file_no], finish::diff(run, &mine, &theirs))),
                     Err(e) => self.check_lines.push(format!("{}\t{rel}\tprovider: {e}", run.paths[file_no])),
                 }
             }
         }
         let rejected = languages::node_table::acceptance_of(ft) == languages::SyntaxAcceptance::Rejected;
+        // redo-fills pass 3: the file's one request, for what the alive rules' steps can read (request.rs)
+        let roots: Vec<usize> = wanted.iter().filter(|ei| !(self.failed_idx[**ei] || (rejected && self.accepted_only[**ei]))).map(|ei| plan.emits[*ei].1).collect();
+        if let Err(err) = self.exec.open_file(&mut f, run, pv, &roots) {
+            for ei in wanted {
+                let e = &plan.emits[*ei];
+                self.failed.insert(e.0.clone(), format!("{}: the request: {err}", run.paths[file_no]));
+                self.failed_idx[*ei] = true;
+            }
+        }
         for ei in wanted {
             if self.failed_idx[*ei] || (rejected && self.accepted_only[*ei]) {
                 continue;
@@ -264,6 +275,7 @@ impl<'p> Finisher<'p> {
             }
         }
         finish::emptyprop::file_end(&mut self.exec, &mut f, run, pv);
+        self.exec.close_file(&mut f);
     }
 
     /// Writes the findings, dumps and stats, and prints the second half's lines; `walk_time` is the walk's own time when
@@ -327,6 +339,7 @@ impl<'p> Finisher<'p> {
         println!("known-empty static part: {} steps visited, {} per-file tests; {:.3} s, of which preparing the needs once a run {:.3} s", exec.stats.static_visits, exec.stats.static_file_tests, exec.stats.static_time, exec.stats.rec_time);
         println!("fact keyed lists: fill rows listed {}", finish::FACT_IX_ROWS.load(std::sync::atomic::Ordering::Relaxed));
         println!("{}", finish::fill_prof::reads_line());
+        println!("{}", exec.request_line());
         finish::fill_prof::flush();
         for l in finish::fill_prof::unread_lines(&self.run) {
             println!("{l}");
