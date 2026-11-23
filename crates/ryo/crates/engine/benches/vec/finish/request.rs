@@ -27,6 +27,18 @@ pub(crate) struct Request<'r> {
     pub(crate) relations: &'r [Asked<'r>],
 }
 
+impl Request<'_> {
+    /// File and closed-project evaluation consume the same ordered provider reply.
+    pub(super) fn read_into(&self, run: &mut Run, provider: &mut dyn Provider, out: &mut Vec<R<Table>>) -> R<()> {
+        out.clear();
+        provider.answer(run, self, out)?;
+        if out.len() != self.relations.len() {
+            return Err(format!("the provider answered {} relations of {}", out.len(), self.relations.len()));
+        }
+        Ok(())
+    }
+}
+
 /// The run's request state: the relations a request can name (by number), each emit root's reach over them (made at its
 /// first file), and the counts.
 #[derive(Default)]
@@ -480,15 +492,11 @@ impl Exec<'_> {
                 .collect();
             list.extend(checks.iter().map(|rel| Asked { rel, scope: Scope::File(f.file), columns: &Columns::All }));
             let mut answer = std::mem::take(&mut rq.answer);
-            answer.clear();
             let before = if timed { super::super::thread_cpu() } else { 0.0 };
-            p.answer(run, &Request { relations: &list }, &mut answer)?;
+            Request { relations: &list }.read_into(run, p, &mut answer)?;
             if timed {
                 rq.counts.answer_cpu += super::super::thread_cpu() - before;
                 rq.counts.request_cpu += before - start;
-            }
-            if answer.len() != list.len() {
-                return Err(format!("the provider answered {} relations of {}", answer.len(), list.len()));
             }
             rq.counts.provider_calls += 1;
             rq.counts.provider_relations += list.len() as u64;

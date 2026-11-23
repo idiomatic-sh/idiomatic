@@ -54,8 +54,7 @@ pub(in super::super) fn evaluate(
         }
     }
     let mut answer = Vec::with_capacity(ordered.len());
-    provider.answer(run, &super::request::Request { relations: &ordered }, &mut answer)?;
-    if ordered.len() != answer.len() { return Err("incomplete project answer".into()); }
+    super::request::Request { relations: &ordered }.read_into(run, provider, &mut answer)?;
     let mut answers = answer.into_iter().map(Some).collect::<Vec<_>>();
     for (i, step) in plan.nodes.iter().enumerate() {
         match step.op.as_str() {
