@@ -909,6 +909,31 @@ struct ColFacts<'v, 'a, 'f, 'w> {
     src: &'w [u8],
 }
 
+impl<'v, 'a, 'f, 'w> ColFacts<'v, 'a, 'f, 'w> {
+    fn for_visit(
+        file: &'v mut ryo_python::fixtures::columns::ColumnFile<'a, 'f>,
+        file_no: usize,
+        src: &'w [u8],
+        words: &'w mut languages::FileWords,
+        project: &'w mut provider_packaging::Project,
+        kept: HashMap<String, finish::Table>,
+    ) -> Self {
+        Self {
+            file,
+            file_no: file_no as u32,
+            src,
+            words,
+            project,
+            kept,
+            import_comments: Default::default(),
+            filled: Default::default(),
+            time: 0.0,
+            rows: 0,
+            by_rel: HashMap::new(),
+        }
+    }
+}
+
 impl ColFacts<'_, '_, '_, '_> {
     /// A catalog relation of this file, filled whole (once a file for the relations the harness facts read).
     fn whole(&mut self, run: &mut finish::Run, rel: &str) -> Result<finish::Table, String> {
@@ -1327,7 +1352,11 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
                 | expression_parts::ATTRIBUTE_PREFIX
                 | expression_parts::DISPLAY_ELEMENT
         ) {
-            expression_parts::fill(run, self.file, self.src, self.file_no, rel)?
+            if rel == expression_parts::NESTED_DELIMITERS && let Some(rows) = self.kept.remove(rel) {
+                rows
+            } else {
+                expression_parts::fill(run, self.file, self.src, self.file_no, rel)?
+            }
         } else if matches!(rel, import_syntax::NEIGHBORS | import_syntax::HEADS | import_syntax::STATEMENTS | import_syntax::ALIASES | import_syntax::CONTEXTUAL_ALIASES | import_syntax::LINE_COMMENTS | import_syntax::ENTRIES) {
             import_syntax::fill(run, self.file, self.src, self.project, self.file_no, rel, &mut self.import_comments)?
         } else if rel == fact_catalog::PRE_DECLARATION_READ_REL {
@@ -1610,7 +1639,7 @@ fn run_finish(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
             continue;
         }
         if colwalk {
-            let _ = cwalk.walked(path, &bytes, &mut table, &mut |file| fin.column_file(file_no, path, file, &bytes, &wanted));
+            let _ = cwalk.walked(path, &bytes, &mut table, &mut |file| fin.column_file(file_no, path, file, &bytes, &wanted, HashMap::new()));
         } else {
             let _ = ryo_python::fixtures::walking::walked(walk, path, &bytes, &[], &mut table, &mut scratch, &mut |mut file| fin.reader_file(file_no, path, &mut file, &bytes, &wanted));
         }
@@ -2254,7 +2283,15 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
                     let n = node_table::element_count(ft).0;
                     file.name_token_codes(&mut name_codes);
                     codes_taken = true;
-                    prepare!(ft, |rel,words,out| pair_provider::read(file, file_no, rel, words, out));
+                    let mut walk_tables = HashMap::new();
+                    prepare!(ft, |rel,words,out| {
+                        if let pair_summary::Source::Walk(name) = rel
+                            && pair_provider::visit_table(name) {
+                            fin.as_deref_mut().is_some_and(|f| f.walk_table(file_no, file, &bytes, name, words, out, &mut walk_tables))
+                        } else {
+                            pair_provider::read(file, file_no, rel, words, out)
+                        }
+                    });
                     prepared = true;
                     let index = file_seeds::Index { table: ft, offsets: &word_offsets, words: &word_pos };
                     if let Some(seeds) = &mut file_seeds {
@@ -2616,7 +2653,7 @@ fn run_funnel(walk: &impl Walk, settings: ryo_python::settings::PythonParserSett
                         // wanted() already charges its own time to the second half.
                         if seed_only { phases.add("seed handoff", (thread_cpu() - handoff - (fin.time - before_wanted)).max(0.0)); }
                         if fin.visits(&wanted) {
-                            fin.column_file(file_no, path, file, &bytes, &wanted);
+                            fin.column_file(file_no, path, file, &bytes, &wanted, walk_tables);
                         }
                     } else if seed_only {
                         phases.add("seed handoff", thread_cpu() - handoff);
