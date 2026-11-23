@@ -38,22 +38,6 @@ const NAMED_MODULES: [&[u8]; 3] = [b"typing", b"_typeshed.", b"typing_extensions
 /// The lists of the run's plan (set once, before the first file).
 pub(super) static LISTS: std::sync::OnceLock<Lists> = std::sync::OnceLock::new();
 
-/// redo-binding pass 6/7: sets `LISTS` from the pack's inputs to the facts: `<pack dir>/inputs/type-expression.tsv` when
-/// the second half is prepared from a pack, else beside the plan file (`<plan>.inputs/type-expression.tsv`, made by the
-/// plan script from the pack's `inputs/`); no file, no list.
-pub(super) fn load_lists(plan_or_pack: &str) {
-    let path = if std::path::Path::new(plan_or_pack).is_dir() {
-        format!("{}/inputs/type-expression.tsv", plan_or_pack.trim_end_matches('/'))
-    } else {
-        format!("{}.inputs/type-expression.tsv", plan_or_pack.trim_end_matches(".json"))
-    };
-    let lists = match std::fs::read_to_string(path) {
-        Ok(t) => Lists::parse(&t).expect("the type-expression input"),
-        Err(_) => Lists::default(),
-    };
-    let _ = LISTS.set(lists);
-}
-
 #[derive(Default)]
 pub(super) struct Lists {
     pub(super) generic: FxHashSet<Vec<u8>>,
@@ -127,18 +111,15 @@ pub(super) struct Inputs<'t> {
 /// redo-fills pass 2: whether the file has any root `rows` starts from (an embedded expression, a name the paths test
 /// names, an annotation or return annotation, a type declaration): `rows`' own "no root of any kind" test, asked before
 /// its other inputs are filled (call-argument and identifier are read only past it).
-pub(super) fn any_root(run: &mut finish::Run, table: &NodeTable, qualified: &finish::Table, embedded_rows: usize) -> Result<bool, String> {
+pub(super) fn any_root(run: &mut finish::Run, table: &NodeTable, qualified: &finish::Table, embedded_rows: usize, lists: &Lists) -> Result<bool, String> {
     if embedded_rows != 0 {
         return Ok(true);
     }
     let (q_id, q_path) = (col(qualified, "id")?, col(qualified, "path")?);
     let _ = q_id;
-    // redo-binding pass 7 (merge of redo-fills pass 2 with pass 6's GENERALITY): the generic heads and argument forms are
-    // the plan's lists (`LISTS`), as in `rows`; no lists, no such roots.
-    let empty = Lists::default();
-    let lists = LISTS.get().unwrap_or(&empty);
     for r in 0..qualified.n {
         let t: &[u8] = &run.texts[qualified.cols[q_path][r] as usize];
+        // redo-int merge: `rows`' tests as redo-binding pass 6 states them (the pack's lists, not the writer's)
         if !NAMED_MODULES.iter().any(|m| t.starts_with(m)) && !lists.modules.iter().any(|m| t.starts_with(m)) {
             continue;
         }
