@@ -22,6 +22,15 @@ pub(in super::super) struct Answered {
     table: Option<Table>,
     by_file: FxHashMap<u64, Vec<u32>>,
     asked: Vec<bool>,
+    /// The provider's answers: asks, the files their scopes named, rows.
+    asks: [u64; 3],
+}
+
+/// One line a project relation: the provider's asks, the files their scopes named, the rows answered.
+pub(in super::super) fn report(run: &Run) -> Vec<String> {
+    let mut v: Vec<String> = run.project.iter().map(|(rel, a)| format!("PROJECT {rel}: asks {} scope files {} rows {}", a.asks[0], a.asks[1], a.asks[2])).collect();
+    v.sort();
+    v
 }
 
 /// The rows of project relation `rel` that name file `f`, asked of the provider when `f` is not answered yet.
@@ -47,6 +56,9 @@ pub(super) fn rows(f: &File<'_>, run: &mut Run, p: &mut dyn Provider, rel: &str,
         for r in 0..t.n {
             a.by_file.entry(t.cols[key][r]).or_default().push(base + r as u32);
         }
+        a.asks[0] += 1;
+        a.asks[1] += scope.len() as u64;
+        a.asks[2] += t.n as u64;
         for s in scope {
             a.asked[s as usize] = true;
         }

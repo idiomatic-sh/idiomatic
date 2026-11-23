@@ -1594,6 +1594,51 @@ fn run_finish(walk: &impl Walk, vocab: &Vocab, args: &[&str]) {
     fin.end(walk_time);
 }
 
+/// redo-general: the byte strings one of which a text must hold for a regex of the plan to match it: every `source-matches`
+/// pattern and every literal pattern of a `matches` call, whose literal set (regex-syntax's extractor) is finite and holds
+/// no empty string; distinct, in plan order.
+fn source_literals(plan: &finish::Plan) -> Vec<Vec<u8>> {
+    fn walk(j: &serde_json::Value, out: &mut Vec<String>) {
+        match j {
+            serde_json::Value::Array(a) => {
+                if a.first().and_then(serde_json::Value::as_str) == Some("call")
+                    && a.get(1).and_then(serde_json::Value::as_str) == Some("matches")
+                    && let Some(p) = a.get(2).and_then(|x| x.get(1)).and_then(|x| x.get(1)).and_then(serde_json::Value::as_str)
+                {
+                    out.push(p.to_owned());
+                }
+                a.iter().for_each(|x| walk(x, out));
+            }
+            serde_json::Value::Object(o) => o.values().for_each(|x| walk(x, out)),
+            _ => {}
+        }
+    }
+    let mut patterns = Vec::new();
+    for n in &plan.nodes {
+        if n.op == "source-matches"
+            && let Some(p) = n.j["pattern"].as_str()
+        {
+            patterns.push(p.to_owned());
+        }
+        walk(&n.j, &mut patterns);
+    }
+    let mut out: Vec<Vec<u8>> = Vec::new();
+    for p in patterns {
+        let Ok(hir) = regex_syntax::ParserBuilder::new().utf8(false).build().parse(&p) else { continue };
+        let seq = regex_syntax::hir::literal::Extractor::new().extract(&hir);
+        let Some(lits) = seq.literals() else { continue };
+        if lits.is_empty() || lits.iter().any(|l| l.as_bytes().is_empty()) {
+            continue;
+        }
+        for l in lits {
+            if !out.iter().any(|o| o == l.as_bytes()) {
+                out.push(l.as_bytes().to_vec());
+            }
+        }
+    }
+    out
+}
+
 /// `vec funnel <way> <files> <anchors> <plans> [--repeat K] [--rules-out F] [--hits-out F]`: ways `cands`, `structure`,
 /// `interp`, `spec`, `knock`.
 /// `<anchors>` a directory: the pack; the first half's spec is prepared in this process from its parsed rules (`first.rs`), the
@@ -1693,12 +1738,20 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
     let n_words = words.names.len();
     let ww = n_words.div_ceil(64).max(1);
     let name_token = vocab.kinds.get(ryo_python::fixtures::columns::NAME_KIND).copied().expect("name-token kind");
+    // redo-general: the ASCII bytes the provider's identifier rule takes inside a word (after a first `_`)
+    let word_byte: [bool; 128] = std::array::from_fn(|b| ryo_python::fixtures::columns::is_identifier(&format!("_{}", char::from(b as u8))));
     let ac = aho_corasick::AhoCorasick::builder()
         .match_kind(aho_corasick::MatchKind::LeftmostLongest)
         .build(words.names.iter().map(String::as_bytes))
         .expect("aho-corasick");
-    let bytes_ac = aho_corasick::AhoCorasick::new([&b"\x08"[..], b"\x1a", b"\x1b", b"\x00", "\u{200b}".as_bytes(), b"\\"]).expect("byte patterns");
-    let mut byte_files = [0u64; 8];
+    // redo-general: the byte patterns of the `bytes6` probe from the plan's own text patterns (`source_literals`), not a list
+    // of particular rules' bytes; at most 64 (one bit each)
+    let byte_patterns: Vec<Vec<u8>> = fin.as_deref().map(|f| source_literals(f.plan())).unwrap_or_default().into_iter().take(64).collect();
+    let bytes_ac = aho_corasick::AhoCorasick::new(&byte_patterns).expect("byte patterns");
+    if flag(args, "--words").as_deref() == Some("bytes6") {
+        println!("byte patterns from the plan: {} {:?}", byte_patterns.len(), byte_patterns.iter().map(|p| String::from_utf8_lossy(p).into_owned()).collect::<Vec<_>>());
+    }
+    let mut byte_files = vec![0u64; byte_patterns.len() + 1];
     let mut byte_hits = 0u64;
     let mut present = vec![0u64; ww];
     let mut table_present = vec![0u64; ww];
@@ -1787,7 +1840,9 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                 // the file's required words
                 let cw = thread_cpu();
                 if word_src != "none" {
-                    let is_word = |b: u8| b.is_ascii_alphanumeric() || b == b'_' || b >= 0x80;
+                    // redo-general: a byte that may sit inside a word: an ASCII byte the provider's identifier rule takes after a
+                    // first letter, or any byte of a multi-byte character (the run is then looked up whole)
+                    let is_word = |b: u8| b >= 0x80 || word_byte[usize::from(b)];
                     let from_table = |present: &mut Vec<u64>, pairs: &mut Vec<(u16, u32)>| {
                         present.iter_mut().for_each(|w| *w = 0);
                         pairs.clear();
@@ -1862,7 +1917,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                             }
                         }
                         "bytes6" => {
-                            // the byte patterns the source-matches rules need (PLE2510..2515, W605): one multi-pattern scan
+                            // the byte patterns of the plan's text patterns (`byte_patterns`): one multi-pattern scan
                             let mut hit = 0u64;
                             for m in bytes_ac.find_iter(&bytes) {
                                 hit |= 1 << m.pattern().as_usize();
@@ -1873,7 +1928,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                         }
                         other => panic!("--words {other}"),
                     }
-                    phases.add(if word_src == "bytes6" { "byte-pattern pass (aho-corasick, 6 patterns)" } else if word_src == "table" { "word pass (name tokens -> required-word bitset + index)" } else if word_src == "all" { "word pass (distinct word set of all name tokens)" } else if word_src == "bytes" { "word pass (identifier runs of the source bytes)" } else { "word pass (aho-corasick over the source bytes)" }, thread_cpu() - cw);
+                    phases.add(if word_src == "bytes6" { "byte-pattern pass (aho-corasick, the plan's literals)" } else if word_src == "table" { "word pass (name tokens -> required-word bitset + index)" } else if word_src == "all" { "word pass (distinct word set of all name tokens)" } else if word_src == "bytes" { "word pass (identifier runs of the source bytes)" } else { "word pass (aho-corasick over the source bytes)" }, thread_cpu() - cw);
                     present_total += present.iter().map(|w| u64::from(w.count_ones())).sum::<u64>();
                     if compare {
                         from_table(&mut table_present, &mut word_pairs);
