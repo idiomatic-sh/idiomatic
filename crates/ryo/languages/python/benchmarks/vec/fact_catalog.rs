@@ -5,17 +5,16 @@
 
 use super::finish::{self, Supplier, Ty, project::ProjectAsk};
 
+/// Dotted name requested by a relative import when its containing package is known.
+pub(super) const RELATIVE_IMPORT_REL: &str = "relative-import-target";
+const RELATIVE_IMPORT_COLS: [(&str, Ty); 3] = [("occurrence", Ty::Node), ("path", Ty::Sym), ("file", Ty::File)];
+
 /// 6f probe: the provider's evaluation region of every node, by name.
 pub(super) const REGION_REL: &str = "evaluation-region";
 pub(super) const REGION_COLS: [(&str, Ty); 6] =
     [("id", Ty::Node), ("region", Ty::Node), ("region-kind", Ty::Sym), ("annotation", Ty::Node), ("timing", Ty::Sym), ("file", Ty::File)];
 
-/// redo-binding probe: the provider's resolution of every read and deletion, one row each: the event in effect in the nearest
-/// namespace of its lookup path that holds one (a deletion looks in its own namespace only), by name. `kind` is that event's
-/// kind (`none`: no namespace holds an event of the name), `namespace` says whether the event was made in that namespace
-/// itself (`own`) or routed into it by a `global` / `nonlocal` declaration elsewhere (`routed`).
-/// redo-binding pass 3: the event in effect for each name in each namespace once the schedule has run (the namespace's state
-/// after the module ran: what a postponed annotation sees, PEP 563), one row per (namespace, name) that holds an event.
+/// Last scheduled namespace change per name, including declarations that redirect subsequent writes.
 pub(super) const FINAL_REL: &str = "namespace-final";
 pub(super) const FINAL_COLS: [(&str, Ty); 6] =
     [("namespace", Ty::Node), ("name", Ty::Sym), ("event", Ty::Node), ("kind", Ty::Sym), ("ordinal", Ty::Num), ("file", Ty::File)];
@@ -34,7 +33,7 @@ pub(super) const ANNOTATION_EVALUATION_COLS: [(&str, Ty); 5] =
 pub(super) const DEFERRED_VISIT_REL: &str = "deferred-visit";
 pub(super) const DEFERRED_VISIT_COLS: [(&str, Ty); 3] = [("id", Ty::Node), ("visit", Ty::Sym), ("file", Ty::File)];
 
-/// redo-binding pass 4: every postponed read's event once the module has run (`deferred_resolution.rs`).
+/// The module lookup for each postponed read at the end of the static schedule.
 pub(super) const DEFERRED_RESOLUTION_REL: &str = "deferred-resolution";
 pub(super) const DEFERRED_RESOLUTION_COLS: [(&str, Ty); 5] =
     [("reference", Ty::Node), ("occurrence", Ty::Node), ("kind", Ty::Sym), ("point", Ty::Num), ("file", Ty::File)];
@@ -43,6 +42,7 @@ pub(super) const DEFERRED_RESOLUTION_COLS: [(&str, Ty); 5] =
 pub(super) const TYPE_REGION_REL: &str = "type-region";
 pub(super) const TYPE_REGION_COLS: [(&str, Ty); 2] = [("id", Ty::Node), ("file", Ty::File)];
 
+/// Nearest event on the provider's scheduled lookup path, including a marker for an empty path.
 pub(super) const RESOLUTION_REL: &str = "read-resolution";
 pub(super) const RESOLUTION_COLS: [(&str, Ty); 9] = [
     ("reference", Ty::Node),
@@ -60,8 +60,9 @@ pub(super) const RESOLUTION_COLS: [(&str, Ty); 9] = [
 /// Declares to `run` every relation this provider, the host and the executor's steps supply beyond the provider's relations
 /// catalog.
 pub(super) fn declare(run: &mut finish::Run) {
-    let facts: [(&str, &[(&str, Ty)]); 8] = [
+    let facts: [(&str, &[(&str, Ty)]); 9] = [
         (REGION_REL, &REGION_COLS),
+        (RELATIVE_IMPORT_REL, &RELATIVE_IMPORT_COLS),
         (RESOLUTION_REL, &RESOLUTION_COLS),
         (FINAL_REL, &FINAL_COLS),
         (TYPE_EXPRESSION_REL, &TYPE_EXPRESSION_COLS),
