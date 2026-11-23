@@ -752,9 +752,9 @@ impl Exec<'_> {
             }
             Src::View(v, vn) => {
                 // the entry rows, once a file a (step, driver): the select's kind bucket or literal rows of the view, tested
-                let first: Rc<Vec<u32>> = match &kp.kinds[driver] {
+                let first: super::cold_bucket::Rows = match &kp.kinds[driver] {
                     (None, Some(ks)) => match f.vrows.get(&(ENTRY_KIND | (node << 1) | driver)) {
-                        Some(r) => r.clone(),
+                        Some(r) => r.clone().into(),
                         None => {
                             let rc: Rc<Vec<u32>> = {
                                 let mut rows = bucket(f, run, ks);
@@ -762,12 +762,12 @@ impl Exec<'_> {
                                 Rc::new(rows)
                             };
                             f.vrows.insert(ENTRY_KIND | (node << 1) | driver, rc.clone());
-                            rc
+                            rc.into()
                         }
                     },
                     _ => match lit_file(f, LIT_CONJ | (node << 1) | driver, conj, driver, v.base, &v.map) {
                         Some(rows) if lit_file(f, LIT_FILTER | *vn, &v.filter, 0, v.base, &[]).is_none() => match f.vrows.get(&(ENTRY_LIT | (node << 1) | driver)) {
-                            Some(r) => r.clone(),
+                            Some(r) => r.clone().into(),
                             None => {
                                 let rc: Rc<Vec<u32>> = {
                                     let mut kept = rows.to_vec();
@@ -775,7 +775,7 @@ impl Exec<'_> {
                                     Rc::new(kept)
                                 };
                                 f.vrows.insert(ENTRY_LIT | (node << 1) | driver, rc.clone());
-                                rc
+                                rc.into()
                             }
                         },
                         _ => view_rows(f, run, v, *vn),
@@ -783,7 +783,7 @@ impl Exec<'_> {
                 };
                 self.stats.touched[node] += first.len() as u64;
                 super::empty_sel::with(|m| m.d0 = first.len() as u32);
-                sel.extend_from_slice(&first);
+                first.extend_into(sel);
             }
             _ => return Err("a select starts from no table or view".to_owned()),
         }
@@ -1053,8 +1053,8 @@ impl Exec<'_> {
                     nck += 1;
                 }
                 let checks = &ckb[..nck];
-                let rows: Rc<Vec<u32>> = match &srcs[other] {
-                    Src::Tab(t, _) => Rc::new((0..t.n as u32).collect()),
+                let rows: super::cold_bucket::Rows = match &srcs[other] {
+                    Src::Tab(t, _) => Rc::new((0..t.n as u32).collect::<Vec<_>>()).into(),
                     Src::View(v, vn) => view_rows(f, run, v, *vn),
                     _ => return Err("a join side that is no table or view".to_owned()),
                 };

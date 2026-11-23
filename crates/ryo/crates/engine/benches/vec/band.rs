@@ -142,7 +142,7 @@ impl Exec<'_> {
             Src::Tab(t, _) => (0..t.n as u32).collect(),
             Src::View(v, vn) => match kind_set(run, &sp.conj, ka, v.base, &v.map) {
                 Some(ks) if kind_set(run, &v.filter, 0, v.base, &[]).is_none() => bucket(f, run, &ks).into_iter().filter(|r| view_holds(f, run, v, *r)).collect(),
-                _ => (*view_rows(f, run, v, *vn)).clone(),
+                _ => view_rows(f, run, v, *vn).to_vec(),
             },
             _ => unreachable!(),
         };
@@ -210,7 +210,7 @@ impl Exec<'_> {
         };
         let brows: Vec<u32> = match &sb {
             Src::Tab(t, _) => (0..t.n as u32).collect(),
-            Src::View(v, vn) => (*view_rows(f, run, v, *vn)).clone(),
+            Src::View(v, vn) => view_rows(f, run, v, *vn).to_vec(),
             _ => unreachable!(),
         };
         srcs[pb] = sb;

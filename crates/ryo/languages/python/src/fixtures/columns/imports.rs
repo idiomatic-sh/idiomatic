@@ -7,6 +7,7 @@ use ryo::languages::{Position, node_table};
 use std::collections::{HashMap, HashSet};
 
 /// The parser's import names and their original spelling at one alias.
+#[derive(Debug)]
 pub struct ImportAlias<'a> {
     /// Alias occurrence.
     pub id: u32,
@@ -14,6 +15,8 @@ pub struct ImportAlias<'a> {
     pub statement: u32,
     /// Zero-based position in the names list.
     pub index: usize,
+    /// Source offset of the previous name in this list.
+    pub previous_start: Option<u32>,
     /// Number of aliases written in the statement.
     pub count: usize,
     /// Number of explicit as-names in the statement.
@@ -140,7 +143,16 @@ impl ColumnFile<'_, '_> {
     }
 
     /// An import requests a dotted path; the from-clause's leading dots select its relative level and the alias's as-name gives its binding spelling.
-    pub fn visit_import_aliases(&self, mut visit: impl FnMut(ImportAlias<'_>)) {
+    pub fn visit_import_aliases(&self, visit: impl FnMut(ImportAlias<'_>)) {
+        self.visit_import_names(false, visit);
+    }
+
+    /// The grammar fixes the first alias of each import statement.
+    pub fn visit_import_heads(&self, visit: impl FnMut(ImportAlias<'_>)) {
+        self.visit_import_names(true, visit);
+    }
+
+    fn visit_import_names(&self, first_only: bool, mut visit: impl FnMut(ImportAlias<'_>)) {
         let text = self.file.syntax.text.0;
         let mut source_module = String::new();
         let mut target = String::new();
@@ -171,7 +183,12 @@ impl ColumnFile<'_, '_> {
                 );
             }
             let renames = aliases.iter().filter(|a| a.asname.is_some()).count();
-            for (index, alias) in aliases.iter().enumerate() {
+            let names = if first_only {
+                &aliases[..aliases.len().min(1)]
+            } else {
+                &aliases[..]
+            };
+            for (index, alias) in names.iter().enumerate() {
                 let Some(id) = id_of(alias) else { continue };
                 let name = alias.name.as_str();
                 let written = |ident: &ruff_python_ast::Identifier| {
@@ -190,6 +207,7 @@ impl ColumnFile<'_, '_> {
                     id: id.0,
                     statement: statement.0,
                     index,
+                    previous_start: index.checked_sub(1).map(|i| u32::from(aliases[i].start())),
                     count: aliases.len(),
                     renames,
                     form,
