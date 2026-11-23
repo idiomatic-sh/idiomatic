@@ -301,20 +301,8 @@ impl<'p> Finisher<'p> {
         println!("ALLOC {} process: blocks {} bytes {} peak-live {}; second half (inside the file calls): blocks {} bytes {}", super::alloc_count::NAME, a[0], a[1], a[2], self.alloc[0], self.alloc[1]);
         println!("files run {}; findings {}; rules {} ({} failed)", self.files_run, self.findings.len(), self.emits.len(), self.failed.len());
         println!("thread CPU-s: total {total:.3}; walk+table {walk_time:.3}; in the visit {file_time:.3}: steps {steps:.3}, provider fills {:.3} ({} rows)", self.provider_time, self.provider_rows);
-        if exec.stats.known_timed > 0 {
-            // redo-union pass 2: the clock's pair cost, calibrated here (a million back-to-back pairs)
-            let n = 1_000_000;
-            let t0 = thread_cpu();
-            let mut x = 0.0;
-            for _ in 0..n {
-                let a = thread_cpu();
-                x += thread_cpu() - a;
-            }
-            let pair = (thread_cpu() - t0) / f64::from(n);
-            std::hint::black_box(x);
-            let per = exec.stats.known_time / exec.stats.known_timed as f64;
-            println!("known-empty whole runs (decided before): {} timed, {:.0} ns a run measured, clock pair {:.0} ns, {:.0} ns a run net; deciding the static part a file: {:.3} s over {} steps ({} per-file tests), of which preparing the needs once a run {:.3} s", exec.stats.known_timed, per * 1e9, pair * 1e9 / 2.0, (per - pair / 2.0) * 1e9, exec.stats.static_time, exec.stats.static_visits, exec.stats.static_file_tests, exec.stats.rec_time);
-        }
+        // the per-file emptiness decision's static part: steps visited and per-file tests decided (VEC_STEP_TIME: its seconds)
+        println!("known-empty static part: {} steps visited, {} per-file tests; {:.3} s, of which preparing the needs once a run {:.3} s", exec.stats.static_visits, exec.stats.static_file_tests, exec.stats.static_time, exec.stats.rec_time);
         println!("fact keyed lists: fill rows listed {}", finish::FACT_IX_ROWS.load(std::sync::atomic::Ordering::Relaxed));
         println!("{}", finish::fill_prof::reads_line());
         finish::fill_prof::flush();

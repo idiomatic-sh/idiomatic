@@ -191,6 +191,8 @@ struct K {
     items: Vec<(usize, usize)>,
     /// One source, every item a column: a projection that drops columns is a set.
     set: bool,
+    /// One source, no test, its columns picked in order under their own names: the answer is the source's table itself.
+    ident: bool,
     /// By source, where it is a view: the kinds its own tests name, and the kinds the select's tests name of it (static).
     kinds: Vec<(Option<Vec<u32>>, Option<Vec<u32>>)>,
     /// A semi step's probed side: the band is tried first.
@@ -397,6 +399,10 @@ impl Exec<'_> {
         let preds = sp.conj.iter().map(compile).collect();
         let file_const = sp.conj.iter().any(|c| super::filter_order::file_const(c) && !matches!(c, E::Lit(_)));
         let set = k == 1 && items.iter().all(|(s, _)| *s == 0);
+        let ident = k == 1 && sp.conj.is_empty() && {
+            let ssc = self.schema(run, sp.srcs[0])?;
+            items.len() == ssc.names.len() && items.iter().enumerate().all(|(i, (s, c))| *s == 0 && *c == i) && sp.items.iter().zip(ssc.names.iter()).all(|((n, _), m)| n == m)
+        };
         let mut kinds = Vec::with_capacity(k);
         for (i, n) in sp.srcs.iter().enumerate() {
             kinds.push(match self.view(run, *n)? {
@@ -412,7 +418,7 @@ impl Exec<'_> {
             }
             views
         };
-        Ok(Prep::K(K { preds, file_const, items, set, kinds, semi, zero }))
+        Ok(Prep::K(K { preds, file_const, items, set, ident, kinds, semi, zero }))
     }
 
     /// The dispatch: the kernels, or the interpreter's `select` (`VEC_OLD_SELECT`, or a node they do not cover).
@@ -566,6 +572,11 @@ impl Exec<'_> {
             srcs.push(src);
         }
         super::empty_sel::lap(1, self.inner);
+        if kp.ident
+            && let Src::Tab(t, _) = &srcs[0]
+        {
+            return Ok(t.clone());
+        }
         let mut driver: Option<usize> = None;
         if let Some((si, c, sk)) = conj.iter().find_map(|e| match e {
             E::Seed(x, sk) => match **x {
