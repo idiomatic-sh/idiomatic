@@ -1,9 +1,9 @@
 //! redo-fills pass 2 (THROWAWAY, bead ryo-fmx3.1): the facts this prototype provider states beyond its relations catalog,
 //! declared to the run at its start (`declare`) with their columns and their supplier, so the executor holds no
 //! language's fact by name: the provider's own facts (written in `bench.rs`' `ColFacts`), the host's relations, and the
-//! executor steps that still make two relations (a seam: the provider's packaging knowledge, to move behind facts).
+//! provider's project relations (redo-general: its packaging knowledge, `provider_packaging.rs`).
 
-use super::finish::{self, Supplier, Ty};
+use super::finish::{self, Supplier, Ty, project::ProjectAsk};
 
 /// 6f probe: the provider's evaluation region of every node, by name.
 pub(super) const REGION_REL: &str = "evaluation-region";
@@ -83,11 +83,15 @@ pub(super) fn declare(run: &mut finish::Run) {
             run.declare(name, &cols, Supplier::Host);
         }
     }
-    for (name, step) in finish::STEPS {
+    // redo-general: the provider's project relations (`provider_packaging.rs`; their columns: the relations catalog's), asked
+    // for a project: module identity from the project's layout alone (once a run), the namespace membership of each file's
+    // imports from that file as the provider reads it
+    use super::provider_packaging::{MEMBERSHIP_REL, MODULE_IDENTITY_REL};
+    for (name, ask) in [(MODULE_IDENTITY_REL, ProjectAsk::Run), (MEMBERSHIP_REL, ProjectAsk::EachFile)] {
         if let Some((_, names, tys)) = run.catalog(name) {
             let cols: Vec<(String, Ty)> = names.iter().cloned().zip(tys.iter().copied()).collect();
             let cols: Vec<(&str, Ty)> = cols.iter().map(|(n, t)| (n.as_str(), *t)).collect();
-            run.declare(name, &cols, Supplier::Step(step));
+            run.declare(name, &cols, Supplier::Project(ask));
         }
     }
 }

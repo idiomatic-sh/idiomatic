@@ -609,6 +609,10 @@ fn main() {
                 if let Some(at) = args.iter().position(|a| *a == "--applicability") {
                     finish_args.extend(["--applicability", args[at + 1]]);
                 }
+                // redo-general: `--request F` (the host's request: its project search roots) to the second half
+                if let Some(at) = args.iter().position(|a| *a == "--request") {
+                    finish_args.extend(["--request", args[at + 1]]);
+                }
                 // redo-lowering: `--finish <pack dir>` prepares the plan in this process from the rule text (the one parser,
                 // the engine's lowering); `--finish <plan file>` reads a plan prepared beforehand (the oracle).
                 let t0 = thread_cpu();
@@ -958,6 +962,10 @@ mod deferred_resolution;
 mod direct_fill;
 #[path = "fact_catalog.rs"]
 mod fact_catalog;
+#[path = "provider_packaging.rs"]
+mod provider_packaging;
+#[path = "provider_tokens.rs"]
+mod provider_tokens;
 
 thread_local! {
     /// redo-binding pass 5: the implicit-symbol catalog of this run (module position, table), filled once.
@@ -973,6 +981,10 @@ struct Facts<'v, 'f, 'w> {
     rows: u64,
     by_rel: HashMap<String, (f64, u64, u64)>,
     file: u32,
+    /// redo-general: the provider's project (its packaging knowledge, run-wide) and this file's bytes, for the relations it
+    /// answers for a project.
+    project: &'w mut provider_packaging::Project,
+    src: &'w [u8],
 }
 
 /// 6f probe: the visit's facts through the direct-columns walk: the reader's fills, the provider's render, and the
@@ -988,6 +1000,10 @@ struct ColFacts<'v, 'a, 'f, 'w> {
     /// redo-binding pass 3: the provider relations the harness facts are written from, kept for the file once filled, so
     /// a fact and the steps that read the same relation share one fill.
     kept: HashMap<String, finish::Table>,
+    /// redo-general: the provider's project (its packaging knowledge, run-wide) and this file's bytes, for the relations it
+    /// answers for a project.
+    project: &'w mut provider_packaging::Project,
+    src: &'w [u8],
 }
 
 impl ColFacts<'_, '_, '_, '_> {
@@ -1313,7 +1329,11 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
     }
 
     fn fill(&mut self, run: &mut finish::Run, rel: &str, scope: finish::Scope<'_>) -> Result<finish::Table, String> {
-        let finish::Scope::File(file) = scope else { return Err(format!("{rel}: this provider answers one file at a time")) };
+        // redo-general: a project's relations from the provider's project (its packaging knowledge)
+        let file = match scope {
+            finish::Scope::File(file) => file,
+            finish::Scope::Files(files) => return self.project.fill(run, rel, files, self.file_no, self.file.table, self.src),
+        };
         if file != self.file_no {
             return Err(format!("{rel}: asked for file {file}, this provider holds file {}", self.file_no));
         }
@@ -1385,7 +1405,11 @@ impl finish::Provider for ColFacts<'_, '_, '_, '_> {
 
 impl finish::Provider for Facts<'_, '_, '_> {
     fn fill(&mut self, run: &mut finish::Run, rel: &str, scope: finish::Scope<'_>) -> Result<finish::Table, String> {
-        let finish::Scope::File(file) = scope else { return Err(format!("{rel}: this provider answers one file at a time")) };
+        // redo-general: a project's relations from the provider's project (its packaging knowledge)
+        let file = match scope {
+            finish::Scope::File(file) => file,
+            finish::Scope::Files(files) => return self.project.fill(run, rel, files, self.file, self.facts.table, self.src),
+        };
         if file != self.file {
             return Err(format!("{rel}: asked for file {file}, this provider holds file {}", self.file));
         }
@@ -1638,13 +1662,8 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
     let token_pass = args.contains(&"--token-pass");
     let check_links = args.contains(&"--check-token-links");
     let token_slot = fact_catalog.names.iter().position(|n| n == "token-link");
-    let kind_code = |n: &str| vocab.kinds.get(n).copied().expect("kind");
-    let token_kinds = facts::TokenKinds {
-        first: kind_code("name-token"),
-        last: kind_code("colonequal"),
-        error: kind_code("errortoken"),
-        pairs: [(kind_code("lpar"), kind_code("rpar")), (kind_code("lsqb"), kind_code("rsqb")), (kind_code("lbrace"), kind_code("rbrace"))],
-    };
+    // redo-general: the provider's token order (its lexical model), the same one the second half reads
+    let token_kinds = provider_tokens::Lexicon::new(&|n| vocab.kinds.get(n).copied());
     let link_ids = [u64::from(interner.id(b"next-token")), u64::from(interner.id(b"matching-delimiter")), u64::from(interner.id(b"enclosing-delimiter"))];
     let (mut token_time, mut token_files, mut model_only_files, mut token_only_files) = (0f64, 0u64, 0u64, 0u64);
     let (mut link_rows_provider, mut link_rows_mine, mut link_mismatch) = (0u64, 0u64, 0u64);
