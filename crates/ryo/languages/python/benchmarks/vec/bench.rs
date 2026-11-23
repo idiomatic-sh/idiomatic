@@ -1738,6 +1738,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
     let mut word_pairs: Vec<(u16, u32)> = Vec::new();
     let mut word_offsets: Vec<u32> = Vec::new();
     let mut word_pos: Vec<u32> = Vec::new();
+    let mut word_fill: Vec<u32> = Vec::new();
     // the walk's code of each name token, and the required word of each code met in the file
     let mut name_codes: Vec<u32> = Vec::new();
     let mut word_memo: Vec<u32> = Vec::new();
@@ -1752,7 +1753,15 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
     let mut skip = Skip::new(&rules, &skip_of, &frules, words_of(vocab.kind_names.len()), words_of(vocab.field_names.len()));
     let mut kinds: Vec<u64> = Vec::new();
     let fields_width = vocab.field_names.len();
-    let mut units = funnel::units(&frules);
+    // Only a rule/file bit crosses this seam. Explicit enumeration or diagnostic
+    // outputs retain the exhaustive evaluator and its per-unit accounting.
+    let seed_only = (fin.is_some() || args.contains(&"--file-seeds")) && way == "spec" && direct && use_facts
+        && word_src == "table" && word_skip && repeat == 1
+        && !ask_all && !check_direct && !per_fact && !plant && flag(args, "--dump").is_none()
+        && !["--enumerate-nodes", "--rules-out", "--surv-out", "--hits-out", "--alive-out", "--only-knock-units", "--check-token-links", "--token-pass", "--compare"].iter().any(|flag| args.contains(flag))
+        && std::env::var_os("VEC_NO_SKIP").is_none() && std::env::var_os("VEC_NO_PREFIX").is_none();
+    let syntax_only = seed_only && !args.contains(&"--exact-file-seeds");
+    let mut units = if seed_only { Vec::new() } else { funnel::units(&frules) };
     if args.contains(&"--only-knock-units") {
         units.retain(|u| u.knock);
     }
@@ -1760,7 +1769,8 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
     let structured = matches!(way, "structure" | "spec" | "knock");
     // the table writes the structure the checks read (element sets, the plans' enclosing columns) as ids are numbered
     let enclosing: Vec<ryo::languages::KindSet> = fact_catalog.enc_sets.iter().map(|s| ryo::languages::KindSet(*s)).collect();
-    if structured {
+    let scan_children = syntax_only && enclosing.is_empty();
+    if structured && !scan_children {
         cwalk.structured(enclosing.clone());
     }
     let max_regs = frules.iter().flat_map(|r| r.plans.iter().map(|p| p.regs)).max().unwrap_or(1).max(1);
@@ -1789,16 +1799,8 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
     let dump_out = flag(args, "--dump");
     let mut dumped = String::new();
     let mut reader_dump = String::new();
-    // Only a rule/file bit crosses this seam. Explicit enumeration or diagnostic
-    // outputs retain the exhaustive evaluator and its per-unit accounting.
-    let seed_only = (fin.is_some() || args.contains(&"--file-seeds")) && way == "spec" && direct && use_facts
-        && word_src == "table" && word_skip && repeat == 1
-        && !ask_all && !check_direct && !per_fact && !plant && dump_out.is_none()
-        && !["--enumerate-nodes", "--rules-out", "--surv-out", "--hits-out", "--alive-out", "--only-knock-units"].iter().any(|flag| args.contains(flag))
-        && std::env::var_os("VEC_NO_SKIP").is_none() && std::env::var_os("VEC_NO_PREFIX").is_none();
-    let syntax_only = seed_only && !args.contains(&"--exact-file-seeds");
     let mut file_seeds = seed_only.then(|| file_seeds::FileSeeds::new(&frules, syntax_only));
-    if syntax_only { cwalk.defer_lexical(); }
+    if syntax_only || args.contains(&"--defer-lexical") { cwalk.defer_lexical(); }
     let seed_out = flag(args, "--seed-out");
     let mut seed_dump = String::new();
     let started = thread_cpu();
@@ -1864,10 +1866,11 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                             }
                             word_pos.clear();
                             word_pos.resize(word_pairs.len(), 0);
-                            let mut fill: Vec<u32> = word_offsets[..n_words].to_vec();
+                            word_fill.clear();
+                            word_fill.extend_from_slice(&word_offsets[..n_words]);
                             for (w, p) in &word_pairs {
-                                word_pos[fill[usize::from(*w)] as usize] = *p;
-                                fill[usize::from(*w)] += 1;
+                                word_pos[word_fill[usize::from(*w)] as usize] = *p;
+                                word_fill[usize::from(*w)] += 1;
                             }
                         }
                         "all" => {
@@ -2000,6 +2003,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                         table: t,
                         src: &bytes,
                         facts: &store,
+                        scan_children: false,
                         enc: node_table::enclosing_ids(t),
                         matches: &interner.matches,
                     };
@@ -2205,12 +2209,12 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                     let index = file_seeds::Index { table: ft, offsets: &word_offsets, words: &word_pos };
                     if let Some(seeds) = &mut file_seeds {
                         let now = thread_cpu();
-                        seeds.choose(&frules, &index, &alive, &present, &mut in_seed);
+                        seeds.choose(&index);
                         phases.add("seed candidates", thread_cpu() - now);
                         let now = thread_cpu();
                         let ctx = funnel::Ctx { table: ft, src: &bytes,
-                            enc: node_table::enclosing_ids(ft), facts: &store, matches: &interner.matches };
-                        seeds.probe(&frules, &index, &ctx, &mut in_seed);
+                            scan_children, enc: node_table::enclosing_ids(ft), facts: &store, matches: &interner.matches };
+                        seeds.probe(&frules, &index, &ctx, &alive, &present, &mut in_seed);
                         phases.add("seed checks", thread_cpu() - now);
                     }
                     let v0 = thread_cpu();
@@ -2516,7 +2520,7 @@ fn run_funnel(walk: &impl Walk, vocab: &Vocab, args: &[&str], mut fin: Option<&m
                     if let Some(seeds) = &mut file_seeds {
                         let now = thread_cpu();
                         let ctx = funnel::Ctx { table: ft, src: &bytes,
-                            enc: node_table::enclosing_ids(ft), facts: &store, matches: &interner.matches };
+                            scan_children, enc: node_table::enclosing_ids(ft), facts: &store, matches: &interner.matches };
                         seeds.resolve(&frules, &index, &ctx, &mut in_seed);
                         phases.add("seed checks", thread_cpu() - now);
                     } else {

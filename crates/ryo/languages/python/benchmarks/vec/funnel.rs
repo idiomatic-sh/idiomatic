@@ -65,6 +65,7 @@ pub(super) struct Ctx<'a> {
     pub(super) table: &'a NodeTable,
     pub(super) src: &'a [u8],
     pub(super) facts: &'a super::facts::Store,
+    pub(super) scan_children: bool,
     pub(super) enc: &'a [Vec<u32>],
     pub(super) matches: &'a [u128],
 }
@@ -78,6 +79,22 @@ impl Ctx<'_> {
     fn parent_matches(&self, n: u32, kinds: &KSet) -> bool {
         let parent = self.parent(n);
         parent != n && kbit(kinds, self.kind(parent))
+    }
+    /// A mask reader also counts an embedded root attached to its host. Those
+    /// roots are recorded separately from a segment's immediate children.
+    #[inline]
+    fn child_kind(&self, n: u32, kinds: &KSet) -> bool {
+        if self.scan_children {
+            let matches = |p: Position| {
+                let k = self.kind(p.0);
+                usize::from(k) < kinds.len() * 64 && kbit(kinds, k)
+            };
+            self.children(n).iter().copied().any(matches) ||
+                node_table::embedded_segments(self.table).any(|seg| seg.host.0 == n && matches(seg.root))
+        } else {
+            let m = &node_table::child_sets_of(self.table, Position(n)).child_kinds;
+            (m[0] & kinds[0]) | (m[1] & kinds[1]) | (m[2] & kinds[2]) | (m[3] & kinds[3]) != 0
+        }
     }
     // the node table's own columns, read in place (no copy a file)
     #[inline(always)]
@@ -135,6 +152,7 @@ impl Own {
     /// structure's child-kind and child-field sets), so its children need not be read.
     #[inline]
     fn some_child_can(&self, ctx: &Ctx<'_>, n: u32) -> bool {
+        if ctx.scan_children { return true; }
         (self.kinds == ALL_KINDS || {
             let m = &node_table::child_sets_of(ctx.table, Position(n)).child_kinds;
             (m[0] & self.kinds[0]) | (m[1] & self.kinds[1]) | (m[2] & self.kinds[2]) | (m[3] & self.kinds[3]) != 0
@@ -418,7 +436,7 @@ fn ops_of(v: &[SpecOp], vocab: &Vocab, missing: &mut Vec<String>, fc: &mut FactL
 /// The required words of the pack, numbered.
 #[derive(Default)]
 pub(super) struct Words {
-    pub(super) ids: HashMap<Vec<u8>, u16>,
+    pub(super) ids: rustc_hash::FxHashMap<Vec<u8>, u16>,
     pub(super) names: Vec<String>,
 }
 
@@ -727,8 +745,7 @@ pub(super) fn compile(ops: &[Op]) -> (Vec<Stage>, usize) {
                     Some(c) if *leaf && c.kinds_only() => {
                         let s = c.kind_set();
                         out.push(filt(move |ctx, row| {
-                            let m = &node_table::child_sets_of(ctx.table, Position(row[from])).child_kinds;
-                            (m[0] & s[0]) | (m[1] & s[1]) | (m[2] & s[2]) | (m[3] & s[3]) != 0
+                            ctx.child_kind(row[from], &s)
                         }));
                         i += 1;
                     }
@@ -752,8 +769,7 @@ pub(super) fn compile(ops: &[Op]) -> (Vec<Stage>, usize) {
                     [Op::Check(c)] if c.v == to && c.kinds_only() => {
                         let s = c.kind_set();
                         out.push(filt(move |ctx, row| {
-                            let m = &node_table::child_sets_of(ctx.table, Position(row[from])).child_kinds;
-                            (m[0] & s[0]) | (m[1] & s[1]) | (m[2] & s[2]) | (m[3] & s[3]) != 0
+                            ctx.child_kind(row[from], &s)
                         }));
                     }
                     [Op::Check(c)] if c.v == to => out.push(any_child(from, Own::of(c))),
@@ -848,8 +864,7 @@ pub(super) fn compile_pred(ops: &[Op]) -> Pred {
                     } else {
                         Box::new(move |ctx, r, s| {
                             *s += 1;
-                            let m = &node_table::child_sets_of(ctx.table, Position(r[from])).child_kinds;
-                            ((m[0] & set[0]) | (m[1] & set[1]) | (m[2] & set[2]) | (m[3] & set[3]) != 0) && next(ctx, r, s)
+                            ctx.child_kind(r[from], &set) && next(ctx, r, s)
                         })
                     };
                     i -= 1;
@@ -900,8 +915,7 @@ pub(super) fn compile_pred(ops: &[Op]) -> Pred {
                         let set = c.kind_set();
                         Box::new(move |ctx, r, s| {
                             *s += 1;
-                            let m = &node_table::child_sets_of(ctx.table, Position(r[from])).child_kinds;
-                            ((m[0] & set[0]) | (m[1] & set[1]) | (m[2] & set[2]) | (m[3] & set[3]) != 0) && next(ctx, r, s)
+                            ctx.child_kind(r[from], &set) && next(ctx, r, s)
                         })
                     }
                     // the block's first test is a check of the child: one kernel a child, the rest of the block only on
@@ -1071,10 +1085,7 @@ impl Test {
         match self {
             Test::Own(c) => passes(ctx, c, n),
             Test::ParentKind(s) => ctx.parent_matches(n, s),
-            Test::ChildKind(s) => {
-                let m = &node_table::child_sets_of(ctx.table, Position(n)).child_kinds;
-                (m[0] & s[0]) | (m[1] & s[1]) | (m[2] & s[2]) | (m[3] & s[3]) != 0
-            }
+            Test::ChildKind(s) => ctx.child_kind(n, s),
         }
     }
 }

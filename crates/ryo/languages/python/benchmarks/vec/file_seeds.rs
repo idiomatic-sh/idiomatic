@@ -83,8 +83,15 @@ struct Entry {
     reads: Vec<Request>,
 }
 
+struct Disjunct {
+    /// The alternatives of disjuncts sharing this sequence of bucket sets all
+    /// choose the same offset. Plan numbers and predicates remain rule-local.
+    choice: usize,
+    plans: Vec<usize>,
+}
+
 struct Rule {
-    disjuncts: Vec<Vec<usize>>,
+    disjuncts: Vec<Disjunct>,
     entries: Vec<Entry>,
 }
 
@@ -116,7 +123,8 @@ pub(super) struct FileSeeds {
     rules: Vec<Rule>,
     sets: Vec<Vec<Key>>,
     sizes: Vec<usize>,
-    chosen: Vec<(usize, usize)>,
+    alternatives: Vec<Vec<usize>>,
+    choices: Vec<Option<usize>>,
     pending: Vec<Pending>,
     rows: Rows,
     pub(super) counts: Counts,
@@ -126,10 +134,12 @@ impl FileSeeds {
     pub(super) fn new(rules: &[FRule], syntax_only: bool) -> Self {
         let mut sets = Vec::new();
         let mut by_set = HashMap::new();
+        let mut alternatives = Vec::new();
+        let mut by_alternatives = HashMap::new();
         let rules = rules
             .iter()
             .map(|rule| {
-                let entries = rule
+                let entries: Vec<Entry> = rule
                     .plans
                     .iter()
                     .map(|plan| {
@@ -175,6 +185,21 @@ impl FileSeeds {
                         disjuncts.push(vec![p]);
                     }
                 }
+                let disjuncts = disjuncts
+                    .into_iter()
+                    .map(|plans| {
+                        let buckets = plans
+                            .iter()
+                            .map(|&p| entries[p].buckets)
+                            .collect::<Vec<_>>();
+                        let choice = *by_alternatives.entry(buckets.clone()).or_insert_with(|| {
+                            let index = alternatives.len();
+                            alternatives.push(buckets);
+                            index
+                        });
+                        Disjunct { choice, plans }
+                    })
+                    .collect();
                 Rule { disjuncts, entries }
             })
             .collect();
@@ -184,7 +209,8 @@ impl FileSeeds {
             rules,
             sets,
             sizes,
-            chosen: Vec::new(),
+            choices: vec![None; alternatives.len()],
+            alternatives,
             pending: Vec::new(),
             rows: Rows::default(),
             counts: Counts::default(),
@@ -193,32 +219,23 @@ impl FileSeeds {
 
     /// Use precisely the exhaustive evaluator's tie order. The cardinality of
     /// a given set of entry buckets is the same for every occurrence in a file.
-    pub(super) fn choose(
-        &mut self,
-        rules: &[FRule],
-        index: &Index<'_>,
-        alive: &[bool],
-        words: &[u64],
-        seeded: &mut [bool],
-    ) {
+    pub(super) fn choose(&mut self, index: &Index<'_>) {
         self.counts.elements += node_table::element_count(index.table).0 as u64;
-        self.chosen.clear();
         for (size, set) in self.sizes.iter_mut().zip(&self.sets) {
             *size = set.iter().map(|k| index.get(*k).len()).sum();
         }
-        for (ri, info) in self.rules.iter().enumerate() {
-            let rule = &rules[ri];
-            seeded[ri] = alive[ri] && !rule.node;
-            if !alive[ri] || !rule.node {
-                continue;
-            }
-            for alts in &info.disjuncts {
-                let size = |p: usize| self.sizes[info.entries[p].buckets];
-                let Some(&p) = alts.iter().min_by_key(|&&p| size(p)) else {
-                    continue;
-                };
-                if size(p) > 0 && cnf_holds(&rule.plans[p].words, words) {
-                    self.chosen.push((ri, p));
+        for (winner, options) in self.choices.iter_mut().zip(&self.alternatives) {
+            let mut smallest = usize::MAX;
+            *winner = None;
+            for (offset, &set) in options.iter().enumerate() {
+                let n = self.sizes[set];
+                if n == 0 {
+                    *winner = None;
+                    break;
+                }
+                if n < smallest {
+                    smallest = n;
+                    *winner = Some(offset);
                 }
             }
         }
@@ -229,38 +246,51 @@ impl FileSeeds {
         rules: &[FRule],
         index: &Index<'_>,
         ctx: &Ctx<'_>,
+        alive: &[bool],
+        words: &[u64],
         seeded: &mut [bool],
     ) {
         self.pending.clear();
-        for &(ri, pi) in &self.chosen {
-            if seeded[ri] {
+        for (ri, rule) in rules.iter().enumerate() {
+            seeded[ri] = alive[ri] && !rule.node;
+            if !alive[ri] || !rule.node {
                 continue;
             }
-            let p = &rules[ri].plans[pi];
-            let entry = &self.rules[ri].entries[pi];
-            let stages = if self.syntax_only && !entry.reads.is_empty() {
-                entry.syntax.get_or_init(|| syntax_stages(p)).as_slice()
-            } else {
-                &p.stages[..p.before_facts]
-            };
-            if let Some(cursor) = witness(
-                p,
-                index,
-                ctx,
-                stages,
-                Cursor::default(),
-                &mut self.rows,
-                &mut self.counts,
-            ) {
-                if self.syntax_only || p.before_facts == p.stages.len() {
-                    seeded[ri] = true;
-                    self.counts.witnesses += 1;
+            for d in &self.rules[ri].disjuncts {
+                let Some(offset) = self.choices[d.choice] else {
+                    continue;
+                };
+                let pi = d.plans[offset];
+                if !cnf_holds(&rule.plans[pi].words, words) {
+                    continue;
+                }
+                let p = &rules[ri].plans[pi];
+                let entry = &self.rules[ri].entries[pi];
+                let stages = if self.syntax_only && !entry.reads.is_empty() {
+                    entry.syntax.get_or_init(|| syntax_stages(p)).as_slice()
                 } else {
-                    self.pending.push(Pending {
-                        rule: ri,
-                        plan: pi,
-                        cursor,
-                    });
+                    &p.stages[..p.before_facts]
+                };
+                if let Some(cursor) = witness(
+                    p,
+                    index,
+                    ctx,
+                    stages,
+                    Cursor::default(),
+                    &mut self.rows,
+                    &mut self.counts,
+                ) {
+                    if self.syntax_only || p.before_facts == p.stages.len() {
+                        seeded[ri] = true;
+                        self.counts.witnesses += 1;
+                        break;
+                    } else {
+                        self.pending.push(Pending {
+                            rule: ri,
+                            plan: pi,
+                            cursor,
+                        });
+                    }
                 }
             }
         }
