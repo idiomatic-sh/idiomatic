@@ -30,8 +30,7 @@ class Packets:
         self.directory = directory
         self.inputs = directory / "inputs"
         self.inputs.mkdir()
-        self.project = directory / "project.jsonl"
-        self.mixed = directory / "mixed.jsonl"
+        self.manifest = directory / "session.tsv"
 
     def source_root(self, call):
         corpus = call["corpus"]
@@ -58,10 +57,14 @@ class Packets:
                         os.link(source.resolve(), dest)
         return root, paths
 
-    def append(self, project, mixed, call, selected=None, reverse=False):
+    def append(self, stream, call, selected=None, reverse=False):
         root, inventory = self.source_root(call)
         if reverse:
             inventory.reverse()
+        encoded_inventory = line(inventory).encode()
+        closed = self.inputs / ("inventory-" + digest(encoded_inventory) + ".json")
+        if not closed.exists():
+            closed.write_bytes(encoded_inventory)
         for index, rule in enumerate(call["rules"]):
             if selected is not None and rule["id"] != selected:
                 continue
@@ -79,14 +82,17 @@ class Packets:
             if reverse:
                 hosted = [dict(t, rows=t["rows"][::-1]) for t in reversed(hosted)]
             params = rule["parameters"]
-            project.write(line(dict(id=identity, query=text, parameters=params, files=files,
-                                    inventory=inventory, hosted=hosted)))
             encoded = line(dict(root=str(root), files=files, selected_rules=["query"], parameters=params,
                                 hosted=hosted, include=rule["include"], exclude=rule["exclude"])).encode()
             request = self.inputs / (digest(encoded) + ".json")
             if not request.exists():
                 request.write_bytes(encoded)
-            mixed.write(line(dict(id=identity, pack=str(pack), request=str(request), count=len(files))))
+            # The native worker uses its fourth field only when rendering its final
+            # receipts. Supply no oracle: compare canonical row digests in the caller.
+            fields = (identity, str(pack), str(request), "-", str(closed))
+            if any("\t" in field or "\n" in field for field in fields):
+                raise ValueError("the native manifest requires paths without tabs or newlines")
+            stream.write("\t".join(fields) + "\n")
 
 
 def capture_pairs(source):

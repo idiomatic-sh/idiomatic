@@ -1,8 +1,6 @@
 """Measure one cold child, including startup, on a single available CPU (Linux)."""
 import hashlib
-import json
 import os
-from pathlib import Path
 import subprocess
 import tempfile
 import time
@@ -36,16 +34,13 @@ def process(command, *, stdout, stderr, cwd=None, stdin=None, env=None, allowed=
 
 
 def candidate(worker, packets, *, timed=True):
-    project_output = packets.directory / "project-receipts"
     results = packets.directory / "receipts"
-    with packets.project.open("rb") as source, project_output.open("wb") as out, (
-        packets.directory / "reader.log"
-    ).open("w+b") as log:
-        command = [worker, packets.mixed, project_output, results]
+    command = [worker, "--tm-batch", packets.manifest, results]
+    with (packets.directory / "reader.log").open("w+b") as log:
         if timed:
-            metrics = process(command, stdin=source, stdout=out, stderr=log)
+            metrics = process(command, stdout=log, stderr=log)
         else:
-            subprocess.run(command, stdin=source, stdout=out, stderr=log, check=True)
+            subprocess.run(command, stdout=log, stderr=log, check=True)
             metrics = None
     return metrics, results
 
@@ -54,14 +49,19 @@ def compare(expected, results):
     outcomes = {}
     with results.open() as stream:
         for (identity, reference), raw in zip(expected.items(), stream, strict=True):
-            answer = json.loads(raw)
-            if answer.pop("id") != identity:
+            key, native, answer = raw.rstrip("\n").split("\t")
+            if key != identity:
                 raise ValueError(f"receipt order or identity changed at {identity}")
+            if native == "refused":
+                if answer:
+                    raise ValueError("refusal unexpectedly included rows")
+            elif native != "different" or len(answer) != 64 or any(c not in "0123456789abcdef" for c in answer):
+                raise ValueError("expected a canonical row digest or explicit refusal")
             if reference["unknowns"]:
                 status = "partial"
-            elif "refused" in answer:
+            elif native == "refused":
                 status = "refused"
-            elif answer == {"rows": reference["rows"], "sha256": reference["sha256"]}:
+            elif answer == reference["sha256"]:
                 status = "exact"
             else:
                 status = "different"

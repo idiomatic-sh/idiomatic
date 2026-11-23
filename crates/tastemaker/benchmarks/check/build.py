@@ -16,7 +16,7 @@ ROOT = HERE.parents[3]
 def source_identity(name):
     if name == "candidate":
         paths = ["HEAD:crates/ryo", "HEAD:crates/tastemaker/benchmarks/project"]
-        inputs = ["candidate.rs.in"]
+        inputs = []
     else:
         pin = tomllib.loads((ROOT / "tastemaker.toml").read_text())["tastemaker"]
         paths = [f"idiomatic-sh-tastemaker-v{pin}^{{commit}}", "HEAD:crates/ryo/cli/benches/readers/shipping.rs"]
@@ -95,17 +95,9 @@ def reference(stage, target, dest, tag):
 
 def candidate(stage, target, dest):
     archive("HEAD", stage, ["crates/ryo", "crates/tastemaker/benchmarks/project"])
-    engine = stage / "crates/ryo"
-    manifest = engine / "cli/Cargo.toml"
-    bench = engine / "cli/benches/readers"
-    source = (bench / "bench.rs").read_text()
-    if source.count("fn main()") != 1:
-        raise ValueError("reader benchmark entry point changed")
-    (bench / "tm_check.rs").write_text(source.split("fn main()")[0] + (HERE / "worker/candidate.rs.in").read_text())
-    with manifest.open("a") as f:
-        f.write('\n[[bench]]\nname = "tm-check-reader"\npath = "benches/readers/tm_check.rs"\nharness = false\n')
-    build(engine / "Cargo.toml", target, dest, ["bench", "--no-run", "--locked", "-p", "idiomatic-sh-ryo", "--bench", "tm-check-reader"],
-          {"tm-check-reader": "tm-check-reader"})
+    build(stage / "crates/ryo/Cargo.toml", target, dest,
+          ["bench", "--no-run", "--locked", "-p", "idiomatic-sh-ryo", "--bench", "vec-readers"],
+          {"vec-readers": "tm-check-reader"})
 
 
 if __name__ == "__main__":

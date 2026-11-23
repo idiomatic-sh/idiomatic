@@ -89,9 +89,9 @@ def verify(workers, reference_only=False):
                 stage.mkdir()
                 packets = Packets(stage)
                 expected = {}
-                with packets.project.open("w") as project, packets.mixed.open("w") as mixed:
+                with packets.manifest.open("w") as stream:
                     for c, call in zip(registry, calls, strict=True):
-                        packets.append(project, mixed, call, c["rule"], reverse)
+                        packets.append(stream, call, c["rule"], reverse)
                         index = next(i for i, r in enumerate(c["cohort"]) if r["id"] == c["rule"])
                         ref = c["expected"]
                         expected[f'{c["stamp"]}/{index}'] = dict(rows=len(ref["rows"]), sha256=row_digest(ref["rows"]), unknowns=ref["unknowns"])

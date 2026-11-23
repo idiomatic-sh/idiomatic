@@ -44,9 +44,9 @@ def shipping(cwd, binary, output, trace=None):
 
 def prepare(packets, trace):
     expected = {}
-    with packets.project.open("w") as project, packets.mixed.open("w") as mixed:
+    with packets.manifest.open("w") as stream:
         for call, report in capture_pairs(trace):
-            packets.append(project, mixed, call)
+            packets.append(stream, call)
             unknown = {r[0] for r in report["unknowns"]}
             for i, rule in enumerate(call["rules"]):
                 identity = f'{call["stamp"]}/{i}'
@@ -89,10 +89,10 @@ def run_workspace(name, checkout, workers, tm, repeats, storage):
                     for key, (status, receipt) in compare(expected, actual).items():
                         # Different refusal messages can describe the same unavailable
                         # operation. Completed rows must remain byte-equal on every run.
-                        value = (status, receipt.get("sha256"), receipt.get("rows"))
+                        value = (status, receipt)
                         previous = seen.setdefault(key, value)
                         if previous != value:
-                            seen[key] = ("unstable", None, None)
+                            seen[key] = ("unstable", None)
             attempts.append(run)
         counts = Counter(value[0] for value in seen.values())
         if sum(counts.values()) != len(expected):

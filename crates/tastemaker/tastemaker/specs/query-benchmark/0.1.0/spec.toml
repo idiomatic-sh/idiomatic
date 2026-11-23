@@ -5,6 +5,7 @@ templates = [
   { alias = "documentation", template = "idiomatic.arch/unchecked@0.1.0", file = "README.md", count = { min = 0 }, description = "The workload’s documentation." },
   { alias = "driver", template = "idiomatic.arch/unchecked@0.1.0", file = "{driver}.py", count = { min = 0 }, description = "The workload’s driver." },
   { alias = "rust-entry", template = "idiomatic.arch/unchecked@0.1.0", file = "bench.rs", count = { min = 0 }, description = "The Rust entry compiled by the reader benchmark." },
+  { alias = "session-module", template = "idiomatic.arch/unchecked@0.1.0", file = "batch.rs", count = { min = 0, max = 1 }, description = "The session driver module of the Rust benchmark entry." },
   { alias = "worker-source", template = "idiomatic.arch/unchecked@0.1.0", file = "worker/{source}.rs.in", count = { min = 0 }, description = "The workload’s worker source." },
   { alias = "query", template = "idiomatic.arch/unchecked@0.1.0", file = "tests/fixtures/rules/{rule}/query.ryoql", count = { min = 0 }, description = "The workload’s query." },
   { alias = "case", template = "idiomatic.arch/unchecked@0.1.0", file = "tests/fixtures/rules/{rule}/cases/{case}.json", count = { min = 0 }, description = "The workload’s case." },
