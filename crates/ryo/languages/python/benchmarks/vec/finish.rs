@@ -58,6 +58,9 @@ mod tree_class;
 mod frame;
 #[path = "finish/known.rs"]
 mod known;
+#[cfg(feature = "vec-ask-audit")]
+#[path = "finish/ask_audit.rs"]
+pub(crate) mod ask_audit;
 #[path = "finish/empty_why.rs"]
 pub(super) mod empty_why;
 #[path = "finish/empty_sel.rs"]
@@ -1762,7 +1765,7 @@ impl<'p> Exec<'p> {
         if let Some(t) = &self.run_memo[node] {
             return Ok(Res::Tab(t.clone()));
         }
-        if !sw!("VEC_NO_KNOWN") && self.known_empty(f, run, p, node) {
+        if !sw!("VEC_NO_KNOWN") && self.known_empty(f, run, p, node, known::AskUse::Whole) {
             self.stats.known[node] += 1;
             emptyprop::skipped(f, node);
             return Ok(Res::Tab(self.empty_rc(run, node)?));
@@ -1780,6 +1783,8 @@ impl<'p> Exec<'p> {
         }
         let out = if self.timing { self.timed_body(f, run, p, node)? } else { self.body(f, run, p, node)? };
         emptyprop::ran();
+        #[cfg(feature = "vec-ask-audit")]
+        ask_audit::whole_ran(self, f, node, out.n);
         self.stats.calls[node] += 1;
         self.stats.rows[node] += out.n as u64;
         keyed::built(self, f, node, &out);

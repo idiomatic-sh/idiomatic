@@ -132,7 +132,7 @@ impl Exec<'_> {
                 return Ok(None);
             }
         }
-        if !sw!("VEC_NO_KNOWN") && self.known_empty(f, run, p, node) {
+        if !sw!("VEC_NO_KNOWN") && self.known_empty(f, run, p, node, super::known::AskUse::Keyed) {
             self.stats.known[node] += 1;
             super::emptyprop::skipped(f, node);
             return Ok(Some(self.empty_rc(run, node)?));
@@ -159,6 +159,8 @@ impl Exec<'_> {
             }
         };
         super::emptyprop::ran();
+        #[cfg(feature = "vec-ask-audit")]
+        super::ask_audit::keyed_ran(f, node);
         self.stats.keyed[node] += 1;
         self.stats.rows[node] += out.n as u64;
         if out.n == 0 {
@@ -214,12 +216,12 @@ impl Exec<'_> {
                 return Ok(self.eval(f, run, p, node)?.n);
             }
             // not made yet and not to be made for a size (its consumer may end before it reads it)
-            return Ok(if !sw!("VEC_NO_KNOWN") && self.known_empty(f, run, p, node) { 0 } else { usize::MAX });
+            return Ok(if !sw!("VEC_NO_KNOWN") && self.known_empty(f, run, p, node, super::known::AskUse::Size) { 0 } else { usize::MAX });
         }
         if let Some(n) = size_kept(f, node) {
             return Ok(n);
         }
-        if !sw!("VEC_NO_KNOWN") && self.known_empty(f, run, p, node) {
+        if !sw!("VEC_NO_KNOWN") && self.known_empty(f, run, p, node, super::known::AskUse::Size) {
             return Ok(0);
         }
         let n = match form {

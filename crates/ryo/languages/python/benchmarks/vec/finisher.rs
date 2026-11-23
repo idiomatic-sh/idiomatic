@@ -122,6 +122,8 @@ impl<'p> Finisher<'p> {
             ),
         };
         me.exec.col_load(&mut me.run);
+        #[cfg(feature = "vec-ask-audit")]
+        finish::ask_audit::begin();
         me.time += thread_cpu() - t0;
         me
     }
@@ -282,6 +284,8 @@ impl<'p> Finisher<'p> {
             std::fs::write(self.check_out.clone().unwrap_or_else(|| "check-bases.tsv".to_owned()), self.check_lines.join("\n") + "\n").expect("write check");
         }
         self.exec.col_report();
+        #[cfg(feature = "vec-ask-audit")]
+        finish::ask_audit::report();
         let exec = &self.exec;
         if let Some(out) = &self.stats {
             // columns 8 and 13: runs by key, runs by key that returned nothing (finish/keyed.rs); 9 and 10 (made by, why)

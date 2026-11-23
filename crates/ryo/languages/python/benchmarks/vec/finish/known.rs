@@ -28,9 +28,21 @@ pub(super) struct Need {
     pub(super) never: bool,
 }
 
+#[derive(Clone, Copy)]
+pub(super) enum AskUse {
+    Whole,
+    Keyed,
+    Size,
+}
+
 const NO: u8 = 1;
 const YES: u8 = 2;
 const BUSY: u8 = 3;
+
+#[cfg(feature = "vec-ask-audit")]
+pub(super) fn proved(value: u8) -> bool {
+    matches!(value, YES | YES_EP)
+}
 /// redo-empty: known empty by the propagation's own leaves (directly or through an input): counted apart.
 pub(super) const YES_EP: u8 = 4;
 
@@ -73,7 +85,15 @@ impl Flat {
 impl Exec<'_> {
     /// Whether a run of `node` in this file returns nothing, known without running it.
     #[inline(always)]
-    pub(super) fn known_empty(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> bool {
+    pub(super) fn known_empty(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize, _usage: AskUse) -> bool {
+        let empty = self.known_empty_now(f, run, p, node);
+        #[cfg(feature = "vec-ask-audit")]
+        super::ask_audit::observe(self, f, node, _usage, empty);
+        empty
+    }
+
+    #[inline(always)]
+    fn known_empty_now(&mut self, f: &mut File<'_>, run: &mut Run, p: &mut dyn Provider, node: usize) -> bool {
         match f.known[node] {
             YES | YES_EP => return true,
             NO | BUSY => {}
