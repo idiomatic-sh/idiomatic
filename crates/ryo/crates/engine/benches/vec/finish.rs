@@ -126,7 +126,7 @@ mod keyed;
 #[path = "finish/session.rs"]
 pub(super) mod session;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub(super) enum Ty {
     Node,
     Sym,
@@ -149,24 +149,16 @@ pub(super) fn ty_of(k: CellKind) -> Ty {
 
 /// A value: a typed cell.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
-pub(super) struct V(Ty2, u64);
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
-enum Ty2 {
-    T(u8),
-}
+pub(super) struct V(Ty, u64);
+
 impl V {
-    fn new(t: Ty, v: u64) -> Self {
-        V(Ty2::T(t as u8), v)
-    }
-    fn ty(self) -> Ty {
-        let Ty2::T(t) = self.0;
-        [Ty::Node, Ty::Sym, Ty::File, Ty::Span, Ty::Num, Ty::Flag][t as usize]
-    }
+    fn new(ty: Ty, value: u64) -> Self { Self(ty, value) }
+    fn ty(self) -> Ty { self.0 }
 }
 
 pub(super) const NULL: u64 = u64::MAX;
 /// redo-alloc: a placeholder cell for an argument array's unused places (never read).
-const NULL_V: V = V(Ty2::T(5), NULL);
+const NULL_V: V = V(Ty::Flag, NULL);
 
 /// 7: a table's column names and types, shared with its step's schema (never copied per table).
 pub(super) type Names = Rc<Vec<String>>;
